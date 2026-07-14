@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-14T03:33:39.012Z",
+  "generatedAt": "2026-07-14T13:08:30.351Z",
   "release": {
     "date": "2026-07-14",
     "slug": "community-enhancement-editability"
@@ -38,12 +38,12 @@
         {
           "path": "docs/project-state.json",
           "exists": true,
-          "sizeBytes": 28410
+          "sizeBytes": 28585
         },
         {
           "path": "docs/project-owner-map.json",
           "exists": true,
-          "sizeBytes": 54745
+          "sizeBytes": 55525
         },
         {
           "path": "docs/verification-matrix.md",
@@ -53,7 +53,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 272570
+          "sizeBytes": 272925
         },
         {
           "path": "docs/README.md",
@@ -68,7 +68,7 @@
         {
           "path": "docs/backend-owner-map.json",
           "exists": true,
-          "sizeBytes": 40308
+          "sizeBytes": 40538
         }
       ],
       "historicalDocsDefaultToEvidenceOnly": true
@@ -99,7 +99,7 @@
         {
           "path": "server/websim_payload.py",
           "exists": true,
-          "lineCount": 26001,
+          "lineCount": 26173,
           "hotspot": true
         },
         {
@@ -111,7 +111,7 @@
         {
           "path": "server/postgres_cache_store.py",
           "exists": true,
-          "lineCount": 6698,
+          "lineCount": 6724,
           "hotspot": true
         }
       ],
@@ -230,9 +230,7 @@
     }
   },
   "evidencePacket": {
-    "status": "ready",
-    "path": "artifacts/releases/2026-07-14-community-enhancement-editability/evidence.json",
-    "sizeBytes": 7160,
+    "status": "not_attached",
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -241,18 +239,7 @@
       "risks",
       "rollback"
     ],
-    "fieldsPresent": [
-      "status",
-      "highestEvidenceLevel",
-      "scope",
-      "verification",
-      "risks",
-      "rollback"
-    ],
-    "missingFields": [],
-    "declaredStatus": "implementation_allowed",
-    "highestEvidenceLevel": "implementation_allowed",
-    "summary": "The user approved the v2 requirement and the isolated origin/main worktree has a clean 188-test Node and 513-test Python baseline. No business implementation, candidate release, deployment or real WeChat verification has started."
+    "note": "Attach a local evidence packet with --evidence-file when promoting a Standard or Strict requirement."
   },
   "evidence": {
     "localTests": {
@@ -277,13 +264,13 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "6 changed files currently visible to git status."
+      "detail": "3 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
       "severity": "medium",
       "status": "watch",
-      "detail": "server/websim_payload.py:26001, server/news_backend.py:12845, server/postgres_cache_store.py:6698"
+      "detail": "server/websim_payload.py:26173, server/news_backend.py:12845, server/postgres_cache_store.py:6724"
     },
     {
       "id": "localTests_missing",
@@ -313,14 +300,11 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 6,
+      "changedFileCount": 3,
       "changedFiles": [
+        " M artifacts/releases/2026-07-14-community-enhancement-editability/evidence.json",
         " M docs/project-state.json",
-        " M docs/roadmap.md",
-        " M tests/project-state.test.js",
-        "?? artifacts/releases/2026-07-14-community-enhancement-editability/",
-        "?? docs/superpowers/plans/2026-07-14-community-enhancement-editability-v2.md",
-        "?? docs/superpowers/specs/2026-07-14-community-enhancement-editability-v2-design.md"
+        " M docs/roadmap.md"
       ]
     }
   },

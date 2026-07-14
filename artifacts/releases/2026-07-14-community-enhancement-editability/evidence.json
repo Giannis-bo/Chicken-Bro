@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "slug": "community-enhancement-editability",
   "requirementSlug": "community-enhancement-editability",
-  "status": "implementation_allowed",
-  "highestEvidenceLevel": "implementation_allowed",
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
   "branch": "codex/fix-community-enhancement-editability",
-  "commit": "2e7db63361944a786422771a8f8358a0d5d20366",
+  "commit": "59c8a573b03221f910e92586e784beb74f87db4d",
   "scope": [
     "static_socket_authority",
     "raiderio_gem_occurrence_transport",
@@ -38,28 +38,33 @@
     },
     {
       "command": "python3 -m unittest tests.raiderio_payload_test tests.gear_socket_authority_test tests.gear_release_tool_test tests.gear_release_refresh_test tests.gear_contracts_test tests.gear_release_store_test tests.gear_runtime_test tests.pg_gear_authority_loader_test tests.gear_resolver_test tests.gear_rule_matrix_test tests.websim_payload_test",
-      "status": "not_run",
-      "summary": "Required after backend TDD implementation."
+      "status": "pass",
+      "summary": "The exact post-implementation backend contract command passed 686/686 tests; existing temporary SQLite ResourceWarnings were non-failing."
     },
     {
       "command": "node --test tests/builds-page.test.js tests/gear-workbench-state.test.js",
-      "status": "not_run",
-      "summary": "Required after frontend TDD implementation."
+      "status": "pass",
+      "summary": "The exact frontend gear import and canonical workbench command passed 246/246 tests."
     },
     {
       "command": "node scripts/verify-project.js --profile frontend --release artifacts/releases/2026-07-14-community-enhancement-editability --base origin/main",
-      "status": "not_run",
-      "summary": "Required before candidate deployment."
+      "status": "pass",
+      "summary": "Exact implementation commit 59c8a57 passed 506/506 Node tests and all 124 frontend profile commands."
     },
     {
       "command": "node scripts/verify-project.js --profile backend --release artifacts/releases/2026-07-14-community-enhancement-editability --base origin/main",
-      "status": "not_run",
-      "summary": "Required before candidate deployment."
+      "status": "pass",
+      "summary": "Exact implementation commit 59c8a57 passed 1421/1421 Python tests with one expected skip and all three backend profile commands."
     },
     {
       "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-14-community-enhancement-editability --base origin/main",
-      "status": "not_run",
-      "summary": "Required before candidate promotion and again after final evidence updates."
+      "status": "pass",
+      "summary": "Exact implementation commit 59c8a57 passed 506/506 Node tests, 1421/1421 Python tests with one expected skip, and all 130 full profile commands. This profile remains required again after final evidence updates."
+    },
+    {
+      "command": "local CR plus independent frontend and backend release-boundary review",
+      "status": "pass",
+      "summary": "Independent review verified forged option stripping, v1/v2 reads, source-only Profile serialization, sealed active-v2 Intent, PostgreSQL read-only boundaries and the exact Mage 8/8 gems, 6/8 enchants and 2/2 embellishments contract. Review-found multi-source capacity and migration-allowance gaps were reproduced with failing tests, fixed fail-closed, and re-reviewed with no remaining P0/P1/P2."
     },
     {
       "command": "candidate v1-reader deployment, inactive v2 release generation, 40-spec shadow, manual pointer cutover and production API/operations smoke",
@@ -76,8 +81,8 @@
     "status": "not_run",
     "requiredBeforeMerge": true,
     "branch": "codex/fix-community-enhancement-editability",
-    "commit": "pending_implementation",
-    "buildIdentity": "pending_exact_candidate",
+    "commit": "59c8a573b03221f910e92586e784beb74f87db4d",
+    "buildIdentity": "tree:5e4e5756b5cdd732c328289260094142832aa504",
     "smoke": {
       "status": "not_run",
       "summary": "No candidate has been deployed."
@@ -95,17 +100,17 @@
   "risks": [
     {
       "id": "socket_rule_overgeneralization",
-      "status": "open_tdd_required",
-      "detail": "An exact item with two sockets must not upgrade every item in the same jewelry slot. Pure authority and release fixtures must prove item-scoped behavior."
+      "status": "closed_local_verified",
+      "detail": "Pure authority, resolver and exact Mage release fixtures prove slot floors, exact item or variant overrides and max-not-sum behavior without generalizing one double-socket ring to all rings."
     },
     {
       "id": "capability_revision_rollout_gap",
-      "status": "open_tdd_and_candidate_required",
-      "detail": "A v2-only reader could reject the active v1 manifest before cutover. The implementation must deploy a v1/v2-compatible reader first and preserve pointer rollback."
+      "status": "candidate_required",
+      "detail": "Local v1/v2 reader and active-v2 sealed-Intent tests pass. Candidate deployment must still prove compatibility-reader sequencing, inactive v2 refresh, 40-spec shadow, CAS promotion and pointer rollback."
     },
     {
       "id": "frontend_full_capacity_replacement",
-      "status": "open_real_wechat_required",
+      "status": "real_wechat_required",
       "detail": "Local tests cannot prove WeChat sheet behavior at 8/8 gems and 2/2 embellishments; the exact candidate remains merge-blocked on real-device evidence."
     },
     {
@@ -142,5 +147,5 @@
     "artifacts/releases/2026-07-11-equipment-simulator-phase4d-atomic-manifest-cutover/evidence.json",
     "artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover/evidence.json"
   ],
-  "summary": "The user approved the v2 requirement and the isolated origin/main worktree has a clean 188-test Node and 513-test Python baseline. No business implementation, candidate release, deployment or real WeChat verification has started."
+  "summary": "Implementation is locally verified at commit 59c8a573b03221f910e92586e784beb74f87db4d (tree 5e4e5756b5cdd732c328289260094142832aa504). The exact Mage contract preserves editable 8/8 gems, 6/8 enchants and 2/2 embellishments through Community Release, Resolve and Profile; static socket authority, v1/v2 readers, source-only proof, fail-closed candidate sealing and frontend transaction fences are covered. Targeted commands, frontend/backend/full Harness and independent CR pass. Candidate deployment, inactive v2 generation, 40-spec shadow, rollback drill and real WeChat verification have not started and remain merge blockers."
 }

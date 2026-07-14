@@ -8,9 +8,9 @@
     {
       "id": "community_enhancement_editability",
       "path": "artifacts/releases/2026-07-14-community-enhancement-editability/requirement.json",
-      "status": "implementation_allowed",
+      "status": "local_verified",
       "lifecycle": "active",
-      "notes": "Current Strict candidate contract for release-backed editable community-template gems, enchants and embellishments with exact static socket capacity."
+      "notes": "Current Strict candidate contract is locally verified at implementation commit 59c8a57: release-backed community-template gems, enchants and embellishments import as ordinary editable canonical selections under exact static socket capacity. Candidate deployment, 40-spec shadow, rollback drill and real WeChat proof remain required."
     },
     {
       "id": "repo_native_harness_v0_5",
