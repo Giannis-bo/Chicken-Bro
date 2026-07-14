@@ -9279,7 +9279,7 @@ def observed_gear_spec_entries(raiderio):
     return entries
 
 
-def observed_id_values(value, keys=None):
+def observed_id_values(value, keys=None, preserve_occurrences=False):
     values = []
 
     def visit(item):
@@ -9304,6 +9304,8 @@ def observed_id_values(value, keys=None):
             values.append(normalized)
 
     visit(value)
+    if preserve_occurrences:
+        return values
     unique = []
     seen = set()
     for value_text in values:
@@ -9314,7 +9316,7 @@ def observed_id_values(value, keys=None):
     return unique
 
 
-def observed_dict_field_values(value, keys=None):
+def observed_dict_field_values(value, keys=None, preserve_occurrences=False):
     values = []
 
     def visit(item):
@@ -9338,6 +9340,8 @@ def observed_dict_field_values(value, keys=None):
                 return
 
     visit(value)
+    if preserve_occurrences:
+        return values
     unique = []
     seen = set()
     for value_text in values:
@@ -9355,21 +9359,59 @@ def observed_gear_simc_options(item):
     bonus_ids = observed_id_values(item.get("bonuses") or item.get("bonusIds") or item.get("bonus_id"), ["id", "bonusId", "bonus_id"])
     if bonus_ids:
         options["bonus_id"] = "/".join(bonus_ids)
-    gem_ids = observed_id_values(item.get("gems") or item.get("gemIds") or item.get("gem_id"), ["itemId", "item_id", "id"])
+    gem_ids = observed_id_values(
+        item.get("gems") or item.get("gemIds") or item.get("gem_id"),
+        ["itemId", "item_id", "id"],
+        preserve_occurrences=True,
+    )
+    gem_occurrence_count = sum(
+        1
+        for value in gem_ids
+        for token in value.split("/")
+        if token.strip()
+    )
     if gem_ids:
         options["gem_id"] = "/".join(gem_ids)
     gem_bonus_ids = [
-        *observed_dict_field_values(item.get("gems"), ["bonusId", "bonus_id", "bonusIds"]),
-        *observed_id_values(item.get("gemBonusIds") or item.get("gem_bonus_id"), ["bonusId", "bonus_id", "bonusIds"]),
+        *observed_dict_field_values(
+            item.get("gems"),
+            ["bonusId", "bonus_id", "bonusIds"],
+            preserve_occurrences=True,
+        ),
+        *observed_id_values(
+            item.get("gemBonusIds") or item.get("gem_bonus_id"),
+            ["bonusId", "bonus_id", "bonusIds"],
+            preserve_occurrences=True,
+        ),
     ]
-    if gem_bonus_ids:
-        options["gem_bonus_id"] = "/".join(dict.fromkeys(gem_bonus_ids))
+    gem_bonus_occurrence_count = sum(
+        1
+        for value in gem_bonus_ids
+        for token in value.split("/")
+        if token.strip()
+    )
+    if gem_bonus_ids and gem_bonus_occurrence_count == gem_occurrence_count:
+        options["gem_bonus_id"] = "/".join(gem_bonus_ids)
     gem_item_levels = [
-        *observed_dict_field_values(item.get("gems"), ["itemLevel", "item_level", "ilevel"]),
-        *observed_id_values(item.get("gemItemLevels") or item.get("gem_ilevel"), ["itemLevel", "item_level", "ilevel"]),
+        *observed_dict_field_values(
+            item.get("gems"),
+            ["itemLevel", "item_level", "ilevel"],
+            preserve_occurrences=True,
+        ),
+        *observed_id_values(
+            item.get("gemItemLevels") or item.get("gem_ilevel"),
+            ["itemLevel", "item_level", "ilevel"],
+            preserve_occurrences=True,
+        ),
     ]
-    if gem_item_levels:
-        options["gem_ilevel"] = "/".join(dict.fromkeys(gem_item_levels))
+    gem_ilevel_occurrence_count = sum(
+        1
+        for value in gem_item_levels
+        for token in value.split("/")
+        if token.strip()
+    )
+    if gem_item_levels and gem_ilevel_occurrence_count == gem_occurrence_count:
+        options["gem_ilevel"] = "/".join(gem_item_levels)
     enchant_ids = observed_id_values(item.get("enchants") or item.get("enchant") or item.get("enchant_id"), ["spellId", "spell_id", "enchantId", "enchant_id", "id"])
     if enchant_ids:
         options["enchant_id"] = "/".join(enchant_ids)
@@ -25045,6 +25087,11 @@ def normalize_enhancement_record(record):
             if value:
                 normalized[key] = value
                 break
+    raw_gem_option_ids = record.get("gemOptionIds")
+    if isinstance(raw_gem_option_ids, list) and raw_gem_option_ids:
+        normalized["gemOptionIds"] = [
+            normalize_option_value(value) for value in raw_gem_option_ids
+        ]
     return normalized
 
 
@@ -25116,6 +25163,18 @@ def enhancement_option_first_value(option, keys):
     return None
 
 
+def enhancement_option_all_values(option, keys):
+    if not isinstance(keys, (list, tuple)):
+        keys = [keys]
+    payload = enhancement_option_payload(option)
+    values = []
+    for source in (option if isinstance(option, dict) else {}, payload):
+        for key in keys:
+            if key in source:
+                values.append(source.get(key))
+    return values
+
+
 def socket_option_gem_ids(option):
     if not isinstance(option, dict):
         return []
@@ -25133,28 +25192,51 @@ def socket_option_gem_ids(option):
 
 
 def enhancement_option_unique_group(option, option_type):
-    group = normalize_option_value(
-        enhancement_option_first_value(option, ("uniqueGroup", "unique_group", "uniqueKey", "unique_key"))
+    groups = enhancement_option_unique_groups(option, option_type)
+    return groups[0] if len(groups) == 1 else ""
+
+
+def enhancement_option_unique_groups(option, option_type):
+    raw_groups = enhancement_option_all_values(
+        option,
+        (
+            "uniqueGroupId",
+            "unique_group_id",
+            "uniqueGroup",
+            "unique_group",
+            "uniqueKey",
+            "unique_key",
+        ),
     )
-    if group:
-        return group
-    if option_type == "socket" and any(gem_id in PRIMARY_STAT_GEM_IDS for gem_id in socket_option_gem_ids(option)):
-        return PRIMARY_STAT_GEM_UNIQUE_GROUP
-    return ""
+    return sorted({
+        raw_group.strip()
+        for raw_group in raw_groups
+        if isinstance(raw_group, str) and raw_group.strip()
+    })
+
+
+def enhancement_option_unique_group_conflict(option, option_type):
+    return len(enhancement_option_unique_groups(option, option_type)) > 1
 
 
 def enhancement_option_unique_limit(option, option_type):
-    raw_limit = enhancement_option_first_value(option, ("uniqueLimit", "unique_limit", "uniqueEquippedLimit", "unique_equipped_limit"))
-    if raw_limit not in (None, "", [], {}):
-        try:
-            limit = int(raw_limit)
-            if limit > 0:
-                return limit
-        except (TypeError, ValueError):
-            pass
-    if enhancement_option_unique_group(option, option_type):
-        return 1
-    return 0
+    positive_limits = []
+    for raw_limit in enhancement_option_all_values(
+        option,
+        (
+            "uniqueLimit",
+            "unique_limit",
+            "uniqueEquippedLimit",
+            "unique_equipped_limit",
+        ),
+    ):
+        if isinstance(raw_limit, bool):
+            continue
+        if isinstance(raw_limit, int) and raw_limit > 0:
+            positive_limits.append(raw_limit)
+        elif isinstance(raw_limit, str) and re.fullmatch(r"[1-9]\d*", raw_limit.strip()):
+            positive_limits.append(int(raw_limit.strip()))
+    return min(positive_limits) if positive_limits else 0
 
 
 def enhancement_option_matches(option, enhancement, option_type):
@@ -25179,6 +25261,45 @@ def enhancement_option_matches(option, enhancement, option_type):
     if option_type == "embellishment":
         return bool(enhancement.get("embellishment") and normalize_option_value(simc_options.get("embellishment")) == enhancement.get("embellishment"))
     return False
+
+
+def matching_socket_occurrence_options(item, enhancement):
+    """Map every ordered gem occurrence to exactly one verified rank-two option."""
+
+    gem_ids = [
+        token.strip()
+        for token in normalize_option_value(enhancement.get("gem_id")).split("/")
+        if token.strip()
+    ]
+    ordered_option_ids = enhancement.get("gemOptionIds")
+    ordered_option_ids = ordered_option_ids if isinstance(ordered_option_ids, list) else []
+    if ordered_option_ids and len(ordered_option_ids) != len(gem_ids):
+        return gem_ids, [], list(range(len(gem_ids))), True
+    matched_options = []
+    invalid_indexes = []
+    for occurrence_index, gem_id in enumerate(gem_ids):
+        occurrence = {"gem_id": gem_id}
+        if ordered_option_ids:
+            option_id = ordered_option_ids[occurrence_index]
+            matches = [
+                option
+                for option in enhancement_options_for_type(item, "socket")
+                if normalize_option_value(option.get("id")) == option_id
+                and enhancement_option_matches(option, {"gem_id": gem_id}, "socket")
+                and gem_id in socket_option_gem_ids(option)
+            ]
+        else:
+            matches = [
+                option
+                for option in enhancement_options_for_type(item, "socket")
+                if enhancement_option_matches(option, occurrence, "socket")
+            ]
+        if len(matches) != 1:
+            invalid_indexes.append(occurrence_index)
+            matched_options.append(None)
+            continue
+        matched_options.append(matches[0])
+    return gem_ids, matched_options, invalid_indexes, False
 
 
 def matching_enhancement_option(item, enhancement, option_type):
@@ -25252,6 +25373,14 @@ def validate_enhancement_option(item, enhancement, option_type, authority_attach
         return False, f"{item.get('slot')} {option_type} incompatible with selected gear"
     options = enhancement_options_for_type(item, option_type)
     if not options:
+        return False, f"{item.get('slot')} {option_type} option is not in verified rank-two catalog"
+    if option_type == "socket" and enhancement.get("gem_id"):
+        gem_ids, matches, invalid_indexes, count_mismatch = matching_socket_occurrence_options(
+            item,
+            enhancement,
+        )
+        if gem_ids and not count_mismatch and not invalid_indexes and len(matches) == len(gem_ids):
+            return True, ""
         return False, f"{item.get('slot')} {option_type} option is not in verified rank-two catalog"
     if not matching_enhancement_option(item, enhancement, option_type):
         return False, f"{item.get('slot')} {option_type} option is not in verified rank-two catalog"
@@ -25356,22 +25485,52 @@ def merge_websim_gear_enhancements(items, raw_enhancements, conn=None, class_key
         if slot not in by_slot:
             blockers.append(f"{slot} enhancement has missing selected gear")
     socket_unique_groups = {}
+    invalid_socket_occurrence_slots = set()
     for slot, enhancement in normalized_enhancements.items():
         if slot not in by_slot or not enhancement.get("gem_id"):
             continue
-        matched_option = matching_enhancement_option(by_slot[slot], enhancement, "socket")
-        unique_group = enhancement_option_unique_group(matched_option, "socket")
-        if not unique_group:
+        gem_ids, occurrence_options, invalid_indexes, count_mismatch = (
+            matching_socket_occurrence_options(by_slot[slot], enhancement)
+        )
+        if count_mismatch:
+            blockers.append(
+                f"{slot} socket ordered gem option identities do not match gem occurrences"
+            )
+            invalid_socket_occurrence_slots.add(slot)
             continue
-        unique_limit = enhancement_option_unique_limit(matched_option, "socket") or 1
-        state = socket_unique_groups.setdefault(unique_group, {"limit": unique_limit, "slots": []})
-        state["limit"] = min(state["limit"], unique_limit)
-        state["slots"].append(slot)
+        for occurrence_index in invalid_indexes:
+            blockers.append(
+                f"{slot} socket gem occurrence {occurrence_index + 1} is not uniquely matched "
+                "in verified rank-two catalog"
+            )
+            invalid_socket_occurrence_slots.add(slot)
+        for occurrence_index, matched_option in enumerate(occurrence_options):
+            if matched_option is None:
+                continue
+            if enhancement_option_unique_group_conflict(matched_option, "socket"):
+                blockers.append(
+                    f"{slot} socket gem occurrence {occurrence_index + 1} has "
+                    "conflicting unique groups in verified rank-two catalog"
+                )
+                invalid_socket_occurrence_slots.add(slot)
+                continue
+            unique_group = enhancement_option_unique_group(matched_option, "socket")
+            if not unique_group:
+                continue
+            unique_limit = enhancement_option_unique_limit(matched_option, "socket")
+            state = socket_unique_groups.setdefault(unique_group, {"limit": 0, "slots": []})
+            if unique_limit > 0:
+                state["limit"] = (
+                    min(state["limit"], unique_limit)
+                    if state["limit"] > 0
+                    else unique_limit
+                )
+            state["slots"].append(slot)
     blocked_socket_unique_slots = {}
     for unique_group, state in socket_unique_groups.items():
-        unique_limit = state.get("limit") or 1
+        unique_limit = state.get("limit")
         slots = state.get("slots") or []
-        if len(slots) <= unique_limit:
+        if not isinstance(unique_limit, int) or unique_limit <= 0 or len(slots) <= unique_limit:
             continue
         blockers.append(f"{unique_group} gem limit exceeded: {len(slots)}/{unique_limit}")
         for slot in slots:
@@ -25392,11 +25551,11 @@ def merge_websim_gear_enhancements(items, raw_enhancements, conn=None, class_key
                     "socket",
                     authority_attached=catalog_authority_attached,
                 )
-                if valid:
-                    for key in ("gem_id", "gem_bonus_id", "gem_ilevel", "socketOptionId"):
+                if valid and slot not in invalid_socket_occurrence_slots:
+                    for key in ("gem_id", "gem_bonus_id", "gem_ilevel", "socketOptionId", "gemOptionIds"):
                         if enhancement.get(key):
                             next_item[key] = enhancement[key]
-                else:
+                elif not valid:
                     blockers.append(reason)
         if enhancement.get("enchant_id"):
             blocker = dk_ordinary_weapon_enchant_blocker(class_key, slot, enhancement.get("enchant_id"))

@@ -12,8 +12,16 @@ from typing import Any, Iterable
 
 try:
     from . import gear_socket_authority
+    from .gear_enhancement_management import (
+        project_validated_enhancement_management,
+        validated_enhancement_management_fields,
+    )
 except ImportError:
     import gear_socket_authority
+    from gear_enhancement_management import (
+        project_validated_enhancement_management,
+        validated_enhancement_management_fields,
+    )
 
 try:
     from .gear_contracts import parse_selection_intent, selection_signature
@@ -252,8 +260,20 @@ _OPTION_ALLOW_FIELDS = {
     "catalyst": "allowedCatalystOptionIds",
 }
 _MAX_SOCKET_EVIDENCE_TEXT_CHARS = 240
-
-
+_OPTION_UNIQUE_GROUP_FIELDS = (
+    "uniqueGroupId",
+    "unique_group_id",
+    "uniqueGroup",
+    "unique_group",
+    "uniqueKey",
+    "unique_key",
+)
+_OPTION_UNIQUE_LIMIT_FIELDS = (
+    "uniqueLimit",
+    "unique_limit",
+    "uniqueEquippedLimit",
+    "unique_equipped_limit",
+)
 def _canonical(value: Any) -> Any:
     return json.loads(
         json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), default=str)
@@ -310,6 +330,41 @@ def _non_negative_int(value: Any) -> int:
     if isinstance(value, bool):
         return 0
     return max(0, _int(value))
+
+
+def _positive_integer(value: Any) -> int:
+    if isinstance(value, bool):
+        return 0
+    if isinstance(value, int):
+        return value if value > 0 else 0
+    if isinstance(value, str) and re.fullmatch(r"[1-9]\d*", value.strip()):
+        return int(value.strip())
+    return 0
+
+
+def _strict_unique_group(value: Any) -> str:
+    return value.strip() if isinstance(value, str) else ""
+
+
+def _option_unique_groups(record: dict[str, Any], payload: dict[str, Any]) -> list[str]:
+    return sorted({
+        value.strip()
+        for source in (record, payload)
+        for field in _OPTION_UNIQUE_GROUP_FIELDS
+        for value in (source.get(field),)
+        if isinstance(value, str) and value.strip()
+    })
+
+
+def _option_unique_limit(record: dict[str, Any], payload: dict[str, Any]) -> int:
+    positive_limits = [
+        parsed
+        for source in (record, payload)
+        for field in _OPTION_UNIQUE_LIMIT_FIELDS
+        for parsed in (_positive_integer(source.get(field)),)
+        if parsed > 0
+    ]
+    return min(positive_limits) if positive_limits else 0
 
 
 def _texts(values: Iterable[Any]) -> list[str]:
@@ -800,8 +855,8 @@ def _project_item(
         "armorType": _text(payload.get("armorType") or type_metadata.get("armorType")),
         "weaponType": weapon_type,
         "handedness": handedness,
-        "uniqueGroupId": _text(payload.get("uniqueGroupId")),
-        "uniqueLimit": _int(payload.get("uniqueLimit")),
+        "uniqueGroupId": _strict_unique_group(payload.get("uniqueGroupId")),
+        "uniqueLimit": _positive_integer(payload.get("uniqueLimit")),
         "itemSetId": item_set_ids[0] if item_set_ids else "",
         "baseStats": _static_stats(payload.get("baseStats"), payload.get("itemStats")),
         "baseCapabilities": base_capabilities,
@@ -820,6 +875,7 @@ def _variant_capability_overrides(
     payload: dict[str, Any],
     simc_options: dict[str, Any],
     capability_revision: str,
+    enhancement_management_fields: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     explicit = _json_value(payload.get("capabilityOverrides"), {})
     explicit = explicit if isinstance(explicit, dict) else {}
@@ -846,9 +902,25 @@ def _variant_capability_overrides(
         overrides.pop("socketCount", None)
         if socket_count is not None and socket_count > 0:
             overrides["socketCount"] = socket_count
-    proves_embellishment = bool(
-        _text(simc_options.get("embellishment"))
-        or _text(simc_options.get("crafted_stats"))
+    management_fields = (
+        enhancement_management_fields
+        if isinstance(enhancement_management_fields, dict)
+        else {}
+    )
+    raw_embellishment = bool(_text(simc_options.get("embellishment")))
+    crafted_stats = bool(_text(simc_options.get("crafted_stats")))
+    if (
+        capability_revision == gear_socket_authority.CAPABILITY_REVISION
+        and management_fields.get("embellishment") == "source_only"
+    ):
+        overrides["canEmbellish"] = False
+        return overrides
+    proves_embellishment = crafted_stats or (
+        raw_embellishment
+        and (
+            capability_revision == gear_socket_authority.LEGACY_CAPABILITY_REVISION
+            or management_fields.get("embellishment") == "editor_managed"
+        )
     )
     if "canEmbellish" in explicit or proves_embellishment:
         overrides["canEmbellish"] = (
@@ -894,6 +966,16 @@ def _project_variant(
             overlay["capabilityOverrides"].pop("socketCount", None)
     simc_options = _json_value(record.get("simcOptions"), {})
     simc_options = simc_options if isinstance(simc_options, dict) else {}
+    management = project_validated_enhancement_management(
+        simc_options,
+        payload.get("enhancementManagement"),
+        capability_revision,
+    )
+    validated_classifications = validated_enhancement_management_fields(
+        simc_options,
+        management,
+        capability_revision,
+    )
     projected = {
         "variantKey": requested_variant_key,
         "itemId": requested_item_id,
@@ -908,10 +990,13 @@ def _project_variant(
             payload,
             simc_options,
             capability_revision,
+            validated_classifications,
         ),
         "dynamicEffects": _json_value(payload.get("dynamicEffects"), []),
         "sourceRefIds": _texts([*item_source_refs, evidence_id]),
     }
+    if management:
+        projected["enhancementManagement"] = management
     if "resolvedStats" in payload:
         projected["resolvedStats"] = _authority_stat_map(payload.get("resolvedStats"))
     elif "itemStats" in payload:
@@ -971,6 +1056,9 @@ def _project_option(
         return None
     payload = _json_value(record.get("payload"), {})
     payload = payload if isinstance(payload, dict) else {}
+    unique_groups = _option_unique_groups(record, payload)
+    if len(unique_groups) > 1:
+        return None
     if "statDeltas" in payload:
         stat_deltas = _authority_stat_map(payload.get("statDeltas"))
     elif "itemStats" in payload:
@@ -991,8 +1079,8 @@ def _project_option(
         "applicableSlots": _texts(record.get("applicableSlots") or []),
         "statDeltas": stat_deltas,
         "simcOptions": _json_value(record.get("simcOptions"), {}),
-        "uniqueGroupId": _text(payload.get("uniqueGroupId") or payload.get("uniqueGroup")),
-        "uniqueLimit": _int(payload.get("uniqueLimit")),
+        "uniqueGroupId": unique_groups[0] if unique_groups else "",
+        "uniqueLimit": _option_unique_limit(record, payload),
         "sourceRefIds": [evidence_id],
     }
 

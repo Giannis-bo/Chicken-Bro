@@ -189,6 +189,390 @@ class GearReleaseToolTest(unittest.TestCase):
         self.assertTrue(source_evidence["socketProbeDigest"].startswith("sha256:"))
         self.assertTrue(source_evidence["materializedSocketFactDigest"].startswith("sha256:"))
 
+    def test_prepare_staging_gear_release_seals_only_v2_exact_editor_managed_enchants(self):
+        from server.gear_release_tool import prepare_staging_gear_release
+        from server.gear_socket_authority import CAPABILITY_REVISION, LEGACY_CAPABILITY_REVISION
+
+        snapshot = self.snapshot()
+        snapshot["items"][0]["slot"] = "back"
+        snapshot["items"][0]["payload"]["baseCapabilities"] = {
+            "socketCount": 0,
+            "canEmbellish": False,
+        }
+        snapshot["variants"] = [
+            {
+                **snapshot["variants"][0],
+                "variantId": "variant-back",
+                "variantKey": "variant-back",
+                "slot": "back",
+                "simcOptions": {
+                    "ilevel": "289",
+                    "enchant_id": "4897",
+                    "embellishment": "arcanoweave_lining",
+                },
+            },
+            {
+                **snapshot["variants"][0],
+                "variantId": "variant-slot-mismatch",
+                "variantKey": "variant-slot-mismatch",
+                "slot": "shoulder",
+                "sourceType": "dungeon",
+                "simcOptions": {"ilevel": "289", "enchant_id": "4897"},
+            },
+            {
+                **snapshot["variants"][0],
+                "variantId": "variant-item-slot-fallback",
+                "variantKey": "variant-item-slot-fallback",
+                "slot": "",
+                "simcOptions": {"ilevel": "289", "enchant_id": "4897"},
+            },
+            {
+                **snapshot["variants"][0],
+                "variantId": "variant-source-only-enchant",
+                "variantKey": "variant-source-only-enchant",
+                "slot": "main_hand",
+                "simcOptions": {"ilevel": "298", "enchant_id": "8039/8052"},
+            },
+            {
+                **snapshot["variants"][0],
+                "variantId": "variant-observed-editable-unmatched",
+                "variantKey": "variant-observed-editable-unmatched",
+                "slot": "back",
+                "simcOptions": {"ilevel": "289", "enchant_id": "9999"},
+            },
+            {
+                **snapshot["variants"][0],
+                "variantId": "variant-observed-nonenchant-overlap",
+                "variantKey": "variant-observed-nonenchant-overlap",
+                "slot": "head",
+                "simcOptions": {"ilevel": "289", "enchant_id": "7777"},
+            },
+            {
+                **snapshot["variants"][0],
+                "variantId": "variant-untrusted-nonenchant-overlap",
+                "variantKey": "variant-untrusted-nonenchant-overlap",
+                "slot": "head",
+                "sourceType": "dungeon",
+                "simcOptions": {"ilevel": "289", "enchant_id": "7777"},
+            },
+            {
+                **snapshot["variants"][0],
+                "variantId": "variant-built-in-embellishment",
+                "variantKey": "variant-built-in-embellishment",
+                "slot": "back",
+                "simcOptions": {"ilevel": "289", "embellishment": "built_in_effect"},
+                "payload": {
+                    "resolvedStats": {"intellect": 100},
+                    "hasBuiltInEmbellishment": True,
+                    "builtInEmbellishment": "built_in_effect",
+                },
+            },
+            {
+                **snapshot["variants"][0],
+                "variantId": "variant-unknown-capable-embellishment",
+                "variantKey": "variant-unknown-capable-embellishment",
+                "slot": "back",
+                "simcOptions": {"ilevel": "289", "embellishment": "unknown_effect"},
+                "payload": {
+                    "resolvedStats": {"intellect": 100},
+                    "capabilityOverrides": {"canEmbellish": True},
+                },
+            },
+            {
+                **snapshot["variants"][0],
+                "variantId": "variant-string-false-built-in",
+                "variantKey": "variant-string-false-built-in",
+                "slot": "back",
+                "simcOptions": {"ilevel": "289", "embellishment": "not_built_in"},
+                "payload": {
+                    "resolvedStats": {"intellect": 100},
+                    "hasBuiltInEmbellishment": "false",
+                },
+            },
+        ]
+
+        snapshot["options"] = [
+            {
+                "optionId": "option-back-4897",
+                "optionKey": "enchant-back-4897",
+                "optionType": "enchant",
+                "name": "Canonical back enchant 4897",
+                "applicableSlots": ["back"],
+                "simcOptions": {"enchant_id": "4897"},
+                "status": "verified",
+                "isVisible": True,
+                "payload": {},
+                "updatedAt": "2026-07-11T05:00:00+00:00",
+            },
+            {
+                "optionId": "option-hidden-main-hand-composite",
+                "optionKey": "enchant-main-hand-composite",
+                "optionType": "enchant",
+                "name": "Hidden composite",
+                "applicableSlots": ["main_hand"],
+                "simcOptions": {"enchant_id": "8039/8052"},
+                "status": "verified",
+                "isVisible": False,
+                "payload": {},
+                "updatedAt": "2026-07-11T05:00:00+00:00",
+            },
+            {
+                "optionId": "option-overlapping-nonenchant-7777",
+                "optionKey": "enchant-overlapping-nonenchant-7777",
+                "optionType": "enchant",
+                "name": "Overlapping non-enchant option",
+                "applicableSlots": ["*"],
+                "simcOptions": {"enchant_id": "7777"},
+                "status": "verified",
+                "isVisible": True,
+                "payload": {},
+                "updatedAt": "2026-07-11T05:00:00+00:00",
+            },
+            {
+                "optionId": "option-arcanoweave-lining",
+                "optionKey": "embellishment-arcanoweave-lining",
+                "optionType": "embellishment",
+                "name": "Arcanoweave Lining",
+                "applicableSlots": ["back", "wrist"],
+                "simcOptions": {"embellishment": "arcanoweave_lining"},
+                "status": "verified",
+                "isVisible": True,
+                "payload": {},
+                "updatedAt": "2026-07-11T05:00:00+00:00",
+            },
+            {
+                "optionId": "option-built-in-overlap",
+                "optionKey": "embellishment-built-in-overlap",
+                "optionType": "embellishment",
+                "name": "Catalog overlap with built-in effect",
+                "applicableSlots": ["back"],
+                "simcOptions": {"embellishment": "built_in_effect"},
+                "status": "verified",
+                "isVisible": True,
+                "payload": {},
+                "updatedAt": "2026-07-11T05:00:00+00:00",
+            },
+        ]
+
+        dependencies = {**self.dependencies(), "capabilityRevision": CAPABILITY_REVISION}
+        managed = prepare_staging_gear_release(
+            FakeReleaseStore(snapshot),
+            season_revision="midnight-season-1",
+            dependency_revisions=dependencies,
+            socket_bonus_minimums={"9300": 1},
+        )["snapshot"]
+        variants = {row["variantKey"]: row for row in managed["variants"]}
+        self.assertEqual(
+            variants["variant-back"]["payload"]["enhancementManagement"],
+            {
+                "schemaRevision": "gear-enhancement-management-v1",
+                "authorityRevision": CAPABILITY_REVISION,
+                "fields": {
+                    "enchant_id": "editor_managed",
+                    "embellishment": "editor_managed",
+                },
+            },
+        )
+        self.assertEqual(
+            variants["variant-item-slot-fallback"]["payload"]["enhancementManagement"],
+            {
+                "schemaRevision": "gear-enhancement-management-v1",
+                "authorityRevision": CAPABILITY_REVISION,
+                "fields": {"enchant_id": "editor_managed"},
+            },
+        )
+        self.assertEqual(
+            variants["variant-slot-mismatch"]["payload"]["enhancementManagement"]["fields"],
+            {"enchant_id": "unresolved_drop"},
+        )
+        self.assertEqual(
+            variants["variant-source-only-enchant"]["payload"]["enhancementManagement"]["fields"],
+            {"enchant_id": "source_only"},
+        )
+        self.assertEqual(
+            variants["variant-observed-editable-unmatched"]["payload"]["enhancementManagement"]["fields"],
+            {"enchant_id": "unresolved_drop"},
+        )
+        self.assertEqual(
+            variants["variant-observed-nonenchant-overlap"]["payload"]["enhancementManagement"]["fields"],
+            {"enchant_id": "source_only"},
+        )
+        self.assertEqual(
+            variants["variant-untrusted-nonenchant-overlap"]["payload"]["enhancementManagement"]["fields"],
+            {"enchant_id": "unresolved_drop"},
+        )
+        self.assertEqual(
+            variants["variant-built-in-embellishment"]["payload"]["enhancementManagement"]["fields"],
+            {"embellishment": "source_only"},
+        )
+        self.assertEqual(
+            variants["variant-unknown-capable-embellishment"]["payload"]["enhancementManagement"]["fields"],
+            {"embellishment": "unresolved_drop"},
+        )
+        self.assertEqual(
+            variants["variant-string-false-built-in"]["payload"]["enhancementManagement"]["fields"],
+            {"embellishment": "unresolved_drop"},
+        )
+
+        forged_v1 = copy.deepcopy(snapshot)
+        forged_v1["variants"][0]["payload"]["enhancementManagement"] = {
+            "schemaRevision": "gear-enhancement-management-v1",
+            "authorityRevision": CAPABILITY_REVISION,
+            "fields": {"enchant_id": "editor_managed"},
+        }
+        legacy_dependencies = {
+            **self.dependencies(),
+            "capabilityRevision": LEGACY_CAPABILITY_REVISION,
+        }
+        legacy = prepare_staging_gear_release(
+            FakeReleaseStore(forged_v1),
+            season_revision="midnight-season-1",
+            dependency_revisions=legacy_dependencies,
+            socket_bonus_minimums={"9300": 1},
+        )["snapshot"]
+        self.assertTrue(all(
+            "enhancementManagement" not in row["payload"]
+            for row in legacy["variants"]
+        ))
+
+    def test_v2_built_in_embellishment_merges_item_and_variant_immutable_evidence(self):
+        from server.gear_release_store import GearReleaseIntegrityError
+        from server.gear_release_tool import _materialize_enhancement_management
+        from server.gear_socket_authority import CAPABILITY_REVISION
+
+        def item(item_id, payload):
+            return {
+                "itemId": item_id,
+                "name": item_id,
+                "slot": "back",
+                "sourceStatus": "verified",
+                "payload": payload,
+            }
+
+        def variant(item_id, variant_key, payload=None):
+            return {
+                "variantId": f"{variant_key}-id",
+                "itemId": item_id,
+                "variantKey": variant_key,
+                "slot": "back",
+                "sourceType": "observed_profile",
+                "itemLevel": 289,
+                "simcOptions": {
+                    "ilevel": "289",
+                    "embellishment": "built_in_effect",
+                },
+                "status": "verified",
+                "payload": payload or {},
+            }
+
+        snapshot = {
+            "items": [
+                item("item-exact", {
+                    "hasBuiltInEmbellishment": True,
+                    "builtInEmbellishment": "built_in_effect",
+                }),
+                item("item-source", {"embellishmentSource": "built_in"}),
+                item("item-flag-only", {"hasBuiltInEmbellishment": True}),
+                item("item-string-false", {"hasBuiltInEmbellishment": "false"}),
+                item("item-mismatch", {
+                    "hasBuiltInEmbellishment": True,
+                    "builtInEmbellishment": "different_effect",
+                }),
+                item("item-conflict", {
+                    "hasBuiltInEmbellishment": True,
+                    "builtInEmbellishment": "built_in_effect",
+                }),
+                item("item-source-mismatch", {
+                    "builtInEmbellishment": "different_effect",
+                    "embellishmentSource": "built_in",
+                }),
+            ],
+            "variants": [
+                variant("item-exact", "variant-item-exact"),
+                variant("item-source", "variant-item-source"),
+                variant("item-flag-only", "variant-item-flag-only"),
+                variant("item-string-false", "variant-string-false"),
+                variant("item-mismatch", "variant-mismatch"),
+                variant("item-conflict", "variant-conflict", {
+                    "hasBuiltInEmbellishment": True,
+                    "builtInEmbellishment": "different_effect",
+                }),
+                variant("item-source-mismatch", "variant-source-mismatch"),
+            ],
+            "options": [{
+                "optionId": "option-overlap",
+                "optionKey": "embellishment-overlap",
+                "optionType": "embellishment",
+                "name": "Overlapping catalog option",
+                "applicableSlots": ["back"],
+                "simcOptions": {"embellishment": "built_in_effect"},
+                "status": "verified",
+                "isVisible": True,
+                "payload": {},
+            }],
+        }
+
+        safe_variant_keys = {
+            "variant-item-exact",
+            "variant-item-source",
+            "variant-item-flag-only",
+            "variant-string-false",
+        }
+        safe_snapshot = copy.deepcopy(snapshot)
+        safe_snapshot["variants"] = [
+            row
+            for row in safe_snapshot["variants"]
+            if row["variantKey"] in safe_variant_keys
+        ]
+        safe_item_ids = {row["itemId"] for row in safe_snapshot["variants"]}
+        safe_snapshot["items"] = [
+            row
+            for row in safe_snapshot["items"]
+            if row["itemId"] in safe_item_ids
+        ]
+        materialized = _materialize_enhancement_management(
+            safe_snapshot,
+            CAPABILITY_REVISION,
+        )
+        classifications = {
+            row["variantKey"]: row["payload"]["enhancementManagement"]["fields"][
+                "embellishment"
+            ]
+            for row in materialized["variants"]
+        }
+
+        self.assertEqual(classifications["variant-item-exact"], "source_only")
+        self.assertEqual(classifications["variant-item-source"], "source_only")
+        self.assertEqual(classifications["variant-item-flag-only"], "source_only")
+        self.assertEqual(classifications["variant-string-false"], "editor_managed")
+
+        for variant_key in (
+            "variant-mismatch",
+            "variant-conflict",
+            "variant-source-mismatch",
+        ):
+            with self.subTest(conflict=variant_key):
+                conflict_snapshot = copy.deepcopy(snapshot)
+                conflict_snapshot["variants"] = [
+                    row
+                    for row in conflict_snapshot["variants"]
+                    if row["variantKey"] == variant_key
+                ]
+                conflict_item_id = conflict_snapshot["variants"][0]["itemId"]
+                conflict_snapshot["items"] = [
+                    row
+                    for row in conflict_snapshot["items"]
+                    if row["itemId"] == conflict_item_id
+                ]
+                with self.assertRaisesRegex(
+                    GearReleaseIntegrityError,
+                    "built-in embellishment evidence conflicts",
+                ):
+                    _materialize_enhancement_management(
+                        conflict_snapshot,
+                        CAPABILITY_REVISION,
+                    )
+
     def test_materialized_socket_facts_round_trip_through_release_row_payloads(self):
         from server.gear_release_store import GearReleaseStore, canonical_row_hash
         from server.gear_release_tool import prepare_staging_gear_release

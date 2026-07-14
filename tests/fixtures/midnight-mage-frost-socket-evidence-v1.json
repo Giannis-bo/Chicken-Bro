@@ -79,7 +79,7 @@
       "finger2",
       "main_hand"
     ],
-    "embellishmentEligibleSlots": ["back", "wrist", "waist"],
+    "embellishmentEligibleSlots": ["back", "wrist"],
     "canonicalEnhancementBySlot": {
       "head": {"gemIds": ["240916"]},
       "neck": {"gemIds": ["240892", "240900"]},

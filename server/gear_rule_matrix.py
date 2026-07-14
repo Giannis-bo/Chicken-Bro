@@ -9,10 +9,14 @@ from typing import Any, Callable
 
 try:
     from .gear_contracts import parse_selection_intent, validate_authority_context
+    from .gear_enhancement_management import validated_enhancement_management_fields
     from .gear_result_envelope import gear_problem
+    from .gear_socket_authority import CAPABILITY_REVISION
 except ImportError:
     from gear_contracts import parse_selection_intent, validate_authority_context
+    from gear_enhancement_management import validated_enhancement_management_fields
     from gear_result_envelope import gear_problem
+    from gear_socket_authority import CAPABILITY_REVISION
 
 
 RULE_MATRIX_REVISION = "gear-rule-matrix-v1"
@@ -98,6 +102,66 @@ def _effective_item_for_selection(
     effective["effectiveCapabilities"] = capabilities
     effective.update(capabilities)
     return effective
+
+
+def _positive_integer_limit(value: Any) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool) and value > 0
+
+
+def _strict_unique_group(value: Any) -> str:
+    return value.strip() if isinstance(value, str) else ""
+
+
+def _source_only_built_in_embellishment(
+    selection: dict[str, Any],
+    authority: dict[str, Any],
+) -> bool:
+    """Return only release-owned v2 built-in embellishment facts.
+
+    A raw embellishment string alone is deliberately insufficient.  The
+    release materializer must have sealed the selected verified variant as
+    source-only under the active capability revision.
+    """
+
+    if authority.get("dependencyVector", {}).get("capabilityRevision") != CAPABILITY_REVISION:
+        return False
+    variant = authority.get("variantsByKey", {}).get(selection.get("variantKey"))
+    if (
+        not isinstance(variant, dict)
+        or variant.get("itemId") != selection.get("itemId")
+        or variant.get("status") != "verified"
+    ):
+        return False
+    simc_options = variant.get("simcOptions")
+    simc_options = simc_options if isinstance(simc_options, dict) else {}
+    classifications = validated_enhancement_management_fields(
+        simc_options,
+        variant.get("enhancementManagement"),
+        authority.get("dependencyVector", {}).get("capabilityRevision"),
+    )
+    if classifications.get("embellishment") != "source_only":
+        return False
+    raw_value = simc_options.get("embellishment")
+    return isinstance(raw_value, str) and bool(raw_value.strip())
+
+
+def embellishment_usage(
+    intent: dict[str, Any],
+    authority: dict[str, Any],
+) -> dict[str, int]:
+    """Count editable selections plus trusted non-editable built-in effects."""
+
+    selections = list(intent.get("slots", {}).values())
+    selected = sum(bool(selection.get("embellishmentOptionId")) for selection in selections)
+    built_in = sum(
+        _source_only_built_in_embellishment(selection, authority)
+        for selection in selections
+    )
+    return {
+        "selected": selected,
+        "builtIn": built_in,
+        "used": selected + built_in,
+    }
 
 
 def _season_release_identity(intent: dict[str, Any], authority: dict[str, Any]) -> list[dict[str, Any]]:
@@ -265,15 +329,16 @@ def _unique_equipped(intent: dict[str, Any], authority: dict[str, Any]) -> list[
         if not isinstance(item, dict):
             continue
         limit = item.get("uniqueLimit", 0)
-        if isinstance(limit, int) and limit > 0 and count > limit:
+        if _positive_integer_limit(limit) and count > limit:
             problems.append(_problem("GEAR_UNIQUE_", "LIMIT_EXCEEDED", "Unique-equipped item limit was exceeded.", meta={"itemId": item_id, "count": count, "limit": limit}))
-        group = item.get("uniqueGroupId")
+        group = _strict_unique_group(item.get("uniqueGroupId"))
         if group:
             group_counts[group] += count
     limits = authority["ruleParameters"].get("uniqueLimits", {})
+    limits = limits if isinstance(limits, dict) else {}
     for group in sorted(group_counts):
         limit = limits.get(group)
-        if isinstance(limit, int) and group_counts[group] > limit:
+        if _positive_integer_limit(limit) and group_counts[group] > limit:
             problems.append(_problem("GEAR_UNIQUE_", "GROUP_LIMIT_EXCEEDED", "Unique-equipped group limit was exceeded.", meta={"uniqueGroupId": group, "count": group_counts[group], "limit": limit}))
     return problems
 
@@ -305,15 +370,25 @@ def _socket_and_gem(intent: dict[str, Any], authority: dict[str, Any]) -> list[d
                 problems.append(_problem("GEAR_GEM_", "OPTION_TYPE_MISMATCH", "Selected option is not a gem.", path=path))
             if option_id not in allowed:
                 problems.append(_problem("GEAR_GEM_", "OPTION_NOT_ALLOWED", "Gem option is not allowed for this item.", path=path))
-            group = option.get("uniqueGroupId")
+            group = _strict_unique_group(option.get("uniqueGroupId"))
             if group:
                 unique_counts[group] += 1
-                if isinstance(option.get("uniqueLimit"), int) and option["uniqueLimit"] > 0:
-                    option_limits[group] = option["uniqueLimit"]
+                if _positive_integer_limit(option.get("uniqueLimit")):
+                    option_limit = option["uniqueLimit"]
+                    option_limits[group] = min(
+                        option_limits.get(group, option_limit),
+                        option_limit,
+                    )
     configured_limits = authority["ruleParameters"].get("uniqueGemLimits", {})
+    configured_limits = configured_limits if isinstance(configured_limits, dict) else {}
     for group in sorted(unique_counts):
-        limit = configured_limits.get(group, option_limits.get(group))
-        if isinstance(limit, int) and unique_counts[group] > limit:
+        positive_limits = [
+            limit
+            for limit in (option_limits.get(group), configured_limits.get(group))
+            if _positive_integer_limit(limit)
+        ]
+        limit = min(positive_limits) if positive_limits else 0
+        if limit > 0 and unique_counts[group] > limit:
             problems.append(_problem("GEAR_GEM_", "UNIQUE_LIMIT_EXCEEDED", "Unique gem limit was exceeded.", meta={"uniqueGroupId": group, "count": unique_counts[group], "limit": limit}))
     return problems
 
@@ -347,11 +422,12 @@ def _enchant_and_runeforge(intent: dict[str, Any], authority: dict[str, Any]) ->
 def _embellishment_and_crafted(intent: dict[str, Any], authority: dict[str, Any]) -> list[dict[str, Any]]:
     problems: list[dict[str, Any]] = []
     options = authority["optionsById"]
-    embellishment_count = 0
+    usage = embellishment_usage(intent, authority)
     for slot, selection, item in _selected_items(intent, authority):
         if not isinstance(item, dict):
             continue
         item = _effective_item_for_selection(selection, item, authority)
+        source_only_built_in = _source_only_built_in_embellishment(selection, authority)
         for field, option_type, allowed_field, unknown_suffix in (
             ("embellishmentOptionId", "embellishment", "allowedEmbellishmentOptionIds", "EMBELLISHMENT_UNKNOWN"),
             ("craftedOptionId", "crafted", "allowedCraftedOptionIds", "OPTION_UNKNOWN"),
@@ -359,9 +435,16 @@ def _embellishment_and_crafted(intent: dict[str, Any], authority: dict[str, Any]
             option_id = selection[field]
             if not option_id:
                 continue
-            if field == "embellishmentOptionId":
-                embellishment_count += 1
             path = f"slots.{slot}.{field}"
+            if field == "embellishmentOptionId" and source_only_built_in:
+                problems.append(
+                    _problem(
+                        "GEAR_CRAFT_",
+                        "BUILT_IN_EMBELLISHMENT_CONFLICT",
+                        "A source-only built-in embellishment slot cannot accept an editable embellishment.",
+                        path=path,
+                    )
+                )
             option = options.get(option_id)
             if not isinstance(option, dict):
                 problems.append(_problem("GEAR_CRAFT_", unknown_suffix, "Crafting option is absent from authority.", path=path))
@@ -377,8 +460,8 @@ def _embellishment_and_crafted(intent: dict[str, Any], authority: dict[str, Any]
         or limit < 0
     ):
         problems.append(_problem("GEAR_CRAFT_", "AUTHORITY_UNAVAILABLE", "Embellishment limit authority is unavailable.", kind="AUTHORITY_UNAVAILABLE", path="ruleParameters.embellishmentLimit"))
-    elif embellishment_count > limit:
-        problems.append(_problem("GEAR_CRAFT_", "EMBELLISHMENT_LIMIT_EXCEEDED", "Whole-character embellishment limit was exceeded.", meta={"count": embellishment_count, "limit": limit}))
+    elif usage["used"] > limit:
+        problems.append(_problem("GEAR_CRAFT_", "EMBELLISHMENT_LIMIT_EXCEEDED", "Whole-character embellishment limit was exceeded.", meta={"count": usage["used"], "limit": limit}))
     return problems
 
 
@@ -516,4 +599,5 @@ __all__ = (
     "RuleDefinition",
     "ordered_rule_matrix",
     "evaluate_rule_matrix",
+    "embellishment_usage",
 )

@@ -1071,7 +1071,11 @@ function canonicalGearAttributePanel(snapshot, statSnapshot) {
   const selectedOptions = Object.keys(resolvedSlots).map((slot) => (resolvedSlots[slot] && resolvedSlots[slot].selectedOptions) || {})
   const gemUsed = selectedOptions.reduce((count, options) => count + (Array.isArray(options.gemOptionIds) ? options.gemOptionIds.length : 0), 0)
   const enchantUsed = selectedOptions.filter((options) => options.enchantOptionId).length
-  const embellishmentUsed = selectedOptions.filter((options) => options.embellishmentOptionId).length
+  const selectedEmbellishmentUsed = selectedOptions.filter((options) => options.embellishmentOptionId).length
+  const canonicalEmbellishmentUsedValue = Number(snapshot.constraints && snapshot.constraints.embellishmentUsed)
+  const embellishmentUsed = Number.isFinite(canonicalEmbellishmentUsedValue) && canonicalEmbellishmentUsedValue >= 0
+    ? canonicalEmbellishmentUsedValue
+    : selectedEmbellishmentUsed
   const gemMax = Object.keys(constraints).reduce((count, slot) => count + (Number(constraints[slot] && constraints[slot].socketCount) || 0), 0)
   const enchantMax = Object.keys(constraints).filter((slot) => constraints[slot] && constraints[slot].canEnchant).length
   const embellishmentMaxValue = Number(snapshot.constraints && snapshot.constraints.embellishmentMax)
@@ -1688,7 +1692,7 @@ function gearSelectionWithoutEmbeddedSimcEnhancements(selectedGearBySlot) {
     const item = selectedGearBySlot[slot]
     if (!item || typeof item !== 'object') return
     const next = { ...item }
-    ;['gem_id', 'gem_bonus_id', 'gem_ilevel', 'enchant_id', 'embellishment', 'embellishmentSource'].forEach((key) => {
+    ;['gem_id', 'gem_bonus_id', 'gem_ilevel', 'enchant_id', 'embellishment'].forEach((key) => {
       delete next[key]
     })
     result[slot] = next
@@ -2104,35 +2108,65 @@ function itemSupportsEnhancement(item, type, options) {
     return gearItemEnchantCapacity(item) > 0 && !!((options && options.length) || hasItemOptions('enchantOptions'))
   }
   if (type === 'embellishment') {
+    const explicit = explicitGearCapabilityValue(caps, 'canEmbellish')
+    if (explicit === false) return false
     const sourceType = cleanGearString(item && item.sourceType).toLowerCase()
     const variantSource = cleanGearString(item && item.variantSource).toLowerCase()
-    return !!(caps.canEmbellish || item.crafted_stats || item.embellishment || sourceType === 'crafted' || variantSource === 'crafted' || hasItemOptions('embellishmentOptions'))
+    return !!(explicit || item.crafted_stats || sourceType === 'crafted' || variantSource === 'crafted' || hasItemOptions('embellishmentOptions'))
   }
   return false
 }
 
 function builtInEmbellishmentValue(item) {
-  return cleanGearString(
-    item && (
-      (item.hasBuiltInEmbellishment ? item.builtInEmbellishment || 'built_in' : '') ||
-      item.builtInEmbellishment ||
-      item.intrinsicEmbellishment ||
-      item.inherentEmbellishment ||
-      (['built_in', 'builtin', 'intrinsic', 'item'].includes(cleanGearString(item.embellishmentSource).toLowerCase()) ? item.embellishment : '') ||
-      item.embellishment
-    )
+  if (!item || typeof item !== 'object') return ''
+  const explicitValue = [
+    item.builtInEmbellishment,
+    item.intrinsicEmbellishment,
+    item.inherentEmbellishment
+  ].find((value) => typeof value === 'string' && cleanGearString(value))
+  if (explicitValue) return cleanGearString(explicitValue)
+  const source = typeof item.embellishmentSource === 'string'
+    ? cleanGearString(item.embellishmentSource).toLowerCase()
+    : ''
+  const hasBuiltInMarker = item.hasBuiltInEmbellishment === true
+  const hasBuiltInSource = ['built_in', 'builtin', 'intrinsic', 'item'].includes(source)
+  if (!hasBuiltInMarker && !hasBuiltInSource) return ''
+  return typeof item.embellishment === 'string' && cleanGearString(item.embellishment)
+    ? cleanGearString(item.embellishment)
+    : 'built_in'
+}
+
+function itemHasExplicitBuiltInEmbellishment(item) {
+  if (!item || typeof item !== 'object') return false
+  const source = typeof item.embellishmentSource === 'string'
+    ? cleanGearString(item.embellishmentSource).toLowerCase()
+    : ''
+  const explicitValue = [
+    item.builtInEmbellishment,
+    item.intrinsicEmbellishment,
+    item.inherentEmbellishment
+  ].some((value) => typeof value === 'string' && cleanGearString(value))
+  return !!(
+    item.hasBuiltInEmbellishment === true ||
+    explicitValue ||
+    ['built_in', 'builtin', 'intrinsic', 'item'].includes(source)
   )
 }
 
 function gearBuiltInEmbellishmentBadgeLabel(item) {
   if (!item || typeof item !== 'object') return ''
-  const source = cleanGearString(item.embellishmentSource).toLowerCase()
+  const source = typeof item.embellishmentSource === 'string'
+    ? cleanGearString(item.embellishmentSource).toLowerCase()
+    : ''
   const appliedEmbellishment = cleanGearString(item.embellishment)
+  const explicitValue = [
+    item.builtInEmbellishment,
+    item.intrinsicEmbellishment,
+    item.inherentEmbellishment
+  ].some((value) => typeof value === 'string' && cleanGearString(value))
   const hasExplicitBuiltIn = !!(
-    item.hasBuiltInEmbellishment ||
-    item.builtInEmbellishment ||
-    item.intrinsicEmbellishment ||
-    item.inherentEmbellishment ||
+    item.hasBuiltInEmbellishment === true ||
+    explicitValue ||
     ['built_in', 'builtin', 'intrinsic', 'item'].includes(source)
   )
   if (!hasExplicitBuiltIn && !appliedEmbellishment) return ''
@@ -2299,6 +2333,18 @@ function optionFirstValue(option, keys) {
   return ''
 }
 
+function optionAllValues(option, keys) {
+  const payload = optionPayload(option)
+  const keyList = Array.isArray(keys) ? keys : [keys]
+  const values = []
+  for (const source of [option || {}, payload]) {
+    for (const key of keyList) {
+      if (Object.prototype.hasOwnProperty.call(source, key)) values.push(source[key])
+    }
+  }
+  return values
+}
+
 function optionGemIds(option) {
   const simcOptions = option && option.simcOptions && typeof option.simcOptions === 'object' ? option.simcOptions : {}
   const gemIdText = cleanGearString(simcOptions.gem_id || optionFirstValue(option, ['gemItemId', 'gem_item_id']))
@@ -2306,14 +2352,37 @@ function optionGemIds(option) {
 }
 
 function enhancementOptionUniqueGroup(option, type) {
-  return cleanGearString(optionFirstValue(option, ['uniqueGroup', 'unique_group', 'uniqueKey', 'unique_key']))
+  const groups = [...new Set(
+    optionAllValues(option, [
+      'uniqueGroupId',
+      'unique_group_id',
+      'uniqueGroup',
+      'unique_group',
+      'uniqueKey',
+      'unique_key'
+    ])
+      .filter((value) => typeof value === 'string')
+      .map(cleanGearString)
+      .filter(Boolean)
+  )]
+  return groups.length === 1 ? groups[0] : ''
 }
 
 function enhancementOptionUniqueLimit(option, type) {
-  const rawLimit = optionFirstValue(option, ['uniqueLimit', 'unique_limit', 'uniqueEquippedLimit', 'unique_equipped_limit'])
-  const parsed = Number.parseInt(rawLimit, 10)
-  if (Number.isFinite(parsed) && parsed > 0) return parsed
-  return 0
+  const positiveLimits = optionAllValues(
+    option,
+    ['uniqueLimit', 'unique_limit', 'uniqueEquippedLimit', 'unique_equipped_limit']
+  ).map((rawLimit) => {
+    if (typeof rawLimit === 'number') {
+      return Number.isSafeInteger(rawLimit) && rawLimit > 0 ? rawLimit : 0
+    }
+    if (typeof rawLimit === 'string' && /^[1-9]\d*$/.test(rawLimit.trim())) {
+      const parsed = Number(rawLimit.trim())
+      return Number.isSafeInteger(parsed) ? parsed : 0
+    }
+    return 0
+  }).filter((limit) => limit > 0)
+  return positiveLimits.length ? Math.min(...positiveLimits) : 0
 }
 
 function enhancementUniqueGroupLabel(group, type) {
@@ -2464,7 +2533,6 @@ function buildGemSocketRows(slot, item, options, selected, uniqueGroups) {
   return Array.from({ length: socketCapacity }, (_, socketIndex) => {
     const selectedOptionId = cleanGearString(selectedOptionIds[socketIndex])
     const selectedOption = selectedOptionById.get(selectedOptionId) || null
-    const selectedGroup = enhancementOptionUniqueGroup(selectedOption || {}, 'gem')
     const occupied = socketIndex < selectedOptionIds.length
     const nextEmpty = !occupied && socketIndex === selectedOptionIds.length
     const selectedForSocket = selectedOptionId ? { gemOptionIds: [selectedOptionId] } : {}
@@ -2472,13 +2540,20 @@ function buildGemSocketRows(slot, item, options, selected, uniqueGroups) {
       const optionId = enhancementOptionIdentity(option)
       const optionGroup = enhancementOptionUniqueGroup(option || {}, 'gem')
       const optionSelected = !!(selectedOptionId && optionId === selectedOptionId)
-      const uniqueState = (uniqueGroups && optionGroup && uniqueGroups[optionGroup]) || { slots: [] }
-      const uniqueLimit = enhancementOptionUniqueLimit(option || {}, 'gem') || 1
-      const currentOccurrenceOffset = selectedGroup && selectedGroup === optionGroup ? 1 : 0
-      const uniqueCountWithoutCurrent = Math.max(0, (uniqueState.slots || []).length - currentOccurrenceOffset)
+      const uniqueState = (uniqueGroups && optionGroup && uniqueGroups[optionGroup]) || { limit: 0, slots: [], occurrences: [] }
+      const candidateLimit = enhancementOptionUniqueLimit(option || {}, 'gem')
+      const remainingOccurrences = (uniqueState.occurrences || []).filter((occurrence) => !(
+        occurrence.slot === slot && occurrence.socketIndex === socketIndex
+      ))
+      const positiveLimits = [
+        candidateLimit,
+        ...remainingOccurrences.map((occurrence) => occurrence.limit)
+      ].filter((limit) => limit > 0)
+      const uniqueLimit = positiveLimits.length ? Math.min(...positiveLimits) : 0
+      const uniqueCountWithoutCurrent = remainingOccurrences.length
       const disabled = optionSelected
         ? false
-        : ((!occupied && !nextEmpty) || (!!optionGroup && uniqueCountWithoutCurrent >= uniqueLimit))
+        : ((!occupied && !nextEmpty) || (!!optionGroup && uniqueLimit > 0 && uniqueCountWithoutCurrent >= uniqueLimit))
       return enhancementOptionForData(option, selectedForSocket, 'gem', disabled, slot)
     }).filter(Boolean)
     const selectedDisplayOption = displayOptions.find((option) => option.selected)
@@ -2559,23 +2634,29 @@ function selectedEnhancementUniqueGroups(gearPayload, indexed, enhancement, type
     const selected = enhancement[slot] || {}
     if (!item || !enhancementRecordHasSelectedType(selected, type)) return
     const options = enhancementOptionsForSlot(gearPayload, item, 'socketOptions')
-    const recordSelectedOption = (selectedOption) => {
+    const recordSelectedOption = (selectedOption, socketIndex) => {
       const group = enhancementOptionUniqueGroup(selectedOption, type)
       if (!group) return
-      const limit = enhancementOptionUniqueLimit(selectedOption, type) || 1
-      if (!state[group]) state[group] = { limit, slots: [] }
-      state[group].limit = Math.min(state[group].limit || limit, limit)
+      const limit = enhancementOptionUniqueLimit(selectedOption, type)
+      if (!state[group]) state[group] = { limit: 0, slots: [], occurrences: [] }
+      if (limit > 0) {
+        state[group].limit = state[group].limit > 0
+          ? Math.min(state[group].limit, limit)
+          : limit
+      }
       state[group].slots.push(slot)
+      state[group].occurrences.push({ slot, socketIndex, limit })
     }
     const gemOptionIds = normalizedOptionIdentityList(selected.gemOptionIds)
     if (gemOptionIds.length) {
-      gemOptionIds.forEach((optionId) => {
+      gemOptionIds.forEach((optionId, socketIndex) => {
         const selectedOption = options.find((option) => enhancementOptionIdentity(option) === optionId)
-        if (selectedOption) recordSelectedOption(selectedOption)
+        if (selectedOption) recordSelectedOption(selectedOption, socketIndex)
       })
       return
     }
-    options.filter((option) => enhancementOptionSelected(option, selected, type)).forEach(recordSelectedOption)
+    options.filter((option) => enhancementOptionSelected(option, selected, type))
+      .forEach((option, socketIndex) => recordSelectedOption(option, socketIndex))
   })
   return state
 }
@@ -2607,7 +2688,7 @@ function gemOptionIdentityBlockers(gearPayload, indexed, enhancement) {
   return blockers
 }
 
-function buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementBySlot, visible, requestedActiveSlot, requestedEmbellishmentMax) {
+function buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementBySlot, visible, requestedActiveSlot, requestedEmbellishmentMax, requestedBuiltInEmbellishmentUsed) {
   const indexed = enrichedSelectedGearByCanonicalSlot(gearPayload, selectedGearBySlot || {})
   const enhancement = normalizedEnhancementBySlot(enhancementBySlot || {})
   const requestedEmbellishmentMaxValue = Number(requestedEmbellishmentMax)
@@ -2615,7 +2696,11 @@ function buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementB
     Number.isFinite(requestedEmbellishmentMaxValue) && requestedEmbellishmentMaxValue >= 0
     ? requestedEmbellishmentMaxValue
     : gearEnhancementMax
-  const builtInCount = Object.keys(indexed).filter((slot) => builtInEmbellishmentValue(indexed[slot])).length
+  const requestedBuiltInUsedValue = Number(requestedBuiltInEmbellishmentUsed)
+  const builtInCount = requestedBuiltInEmbellishmentUsed !== undefined && requestedBuiltInEmbellishmentUsed !== null &&
+    Number.isFinite(requestedBuiltInUsedValue) && requestedBuiltInUsedValue >= 0
+    ? requestedBuiltInUsedValue
+    : Object.keys(indexed).filter((slot) => builtInEmbellishmentValue(indexed[slot])).length
   const selectedEmbellishmentCount = Object.keys(enhancement).filter((slot) => (
     cleanGearString(enhancement[slot].embellishmentOptionId) || cleanGearString(enhancement[slot].embellishment)
   )).length
@@ -2632,9 +2717,9 @@ function buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementB
   }
   Object.keys(gemUniqueGroups).forEach((group) => {
     const state = gemUniqueGroups[group]
-    const limit = state.limit || 1
-    const count = (state.slots || []).length
-    if (count > limit) {
+    const limit = state.limit
+    const count = (state.occurrences || []).length
+    if (limit > 0 && count > limit) {
       blockers.push(`${enhancementUniqueGroupLabel(group, 'gem')}已超过上限 ${count}/${limit}`)
     }
   })
@@ -3917,13 +4002,26 @@ function reconcileCommunityTemplateEnhancements(gearPayload, selectedGearBySlot,
     const gemOptions = communityEnhancementOptionsForSlot(gearPayload, item, 'socketOptions', 'gem')
     const enchantOptions = communityEnhancementOptionsForSlot(gearPayload, item, 'enchantOptions', 'enchant')
     const embellishmentOptions = communityEnhancementOptionsForSlot(gearPayload, item, 'embellishmentOptions', 'embellishment')
-    if (raw.gemConflict || raw.gemOptionConflict) {
-      unresolved.gemIds = rawGemIds.length ? rawGemIds : conflictingGemOptionIds
-    } else if (rawGemIds.length > gearItemSocketCapacity(item)) {
-      unresolved.gemIds = rawGemIds
-    } else if (rawGemIds.length) {
+    const governedRawGemIds = itemSupportsEnhancementMetric(gearPayload, item, 'gem', 'socketOptions')
+      ? rawGemIds
+      : []
+    const sourceOnlyWeaponComposite = slot === 'main_hand' && rawEnchantIds.length > 1
+    const governedRawEnchantIds = !sourceOnlyWeaponComposite && itemSupportsEnhancementMetric(gearPayload, item, 'enchant', 'enchantOptions')
+      ? rawEnchantIds
+      : []
+    const sourceOnlyBuiltInEmbellishment = itemHasExplicitBuiltInEmbellishment(item)
+    const governedRawEmbellishments = !sourceOnlyBuiltInEmbellishment && itemSupportsEnhancementMetric(gearPayload, item, 'embellishment', 'embellishmentOptions')
+      ? rawEmbellishments
+      : []
+    if (raw.gemOptionConflict) {
+      unresolved.gemIds = governedRawGemIds.length ? governedRawGemIds : conflictingGemOptionIds
+    } else if (raw.gemConflict && governedRawGemIds.length) {
+      unresolved.gemIds = governedRawGemIds
+    } else if (governedRawGemIds.length > gearItemSocketCapacity(item)) {
+      unresolved.gemIds = governedRawGemIds
+    } else if (governedRawGemIds.length) {
       const matchedGemOptionIds = []
-      rawGemIds.forEach((gemId) => {
+      governedRawGemIds.forEach((gemId) => {
         const matched = communityEnhancementOptionForSimcValue(gemOptions, 'gem_id', gemId)
         const optionId = communityEnhancementStableOptionIdentity(matched)
         if (optionId) matchedGemOptionIds.push(optionId)
@@ -3945,14 +4043,14 @@ function reconcileCommunityTemplateEnhancements(gearPayload, selectedGearBySlot,
       }
     }
     if (raw.enchantOptionConflict) {
-      unresolved.enchantIds = rawEnchantIds.length ? rawEnchantIds : conflictingEnchantOptionIds
-    } else if (rawEnchantIds.length === 1) {
-      const matched = communityEnhancementOptionForSimcValue(enchantOptions, 'enchant_id', rawEnchantIds[0])
+      unresolved.enchantIds = governedRawEnchantIds.length ? governedRawEnchantIds : conflictingEnchantOptionIds
+    } else if (governedRawEnchantIds.length === 1) {
+      const matched = communityEnhancementOptionForSimcValue(enchantOptions, 'enchant_id', governedRawEnchantIds[0])
       const optionId = communityEnhancementStableOptionIdentity(matched)
       if (optionId) next.enchantOptionId = optionId
-      else unresolved.enchantIds = rawEnchantIds
-    } else if (rawEnchantIds.length > 1) {
-      unresolved.enchantIds = rawEnchantIds
+      else unresolved.enchantIds = governedRawEnchantIds
+    } else if (governedRawEnchantIds.length > 1) {
+      unresolved.enchantIds = governedRawEnchantIds
     } else if (explicitEnchantOptionIds.length === 1) {
       if (communityEnhancementOptionForIdentity(enchantOptions, explicitEnchantOptionIds[0])) {
         next.enchantOptionId = explicitEnchantOptionIds[0]
@@ -3962,23 +4060,25 @@ function reconcileCommunityTemplateEnhancements(gearPayload, selectedGearBySlot,
     } else if (explicitEnchantOptionIds.length > 1) {
       unresolved.enchantIds = explicitEnchantOptionIds
     }
-    if (raw.embellishmentOptionConflict) {
-      unresolved.embellishments = rawEmbellishments.length ? rawEmbellishments : conflictingEmbellishmentOptionIds
-    } else if (rawEmbellishments.length === 1) {
-      const matched = communityEnhancementOptionForSimcValue(embellishmentOptions, 'embellishment', rawEmbellishments[0])
-      const optionId = communityEnhancementStableOptionIdentity(matched)
-      if (optionId) next.embellishmentOptionId = optionId
-      else unresolved.embellishments = rawEmbellishments
-    } else if (rawEmbellishments.length > 1) {
-      unresolved.embellishments = rawEmbellishments
-    } else if (explicitEmbellishmentOptionIds.length === 1) {
-      if (communityEnhancementOptionForIdentity(embellishmentOptions, explicitEmbellishmentOptionIds[0])) {
-        next.embellishmentOptionId = explicitEmbellishmentOptionIds[0]
-      } else {
+    if (!sourceOnlyBuiltInEmbellishment) {
+      if (raw.embellishmentOptionConflict) {
+        unresolved.embellishments = governedRawEmbellishments.length ? governedRawEmbellishments : conflictingEmbellishmentOptionIds
+      } else if (governedRawEmbellishments.length === 1) {
+        const matched = communityEnhancementOptionForSimcValue(embellishmentOptions, 'embellishment', governedRawEmbellishments[0])
+        const optionId = communityEnhancementStableOptionIdentity(matched)
+        if (optionId) next.embellishmentOptionId = optionId
+        else unresolved.embellishments = governedRawEmbellishments
+      } else if (governedRawEmbellishments.length > 1) {
+        unresolved.embellishments = governedRawEmbellishments
+      } else if (explicitEmbellishmentOptionIds.length === 1) {
+        if (communityEnhancementOptionForIdentity(embellishmentOptions, explicitEmbellishmentOptionIds[0])) {
+          next.embellishmentOptionId = explicitEmbellishmentOptionIds[0]
+        } else {
+          unresolved.embellishments = explicitEmbellishmentOptionIds
+        }
+      } else if (explicitEmbellishmentOptionIds.length > 1) {
         unresolved.embellishments = explicitEmbellishmentOptionIds
       }
-    } else if (explicitEmbellishmentOptionIds.length > 1) {
-      unresolved.embellishments = explicitEmbellishmentOptionIds
     }
     if (Object.keys(next).length) enhancementBySlot[slot] = next
     if (unresolved.gemIds.length || unresolved.enchantIds.length || unresolved.embellishments.length) {
@@ -4194,6 +4294,12 @@ function buildGearEnhancementSheetForPage(page, visible, requestedActiveSlot, ov
         ? canonicalEmbellishmentMaxValue
         : 0)
     : undefined
+  const canonicalBuiltInEmbellishmentUsedValue = Number(
+    canonicalSnapshot && canonicalSnapshot.constraints && canonicalSnapshot.constraints.embellishmentBuiltInUsed
+  )
+  const canonicalBuiltInEmbellishmentUsed = canonicalWorkbench && Number.isFinite(canonicalBuiltInEmbellishmentUsedValue) && canonicalBuiltInEmbellishmentUsedValue >= 0
+    ? canonicalBuiltInEmbellishmentUsedValue
+    : undefined
   const selectedGearBySlot = canonicalWorkbench
     ? gearSelectionWithCanonicalEnhancementConstraints(currentSelectedGearBySlot, canonicalSnapshot)
     : currentSelectedGearBySlot
@@ -4206,7 +4312,8 @@ function buildGearEnhancementSheetForPage(page, visible, requestedActiveSlot, ov
     enhancementBySlot,
     visible,
     requestedActiveSlot,
-    canonicalEmbellishmentMax
+    canonicalEmbellishmentMax,
+    canonicalBuiltInEmbellishmentUsed
   )
   sheet.submitting = state.submitting !== undefined
     ? !!state.submitting

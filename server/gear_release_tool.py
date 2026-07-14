@@ -11,7 +11,13 @@ import subprocess
 from typing import Any, Callable, Iterable, Mapping
 
 try:
-    from . import gear_release, gear_release_shadow, gear_resolver, gear_socket_authority
+    from . import (
+        gear_enhancement_management,
+        gear_release,
+        gear_release_shadow,
+        gear_resolver,
+        gear_socket_authority,
+    )
     from .db import connect_postgres, database_config_from_env, postgres_only_runtime_enabled
     from .gear_release_store import (
         CandidateGearAuthorityIndex,
@@ -21,9 +27,15 @@ try:
         community_rows_summary,
         gear_snapshot_summary,
     )
-    from .websim_payload import WOW_CLASSES, gear_resolver_runtime_authority, normalize_slot
+    from .websim_payload import (
+        WOW_CLASSES,
+        gear_resolver_runtime_authority,
+        item_can_enchant_slot,
+        normalize_slot,
+    )
     from .postgres_cache_store import PostgresCacheStore
 except ImportError:
+    import gear_enhancement_management
     import gear_release
     import gear_release_shadow
     import gear_resolver
@@ -37,13 +49,20 @@ except ImportError:
         community_rows_summary,
         gear_snapshot_summary,
     )
-    from websim_payload import WOW_CLASSES, gear_resolver_runtime_authority, normalize_slot
+    from websim_payload import (
+        WOW_CLASSES,
+        gear_resolver_runtime_authority,
+        item_can_enchant_slot,
+        normalize_slot,
+    )
     from postgres_cache_store import PostgresCacheStore
 
 
 _SIMC_SOCKET_PROBE_TIMEOUT_SECONDS = 30
 _SIMC_SOCKET_PROBE_MAX_CHARS = 4 * 1024 * 1024
 _SIMC_SOCKET_PROBE_FAILURE = "SimC socket probe failed"
+_GEM_SIMC_SEQUENCE_FIELDS = gear_enhancement_management.GEM_SIMC_SEQUENCE_FIELDS
+_ENHANCEMENT_SIMC_FIELDS = gear_enhancement_management.ENHANCEMENT_SIMC_FIELDS
 
 
 def _text(value: Any) -> str:
@@ -138,6 +157,152 @@ def _project_socket_facts_into_release_payloads(snapshot: dict[str, Any]) -> dic
                     payload[field] = materialized
             row["payload"] = payload
     return projected
+
+
+def _materialize_enhancement_management(
+    snapshot: dict[str, Any],
+    capability_revision: str,
+) -> dict[str, Any]:
+    """Seal v2 field governance without treating absence as trusted source data."""
+
+    materialized = _canonical(snapshot)
+    items_by_id = {
+        _text(row.get("itemId")): row
+        for row in materialized.get("items") or []
+        if isinstance(row, dict) and _text(row.get("itemId"))
+    }
+    options = [
+        row
+        for row in materialized.get("options") or []
+        if isinstance(row, dict)
+        and _text(row.get("status")).lower() == "verified"
+        and row.get("isVisible") is True
+    ]
+
+    def option_type(option: dict[str, Any]) -> str:
+        value = _text(option.get("optionType")).lower()
+        return "gem" if value in {"socket", "gem"} else value
+
+    def option_applies(option: dict[str, Any], slot: str) -> bool:
+        applicable = [_text(value) for value in option.get("applicableSlots") or []]
+        normalized = [normalize_slot(value) for value in applicable]
+        return not applicable or "*" in applicable or slot in normalized
+
+    def built_in_embellishment_state(
+        raw_value: str,
+        item_payload: dict[str, Any],
+        variant_payload: dict[str, Any],
+    ) -> str:
+        payloads = (item_payload, variant_payload)
+        explicit_values = {
+            value.strip()
+            for source in payloads
+            for key in (
+                "builtInEmbellishment",
+                "intrinsicEmbellishment",
+                "inherentEmbellishment",
+            )
+            for value in (source.get(key),)
+            if isinstance(value, str) and value.strip()
+        }
+        if len(explicit_values) > 1:
+            return "conflict"
+        if explicit_values:
+            return "proven" if raw_value in explicit_values else "conflict"
+        built_in_source = any(
+            isinstance(source.get("embellishmentSource"), str)
+            and source["embellishmentSource"].strip().lower()
+            in {"built_in", "builtin", "intrinsic", "item"}
+            for source in payloads
+        )
+        strict_marker = any(
+            source.get("hasBuiltInEmbellishment") is True
+            for source in payloads
+        )
+        return "proven" if strict_marker or built_in_source else "absent"
+
+    for variant in materialized.get("variants") or []:
+        if not isinstance(variant, dict):
+            continue
+        payload = _canonical(variant.get("payload") if isinstance(variant.get("payload"), dict) else {})
+        payload.pop("editorManagedSimcFields", None)
+        payload.pop("enhancementManagement", None)
+        if capability_revision != gear_socket_authority.CAPABILITY_REVISION:
+            variant["payload"] = payload
+            continue
+        item = items_by_id.get(_text(variant.get("itemId")), {})
+        item_payload = item.get("payload") if isinstance(item.get("payload"), dict) else {}
+        slot = normalize_slot(variant.get("slot") or item.get("slot"))
+        simc_options = variant.get("simcOptions") if isinstance(variant.get("simcOptions"), dict) else {}
+        applicable_options = [option for option in options if option_applies(option, slot)]
+        base_capabilities = item_payload.get("baseCapabilities") if isinstance(item_payload.get("baseCapabilities"), dict) else {}
+        variant_capabilities = payload.get("capabilityOverrides") if isinstance(payload.get("capabilityOverrides"), dict) else {}
+        socket_count = _int(variant_capabilities.get("socketCount", base_capabilities.get("socketCount")))
+        can_enchant = item_can_enchant_slot(item_payload, slot, item)
+        trusted_observed = (
+            _text(variant.get("status")).lower() == "verified"
+            and _text(variant.get("sourceType")).lower() == "observed_profile"
+        )
+        classifications: dict[str, str] = {}
+        for field in _ENHANCEMENT_SIMC_FIELDS:
+            raw_value = _text(simc_options.get(field))
+            if not raw_value:
+                continue
+            editor_managed = False
+            if field in _GEM_SIMC_SEQUENCE_FIELDS:
+                editor_managed = socket_count > 0
+            elif field == "embellishment":
+                editor_managed = any(
+                    option_type(option) == "embellishment"
+                    and _text((option.get("simcOptions") or {}).get(field)) == raw_value
+                    for option in applicable_options
+                )
+            elif field == "enchant_id" and "/" not in raw_value:
+                editor_managed = can_enchant and any(
+                    option_type(option) in {"enchant", "runeforge"}
+                    and _text((option.get("simcOptions") or {}).get(field)) == raw_value
+                    for option in applicable_options
+                )
+            built_in_embellishment = built_in_embellishment_state(
+                raw_value,
+                item_payload,
+                payload,
+            )
+            if field == "embellishment" and built_in_embellishment == "conflict":
+                raise GearReleaseIntegrityError(
+                    "built-in embellishment evidence conflicts with raw SimC value"
+                )
+            source_only = trusted_observed and (
+                (field in _GEM_SIMC_SEQUENCE_FIELDS and socket_count <= 0)
+                or (field == "embellishment" and built_in_embellishment == "proven")
+                or (
+                    field == "enchant_id"
+                    and (
+                        not can_enchant
+                        or (slot == "main_hand" and "/" in raw_value)
+                    )
+                )
+            )
+            classifications[field] = (
+                "source_only"
+                if field == "embellishment" and built_in_embellishment == "proven"
+                else "unresolved_drop"
+                if field == "embellishment" and built_in_embellishment == "conflict"
+                else "editor_managed"
+                if editor_managed
+                else "source_only"
+                if source_only
+                else "unresolved_drop"
+            )
+        management = gear_enhancement_management.seal_enhancement_management(
+            simc_options,
+            classifications,
+            capability_revision,
+        )
+        if management:
+            payload["enhancementManagement"] = management
+        variant["payload"] = payload
+    return materialized
 
 
 def load_simc_socket_bonus_minimums(
@@ -301,12 +466,15 @@ def prepare_staging_gear_release(
     if not isinstance(socket_bonus_minimums, Mapping) or not socket_bonus_minimums:
         raise GearReleaseIntegrityError("socket bonus evidence must be a non-empty mapping")
     normalized_bonus_minimums = socket_bonus_minimums
-    snapshot = _project_socket_facts_into_release_payloads(
-        gear_socket_authority.materialize_gear_socket_facts(
-            store.snapshot_staging_gear(),
-            season_revision=season_revision,
-            socket_bonus_minimums=normalized_bonus_minimums,
-        )
+    snapshot = _materialize_enhancement_management(
+        _project_socket_facts_into_release_payloads(
+            gear_socket_authority.materialize_gear_socket_facts(
+                store.snapshot_staging_gear(),
+                season_revision=season_revision,
+                socket_bonus_minimums=normalized_bonus_minimums,
+            )
+        ),
+        _text(dependency_revisions.get("capabilityRevision")),
     )
     problems = validate_gear_snapshot(snapshot)
     if problems:

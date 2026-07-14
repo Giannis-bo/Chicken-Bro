@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 import unittest
 
-from server import gear_resolver, gear_socket_authority, pg_gear_authority_loader
+from server import gear_resolver, gear_rule_matrix, gear_socket_authority, pg_gear_authority_loader
 
 
 FIXTURE_PATH = Path(__file__).parent / "fixtures" / "gear-resolver-complete-authority-v1.json"
@@ -173,6 +173,26 @@ def build_midnight_mage_resolver_fixture(
             "socketEvidence": item["socketEvidence"],
             "socketCount": 0,
         }
+        enhancement_management_fields = {}
+        for simc_field in (
+            "gem_id",
+            "gem_bonus_id",
+            "gem_ilevel",
+            "enchant_id",
+            "embellishment",
+        ):
+            if not variant.get("simcOptions", {}).get(simc_field):
+                continue
+            editor_managed = (
+                simc_field.startswith("gem_") and canonical_reference.get("gemIds")
+            ) or (
+                simc_field == "enchant_id" and canonical_reference.get("enchantId")
+            ) or (
+                simc_field == "embellishment" and canonical_reference.get("embellishment")
+            )
+            enhancement_management_fields[simc_field] = (
+                "editor_managed" if editor_managed else "source_only"
+            )
         item_rows.append(
             (
                 instance["itemId"],
@@ -196,6 +216,17 @@ def build_midnight_mage_resolver_fixture(
                         "resolvedStats": {"intellect": 100, "stamina": 100},
                         "capabilityOverrides": variant["capabilityOverrides"],
                         "socketEvidence": variant["socketEvidence"],
+                        **(
+                            {
+                                "enhancementManagement": {
+                                    "schemaRevision": "gear-enhancement-management-v1",
+                                    "authorityRevision": gear_socket_authority.CAPABILITY_REVISION,
+                                    "fields": enhancement_management_fields,
+                                }
+                            }
+                            if enhancement_management_fields
+                            else {}
+                        ),
                     },
                 },
                 [
@@ -368,6 +399,27 @@ class GearResolverTest(unittest.TestCase):
             item["allowedEmbellishmentOptionIds"] = [option_id]
         return fixture
 
+    def mark_source_only_built_in_embellishment(
+        self,
+        fixture,
+        slot,
+        value="built_in_embellishment",
+    ):
+        fixture["authorityContext"]["dependencyVector"]["capabilityRevision"] = (
+            gear_socket_authority.CAPABILITY_REVISION
+        )
+        selection = fixture["intent"]["slots"][slot]
+        variant = fixture["authorityContext"]["variantsByKey"][
+            selection["variantKey"]
+        ]
+        variant["simcOptions"]["embellishment"] = value
+        variant["enhancementManagement"] = {
+            "schemaRevision": "gear-enhancement-management-v1",
+            "authorityRevision": gear_socket_authority.CAPABILITY_REVISION,
+            "fields": {"embellishment": "source_only"},
+        }
+        return fixture
+
     def midnight_mage_fixture(self, selected_gem_count=0):
         return build_midnight_mage_resolver_fixture(selected_gem_count)
 
@@ -425,6 +477,218 @@ class GearResolverTest(unittest.TestCase):
                 for problem in result["problems"]
             )
         )
+
+    def test_canonical_gem_uniqueness_requires_explicit_positive_integer_limit(self):
+        intent = {
+            "slots": {
+                "neck": {"itemId": "item-neck", "variantKey": "", "gemOptionIds": ["candidate"]},
+                "finger1": {"itemId": "item-ring", "variantKey": "", "gemOptionIds": ["candidate"]},
+            }
+        }
+        base_authority = {
+            "itemsById": {
+                "item-neck": {"itemId": "item-neck", "socketCount": 1, "allowedGemOptionIds": ["candidate"]},
+                "item-ring": {"itemId": "item-ring", "socketCount": 1, "allowedGemOptionIds": ["candidate"]},
+            },
+            "variantsByKey": {},
+            "optionsById": {
+                "candidate": {"optionType": "gem", "uniqueGroupId": "explicit_group"}
+            },
+            "ruleParameters": {"uniqueGemLimits": {}},
+        }
+        cases = (
+            ("missing group", {"uniqueGroupId": "", "uniqueLimit": 1}, {}, False),
+            ("boolean group", {"uniqueGroupId": True, "uniqueLimit": 1}, {}, False),
+            ("numeric group", {"uniqueGroupId": 123, "uniqueLimit": 1}, {}, False),
+            ("missing option limit", {"uniqueGroupId": "explicit_group"}, {}, False),
+            ("junk option limit", {"uniqueGroupId": "explicit_group", "uniqueLimit": "1bad"}, {}, False),
+            ("zero option limit", {"uniqueGroupId": "explicit_group", "uniqueLimit": 0}, {}, False),
+            ("negative option limit", {"uniqueGroupId": "explicit_group", "uniqueLimit": -1}, {}, False),
+            ("boolean option limit", {"uniqueGroupId": "explicit_group", "uniqueLimit": True}, {}, False),
+            ("positive option limit", {"uniqueGroupId": "explicit_group", "uniqueLimit": 1}, {}, True),
+            ("junk configured limit", {"uniqueGroupId": "explicit_group"}, {"explicit_group": "1bad"}, False),
+            ("zero configured limit", {"uniqueGroupId": "explicit_group"}, {"explicit_group": 0}, False),
+            ("negative configured limit", {"uniqueGroupId": "explicit_group"}, {"explicit_group": -1}, False),
+            ("boolean configured limit", {"uniqueGroupId": "explicit_group"}, {"explicit_group": True}, False),
+            ("non-map configured limits", {"uniqueGroupId": "explicit_group"}, [], False),
+            ("positive configured limit", {"uniqueGroupId": "explicit_group"}, {"explicit_group": 1}, True),
+            ("valid option with zero configured limit", {"uniqueGroupId": "explicit_group", "uniqueLimit": 1}, {"explicit_group": 0}, True),
+            ("valid option with boolean configured limit", {"uniqueGroupId": "explicit_group", "uniqueLimit": 1}, {"explicit_group": True}, True),
+        )
+        for name, option, configured_limits, expected_blocked in cases:
+            with self.subTest(name=name):
+                authority = copy.deepcopy(base_authority)
+                authority["optionsById"]["candidate"] = option
+                authority["ruleParameters"]["uniqueGemLimits"] = configured_limits
+                problems = gear_rule_matrix._socket_and_gem(intent, authority)
+                self.assertEqual(
+                    any(problem["code"] == "GEAR_GEM_UNIQUE_LIMIT_EXCEEDED" for problem in problems),
+                    expected_blocked,
+                )
+
+        for first_limit, second_limit in ((1, 2), (2, 1)):
+            with self.subTest(order=(first_limit, second_limit)):
+                authority = copy.deepcopy(base_authority)
+                authority["optionsById"] = {
+                    "first": {
+                        "optionType": "gem",
+                        "uniqueGroupId": "explicit_group",
+                        "uniqueLimit": first_limit,
+                    },
+                    "second": {
+                        "optionType": "gem",
+                        "uniqueGroupId": "explicit_group",
+                        "uniqueLimit": second_limit,
+                    },
+                }
+                authority["itemsById"]["item-neck"]["allowedGemOptionIds"] = ["first"]
+                authority["itemsById"]["item-ring"]["allowedGemOptionIds"] = ["second"]
+                ordered_intent = copy.deepcopy(intent)
+                ordered_intent["slots"]["neck"]["gemOptionIds"] = ["first"]
+                ordered_intent["slots"]["finger1"]["gemOptionIds"] = ["second"]
+
+                problems = gear_rule_matrix._socket_and_gem(ordered_intent, authority)
+                unique_problem = next(
+                    problem
+                    for problem in problems
+                    if problem["code"] == "GEAR_GEM_UNIQUE_LIMIT_EXCEEDED"
+                )
+                self.assertEqual(unique_problem["meta"]["limit"], 1)
+
+        mixed_group_authority = copy.deepcopy(base_authority)
+        mixed_group_authority["optionsById"] = {
+            "first": {"optionType": "gem", "uniqueGroupId": "explicit_group", "uniqueLimit": 2},
+            "second": {"optionType": "gem", "uniqueGroupId": 123, "uniqueLimit": 1},
+        }
+        mixed_group_authority["itemsById"]["item-neck"]["allowedGemOptionIds"] = ["first"]
+        mixed_group_authority["itemsById"]["item-ring"]["allowedGemOptionIds"] = ["second"]
+        mixed_group_intent = copy.deepcopy(intent)
+        mixed_group_intent["slots"]["neck"]["gemOptionIds"] = ["first"]
+        mixed_group_intent["slots"]["finger1"]["gemOptionIds"] = ["second"]
+        self.assertFalse(
+            any(
+                problem["code"] == "GEAR_GEM_UNIQUE_LIMIT_EXCEEDED"
+                for problem in gear_rule_matrix._socket_and_gem(
+                    mixed_group_intent,
+                    mixed_group_authority,
+                )
+            )
+        )
+
+    def test_canonical_unique_equipped_config_requires_positive_integer_limit(self):
+        intent = {
+            "slots": {
+                "finger1": {"itemId": "item-ring-one"},
+                "finger2": {"itemId": "item-ring-two"},
+            }
+        }
+        base_authority = {
+            "itemsById": {
+                "item-ring-one": {"uniqueGroupId": "explicit_group"},
+                "item-ring-two": {"uniqueGroupId": "explicit_group"},
+            },
+            "ruleParameters": {"uniqueLimits": {}},
+        }
+        for name, limit, expected_blocked in (
+            ("missing", None, False),
+            ("junk", "1bad", False),
+            ("zero", 0, False),
+            ("negative", -1, False),
+            ("boolean", True, False),
+            ("positive", 1, True),
+        ):
+            with self.subTest(name=name):
+                authority = copy.deepcopy(base_authority)
+                if limit is not None:
+                    authority["ruleParameters"]["uniqueLimits"]["explicit_group"] = limit
+                problems = gear_rule_matrix._unique_equipped(intent, authority)
+                self.assertEqual(
+                    any(problem["code"] == "GEAR_UNIQUE_GROUP_LIMIT_EXCEEDED" for problem in problems),
+                    expected_blocked,
+                )
+
+        non_map = copy.deepcopy(base_authority)
+        non_map["ruleParameters"]["uniqueLimits"] = []
+        self.assertFalse(
+            any(
+                problem["code"] == "GEAR_UNIQUE_GROUP_LIMIT_EXCEEDED"
+                for problem in gear_rule_matrix._unique_equipped(intent, non_map)
+            )
+        )
+
+        for invalid_group in (True, 123):
+            with self.subTest(invalid_group=invalid_group):
+                authority = copy.deepcopy(base_authority)
+                authority["itemsById"]["item-ring-two"]["uniqueGroupId"] = invalid_group
+                authority["ruleParameters"]["uniqueLimits"] = {"explicit_group": 1}
+                self.assertFalse(
+                    any(
+                        problem["code"] == "GEAR_UNIQUE_GROUP_LIMIT_EXCEEDED"
+                        for problem in gear_rule_matrix._unique_equipped(intent, authority)
+                    )
+                )
+
+    def test_public_resolver_enforces_only_explicit_positive_gem_group_minimums(self):
+        for name, projected_limit, expected_status in (
+            ("missing", 0, "verified"),
+            ("invalid projected to zero", 0, "verified"),
+            ("positive", 1, "blocked"),
+        ):
+            with self.subTest(name=name):
+                fixture = self.fixture()
+                head_variant = fixture["authorityContext"]["variantsByKey"]["variant-set-head"]
+                head_variant["capabilityOverrides"] = {"socketCount": 2}
+                head_variant["overlay"]["capabilityOverrides"] = {}
+                fixture["intent"]["slots"]["head"]["gemOptionIds"] = ["gem-haste", "gem-haste"]
+                option = fixture["authorityContext"]["optionsById"]["gem-haste"]
+                option["uniqueGroupId"] = "explicit_group"
+                option["uniqueLimit"] = projected_limit
+
+                result = self.resolve(fixture)
+
+                self.assertEqual(result["status"], expected_status)
+                blocked = any(
+                    problem["code"] == "GEAR_GEM_UNIQUE_LIMIT_EXCEEDED"
+                    for problem in result["problems"]
+                )
+                self.assertEqual(blocked, expected_status == "blocked")
+                self.assertEqual(
+                    result["profileReadiness"]["simcReady"],
+                    expected_status == "verified",
+                )
+
+        for first_limit, second_limit in ((1, 2), (2, 1)):
+            with self.subTest(order=(first_limit, second_limit)):
+                fixture = self.fixture()
+                head_variant = fixture["authorityContext"]["variantsByKey"]["variant-set-head"]
+                head_variant["capabilityOverrides"] = {"socketCount": 2}
+                head_variant["overlay"]["capabilityOverrides"] = {}
+                first = fixture["authorityContext"]["optionsById"]["gem-haste"]
+                first["uniqueGroupId"] = "explicit_group"
+                first["uniqueLimit"] = first_limit
+                self.add_gem_option(
+                    fixture,
+                    option_id="gem-second",
+                    simc_options={"gem_id": "240900"},
+                )
+                second = fixture["authorityContext"]["optionsById"]["gem-second"]
+                second["uniqueGroupId"] = "explicit_group"
+                second["uniqueLimit"] = second_limit
+                fixture["intent"]["slots"]["head"]["gemOptionIds"] = [
+                    "gem-haste",
+                    "gem-second",
+                ]
+
+                result = self.resolve(fixture)
+
+                self.assertEqual(result["status"], "blocked")
+                problem = next(
+                    problem
+                    for problem in result["problems"]
+                    if problem["code"] == "GEAR_GEM_UNIQUE_LIMIT_EXCEEDED"
+                )
+                self.assertEqual(problem["meta"]["limit"], 1)
+                self.assertFalse(result["profileReadiness"]["simcReady"])
 
     def test_resolver_has_no_database_or_current_facade_dependency(self):
         source = inspect.getsource(gear_resolver)
@@ -929,6 +1193,112 @@ class GearResolverTest(unittest.TestCase):
             "arcanoweave_lining",
         )
 
+    def test_midnight_mage_empty_canonical_selections_remove_managed_raw_fields_only(self):
+        fixture = build_midnight_mage_resolver_fixture(
+            selected_gem_count=8,
+            include_reference_enhancements=True,
+        )
+        fixture["intent"]["slots"]["head"]["gemOptionIds"] = []
+        fixture["intent"]["slots"]["back"]["enchantOptionId"] = ""
+        fixture["intent"]["slots"]["back"]["embellishmentOptionId"] = ""
+
+        result = self.resolve(fixture)
+
+        self.assertEqual(result["status"], "verified")
+        self.assertEqual(
+            result["resolvedSlots"]["head"]["selectedOptions"]["gemOptionIds"],
+            [],
+        )
+        self.assertEqual(
+            result["resolvedSlots"]["back"]["selectedOptions"]["enchantOptionId"],
+            "",
+        )
+        self.assertEqual(
+            result["resolvedSlots"]["back"]["selectedOptions"]["embellishmentOptionId"],
+            "",
+        )
+        self.assertNotIn("gem_id", result["resolvedSlots"]["head"]["simcOptions"])
+        self.assertNotIn("enchant_id", result["resolvedSlots"]["back"]["simcOptions"])
+        self.assertNotIn("embellishment", result["resolvedSlots"]["back"]["simcOptions"])
+        self.assertEqual(result["resolvedSlots"]["head"]["simcOptions"]["enchant_id"], "8017")
+        self.assertEqual(result["resolvedSlots"]["shoulder"]["simcOptions"]["enchant_id"], "8001")
+        self.assertEqual(result["resolvedSlots"]["waist"]["simcOptions"]["enchant_id"], "4223")
+        self.assertEqual(result["resolvedSlots"]["main_hand"]["simcOptions"]["enchant_id"], "8039/8052")
+        classifications_by_slot = {
+            slot: fixture["authorityContext"]["variantsByKey"][selection["variantKey"]][
+                "enhancementManagement"
+            ]["fields"]
+            for slot, selection in fixture["intent"]["slots"].items()
+            if "enhancementManagement"
+            in fixture["authorityContext"]["variantsByKey"][selection["variantKey"]]
+        }
+        self.assertEqual(classifications_by_slot["head"]["gem_id"], "editor_managed")
+        self.assertEqual(classifications_by_slot["head"]["enchant_id"], "source_only")
+        self.assertEqual(classifications_by_slot["shoulder"]["enchant_id"], "source_only")
+        self.assertEqual(classifications_by_slot["waist"]["enchant_id"], "source_only")
+        self.assertEqual(classifications_by_slot["main_hand"]["enchant_id"], "source_only")
+        self.assertEqual(classifications_by_slot["back"]["enchant_id"], "editor_managed")
+        self.assertEqual(classifications_by_slot["back"]["embellishment"], "editor_managed")
+        serializer_by_slot = {
+            item["slot"]: item for item in result["serializerInput"]["gearItems"]
+        }
+        self.assertNotIn("gem_id", serializer_by_slot["head"]["simcOptions"])
+        self.assertNotIn("enchant_id", serializer_by_slot["back"]["simcOptions"])
+        self.assertNotIn("embellishment", serializer_by_slot["back"]["simcOptions"])
+        self.assertEqual(serializer_by_slot["head"]["simcOptions"]["enchant_id"], "8017")
+        self.assertEqual(serializer_by_slot["main_hand"]["simcOptions"]["enchant_id"], "8039/8052")
+
+    def test_v2_unresolved_or_missing_management_drops_raw_while_v1_preserves_legacy_raw(self):
+        unresolved = build_midnight_mage_resolver_fixture(
+            selected_gem_count=8,
+            include_reference_enhancements=True,
+        )
+        back_key = unresolved["intent"]["slots"]["back"]["variantKey"]
+        back_variant = unresolved["authorityContext"]["variantsByKey"][back_key]
+        back_variant["simcOptions"]["enchant_id"] = "9999"
+        back_variant["enhancementManagement"]["fields"]["enchant_id"] = "unresolved_drop"
+        unresolved["intent"]["slots"]["back"]["enchantOptionId"] = ""
+
+        unresolved_result = self.resolve(unresolved)
+
+        self.assertNotIn(
+            "enchant_id",
+            unresolved_result["resolvedSlots"]["back"]["simcOptions"],
+        )
+        self.assertNotIn(
+            "enchant_id",
+            next(
+                item["simcOptions"]
+                for item in unresolved_result["serializerInput"]["gearItems"]
+                if item["slot"] == "back"
+            ),
+        )
+
+        missing = build_midnight_mage_resolver_fixture(
+            selected_gem_count=8,
+            include_reference_enhancements=True,
+        )
+        head_key = missing["intent"]["slots"]["head"]["variantKey"]
+        missing["authorityContext"]["variantsByKey"][head_key].pop(
+            "enhancementManagement", None
+        )
+        missing["intent"]["slots"]["head"]["gemOptionIds"] = []
+
+        missing_result = self.resolve(missing)
+
+        self.assertNotIn("gem_id", missing_result["resolvedSlots"]["head"]["simcOptions"])
+        self.assertNotIn("enchant_id", missing_result["resolvedSlots"]["head"]["simcOptions"])
+
+        legacy = copy.deepcopy(missing)
+        legacy["authorityContext"]["dependencyVector"]["capabilityRevision"] = (
+            gear_socket_authority.LEGACY_CAPABILITY_REVISION
+        )
+
+        legacy_result = self.resolve(legacy)
+
+        self.assertEqual(legacy_result["resolvedSlots"]["head"]["simcOptions"]["gem_id"], "240916")
+        self.assertEqual(legacy_result["resolvedSlots"]["head"]["simcOptions"]["enchant_id"], "8017")
+
     def test_eight_canonical_gems_are_editable_and_ninth_is_blocked(self):
         accepted = self.resolve(self.midnight_mage_fixture(selected_gem_count=8))
         blocked = self.resolve(self.midnight_mage_fixture(selected_gem_count=9))
@@ -1001,6 +1371,161 @@ class GearResolverTest(unittest.TestCase):
                 for problem in result["problems"]
             )
         )
+
+    def test_v2_source_only_built_in_embellishment_occupies_global_limit(self):
+        fixture = self.enable_embellishment_slots(
+            self.mark_source_only_built_in_embellishment(self.fixture(), "head"),
+            ["chest", "main_hand"],
+        )
+
+        for selected_count, expected_status in ((0, "verified"), (1, "verified"), (2, "blocked")):
+            with self.subTest(selected_count=selected_count):
+                candidate = copy.deepcopy(fixture)
+                for slot in ("chest", "main_hand")[:selected_count]:
+                    candidate["intent"]["slots"][slot]["embellishmentOptionId"] = (
+                        f"embellishment-{slot}"
+                    )
+
+                result = self.resolve(candidate)
+
+                self.assertEqual(result["status"], expected_status)
+                self.assertEqual(result["constraints"]["embellishmentMax"], 2)
+                self.assertEqual(result["constraints"]["embellishmentBuiltInUsed"], 1)
+                self.assertEqual(
+                    result["constraints"]["embellishmentSelectedUsed"],
+                    selected_count,
+                )
+                self.assertEqual(
+                    result["constraints"]["embellishmentUsed"],
+                    selected_count + 1,
+                )
+                self.assertEqual(
+                    result["resolvedSlots"]["head"]["simcOptions"]["embellishment"],
+                    "built_in_embellishment",
+                )
+                exceeded = [
+                    problem
+                    for problem in result["problems"]
+                    if problem["code"] == "GEAR_CRAFT_EMBELLISHMENT_LIMIT_EXCEEDED"
+                ]
+                self.assertEqual(bool(exceeded), selected_count == 2)
+                if exceeded:
+                    self.assertEqual(exceeded[0]["meta"], {"count": 3, "limit": 2})
+
+    def test_legacy_or_unclassified_raw_embellishment_is_not_counted_as_built_in(self):
+        fixture = self.fixture()
+        head_key = fixture["intent"]["slots"]["head"]["variantKey"]
+        fixture["authorityContext"]["variantsByKey"][head_key]["simcOptions"][
+            "embellishment"
+        ] = "legacy_unknown_raw"
+
+        result = self.resolve(fixture)
+
+        self.assertEqual(result["status"], "verified")
+        self.assertEqual(result["constraints"]["embellishmentBuiltInUsed"], 0)
+        self.assertEqual(result["constraints"]["embellishmentSelectedUsed"], 0)
+        self.assertEqual(result["constraints"]["embellishmentUsed"], 0)
+        self.assertEqual(
+            result["resolvedSlots"]["head"]["simcOptions"]["embellishment"],
+            "legacy_unknown_raw",
+        )
+
+    def test_source_only_built_in_slot_rejects_overlapping_editable_embellishment(self):
+        fixture = self.enable_embellishment_slots(
+            self.mark_source_only_built_in_embellishment(self.fixture(), "head"),
+            ["head"],
+        )
+        fixture["intent"]["slots"]["head"]["embellishmentOptionId"] = (
+            "embellishment-head"
+        )
+
+        result = self.resolve(fixture)
+
+        self.assertEqual(result["status"], "blocked")
+        self.assertEqual(result["aggregateLegality"]["status"], "blocked")
+        self.assertEqual(result["constraints"]["embellishmentBuiltInUsed"], 1)
+        self.assertEqual(result["constraints"]["embellishmentSelectedUsed"], 1)
+        self.assertEqual(result["constraints"]["embellishmentUsed"], 2)
+        self.assertTrue(
+            any(
+                problem["code"]
+                == "GEAR_CRAFT_BUILT_IN_EMBELLISHMENT_CONFLICT"
+                for problem in result["problems"]
+            )
+        )
+
+    def test_invalid_v2_management_drops_raw_and_cannot_create_built_in_usage_or_conflict(self):
+        invalid_cases = {
+            "missing marker": None,
+            "forged schema": {"schemaRevision": "forged-v0"},
+            "wrong authority": {
+                "authorityRevision": gear_socket_authority.LEGACY_CAPABILITY_REVISION,
+            },
+            "missing field": {"fields": {}},
+            "extra field": {
+                "fields": {
+                    "embellishment": "source_only",
+                    "enchant_id": "source_only",
+                },
+            },
+            "invalid enum": {"fields": {"embellishment": "trust_me"}},
+        }
+        for name, mutation in invalid_cases.items():
+            with self.subTest(name=name):
+                fixture = self.enable_embellishment_slots(
+                    self.mark_source_only_built_in_embellishment(
+                        self.fixture(),
+                        "head",
+                    ),
+                    ["head"],
+                )
+                variant_key = fixture["intent"]["slots"]["head"]["variantKey"]
+                variant = fixture["authorityContext"]["variantsByKey"][variant_key]
+                if mutation is None:
+                    variant.pop("enhancementManagement", None)
+                else:
+                    for key, value in mutation.items():
+                        variant["enhancementManagement"][key] = value
+
+                without_selection = self.resolve(copy.deepcopy(fixture))
+
+                self.assertEqual(without_selection["status"], "verified")
+                self.assertEqual(
+                    without_selection["constraints"]["embellishmentBuiltInUsed"],
+                    0,
+                )
+                self.assertEqual(
+                    without_selection["constraints"]["embellishmentSelectedUsed"],
+                    0,
+                )
+                self.assertEqual(
+                    without_selection["constraints"]["embellishmentUsed"],
+                    0,
+                )
+                self.assertNotIn(
+                    "embellishment",
+                    without_selection["resolvedSlots"]["head"]["simcOptions"],
+                )
+
+                fixture["intent"]["slots"]["head"]["embellishmentOptionId"] = (
+                    "embellishment-head"
+                )
+
+                result = self.resolve(fixture)
+
+                self.assertEqual(result["status"], "verified")
+                self.assertEqual(result["constraints"]["embellishmentBuiltInUsed"], 0)
+                self.assertEqual(result["constraints"]["embellishmentSelectedUsed"], 1)
+                self.assertEqual(result["constraints"]["embellishmentUsed"], 1)
+                self.assertEqual(
+                    result["resolvedSlots"]["head"]["simcOptions"]["embellishment"],
+                    "embellishment-head",
+                )
+                self.assertFalse(any(
+                    problem["code"]
+                    == "GEAR_CRAFT_BUILT_IN_EMBELLISHMENT_CONFLICT"
+                    for problem in result["problems"]
+                ))
 
     def test_client_cannot_publish_an_embellishment_limit(self):
         fixture = self.fixture()
