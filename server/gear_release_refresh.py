@@ -50,6 +50,14 @@ def _text(value: Any) -> str:
     return str(value or "").strip()
 
 
+def _simc_probe_identity_from_status(status: Mapping[str, Any]) -> tuple[str, str]:
+    binary_path = _text(status.get("binaryPath"))
+    revision = _text(status.get("sourceCommit") or status.get("simcRuntimeRevision"))
+    if not binary_path or not revision:
+        raise RuntimeError("current SimC probe identity is unavailable")
+    return binary_path, revision
+
+
 class PostgresRefreshLease:
     """Hold one non-blocking session advisory lock for the full refresh run."""
 
@@ -639,7 +647,7 @@ def _run_from_environment(*, updated_by: str) -> dict[str, Any]:
             runtime_dependency_revisions,
         )
         from .postgres_cache_store import PostgresCacheStore
-        from .simulator_payload import simc_binary, simc_version_status
+        from .simulator_payload import simc_version_status
     except ImportError:
         from db import connect_postgres, database_config_from_env, postgres_only_runtime_enabled
         from gear_release_shadow import run_release_shadow
@@ -650,7 +658,7 @@ def _run_from_environment(*, updated_by: str) -> dict[str, Any]:
             runtime_dependency_revisions,
         )
         from postgres_cache_store import PostgresCacheStore
-        from simulator_payload import simc_binary, simc_version_status
+        from simulator_payload import simc_version_status
 
     config = database_config_from_env()
     if not postgres_only_runtime_enabled(config):
@@ -659,14 +667,7 @@ def _run_from_environment(*, updated_by: str) -> dict[str, Any]:
     store = GearReleaseStore(connection_factory)
     shadow_store = PostgresCacheStore(connection_factory)
     simc_status = simc_version_status()
-    simc_revision = _text(
-        simc_status.get("sourceCommit")
-        or simc_status.get("simcRuntimeRevision")
-        or simc_status.get("localTag")
-    )
-    if not simc_revision:
-        raise RuntimeError("current SimC runtime revision is unavailable")
-    simc_binary_path = _text(simc_status.get("binaryPath") or simc_binary())
+    simc_binary_path, simc_revision = _simc_probe_identity_from_status(simc_status)
     dependencies = runtime_dependency_revisions(simc_revision)
     expected = expected_spec_pairs()
     season_payload = shadow_store.get_active_season_payload()

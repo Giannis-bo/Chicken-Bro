@@ -9901,6 +9901,7 @@ class NewsBackendTest(unittest.TestCase):
             version_file.write_text(json.dumps({
                 "localTag": "1e357922af36",
                 "localCommit": full_commit,
+                "binary": "/opt/wow-simc/current/simc",
                 "source": "github",
             }), encoding="utf-8")
             with patch.dict(os.environ, {"WOW_SIMC_VERSION_FILE": str(version_file)}):
@@ -9908,6 +9909,7 @@ class NewsBackendTest(unittest.TestCase):
 
         self.assertEqual(status["sourceCommit"], full_commit)
         self.assertEqual(status["simcRuntimeRevision"], full_commit)
+        self.assertEqual(status["binaryPath"], "/opt/wow-simc/current/simc")
 
     def test_runtime_websim_gear_reuses_formal_browse_binding_for_resolver_context(self):
         binding = {

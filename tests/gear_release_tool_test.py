@@ -176,8 +176,10 @@ class GearReleaseToolTest(unittest.TestCase):
             self.fail(f"prepare_staging_gear_release must accept socket evidence: {exc}")
 
         materialized = result["snapshot"]
+        self.assertNotIn("capabilityOverrides", materialized["variants"][0])
+        self.assertNotIn("socketEvidence", materialized["variants"][0])
         self.assertEqual(
-            materialized["variants"][0]["capabilityOverrides"]["socketCount"],
+            materialized["variants"][0]["payload"]["capabilityOverrides"]["socketCount"],
             2,
         )
         self.assertEqual(result["release"]["content"], gear_snapshot_summary(materialized))
@@ -186,6 +188,99 @@ class GearReleaseToolTest(unittest.TestCase):
         self.assertEqual(source_evidence["simcRuntimeRevision"], "simc-r1")
         self.assertTrue(source_evidence["socketProbeDigest"].startswith("sha256:"))
         self.assertTrue(source_evidence["materializedSocketFactDigest"].startswith("sha256:"))
+
+    def test_materialized_socket_facts_round_trip_through_release_row_payloads(self):
+        from server.gear_release_store import GearReleaseStore, canonical_row_hash
+        from server.gear_release_tool import prepare_staging_gear_release
+        from server.gear_socket_authority import CAPABILITY_REVISION, SOCKET_FACT_SCHEMA_REVISION
+
+        snapshot = self.snapshot()
+        snapshot["items"][0]["slot"] = "finger1"
+        snapshot["items"][0]["itemLevel"] = None
+        snapshot["items"][0]["payload"]["preview_item"] = {"sockets": []}
+        snapshot["items"][0]["payload"]["baseCapabilities"] = {
+            "canEnchant": True,
+            "canEmbellish": True,
+        }
+        snapshot["variants"][0]["slot"] = "finger1"
+        snapshot["variants"][0]["label"] = ""
+        snapshot["variants"][0]["difficultyKey"] = ""
+        snapshot["variants"][0]["simcOptions"]["bonus_id"] = "9300"
+        snapshot["variants"][0]["payload"]["capabilityOverrides"] = {
+            "canEnchant": False,
+            "customAuthority": "preserved",
+        }
+        prepared = prepare_staging_gear_release(
+            FakeReleaseStore(snapshot),
+            season_revision="midnight-season-1",
+            dependency_revisions=self.dependencies(),
+            socket_bonus_minimums={"9300": 2},
+        )
+
+        class CapturingCursor:
+            def __init__(self):
+                self.batches = {}
+
+            def executemany(self, statement, rows):
+                if "websim_gear_release_items" in statement:
+                    self.batches["items"] = list(rows)
+                elif "websim_gear_release_variants" in statement:
+                    self.batches["variants"] = list(rows)
+
+        cursor = CapturingCursor()
+        GearReleaseStore._insert_gear_rows(
+            cursor,
+            "gear-release:sha256:round-trip",
+            prepared["snapshot"],
+        )
+        item_params = cursor.batches["items"][0]
+        variant_params = cursor.batches["variants"][0]
+        item_round_trip = {
+            "itemId": str(item_params[1] or "").strip(),
+            "name": str(item_params[2] or "").strip(),
+            "slot": str(item_params[3] or "").strip(),
+            "itemLevel": None if item_params[4] is None else int(item_params[4] or 0),
+            "sourceStatus": str(item_params[5] or "").strip(),
+            "payload": json.loads(item_params[6]),
+            "updatedAt": str(item_params[7] or "").strip(),
+        }
+        variant_round_trip = {
+            "variantId": str(variant_params[1] or "").strip(),
+            "itemId": str(variant_params[2] or "").strip(),
+            "variantKey": str(variant_params[3] or "").strip(),
+            "slot": str(variant_params[4] or "").strip(),
+            "label": str(variant_params[5] or "").strip(),
+            "sourceType": str(variant_params[6] or "").strip(),
+            "difficultyKey": str(variant_params[7] or "").strip(),
+            "itemLevel": int(variant_params[8] or 0),
+            "simcOptions": json.loads(variant_params[9]),
+            "status": str(variant_params[10] or "").strip(),
+            "blockers": json.loads(variant_params[11]),
+            "payload": json.loads(variant_params[12]),
+            "updatedAt": str(variant_params[13] or "").strip(),
+        }
+
+        self.assertEqual(canonical_row_hash(item_round_trip), item_params[8])
+        self.assertEqual(canonical_row_hash(variant_round_trip), variant_params[14])
+        self.assertEqual(item_round_trip, prepared["snapshot"]["items"][0])
+        self.assertEqual(variant_round_trip, prepared["snapshot"]["variants"][0])
+        item_payload = item_round_trip["payload"]
+        variant_payload = variant_round_trip["payload"]
+        self.assertEqual(item_payload["baseCapabilities"]["socketCount"], 1)
+        self.assertEqual(variant_payload["capabilityOverrides"]["socketCount"], 2)
+        self.assertTrue(item_payload["baseCapabilities"]["canEnchant"])
+        self.assertTrue(item_payload["baseCapabilities"]["canEmbellish"])
+        self.assertFalse(variant_payload["capabilityOverrides"]["canEnchant"])
+        self.assertEqual(
+            variant_payload["capabilityOverrides"]["customAuthority"],
+            "preserved",
+        )
+        self.assertEqual(item_payload["socketEvidence"]["schemaRevision"], SOCKET_FACT_SCHEMA_REVISION)
+        self.assertEqual(variant_payload["socketEvidence"]["schemaRevision"], SOCKET_FACT_SCHEMA_REVISION)
+        self.assertEqual(item_payload["socketEvidence"]["authorityRevision"], CAPABILITY_REVISION)
+        self.assertEqual(variant_payload["socketEvidence"]["authorityRevision"], CAPABILITY_REVISION)
+        self.assertIn("preview_item", item_payload)
+        self.assertIn("resolvedStats", variant_payload)
 
     def test_identical_socket_evidence_reuses_content_hash(self):
         from server.gear_release_tool import prepare_staging_gear_release
@@ -244,21 +339,65 @@ class GearReleaseToolTest(unittest.TestCase):
         self.assertTrue(calls[0][1]["text"])
         self.assertGreater(calls[0][1]["timeout"], 0)
         self.assertLessEqual(calls[0][1]["timeout"], 60)
-        with self.assertRaises(RuntimeError):
-            load_probe(
-                "",
-                runner=lambda *_args, **_kwargs: self.fail("blank binary must fail before runner"),
-            )
-        with self.assertRaises(RuntimeError):
-            load_probe(
-                "/fake/simc",
-                runner=lambda command, **_kwargs: subprocess.CompletedProcess(
-                    command,
-                    None,
-                    stdout="bonus_id=9300 effect=socket=2",
-                    stderr="",
+
+        def raising(error):
+            def fail(*_args, **_kwargs):
+                raise error
+
+            return fail
+
+        secret_binary = "/secret/runtime/simc"
+        failure_message = "SimC socket probe failed"
+        failures = (
+            ("blank binary", "", lambda *_args, **_kwargs: self.fail("blank binary must fail before runner")),
+            (
+                "timeout",
+                secret_binary,
+                raising(subprocess.TimeoutExpired([secret_binary], 30, output="secret stdout", stderr="secret stderr")),
+            ),
+            ("os error", secret_binary, raising(OSError("secret filesystem detail"))),
+            ("generic error", secret_binary, raising(RuntimeError("secret runner detail"))),
+            (
+                "nonzero",
+                secret_binary,
+                lambda command, **_kwargs: subprocess.CompletedProcess(
+                    command, 7, stdout="secret stdout", stderr="secret stderr"
                 ),
-            )
+            ),
+            *(
+                (
+                    f"invalid return code {returncode!r}",
+                    secret_binary,
+                    lambda command, returncode=returncode, **_kwargs: subprocess.CompletedProcess(
+                        command,
+                        returncode,
+                        stdout="bonus_id=9300 effect=socket=2",
+                        stderr="secret stderr",
+                    ),
+                )
+                for returncode in (None, True, False)
+            ),
+            (
+                "oversize",
+                secret_binary,
+                lambda command, **_kwargs: subprocess.CompletedProcess(
+                    command, 0, stdout="x" * (4 * 1024 * 1024 + 1), stderr="secret stderr"
+                ),
+            ),
+            (
+                "unparseable",
+                secret_binary,
+                lambda command, **_kwargs: subprocess.CompletedProcess(
+                    command, 0, stdout="secret unparseable output", stderr="secret stderr"
+                ),
+            ),
+        )
+        for label, binary, failing_runner in failures:
+            with self.subTest(label=label):
+                with self.assertRaises(RuntimeError) as caught:
+                    load_probe(binary, runner=failing_runner)
+                self.assertEqual(str(caught.exception), failure_message)
+                self.assertNotIn("secret", str(caught.exception).lower())
 
     def test_build_legacy_gear_release_blocks_empty_or_orphan_snapshot(self):
         from server.gear_release_store import GearReleaseIntegrityError

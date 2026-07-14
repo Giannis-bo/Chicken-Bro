@@ -142,6 +142,29 @@ def passing_shadow(status="pass", expected_count=1):
 
 
 class GearReleaseRefreshPolicyTest(unittest.TestCase):
+    def test_simc_probe_identity_requires_binary_and_revision_from_same_status(self):
+        from server import gear_release_refresh
+
+        resolver = getattr(gear_release_refresh, "_simc_probe_identity_from_status", None)
+        self.assertTrue(callable(resolver), "refresh must bind the SimC probe binary and revision")
+        full_commit = "1e357922af363f3d87cc0758863c2bb6d7701b72"
+        self.assertEqual(
+            resolver({
+                "sourceCommit": full_commit,
+                "simcRuntimeRevision": "ignored-older-revision",
+                "binaryPath": "/opt/wow-simc/current/simc",
+                "localTag": "1e357922af36",
+            }),
+            ("/opt/wow-simc/current/simc", full_commit),
+        )
+        for incomplete_status in (
+            {"binaryPath": "/opt/wow-simc/current/simc", "localTag": "1e357922af36"},
+            {"sourceCommit": full_commit},
+        ):
+            with self.subTest(incomplete_status=incomplete_status):
+                with self.assertRaisesRegex(RuntimeError, "^current SimC probe identity is unavailable$"):
+                    resolver(incomplete_status)
+
     def test_classify_gear_change_reports_unchanged_additive_and_high_risk(self):
         item = {"itemId": "1", "name": "A"}
         variant = {"variantId": "v1", "itemId": "1", "variantKey": "base"}

@@ -44,6 +44,7 @@ except ImportError:
 CAPABILITY_REVISION = "gear-capability-matrix-v1"
 _SIMC_SOCKET_PROBE_TIMEOUT_SECONDS = 30
 _SIMC_SOCKET_PROBE_MAX_CHARS = 4 * 1024 * 1024
+_SIMC_SOCKET_PROBE_FAILURE = "SimC socket probe failed"
 
 
 def _text(value: Any) -> str:
@@ -84,12 +85,18 @@ def _socket_probe_digest(socket_bonus_minimums: Mapping[str, Any]) -> str:
     })
 
 
+def _socket_fact_value(row: dict[str, Any], field: str) -> dict[str, Any]:
+    payload = row.get("payload") if isinstance(row.get("payload"), dict) else {}
+    value = payload.get(field) if isinstance(payload.get(field), dict) else row.get(field)
+    return value if isinstance(value, dict) else {}
+
+
 def _materialized_socket_fact_digest(snapshot: dict[str, Any]) -> str:
     items = [
         {
             "itemId": _text(row.get("itemId")),
-            "socketCount": _int((row.get("baseCapabilities") or {}).get("socketCount")),
-            "socketEvidence": _canonical(row.get("socketEvidence") or {}),
+            "socketCount": _int(_socket_fact_value(row, "baseCapabilities").get("socketCount")),
+            "socketEvidence": _canonical(_socket_fact_value(row, "socketEvidence")),
         }
         for row in snapshot.get("items") or []
         if isinstance(row, dict)
@@ -99,8 +106,10 @@ def _materialized_socket_fact_digest(snapshot: dict[str, Any]) -> str:
             "variantId": _text(row.get("variantId")),
             "itemId": _text(row.get("itemId")),
             "variantKey": _text(row.get("variantKey")),
-            "socketCount": _int((row.get("capabilityOverrides") or {}).get("socketCount")),
-            "socketEvidence": _canonical(row.get("socketEvidence") or {}),
+            "socketCount": _int(
+                _socket_fact_value(row, "capabilityOverrides").get("socketCount")
+            ),
+            "socketEvidence": _canonical(_socket_fact_value(row, "socketEvidence")),
         }
         for row in snapshot.get("variants") or []
         if isinstance(row, dict)
@@ -108,6 +117,28 @@ def _materialized_socket_fact_digest(snapshot: dict[str, Any]) -> str:
     items.sort(key=lambda row: row["itemId"])
     variants.sort(key=lambda row: (row["variantId"], row["itemId"], row["variantKey"]))
     return _canonical_digest({"items": items, "variants": variants})
+
+
+def _project_socket_facts_into_release_payloads(snapshot: dict[str, Any]) -> dict[str, Any]:
+    projected = _canonical(snapshot)
+    for category, fields in (
+        ("items", ("baseCapabilities", "socketEvidence")),
+        ("variants", ("capabilityOverrides", "socketEvidence")),
+    ):
+        rows = [row for row in projected.get(category) or [] if isinstance(row, dict)]
+        if any(not isinstance(row.get(field), dict) for row in rows for field in fields):
+            raise GearReleaseIntegrityError("materialized socket facts are incomplete")
+        for row in rows:
+            payload = _canonical(row.get("payload") if isinstance(row.get("payload"), dict) else {})
+            for field in fields:
+                materialized = row.pop(field)
+                if field in {"baseCapabilities", "capabilityOverrides"}:
+                    existing = payload.get(field) if isinstance(payload.get(field), dict) else {}
+                    payload[field] = {**existing, **materialized}
+                else:
+                    payload[field] = materialized
+            row["payload"] = payload
+    return projected
 
 
 def load_simc_socket_bonus_minimums(
@@ -119,23 +150,29 @@ def load_simc_socket_bonus_minimums(
 
     binary = _text(simc_binary)
     if not binary:
-        raise RuntimeError("SimC socket probe binary is unavailable")
-    result = runner(
-        [binary, "show_bonus_ids=1"],
-        capture_output=True,
-        text=True,
-        timeout=_SIMC_SOCKET_PROBE_TIMEOUT_SECONDS,
-        check=False,
-    )
+        raise RuntimeError(_SIMC_SOCKET_PROBE_FAILURE)
+    try:
+        result = runner(
+            [binary, "show_bonus_ids=1"],
+            capture_output=True,
+            text=True,
+            timeout=_SIMC_SOCKET_PROBE_TIMEOUT_SECONDS,
+            check=False,
+        )
+    except Exception:
+        raise RuntimeError(_SIMC_SOCKET_PROBE_FAILURE) from None
     returncode = getattr(result, "returncode", None)
     if type(returncode) is not int or returncode != 0:
-        raise RuntimeError("SimC socket probe failed")
+        raise RuntimeError(_SIMC_SOCKET_PROBE_FAILURE)
     output = getattr(result, "stdout", "")
     if not isinstance(output, str) or len(output) > _SIMC_SOCKET_PROBE_MAX_CHARS:
-        raise RuntimeError("SimC socket probe output is invalid or exceeds the bounded limit")
-    parsed = gear_socket_authority.parse_simc_socket_bonus_minimums(output)
+        raise RuntimeError(_SIMC_SOCKET_PROBE_FAILURE)
+    try:
+        parsed = gear_socket_authority.parse_simc_socket_bonus_minimums(output)
+    except Exception:
+        raise RuntimeError(_SIMC_SOCKET_PROBE_FAILURE) from None
     if not parsed:
-        raise RuntimeError("SimC socket probe returned no parseable socket effects")
+        raise RuntimeError(_SIMC_SOCKET_PROBE_FAILURE)
     return parsed
 
 
@@ -267,10 +304,12 @@ def prepare_staging_gear_release(
     if not isinstance(socket_bonus_minimums, Mapping) or not socket_bonus_minimums:
         raise GearReleaseIntegrityError("socket bonus evidence must be a non-empty mapping")
     normalized_bonus_minimums = socket_bonus_minimums
-    snapshot = gear_socket_authority.materialize_gear_socket_facts(
-        store.snapshot_staging_gear(),
-        season_revision=season_revision,
-        socket_bonus_minimums=normalized_bonus_minimums,
+    snapshot = _project_socket_facts_into_release_payloads(
+        gear_socket_authority.materialize_gear_socket_facts(
+            store.snapshot_staging_gear(),
+            season_revision=season_revision,
+            socket_bonus_minimums=normalized_bonus_minimums,
+        )
     )
     problems = validate_gear_snapshot(snapshot)
     if problems:

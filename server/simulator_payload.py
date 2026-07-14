@@ -537,6 +537,10 @@ def simc_version_status():
     for key in status:
         if key in payload:
             status[key] = payload[key]
+    if not str(status.get("binaryPath") or "").strip():
+        legacy_binary = str(payload.get("binary") or "").strip()
+        if legacy_binary:
+            status["binaryPath"] = legacy_binary
     local_commit = str(payload.get("localCommit") or "").strip().lower()
     if re.fullmatch(r"[0-9a-f]{40}", local_commit):
         if not str(status.get("sourceCommit") or "").strip():
