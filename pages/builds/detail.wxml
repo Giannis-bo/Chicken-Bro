@@ -91,7 +91,6 @@
               <view class="gear-attribute-cell {{item.pending ? 'pending' : ''}}" wx:for="{{gearAttributePanel.enhancementRows}}" wx:key="key">
                 <text class="gear-attribute-label">{{item.label}}</text>
                 <text class="gear-attribute-value">{{item.value}}</text>
-                <text class="gear-attribute-inherited" wx:if="{{item.inheritedCount}}">{{item.inheritedLabel}}</text>
               </view>
             </view>
           </view>
@@ -367,10 +366,6 @@
         <view class="gear-enhancement-options">
           <button class="gear-enhancement-option {{option.selected ? 'active' : ''}} {{option.disabled || gearEnhancementSheet.submitting ? 'disabled' : ''}}" wx:for="{{row.options}}" wx:for-item="option" wx:key="id" data-slot="{{row.slot}}" data-type="embellishment" data-id="{{option.id}}" disabled="{{option.disabled || gearEnhancementSheet.submitting}}" bindtap="selectGearEnhancementOption">{{option.label}}</button>
         </view>
-      </view>
-      <view class="gear-enhancement-inherited-row" wx:for="{{gearEnhancementSheet.activeInheritedRows}}" wx:for-item="row" wx:key="type">
-        <text class="gear-enhancement-inherited-type">{{row.label}}</text>
-        <text class="gear-enhancement-inherited-state">已继承，当前目录不可编辑</text>
       </view>
     </view>
     <view class="gear-enhancement-warnings" wx:if="{{gearEnhancementSheet.warnings.length}}">
