@@ -2,7 +2,7 @@ import dataclasses
 import json
 import unittest
 
-from server import gear_rule_matrix, gear_socket_authority
+from server import gear_rule_matrix, gear_socket_authority, pg_gear_authority_loader
 
 
 class GearRuleMatrixTest(unittest.TestCase):
@@ -391,6 +391,126 @@ class GearRuleMatrixTest(unittest.TestCase):
         gem_rule = self.result_for(result, "socket_and_gem")
         self.assertEqual(gem_rule["status"], "verified")
         self.assertEqual(gem_rule["problems"], [])
+
+    def test_socket_rule_uses_v2_exact_variant_capacity(self):
+        authority = self.authority()
+        authority["dependencyVector"]["capabilityRevision"] = (
+            gear_socket_authority.CAPABILITY_REVISION
+        )
+        evidence = {}
+        authority["variantsByKey"]["variant-head"] = (
+            pg_gear_authority_loader._project_variant(
+                "item-head",
+                "variant-head",
+                {
+                    "id": "variant-row-head",
+                    "itemId": "item-head",
+                    "variantKey": "variant-head",
+                    "itemLevel": 289,
+                    "status": "verified",
+                    "simcOptions": {"gem_id": "240001/240002/240003"},
+                    "payload": {
+                        "capabilityOverrides": {"socketCount": 2},
+                        "socketEvidence": {
+                            "schemaRevision": (
+                                gear_socket_authority.SOCKET_FACT_SCHEMA_REVISION
+                            ),
+                            "authorityRevision": gear_socket_authority.CAPABILITY_REVISION,
+                            "minimumTotal": 2,
+                            "claims": [
+                                {
+                                    "minimumTotal": 2,
+                                    "scope": "exact_variant",
+                                    "source": "observed_gem_occupancy",
+                                    "sourceRevision": "observed-variant-r1",
+                                }
+                            ],
+                        },
+                    },
+                },
+                [],
+                evidence,
+                authority["dependencyVector"]["capabilityRevision"],
+            )
+        )
+        gem_ids = ["gem-int", "gem-second", "gem-third"]
+        authority["itemsById"]["item-head"]["allowedGemOptionIds"] = gem_ids
+        authority["optionsById"].update(
+            {
+                "gem-second": {
+                    "optionType": "gem",
+                    "uniqueGroupId": "",
+                    "uniqueLimit": 0,
+                },
+                "gem-third": {
+                    "optionType": "gem",
+                    "uniqueGroupId": "",
+                    "uniqueLimit": 0,
+                },
+            }
+        )
+        intent = self.intent(
+            {
+                "head": self.slot(
+                    "item-head",
+                    "variant-head",
+                    gemOptionIds=gem_ids,
+                )
+            }
+        )
+
+        result = gear_rule_matrix.evaluate_rule_matrix(intent, authority)
+
+        gem_rule = self.result_for(result, "socket_and_gem")
+        self.assertEqual(gem_rule["status"], "blocked")
+        self.assertEqual(
+            gem_rule["problems"][0]["code"],
+            "GEAR_GEM_SOCKET_CAPACITY_EXCEEDED",
+        )
+
+        fallback_authority = self.authority()
+        fallback_authority["dependencyVector"]["capabilityRevision"] = (
+            gear_socket_authority.CAPABILITY_REVISION
+        )
+        fallback_authority["variantsByKey"]["variant-head"] = (
+            pg_gear_authority_loader._project_variant(
+                "item-head",
+                "variant-head",
+                {
+                    "id": "variant-row-head-missing-fact",
+                    "itemId": "item-head",
+                    "variantKey": "variant-head",
+                    "itemLevel": 289,
+                    "status": "verified",
+                    "simcOptions": {"gem_id": "240001/240002/240003"},
+                    "payload": {"capabilityOverrides": {}},
+                },
+                [],
+                {},
+                fallback_authority["dependencyVector"]["capabilityRevision"],
+            )
+        )
+        self.assertNotIn(
+            "socketCount",
+            fallback_authority["variantsByKey"]["variant-head"][
+                "capabilityOverrides"
+            ],
+        )
+        fallback_result = gear_rule_matrix.evaluate_rule_matrix(
+            self.intent(
+                {
+                    "head": self.slot(
+                        "item-head",
+                        "variant-head",
+                        gemOptionIds=["gem-int"],
+                    )
+                }
+            ),
+            fallback_authority,
+        )
+        fallback_gem_rule = self.result_for(fallback_result, "socket_and_gem")
+        self.assertEqual(fallback_gem_rule["status"], "verified")
+        self.assertEqual(fallback_gem_rule["problems"], [])
 
     def test_rule_matrix_returns_all_ordered_results_without_resolving_attributes(self):
         authority = self.authority()

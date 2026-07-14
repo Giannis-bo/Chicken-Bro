@@ -217,13 +217,51 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
 
     def load(self, cursor=None, intent=None, runtime=None, cache=None):
         cursor = cursor or self.cursor()
+        if runtime is None:
+            runtime = self.runtime_authority(
+                capabilityRevision=gear_socket_authority.LEGACY_CAPABILITY_REVISION
+            )
         context = pg_gear_authority_loader.load_gear_authority_context(
             cursor,
             intent or self.intent(),
-            runtime or self.runtime_authority(),
+            runtime,
             cache=cache,
         )
         return cursor, context
+
+    def released_context(
+        self,
+        *,
+        capability_revision,
+        item_rows=None,
+        option_rows=None,
+        intent=None,
+        runtime=None,
+    ):
+        runtime = runtime or self.runtime_authority()
+        catalog_revision = self.catalog_revision()
+        dependency_vector = {
+            "seasonRevision": "season-17-active",
+            "gearCatalogReleaseId": "gear-release-17",
+            "gearCatalogRevision": catalog_revision,
+            **runtime["dependencyRevisions"],
+            "capabilityRevision": capability_revision,
+        }
+        return pg_gear_authority_loader.build_gear_authority_context_from_rows(
+            intent or self.intent(),
+            runtime,
+            manifest={
+                "contractRevision": "active-season-manifest-v1",
+                "manifestType": "active",
+                "formalActiveManifest": True,
+                "seasonRevision": "season-17-active",
+                "gearCatalogReleaseId": "gear-release-17",
+                "gearCatalogRevision": catalog_revision,
+            },
+            dependency_vector=dependency_vector,
+            item_rows=item_rows if item_rows is not None else [self.item_row()],
+            option_rows=option_rows if option_rows is not None else [],
+        )
 
     def test_loader_executes_three_cold_queries_for_one_or_sixteen_slots(self):
         cursor, _context = self.load()
@@ -504,7 +542,9 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
                 }
             }
         )
-        runtime = self.runtime_authority()
+        runtime = self.runtime_authority(
+            capabilityRevision=gear_socket_authority.LEGACY_CAPABILITY_REVISION
+        )
         runtime["ruleParameters"]["inventoryTypesBySlot"] = {"finger1": ["finger1"]}
         runtime["ruleParameters"]["requiredSlots"] = ["finger1"]
 
@@ -521,6 +561,330 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
         self.assertEqual(item["socketCount"], 1)
         self.assertEqual(snapshot["constraints"]["slots"]["finger1"]["socketCount"], 1)
         self.assertTrue(snapshot["constraints"]["slots"]["finger1"]["canEnchant"])
+
+    def test_v2_base_capability_uses_materialized_item_socket_fact(self):
+        valid_evidence = {
+            "schemaRevision": gear_socket_authority.SOCKET_FACT_SCHEMA_REVISION,
+            "authorityRevision": gear_socket_authority.CAPABILITY_REVISION,
+            "minimumTotal": 2,
+            "claims": [
+                {
+                    "minimumTotal": 2,
+                    "scope": "exact_item",
+                    "source": "official_item_payload",
+                    "sourceRevision": "official-item-r1",
+                }
+            ],
+        }
+        row = self.item_row(
+            item={
+                "payload": {
+                    "inventoryType": "head",
+                    "armorType": "plate",
+                    "baseStats": {"strength": 80},
+                    "baseCapabilities": {
+                        "socketCount": 2,
+                        "canEnchant": True,
+                        "canEmbellish": True,
+                    },
+                    "socketEvidence": valid_evidence,
+                    "socketCount": 1,
+                }
+            }
+        )
+
+        context = self.released_context(
+            capability_revision=gear_socket_authority.CAPABILITY_REVISION,
+            item_rows=[row],
+        )
+
+        capabilities = context["itemsById"]["item-head"]["baseCapabilities"]
+        self.assertEqual(capabilities["socketCount"], 2)
+        self.assertTrue(capabilities["canEnchant"])
+        self.assertTrue(capabilities["canEmbellish"])
+
+        invalid_facts = (
+            ("missing", None, 2),
+            (
+                "wrong-schema",
+                {**valid_evidence, "schemaRevision": "future-socket-fact"},
+                2,
+            ),
+            (
+                "wrong-authority",
+                {**valid_evidence, "authorityRevision": "future-capability"},
+                2,
+            ),
+            ("contradictory-total", {**valid_evidence, "minimumTotal": 1}, 2),
+            ("missing-provenance", {**valid_evidence, "claims": []}, 2),
+            (
+                "malformed-provenance",
+                {
+                    **valid_evidence,
+                    "claims": [
+                        {
+                            "minimumTotal": 2,
+                            "scope": "",
+                            "source": "official_item_payload",
+                            "sourceRevision": "official-item-r1",
+                        }
+                    ],
+                },
+                2,
+            ),
+            ("boolean-count", valid_evidence, True),
+            ("string-count", valid_evidence, "2"),
+            ("negative-count", {**valid_evidence, "minimumTotal": -1}, -1),
+        )
+        for label, evidence, socket_count in invalid_facts:
+            with self.subTest(label=label):
+                payload = {
+                    "inventoryType": "head",
+                    "armorType": "plate",
+                    "baseStats": {"strength": 80},
+                    "baseCapabilities": {
+                        "socketCount": socket_count,
+                        "canEnchant": True,
+                        "canEmbellish": True,
+                    },
+                }
+                if evidence is not None:
+                    payload["socketEvidence"] = evidence
+                invalid = self.item_row(item={"payload": payload})
+                invalid_context = self.released_context(
+                    capability_revision=gear_socket_authority.CAPABILITY_REVISION,
+                    item_rows=[invalid],
+                )
+                invalid_capabilities = invalid_context["itemsById"]["item-head"][
+                    "baseCapabilities"
+                ]
+                self.assertEqual(invalid_capabilities["socketCount"], 0)
+                self.assertTrue(invalid_capabilities["canEnchant"])
+                self.assertTrue(invalid_capabilities["canEmbellish"])
+
+    def test_v2_exact_variant_uses_materialized_socket_override(self):
+        valid_evidence = {
+            "schemaRevision": gear_socket_authority.SOCKET_FACT_SCHEMA_REVISION,
+            "authorityRevision": gear_socket_authority.CAPABILITY_REVISION,
+            "minimumTotal": 2,
+            "claims": [
+                {
+                    "minimumTotal": 2,
+                    "scope": "exact_variant",
+                    "source": "observed_gem_occupancy",
+                    "sourceRevision": "observed-variant-r1",
+                }
+            ],
+        }
+        row = self.item_row(
+            item={
+                "payload": {
+                    "inventoryType": "head",
+                    "armorType": "plate",
+                    "baseStats": {"strength": 80},
+                    "baseCapabilities": {"socketCount": 1},
+                    "socketEvidence": {
+                        "schemaRevision": gear_socket_authority.SOCKET_FACT_SCHEMA_REVISION,
+                        "authorityRevision": gear_socket_authority.CAPABILITY_REVISION,
+                        "minimumTotal": 1,
+                        "claims": [
+                            {
+                                "minimumTotal": 1,
+                                "scope": "exact_item",
+                                "source": "official_item_payload",
+                                "sourceRevision": "official-item-r1",
+                            }
+                        ],
+                    },
+                }
+            },
+            variant={
+                "simcOptions": {"ilevel": "289", "gem_id": "240892/240900/240983"},
+                "payload": {
+                    "resolvedStats": {"strength": 90},
+                    "capabilityOverrides": {
+                        "socketCount": 2,
+                        "canEmbellish": False,
+                    },
+                    "socketEvidence": valid_evidence,
+                },
+            },
+        )
+        one_socket = copy.deepcopy(list(row))
+        one_socket[1] = "variant-head-one"
+        one_socket[3]["id"] = "variant-row-head-one"
+        one_socket[3]["variantKey"] = "variant-head-one"
+        one_socket[3]["simcOptions"] = {"ilevel": "289", "gem_id": "240892/240900"}
+        one_socket[3]["payload"]["capabilityOverrides"]["socketCount"] = 1
+        one_socket[3]["payload"]["socketEvidence"]["minimumTotal"] = 1
+        one_socket[3]["payload"]["socketEvidence"]["claims"][0][
+            "minimumTotal"
+        ] = 1
+
+        context = self.released_context(
+            capability_revision=gear_socket_authority.CAPABILITY_REVISION,
+            item_rows=[row, tuple(one_socket)],
+        )
+
+        overrides = context["variantsByKey"]["variant-head"]["capabilityOverrides"]
+        self.assertEqual(overrides["socketCount"], 2)
+        self.assertFalse(overrides["canEmbellish"])
+        self.assertEqual(
+            context["variantsByKey"]["variant-head-one"]["capabilityOverrides"][
+                "socketCount"
+            ],
+            1,
+        )
+
+        zero_socket = copy.deepcopy(list(row))
+        zero_socket[1] = "variant-head-zero"
+        zero_socket[3]["id"] = "variant-row-head-zero"
+        zero_socket[3]["variantKey"] = "variant-head-zero"
+        zero_socket[3]["payload"]["capabilityOverrides"]["socketCount"] = 0
+        zero_socket[3]["payload"]["socketEvidence"]["minimumTotal"] = 0
+        zero_socket[3]["payload"]["socketEvidence"]["claims"] = []
+        zero_context = self.released_context(
+            capability_revision=gear_socket_authority.CAPABILITY_REVISION,
+            item_rows=[tuple(zero_socket)],
+        )
+        self.assertNotIn(
+            "socketCount",
+            zero_context["variantsByKey"]["variant-head-zero"][
+                "capabilityOverrides"
+            ],
+        )
+
+        invalid_facts = (
+            ("missing", None, 2),
+            (
+                "wrong-schema",
+                {**valid_evidence, "schemaRevision": "future-socket-fact"},
+                2,
+            ),
+            (
+                "wrong-authority",
+                {**valid_evidence, "authorityRevision": "future-capability"},
+                2,
+            ),
+            ("contradictory-total", {**valid_evidence, "minimumTotal": 1}, 2),
+            ("missing-provenance", {**valid_evidence, "claims": []}, 2),
+            (
+                "malformed-provenance",
+                {
+                    **valid_evidence,
+                    "claims": [
+                        {
+                            "minimumTotal": 2,
+                            "scope": "exact_variant",
+                            "source": "",
+                            "sourceRevision": "observed-variant-r1",
+                        }
+                    ],
+                },
+                2,
+            ),
+            ("boolean-count", valid_evidence, True),
+            ("string-count", valid_evidence, "2"),
+            ("negative-count", {**valid_evidence, "minimumTotal": -1}, -1),
+        )
+        for label, evidence, socket_count in invalid_facts:
+            with self.subTest(label=label):
+                invalid = copy.deepcopy(list(row))
+                invalid[3]["payload"]["capabilityOverrides"]["socketCount"] = (
+                    socket_count
+                )
+                if evidence is None:
+                    invalid[3]["payload"].pop("socketEvidence")
+                else:
+                    invalid[3]["payload"]["socketEvidence"] = evidence
+                invalid_context = self.released_context(
+                    capability_revision=gear_socket_authority.CAPABILITY_REVISION,
+                    item_rows=[tuple(invalid)],
+                )
+                invalid_overrides = invalid_context["variantsByKey"]["variant-head"][
+                    "capabilityOverrides"
+                ]
+                self.assertNotIn("socketCount", invalid_overrides)
+                self.assertFalse(invalid_overrides["canEmbellish"])
+
+    def test_v2_raw_gem_sequence_without_socket_fact_does_not_create_capacity(self):
+        from server import gear_resolver
+
+        row = self.item_row(
+            item={
+                "payload": {
+                    "inventoryType": "head",
+                    "armorType": "plate",
+                    "baseStats": {"strength": 80},
+                    "baseCapabilities": {"socketCount": 1},
+                    "socketEvidence": {
+                        "schemaRevision": gear_socket_authority.SOCKET_FACT_SCHEMA_REVISION,
+                        "authorityRevision": gear_socket_authority.CAPABILITY_REVISION,
+                        "minimumTotal": 1,
+                        "claims": [
+                            {
+                                "minimumTotal": 1,
+                                "scope": "exact_item",
+                                "source": "official_item_payload",
+                                "sourceRevision": "official-item-r1",
+                            }
+                        ],
+                    },
+                }
+            },
+            variant={
+                "simcOptions": {"ilevel": "289", "gem_id": "240892/240900"},
+                "payload": {
+                    "resolvedStats": {"strength": 90},
+                    "capabilityOverrides": {"canEmbellish": False},
+                },
+            },
+        )
+        intent = self.intent()
+        intent["slots"]["head"]["gemOptionIds"] = []
+
+        context = self.released_context(
+            capability_revision=gear_socket_authority.CAPABILITY_REVISION,
+            item_rows=[row],
+            intent=intent,
+        )
+        snapshot = gear_resolver.resolve(intent, context)
+
+        self.assertEqual(context["itemsById"]["item-head"]["socketCount"], 1)
+        overrides = context["variantsByKey"]["variant-head"]["capabilityOverrides"]
+        self.assertNotIn("socketCount", overrides)
+        self.assertFalse(overrides["canEmbellish"])
+        self.assertEqual(snapshot["status"], "verified")
+        self.assertEqual(snapshot["constraints"]["slots"]["head"]["socketCount"], 1)
+
+    def test_v1_release_preserves_legacy_projection_during_rollout(self):
+        row = self.item_row(
+            item={
+                "payload": {
+                    "inventory_type": {"type": "FINGER", "name": "Finger"},
+                    "sockets": [{"socket_type": {"type": "PRISMATIC"}}],
+                }
+            },
+            variant={
+                "simcOptions": {
+                    "ilevel": "289",
+                    "gem_id": "240892/240900",
+                    "crafted_stats": "32/36",
+                }
+            },
+        )
+
+        context = self.released_context(
+            capability_revision=gear_socket_authority.LEGACY_CAPABILITY_REVISION,
+            item_rows=[row],
+        )
+
+        item = context["itemsById"]["item-head"]
+        overrides = context["variantsByKey"]["variant-head"]["capabilityOverrides"]
+        self.assertEqual(item["baseCapabilities"]["socketCount"], 1)
+        self.assertTrue(item["baseCapabilities"]["canEnchant"])
+        self.assertEqual(overrides["socketCount"], 2)
+        self.assertTrue(overrides["canEmbellish"])
 
     def test_exact_verified_variant_gems_raise_only_variant_socket_capacity(self):
         ring = list(self.item_row(

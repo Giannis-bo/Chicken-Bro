@@ -4,10 +4,13 @@ import json
 from pathlib import Path
 import unittest
 
-from server import gear_resolver, gear_socket_authority
+from server import gear_resolver, gear_socket_authority, pg_gear_authority_loader
 
 
 FIXTURE_PATH = Path(__file__).parent / "fixtures" / "gear-resolver-complete-authority-v1.json"
+MIDNIGHT_SOCKET_FIXTURE_PATH = (
+    Path(__file__).parent / "fixtures" / "midnight-mage-frost-socket-evidence-v1.json"
+)
 
 
 class GearResolverTest(unittest.TestCase):
@@ -72,6 +75,208 @@ class GearResolverTest(unittest.TestCase):
             item["baseCapabilities"]["canEmbellish"] = True
             item["allowedEmbellishmentOptionIds"] = [option_id]
         return fixture
+
+    def midnight_mage_fixture(self, selected_gem_count=0):
+        socket_fixture = json.loads(
+            MIDNIGHT_SOCKET_FIXTURE_PATH.read_text(encoding="utf-8")
+        )
+        materialized = gear_socket_authority.materialize_gear_socket_facts(
+            socket_fixture["snapshot"],
+            season_revision=socket_fixture["seasonRevision"],
+            socket_bonus_minimums=socket_fixture["socketBonusMinimums"],
+        )
+        items_by_id = {row["itemId"]: row for row in materialized["items"]}
+        variants_by_key = {
+            row["variantKey"]: row for row in materialized["variants"]
+        }
+        expected = socket_fixture["expectedInstances"]
+        expected_capacities = dict(
+            zip(
+                (instance["slot"] for instance in expected),
+                (1, 2, 1, 1, 2, 1),
+            )
+        )
+        selected_by_slot = {slot: 0 for slot in expected_capacities}
+        remaining = min(selected_gem_count, sum(expected_capacities.values()))
+        for slot, capacity in expected_capacities.items():
+            selected_by_slot[slot] = min(capacity, remaining)
+            remaining -= selected_by_slot[slot]
+        if selected_gem_count > sum(expected_capacities.values()):
+            selected_by_slot["neck"] += selected_gem_count - sum(
+                expected_capacities.values()
+            )
+        option_rows = []
+        item_rows = []
+        slots = {}
+        option_index = 0
+        for instance in expected:
+            slot = instance["slot"]
+            item = items_by_id[instance["itemId"]]
+            variant = variants_by_key[instance["variantKey"]]
+            selected_here = selected_by_slot[slot]
+            selected_ids = []
+            for _socket_index in range(selected_here):
+                option_index += 1
+                option_id = f"mage-gem-{option_index}"
+                selected_ids.append(option_id)
+                option_rows.append(
+                    (
+                        option_id,
+                        {
+                            "id": f"option-{option_id}",
+                            "optionKey": option_id,
+                            "optionType": "socket",
+                            "name": f"Canonical Gem {option_index}",
+                            "applicableSlots": [slot],
+                            "simcOptions": {"gem_id": str(240000 + option_index)},
+                            "status": "verified",
+                            "isVisible": True,
+                            "payload": {"statDeltas": {}},
+                            "updatedAt": "2026-07-14T00:00:00+00:00",
+                        },
+                    )
+                )
+            slots[slot] = {
+                "itemId": instance["itemId"],
+                "variantKey": instance["variantKey"],
+                "gemOptionIds": selected_ids,
+                "enchantOptionId": "",
+                "embellishmentOptionId": "",
+                "craftedOptionId": "",
+                "catalystOptionId": "",
+            }
+            item_payload = {
+                **item.get("payload", {}),
+                "inventoryType": "finger" if slot.startswith("finger") else slot,
+                "armorType": "cloth" if slot in {"head", "wrist", "waist"} else "",
+                "allowedClassKeys": ["mage"],
+                "allowedSpecKeys": ["frost"],
+                "baseStats": {"intellect": 100, "stamina": 100},
+                "baseCapabilities": item["baseCapabilities"],
+                "socketEvidence": item["socketEvidence"],
+                "socketCount": 0,
+            }
+            variant_simc = copy.deepcopy(variant.get("simcOptions", {}))
+            if slot == "neck":
+                variant_simc["gem_id"] = "240983/240892/999999"
+            item_rows.append(
+                (
+                    instance["itemId"],
+                    instance["variantKey"],
+                    {
+                        "id": instance["itemId"],
+                        "name": item.get("name", instance["itemId"]),
+                        "slot": slot,
+                        "sourceStatus": "verified",
+                        "payload": item_payload,
+                    },
+                    {
+                        "id": f"row-{instance['variantKey']}",
+                        "itemId": instance["itemId"],
+                        "slot": slot,
+                        "variantKey": instance["variantKey"],
+                        "itemLevel": 289,
+                        "simcOptions": variant_simc,
+                        "status": "verified",
+                        "payload": {
+                            "resolvedStats": {"intellect": 100, "stamina": 100},
+                            "capabilityOverrides": variant["capabilityOverrides"],
+                            "socketEvidence": variant["socketEvidence"],
+                        },
+                    },
+                    [
+                        {
+                            "id": f"source-{instance['variantKey']}",
+                            "sourceType": "raiderio_observed_profile",
+                            "sourceKey": "observed_profile_mage_frost",
+                            "seasonRevision": "season-17-active",
+                            "status": "verified",
+                            "updatedAt": "2026-07-14T00:00:00+00:00",
+                        }
+                    ],
+                )
+            )
+
+        intent = {
+            "schemaRevision": "selection-intent-v1",
+            "authoredAgainst": {
+                "seasonRevision": "season-17-active",
+                "gearCatalogRevision": "gear-release-17",
+            },
+            "eligibilityContext": {
+                "classKey": "mage",
+                "specKey": "frost",
+                "level": 90,
+            },
+            "slots": slots,
+        }
+        dependency_vector = {
+            "seasonRevision": "season-17-active",
+            "gearCatalogReleaseId": "gear-release-17",
+            "gearCatalogRevision": "gear-release-17",
+            "gearRuleRevision": "gear-rule-matrix-v1",
+            "resolverContractRevision": "gear-resolver-contract-v1",
+            "serializerRevision": "websim-profile-compat-v1",
+            "simcRuntimeRevision": "simc-v1",
+            "statPolicyRevision": "stat-snapshot-policy-v1",
+            "selectionSchemaRevision": "selection-intent-v1",
+            "capabilityRevision": gear_socket_authority.CAPABILITY_REVISION,
+        }
+        runtime = {
+            "dependencyRevisions": copy.deepcopy(dependency_vector),
+            "requestedClassSpec": "mage:frost",
+            "playableClassSpecs": {"mage": ["frost"]},
+            "ruleParameters": {
+                "inventoryTypesBySlot": {
+                    slot: ["finger" if slot.startswith("finger") else slot]
+                    for slot in slots
+                },
+                "allowedArmorTypesByClass": {"mage": ["cloth"]},
+                "armorRestrictedSlots": ["head", "wrist", "waist"],
+                "allowedWeaponTypesByClassSpec": {"mage:frost": []},
+                "dualWieldByClassSpec": {"mage:frost": False},
+                "weaponModesByClassSpec": {"mage:frost": "caster_1h_or_staff"},
+                "requiredSlots": list(slots),
+                "uniqueLimits": {},
+                "uniqueGemLimits": {},
+                "runeforgeAllowedClassSpecs": [],
+                "embellishmentLimit": 2,
+                "catalystRevision": "catalyst-proof-v1",
+                "crossSlotBlockers": [],
+                "setAggregationInputs": [],
+                "sourceRefIds": ["evidence:runtime:rules"],
+            },
+            "capabilities": {
+                "serializer": {
+                    "enabled": True,
+                    "revision": "websim-profile-compat-v1",
+                },
+                "catalyst": {"enabled": False, "revision": "catalyst-proof-v1"},
+            },
+            "sourceRefs": [
+                {
+                    "id": "evidence:runtime:rules",
+                    "sourceType": "backend_policy",
+                    "sourceRevision": "gear-rule-matrix-v1",
+                }
+            ],
+        }
+        context = pg_gear_authority_loader.build_gear_authority_context_from_rows(
+            intent,
+            runtime,
+            manifest={
+                "contractRevision": "active-season-manifest-v1",
+                "manifestType": "active",
+                "formalActiveManifest": True,
+                "seasonRevision": "season-17-active",
+                "gearCatalogReleaseId": "gear-release-17",
+                "gearCatalogRevision": "gear-release-17",
+            },
+            dependency_vector=dependency_vector,
+            item_rows=item_rows,
+            option_rows=option_rows,
+        )
+        return {"intent": intent, "authorityContext": context}
 
     def test_resolver_rejects_malformed_intent_before_slot_resolution(self):
         fixture = self.fixture()
@@ -525,6 +730,38 @@ class GearResolverTest(unittest.TestCase):
         self.assertFalse(head["canEnchant"])
         self.assertTrue(main["canEnchant"])
         self.assertTrue(main["hasSelectedEnchant"])
+
+    def test_midnight_mage_template_resolves_socket_counts_1_2_1_1_2_1(self):
+        result = self.resolve(self.midnight_mage_fixture())
+
+        self.assertEqual(result["status"], "verified")
+        self.assertEqual(
+            [
+                result["constraints"]["slots"][slot]["socketCount"]
+                for slot in ("head", "neck", "wrist", "waist", "finger1", "finger2")
+            ],
+            [1, 2, 1, 1, 2, 1],
+        )
+
+    def test_eight_canonical_gems_are_editable_and_ninth_is_blocked(self):
+        accepted = self.resolve(self.midnight_mage_fixture(selected_gem_count=8))
+        blocked = self.resolve(self.midnight_mage_fixture(selected_gem_count=9))
+
+        self.assertEqual(accepted["status"], "verified")
+        self.assertEqual(
+            sum(
+                len(slot["selectedOptions"]["gemOptionIds"])
+                for slot in accepted["resolvedSlots"].values()
+            ),
+            8,
+        )
+        self.assertEqual(blocked["status"], "blocked")
+        self.assertTrue(
+            any(
+                problem["code"] == "GEAR_GEM_SOCKET_CAPACITY_EXCEEDED"
+                for problem in blocked["problems"]
+            )
+        )
 
     def test_constraints_publish_backend_owned_embellishment_limit(self):
         fixture = self.fixture()
