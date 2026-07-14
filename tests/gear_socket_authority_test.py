@@ -249,6 +249,14 @@ class GearSocketAuthorityTest(unittest.TestCase):
         parsed = authority.parse_simc_socket_bonus_minimums(
             "\n".join(
                 [
+                    "bonus_id={ 523 }, socket={ 1 }",
+                    "bonus_id={ 8781 }, socket={ 2 }",
+                    "bonus_id={ bogus }, socket={ 3 }",
+                    "bonus_id={ 8782 }, socket={ bogus }",
+                    "bonus_id={ 8783 }, socket={ -1 }",
+                    "bonus_id={ 8784 }junk, socket={ 1 }",
+                    "bonus_id={ 8785 }, socket={ 2 }junk",
+                    "bonus_id={ 8786 }, socket=3}",
                     "bonus_id=9300 effect=socket minimum_total=1",
                     "bonus_id=9400 effect=item_level minimum_total=99",
                     "bonus_id=9500 effect=no socket minimum_total=1",
@@ -263,6 +271,8 @@ class GearSocketAuthorityTest(unittest.TestCase):
                     "bonus_id=9707 effect=socket socket_count=5",
                     "bonus_id=9708 effect=socket minimum_total=2",
                     "bonus_id=9708 effect=socket socket_count=3",
+                    "bonus_id=9709: effect=socket=2",
+                    "bonus_id=9710-effect=socket=2",
                     "unstructured socket text",
                 ]
             )
@@ -270,6 +280,8 @@ class GearSocketAuthorityTest(unittest.TestCase):
         self.assertEqual(
             parsed,
             {
+                "523": 1,
+                "8781": 2,
                 "9300": 1,
                 "9700": 2,
                 "9704": 3,
@@ -277,6 +289,8 @@ class GearSocketAuthorityTest(unittest.TestCase):
                 "9706": 4,
                 "9707": 5,
                 "9708": 3,
+                "9709": 2,
+                "9710": 2,
             },
         )
 

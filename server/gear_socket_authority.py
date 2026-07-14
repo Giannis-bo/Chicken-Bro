@@ -227,10 +227,18 @@ def parse_simc_socket_bonus_minimums(output: Any) -> dict[str, int]:
         if not positive_socket_effect:
             continue
         bonus_match = re.search(
-            r"\bbonus[\s_-]*id\s*(?:[:=]|\s)\s*(\d+)\b",
+            r"\bbonus[\s_-]*id\s*(?:[:=]|\s)\s*\{\s*(\d+)\s*\}"
+            r"(?=\s*(?:[:,;|\-]|$)|\s+[A-Za-z_][\w-]*\s*[:=])",
             line,
             flags=re.IGNORECASE,
         )
+        if not bonus_match:
+            bonus_match = re.search(
+                r"\bbonus[\s_-]*id\s*(?:[:=]|\s)\s*(\d+)\b"
+                r"(?=\s*(?:[:,;|\-]|$)|\s+[A-Za-z_][\w-]*\s*[:=])",
+                line,
+                flags=re.IGNORECASE,
+            )
         if not bonus_match:
             bonus_match = re.match(r"^(\d+)\s*(?:[:|,\t-])", line)
         if not bonus_match:
@@ -242,10 +250,19 @@ def parse_simc_socket_bonus_minimums(output: Any) -> dict[str, int]:
             line,
             flags=re.IGNORECASE,
         ):
-            assigned_token = re.match(
-                r"\s*([^\s,;|()\[\]{}]+)",
-                line[assignment_marker.end() :],
-            )
+            assignment_tail = line[assignment_marker.end() :]
+            if re.match(r"\s*\{", assignment_tail):
+                assigned_token = re.match(
+                    r"\s*\{\s*([+-]?\d+)\s*\}"
+                    r"(?=\s*(?:[:,;|\-]|$)|\s+[A-Za-z_][\w-]*\s*[:=])",
+                    assignment_tail,
+                )
+            else:
+                assigned_token = re.match(
+                    r"\s*([^\s,;|()\[\]{}]+)"
+                    r"(?=\s*(?:[:,;|\-]|$)|\s+[A-Za-z_][\w-]*\s*[:=])",
+                    assignment_tail,
+                )
             if not assigned_token or not re.fullmatch(r"[+-]?\d+", assigned_token.group(1)):
                 invalid_socket_assignment = True
                 break

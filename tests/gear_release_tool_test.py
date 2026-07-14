@@ -1324,6 +1324,8 @@ class GearReleaseToolTest(unittest.TestCase):
                 0,
                 stdout="\n".join(
                     (
+                        "bonus_id={ 523 }, socket={ 1 }",
+                        "bonus_id={ 8781 }, socket={ 2 }",
                         "bonus_id=9300 effect=socket=2",
                         "bonus_id=9400 effect=item_level minimum_total=99",
                         "bonus_id=9500 effect=no socket minimum_total=5",
@@ -1334,7 +1336,7 @@ class GearReleaseToolTest(unittest.TestCase):
 
         parsed = load_probe("/fake/simc", runner=runner)
 
-        self.assertEqual(parsed, {"9300": 2})
+        self.assertEqual(parsed, {"523": 1, "8781": 2, "9300": 2})
         self.assertEqual(calls[0][0], ["/fake/simc", "show_bonus_ids=1"])
         self.assertTrue(calls[0][1]["capture_output"])
         self.assertTrue(calls[0][1]["text"])
