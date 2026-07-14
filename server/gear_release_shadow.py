@@ -412,6 +412,36 @@ def run_release_shadow(
             blockers.append(_blocker("DUPLICATE_CANDIDATE_WINNER", *key))
         winners_by_spec[key] = winner
 
+    gear_descriptor = (
+        pair.get("gearRelease")
+        if isinstance(pair.get("gearRelease"), dict)
+        else {}
+    )
+    gear_dependencies = (
+        gear_descriptor.get("dependencyRevisions")
+        if isinstance(gear_descriptor.get("dependencyRevisions"), dict)
+        else {}
+    )
+    candidate_capability_revision = _text(
+        gear_dependencies.get("capabilityRevision")
+    )
+    reference_proof_required = (
+        candidate_capability_revision == gear_socket_authority.CAPABILITY_REVISION
+    )
+    if not candidate_capability_revision:
+        blockers.append(_blocker(
+            "CANDIDATE_CAPABILITY_REVISION_MISSING",
+            detail="Candidate Gear Release capability revision is required.",
+        ))
+    elif (
+        candidate_capability_revision
+        not in gear_socket_authority.SUPPORTED_CAPABILITY_REVISIONS
+    ):
+        blockers.append(_blocker(
+            "CANDIDATE_CAPABILITY_REVISION_UNSUPPORTED",
+            detail="Candidate Gear Release capability revision is unsupported.",
+        ))
+
     legacy_rows = []
     candidate_rows = [
         pg_gear_read_model_selectors.build_candidate_release_shadow_row(
@@ -450,7 +480,19 @@ def run_release_shadow(
     public_read_count = 0
     allowed_enhancement_migrations: set[tuple[str, str]] = set()
     reference_seen = False
-    reference_proof: dict[str, Any] = {"status": "not_run"}
+    reference_proof: dict[str, Any] = {
+        "status": (
+            "not_run"
+            if reference_proof_required
+            else (
+                "not_applicable"
+                if candidate_capability_revision
+                == gear_socket_authority.LEGACY_CAPABILITY_REVISION
+                else "blocked"
+            )
+        ),
+        "capabilityRevision": candidate_capability_revision,
+    }
     profile_contexts = profile_context_by_spec if isinstance(profile_context_by_spec, dict) else {}
     for class_key, spec_key in expected:
         spec_started = time.perf_counter()
@@ -638,12 +680,18 @@ def run_release_shadow(
             and live_candidate_semantic != _text(candidate.get("semanticGearSignature"))
         ):
             blockers.append(_blocker("CANDIDATE_SEALED_RESULT_MISMATCH", class_key, spec_key, "Current release reader result differs from the sealed winner."))
-        if _text(candidate.get("templateId")) == _REFERENCE_TEMPLATE_ID:
+        if (
+            reference_proof_required
+            and _text(candidate.get("templateId")) == _REFERENCE_TEMPLATE_ID
+        ):
             reference_seen = True
             spec_reference_proof = _reference_contract_proof(
                 candidate,
                 candidate_intent,
                 new_snapshot,
+            )
+            spec_reference_proof["capabilityRevision"] = (
+                candidate_capability_revision
             )
             spec_reference_proof["gearReleaseId"] = gear_id
             spec_reference_proof["communityReleaseId"] = community_id
@@ -771,7 +819,11 @@ def run_release_shadow(
             "durationMs": round((time.perf_counter() - spec_started) * 1000, 3),
         })
 
-    if _REFERENCE_SPEC in set(expected) and not reference_seen:
+    if (
+        reference_proof_required
+        and _REFERENCE_SPEC in set(expected)
+        and not reference_seen
+    ):
         blockers.append(_blocker(
             "REFERENCE_TEMPLATE_MISSING",
             *_REFERENCE_SPEC,

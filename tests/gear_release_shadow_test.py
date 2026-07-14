@@ -8,15 +8,27 @@ from tests.gear_release_tool_test import build_midnight_mage_release_fixture
 
 
 class FakeShadowStore:
-    def __init__(self, candidate_row, *, baseline_count=0):
+    def __init__(
+        self,
+        candidate_row,
+        *,
+        baseline_count=0,
+        capability_revision=gear_socket_authority.LEGACY_CAPABILITY_REVISION,
+    ):
         self.candidate_row = copy.deepcopy(candidate_row)
         self.baseline_count = baseline_count
+        self.capability_revision = capability_revision
         self.calls = []
 
     def get_candidate_community_release(self, gear_release_id, community_release_id):
         self.calls.append(("community", gear_release_id, community_release_id))
         return {
-            "gearRelease": {"releaseId": gear_release_id},
+            "gearRelease": {
+                "releaseId": gear_release_id,
+                "dependencyRevisions": {
+                    "capabilityRevision": self.capability_revision,
+                },
+            },
             "communityRelease": {
                 "releaseId": community_release_id,
                 "validatedAgainstReleaseId": gear_release_id,
@@ -199,7 +211,14 @@ class GearReleaseShadowTest(unittest.TestCase):
         candidate = self.candidate_row()
         store = FakeShadowStore(candidate)
         store.get_candidate_community_release = lambda gear_id, community_id: {
-            "gearRelease": {"releaseId": gear_id},
+            "gearRelease": {
+                "releaseId": gear_id,
+                "dependencyRevisions": {
+                    "capabilityRevision": (
+                        gear_socket_authority.LEGACY_CAPABILITY_REVISION
+                    ),
+                },
+            },
             "communityRelease": {"releaseId": community_id, "validatedAgainstReleaseId": gear_id},
             "rows": [{**candidate, "role": "rejected", "problems": [{"code": "COMMUNITY_SOURCE_STALE"}]}],
             "winners": [],
@@ -520,7 +539,10 @@ class GearReleaseShadowTest(unittest.TestCase):
             ),
             "problems": [],
         }
-        store = FakeShadowStore(candidate)
+        store = FakeShadowStore(
+            candidate,
+            capability_revision=gear_socket_authority.CAPABILITY_REVISION,
+        )
         candidate_calls = []
 
         def candidate_resolve(selection_intent, **_kwargs):
@@ -595,6 +617,118 @@ class GearReleaseShadowTest(unittest.TestCase):
             9,
         )
 
+    def test_legacy_capability_shadow_does_not_require_v2_reference_counts(self):
+        intent = self.intent()
+        intent["eligibilityContext"]["specKey"] = "frost"
+        snapshot = self.snapshot(intent, "sha256:legacy-reference")
+        snapshot["eligibilityContext"]["specKey"] = "frost"
+        candidate = {
+            "templateId": "observed_profile_mage_frost",
+            "classKey": "mage",
+            "specKey": "frost",
+            "role": "winner",
+            "sourceKey": "raiderio_observed_profile",
+            "sourceUrl": "https://raider.io/characters/cn/reference-mage",
+            "sourceStatus": "synced",
+            "sampleCount": 1,
+            "profileHash": "profile:mage:frost:legacy-reference",
+            "gearHash": "gear:mage:frost:legacy-reference",
+            "selectionIntent": intent,
+            "resolvedGearSignature": snapshot["resolvedGearSignature"],
+            "semanticGearSignature": gear_release.semantic_gear_signature(
+                intent,
+                snapshot,
+            ),
+            "problems": [],
+        }
+        store = FakeShadowStore(
+            candidate,
+            capability_revision=gear_socket_authority.LEGACY_CAPABILITY_REVISION,
+        )
+
+        with patch.object(
+            gear_release_shadow.gear_runtime,
+            "resolve_selection_intent",
+            return_value=(200, {
+                "status": "resolved",
+                "data": snapshot,
+                "problems": [],
+            }),
+        ), patch.object(
+            gear_release_shadow.gear_runtime,
+            "resolve_candidate_selection_intent",
+            return_value=(200, {
+                "status": "resolved",
+                "data": snapshot,
+                "problems": [],
+            }),
+        ):
+            result = gear_release_shadow.run_release_shadow(
+                store,
+                expected_specs=[("mage", "frost")],
+                gear_release_id="gear-release:sha256:legacy",
+                community_release_id="community-release:sha256:legacy",
+                simc_runtime_revision="simc-v1",
+                compare_profiles=False,
+            )
+
+        self.assertEqual(result["status"], "pass", result)
+        self.assertEqual(result["referenceProof"]["status"], "not_applicable")
+        self.assertNotIn(
+            "REFERENCE_ENHANCEMENT_CONTRACT_MISMATCH",
+            {problem["code"] for problem in result["blockers"]},
+        )
+
+    def test_shadow_fails_closed_for_missing_or_unknown_capability_revision(self):
+        candidate = self.candidate_row()
+        snapshot = self.snapshot(
+            candidate["selectionIntent"],
+            candidate["resolvedGearSignature"],
+        )
+        cases = (
+            (None, "CANDIDATE_CAPABILITY_REVISION_MISSING"),
+            ("gear-capability-matrix-v999", "CANDIDATE_CAPABILITY_REVISION_UNSUPPORTED"),
+        )
+
+        for capability_revision, expected_code in cases:
+            with self.subTest(capability_revision=capability_revision):
+                store = FakeShadowStore(
+                    candidate,
+                    capability_revision=capability_revision,
+                )
+                with patch.object(
+                    gear_release_shadow.gear_runtime,
+                    "resolve_selection_intent",
+                    return_value=(200, {
+                        "status": "resolved",
+                        "data": snapshot,
+                        "problems": [],
+                    }),
+                ), patch.object(
+                    gear_release_shadow.gear_runtime,
+                    "resolve_candidate_selection_intent",
+                    return_value=(200, {
+                        "status": "resolved",
+                        "data": snapshot,
+                        "problems": [],
+                    }),
+                ):
+                    result = gear_release_shadow.run_release_shadow(
+                        store,
+                        expected_specs=[("mage", "arcane")],
+                        gear_release_id="gear-release:sha256:target",
+                        community_release_id="community-release:sha256:target",
+                        simc_runtime_revision="simc-v1",
+                        compare_profiles=False,
+                    )
+
+                self.assertEqual(result["status"], "blocked", result)
+                self.assertEqual(result["referenceProof"]["status"], "blocked")
+                self.assertIn(
+                    expected_code,
+                    {problem["code"] for problem in result["blockers"]},
+                )
+
     def test_reference_contract_blocks_wrong_enchant_capacity_even_when_six_are_selected(self):
         fixture = build_midnight_mage_release_fixture()["resolverFixture"]
         intent = copy.deepcopy(fixture["intent"])
@@ -661,7 +795,10 @@ class GearReleaseShadowTest(unittest.TestCase):
                     "winners": [copy.deepcopy(candidate)],
                 }
 
-        store = ActiveV2Store(candidate)
+        store = ActiveV2Store(
+            candidate,
+            capability_revision=gear_socket_authority.CAPABILITY_REVISION,
+        )
         old_intents = []
         candidate_calls = []
 
