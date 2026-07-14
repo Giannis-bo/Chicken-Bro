@@ -1622,6 +1622,7 @@ test('gear detail page exposes inline equipment simulator state and replacement 
   assert.ok(wxml.indexOf('class="gear-enhancement-equipment-grid"') < wxml.indexOf('class="gear-enhancement-blockers"'))
   assert.match(wxml, /disabled="\{\{gearEnhancementSheet\.submitting\}\}"/)
   assert.match(wxml, /gearEnhancementSheet\.submitting \? '校验中' : '确认'/)
+  assert.equal((wxml.match(/disabled="\{\{option\.disabled \|\| gearEnhancementSheet\.submitting\}\}"/g) || []).length, 3)
   assert.match(wxml, /bindtap="openGearCommunityTemplates"/)
   assert.match(wxml, /bindtap="resetGearSelection"/)
   assert.match(wxml, /gearDataWarningText/)
@@ -1785,7 +1786,7 @@ test('canonical gear workbench ignores forged client final facts and renders res
             profileReadiness: { status: 'verified', simcReady: true, requiredSlots: ['head'], readySlots: ['head'] },
             constraints: { slots: { head: { socketCount: 0 } } },
             serializerInput: { gearItems: [{ slot: 'head', itemId: '250060' }] },
-            resolvedSlots: { head: { slot: 'head', itemId: '250060', legality: { status: 'verified', problemCodes: [] } } },
+            resolvedSlots: { head: { slot: 'head', itemId: '250060', selectedOptions: {}, legality: { status: 'verified', problemCodes: [] } } },
             problems: []
           }
         }
@@ -1862,7 +1863,8 @@ test('canonical gear workbench ignores stale resolve completion after a newer co
       contractRevision: 'gear-resolved-snapshot-v1', status: 'verified', resolvedGearSignature: signature,
       staticAttributes: {}, setState: { itemSetCounts: {}, activeDynamicEffects: [] },
       aggregateLegality: { status: 'verified', problemCodes: [] },
-      profileReadiness: { status: 'verified', simcReady: true }, constraints: {}, serializerInput: { gearItems: [] }, resolvedSlots: {}, problems: []
+      profileReadiness: { status: 'verified', simcReady: true }, constraints: {}, serializerInput: { gearItems: [] },
+      resolvedSlots: { head: { selectedOptions: {} } }, problems: []
     }
   } })
   pending[1].resolve(response('sha256:newest'))
@@ -2122,6 +2124,12 @@ test('enhancement confirm keeps committed state unchanged while Resolve is pendi
 
   const pending = pageConfig.confirmGearEnhancementSheet.call(page)
   const duplicateConfirm = pageConfig.confirmGearEnhancementSheet.call(page)
+  pageConfig.selectGearEnhancementOption.call(page, {
+    currentTarget: { dataset: { slot: 'finger1', type: 'enchant', id: 'enchant-draft' } }
+  })
+  pageConfig.selectGearEnhancementSlot.call(page, {
+    currentTarget: { dataset: { slot: 'finger1' } }
+  })
 
   assert.equal(pendingResolves.length, 1)
   assert.equal(duplicateConfirm, undefined)
@@ -2287,6 +2295,61 @@ test('canonical enhancement confirm fails closed when resolver context is lost',
   assert.equal(pageConfig.buildSimcContext.call(page).simulatorState.gear.resolvedGearSignature, 'sha256:atomic-old')
 })
 
+test('canonical enhancement confirm fails closed without a verified committed pointer', () => {
+  const { pageConfig, page, pendingResolves, toasts } = atomicEnhancementSheetHarness()
+  page.gearWorkbenchState = {
+    ...page.gearWorkbenchState,
+    resolveStatus: 'blocked',
+    currentSnapshot: null,
+    readOnly: true,
+    problems: [{ kind: 'ILLEGAL_SELECTION', code: 'GEAR_OPTION_NOT_ALLOWED', title: 'prior blocked state' }]
+  }
+  const intentVersion = page.gearWorkbenchState.intentVersion
+  pageConfig.openGearEnhancementSheet.call(page)
+  pageConfig.selectGearEnhancementOption.call(page, {
+    currentTarget: { dataset: { slot: 'finger1', type: 'enchant', id: 'enchant-draft' } }
+  })
+
+  pageConfig.confirmGearEnhancementSheet.call(page)
+
+  assert.equal(pendingResolves.length, 0)
+  assert.equal(page.gearWorkbenchState.intentVersion, intentVersion)
+  assert.deepEqual(JSON.parse(JSON.stringify(page.data.enhancementBySlot)), {})
+  assert.equal(page.data.gearEnhancementSheet.visible, true)
+  assert.equal(page.data.gearEnhancementSheet.submitting, false)
+  assert.equal(page.data.gearEnhancementSheet.activeSlot, 'finger1')
+  assert.equal(page.data.gearEnhancementSheet.draftEnhancementBySlot.finger1.enchantOptionId, 'enchant-draft')
+  assert.equal(page.data.gearWorkbenchProblemRows[0].code, 'GEAR_VERIFIED_SNAPSHOT_REQUIRED')
+  assert.match(toasts.at(-1).title, /已验证配置/)
+})
+
+test('verified enhancement Resolve without selectedOptions preserves committed state and draft', async () => {
+  const { pageConfig, page, pendingResolves } = atomicEnhancementSheetHarness()
+  page.gearWorkbenchState.currentSnapshot.resolvedSlots.finger1.selectedOptions.enchantOptionId = 'enchant-canonical'
+  page.data.enhancementBySlot = { finger1: { enchantOptionId: 'enchant-canonical' } }
+  pageConfig.refreshDerivedState.call(page)
+  pageConfig.openGearEnhancementSheet.call(page)
+  pageConfig.selectGearEnhancementOption.call(page, {
+    currentTarget: { dataset: { slot: 'finger1', type: 'enchant', id: 'enchant-draft' } }
+  })
+  const pending = pageConfig.confirmGearEnhancementSheet.call(page)
+  const malformed = await verifiedAtomicEnhancementTransport(pendingResolves[0].selectionIntent)
+  delete malformed.payload.data.resolvedSlots.finger1.selectedOptions
+  pendingResolves[0].resolve(malformed)
+
+  await pending
+
+  assert.deepEqual(JSON.parse(JSON.stringify(page.data.enhancementBySlot)), {
+    finger1: { enchantOptionId: 'enchant-canonical' }
+  })
+  assert.equal(page.data.gearEnhancementSheet.visible, true)
+  assert.equal(page.data.gearEnhancementSheet.submitting, false)
+  assert.equal(page.data.gearEnhancementSheet.activeSlot, 'finger1')
+  assert.equal(page.data.gearEnhancementSheet.draftEnhancementBySlot.finger1.enchantOptionId, 'enchant-draft')
+  assert.equal(page.data.gearWorkbenchProblemRows[0].code, 'GEAR_RESOLVED_OPTIONS_INCOMPLETE')
+  assert.equal(pageConfig.buildSimcContext.call(page).simulatorState.gear.resolvedGearSignature, 'sha256:atomic-old')
+})
+
 test('closing enhancement sheet discards an unconfirmed draft', () => {
   const { pageConfig, page } = atomicEnhancementSheetHarness()
   pageConfig.openGearEnhancementSheet.call(page)
@@ -2321,7 +2384,7 @@ test('canonical gear workbench performs one revision-only 409 rebase and preserv
           contractRevision: 'gear-resolved-snapshot-v1', status: 'verified', resolvedGearSignature: 'sha256:rebased',
           staticAttributes: {}, setState: { itemSetCounts: {}, activeDynamicEffects: [] },
           aggregateLegality: { status: 'verified', problemCodes: [] }, profileReadiness: { status: 'verified', simcReady: true },
-          constraints: {}, resolvedSlots: {}, serializerInput: { gearItems: [] }, problems: []
+          constraints: {}, resolvedSlots: { head: { selectedOptions: {} } }, serializerInput: { gearItems: [] }, problems: []
         }
       } })
     }
@@ -2427,7 +2490,7 @@ test('canonical save gate binds Intent signature and dependency vector to legacy
   const pageConfig = loadBuildsDetailPageConfig({
     savedTemplates,
     toasts,
-    requestWebsimGearResolve: () => Promise.resolve({
+    requestWebsimGearResolve: (selectionIntent) => Promise.resolve({
       httpStatus: 200, fromFallback: false,
       payload: { contractRevision: 'gear-result-envelope-v1', status: 'resolved', problems: [], data: {
         contractRevision: 'gear-resolved-snapshot-v1', status: 'verified',
@@ -2435,7 +2498,12 @@ test('canonical save gate binds Intent signature and dependency vector to legacy
         staticAttributes: {}, setState: { itemSetCounts: {}, activeDynamicEffects: [] },
         aggregateLegality: { status: 'verified', problemCodes: [] },
         profileReadiness: { status: 'verified', simcReady: true, requiredSlots: ['head'], readySlots: ['head'] },
-        constraints: {}, resolvedSlots: { head: { selectedOptions: {} } }, serializerInput: { gearItems: [] }, problems: []
+        constraints: {},
+        resolvedSlots: Object.keys(selectionIntent.slots || {}).reduce((result, slot) => {
+          result[slot] = { selectedOptions: {} }
+          return result
+        }, {}),
+        serializerInput: { gearItems: [] }, problems: []
       } }
     })
   })

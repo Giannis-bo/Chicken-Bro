@@ -1080,7 +1080,9 @@ function workbenchProblemRows(problems) {
     AUTHORITY_UNAVAILABLE: '装备权威数据暂不可用，请稍后重试',
     REVISION_CONFLICT: '装备数据版本已更新，请重新校验',
     GEAR_REQUIRED_SLOTS_INCOMPLETE: '请补齐服务端标记的必需装备槽位',
-    GEAR_TRANSPORT_UNAVAILABLE: '网络连接异常，当前配置未完成校验'
+    GEAR_TRANSPORT_UNAVAILABLE: '网络连接异常，当前配置未完成校验',
+    GEAR_VERIFIED_SNAPSHOT_REQUIRED: '当前没有可继续编辑的已验证配置，请先重新校验装备',
+    GEAR_RESOLVED_OPTIONS_INCOMPLETE: '服务端未返回完整强化选项，已保留原配置'
   }
   return (Array.isArray(problems) ? problems : []).slice(0, 5).map((problem, index) => ({
     key: `${String(problem && problem.code || 'GEAR_PROBLEM')}-${index}`,
@@ -5122,12 +5124,28 @@ function selectionIntentWithResolvedEnhancements(selectionIntent, snapshot) {
   return result
 }
 
+function resolvedSnapshotHasCompleteSelectedOptions(snapshot, selectedGearBySlot) {
+  const resolvedSlots = snapshot && snapshot.resolvedSlots && typeof snapshot.resolvedSlots === 'object'
+    ? snapshot.resolvedSlots
+    : {}
+  return Object.keys(selectedGearByCanonicalSlot(selectedGearBySlot)).every((slot) => {
+    const resolved = resolvedSlots[slot]
+    return !!(
+      resolved &&
+      resolved.selectedOptions &&
+      typeof resolved.selectedOptions === 'object' &&
+      !Array.isArray(resolved.selectedOptions)
+    )
+  })
+}
+
 function commitVerifiedEnhancementSnapshot(page, request, snapshot, context) {
   if (!acceptedVerifiedGearResolve(page && page.gearWorkbenchState, request, snapshot)) return false
   const source = context && typeof context === 'object' ? context : {}
   const data = (page && page.data) || {}
   const gearPayload = source.gearPayload || fullGearPayloadForPage(page) || data.gearPayload || {}
   const selectedGearBySlot = source.selectedGearBySlot || data.selectedGearBySlot || {}
+  if (!resolvedSnapshotHasCompleteSelectedOptions(snapshot, selectedGearBySlot)) return false
   const enhancementBySlot = enhancementBySlotFromResolvedSnapshot(snapshot)
   page.setData({
     enhancementBySlot,
@@ -5634,7 +5652,28 @@ Page({
             .catch((error) => applyResult(retry.request, failedTransportResult(error)))
         }
       }
-      const currentSnapshot = this.gearWorkbenchState.currentSnapshot
+      let currentSnapshot = this.gearWorkbenchState.currentSnapshot
+      const incompleteVerifiedOptions = acceptedVerifiedGearResolve(
+        this.gearWorkbenchState,
+        request,
+        currentSnapshot
+      ) && !resolvedSnapshotHasCompleteSelectedOptions(currentSnapshot, selection)
+      if (incompleteVerifiedOptions) {
+        this.gearWorkbenchState = {
+          ...this.gearWorkbenchState,
+          resolveStatus: 'blocked',
+          currentSnapshot: null,
+          lastVerifiedSnapshot: acceptedSnapshotBeforeResolve,
+          problems: [{
+            kind: 'MALFORMED_RESOLVED_SNAPSHOT',
+            code: 'GEAR_RESOLVED_OPTIONS_INCOMPLETE',
+            title: 'verified Resolve omitted selectedOptions'
+          }],
+          offline: false,
+          readOnly: true
+        }
+        currentSnapshot = null
+      }
       const committed = commitVerifiedEnhancementSnapshot(this, request, currentSnapshot, {
         gearPayload,
         selectedGearBySlot: selection
@@ -5927,11 +5966,12 @@ Page({
   },
 
   selectGearEnhancementSlot(event) {
+    const currentSheet = this.data.gearEnhancementSheet || emptyGearEnhancementSheet()
+    if (currentSheet.submitting) return Promise.resolve()
     const slot = event.currentTarget.dataset.slot || ''
     if (!slot) return Promise.resolve()
     const gearPayload = fullGearPayloadForPage(this) || this.data.gearPayload || {}
     const selectedGearBySlot = this.data.selectedGearBySlot || {}
-    const currentSheet = this.data.gearEnhancementSheet || emptyGearEnhancementSheet()
     const enhancementBySlot = currentSheet.draftEnhancementBySlot || this.data.enhancementBySlot || {}
     const selectedItem = enrichedSelectedGearByCanonicalSlot(gearPayload, selectedGearBySlot)[slot]
     const needsDetail = gearPayloadNeedsSlotDetail(this, slot) &&
@@ -5993,11 +6033,12 @@ Page({
   },
 
   selectGearEnhancementOption(event) {
+    const sheet = this.data.gearEnhancementSheet || emptyGearEnhancementSheet()
+    if (sheet.submitting) return
     const slot = event.currentTarget.dataset.slot || ''
     const type = event.currentTarget.dataset.type || ''
     const optionId = event.currentTarget.dataset.id || ''
     if (!slot || !type || !optionId) return
-    const sheet = this.data.gearEnhancementSheet || emptyGearEnhancementSheet()
     const rowsByType = {
       gem: sheet.gemRows || [],
       enchant: sheet.enchantRows || [],
@@ -6082,6 +6123,30 @@ Page({
         title: '缺少当前赛季校验上下文'
       }])
       const blockerText = problemRows[0] && problemRows[0].text || '缺少当前赛季校验上下文，请稍后重试'
+      const blockedSheet = {
+        ...validationSheet,
+        submitting: false,
+        blockers: Array.from(new Set([...(validationSheet.blockers || []), blockerText]))
+      }
+      showToast(blockerText)
+      this.setData({
+        selectedGearBySlot,
+        gearWorkbenchProblemRows: problemRows,
+        gearEnhancementSheet: blockedSheet
+      })
+      return Promise.resolve(null)
+    }
+    if (
+      this.gearWorkbenchState &&
+      !this.atomicEnhancementCommittedWorkbenchState &&
+      !gearWorkbenchCanUseVerifiedSnapshot(this.gearWorkbenchState)
+    ) {
+      const problemRows = workbenchProblemRows([{
+        kind: 'VERIFIED_SNAPSHOT_REQUIRED',
+        code: 'GEAR_VERIFIED_SNAPSHOT_REQUIRED',
+        title: '当前没有可继续编辑的已验证配置'
+      }])
+      const blockerText = problemRows[0] && problemRows[0].text || '当前没有可继续编辑的已验证配置，请先重新校验装备'
       const blockedSheet = {
         ...validationSheet,
         submitting: false,
