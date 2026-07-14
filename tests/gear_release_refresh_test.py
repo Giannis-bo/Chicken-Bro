@@ -1,6 +1,7 @@
 import contextlib
 import io
 import json
+import subprocess
 import unittest
 from contextlib import redirect_stdout
 from unittest.mock import patch
@@ -220,6 +221,9 @@ class GearReleaseRefreshPolicyTest(unittest.TestCase):
         store.load_community_release = load_community
         store.seal_community_release = seal_community
         candidate_gear = store.binding["gearRelease"]
+        candidate_gear["source"]["sourceEvidence"] = {
+            "materializedSocketFactDigest": "sha256:stable-socket-facts",
+        }
         _unused, candidate_community = release_pair("candidate", gear=candidate_gear)
 
         result = build_staging_candidates(
@@ -228,6 +232,7 @@ class GearReleaseRefreshPolicyTest(unittest.TestCase):
             expected_specs=[("mage", "arcane")],
             dependency_revisions=DEPENDENCIES,
             now="2026-07-11T12:00:00+00:00",
+            socket_bonus_minimums={"9300": 1},
             gear_preparer=lambda *_args, **_kwargs: {
                 "release": candidate_gear,
                 "snapshot": snapshot,
@@ -248,6 +253,89 @@ class GearReleaseRefreshPolicyTest(unittest.TestCase):
         self.assertEqual(len(store.gear_seals), 1)
         self.assertEqual(len(store.community_seals), 1)
 
+    def test_socket_fact_change_is_capability_change_and_requires_manual_cutover(self):
+        store = FakeStore()
+        item = {"itemId": "1", "name": "A"}
+        snapshot = {"items": [item], "sources": [], "variants": [], "options": []}
+        store.binding["gearRelease"]["source"]["sourceEvidence"] = {
+            "materializedSocketFactDigest": "sha256:old-socket-facts",
+        }
+        store.get_gear_release_row_hashes = lambda _release_id: {
+            "items": {"1": canonical_row_hash(item)},
+            "sources": {},
+            "variants": {},
+            "options": {},
+        }
+        store.gear_seals = []
+        store.community_seals = []
+        store.seal_gear_release = lambda release, payload, **_kwargs: (
+            store.gear_seals.append((release, payload))
+            or {"status": "inserted", "releaseId": release["releaseId"]}
+        )
+        store.seal_community_release = lambda release, rows, **_kwargs: (
+            store.community_seals.append((release, rows))
+            or {"status": "inserted", "releaseId": release["releaseId"]}
+        )
+        store.load_community_release = lambda _gear_id, _community_id: {"winners": [winner()]}
+        candidate_gear = gear_release.build_release(
+            release_kind="gear",
+            season_revision="season-17",
+            schema_revision="gear-release-v1",
+            content={"snapshotHash": "candidate-with-new-socket-facts"},
+            dependency_revisions=DEPENDENCIES,
+            release_status="validated",
+            source={
+                "sourceRevision": "scheduled-refresh-v1",
+                "sourceEvidence": {
+                    "materializedSocketFactDigest": "sha256:new-socket-facts",
+                },
+            },
+        )
+        _unused, candidate_community = release_pair("candidate", gear=candidate_gear)
+        seen_socket_evidence = []
+
+        def gear_preparer(*_args, **kwargs):
+            seen_socket_evidence.append(kwargs.get("socket_bonus_minimums"))
+            return {
+                "release": candidate_gear,
+                "snapshot": snapshot,
+                "gate": {"status": "validated", "snapshotHash": "candidate-with-new-socket-facts"},
+            }
+
+        try:
+            candidate = build_staging_candidates(
+                store,
+                active_binding=store.binding,
+                expected_specs=[("mage", "arcane")],
+                dependency_revisions=DEPENDENCIES,
+                now="2026-07-11T12:00:00+00:00",
+                socket_bonus_minimums={"9300": 2},
+                gear_preparer=gear_preparer,
+                community_preparer=lambda *_args, **_kwargs: {
+                    "release": candidate_community,
+                    "rows": [winner()],
+                    "election": {"status": "validated"},
+                    "gate": {"status": "validated"},
+                },
+            )
+        except TypeError as exc:
+            self.fail(f"build_staging_candidates must thread socket evidence: {exc}")
+
+        self.assertEqual(seen_socket_evidence, [{"9300": 2}])
+        self.assertEqual(candidate["riskClass"], "capability_change")
+        self.assertEqual(
+            candidate["gearRelease"]["source"]["sourceEvidence"]["materializedSocketFactDigest"],
+            "sha256:new-socket-facts",
+        )
+        decision = gear_release.decide_promotion(
+            risk_class=candidate["riskClass"],
+            shadow_report={"status": "pass", "blockers": []},
+            coverage_regressions=[],
+            full_matrix_passed=True,
+        )
+        self.assertEqual(decision["decision"], "manual_required")
+        self.assertTrue(decision["controlledCutover"])
+
     def test_same_gear_full_pass_auto_promotes_after_candidate_and_manifest(self):
         store = FakeStore()
         result = run_release_refresh(
@@ -257,6 +345,7 @@ class GearReleaseRefreshPolicyTest(unittest.TestCase):
             now="2026-07-11T12:00:00+00:00",
             updated_by="phase4e-test",
             lease=lease(),
+            socket_bonus_minimums_loader=lambda: {"9300": 1},
             candidate_builder=lambda *_args, **_kwargs: candidate_bundle(store),
             shadow_runner=lambda **_kwargs: passing_shadow(),
         )
@@ -283,6 +372,7 @@ class GearReleaseRefreshPolicyTest(unittest.TestCase):
             now="2026-07-11T12:00:00+00:00",
             updated_by="phase4e-test",
             lease=lease(),
+            socket_bonus_minimums_loader=lambda: {"9300": 1},
             candidate_builder=lambda *_args, **_kwargs: candidate_bundle(store, rows=[]),
             shadow_runner=lambda **_kwargs: passing_shadow("degraded"),
         )
@@ -301,6 +391,7 @@ class GearReleaseRefreshPolicyTest(unittest.TestCase):
             now="2026-07-11T12:00:00+00:00",
             updated_by="phase4e-test",
             lease=lease(),
+            socket_bonus_minimums_loader=lambda: {"9300": 1},
             candidate_builder=lambda *_args, **_kwargs: candidate_bundle(store, risk_class="capability_change"),
             shadow_runner=lambda **_kwargs: passing_shadow(),
         )
@@ -320,6 +411,7 @@ class GearReleaseRefreshPolicyTest(unittest.TestCase):
             now="2026-07-11T12:00:00+00:00",
             updated_by="phase4e-test",
             lease=lease(False),
+            socket_bonus_minimums_loader=lambda: {"9300": 1},
             candidate_builder=lambda *_args, **_kwargs: builds.append(True),
             shadow_runner=lambda **_kwargs: passing_shadow(),
         )
@@ -341,6 +433,7 @@ class GearReleaseRefreshPolicyTest(unittest.TestCase):
             now="2026-07-11T12:00:00+00:00",
             updated_by="phase4e-test",
             lease=lease(),
+            socket_bonus_minimums_loader=lambda: {"9300": 1},
             candidate_builder=fail,
             shadow_runner=lambda **_kwargs: passing_shadow(),
         )
@@ -348,6 +441,46 @@ class GearReleaseRefreshPolicyTest(unittest.TestCase):
         self.assertEqual(result["status"], "failed")
         self.assertEqual(result["problems"][0]["code"], "REFRESH_EXECUTION_FAILED")
         self.assertNotIn("secret", str(result))
+        self.assertEqual(store.promotions, [])
+        self.assertEqual(store.events[-1]["eventType"], "gear_release_refresh_failed")
+
+    def test_socket_bonus_probe_failure_keeps_active_pointer_unchanged(self):
+        from server import gear_release_tool
+
+        load_probe = getattr(gear_release_tool, "load_simc_socket_bonus_minimums", None)
+        self.assertTrue(callable(load_probe), "candidate refresh must use the bounded SimC socket probe")
+        store = FakeStore()
+        builds = []
+        runner_calls = []
+
+        def failing_runner(command, **kwargs):
+            runner_calls.append((command, kwargs))
+            raise subprocess.TimeoutExpired(command, kwargs["timeout"])
+
+        try:
+            result = run_release_refresh(
+                store,
+                expected_specs=[("mage", "arcane")],
+                dependency_revisions=DEPENDENCIES,
+                now="2026-07-11T12:00:00+00:00",
+                updated_by="phase4e-test",
+                lease=lease(),
+                socket_bonus_minimums_loader=lambda: load_probe(
+                    "/fake/simc",
+                    runner=failing_runner,
+                ),
+                candidate_builder=lambda *_args, **_kwargs: builds.append(True),
+                shadow_runner=lambda **_kwargs: passing_shadow(),
+            )
+        except TypeError as exc:
+            self.fail(f"run_release_refresh must load bounded candidate socket evidence: {exc}")
+
+        self.assertEqual(result["status"], "failed")
+        self.assertEqual(result["problems"][0]["code"], "REFRESH_EXECUTION_FAILED")
+        self.assertNotIn("/fake/simc", str(result))
+        self.assertEqual(len(runner_calls), 1)
+        self.assertEqual(builds, [])
+        self.assertEqual(store.sealed_manifests, [])
         self.assertEqual(store.promotions, [])
         self.assertEqual(store.events[-1]["eventType"], "gear_release_refresh_failed")
 

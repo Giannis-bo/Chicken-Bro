@@ -7,7 +7,7 @@ import argparse
 from contextlib import nullcontext
 from datetime import datetime, timezone
 import json
-from typing import Any, Iterable
+from typing import Any, Iterable, Mapping
 
 try:
     from . import gear_release
@@ -162,6 +162,7 @@ def _scheduled_gear_descriptor(
 ) -> dict[str, Any]:
     release = prepared.get("release") if isinstance(prepared.get("release"), dict) else {}
     gate = prepared.get("gate") if isinstance(prepared.get("gate"), dict) else {}
+    source = release.get("source") if isinstance(release.get("source"), dict) else {}
     return gear_release.build_release(
         release_kind="gear",
         season_revision=_text(release.get("seasonRevision")),
@@ -170,6 +171,7 @@ def _scheduled_gear_descriptor(
         dependency_revisions=dependency_revisions,
         release_status=_text(release.get("releaseStatus")) or "validated",
         source={
+            **source,
             "sourceRevision": "scheduled-refresh-v1",
             "stagingSnapshotHash": _text(gate.get("snapshotHash")),
         },
@@ -210,11 +212,15 @@ def build_staging_candidates(
     expected_specs: Iterable[tuple[str, str]],
     dependency_revisions: dict[str, Any],
     now: str,
+    socket_bonus_minimums: Mapping[str, Any],
     candidate_season_revision: str = "",
     gear_preparer: Any = None,
     community_preparer: Any = None,
 ) -> dict[str, Any]:
     """Create/reuse and seal the inactive candidate pair before any decision."""
+
+    if not isinstance(socket_bonus_minimums, Mapping) or not socket_bonus_minimums:
+        raise RuntimeError("socket bonus evidence must be a non-empty mapping")
 
     if gear_preparer is None or community_preparer is None:
         try:
@@ -244,6 +250,7 @@ def build_staging_candidates(
             or _text(active_manifest.get("seasonRevision") or active_gear.get("seasonRevision"))
         ),
         dependency_revisions=dependency_revisions,
+        socket_bonus_minimums=socket_bonus_minimums,
         source_revision=_text(active_gear_source.get("sourceRevision")) or "scheduled-refresh-v1",
         parent_release_id=_text(active_gear.get("parentReleaseId")),
     )
@@ -257,14 +264,47 @@ def build_staging_candidates(
         if isinstance(active_manifest.get("dependencyRevisions"), dict)
         else active_gear.get("dependencyRevisions") or {}
     )
-    season_changed = _text(active_gear.get("seasonRevision")) != _text((prepared_gear.get("release") or {}).get("seasonRevision"))
+    candidate_gear = (
+        prepared_gear.get("release")
+        if isinstance(prepared_gear.get("release"), dict)
+        else {}
+    )
+    season_changed = _text(active_gear.get("seasonRevision")) != _text(
+        candidate_gear.get("seasonRevision")
+    )
     risk_class = classify_refresh_risk(
         gear_change["riskClass"],
         active_dependencies,
         dependency_revisions,
         season_changed=season_changed,
     )
-    candidate_gear = prepared_gear.get("release") if isinstance(prepared_gear.get("release"), dict) else {}
+    candidate_gear_source = (
+        candidate_gear.get("source")
+        if isinstance(candidate_gear.get("source"), dict)
+        else {}
+    )
+    active_source_evidence = (
+        active_gear_source.get("sourceEvidence")
+        if isinstance(active_gear_source.get("sourceEvidence"), dict)
+        else {}
+    )
+    candidate_source_evidence = (
+        candidate_gear_source.get("sourceEvidence")
+        if isinstance(candidate_gear_source.get("sourceEvidence"), dict)
+        else {}
+    )
+    active_socket_fact_digest = _text(active_source_evidence.get("materializedSocketFactDigest"))
+    candidate_socket_fact_digest = _text(
+        candidate_source_evidence.get("materializedSocketFactDigest")
+    )
+    if not candidate_socket_fact_digest:
+        raise RuntimeError("candidate materialized socket fact digest is required")
+    if (
+        not season_changed
+        and candidate_socket_fact_digest
+        and candidate_socket_fact_digest != active_socket_fact_digest
+    ):
+        risk_class = "capability_change"
     if risk_class != "same_gear_community":
         candidate_gear = _scheduled_gear_descriptor(
             prepared_gear,
@@ -469,6 +509,7 @@ def run_release_refresh(
     lease: Any = None,
     candidate_builder: Any,
     shadow_runner: Any,
+    socket_bonus_minimums_loader: Any,
 ) -> dict[str, Any]:
     """Run one candidate-first refresh while keeping pointer mutation last."""
 
@@ -490,6 +531,11 @@ def run_release_refresh(
             binding = store.load_active_manifest_binding()
             if not isinstance(binding, dict) or binding.get("formalActiveManifest") is not True:
                 raise RuntimeError("formal active Manifest binding is required")
+            if not callable(socket_bonus_minimums_loader):
+                raise RuntimeError("socket bonus evidence loader is required")
+            socket_bonus_minimums = socket_bonus_minimums_loader()
+            if not isinstance(socket_bonus_minimums, Mapping) or not socket_bonus_minimums:
+                raise RuntimeError("socket bonus evidence loader returned no mapping")
             candidate = candidate_builder(
                 store,
                 active_binding=binding,
@@ -497,6 +543,7 @@ def run_release_refresh(
                 dependency_revisions=dependency_revisions,
                 now=now,
                 candidate_season_revision=candidate_season_revision,
+                socket_bonus_minimums=socket_bonus_minimums,
             )
             if not isinstance(candidate, dict):
                 raise RuntimeError("candidate builder returned no result")
@@ -586,16 +633,24 @@ def _run_from_environment(*, updated_by: str) -> dict[str, Any]:
         from .db import connect_postgres, database_config_from_env, postgres_only_runtime_enabled
         from .gear_release_shadow import run_release_shadow
         from .gear_release_store import GearReleaseStore
-        from .gear_release_tool import expected_spec_pairs, runtime_dependency_revisions
+        from .gear_release_tool import (
+            expected_spec_pairs,
+            load_simc_socket_bonus_minimums,
+            runtime_dependency_revisions,
+        )
         from .postgres_cache_store import PostgresCacheStore
-        from .simulator_payload import simc_version_status
+        from .simulator_payload import simc_binary, simc_version_status
     except ImportError:
         from db import connect_postgres, database_config_from_env, postgres_only_runtime_enabled
         from gear_release_shadow import run_release_shadow
         from gear_release_store import GearReleaseStore
-        from gear_release_tool import expected_spec_pairs, runtime_dependency_revisions
+        from gear_release_tool import (
+            expected_spec_pairs,
+            load_simc_socket_bonus_minimums,
+            runtime_dependency_revisions,
+        )
         from postgres_cache_store import PostgresCacheStore
-        from simulator_payload import simc_version_status
+        from simulator_payload import simc_binary, simc_version_status
 
     config = database_config_from_env()
     if not postgres_only_runtime_enabled(config):
@@ -611,6 +666,7 @@ def _run_from_environment(*, updated_by: str) -> dict[str, Any]:
     )
     if not simc_revision:
         raise RuntimeError("current SimC runtime revision is unavailable")
+    simc_binary_path = _text(simc_status.get("binaryPath") or simc_binary())
     dependencies = runtime_dependency_revisions(simc_revision)
     expected = expected_spec_pairs()
     season_payload = shadow_store.get_active_season_payload()
@@ -641,6 +697,9 @@ def _run_from_environment(*, updated_by: str) -> dict[str, Any]:
         lease=PostgresRefreshLease(connection_factory),
         candidate_builder=build_staging_candidates,
         shadow_runner=shadow_runner,
+        socket_bonus_minimums_loader=lambda: load_simc_socket_bonus_minimums(
+            simc_binary_path,
+        ),
     )
 
 

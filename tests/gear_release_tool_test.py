@@ -1,6 +1,7 @@
 import copy
 import io
 import json
+import subprocess
 import unittest
 from contextlib import redirect_stdout
 from unittest.mock import patch
@@ -144,6 +145,7 @@ class GearReleaseToolTest(unittest.TestCase):
             season_revision="season-17",
             dependency_revisions=self.dependencies(),
             source_revision="legacy-import-r0",
+            socket_bonus_minimums={"9300": 1},
         )
 
         release = result["release"]
@@ -154,6 +156,109 @@ class GearReleaseToolTest(unittest.TestCase):
         self.assertEqual(len(store.gear_seals), 1)
         self.assertNotIn("manifest", result)
         self.assertNotIn("pointer", result)
+
+    def test_prepare_staging_gear_release_materializes_socket_facts_before_hash(self):
+        from server.gear_release_store import gear_snapshot_summary
+        from server.gear_release_tool import prepare_staging_gear_release
+
+        snapshot = self.snapshot()
+        snapshot["variants"][0]["simcOptions"]["bonus_id"] = "9300"
+        raw_summary = gear_snapshot_summary(snapshot)
+
+        try:
+            result = prepare_staging_gear_release(
+                FakeReleaseStore(snapshot),
+                season_revision="midnight-season-1",
+                dependency_revisions=self.dependencies(),
+                socket_bonus_minimums={"9300": 2},
+            )
+        except TypeError as exc:
+            self.fail(f"prepare_staging_gear_release must accept socket evidence: {exc}")
+
+        materialized = result["snapshot"]
+        self.assertEqual(
+            materialized["variants"][0]["capabilityOverrides"]["socketCount"],
+            2,
+        )
+        self.assertEqual(result["release"]["content"], gear_snapshot_summary(materialized))
+        self.assertNotEqual(result["release"]["content"]["snapshotHash"], raw_summary["snapshotHash"])
+        source_evidence = result["release"]["source"]["sourceEvidence"]
+        self.assertEqual(source_evidence["simcRuntimeRevision"], "simc-r1")
+        self.assertTrue(source_evidence["socketProbeDigest"].startswith("sha256:"))
+        self.assertTrue(source_evidence["materializedSocketFactDigest"].startswith("sha256:"))
+
+    def test_identical_socket_evidence_reuses_content_hash(self):
+        from server.gear_release_tool import prepare_staging_gear_release
+
+        snapshot = self.snapshot()
+        snapshot["variants"][0]["simcOptions"]["bonus_id"] = "9300"
+        results = []
+        for socket_bonus_minimums in (
+            {"9300": 2, "9400": 1},
+            {"9400": 1, "9300": 2},
+        ):
+            try:
+                results.append(
+                    prepare_staging_gear_release(
+                        FakeReleaseStore(snapshot),
+                        season_revision="midnight-season-1",
+                        dependency_revisions=self.dependencies(),
+                        socket_bonus_minimums=socket_bonus_minimums,
+                    )
+                )
+            except TypeError as exc:
+                self.fail(f"prepare_staging_gear_release must accept socket evidence: {exc}")
+
+        first, second = results
+        self.assertEqual(first["release"]["contentHash"], second["release"]["contentHash"])
+        self.assertEqual(first["release"]["releaseId"], second["release"]["releaseId"])
+        self.assertEqual(first["release"]["source"], second["release"]["source"])
+
+    def test_simc_probe_parses_only_socket_effects(self):
+        from server import gear_release_tool
+
+        load_probe = getattr(gear_release_tool, "load_simc_socket_bonus_minimums", None)
+        self.assertTrue(callable(load_probe), "candidate release tooling must expose a bounded SimC socket probe")
+        calls = []
+
+        def runner(command, **kwargs):
+            calls.append((command, kwargs))
+            return subprocess.CompletedProcess(
+                command,
+                0,
+                stdout="\n".join(
+                    (
+                        "bonus_id=9300 effect=socket=2",
+                        "bonus_id=9400 effect=item_level minimum_total=99",
+                        "bonus_id=9500 effect=no socket minimum_total=5",
+                    )
+                ),
+                stderr="",
+            )
+
+        parsed = load_probe("/fake/simc", runner=runner)
+
+        self.assertEqual(parsed, {"9300": 2})
+        self.assertEqual(calls[0][0], ["/fake/simc", "show_bonus_ids=1"])
+        self.assertTrue(calls[0][1]["capture_output"])
+        self.assertTrue(calls[0][1]["text"])
+        self.assertGreater(calls[0][1]["timeout"], 0)
+        self.assertLessEqual(calls[0][1]["timeout"], 60)
+        with self.assertRaises(RuntimeError):
+            load_probe(
+                "",
+                runner=lambda *_args, **_kwargs: self.fail("blank binary must fail before runner"),
+            )
+        with self.assertRaises(RuntimeError):
+            load_probe(
+                "/fake/simc",
+                runner=lambda command, **_kwargs: subprocess.CompletedProcess(
+                    command,
+                    None,
+                    stdout="bonus_id=9300 effect=socket=2",
+                    stderr="",
+                ),
+            )
 
     def test_build_legacy_gear_release_blocks_empty_or_orphan_snapshot(self):
         from server.gear_release_store import GearReleaseIntegrityError
@@ -169,6 +274,7 @@ class GearReleaseToolTest(unittest.TestCase):
                         FakeReleaseStore(snapshot),
                         season_revision="season-17",
                         dependency_revisions=self.dependencies(),
+                        socket_bonus_minimums={"9300": 1},
                     )
 
     def test_build_legacy_gear_release_blocks_blank_required_identifiers(self):
@@ -191,6 +297,7 @@ class GearReleaseToolTest(unittest.TestCase):
                         FakeReleaseStore(snapshot),
                         season_revision="season-17",
                         dependency_revisions=self.dependencies(),
+                        socket_bonus_minimums={"9300": 1},
                     )
 
     def test_build_legacy_community_release_revalidates_and_seals_winner(self):

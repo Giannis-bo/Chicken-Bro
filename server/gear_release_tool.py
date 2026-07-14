@@ -5,11 +5,13 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime, timezone
+import hashlib
 import json
-from typing import Any, Callable, Iterable
+import subprocess
+from typing import Any, Callable, Iterable, Mapping
 
 try:
-    from . import gear_release, gear_release_shadow, gear_resolver
+    from . import gear_release, gear_release_shadow, gear_resolver, gear_socket_authority
     from .db import connect_postgres, database_config_from_env, postgres_only_runtime_enabled
     from .gear_release_store import (
         CandidateGearAuthorityIndex,
@@ -25,6 +27,7 @@ except ImportError:
     import gear_release
     import gear_release_shadow
     import gear_resolver
+    import gear_socket_authority
     from db import connect_postgres, database_config_from_env, postgres_only_runtime_enabled
     from gear_release_store import (
         CandidateGearAuthorityIndex,
@@ -39,6 +42,8 @@ except ImportError:
 
 
 CAPABILITY_REVISION = "gear-capability-matrix-v1"
+_SIMC_SOCKET_PROBE_TIMEOUT_SECONDS = 30
+_SIMC_SOCKET_PROBE_MAX_CHARS = 4 * 1024 * 1024
 
 
 def _text(value: Any) -> str:
@@ -56,6 +61,82 @@ def _int(value: Any) -> int:
 
 def _canonical(value: Any) -> Any:
     return json.loads(json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), default=str))
+
+
+def _canonical_digest(value: Any) -> str:
+    encoded = json.dumps(
+        value,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        default=str,
+    ).encode("utf-8")
+    return "sha256:" + hashlib.sha256(encoded).hexdigest()
+
+
+def _socket_probe_digest(socket_bonus_minimums: Mapping[str, Any]) -> str:
+    return _canonical_digest({
+        "socketBonusMinimums": {
+            _text(bonus_id): _canonical(minimum)
+            for bonus_id, minimum in socket_bonus_minimums.items()
+            if _text(bonus_id)
+        },
+    })
+
+
+def _materialized_socket_fact_digest(snapshot: dict[str, Any]) -> str:
+    items = [
+        {
+            "itemId": _text(row.get("itemId")),
+            "socketCount": _int((row.get("baseCapabilities") or {}).get("socketCount")),
+            "socketEvidence": _canonical(row.get("socketEvidence") or {}),
+        }
+        for row in snapshot.get("items") or []
+        if isinstance(row, dict)
+    ]
+    variants = [
+        {
+            "variantId": _text(row.get("variantId")),
+            "itemId": _text(row.get("itemId")),
+            "variantKey": _text(row.get("variantKey")),
+            "socketCount": _int((row.get("capabilityOverrides") or {}).get("socketCount")),
+            "socketEvidence": _canonical(row.get("socketEvidence") or {}),
+        }
+        for row in snapshot.get("variants") or []
+        if isinstance(row, dict)
+    ]
+    items.sort(key=lambda row: row["itemId"])
+    variants.sort(key=lambda row: (row["variantId"], row["itemId"], row["variantKey"]))
+    return _canonical_digest({"items": items, "variants": variants})
+
+
+def load_simc_socket_bonus_minimums(
+    simc_binary: str,
+    *,
+    runner=subprocess.run,
+) -> dict[str, int]:
+    """Run the bounded candidate-only SimC bonus probe and parse socket effects."""
+
+    binary = _text(simc_binary)
+    if not binary:
+        raise RuntimeError("SimC socket probe binary is unavailable")
+    result = runner(
+        [binary, "show_bonus_ids=1"],
+        capture_output=True,
+        text=True,
+        timeout=_SIMC_SOCKET_PROBE_TIMEOUT_SECONDS,
+        check=False,
+    )
+    returncode = getattr(result, "returncode", None)
+    if type(returncode) is not int or returncode != 0:
+        raise RuntimeError("SimC socket probe failed")
+    output = getattr(result, "stdout", "")
+    if not isinstance(output, str) or len(output) > _SIMC_SOCKET_PROBE_MAX_CHARS:
+        raise RuntimeError("SimC socket probe output is invalid or exceeds the bounded limit")
+    parsed = gear_socket_authority.parse_simc_socket_bonus_minimums(output)
+    if not parsed:
+        raise RuntimeError("SimC socket probe returned no parseable socket effects")
+    return parsed
 
 
 def expected_spec_pairs() -> list[tuple[str, str]]:
@@ -179,10 +260,18 @@ def prepare_staging_gear_release(
     *,
     season_revision: str,
     dependency_revisions: dict[str, Any],
+    socket_bonus_minimums: Mapping[str, Any],
     source_revision: str = "legacy-import-r0",
     parent_release_id: str = "",
 ) -> dict[str, Any]:
-    snapshot = store.snapshot_staging_gear()
+    if not isinstance(socket_bonus_minimums, Mapping) or not socket_bonus_minimums:
+        raise GearReleaseIntegrityError("socket bonus evidence must be a non-empty mapping")
+    normalized_bonus_minimums = socket_bonus_minimums
+    snapshot = gear_socket_authority.materialize_gear_socket_facts(
+        store.snapshot_staging_gear(),
+        season_revision=season_revision,
+        socket_bonus_minimums=normalized_bonus_minimums,
+    )
     problems = validate_gear_snapshot(snapshot)
     if problems:
         raise GearReleaseIntegrityError(json.dumps(problems, ensure_ascii=False, sort_keys=True))
@@ -194,7 +283,15 @@ def prepare_staging_gear_release(
         content=summary,
         dependency_revisions=dependency_revisions,
         release_status="validated",
-        source={"sourceRevision": source_revision, "stagingSnapshotHash": summary["snapshotHash"]},
+        source={
+            "sourceRevision": source_revision,
+            "stagingSnapshotHash": summary["snapshotHash"],
+            "sourceEvidence": {
+                "simcRuntimeRevision": _text(dependency_revisions.get("simcRuntimeRevision")),
+                "socketProbeDigest": _socket_probe_digest(normalized_bonus_minimums),
+                "materializedSocketFactDigest": _materialized_socket_fact_digest(snapshot),
+            },
+        },
         parent_release_id=parent_release_id,
     )
     gate = {"status": "validated", **summary}
@@ -206,12 +303,14 @@ def build_legacy_gear_release(
     *,
     season_revision: str,
     dependency_revisions: dict[str, Any],
+    socket_bonus_minimums: Mapping[str, Any],
     source_revision: str = "legacy-import-r0",
 ) -> dict[str, Any]:
     prepared = prepare_staging_gear_release(
         store,
         season_revision=season_revision,
         dependency_revisions=dependency_revisions,
+        socket_bonus_minimums=socket_bonus_minimums,
         source_revision=source_revision,
     )
     release = prepared["release"]
@@ -658,10 +757,16 @@ def main(argv=None) -> int:
     if not args.season_revision or not args.simc_runtime_revision:
         raise SystemExit("--season-revision and --simc-runtime-revision are required")
     dependencies = runtime_dependency_revisions(args.simc_runtime_revision)
+    try:
+        from .simulator_payload import simc_binary
+    except ImportError:
+        from simulator_payload import simc_binary
+    socket_bonus_minimums = load_simc_socket_bonus_minimums(simc_binary())
     gear = build_legacy_gear_release(
         store,
         season_revision=args.season_revision,
         dependency_revisions=dependencies,
+        socket_bonus_minimums=socket_bonus_minimums,
     )
     output = {"gear": {"release": gear["release"], "gate": gear["gate"], "seal": gear["seal"]}}
     if args.command == "build-legacy-all":
@@ -687,6 +792,8 @@ __all__ = (
     "build_legacy_community_release",
     "build_legacy_gear_release",
     "expected_spec_pairs",
+    "load_simc_socket_bonus_minimums",
+    "prepare_staging_gear_release",
     "runtime_dependency_revisions",
     "selection_intent_from_template",
     "validate_gear_snapshot",
