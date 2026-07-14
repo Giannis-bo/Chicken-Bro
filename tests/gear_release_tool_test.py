@@ -586,6 +586,77 @@ class GearReleaseToolTest(unittest.TestCase):
 
         self.assertEqual(store.community_seals, [])
 
+    def test_non_public_template_gem_conflict_is_rejected_without_blocking_release(self):
+        from server.gear_release_store import gear_snapshot_summary
+        from server.gear_release_tool import build_legacy_community_release
+        from server.gear_socket_authority import CAPABILITY_REVISION
+
+        snapshot = self.snapshot()
+        snapshot["items"][0]["payload"] = {
+            "baseCapabilities": {
+                "socketCount": 0,
+                "canEnchant": False,
+                "canEmbellish": False,
+            }
+        }
+        snapshot["variants"][0]["payload"] = {
+            "resolvedStats": {"intellect": 100},
+            "capabilityOverrides": {"socketCount": 0},
+        }
+        public_template = self.template(template_id="observed-public")
+        public_template["gearItems"][0]["gem_id"] = ""
+        non_public_template = self.template(
+            template_id="recommended-conflict",
+            source_key="recommended_bis",
+        )
+        non_public_template["gearItems"][0]["gem_id"] = "240892"
+        dependencies = {
+            **self.dependencies(),
+            "capabilityRevision": CAPABILITY_REVISION,
+        }
+        gear = gear_release.build_release(
+            release_kind="gear",
+            season_revision="season-17",
+            schema_revision="gear-release-v1",
+            content=gear_snapshot_summary(snapshot),
+            dependency_revisions=dependencies,
+            release_status="validated",
+            source={"sourceRevision": "non-public-capacity-contradiction-test"},
+        )
+        store = FakeReleaseStore(
+            snapshot,
+            [public_template, non_public_template],
+        )
+        resolver_calls = []
+
+        result = build_legacy_community_release(
+            store,
+            gear_release_descriptor=gear,
+            gear_snapshot=snapshot,
+            dependency_revisions=dependencies,
+            expected_specs=[("mage", "arcane")],
+            now="2026-07-14T01:00:00+00:00",
+            resolver_for_spec=lambda class_key, spec_key, intent: (
+                resolver_calls.append((class_key, spec_key, intent))
+                or self.verified_result(gear["releaseId"])
+            ),
+        )
+
+        self.assertEqual(result["release"]["releaseStatus"], "validated")
+        self.assertEqual(len(resolver_calls), 1)
+        self.assertEqual(
+            result["election"]["winners"][0]["candidateId"],
+            "observed-public",
+        )
+        rejected = next(row for row in result["rows"] if row["role"] == "rejected")
+        self.assertEqual(rejected["templateId"], "recommended-conflict")
+        self.assertEqual(rejected["selectionIntent"], {})
+        self.assertIn(
+            "COMMUNITY_SOURCE_NOT_PUBLIC",
+            {problem["code"] for problem in rejected["problems"]},
+        )
+        self.assertEqual(len(store.community_seals), 1)
+
     def test_v2_release_blocks_raw_gems_without_materialized_socket_capacity(self):
         from server.gear_release_store import GearReleaseIntegrityError
         from server.gear_release_tool import _materialize_enhancement_management

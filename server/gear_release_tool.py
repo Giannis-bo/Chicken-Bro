@@ -504,6 +504,9 @@ def selection_intent_from_template(
     capability_revision: str = "",
 ) -> dict[str, Any]:
     snapshot = gear_snapshot if isinstance(gear_snapshot, dict) else {}
+    enhancements_are_public_evidence = gear_release.is_public_observed_source(
+        template.get("sourceKey")
+    )
     items_by_id = {
         _text(row.get("itemId")): row
         for row in snapshot.get("items") or []
@@ -629,7 +632,10 @@ def selection_intent_from_template(
             "enchantOptionId": "",
             "embellishmentOptionId": "",
         }
-        if capability_revision != gear_socket_authority.CAPABILITY_REVISION:
+        if (
+            capability_revision != gear_socket_authority.CAPABILITY_REVISION
+            or not enhancements_are_public_evidence
+        ):
             return empty
         item = items_by_id.get(item_id)
         variant = matching_variant(item_id, variant_key)

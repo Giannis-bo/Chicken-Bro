@@ -69,6 +69,12 @@ def _text(value: Any) -> str:
     return str(value or "").strip()
 
 
+def is_public_observed_source(source_key: Any) -> bool:
+    """Return whether one source may participate in public community election."""
+
+    return _text(source_key) in _PUBLIC_OBSERVED_SOURCE_KEYS
+
+
 def _positive_int(value: Any) -> int:
     if isinstance(value, bool):
         return 0
@@ -390,7 +396,7 @@ def _candidate_problem(code: str, path: str, message: str) -> dict[str, str]:
 def _candidate_source_issues(candidate: dict[str, Any], now: datetime | None) -> list[dict[str, str]]:
     issues: list[dict[str, str]] = []
     source_key = _text(candidate.get("sourceKey"))
-    if source_key not in _PUBLIC_OBSERVED_SOURCE_KEYS:
+    if not is_public_observed_source(source_key):
         issues.append(_candidate_problem("COMMUNITY_SOURCE_NOT_PUBLIC", "candidate.sourceKey", "Only real-player observed sources are public-election eligible."))
     if not _text(candidate.get("sourceUrl")):
         issues.append(_candidate_problem("COMMUNITY_SOURCE_URL_MISSING", "candidate.sourceUrl", "Observed source URL is required."))
@@ -825,6 +831,7 @@ __all__ = [
     "compare_shadow",
     "decide_promotion",
     "elect_community_candidates",
+    "is_public_observed_source",
     "semantic_gear_signature",
     "validate_capability_proof",
     "validate_release",
