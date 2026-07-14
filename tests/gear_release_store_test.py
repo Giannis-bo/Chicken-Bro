@@ -1314,6 +1314,143 @@ class GearReleaseStoreTest(unittest.TestCase):
             "ilevel": "289",
         })
 
+    def test_candidate_authority_prefers_exact_variant_over_divergent_normalized_alias(self):
+        from server.gear_release_store import (
+            GearReleaseStore,
+            build_candidate_authority_context,
+        )
+        from server.websim_payload import gear_resolver_runtime_authority
+
+        requested_key = "observed_profile-head-289-bonus_id:123ilevel:289"
+        alias_key = 'observed_profile-head-289-{"bonus_id": "123", "ilevel": "289"}'
+        snapshot = self.snapshot()
+        snapshot["variants"][0].update({
+            "variantKey": requested_key,
+            "simcOptions": {"bonus_id": "123", "ilevel": "289"},
+        })
+        alias = copy.deepcopy(snapshot["variants"][0])
+        alias.update({
+            "variantId": "variant-alias-divergent",
+            "variantKey": alias_key,
+            "simcOptions": {"bonus_id": "divergent", "ilevel": "289"},
+        })
+        snapshot["variants"].append(alias)
+        release = self.gear_release(snapshot)
+        intent = {
+            "schemaRevision": "selection-intent-v1",
+            "authoredAgainst": {
+                "seasonRevision": release["seasonRevision"],
+                "gearCatalogRevision": release["releaseId"],
+            },
+            "eligibilityContext": {"classKey": "mage", "specKey": "arcane", "level": 90},
+            "slots": {
+                "head": {
+                    "itemId": "item-a",
+                    "variantKey": requested_key,
+                    "gemOptionIds": [],
+                    "enchantOptionId": "",
+                    "embellishmentOptionId": "",
+                    "craftedOptionId": "",
+                    "catalystOptionId": "",
+                }
+            },
+        }
+        runtime = gear_resolver_runtime_authority(
+            "mage",
+            "arcane",
+            simc_runtime_revision="simc-r1",
+        )
+        runtime["dependencyRevisions"]["capabilityRevision"] = (
+            gear_socket_authority.LEGACY_CAPABILITY_REVISION
+        )
+
+        memory_context = build_candidate_authority_context(
+            snapshot,
+            intent,
+            runtime,
+            release,
+        )
+        self.assertEqual(memory_context["missingFields"], [])
+        self.assertEqual(
+            memory_context["variantsByKey"][requested_key]["simcOptions"]["bonus_id"],
+            "123",
+        )
+
+        item = snapshot["items"][0]
+        item_record = {
+            "id": item["itemId"],
+            "name": item["name"],
+            "slot": item["slot"],
+            "itemLevel": item["itemLevel"],
+            "sourceStatus": item["sourceStatus"],
+            "itemSetIds": [],
+            "payload": item["payload"],
+            "updatedAt": item["updatedAt"],
+        }
+
+        def variant_record(row):
+            return {
+                "id": row["variantId"],
+                "itemId": row["itemId"],
+                "slot": row["slot"],
+                "variantKey": row["variantKey"],
+                "label": row["label"],
+                "sourceType": row["sourceType"],
+                "difficultyKey": row["difficultyKey"],
+                "itemLevel": row["itemLevel"],
+                "simcOptions": row["simcOptions"],
+                "status": row["status"],
+                "blockers": row["blockers"],
+                "payload": row["payload"],
+                "updatedAt": row["updatedAt"],
+            }
+
+        source = snapshot["sources"][0]
+        source_records = [{
+            "id": source["sourceId"],
+            "sourceType": source["sourceType"],
+            "sourceKey": source["sourceKey"],
+            "sourceLabel": source["sourceLabel"],
+            "instanceId": source["instanceId"],
+            "encounterId": source["encounterId"],
+            "difficultyKey": source["difficultyKey"],
+            "seasonRevision": source["seasonRevision"],
+            "status": "verified",
+            "sourceStatus": "verified",
+            "payload": source["payload"],
+            "updatedAt": source["updatedAt"],
+        }]
+        conn = FakeConnection(rowsets={
+            "FROM cache.websim_release_registry": [self.release_row(release)],
+            "gear_release_authority_items_variants": [
+                (
+                    "item-a",
+                    requested_key,
+                    item_record,
+                    variant_record(snapshot["variants"][0]),
+                    source_records,
+                ),
+                (
+                    "item-a",
+                    requested_key,
+                    item_record,
+                    variant_record(alias),
+                    source_records,
+                ),
+            ],
+            "gear_release_authority_options": [],
+        })
+
+        database_context = GearReleaseStore(
+            lambda: conn
+        ).load_candidate_authority_context(intent, runtime, release["releaseId"])
+
+        self.assertEqual(database_context["missingFields"], [])
+        self.assertEqual(
+            database_context["variantsByKey"][requested_key]["simcOptions"]["bonus_id"],
+            "123",
+        )
+
     def test_candidate_community_release_rejects_missing_or_mixed_binding(self):
         from server.gear_release_store import GearReleaseIntegrityError, GearReleaseStore
 

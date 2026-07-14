@@ -472,6 +472,13 @@ def build_candidate_authority_context(
                 or normalize_option_value(row.get("variantKey")) == requested_variant
             )
         ]
+        exact = [
+            row
+            for row in matching
+            if _text(row.get("variantKey")) == requested_variant
+        ]
+        if exact:
+            matching = exact
         if not matching:
             matching = [None]
         for variant in matching:
@@ -990,11 +997,31 @@ class GearReleaseStore:
                     RELEASE_SELECTED_ITEM_VARIANT_SQL,
                     (release_id, item_ids, variant_keys),
                 )
+                selected_item_rows = list(cur.fetchall())
+                # Exact immutable identity wins. Normalized aliases are retained
+                # only when no exact row exists, so alias-only conflicts still
+                # reach the loader's fail-closed equivalence check.
+                exact_variant_pairs = {
+                    (_text(row[0]), _text(row[1]))
+                    for row in selected_item_rows
+                    if len(row or ()) > 3
+                    and isinstance(row[3], dict)
+                    and _text(row[3].get("variantKey")) == _text(row[1])
+                }
                 item_rows = []
-                for row in cur.fetchall():
+                for row in selected_item_rows:
                     values = list(row or ())
                     while len(values) < 5:
                         values.append(None)
+                    pair = (_text(values[0]), _text(values[1]))
+                    if (
+                        pair in exact_variant_pairs
+                        and (
+                            not isinstance(values[3], dict)
+                            or _text(values[3].get("variantKey")) != pair[1]
+                        )
+                    ):
+                        continue
                     values[4] = _verified_release_source_records(values[4])
                     if values[3] is None:
                         values[3] = _observed_release_variant_record(

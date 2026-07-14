@@ -457,6 +457,84 @@ class GearReleaseToolTest(unittest.TestCase):
 
         self.assertEqual(intent["slots"]["head"]["gemOptionIds"], [])
 
+    def test_v2_materialization_makes_gems_universal_but_keeps_socket_capacity_authoritative(self):
+        from server.gear_release_store import GearReleaseIntegrityError
+        from server.gear_release_tool import (
+            _materialize_enhancement_management,
+            selection_intent_from_template,
+        )
+        from server.gear_socket_authority import (
+            CAPABILITY_REVISION,
+            LEGACY_CAPABILITY_REVISION,
+        )
+
+        snapshot = self.snapshot()
+        snapshot["items"][0]["payload"] = {
+            "baseCapabilities": {
+                "socketCount": 1,
+                "canEnchant": False,
+                "canEmbellish": False,
+            }
+        }
+        snapshot["variants"][0]["simcOptions"] = {
+            "ilevel": "289",
+            "gem_id": "240892",
+        }
+        snapshot["variants"][0]["payload"] = {
+            "resolvedStats": {"intellect": 100},
+            "capabilityOverrides": {"socketCount": 1},
+        }
+        snapshot["options"] = [{
+            "optionId": "option-gem-240892",
+            "optionKey": "gem-240892",
+            "optionType": "socket",
+            "name": "Canonical gem 240892",
+            "applicableSlots": ["neck", "finger1", "finger2"],
+            "simcOptions": {"gem_id": "240892"},
+            "status": "verified",
+            "isVisible": True,
+            "payload": {},
+        }]
+        template = self.template()
+        template["gearItems"][0]["gem_id"] = "240892"
+
+        materialized = _materialize_enhancement_management(
+            snapshot,
+            CAPABILITY_REVISION,
+        )
+        intent = selection_intent_from_template(
+            template,
+            gear_release_id="gear-release:sha256:target",
+            season_revision="season-17",
+            level=90,
+            gear_snapshot=materialized,
+            capability_revision=CAPABILITY_REVISION,
+        )
+
+        self.assertEqual(materialized["options"][0]["applicableSlots"], ["*"])
+        self.assertEqual(intent["slots"]["head"]["gemOptionIds"], ["gem-240892"])
+
+        no_socket_snapshot = copy.deepcopy(snapshot)
+        no_socket_snapshot["items"][0]["payload"]["baseCapabilities"]["socketCount"] = 0
+        no_socket_snapshot["variants"][0]["payload"]["capabilityOverrides"]["socketCount"] = 0
+        with self.assertRaisesRegex(
+            GearReleaseIntegrityError,
+            "raw gem sequence conflicts with materialized socket capacity",
+        ):
+            _materialize_enhancement_management(
+                no_socket_snapshot,
+                CAPABILITY_REVISION,
+            )
+
+        legacy = _materialize_enhancement_management(
+            snapshot,
+            LEGACY_CAPABILITY_REVISION,
+        )
+        self.assertEqual(
+            legacy["options"][0]["applicableSlots"],
+            ["neck", "finger1", "finger2"],
+        )
+
     def test_community_release_blocks_template_gems_beyond_materialized_capacity(self):
         from server.gear_release_store import GearReleaseIntegrityError, gear_snapshot_summary
         from server.gear_release_tool import build_legacy_community_release
@@ -693,6 +771,9 @@ class GearReleaseToolTest(unittest.TestCase):
         from server.websim_payload import gear_resolver_runtime_authority
 
         fixture = build_midnight_mage_release_fixture()
+        for option in fixture["snapshot"]["options"]:
+            if option.get("optionType") == "socket":
+                option["applicableSlots"] = ["neck", "finger1", "finger2"]
         resolver_fixture = fixture["resolverFixture"]
         authority = resolver_fixture["authorityContext"]
         reference = resolver_fixture["referenceContract"]
@@ -712,6 +793,11 @@ class GearReleaseToolTest(unittest.TestCase):
             dependency_revisions=dependencies,
             socket_bonus_minimums={"9300": 1},
         )
+        self.assertTrue(all(
+            option["applicableSlots"] == ["*"]
+            for option in prepared_gear["snapshot"]["options"]
+            if option.get("optionType") == "socket"
+        ))
         managed_by_slot = {
             row["slot"]: row["payload"].get("enhancementManagement", {}).get("fields", {})
             for row in prepared_gear["snapshot"]["variants"]

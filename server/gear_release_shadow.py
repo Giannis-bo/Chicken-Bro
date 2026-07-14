@@ -199,6 +199,17 @@ def _enhancement_migration_projection(snapshot: Any) -> dict[str, Any]:
                     if delta_key != "enhancements"
                 }
                 continue
+            if key == "effectiveCapabilities" and isinstance(field_value, dict):
+                projected[key] = {
+                    capability_key: copy.deepcopy(capability_value)
+                    for capability_key, capability_value in field_value.items()
+                    if capability_key not in {
+                        "allowedGemOptionIds",
+                        "allowedEnchantOptionIds",
+                        "allowedEmbellishmentOptionIds",
+                    }
+                }
+                continue
             projected[key] = copy.deepcopy(field_value)
         resolved_slots[_text(slot)] = projected
     raw_constraints = value.get("constraints") if isinstance(value.get("constraints"), dict) else {}

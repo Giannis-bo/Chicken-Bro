@@ -194,6 +194,13 @@ def _materialize_enhancement_management(
         normalized = [normalize_slot(value) for value in applicable]
         return not applicable or "*" in applicable or slot in normalized
 
+    if capability_revision == gear_socket_authority.CAPABILITY_REVISION:
+        for option in options:
+            if option_type(option) == "gem":
+                # Gem compatibility is capacity-governed by the exact item/variant,
+                # not by the legacy jewelry-only option catalog scope.
+                option["applicableSlots"] = ["*"]
+
     def built_in_embellishment_state(
         raw_value: str,
         item_payload: dict[str, Any],

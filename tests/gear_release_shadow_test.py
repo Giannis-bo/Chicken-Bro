@@ -512,6 +512,15 @@ class GearReleaseShadowTest(unittest.TestCase):
         legacy_authority["dependencyVector"]["capabilityRevision"] = (
             gear_socket_authority.LEGACY_CAPABILITY_REVISION
         )
+        for item in legacy_authority["itemsById"].values():
+            capabilities = item.get("baseCapabilities") or {}
+            for field in (
+                "allowedGemOptionIds",
+                "allowedEnchantOptionIds",
+                "allowedEmbellishmentOptionIds",
+            ):
+                item[field] = []
+                capabilities[field] = []
         transitional_snapshot = gear_resolver.resolve(
             legacy_intent,
             legacy_authority,
