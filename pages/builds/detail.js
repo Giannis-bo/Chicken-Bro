@@ -431,6 +431,54 @@ function clearCommunityEnhancementImportState(page) {
   page.communityEnhancementImportState = emptyCommunityEnhancementImportState()
 }
 
+function gearInteractionGenerationForPage(page) {
+  const value = Number(page && page.gearInteractionGeneration)
+  return Number.isSafeInteger(value) && value >= 0 ? value : 0
+}
+
+function gearSelectionKeyForPage(page) {
+  const explicit = cleanGearString(page && page.data && page.data.gearSelectionKey)
+  if (explicit) return explicit
+  const keys = specWebsimKeys((page && page.data && page.data.selectedSpec) || {})
+  return `${keys.classKey}:${keys.specKey}`
+}
+
+function captureGearInteractionContext(page, resolveContext) {
+  const source = resolveContext && typeof resolveContext === 'object' ? resolveContext : {}
+  const communityImport = source.communityImport && typeof source.communityImport === 'object'
+    ? {
+        templateId: cleanGearString(source.communityImport.templateId),
+        serial: Number(source.communityImport.serial) || 0
+      }
+    : null
+  return {
+    generation: gearInteractionGenerationForPage(page),
+    gearSelectionKey: gearSelectionKeyForPage(page),
+    communityImport
+  }
+}
+
+function gearInteractionContextIsCurrent(page, context) {
+  if (!page || !context || typeof context !== 'object') return false
+  if (gearInteractionGenerationForPage(page) !== Number(context.generation)) return false
+  if (gearSelectionKeyForPage(page) !== cleanGearString(context.gearSelectionKey)) return false
+  if (context.communityImport) {
+    const current = page.communityEnhancementImportState || emptyCommunityEnhancementImportState()
+    if (
+      cleanGearString(current.templateId) !== cleanGearString(context.communityImport.templateId) ||
+      Number(current.serial) !== Number(context.communityImport.serial)
+    ) return false
+  }
+  return true
+}
+
+function invalidateGearInteractionContext(page) {
+  if (!page) return 0
+  page.gearInteractionGeneration = gearInteractionGenerationForPage(page) + 1
+  delete page.atomicEnhancementCommittedWorkbenchState
+  return page.gearInteractionGeneration
+}
+
 function eligibleCommunityEnhancementImportState(state, snapshot) {
   const current = state && typeof state === 'object' ? state : emptyCommunityEnhancementImportState()
   const snapshotSignature = cleanGearString(snapshot && snapshot.resolvedGearSignature)
@@ -1558,6 +1606,51 @@ function optionIdentityEnhancementBySlot(enhancementBySlot) {
       if (value) next[key] = value
     })
     if (Object.keys(next).length) result[slot] = next
+  })
+  return result
+}
+
+function gearIdentityValue(value) {
+  if (Array.isArray(value)) return value.map(gearIdentityValue)
+  if (value && typeof value === 'object') {
+    return Object.keys(value).sort().reduce((result, key) => {
+      result[key] = gearIdentityValue(value[key])
+      return result
+    }, {})
+  }
+  return cleanGearString(value)
+}
+
+function gearInstanceIdentity(item) {
+  if (!item || typeof item !== 'object') return ''
+  return JSON.stringify([
+    normalizedGearItemId(item),
+    cleanGearString(item.variantKey || item.defaultVariantKey),
+    cleanGearString(item.ilevel || item.itemLevel),
+    gearIdentityValue(item.bonus_id || item.bonusId || item.bonusIds),
+    cleanGearString(item.selectedCraftedStatKey || item.craftedStatOptionKey),
+    gearIdentityValue(item.crafted_stats || item.craftedStats),
+    cleanGearString(item.difficultyKey || item.difficulty),
+    cleanGearString(item.contextKey || item.context),
+    cleanGearString(item.upgradeTrack || item.track)
+  ])
+}
+
+function changedGearSlots(before, after) {
+  const previous = selectedGearByCanonicalSlot(before || {})
+  const next = selectedGearByCanonicalSlot(after || {})
+  const slots = Array.from(new Set([...Object.keys(previous), ...Object.keys(next)]))
+  const orderedSlots = [...requiredGearSlots, ...slots.filter((slot) => !requiredGearSlots.includes(slot)).sort()]
+  return orderedSlots.filter((slot, index) => (
+    orderedSlots.indexOf(slot) === index &&
+    gearInstanceIdentity(previous[slot]) !== gearInstanceIdentity(next[slot])
+  ))
+}
+
+function enhancementBySlotWithoutChangedGear(enhancementBySlot, slots) {
+  const result = normalizedEnhancementBySlot(enhancementBySlot || {})
+  ;(Array.isArray(slots) ? slots : []).forEach((slot) => {
+    delete result[slot]
   })
   return result
 }
@@ -4167,12 +4260,19 @@ function loadGearSlotDetailForPage(page, slot, requestContext) {
   const selectedSpec = (page && page.data && page.data.selectedSpec) || {}
   const keys = specWebsimKeys(selectedSpec)
   const selectionKey = `${keys.classKey}:${keys.specKey}`
-  const contextKey = cleanGearString(requestContext && requestContext.requestKey)
+  const interactionContext = requestContext && requestContext.interactionContext
+    ? requestContext.interactionContext
+    : captureGearInteractionContext(page)
+  const contextKey = [
+    cleanGearString(requestContext && requestContext.requestKey),
+    `generation-${interactionContext.generation}`
+  ].filter(Boolean).join(':')
   const requestKey = [selectionKey, slot, contextKey].filter(Boolean).join(':')
   page.gearSlotDetailRequestCache = page.gearSlotDetailRequestCache || {}
   if (page.gearSlotDetailRequestCache[requestKey]) return page.gearSlotDetailRequestCache[requestKey]
   const requestPromise = requestWebsimGear({ ...keys, mode: 'slot', slot }).then(({ payload, error, fromFallback }) => {
-    if (!page || !page.data || page.data.gearSelectionKey !== selectionKey) return fullGearPayloadForPage(page)
+    if (!gearInteractionContextIsCurrent(page, interactionContext)) return fullGearPayloadForPage(page)
+    if (!page.data || page.data.gearSelectionKey !== selectionKey) return fullGearPayloadForPage(page)
     if (requestContext && typeof requestContext.shouldApply === 'function' && !requestContext.shouldApply()) {
       return fullGearPayloadForPage(page)
     }
@@ -5109,6 +5209,8 @@ function resolvedSnapshotHasCompleteSelectedOptions(snapshot, selectedGearBySlot
 }
 
 function commitVerifiedEnhancementSnapshot(page, request, snapshot, context) {
+  const interactionContext = context && context.interactionContext
+  if (!gearInteractionContextIsCurrent(page, interactionContext)) return false
   if (!acceptedVerifiedGearResolve(page && page.gearWorkbenchState, request, snapshot)) return false
   const source = context && typeof context === 'object' ? context : {}
   const data = (page && page.data) || {}
@@ -5124,6 +5226,8 @@ function commitVerifiedEnhancementSnapshot(page, request, snapshot, context) {
 }
 
 function bindCommunityImportToResolvedSnapshot(page, request, snapshot, resolveContext) {
+  const interactionContext = resolveContext && resolveContext.interactionContext
+  if (!gearInteractionContextIsCurrent(page, interactionContext)) return false
   if (!acceptedVerifiedGearResolve(page && page.gearWorkbenchState, request, snapshot)) return false
   const binding = resolveContext && resolveContext.communityImport
   const current = page.communityEnhancementImportState || emptyCommunityEnhancementImportState()
@@ -5144,6 +5248,7 @@ const defaultSelection = findSpecSelection(defaultSpecId)
 Page({
   communityEnhancementImportSerial: 0,
   communityEnhancementImportState: emptyCommunityEnhancementImportState(),
+  gearInteractionGeneration: 0,
 
   data: {
     ...payload,
@@ -5224,6 +5329,7 @@ Page({
   },
 
   selectClass(event) {
+    invalidateGearInteractionContext(this)
     clearCommunityEnhancementImportState(this)
     const classIndex = Number(event.detail.value)
     const selectionState = createSelectionState(classIndex, 0, this.data.activeQueryKey)
@@ -5240,6 +5346,7 @@ Page({
   },
 
   selectSpec(event) {
+    invalidateGearInteractionContext(this)
     clearCommunityEnhancementImportState(this)
     const specIndex = Number(event.detail.value)
     const selectionState = createSelectionState(this.data.selectedClassIndex, specIndex, this.data.activeQueryKey)
@@ -5456,6 +5563,8 @@ Page({
       : null
     if (!atomicEnhancementCommit) delete this.atomicEnhancementCommittedWorkbenchState
     const completionContext = resolveContext && typeof resolveContext === 'object' ? resolveContext : {}
+    const interactionContext = captureGearInteractionContext(this, completionContext)
+    const fencedCompletionContext = { ...completionContext, interactionContext }
     const gearPayload = fullGearPayloadForPage(this) || this.data.gearPayload || {}
     const selectedSpec = this.data.selectedSpec || {}
     const keys = specWebsimKeys({
@@ -5530,6 +5639,9 @@ Page({
     })
 
     const applyResult = (request, transportResult) => {
+      if (!gearInteractionContextIsCurrent(this, interactionContext)) {
+        return canonicalWorkbenchSnapshot(this)
+      }
       this.gearWorkbenchState = applyGearResolveResult(this.gearWorkbenchState, request, transportResult)
       const envelope = transportResult && transportResult.payload
       if (this.gearWorkbenchState.resolveStatus === 'revision_conflict') {
@@ -5572,9 +5684,10 @@ Page({
       }
       const committed = commitVerifiedEnhancementSnapshot(this, request, currentSnapshot, {
         gearPayload,
-        selectedGearBySlot: selection
+        selectedGearBySlot: selection,
+        interactionContext
       })
-      bindCommunityImportToResolvedSnapshot(this, request, currentSnapshot, completionContext)
+      bindCommunityImportToResolvedSnapshot(this, request, currentSnapshot, fencedCompletionContext)
       if (atomicEnhancementCommit && committed) delete this.atomicEnhancementCommittedWorkbenchState
       const workbenchData = gearWorkbenchDataState(
         this.gearWorkbenchState,
@@ -5583,7 +5696,8 @@ Page({
       )
       if (atomicEnhancementCommit) {
         const matchingCompletion = Number(this.gearWorkbenchState.latestResolveSerial) === Number(request.serial) &&
-          Number(this.gearWorkbenchState.intentVersion) === Number(request.intentVersion)
+          Number(this.gearWorkbenchState.intentVersion) === Number(request.intentVersion) &&
+          gearInteractionContextIsCurrent(this, interactionContext)
         if (committed) {
           this.setData({
             ...workbenchData,
@@ -5779,7 +5893,9 @@ Page({
   openGearSlotSheet(event) {
     const slot = event.currentTarget.dataset.slot || ''
     if (!slot) return Promise.resolve()
+    const interactionContext = captureGearInteractionContext(this)
     const openWithCurrentPayload = () => {
+      if (!gearInteractionContextIsCurrent(this, interactionContext)) return
       const row = (this.data.gearSlotRows || []).find((item) => item.slot === slot) || {}
       const candidates = buildGearCandidateRows(slot, fullGearPayloadForPage(this) || {}, this.data.selectedGearBySlot || {})
       const selectedGear = ((this.data.selectedGearBySlot || {})[slot]) || {}
@@ -5802,7 +5918,7 @@ Page({
       })
     }
     if (gearPayloadNeedsSlotDetail(this, slot)) {
-      return loadGearSlotDetailForPage(this, slot)
+      return loadGearSlotDetailForPage(this, slot, { interactionContext })
         .catch(() => fullGearPayloadForPage(this))
         .then(openWithCurrentPayload)
     }
@@ -5865,6 +5981,7 @@ Page({
     if (currentSheet.submitting) return Promise.resolve()
     const slot = event.currentTarget.dataset.slot || ''
     if (!slot) return Promise.resolve()
+    const interactionContext = captureGearInteractionContext(this)
     const gearPayload = fullGearPayloadForPage(this) || this.data.gearPayload || {}
     const selectedGearBySlot = this.data.selectedGearBySlot || {}
     const enhancementBySlot = currentSheet.draftEnhancementBySlot || this.data.enhancementBySlot || {}
@@ -5879,9 +5996,10 @@ Page({
     nextSheet.loading = true
     if (nextSheet.emptyText) nextSheet.emptyText = '正在加载当前槽位的可配置选项...'
     this.setData({ gearEnhancementSheet: nextSheet })
-    return loadGearSlotDetailForPage(this, slot)
+    return loadGearSlotDetailForPage(this, slot, { interactionContext })
       .catch(() => fullGearPayloadForPage(this) || gearPayload)
       .then(() => {
+        if (!gearInteractionContextIsCurrent(this, interactionContext)) return
         const activeSheet = this.data.gearEnhancementSheet || {}
         if (!activeSheet.visible || activeSheet.activeSlot !== slot) return
         const refreshedPayload = fullGearPayloadForPage(this) || gearPayload
@@ -6111,6 +6229,7 @@ Page({
   },
 
   resetGearSelection() {
+    invalidateGearInteractionContext(this)
     clearCommunityEnhancementImportState(this)
     const gearPayload = fullGearPayloadForPage(this)
     if (!gearPayload) {
@@ -6156,6 +6275,7 @@ Page({
       showToast('保存模板缺少装备配置')
       return
     }
+    invalidateGearInteractionContext(this)
     clearCommunityEnhancementImportState(this)
     const selectedGearBySlot = prunedGearSelectionByWeaponRule(gearPayload, {
       ...baselineSelection,
@@ -6192,6 +6312,7 @@ Page({
       showToast('当前模板暂不可导入')
       return Promise.resolve()
     }
+    invalidateGearInteractionContext(this)
     const importSerial = Number(this.communityEnhancementImportSerial || 0) + 1
     const importSelectionKey = this.data.gearSelectionKey || (() => {
       const keys = specWebsimKeys(this.data.selectedSpec || {})
@@ -6205,14 +6326,19 @@ Page({
       unresolvedBySlot: {},
       warnings: []
     }
+    const interactionContext = captureGearInteractionContext(this, {
+      communityImport: { templateId, serial: importSerial }
+    })
     const importIsCurrent = () => {
       const state = this.communityEnhancementImportState || {}
       const currentKeys = specWebsimKeys(this.data.selectedSpec || {})
       const currentSelectionKey = this.data.gearSelectionKey || `${currentKeys.classKey}:${currentKeys.specKey}`
-      return state.templateId === templateId && state.serial === importSerial && currentSelectionKey === importSelectionKey
+      return gearInteractionContextIsCurrent(this, interactionContext) &&
+        state.templateId === templateId && state.serial === importSerial && currentSelectionKey === importSelectionKey
     }
     const detailRequestContext = {
       requestKey: `community:${templateId}:${importSerial}`,
+      interactionContext,
       shouldApply: importIsCurrent
     }
     const applyWithCurrentPayload = () => {
@@ -6357,11 +6483,25 @@ Page({
       showToast(trust.blockerLabel || trust.reason || '该装备数据待补，暂不能应用')
       return Promise.resolve()
     }
+    invalidateGearInteractionContext(this)
+    const previousGearBySlot = prunedGearSelectionByWeaponRule(
+      gearPayload,
+      this.data.selectedGearBySlot || {}
+    )
     const selectedGearBySlot = prunedGearSelectionByWeaponRule(gearPayload, {
-      ...(this.data.selectedGearBySlot || {}),
+      ...previousGearBySlot,
       [slot]: candidate
     })
-    const enhancementBySlot = prunedEnhancementBySlot(gearPayload, selectedGearBySlot, this.data.enhancementBySlot || {})
+    const changedSlots = changedGearSlots(previousGearBySlot, selectedGearBySlot)
+    const enhancementWithoutChangedGear = enhancementBySlotWithoutChangedGear(
+      this.data.enhancementBySlot || {},
+      changedSlots
+    )
+    const enhancementBySlot = prunedEnhancementBySlot(
+      gearPayload,
+      selectedGearBySlot,
+      enhancementWithoutChangedGear
+    )
     trackEvent('builds_gear_candidate_select', {
       gearSlot: slot,
       itemId: candidate.itemId || candidate.id || '',
