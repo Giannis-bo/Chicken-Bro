@@ -2051,16 +2051,39 @@ function atomicEnhancementSheetHarness(options = {}) {
     variantKey: 'atomic-ring', displayName: 'Atomic Ring', simcReady: true,
     modCapabilities: { hasSocket: false, socketCount: 0, canEnchant: true, canEmbellish: false }
   }
+  const includeSecondRing = !!options.includeSecondRing
+  const secondRing = {
+    ...ring,
+    slot: 'finger2', simcSlot: 'finger2', itemId: '250061', id: '250061',
+    variantKey: 'atomic-second-ring', displayName: 'Atomic Second Ring'
+  }
+  const secondReplacement = {
+    ...secondRing,
+    itemId: '250062', id: '250062',
+    variantKey: 'atomic-second-ring-replacement', displayName: 'Atomic Second Ring Replacement'
+  }
   const gearPayload = {
     classKey: 'mage', specKey: 'frost', maxLevel: 90,
-    slots: [{ slot: 'finger1', simcSlot: 'finger1', label: '戒指 1' }],
-    replacementCandidates: [{
-      slot: 'finger1', simcSlot: 'finger1', detailMode: 'complete', items: [ring],
-      enchantOptions: [option('enchant-draft'), option('enchant-canonical')]
-    }],
+    slots: [
+      { slot: 'finger1', simcSlot: 'finger1', label: '戒指 1' },
+      ...(includeSecondRing ? [{ slot: 'finger2', simcSlot: 'finger2', label: '戒指 2' }] : [])
+    ],
+    replacementCandidates: [
+      {
+        slot: 'finger1', simcSlot: 'finger1', detailMode: 'complete', items: [ring],
+        enchantOptions: [option('enchant-draft'), option('enchant-canonical')]
+      },
+      ...(includeSecondRing ? [{
+        slot: 'finger2', simcSlot: 'finger2', detailMode: 'complete', items: [secondRing, secondReplacement],
+        enchantOptions: [option('enchant-draft'), option('enchant-canonical')]
+      }] : [])
+    ],
     resolverContext: canonicalTestResolverContext()
   }
-  const selectedGearBySlot = { finger1: ring }
+  const selectedGearBySlot = {
+    finger1: ring,
+    ...(includeSecondRing ? { finger2: secondRing } : {})
+  }
   const initialIntent = require('../pages/builds/gear-selection-intent').serializeGearSelectionIntent({
     resolverContext: gearPayload.resolverContext,
     eligibilityContext: { classKey: 'mage', specKey: 'frost', level: 90 },
@@ -2075,13 +2098,26 @@ function atomicEnhancementSheetHarness(options = {}) {
     staticAttributes: {},
     setState: { itemSetCounts: {}, activeDynamicEffects: [] },
     aggregateLegality: { status: 'verified', problemCodes: [] },
-    profileReadiness: { status: 'verified', simcReady: true, requiredSlots: ['finger1'], readySlots: ['finger1'] },
+    profileReadiness: {
+      status: 'verified',
+      simcReady: true,
+      requiredSlots: includeSecondRing ? ['finger1', 'finger2'] : ['finger1'],
+      readySlots: includeSecondRing ? ['finger1', 'finger2'] : ['finger1']
+    },
     constraints: {
       embellishmentMax: 2,
-      slots: { finger1: { socketCount: 0, canEnchant: true, canEmbellish: false } }
+      slots: {
+        finger1: { socketCount: 0, canEnchant: true, canEmbellish: false },
+        ...(includeSecondRing
+          ? { finger2: { socketCount: 0, canEnchant: true, canEmbellish: false } }
+          : {})
+      }
     },
     resolvedSlots: {
-      finger1: { itemLevel: 707, selectedOptions: { gemOptionIds: [], enchantOptionId: '', embellishmentOptionId: '' } }
+      finger1: { itemLevel: 707, selectedOptions: { gemOptionIds: [], enchantOptionId: '', embellishmentOptionId: '' } },
+      ...(includeSecondRing ? {
+        finger2: { itemLevel: 707, selectedOptions: { gemOptionIds: [], enchantOptionId: '', embellishmentOptionId: '' } }
+      } : {})
     },
     problems: []
   }
@@ -2122,7 +2158,16 @@ function atomicEnhancementSheetHarness(options = {}) {
     confirmAndResolveGearIntent: pageConfig.confirmAndResolveGearIntent
   }
   pageConfig.refreshDerivedState.call(page)
-  return { pageConfig, page, pendingResolves, savedTemplates, toasts, navigations, storageWrites }
+  return {
+    pageConfig,
+    page,
+    pendingResolves,
+    savedTemplates,
+    toasts,
+    navigations,
+    storageWrites,
+    secondReplacement
+  }
 }
 
 async function verifiedAtomicEnhancementTransport(selectionIntent, canonicalOptionId = 'enchant-canonical') {
@@ -2359,6 +2404,63 @@ test('blocked enhancement Resolve preserves committed state and editable draft',
   pendingResolves[1].resolve(await verifiedAtomicEnhancementTransport(pendingResolves[1].selectionIntent, ''))
   await nonAtomicPending
   assert.equal(pageConfig.buildSimcContext.call(page).simulatorState.gear.resolvedGearSignature, 'sha256:atomic-new')
+})
+
+test('blocked atomic enhancement draft stays out of a later different-slot gear replacement', async () => {
+  const {
+    pageConfig,
+    page,
+    pendingResolves,
+    secondReplacement
+  } = atomicEnhancementSheetHarness({ includeSecondRing: true })
+  pageConfig.openGearEnhancementSheet.call(page)
+  pageConfig.selectGearEnhancementOption.call(page, {
+    currentTarget: { dataset: { slot: 'finger1', type: 'enchant', id: 'enchant-draft' } }
+  })
+  const rejectedEnhancement = pageConfig.confirmGearEnhancementSheet.call(page)
+  pendingResolves[0].resolve({
+    httpStatus: 422,
+    fromFallback: false,
+    payload: {
+      contractRevision: 'gear-result-envelope-v1',
+      requestId: 'atomic-blocked-before-gear-replacement',
+      releaseContext: {},
+      status: 'blocked',
+      problems: [{ kind: 'ILLEGAL_SELECTION', code: 'GEAR_OPTION_NOT_ALLOWED', title: 'draft rejected' }],
+      data: {
+        contractRevision: 'gear-resolved-snapshot-v1',
+        status: 'blocked',
+        resolvedGearSignature: 'sha256:atomic-blocked-before-gear-replacement',
+        resolvedSlots: {}
+      }
+    }
+  })
+  await rejectedEnhancement
+
+  assert.equal(page.gearWorkbenchState.resolveStatus, 'blocked')
+  assert.equal(page.gearWorkbenchState.confirmedIntent.slots.finger1.enchantOptionId, 'enchant-draft')
+  assert.ok(page.atomicEnhancementCommittedWorkbenchState)
+  pageConfig.closeGearEnhancementSheet.call(page)
+  page.data.gearSlotSheet = { slot: 'finger2', appliedCandidate: secondReplacement }
+
+  const gearReplacement = pageConfig.applyGearCandidate.call(page)
+
+  assert.equal(pendingResolves.length, 2)
+  assert.equal(pendingResolves[1].selectionIntent.slots.finger1.enchantOptionId, '')
+  assert.equal(pendingResolves[1].selectionIntent.slots.finger2.enchantOptionId, '')
+
+  pendingResolves[1].resolve(await canonicalEnhancementResolveTransport(
+    pendingResolves[1].selectionIntent,
+    'sha256:gear-replacement-after-atomic-block',
+    {
+      finger1: { socketCount: 0, canEnchant: true, canEmbellish: false },
+      finger2: { socketCount: 0, canEnchant: true, canEmbellish: false }
+    }
+  ))
+  await gearReplacement
+
+  assert.equal(page.data.selectedGearBySlot.finger2.itemId, secondReplacement.itemId)
+  assert.deepEqual(JSON.parse(JSON.stringify(page.data.enhancementBySlot)), {})
 })
 
 test('enhancement revision retry transport failure restores the editable draft', async () => {
@@ -12509,6 +12611,62 @@ test('gear replacement clears enhancements only for the changed item instance be
   assert.deepEqual(JSON.parse(JSON.stringify(page.data.enhancementBySlot)), {
     finger2: { gemOptionIds: ['gem-b', 'gem-b'], enchantOptionId: 'ring-enchant' }
   })
+})
+
+test('rapid consecutive gear replacements keep earlier pending slot enhancements cleared', async () => {
+  const { pageConfig, page, pendingResolves, newRing } = task10GearReplacementHarness()
+  const secondReplacement = task10Ring({
+    slot: 'finger2',
+    simcSlot: 'finger2',
+    itemId: '299915',
+    id: '299915',
+    variantKey: 'ring-second-replacement',
+    displayName: 'Second Replacement Ring'
+  })
+
+  page.data.gearSlotSheet = { slot: 'finger1', appliedCandidate: newRing }
+  const firstPending = pageConfig.applyGearCandidate.call(page)
+  assert.equal(pendingResolves.length, 1)
+  assert.deepEqual(JSON.parse(JSON.stringify(
+    pendingResolves[0].selectionIntent.slots.finger1.gemOptionIds
+  )), [])
+
+  page.data.gearSlotSheet = { slot: 'finger2', appliedCandidate: secondReplacement }
+  const secondPending = pageConfig.applyGearCandidate.call(page)
+
+  assert.equal(pendingResolves.length, 2)
+  assert.deepEqual(JSON.parse(JSON.stringify(
+    pendingResolves[1].selectionIntent.slots.finger1.gemOptionIds
+  )), [])
+  assert.equal(pendingResolves[1].selectionIntent.slots.finger1.enchantOptionId, '')
+  assert.deepEqual(JSON.parse(JSON.stringify(
+    pendingResolves[1].selectionIntent.slots.finger2.gemOptionIds
+  )), [])
+  assert.equal(pendingResolves[1].selectionIntent.slots.finger2.enchantOptionId, '')
+
+  pendingResolves[1].resolve(await canonicalEnhancementResolveTransport(
+    pendingResolves[1].selectionIntent,
+    'sha256:task10-second-replacement',
+    {
+      finger1: { socketCount: 1, canEnchant: true, canEmbellish: false },
+      finger2: { socketCount: 1, canEnchant: true, canEmbellish: false }
+    }
+  ))
+  await secondPending
+
+  pendingResolves[0].resolve(await canonicalEnhancementResolveTransport(
+    pendingResolves[0].selectionIntent,
+    'sha256:task10-stale-first-replacement',
+    {
+      finger1: { socketCount: 1, canEnchant: true, canEmbellish: false },
+      finger2: { socketCount: 2, canEnchant: true, canEmbellish: false }
+    }
+  ))
+  await firstPending
+
+  assert.equal(page.data.selectedGearBySlot.finger1.itemId, newRing.itemId)
+  assert.equal(page.data.selectedGearBySlot.finger2.itemId, secondReplacement.itemId)
+  assert.deepEqual(JSON.parse(JSON.stringify(page.data.enhancementBySlot)), {})
 })
 
 test('gear replacement preserves untouched canonical enhancements without hydrated option rows', async () => {

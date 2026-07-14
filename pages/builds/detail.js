@@ -5190,6 +5190,26 @@ function enhancementBySlotFromResolvedSnapshot(snapshot) {
   return result
 }
 
+function enhancementBySlotFromSelectionIntent(selectionIntent) {
+  const slots = selectionIntent && selectionIntent.slots && typeof selectionIntent.slots === 'object'
+    ? selectionIntent.slots
+    : {}
+  const result = {}
+  Object.keys(slots).sort().forEach((slot) => {
+    const selectedOptions = slots[slot]
+    if (!selectedOptions || typeof selectedOptions !== 'object') return
+    const record = {}
+    const gemOptionIds = normalizedOptionIdentityList(selectedOptions.gemOptionIds)
+    const enchantOptionId = cleanGearString(selectedOptions.enchantOptionId)
+    const embellishmentOptionId = cleanGearString(selectedOptions.embellishmentOptionId)
+    if (gemOptionIds.length) record.gemOptionIds = gemOptionIds
+    if (enchantOptionId) record.enchantOptionId = enchantOptionId
+    if (embellishmentOptionId) record.embellishmentOptionId = embellishmentOptionId
+    if (Object.keys(record).length) result[slot] = record
+  })
+  return result
+}
+
 function selectionIntentWithResolvedEnhancements(selectionIntent, snapshot) {
   const result = selectionIntent && typeof selectionIntent === 'object'
     ? JSON.parse(JSON.stringify(selectionIntent))
@@ -6520,9 +6540,19 @@ Page({
       return Promise.resolve()
     }
     const committedSnapshot = canonicalWorkbenchSnapshot(this)
-    const enhancementSourceBySlot = committedSnapshot
-      ? enhancementBySlotFromResolvedSnapshot(committedSnapshot)
-      : (this.data.enhancementBySlot || {})
+    const pendingConfirmedIntent = this.gearWorkbenchState &&
+      !this.atomicEnhancementCommittedWorkbenchState &&
+      !gearWorkbenchCanUseVerifiedSnapshot(this.gearWorkbenchState) &&
+      this.gearWorkbenchState.confirmedIntent &&
+      this.gearWorkbenchState.confirmedIntent.slots &&
+      typeof this.gearWorkbenchState.confirmedIntent.slots === 'object'
+      ? this.gearWorkbenchState.confirmedIntent
+      : null
+    const enhancementSourceBySlot = pendingConfirmedIntent
+      ? enhancementBySlotFromSelectionIntent(pendingConfirmedIntent)
+      : committedSnapshot
+        ? enhancementBySlotFromResolvedSnapshot(committedSnapshot)
+        : (this.data.enhancementBySlot || {})
     invalidateGearInteractionContext(this)
     const previousGearBySlot = prunedGearSelectionByWeaponRule(
       gearPayload,
