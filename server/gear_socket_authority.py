@@ -144,7 +144,12 @@ def _id_tokens(value: Any) -> list[str]:
         candidates = [_text(token) for token in value]
     else:
         candidates = []
-    return [str(int(token)) for token in candidates if token.isdigit() and int(token) > 0]
+    identifiers: list[str] = []
+    for token in candidates:
+        if not token.isdigit() or int(token) <= 0:
+            return []
+        identifiers.append(str(int(token)))
+    return identifiers
 
 
 def count_payload_socket_entries(payload: Any) -> int:

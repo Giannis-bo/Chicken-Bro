@@ -156,13 +156,24 @@ class GearSocketAuthorityTest(unittest.TestCase):
             "slot": "finger1",
             "simcOptions": {},
         }
-        malformed_variant = {
-            "variantId": "variant-with-malformed-gem-token",
-            "itemId": "unknown-season-ring",
-            "variantKey": "malformed-gem-token",
-            "slot": "finger1",
-            "simcOptions": {"gem_id": "not-a-gem"},
-        }
+        malformed_variants = [
+            {
+                "variantId": f"variant-with-malformed-gem-token-{index}",
+                "itemId": "unknown-season-ring",
+                "variantKey": f"malformed-gem-token-{index}",
+                "slot": "finger1",
+                "simcOptions": {"gem_id": gem_sequence},
+            }
+            for index, gem_sequence in enumerate(
+                (
+                    "not-a-gem",
+                    "240983/not-a-gem/240892",
+                    "240983//240892",
+                    "240983/0/240892",
+                    "240983/-1/240892",
+                )
+            )
+        ]
 
         item_fact = authority.derive_item_socket_fact(
             item,
@@ -178,16 +189,21 @@ class GearSocketAuthorityTest(unittest.TestCase):
             different_variant,
             season_revision="unknown-season",
         )
-        malformed_fact = authority.derive_variant_socket_fact(
-            item,
-            malformed_variant,
-            season_revision="unknown-season",
-        )
+        malformed_facts = [
+            authority.derive_variant_socket_fact(
+                item,
+                malformed_variant,
+                season_revision="unknown-season",
+            )
+            for malformed_variant in malformed_variants
+        ]
 
         self.assertEqual(item_fact["minimumTotal"], 0)
         self.assertEqual(observed_fact["minimumTotal"], 2)
         self.assertEqual(different_fact["minimumTotal"], 0)
-        self.assertEqual(malformed_fact["minimumTotal"], 0)
+        self.assertTrue(
+            all(fact["minimumTotal"] == 0 and fact["claims"] == [] for fact in malformed_facts)
+        )
         gem_claim = next(
             claim for claim in observed_fact["claims"] if claim["source"] == "observed_gem_occupancy"
         )
