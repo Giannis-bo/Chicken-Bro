@@ -31,7 +31,10 @@ try:
         WOW_CLASSES,
         gear_resolver_runtime_authority,
         item_can_enchant_slot,
+        normalize_option_value,
         normalize_slot,
+        observed_gear_simc_options,
+        simc_encoded_item_options,
     )
     from .postgres_cache_store import PostgresCacheStore
 except ImportError:
@@ -53,7 +56,10 @@ except ImportError:
         WOW_CLASSES,
         gear_resolver_runtime_authority,
         item_can_enchant_slot,
+        normalize_option_value,
         normalize_slot,
+        observed_gear_simc_options,
+        simc_encoded_item_options,
     )
     from postgres_cache_store import PostgresCacheStore
 
@@ -221,6 +227,40 @@ def _materialize_enhancement_management(
         )
         return "proven" if strict_marker or built_in_source else "absent"
 
+    def simc_echo_enchant_proven(
+        raw_value: str,
+        slot: str,
+        variant: dict[str, Any],
+        variant_payload: dict[str, Any],
+    ) -> bool:
+        """Require an exact candidate-time SimC echo for immutable raw enchants."""
+
+        if (
+            _text(variant_payload.get("statSource")).lower() != "simulationcraft"
+            or _text(variant_payload.get("statDisplayStatus")).lower()
+            != "verified_variant"
+            or not isinstance(variant_payload.get("itemStats"), list)
+            or not variant_payload.get("itemStats")
+        ):
+            return False
+        encoded = _text(variant_payload.get("simcEncodedItem"))
+        if not encoded:
+            return False
+        encoded_options = simc_encoded_item_options(encoded)
+        item_id = _text(variant.get("itemId"))
+        item_level = _int(variant.get("itemLevel"))
+        return (
+            bool(slot)
+            and bool(item_id)
+            and _text(encoded_options.get("id")) == item_id
+            and item_level > 0
+            and _int(encoded_options.get("ilevel")) == item_level
+            and _text(variant_payload.get("simcItemId")) == item_id
+            and _int(variant_payload.get("simcItemLevel")) == item_level
+            and normalize_option_value(encoded_options.get("enchant_id"))
+            == normalize_option_value(raw_value)
+        )
+
     for variant in materialized.get("variants") or []:
         if not isinstance(variant, dict):
             continue
@@ -244,6 +284,40 @@ def _materialize_enhancement_management(
             and _text(variant.get("sourceType")).lower() == "observed_profile"
         )
         classifications: dict[str, str] = {}
+        raw_gem_sequences = {
+            field: simc_options.get(field)
+            for field in _GEM_SIMC_SEQUENCE_FIELDS
+            if _text(simc_options.get(field))
+        }
+        if raw_gem_sequences:
+            raw_gem_ids = raw_gem_sequences.get("gem_id")
+
+            def valid_numeric_sequence(raw: Any) -> list[str] | None:
+                if not isinstance(raw, str) or not raw.strip():
+                    return None
+                tokens = raw.split("/")
+                if any(not token.strip() or not token.strip().isdigit() for token in tokens):
+                    return None
+                return [token.strip() for token in tokens]
+
+            gem_ids = valid_numeric_sequence(raw_gem_ids)
+            auxiliary_sequences = {
+                field: valid_numeric_sequence(raw_value)
+                for field, raw_value in raw_gem_sequences.items()
+                if field != "gem_id"
+            }
+            if (
+                gem_ids is None
+                or socket_count <= 0
+                or len(gem_ids) > socket_count
+                or any(
+                    tokens is None or len(tokens) != len(gem_ids)
+                    for tokens in auxiliary_sequences.values()
+                )
+            ):
+                raise GearReleaseIntegrityError(
+                    "raw gem sequence conflicts with materialized socket capacity"
+                )
         for field in _ENHANCEMENT_SIMC_FIELDS:
             raw_value = _text(simc_options.get(field))
             if not raw_value:
@@ -273,13 +347,18 @@ def _materialize_enhancement_management(
                     "built-in embellishment evidence conflicts with raw SimC value"
                 )
             source_only = trusted_observed and (
-                (field in _GEM_SIMC_SEQUENCE_FIELDS and socket_count <= 0)
-                or (field == "embellishment" and built_in_embellishment == "proven")
+                (field == "embellishment" and built_in_embellishment == "proven")
                 or (
                     field == "enchant_id"
                     and (
                         not can_enchant
                         or (slot == "main_hand" and "/" in raw_value)
+                    )
+                    and simc_echo_enchant_proven(
+                        raw_value,
+                        slot,
+                        variant,
+                        payload,
                     )
                 )
             )
@@ -421,7 +500,213 @@ def selection_intent_from_template(
     gear_release_id: str,
     season_revision: str,
     level: int,
+    gear_snapshot: dict[str, Any] | None = None,
+    capability_revision: str = "",
 ) -> dict[str, Any]:
+    snapshot = gear_snapshot if isinstance(gear_snapshot, dict) else {}
+    items_by_id = {
+        _text(row.get("itemId")): row
+        for row in snapshot.get("items") or []
+        if isinstance(row, dict) and _text(row.get("itemId"))
+    }
+    variants_by_item: dict[str, list[dict[str, Any]]] = {}
+    for row in snapshot.get("variants") or []:
+        if not isinstance(row, dict) or not _text(row.get("itemId")):
+            continue
+        variants_by_item.setdefault(_text(row.get("itemId")), []).append(row)
+    verified_options = [
+        row
+        for row in snapshot.get("options") or []
+        if isinstance(row, dict)
+        and _text(row.get("optionKey"))
+        and _text(row.get("status")).lower() == "verified"
+        and row.get("isVisible") is True
+    ]
+
+    def matching_variant(item_id: str, variant_key: str) -> dict[str, Any]:
+        candidates = [
+            row
+            for row in variants_by_item.get(item_id, [])
+            if _text(row.get("status")).lower() == "verified"
+        ]
+        exact = [row for row in candidates if _text(row.get("variantKey")) == variant_key]
+        if len(exact) == 1:
+            return exact[0]
+        normalized_key = normalize_option_value(variant_key)
+        normalized = [
+            row
+            for row in candidates
+            if normalized_key and normalize_option_value(row.get("variantKey")) == normalized_key
+        ]
+        return normalized[0] if len(normalized) == 1 else {}
+
+    def option_type(row: dict[str, Any]) -> str:
+        normalized = _text(row.get("optionType")).lower()
+        return "gem" if normalized in {"socket", "gem"} else normalized
+
+    def option_applies(row: dict[str, Any], slot: str) -> bool:
+        raw_applicable = [
+            _text(value)
+            for value in row.get("applicableSlots") or []
+            if _text(value)
+        ]
+        applicable = [
+            normalize_slot(value)
+            for value in raw_applicable
+        ]
+        return not raw_applicable or "*" in raw_applicable or slot in applicable
+
+    def unique_option_key(slot: str, expected_types: set[str], field: str, raw_value: str) -> str:
+        normalized_value = normalize_option_value(raw_value)
+        matches = [
+            row
+            for row in verified_options
+            if option_type(row) in expected_types
+            and option_applies(row, slot)
+            and normalize_option_value(
+                (row.get("simcOptions") or {}).get(field)
+                if isinstance(row.get("simcOptions"), dict)
+                else ""
+            ) == normalized_value
+        ]
+        option_keys = {_text(row.get("optionKey")) for row in matches}
+        return next(iter(option_keys)) if len(option_keys) == 1 else ""
+
+    def raw_enhancement_options(
+        raw: dict[str, Any],
+        slot: str,
+        socket_count: int,
+    ) -> dict[str, str]:
+        payload = template.get("payload") if isinstance(template.get("payload"), dict) else {}
+        sources = [raw]
+        for enhancement_by_slot in (
+            template.get("enhancementBySlot"),
+            payload.get("enhancementBySlot"),
+        ):
+            if not isinstance(enhancement_by_slot, dict):
+                continue
+            for raw_slot, value in enhancement_by_slot.items():
+                if normalize_slot(raw_slot) == slot and isinstance(value, dict):
+                    sources.append(value)
+        values: dict[str, set[str]] = {}
+        for source in sources:
+            observed = observed_gear_simc_options(source)
+            raw_gem_sequence = _text(observed.get("gem_id"))
+            if raw_gem_sequence:
+                gem_tokens = raw_gem_sequence.split("/")
+                if (
+                    socket_count <= 0
+                    or any(not token.strip() or not token.strip().isdigit() for token in gem_tokens)
+                    or len(gem_tokens) > socket_count
+                ):
+                    raise GearReleaseIntegrityError(
+                        "template gem sequence conflicts with materialized socket capacity"
+                    )
+            for field, value in observed.items():
+                if field not in {"gem_id", "enchant_id", "embellishment"}:
+                    continue
+                normalized = normalize_option_value(value)
+                if normalized:
+                    values.setdefault(field, set()).add(normalized)
+        if len(values.get("gem_id", set())) > 1:
+            raise GearReleaseIntegrityError(
+                "template gem sequence conflicts with materialized socket capacity"
+            )
+        return {
+            field: next(iter(candidates))
+            for field, candidates in values.items()
+            if len(candidates) == 1
+        }
+
+    def canonical_enhancements(
+        raw: dict[str, Any],
+        slot: str,
+        item_id: str,
+        variant_key: str,
+    ) -> dict[str, Any]:
+        empty = {
+            "gemOptionIds": [],
+            "enchantOptionId": "",
+            "embellishmentOptionId": "",
+        }
+        if capability_revision != gear_socket_authority.CAPABILITY_REVISION:
+            return empty
+        item = items_by_id.get(item_id)
+        variant = matching_variant(item_id, variant_key)
+        if not isinstance(item, dict) or not variant:
+            return empty
+        item_payload = item.get("payload") if isinstance(item.get("payload"), dict) else {}
+        variant_payload = variant.get("payload") if isinstance(variant.get("payload"), dict) else {}
+        base_capabilities = (
+            item_payload.get("baseCapabilities")
+            if isinstance(item_payload.get("baseCapabilities"), dict)
+            else {}
+        )
+        overrides = (
+            variant_payload.get("capabilityOverrides")
+            if isinstance(variant_payload.get("capabilityOverrides"), dict)
+            else {}
+        )
+        socket_count = _int(overrides.get("socketCount", base_capabilities.get("socketCount")))
+        can_enchant = item_can_enchant_slot(item_payload, slot, item) or base_capabilities.get("canEnchant") is True
+        if "canEnchant" in overrides:
+            can_enchant = overrides.get("canEnchant") is True
+        management_fields = gear_enhancement_management.validated_enhancement_management_fields(
+            variant.get("simcOptions") if isinstance(variant.get("simcOptions"), dict) else {},
+            variant_payload.get("enhancementManagement"),
+            capability_revision,
+        )
+        can_embellish = (
+            overrides.get("canEmbellish", base_capabilities.get("canEmbellish")) is True
+            or management_fields.get("embellishment") == "editor_managed"
+        )
+        observed = raw_enhancement_options(raw, slot, socket_count)
+        selected = dict(empty)
+        raw_gems = [
+            token.strip()
+            for token in observed.get("gem_id", "").split("/")
+            if token.strip()
+        ]
+        if raw_gems and (socket_count <= 0 or len(raw_gems) > socket_count):
+            raise GearReleaseIntegrityError(
+                "template gem sequence conflicts with materialized socket capacity"
+            )
+        if raw_gems and socket_count > 0 and len(raw_gems) <= socket_count:
+            gem_option_ids = [
+                unique_option_key(slot, {"gem"}, "gem_id", gem_id)
+                for gem_id in raw_gems
+            ]
+            if all(gem_option_ids):
+                selected["gemOptionIds"] = gem_option_ids
+        variant_simc_options = (
+            variant.get("simcOptions") if isinstance(variant.get("simcOptions"), dict) else {}
+        )
+        raw_enchant = observed.get("enchant_id", "")
+        source_only_enchant = (
+            management_fields.get("enchant_id") == "source_only"
+            and normalize_option_value(variant_simc_options.get("enchant_id")) == raw_enchant
+        )
+        if raw_enchant and can_enchant and not source_only_enchant:
+            selected["enchantOptionId"] = unique_option_key(
+                slot,
+                {"enchant", "runeforge"},
+                "enchant_id",
+                raw_enchant,
+            )
+        raw_embellishment = observed.get("embellishment", "")
+        source_only_embellishment = (
+            management_fields.get("embellishment") == "source_only"
+            and normalize_option_value(variant_simc_options.get("embellishment")) == raw_embellishment
+        )
+        if raw_embellishment and can_embellish and not source_only_embellishment:
+            selected["embellishmentOptionId"] = unique_option_key(
+                slot,
+                {"embellishment"},
+                "embellishment",
+                raw_embellishment,
+            )
+        return selected
+
     slots: dict[str, dict[str, Any]] = {}
     for raw in template.get("gearItems") or []:
         if not isinstance(raw, dict):
@@ -430,12 +715,12 @@ def selection_intent_from_template(
         item_id = _text(raw.get("itemId") or raw.get("id"))
         if not slot or not item_id or slot in slots:
             continue
+        variant_key = _text(raw.get("variantKey"))
+        enhancements = canonical_enhancements(raw, slot, item_id, variant_key)
         slots[slot] = {
             "itemId": item_id,
-            "variantKey": _text(raw.get("variantKey")),
-            "gemOptionIds": [],
-            "enchantOptionId": "",
-            "embellishmentOptionId": "",
+            "variantKey": variant_key,
+            **enhancements,
             "craftedOptionId": "",
             "catalystOptionId": "",
         }
@@ -535,6 +820,8 @@ def _template_candidate(
     gear_release_id: str,
     season_revision: str,
     level: int,
+    gear_snapshot: dict[str, Any],
+    capability_revision: str,
 ) -> dict[str, Any]:
     payload = template.get("payload") if isinstance(template.get("payload"), dict) else {}
     evidence = payload.get("templateEvidence") if isinstance(payload.get("templateEvidence"), dict) else {}
@@ -557,6 +844,8 @@ def _template_candidate(
             gear_release_id=gear_release_id,
             season_revision=season_revision,
             level=level,
+            gear_snapshot=gear_snapshot,
+            capability_revision=capability_revision,
         ),
     }
 
@@ -649,12 +938,23 @@ def prepare_staging_community_release(
     if len(set(template_ids)) != len(template_ids):
         raise GearReleaseIntegrityError("staging community templateId must be unique")
     templates_by_id = {_text(row.get("templateId")): row for row in templates if _text(row.get("templateId"))}
+    release_dependencies = (
+        gear_release_descriptor.get("dependencyRevisions")
+        if isinstance(gear_release_descriptor.get("dependencyRevisions"), dict)
+        else {}
+    )
+    capability_revision = _text(
+        release_dependencies.get("capabilityRevision")
+        or dependency_revisions.get("capabilityRevision")
+    )
     candidates = [
         _template_candidate(
             template,
             gear_release_id=gear_release_descriptor["releaseId"],
             season_revision=gear_release_descriptor["seasonRevision"],
             level=level,
+            gear_snapshot=gear_snapshot,
+            capability_revision=capability_revision,
         )
         for template in templates
     ]

@@ -150,7 +150,7 @@ def build_midnight_mage_resolver_fixture(
             "catalystOptionId": "",
         }
 
-        inventory_type = "finger" if slot.startswith("finger") else slot
+        inventory_type = slot
         weapon_type = ""
         handedness = ""
         if slot == "main_hand":
@@ -163,7 +163,7 @@ def build_midnight_mage_resolver_fixture(
         item_payload = {
             **item.get("payload", {}),
             "inventoryType": inventory_type,
-            "armorType": "cloth" if slot in armor_slots else "",
+            "armorType": "Cloth" if slot in armor_slots else "",
             "weaponType": weapon_type,
             "handedness": handedness,
             "allowedClassKeys": ["mage"],
@@ -276,13 +276,11 @@ def build_midnight_mage_resolver_fixture(
                 slot: [
                     "weapon"
                     if slot == "main_hand"
-                    else "finger"
-                    if slot.startswith("finger")
                     else slot
                 ]
                 for slot in slots
             },
-            "allowedArmorTypesByClass": {"mage": ["cloth"]},
+            "allowedArmorTypesByClass": {"mage": ["Cloth"]},
             "armorRestrictedSlots": sorted(armor_slots),
             "allowedWeaponTypesByClassSpec": {"mage:frost": ["Staff"]},
             "dualWieldByClassSpec": {"mage:frost": False},
@@ -1298,6 +1296,33 @@ class GearResolverTest(unittest.TestCase):
 
         self.assertEqual(legacy_result["resolvedSlots"]["head"]["simcOptions"]["gem_id"], "240916")
         self.assertEqual(legacy_result["resolvedSlots"]["head"]["simcOptions"]["enchant_id"], "8017")
+
+    def test_v2_forged_source_only_gem_marker_cannot_reach_serializer(self):
+        fixture = build_midnight_mage_resolver_fixture(
+            selected_gem_count=0,
+            include_reference_enhancements=False,
+        )
+        head_selection = fixture["intent"]["slots"]["head"]
+        head_item = fixture["authorityContext"]["itemsById"][
+            head_selection["itemId"]
+        ]
+        head_variant = fixture["authorityContext"]["variantsByKey"][
+            head_selection["variantKey"]
+        ]
+        head_item["baseCapabilities"]["socketCount"] = 0
+        head_variant["capabilityOverrides"]["socketCount"] = 0
+        head_variant["enhancementManagement"]["fields"]["gem_id"] = "source_only"
+
+        result = self.resolve(fixture)
+
+        self.assertEqual(result["status"], "verified")
+        self.assertNotIn("gem_id", result["resolvedSlots"]["head"]["simcOptions"])
+        serializer_head = next(
+            item
+            for item in result["serializerInput"]["gearItems"]
+            if item["slot"] == "head"
+        )
+        self.assertNotIn("gem_id", serializer_head["simcOptions"])
 
     def test_eight_canonical_gems_are_editable_and_ninth_is_blocked(self):
         accepted = self.resolve(self.midnight_mage_fixture(selected_gem_count=8))

@@ -3,6 +3,8 @@ import unittest
 from unittest.mock import patch
 
 from server import gear_release, gear_release_shadow
+from server import gear_resolver, gear_socket_authority
+from tests.gear_release_tool_test import build_midnight_mage_release_fixture
 
 
 class FakeShadowStore:
@@ -411,6 +413,324 @@ class GearReleaseShadowTest(unittest.TestCase):
             "PROFILE_PARITY_MISMATCH",
             {problem["code"] for problem in result["blockers"]},
         )
+
+    def test_enhancement_migration_does_not_allow_crafted_or_catalyst_changes(self):
+        for field in ("craftedOptionId", "catalystOptionId"):
+            with self.subTest(field=field):
+                candidate = self.candidate_row()
+                candidate_intent = candidate["selectionIntent"]
+                candidate_intent["slots"]["head"]["gemOptionIds"] = ["gem-a"]
+                candidate_intent["slots"]["head"][field] = f"changed-{field}"
+                candidate_snapshot = self.snapshot(candidate_intent, "sha256:candidate")
+                candidate["resolvedGearSignature"] = candidate_snapshot["resolvedGearSignature"]
+                candidate["semanticGearSignature"] = gear_release.semantic_gear_signature(
+                    candidate_intent,
+                    candidate_snapshot,
+                )
+                store = FakeShadowStore(candidate)
+                transitional_intent = self.intent()
+                transitional_intent["authoredAgainst"]["gearCatalogRevision"] = "compatibility-pg:old"
+                old_snapshot = self.snapshot(transitional_intent, "sha256:old")
+                profile = {
+                    "status": "resolved",
+                    "data": {"profile": "mage=scope-guard"},
+                    "problems": [],
+                }
+
+                with patch.object(
+                    gear_release_shadow.gear_runtime,
+                    "resolve_selection_intent",
+                    return_value=(200, {
+                        "status": "resolved",
+                        "data": old_snapshot,
+                        "problems": [],
+                    }),
+                ), patch.object(
+                    gear_release_shadow.gear_runtime,
+                    "resolve_candidate_selection_intent",
+                    return_value=(200, {
+                        "status": "resolved",
+                        "data": candidate_snapshot,
+                        "problems": [],
+                    }),
+                ), patch.object(
+                    gear_release_shadow.gear_runtime,
+                    "build_profile_from_selection_intent",
+                    return_value=(200, profile),
+                ), patch.object(
+                    gear_release_shadow.gear_runtime,
+                    "build_candidate_profile_from_selection_intent",
+                    return_value=(200, profile),
+                ):
+                    result = gear_release_shadow.run_release_shadow(
+                        store,
+                        expected_specs=[("mage", "arcane")],
+                        gear_release_id="gear-release:sha256:target",
+                        community_release_id="community-release:sha256:target",
+                        simc_runtime_revision="simc-r1",
+                    )
+
+                self.assertEqual(result["status"], "blocked")
+                self.assertEqual(
+                    result["specResults"][0]["enhancementMigrationParity"]["status"],
+                    "blocked",
+                )
+                self.assertIn(
+                    "PUBLIC_WINNER_SEMANTIC_CHANGE",
+                    {problem["code"] for problem in result["blockers"]},
+                )
+
+    def test_internal_shadow_proves_exact_mage_enhancement_migration_and_ninth_gem_rejection(self):
+        fixture = build_midnight_mage_release_fixture()["resolverFixture"]
+        intent = copy.deepcopy(fixture["intent"])
+        candidate_snapshot = gear_resolver.resolve(intent, fixture["authorityContext"])
+        legacy_intent = copy.deepcopy(intent)
+        for selection in legacy_intent["slots"].values():
+            selection["gemOptionIds"] = []
+            selection["enchantOptionId"] = ""
+            selection["embellishmentOptionId"] = ""
+        legacy_authority = copy.deepcopy(fixture["authorityContext"])
+        legacy_authority["dependencyVector"]["capabilityRevision"] = (
+            gear_socket_authority.LEGACY_CAPABILITY_REVISION
+        )
+        transitional_snapshot = gear_resolver.resolve(
+            legacy_intent,
+            legacy_authority,
+        )
+        self.assertNotEqual(
+            transitional_snapshot["resolvedSlots"]["head"]["statDeltas"]["enhancements"],
+            candidate_snapshot["resolvedSlots"]["head"]["statDeltas"]["enhancements"],
+        )
+        candidate = {
+            "templateId": "observed_profile_mage_frost",
+            "classKey": "mage",
+            "specKey": "frost",
+            "role": "winner",
+            "sourceKey": "raiderio_observed_profile",
+            "sourceUrl": "https://raider.io/characters/cn/reference-mage",
+            "sourceStatus": "synced",
+            "sampleCount": 1,
+            "profileHash": "profile:mage:frost:reference",
+            "gearHash": "gear:mage:frost:reference",
+            "selectionIntent": intent,
+            "resolvedGearSignature": candidate_snapshot["resolvedGearSignature"],
+            "semanticGearSignature": gear_release.semantic_gear_signature(
+                intent,
+                candidate_snapshot,
+            ),
+            "problems": [],
+        }
+        store = FakeShadowStore(candidate)
+        candidate_calls = []
+
+        def candidate_resolve(selection_intent, **_kwargs):
+            candidate_calls.append(copy.deepcopy(selection_intent))
+            if len(candidate_calls) == 1:
+                return 200, {
+                    "status": "resolved",
+                    "data": candidate_snapshot,
+                    "problems": [],
+                }
+            return 422, {
+                "status": "blocked",
+                "data": {},
+                "problems": [{"code": "GEAR_GEM_SOCKET_CAPACITY_EXCEEDED"}],
+            }
+
+        profile = {
+            "status": "resolved",
+            "data": {"profile": "mage=reference\nhead=...,gem_id=240916"},
+            "problems": [],
+        }
+        with patch.object(
+            gear_release_shadow.gear_runtime,
+            "resolve_selection_intent",
+            return_value=(200, {
+                "status": "resolved",
+                "data": transitional_snapshot,
+                "problems": [],
+            }),
+        ), patch.object(
+            gear_release_shadow.gear_runtime,
+            "resolve_candidate_selection_intent",
+            side_effect=candidate_resolve,
+        ), patch.object(
+            gear_release_shadow.gear_runtime,
+            "build_profile_from_selection_intent",
+            return_value=(200, profile),
+        ), patch.object(
+            gear_release_shadow.gear_runtime,
+            "build_candidate_profile_from_selection_intent",
+            return_value=(200, profile),
+        ):
+            result = gear_release_shadow.run_release_shadow(
+                store,
+                expected_specs=[("mage", "frost")],
+                gear_release_id="gear-release-17",
+                community_release_id="community-release:sha256:reference",
+                simc_runtime_revision="simc-v1",
+            )
+
+        self.assertEqual(result["status"], "pass")
+        self.assertEqual(
+            result["report"]["diffs"][0]["classification"],
+            "expected_enhancement_migration",
+        )
+        self.assertEqual(result["referenceProof"]["status"], "pass")
+        self.assertEqual(result["referenceProof"]["gearReleaseId"], "gear-release-17")
+        self.assertEqual(
+            result["referenceProof"]["communityReleaseId"],
+            "community-release:sha256:reference",
+        )
+        self.assertEqual(result["referenceProof"]["socketVector"], [1, 2, 1, 1, 2, 1])
+        self.assertEqual(result["referenceProof"]["gems"], {"used": 8, "max": 8})
+        self.assertEqual(result["referenceProof"]["enchants"], {"used": 6, "max": 8})
+        self.assertEqual(result["referenceProof"]["embellishments"], {"used": 2, "max": 2})
+        self.assertEqual(len(candidate_calls), 2)
+        self.assertEqual(
+            sum(
+                len(selection["gemOptionIds"])
+                for selection in candidate_calls[1]["slots"].values()
+            ),
+            9,
+        )
+
+    def test_reference_contract_blocks_wrong_enchant_capacity_even_when_six_are_selected(self):
+        fixture = build_midnight_mage_release_fixture()["resolverFixture"]
+        intent = copy.deepcopy(fixture["intent"])
+        snapshot = gear_resolver.resolve(intent, fixture["authorityContext"])
+        candidate = {
+            "sourceKey": "raiderio_observed_profile",
+            "profileHash": "profile:mage:frost:reference",
+            "gearHash": "gear:mage:frost:reference",
+        }
+        snapshot["constraints"]["slots"]["main_hand"]["canEnchant"] = False
+
+        proof = gear_release_shadow._reference_contract_proof(
+            candidate,
+            intent,
+            snapshot,
+        )
+
+        self.assertEqual(proof["status"], "blocked")
+        self.assertIn("enchants", proof["failures"])
+        self.assertEqual(proof["enchants"], {"used": 6, "max": 7})
+
+    def test_active_v2_shadow_uses_sealed_active_winner_intent_without_public_leak(self):
+        fixture = build_midnight_mage_release_fixture()["resolverFixture"]
+        intent = copy.deepcopy(fixture["intent"])
+        candidate_snapshot = gear_resolver.resolve(intent, fixture["authorityContext"])
+        candidate = {
+            "templateId": "observed_profile_mage_frost",
+            "classKey": "mage",
+            "specKey": "frost",
+            "role": "winner",
+            "sourceKey": "raiderio_observed_profile",
+            "sourceUrl": "https://raider.io/characters/cn/reference-mage",
+            "sourceStatus": "synced",
+            "sampleCount": 1,
+            "profileHash": "profile:mage:frost:reference",
+            "gearHash": "gear:mage:frost:reference",
+            "selectionIntent": intent,
+            "resolvedGearSignature": candidate_snapshot["resolvedGearSignature"],
+            "semanticGearSignature": gear_release.semantic_gear_signature(
+                intent,
+                candidate_snapshot,
+            ),
+            "problems": [],
+        }
+
+        class ActiveV2Store(FakeShadowStore):
+            def get_gear_resolver_context(self, _runtime_authority):
+                return {
+                    "formalActiveManifest": True,
+                    "authoredAgainst": {
+                        "seasonRevision": "season-17-active",
+                        "gearCatalogRevision": "gear-release-17",
+                    },
+                    "dependencyRevisions": {
+                        "capabilityRevision": gear_socket_authority.CAPABILITY_REVISION,
+                    },
+                }
+
+            def get_active_community_release(self):
+                return {
+                    "formalActiveManifest": True,
+                    "gearRelease": {"releaseId": "gear-release-17"},
+                    "communityRelease": {"releaseId": "community-release-active-v2"},
+                    "winners": [copy.deepcopy(candidate)],
+                }
+
+        store = ActiveV2Store(candidate)
+        old_intents = []
+        candidate_calls = []
+
+        def resolve_active(selection_intent, **_kwargs):
+            old_intents.append(copy.deepcopy(selection_intent))
+            snapshot = (
+                candidate_snapshot
+                if selection_intent == intent
+                else gear_resolver.resolve(selection_intent, fixture["authorityContext"])
+            )
+            return 200, {"status": "resolved", "data": snapshot, "problems": []}
+
+        def active_profile(payload, **_kwargs):
+            selected = payload.get("selectionIntent") == intent
+            return 200, {
+                "status": "resolved",
+                "data": {"profile": "mage=active-v2" if selected else "mage=missing-enhancements"},
+                "problems": [],
+            }
+
+        def resolve_candidate(selection_intent, **_kwargs):
+            candidate_calls.append(copy.deepcopy(selection_intent))
+            if len(candidate_calls) == 1:
+                return 200, {
+                    "status": "resolved",
+                    "data": candidate_snapshot,
+                    "problems": [],
+                }
+            return 422, {
+                "status": "blocked",
+                "data": {},
+                "problems": [{"code": "GEAR_GEM_SOCKET_CAPACITY_EXCEEDED"}],
+            }
+
+        profile = {
+            "status": "resolved",
+            "data": {"profile": "mage=active-v2"},
+            "problems": [],
+        }
+        with patch.object(
+            gear_release_shadow.gear_runtime,
+            "resolve_selection_intent",
+            side_effect=resolve_active,
+        ), patch.object(
+            gear_release_shadow.gear_runtime,
+            "resolve_candidate_selection_intent",
+            side_effect=resolve_candidate,
+        ), patch.object(
+            gear_release_shadow.gear_runtime,
+            "build_profile_from_selection_intent",
+            side_effect=active_profile,
+        ), patch.object(
+            gear_release_shadow.gear_runtime,
+            "build_candidate_profile_from_selection_intent",
+            return_value=(200, profile),
+        ):
+            result = gear_release_shadow.run_release_shadow(
+                store,
+                expected_specs=[("mage", "frost")],
+                gear_release_id="gear-release-17",
+                community_release_id="community-release-candidate-v2",
+                simc_runtime_revision="simc-v1",
+                expect_formal_active=True,
+            )
+
+        public = store.get_websim_gear("mage", "frost", compact=True, mode="initial")
+        self.assertNotIn("selectionIntent", public["communityTemplates"][0])
+        self.assertEqual(old_intents, [intent])
+        self.assertEqual(result["status"], "pass", result)
 
 
 if __name__ == "__main__":

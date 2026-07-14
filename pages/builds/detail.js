@@ -1686,12 +1686,52 @@ function enhancementBySlotWithoutChangedGear(enhancementBySlot, slots, selectedG
   return result
 }
 
+const embeddedEnhancementOptionIdentityKeys = {
+  gemOptionIds: true,
+  gemOptionId: true,
+  gem_option_ids: true,
+  gem_option_id: true,
+  socketOptionIds: true,
+  socketOptionId: true,
+  socket_option_ids: true,
+  socket_option_id: true,
+  enchantOptionIds: true,
+  enchantOptionId: true,
+  enchant_option_ids: true,
+  enchant_option_id: true,
+  embellishmentOptionIds: true,
+  embellishmentOptionId: true,
+  embellishment_option_ids: true,
+  embellishment_option_id: true,
+  craftedOptionIds: true,
+  craftedOptionId: true,
+  crafted_option_ids: true,
+  crafted_option_id: true,
+  catalystOptionIds: true,
+  catalystOptionId: true,
+  catalyst_option_ids: true,
+  catalyst_option_id: true,
+  selectedOptions: true,
+  selected_options: true
+}
+
+function gearValueWithoutEmbeddedOptionIdentities(value) {
+  if (Array.isArray(value)) return value.map((item) => gearValueWithoutEmbeddedOptionIdentities(item))
+  if (!value || typeof value !== 'object') return value
+  return Object.keys(value).reduce((result, key) => {
+    if (!embeddedEnhancementOptionIdentityKeys[key]) {
+      result[key] = gearValueWithoutEmbeddedOptionIdentities(value[key])
+    }
+    return result
+  }, {})
+}
+
 function gearSelectionWithoutEmbeddedSimcEnhancements(selectedGearBySlot) {
   const result = {}
   Object.keys(selectedGearBySlot || {}).forEach((slot) => {
     const item = selectedGearBySlot[slot]
     if (!item || typeof item !== 'object') return
-    const next = { ...item }
+    const next = gearValueWithoutEmbeddedOptionIdentities(item)
     ;['gem_id', 'gem_bonus_id', 'gem_ilevel', 'enchant_id', 'embellishment'].forEach((key) => {
       delete next[key]
     })
@@ -5714,6 +5754,7 @@ Page({
       : null
     if (!atomicEnhancementCommit) delete this.atomicEnhancementCommittedWorkbenchState
     const completionContext = resolveContext && typeof resolveContext === 'object' ? resolveContext : {}
+    const displaySubmittedSelection = !atomicEnhancementCommit && completionContext.displaySubmittedSelection === true
     const interactionContext = captureGearInteractionContext(this, completionContext)
     const fencedCompletionContext = { ...completionContext, interactionContext }
     const gearPayload = fullGearPayloadForPage(this) || this.data.gearPayload || {}
@@ -5725,25 +5766,37 @@ Page({
     const selection = selectedGearBySlot || {}
     const enhancements = enhancementBySlot || {}
     const committedEnhancementBySlot = enhancementBySlotFromResolvedSnapshot(acceptedSnapshotBeforeResolve)
-    const committedGearSlotRows = buildGearSlotRows(gearPayload, selection, committedEnhancementBySlot)
-    const committedDisplayData = {
-      ...this.data,
-      selectedGearBySlot: selection,
-      enhancementBySlot: committedEnhancementBySlot,
-      gearSlotRows: committedGearSlotRows
-    }
+    const submittedEnhancementBySlot = optionIdentityEnhancementBySlot(enhancements)
     const committedWorkbenchDataState = () => {
+      const verifiedCurrentSnapshot = gearWorkbenchCanUseVerifiedSnapshot(this.gearWorkbenchState)
+        ? this.gearWorkbenchState.currentSnapshot
+        : null
+      const displayEnhancementBySlot = !atomicEnhancementCommit && verifiedCurrentSnapshot
+        ? enhancementBySlotFromResolvedSnapshot(verifiedCurrentSnapshot)
+        : displaySubmittedSelection
+          ? submittedEnhancementBySlot
+          : committedEnhancementBySlot
+      const displayGearSlotRows = buildGearSlotRows(gearPayload, selection, displayEnhancementBySlot)
+      const displayData = {
+        ...this.data,
+        selectedGearBySlot: selection,
+        enhancementBySlot: displayEnhancementBySlot,
+        gearSlotRows: displayGearSlotRows
+      }
       const workbenchData = gearWorkbenchDataState(
         this.gearWorkbenchState,
-        committedDisplayData,
+        displayData,
         committedGearWorkbenchStateForPage(this)
       )
       if (atomicEnhancementCommit) return workbenchData
       return {
         selectedGearBySlot: selection,
-        enhancementBySlot: committedEnhancementBySlot,
-        gearSlotRows: committedGearSlotRows,
-        ...workbenchData
+        enhancementBySlot: displayEnhancementBySlot,
+        gearSlotRows: displayGearSlotRows,
+        ...workbenchData,
+        ...(displaySubmittedSelection && !verifiedCurrentSnapshot
+          ? { gearAttributePanel: emptyGearAttributePanel() }
+          : {})
       }
     }
     const selectionIntent = serializeGearSelectionIntent({
@@ -5801,11 +5854,13 @@ Page({
           this.gearWorkbenchState = rebased
           const retry = beginGearResolve(this.gearWorkbenchState)
           this.gearWorkbenchState = retry.state
-          this.setData(gearWorkbenchDataState(
-            this.gearWorkbenchState,
-            this.data,
-            committedGearWorkbenchStateForPage(this)
-          ))
+          this.setData(atomicEnhancementCommit
+            ? gearWorkbenchDataState(
+                this.gearWorkbenchState,
+                this.data,
+                committedGearWorkbenchStateForPage(this)
+              )
+            : committedWorkbenchDataState())
           return requestWebsimGearResolve(retry.request.selectionIntent)
             .then((retryResult) => applyResult(retry.request, retryResult))
             .catch((error) => applyResult(retry.request, failedTransportResult(error)))
@@ -5874,7 +5929,7 @@ Page({
           this.setData(workbenchData)
         }
       } else {
-        this.setData(workbenchData)
+        this.setData(committedWorkbenchDataState())
       }
       return currentSnapshot
     }
@@ -6410,7 +6465,9 @@ Page({
       gearEnhancementSheet: emptyGearEnhancementSheet(),
       gearCommunityTemplateSheet: emptyGearCommunityTemplateSheet()
     })
-    const resolution = resolveOrRefreshGearForPage(this, selectedGearBySlot, enhancementBySlot)
+    const resolution = resolveOrRefreshGearForPage(this, selectedGearBySlot, enhancementBySlot, {
+      displaySubmittedSelection: true
+    })
     trackEvent('builds_gear_selection_reset', {
       specId: (this.data.selectedSpec && this.data.selectedSpec.id) || ''
     }, { page: 'pages/builds/detail' })
@@ -6451,7 +6508,9 @@ Page({
       gearEnhancementSheet: emptyGearEnhancementSheet(),
       gearCommunityTemplateSheet: emptyGearCommunityTemplateSheet()
     })
-    const resolution = resolveOrRefreshGearForPage(this, selectedGearBySlot, enhancementBySlot)
+    const resolution = resolveOrRefreshGearForPage(this, selectedGearBySlot, enhancementBySlot, {
+      displaySubmittedSelection: true
+    })
     trackEvent('builds_gear_saved_template_apply', {
       templateId,
       readySlotCount: Object.keys(templateSelection).length,
@@ -6538,6 +6597,7 @@ Page({
         specId: (this.data.selectedSpec && this.data.selectedSpec.id) || ''
       }, { page: 'pages/builds/detail' })
       return resolveOrRefreshGearForPage(this, selectedGearBySlot, enhancementBySlot, {
+        displaySubmittedSelection: true,
         communityImport: { templateId, serial: importSerial }
       })
     }
@@ -6687,7 +6747,9 @@ Page({
       gearSlotSheet: emptyGearSlotSheet(),
       gearEnhancementSheet: emptyGearEnhancementSheet()
     })
-    return resolveOrRefreshGearForPage(this, selectedGearBySlot, enhancementBySlot)
+    return resolveOrRefreshGearForPage(this, selectedGearBySlot, enhancementBySlot, {
+      displaySubmittedSelection: true
+    })
   },
 
   selectGearTemplateScenario(event) {

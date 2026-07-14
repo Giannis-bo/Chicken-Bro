@@ -7,6 +7,7 @@ from contextlib import redirect_stdout
 from unittest.mock import patch
 
 from server import gear_release
+from tests.gear_resolver_test import build_midnight_mage_resolver_fixture
 
 
 class FakeReleaseStore:
@@ -32,6 +33,166 @@ class FakeReleaseStore:
         self.community_seals.append((copy.deepcopy(release), copy.deepcopy(rows), copy.deepcopy(kwargs)))
         return {"status": "inserted", "releaseId": release["releaseId"]}
 
+
+def build_midnight_mage_release_fixture():
+    resolver_fixture = build_midnight_mage_resolver_fixture(
+        8,
+        include_reference_enhancements=True,
+    )
+    authority = resolver_fixture["authorityContext"]
+    reference = resolver_fixture["referenceContract"]
+    intent = resolver_fixture["intent"]
+    items = []
+    sources = []
+    variants = []
+    for item_id, item in authority["itemsById"].items():
+        slot = (item.get("allowedSlots") or [""])[0]
+        items.append({
+            "itemId": item_id,
+            "name": item.get("displayName") or item_id,
+            "slot": slot,
+            "sourceStatus": "verified",
+            "payload": {
+                field: copy.deepcopy(item.get(field))
+                for field in (
+                    "inventoryType",
+                    "allowedSlots",
+                    "allowedClassKeys",
+                    "allowedSpecKeys",
+                    "armorType",
+                    "weaponType",
+                    "handedness",
+                    "baseStats",
+                    "baseCapabilities",
+                )
+            },
+        })
+        sources.append({
+            "sourceId": f"source-{item_id}",
+            "itemId": item_id,
+            "sourceType": "observed_profile",
+            "sourceKey": reference["sourceKey"],
+            "seasonRevision": "season-17-active",
+            "payload": {"status": "verified", "sourceStatus": "verified"},
+        })
+    for variant_key, variant in authority["variantsByKey"].items():
+        slot = next(
+            raw_slot
+            for raw_slot, selection in intent["slots"].items()
+            if selection["variantKey"] == variant_key
+        )
+        payload = {
+            "resolvedStats": copy.deepcopy(variant.get("resolvedStats") or {}),
+            "capabilityOverrides": copy.deepcopy(variant.get("capabilityOverrides") or {}),
+        }
+        if variant.get("enhancementManagement"):
+            payload["enhancementManagement"] = copy.deepcopy(
+                variant["enhancementManagement"]
+            )
+        raw_enchant = str((variant.get("simcOptions") or {}).get("enchant_id") or "").strip()
+        item_level = int(variant.get("itemLevel") or 0)
+        if raw_enchant and (
+            slot not in set(reference["enchantEligibleSlots"])
+            or (slot == "main_hand" and "/" in raw_enchant)
+        ):
+            payload.update({
+                "statSource": "simulationcraft",
+                "statDisplayStatus": "verified_variant",
+                "itemStats": [{"type": "intellect", "value": 100}],
+                "simcItemId": variant["itemId"],
+                "simcItemLevel": item_level,
+                "simcEncodedItem": (
+                    f"observed_item,id={variant['itemId']},"
+                    f"ilevel={item_level},enchant_id={raw_enchant}"
+                ),
+            })
+        variants.append({
+            "variantId": f"row-{variant_key}",
+            "itemId": variant["itemId"],
+            "variantKey": variant_key,
+            "slot": slot,
+            "sourceType": "observed_profile",
+            "itemLevel": item_level,
+            "simcOptions": copy.deepcopy(variant.get("simcOptions") or {}),
+            "status": "verified",
+            "blockers": [],
+            "payload": payload,
+        })
+    options = []
+    for option_key, option in authority["optionsById"].items():
+        option_type = "socket" if option.get("optionType") == "gem" else option.get("optionType")
+        options.append({
+            "optionId": f"row-{option_key}",
+            "optionKey": option_key,
+            "optionType": option_type,
+            "name": option.get("displayName") or option_key,
+            "applicableSlots": copy.deepcopy(option.get("applicableSlots") or []),
+            "simcOptions": copy.deepcopy(option.get("simcOptions") or {}),
+            "status": "verified",
+            "isVisible": True,
+            "payload": {
+                "statDeltas": copy.deepcopy(option.get("statDeltas") or {}),
+                "uniqueGroup": option.get("uniqueGroupId") or "",
+                "uniqueLimit": option.get("uniqueLimit") or 0,
+            },
+        })
+    gear_items = []
+    source_enhancements = reference["sourceEnhancementBySlot"]
+    for slot in reference["requiredSlots"]:
+        selection = intent["slots"][slot]
+        raw_enhancement = source_enhancements.get(slot, {})
+        raw = {
+            "slot": slot,
+            "itemId": selection["itemId"],
+            "variantKey": selection["variantKey"],
+        }
+        if raw_enhancement.get("gemIds"):
+            raw["gem_id"] = "/".join(raw_enhancement["gemIds"])
+        if raw_enhancement.get("enchantIds"):
+            raw["enchant_id"] = "/".join(raw_enhancement["enchantIds"])
+        if raw_enhancement.get("embellishment"):
+            raw["embellishment"] = raw_enhancement["embellishment"]
+        gear_items.append(raw)
+    template = {
+        "templateId": reference["templateId"],
+        "classKey": reference["classKey"],
+        "specKey": reference["specKey"],
+        "sourceKey": reference["sourceKey"],
+        "sourceUrl": "https://raider.io/characters/cn/reference-mage",
+        "sourceStatus": "synced",
+        "status": "complete",
+        "signature": "gear:mage:frost:reference",
+        "sampleCount": 1,
+        "profileHash": "profile:mage:frost:reference",
+        "gearHash": "gear:mage:frost:reference",
+        "gearItems": gear_items,
+        "readySlotCount": len(reference["requiredSlots"]),
+        "missingSlots": [],
+        "sourceRefs": [{
+            "sourceType": reference["sourceKey"],
+            "sourceUrl": "https://raider.io/characters/cn/reference-mage",
+            "sampleCount": 1,
+        }],
+        "payload": {
+            "templateEvidence": {
+                "sampleCount": 1,
+                "profileHash": "profile:mage:frost:reference",
+                "gearHash": "gear:mage:frost:reference",
+            }
+        },
+        "updatedAt": "2026-07-14T00:00:00+00:00",
+        "expiresAt": "2026-07-28T00:00:00+00:00",
+    }
+    return {
+        "resolverFixture": resolver_fixture,
+        "snapshot": {
+            "items": items,
+            "sources": sources,
+            "variants": variants,
+            "options": options,
+        },
+        "template": template,
+    }
 
 class GearReleaseToolTest(unittest.TestCase):
     def dependencies(self):
@@ -136,6 +297,421 @@ class GearReleaseToolTest(unittest.TestCase):
         self.assertNotIn("999999", str(intent))
         self.assertNotIn("forged", str(intent))
 
+    def test_template_intent_reconciles_ordered_duplicate_enhancements_to_unique_verified_options(self):
+        from server.gear_release_tool import selection_intent_from_template
+        from server.gear_socket_authority import CAPABILITY_REVISION
+
+        snapshot = self.snapshot()
+        snapshot["items"][0]["slot"] = "back"
+        snapshot["items"][0]["payload"] = {
+            "baseCapabilities": {
+                "socketCount": 2,
+                "canEnchant": True,
+                "canEmbellish": True,
+            }
+        }
+        snapshot["variants"][0].update({
+            "slot": "back",
+            "simcOptions": {
+                "ilevel": "289",
+                "gem_id": "240892/240892",
+                "enchant_id": "4897",
+                "embellishment": "arcanoweave_lining",
+            },
+            "payload": {
+                "resolvedStats": {"intellect": 100},
+                "capabilityOverrides": {"socketCount": 2},
+                "enhancementManagement": {
+                    "schemaRevision": "gear-enhancement-management-v1",
+                    "authorityRevision": CAPABILITY_REVISION,
+                    "fields": {
+                        "gem_id": "editor_managed",
+                        "enchant_id": "editor_managed",
+                        "embellishment": "editor_managed",
+                    },
+                },
+            },
+        })
+        snapshot["options"] = [
+            {
+                "optionId": "option-gem-240892",
+                "optionKey": "gem-240892",
+                "optionType": "socket",
+                "name": "Canonical gem 240892",
+                "applicableSlots": ["back"],
+                "simcOptions": {"gem_id": "240892"},
+                "status": "verified",
+                "isVisible": True,
+                "payload": {},
+            },
+            {
+                "optionId": "option-enchant-4897",
+                "optionKey": "enchant-back-4897",
+                "optionType": "enchant",
+                "name": "Canonical enchant 4897",
+                "applicableSlots": ["back"],
+                "simcOptions": {"enchant_id": "4897"},
+                "status": "verified",
+                "isVisible": True,
+                "payload": {},
+            },
+            {
+                "optionId": "option-embellishment-lining",
+                "optionKey": "embellishment-arcanoweave-lining",
+                "optionType": "embellishment",
+                "name": "Arcanoweave Lining",
+                "applicableSlots": ["back"],
+                "simcOptions": {"embellishment": "arcanoweave_lining"},
+                "status": "verified",
+                "isVisible": True,
+                "payload": {},
+            },
+            {
+                "optionId": "option-forged-top-level",
+                "optionKey": "forged-top-level-option",
+                "optionType": "socket",
+                "name": "Must not be trusted",
+                "applicableSlots": ["back"],
+                "simcOptions": {"gem_id": "999999"},
+                "status": "verified",
+                "isVisible": True,
+                "payload": {},
+            },
+        ]
+        template = self.template()
+        template["gearItems"] = [{
+            "slot": "back",
+            "itemId": "item-a",
+            "variantKey": "variant-a",
+            "gem_id": "240892/240892",
+            "enchant_id": "4897",
+            "embellishment": "arcanoweave_lining",
+            "gemOptionIds": ["forged-top-level-option"],
+            "enchantOptionId": "forged-top-level-option",
+            "embellishmentOptionId": "forged-top-level-option",
+        }]
+
+        intent = selection_intent_from_template(
+            template,
+            gear_release_id="gear-release:sha256:target",
+            season_revision="season-17",
+            level=90,
+            gear_snapshot=snapshot,
+            capability_revision=CAPABILITY_REVISION,
+        )
+
+        self.assertEqual(intent["slots"]["back"]["gemOptionIds"], [
+            "gem-240892",
+            "gem-240892",
+        ])
+        self.assertEqual(intent["slots"]["back"]["enchantOptionId"], "enchant-back-4897")
+        self.assertEqual(
+            intent["slots"]["back"]["embellishmentOptionId"],
+            "embellishment-arcanoweave-lining",
+        )
+        self.assertNotIn("forged-top-level-option", str(intent))
+
+    def test_template_intent_drops_ambiguous_or_unverified_raw_enhancement_matches(self):
+        from server.gear_release_tool import selection_intent_from_template
+        from server.gear_socket_authority import CAPABILITY_REVISION
+
+        snapshot = self.snapshot()
+        snapshot["items"][0]["payload"] = {
+            "baseCapabilities": {"socketCount": 1, "canEnchant": False, "canEmbellish": False}
+        }
+        snapshot["variants"][0]["simcOptions"] = {"ilevel": "289", "gem_id": "240892"}
+        snapshot["variants"][0]["payload"] = {
+            "resolvedStats": {"intellect": 100},
+            "capabilityOverrides": {"socketCount": 1},
+            "enhancementManagement": {
+                "schemaRevision": "gear-enhancement-management-v1",
+                "authorityRevision": CAPABILITY_REVISION,
+                "fields": {"gem_id": "editor_managed"},
+            },
+        }
+        snapshot["options"] = [
+            {
+                "optionId": f"option-{suffix}",
+                "optionKey": f"gem-240892-{suffix}",
+                "optionType": "socket",
+                "name": suffix,
+                "applicableSlots": ["head"],
+                "simcOptions": {"gem_id": "240892"},
+                "status": status,
+                "isVisible": True,
+                "payload": {},
+            }
+            for suffix, status in (("a", "verified"), ("b", "verified"), ("blocked", "blocked"))
+        ]
+        template = self.template()
+        template["gearItems"][0]["gem_id"] = "240892"
+
+        intent = selection_intent_from_template(
+            template,
+            gear_release_id="gear-release:sha256:target",
+            season_revision="season-17",
+            level=90,
+            gear_snapshot=snapshot,
+            capability_revision=CAPABILITY_REVISION,
+        )
+
+        self.assertEqual(intent["slots"]["head"]["gemOptionIds"], [])
+
+    def test_community_release_blocks_template_gems_beyond_materialized_capacity(self):
+        from server.gear_release_store import GearReleaseIntegrityError, gear_snapshot_summary
+        from server.gear_release_tool import build_legacy_community_release
+        from server.gear_socket_authority import CAPABILITY_REVISION
+
+        snapshot = self.snapshot()
+        snapshot["items"][0]["payload"] = {
+            "baseCapabilities": {
+                "socketCount": 1,
+                "canEnchant": False,
+                "canEmbellish": False,
+            }
+        }
+        snapshot["variants"][0]["simcOptions"] = {"ilevel": "289", "gem_id": "240892"}
+        snapshot["variants"][0]["payload"] = {
+            "resolvedStats": {"intellect": 100},
+            "capabilityOverrides": {"socketCount": 1},
+            "enhancementManagement": {
+                "schemaRevision": "gear-enhancement-management-v1",
+                "authorityRevision": CAPABILITY_REVISION,
+                "fields": {"gem_id": "editor_managed"},
+            },
+        }
+        snapshot["options"] = [{
+            "optionId": "option-gem-240892",
+            "optionKey": "gem-240892",
+            "optionType": "socket",
+            "name": "Canonical gem 240892",
+            "applicableSlots": ["head"],
+            "simcOptions": {"gem_id": "240892"},
+            "status": "verified",
+            "isVisible": True,
+            "payload": {},
+        }]
+        template = self.template()
+        template["gearItems"][0]["gem_id"] = "240892/240892"
+        dependencies = {**self.dependencies(), "capabilityRevision": CAPABILITY_REVISION}
+        gear = gear_release.build_release(
+            release_kind="gear",
+            season_revision="season-17",
+            schema_revision="gear-release-v1",
+            content=gear_snapshot_summary(snapshot),
+            dependency_revisions=dependencies,
+            release_status="validated",
+            source={"sourceRevision": "capacity-contradiction-test"},
+        )
+        store = FakeReleaseStore(snapshot, [template])
+
+        with self.assertRaisesRegex(
+            GearReleaseIntegrityError,
+            "template gem sequence conflicts with materialized socket capacity",
+        ):
+            build_legacy_community_release(
+                store,
+                gear_release_descriptor=gear,
+                gear_snapshot=snapshot,
+                dependency_revisions=dependencies,
+                expected_specs=[("mage", "arcane")],
+                now="2026-07-14T01:00:00+00:00",
+            )
+
+        self.assertEqual(store.community_seals, [])
+
+    def test_community_release_blocks_conflicting_gem_sources_when_one_exceeds_capacity(self):
+        from server.gear_release_store import GearReleaseIntegrityError, gear_snapshot_summary
+        from server.gear_release_tool import build_legacy_community_release
+        from server.gear_socket_authority import CAPABILITY_REVISION
+
+        snapshot = self.snapshot()
+        snapshot["items"][0]["payload"] = {
+            "baseCapabilities": {
+                "socketCount": 1,
+                "canEnchant": False,
+                "canEmbellish": False,
+            }
+        }
+        snapshot["variants"][0]["simcOptions"] = {"ilevel": "289", "gem_id": "240892"}
+        snapshot["variants"][0]["payload"] = {
+            "resolvedStats": {"intellect": 100},
+            "capabilityOverrides": {"socketCount": 1},
+            "enhancementManagement": {
+                "schemaRevision": "gear-enhancement-management-v1",
+                "authorityRevision": CAPABILITY_REVISION,
+                "fields": {"gem_id": "editor_managed"},
+            },
+        }
+        snapshot["options"] = [{
+            "optionId": "option-gem-240892",
+            "optionKey": "gem-240892",
+            "optionType": "socket",
+            "name": "Canonical gem 240892",
+            "applicableSlots": ["head"],
+            "simcOptions": {"gem_id": "240892"},
+            "status": "verified",
+            "isVisible": True,
+            "payload": {},
+        }]
+        template = self.template()
+        template["gearItems"][0]["gem_id"] = "240892"
+        template["enhancementBySlot"] = {
+            "head": {"gem_id": "240892/240892"},
+        }
+        dependencies = {**self.dependencies(), "capabilityRevision": CAPABILITY_REVISION}
+        gear = gear_release.build_release(
+            release_kind="gear",
+            season_revision="season-17",
+            schema_revision="gear-release-v1",
+            content=gear_snapshot_summary(snapshot),
+            dependency_revisions=dependencies,
+            release_status="validated",
+            source={"sourceRevision": "multi-source-capacity-contradiction-test"},
+        )
+        store = FakeReleaseStore(snapshot, [template])
+
+        with self.assertRaisesRegex(
+            GearReleaseIntegrityError,
+            "template gem sequence conflicts with materialized socket capacity",
+        ):
+            build_legacy_community_release(
+                store,
+                gear_release_descriptor=gear,
+                gear_snapshot=snapshot,
+                dependency_revisions=dependencies,
+                expected_specs=[("mage", "arcane")],
+                now="2026-07-14T01:00:00+00:00",
+            )
+
+        self.assertEqual(store.community_seals, [])
+
+    def test_v2_release_blocks_raw_gems_without_materialized_socket_capacity(self):
+        from server.gear_release_store import GearReleaseIntegrityError
+        from server.gear_release_tool import _materialize_enhancement_management
+        from server.gear_socket_authority import CAPABILITY_REVISION
+
+        snapshot = self.snapshot()
+        snapshot["items"][0]["payload"] = {
+            "baseCapabilities": {"socketCount": 0, "canEnchant": False, "canEmbellish": False}
+        }
+        snapshot["variants"][0]["simcOptions"] = {
+            "ilevel": "289",
+            "gem_id": "240892/not-a-gem",
+        }
+        snapshot["variants"][0]["payload"] = {
+            "resolvedStats": {"intellect": 100},
+            "capabilityOverrides": {"socketCount": 0},
+        }
+
+        with self.assertRaisesRegex(
+            GearReleaseIntegrityError,
+            "raw gem sequence conflicts with materialized socket capacity",
+        ):
+            _materialize_enhancement_management(snapshot, CAPABILITY_REVISION)
+
+    def test_exact_midnight_mage_candidate_seals_complete_editable_enhancement_intent(self):
+        from server import gear_resolver
+        from server.gear_release_store import build_candidate_authority_context
+        from server.gear_release_tool import (
+            build_legacy_community_release,
+            prepare_staging_gear_release,
+            selection_intent_from_template,
+        )
+        from server.gear_socket_authority import CAPABILITY_REVISION
+        from server.websim_payload import gear_resolver_runtime_authority
+
+        fixture = build_midnight_mage_release_fixture()
+        resolver_fixture = fixture["resolverFixture"]
+        authority = resolver_fixture["authorityContext"]
+        reference = resolver_fixture["referenceContract"]
+        dependencies = {
+            key: value
+            for key, value in authority["dependencyVector"].items()
+            if key not in {
+                "seasonRevision",
+                "gearCatalogReleaseId",
+                "gearCatalogRevision",
+            }
+        }
+        store = FakeReleaseStore(fixture["snapshot"], [fixture["template"]])
+        prepared_gear = prepare_staging_gear_release(
+            store,
+            season_revision="season-17-active",
+            dependency_revisions=dependencies,
+            socket_bonus_minimums={"9300": 1},
+        )
+        managed_by_slot = {
+            row["slot"]: row["payload"].get("enhancementManagement", {}).get("fields", {})
+            for row in prepared_gear["snapshot"]["variants"]
+        }
+        self.assertEqual(managed_by_slot["head"]["enchant_id"], "source_only")
+        self.assertEqual(managed_by_slot["shoulder"]["enchant_id"], "source_only")
+        self.assertEqual(managed_by_slot["waist"]["enchant_id"], "source_only")
+        self.assertEqual(managed_by_slot["main_hand"]["enchant_id"], "source_only")
+        intent = selection_intent_from_template(
+            fixture["template"],
+            gear_release_id=prepared_gear["release"]["releaseId"],
+            season_revision="season-17-active",
+            level=reference["level"],
+            gear_snapshot=prepared_gear["snapshot"],
+            capability_revision=CAPABILITY_REVISION,
+        )
+
+        self.assertEqual(intent["slots"], resolver_fixture["intent"]["slots"])
+        self.assertEqual(
+            sum(len(selection["gemOptionIds"]) for selection in intent["slots"].values()),
+            8,
+        )
+        self.assertEqual(
+            sum(bool(selection["enchantOptionId"]) for selection in intent["slots"].values()),
+            6,
+        )
+        self.assertEqual(
+            sum(bool(selection["embellishmentOptionId"]) for selection in intent["slots"].values()),
+            2,
+        )
+        self.assertEqual(intent["slots"]["finger1"]["gemOptionIds"], [
+            "gem-240892",
+            "gem-240983",
+        ])
+        runtime = gear_resolver_runtime_authority(
+            "mage",
+            "frost",
+            simc_runtime_revision=dependencies["simcRuntimeRevision"],
+        )
+        runtime["dependencyRevisions"] = dict(dependencies)
+        production_authority = build_candidate_authority_context(
+            prepared_gear["snapshot"],
+            intent,
+            runtime,
+            prepared_gear["release"],
+        )
+        production_snapshot = gear_resolver.resolve(intent, production_authority)
+        self.assertEqual(production_snapshot["status"], "verified")
+        serializer_by_slot = {
+            item["slot"]: item
+            for item in production_snapshot["serializerInput"]["gearItems"]
+        }
+        self.assertEqual(serializer_by_slot["head"]["simcOptions"]["enchant_id"], "8017")
+        self.assertEqual(serializer_by_slot["shoulder"]["simcOptions"]["enchant_id"], "8001")
+        self.assertEqual(serializer_by_slot["waist"]["simcOptions"]["enchant_id"], "4223")
+        self.assertEqual(serializer_by_slot["main_hand"]["simcOptions"]["enchant_id"], "8039/8052")
+        prepared = build_legacy_community_release(
+            store,
+            gear_release_descriptor=prepared_gear["release"],
+            gear_snapshot=prepared_gear["snapshot"],
+            dependency_revisions=dependencies,
+            expected_specs=[("mage", "frost")],
+            now="2026-07-14T01:00:00+00:00",
+            level=reference["level"],
+        )
+
+        self.assertEqual(prepared["election"]["status"], "validated")
+        self.assertEqual(prepared["rows"][0]["selectionIntent"], intent)
+        self.assertEqual(prepared["seal"]["status"], "inserted")
+        self.assertEqual(len(store.community_seals), 1)
+
     def test_build_legacy_gear_release_snapshots_and_seals_inactive_candidate(self):
         from server.gear_release_tool import build_legacy_gear_release
 
@@ -232,6 +808,16 @@ class GearReleaseToolTest(unittest.TestCase):
                 "variantKey": "variant-source-only-enchant",
                 "slot": "main_hand",
                 "simcOptions": {"ilevel": "298", "enchant_id": "8039/8052"},
+                "itemLevel": 298,
+                "payload": {
+                    "resolvedStats": {"intellect": 100},
+                    "statSource": "simulationcraft",
+                    "statDisplayStatus": "verified_variant",
+                    "itemStats": [{"type": "intellect", "value": 100}],
+                    "simcItemId": "item-a",
+                    "simcItemLevel": 298,
+                    "simcEncodedItem": "item_a,id=item-a,ilevel=298,enchant_id=8039/8052",
+                },
             },
             {
                 **snapshot["variants"][0],
@@ -246,6 +832,29 @@ class GearReleaseToolTest(unittest.TestCase):
                 "variantKey": "variant-observed-nonenchant-overlap",
                 "slot": "head",
                 "simcOptions": {"ilevel": "289", "enchant_id": "7777"},
+                "payload": {
+                    "resolvedStats": {"intellect": 100},
+                    "statSource": "simulationcraft",
+                    "statDisplayStatus": "verified_variant",
+                    "itemStats": [{"type": "intellect", "value": 100}],
+                    "simcItemId": "item-a",
+                    "simcItemLevel": 289,
+                    "simcEncodedItem": "item_a,id=item-a,ilevel=289,enchant_id=7777",
+                },
+            },
+            {
+                **snapshot["variants"][0],
+                "variantId": "variant-observed-nonenchant-unknown",
+                "variantKey": "variant-observed-nonenchant-unknown",
+                "slot": "head",
+                "simcOptions": {"ilevel": "289", "enchant_id": "999999"},
+            },
+            {
+                **snapshot["variants"][0],
+                "variantId": "variant-observed-composite-unknown",
+                "variantKey": "variant-observed-composite-unknown",
+                "slot": "main_hand",
+                "simcOptions": {"ilevel": "289", "enchant_id": "999998/999999"},
             },
             {
                 **snapshot["variants"][0],
@@ -396,6 +1005,14 @@ class GearReleaseToolTest(unittest.TestCase):
         self.assertEqual(
             variants["variant-observed-nonenchant-overlap"]["payload"]["enhancementManagement"]["fields"],
             {"enchant_id": "source_only"},
+        )
+        self.assertEqual(
+            variants["variant-observed-nonenchant-unknown"]["payload"]["enhancementManagement"]["fields"],
+            {"enchant_id": "unresolved_drop"},
+        )
+        self.assertEqual(
+            variants["variant-observed-composite-unknown"]["payload"]["enhancementManagement"]["fields"],
+            {"enchant_id": "unresolved_drop"},
         )
         self.assertEqual(
             variants["variant-untrusted-nonenchant-overlap"]["payload"]["enhancementManagement"]["fields"],

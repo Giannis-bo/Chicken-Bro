@@ -3,17 +3,25 @@
 
 from __future__ import annotations
 
+import copy
 import time
 from typing import Any, Iterable
 
 try:
-    from . import gear_release, gear_runtime, pg_gear_read_model_selectors
+    from . import gear_release, gear_runtime, gear_socket_authority, pg_gear_read_model_selectors
     from .websim_payload import gear_resolver_runtime_authority, normalize_slot
 except ImportError:
     import gear_release
     import gear_runtime
+    import gear_socket_authority
     import pg_gear_read_model_selectors
     from websim_payload import gear_resolver_runtime_authority, normalize_slot
+
+
+_REFERENCE_TEMPLATE_ID = "observed_profile_mage_frost"
+_REFERENCE_SPEC = ("mage", "frost")
+_REFERENCE_SOCKET_SLOTS = ("head", "neck", "wrist", "waist", "finger1", "finger2")
+_REFERENCE_SOCKET_VECTOR = [1, 2, 1, 1, 2, 1]
 
 
 def _text(value: Any) -> str:
@@ -126,6 +134,207 @@ def _profile_outcome(http_status: int, envelope: Any) -> dict[str, Any]:
     }
 
 
+def _enhancement_selection_projection(intent: Any) -> dict[str, dict[str, Any]]:
+    value = intent if isinstance(intent, dict) else {}
+    result = {}
+    for slot, selection in (value.get("slots") or {}).items():
+        if not isinstance(selection, dict):
+            continue
+        result[_text(slot)] = {
+            "gemOptionIds": list(selection.get("gemOptionIds") or []),
+            "enchantOptionId": _text(selection.get("enchantOptionId")),
+            "embellishmentOptionId": _text(selection.get("embellishmentOptionId")),
+        }
+    return result
+
+
+def _non_enhancement_selection_projection(intent: Any) -> dict[str, Any]:
+    """Retain every Intent field outside the three approved migration fields."""
+
+    value = intent if isinstance(intent, dict) else {}
+    projected = {
+        key: copy.deepcopy(field_value)
+        for key, field_value in value.items()
+        if key not in {"authoredAgainst", "slots"}
+    }
+    projected_slots = {}
+    for slot, selection in (value.get("slots") or {}).items():
+        if not isinstance(selection, dict):
+            projected_slots[_text(slot)] = copy.deepcopy(selection)
+            continue
+        projected_slots[_text(slot)] = {
+            key: copy.deepcopy(field_value)
+            for key, field_value in selection.items()
+            if key not in {
+                "gemOptionIds",
+                "enchantOptionId",
+                "embellishmentOptionId",
+            }
+        }
+    projected["slots"] = projected_slots
+    return projected
+
+
+def _enhancement_migration_projection(snapshot: Any) -> dict[str, Any]:
+    """Compare resolved function while excluding only canonical editor occupancy state."""
+
+    value = snapshot if isinstance(snapshot, dict) else {}
+    resolved_slots = {}
+    for slot, resolved in (value.get("resolvedSlots") or {}).items():
+        if not isinstance(resolved, dict):
+            continue
+        projected = {}
+        for key, field_value in resolved.items():
+            if key in {
+                "selectedOptions",
+                "sourceRefIds",
+                "evidenceClaimIds",
+                "resolutionStages",
+            }:
+                continue
+            if key == "statDeltas" and isinstance(field_value, dict):
+                projected[key] = {
+                    delta_key: copy.deepcopy(delta_value)
+                    for delta_key, delta_value in field_value.items()
+                    if delta_key != "enhancements"
+                }
+                continue
+            projected[key] = copy.deepcopy(field_value)
+        resolved_slots[_text(slot)] = projected
+    raw_constraints = value.get("constraints") if isinstance(value.get("constraints"), dict) else {}
+    constraint_slots = {}
+    for slot, constraint in (raw_constraints.get("slots") or {}).items():
+        if not isinstance(constraint, dict):
+            continue
+        constraint_slots[_text(slot)] = {
+            key: copy.deepcopy(field_value)
+            for key, field_value in constraint.items()
+            if key not in {
+                "socketRemaining",
+                "hasSelectedEnchant",
+                "hasSelectedEmbellishment",
+            }
+        }
+    constraints = {
+        key: copy.deepcopy(field_value)
+        for key, field_value in raw_constraints.items()
+        if key not in {
+            "slots",
+            "embellishmentSelectedUsed",
+            "embellishmentUsed",
+        }
+    }
+    constraints["slots"] = constraint_slots
+    return {
+        "eligibilityContext": copy.deepcopy(value.get("eligibilityContext") or {}),
+        "resolvedSlots": resolved_slots,
+        "staticAttributes": copy.deepcopy(value.get("staticAttributes") or {}),
+        "setState": copy.deepcopy(value.get("setState") or {}),
+        "constraints": constraints,
+        "serializerInput": copy.deepcopy(value.get("serializerInput") or {}),
+        "profileReadiness": copy.deepcopy(value.get("profileReadiness") or {}),
+    }
+
+
+def _reference_contract_proof(
+    candidate: dict[str, Any],
+    intent: dict[str, Any],
+    snapshot: dict[str, Any],
+) -> dict[str, Any]:
+    slots = intent.get("slots") if isinstance(intent.get("slots"), dict) else {}
+    resolved_slots = (
+        snapshot.get("resolvedSlots")
+        if isinstance(snapshot.get("resolvedSlots"), dict)
+        else {}
+    )
+    constraints = snapshot.get("constraints") if isinstance(snapshot.get("constraints"), dict) else {}
+    constraint_slots = constraints.get("slots") if isinstance(constraints.get("slots"), dict) else {}
+    socket_vector = [
+        _int((constraint_slots.get(slot) or {}).get("socketCount"))
+        for slot in _REFERENCE_SOCKET_SLOTS
+    ]
+
+    def selected(slot: str) -> dict[str, Any]:
+        row = resolved_slots.get(slot) if isinstance(resolved_slots.get(slot), dict) else {}
+        selected_options = row.get("selectedOptions") if isinstance(row.get("selectedOptions"), dict) else {}
+        return selected_options
+
+    intent_gems = sum(
+        len(selection.get("gemOptionIds") or [])
+        for selection in slots.values()
+        if isinstance(selection, dict)
+    )
+    resolved_gems = sum(
+        len(selected(slot).get("gemOptionIds") or [])
+        for slot in resolved_slots
+    )
+    intent_enchants = sum(
+        bool(_text(selection.get("enchantOptionId")))
+        for selection in slots.values()
+        if isinstance(selection, dict)
+    )
+    resolved_enchants = sum(
+        bool(_text(selected(slot).get("enchantOptionId")))
+        for slot in resolved_slots
+    )
+    enchant_max = sum(
+        constraint.get("canEnchant") is True
+        for constraint in constraint_slots.values()
+        if isinstance(constraint, dict)
+    )
+    intent_embellishments = sum(
+        bool(_text(selection.get("embellishmentOptionId")))
+        for selection in slots.values()
+        if isinstance(selection, dict)
+    )
+    resolved_embellishments = sum(
+        bool(_text(selected(slot).get("embellishmentOptionId")))
+        for slot in resolved_slots
+    )
+    failures = []
+    if (
+        _text(candidate.get("sourceKey")) != "raiderio_observed_profile"
+        or not _text(candidate.get("profileHash"))
+        or not _text(candidate.get("gearHash"))
+    ):
+        failures.append("identity")
+    if (
+        (intent.get("eligibilityContext") or {}).get("classKey") != "mage"
+        or (intent.get("eligibilityContext") or {}).get("specKey") != "frost"
+        or len(slots) != 15
+    ):
+        failures.append("gear")
+    if socket_vector != _REFERENCE_SOCKET_VECTOR:
+        failures.append("socket_vector")
+    if intent_gems != 8 or resolved_gems != 8 or sum(socket_vector) != 8:
+        failures.append("gems")
+    if intent_enchants != 6 or resolved_enchants != 6 or enchant_max != 8:
+        failures.append("enchants")
+    if (
+        intent_embellishments != 2
+        or resolved_embellishments != 2
+        or _int(constraints.get("embellishmentMax")) != 2
+    ):
+        failures.append("embellishments")
+    return {
+        "status": "blocked" if failures else "pass",
+        "templateId": _REFERENCE_TEMPLATE_ID,
+        "sourceKey": _text(candidate.get("sourceKey")),
+        "profileHash": _text(candidate.get("profileHash")),
+        "gearHash": _text(candidate.get("gearHash")),
+        "socketSlots": list(_REFERENCE_SOCKET_SLOTS),
+        "socketVector": socket_vector,
+        "gems": {"used": resolved_gems, "max": sum(socket_vector)},
+        "enchants": {"used": resolved_enchants, "max": enchant_max},
+        "embellishments": {
+            "used": resolved_embellishments,
+            "max": _int(constraints.get("embellishmentMax")),
+        },
+        "failures": failures,
+        "ninthGem": {"status": "not_run", "problemCodes": []},
+    }
+
+
 def run_release_shadow(
     store: Any,
     *,
@@ -222,13 +431,31 @@ def run_release_shadow(
     # content hash remains verified, while live old/new parity uses the corrected
     # user-visible semantic signature that excludes source/evidence identities.
     legacy_sealed_semantic = _text(community_source.get("sourceRevision")) == "legacy-import-r0"
+    active_release_pair: dict[str, Any] = {}
+    active_release_reader = getattr(store, "get_active_community_release", None)
+    if callable(active_release_reader):
+        try:
+            loaded_active_pair = active_release_reader()
+            if isinstance(loaded_active_pair, dict):
+                active_release_pair = loaded_active_pair
+        except Exception:
+            active_release_pair = {}
+    active_winners_by_spec = {
+        (_text(winner.get("classKey")), _text(winner.get("specKey"))): winner
+        for winner in active_release_pair.get("winners") or []
+        if isinstance(winner, dict)
+    }
     spec_results = []
     formal_active = False
     public_read_count = 0
+    allowed_enhancement_migrations: set[tuple[str, str]] = set()
+    reference_seen = False
+    reference_proof: dict[str, Any] = {"status": "not_run"}
     profile_contexts = profile_context_by_spec if isinstance(profile_context_by_spec, dict) else {}
     for class_key, spec_key in expected:
         spec_started = time.perf_counter()
         key = (class_key, spec_key)
+        spec_reference_proof = None
         candidate = winners_by_spec.get(key)
         try:
             public = store.get_websim_gear(
@@ -286,12 +513,67 @@ def run_release_shadow(
 
         public_template = public_templates[0]
         authored = resolver_context.get("authoredAgainst") if isinstance(resolver_context.get("authoredAgainst"), dict) else {}
-        legacy_intent = _selection_intent_from_template(
-            public_template,
-            gear_release_id=_text(authored.get("gearCatalogRevision")),
-            season_revision=_text(authored.get("seasonRevision")),
-            level=level,
+        active_capability_revision = _text(
+            (resolver_context.get("dependencyRevisions") or {}).get(
+                "capabilityRevision"
+            )
         )
+        if active_capability_revision == gear_socket_authority.CAPABILITY_REVISION:
+            active_winner = active_winners_by_spec.get(key)
+            active_gear = (
+                active_release_pair.get("gearRelease")
+                if isinstance(active_release_pair.get("gearRelease"), dict)
+                else {}
+            )
+            active_community = (
+                active_release_pair.get("communityRelease")
+                if isinstance(active_release_pair.get("communityRelease"), dict)
+                else {}
+            )
+            active_intent = (
+                active_winner.get("selectionIntent")
+                if isinstance(active_winner, dict)
+                and isinstance(active_winner.get("selectionIntent"), dict)
+                else {}
+            )
+            active_eligibility = (
+                active_intent.get("eligibilityContext")
+                if isinstance(active_intent.get("eligibilityContext"), dict)
+                else {}
+            )
+            active_binding_valid = (
+                active_release_pair.get("formalActiveManifest") is True
+                and _text(active_gear.get("releaseId"))
+                == _text(authored.get("gearCatalogRevision"))
+                and bool(_text(active_community.get("releaseId")))
+                and isinstance(active_winner, dict)
+                and _text(active_winner.get("templateId"))
+                == _text(public_template.get("id"))
+                and _text(active_eligibility.get("classKey")) == class_key
+                and _text(active_eligibility.get("specKey")) == spec_key
+            )
+            if not active_binding_valid:
+                blockers.append(_blocker(
+                    "TRANSITIONAL_INTERNAL_WINNER_UNAVAILABLE",
+                    class_key,
+                    spec_key,
+                    "Active v2 shadow requires the exact sealed active Community winner Intent.",
+                ))
+                spec_results.append({
+                    "classKey": class_key,
+                    "specKey": spec_key,
+                    "status": "blocked",
+                    "durationMs": round((time.perf_counter() - spec_started) * 1000, 3),
+                })
+                continue
+            legacy_intent = copy.deepcopy(active_intent)
+        else:
+            legacy_intent = _selection_intent_from_template(
+                public_template,
+                gear_release_id=_text(authored.get("gearCatalogRevision")),
+                season_revision=_text(authored.get("seasonRevision")),
+                level=level,
+            )
         if candidate is None:
             legacy_rows.append(
                 pg_gear_read_model_selectors.build_transitional_release_shadow_row(
@@ -356,7 +638,66 @@ def run_release_shadow(
             and live_candidate_semantic != _text(candidate.get("semanticGearSignature"))
         ):
             blockers.append(_blocker("CANDIDATE_SEALED_RESULT_MISMATCH", class_key, spec_key, "Current release reader result differs from the sealed winner."))
+        if _text(candidate.get("templateId")) == _REFERENCE_TEMPLATE_ID:
+            reference_seen = True
+            spec_reference_proof = _reference_contract_proof(
+                candidate,
+                candidate_intent,
+                new_snapshot,
+            )
+            spec_reference_proof["gearReleaseId"] = gear_id
+            spec_reference_proof["communityReleaseId"] = community_id
+            overflow_intent = copy.deepcopy(candidate_intent)
+            overflow_slot = ""
+            for reference_slot in _REFERENCE_SOCKET_SLOTS:
+                selection = (overflow_intent.get("slots") or {}).get(reference_slot)
+                constraint = (new_snapshot.get("constraints") or {}).get("slots", {}).get(reference_slot)
+                if not isinstance(selection, dict) or not isinstance(constraint, dict):
+                    continue
+                selected_gems = selection.get("gemOptionIds")
+                if (
+                    isinstance(selected_gems, list)
+                    and selected_gems
+                    and len(selected_gems) == _int(constraint.get("socketCount"))
+                ):
+                    selection["gemOptionIds"] = [*selected_gems, selected_gems[0]]
+                    overflow_slot = reference_slot
+                    break
+            overflow_codes = []
+            if overflow_slot:
+                overflow_status, overflow_envelope = gear_runtime.resolve_candidate_selection_intent(
+                    overflow_intent,
+                    store=store,
+                    gear_release_id=gear_id,
+                    simc_runtime_revision=simc_runtime_revision,
+                    request_id=f"shadow-reference-ninth-gem-{class_key}-{spec_key}",
+                )
+                overflow_codes = _problem_codes(overflow_envelope)
+                overflow_blocked = (
+                    _resolved_snapshot(overflow_status, overflow_envelope) is None
+                    and "GEAR_GEM_SOCKET_CAPACITY_EXCEEDED" in overflow_codes
+                )
+                spec_reference_proof["ninthGem"] = {
+                    "status": "pass" if overflow_blocked else "blocked",
+                    "slot": overflow_slot,
+                    "problemCodes": overflow_codes,
+                }
+                if not overflow_blocked:
+                    spec_reference_proof["status"] = "blocked"
+                    spec_reference_proof["failures"].append("ninth_gem")
+            else:
+                spec_reference_proof["status"] = "blocked"
+                spec_reference_proof["failures"].append("ninth_gem_fixture")
+            reference_proof = spec_reference_proof
+            if spec_reference_proof["status"] != "pass":
+                blockers.append(_blocker(
+                    "REFERENCE_ENHANCEMENT_CONTRACT_MISMATCH",
+                    class_key,
+                    spec_key,
+                    "Frozen Mage enhancement counts, capacity vector, or ninth-gem rejection did not match.",
+                ))
         profile_result = {"status": "not_run"}
+        migration_result = {"status": "not_run"}
         if compare_profiles:
             profile_context = profile_contexts.get(f"{class_key}:{spec_key}")
             profile_context = profile_context if isinstance(profile_context, dict) else {}
@@ -386,6 +727,29 @@ def run_release_shadow(
             }
             if profile_result["status"] != "pass":
                 blockers.append(_blocker("PROFILE_PARITY_MISMATCH", class_key, spec_key, "Candidate Profile outcome differs from transitional Profile."))
+            enhancement_selection_changed = (
+                _enhancement_selection_projection(legacy_intent)
+                != _enhancement_selection_projection(candidate_intent)
+            )
+            migration_equivalent = (
+                _enhancement_migration_projection(old_snapshot)
+                == _enhancement_migration_projection(new_snapshot)
+            )
+            migration_scope_equal = (
+                _non_enhancement_selection_projection(legacy_intent)
+                == _non_enhancement_selection_projection(candidate_intent)
+            )
+            if not enhancement_selection_changed:
+                migration_result = {"status": "not_required"}
+            elif (
+                profile_result["status"] == "pass"
+                and migration_equivalent
+                and migration_scope_equal
+            ):
+                migration_result = {"status": "pass"}
+                allowed_enhancement_migrations.add(key)
+            else:
+                migration_result = {"status": "blocked"}
         legacy_rows.append(
             pg_gear_read_model_selectors.build_transitional_release_shadow_row(
                 public_template,
@@ -402,9 +766,17 @@ def run_release_shadow(
             "transitionalHttpStatus": old_status,
             "candidateHttpStatus": new_status,
             "profileParity": profile_result,
+            "enhancementMigrationParity": migration_result,
+            **({"referenceProof": spec_reference_proof} if spec_reference_proof else {}),
             "durationMs": round((time.perf_counter() - spec_started) * 1000, 3),
         })
 
+    if _REFERENCE_SPEC in set(expected) and not reference_seen:
+        blockers.append(_blocker(
+            "REFERENCE_TEMPLATE_MISSING",
+            *_REFERENCE_SPEC,
+            "Frozen observed_profile_mage_frost winner is required for the candidate shadow.",
+        ))
     if formal_active is not bool(expect_formal_active):
         blockers.append(_blocker(
             "PUBLIC_FORMAL_MANIFEST_STATE_MISMATCH",
@@ -415,6 +787,7 @@ def run_release_shadow(
         candidate_rows,
         expected_specs=expected,
         gear_release_id=gear_id,
+        allowed_semantic_change_specs=allowed_enhancement_migrations,
     )
     blockers.extend(report.get("blockers") or [])
     status = "blocked" if blockers else report.get("status", "blocked")
@@ -434,6 +807,7 @@ def run_release_shadow(
         "specResults": spec_results,
         "publicReadCount": public_read_count,
         "formalActiveManifest": formal_active,
+        "referenceProof": reference_proof,
         "sealedSemanticMode": (
             "legacy_evidence_identity_v1"
             if legacy_sealed_semantic

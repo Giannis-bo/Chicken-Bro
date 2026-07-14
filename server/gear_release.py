@@ -605,12 +605,18 @@ def compare_shadow(
     expected_specs: Iterable[tuple[str, str]],
     gear_release_id: str,
     allow_semantic_changes: bool = False,
+    allowed_semantic_change_specs: Iterable[tuple[str, str]] = (),
 ) -> dict[str, Any]:
     """Compare old/new public winners while separating release-only signature churn."""
 
     target_release = _required_text(gear_release_id, "gear_release_id")
     expected = sorted({(_text(class_key), _text(spec_key)) for class_key, spec_key in expected_specs})
     expected_set = set(expected)
+    allowed_change_specs = {
+        (_text(class_key), _text(spec_key))
+        for class_key, spec_key in allowed_semantic_change_specs
+        if _text(class_key) and _text(spec_key)
+    }
     blockers: list[dict[str, str]] = []
     diffs: list[dict[str, Any]] = []
 
@@ -667,16 +673,28 @@ def compare_shadow(
             new_profile_hash = _text(new.get("profileHash"))
             if old_profile_hash and new_profile_hash and old_profile_hash != new_profile_hash:
                 provenance_changed = True
-            semantic_changed = selection_changed or old_semantic != new_semantic or provenance_changed
+            resolved_semantic_changed = selection_changed or old_semantic != new_semantic
+            semantic_changed = resolved_semantic_changed or provenance_changed
             resolved_changed = old.get("resolvedGearSignature") != new.get("resolvedGearSignature")
-            if semantic_changed:
+            expected_enhancement_migration = (
+                resolved_semantic_changed
+                and not provenance_changed
+                and key in allowed_change_specs
+            )
+            if expected_enhancement_migration:
+                classification = "expected_enhancement_migration"
+            elif semantic_changed:
                 classification = "semantic_change"
             elif resolved_changed:
                 classification = "revision_only"
             else:
                 classification = "match"
         diffs.append({"classKey": class_key, "specKey": spec_key, "classification": classification})
-        if semantic_changed and not allow_semantic_changes:
+        if (
+            semantic_changed
+            and not allow_semantic_changes
+            and classification != "expected_enhancement_migration"
+        ):
             blockers.append(_shadow_blocker("PUBLIC_WINNER_SEMANTIC_CHANGE", class_key, spec_key, "Candidate winner differs from the accepted public winner."))
 
     status = "blocked" if blockers else ("degraded" if empty_specs else "pass")

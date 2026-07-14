@@ -73,6 +73,8 @@ def validated_enhancement_management_fields(
         for value in fields.values()
     ):
         return {}
+    if any(fields.get(field) == "source_only" for field in GEM_SIMC_SEQUENCE_FIELDS):
+        return {}
     return {
         field: fields[field]
         for field in ENHANCEMENT_SIMC_FIELDS

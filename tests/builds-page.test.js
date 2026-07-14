@@ -9372,7 +9372,7 @@ test('gear community template import keeps matched enhancement options configura
   assert.equal(page.data.gearEnhancementSheet.activeEmbellishmentRows[0].options[0].label, '奥纹内衬')
 })
 
-test('gear community template reconciles observed enhancements to verified option identities', async () => {
+test('gear community template reconciles observed enhancements and ignores forged item option identities', async () => {
   const detailRequests = []
   const resolveRequests = []
   const option = (optionKey, type, value, displayLabel, extra = {}) => ({
@@ -9480,8 +9480,40 @@ test('gear community template reconciles observed enhancements to verified optio
     name: 'Observed Enhancements',
     canApplyGear: true,
     gearItems: [
-      { ...ring, gem_id: '240892/240900', enchant_id: '7967' },
-      { ...back, embellishment: 'arcanoweave_lining' }
+      {
+        ...ring,
+        gem_id: '240892/240900',
+        enchant_id: '7967',
+        gemOptionIds: ['forged-item-gem'],
+        socketOptionId: 'forged-item-socket',
+        gemOptionId: 'forged-item-gem-scalar',
+        enchantOptionId: 'forged-item-enchant',
+        embellishmentOptionId: 'forged-item-embellishment',
+        craftedOptionId: 'forged-item-crafted',
+        catalystOptionId: 'forged-item-catalyst',
+        simcOptions: {
+          gem_id: '240892/240900',
+          enchant_id: '7967',
+          gemOptionIds: ['forged-item-nested-gem'],
+          enchant_option_id: 'forged-item-nested-enchant'
+        },
+        payload: {
+          selectedOptions: {
+            craftedOptionId: 'forged-item-nested-crafted'
+          },
+          nested: {
+            catalyst_option_ids: ['forged-item-deep-catalyst']
+          }
+        }
+      },
+      {
+        ...back,
+        embellishment: 'arcanoweave_lining',
+        enchant_option_id: 'forged-item-enchant-snake',
+        embellishment_option_id: 'forged-item-embellishment-snake',
+        crafted_option_id: 'forged-item-crafted-snake',
+        catalyst_option_id: 'forged-item-catalyst-snake'
+      }
     ]
   }
   const page = {
@@ -9521,6 +9553,10 @@ test('gear community template reconciles observed enhancements to verified optio
     catalystOptionId: ''
   })
   assert.equal(resolveRequests[0].slots.back.embellishmentOptionId, 'embellishment-arcanoweave-lining')
+  assert.doesNotMatch(JSON.stringify(resolveRequests[0]), /forged-item/)
+  assert.doesNotMatch(JSON.stringify(page.data.selectedGearBySlot), /forged-item/)
+  assert.equal(page.data.selectedGearBySlot.finger1.simcOptions.gem_id, '240892/240900')
+  assert.equal(page.data.selectedGearBySlot.finger1.simcOptions.enchant_id, '7967')
   assert.deepEqual(JSON.parse(JSON.stringify(page.communityEnhancementImportState)), {
     templateId: 'observed-enhancements',
     serial: 1,
@@ -13508,6 +13544,14 @@ test('gear replacement clears enhancements only for the changed item instance be
   const pending = pageConfig.applyGearCandidate.call(page)
 
   assert.equal(pendingResolves.length, 1)
+  assert.deepEqual(JSON.parse(JSON.stringify(page.data.enhancementBySlot)), {
+    finger2: { gemOptionIds: ['gem-b', 'gem-b'], enchantOptionId: 'ring-enchant' }
+  })
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(page.data.gearSlotRows.find((row) => row.slot === 'finger1').enhancementBadgeLabels)),
+    []
+  )
+  assert.equal(page.data.gearAttributePanel.visible, false)
   assert.deepEqual(JSON.parse(JSON.stringify(pendingResolves[0].selectionIntent.slots.finger1.gemOptionIds)), [])
   assert.equal(pendingResolves[0].selectionIntent.slots.finger1.enchantOptionId, '')
   assert.deepEqual(
@@ -13529,6 +13573,29 @@ test('gear replacement clears enhancements only for the changed item instance be
   assert.deepEqual(JSON.parse(JSON.stringify(page.data.enhancementBySlot)), {
     finger2: { gemOptionIds: ['gem-b', 'gem-b'], enchantOptionId: 'ring-enchant' }
   })
+})
+
+test('failed gear replacement keeps changed enhancements cleared and profile gated', async () => {
+  const { pageConfig, page, pendingResolves } = task10GearReplacementHarness()
+  const pending = pageConfig.applyGearCandidate.call(page)
+
+  pendingResolves[0].resolve({
+    fromFallback: true,
+    offline: true,
+    transportError: 'task10 offline'
+  })
+  await pending
+
+  assert.deepEqual(JSON.parse(JSON.stringify(page.data.enhancementBySlot)), {
+    finger2: { gemOptionIds: ['gem-b', 'gem-b'], enchantOptionId: 'ring-enchant' }
+  })
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(page.data.gearSlotRows.find((row) => row.slot === 'finger1').enhancementBadgeLabels)),
+    []
+  )
+  assert.equal(page.data.gearAttributePanel.visible, false)
+  assert.equal(page.data.gearWorkbenchView.canRunProfile, false)
+  assert.equal(pageConfig.buildSimcContext.call(page).simulatorState.gear, undefined)
 })
 
 test('rapid consecutive gear replacements keep earlier pending slot enhancements cleared', async () => {

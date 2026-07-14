@@ -82,6 +82,14 @@ class GearEnhancementManagementTest(unittest.TestCase):
             ),
             {},
         )
+        self.assertEqual(
+            gear_enhancement_management.validated_enhancement_management_fields(
+                simc_options,
+                management,
+                gear_socket_authority.CAPABILITY_REVISION,
+            ),
+            {},
+        )
 
 
 if __name__ == "__main__":

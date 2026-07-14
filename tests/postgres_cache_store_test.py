@@ -8410,6 +8410,19 @@ class PostgresCacheStoreTest(unittest.TestCase):
                     "gearSnapshot": None,
                 }
 
+            def load_community_release(self, gear_release_id, community_release_id):
+                self.calls.append(("community", gear_release_id, community_release_id))
+                return {
+                    "gearRelease": {"releaseId": gear_release_id},
+                    "communityRelease": {"releaseId": community_release_id},
+                    "winners": [{
+                        "templateId": "winner-a",
+                        "classKey": "mage",
+                        "specKey": "arcane",
+                        "selectionIntent": {"schemaRevision": "selection-intent-v1"},
+                    }],
+                }
+
         release_store = ActiveReleaseStore()
         store = postgres_cache_store.PostgresCacheStore(
             lambda: self.fail("formal readers must not query mutable staging"),
@@ -8442,6 +8455,18 @@ class PostgresCacheStoreTest(unittest.TestCase):
         same_resolver = store.get_gear_resolver_context(runtime, binding=binding)
         self.assertEqual(same_resolver["manifestRevision"], manifest["manifestRevision"])
         self.assertEqual(release_store.calls[-1], ("resolver", binding, runtime))
+
+        active_pair = store.get_active_community_release()
+        self.assertTrue(active_pair["formalActiveManifest"])
+        self.assertEqual(
+            active_pair["winners"][0]["selectionIntent"],
+            {"schemaRevision": "selection-intent-v1"},
+        )
+        self.assertNotIn("selectionIntent", json.dumps(browse, sort_keys=True))
+        self.assertEqual(release_store.calls[-2:], [
+            ("binding",),
+            ("community", "gear-release:active", "community-release:active"),
+        ])
 
     def test_transitional_manifest_binding_keeps_staging_authority_explicit(self):
         from server import postgres_cache_store
