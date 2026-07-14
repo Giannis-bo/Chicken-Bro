@@ -479,6 +479,29 @@ function invalidateGearInteractionContext(page) {
   return page.gearInteractionGeneration
 }
 
+function beginGearSlotOpenRequest(page, slot) {
+  const serial = Math.max(0, Number(page && page.gearSlotOpenSerial) || 0) + 1
+  page.gearSlotOpenSerial = serial
+  page.gearSlotOpenDesiredSlot = cleanGearString(slot)
+  return { serial, slot: page.gearSlotOpenDesiredSlot }
+}
+
+function invalidateGearSlotOpenRequest(page) {
+  if (!page) return 0
+  const serial = Math.max(0, Number(page.gearSlotOpenSerial) || 0) + 1
+  page.gearSlotOpenSerial = serial
+  page.gearSlotOpenDesiredSlot = ''
+  return serial
+}
+
+function gearSlotOpenRequestIsCurrent(page, request) {
+  return !!(
+    page && request &&
+    Number(page.gearSlotOpenSerial) === Number(request.serial) &&
+    cleanGearString(page.gearSlotOpenDesiredSlot) === cleanGearString(request.slot)
+  )
+}
+
 function eligibleCommunityEnhancementImportState(state, snapshot) {
   const current = state && typeof state === 'object' ? state : emptyCommunityEnhancementImportState()
   const snapshotSignature = cleanGearString(snapshot && snapshot.resolvedGearSignature)
@@ -1647,11 +1670,17 @@ function changedGearSlots(before, after) {
   ))
 }
 
-function enhancementBySlotWithoutChangedGear(enhancementBySlot, slots) {
+function enhancementBySlotWithoutChangedGear(enhancementBySlot, slots, selectedGearBySlot) {
   const result = normalizedEnhancementBySlot(enhancementBySlot || {})
   ;(Array.isArray(slots) ? slots : []).forEach((slot) => {
     delete result[slot]
   })
+  if (selectedGearBySlot && typeof selectedGearBySlot === 'object') {
+    const selected = selectedGearByCanonicalSlot(selectedGearBySlot)
+    Object.keys(result).forEach((slot) => {
+      if (!selected[slot]) delete result[slot]
+    })
+  }
   return result
 }
 
@@ -5249,6 +5278,8 @@ Page({
   communityEnhancementImportSerial: 0,
   communityEnhancementImportState: emptyCommunityEnhancementImportState(),
   gearInteractionGeneration: 0,
+  gearSlotOpenSerial: 0,
+  gearSlotOpenDesiredSlot: '',
 
   data: {
     ...payload,
@@ -5894,8 +5925,10 @@ Page({
     const slot = event.currentTarget.dataset.slot || ''
     if (!slot) return Promise.resolve()
     const interactionContext = captureGearInteractionContext(this)
+    const openRequest = beginGearSlotOpenRequest(this, slot)
     const openWithCurrentPayload = () => {
       if (!gearInteractionContextIsCurrent(this, interactionContext)) return
+      if (!gearSlotOpenRequestIsCurrent(this, openRequest)) return
       const row = (this.data.gearSlotRows || []).find((item) => item.slot === slot) || {}
       const candidates = buildGearCandidateRows(slot, fullGearPayloadForPage(this) || {}, this.data.selectedGearBySlot || {})
       const selectedGear = ((this.data.selectedGearBySlot || {})[slot]) || {}
@@ -5927,6 +5960,7 @@ Page({
   },
 
   closeGearSlotSheet() {
+    invalidateGearSlotOpenRequest(this)
     this.setData({
       gearSlotSheet: emptyGearSlotSheet()
     })
@@ -5935,6 +5969,7 @@ Page({
   openGearEnhancementSheet() {
     const currentSheet = this.data.gearEnhancementSheet || emptyGearEnhancementSheet()
     if (currentSheet.submitting) return Promise.resolve()
+    invalidateGearSlotOpenRequest(this)
     if (this.data.gearDataFallback) {
       showToast(this.data.gearDataWarningText || '装备接口暂不可用，无法配置强化')
       return Promise.resolve()
@@ -6209,6 +6244,7 @@ Page({
   },
 
   openGearCommunityTemplates() {
+    invalidateGearSlotOpenRequest(this)
     if (this.data.gearDataFallback) {
       showToast(this.data.gearDataWarningText || '装备接口暂不可用，无法导入社区模板')
       return
@@ -6483,6 +6519,10 @@ Page({
       showToast(trust.blockerLabel || trust.reason || '该装备数据待补，暂不能应用')
       return Promise.resolve()
     }
+    const committedSnapshot = canonicalWorkbenchSnapshot(this)
+    const enhancementSourceBySlot = committedSnapshot
+      ? enhancementBySlotFromResolvedSnapshot(committedSnapshot)
+      : (this.data.enhancementBySlot || {})
     invalidateGearInteractionContext(this)
     const previousGearBySlot = prunedGearSelectionByWeaponRule(
       gearPayload,
@@ -6493,14 +6533,10 @@ Page({
       [slot]: candidate
     })
     const changedSlots = changedGearSlots(previousGearBySlot, selectedGearBySlot)
-    const enhancementWithoutChangedGear = enhancementBySlotWithoutChangedGear(
-      this.data.enhancementBySlot || {},
-      changedSlots
-    )
-    const enhancementBySlot = prunedEnhancementBySlot(
-      gearPayload,
-      selectedGearBySlot,
-      enhancementWithoutChangedGear
+    const enhancementBySlot = enhancementBySlotWithoutChangedGear(
+      enhancementSourceBySlot,
+      changedSlots,
+      selectedGearBySlot
     )
     trackEvent('builds_gear_candidate_select', {
       gearSlot: slot,
@@ -6540,6 +6576,7 @@ Page({
       showToast(draft.blockMessage)
       return
     }
+    invalidateGearSlotOpenRequest(this)
     this.setData({
       selectedGearBySlot: draft.selectedGearBySlot,
       enhancementBySlot: draft.enhancementBySlot,

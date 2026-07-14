@@ -12511,6 +12511,50 @@ test('gear replacement clears enhancements only for the changed item instance be
   })
 })
 
+test('gear replacement preserves untouched canonical enhancements without hydrated option rows', async () => {
+  const { pageConfig, page, pendingResolves, newRing } = task10GearReplacementHarness()
+  const untouchedGroup = page.gearPayloadCache.replacementCandidates.find((group) => group.slot === 'finger2')
+  untouchedGroup.detailMode = 'partial'
+  delete untouchedGroup.socketOptions
+  delete untouchedGroup.enchantOptions
+  page.data.enhancementBySlot = {
+    ...page.data.enhancementBySlot,
+    waist: { gemOptionIds: ['orphan-gem'], enchantOptionId: 'orphan-enchant' }
+  }
+  await pageConfig.openGearEnhancementSheet.call(page)
+  pageConfig.closeGearEnhancementSheet.call(page)
+  assert.deepEqual(
+    page.gearWorkbenchState.lastVerifiedSnapshot.resolvedSlots.finger2.selectedOptions.gemOptionIds,
+    ['gem-b', 'gem-b']
+  )
+  page.data.gearSlotSheet = { slot: 'finger1', appliedCandidate: newRing }
+
+  const pending = pageConfig.applyGearCandidate.call(page)
+
+  assert.equal(pendingResolves.length, 1)
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(pendingResolves[0].selectionIntent.slots.finger2.gemOptionIds)),
+    ['gem-b', 'gem-b']
+  )
+  assert.equal(pendingResolves[0].selectionIntent.slots.finger2.enchantOptionId, 'ring-enchant')
+  assert.equal(page.data.enhancementBySlot.waist, undefined)
+
+  pendingResolves[0].resolve(await canonicalEnhancementResolveTransport(
+    pendingResolves[0].selectionIntent,
+    'sha256:task10-partial-untouched',
+    {
+      finger1: { socketCount: 1, canEnchant: true, canEmbellish: false },
+      finger2: { socketCount: 2, canEnchant: true, canEmbellish: false }
+    }
+  ))
+  await pending
+
+  assert.deepEqual(JSON.parse(JSON.stringify(page.data.enhancementBySlot.finger2)), {
+    gemOptionIds: ['gem-b', 'gem-b'],
+    enchantOptionId: 'ring-enchant'
+  })
+})
+
 test('gear variant replacement clears the changed slot even when item id is unchanged', () => {
   const pageConfig = loadBuildsDetailPageConfig({ exposeDetailHelpers: true })
   const helpers = pageConfig.__detailHelpers
@@ -12533,6 +12577,14 @@ test('gear variant replacement clears the changed slot even when item id is unch
       helpers.changedGearSlots({ finger1: original }, { finger1: { ...original } })
     ))),
     { finger1: { gemOptionIds: ['keep-identical-instance'] } }
+  )
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(helpers.enhancementBySlotWithoutChangedGear(
+      { finger1: { gem_id: '240892', enchant_id: '7967', embellishment: 'legacy-known' } },
+      [],
+      { finger1: original }
+    ))),
+    { finger1: { gem_id: '240892', enchant_id: '7967', embellishment: 'legacy-known' } }
   )
   assert.deepEqual(Array.from(helpers.changedGearSlots({
     main_hand: { slot: 'main_hand', itemId: '299930', variantKey: 'one-hand' },
@@ -12885,6 +12937,182 @@ test('older community hydration cannot apply after a newer gear replacement', as
 
   assert.equal(page.data.selectedGearBySlot.finger1.itemId, manuallySelectedRing.itemId)
   assert.equal(page.gearWorkbenchState.currentSnapshot.resolvedGearSignature, 'sha256:task10-manual-ring')
+})
+
+function task10DeferredGearSlotHarness() {
+  const requests = []
+  const slots = ['head', 'neck']
+  const items = Object.fromEntries(slots.map((slot, index) => [slot, {
+    slot,
+    simcSlot: slot,
+    itemId: String(299940 + index),
+    id: String(299940 + index),
+    variantKey: `${slot}-initial`,
+    displayName: `${slot} initial`,
+    simcReady: true,
+    detailMode: 'summary',
+    slotDetailAvailable: true
+  }]))
+  const gearPayload = {
+    classKey: 'mage', specKey: 'frost', gearPayloadMode: 'initial',
+    slots: slots.map((slot) => ({ slot, simcSlot: slot, label: slot })),
+    replacementCandidates: slots.map((slot) => ({
+      slot, simcSlot: slot, detailMode: 'partial', items: [items[slot]]
+    })),
+    equippedSet: { ...items },
+    readiness: { fullReady: false },
+    communityTemplates: [],
+    communityTemplateSync: { templates: { total: 0, verified: 0, partial: 0, blocked: 0 } }
+  }
+  const pageConfig = loadBuildsDetailPageConfig({
+    requestWebsimGear(params) {
+      return new Promise((resolve) => requests.push({ slot: params.slot, resolve }))
+    }
+  })
+  const page = {
+    gearPayloadCache: gearPayload,
+    data: {
+      ...pageConfig.data,
+      selectedDetail: { details: { talents: { importCode: 'talent-code' }, gear: {} } },
+      selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' },
+      activeQueryKey: 'gear', gearSelectionKey: 'mage:frost', gearPayload,
+      selectedGearBySlot: { ...items }, enhancementBySlot: {},
+      gearSlotRows: slots.map((slot) => ({ slot, simcSlot: slot, label: slot, itemId: items[slot].itemId })),
+      gearSlotSheet: { visible: false }, gearCommunityTemplateSheet: { visible: false }
+    },
+    setData(update) { this.data = { ...this.data, ...update } },
+    refreshDerivedState() {}
+  }
+  const finish = (request, suffix) => request.resolve({
+    fromFallback: false,
+    error: '',
+    payload: {
+      replacementCandidates: [{
+        slot: request.slot,
+        simcSlot: request.slot,
+        detailMode: 'complete',
+        items: [{
+          ...items[request.slot],
+          variantKey: `${request.slot}-${suffix}`,
+          displayName: `${request.slot} ${suffix}`
+        }]
+      }]
+    }
+  })
+  return { pageConfig, page, requests, finish }
+}
+
+test('latest gear slot open wins when older hydration returns last', async () => {
+  const { pageConfig, page, requests, finish } = task10DeferredGearSlotHarness()
+  const headOpen = pageConfig.openGearSlotSheet.call(page, {
+    currentTarget: { dataset: { slot: 'head' } }
+  })
+  const neckOpen = pageConfig.openGearSlotSheet.call(page, {
+    currentTarget: { dataset: { slot: 'neck' } }
+  })
+  assert.deepEqual(requests.map((request) => request.slot), ['head', 'neck'])
+
+  finish(requests[1], 'newest')
+  await neckOpen
+  assert.equal(page.data.gearSlotSheet.slot, 'neck')
+
+  finish(requests[0], 'older')
+  await headOpen
+  assert.equal(page.data.gearSlotSheet.slot, 'neck')
+  assert.equal(page.data.gearSlotSheet.activeCandidate.displayName, 'neck newest')
+})
+
+test('closing gear slot sheet prevents pending hydration from reopening it', async () => {
+  const { pageConfig, page, requests, finish } = task10DeferredGearSlotHarness()
+  const pendingOpen = pageConfig.openGearSlotSheet.call(page, {
+    currentTarget: { dataset: { slot: 'head' } }
+  })
+  pageConfig.closeGearSlotSheet.call(page)
+
+  finish(requests[0], 'after-close')
+  await pendingOpen
+
+  assert.equal(page.data.gearSlotSheet.visible, false)
+  assert.equal(page.data.gearSlotSheet.slot, '')
+})
+
+for (const destination of ['enhancement', 'community']) {
+  test(`opening ${destination} sheet prevents pending slot hydration from stealing focus`, async () => {
+    const { pageConfig, page, requests, finish } = task10DeferredGearSlotHarness()
+    const pendingOpen = pageConfig.openGearSlotSheet.call(page, {
+      currentTarget: { dataset: { slot: 'head' } }
+    })
+
+    if (destination === 'enhancement') await pageConfig.openGearEnhancementSheet.call(page)
+    else pageConfig.openGearCommunityTemplates.call(page)
+
+    finish(requests[0], `after-${destination}`)
+    await pendingOpen
+
+    assert.equal(page.data.gearSlotSheet.visible, false, destination)
+    assert.equal(page.data.gearSlotSheet.slot, '', destination)
+    if (destination === 'enhancement') assert.equal(page.data.gearEnhancementSheet.visible, true)
+    else assert.equal(page.data.gearCommunityTemplateSheet.visible, true)
+  })
+}
+
+test('opening canonical gear save sheet prevents pending slot hydration from stealing focus', async () => {
+  const { pageConfig, page, requests, finish } = task10DeferredGearSlotHarness()
+  const selectedGearBySlot = completeGearSelection()
+  selectedGearBySlot.head = page.data.selectedGearBySlot.head
+  const resolverContext = canonicalTestResolverContext()
+  page.gearPayloadCache = {
+    ...page.gearPayloadCache,
+    maxLevel: 90,
+    resolverContext,
+    slots: canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot }))
+  }
+  page.data.gearPayload = page.gearPayloadCache
+  page.data.selectedGearBySlot = selectedGearBySlot
+  page.data.gearSlotRows = canonicalGearSlots.map((slot) => ({
+    slot, simcSlot: slot, label: slot, itemId: selectedGearBySlot[slot].itemId
+  }))
+  page.data.selectedGearTemplateScenarioIndex = 0
+  const intent = require('../pages/builds/gear-selection-intent').serializeGearSelectionIntent({
+    resolverContext,
+    eligibilityContext: { classKey: 'mage', specKey: 'frost', level: 90 },
+    selectedGearBySlot,
+    enhancementBySlot: {}
+  })
+  const resolvedSlots = Object.fromEntries(canonicalGearSlots.map((slot) => [slot, {
+    itemId: selectedGearBySlot[slot].itemId,
+    variantKey: selectedGearBySlot[slot].variantKey || '',
+    itemLevel: 707,
+    selectedOptions: { gemOptionIds: [], enchantOptionId: '', embellishmentOptionId: '' }
+  }]))
+  const snapshot = {
+    status: 'verified', resolvedGearSignature: 'sha256:task10-save-sheet', dependencyVector: {},
+    staticAttributes: {}, setState: { itemSetCounts: {}, activeDynamicEffects: [] },
+    aggregateLegality: { status: 'verified', problemCodes: [] },
+    profileReadiness: {
+      status: 'verified', simcReady: true,
+      requiredSlots: [...canonicalGearSlots], readySlots: [...canonicalGearSlots]
+    },
+    constraints: { embellishmentMax: 2, slots: {} }, resolvedSlots, problems: []
+  }
+  const workbench = require('../pages/builds/gear-workbench-state')
+  page.gearWorkbenchState = workbench.createGearWorkbenchState(resolverContext, intent)
+  Object.assign(page.gearWorkbenchState, {
+    resolveStatus: 'verified', currentSnapshot: snapshot, lastVerifiedSnapshot: snapshot
+  })
+
+  const pendingOpen = pageConfig.openGearSlotSheet.call(page, {
+    currentTarget: { dataset: { slot: 'head' } }
+  })
+  pageConfig.saveGearTemplate.call(page)
+  assert.equal(page.data.gearSaveTemplateSheet.visible, true)
+
+  finish(requests[0], 'after-save')
+  await pendingOpen
+
+  assert.equal(page.data.gearSaveTemplateSheet.visible, true)
+  assert.equal(page.data.gearSlotSheet.visible, false)
+  assert.equal(page.data.gearSlotSheet.slot || '', '')
 })
 
 test('spec change invalidates pending enhancement commit', async () => {
