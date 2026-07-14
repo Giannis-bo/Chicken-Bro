@@ -426,6 +426,14 @@ class GearRuleMatrixTest(unittest.TestCase):
                                 }
                             ],
                         },
+                        "overlay": {
+                            "status": "verified",
+                            "statDeltas": {"haste": 5},
+                            "capabilityOverrides": {
+                                "socketCount": 9,
+                                "canEmbellish": True,
+                            },
+                        },
                     },
                 },
                 [],
@@ -466,6 +474,15 @@ class GearRuleMatrixTest(unittest.TestCase):
         self.assertEqual(
             gem_rule["problems"][0]["code"],
             "GEAR_GEM_SOCKET_CAPACITY_EXCEEDED",
+        )
+        projected_overlay = authority["variantsByKey"]["variant-head"]["overlay"]
+        self.assertEqual(projected_overlay["statDeltas"], {"haste": 5})
+        self.assertTrue(
+            projected_overlay["capabilityOverrides"]["canEmbellish"]
+        )
+        self.assertNotIn(
+            "socketCount",
+            projected_overlay["capabilityOverrides"],
         )
 
         fallback_authority = self.authority()

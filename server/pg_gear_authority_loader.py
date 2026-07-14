@@ -887,6 +887,11 @@ def _project_variant(
     }
     overlay = _json_value(payload.get("overlay"), {})
     overlay = overlay if isinstance(overlay, dict) else {}
+    if capability_revision == gear_socket_authority.CAPABILITY_REVISION:
+        overlay_overrides = overlay.get("capabilityOverrides")
+        if isinstance(overlay_overrides, dict):
+            overlay["capabilityOverrides"] = dict(overlay_overrides)
+            overlay["capabilityOverrides"].pop("socketCount", None)
     simc_options = _json_value(record.get("simcOptions"), {})
     simc_options = simc_options if isinstance(simc_options, dict) else {}
     projected = {

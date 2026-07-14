@@ -663,6 +663,8 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
                 self.assertTrue(invalid_capabilities["canEmbellish"])
 
     def test_v2_exact_variant_uses_materialized_socket_override(self):
+        from server import gear_resolver
+
         valid_evidence = {
             "schemaRevision": gear_socket_authority.SOCKET_FACT_SCHEMA_REVISION,
             "authorityRevision": gear_socket_authority.CAPABILITY_REVISION,
@@ -707,6 +709,15 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
                         "canEmbellish": False,
                     },
                     "socketEvidence": valid_evidence,
+                    "overlay": {
+                        "status": "verified",
+                        "sourceRefIds": ["evidence:pg:source:source-row-head"],
+                        "statDeltas": {"haste": 5},
+                        "capabilityOverrides": {
+                            "socketCount": 9,
+                            "canEmbellish": True,
+                        },
+                    },
                 },
             },
         )
@@ -734,6 +745,54 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
                 "socketCount"
             ],
             1,
+        )
+
+        gem_ids = ["gem-haste", "gem-mastery", "gem-crit"]
+        intent = self.intent()
+        intent["slots"]["head"]["gemOptionIds"] = gem_ids
+        option_rows = []
+        for index, option_id in enumerate(gem_ids, start=1):
+            _default_key, option = self.option_row(
+                id=f"option-row-{option_id}",
+                optionKey=option_id,
+                name=f"Gem {index}",
+                simcOptions={"gem_id": str(240000 + index)},
+            )
+            option_rows.append((option_id, option))
+        chain_context = self.released_context(
+            capability_revision=gear_socket_authority.CAPABILITY_REVISION,
+            item_rows=[row],
+            option_rows=option_rows,
+            intent=intent,
+        )
+
+        snapshot = gear_resolver.resolve(intent, chain_context)
+
+        self.assertEqual(snapshot["status"], "blocked")
+        self.assertEqual(
+            snapshot["constraints"]["slots"]["head"]["socketCount"],
+            2,
+        )
+        socket_rule = next(
+            result
+            for result in snapshot["ruleResults"]
+            if result["ruleId"] == "socket_and_gem"
+        )
+        self.assertEqual(socket_rule["status"], "blocked")
+        self.assertEqual(
+            socket_rule["problems"][0]["code"],
+            "GEAR_GEM_SOCKET_CAPACITY_EXCEEDED",
+        )
+        projected_overlay = chain_context["variantsByKey"]["variant-head"][
+            "overlay"
+        ]
+        self.assertEqual(projected_overlay["statDeltas"], {"haste": 5})
+        self.assertTrue(
+            projected_overlay["capabilityOverrides"]["canEmbellish"]
+        )
+        self.assertNotIn(
+            "socketCount",
+            projected_overlay["capabilityOverrides"],
         )
 
         zero_socket = copy.deepcopy(list(row))
@@ -870,7 +929,16 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
                     "ilevel": "289",
                     "gem_id": "240892/240900",
                     "crafted_stats": "32/36",
-                }
+                },
+                "payload": {
+                    "overlay": {
+                        "status": "verified",
+                        "capabilityOverrides": {
+                            "socketCount": 9,
+                            "canEmbellish": False,
+                        },
+                    }
+                },
             },
         )
 
@@ -885,6 +953,14 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
         self.assertTrue(item["baseCapabilities"]["canEnchant"])
         self.assertEqual(overrides["socketCount"], 2)
         self.assertTrue(overrides["canEmbellish"])
+        legacy_overlay = context["variantsByKey"]["variant-head"]["overlay"]
+        self.assertEqual(
+            legacy_overlay["capabilityOverrides"]["socketCount"],
+            9,
+        )
+        self.assertFalse(
+            legacy_overlay["capabilityOverrides"]["canEmbellish"]
+        )
 
     def test_exact_verified_variant_gems_raise_only_variant_socket_capacity(self):
         ring = list(self.item_row(
