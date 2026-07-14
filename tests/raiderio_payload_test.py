@@ -230,6 +230,125 @@ class RaiderIOPayloadTest(unittest.TestCase):
         self.assertEqual(item["bonus_id"], "12345")
         self.assertEqual(item["enchant_id"], "8017")
 
+    def test_midnight_mage_reference_preserves_all_ordered_gem_and_enchant_occurrences(self):
+        fixture_path = (
+            Path(__file__).parent
+            / "fixtures"
+            / "midnight-mage-frost-socket-evidence-v1.json"
+        )
+        fixture = json.loads(fixture_path.read_text(encoding="utf-8"))
+        reference = fixture["referenceContract"]
+        items_by_slot = {
+            item["slot"]: item
+            for item in fixture["snapshot"]["items"]
+            if item["slot"] in reference["requiredSlots"]
+            and item["itemId"] != "different-ring-one"
+        }
+        variants_by_item = {
+            variant["itemId"]: variant
+            for variant in fixture["snapshot"]["variants"]
+            if variant["itemId"] != "different-ring-one"
+        }
+        profile = sample_profile_payload("Mageparity", "mage", "frost")
+        profile["gear"]["items"] = {}
+        for slot in reference["requiredSlots"]:
+            source_item = items_by_slot[slot]
+            variant = variants_by_item[source_item["itemId"]]
+            simc_options = variant["simcOptions"]
+            source = reference["sourceEnhancementBySlot"].get(slot, {})
+            self.assertEqual(
+                simc_options.get("gem_id", ""),
+                "/".join(source.get("gemIds", [])),
+            )
+            self.assertEqual(
+                simc_options.get("enchant_id", ""),
+                "/".join(source.get("enchantIds", [])),
+            )
+            self.assertEqual(
+                simc_options.get("embellishment", ""),
+                source.get("embellishment", ""),
+            )
+            item = {
+                "item_id": int(source_item["itemId"]),
+                "item_level": int(simc_options["ilevel"]),
+                "name": source_item["name"],
+                "bonuses": [
+                    int(bonus_id)
+                    for bonus_id in simc_options["bonus_id"].split("/")
+                ],
+                "gems": [
+                    {"item_id": gem_id}
+                    for gem_id in source.get("gemIds", [])
+                ],
+                "enchants": [
+                    {"enchant": enchant_id}
+                    for enchant_id in source.get("enchantIds", [])
+                ],
+            }
+            profile["gear"]["items"][slot] = item
+
+        by_slot = {item["slot"]: item for item in raiderio_payload.extract_gear(profile)}
+        ordered_gems = [
+            gem_id
+            for instance in fixture["expectedInstances"]
+            for gem_id in by_slot[
+                raiderio_payload.normalize_gear_slot(instance["slot"])
+            ].get("gem_id", "").split("/")
+            if gem_id
+        ]
+
+        self.assertEqual(
+            ordered_gems,
+            [
+                gem_id
+                for instance in fixture["expectedInstances"]
+                for gem_id in instance["gemIds"]
+            ],
+        )
+        self.assertEqual(ordered_gems.count("240983"), 1)
+        self.assertEqual(ordered_gems.count("240892"), 4)
+        self.assertEqual(ordered_gems.count("240916"), 2)
+        self.assertEqual(ordered_gems.count("240900"), 1)
+        canonical_enchant_slots = [
+            slot
+            for slot, enhancement in reference["canonicalEnhancementBySlot"].items()
+            if enhancement.get("enchantId")
+        ]
+        self.assertEqual(
+            canonical_enchant_slots,
+            ["back", "chest", "legs", "feet", "finger1", "finger2"],
+        )
+        for slot in canonical_enchant_slots:
+            normalized_slot = raiderio_payload.normalize_gear_slot(slot)
+            self.assertEqual(
+                by_slot[normalized_slot]["enchant_id"],
+                reference["canonicalEnhancementBySlot"][slot]["enchantId"],
+            )
+        self.assertEqual(
+            sum(bool(item.get("enchant_id")) for item in by_slot.values()),
+            10,
+        )
+        self.assertEqual(by_slot["head"]["enchant_id"], "8017")
+        self.assertEqual(by_slot["shoulder"]["enchant_id"], "8001")
+        self.assertEqual(by_slot["waist"]["enchant_id"], "4223")
+        self.assertEqual(by_slot["main_hand"]["enchant_id"], "8039/8052")
+        self.assertEqual(by_slot["back"]["embellishment"], "arcanoweave_lining")
+        self.assertEqual(by_slot["wrist"]["embellishment"], "arcanoweave_lining")
+        for slot in reference["requiredSlots"]:
+            source_item = items_by_slot[slot]
+            variant = variants_by_item[source_item["itemId"]]
+            simc_options = variant["simcOptions"]
+            normalized_slot = raiderio_payload.normalize_gear_slot(slot)
+            self.assertEqual(
+                by_slot[normalized_slot]["itemId"], int(source_item["itemId"])
+            )
+            self.assertEqual(
+                by_slot[normalized_slot]["itemLevel"], int(simc_options["ilevel"])
+            )
+            self.assertEqual(
+                by_slot[normalized_slot]["bonus_id"], simc_options["bonus_id"]
+            )
+
     def test_fetch_profiles_for_runs_attaches_spec_ranking_evidence_to_profile(self):
         run = raiderio_payload.simplify_spec_ranking_run(
             {

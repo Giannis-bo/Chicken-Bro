@@ -59,8 +59,6 @@ const gearEnhancementMax = 2
 const gearTierSetMax = 5
 const communityEnhancementRecoveryWarning = '部分宝石、附魔或美化未能识别，已留空，请重新选择。'
 const primaryStatGemUniqueGroup = 'primary_stat_gem'
-const primaryStatGemUniqueLimit = 1
-const primaryStatGemIds = new Set(['240967', '240969', '240971', '240983'])
 const enchantableGearSlots = new Set(['back', 'chest', 'wrist', 'legs', 'feet', 'finger1', 'finger2', 'main_hand', 'off_hand'])
 const governedEnchantFallbackSlots = new Set(['back', 'chest', 'legs', 'feet', 'finger1', 'finger2', 'main_hand', 'off_hand'])
 const gearConfigEnchantExcludedCategories = new Set([
@@ -2308,19 +2306,14 @@ function optionGemIds(option) {
 }
 
 function enhancementOptionUniqueGroup(option, type) {
-  const explicitGroup = cleanGearString(optionFirstValue(option, ['uniqueGroup', 'unique_group', 'uniqueKey', 'unique_key']))
-  if (explicitGroup) return explicitGroup
-  if (type === 'gem' && optionGemIds(option).some((gemId) => primaryStatGemIds.has(gemId))) {
-    return primaryStatGemUniqueGroup
-  }
-  return ''
+  return cleanGearString(optionFirstValue(option, ['uniqueGroup', 'unique_group', 'uniqueKey', 'unique_key']))
 }
 
 function enhancementOptionUniqueLimit(option, type) {
   const rawLimit = optionFirstValue(option, ['uniqueLimit', 'unique_limit', 'uniqueEquippedLimit', 'unique_equipped_limit'])
   const parsed = Number.parseInt(rawLimit, 10)
   if (Number.isFinite(parsed) && parsed > 0) return parsed
-  return enhancementOptionUniqueGroup(option, type) ? primaryStatGemUniqueLimit : 0
+  return 0
 }
 
 function enhancementUniqueGroupLabel(group, type) {

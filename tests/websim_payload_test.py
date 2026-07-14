@@ -23279,6 +23279,142 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertNotIn("forged", result["profile"])
         self.assertEqual(result["profileReadiness"], snapshot["profileReadiness"])
 
+    def test_midnight_mage_resolved_profile_keeps_complete_canonical_8_6_2_enhancements(self):
+        from server import gear_resolver
+        from tests.gear_resolver_test import build_midnight_mage_resolver_fixture
+
+        fixture = build_midnight_mage_resolver_fixture(
+            selected_gem_count=8,
+            include_reference_enhancements=True,
+        )
+        snapshot = gear_resolver.resolve(
+            fixture["intent"], fixture["authorityContext"]
+        )
+        reference = fixture["referenceContract"]
+        embellishment_seeds = {
+            seed["key"]: seed
+            for seed in self.websim_payload.MIDNIGHT_OPTIONAL_EMBELLISHMENT_SEEDS
+        }
+        selected_embellishments = [
+            enhancement["embellishment"]
+            for enhancement in reference["canonicalEnhancementBySlot"].values()
+            if enhancement.get("embellishment")
+        ]
+        self.assertEqual(
+            selected_embellishments,
+            ["arcanoweave_lining", "arcanoweave_lining"],
+        )
+        self.assertTrue(
+            all(key in embellishment_seeds for key in selected_embellishments)
+        )
+        self.assertEqual(
+            embellishment_seeds["arcanoweave_lining"]["slotGroup"], "armor"
+        )
+        replacement_embellishment = reference["replacementValues"]["embellishment"]
+        self.assertEqual(replacement_embellishment, "blessed_pango_charm")
+        self.assertEqual(
+            embellishment_seeds[replacement_embellishment]["slotGroup"],
+            "equipment",
+        )
+        source_context = {
+            "classKey": "mage",
+            "specKey": "frost",
+            "level": 90,
+            "race": "human",
+            "name": "Observed Frost Mage",
+            "talents": "C4DA",
+            "scenarioKey": "single",
+            "gearSelection": {
+                "items": [
+                    {
+                        "slot": "head",
+                        "itemId": "forged-client-item",
+                        "gem_id": "forged-client-gem",
+                        "simcReady": True,
+                    }
+                ]
+            },
+            "enhancementBySlot": {
+                "head": {
+                    "gem_id": "forged-client-gem",
+                    "enchant_id": "forged-client-enchant",
+                    "embellishment": "forged-client-embellishment",
+                }
+            },
+        }
+
+        result = self.websim_payload.build_websim_profile_response_from_resolved_snapshot(
+            snapshot, source_context
+        )
+
+        self.assertEqual(snapshot["status"], "verified")
+        self.assertEqual(result["status"], "resolved")
+        self.assertNotIn("forged-client", result["profile"])
+        gear_lines = {
+            line.split("=", 1)[0]: line
+            for line in result["profile"].splitlines()
+            if "=" in line
+            and line.split("=", 1)[0] in fixture["referenceContract"]["requiredSlots"]
+        }
+        self.assertEqual(
+            sorted(gear_lines), sorted(reference["requiredSlots"])
+        )
+        variants_by_slot = {
+            variant["slot"]: variant
+            for variant in fixture["sourceSnapshot"]["variants"]
+            if variant["itemId"] != "different-ring-one"
+        }
+        for slot in reference["requiredSlots"]:
+            variant = variants_by_slot[slot]
+            simc_options = variant["simcOptions"]
+            self.assertIn(f"id={variant['itemId']}", gear_lines[slot])
+            self.assertIn(f"ilevel={simc_options['ilevel']}", gear_lines[slot])
+            self.assertIn(f"bonus_id={simc_options['bonus_id']}", gear_lines[slot])
+        self.assertIn("gem_id=240892/240900", gear_lines["neck"])
+        self.assertIn("gem_id=240892/240983", gear_lines["finger1"])
+        gem_occurrences = [
+            gem_id
+            for line in gear_lines.values()
+            for option in line.split(",")
+            if option.startswith("gem_id=")
+            for gem_id in option.split("=", 1)[1].split("/")
+        ]
+        self.assertEqual(gem_occurrences.count("240983"), 1)
+        self.assertEqual(gem_occurrences.count("240892"), 4)
+        self.assertEqual(gem_occurrences.count("240916"), 2)
+        self.assertEqual(gem_occurrences.count("240900"), 1)
+        self.assertEqual(len(gem_occurrences), 8)
+        canonical_enchants = {
+            slot: enhancement["enchantId"]
+            for slot, enhancement in reference["canonicalEnhancementBySlot"].items()
+            if enhancement.get("enchantId")
+        }
+        self.assertEqual(
+            list(canonical_enchants),
+            ["back", "chest", "legs", "feet", "finger1", "finger2"],
+        )
+        for slot, enchant_id in canonical_enchants.items():
+            self.assertIn(f"enchant_id={enchant_id}", gear_lines[slot])
+        self.assertEqual(
+            sum(
+                bool(slot["selectedOptions"]["enchantOptionId"])
+                for slot in snapshot["resolvedSlots"].values()
+            ),
+            6,
+        )
+        # Four additional authority-owned raw source fields remain executable,
+        # but they are not governed editor selections and do not enter 6/8.
+        self.assertEqual(
+            sum("enchant_id=" in line for line in gear_lines.values()), 10
+        )
+        self.assertIn("enchant_id=8017", gear_lines["head"])
+        self.assertIn("enchant_id=8001", gear_lines["shoulder"])
+        self.assertIn("enchant_id=4223", gear_lines["waist"])
+        self.assertIn("enchant_id=8039/8052", gear_lines["main_hand"])
+        self.assertEqual(
+            sum("embellishment=" in line for line in gear_lines.values()), 2
+        )
+
     def test_resolved_snapshot_facade_matches_legacy_profile_golden(self):
         parity, snapshot = self.resolved_snapshot_for_facade()
         legacy = self.websim_payload.build_websim_profile_response(parity["legacyPayload"])

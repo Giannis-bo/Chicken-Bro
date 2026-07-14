@@ -916,6 +916,205 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
         self.assertEqual(snapshot["status"], "verified")
         self.assertEqual(snapshot["constraints"]["slots"]["head"]["socketCount"], 1)
 
+    def test_v2_cross_class_and_dual_wield_samples_keep_socket_facts_exact_variant_only(self):
+        from server import gear_resolver
+
+        def zero_socket_evidence():
+            return {
+                "schemaRevision": gear_socket_authority.SOCKET_FACT_SCHEMA_REVISION,
+                "authorityRevision": gear_socket_authority.CAPABILITY_REVISION,
+                "minimumTotal": 0,
+                "claims": [],
+            }
+
+        def exact_socket_evidence():
+            return {
+                "schemaRevision": gear_socket_authority.SOCKET_FACT_SCHEMA_REVISION,
+                "authorityRevision": gear_socket_authority.CAPABILITY_REVISION,
+                "minimumTotal": 1,
+                "claims": [
+                    {
+                        "minimumTotal": 1,
+                        "scope": "exact_variant",
+                        "source": "observed_gem_occupancy",
+                        "sourceRevision": "cross-class-fixture-v1",
+                    }
+                ],
+            }
+
+        class_samples = (
+            ("mage", "frost", "cloth"),
+            ("rogue", "assassination", "leather"),
+            ("hunter", "beast_mastery", "mail"),
+            ("warrior", "fury", "plate"),
+        )
+        for class_key, spec_key, armor_type in class_samples:
+            with self.subTest(armor_type=armor_type):
+                runtime = self.runtime_authority()
+                runtime["requestedClassSpec"] = f"{class_key}:{spec_key}"
+                runtime["playableClassSpecs"] = {class_key: [spec_key]}
+                runtime["ruleParameters"]["inventoryTypesBySlot"] = {"head": ["head"]}
+                runtime["ruleParameters"]["allowedArmorTypesByClass"] = {
+                    class_key: [armor_type]
+                }
+                runtime["ruleParameters"]["armorRestrictedSlots"] = ["head"]
+                runtime["ruleParameters"]["allowedWeaponTypesByClassSpec"] = {
+                    f"{class_key}:{spec_key}": []
+                }
+                runtime["ruleParameters"]["dualWieldByClassSpec"] = {
+                    f"{class_key}:{spec_key}": False
+                }
+                runtime["ruleParameters"]["weaponModesByClassSpec"] = {
+                    f"{class_key}:{spec_key}": "none"
+                }
+                runtime["ruleParameters"]["requiredSlots"] = ["head"]
+                base_intent = self.intent()
+                base_intent["eligibilityContext"] = {
+                    "classKey": class_key,
+                    "specKey": spec_key,
+                    "level": 90,
+                }
+                base_intent["slots"]["head"]["gemOptionIds"] = []
+                item_payload = {
+                    "inventoryType": "head",
+                    "armorType": armor_type,
+                    "allowedClassKeys": [class_key],
+                    "allowedSpecKeys": [spec_key],
+                    "baseStats": {},
+                    "baseCapabilities": {"socketCount": 0},
+                    "socketEvidence": zero_socket_evidence(),
+                }
+                exact_row = self.item_row(
+                    item={"payload": item_payload},
+                    variant={
+                        "simcOptions": {"ilevel": "289", "gem_id": "240983"},
+                        "payload": {
+                            "resolvedStats": {},
+                            "capabilityOverrides": {"socketCount": 1},
+                            "socketEvidence": exact_socket_evidence(),
+                        },
+                    },
+                )
+                exact_context = self.released_context(
+                    capability_revision=gear_socket_authority.CAPABILITY_REVISION,
+                    item_rows=[exact_row],
+                    intent=base_intent,
+                    runtime=runtime,
+                )
+                exact_snapshot = gear_resolver.resolve(base_intent, exact_context)
+
+                raw_intent = copy.deepcopy(base_intent)
+                raw_intent["slots"]["head"]["variantKey"] = "variant-head-raw-only"
+                raw_row = list(copy.deepcopy(exact_row))
+                raw_row[1] = "variant-head-raw-only"
+                raw_row[3]["id"] = f"variant-{armor_type}-raw-only"
+                raw_row[3]["variantKey"] = "variant-head-raw-only"
+                raw_row[3]["payload"] = {"resolvedStats": {}}
+                raw_context = self.released_context(
+                    capability_revision=gear_socket_authority.CAPABILITY_REVISION,
+                    item_rows=[tuple(raw_row)],
+                    intent=raw_intent,
+                    runtime=runtime,
+                )
+                raw_snapshot = gear_resolver.resolve(raw_intent, raw_context)
+
+                self.assertEqual(exact_snapshot["status"], "verified")
+                self.assertEqual(
+                    exact_snapshot["constraints"]["slots"]["head"]["socketCount"],
+                    1,
+                )
+                self.assertEqual(raw_snapshot["status"], "verified")
+                self.assertEqual(
+                    raw_snapshot["constraints"]["slots"]["head"]["socketCount"],
+                    0,
+                )
+                self.assertNotIn(
+                    "socketCount",
+                    raw_context["variantsByKey"]["variant-head-raw-only"][
+                        "capabilityOverrides"
+                    ],
+                )
+
+        runtime = self.runtime_authority()
+        runtime["ruleParameters"]["inventoryTypesBySlot"] = {
+            "main_hand": ["weapon"],
+            "off_hand": ["weapon"],
+        }
+        runtime["ruleParameters"]["armorRestrictedSlots"] = []
+        runtime["ruleParameters"]["requiredSlots"] = ["main_hand", "off_hand"]
+        weapon_item_payload = {
+            "inventoryType": "weapon",
+            "weaponType": "sword",
+            "handedness": "one_hand",
+            "allowedSlots": ["main_hand", "off_hand"],
+            "allowedClassKeys": ["warrior"],
+            "allowedSpecKeys": ["fury"],
+            "baseStats": {},
+            "baseCapabilities": {"socketCount": 0},
+            "socketEvidence": zero_socket_evidence(),
+        }
+        exact_weapon_row = self.item_row(
+            item={"slot": "main_hand", "payload": weapon_item_payload},
+            variant={
+                "slot": "main_hand",
+                "simcOptions": {"ilevel": "289", "gem_id": "240983"},
+                "payload": {
+                    "resolvedStats": {},
+                    "capabilityOverrides": {"socketCount": 1},
+                    "socketEvidence": exact_socket_evidence(),
+                },
+            },
+        )
+        raw_weapon_row = list(copy.deepcopy(exact_weapon_row))
+        raw_weapon_row[1] = "variant-off-hand-raw-only"
+        raw_weapon_row[3]["id"] = "variant-off-hand-raw-only-row"
+        raw_weapon_row[3]["variantKey"] = "variant-off-hand-raw-only"
+        raw_weapon_row[3]["slot"] = "off_hand"
+        raw_weapon_row[3]["payload"] = {"resolvedStats": {}}
+        weapon_intent = self.intent(
+            {
+                "main_hand": {
+                    "itemId": "item-head",
+                    "variantKey": "variant-head",
+                    "gemOptionIds": [],
+                    "enchantOptionId": "",
+                    "embellishmentOptionId": "",
+                    "craftedOptionId": "",
+                    "catalystOptionId": "",
+                },
+                "off_hand": {
+                    "itemId": "item-head",
+                    "variantKey": "variant-off-hand-raw-only",
+                    "gemOptionIds": [],
+                    "enchantOptionId": "",
+                    "embellishmentOptionId": "",
+                    "craftedOptionId": "",
+                    "catalystOptionId": "",
+                },
+            }
+        )
+        weapon_context = self.released_context(
+            capability_revision=gear_socket_authority.CAPABILITY_REVISION,
+            item_rows=[exact_weapon_row, tuple(raw_weapon_row)],
+            intent=weapon_intent,
+            runtime=runtime,
+        )
+        weapon_snapshot = gear_resolver.resolve(weapon_intent, weapon_context)
+
+        self.assertEqual(
+            weapon_context["itemsById"]["item-head"]["allowedSlots"],
+            ["main_hand", "off_hand"],
+        )
+        self.assertEqual(weapon_snapshot["status"], "verified")
+        self.assertEqual(
+            weapon_snapshot["constraints"]["slots"]["main_hand"]["socketCount"],
+            1,
+        )
+        self.assertEqual(
+            weapon_snapshot["constraints"]["slots"]["off_hand"]["socketCount"],
+            0,
+        )
+
     def test_v1_release_preserves_legacy_projection_during_rollout(self):
         row = self.item_row(
             item={

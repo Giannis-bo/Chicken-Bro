@@ -10954,6 +10954,7 @@ function multiGemEditorHarness({
   enhancementBySlot = {},
   optionIds = ['gem-first', 'gem-second', 'gem-third'],
   optionPayloadById = {},
+  optionGemIdById = {},
   captureResolve = false,
   exposeDetailHelpers = false,
   echoResolvedEnhancements = false
@@ -10981,7 +10982,7 @@ function multiGemEditorHarness({
     displayStatus: 'verified',
     evidenceSource: 'test_authority',
     status: 'verified',
-    simcOptions: { gem_id: String(240901 + index) },
+    simcOptions: { gem_id: optionGemIdById[id] || String(240901 + index) },
     payload: { qualityRank: 2, ...(optionPayloadById[id] || {}) }
   }))
   const selectedNeck = {
@@ -11338,6 +11339,41 @@ test('unique gem replacement excludes the current socket from group counting', (
   assert.deepEqual(JSON.parse(JSON.stringify(page.data.gearEnhancementSheet.draftEnhancementBySlot)), {
     neck: { gemOptionIds: ['primary-second'] }
   })
+})
+
+test('gem ids without backend unique metadata do not acquire frontend-only limits', async () => {
+  const { pageConfig, page, resolveRequests } = multiGemEditorHarness({
+    socketCount: 2,
+    enhancementBySlot: { neck: { gemOptionIds: ['same-primary', 'same-primary'] } },
+    optionIds: ['same-primary', 'replacement-secondary'],
+    optionGemIdById: {
+      'same-primary': '240983',
+      'replacement-secondary': '240900'
+    },
+    captureResolve: true,
+    echoResolvedEnhancements: true
+  })
+  pageConfig.openGearEnhancementSheet.call(page)
+
+  assert.equal(page.data.gearEnhancementSheet.blockers.length, 0)
+  assert.equal(
+    page.data.gearEnhancementSheet.activeGemRows[0].options.find(
+      (option) => option.id === 'replacement-secondary'
+    ).disabled,
+    false
+  )
+  pageConfig.selectGearEnhancementOption.call(page, {
+    currentTarget: {
+      dataset: { slot: 'neck', type: 'gem', id: 'replacement-secondary', socketIndex: 0 }
+    }
+  })
+  await pageConfig.confirmGearEnhancementSheet.call(page)
+
+  assert.equal(resolveRequests.length, 1)
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(resolveRequests[0].slots.neck.gemOptionIds)),
+    ['replacement-secondary', 'same-primary']
+  )
 })
 
 test('gem option capacity overflow blocks confirmation without truncating identities', () => {
@@ -12465,6 +12501,408 @@ test('specialization change clears bound community enhancement evidence', () => 
 
   assert.deepEqual(JSON.parse(JSON.stringify(page.communityEnhancementImportState)), {
     templateId: '', serial: 0, resolvedGearSignature: '', unresolvedBySlot: {}, warnings: []
+  })
+})
+
+function mageFrostEnhancementFixture() {
+  return JSON.parse(fs.readFileSync(
+    'tests/fixtures/midnight-mage-frost-socket-evidence-v1.json',
+    'utf8'
+  ))
+}
+
+function mageFrostCanonicalEnhancementBySlot(fixture = mageFrostEnhancementFixture()) {
+  return Object.fromEntries(Object.entries(fixture.referenceContract.canonicalEnhancementBySlot).map(([slot, raw]) => {
+    const record = {}
+    if (Array.isArray(raw.gemIds) && raw.gemIds.length) {
+      record.gemOptionIds = raw.gemIds.map((gemId) => `gem-${gemId}`)
+    }
+    if (raw.enchantId) record.enchantOptionId = `enchant-${slot}-${raw.enchantId}`
+    if (raw.embellishment) record.embellishmentOptionId = `embellishment-${raw.embellishment}`
+    return [slot, record]
+  }))
+}
+
+function mageFrostIntentEnhancements(selectionIntent) {
+  return Object.fromEntries(Object.entries((selectionIntent && selectionIntent.slots) || {}).flatMap(([slot, selected]) => {
+    const record = {}
+    if (Array.isArray(selected.gemOptionIds) && selected.gemOptionIds.length) {
+      record.gemOptionIds = [...selected.gemOptionIds]
+    }
+    if (selected.enchantOptionId) record.enchantOptionId = selected.enchantOptionId
+    if (selected.embellishmentOptionId) record.embellishmentOptionId = selected.embellishmentOptionId
+    return Object.keys(record).length ? [[slot, record]] : []
+  }))
+}
+
+function mageFrostCommunityEnhancementHarness() {
+  const fixture = mageFrostEnhancementFixture()
+  const reference = fixture.referenceContract
+  const expectedBySlot = Object.fromEntries(fixture.expectedInstances.map((instance) => [instance.slot, instance]))
+  const itemBySlot = Object.fromEntries(
+    fixture.snapshot.items
+      .filter((item) => reference.requiredSlots.includes(item.slot) && item.itemId !== 'different-ring-one')
+      .map((item) => [item.slot, item])
+  )
+  const variantByItem = Object.fromEntries(
+    fixture.snapshot.variants.map((variant) => [variant.itemId, variant])
+  )
+  const armorSlots = new Set(['head', 'shoulder', 'chest', 'wrist', 'hands', 'waist', 'legs', 'feet'])
+  const replacement = reference.replacementValues
+  const option = (optionKey, type, value, label, payload = {}) => ({
+    id: `row-${optionKey}`,
+    optionKey,
+    displayLabel: label || optionKey,
+    displayStatus: 'verified',
+    evidenceSource: 'midnight_mage_frost_fixture',
+    status: 'verified',
+    simcOptions: { [type]: value },
+    payload: { qualityRank: 2, ...payload }
+  })
+  const selectedGearBySlot = {}
+  const templateGearItems = []
+  const constraintsBySlot = {}
+  const replacementCandidates = reference.requiredSlots.map((slot) => {
+    const expected = expectedBySlot[slot]
+    const sourceItem = expected
+      ? fixture.snapshot.items.find((item) => item.itemId === expected.itemId)
+      : itemBySlot[slot]
+    const variant = expected
+      ? fixture.snapshot.variants.find((row) => row.variantKey === expected.variantKey)
+      : variantByItem[sourceItem.itemId]
+    const canonical = reference.canonicalEnhancementBySlot[slot] || {}
+    const source = reference.sourceEnhancementBySlot[slot] || {}
+    const socketCount = expected ? expected.socketCount : 0
+    const canEnchant = reference.enchantEligibleSlots.includes(slot)
+    const canEmbellish = reference.embellishmentEligibleSlots.includes(slot)
+    const item = {
+      slot,
+      simcSlot: slot,
+      itemId: sourceItem.itemId,
+      id: sourceItem.itemId,
+      variantKey: variant.variantKey,
+      displayName: sourceItem.name,
+      ilevel: Number(variant.simcOptions.ilevel || 0),
+      bonus_id: variant.simcOptions.bonus_id,
+      armorType: armorSlots.has(slot) ? 'Cloth' : '',
+      weaponType: slot === 'main_hand' ? 'Staff' : '',
+      sourceType: 'observed_profile',
+      source: 'Raider.IO observed profile',
+      simcReady: true,
+      modCapabilities: {
+        hasSocket: socketCount > 0,
+        socketCount,
+        canEnchant,
+        canEmbellish
+      }
+    }
+    selectedGearBySlot[slot] = item
+    templateGearItems.push({
+      ...item,
+      ...(source.gemIds && source.gemIds.length ? { gem_id: source.gemIds.join('/') } : {}),
+      ...(source.enchantIds && source.enchantIds.length ? { enchant_id: source.enchantIds.join('/') } : {}),
+      ...(source.embellishment ? { embellishment: source.embellishment } : {})
+    })
+    constraintsBySlot[slot] = { socketCount, canEnchant, canEmbellish }
+    const socketValues = [...new Set([...(canonical.gemIds || []), replacement.gemId])]
+    const enchantValues = canEnchant
+      ? [...new Set([
+        canonical.enchantId,
+        slot === replacement.enchantSlot ? replacement.enchantId : ''
+      ].filter(Boolean))]
+      : []
+    const embellishmentValues = canEmbellish
+      ? [...new Set([canonical.embellishment, replacement.embellishment].filter(Boolean))]
+      : []
+    return {
+      slot,
+      simcSlot: slot,
+      label: slot,
+      detailMode: 'complete',
+      items: [item],
+      socketOptions: socketCount > 0
+        ? socketValues.map((gemId) => option(
+          `gem-${gemId}`,
+          'gem_id',
+          gemId,
+          `精工晶石 ${gemId}`,
+          reference.uniqueGemRules[gemId] || {}
+        ))
+        : [],
+      enchantOptions: enchantValues.map((enchantId) => option(
+        `enchant-${slot}-${enchantId}`,
+        'enchant_id',
+        enchantId,
+        `苍穹之诵 ${slot} ${enchantId}`
+      )),
+      embellishmentOptions: embellishmentValues.map((embellishment) => option(
+        `embellishment-${embellishment}`,
+        'embellishment',
+        embellishment,
+        `奥纹工艺 ${embellishment}`
+      ))
+    }
+  })
+  const gearPayload = {
+    classKey: 'mage',
+    specKey: 'frost',
+    maxLevel: 90,
+    gearPayloadMode: 'complete',
+    gearSchemaRevision: 'websim-gear-simulator-v1',
+    slots: reference.requiredSlots.map((slot) => ({ slot, simcSlot: slot, label: slot })),
+    equippedSet: {},
+    replacementCandidates,
+    readiness: { fullReady: true, requiredReadyCount: 15, missingRequiredSlots: [] },
+    slotReadiness: {},
+    resolverContext: canonicalTestResolverContext()
+  }
+  const template = {
+    id: reference.templateId,
+    displayName: 'Observed Frost Mage',
+    name: 'Observed Frost Mage',
+    classKey: 'mage',
+    specKey: 'frost',
+    sourceKey: reference.sourceKey,
+    canApplyGear: true,
+    gearItems: templateGearItems
+  }
+  const resolveRequests = []
+  const savedTemplates = []
+  const pageConfig = loadBuildsDetailPageConfig({
+    storedTemplates: savedTemplates,
+    savedTemplates,
+    requestWebsimGearResolve(selectionIntent) {
+      resolveRequests.push(JSON.parse(JSON.stringify(selectionIntent)))
+      return canonicalEnhancementResolveTransport(
+        selectionIntent,
+        `sha256:mage-frost-${resolveRequests.length}`,
+        constraintsBySlot,
+        reference.expectedTotals.embellishmentsMax
+      )
+    }
+  })
+  const page = {
+    ...pageConfig,
+    gearPayloadCache: gearPayload,
+    data: {
+      ...pageConfig.data,
+      selectedDetail: {
+        id: 'mage-frost', className: '法师', specName: '冰霜',
+        details: { talents: { coreTalents: [], importCode: '' }, gear: {} }
+      },
+      activeDetail: { sourceName: 'Raider.IO' },
+      activeQuery: { key: 'gear', title: '装备模拟' },
+      activeQueryKey: 'gear',
+      selectedSpec: {
+        id: 'mage-frost', className: '法师', specName: '冰霜', title: '冰霜',
+        websimClassKey: 'mage', websimSpecKey: 'frost'
+      },
+      gearSelectionKey: 'mage:frost',
+      gearDataFallback: false,
+      gearPayload,
+      selectedGearBySlot: {},
+      enhancementBySlot: {},
+      activeGearCommunityTemplates: [template],
+      gearCommunityTemplateSheet: { visible: true },
+      gearSlotSheet: { visible: false },
+      gearEnhancementSheet: { visible: false },
+      selectedGearTemplateScenarioIndex: 0
+    },
+    setData(update) { this.data = { ...this.data, ...update } }
+  }
+  return {
+    fixture,
+    reference,
+    pageConfig,
+    page,
+    template,
+    resolveRequests,
+    savedTemplates,
+    selectedGearBySlot
+  }
+}
+
+async function importMageFrostCommunityEnhancements(harness) {
+  await harness.pageConfig.applyGearCommunityTemplate.call(harness.page, {
+    currentTarget: { dataset: { id: harness.template.id } }
+  })
+  return harness
+}
+
+function mageFrostEnhancementMetrics(page) {
+  return Object.fromEntries(page.data.gearAttributePanel.enhancementRows.map((row) => [row.key, row.value]))
+}
+
+test('mage frost observed community template imports editable 8 of 8 gems 6 of 8 enchants and 2 of 2 embellishments', async () => {
+  const harness = await importMageFrostCommunityEnhancements(mageFrostCommunityEnhancementHarness())
+  const { fixture, reference, pageConfig, page, template } = harness
+
+  assert.equal(template.id, 'observed_profile_mage_frost')
+  assert.equal(template.sourceKey, 'raiderio_observed_profile')
+  const variantsBySlot = Object.fromEntries(
+    fixture.snapshot.variants
+      .filter((variant) => variant.itemId !== 'different-ring-one')
+      .map((variant) => [variant.slot, variant])
+  )
+  for (const slot of reference.requiredSlots) {
+    const selected = page.data.selectedGearBySlot[slot]
+    const variant = variantsBySlot[slot]
+    assert.equal(selected.itemId, variant.itemId)
+    assert.equal(selected.ilevel, Number(variant.simcOptions.ilevel))
+    assert.equal(selected.bonus_id, variant.simcOptions.bonus_id)
+  }
+  assert.equal(
+    fixture.expectedInstances.flatMap((instance) => instance.gemIds).filter((gemId) => gemId === '240983').length,
+    1
+  )
+  assert.deepEqual(mageFrostEnhancementMetrics(page), {
+    embellishment: '2/2',
+    gem: '8/8',
+    enchant: '6/8',
+    tierSet: '0'
+  })
+  pageConfig.openGearEnhancementSheet.call(page)
+  assert.equal(Object.keys(page.data.selectedGearBySlot).length, reference.expectedTotals.gearReady)
+  assert.equal(page.data.gearEnhancementSheet.equipmentRows.length, 11)
+  assert.equal(page.data.gearEnhancementSheet.blockers.length, 0)
+  for (const instance of fixture.expectedInstances) {
+    await pageConfig.selectGearEnhancementSlot.call(page, {
+      currentTarget: { dataset: { slot: instance.slot } }
+    })
+    assert.equal(page.data.gearEnhancementSheet.activeGemRows.length, instance.socketCount)
+    page.data.gearEnhancementSheet.activeGemRows.forEach((row, socketIndex) => {
+      assert.equal(row.selectedOptionId, `gem-${instance.gemIds[socketIndex]}`)
+      assert.equal(row.options.find((choice) => choice.selected).disabled, false)
+      assert.equal(row.options.find((choice) => choice.id === `gem-${reference.replacementValues.gemId}`).disabled, false)
+      if (instance.gemIds[socketIndex] === '240983') {
+        assert.equal(row.options.find((choice) => choice.selected).uniqueGroup, 'primary_stat_gem')
+        assert.equal(row.options.find((choice) => choice.selected).uniqueLimit, 1)
+      }
+      if (instance.slot === 'finger1' && socketIndex === 0) {
+        assert.equal(row.options.find((choice) => choice.id === 'gem-240983').disabled, true)
+      }
+    })
+  }
+  for (const slot of Object.keys(reference.canonicalEnhancementBySlot).filter((slot) => (
+    reference.canonicalEnhancementBySlot[slot].enchantId
+  ))) {
+    await pageConfig.selectGearEnhancementSlot.call(page, { currentTarget: { dataset: { slot } } })
+    const row = page.data.gearEnhancementSheet.activeEnchantRows[0]
+    assert.equal(row.options.find((choice) => choice.selected).disabled, false)
+    if (slot === reference.replacementValues.enchantSlot) {
+      assert.equal(row.options.find(
+        (choice) => choice.id === `enchant-${slot}-${reference.replacementValues.enchantId}`
+      ).disabled, false)
+    }
+  }
+  for (const slot of ['back', 'wrist']) {
+    await pageConfig.selectGearEnhancementSlot.call(page, { currentTarget: { dataset: { slot } } })
+    const row = page.data.gearEnhancementSheet.activeEmbellishmentRows[0]
+    assert.equal(row.options.find((choice) => choice.selected).disabled, false)
+    assert.equal(row.options.find((choice) => choice.id === `embellishment-${reference.replacementValues.embellishment}`).disabled, false)
+  }
+  await pageConfig.selectGearEnhancementSlot.call(page, { currentTarget: { dataset: { slot: 'waist' } } })
+  assert.equal(
+    page.data.gearEnhancementSheet.activeEmbellishmentRows[0].options.find(
+      (choice) => choice.id === `embellishment-${reference.replacementValues.embellishment}`
+    ).disabled,
+    true
+  )
+})
+
+test('mage frost imported enhancements remain identical across panel sheet Resolve and Profile intent', async () => {
+  const harness = await importMageFrostCommunityEnhancements(mageFrostCommunityEnhancementHarness())
+  const { pageConfig, page, resolveRequests } = harness
+  const expected = mageFrostCanonicalEnhancementBySlot()
+  pageConfig.openGearEnhancementSheet.call(page)
+  const profileIntent = pageConfig.buildSimcContext.call(page).simulatorState.gear.selectionIntent
+
+  assert.deepEqual(JSON.parse(JSON.stringify(page.data.enhancementBySlot)), expected)
+  for (const slot of ['head', 'shoulder', 'waist', 'main_hand']) {
+    assert.equal(page.data.enhancementBySlot[slot] && page.data.enhancementBySlot[slot].enchantOptionId, undefined)
+  }
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(page.data.gearEnhancementSheet.draftEnhancementBySlot)),
+    expected
+  )
+  assert.deepEqual(mageFrostIntentEnhancements(resolveRequests[0]), expected)
+  assert.deepEqual(mageFrostIntentEnhancements(profileIntent), expected)
+  assert.deepEqual(mageFrostEnhancementMetrics(page), {
+    embellishment: '2/2', gem: '8/8', enchant: '6/8', tierSet: '0'
+  })
+  assert.doesNotMatch(
+    JSON.stringify(profileIntent),
+    /"(?:gem_id|enchant_id|embellishment)"\s*:/
+  )
+})
+
+test('mage frost full-cap edits remain editable after close reopen and save reapply', async () => {
+  const harness = await importMageFrostCommunityEnhancements(mageFrostCommunityEnhancementHarness())
+  const { reference, pageConfig, page, resolveRequests, savedTemplates } = harness
+  pageConfig.openGearEnhancementSheet.call(page)
+  pageConfig.selectGearEnhancementOption.call(page, {
+    currentTarget: {
+      dataset: { slot: 'head', type: 'gem', id: `gem-${reference.replacementValues.gemId}`, socketIndex: 0 }
+    }
+  })
+  pageConfig.selectGearEnhancementOption.call(page, {
+    currentTarget: {
+      dataset: {
+        slot: reference.replacementValues.enchantSlot,
+        type: 'enchant',
+        id: `enchant-${reference.replacementValues.enchantSlot}-${reference.replacementValues.enchantId}`
+      }
+    }
+  })
+  pageConfig.selectGearEnhancementOption.call(page, {
+    currentTarget: {
+      dataset: { slot: 'back', type: 'embellishment', id: `embellishment-${reference.replacementValues.embellishment}` }
+    }
+  })
+  assert.deepEqual(
+    page.data.gearEnhancementSheet.draftEnhancementBySlot.head.gemOptionIds,
+    [`gem-${reference.replacementValues.gemId}`]
+  )
+  assert.equal(
+    page.data.gearEnhancementSheet.draftEnhancementBySlot[reference.replacementValues.enchantSlot].enchantOptionId,
+    `enchant-${reference.replacementValues.enchantSlot}-${reference.replacementValues.enchantId}`
+  )
+  assert.equal(
+    page.data.gearEnhancementSheet.draftEnhancementBySlot.back.embellishmentOptionId,
+    `embellishment-${reference.replacementValues.embellishment}`
+  )
+  assert.equal(page.data.gearEnhancementSheet.blockers.length, 0)
+  await pageConfig.confirmGearEnhancementSheet.call(page)
+
+  assert.equal(resolveRequests.length, 2)
+  assert.deepEqual(mageFrostEnhancementMetrics(page), {
+    embellishment: '2/2', gem: '8/8', enchant: '6/8', tierSet: '0'
+  })
+  pageConfig.openGearEnhancementSheet.call(page)
+  await pageConfig.selectGearEnhancementSlot.call(page, { currentTarget: { dataset: { slot: 'head' } } })
+  assert.equal(page.data.gearEnhancementSheet.activeGemRows[0].selectedOptionId, `gem-${reference.replacementValues.gemId}`)
+  assert.equal(page.data.gearEnhancementSheet.activeGemRows[0].options.find((choice) => choice.selected).disabled, false)
+  await pageConfig.selectGearEnhancementSlot.call(page, { currentTarget: { dataset: { slot: 'back' } } })
+  assert.equal(page.data.gearEnhancementSheet.activeEmbellishmentRows[0].options.find((choice) => choice.selected).disabled, false)
+  await pageConfig.selectGearEnhancementSlot.call(page, {
+    currentTarget: { dataset: { slot: reference.replacementValues.enchantSlot } }
+  })
+  assert.equal(page.data.gearEnhancementSheet.activeEnchantRows[0].options.find((choice) => choice.selected).disabled, false)
+  pageConfig.closeGearEnhancementSheet.call(page)
+
+  await confirmGearTemplateSave(pageConfig, page, 'Mage Frost 8-6-2')
+  assert.equal(savedTemplates.length, 1)
+  pageConfig.openGearCommunityTemplates.call(page)
+  pageConfig.applySavedGearTemplate.call(page, {
+    currentTarget: { dataset: { id: savedTemplates[0].id } }
+  })
+  pageConfig.openGearEnhancementSheet.call(page)
+  await pageConfig.selectGearEnhancementSlot.call(page, { currentTarget: { dataset: { slot: 'head' } } })
+
+  assert.equal(page.data.gearEnhancementSheet.activeGemRows[0].selectedOptionId, `gem-${reference.replacementValues.gemId}`)
+  assert.equal(page.data.gearEnhancementSheet.activeGemRows[0].options.find((choice) => choice.selected).disabled, false)
+  assert.deepEqual(mageFrostEnhancementMetrics(page), {
+    embellishment: '2/2', gem: '8/8', enchant: '6/8', tierSet: '0'
   })
 })
 

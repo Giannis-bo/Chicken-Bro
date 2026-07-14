@@ -175,6 +175,109 @@ test('gear selection intent preserves ordered duplicate gem option ids', () => {
   )
 })
 
+test('mage frost workbench keeps eight ordered canonical gem occurrences through confirmed and verified state', () => {
+  const fixture = JSON.parse(fs.readFileSync(
+    'tests/fixtures/midnight-mage-frost-socket-evidence-v1.json',
+    'utf8'
+  ))
+  const reference = fixture.referenceContract
+  const expectedBySlot = Object.fromEntries(fixture.expectedInstances.map((instance) => [instance.slot, instance]))
+  const itemBySlot = Object.fromEntries(
+    fixture.snapshot.items
+      .filter((item) => reference.requiredSlots.includes(item.slot) && item.itemId !== 'different-ring-one')
+      .map((item) => [item.slot, item])
+  )
+  const variantByItem = Object.fromEntries(
+    fixture.snapshot.variants.map((variant) => [variant.itemId, variant])
+  )
+  const selectedGearBySlot = {}
+  const enhancementBySlot = {}
+  reference.requiredSlots.forEach((slot) => {
+    const expected = expectedBySlot[slot]
+    const item = expected ? fixture.snapshot.items.find((row) => row.itemId === expected.itemId) : itemBySlot[slot]
+    const variant = expected
+      ? fixture.snapshot.variants.find((row) => row.variantKey === expected.variantKey)
+      : variantByItem[item.itemId]
+    selectedGearBySlot[slot] = {
+      slot,
+      itemId: item.itemId,
+      variantKey: variant.variantKey
+    }
+    const canonical = reference.canonicalEnhancementBySlot[slot] || {}
+    const enhancements = {}
+    if (Array.isArray(canonical.gemIds) && canonical.gemIds.length) {
+      enhancements.gemOptionIds = canonical.gemIds.map((gemId) => `gem-${gemId}`)
+    }
+    if (canonical.enchantId) enhancements.enchantOptionId = `enchant-${slot}-${canonical.enchantId}`
+    if (canonical.embellishment) enhancements.embellishmentOptionId = `embellishment-${canonical.embellishment}`
+    if (Object.keys(enhancements).length) enhancementBySlot[slot] = enhancements
+  })
+  const resolverContext = {
+    contractRevision: 'gear-resolver-context-v1',
+    selectionSchemaRevision: 'selection-intent-v1',
+    authoredAgainst: {
+      seasonRevision: 'season-17-active',
+      gearCatalogRevision: 'gear-release-17'
+    }
+  }
+  const selectionIntent = serializeGearSelectionIntent({
+    resolverContext,
+    eligibilityContext: { classKey: 'mage', specKey: 'frost', level: 90 },
+    selectedGearBySlot,
+    enhancementBySlot
+  })
+  const created = workbench.createGearWorkbenchState(resolverContext, selectionIntent)
+  const pending = workbench.beginGearResolve(created)
+  const resolvedSlots = Object.fromEntries(Object.entries(selectionIntent.slots).map(([slot, selected]) => [slot, {
+    itemLevel: Number(variantByItem[selected.itemId].simcOptions.ilevel),
+    selectedOptions: {
+      gemOptionIds: [...selected.gemOptionIds],
+      enchantOptionId: selected.enchantOptionId,
+      embellishmentOptionId: selected.embellishmentOptionId
+    }
+  }]))
+  const verifiedSnapshot = {
+    ...snapshot('sha256:mage-frost-8-6-2'),
+    constraints: {
+      embellishmentMax: 2,
+      slots: Object.fromEntries(fixture.expectedInstances.map((instance) => [instance.slot, {
+        socketCount: instance.socketCount
+      }]))
+    },
+    resolvedSlots,
+    profileReadiness: {
+      status: 'verified',
+      simcReady: true,
+      requiredSlots: [...reference.requiredSlots],
+      readySlots: [...reference.requiredSlots]
+    }
+  }
+  const verified = workbench.applyGearResolveResult(
+    pending.state,
+    pending.request,
+    transport(envelope('resolved', verifiedSnapshot))
+  )
+  const flattened = fixture.expectedInstances.flatMap((instance) => (
+    verified.confirmedIntent.slots[instance.slot].gemOptionIds
+  ))
+
+  assert.equal(verified.resolveStatus, 'verified')
+  assert.deepEqual(flattened, fixture.expectedInstances.flatMap((instance) => (
+    instance.gemIds.map((gemId) => `gem-${gemId}`)
+  )))
+  assert.deepEqual(
+    verified.currentSnapshot.resolvedSlots.neck.selectedOptions.gemOptionIds,
+    ['gem-240892', 'gem-240900']
+  )
+  assert.deepEqual(
+    verified.currentSnapshot.resolvedSlots.finger1.selectedOptions.gemOptionIds,
+    ['gem-240892', 'gem-240983']
+  )
+  assert.equal(Object.values(verified.confirmedIntent.slots).filter((slot) => slot.enchantOptionId).length, 6)
+  assert.equal(Object.values(verified.confirmedIntent.slots).filter((slot) => slot.embellishmentOptionId).length, 2)
+  assert.equal(flattened.filter((optionId) => optionId === 'gem-240983').length, 1)
+})
+
 test('Selection Intent serializer fails closed when resolver context is incomplete', () => {
   assert.equal(serializeGearSelectionIntent({
     resolverContext: {
