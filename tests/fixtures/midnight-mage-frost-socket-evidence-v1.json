@@ -1,0 +1,194 @@
+{
+  "schemaRevision": "midnight-mage-frost-socket-evidence-v1",
+  "seasonRevision": "midnight-season-1",
+  "socketBonusMinimums": {
+    "9300": 2
+  },
+  "expectedInstances": [
+    {
+      "slot": "head",
+      "itemId": "mage-frost-head",
+      "variantKey": "mage-frost-head-observed"
+    },
+    {
+      "slot": "neck",
+      "itemId": "mage-frost-neck-two",
+      "variantKey": "mage-frost-neck-two-observed"
+    },
+    {
+      "slot": "wrist",
+      "itemId": "mage-frost-wrist",
+      "variantKey": "mage-frost-wrist-observed"
+    },
+    {
+      "slot": "waist",
+      "itemId": "mage-frost-waist",
+      "variantKey": "mage-frost-waist-observed"
+    },
+    {
+      "slot": "finger1",
+      "itemId": "mage-frost-ring-two",
+      "variantKey": "mage-frost-ring-two-observed"
+    },
+    {
+      "slot": "finger2",
+      "itemId": "mage-frost-ring-one",
+      "variantKey": "mage-frost-ring-one-observed"
+    }
+  ],
+  "differentRingVariantKey": "different-ring-one-observed",
+  "snapshot": {
+    "items": [
+      {
+        "itemId": "mage-frost-head",
+        "name": "Observed Frost Mage Helm",
+        "slot": "head",
+        "isPvp": false,
+        "payload": {
+          "preview_item": {
+            "sockets": []
+          }
+        }
+      },
+      {
+        "itemId": "mage-frost-neck-two",
+        "name": "Observed Frost Mage Two Socket Neck",
+        "slot": "neck",
+        "payload": {
+          "preview_item": {
+            "sockets": [
+              {
+                "socket_type": {
+                  "type": "PRISMATIC"
+                }
+              },
+              {
+                "socket_type": {
+                  "type": "PRISMATIC"
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "itemId": "mage-frost-wrist",
+        "name": "Observed Frost Mage Bracers",
+        "slot": "wrist",
+        "isPvp": false,
+        "payload": {
+          "preview_item": {
+            "sockets": []
+          }
+        }
+      },
+      {
+        "itemId": "mage-frost-waist",
+        "name": "Observed Frost Mage Belt",
+        "slot": "waist",
+        "isPvp": false,
+        "payload": {
+          "preview_item": {
+            "sockets": []
+          }
+        }
+      },
+      {
+        "itemId": "mage-frost-ring-two",
+        "name": "Observed Frost Mage Two Socket Ring",
+        "slot": "finger1",
+        "payload": {
+          "preview_item": {
+            "sockets": []
+          }
+        }
+      },
+      {
+        "itemId": "mage-frost-ring-one",
+        "name": "Observed Frost Mage One Socket Ring",
+        "slot": "finger2",
+        "payload": {
+          "preview_item": {
+            "sockets": []
+          }
+        }
+      },
+      {
+        "itemId": "different-ring-one",
+        "name": "Different Midnight One Socket Ring",
+        "slot": "finger1",
+        "payload": {
+          "preview_item": {
+            "sockets": []
+          }
+        }
+      }
+    ],
+    "variants": [
+      {
+        "variantId": "mage-frost-head-observed-id",
+        "itemId": "mage-frost-head",
+        "variantKey": "mage-frost-head-observed",
+        "slot": "head",
+        "simcOptions": {
+          "gem_id": "240983"
+        }
+      },
+      {
+        "variantId": "mage-frost-neck-two-observed-id",
+        "itemId": "mage-frost-neck-two",
+        "variantKey": "mage-frost-neck-two-observed",
+        "slot": "neck",
+        "simcOptions": {
+          "gem_id": "240983/240892"
+        }
+      },
+      {
+        "variantId": "mage-frost-wrist-observed-id",
+        "itemId": "mage-frost-wrist",
+        "variantKey": "mage-frost-wrist-observed",
+        "slot": "wrist",
+        "simcOptions": {
+          "gem_id": "240892"
+        }
+      },
+      {
+        "variantId": "mage-frost-waist-observed-id",
+        "itemId": "mage-frost-waist",
+        "variantKey": "mage-frost-waist-observed",
+        "slot": "waist",
+        "simcOptions": {
+          "gem_id": "240916"
+        }
+      },
+      {
+        "variantId": "mage-frost-ring-two-observed-id",
+        "itemId": "mage-frost-ring-two",
+        "variantKey": "mage-frost-ring-two-observed",
+        "slot": "finger1",
+        "simcOptions": {
+          "bonus_id": "9300",
+          "gem_id": "240983/240892"
+        }
+      },
+      {
+        "variantId": "mage-frost-ring-one-observed-id",
+        "itemId": "mage-frost-ring-one",
+        "variantKey": "mage-frost-ring-one-observed",
+        "slot": "finger2",
+        "simcOptions": {
+          "gem_id": "240916"
+        }
+      },
+      {
+        "variantId": "different-ring-one-observed-id",
+        "itemId": "different-ring-one",
+        "variantKey": "different-ring-one-observed",
+        "slot": "finger1",
+        "simcOptions": {}
+      }
+    ],
+    "sources": [],
+    "options": []
+  }
+}

@@ -1,0 +1,386 @@
+"""Pure, release-time socket capacity fact derivation.
+
+Every evidence source contributes a proven lower bound for total socket capacity.
+Compatible claims are merged with ``max`` and are never added together.
+"""
+
+from __future__ import annotations
+
+import copy
+import re
+from typing import Any, Mapping
+
+
+LEGACY_CAPABILITY_REVISION = "gear-capability-matrix-v1"
+CAPABILITY_REVISION = "gear-capability-matrix-v2"
+SUPPORTED_CAPABILITY_REVISIONS = (LEGACY_CAPABILITY_REVISION, CAPABILITY_REVISION)
+SOCKET_FACT_SCHEMA_REVISION = "gear-socket-fact-v1"
+
+__all__ = (
+    "LEGACY_CAPABILITY_REVISION",
+    "CAPABILITY_REVISION",
+    "SUPPORTED_CAPABILITY_REVISIONS",
+    "SOCKET_FACT_SCHEMA_REVISION",
+    "count_payload_socket_entries",
+    "parse_simc_socket_bonus_minimums",
+    "derive_item_socket_fact",
+    "derive_variant_socket_fact",
+    "materialize_gear_socket_facts",
+)
+
+
+_MIDNIGHT_SEASON_ONE_REVISIONS = frozenset(
+    {
+        "midnight-1",
+        "midnight-1-r1",
+        "midnight-season-1",
+        "retail-12.0-s1-active",
+        "season-mn-1",
+    }
+)
+_MIDNIGHT_JEWELRY_SLOTS = frozenset({"neck", "finger", "finger1", "finger2"})
+_RADIANT_JEWELBINDER_SLOTS = frozenset({"head", "wrist", "waist"})
+_SOCKET_PAYLOAD_KEYS = frozenset({"socket", "sockets", "gemsockets"})
+
+
+def _text(value: Any) -> str:
+    return str(value or "").strip()
+
+
+def _minimum_total(value: Any) -> int:
+    if isinstance(value, bool):
+        return 0
+    try:
+        total = int(value)
+    except (TypeError, ValueError, OverflowError):
+        return 0
+    return total if total > 0 else 0
+
+
+def _normalized_key(value: Any) -> str:
+    return re.sub(r"[\s_-]+", "", _text(value).lower())
+
+
+def _normalized_slot(value: Any) -> str:
+    slot = re.sub(r"[\s-]+", "_", _text(value).lower())
+    aliases = {
+        "belt": "waist",
+        "bracer": "wrist",
+        "bracers": "wrist",
+        "helm": "head",
+        "helmet": "head",
+        "ring": "finger",
+        "ring1": "finger1",
+        "ring2": "finger2",
+    }
+    return aliases.get(slot, slot)
+
+
+def _row_slot(row: Mapping[str, Any]) -> str:
+    return _normalized_slot(
+        row.get("slot")
+        or row.get("simcSlot")
+        or row.get("slotKey")
+        or row.get("equipmentSlot")
+    )
+
+
+def _claim(
+    *,
+    minimum_total: Any,
+    scope: str,
+    source: str,
+    source_revision: Any,
+) -> dict[str, Any] | None:
+    total = _minimum_total(minimum_total)
+    if not total:
+        return None
+    return {
+        "minimumTotal": total,
+        "scope": scope,
+        "source": source,
+        "sourceRevision": _text(source_revision),
+    }
+
+
+def _socket_fact(claims: list[dict[str, Any]]) -> dict[str, Any]:
+    valid_claims = [claim for claim in claims if _minimum_total(claim.get("minimumTotal"))]
+    return {
+        "schemaRevision": SOCKET_FACT_SCHEMA_REVISION,
+        "authorityRevision": CAPABILITY_REVISION,
+        "minimumTotal": max(
+            (_minimum_total(claim.get("minimumTotal")) for claim in valid_claims),
+            default=0,
+        ),
+        "claims": valid_claims,
+    }
+
+
+def _source_revision(row: Mapping[str, Any], fallback: str) -> str:
+    payload = row.get("payload") if isinstance(row.get("payload"), dict) else {}
+    return _text(
+        row.get("sourceRevision")
+        or row.get("payloadRevision")
+        or payload.get("sourceRevision")
+        or row.get("updatedAt")
+        or fallback
+    )
+
+
+def _explicitly_non_pvp(item: Mapping[str, Any]) -> bool:
+    payload = item.get("payload") if isinstance(item.get("payload"), dict) else {}
+    flags: list[Any] = []
+    for parent in (item, payload):
+        for key in ("isPvp", "isPvP", "pvp"):
+            if key in parent:
+                flags.append(parent.get(key))
+    return bool(flags) and all(flag is False for flag in flags)
+
+
+def _id_tokens(value: Any) -> list[str]:
+    if isinstance(value, str):
+        candidates = [token.strip() for token in value.split("/")]
+    elif isinstance(value, (list, tuple)):
+        candidates = [_text(token) for token in value]
+    else:
+        candidates = []
+    return [str(int(token)) for token in candidates if token.isdigit() and int(token) > 0]
+
+
+def count_payload_socket_entries(payload: Any) -> int:
+    """Return the strongest explicit socket-array count in a JSON-like payload."""
+
+    counts: list[int] = []
+    seen: set[int] = set()
+
+    def visit(value: Any) -> None:
+        if isinstance(value, (dict, list, tuple)):
+            identity = id(value)
+            if identity in seen:
+                return
+            seen.add(identity)
+        if isinstance(value, dict):
+            for key, child in value.items():
+                if _normalized_key(key) in _SOCKET_PAYLOAD_KEYS:
+                    if isinstance(child, (list, tuple)):
+                        counts.append(len(child))
+                    elif isinstance(child, dict) and child:
+                        counts.append(1)
+                visit(child)
+        elif isinstance(value, (list, tuple)):
+            for child in value:
+                visit(child)
+
+    visit(payload)
+    return max(counts, default=0)
+
+
+def parse_simc_socket_bonus_minimums(output: Any) -> dict[str, int]:
+    """Parse socket-producing bonus lines into bonus-id total lower bounds.
+
+    Lines without both a concrete bonus ID and an explicit socket effect are
+    ignored. A socket effect without an explicit count proves a total of one.
+    """
+
+    if not isinstance(output, str):
+        return {}
+    parsed: dict[str, int] = {}
+    for raw_line in output.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        if re.search(
+            r"\b(?:no|not|without|remove(?:d|s|ing)?|disable(?:d|s|ing)?)"
+            r"[\s_-]+(?:an?[\s_-]+)?sockets?\b"
+            r"|\bsockets?[\s_-]+(?:removed|disabled|none)\b",
+            line,
+            flags=re.IGNORECASE,
+        ):
+            continue
+        positive_socket_effect = re.search(
+            r"\beffect\s*[:=]\s*(?:(?:add|adds|added)[\s_-]+)?sockets?\b",
+            line,
+            flags=re.IGNORECASE,
+        ) or re.search(
+            r"(?:^|[:|,;\t-])\s*(?:(?:add|adds|added)[\s_-]+)?sockets?"
+            r"(?=\s*(?:[:=(+]|$))",
+            line,
+            flags=re.IGNORECASE,
+        )
+        if not positive_socket_effect:
+            continue
+        bonus_match = re.search(
+            r"\bbonus[\s_-]*id\s*(?:[:=]|\s)\s*(\d+)\b",
+            line,
+            flags=re.IGNORECASE,
+        )
+        if not bonus_match:
+            bonus_match = re.match(r"^(\d+)\s*(?:[:|,\t-])", line)
+        if not bonus_match:
+            continue
+        minimum_match = re.search(
+            r"\b(?:minimum[\s_-]*total|socket[\s_-]*count)\s*(?:[:=]|\s)\s*(\d+)\b",
+            line,
+            flags=re.IGNORECASE,
+        )
+        if not minimum_match:
+            minimum_match = re.search(r"\b(\d+)\s+sockets?\b", line, flags=re.IGNORECASE)
+        minimum = _minimum_total(minimum_match.group(1) if minimum_match else 1)
+        if not minimum:
+            continue
+        bonus_id = bonus_match.group(1)
+        parsed[bonus_id] = max(parsed.get(bonus_id, 0), minimum)
+    return {bonus_id: parsed[bonus_id] for bonus_id in sorted(parsed, key=int)}
+
+
+def derive_item_socket_fact(
+    item: Any,
+    season_revision: str = "",
+) -> dict[str, Any]:
+    """Derive an exact-item socket fact from explicit item and season evidence."""
+
+    row = item if isinstance(item, dict) else {}
+    claims: list[dict[str, Any]] = []
+    payload = row.get("payload") if isinstance(row.get("payload"), dict) else {}
+    official_total = count_payload_socket_entries(payload)
+    official_claim = _claim(
+        minimum_total=official_total,
+        scope="exact_item",
+        source="official_item_payload",
+        source_revision=_source_revision(row, "official-item-payload"),
+    )
+    if official_claim:
+        claims.append(official_claim)
+
+    revision = _text(season_revision)
+    slot = _row_slot(row)
+    if revision in _MIDNIGHT_SEASON_ONE_REVISIONS and slot in _MIDNIGHT_JEWELRY_SLOTS:
+        claims.append(
+            _claim(
+                minimum_total=1,
+                scope="season_slot",
+                source="midnight_s1_jewelry_floor",
+                source_revision=revision,
+            )
+        )
+    elif (
+        revision in _MIDNIGHT_SEASON_ONE_REVISIONS
+        and slot in _RADIANT_JEWELBINDER_SLOTS
+        and official_total == 0
+        and _explicitly_non_pvp(row)
+    ):
+        claims.append(
+            _claim(
+                minimum_total=1,
+                scope="season_slot",
+                source="midnight_s1_radiant_jewelbinder",
+                source_revision=revision,
+            )
+        )
+    return _socket_fact([claim for claim in claims if claim])
+
+
+def _bonus_minimum(
+    socket_bonus_minimums: Mapping[str, Any],
+    bonus_id: str,
+) -> tuple[int, str]:
+    raw = socket_bonus_minimums.get(bonus_id)
+    if isinstance(raw, dict):
+        return (
+            _minimum_total(raw.get("minimumTotal")),
+            _text(raw.get("sourceRevision") or f"simc-bonus:{bonus_id}"),
+        )
+    return _minimum_total(raw), f"simc-bonus:{bonus_id}"
+
+
+def derive_variant_socket_fact(
+    item: Any,
+    variant: Any,
+    season_revision: str = "",
+    socket_bonus_minimums: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Derive a final exact-variant lower bound without widening its scope."""
+
+    item_row = item if isinstance(item, dict) else {}
+    variant_row = variant if isinstance(variant, dict) else {}
+    claims = list(derive_item_socket_fact(item_row, season_revision).get("claims") or [])
+
+    payload = variant_row.get("payload") if isinstance(variant_row.get("payload"), dict) else {}
+    variant_payload_total = count_payload_socket_entries(payload)
+    payload_claim = _claim(
+        minimum_total=variant_payload_total,
+        scope="exact_variant",
+        source="official_item_payload",
+        source_revision=_source_revision(variant_row, "official-variant-payload"),
+    )
+    if payload_claim:
+        claims.append(payload_claim)
+
+    simc_options = (
+        variant_row.get("simcOptions")
+        if isinstance(variant_row.get("simcOptions"), dict)
+        else {}
+    )
+    known_bonuses = socket_bonus_minimums if isinstance(socket_bonus_minimums, Mapping) else {}
+    for bonus_id in _id_tokens(simc_options.get("bonus_id")):
+        minimum, source_revision = _bonus_minimum(known_bonuses, bonus_id)
+        bonus_claim = _claim(
+            minimum_total=minimum,
+            scope="exact_variant",
+            source="simc_bonus",
+            source_revision=source_revision,
+        )
+        if bonus_claim:
+            claims.append(bonus_claim)
+
+    occupied_gem_total = len(_id_tokens(simc_options.get("gem_id")))
+    gem_claim = _claim(
+        minimum_total=occupied_gem_total,
+        scope="exact_variant",
+        source="observed_gem_occupancy",
+        source_revision=_source_revision(variant_row, "observed-gear-variant"),
+    )
+    if gem_claim:
+        claims.append(gem_claim)
+    return _socket_fact(claims)
+
+
+def materialize_gear_socket_facts(
+    snapshot: Any,
+    season_revision: str = "",
+    socket_bonus_minimums: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Return a copied Gear snapshot with item and exact-variant socket facts."""
+
+    materialized = copy.deepcopy(snapshot) if isinstance(snapshot, dict) else {}
+    items = [row for row in materialized.get("items") or [] if isinstance(row, dict)]
+    variants = [row for row in materialized.get("variants") or [] if isinstance(row, dict)]
+    items_by_id: dict[str, dict[str, Any]] = {}
+
+    for item in items:
+        fact = derive_item_socket_fact(item, season_revision)
+        capabilities = item.get("baseCapabilities")
+        if not isinstance(capabilities, dict):
+            capabilities = {}
+            item["baseCapabilities"] = capabilities
+        capabilities["socketCount"] = fact["minimumTotal"]
+        item["socketEvidence"] = fact
+        item_id = _text(item.get("itemId"))
+        if item_id:
+            items_by_id[item_id] = item
+
+    for variant in variants:
+        item = items_by_id.get(_text(variant.get("itemId")), {})
+        fact = derive_variant_socket_fact(
+            item,
+            variant,
+            season_revision,
+            socket_bonus_minimums,
+        )
+        capabilities = variant.get("capabilityOverrides")
+        if not isinstance(capabilities, dict):
+            capabilities = {}
+            variant["capabilityOverrides"] = capabilities
+        capabilities["socketCount"] = fact["minimumTotal"]
+        variant["socketEvidence"] = fact
+    return materialized

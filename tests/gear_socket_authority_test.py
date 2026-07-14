@@ -1,0 +1,330 @@
+import copy
+import importlib
+import json
+from pathlib import Path
+import unittest
+
+
+FIXTURE_PATH = Path(__file__).parent / "fixtures" / "midnight-mage-frost-socket-evidence-v1.json"
+
+
+class GearSocketAuthorityTest(unittest.TestCase):
+    def authority(self):
+        try:
+            return importlib.import_module("server.gear_socket_authority")
+        except ModuleNotFoundError as exc:
+            self.fail(f"pure socket authority must exist: {exc}")
+
+    def test_nested_battle_net_socket_array_preserves_zero_one_two(self):
+        authority = self.authority()
+
+        self.assertEqual(authority.count_payload_socket_entries({}), 0)
+        self.assertEqual(
+            authority.count_payload_socket_entries({"preview_item": {"sockets": []}}),
+            0,
+        )
+        self.assertEqual(
+            authority.count_payload_socket_entries(
+                {"preview_item": {"sockets": [{"socket_type": {"type": "PRISMATIC"}}]}}
+            ),
+            1,
+        )
+        self.assertEqual(
+            authority.count_payload_socket_entries(
+                {
+                    "preview_item": {
+                        "sockets": [
+                            {"socket_type": {"type": "PRISMATIC"}},
+                            {"socket_type": {"type": "PRISMATIC"}},
+                        ]
+                    }
+                }
+            ),
+            2,
+        )
+
+    def test_midnight_jewelry_floor_does_not_generalize_two_sockets(self):
+        authority = self.authority()
+        two_socket_ring = {
+            "itemId": "ring-two",
+            "slot": "finger1",
+            "payload": {
+                "preview_item": {
+                    "sockets": [
+                        {"socket_type": {"type": "PRISMATIC"}},
+                        {"socket_type": {"type": "PRISMATIC"}},
+                    ]
+                }
+            },
+        }
+        different_ring = {
+            "itemId": "ring-one",
+            "slot": "finger2",
+            "payload": {"preview_item": {"sockets": []}},
+        }
+
+        two_socket_fact = authority.derive_item_socket_fact(
+            two_socket_ring,
+            season_revision="midnight-season-1",
+        )
+        different_ring_fact = authority.derive_item_socket_fact(
+            different_ring,
+            season_revision="midnight-season-1",
+        )
+
+        self.assertEqual(two_socket_fact["minimumTotal"], 2)
+        self.assertEqual(different_ring_fact["minimumTotal"], 1)
+        self.assertEqual(
+            [claim["source"] for claim in different_ring_fact["claims"]],
+            ["midnight_s1_jewelry_floor"],
+        )
+
+    def test_exact_variant_sources_are_minimum_totals_and_never_sum(self):
+        authority = self.authority()
+        item = {
+            "itemId": "neck-max-not-sum",
+            "slot": "neck",
+            "payload": {
+                "preview_item": {
+                    "sockets": [{"socket_type": {"type": "PRISMATIC"}}]
+                }
+            },
+        }
+        variant = {
+            "variantId": "variant-neck-max-not-sum",
+            "itemId": "neck-max-not-sum",
+            "variantKey": "observed-two-socket",
+            "slot": "neck",
+            "payload": {
+                "preview_item": {
+                    "sockets": [
+                        {"socket_type": {"type": "PRISMATIC"}},
+                        {"socket_type": {"type": "PRISMATIC"}},
+                    ]
+                }
+            },
+            "simcOptions": {
+                "bonus_id": "9300/9999",
+                "gem_id": "240983/240892",
+            },
+        }
+
+        fact = authority.derive_variant_socket_fact(
+            item,
+            variant,
+            season_revision="midnight-season-1",
+            socket_bonus_minimums={"9300": 2},
+        )
+
+        self.assertEqual(fact["minimumTotal"], 2)
+        self.assertEqual(
+            fact["minimumTotal"],
+            max(claim["minimumTotal"] for claim in fact["claims"]),
+        )
+        self.assertEqual(
+            {claim["source"] for claim in fact["claims"]},
+            {
+                "midnight_s1_jewelry_floor",
+                "official_item_payload",
+                "simc_bonus",
+                "observed_gem_occupancy",
+            },
+        )
+        self.assertNotEqual(
+            fact["minimumTotal"],
+            sum(claim["minimumTotal"] for claim in fact["claims"]),
+        )
+
+    def test_gem_sequence_is_exact_variant_lower_bound_only(self):
+        authority = self.authority()
+        item = {
+            "itemId": "unknown-season-ring",
+            "slot": "finger1",
+            "payload": {"preview_item": {"sockets": []}},
+        }
+        observed_variant = {
+            "variantId": "variant-with-two-gems",
+            "itemId": "unknown-season-ring",
+            "variantKey": "two-gems",
+            "slot": "finger1",
+            "simcOptions": {"gem_id": "240983/240983"},
+        }
+        different_variant = {
+            "variantId": "variant-without-gems",
+            "itemId": "unknown-season-ring",
+            "variantKey": "no-gems",
+            "slot": "finger1",
+            "simcOptions": {},
+        }
+        malformed_variant = {
+            "variantId": "variant-with-malformed-gem-token",
+            "itemId": "unknown-season-ring",
+            "variantKey": "malformed-gem-token",
+            "slot": "finger1",
+            "simcOptions": {"gem_id": "not-a-gem"},
+        }
+
+        item_fact = authority.derive_item_socket_fact(
+            item,
+            season_revision="unknown-season",
+        )
+        observed_fact = authority.derive_variant_socket_fact(
+            item,
+            observed_variant,
+            season_revision="unknown-season",
+        )
+        different_fact = authority.derive_variant_socket_fact(
+            item,
+            different_variant,
+            season_revision="unknown-season",
+        )
+        malformed_fact = authority.derive_variant_socket_fact(
+            item,
+            malformed_variant,
+            season_revision="unknown-season",
+        )
+
+        self.assertEqual(item_fact["minimumTotal"], 0)
+        self.assertEqual(observed_fact["minimumTotal"], 2)
+        self.assertEqual(different_fact["minimumTotal"], 0)
+        self.assertEqual(malformed_fact["minimumTotal"], 0)
+        gem_claim = next(
+            claim for claim in observed_fact["claims"] if claim["source"] == "observed_gem_occupancy"
+        )
+        self.assertEqual(gem_claim["scope"], "exact_variant")
+
+    def test_unknown_season_and_unknown_bonus_fail_closed(self):
+        authority = self.authority()
+        parsed = authority.parse_simc_socket_bonus_minimums(
+            "\n".join(
+                [
+                    "bonus_id=9300 effect=socket minimum_total=1",
+                    "bonus_id=9400 effect=item_level minimum_total=99",
+                    "bonus_id=9500 effect=no socket minimum_total=1",
+                    "bonus_id=9600 effect=remove socket minimum_total=1",
+                    "unstructured socket text",
+                ]
+            )
+        )
+        self.assertEqual(parsed, {"9300": 1})
+
+        unknown_season_fact = authority.derive_item_socket_fact(
+            {
+                "itemId": "future-head",
+                "slot": "head",
+                "isPvp": False,
+                "payload": {"preview_item": {"sockets": []}},
+            },
+            season_revision="midnight-season-2",
+        )
+        unknown_bonus_fact = authority.derive_variant_socket_fact(
+            {"itemId": "plain-chest", "slot": "chest", "payload": {}},
+            {
+                "variantId": "plain-chest-unknown-bonus",
+                "itemId": "plain-chest",
+                "variantKey": "unknown-bonus",
+                "slot": "chest",
+                "simcOptions": {"bonus_id": "9999"},
+            },
+            season_revision="midnight-season-1",
+            socket_bonus_minimums=parsed,
+        )
+        conflicting_pvp_fact = authority.derive_item_socket_fact(
+            {
+                "itemId": "conflicting-pvp-head",
+                "slot": "head",
+                "isPvp": False,
+                "payload": {
+                    "isPvp": True,
+                    "preview_item": {"sockets": []},
+                },
+            },
+            season_revision="midnight-season-1",
+        )
+
+        self.assertEqual(unknown_season_fact["minimumTotal"], 0)
+        self.assertEqual(unknown_bonus_fact["minimumTotal"], 0)
+        self.assertEqual(unknown_bonus_fact["claims"], [])
+        self.assertEqual(conflicting_pvp_fact["minimumTotal"], 0)
+        self.assertEqual(conflicting_pvp_fact["claims"], [])
+
+    def test_materializer_does_not_mutate_snapshot(self):
+        authority = self.authority()
+        snapshot = {
+            "items": [
+                {
+                    "itemId": "non-mutating-ring",
+                    "slot": "finger1",
+                    "baseCapabilities": {"canEnchant": True},
+                    "payload": {"preview_item": {"sockets": []}},
+                }
+            ],
+            "variants": [
+                {
+                    "variantId": "non-mutating-ring-variant",
+                    "itemId": "non-mutating-ring",
+                    "variantKey": "observed",
+                    "slot": "finger1",
+                    "capabilityOverrides": {"canEmbellish": False},
+                    "simcOptions": {"gem_id": "240983"},
+                }
+            ],
+            "sources": [],
+            "options": [],
+        }
+        original = copy.deepcopy(snapshot)
+
+        materialized = authority.materialize_gear_socket_facts(
+            snapshot,
+            season_revision="midnight-season-1",
+        )
+
+        self.assertEqual(snapshot, original)
+        self.assertIsNot(materialized, snapshot)
+        self.assertEqual(materialized["items"][0]["baseCapabilities"]["socketCount"], 1)
+        self.assertTrue(materialized["items"][0]["baseCapabilities"]["canEnchant"])
+        self.assertEqual(materialized["variants"][0]["capabilityOverrides"]["socketCount"], 1)
+        self.assertFalse(materialized["variants"][0]["capabilityOverrides"]["canEmbellish"])
+
+    def test_mage_fixture_materializes_1_2_1_1_2_1(self):
+        authority = self.authority()
+        fixture = json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
+
+        materialized = authority.materialize_gear_socket_facts(
+            fixture["snapshot"],
+            season_revision=fixture["seasonRevision"],
+            socket_bonus_minimums=fixture["socketBonusMinimums"],
+        )
+        variants_by_key = {
+            variant["variantKey"]: variant for variant in materialized["variants"]
+        }
+        ordered_instances = fixture["expectedInstances"]
+        capacities = [
+            variants_by_key[instance["variantKey"]]["capabilityOverrides"]["socketCount"]
+            for instance in ordered_instances
+        ]
+
+        self.assertEqual(
+            [instance["slot"] for instance in ordered_instances],
+            ["head", "neck", "wrist", "waist", "finger1", "finger2"],
+        )
+        self.assertEqual(capacities, [1, 2, 1, 1, 2, 1])
+        self.assertEqual(sum(capacities), 8)
+        for instance in ordered_instances:
+            if instance["slot"] not in {"head", "wrist", "waist"}:
+                continue
+            claim_sources = {
+                claim["source"]
+                for claim in variants_by_key[instance["variantKey"]]["socketEvidence"]["claims"]
+            }
+            self.assertIn("midnight_s1_radiant_jewelbinder", claim_sources)
+        self.assertEqual(
+            variants_by_key[fixture["differentRingVariantKey"]]["capabilityOverrides"][
+                "socketCount"
+            ],
+            1,
+        )
+
+
+if __name__ == "__main__":
+    unittest.main()
