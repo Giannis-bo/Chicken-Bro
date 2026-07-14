@@ -943,6 +943,33 @@ class GearReleaseStoreTest(unittest.TestCase):
         snapshot["items"][0]["itemLevel"] = None
         gear = self.gear_release(snapshot)
         community_rows = self.community_rows()
+        community_rows[0]["selectionIntent"] = {
+            "schemaRevision": "selection-intent-v1",
+            "authoredAgainst": {
+                "seasonRevision": gear["seasonRevision"],
+                "gearCatalogRevision": gear["releaseId"],
+            },
+            "eligibilityContext": {
+                "classKey": "mage",
+                "specKey": "arcane",
+                "level": 90,
+            },
+            "slots": {
+                "head": {
+                    "gemOptionIds": ["gem-a", "gem-a"],
+                    "enchantOptionId": "enchant-a",
+                    "embellishmentOptionId": "embellishment-a",
+                },
+                "neck": {
+                    "gemOptionIds": [],
+                    "enchantOptionId": "",
+                    "embellishmentOptionId": "",
+                },
+            },
+        }
+        community_rows[0]["payload"]["enhancementBySlot"] = {
+            "head": {"gemOptionIds": ["stale-payload-gem"]},
+        }
         community = self.community_release(gear["releaseId"], community_rows)
         manifest = gear_release.build_manifest(
             season_revision="season-17",
@@ -990,7 +1017,15 @@ class GearReleaseStoreTest(unittest.TestCase):
             "id": "template-a",
             "name": "Observed A",
             "canApplyGear": True,
+            "enhancementBySlot": {
+                "head": {
+                    "gemOptionIds": ["gem-a", "gem-a"],
+                    "enchantOptionId": "enchant-a",
+                    "embellishmentOptionId": "embellishment-a",
+                },
+            },
         }])
+        self.assertNotIn("selectionIntent", data["communityTemplates"][0])
         self.assertEqual(data["gearSnapshot"], snapshot)
         sql = "\n".join(conn.cursor_instance.statements)
         self.assertIn("release_id = %s", sql)
@@ -1007,6 +1042,27 @@ class GearReleaseStoreTest(unittest.TestCase):
         tampered_rowsets["FROM cache.websim_gear_release_items"] = [tuple(tampered_item)]
         with self.assertRaises(GearReleaseIntegrityError):
             GearReleaseStore(lambda: FakeConnection(rowsets=tampered_rowsets)).load_active_public_gear(
+                binding,
+                "mage",
+                "arcane",
+                include_catalog=True,
+                catalog_slot="head",
+            )
+
+        tampered_community_rowsets = copy.deepcopy(conn.cursor_instance.rowsets)
+        tampered_community = list(
+            tampered_community_rowsets["FROM cache.websim_community_release_templates"][0]
+        )
+        tampered_intent = copy.deepcopy(tampered_community[11])
+        tampered_intent["slots"]["head"]["gemOptionIds"] = ["forged-gem"]
+        tampered_community[11] = tampered_intent
+        tampered_community_rowsets["FROM cache.websim_community_release_templates"] = [
+            tuple(tampered_community)
+        ]
+        with self.assertRaises(GearReleaseIntegrityError):
+            GearReleaseStore(
+                lambda: FakeConnection(rowsets=tampered_community_rowsets)
+            ).load_active_public_gear(
                 binding,
                 "mage",
                 "arcane",

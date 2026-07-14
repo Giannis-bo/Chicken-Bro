@@ -3969,15 +3969,19 @@ function communityEnhancementAuthoritativeLabel(option, type) {
   return label
 }
 
-function communityEnhancementOptionsForSlot(gearPayload, item, optionKey, type) {
+function verifiedCommunityEnhancementOptionsForSlot(gearPayload, item, optionKey, type) {
   const slot = cleanGearString(item && (item.simcSlot || item.slot))
-  const options = enhancementOptionsForSlot(gearPayload, item, optionKey).filter((option) => (
+  return enhancementOptionsForSlot(gearPayload, item, optionKey).filter((option) => (
     !!communityEnhancementStableOptionIdentity(option) &&
     communityEnhancementOptionVisible(option) &&
     communityEnhancementOptionAppliesToSlot(option, slot) &&
     communityEnhancementOptionHasAffirmativeTrust(option) &&
     !!communityEnhancementAuthoritativeLabel(option, type)
   ))
+}
+
+function communityEnhancementOptionsForSlot(gearPayload, item, optionKey, type) {
+  const options = verifiedCommunityEnhancementOptionsForSlot(gearPayload, item, optionKey, type)
   return itemSupportsEnhancement(item, type, options) ? options : []
 }
 
@@ -4039,6 +4043,9 @@ function reconcileCommunityTemplateEnhancements(gearPayload, selectedGearBySlot,
       return
     }
     const next = {}
+    const verifiedGemOptions = verifiedCommunityEnhancementOptionsForSlot(gearPayload, item, 'socketOptions', 'gem')
+    const verifiedEnchantOptions = verifiedCommunityEnhancementOptionsForSlot(gearPayload, item, 'enchantOptions', 'enchant')
+    const verifiedEmbellishmentOptions = verifiedCommunityEnhancementOptionsForSlot(gearPayload, item, 'embellishmentOptions', 'embellishment')
     const gemOptions = communityEnhancementOptionsForSlot(gearPayload, item, 'socketOptions', 'gem')
     const enchantOptions = communityEnhancementOptionsForSlot(gearPayload, item, 'enchantOptions', 'enchant')
     const embellishmentOptions = communityEnhancementOptionsForSlot(gearPayload, item, 'embellishmentOptions', 'embellishment')
@@ -4055,6 +4062,15 @@ function reconcileCommunityTemplateEnhancements(gearPayload, selectedGearBySlot,
       : []
     if (raw.gemOptionConflict) {
       unresolved.gemIds = governedRawGemIds.length ? governedRawGemIds : conflictingGemOptionIds
+    } else if (explicitGemOptionIds.length) {
+      const matchedGemOptionIds = explicitGemOptionIds.filter((identity) => (
+        !!communityEnhancementOptionForIdentity(verifiedGemOptions, identity)
+      ))
+      if (matchedGemOptionIds.length === explicitGemOptionIds.length) {
+        next.gemOptionIds = matchedGemOptionIds
+      } else {
+        unresolved.gemIds = explicitGemOptionIds
+      }
     } else if (raw.gemConflict && governedRawGemIds.length) {
       unresolved.gemIds = governedRawGemIds
     } else if (governedRawGemIds.length > gearItemSocketCapacity(item)) {
@@ -4068,22 +4084,17 @@ function reconcileCommunityTemplateEnhancements(gearPayload, selectedGearBySlot,
         else unresolved.gemIds.push(gemId)
       })
       if (matchedGemOptionIds.length) next.gemOptionIds = matchedGemOptionIds
-    } else {
-      if (explicitGemOptionIds.length <= gearItemSocketCapacity(item)) {
-        const matchedGemOptionIds = explicitGemOptionIds.filter((identity) => (
-          !!communityEnhancementOptionForIdentity(gemOptions, identity)
-        ))
-        if (matchedGemOptionIds.length === explicitGemOptionIds.length) {
-          if (matchedGemOptionIds.length) next.gemOptionIds = matchedGemOptionIds
-        } else if (explicitGemOptionIds.length) {
-          unresolved.gemIds = explicitGemOptionIds
-        }
-      } else {
-        unresolved.gemIds = explicitGemOptionIds
-      }
     }
     if (raw.enchantOptionConflict) {
       unresolved.enchantIds = governedRawEnchantIds.length ? governedRawEnchantIds : conflictingEnchantOptionIds
+    } else if (explicitEnchantOptionIds.length === 1) {
+      if (communityEnhancementOptionForIdentity(verifiedEnchantOptions, explicitEnchantOptionIds[0])) {
+        next.enchantOptionId = explicitEnchantOptionIds[0]
+      } else {
+        unresolved.enchantIds = explicitEnchantOptionIds
+      }
+    } else if (explicitEnchantOptionIds.length > 1) {
+      unresolved.enchantIds = explicitEnchantOptionIds
     } else if (governedRawEnchantIds.length === 1) {
       const matched = communityEnhancementOptionForSimcValue(enchantOptions, 'enchant_id', governedRawEnchantIds[0])
       const optionId = communityEnhancementStableOptionIdentity(matched)
@@ -4091,18 +4102,18 @@ function reconcileCommunityTemplateEnhancements(gearPayload, selectedGearBySlot,
       else unresolved.enchantIds = governedRawEnchantIds
     } else if (governedRawEnchantIds.length > 1) {
       unresolved.enchantIds = governedRawEnchantIds
-    } else if (explicitEnchantOptionIds.length === 1) {
-      if (communityEnhancementOptionForIdentity(enchantOptions, explicitEnchantOptionIds[0])) {
-        next.enchantOptionId = explicitEnchantOptionIds[0]
-      } else {
-        unresolved.enchantIds = explicitEnchantOptionIds
-      }
-    } else if (explicitEnchantOptionIds.length > 1) {
-      unresolved.enchantIds = explicitEnchantOptionIds
     }
     if (!sourceOnlyBuiltInEmbellishment) {
       if (raw.embellishmentOptionConflict) {
         unresolved.embellishments = governedRawEmbellishments.length ? governedRawEmbellishments : conflictingEmbellishmentOptionIds
+      } else if (explicitEmbellishmentOptionIds.length === 1) {
+        if (communityEnhancementOptionForIdentity(verifiedEmbellishmentOptions, explicitEmbellishmentOptionIds[0])) {
+          next.embellishmentOptionId = explicitEmbellishmentOptionIds[0]
+        } else {
+          unresolved.embellishments = explicitEmbellishmentOptionIds
+        }
+      } else if (explicitEmbellishmentOptionIds.length > 1) {
+        unresolved.embellishments = explicitEmbellishmentOptionIds
       } else if (governedRawEmbellishments.length === 1) {
         const matched = communityEnhancementOptionForSimcValue(embellishmentOptions, 'embellishment', governedRawEmbellishments[0])
         const optionId = communityEnhancementStableOptionIdentity(matched)
@@ -4110,14 +4121,6 @@ function reconcileCommunityTemplateEnhancements(gearPayload, selectedGearBySlot,
         else unresolved.embellishments = governedRawEmbellishments
       } else if (governedRawEmbellishments.length > 1) {
         unresolved.embellishments = governedRawEmbellishments
-      } else if (explicitEmbellishmentOptionIds.length === 1) {
-        if (communityEnhancementOptionForIdentity(embellishmentOptions, explicitEmbellishmentOptionIds[0])) {
-          next.embellishmentOptionId = explicitEmbellishmentOptionIds[0]
-        } else {
-          unresolved.embellishments = explicitEmbellishmentOptionIds
-        }
-      } else if (explicitEmbellishmentOptionIds.length > 1) {
-        unresolved.embellishments = explicitEmbellishmentOptionIds
       }
     }
     if (Object.keys(next).length) enhancementBySlot[slot] = next

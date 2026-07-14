@@ -13264,6 +13264,42 @@ test('mage frost observed community template imports editable 8 of 8 gems 6 of 8
   assert.equal(page.data.gearEnhancementSheet.activeEmbellishmentRows.length, 0)
 })
 
+test('mage frost released canonical enhancements survive stale initial socket capabilities', async () => {
+  const harness = mageFrostCommunityEnhancementHarness()
+  const staleInitialSocketCounts = {
+    head: 0,
+    neck: 1,
+    wrist: 0,
+    waist: 0,
+    finger1: 1,
+    finger2: 1
+  }
+  harness.template.gearItems = harness.template.gearItems.map((item) => {
+    if (!Object.prototype.hasOwnProperty.call(staleInitialSocketCounts, item.slot)) return item
+    const socketCount = staleInitialSocketCounts[item.slot]
+    return {
+      ...item,
+      modCapabilities: {
+        ...(item.modCapabilities || {}),
+        hasSocket: socketCount > 0,
+        socketCount
+      }
+    }
+  })
+  harness.template.enhancementBySlot = mageFrostCanonicalEnhancementBySlot(harness.fixture)
+
+  await importMageFrostCommunityEnhancements(harness)
+
+  assert.deepEqual(mageFrostEnhancementMetrics(harness.page), {
+    embellishment: '2/2', gem: '8/8', enchant: '6/8', tierSet: '0'
+  })
+  assert.deepEqual(
+    mageFrostIntentEnhancements(harness.resolveRequests[0]),
+    mageFrostCanonicalEnhancementBySlot(harness.fixture)
+  )
+  assert.deepEqual(JSON.parse(JSON.stringify(harness.page.communityEnhancementImportState.unresolvedBySlot)), {})
+})
+
 test('mage frost imported enhancements remain identical across panel sheet Resolve and Profile intent', async () => {
   const harness = await importMageFrostCommunityEnhancements(mageFrostCommunityEnhancementHarness())
   const { pageConfig, page, resolveRequests } = harness

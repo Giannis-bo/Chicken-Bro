@@ -231,6 +231,33 @@ def _selected_option_ids(selection_intent: Any) -> list[str]:
     return sorted(value for value in selected if value)
 
 
+def _public_enhancement_by_slot(selection_intent: Any) -> dict[str, dict[str, Any]]:
+    """Project only canonical enhancement identities from a validated release intent."""
+
+    intent = selection_intent if isinstance(selection_intent, dict) else {}
+    slots = intent.get("slots") if isinstance(intent.get("slots"), dict) else {}
+    result: dict[str, dict[str, Any]] = {}
+    for slot, selection in slots.items():
+        normalized_slot = _text(slot)
+        if not normalized_slot or not isinstance(selection, dict):
+            continue
+        enhancement: dict[str, Any] = {}
+        gem_option_ids = [
+            _text(value)
+            for value in selection.get("gemOptionIds") or []
+            if _text(value)
+        ]
+        if gem_option_ids:
+            enhancement["gemOptionIds"] = gem_option_ids
+        for field in ("enchantOptionId", "embellishmentOptionId"):
+            value = _text(selection.get(field))
+            if value:
+                enhancement[field] = value
+        if enhancement:
+            result[normalized_slot] = enhancement
+    return _canonical(result)
+
+
 def _observed_release_variant_record(
     requested_variant: str,
     item_record: Any,
@@ -1285,10 +1312,21 @@ class GearReleaseStore:
                         # that fact explicitly instead of leaking the release-row
                         # identity shape into the existing public read model.
                         public_template.pop("templateId", None)
+                        public_template.pop("enhancementBySlot", None)
+                        nested_payload = public_template.get("payload")
+                        if isinstance(nested_payload, dict) and "enhancementBySlot" in nested_payload:
+                            nested_payload = _canonical(nested_payload)
+                            nested_payload.pop("enhancementBySlot", None)
+                            public_template["payload"] = nested_payload
                         public_template["id"] = _text(
                             public_template.get("id") or row.get("templateId")
                         )
                         public_template["canApplyGear"] = True
+                        enhancement_by_slot = _public_enhancement_by_slot(
+                            row.get("selectionIntent")
+                        )
+                        if enhancement_by_slot:
+                            public_template["enhancementBySlot"] = enhancement_by_slot
                         community_templates.append(public_template)
                 if include_catalog:
                     normalized_slot = _text(catalog_slot)
