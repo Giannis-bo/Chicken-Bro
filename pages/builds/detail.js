@@ -5938,6 +5938,8 @@ Page({
   },
 
   openGearEnhancementSheet() {
+    const currentSheet = this.data.gearEnhancementSheet || emptyGearEnhancementSheet()
+    if (currentSheet.submitting) return Promise.resolve()
     if (this.data.gearDataFallback) {
       showToast(this.data.gearDataWarningText || '装备接口暂不可用，无法配置强化')
       return Promise.resolve()
@@ -5973,6 +5975,8 @@ Page({
   },
 
   closeGearEnhancementSheet() {
+    const currentSheet = this.data.gearEnhancementSheet || emptyGearEnhancementSheet()
+    if (currentSheet.submitting) return
     this.setData({
       gearEnhancementSheet: emptyGearEnhancementSheet()
     })

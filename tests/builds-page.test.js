@@ -1622,6 +1622,7 @@ test('gear detail page exposes inline equipment simulator state and replacement 
   assert.ok(wxml.indexOf('class="gear-enhancement-equipment-grid"') < wxml.indexOf('class="gear-enhancement-blockers"'))
   assert.match(wxml, /disabled="\{\{gearEnhancementSheet\.submitting\}\}"/)
   assert.match(wxml, /gearEnhancementSheet\.submitting \? '校验中' : '确认'/)
+  assert.match(wxml, /<button class="gear-sheet-close" disabled="\{\{gearEnhancementSheet\.submitting\}\}" bindtap="closeGearEnhancementSheet">关闭<\/button>/)
   assert.equal((wxml.match(/disabled="\{\{option\.disabled \|\| gearEnhancementSheet\.submitting\}\}"/g) || []).length, 3)
   assert.match(wxml, /bindtap="openGearCommunityTemplates"/)
   assert.match(wxml, /bindtap="resetGearSelection"/)
@@ -2149,6 +2150,31 @@ test('enhancement confirm keeps committed state unchanged while Resolve is pendi
   assert.deepEqual(JSON.parse(savedTemplates[0].rawString).enhancementBySlot, {})
   assert.equal(savedTemplates[0].metadata.selectionIntent.slots.finger1.enchantOptionId, '')
   assert.doesNotMatch(JSON.stringify(savedTemplates), /enchant-draft/)
+
+  pendingResolves[0].resolve(await verifiedAtomicEnhancementTransport(pendingResolves[0].selectionIntent))
+  await pending
+})
+
+test('pending enhancement Resolve cannot be closed or reopened into a second transaction', async () => {
+  const { pageConfig, page, pendingResolves } = atomicEnhancementSheetHarness()
+  pageConfig.openGearEnhancementSheet.call(page)
+  pageConfig.selectGearEnhancementOption.call(page, {
+    currentTarget: { dataset: { slot: 'finger1', type: 'enchant', id: 'enchant-draft' } }
+  })
+  const pending = pageConfig.confirmGearEnhancementSheet.call(page)
+  const pendingSheet = page.data.gearEnhancementSheet
+  const pendingDraft = JSON.parse(JSON.stringify(pendingSheet.draftEnhancementBySlot))
+
+  pageConfig.closeGearEnhancementSheet.call(page)
+  pageConfig.openGearEnhancementSheet.call(page)
+  const duplicateConfirm = pageConfig.confirmGearEnhancementSheet.call(page)
+
+  assert.strictEqual(page.data.gearEnhancementSheet, pendingSheet)
+  assert.equal(page.data.gearEnhancementSheet.visible, true)
+  assert.equal(page.data.gearEnhancementSheet.submitting, true)
+  assert.deepEqual(JSON.parse(JSON.stringify(page.data.gearEnhancementSheet.draftEnhancementBySlot)), pendingDraft)
+  assert.equal(pendingResolves.length, 1)
+  assert.equal(duplicateConfirm, undefined)
 
   pendingResolves[0].resolve(await verifiedAtomicEnhancementTransport(pendingResolves[0].selectionIntent))
   await pending
