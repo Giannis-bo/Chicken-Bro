@@ -71,12 +71,47 @@ class GearSocketAuthorityTest(unittest.TestCase):
             different_ring,
             season_revision="midnight-season-1",
         )
+        live_revision_facts = [
+            authority.derive_item_socket_fact(
+                different_ring,
+                season_revision=season_revision,
+            )
+            for season_revision in (
+                "season-midnight-season-1-c09b0948e307",
+                "season-17-f131dd36ddf1",
+            )
+        ]
+        future_or_unknown_facts = [
+            authority.derive_item_socket_fact(
+                different_ring,
+                season_revision=season_revision,
+            )
+            for season_revision in (
+                "unknown-season",
+                "season-18",
+                "season-18-aaaaaaaaaaaa",
+                "ptr-12.1-s2-build-12345",
+                "season-midnight-season-1-c09b0948e307-extra",
+                "season-17-f131dd36ddf1-extra",
+            )
+        ]
 
         self.assertEqual(two_socket_fact["minimumTotal"], 2)
         self.assertEqual(different_ring_fact["minimumTotal"], 1)
         self.assertEqual(
             [claim["source"] for claim in different_ring_fact["claims"]],
             ["midnight_s1_jewelry_floor"],
+        )
+        self.assertTrue(
+            all(
+                fact["minimumTotal"] == 1
+                and [claim["source"] for claim in fact["claims"]]
+                == ["midnight_s1_jewelry_floor"]
+                for fact in live_revision_facts
+            )
+        )
+        self.assertTrue(
+            all(fact["minimumTotal"] == 0 and fact["claims"] == [] for fact in future_or_unknown_facts)
         )
 
     def test_exact_variant_sources_are_minimum_totals_and_never_sum(self):
@@ -218,11 +253,32 @@ class GearSocketAuthorityTest(unittest.TestCase):
                     "bonus_id=9400 effect=item_level minimum_total=99",
                     "bonus_id=9500 effect=no socket minimum_total=1",
                     "bonus_id=9600 effect=remove socket minimum_total=1",
+                    "bonus_id=9700 effect=socket=2",
+                    "bonus_id=9701 effect=socket=0",
+                    "bonus_id=9702 effect=socket=-1",
+                    "bonus_id=9703 effect=socket=bogus",
+                    "bonus_id=9704 effect=socket=2 minimum_total=3",
+                    "bonus_id=9705 effect=socket=1 socket_count=2",
+                    "bonus_id=9706 effect=socket minimum_total=4",
+                    "bonus_id=9707 effect=socket socket_count=5",
+                    "bonus_id=9708 effect=socket minimum_total=2",
+                    "bonus_id=9708 effect=socket socket_count=3",
                     "unstructured socket text",
                 ]
             )
         )
-        self.assertEqual(parsed, {"9300": 1})
+        self.assertEqual(
+            parsed,
+            {
+                "9300": 1,
+                "9700": 2,
+                "9704": 3,
+                "9705": 2,
+                "9706": 4,
+                "9707": 5,
+                "9708": 3,
+            },
+        )
 
         unknown_season_fact = authority.derive_item_socket_fact(
             {
@@ -311,10 +367,25 @@ class GearSocketAuthorityTest(unittest.TestCase):
             season_revision=fixture["seasonRevision"],
             socket_bonus_minimums=fixture["socketBonusMinimums"],
         )
-        variants_by_key = {
-            variant["variantKey"]: variant for variant in materialized["variants"]
-        }
+        variants = materialized["variants"]
+        variant_keys = [variant.get("variantKey") for variant in variants]
+        self.assertTrue(all(variant_keys))
+        self.assertEqual(len(set(variant_keys)), len(variant_keys))
+        variants_by_key = {variant["variantKey"]: variant for variant in variants}
+        items = materialized["items"]
+        items_by_id = {item["itemId"]: item for item in items}
+        self.assertEqual(len(items_by_id), len(items))
         ordered_instances = fixture["expectedInstances"]
+        expected_item_ids = {instance["itemId"] for instance in ordered_instances}
+        for instance in ordered_instances:
+            with self.subTest(instance=instance):
+                variant = variants_by_key[instance["variantKey"]]
+                self.assertEqual(variant["itemId"], instance["itemId"])
+                self.assertEqual(authority._normalized_slot(variant.get("slot")), instance["slot"])
+                item = items_by_id.get(instance["itemId"])
+                self.assertIsNotNone(item)
+                self.assertEqual(item["itemId"], instance["itemId"])
+                self.assertEqual(authority._normalized_slot(item.get("slot")), instance["slot"])
         capacities = [
             variants_by_key[instance["variantKey"]]["capabilityOverrides"]["socketCount"]
             for instance in ordered_instances
@@ -334,10 +405,26 @@ class GearSocketAuthorityTest(unittest.TestCase):
                 for claim in variants_by_key[instance["variantKey"]]["socketEvidence"]["claims"]
             }
             self.assertIn("midnight_s1_radiant_jewelbinder", claim_sources)
+        different_ring_variant = variants_by_key[fixture["differentRingVariantKey"]]
+        different_ring_item_id = different_ring_variant["itemId"]
+        self.assertNotIn(different_ring_item_id, expected_item_ids)
+        self.assertIn(
+            authority._normalized_slot(different_ring_variant.get("slot")),
+            {"finger", "finger1", "finger2"},
+        )
+        different_ring_item = items_by_id.get(different_ring_item_id)
+        self.assertIsNotNone(different_ring_item)
+        self.assertEqual(different_ring_item["itemId"], different_ring_item_id)
         self.assertEqual(
-            variants_by_key[fixture["differentRingVariantKey"]]["capabilityOverrides"][
-                "socketCount"
-            ],
+            authority._normalized_slot(different_ring_item.get("slot")),
+            authority._normalized_slot(different_ring_variant.get("slot")),
+        )
+        self.assertEqual(
+            [claim["source"] for claim in different_ring_variant["socketEvidence"]["claims"]],
+            ["midnight_s1_jewelry_floor"],
+        )
+        self.assertEqual(
+            different_ring_variant["capabilityOverrides"]["socketCount"],
             1,
         )
 

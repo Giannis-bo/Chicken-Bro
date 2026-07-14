@@ -38,6 +38,10 @@ _MIDNIGHT_SEASON_ONE_REVISIONS = frozenset(
         "season-mn-1",
     }
 )
+_MIDNIGHT_SEASON_ONE_REVISION_PATTERNS = (
+    re.compile(r"season-midnight-season-1-[0-9a-f]{12}"),
+    re.compile(r"season-17-[0-9a-f]{12}"),
+)
 _MIDNIGHT_JEWELRY_SLOTS = frozenset({"neck", "finger", "finger1", "finger2"})
 _RADIANT_JEWELBINDER_SLOTS = frozenset({"head", "wrist", "waist"})
 _SOCKET_PAYLOAD_KEYS = frozenset({"socket", "sockets", "gemsockets"})
@@ -74,6 +78,14 @@ def _normalized_slot(value: Any) -> str:
         "ring2": "finger2",
     }
     return aliases.get(slot, slot)
+
+
+def _is_midnight_season_one_revision(value: Any) -> bool:
+    revision = _text(value)
+    return revision in _MIDNIGHT_SEASON_ONE_REVISIONS or any(
+        pattern.fullmatch(revision)
+        for pattern in _MIDNIGHT_SEASON_ONE_REVISION_PATTERNS
+    )
 
 
 def _row_slot(row: Mapping[str, Any]) -> str:
@@ -223,14 +235,45 @@ def parse_simc_socket_bonus_minimums(output: Any) -> dict[str, int]:
             bonus_match = re.match(r"^(\d+)\s*(?:[:|,\t-])", line)
         if not bonus_match:
             continue
-        minimum_match = re.search(
-            r"\b(?:minimum[\s_-]*total|socket[\s_-]*count)\s*(?:[:=]|\s)\s*(\d+)\b",
+        minimum_candidates: list[int] = []
+        invalid_socket_assignment = False
+        for assignment_marker in re.finditer(
+            r"\bsockets?\s*=",
             line,
             flags=re.IGNORECASE,
+        ):
+            assigned_token = re.match(
+                r"\s*([^\s,;|()\[\]{}]+)",
+                line[assignment_marker.end() :],
+            )
+            if not assigned_token or not re.fullmatch(r"[+-]?\d+", assigned_token.group(1)):
+                invalid_socket_assignment = True
+                break
+            assigned_minimum = _minimum_total(assigned_token.group(1))
+            if not assigned_minimum:
+                invalid_socket_assignment = True
+                break
+            minimum_candidates.append(assigned_minimum)
+        if invalid_socket_assignment:
+            continue
+        minimum_candidates.extend(
+            _minimum_total(match)
+            for match in re.findall(
+                r"\b(?:minimum[\s_-]*total|socket[\s_-]*count)"
+                r"\s*(?:[:=]|\s)\s*(\d+)\b",
+                line,
+                flags=re.IGNORECASE,
+            )
         )
-        if not minimum_match:
-            minimum_match = re.search(r"\b(\d+)\s+sockets?\b", line, flags=re.IGNORECASE)
-        minimum = _minimum_total(minimum_match.group(1) if minimum_match else 1)
+        minimum_candidates.extend(
+            _minimum_total(match)
+            for match in re.findall(
+                r"\b(\d+)\s+sockets?\b",
+                line,
+                flags=re.IGNORECASE,
+            )
+        )
+        minimum = max(minimum_candidates, default=1)
         if not minimum:
             continue
         bonus_id = bonus_match.group(1)
@@ -258,8 +301,9 @@ def derive_item_socket_fact(
         claims.append(official_claim)
 
     revision = _text(season_revision)
+    is_midnight_season_one = _is_midnight_season_one_revision(revision)
     slot = _row_slot(row)
-    if revision in _MIDNIGHT_SEASON_ONE_REVISIONS and slot in _MIDNIGHT_JEWELRY_SLOTS:
+    if is_midnight_season_one and slot in _MIDNIGHT_JEWELRY_SLOTS:
         claims.append(
             _claim(
                 minimum_total=1,
@@ -269,7 +313,7 @@ def derive_item_socket_fact(
             )
         )
     elif (
-        revision in _MIDNIGHT_SEASON_ONE_REVISIONS
+        is_midnight_season_one
         and slot in _RADIANT_JEWELBINDER_SLOTS
         and official_total == 0
         and _explicitly_non_pvp(row)
