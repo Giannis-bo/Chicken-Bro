@@ -2350,6 +2350,43 @@ test('verified enhancement Resolve without selectedOptions preserves committed s
   assert.equal(pageConfig.buildSimcContext.call(page).simulatorState.gear.resolvedGearSignature, 'sha256:atomic-old')
 })
 
+test('verified enhancement Resolve rejects malformed selected option shapes', async () => {
+  const malformedShapes = [
+    { gemOptionIds: ['gem-valid', {}], enchantOptionId: '', embellishmentOptionId: '' },
+    { gemOptionIds: 'gem-not-an-array', enchantOptionId: '', embellishmentOptionId: '' },
+    { gemOptionIds: ['x'.repeat(257)], enchantOptionId: '', embellishmentOptionId: '' },
+    { gemOptionIds: [], enchantOptionId: {}, embellishmentOptionId: '' },
+    { gemOptionIds: [], enchantOptionId: 'x'.repeat(257), embellishmentOptionId: '' },
+    { gemOptionIds: [], enchantOptionId: '', embellishmentOptionId: '', craftedOptionId: {} },
+    { gemOptionIds: [], enchantOptionId: '', embellishmentOptionId: '', catalystOptionId: {} }
+  ]
+  for (const selectedOptions of malformedShapes) {
+    const { pageConfig, page, pendingResolves } = atomicEnhancementSheetHarness()
+    page.gearWorkbenchState.currentSnapshot.resolvedSlots.finger1.selectedOptions.enchantOptionId = 'enchant-canonical'
+    page.data.enhancementBySlot = { finger1: { enchantOptionId: 'enchant-canonical' } }
+    pageConfig.refreshDerivedState.call(page)
+    pageConfig.openGearEnhancementSheet.call(page)
+    pageConfig.selectGearEnhancementOption.call(page, {
+      currentTarget: { dataset: { slot: 'finger1', type: 'enchant', id: 'enchant-draft' } }
+    })
+    const pending = pageConfig.confirmGearEnhancementSheet.call(page)
+    const malformed = await verifiedAtomicEnhancementTransport(pendingResolves[0].selectionIntent)
+    malformed.payload.data.resolvedSlots.finger1.selectedOptions = selectedOptions
+    pendingResolves[0].resolve(malformed)
+
+    await pending
+
+    assert.deepEqual(JSON.parse(JSON.stringify(page.data.enhancementBySlot)), {
+      finger1: { enchantOptionId: 'enchant-canonical' }
+    })
+    assert.equal(page.data.gearEnhancementSheet.visible, true)
+    assert.equal(page.data.gearEnhancementSheet.submitting, false)
+    assert.equal(page.data.gearEnhancementSheet.draftEnhancementBySlot.finger1.enchantOptionId, 'enchant-draft')
+    assert.equal(page.data.gearWorkbenchProblemRows[0].code, 'GEAR_RESOLVED_OPTIONS_INCOMPLETE')
+    assert.equal(pageConfig.buildSimcContext.call(page).simulatorState.gear.resolvedGearSignature, 'sha256:atomic-old')
+  }
+})
+
 test('closing enhancement sheet discards an unconfirmed draft', () => {
   const { pageConfig, page } = atomicEnhancementSheetHarness()
   pageConfig.openGearEnhancementSheet.call(page)

@@ -5124,18 +5124,31 @@ function selectionIntentWithResolvedEnhancements(selectionIntent, snapshot) {
   return result
 }
 
+function validResolvedOptionIdentity(value, allowEmpty) {
+  if (typeof value !== 'string') return false
+  const normalized = value.trim()
+  return normalized.length <= 256 && (allowEmpty || normalized.length > 0)
+}
+
+function resolvedSelectedOptionsHaveValidShape(selectedOptions) {
+  if (!selectedOptions || typeof selectedOptions !== 'object' || Array.isArray(selectedOptions)) return false
+  if (Object.prototype.hasOwnProperty.call(selectedOptions, 'gemOptionIds')) {
+    if (!Array.isArray(selectedOptions.gemOptionIds)) return false
+    if (!Array.from(selectedOptions.gemOptionIds).every((value) => validResolvedOptionIdentity(value, false))) return false
+  }
+  return ['enchantOptionId', 'embellishmentOptionId', 'craftedOptionId', 'catalystOptionId'].every((field) => (
+    !Object.prototype.hasOwnProperty.call(selectedOptions, field) ||
+    validResolvedOptionIdentity(selectedOptions[field], true)
+  ))
+}
+
 function resolvedSnapshotHasCompleteSelectedOptions(snapshot, selectedGearBySlot) {
   const resolvedSlots = snapshot && snapshot.resolvedSlots && typeof snapshot.resolvedSlots === 'object'
     ? snapshot.resolvedSlots
     : {}
   return Object.keys(selectedGearByCanonicalSlot(selectedGearBySlot)).every((slot) => {
     const resolved = resolvedSlots[slot]
-    return !!(
-      resolved &&
-      resolved.selectedOptions &&
-      typeof resolved.selectedOptions === 'object' &&
-      !Array.isArray(resolved.selectedOptions)
-    )
+    return !!(resolved && resolvedSelectedOptionsHaveValidShape(resolved.selectedOptions))
   })
 }
 
