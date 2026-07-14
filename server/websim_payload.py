@@ -777,7 +777,6 @@ ENCHANTABLE_GEAR_SLOTS = {
 }
 SOCKET_OPTION_GEAR_SLOT_LIST = ["neck", "finger1", "finger2"]
 SOCKET_OPTION_GEAR_SLOTS = set(SOCKET_OPTION_GEAR_SLOT_LIST)
-SOCKET_OPTION_GEAR_SLOT_CAPACITY = {"neck": 1, "finger1": 1, "finger2": 1}
 GEAR_EMBELLISHMENT_ARMOR_SLOTS = ["head", "shoulder", "back", "chest", "wrist", "hands", "waist", "legs", "feet"]
 GEAR_EMBELLISHMENT_JEWELRY_SLOTS = ["neck", "finger1", "finger2"]
 GEAR_EMBELLISHMENT_WEAPON_SLOTS = ["main_hand", "off_hand"]
@@ -4494,26 +4493,11 @@ def simc_observed_variant_stat_payload(item, simc_gear_by_slot):
 
 
 def item_payload_has_socket(payload):
-    if not isinstance(payload, dict):
-        return False
-    parents = [payload, payload_preview_item(payload)]
-    for parent in parents:
-        if not isinstance(parent, dict):
-            continue
-        for key in ("sockets", "socket", "gem_sockets", "gemSockets"):
-            value = parent.get(key)
-            if isinstance(value, list) and len(value) > 0:
-                return True
-            if isinstance(value, dict) and value:
-                return True
-    return False
+    return bool(gear_socket_authority.count_payload_socket_entries(payload))
 
 
 def item_socket_capacity(payload=None, slot=""):
-    slot = normalize_slot(slot)
-    if slot in SOCKET_OPTION_GEAR_SLOT_CAPACITY:
-        return SOCKET_OPTION_GEAR_SLOT_CAPACITY[slot]
-    return 1 if item_payload_has_socket(payload) else 0
+    return gear_socket_authority.count_payload_socket_entries(payload)
 
 
 def item_can_enchant_slot(payload=None, slot="", item=None):
@@ -4536,7 +4520,11 @@ def item_mod_capabilities(payload=None, slot="", variants=None, item=None):
     payload = payload if isinstance(payload, dict) else {}
     item = item if isinstance(item, dict) else {}
     variants = [variant for variant in variants or [] if isinstance(variant, dict)]
-    socket_count = item_socket_capacity(payload, slot)
+    existing_capabilities = item.get("modCapabilities") if isinstance(item.get("modCapabilities"), dict) else {}
+    existing_socket_count = existing_capabilities.get("socketCount")
+    if isinstance(existing_socket_count, bool) or not isinstance(existing_socket_count, int):
+        existing_socket_count = 0
+    socket_count = max(item_socket_capacity(payload, slot), existing_socket_count)
     can_enchant = item_can_enchant_slot(payload, slot, item)
     can_embellish = bool(
         item.get("embellishment")
@@ -4549,13 +4537,18 @@ def item_mod_capabilities(payload=None, slot="", variants=None, item=None):
             for variant in variants
         )
     )
-    capabilities = {
-        "hasSocket": bool(socket_count),
-        "canEnchant": bool(can_enchant),
-        "canEmbellish": bool(can_embellish),
-    }
+    capabilities = dict(existing_capabilities)
+    capabilities.update(
+        {
+            "hasSocket": bool(socket_count),
+            "canEnchant": bool(can_enchant),
+            "canEmbellish": bool(can_embellish),
+        }
+    )
     if socket_count:
         capabilities["socketCount"] = socket_count
+    else:
+        capabilities.pop("socketCount", None)
     return capabilities
 
 
@@ -17109,11 +17102,26 @@ def enrich_catalog_item(item, sources, variants, socket_options, enchant_options
     display_variants = collapse_catalog_variants_for_display(compatible_variants)
     base_capabilities = item.get("modCapabilities") if isinstance(item.get("modCapabilities"), dict) else {}
     variant_capabilities = item_mod_capabilities({}, item_slot, compatible_variants, item)
-    mod_capabilities = {
-        "hasSocket": bool(base_capabilities.get("hasSocket") or variant_capabilities.get("hasSocket")),
-        "canEnchant": bool(base_capabilities.get("canEnchant") or variant_capabilities.get("canEnchant")),
-        "canEmbellish": bool(base_capabilities.get("canEmbellish") or variant_capabilities.get("canEmbellish")),
-    }
+    socket_count = max(
+        positive_int_value(base_capabilities.get("socketCount")),
+        positive_int_value(variant_capabilities.get("socketCount")),
+    )
+    mod_capabilities = dict(base_capabilities)
+    mod_capabilities.update(
+        {
+            "hasSocket": bool(
+                socket_count
+                or base_capabilities.get("hasSocket")
+                or variant_capabilities.get("hasSocket")
+            ),
+            "canEnchant": bool(base_capabilities.get("canEnchant") or variant_capabilities.get("canEnchant")),
+            "canEmbellish": bool(base_capabilities.get("canEmbellish") or variant_capabilities.get("canEmbellish")),
+        }
+    )
+    if socket_count:
+        mod_capabilities["socketCount"] = socket_count
+    else:
+        mod_capabilities.pop("socketCount", None)
     item["sources"] = compatible_sources
     item["sourceRefs"] = compatible_sources
     item["variants"] = display_variants

@@ -199,6 +199,37 @@ class RaiderIOPayloadTest(unittest.TestCase):
         self.assertEqual(item["embellishmentLabel"], "奥纹内衬")
         self.assertEqual(item["enhancementSource"], "raiderio_profile_gear")
 
+    def test_extract_gear_preserves_duplicate_gem_occurrences_in_order(self):
+        profile = sample_profile_payload("Gemorder", "mage", "frost")
+        profile["gear"]["items"] = {
+            "finger1": {
+                "item_id": 250777,
+                "item_level": 707,
+                "name": "Occurrence Band",
+                "bonuses": [12345, 12345],
+                "gems": [
+                    {"item_id": 240983},
+                    {"itemId": "240983"},
+                    None,
+                    {},
+                    {"item_id": 0},
+                    {"item_id": "0"},
+                    {"name": "missing identifier"},
+                    {"gem_id": 240892},
+                ],
+                "enchants": [
+                    {"enchant": 8017},
+                    {"enchant_id": "8017"},
+                ],
+            }
+        }
+
+        item = raiderio_payload.extract_gear(profile)[0]
+
+        self.assertEqual(item["gem_id"], "240983/240983/240892")
+        self.assertEqual(item["bonus_id"], "12345")
+        self.assertEqual(item["enchant_id"], "8017")
+
     def test_fetch_profiles_for_runs_attaches_spec_ranking_evidence_to_profile(self):
         run = raiderio_payload.simplify_spec_ranking_run(
             {

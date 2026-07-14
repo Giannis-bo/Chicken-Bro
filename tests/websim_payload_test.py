@@ -6338,6 +6338,97 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(catalog_item["socketOptions"][0]["simcOptions"]["gem_id"], "240983")
         self.assertEqual(catalog_item["enchantOptions"][0]["simcOptions"]["enchant_id"], "8017")
 
+    def test_item_socket_capacity_counts_nested_official_socket_entries(self):
+        payload = {
+            "preview_item": {
+                "sockets": [
+                    {"socket_type": {"type": "PRISMATIC"}},
+                    {"socket_type": {"type": "PRISMATIC"}},
+                ]
+            },
+            "metadata": {
+                "preview_item": {
+                    "sockets": [{"socket_type": {"type": "PRISMATIC"}}]
+                }
+            },
+        }
+
+        self.assertEqual(self.websim_payload.item_socket_capacity(payload, "head"), 2)
+
+    def test_two_socket_ring_is_not_collapsed_to_one(self):
+        payload = {
+            "preview_item": {
+                "sockets": [
+                    {"socket_type": {"type": "PRISMATIC"}},
+                    {"socket_type": {"type": "PRISMATIC"}},
+                ]
+            }
+        }
+
+        capabilities = self.websim_payload.item_mod_capabilities(
+            payload,
+            "finger1",
+            item={"itemId": "ring-two-sockets", "slot": "finger1"},
+        )
+
+        self.assertTrue(capabilities["hasSocket"])
+        self.assertEqual(capabilities["socketCount"], 2)
+
+    def test_enrich_catalog_item_preserves_socket_count(self):
+        item = {
+            "itemId": "ring-two-sockets",
+            "slot": "finger1",
+            "modCapabilities": {
+                "hasSocket": True,
+                "socketCount": 2,
+                "canEnchant": True,
+                "canEmbellish": True,
+            },
+        }
+
+        enriched = self.websim_payload.enrich_catalog_item(
+            item,
+            [],
+            [],
+            [],
+            [],
+            [],
+            "mage",
+            "frost",
+        )
+
+        self.assertEqual(enriched["modCapabilities"].get("socketCount"), 2)
+        self.assertTrue(enriched["modCapabilities"]["canEnchant"])
+        self.assertTrue(enriched["modCapabilities"]["canEmbellish"])
+
+    def test_ring_socket_capacity_does_not_generalize_across_item_ids(self):
+        two_socket_capabilities = self.websim_payload.item_mod_capabilities(
+            {
+                "preview_item": {
+                    "sockets": [
+                        {"socket_type": {"type": "PRISMATIC"}},
+                        {"socket_type": {"type": "PRISMATIC"}},
+                    ]
+                }
+            },
+            "finger1",
+            item={"itemId": "ring-two-sockets", "slot": "finger1"},
+        )
+        different_ring_capabilities = self.websim_payload.item_mod_capabilities(
+            {},
+            "finger1",
+            item={"itemId": "ring-without-official-sockets", "slot": "finger1"},
+        )
+
+        self.assertEqual(
+            [
+                two_socket_capabilities.get("socketCount"),
+                different_ring_capabilities["hasSocket"],
+                different_ring_capabilities.get("socketCount"),
+            ],
+            [2, False, None],
+        )
+
     def test_item_mod_capabilities_do_not_infer_socket_from_simc_gem_fields(self):
         head_caps = self.websim_payload.item_mod_capabilities(
             {},
@@ -6355,10 +6446,10 @@ class WebSimPayloadTest(unittest.TestCase):
 
         self.assertFalse(head_caps["hasSocket"])
         self.assertNotIn("socketCount", head_caps)
-        self.assertTrue(neck_caps["hasSocket"])
-        self.assertEqual(neck_caps["socketCount"], 1)
-        self.assertTrue(finger_caps["hasSocket"])
-        self.assertEqual(finger_caps["socketCount"], 1)
+        self.assertFalse(neck_caps["hasSocket"])
+        self.assertNotIn("socketCount", neck_caps)
+        self.assertFalse(finger_caps["hasSocket"])
+        self.assertNotIn("socketCount", finger_caps)
         self.assertFalse(held_offhand_caps["canEnchant"])
 
     def test_compact_gear_candidate_omits_redundant_mobile_metadata(self):

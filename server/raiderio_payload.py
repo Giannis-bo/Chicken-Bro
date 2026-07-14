@@ -1482,19 +1482,24 @@ def raiderio_option_id(value, keys=None):
     return str(value).strip()
 
 
-def raiderio_option_ids(value, keys=None):
+def raiderio_option_ids(value, keys=None, *, deduplicate=True):
     if isinstance(value, list):
         ids = [raiderio_option_id(item, keys) for item in value]
     else:
         ids = [raiderio_option_id(value, keys)]
-    return [item for item in dict.fromkeys(ids) if item and item != "0"]
+    ids = [item for item in ids if item and item != "0"]
+    return list(dict.fromkeys(ids)) if deduplicate else ids
 
 
 def extract_raiderio_item_enhancements(item):
     item = item if isinstance(item, dict) else {}
     bonus_ids = raiderio_option_ids(item.get("bonuses") or item.get("bonusIds"), ("id", "bonus_id", "bonusId"))
     gem_payload = item.get("gems") or item.get("gem") or []
-    gem_ids = raiderio_option_ids(gem_payload, ("item_id", "itemId", "id", "gem_id", "gemId"))
+    gem_ids = raiderio_option_ids(
+        gem_payload,
+        ("item_id", "itemId", "id", "gem_id", "gemId"),
+        deduplicate=False,
+    )
     enchant_payload = item.get("enchants") or item.get("enchant") or []
     enchant_ids = raiderio_option_ids(enchant_payload, ("enchant", "enchant_id", "enchantId", "id"))
     enhancements = {
