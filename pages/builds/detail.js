@@ -1505,6 +1505,59 @@ function normalizedOptionIdentityList(value) {
     .filter(Boolean)
 }
 
+function gemOptionIdsForRecord(record) {
+  const source = record && typeof record === 'object' ? record : {}
+  const gemOptionIds = normalizedOptionIdentityList(source.gemOptionIds)
+  if (gemOptionIds.length) return gemOptionIds
+  const legacyOptionId = cleanGearString(source.socketOptionId)
+  return legacyOptionId ? [legacyOptionId] : []
+}
+
+function parseCanonicalSocketIndex(value) {
+  if (typeof value === 'number') {
+    return Number.isSafeInteger(value) && value >= 0 ? value : null
+  }
+  if (typeof value !== 'string' || !/^(0|[1-9]\d*)$/.test(value)) return null
+  const parsed = Number(value)
+  return Number.isSafeInteger(parsed) ? parsed : null
+}
+
+function recordWithGemOptionIds(record, gemOptionIds) {
+  const next = { ...(record || {}) }
+  const normalizedIds = normalizedOptionIdentityList(gemOptionIds)
+  if (normalizedIds.length) next.gemOptionIds = normalizedIds
+  else delete next.gemOptionIds
+  delete next.socketOptionId
+  delete next.gem_id
+  delete next.gem_bonus_id
+  delete next.gem_ilevel
+  return next
+}
+
+function replaceGemOptionAtIndex(record, socketIndex, optionId, socketCapacity) {
+  const index = parseCanonicalSocketIndex(socketIndex)
+  const capacity = Math.max(0, Math.floor(Number(socketCapacity) || 0))
+  const normalizedOptionId = cleanGearString(optionId)
+  const gemOptionIds = gemOptionIdsForRecord(record)
+  if (index === null || index >= capacity || !normalizedOptionId) {
+    return { ...(record || {}) }
+  }
+  if (index < gemOptionIds.length) gemOptionIds[index] = normalizedOptionId
+  else if (index === gemOptionIds.length && gemOptionIds.length < capacity) gemOptionIds.push(normalizedOptionId)
+  else return { ...(record || {}) }
+  return recordWithGemOptionIds(record, gemOptionIds)
+}
+
+function removeGemOptionAtIndex(record, socketIndex) {
+  const index = parseCanonicalSocketIndex(socketIndex)
+  const gemOptionIds = gemOptionIdsForRecord(record)
+  if (index === null || index >= gemOptionIds.length) {
+    return { ...(record || {}) }
+  }
+  gemOptionIds.splice(index, 1)
+  return recordWithGemOptionIds(record, gemOptionIds)
+}
+
 function normalizedEnhancementBySlot(enhancementBySlot) {
   const result = {}
   Object.keys(enhancementBySlot || {}).sort().forEach((slot) => {
@@ -2355,6 +2408,49 @@ function enhancementRow(slot, item, options, selected, type, disabled) {
   }
 }
 
+function buildGemSocketRows(slot, item, options, selected, uniqueGroups) {
+  const socketCapacity = gearItemSocketCapacity(item)
+  const selectedOptionIds = gemOptionIdsForRecord(selected)
+  const optionRecords = Array.isArray(options) ? options : []
+  const selectedOptionById = new Map(
+    optionRecords.map((option) => [enhancementOptionIdentity(option), option])
+  )
+  return Array.from({ length: socketCapacity }, (_, socketIndex) => {
+    const selectedOptionId = cleanGearString(selectedOptionIds[socketIndex])
+    const selectedOption = selectedOptionById.get(selectedOptionId) || null
+    const selectedGroup = enhancementOptionUniqueGroup(selectedOption || {}, 'gem')
+    const occupied = socketIndex < selectedOptionIds.length
+    const nextEmpty = !occupied && socketIndex === selectedOptionIds.length
+    const selectedForSocket = selectedOptionId ? { gemOptionIds: [selectedOptionId] } : {}
+    const displayOptions = optionRecords.map((option) => {
+      const optionId = enhancementOptionIdentity(option)
+      const optionGroup = enhancementOptionUniqueGroup(option || {}, 'gem')
+      const optionSelected = !!(selectedOptionId && optionId === selectedOptionId)
+      const uniqueState = (uniqueGroups && optionGroup && uniqueGroups[optionGroup]) || { slots: [] }
+      const uniqueLimit = enhancementOptionUniqueLimit(option || {}, 'gem') || 1
+      const currentOccurrenceOffset = selectedGroup && selectedGroup === optionGroup ? 1 : 0
+      const uniqueCountWithoutCurrent = Math.max(0, (uniqueState.slots || []).length - currentOccurrenceOffset)
+      const disabled = optionSelected
+        ? false
+        : ((!occupied && !nextEmpty) || (!!optionGroup && uniqueCountWithoutCurrent >= uniqueLimit))
+      return enhancementOptionForData(option, selectedForSocket, 'gem', disabled, slot)
+    }).filter(Boolean)
+    const selectedDisplayOption = displayOptions.find((option) => option.selected)
+    return {
+      slot,
+      socketIndex,
+      socketNumber: socketIndex + 1,
+      socketCapacity,
+      label: gearSlotDisplayLabels[slot] || slot,
+      itemName: itemDisplayName(item),
+      occupied,
+      selectedOptionId,
+      selectedLabel: (selectedDisplayOption && selectedDisplayOption.label) || '',
+      options: displayOptions
+    }
+  })
+}
+
 function emptyGearEnhancementSheet() {
   return {
     visible: false,
@@ -2515,16 +2611,8 @@ function buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementB
       if (!blockers.includes(blocker)) blockers.push(blocker)
     }
     if (socketOptions.length && itemSupportsEnhancement(item, 'gem', socketOptions)) {
-      const row = enhancementRow(slot, item, socketOptions, selected, 'gem', (option, isSelected) => {
-        if (isSelected) return false
-        if (selectedGemCount >= socketCapacity) return true
-        const group = enhancementOptionUniqueGroup(option, 'gem')
-        if (!group) return false
-        const limit = enhancementOptionUniqueLimit(option, 'gem') || 1
-        const state = gemUniqueGroups[group] || { slots: [] }
-        return (state.slots || []).length >= limit
-      })
-      if (row.options.length) gemRows.push(row)
+      const rows = buildGemSocketRows(slot, item, socketOptions, selected, gemUniqueGroups)
+      if (rows.some((row) => row.options.length)) gemRows.push(...rows)
     } else if (selected.gem_id) {
       blockers.push(`${gearSlotDisplay(slot)} 宝石已不兼容`)
     }
@@ -2583,30 +2671,37 @@ function buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementB
 
 function prunedEnhancementBySlot(gearPayload, selectedGearBySlot, enhancementBySlot) {
   const sheet = buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementBySlot, true)
+  const gemRowsBySlot = sheet.gemRows.reduce((result, row) => {
+    if (!result.has(row.slot)) result.set(row.slot, [])
+    result.get(row.slot).push(row)
+    return result
+  }, new Map())
   const rowsByType = {
-    gem: new Map(sheet.gemRows.map((row) => [row.slot, row])),
     enchant: new Map(sheet.enchantRows.map((row) => [row.slot, row])),
     embellishment: new Map(sheet.embellishmentRows.map((row) => [row.slot, row]))
   }
   const normalized = normalizedEnhancementBySlot(enhancementBySlot)
   const indexed = enrichedSelectedGearByCanonicalSlot(gearPayload, selectedGearBySlot || {})
   const rowKeepsSelection = (type, slot) => {
-    const row = rowsByType[type].get(slot)
+    const rows = type === 'gem'
+      ? (gemRowsBySlot.get(slot) || [])
+      : [rowsByType[type].get(slot)].filter(Boolean)
     return !!(
-      (row && Array.isArray(row.options) && row.options.some((option) => option.selected)) ||
+      rows.some((row) => Array.isArray(row.options) && row.options.some((option) => option.selected)) ||
       enhancementRecordMatchesEmbeddedItem(indexed[slot], normalized[slot], type)
     )
   }
   Object.keys(normalized).forEach((slot) => {
     const gemOptionIds = normalizedOptionIdentityList(normalized[slot].gemOptionIds)
     if (gemOptionIds.length) {
-      const row = rowsByType.gem.get(slot)
-      const selectedOptionIds = new Set(
-        row && Array.isArray(row.options)
-          ? row.options.filter((option) => option.selected).map((option) => cleanGearString(option.id)).filter(Boolean)
-          : []
+      const availableOptionIds = new Set(
+        (gemRowsBySlot.get(slot) || []).flatMap((row) => (
+          Array.isArray(row.options)
+            ? row.options.map((option) => cleanGearString(option.id)).filter(Boolean)
+            : []
+        ))
       )
-      const retainedGemOptionIds = gemOptionIds.filter((id) => selectedOptionIds.has(id))
+      const retainedGemOptionIds = gemOptionIds.filter((id) => availableOptionIds.has(id))
       if (retainedGemOptionIds.length) normalized[slot].gemOptionIds = retainedGemOptionIds
       else delete normalized[slot].gemOptionIds
       delete normalized[slot].socketOptionId
@@ -2634,21 +2729,7 @@ function prunedEnhancementBySlot(gearPayload, selectedGearBySlot, enhancementByS
 
 function enhancementSelectionFromOption(type, option, record) {
   const simcOptions = option && option.simcOptions && typeof option.simcOptions === 'object' ? option.simcOptions : {}
-  if (type === 'gem') {
-    const currentGemOptionIds = normalizedOptionIdentityList(record && record.gemOptionIds)
-    const legacyOptionId = cleanGearString(record && record.socketOptionId)
-    const optionId = cleanGearString(option.id)
-    return {
-      gemOptionIds: normalizedOptionIdentityList([
-        ...(currentGemOptionIds.length ? currentGemOptionIds : (legacyOptionId ? [legacyOptionId] : [])),
-        optionId
-      ]),
-      socketOptionId: '',
-      gem_id: '',
-      gem_bonus_id: '',
-      gem_ilevel: ''
-    }
-  }
+  if (type === 'gem') return {}
   if (type === 'enchant') {
     return {
       enchantOptionId: cleanGearString(option.id),
@@ -2666,19 +2747,8 @@ function enhancementSelectionFromOption(type, option, record) {
 
 function removeEnhancementType(record, type, optionId) {
   const next = { ...(record || {}) }
-  if (type === 'gem') {
-    const gemOptionIds = normalizedOptionIdentityList(next.gemOptionIds)
-    const removedOptionId = cleanGearString(optionId)
-    const remainingGemOptionIds = removedOptionId
-      ? gemOptionIds.filter((id) => id !== removedOptionId)
-      : []
-    if (remainingGemOptionIds.length) next.gemOptionIds = remainingGemOptionIds
-    else delete next.gemOptionIds
-    delete next.socketOptionId
-    delete next.gem_id
-    delete next.gem_bonus_id
-    delete next.gem_ilevel
-  } else if (type === 'enchant') {
+  if (type === 'gem') return next
+  if (type === 'enchant') {
     delete next.enchantOptionId
     delete next.enchant_id
   } else if (type === 'embellishment') {
@@ -6055,20 +6125,30 @@ Page({
     const slot = event.currentTarget.dataset.slot || ''
     const type = event.currentTarget.dataset.type || ''
     const optionId = event.currentTarget.dataset.id || ''
+    const socketIndex = parseCanonicalSocketIndex(event.currentTarget.dataset.socketIndex)
     if (!slot || !type || !optionId) return
     const rowsByType = {
       gem: sheet.gemRows || [],
       enchant: sheet.enchantRows || [],
       embellishment: sheet.embellishmentRows || []
     }
-    const row = (rowsByType[type] || []).find((item) => item.slot === slot)
+    const row = (rowsByType[type] || []).find((item) => (
+      item.slot === slot && (type !== 'gem' || item.socketIndex === socketIndex)
+    ))
     const option = row && (row.options || []).find((item) => item.id === optionId)
     if (!row || !option || option.disabled) return
     const current = normalizedEnhancementBySlot(sheet.draftEnhancementBySlot || this.data.enhancementBySlot || {})
     const existing = current[slot] || {}
-    const nextRecord = option.selected
-      ? removeEnhancementType(existing, type, optionId)
-      : { ...existing, ...enhancementSelectionFromOption(type, option, existing) }
+    let nextRecord
+    if (type === 'gem') {
+      nextRecord = option.selected
+        ? removeGemOptionAtIndex(existing, socketIndex)
+        : replaceGemOptionAtIndex(existing, socketIndex, optionId, row.socketCapacity)
+    } else {
+      nextRecord = option.selected
+        ? removeEnhancementType(existing, type, optionId)
+        : { ...existing, ...enhancementSelectionFromOption(type, option, existing) }
+    }
     const compactRecord = compactEnhancementRecord(nextRecord)
     if (compactRecord) current[slot] = compactRecord
     else delete current[slot]

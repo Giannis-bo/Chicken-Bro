@@ -31,6 +31,10 @@ function loadBuildsDetailPageConfig(options = {}) {
 globalThis.__detailHelpers = {
   normalizedEnhancementBySlot,
   optionIdentityEnhancementBySlot,
+  gemOptionIdsForRecord: typeof gemOptionIdsForRecord === 'function' ? gemOptionIdsForRecord : undefined,
+  replaceGemOptionAtIndex: typeof replaceGemOptionAtIndex === 'function' ? replaceGemOptionAtIndex : undefined,
+  removeGemOptionAtIndex: typeof removeGemOptionAtIndex === 'function' ? removeGemOptionAtIndex : undefined,
+  buildGemSocketRows: typeof buildGemSocketRows === 'function' ? buildGemSocketRows : undefined,
   enhancementRecordSelectedCount,
   compactEnhancementRecord,
   enhancementOptionSelected,
@@ -3659,10 +3663,10 @@ test('gear attribute panel includes selected gem stat bonuses', () => {
 
   pageConfig.openGearEnhancementSheet.call(page)
   pageConfig.selectGearEnhancementOption.call(page, {
-    currentTarget: { dataset: { slot: 'finger1', type: 'gem', id: 'gem-primary' } }
+    currentTarget: { dataset: { slot: 'finger1', type: 'gem', id: 'gem-primary', socketIndex: 0 } }
   })
   pageConfig.selectGearEnhancementOption.call(page, {
-    currentTarget: { dataset: { slot: 'finger2', type: 'gem', id: 'gem-mastery-crit' } }
+    currentTarget: { dataset: { slot: 'finger2', type: 'gem', id: 'gem-mastery-crit', socketIndex: 0 } }
   })
   pageConfig.confirmGearEnhancementSheet.call(page)
 
@@ -3842,7 +3846,7 @@ test('gear enhancement sheet filters configurable slots and disables extra embel
   assert.equal(page.data.gearEnhancementSheet.activeEmbellishmentRows[0].options[0].label, '蓝色丝质内衬')
 
   pageConfig.selectGearEnhancementOption.call(page, {
-    currentTarget: { dataset: { slot: 'finger1', type: 'gem', id: 'gem-rank-two' } }
+    currentTarget: { dataset: { slot: 'finger1', type: 'gem', id: 'gem-rank-two', socketIndex: 0 } }
   })
   assert.deepEqual(page.data.enhancementBySlot, {})
   assert.equal(page.data.gearEnhancementSheet.gemRows.find((row) => row.slot === 'finger1').options[0].selected, true)
@@ -4033,7 +4037,7 @@ test('gear enhancement sheet shows socket enchant and embellishment groups for t
   assert.equal(page.data.gearEnhancementSheet.activeEmbellishmentRows[0].options[0].label, '奥纹内衬')
 
   pageConfig.selectGearEnhancementOption.call(page, {
-    currentTarget: { dataset: { slot: 'finger1', type: 'gem', id: 'gem-stat-primary' } }
+    currentTarget: { dataset: { slot: 'finger1', type: 'gem', id: 'gem-stat-primary', socketIndex: 0 } }
   })
   pageConfig.selectGearEnhancementOption.call(page, {
     currentTarget: { dataset: { slot: 'finger1', type: 'enchant', id: 'enchant-ring-nature' } }
@@ -4542,7 +4546,7 @@ test('gear enhancement sheet allows only one primary stat gem across jewelry slo
 
   pageConfig.openGearEnhancementSheet.call(page)
   pageConfig.selectGearEnhancementOption.call(page, {
-    currentTarget: { dataset: { slot: 'neck', type: 'gem', id: 'gem-primary-neck' } }
+    currentTarget: { dataset: { slot: 'neck', type: 'gem', id: 'gem-primary-neck', socketIndex: 0 } }
   })
 
   const ringGemOptions = page.data.gearEnhancementSheet.gemRows.find((row) => row.slot === 'finger1').options
@@ -10642,7 +10646,8 @@ function multiGemEditorHarness({
   optionIds = ['gem-first', 'gem-second', 'gem-third'],
   optionPayloadById = {},
   captureResolve = false,
-  exposeDetailHelpers = false
+  exposeDetailHelpers = false,
+  echoResolvedEnhancements = false
 } = {}) {
   const toasts = []
   const resolveRequests = []
@@ -10651,6 +10656,13 @@ function multiGemEditorHarness({
     exposeDetailHelpers,
     requestWebsimGearResolve(selectionIntent) {
       resolveRequests.push(selectionIntent)
+      if (echoResolvedEnhancements) {
+        return canonicalEnhancementResolveTransport(
+          selectionIntent,
+          `sha256:multi-gem-resolved-${resolveRequests.length}`,
+          { neck: { socketCount, canEnchant: false, canEmbellish: false } }
+        )
+      }
       return canonicalResolveTransport(selectionIntent)
     }
   })
@@ -10692,39 +10704,58 @@ function multiGemEditorHarness({
     readiness: { fullReady: true },
     resolverContext: canonicalTestResolverContext()
   }
-  const page = {
-    gearPayloadCache: gearPayload,
-    gearWorkbenchState: {
-      resolveStatus: 'verified',
-      activeRequest: null,
-      offline: false,
-      readOnly: false,
-      currentSnapshot: {
-        status: 'verified',
-        resolvedGearSignature: 'sha256:multi-gem-editor',
-        constraints: {
-          embellishmentMax: 2,
-          slots: {
-            neck: { socketCount, canEnchant: false, canEmbellish: false }
-          }
-        },
-        resolvedSlots: {
-          neck: {
-            selectedOptions: {
-              gemOptionIds: Array.isArray(enhancementBySlot.neck && enhancementBySlot.neck.gemOptionIds)
-                ? [...enhancementBySlot.neck.gemOptionIds]
-                : []
-            }
-          }
+  const selectedGearBySlot = { neck: selectedNeck }
+  const initialIntent = require('../pages/builds/gear-selection-intent').serializeGearSelectionIntent({
+    resolverContext: gearPayload.resolverContext,
+    eligibilityContext: { classKey: 'mage', specKey: 'frost', level: 90 },
+    selectedGearBySlot,
+    enhancementBySlot
+  })
+  const verifiedSnapshot = {
+    contractRevision: 'gear-resolved-snapshot-v1',
+    status: 'verified',
+    resolvedGearSignature: 'sha256:multi-gem-editor',
+    dependencyVector: {},
+    staticAttributes: {},
+    setState: { itemSetCounts: {}, activeDynamicEffects: [] },
+    aggregateLegality: { status: 'verified', problemCodes: [] },
+    profileReadiness: { status: 'verified', simcReady: true, requiredSlots: ['neck'], readySlots: ['neck'] },
+    constraints: {
+      embellishmentMax: 2,
+      slots: { neck: { socketCount, canEnchant: false, canEmbellish: false } }
+    },
+    resolvedSlots: {
+      neck: {
+        itemLevel: 707,
+        selectedOptions: {
+          gemOptionIds: Array.isArray(enhancementBySlot.neck && enhancementBySlot.neck.gemOptionIds)
+            ? [...enhancementBySlot.neck.gemOptionIds]
+            : [],
+          enchantOptionId: '',
+          embellishmentOptionId: ''
         }
       }
     },
+    problems: []
+  }
+  const gearWorkbenchState = require('../pages/builds/gear-workbench-state').createGearWorkbenchState(
+    gearPayload.resolverContext,
+    initialIntent
+  )
+  Object.assign(gearWorkbenchState, {
+    resolveStatus: 'verified',
+    currentSnapshot: verifiedSnapshot,
+    lastVerifiedSnapshot: verifiedSnapshot
+  })
+  const page = {
+    gearPayloadCache: gearPayload,
+    gearWorkbenchState,
     data: {
       selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
       activeQueryKey: 'gear',
       gearPayload,
       selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' },
-      selectedGearBySlot: { neck: selectedNeck },
+      selectedGearBySlot,
       enhancementBySlot,
       gearEnhancementSheet: { visible: false },
       gearSlotSheet: { visible: false },
@@ -10770,45 +10801,234 @@ test('duplicate unique gem occurrences block confirmation without resolving', as
   assert.equal(resolveRequests.length, 0)
 })
 
-test('gem option toggles preserve two identities and stop at canonical socket capacity', () => {
-  const { pageConfig, page } = multiGemEditorHarness({ socketCount: 2 })
+test('full gem slot replaces one gem by socket index without changing used count', () => {
+  const { pageConfig, page } = multiGemEditorHarness({
+    socketCount: 2,
+    enhancementBySlot: { neck: { gemOptionIds: ['gem-first', 'gem-second'] } },
+    exposeDetailHelpers: true
+  })
   pageConfig.openGearEnhancementSheet.call(page)
 
-  ;['gem-first', 'gem-second'].forEach((id) => {
-    pageConfig.selectGearEnhancementOption.call(page, {
-      currentTarget: { dataset: { slot: 'neck', type: 'gem', id } }
-    })
+  assert.equal(typeof pageConfig.__detailHelpers.gemOptionIdsForRecord, 'function')
+  assert.equal(typeof pageConfig.__detailHelpers.replaceGemOptionAtIndex, 'function')
+  assert.equal(typeof pageConfig.__detailHelpers.removeGemOptionAtIndex, 'function')
+  assert.equal(typeof pageConfig.__detailHelpers.buildGemSocketRows, 'function')
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(pageConfig.__detailHelpers.replaceGemOptionAtIndex(
+      { gemOptionIds: ['gem-first'] },
+      2,
+      'gem-third',
+      3
+    ))),
+    { gemOptionIds: ['gem-first'] },
+    'append must target the next empty socket rather than creating a hole'
+  )
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(pageConfig.__detailHelpers.removeGemOptionAtIndex(
+      { gemOptionIds: ['gem-first', 'gem-first'] },
+      1
+    ))),
+    { gemOptionIds: ['gem-first'] }
+  )
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(pageConfig.__detailHelpers.replaceGemOptionAtIndex(
+      { gemOptionIds: ['gem-first'] },
+      'invalid-index',
+      'gem-third',
+      3
+    ))),
+    { gemOptionIds: ['gem-first'] }
+  )
+  const appendRows = pageConfig.__detailHelpers.buildGemSocketRows(
+    'neck',
+    page.data.selectedGearBySlot.neck,
+    page.data.selectedGearBySlot.neck.socketOptions,
+    { gemOptionIds: ['gem-first'] },
+    {}
+  )
+  assert.equal(appendRows[1].options.find((option) => option.id === 'gem-third').disabled, false)
+  assert.equal(appendRows[2].options.find((option) => option.id === 'gem-third').disabled, true)
+  assert.equal(page.data.gearEnhancementSheet.activeGemRows.length, 2)
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(page.data.gearEnhancementSheet.activeGemRows.map((row) => row.socketIndex))),
+    [0, 1]
+  )
+
+  pageConfig.selectGearEnhancementOption.call(page, {
+    currentTarget: {
+      dataset: { slot: 'neck', type: 'gem', id: 'gem-third', socketIndex: 1 }
+    }
   })
 
   assert.deepEqual(JSON.parse(JSON.stringify(page.data.gearEnhancementSheet.draftEnhancementBySlot)), {
-    neck: { gemOptionIds: ['gem-first', 'gem-second'] }
+    neck: { gemOptionIds: ['gem-first', 'gem-third'] }
   })
-  assert.equal(page.data.gearEnhancementSheet.activeGemRows[0].options.find((option) => option.id === 'gem-first').selected, true)
-  assert.equal(page.data.gearEnhancementSheet.activeGemRows[0].options.find((option) => option.id === 'gem-second').selected, true)
-  assert.equal(page.data.gearEnhancementSheet.activeGemRows[0].options.find((option) => option.id === 'gem-third').disabled, true)
+  assert.equal(page.data.gearEnhancementSheet.activeGemRows.length, 2)
+  assert.equal(page.data.gearEnhancementSheet.activeGemRows[1].selectedOptionId, 'gem-third')
 
-  pageConfig.selectGearEnhancementOption.call(page, {
-    currentTarget: { dataset: { slot: 'neck', type: 'gem', id: 'gem-third' } }
-  })
-  assert.deepEqual(JSON.parse(JSON.stringify(page.data.gearEnhancementSheet.draftEnhancementBySlot.neck.gemOptionIds)), ['gem-first', 'gem-second'])
+  const wxml = fs.readFileSync('pages/builds/detail.wxml', 'utf8')
+  const css = fs.readFileSync('pages/builds/detail.wxss', 'utf8')
+  assert.match(wxml, /wx:key="socketIndex"/)
+  assert.match(wxml, /data-socket-index="\{\{row\.socketIndex\}\}"/)
+  assert.match(css, /\.gear-enhancement-socket-state/)
 })
 
-test('gem option toggle removes only the selected identity', () => {
+test('socket index helpers reject coercible invalid values instead of targeting socket zero', () => {
+  const { pageConfig } = multiGemEditorHarness({ exposeDetailHelpers: true })
+  const helpers = pageConfig.__detailHelpers
+  const original = { gemOptionIds: ['gem-first', 'gem-second'] }
+  const invalidSocketIndexes = ['', ' ', '\t', null, false, true, undefined, '00', '01', '1.0', -1, 1.5]
+
+  invalidSocketIndexes.forEach((socketIndex) => {
+    assert.deepEqual(
+      JSON.parse(JSON.stringify(helpers.replaceGemOptionAtIndex(
+        original,
+        socketIndex,
+        'gem-third',
+        2
+      ))),
+      original
+    )
+    assert.deepEqual(
+      JSON.parse(JSON.stringify(helpers.removeGemOptionAtIndex(original, socketIndex))),
+      original
+    )
+  })
+
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(helpers.replaceGemOptionAtIndex(original, '0', 'gem-third', 2))),
+    { gemOptionIds: ['gem-third', 'gem-second'] },
+    'canonical digit strings from WXML datasets remain accepted'
+  )
+})
+
+test('socket index event rejects coercible invalid values without mutating the first occurrence', () => {
   const { pageConfig, page } = multiGemEditorHarness({
     socketCount: 2,
     enhancementBySlot: { neck: { gemOptionIds: ['gem-first', 'gem-second'] } }
   })
   pageConfig.openGearEnhancementSheet.call(page)
 
-  pageConfig.selectGearEnhancementOption.call(page, {
-    currentTarget: { dataset: { slot: 'neck', type: 'gem', id: 'gem-first' } }
+  ;['', ' ', '\t', null, false, true, undefined, '00', '01', '1.0', -1, 1.5].forEach((socketIndex) => {
+    pageConfig.selectGearEnhancementOption.call(page, {
+      currentTarget: {
+        dataset: { slot: 'neck', type: 'gem', id: 'gem-third', socketIndex }
+      }
+    })
   })
 
   assert.deepEqual(JSON.parse(JSON.stringify(page.data.gearEnhancementSheet.draftEnhancementBySlot)), {
-    neck: { gemOptionIds: ['gem-second'] }
+    neck: { gemOptionIds: ['gem-first', 'gem-second'] }
   })
-  assert.equal(page.data.gearEnhancementSheet.activeGemRows[0].options.find((option) => option.id === 'gem-first').selected, false)
-  assert.equal(page.data.gearEnhancementSheet.activeGemRows[0].options.find((option) => option.id === 'gem-second').selected, true)
+
+  pageConfig.selectGearEnhancementOption.call(page, {
+    currentTarget: {
+      dataset: { slot: 'neck', type: 'gem', id: 'gem-third', socketIndex: '0' }
+    }
+  })
+  assert.deepEqual(JSON.parse(JSON.stringify(page.data.gearEnhancementSheet.draftEnhancementBySlot)), {
+    neck: { gemOptionIds: ['gem-third', 'gem-second'] }
+  })
+})
+
+test('duplicate gem replacement changes only the addressed occurrence', () => {
+  const { pageConfig, page } = multiGemEditorHarness({
+    socketCount: 2,
+    enhancementBySlot: { neck: { gemOptionIds: ['gem-first', 'gem-first'] } }
+  })
+  pageConfig.openGearEnhancementSheet.call(page)
+
+  pageConfig.selectGearEnhancementOption.call(page, {
+    currentTarget: {
+      dataset: { slot: 'neck', type: 'gem', id: 'gem-second', socketIndex: 1 }
+    }
+  })
+
+  assert.deepEqual(JSON.parse(JSON.stringify(page.data.gearEnhancementSheet.draftEnhancementBySlot)), {
+    neck: { gemOptionIds: ['gem-first', 'gem-second'] }
+  })
+  assert.equal(page.data.gearEnhancementSheet.activeGemRows[0].selectedOptionId, 'gem-first')
+  assert.equal(page.data.gearEnhancementSheet.activeGemRows[1].selectedOptionId, 'gem-second')
+})
+
+test('removing one duplicate gem keeps the other occurrence', () => {
+  const { pageConfig, page } = multiGemEditorHarness({
+    socketCount: 2,
+    enhancementBySlot: { neck: { gemOptionIds: ['gem-first', 'gem-first'] } }
+  })
+  pageConfig.openGearEnhancementSheet.call(page)
+
+  pageConfig.selectGearEnhancementOption.call(page, {
+    currentTarget: {
+      dataset: { slot: 'neck', type: 'gem', id: 'gem-first', socketIndex: 1 }
+    }
+  })
+
+  assert.deepEqual(JSON.parse(JSON.stringify(page.data.gearEnhancementSheet.draftEnhancementBySlot)), {
+    neck: { gemOptionIds: ['gem-first'] }
+  })
+  assert.equal(page.data.gearEnhancementSheet.activeGemRows[0].selectedOptionId, 'gem-first')
+  assert.equal(page.data.gearEnhancementSheet.activeGemRows[1].selectedOptionId, '')
+})
+
+test('socket index edit preserves ordered gems through Resolve and reopen', async () => {
+  const { pageConfig, page, resolveRequests } = multiGemEditorHarness({
+    socketCount: 2,
+    enhancementBySlot: { neck: { gemOptionIds: ['gem-first', 'gem-second'] } },
+    captureResolve: true,
+    echoResolvedEnhancements: true
+  })
+  pageConfig.openGearEnhancementSheet.call(page)
+
+  pageConfig.selectGearEnhancementOption.call(page, {
+    currentTarget: {
+      dataset: { slot: 'neck', type: 'gem', id: 'gem-third', socketIndex: 0 }
+    }
+  })
+  await pageConfig.confirmGearEnhancementSheet.call(page)
+
+  assert.equal(resolveRequests.length, 1)
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(resolveRequests[0].slots.neck.gemOptionIds)),
+    ['gem-third', 'gem-second']
+  )
+  assert.deepEqual(JSON.parse(JSON.stringify(page.data.enhancementBySlot)), {
+    neck: { gemOptionIds: ['gem-third', 'gem-second'] }
+  })
+  assert.equal(page.data.gearEnhancementSheet.visible, false)
+
+  pageConfig.openGearEnhancementSheet.call(page)
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(page.data.gearEnhancementSheet.activeGemRows.map((row) => row.selectedOptionId))),
+    ['gem-third', 'gem-second']
+  )
+})
+
+test('unique gem replacement excludes the current socket from group counting', () => {
+  const uniqueGroup = { uniqueGroup: 'primary_stat_gem', uniqueLimit: 1 }
+  const { pageConfig, page } = multiGemEditorHarness({
+    socketCount: 1,
+    enhancementBySlot: { neck: { gemOptionIds: ['primary-first'] } },
+    optionIds: ['primary-first', 'primary-second', 'secondary'],
+    optionPayloadById: {
+      'primary-first': uniqueGroup,
+      'primary-second': uniqueGroup
+    }
+  })
+  pageConfig.openGearEnhancementSheet.call(page)
+
+  const row = page.data.gearEnhancementSheet.activeGemRows[0]
+  assert.equal(row.options.find((option) => option.id === 'primary-second').disabled, false)
+
+  pageConfig.selectGearEnhancementOption.call(page, {
+    currentTarget: {
+      dataset: { slot: 'neck', type: 'gem', id: 'primary-second', socketIndex: 0 }
+    }
+  })
+
+  assert.deepEqual(JSON.parse(JSON.stringify(page.data.gearEnhancementSheet.draftEnhancementBySlot)), {
+    neck: { gemOptionIds: ['primary-second'] }
+  })
 })
 
 test('gem option capacity overflow blocks confirmation without truncating identities', () => {
@@ -11117,8 +11337,15 @@ test('successful community Resolve renders canonical enhancement counts and sele
     currentTarget: { dataset: { slot: 'finger1' } }
   })
   assert.deepEqual(
-    JSON.parse(JSON.stringify(page.data.gearEnhancementSheet.activeGemRows[0].options.map((option) => [option.id, option.selected]))),
-    [['gem-one', true], ['gem-two', true]]
+    JSON.parse(JSON.stringify(page.data.gearEnhancementSheet.activeGemRows.map((row) => ({
+      socketIndex: row.socketIndex,
+      selectedOptionId: row.selectedOptionId,
+      options: row.options.map((option) => [option.id, option.selected])
+    })))),
+    [
+      { socketIndex: 0, selectedOptionId: 'gem-one', options: [['gem-one', true], ['gem-two', false]] },
+      { socketIndex: 1, selectedOptionId: 'gem-two', options: [['gem-one', false], ['gem-two', true]] }
+    ]
   )
   assert.deepEqual(
     JSON.parse(JSON.stringify(page.data.gearEnhancementSheet.activeEnchantRows[0].options.map((option) => [option.id, option.selected]))),
