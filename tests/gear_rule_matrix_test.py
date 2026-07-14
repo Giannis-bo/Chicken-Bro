@@ -2,7 +2,7 @@ import dataclasses
 import json
 import unittest
 
-from server import gear_rule_matrix
+from server import gear_rule_matrix, gear_socket_authority
 
 
 class GearRuleMatrixTest(unittest.TestCase):
@@ -107,6 +107,9 @@ class GearRuleMatrixTest(unittest.TestCase):
                 "simcRuntimeRevision": "simc-v1",
                 "statPolicyRevision": "stat-policy-v1",
                 "selectionSchemaRevision": "selection-intent-v1",
+                "capabilityRevision": (
+                    gear_socket_authority.LEGACY_CAPABILITY_REVISION
+                ),
             },
             "itemsById": items,
             "variantsByKey": {

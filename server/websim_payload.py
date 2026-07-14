@@ -43,9 +43,10 @@ except ImportError:
     from simc_preparation import apply_simc_preparation_lines, simc_preparation_payload, simc_preparation_report
 
 try:
-    from . import gear_public_contract
+    from . import gear_public_contract, gear_socket_authority
 except ImportError:
     import gear_public_contract
+    import gear_socket_authority
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -25726,7 +25727,11 @@ def gear_resolver_runtime_authority(class_key, spec_key, *, simc_runtime_revisio
             "simcRuntimeRevision": simc_runtime_revision,
             "statPolicyRevision": "stat-snapshot-policy-v1",
             "selectionSchemaRevision": "selection-intent-v1",
+            "capabilityRevision": gear_socket_authority.CAPABILITY_REVISION,
         },
+        "supportedCapabilityRevisions": list(
+            gear_socket_authority.SUPPORTED_CAPABILITY_REVISIONS
+        ),
         "ruleParameters": {
             "inventoryTypesBySlot": inventory_types,
             "allowedArmorTypesByClass": {

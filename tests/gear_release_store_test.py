@@ -1,7 +1,7 @@
 import copy
 import unittest
 
-from server import gear_release
+from server import gear_release, gear_socket_authority
 
 
 class FakeCursor:
@@ -86,7 +86,7 @@ class GearReleaseStoreTest(unittest.TestCase):
             "simcRuntimeRevision": "simc-r1",
             "statPolicyRevision": "stat-snapshot-policy-v1",
             "selectionSchemaRevision": "selection-intent-v1",
-            "capabilityRevision": "gear-capability-v1",
+            "capabilityRevision": gear_socket_authority.LEGACY_CAPABILITY_REVISION,
         }
 
     def snapshot(self):
@@ -151,7 +151,7 @@ class GearReleaseStoreTest(unittest.TestCase):
             ],
         }
 
-    def gear_release(self, snapshot=None):
+    def gear_release(self, snapshot=None, dependencies=None):
         from server import gear_release_store
 
         snapshot = snapshot or self.snapshot()
@@ -161,7 +161,7 @@ class GearReleaseStoreTest(unittest.TestCase):
             season_revision="season-17",
             schema_revision="gear-release-v1",
             content=summary,
-            dependency_revisions=self.dependencies(),
+            dependency_revisions=dependencies or self.dependencies(),
             release_status="validated",
             source={"sourceRevision": "legacy-import-r0"},
         )
@@ -268,7 +268,9 @@ class GearReleaseStoreTest(unittest.TestCase):
             },
         }
         runtime = gear_resolver_runtime_authority("mage", "arcane", simc_runtime_revision="simc-r1")
-        runtime["dependencyRevisions"]["capabilityRevision"] = "gear-capability-v1"
+        runtime["dependencyRevisions"]["capabilityRevision"] = (
+            gear_socket_authority.LEGACY_CAPABILITY_REVISION
+        )
 
         context = build_candidate_authority_context(snapshot, intent, runtime, release)
 
@@ -309,7 +311,9 @@ class GearReleaseStoreTest(unittest.TestCase):
             },
         }
         runtime = gear_resolver_runtime_authority("mage", "arcane", simc_runtime_revision="simc-r1")
-        runtime["dependencyRevisions"]["capabilityRevision"] = "gear-capability-v1"
+        runtime["dependencyRevisions"]["capabilityRevision"] = (
+            gear_socket_authority.LEGACY_CAPABILITY_REVISION
+        )
 
         with patch.object(
             gear_release_store,
@@ -335,7 +339,10 @@ class GearReleaseStoreTest(unittest.TestCase):
         self.assertEqual(summary.call_count, 1)
         self.assertEqual(first, second)
         self.assertEqual(first["dependencyVector"]["gearCatalogReleaseId"], release["releaseId"])
-        self.assertEqual(first["dependencyVector"]["capabilityRevision"], "gear-capability-v1")
+        self.assertEqual(
+            first["dependencyVector"]["capabilityRevision"],
+            gear_socket_authority.LEGACY_CAPABILITY_REVISION,
+        )
         self.assertIn("item-a", first["itemsById"])
         self.assertIn("variant-a", first["variantsByKey"])
         self.assertEqual(first["missingFields"], [])
@@ -1026,7 +1033,15 @@ class GearReleaseStoreTest(unittest.TestCase):
             "gearRelease": gear,
             "communityRelease": None,
         }
-        runtime = {"dependencyRevisions": self.dependencies()}
+        runtime = {
+            "dependencyRevisions": {
+                **self.dependencies(),
+                "capabilityRevision": gear_socket_authority.CAPABILITY_REVISION,
+            },
+            "supportedCapabilityRevisions": list(
+                gear_socket_authority.SUPPORTED_CAPABILITY_REVISIONS
+            ),
+        }
 
         context = GearReleaseStore(lambda: FakeConnection()).active_resolver_context(binding, runtime)
 
@@ -1042,6 +1057,95 @@ class GearReleaseStoreTest(unittest.TestCase):
         drifted["dependencyRevisions"]["simcRuntimeRevision"] = "simc-other"
         with self.assertRaises(GearReleaseIntegrityError):
             GearReleaseStore(lambda: FakeConnection()).active_resolver_context(binding, drifted)
+
+    def test_active_reader_accepts_supported_v1_manifest_during_v2_rollout(self):
+        from server.gear_release_store import GearReleaseStore
+
+        gear = self.gear_release()
+        manifest = gear_release.build_manifest(
+            season_revision="season-17",
+            gear_release=gear,
+            community_release=None,
+            talent_catalog_revision="talent-r1",
+            dependency_revisions=self.dependencies(),
+        )
+        binding = {
+            "pointerMode": "active",
+            "generation": 3,
+            "formalActiveManifest": True,
+            "manifest": manifest,
+            "gearRelease": gear,
+            "communityRelease": None,
+        }
+        runtime_dependencies = {
+            **self.dependencies(),
+            "capabilityRevision": gear_socket_authority.CAPABILITY_REVISION,
+        }
+        runtime = {
+            "dependencyRevisions": runtime_dependencies,
+            "supportedCapabilityRevisions": list(
+                gear_socket_authority.SUPPORTED_CAPABILITY_REVISIONS
+            ),
+        }
+
+        context = GearReleaseStore(lambda: FakeConnection()).active_resolver_context(
+            binding,
+            runtime,
+        )
+
+        self.assertEqual(
+            context["dependencyRevisions"]["capabilityRevision"],
+            gear_socket_authority.LEGACY_CAPABILITY_REVISION,
+        )
+
+    def test_active_reader_rejects_unsupported_capability_revision(self):
+        from server.gear_release_store import GearReleaseIntegrityError, GearReleaseStore
+
+        future_dependencies = {
+            **self.dependencies(),
+            "capabilityRevision": "gear-capability-matrix-v3",
+        }
+        gear = self.gear_release(dependencies=future_dependencies)
+        manifest = gear_release.build_manifest(
+            season_revision="season-17",
+            gear_release=gear,
+            community_release=None,
+            talent_catalog_revision="talent-r1",
+            dependency_revisions=future_dependencies,
+        )
+        binding = {
+            "pointerMode": "active",
+            "generation": 4,
+            "formalActiveManifest": True,
+            "manifest": manifest,
+            "gearRelease": gear,
+            "communityRelease": None,
+        }
+        runtime = {
+            "dependencyRevisions": {
+                **self.dependencies(),
+                "capabilityRevision": gear_socket_authority.CAPABILITY_REVISION,
+            },
+            "supportedCapabilityRevisions": list(
+                gear_socket_authority.SUPPORTED_CAPABILITY_REVISIONS
+            ),
+        }
+
+        with self.assertRaises(GearReleaseIntegrityError):
+            GearReleaseStore(lambda: FakeConnection()).active_resolver_context(
+                binding,
+                runtime,
+            )
+
+        missing_binding = copy.deepcopy(binding)
+        missing_binding["manifest"]["dependencyRevisions"].pop(
+            "capabilityRevision"
+        )
+        with self.assertRaises(GearReleaseIntegrityError):
+            GearReleaseStore(lambda: FakeConnection()).active_resolver_context(
+                missing_binding,
+                runtime,
+            )
 
     def test_active_authority_reads_current_release_for_stale_intent_so_resolver_can_report_409(self):
         from server.gear_release_store import GearReleaseStore
@@ -1062,7 +1166,15 @@ class GearReleaseStoreTest(unittest.TestCase):
             "gearRelease": gear,
             "communityRelease": None,
         }
-        runtime = {"dependencyRevisions": self.dependencies()}
+        runtime = {
+            "dependencyRevisions": {
+                **self.dependencies(),
+                "capabilityRevision": gear_socket_authority.CAPABILITY_REVISION,
+            },
+            "supportedCapabilityRevisions": list(
+                gear_socket_authority.SUPPORTED_CAPABILITY_REVISIONS
+            ),
+        }
         stale_intent = {
             "schemaRevision": "selection-intent-v1",
             "authoredAgainst": {
@@ -1122,7 +1234,9 @@ class GearReleaseStoreTest(unittest.TestCase):
             },
         }
         runtime = gear_resolver_runtime_authority("mage", "arcane", simc_runtime_revision="simc-r1")
-        runtime["dependencyRevisions"]["capabilityRevision"] = "gear-capability-v1"
+        runtime["dependencyRevisions"]["capabilityRevision"] = (
+            gear_socket_authority.LEGACY_CAPABILITY_REVISION
+        )
         item_record = {
             "id": "item-a",
             "name": "Item A",

@@ -41,7 +41,6 @@ except ImportError:
     from postgres_cache_store import PostgresCacheStore
 
 
-CAPABILITY_REVISION = "gear-capability-matrix-v1"
 _SIMC_SOCKET_PROBE_TIMEOUT_SECONDS = 30
 _SIMC_SOCKET_PROBE_MAX_CHARS = 4 * 1024 * 1024
 _SIMC_SOCKET_PROBE_FAILURE = "SimC socket probe failed"
@@ -190,9 +189,7 @@ def runtime_dependency_revisions(simc_runtime_revision: str) -> dict[str, str]:
         "arcane",
         simc_runtime_revision=simc_runtime_revision,
     )
-    revisions = dict(runtime.get("dependencyRevisions") or {})
-    revisions["capabilityRevision"] = CAPABILITY_REVISION
-    return revisions
+    return dict(runtime.get("dependencyRevisions") or {})
 
 
 def validate_gear_snapshot(snapshot: Any) -> list[dict[str, str]]:

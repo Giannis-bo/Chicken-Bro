@@ -23112,11 +23112,14 @@ class WebSimPayloadTest(unittest.TestCase):
         return json.loads(fixture_path.read_text(encoding="utf-8"))
 
     def resolved_snapshot_for_facade(self):
-        from server import gear_resolver
+        from server import gear_resolver, gear_socket_authority
 
         parity = self.gear_resolver_facade_fixture()
         resolver_path = Path(__file__).parent / "fixtures" / parity["resolverFixturePath"]
         resolver_fixture = json.loads(resolver_path.read_text(encoding="utf-8"))
+        resolver_fixture["authorityContext"]["dependencyVector"][
+            "capabilityRevision"
+        ] = gear_socket_authority.LEGACY_CAPABILITY_REVISION
         snapshot = gear_resolver.resolve(
             resolver_fixture["intent"], resolver_fixture["authorityContext"]
         )
@@ -23267,6 +23270,28 @@ class WebSimPayloadTest(unittest.TestCase):
                 authority["ruleParameters"]["weaponModesByClassSpec"][spec_id],
                 weapon_rule.get("mode"),
             )
+
+    def test_runtime_authority_advertises_current_and_supported_capability_revisions(self):
+        from server import gear_release_tool, gear_socket_authority
+
+        authority = self.websim_payload.gear_resolver_runtime_authority(
+            "mage", "arcane", simc_runtime_revision="simc-v1"
+        )
+
+        self.assertEqual(
+            authority["dependencyRevisions"]["capabilityRevision"],
+            gear_socket_authority.CAPABILITY_REVISION,
+        )
+        self.assertEqual(
+            authority["supportedCapabilityRevisions"],
+            list(gear_socket_authority.SUPPORTED_CAPABILITY_REVISIONS),
+        )
+        self.assertEqual(
+            gear_release_tool.runtime_dependency_revisions("simc-v1")[
+                "capabilityRevision"
+            ],
+            gear_socket_authority.CAPABILITY_REVISION,
+        )
 
     def test_runtime_authority_requires_current_simc_runtime_revision(self):
         with self.assertRaises(ValueError):

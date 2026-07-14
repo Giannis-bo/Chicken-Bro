@@ -1059,6 +1059,30 @@ class GearReleaseStore:
             if not _text(manifest_dependencies.get(field))
             or _text(runtime_dependencies.get(field)) != _text(manifest_dependencies.get(field))
         ]
+        supported_capability_revisions = (
+            runtime_authority.get("supportedCapabilityRevisions")
+            if isinstance(runtime_authority, dict)
+            and isinstance(runtime_authority.get("supportedCapabilityRevisions"), (list, tuple))
+            else []
+        )
+        supported_capability_revisions = {
+            _text(revision)
+            for revision in supported_capability_revisions
+            if _text(revision)
+        }
+        manifest_capability_revision = _text(
+            manifest_dependencies.get("capabilityRevision")
+        )
+        runtime_capability_revision = _text(
+            runtime_dependencies.get("capabilityRevision")
+        )
+        if (
+            not manifest_capability_revision
+            or not runtime_capability_revision
+            or runtime_capability_revision not in supported_capability_revisions
+            or manifest_capability_revision not in supported_capability_revisions
+        ):
+            mismatched.append("capabilityRevision")
         if mismatched:
             raise GearReleaseIntegrityError(
                 "active runtime dependencies do not match the Manifest: " + ", ".join(mismatched)
@@ -1093,6 +1117,7 @@ class GearReleaseStore:
                     "simcRuntimeRevision",
                     "statPolicyRevision",
                     "selectionSchemaRevision",
+                    "capabilityRevision",
                 )
             },
         })

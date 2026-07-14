@@ -61,6 +61,7 @@ def _release_context(authority_context: Any) -> dict[str, Any]:
         "simcRuntimeRevision",
         "statPolicyRevision",
         "selectionSchemaRevision",
+        "capabilityRevision",
     )
     output = {
         field: vector.get(field) or manifest.get(field) or ""

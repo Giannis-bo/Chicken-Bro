@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 import unittest
 
-from server import gear_resolver
+from server import gear_resolver, gear_socket_authority
 
 
 FIXTURE_PATH = Path(__file__).parent / "fixtures" / "gear-resolver-complete-authority-v1.json"
@@ -12,7 +12,11 @@ FIXTURE_PATH = Path(__file__).parent / "fixtures" / "gear-resolver-complete-auth
 
 class GearResolverTest(unittest.TestCase):
     def fixture(self):
-        return json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
+        fixture = json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
+        fixture["authorityContext"]["dependencyVector"]["capabilityRevision"] = (
+            gear_socket_authority.LEGACY_CAPABILITY_REVISION
+        )
+        return fixture
 
     def resolve(self, fixture=None):
         fixture = fixture or self.fixture()

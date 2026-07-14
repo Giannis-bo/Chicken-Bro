@@ -6,7 +6,7 @@ import subprocess
 import sys
 import unittest
 
-from server import pg_gear_authority_loader
+from server import gear_socket_authority, pg_gear_authority_loader
 
 
 class FakeCursor:
@@ -89,6 +89,7 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
             "simcRuntimeRevision": "simc-v1",
             "statPolicyRevision": "stat-snapshot-policy-v1",
             "selectionSchemaRevision": "selection-intent-v1",
+            "capabilityRevision": gear_socket_authority.CAPABILITY_REVISION,
         }
         revisions.update(revision_overrides)
         return {
@@ -279,6 +280,7 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
                     "simcRuntimeRevision",
                     "statPolicyRevision",
                     "selectionSchemaRevision",
+                    "capabilityRevision",
                 )
             },
         )
@@ -894,6 +896,16 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
         self.assertIn("variantsByKey.variant-head", context["missingFields"])
         self.assertIn("optionsById.gem-haste", context["missingFields"])
         self.assertIn("runtimeAuthority.dependencyRevisions.simcRuntimeRevision", context["missingFields"])
+
+        runtime = self.runtime_authority()
+        runtime["dependencyRevisions"].pop("capabilityRevision")
+        _cursor, context = self.load(
+            cursor=self.cursor(item_rows=[], option_rows=[]), runtime=runtime
+        )
+        self.assertIn(
+            "runtimeAuthority.dependencyRevisions.capabilityRevision",
+            context["missingFields"],
+        )
 
     def test_loader_never_uses_client_option_payload_as_authority(self):
         intent = self.intent()

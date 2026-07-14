@@ -236,6 +236,7 @@ _REQUIRED_RUNTIME_REVISIONS = (
     "simcRuntimeRevision",
     "statPolicyRevision",
     "selectionSchemaRevision",
+    "capabilityRevision",
 )
 _OPTION_ALLOW_FIELDS = {
     "gem": "allowedGemOptionIds",
