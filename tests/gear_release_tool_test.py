@@ -34,6 +34,39 @@ class FakeReleaseStore:
         return {"status": "inserted", "releaseId": release["releaseId"]}
 
 
+def verified_official_gem_item(gem_id, name=None):
+    display_name = name or f"Verified gem {gem_id}"
+    preview_item = {
+        "gem_properties": {"effect": f"Verified effect {gem_id}"},
+    }
+    if str(gem_id) in {"240967", "240969", "240971", "240983", "241144"}:
+        preview_item["limit_category"] = "装备唯一：萨拉斯钻石 （1）"
+    return {
+        "itemId": str(gem_id),
+        "name": display_name,
+        "slot": "",
+        "sourceStatus": "unknown",
+        "payload": {
+            "_links": {
+                "self": {
+                    "href": f"https://us.api.blizzard.com/data/wow/item/{gem_id}",
+                }
+            },
+            "_metadata": {
+                "source": "Battle.net Game Data API",
+                "iconUrl": f"https://render.worldofwarcraft.com/{gem_id}.jpg",
+                "gameAsset": {
+                    "source": "blizzard",
+                    "status": "verified",
+                },
+            },
+            "item_class": {"id": 3, "name": "Gem"},
+            "preview_item": preview_item,
+        },
+        "updatedAt": "2026-07-14T05:00:00+00:00",
+    }
+
+
 def build_midnight_mage_release_fixture():
     resolver_fixture = build_midnight_mage_resolver_fixture(
         8,
@@ -95,6 +128,12 @@ def build_midnight_mage_release_fixture():
             slot not in set(reference["enchantEligibleSlots"])
             or (slot == "main_hand" and "/" in raw_enchant)
         ):
+            encoded_options = {
+                key: value
+                for key, value in (variant.get("simcOptions") or {}).items()
+                if str(key or "").strip() and str(value or "").strip()
+            }
+            encoded_options["ilevel"] = str(item_level)
             payload.update({
                 "statSource": "simulationcraft",
                 "statDisplayStatus": "verified_variant",
@@ -103,7 +142,10 @@ def build_midnight_mage_release_fixture():
                 "simcItemLevel": item_level,
                 "simcEncodedItem": (
                     f"observed_item,id={variant['itemId']},"
-                    f"ilevel={item_level},enchant_id={raw_enchant}"
+                    + ",".join(
+                        f"{key}={encoded_options[key]}"
+                        for key in sorted(encoded_options)
+                    )
                 ),
             })
         variants.append({
@@ -136,6 +178,15 @@ def build_midnight_mage_release_fixture():
                 "uniqueLimit": option.get("uniqueLimit") or 0,
             },
         })
+    items.extend(
+        verified_official_gem_item(gem_id)
+        for gem_id in sorted({
+            str((option.get("simcOptions") or {}).get("gem_id") or "").strip()
+            for option in authority["optionsById"].values()
+            if option.get("optionType") == "gem"
+            and str((option.get("simcOptions") or {}).get("gem_id") or "").strip()
+        })
+    )
     gear_items = []
     source_enhancements = reference["sourceEnhancementBySlot"]
     for slot in reference["requiredSlots"]:
@@ -460,6 +511,7 @@ class GearReleaseToolTest(unittest.TestCase):
     def test_v2_materialization_makes_gems_universal_but_keeps_socket_capacity_authoritative(self):
         from server.gear_release_store import GearReleaseIntegrityError
         from server.gear_release_tool import (
+            GearReleaseIntegrityError,
             _materialize_enhancement_management,
             selection_intent_from_template,
         )
@@ -495,6 +547,7 @@ class GearReleaseToolTest(unittest.TestCase):
             "isVisible": True,
             "payload": {},
         }]
+        snapshot["items"].append(verified_official_gem_item("240892"))
         template = self.template()
         template["gearItems"][0]["gem_id"] = "240892"
 
@@ -759,6 +812,708 @@ class GearReleaseToolTest(unittest.TestCase):
         ):
             _materialize_enhancement_management(snapshot, CAPABILITY_REVISION)
 
+    def test_v2_materializes_verified_official_observed_gem_as_editable_option(self):
+        from server.gear_release_tool import (
+            GearReleaseIntegrityError,
+            _materialize_enhancement_management,
+            selection_intent_from_template,
+        )
+        from server.gear_socket_authority import CAPABILITY_REVISION
+
+        snapshot = self.snapshot()
+        snapshot["items"][0]["payload"] = {
+            "baseCapabilities": {
+                "socketCount": 1,
+                "canEnchant": False,
+                "canEmbellish": False,
+            }
+        }
+        snapshot["variants"][0]["simcOptions"] = {
+            "ilevel": "289",
+            "gem_id": "241144",
+        }
+        snapshot["variants"][0]["payload"] = {
+            "resolvedStats": {"intellect": 100},
+            "capabilityOverrides": {"socketCount": 1},
+        }
+        snapshot["items"].append({
+            "itemId": "241144",
+            "name": "Enduring Heliotrope",
+            "slot": "",
+            "sourceStatus": "unknown",
+            "payload": {
+                "_links": {
+                    "self": {
+                        "href": "https://us.api.blizzard.com/data/wow/item/241144",
+                    }
+                },
+                "_metadata": {
+                    "source": "Battle.net Game Data API",
+                    "iconUrl": "https://render.worldofwarcraft.com/gem.jpg",
+                    "gameAsset": {
+                        "source": "blizzard",
+                        "status": "verified",
+                    },
+                },
+                "item_class": {"id": 3, "name": "Gem"},
+                "item_subclass": {"id": 9, "name": "Other"},
+                "preview_item": {
+                    "gem_properties": {
+                        "effect": "+20 Primary Stat and 5% damage reduction",
+                    },
+                    "limit_category": "装备唯一：萨拉斯钻石 （1）",
+                },
+            },
+            "updatedAt": "2026-07-14T05:00:00+00:00",
+        })
+
+        materialized = _materialize_enhancement_management(
+            snapshot,
+            CAPABILITY_REVISION,
+        )
+
+        option = next(
+            row
+            for row in materialized["options"]
+            if row.get("optionKey") == "gem-241144"
+        )
+        self.assertEqual(option["simcOptions"], {"gem_id": "241144"})
+        self.assertEqual(option["applicableSlots"], ["*"])
+        self.assertEqual(option["status"], "verified")
+        self.assertTrue(option["isVisible"])
+        self.assertEqual(option["payload"]["uniqueLimit"], 1)
+        self.assertTrue(option["payload"]["uniqueGroup"].startswith("official-gem-limit:"))
+        self.assertEqual(
+            materialized["variants"][0]["payload"]["enhancementManagement"]["fields"]["gem_id"],
+            "editor_managed",
+        )
+
+        template = self.template()
+        template["gearItems"][0]["gem_id"] = "241144"
+        template["gearItems"][0]["enchant_id"] = ""
+        intent = selection_intent_from_template(
+            template,
+            gear_release_id="gear-release:sha256:official-gem",
+            season_revision="season-17",
+            level=90,
+            gear_snapshot=materialized,
+            capability_revision=CAPABILITY_REVISION,
+        )
+        self.assertEqual(intent["slots"]["head"]["gemOptionIds"], ["gem-241144"])
+
+        corrupted_existing = copy.deepcopy(snapshot)
+        corrupted_existing["options"] = [{
+            "optionId": "forged-existing-gem",
+            "optionKey": "gem-241144",
+            "optionType": "socket",
+            "name": "Forged existing diamond",
+            "applicableSlots": ["finger1"],
+            "simcOptions": {"gem_id": "241144"},
+            "status": "verified",
+            "isVisible": True,
+            "payload": {
+                "displayName": "Forged existing diamond",
+                "displayLabel": "Forged",
+                "displayStatus": "verified",
+                "uniqueGroup": "forged-group",
+                "uniqueLimit": 99,
+            },
+        }]
+        repaired = _materialize_enhancement_management(
+            corrupted_existing,
+            CAPABILITY_REVISION,
+        )
+        repaired_options = [
+            row
+            for row in repaired["options"]
+            if (row.get("simcOptions") or {}).get("gem_id") == "241144"
+        ]
+        self.assertEqual(len(repaired_options), 1)
+        self.assertEqual(repaired_options[0]["optionId"], "official-gem-241144")
+        self.assertEqual(
+            repaired_options[0]["payload"]["uniqueGroup"],
+            "official-gem-limit:thalassian-diamond",
+        )
+        self.assertEqual(repaired_options[0]["payload"]["uniqueLimit"], 1)
+
+        ordinary = copy.deepcopy(snapshot)
+        ordinary["variants"][0]["simcOptions"]["gem_id"] = "240892"
+        ordinary_gem_item = ordinary["items"][-1]
+        ordinary_gem_item["itemId"] = "240892"
+        ordinary_gem_item["name"] = "Quick Onyx"
+        ordinary_gem_item["payload"]["_links"]["self"]["href"] = (
+            "https://us.api.blizzard.com/data/wow/item/240892"
+        )
+        ordinary_gem_item["payload"]["preview_item"].pop("limit_category", None)
+        ordinary["options"] = [{
+            "optionId": "wowhead-live-gem-240892",
+            "optionKey": "gem-240892",
+            "optionType": "socket",
+            "name": "Quick Onyx",
+            "applicableSlots": ["*"],
+            "simcOptions": {"gem_id": "240892"},
+            "status": "verified",
+            "isVisible": True,
+            "payload": {
+                "displayName": "Quick Onyx",
+                "displayLabel": "+12 Haste (live tooltip)",
+                "displayStatus": "verified",
+                "statSummary": "+12 Haste (live tooltip)",
+                "evidenceSource": "wowhead_live_tooltip",
+                "uniqueGroup": "forged-group",
+                "uniqueLimit": 99,
+            },
+        }]
+        ordinary_materialized = _materialize_enhancement_management(
+            ordinary,
+            CAPABILITY_REVISION,
+        )
+        ordinary_options = [
+            row
+            for row in ordinary_materialized["options"]
+            if (row.get("simcOptions") or {}).get("gem_id") == "240892"
+        ]
+        self.assertEqual(len(ordinary_options), 1)
+        self.assertEqual(
+            ordinary_options[0]["optionId"],
+            "official-gem-240892",
+        )
+        self.assertEqual(ordinary_options[0]["optionKey"], "gem-240892")
+        self.assertEqual(ordinary_options[0]["simcOptions"], {"gem_id": "240892"})
+        self.assertEqual(
+            ordinary_options[0]["payload"]["statSummary"],
+            "+12 Haste (live tooltip)",
+        )
+        self.assertEqual(
+            ordinary_options[0]["payload"]["evidenceSource"],
+            "wowhead_live_tooltip",
+        )
+        self.assertNotIn("uniqueGroup", ordinary_options[0]["payload"])
+        self.assertNotIn("uniqueLimit", ordinary_options[0]["payload"])
+
+        unavailable_official = copy.deepcopy(ordinary)
+        unavailable_official["items"] = unavailable_official["items"][:-1]
+        unavailable_materialized = _materialize_enhancement_management(
+            unavailable_official,
+            CAPABILITY_REVISION,
+        )
+        self.assertFalse(
+            any(
+                row.get("optionKey") == "gem-240892"
+                for row in unavailable_materialized["options"]
+            )
+        )
+
+        for mutate_seed in (
+            lambda option: option.update(optionKey="gem-forged"),
+            lambda option: option["simcOptions"].update(enchant_id="9999"),
+            lambda option: option["simcOptions"].update(gem_id="240 892"),
+        ):
+            with self.subTest(malformed_live_seed=mutate_seed):
+                malformed_seed = copy.deepcopy(ordinary)
+                mutate_seed(malformed_seed["options"][0])
+                rematerialized = _materialize_enhancement_management(
+                    malformed_seed,
+                    CAPABILITY_REVISION,
+                )
+                rematerialized_options = [
+                    row
+                    for row in rematerialized["options"]
+                    if row.get("optionKey") == "gem-240892"
+                ]
+                self.assertEqual(len(rematerialized_options), 1)
+                self.assertEqual(
+                    rematerialized_options[0]["optionId"],
+                    "official-gem-240892",
+                )
+                self.assertEqual(
+                    rematerialized_options[0]["simcOptions"],
+                    {"gem_id": "240892"},
+                )
+                self.assertNotEqual(
+                    rematerialized_options[0]["payload"]["statSummary"],
+                    "+12 Haste (live tooltip)",
+                )
+
+        categorized_ordinary = copy.deepcopy(ordinary)
+        categorized_ordinary["items"][-1]["payload"]["preview_item"]["limit_category"] = (
+            "Unique-Equipped: Thalassian Diamond (1)"
+        )
+        categorized_materialized = _materialize_enhancement_management(
+            categorized_ordinary,
+            CAPABILITY_REVISION,
+        )
+        categorized_options = [
+            row
+            for row in categorized_materialized["options"]
+            if (row.get("simcOptions") or {}).get("gem_id") == "240892"
+        ]
+        self.assertEqual(len(categorized_options), 1)
+        self.assertEqual(categorized_options[0]["optionId"], "official-gem-240892")
+        self.assertEqual(
+            categorized_options[0]["payload"]["uniqueGroup"],
+            "official-gem-limit:thalassian-diamond",
+        )
+        self.assertEqual(categorized_options[0]["payload"]["uniqueLimit"], 1)
+
+        multi_field_category = copy.deepcopy(ordinary)
+        multi_field_category["items"][-1]["payload"]["preview_item"][
+            "limit_category"
+        ] = {
+            "display_string": "Unique-Equipped: Thalassian Diamond (1)",
+            "name": "装备唯一：萨拉斯钻石（1）",
+        }
+        multi_field_materialized = _materialize_enhancement_management(
+            multi_field_category,
+            CAPABILITY_REVISION,
+        )
+        multi_field_option = next(
+            row
+            for row in multi_field_materialized["options"]
+            if row.get("optionKey") == "gem-240892"
+        )
+        self.assertEqual(multi_field_option["payload"]["uniqueLimit"], 1)
+        self.assertEqual(
+            multi_field_option["payload"]["uniqueGroup"],
+            "official-gem-limit:thalassian-diamond",
+        )
+
+        for invalid_category in (
+            "Unique-Equipped: Thalassian Diamond (99)",
+            "Unique-Equipped: Unknown Diamond (1)",
+            "Explicit but malformed unique marker",
+            {"unexpected": "Unique-Equipped: Thalassian Diamond (1)"},
+            {
+                "display_string": "Unique-Equipped: Thalassian Diamond (1)",
+                "name": "Unique-Equipped: Unknown Diamond (1)",
+            },
+            ["Unique-Equipped: Thalassian Diamond (1)"],
+            1,
+        ):
+            with self.subTest(invalid_ordinary_category=invalid_category):
+                invalid_ordinary = copy.deepcopy(ordinary)
+                invalid_ordinary["items"][-1]["payload"]["preview_item"][
+                    "limit_category"
+                ] = invalid_category
+                invalid_materialized = _materialize_enhancement_management(
+                    invalid_ordinary,
+                    CAPABILITY_REVISION,
+                )
+                self.assertEqual(
+                    [
+                        row
+                        for row in invalid_materialized["options"]
+                        if row.get("optionKey") == "gem-240892"
+                    ],
+                    [],
+                )
+
+        conflicting_ordinary = copy.deepcopy(ordinary)
+        conflicting_ordinary["items"] = conflicting_ordinary["items"][:-1]
+        conflicting_ordinary["options"][0]["simcOptions"]["gem_id"] = "240983"
+        with self.assertRaisesRegex(
+            GearReleaseIntegrityError,
+            "gem option identity conflicts with cached option",
+        ):
+            _materialize_enhancement_management(
+                conflicting_ordinary,
+                CAPABILITY_REVISION,
+            )
+
+        for limit_category, subclass_id, expected_unique_group in (
+            (
+                {"display_string": "装备唯一：萨拉斯钻石 （1）"},
+                9,
+                "official-gem-limit:thalassian-diamond",
+            ),
+            (
+                "Unique-Equipped: Thalassian Diamond (1)",
+                0,
+                "official-gem-limit:thalassian-diamond",
+            ),
+            (
+                "裝備唯一：薩拉斯鑽石（1）",
+                0,
+                "official-gem-limit:thalassian-diamond",
+            ),
+            ("Unique-Equippedness: Thalassian Diamond (1)", 9, ""),
+            ("装备唯一性说明：萨拉斯钻石（1）", 9, ""),
+            ("Unique-Equipped: Unknown Diamond (1)", 9, ""),
+            ("Not Unique Cosmetic (1)", 9, ""),
+        ):
+            with self.subTest(
+                limit_category=limit_category,
+                subclass_id=subclass_id,
+            ):
+                categorized = copy.deepcopy(snapshot)
+                categorized["items"][-1]["payload"]["preview_item"]["limit_category"] = limit_category
+                categorized["items"][-1]["payload"]["item_subclass"]["id"] = subclass_id
+                if not expected_unique_group:
+                    with self.assertRaises(GearReleaseIntegrityError):
+                        _materialize_enhancement_management(
+                            categorized,
+                            CAPABILITY_REVISION,
+                        )
+                    continue
+                rematerialized = _materialize_enhancement_management(
+                    categorized,
+                    CAPABILITY_REVISION,
+                )
+                rematerialized_options = [
+                    row
+                    for row in rematerialized["options"]
+                    if row.get("optionKey") == "gem-241144"
+                ]
+                self.assertEqual(
+                    rematerialized_options[0]["payload"]["uniqueGroup"],
+                    expected_unique_group,
+                )
+
+    def test_v2_does_not_materialize_observed_gem_without_verified_official_gem_metadata(self):
+        from server.gear_release_tool import (
+            GearReleaseIntegrityError,
+            _materialize_enhancement_management,
+        )
+        from server.gear_socket_authority import CAPABILITY_REVISION
+
+        for metadata_status, game_asset_status, game_asset_source, item_class_id, evidence_ref, metadata_source in (
+            ("partial", "partial", "blizzard", 3, "https://us.api.blizzard.com/data/wow/item/241144", "Battle.net Game Data API"),
+            ("verified", "partial", "third_party", 3, "https://us.api.blizzard.com/data/wow/item/241144", "Battle.net Game Data API"),
+            ("", "verified", "third_party", 3, "https://us.api.blizzard.com/data/wow/item/241144", "Battle.net Game Data API"),
+            ("", "verified", "blizzard", 4, "https://us.api.blizzard.com/data/wow/item/241144", "Battle.net Game Data API"),
+            ("", "verified", "blizzard", 3, "https://us.api.blizzard.com/data/wow/item/241145", "Battle.net Game Data API"),
+            ("", "verified", "blizzard", 3, "https://us.api.blizzard.com/data/wow/item/241144", "Not Battle.net Game Data API / forged"),
+        ):
+            with self.subTest(
+                metadata_status=metadata_status,
+                game_asset_status=game_asset_status,
+                game_asset_source=game_asset_source,
+                item_class_id=item_class_id,
+                evidence_ref=evidence_ref,
+                metadata_source=metadata_source,
+            ):
+                snapshot = self.snapshot()
+                snapshot["items"][0]["payload"] = {
+                    "baseCapabilities": {"socketCount": 1},
+                }
+                snapshot["variants"][0]["simcOptions"] = {
+                    "ilevel": "289",
+                    "gem_id": "241144",
+                }
+                snapshot["variants"][0]["payload"] = {
+                    "resolvedStats": {"intellect": 100},
+                    "capabilityOverrides": {"socketCount": 1},
+                }
+                snapshot["items"].append({
+                    "itemId": "241144",
+                    "name": "Unverified gem",
+                    "slot": "",
+                    "sourceStatus": "unknown",
+                    "payload": {
+                        "_links": {
+                            "self": {
+                                "href": evidence_ref,
+                            }
+                        },
+                        "_metadata": {
+                            "status": metadata_status,
+                            "source": metadata_source,
+                            "iconUrl": "https://render.worldofwarcraft.com/gem.jpg",
+                            "gameAsset": {
+                                "source": game_asset_source,
+                                "status": game_asset_status,
+                            },
+                        },
+                        "item_class": {"id": item_class_id, "name": "Gem"},
+                        "preview_item": {
+                            "gem_properties": {"effect": "+20 Primary Stat"},
+                            "limit_category": "Unique-Equipped: Thalassian Diamond (1)",
+                        },
+                    },
+                    "updatedAt": "2026-07-14T05:00:00+00:00",
+                })
+
+                with self.assertRaises(GearReleaseIntegrityError):
+                    _materialize_enhancement_management(
+                        snapshot,
+                        CAPABILITY_REVISION,
+                    )
+
+    def test_v2_weapon_enchant_source_only_requires_exact_simc_echo(self):
+        from server.gear_release_tool import _materialize_enhancement_management
+        from server.gear_socket_authority import CAPABILITY_REVISION
+
+        snapshot = self.snapshot()
+        snapshot["items"][0]["slot"] = "main_hand"
+        snapshot["items"][0]["payload"] = {
+            "baseCapabilities": {"socketCount": 0, "canEnchant": True},
+        }
+
+        def variant(
+            key,
+            slot,
+            raw_enchant,
+            encoded_enchant,
+            *,
+            raw_bonus="",
+            encoded_bonus="",
+        ):
+            simc_options = {"ilevel": "298", "enchant_id": raw_enchant}
+            if raw_bonus:
+                simc_options["bonus_id"] = raw_bonus
+            encoded_parts = [
+                "item_a",
+                "id=item-a",
+                "ilevel=298",
+                f"enchant_id={encoded_enchant}",
+            ]
+            if encoded_bonus:
+                encoded_parts.append(f"bonus_id={encoded_bonus}")
+            return {
+                **copy.deepcopy(snapshot["variants"][0]),
+                "variantId": key,
+                "variantKey": key,
+                "slot": slot,
+                "itemLevel": 298,
+                "simcOptions": simc_options,
+                "payload": {
+                    "resolvedStats": {"strength": 100},
+                    "statSource": "simulationcraft",
+                    "statDisplayStatus": "verified_variant",
+                    "itemStats": [{"type": "strength", "value": 100}],
+                    "simcItemId": "item-a",
+                    "simcItemLevel": 298,
+                    "simcEncodedItem": ",".join(encoded_parts),
+                },
+            }
+
+        duplicate_encoded = variant(
+            "offhand-duplicate-encoded",
+            "off_hand",
+            "8041/8052",
+            "8041/8052",
+        )
+        duplicate_encoded["payload"]["simcEncodedItem"] = (
+            "item_a,id=item-a,ilevel=298,enchant_id=9999,"
+            "enchant_id=8041/8052"
+        )
+        snapshot["variants"] = [
+            variant("offhand-composite", "off_hand", "8039/8052", "8039/8052"),
+            variant("mainhand-single", "main_hand", "6245", "6245"),
+            variant("offhand-mismatch", "off_hand", "8041/8052", "8041/9999"),
+            duplicate_encoded,
+            variant(
+                "offhand-destructive-normalization",
+                "off_hand",
+                "80 41/8052",
+                "8041/8052",
+            ),
+            variant(
+                "offhand-bonus-mismatch",
+                "off_hand",
+                "8041/8052",
+                "8041/8052",
+                raw_bonus="40/13335",
+                encoded_bonus="41/13335",
+            ),
+        ]
+        raw_id_mismatch = variant(
+            "offhand-raw-id-mismatch",
+            "off_hand",
+            "3368/8052",
+            "3368/8052",
+        )
+        raw_id_mismatch["simcOptions"]["id"] = "item-b"
+        snapshot["variants"].append(raw_id_mismatch)
+        for suffix, raw_key in (("empty", ""), ("blank", "   ")):
+            blank_key = variant(
+                f"offhand-{suffix}-raw-key",
+                "off_hand",
+                f"337{3 if suffix == 'empty' else 4}/8052",
+                f"337{3 if suffix == 'empty' else 4}/8052",
+            )
+            blank_key["simcOptions"][raw_key] = "evil"
+            snapshot["variants"].append(blank_key)
+        raw_ilevel_leading_zero = variant(
+            "offhand-raw-ilevel-leading-zero",
+            "off_hand",
+            "3375/8052",
+            "3375/8052",
+        )
+        raw_ilevel_leading_zero["simcOptions"]["ilevel"] = "0298"
+        snapshot["variants"].append(raw_ilevel_leading_zero)
+        encoded_ilevel_leading_zero = variant(
+            "offhand-encoded-ilevel-leading-zero",
+            "off_hand",
+            "3376/8052",
+            "3376/8052",
+        )
+        encoded_ilevel_leading_zero["payload"]["simcEncodedItem"] = (
+            "item_a,id=item-a,ilevel=0298,enchant_id=3376/8052"
+        )
+        snapshot["variants"].append(encoded_ilevel_leading_zero)
+        raw_value_whitespace = variant(
+            "offhand-raw-value-whitespace",
+            "off_hand",
+            "3377/8052",
+            "3377/8052",
+        )
+        raw_value_whitespace["simcOptions"]["enchant_id"] = " 3377/8052 "
+        snapshot["variants"].append(raw_value_whitespace)
+        encoded_value_whitespace = variant(
+            "offhand-encoded-value-whitespace",
+            "off_hand",
+            "3378/8052",
+            "3378/8052",
+        )
+        encoded_value_whitespace["payload"]["simcEncodedItem"] = (
+            "item_a,id=item-a,ilevel=298,enchant_id= 3378/8052"
+        )
+        snapshot["variants"].append(encoded_value_whitespace)
+        encoded_part_whitespace = variant(
+            "offhand-encoded-part-whitespace",
+            "off_hand",
+            "3379/8052",
+            "3379/8052",
+        )
+        encoded_part_whitespace["payload"]["simcEncodedItem"] = (
+            "item_a,id=item-a,ilevel=298, enchant_id=3379/8052"
+        )
+        snapshot["variants"].append(encoded_part_whitespace)
+        for suffix, padding in (("leading", "  "), ("trailing", "  ")):
+            encoded_outer_whitespace = variant(
+                f"offhand-encoded-{suffix}-whitespace",
+                "off_hand",
+                f"338{1 if suffix == 'leading' else 2}/8052",
+                f"338{1 if suffix == 'leading' else 2}/8052",
+            )
+            encoded = encoded_outer_whitespace["payload"]["simcEncodedItem"]
+            encoded_outer_whitespace["payload"]["simcEncodedItem"] = (
+                f"{padding}{encoded}" if suffix == "leading" else f"{encoded}{padding}"
+            )
+            snapshot["variants"].append(encoded_outer_whitespace)
+        raw_field_whitespace = variant(
+            "offhand-raw-field-whitespace",
+            "off_hand",
+            "3380/8052",
+            "3380/8052",
+        )
+        raw_field_whitespace["simcOptions"][" crafted_stats "] = "32/36"
+        snapshot["variants"].append(raw_field_whitespace)
+
+        materialized = _materialize_enhancement_management(
+            snapshot,
+            CAPABILITY_REVISION,
+        )
+        fields_by_key = {
+            row["variantKey"]: row["payload"]["enhancementManagement"]["fields"]
+            for row in materialized["variants"]
+        }
+        self.assertEqual(fields_by_key["offhand-composite"]["enchant_id"], "source_only")
+        self.assertEqual(fields_by_key["mainhand-single"]["enchant_id"], "source_only")
+        self.assertEqual(fields_by_key["offhand-mismatch"]["enchant_id"], "unresolved_drop")
+        self.assertEqual(
+            fields_by_key["offhand-duplicate-encoded"]["enchant_id"],
+            "unresolved_drop",
+        )
+        self.assertEqual(
+            fields_by_key["offhand-destructive-normalization"]["enchant_id"],
+            "unresolved_drop",
+        )
+        self.assertEqual(
+            fields_by_key["offhand-bonus-mismatch"]["enchant_id"],
+            "unresolved_drop",
+        )
+        self.assertEqual(
+            fields_by_key["offhand-raw-id-mismatch"]["enchant_id"],
+            "unresolved_drop",
+        )
+        for key in (
+            "offhand-empty-raw-key",
+            "offhand-blank-raw-key",
+            "offhand-raw-ilevel-leading-zero",
+            "offhand-encoded-ilevel-leading-zero",
+            "offhand-raw-value-whitespace",
+            "offhand-encoded-value-whitespace",
+            "offhand-encoded-part-whitespace",
+            "offhand-encoded-leading-whitespace",
+            "offhand-encoded-trailing-whitespace",
+            "offhand-raw-field-whitespace",
+        ):
+            with self.subTest(non_exact_simc_option=key):
+                self.assertEqual(fields_by_key[key]["enchant_id"], "unresolved_drop")
+
+    def test_v2_exact_variant_can_reuse_only_semantically_identical_simc_echo(self):
+        from server.gear_release_tool import _materialize_enhancement_management
+        from server.gear_socket_authority import CAPABILITY_REVISION
+
+        snapshot = self.snapshot()
+        snapshot["items"][0]["slot"] = "shoulder"
+        snapshot["items"][0]["payload"] = {
+            "baseCapabilities": {"socketCount": 0, "canEnchant": False},
+        }
+        base = {
+            **copy.deepcopy(snapshot["variants"][0]),
+            "slot": "shoulder",
+            "itemLevel": 289,
+            "simcOptions": {
+                "ilevel": "289",
+                "bonus_id": "40/13577/13335",
+                "enchant_id": "8001",
+            },
+            "payload": {
+                "resolvedStats": {"intellect": 100},
+                "statSource": "simulationcraft",
+                "statDisplayStatus": "verified_variant",
+            },
+        }
+        exact = {
+            **copy.deepcopy(base),
+            "variantId": "exact",
+            "variantKey": "exact-key",
+        }
+        semantic_twin = {
+            **copy.deepcopy(base),
+            "variantId": "semantic-twin",
+            "variantKey": "alternate-key-format",
+            "simcOptions": {
+                **base["simcOptions"],
+                "bonus_id": "40/13335/13577",
+            },
+            "payload": {
+                **base["payload"],
+                "itemStats": [{"type": "intellect", "value": 100}],
+                "simcItemId": "item-a",
+                "simcItemLevel": 289,
+                "simcEncodedItem": (
+                    "item_a,id=item-a,ilevel=289,"
+                    "bonus_id=40/13335/13577,enchant_id=8001"
+                ),
+            },
+        }
+        divergent = {
+            **copy.deepcopy(exact),
+            "variantId": "divergent",
+            "variantKey": "divergent-key",
+            "simcOptions": {
+                **exact["simcOptions"],
+                "bonus_id": "41/13577/13335",
+            },
+        }
+        snapshot["variants"] = [exact, semantic_twin, divergent]
+
+        materialized = _materialize_enhancement_management(
+            snapshot,
+            CAPABILITY_REVISION,
+        )
+        fields_by_key = {
+            row["variantKey"]: row["payload"]["enhancementManagement"]["fields"]
+            for row in materialized["variants"]
+        }
+        self.assertEqual(fields_by_key["exact-key"]["enchant_id"], "source_only")
+        self.assertEqual(fields_by_key["alternate-key-format"]["enchant_id"], "source_only")
+        self.assertEqual(fields_by_key["divergent-key"]["enchant_id"], "unresolved_drop")
+
     def test_exact_midnight_mage_candidate_seals_complete_editable_enhancement_intent(self):
         from server import gear_resolver
         from server.gear_release_store import build_candidate_authority_context
@@ -798,6 +1553,16 @@ class GearReleaseToolTest(unittest.TestCase):
             for option in prepared_gear["snapshot"]["options"]
             if option.get("optionType") == "socket"
         ))
+        primary_stat_option = next(
+            option
+            for option in prepared_gear["snapshot"]["options"]
+            if option.get("optionKey") == "gem-240983"
+        )
+        self.assertEqual(
+            primary_stat_option["payload"]["uniqueGroup"],
+            "official-gem-limit:thalassian-diamond",
+        )
+        self.assertEqual(primary_stat_option["payload"]["uniqueLimit"], 1)
         managed_by_slot = {
             row["slot"]: row["payload"].get("enhancementManagement", {}).get("fields", {})
             for row in prepared_gear["snapshot"]["variants"]
@@ -846,6 +1611,28 @@ class GearReleaseToolTest(unittest.TestCase):
         )
         production_snapshot = gear_resolver.resolve(intent, production_authority)
         self.assertEqual(production_snapshot["status"], "verified")
+        duplicate_primary_stat_intent = copy.deepcopy(intent)
+        duplicate_primary_stat_intent["slots"]["head"]["gemOptionIds"] = [
+            "gem-240983"
+        ]
+        duplicate_primary_stat_authority = build_candidate_authority_context(
+            prepared_gear["snapshot"],
+            duplicate_primary_stat_intent,
+            runtime,
+            prepared_gear["release"],
+        )
+        duplicate_primary_stat_snapshot = gear_resolver.resolve(
+            duplicate_primary_stat_intent,
+            duplicate_primary_stat_authority,
+        )
+        self.assertEqual(duplicate_primary_stat_snapshot["status"], "blocked")
+        self.assertIn(
+            "GEAR_GEM_UNIQUE_LIMIT_EXCEEDED",
+            {
+                problem["code"]
+                for problem in duplicate_primary_stat_snapshot["problems"]
+            },
+        )
         serializer_by_slot = {
             item["slot"]: item
             for item in production_snapshot["serializerInput"]["gearItems"]

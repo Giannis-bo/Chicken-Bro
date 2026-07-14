@@ -676,7 +676,7 @@ Record SimC revision, socket-probe digest, new Gear Release ID, Community Releas
 Use the new inactive release IDs:
 
 ```bash
-python3 server/gear_release_tool.py shadow --gear-release-id <GEAR_RELEASE_ID> --community-release-id <COMMUNITY_RELEASE_ID> --simc-runtime-revision <SIMC_REVISION> --level 90
+python3 server/gear_release_tool.py shadow --gear-release-id <GEAR_RELEASE_ID> --community-release-id <COMMUNITY_RELEASE_ID> --simc-runtime-revision <SIMC_REVISION> --level 90 --expect-formal-active
 ```
 
 Require 40 observed winners, baseline 0, no new blockers, no write statements, and existing honest Profile outcomes (32 verified and 8 explicit fail-closed unless current production truth has changed). Freeze the reference tuple for `observed_profile_mage_frost`: `templateId`, `sourceKey=raiderio_observed_profile`, `profileHash`, `gearHash`, Gear Release ID, Community Release ID and candidate Manifest revision. Only this tuple carries the fixed Mage `[1,2,1,1,2,1]`, 8/8 accepted, ninth gem blocked, 6/8 and 2/2 acceptance. Other Mage templates require complete editable import but may have different counts.

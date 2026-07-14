@@ -1117,7 +1117,14 @@ class PostgresCacheStore:
         gear_release_id = str(manifest.get("gearCatalogReleaseId") or "").strip()
         community_release_id = str(manifest.get("communityTemplateReleaseId") or "").strip()
         if not gear_release_id or not community_release_id:
-            return {"formalActiveManifest": True, "winners": []}
+            return {
+                "formalActiveManifest": True,
+                "pointerGeneration": binding.get("generation"),
+                "manifestRevision": str(
+                    manifest.get("manifestRevision") or ""
+                ).strip(),
+                "winners": [],
+            }
         pair = self._gear_release_store.load_community_release(
             gear_release_id,
             community_release_id,
@@ -1125,6 +1132,7 @@ class PostgresCacheStore:
         return {
             **pair,
             "formalActiveManifest": True,
+            "pointerGeneration": binding.get("generation"),
             "manifestRevision": str(manifest.get("manifestRevision") or "").strip(),
         }
 

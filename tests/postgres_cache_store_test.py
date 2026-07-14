@@ -8458,6 +8458,7 @@ class PostgresCacheStoreTest(unittest.TestCase):
 
         active_pair = store.get_active_community_release()
         self.assertTrue(active_pair["formalActiveManifest"])
+        self.assertEqual(active_pair["pointerGeneration"], 3)
         self.assertEqual(
             active_pair["winners"][0]["selectionIntent"],
             {"schemaRevision": "selection-intent-v1"},
