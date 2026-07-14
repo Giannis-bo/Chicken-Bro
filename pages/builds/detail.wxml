@@ -377,7 +377,7 @@
       <text class="gear-enhancement-blocker" wx:for="{{gearEnhancementSheet.blockers}}" wx:key="*this">{{item}}</text>
     </view>
     <view class="gear-enhancement-action-row" wx:if="{{gearEnhancementSheet.equipmentRows.length}}">
-      <button class="gear-enhancement-confirm" bindtap="confirmGearEnhancementSheet">确认</button>
+      <button class="gear-enhancement-confirm" disabled="{{gearEnhancementSheet.submitting}}" bindtap="confirmGearEnhancementSheet">{{gearEnhancementSheet.submitting ? '校验中' : '确认'}}</button>
     </view>
   </view>
 

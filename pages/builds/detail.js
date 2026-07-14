@@ -1110,8 +1110,24 @@ function canonicalGearSlotRows(rows, state) {
   })
 }
 
-function gearWorkbenchDataState(state, data, communityImportState) {
-  const view = gearWorkbenchView(state)
+function gearWorkbenchDataState(state, data, communityImportState, committedReadState) {
+  const liveView = gearWorkbenchView(state)
+  const committedView = committedReadState && gearWorkbenchCanUseVerifiedSnapshot(committedReadState)
+    ? gearWorkbenchView(committedReadState)
+    : null
+  const view = committedView
+    ? {
+        ...liveView,
+        canUseVerifiedSnapshot: committedView.canUseVerifiedSnapshot,
+        canRunProfile: committedView.canRunProfile,
+        resolvedGearSignature: committedView.resolvedGearSignature,
+        aggregateLegality: committedView.aggregateLegality,
+        staticAttributes: committedView.staticAttributes,
+        setState: committedView.setState,
+        constraints: committedView.constraints,
+        profileReadiness: committedView.profileReadiness
+      }
+    : liveView
   const displaySnapshot = acceptedGearDisplaySnapshot(state)
   const displaySignature = cleanGearString(displaySnapshot && displaySnapshot.resolvedGearSignature)
   const displayCommunityImportState = ['dirty', 'resolving', 'pending', 'revision_conflict'].includes(cleanGearString(state && state.resolveStatus))
@@ -1538,6 +1554,12 @@ function canonicalWorkbenchSnapshot(page) {
   return acceptedGearDisplaySnapshot(page && page.gearWorkbenchState)
 }
 
+function committedGearWorkbenchStateForPage(page) {
+  const committedState = page && page.atomicEnhancementCommittedWorkbenchState
+  if (committedState) return committedState
+  return page && page.gearWorkbenchState
+}
+
 function acceptedGearDisplaySnapshot(state) {
   if (gearWorkbenchCanUseVerifiedSnapshot(state)) return state.currentSnapshot
   return (state && state.lastVerifiedSnapshot) || null
@@ -1643,7 +1665,7 @@ function gearStatsRequestForPage(page) {
   if (data.activeQueryKey !== 'gear') blockers.push('当前不在装备模拟页')
   if (!gearPayload || !Array.isArray(gearPayload.slots)) blockers.push('等待装备数据')
   if (data.gearDataFallback) blockers.push(data.gearDataWarningText || '装备接口暂不可用')
-  const canonicalState = page && page.gearWorkbenchState
+  const canonicalState = committedGearWorkbenchStateForPage(page)
   const canonicalSnapshot = canonicalState && canonicalState.currentSnapshot
   if (!canonicalState || !gearWorkbenchCanUseVerifiedSnapshot(canonicalState)) blockers.push('等待当前装备配置完成服务端校验')
   const selectedGearBySlot = prunedGearSelectionByWeaponRule(gearPayload, data.selectedGearBySlot || {})
@@ -1668,7 +1690,10 @@ function gearStatsRequestForPage(page) {
   Object.keys(profileContext).forEach((key) => {
     if (!profileContext[key]) delete profileContext[key]
   })
-  const selectionIntent = JSON.parse(JSON.stringify(canonicalState.confirmedIntent))
+  const selectionIntent = selectionIntentWithResolvedEnhancements(
+    canonicalState.confirmedIntent,
+    canonicalSnapshot
+  )
   const payload = { selectionIntent, profileContext }
   return {
     ready: true,
@@ -2331,6 +2356,7 @@ function enhancementRow(slot, item, options, selected, type, disabled) {
 function emptyGearEnhancementSheet() {
   return {
     visible: false,
+    submitting: false,
     equipmentRows: [],
     activeSlot: '',
     activeTitle: '',
@@ -2833,7 +2859,7 @@ function gearTemplateSaveDraft(page, templateTitle) {
   if (data.gearDataFallback) {
     return { blockMessage: data.gearDataWarningText || '装备接口暂不可用，无法保存装备模板' }
   }
-  const workbenchState = page.gearWorkbenchState
+  const workbenchState = committedGearWorkbenchStateForPage(page)
   if (workbenchState && !gearWorkbenchCanUseVerifiedSnapshot(workbenchState)) {
     return { blockMessage: '当前装备配置尚未通过服务端校验，暂不能保存' }
   }
@@ -4058,11 +4084,14 @@ function buildGearEnhancementSheetForPage(page, visible, requestedActiveSlot, ov
   const currentSheet = page && page.data && page.data.gearEnhancementSheet
   const gearPayload = fullGearPayloadForPage(page) || (page && page.data && page.data.gearPayload) || {}
   const currentSelectedGearBySlot = state.selectedGearBySlot || (page && page.data && page.data.selectedGearBySlot) || {}
-  const currentEnhancementBySlot = state.enhancementBySlot || (
-    page && page.data && page.data.gearEnhancementSheet && page.data.gearEnhancementSheet.draftEnhancementBySlot
-  ) || (page && page.data && page.data.enhancementBySlot) || {}
   const canonicalWorkbench = !!(page && page.gearWorkbenchState)
   const canonicalSnapshot = canonicalWorkbenchSnapshot(page)
+  const canonicalCommittedEnhancementBySlot = canonicalWorkbench
+    ? enhancementBySlotFromResolvedSnapshot(canonicalSnapshot)
+    : null
+  const currentEnhancementBySlot = state.enhancementBySlot || (
+    currentSheet && currentSheet.visible && currentSheet.draftEnhancementBySlot
+  ) || canonicalCommittedEnhancementBySlot || (page && page.data && page.data.enhancementBySlot) || {}
   const canonicalEmbellishmentMaxValue = Number(canonicalSnapshot && canonicalSnapshot.constraints && canonicalSnapshot.constraints.embellishmentMax)
   const canonicalEmbellishmentMax = canonicalWorkbench
     ? (canonicalSnapshot && Number.isFinite(canonicalEmbellishmentMaxValue) && canonicalEmbellishmentMaxValue >= 0
@@ -4076,10 +4105,14 @@ function buildGearEnhancementSheetForPage(page, visible, requestedActiveSlot, ov
     ? optionIdentityEnhancementBySlot(currentEnhancementBySlot)
     : currentEnhancementBySlot
   const confirmedEnhancementBySlot = optionIdentityEnhancementBySlot(
-    state.confirmedEnhancementBySlot ||
-    (currentSheet && currentSheet.visible && currentSheet.confirmedEnhancementBySlot) ||
-    (page && page.data && page.data.enhancementBySlot) ||
-    {}
+    canonicalWorkbench
+      ? canonicalCommittedEnhancementBySlot
+      : (
+          state.confirmedEnhancementBySlot ||
+          (currentSheet && currentSheet.visible && currentSheet.confirmedEnhancementBySlot) ||
+          (page && page.data && page.data.enhancementBySlot) ||
+          {}
+        )
   )
   const sheet = buildGearEnhancementSheet(
     gearPayload,
@@ -4089,6 +4122,9 @@ function buildGearEnhancementSheetForPage(page, visible, requestedActiveSlot, ov
     requestedActiveSlot,
     canonicalEmbellishmentMax
   )
+  sheet.submitting = state.submitting !== undefined
+    ? !!state.submitting
+    : !!(currentSheet && currentSheet.visible && currentSheet.submitting)
   sheet.confirmedEnhancementBySlot = confirmedEnhancementBySlot
   const detailSlots = gearEnhancementDetailSlotsForPage(page)
   const communityImportState = eligibleCommunityEnhancementImportStateForPage(page, canonicalSnapshot)
@@ -5468,10 +5504,14 @@ Page({
         }
       }
     }
-    if (this.data.activeQueryKey === 'gear' && this.gearWorkbenchState && gearWorkbenchCanRunProfile(this.gearWorkbenchState)) {
-      const snapshot = this.gearWorkbenchState.currentSnapshot || {}
+    const committedWorkbenchState = committedGearWorkbenchStateForPage(this)
+    if (this.data.activeQueryKey === 'gear' && committedWorkbenchState && gearWorkbenchCanRunProfile(committedWorkbenchState)) {
+      const snapshot = committedWorkbenchState.currentSnapshot || {}
       context.simulatorState.gear = {
-        selectionIntent: this.gearWorkbenchState.confirmedIntent,
+        selectionIntent: selectionIntentWithResolvedEnhancements(
+          committedWorkbenchState.confirmedIntent,
+          snapshot
+        ),
         resolvedGearSignature: snapshot.resolvedGearSignature || '',
         dependencyVector: snapshot.dependencyVector || {}
       }
@@ -5481,6 +5521,11 @@ Page({
 
   confirmAndResolveGearIntent(selectedGearBySlot, enhancementBySlot, resolveContext) {
     const acceptedSnapshotBeforeResolve = canonicalWorkbenchSnapshot(this)
+    const atomicEnhancementCommit = resolveContext && resolveContext.atomicEnhancementCommit &&
+      typeof resolveContext.atomicEnhancementCommit === 'object'
+      ? resolveContext.atomicEnhancementCommit
+      : null
+    if (!atomicEnhancementCommit) delete this.atomicEnhancementCommittedWorkbenchState
     const replacementBinding = resolveContext && resolveContext.replaceInheritedEvidence
       ? communityReplacementBindingForPage(this)
       : null
@@ -5511,16 +5556,21 @@ Page({
       enhancementBySlot: committedEnhancementBySlot,
       gearSlotRows: committedGearSlotRows
     }
-    const committedWorkbenchDataState = () => ({
-      selectedGearBySlot: selection,
-      enhancementBySlot: committedEnhancementBySlot,
-      gearSlotRows: committedGearSlotRows,
-      ...gearWorkbenchDataState(
+    const committedWorkbenchDataState = () => {
+      const workbenchData = gearWorkbenchDataState(
         this.gearWorkbenchState,
         committedDisplayData,
-        this.communityEnhancementImportState
+        this.communityEnhancementImportState,
+        committedGearWorkbenchStateForPage(this)
       )
-    })
+      if (atomicEnhancementCommit) return workbenchData
+      return {
+        selectedGearBySlot: selection,
+        enhancementBySlot: committedEnhancementBySlot,
+        gearSlotRows: committedGearSlotRows,
+        ...workbenchData
+      }
+    }
     const selectionIntent = serializeGearSelectionIntent({
       resolverContext: gearPayload.resolverContext,
       eligibilityContext: {
@@ -5545,12 +5595,24 @@ Page({
     if (!this.gearWorkbenchState || !completeResolverContext(gearPayload.resolverContext)) {
       this.gearWorkbenchState = createGearWorkbenchState(gearPayload.resolverContext, selectionIntent)
     } else {
+      if (
+        atomicEnhancementCommit &&
+        !this.atomicEnhancementCommittedWorkbenchState &&
+        gearWorkbenchCanUseVerifiedSnapshot(this.gearWorkbenchState)
+      ) {
+        this.atomicEnhancementCommittedWorkbenchState = this.gearWorkbenchState
+      }
       this.gearWorkbenchState = editGearIntent(this.gearWorkbenchState, selectionIntent)
       this.gearWorkbenchState = confirmGearIntent(this.gearWorkbenchState)
     }
     const pending = beginGearResolve(this.gearWorkbenchState)
     this.gearWorkbenchState = pending.state
     this.setData(committedWorkbenchDataState())
+    const failedTransportResult = (error) => ({
+      fromFallback: true,
+      transportError: error && error.message ? error.message : String(error || 'gear resolve failed'),
+      offline: true
+    })
 
     const applyResult = (request, transportResult) => {
       this.gearWorkbenchState = applyGearResolveResult(this.gearWorkbenchState, request, transportResult)
@@ -5561,31 +5623,66 @@ Page({
           this.gearWorkbenchState = rebased
           const retry = beginGearResolve(this.gearWorkbenchState)
           this.gearWorkbenchState = retry.state
-          this.setData(gearWorkbenchDataState(this.gearWorkbenchState, this.data, this.communityEnhancementImportState))
-          return requestWebsimGearResolve(retry.request.selectionIntent).then((retryResult) => applyResult(retry.request, retryResult))
+          this.setData(gearWorkbenchDataState(
+            this.gearWorkbenchState,
+            this.data,
+            this.communityEnhancementImportState,
+            committedGearWorkbenchStateForPage(this)
+          ))
+          return requestWebsimGearResolve(retry.request.selectionIntent)
+            .then((retryResult) => applyResult(retry.request, retryResult))
+            .catch((error) => applyResult(retry.request, failedTransportResult(error)))
         }
       }
       const currentSnapshot = this.gearWorkbenchState.currentSnapshot
-      commitVerifiedEnhancementSnapshot(this, request, currentSnapshot, {
+      const committed = commitVerifiedEnhancementSnapshot(this, request, currentSnapshot, {
         gearPayload,
         selectedGearBySlot: selection
       })
       bindCommunityImportToResolvedSnapshot(this, request, currentSnapshot, completionContext)
-      this.setData(gearWorkbenchDataState(
+      if (atomicEnhancementCommit && committed) delete this.atomicEnhancementCommittedWorkbenchState
+      const workbenchData = gearWorkbenchDataState(
         this.gearWorkbenchState,
         this.data,
-        this.communityEnhancementImportState
-      ))
+        this.communityEnhancementImportState,
+        committedGearWorkbenchStateForPage(this)
+      )
+      if (atomicEnhancementCommit) {
+        const matchingCompletion = Number(this.gearWorkbenchState.latestResolveSerial) === Number(request.serial) &&
+          Number(this.gearWorkbenchState.intentVersion) === Number(request.intentVersion)
+        if (committed) {
+          this.setData({
+            ...workbenchData,
+            gearEnhancementSheet: emptyGearEnhancementSheet()
+          })
+        } else if (matchingCompletion) {
+          const activeSlot = cleanGearString(atomicEnhancementCommit.activeSlot)
+          const draftEnhancementBySlot = normalizedEnhancementBySlot(
+            atomicEnhancementCommit.draftEnhancementBySlot || {}
+          )
+          const sheet = buildGearEnhancementSheetForPage(this, true, activeSlot, {
+            selectedGearBySlot: selection,
+            enhancementBySlot: draftEnhancementBySlot,
+            submitting: false
+          })
+          const problemTexts = workbenchProblemRows(this.gearWorkbenchState.problems).map((row) => row.text)
+          sheet.blockers = Array.from(new Set([...(sheet.blockers || []), ...problemTexts]))
+          this.setData({
+            ...workbenchData,
+            gearEnhancementSheet: sheet
+          })
+        } else {
+          this.setData(workbenchData)
+        }
+      } else {
+        this.setData(workbenchData)
+      }
       return currentSnapshot
     }
 
     return requestWebsimGearResolve(pending.request.selectionIntent)
       .then((result) => applyResult(pending.request, result))
-      .catch((error) => applyResult(pending.request, {
-        fromFallback: true,
-        transportError: error && error.message ? error.message : String(error || 'gear resolve failed'),
-        offline: true
-      }))
+      .catch((error) => applyResult(pending.request, failedTransportResult(error)))
   },
 
   refreshDerivedState(overrides) {
@@ -5601,7 +5698,12 @@ Page({
     )
     this.setData({
       ...(this.gearPayloadCache ? gearDerivedStateForData(nextState) : nextState),
-      ...(this.gearWorkbenchState ? gearWorkbenchDataState(this.gearWorkbenchState, this.data, this.communityEnhancementImportState) : {})
+      ...(this.gearWorkbenchState ? gearWorkbenchDataState(
+        this.gearWorkbenchState,
+        this.data,
+        this.communityEnhancementImportState,
+        committedGearWorkbenchStateForPage(this)
+      ) : {})
     })
   },
 
@@ -5631,7 +5733,12 @@ Page({
       gearStatBlockers: messages,
       gearStatsLoading: false,
       gearStatsRequestError: '',
-      ...(this.gearWorkbenchState ? gearWorkbenchDataState(this.gearWorkbenchState, this.data, this.communityEnhancementImportState) : {})
+      ...(this.gearWorkbenchState ? gearWorkbenchDataState(
+        this.gearWorkbenchState,
+        this.data,
+        this.communityEnhancementImportState,
+        committedGearWorkbenchStateForPage(this)
+      ) : {})
     })
     return Promise.resolve(null)
   },
@@ -5689,7 +5796,8 @@ Page({
         ...(this.gearWorkbenchState ? gearWorkbenchDataState(
           this.gearWorkbenchState,
           { ...this.data, gearStatSnapshot: snapshot },
-          this.communityEnhancementImportState
+          this.communityEnhancementImportState,
+          committedGearWorkbenchStateForPage(this)
         ) : {})
       })
       return snapshot
@@ -5853,8 +5961,14 @@ Page({
         const enhancementChanged = JSON.stringify(refreshedEnhancementBySlot) !== JSON.stringify(activeSheet.draftEnhancementBySlot || enhancementBySlot)
         if (selectionChanged || enhancementChanged) this.setData({
           ...(selectionChanged ? { selectedGearBySlot: refreshedSelectedGearBySlot } : {}),
-          ...(enhancementChanged ? { enhancementBySlot: refreshedEnhancementBySlot } : {}),
-          gearSlotRows: buildGearSlotRows(refreshedPayload, refreshedSelectedGearBySlot, refreshedEnhancementBySlot),
+          ...(!this.gearWorkbenchState && enhancementChanged ? { enhancementBySlot: refreshedEnhancementBySlot } : {}),
+          gearSlotRows: buildGearSlotRows(
+            refreshedPayload,
+            refreshedSelectedGearBySlot,
+            this.gearWorkbenchState
+              ? enhancementBySlotFromResolvedSnapshot(canonicalWorkbenchSnapshot(this))
+              : refreshedEnhancementBySlot
+          ),
           gearAttributePanel: this.gearWorkbenchState
             ? canonicalGearAttributePanel(
                 acceptedGearDisplaySnapshot(this.gearWorkbenchState),
@@ -5870,7 +5984,10 @@ Page({
             )
         })
         this.setData({
-          gearEnhancementSheet: buildGearEnhancementSheetForPage(this, true, slot)
+          gearEnhancementSheet: buildGearEnhancementSheetForPage(this, true, slot, {
+            selectedGearBySlot: refreshedSelectedGearBySlot,
+            enhancementBySlot: refreshedEnhancementBySlot
+          })
         })
       })
   },
@@ -5907,6 +6024,7 @@ Page({
 
   confirmGearEnhancementSheet() {
     const sheet = this.data.gearEnhancementSheet || emptyGearEnhancementSheet()
+    if (sheet.submitting) return
     const gearPayload = fullGearPayloadForPage(this) || this.data.gearPayload || {}
     const selectedGearBySlot = prunedGearSelectionByWeaponRule(gearPayload, this.data.selectedGearBySlot || {})
     const editorSelectedGearBySlot = this.gearWorkbenchState
@@ -5957,20 +6075,56 @@ Page({
       })
       return
     }
+    if (this.gearWorkbenchState && !completeResolverContext(gearPayload.resolverContext)) {
+      const problemRows = workbenchProblemRows([{
+        kind: 'AUTHORITY_UNAVAILABLE',
+        code: 'RESOLVER_CONTEXT_UNAVAILABLE',
+        title: '缺少当前赛季校验上下文'
+      }])
+      const blockerText = problemRows[0] && problemRows[0].text || '缺少当前赛季校验上下文，请稍后重试'
+      const blockedSheet = {
+        ...validationSheet,
+        submitting: false,
+        blockers: Array.from(new Set([...(validationSheet.blockers || []), blockerText]))
+      }
+      showToast(blockerText)
+      this.setData({
+        selectedGearBySlot,
+        gearWorkbenchProblemRows: problemRows,
+        gearEnhancementSheet: blockedSheet
+      })
+      return Promise.resolve(null)
+    }
+    if (!this.gearWorkbenchState) {
+      this.setData({
+        selectedGearBySlot,
+        enhancementBySlot,
+        gearAttributePanel: buildGearAttributePanel(
+          gearPayload,
+          selectedGearBySlot,
+          this.data.selectedSpec,
+          enhancementBySlot,
+          this.data.gearStatSnapshot
+        ),
+        gearSlotRows: buildGearSlotRows(gearPayload, selectedGearBySlot, enhancementBySlot),
+        gearEnhancementSheet: emptyGearEnhancementSheet()
+      })
+      return resolveOrRefreshGearForPage(this, selectedGearBySlot, enhancementBySlot, {
+        replaceInheritedEvidence: true,
+        inheritedReplacementTargets
+      })
+    }
     this.setData({
-      selectedGearBySlot,
-      enhancementBySlot,
-      gearAttributePanel: this.gearWorkbenchState
-        ? canonicalGearAttributePanel(
-            acceptedGearDisplaySnapshot(this.gearWorkbenchState),
-            this.data.gearStatSnapshot,
-            this.communityEnhancementImportState
-          )
-        : buildGearAttributePanel(gearPayload, selectedGearBySlot, this.data.selectedSpec, enhancementBySlot, this.data.gearStatSnapshot),
-      gearSlotRows: buildGearSlotRows(gearPayload, selectedGearBySlot, enhancementBySlot),
-      gearEnhancementSheet: emptyGearEnhancementSheet()
+      gearEnhancementSheet: {
+        ...validationSheet,
+        submitting: true
+      }
     })
     return resolveOrRefreshGearForPage(this, selectedGearBySlot, enhancementBySlot, {
+      atomicEnhancementCommit: {
+        activeSlot: sheet.activeSlot,
+        draftEnhancementBySlot: enhancementBySlot
+      },
       replaceInheritedEvidence: true,
       inheritedReplacementTargets
     })

@@ -1620,7 +1620,8 @@ test('gear detail page exposes inline equipment simulator state and replacement 
   assert.match(wxml, /bindtap="selectGearEnhancementSlot"/)
   assert.match(wxml, /bindtap="confirmGearEnhancementSheet"/)
   assert.ok(wxml.indexOf('class="gear-enhancement-equipment-grid"') < wxml.indexOf('class="gear-enhancement-blockers"'))
-  assert.match(wxml, />确认<\/button>/)
+  assert.match(wxml, /disabled="\{\{gearEnhancementSheet\.submitting\}\}"/)
+  assert.match(wxml, /gearEnhancementSheet\.submitting \? '校验中' : '确认'/)
   assert.match(wxml, /bindtap="openGearCommunityTemplates"/)
   assert.match(wxml, /bindtap="resetGearSelection"/)
   assert.match(wxml, /gearDataWarningText/)
@@ -2013,6 +2014,296 @@ test('verified Resolve selectedOptions are the only committed enhancement state 
   assert.equal(page.data.enhancementBySlot.finger1.embellishmentOptionId, undefined)
 })
 
+function atomicEnhancementSheetHarness() {
+  const pendingResolves = []
+  const savedTemplates = []
+  const toasts = []
+  const option = (id) => ({
+    id,
+    optionKey: id,
+    displayLabel: id,
+    displayStatus: 'verified',
+    evidenceSource: 'test_authority',
+    status: 'verified',
+    simcOptions: { enchant_id: id },
+    payload: { qualityRank: 2 }
+  })
+  const ring = {
+    slot: 'finger1', simcSlot: 'finger1', itemId: '250060', id: '250060',
+    variantKey: 'atomic-ring', displayName: 'Atomic Ring', simcReady: true,
+    modCapabilities: { hasSocket: false, socketCount: 0, canEnchant: true, canEmbellish: false }
+  }
+  const gearPayload = {
+    classKey: 'mage', specKey: 'frost', maxLevel: 90,
+    slots: [{ slot: 'finger1', simcSlot: 'finger1', label: '戒指 1' }],
+    replacementCandidates: [{
+      slot: 'finger1', simcSlot: 'finger1', detailMode: 'complete', items: [ring],
+      enchantOptions: [option('enchant-draft'), option('enchant-canonical')]
+    }],
+    resolverContext: canonicalTestResolverContext()
+  }
+  const selectedGearBySlot = { finger1: ring }
+  const initialIntent = require('../pages/builds/gear-selection-intent').serializeGearSelectionIntent({
+    resolverContext: gearPayload.resolverContext,
+    eligibilityContext: { classKey: 'mage', specKey: 'frost', level: 90 },
+    selectedGearBySlot,
+    enhancementBySlot: {}
+  })
+  const verifiedSnapshot = {
+    contractRevision: 'gear-resolved-snapshot-v1',
+    status: 'verified',
+    resolvedGearSignature: 'sha256:atomic-old',
+    dependencyVector: { gearCatalogRevision: 'gear-r17' },
+    staticAttributes: {},
+    setState: { itemSetCounts: {}, activeDynamicEffects: [] },
+    aggregateLegality: { status: 'verified', problemCodes: [] },
+    profileReadiness: { status: 'verified', simcReady: true, requiredSlots: ['finger1'], readySlots: ['finger1'] },
+    constraints: {
+      embellishmentMax: 2,
+      slots: { finger1: { socketCount: 0, canEnchant: true, canEmbellish: false } }
+    },
+    resolvedSlots: {
+      finger1: { itemLevel: 707, selectedOptions: { gemOptionIds: [], enchantOptionId: '', embellishmentOptionId: '' } }
+    },
+    problems: []
+  }
+  const workbench = require('../pages/builds/gear-workbench-state')
+  const gearWorkbenchState = workbench.createGearWorkbenchState(gearPayload.resolverContext, initialIntent)
+  Object.assign(gearWorkbenchState, {
+    resolveStatus: 'verified',
+    currentSnapshot: verifiedSnapshot,
+    lastVerifiedSnapshot: verifiedSnapshot
+  })
+  const pageConfig = loadBuildsDetailPageConfig({
+    savedTemplates,
+    toasts,
+    requestWebsimGearResolve(selectionIntent) {
+      return new Promise((resolve, reject) => pendingResolves.push({ selectionIntent, resolve, reject }))
+    }
+  })
+  const page = {
+    gearPayloadCache: gearPayload,
+    gearWorkbenchState,
+    data: {
+      ...pageConfig.data,
+      selectedDetail: { className: '法师', specName: '冰霜', details: { talents: { importCode: 'talent-code' }, gear: {} } },
+      selectedSpec: { className: '法师', specName: '冰霜', websimClassKey: 'mage', websimSpecKey: 'frost' },
+      activeQueryKey: 'gear',
+      gearPayload,
+      selectedGearBySlot,
+      enhancementBySlot: {},
+      gearEnhancementSheet: { visible: false },
+      gearSlotSheet: { visible: false },
+      gearCommunityTemplateSheet: { visible: false }
+    },
+    setData(update) { this.data = { ...this.data, ...update } },
+    confirmAndResolveGearIntent: pageConfig.confirmAndResolveGearIntent
+  }
+  pageConfig.refreshDerivedState.call(page)
+  return { pageConfig, page, pendingResolves, savedTemplates, toasts }
+}
+
+async function verifiedAtomicEnhancementTransport(selectionIntent, canonicalOptionId = 'enchant-canonical') {
+  const transport = await canonicalEnhancementResolveTransport(
+    selectionIntent,
+    'sha256:atomic-new',
+    { finger1: { socketCount: 0, canEnchant: true, canEmbellish: false } }
+  )
+  transport.payload.data.resolvedSlots.finger1.selectedOptions.enchantOptionId = canonicalOptionId
+  return transport
+}
+
+test('enhancement confirm keeps committed state unchanged while Resolve is pending', async () => {
+  const { pageConfig, page, pendingResolves, savedTemplates } = atomicEnhancementSheetHarness()
+  pageConfig.openGearEnhancementSheet.call(page)
+  pageConfig.selectGearEnhancementOption.call(page, {
+    currentTarget: { dataset: { slot: 'finger1', type: 'enchant', id: 'enchant-draft' } }
+  })
+
+  const pending = pageConfig.confirmGearEnhancementSheet.call(page)
+  const duplicateConfirm = pageConfig.confirmGearEnhancementSheet.call(page)
+
+  assert.equal(pendingResolves.length, 1)
+  assert.equal(duplicateConfirm, undefined)
+  assert.deepEqual(JSON.parse(JSON.stringify(page.data.enhancementBySlot)), {})
+  assert.equal(page.data.gearAttributePanel.enhancementRows.find((row) => row.key === 'enchant').value, '0/1')
+  assert.equal(page.data.gearEnhancementSheet.visible, true)
+  assert.equal(page.data.gearEnhancementSheet.submitting, true)
+  assert.equal(page.data.gearWorkbenchView.canUseVerifiedSnapshot, true)
+  assert.equal(page.data.gearWorkbenchView.canRunProfile, true)
+  assert.equal(page.data.gearEnhancementSheet.draftEnhancementBySlot.finger1.enchantOptionId, 'enchant-draft')
+  assert.equal(page.gearWorkbenchState.lastVerifiedSnapshot.resolvedSlots.finger1.selectedOptions.enchantOptionId, '')
+  const profileContext = pageConfig.buildSimcContext.call(page)
+  assert.equal(profileContext.simulatorState.gear.resolvedGearSignature, 'sha256:atomic-old')
+  assert.equal(profileContext.simulatorState.gear.selectionIntent.slots.finger1.enchantOptionId, '')
+  await confirmGearTemplateSave(pageConfig, page, 'pending old verified config')
+  assert.equal(savedTemplates.length, 1)
+  assert.deepEqual(JSON.parse(savedTemplates[0].rawString).enhancementBySlot, {})
+  assert.equal(savedTemplates[0].metadata.selectionIntent.slots.finger1.enchantOptionId, '')
+  assert.doesNotMatch(JSON.stringify(savedTemplates), /enchant-draft/)
+
+  pendingResolves[0].resolve(await verifiedAtomicEnhancementTransport(pendingResolves[0].selectionIntent))
+  await pending
+})
+
+test('enhancement confirm atomically commits canonical options after verified Resolve', async () => {
+  const { pageConfig, page, pendingResolves } = atomicEnhancementSheetHarness()
+  pageConfig.openGearEnhancementSheet.call(page)
+  pageConfig.selectGearEnhancementOption.call(page, {
+    currentTarget: { dataset: { slot: 'finger1', type: 'enchant', id: 'enchant-draft' } }
+  })
+
+  const pending = pageConfig.confirmGearEnhancementSheet.call(page)
+  pendingResolves[0].resolve(await verifiedAtomicEnhancementTransport(pendingResolves[0].selectionIntent))
+  await pending
+
+  assert.deepEqual(JSON.parse(JSON.stringify(page.data.enhancementBySlot)), {
+    finger1: { enchantOptionId: 'enchant-canonical' }
+  })
+  assert.equal(page.data.gearAttributePanel.enhancementRows.find((row) => row.key === 'enchant').value, '1/1')
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(page.data.gearSlotRows.find((row) => row.slot === 'finger1').enhancementBadgeLabels)),
+    ['附魔']
+  )
+  assert.equal(page.data.gearEnhancementSheet.visible, false)
+  assert.equal(
+    pageConfig.buildSimcContext.call(page).simulatorState.gear.selectionIntent.slots.finger1.enchantOptionId,
+    'enchant-canonical'
+  )
+})
+
+test('blocked enhancement Resolve preserves committed state and editable draft', async () => {
+  const { pageConfig, page, pendingResolves, savedTemplates } = atomicEnhancementSheetHarness()
+  pageConfig.openGearEnhancementSheet.call(page)
+  pageConfig.selectGearEnhancementOption.call(page, {
+    currentTarget: { dataset: { slot: 'finger1', type: 'enchant', id: 'enchant-draft' } }
+  })
+  const pending = pageConfig.confirmGearEnhancementSheet.call(page)
+  pendingResolves[0].resolve({
+    httpStatus: 422,
+    fromFallback: false,
+    payload: {
+      contractRevision: 'gear-result-envelope-v1',
+      requestId: 'atomic-blocked',
+      releaseContext: {},
+      status: 'blocked',
+      problems: [{ kind: 'ILLEGAL_SELECTION', code: 'GEAR_OPTION_NOT_ALLOWED', title: 'draft rejected' }],
+      data: {
+        contractRevision: 'gear-resolved-snapshot-v1',
+        status: 'blocked',
+        resolvedGearSignature: 'sha256:atomic-blocked',
+        resolvedSlots: { finger1: { selectedOptions: { enchantOptionId: 'blocked-value' } } }
+      }
+    }
+  })
+  await pending
+
+  assert.deepEqual(JSON.parse(JSON.stringify(page.data.enhancementBySlot)), {})
+  assert.equal(page.data.gearEnhancementSheet.visible, true)
+  assert.equal(page.data.gearEnhancementSheet.submitting, false)
+  assert.equal(page.data.gearEnhancementSheet.activeSlot, 'finger1')
+  assert.equal(page.data.gearEnhancementSheet.draftEnhancementBySlot.finger1.enchantOptionId, 'enchant-draft')
+  assert.equal(page.data.gearWorkbenchProblemRows[0].code, 'GEAR_OPTION_NOT_ALLOWED')
+  assert.equal(page.data.gearAttributePanel.enhancementRows.find((row) => row.key === 'enchant').value, '0/1')
+  assert.equal(page.data.gearWorkbenchView.canUseVerifiedSnapshot, true)
+  assert.equal(page.data.gearWorkbenchView.canRunProfile, true)
+  assert.equal(pageConfig.buildSimcContext.call(page).simulatorState.gear.resolvedGearSignature, 'sha256:atomic-old')
+  await confirmGearTemplateSave(pageConfig, page, 'blocked old verified config')
+  assert.deepEqual(JSON.parse(savedTemplates[0].rawString).enhancementBySlot, {})
+  assert.doesNotMatch(JSON.stringify(savedTemplates), /enchant-draft/)
+  pageConfig.refreshDerivedState.call(page)
+  assert.equal(page.data.gearWorkbenchView.canUseVerifiedSnapshot, true)
+  assert.equal(page.data.gearWorkbenchView.canRunProfile, true)
+
+  pageConfig.closeGearEnhancementSheet.call(page)
+  assert.equal(pageConfig.buildSimcContext.call(page).simulatorState.gear.resolvedGearSignature, 'sha256:atomic-old')
+
+  const nonAtomicPending = pageConfig.confirmAndResolveGearIntent.call(page, page.data.selectedGearBySlot, {})
+  assert.equal(pendingResolves.length, 2)
+  assert.equal(pageConfig.buildSimcContext.call(page).simulatorState.gear, undefined)
+  pendingResolves[1].resolve(await verifiedAtomicEnhancementTransport(pendingResolves[1].selectionIntent, ''))
+  await nonAtomicPending
+  assert.equal(pageConfig.buildSimcContext.call(page).simulatorState.gear.resolvedGearSignature, 'sha256:atomic-new')
+})
+
+test('enhancement revision retry transport failure restores the editable draft', async () => {
+  const { pageConfig, page, pendingResolves } = atomicEnhancementSheetHarness()
+  pageConfig.openGearEnhancementSheet.call(page)
+  pageConfig.selectGearEnhancementOption.call(page, {
+    currentTarget: { dataset: { slot: 'finger1', type: 'enchant', id: 'enchant-draft' } }
+  })
+  const pending = pageConfig.confirmGearEnhancementSheet.call(page)
+  pendingResolves[0].resolve({
+    httpStatus: 409,
+    fromFallback: false,
+    payload: {
+      contractRevision: 'gear-result-envelope-v1',
+      requestId: 'atomic-revision-conflict',
+      releaseContext: {
+        seasonRevision: 'season-r18',
+        gearCatalogRevision: 'gear-r18'
+      },
+      status: 'blocked',
+      problems: [{ kind: 'REVISION_CONFLICT', code: 'REVISION_CONFLICT', title: 'revision changed' }],
+      data: {}
+    }
+  })
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(pendingResolves.length, 2)
+  assert.equal(page.data.gearEnhancementSheet.submitting, true)
+
+  pendingResolves[1].reject(new Error('retry offline'))
+  await pending
+
+  assert.deepEqual(JSON.parse(JSON.stringify(page.data.enhancementBySlot)), {})
+  assert.equal(page.data.gearEnhancementSheet.visible, true)
+  assert.equal(page.data.gearEnhancementSheet.submitting, false)
+  assert.equal(page.data.gearEnhancementSheet.activeSlot, 'finger1')
+  assert.equal(page.data.gearEnhancementSheet.draftEnhancementBySlot.finger1.enchantOptionId, 'enchant-draft')
+  assert.equal(page.data.gearWorkbenchProblemRows[0].code, 'GEAR_TRANSPORT_UNAVAILABLE')
+  assert.equal(pageConfig.buildSimcContext.call(page).simulatorState.gear.resolvedGearSignature, 'sha256:atomic-old')
+})
+
+test('canonical enhancement confirm fails closed when resolver context is lost', async () => {
+  const { pageConfig, page, pendingResolves, toasts } = atomicEnhancementSheetHarness()
+  pageConfig.openGearEnhancementSheet.call(page)
+  pageConfig.selectGearEnhancementOption.call(page, {
+    currentTarget: { dataset: { slot: 'finger1', type: 'enchant', id: 'enchant-draft' } }
+  })
+  page.gearPayloadCache = { ...page.gearPayloadCache, resolverContext: {} }
+  page.data.gearPayload = { ...page.data.gearPayload, resolverContext: {} }
+
+  await pageConfig.confirmGearEnhancementSheet.call(page)
+
+  assert.equal(pendingResolves.length, 0)
+  assert.deepEqual(JSON.parse(JSON.stringify(page.data.enhancementBySlot)), {})
+  assert.equal(page.data.gearAttributePanel.enhancementRows.find((row) => row.key === 'enchant').value, '0/1')
+  assert.equal(page.data.gearEnhancementSheet.visible, true)
+  assert.equal(page.data.gearEnhancementSheet.submitting, false)
+  assert.equal(page.data.gearEnhancementSheet.activeSlot, 'finger1')
+  assert.equal(page.data.gearEnhancementSheet.draftEnhancementBySlot.finger1.enchantOptionId, 'enchant-draft')
+  assert.equal(page.data.gearWorkbenchProblemRows[0].code, 'RESOLVER_CONTEXT_UNAVAILABLE')
+  assert.match(toasts.at(-1).title, /校验上下文/)
+  assert.equal(pageConfig.buildSimcContext.call(page).simulatorState.gear.resolvedGearSignature, 'sha256:atomic-old')
+})
+
+test('closing enhancement sheet discards an unconfirmed draft', () => {
+  const { pageConfig, page } = atomicEnhancementSheetHarness()
+  pageConfig.openGearEnhancementSheet.call(page)
+  pageConfig.selectGearEnhancementOption.call(page, {
+    currentTarget: { dataset: { slot: 'finger1', type: 'enchant', id: 'enchant-draft' } }
+  })
+  assert.equal(page.data.gearEnhancementSheet.draftEnhancementBySlot.finger1.enchantOptionId, 'enchant-draft')
+
+  pageConfig.closeGearEnhancementSheet.call(page)
+  pageConfig.openGearEnhancementSheet.call(page)
+
+  assert.deepEqual(JSON.parse(JSON.stringify(page.data.enhancementBySlot)), {})
+  assert.equal(page.data.gearEnhancementSheet.submitting, false)
+  assert.equal(page.data.gearEnhancementSheet.draftEnhancementBySlot.finger1, undefined)
+  assert.equal(page.data.gearEnhancementSheet.activeEnchantRows[0].options.find((option) => option.id === 'enchant-draft').selected, false)
+})
+
 test('canonical gear workbench performs one revision-only 409 rebase and preserves slot choices', async () => {
   const requests = []
   const pageConfig = loadBuildsDetailPageConfig({
@@ -2059,7 +2350,7 @@ test('canonical gear workbench performs one revision-only 409 rebase and preserv
   assert.equal(page.data.gearWorkbenchView.resolvedGearSignature, 'sha256:rebased')
 })
 
-test('canonical async stat request sends only confirmed Intent and profile context without replacing final facts', async () => {
+test('canonical async stat request sends verified canonical Intent and profile context without replacing final facts', async () => {
   let statRequest = null
   const pageConfig = loadBuildsDetailPageConfig({
     requestWebsimGearResolve: () => Promise.resolve({
@@ -2073,7 +2364,7 @@ test('canonical async stat request sends only confirmed Intent and profile conte
           staticAttributes: { intellect: 321 }, setState: { itemSetCounts: {}, activeDynamicEffects: [] },
           aggregateLegality: { status: 'verified', problemCodes: [] },
           profileReadiness: { status: 'verified', simcReady: true, requiredSlots: ['head'], readySlots: ['head'] },
-          constraints: {}, resolvedSlots: { head: { itemLevel: 700, selectedOptions: {} } },
+          constraints: {}, resolvedSlots: { head: { itemLevel: 700, selectedOptions: { enchantOptionId: 'server-enchant' } } },
           serializerInput: { gearItems: [{ slot: 'head', id: 'server-item', bonus_id: 'server-bonus' }] }, problems: []
         }
       }
@@ -2120,7 +2411,7 @@ test('canonical async stat request sends only confirmed Intent and profile conte
   await pageConfig.refreshGearStats.call(page)
 
   assert.equal(statRequest.selectionIntent.slots.head.itemId, '250060')
-  assert.equal(statRequest.selectionIntent.slots.head.enchantOptionId, 'client-enchant')
+  assert.equal(statRequest.selectionIntent.slots.head.enchantOptionId, 'server-enchant')
   assert.deepEqual(Object.keys(statRequest.profileContext).sort(), ['scenarioKey', 'talents'])
   assert.equal(statRequest.profileContext.talents, 'C4DA')
   assert.equal(statRequest.profileContext.scenarioKey, 'single')
@@ -6957,7 +7248,7 @@ test('gear community template import blocks partial observed legality templates'
   assert.match(toasts.at(-1).title, /暂不可导入/)
 })
 
-test('gear enhancement sheet shows loading state while selected slot options are hydrating', async () => {
+test('gear enhancement sheet hydration keeps the editable draft local while selected slot options load', async () => {
   const calls = []
   let resolveDetail
   const detailRequest = new Promise((resolve) => {
@@ -7008,8 +7299,36 @@ test('gear enhancement sheet shows loading state while selected slot options are
       this.data = { ...this.data, ...update }
     }
   }
+  const initialIntent = require('../pages/builds/gear-selection-intent').serializeGearSelectionIntent({
+    resolverContext: canonicalTestResolverContext(),
+    eligibilityContext: { classKey: 'shaman', specKey: 'elemental', level: 90 },
+    selectedGearBySlot: selection,
+    enhancementBySlot: {}
+  })
+  initialPayload.resolverContext = canonicalTestResolverContext()
+  const verifiedSnapshot = {
+    status: 'verified',
+    resolvedGearSignature: 'sha256:hydration-committed',
+    constraints: {
+      embellishmentMax: 2,
+      slots: { neck: { socketCount: 1, canEnchant: false, canEmbellish: false } }
+    },
+    resolvedSlots: { neck: { selectedOptions: { gemOptionIds: [] } } }
+  }
+  page.gearWorkbenchState = {
+    ...require('../pages/builds/gear-workbench-state').createGearWorkbenchState(
+      initialPayload.resolverContext,
+      initialIntent
+    ),
+    resolveStatus: 'verified',
+    currentSnapshot: verifiedSnapshot,
+    lastVerifiedSnapshot: verifiedSnapshot
+  }
 
   pageConfig.openGearEnhancementSheet.call(page)
+  page.data.gearEnhancementSheet.draftEnhancementBySlot = {
+    neck: { gemOptionIds: ['neck-gem', 'stale-gem'] }
+  }
 
   assert.equal(page.data.gearEnhancementSheet.visible, true)
   assert.equal(page.data.gearEnhancementSheet.loading, false)
@@ -7050,6 +7369,10 @@ test('gear enhancement sheet shows loading state while selected slot options are
   assert.equal(page.data.gearEnhancementSheet.loading, false)
   assert.equal(page.data.gearEnhancementSheet.emptyText, '')
   assert.equal(page.data.gearEnhancementSheet.gemRows[0].slot, 'neck')
+  assert.deepEqual(JSON.parse(JSON.stringify(page.data.enhancementBySlot)), {})
+  assert.deepEqual(JSON.parse(JSON.stringify(page.data.gearEnhancementSheet.draftEnhancementBySlot)), {
+    neck: { gemOptionIds: ['neck-gem'] }
+  })
 })
 
 test('gear enhancement sheet clears stale enhancement when slot detail marks selected gear illegal', async () => {
@@ -10164,7 +10487,13 @@ function multiGemEditorHarness({
           }
         },
         resolvedSlots: {
-          neck: { selectedOptions: { gemOptionIds: [] } }
+          neck: {
+            selectedOptions: {
+              gemOptionIds: Array.isArray(enhancementBySlot.neck && enhancementBySlot.neck.gemOptionIds)
+                ? [...enhancementBySlot.neck.gemOptionIds]
+                : []
+            }
+          }
         }
       }
     },
