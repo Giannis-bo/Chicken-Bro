@@ -148,6 +148,33 @@ test('Selection Intent serializer emits only client-owned identifiers from backe
   )
 })
 
+test('gear selection intent preserves ordered duplicate gem option ids', () => {
+  const selectionIntent = serializeGearSelectionIntent({
+    resolverContext: {
+      contractRevision: 'gear-resolver-context-v1',
+      selectionSchemaRevision: 'selection-intent-v1',
+      authoredAgainst: {
+        seasonRevision: 'season-17',
+        gearCatalogRevision: 'gear-r17'
+      }
+    },
+    eligibilityContext: { classKey: 'mage', specKey: 'frost', level: 90 },
+    selectedGearBySlot: {
+      finger1: { slot: 'finger1', itemId: '250060', variantKey: 'variant-ring' }
+    },
+    enhancementBySlot: {
+      finger1: { gemOptionIds: ['gem-haste', 'gem-haste', 'gem-mastery'] }
+    }
+  })
+  const state = workbench.createGearWorkbenchState(resolverContext(), selectionIntent)
+  const pending = workbench.beginGearResolve(state)
+
+  assert.deepEqual(
+    pending.request.selectionIntent.slots.finger1.gemOptionIds,
+    ['gem-haste', 'gem-haste', 'gem-mastery']
+  )
+})
+
 test('Selection Intent serializer fails closed when resolver context is incomplete', () => {
   assert.equal(serializeGearSelectionIntent({
     resolverContext: {

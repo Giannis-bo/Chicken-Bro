@@ -19,6 +19,7 @@ const {
   createGearWorkbenchState,
   createGearStatSnapshotState,
   editGearIntent,
+  gearWorkbenchAcceptedVerifiedResolve,
   gearWorkbenchCanRunProfile,
   gearWorkbenchCanUseVerifiedSnapshot,
   gearWorkbenchView,
@@ -2865,7 +2866,9 @@ function gearTemplateSaveDraft(page, templateTitle) {
   const selectedDetail = data.selectedDetail || {}
   const selectedSpec = data.selectedSpec || {}
   const keys = specWebsimKeys(selectedSpec)
-  const enhancementBySlot = prunedEnhancementBySlot(gearPayload, selectedGearBySlot, data.enhancementBySlot || {})
+  const enhancementBySlot = workbenchState
+    ? enhancementBySlotFromResolvedSnapshot(resolvedSnapshot)
+    : prunedEnhancementBySlot(gearPayload, selectedGearBySlot, data.enhancementBySlot || {})
   const enhancementSheet = buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementBySlot, false)
   if (!workbenchState && ((enhancementSheet.blockers || []).length || enhancementSheet.embellishmentUsed > enhancementSheet.embellishmentMax)) {
     return {
@@ -2930,7 +2933,7 @@ function gearTemplateSaveDraft(page, templateTitle) {
         gearSchemaRevision: data.gearPayload && data.gearPayload.gearSchemaRevision,
         maxLevel: data.gearPayload && data.gearPayload.maxLevel,
         ...(resolvedSnapshot ? {
-          selectionIntent: workbenchState.confirmedIntent,
+          selectionIntent: selectionIntentWithResolvedEnhancements(workbenchState.confirmedIntent, resolvedSnapshot),
           resolvedGearSignature: resolvedSnapshot.resolvedGearSignature || '',
           dependencyVector: resolvedSnapshot.dependencyVector || {}
         } : {})
@@ -5041,16 +5044,60 @@ function findSpecSelection(specId) {
 }
 
 function acceptedVerifiedGearResolve(state, request, snapshot) {
-  return !!(
-    state &&
-    request &&
-    snapshot &&
-    state.resolveStatus === 'verified' &&
-    Number(state.latestResolveSerial) === Number(request.serial) &&
-    Number(state.intentVersion) === Number(request.intentVersion) &&
-    state.currentSnapshot === snapshot &&
-    cleanGearString(snapshot.resolvedGearSignature)
-  )
+  return gearWorkbenchAcceptedVerifiedResolve(state, request, snapshot)
+}
+
+function enhancementBySlotFromResolvedSnapshot(snapshot) {
+  const resolvedSlots = snapshot && snapshot.resolvedSlots && typeof snapshot.resolvedSlots === 'object'
+    ? snapshot.resolvedSlots
+    : {}
+  const result = {}
+  Object.keys(resolvedSlots).sort().forEach((slot) => {
+    const selectedOptions = resolvedSlots[slot] && resolvedSlots[slot].selectedOptions
+    if (!selectedOptions || typeof selectedOptions !== 'object') return
+    const record = {}
+    const gemOptionIds = normalizedOptionIdentityList(selectedOptions.gemOptionIds)
+    const enchantOptionId = cleanGearString(selectedOptions.enchantOptionId)
+    const embellishmentOptionId = cleanGearString(selectedOptions.embellishmentOptionId)
+    if (gemOptionIds.length) record.gemOptionIds = gemOptionIds
+    if (enchantOptionId) record.enchantOptionId = enchantOptionId
+    if (embellishmentOptionId) record.embellishmentOptionId = embellishmentOptionId
+    if (Object.keys(record).length) result[slot] = record
+  })
+  return result
+}
+
+function selectionIntentWithResolvedEnhancements(selectionIntent, snapshot) {
+  const result = selectionIntent && typeof selectionIntent === 'object'
+    ? JSON.parse(JSON.stringify(selectionIntent))
+    : {}
+  const slots = result.slots && typeof result.slots === 'object' ? result.slots : {}
+  const enhancementBySlot = enhancementBySlotFromResolvedSnapshot(snapshot)
+  Object.keys(slots).forEach((slot) => {
+    const selectedOptions = enhancementBySlot[slot] || {}
+    slots[slot] = {
+      ...slots[slot],
+      gemOptionIds: normalizedOptionIdentityList(selectedOptions.gemOptionIds),
+      enchantOptionId: cleanGearString(selectedOptions.enchantOptionId),
+      embellishmentOptionId: cleanGearString(selectedOptions.embellishmentOptionId)
+    }
+  })
+  result.slots = slots
+  return result
+}
+
+function commitVerifiedEnhancementSnapshot(page, request, snapshot, context) {
+  if (!acceptedVerifiedGearResolve(page && page.gearWorkbenchState, request, snapshot)) return false
+  const source = context && typeof context === 'object' ? context : {}
+  const data = (page && page.data) || {}
+  const gearPayload = source.gearPayload || fullGearPayloadForPage(page) || data.gearPayload || {}
+  const selectedGearBySlot = source.selectedGearBySlot || data.selectedGearBySlot || {}
+  const enhancementBySlot = enhancementBySlotFromResolvedSnapshot(snapshot)
+  page.setData({
+    enhancementBySlot,
+    gearSlotRows: buildGearSlotRows(gearPayload, selectedGearBySlot, enhancementBySlot)
+  })
+  return true
 }
 
 function communityReplacementBindingForPage(page) {
@@ -5433,6 +5480,7 @@ Page({
   },
 
   confirmAndResolveGearIntent(selectedGearBySlot, enhancementBySlot, resolveContext) {
+    const acceptedSnapshotBeforeResolve = canonicalWorkbenchSnapshot(this)
     const replacementBinding = resolveContext && resolveContext.replaceInheritedEvidence
       ? communityReplacementBindingForPage(this)
       : null
@@ -5455,6 +5503,24 @@ Page({
     })
     const selection = selectedGearBySlot || {}
     const enhancements = enhancementBySlot || {}
+    const committedEnhancementBySlot = enhancementBySlotFromResolvedSnapshot(acceptedSnapshotBeforeResolve)
+    const committedGearSlotRows = buildGearSlotRows(gearPayload, selection, committedEnhancementBySlot)
+    const committedDisplayData = {
+      ...this.data,
+      selectedGearBySlot: selection,
+      enhancementBySlot: committedEnhancementBySlot,
+      gearSlotRows: committedGearSlotRows
+    }
+    const committedWorkbenchDataState = () => ({
+      selectedGearBySlot: selection,
+      enhancementBySlot: committedEnhancementBySlot,
+      gearSlotRows: committedGearSlotRows,
+      ...gearWorkbenchDataState(
+        this.gearWorkbenchState,
+        committedDisplayData,
+        this.communityEnhancementImportState
+      )
+    })
     const selectionIntent = serializeGearSelectionIntent({
       resolverContext: gearPayload.resolverContext,
       eligibilityContext: {
@@ -5472,11 +5538,7 @@ Page({
         readOnly: true,
         problems: [{ code: 'RESOLVER_CONTEXT_UNAVAILABLE', title: '缺少服务端装备校验上下文' }]
       }
-      this.setData({
-        selectedGearBySlot: selection,
-        enhancementBySlot: enhancements,
-        ...gearWorkbenchDataState(this.gearWorkbenchState, this.data, this.communityEnhancementImportState)
-      })
+      this.setData(committedWorkbenchDataState())
       return Promise.resolve(null)
     }
 
@@ -5488,11 +5550,7 @@ Page({
     }
     const pending = beginGearResolve(this.gearWorkbenchState)
     this.gearWorkbenchState = pending.state
-    this.setData({
-      selectedGearBySlot: selection,
-      enhancementBySlot: enhancements,
-      ...gearWorkbenchDataState(this.gearWorkbenchState, this.data, this.communityEnhancementImportState)
-    })
+    this.setData(committedWorkbenchDataState())
 
     const applyResult = (request, transportResult) => {
       this.gearWorkbenchState = applyGearResolveResult(this.gearWorkbenchState, request, transportResult)
@@ -5508,6 +5566,10 @@ Page({
         }
       }
       const currentSnapshot = this.gearWorkbenchState.currentSnapshot
+      commitVerifiedEnhancementSnapshot(this, request, currentSnapshot, {
+        gearPayload,
+        selectedGearBySlot: selection
+      })
       bindCommunityImportToResolvedSnapshot(this, request, currentSnapshot, completionContext)
       this.setData(gearWorkbenchDataState(
         this.gearWorkbenchState,
