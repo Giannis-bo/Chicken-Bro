@@ -382,6 +382,57 @@ def _profile_outcome(http_status: int, envelope: Any) -> dict[str, Any]:
     }
 
 
+def _profile_outcomes_allow_migration(
+    transitional: dict[str, Any],
+    candidate: dict[str, Any],
+) -> bool:
+    """Accept exact resolved parity or the one canonical no-talent failure."""
+
+    if transitional != candidate:
+        return False
+    data = (
+        transitional.get("data")
+        if isinstance(transitional.get("data"), dict)
+        else {}
+    )
+    talent_encoding = (
+        data.get("talentEncoding")
+        if isinstance(data.get("talentEncoding"), dict)
+        else {}
+    )
+    readiness = (
+        data.get("profileReadiness")
+        if isinstance(data.get("profileReadiness"), dict)
+        else {}
+    )
+    if (
+        transitional.get("httpStatus") == 200
+        and transitional.get("status") == "resolved"
+        and transitional.get("problemCodes") == []
+        and isinstance(data.get("profile"), str)
+        and bool(data["profile"].strip())
+        and talent_encoding.get("status") in {"encoded", "external"}
+        and readiness.get("simcReady") is True
+    ):
+        return True
+    return (
+        transitional.get("httpStatus") == 200
+        and transitional.get("status") == "blocked"
+        and transitional.get("problemCodes") == ["GEAR_PROFILE_NOT_READY"]
+        and data.get("profile") == ""
+        and talent_encoding.get("status") == "failed"
+        and talent_encoding.get("source") == "none"
+        and talent_encoding.get("errors")
+        == ["no WebSim talent nodes selected"]
+        and talent_encoding.get("warnings") == []
+        and talent_encoding.get("lines") == []
+        and talent_encoding.get("selectedCounts")
+        == {"class": 0, "spec": 0, "hero": 0}
+        and readiness.get("status") == "blocked"
+        and readiness.get("simcReady") is False
+    )
+
+
 def _enhancement_selection_projection(intent: Any) -> dict[str, dict[str, Any]]:
     value = intent if isinstance(intent, dict) else {}
     result = {}
@@ -1464,6 +1515,25 @@ def _legacy_to_v2_enhancement_migration_equivalent(
         if rebuilt_ledger != ledger:
             return None
 
+        globally_selected_editor_ids: dict[str, set[str]] = {
+            "gem": set(),
+            "enchant": set(),
+            "embellishment": set(),
+        }
+        for intent_selection in parsed_intent["slots"].values():
+            globally_selected_editor_ids["gem"].update(
+                _text(option_id)
+                for option_id in intent_selection.get("gemOptionIds") or []
+                if _text(option_id)
+            )
+            for option_type, selection_field in (
+                ("enchant", "enchantOptionId"),
+                ("embellishment", "embellishmentOptionId"),
+            ):
+                option_id = _text(intent_selection.get(selection_field))
+                if option_id:
+                    globally_selected_editor_ids[option_type].add(option_id)
+
         selected_ids_by_slot: dict[str, dict[str, list[str]]] = {}
         migration_selected_ids_by_slot: dict[str, set[str]] = {}
         enhancement_delta_sums_by_slot: dict[str, dict[str, int | float]] = {}
@@ -1565,10 +1635,16 @@ def _legacy_to_v2_enhancement_migration_equivalent(
                     or len(allowed) != len(set(allowed))
                 ):
                     return None
-                if option_type in {"gem", "enchant", "embellishment"} and (
-                    set(allowed) != set(selected_by_type[option_type])
-                ):
-                    return None
+                if option_type in {"gem", "enchant", "embellishment"}:
+                    selected_set = set(selected_by_type[option_type])
+                    allowed_set = set(allowed)
+                    if (
+                        not selected_set.issubset(allowed_set)
+                        or not allowed_set.issubset(
+                            globally_selected_editor_ids[option_type]
+                        )
+                    ):
+                        return None
                 if option_type in {"crafted", "catalyst"} and any(
                     option_id not in allowed
                     for option_id in selected_by_type[option_type]
@@ -2640,8 +2716,12 @@ def run_release_shadow(
                 "status": "pass" if old_profile_outcome == new_profile_outcome else "blocked",
                 "transitionalHttpStatus": old_profile_status,
                 "transitionalStatus": old_profile_state,
+                "transitionalProblemCodes": old_profile_outcome[
+                    "problemCodes"
+                ],
                 "candidateHttpStatus": new_profile_status,
                 "candidateStatus": new_profile_state,
+                "candidateProblemCodes": new_profile_outcome["problemCodes"],
             }
             if profile_result["status"] != "pass":
                 blockers.append(_blocker("PROFILE_PARITY_MISMATCH", class_key, spec_key, "Candidate Profile outcome differs from transitional Profile."))
@@ -2653,11 +2733,9 @@ def run_release_shadow(
                 _non_enhancement_selection_projection(legacy_intent)
                 == _non_enhancement_selection_projection(candidate_intent)
             )
-            profile_resolved = (
-                old_profile_status == 200
-                and new_profile_status == 200
-                and old_profile_state == "resolved"
-                and new_profile_state == "resolved"
+            profile_migration_evidence = _profile_outcomes_allow_migration(
+                old_profile_outcome,
+                new_profile_outcome,
             )
             transitional_authority_context = {}
             candidate_authority_context = {}
@@ -2681,7 +2759,7 @@ def run_release_shadow(
                 and candidate_capability_revision
                 == gear_socket_authority.CAPABILITY_REVISION
                 and profile_result["status"] == "pass"
-                and profile_resolved
+                and profile_migration_evidence
                 and migration_scope_equal
                 and exact_active_binding
             ):
@@ -2714,7 +2792,7 @@ def run_release_shadow(
                 and candidate_capability_revision
                 == gear_socket_authority.CAPABILITY_REVISION
                 and profile_result["status"] == "pass"
-                and profile_resolved
+                and profile_migration_evidence
                 and migration_scope_equal
                 and _legacy_to_v2_enhancement_migration_equivalent(
                     old_snapshot,
@@ -2737,7 +2815,7 @@ def run_release_shadow(
                 and candidate_capability_revision
                 == gear_socket_authority.CAPABILITY_REVISION
                 and profile_result["status"] == "pass"
-                and profile_resolved
+                and profile_migration_evidence
                 and migration_scope_equal
                 and _legacy_to_v2_socket_capacity_migration_equivalent(
                     old_snapshot,

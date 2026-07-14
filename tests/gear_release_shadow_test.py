@@ -138,6 +138,27 @@ class FakeShadowStore:
 
 
 class GearReleaseShadowTest(unittest.TestCase):
+    def resolved_profile_envelope(self, profile_text):
+        return {
+            "status": "resolved",
+            "data": {
+                "profile": profile_text,
+                "talentEncoding": {
+                    "status": "encoded",
+                    "source": "talent_catalog",
+                    "errors": [],
+                    "warnings": [],
+                    "lines": ["class_talents=canonical"],
+                    "selectedCounts": {"class": 1, "spec": 1, "hero": 1},
+                },
+                "profileReadiness": {
+                    "status": "verified",
+                    "simcReady": True,
+                },
+            },
+            "problems": [],
+        }
+
     def verified_rule_results(self):
         return [
             {
@@ -1321,6 +1342,109 @@ class GearReleaseShadowTest(unittest.TestCase):
                     editor_simc_options=simc_options,
                 )
                 self.assert_real_writer_migration_accepted(fixture)
+
+    def test_editor_migration_accepts_only_cross_slot_selected_options(self):
+        fixture = self.real_editor_writer_fixture(
+            editor_type="enchant",
+            editor_simc_options={"enchant_id": "8039"},
+        )
+        candidate_intent = fixture["candidateIntent"]
+        candidate_authority = fixture["candidateAuthority"]
+        transitional_authority = fixture["transitionalAuthority"]
+        primary_slot = fixture["slot"]
+        secondary_slot = "neck"
+        primary_option_id = candidate_intent["slots"][primary_slot][
+            "enchantOptionId"
+        ]
+        secondary_option_id = "enchant-writer-cross-slot"
+        primary_option = candidate_authority["optionsById"][primary_option_id]
+        primary_option["applicableSlots"] = [primary_slot, secondary_slot]
+        secondary_option = copy.deepcopy(primary_option)
+        secondary_option.update({
+            "optionId": secondary_option_id,
+            "simcOptions": {"enchant_id": "8052"},
+            "sourceRefIds": [
+                f"evidence:pg:option:{secondary_option_id}"
+            ],
+        })
+        candidate_authority["optionsById"][secondary_option_id] = (
+            secondary_option
+        )
+        candidate_authority["evidenceRecordsById"][
+            f"evidence:pg:option:{secondary_option_id}"
+        ] = {
+            "id": f"evidence:pg:option:{secondary_option_id}",
+            "optionId": secondary_option_id,
+            "sourceType": "postgres_gear_option",
+            "sourceRevision": "2026-07-14T00:00:00+00:00",
+        }
+        candidate_intent["slots"][secondary_slot]["enchantOptionId"] = (
+            secondary_option_id
+        )
+        allowed = [primary_option_id, secondary_option_id]
+        for authority in (candidate_authority, transitional_authority):
+            for slot in (primary_slot, secondary_slot):
+                selection = (
+                    candidate_intent["slots"][slot]
+                    if authority is candidate_authority
+                    else fixture["transitionalIntent"]["slots"][slot]
+                )
+                item = authority["itemsById"][selection["itemId"]]
+                item["baseCapabilities"]["canEnchant"] = True
+                item["allowedEnchantOptionIds"] = (
+                    list(allowed) if authority is candidate_authority else []
+                )
+                item["baseCapabilities"]["allowedEnchantOptionIds"] = (
+                    list(allowed) if authority is candidate_authority else []
+                )
+        fixture["transitionalSnapshot"] = gear_resolver.resolve(
+            fixture["transitionalIntent"],
+            transitional_authority,
+        )
+        fixture["candidateSnapshot"] = gear_resolver.resolve(
+            candidate_intent,
+            candidate_authority,
+        )
+
+        self.assert_real_writer_migration_accepted(fixture)
+
+        unexpected = copy.deepcopy(fixture)
+        unexpected_option_id = "enchant-writer-unselected"
+        unexpected_option = copy.deepcopy(secondary_option)
+        unexpected_option.update({
+            "optionId": unexpected_option_id,
+            "sourceRefIds": [
+                f"evidence:pg:option:{unexpected_option_id}"
+            ],
+        })
+        unexpected["candidateAuthority"]["optionsById"][
+            unexpected_option_id
+        ] = unexpected_option
+        unexpected["candidateAuthority"]["evidenceRecordsById"][
+            f"evidence:pg:option:{unexpected_option_id}"
+        ] = {
+            "id": f"evidence:pg:option:{unexpected_option_id}",
+            "optionId": unexpected_option_id,
+            "sourceType": "postgres_gear_option",
+            "sourceRevision": "2026-07-14T00:00:00+00:00",
+        }
+        primary_item_id = unexpected["candidateIntent"]["slots"][
+            primary_slot
+        ]["itemId"]
+        primary_item = unexpected["candidateAuthority"]["itemsById"][
+            primary_item_id
+        ]
+        primary_item["allowedEnchantOptionIds"].append(
+            unexpected_option_id
+        )
+        primary_item["baseCapabilities"]["allowedEnchantOptionIds"].append(
+            unexpected_option_id
+        )
+        unexpected["candidateSnapshot"] = gear_resolver.resolve(
+            unexpected["candidateIntent"],
+            unexpected["candidateAuthority"],
+        )
+        self.assert_real_writer_migration_rejected(unexpected)
 
     def test_editor_migration_accepts_zero_or_complete_gem_auxiliary_sequences(self):
         for name, simc_options, duplicate_gem in (
@@ -2606,11 +2730,9 @@ class GearReleaseShadowTest(unittest.TestCase):
                         ),
                     },
                 }
-                profile = {
-                    "status": "resolved",
-                    "data": {"profile": "mage=stable-non-editor-option"},
-                    "problems": [],
-                }
+                profile = self.resolved_profile_envelope(
+                    "mage=stable-non-editor-option"
+                )
                 with patch.object(
                     gear_release_shadow,
                     "_selection_intent_from_template",
@@ -2721,11 +2843,9 @@ class GearReleaseShadowTest(unittest.TestCase):
                         ),
                     },
                 }
-                profile = {
-                    "status": "resolved",
-                    "data": {"profile": "mage=stable-non-editor-option"},
-                    "problems": [],
-                }
+                profile = self.resolved_profile_envelope(
+                    "mage=stable-non-editor-option"
+                )
                 with patch.object(
                     gear_release_shadow,
                     "_selection_intent_from_template",
@@ -3305,6 +3425,31 @@ class GearReleaseShadowTest(unittest.TestCase):
             gear_release_shadow._non_enhancement_selection_projection(new_season),
         )
 
+    def test_profile_migration_rejects_empty_profile_with_encoded_talents(self):
+        outcome = {
+            "httpStatus": 200,
+            "status": "blocked",
+            "problemCodes": ["GEAR_PROFILE_NOT_READY"],
+            "data": {
+                "profile": "",
+                "talentEncoding": {
+                    "status": "external",
+                    "source": "talents",
+                    "lines": ["talents=valid"],
+                },
+                "profileReadiness": {
+                    "status": "blocked",
+                    "simcReady": False,
+                },
+            },
+        }
+        self.assertFalse(
+            gear_release_shadow._profile_outcomes_allow_migration(
+                outcome,
+                copy.deepcopy(outcome),
+            )
+        )
+
     def test_shadow_allows_narrow_legacy_to_v2_socket_capacity_migration_only(self):
         candidate = self.candidate_row()
         candidate_snapshot = self.snapshot(candidate["selectionIntent"], "sha256:candidate")
@@ -3440,11 +3585,7 @@ class GearReleaseShadowTest(unittest.TestCase):
             "gearCatalogReleaseId": "compatibility-pg:old",
             "gearCatalogRevision": "compatibility-pg:old",
         })
-        profile = {
-            "status": "resolved",
-            "data": {"profile": "mage=socket-capacity"},
-            "problems": [],
-        }
+        profile = self.resolved_profile_envelope("mage=socket-capacity")
 
         def run(active_capability_revision, profile_response=(200, profile)):
             store = FakeShadowStore(
@@ -3544,6 +3685,77 @@ class GearReleaseShadowTest(unittest.TestCase):
             {problem["code"] for problem in blocked_profile["blockers"]},
         )
 
+        forged_resolved_profile = copy.deepcopy(profile)
+        forged_resolved_profile["problems"] = [{"code": "SERIALIZER_BROKEN"}]
+        forged_resolved = run(
+            gear_socket_authority.LEGACY_CAPABILITY_REVISION,
+            profile_response=(200, forged_resolved_profile),
+        )
+        self.assertEqual(forged_resolved["status"], "blocked")
+        self.assertIn(
+            "PUBLIC_WINNER_SEMANTIC_CHANGE",
+            {problem["code"] for problem in forged_resolved["blockers"]},
+        )
+
+        profile_not_ready = run(
+            gear_socket_authority.LEGACY_CAPABILITY_REVISION,
+            profile_response=(200, {
+                "status": "blocked",
+                "data": {
+                    "profile": "",
+                    "talentEncoding": {
+                        "status": "failed",
+                        "source": "none",
+                        "schemaRevision": "websim-talent-rules-v1",
+                        "errors": ["no WebSim talent nodes selected"],
+                        "warnings": [],
+                        "lines": [],
+                        "selectedCounts": {
+                            "class": 0,
+                            "spec": 0,
+                            "hero": 0,
+                        },
+                    },
+                    "profileReadiness": {
+                        "status": "blocked",
+                        "simcReady": False,
+                    },
+                },
+                "problems": [{"code": "GEAR_PROFILE_NOT_READY"}],
+            }),
+        )
+        self.assertEqual(profile_not_ready["status"], "pass", profile_not_ready)
+        self.assertEqual(
+            profile_not_ready["report"]["diffs"][0]["classification"],
+            "expected_enhancement_migration",
+        )
+
+        encoded_but_empty_profile = run(
+            gear_socket_authority.LEGACY_CAPABILITY_REVISION,
+            profile_response=(200, {
+                "status": "blocked",
+                "data": {
+                    "profile": "",
+                    "talentEncoding": copy.deepcopy(
+                        profile["data"]["talentEncoding"]
+                    ),
+                    "profileReadiness": {
+                        "status": "blocked",
+                        "simcReady": False,
+                    },
+                },
+                "problems": [{"code": "GEAR_PROFILE_NOT_READY"}],
+            }),
+        )
+        self.assertEqual(encoded_but_empty_profile["status"], "blocked")
+        self.assertIn(
+            "PUBLIC_WINNER_SEMANTIC_CHANGE",
+            {
+                problem["code"]
+                for problem in encoded_but_empty_profile["blockers"]
+            },
+        )
+
     def test_internal_shadow_proves_exact_mage_enhancement_migration_and_ninth_gem_rejection(self):
         fixture = build_midnight_mage_release_fixture()["resolverFixture"]
         intent = copy.deepcopy(fixture["intent"])
@@ -3638,11 +3850,9 @@ class GearReleaseShadowTest(unittest.TestCase):
                 "problems": [{"code": "GEAR_GEM_SOCKET_CAPACITY_EXCEEDED"}],
             }
 
-        profile = {
-            "status": "resolved",
-            "data": {"profile": "mage=reference\nhead=...,gem_id=240916"},
-            "problems": [],
-        }
+        profile = self.resolved_profile_envelope(
+            "mage=reference\nhead=...,gem_id=240916"
+        )
         with patch.object(
             gear_release_shadow.gear_runtime,
             "resolve_selection_intent",
