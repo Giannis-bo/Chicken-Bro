@@ -9,7 +9,7 @@ const controlPlaneRelease = 'artifacts/releases/2026-07-10-harness-control-plane
 const executableHarnessRelease = 'artifacts/releases/2026-07-10-executable-project-harness'
 const characterizationRelease = 'artifacts/releases/2026-07-10-critical-contract-characterization'
 const archivedPhase5Release = 'artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover'
-const activeHarnessControlPlaneRelease = 'artifacts/releases/2026-07-10-harness-control-plane'
+const activeHarnessEfficiencyRelease = 'artifacts/releases/2026-07-15-harness-v06-efficiency'
 const archivedTalentLkgRelease = 'artifacts/releases/2026-07-13-talent-link-lkg-sync-guard'
 const archivedCommunityEnhancementRelease = 'artifacts/releases/2026-07-14-community-enhancement-editability'
 
@@ -34,7 +34,7 @@ test('project-state is the single machine-readable current truth entry', () => {
   assert.equal(state.updatedAt, '2026-07-15')
   assert.equal(state.activeMilestone, 'none')
   assert.equal(state.featureIteration, 'allowed_under_harness')
-  assert.equal(state.activeReleaseArtifact, activeHarnessControlPlaneRelease)
+  assert.equal(state.activeReleaseArtifact, activeHarnessEfficiencyRelease)
 
   assert.ok(Array.isArray(state.activeContracts), 'activeContracts should be an array')
   assert.ok(Array.isArray(state.completedBaselines), 'completedBaselines should be an array')
@@ -46,6 +46,7 @@ test('project-state is the single machine-readable current truth entry', () => {
   assertUniqueById(state.historicalContracts, 'historicalContracts')
 
   const activeContractIds = new Set(state.activeContracts.map((entry) => entry.id))
+  assert.ok(activeContractIds.has('repo_native_harness_v0_6'))
   assert.ok(!activeContractIds.has('talent_link_lkg_sync_guard'))
   assert.ok(!activeContractIds.has('community_enhancement_editability'))
   assert.ok(!activeContractIds.has('equipment_simulator_capability_architecture'))
@@ -95,7 +96,7 @@ test('project-state is the single machine-readable current truth entry', () => {
     assert.ok(!activePaths.has(entry.path), `${entry.path} should not be both active and historical`)
   }
 
-  for (const releasePath of [archivedTalentLkgRelease, archivedCommunityEnhancementRelease, archivedPhase5Release, characterizationRelease, executableHarnessRelease, controlPlaneRelease]) {
+  for (const releasePath of [activeHarnessEfficiencyRelease, archivedTalentLkgRelease, archivedCommunityEnhancementRelease, archivedPhase5Release, characterizationRelease, executableHarnessRelease, controlPlaneRelease]) {
     assertPathExists(path.join(releasePath, 'requirement.json'))
     assertPathExists(path.join(releasePath, 'evidence.json'))
     assertPathExists(path.join(releasePath, 'manifest.json'))
@@ -111,6 +112,10 @@ test('project-state is the single machine-readable current truth entry', () => {
   assert.ok(
     state.completedBaselines.some((entry) => entry.id === 'project_harness_normalization_20260710'),
     'Project Harness normalization should be recorded as a completed baseline'
+  )
+  assert.ok(
+    state.completedBaselines.some((entry) => entry.id === 'harness_v06_efficiency_20260715'),
+    'Harness v0.6 efficiency contract should be recorded as a completed baseline'
   )
   assert.ok(
     state.completedBaselines.some((entry) => entry.id === 'equipment_simulator_phase1_20260710'),
@@ -237,6 +242,7 @@ test('roadmap top is concise and phase 4 PR-level detail is archived', () => {
   const history = fs.readFileSync(phase4HistoryPath, 'utf8')
 
   assert.match(roadmapTop, /Project Harness 工程规范化（已完成/)
+  assert.match(roadmapTop, /Harness v0\.6 效率收口（已完成/)
   assert.match(roadmapTop, /装备模拟 Phase 0–5（已完成/)
   assert.match(roadmapTop, /Phase 6.*fail-closed/)
   assert.doesNotMatch(roadmapTop, /Phase 4 第[一二三四五六七八九十]+刀/)

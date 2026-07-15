@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-07-10",
+  "updatedAt": "2026-07-15",
   "status": "project_owner_map_active",
-  "harnessVersion": "v0.5",
+  "harnessVersion": "v0.6",
   "activeMilestone": "project_harness_normalization",
   "unownedCriticalDomains": 0,
   "conflictingFactOwners": 0,
