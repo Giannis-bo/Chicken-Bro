@@ -627,6 +627,35 @@
           "futureExtractionDirection": "Extract cleanup write intents after selector-only extraction is complete."
         }
       ]
+    },
+    {
+      "path": "server/community_template_import.py",
+      "healthStatus": "characterized",
+      "summary": "Owns the pure, immutable observed-winner to canonical community-template import projection; SQL reads stay in gear_release_store and final legality stays in gear_runtime plus gear_resolver.",
+      "owners": [
+        {
+          "id": "community_template_import_projector",
+          "status": "pure_contract",
+          "owns": [
+            "observed-winner to canonical selection-intent projection",
+            "selected immutable variant and visible option projection",
+            "bounded unresolved enhancement counts and import public data"
+          ],
+          "mustNotChange": [
+            "Do not access database, HTTP, clock, environment, filesystem, network, process execution, or frontend request payloads.",
+            "Do not copy raw enhancement values, SimC option values, sealed selectionIntent rows, or source payloads into public output.",
+            "Only active raiderio_observed_profile winners can produce an import Intent; source selection remains backend-owned."
+          ],
+          "characterization": [
+            "tests/community_template_import_test.py"
+          ],
+          "runtimeConsumers": [
+            "server/postgres_cache_store.py same-binding import context",
+            "server/gear_runtime.py Resolver-owned import response"
+          ],
+          "futureExtractionDirection": "Keep immutable release reads in server/gear_release_store.py and final Resolver legality in server/gear_runtime.py plus server/gear_resolver.py."
+        }
+      ]
     }
   ]
 }

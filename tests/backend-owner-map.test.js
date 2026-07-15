@@ -411,3 +411,19 @@ test('canonical backend gear release owners delegate socket facts to the pure ow
   assert.ok(fs.existsSync(socketOwner), `${socketOwner} should exist`)
   assert.ok(fs.existsSync(socketTest), `${socketTest} should exist`)
 })
+
+test('backend owner map rejects an unowned community template import projector', () => {
+  const ownerMap = readOwnerMap()
+  const projectorFile = ownerMap.hotspotFiles.find(
+    (entry) => entry.path === 'server/community_template_import.py'
+  )
+  assert.ok(projectorFile, 'community import projector should be an owned backend hotspot')
+  const projector = projectorFile.owners.find(
+    (owner) => owner.id === 'community_template_import_projector'
+  )
+  assert.ok(projector, 'community import projector should declare its pure owner')
+  assert.equal(projector.status, 'pure_contract')
+  assert.ok(projector.owns.includes('observed-winner to canonical selection-intent projection'))
+  assert.ok(projector.mustNotChange.some((entry) => entry.includes('database, HTTP, clock')))
+  assert.ok(projector.characterization.includes('tests/community_template_import_test.py'))
+})

@@ -312,7 +312,8 @@
           "server/gear_rule_matrix.py",
           "server/gear_evidence_ledger.py",
           "server/gear_resolver.py",
-          "server/pg_gear_authority_loader.py"
+          "server/pg_gear_authority_loader.py",
+          "server/community_template_import.py"
         ],
         "tests": [
           "tests/gear_contracts_test.py",
@@ -320,7 +321,8 @@
           "tests/gear_rule_matrix_test.py",
           "tests/gear_evidence_ledger_test.py",
           "tests/gear_resolver_test.py",
-          "tests/pg_gear_authority_loader_test.py"
+          "tests/pg_gear_authority_loader_test.py",
+          "tests/community_template_import_test.py"
         ],
         "runtimeConsumers": []
       },
@@ -429,12 +431,14 @@
         "tests/gear_release_tool_test.py",
         "tests/gear_release_shadow_test.py",
         "tests/gear_release_refresh_test.py",
-        "tests/gear_socket_authority_test.py"
+        "tests/gear_socket_authority_test.py",
+        "tests/community_template_import_test.py"
       ],
       "runtimeSurfaces": [
         "server/gear_public_contract.py",
         "server/websim_payload.py",
         "server/pg_gear_template_selectors.py",
+        "server/community_template_import.py",
         "pages/builds/websim-api.js"
       ],
       "runbooks": [
@@ -474,6 +478,7 @@
         "server/wow-gear-release-refresh.service",
         "server/wow-gear-release-refresh.timer",
         "server/pg_gear_authority_loader.py",
+        "server/community_template_import.py",
         "server/postgres_cache_store.py",
         "pages/builds/websim-api.js",
         "pages/builds/detail.*",
@@ -490,7 +495,8 @@
         "tests/gear_socket_authority_test.py",
         "tests/gear_stat_snapshot_test.py",
         "tests/gear_stat_snapshot_store_test.py",
-        "tests/pg_gear_authority_loader_test.py"
+        "tests/pg_gear_authority_loader_test.py",
+        "tests/community_template_import_test.py"
       ],
       "backendOwnerMapRef": {
         "hotspotFile": "server/websim_payload.py",
@@ -516,7 +522,8 @@
           "tests/gear_release_store_test.py",
           "tests/gear_release_tool_test.py",
           "tests/gear_release_shadow_test.py",
-          "tests/gear_socket_authority_test.py"
+          "tests/gear_socket_authority_test.py",
+          "tests/community_template_import_test.py"
         ],
         "runtimeEvidence": [],
         "ownerMapRef": {

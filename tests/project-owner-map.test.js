@@ -246,3 +246,22 @@ test('canonical gear domain records the pure socket fact owner and verification'
   assertPathExists(gearDomain.socketFactAuthority.factOwner)
   assertPathListExists(gearDomain.socketFactAuthority.tests)
 })
+
+test('canonical gear domain rejects an unowned community import projector path', () => {
+  const ownerMap = readOwnerMap()
+  const gearDomain = ownerMap.criticalDomains.find(
+    (domain) => domain.id === 'websim_gear_public_read_model'
+  )
+  const projector = 'server/community_template_import.py'
+  const projectorTest = 'tests/community_template_import_test.py'
+
+  assert.ok(gearDomain.contractFoundations.modules.includes(projector))
+  assert.ok(gearDomain.contractFoundations.tests.includes(projectorTest))
+  assert.ok(gearDomain.characterization.includes(projectorTest))
+  assert.ok(gearDomain.runtimeSurfaces.includes(projector))
+  assert.ok(gearDomain.changedPathPatterns.includes(projector))
+  assert.ok(gearDomain.changedPathPatterns.includes(projectorTest))
+  assert.ok(gearDomain.criticalContract.coverage.includes(projectorTest))
+  assertPathExists(projector)
+  assertPathExists(projectorTest)
+})
