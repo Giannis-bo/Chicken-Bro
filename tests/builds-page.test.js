@@ -2548,6 +2548,7 @@ test('canonical enhancement confirm fails closed without a verified committed po
   }
   const intentVersion = page.gearWorkbenchState.intentVersion
   pageConfig.openGearEnhancementSheet.call(page)
+  assert.equal(page.data.gearEnhancementSheet.visible, false)
   pageConfig.selectGearEnhancementOption.call(page, {
     currentTarget: { dataset: { slot: 'finger1', type: 'enchant', id: 'enchant-draft' } }
   })
@@ -2557,10 +2558,10 @@ test('canonical enhancement confirm fails closed without a verified committed po
   assert.equal(pendingResolves.length, 0)
   assert.equal(page.gearWorkbenchState.intentVersion, intentVersion)
   assert.deepEqual(JSON.parse(JSON.stringify(page.data.enhancementBySlot)), {})
-  assert.equal(page.data.gearEnhancementSheet.visible, true)
+  assert.equal(page.data.gearEnhancementSheet.visible, false)
   assert.equal(page.data.gearEnhancementSheet.submitting, false)
-  assert.equal(page.data.gearEnhancementSheet.activeSlot, 'finger1')
-  assert.equal(page.data.gearEnhancementSheet.draftEnhancementBySlot.finger1.enchantOptionId, 'enchant-draft')
+  assert.equal(page.data.gearEnhancementSheet.activeSlot, '')
+  assert.equal(page.data.gearEnhancementSheet.draftEnhancementBySlot, undefined)
   assert.equal(page.data.gearWorkbenchProblemRows[0].code, 'GEAR_VERIFIED_SNAPSHOT_REQUIRED')
   assert.match(toasts.at(-1).title, /已验证配置/)
 })
@@ -7601,29 +7602,58 @@ test('gear community template import blocks partial observed legality templates'
   assert.match(toasts.at(-1).title, /暂不可导入/)
 })
 
-test('gear enhancement sheet hydration keeps the editable draft local while selected slot options load', async () => {
+test('gear enhancement sheet hydration keeps the full editable draft local while selected slot options load', async () => {
   const calls = []
+  const resolveRequests = []
   let resolveDetail
   const detailRequest = new Promise((resolve) => {
     resolveDetail = resolve
   })
-  const selection = completeGearSelection(['neck'])
+  const selection = completeGearSelection(['neck', 'back', 'finger1'])
   selection.neck = {
     ...selection.neck,
-    modCapabilities: { hasSocket: true, canEnchant: false, canEmbellish: false, socketCount: 1 }
+    modCapabilities: { hasSocket: false, canEnchant: false, canEmbellish: false, socketCount: 0 }
+  }
+  selection.back = {
+    ...selection.back,
+    modCapabilities: { hasSocket: false, canEnchant: true, canEmbellish: false, socketCount: 0 }
+  }
+  selection.finger1 = {
+    ...selection.finger1,
+    modCapabilities: { hasSocket: false, canEnchant: false, canEmbellish: false, socketCount: 0 }
   }
   const initialPayload = {
     classKey: 'shaman',
     specKey: 'elemental',
-    slots: [{ slot: 'neck', simcSlot: 'neck', label: '颈部' }],
+    slots: [
+      { slot: 'neck', simcSlot: 'neck', label: '颈部' },
+      { slot: 'back', simcSlot: 'back', label: '背部' },
+      { slot: 'finger1', simcSlot: 'finger1', label: '戒指 1' }
+    ],
     gearPayloadMode: 'initial',
-    replacementCandidates: [{
-      slot: 'neck',
-      simcSlot: 'neck',
-      label: '颈部',
-      detailMode: 'partial',
-      items: [selection.neck]
-    }],
+    replacementCandidates: [
+      {
+        slot: 'neck',
+        simcSlot: 'neck',
+        label: '颈部',
+        detailMode: 'partial',
+        items: [selection.neck]
+      },
+      {
+        slot: 'back',
+        simcSlot: 'back',
+        label: '背部',
+        detailMode: 'partial',
+        items: [selection.back]
+      },
+      {
+        slot: 'finger1',
+        simcSlot: 'finger1',
+        label: '戒指 1',
+        detailMode: 'partial',
+        items: [selection.finger1]
+      }
+    ],
     equippedSet: {},
     slotReadiness: {},
     readiness: { fullReady: true }
@@ -7632,6 +7662,20 @@ test('gear enhancement sheet hydration keeps the editable draft local while sele
     requestWebsimGear: (params = {}) => {
       calls.push(params)
       return detailRequest
+    },
+    requestWebsimGearResolve: (selectionIntent) => {
+      resolveRequests.push(selectionIntent)
+      return canonicalEnhancementResolveTransport(
+        selectionIntent,
+        'sha256:hydration-confirmed',
+        {
+          neck: { socketCount: 1, canEnchant: false, canEmbellish: false },
+          back: { socketCount: 0, canEnchant: true, canEmbellish: true },
+          finger1: { socketCount: 1, canEnchant: true, canEmbellish: false }
+        },
+        2,
+        1
+      )
     }
   })
   const page = {
@@ -7643,7 +7687,11 @@ test('gear enhancement sheet hydration keeps the editable draft local while sele
       gearSelectionKey: 'shaman:elemental',
       gearPayload: initialPayload,
       selectedGearBySlot: selection,
-      enhancementBySlot: {},
+      enhancementBySlot: {
+        neck: { gemOptionIds: ['neck-gem'] },
+        back: { embellishmentOptionId: 'back-embellishment' },
+        finger1: { gemOptionIds: ['finger-gem'], enchantOptionId: 'finger-enchant' }
+      },
       gearEnhancementSheet: { visible: false },
       gearCommunityTemplateSheet: { visible: false },
       gearSlotSheet: {}
@@ -7652,6 +7700,7 @@ test('gear enhancement sheet hydration keeps the editable draft local while sele
       this.data = { ...this.data, ...update }
     }
   }
+  page.confirmAndResolveGearIntent = pageConfig.confirmAndResolveGearIntent
   const initialIntent = require('../pages/builds/gear-selection-intent').serializeGearSelectionIntent({
     resolverContext: canonicalTestResolverContext(),
     eligibilityContext: { classKey: 'shaman', specKey: 'elemental', level: 90 },
@@ -7659,14 +7708,39 @@ test('gear enhancement sheet hydration keeps the editable draft local while sele
     enhancementBySlot: {}
   })
   initialPayload.resolverContext = canonicalTestResolverContext()
+  const requiredSlots = Object.keys(selection)
   const verifiedSnapshot = {
+    contractRevision: 'gear-resolved-snapshot-v1',
     status: 'verified',
     resolvedGearSignature: 'sha256:hydration-committed',
+    dependencyVector: {},
+    staticAttributes: {},
+    setState: { itemSetCounts: {}, activeDynamicEffects: [] },
+    aggregateLegality: { status: 'verified', problemCodes: [] },
+    profileReadiness: { status: 'verified', simcReady: true, requiredSlots, readySlots: requiredSlots },
     constraints: {
       embellishmentMax: 2,
-      slots: { neck: { socketCount: 1, canEnchant: false, canEmbellish: false } }
+      embellishmentBuiltInUsed: 1,
+      slots: {
+        neck: { socketCount: 1, canEnchant: false, canEmbellish: false },
+        back: { socketCount: 0, canEnchant: true, canEmbellish: true },
+        finger1: { socketCount: 1, canEnchant: true, canEmbellish: false }
+      }
     },
-    resolvedSlots: { neck: { selectedOptions: { gemOptionIds: [] } } }
+    resolvedSlots: requiredSlots.reduce((result, slot) => {
+      result[slot] = {
+        itemLevel: 707,
+        selectedOptions: {
+          gemOptionIds: slot === 'neck'
+            ? ['neck-gem']
+            : (slot === 'finger1' ? ['finger-gem'] : []),
+          enchantOptionId: slot === 'finger1' ? 'finger-enchant' : '',
+          embellishmentOptionId: slot === 'back' ? 'back-embellishment' : ''
+        }
+      }
+      return result
+    }, {}),
+    problems: []
   }
   page.gearWorkbenchState = {
     ...require('../pages/builds/gear-workbench-state').createGearWorkbenchState(
@@ -7679,8 +7753,17 @@ test('gear enhancement sheet hydration keeps the editable draft local while sele
   }
 
   pageConfig.openGearEnhancementSheet.call(page)
+  assert.deepEqual(JSON.parse(JSON.stringify(page.data.enhancementBySlot)), {
+    neck: { gemOptionIds: ['neck-gem'] },
+    back: { embellishmentOptionId: 'back-embellishment' },
+    finger1: { gemOptionIds: ['finger-gem'], enchantOptionId: 'finger-enchant' }
+  })
+  assert.equal(page.data.gearEnhancementSheet.embellishmentUsed, 2)
+  assert.equal(page.data.gearEnhancementSheet.blockers.length, 0)
   page.data.gearEnhancementSheet.draftEnhancementBySlot = {
-    neck: { gemOptionIds: ['neck-gem', 'stale-gem'] }
+    neck: { gemOptionIds: ['neck-gem', 'stale-gem'] },
+    back: { embellishmentOptionId: 'back-embellishment' },
+    finger1: { gemOptionIds: ['finger-gem'], enchantOptionId: 'finger-enchant' }
   }
 
   assert.equal(page.data.gearEnhancementSheet.visible, true)
@@ -7722,10 +7805,203 @@ test('gear enhancement sheet hydration keeps the editable draft local while sele
   assert.equal(page.data.gearEnhancementSheet.loading, false)
   assert.equal(page.data.gearEnhancementSheet.emptyText, '')
   assert.equal(page.data.gearEnhancementSheet.gemRows[0].slot, 'neck')
-  assert.deepEqual(JSON.parse(JSON.stringify(page.data.enhancementBySlot)), {})
+  assert.deepEqual(JSON.parse(JSON.stringify(page.data.enhancementBySlot)), {
+    neck: { gemOptionIds: ['neck-gem'] },
+    back: { embellishmentOptionId: 'back-embellishment' },
+    finger1: { gemOptionIds: ['finger-gem'], enchantOptionId: 'finger-enchant' }
+  })
+  assert.equal(page.data.gearEnhancementSheet.embellishmentUsed, 2)
+  assert.deepEqual(JSON.parse(JSON.stringify(page.data.gearEnhancementSheet.draftEnhancementBySlot)), {
+    neck: { gemOptionIds: ['neck-gem'] },
+    back: { embellishmentOptionId: 'back-embellishment' },
+    finger1: { gemOptionIds: ['finger-gem'], enchantOptionId: 'finger-enchant' }
+  })
+
+  await pageConfig.confirmGearEnhancementSheet.call(page)
+  assert.deepEqual(resolveRequests[0].slots.neck.gemOptionIds, ['neck-gem'])
+  assert.equal(resolveRequests[0].slots.back.embellishmentOptionId, 'back-embellishment')
+  assert.deepEqual(resolveRequests[0].slots.finger1.gemOptionIds, ['finger-gem'])
+  assert.equal(resolveRequests[0].slots.finger1.enchantOptionId, 'finger-enchant')
+})
+
+test('gear enhancement slot detail fallback preserves the canonical draft for that slot', async () => {
+  const calls = []
+  const selection = completeGearSelection(['neck'])
+  selection.neck = {
+    ...selection.neck,
+    modCapabilities: { hasSocket: false, canEnchant: false, canEmbellish: false, socketCount: 0 }
+  }
+  const initialPayload = {
+    classKey: 'shaman',
+    specKey: 'elemental',
+    slots: [{ slot: 'neck', simcSlot: 'neck', label: '颈部' }],
+    gearPayloadMode: 'initial',
+    replacementCandidates: [{
+      slot: 'neck',
+      simcSlot: 'neck',
+      label: '颈部',
+      detailMode: 'partial',
+      items: [selection.neck]
+    }],
+    resolverContext: canonicalTestResolverContext(),
+    equippedSet: {},
+    slotReadiness: {},
+    readiness: { fullReady: true }
+  }
+  const pageConfig = loadBuildsDetailPageConfig({
+    requestWebsimGear: (params = {}) => {
+      calls.push(params)
+      return Promise.resolve({
+      payload: initialPayload,
+      fromFallback: true,
+      error: 'offline'
+      })
+    }
+  })
+  const page = {
+    gearPayloadCache: initialPayload,
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      selectedSpec: { websimClassKey: 'shaman', websimSpecKey: 'elemental' },
+      gearSelectionKey: 'shaman:elemental',
+      gearPayload: initialPayload,
+      selectedGearBySlot: selection,
+      enhancementBySlot: { neck: { gemOptionIds: ['neck-gem'] } },
+      gearEnhancementSheet: { visible: false },
+      gearCommunityTemplateSheet: { visible: false },
+      gearSlotSheet: {}
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+  const initialIntent = require('../pages/builds/gear-selection-intent').serializeGearSelectionIntent({
+    resolverContext: initialPayload.resolverContext,
+    eligibilityContext: { classKey: 'shaman', specKey: 'elemental', level: 90 },
+    selectedGearBySlot: selection,
+    enhancementBySlot: { neck: { gemOptionIds: ['neck-gem'] } }
+  })
+  const verifiedSnapshot = {
+    contractRevision: 'gear-resolved-snapshot-v1',
+    status: 'verified',
+    resolvedGearSignature: 'sha256:fallback-committed',
+    dependencyVector: {},
+    staticAttributes: {},
+    setState: { itemSetCounts: {}, activeDynamicEffects: [] },
+    aggregateLegality: { status: 'verified', problemCodes: [] },
+    profileReadiness: { status: 'verified', simcReady: true, requiredSlots: ['neck'], readySlots: ['neck'] },
+    constraints: {
+      embellishmentMax: 2,
+      slots: { neck: { socketCount: 1, canEnchant: false, canEmbellish: false } }
+    },
+    resolvedSlots: {
+      neck: {
+        itemLevel: 707,
+        selectedOptions: {
+          gemOptionIds: ['neck-gem'],
+          enchantOptionId: '',
+          embellishmentOptionId: ''
+        }
+      }
+    },
+    problems: []
+  }
+  page.gearWorkbenchState = {
+    ...require('../pages/builds/gear-workbench-state').createGearWorkbenchState(
+      initialPayload.resolverContext,
+      initialIntent
+    ),
+    resolveStatus: 'verified',
+    currentSnapshot: verifiedSnapshot,
+    lastVerifiedSnapshot: verifiedSnapshot
+  }
+
+  await pageConfig.openGearSlotSheet.call(page, {
+    currentTarget: { dataset: { slot: 'neck' } }
+  })
+  pageConfig.closeGearSlotSheet.call(page)
+  pageConfig.openGearEnhancementSheet.call(page)
+  await pageConfig.selectGearEnhancementSlot.call(page, {
+    currentTarget: { dataset: { slot: 'neck' } }
+  })
+
+  assert.deepEqual(calls.map((params) => params.slot), ['neck', 'neck'])
   assert.deepEqual(JSON.parse(JSON.stringify(page.data.gearEnhancementSheet.draftEnhancementBySlot)), {
     neck: { gemOptionIds: ['neck-gem'] }
   })
+  assert.match(page.data.gearEnhancementSheet.emptyText, /加载失败/)
+})
+
+test('gear enhancement sheet does not reopen an old verified draft while a replacement Resolve is pending', () => {
+  const toasts = []
+  const selection = completeGearSelection(['neck'])
+  const initialPayload = {
+    classKey: 'shaman',
+    specKey: 'elemental',
+    slots: [{ slot: 'neck', simcSlot: 'neck', label: '颈部' }],
+    gearPayloadMode: 'initial',
+    replacementCandidates: [{
+      slot: 'neck',
+      simcSlot: 'neck',
+      label: '颈部',
+      detailMode: 'partial',
+      items: [selection.neck]
+    }],
+    resolverContext: canonicalTestResolverContext(),
+    equippedSet: {},
+    slotReadiness: {},
+    readiness: { fullReady: true }
+  }
+  const pageConfig = loadBuildsDetailPageConfig({ toasts })
+  const page = {
+    gearPayloadCache: initialPayload,
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      selectedSpec: { websimClassKey: 'shaman', websimSpecKey: 'elemental' },
+      gearSelectionKey: 'shaman:elemental',
+      gearPayload: initialPayload,
+      selectedGearBySlot: selection,
+      enhancementBySlot: {},
+      gearEnhancementSheet: { visible: false },
+      gearCommunityTemplateSheet: { visible: false },
+      gearSlotSheet: {}
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+  const currentIntent = require('../pages/builds/gear-selection-intent').serializeGearSelectionIntent({
+    resolverContext: initialPayload.resolverContext,
+    eligibilityContext: { classKey: 'shaman', specKey: 'elemental', level: 90 },
+    selectedGearBySlot: selection,
+    enhancementBySlot: {}
+  })
+  const oldSnapshot = {
+    status: 'verified',
+    resolvedGearSignature: 'sha256:old-replaced-gear',
+    constraints: {
+      embellishmentMax: 2,
+      slots: { neck: { socketCount: 1, canEnchant: false, canEmbellish: false } }
+    },
+    resolvedSlots: { neck: { selectedOptions: { gemOptionIds: ['old-neck-gem'] } } }
+  }
+  page.gearWorkbenchState = {
+    ...require('../pages/builds/gear-workbench-state').createGearWorkbenchState(
+      initialPayload.resolverContext,
+      currentIntent
+    ),
+    resolveStatus: 'resolving',
+    currentSnapshot: null,
+    lastVerifiedSnapshot: oldSnapshot
+  }
+
+  pageConfig.openGearEnhancementSheet.call(page)
+
+  assert.equal(!!page.data.gearEnhancementSheet.visible, false)
+  assert.deepEqual(page.data.enhancementBySlot, {})
+  assert.match(toasts.at(-1).title, /校验/)
 })
 
 test('gear enhancement sheet clears stale enhancement when slot detail marks selected gear illegal', async () => {
@@ -12847,6 +13123,10 @@ test('gear import sheet applies a saved personal gear template with enhancements
     back: {
       enchantOptionId: 'cloak-speed',
       enchant_id: '123'
+    },
+    neck: {
+      gemOptionIds: ['stale-saved-gem'],
+      gem_id: '999999'
     }
   }
   const pageConfig = loadBuildsDetailPageConfig({
@@ -12920,6 +13200,7 @@ test('gear import sheet applies a saved personal gear template with enhancements
   assert.equal(page.data.selectedGearBySlot.back.itemId, savedBack.itemId)
   assert.equal(page.data.selectedGearBySlot.neck.itemId, baseline.neck.itemId)
   assert.equal(page.data.enhancementBySlot.back.enchant_id, '123')
+  assert.equal(page.data.enhancementBySlot.neck, undefined)
   assert.equal(page.data.gearCommunityTemplateSheet.visible, false)
   assert.equal(page.data.gearSlotSheet.visible, false)
   assert.deepEqual(JSON.parse(JSON.stringify(page.communityEnhancementImportState)), {
@@ -13298,6 +13579,53 @@ test('mage frost released canonical enhancements survive stale initial socket ca
     mageFrostCanonicalEnhancementBySlot(harness.fixture)
   )
   assert.deepEqual(JSON.parse(JSON.stringify(harness.page.communityEnhancementImportState.unresolvedBySlot)), {})
+})
+
+test('mage frost saved template reapply preserves canonical enhancements when saved item capabilities are stale', async () => {
+  const harness = mageFrostCommunityEnhancementHarness()
+  const staleInitialSocketCounts = {
+    head: 0,
+    neck: 1,
+    wrist: 0,
+    waist: 0,
+    finger1: 1,
+    finger2: 1
+  }
+  harness.template.gearItems = harness.template.gearItems.map((item) => {
+    if (!Object.prototype.hasOwnProperty.call(staleInitialSocketCounts, item.slot)) return item
+    const socketCount = staleInitialSocketCounts[item.slot]
+    return {
+      ...item,
+      modCapabilities: {
+        ...(item.modCapabilities || {}),
+        hasSocket: socketCount > 0,
+        socketCount
+      }
+    }
+  })
+  harness.template.enhancementBySlot = mageFrostCanonicalEnhancementBySlot(harness.fixture)
+
+  await importMageFrostCommunityEnhancements(harness)
+  await confirmGearTemplateSave(harness.pageConfig, harness.page, 'Mage Frost stale capability roundtrip')
+  assert.deepEqual(
+    JSON.parse(harness.savedTemplates[0].rawString).enhancementBySlot,
+    mageFrostCanonicalEnhancementBySlot(harness.fixture)
+  )
+  for (const slot of ['head', 'wrist', 'waist']) {
+    assert.equal(harness.savedTemplates[0].metadata.selectedGearSnapshot[slot].modCapabilities.socketCount, 0)
+  }
+  harness.pageConfig.openGearCommunityTemplates.call(harness.page)
+  await harness.pageConfig.applySavedGearTemplate.call(harness.page, {
+    currentTarget: { dataset: { id: harness.savedTemplates[0].id } }
+  })
+
+  assert.deepEqual(
+    mageFrostIntentEnhancements(harness.resolveRequests[1]),
+    mageFrostCanonicalEnhancementBySlot(harness.fixture)
+  )
+  assert.deepEqual(mageFrostEnhancementMetrics(harness.page), {
+    embellishment: '2/2', gem: '8/8', enchant: '6/8', tierSet: '0'
+  })
 })
 
 test('mage frost imported enhancements remain identical across panel sheet Resolve and Profile intent', async () => {

@@ -1686,6 +1686,15 @@ function enhancementBySlotWithoutChangedGear(enhancementBySlot, slots, selectedG
   return result
 }
 
+function enhancementBySlotForSelectedGear(selectedGearBySlot, enhancementBySlot) {
+  const selected = selectedGearByCanonicalSlot(selectedGearBySlot || {})
+  const result = normalizedEnhancementBySlot(enhancementBySlot || {})
+  Object.keys(result).forEach((slot) => {
+    if (!selected[slot]) delete result[slot]
+  })
+  return result
+}
+
 const embeddedEnhancementOptionIdentityKeys = {
   gemOptionIds: true,
   gemOptionId: true,
@@ -1748,6 +1757,16 @@ function committedGearWorkbenchStateForPage(page) {
   const committedState = page && page.atomicEnhancementCommittedWorkbenchState
   if (committedState) return committedState
   return page && page.gearWorkbenchState
+}
+
+function canonicalEnhancementEditorWorkbenchState(page) {
+  const state = committedGearWorkbenchStateForPage(page)
+  return gearWorkbenchCanUseVerifiedSnapshot(state) ? state : null
+}
+
+function canonicalEnhancementEditorSnapshot(page) {
+  const state = canonicalEnhancementEditorWorkbenchState(page)
+  return state ? state.currentSnapshot : null
 }
 
 function acceptedGearDisplaySnapshot(state) {
@@ -4238,10 +4257,6 @@ function mergeGearSlotDetailPayload(basePayload, detailPayload, slot) {
 
 function gearPayloadNeedsSlotDetail(page, slot) {
   const payload = fullGearPayloadForPage(page) || {}
-  const cached = page && page.gearSlotCandidateCache && page.gearSlotCandidateCache[slot]
-  if (Array.isArray(cached) && cached.length && cached.every((item) => item && item.detailMode !== 'summary')) {
-    return false
-  }
   const group = gearGroupsBySlot(payload)[slot] || {}
   const items = Array.isArray(group.items) ? group.items : []
   if (group.detailMode === 'complete' && !items.some((item) => item && item.detailMode === 'summary')) {
@@ -4279,7 +4294,7 @@ function gearEnhancementSlotNeedsDetail(gearPayload, item, selectedEnhancement) 
 function gearEnhancementDetailSlotsForPage(page) {
   const gearPayload = fullGearPayloadForPage(page) || (page && page.data && page.data.gearPayload) || {}
   const currentSelectedGearBySlot = (page && page.data && page.data.selectedGearBySlot) || {}
-  const canonicalSnapshot = canonicalWorkbenchSnapshot(page)
+  const canonicalSnapshot = canonicalEnhancementEditorSnapshot(page)
   const selectedGearBySlot = page && page.gearWorkbenchState
     ? gearSelectionWithCanonicalEnhancementConstraints(currentSelectedGearBySlot, canonicalSnapshot)
     : currentSelectedGearBySlot
@@ -4318,13 +4333,60 @@ function enhancementTypeLabel(type) {
   return { gem: '宝石', enchant: '附魔', embellishment: '美化' }[type] || ''
 }
 
+function canonicalLocalEnhancementBlockersForPage(
+  page,
+  gearPayload,
+  selectedGearBySlot,
+  enhancementBySlot,
+  canonicalSnapshot,
+  fullSheet,
+  requestedActiveSlot
+) {
+  const editorSelectedGearBySlot = gearSelectionWithCanonicalEnhancementConstraints(
+    selectedGearBySlot,
+    canonicalSnapshot
+  )
+  const filteredEnhancementBySlot = enhancementBySlotForSelectedGear(
+    selectedGearBySlot,
+    enhancementBySlot
+  )
+  const hydratedEnhancementBySlot = {}
+  Object.keys(filteredEnhancementBySlot).forEach((slot) => {
+    if (!gearPayloadNeedsSlotDetail(page, slot)) {
+      hydratedEnhancementBySlot[slot] = filteredEnhancementBySlot[slot]
+    }
+  })
+  const canonicalEmbellishmentMax = Math.max(
+    0,
+    Number(canonicalSnapshot && canonicalSnapshot.constraints && canonicalSnapshot.constraints.embellishmentMax) || 0
+  )
+  const canonicalBuiltInEmbellishmentUsed = Math.max(
+    0,
+    Number(canonicalSnapshot && canonicalSnapshot.constraints && canonicalSnapshot.constraints.embellishmentBuiltInUsed) || 0
+  )
+  const hydratedValidationSheet = buildGearEnhancementSheet(
+    gearPayload,
+    editorSelectedGearBySlot,
+    hydratedEnhancementBySlot,
+    true,
+    requestedActiveSlot,
+    canonicalEmbellishmentMax,
+    canonicalBuiltInEmbellishmentUsed
+  )
+  const blockers = [...(hydratedValidationSheet.blockers || [])]
+  if (fullSheet.embellishmentUsed > fullSheet.embellishmentMax) {
+    blockers.push(`美化已超过上限 ${fullSheet.embellishmentUsed}/${fullSheet.embellishmentMax}`)
+  }
+  return Array.from(new Set(blockers))
+}
+
 function buildGearEnhancementSheetForPage(page, visible, requestedActiveSlot, overrides) {
   const state = overrides || {}
   const currentSheet = page && page.data && page.data.gearEnhancementSheet
   const gearPayload = fullGearPayloadForPage(page) || (page && page.data && page.data.gearPayload) || {}
   const currentSelectedGearBySlot = state.selectedGearBySlot || (page && page.data && page.data.selectedGearBySlot) || {}
   const canonicalWorkbench = !!(page && page.gearWorkbenchState)
-  const canonicalSnapshot = canonicalWorkbenchSnapshot(page)
+  const canonicalSnapshot = canonicalEnhancementEditorSnapshot(page)
   const canonicalCommittedEnhancementBySlot = canonicalWorkbench
     ? enhancementBySlotFromResolvedSnapshot(canonicalSnapshot)
     : null
@@ -4358,6 +4420,17 @@ function buildGearEnhancementSheetForPage(page, visible, requestedActiveSlot, ov
     canonicalEmbellishmentMax,
     canonicalBuiltInEmbellishmentUsed
   )
+  if (canonicalWorkbench && canonicalSnapshot) {
+    sheet.blockers = canonicalLocalEnhancementBlockersForPage(
+      page,
+      gearPayload,
+      currentSelectedGearBySlot,
+      enhancementBySlot,
+      canonicalSnapshot,
+      sheet,
+      requestedActiveSlot
+    )
+  }
   sheet.submitting = state.submitting !== undefined
     ? !!state.submitting
     : !!(currentSheet && currentSheet.visible && currentSheet.submitting)
@@ -6147,6 +6220,19 @@ Page({
   openGearEnhancementSheet() {
     const currentSheet = this.data.gearEnhancementSheet || emptyGearEnhancementSheet()
     if (currentSheet.submitting) return Promise.resolve()
+    const canonicalEditorState = this.gearWorkbenchState
+      ? canonicalEnhancementEditorWorkbenchState(this)
+      : null
+    if (this.gearWorkbenchState && !canonicalEditorState) {
+      showToast('当前装备配置正在校验，请稍后再编辑')
+      this.setData({
+        gearEnhancementSheet: {
+          ...emptyGearEnhancementSheet(),
+          embellishmentMax: 0
+        }
+      })
+      return Promise.resolve(null)
+    }
     invalidateGearSlotOpenRequest(this)
     if (this.data.gearDataFallback) {
       showToast(this.data.gearDataWarningText || '装备接口暂不可用，无法配置强化')
@@ -6155,9 +6241,14 @@ Page({
     const openWithCurrentPayload = () => {
       const gearPayload = fullGearPayloadForPage(this) || this.data.gearPayload || {}
       const currentSelectedGearBySlot = this.data.selectedGearBySlot || {}
-      const currentEnhancementBySlot = this.data.enhancementBySlot || {}
+      const canonicalSnapshot = canonicalEditorState && canonicalEditorState.currentSnapshot
+      const currentEnhancementBySlot = this.gearWorkbenchState
+        ? enhancementBySlotFromResolvedSnapshot(canonicalSnapshot)
+        : (this.data.enhancementBySlot || {})
       const selectedGearBySlot = prunedGearSelectionByWeaponRule(gearPayload, currentSelectedGearBySlot)
-      const enhancementBySlot = prunedEnhancementBySlot(gearPayload, selectedGearBySlot, currentEnhancementBySlot)
+      const enhancementBySlot = this.gearWorkbenchState
+        ? currentEnhancementBySlot
+        : prunedEnhancementBySlot(gearPayload, selectedGearBySlot, currentEnhancementBySlot)
       const selectionChanged = JSON.stringify(selectedGearBySlot) !== JSON.stringify(currentSelectedGearBySlot)
       const enhancementChanged = JSON.stringify(enhancementBySlot) !== JSON.stringify(currentEnhancementBySlot)
       if (selectionChanged || enhancementChanged) this.setData({
@@ -6194,6 +6285,13 @@ Page({
     if (currentSheet.submitting) return Promise.resolve()
     const slot = event.currentTarget.dataset.slot || ''
     if (!slot) return Promise.resolve()
+    const canonicalSnapshot = this.gearWorkbenchState
+      ? canonicalEnhancementEditorSnapshot(this)
+      : null
+    if (this.gearWorkbenchState && !canonicalSnapshot) {
+      showToast('当前装备配置正在校验，请稍后再编辑')
+      return Promise.resolve(null)
+    }
     const interactionContext = captureGearInteractionContext(this)
     const gearPayload = fullGearPayloadForPage(this) || this.data.gearPayload || {}
     const selectedGearBySlot = this.data.selectedGearBySlot || {}
@@ -6218,11 +6316,39 @@ Page({
         const refreshedPayload = fullGearPayloadForPage(this) || gearPayload
         const currentSelectedGearBySlot = this.data.selectedGearBySlot || selectedGearBySlot
         const refreshedSelectedGearBySlot = prunedGearSelectionByWeaponRule(refreshedPayload, currentSelectedGearBySlot)
-        const refreshedEnhancementBySlot = prunedEnhancementBySlot(
-          refreshedPayload,
+        const preservedEnhancementBySlot = enhancementBySlotForSelectedGear(
           refreshedSelectedGearBySlot,
           activeSheet.draftEnhancementBySlot || enhancementBySlot
         )
+        if (gearPayloadNeedsSlotDetail(this, slot)) {
+          const failedSheet = buildGearEnhancementSheetForPage(this, true, slot, {
+            selectedGearBySlot: refreshedSelectedGearBySlot,
+            enhancementBySlot: preservedEnhancementBySlot
+          })
+          failedSheet.loading = false
+          failedSheet.emptyText = '当前槽位配置加载失败，请稍后重试。'
+          this.setData({
+            ...(JSON.stringify(refreshedSelectedGearBySlot) !== JSON.stringify(currentSelectedGearBySlot)
+              ? { selectedGearBySlot: refreshedSelectedGearBySlot }
+              : {}),
+            gearEnhancementSheet: failedSheet
+          })
+          return
+        }
+        const editorSelectedGearBySlot = this.gearWorkbenchState
+          ? gearSelectionWithCanonicalEnhancementConstraints(
+              refreshedSelectedGearBySlot,
+              canonicalEnhancementEditorSnapshot(this)
+            )
+          : refreshedSelectedGearBySlot
+        const hydratedEnhancementBySlot = prunedEnhancementBySlot(
+          refreshedPayload,
+          editorSelectedGearBySlot,
+          activeSheet.draftEnhancementBySlot || enhancementBySlot
+        )
+        const refreshedEnhancementBySlot = preservedEnhancementBySlot
+        if (hydratedEnhancementBySlot[slot]) refreshedEnhancementBySlot[slot] = hydratedEnhancementBySlot[slot]
+        else delete refreshedEnhancementBySlot[slot]
         const selectionChanged = JSON.stringify(refreshedSelectedGearBySlot) !== JSON.stringify(currentSelectedGearBySlot)
         const enhancementChanged = JSON.stringify(refreshedEnhancementBySlot) !== JSON.stringify(activeSheet.draftEnhancementBySlot || enhancementBySlot)
         if (selectionChanged || enhancementChanged) this.setData({
@@ -6232,7 +6358,7 @@ Page({
             refreshedPayload,
             refreshedSelectedGearBySlot,
             this.gearWorkbenchState
-              ? enhancementBySlotFromResolvedSnapshot(canonicalWorkbenchSnapshot(this))
+              ? enhancementBySlotFromResolvedSnapshot(canonicalEnhancementEditorSnapshot(this))
               : refreshedEnhancementBySlot
           ),
           gearAttributePanel: this.gearWorkbenchState
@@ -6303,42 +6429,74 @@ Page({
     if (sheet.submitting) return
     const gearPayload = fullGearPayloadForPage(this) || this.data.gearPayload || {}
     const selectedGearBySlot = prunedGearSelectionByWeaponRule(gearPayload, this.data.selectedGearBySlot || {})
+    const canonicalSnapshot = this.gearWorkbenchState
+      ? canonicalEnhancementEditorSnapshot(this)
+      : null
+    if (this.gearWorkbenchState && !canonicalSnapshot) {
+      const problemRows = workbenchProblemRows([{
+        kind: 'VERIFIED_SNAPSHOT_REQUIRED',
+        code: 'GEAR_VERIFIED_SNAPSHOT_REQUIRED',
+        title: '当前没有可继续编辑的已验证配置'
+      }])
+      const blockerText = problemRows[0] && problemRows[0].text || '当前没有可继续编辑的已验证配置，请先重新校验装备'
+      showToast(blockerText)
+      this.setData({
+        selectedGearBySlot,
+        gearWorkbenchProblemRows: problemRows,
+        gearEnhancementSheet: {
+          ...sheet,
+          submitting: false,
+          blockers: Array.from(new Set([...(sheet.blockers || []), blockerText]))
+        }
+      })
+      return Promise.resolve(null)
+    }
     const editorSelectedGearBySlot = this.gearWorkbenchState
-      ? gearSelectionWithCanonicalEnhancementConstraints(selectedGearBySlot, canonicalWorkbenchSnapshot(this))
+      ? gearSelectionWithCanonicalEnhancementConstraints(selectedGearBySlot, canonicalSnapshot)
       : selectedGearBySlot
-    const draftEnhancementBySlot = normalizedEnhancementBySlot(
+    const draftEnhancementBySlot = enhancementBySlotForSelectedGear(selectedGearBySlot,
       sheet.draftEnhancementBySlot || this.data.enhancementBySlot || {}
     )
-    const draftGemBlockers = gemOptionIdentityBlockers(
-      gearPayload,
-      enrichedSelectedGearByCanonicalSlot(gearPayload, editorSelectedGearBySlot),
-      draftEnhancementBySlot
-    )
-    if (draftGemBlockers.length) {
-      const draftValidationSheet = buildGearEnhancementSheetForPage(this, true, sheet.activeSlot, {
+    let enhancementBySlot
+    let validationSheet
+    if (this.gearWorkbenchState) {
+      enhancementBySlot = draftEnhancementBySlot
+      validationSheet = buildGearEnhancementSheetForPage(this, true, sheet.activeSlot, {
         selectedGearBySlot,
         enhancementBySlot: draftEnhancementBySlot
       })
-      draftValidationSheet.blockers = Array.from(new Set([
-        ...draftGemBlockers,
-        ...(draftValidationSheet.blockers || [])
-      ]))
-      showToast(draftGemBlockers[0])
-      this.setData({
+    } else {
+      const draftGemBlockers = gemOptionIdentityBlockers(
+        gearPayload,
+        enrichedSelectedGearByCanonicalSlot(gearPayload, editorSelectedGearBySlot),
+        draftEnhancementBySlot
+      )
+      if (draftGemBlockers.length) {
+        const draftValidationSheet = buildGearEnhancementSheetForPage(this, true, sheet.activeSlot, {
+          selectedGearBySlot,
+          enhancementBySlot: draftEnhancementBySlot
+        })
+        draftValidationSheet.blockers = Array.from(new Set([
+          ...draftGemBlockers,
+          ...(draftValidationSheet.blockers || [])
+        ]))
+        showToast(draftGemBlockers[0])
+        this.setData({
+          selectedGearBySlot,
+          gearEnhancementSheet: draftValidationSheet
+        })
+        return
+      }
+      enhancementBySlot = prunedEnhancementBySlot(
+        gearPayload,
+        editorSelectedGearBySlot,
+        draftEnhancementBySlot
+      )
+      validationSheet = buildGearEnhancementSheetForPage(this, true, sheet.activeSlot, {
         selectedGearBySlot,
-        gearEnhancementSheet: draftValidationSheet
+        enhancementBySlot
       })
-      return
     }
-    const enhancementBySlot = prunedEnhancementBySlot(
-      gearPayload,
-      editorSelectedGearBySlot,
-      draftEnhancementBySlot
-    )
-    const validationSheet = buildGearEnhancementSheetForPage(this, true, sheet.activeSlot, {
-      selectedGearBySlot,
-      enhancementBySlot
-    })
     if ((validationSheet.blockers || []).length || validationSheet.embellishmentUsed > validationSheet.embellishmentMax) {
       showToast((validationSheet.blockers || [])[0] || `美化已超过上限 ${validationSheet.embellishmentUsed}/${validationSheet.embellishmentMax}`)
       this.setData({
@@ -6354,30 +6512,6 @@ Page({
         title: '缺少当前赛季校验上下文'
       }])
       const blockerText = problemRows[0] && problemRows[0].text || '缺少当前赛季校验上下文，请稍后重试'
-      const blockedSheet = {
-        ...validationSheet,
-        submitting: false,
-        blockers: Array.from(new Set([...(validationSheet.blockers || []), blockerText]))
-      }
-      showToast(blockerText)
-      this.setData({
-        selectedGearBySlot,
-        gearWorkbenchProblemRows: problemRows,
-        gearEnhancementSheet: blockedSheet
-      })
-      return Promise.resolve(null)
-    }
-    if (
-      this.gearWorkbenchState &&
-      !this.atomicEnhancementCommittedWorkbenchState &&
-      !gearWorkbenchCanUseVerifiedSnapshot(this.gearWorkbenchState)
-    ) {
-      const problemRows = workbenchProblemRows([{
-        kind: 'VERIFIED_SNAPSHOT_REQUIRED',
-        code: 'GEAR_VERIFIED_SNAPSHOT_REQUIRED',
-        title: '当前没有可继续编辑的已验证配置'
-      }])
-      const blockerText = problemRows[0] && problemRows[0].text || '当前没有可继续编辑的已验证配置，请先重新校验装备'
       const blockedSheet = {
         ...validationSheet,
         submitting: false,
@@ -6497,7 +6631,10 @@ Page({
       ...baselineSelection,
       ...templateSelection
     })
-    const enhancementBySlot = prunedEnhancementBySlot(gearPayload, selectedGearBySlot, template.savedEnhancementBySlot || {})
+    const enhancementBySlot = completeResolverContext(gearPayload.resolverContext) &&
+      typeof this.confirmAndResolveGearIntent === 'function'
+      ? normalizedEnhancementBySlot(template.savedEnhancementBySlot || {})
+      : prunedEnhancementBySlot(gearPayload, selectedGearBySlot, template.savedEnhancementBySlot || {})
     const derivedState = createDetailDerivedState(this.data.selectedDetail, this.data.activeQueryKey, {
       ...this.data,
       gearPayload,
