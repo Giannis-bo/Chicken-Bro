@@ -44,13 +44,16 @@ test('project-state is the single machine-readable current truth entry', () => {
   assertUniqueById(state.historicalContracts, 'historicalContracts')
 
   const activeContractIds = new Set(state.activeContracts.map((entry) => entry.id))
-  assert.ok(activeContractIds.has('community_enhancement_editability'))
+  assert.ok(!activeContractIds.has('community_enhancement_editability'))
   assert.ok(!activeContractIds.has('equipment_simulator_capability_architecture'))
   assert.ok(!activeContractIds.has('equipment_simulator_phase5_async_stat_snapshot_plan'))
   assert.ok(!activeContractIds.has('equipment_simulator_phase3_resolve_profile_workbench_plan'))
   assert.ok(!activeContractIds.has('equipment_simulator_phase1_contracts_plan'))
 
   const historicalContractIds = new Set(state.historicalContracts.map((entry) => entry.id))
+  assert.ok(historicalContractIds.has('community_enhancement_editability_v2'))
+  assert.ok(historicalContractIds.has('community_enhancement_editability_v2_design'))
+  assert.ok(historicalContractIds.has('community_enhancement_editability_v2_plan'))
   assert.ok(historicalContractIds.has('equipment_simulator_phase0_safety'))
   assert.ok(historicalContractIds.has('equipment_simulator_phase1_contracts_plan'))
   assert.ok(historicalContractIds.has('equipment_simulator_phase2a_pure_resolver'))
@@ -93,6 +96,10 @@ test('project-state is the single machine-readable current truth entry', () => {
     assertPathExists(path.join(releasePath, 'evidence.json'))
     assertPathExists(path.join(releasePath, 'manifest.json'))
   }
+
+  const communityEnhancementEvidence = readJson(path.join(activeCommunityEnhancementRelease, 'evidence.json'))
+  assert.equal(communityEnhancementEvidence.status, 'archived')
+  assert.equal(communityEnhancementEvidence.highestEvidenceLevel, 'live_verified')
 
   assert.ok(
     state.completedBaselines.some((entry) => entry.id === 'project_harness_normalization_20260710'),
@@ -137,6 +144,10 @@ test('project-state is the single machine-readable current truth entry', () => {
   assert.ok(
     state.completedBaselines.some((entry) => entry.id === 'equipment_simulator_phase5_20260712'),
     'Equipment simulator Phase 0-5 should be recorded as a completed live baseline'
+  )
+  assert.ok(
+    state.completedBaselines.some((entry) => entry.id === 'community_enhancement_editability_20260715'),
+    'Community enhancement editability should be recorded as a completed live baseline'
   )
 
   const gearStat = state.runtimeBaseline.gearStatSnapshot
