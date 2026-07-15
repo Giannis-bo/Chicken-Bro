@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-15
 
-**Status:** implementation complete and exact runtime candidate local-full verified; candidate deployment and real WeChat acceptance pending
+**Status:** implementation complete; exact runtime candidate `99acc45` local-full verified after repairing a predecessor live scoped-read alias mismatch; replacement candidate deployment and real WeChat acceptance pending
 
 **Harness:** [community-template-import-performance requirement](../../../artifacts/releases/2026-07-15-community-template-import-performance/requirement.json)
 

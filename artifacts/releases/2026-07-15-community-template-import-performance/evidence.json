@@ -5,7 +5,7 @@
   "status": "local_verified",
   "highestEvidenceLevel": "local_verified",
   "branch": "codex/community-template-import-performance",
-  "commit": "e08cbb8eab4a6d444612995e1681e990690c6d65",
+  "commit": "99acc454f3834684241246ce6b9e6afb1ccb921d",
   "scope": [
     "server-side immutable community-template import projection, scoped release read, bounded import cache and additive API route",
     "mini-program atomic verified import commit, progress state and later selected-slot lazy editing",
@@ -18,31 +18,38 @@
       "summary": "300 passing tests; verifies one request per import, no all-slot hydration, stale fencing, failure preservation, close-while-pending recovery and later selected-slot editing."
     },
     {
-      "command": "python3 -m unittest tests.community_template_import_test tests.postgres_cache_store_test tests.gear_runtime_test tests.news_backend_test",
+      "command": "python3 -m unittest tests.community_template_import_test tests.gear_release_store_test tests.postgres_cache_store_test tests.gear_runtime_test tests.news_backend_test",
       "status": "pass",
-      "summary": "394 passing tests; verifies pure projection, scoped/cache behavior, route envelope and timing shape."
+      "summary": "434 passing tests; verifies pure projection, scoped/cache behavior, route envelope/timing shape, and rebinding of a normalized historical variant alias to exactly one sealed current variant."
     },
     {
       "command": "git diff --check",
       "status": "pass",
-      "summary": "No whitespace errors after the implementation commits."
+      "summary": "No whitespace errors after the 99acc45 runtime fix."
     },
     {
       "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-15-community-template-import-performance --base origin/main",
       "status": "pass",
-      "summary": "130/130 commands passed against e08cbb8: Node 527/527, Python 1576 with one expected skip, compile/JSON/syntax checks and Harness packet check all passed. Candidate runtime evidence and real WeChat proof remain pending."
+      "summary": "130/130 commands passed against 99acc45: Node 527/527, Python 1578 with one expected skip, compile/JSON/syntax checks and Harness packet check all passed. Candidate runtime evidence and real WeChat proof remain pending."
     }
   ],
   "candidateDeployment": {
     "status": "pending",
-    "reason": "User authorized candidate deployment; no cloud/runtime conclusion is recorded before the final local full gate and candidate smoke."
+    "reason": "Predecessor candidate e08cbb8 was deployed, but live PostgreSQL smoke exposed a normalized historical variant-key alias that the new scoped reader matched too strictly. The exact repair 99acc45 has a fresh local full Harness pass and is pending one replacement candidate deployment; no user-testable success is claimed yet."
   },
-  "runtimeEvidence": [],
+  "runtimeEvidence": [
+    {
+      "type": "predecessor_candidate_smoke",
+      "status": "fail",
+      "commit": "e08cbb8eab4a6d444612995e1681e990690c6d65",
+      "summary": "Frost and Elemental community-import responses were blocked by active Community-release variant integrity before Resolver timing; direct read-only diagnosis found zero strict variant-key matches for normalized historical aliases."
+    }
+  ],
   "risks": [
     {
       "id": "candidate-and-real-wechat-pending",
       "status": "open",
-      "detail": "Cold/warm timing, deployed runtime parity and real WeChat import/edit behavior are not yet evidenced."
+      "detail": "The replacement candidate still needs deployed cold/warm timing, runtime parity, public observed-only shadow, timer/backflow checks and real WeChat import/edit evidence."
     }
   ],
   "rollback": [
@@ -56,5 +63,5 @@
   "archivedReferences": [
     "docs/superpowers/specs/2026-07-14-community-enhancement-editability-v2-design.md"
   ],
-  "summary": "Atomic community-template import candidate runtime code e08cbb8eab4a6d444612995e1681e990690c6d65 passed the final local full Harness. Candidate runtime evidence and explicit real-WeChat acceptance are intentionally pending."
+  "summary": "Atomic community-template import runtime code 99acc454f3834684241246ce6b9e6afb1ccb921d passed the final local full Harness after a live predecessor diagnostic repaired normalized historical variant-key alias rebinding. Replacement candidate runtime evidence and explicit real-WeChat acceptance are intentionally pending."
 }
