@@ -130,7 +130,6 @@
           <button class="gear-template-action-button primary" loading="{{gearTemplateSaving}}" disabled="{{gearDataFallback || gearTemplateSaving || !gearWorkbenchView.canUseVerifiedSnapshot}}" bindtap="saveGearTemplate">保存模板</button>
           <button class="gear-template-action-button import" disabled="{{gearDataFallback}}" bindtap="openGearCommunityTemplates">导入</button>
           <button class="gear-template-action-button muted" bindtap="resetGearSelection">重置</button>
-          <button class="gear-template-action-button simc" disabled="{{!gearWorkbenchView.canRunProfile}}" bindtap="openSimcWithBuildContext">带当前配置去 SimC</button>
         </view>
       </view>
 
