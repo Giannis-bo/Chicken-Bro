@@ -417,7 +417,8 @@
             <view class="gear-community-template-main">
               <text class="gear-community-template-title">{{item.displayName || item.name}}</text>
               <text class="gear-community-template-meta">{{item.displaySourceName || item.sourceName}} · {{item.slotCoverageLabel}}</text>
-              <text class="gear-community-template-meta">{{item.statusLabel}} · {{item.updatedLabel || item.analysisWindow}}</text>
+              <text class="gear-community-template-meta">{{item.provenanceLabel}}</text>
+              <text class="gear-community-template-meta" wx:if="{{item.updatedProvenanceLabel}}">{{item.updatedProvenanceLabel}}</text>
               <text class="gear-community-template-meta warning" wx:if="{{item.blockerLabel}}">{{item.blockerLabel}}</text>
             </view>
             <view class="gear-community-template-side">

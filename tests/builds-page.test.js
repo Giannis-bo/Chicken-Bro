@@ -4824,6 +4824,13 @@ test('gear community templates derive readable names from class spec hero and so
           name: 'Raider.IO 观测装备 · 法师冰霜',
           sourceKey: 'observed_profile',
           sourceName: 'Raider.IO observed gear',
+          updatedAt: '2026-07-14T07:23:10+08:00',
+          sourceRefs: [{
+            characterName: '萨满祭司',
+            realmSlug: '伊瑟拉',
+            region: 'cn',
+            rankingEvidence: { score: 4249.17 }
+          }],
           status: 'partial',
           readySlotCount: 6,
           missingSlots: canonicalGearSlots.slice(6),
@@ -4837,6 +4844,8 @@ test('gear community templates derive readable names from class spec hero and so
           name: 'MID1_Mage_Frost_Spellslinger',
           sourceKey: 'simc_preset',
           sourceName: 'SimC preset',
+          updatedAt: '2026-07-13T10:00:00+08:00',
+          sourceRefs: [{ rankingEvidence: { score: true } }],
           status: 'complete',
           readySlotCount: 16,
           missingSlots: [],
@@ -4872,11 +4881,18 @@ test('gear community templates derive readable names from class spec hero and so
   })
   await new Promise((resolve) => setImmediate(resolve))
 
+  const wxml = fs.readFileSync('pages/builds/detail.wxml', 'utf8')
+  assert.match(wxml, /gear-community-template-meta">\{\{item\.provenanceLabel\}\}<\/text>/)
+  assert.match(wxml, /gear-community-template-meta" wx:if="\{\{item\.updatedProvenanceLabel\}\}">\{\{item\.updatedProvenanceLabel\}\}<\/text>/)
   assert.equal(page.data.activeGearCommunityTemplates.length, 2)
   assert.equal(page.data.activeGearCommunityTemplates[0].displayName, '法师-冰霜 · Raider.IO 观测')
   assert.equal(page.data.activeGearCommunityTemplates[0].displaySourceName, 'Raider.IO 观测')
+  assert.equal(page.data.activeGearCommunityTemplates[0].provenanceLabel, '来源：萨满祭司-伊瑟拉（国服）；大秘境分数：4249.17')
+  assert.equal(page.data.activeGearCommunityTemplates[0].updatedProvenanceLabel, '更新日期：2026-07-14 07:23:10')
   assert.equal(page.data.activeGearCommunityTemplates[1].displayName, '法师-冰霜-法术投射者 · SimC 预设')
   assert.equal(page.data.activeGearCommunityTemplates[1].displaySourceName, 'SimC 预设')
+  assert.equal(page.data.activeGearCommunityTemplates[1].provenanceLabel, '来源：SimC 预设')
+  assert.equal(page.data.activeGearCommunityTemplates[1].updatedProvenanceLabel, '更新日期：2026-07-13 10:00:00')
 })
 
 test('late detail response preserves community templates from the full gear payload cache', async () => {

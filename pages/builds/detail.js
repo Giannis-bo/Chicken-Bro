@@ -3518,6 +3518,61 @@ function gearCommunitySourceDisplayName(template) {
   return rawName || '社区装备'
 }
 
+function gearCommunitySourceRefs(template) {
+  const directRefs = Array.isArray(template && template.sourceRefs) ? template.sourceRefs : []
+  if (directRefs.length) return directRefs
+  const payload = template && template.payload
+  return Array.isArray(payload && payload.sourceRefs) ? payload.sourceRefs : []
+}
+
+function gearCommunityRegionDisplayName(region) {
+  const labels = {
+    cn: '国服',
+    us: '美服',
+    eu: '欧服',
+    kr: '韩服',
+    tw: '台服',
+    oc: '澳服'
+  }
+  const normalizedRegion = cleanGearString(region).toLowerCase()
+  return labels[normalizedRegion] || (normalizedRegion ? normalizedRegion.toUpperCase() : '')
+}
+
+function gearCommunityProvenanceLabel(template, displaySourceName) {
+  const payload = template && template.payload
+  const payloadCharacter = payload && payload.character
+  const sourceRef = gearCommunitySourceRefs(template).find((ref) => ref && typeof ref === 'object') || {}
+  const characterName = cleanGearString(sourceRef.characterName || (payloadCharacter && payloadCharacter.name))
+  const realmSlug = cleanGearString(sourceRef.realmSlug || (payloadCharacter && payloadCharacter.realmSlug))
+  const regionLabel = gearCommunityRegionDisplayName(sourceRef.region || (payloadCharacter && payloadCharacter.region))
+  const realmLabel = regionLabel ? `${realmSlug}（${regionLabel}）` : realmSlug
+  const sourceLabel = characterName && realmSlug
+    ? `${characterName}-${realmLabel}`
+    : displaySourceName
+  const rawScore = [
+    sourceRef.score,
+    sourceRef.rankingEvidence && sourceRef.rankingEvidence.score,
+    payload && payload.rankingEvidence && payload.rankingEvidence.score
+  ].find((value) => value !== undefined && value !== null && String(value).trim() !== '')
+  const score = (typeof rawScore === 'number' || typeof rawScore === 'string') && Number.isFinite(Number(rawScore))
+    ? String(rawScore).trim()
+    : ''
+  return [
+    `来源：${sourceLabel}`,
+    score ? `大秘境分数：${score}` : ''
+  ].filter(Boolean).join('；')
+}
+
+function gearCommunityUpdatedProvenanceLabel(template) {
+  const sourceRef = gearCommunitySourceRefs(template).find((ref) => ref && typeof ref === 'object') || {}
+  const rawUpdatedAt = cleanGearString((template && template.updatedAt) || sourceRef.updatedAt)
+  const updatedAt = rawUpdatedAt
+    .replace('T', ' ')
+    .replace(/(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})$/, '')
+    .trim()
+  return updatedAt ? `更新日期：${updatedAt}` : ''
+}
+
 function gearCommunityTemplateDisplayName(template) {
   const classLabel = (template && template.classLabel) || matchedGearLabel(template, gearClassLabels, template && template.classKey)
   const specLabel = (template && template.specLabel) || matchedGearLabel(template, gearSpecLabels, template && template.specKey)
@@ -3569,6 +3624,8 @@ function decorateGearCommunityTemplate(template) {
     missingSlotLabel,
     blockerLabel,
     updatedLabel: (template && template.updatedAt) || '',
+    provenanceLabel: gearCommunityProvenanceLabel(template, displaySourceName),
+    updatedProvenanceLabel: gearCommunityUpdatedProvenanceLabel(template),
     actionLabel: canApplyGear ? '应用' : '不可导入',
     cardClass: gearCommunityTemplateCardClass({ status: normalizedStatus, sourceStatus: normalizedSourceStatus })
   }
