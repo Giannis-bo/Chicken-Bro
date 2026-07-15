@@ -761,6 +761,19 @@ function buildManifest(options) {
       archiveWhenRuntimeTreeUnchanged: 'harness_only',
       reviewDefault: 'one_independent_whole_branch_review_at_final_head'
     },
+    lightFixFastLane: {
+      status: 'ready',
+      eligibleWhen: [
+        'explicit_and_bounded_user_request',
+        'light_risk_classification',
+        'no_api_data_ownership_runtime_or_deployment_semantic_change'
+      ],
+      executionTopology: 'agent_selected',
+      doNotPromptUserToChoose: ['subagents', 'worktree', 'routine_merge_mechanics'],
+      formalDesignOrPlanRequired: false,
+      singleClarificationOnlyWhenUserVisibleBehaviorIsAmbiguous: true,
+      requiredPreImplementationSummary: ['change', 'risk_boundary', 'targeted_verification']
+    },
     repositoryRemoteSync: {
       status: 'ready',
       preapprovedForConfiguredProjectRemote: true,
@@ -804,6 +817,27 @@ function buildManifest(options) {
         'outside_existing_approval_boundary'
       ],
       interimUpdatePolicy: 'key_state_changes_risks_and_verification_only'
+    },
+    userAcceptanceClosure: {
+      status: 'ready',
+      trigger: 'explicit_user_acceptance_after_requested_manual_verification',
+      sequence: [
+        'final_local_cr',
+        'commit_task_branch',
+        'sync_main_without_history_rewrite',
+        'merge_task_branch',
+        'rerun_scoped_verification_on_merge_result',
+        'push_main',
+        'verify_local_and_origin_main_sha_match',
+        'remove_task_worktree_and_local_branch',
+        'delete_published_task_branch_if_present'
+      ],
+      stopFor: [
+        'local_or_remote_conflict',
+        'failed_verification',
+        'scope_expansion',
+        'operation_outside_existing_approval'
+      ]
     },
     evidencePromotion: {
       status: 'template_required',

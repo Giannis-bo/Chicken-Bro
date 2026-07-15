@@ -163,10 +163,12 @@ test('project harness emits the current repo-native harness manifest as read-onl
     'evidencePromotion',
     'feedbackLoop',
     'impactMap',
+    'lightFixFastLane',
     'ownershipContract',
     'repositoryRemoteSync',
     'releaseRollback',
     'requirementChallenge',
+    'userAcceptanceClosure',
     'verificationEfficiency'
   ].sort())
   assert.ok(manifest.gates.currentTruth.sources.some((source) => source.path === 'docs/project-state.json' && source.exists))
@@ -176,6 +178,40 @@ test('project harness emits the current repo-native harness manifest as read-onl
   assert.ok(manifest.gates.engineeringHealth.hotspotFiles.some((file) => file.path === 'server/websim_payload.py' && file.exists))
   assert.equal(manifest.gates.repositoryRemoteSync.preapprovedForConfiguredProjectRemote, true)
   assert.equal(manifest.gates.autonomousProgression.continueWithoutStepByStepApproval, true)
+  assert.deepEqual(manifest.gates.lightFixFastLane, {
+    status: 'ready',
+    eligibleWhen: [
+      'explicit_and_bounded_user_request',
+      'light_risk_classification',
+      'no_api_data_ownership_runtime_or_deployment_semantic_change'
+    ],
+    executionTopology: 'agent_selected',
+    doNotPromptUserToChoose: ['subagents', 'worktree', 'routine_merge_mechanics'],
+    formalDesignOrPlanRequired: false,
+    singleClarificationOnlyWhenUserVisibleBehaviorIsAmbiguous: true,
+    requiredPreImplementationSummary: ['change', 'risk_boundary', 'targeted_verification']
+  })
+  assert.deepEqual(manifest.gates.userAcceptanceClosure, {
+    status: 'ready',
+    trigger: 'explicit_user_acceptance_after_requested_manual_verification',
+    sequence: [
+      'final_local_cr',
+      'commit_task_branch',
+      'sync_main_without_history_rewrite',
+      'merge_task_branch',
+      'rerun_scoped_verification_on_merge_result',
+      'push_main',
+      'verify_local_and_origin_main_sha_match',
+      'remove_task_worktree_and_local_branch',
+      'delete_published_task_branch_if_present'
+    ],
+    stopFor: [
+      'local_or_remote_conflict',
+      'failed_verification',
+      'scope_expansion',
+      'operation_outside_existing_approval'
+    ]
+  })
   assert.ok(manifest.gates.autonomousProgression.stopForConfirmationWhen.includes('clear_blocker'))
   assert.equal(manifest.gates.candidateDeployment.requiredBeforeMergeForRuntimeChanges, true)
   assert.ok(manifest.gates.candidateDeployment.runtimeChangeSurfaces.includes('pg_read_model'))
