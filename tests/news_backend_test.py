@@ -10700,6 +10700,162 @@ class NewsBackendTest(unittest.TestCase):
         self.assertIn("document.getElementById('domain').value = domain", html)
         self.assertIn("selectAdminGateNav(item.dataset.adminGateNav)", html)
 
+    def test_community_import_route_passes_only_allowed_fields_and_emits_bounded_timing(self):
+        store = object()
+        calls = []
+
+        def fake_import(payload, *, store, simc_runtime_revision, request_id):
+            calls.append({
+                "payload": payload,
+                "store": store,
+                "simcRuntimeRevision": simc_runtime_revision,
+                "requestId": request_id,
+            })
+            return 200, {
+                "contractRevision": "community-template-import-envelope-v1",
+                "status": "verified",
+                "requestId": request_id,
+                "releaseContext": {"manifestRevision": "manifest-a", "pointerGeneration": 7},
+                "problems": [],
+                "data": {"status": "verified", "template": {"id": "template-a"}},
+            }, {
+                "queueMs": 0,
+                "releaseReadMs": 1.25,
+                "reconcileMs": 2.5,
+                "resolveMs": 3.75,
+                "serializeMs": 0.5,
+                "cache": "hit",
+            }
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with patch.object(self.backend, "cache_data_store", return_value=store), patch.object(
+                self.backend, "simc_version_status", return_value={"localTag": "simc-route-v1"}
+            ), patch.object(
+                self.backend, "import_community_template", side_effect=fake_import, create=True
+            ):
+                request = Request(
+                    f"http://127.0.0.1:{server.server_port}/api/websim/gear/community-import",
+                    data=json.dumps({
+                        "classKey": "mage",
+                        "specKey": "frost",
+                        "templateId": "template-a",
+                        "expectedManifestRevision": "manifest-a",
+                    }).encode("utf-8"),
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                with urlopen(request, timeout=5) as response:
+                    body = json.loads(response.read().decode("utf-8"))
+                    timing = response.headers.get("Server-Timing", "")
+        finally:
+            server.shutdown()
+            thread.join(timeout=2)
+            server.server_close()
+
+        self.assertEqual(body["contractRevision"], "community-template-import-envelope-v1")
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0]["payload"], {
+            "classKey": "mage", "specKey": "frost", "templateId": "template-a", "expectedManifestRevision": "manifest-a",
+        })
+        self.assertIs(calls[0]["store"], store)
+        self.assertEqual(calls[0]["simcRuntimeRevision"], "simc-route-v1")
+        self.assertTrue(calls[0]["requestId"].startswith("gear-import-"))
+        tokens = {part.strip().split(";", 1)[0] for part in timing.split(",") if part.strip()}
+        self.assertEqual(tokens, {"queue", "release_read", "reconcile", "resolve", "serialize", "cache"})
+        self.assertNotIn("template-a", timing)
+        self.assertNotIn("mage", timing)
+        self.assertNotIn("frost", timing)
+
+    def test_community_import_route_returns_runtime_problem_without_legacy_slot_fallback(self):
+        def fake_import(_payload, *, request_id, **_kwargs):
+            return 409, {
+                "contractRevision": "community-template-import-envelope-v1",
+                "status": "blocked",
+                "requestId": request_id,
+                "releaseContext": {"manifestRevision": "manifest-b"},
+                "data": {},
+                "problems": [{"code": "manifest_mismatch", "title": "stale", "retryable": False}],
+            }, {"queueMs": 0, "releaseReadMs": 0, "reconcileMs": 0, "resolveMs": 0, "serializeMs": 0, "cache": "miss"}
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with patch.object(self.backend, "import_community_template", side_effect=fake_import, create=True):
+                request = Request(
+                    f"http://127.0.0.1:{server.server_port}/api/websim/gear/community-import",
+                    data=json.dumps({"classKey": "mage", "specKey": "frost", "templateId": "template-a"}).encode("utf-8"),
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                try:
+                    response = urlopen(request, timeout=5)
+                except HTTPError as error:
+                    response = error
+                with response:
+                    body = json.loads(response.read().decode("utf-8"))
+        finally:
+            server.shutdown()
+            thread.join(timeout=2)
+            server.server_close()
+
+        self.assertEqual(response.status, 409)
+        self.assertEqual(body["problems"][0]["code"], "manifest_mismatch")
+        self.assertEqual(body["data"], {})
+        self.assertNotIn("mode", json.dumps(body))
+        self.assertNotIn("slot", json.dumps(body))
+
+    def test_json_response_keeps_existing_gzip_and_cors_headers_when_extra_headers_are_supplied(self):
+        class RecordingHandler:
+            def __init__(self):
+                self.headers = {"Accept-Encoding": "gzip"}
+                self.sent_headers = []
+                self.wfile = self
+
+            def send_response(self, _status):
+                return None
+
+            def send_header(self, name, value):
+                self.sent_headers.append((name, value))
+
+            def end_headers(self):
+                return None
+
+            def write(self, _body):
+                return None
+
+        handler = RecordingHandler()
+        self.assertTrue(self.backend.json_response(
+            handler,
+            200,
+            {"payload": "x" * 4096},
+            extra_headers={"Server-Timing": "queue;dur=1.000"},
+        ))
+        headers = dict(handler.sent_headers)
+        self.assertEqual(headers["Content-Encoding"], "gzip")
+        self.assertEqual(headers["Vary"], "Accept-Encoding")
+        self.assertEqual(headers["Access-Control-Allow-Origin"], "*")
+        self.assertEqual(headers["Server-Timing"], "queue;dur=1.000")
+
+    def test_community_import_build_wait_is_measured_around_existing_worker_limiter(self):
+        class MeasuredLimiter:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, _exc_type, _exc, _tb):
+                return False
+
+        with patch.object(self.backend, "websim_gear_build_limiter", return_value=MeasuredLimiter()), patch.object(
+            self.backend.time, "perf_counter", side_effect=[10.0, 10.032]
+        ):
+            value, queue_ms = self.backend.run_websim_gear_build_with_queue(lambda: {"ok": True})
+
+        self.assertEqual(value, {"ok": True})
+        self.assertEqual(queue_ms, 32.0)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -11,6 +11,7 @@ import sqlite3
 import subprocess
 import sys
 import threading
+import time
 import uuid
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
@@ -71,6 +72,7 @@ try:
     )
     from .gear_runtime import (
         build_profile_from_selection_intent,
+        import_community_template,
         is_canonical_profile_request,
         resolve_selection_intent,
     )
@@ -174,6 +176,7 @@ except ImportError:
     )
     from gear_runtime import (
         build_profile_from_selection_intent,
+        import_community_template,
         is_canonical_profile_request,
         resolve_selection_intent,
     )
@@ -427,6 +430,15 @@ def websim_gear_build_limiter():
 def run_websim_gear_build(build_payload):
     with websim_gear_build_limiter():
         return build_payload()
+
+
+def run_websim_gear_build_with_queue(build_payload):
+    """Run a bounded gear build and report only its time spent waiting for capacity."""
+
+    queued_at = time.perf_counter()
+    with websim_gear_build_limiter():
+        queue_ms = (time.perf_counter() - queued_at) * 1000
+        return build_payload(), round(max(0.0, queue_ms), 3)
 
 
 @contextmanager
@@ -12180,7 +12192,7 @@ def client_accepts_gzip(handler):
     return "gzip" in str(handler.headers.get("Accept-Encoding", "")).lower()
 
 
-def json_response(handler, status, payload):
+def json_response(handler, status, payload, *, extra_headers=None):
     body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
     should_gzip = len(body) >= 1024 and client_accepts_gzip(handler)
     output = gzip.compress(body, compresslevel=6) if should_gzip else body
@@ -12190,6 +12202,10 @@ def json_response(handler, status, payload):
         if should_gzip:
             handler.send_header("Content-Encoding", "gzip")
             handler.send_header("Vary", "Accept-Encoding")
+        headers = extra_headers if isinstance(extra_headers, dict) else {}
+        server_timing = headers.get("Server-Timing")
+        if isinstance(server_timing, str) and server_timing:
+            handler.send_header("Server-Timing", server_timing)
         handler.send_header("Access-Control-Allow-Origin", "*")
         handler.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
         handler.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Wow-Client-Id, X-Wow-Session-Id, X-Wow-Platform")
@@ -12199,6 +12215,29 @@ def json_response(handler, status, payload):
         return True
     except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
         return False
+
+
+def community_import_server_timing(timings):
+    """Serialize fixed numeric timing fields without request or template content."""
+
+    values = timings if isinstance(timings, dict) else {}
+
+    def duration(key):
+        try:
+            return max(0.0, float(values.get(key) or 0.0))
+        except (TypeError, ValueError):
+            return 0.0
+
+    fields = (
+        ("queue", "queueMs"),
+        ("release_read", "releaseReadMs"),
+        ("reconcile", "reconcileMs"),
+        ("resolve", "resolveMs"),
+        ("serialize", "serializeMs"),
+    )
+    parts = [f"{token};dur={duration(key):.3f}" for token, key in fields]
+    parts.append(f"cache;dur={1.0 if values.get('cache') == 'hit' else 0.0:.3f}")
+    return ", ".join(parts)
 
 
 def text_response(handler, status, body, content_type="text/plain; charset=utf-8"):
@@ -12766,6 +12805,27 @@ class Handler(BaseHTTPRequestHandler):
                 request_id=f"gear-{uuid.uuid4().hex}",
             )
             json_response(self, http_status, envelope)
+            return
+        if parsed.path == "/api/websim/gear/community-import":
+            payload = read_json_body(self)
+
+            def build_import():
+                return import_community_template(
+                    payload,
+                    store=cache_data_store(),
+                    simc_runtime_revision=current_gear_simc_runtime_revision(),
+                    request_id=f"gear-import-{uuid.uuid4().hex}",
+                )
+
+            (http_status, envelope, timings), queue_ms = run_websim_gear_build_with_queue(build_import)
+            timings = dict(timings) if isinstance(timings, dict) else {}
+            timings["queueMs"] = queue_ms
+            json_response(
+                self,
+                http_status,
+                envelope,
+                extra_headers={"Server-Timing": community_import_server_timing(timings)},
+            )
             return
         if parsed.path == "/api/websim/gear/stat-snapshots":
             http_status, envelope = get_or_start_stat_snapshot(
