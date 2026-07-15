@@ -1,7 +1,7 @@
 # Repo-native Harness
 
-> Harness version：v0.5。
-> 最后更新：2026-07-09。
+> Harness version：v0.6。
+> 最后更新：2026-07-15。
 > 适用范围：本仓库所有需求讨论、方案设计、实现、验证、部署和交付声明。
 
 本文定义项目内置的轻量交付 Harness。它不是外部平台替代品，也不替代现有 roadmap、runbook、测试或部署脚本。它的作用是把“能不能开始实现”和“能不能声明完成”变成明确的合同和证据状态。
@@ -18,7 +18,7 @@
 - 事实判断必须有 owner。前端、health/admin、定时任务和脚本不能各自创造事实结论。
 - 需求不能按单点实现。Standard 以上需求必须先评估它属于哪条业务链路，以及会传播到哪些后端、前端、数据、定时任务和运维面。
 - 工程健康也是交付边界。触达热点文件、核心 API、PG read model、定时任务、health/admin 或部署脚本时，必须说明结构、性能和可用性影响。
-- 运行时改动先候选验证再合入。触达 backend/API、PG read model、公开 payload、health/admin、定时任务、部署脚本或用户可见运行链路时，默认在 PR 候选阶段完成部署或预览 smoke，通过后再合入。
+- 运行时改动先候选验证再合入。触达 backend/API、PG read model、公开 payload、health/admin、定时任务、部署脚本或用户可见运行链路时，默认在 PR 最终候选阶段完成一次部署或预览 smoke，通过后再合入。
 - Harness 必须由真实问题迭代。返工、事故、证据误判、联动漏评和旧文档误导应先记录 finding，再按规则升级为 Harness 改动。
 - 本仓库与已配置项目远端之间的常规同步是协作基础设施，不再作为下载/网络授权阻塞项；但它不能扩展为依赖安装、第三方下载、任意 clone、改 remote 或破坏性历史改写。
 - 用户批准计划、授权继续或要求直接推进后，agent 默认自动推进后续范围内步骤；只有明确阻塞、验证失败需权衡、范围变化、待决策点或越界高风险操作才回到用户确认。
@@ -79,6 +79,22 @@ Strict 需求必须先输出：
 9. 需要用户明确拍板的问题。
 
 只有用户确认后，才允许进入实施计划。
+
+Strict 只表示产品、可信边界或发布判断需要先对齐；它不自动等于“每一步都走最高成本验证”。验证强度由下方的运行面风险分层决定。
+
+## v0.6 验证风险分层
+
+| 改动面 | 开发中 | 最终本地 | CI | 候选 / live |
+| --- | --- | --- | --- | --- |
+| 文档、evidence、Harness packet、CI 配置 | 相关 schema / Harness 测试 | `harness` profile | 一次 `full`（CI 统一入口） | 不适用 |
+| 纯前端用户交互 | 受影响 Node 测试 | 必要时 frontend profile | 一次 `full` | 一次真实 DevTools 关键路径 |
+| 后端只读 / API / public payload | 受影响 Python 测试 | 可省略 full | 一次 `full` | 一次最终 PR head 的候选 smoke |
+| sync、写路径、migration、timer、生产数据 | 受影响测试 | 一次 `full` | 一次 `full` | 备份、一次受控候选、定向 smoke、回滚证明 |
+
+- 开发期默认只跑受影响测试；不得把 `frontend`、`backend`、`full` 三个 profile 串行当作常规门禁。
+- `full` 是最终 head 的完整验证。普通 runtime 改动由 CI 执行一次即可；只有写路径、migration 或数据修复在候选前额外本地跑一次。
+- 纯文档、evidence、归档变更只跑 `harness` profile；若 runtime tree 未变，不得重跑业务 full。
+- 每个发布默认一次独立 whole-branch CR。只有发现 Critical / Important、或触达安全、migration、生产写路径时才追加复审。
 
 ## Requirement Challenge Gate
 
@@ -280,7 +296,9 @@ Standard 以上需求如果触达 backend/API、PG read model、公开 payload�
 
 执行规则：
 
-- 候选 smoke 通过后再合入 PR。
+- 候选 smoke 通过后再合入 PR。候选必须是最终 runtime head；同一最终 head 最多部署一次。
+- 最终 CI / 候选前先对齐 `main`。同一时间只允许一个 runtime PR 占用候选窗口；窗口内不合入重叠 runtime PR。若等待人工验收超过一个工作窗口，释放窗口并延后最终候选部署，避免证据被新的 `main` 失效。
+- 兼容性读取、v1/v2 双读等验证默认在同一个最终 binary 上完成；只有实际滚动升级或 schema 兼容风险证明必须时，才允许部署中间 commit，并在 requirement 中说明原因。
 - 如果平台没有 preview，允许把 PR branch 热部署到既有目标环境，但必须记录 branch/commit 与 runtime 文件 parity。
 - 如果因平台限制只能合入后验证，必须把它标为例外或纠偏，不能当作常规发布路径；合入后立即执行 live smoke 并记录风险。
 - 本 gate 不替代用户对产品方案的确认，也不扩大依赖安装、第三方下载、改 remote、force push 或破坏性操作权限。
@@ -372,6 +390,8 @@ Standard 以上需求如果触达 backend/API、PG read model、公开 payload�
 
 如果证据不足，必须降级声明、标 risk、隐藏入口或停止交付声明。
 
+`merge_ready` 与 `archived` 是两个不同收口动作：runtime PR 在候选、CI、必要的真实 UI 和 scoped live smoke 通过后可以合并；roadmap、runbook、evidence 的归档可以随后完成。归档本身不能要求重跑业务 full，除非它改动了运行时代码或测试。
+
 ## Harness Feedback Loop
 
 Harness 本身也必须被治理。不能因为一次讨论临时扩写规则，也不能让真实返工和事故只停留在对话里。
@@ -416,6 +436,7 @@ Harness 复盘节奏：
 | Version | Date | Change |
 | --- | --- | --- |
 | v0.5 | 2026-07-09 | 增加 Candidate Deployment Gate：backend/API、PG read model、公开 payload、health/admin、定时任务、部署脚本和用户可见运行链路默认在 PR 候选阶段先部署或预览 smoke，通过后再合入；无法预合入验证时必须记录例外并补 post-merge live smoke。 |
+| v0.6 | 2026-07-15 | 按运行面风险分层验证：开发期默认 targeted，普通 runtime 由最终 CI full 覆盖，高风险写路径才额外本地 full；CI 不再重复 harness + full；同一最终 runtime head 仅一次候选部署；候选窗口串行化；归档不再阻塞合入或重跑业务 full。 |
 | v0.4 | 2026-07-09 | 增加 Autonomous Progression Gate：用户确认方案、授权继续或直接推进后，agent 默认自动执行范围内后续步骤；只有明确 blocker、验证失败需权衡、范围变化、待决策点、工作树/远端冲突或越界高风险操作才回到用户确认。 |
 | v0.3 | 2026-07-09 | 增加 Repository Remote Sync Gate：本仓库与已配置项目远端之间的常规 fetch / pull --ff-only / push / PR 状态读取、更新和合入不再需要额外授权，同时保留 force push、改 remote、clone、submodule、依赖安装、第三方下载和生产操作的确认边界。 |
 | v0.2 | 2026-07-09 | 增加 Ownership / Contract Gate 与 Release / Rollback Gate，明确事实判断归属、发布前后 smoke、回滚策略和定时任务防回流。 |
@@ -487,6 +508,8 @@ idea
 - Light 可简短自审后执行。
 - Standard 先确认当前事实，再给合同摘要、影响图和必要的工程健康判断；若用户没有异议且风险清楚，可继续。
 - Strict 必须等用户确认，不得直接实现。
+- 一个任务只处理一个产品或运行目标。认证、工具升级、外部调研、全仓库历史 worktree 清理不属于当前发布门禁，除非它们直接阻断该目标；全局清理由独立 repo-hygiene 任务完成。
+- 合并阶段只清理本任务 branch/worktree；历史分支与其他 worktree 的盘点、保留或删除不得阻塞已满足发布门禁的 PR。
 - 用户说“先讨论、先规划、先不急实现”时，只能停留在合同、方案、roadmap 或 runbook 层。
 - 用户确认“可以、认可、就按这个”后，应把已确认方向记录到 roadmap 系统或当前合同文档。
 
@@ -532,5 +555,6 @@ node scripts/project-harness.js --json --slug <slug> --evidence-file artifacts/r
 - data health。
 - deploy smoke。
 - risk matrix。
+- v0.6 verification-efficiency、single-candidate-window 与 merge/archive separation 规则。
 
 脚本默认不 SSH、不部署、不联网、不下载、不安装依赖、不写生产；只读取本地文档、热点文件行数和 git 状态，可选写入本地 artifacts。

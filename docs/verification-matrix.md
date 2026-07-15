@@ -4,10 +4,10 @@ This matrix defines the local and CI verification profiles for the Project Harne
 
 | Profile | Purpose | Commands are owned by |
 | --- | --- | --- |
-| `harness` | Docs, schemas, owner maps and Harness tooling | `scripts/verify-project.js` |
+| `harness` | Docs, schemas, owner maps, evidence and Harness tooling | `scripts/verify-project.js` |
 | `backend` | Python backend, data and read-model contracts | `scripts/verify-project.js` |
 | `frontend` | Mini-program JavaScript contract and syntax | `scripts/verify-project.js` |
-| `full` | Milestone and PR closure baseline | `scripts/verify-project.js` |
+| `full` | Exact final-head CI closure; includes harness packet, JSON, syntax, Node and Python checks | `scripts/verify-project.js` |
 
 ## Local Usage
 
@@ -18,12 +18,18 @@ node scripts/verify-project.js --profile full --release artifacts/releases/2026-
 
 Use `--dry-run --json` to inspect the exact command list without executing it.
 
+## v0.6 Selection Rules
+
+- Development uses the smallest affected test command first.
+- Do not run `frontend`, `backend`, then `full` serially: `full` already contains the Node, Python, JSON, syntax, packet and diff checks.
+- Docs, evidence and archive-only changes run `harness`; when the runtime tree is unchanged, they do not rerun business `full`.
+- A normal runtime PR relies on one `full` CI run for its exact final head, then runs one candidate smoke. A write path, migration or data-repair PR may run one additional local `full` before candidate deployment.
+
 ## CI Contract
 
-`.github/workflows/project-harness.yml` resolves the active release from `docs/project-state.json` and invokes:
+`.github/workflows/project-harness.yml` resolves the active release from `docs/project-state.json` and invokes one exact-final-head full profile:
 
 ```bash
-node scripts/verify-project.js --profile harness --release "$ACTIVE_RELEASE" --base origin/main
 node scripts/verify-project.js --profile full --release "$ACTIVE_RELEASE" --base origin/main
 ```
 

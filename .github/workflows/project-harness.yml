@@ -31,8 +31,5 @@ jobs:
           echo "active_release=${ACTIVE_RELEASE}" >> "$GITHUB_OUTPUT"
           echo "Active release: ${ACTIVE_RELEASE}"
 
-      - name: Harness profile
-        run: node scripts/verify-project.js --profile harness --release "${{ steps.release.outputs.active_release }}" --base origin/main
-
       - name: Full profile
         run: node scripts/verify-project.js --profile full --release "${{ steps.release.outputs.active_release }}" --base origin/main

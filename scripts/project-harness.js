@@ -724,6 +724,14 @@ function buildManifest(options) {
     candidateDeployment: {
       status: 'required_for_runtime_changes',
       requiredBeforeMergeForRuntimeChanges: true,
+      finalRuntimeHeadOnly: true,
+      maximumDeploymentsPerFinalRuntimeHead: 1,
+      candidateWindow: {
+        policy: 'one_runtime_candidate_window_per_repository',
+        beforeWindow: 'sync_with_main_before_final_ci_and_candidate_smoke',
+        duringWindow: 'do_not_merge_overlapping_runtime_prs',
+        whenHumanAcceptanceWaits: 'release_window_and_defer_expensive_final_candidate_work'
+      },
       runtimeChangeSurfaces: [
         'backend_api',
         'pg_read_model',
@@ -742,6 +750,16 @@ function buildManifest(options) {
       ],
       fallbackWhenPreMergeCandidateIsImpossible: 'record_exception_and_post_merge_live_smoke',
       mergeRule: 'merge_after_candidate_smoke_for_runtime_changes'
+    },
+    verificationEfficiency: {
+      status: 'ready',
+      developmentDefault: 'targeted_tests_for_changed_surface',
+      docsOnlyProfile: 'harness',
+      normalRuntimeFullProfile: 'ci_exact_final_head',
+      highRiskRuntimeFullProfile: 'local_once_and_ci_exact_final_head',
+      duplicateProfileRule: 'do_not_run_frontend_backend_and_full_serially',
+      archiveWhenRuntimeTreeUnchanged: 'harness_only',
+      reviewDefault: 'one_independent_whole_branch_review_at_final_head'
     },
     repositoryRemoteSync: {
       status: 'ready',
@@ -799,7 +817,9 @@ function buildManifest(options) {
         'live_verified',
         'archived'
       ],
-      oldEvidenceCannotPromoteCurrentState: true
+      oldEvidenceCannotPromoteCurrentState: true,
+      mergeReadyDoesNotRequireArchived: true,
+      archivedIsDocumentationClosureNotRuntimeMergeGate: true
     },
     feedbackLoop: {
       status: 'ready',

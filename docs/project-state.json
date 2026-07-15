@@ -3,14 +3,14 @@
   "updatedAt": "2026-07-15",
   "activeMilestone": "none",
   "featureIteration": "allowed_under_harness",
-  "activeReleaseArtifact": "artifacts/releases/2026-07-10-harness-control-plane",
+  "activeReleaseArtifact": "artifacts/releases/2026-07-15-harness-v06-efficiency",
   "activeContracts": [
     {
-      "id": "repo_native_harness_v0_5",
+      "id": "repo_native_harness_v0_6",
       "path": "docs/harness.md",
       "status": "active",
       "lifecycle": "active",
-      "notes": "Current delivery gate and evidence-promotion contract."
+      "notes": "Current risk-layered delivery gate, single-candidate-window and evidence-promotion contract."
     },
     {
       "id": "backend_hotspot_owner_map",
@@ -55,6 +55,13 @@
       "status": "completed",
       "evidence": "artifacts/releases/2026-07-10-project-harness-normalization/closure-audit.json",
       "notes": "Current truth, executable requirement/evidence contracts, 16-domain owner map, verification profiles, real CI, critical characterization and closure evidence completed; runtimeSliceCount=0."
+    },
+    {
+      "id": "harness_v06_efficiency_20260715",
+      "domain": "harness_workflow_efficiency",
+      "status": "completed_local_verified",
+      "evidence": "artifacts/releases/2026-07-15-harness-v06-efficiency/evidence.json",
+      "notes": "Risk-layered verification, one CI full entrypoint, one final runtime candidate window and merge/archive separation completed without runtime changes."
     },
     {
       "id": "equipment_simulator_phase0_20260710",

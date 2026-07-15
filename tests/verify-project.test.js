@@ -78,6 +78,29 @@ test('verify-project dry-run exposes backend, frontend and full profile boundari
   assert.ok(full.commands.some((command) => command.command.includes('scripts/project-harness.js --check')))
 })
 
+test('GitHub CI runs only the full profile because it subsumes the Harness checks', () => {
+  const workflow = fs.readFileSync('.github/workflows/project-harness.yml', 'utf8')
+  const profileRuns = workflow.match(/node scripts\/verify-project\.js --profile/g) || []
+  const release = JSON.parse(fs.readFileSync('docs/project-state.json', 'utf8')).activeReleaseArtifact
+  const harness = parseJson(runVerify(['--json', '--dry-run', '--profile', 'harness', '--release', release, '--base', 'origin/main']))
+  const full = parseJson(runVerify(['--json', '--dry-run', '--profile', 'full', '--release', release, '--base', 'origin/main']))
+  const harnessTests = harness.commands.find((command) => command.label === 'harness contract tests')
+  const fullTests = full.commands.find((command) => command.label === 'node test discover')
+
+  assert.equal(profileRuns.length, 1)
+  assert.match(workflow, /name: Full profile/)
+  assert.match(workflow, /--profile full/)
+  assert.doesNotMatch(workflow, /name: Harness profile/)
+  assert.ok(harnessTests)
+  assert.ok(fullTests)
+  for (const testFile of harnessTests.args.slice(2)) {
+    assert.ok(fullTests.args.includes(testFile), `full profile must include ${testFile}`)
+  }
+  for (const harnessCommand of harness.commands.filter((command) => command !== harnessTests)) {
+    assert.ok(full.commands.some((command) => command.command === harnessCommand.command), `full profile must include ${harnessCommand.label}`)
+  }
+})
+
 test('verify-project rejects unknown profiles and missing releases', () => {
   const unknown = runVerify(['--json', '--dry-run', '--profile', 'deploy'])
   assert.notEqual(unknown.status, 0)

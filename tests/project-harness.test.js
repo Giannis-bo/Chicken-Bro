@@ -140,7 +140,7 @@ test('project harness emits the current repo-native harness manifest as read-onl
   const manifest = JSON.parse(result.stdout)
   assert.equal(manifest.status, 'project_harness_manifest_ready')
   assert.equal(manifest.schemaVersion, 1)
-  assert.equal(manifest.harness.version, 'v0.5')
+  assert.equal(manifest.harness.version, 'v0.6')
   assert.equal(manifest.harness.source, 'docs/harness.md')
   assert.equal(manifest.safety.noNetwork, true)
   assert.equal(manifest.safety.repositoryRemoteSyncPreapproved, true)
@@ -166,7 +166,8 @@ test('project harness emits the current repo-native harness manifest as read-onl
     'ownershipContract',
     'repositoryRemoteSync',
     'releaseRollback',
-    'requirementChallenge'
+    'requirementChallenge',
+    'verificationEfficiency'
   ].sort())
   assert.ok(manifest.gates.currentTruth.sources.some((source) => source.path === 'docs/project-state.json' && source.exists))
   assert.ok(manifest.gates.currentTruth.sources.some((source) => source.path === 'docs/project-owner-map.json' && source.exists))
@@ -179,6 +180,14 @@ test('project harness emits the current repo-native harness manifest as read-onl
   assert.equal(manifest.gates.candidateDeployment.requiredBeforeMergeForRuntimeChanges, true)
   assert.ok(manifest.gates.candidateDeployment.runtimeChangeSurfaces.includes('pg_read_model'))
   assert.ok(manifest.gates.candidateDeployment.requiredEvidence.includes('candidate_deploy_or_preview_smoke'))
+  assert.equal(manifest.gates.candidateDeployment.finalRuntimeHeadOnly, true)
+  assert.equal(manifest.gates.candidateDeployment.maximumDeploymentsPerFinalRuntimeHead, 1)
+  assert.equal(manifest.gates.candidateDeployment.candidateWindow.policy, 'one_runtime_candidate_window_per_repository')
+  assert.equal(manifest.gates.evidencePromotion.mergeReadyDoesNotRequireArchived, true)
+  assert.equal(manifest.gates.verificationEfficiency.docsOnlyProfile, 'harness')
+  assert.equal(manifest.gates.verificationEfficiency.normalRuntimeFullProfile, 'ci_exact_final_head')
+  assert.equal(manifest.gates.verificationEfficiency.highRiskRuntimeFullProfile, 'local_once_and_ci_exact_final_head')
+  assert.equal(manifest.gates.verificationEfficiency.archiveWhenRuntimeTreeUnchanged, 'harness_only')
   assert.ok(manifest.gates.releaseRollback.rollbackStrategies.includes('resync_repair'))
 })
 
