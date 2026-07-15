@@ -13668,6 +13668,26 @@ test('older community import response cannot overwrite a newer import', async ()
   assert.equal(harness.page.communityEnhancementImportState.templateId, newerTemplate.id)
 })
 
+test('closing a pending community import clears its visible importing state', async () => {
+  let finishImport
+  const harness = mageFrostCommunityEnhancementHarness({
+    atomicImport: true,
+    requestWebsimCommunityTemplateImport: () => new Promise((resolve) => { finishImport = resolve })
+  })
+
+  const pending = harness.pageConfig.applyGearCommunityTemplate.call(harness.page, {
+    currentTarget: { dataset: { id: harness.template.id } }
+  })
+  assert.equal(harness.page.data.communityTemplateImporting, true)
+
+  harness.pageConfig.closeGearCommunityTemplates.call(harness.page)
+  assert.equal(harness.page.data.communityTemplateImporting, false)
+
+  finishImport({ httpStatus: 200, fromFallback: false, payload: { status: 'blocked', data: {} } })
+  await pending
+  assert.equal(harness.page.data.communityTemplateImporting, false)
+})
+
 test('post-import enhancement editing requests only the selected slot', async () => {
   const slotRequests = []
   let completeFingerGroup

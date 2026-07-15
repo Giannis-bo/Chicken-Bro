@@ -6765,7 +6765,8 @@ Page({
   closeGearCommunityTemplates() {
     invalidateGearInteractionContext(this)
     this.setData({
-      gearCommunityTemplateSheet: emptyGearCommunityTemplateSheet()
+      gearCommunityTemplateSheet: emptyGearCommunityTemplateSheet(),
+      communityTemplateImporting: false
     })
   },
 
