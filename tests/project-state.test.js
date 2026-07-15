@@ -29,7 +29,7 @@ test('project-state is the single machine-readable current truth entry', () => {
   const state = readJson(projectStatePath)
 
   assert.equal(state.schemaVersion, 1)
-  assert.equal(state.updatedAt, '2026-07-14')
+  assert.equal(state.updatedAt, '2026-07-15')
   assert.equal(state.activeMilestone, 'none')
   assert.equal(state.featureIteration, 'allowed_under_harness')
   assert.equal(state.activeReleaseArtifact, activeCommunityEnhancementRelease)
@@ -144,6 +144,14 @@ test('project-state is the single machine-readable current truth entry', () => {
   assert.equal(gearStat.frontendCutover, true)
   assert.equal(gearStat.verifiedSpecCount, 32)
   assert.equal(gearStat.explicitNonReadySpecCount, 8)
+
+  const gearReleaseTrain = state.runtimeBaseline.gearReleaseTrain
+  assert.equal(gearReleaseTrain.pointerGeneration, 16)
+  assert.equal(gearReleaseTrain.activeManifestRevision, 'season-manifest:sha256:34325b76e6b12544b0cf511c89852722784675495b757b6dce522d531660e436')
+  assert.equal(gearReleaseTrain.rollbackManifestRevision, 'season-manifest:sha256:551810fcc9d8f6b4dd2099cfafa4b67192476dc4f0bfe36bf827b9fa6ef3c07d')
+  assert.equal(gearReleaseTrain.activeGearReleaseId, 'gear-release:sha256:cfb1680130402b3c610d5eab3b0dbe50dd7186facc6a0371951eb5c10ed993c5')
+  assert.equal(gearReleaseTrain.activeCommunityReleaseId, 'community-release:sha256:35eafdafc9f96802327917b1f45ab406e60bbce10e81aa150e8cfef5d543ace6')
+  assert.equal(gearReleaseTrain.evidence, `${activeCommunityEnhancementRelease}/evidence.json`)
 
   const phase5Evidence = readJson(path.join(archivedPhase5Release, 'evidence.json'))
   const phase5Closure = readJson(path.join(archivedPhase5Release, 'closure-audit.json'))

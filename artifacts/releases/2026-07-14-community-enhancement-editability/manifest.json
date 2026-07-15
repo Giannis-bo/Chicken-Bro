@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-14T13:08:30.351Z",
+  "generatedAt": "2026-07-15T04:59:11.754Z",
   "release": {
     "date": "2026-07-14",
     "slug": "community-enhancement-editability"
@@ -38,7 +38,7 @@
         {
           "path": "docs/project-state.json",
           "exists": true,
-          "sizeBytes": 28585
+          "sizeBytes": 28702
         },
         {
           "path": "docs/project-owner-map.json",
@@ -53,7 +53,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 272925
+          "sizeBytes": 272698
         },
         {
           "path": "docs/README.md",
@@ -111,7 +111,7 @@
         {
           "path": "server/postgres_cache_store.py",
           "exists": true,
-          "lineCount": 6724,
+          "lineCount": 6732,
           "hotspot": true
         }
       ],
@@ -230,7 +230,9 @@
     }
   },
   "evidencePacket": {
-    "status": "not_attached",
+    "status": "ready",
+    "path": "artifacts/releases/2026-07-14-community-enhancement-editability/evidence.json",
+    "sizeBytes": 14811,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -239,7 +241,18 @@
       "risks",
       "rollback"
     ],
-    "note": "Attach a local evidence packet with --evidence-file when promoting a Standard or Strict requirement."
+    "fieldsPresent": [
+      "status",
+      "highestEvidenceLevel",
+      "scope",
+      "verification",
+      "risks",
+      "rollback"
+    ],
+    "missingFields": [],
+    "declaredStatus": "live_verified",
+    "highestEvidenceLevel": "live_verified",
+    "summary": "Exact candidate 36204bed9e453515a86d6031fd7439f110efd85b (tree 8392e2b5a989295d36698a27b3ff96c6655b583f) is live-verified before merge. Full Harness passed 510 Node plus 1469 Python tests and 130 commands; final independent CR has no findings. Production generation 16, 40/40 read-only shadow, Resolve/Profile, ninth-gem rejection, runtime parity and operations checks passed. Real WeChat imported the frozen Frost Mage template as editable gems 8/8, enchants 6/8 and embellishments 2/2, preserved the full canonical draft through partial hydration, accepted a gem edit with a new verified signature and restored the original signature on reimport. PR merge and post-merge live smoke remain before archival."
   },
   "evidence": {
     "localTests": {
@@ -264,13 +277,13 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "3 changed files currently visible to git status."
+      "detail": "6 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
       "severity": "medium",
       "status": "watch",
-      "detail": "server/websim_payload.py:26173, server/news_backend.py:12845, server/postgres_cache_store.py:6724"
+      "detail": "server/websim_payload.py:26173, server/news_backend.py:12845, server/postgres_cache_store.py:6732"
     },
     {
       "id": "localTests_missing",
@@ -300,11 +313,14 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 3,
+      "changedFileCount": 6,
       "changedFiles": [
         " M artifacts/releases/2026-07-14-community-enhancement-editability/evidence.json",
+        " M artifacts/releases/2026-07-14-community-enhancement-editability/manifest.json",
         " M docs/project-state.json",
-        " M docs/roadmap.md"
+        " M docs/roadmap.md",
+        " M tests/project-state.test.js",
+        "?? artifacts/releases/2026-07-14-community-enhancement-editability/wechat-devtools-ledger.json"
       ]
     }
   },

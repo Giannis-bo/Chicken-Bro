@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "slug": "community-enhancement-editability",
   "requirementSlug": "community-enhancement-editability",
-  "status": "local_verified",
-  "highestEvidenceLevel": "local_verified",
-  "branch": "codex/fix-community-enhancement-editability",
-  "commit": "59c8a573b03221f910e92586e784beb74f87db4d",
+  "status": "live_verified",
+  "highestEvidenceLevel": "live_verified",
+  "branch": "codex/gear-only-community-enhancement-editability",
+  "commit": "36204bed9e453515a86d6031fd7439f110efd85b",
   "scope": [
     "static_socket_authority",
     "raiderio_gem_occurrence_transport",
@@ -59,7 +59,7 @@
     {
       "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-14-community-enhancement-editability --base origin/main",
       "status": "pass",
-      "summary": "Exact implementation commit 59c8a57 passed 506/506 Node tests, 1421/1421 Python tests with one expected skip, and all 130 full profile commands. This profile remains required again after final evidence updates."
+      "summary": "Exact implementation commit 59c8a57 passed 506/506 Node tests, 1421/1421 Python tests with one expected skip, and all 130 full profile commands. The required post-evidence rerun is recorded below for exact correction commit 36204be."
     },
     {
       "command": "local CR plus independent frontend and backend release-boundary review",
@@ -67,36 +67,128 @@
       "summary": "Independent review verified forged option stripping, v1/v2 reads, source-only Profile serialization, sealed active-v2 Intent, PostgreSQL read-only boundaries and the exact Mage 8/8 gems, 6/8 enchants and 2/2 embellishments contract. Review-found multi-source capacity and migration-allowance gaps were reproduced with failing tests, fixed fail-closed, and re-reviewed with no remaining P0/P1/P2."
     },
     {
+      "command": "node --test tests/builds-page.test.js && node --test tests/build-template-storage.test.js",
+      "status": "pass",
+      "summary": "Exact correction commit 36204be passed 236/236 page tests and 5/5 saved-template storage tests. Regressions cover canonical partial hydration, failed slot-detail retry, pending replacement editor blocking, full-draft Resolve submission, legacy pruning and saved-template reapply."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-14-community-enhancement-editability --base origin/main",
+      "status": "pass",
+      "summary": "Exact correction commit 36204be passed 510/510 Node tests, 1469/1469 Python tests with one expected skip, all 130 full profile commands, syntax validation and diff check."
+    },
+    {
+      "command": "final independent canonical editor CR",
+      "status": "pass",
+      "summary": "The final reviewer found no Critical, Important or Minor findings after candidate-cache false hydration and legacy saved-template pruning were fixed with regressions; targeted 11/11, full page 236/236 and diff check passed."
+    },
+    {
       "command": "candidate v1-reader deployment, inactive v2 release generation, 40-spec shadow, manual pointer cutover and production API/operations smoke",
-      "status": "not_run",
-      "summary": "Required before merge with WOW_DEPLOY_START_ASYNC_SYNCS=0."
+      "status": "pass",
+      "summary": "Exact candidate was deployed with WOW_DEPLOY_START_ASYNC_SYNCS=0. Compatibility reads, inactive v2 generation, pointer promote/rollback/repromote, generation 16 active Manifest, 40/40 read-only shadow, Resolve/Profile, ninth-gem rejection, service/health/timer/log checks and remote detail.js parity passed."
     },
     {
       "command": "real WeChat exact-candidate import and editable replacement matrix",
-      "status": "not_run",
-      "summary": "Required user-visible evidence before merge."
+      "status": "pass",
+      "summary": "WeChat DevTools Stable 2.01.2510290 opened the exact clean candidate worktree. The frozen Frost Mage template imported as 15/15, gems 8/8, enchants 6/8 and embellishments 2/2; opening and hydrating wrist preserved the full draft. Changing neck gem slot 1 produced verified signature sha256:68b06d0faa3a9 while keeping all counts, and reimport restored sha256:06f16fb8b781e."
     }
   ],
   "candidateDeployment": {
-    "status": "not_run",
+    "status": "candidate_verified",
     "requiredBeforeMerge": true,
-    "branch": "codex/fix-community-enhancement-editability",
-    "commit": "59c8a573b03221f910e92586e784beb74f87db4d",
-    "buildIdentity": "tree:5e4e5756b5cdd732c328289260094142832aa504",
+    "branch": "codex/gear-only-community-enhancement-editability",
+    "commit": "36204bed9e453515a86d6031fd7439f110efd85b",
+    "buildIdentity": "tree:8392e2b5a989295d36698a27b3ff96c6655b583f; pages/builds/detail.js sha256:40e2e3d617aaaf7c4bb5462d8fe59dde96529f79089559e19d0abd904341ba7a",
+    "checkedAt": "2026-07-15T12:57:06+08:00",
+    "databaseRuntime": "postgres_only",
+    "asyncSyncStart": false,
+    "activeManifestGeneration": 16,
+    "activeManifestRevision": "season-manifest:sha256:34325b76e6b12544b0cf511c89852722784675495b757b6dce522d531660e436",
+    "gearReleaseId": "gear-release:sha256:cfb1680130402b3c610d5eab3b0dbe50dd7186facc6a0371951eb5c10ed993c5",
+    "communityReleaseId": "community-release:sha256:35eafdafc9f96802327917b1f45ab406e60bbce10e81aa150e8cfef5d543ace6",
+    "rollbackManifestRevision": "season-manifest:sha256:551810fcc9d8f6b4dd2099cfafa4b67192476dc4f0bfe36bf827b9fa6ef3c07d",
+    "rollbackBackup": "/opt/wow-mini-program-candidate-backups/gear-only-1fdf445-20260715T023552Z",
     "smoke": {
-      "status": "not_run",
-      "summary": "No candidate has been deployed."
+      "status": "pass",
+      "summary": "Production Resolve and Profile returned HTTP 200, resolved/verified, 15/15 ready, problems=[], gems 8/8, enchants 6/8 and embellishments 2/2. The ordered finger1 gems remained gem-240892 then gem-240983; a ninth head gem was blocked with GEAR_GEM_SOCKET_CAPACITY_EXCEEDED."
     },
     "timerBackflow": {
-      "status": "not_run",
-      "summary": "No runtime change has been made."
+      "status": "pass",
+      "summary": "Deployment kept WOW_DEPLOY_START_ASYNC_SYNCS=0. No async sync or backfill was started; timers remained enabled, failed units stayed empty, backend/nginx were active/running with NRestarts=0, and error-priority backend/worker logs were empty."
     },
     "realWeChat": {
-      "status": "not_run",
-      "summary": "Reserved for the exact clean candidate worktree before merge."
+      "status": "pass",
+      "checkedAt": "2026-07-15T12:46:30+08:00",
+      "ledger": "artifacts/releases/2026-07-14-community-enhancement-editability/wechat-devtools-ledger.json",
+      "summary": "Exact candidate clean compile and live page handlers proved direct 8/8, 6/8 and 2/2 import, full draft preservation after one-slot hydration, unchanged confirmation, successful second edit and deterministic reimport restoration. No inherited/read-only user concept was shown."
     }
   },
-  "runtimeEvidence": [],
+  "runtimeEvidence": [
+    {
+      "kind": "candidate_identity",
+      "status": "pass",
+      "checkedAt": "2026-07-15T12:31:37+08:00",
+      "head": "36204bed9e453515a86d6031fd7439f110efd85b",
+      "tree": "8392e2b5a989295d36698a27b3ff96c6655b583f",
+      "remoteDetailSha256": "40e2e3d617aaaf7c4bb5462d8fe59dde96529f79089559e19d0abd904341ba7a"
+    },
+    {
+      "kind": "release_shadow",
+      "status": "pass",
+      "checkedAt": "2026-07-15T12:40:30+08:00",
+      "checkedSpecs": 40,
+      "failureCount": 0,
+      "publicReadCount": 40,
+      "databaseStatements": {
+        "total": 868,
+        "readQueries": 661,
+        "transactionControl": 207,
+        "writeStatements": 0
+      },
+      "performance": {
+        "totalDurationMs": 42102.396,
+        "specP95Ms": 855.051,
+        "specMaxMs": 871.268
+      }
+    },
+    {
+      "kind": "frozen_mage_contract",
+      "status": "pass",
+      "checkedAt": "2026-07-15T12:40:30+08:00",
+      "templateId": "observed_profile_mage_frost",
+      "sourceKey": "raiderio_observed_profile",
+      "profileHash": "profile:mage:frost:2ba96eb0a95619ab",
+      "gearHash": "gear:mage:frost:9731f0a0d2632704",
+      "capabilityRevision": "gear-capability-matrix-v2",
+      "socketVector": [1, 2, 1, 1, 2, 1],
+      "gems": "8/8",
+      "enchants": "6/8",
+      "embellishments": "2/2",
+      "ninthGem": "blocked:GEAR_GEM_SOCKET_CAPACITY_EXCEEDED"
+    },
+    {
+      "kind": "real_wechat_editability",
+      "status": "pass",
+      "checkedAt": "2026-07-15T12:46:30+08:00",
+      "pagePath": "pages/builds/detail",
+      "ledger": "artifacts/releases/2026-07-14-community-enhancement-editability/wechat-devtools-ledger.json",
+      "devtools": "Stable 2.01.2510290",
+      "initialSignature": "sha256:06f16fb8b781e",
+      "editedSignature": "sha256:68b06d0faa3a9",
+      "restoredSignature": "sha256:06f16fb8b781e",
+      "counts": "15/15; gems 8/8; enchants 6/8; embellishments 2/2",
+      "proof": "Changed neck gem slot 1 to +15 haste, confirmed server verification, then reimported the frozen community template."
+    },
+    {
+      "kind": "operational_state",
+      "status": "pass",
+      "checkedAt": "2026-07-15T12:57:06+08:00",
+      "backend": "active/running; PID 2668541; Result=success; NRestarts=0",
+      "nginx": "active/running; PID 2668550; Result=success; NRestarts=0",
+      "health": "/health HTTP 200; /api/data/health truthful partial only for unrelated existing data blockers",
+      "logs": "failed units empty; backend/worker error-priority logs empty",
+      "asyncSync": "WOW_DEPLOY_START_ASYNC_SYNCS=0; no candidate-triggered sync or backfill"
+    }
+  ],
   "risks": [
     {
       "id": "socket_rule_overgeneralization",
@@ -105,13 +197,13 @@
     },
     {
       "id": "capability_revision_rollout_gap",
-      "status": "candidate_required",
-      "detail": "Local v1/v2 reader and active-v2 sealed-Intent tests pass. Candidate deployment must still prove compatibility-reader sequencing, inactive v2 refresh, 40-spec shadow, CAS promotion and pointer rollback."
+      "status": "closed_live_verified",
+      "detail": "Compatibility-reader sequencing, inactive v2 refresh, 40-spec read-only shadow, CAS promote/rollback/repromote and active generation 16 all passed with zero shadow writes."
     },
     {
       "id": "frontend_full_capacity_replacement",
-      "status": "real_wechat_required",
-      "detail": "Local tests cannot prove WeChat sheet behavior at 8/8 gems and 2/2 embellishments; the exact candidate remains merge-blocked on real-device evidence."
+      "status": "closed_live_verified",
+      "detail": "Exact-candidate WeChat proved 8/8 gems, 6/8 enchants and 2/2 embellishments remain visible and editable through one-slot hydration, unchanged confirmation, second edit and reimport."
     },
     {
       "id": "unrelated_talent_candidate_overlap",
@@ -145,7 +237,8 @@
     "docs/superpowers/plans/2026-07-14-community-enhancement-editability-v2.md",
     ".gstack/deploy-reports/2026-07-13-pr85-deploy.md",
     "artifacts/releases/2026-07-11-equipment-simulator-phase4d-atomic-manifest-cutover/evidence.json",
-    "artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover/evidence.json"
+    "artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover/evidence.json",
+    "artifacts/releases/2026-07-14-community-enhancement-editability/wechat-devtools-ledger.json"
   ],
-  "summary": "Implementation is locally verified at commit 59c8a573b03221f910e92586e784beb74f87db4d (tree 5e4e5756b5cdd732c328289260094142832aa504). The exact Mage contract preserves editable 8/8 gems, 6/8 enchants and 2/2 embellishments through Community Release, Resolve and Profile; static socket authority, v1/v2 readers, source-only proof, fail-closed candidate sealing and frontend transaction fences are covered. Targeted commands, frontend/backend/full Harness and independent CR pass. Candidate deployment, inactive v2 generation, 40-spec shadow, rollback drill and real WeChat verification have not started and remain merge blockers."
+  "summary": "Exact candidate 36204bed9e453515a86d6031fd7439f110efd85b (tree 8392e2b5a989295d36698a27b3ff96c6655b583f) is live-verified before merge. Full Harness passed 510 Node plus 1469 Python tests and 130 commands; final independent CR has no findings. Production generation 16, 40/40 read-only shadow, Resolve/Profile, ninth-gem rejection, runtime parity and operations checks passed. Real WeChat imported the frozen Frost Mage template as editable gems 8/8, enchants 6/8 and embellishments 2/2, preserved the full canonical draft through partial hydration, accepted a gem edit with a new verified signature and restored the original signature on reimport. PR merge and post-merge live smoke remain before archival."
 }
