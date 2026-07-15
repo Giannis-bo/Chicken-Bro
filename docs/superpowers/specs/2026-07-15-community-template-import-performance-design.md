@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-15
 
-**Status:** implementation complete; exact runtime candidate `346b8ae` local-full verified after repairing predecessor live scoped-read variant-alias and Release-option-authority mismatches; replacement candidate deployment and real WeChat acceptance pending
+**Status:** implementation complete; exact runtime candidate `986d4e4` local-full verified after repairing predecessor live variant-alias, Release-option-authority and socket-to-gem projection mismatches; replacement candidate deployment and real WeChat acceptance pending
 
 **Harness:** [community-template-import-performance requirement](../../../artifacts/releases/2026-07-15-community-template-import-performance/requirement.json)
 

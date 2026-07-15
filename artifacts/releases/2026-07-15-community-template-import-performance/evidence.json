@@ -5,7 +5,7 @@
   "status": "local_verified",
   "highestEvidenceLevel": "local_verified",
   "branch": "codex/community-template-import-performance",
-  "commit": "346b8ae55924a47ae3af4d195dc2e80843fef4ef",
+  "commit": "986d4e44e825971e646639608ed1c1bbb12e6791",
   "scope": [
     "server-side immutable community-template import projection, scoped release read, bounded import cache and additive API route",
     "mini-program atomic verified import commit, progress state and later selected-slot lazy editing",
@@ -20,22 +20,22 @@
     {
       "command": "python3 -m unittest tests.community_template_import_test tests.gear_release_store_test tests.postgres_cache_store_test tests.gear_runtime_test tests.news_backend_test",
       "status": "pass",
-      "summary": "435 passing tests; verifies pure projection, scoped/cache behavior, route envelope/timing shape, rebinding of a normalized historical variant alias, and option authority by the sealed Release option key rather than only the selected variant ID."
+      "summary": "436 passing tests; verifies pure projection, scoped/cache behavior, route envelope/timing shape, normalized historical variant rebinding, Release option-key authority, and canonical gem adoption from a sealed socket-type option."
     },
     {
       "command": "git diff --check",
       "status": "pass",
-      "summary": "No whitespace errors after the 346b8ae runtime fix."
+      "summary": "No whitespace errors after the 986d4e4 runtime fix."
     },
     {
       "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-15-community-template-import-performance --base origin/main",
       "status": "pass",
-      "summary": "130/130 commands passed against 346b8ae: Node 527/527, Python 1579 with one expected skip, compile/JSON/syntax checks and Harness packet check all passed. Candidate runtime evidence and real WeChat proof remain pending."
+      "summary": "130/130 commands passed against 986d4e4: Node 527/527, Python 1580 with one expected skip, compile/JSON/syntax checks and Harness packet check all passed. Candidate runtime evidence and real WeChat proof remain pending."
     }
   ],
   "candidateDeployment": {
     "status": "pending",
-    "reason": "Predecessor candidates e08cbb8 and 99acc45 were deployed and exposed two distinct over-strict scoped-read conditions: normalized historical variant aliases, then Release option rows attached to compatible rather than selected variants. The exact repair 346b8ae has a fresh local full Harness pass and is pending one replacement candidate deployment; no user-testable success is claimed yet."
+    "reason": "Predecessor candidates e08cbb8, 99acc45 and 346b8ae were deployed and exposed three projection/read mismatches: normalized historical variant aliases, Release option rows attached to compatible variants, and socket-type Release options that canonicalize as gems. The exact repair 986d4e4 has a fresh local full Harness pass and is pending one replacement candidate deployment; no user-testable success is claimed yet."
   },
   "runtimeEvidence": [
     {
@@ -49,6 +49,12 @@
       "status": "fail",
       "commit": "99acc454f3834684241246ce6b9e6afb1ccb921d",
       "summary": "The normalized alias repair reached the selected variant read, but Frost import remained blocked because the scoped option query required option rows to share the selected variant ID; the established Resolver authority query binds those sealed option keys to the Release instead."
+    },
+    {
+      "type": "predecessor_candidate_smoke",
+      "status": "fail",
+      "commit": "346b8ae55924a47ae3af4d195dc2e80843fef4ef",
+      "summary": "Frost import reached a verified Resolver snapshot in 1.279 seconds but was correctly partial: the projector recognized enchants and embellishments yet rejected eight gem identities because active Release optionType is socket rather than gem."
     }
   ],
   "risks": [
@@ -69,5 +75,5 @@
   "archivedReferences": [
     "docs/superpowers/specs/2026-07-14-community-enhancement-editability-v2-design.md"
   ],
-  "summary": "Atomic community-template import runtime code 346b8ae55924a47ae3af4d195dc2e80843fef4ef passed the final local full Harness after two live predecessor diagnostics repaired normalized historical variant-key rebinding and Release-scoped option authority. Replacement candidate runtime evidence and explicit real-WeChat acceptance are intentionally pending."
+  "summary": "Atomic community-template import runtime code 986d4e44e825971e646639608ed1c1bbb12e6791 passed the final local full Harness after three live predecessor diagnostics repaired normalized historical variant-key rebinding, Release-scoped option authority, and socket-to-gem canonical projection. Replacement candidate runtime evidence and explicit real-WeChat acceptance are intentionally pending."
 }
