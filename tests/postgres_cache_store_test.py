@@ -8934,6 +8934,150 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertFalse(conn.committed)
         self.assertEqual(conn.cursor_instance.statements[0], "SET TRANSACTION READ ONLY")
 
+    def test_verified_community_import_cache_binds_one_manifest_for_source_and_resolver(self):
+        from server import gear_runtime, postgres_cache_store
+        postgres_cache_store.PG_COMMUNITY_TEMPLATE_IMPORT_CACHE.clear()
+
+        class ActiveImportReleaseStore:
+            def __init__(self):
+                self.generation = 7
+                self.import_calls = []
+                self.authority_calls = []
+
+            def get_active_pointer(self):
+                return {
+                    "pointerMode": "active",
+                    "generation": self.generation,
+                    "manifestRevision": f"manifest-{self.generation}",
+                }
+
+            def load_active_manifest_binding(self):
+                return {
+                    "pointerMode": "active",
+                    "generation": self.generation,
+                    "formalActiveManifest": True,
+                    "manifest": {
+                        "manifestRevision": f"manifest-{self.generation}",
+                        "seasonRevision": "season-17",
+                        "gearCatalogReleaseId": "gear-release-a",
+                        "communityTemplateReleaseId": "community-release-a",
+                    },
+                }
+
+            def load_active_community_template_import(self, binding, class_key, spec_key, template_id):
+                self.import_calls.append((binding, class_key, spec_key, template_id))
+                return {
+                    "winner": {
+                        "templateId": template_id,
+                        "classKey": class_key,
+                        "specKey": spec_key,
+                        "role": "winner",
+                        "sourceKey": "raiderio_observed_profile",
+                        "payload": {"name": "Observed Frost"},
+                        "selectionIntent": {
+                            "schemaRevision": "selection-intent-v1",
+                            "authoredAgainst": {"seasonRevision": "season-17", "gearCatalogRevision": "gear-release-a"},
+                            "eligibilityContext": {"classKey": class_key, "specKey": spec_key, "level": 90},
+                            "slots": {"head": {
+                                "itemId": "item-a", "variantKey": "variant-a", "gemOptionIds": ["gem-a", "gem-a"],
+                                "enchantOptionId": "", "embellishmentOptionId": "", "craftedOptionId": "", "catalystOptionId": "",
+                            }},
+                        },
+                    },
+                    "variants": [{
+                        "variantId": "variant-a-id", "itemId": "item-a", "variantKey": "variant-a", "slot": "head",
+                        "label": "Observed head", "itemLevel": 289, "status": "verified",
+                    }],
+                    "items": [{"itemId": "item-a"}],
+                    "sources": [{"sourceId": "source-a", "itemId": "item-a"}],
+                    "options": [{
+                        "optionKey": "gem-a", "optionType": "gem", "name": "Gem A", "status": "verified",
+                        "isVisible": True, "applicableSlots": ["head"],
+                    }],
+                }
+
+            def load_active_authority_context(self, intent, runtime_authority, binding):
+                self.authority_calls.append((intent, runtime_authority, binding))
+                return {
+                    "manifest": {
+                        **binding["manifest"],
+                        "formalActiveManifest": True,
+                        "pointerGeneration": binding["generation"],
+                    },
+                    "dependencyVector": {"simcRuntimeRevision": "simc-r1"},
+                    "missingFields": [],
+                }
+
+        release_store = ActiveImportReleaseStore()
+        store = postgres_cache_store.PostgresCacheStore(
+            lambda: self.fail("formal import must stay in the release repository"),
+            gear_release_store=release_store,
+        )
+        snapshot = {"status": "verified", "problems": [], "resolvedGearSignature": "sha256:import"}
+        request = {"classKey": "mage", "specKey": "frost", "templateId": "template-a"}
+        with patch.object(gear_runtime.gear_resolver, "resolve", return_value=snapshot) as resolver:
+            first_status, first, _first_timing = gear_runtime.import_community_template(
+                request, store=store, simc_runtime_revision="simc-r1", request_id="first"
+            )
+            second_status, second, second_timing = gear_runtime.import_community_template(
+                request, store=store, simc_runtime_revision="simc-r1", request_id="second"
+            )
+            release_store.generation = 8
+            third_status, third, _third_timing = gear_runtime.import_community_template(
+                request, store=store, simc_runtime_revision="simc-r1", request_id="third"
+            )
+
+        self.assertEqual((first_status, second_status, third_status), (200, 200, 200))
+        self.assertEqual(first["status"], "verified")
+        self.assertEqual(second["requestId"], "second")
+        self.assertEqual(second_timing["cache"], "hit")
+        self.assertEqual(third["releaseContext"]["pointerGeneration"], 8)
+        self.assertEqual(len(release_store.import_calls), 2)
+        self.assertEqual(len(release_store.authority_calls), 2)
+        self.assertIs(release_store.import_calls[0][0], release_store.authority_calls[0][2])
+        self.assertEqual(resolver.call_count, 2)
+        self.assertEqual(
+            release_store.authority_calls[0][0]["slots"]["head"]["gemOptionIds"],
+            ["gem-a", "gem-a"],
+        )
+
+    def test_community_import_manifest_mismatch_prevents_scoped_read(self):
+        from server import postgres_cache_store
+        from server.postgres_cache_store import CommunityTemplateImportError
+
+        class MismatchReleaseStore:
+            def __init__(self):
+                self.import_calls = 0
+
+            def get_active_pointer(self):
+                return {"pointerMode": "active", "generation": 7, "manifestRevision": "manifest-7"}
+
+            def load_active_manifest_binding(self):
+                return {
+                    "pointerMode": "active", "generation": 7, "formalActiveManifest": True,
+                    "manifest": {"manifestRevision": "manifest-7"},
+                }
+
+            def load_active_community_template_import(self, *_args):
+                self.import_calls += 1
+                raise AssertionError("mismatch must prevent the scoped read")
+
+        release_store = MismatchReleaseStore()
+        store = postgres_cache_store.PostgresCacheStore(
+            lambda: self.fail("mismatch must not open a legacy connection"),
+            gear_release_store=release_store,
+        )
+
+        with self.assertRaises(CommunityTemplateImportError) as raised:
+            store.get_community_template_import_context(
+                class_key="mage", spec_key="frost", template_id="template-a",
+                runtime_authority={"dependencyRevisions": {"simcRuntimeRevision": "simc-r1"}},
+                expected_manifest_revision="manifest-6",
+            )
+
+        self.assertEqual(raised.exception.code, "manifest_mismatch")
+        self.assertEqual(release_store.import_calls, 0)
+
 
 if __name__ == "__main__":
     unittest.main()

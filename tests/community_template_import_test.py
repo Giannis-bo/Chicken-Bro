@@ -6,6 +6,7 @@ from __future__ import annotations
 import copy
 import json
 import unittest
+from unittest.mock import patch
 
 
 class CommunityTemplateImportTest(unittest.TestCase):
@@ -213,6 +214,145 @@ class CommunityTemplateImportTest(unittest.TestCase):
             json.dumps([winner, variants, options], ensure_ascii=False, sort_keys=True),
             before,
         )
+
+    def verified_import_source(self):
+        winner = copy.deepcopy(self.winner)
+        winner["selectionIntent"]["slots"]["head"].update({
+            "gemOptionIds": ["gem-a", "gem-a"],
+            "embellishmentOptionId": "",
+        })
+        options = [option for option in self.options if option["optionKey"] in {"gem-a", "enchant-a"}]
+        return self.build_source(winner=winner, options=options)
+
+    def test_import_runtime_preserves_duplicate_gems_and_resolver_signature(self):
+        from server import gear_runtime
+
+        source = self.verified_import_source()
+        authority = {
+            "manifest": {
+                "seasonRevision": "season-17",
+                "gearCatalogReleaseId": "gear-release:sha256:frost",
+                "gearCatalogRevision": "gear-release:sha256:frost",
+                "manifestRevision": "manifest-a",
+                "pointerGeneration": 7,
+                "formalActiveManifest": True,
+            },
+            "dependencyVector": {"simcRuntimeRevision": "simc-r1"},
+        }
+
+        class ImportStore:
+            def __init__(self):
+                self.calls = []
+                self.cached = []
+
+            def get_community_template_import_context(self, **kwargs):
+                self.calls.append(copy.deepcopy(kwargs))
+                return {
+                    "cache": {"hit": False},
+                    "source": copy.deepcopy(source),
+                    "authorityContext": copy.deepcopy(authority),
+                    "releaseReadMs": 1.25,
+                    "cacheIdentity": "manifest-a:7:mage:frost:frost-observed-a",
+                }
+
+            def cache_community_template_import_verified(self, cache_identity, payload):
+                self.cached.append((cache_identity, copy.deepcopy(payload)))
+
+        store = ImportStore()
+        resolver_calls = []
+        snapshot = {
+            "status": "verified",
+            "resolvedGearSignature": "sha256:resolved-frost",
+            "problems": [],
+        }
+        with patch.object(gear_runtime.gear_resolver, "resolve", side_effect=lambda intent, context: resolver_calls.append((intent, context)) or snapshot):
+            status, envelope, timings = gear_runtime.import_community_template(
+                {"classKey": "mage", "specKey": "frost", "templateId": "frost-observed-a"},
+                store=store,
+                simc_runtime_revision="simc-r1",
+                request_id="import-duplicate-gems",
+            )
+
+        self.assertEqual(status, 200)
+        self.assertEqual(envelope["contractRevision"], "community-template-import-envelope-v1")
+        self.assertEqual(envelope["status"], "verified")
+        self.assertEqual(envelope["data"]["status"], "verified")
+        self.assertEqual(resolver_calls[0][0]["slots"]["head"]["gemOptionIds"], ["gem-a", "gem-a"])
+        self.assertEqual(envelope["data"]["resolvedSnapshot"]["resolvedGearSignature"], "sha256:resolved-frost")
+        self.assertEqual(len(store.calls), 1)
+        self.assertEqual(len(store.cached), 1)
+        self.assertEqual(set(timings), {"queueMs", "releaseReadMs", "reconcileMs", "resolveMs", "serializeMs", "cache"})
+        self.assertEqual(timings["cache"], "miss")
+
+    def test_expected_manifest_mismatch_returns_structured_blocked_problem(self):
+        from server import gear_runtime
+        from server.postgres_cache_store import CommunityTemplateImportError
+
+        class MismatchStore:
+            def get_community_template_import_context(self, **_kwargs):
+                raise CommunityTemplateImportError(
+                    "manifest_mismatch",
+                    "The requested Manifest revision is no longer active.",
+                    release_context={"manifestRevision": "manifest-b", "pointerGeneration": 8},
+                )
+
+        status, envelope, _timings = gear_runtime.import_community_template(
+            {
+                "classKey": "mage",
+                "specKey": "frost",
+                "templateId": "frost-observed-a",
+                "expectedManifestRevision": "manifest-a",
+            },
+            store=MismatchStore(),
+            simc_runtime_revision="simc-r1",
+            request_id="import-stale-manifest",
+        )
+
+        self.assertEqual(status, 409)
+        self.assertEqual(envelope["status"], "blocked")
+        self.assertEqual(envelope["data"], {})
+        self.assertEqual(envelope["problems"][0]["code"], "manifest_mismatch")
+        self.assertNotIn("mode", json.dumps(envelope))
+
+    def test_blocked_unavailable_and_malformed_imports_are_not_cached(self):
+        from server import gear_runtime
+
+        class BlockedStore:
+            def __init__(self):
+                self.cache_calls = 0
+
+            def get_community_template_import_context(self, **_kwargs):
+                return {
+                    "cache": {"hit": False},
+                    "source": {"status": "blocked", "problems": [{"code": "template_not_active", "title": "Not active", "retryable": False}]},
+                    "authorityContext": {},
+                    "releaseReadMs": 0.5,
+                    "cacheIdentity": "never-cache",
+                }
+
+            def cache_community_template_import_verified(self, *_args):
+                self.cache_calls += 1
+
+        store = BlockedStore()
+        status, envelope, _timings = gear_runtime.import_community_template(
+            {"classKey": "mage", "specKey": "frost", "templateId": "blocked"},
+            store=store,
+            simc_runtime_revision="simc-r1",
+            request_id="blocked-import",
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(envelope["status"], "blocked")
+        self.assertEqual(store.cache_calls, 0)
+
+        malformed_status, malformed, _timings = gear_runtime.import_community_template(
+            {"classKey": "mage", "specKey": "frost", "templateId": "blocked", "mode": "slot"},
+            store=store,
+            simc_runtime_revision="simc-r1",
+            request_id="malformed-import",
+        )
+        self.assertEqual(malformed_status, 400)
+        self.assertEqual(malformed["problems"][0]["code"], "invalid_import_request")
+        self.assertEqual(store.cache_calls, 0)
 
 
 if __name__ == "__main__":

@@ -59,6 +59,19 @@ except ImportError:
     from gear_release_store import GearReleaseStore
 
 try:
+    from .community_template_import import (
+        COMMUNITY_TEMPLATE_IMPORT_CONTRACT_REVISION,
+        build_community_template_import_source,
+        build_community_template_selection_intent,
+    )
+except ImportError:
+    from community_template_import import (
+        COMMUNITY_TEMPLATE_IMPORT_CONTRACT_REVISION,
+        build_community_template_import_source,
+        build_community_template_selection_intent,
+    )
+
+try:
     from .websim_payload import (
         CANONICAL_GEAR_SLOTS,
         COMMUNITY_TEMPLATE_AVAILABILITY_POLICY,
@@ -276,6 +289,8 @@ def utc_now():
 
 PG_GEAR_PAYLOAD_CACHE = {}
 PG_GEAR_PAYLOAD_CACHE_MAX = 80
+PG_COMMUNITY_TEMPLATE_IMPORT_CACHE = {}
+PG_COMMUNITY_TEMPLATE_IMPORT_CACHE_MAX = 64
 RECOMMENDED_BIS_SIMC_EVIDENCE_SYNC_KEY = "recommended_bis_v1_simc_evidence"
 RECOMMENDED_BIS_ENHANCEMENT_PILOT_SPECS = {("shaman", "elemental")}
 RECOMMENDED_BIS_ENHANCEMENT_COPY_KEYS = (
@@ -539,6 +554,84 @@ def _pg_gear_payload_cache_put(fingerprint, payload):
     while len(PG_GEAR_PAYLOAD_CACHE) >= PG_GEAR_PAYLOAD_CACHE_MAX:
         PG_GEAR_PAYLOAD_CACHE.pop(next(iter(PG_GEAR_PAYLOAD_CACHE)))
     PG_GEAR_PAYLOAD_CACHE[fingerprint] = copy.deepcopy(payload)
+
+
+def _pg_community_template_import_cache_get(fingerprint):
+    if not fingerprint or fingerprint not in PG_COMMUNITY_TEMPLATE_IMPORT_CACHE:
+        return None
+    payload = PG_COMMUNITY_TEMPLATE_IMPORT_CACHE.pop(fingerprint)
+    PG_COMMUNITY_TEMPLATE_IMPORT_CACHE[fingerprint] = payload
+    return copy.deepcopy(payload)
+
+
+def _pg_community_template_import_cache_put(fingerprint, payload):
+    data = payload.get("data") if isinstance(payload, dict) else None
+    problems = payload.get("problems") if isinstance(payload, dict) else None
+    if (
+        not fingerprint
+        or not isinstance(payload, dict)
+        or payload.get("status") != "verified"
+        or not isinstance(data, dict)
+        or data.get("status") != "verified"
+        or problems not in (None, [])
+        or not isinstance(payload.get("releaseContext"), dict)
+    ):
+        return
+    if fingerprint in PG_COMMUNITY_TEMPLATE_IMPORT_CACHE:
+        PG_COMMUNITY_TEMPLATE_IMPORT_CACHE.pop(fingerprint)
+    while len(PG_COMMUNITY_TEMPLATE_IMPORT_CACHE) >= PG_COMMUNITY_TEMPLATE_IMPORT_CACHE_MAX:
+        PG_COMMUNITY_TEMPLATE_IMPORT_CACHE.pop(next(iter(PG_COMMUNITY_TEMPLATE_IMPORT_CACHE)))
+    PG_COMMUNITY_TEMPLATE_IMPORT_CACHE[fingerprint] = copy.deepcopy(payload)
+
+
+class CommunityTemplateImportError(RuntimeError):
+    """Sanitized import failure carrying only a stable public code."""
+
+    def __init__(
+        self,
+        code,
+        title,
+        *,
+        release_context=None,
+        unavailable=False,
+    ):
+        super().__init__(str(code))
+        self.code = str(code)
+        self.title = str(title)
+        self.release_context = copy.deepcopy(release_context) if isinstance(release_context, dict) else {}
+        self.unavailable = bool(unavailable)
+
+
+def _community_template_import_release_context(binding):
+    value = binding if isinstance(binding, dict) else {}
+    manifest = value.get("manifest") if isinstance(value.get("manifest"), dict) else {}
+    return {
+        "manifestRevision": str(manifest.get("manifestRevision") or value.get("manifestRevision") or "").strip(),
+        "pointerGeneration": _int_value(value.get("generation")),
+        "seasonRevision": str(manifest.get("seasonRevision") or "").strip(),
+        "gearCatalogReleaseId": str(manifest.get("gearCatalogReleaseId") or "").strip(),
+        "gearCatalogRevision": str(manifest.get("gearCatalogReleaseId") or "").strip(),
+        "communityTemplateRevision": str(manifest.get("communityTemplateReleaseId") or "").strip(),
+        "formalActiveManifest": value.get("formalActiveManifest") is True,
+    }
+
+
+def _community_template_import_cache_fingerprint(
+    release_context,
+    class_key,
+    spec_key,
+    template_id,
+):
+    context = release_context if isinstance(release_context, dict) else {}
+    identity = {
+        "contractRevision": COMMUNITY_TEMPLATE_IMPORT_CONTRACT_REVISION,
+        "manifestRevision": str(context.get("manifestRevision") or "").strip(),
+        "pointerGeneration": _int_value(context.get("pointerGeneration")),
+        "classKey": str(class_key or "").strip(),
+        "specKey": str(spec_key or "").strip(),
+        "templateId": str(template_id or "").strip(),
+    }
+    return json.dumps(identity, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 
 def _datetime_value(value):
@@ -1062,6 +1155,7 @@ class PostgresCacheStore:
         """Load a dormant canonical gear authority context in one read-only transaction."""
 
         binding = self._active_manifest_binding_for_authority()
+        binding = binding if isinstance(binding, dict) else {}
         if binding.get("formalActiveManifest") is True:
             return self._cached_active_authority_context(
                 selection_intent,
@@ -1077,6 +1171,120 @@ class PostgresCacheStore:
                     runtime_authority,
                     cache=self._gear_authority_context_cache,
                 )
+
+    def get_community_template_import_context(
+        self,
+        *,
+        class_key,
+        spec_key,
+        template_id,
+        runtime_authority,
+        expected_manifest_revision="",
+    ):
+        """Load one import source and Resolver authority against the same Active Manifest."""
+
+        started = time.perf_counter()
+        binding = self._active_manifest_binding_for_authority()
+        release_context = _community_template_import_release_context(binding)
+        if binding.get("formalActiveManifest") is not True:
+            raise CommunityTemplateImportError(
+                "template_import_unavailable",
+                "The active Season Manifest is temporarily unavailable.",
+                release_context=release_context,
+                unavailable=True,
+            )
+        expected_revision = str(expected_manifest_revision or "").strip()
+        active_revision = str(release_context.get("manifestRevision") or "").strip()
+        if expected_revision and expected_revision != active_revision:
+            raise CommunityTemplateImportError(
+                "manifest_mismatch",
+                "The requested Manifest revision is no longer active.",
+                release_context=release_context,
+            )
+
+        normalized_class = str(class_key or "").strip()
+        normalized_spec = str(spec_key or "").strip()
+        normalized_template = str(template_id or "").strip()
+        cache_identity = _community_template_import_cache_fingerprint(
+            release_context,
+            normalized_class,
+            normalized_spec,
+            normalized_template,
+        )
+        cached = _pg_community_template_import_cache_get(cache_identity)
+        if cached is not None:
+            return {
+                "cache": {"hit": True},
+                "cachedPayload": cached,
+                "releaseReadMs": (time.perf_counter() - started) * 1000,
+                "reconcileMs": 0.0,
+                "cacheIdentity": cache_identity,
+            }
+
+        try:
+            release_rows = self._gear_release_store.load_active_community_template_import(
+                binding,
+                normalized_class,
+                normalized_spec,
+                normalized_template,
+            )
+        except Exception as error:
+            message = str(error)
+            code = "template_not_active" if "exactly one observed winner" in message else "template_import_blocked"
+            title = (
+                "The requested observed template is not active."
+                if code == "template_not_active"
+                else "The requested template cannot be imported safely."
+            )
+            raise CommunityTemplateImportError(
+                code,
+                title,
+                release_context=release_context,
+            ) from error
+
+        source_started = time.perf_counter()
+        source = build_community_template_import_source(
+            release_rows.get("winner"),
+            release_rows.get("variants"),
+            release_rows.get("options"),
+        )
+        selection_intent = build_community_template_selection_intent(source)
+        reconcile_ms = (time.perf_counter() - source_started) * 1000
+        if selection_intent is None:
+            return {
+                "cache": {"hit": False},
+                "source": source,
+                "authorityContext": {},
+                "releaseReadMs": (time.perf_counter() - started) * 1000,
+                "reconcileMs": reconcile_ms,
+                "cacheIdentity": cache_identity,
+            }
+        try:
+            authority_context = self._gear_release_store.load_active_authority_context(
+                selection_intent,
+                runtime_authority,
+                binding,
+            )
+        except Exception as error:
+            raise CommunityTemplateImportError(
+                "template_import_unavailable",
+                "Current gear authority is temporarily unavailable.",
+                release_context=release_context,
+                unavailable=True,
+            ) from error
+        return {
+            "cache": {"hit": False},
+            "source": source,
+            "authorityContext": authority_context if isinstance(authority_context, dict) else {},
+            "releaseReadMs": (time.perf_counter() - started) * 1000,
+            "reconcileMs": reconcile_ms,
+            "cacheIdentity": cache_identity,
+        }
+
+    def cache_community_template_import_verified(self, cache_identity, payload):
+        """Cache only a complete immutable import response under its Manifest identity."""
+
+        _pg_community_template_import_cache_put(cache_identity, payload)
 
     def _active_manifest_binding_for_authority(self):
         """Reuse a validated binding behind one cheap pointer identity read."""

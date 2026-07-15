@@ -3,11 +3,19 @@
 
 from __future__ import annotations
 
+import copy
+import time
 from typing import Any, Callable
 
 try:
     from . import gear_resolver
     from .gear_contracts import parse_selection_intent
+    from .community_template_import import (
+        COMMUNITY_TEMPLATE_IMPORT_CONTRACT_REVISION,
+        community_template_import_public_data,
+        community_template_import_problem,
+    )
+    from .postgres_cache_store import CommunityTemplateImportError
     from .gear_result_envelope import (
         gear_problem,
         http_status_for_envelope,
@@ -20,6 +28,12 @@ try:
 except ImportError:
     import gear_resolver
     from gear_contracts import parse_selection_intent
+    from community_template_import import (
+        COMMUNITY_TEMPLATE_IMPORT_CONTRACT_REVISION,
+        community_template_import_public_data,
+        community_template_import_problem,
+    )
+    from postgres_cache_store import CommunityTemplateImportError
     from gear_result_envelope import (
         gear_problem,
         http_status_for_envelope,
@@ -41,6 +55,12 @@ PROFILE_CONTEXT_KEYS = (
     "websimExportCode",
     "talentState",
 )
+
+COMMUNITY_TEMPLATE_IMPORT_ENVELOPE_REVISION = "community-template-import-envelope-v1"
+_COMMUNITY_TEMPLATE_IMPORT_REQUIRED_KEYS = {"classKey", "specKey", "templateId"}
+_COMMUNITY_TEMPLATE_IMPORT_ALLOWED_KEYS = _COMMUNITY_TEMPLATE_IMPORT_REQUIRED_KEYS | {
+    "expectedManifestRevision"
+}
 
 
 def _release_context(authority_context: Any) -> dict[str, Any]:
@@ -139,6 +159,270 @@ def _snapshot_envelope(
         problems=problems,
     )
     return http_status_for_envelope(envelope), envelope
+
+
+def _import_problem(code: str, title: str, *, retryable: bool = False) -> dict[str, Any]:
+    return community_template_import_problem(code, title, retryable=retryable)
+
+
+def _import_envelope(
+    status: str,
+    request_id: str,
+    release_context: Any,
+    *,
+    data: Any = None,
+    problems: Any = None,
+) -> dict[str, Any]:
+    return {
+        "contractRevision": COMMUNITY_TEMPLATE_IMPORT_ENVELOPE_REVISION,
+        "status": status,
+        "requestId": str(request_id),
+        "releaseContext": copy.deepcopy(release_context) if isinstance(release_context, dict) else {},
+        "problems": copy.deepcopy(problems) if isinstance(problems, list) else [],
+        "data": copy.deepcopy(data) if isinstance(data, dict) else {},
+    }
+
+
+def _import_http_status(status: str, problems: Any) -> int:
+    codes = {
+        str(problem.get("code") or "")
+        for problem in problems if isinstance(problem, dict)
+    } if isinstance(problems, list) else set()
+    if status == "unavailable":
+        return 503
+    if "manifest_mismatch" in codes:
+        return 409
+    if "invalid_import_request" in codes:
+        return 400
+    return 200
+
+
+def _import_timings(
+    *,
+    queue_ms: float = 0.0,
+    release_read_ms: float = 0.0,
+    reconcile_ms: float = 0.0,
+    resolve_ms: float = 0.0,
+    serialize_ms: float = 0.0,
+    cache: str = "miss",
+) -> dict[str, Any]:
+    return {
+        "queueMs": round(max(0.0, float(queue_ms)), 3),
+        "releaseReadMs": round(max(0.0, float(release_read_ms)), 3),
+        "reconcileMs": round(max(0.0, float(reconcile_ms)), 3),
+        "resolveMs": round(max(0.0, float(resolve_ms)), 3),
+        "serializeMs": round(max(0.0, float(serialize_ms)), 3),
+        "cache": "hit" if cache == "hit" else "miss",
+    }
+
+
+def _valid_import_request(raw_request: Any) -> tuple[dict[str, str] | None, dict[str, Any] | None]:
+    request = raw_request if isinstance(raw_request, dict) else {}
+    if (
+        not isinstance(raw_request, dict)
+        or not _COMMUNITY_TEMPLATE_IMPORT_REQUIRED_KEYS.issubset(request)
+        or set(request).difference(_COMMUNITY_TEMPLATE_IMPORT_ALLOWED_KEYS)
+    ):
+        return None, _import_problem(
+            "invalid_import_request",
+            "Community template import request has unsupported or missing fields.",
+        )
+    normalized = {}
+    for key in _COMMUNITY_TEMPLATE_IMPORT_REQUIRED_KEYS | {"expectedManifestRevision"}:
+        value = request.get(key, "")
+        if key == "expectedManifestRevision" and key not in request:
+            normalized[key] = ""
+            continue
+        if not isinstance(value, str) or not value.strip() or len(value.strip()) > 240:
+            return None, _import_problem(
+                "invalid_import_request",
+                "Community template import identifiers must be bounded strings.",
+            )
+        normalized[key] = value.strip()
+    return normalized, None
+
+
+def import_community_template(
+    raw_request: Any,
+    *,
+    store: Any,
+    simc_runtime_revision: str,
+    request_id: str,
+    clock: Callable[[], float] = time.perf_counter,
+) -> tuple[int, dict[str, Any], dict[str, Any]]:
+    """Resolve one sealed observed template atomically without slot-request fan-out."""
+
+    request, invalid_problem = _valid_import_request(raw_request)
+    if invalid_problem is not None:
+        timings = _import_timings()
+        envelope = _import_envelope("blocked", request_id, {}, problems=[invalid_problem])
+        return _import_http_status("blocked", envelope["problems"]), envelope, timings
+    if not str(simc_runtime_revision or "").strip():
+        problem = _import_problem(
+            "template_import_unavailable",
+            "Current SimulationCraft runtime revision is unavailable.",
+            retryable=True,
+        )
+        envelope = _import_envelope("unavailable", request_id, {}, problems=[problem])
+        return 503, envelope, _import_timings()
+
+    try:
+        runtime_authority = gear_resolver_runtime_authority(
+            request["classKey"],
+            request["specKey"],
+            simc_runtime_revision=simc_runtime_revision,
+        )
+    except ValueError:
+        problem = _import_problem(
+            "template_inapplicable",
+            "Community template specialization is not currently playable.",
+        )
+        envelope = _import_envelope("blocked", request_id, {}, problems=[problem])
+        return 200, envelope, _import_timings()
+
+    try:
+        context = store.get_community_template_import_context(
+            class_key=request["classKey"],
+            spec_key=request["specKey"],
+            template_id=request["templateId"],
+            runtime_authority=runtime_authority,
+            expected_manifest_revision=request["expectedManifestRevision"],
+        )
+    except CommunityTemplateImportError as error:
+        problem = _import_problem(error.code, error.title, retryable=error.unavailable)
+        status = "unavailable" if error.unavailable else "blocked"
+        envelope = _import_envelope(status, request_id, error.release_context, problems=[problem])
+        return _import_http_status(status, envelope["problems"]), envelope, _import_timings()
+    except Exception:
+        problem = _import_problem(
+            "template_import_unavailable",
+            "Community template import is temporarily unavailable.",
+            retryable=True,
+        )
+        envelope = _import_envelope("unavailable", request_id, {}, problems=[problem])
+        return 503, envelope, _import_timings()
+
+    release_read_ms = context.get("releaseReadMs", 0.0) if isinstance(context, dict) else 0.0
+    reconcile_ms = context.get("reconcileMs", 0.0) if isinstance(context, dict) else 0.0
+    cache_state = context.get("cache") if isinstance(context, dict) else {}
+    if isinstance(cache_state, dict) and cache_state.get("hit") is True:
+        cached = context.get("cachedPayload") if isinstance(context.get("cachedPayload"), dict) else {}
+        envelope = _import_envelope(
+            "verified",
+            request_id,
+            cached.get("releaseContext"),
+            data=cached.get("data"),
+            problems=[],
+        )
+        return 200, envelope, _import_timings(
+            release_read_ms=release_read_ms,
+            reconcile_ms=reconcile_ms,
+            cache="hit",
+        )
+
+    source = context.get("source") if isinstance(context, dict) and isinstance(context.get("source"), dict) else {}
+    source_status = source.get("status")
+    authority_context = context.get("authorityContext") if isinstance(context, dict) else {}
+    release_context = _release_context(authority_context)
+    if source_status == "blocked":
+        problems = source.get("problems") if isinstance(source.get("problems"), list) else []
+        if not problems:
+            problems = [_import_problem("template_import_blocked", "The requested template cannot be imported safely.")]
+        envelope = _import_envelope("blocked", request_id, release_context, problems=problems)
+        return 200, envelope, _import_timings(
+            release_read_ms=release_read_ms,
+            reconcile_ms=reconcile_ms,
+        )
+
+    selection_intent = source.get("selectionIntent") if isinstance(source.get("selectionIntent"), dict) else None
+    if selection_intent is None or not isinstance(authority_context, dict) or not authority_context:
+        problem = _import_problem(
+            "template_import_unavailable",
+            "Community template authority is temporarily unavailable.",
+            retryable=True,
+        )
+        envelope = _import_envelope("unavailable", request_id, release_context, problems=[problem])
+        return 503, envelope, _import_timings(
+            release_read_ms=release_read_ms,
+            reconcile_ms=reconcile_ms,
+        )
+
+    resolve_started = clock()
+    try:
+        snapshot = gear_resolver.resolve(selection_intent, authority_context)
+    except Exception:
+        problem = _import_problem(
+            "template_import_unavailable",
+            "Community template resolution failed unexpectedly.",
+            retryable=True,
+        )
+        envelope = _import_envelope("unavailable", request_id, release_context, problems=[problem])
+        return 503, envelope, _import_timings(
+            release_read_ms=release_read_ms,
+            reconcile_ms=reconcile_ms,
+            resolve_ms=(clock() - resolve_started) * 1000,
+        )
+    resolve_ms = (clock() - resolve_started) * 1000
+    if not isinstance(snapshot, dict):
+        problem = _import_problem(
+            "template_import_unavailable",
+            "Community template resolution returned an invalid response.",
+            retryable=True,
+        )
+        envelope = _import_envelope("unavailable", request_id, release_context, problems=[problem])
+        return 503, envelope, _import_timings(
+            release_read_ms=release_read_ms,
+            reconcile_ms=reconcile_ms,
+            resolve_ms=resolve_ms,
+        )
+
+    serialize_started = clock()
+    if source_status == "verified" and snapshot.get("status") == "verified" and not snapshot.get("problems"):
+        data = community_template_import_public_data(source, snapshot, release_context)
+        payload = {
+            "status": "verified",
+            "releaseContext": release_context,
+            "data": data,
+        }
+        cache_writer = getattr(store, "cache_community_template_import_verified", None)
+        if callable(cache_writer):
+            try:
+                cache_writer(context.get("cacheIdentity", ""), payload)
+            except Exception:
+                pass
+        envelope = _import_envelope("verified", request_id, release_context, data=data, problems=[])
+        return 200, envelope, _import_timings(
+            release_read_ms=release_read_ms,
+            reconcile_ms=reconcile_ms,
+            resolve_ms=resolve_ms,
+            serialize_ms=(clock() - serialize_started) * 1000,
+        )
+
+    if source_status == "partial" and snapshot.get("status") == "verified":
+        data = community_template_import_public_data(source, snapshot, release_context)
+        problem = _import_problem(
+            "template_import_unresolved",
+            "Some template enhancements could not be verified for atomic import.",
+        )
+        envelope = _import_envelope("partial", request_id, release_context, data=data, problems=[problem])
+        return 200, envelope, _import_timings(
+            release_read_ms=release_read_ms,
+            reconcile_ms=reconcile_ms,
+            resolve_ms=resolve_ms,
+            serialize_ms=(clock() - serialize_started) * 1000,
+        )
+
+    problem = _import_problem(
+        "template_import_blocked",
+        "The template could not be resolved as verified gear.",
+    )
+    envelope = _import_envelope("blocked", request_id, release_context, problems=[problem])
+    return 200, envelope, _import_timings(
+        release_read_ms=release_read_ms,
+        reconcile_ms=reconcile_ms,
+        resolve_ms=resolve_ms,
+        serialize_ms=(clock() - serialize_started) * 1000,
+    )
 
 
 def _resolve_selection_intent(
@@ -422,9 +706,11 @@ def build_candidate_profile_from_selection_intent(
 
 
 __all__ = (
+    "COMMUNITY_TEMPLATE_IMPORT_ENVELOPE_REVISION",
     "PROFILE_CONTEXT_KEYS",
     "build_candidate_profile_from_selection_intent",
     "build_profile_from_selection_intent",
+    "import_community_template",
     "is_canonical_profile_request",
     "resolve_candidate_selection_intent",
     "resolve_selection_intent",
