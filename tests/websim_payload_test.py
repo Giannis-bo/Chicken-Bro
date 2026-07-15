@@ -2095,6 +2095,337 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertNotIn("gem_id=240983", response["profile"])
         self.assertNotIn("gem_id=240967", response["profile"])
 
+    def test_legacy_gem_uniqueness_requires_explicit_group_and_positive_integer_limit(self):
+        cases = (
+            ("missing group", {}, False, "", 0),
+            ("boolean group", {"uniqueGroup": True, "uniqueLimit": 1}, False, "", 1),
+            ("numeric group", {"uniqueGroup": 123, "uniqueLimit": 1}, False, "", 1),
+            ("missing limit", {"uniqueGroup": "explicit_group"}, False, "explicit_group", 0),
+            ("junk limit", {"uniqueGroup": "explicit_group", "uniqueLimit": "1bad"}, False, "explicit_group", 0),
+            ("boolean limit", {"uniqueGroup": "explicit_group", "uniqueLimit": True}, False, "explicit_group", 0),
+            ("float limit", {"uniqueGroup": "explicit_group", "uniqueLimit": 1.5}, False, "explicit_group", 0),
+            ("zero limit", {"uniqueGroup": "explicit_group", "uniqueLimit": 0}, False, "explicit_group", 0),
+            ("negative limit", {"uniqueGroup": "explicit_group", "uniqueLimit": -1}, False, "explicit_group", 0),
+            ("positive integer limit", {"uniqueGroup": "explicit_group", "uniqueLimit": 1}, True, "explicit_group", 1),
+            ("positive decimal string limit", {"uniqueGroup": "explicit_group", "uniqueLimit": "1"}, True, "explicit_group", 1),
+        )
+        for name, metadata, expected_blocked, expected_group, expected_limit in cases:
+            with self.subTest(name=name):
+                option = {
+                    "id": "candidate",
+                    "type": "socket",
+                    "status": "verified",
+                    "simcOptions": {"gem_id": "240983"},
+                    "payload": {"qualityRank": 2, **metadata},
+                }
+                self.assertEqual(
+                    self.websim_payload.enhancement_option_unique_group(option, "socket"),
+                    expected_group,
+                )
+                self.assertEqual(
+                    self.websim_payload.enhancement_option_unique_limit(option, "socket"),
+                    expected_limit,
+                )
+                items = [
+                    {
+                        "slot": slot,
+                        "itemId": item_id,
+                        "modCapabilities": {"hasSocket": True},
+                        "socketOptions": [option],
+                    }
+                    for slot, item_id in (("neck", "250778"), ("finger1", "250777"))
+                ]
+                _, readiness = self.websim_payload.merge_websim_gear_enhancements(
+                    items,
+                    {
+                        "neck": {"socketOptionId": "candidate", "gem_id": "240983"},
+                        "finger1": {"socketOptionId": "candidate", "gem_id": "240983"},
+                    },
+                )
+                unique_blockers = [
+                    blocker
+                    for blocker in readiness["blockers"]
+                    if "gem limit exceeded" in blocker
+                ]
+                self.assertEqual(bool(unique_blockers), expected_blocked)
+                if expected_blocked:
+                    self.assertEqual(unique_blockers, ["explicit_group gem limit exceeded: 2/1"])
+
+    def test_legacy_gem_unique_metadata_scans_all_sources_and_conflicts_fail_closed(self):
+        limit_cases = (
+            (
+                "top two payload one",
+                {"uniqueGroup": "explicit_group", "uniqueLimit": 2},
+                {"qualityRank": 2, "uniqueGroup": "explicit_group", "uniqueLimit": 1},
+            ),
+            (
+                "top junk payload one",
+                {"uniqueGroup": "explicit_group", "uniqueLimit": "junk"},
+                {"qualityRank": 2, "uniqueGroup": "explicit_group", "uniqueLimit": 1},
+            ),
+            (
+                "top bool payload one",
+                {"uniqueGroup": "explicit_group", "uniqueLimit": True},
+                {"qualityRank": 2, "uniqueGroup": "explicit_group", "uniqueLimit": 1},
+            ),
+            (
+                "reversed aliases",
+                {"uniqueKey": "explicit_group", "unique_equipped_limit": 1},
+                {"qualityRank": 2, "unique_group": "explicit_group", "uniqueLimit": 2},
+            ),
+        )
+        for name, top_level, payload in limit_cases:
+            with self.subTest(name=name):
+                option = {
+                    "id": "candidate",
+                    "type": "socket",
+                    "status": "verified",
+                    "simcOptions": {"gem_id": "240983"},
+                    "payload": payload,
+                    **top_level,
+                }
+                self.assertEqual(
+                    self.websim_payload.enhancement_option_unique_group(option, "socket"),
+                    "explicit_group",
+                )
+                self.assertEqual(
+                    self.websim_payload.enhancement_option_unique_limit(option, "socket"),
+                    1,
+                )
+                items = [{
+                    "slot": "neck",
+                    "itemId": "item-neck",
+                    "modCapabilities": {"hasSocket": True},
+                    "socketOptions": [option],
+                }]
+                _enhanced, readiness = self.websim_payload.merge_websim_gear_enhancements(
+                    items,
+                    {
+                        "neck": {
+                            "socketOptionId": "candidate",
+                            "gem_id": "240983/240983",
+                        },
+                    },
+                )
+                self.assertIn(
+                    "explicit_group gem limit exceeded: 2/1",
+                    readiness["blockers"],
+                )
+
+        conflicting = {
+            "id": "conflicting",
+            "type": "socket",
+            "status": "verified",
+            "uniqueGroup": "group_a",
+            "uniqueLimit": 1,
+            "simcOptions": {"gem_id": "240983"},
+            "payload": {
+                "qualityRank": 2,
+                "uniqueGroup": "group_b",
+                "uniqueLimit": 1,
+            },
+        }
+        enhanced, readiness = self.websim_payload.merge_websim_gear_enhancements(
+            [{
+                "slot": "neck",
+                "itemId": "item-neck",
+                "modCapabilities": {"hasSocket": True},
+                "socketOptions": [conflicting],
+            }],
+            {
+                "neck": {
+                    "socketOptionId": "conflicting",
+                    "gem_id": "240983",
+                },
+            },
+        )
+        self.assertEqual(
+            self.websim_payload.enhancement_option_unique_group(conflicting, "socket"),
+            "",
+        )
+        self.assertTrue(any(
+            "conflicting unique groups" in blocker
+            for blocker in readiness["blockers"]
+        ))
+        self.assertNotIn("gem_id", enhanced[0])
+
+    def test_legacy_gem_uniqueness_uses_occurrences_and_order_independent_positive_minimum(self):
+        def option(option_id, gem_id, limit=None):
+            metadata = {"qualityRank": 2, "uniqueGroup": "explicit_group"}
+            if limit is not None:
+                metadata["uniqueLimit"] = limit
+            return {
+                "id": option_id,
+                "type": "socket",
+                "status": "verified",
+                "simcOptions": {"gem_id": gem_id},
+                "payload": metadata,
+            }
+
+        for name, first_limit, second_limit in (
+            ("strict then loose", 1, 2),
+            ("loose then strict", 2, 1),
+            ("missing then strict", None, 1),
+        ):
+            with self.subTest(name=name):
+                items = [
+                    {
+                        "slot": "neck",
+                        "itemId": "item-neck",
+                        "modCapabilities": {"hasSocket": True},
+                        "socketOptions": [option("first", "240901", first_limit)],
+                    },
+                    {
+                        "slot": "finger1",
+                        "itemId": "item-ring",
+                        "modCapabilities": {"hasSocket": True},
+                        "socketOptions": [option("second", "240902", second_limit)],
+                    },
+                ]
+                _, readiness = self.websim_payload.merge_websim_gear_enhancements(
+                    items,
+                    {
+                        "neck": {"socketOptionId": "first", "gem_id": "240901"},
+                        "finger1": {"socketOptionId": "second", "gem_id": "240902"},
+                    },
+                )
+                self.assertIn(
+                    "explicit_group gem limit exceeded: 2/1",
+                    readiness["blockers"],
+                )
+
+        _, readiness = self.websim_payload.merge_websim_gear_enhancements(
+            [
+                {
+                    "slot": "neck",
+                    "itemId": "item-neck",
+                    "modCapabilities": {"hasSocket": True},
+                    "socketOptions": [option("duplicate", "240901", 1)],
+                }
+            ],
+            {
+                "neck": {
+                    "socketOptionId": "duplicate",
+                    "gem_id": "240901/240901",
+                }
+            },
+        )
+        self.assertIn(
+            "explicit_group gem limit exceeded: 2/1",
+            readiness["blockers"],
+        )
+
+        primary = option("primary", "240901", 1)
+        ordinary = {
+            "id": "ordinary",
+            "type": "socket",
+            "status": "verified",
+            "simcOptions": {"gem_id": "240902"},
+            "payload": {"qualityRank": 2},
+        }
+        mixed_item = {
+            "slot": "neck",
+            "itemId": "item-neck",
+            "modCapabilities": {"hasSocket": True},
+            "socketOptions": [primary, ordinary],
+        }
+        _, one_primary = self.websim_payload.merge_websim_gear_enhancements(
+            [mixed_item],
+            {
+                "neck": {
+                    "socketOptionId": "primary",
+                    "gem_id": "240901/240902",
+                }
+            },
+        )
+        self.assertFalse(any(
+            "gem limit exceeded" in blocker
+            for blocker in one_primary["blockers"]
+        ))
+
+        _, two_primary = self.websim_payload.merge_websim_gear_enhancements(
+            [mixed_item],
+            {
+                "neck": {
+                    "socketOptionId": "ordinary",
+                    "gem_id": "240902/240901/240901",
+                }
+            },
+        )
+        self.assertIn(
+            "explicit_group gem limit exceeded: 2/1",
+            two_primary["blockers"],
+        )
+
+        ambiguous_item = {
+            **mixed_item,
+            "socketOptions": [primary, {**primary, "id": "primary-duplicate"}],
+        }
+        ordinary_same_gem = {
+            **ordinary,
+            "id": "ordinary-same-gem",
+            "simcOptions": {"gem_id": "240901"},
+        }
+        ordered_item = {
+            **mixed_item,
+            "socketOptions": [primary, ordinary_same_gem],
+        }
+        _, ordered_disambiguated = self.websim_payload.merge_websim_gear_enhancements(
+            [ordered_item],
+            {
+                "neck": {
+                    "gemOptionIds": ["primary", "ordinary-same-gem"],
+                    "gem_id": "240901/240901",
+                }
+            },
+        )
+        self.assertFalse(any(
+            "socket gem occurrence" in blocker or "gem limit exceeded" in blocker
+            for blocker in ordered_disambiguated["blockers"]
+        ))
+
+        _, ordered_duplicate_primary = self.websim_payload.merge_websim_gear_enhancements(
+            [ordered_item],
+            {
+                "neck": {
+                    "gemOptionIds": ["primary", "primary"],
+                    "gem_id": "240901/240901",
+                }
+            },
+        )
+        self.assertIn(
+            "explicit_group gem limit exceeded: 2/1",
+            ordered_duplicate_primary["blockers"],
+        )
+
+        _, ordered_missing = self.websim_payload.merge_websim_gear_enhancements(
+            [ordered_item],
+            {
+                "neck": {
+                    "gemOptionIds": ["primary", "missing-option"],
+                    "gem_id": "240901/240901",
+                }
+            },
+        )
+        self.assertTrue(any(
+            "socket gem occurrence 2 is not uniquely matched" in blocker
+            for blocker in ordered_missing["blockers"]
+        ))
+
+        for name, item, gem_id in (
+            ("ambiguous", ambiguous_item, "240901"),
+            ("missing", {**mixed_item, "socketOptions": [primary]}, "240902"),
+        ):
+            with self.subTest(occurrence_match=name):
+                _, readiness = self.websim_payload.merge_websim_gear_enhancements(
+                    [item],
+                    {"neck": {"gem_id": gem_id}},
+                )
+                self.assertTrue(any(
+                    "socket gem occurrence 1 is not uniquely matched" in blocker
+                    for blocker in readiness["blockers"]
+                ))
+
     def test_embellishment_does_not_make_base_item_variant_ready(self):
         item = self.websim_payload.normalize_gear_item(
             {
@@ -2265,6 +2596,70 @@ class WebSimPayloadTest(unittest.TestCase):
 
         blockers = response["readiness"]["enhancement"]["blockers"]
         self.assertTrue(any("finger1 socket option is not in verified rank-two catalog" in blocker for blocker in blockers))
+        self.assertNotIn("gem_id=240983", response["profile"])
+
+    def test_authority_attached_missing_ordered_gem_identity_never_applies_raw_sequence(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.websim_payload.upsert_gear_mod_option(
+                conn,
+                {
+                    "id": "gem-240983-r2",
+                    "type": "socket",
+                    "name": "Quick Onyx",
+                    "slots": ["finger1"],
+                    "simcOptions": {"gem_id": "240983", "gem_ilevel": "707"},
+                    "payload": {
+                        "gemItemId": "240983",
+                        "displayName": "Quick Onyx",
+                        "iconUrl": "https://render.example/gem-240983.jpg",
+                        "qualityRank": 2,
+                        "metadataStatus": "verified",
+                        "metadataSource": self.websim_payload.ITEM_METADATA_SOURCE,
+                        "metadataLocale": "en_US",
+                    },
+                },
+            )
+            conn.commit()
+            response = self.websim_payload.build_websim_profile_response(
+                {
+                    "classKey": "mage",
+                    "specKey": "arcane",
+                    "gearSelection": {
+                        "items": [
+                            {
+                                "slot": "finger1",
+                                "itemId": "250777",
+                                "name": "Catalog Band",
+                                "ilevel": 289,
+                                "bonus_id": "13534",
+                                "simcReady": True,
+                                "modCapabilities": {"hasSocket": True},
+                            }
+                        ]
+                    },
+                    "enhancementBySlot": {
+                        "finger1": {
+                            "gemOptionIds": ["missing-gem-option"],
+                            "gem_id": "240983",
+                        }
+                    },
+                },
+                conn=conn,
+            )
+        finally:
+            conn.close()
+
+        blockers = response["readiness"]["enhancement"]["blockers"]
+        self.assertTrue(any(
+            "finger1 socket gem occurrence 1 is not uniquely matched" in blocker
+            for blocker in blockers
+        ))
+        self.assertTrue(any(
+            "finger1 socket option is not in verified rank-two catalog" in blocker
+            for blocker in blockers
+        ))
         self.assertNotIn("gem_id=240983", response["profile"])
 
     def test_pg_only_structured_enhancement_rejects_client_catalog_forgery(self):
@@ -6535,6 +6930,97 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(catalog_item["socketOptions"][0]["simcOptions"]["gem_id"], "240983")
         self.assertEqual(catalog_item["enchantOptions"][0]["simcOptions"]["enchant_id"], "8017")
 
+    def test_item_socket_capacity_counts_nested_official_socket_entries(self):
+        payload = {
+            "preview_item": {
+                "sockets": [
+                    {"socket_type": {"type": "PRISMATIC"}},
+                    {"socket_type": {"type": "PRISMATIC"}},
+                ]
+            },
+            "metadata": {
+                "preview_item": {
+                    "sockets": [{"socket_type": {"type": "PRISMATIC"}}]
+                }
+            },
+        }
+
+        self.assertEqual(self.websim_payload.item_socket_capacity(payload, "head"), 2)
+
+    def test_two_socket_ring_is_not_collapsed_to_one(self):
+        payload = {
+            "preview_item": {
+                "sockets": [
+                    {"socket_type": {"type": "PRISMATIC"}},
+                    {"socket_type": {"type": "PRISMATIC"}},
+                ]
+            }
+        }
+
+        capabilities = self.websim_payload.item_mod_capabilities(
+            payload,
+            "finger1",
+            item={"itemId": "ring-two-sockets", "slot": "finger1"},
+        )
+
+        self.assertTrue(capabilities["hasSocket"])
+        self.assertEqual(capabilities["socketCount"], 2)
+
+    def test_enrich_catalog_item_preserves_socket_count(self):
+        item = {
+            "itemId": "ring-two-sockets",
+            "slot": "finger1",
+            "modCapabilities": {
+                "hasSocket": True,
+                "socketCount": 2,
+                "canEnchant": True,
+                "canEmbellish": True,
+            },
+        }
+
+        enriched = self.websim_payload.enrich_catalog_item(
+            item,
+            [],
+            [],
+            [],
+            [],
+            [],
+            "mage",
+            "frost",
+        )
+
+        self.assertEqual(enriched["modCapabilities"].get("socketCount"), 2)
+        self.assertTrue(enriched["modCapabilities"]["canEnchant"])
+        self.assertTrue(enriched["modCapabilities"]["canEmbellish"])
+
+    def test_ring_socket_capacity_does_not_generalize_across_item_ids(self):
+        two_socket_capabilities = self.websim_payload.item_mod_capabilities(
+            {
+                "preview_item": {
+                    "sockets": [
+                        {"socket_type": {"type": "PRISMATIC"}},
+                        {"socket_type": {"type": "PRISMATIC"}},
+                    ]
+                }
+            },
+            "finger1",
+            item={"itemId": "ring-two-sockets", "slot": "finger1"},
+        )
+        different_ring_capabilities = self.websim_payload.item_mod_capabilities(
+            {},
+            "finger1",
+            item={"itemId": "ring-without-official-sockets", "slot": "finger1"},
+        )
+
+        self.assertEqual(
+            [
+                two_socket_capabilities.get("socketCount"),
+                different_ring_capabilities["hasSocket"],
+                different_ring_capabilities.get("socketCount"),
+            ],
+            [2, False, None],
+        )
+
     def test_item_mod_capabilities_do_not_infer_socket_from_simc_gem_fields(self):
         head_caps = self.websim_payload.item_mod_capabilities(
             {},
@@ -6552,10 +7038,10 @@ class WebSimPayloadTest(unittest.TestCase):
 
         self.assertFalse(head_caps["hasSocket"])
         self.assertNotIn("socketCount", head_caps)
-        self.assertTrue(neck_caps["hasSocket"])
-        self.assertEqual(neck_caps["socketCount"], 1)
-        self.assertTrue(finger_caps["hasSocket"])
-        self.assertEqual(finger_caps["socketCount"], 1)
+        self.assertFalse(neck_caps["hasSocket"])
+        self.assertNotIn("socketCount", neck_caps)
+        self.assertFalse(finger_caps["hasSocket"])
+        self.assertNotIn("socketCount", finger_caps)
         self.assertFalse(held_offhand_caps["canEnchant"])
 
     def test_compact_gear_candidate_omits_redundant_mobile_metadata(self):
@@ -7156,7 +7642,10 @@ class WebSimPayloadTest(unittest.TestCase):
                                 "quality": "史诗",
                                 "icon": "https://render.example/item-250777.jpg",
                                 "bonuses": [12345, 67890],
-                                "gems": [{"itemId": 240983}],
+                                "gems": [
+                                    {"itemId": 240983, "bonusId": 9727, "itemLevel": 707},
+                                    {"itemId": 240983, "bonusId": 9727, "itemLevel": 707},
+                                ],
                                 "enchants": [{"spellId": 8017}],
                                 "sourceName": "Raider.IO CN profile gear",
                             }
@@ -7184,7 +7673,9 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(variant["status"], "partial")
         self.assertEqual(variant["blockers"], ["missing SimulationCraft item stats"])
         self.assertEqual(variant["simcOptions"]["bonus_id"], "12345/67890")
-        self.assertEqual(variant["simcOptions"]["gem_id"], "240983")
+        self.assertEqual(variant["simcOptions"]["gem_id"], "240983/240983")
+        self.assertEqual(variant["simcOptions"]["gem_bonus_id"], "9727/9727")
+        self.assertEqual(variant["simcOptions"]["gem_ilevel"], "707/707")
         self.assertEqual(variant["simcOptions"]["enchant_id"], "8017")
         head_group = next(group for group in payload["slotGroups"] if group["slot"] == "head")
         catalog_item = next(item for item in head_group["items"] if item["itemId"] == "250777")
@@ -8672,13 +9163,31 @@ class WebSimPayloadTest(unittest.TestCase):
     def test_observed_gear_simc_options_keeps_structured_gem_bonus_and_ilevel(self):
         options = self.websim_payload.observed_gear_simc_options(
             {
-                "gems": [{"itemId": 240916, "bonusId": 9727, "itemLevel": 707}],
+                "gems": [
+                    {"itemId": 240916, "bonusId": 9727, "itemLevel": 707},
+                    {"itemId": 240916, "bonusId": 9727, "itemLevel": 707},
+                    {"itemId": 240917, "bonusId": 9728, "itemLevel": 710},
+                ],
             }
         )
 
-        self.assertEqual(options["gem_id"], "240916")
-        self.assertEqual(options["gem_bonus_id"], "9727")
-        self.assertEqual(options["gem_ilevel"], "707")
+        self.assertEqual(options["gem_id"], "240916/240916/240917")
+        self.assertEqual(options["gem_bonus_id"], "9727/9727/9728")
+        self.assertEqual(options["gem_ilevel"], "707/707/710")
+
+    def test_observed_gear_simc_options_drops_misaligned_auxiliary_gem_sequences(self):
+        options = self.websim_payload.observed_gear_simc_options(
+            {
+                "gems": [
+                    {"itemId": 240916, "bonusId": 9727, "itemLevel": 707},
+                    {"itemId": 240917},
+                ],
+            }
+        )
+
+        self.assertEqual(options["gem_id"], "240916/240917")
+        self.assertNotIn("gem_bonus_id", options)
+        self.assertNotIn("gem_ilevel", options)
 
     def test_simc_json_gear_stats_by_slot_extracts_resolved_item_stats(self):
         simc_json = {
@@ -23421,11 +23930,14 @@ class WebSimPayloadTest(unittest.TestCase):
         return json.loads(fixture_path.read_text(encoding="utf-8"))
 
     def resolved_snapshot_for_facade(self):
-        from server import gear_resolver
+        from server import gear_resolver, gear_socket_authority
 
         parity = self.gear_resolver_facade_fixture()
         resolver_path = Path(__file__).parent / "fixtures" / parity["resolverFixturePath"]
         resolver_fixture = json.loads(resolver_path.read_text(encoding="utf-8"))
+        resolver_fixture["authorityContext"]["dependencyVector"][
+            "capabilityRevision"
+        ] = gear_socket_authority.LEGACY_CAPABILITY_REVISION
         snapshot = gear_resolver.resolve(
             resolver_fixture["intent"], resolver_fixture["authorityContext"]
         )
@@ -23493,6 +24005,224 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertIn("gem_id=gem-haste", result["profile"])
         self.assertNotIn("forged", result["profile"])
         self.assertEqual(result["profileReadiness"], snapshot["profileReadiness"])
+
+    def test_midnight_mage_resolved_profile_keeps_complete_canonical_8_6_2_enhancements(self):
+        from server import gear_resolver
+        from tests.gear_resolver_test import build_midnight_mage_resolver_fixture
+
+        fixture = build_midnight_mage_resolver_fixture(
+            selected_gem_count=8,
+            include_reference_enhancements=True,
+        )
+        snapshot = gear_resolver.resolve(
+            fixture["intent"], fixture["authorityContext"]
+        )
+        reference = fixture["referenceContract"]
+        embellishment_seeds = {
+            seed["key"]: seed
+            for seed in self.websim_payload.MIDNIGHT_OPTIONAL_EMBELLISHMENT_SEEDS
+        }
+        selected_embellishments = [
+            enhancement["embellishment"]
+            for enhancement in reference["canonicalEnhancementBySlot"].values()
+            if enhancement.get("embellishment")
+        ]
+        self.assertEqual(
+            selected_embellishments,
+            ["arcanoweave_lining", "arcanoweave_lining"],
+        )
+        self.assertTrue(
+            all(key in embellishment_seeds for key in selected_embellishments)
+        )
+        self.assertEqual(
+            embellishment_seeds["arcanoweave_lining"]["slotGroup"], "armor"
+        )
+        replacement_embellishment = reference["replacementValues"]["embellishment"]
+        self.assertEqual(replacement_embellishment, "blessed_pango_charm")
+        self.assertEqual(
+            embellishment_seeds[replacement_embellishment]["slotGroup"],
+            "equipment",
+        )
+        source_context = {
+            "classKey": "mage",
+            "specKey": "frost",
+            "level": 90,
+            "race": "human",
+            "name": "Observed Frost Mage",
+            "talents": "C4DA",
+            "scenarioKey": "single",
+            "gearSelection": {
+                "items": [
+                    {
+                        "slot": "head",
+                        "itemId": "forged-client-item",
+                        "gem_id": "forged-client-gem",
+                        "simcReady": True,
+                    }
+                ]
+            },
+            "enhancementBySlot": {
+                "head": {
+                    "gem_id": "forged-client-gem",
+                    "enchant_id": "forged-client-enchant",
+                    "embellishment": "forged-client-embellishment",
+                }
+            },
+        }
+
+        result = self.websim_payload.build_websim_profile_response_from_resolved_snapshot(
+            snapshot, source_context
+        )
+
+        self.assertEqual(snapshot["status"], "verified")
+        self.assertEqual(result["status"], "resolved")
+        self.assertNotIn("forged-client", result["profile"])
+        gear_lines = {
+            line.split("=", 1)[0]: line
+            for line in result["profile"].splitlines()
+            if "=" in line
+            and line.split("=", 1)[0] in fixture["referenceContract"]["requiredSlots"]
+        }
+        self.assertEqual(
+            sorted(gear_lines), sorted(reference["requiredSlots"])
+        )
+        variants_by_slot = {
+            variant["slot"]: variant
+            for variant in fixture["sourceSnapshot"]["variants"]
+            if variant["itemId"] != "different-ring-one"
+        }
+        for slot in reference["requiredSlots"]:
+            variant = variants_by_slot[slot]
+            simc_options = variant["simcOptions"]
+            self.assertIn(f"id={variant['itemId']}", gear_lines[slot])
+            self.assertIn(f"ilevel={simc_options['ilevel']}", gear_lines[slot])
+            self.assertIn(f"bonus_id={simc_options['bonus_id']}", gear_lines[slot])
+        self.assertIn("gem_id=240892/240900", gear_lines["neck"])
+        self.assertIn("gem_id=240892/240983", gear_lines["finger1"])
+        gem_occurrences = [
+            gem_id
+            for line in gear_lines.values()
+            for option in line.split(",")
+            if option.startswith("gem_id=")
+            for gem_id in option.split("=", 1)[1].split("/")
+        ]
+        self.assertEqual(gem_occurrences.count("240983"), 1)
+        self.assertEqual(gem_occurrences.count("240892"), 4)
+        self.assertEqual(gem_occurrences.count("240916"), 2)
+        self.assertEqual(gem_occurrences.count("240900"), 1)
+        self.assertEqual(len(gem_occurrences), 8)
+        canonical_enchants = {
+            slot: enhancement["enchantId"]
+            for slot, enhancement in reference["canonicalEnhancementBySlot"].items()
+            if enhancement.get("enchantId")
+        }
+        self.assertEqual(
+            list(canonical_enchants),
+            ["back", "chest", "legs", "feet", "finger1", "finger2"],
+        )
+        for slot, enchant_id in canonical_enchants.items():
+            self.assertIn(f"enchant_id={enchant_id}", gear_lines[slot])
+        self.assertEqual(
+            sum(
+                bool(slot["selectedOptions"]["enchantOptionId"])
+                for slot in snapshot["resolvedSlots"].values()
+            ),
+            6,
+        )
+        # Four additional authority-owned raw source fields remain executable,
+        # but they are not governed editor selections and do not enter 6/8.
+        self.assertEqual(
+            sum("enchant_id=" in line for line in gear_lines.values()), 10
+        )
+        self.assertIn("enchant_id=8017", gear_lines["head"])
+        self.assertIn("enchant_id=8001", gear_lines["shoulder"])
+        self.assertIn("enchant_id=4223", gear_lines["waist"])
+        self.assertIn("enchant_id=8039/8052", gear_lines["main_hand"])
+        self.assertEqual(
+            sum("embellishment=" in line for line in gear_lines.values()), 2
+        )
+
+    def test_midnight_mage_resolved_profile_removes_cleared_canonical_fields_only(self):
+        from server import gear_resolver
+        from tests.gear_resolver_test import build_midnight_mage_resolver_fixture
+
+        fixture = build_midnight_mage_resolver_fixture(
+            selected_gem_count=8,
+            include_reference_enhancements=True,
+        )
+        fixture["intent"]["slots"]["head"]["gemOptionIds"] = []
+        fixture["intent"]["slots"]["back"]["enchantOptionId"] = ""
+        fixture["intent"]["slots"]["back"]["embellishmentOptionId"] = ""
+        snapshot = gear_resolver.resolve(
+            fixture["intent"], fixture["authorityContext"]
+        )
+
+        result = self.websim_payload.build_websim_profile_response_from_resolved_snapshot(
+            snapshot,
+            {
+                "classKey": "mage",
+                "specKey": "frost",
+                "level": 90,
+                "race": "human",
+                "name": "Observed Frost Mage edited",
+                "talents": "C4DA",
+                "scenarioKey": "single",
+            },
+        )
+
+        self.assertEqual(snapshot["status"], "verified")
+        self.assertEqual(result["status"], "resolved")
+        gear_lines = {
+            line.split("=", 1)[0]: line
+            for line in result["profile"].splitlines()
+            if "=" in line
+            and line.split("=", 1)[0] in fixture["referenceContract"]["requiredSlots"]
+        }
+        self.assertNotIn("gem_id=", gear_lines["head"])
+        self.assertNotIn("enchant_id=4897", gear_lines["back"])
+        self.assertNotIn("embellishment=arcanoweave_lining", gear_lines["back"])
+        self.assertIn("enchant_id=8017", gear_lines["head"])
+        self.assertIn("enchant_id=8001", gear_lines["shoulder"])
+        self.assertIn("enchant_id=4223", gear_lines["waist"])
+        self.assertIn("enchant_id=8039/8052", gear_lines["main_hand"])
+
+    def test_midnight_mage_resolved_profile_drops_unresolved_editable_raw_enchant(self):
+        from server import gear_resolver
+        from tests.gear_resolver_test import build_midnight_mage_resolver_fixture
+
+        fixture = build_midnight_mage_resolver_fixture(
+            selected_gem_count=8,
+            include_reference_enhancements=True,
+        )
+        back_key = fixture["intent"]["slots"]["back"]["variantKey"]
+        back_variant = fixture["authorityContext"]["variantsByKey"][back_key]
+        back_variant["simcOptions"]["enchant_id"] = "9999"
+        back_variant["enhancementManagement"]["fields"]["enchant_id"] = "unresolved_drop"
+        fixture["intent"]["slots"]["back"]["enchantOptionId"] = ""
+        snapshot = gear_resolver.resolve(
+            fixture["intent"], fixture["authorityContext"]
+        )
+
+        result = self.websim_payload.build_websim_profile_response_from_resolved_snapshot(
+            snapshot,
+            {
+                "classKey": "mage",
+                "specKey": "frost",
+                "level": 90,
+                "race": "human",
+                "name": "Observed Frost Mage unresolved raw",
+                "talents": "C4DA",
+                "scenarioKey": "single",
+            },
+        )
+
+        back_line = next(
+            line for line in result["profile"].splitlines() if line.startswith("back=")
+        )
+        self.assertEqual(snapshot["status"], "verified")
+        self.assertEqual(result["status"], "resolved")
+        self.assertNotIn("enchant_id=9999", back_line)
+        self.assertNotIn("enchant_id=", back_line)
 
     def test_resolved_snapshot_facade_matches_legacy_profile_golden(self):
         parity, snapshot = self.resolved_snapshot_for_facade()
@@ -23576,6 +24306,28 @@ class WebSimPayloadTest(unittest.TestCase):
                 authority["ruleParameters"]["weaponModesByClassSpec"][spec_id],
                 weapon_rule.get("mode"),
             )
+
+    def test_runtime_authority_advertises_current_and_supported_capability_revisions(self):
+        from server import gear_release_tool, gear_socket_authority
+
+        authority = self.websim_payload.gear_resolver_runtime_authority(
+            "mage", "arcane", simc_runtime_revision="simc-v1"
+        )
+
+        self.assertEqual(
+            authority["dependencyRevisions"]["capabilityRevision"],
+            gear_socket_authority.CAPABILITY_REVISION,
+        )
+        self.assertEqual(
+            authority["supportedCapabilityRevisions"],
+            list(gear_socket_authority.SUPPORTED_CAPABILITY_REVISIONS),
+        )
+        self.assertEqual(
+            gear_release_tool.runtime_dependency_revisions("simc-v1")[
+                "capabilityRevision"
+            ],
+            gear_socket_authority.CAPABILITY_REVISION,
+        )
 
     def test_runtime_authority_requires_current_simc_runtime_revision(self):
         with self.assertRaises(ValueError):

@@ -773,16 +773,6 @@
   overflow-wrap: anywhere;
 }
 
-.gear-attribute-inherited {
-  display: block;
-  min-width: 0;
-  color: #d9a441;
-  font-size: 16rpx;
-  font-weight: 800;
-  line-height: 1.2;
-  overflow-wrap: anywhere;
-}
-
 .gear-attribute-cell.pending .gear-attribute-value {
   color: rgba(255, 255, 255, 0.48);
 }
@@ -1556,34 +1546,6 @@
   background: #181818;
 }
 
-.gear-enhancement-inherited-row {
-  margin-top: 12rpx;
-  padding: 14rpx;
-  border: 1rpx solid rgba(217, 164, 65, 0.28);
-  border-radius: 12rpx;
-  background: rgba(217, 164, 65, 0.08);
-}
-
-.gear-enhancement-inherited-type,
-.gear-enhancement-inherited-state {
-  display: block;
-  overflow-wrap: anywhere;
-}
-
-.gear-enhancement-inherited-type {
-  color: #f8b700;
-  font-size: 20rpx;
-  font-weight: 900;
-}
-
-.gear-enhancement-inherited-state {
-  margin-top: 6rpx;
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 18rpx;
-  font-weight: 800;
-  line-height: 1.3;
-}
-
 .gear-enhancement-slot,
 .gear-enhancement-empty,
 .gear-enhancement-blocker {
@@ -1595,6 +1557,23 @@
   color: #f8b700;
   font-size: 20rpx;
   font-weight: 900;
+}
+
+.gear-enhancement-socket-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12rpx;
+}
+
+.gear-enhancement-socket-state {
+  min-width: 0;
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 18rpx;
+  font-weight: 800;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  text-align: right;
 }
 
 .gear-enhancement-options {

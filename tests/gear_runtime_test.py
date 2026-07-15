@@ -6,7 +6,7 @@ import sys
 import unittest
 from unittest.mock import patch
 
-from server import gear_runtime
+from server import gear_runtime, gear_socket_authority
 
 
 FIXTURE_PATH = Path(__file__).parent / "fixtures" / "gear-resolver-complete-authority-v1.json"
@@ -49,7 +49,11 @@ class FakeCandidateStore(FakeStore):
 
 class GearRuntimeTest(unittest.TestCase):
     def fixture(self):
-        return json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
+        fixture = json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
+        fixture["authorityContext"]["dependencyVector"]["capabilityRevision"] = (
+            gear_socket_authority.LEGACY_CAPABILITY_REVISION
+        )
+        return fixture
 
     def resolve(self, fixture=None, *, store=None, request_id="request-test"):
         fixture = fixture or self.fixture()
@@ -137,6 +141,17 @@ class GearRuntimeTest(unittest.TestCase):
         )
         self.assertEqual(envelope["releaseContext"]["talentCatalogRevision"], "talent-catalog:r17")
         self.assertTrue(envelope["releaseContext"]["formalActiveManifest"])
+
+    def test_release_context_exposes_capability_revision(self):
+        fixture = self.fixture()
+
+        _store, status, envelope = self.resolve(fixture)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(
+            envelope["releaseContext"]["capabilityRevision"],
+            gear_socket_authority.LEGACY_CAPABILITY_REVISION,
+        )
 
     def test_resolve_and_profile_transport_backend_embellishment_limit(self):
         fixture = self.fixture()

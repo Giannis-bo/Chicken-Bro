@@ -66,6 +66,7 @@ _REQUIRED_DEPENDENCY_FIELDS = (
     "simcRuntimeRevision",
     "statPolicyRevision",
     "selectionSchemaRevision",
+    "capabilityRevision",
 )
 _OPTIONAL_COMMUNITY_DEPENDENCY_FIELDS = (
     "communityTemplateReleaseId",
@@ -113,6 +114,7 @@ class SelectionIntent(TypedDict):
 
 
 class DependencyVector(TypedDict):
+    capabilityRevision: str
     gearCatalogReleaseId: str
     gearCatalogRevision: str
     gearRuleRevision: str
@@ -418,6 +420,7 @@ def resolved_gear_signature(selection_signature_value: str, dependency_vector: d
                     "gearRuleRevision",
                     "resolverContractRevision",
                     "selectionSchemaRevision",
+                    "capabilityRevision",
                 )
             },
         }

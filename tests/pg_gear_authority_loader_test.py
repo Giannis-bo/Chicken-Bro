@@ -6,7 +6,7 @@ import subprocess
 import sys
 import unittest
 
-from server import pg_gear_authority_loader
+from server import gear_resolver, gear_socket_authority, pg_gear_authority_loader
 
 
 class FakeCursor:
@@ -89,6 +89,7 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
             "simcRuntimeRevision": "simc-v1",
             "statPolicyRevision": "stat-snapshot-policy-v1",
             "selectionSchemaRevision": "selection-intent-v1",
+            "capabilityRevision": gear_socket_authority.CAPABILITY_REVISION,
         }
         revisions.update(revision_overrides)
         return {
@@ -216,13 +217,428 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
 
     def load(self, cursor=None, intent=None, runtime=None, cache=None):
         cursor = cursor or self.cursor()
+        if runtime is None:
+            runtime = self.runtime_authority(
+                capabilityRevision=gear_socket_authority.LEGACY_CAPABILITY_REVISION
+            )
         context = pg_gear_authority_loader.load_gear_authority_context(
             cursor,
             intent or self.intent(),
-            runtime or self.runtime_authority(),
+            runtime,
             cache=cache,
         )
         return cursor, context
+
+    def released_context(
+        self,
+        *,
+        capability_revision,
+        item_rows=None,
+        option_rows=None,
+        intent=None,
+        runtime=None,
+    ):
+        runtime = runtime or self.runtime_authority()
+        catalog_revision = self.catalog_revision()
+        dependency_vector = {
+            "seasonRevision": "season-17-active",
+            "gearCatalogReleaseId": "gear-release-17",
+            "gearCatalogRevision": catalog_revision,
+            **runtime["dependencyRevisions"],
+            "capabilityRevision": capability_revision,
+        }
+        return pg_gear_authority_loader.build_gear_authority_context_from_rows(
+            intent or self.intent(),
+            runtime,
+            manifest={
+                "contractRevision": "active-season-manifest-v1",
+                "manifestType": "active",
+                "formalActiveManifest": True,
+                "seasonRevision": "season-17-active",
+                "gearCatalogReleaseId": "gear-release-17",
+                "gearCatalogRevision": catalog_revision,
+            },
+            dependency_vector=dependency_vector,
+            item_rows=item_rows if item_rows is not None else [self.item_row()],
+            option_rows=option_rows if option_rows is not None else [],
+        )
+
+    def test_released_context_projects_immutable_editor_managed_simc_fields(self):
+        def row_for(management):
+            return self.item_row(variant={
+                "simcOptions": {
+                    "ilevel": "289",
+                    "bonus_id": "head-bonus",
+                    "enchant_id": "4897",
+                },
+                "payload": {
+                    "resolvedStats": {"strength": 90, "stamina": 130},
+                    "itemSetId": "set:authority",
+                    "enhancementManagement": management,
+                },
+            })
+
+        valid_management = {
+            "schemaRevision": "gear-enhancement-management-v1",
+            "authorityRevision": gear_socket_authority.CAPABILITY_REVISION,
+            "fields": {"enchant_id": "editor_managed"},
+        }
+
+        context = self.released_context(
+            capability_revision=gear_socket_authority.CAPABILITY_REVISION,
+            item_rows=[row_for(valid_management)],
+            option_rows=[],
+        )
+
+        self.assertEqual(
+            context["variantsByKey"]["variant-head"]["enhancementManagement"],
+            valid_management,
+        )
+
+        invalid = self.released_context(
+            capability_revision=gear_socket_authority.CAPABILITY_REVISION,
+            item_rows=[row_for({**valid_management, "schemaRevision": "forged-v0"})],
+            option_rows=[],
+        )
+        self.assertNotIn(
+            "enhancementManagement",
+            invalid["variantsByKey"]["variant-head"],
+        )
+
+        invalid_enum = self.released_context(
+            capability_revision=gear_socket_authority.CAPABILITY_REVISION,
+            item_rows=[row_for({
+                **valid_management,
+                "fields": {"enchant_id": "trust_me"},
+            })],
+            option_rows=[],
+        )
+        self.assertNotIn(
+            "enhancementManagement",
+            invalid_enum["variantsByKey"]["variant-head"],
+        )
+
+        legacy = self.released_context(
+            capability_revision=gear_socket_authority.LEGACY_CAPABILITY_REVISION,
+            item_rows=[row_for(valid_management)],
+            option_rows=[],
+        )
+        self.assertNotIn(
+            "enhancementManagement",
+            legacy["variantsByKey"]["variant-head"],
+        )
+
+    def test_v2_source_only_built_in_projects_noneditable_resolver_capability(self):
+        management = {
+            "schemaRevision": "gear-enhancement-management-v1",
+            "authorityRevision": gear_socket_authority.CAPABILITY_REVISION,
+            "fields": {"embellishment": "source_only"},
+        }
+        row = self.item_row(
+            item={
+                "payload": {
+                    "inventoryType": "head",
+                    "armorType": "plate",
+                    "baseStats": {"strength": 80, "stamina": 120},
+                    "itemSetId": "set:authority",
+                    "socketCount": 1,
+                    "canEnchant": False,
+                    "canEmbellish": True,
+                },
+            },
+            variant={
+                "simcOptions": {
+                    "ilevel": "289",
+                    "bonus_id": "head-bonus",
+                    "embellishment": "built_in_effect",
+                },
+                "payload": {
+                    "resolvedStats": {"strength": 90, "stamina": 130},
+                    "itemSetId": "set:authority",
+                    "capabilityOverrides": {"canEmbellish": True},
+                    "enhancementManagement": management,
+                },
+            },
+        )
+        intent = self.intent()
+        intent["slots"]["head"]["gemOptionIds"] = []
+        context = self.released_context(
+            capability_revision=gear_socket_authority.CAPABILITY_REVISION,
+            item_rows=[row],
+            option_rows=[self.option_row()],
+            intent=intent,
+        )
+
+        result = gear_resolver.resolve(intent, context)
+
+        self.assertEqual(
+            context["variantsByKey"]["variant-head"]["enhancementManagement"],
+            management,
+        )
+        self.assertFalse(
+            context["variantsByKey"]["variant-head"]["capabilityOverrides"][
+                "canEmbellish"
+            ]
+        )
+        self.assertEqual(result["status"], "verified")
+        self.assertFalse(result["constraints"]["slots"]["head"]["canEmbellish"])
+        self.assertEqual(result["constraints"]["embellishmentBuiltInUsed"], 1)
+        self.assertEqual(result["constraints"]["embellishmentSelectedUsed"], 0)
+        self.assertEqual(result["constraints"]["embellishmentUsed"], 1)
+
+    def test_v2_unresolved_embellishment_conflict_drops_raw_and_cannot_create_capability_or_usage(self):
+        management = {
+            "schemaRevision": "gear-enhancement-management-v1",
+            "authorityRevision": gear_socket_authority.CAPABILITY_REVISION,
+            "fields": {"embellishment": "unresolved_drop"},
+        }
+        row = self.item_row(
+            item={
+                "payload": {
+                    "inventoryType": "head",
+                    "armorType": "plate",
+                    "baseStats": {"strength": 80, "stamina": 120},
+                    "itemSetId": "set:authority",
+                    "socketCount": 1,
+                    "canEnchant": False,
+                    "canEmbellish": True,
+                },
+            },
+            variant={
+                "simcOptions": {
+                    "ilevel": "289",
+                    "bonus_id": "head-bonus",
+                    "embellishment": "conflicting_effect",
+                },
+                "payload": {
+                    "resolvedStats": {"strength": 90, "stamina": 130},
+                    "itemSetId": "set:authority",
+                    "capabilityOverrides": {"canEmbellish": False},
+                    "enhancementManagement": management,
+                },
+            },
+        )
+        intent = self.intent()
+        intent["slots"]["head"]["gemOptionIds"] = []
+        context = self.released_context(
+            capability_revision=gear_socket_authority.CAPABILITY_REVISION,
+            item_rows=[row],
+            option_rows=[self.option_row()],
+            intent=intent,
+        )
+
+        result = gear_resolver.resolve(intent, context)
+
+        self.assertFalse(
+            context["variantsByKey"]["variant-head"]["capabilityOverrides"][
+                "canEmbellish"
+            ]
+        )
+        self.assertEqual(result["status"], "verified")
+        self.assertFalse(result["constraints"]["slots"]["head"]["canEmbellish"])
+        self.assertEqual(result["constraints"]["embellishmentBuiltInUsed"], 0)
+        self.assertEqual(result["constraints"]["embellishmentSelectedUsed"], 0)
+        self.assertEqual(result["constraints"]["embellishmentUsed"], 0)
+        self.assertNotIn(
+            "embellishment",
+            result["resolvedSlots"]["head"]["simcOptions"],
+        )
+        self.assertNotIn("conflicting_effect", str(result["serializerInput"]))
+
+    def test_v2_unknown_unresolved_embellishment_drops_raw_but_keeps_proven_editability(self):
+        management = {
+            "schemaRevision": "gear-enhancement-management-v1",
+            "authorityRevision": gear_socket_authority.CAPABILITY_REVISION,
+            "fields": {"embellishment": "unresolved_drop"},
+        }
+        row = self.item_row(
+            item={
+                "payload": {
+                    "inventoryType": "head",
+                    "armorType": "plate",
+                    "baseStats": {"strength": 80, "stamina": 120},
+                    "itemSetId": "set:authority",
+                    "socketCount": 1,
+                    "canEnchant": False,
+                    "canEmbellish": True,
+                },
+            },
+            variant={
+                "simcOptions": {
+                    "ilevel": "289",
+                    "bonus_id": "head-bonus",
+                    "embellishment": "unknown_catalog_effect",
+                },
+                "payload": {
+                    "resolvedStats": {"strength": 90, "stamina": 130},
+                    "itemSetId": "set:authority",
+                    "capabilityOverrides": {"canEmbellish": True},
+                    "enhancementManagement": management,
+                },
+            },
+        )
+        intent = self.intent()
+        intent["slots"]["head"]["gemOptionIds"] = []
+        context = self.released_context(
+            capability_revision=gear_socket_authority.CAPABILITY_REVISION,
+            item_rows=[row],
+            option_rows=[self.option_row()],
+            intent=intent,
+        )
+
+        result = gear_resolver.resolve(intent, context)
+
+        self.assertTrue(
+            context["variantsByKey"]["variant-head"]["capabilityOverrides"][
+                "canEmbellish"
+            ]
+        )
+        self.assertEqual(result["status"], "verified")
+        self.assertTrue(result["constraints"]["slots"]["head"]["canEmbellish"])
+        self.assertEqual(result["constraints"]["embellishmentUsed"], 0)
+        self.assertNotIn(
+            "embellishment",
+            result["resolvedSlots"]["head"]["simcOptions"],
+        )
+        self.assertNotIn("unknown_catalog_effect", str(result["serializerInput"]))
+
+    def test_loader_projects_only_strict_positive_integer_unique_limits(self):
+        for name, raw_limit, expected in (
+            ("boolean", True, 0),
+            ("float", 1.5, 0),
+            ("junk", "1bad", 0),
+            ("leading zero", "01", 0),
+            ("zero", 0, 0),
+            ("negative", -1, 0),
+            ("integer", 1, 1),
+            ("decimal string", "2", 2),
+        ):
+            with self.subTest(name=name):
+                item_row = list(copy.deepcopy(self.item_row()))
+                item_row[2]["payload"]["uniqueGroupId"] = "item_group"
+                item_row[2]["payload"]["uniqueLimit"] = raw_limit
+                option_row = self.option_row(
+                    payload={
+                        "statDeltas": {},
+                        "uniqueGroup": "gem_group",
+                        "uniqueLimit": raw_limit,
+                    }
+                )
+
+                _cursor, context = self.load(
+                    cursor=self.cursor(
+                        item_rows=[tuple(item_row)],
+                        option_rows=[option_row],
+                    )
+                )
+
+                self.assertEqual(
+                    context["itemsById"]["item-head"]["uniqueLimit"],
+                    expected,
+                )
+                self.assertEqual(
+                    context["optionsById"]["gem-haste"]["uniqueLimit"],
+                    expected,
+                )
+
+        for name, raw_group, expected in (
+            ("boolean", True, ""),
+            ("float", 1.5, ""),
+            ("numeric", 123, ""),
+            ("blank", "   ", ""),
+            ("trimmed string", " explicit_group ", "explicit_group"),
+        ):
+            with self.subTest(group=name):
+                item_row = list(copy.deepcopy(self.item_row()))
+                item_row[2]["payload"]["uniqueGroupId"] = raw_group
+                item_row[2]["payload"]["uniqueLimit"] = 1
+                option_row = self.option_row(
+                    simcOptions={"gem_id": "240983"},
+                    payload={
+                        "statDeltas": {},
+                        "uniqueGroup": raw_group,
+                        "uniqueLimit": 1,
+                    },
+                )
+                _cursor, context = self.load(
+                    cursor=self.cursor(
+                        item_rows=[tuple(item_row)],
+                        option_rows=[option_row],
+                    )
+                )
+                self.assertEqual(
+                    context["itemsById"]["item-head"]["uniqueGroupId"],
+                    expected,
+                )
+                self.assertEqual(
+                    context["optionsById"]["gem-haste"]["uniqueGroupId"],
+                    expected,
+                )
+
+        _cursor, no_metadata = self.load(
+            cursor=self.cursor(
+                option_rows=[
+                    self.option_row(
+                        simcOptions={"gem_id": "240983"},
+                        payload={"statDeltas": {}},
+                    )
+                ]
+            )
+        )
+        self.assertEqual(
+            no_metadata["optionsById"]["gem-haste"]["uniqueGroupId"],
+            "",
+        )
+        self.assertEqual(
+            no_metadata["optionsById"]["gem-haste"]["uniqueLimit"],
+            0,
+        )
+
+    def test_loader_aggregates_option_unique_metadata_and_drops_group_conflicts(self):
+        for name, top_limit in (
+            ("top two payload one", 2),
+            ("top junk payload one", "junk"),
+            ("top bool payload one", True),
+        ):
+            with self.subTest(name=name):
+                option_id, record = self.option_row(
+                    uniqueGroup="explicit_group",
+                    uniqueLimit=top_limit,
+                    payload={
+                        "statDeltas": {},
+                        "uniqueGroup": "explicit_group",
+                        "uniqueLimit": 1,
+                    },
+                )
+                _cursor, context = self.load(
+                    cursor=self.cursor(option_rows=[(option_id, record)])
+                )
+                self.assertEqual(
+                    context["optionsById"]["gem-haste"]["uniqueGroupId"],
+                    "explicit_group",
+                )
+                self.assertEqual(
+                    context["optionsById"]["gem-haste"]["uniqueLimit"],
+                    1,
+                )
+
+        option_id, conflicting = self.option_row(
+            uniqueGroup="group_a",
+            uniqueLimit=1,
+            payload={
+                "statDeltas": {},
+                "uniqueGroup": "group_b",
+                "uniqueLimit": 1,
+            },
+        )
+        _cursor, context = self.load(
+            cursor=self.cursor(option_rows=[(option_id, conflicting)])
+        )
+        self.assertNotIn("gem-haste", context["optionsById"])
+        self.assertNotIn(
+            "gem-haste",
+            context["itemsById"]["item-head"]["allowedGemOptionIds"],
+        )
 
     def test_loader_executes_three_cold_queries_for_one_or_sixteen_slots(self):
         cursor, _context = self.load()
@@ -279,6 +695,7 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
                     "simcRuntimeRevision",
                     "statPolicyRevision",
                     "selectionSchemaRevision",
+                    "capabilityRevision",
                 )
             },
         )
@@ -502,7 +919,9 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
                 }
             }
         )
-        runtime = self.runtime_authority()
+        runtime = self.runtime_authority(
+            capabilityRevision=gear_socket_authority.LEGACY_CAPABILITY_REVISION
+        )
         runtime["ruleParameters"]["inventoryTypesBySlot"] = {"finger1": ["finger1"]}
         runtime["ruleParameters"]["requiredSlots"] = ["finger1"]
 
@@ -519,6 +938,680 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
         self.assertEqual(item["socketCount"], 1)
         self.assertEqual(snapshot["constraints"]["slots"]["finger1"]["socketCount"], 1)
         self.assertTrue(snapshot["constraints"]["slots"]["finger1"]["canEnchant"])
+
+    def test_v2_base_capability_uses_materialized_item_socket_fact(self):
+        valid_evidence = {
+            "schemaRevision": gear_socket_authority.SOCKET_FACT_SCHEMA_REVISION,
+            "authorityRevision": gear_socket_authority.CAPABILITY_REVISION,
+            "minimumTotal": 2,
+            "claims": [
+                {
+                    "minimumTotal": 2,
+                    "scope": "exact_item",
+                    "source": "official_item_payload",
+                    "sourceRevision": "official-item-r1",
+                }
+            ],
+        }
+        row = self.item_row(
+            item={
+                "payload": {
+                    "inventoryType": "head",
+                    "armorType": "plate",
+                    "baseStats": {"strength": 80},
+                    "baseCapabilities": {
+                        "socketCount": 2,
+                        "canEnchant": True,
+                        "canEmbellish": True,
+                    },
+                    "socketEvidence": valid_evidence,
+                    "socketCount": 1,
+                }
+            }
+        )
+
+        context = self.released_context(
+            capability_revision=gear_socket_authority.CAPABILITY_REVISION,
+            item_rows=[row],
+        )
+
+        capabilities = context["itemsById"]["item-head"]["baseCapabilities"]
+        self.assertEqual(capabilities["socketCount"], 2)
+        self.assertTrue(capabilities["canEnchant"])
+        self.assertTrue(capabilities["canEmbellish"])
+
+        invalid_facts = (
+            ("missing", None, 2),
+            (
+                "wrong-schema",
+                {**valid_evidence, "schemaRevision": "future-socket-fact"},
+                2,
+            ),
+            (
+                "wrong-authority",
+                {**valid_evidence, "authorityRevision": "future-capability"},
+                2,
+            ),
+            ("contradictory-total", {**valid_evidence, "minimumTotal": 1}, 2),
+            ("missing-provenance", {**valid_evidence, "claims": []}, 2),
+            (
+                "malformed-provenance",
+                {
+                    **valid_evidence,
+                    "claims": [
+                        {
+                            "minimumTotal": 2,
+                            "scope": "",
+                            "source": "official_item_payload",
+                            "sourceRevision": "official-item-r1",
+                        }
+                    ],
+                },
+                2,
+            ),
+            ("boolean-count", valid_evidence, True),
+            ("string-count", valid_evidence, "2"),
+            ("negative-count", {**valid_evidence, "minimumTotal": -1}, -1),
+        )
+        for label, evidence, socket_count in invalid_facts:
+            with self.subTest(label=label):
+                payload = {
+                    "inventoryType": "head",
+                    "armorType": "plate",
+                    "baseStats": {"strength": 80},
+                    "baseCapabilities": {
+                        "socketCount": socket_count,
+                        "canEnchant": True,
+                        "canEmbellish": True,
+                    },
+                }
+                if evidence is not None:
+                    payload["socketEvidence"] = evidence
+                invalid = self.item_row(item={"payload": payload})
+                invalid_context = self.released_context(
+                    capability_revision=gear_socket_authority.CAPABILITY_REVISION,
+                    item_rows=[invalid],
+                )
+                invalid_capabilities = invalid_context["itemsById"]["item-head"][
+                    "baseCapabilities"
+                ]
+                self.assertEqual(invalid_capabilities["socketCount"], 0)
+                self.assertTrue(invalid_capabilities["canEnchant"])
+                self.assertTrue(invalid_capabilities["canEmbellish"])
+
+    def test_v2_exact_variant_uses_materialized_socket_override(self):
+        from server import gear_resolver
+
+        valid_evidence = {
+            "schemaRevision": gear_socket_authority.SOCKET_FACT_SCHEMA_REVISION,
+            "authorityRevision": gear_socket_authority.CAPABILITY_REVISION,
+            "minimumTotal": 2,
+            "claims": [
+                {
+                    "minimumTotal": 2,
+                    "scope": "exact_variant",
+                    "source": "observed_gem_occupancy",
+                    "sourceRevision": "observed-variant-r1",
+                }
+            ],
+        }
+        row = self.item_row(
+            item={
+                "payload": {
+                    "inventoryType": "head",
+                    "armorType": "plate",
+                    "baseStats": {"strength": 80},
+                    "baseCapabilities": {"socketCount": 1},
+                    "socketEvidence": {
+                        "schemaRevision": gear_socket_authority.SOCKET_FACT_SCHEMA_REVISION,
+                        "authorityRevision": gear_socket_authority.CAPABILITY_REVISION,
+                        "minimumTotal": 1,
+                        "claims": [
+                            {
+                                "minimumTotal": 1,
+                                "scope": "exact_item",
+                                "source": "official_item_payload",
+                                "sourceRevision": "official-item-r1",
+                            }
+                        ],
+                    },
+                }
+            },
+            variant={
+                "simcOptions": {"ilevel": "289", "gem_id": "240892/240900/240983"},
+                "payload": {
+                    "resolvedStats": {"strength": 90},
+                    "capabilityOverrides": {
+                        "socketCount": 2,
+                        "canEmbellish": False,
+                    },
+                    "socketEvidence": valid_evidence,
+                    "overlay": {
+                        "status": "verified",
+                        "sourceRefIds": ["evidence:pg:source:source-row-head"],
+                        "statDeltas": {"haste": 5},
+                        "capabilityOverrides": {
+                            "socketCount": 9,
+                            "canEmbellish": True,
+                        },
+                    },
+                },
+            },
+        )
+        one_socket = copy.deepcopy(list(row))
+        one_socket[1] = "variant-head-one"
+        one_socket[3]["id"] = "variant-row-head-one"
+        one_socket[3]["variantKey"] = "variant-head-one"
+        one_socket[3]["simcOptions"] = {"ilevel": "289", "gem_id": "240892/240900"}
+        one_socket[3]["payload"]["capabilityOverrides"]["socketCount"] = 1
+        one_socket[3]["payload"]["socketEvidence"]["minimumTotal"] = 1
+        one_socket[3]["payload"]["socketEvidence"]["claims"][0][
+            "minimumTotal"
+        ] = 1
+
+        context = self.released_context(
+            capability_revision=gear_socket_authority.CAPABILITY_REVISION,
+            item_rows=[row, tuple(one_socket)],
+        )
+
+        overrides = context["variantsByKey"]["variant-head"]["capabilityOverrides"]
+        self.assertEqual(overrides["socketCount"], 2)
+        self.assertFalse(overrides["canEmbellish"])
+        self.assertEqual(
+            context["variantsByKey"]["variant-head-one"]["capabilityOverrides"][
+                "socketCount"
+            ],
+            1,
+        )
+
+        gem_ids = ["gem-haste", "gem-mastery", "gem-crit"]
+        intent = self.intent()
+        intent["slots"]["head"]["gemOptionIds"] = gem_ids
+        option_rows = []
+        for index, option_id in enumerate(gem_ids, start=1):
+            _default_key, option = self.option_row(
+                id=f"option-row-{option_id}",
+                optionKey=option_id,
+                name=f"Gem {index}",
+                simcOptions={"gem_id": str(240000 + index)},
+            )
+            option_rows.append((option_id, option))
+        chain_context = self.released_context(
+            capability_revision=gear_socket_authority.CAPABILITY_REVISION,
+            item_rows=[row],
+            option_rows=option_rows,
+            intent=intent,
+        )
+
+        snapshot = gear_resolver.resolve(intent, chain_context)
+
+        self.assertEqual(snapshot["status"], "blocked")
+        self.assertEqual(
+            snapshot["constraints"]["slots"]["head"]["socketCount"],
+            2,
+        )
+        socket_rule = next(
+            result
+            for result in snapshot["ruleResults"]
+            if result["ruleId"] == "socket_and_gem"
+        )
+        self.assertEqual(socket_rule["status"], "blocked")
+        self.assertEqual(
+            socket_rule["problems"][0]["code"],
+            "GEAR_GEM_SOCKET_CAPACITY_EXCEEDED",
+        )
+        projected_overlay = chain_context["variantsByKey"]["variant-head"][
+            "overlay"
+        ]
+        self.assertEqual(projected_overlay["statDeltas"], {"haste": 5})
+        self.assertTrue(
+            projected_overlay["capabilityOverrides"]["canEmbellish"]
+        )
+        self.assertNotIn(
+            "socketCount",
+            projected_overlay["capabilityOverrides"],
+        )
+
+        zero_socket = copy.deepcopy(list(row))
+        zero_socket[1] = "variant-head-zero"
+        zero_socket[3]["id"] = "variant-row-head-zero"
+        zero_socket[3]["variantKey"] = "variant-head-zero"
+        zero_socket[3]["payload"]["capabilityOverrides"]["socketCount"] = 0
+        zero_socket[3]["payload"]["socketEvidence"]["minimumTotal"] = 0
+        zero_socket[3]["payload"]["socketEvidence"]["claims"] = []
+        zero_context = self.released_context(
+            capability_revision=gear_socket_authority.CAPABILITY_REVISION,
+            item_rows=[tuple(zero_socket)],
+        )
+        self.assertNotIn(
+            "socketCount",
+            zero_context["variantsByKey"]["variant-head-zero"][
+                "capabilityOverrides"
+            ],
+        )
+
+        invalid_facts = (
+            ("missing", None, 2),
+            (
+                "wrong-schema",
+                {**valid_evidence, "schemaRevision": "future-socket-fact"},
+                2,
+            ),
+            (
+                "wrong-authority",
+                {**valid_evidence, "authorityRevision": "future-capability"},
+                2,
+            ),
+            ("contradictory-total", {**valid_evidence, "minimumTotal": 1}, 2),
+            ("missing-provenance", {**valid_evidence, "claims": []}, 2),
+            (
+                "malformed-provenance",
+                {
+                    **valid_evidence,
+                    "claims": [
+                        {
+                            "minimumTotal": 2,
+                            "scope": "exact_variant",
+                            "source": "",
+                            "sourceRevision": "observed-variant-r1",
+                        }
+                    ],
+                },
+                2,
+            ),
+            ("boolean-count", valid_evidence, True),
+            ("string-count", valid_evidence, "2"),
+            ("negative-count", {**valid_evidence, "minimumTotal": -1}, -1),
+        )
+        for label, evidence, socket_count in invalid_facts:
+            with self.subTest(label=label):
+                invalid = copy.deepcopy(list(row))
+                invalid[3]["payload"]["capabilityOverrides"]["socketCount"] = (
+                    socket_count
+                )
+                if evidence is None:
+                    invalid[3]["payload"].pop("socketEvidence")
+                else:
+                    invalid[3]["payload"]["socketEvidence"] = evidence
+                invalid_context = self.released_context(
+                    capability_revision=gear_socket_authority.CAPABILITY_REVISION,
+                    item_rows=[tuple(invalid)],
+                )
+                invalid_overrides = invalid_context["variantsByKey"]["variant-head"][
+                    "capabilityOverrides"
+                ]
+                self.assertNotIn("socketCount", invalid_overrides)
+                self.assertFalse(invalid_overrides["canEmbellish"])
+
+    def test_v2_raw_gem_sequence_without_socket_fact_does_not_create_capacity(self):
+        from server import gear_resolver
+
+        row = self.item_row(
+            item={
+                "payload": {
+                    "inventoryType": "head",
+                    "armorType": "plate",
+                    "baseStats": {"strength": 80},
+                    "baseCapabilities": {"socketCount": 1},
+                    "socketEvidence": {
+                        "schemaRevision": gear_socket_authority.SOCKET_FACT_SCHEMA_REVISION,
+                        "authorityRevision": gear_socket_authority.CAPABILITY_REVISION,
+                        "minimumTotal": 1,
+                        "claims": [
+                            {
+                                "minimumTotal": 1,
+                                "scope": "exact_item",
+                                "source": "official_item_payload",
+                                "sourceRevision": "official-item-r1",
+                            }
+                        ],
+                    },
+                }
+            },
+            variant={
+                "simcOptions": {"ilevel": "289", "gem_id": "240892/240900"},
+                "payload": {
+                    "resolvedStats": {"strength": 90},
+                    "capabilityOverrides": {"canEmbellish": False},
+                },
+            },
+        )
+        intent = self.intent()
+        intent["slots"]["head"]["gemOptionIds"] = []
+
+        context = self.released_context(
+            capability_revision=gear_socket_authority.CAPABILITY_REVISION,
+            item_rows=[row],
+            intent=intent,
+        )
+        snapshot = gear_resolver.resolve(intent, context)
+
+        self.assertEqual(context["itemsById"]["item-head"]["socketCount"], 1)
+        overrides = context["variantsByKey"]["variant-head"]["capabilityOverrides"]
+        self.assertNotIn("socketCount", overrides)
+        self.assertFalse(overrides["canEmbellish"])
+        self.assertEqual(snapshot["status"], "verified")
+        self.assertEqual(snapshot["constraints"]["slots"]["head"]["socketCount"], 1)
+
+    def test_v2_same_authority_context_keeps_exact_and_raw_sibling_socket_capacity_isolated(self):
+        from server import gear_resolver
+
+        zero_socket_evidence = {
+            "schemaRevision": gear_socket_authority.SOCKET_FACT_SCHEMA_REVISION,
+            "authorityRevision": gear_socket_authority.CAPABILITY_REVISION,
+            "minimumTotal": 0,
+            "claims": [],
+        }
+        exact_socket_evidence = {
+            "schemaRevision": gear_socket_authority.SOCKET_FACT_SCHEMA_REVISION,
+            "authorityRevision": gear_socket_authority.CAPABILITY_REVISION,
+            "minimumTotal": 1,
+            "claims": [
+                {
+                    "minimumTotal": 1,
+                    "scope": "exact_variant",
+                    "source": "observed_gem_occupancy",
+                    "sourceRevision": "same-context-sibling-fixture-v1",
+                }
+            ],
+        }
+        item_payload = {
+            "inventoryType": "head",
+            "armorType": "plate",
+            "baseStats": {},
+            "baseCapabilities": {"socketCount": 0},
+            "socketEvidence": zero_socket_evidence,
+        }
+        exact_row = self.item_row(
+            item={"payload": item_payload},
+            variant={
+                "simcOptions": {"ilevel": "289", "gem_id": "240983"},
+                "payload": {
+                    "resolvedStats": {},
+                    "capabilityOverrides": {"socketCount": 1},
+                    "socketEvidence": exact_socket_evidence,
+                },
+            },
+        )
+        raw_row = list(copy.deepcopy(exact_row))
+        raw_row[1] = "variant-head-raw-sibling"
+        raw_row[3]["id"] = "variant-row-head-raw-sibling"
+        raw_row[3]["variantKey"] = "variant-head-raw-sibling"
+        raw_row[3]["payload"] = {"resolvedStats": {}}
+
+        exact_intent = self.intent()
+        exact_intent["slots"]["head"]["gemOptionIds"] = []
+        context = self.released_context(
+            capability_revision=gear_socket_authority.CAPABILITY_REVISION,
+            item_rows=[exact_row, tuple(raw_row)],
+            intent=exact_intent,
+        )
+        raw_intent = copy.deepcopy(exact_intent)
+        raw_intent["slots"]["head"]["variantKey"] = "variant-head-raw-sibling"
+
+        exact_snapshot = gear_resolver.resolve(exact_intent, context)
+        raw_snapshot = gear_resolver.resolve(raw_intent, context)
+
+        self.assertEqual(
+            sorted(context["variantsByKey"]),
+            ["variant-head", "variant-head-raw-sibling"],
+        )
+        self.assertEqual(exact_snapshot["status"], "verified")
+        self.assertEqual(raw_snapshot["status"], "verified")
+        self.assertEqual(
+            exact_snapshot["constraints"]["slots"]["head"]["socketCount"],
+            1,
+        )
+        self.assertEqual(
+            raw_snapshot["constraints"]["slots"]["head"]["socketCount"],
+            0,
+        )
+        self.assertNotIn(
+            "socketCount",
+            context["variantsByKey"]["variant-head-raw-sibling"]["capabilityOverrides"],
+        )
+
+    def test_v2_cross_class_and_dual_wield_samples_keep_socket_facts_exact_variant_only(self):
+        from server import gear_resolver
+
+        def zero_socket_evidence():
+            return {
+                "schemaRevision": gear_socket_authority.SOCKET_FACT_SCHEMA_REVISION,
+                "authorityRevision": gear_socket_authority.CAPABILITY_REVISION,
+                "minimumTotal": 0,
+                "claims": [],
+            }
+
+        def exact_socket_evidence():
+            return {
+                "schemaRevision": gear_socket_authority.SOCKET_FACT_SCHEMA_REVISION,
+                "authorityRevision": gear_socket_authority.CAPABILITY_REVISION,
+                "minimumTotal": 1,
+                "claims": [
+                    {
+                        "minimumTotal": 1,
+                        "scope": "exact_variant",
+                        "source": "observed_gem_occupancy",
+                        "sourceRevision": "cross-class-fixture-v1",
+                    }
+                ],
+            }
+
+        class_samples = (
+            ("mage", "frost", "cloth"),
+            ("rogue", "assassination", "leather"),
+            ("hunter", "beast_mastery", "mail"),
+            ("warrior", "fury", "plate"),
+        )
+        for class_key, spec_key, armor_type in class_samples:
+            with self.subTest(armor_type=armor_type):
+                runtime = self.runtime_authority()
+                runtime["requestedClassSpec"] = f"{class_key}:{spec_key}"
+                runtime["playableClassSpecs"] = {class_key: [spec_key]}
+                runtime["ruleParameters"]["inventoryTypesBySlot"] = {"head": ["head"]}
+                runtime["ruleParameters"]["allowedArmorTypesByClass"] = {
+                    class_key: [armor_type]
+                }
+                runtime["ruleParameters"]["armorRestrictedSlots"] = ["head"]
+                runtime["ruleParameters"]["allowedWeaponTypesByClassSpec"] = {
+                    f"{class_key}:{spec_key}": []
+                }
+                runtime["ruleParameters"]["dualWieldByClassSpec"] = {
+                    f"{class_key}:{spec_key}": False
+                }
+                runtime["ruleParameters"]["weaponModesByClassSpec"] = {
+                    f"{class_key}:{spec_key}": "none"
+                }
+                runtime["ruleParameters"]["requiredSlots"] = ["head"]
+                base_intent = self.intent()
+                base_intent["eligibilityContext"] = {
+                    "classKey": class_key,
+                    "specKey": spec_key,
+                    "level": 90,
+                }
+                base_intent["slots"]["head"]["gemOptionIds"] = []
+                item_payload = {
+                    "inventoryType": "head",
+                    "armorType": armor_type,
+                    "allowedClassKeys": [class_key],
+                    "allowedSpecKeys": [spec_key],
+                    "baseStats": {},
+                    "baseCapabilities": {"socketCount": 0},
+                    "socketEvidence": zero_socket_evidence(),
+                }
+                exact_row = self.item_row(
+                    item={"payload": item_payload},
+                    variant={
+                        "simcOptions": {"ilevel": "289", "gem_id": "240983"},
+                        "payload": {
+                            "resolvedStats": {},
+                            "capabilityOverrides": {"socketCount": 1},
+                            "socketEvidence": exact_socket_evidence(),
+                        },
+                    },
+                )
+                raw_intent = copy.deepcopy(base_intent)
+                raw_intent["slots"]["head"]["variantKey"] = "variant-head-raw-only"
+                raw_row = list(copy.deepcopy(exact_row))
+                raw_row[1] = "variant-head-raw-only"
+                raw_row[3]["id"] = f"variant-{armor_type}-raw-only"
+                raw_row[3]["variantKey"] = "variant-head-raw-only"
+                raw_row[3]["payload"] = {"resolvedStats": {}}
+                shared_context = self.released_context(
+                    capability_revision=gear_socket_authority.CAPABILITY_REVISION,
+                    item_rows=[exact_row, tuple(raw_row)],
+                    intent=base_intent,
+                    runtime=runtime,
+                )
+                exact_snapshot = gear_resolver.resolve(base_intent, shared_context)
+                raw_snapshot = gear_resolver.resolve(raw_intent, shared_context)
+
+                self.assertEqual(
+                    sorted(shared_context["variantsByKey"]),
+                    ["variant-head", "variant-head-raw-only"],
+                )
+                self.assertEqual(exact_snapshot["status"], "verified")
+                self.assertEqual(
+                    exact_snapshot["constraints"]["slots"]["head"]["socketCount"],
+                    1,
+                )
+                self.assertEqual(raw_snapshot["status"], "verified")
+                self.assertEqual(
+                    raw_snapshot["constraints"]["slots"]["head"]["socketCount"],
+                    0,
+                )
+                self.assertNotIn(
+                    "socketCount",
+                    shared_context["variantsByKey"]["variant-head-raw-only"][
+                        "capabilityOverrides"
+                    ],
+                )
+
+        runtime = self.runtime_authority()
+        runtime["ruleParameters"]["inventoryTypesBySlot"] = {
+            "main_hand": ["weapon"],
+            "off_hand": ["weapon"],
+        }
+        runtime["ruleParameters"]["armorRestrictedSlots"] = []
+        runtime["ruleParameters"]["requiredSlots"] = ["main_hand", "off_hand"]
+        weapon_item_payload = {
+            "inventoryType": "weapon",
+            "weaponType": "sword",
+            "handedness": "one_hand",
+            "allowedSlots": ["main_hand", "off_hand"],
+            "allowedClassKeys": ["warrior"],
+            "allowedSpecKeys": ["fury"],
+            "baseStats": {},
+            "baseCapabilities": {"socketCount": 0},
+            "socketEvidence": zero_socket_evidence(),
+        }
+        exact_weapon_row = self.item_row(
+            item={"slot": "main_hand", "payload": weapon_item_payload},
+            variant={
+                "slot": "main_hand",
+                "simcOptions": {"ilevel": "289", "gem_id": "240983"},
+                "payload": {
+                    "resolvedStats": {},
+                    "capabilityOverrides": {"socketCount": 1},
+                    "socketEvidence": exact_socket_evidence(),
+                },
+            },
+        )
+        raw_weapon_row = list(copy.deepcopy(exact_weapon_row))
+        raw_weapon_row[1] = "variant-off-hand-raw-only"
+        raw_weapon_row[3]["id"] = "variant-off-hand-raw-only-row"
+        raw_weapon_row[3]["variantKey"] = "variant-off-hand-raw-only"
+        raw_weapon_row[3]["slot"] = "off_hand"
+        raw_weapon_row[3]["payload"] = {"resolvedStats": {}}
+        weapon_intent = self.intent(
+            {
+                "main_hand": {
+                    "itemId": "item-head",
+                    "variantKey": "variant-head",
+                    "gemOptionIds": [],
+                    "enchantOptionId": "",
+                    "embellishmentOptionId": "",
+                    "craftedOptionId": "",
+                    "catalystOptionId": "",
+                },
+                "off_hand": {
+                    "itemId": "item-head",
+                    "variantKey": "variant-off-hand-raw-only",
+                    "gemOptionIds": [],
+                    "enchantOptionId": "",
+                    "embellishmentOptionId": "",
+                    "craftedOptionId": "",
+                    "catalystOptionId": "",
+                },
+            }
+        )
+        weapon_context = self.released_context(
+            capability_revision=gear_socket_authority.CAPABILITY_REVISION,
+            item_rows=[exact_weapon_row, tuple(raw_weapon_row)],
+            intent=weapon_intent,
+            runtime=runtime,
+        )
+        weapon_snapshot = gear_resolver.resolve(weapon_intent, weapon_context)
+
+        self.assertEqual(
+            weapon_context["itemsById"]["item-head"]["allowedSlots"],
+            ["main_hand", "off_hand"],
+        )
+        self.assertEqual(weapon_snapshot["status"], "verified")
+        self.assertEqual(
+            weapon_snapshot["constraints"]["slots"]["main_hand"]["socketCount"],
+            1,
+        )
+        self.assertEqual(
+            weapon_snapshot["constraints"]["slots"]["off_hand"]["socketCount"],
+            0,
+        )
+
+    def test_v1_release_preserves_legacy_projection_during_rollout(self):
+        row = self.item_row(
+            item={
+                "payload": {
+                    "inventory_type": {"type": "FINGER", "name": "Finger"},
+                    "sockets": [{"socket_type": {"type": "PRISMATIC"}}],
+                }
+            },
+            variant={
+                "simcOptions": {
+                    "ilevel": "289",
+                    "gem_id": "240892/240900",
+                    "crafted_stats": "32/36",
+                },
+                "payload": {
+                    "overlay": {
+                        "status": "verified",
+                        "capabilityOverrides": {
+                            "socketCount": 9,
+                            "canEmbellish": False,
+                        },
+                    }
+                },
+            },
+        )
+
+        context = self.released_context(
+            capability_revision=gear_socket_authority.LEGACY_CAPABILITY_REVISION,
+            item_rows=[row],
+        )
+
+        item = context["itemsById"]["item-head"]
+        overrides = context["variantsByKey"]["variant-head"]["capabilityOverrides"]
+        self.assertEqual(item["baseCapabilities"]["socketCount"], 1)
+        self.assertTrue(item["baseCapabilities"]["canEnchant"])
+        self.assertEqual(overrides["socketCount"], 2)
+        self.assertTrue(overrides["canEmbellish"])
+        legacy_overlay = context["variantsByKey"]["variant-head"]["overlay"]
+        self.assertEqual(
+            legacy_overlay["capabilityOverrides"]["socketCount"],
+            9,
+        )
+        self.assertFalse(
+            legacy_overlay["capabilityOverrides"]["canEmbellish"]
+        )
 
     def test_exact_verified_variant_gems_raise_only_variant_socket_capacity(self):
         ring = list(self.item_row(
@@ -894,6 +1987,16 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
         self.assertIn("variantsByKey.variant-head", context["missingFields"])
         self.assertIn("optionsById.gem-haste", context["missingFields"])
         self.assertIn("runtimeAuthority.dependencyRevisions.simcRuntimeRevision", context["missingFields"])
+
+        runtime = self.runtime_authority()
+        runtime["dependencyRevisions"].pop("capabilityRevision")
+        _cursor, context = self.load(
+            cursor=self.cursor(item_rows=[], option_rows=[]), runtime=runtime
+        )
+        self.assertIn(
+            "runtimeAuthority.dependencyRevisions.capabilityRevision",
+            context["missingFields"],
+        )
 
     def test_loader_never_uses_client_option_payload_as_authority(self):
         intent = self.intent()

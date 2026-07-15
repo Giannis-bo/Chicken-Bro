@@ -1,7 +1,7 @@
 import inspect
 import unittest
 
-from server import gear_contracts
+from server import gear_contracts, gear_socket_authority
 
 
 class GearContractsTest(unittest.TestCase):
@@ -41,6 +41,7 @@ class GearContractsTest(unittest.TestCase):
             "simcRuntimeRevision": "simc-midnight-abc",
             "statPolicyRevision": "stat-policy-v1",
             "selectionSchemaRevision": "selection-intent-v1",
+            "capabilityRevision": gear_socket_authority.LEGACY_CAPABILITY_REVISION,
         }
 
     def valid_authority_context(self):
@@ -113,6 +114,19 @@ class GearContractsTest(unittest.TestCase):
         self.assertTrue(any(issue["kind"] == "AUTHORITY_UNAVAILABLE" for issue in issues))
         self.assertTrue(any(issue["path"] == "dependencyVector.statPolicyRevision" for issue in issues))
 
+    def test_dependency_vector_requires_capability_revision(self):
+        vector = self.valid_vector()
+        vector.pop("capabilityRevision")
+
+        issues = gear_contracts.validate_dependency_vector(vector)
+
+        self.assertTrue(
+            any(
+                issue["path"] == "dependencyVector.capabilityRevision"
+                for issue in issues
+            )
+        )
+
     def test_selection_signature_is_order_stable_and_eligibility_sensitive(self):
         intent = self.valid_intent()
         reordered = {
@@ -151,6 +165,18 @@ class GearContractsTest(unittest.TestCase):
         self.assertNotEqual(
             signature,
             gear_contracts.resolved_gear_signature("sha256:selection", rule_changed),
+        )
+
+    def test_resolved_gear_signature_changes_with_capability_revision(self):
+        vector = self.valid_vector()
+        changed = {
+            **vector,
+            "capabilityRevision": gear_socket_authority.CAPABILITY_REVISION,
+        }
+
+        self.assertNotEqual(
+            gear_contracts.resolved_gear_signature("sha256:selection", vector),
+            gear_contracts.resolved_gear_signature("sha256:selection", changed),
         )
 
     def test_profile_signature_changes_for_character_talent_serializer_runtime_or_stat_policy(self):

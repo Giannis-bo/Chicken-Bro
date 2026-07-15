@@ -10,6 +10,7 @@ const executableHarnessRelease = 'artifacts/releases/2026-07-10-executable-proje
 const characterizationRelease = 'artifacts/releases/2026-07-10-critical-contract-characterization'
 const archivedPhase5Release = 'artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover'
 const activeTalentLkgRelease = 'artifacts/releases/2026-07-13-talent-link-lkg-sync-guard'
+const archivedCommunityEnhancementRelease = 'artifacts/releases/2026-07-14-community-enhancement-editability'
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'))
@@ -29,7 +30,7 @@ test('project-state is the single machine-readable current truth entry', () => {
   const state = readJson(projectStatePath)
 
   assert.equal(state.schemaVersion, 1)
-  assert.equal(state.updatedAt, '2026-07-13')
+  assert.equal(state.updatedAt, '2026-07-15')
   assert.equal(state.activeMilestone, 'none')
   assert.equal(state.featureIteration, 'allowed_under_harness')
   assert.equal(state.activeReleaseArtifact, activeTalentLkgRelease)
@@ -45,12 +46,16 @@ test('project-state is the single machine-readable current truth entry', () => {
 
   const activeContractIds = new Set(state.activeContracts.map((entry) => entry.id))
   assert.ok(activeContractIds.has('talent_link_lkg_sync_guard'))
+  assert.ok(!activeContractIds.has('community_enhancement_editability'))
   assert.ok(!activeContractIds.has('equipment_simulator_capability_architecture'))
   assert.ok(!activeContractIds.has('equipment_simulator_phase5_async_stat_snapshot_plan'))
   assert.ok(!activeContractIds.has('equipment_simulator_phase3_resolve_profile_workbench_plan'))
   assert.ok(!activeContractIds.has('equipment_simulator_phase1_contracts_plan'))
 
   const historicalContractIds = new Set(state.historicalContracts.map((entry) => entry.id))
+  assert.ok(historicalContractIds.has('community_enhancement_editability_v2'))
+  assert.ok(historicalContractIds.has('community_enhancement_editability_v2_design'))
+  assert.ok(historicalContractIds.has('community_enhancement_editability_v2_plan'))
   assert.ok(historicalContractIds.has('equipment_simulator_phase0_safety'))
   assert.ok(historicalContractIds.has('equipment_simulator_phase1_contracts_plan'))
   assert.ok(historicalContractIds.has('equipment_simulator_phase2a_pure_resolver'))
@@ -71,6 +76,8 @@ test('project-state is the single machine-readable current truth entry', () => {
   assert.ok(historicalContractIds.has('equipment_simulator_phase5c_frontend_cutover'))
   assert.ok(historicalContractIds.has('equipment_simulator_phase5_async_stat_snapshot_plan'))
   assert.ok(historicalContractIds.has('equipment_simulator_capability_architecture'))
+  assert.ok(historicalContractIds.has('community_template_enhancement_import_v1_design'))
+  assert.ok(historicalContractIds.has('community_template_enhancement_import_v1_plan'))
 
   for (const entry of state.activeContracts) {
     assert.notEqual(entry.lifecycle, 'historical', `${entry.id} should not be historical and active`)
@@ -86,11 +93,15 @@ test('project-state is the single machine-readable current truth entry', () => {
     assert.ok(!activePaths.has(entry.path), `${entry.path} should not be both active and historical`)
   }
 
-  for (const releasePath of [activeTalentLkgRelease, archivedPhase5Release, characterizationRelease, executableHarnessRelease, controlPlaneRelease]) {
+  for (const releasePath of [activeTalentLkgRelease, archivedCommunityEnhancementRelease, archivedPhase5Release, characterizationRelease, executableHarnessRelease, controlPlaneRelease]) {
     assertPathExists(path.join(releasePath, 'requirement.json'))
     assertPathExists(path.join(releasePath, 'evidence.json'))
     assertPathExists(path.join(releasePath, 'manifest.json'))
   }
+
+  const communityEnhancementEvidence = readJson(path.join(archivedCommunityEnhancementRelease, 'evidence.json'))
+  assert.equal(communityEnhancementEvidence.status, 'archived')
+  assert.equal(communityEnhancementEvidence.highestEvidenceLevel, 'live_verified')
 
   assert.ok(
     state.completedBaselines.some((entry) => entry.id === 'project_harness_normalization_20260710'),
@@ -136,12 +147,24 @@ test('project-state is the single machine-readable current truth entry', () => {
     state.completedBaselines.some((entry) => entry.id === 'equipment_simulator_phase5_20260712'),
     'Equipment simulator Phase 0-5 should be recorded as a completed live baseline'
   )
+  assert.ok(
+    state.completedBaselines.some((entry) => entry.id === 'community_enhancement_editability_20260715'),
+    'Community enhancement editability should be recorded as a completed live baseline'
+  )
 
   const gearStat = state.runtimeBaseline.gearStatSnapshot
   assert.equal(gearStat.status, 'phase5_complete_live_verified')
   assert.equal(gearStat.frontendCutover, true)
   assert.equal(gearStat.verifiedSpecCount, 32)
   assert.equal(gearStat.explicitNonReadySpecCount, 8)
+
+  const gearReleaseTrain = state.runtimeBaseline.gearReleaseTrain
+  assert.equal(gearReleaseTrain.pointerGeneration, 16)
+  assert.equal(gearReleaseTrain.activeManifestRevision, 'season-manifest:sha256:34325b76e6b12544b0cf511c89852722784675495b757b6dce522d531660e436')
+  assert.equal(gearReleaseTrain.rollbackManifestRevision, 'season-manifest:sha256:551810fcc9d8f6b4dd2099cfafa4b67192476dc4f0bfe36bf827b9fa6ef3c07d')
+  assert.equal(gearReleaseTrain.activeGearReleaseId, 'gear-release:sha256:cfb1680130402b3c610d5eab3b0dbe50dd7186facc6a0371951eb5c10ed993c5')
+  assert.equal(gearReleaseTrain.activeCommunityReleaseId, 'community-release:sha256:35eafdafc9f96802327917b1f45ab406e60bbce10e81aa150e8cfef5d543ace6')
+  assert.equal(gearReleaseTrain.evidence, `${archivedCommunityEnhancementRelease}/evidence.json`)
 
   const phase5Evidence = readJson(path.join(archivedPhase5Release, 'evidence.json'))
   const phase5Closure = readJson(path.join(archivedPhase5Release, 'closure-audit.json'))

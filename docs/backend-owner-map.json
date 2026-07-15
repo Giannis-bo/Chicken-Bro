@@ -64,6 +64,7 @@
           "id": "gear_release_policy",
           "status": "phase4e_active_release_policy",
           "extractedModule": "server/gear_release.py",
+          "socketFactOwner": "server/gear_socket_authority.py",
           "runtimeConsumers": [
             "server/gear_release_store.py",
             "server/gear_release_refresh.py",
@@ -84,7 +85,8 @@
             "Catalyst parser allowlist alone must never enable retained-secondary-stat capability."
           ],
           "characterization": [
-            "tests/gear_release_test.py"
+            "tests/gear_release_test.py",
+            "tests/gear_socket_authority_test.py"
           ],
           "futureExtractionDirection": "Keep refresh orchestration, persistence, pointer mutation, timers and runtime inspection outside this pure module."
         },
@@ -362,6 +364,7 @@
             "server/migrations/postgres/0014_websim_active_manifest_pointer_state.sql"
           ],
           "usesModule": "server/gear_release.py",
+          "socketFactOwner": "server/gear_socket_authority.py",
           "owns": [
             "repeatable-read snapshots of mutable legacy gear and community staging rows",
             "append-only hash-addressed Gear and Community Release persistence",
@@ -385,7 +388,8 @@
             "tests/gear_release_shadow_test.py",
             "tests/gear_release_refresh_test.py",
             "tests/deploy-script.test.js",
-            "tests/postgres_schema_test.py"
+            "tests/postgres_schema_test.py",
+            "tests/gear_socket_authority_test.py"
           ],
           "futureExtractionDirection": "Keep future Phase 5 SimC snapshot execution out of the release refresh and open a separate owner boundary."
         },
