@@ -1,0 +1,149 @@
+{
+  "schemaVersion": 1,
+  "slug": "community-template-import-performance",
+  "classification": "Strict",
+  "status": "design_approved_pending_spec_review",
+  "goal": "Replace the community-template import path's eager per-slot hydration fan-out with one Active-Manifest-bound, backend-resolved import snapshot, so a player can import a real observed template promptly without weakening canonical enhancement editability, observed-only policy, or Resolver authority.",
+  "userValue": "A player taps a community template once, immediately sees the imported gear and its verified selected gems, enchants and embellishments, and can then edit a chosen slot normally. The action must not appear frozen for 15–30 seconds or silently lose enhancement selections after request timeout.",
+  "nonGoals": [
+    "No change to the public observed-only community-template policy or introduction of baseline/recommended_bis templates into the public import entry.",
+    "No runtime Battle.net, Raider.IO, SimC, Wowhead or other external request during template import, gear edit or Resolve.",
+    "No client-authored raw enhancement value, forged option identity, client legality decision or client-derived socket capacity becomes authoritative.",
+    "No Gear/Community Release generation, Manifest pointer, PostgreSQL schema, scheduled sync, backfill, cleanup or production-data write change.",
+    "No removal or semantic change to the existing mode=initial and mode=slot public gear endpoints; ordinary slot editing remains lazy.",
+    "No worker-count-only, cache-size-only or sequential-request workaround presented as the product fix.",
+    "No merge before final candidate API/runtime parity, cold/warm import evidence and real WeChat verification."
+  ],
+  "currentTruth": {
+    "sources": [
+      "docs/project-state.json",
+      "docs/roadmap.md",
+      "docs/harness.md",
+      "docs/project-owner-map.json",
+      "docs/backend-owner-map.json",
+      "docs/verification-matrix.md",
+      "artifacts/releases/2026-07-14-community-enhancement-editability/requirement.json",
+      "docs/superpowers/specs/2026-07-14-community-enhancement-editability-v2-design.md",
+      "pages/builds/detail.js",
+      "pages/builds/websim-api.js",
+      "pages/builds/detail.wxml",
+      "server/news_backend.py",
+      "server/postgres_cache_store.py",
+      "server/gear_release_store.py",
+      "server/gear_runtime.py",
+      "server/gear_resolver.py"
+    ],
+    "activeMilestone": "none",
+    "featureIteration": "allowed_under_harness",
+    "databaseRuntime": "postgres_only",
+    "publicTemplatePolicy": "active_raiderio_observed_profile_only",
+    "candidateDeploymentRequiredBeforeMerge": true,
+    "deploymentAsyncSyncDefault": 0,
+    "historicalContractBoundary": "Community Enhancement Editability v2 is completed and archived. Its editable canonical-selection contract remains mandatory, but its client-side all-affected-slot hydration implementation is not a current performance contract."
+  },
+  "incidentEvidence": {
+    "observedAt": "2026-07-15",
+    "facts": [
+      "The affected Elemental Shaman import issued one initial request followed by twelve mode=slot requests; the client starts affected slot hydration through Promise.all.",
+      "The gear endpoint limits all builds with a global four-worker semaphore while each client request has a 30000 ms timeout.",
+      "A cold compact finger1 slot build against the effective production environment took 3.731 seconds; a warm compact slot response took 0.097 seconds and transferred 625921 bytes before compression or 40282 bytes compressed.",
+      "The active release contains 27949 variants and 19201 source rows; a slot build constructs a release-backed catalog fragment rather than a lightweight option lookup.",
+      "The current in-process gear-payload LRU has eighty entries and its key includes class, spec, compact, mode and slot."
+    ],
+    "unprovenUntilInstrumentation": [
+      "The exact incident cache hit or miss state cannot be reconstructed because the current runtime exposes no gear-payload cache hit metric.",
+      "The split between semaphore queue time, release reads, canonical shaping, Resolve and JSON serialization is not emitted by the current endpoint.",
+      "No claim is made that PostgreSQL base query time alone caused the incident."
+    ]
+  },
+  "contract": {
+    "route": "POST /api/websim/gear/community-import",
+    "request": {
+      "allowedFields": [
+        "classKey",
+        "specKey",
+        "templateId",
+        "expectedManifestRevision"
+      ],
+      "forbiddenFields": [
+        "gearBySlot",
+        "enhancementBySlot",
+        "raw gem_id",
+        "raw enchant_id",
+        "raw embellishment",
+        "client-authored option IDs",
+        "client-authored constraints"
+      ]
+    },
+    "success": "One compact import snapshot contains the validated public template identity, selected gear display records, canonical selected enhancement identities and labels, a matching Resolver snapshot/signature, manifest identity, bounded unresolved-type counts and plain recovery warnings. It contains no raw unrecognized enhancement value.",
+    "failure": "Missing, inapplicable, blocked, stale-manifest or unresolved import returns a structured problem. The client keeps its last verified configuration, shows a retryable plain message, and does not fall back to multi-slot hydration.",
+    "performance": "One import tap produces one community-import request. A later explicit edit may use the established single selected-slot lazy request; no background all-slot hydration is allowed."
+  },
+  "impactMap": {
+    "mustChange": [
+      "A pure backend community-template import projector reconciles a sealed winner template against one Active Manifest and invokes existing canonical Resolver ownership.",
+      "The release-store/cache read path loads only the selected winner's gear, variants, source evidence and option authority required by that import; it must not build the broad mode=slot catalog path once per affected slot.",
+      "The backend exposes the structured community-import route and bounded timing observability without exposing internal release rows, raw values or SQL details.",
+      "The mini-program uses the import route, commits only the matching verified snapshot and displays import progress; it no longer calls all affected mode=slot requests before applying a community template.",
+      "Focused backend/frontend tests characterize one-request import, canonical result parity, failure preservation, stale fencing and subsequent single-slot editing."
+    ],
+    "mustNotChange": [
+      "Active public entry remains real-player observed templates only, with existing source and legality gates.",
+      "Active Manifest, immutable Gear/Community Releases, dependency vector, Resolver, Profile and stat-snapshot owners remain authoritative.",
+      "Existing mode=initial and mode=slot response semantics remain compatible for normal browse and editing flows.",
+      "Unknown enhancement values remain absent from Intent and user-visible only as bounded plain coverage warnings.",
+      "Duplicate gem occurrence order, replacement semantics, Resolve fencing and profile serialization remain lossless.",
+      "No sync, backfill, cleanup, pointer, schema or deployment-triggered async process runs as part of this change."
+    ],
+    "riskUnknown": [
+      "Whether the present sealed Community Release provides every selected enhancement in a shape directly reusable by the Resolver, or needs one new pure reconciliation adapter.",
+      "The smallest cold-path latency achievable after targeted release reads until candidate Server-Timing evidence is recorded.",
+      "The exact compact payload fields needed by existing mini-program derived state without making the new endpoint a second general catalog endpoint."
+    ],
+    "evidenceRequired": [
+      "Red-to-green tests prove one import request with no all-slot hydration, while later explicit editing requests at most the selected slot.",
+      "Pure/import/Resolver tests prove canonical selected values, unknown-value omission, duplicate occurrence preservation, exact manifest binding and structured failure behavior.",
+      "Candidate Server-Timing or structured timing evidence records queue, release read, reconciliation, Resolve, serialization and cache state for cold and warm imports.",
+      "Candidate deployment records final branch/commit/runtime file parity, PostgreSQL-only runtime, public observed-only parity, timer/backflow state, logs and code rollback path.",
+      "Real WeChat evidence proves the representative community template imports promptly, retains 8/8 gems, 6/8 enchants and 2/2 embellishments for the frozen Frost Mage fixture, then edits one selected slot normally."
+    ]
+  },
+  "ownership": {
+    "factOwner": "The new pure community-template import projector and server-side Resolver invocation own template-to-canonical selection reconciliation. Active Gear and Community Releases remain the only published source; server/gear_release_store.py owns scoped immutable reads and server/gear_runtime.py plus server/gear_resolver.py own final legality and resolved facts.",
+    "consumers": [
+      "server/news_backend.py route and timing boundary",
+      "server/postgres_cache_store.py bounded immutable import-snapshot cache boundary",
+      "pages/builds/websim-api.js transport wrapper",
+      "pages/builds/detail.js import serial, verified commit and selected-slot lazy editing",
+      "pages/builds/detail.wxml progress, retry and normal editor presentation"
+    ]
+  },
+  "engineeringHealth": {
+    "status": "health_watch_guarded",
+    "reason": "The change touches the user-visible hot path plus news_backend.py, postgres_cache_store.py and release reads. It stays bounded through one purpose-built read model, a pure reconciliation owner, additive route/cache only, no write-path scope and explicit phase timing before performance claims."
+  },
+  "acceptanceEvidence": [
+    "New focused Python tests for the import projector, scoped release read, cache key/invalidation, route envelope and Server-Timing field shape.",
+    "New focused Node tests proving one community-import request, no all-slot hydration, visible progress, retry/failure preservation, stale import fencing and subsequent single-slot lazy detail loading.",
+    "Existing editable enhancement fixture tests retain Frost Mage 8/8 gems, 6/8 enchants and 2/2 embellishments, duplicate-gem occurrence semantics and unknown-value warning behavior.",
+    "node scripts/verify-project.js --profile backend --release artifacts/releases/2026-07-15-community-template-import-performance --base origin/main",
+    "node scripts/verify-project.js --profile frontend --release artifacts/releases/2026-07-15-community-template-import-performance --base origin/main",
+    "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-15-community-template-import-performance --base origin/main",
+    "One final PR-head candidate deployment, real HTTP cold/warm import timing, normal initial/slot compatibility smoke, 40-spec public observed-only shadow, timer/backflow/log checks and real WeChat import/edit proof."
+  ],
+  "releaseTrigger": "user_visible_runtime",
+  "rollback": [
+    "code_rollback",
+    "feature_hide"
+  ],
+  "decisionLog": [
+    {
+      "date": "2026-07-15",
+      "decision": "User approved continuing with the recommended atomic, backend-resolved community-template import direction after systematic read-only incident analysis."
+    },
+    {
+      "date": "2026-07-15",
+      "decision": "The recommended fix is a purpose-built import contract, not increasing the global worker count, enlarging the existing generic LRU, serializing twelve requests, or weakening canonical enhancement semantics."
+    }
+  ]
+}
