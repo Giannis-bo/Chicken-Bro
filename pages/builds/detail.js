@@ -6,11 +6,13 @@ const {
 } = require('./builds-api')
 const {
   requestWebsimGear,
+  requestWebsimCommunityTemplateImport,
   requestWebsimGearResolve,
   requestWebsimGearStatSnapshot,
   requestWebsimTalentImport
 } = require('./websim-api')
 const {
+  adoptVerifiedCommunityImport,
   applyGearResolveResult,
   applyGearStatSnapshotResult,
   beginGearStatSnapshot,
@@ -429,6 +431,133 @@ function clearCommunityEnhancementImportState(page) {
   page.communityEnhancementImportState = emptyCommunityEnhancementImportState()
 }
 
+function communityImportExpectedManifestRevision(page) {
+  const payload = fullGearPayloadForPage(page) || (page && page.data && page.data.gearPayload) || {}
+  return cleanGearString(payload.manifestRevision)
+}
+
+function importedGearSelectionForPage(gearPayload, selectedGearBySlot) {
+  const imported = selectedGearByCanonicalSlot(selectedGearBySlot)
+  const result = {}
+  Object.keys(imported).forEach((slot) => {
+    const selected = imported[slot]
+    const candidate = matchingGearCandidateForItem(gearPayload, slot, selected)
+    const applied = candidate
+      ? appliedGearCandidate(candidate, cleanGearString(selected.variantKey), '')
+      : {}
+    const itemLevel = Number(selected.itemLevel || selected.ilevel || applied.ilevel || applied.itemLevel) || 0
+    result[slot] = {
+      ...applied,
+      ...selected,
+      slot,
+      simcSlot: selected.simcSlot || slot,
+      id: selected.id || selected.itemId,
+      ilevel: itemLevel || undefined,
+      itemLevel: itemLevel || undefined,
+      displayName: cleanGearString(selected.displayName || selected.name || applied.displayName || applied.name || selected.label),
+      simcReady: true
+    }
+  })
+  return result
+}
+
+function validCommunityImportEnvelope(result, context) {
+  const envelope = result && result.payload
+  const data = envelope && envelope.data
+  const releaseContext = envelope && envelope.releaseContext
+  const manifest = data && data.manifest
+  const expectedManifestRevision = cleanGearString(context && context.manifestRevision)
+  return !!(
+    result && !result.fromFallback && Number(result.httpStatus) === 200 &&
+    envelope && envelope.contractRevision === 'community-template-import-envelope-v1' &&
+    envelope.status === 'verified' && Array.isArray(envelope.problems) && envelope.problems.length === 0 &&
+    data && data.contractRevision === 'websim-community-template-import-v1' && data.status === 'verified' &&
+    manifest && releaseContext &&
+    cleanGearString(manifest.manifestRevision) === expectedManifestRevision &&
+    cleanGearString(releaseContext.manifestRevision) === expectedManifestRevision &&
+    data.resolvedSnapshot && data.resolvedSnapshot.status === 'verified' &&
+    cleanGearString(data.resolvedSnapshot.resolvedGearSignature) &&
+    data.selectedGearBySlot && typeof data.selectedGearBySlot === 'object' &&
+    Object.keys(data.selectedGearBySlot).length > 0
+  )
+}
+
+function communityImportFailureMessage(result) {
+  const envelope = result && result.payload
+  if (Number(result && result.httpStatus) === 409) return '装备数据已更新，请重新打开模板后重试'
+  if (envelope && envelope.status === 'unavailable') return '社区模板暂时不可导入，请稍后重试'
+  return '社区模板未能安全导入，请稍后重试'
+}
+
+function clearCommunityTemplateImportingOnlyIfCurrent(page, context) {
+  if (!gearInteractionContextIsCurrent(page, context)) return
+  page.setData({ communityTemplateImporting: false })
+}
+
+function commitImportedCommunityTemplate(page, result, context) {
+  if (!gearInteractionContextIsCurrent(page, context) || !validCommunityImportEnvelope(result, context)) return false
+  const data = result.payload.data
+  const templateId = cleanGearString(context && context.communityImport && context.communityImport.templateId)
+  if (!templateId || cleanGearString(data.template && data.template.id) !== templateId) return false
+  const gearPayload = fullGearPayloadForPage(page) || (page && page.data && page.data.gearPayload) || {}
+  const selectedGearBySlot = importedGearSelectionForPage(gearPayload, data.selectedGearBySlot)
+  if (Object.keys(selectedGearBySlot).length !== Object.keys(selectedGearByCanonicalSlot(data.selectedGearBySlot)).length) return false
+  const snapshot = data.resolvedSnapshot
+  const enhancementBySlot = enhancementBySlotFromResolvedSnapshot(snapshot)
+  const selectedSpec = (page && page.data && page.data.selectedSpec) || {}
+  const keys = specWebsimKeys({
+    websimClassKey: selectedSpec.websimClassKey || selectedSpec.classKey || gearPayload.classKey,
+    websimSpecKey: selectedSpec.websimSpecKey || selectedSpec.specKey || gearPayload.specKey
+  })
+  const selectionIntent = serializeGearSelectionIntent({
+    resolverContext: gearPayload.resolverContext,
+    eligibilityContext: {
+      classKey: keys.classKey,
+      specKey: keys.specKey,
+      level: Number(gearPayload.maxLevel) || 90
+    },
+    selectedGearBySlot,
+    enhancementBySlot
+  })
+  if (!selectionIntent) return false
+  const adopted = adoptVerifiedCommunityImport(
+    page.gearWorkbenchState,
+    selectionIntent,
+    snapshot,
+    result.payload.releaseContext
+  )
+  if (!gearWorkbenchCanUseVerifiedSnapshot(adopted)) return false
+
+  page.gearWorkbenchState = adopted
+  page.gearStatSnapshotState = createGearStatSnapshotState()
+  page.communityEnhancementImportState = {
+    templateId,
+    serial: Number(context.communityImport.serial) || 0,
+    resolvedGearSignature: cleanGearString(snapshot.resolvedGearSignature),
+    unresolvedBySlot: data.unresolvedBySlot && typeof data.unresolvedBySlot === 'object' ? data.unresolvedBySlot : {},
+    warnings: Array.isArray(data.warnings) ? data.warnings : []
+  }
+  const gearStatSnapshot = defaultGearStatSnapshot('等待当前装备属性快照')
+  const derivedState = createDetailDerivedState(page.data.selectedDetail, page.data.activeQueryKey, {
+    ...page.data,
+    gearPayload,
+    selectedGearBySlot,
+    enhancementBySlot,
+    gearStatSnapshot
+  })
+  const renderedData = { ...page.data, ...derivedState, enhancementBySlot, gearStatSnapshot }
+  page.setData({
+    ...derivedState,
+    enhancementBySlot,
+    gearStatSnapshot,
+    ...gearWorkbenchDataState(adopted, renderedData, null),
+    gearSlotSheet: emptyGearSlotSheet(),
+    gearEnhancementSheet: emptyGearEnhancementSheet(),
+    gearCommunityTemplateSheet: emptyGearCommunityTemplateSheet()
+  })
+  return true
+}
+
 function gearInteractionGenerationForPage(page) {
   const value = Number(page && page.gearInteractionGeneration)
   return Number.isSafeInteger(value) && value >= 0 ? value : 0
@@ -452,6 +581,7 @@ function captureGearInteractionContext(page, resolveContext) {
   return {
     generation: gearInteractionGenerationForPage(page),
     gearSelectionKey: gearSelectionKeyForPage(page),
+    manifestRevision: cleanGearString(source.manifestRevision),
     communityImport
   }
 }
@@ -460,6 +590,10 @@ function gearInteractionContextIsCurrent(page, context) {
   if (!page || !context || typeof context !== 'object') return false
   if (gearInteractionGenerationForPage(page) !== Number(context.generation)) return false
   if (gearSelectionKeyForPage(page) !== cleanGearString(context.gearSelectionKey)) return false
+  if (
+    cleanGearString(context.manifestRevision) &&
+    communityImportExpectedManifestRevision(page) !== cleanGearString(context.manifestRevision)
+  ) return false
   if (context.communityImport) {
     const current = page.communityEnhancementImportState || emptyCommunityEnhancementImportState()
     if (
@@ -5588,6 +5722,7 @@ Page({
     gearInitialLoading: false,
     gearStatsLoading: false,
     gearTemplateSaving: false,
+    communityTemplateImporting: false,
     gearRequestError: '',
     gearDataFallback: false,
     gearDataWarningText: '',
@@ -6628,6 +6763,7 @@ Page({
   },
 
   closeGearCommunityTemplates() {
+    invalidateGearInteractionContext(this)
     this.setData({
       gearCommunityTemplateSheet: emptyGearCommunityTemplateSheet()
     })
@@ -6723,6 +6859,47 @@ Page({
     if (!template || !template.canApplyGear) {
       showToast('当前模板暂不可导入')
       return Promise.resolve()
+    }
+    const atomicGearPayload = fullGearPayloadForPage(this) || this.data.gearPayload || {}
+    const expectedManifestRevision = communityImportExpectedManifestRevision(this)
+    if (completeResolverContext(atomicGearPayload.resolverContext) && expectedManifestRevision) {
+      invalidateGearInteractionContext(this)
+      const importSerial = Number(this.communityEnhancementImportSerial || 0) + 1
+      this.communityEnhancementImportSerial = importSerial
+      this.communityEnhancementImportState = {
+        templateId,
+        serial: importSerial,
+        resolvedGearSignature: '',
+        unresolvedBySlot: {},
+        warnings: []
+      }
+      const interactionContext = captureGearInteractionContext(this, {
+        manifestRevision: expectedManifestRevision,
+        communityImport: { templateId, serial: importSerial }
+      })
+      const selectedSpec = this.data.selectedSpec || {}
+      const keys = specWebsimKeys({
+        websimClassKey: selectedSpec.websimClassKey || selectedSpec.classKey || atomicGearPayload.classKey,
+        websimSpecKey: selectedSpec.websimSpecKey || selectedSpec.specKey || atomicGearPayload.specKey
+      })
+      this.setData({ communityTemplateImporting: true })
+      return requestWebsimCommunityTemplateImport({
+        classKey: keys.classKey,
+        specKey: keys.specKey,
+        templateId,
+        expectedManifestRevision
+      }).then((result) => {
+        const committed = commitImportedCommunityTemplate(this, result, interactionContext)
+        if (!committed && gearInteractionContextIsCurrent(this, interactionContext)) {
+          showToast(communityImportFailureMessage(result))
+        }
+        return committed
+      }).catch((error) => {
+        if (gearInteractionContextIsCurrent(this, interactionContext)) {
+          showToast('社区模板未能安全导入，请稍后重试')
+        }
+        return null
+      }).finally(() => clearCommunityTemplateImportingOnlyIfCurrent(this, interactionContext))
     }
     invalidateGearInteractionContext(this)
     const importSerial = Number(this.communityEnhancementImportSerial || 0) + 1

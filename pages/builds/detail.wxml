@@ -423,7 +423,7 @@
             </view>
             <view class="gear-community-template-side">
               <text class="gear-community-template-state">{{item.missingSlotLabel}}</text>
-              <button class="gear-community-template-apply" disabled="{{!item.canApplyGear}}" data-id="{{item.id}}" bindtap="applyGearCommunityTemplate">{{item.actionLabel}}</button>
+              <button class="gear-community-template-apply" disabled="{{!item.canApplyGear || communityTemplateImporting}}" data-id="{{item.id}}" bindtap="applyGearCommunityTemplate">{{communityTemplateImporting ? '正在导入并校验强化…' : item.actionLabel}}</button>
             </view>
           </view>
         </view>

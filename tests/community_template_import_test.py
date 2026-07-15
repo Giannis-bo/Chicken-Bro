@@ -202,6 +202,36 @@ class CommunityTemplateImportTest(unittest.TestCase):
         self.assertEqual(source["unresolvedBySlot"]["head"]["gemCount"], 1)
         self.assertEqual(source["unresolvedBySlot"]["head"]["embellishmentCount"], 1)
 
+    def test_selected_gear_rows_include_only_bounded_display_facts_from_bound_item_and_source(self):
+        from server.community_template_import import build_community_template_import_source
+
+        source = build_community_template_import_source(
+            self.winner,
+            self.variants,
+            self.options,
+            items=[{
+                "itemId": "item-head",
+                "name": "Observed Headpiece",
+                "slot": "head",
+                "itemLevel": 289,
+                "payload": {"rawInternalValue": "must-not-leak"},
+            }],
+            sources=[{
+                "itemId": "item-head",
+                "sourceType": "raid",
+                "sourceLabel": "测试首领 - 测试团本",
+                "payload": {"rawSourceValue": "must-not-leak"},
+            }],
+        )
+
+        row = source["selectedGearBySlot"]["head"]
+        self.assertEqual(row["displayName"], "Observed Headpiece")
+        self.assertEqual(row["ilevel"], 289)
+        self.assertEqual(row["sourceType"], "raid")
+        self.assertEqual(row["sources"], [{"label": "测试首领 - 测试团本", "sourceType": "raid"}])
+        encoded = json.dumps(row, ensure_ascii=False, sort_keys=True)
+        self.assertNotIn("must-not-leak", encoded)
+
     def test_projector_has_no_database_or_http_side_effects(self):
         winner = copy.deepcopy(self.winner)
         variants = copy.deepcopy(self.variants)

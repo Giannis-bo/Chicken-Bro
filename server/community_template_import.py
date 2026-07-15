@@ -68,6 +68,9 @@ def build_community_template_import_source(
     winner: Any,
     variants: Any,
     options: Any,
+    *,
+    items: Any = None,
+    sources: Any = None,
 ) -> dict[str, Any]:
     """Build canonical import facts from immutable, already-bound Release rows only."""
 
@@ -107,6 +110,26 @@ def build_community_template_import_source(
         for value in options if isinstance(options, list) and isinstance(value, dict)
         if _text(value.get("optionKey"))
     }
+    item_rows = items if isinstance(items, list) else []
+    source_rows_input = sources if isinstance(sources, list) else []
+    items_by_id = {
+        _text(value.get("itemId")): value
+        for value in item_rows if isinstance(value, dict)
+        if _text(value.get("itemId"))
+    }
+    sources_by_item: dict[str, list[dict[str, str]]] = {}
+    for value in source_rows_input:
+        if not isinstance(value, dict):
+            continue
+        item_id = _text(value.get("itemId"))
+        label = _text(value.get("sourceLabel"))
+        source_type = _text(value.get("sourceType"))
+        if not item_id or not label:
+            continue
+        rows = sources_by_item.setdefault(item_id, [])
+        row = {"label": label, "sourceType": source_type}
+        if row not in rows and len(rows) < 8:
+            rows.append(row)
 
     canonical_slots: dict[str, dict[str, Any]] = {}
     selected_gear_by_slot: dict[str, dict[str, Any]] = {}
@@ -136,7 +159,7 @@ def build_community_template_import_source(
             "craftedOptionId": "",
             "catalystOptionId": "",
         }
-        selected_gear_by_slot[slot] = {
+        selected = {
             "variantId": _text(variant.get("id") or variant.get("variantId")),
             "itemId": item_id,
             "variantKey": variant_key,
@@ -144,6 +167,27 @@ def build_community_template_import_source(
             "label": _text(variant.get("label")),
             "itemLevel": variant.get("itemLevel") if isinstance(variant.get("itemLevel"), int) else 0,
         }
+        item = items_by_id.get(item_id)
+        source_rows = sources_by_item.get(item_id, [])
+        if item is not None or source_rows:
+            item_level = item.get("itemLevel") if isinstance(item, dict) else None
+            level = item_level if isinstance(item_level, int) else selected["itemLevel"]
+            display_name = _text(item.get("name")) if isinstance(item, dict) else ""
+            display_name = display_name or selected["label"] or item_id
+            source_type = _text(variant.get("sourceType")) or (
+                source_rows[0]["sourceType"] if source_rows else ""
+            )
+            selected.update({
+                "displayName": display_name,
+                "name": display_name,
+                "ilevel": level,
+                "itemLevel": level,
+                "simcReady": True,
+                "sourceType": source_type,
+                "source": source_rows[0]["label"] if source_rows else "",
+                "sources": source_rows,
+            })
+        selected_gear_by_slot[slot] = selected
         slot_visible_options: dict[str, dict[str, str]] = {}
         slot_unresolved: dict[str, int] = {}
         for field, expected_type, count_field in _OPTION_FIELDS:

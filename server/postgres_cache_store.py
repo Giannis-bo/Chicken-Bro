@@ -1247,6 +1247,8 @@ class PostgresCacheStore:
             release_rows.get("winner"),
             release_rows.get("variants"),
             release_rows.get("options"),
+            items=release_rows.get("items"),
+            sources=release_rows.get("sources"),
         )
         selection_intent = build_community_template_selection_intent(source)
         reconcile_ms = (time.perf_counter() - source_started) * 1000

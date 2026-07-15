@@ -86,6 +86,56 @@ function resolveVerified(state, signature) {
   )
 }
 
+function importedSnapshot(signature = 'sha256:community-import') {
+  return {
+    ...snapshot(signature),
+    resolvedSlots: {
+      head: {
+        selectedOptions: {
+          gemOptionIds: ['gem-community'],
+          enchantOptionId: '',
+          embellishmentOptionId: ''
+        }
+      }
+    }
+  }
+}
+
+test('verified community import adopts one sealed snapshot and fences outstanding resolves', () => {
+  const original = resolveVerified(workbench.createGearWorkbenchState(resolverContext(), intent()), 'sha256:before-import')
+  const adoptedIntent = intent()
+  adoptedIntent.slots.head.gemOptionIds = ['gem-community']
+
+  const adopted = workbench.adoptVerifiedCommunityImport(
+    original,
+    adoptedIntent,
+    importedSnapshot(),
+    { manifestRevision: 'manifest-community-a', pointerGeneration: 9 }
+  )
+
+  assert.equal(adopted.resolveStatus, 'verified')
+  assert.equal(adopted.activeRequest, null)
+  assert.equal(adopted.intentVersion, original.intentVersion + 1)
+  assert.equal(adopted.latestResolveSerial, original.latestResolveSerial + 1)
+  assert.equal(adopted.currentSnapshot.resolvedGearSignature, 'sha256:community-import')
+  assert.deepEqual(adopted.confirmedIntent, adoptedIntent)
+  assert.deepEqual(adopted.draftIntent, adoptedIntent)
+  assert.equal(adopted.statSnapshotStatus, 'idle')
+})
+
+test('community import rejects incomplete snapshots without changing the last verified selection', () => {
+  const original = resolveVerified(workbench.createGearWorkbenchState(resolverContext(), intent()), 'sha256:before-import')
+  const rejected = workbench.adoptVerifiedCommunityImport(
+    original,
+    intent(),
+    { ...importedSnapshot(), resolvedSlots: { head: { selectedOptions: { gemOptionIds: [null] } } } },
+    { manifestRevision: 'manifest-community-a' }
+  )
+
+  assert.deepEqual(rejected, original)
+  assert.notEqual(rejected, original)
+})
+
 test('Selection Intent serializer emits only client-owned identifiers from backend context', () => {
   const selectedGearBySlot = {
     head: {

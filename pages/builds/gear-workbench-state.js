@@ -353,6 +353,94 @@ function applyGearResolveResult(state, request, transportResult) {
   return next
 }
 
+function validImportIdentity(value, allowEmpty) {
+  if (typeof value !== 'string') return false
+  const normalized = value.trim()
+  return normalized.length <= 256 && (allowEmpty || normalized.length > 0)
+}
+
+function validImportedSelectedOptions(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  if (Object.prototype.hasOwnProperty.call(value, 'gemOptionIds')) {
+    if (!Array.isArray(value.gemOptionIds)) return false
+    if (!value.gemOptionIds.every((optionId) => validImportIdentity(optionId, false))) return false
+  }
+  return ['enchantOptionId', 'embellishmentOptionId', 'craftedOptionId', 'catalystOptionId'].every((field) => (
+    !Object.prototype.hasOwnProperty.call(value, field) || validImportIdentity(value[field], true)
+  ))
+}
+
+function validImportedIntent(value) {
+  const intent = value && typeof value === 'object' ? value : {}
+  const authoredAgainst = intent.authoredAgainst && typeof intent.authoredAgainst === 'object'
+    ? intent.authoredAgainst
+    : {}
+  const eligibility = intent.eligibilityContext && typeof intent.eligibilityContext === 'object'
+    ? intent.eligibilityContext
+    : {}
+  const slots = intent.slots && typeof intent.slots === 'object' && !Array.isArray(intent.slots)
+    ? intent.slots
+    : null
+  if (
+    !validImportIdentity(intent.schemaRevision, false) ||
+    !validImportIdentity(authoredAgainst.seasonRevision, false) ||
+    !validImportIdentity(authoredAgainst.gearCatalogRevision, false) ||
+    !validImportIdentity(eligibility.classKey, false) ||
+    !validImportIdentity(eligibility.specKey, false) ||
+    !Number.isInteger(eligibility.level) || eligibility.level <= 0 ||
+    !slots || Object.keys(slots).length === 0
+  ) return false
+  return Object.values(slots).every((selection) => (
+    selection && typeof selection === 'object' &&
+    validImportIdentity(selection.itemId, false) &&
+    validImportIdentity(selection.variantKey, false) &&
+    validImportedSelectedOptions(selection)
+  ))
+}
+
+function verifiedImportedSnapshotForIntent(snapshot, selectionIntent) {
+  const value = snapshot && typeof snapshot === 'object' ? snapshot : {}
+  const slots = value.resolvedSlots && typeof value.resolvedSlots === 'object' && !Array.isArray(value.resolvedSlots)
+    ? value.resolvedSlots
+    : {}
+  const intentSlots = selectionIntent && selectionIntent.slots && typeof selectionIntent.slots === 'object'
+    ? selectionIntent.slots
+    : {}
+  return !!(
+    value.contractRevision === 'gear-resolved-snapshot-v1' &&
+    value.status === 'verified' &&
+    validImportIdentity(value.resolvedGearSignature, false) &&
+    Object.keys(intentSlots).every((slot) => (
+      slots[slot] && validImportedSelectedOptions(slots[slot].selectedOptions)
+    ))
+  )
+}
+
+function adoptVerifiedCommunityImport(state, selectionIntent, snapshot, releaseContext) {
+  const current = clone(state || createGearWorkbenchState())
+  const release = releaseContext && typeof releaseContext === 'object' ? releaseContext : {}
+  if (
+    !validImportIdentity(release.manifestRevision, false) ||
+    !validImportedIntent(selectionIntent) ||
+    !verifiedImportedSnapshotForIntent(snapshot, selectionIntent)
+  ) return current
+
+  const next = clone(current)
+  next.confirmedIntent = clone(selectionIntent)
+  next.draftIntent = clone(selectionIntent)
+  next.intentVersion = Number(next.intentVersion || 0) + 1
+  next.latestResolveSerial = Number(next.latestResolveSerial || 0) + 1
+  next.resolveStatus = 'verified'
+  next.activeRequest = null
+  next.currentSnapshot = clone(snapshot)
+  next.lastVerifiedSnapshot = clone(snapshot)
+  next.problems = []
+  next.offline = false
+  next.readOnly = false
+  next.revisionRetryCount = 0
+  return invalidateGearStatSnapshot(next)
+}
+
 function rebaseGearIntentRevisions(state, releaseContext) {
   if (state.resolveStatus !== 'revision_conflict' || state.revisionRetryCount >= 1) return state
   const release = releaseContext && typeof releaseContext === 'object' ? releaseContext : {}
@@ -444,6 +532,7 @@ function gearWorkbenchView(state) {
 module.exports = {
   GEAR_STAT_MAX_ATTEMPTS,
   GEAR_STAT_MAX_DURATION_MS,
+  adoptVerifiedCommunityImport,
   applyGearStatSnapshotResult,
   applyGearResolveResult,
   beginGearStatSnapshot,

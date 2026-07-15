@@ -90,6 +90,11 @@ globalThis.__detailHelpers = {
       if (modulePath === './websim-api') {
         return {
           requestWebsimGear: options.requestWebsimGear || (() => Promise.resolve({ payload: {} })),
+          requestWebsimCommunityTemplateImport: options.requestWebsimCommunityTemplateImport || (() => Promise.resolve({
+            payload: null,
+            fromFallback: true,
+            offline: true
+          })),
           requestWebsimGearResolve: options.requestWebsimGearResolve || (() => Promise.resolve({ payload: null, fromFallback: true })),
           requestWebsimGearStatSnapshot: options.requestWebsimGearStatSnapshot || options.requestWebsimGearStats || (() => Promise.resolve({ payload: null, fromFallback: true, offline: true })),
           requestWebsimTalentImport: options.requestWebsimTalentImport || (() => Promise.resolve({ payload: {} })),
@@ -13304,7 +13309,7 @@ function mageFrostResolvedEnhancements(snapshot) {
   })
 }
 
-function mageFrostCommunityEnhancementHarness() {
+function mageFrostCommunityEnhancementHarness(options = {}) {
   const fixture = mageFrostEnhancementFixture()
   const reference = fixture.referenceContract
   const expectedBySlot = Object.fromEntries(fixture.expectedInstances.map((instance) => [instance.slot, instance]))
@@ -13423,7 +13428,8 @@ function mageFrostCommunityEnhancementHarness() {
     replacementCandidates,
     readiness: { fullReady: true, requiredReadyCount: 15, missingRequiredSlots: [] },
     slotReadiness: {},
-    resolverContext: canonicalTestResolverContext()
+    resolverContext: canonicalTestResolverContext(),
+    ...(options.atomicImport ? { manifestRevision: 'manifest-mage-frost-import' } : {})
   }
   const template = {
     id: reference.templateId,
@@ -13436,10 +13442,70 @@ function mageFrostCommunityEnhancementHarness() {
     gearItems: templateGearItems
   }
   const resolveRequests = []
+  const importCalls = []
   const savedTemplates = []
+  const importedSnapshot = {
+    contractRevision: 'gear-resolved-snapshot-v1',
+    status: 'verified',
+    resolvedGearSignature: 'sha256:mage-frost-community-import',
+    dependencyVector: {},
+    staticAttributes: {},
+    setState: { itemSetCounts: {}, activeDynamicEffects: [] },
+    aggregateLegality: { status: 'verified', problemCodes: [] },
+    profileReadiness: { status: 'verified', simcReady: true },
+    constraints: {
+      embellishmentMax: reference.expectedTotals.embellishmentsMax,
+      slots: constraintsBySlot
+    },
+    resolvedSlots: Object.fromEntries(Object.entries(selectedGearBySlot).map(([slot, item]) => {
+      const selected = reference.canonicalEnhancementBySlot[slot] || {}
+      return [slot, {
+        itemLevel: item.ilevel,
+        selectedOptions: {
+          gemOptionIds: (selected.gemIds || []).map((gemId) => `gem-${gemId}`),
+          enchantOptionId: selected.enchantId ? `enchant-${slot}-${selected.enchantId}` : '',
+          embellishmentOptionId: selected.embellishment ? `embellishment-${selected.embellishment}` : ''
+        }
+      }]
+    })),
+    problems: []
+  }
   const pageConfig = loadBuildsDetailPageConfig({
+    toasts: options.toasts,
     storedTemplates: savedTemplates,
     savedTemplates,
+    requestWebsimGear: options.requestWebsimGear,
+    requestWebsimCommunityTemplateImport: options.requestWebsimCommunityTemplateImport || (options.atomicImport
+      ? (params) => {
+          importCalls.push(JSON.parse(JSON.stringify(params)))
+          return Promise.resolve({
+            httpStatus: 200,
+            fromFallback: false,
+            payload: {
+              contractRevision: 'community-template-import-envelope-v1',
+              requestId: 'mage-frost-community-import',
+              status: 'verified',
+              releaseContext: { manifestRevision: 'manifest-mage-frost-import', pointerGeneration: 1 },
+              problems: [],
+              data: {
+                contractRevision: 'websim-community-template-import-v1',
+                status: 'verified',
+                template: {
+                  id: reference.templateId,
+                  classKey: 'mage',
+                  specKey: 'frost',
+                  sourceKey: 'raiderio_observed_profile'
+                },
+                manifest: { manifestRevision: 'manifest-mage-frost-import', pointerGeneration: 1 },
+                selectedGearBySlot,
+                resolvedSnapshot: importedSnapshot,
+                unresolvedBySlot: {},
+                warnings: []
+              }
+            }
+          })
+        }
+      : undefined),
     requestWebsimGearResolve(selectionIntent) {
       resolveRequests.push(JSON.parse(JSON.stringify(selectionIntent)))
       return canonicalEnhancementResolveTransport(
@@ -13486,6 +13552,8 @@ function mageFrostCommunityEnhancementHarness() {
     page,
     template,
     resolveRequests,
+    importCalls,
+    importedSnapshot,
     savedTemplates,
     selectedGearBySlot
   }
@@ -13501,6 +13569,132 @@ async function importMageFrostCommunityEnhancements(harness) {
 function mageFrostEnhancementMetrics(page) {
   return Object.fromEntries(page.data.gearAttributePanel.enhancementRows.map((row) => [row.key, row.value]))
 }
+
+test('community import commits canonical 8 of 8 gems 6 of 8 enchants and 2 of 2 embellishments without a second Resolve', async () => {
+  const harness = await importMageFrostCommunityEnhancements(
+    mageFrostCommunityEnhancementHarness({ atomicImport: true })
+  )
+
+  assert.equal(harness.importCalls.length, 1)
+  assert.equal(harness.resolveRequests.length, 0)
+  assert.deepEqual(mageFrostEnhancementMetrics(harness.page), {
+    embellishment: '2/2', gem: '8/8', enchant: '6/8', tierSet: '0'
+  })
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(harness.page.data.enhancementBySlot)),
+    mageFrostCanonicalEnhancementBySlot(harness.fixture)
+  )
+  assert.equal(
+    harness.page.gearWorkbenchState.currentSnapshot.resolvedGearSignature,
+    'sha256:mage-frost-community-import'
+  )
+})
+
+test('blocked community import preserves the prior build and keeps the sheet open', async () => {
+  const toasts = []
+  const harness = mageFrostCommunityEnhancementHarness({
+    atomicImport: true,
+    toasts,
+    requestWebsimCommunityTemplateImport: () => Promise.resolve({
+      httpStatus: 200,
+      fromFallback: false,
+      payload: {
+        contractRevision: 'community-template-import-envelope-v1',
+        requestId: 'blocked-community-import',
+        status: 'blocked',
+        releaseContext: { manifestRevision: 'manifest-mage-frost-import' },
+        problems: [{ code: 'template_import_blocked', title: 'blocked' }],
+        data: {}
+      }
+    })
+  })
+  const before = { head: { ...harness.selectedGearBySlot.head } }
+  harness.page.data.selectedGearBySlot = before
+
+  await importMageFrostCommunityEnhancements(harness)
+
+  assert.deepEqual(JSON.parse(JSON.stringify(harness.page.data.selectedGearBySlot)), before)
+  assert.equal(harness.page.data.gearCommunityTemplateSheet.visible, true)
+  assert.equal(harness.page.data.communityTemplateImporting, false)
+  assert.match(toasts.at(-1).title, /未能安全导入/)
+})
+
+test('older community import response cannot overwrite a newer import', async () => {
+  const pending = []
+  let harness
+  harness = mageFrostCommunityEnhancementHarness({
+    atomicImport: true,
+    requestWebsimCommunityTemplateImport: (params) => new Promise((resolve) => pending.push({ params, resolve }))
+  })
+  const newerTemplate = { ...harness.template, id: 'newer-observed-profile' }
+  harness.page.data.activeGearCommunityTemplates = [harness.template, newerTemplate]
+  const responseFor = (templateId, signature) => ({
+    httpStatus: 200,
+    fromFallback: false,
+    payload: {
+      contractRevision: 'community-template-import-envelope-v1',
+      requestId: `import-${templateId}`,
+      status: 'verified',
+      releaseContext: { manifestRevision: 'manifest-mage-frost-import', pointerGeneration: 1 },
+      problems: [],
+      data: {
+        contractRevision: 'websim-community-template-import-v1',
+        status: 'verified',
+        template: { id: templateId, classKey: 'mage', specKey: 'frost', sourceKey: 'raiderio_observed_profile' },
+        manifest: { manifestRevision: 'manifest-mage-frost-import', pointerGeneration: 1 },
+        selectedGearBySlot: harness.selectedGearBySlot,
+        resolvedSnapshot: { ...harness.importedSnapshot, resolvedGearSignature: signature },
+        unresolvedBySlot: {}, warnings: []
+      }
+    }
+  })
+
+  const older = harness.pageConfig.applyGearCommunityTemplate.call(harness.page, {
+    currentTarget: { dataset: { id: harness.template.id } }
+  })
+  const newer = harness.pageConfig.applyGearCommunityTemplate.call(harness.page, {
+    currentTarget: { dataset: { id: newerTemplate.id } }
+  })
+  assert.equal(pending.length, 2)
+
+  pending[1].resolve(responseFor(newerTemplate.id, 'sha256:newer-community-import'))
+  await newer
+  const afterNewer = JSON.parse(JSON.stringify(harness.page.data.selectedGearBySlot))
+  pending[0].resolve(responseFor(harness.template.id, 'sha256:older-community-import'))
+  await older
+
+  assert.deepEqual(JSON.parse(JSON.stringify(harness.page.data.selectedGearBySlot)), afterNewer)
+  assert.equal(harness.page.gearWorkbenchState.currentSnapshot.resolvedGearSignature, 'sha256:newer-community-import')
+  assert.equal(harness.page.communityEnhancementImportState.templateId, newerTemplate.id)
+})
+
+test('post-import enhancement editing requests only the selected slot', async () => {
+  const slotRequests = []
+  let completeFingerGroup
+  const harness = mageFrostCommunityEnhancementHarness({
+    atomicImport: true,
+    requestWebsimGear(params) {
+      slotRequests.push(JSON.parse(JSON.stringify(params)))
+      return Promise.resolve({ payload: { replacementCandidates: [completeFingerGroup] }, fromFallback: false })
+    }
+  })
+  const fingerGroup = harness.page.gearPayloadCache.replacementCandidates.find((group) => group.slot === 'finger1')
+  completeFingerGroup = JSON.parse(JSON.stringify(fingerGroup))
+  fingerGroup.detailMode = 'partial'
+  fingerGroup.socketOptions = []
+  fingerGroup.enchantOptions = []
+  fingerGroup.embellishmentOptions = []
+
+  await importMageFrostCommunityEnhancements(harness)
+  harness.pageConfig.openGearEnhancementSheet.call(harness.page)
+  await harness.pageConfig.selectGearEnhancementSlot.call(harness.page, {
+    currentTarget: { dataset: { slot: 'finger1' } }
+  })
+
+  assert.deepEqual(slotRequests.map((params) => ({ mode: params.mode, slot: params.slot })), [
+    { mode: 'slot', slot: 'finger1' }
+  ])
+})
 
 test('mage frost observed community template imports editable 8 of 8 gems 6 of 8 enchants and 2 of 2 embellishments', async () => {
   const harness = await importMageFrostCommunityEnhancements(mageFrostCommunityEnhancementHarness())
@@ -14703,4 +14897,90 @@ test('simc linkage derives talent and gear state from full specialization detail
   assert.match(js, /buildGearSlotRows/)
   assert.match(js, /websimClassKey/)
   assert.match(js, /websimSpecKey/)
+})
+
+test('community import makes one import request and no mode slot request', async () => {
+  const importCalls = []
+  const pageConfig = loadBuildsDetailPageConfig({
+    requestWebsimGear() {
+      throw new Error('community import must not request slot hydration')
+    },
+    requestWebsimCommunityTemplateImport(params) {
+      importCalls.push(params)
+      return Promise.resolve({
+        httpStatus: 200,
+        fromFallback: false,
+        payload: {
+          contractRevision: 'community-template-import-envelope-v1',
+          requestId: 'community-import-one-request',
+          status: 'verified',
+          releaseContext: { manifestRevision: 'manifest-community-a', pointerGeneration: 9 },
+          problems: [],
+          data: {
+            contractRevision: 'websim-community-template-import-v1',
+            status: 'verified',
+            template: {
+              id: 'observed-frost', classKey: 'mage', specKey: 'frost', sourceKey: 'raiderio_observed_profile'
+            },
+            manifest: { manifestRevision: 'manifest-community-a', pointerGeneration: 9 },
+            selectedGearBySlot: {
+              head: {
+                itemId: '250060', variantId: 'variant-head', variantKey: 'variant-head', slot: 'head',
+                displayName: 'Imported Head', itemLevel: 707, simcReady: true
+              }
+            },
+            resolvedSnapshot: {
+              contractRevision: 'gear-resolved-snapshot-v1',
+              status: 'verified',
+              resolvedGearSignature: 'sha256:community-imported',
+              aggregateLegality: { status: 'verified', problemCodes: [] },
+              staticAttributes: {}, setState: { itemSetCounts: {} }, constraints: {},
+              profileReadiness: { status: 'verified', simcReady: true }, problems: [],
+              resolvedSlots: { head: { selectedOptions: { gemOptionIds: [], enchantOptionId: '', embellishmentOptionId: '' } } }
+            },
+            unresolvedBySlot: {}, warnings: []
+          }
+        }
+      })
+    }
+  })
+  const gearPayload = {
+    classKey: 'mage', specKey: 'frost', maxLevel: 90, manifestRevision: 'manifest-community-a',
+    resolverContext: canonicalTestResolverContext(),
+    slots: [{ slot: 'head', simcSlot: 'head', label: '头部' }],
+    replacementCandidates: [], equippedSet: {}, slotReadiness: {}, readiness: {}
+  }
+  const page = {
+    gearPayloadCache: gearPayload,
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear', selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' },
+      gearSelectionKey: 'mage:frost', gearPayload, selectedGearBySlot: {}, enhancementBySlot: {},
+      activeGearCommunityTemplates: [{ id: 'observed-frost', canApplyGear: true }],
+      gearCommunityTemplateSheet: { visible: true }, gearSlotSheet: { visible: false }, gearEnhancementSheet: { visible: false }
+    },
+    setData(update) { this.data = { ...this.data, ...update } }
+  }
+
+  await pageConfig.applyGearCommunityTemplate.call(page, {
+    currentTarget: { dataset: { id: 'observed-frost' } }
+  })
+
+  assert.deepEqual(JSON.parse(JSON.stringify(importCalls)), [{
+    classKey: 'mage', specKey: 'frost', templateId: 'observed-frost', expectedManifestRevision: 'manifest-community-a'
+  }])
+  assert.equal(page.data.selectedGearBySlot.head.itemId, '250060')
+  assert.equal(page.data.enhancementBySlot.head, undefined)
+  assert.equal(page.data.gearWorkbenchView.resolvedGearSignature, 'sha256:community-imported')
+  assert.equal(page.data.gearCommunityTemplateSheet.visible, false)
+})
+
+test('community template button disables during import and keeps user-facing progress copy', () => {
+  const wxml = fs.readFileSync('pages/builds/detail.wxml', 'utf8')
+
+  assert.match(
+    wxml,
+    /class="gear-community-template-apply"\s+disabled="\{\{!item\.canApplyGear \|\| communityTemplateImporting\}\}"\s+data-id="\{\{item\.id\}\}" bindtap="applyGearCommunityTemplate"/
+  )
+  assert.match(wxml, /\{\{communityTemplateImporting \? '正在导入并校验强化…' : item\.actionLabel\}\}/)
 })
