@@ -734,7 +734,7 @@ class GearReleaseStoreTest(unittest.TestCase):
         self.assertIn((binding["manifest"]["communityTemplateReleaseId"], "mage", "arcane", "template-a"), selected_query_params)
         self.assertIn((["item-a"], ["variant-a"], binding["gearRelease"]["releaseId"]), selected_query_params)
         self.assertIn((binding["gearRelease"]["releaseId"], ["item-a"]), selected_query_params)
-        self.assertIn((binding["gearRelease"]["releaseId"], ["gem-a"], ["variant-a-id"]), selected_query_params)
+        self.assertIn((binding["gearRelease"]["releaseId"], ["gem-a"]), selected_query_params)
 
     def test_active_community_import_rebinds_a_normalized_variant_alias_to_one_sealed_variant(self):
         from server.gear_release_store import GearReleaseStore, canonical_row_hash
@@ -758,6 +758,27 @@ class GearReleaseStoreTest(unittest.TestCase):
 
         self.assertEqual(result["variants"][0]["requestedVariantKey"], "variant-a")
         self.assertEqual(result["variants"][0]["variantKey"], "variant-a!")
+
+    def test_active_community_import_reads_sealed_option_from_the_release_not_only_selected_variant(self):
+        from server.gear_release_store import GearReleaseStore, canonical_row_hash
+
+        binding, _rows, snapshot, rowsets = self.active_community_import_fixture()
+        compatible_option = copy.deepcopy(snapshot["options"][0])
+        compatible_option["variantId"] = "compatible-variant-id"
+        rowsets["FROM cache.websim_gear_release_mod_options"] = [
+            (
+                "option-a-id", "compatible-variant-id", "gem-a", "gem", "Gem A", ["head"],
+                {"gem_id": "1"}, "verified", True,
+                {"itemStats": [{"key": "haste", "value": 10}]},
+                "2026-07-11T05:00:00+00:00", canonical_row_hash(compatible_option),
+            )
+        ]
+
+        result = GearReleaseStore(lambda: FakeConnection(rowsets=rowsets)).load_active_community_template_import(
+            binding, "mage", "arcane", "template-a"
+        )
+
+        self.assertEqual(result["options"][0]["variantId"], "compatible-variant-id")
 
     def test_seal_community_release_inserts_elected_rows_without_pointer_write(self):
         from server.gear_release_store import GearReleaseStore

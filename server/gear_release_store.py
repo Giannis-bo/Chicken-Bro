@@ -1680,7 +1680,6 @@ class GearReleaseStore:
                 selected_option_keys = _selected_option_ids(intent)
                 options = []
                 if selected_option_keys:
-                    selected_variant_ids = sorted({row["variantId"] for row in variants})
                     cur.execute(
                         """
                         SELECT option_id, variant_id, option_key, option_type, name,
@@ -1689,10 +1688,9 @@ class GearReleaseStore:
                         FROM cache.websim_gear_release_mod_options
                         WHERE release_id = %s
                           AND option_key = ANY(%s::text[])
-                          AND variant_id = ANY(%s::text[])
                         ORDER BY option_id
                         """,
-                        (gear_id, selected_option_keys, selected_variant_ids),
+                        (gear_id, selected_option_keys),
                     )
                     option_db_rows = cur.fetchall()
                     options = [
@@ -1713,7 +1711,6 @@ class GearReleaseStore:
                     ]
                     if (
                         {row["optionKey"] for row in options} != set(selected_option_keys)
-                        or any(row["variantId"] not in selected_variant_ids for row in options)
                         or any(canonical_row_hash(record) != _text(row[11]) for record, row in zip(options, option_db_rows))
                     ):
                         raise GearReleaseIntegrityError("active Community import option integrity failed")
