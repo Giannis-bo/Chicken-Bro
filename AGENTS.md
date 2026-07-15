@@ -20,6 +20,15 @@ This repository maintains a project roadmap as shared context for all agents and
 - If the idea is already decision-ready and belongs to an active direction, update `docs/roadmap.md` with the milestone, user value, key actions, completion criteria, and evidence links.
 - If it is not practical to edit docs in the current turn, explicitly remind the user that the idea should be captured in the roadmap.
 
+## Experience-First Product Discussions
+
+- For every feature, bug, or requirement discussion, lead with the user's perspective before implementation details: who is in which scenario, what they are trying to accomplish, where the current journey fails, and what observable result would feel complete.
+- Default discussion order is: user goal and scenario; current friction or harm; proposed experience and main/exception paths; user-visible acceptance and trust boundary; then technical options, constraints, risks, and implementation plan.
+- For bugs, state the user-visible symptom, impact, and expected recovery before naming the suspected file, API, or root cause. Read-only investigation may start immediately, but a proposed fix must be framed in the user journey.
+- Keep verified facts, product hypotheses, and technical assumptions explicitly separate. Do not turn an implementation convenience, an incomplete data source, or internal evidence into a user-facing promise.
+- Technical details remain mandatory when they alter user trust, data truth, privacy, latency, availability, rollback, or the feasible experience. They are the second layer by default, and become the primary layer when the user explicitly asks for technical design or implementation.
+- A discussion is ready to enter implementation only when it includes both user-visible acceptance criteria and the appropriate Harness evidence/rollback criteria. Do not replace either with the other.
+
 ## Status Discipline
 
 - Use the roadmap status labels consistently: `已完成`, `正在推进`, `下一步`, `后续`, `暂缓`, `待决策`.
