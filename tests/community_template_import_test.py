@@ -166,6 +166,20 @@ class CommunityTemplateImportTest(unittest.TestCase):
             ["gem-a", "gem-a"],
         )
 
+    def test_socket_typed_release_option_reconciles_as_a_canonical_gem(self):
+        from server.community_template_import import build_community_template_selection_intent
+
+        options = copy.deepcopy(self.options)
+        options[0]["optionType"] = "socket"
+
+        source = self.build_source(options=options)
+
+        self.assertEqual(
+            build_community_template_selection_intent(source)["slots"]["head"]["gemOptionIds"],
+            ["gem-a", "gem-a"],
+        )
+        self.assertEqual(source["visibleOptionsBySlot"]["head"]["gem-a"]["optionType"], "gem")
+
     def test_normalized_variant_alias_is_rebound_to_the_active_release_variant(self):
         from server.community_template_import import build_community_template_selection_intent
 

@@ -54,9 +54,10 @@ def _blocked(problem: dict[str, Any]) -> dict[str, Any]:
 def _option_is_usable(option: Any, slot: str, expected_type: str) -> bool:
     value = option if isinstance(option, dict) else {}
     applicable_slots = value.get("applicableSlots")
+    option_type = _text(value.get("optionType"))
     return (
         bool(_text(value.get("optionKey")))
-        and _text(value.get("optionType")) == expected_type
+        and (option_type == expected_type or (expected_type == "gem" and option_type == "socket"))
         and _text(value.get("status")) == "verified"
         and value.get("isVisible") is True
         and isinstance(applicable_slots, list)
