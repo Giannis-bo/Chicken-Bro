@@ -216,3 +216,23 @@ test('critical contract characterization has no unknown or blocked domains', () 
     }
   }
 })
+
+test('canonical gear domain records the pure socket fact owner and verification', () => {
+  const ownerMap = readOwnerMap()
+  const gearDomain = ownerMap.criticalDomains.find(
+    (domain) => domain.id === 'websim_gear_public_read_model'
+  )
+  assert.ok(gearDomain, 'websim gear domain should exist')
+  assert.equal(gearDomain.socketFactAuthority.factOwner, 'server/gear_socket_authority.py')
+  assert.equal(gearDomain.socketFactAuthority.status, 'pure_contract_only_unconsumed')
+  assert.deepEqual(gearDomain.socketFactAuthority.runtimeConsumers, [])
+  assert.ok(gearDomain.socketFactAuthority.tests.includes('tests/gear_socket_authority_test.py'))
+  assert.ok(gearDomain.releaseTrainFoundations.modules.includes('server/gear_socket_authority.py'))
+  assert.ok(gearDomain.releaseTrainFoundations.tests.includes('tests/gear_socket_authority_test.py'))
+  assert.ok(gearDomain.characterization.includes('tests/gear_socket_authority_test.py'))
+  assert.ok(gearDomain.criticalContract.coverage.includes('tests/gear_socket_authority_test.py'))
+  assert.ok(gearDomain.changedPathPatterns.includes('server/gear_socket_authority.py'))
+  assert.ok(gearDomain.changedPathPatterns.includes('tests/gear_socket_authority_test.py'))
+  assertPathExists(gearDomain.socketFactAuthority.factOwner)
+  assertPathListExists(gearDomain.socketFactAuthority.tests)
+})

@@ -324,9 +324,22 @@
         ],
         "runtimeConsumers": []
       },
+      "socketFactAuthority": {
+        "status": "pure_contract_only_unconsumed",
+        "factOwner": "server/gear_socket_authority.py",
+        "modules": [
+          "server/gear_socket_authority.py"
+        ],
+        "tests": [
+          "tests/gear_socket_authority_test.py"
+        ],
+        "runtimeConsumers": [],
+        "activationBoundary": "Task 1 defines deterministic max-not-sum socket facts only; release materialization and runtime consumption remain outside this slice."
+      },
       "releaseTrainFoundations": {
         "status": "phase4e_active_manifest_and_scheduled_candidates",
         "modules": [
+          "server/gear_socket_authority.py",
           "server/gear_release.py",
           "server/gear_release_store.py",
           "server/gear_release_tool.py",
@@ -338,6 +351,7 @@
           "server/wow-gear-release-refresh.timer"
         ],
         "tests": [
+          "tests/gear_socket_authority_test.py",
           "tests/gear_release_test.py",
           "tests/gear_release_store_test.py",
           "tests/gear_release_tool_test.py",
@@ -414,7 +428,8 @@
         "tests/gear_release_store_test.py",
         "tests/gear_release_tool_test.py",
         "tests/gear_release_shadow_test.py",
-        "tests/gear_release_refresh_test.py"
+        "tests/gear_release_refresh_test.py",
+        "tests/gear_socket_authority_test.py"
       ],
       "runtimeSurfaces": [
         "server/gear_public_contract.py",
@@ -438,6 +453,7 @@
       "releaseTrigger": "public_payload",
       "changedPathPatterns": [
         "server/gear_public_contract.py",
+        "server/gear_socket_authority.py",
         "server/websim_payload.py",
         "server/pg_gear_template_selectors.py",
         "server/gear_contracts.py",
@@ -471,6 +487,7 @@
         "tests/gear_release_tool_test.py",
         "tests/gear_release_shadow_test.py",
         "tests/gear_release_refresh_test.py",
+        "tests/gear_socket_authority_test.py",
         "tests/gear_stat_snapshot_test.py",
         "tests/gear_stat_snapshot_store_test.py",
         "tests/pg_gear_authority_loader_test.py"
@@ -498,7 +515,8 @@
           "tests/gear_release_test.py",
           "tests/gear_release_store_test.py",
           "tests/gear_release_tool_test.py",
-          "tests/gear_release_shadow_test.py"
+          "tests/gear_release_shadow_test.py",
+          "tests/gear_socket_authority_test.py"
         ],
         "runtimeEvidence": [],
         "ownerMapRef": {

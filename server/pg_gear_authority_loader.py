@@ -11,6 +11,19 @@ import threading
 from typing import Any, Iterable
 
 try:
+    from . import gear_socket_authority
+    from .gear_enhancement_management import (
+        project_validated_enhancement_management,
+        validated_enhancement_management_fields,
+    )
+except ImportError:
+    import gear_socket_authority
+    from gear_enhancement_management import (
+        project_validated_enhancement_management,
+        validated_enhancement_management_fields,
+    )
+
+try:
     from .gear_contracts import parse_selection_intent, selection_signature
 except ImportError:
     from gear_contracts import parse_selection_intent, selection_signature
@@ -236,6 +249,7 @@ _REQUIRED_RUNTIME_REVISIONS = (
     "simcRuntimeRevision",
     "statPolicyRevision",
     "selectionSchemaRevision",
+    "capabilityRevision",
 )
 _OPTION_ALLOW_FIELDS = {
     "gem": "allowedGemOptionIds",
@@ -245,8 +259,21 @@ _OPTION_ALLOW_FIELDS = {
     "crafted": "allowedCraftedOptionIds",
     "catalyst": "allowedCatalystOptionIds",
 }
-
-
+_MAX_SOCKET_EVIDENCE_TEXT_CHARS = 240
+_OPTION_UNIQUE_GROUP_FIELDS = (
+    "uniqueGroupId",
+    "unique_group_id",
+    "uniqueGroup",
+    "unique_group",
+    "uniqueKey",
+    "unique_key",
+)
+_OPTION_UNIQUE_LIMIT_FIELDS = (
+    "uniqueLimit",
+    "unique_limit",
+    "uniqueEquippedLimit",
+    "unique_equipped_limit",
+)
 def _canonical(value: Any) -> Any:
     return json.loads(
         json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), default=str)
@@ -303,6 +330,41 @@ def _non_negative_int(value: Any) -> int:
     if isinstance(value, bool):
         return 0
     return max(0, _int(value))
+
+
+def _positive_integer(value: Any) -> int:
+    if isinstance(value, bool):
+        return 0
+    if isinstance(value, int):
+        return value if value > 0 else 0
+    if isinstance(value, str) and re.fullmatch(r"[1-9]\d*", value.strip()):
+        return int(value.strip())
+    return 0
+
+
+def _strict_unique_group(value: Any) -> str:
+    return value.strip() if isinstance(value, str) else ""
+
+
+def _option_unique_groups(record: dict[str, Any], payload: dict[str, Any]) -> list[str]:
+    return sorted({
+        value.strip()
+        for source in (record, payload)
+        for field in _OPTION_UNIQUE_GROUP_FIELDS
+        for value in (source.get(field),)
+        if isinstance(value, str) and value.strip()
+    })
+
+
+def _option_unique_limit(record: dict[str, Any], payload: dict[str, Any]) -> int:
+    positive_limits = [
+        parsed
+        for source in (record, payload)
+        for field in _OPTION_UNIQUE_LIMIT_FIELDS
+        for parsed in (_positive_integer(source.get(field)),)
+        if parsed > 0
+    ]
+    return min(positive_limits) if positive_limits else 0
 
 
 def _texts(values: Iterable[Any]) -> list[str]:
@@ -603,32 +665,106 @@ def _project_base_capabilities(
     payload: dict[str, Any],
     canonical_slot: str,
     type_metadata: dict[str, Any],
+    capability_revision: str,
 ) -> dict[str, Any]:
     explicit = _json_value(payload.get("baseCapabilities"), {})
     explicit = explicit if isinstance(explicit, dict) else {}
-    explicit = {
-        **explicit,
-        **{
-            field: payload[field]
-            for field in ("socketCount", "canEnchant", "canEmbellish")
-            if field in payload
-        },
-    }
     derived = item_mod_capabilities(
         payload=payload,
         slot=canonical_slot,
         item={"slot": canonical_slot, **type_metadata},
     )
-    socket_count = max(
-        _non_negative_int(explicit.get("socketCount")),
-        _non_negative_int(derived.get("socketCount")),
-    )
+    if capability_revision == gear_socket_authority.LEGACY_CAPABILITY_REVISION:
+        explicit = {
+            **explicit,
+            **{
+                field: payload[field]
+                for field in ("socketCount", "canEnchant", "canEmbellish")
+                if field in payload
+            },
+        }
+        socket_count = max(
+            _non_negative_int(explicit.get("socketCount")),
+            _non_negative_int(derived.get("socketCount")),
+        )
+    else:
+        explicit = {
+            **explicit,
+            **{
+                field: payload[field]
+                for field in ("canEnchant", "canEmbellish")
+                if field in payload
+            },
+        }
+        socket_count = _v2_materialized_socket_count(
+            explicit.get("socketCount"),
+            payload.get("socketEvidence"),
+            capability_revision,
+        )
     return {
         **explicit,
-        "socketCount": socket_count,
+        "socketCount": socket_count if socket_count is not None else 0,
         "canEnchant": explicit.get("canEnchant") is True or derived.get("canEnchant") is True,
         "canEmbellish": explicit.get("canEmbellish") is True or derived.get("canEmbellish") is True,
     }
+
+
+def _v2_materialized_socket_count(
+    value: Any,
+    evidence_value: Any,
+    capability_revision: str,
+) -> int | None:
+    if capability_revision != gear_socket_authority.CAPABILITY_REVISION:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        return None
+    evidence = _json_value(evidence_value, {})
+    if not isinstance(evidence, dict):
+        return None
+    minimum_total = evidence.get("minimumTotal")
+    if (
+        evidence.get("schemaRevision") != gear_socket_authority.SOCKET_FACT_SCHEMA_REVISION
+        or evidence.get("authorityRevision") != gear_socket_authority.CAPABILITY_REVISION
+        or isinstance(minimum_total, bool)
+        or not isinstance(minimum_total, int)
+        or minimum_total < 0
+        or minimum_total != value
+    ):
+        return None
+    claims = evidence.get("claims")
+    if not isinstance(claims, list):
+        return None
+    if value == 0:
+        return 0 if not claims else None
+    if not claims:
+        return None
+    claim_totals = []
+    for claim in claims:
+        if not isinstance(claim, dict):
+            return None
+        claim_total = claim.get("minimumTotal")
+        if (
+            isinstance(claim_total, bool)
+            or not isinstance(claim_total, int)
+            or claim_total <= 0
+            or any(
+                not _valid_socket_evidence_text(claim.get(field))
+                for field in ("scope", "source", "sourceRevision")
+            )
+        ):
+            return None
+        claim_totals.append(claim_total)
+    if max(claim_totals) != value:
+        return None
+    return value
+
+
+def _valid_socket_evidence_text(value: Any) -> bool:
+    return (
+        isinstance(value, str)
+        and value == value.strip()
+        and 0 < len(value) <= _MAX_SOCKET_EVIDENCE_TEXT_CHARS
+    )
 
 
 def _project_item(
@@ -637,6 +773,7 @@ def _project_item(
     source_records: Any,
     runtime_authority: dict[str, Any],
     evidence: dict[str, dict[str, Any]],
+    capability_revision: str,
 ) -> dict[str, Any] | None:
     if not isinstance(record, dict) or _text(record.get("sourceStatus")) != "verified":
         return None
@@ -700,7 +837,12 @@ def _project_item(
     inventory_type = _text(payload.get("inventoryType"))
     if not inventory_type:
         inventory_type = "weapon" if handedness in {"one_hand", "two_hand", "ranged"} else canonical_slot
-    base_capabilities = _project_base_capabilities(payload, canonical_slot, type_metadata)
+    base_capabilities = _project_base_capabilities(
+        payload,
+        canonical_slot,
+        type_metadata,
+        capability_revision,
+    )
     socket_count = base_capabilities["socketCount"]
     item_id = _text(record.get("id")) or requested_item_id
     return {
@@ -713,8 +855,8 @@ def _project_item(
         "armorType": _text(payload.get("armorType") or type_metadata.get("armorType")),
         "weaponType": weapon_type,
         "handedness": handedness,
-        "uniqueGroupId": _text(payload.get("uniqueGroupId")),
-        "uniqueLimit": _int(payload.get("uniqueLimit")),
+        "uniqueGroupId": _strict_unique_group(payload.get("uniqueGroupId")),
+        "uniqueLimit": _positive_integer(payload.get("uniqueLimit")),
         "itemSetId": item_set_ids[0] if item_set_ids else "",
         "baseStats": _static_stats(payload.get("baseStats"), payload.get("itemStats")),
         "baseCapabilities": base_capabilities,
@@ -732,21 +874,53 @@ def _project_item(
 def _variant_capability_overrides(
     payload: dict[str, Any],
     simc_options: dict[str, Any],
+    capability_revision: str,
+    enhancement_management_fields: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     explicit = _json_value(payload.get("capabilityOverrides"), {})
     explicit = explicit if isinstance(explicit, dict) else {}
     overrides = dict(explicit)
-    gem_count = len(
-        [token for token in _text(simc_options.get("gem_id")).split("/") if token.strip()]
-    )
-    if "socketCount" in explicit or gem_count:
-        overrides["socketCount"] = max(
-            _non_negative_int(explicit.get("socketCount")),
-            gem_count,
+    if capability_revision == gear_socket_authority.LEGACY_CAPABILITY_REVISION:
+        gem_count = len(
+            [
+                token
+                for token in _text(simc_options.get("gem_id")).split("/")
+                if token.strip()
+            ]
         )
-    proves_embellishment = bool(
-        _text(simc_options.get("embellishment"))
-        or _text(simc_options.get("crafted_stats"))
+        if "socketCount" in explicit or gem_count:
+            overrides["socketCount"] = max(
+                _non_negative_int(explicit.get("socketCount")),
+                gem_count,
+            )
+    else:
+        socket_count = _v2_materialized_socket_count(
+            explicit.get("socketCount"),
+            payload.get("socketEvidence"),
+            capability_revision,
+        )
+        overrides.pop("socketCount", None)
+        if socket_count is not None and socket_count > 0:
+            overrides["socketCount"] = socket_count
+    management_fields = (
+        enhancement_management_fields
+        if isinstance(enhancement_management_fields, dict)
+        else {}
+    )
+    raw_embellishment = bool(_text(simc_options.get("embellishment")))
+    crafted_stats = bool(_text(simc_options.get("crafted_stats")))
+    if (
+        capability_revision == gear_socket_authority.CAPABILITY_REVISION
+        and management_fields.get("embellishment") == "source_only"
+    ):
+        overrides["canEmbellish"] = False
+        return overrides
+    proves_embellishment = crafted_stats or (
+        raw_embellishment
+        and (
+            capability_revision == gear_socket_authority.LEGACY_CAPABILITY_REVISION
+            or management_fields.get("embellishment") == "editor_managed"
+        )
     )
     if "canEmbellish" in explicit or proves_embellishment:
         overrides["canEmbellish"] = (
@@ -761,6 +935,7 @@ def _project_variant(
     record: Any,
     item_source_refs: Iterable[str],
     evidence: dict[str, dict[str, Any]],
+    capability_revision: str,
 ) -> dict[str, Any] | None:
     if (
         not requested_variant_key
@@ -784,8 +959,23 @@ def _project_variant(
     }
     overlay = _json_value(payload.get("overlay"), {})
     overlay = overlay if isinstance(overlay, dict) else {}
+    if capability_revision == gear_socket_authority.CAPABILITY_REVISION:
+        overlay_overrides = overlay.get("capabilityOverrides")
+        if isinstance(overlay_overrides, dict):
+            overlay["capabilityOverrides"] = dict(overlay_overrides)
+            overlay["capabilityOverrides"].pop("socketCount", None)
     simc_options = _json_value(record.get("simcOptions"), {})
     simc_options = simc_options if isinstance(simc_options, dict) else {}
+    management = project_validated_enhancement_management(
+        simc_options,
+        payload.get("enhancementManagement"),
+        capability_revision,
+    )
+    validated_classifications = validated_enhancement_management_fields(
+        simc_options,
+        management,
+        capability_revision,
+    )
     projected = {
         "variantKey": requested_variant_key,
         "itemId": requested_item_id,
@@ -796,10 +986,17 @@ def _project_variant(
         else {},
         "simcOptions": simc_options,
         "itemSetId": _text(payload.get("itemSetId")),
-        "capabilityOverrides": _variant_capability_overrides(payload, simc_options),
+        "capabilityOverrides": _variant_capability_overrides(
+            payload,
+            simc_options,
+            capability_revision,
+            validated_classifications,
+        ),
         "dynamicEffects": _json_value(payload.get("dynamicEffects"), []),
         "sourceRefIds": _texts([*item_source_refs, evidence_id]),
     }
+    if management:
+        projected["enhancementManagement"] = management
     if "resolvedStats" in payload:
         projected["resolvedStats"] = _authority_stat_map(payload.get("resolvedStats"))
     elif "itemStats" in payload:
@@ -859,6 +1056,9 @@ def _project_option(
         return None
     payload = _json_value(record.get("payload"), {})
     payload = payload if isinstance(payload, dict) else {}
+    unique_groups = _option_unique_groups(record, payload)
+    if len(unique_groups) > 1:
+        return None
     if "statDeltas" in payload:
         stat_deltas = _authority_stat_map(payload.get("statDeltas"))
     elif "itemStats" in payload:
@@ -879,8 +1079,8 @@ def _project_option(
         "applicableSlots": _texts(record.get("applicableSlots") or []),
         "statDeltas": stat_deltas,
         "simcOptions": _json_value(record.get("simcOptions"), {}),
-        "uniqueGroupId": _text(payload.get("uniqueGroupId") or payload.get("uniqueGroup")),
-        "uniqueLimit": _int(payload.get("uniqueLimit")),
+        "uniqueGroupId": unique_groups[0] if unique_groups else "",
+        "uniqueLimit": _option_unique_limit(record, payload),
         "sourceRefIds": [evidence_id],
     }
 
@@ -939,6 +1139,10 @@ def build_gear_authority_context_from_rows(
         paths = ", ".join(issue.get("path", "intent") for issue in intent_issues)
         raise ValueError(f"Invalid Selection Intent: {paths}")
     runtime = runtime_authority if isinstance(runtime_authority, dict) else {}
+    raw_capability_revision = dependency_vector.get("capabilityRevision")
+    capability_revision = (
+        raw_capability_revision if isinstance(raw_capability_revision, str) else ""
+    )
     missing = [*_runtime_missing(runtime), *(_text(value) for value in missing_fields)]
     missing = [value for value in missing if value]
     evidence = _runtime_source_records(runtime)
@@ -955,6 +1159,7 @@ def build_gear_authority_context_from_rows(
             row[4] if len(row) > 4 else [],
             runtime,
             evidence,
+            capability_revision,
         )
         if item is not None:
             items_by_id[requested_item_id] = item
@@ -964,6 +1169,7 @@ def build_gear_authority_context_from_rows(
             row[3] if len(row) > 3 else None,
             item.get("sourceRefIds", []) if item else [],
             evidence,
+            capability_revision,
         )
         if variant is not None:
             variant_candidates_by_key.setdefault(requested_variant_key, []).append(variant)

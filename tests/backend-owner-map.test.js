@@ -389,3 +389,25 @@ test('backend owner map defines the backend hotspot ownership contract', () => {
   )
   assert.ok(pgOwners.has('sync_state_repository'))
 })
+
+test('canonical backend gear release owners delegate socket facts to the pure owner', () => {
+  const ownerMap = readOwnerMap()
+  const files = new Map(ownerMap.hotspotFiles.map((entry) => [entry.path, entry]))
+  const websimOwners = new Map(
+    files.get('server/websim_payload.py').owners.map((owner) => [owner.id, owner])
+  )
+  const pgOwners = new Map(
+    files.get('server/postgres_cache_store.py').owners.map((owner) => [owner.id, owner])
+  )
+  const releasePolicy = websimOwners.get('gear_release_policy')
+  const releaseRegistry = pgOwners.get('gear_release_registry')
+  const socketOwner = 'server/gear_socket_authority.py'
+  const socketTest = 'tests/gear_socket_authority_test.py'
+
+  assert.equal(releasePolicy.socketFactOwner, socketOwner)
+  assert.equal(releaseRegistry.socketFactOwner, socketOwner)
+  assert.ok(releasePolicy.characterization.includes(socketTest))
+  assert.ok(releaseRegistry.characterization.includes(socketTest))
+  assert.ok(fs.existsSync(socketOwner), `${socketOwner} should exist`)
+  assert.ok(fs.existsSync(socketTest), `${socketTest} should exist`)
+})

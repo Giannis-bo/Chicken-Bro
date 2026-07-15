@@ -1102,6 +1102,40 @@ class PostgresCacheStore:
             community_release_id,
         )
 
+    def get_active_community_release(self):
+        """Read the exact sealed active pair for internal v2 shadow comparison.
+
+        The public gear payload intentionally projects only the winner payload.
+        This internal method keeps canonical Selection Intent available to the
+        release lifecycle without exposing it through the mini-program API.
+        """
+
+        binding = self._gear_release_store.load_active_manifest_binding()
+        if not isinstance(binding, dict) or binding.get("formalActiveManifest") is not True:
+            return {"formalActiveManifest": False, "winners": []}
+        manifest = binding.get("manifest") if isinstance(binding.get("manifest"), dict) else {}
+        gear_release_id = str(manifest.get("gearCatalogReleaseId") or "").strip()
+        community_release_id = str(manifest.get("communityTemplateReleaseId") or "").strip()
+        if not gear_release_id or not community_release_id:
+            return {
+                "formalActiveManifest": True,
+                "pointerGeneration": binding.get("generation"),
+                "manifestRevision": str(
+                    manifest.get("manifestRevision") or ""
+                ).strip(),
+                "winners": [],
+            }
+        pair = self._gear_release_store.load_community_release(
+            gear_release_id,
+            community_release_id,
+        )
+        return {
+            **pair,
+            "formalActiveManifest": True,
+            "pointerGeneration": binding.get("generation"),
+            "manifestRevision": str(manifest.get("manifestRevision") or "").strip(),
+        }
+
     def gear_authority_cache_metrics(self):
         """Expose bounded in-process cache usage for internal shadow evidence."""
 

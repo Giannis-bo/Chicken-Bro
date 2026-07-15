@@ -543,6 +543,42 @@ class GearReleaseTest(unittest.TestCase):
                 self.assertEqual(report["status"], "blocked")
                 self.assertTrue(report["blockers"])
 
+    def test_shadow_compare_allows_only_preverified_enhancement_migration_semantics(self):
+        legacy = self.shadow_row()
+        candidate = self.shadow_row(
+            semanticGearSignature="sha256:canonical-enhancement-state",
+            resolvedGearSignature="sha256:canonical-release-bound",
+        )
+        candidate["selectionIntent"]["slots"]["head"]["gemOptionIds"] = ["gem-240892"]
+
+        report = gear_release.compare_shadow(
+            [legacy],
+            [candidate],
+            expected_specs=[("mage", "arcane")],
+            gear_release_id="gear-release:sha256:target",
+            allowed_semantic_change_specs={("mage", "arcane")},
+        )
+
+        self.assertEqual(report["status"], "pass")
+        self.assertEqual(
+            report["diffs"][0]["classification"],
+            "expected_enhancement_migration",
+        )
+        provenance_change = copy.deepcopy(candidate)
+        provenance_change["gearHash"] = "gear-hash-different"
+        blocked = gear_release.compare_shadow(
+            [legacy],
+            [provenance_change],
+            expected_specs=[("mage", "arcane")],
+            gear_release_id="gear-release:sha256:target",
+            allowed_semantic_change_specs={("mage", "arcane")},
+        )
+        self.assertEqual(blocked["status"], "blocked")
+        self.assertIn(
+            "PUBLIC_WINNER_SEMANTIC_CHANGE",
+            {problem["code"] for problem in blocked["blockers"]},
+        )
+
     def test_shadow_compare_marks_missing_spec_degraded_and_blocks_public_extra_spec(self):
         degraded = gear_release.compare_shadow(
             [self.shadow_row()],

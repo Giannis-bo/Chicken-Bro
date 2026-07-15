@@ -14,6 +14,12 @@ import json
 from typing import Any, Iterable
 
 try:
+    from . import gear_socket_authority
+    from .gear_enhancement_management import (
+        ENHANCEMENT_SIMC_FIELDS,
+        GEM_SIMC_SEQUENCE_FIELDS,
+        validated_enhancement_management_fields,
+    )
     from .gear_contracts import (
         parse_selection_intent,
         resolved_gear_signature,
@@ -22,8 +28,18 @@ try:
     )
     from .gear_evidence_ledger import build_evidence_ledger, evidence_claim
     from .gear_result_envelope import gear_problem
-    from .gear_rule_matrix import evaluate_rule_matrix, ordered_rule_matrix
+    from .gear_rule_matrix import (
+        embellishment_usage,
+        evaluate_rule_matrix,
+        ordered_rule_matrix,
+    )
 except ImportError:
+    import gear_socket_authority
+    from gear_enhancement_management import (
+        ENHANCEMENT_SIMC_FIELDS,
+        GEM_SIMC_SEQUENCE_FIELDS,
+        validated_enhancement_management_fields,
+    )
     from gear_contracts import (
         parse_selection_intent,
         resolved_gear_signature,
@@ -32,7 +48,7 @@ except ImportError:
     )
     from gear_evidence_ledger import build_evidence_ledger, evidence_claim
     from gear_result_envelope import gear_problem
-    from gear_rule_matrix import evaluate_rule_matrix, ordered_rule_matrix
+    from gear_rule_matrix import embellishment_usage, evaluate_rule_matrix, ordered_rule_matrix
 
 
 RESOLVED_SNAPSHOT_CONTRACT_REVISION = "gear-resolved-snapshot-v1"
@@ -43,7 +59,8 @@ _OPTION_FIELDS = (
     ("craftedOptionId", "crafted"),
     ("catalystOptionId", "catalyst"),
 )
-_GEM_SIMC_SEQUENCE_FIELDS = ("gem_id", "gem_bonus_id", "gem_ilevel")
+_GEM_SIMC_SEQUENCE_FIELDS = GEM_SIMC_SEQUENCE_FIELDS
+_ENHANCEMENT_SIMC_FIELDS = ENHANCEMENT_SIMC_FIELDS
 _CAPABILITY_FIELDS = (
     "socketCount",
     "canEnchant",
@@ -400,6 +417,19 @@ def apply_selected_enhancements(
         "catalystOptionId": selection.get("catalystOptionId", ""),
     }
     simc_options = dict(state.get("variant", {}).get("simcOptions") or {})
+    capabilities = state.get("effectiveCapabilities", {})
+    capability_revision = authority_context.get("dependencyVector", {}).get("capabilityRevision")
+    v2_management = capability_revision == gear_socket_authority.CAPABILITY_REVISION
+    management = state.get("variant", {}).get("enhancementManagement")
+    classifications = validated_enhancement_management_fields(
+        simc_options,
+        management,
+        capability_revision,
+    )
+    if v2_management:
+        for simc_field in _ENHANCEMENT_SIMC_FIELDS:
+            if classifications.get(simc_field) != "source_only":
+                simc_options.pop(simc_field, None)
     replaces_variant_gem_sequences = bool(selected_options["gemOptionIds"])
     selected_gem_sequences: dict[str, list[str]] = {
         field: [] for field in _GEM_SIMC_SEQUENCE_FIELDS
@@ -408,7 +438,6 @@ def apply_selected_enhancements(
     if replaces_variant_gem_sequences:
         for field in _GEM_SIMC_SEQUENCE_FIELDS:
             simc_options.pop(field, None)
-    capabilities = state.get("effectiveCapabilities", {})
     applied: list[dict[str, Any]] = []
     for field, expected_type in _OPTION_FIELDS:
         raw_ids = selected_options[field]
@@ -599,6 +628,7 @@ def _static_attributes(resolved_slots: dict[str, dict[str, Any]]) -> dict[str, i
 def _constraints(
     resolved_slots: dict[str, dict[str, Any]],
     authority_context: dict[str, Any],
+    selection_intent: dict[str, Any],
 ) -> dict[str, Any]:
     slots: dict[str, Any] = {}
     for slot in sorted(resolved_slots):
@@ -614,7 +644,13 @@ def _constraints(
             "canEmbellish": capabilities.get("canEmbellish") is True,
             "hasSelectedEmbellishment": bool(resolved["selectedOptions"]["embellishmentOptionId"]),
         }
-    constraints = {"slots": slots}
+    usage = embellishment_usage(selection_intent, authority_context)
+    constraints = {
+        "slots": slots,
+        "embellishmentBuiltInUsed": usage["builtIn"],
+        "embellishmentSelectedUsed": usage["selected"],
+        "embellishmentUsed": usage["used"],
+    }
     embellishment_limit = authority_context["ruleParameters"].get("embellishmentLimit")
     if (
         isinstance(embellishment_limit, int)
@@ -963,7 +999,7 @@ def resolve(selection_intent: Any, authority_context: Any) -> dict[str, Any]:
         "staticAttributes": static_attributes,
         "setState": set_state,
         "profileReadiness": readiness,
-        "constraints": _constraints(resolved_slots, authority_context),
+        "constraints": _constraints(resolved_slots, authority_context, intent),
         "serializerInput": _serializer_input(resolved_slots),
         "evidenceLedger": ledger,
         "problems": problems,

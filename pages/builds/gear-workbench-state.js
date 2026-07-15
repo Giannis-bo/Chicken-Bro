@@ -392,6 +392,19 @@ function gearWorkbenchCanUseVerifiedSnapshot(state) {
   )
 }
 
+function gearWorkbenchAcceptedVerifiedResolve(state, request, snapshot) {
+  return !!(
+    state &&
+    request &&
+    snapshot &&
+    state.resolveStatus === 'verified' &&
+    Number(state.latestResolveSerial) === Number(request.serial) &&
+    Number(state.intentVersion) === Number(request.intentVersion) &&
+    state.currentSnapshot === snapshot &&
+    String(snapshot.resolvedGearSignature || '').trim()
+  )
+}
+
 function gearWorkbenchCanRunProfile(state) {
   const readiness = state && state.currentSnapshot && state.currentSnapshot.profileReadiness
   return gearWorkbenchCanUseVerifiedSnapshot(state) && !!(
@@ -439,6 +452,7 @@ module.exports = {
   createGearStatSnapshotState,
   createGearWorkbenchState,
   editGearIntent,
+  gearWorkbenchAcceptedVerifiedResolve,
   gearWorkbenchCanRunProfile,
   gearWorkbenchCanUseVerifiedSnapshot,
   gearWorkbenchView,

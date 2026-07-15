@@ -231,6 +231,33 @@ def _selected_option_ids(selection_intent: Any) -> list[str]:
     return sorted(value for value in selected if value)
 
 
+def _public_enhancement_by_slot(selection_intent: Any) -> dict[str, dict[str, Any]]:
+    """Project only canonical enhancement identities from a validated release intent."""
+
+    intent = selection_intent if isinstance(selection_intent, dict) else {}
+    slots = intent.get("slots") if isinstance(intent.get("slots"), dict) else {}
+    result: dict[str, dict[str, Any]] = {}
+    for slot, selection in slots.items():
+        normalized_slot = _text(slot)
+        if not normalized_slot or not isinstance(selection, dict):
+            continue
+        enhancement: dict[str, Any] = {}
+        gem_option_ids = [
+            _text(value)
+            for value in selection.get("gemOptionIds") or []
+            if _text(value)
+        ]
+        if gem_option_ids:
+            enhancement["gemOptionIds"] = gem_option_ids
+        for field in ("enchantOptionId", "embellishmentOptionId"):
+            value = _text(selection.get(field))
+            if value:
+                enhancement[field] = value
+        if enhancement:
+            result[normalized_slot] = enhancement
+    return _canonical(result)
+
+
 def _observed_release_variant_record(
     requested_variant: str,
     item_record: Any,
@@ -472,6 +499,13 @@ def build_candidate_authority_context(
                 or normalize_option_value(row.get("variantKey")) == requested_variant
             )
         ]
+        exact = [
+            row
+            for row in matching
+            if _text(row.get("variantKey")) == requested_variant
+        ]
+        if exact:
+            matching = exact
         if not matching:
             matching = [None]
         for variant in matching:
@@ -990,11 +1024,31 @@ class GearReleaseStore:
                     RELEASE_SELECTED_ITEM_VARIANT_SQL,
                     (release_id, item_ids, variant_keys),
                 )
+                selected_item_rows = list(cur.fetchall())
+                # Exact immutable identity wins. Normalized aliases are retained
+                # only when no exact row exists, so alias-only conflicts still
+                # reach the loader's fail-closed equivalence check.
+                exact_variant_pairs = {
+                    (_text(row[0]), _text(row[1]))
+                    for row in selected_item_rows
+                    if len(row or ()) > 3
+                    and isinstance(row[3], dict)
+                    and _text(row[3].get("variantKey")) == _text(row[1])
+                }
                 item_rows = []
-                for row in cur.fetchall():
+                for row in selected_item_rows:
                     values = list(row or ())
                     while len(values) < 5:
                         values.append(None)
+                    pair = (_text(values[0]), _text(values[1]))
+                    if (
+                        pair in exact_variant_pairs
+                        and (
+                            not isinstance(values[3], dict)
+                            or _text(values[3].get("variantKey")) != pair[1]
+                        )
+                    ):
+                        continue
                     values[4] = _verified_release_source_records(values[4])
                     if values[3] is None:
                         values[3] = _observed_release_variant_record(
@@ -1059,6 +1113,30 @@ class GearReleaseStore:
             if not _text(manifest_dependencies.get(field))
             or _text(runtime_dependencies.get(field)) != _text(manifest_dependencies.get(field))
         ]
+        supported_capability_revisions = (
+            runtime_authority.get("supportedCapabilityRevisions")
+            if isinstance(runtime_authority, dict)
+            and isinstance(runtime_authority.get("supportedCapabilityRevisions"), (list, tuple))
+            else []
+        )
+        supported_capability_revisions = {
+            _text(revision)
+            for revision in supported_capability_revisions
+            if _text(revision)
+        }
+        manifest_capability_revision = _text(
+            manifest_dependencies.get("capabilityRevision")
+        )
+        runtime_capability_revision = _text(
+            runtime_dependencies.get("capabilityRevision")
+        )
+        if (
+            not manifest_capability_revision
+            or not runtime_capability_revision
+            or runtime_capability_revision not in supported_capability_revisions
+            or manifest_capability_revision not in supported_capability_revisions
+        ):
+            mismatched.append("capabilityRevision")
         if mismatched:
             raise GearReleaseIntegrityError(
                 "active runtime dependencies do not match the Manifest: " + ", ".join(mismatched)
@@ -1093,6 +1171,7 @@ class GearReleaseStore:
                     "simcRuntimeRevision",
                     "statPolicyRevision",
                     "selectionSchemaRevision",
+                    "capabilityRevision",
                 )
             },
         })
@@ -1233,10 +1312,21 @@ class GearReleaseStore:
                         # that fact explicitly instead of leaking the release-row
                         # identity shape into the existing public read model.
                         public_template.pop("templateId", None)
+                        public_template.pop("enhancementBySlot", None)
+                        nested_payload = public_template.get("payload")
+                        if isinstance(nested_payload, dict) and "enhancementBySlot" in nested_payload:
+                            nested_payload = _canonical(nested_payload)
+                            nested_payload.pop("enhancementBySlot", None)
+                            public_template["payload"] = nested_payload
                         public_template["id"] = _text(
                             public_template.get("id") or row.get("templateId")
                         )
                         public_template["canApplyGear"] = True
+                        enhancement_by_slot = _public_enhancement_by_slot(
+                            row.get("selectionIntent")
+                        )
+                        if enhancement_by_slot:
+                            public_template["enhancementBySlot"] = enhancement_by_slot
                         community_templates.append(public_template)
                 if include_catalog:
                     normalized_slot = _text(catalog_slot)
