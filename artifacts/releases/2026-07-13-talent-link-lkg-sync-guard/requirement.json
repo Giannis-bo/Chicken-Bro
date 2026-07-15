@@ -38,7 +38,7 @@
       "SimC extraction must bound Wago TraitEdge bytes, rows and runtime and preserve a precise extraction error",
       "the scheduled PostgreSQL writer must validate a complete candidate before replacing live talents, presets or spell details",
       "the live PostgreSQL baseline must cover global and per-context node, dependency, graph, encoding and profile content identities",
-      "same-source incomplete graphs may recover only by monotonic parent-edge additions with identical nodes and non-edge structure",
+      "same-source or source-unknown incomplete graphs may recover only by monotonic parent-edge additions with identical nodes and non-edge structure; a source-unknown baseline may not relax any structural, identity, retention or profile guard",
       "rejected candidates must preserve live rows and report a bounded blocked lastAttempt",
       "duplicate SimC profile IDs with different content must receive deterministic content-derived identities"
     ],
@@ -47,7 +47,8 @@
       "frontend talent selection remains a consumer of backend node and dependency facts",
       "community gear import continues to preserve governed gems, enchants and embellishments",
       "deployment leaves asynchronous sync disabled unless explicitly controlled after read-only validation",
-      "existing healthy same-source graph signatures and profile content identities cannot be replaced or reduced"
+      "existing healthy same-source graph signatures and profile content identities cannot be replaced or reduced",
+      "a missing historical source identity cannot authorize a cross-source overwrite, graph rewire, non-edge mutation, retained-edge loss or profile reduction"
     ],
     "riskUnknown": [
       "exact production source-tar extraction and Wago TraitEdge parity until candidate validation runs on the known host",
@@ -97,6 +98,10 @@
     {
       "date": "2026-07-13",
       "decision": "A healthy candidate may repair a same-source incomplete graph only when node identities and all non-edge structure match and every prior parent edge is retained."
+    },
+    {
+      "date": "2026-07-15",
+      "decision": "When the persisted graph source identity is absent because the previous write was incomplete, recovery is allowed only under the same exact-node, exact-non-edge-structure and parent-edge-superset checks. This source-unknown exception exists to repair a damaged LKG and does not allow an arbitrary cross-source replacement."
     },
     {
       "date": "2026-07-13",

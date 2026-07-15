@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-13T15:38:02.044Z",
+  "generatedAt": "2026-07-15T06:29:27.476Z",
   "release": {
     "date": "2026-07-13",
     "slug": "talent-link-lkg-sync-guard"
@@ -38,12 +38,12 @@
         {
           "path": "docs/project-state.json",
           "exists": true,
-          "sizeBytes": 27674
+          "sizeBytes": 30163
         },
         {
           "path": "docs/project-owner-map.json",
           "exists": true,
-          "sizeBytes": 54745
+          "sizeBytes": 55525
         },
         {
           "path": "docs/verification-matrix.md",
@@ -53,7 +53,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 272663
+          "sizeBytes": 274724
         },
         {
           "path": "docs/README.md",
@@ -68,7 +68,7 @@
         {
           "path": "docs/backend-owner-map.json",
           "exists": true,
-          "sizeBytes": 40308
+          "sizeBytes": 40538
         }
       ],
       "historicalDocsDefaultToEvidenceOnly": true
@@ -99,7 +99,7 @@
         {
           "path": "server/websim_payload.py",
           "exists": true,
-          "lineCount": 26057,
+          "lineCount": 26229,
           "hotspot": true
         },
         {
@@ -111,7 +111,7 @@
         {
           "path": "server/postgres_cache_store.py",
           "exists": true,
-          "lineCount": 6972,
+          "lineCount": 7006,
           "hotspot": true
         }
       ],
@@ -232,7 +232,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-13-talent-link-lkg-sync-guard/evidence.json",
-    "sizeBytes": 8379,
+    "sizeBytes": 9400,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -252,7 +252,7 @@
     "missingFields": [],
     "declaredStatus": "runtime_verified",
     "highestEvidenceLevel": "runtime_verified",
-    "summary": "Exact candidate 28f3c54 is runtime verified: full Harness, production backup/parity, read-only preflight, controlled SimC-only sync, API/data/operations smoke and community gear compatibility all passed. Real WeChat connector and enhancement-sheet verification remains required before merge."
+    "summary": "Exact merge candidate df06835 is runtime verified: full Harness, GitHub CI, production backup/parity, read-only preflight, controlled SimC-only graph recovery, API/data/operations smoke and community gear read-model compatibility passed. Real WeChat connector and enhancement-sheet verification remains required before merge."
   },
   "evidence": {
     "localTests": {
@@ -274,10 +274,16 @@
   },
   "riskMatrix": [
     {
+      "id": "dirty_worktree",
+      "severity": "medium",
+      "status": "watch",
+      "detail": "6 changed files currently visible to git status."
+    },
+    {
       "id": "hotspot_files_present",
       "severity": "medium",
       "status": "watch",
-      "detail": "server/websim_payload.py:26057, server/news_backend.py:12853, server/postgres_cache_store.py:6972"
+      "detail": "server/websim_payload.py:26229, server/news_backend.py:12853, server/postgres_cache_store.py:7006"
     },
     {
       "id": "localTests_missing",
@@ -306,9 +312,16 @@
   ],
   "repo": {
     "git": {
-      "status": "clean",
-      "changedFileCount": 0,
-      "changedFiles": []
+      "status": "dirty",
+      "changedFileCount": 6,
+      "changedFiles": [
+        " M artifacts/releases/2026-07-13-talent-link-lkg-sync-guard/evidence.json",
+        " M artifacts/releases/2026-07-13-talent-link-lkg-sync-guard/manifest.json",
+        " M artifacts/releases/2026-07-13-talent-link-lkg-sync-guard/requirement.json",
+        " M docs/roadmap.md",
+        " M tests/postgres_cache_sync_test.py",
+        "?? .superpowers/"
+      ]
     }
   },
   "write": {

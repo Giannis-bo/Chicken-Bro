@@ -1350,6 +1350,30 @@ class PostgresCacheSyncTest(unittest.TestCase):
 
         self.assertEqual(counts["dependencies"], simc_data["dependencies"])
 
+    def test_simc_candidate_validation_allows_source_unknown_monotonic_edge_recovery(self):
+        from server import postgres_cache_sync
+
+        simc_data = complete_simc_candidate()
+        incomplete = complete_simc_candidate()
+        for talent in incomplete["talents"]:
+            talent["payload"]["parentIds"] = []
+            talent["payload"].pop("parentMode", None)
+            talent["payload"].pop("dependencySource", None)
+        incomplete["dependencies"] = 0
+        baseline = simc_graph_baseline(incomplete)
+
+        with patch.object(postgres_cache_sync, "expected_spec_pairs", return_value=["mage:frost"]), patch.object(
+            postgres_cache_sync,
+            "expected_hero_tree_triplets",
+            return_value=["mage:frost:spellslinger"],
+        ):
+            counts = postgres_cache_sync.validate_simc_generated_data_candidate(
+                simc_data,
+                {"graphBaseline": baseline},
+            )
+
+        self.assertEqual(counts["dependencies"], simc_data["dependencies"])
+
     def test_simc_candidate_validation_rejects_non_edge_change_during_same_source_recovery(self):
         from server import postgres_cache_sync
 
