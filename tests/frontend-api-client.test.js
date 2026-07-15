@@ -18,6 +18,18 @@ function gearEnvelope(status, overrides) {
   }
 }
 
+function communityImportEnvelope(status, overrides) {
+  return {
+    contractRevision: 'community-template-import-envelope-v1',
+    requestId: 'community-import-1',
+    status,
+    releaseContext: {},
+    data: {},
+    problems: [],
+    ...(overrides || {})
+  }
+}
+
 test('structured-problem mode preserves valid 200 202 409 and 503 envelopes without fallback', async () => {
   const storage = {
     wow_backend_api_base_url: 'https://api.example.test',
@@ -484,6 +496,53 @@ test('canonical gear api clients reject malformed pseudo envelopes through fallb
   assert.equal(result.httpStatus, 409)
   assert.equal(result.offline, false)
   assert.equal(result.payload, null)
+})
+
+test('community template import uses the one-request structured endpoint', async () => {
+  const captured = []
+  global.wx = {
+    getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
+    getStorageSync: () => '',
+    setStorageSync: () => {},
+    request: (options) => {
+      captured.push(options)
+      options.success({ statusCode: 200, data: communityImportEnvelope('verified', { data: { status: 'verified' } }) })
+    }
+  }
+
+  const api = resetModule('../pages/builds/websim-api')
+  const result = await api.requestWebsimCommunityTemplateImport({
+    classKey: 'mage', specKey: 'frost', templateId: 'template-a', expectedManifestRevision: 'manifest-a',
+    gearBySlot: { head: 'forged' }, rawEnhancement: 'forged', optionIds: ['forged']
+  })
+
+  assert.equal(result.fromFallback, false)
+  assert.match(captured[0].url, /\/api\/websim\/gear\/community-import$/)
+  assert.equal(captured[0].method, 'POST')
+  assert.equal(captured[0].timeout, 30000)
+  assert.deepEqual(captured[0].data, {
+    classKey: 'mage', specKey: 'frost', templateId: 'template-a', expectedManifestRevision: 'manifest-a'
+  })
+})
+
+test('community template import keeps blocked structured problems instead of gear fallback', async () => {
+  global.wx = {
+    getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
+    getStorageSync: () => '',
+    setStorageSync: () => {},
+    request: (options) => options.success({
+      statusCode: 409,
+      data: communityImportEnvelope('blocked', { problems: [{ code: 'manifest_mismatch', title: 'stale', retryable: false }] })
+    })
+  }
+
+  const api = resetModule('../pages/builds/websim-api')
+  const result = await api.requestWebsimCommunityTemplateImport({ classKey: 'mage', specKey: 'frost', templateId: 'template-a' })
+
+  assert.equal(result.fromFallback, false)
+  assert.equal(result.httpStatus, 409)
+  assert.equal(result.payload.problems[0].code, 'manifest_mismatch')
+  assert.notEqual(result.payload, api.fallbackWebsimGear())
 })
 
 test('websim gear request uses the compact mobile payload with an explicit long timeout', async () => {

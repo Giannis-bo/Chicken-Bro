@@ -92,7 +92,7 @@ function isStructuredProblemEnvelope(data) {
     data &&
     typeof data === 'object' &&
     !Array.isArray(data) &&
-    data.contractRevision === 'gear-result-envelope-v1' &&
+    ['gear-result-envelope-v1', 'community-template-import-envelope-v1'].includes(data.contractRevision) &&
     typeof data.requestId === 'string' &&
     data.requestId &&
     typeof data.status === 'string' &&

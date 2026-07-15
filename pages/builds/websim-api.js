@@ -252,6 +252,24 @@ function requestWebsimGearResolve(selectionIntent) {
   })
 }
 
+function requestWebsimCommunityTemplateImport(params) {
+  const source = params || {}
+  const data = {
+    classKey: String(source.classKey || ''),
+    specKey: String(source.specKey || ''),
+    templateId: String(source.templateId || ''),
+    expectedManifestRevision: String(source.expectedManifestRevision || '')
+  }
+  return requestJson('/api/websim/gear/community-import', {
+    method: 'POST',
+    data,
+    timeout: 30000,
+    responseMode: 'structured-problem',
+    fallback: () => null,
+    validate: (value) => value && value.contractRevision === 'community-template-import-envelope-v1'
+  })
+}
+
 function requestWebsimProfileFromIntent(selectionIntent, profileContext) {
   return requestJson('/api/websim/profile', {
     method: 'POST',
@@ -316,6 +334,7 @@ module.exports = {
   fallbackWebsimTalentImport,
   fallbackWebsimTalents,
   requestWebsimBootstrap,
+  requestWebsimCommunityTemplateImport,
   requestWebsimGear,
   requestWebsimGearResolve,
   requestWebsimGearStatSnapshot,
