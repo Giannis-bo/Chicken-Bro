@@ -1553,43 +1553,61 @@ class GearReleaseStore:
                     WITH requested(item_id, variant_key) AS (
                         SELECT * FROM unnest(%s::text[], %s::text[])
                     )
-                    SELECT variant.variant_id, variant.item_id, variant.variant_key, variant.slot,
+                    SELECT requested.item_id, requested.variant_key,
+                           variant.variant_id, variant.item_id, variant.variant_key, variant.slot,
                            variant.label, variant.source_type, variant.difficulty_key,
                            variant.item_level, variant.simc_options_json, variant.status,
                            variant.blockers_json, variant.payload_json,
                            variant.source_updated_at, variant.row_hash
-                    FROM cache.websim_gear_release_variants variant
-                    JOIN requested
-                      ON requested.item_id = variant.item_id
-                     AND requested.variant_key = variant.variant_key
-                    WHERE variant.release_id = %s
+                    FROM requested
+                    JOIN LATERAL (
+                        SELECT candidate.*
+                        FROM cache.websim_gear_release_variants candidate
+                        WHERE candidate.release_id = %s
+                          AND candidate.item_id = requested.item_id
+                          AND (
+                              candidate.variant_key = requested.variant_key
+                              OR LEFT(
+                                  regexp_replace(candidate.variant_key, '[^A-Za-z0-9_:/.-]+', '', 'g'),
+                                  240
+                              ) = requested.variant_key
+                          )
+                        ORDER BY
+                            CASE WHEN candidate.variant_key = requested.variant_key THEN 0 ELSE 1 END,
+                            candidate.variant_id
+                        LIMIT 1
+                    ) variant ON TRUE
                     ORDER BY variant.item_id, variant.variant_key, variant.variant_id
                     """,
                     (item_ids, variant_keys, gear_id),
                 )
                 variant_db_rows = cur.fetchall()
-                variants = [
-                    {
-                        "variantId": _text(row[0]),
-                        "itemId": _text(row[1]),
-                        "variantKey": _text(row[2]),
-                        "slot": _text(row[3]),
-                        "label": _text(row[4]),
-                        "sourceType": _text(row[5]),
-                        "difficultyKey": _text(row[6]),
-                        "itemLevel": _int(row[7]),
-                        "simcOptions": _canonical(row[8] if isinstance(row[8], dict) else {}),
-                        "status": _text(row[9]),
-                        "blockers": _canonical(row[10] if isinstance(row[10], list) else []),
-                        "payload": _canonical(row[11] if isinstance(row[11], dict) else {}),
-                        "updatedAt": _text(row[12]),
+                variants = []
+                for row in variant_db_rows:
+                    record = {
+                        "variantId": _text(row[2]),
+                        "itemId": _text(row[3]),
+                        "variantKey": _text(row[4]),
+                        "slot": _text(row[5]),
+                        "label": _text(row[6]),
+                        "sourceType": _text(row[7]),
+                        "difficultyKey": _text(row[8]),
+                        "itemLevel": _int(row[9]),
+                        "simcOptions": _canonical(row[10] if isinstance(row[10], dict) else {}),
+                        "status": _text(row[11]),
+                        "blockers": _canonical(row[12] if isinstance(row[12], list) else []),
+                        "payload": _canonical(row[13] if isinstance(row[13], dict) else {}),
+                        "updatedAt": _text(row[14]),
                     }
-                    for row in variant_db_rows
-                ]
+                    if canonical_row_hash(record) != _text(row[15]):
+                        raise GearReleaseIntegrityError("active Community import variant integrity failed")
+                    record["requestedItemId"] = _text(row[0])
+                    record["requestedVariantKey"] = _text(row[1])
+                    variants.append(record)
                 if (
                     len(variants) != len(requested_pairs)
-                    or {(row["itemId"], row["variantKey"]) for row in variants} != set(requested_pairs)
-                    or any(canonical_row_hash(record) != _text(row[13]) for record, row in zip(variants, variant_db_rows))
+                    or {(row["requestedItemId"], row["requestedVariantKey"]) for row in variants} != set(requested_pairs)
+                    or any(row["requestedItemId"] != row["itemId"] for row in variants)
                 ):
                     raise GearReleaseIntegrityError("active Community import variant integrity failed")
 

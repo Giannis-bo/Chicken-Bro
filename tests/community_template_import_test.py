@@ -166,6 +166,22 @@ class CommunityTemplateImportTest(unittest.TestCase):
             ["gem-a", "gem-a"],
         )
 
+    def test_normalized_variant_alias_is_rebound_to_the_active_release_variant(self):
+        from server.community_template_import import build_community_template_selection_intent
+
+        variants = copy.deepcopy(self.variants)
+        variants[0]["variantKey"] = "myth-289!"
+        variants[0]["requestedVariantKey"] = "myth-289"
+
+        source = self.build_source(variants=variants)
+
+        self.assertEqual(source["status"], "partial")
+        self.assertEqual(source["selectedGearBySlot"]["head"]["variantKey"], "myth-289!")
+        self.assertEqual(
+            build_community_template_selection_intent(source)["slots"]["head"]["variantKey"],
+            "myth-289!",
+        )
+
     def test_unknown_raw_enhancement_values_become_counts_not_output_values(self):
         from server.community_template_import import community_template_import_public_data
 

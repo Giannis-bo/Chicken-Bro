@@ -614,6 +614,7 @@ class GearReleaseStoreTest(unittest.TestCase):
             ],
             "FROM cache.websim_gear_release_variants": [
                 (
+                    "item-a", "variant-a",
                     "variant-a-id", "item-a", "variant-a", "head", "289", "observed_profile",
                     "mythic", 289, {"ilevel": "289"}, "verified", [],
                     {"resolvedStats": {"intellect": 100}}, "2026-07-11T05:00:00+00:00",
@@ -734,6 +735,29 @@ class GearReleaseStoreTest(unittest.TestCase):
         self.assertIn((["item-a"], ["variant-a"], binding["gearRelease"]["releaseId"]), selected_query_params)
         self.assertIn((binding["gearRelease"]["releaseId"], ["item-a"]), selected_query_params)
         self.assertIn((binding["gearRelease"]["releaseId"], ["gem-a"], ["variant-a-id"]), selected_query_params)
+
+    def test_active_community_import_rebinds_a_normalized_variant_alias_to_one_sealed_variant(self):
+        from server.gear_release_store import GearReleaseStore, canonical_row_hash
+
+        binding, _rows, snapshot, rowsets = self.active_community_import_fixture()
+        aliased_snapshot = copy.deepcopy(snapshot)
+        aliased_snapshot["variants"][0]["variantKey"] = "variant-a!"
+        rowsets["FROM cache.websim_gear_release_variants"] = [
+            (
+                "item-a", "variant-a",
+                "variant-a-id", "item-a", "variant-a!", "head", "289", "observed_profile",
+                "mythic", 289, {"ilevel": "289"}, "verified", [],
+                {"resolvedStats": {"intellect": 100}}, "2026-07-11T05:00:00+00:00",
+                canonical_row_hash(aliased_snapshot["variants"][0]),
+            )
+        ]
+
+        result = GearReleaseStore(lambda: FakeConnection(rowsets=rowsets)).load_active_community_template_import(
+            binding, "mage", "arcane", "template-a"
+        )
+
+        self.assertEqual(result["variants"][0]["requestedVariantKey"], "variant-a")
+        self.assertEqual(result["variants"][0]["variantKey"], "variant-a!")
 
     def test_seal_community_release_inserts_elected_rows_without_pointer_write(self):
         from server.gear_release_store import GearReleaseStore

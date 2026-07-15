@@ -100,11 +100,18 @@ def build_community_template_import_source(
     ):
         return _blocked(_problem("template_inapplicable", "The active template cannot be imported."))
 
-    variants_by_identity = {
-        (_text(value.get("itemId")), _text(value.get("variantKey"))): value
-        for value in variants if isinstance(variants, list) and isinstance(value, dict)
-        if _text(value.get("itemId")) and _text(value.get("variantKey"))
-    }
+    variants_by_identity: dict[tuple[str, str], dict[str, Any]] = {}
+    for value in variants if isinstance(variants, list) else []:
+        if not isinstance(value, dict):
+            continue
+        item_id = _text(value.get("itemId"))
+        variant_key = _text(value.get("variantKey"))
+        requested_variant_key = _text(value.get("requestedVariantKey"))
+        if not item_id or not variant_key:
+            continue
+        variants_by_identity[(item_id, variant_key)] = value
+        if requested_variant_key:
+            variants_by_identity[(item_id, requested_variant_key)] = value
     options_by_key = {
         _text(value.get("optionKey")): value
         for value in options if isinstance(options, list) and isinstance(value, dict)
@@ -149,10 +156,13 @@ def build_community_template_import_source(
             or _text(variant.get("status")) != "verified"
         ):
             return _blocked(_problem("template_inapplicable", "The active template references unavailable gear."))
+        active_variant_key = _text(variant.get("variantKey"))
+        if not active_variant_key:
+            return _blocked(_problem("template_inapplicable", "The active template references unavailable gear."))
 
         canonical_slot = {
             "itemId": item_id,
-            "variantKey": variant_key,
+            "variantKey": active_variant_key,
             "gemOptionIds": [],
             "enchantOptionId": "",
             "embellishmentOptionId": "",
@@ -162,7 +172,7 @@ def build_community_template_import_source(
         selected = {
             "variantId": _text(variant.get("id") or variant.get("variantId")),
             "itemId": item_id,
-            "variantKey": variant_key,
+            "variantKey": active_variant_key,
             "slot": slot,
             "label": _text(variant.get("label")),
             "itemLevel": variant.get("itemLevel") if isinstance(variant.get("itemLevel"), int) else 0,
