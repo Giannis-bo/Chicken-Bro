@@ -62,12 +62,6 @@
           <text>{{gearDataWarningText}}</text>
         </view>
 
-        <view class="gear-workbench-status {{gearWorkbenchView.resolveStatus}}">
-          <text class="gear-workbench-status-title">{{gearWorkbenchStatusText}}</text>
-          <text class="gear-workbench-status-meta" wx:if="{{gearWorkbenchSignatureLabel}}">配置签名 {{gearWorkbenchSignatureLabel}}</text>
-          <text class="gear-workbench-problem" wx:for="{{gearWorkbenchProblemRows}}" wx:key="key">{{item.text}}</text>
-        </view>
-
         <view class="gear-attribute-panel" wx:if="{{gearAttributePanel.visible}}">
           <view class="gear-attribute-header">
             <view class="gear-attribute-title-group">
