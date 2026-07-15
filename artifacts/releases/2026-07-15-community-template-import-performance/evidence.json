@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "slug": "community-template-import-performance",
+  "requirementSlug": "community-template-import-performance",
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
+  "branch": "codex/community-template-import-performance",
+  "commit": "e08cbb8eab4a6d444612995e1681e990690c6d65",
+  "scope": [
+    "server-side immutable community-template import projection, scoped release read, bounded import cache and additive API route",
+    "mini-program atomic verified import commit, progress state and later selected-slot lazy editing",
+    "focused backend/frontend regression coverage and Strict Harness release evidence"
+  ],
+  "verification": [
+    {
+      "command": "node --test tests/gear-workbench-state.test.js tests/frontend-api-client.test.js tests/builds-page.test.js",
+      "status": "pass",
+      "summary": "300 passing tests; verifies one request per import, no all-slot hydration, stale fencing, failure preservation, close-while-pending recovery and later selected-slot editing."
+    },
+    {
+      "command": "python3 -m unittest tests.community_template_import_test tests.postgres_cache_store_test tests.gear_runtime_test tests.news_backend_test",
+      "status": "pass",
+      "summary": "394 passing tests; verifies pure projection, scoped/cache behavior, route envelope and timing shape."
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass",
+      "summary": "No whitespace errors after the implementation commits."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-15-community-template-import-performance --base origin/main",
+      "status": "pass",
+      "summary": "130/130 commands passed against e08cbb8: Node 527/527, Python 1576 with one expected skip, compile/JSON/syntax checks and Harness packet check all passed. Candidate runtime evidence and real WeChat proof remain pending."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "pending",
+    "reason": "User authorized candidate deployment; no cloud/runtime conclusion is recorded before the final local full gate and candidate smoke."
+  },
+  "runtimeEvidence": [],
+  "risks": [
+    {
+      "id": "candidate-and-real-wechat-pending",
+      "status": "open",
+      "detail": "Cold/warm timing, deployed runtime parity and real WeChat import/edit behavior are not yet evidenced."
+    }
+  ],
+  "rollback": [
+    "code_rollback",
+    "feature_hide"
+  ],
+  "cleanup": {
+    "required": false,
+    "reason": "The change has no data migration, background sync, backfill or temporary remote setup."
+  },
+  "archivedReferences": [
+    "docs/superpowers/specs/2026-07-14-community-enhancement-editability-v2-design.md"
+  ],
+  "summary": "Atomic community-template import candidate runtime code e08cbb8eab4a6d444612995e1681e990690c6d65 passed the final local full Harness. Candidate runtime evidence and explicit real-WeChat acceptance are intentionally pending."
+}

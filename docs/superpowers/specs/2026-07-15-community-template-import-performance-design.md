@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-15
 
-**Status:** design approved; implementation plan ready, awaiting plan approval before runtime changes
+**Status:** implementation complete and exact runtime candidate local-full verified; candidate deployment and real WeChat acceptance pending
 
 **Harness:** [community-template-import-performance requirement](../../../artifacts/releases/2026-07-15-community-template-import-performance/requirement.json)
 
@@ -197,4 +197,4 @@ The route and client use an additive feature boundary. On a production fault, `f
 
 This design does not optimize the generic `mode=slot` route for every normal browsing/editing case. After the atomic import path is live, a separate performance review may reduce generic slot catalog construction and revisit the generic cache budget, using the new phase metrics rather than guesswork.
 
-The user reviewed this written specification on 2026-07-15. The executable task sequence is [Community Template Atomic Import Implementation Plan](../../plans/2026-07-15-community-template-import-performance-implementation.md); runtime changes remain unauthorized until that plan is approved.
+The user reviewed this written specification and approved the executable [Community Template Atomic Import Implementation Plan](../../plans/2026-07-15-community-template-import-performance-implementation.md) on 2026-07-15. Independent CR found and test-drove a close-while-pending UI recovery fix; the exact runtime candidate `e08cbb8eab4a6d444612995e1681e990690c6d65` then passed its final full Harness (Node `527/527`, Python `1576` with one expected skip, `130/130` commands). Candidate deployment and explicit real-WeChat acceptance remain before merge.
