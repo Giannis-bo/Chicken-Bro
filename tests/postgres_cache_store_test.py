@@ -1,3 +1,4 @@
+import hashlib
 import json
 import unittest
 import uuid
@@ -7872,6 +7873,278 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertIn("FROM cache.websim_gear_variants v", sql)
         self.assertNotIn("LIMIT 4000", sql)
 
+    def test_simc_talent_signature_payload_tolerates_malformed_rank_entries(self):
+        from server.postgres_cache_store import _simc_talent_signature_payload
+
+        signature = _simc_talent_signature_payload({"rankEntries": 42})
+
+        self.assertEqual(signature[0], ())
+
+    def test_simc_talent_graph_baseline_aggregates_payload_read_model_contexts(self):
+        from server.postgres_cache_store import (
+            PostgresCacheStore,
+            simc_talent_persisted_content_identity,
+        )
+
+        def graph_signature(entries):
+            return hashlib.sha256(
+                json.dumps(entries, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+            ).hexdigest()
+
+        def structure_signature(entries):
+            content_entries = []
+            for entry in entries:
+                talent_id, row, col, spell_id, node_id, trait_id = entry[:6]
+                tree_type = talent_id.split("-", 1)[0]
+                hero_key = "spellslinger" if tree_type == "hero" else ""
+                tree_id = {
+                    "class": "class:mage",
+                    "spec": "spec:mage:frost",
+                    "hero": "hero:spellslinger",
+                }[tree_type]
+                content_entries.append(
+                    simc_talent_persisted_content_identity(
+                        talent_id,
+                        "mage",
+                        "frost",
+                        tree_id,
+                        row,
+                        col,
+                        spell_id,
+                        f"Talent {talent_id}",
+                        talent_payload(node_id, trait_id, spell_id, entry[-1]),
+                    )
+                )
+            return graph_signature(content_entries)
+
+        def parent_ids_by_node(entries):
+            return [[entry[0], entry[-1]] for entry in entries]
+
+        def talent_payload(node_id, trait_id, spell_id, parent_ids):
+            return {
+                "nodeId": node_id,
+                "traitId": trait_id,
+                "traitDefinitionId": trait_id + 1000,
+                "parentIds": parent_ids,
+                "parentMode": "any",
+                "selectionIndex": 0,
+                "nodeType": 0,
+                "rank": 1,
+                "maxRank": 1,
+                "selectedRank": 0,
+                "grantedRank": 0,
+                "granted": False,
+                "choiceGroup": "",
+                "shape": "square",
+                "pointRequirement": 0,
+                "rankEntries": [
+                    {
+                        "traitId": trait_id,
+                        "traitDefinitionId": trait_id + 1000,
+                        "spellId": spell_id,
+                        "selectionIndex": 0,
+                        "rank": 1,
+                        "points": 1,
+                        "pointStart": 1,
+                        "pointEnd": 1,
+                    }
+                ],
+            }
+
+        def talent_row(talent_id, tree_type, hero_key, row, col, spell_id, node_id, trait_id, parent_ids):
+            tree_id = {
+                "class": "class:mage",
+                "spec": "spec:mage:frost",
+                "hero": "hero:spellslinger",
+            }[tree_type]
+            return (
+                talent_id,
+                "mage",
+                "frost",
+                tree_type,
+                hero_key,
+                tree_id,
+                row,
+                col,
+                spell_id,
+                f"Talent {talent_id}",
+                node_id,
+                trait_id,
+                talent_payload(node_id, trait_id, spell_id, parent_ids),
+                parent_ids,
+            )
+
+        def signature_entry(talent_id, row, col, spell_id, node_id, trait_id, parent_ids):
+            return (
+                talent_id,
+                row,
+                col,
+                spell_id,
+                node_id,
+                trait_id,
+                ((trait_id, trait_id + 1000, spell_id, 0, 1, 1, 1, 1),),
+                0,
+                0,
+                1,
+                1,
+                0,
+                0,
+                False,
+                "",
+                0,
+                "any",
+                "square",
+                parent_ids,
+            )
+
+        profile_rows = [
+            ("mage", "frost", 'mage="A"\nspec=frost'),
+            ("mage", "frost", 'mage="B"\nspec=frost'),
+            ("warlock", "destruction", 'warlock="C"\nspec=destruction'),
+        ]
+
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_talents": [
+                    talent_row("class-root", "class", "", 1, 1, 101, 201, 301, []),
+                    talent_row("class-child", "class", "", 2, 1, 102, 202, 302, ["class-root"]),
+                    talent_row("hero-root", "hero", "spellslinger", 1, 2, 103, 203, 303, []),
+                    talent_row("hero-child", "hero", "spellslinger", 2, 2, 104, 204, 304, ["hero-root"]),
+                    talent_row("spec-root", "spec", "", 1, 3, 105, 205, 305, []),
+                    talent_row("spec-child", "spec", "", 2, 3, 106, 206, 306, ["spec-root"]),
+                ],
+                "FROM cache.websim_profile_presets": profile_rows,
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        baseline = store.simc_talent_graph_baseline()
+
+        self.assertEqual(
+            baseline,
+            {
+                "contexts": [
+                    {
+                        "classKey": "mage",
+                        "specKey": "frost",
+                        "treeType": "class",
+                        "heroKey": "",
+                        "nodes": 2,
+                        "dependencyNodes": 1,
+                        "dependencies": 1,
+                        "nodeIds": ["class-child", "class-root"],
+                        "structureSignature": structure_signature(
+                            [
+                                signature_entry("class-child", 2, 1, 102, 202, 302, ["class-root"]),
+                                signature_entry("class-root", 1, 1, 101, 201, 301, []),
+                            ]
+                        ),
+                        "parentIdsByNode": parent_ids_by_node(
+                            [
+                                signature_entry("class-child", 2, 1, 102, 202, 302, ["class-root"]),
+                                signature_entry("class-root", 1, 1, 101, 201, 301, []),
+                            ]
+                        ),
+                        "graphSignature": graph_signature(
+                            [
+                                signature_entry("class-child", 2, 1, 102, 202, 302, ["class-root"]),
+                                signature_entry("class-root", 1, 1, 101, 201, 301, []),
+                            ]
+                        ),
+                    },
+                    {
+                        "classKey": "mage",
+                        "specKey": "frost",
+                        "treeType": "hero",
+                        "heroKey": "spellslinger",
+                        "nodes": 2,
+                        "dependencyNodes": 1,
+                        "dependencies": 1,
+                        "nodeIds": ["hero-child", "hero-root"],
+                        "structureSignature": structure_signature(
+                            [
+                                signature_entry("hero-child", 2, 2, 104, 204, 304, ["hero-root"]),
+                                signature_entry("hero-root", 1, 2, 103, 203, 303, []),
+                            ]
+                        ),
+                        "parentIdsByNode": parent_ids_by_node(
+                            [
+                                signature_entry("hero-child", 2, 2, 104, 204, 304, ["hero-root"]),
+                                signature_entry("hero-root", 1, 2, 103, 203, 303, []),
+                            ]
+                        ),
+                        "graphSignature": graph_signature(
+                            [
+                                signature_entry("hero-child", 2, 2, 104, 204, 304, ["hero-root"]),
+                                signature_entry("hero-root", 1, 2, 103, 203, 303, []),
+                            ]
+                        ),
+                    },
+                    {
+                        "classKey": "mage",
+                        "specKey": "frost",
+                        "treeType": "spec",
+                        "heroKey": "",
+                        "nodes": 2,
+                        "dependencyNodes": 1,
+                        "dependencies": 1,
+                        "nodeIds": ["spec-child", "spec-root"],
+                        "structureSignature": structure_signature(
+                            [
+                                signature_entry("spec-child", 2, 3, 106, 206, 306, ["spec-root"]),
+                                signature_entry("spec-root", 1, 3, 105, 205, 305, []),
+                            ]
+                        ),
+                        "parentIdsByNode": parent_ids_by_node(
+                            [
+                                signature_entry("spec-child", 2, 3, 106, 206, 306, ["spec-root"]),
+                                signature_entry("spec-root", 1, 3, 105, 205, 305, []),
+                            ]
+                        ),
+                        "graphSignature": graph_signature(
+                            [
+                                signature_entry("spec-child", 2, 3, 106, 206, 306, ["spec-root"]),
+                                signature_entry("spec-root", 1, 3, 105, 205, 305, []),
+                            ]
+                        ),
+                    },
+                ],
+                "talents": 6,
+                "dependencyNodes": 3,
+                "dependencies": 3,
+                "profiles": 3,
+                "profileSpecCoverage": 2,
+                "profileSpecs": ["mage:frost", "warlock:destruction"],
+                "profileContentSignatures": sorted(
+                    (
+                        class_key,
+                        spec_key,
+                        hashlib.sha256(profile.strip().encode("utf-8")).hexdigest(),
+                    )
+                    for class_key, spec_key, profile in profile_rows
+                ),
+            },
+        )
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertIn("FROM cache.websim_talents", sql)
+        self.assertIn("payload_json->>'treeType'", sql)
+        self.assertIn("WHEN spec_key = 'class' THEN 'class'", sql)
+        self.assertIn("WHEN tree_type = 'hero'", sql)
+        self.assertIn("payload_json->>'heroKey'", sql)
+        self.assertIn("payload_json->'parentIds'", sql)
+        self.assertIn("WHERE spell_id > 0", sql)
+        self.assertIn("row_index", sql)
+        self.assertIn("col_index", sql)
+        self.assertIn("tree_id", sql)
+        self.assertIn("name", sql)
+        self.assertIn("payload_json->>'nodeId'", sql)
+        self.assertIn("payload_json->>'traitId'", sql)
+        self.assertIn("FROM cache.websim_profile_presets", sql)
+        self.assertIn("SELECT class_key, spec_key, profile", sql)
+        self.assertNotIn("INSERT INTO", sql)
+        self.assertNotIn("UPDATE cache", sql)
+        self.assertNotIn("DELETE FROM", sql)
+
     def test_postgres_native_simc_generated_data_writer_uses_cache_schema(self):
         from server.postgres_cache_store import PostgresCacheStore
 
@@ -7913,6 +8186,12 @@ class PostgresCacheStoreTest(unittest.TestCase):
                 ],
                 "source": "simc",
                 "build": "simc-build",
+                "dependencies": 12,
+                "dependencyNodes": 10,
+                "specCoverage": 40,
+                "heroCoverage": 80,
+                "profileSpecCoverage": 33,
+                "traitEdgeError": "sentinel-edge-error",
             }
         )
 
@@ -7921,6 +8200,12 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertEqual(counts["profiles"], 1)
         self.assertEqual(counts["presets"], 1)
         self.assertEqual(counts["spellDetails"], 1)
+        self.assertEqual(counts["dependencies"], 12)
+        self.assertEqual(counts["dependencyNodes"], 10)
+        self.assertEqual(counts["specCoverage"], 40)
+        self.assertEqual(counts["heroCoverage"], 80)
+        self.assertEqual(counts["profileSpecCoverage"], 33)
+        self.assertEqual(counts["traitEdgeError"], "sentinel-edge-error")
         self.assertIn("DELETE FROM cache.websim_talents", sql)
         self.assertIn("DELETE FROM cache.websim_profile_presets", sql)
         self.assertIn("INSERT INTO cache.websim_talents", sql)

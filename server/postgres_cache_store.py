@@ -580,6 +580,82 @@ def _int_value(value, fallback=0):
         return fallback
 
 
+def _simc_talent_signature_payload(value):
+    payload = _json_value(value, {})
+    payload = payload if isinstance(payload, dict) else {}
+    rank_entries = []
+    raw_rank_entries = payload.get("rankEntries")
+    raw_rank_entries = raw_rank_entries if isinstance(raw_rank_entries, list) else []
+    for raw_entry in raw_rank_entries:
+        if not isinstance(raw_entry, dict):
+            continue
+        rank_entries.append(
+            (
+                _int_value(raw_entry.get("traitId")),
+                _int_value(raw_entry.get("traitDefinitionId")),
+                _int_value(raw_entry.get("spellId")),
+                _int_value(raw_entry.get("selectionIndex")),
+                _int_value(raw_entry.get("rank")),
+                _int_value(raw_entry.get("points")),
+                _int_value(raw_entry.get("pointStart")),
+                _int_value(raw_entry.get("pointEnd")),
+            )
+        )
+    rank_entries.sort(key=lambda entry: (entry[3], entry[0], entry[2]))
+    return (
+        tuple(rank_entries),
+        _int_value(payload.get("selectionIndex")),
+        _int_value(payload.get("nodeType")),
+        _int_value(payload.get("rank")),
+        _int_value(payload.get("maxRank")),
+        _int_value(payload.get("selectedRank")),
+        _int_value(payload.get("grantedRank")),
+        bool(payload.get("granted")),
+        str(payload.get("choiceGroup") or "").strip(),
+        _int_value(payload.get("pointRequirement")),
+        str(payload.get("parentMode") or "any").strip().lower(),
+        str(payload.get("shape") or "").strip().lower(),
+    )
+
+
+def simc_talent_persisted_content_identity(
+    talent_id,
+    class_key,
+    spec_key,
+    tree_id,
+    row_index,
+    col_index,
+    spell_id,
+    name,
+    payload,
+):
+    """Canonical persisted node content, excluding only TraitEdge-derived fields."""
+
+    normalized_payload = copy.deepcopy(_json_value(payload, {}))
+    normalized_payload = normalized_payload if isinstance(normalized_payload, dict) else {}
+    normalized_payload.pop("parentIds", None)
+    normalized_payload.pop("dependencySource", None)
+    normalized_payload["parentMode"] = str(
+        normalized_payload.get("parentMode") or "any"
+    ).strip().lower()
+    return (
+        str(talent_id or ""),
+        str(class_key or ""),
+        str(spec_key or ""),
+        str(tree_id or ""),
+        _int_value(row_index),
+        _int_value(col_index),
+        _int_value(spell_id),
+        str(name or ""),
+        json.dumps(
+            normalized_payload,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ),
+    )
+
+
 def _observed_item_profile_url(item):
     if not isinstance(item, dict):
         return ""
@@ -2050,6 +2126,199 @@ class PostgresCacheStore:
         self.save_sync_state("gearCatalog", state, now)
         return state
 
+    def simc_talent_graph_baseline(self):
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    WITH resolved_talents AS (
+                        SELECT id,
+                               class_key,
+                               spec_key,
+                               tree_id,
+                               name,
+                               payload_json,
+                               row_index,
+                               col_index,
+                               spell_id,
+                               COALESCE(
+                                   NULLIF(payload_json->>'treeType', ''),
+                                   CASE WHEN spec_key = 'class' THEN 'class' ELSE 'spec' END
+                               ) AS tree_type
+                        FROM cache.websim_talents
+                        WHERE spell_id > 0
+                    ), talent_contexts AS (
+                        SELECT id,
+                               class_key,
+                               spec_key,
+                               tree_type,
+                               CASE
+                                   WHEN tree_type = 'hero'
+                                   THEN COALESCE(payload_json->>'heroKey', '')
+                                   ELSE ''
+                               END AS hero_key,
+                               tree_id,
+                               row_index,
+                               col_index,
+                               spell_id,
+                               name,
+                               payload_json->>'nodeId' AS node_id,
+                               payload_json->>'traitId' AS trait_id,
+                               payload_json,
+                               CASE
+                                   WHEN jsonb_typeof(payload_json->'parentIds') = 'array'
+                                   THEN payload_json->'parentIds'
+                                   ELSE '[]'::jsonb
+                               END AS parent_ids
+                        FROM resolved_talents
+                    )
+                    SELECT id,
+                           class_key,
+                           spec_key,
+                           tree_type,
+                           hero_key,
+                           tree_id,
+                           row_index,
+                           col_index,
+                           spell_id,
+                           name,
+                           node_id,
+                           trait_id,
+                           payload_json,
+                           parent_ids
+                    FROM talent_contexts
+                    ORDER BY class_key, spec_key, tree_type, hero_key, id
+                    """
+                )
+                rows = cur.fetchall()
+                cur.execute(
+                    """
+                    SELECT class_key, spec_key, profile
+                    FROM cache.websim_profile_presets
+                    WHERE BTRIM(profile) <> ''
+                    ORDER BY class_key, spec_key, id
+                    """
+                )
+                profile_rows = cur.fetchall()
+
+        contexts_by_key = {}
+        for row in rows:
+            context_key = tuple(str(value or "") for value in row[1:5])
+            context = contexts_by_key.setdefault(
+                context_key,
+                {
+                    "classKey": context_key[0],
+                    "specKey": context_key[1],
+                    "treeType": context_key[2],
+                    "heroKey": context_key[3],
+                    "nodes": 0,
+                    "dependencyNodes": 0,
+                    "dependencies": 0,
+                    "graphEntries": [],
+                    "contentEntries": [],
+                },
+            )
+            talent_id = str(row[0] or "")
+            tree_id = str(row[5] or "")
+            row_index = _int_value(row[6])
+            col_index = _int_value(row[7])
+            spell_id = _int_value(row[8])
+            name = str(row[9] or "")
+            node_id = _int_value(row[10])
+            trait_id = _int_value(row[11])
+            signature_payload = _simc_talent_signature_payload(row[12])
+            parent_ids = _json_value(row[13], [])
+            if not isinstance(parent_ids, list):
+                parent_ids = []
+            parent_ids = sorted(
+                str(parent_id or "").strip()
+                for parent_id in parent_ids
+                if str(parent_id or "").strip()
+            )
+            context["nodes"] += 1
+            context["dependencyNodes"] += int(bool(parent_ids))
+            context["dependencies"] += len(parent_ids)
+            context["contentEntries"].append(
+                simc_talent_persisted_content_identity(
+                    talent_id,
+                    context_key[0],
+                    context_key[1],
+                    tree_id,
+                    row_index,
+                    col_index,
+                    spell_id,
+                    name,
+                    row[12],
+                )
+            )
+            context["graphEntries"].append(
+                (
+                    talent_id,
+                    row_index,
+                    col_index,
+                    spell_id,
+                    node_id,
+                    trait_id,
+                    *signature_payload,
+                    parent_ids,
+                )
+            )
+
+        contexts = []
+        for context_key in sorted(contexts_by_key):
+            context = contexts_by_key[context_key]
+            graph_entries = sorted(context.pop("graphEntries"))
+            content_entries = sorted(context.pop("contentEntries"))
+            context["nodeIds"] = [entry[0] for entry in graph_entries]
+            context["structureSignature"] = hashlib.sha256(
+                json.dumps(
+                    content_entries,
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                ).encode("utf-8")
+            ).hexdigest()
+            context["parentIdsByNode"] = [
+                [entry[0], list(entry[-1])]
+                for entry in graph_entries
+            ]
+            context["graphSignature"] = hashlib.sha256(
+                json.dumps(graph_entries, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+            ).hexdigest()
+            contexts.append(context)
+
+        profile_specs = sorted(
+            {
+                f"{str(class_key or '').strip()}:{str(spec_key or '').strip()}"
+                for class_key, spec_key, profile in profile_rows
+                if str(class_key or "").strip()
+                and str(spec_key or "").strip()
+                and str(profile or "").strip()
+            }
+        )
+        profile_content_signatures = sorted(
+            {
+                (
+                    str(class_key or "").strip(),
+                    str(spec_key or "").strip(),
+                    hashlib.sha256(str(profile or "").strip().encode("utf-8")).hexdigest(),
+                )
+                for class_key, spec_key, profile in profile_rows
+                if str(class_key or "").strip()
+                and str(spec_key or "").strip()
+                and str(profile or "").strip()
+            }
+        )
+        return {
+            "contexts": contexts,
+            "talents": sum(context["nodes"] for context in contexts),
+            "dependencyNodes": sum(context["dependencyNodes"] for context in contexts),
+            "dependencies": sum(context["dependencies"] for context in contexts),
+            "profiles": len(profile_rows),
+            "profileSpecCoverage": len(profile_specs),
+            "profileSpecs": profile_specs,
+            "profileContentSignatures": profile_content_signatures,
+        }
+
     def replace_simc_generated_data(self, data):
         data = data if isinstance(data, dict) else {}
         talents = [item for item in (data.get("talents") or []) if isinstance(item, dict)]
@@ -2191,12 +2460,17 @@ class PostgresCacheStore:
             "spellIcons": int(data.get("spellIcons") or 0),
             "spellLocalizations": int(data.get("spellLocalizations") or 0),
             "dependencies": int(data.get("dependencies") or 0),
+            "dependencyNodes": int(data.get("dependencyNodes") or 0),
+            "specCoverage": int(data.get("specCoverage") or 0),
+            "heroCoverage": int(data.get("heroCoverage") or 0),
+            "profileSpecCoverage": int(data.get("profileSpecCoverage") or 0),
             "build": data.get("build") or "",
             "source": data.get("source") or "",
             "spellTextSource": data.get("spellTextSource") or "",
             "spellIconSource": data.get("spellIconSource") or "",
             "spellLocalizationSource": data.get("spellLocalizationSource") or "",
             "traitEdgeSource": data.get("traitEdgeSource") or "",
+            "traitEdgeError": data.get("traitEdgeError") or "",
         }
 
     def _status_counts(self, table_name):

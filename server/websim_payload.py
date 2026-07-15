@@ -6414,7 +6414,11 @@ def download_wago_trait_edge_csv(build):
     url = f"{DEFAULT_WAGO_DB2_BASE_URL}/TraitEdge/csv?{query}"
     request = Request(url, headers={"User-Agent": "Mozilla/5.0 wow-websim-sync"})
     with urlopen(request, timeout=int_env("WOW_WAGO_DB2_TRAIT_EDGE_TIMEOUT_SECONDS", 20)) as response:
-        return response.read().decode("utf-8", errors="ignore"), url
+        max_bytes = max(1, int_env("WOW_WAGO_DB2_TRAIT_EDGE_MAX_BYTES", 8 * 1024 * 1024))
+        payload = response.read(max_bytes + 1)
+        if len(payload) > max_bytes:
+            raise RuntimeError(f"TraitEdge payload exceeds {max_bytes} bytes")
+        return payload.decode("utf-8", errors="ignore"), url
 
 
 def tar_member_suffix(tar, suffix):
@@ -7045,6 +7049,7 @@ def parse_trait_data_text(text, limit=20000):
                 "choiceGroup": choice_group,
                 "shape": simc_shape_for(record),
                 "pointRequirement": max(0, record["pointRequirement"]),
+                "parentIds": [],
                 "source": "simulationcraft",
             }
             talent = {
@@ -7077,9 +7082,12 @@ def parse_trait_edge_data_text(text):
     edges = []
     if not text:
         return edges
+    max_rows = max(1, int_env("WOW_WAGO_DB2_TRAIT_EDGE_MAX_ROWS", 50000))
     try:
         rows = csv.DictReader(io.StringIO(str(text or "")))
-        for row in rows:
+        for row_number, row in enumerate(rows, start=1):
+            if row_number > max_rows:
+                raise RuntimeError(f"TraitEdge payload exceeds {max_rows} rows")
             left = int(row.get("LeftTraitNodeID") or 0)
             right = int(row.get("RightTraitNodeID") or 0)
             if left <= 0 or right <= 0 or left == right:
@@ -7107,6 +7115,7 @@ def apply_trait_edges_to_talents(talents, edges, source="wago-db2-traitedge"):
     if not talents or not edges:
         return 0
     by_context_and_node = {}
+    contexts_by_node = {}
     for talent in talents:
         payload = talent.get("payload") or {}
         node_id = int(payload.get("nodeId") or 0)
@@ -7119,16 +7128,13 @@ def apply_trait_edges_to_talents(talents, edges, source="wago-db2-traitedge"):
             payload.get("heroKey", ""),
         )
         by_context_and_node.setdefault((context, node_id), []).append(talent)
+        contexts_by_node.setdefault(node_id, set()).add(context)
 
     added = 0
     for edge in edges:
         left_node_id = int(edge.get("leftNodeId") or 0)
         right_node_id = int(edge.get("rightNodeId") or 0)
-        contexts = {
-            context
-            for context, node_id in by_context_and_node
-            if node_id in {left_node_id, right_node_id}
-        }
+        contexts = contexts_by_node.get(left_node_id, set()) & contexts_by_node.get(right_node_id, set())
         for tree_id in contexts:
             left_nodes = by_context_and_node.get((tree_id, left_node_id), [])
             right_nodes = by_context_and_node.get((tree_id, right_node_id), [])
@@ -7211,16 +7217,24 @@ def attach_trait_edges_to_data(data, trait_text):
     data["build"] = build
     data.setdefault("dependencies", 0)
     data.setdefault("traitEdgeSource", "")
+    data.setdefault("traitEdgeError", "")
     if not data.get("talents") or not build:
         return data
     try:
         edge_text, edge_source = download_wago_trait_edge_csv(build)
-    except Exception:
+    except Exception as error:
         edge_text, edge_source = "", ""
-    edges = parse_trait_edge_data_text(edge_text)
+        data["traitEdgeError"] = f"{type(error).__name__}: {error}"
+    try:
+        edges = parse_trait_edge_data_text(edge_text)
+    except Exception as error:
+        edges = []
+        data["traitEdgeError"] = f"{type(error).__name__}: {error}"
     if edges:
         data["dependencies"] = apply_trait_edges_to_talents(data["talents"], edges)
         data["traitEdgeSource"] = edge_source
+    elif edge_text and not data["traitEdgeError"]:
+        data["traitEdgeError"] = "TraitEdge payload did not contain usable dependency edges"
     return data
 
 
@@ -7235,6 +7249,7 @@ def extract_simc_data_from_tar(tar_path):
         "spellIconSource": "",
         "dependencies": 0,
         "traitEdgeSource": "",
+        "traitEdgeError": "",
         "build": "",
     }
     if not tar_path or not Path(tar_path).exists():
@@ -7259,6 +7274,7 @@ def extract_simc_data_from_tar(tar_path):
         attach_wago_spell_icons_to_data(result, trait_text)
         attach_trait_edges_to_data(result, trait_text)
         preset_limit = int_env("WOW_WEBSIM_SIMC_PRESET_LIMIT", 80)
+        presets_by_base_id = {}
         for member in tar.getmembers():
             if len(result["presets"]) >= preset_limit:
                 break
@@ -7269,6 +7285,18 @@ def extract_simc_data_from_tar(tar_path):
                 continue
             preset = parse_profile_preset(member.name, extracted.read().decode("utf-8", errors="ignore"))
             if preset:
+                base_id = preset["id"]
+                profile = preset["profile"]
+                profile_group = presets_by_base_id.setdefault(base_id, {})
+                if profile in profile_group:
+                    continue
+                if profile_group:
+                    for existing_profile, existing_preset in profile_group.items():
+                        digest = hashlib.sha1(existing_profile.encode("utf-8")).hexdigest()[:16]
+                        existing_preset["id"] = f"{base_id}-{digest}"
+                    digest = hashlib.sha1(profile.encode("utf-8")).hexdigest()[:16]
+                    preset["id"] = f"{base_id}-{digest}"
+                profile_group[profile] = preset
                 result["presets"].append(preset)
     return result
 
@@ -7283,6 +7311,7 @@ def extract_simc_data_from_trait_text(text, source, spelltext_text="", spelltext
         "spellTextSource": spelltext_source,
         "dependencies": 0,
         "traitEdgeSource": "",
+        "traitEdgeError": "",
         "build": "",
         "spellIcons": 0,
         "spellIconSource": "",
@@ -7310,10 +7339,12 @@ def extract_simc_generated_data():
             str(spelltext_file) if spelltext_file else "",
         )
 
+    extraction_error = ""
     try:
         text, source = download_simc_trait_data_text()
-    except Exception:
+    except Exception as error:
         text, source = "", ""
+        extraction_error = f"{type(error).__name__}: {error}"
     if text:
         try:
             spelltext_text, spelltext_source = download_simc_spelltext_data_text()
@@ -7329,6 +7360,8 @@ def extract_simc_generated_data():
         "spellTextSource": "",
         "dependencies": 0,
         "traitEdgeSource": "",
+        "traitEdgeError": "",
+        "extractionError": extraction_error or "SimulationCraft talent data source is unavailable",
         "build": "",
     }
 
@@ -7537,6 +7570,7 @@ def sync_simc_generated_data(conn):
         "spellIconSource": data.get("spellIconSource", ""),
         "spellLocalizationSource": data.get("spellLocalizationSource", ""),
         "traitEdgeSource": data.get("traitEdgeSource", ""),
+        "traitEdgeError": data.get("traitEdgeError", ""),
     }
 
 
@@ -25621,6 +25655,8 @@ def build_websim_profile(
     payload,
     conn=None,
     execution_flavor=WEBSIM_EXECUTION_FLAVOR_STANDARD_PROFILE,
+    talent_store=None,
+    talent_encoding=None,
 ):
     source = payload if isinstance(payload, dict) else {}
     execution_flavor = str(execution_flavor or "").strip()
@@ -25645,10 +25681,20 @@ def build_websim_profile(
         f"role={role}",
         "position=back",
     ]
-    talent_encoding = encode_websim_talents(conn, source) if conn is not None else blank_talent_encoding()
-    if talent_encoding.get("status") in {"encoded", "external"}:
-        lines.extend(talent_encoding.get("lines") or [])
-    elif conn is None:
+    talent_authority = talent_store if talent_store is not None else conn
+    has_precomputed_talent_encoding = isinstance(talent_encoding, dict)
+    resolved_talent_encoding = (
+        talent_encoding
+        if has_precomputed_talent_encoding
+        else (
+            encode_websim_talents(talent_authority, source)
+            if talent_authority is not None
+            else blank_talent_encoding()
+        )
+    )
+    if resolved_talent_encoding.get("status") in {"encoded", "external"}:
+        lines.extend(resolved_talent_encoding.get("lines") or [])
+    elif not has_precomputed_talent_encoding and talent_authority is None:
         talents = external_talent_import_code(source)
         if talents:
             lines.append(f"talents={talents}")
@@ -25945,17 +25991,27 @@ def build_websim_profile_response(
     payload,
     conn=None,
     execution_flavor=WEBSIM_EXECUTION_FLAVOR_STANDARD_PROFILE,
+    talent_store=None,
 ):
     source = payload if isinstance(payload, dict) else {}
     class_key = slugify(source.get("classKey"), "mage")
     spec_key = slugify(source.get("specKey"), "arcane")
     gear_payload = websim_selected_gear_payload(source, class_key, spec_key, conn=conn)
-    talent_encoding = encode_websim_talents(conn, source) if conn is not None else encode_websim_talents(None, source)
+    talent_authority = talent_store if talent_store is not None else conn
+    try:
+        talent_encoding = encode_websim_talents(talent_authority, source)
+    except Exception:
+        if talent_store is None and conn is not None:
+            raise
+        talent_encoding = blank_talent_encoding("failed", "talent_authority")
+        talent_encoding["errors"] = ["talent authority is unavailable"]
     response = {
         "profile": build_websim_profile(
             payload,
             conn=conn,
             execution_flavor=execution_flavor,
+            talent_store=talent_store,
+            talent_encoding=talent_encoding,
         ),
         "gearItems": gear_payload["items"],
         "simcItems": gear_payload["simcItems"],

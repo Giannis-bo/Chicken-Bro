@@ -5,6 +5,7 @@ import inspect
 import os
 import sqlite3
 import subprocess
+import tarfile
 import tempfile
 import threading
 import time
@@ -45,6 +46,8 @@ class WebSimPayloadTest(unittest.TestCase):
         os.environ.pop("WOW_WEBSIM_FETCH_SIMC_REMOTE", None)
         os.environ.pop("WOW_WEBSIM_DEFAULT_RANK_TWO_GEM_SEED", None)
         os.environ.pop("WOW_WEBSIM_FETCH_WAGO_DB2_TRAIT_EDGE", None)
+        os.environ.pop("WOW_WAGO_DB2_TRAIT_EDGE_MAX_BYTES", None)
+        os.environ.pop("WOW_WAGO_DB2_TRAIT_EDGE_MAX_ROWS", None)
         os.environ.pop("WOW_SIMC_TRAIT_DATA_FILE", None)
         os.environ.pop("WOW_SIMC_SPELLTEXT_DATA_FILE", None)
         os.environ.pop("WOW_SIMC_BIN", None)
@@ -59,6 +62,16 @@ class WebSimPayloadTest(unittest.TestCase):
                     raise
                 gc.collect()
                 time.sleep(0.2)
+
+    def write_simc_profile_tar(self, filename, members):
+        tar_path = Path(self.tmp.name) / filename
+        with tarfile.open(tar_path, "w:gz") as tar:
+            for member_name, profile in members:
+                payload = profile.encode("utf-8")
+                member = tarfile.TarInfo(member_name)
+                member.size = len(payload)
+                tar.addfile(member, io.BytesIO(payload))
+        return tar_path
 
     def insert_websim_talent(
         self,
@@ -427,6 +440,7 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(nodes[0]["row"], 1)
         self.assertEqual(nodes[0]["col"], 2)
         self.assertEqual(nodes[0]["name"], "Frostbolt")
+        self.assertEqual(nodes[0]["payload"]["parentIds"], [])
 
     def test_season_recommendation_is_preferred_baseline_source(self):
         templates = [
@@ -773,6 +787,188 @@ class WebSimPayloadTest(unittest.TestCase):
 
         self.assertEqual(self.websim_payload.download_wago_trait_edge_csv("12.0.5.67823"), ("", ""))
 
+    def test_trait_edge_download_rejects_oversized_payload(self):
+        class FakeResponse:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def read(self, size=-1):
+                return b"x" * size
+
+        with patch.object(self.websim_payload, "urlopen", return_value=FakeResponse()), patch.dict(
+            os.environ,
+            {"WOW_WAGO_DB2_TRAIT_EDGE_MAX_BYTES": "10"},
+        ):
+            with self.assertRaisesRegex(RuntimeError, "exceeds 10 bytes"):
+                self.websim_payload.download_wago_trait_edge_csv("12.0.5.67823")
+
+    def test_trait_edge_parser_rejects_excess_rows(self):
+        payload = (
+            "ID,VisualStyle,LeftTraitNodeID,RightTraitNodeID,Type\n"
+            "1,1,90001,90002,2\n"
+            "2,1,90002,90003,2\n"
+        )
+
+        with patch.dict(os.environ, {"WOW_WAGO_DB2_TRAIT_EDGE_MAX_ROWS": "1"}):
+            with self.assertRaisesRegex(RuntimeError, "exceeds 1 rows"):
+                self.websim_payload.parse_trait_edge_data_text(payload)
+
+    def test_trait_edge_parser_counts_invalid_input_rows_toward_limit(self):
+        payload = (
+            "ID,VisualStyle,LeftTraitNodeID,RightTraitNodeID,Type\n"
+            "1,1,0,0,2\n"
+            "2,1,90001,90002,2\n"
+        )
+
+        with patch.dict(os.environ, {"WOW_WAGO_DB2_TRAIT_EDGE_MAX_ROWS": "1"}):
+            with self.assertRaisesRegex(RuntimeError, "exceeds 1 rows"):
+                self.websim_payload.parse_trait_edge_data_text(payload)
+
+    def test_trait_edge_reverse_index_only_joins_shared_tree_context(self):
+        talents = [
+            {
+                "id": "tree-a-left",
+                "treeId": "tree-a",
+                "classKey": "mage",
+                "specKey": "frost",
+                "row": 1,
+                "col": 1,
+                "payload": {"nodeId": 90001, "heroKey": ""},
+            },
+            {
+                "id": "tree-a-right",
+                "treeId": "tree-a",
+                "classKey": "mage",
+                "specKey": "frost",
+                "row": 2,
+                "col": 1,
+                "payload": {"nodeId": 90002, "heroKey": ""},
+            },
+            {
+                "id": "tree-b-left",
+                "treeId": "tree-b",
+                "classKey": "mage",
+                "specKey": "fire",
+                "row": 1,
+                "col": 1,
+                "payload": {"nodeId": 90001, "heroKey": ""},
+            },
+            {
+                "id": "tree-c-right",
+                "treeId": "tree-c",
+                "classKey": "warlock",
+                "specKey": "destruction",
+                "row": 2,
+                "col": 1,
+                "payload": {"nodeId": 90002, "heroKey": ""},
+            },
+        ]
+
+        added = self.websim_payload.apply_trait_edges_to_talents(
+            talents,
+            [{"leftNodeId": 90001, "rightNodeId": 90002}],
+        )
+
+        self.assertEqual(added, 1)
+        self.assertEqual(talents[1]["payload"]["parentIds"], ["tree-a-left"])
+        self.assertNotIn("parentIds", talents[2]["payload"])
+        self.assertNotIn("parentIds", talents[3]["payload"])
+
+    def test_simc_extraction_preserves_remote_download_error(self):
+        with patch.object(self.websim_payload, "current_simc_source_tar", return_value=None), patch.object(
+            self.websim_payload,
+            "current_simc_trait_data_file",
+            return_value=None,
+        ), patch.object(
+            self.websim_payload,
+            "download_simc_trait_data_text",
+            side_effect=TimeoutError("SimulationCraft download timed out"),
+        ):
+            data = self.websim_payload.extract_simc_generated_data()
+
+        self.assertEqual(data["talents"], [])
+        self.assertEqual(data["source"], "")
+        self.assertIn("SimulationCraft download timed out", data["extractionError"])
+
+    def test_simc_tar_extractor_assigns_stable_ids_to_conflicting_profiles(self):
+        profile_a = 'mage="Shared Actor"\nspec=frost\ntalents=AAA\nhead=first_helm,id=100001\n'
+        profile_b = 'mage="Shared Actor"\nspec=frost\ntalents=BBB\nhead=second_helm,id=100002\n'
+        members = [
+            ("simc/profiles/MID_Frost_A.simc", profile_a),
+            ("simc/profiles/MID_Frost_B.simc", profile_b),
+        ]
+        forward = self.websim_payload.extract_simc_data_from_tar(
+            self.write_simc_profile_tar("profiles-forward.tar.gz", members)
+        )
+        reverse = self.websim_payload.extract_simc_data_from_tar(
+            self.write_simc_profile_tar("profiles-reverse.tar.gz", list(reversed(members)))
+        )
+
+        forward_ids = {preset["profile"]: preset["id"] for preset in forward["presets"]}
+        reverse_ids = {preset["profile"]: preset["id"] for preset in reverse["presets"]}
+        base_id = self.websim_payload.parse_profile_preset(members[0][0], profile_a)["id"]
+
+        self.assertEqual(set(forward_ids), {profile_a.strip(), profile_b.strip()})
+        self.assertEqual(forward_ids, reverse_ids)
+        self.assertEqual(len(set(forward_ids.values())), 2)
+        self.assertTrue(all(preset_id.startswith(f"{base_id}-") for preset_id in forward_ids.values()))
+
+    def test_simc_tar_extractor_deduplicates_identical_conflicting_profiles(self):
+        profile = 'mage="Shared Actor"\nspec=frost\ntalents=AAA\nhead=first_helm,id=100001\n'
+        result = self.websim_payload.extract_simc_data_from_tar(
+            self.write_simc_profile_tar(
+                "profiles-duplicate.tar.gz",
+                [
+                    ("simc/profiles/MID_Frost_A.simc", profile),
+                    ("simc/profiles/MID_Frost_A_Copy.simc", profile),
+                ],
+            )
+        )
+
+        self.assertEqual(len(result["presets"]), 1)
+        self.assertEqual(result["presets"][0]["profile"], profile.strip())
+
+    def test_trait_edge_fetch_failure_is_reported_in_extracted_simc_data(self):
+        original_trait_edge = self.websim_payload.download_wago_trait_edge_csv
+        self.addCleanup(setattr, self.websim_payload, "download_wago_trait_edge_csv", original_trait_edge)
+
+        def fail_trait_edge_fetch(_build):
+            raise TimeoutError("TraitEdge request timed out")
+
+        self.websim_payload.download_wago_trait_edge_csv = fail_trait_edge_fetch
+        data = {
+            "talents": [{"id": "root", "payload": {"nodeId": 90001}}],
+        }
+
+        self.websim_payload.attach_trait_edges_to_data(data, "// wow build 12.0.5.67823")
+
+        self.assertEqual(data["dependencies"], 0)
+        self.assertEqual(data["traitEdgeSource"], "")
+        self.assertIn("TraitEdge request timed out", data["traitEdgeError"])
+
+    def test_unusable_trait_edge_payload_is_reported_in_extracted_simc_data(self):
+        original_trait_edge = self.websim_payload.download_wago_trait_edge_csv
+        self.addCleanup(setattr, self.websim_payload, "download_wago_trait_edge_csv", original_trait_edge)
+        self.websim_payload.download_wago_trait_edge_csv = lambda _build: (
+            "ID,VisualStyle,LeftTraitNodeID,RightTraitNodeID,Type\n",
+            "wago://TraitEdge",
+        )
+        data = {
+            "talents": [{"id": "root", "payload": {"nodeId": 90001}}],
+        }
+
+        self.websim_payload.attach_trait_edges_to_data(data, "// wow build 12.0.5.67823")
+
+        self.assertEqual(data["dependencies"], 0)
+        self.assertEqual(data["traitEdgeSource"], "")
+        self.assertEqual(
+            data["traitEdgeError"],
+            "TraitEdge payload did not contain usable dependency edges",
+        )
+
     def test_sync_simc_generated_data_reports_trait_edge_dependencies(self):
         sample = """
         // Player trait definitions, wow build 12.0.5.67823
@@ -811,6 +1007,7 @@ class WebSimPayloadTest(unittest.TestCase):
         }
         self.assertEqual(counts["dependencies"], 1)
         self.assertEqual(counts["traitEdgeSource"], "wago://TraitEdge")
+        self.assertEqual(counts["traitEdgeError"], "")
         self.assertEqual(len(parent_payloads), 1)
         self.assertTrue(next(iter(parent_payloads.values()))["parentIds"])
 
@@ -17956,6 +18153,27 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertIn("no WebSim talent nodes selected", response["profileReadiness"]["blockers"])
         self.assertNotIn("class_talents=", response["profile"])
 
+    def test_profile_talent_store_failure_does_not_fallback_to_unverified_raw_code(self):
+        failed_encoding = self.websim_payload.blank_talent_encoding("failed", "postgres")
+        failed_encoding["errors"] = ["PostgreSQL talent authority is unavailable"]
+
+        with patch.object(
+            self.websim_payload,
+            "encode_websim_talents",
+            return_value=failed_encoding,
+        ):
+            profile = self.websim_payload.build_websim_profile(
+                {
+                    "classKey": "mage",
+                    "specKey": "frost",
+                    "talents": "C4DAAAAAAAAAAAAAAAAAAAAAAA",
+                },
+                conn=None,
+                talent_store=object(),
+            )
+
+        self.assertNotIn("talents=C4DAAAAAAAAAAAAAAAAAAAAAAA", profile)
+
     def test_websim_talent_encoding_uses_purchased_points_for_gates(self):
         conn = sqlite3.connect(self.db_path)
         try:
@@ -20330,6 +20548,97 @@ class WebSimPayloadTest(unittest.TestCase):
             server.shutdown()
             server.server_close()
             thread.join(timeout=2)
+
+    def test_http_postgres_only_legacy_profile_uses_pg_talent_authority(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.seed_websim_encoder_nodes(conn)
+            talent_payload = self.websim_payload.get_websim_talents(
+                conn,
+                "mage",
+                "arcane",
+                "spellslinger",
+            )
+        finally:
+            conn.close()
+
+        class FakePostgresStore:
+            def __init__(self, payload):
+                self.payload = payload
+                self.calls = []
+
+            def get_websim_talents(self, class_key, spec_key, hero_key=""):
+                self.calls.append((class_key, spec_key, hero_key))
+                return self.payload
+
+        store = FakePostgresStore(talent_payload)
+        original_postgres_only = self.backend.postgres_only_runtime_enabled
+        original_cache_store = self.backend.cache_data_store
+        self.backend.postgres_only_runtime_enabled = lambda: True
+        self.backend.cache_data_store = lambda: store
+        server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            request = Request(
+                f"http://127.0.0.1:{server.server_port}/api/websim/profile",
+                data=json.dumps(self.websim_encoder_payload({"gearSelection": {"items": []}})).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urlopen(request) as response:
+                result = json.loads(response.read().decode("utf-8"))
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=2)
+            self.backend.postgres_only_runtime_enabled = original_postgres_only
+            self.backend.cache_data_store = original_cache_store
+
+        self.assertEqual(result["talentEncoding"]["status"], "encoded")
+        self.assertIn("class_talents=", result["profile"])
+        self.assertIn("spec_talents=", result["profile"])
+        self.assertIn("hero_talents=", result["profile"])
+        self.assertEqual(len(store.calls), 1)
+
+    def test_http_postgres_only_legacy_profile_fails_closed_without_pg_talent_authority(self):
+        class BrokenPostgresStore:
+            def get_websim_talents(self, class_key, spec_key, hero_key=""):
+                raise RuntimeError("pg down")
+
+        store_state = {"value": None}
+        original_postgres_only = self.backend.postgres_only_runtime_enabled
+        original_cache_store = self.backend.cache_data_store
+        original_init_db = self.backend.init_db
+        self.backend.postgres_only_runtime_enabled = lambda: True
+        self.backend.cache_data_store = lambda: store_state["value"]
+        self.backend.init_db = lambda: (_ for _ in ()).throw(
+            AssertionError("SQLite fallback should not be used for PG profile reads")
+        )
+        server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            for store in (None, BrokenPostgresStore()):
+                store_state["value"] = store
+                request = Request(
+                    f"http://127.0.0.1:{server.server_port}/api/websim/profile",
+                    data=json.dumps(self.websim_encoder_payload({"gearSelection": {"items": []}})).encode("utf-8"),
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                with self.subTest(store=type(store).__name__), urlopen(request) as response:
+                    result = json.loads(response.read().decode("utf-8"))
+                self.assertEqual(result["talentEncoding"]["status"], "failed")
+                self.assertEqual(result["profileReadiness"]["talentReady"], False)
+                self.assertNotIn("talents=", result["profile"])
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=2)
+            self.backend.postgres_only_runtime_enabled = original_postgres_only
+            self.backend.cache_data_store = original_cache_store
+            self.backend.init_db = original_init_db
 
     def test_sync_reports_missing_blizzard_credentials_without_failing_simc_cache(self):
         payload = self.websim_payload.sync_websim_cache(self.db_path, include_blizzard=True)

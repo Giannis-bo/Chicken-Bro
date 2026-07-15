@@ -1,0 +1,160 @@
+{
+  "schemaVersion": 1,
+  "slug": "talent-link-lkg-sync-guard",
+  "requirementSlug": "talent-link-lkg-sync-guard",
+  "status": "live_verified",
+  "highestEvidenceLevel": "live_verified",
+  "branch": "codex/fix-talent-tree-links",
+  "commit": "df0683500901004dd036ecf40ef867608f7bd452",
+  "scope": [
+    "talent_traitedge_extraction_bounds",
+    "postgres_live_lkg_projection",
+    "fail_closed_simc_candidate_validation",
+    "deterministic_profile_identity",
+    "postgres_profile_talent_authority",
+    "scheduled_sync_runtime_guard"
+  ],
+  "verification": [
+    {
+      "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-13-talent-link-lkg-sync-guard --base origin/main",
+      "status": "pass",
+      "summary": "The current PR head, whose deployed runtime code is df06835, passed the full local verification profile: 511 Node tests, 1537 Python tests, one expected skip, compile, JSON, project Harness and diff gates."
+    },
+    {
+      "command": "node scripts/project-harness.js --check --requirement-file artifacts/releases/2026-07-13-talent-link-lkg-sync-guard/requirement.json --evidence-file artifacts/releases/2026-07-13-talent-link-lkg-sync-guard/evidence.json --base origin/main",
+      "status": "pass",
+      "summary": "The current requirement/evidence contract passed its exact-candidate Harness gate."
+    },
+    {
+      "command": "GitHub Project Harness check for PR #84",
+      "status": "pass",
+      "summary": "PR #84 head df06835 passed the GitHub Project Harness workflow at 2026-07-15T06:07:35Z."
+    },
+    {
+      "command": "candidate backup, read-only extraction validation, controlled SimC-only sync and live API/data/operations smoke",
+      "status": "pass",
+      "summary": "Exact merge candidate df06835 passed deployed-file parity, PostgreSQL backup, read-only preflight, one controlled SimC-only recovery, talent/community gear API smoke, timer/backflow, service and log gates."
+    },
+    {
+      "command": "real WeChat exact-candidate connector and community enhancement import verification",
+      "status": "pass",
+      "summary": "The user accepted the exact clean candidate worktree on 2026-07-15 after verifying talent connector rendering and observed_profile_mage_frost enhancement import editability."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "candidate_verified",
+    "requiredBeforeMerge": true,
+    "branch": "codex/fix-talent-tree-links",
+    "commit": "df0683500901004dd036ecf40ef867608f7bd452",
+    "tree": "9d456e10a0fc40976d932a6ef21c75cab8fd8700",
+    "implementationCommit": "df0683500901004dd036ecf40ef867608f7bd452",
+    "backup": {
+      "path": "/opt/wow-mini-program/backups/talent-lkg-merge-candidate-df06835-20260715T061224Z",
+      "note": "Checksummed runtime files, installed unit and PostgreSQL dumps were captured before the controlled recovery. The predeploy graph had zero top-level parentIds, so the earlier healthy LKG backup remains retained alongside this exact-candidate rollback record."
+    },
+    "runtimeParity": {
+      "status": "pass",
+      "summary": "news_backend.py=809b8f92, postgres_cache_store.py=94056284, postgres_cache_sync.py=fd886a3b, websim_payload.py=c7afce7e and wow-websim-sync.service=b78d31ae matched the exact candidate; the installed systemd unit also matched."
+    },
+    "smoke": {
+      "status": "pass",
+      "summary": "Read-only preflight saw 5246 talents, 8465 candidate dependencies and 50 profiles. One locked SimC-only sync restored the live graph to 4949 dependency nodes, 8465 dependencies and 50 profiles. Mage Frost Spellslinger returned 110 nodes, 106 nodes with parents and 186 parent edges with treeReady/simcReady true; the observed Frost community gear template remained complete."
+    },
+    "timerBackflow": {
+      "status": "pass",
+      "summary": "Deploy used WOW_DEPLOY_START_ASYNC_SYNCS=0. The controlled candidate unit exited 0, wow-websim-sync.timer is enabled/active, wow-websim-sync.service is inactive and the shared lock has no holder."
+    },
+    "realWeChat": {
+      "status": "pass",
+      "summary": "User acceptance on 2026-07-15 confirms exact-candidate talent connector rendering and the editable observed_profile_mage_frost enhancement import sheet."
+    }
+  },
+  "runtimeEvidence": [
+    {
+      "id": "candidate_identity_and_runtime_parity",
+      "type": "candidate_deploy",
+      "status": "pass",
+      "summary": "Candidate df06835, tree 9d456e, matched five deployed runtime files and the installed WebSim unit by SHA-256."
+    },
+    {
+      "id": "postgres_backup_and_read_only_preflight",
+      "type": "data_safety",
+      "status": "pass",
+      "summary": "Backup captured all affected runtime files, the installed unit, checksummed PostgreSQL table dumps and sync state. Before recovery the live state had 5246 talents, zero top-level parentIds and 49 profiles; read-only candidate extraction had 5246 talents, 8465 dependencies, 50 profiles, 40 specs, 80 hero trees and no TraitEdge error."
+    },
+    {
+      "id": "controlled_simc_only_sync",
+      "type": "data_smoke",
+      "status": "pass",
+      "summary": "One locked SimC-only sync used the source-unknown, exact-node/exact-non-edge, parent-edge-superset recovery guard to restore 5246 talents, 4949 dependency nodes, 8465 dependencies and 50 profiles. Its sync-state dataStatus is verified with a nonempty TraitEdge source and no TraitEdge error; the top-level sync status remains false only for the pre-existing partial gear catalog."
+    },
+    {
+      "id": "talent_and_profile_api",
+      "type": "smoke",
+      "status": "pass",
+      "summary": "Mage Frost Spellslinger returned verified SimC authority with 110 nodes, 106 nodes carrying parents and 186 parent edges; tree, rule, encoding and simcReady were true. The exact deployed gear read model remained verified and exposed the complete observed_profile_mage_frost community template."
+    },
+    {
+      "id": "community_gear_compatibility",
+      "type": "smoke",
+      "status": "pass",
+      "summary": "The full exact-candidate test profile covers community gear enhancement compatibility; the deployed Frost gear read model retained observed_profile_mage_frost as a complete raiderio_observed_profile template. Real import-sheet editability remains a manual WeChat gate."
+    },
+    {
+      "id": "health_timers_services_and_logs",
+      "type": "operations",
+      "status": "pass",
+      "summary": "/health returned 200. /api/data/health remained truthfully partial for pre-existing catalog and upstream blockers while WebSim season was verified. Backend, gear-stat worker and nginx were active; the candidate sync unit had Result=success and no error-priority journal entries, the scheduled sync service was inactive and the shared lock free."
+    }
+  ],
+  "risks": [
+    {
+      "id": "upstream_partial_overwrite",
+      "status": "mitigated_local_verified",
+      "detail": "Tests prove candidate validation completes before replace_simc_generated_data and that rejection retains live PG counts and rows. Production verified the healthy write path but did not deliberately execute a rejected candidate."
+    },
+    {
+      "id": "incomplete_graph_cannot_self_repair",
+      "status": "mitigated_local_verified",
+      "detail": "Tests permit only monotonic edge additions over an incomplete same-source graph with identical non-edge structure. Production began from a healthy graph and did not deliberately execute this recovery path."
+    },
+    {
+      "id": "source_unknown_recovery_scope",
+      "status": "mitigated_runtime_verified",
+      "detail": "The production baseline had no persisted source identity and zero parent edges. Recovery was accepted only after exact node and non-edge structure checks plus a strict parent-edge superset check; source-unknown graph rewires remain rejected by regression coverage."
+    },
+    {
+      "id": "timer_backflow_during_candidate",
+      "status": "mitigated_runtime_verified",
+      "detail": "Candidate deployment used the shared lock and a controlled SimC-only sync; wow-websim-sync.timer remains enabled/active, its service is inactive and the lock was free after smoke."
+    },
+    {
+      "id": "wechat_runtime_not_yet_verified",
+      "status": "mitigated_user_verified",
+      "detail": "The user accepted real mini-program connector rendering and the community enhancement import sheet from the exact clean candidate worktree on 2026-07-15."
+    }
+  ],
+  "rollback": [
+    "config_disable",
+    "code_rollback",
+    "data_restore"
+  ],
+  "cleanup": {
+    "required": true,
+    "items": [
+      "keep all five production timers enabled and active in their restored state",
+      "leave asynchronous sync services inactive and the shared lock released",
+      "keep the checksummed candidate backup until merge and post-merge smoke are complete",
+      "keep unrelated root .superpowers files untracked and untouched"
+    ]
+  },
+  "archivedReferences": [
+    "docs/project-state.json",
+    "docs/roadmap.md",
+    "docs/harness.md",
+    "docs/talent-simulation-full-chain-runbook.md",
+    "docs/project-owner-map.json",
+    "docs/backend-owner-map.json"
+  ],
+  "summary": "Exact merge candidate df06835 is live verified: full Harness, GitHub CI, production backup/parity, read-only preflight, controlled SimC-only graph recovery, API/data/operations smoke, community gear read-model compatibility and user-accepted real WeChat connector/enhancement-sheet verification passed."
+}

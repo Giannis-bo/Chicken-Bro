@@ -1,7 +1,7 @@
 # 全职业天赋模拟全链路 Runbook
 
 > 适用范围：`/api/websim/talents` 天赋读模型、SimC trait data、Wago trait edges、Blizzard spell/media、社区天赋模板、PostgreSQL-only catalog、前端原生天赋模拟器、`/api/talents/*`、`/api/websim/profile`、`/api/websim/simulate`、health 和回滚。
-> 最后更新：2026-06-29。
+> 最后更新：2026-07-13。
 
 本文是天赋模拟器后续版本和赛季更新的执行手册。它不要求天赋侧机械复刻装备侧的 item/source/variant/mod-option 模型；天赋侧真正要对齐的是四个治理原则：后端权威读模型、证据优先、前端 consumer-only、serializer fail-closed。
 
@@ -217,6 +217,21 @@ order by status, source_status;
 8. 抽样 `/api/websim/profile`，确认 `profileReadiness`。
 9. 抽样 `/api/websim/simulate`，确认失败时 fail-closed，成功时有 SimC-ready profile。
 10. 跑全职业矩阵测试，再部署。
+
+### PostgreSQL LKG 与 candidate 发布门禁
+
+每次 SimC / TraitEdge 刷新前，必须通过 `PostgresCacheStore.simc_talent_graph_baseline()` 从当前 PostgreSQL runtime 读取 LKG。基线至少包含全局及逐 class/spec/tree/hero context 的节点数、依赖节点数、依赖数、node IDs、非连线结构签名、完整 graph signature、逐节点 parent IDs，以及 profile 数量、专精覆盖和 profile 内容 SHA。`websim_sync_state` 的历史计数不能替代 live PG 事实。
+
+候选写入前必须通过 `validate_simc_generated_data_candidate()`：
+
+- source、build、40 专精、80 英雄树、160 contexts、节点身份、`rankEntries`、choice / rank / point gate 和 parent references 必须完整且 canonical。
+- 同源健康 LKG 不得减少节点、依赖或 profile，不得改变 graph signature，也不得丢失既有 profile 内容身份；profile ID 可以稳定重建，候选可以增长。
+- 只有旧 context 低于 `WOW_WEBSIM_SIMC_MIN_PARENT_COVERAGE_PERCENT`、node IDs 与全部非连线结构完全相同、旧 parent 集合逐节点都是新集合子集时，才允许同源 candidate 单调补边。改写或移除既有边、布局变化、编码变化仍 fail-closed。
+- 跨源 candidate 按 `WOW_WEBSIM_SIMC_MIN_BASELINE_RETENTION_PERCENT` 校验全局、逐 context 和 profile 保留率。
+- 完整 SimC source tar 是发布所需输入。单独 `trait_data.inc` 或远程文本 fallback 不含 profile presets，只能形成 blocked attempt 并保留 PG LKG，不能替换线上表。
+- 任一门禁失败时，不调用 `replace_simc_generated_data()`；保留当前 PG 行和计数，在 `simc.lastAttempt` 记录 bounded blocked 原因。
+
+candidate 部署证据至少记录 exact commit/tree、runtime 文件 SHA-256 parity、写入前 PG 三表与 `websim_sync` 单行备份、只读 extraction/validation、LKG 前后对比、受控 SimC-only sync、timer/backflow、服务与日志、`/health`、`/api/data/health`、天赋读模型/validate/profile smoke、社区装备强化导入回归，以及真实微信连线显示。除非任务明确要求，部署保持 `WOW_DEPLOY_START_ASYNC_SYNCS=0`，不能自动启动完整异步同步。
 
 ## 测试矩阵
 
