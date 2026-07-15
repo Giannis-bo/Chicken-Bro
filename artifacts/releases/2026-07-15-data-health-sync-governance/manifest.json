@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-15T09:16:41.340Z",
+  "generatedAt": "2026-07-15T09:42:10.575Z",
   "release": {
     "date": "2026-07-15",
     "slug": "data-health-sync-governance"
@@ -53,7 +53,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 276588
+          "sizeBytes": 276775
         },
         {
           "path": "docs/README.md",
@@ -252,7 +252,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-15-data-health-sync-governance/evidence.json",
-    "sizeBytes": 3575,
+    "sizeBytes": 6971,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -270,9 +270,9 @@
       "rollback"
     ],
     "missingFields": [],
-    "declaredStatus": "local_verified",
-    "highestEvidenceLevel": "local_verified",
-    "summary": "Implementation is complete locally with focused verification. Candidate deployment and any real data recovery remain unexecuted and cannot be claimed as live evidence."
+    "declaredStatus": "live_verified",
+    "highestEvidenceLevel": "live_verified",
+    "summary": "Candidate runtime and the explicitly authorized SimC/TraitEdge-only recovery are live verified. The release preserves normal timer cadence and existing partial or blocked upstream truth; it does not claim a full WebSim or gear refresh."
   },
   "evidence": {
     "localTests": {
@@ -297,7 +297,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "17 changed files currently visible to git status."
+      "detail": "5 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -333,30 +333,18 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 17,
+      "changedFileCount": 5,
       "changedFiles": [
-        " M docs/gear-simulation-full-chain-runbook.md",
-        " M docs/project-owner-map.json",
+        " M artifacts/releases/2026-07-15-data-health-sync-governance/evidence.json",
+        " M artifacts/releases/2026-07-15-data-health-sync-governance/manifest.json",
         " M docs/roadmap.md",
         " M docs/roadmap/ideas.md",
-        " M docs/talent-simulation-full-chain-runbook.md",
-        " M server/data_health_followup.py",
-        " M server/deploy_lighthouse.sh",
-        " M server/news_backend.py",
-        " M tests/data_health_followup_test.py",
-        " M tests/deploy-script.test.js",
-        " M tests/deploy_lighthouse_test.py",
-        " M tests/news_backend_test.py",
-        " M tests/project-owner-map.test.js",
-        "?? artifacts/releases/2026-07-15-data-health-sync-governance/",
-        "?? docs/superpowers/plans/2026-07-15-data-health-sync-governance.md",
-        "?? docs/superpowers/specs/2026-07-15-data-health-sync-governance-design.md",
-        "?? server/wow-talent-graph-recovery.service"
+        " M docs/talent-simulation-full-chain-runbook.md"
       ]
     }
   },
   "write": {
-    "enabled": true,
+    "enabled": false,
     "path": "artifacts/releases/2026-07-15-data-health-sync-governance/manifest.json"
   }
 }

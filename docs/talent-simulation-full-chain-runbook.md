@@ -246,7 +246,16 @@ candidate 部署证据至少记录 exact commit/tree、runtime 文件 SHA-256 pa
 1. 记录 exact candidate commit/tree，备份受影响 runtime 文件、`websim_talents`、`websim_spell_details`、`websim_profile_presets` 和相关 `websim_sync_state`，并保存校验和。
 2. 用 live PG LKG、candidate extraction 和 `validate_simc_generated_data_candidate()` 做只读核验；任何 source、节点、非连线结构、profile 或 retention 门禁失败都停止，不触发恢复。
 3. 确认 `wow-websim-sync.service` 未在运行、共享 `/run/lock/wow-mini-program-sync.lock` 可用、`wow-talent-graph-recovery.service` 已安装且其两个 skip flag 均为 `1`。
-4. 通过唯一的策略入口运行 `sudo -u ubuntu /usr/bin/python3 /opt/wow-mini-program/server/data_health_followup.py --execute --force-action talent_graph_recovery`。该入口领取并记录人工动作，再启动 `wow-talent-graph-recovery.service`。
+4. 通过唯一的策略入口运行下列带 systemd `EnvironmentFile` 的临时 unit；该入口领取并记录人工动作，再启动 `wow-talent-graph-recovery.service`。不能直接以 `sudo -u ubuntu` 运行脚本：受保护的 `/etc/wow-backend.env` 不会注入该进程，state store 不可用时脚本会按 fail-closed 只报告、执行零个动作。
+
+   ```bash
+   sudo systemd-run --wait --collect \
+     --property=User=ubuntu \
+     --property=WorkingDirectory=/opt/wow-mini-program \
+     --property=EnvironmentFile=/etc/wow-backend.env \
+     /usr/bin/python3 /opt/wow-mini-program/server/data_health_followup.py \
+       --execute --force-action talent_graph_recovery
+   ```
 5. 该 service 只能运行 `server/websim_sync.py` 的 SimC/TraitEdge 路径：`WOW_WEBSIM_SKIP_BLIZZARD=1` 和 `WOW_WEBSIM_SKIP_RAIDERIO=1` 必须保留。禁止用 `systemctl start wow-websim-sync.service` 替代，也禁止为这次恢复启动 observed gear、stat weights 或其它异步链。
 6. 恢复后依次确认 service/journal、共享锁释放、`/health`、`/api/data/health` 的 `data_health_followup` / talent 状态、天赋读模型、validate/profile smoke 和 timer backflow。失败则先 `config_disable` 停止 follow-up/recovery，再按已保存的代码或 PG 备份回滚；不要在同一 revision 上盲目重试。
 
