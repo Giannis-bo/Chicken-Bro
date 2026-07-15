@@ -139,6 +139,16 @@ test('write-capable critical domains declare write owners and role boundaries', 
   }
 })
 
+test('deploy runtime services maps the manual talent graph recovery unit and its characterization', () => {
+  const ownerMap = readOwnerMap()
+  const deployDomain = ownerMap.criticalDomains.find((domain) => domain.id === 'deploy_runtime_services')
+
+  assert.ok(deployDomain, 'deploy_runtime_services domain should exist')
+  assert.ok(deployDomain.consumers.includes('server/wow-talent-graph-recovery.service'))
+  assert.ok(deployDomain.runtimeSurfaces.includes('server/wow-talent-graph-recovery.service'))
+  assert.ok(deployDomain.characterization.includes('tests/deploy_lighthouse_test.py'))
+})
+
 test('project owner map covers changed paths, profiles and release triggers for every critical domain', () => {
   const ownerMap = readOwnerMap()
   const requiredProfiles = new Set(['harness', 'backend', 'frontend', 'full'])

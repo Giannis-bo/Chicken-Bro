@@ -2281,6 +2281,62 @@ def data_health_component(key, title, status, *, checked_at="", details=None, bl
     }
 
 
+def data_health_followup_health_component(cache_store):
+    if cache_store is None or not hasattr(cache_store, "get_sync_state"):
+        return data_health_component(
+            "data_health_followup",
+            "Revision-gated data health follow-up",
+            "blocked",
+            details={"mode": "revision_gated", "stateKey": "data_health_followup_v1", "actions": {}},
+            blockers=["data health follow-up state reader is unavailable"],
+        )
+    try:
+        state = cache_store.get_sync_state("data_health_followup_v1")
+    except Exception:
+        return data_health_component(
+            "data_health_followup",
+            "Revision-gated data health follow-up",
+            "blocked",
+            details={"mode": "revision_gated", "stateKey": "data_health_followup_v1", "actions": {}},
+            blockers=["data health follow-up state reader is unavailable"],
+        )
+    state = state if isinstance(state, dict) else {}
+    actions = state.get("actions") if isinstance(state.get("actions"), dict) else {}
+    if not state.get("updatedAt") and not actions:
+        return data_health_component(
+            "data_health_followup",
+            "Revision-gated data health follow-up",
+            "partial",
+            details={
+                "mode": "revision_gated",
+                "stateKey": "data_health_followup_v1",
+                "ledgerState": "not_observed",
+                "actions": {},
+            },
+            blockers=["data health follow-up ledger has not recorded an execution"],
+        )
+    safe_actions = {
+        str(key): {
+            field: value
+            for field, value in action.items()
+            if field in {"lastSeenRevision", "lastAttemptedRevision", "lastDecision", "lastDecisionAt", "lastReportOnlyReason"}
+        }
+        for key, action in actions.items()
+        if isinstance(action, dict) and str(key or "").strip()
+    }
+    return data_health_component(
+        "data_health_followup",
+        "Revision-gated data health follow-up",
+        "verified",
+        checked_at=state.get("updatedAt") or "",
+        details={
+            "mode": "revision_gated",
+            "stateKey": "data_health_followup_v1",
+            "actions": safe_actions,
+        },
+    )
+
+
 def gear_stat_snapshot_health_component(*, store=None, now="", simc_runtime_revision=""):
     checked_at = str(now or utc_now())
     active_store = store if store is not None else gear_stat_snapshot_data_store()
@@ -3175,6 +3231,7 @@ def build_postgres_only_data_health_payload(*, include_template_evidence_audit=T
         community_status = "partial" if community_status in {"synced", "verified"} else (community_status or "partial")
     components = [
         data_health_component("backend", "Backend service", "verified", checked_at=utc_now()),
+        data_health_followup_health_component(cache_store),
         active_manifest_health_component(cache_store),
         release_refresh_health_component(cache_store),
         gear_stat_snapshot_health_component(),
@@ -3330,6 +3387,7 @@ def build_data_health_payload(*, include_template_evidence_audit=True):
     pg_gear_state = cache_store.get_sync_state("gearCatalog") if cache_store else {}
     components = [
         data_health_component("backend", "Backend service", "verified", checked_at=utc_now()),
+        data_health_followup_health_component(cache_store),
         news_health_component(),
     ]
     with db_connection() as conn:

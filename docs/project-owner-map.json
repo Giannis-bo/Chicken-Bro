@@ -1297,6 +1297,7 @@
         "server/wow-gear-release-refresh.service",
         "server/wow-gear-release-refresh.timer",
         "server/wow-data-health-followup.service",
+        "server/wow-talent-graph-recovery.service",
         "server/wow-simc-runtime-update.service"
       ],
       "publicContracts": [
@@ -1318,6 +1319,7 @@
         "server/wow-gear-release-refresh.service",
         "server/wow-gear-release-refresh.timer",
         "server/wow-data-health-followup.service",
+        "server/wow-talent-graph-recovery.service",
         "server/wow-simc-runtime-update.service"
       ],
       "runbooks": [

@@ -6104,6 +6104,48 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(component["status"], "blocked")
         self.assertEqual(self.backend.data_health_overall_status(payload["components"]), "partial")
 
+    def test_data_health_followup_component_is_read_only_and_exposes_revision_ledger(self):
+        class CacheStore:
+            def get_sync_state(self, key):
+                self.key = key
+                return {
+                    "updatedAt": "2026-07-15T09:00:00+00:00",
+                    "actions": {
+                        "gear_observed_backfill": {
+                            "lastSeenRevision": "gear-r2",
+                            "lastAttemptedRevision": "gear-r2",
+                            "lastDecision": "revision_changed",
+                        }
+                    },
+                }
+
+        store = CacheStore()
+        component = self.backend.data_health_followup_health_component(store)
+
+        self.assertEqual(store.key, "data_health_followup_v1")
+        self.assertEqual(component["key"], "data_health_followup")
+        self.assertEqual(component["status"], "verified")
+        self.assertEqual(component["details"]["mode"], "revision_gated")
+        self.assertEqual(component["details"]["actions"]["gear_observed_backfill"]["lastSeenRevision"], "gear-r2")
+
+    def test_data_health_followup_empty_ledger_is_pending_not_verified(self):
+        class CacheStore:
+            def get_sync_state(self, key):
+                return {}
+
+        component = self.backend.data_health_followup_health_component(CacheStore())
+
+        self.assertEqual(component["status"], "partial")
+        self.assertEqual(component["details"]["ledgerState"], "not_observed")
+        self.assertIn("data health follow-up ledger has not recorded an execution", component["blockers"])
+
+    def test_data_health_payload_includes_revision_gated_followup_component(self):
+        payload = self.backend.build_data_health_payload()
+        components = {item["key"]: item for item in payload["components"]}
+
+        self.assertIn("data_health_followup", components)
+        self.assertEqual(components["data_health_followup"]["details"].get("mode"), "revision_gated")
+
     def test_http_data_health_route_returns_read_only_status_payload(self):
         server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
         thread = threading.Thread(target=server.serve_forever, daemon=True)

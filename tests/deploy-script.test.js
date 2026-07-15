@@ -200,6 +200,20 @@ test('data health followup triggers safe blocker continuation through existing u
   assert.match(timer, /Persistent=true/)
 })
 
+test('talent graph recovery is a manually triggered SimC and TraitEdge-only unit', () => {
+  const recoveryUnit = fs.readFileSync('server/wow-talent-graph-recovery.service', 'utf8')
+  const deployScript = fs.readFileSync(scriptPath, 'utf8')
+
+  assert.match(recoveryUnit, /Environment=WOW_DATABASE_RUNTIME=postgres_only/)
+  assert.match(recoveryUnit, /Environment=WOW_WEBSIM_SKIP_BLIZZARD=1/)
+  assert.match(recoveryUnit, /Environment=WOW_WEBSIM_SKIP_RAIDERIO=1/)
+  assert.match(recoveryUnit, /Environment=WOW_WEBSIM_FETCH_WAGO_DB2_TRAIT_EDGE=1/)
+  assert.match(recoveryUnit, /ExecStart=\/usr\/bin\/flock -w 7200 \/run\/lock\/wow-mini-program-sync\.lock \/usr\/bin\/python3 \/opt\/wow-mini-program\/server\/websim_sync\.py/)
+  assertUsesMihomoProxy(recoveryUnit, 'server/wow-talent-graph-recovery.service')
+  assert.match(deployScript, /wow-talent-graph-recovery\.service/)
+  assert.doesNotMatch(deployScript, /systemctl start (?:--no-block )?wow-talent-graph-recovery\.service/)
+})
+
 test('simc runtime update has a locked systemd service and reusable updater', () => {
   assert.ok(fs.existsSync('server/wow-simc-runtime-update.service'), 'missing simc runtime update service')
   assert.ok(fs.existsSync('server/simc_runtime_update.sh'), 'missing simc runtime update script')
@@ -238,6 +252,7 @@ test('external evidence fetch units use the local mihomo proxy', () => {
     'server/wow-stat-weights-sync.service',
     'server/wow-community-template-sync.service',
     'server/wow-gear-observed-backfill.service',
+    'server/wow-talent-graph-recovery.service',
     'server/wow-simc-runtime-update.service'
   ]) {
     assertUsesMihomoProxy(fs.readFileSync(unit, 'utf8'), unit)
@@ -295,6 +310,7 @@ test('production systemd units do not configure SQLite runtime paths', () => {
     'server/wow-season-recommended-gear-sync.service',
     'server/wow-recommended-bis-prototype-sync.service',
     'server/wow-data-health-followup.service',
+    'server/wow-talent-graph-recovery.service',
     'server/wow-simc-runtime-update.service'
   ]) {
     const service = fs.readFileSync(unit, 'utf8')

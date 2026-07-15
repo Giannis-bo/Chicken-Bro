@@ -1161,7 +1161,11 @@ class DatabaseAdapterTest(unittest.TestCase):
         self.assertEqual(components["websim_sync"]["details"]["observedVariantCount"], 2388)
         self.assertEqual(components["gear_catalog"]["details"]["itemCount"], 756)
         self.assertEqual(components["gear_catalog"]["details"]["itemDatabaseRevision"], "pg-cache-items-rev")
-        self.assertEqual([call[1] for call in fake.calls], ["websim_sync", "gearCatalog"])
+        self.assertEqual(components["data_health_followup"]["details"]["ledgerState"], "not_observed")
+        self.assertEqual(
+            [call[1] for call in fake.calls],
+            ["websim_sync", "gearCatalog", "data_health_followup_v1"],
+        )
 
     def test_news_backend_routes_websim_season_and_loot_reads_to_postgres_cache_store(self):
         import server.news_backend as backend

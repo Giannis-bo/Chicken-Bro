@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "slug": "data-health-sync-governance",
+  "requirementSlug": "data-health-sync-governance",
+  "status": "live_verified",
+  "highestEvidenceLevel": "live_verified",
+  "branch": "codex/data-health-governance",
+  "commit": "1e5f6b9",
+  "scope": [
+    "revision_gated_data_health_followup",
+    "postgres_sync_state_decision_ledger",
+    "consumer_only_health_observability",
+    "manual_simc_only_talent_graph_recovery",
+    "deploy_install_without_autostart"
+  ],
+  "verification": [
+    {
+      "command": "python3 -m unittest tests.data_health_followup_test tests.news_backend_test tests.postgres_cache_store_test tests.websim_sync_test",
+      "status": "pass",
+      "summary": "484 focused Python tests passed. They cover first-seen baseline, same-revision report-only behavior, changed and explicit refresh claims, unavailable-state and malformed-health fail-closed behavior, the read-only health consumer, PostgreSQL sync-state boundaries, and WebSim skip paths."
+    },
+    {
+      "command": "node --test tests/deploy-script.test.js && python3 -m unittest tests.deploy_lighthouse_test",
+      "status": "pass",
+      "summary": "25 Node deployment/owner-map tests and 10 Python deployment tests passed. The manual recovery unit has both skip flags, the shared lock, PostgreSQL-only runtime, proxy boundary, deploy installation without autostart, and current Harness ownership coverage."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-15-data-health-sync-governance --base origin/main",
+      "status": "pass",
+      "summary": "The local full write-path profile passed: full Node and Python discovery, JSON/schema checks, Harness packet checks, syntax checks, and git diff --check."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "verified",
+    "requiredBeforeMerge": true,
+    "branch": "codex/data-health-governance",
+    "candidateCommit": "1e5f6b9",
+    "commit": "1e5f6b9",
+    "runtimeDeploy": "WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 bash server/deploy_lighthouse.sh",
+    "reason": "Candidate runtime deployed with async sync starts disabled; one explicitly authorized SimC/TraitEdge-only talent graph recovery then completed successfully.",
+    "smoke": {
+      "status": "pass",
+      "detail": "Backend health, data health, talent read, validation and profile paths responded after recovery."
+    },
+    "timerBackflow": {
+      "status": "pass",
+      "detail": "Normal wow-websim-sync.service remained inactive, its timer remained active, and the shared lock was free after recovery."
+    },
+    "rollbackBackup": {
+      "path": "/opt/wow-mini-program/backups/candidate-data-health-governance-1e5f6b9-20260715T093412Z",
+      "runtimeBeforeSha256": "3221717d535be48c2075d50d17b19e1a40e80bc2e610f9f8d441b4482273c00e",
+      "talentGraphPgDumpSha256": "a862b90f205f287491aa5f22b9a4df86819ba662db62269a69d3007ffc740250",
+      "baselineSha256": "a1f4b4f7ea1115f431e239638bbaa14591d383dae54bed20fe13ad0b021b853c"
+    }
+  },
+  "runtimeEvidence": [
+    {
+      "kind": "preflight_and_backup",
+      "type": "preflight",
+      "status": "pass",
+      "detail": "Backend active, normal WebSim timer active, normal WebSim service inactive, and shared sync lock free before deployment. PostgreSQL backup and LKG baseline recorded talents=5246, dependencyNodes=4949, dependencies=8465, profiles=50, profileSpecCoverage=32."
+    },
+    {
+      "kind": "runtime_file_parity",
+      "type": "runtime_parity",
+      "status": "pass",
+      "detail": "Candidate and remote SHA-256 matched for data_health_followup.py=70b1806c4d13ab397992bc74ea29f8c884657dbd3acf9168bccaa1570156268b, news_backend.py=bb2a1cba8d36970c59c637832687353e2e8535ecc95b39b7d52ca5cd7566eade, wow-data-health-followup.service=20db19fbfe7d9dba92905cfd9c2dbaa283236974cc160051a9bd98d9e789471b, and wow-talent-graph-recovery.service=7618f498313aeab895a3aaf9474a5e1faea63c9a536ddb3cc7b96d5ed3904fb8."
+    },
+    {
+      "kind": "forced_recovery",
+      "type": "recovery",
+      "status": "pass",
+      "detail": "The direct sudo-u invocation correctly failed closed because it lacked the protected systemd environment and performed zero actions. The approved transient systemd EnvironmentFile invocation recorded talent_graph_recovery=forced at 2026-07-15T09:36:17Z and completed wow-talent-graph-recovery.service with Result=success and ExecMainStatus=0. The unit kept Blizzard and Raider.IO collection skipped."
+    },
+    {
+      "kind": "post_recovery_smoke",
+      "type": "smoke",
+      "status": "pass",
+      "detail": "Health endpoint returned ok. data_health_followup became verified with its forced ledger action; LKG remained talents=5246, dependencyNodes=4949, dependencies=8465, profiles=50, profileSpecCoverage=32. Frost Spellslinger talent read returned 110 nodes; talent validate encoded with no errors; profile smoke kept talentReady=true. Normal WebSim service remained inactive, timer active, and shared lock free. Existing gear catalog/upstream blockers remained partial or blocked."
+    }
+  ],
+  "risks": [
+    {
+      "id": "candidate_data_write",
+      "status": "resolved",
+      "detail": "Candidate backup, read-only preflight, runtime parity, one manually authorized recovery, API/data/unit/timer/journal smoke, and rollback evidence completed before merge."
+    },
+    {
+      "id": "missing_upstream_revision",
+      "status": "contained",
+      "detail": "A health domain without an explicit input revision is report-only and exposes a manual blocker; it cannot synthesize a fingerprint from status text or counts."
+    },
+    {
+      "id": "manual_policy_environment",
+      "status": "resolved",
+      "detail": "Manual policy execution must be started through a transient systemd unit with EnvironmentFile=/etc/wow-backend.env. A bare sudo-u process intentionally fails closed because it cannot read the protected runtime environment."
+    }
+  ],
+  "rollback": [
+    "config_disable",
+    "code_rollback",
+    "data_restore",
+    "resync_repair"
+  ],
+  "cleanup": {
+    "required": true,
+    "items": [
+      "Keep wow-websim-sync.timer as the normal daily reconciliation path and do not start it from health follow-up.",
+      "Keep wow-talent-graph-recovery.service inactive except during an explicitly approved, preflight-validated recovery.",
+      "Remove only this task worktree after merge; do not alter unrelated root worktree changes."
+    ]
+  },
+  "archivedReferences": [
+    "docs/project-state.json",
+    "docs/roadmap.md",
+    "docs/harness.md",
+    "docs/talent-simulation-full-chain-runbook.md",
+    "artifacts/releases/2026-07-13-talent-link-lkg-sync-guard/evidence.json"
+  ],
+  "summary": "Candidate runtime and the explicitly authorized SimC/TraitEdge-only recovery are live verified. The release preserves normal timer cadence and existing partial or blocked upstream truth; it does not claim a full WebSim or gear refresh."
+}
