@@ -6,13 +6,6 @@
   "activeReleaseArtifact": "artifacts/releases/2026-07-14-community-enhancement-editability",
   "activeContracts": [
     {
-      "id": "community_enhancement_editability",
-      "path": "artifacts/releases/2026-07-14-community-enhancement-editability/requirement.json",
-      "status": "live_verified",
-      "lifecycle": "active",
-      "notes": "Exact candidate 36204be is live-verified before merge: generation 16, 40/40 read-only shadow, API/Profile, rollback drill, operations and real WeChat proof passed. The frozen Frost Mage imports 8/8 gems, 6/8 enchants and 2/2 embellishments as ordinary editable canonical selections; PR merge and post-merge smoke remain before archival."
-    },
-    {
       "id": "repo_native_harness_v0_5",
       "path": "docs/harness.md",
       "status": "active",
@@ -167,9 +160,37 @@
       "status": "completed_live_verified",
       "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover/closure-audit.json",
       "notes": "PRs #79-#82 completed the Phase 5 store, worker/API and frontend cutover. Clean main d02d885 passed real WeChat pending-to-verified and changed-input stale/read-only replacement. The user approved splitting profileReadiness from stat execution outcome; the live 40-spec gate produced 32 verified immutable snapshots and eight explicit fail-closed outcomes without runtime scope expansion, with PG-only runtime, public observed-only, Catalyst disabled, latency/resource, timer/log and runtime parity evidence."
+    },
+    {
+      "id": "community_enhancement_editability_20260715",
+      "domain": "community_enhancement_editability",
+      "status": "completed_live_verified",
+      "evidence": "artifacts/releases/2026-07-14-community-enhancement-editability/evidence.json",
+      "notes": "PR #86 merged as 535346c after exact-candidate and clean-main proof. The frozen Frost Mage imports 8/8 gems, 6/8 enchants and 2/2 embellishments as ordinary editable canonical selections; generation 16, 40/40 read-only shadow, rollback drill, 20/20 runtime parity, Resolve/Profile, real WeChat edit/reimport and operations checks passed."
     }
   ],
   "historicalContracts": [
+    {
+      "id": "community_enhancement_editability_v2",
+      "path": "artifacts/releases/2026-07-14-community-enhancement-editability/requirement.json",
+      "status": "completed_live_verified_archived",
+      "lifecycle": "historical",
+      "evidence": "artifacts/releases/2026-07-14-community-enhancement-editability/evidence.json"
+    },
+    {
+      "id": "community_enhancement_editability_v2_design",
+      "path": "docs/superpowers/specs/2026-07-14-community-enhancement-editability-v2-design.md",
+      "status": "completed_live_verified_archived",
+      "lifecycle": "historical",
+      "evidence": "artifacts/releases/2026-07-14-community-enhancement-editability/evidence.json"
+    },
+    {
+      "id": "community_enhancement_editability_v2_plan",
+      "path": "docs/superpowers/plans/2026-07-14-community-enhancement-editability-v2.md",
+      "status": "completed_live_verified_archived",
+      "lifecycle": "historical",
+      "evidence": "artifacts/releases/2026-07-14-community-enhancement-editability/evidence.json"
+    },
     {
       "id": "community_template_enhancement_import_v1_design",
       "path": "docs/superpowers/specs/2026-07-13-community-template-enhancement-import-design.md",

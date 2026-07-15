@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-15T04:59:11.754Z",
+  "generatedAt": "2026-07-15T05:35:50.632Z",
   "release": {
     "date": "2026-07-14",
     "slug": "community-enhancement-editability"
@@ -38,7 +38,7 @@
         {
           "path": "docs/project-state.json",
           "exists": true,
-          "sizeBytes": 28702
+          "sizeBytes": 29790
         },
         {
           "path": "docs/project-owner-map.json",
@@ -53,7 +53,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 272698
+          "sizeBytes": 272835
         },
         {
           "path": "docs/README.md",
@@ -232,7 +232,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-14-community-enhancement-editability/evidence.json",
-    "sizeBytes": 14811,
+    "sizeBytes": 18615,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -250,9 +250,9 @@
       "rollback"
     ],
     "missingFields": [],
-    "declaredStatus": "live_verified",
+    "declaredStatus": "archived",
     "highestEvidenceLevel": "live_verified",
-    "summary": "Exact candidate 36204bed9e453515a86d6031fd7439f110efd85b (tree 8392e2b5a989295d36698a27b3ff96c6655b583f) is live-verified before merge. Full Harness passed 510 Node plus 1469 Python tests and 130 commands; final independent CR has no findings. Production generation 16, 40/40 read-only shadow, Resolve/Profile, ninth-gem rejection, runtime parity and operations checks passed. Real WeChat imported the frozen Frost Mage template as editable gems 8/8, enchants 6/8 and embellishments 2/2, preserved the full canonical draft through partial hydration, accepted a gem edit with a new verified signature and restored the original signature on reimport. PR merge and post-merge live smoke remain before archival."
+    "summary": "Community enhancement editability v2 is archived after PR #86 squash merged as 535346c. Candidate and clean-main evidence passed full Harness, final independent CR, generation 16 release cutover, 40/40 read-only shadow, rollback drill, 20/20 runtime parity, Resolve/Profile, ninth-gem fail-closed and service/timer/log checks. Real WeChat imported the frozen Frost Mage template as ordinary editable gems 8/8, enchants 6/8 and embellishments 2/2, preserved the full canonical draft through partial hydration, accepted a gem edit with a new verified signature and restored the original signature on reimport. Temporary candidate worktrees and local configuration overrides were removed without touching the root talent-link branch."
   },
   "evidence": {
     "localTests": {
@@ -277,7 +277,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "6 changed files currently visible to git status."
+      "detail": "5 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -313,14 +313,13 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 6,
+      "changedFileCount": 5,
       "changedFiles": [
         " M artifacts/releases/2026-07-14-community-enhancement-editability/evidence.json",
         " M artifacts/releases/2026-07-14-community-enhancement-editability/manifest.json",
         " M docs/project-state.json",
         " M docs/roadmap.md",
-        " M tests/project-state.test.js",
-        "?? artifacts/releases/2026-07-14-community-enhancement-editability/wechat-devtools-ledger.json"
+        " M tests/project-state.test.js"
       ]
     }
   },

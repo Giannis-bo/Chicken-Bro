@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "slug": "community-enhancement-editability",
   "requirementSlug": "community-enhancement-editability",
-  "status": "live_verified",
+  "status": "archived",
   "highestEvidenceLevel": "live_verified",
-  "branch": "codex/gear-only-community-enhancement-editability",
-  "commit": "36204bed9e453515a86d6031fd7439f110efd85b",
+  "branch": "main",
+  "commit": "535346c6b6b1f8a65b0ae156ce9843b4a73d6001",
   "scope": [
     "static_socket_authority",
     "raiderio_gem_occurrence_transport",
@@ -90,6 +90,16 @@
       "command": "real WeChat exact-candidate import and editable replacement matrix",
       "status": "pass",
       "summary": "WeChat DevTools Stable 2.01.2510290 opened the exact clean candidate worktree. The frozen Frost Mage template imported as 15/15, gems 8/8, enchants 6/8 and embellishments 2/2; opening and hydrating wrist preserved the full draft. Changing neck gem slot 1 produced verified signature sha256:68b06d0faa3a9 while keeping all counts, and reimport restored sha256:06f16fb8b781e."
+    },
+    {
+      "command": "PR #86 squash merge and clean-main production parity, Resolve/Profile, health, service, timer and log smoke",
+      "status": "pass",
+      "summary": "PR #86 merged as 535346c at 2026-07-15 13:15:03 CST. All 20 changed runtime files matched the merge tree SHA-256. The frozen Frost Mage compact template, canonical Resolve and Profile returned HTTP 200 with generation 16, no problems, ready/verified profile state, signature sha256:06f16fb8b781e, gems 8/8, enchants 6/8 and embellishments 2/2. Backend, stat worker and nginx remained active with NRestarts=0; failed units and post-merge error-priority logs were empty."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-14-community-enhancement-editability --base origin/main",
+      "status": "pass",
+      "summary": "The clean-main archival update passed 510/510 Node tests, 1469/1469 Python tests with one expected skip, syntax and JSON validation, the archived evidence packet check, diff check and all 130 full profile commands."
     }
   ],
   "candidateDeployment": {
@@ -120,6 +130,28 @@
       "checkedAt": "2026-07-15T12:46:30+08:00",
       "ledger": "artifacts/releases/2026-07-14-community-enhancement-editability/wechat-devtools-ledger.json",
       "summary": "Exact candidate clean compile and live page handlers proved direct 8/8, 6/8 and 2/2 import, full draft preservation after one-slot hydration, unchanged confirmation, successful second edit and deterministic reimport restoration. No inherited/read-only user concept was shown."
+    }
+  },
+  "postMerge": {
+    "status": "pass",
+    "pullRequest": 86,
+    "pullRequestUrl": "https://github.com/boyuan19910222-ui/wow_mini_program/pull/86",
+    "mergeCommit": "535346c6b6b1f8a65b0ae156ce9843b4a73d6001",
+    "mergeTree": "3b5f6f9ba97994760e4e7c7f20fde132dc4adeae",
+    "mergedAt": "2026-07-15T13:15:03+08:00",
+    "checkedAt": "2026-07-15T13:23:30+08:00",
+    "runtimeParity": {
+      "status": "pass",
+      "matchedFiles": 20,
+      "expectedFiles": 20
+    },
+    "smoke": {
+      "status": "pass",
+      "summary": "Compact Mage/Frost template, canonical Resolve and Profile all returned HTTP 200. Resolve was verified with problems=[], 15 ready required slots, SimC-ready profile state, eight gems, six enchants and two embellishments; Profile resolved the same gear signature and a verified external talent import."
+    },
+    "operations": {
+      "status": "pass",
+      "summary": "/health returned HTTP 200. Active Manifest remained verified/formal/active at generation 16 with unchanged Gear and Community Release identities. Backend, stat worker and nginx stayed active/running with Result=success and NRestarts=0; failed units and post-merge error-priority logs were empty. Ten wow timers remained enabled; one normal backfill timer completed successfully without eligible rows."
     }
   },
   "runtimeEvidence": [
@@ -187,6 +219,22 @@
       "health": "/health HTTP 200; /api/data/health truthful partial only for unrelated existing data blockers",
       "logs": "failed units empty; backend/worker error-priority logs empty",
       "asyncSync": "WOW_DEPLOY_START_ASYNC_SYNCS=0; no candidate-triggered sync or backfill"
+    },
+    {
+      "kind": "post_merge_live",
+      "type": "smoke",
+      "status": "pass",
+      "checkedAt": "2026-07-15T13:23:30+08:00",
+      "mergeCommit": "535346c6b6b1f8a65b0ae156ce9843b4a73d6001",
+      "mergeTree": "3b5f6f9ba97994760e4e7c7f20fde132dc4adeae",
+      "runtimeParity": "20/20",
+      "activeManifestGeneration": 16,
+      "resolvedGearSignature": "sha256:06f16fb8b781ee2ea46b95cef1e343ffd68f23da40718802a45c8fe1a1298467",
+      "counts": "15/15; gems 8/8; enchants 6/8; embellishments 2/2",
+      "api": "compact gear, talent import, Resolve and Profile HTTP 200; problems=[]; profileReadiness verified",
+      "healthCheckedAt": "2026-07-15T13:22:24+08:00",
+      "services": "backend PID 2668541, stat worker PID 2668468 and nginx PID 2668550 active/running; Result=success; NRestarts=0",
+      "operations": "failed units 0; post-merge error-priority journal entries 0; ten wow timers enabled; no merge-triggered service restart or async sync"
     }
   ],
   "risks": [
@@ -219,14 +267,30 @@
     "resync_repair"
   ],
   "cleanup": {
-    "required": true,
-    "items": [
-      "remove any temporary composite candidate worktree after exact candidate evidence is archived",
-      "leave WOW_DEPLOY_START_ASYNC_SYNCS=0 and do not trigger background refresh during deploy",
-      "restore production timers, services and shared sync lock to their pre-candidate state",
-      "retain the previous v1 active Manifest pointer and checksummed runtime backup through merge and post-merge smoke",
-      "keep unrelated root .superpowers files untracked and untouched"
-    ]
+    "required": false,
+    "temporaryCandidateWorktreesRemoved": true,
+    "removedWorktrees": [
+      ".worktrees/community-enhancement-gear-only-20260715",
+      ".worktrees/community-enhancement-reader-gear-only-20260715",
+      ".worktrees/candidate-talent-community-integration",
+      ".worktrees/task13-reader-composite-da3e-b1e-20260714"
+    ],
+    "retainedWorktrees": [
+      {
+        "path": ".",
+        "reason": "active root talent-link branch and its untracked .superpowers files are unrelated user work"
+      },
+      {
+        "path": ".worktrees/task13-final-20260714T131328Z",
+        "reason": "contains pre-existing uncommitted evidence and image files and was preserved without modification"
+      }
+    ],
+    "temporaryUrlCheckOverrideRemoved": true,
+    "projectConfigResidue": false,
+    "asyncSyncStart": false,
+    "productionTimersAndServicesRestored": true,
+    "rollbackManifestAndBackupRetainedThroughPostMergeSmoke": true,
+    "rootTalentWorktreeUntouched": true
   },
   "archivedReferences": [
     "docs/project-state.json",
@@ -240,5 +304,5 @@
     "artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover/evidence.json",
     "artifacts/releases/2026-07-14-community-enhancement-editability/wechat-devtools-ledger.json"
   ],
-  "summary": "Exact candidate 36204bed9e453515a86d6031fd7439f110efd85b (tree 8392e2b5a989295d36698a27b3ff96c6655b583f) is live-verified before merge. Full Harness passed 510 Node plus 1469 Python tests and 130 commands; final independent CR has no findings. Production generation 16, 40/40 read-only shadow, Resolve/Profile, ninth-gem rejection, runtime parity and operations checks passed. Real WeChat imported the frozen Frost Mage template as editable gems 8/8, enchants 6/8 and embellishments 2/2, preserved the full canonical draft through partial hydration, accepted a gem edit with a new verified signature and restored the original signature on reimport. PR merge and post-merge live smoke remain before archival."
+  "summary": "Community enhancement editability v2 is archived after PR #86 squash merged as 535346c. Candidate and clean-main evidence passed full Harness, final independent CR, generation 16 release cutover, 40/40 read-only shadow, rollback drill, 20/20 runtime parity, Resolve/Profile, ninth-gem fail-closed and service/timer/log checks. Real WeChat imported the frozen Frost Mage template as ordinary editable gems 8/8, enchants 6/8 and embellishments 2/2, preserved the full canonical draft through partial hydration, accepted a gem edit with a new verified signature and restored the original signature on reimport. Temporary candidate worktrees and local configuration overrides were removed without touching the root talent-link branch."
 }
