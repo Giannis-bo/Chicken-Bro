@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-15
 
-**Status:** design approved; written-spec review pending before implementation planning
+**Status:** design approved; implementation plan ready, awaiting plan approval before runtime changes
 
 **Harness:** [community-template-import-performance requirement](../../../artifacts/releases/2026-07-15-community-template-import-performance/requirement.json)
 
@@ -197,4 +197,4 @@ The route and client use an additive feature boundary. On a production fault, `f
 
 This design does not optimize the generic `mode=slot` route for every normal browsing/editing case. After the atomic import path is live, a separate performance review may reduce generic slot catalog construction and revisit the generic cache budget, using the new phase metrics rather than guesswork.
 
-No implementation plan is authorized until the user reviews this written specification.
+The user reviewed this written specification on 2026-07-15. The executable task sequence is [Community Template Atomic Import Implementation Plan](../../plans/2026-07-15-community-template-import-performance-implementation.md); runtime changes remain unauthorized until that plan is approved.

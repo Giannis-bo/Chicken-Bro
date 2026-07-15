@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "slug": "community-template-import-performance",
   "classification": "Strict",
-  "status": "design_approved_pending_spec_review",
+  "status": "implementation_planned",
   "goal": "Replace the community-template import path's eager per-slot hydration fan-out with one Active-Manifest-bound, backend-resolved import snapshot, so a player can import a real observed template promptly without weakening canonical enhancement editability, observed-only policy, or Resolver authority.",
   "userValue": "A player taps a community template once, immediately sees the imported gear and its verified selected gems, enchants and embellishments, and can then edit a chosen slot normally. The action must not appear frozen for 15–30 seconds or silently lose enhancement selections after request timeout.",
   "nonGoals": [
@@ -144,6 +144,10 @@
     {
       "date": "2026-07-15",
       "decision": "The recommended fix is a purpose-built import contract, not increasing the global worker count, enlarging the existing generic LRU, serializing twelve requests, or weakening canonical enhancement semantics."
+    },
+    {
+      "date": "2026-07-15",
+      "decision": "User reviewed the written Strict specification and approved progressing to the executable implementation plan; runtime implementation remains pending plan approval."
     }
   ]
 }
