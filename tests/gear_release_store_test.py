@@ -567,6 +567,174 @@ class GearReleaseStoreTest(unittest.TestCase):
             row["problems"], row["payload"], row["updatedAt"], row["expiresAt"],
         )
 
+    def active_community_import_fixture(self):
+        from server.gear_release_store import canonical_row_hash
+
+        snapshot = self.snapshot()
+        gear = self.gear_release(snapshot)
+        rows = self.community_rows()
+        rows[0]["selectionIntent"] = {
+            "schemaRevision": "selection-intent-v1",
+            "authoredAgainst": {
+                "seasonRevision": gear["seasonRevision"],
+                "gearCatalogRevision": gear["releaseId"],
+            },
+            "eligibilityContext": {"classKey": "mage", "specKey": "arcane", "level": 90},
+            "slots": {
+                "head": {
+                    "itemId": "item-a",
+                    "variantKey": "variant-a",
+                    "gemOptionIds": ["gem-a", "gem-a"],
+                    "enchantOptionId": "",
+                    "embellishmentOptionId": "",
+                    "craftedOptionId": "",
+                    "catalystOptionId": "",
+                }
+            },
+        }
+        community = self.community_release(gear["releaseId"], rows)
+        manifest = gear_release.build_manifest(
+            season_revision="season-17",
+            gear_release=gear,
+            community_release=community,
+            talent_catalog_revision="talent-r1",
+            dependency_revisions=self.dependencies(),
+        )
+        binding = {
+            "pointerMode": "active",
+            "generation": 3,
+            "formalActiveManifest": True,
+            "manifest": manifest,
+            "gearRelease": gear,
+            "communityRelease": community,
+        }
+        rowsets = {
+            "FROM cache.websim_community_release_templates": [
+                self.community_db_row(rows[0]) + (canonical_row_hash(rows[0]),)
+            ],
+            "FROM cache.websim_gear_release_variants": [
+                (
+                    "variant-a-id", "item-a", "variant-a", "head", "289", "observed_profile",
+                    "mythic", 289, {"ilevel": "289"}, "verified", [],
+                    {"resolvedStats": {"intellect": 100}}, "2026-07-11T05:00:00+00:00",
+                    canonical_row_hash(snapshot["variants"][0]),
+                )
+            ],
+            "FROM cache.websim_gear_release_items": [
+                (
+                    "item-a", "Item A", "head", 289, "verified",
+                    {"itemStats": [{"key": "intellect", "value": 100}]},
+                    "2026-07-11T05:00:00+00:00", canonical_row_hash(snapshot["items"][0]),
+                )
+            ],
+            "FROM cache.websim_gear_release_sources": [
+                (
+                    "source-a", "item-a", "observed_profile", "profile:a", "Observed", "", "",
+                    "mythic", "season-17", {"status": "verified"},
+                    "2026-07-11T05:00:00+00:00", canonical_row_hash(snapshot["sources"][0]),
+                )
+            ],
+            "FROM cache.websim_gear_release_mod_options": [
+                (
+                    "option-a-id", "variant-a-id", "gem-a", "gem", "Gem A", ["head"],
+                    {"gem_id": "1"}, "verified", True,
+                    {"itemStats": [{"key": "haste", "value": 10}]},
+                    "2026-07-11T05:00:00+00:00", canonical_row_hash(snapshot["options"][0]),
+                )
+            ],
+        }
+        return binding, rows, snapshot, rowsets
+
+    def test_active_community_import_reads_one_bound_observed_winner_and_selected_rows(self):
+        from server.gear_release_store import GearReleaseStore
+
+        binding, _rows, _snapshot, rowsets = self.active_community_import_fixture()
+        conn = FakeConnection(rowsets=rowsets)
+
+        result = GearReleaseStore(lambda: conn).load_active_community_template_import(
+            binding, "mage", "arcane", "template-a"
+        )
+
+        self.assertEqual(result["winner"]["templateId"], "template-a")
+        self.assertEqual(result["winner"]["sourceKey"], "raiderio_observed_profile")
+        self.assertEqual([row["variantId"] for row in result["variants"]], ["variant-a-id"])
+        self.assertEqual([row["itemId"] for row in result["items"]], ["item-a"])
+        self.assertEqual([row["sourceId"] for row in result["sources"]], ["source-a"])
+        self.assertEqual([row["optionKey"] for row in result["options"]], ["gem-a"])
+        self.assertEqual(result["binding"]["manifest"]["manifestRevision"], binding["manifest"]["manifestRevision"])
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertIn("template_id = %s", sql)
+        self.assertIn("role = 'winner'", sql)
+        self.assertIn("source_key = 'raiderio_observed_profile'", sql)
+        self.assertIn("requested(item_id, variant_key)", sql)
+        self.assertIn("item_id = ANY(%s::text[])", sql)
+        self.assertIn("option_key = ANY(%s::text[])", sql)
+
+    def test_active_community_import_rejects_template_id_not_owned_by_requested_spec(self):
+        from server.gear_release_store import GearReleaseIntegrityError, GearReleaseStore
+
+        binding, _rows, _snapshot, rowsets = self.active_community_import_fixture()
+
+        with self.assertRaises(GearReleaseIntegrityError):
+            GearReleaseStore(lambda: FakeConnection(rowsets=rowsets)).load_active_community_template_import(
+                binding, "mage", "arcane", "not-template-a"
+            )
+
+    def test_active_community_import_rejects_non_observed_or_non_winner_row(self):
+        from server.gear_release_store import GearReleaseIntegrityError, GearReleaseStore, canonical_row_hash
+
+        for field, value in (("role", "standby"), ("sourceKey", "season_recommendation")):
+            with self.subTest(field=field):
+                binding, rows, _snapshot, rowsets = self.active_community_import_fixture()
+                rows[0][field] = value
+                rowsets["FROM cache.websim_community_release_templates"] = [
+                    self.community_db_row(rows[0]) + (canonical_row_hash(rows[0]),)
+                ]
+                with self.assertRaises(GearReleaseIntegrityError):
+                    GearReleaseStore(lambda: FakeConnection(rowsets=rowsets)).load_active_community_template_import(
+                        binding, "mage", "arcane", "template-a"
+                    )
+
+    def test_active_community_import_rejects_mixed_manifest_release_or_row_hash(self):
+        from server.gear_release_store import GearReleaseIntegrityError, GearReleaseStore
+
+        binding, _rows, _snapshot, rowsets = self.active_community_import_fixture()
+        mixed = copy.deepcopy(binding)
+        mixed["manifest"]["communityTemplateReleaseId"] = "community-release:sha256:mixed"
+        with self.assertRaises(GearReleaseIntegrityError):
+            GearReleaseStore(lambda: FakeConnection(rowsets=rowsets)).load_active_community_template_import(
+                mixed, "mage", "arcane", "template-a"
+            )
+
+        tampered = copy.deepcopy(rowsets)
+        bad_winner = list(tampered["FROM cache.websim_community_release_templates"][0])
+        bad_winner[-1] = "sha256:tampered"
+        tampered["FROM cache.websim_community_release_templates"] = [tuple(bad_winner)]
+        with self.assertRaises(GearReleaseIntegrityError):
+            GearReleaseStore(lambda: FakeConnection(rowsets=tampered)).load_active_community_template_import(
+                binding, "mage", "arcane", "template-a"
+            )
+
+    def test_active_community_import_never_queries_broad_slot_catalog(self):
+        from server.gear_release_store import GearReleaseStore
+
+        binding, _rows, _snapshot, rowsets = self.active_community_import_fixture()
+        conn = FakeConnection(rowsets=rowsets)
+        GearReleaseStore(lambda: conn).load_active_community_template_import(
+            binding, "mage", "arcane", "template-a"
+        )
+
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertNotIn("gear_release_public_counts", sql)
+        self.assertNotIn("FROM cache.websim_items", sql)
+        self.assertNotIn("FROM cache.websim_community_gear_templates", sql)
+        self.assertNotIn("WHERE release_id = %s ORDER BY option_id", sql)
+        selected_query_params = conn.cursor_instance.params
+        self.assertIn((binding["manifest"]["communityTemplateReleaseId"], "mage", "arcane", "template-a"), selected_query_params)
+        self.assertIn((["item-a"], ["variant-a"], binding["gearRelease"]["releaseId"]), selected_query_params)
+        self.assertIn((binding["gearRelease"]["releaseId"], ["item-a"]), selected_query_params)
+        self.assertIn((binding["gearRelease"]["releaseId"], ["gem-a"], ["variant-a-id"]), selected_query_params)
+
     def test_seal_community_release_inserts_elected_rows_without_pointer_write(self):
         from server.gear_release_store import GearReleaseStore
 

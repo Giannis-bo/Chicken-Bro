@@ -137,7 +137,7 @@ def build_community_template_import_source(
             "catalystOptionId": "",
         }
         selected_gear_by_slot[slot] = {
-            "variantId": _text(variant.get("id")),
+            "variantId": _text(variant.get("id") or variant.get("variantId")),
             "itemId": item_id,
             "variantKey": variant_key,
             "slot": slot,

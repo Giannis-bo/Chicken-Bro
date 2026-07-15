@@ -1471,6 +1471,246 @@ class GearReleaseStore:
             "gearSnapshot": snapshot if include_catalog else None,
         }
 
+    def load_active_community_template_import(
+        self,
+        binding: dict[str, Any],
+        class_key: str,
+        spec_key: str,
+        template_id: str,
+    ) -> dict[str, Any]:
+        """Read one observed winner and only its import authority from one active binding."""
+
+        if not isinstance(binding, dict) or binding.get("formalActiveManifest") is not True:
+            raise GearReleaseIntegrityError("formal active Manifest binding is required")
+        manifest = binding.get("manifest") if isinstance(binding.get("manifest"), dict) else {}
+        gear = _exact_release_descriptor(binding.get("gearRelease"))
+        gear_id = _text(manifest.get("gearCatalogReleaseId"))
+        if gear_id != gear["releaseId"]:
+            raise GearReleaseIntegrityError("active import Gear Release does not match the Manifest")
+        community_id = _text(manifest.get("communityTemplateReleaseId"))
+        community = _exact_release_descriptor(binding.get("communityRelease"))
+        if (
+            not community_id
+            or community_id != community["releaseId"]
+            or community["validatedAgainstReleaseId"] != gear_id
+        ):
+            raise GearReleaseIntegrityError("active import Community Release does not match the Manifest")
+
+        requested_class = _text(class_key)
+        requested_spec = _text(spec_key)
+        requested_template = _text(template_id)
+        if not requested_class or not requested_spec or not requested_template:
+            raise GearReleaseIntegrityError("community template import identity is required")
+
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
+                cur.execute(
+                    """
+                    SELECT template_id, class_key, spec_key, role, election_rank,
+                           source_key, source_url, source_status, sample_count,
+                           profile_hash, gear_hash, selection_intent_json,
+                           resolved_gear_signature, semantic_gear_signature,
+                           dependency_vector_json, evidence_json, problems_json,
+                           payload_json, payload_json->>'updatedAt',
+                           payload_json->>'expiresAt', row_hash
+                    FROM cache.websim_community_release_templates
+                    WHERE release_id = %s AND class_key = %s AND spec_key = %s
+                      AND template_id = %s AND role = 'winner'
+                      AND source_key = 'raiderio_observed_profile'
+                    ORDER BY election_rank, template_id
+                    """,
+                    (community_id, requested_class, requested_spec, requested_template),
+                )
+                winner_db_rows = cur.fetchall()
+                if len(winner_db_rows) != 1:
+                    raise GearReleaseIntegrityError("active Community import must expose exactly one observed winner")
+                winner = self._community_row_from_db(winner_db_rows[0])
+                if (
+                    winner.get("templateId") != requested_template
+                    or winner.get("classKey") != requested_class
+                    or winner.get("specKey") != requested_spec
+                    or winner.get("role") != "winner"
+                    or winner.get("sourceKey") != "raiderio_observed_profile"
+                    or canonical_row_hash(winner) != _text(winner_db_rows[0][20])
+                ):
+                    raise GearReleaseIntegrityError("active Community import winner integrity failed")
+
+                intent = winner.get("selectionIntent") if isinstance(winner.get("selectionIntent"), dict) else {}
+                slots = intent.get("slots") if isinstance(intent.get("slots"), dict) else {}
+                requested_pairs = sorted({
+                    (_text(selection.get("itemId")), _text(selection.get("variantKey")))
+                    for selection in slots.values()
+                    if isinstance(selection, dict)
+                })
+                if not requested_pairs or any(not item_id or not variant_key for item_id, variant_key in requested_pairs):
+                    raise GearReleaseIntegrityError("active Community import selection is incomplete")
+                item_ids = [item_id for item_id, _variant_key in requested_pairs]
+                variant_keys = [variant_key for _item_id, variant_key in requested_pairs]
+
+                cur.execute(
+                    """
+                    WITH requested(item_id, variant_key) AS (
+                        SELECT * FROM unnest(%s::text[], %s::text[])
+                    )
+                    SELECT variant.variant_id, variant.item_id, variant.variant_key, variant.slot,
+                           variant.label, variant.source_type, variant.difficulty_key,
+                           variant.item_level, variant.simc_options_json, variant.status,
+                           variant.blockers_json, variant.payload_json,
+                           variant.source_updated_at, variant.row_hash
+                    FROM cache.websim_gear_release_variants variant
+                    JOIN requested
+                      ON requested.item_id = variant.item_id
+                     AND requested.variant_key = variant.variant_key
+                    WHERE variant.release_id = %s
+                    ORDER BY variant.item_id, variant.variant_key, variant.variant_id
+                    """,
+                    (item_ids, variant_keys, gear_id),
+                )
+                variant_db_rows = cur.fetchall()
+                variants = [
+                    {
+                        "variantId": _text(row[0]),
+                        "itemId": _text(row[1]),
+                        "variantKey": _text(row[2]),
+                        "slot": _text(row[3]),
+                        "label": _text(row[4]),
+                        "sourceType": _text(row[5]),
+                        "difficultyKey": _text(row[6]),
+                        "itemLevel": _int(row[7]),
+                        "simcOptions": _canonical(row[8] if isinstance(row[8], dict) else {}),
+                        "status": _text(row[9]),
+                        "blockers": _canonical(row[10] if isinstance(row[10], list) else []),
+                        "payload": _canonical(row[11] if isinstance(row[11], dict) else {}),
+                        "updatedAt": _text(row[12]),
+                    }
+                    for row in variant_db_rows
+                ]
+                if (
+                    len(variants) != len(requested_pairs)
+                    or {(row["itemId"], row["variantKey"]) for row in variants} != set(requested_pairs)
+                    or any(canonical_row_hash(record) != _text(row[13]) for record, row in zip(variants, variant_db_rows))
+                ):
+                    raise GearReleaseIntegrityError("active Community import variant integrity failed")
+
+                selected_item_ids = sorted({row["itemId"] for row in variants})
+                cur.execute(
+                    """
+                    SELECT item_id, name, slot, item_level, source_status, payload_json,
+                           source_updated_at, row_hash
+                    FROM cache.websim_gear_release_items
+                    WHERE release_id = %s AND item_id = ANY(%s::text[])
+                    ORDER BY item_id
+                    """,
+                    (gear_id, selected_item_ids),
+                )
+                item_db_rows = cur.fetchall()
+                items = [
+                    {
+                        "itemId": _text(row[0]),
+                        "name": _text(row[1]),
+                        "slot": _text(row[2]),
+                        "itemLevel": None if row[3] is None else _int(row[3]),
+                        "sourceStatus": _text(row[4]),
+                        "payload": _canonical(row[5] if isinstance(row[5], dict) else {}),
+                        "updatedAt": _text(row[6]),
+                    }
+                    for row in item_db_rows
+                ]
+                if (
+                    len(items) != len(selected_item_ids)
+                    or {row["itemId"] for row in items} != set(selected_item_ids)
+                    or any(canonical_row_hash(record) != _text(row[7]) for record, row in zip(items, item_db_rows))
+                ):
+                    raise GearReleaseIntegrityError("active Community import item integrity failed")
+
+                cur.execute(
+                    """
+                    SELECT source_id, item_id, source_type, source_key, source_label,
+                           instance_id, encounter_id, difficulty_key, season_revision,
+                           payload_json, source_updated_at, row_hash
+                    FROM cache.websim_gear_release_sources
+                    WHERE release_id = %s AND item_id = ANY(%s::text[])
+                    ORDER BY source_id
+                    """,
+                    (gear_id, selected_item_ids),
+                )
+                source_db_rows = cur.fetchall()
+                sources = [
+                    {
+                        "sourceId": _text(row[0]),
+                        "itemId": _text(row[1]),
+                        "sourceType": _text(row[2]),
+                        "sourceKey": _text(row[3]),
+                        "sourceLabel": _text(row[4]),
+                        "instanceId": _text(row[5]),
+                        "encounterId": _text(row[6]),
+                        "difficultyKey": _text(row[7]),
+                        "seasonRevision": _text(row[8]),
+                        "payload": _canonical(row[9] if isinstance(row[9], dict) else {}),
+                        "updatedAt": _text(row[10]),
+                    }
+                    for row in source_db_rows
+                ]
+                if (
+                    not sources
+                    or not set(selected_item_ids).issubset({row["itemId"] for row in sources})
+                    or any(canonical_row_hash(record) != _text(row[11]) for record, row in zip(sources, source_db_rows))
+                ):
+                    raise GearReleaseIntegrityError("active Community import source integrity failed")
+
+                selected_option_keys = _selected_option_ids(intent)
+                options = []
+                if selected_option_keys:
+                    selected_variant_ids = sorted({row["variantId"] for row in variants})
+                    cur.execute(
+                        """
+                        SELECT option_id, variant_id, option_key, option_type, name,
+                               applicable_slots_json, simc_options_json, status, is_visible,
+                               payload_json, source_updated_at, row_hash
+                        FROM cache.websim_gear_release_mod_options
+                        WHERE release_id = %s
+                          AND option_key = ANY(%s::text[])
+                          AND variant_id = ANY(%s::text[])
+                        ORDER BY option_id
+                        """,
+                        (gear_id, selected_option_keys, selected_variant_ids),
+                    )
+                    option_db_rows = cur.fetchall()
+                    options = [
+                        {
+                            "optionId": _text(row[0]),
+                            "variantId": _text(row[1]),
+                            "optionKey": _text(row[2]),
+                            "optionType": _text(row[3]),
+                            "name": _text(row[4]),
+                            "applicableSlots": _canonical(row[5] if isinstance(row[5], list) else []),
+                            "simcOptions": _canonical(row[6] if isinstance(row[6], dict) else {}),
+                            "status": _text(row[7]),
+                            "isVisible": row[8] is True,
+                            "payload": _canonical(row[9] if isinstance(row[9], dict) else {}),
+                            "updatedAt": _text(row[10]),
+                        }
+                        for row in option_db_rows
+                    ]
+                    if (
+                        {row["optionKey"] for row in options} != set(selected_option_keys)
+                        or any(row["variantId"] not in selected_variant_ids for row in options)
+                        or any(canonical_row_hash(record) != _text(row[11]) for record, row in zip(options, option_db_rows))
+                    ):
+                        raise GearReleaseIntegrityError("active Community import option integrity failed")
+
+        return {
+            "binding": _canonical(binding),
+            "gearRelease": gear,
+            "communityRelease": community,
+            "winner": winner,
+            "items": items,
+            "sources": sources,
+            "variants": variants,
+            "options": options,
+        }
+
     def load_community_release(
         self,
         gear_release_id: str,
