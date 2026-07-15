@@ -3,15 +3,8 @@
   "updatedAt": "2026-07-15",
   "activeMilestone": "none",
   "featureIteration": "allowed_under_harness",
-  "activeReleaseArtifact": "artifacts/releases/2026-07-13-talent-link-lkg-sync-guard",
+  "activeReleaseArtifact": "artifacts/releases/2026-07-10-harness-control-plane",
   "activeContracts": [
-    {
-      "id": "talent_link_lkg_sync_guard",
-      "path": "artifacts/releases/2026-07-13-talent-link-lkg-sync-guard/requirement.json",
-      "status": "implementation_allowed",
-      "lifecycle": "active",
-      "notes": "Current candidate contract for restoring talent links while preserving the live PostgreSQL SimC graph and profile LKG before any scheduled write."
-    },
     {
       "id": "repo_native_harness_v0_5",
       "path": "docs/harness.md",
@@ -174,9 +167,23 @@
       "status": "completed_live_verified",
       "evidence": "artifacts/releases/2026-07-14-community-enhancement-editability/evidence.json",
       "notes": "PR #86 merged as 535346c after exact-candidate and clean-main proof. The frozen Frost Mage imports 8/8 gems, 6/8 enchants and 2/2 embellishments as ordinary editable canonical selections; generation 16, 40/40 read-only shadow, rollback drill, 20/20 runtime parity, Resolve/Profile, real WeChat edit/reimport and operations checks passed."
+    },
+    {
+      "id": "talent_link_lkg_sync_guard_20260715",
+      "domain": "talent_graph_lkg_sync",
+      "status": "completed_live_verified",
+      "evidence": "artifacts/releases/2026-07-13-talent-link-lkg-sync-guard/evidence.json",
+      "notes": "PR #84 squash merged as 2a4a186 after full Harness, GitHub CI, exact-candidate deployment, user-accepted real WeChat verification and post-merge runtime parity. The live graph retained 5246 talents, 4949 dependency nodes and 8465 dependencies; same-source or source-unknown recovery remains limited to exact structure with a parent-edge superset."
     }
   ],
   "historicalContracts": [
+    {
+      "id": "talent_link_lkg_sync_guard",
+      "path": "artifacts/releases/2026-07-13-talent-link-lkg-sync-guard/requirement.json",
+      "status": "completed_live_verified_archived",
+      "lifecycle": "historical",
+      "evidence": "artifacts/releases/2026-07-13-talent-link-lkg-sync-guard/evidence.json"
+    },
     {
       "id": "community_enhancement_editability_v2",
       "path": "artifacts/releases/2026-07-14-community-enhancement-editability/requirement.json",

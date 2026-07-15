@@ -104,6 +104,10 @@
       "decision": "When the persisted graph source identity is absent because the previous write was incomplete, recovery is allowed only under the same exact-node, exact-non-edge-structure and parent-edge-superset checks. This source-unknown exception exists to repair a damaged LKG and does not allow an arbitrary cross-source replacement."
     },
     {
+      "date": "2026-07-15",
+      "decision": "The user accepted the exact-worktree real WeChat connector and editable community-enhancement verification. PR #84 then squash merged as 2a4a186, and post-merge main/runtime parity retained the verified live graph."
+    },
+    {
       "date": "2026-07-13",
       "decision": "The full SimC source archive is required for publication because trait-data-only fallback cannot preserve profile presets; blocked extraction keeps the live LKG."
     }

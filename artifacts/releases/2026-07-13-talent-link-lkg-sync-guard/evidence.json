@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "slug": "talent-link-lkg-sync-guard",
   "requirementSlug": "talent-link-lkg-sync-guard",
-  "status": "live_verified",
+  "status": "archived",
   "highestEvidenceLevel": "live_verified",
-  "branch": "codex/fix-talent-tree-links",
-  "commit": "df0683500901004dd036ecf40ef867608f7bd452",
+  "branch": "main",
+  "commit": "2a4a18623ef567da68009aefd13d3614890aa91b",
   "scope": [
     "talent_traitedge_extraction_bounds",
     "postgres_live_lkg_projection",
@@ -39,6 +39,11 @@
       "command": "real WeChat exact-candidate connector and community enhancement import verification",
       "status": "pass",
       "summary": "The user accepted the exact clean candidate worktree on 2026-07-15 after verifying talent connector rendering and observed_profile_mage_frost enhancement import editability."
+    },
+    {
+      "command": "post-merge main/runtime parity and production talent graph smoke",
+      "status": "pass",
+      "summary": "After PR #84 squash merged as 2a4a186, all five deployed runtime files matched main by SHA-256; PostgreSQL retained 5246 talents, 4949 dependency nodes and 8465 dependencies, while Frost Spellslinger returned 110 nodes and 186 parent edges."
     }
   ],
   "candidateDeployment": {
@@ -67,6 +72,11 @@
     "realWeChat": {
       "status": "pass",
       "summary": "User acceptance on 2026-07-15 confirms exact-candidate talent connector rendering and the editable observed_profile_mage_frost enhancement import sheet."
+    },
+    "postMerge": {
+      "status": "pass",
+      "mainCommit": "2a4a18623ef567da68009aefd13d3614890aa91b",
+      "summary": "main and origin/main matched the merged PR. Five deployed runtime files and the installed WebSim unit matched main by SHA-256; backend, gear-stat worker and nginx were active, the WebSim timer was enabled/active, its service inactive and the shared lock free."
     }
   },
   "runtimeEvidence": [
@@ -105,6 +115,12 @@
       "type": "operations",
       "status": "pass",
       "summary": "/health returned 200. /api/data/health remained truthfully partial for pre-existing catalog and upstream blockers while WebSim season was verified. Backend, gear-stat worker and nginx were active; the candidate sync unit had Result=success and no error-priority journal entries, the scheduled sync service was inactive and the shared lock free."
+    },
+    {
+      "id": "main_runtime_parity_after_merge",
+      "type": "post_merge_smoke",
+      "status": "pass",
+      "summary": "PR #84 squash merge 2a4a186 retained exact parity for news_backend.py, postgres_cache_store.py, postgres_cache_sync.py, websim_payload.py and wow-websim-sync.service. The live graph and Frost talent API retained the candidate-verified dependency counts and readiness."
     }
   ],
   "risks": [
@@ -156,5 +172,5 @@
     "docs/project-owner-map.json",
     "docs/backend-owner-map.json"
   ],
-  "summary": "Exact merge candidate df06835 is live verified: full Harness, GitHub CI, production backup/parity, read-only preflight, controlled SimC-only graph recovery, API/data/operations smoke, community gear read-model compatibility and user-accepted real WeChat connector/enhancement-sheet verification passed."
+  "summary": "Archived after PR #84 squash merged as 2a4a186: candidate df06835 passed full Harness, GitHub CI, production backup/parity, controlled SimC-only graph recovery, API/data/operations smoke, community gear compatibility and user-accepted real WeChat verification. Post-merge main/runtime parity retained the verified talent graph and service state."
 }

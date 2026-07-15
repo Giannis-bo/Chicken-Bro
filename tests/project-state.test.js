@@ -9,7 +9,8 @@ const controlPlaneRelease = 'artifacts/releases/2026-07-10-harness-control-plane
 const executableHarnessRelease = 'artifacts/releases/2026-07-10-executable-project-harness'
 const characterizationRelease = 'artifacts/releases/2026-07-10-critical-contract-characterization'
 const archivedPhase5Release = 'artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover'
-const activeTalentLkgRelease = 'artifacts/releases/2026-07-13-talent-link-lkg-sync-guard'
+const activeHarnessControlPlaneRelease = 'artifacts/releases/2026-07-10-harness-control-plane'
+const archivedTalentLkgRelease = 'artifacts/releases/2026-07-13-talent-link-lkg-sync-guard'
 const archivedCommunityEnhancementRelease = 'artifacts/releases/2026-07-14-community-enhancement-editability'
 
 function readJson(filePath) {
@@ -33,7 +34,7 @@ test('project-state is the single machine-readable current truth entry', () => {
   assert.equal(state.updatedAt, '2026-07-15')
   assert.equal(state.activeMilestone, 'none')
   assert.equal(state.featureIteration, 'allowed_under_harness')
-  assert.equal(state.activeReleaseArtifact, activeTalentLkgRelease)
+  assert.equal(state.activeReleaseArtifact, activeHarnessControlPlaneRelease)
 
   assert.ok(Array.isArray(state.activeContracts), 'activeContracts should be an array')
   assert.ok(Array.isArray(state.completedBaselines), 'completedBaselines should be an array')
@@ -45,7 +46,7 @@ test('project-state is the single machine-readable current truth entry', () => {
   assertUniqueById(state.historicalContracts, 'historicalContracts')
 
   const activeContractIds = new Set(state.activeContracts.map((entry) => entry.id))
-  assert.ok(activeContractIds.has('talent_link_lkg_sync_guard'))
+  assert.ok(!activeContractIds.has('talent_link_lkg_sync_guard'))
   assert.ok(!activeContractIds.has('community_enhancement_editability'))
   assert.ok(!activeContractIds.has('equipment_simulator_capability_architecture'))
   assert.ok(!activeContractIds.has('equipment_simulator_phase5_async_stat_snapshot_plan'))
@@ -53,6 +54,7 @@ test('project-state is the single machine-readable current truth entry', () => {
   assert.ok(!activeContractIds.has('equipment_simulator_phase1_contracts_plan'))
 
   const historicalContractIds = new Set(state.historicalContracts.map((entry) => entry.id))
+  assert.ok(historicalContractIds.has('talent_link_lkg_sync_guard'))
   assert.ok(historicalContractIds.has('community_enhancement_editability_v2'))
   assert.ok(historicalContractIds.has('community_enhancement_editability_v2_design'))
   assert.ok(historicalContractIds.has('community_enhancement_editability_v2_plan'))
@@ -93,7 +95,7 @@ test('project-state is the single machine-readable current truth entry', () => {
     assert.ok(!activePaths.has(entry.path), `${entry.path} should not be both active and historical`)
   }
 
-  for (const releasePath of [activeTalentLkgRelease, archivedCommunityEnhancementRelease, archivedPhase5Release, characterizationRelease, executableHarnessRelease, controlPlaneRelease]) {
+  for (const releasePath of [archivedTalentLkgRelease, archivedCommunityEnhancementRelease, archivedPhase5Release, characterizationRelease, executableHarnessRelease, controlPlaneRelease]) {
     assertPathExists(path.join(releasePath, 'requirement.json'))
     assertPathExists(path.join(releasePath, 'evidence.json'))
     assertPathExists(path.join(releasePath, 'manifest.json'))
@@ -102,6 +104,9 @@ test('project-state is the single machine-readable current truth entry', () => {
   const communityEnhancementEvidence = readJson(path.join(archivedCommunityEnhancementRelease, 'evidence.json'))
   assert.equal(communityEnhancementEvidence.status, 'archived')
   assert.equal(communityEnhancementEvidence.highestEvidenceLevel, 'live_verified')
+  const talentLkgEvidence = readJson(path.join(archivedTalentLkgRelease, 'evidence.json'))
+  assert.equal(talentLkgEvidence.status, 'archived')
+  assert.equal(talentLkgEvidence.highestEvidenceLevel, 'live_verified')
 
   assert.ok(
     state.completedBaselines.some((entry) => entry.id === 'project_harness_normalization_20260710'),
@@ -150,6 +155,10 @@ test('project-state is the single machine-readable current truth entry', () => {
   assert.ok(
     state.completedBaselines.some((entry) => entry.id === 'community_enhancement_editability_20260715'),
     'Community enhancement editability should be recorded as a completed live baseline'
+  )
+  assert.ok(
+    state.completedBaselines.some((entry) => entry.id === 'talent_link_lkg_sync_guard_20260715'),
+    'Talent LKG sync guard should be recorded as a completed live baseline'
   )
 
   const gearStat = state.runtimeBaseline.gearStatSnapshot

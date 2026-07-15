@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-15T06:46:37.145Z",
+  "generatedAt": "2026-07-15T06:53:28.726Z",
   "release": {
     "date": "2026-07-13",
     "slug": "talent-link-lkg-sync-guard"
@@ -38,7 +38,7 @@
         {
           "path": "docs/project-state.json",
           "exists": true,
-          "sizeBytes": 30163
+          "sizeBytes": 30704
         },
         {
           "path": "docs/project-owner-map.json",
@@ -53,7 +53,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 274718
+          "sizeBytes": 274657
         },
         {
           "path": "docs/README.md",
@@ -232,7 +232,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-13-talent-link-lkg-sync-guard/evidence.json",
-    "sizeBytes": 9490,
+    "sizeBytes": 10685,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -250,9 +250,9 @@
       "rollback"
     ],
     "missingFields": [],
-    "declaredStatus": "live_verified",
+    "declaredStatus": "archived",
     "highestEvidenceLevel": "live_verified",
-    "summary": "Exact merge candidate df06835 is live verified: full Harness, GitHub CI, production backup/parity, read-only preflight, controlled SimC-only graph recovery, API/data/operations smoke, community gear read-model compatibility and user-accepted real WeChat connector/enhancement-sheet verification passed."
+    "summary": "Archived after PR #84 squash merged as 2a4a186: candidate df06835 passed full Harness, GitHub CI, production backup/parity, controlled SimC-only graph recovery, API/data/operations smoke, community gear compatibility and user-accepted real WeChat verification. Post-merge main/runtime parity retained the verified talent graph and service state."
   },
   "evidence": {
     "localTests": {
@@ -277,7 +277,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "3 changed files currently visible to git status."
+      "detail": "6 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -313,10 +313,13 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 3,
+      "changedFileCount": 6,
       "changedFiles": [
         " M artifacts/releases/2026-07-13-talent-link-lkg-sync-guard/evidence.json",
+        " M artifacts/releases/2026-07-13-talent-link-lkg-sync-guard/requirement.json",
+        " M docs/project-state.json",
         " M docs/roadmap.md",
+        " M tests/project-state.test.js",
         "?? .superpowers/"
       ]
     }
