@@ -183,7 +183,7 @@ test('project harness emits the current repo-native harness manifest as read-onl
     eligibleWhen: [
       'explicit_and_bounded_user_request',
       'light_risk_classification',
-      'no_api_data_ownership_runtime_or_deployment_semantic_change'
+      'no_api_data_ownership_runtime_deployment_or_user_promise_semantic_change'
     ],
     executionTopology: 'agent_selected',
     doNotPromptUserToChoose: ['subagents', 'worktree', 'routine_merge_mechanics'],

@@ -66,6 +66,14 @@ This repository maintains a project roadmap as shared context for all agents and
 - Before local sync, inspect `git status --short --branch`. Preserve unrelated local changes and prefer fast-forward-only updates for `main`.
 - If sync is non-fast-forward, conflicts with local work, needs a force push, rewrites history, changes remotes, clones another repository, updates submodules, installs dependencies, or downloads third-party assets/data, stop and get explicit user confirmation unless the current user request already includes that operation.
 
+## Execution Topology and User-Accepted Closure
+
+- Agent independently chooses whether a task benefits from subagents, a worktree, a normal feature branch, or inline execution. Do not ask the user to select these internal mechanics; only report the selected approach when it affects a real risk or blocker.
+- An explicit, bounded Light change with no API, data, owner, runtime, deployment, or user-promise semantic change uses the Harness Light Fast Lane: give one concise scope/risk/verification summary, ask only one clarification when user-visible behavior is genuinely ambiguous, then implement and run targeted verification. Do not create design/plan artifacts or add confirmation gates merely to satisfy process.
+- If the task needs user manual verification, treat only an explicit post-test acceptance such as “我已测试通过”“可以收尾”或“合入吧” as closure authorization. A mid-flow “OK” means only that the current discussion or step may continue.
+- After that acceptance, automatically run final local CR, commit the task branch, sync and merge `main` without history rewrite, re-run scoped verification on the merge result, push `main`, verify local/`origin/main` SHA parity, and remove the task worktree/local branch plus an existing published task branch. Do not show a delivery-options menu.
+- Stop that sequence for a local/remote conflict, failed verification, scope expansion, destructive history change, or any action outside the repository's existing approvals.
+
 ## Autonomous Progression
 
 - Once the user approves a plan, says to continue, or authorizes direct execution, continue through the next in-scope implementation, verification, sync, PR, and handoff steps without asking for approval at every routine step.
