@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-15T06:29:27.476Z",
+  "generatedAt": "2026-07-15T06:46:37.145Z",
   "release": {
     "date": "2026-07-13",
     "slug": "talent-link-lkg-sync-guard"
@@ -53,7 +53,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 274724
+          "sizeBytes": 274718
         },
         {
           "path": "docs/README.md",
@@ -232,7 +232,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-13-talent-link-lkg-sync-guard/evidence.json",
-    "sizeBytes": 9400,
+    "sizeBytes": 9490,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -250,9 +250,9 @@
       "rollback"
     ],
     "missingFields": [],
-    "declaredStatus": "runtime_verified",
-    "highestEvidenceLevel": "runtime_verified",
-    "summary": "Exact merge candidate df06835 is runtime verified: full Harness, GitHub CI, production backup/parity, read-only preflight, controlled SimC-only graph recovery, API/data/operations smoke and community gear read-model compatibility passed. Real WeChat connector and enhancement-sheet verification remains required before merge."
+    "declaredStatus": "live_verified",
+    "highestEvidenceLevel": "live_verified",
+    "summary": "Exact merge candidate df06835 is live verified: full Harness, GitHub CI, production backup/parity, read-only preflight, controlled SimC-only graph recovery, API/data/operations smoke, community gear read-model compatibility and user-accepted real WeChat connector/enhancement-sheet verification passed."
   },
   "evidence": {
     "localTests": {
@@ -277,7 +277,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "6 changed files currently visible to git status."
+      "detail": "3 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -313,13 +313,10 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 6,
+      "changedFileCount": 3,
       "changedFiles": [
         " M artifacts/releases/2026-07-13-talent-link-lkg-sync-guard/evidence.json",
-        " M artifacts/releases/2026-07-13-talent-link-lkg-sync-guard/manifest.json",
-        " M artifacts/releases/2026-07-13-talent-link-lkg-sync-guard/requirement.json",
         " M docs/roadmap.md",
-        " M tests/postgres_cache_sync_test.py",
         "?? .superpowers/"
       ]
     }

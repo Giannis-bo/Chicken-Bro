@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "slug": "talent-link-lkg-sync-guard",
   "requirementSlug": "talent-link-lkg-sync-guard",
-  "status": "runtime_verified",
-  "highestEvidenceLevel": "runtime_verified",
+  "status": "live_verified",
+  "highestEvidenceLevel": "live_verified",
   "branch": "codex/fix-talent-tree-links",
   "commit": "df0683500901004dd036ecf40ef867608f7bd452",
   "scope": [
@@ -37,8 +37,8 @@
     },
     {
       "command": "real WeChat exact-candidate connector and community enhancement import verification",
-      "status": "not_run",
-      "summary": "Reserved for user verification from the exact clean candidate worktree before merge."
+      "status": "pass",
+      "summary": "The user accepted the exact clean candidate worktree on 2026-07-15 after verifying talent connector rendering and observed_profile_mage_frost enhancement import editability."
     }
   ],
   "candidateDeployment": {
@@ -65,8 +65,8 @@
       "summary": "Deploy used WOW_DEPLOY_START_ASYNC_SYNCS=0. The controlled candidate unit exited 0, wow-websim-sync.timer is enabled/active, wow-websim-sync.service is inactive and the shared lock has no holder."
     },
     "realWeChat": {
-      "status": "pending_user_evidence",
-      "summary": "API/runtime evidence cannot prove real connector rendering or the imported enhancement sheet; draft PR #84 remains unmerged."
+      "status": "pass",
+      "summary": "User acceptance on 2026-07-15 confirms exact-candidate talent connector rendering and the editable observed_profile_mage_frost enhancement import sheet."
     }
   },
   "runtimeEvidence": [
@@ -130,8 +130,8 @@
     },
     {
       "id": "wechat_runtime_not_yet_verified",
-      "status": "pending_user_evidence",
-      "detail": "Local and API evidence cannot prove real mini-program connector rendering; merge remains blocked on exact-worktree user verification."
+      "status": "mitigated_user_verified",
+      "detail": "The user accepted real mini-program connector rendering and the community enhancement import sheet from the exact clean candidate worktree on 2026-07-15."
     }
   ],
   "rollback": [
@@ -156,5 +156,5 @@
     "docs/project-owner-map.json",
     "docs/backend-owner-map.json"
   ],
-  "summary": "Exact merge candidate df06835 is runtime verified: full Harness, GitHub CI, production backup/parity, read-only preflight, controlled SimC-only graph recovery, API/data/operations smoke and community gear read-model compatibility passed. Real WeChat connector and enhancement-sheet verification remains required before merge."
+  "summary": "Exact merge candidate df06835 is live verified: full Harness, GitHub CI, production backup/parity, read-only preflight, controlled SimC-only graph recovery, API/data/operations smoke, community gear read-model compatibility and user-accepted real WeChat connector/enhancement-sheet verification passed."
 }
