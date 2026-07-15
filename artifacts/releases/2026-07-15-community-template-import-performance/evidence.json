@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "slug": "community-template-import-performance",
   "requirementSlug": "community-template-import-performance",
-  "status": "local_verified",
-  "highestEvidenceLevel": "local_verified",
+  "status": "runtime_verified",
+  "highestEvidenceLevel": "runtime_verified",
   "branch": "codex/community-template-import-performance",
   "commit": "986d4e44e825971e646639608ed1c1bbb12e6791",
   "scope": [
@@ -30,12 +30,29 @@
     {
       "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-15-community-template-import-performance --base origin/main",
       "status": "pass",
-      "summary": "130/130 commands passed against 986d4e4: Node 527/527, Python 1580 with one expected skip, compile/JSON/syntax checks and Harness packet check all passed. Candidate runtime evidence and real WeChat proof remain pending."
+      "summary": "130/130 commands passed against 986d4e4: Node 527/527, Python 1580 with one expected skip, compile/JSON/syntax checks and Harness packet check all passed. The later candidate runtime evidence is recorded separately; real WeChat proof remains pending."
+    },
+    {
+      "command": "WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 bash server/deploy_lighthouse.sh plus candidate HTTP/systemd smoke",
+      "status": "pass",
+      "summary": "Exact 986d4e4 runtime deployed on 2026-07-15T23:43:43+08:00. Frost cold/warm import, Elemental import, stale-manifest rejection, normal selected-slot response, 40-spec observed-only shadow, runtime SHA parity, services, timers and error-priority logs passed; real WeChat acceptance remains pending."
     }
   ],
   "candidateDeployment": {
-    "status": "pending",
-    "reason": "Predecessor candidates e08cbb8, 99acc45 and 346b8ae were deployed and exposed three projection/read mismatches: normalized historical variant aliases, Release option rows attached to compatible variants, and socket-type Release options that canonicalize as gems. The exact repair 986d4e4 has a fresh local full Harness pass and is pending one replacement candidate deployment; no user-testable success is claimed yet."
+    "status": "candidate_verified",
+    "branch": "codex/community-template-import-performance",
+    "commit": "986d4e44e825971e646639608ed1c1bbb12e6791",
+    "deployedAt": "2026-07-15T23:43:43+08:00",
+    "deployment": "WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 bash server/deploy_lighthouse.sh",
+    "smoke": {
+      "status": "pass",
+      "summary": "10/10 runtime-file SHA-256 parity; Frost cold verified 862.969ms and warm verified 74.476ms; Elemental verified; stale Manifest 409; finger1 slot response scoped to one candidate group; 40/40 public initial responses verified and observed-only."
+    },
+    "timerBackflow": {
+      "status": "pass",
+      "summary": "backend, stat-snapshot worker and nginx active; ten WOW timers active/waiting; no failed units; wow-backend error-priority journal empty for the candidate window; async sync starts remained disabled."
+    },
+    "rollback": "Redeploy the previously accepted runtime through server/deploy_lighthouse.sh with WOW_DEPLOY_SKIP_BOOTSTRAP=1 and WOW_DEPLOY_START_ASYNC_SYNCS=0, then verify /health and the affected import route."
   },
   "runtimeEvidence": [
     {
@@ -55,13 +72,33 @@
       "status": "fail",
       "commit": "346b8ae55924a47ae3af4d195dc2e80843fef4ef",
       "summary": "Frost import reached a verified Resolver snapshot in 1.279 seconds but was correctly partial: the projector recognized enchants and embellishments yet rejected eight gem identities because active Release optionType is socket rather than gem."
+    },
+    {
+      "type": "smoke",
+      "status": "pass",
+      "summary": "Frost observed_profile_mage_frost cold import HTTP 200 verified in 862.969ms (release_read 820.847ms), 15 gear slots, 8 gems, 6 enchants and 2 embellishments; immediate warm import HTTP 200 verified in 74.476ms with cache hit."
+    },
+    {
+      "type": "smoke",
+      "status": "pass",
+      "summary": "Elemental observed_profile_shaman_elemental HTTP 200 verified with 16 gear slots, 6 gems, 5 enchants and 2 embellishments. Frost finger1 mode=slot response HTTP 200 retained gearPayloadMode=slot, gearSlot=finger1 and exactly one candidate group; stale Manifest returned HTTP 409 manifest_mismatch."
+    },
+    {
+      "type": "public_policy_shadow",
+      "status": "pass",
+      "summary": "All 40 expected class/spec pairs returned HTTP 200 mode=initial and dataStatus=verified; all exposed templates were raiderio_observed_profile and every pair had one observed template."
+    },
+    {
+      "type": "timer_backflow",
+      "status": "pass",
+      "summary": "Runtime SHA parity was 10/10; wow-backend, wow-gear-stat-snapshot-worker and nginx were active; ten WOW timers were active/waiting; failed units and candidate-window error-priority backend logs were empty. /health was OK while /api/data/health honestly remained overallStatus=partial."
     }
   ],
   "risks": [
     {
-      "id": "candidate-and-real-wechat-pending",
+      "id": "real-wechat-acceptance-pending",
       "status": "open",
-      "detail": "The replacement candidate still needs deployed cold/warm timing, runtime parity, public observed-only shadow, timer/backflow checks and real WeChat import/edit evidence."
+      "detail": "Candidate runtime smoke is complete, but the user still needs to validate the real WeChat import and one later slot edit before merge or closure."
     }
   ],
   "rollback": [
@@ -75,5 +112,5 @@
   "archivedReferences": [
     "docs/superpowers/specs/2026-07-14-community-enhancement-editability-v2-design.md"
   ],
-  "summary": "Atomic community-template import runtime code 986d4e44e825971e646639608ed1c1bbb12e6791 passed the final local full Harness after three live predecessor diagnostics repaired normalized historical variant-key rebinding, Release-scoped option authority, and socket-to-gem canonical projection. Replacement candidate runtime evidence and explicit real-WeChat acceptance are intentionally pending."
+  "summary": "Atomic community-template import runtime code 986d4e44e825971e646639608ed1c1bbb12e6791 passed the final local full Harness and candidate runtime smoke after three predecessor diagnostics repaired normalized historical variant-key rebinding, Release-scoped option authority, and socket-to-gem canonical projection. Explicit real-WeChat import/edit acceptance is intentionally pending before merge."
 }
