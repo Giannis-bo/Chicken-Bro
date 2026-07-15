@@ -213,7 +213,7 @@ flowchart TD
 | Stat snapshot | `build_websim_gear_stats_response`、`backfill_simcraft_template_detail_stat_snapshot` | 用结构化 gear/talent 上下文生成 verified 角色属性快照，供 SimC 模板确认页和任务详情展示 |
 | Season recommended templates | `server/season_recommended_gear_sync.py`、`sync_season_recommended_gear_postgres`、`build_season_recommended_gear_templates` | 生成内部 `season_recommendation` legacy / provisional baseline 证据，并在 health 暴露 `seasonRecommendation` / `communityImportTemplates` 历史覆盖率；当前公开入口不得消费它 |
 | Default templates | `sync_community_gear_templates`、`build_default_community_gear_template` | legacy fallback：用 verified 当前赛季候选和 verified `mplus_mixed_route` 绿字权重生成 `默认模板` 兜底，并把缺证据专精写入 sync run / health |
-| Health follow-up | `server/data_health_followup.py`、`wow-data-health-followup.timer` | 根据 `/api/data/health` 续跑可安全自动处理的阻塞；SimC runtime `updateAvailable=true` 时先触发 `wow-simc-runtime-update.service` 自动下载、构建、切换 runtime |
+| Health follow-up | `server/data_health_followup.py`、`wow-data-health-followup.timer` | 用 PostgreSQL revision ledger 观察 `/api/data/health`；首次只记录基线，同 revision 仅 report-only，完整 WebSim 只由日常 reconciliation timer 运行 |
 | API | `server/news_backend.py` | `/api/websim/gear`、`/api/websim/profile`、`/api/data/health` |
 | Frontend | `pages/builds/detail.*` | 装备栏、候选 sheet、详情、强化配置、保存模板；只消费后端结构化字段 |
 
@@ -308,15 +308,15 @@ order by option_type, status;
 
 ### 自动续跑边界
 
-生产部署会安装并启用 `wow-data-health-followup.timer`，默认每 2 小时调用 `/api/data/health`。它触发已经存在、可串行续跑的安全任务：
+生产部署会安装并启用 `wow-data-health-followup.timer`，默认每 2 小时调用 `/api/data/health`。它把决策记录在 PostgreSQL `data_health_followup_v1` ledger：首次看到域输入 revision 仅记录 baseline；同一 revision 只报告；只有新 revision、明确 `refreshNeeded` 或人工强制动作才能领取一次任务。缺少稳定 revision 必须 report-only，不能从 blocker 文案、时间或计数伪造 fingerprint。
 
 - `news_refresh`：新闻有 retryable/queued 时执行 `/opt/wow-mini-program/server/refresh_cron.sh`；默认只处理 1 条 queue/retryable backlog，超过 `WOW_NEWS_RETRY_MAX_ATTEMPTS` 的翻译失败会转为 blocked/report。
-- `gear_observed_backfill`：装备库 partial/stale/blocked 时先跑 `wow-gear-observed-backfill.service`，用已有 Raider.IO/Battle.net/SimC 证据补 observed variant。
-- `websim_sync`：`websim_sync` 被 gear catalog 阻塞时异步触发 `wow-websim-sync.service`，在回填后重建 catalog。
-- `stat_weights_sync`：权重有 blocked scenarios 时异步触发 `wow-stat-weights-sync.service`。
-- `simc_runtime_update`：`template_simc_bridge` 或 `season_cutover_readiness` 报告配置好的 SimC runtime 有新 commit 时，启动 `wow-simc-runtime-update.service` 下载配置源、构建并切换 `/opt/wow-simc/current`。该 service 使用 `/run/lock/wow-mini-program-sync.lock` 串行化长任务；同一轮 follow-up 会优先跑 SimC runtime update，依赖 SimC 的 WebSim/stat/gear 重建留到下一轮 health follow-up。
+- `gear_observed_backfill`：只在 gear catalog revision 变化或明确 `refreshNeeded` 后启动 `wow-gear-observed-backfill.service`，用已有 Raider.IO/Battle.net/SimC 证据补 observed variant。
+- `stat_weights_sync`：只在带 explicit input revision 的 blocked scenario 变化或明确 `refreshNeeded` 后启动；没有 revision 时保留人工 blocker。
+- `simc_runtime_update`：`template_simc_bridge` 或 `season_cutover_readiness` 报告带目标 revision 的 SimC runtime update 时，才启动 `wow-simc-runtime-update.service` 下载配置源、构建并切换 `/opt/wow-simc/current`。该 service 使用 `/run/lock/wow-mini-program-sync.lock` 串行化长任务。
+- `wow-websim-sync.service` 不是 health-followup 的自动续跑目标；它只由保留的日常 WebSim reconciliation timer 运行。受控天赋图修复必须走 [天赋图窄恢复步骤](talent-simulation-full-chain-runbook.md#数据健康巡检与受控天赋图窄恢复)，并显式跳过 Blizzard 与 Raider.IO。
 
-这些任务必须继续 fail-closed：没有 verified 证据就保留 partial/blocked 并在 health 中报告。SimC runtime 自动更新只允许使用配置好的 `SIMC_GITHUB_REPO` / `SIMC_BRANCH` 和已知云服务器路径；修改源仓库、分支、本机下载或安装依赖仍需单独批准。
+如果 health payload 或 follow-up ledger 不可读写，`--execute` 必须执行零个动作并非零退出；无 `--execute` 仅输出只读计划。这些任务必须继续 fail-closed：没有 verified 证据就保留 partial/blocked 并在 health 中报告。SimC runtime 自动更新只允许使用配置好的 `SIMC_GITHUB_REPO` / `SIMC_BRANCH` 和已知云服务器路径；修改源仓库、分支、本机下载或安装依赖仍需单独批准。
 
 ### 历史/内部：当前赛季推荐装备模板生成门禁
 

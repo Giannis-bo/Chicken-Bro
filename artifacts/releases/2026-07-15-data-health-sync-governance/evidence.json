@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "slug": "data-health-sync-governance",
+  "requirementSlug": "data-health-sync-governance",
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
+  "branch": "codex/data-health-governance",
+  "commit": "pending_candidate",
+  "scope": [
+    "revision_gated_data_health_followup",
+    "postgres_sync_state_decision_ledger",
+    "consumer_only_health_observability",
+    "manual_simc_only_talent_graph_recovery",
+    "deploy_install_without_autostart"
+  ],
+  "verification": [
+    {
+      "command": "python3 -m unittest tests.data_health_followup_test tests.news_backend_test tests.postgres_cache_store_test tests.websim_sync_test",
+      "status": "pass",
+      "summary": "484 focused Python tests passed. They cover first-seen baseline, same-revision report-only behavior, changed and explicit refresh claims, unavailable-state and malformed-health fail-closed behavior, the read-only health consumer, PostgreSQL sync-state boundaries, and WebSim skip paths."
+    },
+    {
+      "command": "node --test tests/deploy-script.test.js && python3 -m unittest tests.deploy_lighthouse_test",
+      "status": "pass",
+      "summary": "25 Node deployment/owner-map tests and 10 Python deployment tests passed. The manual recovery unit has both skip flags, the shared lock, PostgreSQL-only runtime, proxy boundary, deploy installation without autostart, and current Harness ownership coverage."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-15-data-health-sync-governance --base origin/main",
+      "status": "pass",
+      "summary": "The local full write-path profile passed: full Node and Python discovery, JSON/schema checks, Harness packet checks, syntax checks, and git diff --check."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "not_run",
+    "requiredBeforeMerge": true,
+    "reason": "Runtime deployment and a production TraitEdge download/write recovery are pending final local Harness verification and an explicit candidate execution window."
+  },
+  "runtimeEvidence": [],
+  "risks": [
+    {
+      "id": "candidate_data_write_pending",
+      "status": "open",
+      "detail": "Candidate backup, read-only preflight, runtime parity, one manually authorized recovery, API/data/unit/timer/journal smoke, and rollback evidence are required before merge."
+    },
+    {
+      "id": "missing_upstream_revision",
+      "status": "contained",
+      "detail": "A health domain without an explicit input revision is report-only and exposes a manual blocker; it cannot synthesize a fingerprint from status text or counts."
+    }
+  ],
+  "rollback": [
+    "config_disable",
+    "code_rollback",
+    "data_restore",
+    "resync_repair"
+  ],
+  "cleanup": {
+    "required": true,
+    "items": [
+      "Keep wow-websim-sync.timer as the normal daily reconciliation path and do not start it from health follow-up.",
+      "Keep wow-talent-graph-recovery.service inactive except during an explicitly approved, preflight-validated recovery.",
+      "Remove only this task worktree after merge; do not alter unrelated root worktree changes."
+    ]
+  },
+  "archivedReferences": [
+    "docs/project-state.json",
+    "docs/roadmap.md",
+    "docs/harness.md",
+    "docs/talent-simulation-full-chain-runbook.md",
+    "artifacts/releases/2026-07-13-talent-link-lkg-sync-guard/evidence.json"
+  ],
+  "summary": "Implementation is complete locally with focused verification. Candidate deployment and any real data recovery remain unexecuted and cannot be claimed as live evidence."
+}

@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "slug": "data-health-sync-governance",
+  "classification": "Strict",
+  "status": "implementation_allowed",
+  "goal": "Replace status-only heavy health follow-up with a persisted revision-gated policy, preserve daily full WebSim reconciliation, and add a manual locked SimC-only talent graph recovery entrypoint.",
+  "userValue": "A normal bugfix no longer risks restarting broad background collection, while a proved talent-graph incident has one observable, bounded recovery path.",
+  "nonGoals": [
+    "No full Journal, loot, or catalog incremental-write rewrite",
+    "No new external source, dependency installation, migration, or deploy-triggered asynchronous sync",
+    "No automatic talent graph repair or automatic full WebSim continuation",
+    "No public gear/talent source-quality semantic change"
+  ],
+  "currentTruth": {
+    "sources": [
+      "AGENTS.md",
+      "docs/project-state.json",
+      "docs/roadmap.md",
+      "docs/harness.md",
+      "docs/talent-simulation-full-chain-runbook.md",
+      "docs/superpowers/specs/2026-07-15-data-health-sync-governance-design.md"
+    ],
+    "activeMilestone": "none",
+    "featureIteration": "allowed_under_harness",
+    "databaseRuntime": "postgres_only",
+    "activeHarness": "docs/harness.md",
+    "design": "docs/superpowers/specs/2026-07-15-data-health-sync-governance-design.md",
+    "plan": "docs/superpowers/plans/2026-07-15-data-health-sync-governance.md",
+    "historicalEvidence": "artifacts/releases/2026-07-13-talent-link-lkg-sync-guard/evidence.json",
+    "candidateDeploymentRequiredBeforeMerge": true,
+    "deploymentAsyncSyncDefault": 0
+  },
+  "impactMap": {
+    "mustChange": [
+      "server/data_health_followup.py",
+      "server/news_backend.py consumer health projection",
+      "server/wow-talent-graph-recovery.service",
+      "systemd deploy/install tests",
+      "data health and talent recovery runbook"
+    ],
+    "mustNotChange": [
+      "daily wow-websim-sync.timer cadence",
+      "PostgreSQL-only runtime",
+      "public observed-only gear policy",
+      "deploy default WOW_DEPLOY_START_ASYNC_SYNCS=0",
+      "existing sync-state partial/blocked truth"
+    ],
+    "riskUnknown": [
+      "Each external source must expose an explicit stable revision before automated heavy follow-up is permitted.",
+      "A failed asynchronous unit cannot authorize same-revision retry without a new revision or explicit operator action."
+    ],
+    "evidenceRequired": [
+      "Red-green unit tests for baseline, changed revision, explicit refresh, missing revision, forced recovery, and no automatic full WebSim",
+      "PostgreSQL sync-state ownership and health consumer tests",
+      "Candidate backup, exact runtime identity, unit/timer/log/API/data smoke, and rollback evidence"
+    ]
+  },
+  "ownership": {
+    "factOwner": "server/postgres_cache_store.py owns cache.websim_sync_state; server/data_health_followup.py is a policy consumer/orchestrator; server/news_backend.py is a health consumer.",
+    "writeOwner": "server/postgres_cache_store.py::save_sync_state",
+    "consumers": [
+      "server/data_health_followup.py",
+      "server/news_backend.py",
+      "server/wow-data-health-followup.service",
+      "server/wow-talent-graph-recovery.service"
+    ]
+  },
+  "engineeringHealth": {
+    "status": "health_watch_guarded",
+    "reason": "The task changes a scheduled write-path orchestrator. It adds a small policy boundary, reuses the existing state repository, claims action state before launch, keeps full sync out of health follow-up, and requires candidate backup/rollback evidence."
+  },
+  "releaseTrigger": "scheduled_jobs",
+  "rollback": [
+    "config_disable",
+    "code_rollback",
+    "data_restore",
+    "resync_repair"
+  ],
+  "decisionLog": [
+    {
+      "date": "2026-07-15",
+      "decision": "The user approved revision-gated health follow-up and a manual SimC-only talent recovery path; broad WebSim continuation is intentionally not automated."
+    }
+  ],
+  "acceptanceEvidence": [
+    "python3 -m unittest tests.data_health_followup_test tests.websim_sync_test tests.postgres_cache_store_test tests.postgres_cache_sync_test tests.deploy_lighthouse_test",
+    "node --test tests/deploy-script.test.js",
+    "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-15-data-health-sync-governance --base origin/main",
+    "candidate backup, runtime parity, read-only preflight, forced SimC-only recovery, health/API/unit/timer/log smoke and rollback evidence"
+  ]
+}

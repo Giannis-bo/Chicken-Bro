@@ -468,6 +468,7 @@ sudo cp "${REMOTE_DIR}/server/wow-recommended-bis-guard-sync.timer" "/etc/system
 sudo cp "${REMOTE_DIR}/server/wow-recommended-bis-prototype-sync.service" "/etc/systemd/system/wow-recommended-bis-prototype-sync.service"
 sudo cp "${REMOTE_DIR}/server/wow-data-health-followup.service" "/etc/systemd/system/wow-data-health-followup.service"
 sudo cp "${REMOTE_DIR}/server/wow-data-health-followup.timer" "/etc/systemd/system/wow-data-health-followup.timer"
+sudo cp "${REMOTE_DIR}/server/wow-talent-graph-recovery.service" "/etc/systemd/system/wow-talent-graph-recovery.service"
 sudo chmod 0755 "${REMOTE_DIR}/server/simc_runtime_update.sh"
 sudo cp "${REMOTE_DIR}/server/wow-simc-runtime-update.service" "/etc/systemd/system/wow-simc-runtime-update.service"
 sudo cp "${REMOTE_DIR}/server/wow-gear-stat-snapshot-worker.service" "/etc/systemd/system/wow-gear-stat-snapshot-worker.service"
@@ -545,6 +546,7 @@ sudo systemctl enable --now wow-recommended-bis-guard-sync.timer
 sudo systemctl reset-failed wow-recommended-bis-prototype-sync.service >/dev/null 2>&1 || true
 sudo systemctl reset-failed wow-data-health-followup.service >/dev/null 2>&1 || true
 sudo systemctl enable --now wow-data-health-followup.timer
+sudo systemctl reset-failed wow-talent-graph-recovery.service >/dev/null 2>&1 || true
 sudo systemctl reset-failed wow-simc-runtime-update.service >/dev/null 2>&1 || true
 sudo systemctl reset-failed wow-gear-stat-snapshot-worker.service >/dev/null 2>&1 || true
 sudo systemctl enable wow-gear-stat-snapshot-worker.service

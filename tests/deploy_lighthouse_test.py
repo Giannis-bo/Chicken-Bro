@@ -119,6 +119,17 @@ class DeployLighthouseScriptTest(unittest.TestCase):
         self.assertNotIn("start --no-block wow-gear-observed-backfill.service", script)
         self.assertNotIn("start wow-gear-observed-backfill.service", script)
 
+    def test_deploy_script_installs_manual_talent_graph_recovery_without_starting_it(self):
+        service = Path("server/wow-talent-graph-recovery.service").read_text(encoding="utf-8")
+        script = Path("server/deploy_lighthouse.sh").read_text(encoding="utf-8")
+
+        self.assertIn("WOW_WEBSIM_SKIP_BLIZZARD=1", service)
+        self.assertIn("WOW_WEBSIM_SKIP_RAIDERIO=1", service)
+        self.assertIn("/run/lock/wow-mini-program-sync.lock", service)
+        self.assertIn('wow-talent-graph-recovery.service"', script)
+        self.assertNotIn("start --no-block wow-talent-graph-recovery.service", script)
+        self.assertNotIn("start wow-talent-graph-recovery.service", script)
+
     def test_deploy_script_installs_season_recommended_gear_service_without_autostart(self):
         service = Path("server/wow-season-recommended-gear-sync.service").read_text(encoding="utf-8")
         script = Path("server/deploy_lighthouse.sh").read_text(encoding="utf-8")

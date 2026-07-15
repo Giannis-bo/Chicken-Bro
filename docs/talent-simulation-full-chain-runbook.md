@@ -1,7 +1,7 @@
 # 全职业天赋模拟全链路 Runbook
 
 > 适用范围：`/api/websim/talents` 天赋读模型、SimC trait data、Wago trait edges、Blizzard spell/media、社区天赋模板、PostgreSQL-only catalog、前端原生天赋模拟器、`/api/talents/*`、`/api/websim/profile`、`/api/websim/simulate`、health 和回滚。
-> 最后更新：2026-07-13。
+> 最后更新：2026-07-15。
 
 本文是天赋模拟器后续版本和赛季更新的执行手册。它不要求天赋侧机械复刻装备侧的 item/source/variant/mod-option 模型；天赋侧真正要对齐的是四个治理原则：后端权威读模型、证据优先、前端 consumer-only、serializer fail-closed。
 
@@ -232,6 +232,23 @@ order by status, source_status;
 - 任一门禁失败时，不调用 `replace_simc_generated_data()`；保留当前 PG 行和计数，在 `simc.lastAttempt` 记录 bounded blocked 原因。
 
 candidate 部署证据至少记录 exact commit/tree、runtime 文件 SHA-256 parity、写入前 PG 三表与 `websim_sync` 单行备份、只读 extraction/validation、LKG 前后对比、受控 SimC-only sync、timer/backflow、服务与日志、`/health`、`/api/data/health`、天赋读模型/validate/profile smoke、社区装备强化导入回归，以及真实微信连线显示。除非任务明确要求，部署保持 `WOW_DEPLOY_START_ASYNC_SYNCS=0`，不能自动启动完整异步同步。
+
+### 数据健康巡检与受控天赋图窄恢复
+
+`wow-data-health-followup.timer` 每两小时只根据 `/api/data/health` 和 PostgreSQL `cache.websim_sync_state` 的 `data_health_followup_v1` 决策。它不会再根据 `partial`、`stale`、`blocked` 或 blocker 文案自动启动 `wow-websim-sync.service`。
+
+- 首次见到一个显式域输入 revision 时，只记录 baseline；同一 revision 后续只写 report-only。只有 revision 变化、明确 `refreshNeeded` 或一个手工强制动作才会领取一次相关 job。没有稳定 revision 的域必须人工处理，不能用时间、计数或 blocker 文案伪造 fingerprint。
+- `data_health_followup_v1` 是 follow-up 本身唯一允许写入的 sync-state key。`lastSeenRevision`、`lastAttemptedRevision`、`lastDecision`、`lastDecisionAt` 与 report-only 原因只用于观测；它不拥有 talent/gear/stat 的事实状态，也不清除任何其他 job 的 blocker。
+- 如果 state store 不可读写，`--execute` 必须返回非零、执行零个动作；无 `--execute` 的调用只输出只读计划。日常完整 WebSim timer 仍保留为低频对账，普通部署保持 `WOW_DEPLOY_START_ASYNC_SYNCS=0`。
+
+只有只读预检已经证明天赋图物化数据受损，且 owner 明确批准实际外部 TraitEdge 下载与 PostgreSQL 写入时，才允许执行以下恢复；它不是普通 bugfix 或 deploy 的后续动作：
+
+1. 记录 exact candidate commit/tree，备份受影响 runtime 文件、`websim_talents`、`websim_spell_details`、`websim_profile_presets` 和相关 `websim_sync_state`，并保存校验和。
+2. 用 live PG LKG、candidate extraction 和 `validate_simc_generated_data_candidate()` 做只读核验；任何 source、节点、非连线结构、profile 或 retention 门禁失败都停止，不触发恢复。
+3. 确认 `wow-websim-sync.service` 未在运行、共享 `/run/lock/wow-mini-program-sync.lock` 可用、`wow-talent-graph-recovery.service` 已安装且其两个 skip flag 均为 `1`。
+4. 通过唯一的策略入口运行 `sudo -u ubuntu /usr/bin/python3 /opt/wow-mini-program/server/data_health_followup.py --execute --force-action talent_graph_recovery`。该入口领取并记录人工动作，再启动 `wow-talent-graph-recovery.service`。
+5. 该 service 只能运行 `server/websim_sync.py` 的 SimC/TraitEdge 路径：`WOW_WEBSIM_SKIP_BLIZZARD=1` 和 `WOW_WEBSIM_SKIP_RAIDERIO=1` 必须保留。禁止用 `systemctl start wow-websim-sync.service` 替代，也禁止为这次恢复启动 observed gear、stat weights 或其它异步链。
+6. 恢复后依次确认 service/journal、共享锁释放、`/health`、`/api/data/health` 的 `data_health_followup` / talent 状态、天赋读模型、validate/profile smoke 和 timer backflow。失败则先 `config_disable` 停止 follow-up/recovery，再按已保存的代码或 PG 备份回滚；不要在同一 revision 上盲目重试。
 
 ## 测试矩阵
 
