@@ -1222,7 +1222,22 @@ def community_template_import_evidence_from_template(
         variant_key = _text(raw.get("variantKey"))
         if not slot or not item_id or not variant_key or slot in slots:
             raise GearReleaseIntegrityError("community import evidence selection is incomplete")
-        observed_item_level = _int(raw.get("itemLevel"))
+        # Observed-profile ingestion serializes an item instance's actual level as
+        # ``ilevel``.  Older/community payloads may expose the same observed fact
+        # as ``itemLevel`` instead.  Neither spelling may fall back to the generic
+        # catalogue item level: ambiguity is evidence failure, not a value to
+        # calculate away.
+        declared_item_level = _int(raw.get("itemLevel"))
+        declared_ilevel = _int(raw.get("ilevel"))
+        if (
+            declared_item_level > 0
+            and declared_ilevel > 0
+            and declared_item_level != declared_ilevel
+        ):
+            raise GearReleaseIntegrityError(
+                "community import evidence observed item level is ambiguous"
+            )
+        observed_item_level = declared_item_level or declared_ilevel
         if observed_item_level <= 0:
             raise GearReleaseIntegrityError("community import evidence observed item level is missing")
 

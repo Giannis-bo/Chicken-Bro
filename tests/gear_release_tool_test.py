@@ -365,7 +365,8 @@ class GearReleaseToolTest(unittest.TestCase):
         )
 
         template = self.template()
-        template["gearItems"][0]["itemLevel"] = 292
+        template["gearItems"][0].pop("itemLevel")
+        template["gearItems"][0]["ilevel"] = "292"
         snapshot = self.snapshot()
         snapshot["items"][0].update({
             "itemLevel": 197,
@@ -399,6 +400,23 @@ class GearReleaseToolTest(unittest.TestCase):
             },
         })
         self.assertNotIn("197", str(evidence))
+
+    def test_import_evidence_rejects_conflicting_observed_item_level_spellings(self):
+        from server.gear_release_store import GearReleaseIntegrityError
+        from server.gear_release_tool import community_template_import_evidence_from_template
+
+        template = self.template()
+        template["gearItems"][0]["itemLevel"] = 292
+        template["gearItems"][0]["ilevel"] = "289"
+        snapshot = self.snapshot()
+        snapshot["variants"][0]["itemLevel"] = 292
+
+        with self.assertRaises(GearReleaseIntegrityError):
+            community_template_import_evidence_from_template(
+                template,
+                gear_release_id="gear-release:sha256:target",
+                gear_snapshot=snapshot,
+            )
 
     def test_import_evidence_rejects_incomplete_or_mismatched_observed_facts(self):
         from server.gear_release_store import GearReleaseIntegrityError
