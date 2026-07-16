@@ -39,7 +39,7 @@
       "status": "independent_review_passed_for_canary",
       "sourceClass": "imagegen_raster",
       "promptRef": "generation-record.json#shared-page-corner.default",
-      "builtInSavedPath": "/Users/heyesheng/.codex/generated_images/019f6396-3539-7681-bd52-af5f1a3e35ff/exec-7a66d396-e240-46e0-b682-d387a6de1961.png",
+      "builtInSavedPath": "local-generation-output-not-retained",
       "source": {
         "path": "packages/design-system/assets/raster/shared-chrome-v1/sources/shared-page-corner.default.png",
         "width": 1254,
@@ -97,7 +97,7 @@
       "status": "independent_review_passed_for_canary",
       "sourceClass": "imagegen_raster",
       "promptRef": "generation-record.json#shared-page-side-rail.default",
-      "builtInSavedPath": "/Users/heyesheng/.codex/generated_images/019f6396-3539-7681-bd52-af5f1a3e35ff/exec-c60e6b66-2ca3-4f45-a270-46e08fb0ef6d.png",
+      "builtInSavedPath": "local-generation-output-not-retained",
       "source": {
         "path": "packages/design-system/assets/raster/shared-chrome-v1/sources/shared-page-side-rail.default.png",
         "width": 793,
@@ -167,7 +167,7 @@
       "status": "independent_review_passed_for_canary",
       "sourceClass": "imagegen_raster",
       "promptRef": "generation-record.json#title-ornament-family.rail-source",
-      "builtInSavedPath": "/Users/heyesheng/.codex/generated_images/019f6396-3539-7681-bd52-af5f1a3e35ff/exec-eee2cf73-554e-46c0-ba8a-296e9c6a2e79.png",
+      "builtInSavedPath": "local-generation-output-not-retained",
       "source": {
         "path": "packages/design-system/assets/raster/shared-chrome-v1/sources/title-ornament-family.left-rail.png",
         "width": 1983,
@@ -225,7 +225,7 @@
       "status": "independent_review_passed_for_canary",
       "sourceClass": "imagegen_raster",
       "promptRef": "generation-record.json#title-ornament-family.rail-source",
-      "builtInSavedPath": "/Users/heyesheng/.codex/generated_images/019f6396-3539-7681-bd52-af5f1a3e35ff/exec-eee2cf73-554e-46c0-ba8a-296e9c6a2e79.png",
+      "builtInSavedPath": "local-generation-output-not-retained",
       "source": {
         "path": "packages/design-system/assets/raster/shared-chrome-v1/sources/title-ornament-family.left-rail.png",
         "width": 1983,
@@ -287,7 +287,7 @@
       "status": "independent_review_passed_for_canary",
       "sourceClass": "imagegen_raster",
       "promptRef": "generation-record.json#pushed-back-medallion.default",
-      "builtInSavedPath": "/Users/heyesheng/.codex/generated_images/019f6396-3539-7681-bd52-af5f1a3e35ff/exec-ecfeecd1-35d8-4c3b-980d-cc2cb8321417.png",
+      "builtInSavedPath": "local-generation-output-not-retained",
       "source": {
         "path": "packages/design-system/assets/raster/shared-chrome-v1/sources/pushed-back-medallion.default.png",
         "width": 1254,

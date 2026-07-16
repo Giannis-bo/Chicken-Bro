@@ -18,7 +18,7 @@
     "textContractsRead": [
       "AGENTS.md",
       "docs/roadmap.md",
-      "docs/plans/2026-07-14-target-first-14-route-rebuild.md",
+      "docs/plans/ui-reconstruction.md",
       "DESIGN.md",
       "docs/design/current-ui/README.md",
       "docs/design/current-ui/routes/build-intel/asset-contract.json",
@@ -29,7 +29,7 @@
     ]
   },
   "processingEnvironment": {
-    "chromaRemoval": "/Users/heyesheng/.codex/skills/.system/imagegen/scripts/remove_chroma_key.py",
+    "chromaRemoval": "imagegen/remove_chroma_key.py",
     "chromaRemovalInterpreter": "python3",
     "chromaRemovalArguments": "--auto-key border --soft-matte --transparent-threshold 12 --opaque-threshold 220 --despill",
     "mechanicalTransformTools": [
@@ -62,7 +62,7 @@
           "output_hint"
         ],
         "imagePayloadRecorded": false,
-        "builtInSavedPath": "/Users/heyesheng/.codex/generated_images/019f6465-776f-7e52-b5cd-1b941c8c442b/exec-946d96d6-5070-44d0-a01b-1ebb0229ab77.png"
+        "builtInSavedPath": "local-generation-output-not-retained"
       },
       "prompt": "Use case: stylized-concept\nAsset type: reusable non-factual raster ornament for a compact dark fantasy game UI build-intelligence summary\nPrimary request: Create exactly one square summary medallion in a restrained forged dark-metal and antique-bronze family. It should suggest generic compass-and-scroll intelligence without depicting any branded or factual game object.\nSubject: A compact circular-to-octagonal medallion with a strong clean silhouette, three clearly separated concentric shell layers in aged bronze and dark forged iron, and a clearly readable central recessed socket. Inside the socket, use only an abstract four-direction compass geometry merged with two shallow blank rolled-paper fold contours. Keep this central relief generic, symmetrical, and decorative. The center must remain visually distinct from the outer shell at small size.\nStyle/medium: crisp high-detail premium game UI material render, realistic but controlled forged-metal microtexture, readable after reduction to 128 by 128 pixels, restrained rather than ornate.\nComposition/framing: exactly one object, orthographic face-on front view, no perspective, no rotation, centered on a square canvas with generous even background padding. Keep all outer tips fully inside the canvas.\nLighting/mood: neutral frontal studio lighting, restrained bronze edge highlights, deep iron recess, no glow, no dramatic shadow.\nColor palette: near-black iron, charcoal steel, low-saturation antique bronze, tiny muted gold edge accents. Do not use bright yellow or #00ff00 anywhere in the object.\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local background removal.\nConstraints: The background must be one uniform #00ff00 color with no shadows, gradient, texture, reflection, floor plane, or lighting variation. Keep the opaque medallion fully separated from the background with crisp edges. No cast shadow, contact shadow, reflection, watermark, border around the canvas, text, numbers, letters, runes, pseudo-writing, seals, crests, faction marks, class or specialization symbols, official logos, recognizable World of Warcraft objects, weapons, faces, people, characters, gems, or factual marks. Do not depict a literal branded compass or literal inscribed scroll. The asset is generic, decorative, neutral, and non-factual.",
       "source": {
@@ -85,8 +85,8 @@
         "totalPixels": 1572516
       },
       "processingCommands": [
-        "cp /Users/heyesheng/.codex/generated_images/019f6465-776f-7e52-b5cd-1b941c8c442b/exec-946d96d6-5070-44d0-a01b-1ebb0229ab77.png packages/design-system/assets/raster/build-intel-v1/sources/build-intel-summary-medallion.default.png",
-        "python3 /Users/heyesheng/.codex/skills/.system/imagegen/scripts/remove_chroma_key.py --input packages/design-system/assets/raster/build-intel-v1/sources/build-intel-summary-medallion.default.png --out packages/design-system/assets/raster/build-intel-v1/masters/build-intel-summary-medallion.default.png --auto-key border --soft-matte --transparent-threshold 12 --opaque-threshold 220 --despill",
+        "cp local-generation-output-not-retained packages/design-system/assets/raster/build-intel-v1/sources/build-intel-summary-medallion.default.png",
+        "python3 imagegen/remove_chroma_key.py --input packages/design-system/assets/raster/build-intel-v1/sources/build-intel-summary-medallion.default.png --out packages/design-system/assets/raster/build-intel-v1/masters/build-intel-summary-medallion.default.png --auto-key border --soft-matte --transparent-threshold 12 --opaque-threshold 220 --despill",
         "magick packages/design-system/assets/raster/build-intel-v1/masters/build-intel-summary-medallion.default.png -trim +repage -resize 240x240\\> -gravity center -background none -extent 256x256 packages/design-system/assets/raster/build-intel-v1/runtime/2x/build-intel-summary-medallion.default.png",
         "sips -z 128 128 packages/design-system/assets/raster/build-intel-v1/runtime/2x/build-intel-summary-medallion.default.png --out packages/design-system/assets/raster/build-intel-v1/runtime/1x/build-intel-summary-medallion.default.png"
       ],
@@ -147,7 +147,7 @@
           "output_hint"
         ],
         "imagePayloadRecorded": false,
-        "builtInSavedPath": "/Users/heyesheng/.codex/generated_images/019f6465-776f-7e52-b5cd-1b941c8c442b/exec-f76f830d-cf98-491e-a128-d885d3356090.png"
+        "builtInSavedPath": "local-generation-output-not-retained"
       },
       "prompt": "Use case: stylized-concept\nAsset type: reusable non-factual raster shell for trusted runtime specialization media in a compact dark fantasy game UI card\nPrimary request: Create exactly one empty medallion shell in the same restrained forged dark-iron and antique-bronze material family as a premium build-intelligence summary medallion. This asset is only a decorative housing around separate trusted runtime media.\nSubject: A compact circular-to-octagonal ring with three clearly separated concentric shell layers, forged near-black iron, charcoal steel recesses, thin muted antique-bronze rims, restrained cardinal-point tabs, and subtle wear. The center must be a large completely empty circular opening showing only the flat chroma-key background. The opening must remain unobstructed and visually calm so a separate specialization icon or neutral fallback can be centered above it. No inner plate, object, relief, icon, mark, symbol, texture, shadow, or reflection may cross the opening.\nStyle/medium: crisp high-detail premium game UI material render, realistic but controlled forged-metal microtexture, readable after reduction to 96 by 96 pixels, restrained rather than ornate.\nComposition/framing: exactly one centered shell on a square canvas, orthographic face-on front view, no perspective, no rotation, with generous even chroma-key padding. Strong clean silhouette. The transparent center opening should occupy about 50 percent of the full outer shell diameter.\nLighting/mood: neutral frontal studio lighting with restrained bronze edge highlights, no glow and no dramatic shadow.\nColor palette: near-black iron, charcoal steel, low-saturation antique bronze, tiny muted gold edge accents. Do not use bright yellow or #00ff00 anywhere in the metal.\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local background removal, including the entire center opening.\nConstraints: The background and every pixel inside the center opening must be one uniform #00ff00 color with no shadows, gradient, texture, reflection, floor plane, or lighting variation. Keep the opaque ring fully separated from the background with crisp edges. No cast shadow, contact shadow, reflection, watermark, border around the canvas, text, numbers, letters, runes, pseudo-writing, arrows, seals, crests, faction marks, class or specialization symbols, official logos, recognizable World of Warcraft objects, weapons, faces, people, characters, gems, or factual marks. The shell is generic, decorative, neutral, and non-factual.",
       "source": {
@@ -170,8 +170,8 @@
         "totalPixels": 1572516
       },
       "processingCommands": [
-        "cp /Users/heyesheng/.codex/generated_images/019f6465-776f-7e52-b5cd-1b941c8c442b/exec-f76f830d-cf98-491e-a128-d885d3356090.png packages/design-system/assets/raster/build-intel-v1/sources/build-intel-card-medallion-shell.default.png",
-        "python3 /Users/heyesheng/.codex/skills/.system/imagegen/scripts/remove_chroma_key.py --input packages/design-system/assets/raster/build-intel-v1/sources/build-intel-card-medallion-shell.default.png --out packages/design-system/assets/raster/build-intel-v1/masters/build-intel-card-medallion-shell.default.png --auto-key border --soft-matte --transparent-threshold 12 --opaque-threshold 220 --despill",
+        "cp local-generation-output-not-retained packages/design-system/assets/raster/build-intel-v1/sources/build-intel-card-medallion-shell.default.png",
+        "python3 imagegen/remove_chroma_key.py --input packages/design-system/assets/raster/build-intel-v1/sources/build-intel-card-medallion-shell.default.png --out packages/design-system/assets/raster/build-intel-v1/masters/build-intel-card-medallion-shell.default.png --auto-key border --soft-matte --transparent-threshold 12 --opaque-threshold 220 --despill",
         "magick packages/design-system/assets/raster/build-intel-v1/masters/build-intel-card-medallion-shell.default.png -trim +repage -resize 184x184\\> -gravity center -background none -extent 192x192 packages/design-system/assets/raster/build-intel-v1/runtime/2x/build-intel-card-medallion-shell.default.png",
         "sips -z 96 96 packages/design-system/assets/raster/build-intel-v1/runtime/2x/build-intel-card-medallion-shell.default.png --out packages/design-system/assets/raster/build-intel-v1/runtime/1x/build-intel-card-medallion-shell.default.png"
       ],
@@ -232,7 +232,7 @@
           "output_hint"
         ],
         "imagePayloadRecorded": false,
-        "builtInSavedPath": "/Users/heyesheng/.codex/generated_images/019f6465-776f-7e52-b5cd-1b941c8c442b/exec-63d7b72a-fd95-4645-96b8-069342523f36.png"
+        "builtInSavedPath": "local-generation-output-not-retained"
       },
       "prompt": "Use case: stylized-concept\nAsset type: reusable non-factual raster primary-action plate for a compact dark fantasy game UI card\nPrimary request: Create exactly one wide blank primary-action button shell in the same restrained forged dark-iron and antique-bronze family as premium build-intelligence medallions.\nSubject: A low-profile horizontal plate with a strong 7:3 outer aspect ratio, symmetrical clipped corners, a broad antique-bronze and muted-gold beveled perimeter, a thin dark forged-iron separator, and a wide calm brushed dark-bronze center face. The center face must be fully opaque, visually uncluttered, and spacious enough for a separate runtime glyph plus label. Keep highlights restrained and edges crisp. Small neutral edge rivets are allowed only near the far ends, never in the center.\nStyle/medium: crisp high-detail premium game UI material render, realistic but controlled forged-metal microtexture, readable after reduction to 168 by 72 pixels, restrained rather than ornate.\nComposition/framing: exactly one centered horizontal plate, orthographic face-on front view, no perspective, no rotation, on a landscape canvas. Preserve the 7:3 object ratio with generous even chroma-key padding and keep every clipped corner fully inside the canvas.\nLighting/mood: neutral frontal studio lighting, restrained warm metallic edge highlights, no glow and no dramatic shadow.\nColor palette: low-saturation antique bronze, muted warm gold, near-black iron separator, dark brushed bronze center. Do not use bright yellow or #00ff00 anywhere in the object.\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local background removal.\nConstraints: The background must be one uniform #00ff00 color with no shadows, gradient, texture, reflection, floor plane, or lighting variation. Keep the opaque plate fully separated from the background with crisp edges. No cast shadow, contact shadow, reflection, watermark, canvas border, text, numbers, letters, runes, pseudo-writing, glyphs, icons, arrows, seals, crests, faction marks, class or specialization symbols, official logos, recognizable World of Warcraft objects, weapons, faces, people, characters, gems, or factual marks. Do not place any ornament, notch, emblem, or bright hotspot in the central 60 percent of the plate. The asset is generic, decorative, neutral, and non-factual.",
       "source": {
@@ -255,8 +255,8 @@
         "totalPixels": 1572215
       },
       "processingCommands": [
-        "cp /Users/heyesheng/.codex/generated_images/019f6465-776f-7e52-b5cd-1b941c8c442b/exec-63d7b72a-fd95-4645-96b8-069342523f36.png packages/design-system/assets/raster/build-intel-v1/sources/build-intel-primary-action.default.png",
-        "python3 /Users/heyesheng/.codex/skills/.system/imagegen/scripts/remove_chroma_key.py --input packages/design-system/assets/raster/build-intel-v1/sources/build-intel-primary-action.default.png --out packages/design-system/assets/raster/build-intel-v1/masters/build-intel-primary-action.default.png --auto-key border --soft-matte --transparent-threshold 12 --opaque-threshold 220 --despill",
+        "cp local-generation-output-not-retained packages/design-system/assets/raster/build-intel-v1/sources/build-intel-primary-action.default.png",
+        "python3 imagegen/remove_chroma_key.py --input packages/design-system/assets/raster/build-intel-v1/sources/build-intel-primary-action.default.png --out packages/design-system/assets/raster/build-intel-v1/masters/build-intel-primary-action.default.png --auto-key border --soft-matte --transparent-threshold 12 --opaque-threshold 220 --despill",
         "magick packages/design-system/assets/raster/build-intel-v1/masters/build-intel-primary-action.default.png -trim +repage -resize 328x136\\> -gravity center -background none -extent 336x144 packages/design-system/assets/raster/build-intel-v1/runtime/2x/build-intel-primary-action.default.png",
         "sips -z 72 168 packages/design-system/assets/raster/build-intel-v1/runtime/2x/build-intel-primary-action.default.png --out packages/design-system/assets/raster/build-intel-v1/runtime/1x/build-intel-primary-action.default.png"
       ],

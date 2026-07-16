@@ -11,7 +11,7 @@
   "masters": [
     {
       "path": "masters/news-hero-fallback-master-v3.png",
-      "sourceGeneration": "/Users/heyesheng/.codex/generated_images/019f5dcf-4be4-7382-a2a9-6cd18ed7a6ed/exec-4b057a14-bf97-4049-a6b0-e371ac528236.png",
+      "sourceGeneration": "local-generation-output-not-retained",
       "dimensions": {
         "width": 832,
         "height": 400
@@ -21,7 +21,7 @@
     },
     {
       "path": "masters/news-utility-glyphs-master.png",
-      "sourceGeneration": "/Users/heyesheng/.codex/generated_images/019f5cf0-9150-7e20-ade3-4c5ef6259c52/exec-34910f1e-dd2e-4602-9e27-9206f39aaf86.png",
+      "sourceGeneration": "local-generation-output-not-retained",
       "dimensions": {
         "width": 1983,
         "height": 793
@@ -1877,7 +1877,7 @@
       "slotId": "news.hero.fallback",
       "variant": "neutral-editorial",
       "sourceMaster": "masters/news-hero-fallback-master-v3.png",
-      "sourceGeneration": "/Users/heyesheng/.codex/generated_images/019f5dcf-4be4-7382-a2a9-6cd18ed7a6ed/exec-4b057a14-bf97-4049-a6b0-e371ac528236.png",
+      "sourceGeneration": "local-generation-output-not-retained",
       "sourceTarget": null,
       "crop": null,
       "opticalContentBox2x": [

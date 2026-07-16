@@ -35,7 +35,7 @@
     },
     {
       "id": "taro_target_first_14_route_rebuild",
-      "path": "docs/plans/2026-07-14-target-first-14-route-rebuild.md",
+      "path": "docs/plans/ui-reconstruction.md",
       "status": "active",
       "lifecycle": "active",
       "notes": "Active Taro UI contract, including canonical gear API parity and fresh real WeChat acceptance."
@@ -301,7 +301,7 @@
     {
       "domain": "ui_delivery",
       "status": "active_unverified",
-      "activeContract": "docs/plans/2026-07-14-target-first-14-route-rebuild.md",
+      "activeContract": "docs/plans/ui-reconstruction.md",
       "evidence": "docs/design/current-ui/runtime-review-contract.json"
     },
     {

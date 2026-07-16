@@ -22,7 +22,7 @@
     ]
   },
   "processingEnvironment": {
-    "chromaRemoval": "/Users/heyesheng/.codex/skills/.system/imagegen/scripts/remove_chroma_key.py",
+    "chromaRemoval": "imagegen/remove_chroma_key.py",
     "chromaRemovalInterpreter": "python3",
     "chromaRemovalArguments": "--auto-key border --soft-matte --transparent-threshold 12 --opaque-threshold 220 --despill",
     "mechanicalTransformTool": "/usr/bin/sips",
@@ -46,7 +46,7 @@
         "status": "succeeded",
         "resultKeys": ["image_url", "output_hint"],
         "imagePayloadRecorded": false,
-        "builtInSavedPath": "/Users/heyesheng/.codex/generated_images/019f63e1-cb5f-7d63-9fb7-031d5ca16b32/exec-88ccb026-a0bc-4fb9-8836-57dfb07c0e49.png"
+        "builtInSavedPath": "local-generation-output-not-retained"
       },
       "prompt": "Use case: stylized-concept\nAsset type: small reusable non-factual game UI medallion raster for a news-list leading slot\nPrimary request: Create exactly one vertically oriented clipped document medallion in the same restrained dark-steel and antique-brass material family as premium forged game UI chrome.\nSubject: A compact portrait medallion with a clipped-corner dark forged-steel outer silhouette, thin muted antique-brass trim, two or three clearly layered metal bezel steps, and a centered generic blank parchment/document relief. The parchment is recognizable only from its single-sheet silhouette, shallow raised surface, and one folded upper corner. It contains absolutely no writing, lines, runes, seal, crest, logo, or symbol.\nStyle/medium: crisp high-detail game UI material render, controlled realistic metal and parchment microtexture, readable after reduction to 42 by 46 pixels, restrained rather than ornate.\nComposition/framing: exactly one object, orthographic face-on front view, no perspective, no rotation, vertically centered on a portrait canvas close to a 21:23 aspect ratio, with generous even chroma-key padding on every side. Strong clean silhouette and cut corners.\nLighting/mood: neutral frontal studio lighting with restrained edge highlights; no glow and no dramatic shadows.\nColor palette: charcoal and near-black steel, low-saturation old brass, muted warm parchment. Do not use bright yellow or #00ff00 anywhere in the object.\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local background removal.\nConstraints: The background must be one uniform #00ff00 color with no shadows, gradient, texture, reflection, floor plane, or lighting variation. Keep the opaque object fully separated from the background with crisp edges. No cast shadow, contact shadow, reflection, watermark, border around the canvas, text, numbers, letters, pseudo-writing, glyphs, icons, faction marks, branded game objects, World of Warcraft logos, weapons, faces, gems, or factual symbols. The medallion is generic and non-factual.",
       "source": {
@@ -69,8 +69,8 @@
         "totalPixels": 1573088
       },
       "processingCommands": [
-        "cp /Users/heyesheng/.codex/generated_images/019f63e1-cb5f-7d63-9fb7-031d5ca16b32/exec-88ccb026-a0bc-4fb9-8836-57dfb07c0e49.png packages/design-system/assets/raster/news-list-v1/sources/news-list-document-medallion.default.png",
-        "python3 /Users/heyesheng/.codex/skills/.system/imagegen/scripts/remove_chroma_key.py --input packages/design-system/assets/raster/news-list-v1/sources/news-list-document-medallion.default.png --out packages/design-system/assets/raster/news-list-v1/masters/news-list-document-medallion.default.png --auto-key border --soft-matte --transparent-threshold 12 --opaque-threshold 220 --despill",
+        "cp local-generation-output-not-retained packages/design-system/assets/raster/news-list-v1/sources/news-list-document-medallion.default.png",
+        "python3 imagegen/remove_chroma_key.py --input packages/design-system/assets/raster/news-list-v1/sources/news-list-document-medallion.default.png --out packages/design-system/assets/raster/news-list-v1/masters/news-list-document-medallion.default.png --auto-key border --soft-matte --transparent-threshold 12 --opaque-threshold 220 --despill",
         "sips -c 1312 1198 packages/design-system/assets/raster/news-list-v1/masters/news-list-document-medallion.default.png --out packages/design-system/assets/raster/news-list-v1/.work/news-list-document-medallion.crop.png",
         "sips -z 92 84 packages/design-system/assets/raster/news-list-v1/.work/news-list-document-medallion.crop.png --out packages/design-system/assets/raster/news-list-v1/runtime/2x/news-list-document-medallion.default.png",
         "sips -z 46 42 packages/design-system/assets/raster/news-list-v1/runtime/2x/news-list-document-medallion.default.png --out packages/design-system/assets/raster/news-list-v1/runtime/1x/news-list-document-medallion.default.png"
@@ -115,7 +115,7 @@
         "status": "succeeded",
         "resultKeys": ["image_url", "output_hint"],
         "imagePayloadRecorded": false,
-        "builtInSavedPath": "/Users/heyesheng/.codex/generated_images/019f63e1-cb5f-7d63-9fb7-031d5ca16b32/exec-29111be2-1f50-4f8f-a14d-1923ffdebea1.png"
+        "builtInSavedPath": "local-generation-output-not-retained"
       },
       "prompt": "Use case: stylized-concept\nAsset type: large reusable non-factual game UI terminal-state socket raster for a news-list panel\nPrimary request: Create exactly one circular-to-octagonal empty terminal medallion socket in the same restrained dark-steel and antique-brass material family as the companion document medallion. This asset is only the outer housing for a separate runtime vector glyph.\nSubject: A compact rotationally balanced octagonal ring with a softly circular inner opening, forged dark-steel body, thin muted antique-brass trim, layered concentric metal steps, restrained cut corners, and subtle wear. The large center opening must show only the flat chroma-key background and remain completely empty and unobstructed for a runtime glyph. No inner plate, object, mark, symbol, or texture in the opening.\nStyle/medium: crisp high-detail game UI material render, controlled realistic forged-metal microtexture, readable after reduction to 56 by 56 pixels, restrained rather than ornate, visually consistent with a premium small document medallion.\nComposition/framing: exactly one centered socket on a square canvas, orthographic face-on front view, no perspective, no rotation, with generous even chroma-key padding on every side. Strong clean octagonal/circular silhouette. The empty center should occupy roughly 42 percent of the full socket diameter.\nLighting/mood: neutral frontal studio lighting with restrained edge highlights; no glow and no dramatic shadows.\nColor palette: charcoal and near-black steel with low-saturation old brass. Do not use bright yellow or #00ff00 anywhere in the metal object.\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local background removal, including the entire center opening.\nConstraints: The background and center opening must be one uniform #00ff00 color with no shadows, gradient, texture, reflection, floor plane, or lighting variation. Keep the opaque ring fully separated from the background with crisp edges. No cast shadow, contact shadow, reflection, watermark, border around the canvas, text, numbers, letters, pseudo-writing, glyphs, icons, arrows, checkmarks, warning marks, shields, crests, faction marks, branded game objects, World of Warcraft logos, weapons, faces, gems, or factual symbols. The socket is generic and non-factual.",
       "source": {
@@ -138,8 +138,8 @@
         "totalPixels": 1572516
       },
       "processingCommands": [
-        "cp /Users/heyesheng/.codex/generated_images/019f63e1-cb5f-7d63-9fb7-031d5ca16b32/exec-29111be2-1f50-4f8f-a14d-1923ffdebea1.png packages/design-system/assets/raster/news-list-v1/sources/news-list-terminal-medallion.default.png",
-        "python3 /Users/heyesheng/.codex/skills/.system/imagegen/scripts/remove_chroma_key.py --input packages/design-system/assets/raster/news-list-v1/sources/news-list-terminal-medallion.default.png --out packages/design-system/assets/raster/news-list-v1/masters/news-list-terminal-medallion.default.png --auto-key border --soft-matte --transparent-threshold 12 --opaque-threshold 220 --despill",
+        "cp local-generation-output-not-retained packages/design-system/assets/raster/news-list-v1/sources/news-list-terminal-medallion.default.png",
+        "python3 imagegen/remove_chroma_key.py --input packages/design-system/assets/raster/news-list-v1/sources/news-list-terminal-medallion.default.png --out packages/design-system/assets/raster/news-list-v1/masters/news-list-terminal-medallion.default.png --auto-key border --soft-matte --transparent-threshold 12 --opaque-threshold 220 --despill",
         "sips -z 112 112 packages/design-system/assets/raster/news-list-v1/masters/news-list-terminal-medallion.default.png --out packages/design-system/assets/raster/news-list-v1/runtime/2x/news-list-terminal-medallion.default.png",
         "sips -z 56 56 packages/design-system/assets/raster/news-list-v1/runtime/2x/news-list-terminal-medallion.default.png --out packages/design-system/assets/raster/news-list-v1/runtime/1x/news-list-terminal-medallion.default.png"
       ],

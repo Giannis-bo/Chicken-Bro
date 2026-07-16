@@ -3,7 +3,7 @@
   "route": "build_intel",
   "authority": "canonical_target",
   "source": {
-    "path": "/Users/heyesheng/Documents/code/github/wow_mini_program/artifacts/ui-visual-targets/current/build-intel.png",
+    "path": "artifacts/ui-visual-targets/current/build-intel.png",
     "width": 863,
     "height": 1823,
     "sha256": "3ce09b5ba6bb385cf0da65e25f762e9099b28cbd5d984e89dfdf21c28741eae1"

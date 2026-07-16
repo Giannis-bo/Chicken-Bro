@@ -42,6 +42,7 @@ const expectedContractRoutes = [
   'tasks-list',
   'workbench',
 ]
+const expectedBaselineRoutes = ['news_home', 'simulator_home', 'news_detail']
 const requiredContractFiles = [
   'asset-contract.json',
   'component-contract.json',
@@ -88,10 +89,37 @@ record(
 )
 
 const targetRegistry = JSON.parse(read('docs/design/current-ui/target-registry.json'))
+const evidencePolicy = JSON.parse(read('docs/design/current-ui/active-evidence-policy.json'))
 record(
   'target_registry_is_active_and_complete',
   targetRegistry.status === 'active' && targetRegistry.canonicalTargets?.length === 14,
   `status=${targetRegistry.status}; targets=${targetRegistry.canonicalTargets?.length ?? 0}`,
+)
+record(
+  'target_registry_matches_runtime_baseline_contract',
+  JSON.stringify(targetRegistry.baselineRoutes) === JSON.stringify(expectedBaselineRoutes),
+  `baselines=${(targetRegistry.baselineRoutes ?? []).join(',')}`,
+)
+
+const currentPlanFiles = sorted(fs.readdirSync(path.join(root, 'docs/plans')).filter((name) => fs.statSync(path.join(root, 'docs/plans', name)).isFile()))
+record(
+  'current_plan_set_matches_evidence_policy',
+  JSON.stringify(currentPlanFiles) === JSON.stringify(sorted(evidencePolicy.allowedPlanFiles ?? [])),
+  `plans=${currentPlanFiles.join(',')}`,
+)
+const presentForbiddenPaths = (evidencePolicy.requiredAbsentPaths ?? []).filter((relativePath) => fs.existsSync(path.join(root, relativePath)))
+record(
+  'superseded_ui_control_paths_are_absent',
+  presentForbiddenPaths.length === 0,
+  presentForbiddenPaths.join(', ') || 'none',
+)
+const currentUiArtifactRoots = sorted(fs.readdirSync(path.join(root, 'artifacts'), { withFileTypes: true })
+  .filter((entry) => entry.isDirectory() && entry.name !== 'releases')
+  .map((entry) => entry.name))
+record(
+  'current_ui_artifact_roots_match_evidence_policy',
+  JSON.stringify(currentUiArtifactRoots) === JSON.stringify(sorted(evidencePolicy.allowedArtifactRoots ?? [])),
+  `artifactRoots=${currentUiArtifactRoots.join(',')}`,
 )
 
 const contractsRoot = path.join(root, 'docs/design/current-ui/routes')
@@ -118,7 +146,7 @@ for (const route of expectedContractRoutes) {
 
 const requiredAuthorities = [
   'docs/roadmap.md',
-  'docs/plans/2026-07-14-target-first-14-route-rebuild.md',
+  'docs/plans/ui-reconstruction.md',
   'DESIGN.md',
   'docs/design/current-ui/README.md',
 ]
@@ -131,6 +159,9 @@ record('route_styles_do_not_own_app_shell', deadShellRules.length === 0, deadShe
 
 const routeSafeAreaOwners = routeSources.filter((file) => /--(?:safe-top|safe-bottom|capsule-safe-right)\b/.test(read(file)))
 record('route_styles_do_not_recompute_safe_area', routeSafeAreaOwners.length === 0, routeSafeAreaOwners.join(', ') || 'none')
+
+const routeHeaderGeometryOwners = routeStyles.filter((file) => /\[data-region=['"]top_bar['"]\]/u.test(read(file)))
+record('route_styles_do_not_own_page_frame_geometry', routeHeaderGeometryOwners.length === 0, routeHeaderGeometryOwners.join(', ') || 'none')
 
 const deprecatedAppShellProps = []
 for (const file of routeComponents) {
@@ -155,6 +186,24 @@ const componentSources = walk('packages/design-system/src', ['.ts', '.tsx'])
 const rawButtonOwners = componentSources.filter((file) => file !== 'packages/design-system/src/components/ControlButton.tsx' && /<Button\b/.test(read(file)))
 record('native_button_has_one_shared_owner', rawButtonOwners.length === 0, rawButtonOwners.join(', ') || 'ControlButton only')
 
+const currentUiRecords = [
+  ...walk('docs/design/current-ui', ['.json', '.md']),
+  ...walk('packages/design-system/assets', ['.json', '.md']),
+]
+const nonPortableCurrentUiRecords = currentUiRecords.filter((file) => /(?:\/Users\/|[A-Z]:\\Users\\)/u.test(read(file)))
+record(
+  'current_ui_records_use_portable_paths',
+  nonPortableCurrentUiRecords.length === 0,
+  nonPortableCurrentUiRecords.join(', ') || 'none',
+)
+
+const requestDomainAudit = read('scripts/audit-taro-request-domain.js')
+record(
+  'request_domain_audit_is_report_only_by_default',
+  !requestDomainAudit.includes('writeFileSync') && !requestDomainAudit.includes('artifacts/current-ui'),
+  'runtime audits must not create unregistered repository artifacts',
+)
+
 const reconstructionPath = 'packages/design-system/src/components/reconstruction.module.scss'
 const reconstruction = read(reconstructionPath)
 const legacyChromeSelector = /\.(?:pageFrame|pageHeader|pageCenteredTitle|pageHeaderLeading|pageHeaderAction|pageHeaderFlexSpacer|pageRootContext|sharedBack|pushedBack|titleRail|newsPushedTitleRail)\b/
@@ -175,6 +224,109 @@ record(
   ['news-home', 'builds-home', 'simulator-home', 'profile'].every((variant) => pageChrome.includes(`'${variant}'`))
     && ownerStyles.includes('.pageFrame-root .pageFrameHeader'),
   'root variants or root owner missing',
+)
+
+const designTokenStyles = read('packages/design-system/src/tokens.scss')
+const designTokenSource = read('packages/design-system/src/tokens.ts')
+const tabBarStyles = read('packages/design-system/src/components/TabBar.module.scss')
+const buildsComponentContract = JSON.parse(read('docs/design/current-ui/routes/builds-home/component-contract.json'))
+const sharedTabBarHeight = Number(designTokenStyles.match(/--tabbar-height:\s*([\d.]+)px/)?.[1])
+const isolatedTabBarHeight = Number(tabBarStyles.match(/--route-tabbar-control-height:\s*([\d.]+)px/)?.[1])
+const typedTabBarHeight = Number(designTokenSource.match(/tabBarHeight:\s*([\d.]+)/)?.[1])
+const sharedTabBarIcon = Number(designTokenStyles.match(/--tabbar-icon:\s*([\d.]+)px/)?.[1])
+const isolatedTabBarIcon = Number(tabBarStyles.match(/--tabbar-icon:\s*([\d.]+)px/)?.[1])
+const typedTabBarIcon = Number(designTokenSource.match(/tabBarIcon:\s*([\d.]+)/)?.[1])
+const targetTabBarHeight = Number(buildsComponentContract.layoutContract?.regionHeightsCssPx?.product_tab_bar_target_scaled)
+const contractTabBarHeight = Number(buildsComponentContract.layoutContract?.regionHeightsCssPx?.product_tab_bar_shared)
+record(
+  'product_tab_bar_uses_one_target_sized_metric',
+  [isolatedTabBarHeight, typedTabBarHeight, contractTabBarHeight].every((value) => value === sharedTabBarHeight)
+    && [isolatedTabBarIcon, typedTabBarIcon].every((value) => value === sharedTabBarIcon)
+    && Math.abs(sharedTabBarHeight - targetTabBarHeight) <= 0.5,
+  `height=${sharedTabBarHeight}/${isolatedTabBarHeight}/${typedTabBarHeight}/${contractTabBarHeight}; target=${targetTabBarHeight}; icon=${sharedTabBarIcon}/${isolatedTabBarIcon}/${typedTabBarIcon}`,
+)
+
+const buildsOverview = read('packages/design-system/src/components/BuildSpecializationOverview.tsx')
+const buildsOverviewStyles = read('packages/design-system/src/components/BuildsHomeComponents.module.scss')
+const buildsAssetContract = JSON.parse(read('docs/design/current-ui/routes/builds-home/asset-contract.json'))
+const specializationObjectSlot = buildsAssetContract.slots?.find((slot) => slot.slotId === 'asset_slot.builds-specialization-object')
+const specializationRuntimeCrop = specializationObjectSlot?.runtimeCrop
+record(
+  'builds_specialization_icon_honors_fill_contract',
+  specializationObjectSlot?.targetAspect.includes('aspectFill')
+    && specializationRuntimeCrop?.fit === 'aspectFill'
+    && specializationRuntimeCrop?.scale >= 1
+    && buildsOverview.includes('mode="aspectFill"')
+    && /\.specializationImage\s*\{[^}]*object-fit:\s*cover;/s.test(buildsOverviewStyles)
+    && /\.specializationImage\s*\{[^}]*inset:\s*0;[^}]*display:\s*block;[^}]*width:\s*100%;[^}]*height:\s*100%;/s.test(buildsOverviewStyles)
+    && !/\.specializationImage\s*\{[^}]*(?:border-radius|overflow|transform):/s.test(buildsOverviewStyles),
+  'specialization object must fill the parent-owned circular viewport without a second native-image crop layer',
+)
+
+const gameObjectIcon = read('packages/design-system/src/components/GameObjectIcon.tsx')
+const workbenchComponents = read('packages/design-system/src/components/WorkbenchComponents.tsx')
+const workbenchStyles = read('packages/design-system/src/components/WorkbenchComponents.module.scss')
+const workbenchComponentContract = JSON.parse(read('docs/design/current-ui/routes/workbench/component-contract.json'))
+const workbenchSpecSummaryContract = workbenchComponentContract.components?.find((component) => component.owner === 'WorkbenchSpecSummary')?.contract
+record(
+  'game_object_icon_owns_a_nonzero_fill_box',
+  gameObjectIcon.includes('mode="aspectFill"')
+    && /\.objectIcon\s*\{[^}]*place-items:\s*center;/s.test(ownerStyles)
+    && /\.objectImage\s*\{[^}]*position:\s*absolute;[^}]*inset:\s*0;[^}]*display:\s*block;[^}]*width:\s*100%;[^}]*height:\s*100%;[^}]*object-fit:\s*cover;/s.test(ownerStyles),
+  'trusted runtime object images must fill their owner instead of collapsing to a zero-sized grid item',
+)
+record(
+  'workbench_picker_affordances_have_distinct_visual_owners',
+  workbenchComponents.includes("data-role=\"workbench-scenario-picker\"")
+    && workbenchComponents.includes("data-role=\"workbench-specialization-picker\"")
+    && /\.scenarioControl\s*\{[^}]*width:\s*max-content;[^}]*max-width:\s*100%;[^}]*justify-self:\s*start;/s.test(workbenchStyles)
+    && workbenchSpecSummaryContract?.interactions?.some((interaction) => interaction.includes('single trailing right chevron'))
+    && workbenchSpecSummaryContract?.interactions?.some((interaction) => interaction.includes('down chevron adjacent')),
+  'scenario disclosure stays beside scenario copy; only specialization selection owns the trailing card chevron',
+)
+
+const sharedPageFrame = read('packages/design-system/src/components/PageFrame.tsx')
+const pageFrameStyles = read('packages/design-system/src/components/owners.module.scss')
+record(
+  'pushed_action_header_preserves_back_and_title_geometry',
+  sharedPageFrame.includes("labeledBack && ownerStyle('pageFrameBackControlLabeled')")
+    && sharedPageFrame.includes("labeledBack && ownerStyle('pageFrameBackButtonLabeled')")
+    && pageFrameStyles.includes('.pageFrame-pushed-action .pageFrameHeaderTitle { display: block; }')
+    && pageFrameStyles.includes('.pageFrame-pushed-action .pageFrameTitleRail { display: none; }')
+    && !pageFrameStyles.includes('.pageFrame-pushed-action .pageFrameBackControl { width: 68px; }'),
+  'pushed action headers must not offset an icon-only back glyph or truncate the centered title with ornament rails',
+)
+
+const gearDetailPage = read('apps/mini-taro/src/pages/builds/detail.tsx')
+const gearDetailModel = read('apps/mini-taro/src/pages/builds/gear-detail-model.ts')
+const gearDetailComponents = read('packages/design-system/src/components/GearDetailComponents.tsx')
+const gearTruthContract = JSON.parse(read('docs/design/current-ui/routes/gear-detail/truth-adaptation.json'))
+const gearCandidateSelection = /const chooseCandidate[\s\S]*?const chooseEnhancement/u.exec(gearDetailPage)?.[0] ?? ''
+record(
+  'gear_detail_consumes_current_backend_contracts',
+  ['gearResolve(', 'communityTemplateImport(', 'gearStatSnapshot('].every((call) => gearDetailPage.includes(call))
+    && ['websim.gearResolve', 'websim.gearCommunityImport', 'websim.gearStatSnapshots'].every((endpoint) => gearTruthContract.runtimeFacts?.endpoints?.includes(endpoint)),
+  'Taro gear detail or truth contract is missing a resolver/import/snapshot consumer',
+)
+record(
+  'gear_detail_consumes_backend_owned_display_facts',
+  gearDetailModel.includes("item['primaryStatKey']")
+    && gearDetailModel.includes("item['equipmentBadges']")
+    && gearDetailModel.includes('weaponTypeLabels')
+    && gearDetailModel.includes('candidateBadgeLabels')
+    && !gearDetailModel.includes('primaryStatKeyForSpec')
+    && !gearDetailModel.includes("item['uniqueEquipped']")
+    && gearDetailComponents.includes('gear-candidate-badges'),
+  'Taro must localize backend display facts without recreating specialization or equipment rules',
+)
+record(
+  'gear_candidate_selection_closes_before_resolution',
+  gearCandidateSelection.includes('setCandidateOpen(false)')
+    && gearCandidateSelection.includes('setEquipped(nextEquipped)')
+    && gearCandidateSelection.includes('await resolveSelection(nextEquipped, nextEnhancements)')
+    && gearCandidateSelection.indexOf('setCandidateOpen(false)') < gearCandidateSelection.indexOf('await resolveSelection(nextEquipped, nextEnhancements)')
+    && gearCandidateSelection.indexOf('setEquipped(nextEquipped)') < gearCandidateSelection.indexOf('await resolveSelection(nextEquipped, nextEnhancements)'),
+  'candidate clicks must close the panel and persist the local draft before asynchronous backend verification',
 )
 
 const babelConfig = read('apps/mini-taro/babel.config.cjs')

@@ -83,6 +83,48 @@ describe('gear detail truth model', () => {
     ])
   })
 
+  it('localizes backend-owned primary stats and equipment badges', () => {
+    const candidate: GearItemReference = {
+      ...readyItem,
+      weaponType: 'staff',
+      primaryStatKey: 'intellect',
+      equipmentBadges: [{ key: 'weapon_handedness', label: '双手' }],
+      itemStats: [
+        { key: 'agi_int', value: 124 },
+        { key: 'haste_rating', value: 77 },
+      ],
+    }
+    expect(gearCandidates([candidate])[0]).toMatchObject({
+      statSummary: '智力 124；急速 77',
+      badgeLabels: ['双手'],
+    })
+  })
+
+  it('does not recreate missing equipment badges from raw weapon fields', () => {
+    expect(gearCandidates([{ ...readyItem, weaponType: 'staff', uniqueEquipped: true }])[0]?.badgeLabels).toEqual([])
+  })
+
+  it('labels weapon slots by the selected item type', () => {
+    const slots = gearSlots(payload(), {
+      main_hand: { ...readyItem, weaponType: 'staff' },
+      off_hand: { ...readyItem, weaponType: 'shield' },
+    }, '')
+    expect(slots.find((slot) => slot.slot === 'main_hand')?.label).toBe('法杖')
+    expect(slots.find((slot) => slot.slot === 'off_hand')?.label).toBe('盾牌')
+  })
+
+  it('matches rating aliases in verified stat snapshots', () => {
+    const stats = {
+      ...payload().statSnapshot,
+      statStatus: 'verified',
+      primary: { key: 'intellect', label: 'Intellect', value: '12,345' },
+      secondary: [{ key: 'critical_strike_rating', label: 'Critical Strike Rating', value: 678 }],
+    }
+    const readiness = gearReadiness({ head: readyItem }, stats, 'ready')
+    expect(readiness.metrics[0]).toMatchObject({ label: '智力', value: '12,345', verified: true })
+    expect(readiness.metrics[2]).toMatchObject({ label: '暴击', value: '678', verified: true })
+  })
+
   it('summarizes only returned enhancement options', () => {
     const item: GearItemReference = {
       ...readyItem,

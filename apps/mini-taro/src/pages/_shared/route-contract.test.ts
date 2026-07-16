@@ -41,7 +41,7 @@ describe('Taro source route contract', () => {
       }[]
     }
     expect(registry.status).toBe('active')
-    expect(registry.authority).toBe('docs/plans/2026-07-14-target-first-14-route-rebuild.md')
+    expect(registry.authority).toBe('docs/plans/ui-reconstruction.md')
     expect(registry.targetRoot).toBe('artifacts/ui-visual-targets/current')
     expect(registry.canonicalTargets).toHaveLength(routePolicy.registeredRouteCount)
     expect(new Set(registry.canonicalTargets.map((target) => target.route)).size).toBe(routePolicy.registeredRouteCount)

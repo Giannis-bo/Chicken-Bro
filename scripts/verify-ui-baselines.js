@@ -53,9 +53,9 @@ async function main() {
     const systemInfo = await timeout(miniProgram.systemInfo(), operationTimeoutMs, 'systemInfo')
     const baselines = []
     for (const baseline of [
-      { id: 'news_home', url: '/pages/news/news', chrome: 'root' },
-      { id: 'simulator_home', url: '/pages/simulator/simulator', chrome: 'root' },
-      { id: 'news_detail', url: '/pages/news/detail?id=architecture-preflight', chrome: 'pushed' },
+      { id: 'news_home', url: '/pages/news/news', chrome: 'root', headerInset: 0 },
+      { id: 'simulator_home', url: '/pages/simulator/simulator', chrome: 'root', headerInset: 0 },
+      { id: 'news_detail', url: '/pages/news/detail?id=architecture-preflight', chrome: 'pushed', headerInset: 6.77 },
     ]) {
       baselines.push({ ...baseline, ...await measure(miniProgram, baseline) })
     }
@@ -67,7 +67,8 @@ async function main() {
         continue
       }
       if (!closeTo(baseline.shell.size.width, systemInfo.windowWidth)) failures.push(`${baseline.id}: shell width drift`)
-      if (!closeTo(baseline.header.size.width, systemInfo.windowWidth)) failures.push(`${baseline.id}: header width drift`)
+      if (!closeTo(baseline.header.offset.left, baseline.headerInset)) failures.push(`${baseline.id}: header leading inset drift`)
+      if (!closeTo(baseline.header.size.width, systemInfo.windowWidth - baseline.headerInset * 2)) failures.push(`${baseline.id}: header width drift`)
       if (baseline.header.offset.top < systemInfo.safeArea.top || baseline.header.offset.top > systemInfo.safeArea.top + 5) {
         failures.push(`${baseline.id}: header safe-area origin drift`)
       }

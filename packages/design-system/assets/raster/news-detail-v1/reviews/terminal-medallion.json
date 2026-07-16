@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "assetId": "news-detail-terminal-medallion.default",
-  "reviewedPath": "/Users/heyesheng/Documents/code/github/wow_mini_program/packages/design-system/assets/raster/news-detail-v1/runtime/2x/news-detail-terminal-medallion.default.png",
-  "reviewedVisualSourcePath": "/Users/heyesheng/.codex/generated_images/019f6450-b00e-7603-bf38-d2948ad2d0b6/exec-5f974135-78cf-40df-adb8-aea75d9f6642.png",
+  "reviewedPath": "packages/design-system/assets/raster/news-detail-v1/runtime/2x/news-detail-terminal-medallion.default.png",
+  "reviewedVisualSourcePath": "local-generation-output-not-retained",
   "reviewContext": "disposable_isolated_single_asset",
   "verdict": "pass_for_canary",
   "summary": "45 度菱形轮廓、暗青铜宽面和暖金双细边在 40x40 光学盒中清楚，中心菱形孔完全留空；未内置文字、状态结论、感叹号、勾叉或其他事实符号，适合作为终态候选壳。",

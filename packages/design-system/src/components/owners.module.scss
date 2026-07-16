@@ -370,7 +370,7 @@
   flex: 0 0 auto;
   width: var(--object-size, 44px);
   height: var(--object-size, 44px);
-  place-content: center;
+  place-items: center;
   overflow: hidden;
   border: 1px solid var(--wow-line-brass-dim);
   border-radius: var(--radius-sm);
@@ -381,15 +381,25 @@
 
 .objectIconRound { border-radius: 50%; }
 
-.objectImage { width: 100%; height: 100%; }
+.objectImage {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
 
 .objectPlaceholder {
+  position: relative;
+  z-index: 1;
   font-size: 12px;
   font-weight: 700;
 }
 
 .objectSourceMarker {
   position: absolute;
+  z-index: 2;
   right: 2px;
   bottom: 2px;
   width: 6px;
@@ -834,6 +844,22 @@
 .pageFrame-pushed .pageFrameHeader { grid-template-columns: 40px minmax(0, 1fr) 40px; }
 .pageFrame-pushed-action .pageFrameHeader { grid-template-columns: 76px minmax(0, 1fr) 76px; }
 .pageFrame-chat .pageFrameHeader { height: 48px; min-height: 48px; grid-template-columns: 40px minmax(0, 1fr) 1px; }
+.pageFrameOwner[data-variant='news-list'] .pageFrameHeader,
+.pageFrameOwner[data-variant='news-detail'] .pageFrameHeader {
+  width: calc(100% - 13.54px);
+  margin-right: 6.77px;
+  margin-left: 6.77px;
+}
+.pageFrameOwner[data-variant='build-intel'] .pageFrameHeader {
+  width: 100%;
+  height: 50.61px;
+  min-height: 50.61px;
+  border: 0;
+  border-bottom: 1px solid rgba(134, 100, 52, 0.48);
+  border-radius: 0;
+  background: rgba(8, 10, 12, 0.98);
+  box-shadow: none;
+}
 
 .pageFrameHeaderLeading,
 .pageFrameHeaderAction,
@@ -868,6 +894,8 @@
 .pageFrame-root .pageFrameTitleText { font-size: 20px; line-height: 26px; text-align: left; }
 .pageFrame-chat .pageFrameHeaderTitle { display: block; }
 .pageFrame-chat .pageFrameHeaderTitle .pageFrameTitleText { text-align: left; }
+.pageFrame-pushed-action .pageFrameHeaderTitle { display: block; }
+.pageFrame-pushed-action .pageFrameTitleRail { display: none; }
 
 .pageFrameTitleRail { position: relative; width: 100%; height: 12px; opacity: 0.62; }
 .pageFrameTitleRail::before { position: absolute; top: 50%; right: 1px; left: 1px; height: 1px; content: ''; }
@@ -880,5 +908,5 @@
 .pageFrameBackButton { position: relative; z-index: 1; width: 34px; min-width: 34px; height: 34px; min-height: 34px; padding: 0; }
 .pageFrameBackGlyph { width: 18px; height: 18px; transform: rotate(180deg); }
 .pageFrameBackLabel { margin-left: 3px; font-size: 10px; line-height: 14px; }
-.pageFrame-pushed-action .pageFrameBackControl { width: 68px; }
-.pageFrame-pushed-action .pageFrameBackButton { width: auto; min-width: 34px; padding: 0 7px; }
+.pageFrameBackControlLabeled { width: 68px; }
+.pageFrameBackButtonLabeled { width: auto; min-width: 34px; padding: 0 7px; }

@@ -3,7 +3,7 @@
   "route": "chickenbro_chat",
   "authority": "canonical_target",
   "source": {
-    "path": "/Users/heyesheng/Documents/code/github/wow_mini_program/artifacts/ui-visual-targets/current/chickenbro-chat.png",
+    "path": "artifacts/ui-visual-targets/current/chickenbro-chat.png",
     "width": 853,
     "height": 1844,
     "bytes": 1890187,

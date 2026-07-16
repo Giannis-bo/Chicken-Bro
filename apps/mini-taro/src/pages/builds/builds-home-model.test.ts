@@ -100,6 +100,11 @@ describe('builds home target model', () => {
 
     expect(model.specialization.identity?.verified).toBe(true)
     expect(model.specialization.identity?.trust.level).toBe('source_referenced')
+    expect(model.specialization.identity).toMatchObject({
+      objectType: 'spec',
+      objectId: '法师-冰霜',
+      iconUrl: 'https://wow.zamimg.com/images/wow/icons/large/spell_frost_frostbolt02.jpg',
+    })
     expect(model.specialization.sourceLabel).toBe('Archon · 2026-06-09')
   })
 

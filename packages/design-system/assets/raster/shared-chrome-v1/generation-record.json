@@ -7,7 +7,7 @@
   "builtInImagegenCallCount": 4,
   "iterationCallCount": 0,
   "referencePolicy": {
-    "referencePath": "/Users/heyesheng/Documents/code/github/wow_mini_program/artifacts/ui-visual-targets/current/simulator-home.png",
+    "referencePath": "artifacts/ui-visual-targets/current/simulator-home.png",
     "viewCount": 1,
     "role": "non-factual material language only",
     "targetPixelsCopiedOrCropped": false,
@@ -15,7 +15,7 @@
     "otherTargetOrRuntimeImagesRead": false
   },
   "processingEnvironment": {
-    "chromaRemoval": "/Users/heyesheng/.codex/skills/.system/imagegen/scripts/remove_chroma_key.py",
+    "chromaRemoval": "imagegen/remove_chroma_key.py",
     "chromaRemovalInterpreter": "python3",
     "chromaRemovalArguments": "--auto-key border --soft-matte --transparent-threshold 12 --opaque-threshold 220 --despill",
     "mechanicalTransformTool": "/usr/bin/sips",
@@ -33,7 +33,7 @@
       ],
       "status": "generated_pending_independent_isolated_review",
       "sourceClass": "imagegen_raster",
-      "builtInSavedPath": "/Users/heyesheng/.codex/generated_images/019f6396-3539-7681-bd52-af5f1a3e35ff/exec-7a66d396-e240-46e0-b682-d387a6de1961.png",
+      "builtInSavedPath": "local-generation-output-not-retained",
       "prompt": "Use case: stylized-concept\nAsset type: single reusable game UI chrome raster asset\nPrimary request: Create one square 90-degree page corner bracket, intended as the top-left corner and designed so the same asset can be mirrored or rotated for all four corners.\nSubject: A thick but restrained L-shaped forged dark-iron corner fitting with equal horizontal and vertical arms, a low-saturation aged-gold edge, subtle layered bevels, and very light believable wear. The interior opening and all space outside the bracket must remain background. No separate pieces.\nStyle/medium: crisp high-detail game UI material render; dark stone-like forged iron base; restrained antique gold trim; sharp readable edge hierarchy; no blur.\nComposition/framing: exactly one centered square corner fitting with generous even padding; orthographic front view; perfectly flat, no perspective; arms meet at a clean 90-degree corner; silhouette must be suitable for rotation and mirroring.\nLighting/mood: controlled neutral frontal lighting, restrained highlights only.\nColor palette: charcoal and near-black iron, muted old gold; do not use bright yellow or #00ff00 in the subject.\nMaterials/textures: fine forged metal and dark stone texture, subtle scratches, layered bevel; no engraved characters.\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for background removal.\nConstraints: the background must be one uniform #00ff00 color with no shadows, gradients, texture, reflections, floor plane, or lighting variation. Keep the opaque subject fully separated from the background with crisp edges. No cast shadow, contact shadow, glow, reflection, watermark, border frame, text, numbers, letters, icons, symbols, crests, faces, weapons, gems, or rivets shaped like glyphs. Do not reproduce any factual UI content.",
       "source": {
         "path": "packages/design-system/assets/raster/shared-chrome-v1/sources/shared-page-corner.default.png",
@@ -54,8 +54,8 @@
         "totalPixels": 1572516
       },
       "processingCommands": [
-        "cp /Users/heyesheng/.codex/generated_images/019f6396-3539-7681-bd52-af5f1a3e35ff/exec-7a66d396-e240-46e0-b682-d387a6de1961.png packages/design-system/assets/raster/shared-chrome-v1/sources/shared-page-corner.default.png",
-        "python3 /Users/heyesheng/.codex/skills/.system/imagegen/scripts/remove_chroma_key.py --input packages/design-system/assets/raster/shared-chrome-v1/sources/shared-page-corner.default.png --out packages/design-system/assets/raster/shared-chrome-v1/masters/shared-page-corner.default.png --auto-key border --soft-matte --transparent-threshold 12 --opaque-threshold 220 --despill",
+        "cp local-generation-output-not-retained packages/design-system/assets/raster/shared-chrome-v1/sources/shared-page-corner.default.png",
+        "python3 imagegen/remove_chroma_key.py --input packages/design-system/assets/raster/shared-chrome-v1/sources/shared-page-corner.default.png --out packages/design-system/assets/raster/shared-chrome-v1/masters/shared-page-corner.default.png --auto-key border --soft-matte --transparent-threshold 12 --opaque-threshold 220 --despill",
         "sips -z 112 112 packages/design-system/assets/raster/shared-chrome-v1/masters/shared-page-corner.default.png --out packages/design-system/assets/raster/shared-chrome-v1/runtime/2x/shared-page-corner.default.png",
         "sips -z 56 56 packages/design-system/assets/raster/shared-chrome-v1/runtime/2x/shared-page-corner.default.png --out packages/design-system/assets/raster/shared-chrome-v1/runtime/1x/shared-page-corner.default.png"
       ],
@@ -91,7 +91,7 @@
       ],
       "status": "generated_pending_independent_isolated_review",
       "sourceClass": "imagegen_raster",
-      "builtInSavedPath": "/Users/heyesheng/.codex/generated_images/019f6396-3539-7681-bd52-af5f1a3e35ff/exec-c60e6b66-2ca3-4f45-a270-46e08fb0ef6d.png",
+      "builtInSavedPath": "local-generation-output-not-retained",
       "prompt": "Use case: stylized-concept\nAsset type: single reusable repeat-y game UI chrome raster asset\nPrimary request: Create one narrow vertical forged-metal page side rail segment that can tile seamlessly along the Y axis.\nSubject: A single slim dark-iron rail with a low-saturation aged-gold edge, subtle layered bevels, and very light wear. The rail is center-symmetric left-to-right. Its top and bottom cut edges must have exactly the same cross-section, width, color, lighting, texture scale, and alignment so repeated copies join continuously with no cap, flare, notch, seam, or phase change.\nStyle/medium: crisp high-detail game UI material render; dark stone-like forged iron base; restrained antique gold trim; sharp readable edge hierarchy; no blur.\nComposition/framing: exactly one narrow vertical rail centered on the canvas, orthographic front view, no perspective. It runs continuously from the exact top edge to the exact bottom edge. Keep broad empty background on both sides. No top cap and no bottom cap.\nLighting/mood: controlled neutral frontal lighting, vertically uniform, restrained highlights only.\nColor palette: charcoal and near-black iron, muted old gold; do not use bright yellow or #00ff00 in the subject.\nMaterials/textures: fine forged metal and dark stone texture, subtle scratches and layered bevel; texture should not create a visible tile seam.\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for background removal.\nConstraints: the background must be one uniform #00ff00 color with no shadows, gradients, texture, reflections, floor plane, or lighting variation. Subject edges must be crisp. No cast shadow, contact shadow, glow, reflection, watermark, text, numbers, letters, icons, symbols, crests, faces, weapons, gems, ornaments, crossbars, end caps, or rivets shaped like glyphs. Do not reproduce any factual UI content.",
       "source": {
         "path": "packages/design-system/assets/raster/shared-chrome-v1/sources/shared-page-side-rail.default.png",
@@ -112,8 +112,8 @@
         "totalPixels": 1572519
       },
       "processingCommands": [
-        "cp /Users/heyesheng/.codex/generated_images/019f6396-3539-7681-bd52-af5f1a3e35ff/exec-c60e6b66-2ca3-4f45-a270-46e08fb0ef6d.png packages/design-system/assets/raster/shared-chrome-v1/sources/shared-page-side-rail.default.png",
-        "python3 /Users/heyesheng/.codex/skills/.system/imagegen/scripts/remove_chroma_key.py --input packages/design-system/assets/raster/shared-chrome-v1/sources/shared-page-side-rail.default.png --out packages/design-system/assets/raster/shared-chrome-v1/masters/shared-page-side-rail.default.png --auto-key border --soft-matte --transparent-threshold 12 --opaque-threshold 220 --despill",
+        "cp local-generation-output-not-retained packages/design-system/assets/raster/shared-chrome-v1/sources/shared-page-side-rail.default.png",
+        "python3 imagegen/remove_chroma_key.py --input packages/design-system/assets/raster/shared-chrome-v1/sources/shared-page-side-rail.default.png --out packages/design-system/assets/raster/shared-chrome-v1/masters/shared-page-side-rail.default.png --auto-key border --soft-matte --transparent-threshold 12 --opaque-threshold 220 --despill",
         "sips -c 1983 186 packages/design-system/assets/raster/shared-chrome-v1/masters/shared-page-side-rail.default.png --out packages/design-system/assets/raster/shared-chrome-v1/.work/shared-page-side-rail.crop.png",
         "sips -z 256 24 packages/design-system/assets/raster/shared-chrome-v1/.work/shared-page-side-rail.crop.png --out packages/design-system/assets/raster/shared-chrome-v1/runtime/2x/shared-page-side-rail.default.png",
         "sips -z 128 12 packages/design-system/assets/raster/shared-chrome-v1/runtime/2x/shared-page-side-rail.default.png --out packages/design-system/assets/raster/shared-chrome-v1/runtime/1x/shared-page-side-rail.default.png"
@@ -154,7 +154,7 @@
       ],
       "status": "generated_pending_independent_isolated_review",
       "sourceClass": "imagegen_raster",
-      "builtInSavedPath": "/Users/heyesheng/.codex/generated_images/019f6396-3539-7681-bd52-af5f1a3e35ff/exec-eee2cf73-554e-46c0-ba8a-296e9c6a2e79.png",
+      "builtInSavedPath": "local-generation-output-not-retained",
       "prompt": "Use case: stylized-concept\nAsset type: single reusable mirrored game UI title ornament raster asset\nPrimary request: Create one left-side horizontal title rail ornament whose mirrored copy can serve as the right-side title rail.\nSubject: A single short forged dark-iron ornamental rail with a low-saturation aged-gold edge, subtle layered bevels, and very light wear. The right inner end is a clean restrained attachment edge near the title; the rail narrows gradually toward a fine but durable outer tip on the left. No central badge and no detached parts.\nStyle/medium: crisp high-detail game UI material render; dark stone-like forged iron base; restrained antique gold trim; sharp readable edge hierarchy; no blur.\nComposition/framing: exactly one horizontal ornament centered on the canvas with generous even padding; orthographic front view; perfectly flat, no perspective. Long and low profile. The silhouette must remain legible when reduced to 96x20 and must mirror cleanly.\nLighting/mood: controlled neutral frontal lighting, restrained highlights only.\nColor palette: charcoal and near-black iron, muted old gold; do not use bright yellow or #00ff00 in the subject.\nMaterials/textures: fine forged metal and dark stone texture, subtle scratches, layered bevel.\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for background removal.\nConstraints: the background must be one uniform #00ff00 color with no shadows, gradients, texture, reflections, floor plane, or lighting variation. Keep the subject fully separated from the background with crisp edges. No cast shadow, contact shadow, glow, reflection, watermark, text, numbers, letters, icons, symbols, crests, faces, weapons, gems, medallions, emblems, chevrons, arrows, or rivets shaped like glyphs. Do not reproduce any factual UI content.",
       "source": {
         "path": "packages/design-system/assets/raster/shared-chrome-v1/sources/title-ornament-family.left-rail.png",
@@ -175,8 +175,8 @@
         "totalPixels": 1572519
       },
       "processingCommands": [
-        "cp /Users/heyesheng/.codex/generated_images/019f6396-3539-7681-bd52-af5f1a3e35ff/exec-eee2cf73-554e-46c0-ba8a-296e9c6a2e79.png packages/design-system/assets/raster/shared-chrome-v1/sources/title-ornament-family.left-rail.png",
-        "python3 /Users/heyesheng/.codex/skills/.system/imagegen/scripts/remove_chroma_key.py --input packages/design-system/assets/raster/shared-chrome-v1/sources/title-ornament-family.left-rail.png --out packages/design-system/assets/raster/shared-chrome-v1/masters/title-ornament-family.left-rail.png --auto-key border --soft-matte --transparent-threshold 12 --opaque-threshold 220 --despill",
+        "cp local-generation-output-not-retained packages/design-system/assets/raster/shared-chrome-v1/sources/title-ornament-family.left-rail.png",
+        "python3 imagegen/remove_chroma_key.py --input packages/design-system/assets/raster/shared-chrome-v1/sources/title-ornament-family.left-rail.png --out packages/design-system/assets/raster/shared-chrome-v1/masters/title-ornament-family.left-rail.png --auto-key border --soft-matte --transparent-threshold 12 --opaque-threshold 220 --despill",
         "sips -c 413 1983 packages/design-system/assets/raster/shared-chrome-v1/masters/title-ornament-family.left-rail.png --out packages/design-system/assets/raster/shared-chrome-v1/.work/title-ornament-family.crop.png",
         "sips -z 40 192 packages/design-system/assets/raster/shared-chrome-v1/.work/title-ornament-family.crop.png --out packages/design-system/assets/raster/shared-chrome-v1/runtime/2x/title-ornament-family.left-rail.png",
         "sips -z 20 96 packages/design-system/assets/raster/shared-chrome-v1/runtime/2x/title-ornament-family.left-rail.png --out packages/design-system/assets/raster/shared-chrome-v1/runtime/1x/title-ornament-family.left-rail.png",
@@ -238,7 +238,7 @@
       ],
       "status": "generated_pending_independent_isolated_review",
       "sourceClass": "imagegen_raster",
-      "builtInSavedPath": "/Users/heyesheng/.codex/generated_images/019f6396-3539-7681-bd52-af5f1a3e35ff/exec-ecfeecd1-35d8-4c3b-980d-cc2cb8321417.png",
+      "builtInSavedPath": "local-generation-output-not-retained",
       "prompt": "Use case: stylized-concept\nAsset type: single reusable 44px game UI back-control socket shell raster asset\nPrimary request: Create one compact circular medallion socket shell for a back control. This is only the empty outer housing; the center must remain completely open and empty so a separate runtime arrow icon can be placed there.\nSubject: A restrained round ring-shaped socket shell in forged dark iron with a thin low-saturation aged-gold rim, subtle concentric layered bevels, and very light wear. The central opening is a large clean circular hole showing only the chroma-key background, with no inner plate, fill, highlight, texture, shadow, object, or mark.\nStyle/medium: crisp high-detail game UI material render; dark stone-like forged iron base; restrained antique gold trim; sharp readable edge hierarchy at 44px; no blur.\nComposition/framing: exactly one circular ring centered on a square canvas with generous even padding; orthographic front view; perfectly flat and face-on; rotationally balanced; no perspective. Keep the ring compact but sturdy.\nLighting/mood: controlled neutral frontal lighting, restrained highlights only.\nColor palette: charcoal and near-black iron, muted old gold; do not use bright yellow or #00ff00 in the subject.\nMaterials/textures: fine forged metal and dark stone texture, subtle scratches, layered bevel.\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for background removal, including the entire center hole.\nConstraints: the background and center hole must be one uniform #00ff00 color with no shadows, gradients, texture, reflections, floor plane, or lighting variation. Keep the shell fully separated from the background with crisp edges. No cast shadow, contact shadow, glow, reflection, watermark, text, numbers, letters, arrows, chevrons, icons, symbols, crests, faces, weapons, gems, inner disc, center plate, center texture, or rivets shaped like glyphs. Do not reproduce any factual UI content.",
       "source": {
         "path": "packages/design-system/assets/raster/shared-chrome-v1/sources/pushed-back-medallion.default.png",
@@ -259,8 +259,8 @@
         "totalPixels": 1572516
       },
       "processingCommands": [
-        "cp /Users/heyesheng/.codex/generated_images/019f6396-3539-7681-bd52-af5f1a3e35ff/exec-ecfeecd1-35d8-4c3b-980d-cc2cb8321417.png packages/design-system/assets/raster/shared-chrome-v1/sources/pushed-back-medallion.default.png",
-        "python3 /Users/heyesheng/.codex/skills/.system/imagegen/scripts/remove_chroma_key.py --input packages/design-system/assets/raster/shared-chrome-v1/sources/pushed-back-medallion.default.png --out packages/design-system/assets/raster/shared-chrome-v1/masters/pushed-back-medallion.default.png --auto-key border --soft-matte --transparent-threshold 12 --opaque-threshold 220 --despill",
+        "cp local-generation-output-not-retained packages/design-system/assets/raster/shared-chrome-v1/sources/pushed-back-medallion.default.png",
+        "python3 imagegen/remove_chroma_key.py --input packages/design-system/assets/raster/shared-chrome-v1/sources/pushed-back-medallion.default.png --out packages/design-system/assets/raster/shared-chrome-v1/masters/pushed-back-medallion.default.png --auto-key border --soft-matte --transparent-threshold 12 --opaque-threshold 220 --despill",
         "sips -z 88 88 packages/design-system/assets/raster/shared-chrome-v1/masters/pushed-back-medallion.default.png --out packages/design-system/assets/raster/shared-chrome-v1/runtime/2x/pushed-back-medallion.default.png",
         "sips -z 44 44 packages/design-system/assets/raster/shared-chrome-v1/runtime/2x/pushed-back-medallion.default.png --out packages/design-system/assets/raster/shared-chrome-v1/runtime/1x/pushed-back-medallion.default.png"
       ],

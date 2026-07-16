@@ -3,7 +3,7 @@
   "route": "SimC_submit",
   "authority": "canonical_target",
   "source": {
-    "path": "/Users/heyesheng/Documents/code/github/wow_mini_program/artifacts/ui-visual-targets/current/simc-submit.png",
+    "path": "artifacts/ui-visual-targets/current/simc-submit.png",
     "width": 862,
     "height": 1825,
     "nativeWidth": 862,

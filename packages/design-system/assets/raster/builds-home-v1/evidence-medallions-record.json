@@ -2,8 +2,8 @@
   "status": "generated_pending_isolated_review",
   "sourceGeneration": {
     "tool": "image_gen.imagegen",
-    "generatedPath": "/Users/heyesheng/.codex/generated_images/019f6160-1a14-7c90-972f-4e830578797e/exec-c609519c-c695-451d-a38e-2f18851120cf.png",
-    "referenceImage": "/Users/heyesheng/Documents/code/github/wow_mini_program/artifacts/ui-visual-targets/current/builds-home.png",
+    "generatedPath": "local-generation-output-not-retained",
+    "referenceImage": "artifacts/ui-visual-targets/current/builds-home.png",
     "prompt": "Use case stylized-concept; generate a clean 2x2 master sheet of four coordinated non-factual carved metal medallions for talents, gear, simulation, and tasks, matching the reference's near-black forged iron, antique gold edging and low-contrast relief; one centered round medallion per quadrant on perfectly uniform flat #00ff00 chroma-key background; no text, numbers, real WoW objects, official marks, player identity, watermark, shadows, reflections, or extra UI."
   },
   "sourceMaster": {

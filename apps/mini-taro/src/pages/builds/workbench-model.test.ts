@@ -14,6 +14,7 @@ function home(): BuildsHomePayload {
       name: '法师', websimClassKey: 'mage', specializations: [{
         id: '法师-冰霜', name: '冰霜', title: '冰霜法师', className: '法师', specName: '冰霜',
         websimClassKey: 'mage', websimSpecKey: 'frost', sourceName: 'Battle.net', sourceUrl: 'https://example.test/spec',
+        specIconUrl: 'https://wow.zamimg.com/images/wow/icons/large/spell_frost_frostbolt02.jpg',
       }],
     }],
   }
@@ -76,6 +77,16 @@ describe('current spec workbench truth model', () => {
     expect(model.modules.map((module) => module.title)).toEqual(['天赋', '装备', 'SimC', '队长'])
     expect(model.evidence.find((row) => row.id === 'talents')?.revisionLabel).toBe('天赋 v1')
     expect(model.evidence.find((row) => row.id === 'gear')?.revisionLabel).toBe('装备 v1')
+  })
+
+  it('keeps the selected specialization icon in the source-referenced identity', () => {
+    const model = buildCurrentSpecWorkbenchModel({ payload: payload(), routeState: 'ready', selectedSpecId: '法师-冰霜' })
+
+    expect(model.identity).toMatchObject({
+      verified: true,
+      iconUrl: 'https://wow.zamimg.com/images/wow/icons/large/spell_frost_frostbolt02.jpg',
+      trust: { level: 'source_referenced' },
+    })
   })
 
   it('keeps talent description gaps separate from SimC encoding readiness', () => {

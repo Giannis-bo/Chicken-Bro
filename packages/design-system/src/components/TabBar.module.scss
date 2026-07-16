@@ -2,10 +2,10 @@
   /* The native custom-tab-bar is a style-isolated WeChat component. Keep every
    * geometry token it needs on the component root instead of relying on page
    * custom-property inheritance. */
-  --route-tabbar-control-height: 71px;
+  --route-tabbar-control-height: 63px;
   --route-tabbar-height: calc(var(--route-tabbar-control-height) + var(--safe-bottom));
-  --tabbar-icon: 40px;
-  --tabbar-label: 13px;
+  --tabbar-icon: 35px;
+  --tabbar-label: 12px;
 
   position: fixed;
   z-index: 100;
@@ -49,7 +49,7 @@
   z-index: 2;
   display: grid;
   min-width: 0;
-  grid-template-rows: 44px 16px;
+  grid-template-rows: 39px 15px;
   height: var(--route-tabbar-control-height);
   align-content: center;
   justify-items: center;
@@ -124,7 +124,7 @@
   overflow: hidden;
   font-size: var(--tabbar-label);
   font-weight: 400;
-  line-height: 15px;
+  line-height: 14px;
   text-overflow: ellipsis;
   transform: none;
   white-space: nowrap;

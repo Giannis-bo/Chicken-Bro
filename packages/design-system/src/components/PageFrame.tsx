@@ -127,7 +127,10 @@ export function PageFrame({
         <View className={ownerStyle('pageFrameHeaderLeading')}>
           {pushed ? (
             <View
-              className={ownerStyle('pageFrameBackControl')}
+              className={ownerClass(
+                ownerStyle('pageFrameBackControl'),
+                labeledBack && ownerStyle('pageFrameBackControlLabeled'),
+              )}
               data-role="pushed-back-control"
               {...(backRegion ? { 'data-region': backRegion } : {})}
             >
@@ -139,7 +142,10 @@ export function PageFrame({
               />
               <ActionButton
                 ariaLabel="返回"
-                className={ownerStyle('pageFrameBackButton')}
+                className={ownerClass(
+                  ownerStyle('pageFrameBackButton'),
+                  labeledBack && ownerStyle('pageFrameBackButtonLabeled'),
+                )}
                 variant="ghost"
                 onClick={onBack}
               >

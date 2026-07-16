@@ -332,6 +332,7 @@ export interface GearWorkbenchCandidateItem {
   levelLabel: string
   sourceLabel: string
   statSummary: string
+  badgeLabels: readonly string[]
   iconUrl?: string | undefined
   state: 'ready' | 'partial' | 'blocked'
 }
@@ -508,7 +509,14 @@ export function GearSlotWorkbench({
                 >
                   <TrustedGearMedia className={style('candidateMedia')} iconUrl={item.iconUrl} label={item.label} />
                   <View className={style('candidateCopy')}>
-                    <Text data-role="gear-candidate-title">{item.label}</Text>
+                    <View className={style('candidateTitleRow')}>
+                      <Text data-role="gear-candidate-title">{item.label}</Text>
+                      {item.badgeLabels.length ? (
+                        <View className={style('candidateBadges')} data-role="gear-candidate-badges">
+                          {item.badgeLabels.slice(0, 2).map((label) => <Text key={label}>{label}</Text>)}
+                        </View>
+                      ) : null}
+                    </View>
                     <Text data-role="gear-candidate-meta">{item.levelLabel} · {item.statSummary}</Text>
                     <Text data-role="gear-candidate-source">{item.sourceLabel}</Text>
                   </View>

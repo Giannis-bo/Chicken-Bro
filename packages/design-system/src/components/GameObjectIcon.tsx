@@ -32,7 +32,7 @@ export function GameObjectIcon({
       {...(slotId ? { 'data-slot-id': slotId } : {})}
       {...(onClick ? { onClick } : {})}
     >
-      {canRender ? <Image className={ownerStyle('objectImage')} mode="aspectFit" src={object?.iconUrl ?? ''} /> : null}
+      {canRender ? <Image className={ownerStyle('objectImage')} mode="aspectFill" src={object?.iconUrl ?? ''} /> : null}
       {!canRender ? <Text className={ownerStyle('objectPlaceholder')}>{fallbackLabel.slice(0, 4)}</Text> : null}
       {canRender ? <View className={ownerStyle('objectSourceMarker')} /> : null}
     </View>

@@ -8,7 +8,6 @@ const net = require('node:net')
 const path = require('node:path')
 
 const root = path.resolve(__dirname, '..')
-const artifactPath = path.join(root, 'artifacts/current-ui/runtime-audits/request-domain-audit.json')
 const shouldProbe = process.argv.includes('--probe')
 const requireProductionReady = process.argv.includes('--require-production-ready')
 
@@ -72,7 +71,7 @@ async function main() {
     && productionUrl.hostname !== 'localhost',
   )
   const devtoolsDomainBypassCommitted = projectConfig.setting?.urlCheck === false
-  const productionReady = productionHttpsOrigin && approvedInWechatAdmin
+  const productionReady = productionHttpsOrigin && approvedInWechatAdmin && !devtoolsDomainBypassCommitted
   const probes = shouldProbe && developmentBaseUrl
     ? await Promise.all([
         probe(`${developmentBaseUrl}/api/data/health`),
@@ -120,7 +119,7 @@ async function main() {
   ]
   const report = {
     version: 'current-ui-request-domain-audit-v1',
-    authority: 'docs/plans/2026-07-14-target-first-14-route-rebuild.md',
+    authority: 'docs/plans/ui-reconstruction.md',
     checkedAt: new Date().toISOString(),
     status: productionReady ? 'pass' : 'partial',
     productionReady,
@@ -142,15 +141,7 @@ async function main() {
     },
     checks,
   }
-  fs.mkdirSync(path.dirname(artifactPath), { recursive: true })
-  fs.writeFileSync(artifactPath, `${JSON.stringify(report, null, 2)}\n`)
-  console.log(JSON.stringify({
-    status: report.status,
-    productionReady,
-    developmentProbeCount: probes.length,
-    failedProductionChecks: checks.filter((check) => check.scope === 'production_gate' && !check.pass).map((check) => check.id),
-    artifactPath,
-  }))
+  console.log(JSON.stringify(report, null, 2))
   if (requireProductionReady && !productionReady) process.exitCode = 1
 }
 

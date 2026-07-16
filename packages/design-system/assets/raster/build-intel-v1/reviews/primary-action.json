@@ -3,7 +3,7 @@
   "assetId": "build-intel-primary-action.default",
   "slotId": "asset_slot.build-intel-primary-action",
   "status": "candidate_pending_runtime_review",
-  "reviewedPath": "/Users/heyesheng/Documents/code/github/wow_mini_program/packages/design-system/assets/raster/build-intel-v1/runtime/2x/build-intel-primary-action.default.png",
+  "reviewedPath": "packages/design-system/assets/raster/build-intel-v1/runtime/2x/build-intel-primary-action.default.png",
   "reviewContext": "disposable_isolated_single_asset",
   "factBearing": false,
   "verdict": "pass_for_candidate_runtime_review",

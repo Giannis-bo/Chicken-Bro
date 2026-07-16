@@ -130,6 +130,26 @@ function routeReason(state: RouteDataState<unknown>): string {
   return ''
 }
 
+async function chooseActionSheetEntry<T>(
+  items: readonly T[],
+  labelFor: (item: T) => string,
+): Promise<T | null> {
+  for (let offset = 0; offset < items.length; offset += 5) {
+    const pageItems = items.slice(offset, offset + 5)
+    const hasMore = offset + pageItems.length < items.length
+    try {
+      const choice = await Taro.showActionSheet({
+        itemList: [...pageItems.map(labelFor), ...(hasMore ? ['更多选项…'] : [])],
+      })
+      if (hasMore && choice.tapIndex === pageItems.length) continue
+      return pageItems[choice.tapIndex] ?? null
+    } catch {
+      return null
+    }
+  }
+  return null
+}
+
 export default function GearDetailPage() {
   const router = useRouter()
   const queryMode = router.params['query'] || 'talents'
@@ -240,7 +260,11 @@ export default function GearDetailPage() {
   const slotViews = gearSlots(data?.gear, equipped, selectedSlot)
   const candidateViews = gearCandidates(candidates)
   const selectedCandidate = equipped[selectedSlot]
-  const readiness = gearReadiness(equipped, stats.payload, route.state.state)
+  const readiness = gearReadiness(
+    equipped,
+    stats.payload,
+    route.state.state,
+  )
   const enhancementGroups = gearEnhancementGroups(selectedCandidate, enhancements, selectedSlot).map((group) => {
     const compatibleSlotCount = slotViews.filter((slot) => gearEnhancementOptions(equipped[slot.slot], enhancements, slot.slot)
       .some((option) => option.kind === group.id)).length
@@ -294,10 +318,11 @@ export default function GearDetailPage() {
     const requestId = resolveRequestId.current + 1
     resolveRequestId.current = requestId
     statRequestId.current += 1
-    setCanonical((current) => {
-      const { error: _error, ...rest } = current
-      return { ...rest, loading: true }
-    })
+    setCanonical((current) => ({
+      loading: true,
+      ...(current.intent ? { intent: current.intent } : {}),
+      ...(current.snapshot ? { snapshot: current.snapshot } : {}),
+    }))
     const result = await wowApi.websim.gearResolve(intent)
     if (resolveRequestId.current !== requestId) return null
     if (result.fromFallback) {
@@ -370,15 +395,20 @@ export default function GearDetailPage() {
   const chooseCandidate = async (id: string) => {
     const index = candidateViews.findIndex((candidate) => candidate.id === id)
     const item = candidates[index]
-    if (!item || !selectedSlot) return
-    const nextEquipped = { ...equipped, [selectedSlot]: item }
-    const nextEnhancements = Object.fromEntries(Object.entries(enhancements).filter(([slot]) => slot !== selectedSlot))
-    const resolved = await resolveSelection(nextEquipped, nextEnhancements)
-    if (!resolved) return
+    const slot = selectedSlot
+    if (!item || !slot) return
+    const nextEquipped = { ...equipped, [slot]: item }
+    const nextEnhancements = Object.fromEntries(Object.entries(enhancements).filter(([key]) => key !== slot))
+
+    candidateRequestId.current += 1
+    setCandidateOpen(false)
+    setCandidates([])
+    setCandidateLoading(false)
     setEquipped(nextEquipped)
     setEnhancements(nextEnhancements)
     setStats({ loading: false })
     setDirty(true)
+    await resolveSelection(nextEquipped, nextEnhancements)
   }
 
   const chooseEnhancement = async (item: { id: string; kind: string }, slot = selectedSlot) => {
@@ -407,25 +437,15 @@ export default function GearDetailPage() {
       await Taro.showToast({ title: `已选装备中没有可用${item.label}`, icon: 'none' })
       return
     }
-    try {
-      const target = compatibleSlots.find((entry) => entry.slot === selectedSlot) ?? compatibleSlots[0]
-      if (!target) return
-      setSelectedSlot(target.slot)
-      setCandidateOpen(false)
-      for (let offset = 0; offset < target.options.length; offset += 5) {
-        const pageOptions = target.options.slice(offset, offset + 5)
-        const hasMore = offset + pageOptions.length < target.options.length
-        const choice = await Taro.showActionSheet({
-          itemList: [...pageOptions.map((option) => option.label), ...(hasMore ? ['更多选项…'] : [])],
-        })
-        if (hasMore && choice.tapIndex === pageOptions.length) continue
-        const selected = pageOptions[choice.tapIndex]
-        if (selected) void chooseEnhancement(selected, target.slot)
-        return
-      }
-    } catch {
-      // Closing the action sheet is a normal no-op.
-    }
+    const activeTarget = compatibleSlots.find((entry) => entry.slot === selectedSlot)
+    const target = activeTarget ?? (compatibleSlots.length === 1
+      ? compatibleSlots[0]
+      : await chooseActionSheetEntry(compatibleSlots, (entry) => `${entry.label}（${entry.options.length} 项）`))
+    if (!target) return
+    setSelectedSlot(target.slot)
+    setCandidateOpen(false)
+    const selected = await chooseActionSheetEntry(target.options, (option) => option.label)
+    if (selected) await chooseEnhancement(selected, target.slot)
   }
 
   const validateStats = async () => {

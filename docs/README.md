@@ -23,7 +23,7 @@
 | SimC 任务链路 | [simulator-simc-end-to-end.md](simulator-simc-end-to-end.md) | 模板到任务与报告。 |
 | 资讯内容服务 | [news-architecture.md](news-architecture.md) | 来源、翻译和内容路径。 |
 | 云端运维 | [remote-debugging.md](remote-debugging.md) | 主机、服务、日志和 smoke。 |
-| 14 路由 Target-First 重建 | [plans/2026-07-14-target-first-14-route-rebuild.md](plans/2026-07-14-target-first-14-route-rebuild.md) | 当前唯一 UI 执行计划。 |
+| 14 路由 Target-First 重建 | [plans/ui-reconstruction.md](plans/ui-reconstruction.md) | 当前唯一 UI 执行计划。 |
 | 当前 UI 控制面 | [design/current-ui/README.md](design/current-ui/README.md) | Target registry、证据策略和逐路由合同。 |
 | 稳定设计合同 | [../DESIGN.md](../DESIGN.md) | 设计语言、组件和素材边界。 |
 

@@ -3,7 +3,7 @@
   "route": "profile/templates",
   "authority": "canonical_target",
   "source": {
-    "path": "/Users/heyesheng/Documents/code/github/wow_mini_program/artifacts/ui-visual-targets/current/profile-templates.png",
+    "path": "artifacts/ui-visual-targets/current/profile-templates.png",
     "width": 813,
     "height": 1934,
     "nativeWidth": 813,

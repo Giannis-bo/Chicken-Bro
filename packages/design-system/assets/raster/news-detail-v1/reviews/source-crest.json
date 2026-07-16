@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "assetId": "news-detail-source-crest.default",
-  "reviewedPath": "/Users/heyesheng/Documents/code/github/wow_mini_program/packages/design-system/assets/raster/news-detail-v1/runtime/2x/news-detail-source-crest.default.png",
-  "reviewedVisualSourcePath": "/Users/heyesheng/.codex/generated_images/019f6450-b00e-7603-bf38-d2948ad2d0b6/exec-543b7fda-81bc-4d32-8166-27c9f2a9e664.png",
+  "reviewedPath": "packages/design-system/assets/raster/news-detail-v1/runtime/2x/news-detail-source-crest.default.png",
+  "reviewedVisualSourcePath": "local-generation-output-not-retained",
   "reviewContext": "disposable_isolated_single_asset",
   "verdict": "pass_for_canary",
   "summary": "纵向盾形外轮廓明确，暗青铜宽面与暖金双细边形成清晰小尺寸层级；中心完全留空，不含品牌、文字、真实来源标志或内部徽记，适合作为 news_detail 来源参考候选壳。",

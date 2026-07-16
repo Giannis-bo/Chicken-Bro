@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "assetId": "news-list-document-medallion.default",
-  "reviewedPath": "/Users/heyesheng/Documents/code/github/wow_mini_program/packages/design-system/assets/raster/news-list-v1/runtime/2x/news-list-document-medallion.default.png",
+  "reviewedPath": "packages/design-system/assets/raster/news-list-v1/runtime/2x/news-list-document-medallion.default.png",
   "reviewContext": "disposable_isolated_single_asset",
   "verdict": "pass_for_canary",
   "summary": "暗铁与青铜切角金属壳轮廓清晰，通用文档语义居中明确；透明背景干净，未见文字、品牌、WoW 事实物件、绿边、模糊或错误透视，适合进入资讯列表 canary 集成。",

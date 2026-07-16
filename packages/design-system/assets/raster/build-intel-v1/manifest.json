@@ -53,7 +53,7 @@
       "productionPromoted": false,
       "promptRef": "generation-record.json#build-intel-summary-medallion.default",
       "reviewRef": "reviews/summary-medallion.json",
-      "builtInSavedPath": "/Users/heyesheng/.codex/generated_images/019f6465-776f-7e52-b5cd-1b941c8c442b/exec-946d96d6-5070-44d0-a01b-1ebb0229ab77.png",
+      "builtInSavedPath": "local-generation-output-not-retained",
       "source": {
         "path": "packages/design-system/assets/raster/build-intel-v1/sources/build-intel-summary-medallion.default.png",
         "width": 1254,
@@ -125,7 +125,7 @@
       "productionPromoted": false,
       "promptRef": "generation-record.json#build-intel-card-medallion-shell.default",
       "reviewRef": "reviews/card-medallion-shell.json",
-      "builtInSavedPath": "/Users/heyesheng/.codex/generated_images/019f6465-776f-7e52-b5cd-1b941c8c442b/exec-f76f830d-cf98-491e-a128-d885d3356090.png",
+      "builtInSavedPath": "local-generation-output-not-retained",
       "source": {
         "path": "packages/design-system/assets/raster/build-intel-v1/sources/build-intel-card-medallion-shell.default.png",
         "width": 1254,
@@ -197,7 +197,7 @@
       "productionPromoted": false,
       "promptRef": "generation-record.json#build-intel-primary-action.default",
       "reviewRef": "reviews/primary-action.json",
-      "builtInSavedPath": "/Users/heyesheng/.codex/generated_images/019f6465-776f-7e52-b5cd-1b941c8c442b/exec-63d7b72a-fd95-4645-96b8-069342523f36.png",
+      "builtInSavedPath": "local-generation-output-not-retained",
       "source": {
         "path": "packages/design-system/assets/raster/build-intel-v1/sources/build-intel-primary-action.default.png",
         "width": 1915,

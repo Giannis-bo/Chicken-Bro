@@ -3,7 +3,7 @@
   "route": "news_list",
   "authority": "canonical_target",
   "source": {
-    "path": "/Users/heyesheng/Documents/code/github/wow_mini_program/artifacts/ui-visual-targets/current/news-list.png",
+    "path": "artifacts/ui-visual-targets/current/news-list.png",
     "width": 864,
     "height": 1821,
     "sha256": "dd43a07a5ac26b8c3c65c90e8eb7a74e92f80bb74835f84d49ba058b892829cc"

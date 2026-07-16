@@ -49,7 +49,7 @@
       "sourceClass": "imagegen_raster",
       "productionPromoted": false,
       "promptRef": "generation-record.json#news-detail-source-crest.default",
-      "builtInSavedPath": "/Users/heyesheng/.codex/generated_images/019f6450-b00e-7603-bf38-d2948ad2d0b6/exec-543b7fda-81bc-4d32-8166-27c9f2a9e664.png",
+      "builtInSavedPath": "local-generation-output-not-retained",
       "source": {
         "path": "packages/design-system/assets/raster/news-detail-v1/sources/news-detail-source-crest.default.png",
         "width": 1150,
@@ -119,7 +119,7 @@
       "sourceClass": "imagegen_raster",
       "productionPromoted": false,
       "promptRef": "generation-record.json#news-detail-evidence-medallion.default",
-      "builtInSavedPath": "/Users/heyesheng/.codex/generated_images/019f6450-b00e-7603-bf38-d2948ad2d0b6/exec-6f741788-d321-46f0-8d0d-7efef87730e5.png",
+      "builtInSavedPath": "local-generation-output-not-retained",
       "source": {
         "path": "packages/design-system/assets/raster/news-detail-v1/sources/news-detail-evidence-medallion.default.png",
         "width": 1254,
@@ -189,7 +189,7 @@
       "sourceClass": "imagegen_raster",
       "productionPromoted": false,
       "promptRef": "generation-record.json#news-detail-terminal-medallion.default",
-      "builtInSavedPath": "/Users/heyesheng/.codex/generated_images/019f6450-b00e-7603-bf38-d2948ad2d0b6/exec-5f974135-78cf-40df-adb8-aea75d9f6642.png",
+      "builtInSavedPath": "local-generation-output-not-retained",
       "source": {
         "path": "packages/design-system/assets/raster/news-detail-v1/sources/news-detail-terminal-medallion.default.png",
         "width": 1254,

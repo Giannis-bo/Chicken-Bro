@@ -117,11 +117,11 @@ page,
 
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
-  --tabbar-height: 71px;
+  --tabbar-height: 63px;
   /* Product controls end above the native home-indicator area. */
   --tabbar-safe-height: calc(var(--tabbar-height) + var(--safe-bottom));
-  --tabbar-icon: 40px;
-  --tabbar-label: 13px;
+  --tabbar-icon: 35px;
+  --tabbar-label: 12px;
   --tabbar-hit: 52px;
   --bottom-input-height: 58px;
 }

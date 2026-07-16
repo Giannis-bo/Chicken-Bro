@@ -3,7 +3,7 @@
   "route": "task_detail",
   "authority": "canonical_target",
   "source": {
-    "path": "/Users/heyesheng/Documents/code/github/wow_mini_program/artifacts/ui-visual-targets/current/task-detail.png",
+    "path": "artifacts/ui-visual-targets/current/task-detail.png",
     "width": 851,
     "height": 1848,
     "bytes": 1835810,

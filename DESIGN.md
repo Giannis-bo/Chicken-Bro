@@ -6,7 +6,7 @@
 
 前端设计与实现只读取：
 
-1. `docs/plans/2026-07-14-target-first-14-route-rebuild.md`
+1. `docs/plans/ui-reconstruction.md`
 2. `docs/design/current-ui/target-registry.json`
 3. 当前 route 在 `docs/design/current-ui/routes/` 下的合同
 4. 当前 Taro、API、domain 和业务源码

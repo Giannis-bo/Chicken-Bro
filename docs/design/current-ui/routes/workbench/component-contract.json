@@ -3,7 +3,7 @@
   "route": "current_spec_workbench",
   "status": "component_contract_complete",
   "implementationStatus": "implemented_pending_unified_assets_and_visual_review",
-  "authority": "docs/plans/2026-07-14-target-first-14-route-rebuild.md",
+  "authority": "docs/plans/ui-reconstruction.md",
   "targetInventory": "docs/design/current-ui/routes/workbench/target-inventory.json",
   "truthAdaptation": "docs/design/current-ui/routes/workbench/truth-adaptation.json",
   "compositionOwner": {
@@ -34,7 +34,7 @@
         "topology": "one continuous framed identity row with left medallion, title/source/context copy and right specialization picker affordance",
         "inputs": ["title", "sourceLabel", "contextDetail", "state", "identity", "selectionOptions", "scenarioOptions"],
         "states": ["loading", "source_reference", "partial", "stale", "blocked", "empty", "error", "ready"],
-        "interactions": ["right chevron selects specialization", "context line selects scenario"],
+        "interactions": ["the single trailing right chevron selects specialization", "the context line selects scenario and keeps its down chevron adjacent to the context text"],
         "assetSlots": ["asset_slot.builds-frame-family", "asset_slot.builds-specialization-medallion", "asset_slot.workbench-specialization-object", "asset_slot.source-badge-family", "asset_slot.utility-glyph-family"]
       }
     },

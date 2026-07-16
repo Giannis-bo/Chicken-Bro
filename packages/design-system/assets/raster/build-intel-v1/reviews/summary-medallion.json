@@ -3,7 +3,7 @@
   "assetId": "build-intel-summary-medallion.default",
   "slotId": "asset_slot.build-intel-summary-medallion",
   "status": "candidate_pending_runtime_review",
-  "reviewedPath": "/Users/heyesheng/Documents/code/github/wow_mini_program/packages/design-system/assets/raster/build-intel-v1/runtime/2x/build-intel-summary-medallion.default.png",
+  "reviewedPath": "packages/design-system/assets/raster/build-intel-v1/runtime/2x/build-intel-summary-medallion.default.png",
   "reviewContext": "disposable_isolated_single_asset",
   "factBearing": false,
   "verdict": "pass_for_candidate_runtime_review",

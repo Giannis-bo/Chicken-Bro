@@ -3,7 +3,7 @@
   "route": "talent_simulator",
   "authority": "canonical_target",
   "source": {
-    "path": "/Users/heyesheng/Documents/code/github/wow_mini_program/artifacts/ui-visual-targets/current/talent-simulator.png",
+    "path": "artifacts/ui-visual-targets/current/talent-simulator.png",
     "width": 894,
     "height": 1758,
     "nativeWidth": 894,

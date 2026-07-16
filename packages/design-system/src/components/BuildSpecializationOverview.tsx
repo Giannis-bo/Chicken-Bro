@@ -142,7 +142,7 @@ export function BuildSpecializationOverview({
                   )}
                   data-source-trust="source_reference"
                   data-slot="asset_slot.builds-specialization-object"
-                  mode="aspectFit"
+                  mode="aspectFill"
                   src={trustedIconUrl}
                   onError={() => {
                     setIconFailed(true)

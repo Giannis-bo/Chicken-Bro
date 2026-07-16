@@ -16,6 +16,7 @@ export interface GearCandidateView {
   levelLabel: string
   sourceLabel: string
   statSummary: string
+  badgeLabels: readonly string[]
   iconUrl?: string
   state: 'ready' | 'partial' | 'blocked'
 }
@@ -107,6 +108,38 @@ const metricFallbacks = [
   { id: 'versatility', label: '全能' },
 ] as const
 
+const weaponTypeLabels: Readonly<Record<string, string>> = {
+  dagger: '匕首',
+  'fist weapon': '拳套',
+  'one-handed axe': '单手斧',
+  'one-handed mace': '单手锤',
+  'one-handed sword': '单手剑',
+  warglaive: '战刃',
+  wand: '魔杖',
+  'two-handed axe': '双手斧',
+  'two-handed mace': '双手锤',
+  'two-handed sword': '双手剑',
+  polearm: '长柄武器',
+  staff: '法杖',
+  bow: '弓',
+  crossbow: '弩',
+  gun: '枪械',
+  'held in off-hand': '副手物品',
+  shield: '盾牌',
+}
+
+const statLabels: Readonly<Record<string, string>> = {
+  strength: '力量',
+  agility: '敏捷',
+  intellect: '智力',
+  stamina: '耐力',
+  critical_strike: '暴击',
+  haste: '急速',
+  mastery: '精通',
+  versatility: '全能',
+  armor: '护甲',
+}
+
 function text(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
 }
@@ -119,6 +152,108 @@ function finiteNumber(value: unknown): number | null {
 function compatibilityStatus(item: GearItemReference): string {
   if (typeof item.compatibility === 'string') return item.compatibility
   return text(item.compatibility?.['status'])
+}
+
+function normalizedKey(value: unknown): string {
+  return text(value).toLowerCase().replace(/[\s/_-]+/gu, '')
+}
+
+type PrimaryStatKey = 'strength' | 'agility' | 'intellect'
+
+function primaryStatKey(value: unknown): PrimaryStatKey | '' {
+  const key = normalizedKey(value)
+  if (key.includes('力量') || key.includes('strength') || key === 'str') return 'strength'
+  if (key.includes('敏捷') || key.includes('agility') || key === 'agi') return 'agility'
+  if (key.includes('智力') || key.includes('intellect') || key === 'int') return 'intellect'
+  return ''
+}
+
+function canonicalStatKey(value: unknown, primaryKey: PrimaryStatKey | ''): string {
+  const key = normalizedKey(value)
+  if (!key) return ''
+  if (key.includes('护甲') || key.includes('armor')) return 'armor'
+  if (key.includes('耐力') || key.includes('stamina') || key === 'sta') return 'stamina'
+  if (key.includes('急速') || key.includes('haste')) return 'haste'
+  if (key.includes('暴击') || key.includes('爆击') || key.includes('critical') || key.includes('crit')) return 'critical_strike'
+  if (key.includes('精通') || key.includes('mastery')) return 'mastery'
+  if (key.includes('全能') || key.includes('versatility') || key === 'vers') return 'versatility'
+  if (key.includes('主属性') || key.includes('primarystat')) return primaryKey
+  if (key.includes('agiint') || key.includes('intagi') || key.includes('stragiint') || key.includes('strintagi')) return primaryKey
+  if (key.includes('力量') || key.includes('strength') || key === 'str') return 'strength'
+  if (key.includes('敏捷') || key.includes('agility') || key === 'agi') return 'agility'
+  if (key.includes('智力') || key.includes('intellect') || key === 'int') return 'intellect'
+  return ''
+}
+
+function itemPrimaryStatKey(item: GearItemReference): PrimaryStatKey | '' {
+  return primaryStatKey(item['primaryStatKey'])
+}
+
+function numericValue(value: unknown): number | null {
+  const match = text(value).replace(/,/gu, '').match(/[+-]?\d+(?:\.\d+)?/u)
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  return match ? Number(match[0]) : null
+}
+
+function statEntries(item: GearItemReference, primaryKey: PrimaryStatKey | ''): readonly { key: string; value: number }[] {
+  const sources = [item['stats'], item['itemStats'], item['attributes'], item['secondaryStats']]
+  const entries = sources.flatMap((source) => {
+    if (Array.isArray(source)) {
+      return source.flatMap((row) => {
+        if (!row || typeof row !== 'object' || Array.isArray(row)) return []
+        const record = row as Readonly<Record<string, unknown>>
+        const key = canonicalStatKey(record['label'] ?? record['name'] ?? record['stat'] ?? record['key'] ?? record['type'], primaryKey)
+        const value = numericValue(record['value'] ?? record['amount'] ?? record['rating'] ?? record['rawValue'])
+        return key && value !== null ? [{ key, value }] : []
+      })
+    }
+    if (!source || typeof source !== 'object') return []
+    return Object.entries(source as Readonly<Record<string, unknown>>).flatMap(([label, raw]) => {
+      const key = canonicalStatKey(label, primaryKey)
+      const value = numericValue(raw)
+      return key && value !== null ? [{ key, value }] : []
+    })
+  })
+  const summary = text(item.statSummary)
+  if (!entries.length && summary) {
+    for (const part of summary.split(/[；;,，\n]+/u)) {
+      const value = numericValue(part)
+      const key = canonicalStatKey(part, primaryKey)
+      if (key && value !== null) entries.push({ key, value })
+    }
+  }
+  const seen = new Set<string>()
+  return entries.filter((entry) => {
+    if (['strength', 'agility', 'intellect'].includes(entry.key) && entry.key !== primaryKey) return false
+    const identity = `${entry.key}:${entry.value}`
+    if (seen.has(identity)) return false
+    seen.add(identity)
+    return true
+  })
+}
+
+function localizedStatSummary(item: GearItemReference): string {
+  const primaryKey = itemPrimaryStatKey(item)
+  const entries = statEntries(item, primaryKey)
+  if (!entries.length) return text(item.statSummary) || '属性待核验'
+  return entries.map((entry) => `${statLabels[entry.key] ?? entry.key} ${entry.value}`).join('；')
+}
+
+function candidateBadgeLabels(item: GearItemReference): readonly string[] {
+  const labels: string[] = []
+  const add = (value: unknown) => {
+    const label = text(value)
+    if (label && label !== '远程' && !labels.includes(label)) labels.push(label)
+  }
+  const backend = item['equipmentBadges']
+  if (Array.isArray(backend)) backend.forEach((badge) => {
+    if (typeof badge === 'string') add(badge)
+    else if (badge && typeof badge === 'object') {
+      const record = badge as Readonly<Record<string, unknown>>
+      add(record['label'] ?? record['name'] ?? record['displayLabel'])
+    }
+  })
+  return labels
 }
 
 export function gearItemId(item: GearItemReference | undefined): string {
@@ -157,7 +292,8 @@ export function gearCandidates(items: readonly GearItemReference[]): readonly Ge
       label: gearItemName(item),
       levelLabel: level ? `装等 ${Math.round(level)}` : '装等待核验',
       sourceLabel: text(item.source) || '来源待补充',
-      statSummary: text(item.statSummary) || '属性待核验',
+      statSummary: localizedStatSummary(item),
+      badgeLabels: candidateBadgeLabels(item),
       ...(iconUrl ? { iconUrl } : {}),
       state: gearItemState(item),
     }
@@ -176,9 +312,13 @@ export function gearSlots(
     const candidateGroup = payload?.replacementCandidates.find((group) => group.slot === slot.slot)
     const level = gearItemLevel(item)
     const iconUrl = gearItemIconUrl(item)
+    const weaponType = text(item?.['weaponType']).toLowerCase()
+    const weaponLabel = weaponTypeLabels[weaponType]
     return {
       slot: slot.slot,
-      label: slot.label,
+      label: (slot.slot === 'main_hand' || slot.slot === 'off_hand') && item
+        ? weaponLabel || (text(item['sourceType']) === 'weapon_rule' ? '双手武器' : '武器')
+        : slot.label,
       selected: selectedSlot === slot.slot,
       candidateCount: candidateGroup?.items.length ?? 0,
       itemId: gearItemId(item),
@@ -191,12 +331,19 @@ export function gearSlots(
 }
 
 function verifiedMetrics(stats: GearStatsPayload | undefined): readonly GearMetricView[] {
+  const primaryKey = primaryStatKey(stats?.primary?.key || stats?.primary?.label)
+  const fallbacks = metricFallbacks.map((item) => item.id === 'primary'
+    ? { ...item, label: statLabels[primaryKey] ?? (text(stats?.primary?.label) || item.label) }
+    : item)
   if (!stats || stats.statStatus === 'blocked') {
-    return metricFallbacks.map((item) => ({ ...item, value: '待校验', verified: false }))
+    return fallbacks.map((item) => ({ ...item, value: '待校验', verified: false }))
   }
   const values = [stats.primary, stats.stamina, ...stats.secondary].filter((item): item is NonNullable<typeof item> => Boolean(item))
-  return metricFallbacks.map((fallback) => {
-    const match = values.find((item) => item.key === fallback.id || item.label === fallback.label)
+  return fallbacks.map((fallback) => {
+    const expectedKey = fallback.id === 'primary' ? primaryKey : fallback.id
+    const match = fallback.id === 'primary'
+      ? stats.primary
+      : values.find((item) => canonicalStatKey(item.key || item.label, primaryKey) === expectedKey)
     return {
       ...fallback,
       value: match ? String(match.value) : '未提供',

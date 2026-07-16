@@ -219,7 +219,7 @@ test('current truth has one conclusion for UI, PG read-model, Harness normalizat
   assert.equal(byDomain.get('project_harness_normalization').status, 'completed')
   assert.equal(byDomain.get('equipment_simulator_phase0_5').status, 'completed_live_verified')
 
-  assert.equal(byDomain.get('ui_delivery').activeContract, 'docs/plans/2026-07-14-target-first-14-route-rebuild.md')
+  assert.equal(byDomain.get('ui_delivery').activeContract, 'docs/plans/ui-reconstruction.md')
   assert.equal(byDomain.get('pg_read_model_phase4').activeContract, null)
   assert.equal(byDomain.get('project_harness_normalization').activeContract, null)
   assert.equal(byDomain.get('equipment_simulator_phase0_5').activeContract, null)

@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "route": "SimC_submit",
   "status": "asset_contract_complete",
-  "authority": "docs/plans/2026-07-14-target-first-14-route-rebuild.md",
+  "authority": "docs/plans/ui-reconstruction.md",
   "targetInventory": "docs/design/current-ui/routes/simc-submit/target-inventory.json",
   "targetObservedAssetSlotCount": 52,
   "targetObservedAssetGroupCount": 19,

@@ -3,7 +3,7 @@
   "route": "gear_detail",
   "status": "component_contract_complete",
   "implementationStatus": "implemented_visual_debt_open",
-  "authority": "docs/plans/2026-07-14-target-first-14-route-rebuild.md",
+  "authority": "docs/plans/ui-reconstruction.md",
   "components": [
     {
       "owner": "PageFrame",

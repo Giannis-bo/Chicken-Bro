@@ -3,7 +3,7 @@
   "route": "simulator_home",
   "authority": "canonical_target",
   "source": {
-    "path": "/Users/heyesheng/Documents/code/github/wow_mini_program/artifacts/ui-visual-targets/current/simulator-home.png",
+    "path": "artifacts/ui-visual-targets/current/simulator-home.png",
     "width": 834,
     "height": 1886,
     "nativeWidth": 834,

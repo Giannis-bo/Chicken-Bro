@@ -9,6 +9,6 @@
     "minified": true,
     "postcss": true,
     "minifyWXML": true,
-    "urlCheck": false
+    "urlCheck": true
   }
 }

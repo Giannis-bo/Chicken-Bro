@@ -3,7 +3,7 @@
   "route": "current_spec_workbench",
   "authority": "canonical_target",
   "source": {
-    "path": "/Users/heyesheng/Documents/code/github/wow_mini_program/artifacts/ui-visual-targets/current/current-spec-workbench.png",
+    "path": "artifacts/ui-visual-targets/current/current-spec-workbench.png",
     "width": 909,
     "height": 1731,
     "sha256": "65deca229f53df065da135eb9a441507b4a27b354316db63847c3809e79f675b"

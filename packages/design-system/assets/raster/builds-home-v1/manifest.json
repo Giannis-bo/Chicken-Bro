@@ -44,7 +44,7 @@
   "masters": [
     {
       "path": "masters/builds-surface-texture-master-v1.png",
-      "sourceGeneration": "/Users/heyesheng/.codex/generated_images/019f6166-1ff3-7261-86ea-9502644c70cf/exec-0f09fdb7-0418-4906-b107-4c78d2c1f841.png",
+      "sourceGeneration": "local-generation-output-not-retained",
       "dimensions": {
         "width": 1254,
         "height": 1254
@@ -54,7 +54,7 @@
     },
     {
       "path": "masters/builds-frame-atlas-master-v1.png",
-      "sourceGeneration": "/Users/heyesheng/.codex/generated_images/019f6171-d518-74b1-b4e6-667f09ee5681/exec-dec57f7e-97aa-45f5-8f3e-20bfdc6ffcd4.png",
+      "sourceGeneration": "local-generation-output-not-retained",
       "dimensions": {
         "width": 1536,
         "height": 1024
@@ -64,7 +64,7 @@
     },
     {
       "path": "masters/builds-support-ornaments-master-v1.png",
-      "sourceGeneration": "/Users/heyesheng/.codex/generated_images/019f6166-1f73-7251-aedc-9dd9a9ab60f9/exec-d6a67b39-fd04-42c3-b690-8f6de9833afd.png",
+      "sourceGeneration": "local-generation-output-not-retained",
       "dimensions": {
         "width": 1448,
         "height": 1086
@@ -74,7 +74,7 @@
     },
     {
       "path": "masters/builds-evidence-medallions-master-v1.png",
-      "sourceGeneration": "/Users/heyesheng/.codex/generated_images/019f6160-1a14-7c90-972f-4e830578797e/exec-c609519c-c695-451d-a38e-2f18851120cf.png",
+      "sourceGeneration": "local-generation-output-not-retained",
       "dimensions": {
         "width": 1254,
         "height": 1254

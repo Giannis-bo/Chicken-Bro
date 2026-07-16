@@ -34,7 +34,7 @@
 | 优先级 | 里程碑 | 完成标准 | 权威入口 |
 | --- | --- | --- | --- |
 | P0 | 主干架构接合 | Taro 接入 resolver、community import、stat snapshot；Harness 把 Taro 定义为活动 UI owner，旧 `pages/` 只保留兼容职责 | [装备 runbook](gear-simulation-full-chain-runbook.md)、[owner map](project-owner-map.json)、[验证矩阵](verification-matrix.md) |
-| P0 | 14 路由 UI 系统重建 | 共享 chrome、控件和素材槽先在微信三基线成立，再按固定批次传播；14 路由各完成一次真实运行态复核和核心交互验证 | [DESIGN.md](../DESIGN.md)、[current-ui](design/current-ui/README.md)、[当前计划](plans/2026-07-14-target-first-14-route-rebuild.md) |
+| P0 | 14 路由 UI 系统重建 | 共享 chrome、控件和素材槽先在微信三基线成立，再按固定批次传播；14 路由各完成一次真实运行态复核和核心交互验证 | [DESIGN.md](../DESIGN.md)、[current-ui](design/current-ui/README.md)、[当前计划](plans/ui-reconstruction.md) |
 | P0 | 文档控制面收敛 | roadmap 无执行流水；plans 只有活动入口；Harness 状态、稳定合同和 release evidence 各有唯一 owner | 本文件、[plans/README.md](plans/README.md)、[project-state.json](project-state.json) |
 | P1 | 构筑到模拟闭环稳定 | 天赋/装备模板可确定性加载、转换、校验、提交和复盘；不可执行状态 fail closed | [builds-architecture.md](builds-architecture.md)、[simulator-simc-end-to-end.md](simulator-simc-end-to-end.md) |
 | P1 | 证据化报告 | 玩家可见数字来自 runner、日志或明确参考源；模型只负责解释 | `server/simulator_payload.py` |

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "status": "untrusted_candidate",
-  "authority": "docs/plans/2026-07-14-target-first-14-route-rebuild.md",
+  "authority": "docs/plans/ui-reconstruction.md",
   "sourceClass": "system_vector",
   "slotCount": 17,
   "assetCount": 66,

@@ -24,8 +24,8 @@ This directory contains two candidate-only, non-factual raster assets for `news_
 
 | Asset ID | Built-in saved path | Workspace source | Transparent master |
 | --- | --- | --- | --- |
-| `news-list-document-medallion.default` | `/Users/heyesheng/.codex/generated_images/019f63e1-cb5f-7d63-9fb7-031d5ca16b32/exec-88ccb026-a0bc-4fb9-8836-57dfb07c0e49.png` | `sources/news-list-document-medallion.default.png`, 1199x1312, 1926560 bytes, `9aea17ad76377ff72fd54d67f14b4ad58a3d598e450fc1920f22da842689937f` | `masters/news-list-document-medallion.default.png`, 1199x1312, 1568970 bytes, `860ec5c6bd874505895085d0a554531d7bc3f875ca61e7353b4eae755f5b78e4` |
-| `news-list-terminal-medallion.default` | `/Users/heyesheng/.codex/generated_images/019f63e1-cb5f-7d63-9fb7-031d5ca16b32/exec-29111be2-1f50-4f8f-a14d-1923ffdebea1.png` | `sources/news-list-terminal-medallion.default.png`, 1254x1254, 2154771 bytes, `ef0eedc1d5a2ebd8928e17e254667e2c3b1eaf84dc10aa83dac8eaf6133d5243` | `masters/news-list-terminal-medallion.default.png`, 1254x1254, 1631694 bytes, `d10427eeadbc97088d2a5c1320969bc0b4e30410c1a8a5438902fe4ab248f6a6` |
+| `news-list-document-medallion.default` | `local-generation-output-not-retained` | `sources/news-list-document-medallion.default.png`, 1199x1312, 1926560 bytes, `9aea17ad76377ff72fd54d67f14b4ad58a3d598e450fc1920f22da842689937f` | `masters/news-list-document-medallion.default.png`, 1199x1312, 1568970 bytes, `860ec5c6bd874505895085d0a554531d7bc3f875ca61e7353b4eae755f5b78e4` |
+| `news-list-terminal-medallion.default` | `local-generation-output-not-retained` | `sources/news-list-terminal-medallion.default.png`, 1254x1254, 2154771 bytes, `ef0eedc1d5a2ebd8928e17e254667e2c3b1eaf84dc10aa83dac8eaf6133d5243` | `masters/news-list-terminal-medallion.default.png`, 1254x1254, 1631694 bytes, `d10427eeadbc97088d2a5c1320969bc0b4e30410c1a8a5438902fe4ab248f6a6` |
 
 ## Runtime Outputs
 

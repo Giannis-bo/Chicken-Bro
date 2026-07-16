@@ -23,7 +23,10 @@
   min-width: 0;
   align-content: center;
   gap: 2px;
+  justify-items: start;
 }
+
+.specCopy > picker { max-width: 100%; }
 
 .specTitle {
   box-sizing: border-box;
@@ -43,10 +46,13 @@
 
 .scenarioControl {
   display: grid;
+  width: max-content;
+  max-width: 100%;
   min-width: 0;
   grid-template-columns: minmax(0, 1fr) 12px;
   align-items: center;
   gap: 4px;
+  justify-self: start;
 }
 
 .scenarioLabel {

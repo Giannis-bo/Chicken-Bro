@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "assetId": "news-detail-evidence-medallion.default",
-  "reviewedPath": "/Users/heyesheng/Documents/code/github/wow_mini_program/packages/design-system/assets/raster/news-detail-v1/runtime/2x/news-detail-evidence-medallion.default.png",
-  "reviewedVisualSourcePath": "/Users/heyesheng/.codex/generated_images/019f6450-b00e-7603-bf38-d2948ad2d0b6/exec-6f741788-d321-46f0-8d0d-7efef87730e5.png",
+  "reviewedPath": "packages/design-system/assets/raster/news-detail-v1/runtime/2x/news-detail-evidence-medallion.default.png",
+  "reviewedVisualSourcePath": "local-generation-output-not-retained",
   "reviewContext": "disposable_isolated_single_asset",
   "verdict": "pass_for_canary",
   "summary": "八边形外壳与圆形内孔层级清楚，暗青铜宽面、近黑内层和暖金双边在 34x34 光学盒中仍有辨识度；中心为空，不含数字、事实、文字或状态符号，适合作为证据空态候选壳。",

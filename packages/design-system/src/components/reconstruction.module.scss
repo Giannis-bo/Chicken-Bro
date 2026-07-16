@@ -642,7 +642,7 @@
 .identityMedallion { position: relative; display: grid; width: 108px; height: 108px; place-items: center; background-size: 100% 100%; }
 .identitySummary-builds-home .identityMedallion { width: 100px; height: 100px; }
 .identitySummary-workbench .identityMedallion { width: 72px; height: 72px; }
-.identityMedallionCore { display: grid; width: 80%; height: 80%; place-items: center; overflow: hidden; border: 1px solid rgba(207, 174, 105, 0.42); border-radius: 50%; color: var(--wow-fg-dim); background: radial-gradient(circle at 48% 42%, #1f2630 0 34%, #11161d 55%, #080a0d 100%); box-shadow: inset 0 0 0 3px rgba(4, 5, 7, 0.62), inset 0 0 12px rgba(0, 0, 0, 0.82), 0 0 0 1px rgba(88, 66, 32, 0.5); text-align: center; }
+.identityMedallionCore { position: relative; z-index: 1; display: grid; width: 80%; height: 80%; place-items: center; overflow: hidden; border: 1px solid rgba(207, 174, 105, 0.42); border-radius: 50%; color: var(--wow-fg-dim); background: radial-gradient(circle at 48% 42%, #1f2630 0 34%, #11161d 55%, #080a0d 100%); box-shadow: inset 0 0 0 3px rgba(4, 5, 7, 0.62), inset 0 0 12px rgba(0, 0, 0, 0.82), 0 0 0 1px rgba(88, 66, 32, 0.5); text-align: center; }
 .identitySummary-workbench .identityMedallionCore { width: 84%; height: 84%; }
 .identityMedallionImage { width: 100%; height: 100%; }
 .identityBadge { position: absolute; right: 4px; bottom: 4px; display: grid; width: 27px; height: 27px; place-items: center; border: 1px solid var(--wow-line-brass); border-radius: 50%; color: var(--wow-accent-gold); background: var(--wow-bg-route); box-shadow: 0 2px 7px rgba(0, 0, 0, 0.55); }
@@ -661,7 +661,7 @@
 .identitySummary-workbench .identityMetaLabel { font-size: 9px; line-height: 12px; }
 .identitySummary-workbench .identityChevron { width: 15px; height: 15px; }
 .workbenchIdentityMedallionShell { position: absolute; z-index: 2; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-.workbenchScenarioControl { display: grid; min-width: 0; grid-template-columns: minmax(0, 1fr) 12px; align-items: center; gap: 3px; }
+.workbenchScenarioControl { display: grid; width: max-content; max-width: 100%; min-width: 0; grid-template-columns: minmax(0, 1fr) 12px; align-items: center; gap: 3px; justify-self: start; }
 .workbenchScenarioControl[data-disabled='true'] { pointer-events: none; }
 .workbenchScenarioControl .identitySubtitle { margin-top: 3px; }
 .workbenchScenarioChevron { width: 10px; height: 10px; color: var(--wow-fg-dim); transform: rotate(90deg); }

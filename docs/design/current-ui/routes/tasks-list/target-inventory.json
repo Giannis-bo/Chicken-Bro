@@ -3,7 +3,7 @@
   "route": "tasks_list",
   "authority": "canonical_target",
   "source": {
-    "path": "/Users/heyesheng/Documents/code/github/wow_mini_program/artifacts/ui-visual-targets/current/tasks-list.png",
+    "path": "artifacts/ui-visual-targets/current/tasks-list.png",
     "width": 862,
     "height": 1824,
     "bytes": 1804901,
