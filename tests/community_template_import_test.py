@@ -94,13 +94,15 @@ class CommunityTemplateImportTest(unittest.TestCase):
             },
         ]
 
-    def build_source(self, winner=None, variants=None, options=None):
+    def build_source(self, winner=None, variants=None, options=None, *, items=None, sources=None):
         from server.community_template_import import build_community_template_import_source
 
         return build_community_template_import_source(
             winner if winner is not None else self.winner,
             variants if variants is not None else self.variants,
             options if options is not None else self.options,
+            items=items,
+            sources=sources,
         )
 
     def test_observed_winner_projects_only_bound_variants_and_visible_options(self):
@@ -116,6 +118,7 @@ class CommunityTemplateImportTest(unittest.TestCase):
             "sourceKey": "raiderio_observed_profile",
             "name": "Frost observed",
         })
+
         self.assertEqual(source["selectedGearBySlot"], {
             "head": {
                 "variantId": "variant-head",
@@ -144,6 +147,16 @@ class CommunityTemplateImportTest(unittest.TestCase):
                 "catalystOptionId": "",
             },
         )
+
+    def test_source_display_rows_do_not_replace_winner_template_identity(self):
+        source = self.build_source(sources=[{
+            "itemId": "item-head",
+            "sourceLabel": "Observed raid",
+            "sourceType": "raid",
+        }])
+
+        self.assertEqual(source["template"]["id"], "frost-observed-a")
+        self.assertEqual(source["template"]["name"], "Frost observed")
 
     def test_non_observed_or_non_winner_source_is_blocked_before_intent_creation(self):
         from server.community_template_import import build_community_template_selection_intent

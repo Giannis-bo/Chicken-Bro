@@ -135,9 +135,9 @@ def build_community_template_import_source(
         if not item_id or not label:
             continue
         rows = sources_by_item.setdefault(item_id, [])
-        row = {"label": label, "sourceType": source_type}
-        if row not in rows and len(rows) < 8:
-            rows.append(row)
+        source_display = {"label": label, "sourceType": source_type}
+        if source_display not in rows and len(rows) < 8:
+            rows.append(source_display)
 
     canonical_slots: dict[str, dict[str, Any]] = {}
     selected_gear_by_slot: dict[str, dict[str, Any]] = {}
