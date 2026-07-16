@@ -774,6 +774,7 @@ def _project_item(
     runtime_authority: dict[str, Any],
     evidence: dict[str, dict[str, Any]],
     capability_revision: str,
+    season_revision: str,
 ) -> dict[str, Any] | None:
     if not isinstance(record, dict) or _text(record.get("sourceStatus")) != "verified":
         return None
@@ -845,7 +846,7 @@ def _project_item(
     )
     socket_count = base_capabilities["socketCount"]
     item_id = _text(record.get("id")) or requested_item_id
-    return {
+    projected = {
         "itemId": item_id,
         "displayName": _text(payload.get("displayName") or payload.get("name") or record.get("name")),
         "allowedSlots": allowed_slots,
@@ -869,6 +870,15 @@ def _project_item(
         "dynamicEffects": _json_value(payload.get("dynamicEffects"), []),
         "sourceRefIds": _texts(source_ref_ids),
     }
+    if (
+        capability_revision == gear_socket_authority.CAPABILITY_REVISION
+        and gear_socket_authority.is_verified_radiant_jewelbinder_socket(
+            {"slot": canonical_slot, "payload": payload},
+            season_revision,
+        )
+    ):
+        projected["radiantJewelbinderSocketEligibility"] = True
+    return projected
 
 
 def _variant_capability_overrides(
@@ -1160,6 +1170,7 @@ def build_gear_authority_context_from_rows(
             runtime,
             evidence,
             capability_revision,
+            _text(dependency_vector.get("seasonRevision")),
         )
         if item is not None:
             items_by_id[requested_item_id] = item

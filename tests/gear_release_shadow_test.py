@@ -3450,6 +3450,243 @@ class GearReleaseShadowTest(unittest.TestCase):
             )
         )
 
+    def test_current_v2_radiant_jewelbinder_capacity_migration_requires_verified_empty_zero_to_one(self):
+        old_intent = self.intent()
+        old_intent["authoredAgainst"]["gearCatalogRevision"] = "gear-release:old"
+        new_intent = copy.deepcopy(old_intent)
+        new_intent["authoredAgainst"]["gearCatalogRevision"] = "gear-release:new"
+        dependencies = {
+            "seasonRevision": "season-17",
+            "gearCatalogReleaseId": "gear-release:old",
+            "gearCatalogRevision": "gear-release:old",
+            "gearRuleRevision": "gear-rule-matrix-v1",
+            "resolverContractRevision": "gear-resolver-contract-v1",
+            "capabilityRevision": gear_socket_authority.CAPABILITY_REVISION,
+            "serializerRevision": "serializer-v1",
+            "simcRuntimeRevision": "simc-r1",
+            "statPolicyRevision": "stat-policy-v1",
+            "selectionSchemaRevision": "selection-intent-v1",
+        }
+        old = self.snapshot(old_intent, "sha256:old")
+        old["dependencyVector"] = copy.deepcopy(dependencies)
+        old["resolvedSlots"]["head"].update({
+            "effectiveCapabilities": {"socketCount": 0},
+            "selectedOptions": {"gemOptionIds": []},
+        })
+        old["constraints"] = {
+            "slots": {"head": {"socketCount": 0, "socketRemaining": 0}}
+        }
+        new = copy.deepcopy(old)
+        new["dependencyVector"].update({
+            "gearCatalogReleaseId": "gear-release:new",
+            "gearCatalogRevision": "gear-release:new",
+        })
+        new["resolvedGearSignature"] = "sha256:new"
+        new["resolvedSlots"]["head"]["effectiveCapabilities"]["socketCount"] = 1
+        new["constraints"]["slots"]["head"].update({
+            "socketCount": 1,
+            "socketRemaining": 1,
+        })
+        old_authority = self.candidate_authority(
+            dependencies,
+            options={},
+            evidence_records={"evidence:item": {"id": "evidence:item"}},
+        )
+        new_dependencies = copy.deepcopy(dependencies)
+        new_dependencies.update({
+            "gearCatalogReleaseId": "gear-release:new",
+            "gearCatalogRevision": "gear-release:new",
+        })
+        new_authority = self.candidate_authority(
+            new_dependencies,
+            options={},
+            evidence_records={"evidence:item": {"id": "evidence:item"}},
+        )
+        new_authority["itemsById"]["item-a"][
+            "radiantJewelbinderSocketEligibility"
+        ] = True
+
+        self.assertTrue(
+            gear_release_shadow._current_v2_radiant_jewelbinder_capacity_migration_equivalent(
+                old,
+                new,
+                transitional_authority_context=old_authority,
+                candidate_authority_context=new_authority,
+                transitional_intent=old_intent,
+                candidate_intent=new_intent,
+            )
+        )
+
+        without_proof = copy.deepcopy(new_authority)
+        without_proof["itemsById"]["item-a"].pop(
+            "radiantJewelbinderSocketEligibility"
+        )
+        self.assertFalse(
+            gear_release_shadow._current_v2_radiant_jewelbinder_capacity_migration_equivalent(
+                old,
+                new,
+                transitional_authority_context=old_authority,
+                candidate_authority_context=without_proof,
+                transitional_intent=old_intent,
+                candidate_intent=new_intent,
+            )
+        )
+
+    def test_shadow_allows_only_verified_current_v2_radiant_jewelbinder_capacity_migration(self):
+        candidate = self.candidate_row()
+        active_intent = copy.deepcopy(candidate["selectionIntent"])
+        active_intent["authoredAgainst"]["gearCatalogRevision"] = "gear-release:old"
+        active_winner = copy.deepcopy(candidate)
+        active_winner["selectionIntent"] = active_intent
+        dependencies = {
+            "seasonRevision": "season-17",
+            "gearCatalogReleaseId": "gear-release:old",
+            "gearCatalogRevision": "gear-release:old",
+            "gearRuleRevision": "gear-rule-matrix-v1",
+            "resolverContractRevision": "gear-resolver-contract-v1",
+            "capabilityRevision": gear_socket_authority.CAPABILITY_REVISION,
+            "serializerRevision": "serializer-v1",
+            "simcRuntimeRevision": "simc-r1",
+            "statPolicyRevision": "stat-policy-v1",
+            "selectionSchemaRevision": "selection-intent-v1",
+        }
+        old_snapshot = self.snapshot(active_intent, "sha256:old")
+        old_snapshot["dependencyVector"] = copy.deepcopy(dependencies)
+        old_snapshot["resolvedSlots"]["head"].update({
+            "effectiveCapabilities": {"socketCount": 0},
+            "selectedOptions": {"gemOptionIds": []},
+        })
+        old_snapshot["constraints"] = {
+            "slots": {"head": {"socketCount": 0, "socketRemaining": 0}}
+        }
+        candidate_snapshot = copy.deepcopy(old_snapshot)
+        candidate_dependencies = copy.deepcopy(dependencies)
+        candidate_dependencies.update({
+            "gearCatalogReleaseId": "gear-release:sha256:target",
+            "gearCatalogRevision": "gear-release:sha256:target",
+        })
+        candidate_snapshot["dependencyVector"] = candidate_dependencies
+        candidate_snapshot["resolvedGearSignature"] = "sha256:candidate"
+        candidate_snapshot["resolvedSlots"]["head"]["effectiveCapabilities"][
+            "socketCount"
+        ] = 1
+        candidate_snapshot["constraints"]["slots"]["head"].update({
+            "socketCount": 1,
+            "socketRemaining": 1,
+        })
+        candidate["resolvedGearSignature"] = "sha256:candidate"
+        candidate["semanticGearSignature"] = gear_release.semantic_gear_signature(
+            candidate["selectionIntent"],
+            candidate_snapshot,
+        )
+        active_winner["semanticGearSignature"] = gear_release.semantic_gear_signature(
+            active_intent,
+            old_snapshot,
+        )
+        candidate_authority = self.candidate_authority(
+            candidate_dependencies,
+            options={},
+            evidence_records={"evidence:item": {"id": "evidence:item"}},
+        )
+        candidate_authority["itemsById"]["item-a"][
+            "radiantJewelbinderSocketEligibility"
+        ] = True
+        transitional_authority = self.candidate_authority(
+            dependencies,
+            options={},
+            evidence_records={"evidence:item": {"id": "evidence:item"}},
+        )
+        store = FakeShadowStore(
+            candidate,
+            capability_revision=gear_socket_authority.CAPABILITY_REVISION,
+            candidate_authority_context=candidate_authority,
+            transitional_authority_context=transitional_authority,
+        )
+        store.get_gear_resolver_context = lambda _runtime: {
+            "formalActiveManifest": True,
+            "authoredAgainst": {
+                "seasonRevision": "season-17",
+                "gearCatalogRevision": "gear-release:old",
+            },
+            "dependencyRevisions": {
+                "capabilityRevision": gear_socket_authority.CAPABILITY_REVISION,
+            },
+        }
+        store.get_active_community_release = lambda: {
+            "formalActiveManifest": True,
+            "pointerGeneration": 1,
+            "manifestRevision": "manifest:active",
+            "gearRelease": {
+                "releaseId": "gear-release:old",
+                "dependencyRevisions": {
+                    "capabilityRevision": gear_socket_authority.CAPABILITY_REVISION,
+                },
+            },
+            "communityRelease": {"releaseId": "community-release:old"},
+            "winners": [copy.deepcopy(active_winner)],
+        }
+        profile = self.resolved_profile_envelope("mage=verified")
+
+        with patch.object(
+            gear_release_shadow.gear_runtime,
+            "resolve_selection_intent",
+            return_value=(200, {
+                "status": "resolved",
+                "data": old_snapshot,
+                "problems": [],
+            }),
+        ), patch.object(
+            gear_release_shadow.gear_runtime,
+            "resolve_candidate_selection_intent",
+            return_value=(200, {
+                "status": "resolved",
+                "data": candidate_snapshot,
+                "problems": [],
+            }),
+        ), patch.object(
+            gear_release_shadow.gear_runtime,
+            "build_profile_from_selection_intent",
+            return_value=(200, profile),
+        ), patch.object(
+            gear_release_shadow.gear_runtime,
+            "build_candidate_profile_from_selection_intent",
+            return_value=(200, profile),
+        ):
+            result = gear_release_shadow.run_release_shadow(
+                store,
+                expected_specs=[("mage", "arcane")],
+                gear_release_id="gear-release:sha256:target",
+                community_release_id="community-release:sha256:target",
+                simc_runtime_revision="simc-r1",
+                expect_formal_active=True,
+            )
+
+        self.assertEqual(result["status"], "pass", result)
+        self.assertEqual(
+            result["specResults"][0]["enhancementMigrationParity"],
+            {
+                "status": "pass",
+                "mode": "current_v2_radiant_jewelbinder_capacity",
+            },
+        )
+
+    def test_shadow_allows_narrow_legacy_to_v2_socket_capacity_migration_only(self):
+
+        gemmed = copy.deepcopy(new)
+        gemmed["resolvedSlots"]["head"]["selectedOptions"]["gemOptionIds"] = [
+            "gem-a"
+        ]
+        self.assertFalse(
+            gear_release_shadow._current_v2_radiant_jewelbinder_capacity_migration_equivalent(
+                old,
+                gemmed,
+                transitional_authority_context=old_authority,
+                candidate_authority_context=new_authority,
+                transitional_intent=old_intent,
+                candidate_intent=new_intent,
+            )
+        )
+
     def test_shadow_allows_narrow_legacy_to_v2_socket_capacity_migration_only(self):
         candidate = self.candidate_row()
         candidate_snapshot = self.snapshot(candidate["selectionIntent"], "sha256:candidate")
@@ -4555,6 +4792,47 @@ class GearReleaseShadowTest(unittest.TestCase):
             sealed,
         )
         self.assertEqual(mismatch, projected)
+
+    def test_sealed_active_provenance_restores_import_evidence_after_exact_identity_match(self):
+        projected = {
+            "templateId": "observed_profile_deathknight_frost",
+            "sourceKey": "raiderio_observed_profile",
+            "sourceUrl": "https://raider.io/characters/cn/example",
+            "gearHash": "gear:deathknight:frost:example",
+            "sampleCount": 1,
+            "profileHash": "profile:deathknight:frost:example",
+        }
+        sealed_evidence = {
+            "schemaRevision": "community-template-import-evidence-v1",
+            "sourceFingerprint": "sha256:" + "a" * 64,
+            "slots": {
+                "head": {
+                    "itemId": "249970",
+                    "variantKey": "item:249970",
+                    "observedItemLevel": 289,
+                    "iconUrl": "https://render.worldofwarcraft.com/icons/head.jpg",
+                },
+            },
+        }
+        sealed = {
+            **projected,
+            "payload": {"importEvidence": sealed_evidence},
+        }
+
+        aligned = gear_release_shadow._bind_transitional_provenance_to_active_winner(
+            projected,
+            sealed,
+        )
+        self.assertEqual(aligned["importEvidence"], sealed_evidence)
+        self.assertIsNot(aligned["importEvidence"], sealed_evidence)
+        self.assertNotIn("importEvidence", projected)
+
+        sealed["gearHash"] = "gear:deathknight:frost:different"
+        mismatch = gear_release_shadow._bind_transitional_provenance_to_active_winner(
+            projected,
+            sealed,
+        )
+        self.assertNotIn("importEvidence", mismatch)
 
     def test_import_fidelity_profile_gate_allows_only_source_backed_gear_content_delta(self):
         old = self.resolved_profile_envelope("mage=legacy-gear")

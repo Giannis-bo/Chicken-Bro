@@ -474,13 +474,16 @@ def _bind_transitional_provenance_to_active_winner(
     transitional_row: Any,
     active_winner: Any,
 ) -> dict[str, Any]:
-    """Use sealed active provenance when its public projection adds only a hash.
+    """Use sealed active provenance missing from the public projection.
 
     A legacy public template can expose an older profile hash that was never
     carried by its sealed active winner.  When every other source identity is
     exactly bound, the sealed Manifest remains authoritative: retain its
-    missing-hash state rather than manufacture a candidate mismatch.  Any
-    non-empty disagreement remains visible to the shadow comparison.
+    missing-hash state rather than manufacture a candidate mismatch.  The
+    public template projection also intentionally omits the sealed
+    ``importEvidence`` payload; carry that exact evidence into the transitional
+    comparison only after the same complete identity check.  Any non-empty
+    source, slot, level, or icon disagreement remains visible to shadow.
     """
 
     row = copy.deepcopy(transitional_row) if isinstance(transitional_row, dict) else {}
@@ -500,6 +503,16 @@ def _bind_transitional_provenance_to_active_winner(
     if sealed_profile_hash and sealed_profile_hash != projected_profile_hash:
         return row
     row["profileHash"] = sealed_profile_hash
+    sentinel = object()
+    sealed_import_evidence = active_winner.get("importEvidence", sentinel)
+    if sealed_import_evidence is sentinel:
+        active_payload = active_winner.get("payload")
+        if isinstance(active_payload, dict):
+            sealed_import_evidence = active_payload.get("importEvidence", sentinel)
+    if sealed_import_evidence is sentinel:
+        row.pop("importEvidence", None)
+    else:
+        row["importEvidence"] = copy.deepcopy(sealed_import_evidence)
     return row
 
 
@@ -2177,6 +2190,166 @@ def _legacy_to_v2_socket_capacity_migration_equivalent(
     )
 
 
+def _current_v2_radiant_jewelbinder_capacity_migration_equivalent(
+    transitional_snapshot: Any,
+    candidate_snapshot: Any,
+    *,
+    transitional_authority_context: Any,
+    candidate_authority_context: Any,
+    transitional_intent: Any,
+    candidate_intent: Any,
+) -> bool:
+    """Allow only sealed PvE Jewelbinder empty-slot additions within v2.
+
+    The v2 capability revision can gain a newly proved current-season PvE
+    catalog fact without changing a player's observed configuration.  This is
+    deliberately narrower than a generic socket upgrade: every changed slot
+    must be head/wrist/waist, change exactly 0 -> 1, remain ungemmed, and carry
+    the loader-projected proof from the exact candidate Gear Release.
+    """
+
+    old = transitional_snapshot if isinstance(transitional_snapshot, dict) else {}
+    new = candidate_snapshot if isinstance(candidate_snapshot, dict) else {}
+    old_authority = (
+        transitional_authority_context
+        if isinstance(transitional_authority_context, dict)
+        else {}
+    )
+    new_authority = (
+        candidate_authority_context
+        if isinstance(candidate_authority_context, dict)
+        else {}
+    )
+    parsed_old, old_issues = gear_contracts.parse_selection_intent(
+        transitional_intent
+    )
+    parsed_new, new_issues = gear_contracts.parse_selection_intent(
+        candidate_intent
+    )
+    if (
+        old_issues
+        or new_issues
+        or gear_contracts.validate_authority_context(parsed_old, old_authority)
+        or gear_contracts.validate_authority_context(parsed_new, new_authority)
+        or _non_enhancement_selection_projection(parsed_old)
+        != _non_enhancement_selection_projection(parsed_new)
+        or _enhancement_selection_projection(parsed_old)
+        != _enhancement_selection_projection(parsed_new)
+    ):
+        return False
+
+    old_dependencies = (
+        old.get("dependencyVector")
+        if isinstance(old.get("dependencyVector"), dict)
+        else {}
+    )
+    new_dependencies = (
+        new.get("dependencyVector")
+        if isinstance(new.get("dependencyVector"), dict)
+        else {}
+    )
+    old_authority_dependencies = old_authority.get("dependencyVector")
+    new_authority_dependencies = new_authority.get("dependencyVector")
+    if (
+        not isinstance(old_authority_dependencies, dict)
+        or not isinstance(new_authority_dependencies, dict)
+        or old_dependencies != old_authority_dependencies
+        or new_dependencies != new_authority_dependencies
+        or old_dependencies.get("capabilityRevision")
+        != gear_socket_authority.CAPABILITY_REVISION
+        or new_dependencies.get("capabilityRevision")
+        != gear_socket_authority.CAPABILITY_REVISION
+        or _text(old_dependencies.get("seasonRevision"))
+        != _text(new_dependencies.get("seasonRevision"))
+    ):
+        return False
+
+    old_normalized = copy.deepcopy(old)
+    new_normalized = copy.deepcopy(new)
+    old_resolved_slots = (
+        old.get("resolvedSlots") if isinstance(old.get("resolvedSlots"), dict) else {}
+    )
+    new_resolved_slots = (
+        new.get("resolvedSlots") if isinstance(new.get("resolvedSlots"), dict) else {}
+    )
+    old_constraint_slots = (
+        (old.get("constraints") or {}).get("slots")
+        if isinstance(old.get("constraints"), dict)
+        and isinstance((old.get("constraints") or {}).get("slots"), dict)
+        else {}
+    )
+    new_constraint_slots = (
+        (new.get("constraints") or {}).get("slots")
+        if isinstance(new.get("constraints"), dict)
+        and isinstance((new.get("constraints") or {}).get("slots"), dict)
+        else {}
+    )
+    candidate_items = new_authority.get("itemsById")
+    candidate_items = candidate_items if isinstance(candidate_items, dict) else {}
+    candidate_slots = parsed_new.get("slots") if isinstance(parsed_new, dict) else {}
+    changed_slots: list[str] = []
+    for slot in sorted(set(old_constraint_slots) | set(new_constraint_slots)):
+        old_constraint = old_constraint_slots.get(slot)
+        new_constraint = new_constraint_slots.get(slot)
+        old_constraint = old_constraint if isinstance(old_constraint, dict) else {}
+        new_constraint = new_constraint if isinstance(new_constraint, dict) else {}
+        old_count = old_constraint.get("socketCount")
+        new_count = new_constraint.get("socketCount")
+        if old_count == new_count:
+            continue
+        if (
+            slot not in {"head", "wrist", "waist"}
+            or old_count != 0
+            or new_count != 1
+        ):
+            return False
+        old_resolved = old_resolved_slots.get(slot)
+        new_resolved = new_resolved_slots.get(slot)
+        old_resolved = old_resolved if isinstance(old_resolved, dict) else {}
+        new_resolved = new_resolved if isinstance(new_resolved, dict) else {}
+        old_effective = old_resolved.get("effectiveCapabilities")
+        new_effective = new_resolved.get("effectiveCapabilities")
+        old_effective = old_effective if isinstance(old_effective, dict) else {}
+        new_effective = new_effective if isinstance(new_effective, dict) else {}
+        selected = new_resolved.get("selectedOptions")
+        selected = selected if isinstance(selected, dict) else {}
+        selection = candidate_slots.get(slot)
+        selection = selection if isinstance(selection, dict) else {}
+        item_id = _text(selection.get("itemId"))
+        candidate_item = candidate_items.get(item_id)
+        if (
+            old_effective.get("socketCount") != 0
+            or new_effective.get("socketCount") != 1
+            or selected.get("gemOptionIds") != []
+            or _text(old_resolved.get("itemId")) != item_id
+            or _text(new_resolved.get("itemId")) != item_id
+            or not isinstance(candidate_item, dict)
+            or candidate_item.get("radiantJewelbinderSocketEligibility") is not True
+        ):
+            return False
+        changed_slots.append(slot)
+        for normalized, normalized_slot in (
+            (old_normalized, slot),
+            (new_normalized, slot),
+        ):
+            resolved = (normalized.get("resolvedSlots") or {}).get(normalized_slot)
+            if isinstance(resolved, dict) and isinstance(
+                resolved.get("effectiveCapabilities"), dict
+            ):
+                resolved["effectiveCapabilities"].pop("socketCount", None)
+            constraint = ((normalized.get("constraints") or {}).get("slots") or {}).get(
+                normalized_slot
+            )
+            if isinstance(constraint, dict):
+                constraint.pop("socketCount", None)
+                constraint.pop("socketRemaining", None)
+
+    return bool(changed_slots) and (
+        gear_release.semantic_gear_signature(parsed_old, old_normalized)
+        == gear_release.semantic_gear_signature(parsed_new, new_normalized)
+    )
+
+
 def _reference_contract_proof(
     candidate: dict[str, Any],
     intent: dict[str, Any],
@@ -2873,7 +3046,7 @@ def run_release_shadow(
                         spec_key,
                         "Candidate Profile outcome differs from transitional Profile.",
                     ))
-            if (
+            legacy_to_v2_migration_candidate = (
                 active_capability_revision
                 == gear_socket_authority.LEGACY_CAPABILITY_REVISION
                 and candidate_capability_revision
@@ -2882,6 +3055,21 @@ def run_release_shadow(
                 and profile_migration_evidence
                 and migration_scope_equal
                 and exact_active_binding
+            )
+            current_v2_radiant_migration_candidate = (
+                active_capability_revision
+                == gear_socket_authority.CAPABILITY_REVISION
+                and candidate_capability_revision
+                == gear_socket_authority.CAPABILITY_REVISION
+                and profile_result["status"] == "pass"
+                and profile_migration_evidence
+                and migration_scope_equal
+                and not enhancement_selection_changed
+                and exact_active_binding
+            )
+            if (
+                legacy_to_v2_migration_candidate
+                or current_v2_radiant_migration_candidate
             ):
                 try:
                     runtime_authority = gear_resolver_runtime_authority(
@@ -2930,13 +3118,7 @@ def run_release_shadow(
                 )
             )
             legacy_to_v2_capacity_migration = (
-                active_capability_revision
-                == gear_socket_authority.LEGACY_CAPABILITY_REVISION
-                and candidate_capability_revision
-                == gear_socket_authority.CAPABILITY_REVISION
-                and profile_result["status"] == "pass"
-                and profile_migration_evidence
-                and migration_scope_equal
+                legacy_to_v2_migration_candidate
                 and _legacy_to_v2_socket_capacity_migration_equivalent(
                     old_snapshot,
                     new_snapshot,
@@ -2951,19 +3133,42 @@ def run_release_shadow(
                     candidate_intent=candidate_intent,
                 )
             )
-            if not enhancement_selection_changed and not legacy_to_v2_capacity_migration:
+            current_v2_radiant_capacity_migration = (
+                current_v2_radiant_migration_candidate
+                and _current_v2_radiant_jewelbinder_capacity_migration_equivalent(
+                    old_snapshot,
+                    new_snapshot,
+                    transitional_authority_context=transitional_authority_context,
+                    candidate_authority_context=candidate_authority_context,
+                    transitional_intent=legacy_intent,
+                    candidate_intent=candidate_intent,
+                )
+            )
+            if (
+                not enhancement_selection_changed
+                and not legacy_to_v2_capacity_migration
+                and not current_v2_radiant_capacity_migration
+            ):
                 migration_result = {"status": "not_required"}
             elif (
                 profile_result["status"] == "pass"
-                and (editor_only_migration or legacy_to_v2_capacity_migration)
+                and (
+                    editor_only_migration
+                    or legacy_to_v2_capacity_migration
+                    or current_v2_radiant_capacity_migration
+                )
                 and migration_scope_equal
             ):
                 migration_result = {
                     "status": "pass",
                     "mode": (
-                        "legacy_to_v2_socket_capacity"
-                        if legacy_to_v2_capacity_migration
-                        else "enhancement_only"
+                        "current_v2_radiant_jewelbinder_capacity"
+                        if current_v2_radiant_capacity_migration
+                        else (
+                            "legacy_to_v2_socket_capacity"
+                            if legacy_to_v2_capacity_migration
+                            else "enhancement_only"
+                        )
                     ),
                 }
                 allowed_enhancement_migrations.add(key)

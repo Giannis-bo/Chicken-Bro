@@ -15,12 +15,15 @@ LEGACY_CAPABILITY_REVISION = "gear-capability-matrix-v1"
 CAPABILITY_REVISION = "gear-capability-matrix-v2"
 SUPPORTED_CAPABILITY_REVISIONS = (LEGACY_CAPABILITY_REVISION, CAPABILITY_REVISION)
 SOCKET_FACT_SCHEMA_REVISION = "gear-socket-fact-v1"
+SOCKET_ELIGIBILITY_SCHEMA_REVISION = "gear-socket-eligibility-v1"
 
 __all__ = (
     "LEGACY_CAPABILITY_REVISION",
     "CAPABILITY_REVISION",
     "SUPPORTED_CAPABILITY_REVISIONS",
     "SOCKET_FACT_SCHEMA_REVISION",
+    "SOCKET_ELIGIBILITY_SCHEMA_REVISION",
+    "is_verified_radiant_jewelbinder_socket",
     "count_payload_socket_entries",
     "parse_simc_socket_bonus_minimums",
     "derive_item_socket_fact",
@@ -44,6 +47,9 @@ _MIDNIGHT_SEASON_ONE_REVISION_PATTERNS = (
 )
 _MIDNIGHT_JEWELRY_SLOTS = frozenset({"neck", "finger", "finger1", "finger2"})
 _RADIANT_JEWELBINDER_SLOTS = frozenset({"head", "wrist", "waist"})
+_ACTIVE_PVE_CATALOG_SOURCE_TYPES = frozenset(
+    {"dungeon", "mythic_plus", "mythicplus", "raid", "tier_set"}
+)
 _SOCKET_PAYLOAD_KEYS = frozenset({"socket", "sockets", "gemsockets"})
 
 
@@ -139,14 +145,153 @@ def _source_revision(row: Mapping[str, Any], fallback: str) -> str:
     )
 
 
-def _explicitly_non_pvp(item: Mapping[str, Any]) -> bool:
+def _pvp_flags(item: Mapping[str, Any]) -> list[Any]:
     payload = item.get("payload") if isinstance(item.get("payload"), dict) else {}
     flags: list[Any] = []
     for parent in (item, payload):
         for key in ("isPvp", "isPvP", "pvp"):
             if key in parent:
                 flags.append(parent.get(key))
-    return bool(flags) and all(flag is False for flag in flags)
+    return flags
+
+
+def _socket_eligibility_proves_non_pvp(
+    value: Any,
+    season_revision: str,
+) -> bool:
+    eligibility = value if isinstance(value, dict) else {}
+    revision = _text(season_revision)
+    source_ids = eligibility.get("sourceIds")
+    source_types = eligibility.get("sourceTypes")
+    return (
+        bool(revision)
+        and eligibility.get("schemaRevision") == SOCKET_ELIGIBILITY_SCHEMA_REVISION
+        and eligibility.get("status") == "verified"
+        and eligibility.get("eligibility") == "active_pve_catalog"
+        and _text(eligibility.get("sourceRevision")) == revision
+        and isinstance(source_ids, list)
+        and bool(source_ids)
+        and all(bool(_text(source_id)) for source_id in source_ids)
+        and isinstance(source_types, list)
+        and bool(source_types)
+        and all(
+            _text(source_type).lower() in _ACTIVE_PVE_CATALOG_SOURCE_TYPES
+            for source_type in source_types
+        )
+    )
+
+
+def is_verified_radiant_jewelbinder_socket(
+    item: Any,
+    season_revision: str,
+) -> bool:
+    """Verify one sealed current-season Radiant Jewelbinder socket fact.
+
+    This deliberately recognizes only the seasonal, PvE-catalog-backed
+    Jewelbinder slot.  It does not turn a generic one-socket item into a
+    special puncher slot, and it never infers eligibility from an observed gem.
+    """
+
+    row = item if isinstance(item, Mapping) else {}
+    payload = row.get("payload") if isinstance(row.get("payload"), dict) else {}
+    revision = _text(season_revision)
+    eligibility = (
+        row.get("socketEligibility")
+        if isinstance(row.get("socketEligibility"), dict)
+        else payload.get("socketEligibility")
+    )
+    evidence = (
+        row.get("socketEvidence")
+        if isinstance(row.get("socketEvidence"), dict)
+        else payload.get("socketEvidence")
+    )
+    claims = evidence.get("claims") if isinstance(evidence, dict) else []
+    return (
+        _row_slot(row) in _RADIANT_JEWELBINDER_SLOTS
+        and _socket_eligibility_proves_non_pvp(eligibility, revision)
+        and isinstance(evidence, dict)
+        and evidence.get("schemaRevision") == SOCKET_FACT_SCHEMA_REVISION
+        and evidence.get("authorityRevision") == CAPABILITY_REVISION
+        and _minimum_total(evidence.get("minimumTotal")) == 1
+        and isinstance(claims, list)
+        and any(
+            isinstance(claim, dict)
+            and _minimum_total(claim.get("minimumTotal")) == 1
+            and claim.get("scope") == "season_slot"
+            and claim.get("source") == "midnight_s1_radiant_jewelbinder"
+            and _text(claim.get("sourceRevision")) == revision
+            for claim in claims
+        )
+    )
+
+
+def _explicitly_non_pvp(item: Mapping[str, Any], season_revision: str) -> bool:
+    flags = _pvp_flags(item)
+    if flags:
+        return all(flag is False for flag in flags)
+    return _socket_eligibility_proves_non_pvp(
+        item.get("socketEligibility"),
+        season_revision,
+    )
+
+
+def _needs_radiant_jewelbinder_eligibility(
+    item: Mapping[str, Any],
+    season_revision: str,
+) -> bool:
+    payload = item.get("payload") if isinstance(item.get("payload"), dict) else {}
+    return (
+        _is_midnight_season_one_revision(season_revision)
+        and _row_slot(item) in _RADIANT_JEWELBINDER_SLOTS
+        and count_payload_socket_entries(payload) == 0
+        and not _pvp_flags(item)
+    )
+
+
+def _active_pve_catalog_socket_eligibility(
+    item: Mapping[str, Any],
+    sources: list[Mapping[str, Any]],
+    season_revision: str,
+) -> dict[str, Any] | None:
+    """Return release-time non-PvP evidence for current PvE catalog items.
+
+    Raw PvP flags retain priority when present.  When they are absent, only an
+    exact current-season source from the restricted official PvE catalog may
+    certify the item's eligibility for the seasonal Jewelbinder rule.
+    """
+
+    revision = _text(season_revision)
+    if not _needs_radiant_jewelbinder_eligibility(item, revision):
+        return None
+    source_ids: set[str] = set()
+    source_types: set[str] = set()
+    for source in sources:
+        source_id = _text(source.get("sourceId"))
+        source_type = _text(source.get("sourceType")).lower()
+        source_revision = _text(source.get("seasonRevision"))
+        statuses = {
+            _text(source.get("status")).lower(),
+            _text(source.get("sourceStatus")).lower(),
+        }
+        if (
+            not source_id
+            or source_type not in _ACTIVE_PVE_CATALOG_SOURCE_TYPES
+            or source_revision != revision
+            or statuses.intersection({"blocked", "rejected", "expired"})
+        ):
+            continue
+        source_ids.add(source_id)
+        source_types.add(source_type)
+    if not source_ids or not source_types:
+        return None
+    return {
+        "schemaRevision": SOCKET_ELIGIBILITY_SCHEMA_REVISION,
+        "status": "verified",
+        "eligibility": "active_pve_catalog",
+        "sourceRevision": revision,
+        "sourceIds": sorted(source_ids),
+        "sourceTypes": sorted(source_types),
+    }
 
 
 def _id_tokens(value: Any) -> list[str]:
@@ -333,7 +478,7 @@ def derive_item_socket_fact(
         is_midnight_season_one
         and slot in _RADIANT_JEWELBINDER_SLOTS
         and official_total == 0
-        and _explicitly_non_pvp(row)
+        and _explicitly_non_pvp(row, revision)
     ):
         claims.append(
             _claim(
@@ -420,10 +565,26 @@ def materialize_gear_socket_facts(
 
     materialized = copy.deepcopy(snapshot) if isinstance(snapshot, dict) else {}
     items = [row for row in materialized.get("items") or [] if isinstance(row, dict)]
+    sources = [row for row in materialized.get("sources") or [] if isinstance(row, dict)]
     variants = [row for row in materialized.get("variants") or [] if isinstance(row, dict)]
     items_by_id: dict[str, dict[str, Any]] = {}
+    sources_by_item_id: dict[str, list[Mapping[str, Any]]] = {}
+
+    for source in sources:
+        item_id = _text(source.get("itemId"))
+        if item_id:
+            sources_by_item_id.setdefault(item_id, []).append(source)
 
     for item in items:
+        item_id = _text(item.get("itemId"))
+        item.pop("socketEligibility", None)
+        eligibility = _active_pve_catalog_socket_eligibility(
+            item,
+            sources_by_item_id.get(item_id, []),
+            _text(season_revision),
+        )
+        if eligibility:
+            item["socketEligibility"] = eligibility
         fact = derive_item_socket_fact(item, season_revision)
         capabilities = item.get("baseCapabilities")
         if not isinstance(capabilities, dict):
@@ -431,7 +592,6 @@ def materialize_gear_socket_facts(
             item["baseCapabilities"] = capabilities
         capabilities["socketCount"] = fact["minimumTotal"]
         item["socketEvidence"] = fact
-        item_id = _text(item.get("itemId"))
         if item_id:
             items_by_id[item_id] = item
 

@@ -41,6 +41,8 @@ globalThis.__detailHelpers = {
   gearSelectionWithCanonicalEnhancementConstraints: typeof gearSelectionWithCanonicalEnhancementConstraints === 'function' ? gearSelectionWithCanonicalEnhancementConstraints : undefined,
   invalidateGearInteractionContext: typeof invalidateGearInteractionContext === 'function' ? invalidateGearInteractionContext : undefined,
   savedCommunityImportOrigin: typeof savedCommunityImportOrigin === 'function' ? savedCommunityImportOrigin : undefined,
+  canonicalEnhancementMarkers: typeof canonicalEnhancementMarkers === 'function' ? canonicalEnhancementMarkers : undefined,
+  canonicalGearSlotRows: typeof canonicalGearSlotRows === 'function' ? canonicalGearSlotRows : undefined,
   enhancementRecordSelectedCount,
   compactEnhancementRecord,
   enhancementOptionSelected,
@@ -1030,6 +1032,64 @@ test('native talent simulator page exposes WebSim tree controls and template per
   assert.doesNotMatch(wxml, /class="talent-chip-list"/)
 })
 
+test('gear-slot enhancement markers use only a verified canonical snapshot and preserve physical gem sockets', () => {
+  const pageConfig = loadBuildsDetailPageConfig({ exposeDetailHelpers: true })
+  const helpers = pageConfig.__detailHelpers
+  assert.equal(typeof helpers.canonicalEnhancementMarkers, 'function')
+
+  const row = { slot: 'finger1', embellishmentBadgeLabel: '' }
+  const snapshot = {
+    constraints: {
+      slots: {
+        finger1: { socketCount: 2, canEnchant: true, canEmbellish: true }
+      }
+    },
+    resolvedSlots: {
+      finger1: {
+        legality: { status: 'verified' },
+        selectedOptions: {
+          gemOptionIds: ['gem-first'],
+          enchantOptionId: 'ring-enchant',
+          embellishmentOptionId: ''
+        }
+      }
+    }
+  }
+
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(helpers.canonicalEnhancementMarkers(row, snapshot))),
+    [
+      { key: 'gem-0', type: 'gem', state: 'filled', socketIndex: 0, iconUrl: 'https://render.worldofwarcraft.com/us/icons/56/inv_misc_gem_variety_02.jpg' },
+      { key: 'gem-1', type: 'gem', state: 'empty', socketIndex: 1, iconUrl: 'https://render.worldofwarcraft.com/us/icons/56/inv_misc_gem_variety_02.jpg' },
+      { key: 'enchant', type: 'enchant', state: 'filled', iconUrl: 'https://render.worldofwarcraft.com/us/icons/56/spell_holy_greaterheal.jpg' },
+      { key: 'embellishment', type: 'embellishment', state: 'empty', iconUrl: 'https://render.worldofwarcraft.com/us/icons/56/inv_misc_gear_01.jpg' }
+    ]
+  )
+  assert.deepEqual(JSON.parse(JSON.stringify(helpers.canonicalEnhancementMarkers(row, null))), [])
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(helpers.canonicalEnhancementMarkers({ slot: 'head', embellishmentBadgeLabel: '美化' }, {
+      constraints: { slots: { head: { socketCount: 0, canEnchant: false, canEmbellish: false } } },
+      resolvedSlots: { head: { legality: { status: 'verified' }, selectedOptions: {} } }
+    }))),
+    [{ key: 'embellishment', type: 'embellishment', state: 'filled', iconUrl: 'https://render.worldofwarcraft.com/us/icons/56/inv_misc_gear_01.jpg', source: 'built-in' }]
+  )
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(helpers.canonicalGearSlotRows([row], { resolveStatus: 'verified', currentSnapshot: snapshot }))),
+    [{
+      ...row,
+      enhancementMarkers: [
+        { key: 'gem-0', type: 'gem', state: 'filled', socketIndex: 0, iconUrl: 'https://render.worldofwarcraft.com/us/icons/56/inv_misc_gem_variety_02.jpg' },
+        { key: 'gem-1', type: 'gem', state: 'empty', socketIndex: 1, iconUrl: 'https://render.worldofwarcraft.com/us/icons/56/inv_misc_gem_variety_02.jpg' },
+        { key: 'enchant', type: 'enchant', state: 'filled', iconUrl: 'https://render.worldofwarcraft.com/us/icons/56/spell_holy_greaterheal.jpg' },
+        { key: 'embellishment', type: 'embellishment', state: 'empty', iconUrl: 'https://render.worldofwarcraft.com/us/icons/56/inv_misc_gear_01.jpg' }
+      ],
+      status: 'verified',
+      statusLabel: '已校验',
+      statusClass: 'verified'
+    }]
+  )
+})
+
 test('native talent simulator save flow names talent templates for the profile library', async () => {
   const { pageConfig, mocks } = loadTalentSimulatorPageConfig()
   const selectedNodes = [{ id: 'root', rank: 1 }]
@@ -1573,10 +1633,10 @@ test('gear detail page exposes inline equipment simulator state and replacement 
   assert.doesNotMatch(wxml, /gearAttributePanel\.resourceRows/)
   assert.match(wxml, /class="gear-slot-grid"/)
   assert.match(wxml, /wx:for="\{\{gearSlotRows\}\}"/)
-  assert.match(wxml, /class="gear-slot-enhancement-badges" wx:if="\{\{item\.equipmentBadgeLabels\.length \|\| item\.enhancementBadgeLabels\.length\}\}"/)
-  assert.match(wxml, /wx:for="\{\{item\.equipmentBadgeLabels\}\}"/)
-  assert.match(wxml, /wx:for="\{\{item\.enhancementBadgeLabels\}\}"/)
-  assert.match(wxml, /class="gear-slot-enhancement-badge"/)
+  assert.match(wxml, /class="gear-slot-enhancement-markers" wx:if="\{\{item\.enhancementMarkers\.length\}\}"/)
+  assert.match(wxml, /wx:for="\{\{item\.enhancementMarkers\}\}"/)
+  assert.match(wxml, /class="gear-slot-enhancement-marker \{\{marker\.type\}\} \{\{marker\.state\}\}"/)
+  assert.match(wxml, /marker\.iconUrl/)
   assert.ok(wxml.indexOf('class="gear-attribute-panel"') < wxml.indexOf('class="gear-slot-grid"'))
   assert.ok(wxml.indexOf('class="gear-attribute-level"') < wxml.indexOf('class="gear-attribute-grid"'))
   assert.ok(wxml.indexOf('class="gear-attribute-action"') > wxml.indexOf('class="gear-attribute-panel"'))
@@ -1719,8 +1779,10 @@ test('gear detail page exposes inline equipment simulator state and replacement 
   assert.ok(sourceReferenceSlotCardCss)
   assert.match(sourceReferenceSlotCardCss[0], /border-color:\s*rgba\(248,\s*183,\s*0,\s*0\.28\);/)
   assert.doesNotMatch(sourceReferenceSlotCardCss[0], /94,\s*141,\s*255/)
-  assert.match(css, /\.gear-slot-enhancement-badges\s*\{[\s\S]*position:\s*absolute;[\s\S]*top:\s*10rpx;[\s\S]*right:\s*10rpx;/)
-  assert.match(css, /\.gear-slot-enhancement-badge\s*\{[\s\S]*font-size:\s*18rpx;[\s\S]*font-weight:\s*900;/)
+  assert.match(css, /\.gear-slot-enhancement-markers\s*\{[\s\S]*position:\s*absolute;[\s\S]*top:\s*10rpx;[\s\S]*right:\s*10rpx;[\s\S]*flex-direction:\s*row;/)
+  assert.match(css, /\.gear-slot-enhancement-marker\s*\{[\s\S]*width:\s*30rpx;[\s\S]*height:\s*30rpx;/)
+  assert.match(css, /\.gear-slot-enhancement-marker\.empty\s*\{[\s\S]*border-color:/)
+  assert.match(css, /\.gear-slot-enhancement-marker\.filled\s*\{[\s\S]*box-shadow:/)
   assert.match(css, /\.gear-slot-card \.gear-name\s*\{[\s\S]*font-size:\s*22rpx;[\s\S]*line-height:\s*1\.28;/)
   assert.match(css, /\.gear-request-alert/)
   assert.doesNotMatch(css, /\.gear-trust-summary/)

@@ -144,6 +144,7 @@ def _materialized_socket_fact_digest(snapshot: dict[str, Any]) -> str:
             "itemId": _text(row.get("itemId")),
             "socketCount": _int(_socket_fact_value(row, "baseCapabilities").get("socketCount")),
             "socketEvidence": _canonical(_socket_fact_value(row, "socketEvidence")),
+            "socketEligibility": _canonical(_socket_fact_value(row, "socketEligibility")),
         }
         for row in snapshot.get("items") or []
         if isinstance(row, dict)
@@ -184,6 +185,11 @@ def _project_socket_facts_into_release_payloads(snapshot: dict[str, Any]) -> dic
                     payload[field] = {**existing, **materialized}
                 else:
                     payload[field] = materialized
+            if category == "items":
+                eligibility = row.pop("socketEligibility", None)
+                payload.pop("socketEligibility", None)
+                if isinstance(eligibility, dict):
+                    payload["socketEligibility"] = eligibility
             row["payload"] = payload
     return projected
 

@@ -1039,6 +1039,54 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
                 self.assertTrue(invalid_capabilities["canEnchant"])
                 self.assertTrue(invalid_capabilities["canEmbellish"])
 
+    def test_v2_authority_carries_only_verified_radiant_jewelbinder_eligibility(self):
+        eligibility = {
+            "schemaRevision": gear_socket_authority.SOCKET_ELIGIBILITY_SCHEMA_REVISION,
+            "status": "verified",
+            "eligibility": "active_pve_catalog",
+            "sourceRevision": "season-17-active",
+            "sourceIds": ["tier-set-item-head"],
+            "sourceTypes": ["tier_set"],
+        }
+        socket_evidence = {
+            "schemaRevision": gear_socket_authority.SOCKET_FACT_SCHEMA_REVISION,
+            "authorityRevision": gear_socket_authority.CAPABILITY_REVISION,
+            "minimumTotal": 1,
+            "claims": [{
+                "minimumTotal": 1,
+                "scope": "season_slot",
+                "source": "midnight_s1_radiant_jewelbinder",
+                "sourceRevision": "season-17-active",
+            }],
+        }
+        row = self.item_row()
+        row[2]["payload"].update({
+            "baseCapabilities": {"socketCount": 1},
+            "socketEvidence": socket_evidence,
+            "socketEligibility": eligibility,
+        })
+
+        context = self.released_context(
+            capability_revision=gear_socket_authority.CAPABILITY_REVISION,
+            item_rows=[row],
+        )
+        self.assertTrue(
+            context["itemsById"]["item-head"][
+                "radiantJewelbinderSocketEligibility"
+            ]
+        )
+
+        invalid = copy.deepcopy(row)
+        invalid[2]["payload"]["socketEligibility"]["sourceTypes"] = ["pvp"]
+        invalid_context = self.released_context(
+            capability_revision=gear_socket_authority.CAPABILITY_REVISION,
+            item_rows=[invalid],
+        )
+        self.assertNotIn(
+            "radiantJewelbinderSocketEligibility",
+            invalid_context["itemsById"]["item-head"],
+        )
+
     def test_v2_exact_variant_uses_materialized_socket_override(self):
         from server import gear_resolver
 

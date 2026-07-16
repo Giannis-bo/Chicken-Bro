@@ -575,7 +575,29 @@ class GearReleaseTest(unittest.TestCase):
                 self.assertEqual(report["status"], "blocked")
                 self.assertTrue(report["blockers"])
 
-    def test_shadow_compare_treats_import_evidence_change_as_semantic_change(self):
+    def test_shadow_compare_treats_import_evidence_slot_change_as_semantic_change(self):
+        legacy = self.shadow_row(importEvidence={
+            "schemaRevision": "community-template-import-evidence-v1",
+            "sourceFingerprint": "sha256:" + "a" * 64,
+            "slots": {"head": {"itemId": "item-head", "variantKey": "variant-head", "observedItemLevel": 292, "iconUrl": "https://render.worldofwarcraft.com/icons/a.jpg"}},
+        })
+        candidate = self.shadow_row(importEvidence={
+            "schemaRevision": "community-template-import-evidence-v1",
+            "sourceFingerprint": "sha256:" + "a" * 64,
+            "slots": {"head": {"itemId": "item-head", "variantKey": "variant-head", "observedItemLevel": 293, "iconUrl": "https://render.worldofwarcraft.com/icons/a.jpg"}},
+        })
+
+        report = gear_release.compare_shadow(
+            [legacy],
+            [candidate],
+            expected_specs=[("mage", "arcane")],
+            gear_release_id="gear-release:sha256:target",
+        )
+
+        self.assertEqual(report["status"], "blocked")
+        self.assertEqual(report["diffs"][0]["classification"], "semantic_change")
+
+    def test_shadow_compare_ignores_release_identity_only_import_fingerprint(self):
         legacy = self.shadow_row(importEvidence={
             "schemaRevision": "community-template-import-evidence-v1",
             "sourceFingerprint": "sha256:" + "a" * 64,
@@ -594,8 +616,8 @@ class GearReleaseTest(unittest.TestCase):
             gear_release_id="gear-release:sha256:target",
         )
 
-        self.assertEqual(report["status"], "blocked")
-        self.assertEqual(report["diffs"][0]["classification"], "semantic_change")
+        self.assertEqual(report["status"], "pass")
+        self.assertEqual(report["diffs"][0]["classification"], "match")
 
     def test_shadow_compare_allows_only_preverified_enhancement_migration_semantics(self):
         legacy = self.shadow_row()

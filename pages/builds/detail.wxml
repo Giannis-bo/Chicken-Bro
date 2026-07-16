@@ -95,9 +95,10 @@
 
         <view class="gear-slot-grid">
           <view class="gear-slot-card {{item.statusClass}}" wx:for="{{gearSlotRows}}" wx:key="slot" data-slot="{{item.slot}}" bindtap="openGearSlotSheet">
-            <view class="gear-slot-enhancement-badges" wx:if="{{item.equipmentBadgeLabels.length || item.enhancementBadgeLabels.length}}">
-              <text class="gear-slot-enhancement-badge gear-equipment-badge" wx:for="{{item.equipmentBadgeLabels}}" wx:for-item="badgeLabel" wx:key="*this">{{badgeLabel}}</text>
-              <text class="gear-slot-enhancement-badge" wx:for="{{item.enhancementBadgeLabels}}" wx:for-item="badgeLabel" wx:key="*this">{{badgeLabel}}</text>
+            <view class="gear-slot-enhancement-markers" wx:if="{{item.enhancementMarkers.length}}">
+              <view class="gear-slot-enhancement-marker {{marker.type}} {{marker.state}}" wx:for="{{item.enhancementMarkers}}" wx:for-item="marker" wx:key="key">
+                <image class="gear-slot-enhancement-marker-icon" src="{{marker.iconUrl}}" mode="aspectFit"></image>
+              </view>
             </view>
             <view class="gear-slot-topline">
               <text class="gear-slot-label">{{item.label}}</text>

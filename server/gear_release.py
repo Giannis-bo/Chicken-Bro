@@ -744,7 +744,17 @@ def _selection_semantics(intent: Any) -> Any:
 
 
 def _import_evidence_semantics(evidence: Any) -> Any:
-    return _canonical(evidence) if isinstance(evidence, dict) else {}
+    if not isinstance(evidence, dict):
+        return {}
+    # The fingerprint binds a sealed evidence record to its exact Gear Release.
+    # A rebuilt release therefore changes it even when the target player's
+    # item, variant, observed level, and verified icon are all unchanged.  Those
+    # user-visible facts remain semantic; the release-bound fingerprint does not.
+    return _canonical({
+        key: value
+        for key, value in evidence.items()
+        if key != "sourceFingerprint"
+    })
 
 
 def _shadow_blocker(code: str, class_key: str, spec_key: str, message: str) -> dict[str, str]:

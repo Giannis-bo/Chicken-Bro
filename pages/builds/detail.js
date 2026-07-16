@@ -32,7 +32,7 @@ const {
 const { completeResolverContext, serializeGearSelectionIntent } = require('./gear-selection-intent')
 const { trackEvent, trackPageLeave, trackPageView } = require('../common/analytics-client')
 const { listBuildTemplates, syncBuildTemplate } = require('../common/build-template-storage')
-const { attachGameAsset } = require('../common/game-asset')
+const { attachGameAsset, gameAssetFromIconName } = require('../common/game-asset')
 
 const SIMC_BUILD_CONTEXT_STORAGE_KEY = 'wow_simc_build_context'
 const fallbackPayload = fallbackBuildsHome()
@@ -94,6 +94,11 @@ const gearEmbellishmentEquipmentSlots = new Set([
   'main_hand',
   'off_hand'
 ])
+const enhancementMarkerIconNames = {
+  gem: 'inv_misc_gem_variety_02',
+  enchant: 'spell_holy_greaterheal',
+  embellishment: 'inv_misc_gear_01'
+}
 const gearEnhancementSlotOrder = ['neck', 'finger1', 'finger2', 'main_hand', 'off_hand']
 const gearCandidateFilters = [
   { key: 'all', label: '全部' },
@@ -1420,6 +1425,55 @@ function workbenchProblemRows(problems) {
   }))
 }
 
+function canonicalEnhancementMarkers(row, snapshot) {
+  const slot = cleanGearString(row && row.slot)
+  const resolved = slot && snapshot && snapshot.resolvedSlots && typeof snapshot.resolvedSlots === 'object'
+    ? snapshot.resolvedSlots[slot]
+    : null
+  const constraints = slot && snapshot && snapshot.constraints && snapshot.constraints.slots && typeof snapshot.constraints.slots === 'object'
+    ? snapshot.constraints.slots[slot]
+    : null
+  if (!resolved || !constraints || !(resolved.legality && resolved.legality.status === 'verified')) return []
+
+  const selectedOptions = resolved.selectedOptions && typeof resolved.selectedOptions === 'object'
+    ? resolved.selectedOptions
+    : {}
+  const gemOptionIds = Array.isArray(selectedOptions.gemOptionIds) ? selectedOptions.gemOptionIds : []
+  const socketCount = Math.max(0, Math.floor(Number(constraints.socketCount) || 0))
+  const markers = []
+  const marker = (key, type, state, extra) => ({
+    key,
+    type,
+    state,
+    iconUrl: gameAssetFromIconName({
+      entityType: 'enhancement-marker',
+      entityId: type,
+      contextKey: state,
+      iconName: enhancementMarkerIconNames[type],
+      source: 'blizzard',
+      semanticTags: ['gear-enhancement', type, state],
+      usage: ['gear-slot-marker']
+    }).iconUrl,
+    ...(extra || {})
+  })
+  for (let socketIndex = 0; socketIndex < socketCount; socketIndex += 1) {
+    markers.push(marker(`gem-${socketIndex}`, 'gem', socketIndex < gemOptionIds.length ? 'filled' : 'empty', { socketIndex }))
+  }
+  if (constraints.canEnchant === true) {
+    markers.push(marker('enchant', 'enchant', cleanGearString(selectedOptions.enchantOptionId) ? 'filled' : 'empty'))
+  }
+  const builtInEmbellishment = cleanGearString(row && row.embellishmentBadgeLabel)
+  if (constraints.canEmbellish === true || builtInEmbellishment) {
+    markers.push(marker(
+      'embellishment',
+      'embellishment',
+      cleanGearString(selectedOptions.embellishmentOptionId) || builtInEmbellishment ? 'filled' : 'empty',
+      builtInEmbellishment ? { source: 'built-in' } : null
+    ))
+  }
+  return markers
+}
+
 function canonicalGearSlotRows(rows, state) {
   const sourceRows = Array.isArray(rows) ? rows : []
   const snapshot = state && (state.currentSnapshot || state.lastVerifiedSnapshot)
@@ -1428,12 +1482,13 @@ function canonicalGearSlotRows(rows, state) {
     : {}
   return sourceRows.map((row) => {
     if (state && ['resolving', 'pending', 'dirty'].includes(state.resolveStatus)) {
-      return { ...row, status: 'partial', statusLabel: '校验中', statusClass: 'partial' }
+      return { ...row, enhancementMarkers: [], status: 'partial', statusLabel: '校验中', statusClass: 'partial' }
     }
     const resolved = resolvedSlots[row.slot]
     const verified = !!(resolved && resolved.legality && resolved.legality.status === 'verified')
     return {
       ...row,
+      enhancementMarkers: verified ? canonicalEnhancementMarkers(row, snapshot) : [],
       status: verified ? 'verified' : 'blocked',
       statusLabel: verified ? '已校验' : '未通过校验',
       statusClass: verified ? 'verified' : 'blocked'

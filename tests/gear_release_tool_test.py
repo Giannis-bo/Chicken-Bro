@@ -2097,6 +2097,48 @@ class GearReleaseToolTest(unittest.TestCase):
         self.assertTrue(source_evidence["socketProbeDigest"].startswith("sha256:"))
         self.assertTrue(source_evidence["materializedSocketFactDigest"].startswith("sha256:"))
 
+    def test_current_pve_socket_eligibility_is_sealed_in_release_item_payload(self):
+        from server.gear_release_tool import prepare_staging_gear_release
+
+        revision = "season-17-f131dd36ddf1"
+        snapshot = self.snapshot()
+        snapshot["items"][0]["itemId"] = "249970"
+        snapshot["items"][0]["name"] = "冷厉骑手的尖冠"
+        snapshot["items"][0]["payload"]["preview_item"] = {"sockets": []}
+        snapshot["variants"][0]["itemId"] = "249970"
+        snapshot["variants"][0]["slot"] = "head"
+        snapshot["sources"] = [
+            {
+                "sourceId": "tier-set-249970",
+                "itemId": "249970",
+                "sourceType": "tier_set",
+                "sourceKey": "tier-set:249970",
+                "seasonRevision": revision,
+                "payload": {"status": "verified"},
+            }
+        ]
+
+        prepared = prepare_staging_gear_release(
+            FakeReleaseStore(snapshot),
+            season_revision=revision,
+            dependency_revisions=self.dependencies(),
+            socket_bonus_minimums={"9300": 1},
+        )
+
+        item_payload = prepared["snapshot"]["items"][0]["payload"]
+        self.assertEqual(item_payload["baseCapabilities"]["socketCount"], 1)
+        self.assertEqual(
+            item_payload["socketEligibility"],
+            {
+                "schemaRevision": "gear-socket-eligibility-v1",
+                "status": "verified",
+                "eligibility": "active_pve_catalog",
+                "sourceRevision": revision,
+                "sourceIds": ["tier-set-249970"],
+                "sourceTypes": ["tier_set"],
+            },
+        )
+
     def test_prepare_staging_gear_release_seals_only_v2_exact_editor_managed_enchants(self):
         from server.gear_release_tool import prepare_staging_gear_release
         from server.gear_socket_authority import CAPABILITY_REVISION, LEGACY_CAPABILITY_REVISION

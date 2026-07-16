@@ -372,6 +372,143 @@ class GearSocketAuthorityTest(unittest.TestCase):
         self.assertEqual(materialized["variants"][0]["capabilityOverrides"]["socketCount"], 1)
         self.assertFalse(materialized["variants"][0]["capabilityOverrides"]["canEmbellish"])
 
+    def test_current_pve_catalog_source_proves_radiant_jewelbinder_eligibility(self):
+        authority = self.authority()
+        revision = "season-17-f131dd36ddf1"
+        snapshot = {
+            "items": [
+                {
+                    "itemId": "249970",
+                    "name": "冷厉骑手的尖冠",
+                    "slot": "head",
+                    "payload": {"preview_item": {"sockets": []}},
+                },
+                {
+                    "itemId": "pvp-head",
+                    "slot": "head",
+                    "isPvp": True,
+                    "payload": {"preview_item": {"sockets": []}},
+                },
+                {
+                    "itemId": "unknown-head",
+                    "slot": "head",
+                    "payload": {"preview_item": {"sockets": []}},
+                },
+                {
+                    "itemId": "pve-back",
+                    "slot": "back",
+                    "payload": {"preview_item": {"sockets": []}},
+                },
+            ],
+            "sources": [
+                {
+                    "sourceId": "tier-set-249970",
+                    "itemId": "249970",
+                    "sourceType": "tier_set",
+                    "seasonRevision": revision,
+                },
+                {
+                    "sourceId": "pvp-conflict-source",
+                    "itemId": "pvp-head",
+                    "sourceType": "tier_set",
+                    "seasonRevision": revision,
+                },
+                {
+                    "sourceId": "stale-tier-source",
+                    "itemId": "unknown-head",
+                    "sourceType": "tier_set",
+                    "seasonRevision": "season-16-aaaaaaaaaaaa",
+                },
+                {
+                    "sourceId": "pve-back-source",
+                    "itemId": "pve-back",
+                    "sourceType": "raid",
+                    "seasonRevision": revision,
+                },
+            ],
+            "variants": [
+                {
+                    "variantId": "tier-set-249970-variant",
+                    "itemId": "249970",
+                    "variantKey": "heroic-289",
+                    "slot": "head",
+                    "simcOptions": {},
+                },
+                {
+                    "variantId": "pvp-head-variant",
+                    "itemId": "pvp-head",
+                    "variantKey": "pvp",
+                    "slot": "head",
+                    "simcOptions": {},
+                },
+                {
+                    "variantId": "unknown-head-variant",
+                    "itemId": "unknown-head",
+                    "variantKey": "unknown",
+                    "slot": "head",
+                    "simcOptions": {},
+                },
+                {
+                    "variantId": "pve-back-variant",
+                    "itemId": "pve-back",
+                    "variantKey": "raid",
+                    "slot": "back",
+                    "simcOptions": {},
+                },
+            ],
+            "options": [],
+        }
+
+        materialized = authority.materialize_gear_socket_facts(
+            snapshot,
+            season_revision=revision,
+        )
+        items_by_id = {item["itemId"]: item for item in materialized["items"]}
+        variants_by_item_id = {
+            variant["itemId"]: variant for variant in materialized["variants"]
+        }
+
+        self.assertEqual(
+            items_by_id["249970"]["socketEligibility"],
+            {
+                "schemaRevision": "gear-socket-eligibility-v1",
+                "status": "verified",
+                "eligibility": "active_pve_catalog",
+                "sourceRevision": revision,
+                "sourceIds": ["tier-set-249970"],
+                "sourceTypes": ["tier_set"],
+            },
+        )
+        self.assertEqual(items_by_id["249970"]["baseCapabilities"]["socketCount"], 1)
+        self.assertTrue(
+            authority.is_verified_radiant_jewelbinder_socket(
+                items_by_id["249970"],
+                revision,
+            )
+        )
+        self.assertFalse(
+            authority.is_verified_radiant_jewelbinder_socket(
+                items_by_id["pvp-head"],
+                revision,
+            )
+        )
+        self.assertEqual(
+            variants_by_item_id["249970"]["capabilityOverrides"]["socketCount"],
+            1,
+        )
+        self.assertIn(
+            "midnight_s1_radiant_jewelbinder",
+            {
+                claim["source"]
+                for claim in variants_by_item_id["249970"]["socketEvidence"]["claims"]
+            },
+        )
+        self.assertNotIn("socketEligibility", items_by_id["pvp-head"])
+        self.assertEqual(items_by_id["pvp-head"]["baseCapabilities"]["socketCount"], 0)
+        self.assertEqual(items_by_id["unknown-head"]["baseCapabilities"]["socketCount"], 0)
+        self.assertNotIn("socketEligibility", items_by_id["pve-back"])
+        self.assertEqual(items_by_id["pve-back"]["baseCapabilities"]["socketCount"], 0)
+
     def test_mage_fixture_materializes_1_2_1_1_2_1(self):
         authority = self.authority()
         fixture = json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))

@@ -796,28 +796,49 @@
     #0d0d0c;
 }
 
-.gear-slot-enhancement-badges {
+.gear-slot-enhancement-markers {
   position: absolute;
   top: 10rpx;
   right: 10rpx;
   z-index: 1;
   display: flex;
-  justify-content: flex-end;
-  gap: 6rpx;
-  max-width: 180rpx;
+  flex-direction: row;
+  align-items: center;
+  gap: 4rpx;
+  white-space: nowrap;
   pointer-events: none;
 }
 
-.gear-slot-enhancement-badge {
+.gear-slot-enhancement-marker {
   flex: none;
-  padding: 3rpx 8rpx;
-  border: 1rpx solid rgba(248, 183, 0, 0.44);
-  border-radius: 6rpx;
-  background: rgba(16, 16, 16, 0.92);
-  color: #f8b700;
-  font-size: 18rpx;
-  font-weight: 900;
-  line-height: 1.1;
+  box-sizing: border-box;
+  width: 30rpx;
+  height: 30rpx;
+  padding: 3rpx;
+  border: 1rpx solid rgba(248, 183, 0, 0.56);
+  border-radius: 8rpx;
+  background: rgba(9, 9, 8, 0.94);
+  overflow: hidden;
+}
+
+.gear-slot-enhancement-marker.empty {
+  border-color: rgba(156, 127, 70, 0.72);
+}
+
+.gear-slot-enhancement-marker.empty .gear-slot-enhancement-marker-icon {
+  opacity: 0.32;
+  filter: grayscale(1) brightness(0.68);
+}
+
+.gear-slot-enhancement-marker.filled {
+  border-color: rgba(248, 183, 0, 0.84);
+  box-shadow: 0 0 10rpx rgba(248, 183, 0, 0.3);
+}
+
+.gear-slot-enhancement-marker-icon {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 .gear-slot-card.verified {
