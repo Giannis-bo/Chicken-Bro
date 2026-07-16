@@ -86,18 +86,24 @@ def build_midnight_mage_release_fixture():
             "slot": slot,
             "sourceStatus": "verified",
             "payload": {
-                field: copy.deepcopy(item.get(field))
-                for field in (
-                    "inventoryType",
-                    "allowedSlots",
-                    "allowedClassKeys",
-                    "allowedSpecKeys",
-                    "armorType",
-                    "weaponType",
-                    "handedness",
-                    "baseStats",
-                    "baseCapabilities",
-                )
+                "_metadata": {
+                    "iconUrl": f"https://render.worldofwarcraft.com/icons/{item_id}.jpg",
+                    "gameAsset": {"source": "blizzard", "status": "verified"},
+                },
+                **{
+                    field: copy.deepcopy(item.get(field))
+                    for field in (
+                        "inventoryType",
+                        "allowedSlots",
+                        "allowedClassKeys",
+                        "allowedSpecKeys",
+                        "armorType",
+                        "weaponType",
+                        "handedness",
+                        "baseStats",
+                        "baseCapabilities",
+                    )
+                },
             },
         })
         sources.append({
@@ -196,6 +202,9 @@ def build_midnight_mage_release_fixture():
             "slot": slot,
             "itemId": selection["itemId"],
             "variantKey": selection["variantKey"],
+            "itemLevel": int(
+                authority["variantsByKey"][selection["variantKey"]]["itemLevel"]
+            ),
         }
         if raw_enhancement.get("gemIds"):
             raw["gem_id"] = "/".join(raw_enhancement["gemIds"])
@@ -259,7 +268,7 @@ class GearReleaseToolTest(unittest.TestCase):
 
     def snapshot(self):
         return {
-            "items": [{"itemId": "item-a", "name": "A", "slot": "head", "sourceStatus": "verified", "payload": {}, "updatedAt": "2026-07-11T05:00:00+00:00"}],
+            "items": [{"itemId": "item-a", "name": "A", "slot": "head", "sourceStatus": "verified", "payload": {"_metadata": {"iconUrl": "https://render.worldofwarcraft.com/icons/item-a.jpg", "gameAsset": {"source": "blizzard", "status": "verified"}}}, "updatedAt": "2026-07-11T05:00:00+00:00"}],
             "sources": [{"sourceId": "source-a", "itemId": "item-a", "sourceType": "observed_profile", "sourceKey": "profile:a", "payload": {"status": "verified"}, "updatedAt": "2026-07-11T05:00:00+00:00"}],
             "variants": [{"variantId": "variant-a-id", "itemId": "item-a", "variantKey": "variant-a", "slot": "head", "sourceType": "observed_profile", "itemLevel": 289, "simcOptions": {"ilevel": "289"}, "status": "verified", "blockers": [], "payload": {"resolvedStats": {"intellect": 100}}, "updatedAt": "2026-07-11T05:00:00+00:00"}],
             "options": [],
@@ -283,6 +292,7 @@ class GearReleaseToolTest(unittest.TestCase):
                     "slot": "head",
                     "itemId": "item-a",
                     "variantKey": "variant-a",
+                    "itemLevel": 289,
                     "itemStats": [{"key": "intellect", "value": 999999}],
                     "simcReady": True,
                     "gem_id": "forged-raw-gem",
@@ -347,6 +357,82 @@ class GearReleaseToolTest(unittest.TestCase):
         })
         self.assertNotIn("999999", str(intent))
         self.assertNotIn("forged", str(intent))
+
+    def test_import_evidence_seals_observed_level_not_generic_item_level(self):
+        from server.gear_release_tool import (
+            COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_REVISION,
+            community_template_import_evidence_from_template,
+        )
+
+        template = self.template()
+        template["gearItems"][0]["itemLevel"] = 292
+        snapshot = self.snapshot()
+        snapshot["items"][0].update({
+            "itemLevel": 197,
+            "payload": {
+                "_metadata": {
+                    "iconUrl": "https://render.worldofwarcraft.com/icons/item-a.jpg",
+                    "gameAsset": {"source": "blizzard", "status": "verified"},
+                },
+            },
+        })
+        snapshot["variants"][0]["itemLevel"] = 292
+        snapshot["variants"][0]["simcOptions"]["ilevel"] = "292"
+
+        evidence = community_template_import_evidence_from_template(
+            template,
+            gear_release_id="gear-release:sha256:target",
+            gear_snapshot=snapshot,
+        )
+
+        self.assertEqual(
+            evidence["schemaRevision"],
+            COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_REVISION,
+        )
+        self.assertTrue(evidence["sourceFingerprint"].startswith("sha256:"))
+        self.assertEqual(evidence["slots"], {
+            "head": {
+                "itemId": "item-a",
+                "variantKey": "variant-a",
+                "observedItemLevel": 292,
+                "iconUrl": "https://render.worldofwarcraft.com/icons/item-a.jpg",
+            },
+        })
+        self.assertNotIn("197", str(evidence))
+
+    def test_import_evidence_rejects_incomplete_or_mismatched_observed_facts(self):
+        from server.gear_release_store import GearReleaseIntegrityError
+        from server.gear_release_tool import community_template_import_evidence_from_template
+
+        def complete_inputs():
+            template = self.template()
+            template["gearItems"][0]["itemLevel"] = 292
+            snapshot = self.snapshot()
+            snapshot["items"][0]["payload"] = {
+                "_metadata": {
+                    "iconUrl": "https://render.worldofwarcraft.com/icons/item-a.jpg",
+                    "gameAsset": {"source": "blizzard", "status": "verified"},
+                },
+            }
+            snapshot["variants"][0]["itemLevel"] = 292
+            return template, snapshot
+
+        mutations = {
+            "missing_observed_level": lambda template, snapshot: template["gearItems"][0].pop("itemLevel"),
+            "missing_exact_variant": lambda template, snapshot: snapshot.__setitem__("variants", []),
+            "variant_level_mismatch": lambda template, snapshot: snapshot["variants"][0].__setitem__("itemLevel", 291),
+            "missing_verified_icon": lambda template, snapshot: snapshot["items"][0]["payload"]["_metadata"].pop("iconUrl"),
+        }
+        for name, mutate in mutations.items():
+            with self.subTest(name=name):
+                template, snapshot = complete_inputs()
+                mutate(template, snapshot)
+                with self.assertRaises(GearReleaseIntegrityError):
+                    community_template_import_evidence_from_template(
+                        template,
+                        gear_release_id="gear-release:sha256:target",
+                        gear_snapshot=snapshot,
+                    )
 
     def test_template_intent_reconciles_ordered_duplicate_enhancements_to_unique_verified_options(self):
         from server.gear_release_tool import selection_intent_from_template
@@ -522,6 +608,10 @@ class GearReleaseToolTest(unittest.TestCase):
 
         snapshot = self.snapshot()
         snapshot["items"][0]["payload"] = {
+            "_metadata": {
+                "iconUrl": "https://render.worldofwarcraft.com/icons/item-a.jpg",
+                "gameAsset": {"source": "blizzard", "status": "verified"},
+            },
             "baseCapabilities": {
                 "socketCount": 1,
                 "canEnchant": False,
@@ -724,6 +814,10 @@ class GearReleaseToolTest(unittest.TestCase):
 
         snapshot = self.snapshot()
         snapshot["items"][0]["payload"] = {
+            "_metadata": {
+                "iconUrl": "https://render.worldofwarcraft.com/icons/item-a.jpg",
+                "gameAsset": {"source": "blizzard", "status": "verified"},
+            },
             "baseCapabilities": {
                 "socketCount": 0,
                 "canEnchant": False,
@@ -1653,6 +1747,10 @@ class GearReleaseToolTest(unittest.TestCase):
 
         self.assertEqual(prepared["election"]["status"], "validated")
         self.assertEqual(prepared["rows"][0]["selectionIntent"], intent)
+        self.assertEqual(
+            prepared["rows"][0]["payload"]["importEvidence"]["schemaRevision"],
+            "community-template-import-evidence-v1",
+        )
         self.assertEqual(prepared["seal"]["status"], "inserted")
         self.assertEqual(len(store.community_seals), 1)
 

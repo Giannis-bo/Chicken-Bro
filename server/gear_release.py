@@ -23,6 +23,7 @@ GEAR_RELEASE_SCHEMA_REVISION = "gear-release-v1"
 COMMUNITY_RELEASE_SCHEMA_REVISION = "community-release-v1"
 ACTIVE_SEASON_MANIFEST_SCHEMA_REVISION = "active-season-manifest-v1"
 ACTIVE_MANIFEST_POINTER_COMMAND_REVISION = "active-manifest-pointer-command-v2"
+COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_REVISION = "community-template-import-evidence-v1"
 
 _RELEASE_KINDS = {"gear", "community"}
 _RELEASE_STATUSES = {"validated", "degraded", "blocked"}
@@ -492,12 +493,80 @@ def _elected_row(candidate: dict[str, Any], intent: dict[str, Any], result: dict
         "updatedAt": _text(candidate.get("updatedAt")),
         "expiresAt": _text(candidate.get("expiresAt")),
         "selectionIntent": _canonical(intent),
+        "importEvidence": _canonical(candidate.get("importEvidence") or {}),
         "resolvedGearSignature": _text(result.get("resolvedGearSignature")),
         "semanticGearSignature": semantic_signature,
         "dependencyVector": _canonical(result.get("dependencyVector") or {}),
         "aggregateLegality": _canonical(result.get("aggregateLegality") or {}),
         "profileReadiness": _canonical(result.get("profileReadiness") or {}),
     }
+
+
+def _candidate_import_evidence_issues(
+    candidate: dict[str, Any],
+    intent: dict[str, Any],
+) -> list[dict[str, str]]:
+    evidence = candidate.get("importEvidence")
+    if not isinstance(evidence, dict):
+        return [
+            _candidate_problem(
+                "COMMUNITY_IMPORT_EVIDENCE_MISSING",
+                "candidate.importEvidence",
+                "Observed candidates require sealed import evidence.",
+            )
+        ]
+    if evidence.get("schemaRevision") != COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_REVISION:
+        return [
+            _candidate_problem(
+                "COMMUNITY_IMPORT_EVIDENCE_INVALID",
+                "candidate.importEvidence.schemaRevision",
+                "Import evidence uses an unsupported schema revision.",
+            )
+        ]
+    fingerprint = _text(evidence.get("sourceFingerprint"))
+    if (
+        not fingerprint.startswith("sha256:")
+        or len(fingerprint) != 71
+        or any(character not in "0123456789abcdef" for character in fingerprint[7:])
+    ):
+        return [
+            _candidate_problem(
+                "COMMUNITY_IMPORT_EVIDENCE_INVALID",
+                "candidate.importEvidence.sourceFingerprint",
+                "Import evidence requires a bounded source fingerprint.",
+            )
+        ]
+    evidence_slots = evidence.get("slots") if isinstance(evidence.get("slots"), dict) else None
+    expected_slots = intent.get("slots") if isinstance(intent.get("slots"), dict) else {}
+    if evidence_slots is None or set(evidence_slots) != set(expected_slots):
+        return [
+            _candidate_problem(
+                "COMMUNITY_IMPORT_EVIDENCE_IDENTITY_MISMATCH",
+                "candidate.importEvidence.slots",
+                "Import evidence must cover exactly the selected slots.",
+            )
+        ]
+    issues: list[dict[str, str]] = []
+    for slot in sorted(expected_slots):
+        selected = expected_slots.get(slot) if isinstance(expected_slots.get(slot), dict) else {}
+        observed = evidence_slots.get(slot) if isinstance(evidence_slots.get(slot), dict) else {}
+        if (
+            _text(observed.get("itemId")) != _text(selected.get("itemId"))
+            or _text(observed.get("variantKey")) != _text(selected.get("variantKey"))
+        ):
+            issues.append(_candidate_problem(
+                "COMMUNITY_IMPORT_EVIDENCE_IDENTITY_MISMATCH",
+                f"candidate.importEvidence.slots.{slot}",
+                "Import evidence identity must match the selected item and variant.",
+            ))
+            continue
+        if _positive_int(observed.get("observedItemLevel")) <= 0 or not _text(observed.get("iconUrl")):
+            issues.append(_candidate_problem(
+                "COMMUNITY_IMPORT_EVIDENCE_INVALID",
+                f"candidate.importEvidence.slots.{slot}",
+                "Import evidence requires a positive observed item level and verified icon.",
+            ))
+    return issues
 
 
 def elect_community_candidates(
@@ -534,6 +603,8 @@ def elect_community_candidates(
             authored = intent.get("authoredAgainst") or {}
             if authored.get("gearCatalogRevision") != target_release:
                 problems.append(_candidate_problem("COMMUNITY_GEAR_RELEASE_MISMATCH", "candidate.selectionIntent.authoredAgainst.gearCatalogRevision", "Intent is not authored against the target Gear Release."))
+            if is_public_observed_source(candidate.get("sourceKey")):
+                problems.extend(_candidate_import_evidence_issues(candidate, intent))
         if (class_key, spec_key) not in expected:
             problems.append(_candidate_problem("COMMUNITY_SPEC_NOT_EXPECTED", "candidate.specKey", "Candidate spec is not part of the expected retail matrix."))
 
@@ -598,6 +669,10 @@ def _selection_semantics(intent: Any) -> Any:
         "eligibilityContext": intent.get("eligibilityContext"),
         "slots": intent.get("slots"),
     })
+
+
+def _import_evidence_semantics(evidence: Any) -> Any:
+    return _canonical(evidence) if isinstance(evidence, dict) else {}
 
 
 def _shadow_blocker(code: str, class_key: str, spec_key: str, message: str) -> dict[str, str]:
@@ -671,6 +746,10 @@ def compare_shadow(
             old_semantic = _text(old.get("semanticGearSignature")) or _text(old.get("resolvedGearSignature"))
             new_semantic = _text(new.get("semanticGearSignature")) or _text(new.get("resolvedGearSignature"))
             selection_changed = _selection_semantics(old.get("selectionIntent")) != _selection_semantics(new.get("selectionIntent"))
+            import_evidence_changed = (
+                _import_evidence_semantics(old.get("importEvidence"))
+                != _import_evidence_semantics(new.get("importEvidence"))
+            )
             provenance_changed = any(
                 old.get(field) != new.get(field)
                 for field in ("sourceKey", "sourceUrl", "gearHash", "sampleCount")
@@ -679,7 +758,11 @@ def compare_shadow(
             new_profile_hash = _text(new.get("profileHash"))
             if old_profile_hash and new_profile_hash and old_profile_hash != new_profile_hash:
                 provenance_changed = True
-            resolved_semantic_changed = selection_changed or old_semantic != new_semantic
+            resolved_semantic_changed = (
+                selection_changed
+                or import_evidence_changed
+                or old_semantic != new_semantic
+            )
             semantic_changed = resolved_semantic_changed or provenance_changed
             resolved_changed = old.get("resolvedGearSignature") != new.get("resolvedGearSignature")
             expected_enhancement_migration = (

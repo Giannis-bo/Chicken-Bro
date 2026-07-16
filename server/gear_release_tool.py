@@ -87,6 +87,9 @@ _OFFICIAL_UNIQUE_GEM_POLICIES = {
     gem_id: {"categoryKey": "thalassian-diamond", "uniqueLimit": 1}
     for gem_id in {*PRIMARY_STAT_GEM_IDS, "241144"}
 }
+COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_REVISION = (
+    gear_release.COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_REVISION
+)
 
 
 def _text(value: Any) -> str:
@@ -1187,6 +1190,91 @@ def selection_intent_from_template(
     }
 
 
+def community_template_import_evidence_from_template(
+    template: dict[str, Any],
+    *,
+    gear_release_id: str,
+    gear_snapshot: dict[str, Any],
+) -> dict[str, Any]:
+    """Seal observed per-slot display facts without changing Resolver Intent."""
+
+    snapshot = gear_snapshot if isinstance(gear_snapshot, dict) else {}
+    item_rows_by_id: dict[str, list[dict[str, Any]]] = {}
+    for row in snapshot.get("items") or []:
+        if not isinstance(row, dict) or not _text(row.get("itemId")):
+            continue
+        item_rows_by_id.setdefault(_text(row.get("itemId")), []).append(row)
+    variant_rows_by_identity: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    for row in snapshot.get("variants") or []:
+        if not isinstance(row, dict):
+            continue
+        item_id = _text(row.get("itemId"))
+        variant_key = _text(row.get("variantKey"))
+        if item_id and variant_key:
+            variant_rows_by_identity.setdefault((item_id, variant_key), []).append(row)
+
+    slots: dict[str, dict[str, Any]] = {}
+    for raw in template.get("gearItems") or []:
+        if not isinstance(raw, dict):
+            raise GearReleaseIntegrityError("community import evidence gear item is invalid")
+        slot = normalize_slot(raw.get("slot") or raw.get("simcSlot"))
+        item_id = _text(raw.get("itemId") or raw.get("id"))
+        variant_key = _text(raw.get("variantKey"))
+        if not slot or not item_id or not variant_key or slot in slots:
+            raise GearReleaseIntegrityError("community import evidence selection is incomplete")
+        observed_item_level = _int(raw.get("itemLevel"))
+        if observed_item_level <= 0:
+            raise GearReleaseIntegrityError("community import evidence observed item level is missing")
+
+        item_rows = item_rows_by_id.get(item_id) or []
+        variant_rows = variant_rows_by_identity.get((item_id, variant_key)) or []
+        if len(item_rows) != 1 or len(variant_rows) != 1:
+            raise GearReleaseIntegrityError("community import evidence exact gear identity is unavailable")
+        item = item_rows[0]
+        variant = variant_rows[0]
+        if (
+            _text(variant.get("status")).lower() != "verified"
+            or normalize_slot(variant.get("slot")) != slot
+            or _int(variant.get("itemLevel")) != observed_item_level
+        ):
+            raise GearReleaseIntegrityError("community import evidence variant does not match observed item level")
+        payload = item.get("payload") if isinstance(item.get("payload"), dict) else {}
+        metadata = payload.get("_metadata") if isinstance(payload.get("_metadata"), dict) else {}
+        game_asset = metadata.get("gameAsset") if isinstance(metadata.get("gameAsset"), dict) else {}
+        icon_url = _text(metadata.get("iconUrl"))
+        if _text(game_asset.get("status")).lower() != "verified" or not icon_url:
+            raise GearReleaseIntegrityError("community import evidence verified item icon is missing")
+        slots[slot] = {
+            "itemId": item_id,
+            "variantKey": variant_key,
+            "observedItemLevel": observed_item_level,
+            "iconUrl": icon_url,
+        }
+
+    if not slots:
+        raise GearReleaseIntegrityError("community import evidence selection is empty")
+    payload = template.get("payload") if isinstance(template.get("payload"), dict) else {}
+    template_evidence = (
+        payload.get("templateEvidence")
+        if isinstance(payload.get("templateEvidence"), dict)
+        else {}
+    )
+    ordered_slots = {slot: slots[slot] for slot in sorted(slots)}
+    source_fingerprint = _canonical_digest({
+        "templateId": _text(template.get("templateId")),
+        "sourceKey": _text(template.get("sourceKey")),
+        "profileHash": _text(template.get("profileHash") or template_evidence.get("profileHash")),
+        "gearHash": _text(template.get("gearHash") or template_evidence.get("gearHash") or template.get("signature")),
+        "gearReleaseId": _text(gear_release_id),
+        "slots": ordered_slots,
+    })
+    return {
+        "schemaRevision": COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_REVISION,
+        "sourceFingerprint": source_fingerprint,
+        "slots": ordered_slots,
+    }
+
+
 def prepare_staging_gear_release(
     store: GearReleaseStore,
     *,
@@ -1275,7 +1363,15 @@ def _template_candidate(
     evidence = payload.get("templateEvidence") if isinstance(payload.get("templateEvidence"), dict) else {}
     refs = [row for row in template.get("sourceRefs") or [] if isinstance(row, dict)]
     ref = refs[0] if refs else {}
-    return {
+    selection_intent = selection_intent_from_template(
+        template,
+        gear_release_id=gear_release_id,
+        season_revision=season_revision,
+        level=level,
+        gear_snapshot=gear_snapshot,
+        capability_revision=capability_revision,
+    )
+    candidate = {
         "id": _text(template.get("templateId")),
         "classKey": _text(template.get("classKey")),
         "specKey": _text(template.get("specKey")),
@@ -1287,15 +1383,19 @@ def _template_candidate(
         "gearHash": _text(template.get("gearHash") or evidence.get("gearHash") or template.get("signature")),
         "updatedAt": _text(template.get("updatedAt")),
         "expiresAt": _text(template.get("expiresAt")),
-        "selectionIntent": selection_intent_from_template(
+        "selectionIntent": selection_intent,
+    }
+    try:
+        candidate["importEvidence"] = community_template_import_evidence_from_template(
             template,
             gear_release_id=gear_release_id,
-            season_revision=season_revision,
-            level=level,
             gear_snapshot=gear_snapshot,
-            capability_revision=capability_revision,
-        ),
-    }
+        )
+    except GearReleaseIntegrityError:
+        # A historical/incomplete observed template remains browseable but cannot win an
+        # importable release; the election records the missing sealed evidence.
+        pass
+    return candidate
 
 
 def _release_rows_from_election(
@@ -1309,6 +1409,8 @@ def _release_rows_from_election(
         rank_by_spec[key] = rank_by_spec.get(key, 0) + 1
         original = templates_by_id.get(_text(elected.get("candidateId")), {})
         payload = original.get("payload") if isinstance(original.get("payload"), dict) else {}
+        release_payload = _canonical(original)
+        release_payload["importEvidence"] = _canonical(elected.get("importEvidence") or {})
         rows.append({
             "templateId": _text(elected.get("candidateId")),
             "classKey": key[0],
@@ -1327,7 +1429,7 @@ def _release_rows_from_election(
             "dependencyVector": _canonical(elected.get("dependencyVector") or {}),
             "evidence": _canonical(payload.get("templateEvidence") or {"sourceRefs": original.get("sourceRefs") or []}),
             "problems": [],
-            "payload": _canonical(original),
+            "payload": release_payload,
             "updatedAt": _text(elected.get("updatedAt")),
             "expiresAt": _text(elected.get("expiresAt")),
         })
@@ -1743,12 +1845,14 @@ if __name__ == "__main__":
 
 
 __all__ = (
+    "COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_REVISION",
     "build_legacy_community_release",
     "build_legacy_gear_release",
     "expected_spec_pairs",
     "load_simc_socket_bonus_minimums",
     "prepare_staging_gear_release",
     "runtime_dependency_revisions",
+    "community_template_import_evidence_from_template",
     "selection_intent_from_template",
     "validate_gear_snapshot",
 )

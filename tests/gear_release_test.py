@@ -81,6 +81,18 @@ class GearReleaseTest(unittest.TestCase):
             "updatedAt": "2026-07-11T04:00:00+00:00",
             "expiresAt": "2026-07-12T04:00:00+00:00",
             "selectionIntent": self.intent(),
+            "importEvidence": {
+                "schemaRevision": "community-template-import-evidence-v1",
+                "sourceFingerprint": "sha256:" + "a" * 64,
+                "slots": {
+                    "head": {
+                        "itemId": "item-head",
+                        "variantKey": "variant-head",
+                        "observedItemLevel": 292,
+                        "iconUrl": "https://render.worldofwarcraft.com/icons/item-head.jpg",
+                    },
+                },
+            },
         }
         candidate.update(overrides)
         return candidate
@@ -401,6 +413,25 @@ class GearReleaseTest(unittest.TestCase):
         self.assertIn("COMMUNITY_INTENT_SPEC_MISMATCH", codes)
         self.assertIn("FORBIDDEN_CLIENT_FACT", codes)
 
+    def test_election_rejects_missing_or_mismatched_import_evidence(self):
+        missing = self.candidate("missing-evidence")
+        missing.pop("importEvidence")
+        mismatched = self.candidate("mismatched-evidence")
+        mismatched["importEvidence"]["slots"]["head"]["itemId"] = "item-other"
+
+        election = gear_release.elect_community_candidates(
+            [missing, mismatched],
+            gear_release_id="gear-release:sha256:target",
+            resolver=lambda _intent: self.verified_result(),
+            now="2026-07-11T05:00:00+00:00",
+            expected_specs=[("mage", "arcane")],
+        )
+
+        self.assertEqual(election["status"], "degraded")
+        codes = {problem["code"] for row in election["rejected"] for problem in row["problems"]}
+        self.assertIn("COMMUNITY_IMPORT_EVIDENCE_MISSING", codes)
+        self.assertIn("COMMUNITY_IMPORT_EVIDENCE_IDENTITY_MISMATCH", codes)
+
     def test_election_rejects_illegal_unready_or_release_mismatched_resolver_result(self):
         candidates = [
             self.candidate("illegal"),
@@ -421,6 +452,7 @@ class GearReleaseTest(unittest.TestCase):
 
         for candidate in candidates:
             candidate["selectionIntent"]["slots"]["head"]["itemId"] = candidate["id"]
+            candidate["importEvidence"]["slots"]["head"]["itemId"] = candidate["id"]
         election = gear_release.elect_community_candidates(
             candidates,
             gear_release_id="gear-release:sha256:target",
@@ -542,6 +574,28 @@ class GearReleaseTest(unittest.TestCase):
                 )
                 self.assertEqual(report["status"], "blocked")
                 self.assertTrue(report["blockers"])
+
+    def test_shadow_compare_treats_import_evidence_change_as_semantic_change(self):
+        legacy = self.shadow_row(importEvidence={
+            "schemaRevision": "community-template-import-evidence-v1",
+            "sourceFingerprint": "sha256:" + "a" * 64,
+            "slots": {"head": {"itemId": "item-head", "variantKey": "variant-head", "observedItemLevel": 292, "iconUrl": "https://render.worldofwarcraft.com/icons/a.jpg"}},
+        })
+        candidate = self.shadow_row(importEvidence={
+            "schemaRevision": "community-template-import-evidence-v1",
+            "sourceFingerprint": "sha256:" + "b" * 64,
+            "slots": {"head": {"itemId": "item-head", "variantKey": "variant-head", "observedItemLevel": 292, "iconUrl": "https://render.worldofwarcraft.com/icons/a.jpg"}},
+        })
+
+        report = gear_release.compare_shadow(
+            [legacy],
+            [candidate],
+            expected_specs=[("mage", "arcane")],
+            gear_release_id="gear-release:sha256:target",
+        )
+
+        self.assertEqual(report["status"], "blocked")
+        self.assertEqual(report["diffs"][0]["classification"], "semantic_change")
 
     def test_shadow_compare_allows_only_preverified_enhancement_migration_semantics(self):
         legacy = self.shadow_row()
