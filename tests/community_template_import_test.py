@@ -17,7 +17,23 @@ class CommunityTemplateImportTest(unittest.TestCase):
             "specKey": "frost",
             "role": "winner",
             "sourceKey": "raiderio_observed_profile",
-            "payload": {"name": "Frost observed"},
+            "profileHash": "profile-frost",
+            "gearHash": "gear-frost",
+            "payload": {
+                "name": "Frost observed",
+                "importEvidence": {
+                    "schemaRevision": "community-template-import-evidence-v1",
+                    "sourceFingerprint": "sha256:" + "a" * 64,
+                    "slots": {
+                        "head": {
+                            "itemId": "item-head",
+                            "variantKey": "myth-289",
+                            "observedItemLevel": 292,
+                            "iconUrl": "https://render.worldofwarcraft.com/icons/observed-head.jpg",
+                        },
+                    },
+                },
+            },
             "selectionIntent": {
                 "schemaRevision": "selection-intent-v1",
                 "authoredAgainst": {
@@ -29,9 +45,9 @@ class CommunityTemplateImportTest(unittest.TestCase):
                     "head": {
                         "itemId": "item-head",
                         "variantKey": "myth-289",
-                        "gemOptionIds": ["gem-a", "gem-a", "forged-raw-gem"],
+                        "gemOptionIds": ["gem-a", "gem-a"],
                         "enchantOptionId": "enchant-a",
-                        "embellishmentOptionId": "hidden-embellishment",
+                        "embellishmentOptionId": "",
                         "craftedOptionId": "",
                         "catalystOptionId": "",
                     }
@@ -45,7 +61,7 @@ class CommunityTemplateImportTest(unittest.TestCase):
                 "variantKey": "myth-289",
                 "slot": "head",
                 "label": "Observed head",
-                "itemLevel": 289,
+                "itemLevel": 292,
                 "status": "verified",
             },
             {
@@ -93,6 +109,17 @@ class CommunityTemplateImportTest(unittest.TestCase):
                 "applicableSlots": ["head"],
             },
         ]
+        self.items = [{
+            "itemId": "item-head",
+            "name": "Observed Headpiece",
+            "itemLevel": 197,
+            "payload": {
+                "_metadata": {
+                    "iconUrl": "https://render.worldofwarcraft.com/icons/observed-head.jpg",
+                    "gameAsset": {"source": "blizzard", "status": "verified"},
+                },
+            },
+        }]
 
     def build_source(self, winner=None, variants=None, options=None, *, items=None, sources=None):
         from server.community_template_import import build_community_template_import_source
@@ -101,7 +128,7 @@ class CommunityTemplateImportTest(unittest.TestCase):
             winner if winner is not None else self.winner,
             variants if variants is not None else self.variants,
             options if options is not None else self.options,
-            items=items,
+            items=self.items if items is None else items,
             sources=sources,
         )
 
@@ -110,23 +137,35 @@ class CommunityTemplateImportTest(unittest.TestCase):
 
         source = self.build_source()
 
-        self.assertEqual(source["status"], "partial")
+        self.assertEqual(source["status"], "verified")
         self.assertEqual(source["template"], {
             "id": "frost-observed-a",
             "classKey": "mage",
             "specKey": "frost",
             "sourceKey": "raiderio_observed_profile",
             "name": "Frost observed",
+            "profileHash": "profile-frost",
+            "gearHash": "gear-frost",
+            "sourceFingerprint": "sha256:" + "a" * 64,
         })
 
-        self.assertEqual(source["selectedGearBySlot"], {
+        self.assertEqual(source["importedGearBySlot"], {
             "head": {
                 "variantId": "variant-head",
                 "itemId": "item-head",
                 "variantKey": "myth-289",
                 "slot": "head",
                 "label": "Observed head",
-                "itemLevel": 289,
+                "displayName": "Observed Headpiece",
+                "name": "Observed Headpiece",
+                "itemLevel": 292,
+                "ilevel": 292,
+                "iconUrl": "https://render.worldofwarcraft.com/icons/observed-head.jpg",
+                "gameAsset": {
+                    "source": "blizzard",
+                    "status": "verified",
+                    "iconUrl": "https://render.worldofwarcraft.com/icons/observed-head.jpg",
+                },
             }
         })
         self.assertEqual(source["visibleOptionsBySlot"], {
@@ -147,6 +186,133 @@ class CommunityTemplateImportTest(unittest.TestCase):
                 "catalystOptionId": "",
             },
         )
+
+    def test_verified_projection_uses_sealed_observed_level_and_icon_not_generic_item(self):
+        from server.community_template_import import (
+            COMMUNITY_TEMPLATE_IMPORT_CONTRACT_REVISION,
+            community_template_import_public_data,
+        )
+
+        winner = copy.deepcopy(self.winner)
+        winner.update({"profileHash": "profile-frost", "gearHash": "gear-frost"})
+        winner["payload"]["importEvidence"] = {
+            "schemaRevision": "community-template-import-evidence-v1",
+            "sourceFingerprint": "sha256:" + "a" * 64,
+            "slots": {
+                "head": {
+                    "itemId": "item-head",
+                    "variantKey": "myth-289",
+                    "observedItemLevel": 292,
+                    "iconUrl": "https://render.worldofwarcraft.com/icons/observed-head.jpg",
+                },
+            },
+        }
+        winner["selectionIntent"]["slots"]["head"].update({
+            "gemOptionIds": ["gem-a", "gem-a"],
+            "embellishmentOptionId": "",
+        })
+        variants = copy.deepcopy(self.variants)
+        variants[0]["itemLevel"] = 292
+        items = [{
+            "itemId": "item-head",
+            "name": "Observed Headpiece",
+            "itemLevel": 197,
+            "payload": {
+                "_metadata": {
+                    "iconUrl": "https://render.worldofwarcraft.com/icons/observed-head.jpg",
+                    "gameAsset": {"source": "blizzard", "status": "verified"},
+                },
+            },
+        }]
+        options = [option for option in self.options if option["optionKey"] in {"gem-a", "enchant-a"}]
+
+        source = self.build_source(
+            winner=winner,
+            variants=variants,
+            options=options,
+            items=items,
+        )
+
+        self.assertEqual(source["contractRevision"], COMMUNITY_TEMPLATE_IMPORT_CONTRACT_REVISION)
+        self.assertEqual(source["status"], "verified")
+        self.assertEqual(source["importedGearBySlot"]["head"], {
+            "variantId": "variant-head",
+            "itemId": "item-head",
+            "variantKey": "myth-289",
+            "slot": "head",
+            "label": "Observed head",
+            "displayName": "Observed Headpiece",
+            "name": "Observed Headpiece",
+            "itemLevel": 292,
+            "ilevel": 292,
+            "iconUrl": "https://render.worldofwarcraft.com/icons/observed-head.jpg",
+            "gameAsset": {
+                "source": "blizzard",
+                "status": "verified",
+                "iconUrl": "https://render.worldofwarcraft.com/icons/observed-head.jpg",
+            },
+        })
+        self.assertNotIn("197", json.dumps(source, ensure_ascii=False, sort_keys=True))
+        public = community_template_import_public_data(
+            source,
+            {"status": "verified", "resolvedGearSignature": "sha256:resolved-frost"},
+            {"manifestRevision": "manifest-a", "pointerGeneration": 7},
+        )
+        self.assertEqual(public["importedGearBySlot"]["head"]["itemLevel"], 292)
+        self.assertNotIn("selectedGearBySlot", public)
+        self.assertNotIn("unresolvedBySlot", public)
+
+    def test_projection_blocks_if_any_sealed_fact_or_enhancement_is_incomplete(self):
+        winner = copy.deepcopy(self.winner)
+        winner["payload"]["importEvidence"] = {
+            "schemaRevision": "community-template-import-evidence-v1",
+            "sourceFingerprint": "sha256:" + "a" * 64,
+            "slots": {
+                "head": {
+                    "itemId": "item-head",
+                    "variantKey": "myth-289",
+                    "observedItemLevel": 289,
+                    "iconUrl": "https://render.worldofwarcraft.com/icons/observed-head.jpg",
+                },
+            },
+        }
+        winner["selectionIntent"]["slots"]["head"].update({
+            "gemOptionIds": ["gem-a"],
+            "embellishmentOptionId": "",
+        })
+        items = [{
+            "itemId": "item-head",
+            "name": "Observed Headpiece",
+            "itemLevel": 197,
+            "payload": {
+                "_metadata": {
+                    "iconUrl": "https://render.worldofwarcraft.com/icons/observed-head.jpg",
+                    "gameAsset": {"source": "blizzard", "status": "verified"},
+                },
+            },
+        }]
+        options = [option for option in self.options if option["optionKey"] in {"gem-a", "enchant-a"}]
+        mutations = {
+            "missing_evidence": lambda value, variants, items, options: value["payload"].pop("importEvidence"),
+            "variant_level_mismatch": lambda value, variants, items, options: variants[0].__setitem__("itemLevel", 292),
+            "item_icon_mismatch": lambda value, variants, items, options: items[0]["payload"]["_metadata"].__setitem__("iconUrl", "https://render.worldofwarcraft.com/icons/other.jpg"),
+            "unmapped_gem": lambda value, variants, items, options: value["selectionIntent"]["slots"]["head"].__setitem__("gemOptionIds", ["missing-gem"]),
+        }
+        for name, mutate in mutations.items():
+            with self.subTest(name=name):
+                case_winner = copy.deepcopy(winner)
+                case_variants = copy.deepcopy(self.variants)
+                case_items = copy.deepcopy(items)
+                case_options = copy.deepcopy(options)
+                mutate(case_winner, case_variants, case_items, case_options)
+                source = self.build_source(
+                    winner=case_winner,
+                    variants=case_variants,
+                    options=case_options,
+                    items=case_items,
+                )
+                self.assertEqual(source["status"], "blocked")
+                self.assertEqual(source["importedGearBySlot"], {})
 
     def test_source_display_rows_do_not_replace_winner_template_identity(self):
         source = self.build_source(sources=[{
@@ -193,7 +359,7 @@ class CommunityTemplateImportTest(unittest.TestCase):
         )
         self.assertEqual(source["visibleOptionsBySlot"]["head"]["gem-a"]["optionType"], "gem")
 
-    def test_normalized_variant_alias_is_rebound_to_the_active_release_variant(self):
+    def test_normalized_variant_alias_is_blocked_without_exact_sealed_variant(self):
         from server.community_template_import import build_community_template_selection_intent
 
         variants = copy.deepcopy(self.variants)
@@ -202,17 +368,18 @@ class CommunityTemplateImportTest(unittest.TestCase):
 
         source = self.build_source(variants=variants)
 
-        self.assertEqual(source["status"], "partial")
-        self.assertEqual(source["selectedGearBySlot"]["head"]["variantKey"], "myth-289!")
-        self.assertEqual(
-            build_community_template_selection_intent(source)["slots"]["head"]["variantKey"],
-            "myth-289!",
-        )
+        self.assertEqual(source["status"], "blocked")
+        self.assertIsNone(build_community_template_selection_intent(source))
 
-    def test_unknown_raw_enhancement_values_become_counts_not_output_values(self):
+    def test_unknown_raw_enhancement_values_block_without_output_values(self):
         from server.community_template_import import community_template_import_public_data
 
-        source = self.build_source()
+        winner = copy.deepcopy(self.winner)
+        winner["selectionIntent"]["slots"]["head"].update({
+            "gemOptionIds": ["gem-a", "forged-raw-gem"],
+            "embellishmentOptionId": "hidden-embellishment",
+        })
+        source = self.build_source(winner=winner)
         public = community_template_import_public_data(
             source,
             {"status": "verified", "slots": {}},
@@ -220,10 +387,9 @@ class CommunityTemplateImportTest(unittest.TestCase):
         )
         encoded = json.dumps(public, ensure_ascii=False, sort_keys=True)
 
-        self.assertEqual(source["unresolvedBySlot"]["head"], {
-            "gemCount": 1,
-            "embellishmentCount": 1,
-        })
+        self.assertEqual(source["status"], "blocked")
+        self.assertEqual(public["status"], "blocked")
+        self.assertEqual(public["importedGearBySlot"], {})
         self.assertNotIn("forged-raw-gem", encoded)
         self.assertNotIn("raw-value-must-not-leak", encoded)
         self.assertNotIn("hidden-embellishment", encoded)
@@ -231,21 +397,25 @@ class CommunityTemplateImportTest(unittest.TestCase):
     def test_forged_template_option_identity_is_not_copied_to_selection_intent(self):
         from server.community_template_import import build_community_template_selection_intent
 
-        source = self.build_source()
+        winner = copy.deepcopy(self.winner)
+        winner["selectionIntent"]["slots"]["head"]["gemOptionIds"] = ["forged-raw-gem"]
+        source = self.build_source(winner=winner)
         intent = build_community_template_selection_intent(source)
-        encoded = json.dumps(intent, ensure_ascii=False, sort_keys=True)
+        encoded = json.dumps([intent, source], ensure_ascii=False, sort_keys=True)
 
+        self.assertIsNone(intent)
         self.assertNotIn("forged-raw-gem", encoded)
         self.assertNotIn("hidden-embellishment", encoded)
 
-    def test_slot_inapplicable_or_hidden_option_is_reported_as_unresolved(self):
-        source = self.build_source()
+    def test_slot_inapplicable_or_hidden_option_blocks_atomic_import(self):
+        winner = copy.deepcopy(self.winner)
+        winner["selectionIntent"]["slots"]["head"]["embellishmentOptionId"] = "hidden-embellishment"
+        source = self.build_source(winner=winner)
 
-        self.assertEqual(source["status"], "partial")
-        self.assertEqual(source["unresolvedBySlot"]["head"]["gemCount"], 1)
-        self.assertEqual(source["unresolvedBySlot"]["head"]["embellishmentCount"], 1)
+        self.assertEqual(source["status"], "blocked")
+        self.assertEqual(source["importedGearBySlot"], {})
 
-    def test_selected_gear_rows_include_only_bounded_display_facts_from_bound_item_and_source(self):
+    def test_imported_gear_rows_include_only_sealed_bounded_display_facts(self):
         from server.community_template_import import build_community_template_import_source
 
         source = build_community_template_import_source(
@@ -256,8 +426,14 @@ class CommunityTemplateImportTest(unittest.TestCase):
                 "itemId": "item-head",
                 "name": "Observed Headpiece",
                 "slot": "head",
-                "itemLevel": 289,
-                "payload": {"rawInternalValue": "must-not-leak"},
+                "itemLevel": 197,
+                "payload": {
+                    "rawInternalValue": "must-not-leak",
+                    "_metadata": {
+                        "iconUrl": "https://render.worldofwarcraft.com/icons/observed-head.jpg",
+                        "gameAsset": {"source": "blizzard", "status": "verified"},
+                    },
+                },
             }],
             sources=[{
                 "itemId": "item-head",
@@ -267,11 +443,10 @@ class CommunityTemplateImportTest(unittest.TestCase):
             }],
         )
 
-        row = source["selectedGearBySlot"]["head"]
+        row = source["importedGearBySlot"]["head"]
         self.assertEqual(row["displayName"], "Observed Headpiece")
-        self.assertEqual(row["ilevel"], 289)
-        self.assertEqual(row["sourceType"], "raid")
-        self.assertEqual(row["sources"], [{"label": "测试首领 - 测试团本", "sourceType": "raid"}])
+        self.assertEqual(row["ilevel"], 292)
+        self.assertEqual(row["itemLevel"], 292)
         encoded = json.dumps(row, ensure_ascii=False, sort_keys=True)
         self.assertNotIn("must-not-leak", encoded)
 

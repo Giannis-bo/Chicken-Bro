@@ -7,7 +7,8 @@ import json
 from typing import Any
 
 
-COMMUNITY_TEMPLATE_IMPORT_CONTRACT_REVISION = "websim-community-template-import-v1"
+COMMUNITY_TEMPLATE_IMPORT_CONTRACT_REVISION = "websim-community-template-import-v2"
+COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_REVISION = "community-template-import-evidence-v1"
 PUBLIC_OBSERVED_SOURCE_KEY = "raiderio_observed_profile"
 
 _OPTION_FIELDS = (
@@ -27,6 +28,15 @@ def _text(value: Any) -> str:
     return value.strip() if isinstance(value, str) else ""
 
 
+def _int(value: Any) -> int:
+    if isinstance(value, bool):
+        return 0
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError, OverflowError):
+        return 0
+
+
 def _problem(code: str, title: str, *, retryable: bool = False) -> dict[str, Any]:
     return {"code": code, "title": title, "retryable": retryable}
 
@@ -42,11 +52,9 @@ def _blocked(problem: dict[str, Any]) -> dict[str, Any]:
         "contractRevision": COMMUNITY_TEMPLATE_IMPORT_CONTRACT_REVISION,
         "status": "blocked",
         "template": {},
-        "selectedGearBySlot": {},
+        "importedGearBySlot": {},
         "visibleOptionsBySlot": {},
         "selectionIntent": None,
-        "unresolvedBySlot": {},
-        "warnings": [],
         "problems": [problem],
     }
 
@@ -63,6 +71,33 @@ def _option_is_usable(option: Any, slot: str, expected_type: str) -> bool:
         and isinstance(applicable_slots, list)
         and (slot in applicable_slots or "*" in applicable_slots)
     )
+
+
+def _winner_import_evidence(row: dict[str, Any]) -> dict[str, Any] | None:
+    payload = row.get("payload") if isinstance(row.get("payload"), dict) else {}
+    evidence = payload.get("importEvidence") if isinstance(payload.get("importEvidence"), dict) else {}
+    slots = evidence.get("slots") if isinstance(evidence.get("slots"), dict) else {}
+    if (
+        evidence.get("schemaRevision") != COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_REVISION
+        or not _text(evidence.get("sourceFingerprint")).startswith("sha256:")
+        or not slots
+    ):
+        return None
+    return evidence
+
+
+def _verified_item_icon(item: dict[str, Any]) -> tuple[str, dict[str, str]] | None:
+    payload = item.get("payload") if isinstance(item.get("payload"), dict) else {}
+    metadata = payload.get("_metadata") if isinstance(payload.get("_metadata"), dict) else {}
+    game_asset = metadata.get("gameAsset") if isinstance(metadata.get("gameAsset"), dict) else {}
+    icon_url = _text(metadata.get("iconUrl"))
+    if _text(game_asset.get("status")) != "verified" or not icon_url:
+        return None
+    return icon_url, {
+        "source": _text(game_asset.get("source")) or "blizzard",
+        "status": "verified",
+        "iconUrl": icon_url,
+    }
 
 
 def build_community_template_import_source(
@@ -101,65 +136,82 @@ def build_community_template_import_source(
     ):
         return _blocked(_problem("template_inapplicable", "The active template cannot be imported."))
 
-    variants_by_identity: dict[tuple[str, str], dict[str, Any]] = {}
+    import_evidence = _winner_import_evidence(row)
+    if import_evidence is None:
+        return _blocked(_problem(
+            "template_import_evidence_incomplete",
+            "The active template lacks complete sealed import evidence.",
+        ))
+    evidence_slots = import_evidence["slots"]
+    if set(evidence_slots) != set(slots):
+        return _blocked(_problem(
+            "template_import_evidence_incomplete",
+            "The active template lacks complete sealed import evidence.",
+        ))
+
+    variants_by_identity: dict[tuple[str, str], list[dict[str, Any]]] = {}
     for value in variants if isinstance(variants, list) else []:
         if not isinstance(value, dict):
             continue
         item_id = _text(value.get("itemId"))
         variant_key = _text(value.get("variantKey"))
-        requested_variant_key = _text(value.get("requestedVariantKey"))
         if not item_id or not variant_key:
             continue
-        variants_by_identity[(item_id, variant_key)] = value
-        if requested_variant_key:
-            variants_by_identity[(item_id, requested_variant_key)] = value
+        variants_by_identity.setdefault((item_id, variant_key), []).append(value)
     options_by_key = {
         _text(value.get("optionKey")): value
         for value in options if isinstance(options, list) and isinstance(value, dict)
         if _text(value.get("optionKey"))
     }
-    item_rows = items if isinstance(items, list) else []
-    source_rows_input = sources if isinstance(sources, list) else []
-    items_by_id = {
-        _text(value.get("itemId")): value
-        for value in item_rows if isinstance(value, dict)
-        if _text(value.get("itemId"))
-    }
-    sources_by_item: dict[str, list[dict[str, str]]] = {}
-    for value in source_rows_input:
-        if not isinstance(value, dict):
-            continue
-        item_id = _text(value.get("itemId"))
-        label = _text(value.get("sourceLabel"))
-        source_type = _text(value.get("sourceType"))
-        if not item_id or not label:
-            continue
-        rows = sources_by_item.setdefault(item_id, [])
-        source_display = {"label": label, "sourceType": source_type}
-        if source_display not in rows and len(rows) < 8:
-            rows.append(source_display)
+    items_by_id: dict[str, list[dict[str, Any]]] = {}
+    for value in items if isinstance(items, list) else []:
+        if isinstance(value, dict) and _text(value.get("itemId")):
+            items_by_id.setdefault(_text(value.get("itemId")), []).append(value)
 
     canonical_slots: dict[str, dict[str, Any]] = {}
-    selected_gear_by_slot: dict[str, dict[str, Any]] = {}
+    imported_gear_by_slot: dict[str, dict[str, Any]] = {}
     visible_options_by_slot: dict[str, dict[str, dict[str, str]]] = {}
-    unresolved_by_slot: dict[str, dict[str, int]] = {}
-    warnings: list[dict[str, Any]] = []
     for slot in sorted(slots):
         selection = slots.get(slot)
         if not isinstance(selection, dict) or not _text(slot):
             return _blocked(_problem("template_inapplicable", "The active template contains an invalid slot."))
         item_id = _text(selection.get("itemId"))
         variant_key = _text(selection.get("variantKey"))
-        variant = variants_by_identity.get((item_id, variant_key))
+        evidence = evidence_slots.get(slot) if isinstance(evidence_slots.get(slot), dict) else {}
+        if (
+            _text(evidence.get("itemId")) != item_id
+            or _text(evidence.get("variantKey")) != variant_key
+            or not isinstance(evidence.get("observedItemLevel"), int)
+            or isinstance(evidence.get("observedItemLevel"), bool)
+            or evidence.get("observedItemLevel") <= 0
+            or not _text(evidence.get("iconUrl"))
+        ):
+            return _blocked(_problem(
+                "template_import_evidence_incomplete",
+                "The active template lacks complete sealed import evidence.",
+            ))
+        candidate_variants = variants_by_identity.get((item_id, variant_key)) or []
+        variant = candidate_variants[0] if len(candidate_variants) == 1 else None
         if (
             not isinstance(variant, dict)
             or _text(variant.get("slot")) != slot
             or _text(variant.get("status")) != "verified"
+            or _int(variant.get("itemLevel")) != evidence["observedItemLevel"]
         ):
-            return _blocked(_problem("template_inapplicable", "The active template references unavailable gear."))
+            return _blocked(_problem(
+                "template_import_evidence_incomplete",
+                "The active template does not match its sealed observed gear.",
+            ))
         active_variant_key = _text(variant.get("variantKey"))
-        if not active_variant_key:
-            return _blocked(_problem("template_inapplicable", "The active template references unavailable gear."))
+        item_candidates = items_by_id.get(item_id) or []
+        item = item_candidates[0] if len(item_candidates) == 1 else None
+        image = _verified_item_icon(item) if isinstance(item, dict) else None
+        if not active_variant_key or image is None or image[0] != _text(evidence.get("iconUrl")):
+            return _blocked(_problem(
+                "template_import_evidence_incomplete",
+                "The active template does not have a verified matching item image.",
+            ))
+        icon_url, game_asset = image
 
         canonical_slot = {
             "itemId": item_id,
@@ -170,50 +222,43 @@ def build_community_template_import_source(
             "craftedOptionId": "",
             "catalystOptionId": "",
         }
-        selected = {
+        display_name = _text(item.get("name")) or _text(variant.get("label")) or item_id
+        imported = {
             "variantId": _text(variant.get("id") or variant.get("variantId")),
             "itemId": item_id,
             "variantKey": active_variant_key,
             "slot": slot,
             "label": _text(variant.get("label")),
-            "itemLevel": variant.get("itemLevel") if isinstance(variant.get("itemLevel"), int) else 0,
+            "displayName": display_name,
+            "name": display_name,
+            "itemLevel": evidence["observedItemLevel"],
+            "ilevel": evidence["observedItemLevel"],
+            "iconUrl": icon_url,
+            "gameAsset": game_asset,
         }
-        item = items_by_id.get(item_id)
-        source_rows = sources_by_item.get(item_id, [])
-        if item is not None or source_rows:
-            item_level = item.get("itemLevel") if isinstance(item, dict) else None
-            level = item_level if isinstance(item_level, int) else selected["itemLevel"]
-            display_name = _text(item.get("name")) if isinstance(item, dict) else ""
-            display_name = display_name or selected["label"] or item_id
-            source_type = _text(variant.get("sourceType")) or (
-                source_rows[0]["sourceType"] if source_rows else ""
-            )
-            selected.update({
-                "displayName": display_name,
-                "name": display_name,
-                "ilevel": level,
-                "itemLevel": level,
-                "simcReady": True,
-                "sourceType": source_type,
-                "source": source_rows[0]["label"] if source_rows else "",
-                "sources": source_rows,
-            })
-        selected_gear_by_slot[slot] = selected
+        imported_gear_by_slot[slot] = imported
         slot_visible_options: dict[str, dict[str, str]] = {}
-        slot_unresolved: dict[str, int] = {}
         for field, expected_type, count_field in _OPTION_FIELDS:
             raw_values = selection.get(field, [] if field == "gemOptionIds" else "")
-            values = raw_values if isinstance(raw_values, list) else [raw_values]
+            if field == "gemOptionIds":
+                if not isinstance(raw_values, list):
+                    return _blocked(_problem("template_import_enhancement_unavailable", "The active template has an invalid gem selection."))
+                values = raw_values
+            elif isinstance(raw_values, str):
+                values = [raw_values]
+            else:
+                return _blocked(_problem("template_import_enhancement_unavailable", "The active template has an invalid enhancement selection."))
             accepted: list[str] = []
-            rejected = 0
             for value in values:
                 option_key = _text(value)
                 if not option_key:
                     continue
                 option = options_by_key.get(option_key)
                 if not _option_is_usable(option, slot, expected_type):
-                    rejected += 1
-                    continue
+                    return _blocked(_problem(
+                        "template_import_enhancement_unavailable",
+                        "The active template has an unavailable enhancement.",
+                    ))
                 accepted.append(option_key)
                 slot_visible_options[option_key] = {
                     "optionKey": option_key,
@@ -222,28 +267,28 @@ def build_community_template_import_source(
                 }
             if field == "gemOptionIds":
                 canonical_slot[field] = accepted
+            elif len(accepted) > 1:
+                return _blocked(_problem("template_import_enhancement_unavailable", "The active template has an invalid enhancement selection."))
             elif accepted:
                 canonical_slot[field] = accepted[0]
-            if rejected:
-                slot_unresolved[count_field] = rejected
         canonical_slots[slot] = canonical_slot
         if slot_visible_options:
             visible_options_by_slot[slot] = slot_visible_options
-        if slot_unresolved:
-            unresolved_by_slot[slot] = slot_unresolved
-            warnings.append({"code": "template_import_unresolved", "slot": slot, "counts": slot_unresolved})
 
     source = {
         "contractRevision": COMMUNITY_TEMPLATE_IMPORT_CONTRACT_REVISION,
-        "status": "partial" if unresolved_by_slot else "verified",
+        "status": "verified",
         "template": {
             "id": _text(row.get("templateId")),
             "classKey": class_key,
             "specKey": spec_key,
             "sourceKey": PUBLIC_OBSERVED_SOURCE_KEY,
             "name": _text((row.get("payload") or {}).get("name")) if isinstance(row.get("payload"), dict) else "",
+            "profileHash": _text(row.get("profileHash")),
+            "gearHash": _text(row.get("gearHash")),
+            "sourceFingerprint": _text(import_evidence.get("sourceFingerprint")),
         },
-        "selectedGearBySlot": selected_gear_by_slot,
+        "importedGearBySlot": imported_gear_by_slot,
         "visibleOptionsBySlot": visible_options_by_slot,
         "selectionIntent": {
             "schemaRevision": "selection-intent-v1",
@@ -258,8 +303,6 @@ def build_community_template_import_source(
             },
             "slots": canonical_slots,
         },
-        "unresolvedBySlot": unresolved_by_slot,
-        "warnings": warnings,
         "problems": [],
     }
     return _copy(source)
@@ -269,7 +312,7 @@ def build_community_template_selection_intent(source: Any) -> dict[str, Any] | N
     """Return only the projector-built canonical Intent for Resolver consumption."""
 
     value = source if isinstance(source, dict) else {}
-    if value.get("status") not in {"verified", "partial"}:
+    if value.get("status") != "verified":
         return None
     intent = value.get("selectionIntent")
     return _copy(intent) if isinstance(intent, dict) else None
@@ -283,25 +326,24 @@ def community_template_import_public_data(
     """Expose bounded import facts; never serialize the sealed source Intent or rows."""
 
     value = source if isinstance(source, dict) else {}
-    status = value.get("status") if value.get("status") in {"verified", "partial"} else "blocked"
+    status = "verified" if value.get("status") == "verified" else "blocked"
     context = release_context if isinstance(release_context, dict) else {}
     return _copy({
         "contractRevision": COMMUNITY_TEMPLATE_IMPORT_CONTRACT_REVISION,
         "status": status,
-        "template": value.get("template") if isinstance(value.get("template"), dict) else {},
+        "template": value.get("template") if status == "verified" and isinstance(value.get("template"), dict) else {},
         "manifest": {
             "manifestRevision": _text(context.get("manifestRevision")),
             "pointerGeneration": context.get("pointerGeneration") if isinstance(context.get("pointerGeneration"), int) else 0,
         },
-        "selectedGearBySlot": value.get("selectedGearBySlot") if isinstance(value.get("selectedGearBySlot"), dict) else {},
-        "resolvedSnapshot": resolved_snapshot if isinstance(resolved_snapshot, dict) else {},
-        "unresolvedBySlot": value.get("unresolvedBySlot") if isinstance(value.get("unresolvedBySlot"), dict) else {},
-        "warnings": value.get("warnings") if isinstance(value.get("warnings"), list) else [],
+        "importedGearBySlot": value.get("importedGearBySlot") if status == "verified" and isinstance(value.get("importedGearBySlot"), dict) else {},
+        "resolvedSnapshot": resolved_snapshot if status == "verified" and isinstance(resolved_snapshot, dict) else {},
     })
 
 
 __all__ = [
     "COMMUNITY_TEMPLATE_IMPORT_CONTRACT_REVISION",
+    "COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_REVISION",
     "PUBLIC_OBSERVED_SOURCE_KEY",
     "build_community_template_import_source",
     "build_community_template_selection_intent",

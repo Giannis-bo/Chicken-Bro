@@ -8973,7 +8973,21 @@ class PostgresCacheStoreTest(unittest.TestCase):
                         "specKey": spec_key,
                         "role": "winner",
                         "sourceKey": "raiderio_observed_profile",
-                        "payload": {"name": "Observed Frost"},
+                        "payload": {
+                            "name": "Observed Frost",
+                            "importEvidence": {
+                                "schemaRevision": "community-template-import-evidence-v1",
+                                "sourceFingerprint": "sha256:" + "a" * 64,
+                                "slots": {
+                                    "head": {
+                                        "itemId": "item-a",
+                                        "variantKey": "variant-a",
+                                        "observedItemLevel": 289,
+                                        "iconUrl": "https://render.worldofwarcraft.com/icons/item-a.jpg",
+                                    },
+                                },
+                            },
+                        },
                         "selectionIntent": {
                             "schemaRevision": "selection-intent-v1",
                             "authoredAgainst": {"seasonRevision": "season-17", "gearCatalogRevision": "gear-release-a"},
@@ -8988,7 +9002,17 @@ class PostgresCacheStoreTest(unittest.TestCase):
                         "variantId": "variant-a-id", "itemId": "item-a", "variantKey": "variant-a", "slot": "head",
                         "label": "Observed head", "itemLevel": 289, "status": "verified",
                     }],
-                    "items": [{"itemId": "item-a"}],
+                    "items": [{
+                        "itemId": "item-a",
+                        "name": "Observed head",
+                        "itemLevel": 197,
+                        "payload": {
+                            "_metadata": {
+                                "iconUrl": "https://render.worldofwarcraft.com/icons/item-a.jpg",
+                                "gameAsset": {"source": "blizzard", "status": "verified"},
+                            },
+                        },
+                    }],
                     "sources": [{"sourceId": "source-a", "itemId": "item-a"}],
                     "options": [{
                         "optionKey": "gem-a", "optionType": "gem", "name": "Gem A", "status": "verified",
@@ -9040,6 +9064,18 @@ class PostgresCacheStoreTest(unittest.TestCase):
             release_store.authority_calls[0][0]["slots"]["head"]["gemOptionIds"],
             ["gem-a", "gem-a"],
         )
+
+    def test_community_import_cache_identity_is_scoped_to_v2_contract(self):
+        from server.postgres_cache_store import _community_template_import_cache_fingerprint
+
+        fingerprint = _community_template_import_cache_fingerprint(
+            {"manifestRevision": "manifest-a", "pointerGeneration": 7},
+            "mage",
+            "frost",
+            "template-a",
+        )
+
+        self.assertIn('"contractRevision":"websim-community-template-import-v2"', fingerprint)
 
     def test_community_import_manifest_mismatch_prevents_scoped_read(self):
         from server import postgres_cache_store

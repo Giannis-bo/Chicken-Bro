@@ -571,6 +571,10 @@ class GearReleaseStoreTest(unittest.TestCase):
         from server.gear_release_store import canonical_row_hash
 
         snapshot = self.snapshot()
+        snapshot["items"][0]["payload"]["_metadata"] = {
+            "iconUrl": "https://render.worldofwarcraft.com/icons/item-a.jpg",
+            "gameAsset": {"source": "blizzard", "status": "verified"},
+        }
         gear = self.gear_release(snapshot)
         rows = self.community_rows()
         rows[0]["selectionIntent"] = {
@@ -590,6 +594,18 @@ class GearReleaseStoreTest(unittest.TestCase):
                     "craftedOptionId": "",
                     "catalystOptionId": "",
                 }
+            },
+        }
+        rows[0]["payload"]["importEvidence"] = {
+            "schemaRevision": "community-template-import-evidence-v1",
+            "sourceFingerprint": "sha256:" + "a" * 64,
+            "slots": {
+                "head": {
+                    "itemId": "item-a",
+                    "variantKey": "variant-a",
+                    "observedItemLevel": 289,
+                    "iconUrl": "https://render.worldofwarcraft.com/icons/item-a.jpg",
+                },
             },
         }
         community = self.community_release(gear["releaseId"], rows)
@@ -624,7 +640,13 @@ class GearReleaseStoreTest(unittest.TestCase):
             "FROM cache.websim_gear_release_items": [
                 (
                     "item-a", "Item A", "head", 289, "verified",
-                    {"itemStats": [{"key": "intellect", "value": 100}]},
+                    {
+                        "itemStats": [{"key": "intellect", "value": 100}],
+                        "_metadata": {
+                            "iconUrl": "https://render.worldofwarcraft.com/icons/item-a.jpg",
+                            "gameAsset": {"source": "blizzard", "status": "verified"},
+                        },
+                    },
                     "2026-07-11T05:00:00+00:00", canonical_row_hash(snapshot["items"][0]),
                 )
             ],
@@ -658,8 +680,16 @@ class GearReleaseStoreTest(unittest.TestCase):
 
         self.assertEqual(result["winner"]["templateId"], "template-a")
         self.assertEqual(result["winner"]["sourceKey"], "raiderio_observed_profile")
+        self.assertEqual(
+            result["winner"]["payload"]["importEvidence"]["schemaRevision"],
+            "community-template-import-evidence-v1",
+        )
         self.assertEqual([row["variantId"] for row in result["variants"]], ["variant-a-id"])
         self.assertEqual([row["itemId"] for row in result["items"]], ["item-a"])
+        self.assertEqual(
+            result["items"][0]["payload"]["_metadata"]["iconUrl"],
+            "https://render.worldofwarcraft.com/icons/item-a.jpg",
+        )
         self.assertEqual([row["sourceId"] for row in result["sources"]], ["source-a"])
         self.assertEqual([row["optionKey"] for row in result["options"]], ["gem-a"])
         self.assertEqual(result["binding"]["manifest"]["manifestRevision"], binding["manifest"]["manifestRevision"])
