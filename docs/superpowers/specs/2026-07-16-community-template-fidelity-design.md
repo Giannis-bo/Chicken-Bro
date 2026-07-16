@@ -51,7 +51,7 @@ The player-facing recovery copy is plain: “该社区模板的装备证据不�
 
 ### 3.1 Versioned observed selection source
 
-New Community Releases publish a `selection-intent-v2` for observed templates. Each slot carries `itemId`, `variantKey`, `observedItemLevel`, and the existing ordered enhancement facts. It also carries a bounded source fingerprint bound to the template's profile/gear identity and authored release revisions.
+New Community Releases retain the existing resolver-facing `selection-intent-v1`, and publish a separate sealed `importEvidence` object in the Community Release payload. Its schema is `community-template-import-evidence-v1`; each slot carries `itemId`, `variantKey`, `observedItemLevel` and verified image metadata, while the object carries a bounded source fingerprint bound to the template's profile/gear identity and authored release revisions. The projector combines this server-only evidence with the v1 canonical enhancement selection before Resolver handoff.
 
 If source ingestion cannot preserve `observedItemLevel` for a slot, that template may remain browsable as historical evidence but is not importable. Request-time code must not reconstruct the missing fact from generic catalog metadata. The required fact is materialized while producing an inactive Community Release, shadowed, and promoted through the existing Manifest process.
 
@@ -91,7 +91,7 @@ The additive response revision is `websim-community-template-import-v2`:
       "iconUrl": "https://render.worldofwarcraft.com/us/icons/56/inv_helm_cloth_raidmage_j_01.jpg"
     }
   },
-  "selectionIntent": { "schemaRevision": "selection-intent-v2", "slots": {} },
+  "selectionIntent": { "schemaRevision": "selection-intent-v1", "slots": {} },
   "resolvedSnapshot": { "constraints": {}, "resolvedSlots": {} }
 }
 ```
@@ -108,10 +108,10 @@ The Resolver snapshot remains the authority for attributes and selected canonica
 
 New saves made from a community import record an `importOrigin` containing contract revision, template ID, source fingerprint and Manifest binding. On replay:
 
-- a saved community import may self-heal only by re-requesting a verified import whose template/source fingerprint and exact selection match the saved origin;
-- any missing origin data, changed source fingerprint, missing v2 proof, or blocked revalidation makes the saved entry explicitly non-applicable and asks the player to re-import;
-- legacy `selectedGearSnapshot` data is never trusted merely because it contains an item ID or a generic item level;
-- player-authored gear templates keep their existing save/Resolve path and are not re-labeled as community imports.
+- a saved community import with `importOrigin` may self-heal only by re-requesting a verified import whose template/source fingerprint and exact selection match the saved origin;
+- any changed source fingerprint, missing v2 proof, or blocked revalidation makes that labelled community import explicitly non-applicable and asks the player to re-import;
+- legacy saves have no reliable origin marker and are never described as a current community-player source. They may self-heal only when every persisted slot can be revalidated against the current immutable exact `itemId + variantKey`; the revalidated Variant and Item metadata replace the persisted display level and image. A missing Variant, level disagreement, unavailable image, invalid enhancement or Resolver failure blocks the entire saved apply;
+- player-authored gear templates keep their existing save/Resolve path. The same exact-variant rehydration protects their display fields, but it does not re-label them as community imports.
 
 This rule deliberately favors honest re-import over silently replaying the known `197` corruption.
 
