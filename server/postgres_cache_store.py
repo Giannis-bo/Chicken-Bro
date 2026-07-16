@@ -573,6 +573,8 @@ def _pg_community_template_import_cache_put(fingerprint, payload):
         or payload.get("status") != "verified"
         or not isinstance(data, dict)
         or data.get("status") != "verified"
+        or data.get("contractRevision") != COMMUNITY_TEMPLATE_IMPORT_CONTRACT_REVISION
+        or not isinstance(data.get("importedGearBySlot"), dict)
         or problems not in (None, [])
         or not isinstance(payload.get("releaseContext"), dict)
     ):

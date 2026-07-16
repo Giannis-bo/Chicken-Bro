@@ -602,6 +602,52 @@ class CommunityTemplateImportTest(unittest.TestCase):
         self.assertEqual(malformed["problems"][0]["code"], "invalid_import_request")
         self.assertEqual(store.cache_calls, 0)
 
+    def test_partial_or_legacy_import_source_is_returned_as_blocked_without_data(self):
+        from server import gear_runtime
+
+        class LegacyStore:
+            def __init__(self, source):
+                self.source = source
+                self.cache_calls = 0
+
+            def get_community_template_import_context(self, **_kwargs):
+                return {
+                    "cache": {"hit": False},
+                    "source": copy.deepcopy(self.source),
+                    "authorityContext": {},
+                    "releaseReadMs": 0.5,
+                    "cacheIdentity": "never-cache",
+                }
+
+            def cache_community_template_import_verified(self, *_args):
+                self.cache_calls += 1
+
+        sources = (
+            {
+                "contractRevision": "websim-community-template-import-v1",
+                "status": "verified",
+                "selectedGearBySlot": {"head": {"itemLevel": 197}},
+            },
+            {
+                "contractRevision": "websim-community-template-import-v2",
+                "status": "partial",
+                "importedGearBySlot": {"head": {"itemLevel": 292}},
+            },
+        )
+        for source in sources:
+            with self.subTest(source=source["contractRevision"], status=source["status"]):
+                store = LegacyStore(source)
+                status, envelope, _timings = gear_runtime.import_community_template(
+                    {"classKey": "mage", "specKey": "frost", "templateId": "legacy"},
+                    store=store,
+                    simc_runtime_revision="simc-r1",
+                    request_id="legacy-import",
+                )
+                self.assertEqual(status, 200)
+                self.assertEqual(envelope["status"], "blocked")
+                self.assertEqual(envelope["data"], {})
+                self.assertEqual(store.cache_calls, 0)
+
 
 if __name__ == "__main__":
     unittest.main()

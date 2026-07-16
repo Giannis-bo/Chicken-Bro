@@ -307,11 +307,28 @@ def import_community_template(
     cache_state = context.get("cache") if isinstance(context, dict) else {}
     if isinstance(cache_state, dict) and cache_state.get("hit") is True:
         cached = context.get("cachedPayload") if isinstance(context.get("cachedPayload"), dict) else {}
+        cached_data = cached.get("data") if isinstance(cached.get("data"), dict) else {}
+        if (
+            cached.get("status") != "verified"
+            or cached_data.get("status") != "verified"
+            or cached_data.get("contractRevision") != COMMUNITY_TEMPLATE_IMPORT_CONTRACT_REVISION
+            or not isinstance(cached_data.get("importedGearBySlot"), dict)
+        ):
+            problem = _import_problem(
+                "template_import_evidence_incomplete",
+                "The cached template import does not have complete sealed evidence.",
+            )
+            envelope = _import_envelope("blocked", request_id, cached.get("releaseContext"), problems=[problem])
+            return 200, envelope, _import_timings(
+                release_read_ms=release_read_ms,
+                reconcile_ms=reconcile_ms,
+                cache="hit",
+            )
         envelope = _import_envelope(
             "verified",
             request_id,
             cached.get("releaseContext"),
-            data=cached.get("data"),
+            data=cached_data,
             problems=[],
         )
         return 200, envelope, _import_timings(
@@ -324,10 +341,16 @@ def import_community_template(
     source_status = source.get("status")
     authority_context = context.get("authorityContext") if isinstance(context, dict) else {}
     release_context = _release_context(authority_context)
-    if source_status == "blocked":
+    if (
+        source_status != "verified"
+        or source.get("contractRevision") != COMMUNITY_TEMPLATE_IMPORT_CONTRACT_REVISION
+    ):
         problems = source.get("problems") if isinstance(source.get("problems"), list) else []
         if not problems:
-            problems = [_import_problem("template_import_blocked", "The requested template cannot be imported safely.")]
+            problems = [_import_problem(
+                "template_import_evidence_incomplete",
+                "The requested template does not have complete sealed import evidence.",
+            )]
         envelope = _import_envelope("blocked", request_id, release_context, problems=problems)
         return 200, envelope, _import_timings(
             release_read_ms=release_read_ms,
@@ -391,20 +414,6 @@ def import_community_template(
             except Exception:
                 pass
         envelope = _import_envelope("verified", request_id, release_context, data=data, problems=[])
-        return 200, envelope, _import_timings(
-            release_read_ms=release_read_ms,
-            reconcile_ms=reconcile_ms,
-            resolve_ms=resolve_ms,
-            serialize_ms=(clock() - serialize_started) * 1000,
-        )
-
-    if source_status == "partial" and snapshot.get("status") == "verified":
-        data = community_template_import_public_data(source, snapshot, release_context)
-        problem = _import_problem(
-            "template_import_unresolved",
-            "Some template enhancements could not be verified for atomic import.",
-        )
-        envelope = _import_envelope("partial", request_id, release_context, data=data, problems=[problem])
         return 200, envelope, _import_timings(
             release_read_ms=release_read_ms,
             reconcile_ms=reconcile_ms,

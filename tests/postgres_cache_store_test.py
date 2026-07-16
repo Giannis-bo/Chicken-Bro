@@ -9066,6 +9066,7 @@ class PostgresCacheStoreTest(unittest.TestCase):
         )
 
     def test_community_import_cache_identity_is_scoped_to_v2_contract(self):
+        from server import postgres_cache_store
         from server.postgres_cache_store import _community_template_import_cache_fingerprint
 
         fingerprint = _community_template_import_cache_fingerprint(
@@ -9076,6 +9077,17 @@ class PostgresCacheStoreTest(unittest.TestCase):
         )
 
         self.assertIn('"contractRevision":"websim-community-template-import-v2"', fingerprint)
+        postgres_cache_store.PG_COMMUNITY_TEMPLATE_IMPORT_CACHE.clear()
+        postgres_cache_store._pg_community_template_import_cache_put("legacy", {
+            "status": "verified",
+            "releaseContext": {},
+            "data": {
+                "status": "verified",
+                "contractRevision": "websim-community-template-import-v1",
+                "importedGearBySlot": {},
+            },
+        })
+        self.assertIsNone(postgres_cache_store._pg_community_template_import_cache_get("legacy"))
 
     def test_community_import_manifest_mismatch_prevents_scoped_read(self):
         from server import postgres_cache_store
