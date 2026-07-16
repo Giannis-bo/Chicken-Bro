@@ -999,13 +999,15 @@ def _canonical_observed_template_variant(
     variant_key: str,
     variants: Iterable[dict[str, Any]],
 ) -> dict[str, Any]:
-    """Resolve a legacy observed key to its one sealed, same-player instance.
+    """Resolve a legacy observed key to its one sealed game-instance identity.
 
     Older observed templates encode a variant key as concatenated ``field:value``
     text, while staging now stores a canonical JSON form.  The serialized key is
     not a gameplay fact, so that representation change may be bridged only by the
     exact observed item id, slot, instance level, all SimC fields, and target
-    player profile identity.  Any ambiguity remains unavailable.
+    player profile identity.  When the catalog has no row from that player, it
+    may use a deterministic, semantically identical catalog row only if every
+    resolver-relevant fact agrees.  Any ambiguity remains unavailable.
     """
 
     normalized_item_id = _text(item_id)
@@ -1047,6 +1049,7 @@ def _canonical_observed_template_variant(
         return {}
 
     equivalent = []
+    semantic_candidates = []
     for candidate in candidates:
         if _text(candidate.get("sourceType")).lower() != "observed_profile":
             continue
@@ -1060,10 +1063,34 @@ def _canonical_observed_template_variant(
         }
         if candidate_options != expected_options:
             continue
-        if not (_observed_profile_urls(candidate) & profile_urls):
-            continue
-        equivalent.append(candidate)
-    return equivalent[0] if len(equivalent) == 1 else {}
+        payload = candidate.get("payload") if isinstance(candidate.get("payload"), dict) else {}
+        semantic_candidates.append((candidate, _canonical({
+            "itemId": _text(candidate.get("itemId")),
+            "slot": normalize_slot(candidate.get("slot")),
+            "itemLevel": _int(candidate.get("itemLevel")),
+            "simcOptions": candidate_options,
+            "resolvedStats": payload.get("resolvedStats") or {},
+            "capabilityOverrides": payload.get("capabilityOverrides") or {},
+            "enhancementManagement": payload.get("enhancementManagement") or {},
+        })))
+        if _observed_profile_urls(candidate) & profile_urls:
+            equivalent.append(candidate)
+    if len(equivalent) == 1:
+        return equivalent[0]
+    if equivalent:
+        return {}
+    if not semantic_candidates:
+        return {}
+    signatures = {
+        json.dumps(signature, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        for _candidate, signature in semantic_candidates
+    }
+    if len(signatures) != 1:
+        return {}
+    return sorted(
+        (candidate for candidate, _signature in semantic_candidates),
+        key=lambda row: (_text(row.get("variantKey")), _text(row.get("variantId"))),
+    )[0]
 
 
 def _verified_item_icon_url(
