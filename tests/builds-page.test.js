@@ -6227,7 +6227,7 @@ test('gear slot rows enrich sparse equipped items from matching candidates', () 
   assert.doesNotMatch(row.reason, /来源待补/)
 })
 
-test('gear candidate detail shows handedness unique badges and filters primary stat copy', () => {
+test('gear candidate detail derives its primary stat copy from the current specialization', () => {
   const pageConfig = loadBuildsDetailPageConfig()
   const weapon = {
     slot: 'main_hand',
@@ -6237,7 +6237,6 @@ test('gear candidate detail shows handedness unique badges and filters primary s
     displayName: '唯一巨剑',
     simcReady: true,
     ilevel: 289,
-    primaryStatKey: 'strength',
     weaponType: 'Two-Handed Sword',
     handednessLabel: '双手',
     uniqueEquipped: true,
@@ -6283,6 +6282,106 @@ test('gear candidate detail shows handedness unique badges and filters primary s
   const detailRows = page.data.gearSlotSheet.candidates[0].detailRows
   assert.equal(detailRows.find((row) => row.label === '装备标签').value, '双手 / 唯一')
   assert.equal(detailRows.find((row) => row.label === '装备属性').value, '力量 333；耐力 555；暴击 70')
+})
+
+test('gear candidate detail shows intellect only for elemental shaman flexible primary stats', () => {
+  const pageConfig = loadBuildsDetailPageConfig()
+  const item = {
+    slot: 'head',
+    simcSlot: 'head',
+    itemId: '260205',
+    id: '260205',
+    displayName: '原始核心的轨迹头盔',
+    simcReady: true,
+    primaryStatKey: 'agility',
+    statSummary: '敏捷 or 智力 124；耐力 1768；急速 55；精通 109'
+  }
+  const gearPayload = {
+    classKey: 'shaman',
+    specKey: 'elemental',
+    slots: [{ slot: 'head', simcSlot: 'head', label: '头部' }],
+    replacementCandidates: [{
+      slot: 'head',
+      simcSlot: 'head',
+      label: '头部',
+      items: [item]
+    }],
+    equippedSet: {},
+    slotReadiness: {},
+    readiness: {}
+  }
+  const page = {
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      selectedSpec: { websimClassKey: 'shaman', websimSpecKey: 'elemental' },
+      gearPayload,
+      selectedGearBySlot: {}
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.refreshDerivedState.call(page)
+  pageConfig.openGearSlotSheet.call(page, { currentTarget: { dataset: { slot: 'head' } } })
+
+  const detailRows = page.data.gearSlotSheet.candidates[0].detailRows
+  assert.equal(detailRows.find((row) => row.label === '装备属性').value, '智力 124；耐力 1768；急速 55；精通 109')
+})
+
+test('weapon candidate omits its ranged tag while keeping non-weapon badges', () => {
+  const pageConfig = loadBuildsDetailPageConfig()
+  const item = {
+    slot: 'main_hand',
+    simcSlot: 'main_hand',
+    itemId: '260206',
+    id: '260206',
+    displayName: 'P.O.W. x3',
+    simcReady: true,
+    weaponType: 'Bow',
+    handednessLabel: '远程',
+    uniqueEquipped: true,
+    uniqueEquippedLabel: '唯一',
+    equipmentBadges: [
+      { key: 'weapon_handedness', label: '远程' },
+      { key: 'unique_equipped', label: '唯一' }
+    ],
+    statSummary: '敏捷 124；耐力 1768；急速 55；精通 109'
+  }
+  const gearPayload = {
+    classKey: 'hunter',
+    specKey: 'marksmanship',
+    slots: [{ slot: 'main_hand', simcSlot: 'main_hand', label: '武器' }],
+    replacementCandidates: [{
+      slot: 'main_hand',
+      simcSlot: 'main_hand',
+      label: '武器',
+      items: [item]
+    }],
+    equippedSet: {},
+    slotReadiness: {},
+    readiness: {}
+  }
+  const page = {
+    data: {
+      selectedDetail: { details: { talents: { coreTalents: [], importCode: '' }, gear: {} } },
+      activeQueryKey: 'gear',
+      selectedSpec: { websimClassKey: 'hunter', websimSpecKey: 'marksmanship' },
+      gearPayload,
+      selectedGearBySlot: {}
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.refreshDerivedState.call(page)
+  pageConfig.openGearSlotSheet.call(page, { currentTarget: { dataset: { slot: 'main_hand' } } })
+
+  const candidate = page.data.gearSlotSheet.candidates[0]
+  assert.deepEqual(Array.from(candidate.equipmentBadgeLabels), ['唯一'])
+  assert.equal(candidate.detailRows.find((row) => row.label === '装备标签').value, '唯一')
 })
 
 test('gear candidate detail separates SimulationCraft preset from drop source', () => {

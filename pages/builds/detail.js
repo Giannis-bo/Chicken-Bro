@@ -328,6 +328,19 @@ function primaryStatKeyForSpec(selectedSpec) {
   return 'intellect'
 }
 
+function primaryStatKeyForGearDetail(selectedSpec, gearPayload) {
+  const classKey = cleanGearString(
+    (selectedSpec && (selectedSpec.websimClassKey || selectedSpec.classKey)) ||
+    (gearPayload && gearPayload.classKey)
+  )
+  if (!classKey) return ''
+  const specKey = cleanGearString(
+    (selectedSpec && (selectedSpec.websimSpecKey || selectedSpec.specKey)) ||
+    (gearPayload && gearPayload.specKey)
+  )
+  return primaryStatKeyForSpec({ websimClassKey: classKey, websimSpecKey: specKey })
+}
+
 function gearNumericValue(value) {
   if (typeof value === 'number' && Number.isFinite(value)) return value
   const text = cleanGearString(value).replace(/,/g, '')
@@ -2695,6 +2708,10 @@ function gearEquipmentBadgeLabels(item) {
   addLabel(gearUniqueBadgeLabel(item))
   const embellishmentLabel = gearBuiltInEmbellishmentBadgeLabel(item)
   return labels.filter((label) => label !== embellishmentLabel)
+}
+
+function gearCandidateEquipmentBadgeLabels(item) {
+  return gearEquipmentBadgeLabels(item).filter((label) => label !== '远程')
 }
 
 function enhancementRecordMatchesCurrentItem(gearPayload, item, enhancementRecord, optionKey, type) {
@@ -5644,7 +5661,7 @@ function gearAttributeText(item, primaryKey) {
 function gearCandidateDetailRows(item, primaryKey) {
   const rows = []
   rows.push({ label: '掉落来源', value: gearDropSourceText(item) })
-  const badgeLabels = gearEquipmentBadgeLabels(item)
+  const badgeLabels = gearCandidateEquipmentBadgeLabels(item)
   if (badgeLabels.length) rows.push({ label: '装备标签', value: badgeLabels.join(' / ') })
   rows.push({ label: '装备属性', value: gearAttributeText(item, primaryKey) })
   return rows
@@ -5722,7 +5739,7 @@ function buildGearSlotSheet(slot, row, allCandidates, options) {
       }
       return {
         ...gearObjectForData(displayCandidate),
-        equipmentBadgeLabels: gearEquipmentBadgeLabels(displayCandidate),
+        equipmentBadgeLabels: gearCandidateEquipmentBadgeLabels(displayCandidate),
         detailRows: gearCandidateDetailRows(displayCandidate, displayCandidate.primaryStatKey),
         embellishmentBadgeLabel: gearBuiltInEmbellishmentBadgeLabel(displayCandidate),
         selected: isSelected,
@@ -5748,10 +5765,11 @@ function buildGearSlotSheet(slot, row, allCandidates, options) {
   }
 }
 
-function buildGearCandidateRows(slot, payload, selectedGearBySlot) {
+function buildGearCandidateRows(slot, payload, selectedGearBySlot, selectedSpec) {
   const groups = gearGroupsBySlot(payload)
   const group = groups[slot] || { items: [] }
   const selected = (selectedGearBySlot || {})[slot]
+  const primaryStatKey = primaryStatKeyForGearDetail(selectedSpec, payload)
   const rawItems = Array.isArray(group.items) ? group.items.slice(0) : []
   if (selected && !rawItems.some((item) => String(item.itemId || item.id || '') === String(selected.itemId || selected.id || ''))) {
     rawItems.unshift(selected)
@@ -5759,6 +5777,7 @@ function buildGearCandidateRows(slot, payload, selectedGearBySlot) {
   const seen = new Set()
   return rawItems.map((item, index) => {
     const candidate = item
+    const candidatePrimaryStatKey = primaryStatKey || candidate.primaryStatKey || ''
     const key = gearCandidateKey(candidate, slot, index)
     if (seen.has(key)) return null
     seen.add(key)
@@ -5773,13 +5792,14 @@ function buildGearCandidateRows(slot, payload, selectedGearBySlot) {
       iconUrl: candidate.iconUrl || '',
       source: gearCandidateSourceLabel(candidate),
       sourceType: gearCandidateSourceType(candidate),
-      equipmentBadgeLabels: gearEquipmentBadgeLabels(candidate),
+      primaryStatKey: candidatePrimaryStatKey,
+      equipmentBadgeLabels: gearCandidateEquipmentBadgeLabels(candidate),
       embellishmentBadgeLabel: gearBuiltInEmbellishmentBadgeLabel(candidate),
       variantLabel: candidate.variantLabel || '',
       modSummary: gearModSummary(candidate),
       statusLabel: gearStatusLabel(trust.status),
       statusClass: gearStatusClass(trust.status),
-      detailRows: gearCandidateDetailRows(candidate, candidate.primaryStatKey),
+      detailRows: gearCandidateDetailRows(candidate, candidatePrimaryStatKey),
       trustLabel: trust.label,
       trustReason: trust.reason,
       blockerLabel: trust.blockerLabel,
@@ -6775,7 +6795,8 @@ Page({
       if (!gearInteractionContextIsCurrent(this, interactionContext)) return
       if (!gearSlotOpenRequestIsCurrent(this, openRequest)) return
       const row = (this.data.gearSlotRows || []).find((item) => item.slot === slot) || {}
-      const candidates = buildGearCandidateRows(slot, fullGearPayloadForPage(this) || {}, this.data.selectedGearBySlot || {})
+      const gearPayload = fullGearPayloadForPage(this) || {}
+      const candidates = buildGearCandidateRows(slot, gearPayload, this.data.selectedGearBySlot || {}, this.data.selectedSpec)
       const selectedGear = ((this.data.selectedGearBySlot || {})[slot]) || {}
       const selectedItemId = String(selectedGear.itemId || selectedGear.id || row.itemId || '')
       const selectedCandidateIndex = Math.max(0, candidates.findIndex((item) => {
