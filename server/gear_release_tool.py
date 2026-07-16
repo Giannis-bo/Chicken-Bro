@@ -1064,7 +1064,7 @@ def _canonical_observed_template_variant(
         if candidate_options != expected_options:
             continue
         payload = candidate.get("payload") if isinstance(candidate.get("payload"), dict) else {}
-        semantic_candidates.append((candidate, _canonical({
+        semantic_candidate = (candidate, _canonical({
             "itemId": _text(candidate.get("itemId")),
             "slot": normalize_slot(candidate.get("slot")),
             "itemLevel": _int(candidate.get("itemLevel")),
@@ -1072,23 +1072,21 @@ def _canonical_observed_template_variant(
             "resolvedStats": payload.get("resolvedStats") or {},
             "capabilityOverrides": payload.get("capabilityOverrides") or {},
             "enhancementManagement": payload.get("enhancementManagement") or {},
-        })))
+        }))
+        semantic_candidates.append(semantic_candidate)
         if _observed_profile_urls(candidate) & profile_urls:
-            equivalent.append(candidate)
-    if len(equivalent) == 1:
-        return equivalent[0]
-    if equivalent:
-        return {}
-    if not semantic_candidates:
+            equivalent.append(semantic_candidate)
+    scoped_candidates = equivalent or semantic_candidates
+    if not scoped_candidates:
         return {}
     signatures = {
         json.dumps(signature, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
-        for _candidate, signature in semantic_candidates
+        for _candidate, signature in scoped_candidates
     }
     if len(signatures) != 1:
         return {}
     return sorted(
-        (candidate for candidate, _signature in semantic_candidates),
+        (candidate for candidate, _signature in scoped_candidates),
         key=lambda row: (_text(row.get("variantKey")), _text(row.get("variantId"))),
     )[0]
 
