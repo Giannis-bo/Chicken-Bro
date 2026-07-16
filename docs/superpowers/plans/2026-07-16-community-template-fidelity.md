@@ -14,11 +14,12 @@
 - The import request stays PostgreSQL-only, release-scoped and read-only; it performs no external fetch, sync, release promotion or broad candidate catalog expansion.
 - `selection-intent-v1` remains the only Resolver input. Observed item level and image evidence live in sealed Community Release payload data, never in client-authored Intent.
 - Generic Item metadata may supply a verified localized name and image for the same `itemId`; `cache.websim_gear_release_items.item_level` is never a selected-instance item-level authority.
+- Missing or unverified sealed image metadata blocks import; a transient client/CDN image-load failure may use visual retry/fallback but never changes verified import state or item facts.
 - A community import is only `verified` or `blocked`. It never commits a partial set, raw upstream enhancement value, generic fallback level or absent image.
 - Gem occurrence order and duplicate values remain exact; capacity comes from existing exact Variant/global capability evidence and Resolver constraints.
 - New community-origin saves store source identity. Legacy saves may only rehydrate each slot from an exact current `itemId + variantKey`; otherwise their entire apply is blocked.
 - No migration is needed: `cache.websim_community_release_templates.payload_json` already stores sealed Community Release payloads. New evidence is additive and old releases remain browseable but not importable.
-- Runtime changes require final CI plus one candidate deployment and real WeChat acceptance before merge. Keep `WOW_DEPLOY_START_ASYNC_SYNCS=0` for that candidate.
+- Runtime changes require final CI plus one candidate deployment and real WeChat acceptance before merge. The import button remains unavailable while the active Manifest lacks v2 import evidence; only a shadowed and validated v2 Community Release may enable it. Keep `WOW_DEPLOY_START_ASYNC_SYNCS=0` for that candidate.
 
 ---
 
@@ -293,7 +294,7 @@ Inspect the complete diff against this design: no generic Item level is read by 
 
 Expected: no Critical or Important local review finding. Any unrelated existing Harness failure remains explicitly separated from this feature's targeted proof.
 
-- [ ] **Step 3: Deploy one candidate only after deployment is authorized**
+- [ ] **Step 3: Deploy one candidate and switch only after v2 Release evidence is ready**
 
 Run the repository candidate path with async sync disabled:
 
@@ -303,6 +304,8 @@ WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_light
 
 Before the deploy, record final branch/commit, runtime file hashes, current Active Manifest identity and rollback command. Do not start a Community sync, backfill or release promotion from the deploy command.
 
+On the candidate, keep the import action unavailable while the active Manifest points to v1 evidence. Materialize an inactive v2 Community Release, run the exact-slot source-evidence shadow and record its Release ID. Only then perform the controlled Manifest switch and enable v2 import. If materialization, shadow, Manifest identity or client/server contract parity fails, leave browse available and keep the import action unavailable; do not invoke v1 import behavior.
+
 - [ ] **Step 4: Execute candidate smoke and real WeChat acceptance**
 
 Verify against the frozen observed reference:
@@ -310,7 +313,7 @@ Verify against the frozen observed reference:
 1. Every required slot is present; a two-handed profile legitimately omits only its incompatible off-hand.
 2. Each card's exact item level and image equals the sealed expected vector; a generic `197` cannot appear where selected evidence is `292`.
 3. Ordered and duplicate gems, enchants, embellishments and Resolver capacity totals match the observed/canonical evidence.
-4. An intentionally missing image, raw option or mismatched level blocks the entire import and preserves the prior build.
+4. An intentionally missing image *metadata*, raw option or mismatched level blocks the entire import and preserves the prior build; a simulated client image-load failure preserves the sealed item level and verified import state.
 5. Save/replay succeeds only for a matching `importOrigin`; legacy exact rehydration fixes the fixture, while a missing Variant blocks it.
 6. Resolve/Profile, 40-spec public observed-only shadow, timer/backflow/log state and rollback availability remain healthy.
 

@@ -30,6 +30,8 @@ slot + itemId + variantKey + observedItemLevel + observed enhancements
 
 The service must also prove an image for the exact selected item identity. An image is presentation metadata rather than a second player fact, but this product contract requires it to be complete: an import with a missing or unverified image cannot claim a complete player configuration.
 
+This gate is about sealed image metadata, not a browser/CDN availability test. Once a verified `iconUrl` has been supplied, a transient client image-load failure may use the existing visual fallback or retry behavior, but it must not change the imported item identity, level, enhancement state or verified import result.
+
 ### 2.2 Enhancements and capacity
 
 The target's selected gems, enchants and embellishments are facts until they reconcile one-to-one with a visible, verified, slot-applicable canonical option in the same Active Manifest. Reconciliation preserves gem occurrence order and duplicates.
@@ -117,7 +119,14 @@ This rule deliberately favors honest re-import over silently replaying the known
 
 ## 5. Compatibility, rollout and non-goals
 
-This is a strict release-scoped cutover, not a request-time migration. The reader may continue to browse `selection-intent-v1` rows, but the community import action for those rows returns a bounded `blocked` result until a v2 Community Release is generated, shadowed and promoted. No SQLite fallback, external fetch, release-pointer shortcut, generic catalog expansion or background sync is permitted on the import request path.
+This is a strict release-scoped cutover, not a request-time migration. The release sequence is mandatory:
+
+1. Deploy a compatible reader that recognizes `community-template-import-evidence-v1` but keeps the community import action visibly unavailable when the active Manifest still points to a v1 Community Release.
+2. Materialize an inactive v2 Community Release from the observed source, shadow it against the intended Gear Release, and prove every importable winner has complete exact-level and image metadata.
+3. Switch the Manifest only to that validated v2 Community Release, then enable the community import action for the matching v2 client/server contract.
+4. If the v2 Release is absent, stale, incomplete or rolled back, keep browse available but return the bounded unavailable/blocked import state; never fall back to v1 partial import.
+
+No SQLite fallback, external fetch, release-pointer shortcut, generic catalog expansion or background sync is permitted on the import request path.
 
 The existing single atomic import request and lazy later slot editing remain. This design does not optimize generic slot browse, alter public observed-only eligibility, make recommendations, change SimC calculations, or rewrite old personal templates.
 
