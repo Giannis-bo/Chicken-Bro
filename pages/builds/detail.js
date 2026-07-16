@@ -57,6 +57,7 @@ const gearTemplateScenarios = [
   { key: 'raid', title: '团本' }
 ]
 const GEAR_ENHANCEMENT_SNAPSHOT_REVISION = 'websim-gear-enhancement-snapshot-v1'
+const COMMUNITY_TEMPLATE_IMPORT_CONTRACT_REVISION = 'websim-community-template-import-v2'
 const gearEnhancementMax = 2
 const gearTierSetMax = 5
 const communityEnhancementRecoveryWarning = '部分宝石、附魔或美化未能识别，已留空，请重新选择。'
@@ -421,6 +422,11 @@ function emptyCommunityEnhancementImportState() {
     templateId: '',
     serial: 0,
     resolvedGearSignature: '',
+    contractRevision: '',
+    profileHash: '',
+    gearHash: '',
+    sourceFingerprint: '',
+    manifestRevision: '',
     unresolvedBySlot: {},
     warnings: []
   }
@@ -436,25 +442,39 @@ function communityImportExpectedManifestRevision(page) {
   return cleanGearString(payload.manifestRevision)
 }
 
-function importedGearSelectionForPage(gearPayload, selectedGearBySlot) {
-  const imported = selectedGearByCanonicalSlot(selectedGearBySlot)
+function sealedImportedGearSelectionForPage(importedGearBySlot) {
+  const imported = importedGearBySlot && typeof importedGearBySlot === 'object' ? importedGearBySlot : {}
   const result = {}
   Object.keys(imported).forEach((slot) => {
     const selected = imported[slot]
-    const candidate = matchingGearCandidateForItem(gearPayload, slot, selected)
-    const applied = candidate
-      ? appliedGearCandidate(candidate, cleanGearString(selected.variantKey), '')
-      : {}
-    const itemLevel = Number(selected.itemLevel || selected.ilevel || applied.ilevel || applied.itemLevel) || 0
+    const declaredSlot = cleanGearString(selected && selected.slot)
+    const declaredSimcSlot = cleanGearString(selected && selected.simcSlot)
+    const itemId = normalizedGearItemId(selected)
+    const variantKey = cleanGearString(selected && selected.variantKey)
+    const itemLevel = Number(selected && selected.itemLevel)
+    const ilevel = Number(selected && selected.ilevel)
+    const displayName = cleanGearString(selected && (selected.displayName || selected.name || selected.label))
+    const iconUrl = cleanGearString(selected && selected.iconUrl)
+    const gameAsset = selected && selected.gameAsset && typeof selected.gameAsset === 'object' ? selected.gameAsset : {}
+    if (
+      !requiredGearSlots.includes(slot) || declaredSlot !== slot || (declaredSimcSlot && declaredSimcSlot !== slot) ||
+      !itemId || !variantKey || !Number.isFinite(itemLevel) || itemLevel <= 0 ||
+      !Number.isFinite(ilevel) || ilevel !== itemLevel || !displayName || !iconUrl ||
+      cleanGearString(gameAsset.status).toLowerCase() !== 'verified' || cleanGearString(gameAsset.iconUrl) !== iconUrl
+    ) return
     result[slot] = {
-      ...applied,
       ...selected,
       slot,
       simcSlot: selected.simcSlot || slot,
-      id: selected.id || selected.itemId,
-      ilevel: itemLevel || undefined,
-      itemLevel: itemLevel || undefined,
-      displayName: cleanGearString(selected.displayName || selected.name || applied.displayName || applied.name || selected.label),
+      itemId,
+      id: itemId,
+      variantKey,
+      ilevel: itemLevel,
+      itemLevel,
+      displayName,
+      name: cleanGearString(selected.name) || displayName,
+      iconUrl,
+      gameAsset: { ...gameAsset, iconUrl, status: 'verified' },
       simcReady: true
     }
   })
@@ -471,14 +491,16 @@ function validCommunityImportEnvelope(result, context) {
     result && !result.fromFallback && Number(result.httpStatus) === 200 &&
     envelope && envelope.contractRevision === 'community-template-import-envelope-v1' &&
     envelope.status === 'verified' && Array.isArray(envelope.problems) && envelope.problems.length === 0 &&
-    data && data.contractRevision === 'websim-community-template-import-v1' && data.status === 'verified' &&
+    data && data.contractRevision === COMMUNITY_TEMPLATE_IMPORT_CONTRACT_REVISION && data.status === 'verified' &&
     manifest && releaseContext &&
     cleanGearString(manifest.manifestRevision) === expectedManifestRevision &&
     cleanGearString(releaseContext.manifestRevision) === expectedManifestRevision &&
+    data.template && cleanGearString(data.template.id) && cleanGearString(data.template.profileHash) &&
+    cleanGearString(data.template.gearHash) && cleanGearString(data.template.sourceFingerprint) &&
     data.resolvedSnapshot && data.resolvedSnapshot.status === 'verified' &&
     cleanGearString(data.resolvedSnapshot.resolvedGearSignature) &&
-    data.selectedGearBySlot && typeof data.selectedGearBySlot === 'object' &&
-    Object.keys(data.selectedGearBySlot).length > 0
+    data.importedGearBySlot && typeof data.importedGearBySlot === 'object' &&
+    Object.keys(data.importedGearBySlot).length > 0
   )
 }
 
@@ -487,6 +509,94 @@ function communityImportFailureMessage(result) {
   if (Number(result && result.httpStatus) === 409) return '装备数据已更新，请重新打开模板后重试'
   if (envelope && envelope.status === 'unavailable') return '社区模板暂时不可导入，请稍后重试'
   return '社区模板未能安全导入，请稍后重试'
+}
+
+function savedCommunityImportOrigin(value) {
+  const origin = value && typeof value === 'object' ? value : {}
+  const contractRevision = cleanGearString(origin.contractRevision)
+  const templateId = cleanGearString(origin.templateId)
+  const profileHash = cleanGearString(origin.profileHash)
+  const gearHash = cleanGearString(origin.gearHash)
+  const sourceFingerprint = cleanGearString(origin.sourceFingerprint)
+  const manifestRevision = cleanGearString(origin.manifestRevision)
+  if (
+    contractRevision !== COMMUNITY_TEMPLATE_IMPORT_CONTRACT_REVISION || !templateId ||
+    !profileHash || !gearHash || !sourceFingerprint || !manifestRevision
+  ) return null
+  return { contractRevision, templateId, profileHash, gearHash, sourceFingerprint, manifestRevision }
+}
+
+function communityImportMatchesSavedOrigin(result, context, origin) {
+  if (!validCommunityImportEnvelope(result, context)) return false
+  const data = result.payload.data
+  const template = data && data.template && typeof data.template === 'object' ? data.template : {}
+  return (
+    cleanGearString(data.contractRevision) === origin.contractRevision &&
+    cleanGearString(template.id) === origin.templateId &&
+    cleanGearString(template.profileHash) === origin.profileHash &&
+    cleanGearString(template.gearHash) === origin.gearHash &&
+    cleanGearString(template.sourceFingerprint) === origin.sourceFingerprint &&
+    cleanGearString(context.manifestRevision) === origin.manifestRevision
+  )
+}
+
+function applySavedCommunityImportOrigin(page, origin) {
+  const gearPayload = fullGearPayloadForPage(page) || (page && page.data && page.data.gearPayload) || {}
+  const expectedManifestRevision = communityImportExpectedManifestRevision(page)
+  if (!completeResolverContext(gearPayload.resolverContext) || expectedManifestRevision !== origin.manifestRevision) {
+    showToast('保存的源模板已变化，暂不可导入')
+    return Promise.resolve(false)
+  }
+  invalidateGearInteractionContext(page)
+  const importSerial = Number(page.communityEnhancementImportSerial || 0) + 1
+  page.communityEnhancementImportSerial = importSerial
+  const priorState = page.communityEnhancementImportState || emptyCommunityEnhancementImportState()
+  const lifetimeContext = captureGearInteractionContext(page, { manifestRevision: expectedManifestRevision })
+  page.communityEnhancementImportState = {
+    templateId: origin.templateId,
+    serial: importSerial,
+    resolvedGearSignature: '',
+    contractRevision: origin.contractRevision,
+    profileHash: origin.profileHash,
+    gearHash: origin.gearHash,
+    sourceFingerprint: origin.sourceFingerprint,
+    manifestRevision: origin.manifestRevision
+  }
+  const interactionContext = captureGearInteractionContext(page, {
+    manifestRevision: expectedManifestRevision,
+    communityImport: { templateId: origin.templateId, serial: importSerial }
+  })
+  const selectedSpec = (page && page.data && page.data.selectedSpec) || {}
+  const keys = specWebsimKeys({
+    websimClassKey: selectedSpec.websimClassKey || selectedSpec.classKey || gearPayload.classKey,
+    websimSpecKey: selectedSpec.websimSpecKey || selectedSpec.specKey || gearPayload.specKey
+  })
+  page.setData({ communityTemplateImporting: true })
+  return requestWebsimCommunityTemplateImport({
+    classKey: keys.classKey,
+    specKey: keys.specKey,
+    templateId: origin.templateId,
+    expectedManifestRevision
+  }).then((result) => {
+    if (!gearInteractionContextIsCurrent(page, interactionContext)) return false
+    if (!communityImportMatchesSavedOrigin(result, interactionContext, origin)) {
+      page.communityEnhancementImportState = priorState
+      showToast('保存的源模板已变化，暂不可导入')
+      return false
+    }
+    const committed = commitImportedCommunityTemplate(page, result, interactionContext)
+    if (!committed && gearInteractionContextIsCurrent(page, interactionContext)) {
+      page.communityEnhancementImportState = priorState
+      showToast('保存模板无法验证，暂不可导入')
+    }
+    return committed
+  }).catch(() => {
+    if (gearInteractionContextIsCurrent(page, interactionContext)) {
+      page.communityEnhancementImportState = priorState
+      showToast('保存模板无法验证，暂不可导入')
+    }
+    return false
+  }).finally(() => clearCommunityTemplateImportingOnlyIfCurrent(page, lifetimeContext))
 }
 
 function clearCommunityTemplateImportingOnlyIfCurrent(page, context) {
@@ -500,8 +610,8 @@ function commitImportedCommunityTemplate(page, result, context) {
   const templateId = cleanGearString(context && context.communityImport && context.communityImport.templateId)
   if (!templateId || cleanGearString(data.template && data.template.id) !== templateId) return false
   const gearPayload = fullGearPayloadForPage(page) || (page && page.data && page.data.gearPayload) || {}
-  const selectedGearBySlot = importedGearSelectionForPage(gearPayload, data.selectedGearBySlot)
-  if (Object.keys(selectedGearBySlot).length !== Object.keys(selectedGearByCanonicalSlot(data.selectedGearBySlot)).length) return false
+  const selectedGearBySlot = sealedImportedGearSelectionForPage(data.importedGearBySlot)
+  if (Object.keys(selectedGearBySlot).length !== Object.keys(data.importedGearBySlot).length) return false
   const snapshot = data.resolvedSnapshot
   const enhancementBySlot = enhancementBySlotFromResolvedSnapshot(snapshot)
   const selectedSpec = (page && page.data && page.data.selectedSpec) || {}
@@ -534,8 +644,11 @@ function commitImportedCommunityTemplate(page, result, context) {
     templateId,
     serial: Number(context.communityImport.serial) || 0,
     resolvedGearSignature: cleanGearString(snapshot.resolvedGearSignature),
-    unresolvedBySlot: data.unresolvedBySlot && typeof data.unresolvedBySlot === 'object' ? data.unresolvedBySlot : {},
-    warnings: Array.isArray(data.warnings) ? data.warnings : []
+    contractRevision: cleanGearString(data.contractRevision),
+    profileHash: cleanGearString(data.template && data.template.profileHash),
+    gearHash: cleanGearString(data.template && data.template.gearHash),
+    sourceFingerprint: cleanGearString(data.template && data.template.sourceFingerprint),
+    manifestRevision: cleanGearString(context && context.manifestRevision)
   }
   const gearStatSnapshot = defaultGearStatSnapshot('等待当前装备属性快照')
   const derivedState = createDetailDerivedState(page.data.selectedDetail, page.data.activeQueryKey, {
@@ -652,6 +765,21 @@ function eligibleCommunityEnhancementImportStateForPage(page, snapshot) {
     page && page.communityEnhancementImportState,
     snapshot
   )
+}
+
+function communityImportOriginForSave(page, snapshot) {
+  const state = eligibleCommunityEnhancementImportStateForPage(page, snapshot)
+  const templateId = cleanGearString(state.templateId)
+  const contractRevision = cleanGearString(state.contractRevision)
+  const profileHash = cleanGearString(state.profileHash)
+  const gearHash = cleanGearString(state.gearHash)
+  const sourceFingerprint = cleanGearString(state.sourceFingerprint)
+  const manifestRevision = cleanGearString(state.manifestRevision)
+  if (
+    !templateId || contractRevision !== COMMUNITY_TEMPLATE_IMPORT_CONTRACT_REVISION ||
+    !profileHash || !gearHash || !sourceFingerprint || !manifestRevision
+  ) return null
+  return { contractRevision, templateId, profileHash, gearHash, sourceFingerprint, manifestRevision }
 }
 
 function gearItemIsTierSet(item) {
@@ -3269,6 +3397,7 @@ function gearTemplateSaveDraft(page, templateTitle) {
   const selectedItems = selectedGearItems(selectedGearBySlot)
   const configLines = canonicalGearTemplateLines(selectedGearBySlot, gearPayload)
   const resolvedSnapshot = workbenchState && workbenchState.currentSnapshot
+  const importOrigin = communityImportOriginForSave(page, resolvedSnapshot)
   const canonicalReadiness = resolvedSnapshot && resolvedSnapshot.profileReadiness
   const status = workbenchState
     ? {
@@ -3359,6 +3488,7 @@ function gearTemplateSaveDraft(page, templateTitle) {
         selectedItemCount: selectedItems.length,
         gearSchemaRevision: data.gearPayload && data.gearPayload.gearSchemaRevision,
         maxLevel: data.gearPayload && data.gearPayload.maxLevel,
+        ...(importOrigin ? { importOrigin } : {}),
         ...(resolvedSnapshot ? {
           selectionIntent: selectionIntentWithResolvedEnhancements(workbenchState.confirmedIntent, resolvedSnapshot),
           resolvedGearSignature: resolvedSnapshot.resolvedGearSignature || '',
@@ -3413,6 +3543,66 @@ function matchingGearCandidateForItem(payload, slot, item) {
   const group = groups[slot] || {}
   const items = Array.isArray(group.items) ? group.items : []
   return items.find((candidate) => normalizedGearItemId(candidate) === itemId) || null
+}
+
+function exactCandidateVariant(candidate, variantKey) {
+  const requested = cleanGearString(variantKey)
+  if (!requested) return null
+  return gearCandidateVariants(candidate).find((variant) => (
+    cleanGearString(variant && (variant.key || variant.variantKey)) === requested
+  )) || null
+}
+
+function verifiedCandidateGameAsset(candidate) {
+  const asset = candidate && candidate.gameAsset && typeof candidate.gameAsset === 'object' ? candidate.gameAsset : {}
+  const iconUrl = cleanGearString(asset.iconUrl || (candidate && candidate.iconUrl))
+  if (cleanGearString(asset.status).toLowerCase() !== 'verified' || !iconUrl) return null
+  return { ...asset, status: 'verified', iconUrl }
+}
+
+function rehydrateLegacySavedGearSelection(gearPayload, savedGearBySlot) {
+  const saved = selectedGearByCanonicalSlot(savedGearBySlot)
+  const rehydrated = {}
+  for (const slot of Object.keys(saved)) {
+    const recorded = saved[slot]
+    const candidate = matchingGearCandidateForItem(gearPayload, slot, recorded)
+    const variant = exactCandidateVariant(candidate, recorded && recorded.variantKey)
+    const gameAsset = verifiedCandidateGameAsset(candidate)
+    const itemLevel = Number(variant && (variant.itemLevel || variant.ilevel))
+    if (
+      !candidate || !variant || cleanGearString(variant.status).toLowerCase() !== 'verified' ||
+      !gameAsset || !Number.isFinite(itemLevel) || itemLevel <= 0
+    ) return null
+    const applied = appliedGearCandidate(candidate, cleanGearString(recorded.variantKey), '')
+    if (!applied || cleanGearString(applied.variantKey) !== cleanGearString(recorded.variantKey)) return null
+    const displayName = cleanGearString(candidate.displayName || candidate.name || recorded.displayName || recorded.name)
+    if (!displayName) return null
+    rehydrated[slot] = {
+      ...applied,
+      slot,
+      simcSlot: slot,
+      itemId: normalizedGearItemId(candidate),
+      id: normalizedGearItemId(candidate),
+      variantKey: cleanGearString(recorded.variantKey),
+      ilevel: itemLevel,
+      itemLevel,
+      displayName,
+      name: cleanGearString(candidate.name) || displayName,
+      iconUrl: gameAsset.iconUrl,
+      gameAsset,
+      simcReady: true
+    }
+  }
+  return Object.keys(rehydrated).length === Object.keys(saved).length ? rehydrated : null
+}
+
+function legacyCommunitySavedSelection(savedGearBySlot) {
+  return Object.values(selectedGearByCanonicalSlot(savedGearBySlot)).some((item) => {
+    return [item && item.sourceType, item && item.sourceKey, item && item.source].some((value) => {
+      const source = cleanGearString(value).toLowerCase()
+      return source.includes('observed_profile') || source.includes('raiderio') || source.includes('community')
+    })
+  })
 }
 
 function applySimcReadyCandidateEvidence(enriched, candidate, item) {
@@ -3540,7 +3730,8 @@ function parseSavedGearTemplateSnapshot(template) {
   }
   return {
     gearBySlot: metadata.selectedGearSnapshot || metadata.gearBySlot || parsed.gearBySlot || {},
-    enhancementBySlot: metadata.enhancementBySlot || parsed.enhancementBySlot || {}
+    enhancementBySlot: metadata.enhancementBySlot || parsed.enhancementBySlot || {},
+    importOrigin: metadata.importOrigin && typeof metadata.importOrigin === 'object' ? metadata.importOrigin : null
   }
 }
 
@@ -3568,6 +3759,7 @@ function savedGearTemplatesForImport() {
       canApplyGear,
       savedGearBySlot: gearBySlot,
       savedEnhancementBySlot: normalizedEnhancementBySlot(snapshot.enhancementBySlot || {}),
+      importOrigin: snapshot.importOrigin,
       actionLabel: canApplyGear ? '应用' : '不可导入',
       cardClass: ['saved-template-card', canApplyGear ? (readySlotCount >= requiredGearSlots.length ? 'complete' : 'partial') : 'blocked'].filter(Boolean).join(' ')
     }
@@ -6813,10 +7005,16 @@ Page({
       return
     }
     const gearPayload = fullGearPayloadForPage(this) || {}
+    const importOrigin = savedCommunityImportOrigin(template.importOrigin)
+    if (importOrigin) return applySavedCommunityImportOrigin(this, importOrigin)
     const baselineSelection = equippedSetToSelection(gearPayload.equippedSet || {}, gearPayload)
-    const templateSelection = selectedGearByCanonicalSlot(template.savedGearBySlot || {})
-    if (!Object.keys(templateSelection).length) {
-      showToast('保存模板缺少装备配置')
+    const savedGearBySlot = template.savedGearBySlot || {}
+    const isLegacyCommunityImport = legacyCommunitySavedSelection(savedGearBySlot)
+    const templateSelection = isLegacyCommunityImport
+      ? rehydrateLegacySavedGearSelection(gearPayload, savedGearBySlot)
+      : selectedGearByCanonicalSlot(savedGearBySlot)
+    if (!templateSelection || !Object.keys(templateSelection).length) {
+      showToast(isLegacyCommunityImport ? '保存模板无法验证，暂不可导入' : '保存模板缺少装备配置')
       return
     }
     invalidateGearInteractionContext(this)
@@ -6868,11 +7066,9 @@ Page({
       const importSerial = Number(this.communityEnhancementImportSerial || 0) + 1
       this.communityEnhancementImportSerial = importSerial
       this.communityEnhancementImportState = {
+        ...emptyCommunityEnhancementImportState(),
         templateId,
-        serial: importSerial,
-        resolvedGearSignature: '',
-        unresolvedBySlot: {},
-        warnings: []
+        serial: importSerial
       }
       const interactionContext = captureGearInteractionContext(this, {
         manifestRevision: expectedManifestRevision,
@@ -6910,11 +7106,9 @@ Page({
     })()
     this.communityEnhancementImportSerial = importSerial
     this.communityEnhancementImportState = {
+      ...emptyCommunityEnhancementImportState(),
       templateId,
-      serial: importSerial,
-      resolvedGearSignature: '',
-      unresolvedBySlot: {},
-      warnings: []
+      serial: importSerial
     }
     const interactionContext = captureGearInteractionContext(this, {
       communityImport: { templateId, serial: importSerial }

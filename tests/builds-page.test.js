@@ -9544,7 +9544,7 @@ test('gear reset restores the backend equipped baseline', () => {
   assert.equal(page.data.gearSlotSheet.visible, false)
   assert.equal(page.data.gearCommunityTemplateSheet.visible, false)
   assert.deepEqual(JSON.parse(JSON.stringify(page.communityEnhancementImportState)), {
-    templateId: '', serial: 0, resolvedGearSignature: '', unresolvedBySlot: {}, warnings: []
+    templateId: '', serial: 0, resolvedGearSignature: '', contractRevision: '', profileHash: '', gearHash: '', sourceFingerprint: '', manifestRevision: '', unresolvedBySlot: {}, warnings: []
   })
 })
 
@@ -13242,7 +13242,7 @@ test('gear import sheet applies a saved personal gear template with enhancements
   assert.equal(page.data.gearCommunityTemplateSheet.visible, false)
   assert.equal(page.data.gearSlotSheet.visible, false)
   assert.deepEqual(JSON.parse(JSON.stringify(page.communityEnhancementImportState)), {
-    templateId: '', serial: 0, resolvedGearSignature: '', unresolvedBySlot: {}, warnings: []
+    templateId: '', serial: 0, resolvedGearSignature: '', contractRevision: '', profileHash: '', gearHash: '', sourceFingerprint: '', manifestRevision: '', unresolvedBySlot: {}, warnings: []
   })
 })
 
@@ -13266,7 +13266,7 @@ test('specialization change clears bound community enhancement evidence', () => 
   pageConfig.selectSpec.call(page, { detail: { value: 0 } })
 
   assert.deepEqual(JSON.parse(JSON.stringify(page.communityEnhancementImportState)), {
-    templateId: '', serial: 0, resolvedGearSignature: '', unresolvedBySlot: {}, warnings: []
+    templateId: '', serial: 0, resolvedGearSignature: '', contractRevision: '', profileHash: '', gearHash: '', sourceFingerprint: '', manifestRevision: '', unresolvedBySlot: {}, warnings: []
   })
 })
 
@@ -13357,7 +13357,21 @@ function mageFrostCommunityEnhancementHarness(options = {}) {
       variantKey: variant.variantKey,
       displayName: sourceItem.name,
       ilevel: Number(variant.simcOptions.ilevel || 0),
+      itemLevel: Number(variant.simcOptions.ilevel || 0),
       bonus_id: variant.simcOptions.bonus_id,
+      iconUrl: `https://render.worldofwarcraft.com/icons/${sourceItem.itemId}.jpg`,
+      gameAsset: {
+        source: 'blizzard', status: 'verified',
+        iconUrl: `https://render.worldofwarcraft.com/icons/${sourceItem.itemId}.jpg`
+      },
+      variants: [{
+        key: variant.variantKey,
+        variantKey: variant.variantKey,
+        itemLevel: Number(variant.simcOptions.ilevel || 0),
+        ilevel: Number(variant.simcOptions.ilevel || 0),
+        status: 'verified',
+        simcOptions: { ...variant.simcOptions }
+      }],
       armorType: armorSlots.has(slot) ? 'Cloth' : '',
       weaponType: slot === 'main_hand' ? 'Staff' : '',
       sourceType: 'observed_profile',
@@ -13470,6 +13484,22 @@ function mageFrostCommunityEnhancementHarness(options = {}) {
     })),
     problems: []
   }
+  const importedGearBySlot = Object.fromEntries(Object.entries(selectedGearBySlot).map(([slot, item]) => [slot, {
+    variantId: `variant-${item.itemId}`,
+    itemId: item.itemId,
+    variantKey: item.variantKey,
+    slot,
+    label: item.displayName,
+    displayName: item.displayName,
+    name: item.displayName,
+    itemLevel: Number(item.ilevel),
+    ilevel: Number(item.ilevel),
+    iconUrl: `https://render.worldofwarcraft.com/icons/${item.itemId}.jpg`,
+    gameAsset: {
+      source: 'blizzard', status: 'verified',
+      iconUrl: `https://render.worldofwarcraft.com/icons/${item.itemId}.jpg`
+    }
+  }]))
   const pageConfig = loadBuildsDetailPageConfig({
     toasts: options.toasts,
     storedTemplates: savedTemplates,
@@ -13488,19 +13518,20 @@ function mageFrostCommunityEnhancementHarness(options = {}) {
               releaseContext: { manifestRevision: 'manifest-mage-frost-import', pointerGeneration: 1 },
               problems: [],
               data: {
-                contractRevision: 'websim-community-template-import-v1',
+                contractRevision: 'websim-community-template-import-v2',
                 status: 'verified',
                 template: {
                   id: reference.templateId,
                   classKey: 'mage',
                   specKey: 'frost',
-                  sourceKey: 'raiderio_observed_profile'
+                  sourceKey: 'raiderio_observed_profile',
+                  profileHash: 'profile-fingerprint',
+                  gearHash: 'gear-fingerprint',
+                  sourceFingerprint: 'sha256:mage-frost-import'
                 },
                 manifest: { manifestRevision: 'manifest-mage-frost-import', pointerGeneration: 1 },
-                selectedGearBySlot,
-                resolvedSnapshot: importedSnapshot,
-                unresolvedBySlot: {},
-                warnings: []
+                importedGearBySlot,
+                resolvedSnapshot: importedSnapshot
               }
             }
           })
@@ -13554,6 +13585,7 @@ function mageFrostCommunityEnhancementHarness(options = {}) {
     resolveRequests,
     importCalls,
     importedSnapshot,
+    importedGearBySlot,
     savedTemplates,
     selectedGearBySlot
   }
@@ -13588,6 +13620,170 @@ test('community import commits canonical 8 of 8 gems 6 of 8 enchants and 2 of 2 
     harness.page.gearWorkbenchState.currentSnapshot.resolvedGearSignature,
     'sha256:mage-frost-community-import'
   )
+})
+
+test('community import renders the sealed v2 item level and icon instead of a generic candidate fallback', async () => {
+  const harness = mageFrostCommunityEnhancementHarness({ atomicImport: true })
+  const candidate = harness.page.gearPayloadCache.replacementCandidates.find((group) => group.slot === 'head').items[0]
+  candidate.itemLevel = 197
+  candidate.ilevel = 197
+  candidate.iconUrl = 'https://render.worldofwarcraft.com/icons/generic-197.jpg'
+  candidate.gameAsset = {
+    source: 'blizzard', status: 'verified', iconUrl: 'https://render.worldofwarcraft.com/icons/generic-197.jpg'
+  }
+  harness.importedGearBySlot.head = {
+    ...harness.importedGearBySlot.head,
+    itemLevel: 292,
+    ilevel: 292,
+    iconUrl: 'https://render.worldofwarcraft.com/icons/observed-292.jpg',
+    gameAsset: {
+      source: 'blizzard', status: 'verified', iconUrl: 'https://render.worldofwarcraft.com/icons/observed-292.jpg'
+    }
+  }
+  harness.importedSnapshot.resolvedSlots.head.itemLevel = 292
+
+  await importMageFrostCommunityEnhancements(harness)
+
+  const selected = harness.page.data.selectedGearBySlot.head
+  assert.equal(selected.itemLevel, 292)
+  assert.equal(selected.ilevel, 292)
+  assert.equal(selected.iconUrl, 'https://render.worldofwarcraft.com/icons/observed-292.jpg')
+  assert.equal(selected.gameAsset.iconUrl, 'https://render.worldofwarcraft.com/icons/observed-292.jpg')
+})
+
+test('community import blocks a malformed sealed v2 item level instead of committing a partial selection', async () => {
+  const toasts = []
+  const harness = mageFrostCommunityEnhancementHarness({ atomicImport: true, toasts })
+  harness.importedGearBySlot.head = {
+    ...harness.importedGearBySlot.head,
+    itemLevel: 292,
+    ilevel: 197
+  }
+  const before = JSON.parse(JSON.stringify(harness.page.data.selectedGearBySlot))
+
+  await importMageFrostCommunityEnhancements(harness)
+
+  assert.deepEqual(JSON.parse(JSON.stringify(harness.page.data.selectedGearBySlot)), before)
+  assert.match(toasts.at(-1).title, /未能安全导入/)
+})
+
+test('verified community save records the source identity required for a later atomic reimport', async () => {
+  const harness = await importMageFrostCommunityEnhancements(
+    mageFrostCommunityEnhancementHarness({ atomicImport: true })
+  )
+
+  await confirmGearTemplateSave(harness.pageConfig, harness.page, 'Observed Frost exact source')
+
+  assert.deepEqual(JSON.parse(JSON.stringify(harness.savedTemplates[0].metadata.importOrigin)), {
+    contractRevision: 'websim-community-template-import-v2',
+    templateId: 'observed_profile_mage_frost',
+    profileHash: 'profile-fingerprint',
+    gearHash: 'gear-fingerprint',
+    sourceFingerprint: 'sha256:mage-frost-import',
+    manifestRevision: 'manifest-mage-frost-import'
+  })
+})
+
+test('saved community source mismatch blocks atomically and preserves the current build', async () => {
+  const toasts = []
+  let harness
+  let mismatch = false
+  harness = mageFrostCommunityEnhancementHarness({
+    atomicImport: true,
+    toasts,
+    requestWebsimCommunityTemplateImport() {
+      return Promise.resolve({
+        httpStatus: 200,
+        fromFallback: false,
+        payload: {
+          contractRevision: 'community-template-import-envelope-v1',
+          requestId: mismatch ? 'saved-origin-mismatch' : 'saved-origin-initial',
+          status: 'verified',
+          releaseContext: { manifestRevision: 'manifest-mage-frost-import', pointerGeneration: 1 },
+          problems: [],
+          data: {
+            contractRevision: 'websim-community-template-import-v2',
+            status: 'verified',
+            template: {
+              id: harness.template.id,
+              classKey: 'mage', specKey: 'frost', sourceKey: 'raiderio_observed_profile',
+              profileHash: mismatch ? 'profile-changed' : 'profile-fingerprint',
+              gearHash: 'gear-fingerprint', sourceFingerprint: 'sha256:mage-frost-import'
+            },
+            manifest: { manifestRevision: 'manifest-mage-frost-import', pointerGeneration: 1 },
+            importedGearBySlot: harness.importedGearBySlot,
+            resolvedSnapshot: harness.importedSnapshot
+          }
+        }
+      })
+    }
+  })
+  await importMageFrostCommunityEnhancements(harness)
+  await confirmGearTemplateSave(harness.pageConfig, harness.page, 'Observed Frost source mismatch')
+  harness.pageConfig.openGearCommunityTemplates.call(harness.page)
+  const before = JSON.parse(JSON.stringify(harness.page.data.selectedGearBySlot))
+  mismatch = true
+
+  await harness.pageConfig.applySavedGearTemplate.call(harness.page, {
+    currentTarget: { dataset: { id: harness.page.data.savedGearTemplates[0].id } }
+  })
+
+  assert.deepEqual(JSON.parse(JSON.stringify(harness.page.data.selectedGearBySlot)), before)
+  assert.match(toasts.at(-1).title, /源模板已变化|无法验证/)
+})
+
+test('legacy community save rehydrates an exact 292 variant instead of replaying saved generic 197', async () => {
+  const harness = mageFrostCommunityEnhancementHarness()
+  const headCandidate = harness.page.gearPayloadCache.replacementCandidates.find((group) => group.slot === 'head').items[0]
+  const exactVariant = { ...headCandidate.variants[0], itemLevel: 292, ilevel: 292 }
+  headCandidate.itemLevel = 197
+  headCandidate.ilevel = 197
+  headCandidate.variants = [exactVariant]
+  harness.page.data.savedGearTemplates = [{
+    id: 'legacy-observed-197',
+    canApplyGear: true,
+    savedGearBySlot: {
+      head: {
+        slot: 'head', simcSlot: 'head', itemId: headCandidate.itemId, id: headCandidate.itemId,
+        variantKey: exactVariant.variantKey, itemLevel: 197, ilevel: 197, sourceType: 'observed_profile'
+      }
+    },
+    savedEnhancementBySlot: {}
+  }]
+
+  await harness.pageConfig.applySavedGearTemplate.call(harness.page, {
+    currentTarget: { dataset: { id: 'legacy-observed-197' } }
+  })
+
+  assert.equal(harness.page.data.selectedGearBySlot.head.itemLevel, 292)
+  assert.equal(harness.page.data.selectedGearBySlot.head.ilevel, 292)
+})
+
+test('legacy community save with no exact verified variant is blocked before it changes the current build', () => {
+  const toasts = []
+  const harness = mageFrostCommunityEnhancementHarness({ toasts })
+  const headCandidate = harness.page.gearPayloadCache.replacementCandidates.find((group) => group.slot === 'head').items[0]
+  headCandidate.variants = []
+  const before = { head: { itemId: 'before-head', slot: 'head', simcSlot: 'head' } }
+  harness.page.data.selectedGearBySlot = before
+  harness.page.data.savedGearTemplates = [{
+    id: 'legacy-observed-missing',
+    canApplyGear: true,
+    savedGearBySlot: {
+      head: {
+        slot: 'head', simcSlot: 'head', itemId: headCandidate.itemId, id: headCandidate.itemId,
+        variantKey: 'missing-variant', itemLevel: 197, ilevel: 197, sourceType: 'observed_profile'
+      }
+    },
+    savedEnhancementBySlot: {}
+  }]
+
+  harness.pageConfig.applySavedGearTemplate.call(harness.page, {
+    currentTarget: { dataset: { id: 'legacy-observed-missing' } }
+  })
+
+  assert.deepEqual(harness.page.data.selectedGearBySlot, before)
+  assert.match(toasts.at(-1).title, /无法验证|暂不可导入/)
 })
 
 test('blocked community import preserves the prior build and keeps the sheet open', async () => {
@@ -13638,13 +13834,15 @@ test('older community import response cannot overwrite a newer import', async ()
       releaseContext: { manifestRevision: 'manifest-mage-frost-import', pointerGeneration: 1 },
       problems: [],
       data: {
-        contractRevision: 'websim-community-template-import-v1',
+        contractRevision: 'websim-community-template-import-v2',
         status: 'verified',
-        template: { id: templateId, classKey: 'mage', specKey: 'frost', sourceKey: 'raiderio_observed_profile' },
+        template: {
+          id: templateId, classKey: 'mage', specKey: 'frost', sourceKey: 'raiderio_observed_profile',
+          profileHash: 'profile-fingerprint', gearHash: 'gear-fingerprint', sourceFingerprint: 'sha256:mage-frost-import'
+        },
         manifest: { manifestRevision: 'manifest-mage-frost-import', pointerGeneration: 1 },
-        selectedGearBySlot: harness.selectedGearBySlot,
-        resolvedSnapshot: { ...harness.importedSnapshot, resolvedGearSignature: signature },
-        unresolvedBySlot: {}, warnings: []
+        importedGearBySlot: harness.importedGearBySlot,
+        resolvedSnapshot: { ...harness.importedSnapshot, resolvedGearSignature: signature }
       }
     }
   })
@@ -14937,16 +15135,19 @@ test('community import makes one import request and no mode slot request', async
           releaseContext: { manifestRevision: 'manifest-community-a', pointerGeneration: 9 },
           problems: [],
           data: {
-            contractRevision: 'websim-community-template-import-v1',
+            contractRevision: 'websim-community-template-import-v2',
             status: 'verified',
             template: {
-              id: 'observed-frost', classKey: 'mage', specKey: 'frost', sourceKey: 'raiderio_observed_profile'
+              id: 'observed-frost', classKey: 'mage', specKey: 'frost', sourceKey: 'raiderio_observed_profile',
+              profileHash: 'profile-observed-frost', gearHash: 'gear-observed-frost', sourceFingerprint: 'sha256:observed-frost'
             },
             manifest: { manifestRevision: 'manifest-community-a', pointerGeneration: 9 },
-            selectedGearBySlot: {
+            importedGearBySlot: {
               head: {
                 itemId: '250060', variantId: 'variant-head', variantKey: 'variant-head', slot: 'head',
-                displayName: 'Imported Head', itemLevel: 707, simcReady: true
+                displayName: 'Imported Head', name: 'Imported Head', itemLevel: 707, ilevel: 707,
+                iconUrl: 'https://render.worldofwarcraft.com/icons/imported-head.jpg',
+                gameAsset: { source: 'blizzard', status: 'verified', iconUrl: 'https://render.worldofwarcraft.com/icons/imported-head.jpg' }
               }
             },
             resolvedSnapshot: {
@@ -14957,8 +15158,7 @@ test('community import makes one import request and no mode slot request', async
               staticAttributes: {}, setState: { itemSetCounts: {} }, constraints: {},
               profileReadiness: { status: 'verified', simcReady: true }, problems: [],
               resolvedSlots: { head: { selectedOptions: { gemOptionIds: [], enchantOptionId: '', embellishmentOptionId: '' } } }
-            },
-            unresolvedBySlot: {}, warnings: []
+            }
           }
         }
       })
