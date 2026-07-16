@@ -32,6 +32,7 @@ try:
     )
     from .websim_payload import (
         PRIMARY_STAT_GEM_IDS,
+        SIMC_GEAR_OPTION_KEYS,
         WOW_CLASSES,
         gear_resolver_runtime_authority,
         item_can_enchant_slot,
@@ -58,6 +59,7 @@ except ImportError:
     )
     from websim_payload import (
         PRIMARY_STAT_GEM_IDS,
+        SIMC_GEAR_OPTION_KEYS,
         WOW_CLASSES,
         gear_resolver_runtime_authority,
         item_can_enchant_slot,
@@ -939,6 +941,132 @@ def validate_gear_snapshot(snapshot: Any) -> list[dict[str, str]]:
     return problems
 
 
+def _observed_template_item_level(raw: dict[str, Any]) -> tuple[int, bool]:
+    """Return the observed instance level and whether two source spellings conflict."""
+
+    declared_item_level = _int(raw.get("itemLevel"))
+    declared_ilevel = _int(raw.get("ilevel"))
+    return (
+        declared_item_level or declared_ilevel,
+        (
+            declared_item_level > 0
+            and declared_ilevel > 0
+            and declared_item_level != declared_ilevel
+        ),
+    )
+
+
+def _observed_profile_urls(value: Any) -> set[str]:
+    """Read bounded player-profile identifiers carried by observed instance evidence."""
+
+    row = value if isinstance(value, dict) else {}
+    payload = row.get("payload") if isinstance(row.get("payload"), dict) else {}
+    urls: set[str] = set()
+    for source in (row, payload):
+        for field in ("profileUrl", "sourceProfileUrl", "sourceUrl", "url"):
+            url = _text(source.get(field))
+            if url:
+                urls.add(url)
+        for ref in source.get("observedProfileRefs") or []:
+            if not isinstance(ref, dict):
+                continue
+            for field in ("profileUrl", "sourceProfileUrl", "sourceUrl", "url"):
+                url = _text(ref.get(field))
+                if url:
+                    urls.add(url)
+    return urls
+
+
+def _observed_template_instance_options(raw: dict[str, Any], observed_item_level: int) -> dict[str, str]:
+    """Canonicalize exactly the SimC instance facts present in one observed slot."""
+
+    options = dict(observed_gear_simc_options(raw))
+    if observed_item_level > 0:
+        options["ilevel"] = str(observed_item_level)
+    return {
+        key: normalized
+        for key, value in options.items()
+        if key in SIMC_GEAR_OPTION_KEYS
+        and (normalized := normalize_option_value(value))
+    }
+
+
+def _canonical_observed_template_variant(
+    raw: dict[str, Any],
+    *,
+    item_id: str,
+    slot: str,
+    variant_key: str,
+    variants: Iterable[dict[str, Any]],
+) -> dict[str, Any]:
+    """Resolve a legacy observed key to its one sealed, same-player instance.
+
+    Older observed templates encode a variant key as concatenated ``field:value``
+    text, while staging now stores a canonical JSON form.  The serialized key is
+    not a gameplay fact, so that representation change may be bridged only by the
+    exact observed item id, slot, instance level, all SimC fields, and target
+    player profile identity.  Any ambiguity remains unavailable.
+    """
+
+    normalized_item_id = _text(item_id)
+    normalized_slot = normalize_slot(slot)
+    normalized_variant_key = _text(variant_key)
+    candidates = [
+        row
+        for row in variants
+        if isinstance(row, dict)
+        and _text(row.get("itemId")) == normalized_item_id
+        and _text(row.get("status")).lower() == "verified"
+        and normalize_slot(row.get("slot")) == normalized_slot
+    ]
+    exact = [
+        row for row in candidates
+        if _text(row.get("variantKey")) == normalized_variant_key
+    ]
+    if len(exact) == 1:
+        return exact[0]
+
+    normalized_variant_key = normalize_option_value(normalized_variant_key)
+    normalized = [
+        row for row in candidates
+        if normalized_variant_key
+        and normalize_option_value(row.get("variantKey")) == normalized_variant_key
+    ]
+    if len(normalized) == 1:
+        return normalized[0]
+
+    observed_item_level, conflicting_levels = _observed_template_item_level(raw)
+    profile_urls = _observed_profile_urls(raw)
+    expected_options = _observed_template_instance_options(raw, observed_item_level)
+    if (
+        not normalized_variant_key
+        or conflicting_levels
+        or observed_item_level <= 0
+        or not profile_urls
+        or not expected_options
+    ):
+        return {}
+
+    equivalent = []
+    for candidate in candidates:
+        if _text(candidate.get("sourceType")).lower() != "observed_profile":
+            continue
+        if _int(candidate.get("itemLevel")) != observed_item_level:
+            continue
+        candidate_options = {
+            key: normalized
+            for key, value in (candidate.get("simcOptions") or {}).items()
+            if key in SIMC_GEAR_OPTION_KEYS
+            and (normalized := normalize_option_value(value))
+        }
+        if candidate_options != expected_options:
+            continue
+        if not (_observed_profile_urls(candidate) & profile_urls):
+            continue
+        equivalent.append(candidate)
+    return equivalent[0] if len(equivalent) == 1 else {}
+
+
 def selection_intent_from_template(
     template: dict[str, Any],
     *,
@@ -971,22 +1099,19 @@ def selection_intent_from_template(
         and row.get("isVisible") is True
     ]
 
-    def matching_variant(item_id: str, variant_key: str) -> dict[str, Any]:
-        candidates = [
-            row
-            for row in variants_by_item.get(item_id, [])
-            if _text(row.get("status")).lower() == "verified"
-        ]
-        exact = [row for row in candidates if _text(row.get("variantKey")) == variant_key]
-        if len(exact) == 1:
-            return exact[0]
-        normalized_key = normalize_option_value(variant_key)
-        normalized = [
-            row
-            for row in candidates
-            if normalized_key and normalize_option_value(row.get("variantKey")) == normalized_key
-        ]
-        return normalized[0] if len(normalized) == 1 else {}
+    def matching_variant(
+        raw: dict[str, Any],
+        item_id: str,
+        slot: str,
+        variant_key: str,
+    ) -> dict[str, Any]:
+        return _canonical_observed_template_variant(
+            raw,
+            item_id=item_id,
+            slot=slot,
+            variant_key=variant_key,
+            variants=variants_by_item.get(item_id, []),
+        )
 
     def option_type(row: dict[str, Any]) -> str:
         normalized = _text(row.get("optionType")).lower()
@@ -1083,7 +1208,7 @@ def selection_intent_from_template(
         ):
             return empty
         item = items_by_id.get(item_id)
-        variant = matching_variant(item_id, variant_key)
+        variant = matching_variant(raw, item_id, slot, variant_key)
         if not isinstance(item, dict) or not variant:
             return empty
         item_payload = item.get("payload") if isinstance(item.get("payload"), dict) else {}
@@ -1167,10 +1292,12 @@ def selection_intent_from_template(
         if not slot or not item_id or slot in slots:
             continue
         variant_key = _text(raw.get("variantKey"))
-        enhancements = canonical_enhancements(raw, slot, item_id, variant_key)
+        resolved_variant = matching_variant(raw, item_id, slot, variant_key)
+        canonical_variant_key = _text(resolved_variant.get("variantKey")) or variant_key
+        enhancements = canonical_enhancements(raw, slot, item_id, canonical_variant_key)
         slots[slot] = {
             "itemId": item_id,
-            "variantKey": variant_key,
+            "variantKey": canonical_variant_key,
             **enhancements,
             "craftedOptionId": "",
             "catalystOptionId": "",
@@ -1204,14 +1331,13 @@ def community_template_import_evidence_from_template(
         if not isinstance(row, dict) or not _text(row.get("itemId")):
             continue
         item_rows_by_id.setdefault(_text(row.get("itemId")), []).append(row)
-    variant_rows_by_identity: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    variant_rows_by_item: dict[str, list[dict[str, Any]]] = {}
     for row in snapshot.get("variants") or []:
         if not isinstance(row, dict):
             continue
         item_id = _text(row.get("itemId"))
-        variant_key = _text(row.get("variantKey"))
-        if item_id and variant_key:
-            variant_rows_by_identity.setdefault((item_id, variant_key), []).append(row)
+        if item_id:
+            variant_rows_by_item.setdefault(item_id, []).append(row)
 
     slots: dict[str, dict[str, Any]] = {}
     for raw in template.get("gearItems") or []:
@@ -1227,26 +1353,25 @@ def community_template_import_evidence_from_template(
         # as ``itemLevel`` instead.  Neither spelling may fall back to the generic
         # catalogue item level: ambiguity is evidence failure, not a value to
         # calculate away.
-        declared_item_level = _int(raw.get("itemLevel"))
-        declared_ilevel = _int(raw.get("ilevel"))
-        if (
-            declared_item_level > 0
-            and declared_ilevel > 0
-            and declared_item_level != declared_ilevel
-        ):
+        observed_item_level, conflicting_levels = _observed_template_item_level(raw)
+        if conflicting_levels:
             raise GearReleaseIntegrityError(
                 "community import evidence observed item level is ambiguous"
             )
-        observed_item_level = declared_item_level or declared_ilevel
         if observed_item_level <= 0:
             raise GearReleaseIntegrityError("community import evidence observed item level is missing")
 
         item_rows = item_rows_by_id.get(item_id) or []
-        variant_rows = variant_rows_by_identity.get((item_id, variant_key)) or []
-        if len(item_rows) != 1 or len(variant_rows) != 1:
+        variant = _canonical_observed_template_variant(
+            raw,
+            item_id=item_id,
+            slot=slot,
+            variant_key=variant_key,
+            variants=variant_rows_by_item.get(item_id, []),
+        )
+        if len(item_rows) != 1 or not variant:
             raise GearReleaseIntegrityError("community import evidence exact gear identity is unavailable")
         item = item_rows[0]
-        variant = variant_rows[0]
         if (
             _text(variant.get("status")).lower() != "verified"
             or normalize_slot(variant.get("slot")) != slot
@@ -1261,7 +1386,7 @@ def community_template_import_evidence_from_template(
             raise GearReleaseIntegrityError("community import evidence verified item icon is missing")
         slots[slot] = {
             "itemId": item_id,
-            "variantKey": variant_key,
+            "variantKey": _text(variant.get("variantKey")),
             "observedItemLevel": observed_item_level,
             "iconUrl": icon_url,
         }

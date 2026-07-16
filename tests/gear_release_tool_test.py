@@ -418,6 +418,92 @@ class GearReleaseToolTest(unittest.TestCase):
                 gear_snapshot=snapshot,
             )
 
+    def test_observed_template_canonicalizes_legacy_variant_key_by_profile_identity(self):
+        from server.gear_release_tool import (
+            community_template_import_evidence_from_template,
+            selection_intent_from_template,
+        )
+
+        profile_url = "https://raider.io/characters/kr/azshara/target-player"
+        legacy_variant_key = (
+            "observed-profile-target-observed_profile-head-292-"
+            "bonus_id:40enchant_id:8017ilevel:292"
+        )
+        canonical_variant_key = (
+            "observed-profile-target-observed_profile-head-292-"
+            '{"bonus_id": "40", "enchant_id": "8017", "ilevel": "292"}'
+        )
+        template = self.template()
+        template["gearItems"][0].pop("gem_id", None)
+        template["gearItems"][0].update({
+            "itemLevel": 292,
+            "variantKey": legacy_variant_key,
+            "bonus_id": "40",
+            "enchant_id": "8017",
+            "observedProfileRefs": [{"profileUrl": profile_url}],
+        })
+        snapshot = self.snapshot()
+        snapshot["variants"][0].update({
+            "itemLevel": 292,
+            "variantKey": canonical_variant_key,
+            "sourceType": "observed_profile",
+            "simcOptions": {"ilevel": "292", "bonus_id": "40", "enchant_id": "8017"},
+            "payload": {"profileUrl": profile_url},
+        })
+        other_profile_variant = copy.deepcopy(snapshot["variants"][0])
+        other_profile_variant.update({
+            "variantId": "other-profile-variant",
+            "variantKey": canonical_variant_key.replace("target", "other"),
+            "payload": {"profileUrl": "https://raider.io/characters/us/illidan/not-target"},
+        })
+        snapshot["variants"].append(other_profile_variant)
+
+        intent = selection_intent_from_template(
+            template,
+            gear_release_id="gear-release:sha256:target",
+            season_revision="season-17",
+            level=90,
+            gear_snapshot=snapshot,
+            capability_revision="gear-capability-matrix-v2",
+        )
+        evidence = community_template_import_evidence_from_template(
+            template,
+            gear_release_id="gear-release:sha256:target",
+            gear_snapshot=snapshot,
+        )
+
+        self.assertEqual(intent["slots"]["head"]["variantKey"], canonical_variant_key)
+        self.assertEqual(evidence["slots"]["head"]["variantKey"], canonical_variant_key)
+        self.assertEqual(evidence["slots"]["head"]["observedItemLevel"], 292)
+
+    def test_observed_template_does_not_canonicalize_a_variant_from_another_profile(self):
+        from server.gear_release_store import GearReleaseIntegrityError
+        from server.gear_release_tool import community_template_import_evidence_from_template
+
+        template = self.template()
+        template["gearItems"][0].pop("gem_id", None)
+        template["gearItems"][0].update({
+            "itemLevel": 292,
+            "variantKey": "observed-profile-target-observed_profile-head-292-bonus_id:40ilevel:292",
+            "bonus_id": "40",
+            "observedProfileRefs": [{"profileUrl": "https://raider.io/characters/kr/azshara/target-player"}],
+        })
+        snapshot = self.snapshot()
+        snapshot["variants"][0].update({
+            "itemLevel": 292,
+            "variantKey": 'observed-profile-other-observed_profile-head-292-{"bonus_id": "40", "ilevel": "292"}',
+            "sourceType": "observed_profile",
+            "simcOptions": {"ilevel": "292", "bonus_id": "40"},
+            "payload": {"profileUrl": "https://raider.io/characters/us/illidan/not-target"},
+        })
+
+        with self.assertRaises(GearReleaseIntegrityError):
+            community_template_import_evidence_from_template(
+                template,
+                gear_release_id="gear-release:sha256:target",
+                gear_snapshot=snapshot,
+            )
+
     def test_import_evidence_rejects_incomplete_or_mismatched_observed_facts(self):
         from server.gear_release_store import GearReleaseIntegrityError
         from server.gear_release_tool import community_template_import_evidence_from_template
