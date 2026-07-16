@@ -76,6 +76,8 @@ class PgGearReadModelSelectorsTest(unittest.TestCase):
         self.assertEqual(report["status"], "pass")
         self.assertEqual(report["diffs"][0]["classification"], "revision_only")
         self.assertEqual(transitional["baselineCount"], 0)
+        self.assertEqual(transitional["templateId"], "template-a")
+        self.assertEqual(candidate["templateId"], "template-a")
         self.assertEqual(candidate["validatedAgainstGearReleaseId"], gear_release_id)
 
     def test_build_websim_talents_read_model_assembles_sync_blockers_and_season(self):

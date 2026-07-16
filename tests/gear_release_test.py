@@ -633,6 +633,107 @@ class GearReleaseTest(unittest.TestCase):
             {problem["code"] for problem in blocked["blockers"]},
         )
 
+    def test_observed_import_fidelity_cutover_requires_exact_legacy_source_identity(self):
+        legacy = self.candidate()
+        legacy.pop("importEvidence")
+        legacy["templateId"] = "observed_profile_mage_arcane"
+        candidate = self.candidate(templateId="observed_profile_mage_arcane")
+        candidate["payload"] = {"importEvidence": candidate.pop("importEvidence")}
+
+        self.assertTrue(
+            gear_release.is_observed_import_fidelity_cutover(legacy, candidate)
+        )
+
+        profile_hash_missing_on_both_sides = copy.deepcopy(legacy)
+        profile_hash_missing_on_both_sides["profileHash"] = ""
+        candidate_without_profile_hash = copy.deepcopy(candidate)
+        candidate_without_profile_hash["profileHash"] = ""
+        self.assertTrue(
+            gear_release.is_observed_import_fidelity_cutover(
+                profile_hash_missing_on_both_sides,
+                candidate_without_profile_hash,
+            )
+        )
+
+        for mutation in (
+            {"gearHash": "gear-hash-different"},
+            {"sourceUrl": "https://raider.io/characters/cn/different"},
+            {"sampleCount": 24},
+            {"profileHash": "profile-hash-different"},
+        ):
+            with self.subTest(mutation=mutation):
+                self.assertFalse(
+                    gear_release.is_observed_import_fidelity_cutover(
+                        legacy,
+                        {**candidate, **mutation},
+                    )
+                )
+
+        legacy_with_evidence = copy.deepcopy(legacy)
+        legacy_with_evidence["importEvidence"] = copy.deepcopy(
+            candidate["payload"]["importEvidence"]
+        )
+        self.assertFalse(
+            gear_release.is_observed_import_fidelity_cutover(
+                legacy_with_evidence,
+                candidate,
+            )
+        )
+
+    def test_shadow_compare_allows_only_preverified_import_fidelity_cutover(self):
+        legacy = self.shadow_row(templateId="observed_profile_mage_arcane")
+        candidate = self.shadow_row(
+            templateId="observed_profile_mage_arcane",
+            semanticGearSignature="sha256:canonical-observed-import",
+            resolvedGearSignature="sha256:canonical-release-bound",
+            importEvidence=self.candidate()["importEvidence"],
+        )
+        candidate["selectionIntent"]["slots"]["head"]["gemOptionIds"] = ["gem-240892"]
+
+        report = gear_release.compare_shadow(
+            [legacy],
+            [candidate],
+            expected_specs=[("mage", "arcane")],
+            gear_release_id="gear-release:sha256:target",
+            allowed_import_fidelity_cutover_specs={("mage", "arcane")},
+        )
+
+        self.assertEqual(report["status"], "pass")
+        self.assertEqual(
+            report["diffs"][0]["classification"],
+            "expected_import_fidelity_cutover",
+        )
+
+        provenance_changed = copy.deepcopy(candidate)
+        provenance_changed["gearHash"] = "gear-hash-different"
+        blocked = gear_release.compare_shadow(
+            [legacy],
+            [provenance_changed],
+            expected_specs=[("mage", "arcane")],
+            gear_release_id="gear-release:sha256:target",
+            allowed_import_fidelity_cutover_specs={("mage", "arcane")},
+        )
+        self.assertEqual(blocked["status"], "blocked")
+        self.assertIn(
+            "PUBLIC_WINNER_SEMANTIC_CHANGE",
+            {problem["code"] for problem in blocked["blockers"]},
+        )
+
+        unsealed = copy.deepcopy(candidate)
+        unsealed.pop("importEvidence")
+        unsealed_report = gear_release.compare_shadow(
+            [legacy],
+            [unsealed],
+            expected_specs=[("mage", "arcane")],
+            gear_release_id="gear-release:sha256:target",
+            allowed_import_fidelity_cutover_specs={("mage", "arcane")},
+        )
+        self.assertEqual(unsealed_report["status"], "blocked")
+        self.assertIn(
+            "PUBLIC_WINNER_SEMANTIC_CHANGE",
+            {problem["code"] for problem in unsealed_report["blockers"]},
+        )
+
     def test_shadow_compare_marks_missing_spec_degraded_and_blocks_public_extra_spec(self):
         degraded = gear_release.compare_shadow(
             [self.shadow_row()],

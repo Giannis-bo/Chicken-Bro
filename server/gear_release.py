@@ -569,6 +569,78 @@ def _candidate_import_evidence_issues(
     return issues
 
 
+def _winner_import_evidence(winner: Any) -> tuple[bool, Any]:
+    """Return whether a release winner carries import evidence and its value.
+
+    Community release rows are read through both the sealed winner shape and the
+    persisted payload shape.  Preserve the distinction between no legacy
+    evidence and malformed/empty evidence: only the former can be upgraded by
+    the controlled fidelity cutover.
+    """
+
+    if not isinstance(winner, dict):
+        return False, None
+    if "importEvidence" in winner:
+        return True, winner.get("importEvidence")
+    payload = winner.get("payload")
+    if isinstance(payload, dict) and "importEvidence" in payload:
+        return True, payload.get("importEvidence")
+    return False, None
+
+
+def _winner_template_id(winner: dict[str, Any]) -> str:
+    return _text(winner.get("templateId")) or _text(winner.get("id"))
+
+
+def is_observed_import_fidelity_cutover(
+    legacy_winner: Any,
+    candidate_winner: Any,
+) -> bool:
+    """Prove a legacy observed winner may receive sealed import evidence.
+
+    This is intentionally narrower than normal semantic migration: the source
+    identity must be unchanged, the old winner must carry no evidence at all,
+    and the candidate evidence must validate against its exact selected slots.
+    It does not authorize a source refresh or an automatic promotion.
+    """
+
+    if not isinstance(legacy_winner, dict) or not isinstance(candidate_winner, dict):
+        return False
+    if not is_public_observed_source(candidate_winner.get("sourceKey")):
+        return False
+    for field in ("sourceKey", "sourceUrl", "gearHash"):
+        legacy_value = _text(legacy_winner.get(field))
+        candidate_value = _text(candidate_winner.get(field))
+        if not legacy_value or legacy_value != candidate_value:
+            return False
+    if _winner_template_id(legacy_winner) != _winner_template_id(candidate_winner):
+        return False
+    legacy_samples = _positive_int(legacy_winner.get("sampleCount"))
+    candidate_samples = _positive_int(candidate_winner.get("sampleCount"))
+    if not legacy_samples or legacy_samples != candidate_samples:
+        return False
+    legacy_profile_hash = _text(legacy_winner.get("profileHash"))
+    candidate_profile_hash = _text(candidate_winner.get("profileHash"))
+    if bool(legacy_profile_hash) != bool(candidate_profile_hash):
+        return False
+    if legacy_profile_hash and legacy_profile_hash != candidate_profile_hash:
+        return False
+
+    legacy_has_evidence, _legacy_evidence = _winner_import_evidence(legacy_winner)
+    candidate_has_evidence, candidate_evidence = _winner_import_evidence(candidate_winner)
+    if legacy_has_evidence or not candidate_has_evidence or not isinstance(candidate_evidence, dict):
+        return False
+    candidate_intent = candidate_winner.get("selectionIntent")
+    if not isinstance(candidate_intent, dict):
+        return False
+    candidate_for_validation = _canonical(candidate_winner)
+    candidate_for_validation["importEvidence"] = candidate_evidence
+    return not _candidate_import_evidence_issues(
+        candidate_for_validation,
+        candidate_intent,
+    )
+
+
 def elect_community_candidates(
     candidates: Iterable[dict[str, Any]],
     *,
@@ -687,6 +759,7 @@ def compare_shadow(
     gear_release_id: str,
     allow_semantic_changes: bool = False,
     allowed_semantic_change_specs: Iterable[tuple[str, str]] = (),
+    allowed_import_fidelity_cutover_specs: Iterable[tuple[str, str]] = (),
 ) -> dict[str, Any]:
     """Compare old/new public winners while separating release-only signature churn."""
 
@@ -696,6 +769,11 @@ def compare_shadow(
     allowed_change_specs = {
         (_text(class_key), _text(spec_key))
         for class_key, spec_key in allowed_semantic_change_specs
+        if _text(class_key) and _text(spec_key)
+    }
+    allowed_import_fidelity_specs = {
+        (_text(class_key), _text(spec_key))
+        for class_key, spec_key in allowed_import_fidelity_cutover_specs
         if _text(class_key) and _text(spec_key)
     }
     blockers: list[dict[str, str]] = []
@@ -770,8 +848,16 @@ def compare_shadow(
                 and not provenance_changed
                 and key in allowed_change_specs
             )
+            expected_import_fidelity_cutover = (
+                resolved_semantic_changed
+                and not provenance_changed
+                and key in allowed_import_fidelity_specs
+                and is_observed_import_fidelity_cutover(old, new)
+            )
             if expected_enhancement_migration:
                 classification = "expected_enhancement_migration"
+            elif expected_import_fidelity_cutover:
+                classification = "expected_import_fidelity_cutover"
             elif semantic_changed:
                 classification = "semantic_change"
             elif resolved_changed:
@@ -782,7 +868,10 @@ def compare_shadow(
         if (
             semantic_changed
             and not allow_semantic_changes
-            and classification != "expected_enhancement_migration"
+            and classification not in {
+                "expected_enhancement_migration",
+                "expected_import_fidelity_cutover",
+            }
         ):
             blockers.append(_shadow_blocker("PUBLIC_WINNER_SEMANTIC_CHANGE", class_key, spec_key, "Candidate winner differs from the accepted public winner."))
 
@@ -914,6 +1003,7 @@ __all__ = [
     "compare_shadow",
     "decide_promotion",
     "elect_community_candidates",
+    "is_observed_import_fidelity_cutover",
     "is_public_observed_source",
     "semantic_gear_signature",
     "validate_capability_proof",

@@ -2425,6 +2425,7 @@ def run_release_shadow(
     formal_active = False
     public_read_count = 0
     allowed_enhancement_migrations: set[tuple[str, str]] = set()
+    allowed_import_fidelity_cutovers: set[tuple[str, str]] = set()
     reference_seen = False
     reference_proof: dict[str, Any] = {
         "status": (
@@ -2692,6 +2693,7 @@ def run_release_shadow(
                 ))
         profile_result = {"status": "not_run"}
         migration_result = {"status": "not_run"}
+        import_fidelity_result = {"status": "not_run"}
         if compare_profiles:
             profile_context = profile_contexts.get(f"{class_key}:{spec_key}")
             profile_context = profile_context if isinstance(profile_context, dict) else {}
@@ -2753,6 +2755,27 @@ def run_release_shadow(
                 ))
                 == captured_active_gear_id
             )
+            observed_import_fidelity_cutover = (
+                active_capability_revision
+                == gear_socket_authority.LEGACY_CAPABILITY_REVISION
+                and candidate_capability_revision
+                == gear_socket_authority.CAPABILITY_REVISION
+                and profile_result["status"] == "pass"
+                and profile_migration_evidence
+                and exact_active_binding
+                and gear_release.is_observed_import_fidelity_cutover(
+                    active_winner,
+                    candidate,
+                )
+            )
+            if observed_import_fidelity_cutover:
+                import_fidelity_result = {
+                    "status": "pass",
+                    "mode": "sealed_observed_import",
+                }
+                allowed_import_fidelity_cutovers.add(key)
+            else:
+                import_fidelity_result = {"status": "not_required"}
             if (
                 active_capability_revision
                 == gear_socket_authority.LEGACY_CAPABILITY_REVISION
@@ -2866,6 +2889,7 @@ def run_release_shadow(
             "candidateHttpStatus": new_status,
             "profileParity": profile_result,
             "enhancementMigrationParity": migration_result,
+            "importFidelityCutoverParity": import_fidelity_result,
             **({"referenceProof": spec_reference_proof} if spec_reference_proof else {}),
             "durationMs": round((time.perf_counter() - spec_started) * 1000, 3),
         })
@@ -2901,6 +2925,7 @@ def run_release_shadow(
         expected_specs=expected,
         gear_release_id=gear_id,
         allowed_semantic_change_specs=allowed_enhancement_migrations,
+        allowed_import_fidelity_cutover_specs=allowed_import_fidelity_cutovers,
     )
     blockers.extend(report.get("blockers") or [])
     status = "blocked" if blockers else report.get("status", "blocked")

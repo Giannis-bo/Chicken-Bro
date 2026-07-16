@@ -151,9 +151,10 @@ def build_transitional_release_shadow_row(
     snapshot = resolved_snapshot if isinstance(resolved_snapshot, dict) else {}
     evidence = _shadow_template_evidence(value)
     legality = snapshot.get("aggregateLegality") if isinstance(snapshot.get("aggregateLegality"), dict) else {}
-    return {
+    result = {
         "classKey": str(value.get("classKey") or "").strip(),
         "specKey": str(value.get("specKey") or "").strip(),
+        "templateId": str(value.get("templateId") or value.get("id") or "").strip(),
         "selectionIntent": selection_intent if isinstance(selection_intent, dict) else {},
         "resolvedGearSignature": str(snapshot.get("resolvedGearSignature") or "").strip(),
         "semanticGearSignature": gear_release.semantic_gear_signature(selection_intent, snapshot),
@@ -166,6 +167,12 @@ def build_transitional_release_shadow_row(
         "baselineCount": _int_value(baseline_count),
         "validatedAgainstGearReleaseId": str(gear_release_id or "").strip(),
     }
+    payload = value.get("payload") if isinstance(value.get("payload"), dict) else {}
+    if "importEvidence" in value:
+        result["importEvidence"] = value.get("importEvidence")
+    elif "importEvidence" in payload:
+        result["importEvidence"] = payload.get("importEvidence")
+    return result
 
 
 def build_candidate_release_shadow_row(row, *, gear_release_id):
@@ -173,9 +180,10 @@ def build_candidate_release_shadow_row(row, *, gear_release_id):
 
     value = row if isinstance(row, dict) else {}
     problems = value.get("problems") if isinstance(value.get("problems"), list) else []
-    return {
+    result = {
         "classKey": str(value.get("classKey") or "").strip(),
         "specKey": str(value.get("specKey") or "").strip(),
+        "templateId": str(value.get("templateId") or value.get("id") or "").strip(),
         "selectionIntent": value.get("selectionIntent") if isinstance(value.get("selectionIntent"), dict) else {},
         "resolvedGearSignature": str(value.get("resolvedGearSignature") or "").strip(),
         "semanticGearSignature": str(value.get("semanticGearSignature") or "").strip(),
@@ -188,6 +196,12 @@ def build_candidate_release_shadow_row(row, *, gear_release_id):
         "baselineCount": 0,
         "validatedAgainstGearReleaseId": str(gear_release_id or "").strip(),
     }
+    payload = value.get("payload") if isinstance(value.get("payload"), dict) else {}
+    if "importEvidence" in value:
+        result["importEvidence"] = value.get("importEvidence")
+    elif "importEvidence" in payload:
+        result["importEvidence"] = payload.get("importEvidence")
+    return result
 
 
 def _datetime_value(value):
