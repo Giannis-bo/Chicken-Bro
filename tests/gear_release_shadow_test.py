@@ -4457,7 +4457,10 @@ class GearReleaseShadowTest(unittest.TestCase):
             capability_revision=gear_socket_authority.CAPABILITY_REVISION,
         )
         snapshot = self.snapshot(candidate["selectionIntent"], "sha256:candidate")
-        profile = self.resolved_profile_envelope("mage=import-fidelity")
+        legacy_profile = self.resolved_profile_envelope("mage=legacy-gear")
+        candidate_profile = self.resolved_profile_envelope("mage=observed-player-gear")
+        legacy_profile["data"]["gearItems"] = [{"itemId": "legacy-item"}]
+        candidate_profile["data"]["gearItems"] = [{"itemId": "observed-item"}]
         with patch.object(
             gear_release_shadow.gear_runtime,
             "resolve_selection_intent",
@@ -4469,11 +4472,11 @@ class GearReleaseShadowTest(unittest.TestCase):
         ), patch.object(
             gear_release_shadow.gear_runtime,
             "build_profile_from_selection_intent",
-            return_value=(200, profile),
+            return_value=(200, legacy_profile),
         ), patch.object(
             gear_release_shadow.gear_runtime,
             "build_candidate_profile_from_selection_intent",
-            return_value=(200, profile),
+            return_value=(200, candidate_profile),
         ):
             result = gear_release_shadow.run_release_shadow(
                 store,
@@ -4501,6 +4504,19 @@ class GearReleaseShadowTest(unittest.TestCase):
         self.assertEqual(
             result["specResults"][0]["importFidelityCutoverParity"],
             {"status": "pass", "mode": "sealed_observed_import"},
+        )
+        self.assertEqual(
+            result["specResults"][0]["profileParity"],
+            {
+                "status": "expected_import_fidelity_change",
+                "mode": "sealed_observed_source",
+                "transitionalHttpStatus": 200,
+                "transitionalStatus": "resolved",
+                "transitionalProblemCodes": [],
+                "candidateHttpStatus": 200,
+                "candidateStatus": "resolved",
+                "candidateProblemCodes": [],
+            },
         )
         self.assertEqual(blocked["status"], "blocked")
         self.assertIn(
@@ -4539,6 +4555,31 @@ class GearReleaseShadowTest(unittest.TestCase):
             sealed,
         )
         self.assertEqual(mismatch, projected)
+
+    def test_import_fidelity_profile_gate_allows_only_source_backed_gear_content_delta(self):
+        old = self.resolved_profile_envelope("mage=legacy-gear")
+        new = copy.deepcopy(old)
+        new["data"]["profile"] = "mage=observed-player-gear"
+        old["data"]["gearItems"] = [{"itemId": "legacy-item"}]
+        new["data"]["gearItems"] = [{"itemId": "observed-item"}]
+
+        old_outcome = gear_release_shadow._profile_outcome(200, old)
+        new_outcome = gear_release_shadow._profile_outcome(200, new)
+        self.assertTrue(
+            gear_release_shadow._profile_outcomes_preserve_import_gate(
+                old_outcome,
+                new_outcome,
+            )
+        )
+
+        changed_gate = copy.deepcopy(new_outcome)
+        changed_gate["data"]["profileReadiness"]["simcReady"] = False
+        self.assertFalse(
+            gear_release_shadow._profile_outcomes_preserve_import_gate(
+                old_outcome,
+                changed_gate,
+            )
+        )
 
 
 if __name__ == "__main__":

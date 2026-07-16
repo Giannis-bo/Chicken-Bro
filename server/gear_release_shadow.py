@@ -433,6 +433,43 @@ def _profile_outcomes_allow_migration(
     )
 
 
+def _profile_outcomes_preserve_import_gate(
+    transitional: dict[str, Any],
+    candidate: dict[str, Any],
+) -> bool:
+    """Allow source-sealed gear deltas only when the Profile gate is unchanged."""
+
+    def gate_projection(outcome: Any) -> dict[str, Any]:
+        value = outcome if isinstance(outcome, dict) else {}
+        data = value.get("data") if isinstance(value.get("data"), dict) else {}
+        talent_encoding = (
+            data.get("talentEncoding")
+            if isinstance(data.get("talentEncoding"), dict)
+            else {}
+        )
+        readiness = (
+            data.get("profileReadiness")
+            if isinstance(data.get("profileReadiness"), dict)
+            else {}
+        )
+        return {
+            "httpStatus": value.get("httpStatus"),
+            "status": _text(value.get("status")),
+            "problemCodes": list(value.get("problemCodes") or []),
+            "hasProfile": bool(_text(data.get("profile"))),
+            "talentEncoding": {
+                field: talent_encoding.get(field)
+                for field in ("status", "source", "errors", "warnings", "selectedCounts")
+            },
+            "profileReadiness": {
+                field: readiness.get(field)
+                for field in ("status", "simcReady", "requiredSlots", "readySlots")
+            },
+        }
+
+    return gate_projection(transitional) == gate_projection(candidate)
+
+
 def _bind_transitional_provenance_to_active_winner(
     transitional_row: Any,
     active_winner: Any,
@@ -2773,8 +2810,6 @@ def run_release_shadow(
                 "candidateStatus": new_profile_state,
                 "candidateProblemCodes": new_profile_outcome["problemCodes"],
             }
-            if profile_result["status"] != "pass":
-                blockers.append(_blocker("PROFILE_PARITY_MISMATCH", class_key, spec_key, "Candidate Profile outcome differs from transitional Profile."))
             enhancement_selection_changed = (
                 _enhancement_selection_projection(legacy_intent)
                 != _enhancement_selection_projection(candidate_intent)
@@ -2784,6 +2819,10 @@ def run_release_shadow(
                 == _non_enhancement_selection_projection(candidate_intent)
             )
             profile_migration_evidence = _profile_outcomes_allow_migration(
+                old_profile_outcome,
+                new_profile_outcome,
+            )
+            profile_import_gate_preserved = _profile_outcomes_preserve_import_gate(
                 old_profile_outcome,
                 new_profile_outcome,
             )
@@ -2809,8 +2848,7 @@ def run_release_shadow(
                 and candidate_capability_revision
                 == gear_socket_authority.CAPABILITY_REVISION
                 and active_dependency_revisions == gear_dependencies
-                and profile_result["status"] == "pass"
-                and profile_migration_evidence
+                and profile_import_gate_preserved
                 and exact_active_binding
                 and gear_release.is_observed_import_fidelity_cutover(
                     active_winner,
@@ -2818,6 +2856,9 @@ def run_release_shadow(
                 )
             )
             if observed_import_fidelity_cutover:
+                if profile_result["status"] != "pass":
+                    profile_result["status"] = "expected_import_fidelity_change"
+                    profile_result["mode"] = "sealed_observed_source"
                 import_fidelity_result = {
                     "status": "pass",
                     "mode": "sealed_observed_import",
@@ -2825,6 +2866,13 @@ def run_release_shadow(
                 allowed_import_fidelity_cutovers.add(key)
             else:
                 import_fidelity_result = {"status": "not_required"}
+                if profile_result["status"] != "pass":
+                    blockers.append(_blocker(
+                        "PROFILE_PARITY_MISMATCH",
+                        class_key,
+                        spec_key,
+                        "Candidate Profile outcome differs from transitional Profile.",
+                    ))
             if (
                 active_capability_revision
                 == gear_socket_authority.LEGACY_CAPABILITY_REVISION
