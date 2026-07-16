@@ -1348,19 +1348,70 @@ const canonicalGearAttributeLabels = {
   agility: '敏捷',
   strength: '力量',
   stamina: '耐力',
+  agiint: '敏捷 / 智力',
+  agint: '敏捷 / 智力',
+  intagi: '敏捷 / 智力',
+  stragi: '力量 / 敏捷',
+  strint: '力量 / 智力',
+  stragiint: '力量 / 敏捷 / 智力',
+  stragint: '力量 / 敏捷 / 智力',
   haste: '急速',
+  haste_rating: '急速',
   crit: '暴击',
   critical_strike: '暴击',
+  crit_rating: '暴击',
+  critical_strike_rating: '暴击',
   mastery: '精通',
+  mastery_rating: '精通',
   versatility: '全能',
-  armor: '护甲'
+  versatility_rating: '全能',
+  armor: '护甲',
+  avoidance: '闪避',
+  avoidance_rating: '闪避',
+  leech: '吸血',
+  leech_rating: '吸血',
+  speed: '速度',
+  speed_rating: '速度'
+}
+
+const flexiblePrimaryStatKeys = {
+  agiint: ['agility', 'intellect'],
+  agint: ['agility', 'intellect'],
+  intagi: ['agility', 'intellect'],
+  stragi: ['strength', 'agility'],
+  strint: ['strength', 'intellect'],
+  stragiint: ['strength', 'agility', 'intellect'],
+  stragint: ['strength', 'agility', 'intellect']
+}
+const primaryGearAttributeKeys = new Set(['strength', 'agility', 'intellect'])
+
+function canonicalGearAttributeTotalsForSpec(rawTotals, eligibilityContext) {
+  const context = eligibilityContext && typeof eligibilityContext === 'object' ? eligibilityContext : null
+  const classKey = context && cleanGearString(context.classKey)
+  const primaryKey = classKey ? primaryStatKeyForSpec(context) : ''
+  return Object.keys(rawTotals || {}).reduce((totals, rawKey) => {
+    const normalizedKey = normalizedGearKey(rawKey)
+    const flexiblePrimaryKeys = flexiblePrimaryStatKeys[normalizedKey]
+    const key = flexiblePrimaryKeys
+      ? (primaryKey && flexiblePrimaryKeys.includes(primaryKey) ? primaryKey : (primaryKey ? '' : rawKey))
+      : (primaryKey && primaryGearAttributeKeys.has(normalizedKey) && normalizedKey !== primaryKey ? '' : rawKey)
+    if (!key) return totals
+    const value = gearNumericValue(rawTotals[rawKey])
+    if (value === null) {
+      totals[key] = rawTotals[rawKey]
+      return totals
+    }
+    totals[key] = (gearNumericValue(totals[key]) || 0) + value
+    return totals
+  }, {})
 }
 
 function canonicalGearAttributePanel(snapshot, statSnapshot) {
   if (!snapshot || typeof snapshot !== 'object') return emptyGearAttributePanel()
-  const totals = snapshot.staticAttributes && typeof snapshot.staticAttributes === 'object'
+  const rawTotals = snapshot.staticAttributes && typeof snapshot.staticAttributes === 'object'
     ? (snapshot.staticAttributes.totals || snapshot.staticAttributes)
     : {}
+  const totals = canonicalGearAttributeTotalsForSpec(rawTotals, snapshot.eligibilityContext)
   const resolvedSlots = snapshot.resolvedSlots && typeof snapshot.resolvedSlots === 'object'
     ? snapshot.resolvedSlots
     : {}

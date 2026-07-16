@@ -43,6 +43,7 @@ globalThis.__detailHelpers = {
   savedCommunityImportOrigin: typeof savedCommunityImportOrigin === 'function' ? savedCommunityImportOrigin : undefined,
   canonicalEnhancementMarkers: typeof canonicalEnhancementMarkers === 'function' ? canonicalEnhancementMarkers : undefined,
   canonicalGearSlotRows: typeof canonicalGearSlotRows === 'function' ? canonicalGearSlotRows : undefined,
+  canonicalGearAttributePanel: typeof canonicalGearAttributePanel === 'function' ? canonicalGearAttributePanel : undefined,
   buildGearSlotRows: typeof buildGearSlotRows === 'function' ? buildGearSlotRows : undefined,
   gearSlotCardLabel: typeof gearSlotCardLabel === 'function' ? gearSlotCardLabel : undefined,
   enhancementRecordSelectedCount,
@@ -1126,6 +1127,78 @@ test('gear slot cards name selected weapon types instead of hand positions', () 
   )
   assert.equal(helpers.gearSlotCardLabel('main_hand', { weaponType: 'Two-Handed Mace' }, '主手'), '双手锤')
   assert.equal(helpers.gearSlotCardLabel('off_hand', { weaponType: 'Shield' }, '副手'), '盾牌')
+})
+
+test('canonical gear attribute panel resolves flexible primary stats for the current specialization', () => {
+  const pageConfig = loadBuildsDetailPageConfig({ exposeDetailHelpers: true })
+  const helpers = pageConfig.__detailHelpers
+  const panelFor = (eligibilityContext, totals) => helpers.canonicalGearAttributePanel({
+    staticAttributes: {
+      totals
+    },
+    eligibilityContext,
+    resolvedSlots: {
+      head: { itemLevel: 293, selectedOptions: {} }
+    },
+    profileReadiness: { requiredSlots: ['head'], readySlots: ['head'] },
+    constraints: { slots: {} },
+    setState: { itemSetCounts: {} }
+  }, null)
+
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(Object.fromEntries(panelFor({ classKey: 'mage', specKey: 'frost' }, {
+      intellect: 1412,
+      agility: 999,
+      strength: 999,
+      stamina: 17732,
+      agint: 128,
+      stragint: 67,
+      avoidance_rating: 253,
+      crit_rating: 55,
+      haste_rating: 1343,
+      leech_rating: 126,
+      mastery_rating: 834,
+      speed_rating: 55,
+      versatility_rating: 43
+    }).statRows.map((row) => [row.key, { label: row.label, rawValue: row.rawValue }])))),
+    {
+      intellect: { label: '智力', rawValue: 1607 },
+      stamina: { label: '耐力', rawValue: 17732 },
+      avoidance_rating: { label: '闪避', rawValue: 253 },
+      crit_rating: { label: '暴击', rawValue: 55 },
+      haste_rating: { label: '急速', rawValue: 1343 },
+      leech_rating: { label: '吸血', rawValue: 126 },
+      mastery_rating: { label: '精通', rawValue: 834 },
+      speed_rating: { label: '速度', rawValue: 55 },
+      versatility_rating: { label: '全能', rawValue: 43 }
+    }
+  )
+
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(Object.fromEntries(panelFor({ classKey: 'rogue', specKey: 'subtlety' }, {
+      agility: 100,
+      intellect: 999,
+      strength: 999,
+      agiint: 20,
+      stragi: 30,
+      stragiint: 40,
+      strint: 50
+    }).statRows.map((row) => [row.key, row.rawValue])))),
+    { agility: 190 }
+  )
+
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(Object.fromEntries(panelFor({ classKey: 'warrior', specKey: 'arms' }, {
+      strength: 100,
+      agility: 999,
+      intellect: 999,
+      stragi: 20,
+      strint: 30,
+      stragiint: 40,
+      agiint: 50
+    }).statRows.map((row) => [row.key, row.rawValue])))),
+    { strength: 190 }
+  )
 })
 
 test('native talent simulator save flow names talent templates for the profile library', async () => {
