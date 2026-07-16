@@ -188,7 +188,7 @@ function extractHarnessMetadata(source) {
   const dateMatch = source.match(/最后更新[：:]\s*([^。\n]+)/)
   const policyChangeCount = source
     .split(/\r?\n/)
-    .filter((line) => /^\|\s*v\d+\.\d+\s*\|/.test(line))
+    .filter((line) => /^\|\s*v\d+\.\d+(?:\.\d+)?\s*\|/.test(line))
     .length
 
   return {
@@ -773,6 +773,27 @@ function buildManifest(options) {
       formalDesignOrPlanRequired: false,
       singleClarificationOnlyWhenUserVisibleBehaviorIsAmbiguous: true,
       requiredPreImplementationSummary: ['change', 'risk_boundary', 'targeted_verification']
+    },
+    superpowersIntegration: {
+      status: 'ready',
+      policyLayer: 'harness_controls_classification_evidence_release_and_closure',
+      sessionStart: 'inspect_exposed_skills_and_select_only_applicable_methods',
+      lightFastLane: {
+        defaultMethodSet: 'minimal',
+        doNotRequire: ['design_or_plan', 'worktree', 'parallel_agents', 'branch_finish_menu'],
+        verification: 'harness_selected_targeted_evidence'
+      },
+      standardStrict: {
+        methods: ['brainstorming', 'writing_plans', 'systematic_debugging', 'test_driven_development', 'review', 'verification'],
+        rule: 'select_only_when_the_method_reduces_a_concrete_delivery_risk'
+      },
+      topology: {
+        selectedBy: 'agent_under_harness',
+        worktree: 'isolate_when_beneficial_without_automatic_dependency_install',
+        parallelAgents: 'only_for_genuinely_independent_tasks'
+      },
+      closure: 'harness_user_acceptance_closure_without_finish_menu',
+      completionEvidence: 'fresh_harness_selected_evidence_before_completion_claim'
     },
     repositoryRemoteSync: {
       status: 'ready',

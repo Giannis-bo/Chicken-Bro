@@ -1,7 +1,7 @@
 # Repo-native Harness
 
-> Harness version：v0.6。
-> 最后更新：2026-07-15。
+> Harness version：v0.6.1。
+> 最后更新：2026-07-16。
 > 适用范围：本仓库所有需求讨论、方案设计、实现、验证、部署和交付声明。
 
 本文定义项目内置的轻量交付 Harness。它不是外部平台替代品，也不替代现有 roadmap、runbook、测试或部署脚本。它的作用是把“能不能开始实现”和“能不能声明完成”变成明确的合同和证据状态。
@@ -23,6 +23,17 @@
 - 本仓库与已配置项目远端之间的常规同步是协作基础设施，不再作为下载/网络授权阻塞项；但它不能扩展为依赖安装、第三方下载、任意 clone、改 remote 或破坏性历史改写。
 - 用户批准计划、授权继续或要求直接推进后，agent 默认自动推进后续范围内步骤；只有明确阻塞、验证失败需权衡、范围变化、待决策点或越界高风险操作才回到用户确认。
 - 不确定时按更高风险处理。Agent 如果无法判断需求大小，默认进入大需求流程。
+
+## Superpowers 方法层门禁
+
+Superpowers 是按需的方法库，不是本仓库的第二套交付控制面。Harness 始终拥有需求分级、current truth、验证 profile、候选部署、证据晋级、用户确认、执行拓扑与收口的最终解释权。
+
+- 每个新任务先检查当前 Codex 会话实际暴露的 `superpowers:*` skill；有直接适用的方法才通过原生技能系统加载。未暴露时如实说明并按 Harness 继续，禁止调用已移除的 legacy bootstrap。
+- Light Fast Lane 默认使用最小方法集：不得因为 skill 已安装就强制设计/计划、worktree、并行 agent 或 branch-finish 流程；仍只做 Harness 指定的 scope/risk/targeted verification 与一次本地 CR。只有真实行为或回归风险时才选择调试或 test-first 方法。
+- Standard / Strict 可选择 brainstorming、writing-plans、systematic-debugging、TDD、review 与 verification；选择标准是它能否降低本任务的明确交付风险。skill 的产物必须回写现有 Harness 合同、计划、evidence 或 CR，不能另建平行流程账本。
+- 执行拓扑仍由 agent 按 Harness 选择。使用 worktree 时可以复用它的隔离检测与创建步骤，但不得自动安装依赖、下载内容、把全量 baseline 当作默认门禁，或要求用户为常规拓扑点选。并行 agent 只用于真正独立的任务，不引入 lane registry、resource lease 或默认多轮审阅。
+- 若 Harness User Acceptance Closure 已触发，`finishing-a-development-branch` 或其调用链不得弹出 merge / PR / keep / discard 菜单，必须执行本仓库既定的 CR、合入、复测、推送、SHA 对齐和本任务清理顺序。
+- `verification-before-completion` 的“新鲜证据先于完成声明”继续适用，但具体命令、范围与最高可声明等级由 v0.6 风险分层和 Evidence Promotion Gate 决定，不能额外叠加重复 full。
 
 ## 用户体验优先讨论门禁
 
@@ -481,8 +492,9 @@ Harness 复盘节奏：
 
 | Version | Date | Change |
 | --- | --- | --- |
-| v0.5 | 2026-07-09 | 增加 Candidate Deployment Gate：backend/API、PG read model、公开 payload、health/admin、定时任务、部署脚本和用户可见运行链路默认在 PR 候选阶段先部署或预览 smoke，通过后再合入；无法预合入验证时必须记录例外并补 post-merge live smoke。 |
+| v0.6.1 | 2026-07-16 | 将 Superpowers 固定为按需方法层：Harness 优先决定分级、验证、候选、拓扑和收口；Light Fast Lane 不被设计/worktree/并行/收尾技能重新加重；禁止自动依赖安装与收尾菜单覆盖 Harness closure。 |
 | v0.6 | 2026-07-15 | 按运行面风险分层验证：开发期默认 targeted，普通 runtime 由最终 CI full 覆盖，高风险写路径才额外本地 full；CI 不再重复 harness + full；同一最终 runtime head 仅一次候选部署；候选窗口串行化；归档不再阻塞合入或重跑业务 full。 |
+| v0.5 | 2026-07-09 | 增加 Candidate Deployment Gate：backend/API、PG read model、公开 payload、health/admin、定时任务、部署脚本和用户可见运行链路默认在 PR 候选阶段先部署或预览 smoke，通过后再合入；无法预合入验证时必须记录例外并补 post-merge live smoke。 |
 | v0.4 | 2026-07-09 | 增加 Autonomous Progression Gate：用户确认方案、授权继续或直接推进后，agent 默认自动执行范围内后续步骤；只有明确 blocker、验证失败需权衡、范围变化、待决策点、工作树/远端冲突或越界高风险操作才回到用户确认。 |
 | v0.3 | 2026-07-09 | 增加 Repository Remote Sync Gate：本仓库与已配置项目远端之间的常规 fetch / pull --ff-only / push / PR 状态读取、更新和合入不再需要额外授权，同时保留 force push、改 remote、clone、submodule、依赖安装、第三方下载和生产操作的确认边界。 |
 | v0.2 | 2026-07-09 | 增加 Ownership / Contract Gate 与 Release / Rollback Gate，明确事实判断归属、发布前后 smoke、回滚策略和定时任务防回流。 |
@@ -601,6 +613,7 @@ node scripts/project-harness.js --json --slug <slug> --evidence-file artifacts/r
 - data health。
 - deploy smoke。
 - risk matrix。
+- v0.6.1 Superpowers 方法层优先级与 Light Fast Lane 保护规则。
 - v0.6 verification-efficiency、single-candidate-window 与 merge/archive separation 规则。
 
 脚本默认不 SSH、不部署、不联网、不下载、不安装依赖、不写生产；只读取本地文档、热点文件行数和 git 状态，可选写入本地 artifacts。
