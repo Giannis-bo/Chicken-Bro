@@ -5,7 +5,7 @@
   "status": "runtime_verified",
   "highestEvidenceLevel": "runtime_verified",
   "branch": "codex/community-template-import-performance",
-  "commit": "986d4e44e825971e646639608ed1c1bbb12e6791",
+  "commit": "9b3b1e46691c573721f8c9f419963bf585cfa973",
   "scope": [
     "server-side immutable community-template import projection, scoped release read, bounded import cache and additive API route",
     "mini-program atomic verified import commit, progress state and later selected-slot lazy editing",
@@ -36,17 +36,27 @@
       "command": "WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 bash server/deploy_lighthouse.sh plus candidate HTTP/systemd smoke",
       "status": "pass",
       "summary": "Exact 986d4e4 runtime deployed on 2026-07-15T23:43:43+08:00. Frost cold/warm import, Elemental import, stale-manifest rejection, normal selected-slot response, 40-spec observed-only shadow, runtime SHA parity, services, timers and error-priority logs passed; real WeChat acceptance remains pending."
+    },
+    {
+      "command": "python3 -m unittest tests.community_template_import_test tests.gear_release_store_test tests.postgres_cache_store_test; node --test tests/builds-page.test.js tests/frontend-api-client.test.js; node scripts/verify-project.js --profile backend --release artifacts/releases/2026-07-15-community-template-import-performance --base origin/main",
+      "status": "pass",
+      "summary": "9b3b1e4 adds the red regression for source-display rows overwriting winner-template identity. Focused Python 169/169, frontend 284/284 and backend Harness verification passed."
+    },
+    {
+      "command": "WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 bash server/deploy_lighthouse.sh plus cold/warm community-import identity smoke",
+      "status": "pass",
+      "summary": "Exact 9b3b1e4 runtime deployed on 2026-07-16T10:01:17+08:00. Frost cold cache-miss and warm cache-hit responses both returned HTTP 200 verified with template.id=observed_profile_mage_frost, matching manifest and Resolver signature; runtime source SHA matched; backend, nginx and stat worker were active. Real WeChat acceptance remains pending."
     }
   ],
   "candidateDeployment": {
     "status": "candidate_verified",
     "branch": "codex/community-template-import-performance",
-    "commit": "986d4e44e825971e646639608ed1c1bbb12e6791",
-    "deployedAt": "2026-07-15T23:43:43+08:00",
+    "commit": "9b3b1e46691c573721f8c9f419963bf585cfa973",
+    "deployedAt": "2026-07-16T10:01:17+08:00",
     "deployment": "WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 bash server/deploy_lighthouse.sh",
     "smoke": {
       "status": "pass",
-      "summary": "10/10 runtime-file SHA-256 parity; Frost cold verified 862.969ms and warm verified 74.476ms; Elemental verified; stale Manifest 409; finger1 slot response scoped to one candidate group; 40/40 public initial responses verified and observed-only."
+      "summary": "The previous 10/10 runtime-file parity, Frost/Elemental, stale Manifest, selected-slot and 40/40 observed-only proof remains valid. The post-fix cold miss and warm hit both returned the requested non-empty Frost template identity, matching Manifest and Resolver signature; server/community_template_import.py SHA-256 matched 9b3b1e4."
     },
     "timerBackflow": {
       "status": "pass",
@@ -92,6 +102,12 @@
       "type": "timer_backflow",
       "status": "pass",
       "summary": "Runtime SHA parity was 10/10; wow-backend, wow-gear-stat-snapshot-worker and nginx were active; ten WOW timers were active/waiting; failed units and candidate-window error-priority backend logs were empty. /health was OK while /api/data/health honestly remained overallStatus=partial."
+    },
+    {
+      "type": "post_fix_identity_smoke",
+      "status": "pass",
+      "commit": "9b3b1e46691c573721f8c9f419963bf585cfa973",
+      "summary": "A source-display loop had overwritten the sealed winner row, yielding HTTP 200 verified with data.template.id empty and causing the client identity fence to reject import. After the local red regression and variable-shadowing repair, Frost cold and warm import both returned template.id=observed_profile_mage_frost; the latter was a cache hit."
     }
   ],
   "risks": [
@@ -112,5 +128,6 @@
   "archivedReferences": [
     "docs/superpowers/specs/2026-07-14-community-enhancement-editability-v2-design.md"
   ],
-  "summary": "Atomic community-template import runtime code 986d4e44e825971e646639608ed1c1bbb12e6791 passed the final local full Harness and candidate runtime smoke after three predecessor diagnostics repaired normalized historical variant-key rebinding, Release-scoped option authority, and socket-to-gem canonical projection. Explicit real-WeChat import/edit acceptance is intentionally pending before merge."
+  "summary": "Atomic community-template import runtime code 9b3b1e46691c573721f8c9f419963bf585cfa973 retains the previously verified release/Resolver behavior and repairs the later real-client identity failure: source-display construction no longer overwrites the sealed winner template row. Cold and warm candidate responses now echo the requested template identity. Explicit real-WeChat import/edit acceptance is intentionally pending before merge.",
+  "updatedAt": "2026-07-16T10:01:17+08:00"
 }
