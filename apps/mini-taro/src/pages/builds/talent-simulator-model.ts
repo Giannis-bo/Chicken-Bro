@@ -61,8 +61,10 @@ const readyGraphWidth = 350
 const readyNodeSize = 36
 const readyGraphPad = 18
 const readyRowGap = 48
-const choiceNodeSpread = 42
-const readyNodeSeparation = 42
+// The target's 105–120 native-pixel node rhythm maps to roughly 46–52 CSS px.
+// Use the upper bound so 36px interactive sockets and choice fans never collide.
+const choiceNodeSpread = 52
+const readyNodeSeparation = 52
 
 const loadingPositions = [
   [168.39, 6.54], [45.37, 32.72], [168.83, 69.36], [293.59, 32.72],

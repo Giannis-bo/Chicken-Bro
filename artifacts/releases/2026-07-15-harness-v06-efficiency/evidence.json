@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "slug": "harness-v06-efficiency",
+  "requirementSlug": "harness-v06-efficiency",
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
+  "branch": "codex/harness-v06-efficiency",
+  "commit": "pending_pr_head",
+  "scope": [
+    "harness_v06_risk_layering",
+    "single_full_ci_entrypoint",
+    "single_runtime_candidate_window",
+    "merge_archive_separation"
+  ],
+  "verification": [
+    {
+      "command": "node --test tests/project-harness.test.js tests/project-owner-map.test.js tests/project-state.test.js tests/backend-owner-map.test.js tests/verify-project.test.js",
+      "status": "pass",
+      "summary": "30 tests passed: v0.6 policy, owner-map alignment, current-truth release pointer, and CI profile selection."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile harness --release artifacts/releases/2026-07-15-harness-v06-efficiency --base origin/main",
+      "status": "pass",
+      "summary": "Harness profile passed: 25 contract tests, JSON parsing, script syntax, packet check, and git diff --check."
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass",
+      "summary": "No whitespace errors in the final v0.6 diff."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "not_applicable",
+    "reason": "Docs, CI configuration and local read-only Harness tooling only; no runtime surface changes."
+  },
+  "runtimeEvidence": [],
+  "risks": [
+    {
+      "id": "manual_candidate_window",
+      "status": "accepted",
+      "detail": "The candidate window is an explicit lightweight operating rule rather than a lease service; its effectiveness depends on PR owners honoring the rule."
+    }
+  ],
+  "rollback": [
+    "code_rollback"
+  ],
+  "cleanup": {
+    "required": true,
+    "scope": "Remove only this task worktree after merge; do not inventory or delete unrelated historical worktrees."
+  },
+  "archivedReferences": [
+    "artifacts/releases/2026-07-10-harness-control-plane/evidence.json",
+    "docs/project-state.json"
+  ],
+  "summary": "Harness v0.6 efficiency control plane; focused tests, Harness profile, packet check, and final whitespace check passed."
+}

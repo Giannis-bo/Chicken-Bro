@@ -11,6 +11,7 @@ import sqlite3
 import subprocess
 import sys
 import threading
+import time
 import uuid
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
@@ -69,6 +70,13 @@ try:
         enrich_builds_detail_stat_weights,
         latest_stat_weight_run_payload,
     )
+    from .gear_runtime import (
+        build_profile_from_selection_intent,
+        import_community_template,
+        is_canonical_profile_request,
+        resolve_selection_intent,
+    )
+    from .gear_stat_snapshot_api import get_or_start_stat_snapshot
     from .websim_payload import (
         COMMUNITY_TEMPLATE_SYNC_RUN_KEY,
         COMMUNITY_TALENT_SYNC_KEY,
@@ -77,6 +85,7 @@ try:
         build_websim_profile,
         build_websim_gear_stats_response,
         build_websim_profile_response,
+        build_websim_profile_response_from_resolved_snapshot,
         build_websim_simulator_request,
         CLASS_ARMOR_TYPES,
         community_talent_sync_state,
@@ -84,6 +93,7 @@ try:
         ensure_websim_tables,
         gear_catalog_health_payload,
         gear_legality_authority_health_payload,
+        gear_resolver_runtime_authority,
         GAME_CLASS_ID_TO_KEY,
         GEAR_SLOT_LABELS,
         talent_catalog_health_payload,
@@ -164,6 +174,13 @@ except ImportError:
         enrich_builds_detail_stat_weights,
         latest_stat_weight_run_payload,
     )
+    from gear_runtime import (
+        build_profile_from_selection_intent,
+        import_community_template,
+        is_canonical_profile_request,
+        resolve_selection_intent,
+    )
+    from gear_stat_snapshot_api import get_or_start_stat_snapshot
     from websim_payload import (
         COMMUNITY_TEMPLATE_SYNC_RUN_KEY,
         COMMUNITY_TALENT_SYNC_KEY,
@@ -172,6 +189,7 @@ except ImportError:
         build_websim_profile,
         build_websim_gear_stats_response,
         build_websim_profile_response,
+        build_websim_profile_response_from_resolved_snapshot,
         build_websim_simulator_request,
         CLASS_ARMOR_TYPES,
         community_talent_sync_state,
@@ -179,6 +197,7 @@ except ImportError:
         ensure_websim_tables,
         gear_catalog_health_payload,
         gear_legality_authority_health_payload,
+        gear_resolver_runtime_authority,
         GAME_CLASS_ID_TO_KEY,
         GEAR_SLOT_LABELS,
         talent_catalog_health_payload,
@@ -247,6 +266,9 @@ CHICKENBRO_SCENARIOS = {
 _WEB_GEAR_BUILD_LIMITER = None
 _WEB_GEAR_BUILD_LIMITER_LIMIT = None
 _WEB_GEAR_BUILD_LIMITER_LOCK = threading.Lock()
+_GEAR_AUTHORITY_CACHE_KEY = None
+_GEAR_AUTHORITY_CACHE = None
+_GEAR_AUTHORITY_CACHE_LOCK = threading.Lock()
 CHICKENBRO_ALLOWED_TOOL_TOPICS = {
     "wcl",
     "warcraft logs",
@@ -410,6 +432,15 @@ def run_websim_gear_build(build_payload):
         return build_payload()
 
 
+def run_websim_gear_build_with_queue(build_payload):
+    """Run a bounded gear build and report only its time spent waiting for capacity."""
+
+    queued_at = time.perf_counter()
+    with websim_gear_build_limiter():
+        queue_ms = (time.perf_counter() - queued_at) * 1000
+        return build_payload(), round(max(0.0, queue_ms), 3)
+
+
 @contextmanager
 def db_connection():
     config = database_config_from_env()
@@ -463,14 +494,30 @@ def content_data_store():
 
 
 def cache_data_store():
+    global _GEAR_AUTHORITY_CACHE_KEY, _GEAR_AUTHORITY_CACHE
     config = database_config_from_env()
     if not postgres_personal_runtime_enabled(config):
+        with _GEAR_AUTHORITY_CACHE_LOCK:
+            _GEAR_AUTHORITY_CACHE_KEY = None
+            _GEAR_AUTHORITY_CACHE = None
         return None
     try:
-        from .postgres_cache_store import PostgresCacheStore
+        from .postgres_cache_store import AuthorityContextCache, PostgresCacheStore
     except ImportError:
-        from postgres_cache_store import PostgresCacheStore
-    return PostgresCacheStore(lambda: connect_postgres(config.database_url))
+        from postgres_cache_store import AuthorityContextCache, PostgresCacheStore
+    cache_key = hashlib.sha256(config.database_url.encode("utf-8")).hexdigest()
+    with _GEAR_AUTHORITY_CACHE_LOCK:
+        if _GEAR_AUTHORITY_CACHE_KEY != cache_key or _GEAR_AUTHORITY_CACHE is None:
+            _GEAR_AUTHORITY_CACHE_KEY = cache_key
+            _GEAR_AUTHORITY_CACHE = AuthorityContextCache(
+                max_entries=32,
+                max_bytes=4 * 1024 * 1024,
+            )
+        authority_cache = _GEAR_AUTHORITY_CACHE
+    return PostgresCacheStore(
+        lambda: connect_postgres(config.database_url),
+        gear_authority_context_cache=authority_cache,
+    )
 
 
 def ops_data_store():
@@ -482,6 +529,17 @@ def ops_data_store():
     except ImportError:
         from postgres_ops_store import PostgresOpsStore
     return PostgresOpsStore(lambda: connect_postgres(config.database_url))
+
+
+def gear_stat_snapshot_data_store():
+    config = database_config_from_env()
+    if not postgres_personal_runtime_enabled(config):
+        return None
+    try:
+        from .gear_stat_snapshot_store import GearStatSnapshotStore
+    except ImportError:
+        from gear_stat_snapshot_store import GearStatSnapshotStore
+    return GearStatSnapshotStore(lambda: connect_postgres(config.database_url))
 
 
 def init_db():
@@ -2097,6 +2155,8 @@ ADMIN_GATE_SEVERITY_LABELS = {
 }
 ADMIN_GATE_MODULE_LABELS = {
     "backend": "后端服务",
+    "active_manifest": "正式赛季 Manifest",
+    "gear_release_refresh": "装备 Release 定时刷新",
     "news": "新闻发布门禁",
     "raiderio": "Raider.IO 缓存",
     "websim_season": "WebSim 当前赛季",
@@ -2107,10 +2167,15 @@ ADMIN_GATE_MODULE_LABELS = {
     "template_simc_bridge": "模板到 SimC 桥接",
     "community_templates": "社区天赋与装备模板",
     "stat_weights": "Raider.IO + SimC 属性权重",
+    "gear_stat_snapshot": "异步装备属性快照",
     "wcl_credentials": "Warcraft Logs API 凭据",
     "blizzard_api": "Battle.net 游戏数据 API",
 }
 ADMIN_GATE_BLOCKER_LABELS = {
+    "formal retail Manifest has not been activated": "正式零售服 Manifest 尚未激活",
+    "formal retail Manifest is inactive after transitional rollback": "正式零售服 Manifest 已回滚到过渡态",
+    "active Manifest pointer or release binding is invalid": "正式 Manifest 指针或 Release 绑定无效",
+    "active Manifest health reader is unavailable": "正式 Manifest 健康读取不可用",
     "missing deterministic SimC variant preset": "缺少确定性 SimC 装备变体预设",
     "SimC JSON did not include target item stats": "SimC JSON 未包含目标物品属性",
     "SimulationCraft update available": "SimulationCraft 有可用更新",
@@ -2226,6 +2291,126 @@ def data_health_component(key, title, status, *, checked_at="", details=None, bl
         "details": sanitize_health_value(details or {}),
         "blockers": sanitized_blockers,
     }
+
+
+def data_health_followup_health_component(cache_store):
+    if cache_store is None or not hasattr(cache_store, "get_sync_state"):
+        return data_health_component(
+            "data_health_followup",
+            "Revision-gated data health follow-up",
+            "blocked",
+            details={"mode": "revision_gated", "stateKey": "data_health_followup_v1", "actions": {}},
+            blockers=["data health follow-up state reader is unavailable"],
+        )
+    try:
+        state = cache_store.get_sync_state("data_health_followup_v1")
+    except Exception:
+        return data_health_component(
+            "data_health_followup",
+            "Revision-gated data health follow-up",
+            "blocked",
+            details={"mode": "revision_gated", "stateKey": "data_health_followup_v1", "actions": {}},
+            blockers=["data health follow-up state reader is unavailable"],
+        )
+    state = state if isinstance(state, dict) else {}
+    actions = state.get("actions") if isinstance(state.get("actions"), dict) else {}
+    if not state.get("updatedAt") and not actions:
+        return data_health_component(
+            "data_health_followup",
+            "Revision-gated data health follow-up",
+            "partial",
+            details={
+                "mode": "revision_gated",
+                "stateKey": "data_health_followup_v1",
+                "ledgerState": "not_observed",
+                "actions": {},
+            },
+            blockers=["data health follow-up ledger has not recorded an execution"],
+        )
+    safe_actions = {
+        str(key): {
+            field: value
+            for field, value in action.items()
+            if field in {"lastSeenRevision", "lastAttemptedRevision", "lastDecision", "lastDecisionAt", "lastReportOnlyReason"}
+        }
+        for key, action in actions.items()
+        if isinstance(action, dict) and str(key or "").strip()
+    }
+    return data_health_component(
+        "data_health_followup",
+        "Revision-gated data health follow-up",
+        "verified",
+        checked_at=state.get("updatedAt") or "",
+        details={
+            "mode": "revision_gated",
+            "stateKey": "data_health_followup_v1",
+            "actions": safe_actions,
+        },
+    )
+
+
+def gear_stat_snapshot_health_component(*, store=None, now="", simc_runtime_revision=""):
+    checked_at = str(now or utc_now())
+    active_store = store if store is not None else gear_stat_snapshot_data_store()
+    if active_store is None:
+        return data_health_component(
+            "gear_stat_snapshot",
+            "Gear stat snapshot worker",
+            "blocked",
+            checked_at=checked_at,
+            blockers=["stat snapshot PostgreSQL store is unavailable"],
+        )
+    revision = str(simc_runtime_revision or current_gear_simc_runtime_revision()).strip()
+    try:
+        summary = active_store.health_summary(now=checked_at)
+        readiness = active_store.worker_readiness(
+            simc_runtime_revision=revision,
+            now=checked_at,
+            max_age_seconds=30,
+        )
+    except Exception:
+        return data_health_component(
+            "gear_stat_snapshot",
+            "Gear stat snapshot worker",
+            "blocked",
+            checked_at=checked_at,
+            blockers=["stat snapshot health reader is unavailable"],
+        )
+    queue = summary.get("queue") if isinstance(summary.get("queue"), dict) else {}
+    metrics = summary.get("metrics") if isinstance(summary.get("metrics"), dict) else {}
+    workers = summary.get("workers") if isinstance(summary.get("workers"), list) else []
+    bounded_workers = [
+        {
+            key: worker.get(key)
+            for key in (
+                "workerId",
+                "status",
+                "workerRevision",
+                "simcRuntimeRevision",
+                "currentJobId",
+                "heartbeatAt",
+            )
+        }
+        for worker in workers[:4]
+        if isinstance(worker, dict)
+    ]
+    blockers = [] if readiness.get("ready") is True else ["matching stat snapshot worker is not fresh"]
+    return data_health_component(
+        "gear_stat_snapshot",
+        "Gear stat snapshot worker",
+        "verified" if not blockers else "blocked",
+        checked_at=summary.get("checkedAt") or checked_at,
+        details={
+            "simcRuntimeRevision": revision,
+            "workerReadiness": readiness,
+            "queue": queue,
+            "snapshotCount": int(summary.get("snapshotCount") or 0),
+            "snapshotCountTruncated": summary.get("snapshotCountTruncated") is True,
+            "workers": bounded_workers,
+            "metrics": metrics,
+        },
+        blockers=blockers,
+    )
 
 
 def gear_legality_template_records_from_cache_store(cache_store):
@@ -2426,15 +2611,22 @@ def terminology_cutover_gate(season):
 
 
 def catalyst_overlay_cutover_gate():
-    supported = "redirected_base_stats" in SIMC_GEAR_OPTION_KEYS
+    option_parse_supported = "redirected_base_stats" in SIMC_GEAR_OPTION_KEYS
+    blocker = (
+        "12.1 Catalyst retained-secondary-stat capability proof matrix is incomplete; "
+        "catalog policy, Resolver claims, Serializer output, active SimC runtime, real fixture, "
+        "frontend explanation, and Manifest capability binding must all be verified"
+    )
     return {
-        "status": "verified" if supported else "blocked",
+        "status": "blocked",
         "simcOption": "redirected_base_stats",
+        "optionParseSupported": option_parse_supported,
+        "capabilityEnabled": False,
         "serializerAuthority": "backend",
         "frontendMaySynthesize": False,
         "failClosed": True,
         "supportedSimcOptions": sorted(SIMC_GEAR_OPTION_KEYS),
-        "blockers": [] if supported else ["redirected_base_stats is not in SIMC gear option allowlist"],
+        "blockers": [blocker],
     }
 
 
@@ -2895,6 +3087,66 @@ def postgres_only_template_bridge_health_component():
     )
 
 
+def active_manifest_health_component(cache_store):
+    reader = getattr(cache_store, "active_manifest_health", None) if cache_store else None
+    if callable(reader):
+        try:
+            state = reader()
+        except Exception:
+            state = {}
+    else:
+        state = {}
+    state = state if isinstance(state, dict) else {}
+    details = state.get("details") if isinstance(state.get("details"), dict) else {}
+    blockers = state.get("blockers") if isinstance(state.get("blockers"), list) else []
+    if not state:
+        details = {
+            "pointerMode": "unavailable",
+            "formalActiveManifest": False,
+            "pointerGeneration": 0,
+        }
+        blockers = ["active Manifest health reader is unavailable"]
+    return data_health_component(
+        "active_manifest",
+        "Active retail Season Manifest",
+        state.get("status") or "blocked",
+        checked_at=details.get("updatedAt") or "",
+        details=details,
+        blockers=blockers,
+    )
+
+
+def release_refresh_health_component(cache_store):
+    reader = getattr(cache_store, "release_refresh_health", None) if cache_store else None
+    if callable(reader):
+        try:
+            state = reader()
+        except Exception:
+            state = {}
+    else:
+        state = {}
+    state = state if isinstance(state, dict) else {}
+    details = state.get("details") if isinstance(state.get("details"), dict) else {}
+    blockers = state.get("blockers") if isinstance(state.get("blockers"), list) else []
+    if not state:
+        details = {
+            "lastStatus": "unavailable",
+            "timer": {
+                "unit": "wow-gear-release-refresh.timer",
+                "deployStartsService": False,
+            },
+        }
+        blockers = ["gear release refresh health reader is unavailable"]
+    return data_health_component(
+        "gear_release_refresh",
+        "Immutable gear release refresh",
+        state.get("status") or "blocked",
+        checked_at=details.get("lastRunAt") or "",
+        details=details,
+        blockers=blockers,
+    )
+
+
 def build_postgres_only_data_health_payload(*, include_template_evidence_audit=True):
     content_store = content_data_store()
     cache_store = cache_data_store()
@@ -2991,6 +3243,10 @@ def build_postgres_only_data_health_payload(*, include_template_evidence_audit=T
         community_status = "partial" if community_status in {"synced", "verified"} else (community_status or "partial")
     components = [
         data_health_component("backend", "Backend service", "verified", checked_at=utc_now()),
+        data_health_followup_health_component(cache_store),
+        active_manifest_health_component(cache_store),
+        release_refresh_health_component(cache_store),
+        gear_stat_snapshot_health_component(),
         news_health_component_from_latest(latest),
         data_health_component(
             "raiderio",
@@ -3143,6 +3399,7 @@ def build_data_health_payload(*, include_template_evidence_audit=True):
     pg_gear_state = cache_store.get_sync_state("gearCatalog") if cache_store else {}
     components = [
         data_health_component("backend", "Backend service", "verified", checked_at=utc_now()),
+        data_health_followup_health_component(cache_store),
         news_health_component(),
     ]
     with db_connection() as conn:
@@ -7742,6 +7999,58 @@ def websim_gear_payload_with_template_legality(payload):
     return output
 
 
+def current_gear_simc_runtime_revision():
+    simc_status = simc_version_status()
+    websim_state = simc_status.get("websimState") if isinstance(simc_status.get("websimState"), dict) else {}
+    for candidate in (
+        simc_status.get("sourceCommit"),
+        simc_status.get("simcRuntimeRevision"),
+        simc_status.get("localTag"),
+    ):
+        value = str(candidate or "").strip().lower()
+        if re.fullmatch(r"[0-9a-f]{40}", value):
+            return value
+    source_match = re.search(r"(?<![0-9a-f])([0-9a-f]{40})(?![0-9a-f])", str(websim_state.get("source") or "").lower())
+    if source_match:
+        return source_match.group(1)
+    return first_text_value(
+        simc_status.get("simcRuntimeRevision"),
+        simc_status.get("localTag"),
+        simc_status.get("sourceCommit"),
+    )
+
+
+def websim_gear_payload_with_resolver_context(payload, store, class_key, spec_key):
+    if not isinstance(payload, dict) or not payload:
+        return payload
+    binding = payload.get("_activeManifestBinding") if isinstance(payload.get("_activeManifestBinding"), dict) else None
+    public_payload = (
+        {key: value for key, value in payload.items() if key != "_activeManifestBinding"}
+        if "_activeManifestBinding" in payload
+        else payload
+    )
+    if not callable(getattr(store, "get_gear_resolver_context", None)):
+        return public_payload
+    simc_revision = current_gear_simc_runtime_revision()
+    if not simc_revision:
+        return public_payload
+    try:
+        runtime_authority = gear_resolver_runtime_authority(
+            class_key,
+            spec_key,
+            simc_runtime_revision=simc_revision,
+        )
+        if binding is not None:
+            resolver_context = store.get_gear_resolver_context(runtime_authority, binding=binding)
+        else:
+            resolver_context = store.get_gear_resolver_context(runtime_authority)
+    except Exception:
+        return public_payload
+    if not isinstance(resolver_context, dict) or not resolver_context:
+        return public_payload
+    return {**public_payload, "resolverContext": resolver_context}
+
+
 def runtime_websim_gear_payload(class_key, spec_key, compact=False, mode="", slot=""):
     store = cache_data_store()
     allow_sqlite_fallback = (
@@ -7756,6 +8065,12 @@ def runtime_websim_gear_payload(class_key, spec_key, compact=False, mode="", slo
                 if "unexpected keyword" not in str(exc):
                     raise
                 payload = store.get_websim_gear(class_key, spec_key, compact=compact)
+            payload = websim_gear_payload_with_resolver_context(
+                payload,
+                store,
+                class_key,
+                spec_key,
+            )
         except Exception:
             payload = {}
         if postgres_only_runtime_enabled():
@@ -11903,7 +12218,7 @@ def client_accepts_gzip(handler):
     return "gzip" in str(handler.headers.get("Accept-Encoding", "")).lower()
 
 
-def json_response(handler, status, payload):
+def json_response(handler, status, payload, *, extra_headers=None):
     body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
     should_gzip = len(body) >= 1024 and client_accepts_gzip(handler)
     output = gzip.compress(body, compresslevel=6) if should_gzip else body
@@ -11913,6 +12228,10 @@ def json_response(handler, status, payload):
         if should_gzip:
             handler.send_header("Content-Encoding", "gzip")
             handler.send_header("Vary", "Accept-Encoding")
+        headers = extra_headers if isinstance(extra_headers, dict) else {}
+        server_timing = headers.get("Server-Timing")
+        if isinstance(server_timing, str) and server_timing:
+            handler.send_header("Server-Timing", server_timing)
         handler.send_header("Access-Control-Allow-Origin", "*")
         handler.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
         handler.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Wow-Client-Id, X-Wow-Session-Id, X-Wow-Platform")
@@ -11922,6 +12241,29 @@ def json_response(handler, status, payload):
         return True
     except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
         return False
+
+
+def community_import_server_timing(timings):
+    """Serialize fixed numeric timing fields without request or template content."""
+
+    values = timings if isinstance(timings, dict) else {}
+
+    def duration(key):
+        try:
+            return max(0.0, float(values.get(key) or 0.0))
+        except (TypeError, ValueError):
+            return 0.0
+
+    fields = (
+        ("queue", "queueMs"),
+        ("release_read", "releaseReadMs"),
+        ("reconcile", "reconcileMs"),
+        ("resolve", "resolveMs"),
+        ("serialize", "serializeMs"),
+    )
+    parts = [f"{token};dur={duration(key):.3f}" for token, key in fields]
+    parts.append(f"cache;dur={1.0 if values.get('cache') == 'hit' else 0.0:.3f}")
+    return ", ".join(parts)
 
 
 def text_response(handler, status, body, content_type="text/plain; charset=utf-8"):
@@ -12481,15 +12823,82 @@ class Handler(BaseHTTPRequestHandler):
                 ),
             )
             return
+        if parsed.path == "/api/websim/gear/resolve":
+            http_status, envelope = resolve_selection_intent(
+                read_json_body(self),
+                store=cache_data_store(),
+                simc_runtime_revision=current_gear_simc_runtime_revision(),
+                request_id=f"gear-{uuid.uuid4().hex}",
+            )
+            json_response(self, http_status, envelope)
+            return
+        if parsed.path == "/api/websim/gear/community-import":
+            payload = read_json_body(self)
+
+            def build_import():
+                return import_community_template(
+                    payload,
+                    store=cache_data_store(),
+                    simc_runtime_revision=current_gear_simc_runtime_revision(),
+                    request_id=f"gear-import-{uuid.uuid4().hex}",
+                )
+
+            (http_status, envelope, timings), queue_ms = run_websim_gear_build_with_queue(build_import)
+            timings = dict(timings) if isinstance(timings, dict) else {}
+            timings["queueMs"] = queue_ms
+            json_response(
+                self,
+                http_status,
+                envelope,
+                extra_headers={"Server-Timing": community_import_server_timing(timings)},
+            )
+            return
+        if parsed.path == "/api/websim/gear/stat-snapshots":
+            http_status, envelope = get_or_start_stat_snapshot(
+                read_json_body(self),
+                authority_store=cache_data_store(),
+                snapshot_store=gear_stat_snapshot_data_store(),
+                simc_runtime_revision=current_gear_simc_runtime_revision(),
+                request_id=f"gear-stat-{uuid.uuid4().hex}",
+                client_id=self.headers.get("X-Wow-Client-Id", ""),
+                now=utc_now(),
+            )
+            json_response(self, http_status, envelope)
+            return
         if parsed.path == "/api/websim/profile":
+            request_payload = read_json_body(self)
+            if is_canonical_profile_request(request_payload):
+                http_status, envelope = build_profile_from_selection_intent(
+                    request_payload,
+                    store=cache_data_store(),
+                    simc_runtime_revision=current_gear_simc_runtime_revision(),
+                    request_id=f"gear-profile-{uuid.uuid4().hex}",
+                    profile_builder=build_websim_profile_response_from_resolved_snapshot,
+                )
+                json_response(self, http_status, envelope)
+                return
             if postgres_only_runtime_enabled():
-                json_response(self, 200, build_websim_profile_response(read_json_body(self), conn=None))
+                json_response(
+                    self,
+                    200,
+                    build_websim_profile_response(
+                        request_payload,
+                        conn=None,
+                        talent_store=runtime_talent_api_store(),
+                    ),
+                )
                 return
             init_db()
             with db_connection() as conn:
-                json_response(self, 200, build_websim_profile_response(read_json_body(self), conn=conn))
+                json_response(self, 200, build_websim_profile_response(request_payload, conn=conn))
             return
         if parsed.path == "/api/websim/gear/stats":
+            try:
+                stat_store = gear_stat_snapshot_data_store()
+                if stat_store is not None:
+                    stat_store.record_legacy_request()
+            except Exception:
+                pass
             if postgres_only_runtime_enabled():
                 json_response(self, 200, build_websim_gear_stats_response(read_json_body(self), conn=None))
                 return

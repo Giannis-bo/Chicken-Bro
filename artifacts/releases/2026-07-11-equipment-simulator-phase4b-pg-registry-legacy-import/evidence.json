@@ -1,0 +1,219 @@
+{
+  "schemaVersion": 1,
+  "slug": "equipment-simulator-phase4b-pg-registry-legacy-import",
+  "requirementSlug": "equipment-simulator-phase4b-pg-registry-legacy-import",
+  "status": "archived",
+  "highestEvidenceLevel": "live_verified",
+  "branch": "codex/equipment-simulator-phase4b-pg-registry-legacy-import",
+  "commit": "48aa44ef6ff85449814ae56ad6dbe7137d356250",
+  "scope": [
+    "additive immutable PostgreSQL release schema",
+    "single release repository and explicit tool",
+    "inactive Gear legacy-import-r0",
+    "inactive Resolver-revalidated Community legacy-import-r0"
+  ],
+  "verification": [
+    {
+      "command": "Phase 4A live closure and Phase 4B requirement challenge",
+      "status": "pass",
+      "summary": "The Slice is limited to an additive registry, one repository/tool and inactive legacy import. Shadow readers, pointer cutover, scheduled refresh and Catalyst capability remain separate gates."
+    },
+    {
+      "command": "TDD focused release/schema/authority suite",
+      "status": "pass",
+      "summary": "129 focused tests pass. Coverage includes immutable release identity, exact-descriptor reuse, repeatable-read snapshots, strict pointer CAS validation, candidate authority binding, per-spec bounded template selection, single-pass candidate authority indexing, current Resolver election and additive schema constraints."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile backend --release artifacts/releases/2026-07-11-equipment-simulator-phase4b-pg-registry-legacy-import --base origin/main",
+      "status": "pass",
+      "summary": "1235 Python tests pass with one existing skip; compileall and the Strict Harness check pass."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-11-equipment-simulator-phase4b-pg-registry-legacy-import --base origin/main",
+      "status": "pass",
+      "summary": "386 Node tests and 1235 Python tests pass with one existing skip; all 130 JSON, syntax, Harness and diff commands pass on exact candidate head a8b1f17."
+    },
+    {
+      "command": "local CR and candidate corrections",
+      "status": "pass",
+      "summary": "Review closed forged release/manifest identity, untrusted pointer command, blank ID, duplicate template and SQL parameter-shape boundaries. Candidate probes then corrected a global LIMIT 400 spec truncation and an O(candidate x full snapshot) authority rebuild before the successful import."
+    },
+    {
+      "command": "candidate backup, exact-head deployment and PostgreSQL migration 0013",
+      "status": "pass",
+      "summary": "Pre-migration code, cache/ops schema and schema_migrations backups were sealed at /opt/wow-mini-program-candidate-backups/phase4b-pre-2be5938-20260711T065905Z. The first wow_app DDL attempt failed at the first CREATE and rolled back atomically; PostgreSQL admin then applied 0013 in one transaction. Nine tables, eight immutable triggers, exact grants and migration row are present."
+    },
+    {
+      "command": "exact-head inactive legacy-import-r0",
+      "status": "pass",
+      "summary": "Remote repository/tool hashes match exact head a8b1f17. Gear Release 342e3918 was reused after the interrupted preflight and Community Release 923ccd05 was sealed validated with 40 winners, 319 rejected, zero standby and zero missing specs. Import completed in 73.29 seconds with 1,598,864 KiB peak RSS."
+    },
+    {
+      "command": "candidate PG integrity, query-plan and public/runtime smoke",
+      "status": "pass",
+      "summary": "Release row counts match the staging snapshot, all 40 winners bind to the exact Gear Release and allowed observed source, and winner IDs match current public IDs 40/40. The bounded 40-spec snapshot plan executed in 2.403 ms. Public baseline and formal manifest activation remain zero; Resolve 200, legacy Profile 200, Catalyst unknown 503 fail-closed and data health 200 partial all remain truthful."
+    },
+    {
+      "command": "PR #73 exact-head CI, squash merge and clean-equivalent post-merge smoke",
+      "status": "pass",
+      "summary": "Evidence head 4fe300e passed GitHub Project Harness and squash-merged as 48aa44e. PR and merge trees are both 54d43c54. Clean-equivalent deployment preserved exact repository/tool/evidence hashes, 129/129 remote focused tests, two inactive releases, 40 winners, zero Manifest/Pointer rows, 40/40 public parity, Resolve/Profile/Catalyst/health behavior, zero backend error matches and active one-task service state."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "candidate_verified",
+    "requiredBeforeMerge": true,
+    "branch": "codex/equipment-simulator-phase4b-pg-registry-legacy-import",
+    "commit": "a8b1f17a73b1fbb47f622afdee4e1617a4e300d6",
+    "buildIdentity": "exact head; gear_release_store.py SHA-256 240f3189cb985c9d49931b4ba0dc6bbadc70dbc9d5c52d8adb3e091e44df499d; gear_release_tool.py SHA-256 fb09c448762ad93e736e09fb2db1ade5624d98f745d4c6e8b35d2ac2dcb5daef; migration SHA-256 91307b2b540dea21251f352521a103a07d392b47646d671cbde31c23a619c727",
+    "databaseRuntime": "postgres_only",
+    "asyncSyncStart": false,
+    "schemaMigration": "0013_websim_release_train applied atomically by PostgreSQL admin after wow_app DDL denial rolled back",
+    "releaseWrites": 2,
+    "manifestRows": 0,
+    "activeManifestPointerRows": 0,
+    "rollbackBackup": "/opt/wow-mini-program-candidate-backups/phase4b-pre-2be5938-20260711T065905Z",
+    "service": "active/running, one task, about 67 MiB after import, NRestarts=0",
+    "smoke": {
+      "status": "pass",
+      "summary": "Remote 129 focused tests, registry integrity, 40-spec public/winner parity, Resolve, Profile, health and Catalyst fail-closed checks passed."
+    },
+    "timerBackflow": {
+      "status": "pass",
+      "summary": "WOW_DEPLOY_START_ASYNC_SYNCS=0 did not directly start WebSim, stat-weight or community sync. The pre-existing observed-backfill timer naturally ran at 14:59:27 CST and completed success; no release refresh unit exists and the release registry remained operator-import only."
+    }
+  },
+  "runtimeEvidence": [
+    {
+      "kind": "candidate_identity",
+      "status": "pass",
+      "head": "a8b1f17a73b1fbb47f622afdee4e1617a4e300d6",
+      "storeSha256": "240f3189cb985c9d49931b4ba0dc6bbadc70dbc9d5c52d8adb3e091e44df499d",
+      "toolSha256": "fb09c448762ad93e736e09fb2db1ade5624d98f745d4c6e8b35d2ac2dcb5daef",
+      "remoteFocusedTests": "129/129"
+    },
+    {
+      "kind": "postgres_release_registry",
+      "status": "pass",
+      "gearReleaseId": "gear-release:sha256:342e3918b685ca0145514485d115fb74079be660d85ea8b835760c4bc61350f6",
+      "communityReleaseId": "community-release:sha256:923ccd05f09fbe32b1827e45d7e9be163545fb187d49efcde730dbb0216682ed",
+      "gearCounts": "1417 items, 19201 sources, 27949 variants, 62 options",
+      "communityCounts": "40 winners, 319 rejected, 0 standby",
+      "bindingMismatches": 0,
+      "invalidWinnerSources": 0,
+      "manifestRows": 0,
+      "pointerRows": 0
+    },
+    {
+      "kind": "bounded_snapshot_and_import",
+      "status": "pass",
+      "snapshotRows": 359,
+      "coveredSpecs": 40,
+      "perSpecRange": "2-10",
+      "queryExecutionMs": 2.403,
+      "importElapsedSeconds": 73.29,
+      "importMaxRssKiB": 1598864,
+      "constraint": "Explicit one-time operator import only; this is not a Phase 4E scheduled refresh budget."
+    },
+    {
+      "kind": "public_contract_matrix",
+      "status": "pass",
+      "checkedSpecs": 40,
+      "failureCount": 0,
+      "winnerIdMismatches": 0,
+      "communitySource": "raiderio_observed_profile only",
+      "baselineCount": 0,
+      "formalActiveManifest": false
+    },
+    {
+      "kind": "compatibility_smoke",
+      "status": "pass",
+      "resolve": "HTTP 200 resolved",
+      "legacyProfile": "HTTP 200 with profile body",
+      "health": "HTTP 200 overallStatus=partial",
+      "catalyst": "HTTP 503 unavailable with MISSING_AUTHORITY_FIELD"
+    },
+    {
+      "kind": "operational_state",
+      "status": "pass",
+      "service": "active/running, one task, about 67 MiB, NRestarts=0",
+      "logs": "zero traceback/fatal/uncaught/exception matches since candidate start",
+      "asyncSync": "WOW_DEPLOY_START_ASYNC_SYNCS=0; no release timer/unit exists"
+    },
+    {
+      "kind": "post_merge_live",
+      "status": "pass",
+      "pullRequest": 73,
+      "evidenceHead": "4fe300e22b687f25c8d6254091d59cc79aa3945c",
+      "mergeCommit": "48aa44ef6ff85449814ae56ad6dbe7137d356250",
+      "tree": "54d43c5459873e6253ff5a13321d2e4f24dd1435",
+      "runtimeHashes": "store 240f3189; tool fb09c448; evidence 27e96363",
+      "remoteFocusedTests": "129/129",
+      "publicMatrix": "40/40; baseline 0; formalActiveManifest false",
+      "service": "active/running, one task, about 67 MiB, NRestarts=0, zero backend error matches"
+    }
+  ],
+  "postMerge": {
+    "status": "live_verified",
+    "pullRequest": 73,
+    "mergeCommit": "48aa44ef6ff85449814ae56ad6dbe7137d356250",
+    "tree": "54d43c5459873e6253ff5a13321d2e4f24dd1435",
+    "deploymentBackup": "/opt/wow-mini-program-candidate-backups/phase4b-pre-main-48aa44e",
+    "runtimeFileParity": true,
+    "remoteFocusedTests": "129/129",
+    "publicMatrix": "40/40",
+    "releaseRows": "1 Gear plus 1 Community; 40 winners",
+    "manifestRows": 0,
+    "pointerRows": 0,
+    "health": "HTTP 200 overallStatus=partial",
+    "automaticRestarts": 0
+  },
+  "risks": [
+    {
+      "id": "immutable_content_mutation",
+      "status": "closed",
+      "detail": "Release tables permit wow_app SELECT/INSERT only and eight triggers reject UPDATE/DELETE. Store boundaries validate detached hash identity and exact descriptor reuse."
+    },
+    {
+      "id": "staging_writer_disruption",
+      "status": "closed",
+      "detail": "Migration is additive and imported from repeatable-read snapshots. Existing public selectors and staging writers stayed live; public winner parity is 40/40."
+    },
+    {
+      "id": "legacy_grandfathering",
+      "status": "closed",
+      "detail": "All 359 bounded candidates were re-authored as exact Intent; 40 legal observed winners passed current Resolver and 319 non-winning/invalid candidates remained rejected internal rows."
+    },
+    {
+      "id": "premature_cutover",
+      "status": "closed",
+      "detail": "There are zero Manifest and zero active pointer rows, no release reader and no release timer. Public formalActiveManifest remains false for all 40 specs."
+    },
+    {
+      "id": "scheduled_refresh_resource_budget",
+      "status": "deferred_to_phase4e",
+      "detail": "The explicit one-time import used 1,598,864 KiB peak RSS and 73.29 seconds. Phase 4E must establish its own candidate-first scheduled resource budget before enabling any timer."
+    }
+  ],
+  "rollback": [
+    "code_rollback",
+    "data_restore"
+  ],
+  "cleanup": {
+    "required": false
+  },
+  "archivedReferences": [
+    "docs/project-state.json",
+    "docs/roadmap.md",
+    "docs/harness.md",
+    "docs/gear-simulation-full-chain-runbook.md",
+    "docs/plans/2026-07-11-equipment-simulator-phase4-release-train-plan.md",
+    "artifacts/releases/2026-07-11-equipment-simulator-phase4a-release-contracts/evidence.json",
+    "server/gear_release.py",
+    "server/gear_release_store.py",
+    "server/gear_release_tool.py",
+    "server/migrations/postgres/0013_websim_release_train.sql",
+    "docs/backend-owner-map.json",
+    "docs/project-owner-map.json"
+  ],
+  "summary": "Slice 4B is merged, live-verified and archived: immutable PG release storage and inactive legacy-import-r0 are sealed with 40/40 observed winner parity while Manifest/Pointer/public reader/timer/Catalyst activation remain absent."
+}

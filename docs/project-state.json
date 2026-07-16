@@ -1,0 +1,442 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-07-17",
+  "activeMilestone": "taro_target_first_14_route_rebuild",
+  "featureIteration": "allowed_under_harness",
+  "activeReleaseArtifact": "artifacts/releases/2026-07-16-harness-superpowers-method-layer",
+  "activeContracts": [
+    {
+      "id": "repo_native_harness_v0_6",
+      "path": "docs/harness.md",
+      "status": "active",
+      "lifecycle": "active",
+      "notes": "Current risk-layered delivery gate, single-candidate-window, evidence-promotion and Superpowers method-layer contract."
+    },
+    {
+      "id": "backend_hotspot_owner_map",
+      "path": "docs/backend-owner-map.json",
+      "status": "active_detail_map",
+      "lifecycle": "active",
+      "notes": "Second-level owner map for backend hotspot read-model characterization."
+    },
+    {
+      "id": "project_owner_map",
+      "path": "docs/project-owner-map.json",
+      "status": "active_primary_map",
+      "lifecycle": "active",
+      "notes": "First-level owner and contract map for the 16 frozen Project Harness critical domains."
+    },
+    {
+      "id": "verification_profiles",
+      "path": "docs/verification-matrix.md",
+      "status": "active",
+      "lifecycle": "active",
+      "notes": "Harness/backend/frontend/full verification profile contract and CI entrypoint."
+    },
+    {
+      "id": "taro_target_first_14_route_rebuild",
+      "path": "docs/plans/2026-07-14-target-first-14-route-rebuild.md",
+      "status": "active",
+      "lifecycle": "active",
+      "notes": "Active Taro UI contract, including canonical gear API parity and fresh real WeChat acceptance."
+    }
+  ],
+  "completedBaselines": [
+    {
+      "id": "phase4_pg_read_model_selector_baseline",
+      "domain": "pg_read_model_phase4",
+      "status": "completed",
+      "evidence": "docs/backend-owner-map.json",
+      "notes": "PG/cache/admin read-only selector vertical closed after the fortieth slice; sync_state_repository remains out of scope."
+    },
+    {
+      "id": "project_harness_normalization_20260710",
+      "domain": "project_harness_normalization",
+      "status": "completed",
+      "evidence": "artifacts/releases/2026-07-10-project-harness-normalization/closure-audit.json",
+      "notes": "Current truth, executable requirement/evidence contracts, 16-domain owner map, verification profiles, real CI, critical characterization and closure evidence completed; runtimeSliceCount=0."
+    },
+    {
+      "id": "harness_v06_efficiency_20260715",
+      "domain": "harness_workflow_efficiency",
+      "status": "completed_local_verified",
+      "evidence": "artifacts/releases/2026-07-15-harness-v06-efficiency/evidence.json",
+      "notes": "Risk-layered verification, one CI full entrypoint, one final runtime candidate window and merge/archive separation completed without runtime changes."
+    },
+    {
+      "id": "harness_superpowers_method_layer_20260716",
+      "domain": "harness_superpowers_method_layer",
+      "status": "completed_local_verified",
+      "evidence": "artifacts/releases/2026-07-16-harness-superpowers-method-layer/evidence.json",
+      "notes": "User-approved docs/tooling policy that makes Superpowers an on-demand method layer under Harness control. Focused manifest/current-truth tests and the Harness profile passed; runtime, deployment and product contracts remain untouched."
+    },
+    {
+      "id": "equipment_simulator_phase0_20260710",
+      "domain": "equipment_simulator_phase0",
+      "status": "completed",
+      "evidence": "artifacts/releases/2026-07-10-equipment-simulator-phase0c-legacy-stat-containment/evidence.json",
+      "notes": "Slices 0A, 0B and 0C merged through PRs #57-#59 with candidate deployment, post-merge live smoke, 40-spec public observed-only contract proof and runtime parity."
+    },
+    {
+      "id": "equipment_simulator_phase1_20260710",
+      "domain": "equipment_simulator_phase1",
+      "status": "completed",
+      "evidence": "artifacts/releases/2026-07-10-equipment-simulator-phase1-contracts-rule-authority/evidence.json",
+      "notes": "PR #60 established dormant pure contracts and ten ordered legality rules with local/full verification, candidate deployment, GitHub CI, post-merge live probes, runtime parity and unchanged Phase 0/public behavior."
+    },
+    {
+      "id": "equipment_simulator_phase2a_20260710",
+      "domain": "equipment_simulator_phase2a",
+      "status": "completed",
+      "evidence": "artifacts/releases/2026-07-10-equipment-simulator-phase2a-pure-resolver/evidence.json",
+      "notes": "PR #61 established the pure canonical Resolver and five-group Evidence Ledger with bounded claims, deterministic static facts, local/full verification, candidate deployment, GitHub CI and post-merge live parity."
+    },
+    {
+      "id": "equipment_simulator_phase2_20260711",
+      "domain": "equipment_simulator_phase2",
+      "status": "completed",
+      "evidence": "artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity/evidence.json",
+      "notes": "PRs #61-#63 established and corrected the pure Resolver, five-group Evidence Ledger, bounded PostgreSQL Authority Context loader and dormant serializer facade. Final candidate and post-merge proof covered fixed one/16-slot queries, latency/cache budgets, fail-closed behavior, 92 remote contract tests, 40-spec public parity, timer/log state and exact merge/runtime tree parity."
+    },
+    {
+      "id": "equipment_simulator_phase3a_20260711",
+      "domain": "equipment_simulator_phase3a",
+      "status": "completed",
+      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api/evidence.json",
+      "notes": "PR #65 activated backend-owned resolverContext, structured Resolve and canonical Profile re-resolution while preserving legacy Profile and gear stats. Candidate and clean-main evidence covered 40-spec Resolve, truthful 11/29 Profile split, negative HTTP, on-host warm p95, bounded cache/query behavior, exact hashes, timer/log truth and post-merge smoke."
+    },
+    {
+      "id": "equipment_simulator_phase3b_20260711",
+      "domain": "equipment_simulator_phase3b",
+      "status": "completed_local_verified",
+      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase3b-structured-transport-state/evidence.json",
+      "notes": "PR #67 added opt-in structured problem transport, exact canonical client wrappers and a pure serial/version workbench state. Targeted/frontend/full/local CR and exact-head CI passed; active imports remained zero, so deployment and mini-program runtime evidence were correctly not claimed."
+    },
+    {
+      "id": "equipment_simulator_phase3_20260711",
+      "domain": "equipment_simulator_phase3",
+      "status": "completed",
+      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase3c-workbench-cutover/evidence.json",
+      "notes": "PRs #65, #67 and #69 activated canonical Resolve/Profile, preserved structured problems, added race-safe frontend state and cut the active gear page over to server-owned final facts. Slice 3C exact-head CI, candidate deployment, real WeChat proof, 40-spec matrices, clean-main runtime parity, recovery health and rollback evidence passed."
+    },
+    {
+      "id": "equipment_simulator_phase4a_20260711",
+      "domain": "equipment_simulator_phase4a",
+      "status": "completed",
+      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase4a-release-contracts/evidence.json",
+      "notes": "PR #71 added the pure immutable Release/Manifest identity, observed election, shadow classification, promotion decision and pointer-command contracts. Focused/related/backend/full/CI, candidate import/hash parity, 40-spec public compatibility and clean-merge-equivalent live smoke passed; no schema, write, reader, pointer or timer was activated."
+    },
+    {
+      "id": "equipment_simulator_phase4b_20260711",
+      "domain": "equipment_simulator_phase4b",
+      "status": "completed",
+      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase4b-pg-registry-legacy-import/evidence.json",
+      "notes": "PR #73 added the additive immutable PostgreSQL release registry, one repository/tool and inactive legacy-import-r0. Candidate and post-merge proof covered atomic migration backup/apply, 129 focused tests, full CI, one Gear plus one Community Release, 40 winners, 319 rejected, bounded 40-spec snapshot/query evidence, exact public winner parity, zero Manifest/Pointer rows and unchanged Resolve/Profile/health/Catalyst behavior."
+    },
+    {
+      "id": "equipment_simulator_phase4c_20260711",
+      "domain": "equipment_simulator_phase4c",
+      "status": "completed",
+      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase4c-release-shadow-readers/evidence.json",
+      "notes": "PR #75 added exact-release Authority/Community projections and an internal 40-spec old/new shadow. Candidate and clean-merge-equivalent proof passed 40/40 revision-only browse/Resolve/Profile parity, bounded p95/cache/statement gates with zero DB writes, unchanged inactive release counts, zero Manifest/Pointer rows and unchanged public/Catalyst behavior."
+    },
+    {
+      "id": "equipment_simulator_phase4d_20260711",
+      "domain": "equipment_simulator_phase4d",
+      "status": "completed",
+      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase4d-atomic-manifest-cutover/evidence.json",
+      "notes": "PR #77 atomically activated the formal retail Season Manifest and release-scoped browse, Resolve and Profile readers with monotonic active/transitional pointer CAS. Exact-head CI, PostgreSQL backup and migration, candidate generation 0 through 9 rehearsal, real WeChat one-rebase proof, 40-spec matrices, runtime parity and clean-main post-merge smoke passed; final pointer is active generation 9 with one immutable Gear and Community Release, while Catalyst remains fail-closed."
+    },
+    {
+      "id": "equipment_simulator_phase4e_20260711",
+      "domain": "equipment_simulator_phase4e",
+      "status": "completed",
+      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase4e-scheduled-refresh/evidence.json",
+      "notes": "PR #78 added the candidate-first staging-only scheduled release refresh, risk-classified promotion, dual single-run locks, bounded refresh health/admin and non-deploy-triggered systemd timer. Candidate and clean-main controlled runs reused the same high-risk candidate, passed the 40-spec shadow, required manual cutover and preserved active generation 9; exact-head CI, public/negative matrices, runtime parity, service/timer/log and rollback evidence passed."
+    },
+    {
+      "id": "equipment_simulator_phase5a_20260711",
+      "domain": "equipment_simulator_phase5a",
+      "status": "completed",
+      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase5a-stat-snapshot-store/evidence.json",
+      "notes": "PR #79 added the pure revision-complete stat signature, additive migration 0015 and fenced PostgreSQL snapshot/job repository. Backup/apply, least privileges, real single-flight/claim/heartbeat/stale-token/publication rollback transaction, full CI, clean-main runtime parity and zero-row dormant state passed."
+    },
+    {
+      "id": "equipment_simulator_phase5b_20260711",
+      "domain": "equipment_simulator_phase5b",
+      "status": "completed",
+      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase5b-stat-snapshot-worker-api/evidence.json",
+      "notes": "PR #80 activated the canonical async snapshot API, one-child fenced worker/service, bounded health/admin and legacy telemetry. Exact-head CI, candidate and clean-main real 202-to-200, duplicate, worker-down, reclaim/fencing, latency/resource, 40-spec public, Catalyst, timer/backflow, logs and runtime parity passed."
+    },
+    {
+      "id": "equipment_simulator_phase5_20260712",
+      "domain": "equipment_simulator_phase0_5",
+      "status": "completed_live_verified",
+      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover/closure-audit.json",
+      "notes": "PRs #79-#82 completed the Phase 5 store, worker/API and frontend cutover. Clean main d02d885 passed real WeChat pending-to-verified and changed-input stale/read-only replacement. The user approved splitting profileReadiness from stat execution outcome; the live 40-spec gate produced 32 verified immutable snapshots and eight explicit fail-closed outcomes without runtime scope expansion, with PG-only runtime, public observed-only, Catalyst disabled, latency/resource, timer/log and runtime parity evidence."
+    },
+    {
+      "id": "community_enhancement_editability_20260715",
+      "domain": "community_enhancement_editability",
+      "status": "completed_live_verified",
+      "evidence": "artifacts/releases/2026-07-14-community-enhancement-editability/evidence.json",
+      "notes": "PR #86 merged as 535346c after exact-candidate and clean-main proof. The frozen Frost Mage imports 8/8 gems, 6/8 enchants and 2/2 embellishments as ordinary editable canonical selections; generation 16, 40/40 read-only shadow, rollback drill, 20/20 runtime parity, Resolve/Profile, real WeChat edit/reimport and operations checks passed."
+    },
+    {
+      "id": "talent_link_lkg_sync_guard_20260715",
+      "domain": "talent_graph_lkg_sync",
+      "status": "completed_live_verified",
+      "evidence": "artifacts/releases/2026-07-13-talent-link-lkg-sync-guard/evidence.json",
+      "notes": "PR #84 squash merged as 2a4a186 after full Harness, GitHub CI, exact-candidate deployment, user-accepted real WeChat verification and post-merge runtime parity. The live graph retained 5246 talents, 4949 dependency nodes and 8465 dependencies; same-source or source-unknown recovery remains limited to exact structure with a parent-edge superset."
+    }
+  ],
+  "historicalContracts": [
+    {
+      "id": "talent_link_lkg_sync_guard",
+      "path": "artifacts/releases/2026-07-13-talent-link-lkg-sync-guard/requirement.json",
+      "status": "completed_live_verified_archived",
+      "lifecycle": "historical",
+      "evidence": "artifacts/releases/2026-07-13-talent-link-lkg-sync-guard/evidence.json"
+    },
+    {
+      "id": "community_enhancement_editability_v2",
+      "path": "artifacts/releases/2026-07-14-community-enhancement-editability/requirement.json",
+      "status": "completed_live_verified_archived",
+      "lifecycle": "historical",
+      "evidence": "artifacts/releases/2026-07-14-community-enhancement-editability/evidence.json"
+    },
+    {
+      "id": "equipment_simulator_phase5c_frontend_cutover",
+      "path": "artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover/requirement.json",
+      "status": "completed_live_verified_archived",
+      "lifecycle": "historical",
+      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover/evidence.json"
+    },
+    {
+      "id": "equipment_simulator_phase5b_stat_snapshot_worker_api",
+      "path": "artifacts/releases/2026-07-11-equipment-simulator-phase5b-stat-snapshot-worker-api/requirement.json",
+      "status": "completed_live_verified_archived",
+      "lifecycle": "historical",
+      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase5b-stat-snapshot-worker-api/evidence.json"
+    },
+    {
+      "id": "equipment_simulator_phase5a_stat_snapshot_store",
+      "path": "artifacts/releases/2026-07-11-equipment-simulator-phase5a-stat-snapshot-store/requirement.json",
+      "status": "completed_live_verified_archived",
+      "lifecycle": "historical",
+      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase5a-stat-snapshot-store/evidence.json"
+    },
+    {
+      "id": "equipment_simulator_phase4e_scheduled_refresh",
+      "path": "artifacts/releases/2026-07-11-equipment-simulator-phase4e-scheduled-refresh/requirement.json",
+      "status": "completed_live_verified_archived",
+      "lifecycle": "historical",
+      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase4e-scheduled-refresh/evidence.json"
+    },
+    {
+      "id": "equipment_simulator_phase4d_atomic_manifest_cutover",
+      "path": "artifacts/releases/2026-07-11-equipment-simulator-phase4d-atomic-manifest-cutover/requirement.json",
+      "status": "completed_live_verified_archived",
+      "lifecycle": "historical",
+      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase4d-atomic-manifest-cutover/evidence.json"
+    },
+    {
+      "id": "equipment_simulator_phase4c_release_shadow_readers",
+      "path": "artifacts/releases/2026-07-11-equipment-simulator-phase4c-release-shadow-readers/requirement.json",
+      "status": "completed_live_verified_archived",
+      "lifecycle": "historical",
+      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase4c-release-shadow-readers/evidence.json"
+    },
+    {
+      "id": "equipment_simulator_phase4b_pg_registry_legacy_import",
+      "path": "artifacts/releases/2026-07-11-equipment-simulator-phase4b-pg-registry-legacy-import/requirement.json",
+      "status": "completed_live_verified_archived",
+      "lifecycle": "historical",
+      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase4b-pg-registry-legacy-import/evidence.json"
+    },
+    {
+      "id": "equipment_simulator_phase4a_release_contracts",
+      "path": "artifacts/releases/2026-07-11-equipment-simulator-phase4a-release-contracts/requirement.json",
+      "status": "completed_live_verified_archived",
+      "lifecycle": "historical",
+      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase4a-release-contracts/evidence.json"
+    },
+    {
+      "id": "equipment_simulator_phase3c_workbench_cutover",
+      "path": "artifacts/releases/2026-07-11-equipment-simulator-phase3c-workbench-cutover/requirement.json",
+      "status": "completed_live_verified_archived",
+      "lifecycle": "historical",
+      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase3c-workbench-cutover/evidence.json"
+    },
+    {
+      "id": "equipment_simulator_phase3b_structured_transport_state",
+      "path": "artifacts/releases/2026-07-11-equipment-simulator-phase3b-structured-transport-state/requirement.json",
+      "status": "completed_local_verified_archived",
+      "lifecycle": "historical",
+      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase3b-structured-transport-state/evidence.json"
+    },
+    {
+      "id": "equipment_simulator_phase3a_resolve_profile_api",
+      "path": "artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api/requirement.json",
+      "status": "completed_live_verified_archived",
+      "lifecycle": "historical",
+      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api/evidence.json"
+    },
+    {
+      "id": "equipment_simulator_phase2b_pg_loader_facade_parity",
+      "path": "artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity/requirement.json",
+      "status": "completed_live_verified_archived",
+      "lifecycle": "historical",
+      "evidence": "artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity/evidence.json"
+    },
+    {
+      "id": "equipment_simulator_phase2a_pure_resolver",
+      "path": "artifacts/releases/2026-07-10-equipment-simulator-phase2a-pure-resolver/requirement.json",
+      "status": "completed_live_verified_archived",
+      "lifecycle": "historical",
+      "evidence": "artifacts/releases/2026-07-10-equipment-simulator-phase2a-pure-resolver/evidence.json"
+    }
+  ],
+  "controlPlaneConclusions": [
+    {
+      "domain": "ui_delivery",
+      "status": "active_unverified",
+      "activeContract": "docs/plans/2026-07-14-target-first-14-route-rebuild.md",
+      "evidence": "docs/design/current-ui/runtime-review-contract.json"
+    },
+    {
+      "domain": "pg_read_model_phase4",
+      "status": "completed",
+      "activeContract": null,
+      "evidence": "docs/backend-owner-map.json"
+    },
+    {
+      "domain": "project_harness_normalization",
+      "status": "completed",
+      "activeContract": null,
+      "evidence": "artifacts/releases/2026-07-10-project-harness-normalization/closure-audit.json"
+    },
+    {
+      "domain": "equipment_simulator_phase0_5",
+      "status": "completed_live_verified",
+      "activeContract": null,
+      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover/closure-audit.json"
+    }
+  ],
+  "runtimeBaseline": {
+    "publicGearEntry": {
+      "communityTemplates": "active raiderio_observed_profile only",
+      "baselineTemplates": "public default empty",
+      "blockedSourceKeys": [
+        "recommended_bis",
+        "season_recommendation",
+        "default_template",
+        "simc_preset",
+        "baseline_blocked"
+      ]
+    },
+    "uiRuntimeEvidence": {
+      "status": "active_unverified",
+      "routeCount": 14,
+      "contract": "docs/design/current-ui/runtime-review-contract.json",
+      "targetRegistry": "docs/design/current-ui/target-registry.json",
+      "visualAcceptance": "pending_fresh_real_wechat_evidence"
+    },
+    "pgReadModel": {
+      "status": "phase4_completed",
+      "ownerMap": "docs/backend-owner-map.json",
+      "evidence": "docs/backend-owner-map.json"
+    },
+    "canonicalGearApi": {
+      "status": "phase3_complete_live_verified",
+      "resolvePath": "/api/websim/gear/resolve",
+      "canonicalProfilePath": "/api/websim/profile with selectionIntent",
+      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase3c-workbench-cutover/evidence.json"
+    },
+    "gearWorkbenchState": {
+      "status": "dual_surface_canonical_api_connected_taro_runtime_unverified",
+      "modules": [
+        "pages/builds/gear-workbench-state.js",
+        "packages/domain/src/gear-intent.ts",
+        "packages/api-client/src/websim.ts"
+      ],
+      "activeConsumerCount": 2,
+      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase3c-workbench-cutover/evidence.json"
+    },
+    "gearReleaseTrain": {
+      "status": "phase4_complete_live_verified",
+      "formalActiveManifest": true,
+      "pointerMode": "active",
+      "pointerGeneration": 16,
+      "activeManifestRevision": "season-manifest:sha256:34325b76e6b12544b0cf511c89852722784675495b757b6dce522d531660e436",
+      "rollbackManifestRevision": "season-manifest:sha256:551810fcc9d8f6b4dd2099cfafa4b67192476dc4f0bfe36bf827b9fa6ef3c07d",
+      "runbook": "docs/gear-simulation-full-chain-runbook.md",
+      "purePolicyModule": "server/gear_release.py",
+      "releaseRepository": "server/gear_release_store.py",
+      "activeGearReleaseId": "gear-release:sha256:cfb1680130402b3c610d5eab3b0dbe50dd7186facc6a0371951eb5c10ed993c5",
+      "activeCommunityReleaseId": "community-release:sha256:35eafdafc9f96802327917b1f45ab406e60bbce10e81aa150e8cfef5d543ace6",
+      "activeManifestPointerRows": 1,
+      "scheduledRefresh": "active_candidate_first_manual_for_high_risk",
+      "evidence": "artifacts/releases/2026-07-14-community-enhancement-editability/evidence.json"
+    },
+    "gearStatSnapshot": {
+      "status": "phase5_complete_live_verified",
+      "runbook": "docs/gear-simulation-full-chain-runbook.md",
+      "archivedEvidence": "artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover/evidence.json",
+      "closureAudit": "artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover/closure-audit.json",
+      "legacyPath": "/api/websim/gear/stats",
+      "legacyExecution": "compatible_bounded_telemetry_only",
+      "newPath": "/api/websim/gear/stat-snapshots",
+      "newPathActive": true,
+      "snapshotStoreActive": true,
+      "workerActive": true,
+      "frontendCutover": true,
+      "verifiedSpecCount": 32,
+      "explicitNonReadySpecCount": 8,
+      "fabricatedSnapshotCount": 0,
+      "workerConcurrency": 1
+    }
+  },
+  "knownRisks": [
+    {
+      "id": "feature_iteration_frozen",
+      "status": "closed",
+      "trigger": "Project Harness Normalization closure packet and PR CI evidence passed; feature iteration may resume under Harness."
+    },
+    {
+      "id": "runtime_slice_limit",
+      "status": "satisfied_zero_slices",
+      "trigger": "Task 5 characterization found no entry-rule finding; runtimeSliceCount=0."
+    },
+    {
+      "id": "health_watch_domains",
+      "status": "accepted_with_explicit_triggers",
+      "trigger": "cache_sync_state_repository and scheduled_sync_backfill_cleanup remain health_watch; future sync/write/backfill/cleanup structure work must open a new Harness contract."
+    },
+    {
+      "id": "simc_updater_github_transport",
+      "status": "external_dependency_watch",
+      "trigger": "Phase 2 closure observed GitHub proxy TLS EOF and direct archive timeout in the existing SimC updater. The active binary remained usable at commit 1e357922; future runtime work must report updater state truthfully and must not weaken Resolver or Catalyst gates."
+    },
+    {
+      "id": "phase5_stat_non_ready_specs",
+      "status": "accepted_fail_closed_runtime_and_data_boundary",
+      "trigger": "Phase 5D found eight non-ready combinations: four unsupported healer specializations, two DH observed profiles without a valid dual-wield pair and two successful SimC runs with empty buffed_stats. Existing structured problem codes remain authoritative and no snapshot is fabricated; runtime/data capability work requires a new Harness contract."
+    },
+    {
+      "id": "phase6_catalyst_retained_secondary_stats",
+      "status": "external_dependency_todo_fail_closed",
+      "trigger": "Phase 6 is not active. redirected_base_stats parsing alone is insufficient; capabilityEnabled=false, frontendMaySynthesize=false and failClosed=true remain required until the complete proof matrix is verified under a new approved contract."
+    },
+    {
+      "id": "gear_slot_payload_memory",
+      "status": "mitigated_watch",
+      "trigger": "Phase 3C removed eager all-slot enhancement hydration and now lazy-loads only the selected slot, eliminating the reproduced drawer fan-out. Large individual slot payloads remain a watch item; post-merge 40-spec smoke retained memory and a recovery restart returned the service to about 49 MiB, one task and NRestarts=0."
+    },
+    {
+      "id": "phase3a_public_origin_rtt",
+      "status": "observed_client_path_latency",
+      "trigger": "Phase 3A backend warm p95 passed at 112.334ms through on-host production Nginx, while the remote client path measured 367.412ms with about 180ms RTT. Do not claim sub-200ms public-client latency from the backend SLO."
+    }
+  ]
+}

@@ -90,7 +90,15 @@ describe('gear detail truth model', () => {
       enchantOptions: [],
       embellishmentOptions: [],
     }
-    expect(gearEnhancementGroups(item, { 'head:socket': 'gem-1' }, 'head')).toEqual([
+    expect(gearEnhancementGroups(item, {
+      head: {
+        gemOptionIds: ['gem-1'],
+        enchantOptionId: '',
+        embellishmentOptionId: '',
+        craftedOptionId: '',
+        catalystOptionId: '',
+      },
+    }, 'head')).toEqual([
       expect.objectContaining({ id: 'socket', optionCount: 1, value: '+15 急速', state: 'ready' }),
       expect.objectContaining({ id: 'enchant', optionCount: 0, value: '待配置', state: 'blocked' }),
       expect.objectContaining({ id: 'embellishment', optionCount: 0, value: '待配置', state: 'blocked' }),

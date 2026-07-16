@@ -82,22 +82,27 @@
           </view>
           <view class="gear-attribute-enhancement-row">
             <view class="gear-attribute-enhancement-grid">
-              <view class="gear-attribute-cell {{item.pending ? 'pending' : ''}}" wx:for="{{gearAttributePanel.enhancementRows}}" wx:key="key">
-                <text class="gear-attribute-label">{{item.label}}</text>
-                <text class="gear-attribute-value">{{item.value}}</text>
-              </view>
+              <block wx:for="{{gearAttributePanel.enhancementRows}}" wx:key="key">
+                <view class="gear-attribute-cell gear-attribute-enhancement-entry {{item.pending ? 'pending' : ''}} {{gearDataFallback ? 'disabled' : ''}}" wx:if="{{item.key == 'embellishment' || item.key == 'gem' || item.key == 'enchant'}}" data-type="{{item.key}}" bindtap="openGearEnhancementSheet">
+                  <text class="gear-attribute-label">{{item.label}}</text>
+                  <text class="gear-attribute-value">{{item.value}}</text>
+                  <text class="gear-attribute-enhancement-action">配置</text>
+                </view>
+                <view class="gear-attribute-cell {{item.pending ? 'pending' : ''}}" wx:else>
+                  <text class="gear-attribute-label">{{item.label}}</text>
+                  <text class="gear-attribute-value">{{item.value}}</text>
+                </view>
+              </block>
             </view>
-          </view>
-          <view class="gear-attribute-action-row">
-            <button class="gear-attribute-action" disabled="{{gearDataFallback}}" bindtap="openGearEnhancementSheet">配置宝石、附魔</button>
           </view>
         </view>
 
         <view class="gear-slot-grid">
           <view class="gear-slot-card {{item.statusClass}}" wx:for="{{gearSlotRows}}" wx:key="slot" data-slot="{{item.slot}}" bindtap="openGearSlotSheet">
-            <view class="gear-slot-enhancement-badges" wx:if="{{item.equipmentBadgeLabels.length || item.enhancementBadgeLabels.length}}">
-              <text class="gear-slot-enhancement-badge gear-equipment-badge" wx:for="{{item.equipmentBadgeLabels}}" wx:for-item="badgeLabel" wx:key="*this">{{badgeLabel}}</text>
-              <text class="gear-slot-enhancement-badge" wx:for="{{item.enhancementBadgeLabels}}" wx:for-item="badgeLabel" wx:key="*this">{{badgeLabel}}</text>
+            <view class="gear-slot-enhancement-markers" wx:if="{{item.enhancementMarkers.length}}">
+              <view class="gear-slot-enhancement-marker {{marker.type}} {{marker.state}}" wx:for="{{item.enhancementMarkers}}" wx:for-item="marker" wx:key="key">
+                <image class="gear-slot-enhancement-marker-icon" src="{{marker.iconUrl}}" mode="aspectFit"></image>
+              </view>
             </view>
             <view class="gear-slot-topline">
               <text class="gear-slot-label">{{item.label}}</text>
@@ -127,7 +132,7 @@
         </view>
 
         <view class="gear-template-actions" wx:if="{{!gearInitialLoading}}">
-          <button class="gear-template-action-button primary" loading="{{gearTemplateSaving}}" disabled="{{gearDataFallback || gearTemplateSaving}}" bindtap="saveGearTemplate">保存模板</button>
+          <button class="gear-template-action-button primary" loading="{{gearTemplateSaving}}" disabled="{{gearDataFallback || gearTemplateSaving || !gearWorkbenchView.canUseVerifiedSnapshot}}" bindtap="saveGearTemplate">保存模板</button>
           <button class="gear-template-action-button import" disabled="{{gearDataFallback}}" bindtap="openGearCommunityTemplates">导入</button>
           <button class="gear-template-action-button muted" bindtap="resetGearSelection">重置</button>
         </view>
@@ -314,19 +319,13 @@
     <view class="gear-sheet-handle"></view>
     <view class="gear-sheet-header">
       <view>
-        <text class="gear-sheet-kicker">已使用 {{gearEnhancementSheet.embellishmentUsed}} / {{gearEnhancementSheet.embellishmentMax}} 美化</text>
-        <text class="gear-sheet-title">配置宝石、附魔、美化</text>
+        <text class="gear-sheet-kicker">{{gearEnhancementSheet.summaryText}}</text>
+        <text class="gear-sheet-title">{{gearEnhancementSheet.title}}</text>
       </view>
-      <button class="gear-sheet-close" bindtap="closeGearEnhancementSheet">关闭</button>
+      <button class="gear-sheet-close" disabled="{{gearEnhancementSheet.submitting}}" bindtap="closeGearEnhancementSheet">关闭</button>
     </view>
     <view class="gear-enhancement-empty" wx:if="{{gearEnhancementSheet.emptyText}}">
       <text>{{gearEnhancementSheet.emptyText}}</text>
-    </view>
-    <view class="gear-enhancement-warnings" wx:if="{{gearEnhancementSheet.warnings.length}}">
-      <text class="gear-enhancement-warning" wx:for="{{gearEnhancementSheet.warnings}}" wx:key="*this">{{item}}</text>
-    </view>
-    <view class="gear-enhancement-blockers" wx:if="{{gearEnhancementSheet.blockers.length}}">
-      <text class="gear-enhancement-blocker" wx:for="{{gearEnhancementSheet.blockers}}" wx:key="*this">{{item}}</text>
     </view>
     <view class="gear-enhancement-section" wx:if="{{gearEnhancementSheet.equipmentRows.length}}">
       <view class="gear-sheet-section-heading">
@@ -345,27 +344,36 @@
         <text class="gear-sheet-section-title">{{gearEnhancementSheet.activeTitle}}配置</text>
       </view>
       <text class="gear-enhancement-active-item">{{gearEnhancementSheet.activeItemName}}</text>
-      <view class="gear-enhancement-row" wx:if="{{gearEnhancementSheet.activeGemRows.length}}" wx:for="{{gearEnhancementSheet.activeGemRows}}" wx:for-item="row" wx:key="slot">
-        <text class="gear-enhancement-slot">宝石</text>
+      <view class="gear-enhancement-row" wx:if="{{gearEnhancementSheet.activeGemRows.length}}" wx:for="{{gearEnhancementSheet.activeGemRows}}" wx:for-item="row" wx:key="socketIndex">
+        <view class="gear-enhancement-socket-heading">
+          <text class="gear-enhancement-slot">宝石槽 {{row.socketNumber}}</text>
+          <text class="gear-enhancement-socket-state">{{row.selectedLabel || '未镶嵌'}}</text>
+        </view>
         <view class="gear-enhancement-options">
-          <button class="gear-enhancement-option {{option.selected ? 'active' : ''}} {{option.disabled ? 'disabled' : ''}}" wx:for="{{row.options}}" wx:for-item="option" wx:key="id" data-slot="{{row.slot}}" data-type="gem" data-id="{{option.id}}" disabled="{{option.disabled}}" bindtap="selectGearEnhancementOption">{{option.label}}</button>
+          <button class="gear-enhancement-option {{option.selected ? 'active' : ''}} {{option.disabled || gearEnhancementSheet.submitting ? 'disabled' : ''}}" wx:for="{{row.options}}" wx:for-item="option" wx:key="id" data-slot="{{row.slot}}" data-type="gem" data-id="{{option.id}}" data-socket-index="{{row.socketIndex}}" disabled="{{option.disabled || gearEnhancementSheet.submitting}}" bindtap="selectGearEnhancementOption">{{option.label}}</button>
         </view>
       </view>
       <view class="gear-enhancement-row" wx:if="{{gearEnhancementSheet.activeEnchantRows.length}}" wx:for="{{gearEnhancementSheet.activeEnchantRows}}" wx:for-item="row" wx:key="slot">
         <text class="gear-enhancement-slot">附魔</text>
         <view class="gear-enhancement-options">
-          <button class="gear-enhancement-option {{option.selected ? 'active' : ''}} {{option.disabled ? 'disabled' : ''}}" wx:for="{{row.options}}" wx:for-item="option" wx:key="id" data-slot="{{row.slot}}" data-type="enchant" data-id="{{option.id}}" disabled="{{option.disabled}}" bindtap="selectGearEnhancementOption">{{option.label}}</button>
+          <button class="gear-enhancement-option {{option.selected ? 'active' : ''}} {{option.disabled || gearEnhancementSheet.submitting ? 'disabled' : ''}}" wx:for="{{row.options}}" wx:for-item="option" wx:key="id" data-slot="{{row.slot}}" data-type="enchant" data-id="{{option.id}}" disabled="{{option.disabled || gearEnhancementSheet.submitting}}" bindtap="selectGearEnhancementOption">{{option.label}}</button>
         </view>
       </view>
       <view class="gear-enhancement-row" wx:if="{{gearEnhancementSheet.activeEmbellishmentRows.length}}" wx:for="{{gearEnhancementSheet.activeEmbellishmentRows}}" wx:for-item="row" wx:key="slot">
         <text class="gear-enhancement-slot">美化</text>
         <view class="gear-enhancement-options">
-          <button class="gear-enhancement-option {{option.selected ? 'active' : ''}} {{option.disabled ? 'disabled' : ''}}" wx:for="{{row.options}}" wx:for-item="option" wx:key="id" data-slot="{{row.slot}}" data-type="embellishment" data-id="{{option.id}}" disabled="{{option.disabled}}" bindtap="selectGearEnhancementOption">{{option.label}}</button>
+          <button class="gear-enhancement-option {{option.selected ? 'active' : ''}} {{option.disabled || gearEnhancementSheet.submitting ? 'disabled' : ''}}" wx:for="{{row.options}}" wx:for-item="option" wx:key="id" data-slot="{{row.slot}}" data-type="embellishment" data-id="{{option.id}}" disabled="{{option.disabled || gearEnhancementSheet.submitting}}" bindtap="selectGearEnhancementOption">{{option.label}}</button>
         </view>
       </view>
     </view>
+    <view class="gear-enhancement-warnings" wx:if="{{gearEnhancementSheet.warnings.length}}">
+      <text class="gear-enhancement-warning" wx:for="{{gearEnhancementSheet.warnings}}" wx:key="*this">{{item}}</text>
+    </view>
+    <view class="gear-enhancement-blockers" wx:if="{{gearEnhancementSheet.blockers.length}}">
+      <text class="gear-enhancement-blocker" wx:for="{{gearEnhancementSheet.blockers}}" wx:key="*this">{{item}}</text>
+    </view>
     <view class="gear-enhancement-action-row" wx:if="{{gearEnhancementSheet.equipmentRows.length}}">
-      <button class="gear-enhancement-confirm" bindtap="confirmGearEnhancementSheet">确认</button>
+      <button class="gear-enhancement-confirm" disabled="{{gearEnhancementSheet.submitting}}" bindtap="confirmGearEnhancementSheet">{{gearEnhancementSheet.submitting ? '校验中' : '确认'}}</button>
     </view>
   </view>
 
@@ -414,12 +422,13 @@
             <view class="gear-community-template-main">
               <text class="gear-community-template-title">{{item.displayName || item.name}}</text>
               <text class="gear-community-template-meta">{{item.displaySourceName || item.sourceName}} · {{item.slotCoverageLabel}}</text>
-              <text class="gear-community-template-meta">{{item.statusLabel}} · {{item.updatedLabel || item.analysisWindow}}</text>
+              <text class="gear-community-template-meta">{{item.provenanceLabel}}</text>
+              <text class="gear-community-template-meta" wx:if="{{item.updatedProvenanceLabel}}">{{item.updatedProvenanceLabel}}</text>
               <text class="gear-community-template-meta warning" wx:if="{{item.blockerLabel}}">{{item.blockerLabel}}</text>
             </view>
             <view class="gear-community-template-side">
               <text class="gear-community-template-state">{{item.missingSlotLabel}}</text>
-              <button class="gear-community-template-apply" disabled="{{!item.canApplyGear}}" data-id="{{item.id}}" bindtap="applyGearCommunityTemplate">{{item.actionLabel}}</button>
+              <button class="gear-community-template-apply" disabled="{{!item.canApplyGear || communityTemplateImporting}}" data-id="{{item.id}}" bindtap="applyGearCommunityTemplate">{{communityTemplateImporting ? '正在导入并校验强化…' : item.actionLabel}}</button>
             </view>
           </view>
         </view>

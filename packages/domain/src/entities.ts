@@ -482,6 +482,96 @@ export interface GearStatsPayload extends WebsimSelection {
   checkedAt?: string
 }
 
+export interface GearIntentSlot {
+  itemId: string
+  variantKey: string
+  gemOptionIds: readonly string[]
+  enchantOptionId: string
+  embellishmentOptionId: string
+  craftedOptionId: string
+  catalystOptionId: string
+}
+
+export interface GearEnhancementSelection {
+  gemOptionIds: readonly string[]
+  enchantOptionId: string
+  embellishmentOptionId: string
+  craftedOptionId: string
+  catalystOptionId: string
+}
+
+export interface GearSelectionIntent {
+  schemaRevision: string
+  authoredAgainst: Readonly<Record<string, string>>
+  eligibilityContext: {
+    classKey: string
+    specKey: string
+    level: number
+  }
+  slots: Readonly<Record<string, GearIntentSlot>>
+}
+
+export interface GearProblem {
+  kind?: string
+  code?: string
+  title?: string
+  detail?: string
+  path?: string
+  retryable?: boolean
+  [key: string]: unknown
+}
+
+export interface GearResolvedSnapshot {
+  contractRevision?: string
+  status?: string
+  resolvedGearSignature?: string
+  resolvedSlots?: Readonly<Record<string, Readonly<Record<string, unknown>>>>
+  aggregateLegality?: Readonly<Record<string, unknown>>
+  staticAttributes?: Readonly<Record<string, unknown>>
+  setState?: Readonly<Record<string, unknown>>
+  constraints?: Readonly<Record<string, unknown>>
+  profileReadiness?: Readonly<Record<string, unknown>>
+  statSnapshot?: GearStatsPayload
+  statSignature?: string
+  retryAfterMs?: number
+  selectionIntent?: GearSelectionIntent
+  [key: string]: unknown
+}
+
+export interface GearResultEnvelope<T = GearResolvedSnapshot> {
+  contractRevision: 'gear-result-envelope-v1'
+  requestId: string
+  status: string
+  releaseContext: Readonly<Record<string, unknown>>
+  data: T
+  problems: readonly GearProblem[]
+}
+
+export interface CommunityTemplateImportData {
+  contractRevision?: string
+  status?: string
+  template?: Readonly<Record<string, unknown>>
+  manifest?: Readonly<Record<string, unknown>>
+  importedGearBySlot?: Readonly<Record<string, GearItemReference>>
+  resolvedSnapshot?: GearResolvedSnapshot
+}
+
+export interface CommunityTemplateImportEnvelope {
+  contractRevision: 'community-template-import-envelope-v1'
+  requestId: string
+  status: string
+  releaseContext: Readonly<Record<string, unknown>>
+  data: CommunityTemplateImportData
+  problems: readonly GearProblem[]
+}
+
+export interface GearResolverContext {
+  contractRevision?: string
+  selectionSchemaRevision?: string
+  authoredAgainst?: Readonly<Record<string, string>>
+  [key: string]: unknown
+}
+
 export interface WebsimGearPayload extends WebsimSelection {
   slots: readonly GearSlotDefinition[]
   slotGroups: readonly (GearSlotDefinition & { items: readonly GearItemReference[] })[]
@@ -496,11 +586,14 @@ export interface WebsimGearPayload extends WebsimSelection {
   gearCatalogRevision?: string
   itemDatabaseRevision?: string
   variantRevision?: string
+  manifestRevision?: string
+  maxLevel?: number
   catalogHealthSummary?: Readonly<Record<string, unknown>>
   catalogBlockers: readonly string[]
   sourceRefs?: readonly SourceReference[]
   checkedAt?: string
   dataStatus: string
+  resolverContext?: GearResolverContext
 }
 
 export type BuildTemplateType = 'talent' | 'gear'

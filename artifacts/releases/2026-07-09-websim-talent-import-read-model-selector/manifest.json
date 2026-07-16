@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "status": "merged_to_main",
+  "generatedAt": "2026-07-09T14:51:35Z",
+  "release": {
+    "date": "2026-07-09",
+    "slug": "websim-talent-import-read-model-selector"
+  },
+  "harness": {
+    "version": "v0.5",
+    "lastUpdated": "2026-07-09",
+    "source": "docs/harness.md"
+  },
+  "safety": {
+    "repositoryRemoteSyncPreapproved": true,
+    "repositoryRemoteSyncScope": "configured_project_remote_only",
+    "autonomousProgressionEnabled": true,
+    "productionWrites": false
+  },
+  "gates": {
+    "currentTruth": {
+      "status": "ready",
+      "sources": [
+        "docs/roadmap.md",
+        "docs/harness.md",
+        "docs/backend-owner-map.json",
+        "docs/plans/2026-07-09-harness-guided-project-optimization-plan.md"
+      ]
+    },
+    "ownershipContract": {
+      "status": "ready",
+      "owner": "server/pg_gear_read_model_selectors.py",
+      "backendReadModelOwned": true,
+      "frontendConsumesStructuredResults": true
+    },
+    "engineeringHealth": {
+      "status": "health_watch",
+      "hotspotFile": "server/postgres_cache_store.py",
+      "changeType": "read_only_websim_selector_extraction"
+    },
+    "candidateDeployment": {
+      "status": "passed",
+      "requiredBeforeMergeForRuntimeChanges": true,
+      "runtimeChangeSurfaces": [
+        "backend_api",
+        "pg_read_model",
+        "websim_runtime"
+      ],
+      "pullRequest": "https://github.com/boyuan19910222-ui/wow_mini_program/pull/40",
+      "branch": "codex/phase4-websim-talent-import-read-model-selector",
+      "commit": "5da85010e82318d0cc5ad19edf4daa73ec549ee0"
+    },
+    "merge": {
+      "status": "merged_to_main",
+      "pullRequest": "https://github.com/boyuan19910222-ui/wow_mini_program/pull/40",
+      "mergeCommit": "fd201e611caf7d8e8bec6bdc6fe4011f3160da12",
+      "headEqualsOriginMain": true
+    }
+  },
+  "evidenceFile": "artifacts/releases/2026-07-09-websim-talent-import-read-model-selector/evidence.json"
+}

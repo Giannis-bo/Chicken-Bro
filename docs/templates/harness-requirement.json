@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "slug": "replace-with-release-slug",
+  "classification": "Strict",
+  "status": "implementation_allowed",
+  "goal": "State the implementation goal.",
+  "userValue": "State the user or project value.",
+  "nonGoals": [
+    "State explicit non-goals."
+  ],
+  "currentTruth": {
+    "sources": [
+      "docs/project-state.json",
+      "docs/roadmap.md",
+      "docs/harness.md"
+    ],
+    "activeMilestone": "project_harness_normalization",
+    "featureIteration": "frozen_until_milestone_exit"
+  },
+  "impactMap": {
+    "mustChange": [
+      "List files or surfaces that must change."
+    ],
+    "mustNotChange": [
+      "List protected files or surfaces."
+    ],
+    "evidenceRequired": [
+      "List verification evidence required."
+    ]
+  },
+  "ownership": {
+    "factOwner": "State the authoritative source.",
+    "consumers": [
+      "State downstream consumers."
+    ]
+  },
+  "engineeringHealth": {
+    "status": "health_safe",
+    "reason": "State why this work is safe or what is blocked."
+  },
+  "acceptanceEvidence": [
+    "node scripts/project-harness.js --check --requirement-file artifacts/releases/<release>/requirement.json --evidence-file artifacts/releases/<release>/evidence.json --base origin/main"
+  ],
+  "releaseTrigger": "docs_tooling_only",
+  "rollback": [
+    "code_rollback"
+  ],
+  "decisionLog": [
+    {
+      "date": "2026-07-10",
+      "decision": "State the user-approved or harness-approved decision."
+    }
+  ]
+}

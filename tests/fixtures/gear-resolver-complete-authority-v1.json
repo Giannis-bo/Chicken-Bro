@@ -1,0 +1,605 @@
+{
+  "intent": {
+    "schemaRevision": "selection-intent-v1",
+    "authoredAgainst": {
+      "seasonRevision": "season-17-active",
+      "gearCatalogRevision": "gear-r17"
+    },
+    "eligibilityContext": {
+      "classKey": "warrior",
+      "specKey": "fury",
+      "level": 90
+    },
+    "slots": {
+      "head": {
+        "itemId": "item-set-head",
+        "variantKey": "variant-set-head",
+        "gemOptionIds": [
+          "gem-haste"
+        ],
+        "enchantOptionId": "",
+        "embellishmentOptionId": "",
+        "craftedOptionId": "",
+        "catalystOptionId": ""
+      },
+      "chest": {
+        "itemId": "item-set-chest",
+        "variantKey": "variant-set-chest",
+        "gemOptionIds": [],
+        "enchantOptionId": "",
+        "embellishmentOptionId": "",
+        "craftedOptionId": "",
+        "catalystOptionId": ""
+      },
+      "main_hand": {
+        "itemId": "item-main-sword",
+        "variantKey": "variant-main-sword",
+        "gemOptionIds": [],
+        "enchantOptionId": "enchant-weapon",
+        "embellishmentOptionId": "",
+        "craftedOptionId": "",
+        "catalystOptionId": ""
+      },
+      "off_hand": {
+        "itemId": "item-off-sword",
+        "variantKey": "variant-off-sword",
+        "gemOptionIds": [],
+        "enchantOptionId": "",
+        "embellishmentOptionId": "",
+        "craftedOptionId": "",
+        "catalystOptionId": ""
+      }
+    }
+  },
+  "authorityContext": {
+    "contractRevision": "gear-authority-context-v1",
+    "manifest": {
+      "seasonRevision": "season-17-active",
+      "gearCatalogReleaseId": "gear-release-17",
+      "gearCatalogRevision": "gear-r17"
+    },
+    "dependencyVector": {
+      "seasonRevision": "season-17-active",
+      "gearCatalogReleaseId": "gear-release-17",
+      "gearCatalogRevision": "gear-r17",
+      "gearRuleRevision": "gear-rule-matrix-v1",
+      "resolverContractRevision": "gear-resolver-contract-v1",
+      "serializerRevision": "websim-profile-compat-v1",
+      "simcRuntimeRevision": "simc-v1",
+      "statPolicyRevision": "stat-policy-v1",
+      "selectionSchemaRevision": "selection-intent-v1"
+    },
+    "itemsById": {
+      "item-set-head": {
+        "itemId": "item-set-head",
+        "displayName": "Resolver Set Helm",
+        "allowedSlots": [
+          "head"
+        ],
+        "inventoryType": "head",
+        "allowedClassKeys": [
+          "warrior"
+        ],
+        "allowedSpecKeys": [
+          "fury"
+        ],
+        "armorType": "plate",
+        "weaponType": "",
+        "handedness": "",
+        "uniqueGroupId": "",
+        "uniqueLimit": 0,
+        "itemSetId": "set:resolver",
+        "baseStats": {
+          "strength": 80,
+          "stamina": 120
+        },
+        "baseCapabilities": {
+          "socketCount": 0,
+          "canEnchant": false,
+          "canEmbellish": false
+        },
+        "socketCount": 0,
+        "allowedGemOptionIds": [
+          "gem-haste"
+        ],
+        "allowedEnchantOptionIds": [],
+        "allowedEmbellishmentOptionIds": [],
+        "allowedCraftedOptionIds": [],
+        "allowedCatalystOptionIds": [],
+        "dynamicEffects": [],
+        "sourceRefIds": [
+          "evidence:item:head"
+        ]
+      },
+      "item-set-chest": {
+        "itemId": "item-set-chest",
+        "displayName": "Resolver Set Chest",
+        "allowedSlots": [
+          "chest"
+        ],
+        "inventoryType": "chest",
+        "allowedClassKeys": [
+          "warrior"
+        ],
+        "allowedSpecKeys": [
+          "fury"
+        ],
+        "armorType": "plate",
+        "weaponType": "",
+        "handedness": "",
+        "uniqueGroupId": "",
+        "uniqueLimit": 0,
+        "itemSetId": "set:resolver",
+        "baseStats": {
+          "strength": 100,
+          "stamina": 150
+        },
+        "baseCapabilities": {
+          "socketCount": 0,
+          "canEnchant": true,
+          "canEmbellish": false
+        },
+        "socketCount": 0,
+        "allowedGemOptionIds": [],
+        "allowedEnchantOptionIds": [],
+        "allowedEmbellishmentOptionIds": [],
+        "allowedCraftedOptionIds": [],
+        "allowedCatalystOptionIds": [],
+        "dynamicEffects": [],
+        "sourceRefIds": [
+          "evidence:item:chest"
+        ]
+      },
+      "item-main-sword": {
+        "itemId": "item-main-sword",
+        "displayName": "Resolver Main Sword",
+        "allowedSlots": [
+          "main_hand"
+        ],
+        "inventoryType": "weapon",
+        "allowedClassKeys": [
+          "warrior"
+        ],
+        "allowedSpecKeys": [
+          "fury"
+        ],
+        "armorType": "",
+        "weaponType": "sword",
+        "handedness": "one_hand",
+        "uniqueGroupId": "",
+        "uniqueLimit": 0,
+        "itemSetId": "",
+        "baseStats": {
+          "strength": 50
+        },
+        "baseCapabilities": {
+          "socketCount": 0,
+          "canEnchant": true,
+          "canEmbellish": false
+        },
+        "socketCount": 0,
+        "allowedGemOptionIds": [],
+        "allowedEnchantOptionIds": [
+          "enchant-weapon"
+        ],
+        "allowedEmbellishmentOptionIds": [],
+        "allowedCraftedOptionIds": [],
+        "allowedCatalystOptionIds": [],
+        "dynamicEffects": [],
+        "sourceRefIds": [
+          "evidence:item:main"
+        ]
+      },
+      "item-off-sword": {
+        "itemId": "item-off-sword",
+        "displayName": "Resolver Off Sword",
+        "allowedSlots": [
+          "off_hand"
+        ],
+        "inventoryType": "weapon",
+        "allowedClassKeys": [
+          "warrior"
+        ],
+        "allowedSpecKeys": [
+          "fury"
+        ],
+        "armorType": "",
+        "weaponType": "sword",
+        "handedness": "one_hand",
+        "uniqueGroupId": "",
+        "uniqueLimit": 0,
+        "itemSetId": "",
+        "baseStats": {
+          "strength": 45
+        },
+        "baseCapabilities": {
+          "socketCount": 0,
+          "canEnchant": true,
+          "canEmbellish": false
+        },
+        "socketCount": 0,
+        "allowedGemOptionIds": [],
+        "allowedEnchantOptionIds": [],
+        "allowedEmbellishmentOptionIds": [],
+        "allowedCraftedOptionIds": [],
+        "allowedCatalystOptionIds": [],
+        "dynamicEffects": [],
+        "sourceRefIds": [
+          "evidence:item:off"
+        ]
+      },
+      "item-twohand": {
+        "itemId": "item-twohand",
+        "displayName": "Resolver Two Hand",
+        "allowedSlots": [
+          "main_hand"
+        ],
+        "inventoryType": "weapon",
+        "allowedClassKeys": [
+          "warrior"
+        ],
+        "allowedSpecKeys": [
+          "fury"
+        ],
+        "armorType": "",
+        "weaponType": "greatsword",
+        "handedness": "two_hand",
+        "uniqueGroupId": "",
+        "uniqueLimit": 0,
+        "itemSetId": "",
+        "baseStats": {
+          "strength": 100
+        },
+        "baseCapabilities": {
+          "socketCount": 0,
+          "canEnchant": true,
+          "canEmbellish": false
+        },
+        "socketCount": 0,
+        "allowedGemOptionIds": [],
+        "allowedEnchantOptionIds": [],
+        "allowedEmbellishmentOptionIds": [],
+        "allowedCraftedOptionIds": [],
+        "allowedCatalystOptionIds": [],
+        "dynamicEffects": [],
+        "sourceRefIds": [
+          "evidence:item:twohand"
+        ]
+      },
+      "item-unique-ring": {
+        "itemId": "item-unique-ring",
+        "displayName": "Resolver Unique Ring",
+        "allowedSlots": [
+          "finger1",
+          "finger2"
+        ],
+        "inventoryType": "finger",
+        "allowedClassKeys": [
+          "warrior"
+        ],
+        "allowedSpecKeys": [
+          "fury"
+        ],
+        "armorType": "",
+        "weaponType": "",
+        "handedness": "",
+        "uniqueGroupId": "unique:ring",
+        "uniqueLimit": 1,
+        "itemSetId": "",
+        "baseStats": {
+          "haste": 30
+        },
+        "baseCapabilities": {
+          "socketCount": 0,
+          "canEnchant": true,
+          "canEmbellish": false
+        },
+        "socketCount": 0,
+        "allowedGemOptionIds": [],
+        "allowedEnchantOptionIds": [],
+        "allowedEmbellishmentOptionIds": [],
+        "allowedCraftedOptionIds": [],
+        "allowedCatalystOptionIds": [],
+        "dynamicEffects": [],
+        "sourceRefIds": [
+          "evidence:item:ring"
+        ]
+      }
+    },
+    "variantsByKey": {
+      "variant-set-head": {
+        "variantKey": "variant-set-head",
+        "itemId": "item-set-head",
+        "status": "verified",
+        "itemLevel": 289,
+        "resolvedStats": {
+          "strength": 90,
+          "stamina": 130,
+          "haste": 20
+        },
+        "statDeltas": {},
+        "simcOptions": {
+          "ilevel": "289",
+          "bonus_id": "head-bonus"
+        },
+        "overlay": {
+          "overlayId": "tier:resolver:head",
+          "status": "verified",
+          "itemSetId": "set:resolver",
+          "statDeltas": {
+            "haste": 5
+          },
+          "capabilityOverrides": {
+            "socketCount": 1
+          },
+          "dynamicEffects": [],
+          "sourceRefIds": [
+            "evidence:overlay:head"
+          ]
+        },
+        "sourceRefIds": [
+          "evidence:variant:head"
+        ]
+      },
+      "variant-set-chest": {
+        "variantKey": "variant-set-chest",
+        "itemId": "item-set-chest",
+        "status": "verified",
+        "itemLevel": 289,
+        "resolvedStats": {
+          "strength": 110,
+          "stamina": 160,
+          "mastery": 25
+        },
+        "statDeltas": {},
+        "simcOptions": {
+          "ilevel": "289",
+          "bonus_id": "chest-bonus"
+        },
+        "overlay": {
+          "overlayId": "tier:resolver:chest",
+          "status": "verified",
+          "itemSetId": "set:resolver",
+          "statDeltas": {},
+          "capabilityOverrides": {},
+          "dynamicEffects": [],
+          "sourceRefIds": [
+            "evidence:overlay:chest"
+          ]
+        },
+        "sourceRefIds": [
+          "evidence:variant:chest"
+        ]
+      },
+      "variant-main-sword": {
+        "variantKey": "variant-main-sword",
+        "itemId": "item-main-sword",
+        "status": "verified",
+        "itemLevel": 289,
+        "resolvedStats": {
+          "strength": 60,
+          "crit": 20
+        },
+        "statDeltas": {},
+        "simcOptions": {
+          "ilevel": "289",
+          "bonus_id": "main-bonus"
+        },
+        "sourceRefIds": [
+          "evidence:variant:main"
+        ]
+      },
+      "variant-off-sword": {
+        "variantKey": "variant-off-sword",
+        "itemId": "item-off-sword",
+        "status": "verified",
+        "itemLevel": 289,
+        "resolvedStats": {
+          "strength": 55,
+          "crit": 15
+        },
+        "statDeltas": {},
+        "simcOptions": {
+          "ilevel": "289",
+          "bonus_id": "off-bonus"
+        },
+        "sourceRefIds": [
+          "evidence:variant:off"
+        ]
+      },
+      "variant-twohand": {
+        "variantKey": "variant-twohand",
+        "itemId": "item-twohand",
+        "status": "verified",
+        "itemLevel": 289,
+        "resolvedStats": {
+          "strength": 120,
+          "crit": 30
+        },
+        "statDeltas": {},
+        "simcOptions": {
+          "ilevel": "289",
+          "bonus_id": "twohand-bonus"
+        },
+        "sourceRefIds": [
+          "evidence:variant:twohand"
+        ]
+      },
+      "variant-unique-ring": {
+        "variantKey": "variant-unique-ring",
+        "itemId": "item-unique-ring",
+        "status": "verified",
+        "itemLevel": 289,
+        "resolvedStats": {
+          "haste": 40
+        },
+        "statDeltas": {},
+        "simcOptions": {
+          "ilevel": "289"
+        },
+        "sourceRefIds": [
+          "evidence:variant:ring"
+        ]
+      }
+    },
+    "optionsById": {
+      "gem-haste": {
+        "optionId": "gem-haste",
+        "optionType": "gem",
+        "statDeltas": {
+          "haste": 10
+        },
+        "simcOptions": {
+          "gem_id": "gem-haste"
+        },
+        "uniqueGroupId": "",
+        "uniqueLimit": 0,
+        "sourceRefIds": [
+          "evidence:option:gem"
+        ]
+      },
+      "enchant-weapon": {
+        "optionId": "enchant-weapon",
+        "optionType": "enchant",
+        "statDeltas": {
+          "strength": 5
+        },
+        "simcOptions": {
+          "enchant_id": "enchant-weapon"
+        },
+        "sourceRefIds": [
+          "evidence:option:enchant"
+        ]
+      },
+      "catalyst-head": {
+        "optionId": "catalyst-head",
+        "optionType": "catalyst",
+        "capabilityRevision": "catalyst-proof-v1",
+        "statDeltas": {},
+        "simcOptions": {
+          "redirected_base_stats": "crit/mastery"
+        },
+        "sourceRefIds": [
+          "evidence:option:catalyst"
+        ]
+      }
+    },
+    "ruleParameters": {
+      "inventoryTypesBySlot": {
+        "head": [
+          "head"
+        ],
+        "chest": [
+          "chest"
+        ],
+        "finger1": [
+          "finger"
+        ],
+        "finger2": [
+          "finger"
+        ],
+        "main_hand": [
+          "weapon"
+        ],
+        "off_hand": [
+          "weapon",
+          "offhand"
+        ]
+      },
+      "allowedArmorTypesByClass": {
+        "warrior": [
+          "plate"
+        ]
+      },
+      "armorRestrictedSlots": [
+        "head",
+        "shoulder",
+        "chest",
+        "wrist",
+        "hands",
+        "waist",
+        "legs",
+        "feet"
+      ],
+      "allowedWeaponTypesByClassSpec": {
+        "warrior:fury": [
+          "sword",
+          "greatsword"
+        ]
+      },
+      "dualWieldByClassSpec": {
+        "warrior:fury": true
+      },
+      "weaponModesByClassSpec": {
+        "warrior:fury": "selectable_two_hand_or_dual_wield_1h"
+      },
+      "requiredSlots": [
+        "head",
+        "chest",
+        "main_hand",
+        "off_hand"
+      ],
+      "uniqueLimits": {
+        "unique:ring": 1
+      },
+      "uniqueGemLimits": {},
+      "runeforgeAllowedClassSpecs": [],
+      "embellishmentLimit": 2,
+      "catalystRevision": "catalyst-proof-v1",
+      "crossSlotBlockers": [],
+      "setAggregationInputs": [
+        {
+          "itemSetId": "set:resolver",
+          "memberItemIds": [
+            "item-set-head",
+            "item-set-chest"
+          ],
+          "thresholds": [
+            {
+              "pieces": 2,
+              "effectId": "set:resolver:2pc",
+              "sourceRefIds": [
+                "evidence:set:resolver"
+              ]
+            }
+          ]
+        }
+      ],
+      "sourceRefIds": [
+        "evidence:rules"
+      ]
+    },
+    "capabilities": {
+      "serializer": {
+        "enabled": true,
+        "revision": "websim-profile-compat-v1"
+      },
+      "catalyst": {
+        "enabled": false,
+        "revision": "catalyst-proof-v1"
+      }
+    },
+    "evidenceRecordsById": {
+      "evidence:item:head": {"id": "evidence:item:head", "sourceType": "battle_net", "sourceRevision": "gear-r17"},
+      "evidence:item:chest": {"id": "evidence:item:chest", "sourceType": "battle_net", "sourceRevision": "gear-r17"},
+      "evidence:item:main": {"id": "evidence:item:main", "sourceType": "battle_net", "sourceRevision": "gear-r17"},
+      "evidence:item:off": {"id": "evidence:item:off", "sourceType": "battle_net", "sourceRevision": "gear-r17"},
+      "evidence:item:twohand": {"id": "evidence:item:twohand", "sourceType": "battle_net", "sourceRevision": "gear-r17"},
+      "evidence:item:ring": {"id": "evidence:item:ring", "sourceType": "battle_net", "sourceRevision": "gear-r17"},
+      "evidence:variant:head": {"id": "evidence:variant:head", "sourceType": "simulationcraft", "sourceRevision": "simc-v1"},
+      "evidence:variant:chest": {"id": "evidence:variant:chest", "sourceType": "simulationcraft", "sourceRevision": "simc-v1"},
+      "evidence:variant:main": {"id": "evidence:variant:main", "sourceType": "simulationcraft", "sourceRevision": "simc-v1"},
+      "evidence:variant:off": {"id": "evidence:variant:off", "sourceType": "simulationcraft", "sourceRevision": "simc-v1"},
+      "evidence:variant:twohand": {"id": "evidence:variant:twohand", "sourceType": "simulationcraft", "sourceRevision": "simc-v1"},
+      "evidence:variant:ring": {"id": "evidence:variant:ring", "sourceType": "simulationcraft", "sourceRevision": "simc-v1"},
+      "evidence:overlay:head": {"id": "evidence:overlay:head", "sourceType": "tier_overlay", "sourceRevision": "gear-r17"},
+      "evidence:overlay:chest": {"id": "evidence:overlay:chest", "sourceType": "tier_overlay", "sourceRevision": "gear-r17"},
+      "evidence:option:gem": {"id": "evidence:option:gem", "sourceType": "catalog_option", "sourceRevision": "gear-r17"},
+      "evidence:option:enchant": {"id": "evidence:option:enchant", "sourceType": "catalog_option", "sourceRevision": "gear-r17"},
+      "evidence:option:catalyst": {"id": "evidence:option:catalyst", "sourceType": "catalog_option", "sourceRevision": "gear-r17"},
+      "evidence:set:resolver": {"id": "evidence:set:resolver", "sourceType": "item_set", "sourceRevision": "gear-r17"},
+      "evidence:rules": {"id": "evidence:rules", "sourceType": "rule_authority", "sourceRevision": "gear-rule-matrix-v1"}
+    },
+    "missingFields": []
+  }
+}

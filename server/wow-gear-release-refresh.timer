@@ -1,0 +1,12 @@
+[Unit]
+Description=Refresh immutable WOW gear release candidates daily
+
+[Timer]
+OnBootSec=90min
+OnCalendar=*-*-* 18:30:00
+RandomizedDelaySec=15min
+Persistent=true
+Unit=wow-gear-release-refresh.service
+
+[Install]
+WantedBy=timers.target

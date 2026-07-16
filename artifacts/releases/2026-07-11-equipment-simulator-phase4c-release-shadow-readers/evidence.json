@@ -1,0 +1,155 @@
+{
+  "schemaVersion": 1,
+  "slug": "equipment-simulator-phase4c-release-shadow-readers",
+  "requirementSlug": "equipment-simulator-phase4c-release-shadow-readers",
+  "status": "archived",
+  "highestEvidenceLevel": "live_verified",
+  "branch": "codex/equipment-simulator-phase4c-release-shadow-readers",
+  "commit": "3e99d9811298788572f510592082b2f2978cb733",
+  "scope": [
+    "release-scoped read-only candidate projections",
+    "internal bounded old/new shadow comparison",
+    "40-spec browse, Resolve and Profile parity",
+    "mixed-release and missing-content fail-closed behavior"
+  ],
+  "verification": [
+    {
+      "command": "Phase 4B exact-head CI, merge and clean-equivalent live closure",
+      "status": "pass",
+      "summary": "PR #73 merged as 48aa44e with identical PR/merge tree 54d43c54. Post-merge runtime hashes, 129 focused tests, two inactive releases, 40 winners, zero Manifest/Pointer rows, 40/40 public parity and runtime smoke passed."
+    },
+    {
+      "command": "Phase 4C requirement self-review",
+      "status": "pass",
+      "summary": "The Slice is limited to release-scoped read-only projections and internal shadow evidence. Public reader cutover, Manifest/Pointer writes, timers, scheduled refresh, Phase 5 and Catalyst activation remain excluded."
+    },
+    {
+      "command": "python3 -m unittest tests.gear_release_shadow_test tests.gear_release_store_test tests.gear_release_tool_test tests.gear_release_test tests.gear_runtime_test tests.pg_gear_authority_loader_test tests.pg_gear_read_model_selectors_test tests.postgres_cache_store_test",
+      "status": "pass",
+      "summary": "242 focused release store, release integrity, exact candidate Authority, cache identity, Resolve/Profile, shadow orchestration and PostgreSQL facade tests passed."
+    },
+    {
+      "command": "node --test tests/project-harness.test.js tests/backend-owner-map.test.js tests/project-owner-map.test.js tests/project-state.test.js",
+      "status": "pass",
+      "summary": "23 Repo-native Harness, project-state and ownership contract tests passed."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile backend --release artifacts/releases/2026-07-11-equipment-simulator-phase4c-release-shadow-readers --base origin/main",
+      "status": "pass",
+      "summary": "Final backend profile at 67be38c passed 1255 Python tests with 1 skipped, compileall and the strict Harness packet check."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-11-equipment-simulator-phase4c-release-shadow-readers --base origin/main",
+      "status": "pass",
+      "summary": "Final full profile at 67be38c passed 386 Node tests, 1255 Python tests with 1 skipped, 130 JSON/syntax/Harness/diff commands and the strict packet check."
+    },
+    {
+      "command": "local CR against origin/main plus python3 -m py_compile and git diff --check",
+      "status": "pass",
+      "summary": "Local CR fixed exact-release cache reuse, HTTP-equivalent authoring-context reads, raw/normalized release variant equivalence, exact observed-source projection, evidence-identity-free gear semantics, provenance proof fallback, unexpected winner filtering, Profile content parity and empty candidate Profile release fallback. Candidate paths remain explicit internal operator-only reads with no route, timer, Manifest/Pointer or staging fallback."
+    },
+    {
+      "command": "fail-closed candidate iterations before final shadow",
+      "status": "pass",
+      "summary": "Early candidate runs blocked rather than cutting over. They exposed missing outer resolver context, exact release variant projection gaps, evidence IDs incorrectly included in semantic hashes and nine legacy rows with gearHash but no profileHash. Each finding received a focused red test and bounded correction before the final pass."
+    },
+    {
+      "command": "python3 -m server.gear_release_tool shadow --gear-release-id gear-release:sha256:342e3918b685ca0145514485d115fb74079be660d85ea8b835760c4bc61350f6 --community-release-id community-release:sha256:923ccd05f09fbe32b1827e45d7e9be163545fb187d49efcde730dbb0216682ed --simc-runtime-revision 1e357922af363f3d87cc0758863c2bb6d7701b72",
+      "status": "pass",
+      "summary": "Final exact-head candidate shadow passed 40 public reads, 40/40 transitional and candidate Resolve 200, 40/40 Profile parity, 40 revision-only diffs, zero blockers, formalActiveManifest=false and legacy evidence-identity semantic compatibility."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "live_verified",
+    "requiredBeforeMerge": true,
+    "branch": "codex/equipment-simulator-phase4c-release-shadow-readers",
+    "commit": "67be38ce1e79763c2e6947a39acc041cbe5d67bb",
+    "runtimeHashParity": "pass",
+    "backup": "/opt/wow-mini-program-candidate-backups/phase4c-pre-4922d64-20260711T080206Z",
+    "smoke": {
+      "status": "pass",
+      "summary": "40/40 revision-only shadow, Resolve/Profile parity, zero blockers and unchanged public/API/DB/service state."
+    },
+    "timerBackflow": {
+      "status": "pass",
+      "summary": "Deploy kept async sync disabled; sync services were inactive and no release timer/unit exists."
+    }
+  },
+  "runtimeEvidence": [
+    {
+      "surface": "bounded_shadow",
+      "status": "pass",
+      "summary": "31.713s internal duration / 31.96s process wall, per-spec p95 769.079ms and max 959.421ms; 684 DB statements = 523 reads + 161 transaction controls + 0 writes; cache 32/32 entries and 2,048,377/4,194,304 bytes; max RSS 450,772 KiB."
+    },
+    {
+      "surface": "release_registry",
+      "status": "pass",
+      "summary": "Registry remains one validated Gear plus one validated Community Release. Exact Gear counts remain 1417 items / 19201 sources / 27949 variants / 62 options; Community remains 40 winners / 319 rejected; Season Manifest and Active Pointer rows both remain zero."
+    },
+    {
+      "surface": "public_and_api_smoke",
+      "status": "pass",
+      "summary": "Public remains one observed winner per spec, baseline=0 and formalActiveManifest=false. Representative Resolve is resolved with zero problems, legacy Profile returns a non-empty profile, unknown Catalyst returns 503 unavailable with MISSING_AUTHORITY_FIELD at optionsById.unknown-catalyst, and /api/data/health remains HTTP 200 with the pre-existing partial truth."
+    },
+    {
+      "surface": "service_timer_backflow",
+      "status": "pass",
+      "summary": "wow-backend active/running, NRestarts=0, MemoryCurrent=100,847,616 bytes and zero recent error matches. WebSim/stat/community/observed async services were inactive after deploy, async start remained disabled, and no release timer/unit exists."
+    },
+    {
+      "surface": "rollback",
+      "status": "ready",
+      "summary": "Restore the pre-candidate server files from /opt/wow-mini-program-candidate-backups/phase4c-pre-4922d64-20260711T080206Z and restart wow-backend. No schema or data rollback is required because the Slice executed zero DB writes."
+    },
+    {
+      "surface": "clean_merge_equivalent",
+      "status": "pass",
+      "summary": "PR #75 passed GitHub Project Harness and squash-merged as 3e99d98 with merge tree e4bf2ce9 identical to the PR head tree. Clean merge deployment passed runtime hash parity, 242 host tests, 40/40 revision-only shadow, p95 782.123ms, 684 statements with zero writes, unchanged release/Manifest/Pointer counts, public/health/service/log smoke and rollback backup /opt/wow-mini-program-candidate-backups/phase4c-pre-main-3e99d98-20260711T084858Z."
+    }
+  ],
+  "risks": [
+    {
+      "id": "mixed_release_read",
+      "status": "verified",
+      "detail": "Every candidate query is constrained to one exact release ID; Community binding and complete content hash are checked before projection, with missing or mixed content covered by fail-closed tests."
+    },
+    {
+      "id": "silent_staging_fallback",
+      "status": "verified",
+      "detail": "Candidate projections use only immutable release items, sources, variants and options. Missing/tampered content does not fall back to staging; transitional reads are called separately only for the old side of shadow."
+    },
+    {
+      "id": "premature_public_cutover",
+      "status": "verified",
+      "detail": "Candidate path is explicit operator-only shadow code. Public routing remains transitional, formalActiveManifest=false, Manifest/Pointer counts are zero and no release timer exists."
+    },
+    {
+      "id": "unbounded_dual_read",
+      "status": "verified",
+      "detail": "Final 40-spec run recorded p95/max latency, process RSS, exact DB statement classes with zero writes and cache entries/bytes within both configured caps."
+    }
+  ],
+  "rollback": [
+    "code_rollback"
+  ],
+  "cleanup": {
+    "required": false
+  },
+  "archivedReferences": [
+    "docs/project-state.json",
+    "docs/roadmap.md",
+    "docs/harness.md",
+    "docs/gear-simulation-full-chain-runbook.md",
+    "docs/plans/2026-07-11-equipment-simulator-phase4-release-train-plan.md",
+    "artifacts/releases/2026-07-11-equipment-simulator-phase4b-pg-registry-legacy-import/evidence.json",
+    "server/gear_release.py",
+    "server/gear_release_store.py",
+    "server/pg_gear_authority_loader.py",
+    "server/postgres_cache_store.py",
+    "server/pg_gear_read_model_selectors.py",
+    "server/gear_runtime.py",
+    "docs/backend-owner-map.json",
+    "docs/project-owner-map.json"
+  ],
+  "summary": "Slice 4C is merged, live-verified and archived: PR #75 / 3e99d98 proves 40/40 revision-only browse/Resolve/Profile parity with bounded latency/cache/statements and zero writes. Public readers remain transitional and Manifest/Pointer rows remain zero; Slice 4D is opened separately for atomic cutover."
+}

@@ -237,6 +237,68 @@ function requestWebsimProfile(payload) {
   })
 }
 
+function isGearResultEnvelope(data) {
+  return !!(data && data.contractRevision === 'gear-result-envelope-v1')
+}
+
+function requestWebsimGearResolve(selectionIntent) {
+  return requestJson('/api/websim/gear/resolve', {
+    method: 'POST',
+    data: selectionIntent || {},
+    timeout: 30000,
+    responseMode: 'structured-problem',
+    fallback: () => null,
+    validate: isGearResultEnvelope
+  })
+}
+
+function requestWebsimCommunityTemplateImport(params) {
+  const source = params || {}
+  const data = {
+    classKey: String(source.classKey || ''),
+    specKey: String(source.specKey || ''),
+    templateId: String(source.templateId || ''),
+    expectedManifestRevision: String(source.expectedManifestRevision || '')
+  }
+  return requestJson('/api/websim/gear/community-import', {
+    method: 'POST',
+    data,
+    timeout: 30000,
+    responseMode: 'structured-problem',
+    fallback: () => null,
+    validate: (value) => value && value.contractRevision === 'community-template-import-envelope-v1'
+  })
+}
+
+function requestWebsimProfileFromIntent(selectionIntent, profileContext) {
+  return requestJson('/api/websim/profile', {
+    method: 'POST',
+    data: {
+      selectionIntent: selectionIntent || {},
+      profileContext: profileContext || {}
+    },
+    timeout: 30000,
+    responseMode: 'structured-problem',
+    fallback: () => null,
+    validate: isGearResultEnvelope
+  })
+}
+
+function requestWebsimGearStatSnapshot(selectionIntent, profileContext, options) {
+  const timeoutMs = Math.min(30000, Math.max(1, Number(options && options.timeoutMs) || 30000))
+  return requestJson('/api/websim/gear/stat-snapshots', {
+    method: 'POST',
+    data: {
+      selectionIntent: selectionIntent || {},
+      profileContext: profileContext || {}
+    },
+    timeout: timeoutMs,
+    responseMode: 'structured-problem',
+    fallback: () => null,
+    validate: isGearResultEnvelope
+  })
+}
+
 function requestWebsimGear(params) {
   const options = params || {}
   const query = [
@@ -272,9 +334,13 @@ module.exports = {
   fallbackWebsimTalentImport,
   fallbackWebsimTalents,
   requestWebsimBootstrap,
+  requestWebsimCommunityTemplateImport,
   requestWebsimGear,
+  requestWebsimGearResolve,
+  requestWebsimGearStatSnapshot,
   requestWebsimGearStats,
   requestWebsimProfile,
+  requestWebsimProfileFromIntent,
   requestWebsimTalentImport,
   requestWebsimTalents
 }

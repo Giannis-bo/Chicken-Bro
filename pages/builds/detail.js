@@ -6,12 +6,33 @@ const {
 } = require('./builds-api')
 const {
   requestWebsimGear,
-  requestWebsimGearStats,
+  requestWebsimCommunityTemplateImport,
+  requestWebsimGearResolve,
+  requestWebsimGearStatSnapshot,
   requestWebsimTalentImport
 } = require('./websim-api')
+const {
+  adoptVerifiedCommunityImport,
+  applyGearResolveResult,
+  applyGearStatSnapshotResult,
+  beginGearStatSnapshot,
+  beginGearResolve,
+  confirmGearIntent,
+  createGearWorkbenchState,
+  createGearStatSnapshotState,
+  editGearIntent,
+  gearWorkbenchAcceptedVerifiedResolve,
+  gearWorkbenchCanRunProfile,
+  gearWorkbenchCanUseVerifiedSnapshot,
+  gearWorkbenchView,
+  gearStatRequestTimeoutMs,
+  invalidateGearStatSnapshot,
+  rebaseGearIntentRevisions
+} = require('./gear-workbench-state')
+const { completeResolverContext, serializeGearSelectionIntent } = require('./gear-selection-intent')
 const { trackEvent, trackPageLeave, trackPageView } = require('../common/analytics-client')
 const { listBuildTemplates, syncBuildTemplate } = require('../common/build-template-storage')
-const { attachGameAsset } = require('../common/game-asset')
+const { attachGameAsset, gameAssetFromIconName } = require('../common/game-asset')
 
 const SIMC_BUILD_CONTEXT_STORAGE_KEY = 'wow_simc_build_context'
 const fallbackPayload = fallbackBuildsHome()
@@ -36,11 +57,11 @@ const gearTemplateScenarios = [
   { key: 'raid', title: '团本' }
 ]
 const GEAR_ENHANCEMENT_SNAPSHOT_REVISION = 'websim-gear-enhancement-snapshot-v1'
+const COMMUNITY_TEMPLATE_IMPORT_CONTRACT_REVISION = 'websim-community-template-import-v2'
 const gearEnhancementMax = 2
 const gearTierSetMax = 5
+const communityEnhancementRecoveryWarning = '部分宝石、附魔或美化未能识别，已留空，请重新选择。'
 const primaryStatGemUniqueGroup = 'primary_stat_gem'
-const primaryStatGemUniqueLimit = 1
-const primaryStatGemIds = new Set(['240967', '240969', '240971', '240983'])
 const enchantableGearSlots = new Set(['back', 'chest', 'wrist', 'legs', 'feet', 'finger1', 'finger2', 'main_hand', 'off_hand'])
 const governedEnchantFallbackSlots = new Set(['back', 'chest', 'legs', 'feet', 'finger1', 'finger2', 'main_hand', 'off_hand'])
 const gearConfigEnchantExcludedCategories = new Set([
@@ -73,6 +94,11 @@ const gearEmbellishmentEquipmentSlots = new Set([
   'main_hand',
   'off_hand'
 ])
+const enhancementMarkerIconNames = {
+  gem: 'inv_misc_gem_variety_02',
+  enchant: 'spell_holy_greaterheal',
+  embellishment: 'inv_misc_gear_01'
+}
 const gearEnhancementSlotOrder = ['neck', 'finger1', 'finger2', 'main_hand', 'off_hand']
 const gearCandidateFilters = [
   { key: 'all', label: '全部' },
@@ -224,6 +250,25 @@ const gearSlotDisplayLabels = {
   main_hand: '主手',
   off_hand: '副手'
 }
+const gearWeaponTypeLabels = {
+  dagger: '匕首',
+  'fist weapon': '拳套',
+  'one-handed axe': '单手斧',
+  'one-handed mace': '单手锤',
+  'one-handed sword': '单手剑',
+  warglaive: '战刃',
+  wand: '魔杖',
+  'two-handed axe': '双手斧',
+  'two-handed mace': '双手锤',
+  'two-handed sword': '双手剑',
+  polearm: '长柄武器',
+  staff: '法杖',
+  bow: '弓',
+  crossbow: '弩',
+  gun: '枪械',
+  'held in off-hand': '副手物品',
+  shield: '盾牌'
+}
 
 function showToast(title) {
   if (typeof wx !== 'undefined' && typeof wx.showToast === 'function') {
@@ -281,6 +326,19 @@ function primaryStatKeyForSpec(selectedSpec) {
   if (classKey === 'druid') return specKey === 'feral' || specKey === 'guardian' ? 'agility' : 'intellect'
   if (classKey === 'monk') return specKey === 'mistweaver' ? 'intellect' : 'agility'
   return 'intellect'
+}
+
+function primaryStatKeyForGearDetail(selectedSpec, gearPayload) {
+  const classKey = cleanGearString(
+    (selectedSpec && (selectedSpec.websimClassKey || selectedSpec.classKey)) ||
+    (gearPayload && gearPayload.classKey)
+  )
+  if (!classKey) return ''
+  const specKey = cleanGearString(
+    (selectedSpec && (selectedSpec.websimSpecKey || selectedSpec.specKey)) ||
+    (gearPayload && gearPayload.specKey)
+  )
+  return primaryStatKeyForSpec({ websimClassKey: classKey, websimSpecKey: specKey })
 }
 
 function gearNumericValue(value) {
@@ -394,6 +452,391 @@ function gearEnhancementMetric(key, label, used, max) {
     max: safeMax,
     pending: false
   }
+}
+
+function emptyCommunityEnhancementImportState() {
+  return {
+    templateId: '',
+    serial: 0,
+    resolvedGearSignature: '',
+    contractRevision: '',
+    profileHash: '',
+    gearHash: '',
+    sourceFingerprint: '',
+    manifestRevision: '',
+    unresolvedBySlot: {},
+    warnings: []
+  }
+}
+
+function clearCommunityEnhancementImportState(page) {
+  if (!page) return
+  page.communityEnhancementImportState = emptyCommunityEnhancementImportState()
+}
+
+function communityImportExpectedManifestRevision(page) {
+  const payload = fullGearPayloadForPage(page) || (page && page.data && page.data.gearPayload) || {}
+  return cleanGearString(payload.manifestRevision)
+}
+
+function sealedImportedGearSelectionForPage(importedGearBySlot) {
+  const imported = importedGearBySlot && typeof importedGearBySlot === 'object' ? importedGearBySlot : {}
+  const result = {}
+  Object.keys(imported).forEach((slot) => {
+    const selected = imported[slot]
+    const declaredSlot = cleanGearString(selected && selected.slot)
+    const declaredSimcSlot = cleanGearString(selected && selected.simcSlot)
+    const itemId = normalizedGearItemId(selected)
+    const variantKey = cleanGearString(selected && selected.variantKey)
+    const itemLevel = Number(selected && selected.itemLevel)
+    const ilevel = Number(selected && selected.ilevel)
+    const displayName = cleanGearString(selected && (selected.displayName || selected.name || selected.label))
+    const iconUrl = cleanGearString(selected && selected.iconUrl)
+    const gameAsset = selected && selected.gameAsset && typeof selected.gameAsset === 'object' ? selected.gameAsset : {}
+    if (
+      !requiredGearSlots.includes(slot) || declaredSlot !== slot || (declaredSimcSlot && declaredSimcSlot !== slot) ||
+      !itemId || !variantKey || !Number.isFinite(itemLevel) || itemLevel <= 0 ||
+      !Number.isFinite(ilevel) || ilevel !== itemLevel || !displayName || !iconUrl ||
+      cleanGearString(gameAsset.status).toLowerCase() !== 'verified' || cleanGearString(gameAsset.iconUrl) !== iconUrl
+    ) return
+    result[slot] = {
+      ...selected,
+      slot,
+      simcSlot: selected.simcSlot || slot,
+      itemId,
+      id: itemId,
+      variantKey,
+      ilevel: itemLevel,
+      itemLevel,
+      displayName,
+      name: cleanGearString(selected.name) || displayName,
+      iconUrl,
+      gameAsset: { ...gameAsset, iconUrl, status: 'verified' },
+      simcReady: true
+    }
+  })
+  return result
+}
+
+function validCommunityImportEnvelope(result, context) {
+  const envelope = result && result.payload
+  const data = envelope && envelope.data
+  const releaseContext = envelope && envelope.releaseContext
+  const manifest = data && data.manifest
+  const expectedManifestRevision = cleanGearString(context && context.manifestRevision)
+  return !!(
+    result && !result.fromFallback && Number(result.httpStatus) === 200 &&
+    envelope && envelope.contractRevision === 'community-template-import-envelope-v1' &&
+    envelope.status === 'verified' && Array.isArray(envelope.problems) && envelope.problems.length === 0 &&
+    data && data.contractRevision === COMMUNITY_TEMPLATE_IMPORT_CONTRACT_REVISION && data.status === 'verified' &&
+    manifest && releaseContext &&
+    cleanGearString(manifest.manifestRevision) === expectedManifestRevision &&
+    cleanGearString(releaseContext.manifestRevision) === expectedManifestRevision &&
+    // Some older observed profiles have no source profile hash.  Their sealed
+    // source fingerprint and gear hash remain mandatory and bind the import to
+    // the exact active Manifest; do not fabricate a profile hash client-side.
+    data.template && cleanGearString(data.template.id) &&
+    cleanGearString(data.template.gearHash) && cleanGearString(data.template.sourceFingerprint) &&
+    data.resolvedSnapshot && data.resolvedSnapshot.status === 'verified' &&
+    cleanGearString(data.resolvedSnapshot.resolvedGearSignature) &&
+    data.importedGearBySlot && typeof data.importedGearBySlot === 'object' &&
+    Object.keys(data.importedGearBySlot).length > 0
+  )
+}
+
+function communityImportFailureMessage(result) {
+  const envelope = result && result.payload
+  if (Number(result && result.httpStatus) === 409) return '装备数据已更新，请重新打开模板后重试'
+  if (envelope && envelope.status === 'unavailable') return '社区模板暂时不可导入，请稍后重试'
+  return '社区模板未能安全导入，请稍后重试'
+}
+
+function savedCommunityImportOrigin(value) {
+  const origin = value && typeof value === 'object' ? value : {}
+  const contractRevision = cleanGearString(origin.contractRevision)
+  const templateId = cleanGearString(origin.templateId)
+  const profileHash = cleanGearString(origin.profileHash)
+  const gearHash = cleanGearString(origin.gearHash)
+  const sourceFingerprint = cleanGearString(origin.sourceFingerprint)
+  const manifestRevision = cleanGearString(origin.manifestRevision)
+  if (
+    contractRevision !== COMMUNITY_TEMPLATE_IMPORT_CONTRACT_REVISION || !templateId ||
+    !gearHash || !sourceFingerprint || !manifestRevision
+  ) return null
+  return { contractRevision, templateId, profileHash, gearHash, sourceFingerprint, manifestRevision }
+}
+
+function communityImportMatchesSavedOrigin(result, context, origin) {
+  if (!validCommunityImportEnvelope(result, context)) return false
+  const data = result.payload.data
+  const template = data && data.template && typeof data.template === 'object' ? data.template : {}
+  return (
+    cleanGearString(data.contractRevision) === origin.contractRevision &&
+    cleanGearString(template.id) === origin.templateId &&
+    (!origin.profileHash || cleanGearString(template.profileHash) === origin.profileHash) &&
+    cleanGearString(template.gearHash) === origin.gearHash &&
+    cleanGearString(template.sourceFingerprint) === origin.sourceFingerprint &&
+    cleanGearString(context.manifestRevision) === origin.manifestRevision
+  )
+}
+
+function applySavedCommunityImportOrigin(page, origin) {
+  const gearPayload = fullGearPayloadForPage(page) || (page && page.data && page.data.gearPayload) || {}
+  const expectedManifestRevision = communityImportExpectedManifestRevision(page)
+  if (!completeResolverContext(gearPayload.resolverContext) || expectedManifestRevision !== origin.manifestRevision) {
+    showToast('保存的源模板已变化，暂不可导入')
+    return Promise.resolve(false)
+  }
+  invalidateGearInteractionContext(page)
+  const importSerial = Number(page.communityEnhancementImportSerial || 0) + 1
+  page.communityEnhancementImportSerial = importSerial
+  const priorState = page.communityEnhancementImportState || emptyCommunityEnhancementImportState()
+  const lifetimeContext = captureGearInteractionContext(page, { manifestRevision: expectedManifestRevision })
+  page.communityEnhancementImportState = {
+    templateId: origin.templateId,
+    serial: importSerial,
+    resolvedGearSignature: '',
+    contractRevision: origin.contractRevision,
+    profileHash: origin.profileHash,
+    gearHash: origin.gearHash,
+    sourceFingerprint: origin.sourceFingerprint,
+    manifestRevision: origin.manifestRevision
+  }
+  const interactionContext = captureGearInteractionContext(page, {
+    manifestRevision: expectedManifestRevision,
+    communityImport: { templateId: origin.templateId, serial: importSerial }
+  })
+  const selectedSpec = (page && page.data && page.data.selectedSpec) || {}
+  const keys = specWebsimKeys({
+    websimClassKey: selectedSpec.websimClassKey || selectedSpec.classKey || gearPayload.classKey,
+    websimSpecKey: selectedSpec.websimSpecKey || selectedSpec.specKey || gearPayload.specKey
+  })
+  page.setData({ communityTemplateImporting: true })
+  return requestWebsimCommunityTemplateImport({
+    classKey: keys.classKey,
+    specKey: keys.specKey,
+    templateId: origin.templateId,
+    expectedManifestRevision
+  }).then((result) => {
+    if (!gearInteractionContextIsCurrent(page, interactionContext)) return false
+    if (!communityImportMatchesSavedOrigin(result, interactionContext, origin)) {
+      page.communityEnhancementImportState = priorState
+      showToast('保存的源模板已变化，暂不可导入')
+      return false
+    }
+    const committed = commitImportedCommunityTemplate(page, result, interactionContext)
+    if (!committed && gearInteractionContextIsCurrent(page, interactionContext)) {
+      page.communityEnhancementImportState = priorState
+      showToast('保存模板无法验证，暂不可导入')
+    }
+    return committed
+  }).catch(() => {
+    if (gearInteractionContextIsCurrent(page, interactionContext)) {
+      page.communityEnhancementImportState = priorState
+      showToast('保存模板无法验证，暂不可导入')
+    }
+    return false
+  }).finally(() => clearCommunityTemplateImportingOnlyIfCurrent(page, lifetimeContext))
+}
+
+function clearCommunityTemplateImportingOnlyIfCurrent(page, context) {
+  if (!gearInteractionContextIsCurrent(page, context)) return
+  page.setData({ communityTemplateImporting: false })
+}
+
+function resetGearWorkbenchForSelection(page) {
+  const gearStatSnapshot = defaultGearStatSnapshot('等待当前职业装备数据')
+  page.gearWorkbenchState = createGearWorkbenchState()
+  page.gearStatSnapshotState = createGearStatSnapshotState()
+  page.gearStatsRequestKey = ''
+  return {
+    selectedGearBySlot: {},
+    enhancementBySlot: {},
+    gearSlotRows: [],
+    gearStatSnapshot,
+    gearStatBlockers: gearStatSnapshot.blockers,
+    gearStatsLoading: false,
+    gearStatsRequestError: '',
+    ...gearWorkbenchDataState(page.gearWorkbenchState, { gearStatSnapshot }, null)
+  }
+}
+
+function commitImportedCommunityTemplate(page, result, context) {
+  if (!gearInteractionContextIsCurrent(page, context) || !validCommunityImportEnvelope(result, context)) return false
+  const data = result.payload.data
+  const templateId = cleanGearString(context && context.communityImport && context.communityImport.templateId)
+  if (!templateId || cleanGearString(data.template && data.template.id) !== templateId) return false
+  const gearPayload = fullGearPayloadForPage(page) || (page && page.data && page.data.gearPayload) || {}
+  const selectedGearBySlot = sealedImportedGearSelectionForPage(data.importedGearBySlot)
+  if (Object.keys(selectedGearBySlot).length !== Object.keys(data.importedGearBySlot).length) return false
+  const snapshot = data.resolvedSnapshot
+  const enhancementBySlot = enhancementBySlotFromResolvedSnapshot(snapshot)
+  const selectedSpec = (page && page.data && page.data.selectedSpec) || {}
+  const keys = specWebsimKeys({
+    websimClassKey: selectedSpec.websimClassKey || selectedSpec.classKey || gearPayload.classKey,
+    websimSpecKey: selectedSpec.websimSpecKey || selectedSpec.specKey || gearPayload.specKey
+  })
+  const selectionIntent = serializeGearSelectionIntent({
+    resolverContext: gearPayload.resolverContext,
+    eligibilityContext: {
+      classKey: keys.classKey,
+      specKey: keys.specKey,
+      level: Number(gearPayload.maxLevel) || 90
+    },
+    selectedGearBySlot,
+    enhancementBySlot
+  })
+  if (!selectionIntent) return false
+  const adopted = adoptVerifiedCommunityImport(
+    page.gearWorkbenchState,
+    selectionIntent,
+    snapshot,
+    result.payload.releaseContext
+  )
+  if (!gearWorkbenchCanUseVerifiedSnapshot(adopted)) return false
+
+  page.gearWorkbenchState = adopted
+  page.gearStatSnapshotState = createGearStatSnapshotState()
+  page.communityEnhancementImportState = {
+    templateId,
+    serial: Number(context.communityImport.serial) || 0,
+    resolvedGearSignature: cleanGearString(snapshot.resolvedGearSignature),
+    contractRevision: cleanGearString(data.contractRevision),
+    profileHash: cleanGearString(data.template && data.template.profileHash),
+    gearHash: cleanGearString(data.template && data.template.gearHash),
+    sourceFingerprint: cleanGearString(data.template && data.template.sourceFingerprint),
+    manifestRevision: cleanGearString(context && context.manifestRevision)
+  }
+  const gearStatSnapshot = defaultGearStatSnapshot('等待当前装备属性快照')
+  const derivedState = createDetailDerivedState(page.data.selectedDetail, page.data.activeQueryKey, {
+    ...page.data,
+    gearPayload,
+    selectedGearBySlot,
+    enhancementBySlot,
+    gearStatSnapshot
+  })
+  const renderedData = { ...page.data, ...derivedState, enhancementBySlot, gearStatSnapshot }
+  page.setData({
+    ...derivedState,
+    enhancementBySlot,
+    gearStatSnapshot,
+    ...gearWorkbenchDataState(adopted, renderedData, null),
+    gearSlotSheet: emptyGearSlotSheet(),
+    gearEnhancementSheet: emptyGearEnhancementSheet(),
+    gearCommunityTemplateSheet: emptyGearCommunityTemplateSheet()
+  })
+  return true
+}
+
+function gearInteractionGenerationForPage(page) {
+  const value = Number(page && page.gearInteractionGeneration)
+  return Number.isSafeInteger(value) && value >= 0 ? value : 0
+}
+
+function gearSelectionKeyForPage(page) {
+  const explicit = cleanGearString(page && page.data && page.data.gearSelectionKey)
+  if (explicit) return explicit
+  const keys = specWebsimKeys((page && page.data && page.data.selectedSpec) || {})
+  return `${keys.classKey}:${keys.specKey}`
+}
+
+function captureGearInteractionContext(page, resolveContext) {
+  const source = resolveContext && typeof resolveContext === 'object' ? resolveContext : {}
+  const communityImport = source.communityImport && typeof source.communityImport === 'object'
+    ? {
+        templateId: cleanGearString(source.communityImport.templateId),
+        serial: Number(source.communityImport.serial) || 0
+      }
+    : null
+  return {
+    generation: gearInteractionGenerationForPage(page),
+    gearSelectionKey: gearSelectionKeyForPage(page),
+    manifestRevision: cleanGearString(source.manifestRevision),
+    communityImport
+  }
+}
+
+function gearInteractionContextIsCurrent(page, context) {
+  if (!page || !context || typeof context !== 'object') return false
+  if (gearInteractionGenerationForPage(page) !== Number(context.generation)) return false
+  if (gearSelectionKeyForPage(page) !== cleanGearString(context.gearSelectionKey)) return false
+  if (
+    cleanGearString(context.manifestRevision) &&
+    communityImportExpectedManifestRevision(page) !== cleanGearString(context.manifestRevision)
+  ) return false
+  if (context.communityImport) {
+    const current = page.communityEnhancementImportState || emptyCommunityEnhancementImportState()
+    if (
+      cleanGearString(current.templateId) !== cleanGearString(context.communityImport.templateId) ||
+      Number(current.serial) !== Number(context.communityImport.serial)
+    ) return false
+  }
+  return true
+}
+
+function invalidateGearInteractionContext(page) {
+  if (!page) return 0
+  page.gearInteractionGeneration = gearInteractionGenerationForPage(page) + 1
+  delete page.atomicEnhancementCommittedWorkbenchState
+  return page.gearInteractionGeneration
+}
+
+function beginGearSlotOpenRequest(page, slot) {
+  const serial = Math.max(0, Number(page && page.gearSlotOpenSerial) || 0) + 1
+  page.gearSlotOpenSerial = serial
+  page.gearSlotOpenDesiredSlot = cleanGearString(slot)
+  return { serial, slot: page.gearSlotOpenDesiredSlot }
+}
+
+function invalidateGearSlotOpenRequest(page) {
+  if (!page) return 0
+  const serial = Math.max(0, Number(page.gearSlotOpenSerial) || 0) + 1
+  page.gearSlotOpenSerial = serial
+  page.gearSlotOpenDesiredSlot = ''
+  return serial
+}
+
+function gearSlotOpenRequestIsCurrent(page, request) {
+  return !!(
+    page && request &&
+    Number(page.gearSlotOpenSerial) === Number(request.serial) &&
+    cleanGearString(page.gearSlotOpenDesiredSlot) === cleanGearString(request.slot)
+  )
+}
+
+function eligibleCommunityEnhancementImportState(state, snapshot) {
+  const current = state && typeof state === 'object' ? state : emptyCommunityEnhancementImportState()
+  const snapshotSignature = cleanGearString(snapshot && snapshot.resolvedGearSignature)
+  return !!(
+    snapshotSignature &&
+    cleanGearString(current.resolvedGearSignature) === snapshotSignature
+  ) ? current : emptyCommunityEnhancementImportState()
+}
+
+function eligibleCommunityEnhancementImportStateForPage(page, snapshot) {
+  const resolveStatus = cleanGearString(page && page.gearWorkbenchState && page.gearWorkbenchState.resolveStatus)
+  if (['dirty', 'resolving', 'pending', 'revision_conflict'].includes(resolveStatus)) {
+    return emptyCommunityEnhancementImportState()
+  }
+  return eligibleCommunityEnhancementImportState(
+    page && page.communityEnhancementImportState,
+    snapshot
+  )
+}
+
+function communityImportOriginForSave(page, snapshot) {
+  const state = eligibleCommunityEnhancementImportStateForPage(page, snapshot)
+  const templateId = cleanGearString(state.templateId)
+  const contractRevision = cleanGearString(state.contractRevision)
+  const profileHash = cleanGearString(state.profileHash)
+  const gearHash = cleanGearString(state.gearHash)
+  const sourceFingerprint = cleanGearString(state.sourceFingerprint)
+  const manifestRevision = cleanGearString(state.manifestRevision)
+  if (
+    !templateId || contractRevision !== COMMUNITY_TEMPLATE_IMPORT_CONTRACT_REVISION ||
+    !profileHash || !gearHash || !sourceFingerprint || !manifestRevision
+  ) return null
+  return { contractRevision, templateId, profileHash, gearHash, sourceFingerprint, manifestRevision }
 }
 
 function gearItemIsTierSet(item) {
@@ -582,6 +1025,7 @@ function enhancementRecordSelectedCount(record, type) {
   if (!record || typeof record !== 'object') return 0
   if (type === 'gem') {
     return Math.max(
+      normalizedOptionIdentityList(record.gemOptionIds).length,
       simcOptionValueCount(record.gem_id),
       cleanGearString(record.socketOptionId) ? 1 : 0,
       cleanGearString(record.gem_bonus_id) ? 1 : 0
@@ -912,12 +1356,284 @@ function buildGearAttributePanel(gearPayload, selectedGearBySlot, selectedSpec, 
   }
 }
 
+const canonicalGearAttributeLabels = {
+  intellect: '智力',
+  agility: '敏捷',
+  strength: '力量',
+  stamina: '耐力',
+  agiint: '敏捷 / 智力',
+  agint: '敏捷 / 智力',
+  intagi: '敏捷 / 智力',
+  stragi: '力量 / 敏捷',
+  strint: '力量 / 智力',
+  stragiint: '力量 / 敏捷 / 智力',
+  stragint: '力量 / 敏捷 / 智力',
+  haste: '急速',
+  haste_rating: '急速',
+  crit: '暴击',
+  critical_strike: '暴击',
+  crit_rating: '暴击',
+  critical_strike_rating: '暴击',
+  mastery: '精通',
+  mastery_rating: '精通',
+  versatility: '全能',
+  versatility_rating: '全能',
+  armor: '护甲',
+  avoidance: '闪避',
+  avoidance_rating: '闪避',
+  leech: '吸血',
+  leech_rating: '吸血',
+  speed: '速度',
+  speed_rating: '速度'
+}
+
+const flexiblePrimaryStatKeys = {
+  agiint: ['agility', 'intellect'],
+  agint: ['agility', 'intellect'],
+  intagi: ['agility', 'intellect'],
+  stragi: ['strength', 'agility'],
+  strint: ['strength', 'intellect'],
+  stragiint: ['strength', 'agility', 'intellect'],
+  stragint: ['strength', 'agility', 'intellect']
+}
+const primaryGearAttributeKeys = new Set(['strength', 'agility', 'intellect'])
+
+function canonicalGearAttributeTotalsForSpec(rawTotals, eligibilityContext) {
+  const context = eligibilityContext && typeof eligibilityContext === 'object' ? eligibilityContext : null
+  const classKey = context && cleanGearString(context.classKey)
+  const primaryKey = classKey ? primaryStatKeyForSpec(context) : ''
+  return Object.keys(rawTotals || {}).reduce((totals, rawKey) => {
+    const normalizedKey = normalizedGearKey(rawKey)
+    const flexiblePrimaryKeys = flexiblePrimaryStatKeys[normalizedKey]
+    const key = flexiblePrimaryKeys
+      ? (primaryKey && flexiblePrimaryKeys.includes(primaryKey) ? primaryKey : (primaryKey ? '' : rawKey))
+      : (primaryKey && primaryGearAttributeKeys.has(normalizedKey) && normalizedKey !== primaryKey ? '' : rawKey)
+    if (!key) return totals
+    const value = gearNumericValue(rawTotals[rawKey])
+    if (value === null) {
+      totals[key] = rawTotals[rawKey]
+      return totals
+    }
+    totals[key] = (gearNumericValue(totals[key]) || 0) + value
+    return totals
+  }, {})
+}
+
+function canonicalGearAttributePanel(snapshot, statSnapshot) {
+  if (!snapshot || typeof snapshot !== 'object') return emptyGearAttributePanel()
+  const rawTotals = snapshot.staticAttributes && typeof snapshot.staticAttributes === 'object'
+    ? (snapshot.staticAttributes.totals || snapshot.staticAttributes)
+    : {}
+  const totals = canonicalGearAttributeTotalsForSpec(rawTotals, snapshot.eligibilityContext)
+  const resolvedSlots = snapshot.resolvedSlots && typeof snapshot.resolvedSlots === 'object'
+    ? snapshot.resolvedSlots
+    : {}
+  const itemLevels = Object.keys(resolvedSlots).map((slot) => Number(resolvedSlots[slot] && resolvedSlots[slot].itemLevel)).filter(Number.isFinite)
+  const itemLevel = itemLevels.length ? itemLevels.reduce((sum, value) => sum + value, 0) / itemLevels.length : null
+  const readiness = snapshot.profileReadiness && typeof snapshot.profileReadiness === 'object'
+    ? snapshot.profileReadiness
+    : {}
+  const requiredSlots = Array.isArray(readiness.requiredSlots) ? readiness.requiredSlots : Object.keys(resolvedSlots)
+  const readySlots = Array.isArray(readiness.readySlots) ? readiness.readySlots : Object.keys(resolvedSlots)
+  const constraints = snapshot.constraints && snapshot.constraints.slots && typeof snapshot.constraints.slots === 'object'
+    ? snapshot.constraints.slots
+    : {}
+  const selectedOptions = Object.keys(resolvedSlots).map((slot) => (resolvedSlots[slot] && resolvedSlots[slot].selectedOptions) || {})
+  const gemUsed = selectedOptions.reduce((count, options) => count + (Array.isArray(options.gemOptionIds) ? options.gemOptionIds.length : 0), 0)
+  const enchantUsed = selectedOptions.filter((options) => options.enchantOptionId).length
+  const selectedEmbellishmentUsed = selectedOptions.filter((options) => options.embellishmentOptionId).length
+  const canonicalEmbellishmentUsedValue = Number(snapshot.constraints && snapshot.constraints.embellishmentUsed)
+  const embellishmentUsed = Number.isFinite(canonicalEmbellishmentUsedValue) && canonicalEmbellishmentUsedValue >= 0
+    ? canonicalEmbellishmentUsedValue
+    : selectedEmbellishmentUsed
+  const gemMax = Object.keys(constraints).reduce((count, slot) => count + (Number(constraints[slot] && constraints[slot].socketCount) || 0), 0)
+  const enchantMax = Object.keys(constraints).filter((slot) => constraints[slot] && constraints[slot].canEnchant).length
+  const embellishmentMaxValue = Number(snapshot.constraints && snapshot.constraints.embellishmentMax)
+  const embellishmentMax = Number.isFinite(embellishmentMaxValue) && embellishmentMaxValue >= 0
+    ? embellishmentMaxValue
+    : 0
+  const setCounts = snapshot.setState && snapshot.setState.itemSetCounts && typeof snapshot.setState.itemSetCounts === 'object'
+    ? snapshot.setState.itemSetCounts
+    : {}
+  const tierCount = Object.keys(setCounts).reduce((maximum, key) => Math.max(maximum, Number(setCounts[key]) || 0), 0)
+  const preferredOrder = ['intellect', 'agility', 'strength', 'stamina', 'haste', 'crit', 'critical_strike', 'mastery', 'versatility', 'armor']
+  const verifiedStatSnapshot = verifiedGearStatSnapshot(statSnapshot)
+  const snapshotSecondaryKeys = Array.isArray(verifiedStatSnapshot && verifiedStatSnapshot.secondary)
+    ? verifiedStatSnapshot.secondary.map((row) => cleanGearString(row && row.key)).filter(Boolean)
+    : []
+  const orderedKeys = [
+    ...preferredOrder.filter((key) => Object.prototype.hasOwnProperty.call(totals, key)),
+    ...Object.keys(totals).sort().filter((key) => !preferredOrder.includes(key)),
+    ...snapshotSecondaryKeys.filter((key) => !Object.prototype.hasOwnProperty.call(totals, key))
+  ]
+  return {
+    visible: orderedKeys.length > 0 || Object.keys(resolvedSlots).length > 0,
+    summary: `已校验 ${readySlots.length}/${requiredSlots.length} 槽`,
+    itemLevel: gearAttributeMetric('itemLevel', '装备等级', itemLevel, '待补'),
+    enhancementRows: [
+      gearEnhancementMetric('embellishment', '美化', embellishmentUsed, embellishmentMax),
+      gearEnhancementMetric('gem', '宝石', gemUsed, gemMax),
+      gearEnhancementMetric('enchant', '附魔', enchantUsed, enchantMax),
+      { ...gearEnhancementMetric('tierSet', '套装', tierCount, tierCount), value: String(tierCount) }
+    ],
+    statRows: orderedKeys.map((key) => {
+      const snapshotMetric = gearAttributeMetricFromSnapshot(
+        gearStatSnapshotMetric(verifiedStatSnapshot, key),
+        key,
+        canonicalGearAttributeLabels[key] || key
+      )
+      if (!Object.prototype.hasOwnProperty.call(totals, key)) return snapshotMetric || gearAttributeMetric(key, canonicalGearAttributeLabels[key] || key, 0, '0')
+      const canonicalMetric = gearAttributeMetric(key, canonicalGearAttributeLabels[key] || key, totals[key], '0')
+      return snapshotMetric && snapshotMetric.convertedValue
+        ? { ...canonicalMetric, convertedValue: snapshotMetric.convertedValue, convertedRawValue: snapshotMetric.convertedRawValue }
+        : canonicalMetric
+    })
+  }
+}
+
+function workbenchProblemRows(problems) {
+  const labels = {
+    RESOLVER_CONTEXT_UNAVAILABLE: '缺少当前赛季校验上下文，请稍后重试',
+    AUTHORITY_UNAVAILABLE: '装备权威数据暂不可用，请稍后重试',
+    REVISION_CONFLICT: '装备数据版本已更新，请重新校验',
+    GEAR_REQUIRED_SLOTS_INCOMPLETE: '请补齐服务端标记的必需装备槽位',
+    GEAR_TRANSPORT_UNAVAILABLE: '网络连接异常，当前配置未完成校验',
+    GEAR_VERIFIED_SNAPSHOT_REQUIRED: '当前没有可继续编辑的已验证配置，请先重新校验装备',
+    GEAR_RESOLVED_OPTIONS_INCOMPLETE: '服务端未返回完整强化选项，已保留原配置'
+  }
+  return (Array.isArray(problems) ? problems : []).slice(0, 5).map((problem, index) => ({
+    key: `${String(problem && problem.code || 'GEAR_PROBLEM')}-${index}`,
+    code: String(problem && problem.code || ''),
+    text: String(labels[problem && problem.code] || '当前装备配置存在待处理问题').slice(0, 80)
+  }))
+}
+
+function canonicalEnhancementMarkers(row, snapshot) {
+  const slot = cleanGearString(row && row.slot)
+  const resolved = slot && snapshot && snapshot.resolvedSlots && typeof snapshot.resolvedSlots === 'object'
+    ? snapshot.resolvedSlots[slot]
+    : null
+  const constraints = slot && snapshot && snapshot.constraints && snapshot.constraints.slots && typeof snapshot.constraints.slots === 'object'
+    ? snapshot.constraints.slots[slot]
+    : null
+  if (!resolved || !constraints || !(resolved.legality && resolved.legality.status === 'verified')) return []
+
+  const selectedOptions = resolved.selectedOptions && typeof resolved.selectedOptions === 'object'
+    ? resolved.selectedOptions
+    : {}
+  const gemOptionIds = Array.isArray(selectedOptions.gemOptionIds) ? selectedOptions.gemOptionIds : []
+  const socketCount = Math.max(0, Math.floor(Number(constraints.socketCount) || 0))
+  const markers = []
+  const marker = (key, type, state, extra) => ({
+    key,
+    type,
+    state,
+    iconUrl: gameAssetFromIconName({
+      entityType: 'enhancement-marker',
+      entityId: type,
+      contextKey: state,
+      iconName: enhancementMarkerIconNames[type],
+      source: 'blizzard',
+      semanticTags: ['gear-enhancement', type, state],
+      usage: ['gear-slot-marker']
+    }).iconUrl,
+    ...(extra || {})
+  })
+  for (let socketIndex = 0; socketIndex < socketCount; socketIndex += 1) {
+    markers.push(marker(`gem-${socketIndex}`, 'gem', socketIndex < gemOptionIds.length ? 'filled' : 'empty', { socketIndex }))
+  }
+  if (constraints.canEnchant === true) {
+    markers.push(marker('enchant', 'enchant', cleanGearString(selectedOptions.enchantOptionId) ? 'filled' : 'empty'))
+  }
+  const builtInEmbellishment = cleanGearString(row && row.embellishmentBadgeLabel)
+  if (constraints.canEmbellish === true || builtInEmbellishment) {
+    markers.push(marker(
+      'embellishment',
+      'embellishment',
+      cleanGearString(selectedOptions.embellishmentOptionId) || builtInEmbellishment ? 'filled' : 'empty',
+      builtInEmbellishment ? { source: 'built-in' } : null
+    ))
+  }
+  return markers
+}
+
+function canonicalGearSlotRows(rows, state) {
+  const sourceRows = Array.isArray(rows) ? rows : []
+  const snapshot = state && (state.currentSnapshot || state.lastVerifiedSnapshot)
+  const resolvedSlots = snapshot && snapshot.resolvedSlots && typeof snapshot.resolvedSlots === 'object'
+    ? snapshot.resolvedSlots
+    : {}
+  return sourceRows.map((row) => {
+    if (state && ['resolving', 'pending', 'dirty'].includes(state.resolveStatus)) {
+      return { ...row, enhancementMarkers: [], status: 'partial', statusLabel: '校验中', statusClass: 'partial' }
+    }
+    const resolved = resolvedSlots[row.slot]
+    const verified = !!(resolved && resolved.legality && resolved.legality.status === 'verified')
+    return {
+      ...row,
+      enhancementMarkers: verified ? canonicalEnhancementMarkers(row, snapshot) : [],
+      status: verified ? 'verified' : 'blocked',
+      statusLabel: verified ? '已校验' : '未通过校验',
+      statusClass: verified ? 'verified' : 'blocked'
+    }
+  })
+}
+
+function gearWorkbenchDataState(state, data, committedReadState) {
+  const liveView = gearWorkbenchView(state)
+  const committedView = committedReadState && gearWorkbenchCanUseVerifiedSnapshot(committedReadState)
+    ? gearWorkbenchView(committedReadState)
+    : null
+  const view = committedView
+    ? {
+        ...liveView,
+        canUseVerifiedSnapshot: committedView.canUseVerifiedSnapshot,
+        canRunProfile: committedView.canRunProfile,
+        resolvedGearSignature: committedView.resolvedGearSignature,
+        aggregateLegality: committedView.aggregateLegality,
+        staticAttributes: committedView.staticAttributes,
+        setState: committedView.setState,
+        constraints: committedView.constraints,
+        profileReadiness: committedView.profileReadiness
+      }
+    : liveView
+  const displaySnapshot = acceptedGearDisplaySnapshot(state)
+  const displaySignature = cleanGearString(displaySnapshot && displaySnapshot.resolvedGearSignature)
+  const statusText = {
+    idle: '等待校验当前装备配置',
+    dirty: '装备配置已修改，等待校验',
+    resolving: '正在校验当前装备配置',
+    pending: '服务端仍在校验当前装备配置',
+    blocked: '当前装备配置未通过校验',
+    revision_conflict: state && state.revisionRetryCount >= 1 ? '装备数据再次更新，已切换为只读' : '装备数据已更新，正在重新校验',
+    unavailable: '装备校验服务暂不可用',
+    offline: '网络连接异常，显示最近一次已校验结果',
+    verified: '当前装备配置已通过服务端校验'
+  }
+  return {
+    gearWorkbenchView: view,
+    gearWorkbenchStatusText: statusText[view.resolveStatus] || '等待校验当前装备配置',
+    gearWorkbenchSignatureLabel: displaySignature ? displaySignature.slice(0, 20) : '',
+    gearWorkbenchProblemRows: workbenchProblemRows(state && state.problems),
+    gearAttributePanel: canonicalGearAttributePanel(displaySnapshot, data && data.gearStatSnapshot),
+    ...((data && Array.isArray(data.gearSlotRows)) ? { gearSlotRows: canonicalGearSlotRows(data.gearSlotRows, state) } : {})
+  }
+}
+
 function itemDisplayName(item) {
   return (item && (item.displayName || item.localizedName || item.englishName || item.name)) || '待选择装备'
 }
 
 function gearSlotDisplay(slot) {
   return `${gearSlotDisplayLabels[slot] || slot}(${slot})`
+}
+
+function gearSlotCardLabel(slot, item, fallbackLabel) {
+  if (slot !== 'main_hand' && slot !== 'off_hand') return fallbackLabel
+  const weaponType = cleanGearString(item && item.weaponType)
+  if (weaponType) return gearWeaponTypeLabels[weaponType.toLowerCase()] || weaponType
+  if (item && item.sourceType === 'weapon_rule') return '双手武器'
+  return '武器'
 }
 
 function normalizedGearItemId(item) {
@@ -1255,12 +1971,73 @@ function orderedGearBySlot(selectedGearBySlot, gearPayload) {
   return snapshot
 }
 
+function normalizedOptionIdentityList(value) {
+  return (Array.isArray(value) ? value : [])
+    .map(cleanGearString)
+    .filter(Boolean)
+}
+
+function gemOptionIdsForRecord(record) {
+  const source = record && typeof record === 'object' ? record : {}
+  const gemOptionIds = normalizedOptionIdentityList(source.gemOptionIds)
+  if (gemOptionIds.length) return gemOptionIds
+  const legacyOptionId = cleanGearString(source.socketOptionId)
+  return legacyOptionId ? [legacyOptionId] : []
+}
+
+function parseCanonicalSocketIndex(value) {
+  if (typeof value === 'number') {
+    return Number.isSafeInteger(value) && value >= 0 ? value : null
+  }
+  if (typeof value !== 'string' || !/^(0|[1-9]\d*)$/.test(value)) return null
+  const parsed = Number(value)
+  return Number.isSafeInteger(parsed) ? parsed : null
+}
+
+function recordWithGemOptionIds(record, gemOptionIds) {
+  const next = { ...(record || {}) }
+  const normalizedIds = normalizedOptionIdentityList(gemOptionIds)
+  if (normalizedIds.length) next.gemOptionIds = normalizedIds
+  else delete next.gemOptionIds
+  delete next.socketOptionId
+  delete next.gem_id
+  delete next.gem_bonus_id
+  delete next.gem_ilevel
+  return next
+}
+
+function replaceGemOptionAtIndex(record, socketIndex, optionId, socketCapacity) {
+  const index = parseCanonicalSocketIndex(socketIndex)
+  const capacity = Math.max(0, Math.floor(Number(socketCapacity) || 0))
+  const normalizedOptionId = cleanGearString(optionId)
+  const gemOptionIds = gemOptionIdsForRecord(record)
+  if (index === null || index >= capacity || !normalizedOptionId) {
+    return { ...(record || {}) }
+  }
+  if (index < gemOptionIds.length) gemOptionIds[index] = normalizedOptionId
+  else if (index === gemOptionIds.length && gemOptionIds.length < capacity) gemOptionIds.push(normalizedOptionId)
+  else return { ...(record || {}) }
+  return recordWithGemOptionIds(record, gemOptionIds)
+}
+
+function removeGemOptionAtIndex(record, socketIndex) {
+  const index = parseCanonicalSocketIndex(socketIndex)
+  const gemOptionIds = gemOptionIdsForRecord(record)
+  if (index === null || index >= gemOptionIds.length) {
+    return { ...(record || {}) }
+  }
+  gemOptionIds.splice(index, 1)
+  return recordWithGemOptionIds(record, gemOptionIds)
+}
+
 function normalizedEnhancementBySlot(enhancementBySlot) {
   const result = {}
   Object.keys(enhancementBySlot || {}).sort().forEach((slot) => {
     const record = enhancementBySlot[slot]
     if (!record || typeof record !== 'object') return
     const next = {}
+    const gemOptionIds = normalizedOptionIdentityList(record.gemOptionIds)
+    if (gemOptionIds.length) next.gemOptionIds = gemOptionIds
     ;['socketOptionId', 'enchantOptionId', 'embellishmentOptionId', 'gem_id', 'gem_bonus_id', 'gem_ilevel', 'enchant_id', 'embellishment'].forEach((key) => {
       const value = cleanGearString(record[key])
       if (value) next[key] = value
@@ -1270,22 +2047,181 @@ function normalizedEnhancementBySlot(enhancementBySlot) {
   return result
 }
 
-function embeddedEnhancementRecordFromGearItem(item) {
-  if (!item || typeof item !== 'object') return null
-  const next = {}
-  ;['gem_id', 'gem_bonus_id', 'gem_ilevel', 'enchant_id', 'embellishment'].forEach((key) => {
-    const value = cleanGearString(item[key])
-    if (value) next[key] = value
+function optionIdentityEnhancementBySlot(enhancementBySlot) {
+  const normalized = normalizedEnhancementBySlot(enhancementBySlot)
+  const result = {}
+  Object.keys(normalized).forEach((slot) => {
+    const next = {}
+    const gemOptionIds = normalizedOptionIdentityList(normalized[slot] && normalized[slot].gemOptionIds)
+    if (gemOptionIds.length) next.gemOptionIds = gemOptionIds
+    ;['socketOptionId', 'enchantOptionId', 'embellishmentOptionId'].forEach((key) => {
+      const value = cleanGearString(normalized[slot] && normalized[slot][key])
+      if (value) next[key] = value
+    })
+    if (Object.keys(next).length) result[slot] = next
   })
-  return Object.keys(next).length ? next : null
+  return result
 }
 
-function embeddedEnhancementBySlotFromGearSelection(selectedGearBySlot) {
+function gearIdentityValue(value) {
+  if (Array.isArray(value)) return value.map(gearIdentityValue)
+  if (value && typeof value === 'object') {
+    return Object.keys(value).sort().reduce((result, key) => {
+      result[key] = gearIdentityValue(value[key])
+      return result
+    }, {})
+  }
+  return cleanGearString(value)
+}
+
+function gearInstanceIdentity(item) {
+  if (!item || typeof item !== 'object') return ''
+  return JSON.stringify([
+    normalizedGearItemId(item),
+    cleanGearString(item.variantKey || item.defaultVariantKey),
+    cleanGearString(item.ilevel || item.itemLevel),
+    gearIdentityValue(item.bonus_id || item.bonusId || item.bonusIds),
+    cleanGearString(item.selectedCraftedStatKey || item.craftedStatOptionKey),
+    gearIdentityValue(item.crafted_stats || item.craftedStats),
+    cleanGearString(item.difficultyKey || item.difficulty),
+    cleanGearString(item.contextKey || item.context),
+    cleanGearString(item.upgradeTrack || item.track)
+  ])
+}
+
+function changedGearSlots(before, after) {
+  const previous = selectedGearByCanonicalSlot(before || {})
+  const next = selectedGearByCanonicalSlot(after || {})
+  const slots = Array.from(new Set([...Object.keys(previous), ...Object.keys(next)]))
+  const orderedSlots = [...requiredGearSlots, ...slots.filter((slot) => !requiredGearSlots.includes(slot)).sort()]
+  return orderedSlots.filter((slot, index) => (
+    orderedSlots.indexOf(slot) === index &&
+    gearInstanceIdentity(previous[slot]) !== gearInstanceIdentity(next[slot])
+  ))
+}
+
+function enhancementBySlotWithoutChangedGear(enhancementBySlot, slots, selectedGearBySlot) {
+  const result = normalizedEnhancementBySlot(enhancementBySlot || {})
+  ;(Array.isArray(slots) ? slots : []).forEach((slot) => {
+    delete result[slot]
+  })
+  if (selectedGearBySlot && typeof selectedGearBySlot === 'object') {
+    const selected = selectedGearByCanonicalSlot(selectedGearBySlot)
+    Object.keys(result).forEach((slot) => {
+      if (!selected[slot]) delete result[slot]
+    })
+  }
+  return result
+}
+
+function enhancementBySlotForSelectedGear(selectedGearBySlot, enhancementBySlot) {
+  const selected = selectedGearByCanonicalSlot(selectedGearBySlot || {})
+  const result = normalizedEnhancementBySlot(enhancementBySlot || {})
+  Object.keys(result).forEach((slot) => {
+    if (!selected[slot]) delete result[slot]
+  })
+  return result
+}
+
+const embeddedEnhancementOptionIdentityKeys = {
+  gemOptionIds: true,
+  gemOptionId: true,
+  gem_option_ids: true,
+  gem_option_id: true,
+  socketOptionIds: true,
+  socketOptionId: true,
+  socket_option_ids: true,
+  socket_option_id: true,
+  enchantOptionIds: true,
+  enchantOptionId: true,
+  enchant_option_ids: true,
+  enchant_option_id: true,
+  embellishmentOptionIds: true,
+  embellishmentOptionId: true,
+  embellishment_option_ids: true,
+  embellishment_option_id: true,
+  craftedOptionIds: true,
+  craftedOptionId: true,
+  crafted_option_ids: true,
+  crafted_option_id: true,
+  catalystOptionIds: true,
+  catalystOptionId: true,
+  catalyst_option_ids: true,
+  catalyst_option_id: true,
+  selectedOptions: true,
+  selected_options: true
+}
+
+function gearValueWithoutEmbeddedOptionIdentities(value) {
+  if (Array.isArray(value)) return value.map((item) => gearValueWithoutEmbeddedOptionIdentities(item))
+  if (!value || typeof value !== 'object') return value
+  return Object.keys(value).reduce((result, key) => {
+    if (!embeddedEnhancementOptionIdentityKeys[key]) {
+      result[key] = gearValueWithoutEmbeddedOptionIdentities(value[key])
+    }
+    return result
+  }, {})
+}
+
+function gearSelectionWithoutEmbeddedSimcEnhancements(selectedGearBySlot) {
   const result = {}
-  const indexed = selectedGearByCanonicalSlot(selectedGearBySlot || {})
-  Object.keys(indexed).sort().forEach((slot) => {
-    const record = embeddedEnhancementRecordFromGearItem(indexed[slot])
-    if (record) result[slot] = record
+  Object.keys(selectedGearBySlot || {}).forEach((slot) => {
+    const item = selectedGearBySlot[slot]
+    if (!item || typeof item !== 'object') return
+    const next = gearValueWithoutEmbeddedOptionIdentities(item)
+    ;['gem_id', 'gem_bonus_id', 'gem_ilevel', 'enchant_id', 'embellishment'].forEach((key) => {
+      delete next[key]
+    })
+    result[slot] = next
+  })
+  return result
+}
+
+function canonicalWorkbenchSnapshot(page) {
+  return acceptedGearDisplaySnapshot(page && page.gearWorkbenchState)
+}
+
+function committedGearWorkbenchStateForPage(page) {
+  const committedState = page && page.atomicEnhancementCommittedWorkbenchState
+  if (committedState) return committedState
+  return page && page.gearWorkbenchState
+}
+
+function canonicalEnhancementEditorWorkbenchState(page) {
+  const state = committedGearWorkbenchStateForPage(page)
+  return gearWorkbenchCanUseVerifiedSnapshot(state) ? state : null
+}
+
+function canonicalEnhancementEditorSnapshot(page) {
+  const state = canonicalEnhancementEditorWorkbenchState(page)
+  return state ? state.currentSnapshot : null
+}
+
+function acceptedGearDisplaySnapshot(state) {
+  if (gearWorkbenchCanUseVerifiedSnapshot(state)) return state.currentSnapshot
+  return (state && state.lastVerifiedSnapshot) || null
+}
+
+function gearSelectionWithCanonicalEnhancementConstraints(selectedGearBySlot, snapshot) {
+  const result = gearSelectionWithoutEmbeddedSimcEnhancements(selectedGearBySlot)
+  const constraints = snapshot && snapshot.constraints && snapshot.constraints.slots && typeof snapshot.constraints.slots === 'object'
+    ? snapshot.constraints.slots
+    : {}
+  Object.keys(result).forEach((slot) => {
+    const item = result[slot]
+    const slotConstraints = constraints[slot] && typeof constraints[slot] === 'object' ? constraints[slot] : {}
+    const socketCount = Math.max(0, Number(slotConstraints.socketCount) || 0)
+    result[slot] = {
+      ...item,
+      socketCount,
+      supportsSocket: socketCount > 0,
+      modCapabilities: {
+        hasSocket: socketCount > 0,
+        socketCount,
+        canEnchant: slotConstraints.canEnchant === true,
+        canEmbellish: slotConstraints.canEmbellish === true
+      }
+    }
   })
   return result
 }
@@ -1326,37 +2262,44 @@ function gearStatsRequestForPage(page) {
   if (data.activeQueryKey !== 'gear') blockers.push('当前不在装备模拟页')
   if (!gearPayload || !Array.isArray(gearPayload.slots)) blockers.push('等待装备数据')
   if (data.gearDataFallback) blockers.push(data.gearDataWarningText || '装备接口暂不可用')
+  const canonicalState = committedGearWorkbenchStateForPage(page)
+  const canonicalSnapshot = canonicalState && canonicalState.currentSnapshot
+  if (!canonicalState || !gearWorkbenchCanUseVerifiedSnapshot(canonicalState)) blockers.push('等待当前装备配置完成服务端校验')
   const selectedGearBySlot = prunedGearSelectionByWeaponRule(gearPayload, data.selectedGearBySlot || {})
   const requiredSlots = requiredGearTemplateSlots(gearPayload)
   const indexed = selectedGearByCanonicalSlot(selectedGearBySlot)
-  const missingSlots = requiredSlots.filter((slot) => !gearTemplateLine(indexed[slot]))
-  if (missingSlots.length) blockers.push(`请补齐 ${requiredSlots.length} 个装备槽位`)
+  if (!canonicalState) {
+    const missingSlots = requiredSlots.filter((slot) => !gearTemplateLine(indexed[slot]))
+    if (missingSlots.length) blockers.push(`请补齐 ${requiredSlots.length} 个装备槽位`)
+  }
   const talents = gearTalentImportForStats(data)
   if (!talents) blockers.push('缺少天赋导入代码')
   if (blockers.length) {
     return { ready: false, blockers: blockers.filter(Boolean) }
   }
-  const selectedSpec = data.selectedSpec || {}
-  const keys = specWebsimKeys({
-    websimClassKey: selectedSpec.websimClassKey || selectedSpec.classKey || gearPayload.classKey,
-    websimSpecKey: selectedSpec.websimSpecKey || selectedSpec.specKey || gearPayload.specKey
-  })
-  const enhancementBySlot = prunedEnhancementBySlot(gearPayload, selectedGearBySlot, data.enhancementBySlot || {})
-  const payload = {
-    classKey: keys.classKey,
-    specKey: keys.specKey,
-    level: Number(gearPayload.maxLevel) || 90,
+  const profileContext = {
+    name: cleanGearString(data.selectedCharacterName || data.characterName || ''),
+    race: cleanGearString(data.selectedRaceKey || data.raceKey || ''),
     scenarioKey: gearScenarioAt(data.selectedGearTemplateScenarioIndex).key,
-    talents,
-    gearSelection: {
-      items: requiredSlots.map((slot) => gearObjectForSnapshot(indexed[slot])).filter(Boolean)
-    },
-    enhancementBySlot
+    heroKey: cleanGearString(data.selectedHeroKey || ''),
+    talents
   }
+  Object.keys(profileContext).forEach((key) => {
+    if (!profileContext[key]) delete profileContext[key]
+  })
+  const selectionIntent = selectionIntentWithResolvedEnhancements(
+    canonicalState.confirmedIntent,
+    canonicalSnapshot
+  )
+  const payload = { selectionIntent, profileContext }
   return {
     ready: true,
     payload,
-    signature: JSON.stringify(payload)
+    signature: JSON.stringify([
+      canonicalState.intentVersion,
+      canonicalSnapshot && canonicalSnapshot.resolvedGearSignature || '',
+      payload
+    ])
   }
 }
 
@@ -1373,6 +2316,15 @@ function maybeRefreshGearStatsForPage(page) {
     return page.refreshGearStats(request.payload, request.signature)
   }
   return Promise.resolve(null)
+}
+
+function resolveOrRefreshGearForPage(page, selectedGearBySlot, enhancementBySlot, resolveContext) {
+  const gearPayload = fullGearPayloadForPage(page) || (page && page.data && page.data.gearPayload) || {}
+  if (completeResolverContext(gearPayload.resolverContext) && page && typeof page.confirmAndResolveGearIntent === 'function') {
+    return page.confirmAndResolveGearIntent(selectedGearBySlot, enhancementBySlot, resolveContext)
+      .then(() => maybeRefreshGearStatsForPage(page))
+  }
+  return maybeRefreshGearStatsForPage(page)
 }
 
 function optionQualityRank(option) {
@@ -1643,35 +2595,65 @@ function itemSupportsEnhancement(item, type, options) {
     return gearItemEnchantCapacity(item) > 0 && !!((options && options.length) || hasItemOptions('enchantOptions'))
   }
   if (type === 'embellishment') {
+    const explicit = explicitGearCapabilityValue(caps, 'canEmbellish')
+    if (explicit === false) return false
     const sourceType = cleanGearString(item && item.sourceType).toLowerCase()
     const variantSource = cleanGearString(item && item.variantSource).toLowerCase()
-    return !!(caps.canEmbellish || item.crafted_stats || item.embellishment || sourceType === 'crafted' || variantSource === 'crafted' || hasItemOptions('embellishmentOptions'))
+    return !!(explicit || item.crafted_stats || sourceType === 'crafted' || variantSource === 'crafted' || hasItemOptions('embellishmentOptions'))
   }
   return false
 }
 
 function builtInEmbellishmentValue(item) {
-  return cleanGearString(
-    item && (
-      (item.hasBuiltInEmbellishment ? item.builtInEmbellishment || 'built_in' : '') ||
-      item.builtInEmbellishment ||
-      item.intrinsicEmbellishment ||
-      item.inherentEmbellishment ||
-      (['built_in', 'builtin', 'intrinsic', 'item'].includes(cleanGearString(item.embellishmentSource).toLowerCase()) ? item.embellishment : '') ||
-      item.embellishment
-    )
+  if (!item || typeof item !== 'object') return ''
+  const explicitValue = [
+    item.builtInEmbellishment,
+    item.intrinsicEmbellishment,
+    item.inherentEmbellishment
+  ].find((value) => typeof value === 'string' && cleanGearString(value))
+  if (explicitValue) return cleanGearString(explicitValue)
+  const source = typeof item.embellishmentSource === 'string'
+    ? cleanGearString(item.embellishmentSource).toLowerCase()
+    : ''
+  const hasBuiltInMarker = item.hasBuiltInEmbellishment === true
+  const hasBuiltInSource = ['built_in', 'builtin', 'intrinsic', 'item'].includes(source)
+  if (!hasBuiltInMarker && !hasBuiltInSource) return ''
+  return typeof item.embellishment === 'string' && cleanGearString(item.embellishment)
+    ? cleanGearString(item.embellishment)
+    : 'built_in'
+}
+
+function itemHasExplicitBuiltInEmbellishment(item) {
+  if (!item || typeof item !== 'object') return false
+  const source = typeof item.embellishmentSource === 'string'
+    ? cleanGearString(item.embellishmentSource).toLowerCase()
+    : ''
+  const explicitValue = [
+    item.builtInEmbellishment,
+    item.intrinsicEmbellishment,
+    item.inherentEmbellishment
+  ].some((value) => typeof value === 'string' && cleanGearString(value))
+  return !!(
+    item.hasBuiltInEmbellishment === true ||
+    explicitValue ||
+    ['built_in', 'builtin', 'intrinsic', 'item'].includes(source)
   )
 }
 
 function gearBuiltInEmbellishmentBadgeLabel(item) {
   if (!item || typeof item !== 'object') return ''
-  const source = cleanGearString(item.embellishmentSource).toLowerCase()
+  const source = typeof item.embellishmentSource === 'string'
+    ? cleanGearString(item.embellishmentSource).toLowerCase()
+    : ''
   const appliedEmbellishment = cleanGearString(item.embellishment)
+  const explicitValue = [
+    item.builtInEmbellishment,
+    item.intrinsicEmbellishment,
+    item.inherentEmbellishment
+  ].some((value) => typeof value === 'string' && cleanGearString(value))
   const hasExplicitBuiltIn = !!(
-    item.hasBuiltInEmbellishment ||
-    item.builtInEmbellishment ||
-    item.intrinsicEmbellishment ||
-    item.inherentEmbellishment ||
+    item.hasBuiltInEmbellishment === true ||
+    explicitValue ||
     ['built_in', 'builtin', 'intrinsic', 'item'].includes(source)
   )
   if (!hasExplicitBuiltIn && !appliedEmbellishment) return ''
@@ -1728,6 +2710,10 @@ function gearEquipmentBadgeLabels(item) {
   return labels.filter((label) => label !== embellishmentLabel)
 }
 
+function gearCandidateEquipmentBadgeLabels(item) {
+  return gearEquipmentBadgeLabels(item).filter((label) => label !== '远程')
+}
+
 function enhancementRecordMatchesCurrentItem(gearPayload, item, enhancementRecord, optionKey, type) {
   if (!enhancementRecordHasSelectedType(enhancementRecord, type)) return false
   if (enhancementRecordMatchesEmbeddedItem(item, enhancementRecord, type)) return true
@@ -1771,23 +2757,30 @@ function gearSlotEnhancementBadgeLabels(gearPayload, item, enhancementRecord) {
   return labels
 }
 
+function enhancementOptionIdentity(option) {
+  return cleanGearString(option && (option.optionKey || option.option_key || option.id || option.key))
+}
+
 function enhancementOptionSelected(option, selected, type) {
   const simcOptions = option && option.simcOptions && typeof option.simcOptions === 'object' ? option.simcOptions : {}
+  const optionId = enhancementOptionIdentity(option)
   if (type === 'gem') {
+    const gemOptionIds = normalizedOptionIdentityList(selected.gemOptionIds)
+    if (gemOptionIds.length) return gemOptionIds.includes(optionId)
     return !!(
-      (selected.socketOptionId && option.id === selected.socketOptionId) ||
+      (selected.socketOptionId && optionId === selected.socketOptionId) ||
       (selected.gem_id && cleanGearString(simcOptions.gem_id) === selected.gem_id)
     )
   }
   if (type === 'enchant') {
     return !!(
-      (selected.enchantOptionId && option.id === selected.enchantOptionId) ||
+      (selected.enchantOptionId && optionId === selected.enchantOptionId) ||
       (selected.enchant_id && cleanGearString(simcOptions.enchant_id) === selected.enchant_id)
     )
   }
   if (type === 'embellishment') {
     return !!(
-      (selected.embellishmentOptionId && option.id === selected.embellishmentOptionId) ||
+      (selected.embellishmentOptionId && optionId === selected.embellishmentOptionId) ||
       (selected.embellishment && cleanGearString(simcOptions.embellishment) === selected.embellishment)
     )
   }
@@ -1831,6 +2824,18 @@ function optionFirstValue(option, keys) {
   return ''
 }
 
+function optionAllValues(option, keys) {
+  const payload = optionPayload(option)
+  const keyList = Array.isArray(keys) ? keys : [keys]
+  const values = []
+  for (const source of [option || {}, payload]) {
+    for (const key of keyList) {
+      if (Object.prototype.hasOwnProperty.call(source, key)) values.push(source[key])
+    }
+  }
+  return values
+}
+
 function optionGemIds(option) {
   const simcOptions = option && option.simcOptions && typeof option.simcOptions === 'object' ? option.simcOptions : {}
   const gemIdText = cleanGearString(simcOptions.gem_id || optionFirstValue(option, ['gemItemId', 'gem_item_id']))
@@ -1838,19 +2843,37 @@ function optionGemIds(option) {
 }
 
 function enhancementOptionUniqueGroup(option, type) {
-  const explicitGroup = cleanGearString(optionFirstValue(option, ['uniqueGroup', 'unique_group', 'uniqueKey', 'unique_key']))
-  if (explicitGroup) return explicitGroup
-  if (type === 'gem' && optionGemIds(option).some((gemId) => primaryStatGemIds.has(gemId))) {
-    return primaryStatGemUniqueGroup
-  }
-  return ''
+  const groups = [...new Set(
+    optionAllValues(option, [
+      'uniqueGroupId',
+      'unique_group_id',
+      'uniqueGroup',
+      'unique_group',
+      'uniqueKey',
+      'unique_key'
+    ])
+      .filter((value) => typeof value === 'string')
+      .map(cleanGearString)
+      .filter(Boolean)
+  )]
+  return groups.length === 1 ? groups[0] : ''
 }
 
 function enhancementOptionUniqueLimit(option, type) {
-  const rawLimit = optionFirstValue(option, ['uniqueLimit', 'unique_limit', 'uniqueEquippedLimit', 'unique_equipped_limit'])
-  const parsed = Number.parseInt(rawLimit, 10)
-  if (Number.isFinite(parsed) && parsed > 0) return parsed
-  return enhancementOptionUniqueGroup(option, type) ? primaryStatGemUniqueLimit : 0
+  const positiveLimits = optionAllValues(
+    option,
+    ['uniqueLimit', 'unique_limit', 'uniqueEquippedLimit', 'unique_equipped_limit']
+  ).map((rawLimit) => {
+    if (typeof rawLimit === 'number') {
+      return Number.isSafeInteger(rawLimit) && rawLimit > 0 ? rawLimit : 0
+    }
+    if (typeof rawLimit === 'string' && /^[1-9]\d*$/.test(rawLimit.trim())) {
+      const parsed = Number(rawLimit.trim())
+      return Number.isSafeInteger(parsed) ? parsed : 0
+    }
+    return 0
+  }).filter((limit) => limit > 0)
+  return positiveLimits.length ? Math.min(...positiveLimits) : 0
 }
 
 function enhancementUniqueGroupLabel(group, type) {
@@ -1968,7 +2991,7 @@ function enhancementOptionForData(option, selected, type, disabled, slot) {
   const uniqueLimit = enhancementOptionUniqueLimit(option || {}, type)
   const isDisabled = typeof disabled === 'function' ? disabled(option || {}, isSelected, slot) : disabled
   return {
-    id: cleanGearString(option.id || option.key || option.label || option.name),
+    id: enhancementOptionIdentity(option) || cleanGearString(option.label || option.name),
     label: displayLabel,
     selected: isSelected,
     disabled: !!(isDisabled && !isSelected),
@@ -1991,9 +3014,62 @@ function enhancementRow(slot, item, options, selected, type, disabled) {
   }
 }
 
+function buildGemSocketRows(slot, item, options, selected, uniqueGroups) {
+  const socketCapacity = gearItemSocketCapacity(item)
+  const selectedOptionIds = gemOptionIdsForRecord(selected)
+  const optionRecords = Array.isArray(options) ? options : []
+  const selectedOptionById = new Map(
+    optionRecords.map((option) => [enhancementOptionIdentity(option), option])
+  )
+  return Array.from({ length: socketCapacity }, (_, socketIndex) => {
+    const selectedOptionId = cleanGearString(selectedOptionIds[socketIndex])
+    const selectedOption = selectedOptionById.get(selectedOptionId) || null
+    const occupied = socketIndex < selectedOptionIds.length
+    const nextEmpty = !occupied && socketIndex === selectedOptionIds.length
+    const selectedForSocket = selectedOptionId ? { gemOptionIds: [selectedOptionId] } : {}
+    const displayOptions = optionRecords.map((option) => {
+      const optionId = enhancementOptionIdentity(option)
+      const optionGroup = enhancementOptionUniqueGroup(option || {}, 'gem')
+      const optionSelected = !!(selectedOptionId && optionId === selectedOptionId)
+      const uniqueState = (uniqueGroups && optionGroup && uniqueGroups[optionGroup]) || { limit: 0, slots: [], occurrences: [] }
+      const candidateLimit = enhancementOptionUniqueLimit(option || {}, 'gem')
+      const remainingOccurrences = (uniqueState.occurrences || []).filter((occurrence) => !(
+        occurrence.slot === slot && occurrence.socketIndex === socketIndex
+      ))
+      const positiveLimits = [
+        candidateLimit,
+        ...remainingOccurrences.map((occurrence) => occurrence.limit)
+      ].filter((limit) => limit > 0)
+      const uniqueLimit = positiveLimits.length ? Math.min(...positiveLimits) : 0
+      const uniqueCountWithoutCurrent = remainingOccurrences.length
+      const disabled = optionSelected
+        ? false
+        : ((!occupied && !nextEmpty) || (!!optionGroup && uniqueLimit > 0 && uniqueCountWithoutCurrent >= uniqueLimit))
+      return enhancementOptionForData(option, selectedForSocket, 'gem', disabled, slot)
+    }).filter(Boolean)
+    const selectedDisplayOption = displayOptions.find((option) => option.selected)
+    return {
+      slot,
+      socketIndex,
+      socketNumber: socketIndex + 1,
+      socketCapacity,
+      label: gearSlotDisplayLabels[slot] || slot,
+      itemName: itemDisplayName(item),
+      occupied,
+      selectedOptionId,
+      selectedLabel: (selectedDisplayOption && selectedDisplayOption.label) || '',
+      options: displayOptions
+    }
+  })
+}
+
 function emptyGearEnhancementSheet() {
   return {
     visible: false,
+    submitting: false,
+    activeType: '',
+    title: '配置强化项',
+    summaryText: '',
     equipmentRows: [],
     activeSlot: '',
     activeTitle: '',
@@ -2012,6 +3088,13 @@ function emptyGearEnhancementSheet() {
   }
 }
 
+const gearEnhancementTypes = new Set(['gem', 'enchant', 'embellishment'])
+
+function normalizedGearEnhancementType(value) {
+  const type = cleanGearString(value).toLowerCase()
+  return gearEnhancementTypes.has(type) ? type : ''
+}
+
 function gearEnhancementSlotSortKey(slot, fallbackIndex) {
   const priorityIndex = gearEnhancementSlotOrder.indexOf(slot)
   return [
@@ -2020,7 +3103,7 @@ function gearEnhancementSlotSortKey(slot, fallbackIndex) {
   ]
 }
 
-function buildGearEnhancementEquipmentRows(slots, indexed, gemRows, enchantRows, embellishmentRows, activeSlot) {
+function buildGearEnhancementEquipmentRows(slots, indexed, gemRows, enchantRows, embellishmentRows, activeSlot, pendingSlots) {
   const rowMaps = {
     gem: new Map(gemRows.map((row) => [row.slot, row])),
     enchant: new Map(enchantRows.map((row) => [row.slot, row])),
@@ -2031,6 +3114,7 @@ function buildGearEnhancementEquipmentRows(slots, indexed, gemRows, enchantRows,
     if (rowMaps.gem.has(slot)) typeLabels.push('宝石')
     if (rowMaps.enchant.has(slot)) typeLabels.push('附魔')
     if (rowMaps.embellishment.has(slot)) typeLabels.push('美化')
+    if (!typeLabels.length && pendingSlots && pendingSlots.has(slot)) typeLabels.push('加载选项')
     if (!typeLabels.length) return null
     const item = indexed[slot] || {}
     return {
@@ -2049,24 +3133,79 @@ function selectedEnhancementUniqueGroups(gearPayload, indexed, enhancement, type
   requiredGearTemplateSlots(gearPayload || {}).forEach((slot) => {
     const item = indexed[slot]
     const selected = enhancement[slot] || {}
-    if (!item || !selected.gem_id) return
+    if (!item || !enhancementRecordHasSelectedType(selected, type)) return
     const options = enhancementOptionsForSlot(gearPayload, item, 'socketOptions')
-    const selectedOption = options.find((option) => enhancementOptionSelected(option, selected, type))
-    const group = enhancementOptionUniqueGroup(selectedOption, type)
-    if (!group) return
-    const limit = enhancementOptionUniqueLimit(selectedOption, type) || 1
-    if (!state[group]) state[group] = { limit, slots: [] }
-    state[group].limit = Math.min(state[group].limit || limit, limit)
-    state[group].slots.push(slot)
+    const recordSelectedOption = (selectedOption, socketIndex) => {
+      const group = enhancementOptionUniqueGroup(selectedOption, type)
+      if (!group) return
+      const limit = enhancementOptionUniqueLimit(selectedOption, type)
+      if (!state[group]) state[group] = { limit: 0, slots: [], occurrences: [] }
+      if (limit > 0) {
+        state[group].limit = state[group].limit > 0
+          ? Math.min(state[group].limit, limit)
+          : limit
+      }
+      state[group].slots.push(slot)
+      state[group].occurrences.push({ slot, socketIndex, limit })
+    }
+    const gemOptionIds = normalizedOptionIdentityList(selected.gemOptionIds)
+    if (gemOptionIds.length) {
+      gemOptionIds.forEach((optionId, socketIndex) => {
+        const selectedOption = options.find((option) => enhancementOptionIdentity(option) === optionId)
+        if (selectedOption) recordSelectedOption(selectedOption, socketIndex)
+      })
+      return
+    }
+    options.filter((option) => enhancementOptionSelected(option, selected, type))
+      .forEach((option, socketIndex) => recordSelectedOption(option, socketIndex))
   })
   return state
 }
 
-function buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementBySlot, visible, requestedActiveSlot) {
+function gemOptionIdentityBlockers(gearPayload, indexed, enhancement) {
+  const blockers = []
+  Object.keys(enhancement || {}).forEach((slot) => {
+    const gemOptionIds = normalizedOptionIdentityList(enhancement[slot] && enhancement[slot].gemOptionIds)
+    if (!gemOptionIds.length) return
+    const item = indexed && indexed[slot]
+    if (!item) {
+      blockers.push(`${gearSlotDisplay(slot)} 宝石选项当前不可用：${gemOptionIds.join('、')}`)
+      return
+    }
+    const socketCapacity = gearItemSocketCapacity(item)
+    if (gemOptionIds.length > socketCapacity) {
+      blockers.push(`${gearSlotDisplay(slot)} 宝石已超过插槽上限 ${gemOptionIds.length}/${socketCapacity}`)
+    }
+    const availableOptionIds = new Set(
+      enhancementOptionsForSlot(gearPayload, item, 'socketOptions')
+        .map(enhancementOptionIdentity)
+        .filter(Boolean)
+    )
+    const unmatchedOptionIds = gemOptionIds.filter((id) => !availableOptionIds.has(id))
+    if (unmatchedOptionIds.length) {
+      blockers.push(`${gearSlotDisplay(slot)} 宝石选项当前不可用：${unmatchedOptionIds.join('、')}`)
+    }
+  })
+  return blockers
+}
+
+function buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementBySlot, visible, requestedActiveSlot, requestedEmbellishmentMax, requestedBuiltInEmbellishmentUsed, requestedActiveType) {
   const indexed = enrichedSelectedGearByCanonicalSlot(gearPayload, selectedGearBySlot || {})
   const enhancement = normalizedEnhancementBySlot(enhancementBySlot || {})
-  const builtInCount = Object.keys(indexed).filter((slot) => builtInEmbellishmentValue(indexed[slot])).length
-  const selectedEmbellishmentCount = Object.keys(enhancement).filter((slot) => cleanGearString(enhancement[slot].embellishment)).length
+  const activeType = normalizedGearEnhancementType(requestedActiveType)
+  const requestedEmbellishmentMaxValue = Number(requestedEmbellishmentMax)
+  const embellishmentMax = requestedEmbellishmentMax !== undefined && requestedEmbellishmentMax !== null &&
+    Number.isFinite(requestedEmbellishmentMaxValue) && requestedEmbellishmentMaxValue >= 0
+    ? requestedEmbellishmentMaxValue
+    : gearEnhancementMax
+  const requestedBuiltInUsedValue = Number(requestedBuiltInEmbellishmentUsed)
+  const builtInCount = requestedBuiltInEmbellishmentUsed !== undefined && requestedBuiltInEmbellishmentUsed !== null &&
+    Number.isFinite(requestedBuiltInUsedValue) && requestedBuiltInUsedValue >= 0
+    ? requestedBuiltInUsedValue
+    : Object.keys(indexed).filter((slot) => builtInEmbellishmentValue(indexed[slot])).length
+  const selectedEmbellishmentCount = Object.keys(enhancement).filter((slot) => (
+    cleanGearString(enhancement[slot].embellishmentOptionId) || cleanGearString(enhancement[slot].embellishment)
+  )).length
   const embellishmentUsed = builtInCount + selectedEmbellishmentCount
   const gemUniqueGroups = selectedEnhancementUniqueGroups(gearPayload, indexed, enhancement, 'gem')
   const gemRows = []
@@ -2074,14 +3213,15 @@ function buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementB
   const embellishmentRows = []
   const warnings = []
   const blockers = stringList(gearPayload && gearPayload.gearLegalityBlockers)
-  if (embellishmentUsed > gearEnhancementMax) {
-    blockers.push(`美化已超过上限 ${embellishmentUsed}/${gearEnhancementMax}`)
+  blockers.push(...gemOptionIdentityBlockers(gearPayload, indexed, enhancement))
+  if (embellishmentUsed > embellishmentMax) {
+    blockers.push(`美化已超过上限 ${embellishmentUsed}/${embellishmentMax}`)
   }
   Object.keys(gemUniqueGroups).forEach((group) => {
     const state = gemUniqueGroups[group]
-    const limit = state.limit || 1
-    const count = (state.slots || []).length
-    if (count > limit) {
+    const limit = state.limit
+    const count = (state.occurrences || []).length
+    if (limit > 0 && count > limit) {
       blockers.push(`${enhancementUniqueGroupLabel(group, 'gem')}已超过上限 ${count}/${limit}`)
     }
   })
@@ -2094,16 +3234,15 @@ function buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementB
     const embellishmentOptions = enhancementOptionsForSlot(gearPayload, item, 'embellishmentOptions')
     const runeforgeWarning = deathKnightRuneforgeWarningForItem(gearPayload, item)
     if (runeforgeWarning && !warnings.includes(runeforgeWarning)) warnings.push(runeforgeWarning)
+    const selectedGemCount = enhancementRecordSelectedCount(selected, 'gem')
+    const socketCapacity = gearItemSocketCapacity(item)
+    if (selectedGemCount > socketCapacity) {
+      const blocker = `${gearSlotDisplay(slot)} 宝石已超过插槽上限 ${selectedGemCount}/${socketCapacity}`
+      if (!blockers.includes(blocker)) blockers.push(blocker)
+    }
     if (socketOptions.length && itemSupportsEnhancement(item, 'gem', socketOptions)) {
-      const row = enhancementRow(slot, item, socketOptions, selected, 'gem', (option, isSelected) => {
-        if (isSelected) return false
-        const group = enhancementOptionUniqueGroup(option, 'gem')
-        if (!group) return false
-        const limit = enhancementOptionUniqueLimit(option, 'gem') || 1
-        const state = gemUniqueGroups[group] || { slots: [] }
-        return (state.slots || []).length >= limit
-      })
-      if (row.options.length) gemRows.push(row)
+      const rows = buildGemSocketRows(slot, item, socketOptions, selected, gemUniqueGroups)
+      if (rows.some((row) => row.options.length)) gemRows.push(...rows)
     } else if (selected.gem_id) {
       blockers.push(`${gearSlotDisplay(slot)} 宝石已不兼容`)
     }
@@ -2114,19 +3253,31 @@ function buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementB
       blockers.push(`${gearSlotDisplay(slot)} 附魔已不兼容`)
     }
     if (embellishmentOptions.length && itemSupportsEnhancement(item, 'embellishment', embellishmentOptions) && !builtInEmbellishmentValue(item)) {
-      const row = enhancementRow(slot, item, embellishmentOptions, selected, 'embellishment', embellishmentUsed >= gearEnhancementMax)
+      const slotOccupied = enhancementRecordHasSelectedType(selected, 'embellishment')
+      const row = enhancementRow(
+        slot,
+        item,
+        embellishmentOptions,
+        selected,
+        'embellishment',
+        embellishmentUsed >= embellishmentMax && !slotOccupied
+      )
       if (row.options.length) embellishmentRows.push(row)
     } else if (selected.embellishment) {
       blockers.push(`${gearSlotDisplay(slot)} 美化已不兼容`)
     }
   })
-  const emptyText = gemRows.length || enchantRows.length || embellishmentRows.length
+  const visibleGemRows = activeType && activeType !== 'gem' ? [] : gemRows
+  const visibleEnchantRows = activeType && activeType !== 'enchant' ? [] : enchantRows
+  const visibleEmbellishmentRows = activeType && activeType !== 'embellishment' ? [] : embellishmentRows
+  const typeLabel = enhancementTypeLabel(activeType)
+  const emptyText = visibleGemRows.length || visibleEnchantRows.length || visibleEmbellishmentRows.length
     ? ''
-    : '当前已选装备没有可配置的宝石、附魔或美化。'
+    : (typeLabel ? `当前已选装备没有可配置的${typeLabel}。` : '当前已选装备没有可配置的宝石、附魔或美化。')
   const configurableSlots = requiredGearTemplateSlots(gearPayload || {}).filter((slot) => {
-    return gemRows.some((row) => row.slot === slot) ||
-      enchantRows.some((row) => row.slot === slot) ||
-      embellishmentRows.some((row) => row.slot === slot)
+    return visibleGemRows.some((row) => row.slot === slot) ||
+      visibleEnchantRows.some((row) => row.slot === slot) ||
+      visibleEmbellishmentRows.some((row) => row.slot === slot)
   }).sort((left, right) => {
     const allSlots = requiredGearTemplateSlots(gearPayload || {})
     const leftKey = gearEnhancementSlotSortKey(left, allSlots.indexOf(left))
@@ -2134,14 +3285,27 @@ function buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementB
     return leftKey[0] - rightKey[0] || leftKey[1] - rightKey[1]
   })
   const activeSlot = configurableSlots.includes(requestedActiveSlot) ? requestedActiveSlot : (configurableSlots[0] || '')
-  const equipmentRows = buildGearEnhancementEquipmentRows(configurableSlots, indexed, gemRows, enchantRows, embellishmentRows, activeSlot)
-  const activeGemRows = activeSlot ? gemRows.filter((row) => row.slot === activeSlot) : []
-  const activeEnchantRows = activeSlot ? enchantRows.filter((row) => row.slot === activeSlot) : []
-  const activeEmbellishmentRows = activeSlot ? embellishmentRows.filter((row) => row.slot === activeSlot) : []
+  const equipmentRows = buildGearEnhancementEquipmentRows(
+    configurableSlots,
+    indexed,
+    visibleGemRows,
+    visibleEnchantRows,
+    visibleEmbellishmentRows,
+    activeSlot
+  )
+  const activeGemRows = activeSlot ? visibleGemRows.filter((row) => row.slot === activeSlot) : []
+  const activeEnchantRows = activeSlot ? visibleEnchantRows.filter((row) => row.slot === activeSlot) : []
+  const activeEmbellishmentRows = activeSlot ? visibleEmbellishmentRows.filter((row) => row.slot === activeSlot) : []
+  const summaryText = activeType === 'embellishment'
+    ? `已使用 ${embellishmentUsed} / ${embellishmentMax} 美化 · 可配置 ${equipmentRows.length} 件装备`
+    : `可配置 ${equipmentRows.length} 件装备`
   return {
     visible: !!visible,
     loading: false,
     draftEnhancementBySlot: enhancement,
+    activeType,
+    title: typeLabel ? `配置${typeLabel}` : '配置强化项',
+    summaryText,
     equipmentRows,
     activeSlot,
     activeTitle: activeSlot ? (gearSlotDisplayLabels[activeSlot] || activeSlot) : '',
@@ -2153,7 +3317,7 @@ function buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementB
     enchantRows,
     embellishmentRows,
     embellishmentUsed,
-    embellishmentMax: gearEnhancementMax,
+    embellishmentMax,
     warnings,
     blockers,
     emptyText
@@ -2162,22 +3326,44 @@ function buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementB
 
 function prunedEnhancementBySlot(gearPayload, selectedGearBySlot, enhancementBySlot) {
   const sheet = buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementBySlot, true)
+  const gemRowsBySlot = sheet.gemRows.reduce((result, row) => {
+    if (!result.has(row.slot)) result.set(row.slot, [])
+    result.get(row.slot).push(row)
+    return result
+  }, new Map())
   const rowsByType = {
-    gem: new Map(sheet.gemRows.map((row) => [row.slot, row])),
     enchant: new Map(sheet.enchantRows.map((row) => [row.slot, row])),
     embellishment: new Map(sheet.embellishmentRows.map((row) => [row.slot, row]))
   }
   const normalized = normalizedEnhancementBySlot(enhancementBySlot)
   const indexed = enrichedSelectedGearByCanonicalSlot(gearPayload, selectedGearBySlot || {})
   const rowKeepsSelection = (type, slot) => {
-    const row = rowsByType[type].get(slot)
+    const rows = type === 'gem'
+      ? (gemRowsBySlot.get(slot) || [])
+      : [rowsByType[type].get(slot)].filter(Boolean)
     return !!(
-      (row && Array.isArray(row.options) && row.options.some((option) => option.selected)) ||
+      rows.some((row) => Array.isArray(row.options) && row.options.some((option) => option.selected)) ||
       enhancementRecordMatchesEmbeddedItem(indexed[slot], normalized[slot], type)
     )
   }
   Object.keys(normalized).forEach((slot) => {
-    if (!rowKeepsSelection('gem', slot)) {
+    const gemOptionIds = normalizedOptionIdentityList(normalized[slot].gemOptionIds)
+    if (gemOptionIds.length) {
+      const availableOptionIds = new Set(
+        (gemRowsBySlot.get(slot) || []).flatMap((row) => (
+          Array.isArray(row.options)
+            ? row.options.map((option) => cleanGearString(option.id)).filter(Boolean)
+            : []
+        ))
+      )
+      const retainedGemOptionIds = gemOptionIds.filter((id) => availableOptionIds.has(id))
+      if (retainedGemOptionIds.length) normalized[slot].gemOptionIds = retainedGemOptionIds
+      else delete normalized[slot].gemOptionIds
+      delete normalized[slot].socketOptionId
+      delete normalized[slot].gem_id
+      delete normalized[slot].gem_bonus_id
+      delete normalized[slot].gem_ilevel
+    } else if (!rowKeepsSelection('gem', slot)) {
       delete normalized[slot].socketOptionId
       delete normalized[slot].gem_id
       delete normalized[slot].gem_bonus_id
@@ -2196,16 +3382,9 @@ function prunedEnhancementBySlot(gearPayload, selectedGearBySlot, enhancementByS
   return normalized
 }
 
-function enhancementSelectionFromOption(type, option) {
+function enhancementSelectionFromOption(type, option, record) {
   const simcOptions = option && option.simcOptions && typeof option.simcOptions === 'object' ? option.simcOptions : {}
-  if (type === 'gem') {
-    return {
-      socketOptionId: cleanGearString(option.id),
-      gem_id: cleanGearString(simcOptions.gem_id),
-      gem_bonus_id: cleanGearString(simcOptions.gem_bonus_id),
-      gem_ilevel: cleanGearString(simcOptions.gem_ilevel)
-    }
-  }
+  if (type === 'gem') return {}
   if (type === 'enchant') {
     return {
       enchantOptionId: cleanGearString(option.id),
@@ -2221,14 +3400,10 @@ function enhancementSelectionFromOption(type, option) {
   return {}
 }
 
-function removeEnhancementType(record, type) {
+function removeEnhancementType(record, type, optionId) {
   const next = { ...(record || {}) }
-  if (type === 'gem') {
-    delete next.socketOptionId
-    delete next.gem_id
-    delete next.gem_bonus_id
-    delete next.gem_ilevel
-  } else if (type === 'enchant') {
+  if (type === 'gem') return next
+  if (type === 'enchant') {
     delete next.enchantOptionId
     delete next.enchant_id
   } else if (type === 'embellishment') {
@@ -2240,6 +3415,8 @@ function removeEnhancementType(record, type) {
 
 function compactEnhancementRecord(record) {
   const next = {}
+  const gemOptionIds = normalizedOptionIdentityList(record && record.gemOptionIds)
+  if (gemOptionIds.length) next.gemOptionIds = gemOptionIds
   ;['socketOptionId', 'enchantOptionId', 'embellishmentOptionId', 'gem_id', 'gem_bonus_id', 'gem_ilevel', 'enchant_id', 'embellishment'].forEach((key) => {
     const value = cleanGearString(record && record[key])
     if (value) next[key] = value
@@ -2409,13 +3586,31 @@ function gearTemplateSaveDraft(page, templateTitle) {
   if (data.gearDataFallback) {
     return { blockMessage: data.gearDataWarningText || '装备接口暂不可用，无法保存装备模板' }
   }
+  const workbenchState = committedGearWorkbenchStateForPage(page)
+  if (workbenchState && !gearWorkbenchCanUseVerifiedSnapshot(workbenchState)) {
+    return { blockMessage: '当前装备配置尚未通过服务端校验，暂不能保存' }
+  }
   const gearPayload = fullGearPayloadForPage(page) || data.gearPayload || {}
   const selectedGearBySlot = prunedGearSelectionByWeaponRule(gearPayload, data.selectedGearBySlot || {})
   const selectedItems = selectedGearItems(selectedGearBySlot)
   const configLines = canonicalGearTemplateLines(selectedGearBySlot, gearPayload)
-  const status = gearTemplateStatus(selectedGearBySlot, gearPayload)
+  const resolvedSnapshot = workbenchState && workbenchState.currentSnapshot
+  const importOrigin = communityImportOriginForSave(page, resolvedSnapshot)
+  const canonicalReadiness = resolvedSnapshot && resolvedSnapshot.profileReadiness
+  const status = workbenchState
+    ? {
+        status: 'complete',
+        statusLabel: '已校验配置',
+        missingSlots: [],
+        issues: [],
+        requiredSlots: Array.isArray(canonicalReadiness && canonicalReadiness.requiredSlots) ? canonicalReadiness.requiredSlots : [],
+        statPendingSlots: [],
+        sourcePendingSlots: [],
+        warningSummary: ''
+      }
+    : gearTemplateStatus(selectedGearBySlot, gearPayload)
   const requiredCount = (status.requiredSlots || requiredGearSlots).length
-  if (status.missingSlots.length || configLines.length !== requiredCount) {
+  if (!workbenchState && (status.missingSlots.length || configLines.length !== requiredCount)) {
     return {
       blockMessage: gearTemplateValidationMessage(status.issues, requiredCount) || `请补齐 ${requiredCount} 个装备槽位后再保存`,
       state: { selectedGearBySlot }
@@ -2425,9 +3620,11 @@ function gearTemplateSaveDraft(page, templateTitle) {
   const selectedDetail = data.selectedDetail || {}
   const selectedSpec = data.selectedSpec || {}
   const keys = specWebsimKeys(selectedSpec)
-  const enhancementBySlot = prunedEnhancementBySlot(gearPayload, selectedGearBySlot, data.enhancementBySlot || {})
+  const enhancementBySlot = workbenchState
+    ? enhancementBySlotFromResolvedSnapshot(resolvedSnapshot)
+    : prunedEnhancementBySlot(gearPayload, selectedGearBySlot, data.enhancementBySlot || {})
   const enhancementSheet = buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementBySlot, false)
-  if ((enhancementSheet.blockers || []).length || enhancementSheet.embellishmentUsed > enhancementSheet.embellishmentMax) {
+  if (!workbenchState && ((enhancementSheet.blockers || []).length || enhancementSheet.embellishmentUsed > enhancementSheet.embellishmentMax)) {
     return {
       blockMessage: (enhancementSheet.blockers || [])[0] || `美化已超过上限 ${enhancementSheet.embellishmentUsed}/${enhancementSheet.embellishmentMax}`,
       state: {
@@ -2441,7 +3638,10 @@ function gearTemplateSaveDraft(page, templateTitle) {
     }
   }
   const snapshot = gearTemplateSnapshot(selectedGearBySlot, enhancementBySlot, gearPayload)
-  const statSnapshot = compactVerifiedGearStatSnapshot(data.gearStatSnapshot)
+  const statState = page && page.gearStatSnapshotState
+  const statSnapshot = statState && statState.statSnapshotStatus === 'verified'
+    ? compactVerifiedGearStatSnapshot(statState.currentStatSnapshot)
+    : null
   const defaultName = gearTemplateTitle(
     selectedDetail.className || selectedSpec.className || '',
     selectedDetail.specName || selectedSpec.title || selectedSpec.specName || '',
@@ -2466,7 +3666,12 @@ function gearTemplateSaveDraft(page, templateTitle) {
       statusLabel: status.statusLabel,
       source: '装备模拟器',
       metadata: {
-        ...(statSnapshot ? { statSnapshot } : {}),
+        ...(statSnapshot ? {
+          statSnapshot,
+          statSnapshotRequestSignature: statState.verifiedStatContextKey || '',
+          statSnapshotSignature: statState.statSnapshotSignature || '',
+          statSnapshotSource: statSnapshot.statSource || 'simulationcraft_json'
+        } : {}),
         gearSnapshot: snapshot,
         gearBySlot: snapshot.gearBySlot,
         enhancementBySlot,
@@ -2480,7 +3685,13 @@ function gearTemplateSaveDraft(page, templateTitle) {
         warningSummary: status.warningSummary || '',
         selectedItemCount: selectedItems.length,
         gearSchemaRevision: data.gearPayload && data.gearPayload.gearSchemaRevision,
-        maxLevel: data.gearPayload && data.gearPayload.maxLevel
+        maxLevel: data.gearPayload && data.gearPayload.maxLevel,
+        ...(importOrigin ? { importOrigin } : {}),
+        ...(resolvedSnapshot ? {
+          selectionIntent: selectionIntentWithResolvedEnhancements(workbenchState.confirmedIntent, resolvedSnapshot),
+          resolvedGearSignature: resolvedSnapshot.resolvedGearSignature || '',
+          dependencyVector: resolvedSnapshot.dependencyVector || {}
+        } : {})
       }
     }
   }
@@ -2530,6 +3741,66 @@ function matchingGearCandidateForItem(payload, slot, item) {
   const group = groups[slot] || {}
   const items = Array.isArray(group.items) ? group.items : []
   return items.find((candidate) => normalizedGearItemId(candidate) === itemId) || null
+}
+
+function exactCandidateVariant(candidate, variantKey) {
+  const requested = cleanGearString(variantKey)
+  if (!requested) return null
+  return gearCandidateVariants(candidate).find((variant) => (
+    cleanGearString(variant && (variant.key || variant.variantKey)) === requested
+  )) || null
+}
+
+function verifiedCandidateGameAsset(candidate) {
+  const asset = candidate && candidate.gameAsset && typeof candidate.gameAsset === 'object' ? candidate.gameAsset : {}
+  const iconUrl = cleanGearString(asset.iconUrl || (candidate && candidate.iconUrl))
+  if (cleanGearString(asset.status).toLowerCase() !== 'verified' || !iconUrl) return null
+  return { ...asset, status: 'verified', iconUrl }
+}
+
+function rehydrateLegacySavedGearSelection(gearPayload, savedGearBySlot) {
+  const saved = selectedGearByCanonicalSlot(savedGearBySlot)
+  const rehydrated = {}
+  for (const slot of Object.keys(saved)) {
+    const recorded = saved[slot]
+    const candidate = matchingGearCandidateForItem(gearPayload, slot, recorded)
+    const variant = exactCandidateVariant(candidate, recorded && recorded.variantKey)
+    const gameAsset = verifiedCandidateGameAsset(candidate)
+    const itemLevel = Number(variant && (variant.itemLevel || variant.ilevel))
+    if (
+      !candidate || !variant || cleanGearString(variant.status).toLowerCase() !== 'verified' ||
+      !gameAsset || !Number.isFinite(itemLevel) || itemLevel <= 0
+    ) return null
+    const applied = appliedGearCandidate(candidate, cleanGearString(recorded.variantKey), '')
+    if (!applied || cleanGearString(applied.variantKey) !== cleanGearString(recorded.variantKey)) return null
+    const displayName = cleanGearString(candidate.displayName || candidate.name || recorded.displayName || recorded.name)
+    if (!displayName) return null
+    rehydrated[slot] = {
+      ...applied,
+      slot,
+      simcSlot: slot,
+      itemId: normalizedGearItemId(candidate),
+      id: normalizedGearItemId(candidate),
+      variantKey: cleanGearString(recorded.variantKey),
+      ilevel: itemLevel,
+      itemLevel,
+      displayName,
+      name: cleanGearString(candidate.name) || displayName,
+      iconUrl: gameAsset.iconUrl,
+      gameAsset,
+      simcReady: true
+    }
+  }
+  return Object.keys(rehydrated).length === Object.keys(saved).length ? rehydrated : null
+}
+
+function legacyCommunitySavedSelection(savedGearBySlot) {
+  return Object.values(selectedGearByCanonicalSlot(savedGearBySlot)).some((item) => {
+    return [item && item.sourceType, item && item.sourceKey, item && item.source].some((value) => {
+      const source = cleanGearString(value).toLowerCase()
+      return source.includes('observed_profile') || source.includes('raiderio') || source.includes('community')
+    })
+  })
 }
 
 function applySimcReadyCandidateEvidence(enriched, candidate, item) {
@@ -2657,7 +3928,8 @@ function parseSavedGearTemplateSnapshot(template) {
   }
   return {
     gearBySlot: metadata.selectedGearSnapshot || metadata.gearBySlot || parsed.gearBySlot || {},
-    enhancementBySlot: metadata.enhancementBySlot || parsed.enhancementBySlot || {}
+    enhancementBySlot: metadata.enhancementBySlot || parsed.enhancementBySlot || {},
+    importOrigin: metadata.importOrigin && typeof metadata.importOrigin === 'object' ? metadata.importOrigin : null
   }
 }
 
@@ -2685,6 +3957,7 @@ function savedGearTemplatesForImport() {
       canApplyGear,
       savedGearBySlot: gearBySlot,
       savedEnhancementBySlot: normalizedEnhancementBySlot(snapshot.enhancementBySlot || {}),
+      importOrigin: snapshot.importOrigin,
       actionLabel: canApplyGear ? '应用' : '不可导入',
       cardClass: ['saved-template-card', canApplyGear ? (readySlotCount >= requiredGearSlots.length ? 'complete' : 'partial') : 'blocked'].filter(Boolean).join(' ')
     }
@@ -2769,6 +4042,61 @@ function gearCommunitySourceDisplayName(template) {
   return rawName || '社区装备'
 }
 
+function gearCommunitySourceRefs(template) {
+  const directRefs = Array.isArray(template && template.sourceRefs) ? template.sourceRefs : []
+  if (directRefs.length) return directRefs
+  const payload = template && template.payload
+  return Array.isArray(payload && payload.sourceRefs) ? payload.sourceRefs : []
+}
+
+function gearCommunityRegionDisplayName(region) {
+  const labels = {
+    cn: '国服',
+    us: '美服',
+    eu: '欧服',
+    kr: '韩服',
+    tw: '台服',
+    oc: '澳服'
+  }
+  const normalizedRegion = cleanGearString(region).toLowerCase()
+  return labels[normalizedRegion] || (normalizedRegion ? normalizedRegion.toUpperCase() : '')
+}
+
+function gearCommunityProvenanceLabel(template, displaySourceName) {
+  const payload = template && template.payload
+  const payloadCharacter = payload && payload.character
+  const sourceRef = gearCommunitySourceRefs(template).find((ref) => ref && typeof ref === 'object') || {}
+  const characterName = cleanGearString(sourceRef.characterName || (payloadCharacter && payloadCharacter.name))
+  const realmSlug = cleanGearString(sourceRef.realmSlug || (payloadCharacter && payloadCharacter.realmSlug))
+  const regionLabel = gearCommunityRegionDisplayName(sourceRef.region || (payloadCharacter && payloadCharacter.region))
+  const realmLabel = regionLabel ? `${realmSlug}（${regionLabel}）` : realmSlug
+  const sourceLabel = characterName && realmSlug
+    ? `${characterName}-${realmLabel}`
+    : displaySourceName
+  const rawScore = [
+    sourceRef.score,
+    sourceRef.rankingEvidence && sourceRef.rankingEvidence.score,
+    payload && payload.rankingEvidence && payload.rankingEvidence.score
+  ].find((value) => value !== undefined && value !== null && String(value).trim() !== '')
+  const score = (typeof rawScore === 'number' || typeof rawScore === 'string') && Number.isFinite(Number(rawScore))
+    ? String(rawScore).trim()
+    : ''
+  return [
+    `来源：${sourceLabel}`,
+    score ? `大秘境分数：${score}` : ''
+  ].filter(Boolean).join('；')
+}
+
+function gearCommunityUpdatedProvenanceLabel(template) {
+  const sourceRef = gearCommunitySourceRefs(template).find((ref) => ref && typeof ref === 'object') || {}
+  const rawUpdatedAt = cleanGearString((template && template.updatedAt) || sourceRef.updatedAt)
+  const updatedAt = rawUpdatedAt
+    .replace('T', ' ')
+    .replace(/(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})$/, '')
+    .trim()
+  return updatedAt ? `更新日期：${updatedAt}` : ''
+}
+
 function gearCommunityTemplateDisplayName(template) {
   const classLabel = (template && template.classLabel) || matchedGearLabel(template, gearClassLabels, template && template.classKey)
   const specLabel = (template && template.specLabel) || matchedGearLabel(template, gearSpecLabels, template && template.specKey)
@@ -2820,6 +4148,8 @@ function decorateGearCommunityTemplate(template) {
     missingSlotLabel,
     blockerLabel,
     updatedLabel: (template && template.updatedAt) || '',
+    provenanceLabel: gearCommunityProvenanceLabel(template, displaySourceName),
+    updatedProvenanceLabel: gearCommunityUpdatedProvenanceLabel(template),
     actionLabel: canApplyGear ? '应用' : '不可导入',
     cardClass: gearCommunityTemplateCardClass({ status: normalizedStatus, sourceStatus: normalizedSourceStatus })
   }
@@ -3048,15 +4378,363 @@ function communityTemplateBaseGearSelection(gearPayload, template) {
   return prunedGearSelectionByWeaponRule(gearPayload, templateSelection)
 }
 
-function communityTemplateEmbeddedEnhancementBySlot(template, selectedGearBySlot) {
-  const explicit = normalizedEnhancementBySlot(
-    (template && template.enhancementBySlot) ||
-    ((template && template.payload && template.payload.enhancementBySlot) || {})
-  )
-  return normalizedEnhancementBySlot({
-    ...explicit,
-    ...embeddedEnhancementBySlotFromGearSelection(selectedGearBySlot)
+function simcOptionTokens(value) {
+  const values = Array.isArray(value) ? value : [value]
+  const result = []
+  values.forEach((entry) => {
+    cleanGearString(entry).split(/[\s/,]+/).forEach((token) => {
+      const normalized = cleanGearString(token)
+      if (normalized) result.push(normalized)
+    })
   })
+  return result
+}
+
+function communityTemplateRawEnhancementBySlot(template) {
+  const result = {}
+  const recordForSlot = (slot) => {
+    if (!result[slot]) {
+      result[slot] = {
+        gemIds: [],
+        gemIdSequences: [],
+        gemConflict: false,
+        enchantIds: [],
+        embellishments: [],
+        gemOptionIds: [],
+        gemOptionIdSequences: [],
+        gemOptionConflict: false,
+        enchantOptionIds: [],
+        enchantOptionIdSequences: [],
+        enchantOptionConflict: false,
+        embellishmentOptionIds: [],
+        embellishmentOptionIdSequences: [],
+        embellishmentOptionConflict: false
+      }
+    }
+    return result[slot]
+  }
+  const addUnique = (target, values) => {
+    ;(Array.isArray(values) ? values : []).forEach((value) => {
+      const normalized = cleanGearString(value)
+      if (normalized && !target.includes(normalized)) target.push(normalized)
+    })
+  }
+  const addGemSequence = (target, values) => {
+    const sequence = (Array.isArray(values) ? values : []).map(cleanGearString).filter(Boolean)
+    if (!sequence.length) return
+    const duplicate = target.gemIdSequences.some((existing) => (
+      existing.length === sequence.length && existing.every((value, index) => value === sequence[index])
+    ))
+    if (!duplicate) target.gemIdSequences.push(sequence)
+    target.gemConflict = target.gemIdSequences.length > 1
+    target.gemIds = target.gemConflict ? target.gemIdSequences.flat() : [...target.gemIdSequences[0]]
+  }
+  const addGemOptionSequence = (target, values) => {
+    const sequence = (Array.isArray(values) ? values : []).map(cleanGearString).filter(Boolean)
+    if (!sequence.length) return
+    const duplicate = target.gemOptionIdSequences.some((existing) => (
+      existing.length === sequence.length && existing.every((value, index) => value === sequence[index])
+    ))
+    if (!duplicate) target.gemOptionIdSequences.push(sequence)
+    target.gemOptionConflict = target.gemOptionIdSequences.length > 1
+    target.gemOptionIds = target.gemOptionConflict ? [] : [...target.gemOptionIdSequences[0]]
+  }
+  const addSingleOptionSequence = (target, value, idsKey, sequencesKey, conflictKey) => {
+    const normalized = cleanGearString(value)
+    if (!normalized) return
+    const sequence = [normalized]
+    const duplicate = target[sequencesKey].some((existing) => (
+      existing.length === sequence.length && existing.every((entry, index) => entry === sequence[index])
+    ))
+    if (!duplicate) target[sequencesKey].push(sequence)
+    target[conflictKey] = target[sequencesKey].length > 1
+    target[idsKey] = target[conflictKey] ? [] : [...target[sequencesKey][0]]
+  }
+  const mergeRecord = (slot, record, allowOptionIdentities) => {
+    if (!slot || !record || typeof record !== 'object') return
+    const target = recordForSlot(slot)
+    const gemIds = simcOptionTokens(record.gem_id || record.gemId || record.gemIds)
+    addGemSequence(target, gemIds)
+    addUnique(target.enchantIds, simcOptionTokens(record.enchant_id || record.enchantId || record.enchantIds))
+    addUnique(target.embellishments, [record.embellishment || record.embellishmentId || record.embellishment_id])
+    if (allowOptionIdentities) {
+      const gemOptionIds = normalizedOptionIdentityList(record.gemOptionIds)
+      addGemOptionSequence(target, gemOptionIds.length
+        ? gemOptionIds
+        : [record.socketOptionId || record.socket_option_id])
+      addSingleOptionSequence(
+        target,
+        record.enchantOptionId || record.enchant_option_id,
+        'enchantOptionIds',
+        'enchantOptionIdSequences',
+        'enchantOptionConflict'
+      )
+      addSingleOptionSequence(
+        target,
+        record.embellishmentOptionId || record.embellishment_option_id,
+        'embellishmentOptionIds',
+        'embellishmentOptionIdSequences',
+        'embellishmentOptionConflict'
+      )
+    }
+  }
+  const payload = template && template.payload && typeof template.payload === 'object' ? template.payload : {}
+  ;[template && template.enhancementBySlot, payload.enhancementBySlot].forEach((enhancementBySlot) => {
+    Object.keys(enhancementBySlot || {}).forEach((slot) => mergeRecord(slot, enhancementBySlot[slot], true))
+  })
+  const gearItems = [
+    ...((template && Array.isArray(template.gearItems)) ? template.gearItems : []),
+    ...((Array.isArray(payload.gearItems) ? payload.gearItems : []))
+  ]
+  gearItems.forEach((item) => {
+    const slot = cleanGearString(item && (item.simcSlot || item.slot))
+    const simcOptions = item && item.simcOptions && typeof item.simcOptions === 'object' ? item.simcOptions : {}
+    mergeRecord(slot, { ...simcOptions, ...(item || {}) }, false)
+  })
+  Object.keys(result).forEach((slot) => {
+    const record = result[slot]
+    if (!Object.keys(record).some((key) => Array.isArray(record[key]) && record[key].length)) delete result[slot]
+  })
+  return result
+}
+
+function communityEnhancementAffectedSlots(template) {
+  return Object.keys(communityTemplateRawEnhancementBySlot(template))
+}
+
+function loadCommunityTemplateEnhancementDetails(page, template, requestContext) {
+  const affectedSlots = communityEnhancementAffectedSlots(template)
+  const incompleteSlots = affectedSlots.filter((slot) => gearPayloadNeedsSlotDetail(page, slot))
+  if (!incompleteSlots.length) return null
+  return Promise.all(incompleteSlots.map((slot) => (
+    loadGearSlotDetailForPage(page, slot, requestContext).catch(() => fullGearPayloadForPage(page))
+  ))).then(() => fullGearPayloadForPage(page))
+}
+
+function communityEnhancementOptionVisible(option) {
+  const payload = optionPayload(option || {})
+  return !(
+    option && (option.isVisible === false || option.is_visible === false) ||
+    payload.isVisible === false ||
+    payload.is_visible === false
+  )
+}
+
+function communityEnhancementOptionAppliesToSlot(option, slot) {
+  const payload = optionPayload(option || {})
+  const applicableSlots = option && Array.isArray(option.applicableSlots)
+    ? option.applicableSlots
+    : (Array.isArray(payload.applicableSlots) ? payload.applicableSlots : [])
+  if (!applicableSlots.length) return true
+  const normalized = applicableSlots.map(cleanGearString).filter(Boolean)
+  return normalized.includes('*') || normalized.includes(slot)
+}
+
+function communityEnhancementStableOptionIdentity(option) {
+  return cleanGearString(option && (option.optionKey || option.option_key))
+}
+
+function communityEnhancementOptionHasAffirmativeTrust(option) {
+  const record = option || {}
+  const status = cleanGearString(optionFirstValue(record, 'status')).toLowerCase()
+  if (status !== 'verified' || optionDisplayStatus(record) !== 'verified') return false
+  const explicitRank = optionFirstValue(record, [
+    'qualityRank', 'rank', 'craftingQuality', 'qualityTier'
+  ])
+  return explicitRank === '' || optionQualityRank({ qualityRank: String(explicitRank) }) === 2
+}
+
+function communityEnhancementAuthoritativeLabel(option, type) {
+  const record = option || {}
+  const payload = optionPayload(record)
+  const label = cleanGearString(
+    record.displayLabel ||
+    record.display_label ||
+    payload.displayLabel ||
+    payload.display_label ||
+    record.label ||
+    payload.label ||
+    record.name ||
+    payload.name
+  )
+  if (!label || enhancementLabelLooksLikeFallback(label, type)) return ''
+  const normalizedLabel = label.toLowerCase().replace(/[\s_-]+/g, '')
+  const simcOptions = record.simcOptions && typeof record.simcOptions === 'object' ? record.simcOptions : {}
+  const rawValues = type === 'gem'
+    ? optionGemIds(record)
+    : (type === 'enchant'
+        ? [simcOptions.enchant_id || optionFirstValue(record, ['enchantId', 'enchant_id'])]
+        : [simcOptions.embellishment || optionFirstValue(record, ['embellishment', 'embellishmentId', 'embellishment_id'])])
+  if (rawValues.some((value) => cleanGearString(value).toLowerCase().replace(/[\s_-]+/g, '') === normalizedLabel)) return ''
+  return label
+}
+
+function verifiedCommunityEnhancementOptionsForSlot(gearPayload, item, optionKey, type) {
+  const slot = cleanGearString(item && (item.simcSlot || item.slot))
+  return enhancementOptionsForSlot(gearPayload, item, optionKey).filter((option) => (
+    !!communityEnhancementStableOptionIdentity(option) &&
+    communityEnhancementOptionVisible(option) &&
+    communityEnhancementOptionAppliesToSlot(option, slot) &&
+    communityEnhancementOptionHasAffirmativeTrust(option) &&
+    !!communityEnhancementAuthoritativeLabel(option, type)
+  ))
+}
+
+function communityEnhancementOptionsForSlot(gearPayload, item, optionKey, type) {
+  const options = verifiedCommunityEnhancementOptionsForSlot(gearPayload, item, optionKey, type)
+  return itemSupportsEnhancement(item, type, options) ? options : []
+}
+
+function communityEnhancementOptionForSimcValue(options, simcKey, rawValue) {
+  const expected = cleanGearString(rawValue)
+  if (!expected) return null
+  const matchesByIdentity = new Map()
+  ;(options || []).forEach((option) => {
+    const simcOptions = option && option.simcOptions && typeof option.simcOptions === 'object' ? option.simcOptions : {}
+    if (cleanGearString(simcOptions[simcKey]) !== expected) return
+    const identity = communityEnhancementStableOptionIdentity(option)
+    if (identity && !matchesByIdentity.has(identity)) matchesByIdentity.set(identity, option)
+  })
+  return matchesByIdentity.size === 1 ? Array.from(matchesByIdentity.values())[0] : null
+}
+
+function communityEnhancementOptionForIdentity(options, identity) {
+  const expected = cleanGearString(identity)
+  if (!expected) return null
+  return (options || []).find((option) => communityEnhancementStableOptionIdentity(option) === expected) || null
+}
+
+function reconcileCommunityTemplateEnhancements(gearPayload, selectedGearBySlot, rawBySlot) {
+  const enhancementBySlot = {}
+  const unresolvedBySlot = {}
+  const indexed = enrichedSelectedGearByCanonicalSlot(gearPayload || {}, selectedGearBySlot || {})
+  Object.keys(rawBySlot || {}).forEach((slot) => {
+    const raw = rawBySlot[slot] || {}
+    const item = indexed[slot]
+    const unresolved = { gemIds: [], enchantIds: [], embellishments: [] }
+    const rawGemIds = simcOptionTokens(raw.gemIds)
+    const explicitGemOptionIds = normalizedOptionIdentityList(raw.gemOptionIds)
+    const conflictingGemOptionIds = (Array.isArray(raw.gemOptionIdSequences)
+      ? raw.gemOptionIdSequences.flat()
+      : []).map(cleanGearString).filter(Boolean)
+    const rawEnchantIds = simcOptionTokens(raw.enchantIds)
+    const explicitEnchantOptionIds = normalizedOptionIdentityList(raw.enchantOptionIds)
+    const conflictingEnchantOptionIds = (Array.isArray(raw.enchantOptionIdSequences)
+      ? raw.enchantOptionIdSequences.flat()
+      : []).map(cleanGearString).filter(Boolean)
+    const rawEmbellishments = (raw.embellishments || []).map(cleanGearString).filter(Boolean)
+    const explicitEmbellishmentOptionIds = normalizedOptionIdentityList(raw.embellishmentOptionIds)
+    const conflictingEmbellishmentOptionIds = (Array.isArray(raw.embellishmentOptionIdSequences)
+      ? raw.embellishmentOptionIdSequences.flat()
+      : []).map(cleanGearString).filter(Boolean)
+    if (!item) {
+      unresolved.gemIds = rawGemIds.length
+        ? rawGemIds
+        : (raw.gemOptionConflict ? conflictingGemOptionIds : explicitGemOptionIds)
+      unresolved.enchantIds = rawEnchantIds.length
+        ? rawEnchantIds
+        : (raw.enchantOptionConflict ? conflictingEnchantOptionIds : explicitEnchantOptionIds)
+      unresolved.embellishments = rawEmbellishments.length
+        ? rawEmbellishments
+        : (raw.embellishmentOptionConflict ? conflictingEmbellishmentOptionIds : explicitEmbellishmentOptionIds)
+      if (unresolved.gemIds.length || unresolved.enchantIds.length || unresolved.embellishments.length) {
+        unresolvedBySlot[slot] = unresolved
+      }
+      return
+    }
+    const next = {}
+    const verifiedGemOptions = verifiedCommunityEnhancementOptionsForSlot(gearPayload, item, 'socketOptions', 'gem')
+    const verifiedEnchantOptions = verifiedCommunityEnhancementOptionsForSlot(gearPayload, item, 'enchantOptions', 'enchant')
+    const verifiedEmbellishmentOptions = verifiedCommunityEnhancementOptionsForSlot(gearPayload, item, 'embellishmentOptions', 'embellishment')
+    const gemOptions = communityEnhancementOptionsForSlot(gearPayload, item, 'socketOptions', 'gem')
+    const enchantOptions = communityEnhancementOptionsForSlot(gearPayload, item, 'enchantOptions', 'enchant')
+    const embellishmentOptions = communityEnhancementOptionsForSlot(gearPayload, item, 'embellishmentOptions', 'embellishment')
+    const governedRawGemIds = itemSupportsEnhancementMetric(gearPayload, item, 'gem', 'socketOptions')
+      ? rawGemIds
+      : []
+    const sourceOnlyWeaponComposite = slot === 'main_hand' && rawEnchantIds.length > 1
+    const governedRawEnchantIds = !sourceOnlyWeaponComposite && itemSupportsEnhancementMetric(gearPayload, item, 'enchant', 'enchantOptions')
+      ? rawEnchantIds
+      : []
+    const sourceOnlyBuiltInEmbellishment = itemHasExplicitBuiltInEmbellishment(item)
+    const governedRawEmbellishments = !sourceOnlyBuiltInEmbellishment && itemSupportsEnhancementMetric(gearPayload, item, 'embellishment', 'embellishmentOptions')
+      ? rawEmbellishments
+      : []
+    if (raw.gemOptionConflict) {
+      unresolved.gemIds = governedRawGemIds.length ? governedRawGemIds : conflictingGemOptionIds
+    } else if (explicitGemOptionIds.length) {
+      const matchedGemOptionIds = explicitGemOptionIds.filter((identity) => (
+        !!communityEnhancementOptionForIdentity(verifiedGemOptions, identity)
+      ))
+      if (matchedGemOptionIds.length === explicitGemOptionIds.length) {
+        next.gemOptionIds = matchedGemOptionIds
+      } else {
+        unresolved.gemIds = explicitGemOptionIds
+      }
+    } else if (raw.gemConflict && governedRawGemIds.length) {
+      unresolved.gemIds = governedRawGemIds
+    } else if (governedRawGemIds.length > gearItemSocketCapacity(item)) {
+      unresolved.gemIds = governedRawGemIds
+    } else if (governedRawGemIds.length) {
+      const matchedGemOptionIds = []
+      governedRawGemIds.forEach((gemId) => {
+        const matched = communityEnhancementOptionForSimcValue(gemOptions, 'gem_id', gemId)
+        const optionId = communityEnhancementStableOptionIdentity(matched)
+        if (optionId) matchedGemOptionIds.push(optionId)
+        else unresolved.gemIds.push(gemId)
+      })
+      if (matchedGemOptionIds.length) next.gemOptionIds = matchedGemOptionIds
+    }
+    if (raw.enchantOptionConflict) {
+      unresolved.enchantIds = governedRawEnchantIds.length ? governedRawEnchantIds : conflictingEnchantOptionIds
+    } else if (explicitEnchantOptionIds.length === 1) {
+      if (communityEnhancementOptionForIdentity(verifiedEnchantOptions, explicitEnchantOptionIds[0])) {
+        next.enchantOptionId = explicitEnchantOptionIds[0]
+      } else {
+        unresolved.enchantIds = explicitEnchantOptionIds
+      }
+    } else if (explicitEnchantOptionIds.length > 1) {
+      unresolved.enchantIds = explicitEnchantOptionIds
+    } else if (governedRawEnchantIds.length === 1) {
+      const matched = communityEnhancementOptionForSimcValue(enchantOptions, 'enchant_id', governedRawEnchantIds[0])
+      const optionId = communityEnhancementStableOptionIdentity(matched)
+      if (optionId) next.enchantOptionId = optionId
+      else unresolved.enchantIds = governedRawEnchantIds
+    } else if (governedRawEnchantIds.length > 1) {
+      unresolved.enchantIds = governedRawEnchantIds
+    }
+    if (!sourceOnlyBuiltInEmbellishment) {
+      if (raw.embellishmentOptionConflict) {
+        unresolved.embellishments = governedRawEmbellishments.length ? governedRawEmbellishments : conflictingEmbellishmentOptionIds
+      } else if (explicitEmbellishmentOptionIds.length === 1) {
+        if (communityEnhancementOptionForIdentity(verifiedEmbellishmentOptions, explicitEmbellishmentOptionIds[0])) {
+          next.embellishmentOptionId = explicitEmbellishmentOptionIds[0]
+        } else {
+          unresolved.embellishments = explicitEmbellishmentOptionIds
+        }
+      } else if (explicitEmbellishmentOptionIds.length > 1) {
+        unresolved.embellishments = explicitEmbellishmentOptionIds
+      } else if (governedRawEmbellishments.length === 1) {
+        const matched = communityEnhancementOptionForSimcValue(embellishmentOptions, 'embellishment', governedRawEmbellishments[0])
+        const optionId = communityEnhancementStableOptionIdentity(matched)
+        if (optionId) next.embellishmentOptionId = optionId
+        else unresolved.embellishments = governedRawEmbellishments
+      } else if (governedRawEmbellishments.length > 1) {
+        unresolved.embellishments = governedRawEmbellishments
+      }
+    }
+    if (Object.keys(next).length) enhancementBySlot[slot] = next
+    if (unresolved.gemIds.length || unresolved.enchantIds.length || unresolved.embellishments.length) {
+      unresolvedBySlot[slot] = unresolved
+    }
+  })
+  return {
+    enhancementBySlot,
+    unresolvedBySlot,
+    warnings: Object.keys(unresolvedBySlot).length
+      ? [communityEnhancementRecoveryWarning]
+      : []
+  }
 }
 
 function communityTemplateNeedsWeaponSlotDetail(page, gearPayload, slot, selectedGearBySlot) {
@@ -3064,12 +4742,13 @@ function communityTemplateNeedsWeaponSlotDetail(page, gearPayload, slot, selecte
   return !firstApplicableGearCandidate(page, gearPayload, slot, selectedGearBySlot || {})
 }
 
-function loadCommunityTemplateWeaponRepairDetails(page, template) {
+function loadCommunityTemplateWeaponRepairDetails(page, template, requestContext) {
   const skippedSlots = communityTemplateSkippedWeaponSlots(template)
   if (!skippedSlots.size) return null
   let gearPayload = fullGearPayloadForPage(page) || (page && page.data && page.data.gearPayload) || {}
   let selected = communityTemplateBaseGearSelection(gearPayload, template)
   const loadOffHandIfNeeded = () => {
+    if (requestContext && typeof requestContext.shouldApply === 'function' && !requestContext.shouldApply()) return null
     gearPayload = fullGearPayloadForPage(page) || gearPayload
     selected = repairedGearSelectionForSkippedWeapons(page, gearPayload, selected, template)
     const mainType = gearItemTypeContext(selected.main_hand).weaponType
@@ -3080,13 +4759,13 @@ function loadCommunityTemplateWeaponRepairDetails(page, template) {
       !offHandOccupied &&
       communityTemplateNeedsWeaponSlotDetail(page, gearPayload, 'off_hand', selected)
     if (!loadOffHand) return null
-    return loadGearSlotDetailForPage(page, 'off_hand').catch(() => fullGearPayloadForPage(page) || gearPayload)
+    return loadGearSlotDetailForPage(page, 'off_hand', requestContext).catch(() => fullGearPayloadForPage(page) || gearPayload)
   }
   const loadMain = skippedSlots.has('main_hand') &&
     !selected.main_hand &&
     communityTemplateNeedsWeaponSlotDetail(page, gearPayload, 'main_hand', selected)
   if (loadMain) {
-    return loadGearSlotDetailForPage(page, 'main_hand')
+    return loadGearSlotDetailForPage(page, 'main_hand', requestContext)
       .catch(() => fullGearPayloadForPage(page) || gearPayload)
       .then(() => loadOffHandIfNeeded() || (fullGearPayloadForPage(page) || gearPayload))
   }
@@ -3159,12 +4838,11 @@ function mergeGearSlotDetailPayload(basePayload, detailPayload, slot) {
 
 function gearPayloadNeedsSlotDetail(page, slot) {
   const payload = fullGearPayloadForPage(page) || {}
-  const cached = page && page.gearSlotCandidateCache && page.gearSlotCandidateCache[slot]
-  if (Array.isArray(cached) && cached.length && cached.every((item) => item && item.detailMode !== 'summary')) {
-    return false
-  }
   const group = gearGroupsBySlot(payload)[slot] || {}
   const items = Array.isArray(group.items) ? group.items : []
+  if (group.detailMode === 'complete' && !items.some((item) => item && item.detailMode === 'summary')) {
+    return false
+  }
   return payload.gearPayloadMode === 'initial' || group.detailMode === 'partial' || items.some((item) => item && item.detailMode === 'summary')
 }
 
@@ -3196,30 +4874,254 @@ function gearEnhancementSlotNeedsDetail(gearPayload, item, selectedEnhancement) 
 
 function gearEnhancementDetailSlotsForPage(page) {
   const gearPayload = fullGearPayloadForPage(page) || (page && page.data && page.data.gearPayload) || {}
-  const selectedGearBySlot = (page && page.data && page.data.selectedGearBySlot) || {}
+  const currentSelectedGearBySlot = (page && page.data && page.data.selectedGearBySlot) || {}
+  const canonicalSnapshot = canonicalEnhancementEditorSnapshot(page)
+  const selectedGearBySlot = page && page.gearWorkbenchState
+    ? gearSelectionWithCanonicalEnhancementConstraints(currentSelectedGearBySlot, canonicalSnapshot)
+    : currentSelectedGearBySlot
   const indexed = enrichedSelectedGearByCanonicalSlot(gearPayload, selectedGearBySlot)
-  const enhancement = normalizedEnhancementBySlot(
+  const currentEnhancement = (
     (page && page.data && page.data.gearEnhancementSheet && page.data.gearEnhancementSheet.draftEnhancementBySlot) ||
     (page && page.data && page.data.enhancementBySlot) ||
     {}
   )
+  const enhancement = page && page.gearWorkbenchState
+    ? optionIdentityEnhancementBySlot(currentEnhancement)
+    : normalizedEnhancementBySlot(currentEnhancement)
   return requiredGearTemplateSlots(gearPayload || {}).filter((slot) => {
     const item = indexed[slot]
     return !!(item && gearPayloadNeedsSlotDetail(page, slot) && gearEnhancementSlotNeedsDetail(gearPayload, item, enhancement[slot]))
   })
 }
 
-function loadGearSlotDetailForPage(page, slot) {
+function canonicalEnhancementTypesBySlot(snapshot) {
+  const result = {}
+  const constraints = snapshot && snapshot.constraints && snapshot.constraints.slots && typeof snapshot.constraints.slots === 'object'
+    ? snapshot.constraints.slots
+    : {}
+  Object.keys(constraints).forEach((slot) => {
+    const record = constraints[slot] || {}
+    const types = []
+    if ((Number(record.socketCount) || 0) > 0) types.push('gem')
+    if (record.canEnchant === true) types.push('enchant')
+    if (record.canEmbellish === true) types.push('embellishment')
+    if (types.length) result[slot] = types
+  })
+  return result
+}
+
+function enhancementTypeLabel(type) {
+  return { gem: '宝石', enchant: '附魔', embellishment: '美化' }[type] || ''
+}
+
+function canonicalLocalEnhancementBlockersForPage(
+  page,
+  gearPayload,
+  selectedGearBySlot,
+  enhancementBySlot,
+  canonicalSnapshot,
+  fullSheet,
+  requestedActiveSlot
+) {
+  const editorSelectedGearBySlot = gearSelectionWithCanonicalEnhancementConstraints(
+    selectedGearBySlot,
+    canonicalSnapshot
+  )
+  const filteredEnhancementBySlot = enhancementBySlotForSelectedGear(
+    selectedGearBySlot,
+    enhancementBySlot
+  )
+  const hydratedEnhancementBySlot = {}
+  Object.keys(filteredEnhancementBySlot).forEach((slot) => {
+    if (!gearPayloadNeedsSlotDetail(page, slot)) {
+      hydratedEnhancementBySlot[slot] = filteredEnhancementBySlot[slot]
+    }
+  })
+  const canonicalEmbellishmentMax = Math.max(
+    0,
+    Number(canonicalSnapshot && canonicalSnapshot.constraints && canonicalSnapshot.constraints.embellishmentMax) || 0
+  )
+  const canonicalBuiltInEmbellishmentUsed = Math.max(
+    0,
+    Number(canonicalSnapshot && canonicalSnapshot.constraints && canonicalSnapshot.constraints.embellishmentBuiltInUsed) || 0
+  )
+  const hydratedValidationSheet = buildGearEnhancementSheet(
+    gearPayload,
+    editorSelectedGearBySlot,
+    hydratedEnhancementBySlot,
+    true,
+    requestedActiveSlot,
+    canonicalEmbellishmentMax,
+    canonicalBuiltInEmbellishmentUsed
+  )
+  const blockers = [...(hydratedValidationSheet.blockers || [])]
+  if (fullSheet.embellishmentUsed > fullSheet.embellishmentMax) {
+    blockers.push(`美化已超过上限 ${fullSheet.embellishmentUsed}/${fullSheet.embellishmentMax}`)
+  }
+  return Array.from(new Set(blockers))
+}
+
+function buildGearEnhancementSheetForPage(page, visible, requestedActiveSlot, overrides) {
+  const state = overrides || {}
+  const currentSheet = page && page.data && page.data.gearEnhancementSheet
+  const activeType = normalizedGearEnhancementType(
+    Object.prototype.hasOwnProperty.call(state, 'activeType')
+      ? state.activeType
+      : (currentSheet && currentSheet.visible && currentSheet.activeType)
+  )
+  const gearPayload = fullGearPayloadForPage(page) || (page && page.data && page.data.gearPayload) || {}
+  const currentSelectedGearBySlot = state.selectedGearBySlot || (page && page.data && page.data.selectedGearBySlot) || {}
+  const canonicalWorkbench = !!(page && page.gearWorkbenchState)
+  const canonicalSnapshot = canonicalEnhancementEditorSnapshot(page)
+  const canonicalCommittedEnhancementBySlot = canonicalWorkbench
+    ? enhancementBySlotFromResolvedSnapshot(canonicalSnapshot)
+    : null
+  const currentEnhancementBySlot = state.enhancementBySlot || (
+    currentSheet && currentSheet.visible && currentSheet.draftEnhancementBySlot
+  ) || canonicalCommittedEnhancementBySlot || (page && page.data && page.data.enhancementBySlot) || {}
+  const canonicalEmbellishmentMaxValue = Number(canonicalSnapshot && canonicalSnapshot.constraints && canonicalSnapshot.constraints.embellishmentMax)
+  const canonicalEmbellishmentMax = canonicalWorkbench
+    ? (canonicalSnapshot && Number.isFinite(canonicalEmbellishmentMaxValue) && canonicalEmbellishmentMaxValue >= 0
+        ? canonicalEmbellishmentMaxValue
+        : 0)
+    : undefined
+  const canonicalBuiltInEmbellishmentUsedValue = Number(
+    canonicalSnapshot && canonicalSnapshot.constraints && canonicalSnapshot.constraints.embellishmentBuiltInUsed
+  )
+  const canonicalBuiltInEmbellishmentUsed = canonicalWorkbench && Number.isFinite(canonicalBuiltInEmbellishmentUsedValue) && canonicalBuiltInEmbellishmentUsedValue >= 0
+    ? canonicalBuiltInEmbellishmentUsedValue
+    : undefined
+  const selectedGearBySlot = canonicalWorkbench
+    ? gearSelectionWithCanonicalEnhancementConstraints(currentSelectedGearBySlot, canonicalSnapshot)
+    : currentSelectedGearBySlot
+  const enhancementBySlot = canonicalWorkbench
+    ? optionIdentityEnhancementBySlot(currentEnhancementBySlot)
+    : currentEnhancementBySlot
+  const sheet = buildGearEnhancementSheet(
+    gearPayload,
+    selectedGearBySlot,
+    enhancementBySlot,
+    visible,
+    requestedActiveSlot,
+    canonicalEmbellishmentMax,
+    canonicalBuiltInEmbellishmentUsed,
+    activeType
+  )
+  if (canonicalWorkbench && canonicalSnapshot) {
+    sheet.blockers = canonicalLocalEnhancementBlockersForPage(
+      page,
+      gearPayload,
+      currentSelectedGearBySlot,
+      enhancementBySlot,
+      canonicalSnapshot,
+      sheet,
+      requestedActiveSlot
+    )
+  }
+  sheet.submitting = state.submitting !== undefined
+    ? !!state.submitting
+    : !!(currentSheet && currentSheet.visible && currentSheet.submitting)
+  const detailSlots = gearEnhancementDetailSlotsForPage(page)
+  const communityImportState = eligibleCommunityEnhancementImportStateForPage(page, canonicalSnapshot)
+  const warnings = Array.from(new Set([
+    ...(sheet.warnings || []),
+    ...((Array.isArray(communityImportState.warnings) ? communityImportState.warnings : []))
+  ]))
+  const canonicalTypesBySlot = canonicalEnhancementTypesBySlot(canonicalSnapshot)
+  const configurableSlots = (sheet.equipmentRows || []).map((row) => row.slot)
+  const isCurrentType = (slot) => {
+    if (!activeType) return true
+    const canonicalTypes = canonicalTypesBySlot[slot] || []
+    if (canonicalTypes.length) return canonicalTypes.includes(activeType)
+    const item = selectedGearBySlot[slot]
+    return !!(item && (
+      itemSupportsConfiguredEnhancementFallback(item, activeType) ||
+      enhancementRecordHasSelectedType(enhancementBySlot[slot], activeType)
+    ))
+  }
+  const allSlots = requiredGearTemplateSlots(gearPayload || {})
+  const equipmentSlots = Array.from(new Set([
+    ...configurableSlots,
+    ...detailSlots.filter(isCurrentType),
+    ...Object.keys(canonicalTypesBySlot).filter(isCurrentType)
+  ])).filter((slot) => !!selectedGearBySlot[slot]).sort((left, right) => {
+    const leftKey = gearEnhancementSlotSortKey(left, allSlots.indexOf(left))
+    const rightKey = gearEnhancementSlotSortKey(right, allSlots.indexOf(right))
+    return leftKey[0] - rightKey[0] || leftKey[1] - rightKey[1]
+  })
+  if (!equipmentSlots.length) return { ...sheet, warnings }
+  if (sheet.emptyText && detailSlots.length) sheet.emptyText = '请选择装备槽位加载可配置选项。'
+  else if (sheet.emptyText) sheet.emptyText = ''
+  const activeSlot = equipmentSlots.includes(requestedActiveSlot)
+    ? requestedActiveSlot
+    : (sheet.activeSlot || equipmentSlots[0] || '')
+  const indexed = enrichedSelectedGearByCanonicalSlot(gearPayload, selectedGearBySlot)
+  const pendingSlots = new Set([
+    ...detailSlots.filter(isCurrentType),
+    ...Object.keys(canonicalTypesBySlot).filter(isCurrentType)
+  ])
+  const equipmentRows = buildGearEnhancementEquipmentRows(
+    equipmentSlots,
+    indexed,
+    sheet.gemRows || [],
+    sheet.enchantRows || [],
+    sheet.embellishmentRows || [],
+    activeSlot,
+    pendingSlots
+  ).map((row) => {
+    const canonicalTypes = (canonicalTypesBySlot[row.slot] || []).filter((type) => !activeType || type === activeType)
+    const hydratedTypes = []
+    if ((!activeType || activeType === 'gem') && (sheet.gemRows || []).some((item) => item.slot === row.slot)) hydratedTypes.push('gem')
+    if ((!activeType || activeType === 'enchant') && (sheet.enchantRows || []).some((item) => item.slot === row.slot)) hydratedTypes.push('enchant')
+    if ((!activeType || activeType === 'embellishment') && (sheet.embellishmentRows || []).some((item) => item.slot === row.slot)) hydratedTypes.push('embellishment')
+    const typeLabels = Array.from(new Set([
+      ...canonicalTypes,
+      ...hydratedTypes
+    ])).map(enhancementTypeLabel).filter(Boolean)
+    return {
+      ...row,
+      typeSummary: typeLabels.length ? typeLabels.join(' / ') : row.typeSummary
+    }
+  })
+  const summaryText = activeType === 'embellishment'
+    ? `已使用 ${sheet.embellishmentUsed} / ${sheet.embellishmentMax} 美化 · 可配置 ${equipmentRows.length} 件装备`
+    : (activeType ? `可配置 ${equipmentRows.length} 件装备` : sheet.summaryText)
+  return {
+    ...sheet,
+    summaryText,
+    equipmentRows,
+    activeSlot,
+    activeTitle: activeSlot ? (gearSlotDisplayLabels[activeSlot] || activeSlot) : '',
+    activeItemName: activeSlot ? itemDisplayName(indexed[activeSlot]) : '',
+    activeGemRows: activeSlot && (!activeType || activeType === 'gem') ? (sheet.gemRows || []).filter((row) => row.slot === activeSlot) : [],
+    activeEnchantRows: activeSlot && (!activeType || activeType === 'enchant') ? (sheet.enchantRows || []).filter((row) => row.slot === activeSlot) : [],
+    activeEmbellishmentRows: activeSlot && (!activeType || activeType === 'embellishment') ? (sheet.embellishmentRows || []).filter((row) => row.slot === activeSlot) : [],
+    warnings
+  }
+}
+
+function loadGearSlotDetailForPage(page, slot, requestContext) {
   if (!page || !slot) return Promise.resolve(fullGearPayloadForPage(page))
   if (!gearPayloadNeedsSlotDetail(page, slot)) return Promise.resolve(fullGearPayloadForPage(page))
   const selectedSpec = (page && page.data && page.data.selectedSpec) || {}
   const keys = specWebsimKeys(selectedSpec)
   const selectionKey = `${keys.classKey}:${keys.specKey}`
-  const requestKey = `${selectionKey}:${slot}`
+  const interactionContext = requestContext && requestContext.interactionContext
+    ? requestContext.interactionContext
+    : captureGearInteractionContext(page)
+  const contextKey = [
+    cleanGearString(requestContext && requestContext.requestKey),
+    `generation-${interactionContext.generation}`
+  ].filter(Boolean).join(':')
+  const requestKey = [selectionKey, slot, contextKey].filter(Boolean).join(':')
   page.gearSlotDetailRequestCache = page.gearSlotDetailRequestCache || {}
   if (page.gearSlotDetailRequestCache[requestKey]) return page.gearSlotDetailRequestCache[requestKey]
   const requestPromise = requestWebsimGear({ ...keys, mode: 'slot', slot }).then(({ payload, error, fromFallback }) => {
-    if (!page || !page.data || page.data.gearSelectionKey !== selectionKey) return fullGearPayloadForPage(page)
+    if (!gearInteractionContextIsCurrent(page, interactionContext)) return fullGearPayloadForPage(page)
+    if (!page.data || page.data.gearSelectionKey !== selectionKey) return fullGearPayloadForPage(page)
+    if (requestContext && typeof requestContext.shouldApply === 'function' && !requestContext.shouldApply()) {
+      return fullGearPayloadForPage(page)
+    }
     if (fromFallback || error) return fullGearPayloadForPage(page)
     const merged = mergeGearSlotDetailPayload(fullGearPayloadForPage(page) || {}, payload, slot)
     page.gearPayloadCache = merged
@@ -3231,12 +5133,6 @@ function loadGearSlotDetailForPage(page, slot) {
   })
   page.gearSlotDetailRequestCache[requestKey] = requestPromise
   return requestPromise
-}
-
-function loadGearSlotDetailsSequentiallyForPage(page, slots) {
-  return (Array.isArray(slots) ? slots : []).reduce((chain, slot) => (
-    chain.then(() => loadGearSlotDetailForPage(page, slot).catch(() => fullGearPayloadForPage(page)))
-  ), Promise.resolve(fullGearPayloadForPage(page)))
 }
 
 function gearCandidateKey(item, slot, index) {
@@ -3765,7 +5661,7 @@ function gearAttributeText(item, primaryKey) {
 function gearCandidateDetailRows(item, primaryKey) {
   const rows = []
   rows.push({ label: '掉落来源', value: gearDropSourceText(item) })
-  const badgeLabels = gearEquipmentBadgeLabels(item)
+  const badgeLabels = gearCandidateEquipmentBadgeLabels(item)
   if (badgeLabels.length) rows.push({ label: '装备标签', value: badgeLabels.join(' / ') })
   rows.push({ label: '装备属性', value: gearAttributeText(item, primaryKey) })
   return rows
@@ -3843,7 +5739,7 @@ function buildGearSlotSheet(slot, row, allCandidates, options) {
       }
       return {
         ...gearObjectForData(displayCandidate),
-        equipmentBadgeLabels: gearEquipmentBadgeLabels(displayCandidate),
+        equipmentBadgeLabels: gearCandidateEquipmentBadgeLabels(displayCandidate),
         detailRows: gearCandidateDetailRows(displayCandidate, displayCandidate.primaryStatKey),
         embellishmentBadgeLabel: gearBuiltInEmbellishmentBadgeLabel(displayCandidate),
         selected: isSelected,
@@ -3869,10 +5765,11 @@ function buildGearSlotSheet(slot, row, allCandidates, options) {
   }
 }
 
-function buildGearCandidateRows(slot, payload, selectedGearBySlot) {
+function buildGearCandidateRows(slot, payload, selectedGearBySlot, selectedSpec) {
   const groups = gearGroupsBySlot(payload)
   const group = groups[slot] || { items: [] }
   const selected = (selectedGearBySlot || {})[slot]
+  const primaryStatKey = primaryStatKeyForGearDetail(selectedSpec, payload)
   const rawItems = Array.isArray(group.items) ? group.items.slice(0) : []
   if (selected && !rawItems.some((item) => String(item.itemId || item.id || '') === String(selected.itemId || selected.id || ''))) {
     rawItems.unshift(selected)
@@ -3880,6 +5777,7 @@ function buildGearCandidateRows(slot, payload, selectedGearBySlot) {
   const seen = new Set()
   return rawItems.map((item, index) => {
     const candidate = item
+    const candidatePrimaryStatKey = primaryStatKey || candidate.primaryStatKey || ''
     const key = gearCandidateKey(candidate, slot, index)
     if (seen.has(key)) return null
     seen.add(key)
@@ -3894,13 +5792,14 @@ function buildGearCandidateRows(slot, payload, selectedGearBySlot) {
       iconUrl: candidate.iconUrl || '',
       source: gearCandidateSourceLabel(candidate),
       sourceType: gearCandidateSourceType(candidate),
-      equipmentBadgeLabels: gearEquipmentBadgeLabels(candidate),
+      primaryStatKey: candidatePrimaryStatKey,
+      equipmentBadgeLabels: gearCandidateEquipmentBadgeLabels(candidate),
       embellishmentBadgeLabel: gearBuiltInEmbellishmentBadgeLabel(candidate),
       variantLabel: candidate.variantLabel || '',
       modSummary: gearModSummary(candidate),
       statusLabel: gearStatusLabel(trust.status),
       statusClass: gearStatusClass(trust.status),
-      detailRows: gearCandidateDetailRows(candidate, candidate.primaryStatKey),
+      detailRows: gearCandidateDetailRows(candidate, candidatePrimaryStatKey),
       trustLabel: trust.label,
       trustReason: trust.reason,
       blockerLabel: trust.blockerLabel,
@@ -3935,7 +5834,7 @@ function buildGearSlotRows(payload, selectedGearBySlot, enhancementBySlot) {
     const trust = gearTrustState(item, status, slotState.reason || (item.simcReady ? '可保存为配置' : '等待装备配置字段'))
     return attachGearGameAsset({
       slot,
-      label: slotMeta.label || slot,
+      label: gearSlotCardLabel(slot, item, slotMeta.label || slot),
       displayName: itemDisplayName(item),
       iconUrl: item.iconUrl || '',
       itemId: item.itemId || item.id || '',
@@ -4087,9 +5986,141 @@ function findSpecSelection(specId) {
   return { classIndex: 0, specIndex: 0 }
 }
 
+function acceptedVerifiedGearResolve(state, request, snapshot) {
+  return gearWorkbenchAcceptedVerifiedResolve(state, request, snapshot)
+}
+
+function enhancementBySlotFromResolvedSnapshot(snapshot) {
+  const resolvedSlots = snapshot && snapshot.resolvedSlots && typeof snapshot.resolvedSlots === 'object'
+    ? snapshot.resolvedSlots
+    : {}
+  const result = {}
+  Object.keys(resolvedSlots).sort().forEach((slot) => {
+    const selectedOptions = resolvedSlots[slot] && resolvedSlots[slot].selectedOptions
+    if (!selectedOptions || typeof selectedOptions !== 'object') return
+    const record = {}
+    const gemOptionIds = normalizedOptionIdentityList(selectedOptions.gemOptionIds)
+    const enchantOptionId = cleanGearString(selectedOptions.enchantOptionId)
+    const embellishmentOptionId = cleanGearString(selectedOptions.embellishmentOptionId)
+    if (gemOptionIds.length) record.gemOptionIds = gemOptionIds
+    if (enchantOptionId) record.enchantOptionId = enchantOptionId
+    if (embellishmentOptionId) record.embellishmentOptionId = embellishmentOptionId
+    if (Object.keys(record).length) result[slot] = record
+  })
+  return result
+}
+
+function enhancementBySlotFromSelectionIntent(selectionIntent) {
+  const slots = selectionIntent && selectionIntent.slots && typeof selectionIntent.slots === 'object'
+    ? selectionIntent.slots
+    : {}
+  const result = {}
+  Object.keys(slots).sort().forEach((slot) => {
+    const selectedOptions = slots[slot]
+    if (!selectedOptions || typeof selectedOptions !== 'object') return
+    const record = {}
+    const gemOptionIds = normalizedOptionIdentityList(selectedOptions.gemOptionIds)
+    const enchantOptionId = cleanGearString(selectedOptions.enchantOptionId)
+    const embellishmentOptionId = cleanGearString(selectedOptions.embellishmentOptionId)
+    if (gemOptionIds.length) record.gemOptionIds = gemOptionIds
+    if (enchantOptionId) record.enchantOptionId = enchantOptionId
+    if (embellishmentOptionId) record.embellishmentOptionId = embellishmentOptionId
+    if (Object.keys(record).length) result[slot] = record
+  })
+  return result
+}
+
+function selectionIntentWithResolvedEnhancements(selectionIntent, snapshot) {
+  const result = selectionIntent && typeof selectionIntent === 'object'
+    ? JSON.parse(JSON.stringify(selectionIntent))
+    : {}
+  const slots = result.slots && typeof result.slots === 'object' ? result.slots : {}
+  const enhancementBySlot = enhancementBySlotFromResolvedSnapshot(snapshot)
+  Object.keys(slots).forEach((slot) => {
+    const selectedOptions = enhancementBySlot[slot] || {}
+    slots[slot] = {
+      ...slots[slot],
+      gemOptionIds: normalizedOptionIdentityList(selectedOptions.gemOptionIds),
+      enchantOptionId: cleanGearString(selectedOptions.enchantOptionId),
+      embellishmentOptionId: cleanGearString(selectedOptions.embellishmentOptionId)
+    }
+  })
+  result.slots = slots
+  return result
+}
+
+function validResolvedOptionIdentity(value, allowEmpty) {
+  if (typeof value !== 'string') return false
+  const normalized = value.trim()
+  return normalized.length <= 256 && (allowEmpty || normalized.length > 0)
+}
+
+function resolvedSelectedOptionsHaveValidShape(selectedOptions) {
+  if (!selectedOptions || typeof selectedOptions !== 'object' || Array.isArray(selectedOptions)) return false
+  if (Object.prototype.hasOwnProperty.call(selectedOptions, 'gemOptionIds')) {
+    if (!Array.isArray(selectedOptions.gemOptionIds)) return false
+    if (!Array.from(selectedOptions.gemOptionIds).every((value) => validResolvedOptionIdentity(value, false))) return false
+  }
+  return ['enchantOptionId', 'embellishmentOptionId', 'craftedOptionId', 'catalystOptionId'].every((field) => (
+    !Object.prototype.hasOwnProperty.call(selectedOptions, field) ||
+    validResolvedOptionIdentity(selectedOptions[field], true)
+  ))
+}
+
+function resolvedSnapshotHasCompleteSelectedOptions(snapshot, selectedGearBySlot) {
+  const resolvedSlots = snapshot && snapshot.resolvedSlots && typeof snapshot.resolvedSlots === 'object'
+    ? snapshot.resolvedSlots
+    : {}
+  return Object.keys(selectedGearByCanonicalSlot(selectedGearBySlot)).every((slot) => {
+    const resolved = resolvedSlots[slot]
+    return !!(resolved && resolvedSelectedOptionsHaveValidShape(resolved.selectedOptions))
+  })
+}
+
+function commitVerifiedEnhancementSnapshot(page, request, snapshot, context) {
+  const interactionContext = context && context.interactionContext
+  if (!gearInteractionContextIsCurrent(page, interactionContext)) return false
+  if (!acceptedVerifiedGearResolve(page && page.gearWorkbenchState, request, snapshot)) return false
+  const source = context && typeof context === 'object' ? context : {}
+  const data = (page && page.data) || {}
+  const gearPayload = source.gearPayload || fullGearPayloadForPage(page) || data.gearPayload || {}
+  const selectedGearBySlot = source.selectedGearBySlot || data.selectedGearBySlot || {}
+  if (!resolvedSnapshotHasCompleteSelectedOptions(snapshot, selectedGearBySlot)) return false
+  const enhancementBySlot = enhancementBySlotFromResolvedSnapshot(snapshot)
+  page.setData({
+    enhancementBySlot,
+    gearSlotRows: buildGearSlotRows(gearPayload, selectedGearBySlot, enhancementBySlot)
+  })
+  return true
+}
+
+function bindCommunityImportToResolvedSnapshot(page, request, snapshot, resolveContext) {
+  const interactionContext = resolveContext && resolveContext.interactionContext
+  if (!gearInteractionContextIsCurrent(page, interactionContext)) return false
+  if (!acceptedVerifiedGearResolve(page && page.gearWorkbenchState, request, snapshot)) return false
+  const binding = resolveContext && resolveContext.communityImport
+  const current = page.communityEnhancementImportState || emptyCommunityEnhancementImportState()
+  if (!binding || typeof binding !== 'object') return false
+  if (
+    cleanGearString(current.templateId) !== cleanGearString(binding.templateId) ||
+    Number(current.serial) !== Number(binding.serial)
+  ) return false
+  page.communityEnhancementImportState = {
+    ...current,
+    resolvedGearSignature: cleanGearString(snapshot.resolvedGearSignature)
+  }
+  return true
+}
+
 const defaultSelection = findSpecSelection(defaultSpecId)
 
 Page({
+  communityEnhancementImportSerial: 0,
+  communityEnhancementImportState: emptyCommunityEnhancementImportState(),
+  gearInteractionGeneration: 0,
+  gearSlotOpenSerial: 0,
+  gearSlotOpenDesiredSlot: '',
+
   data: {
     ...payload,
     navTitle: '职业专精查询',
@@ -4104,6 +6135,7 @@ Page({
     gearInitialLoading: false,
     gearStatsLoading: false,
     gearTemplateSaving: false,
+    communityTemplateImporting: false,
     gearRequestError: '',
     gearDataFallback: false,
     gearDataWarningText: '',
@@ -4116,12 +6148,24 @@ Page({
     gearEnhancementSheet: emptyGearEnhancementSheet(),
     gearSaveTemplateSheet: emptyGearSaveTemplateSheet(),
     gearCommunityTemplateSheet: emptyGearCommunityTemplateSheet(),
+    gearWorkbenchView: {
+      resolveStatus: 'idle',
+      resolving: false,
+      readOnly: true,
+      canUseVerifiedSnapshot: false,
+      canRunProfile: false,
+      resolvedGearSignature: ''
+    },
+    gearWorkbenchStatusText: '等待校验当前装备配置',
+    gearWorkbenchSignatureLabel: '',
+    gearWorkbenchProblemRows: [],
     savedGearTemplates: [],
     fromFallback: true,
     requestError: ''
   },
 
   onLoad(options) {
+    clearCommunityEnhancementImportState(this)
     const queryKey = options.query || 'talents'
     const specId = options.spec ? decodeURIComponent(options.spec) : defaultSpecId
     this.analyticsStartedAt = Date.now()
@@ -4157,6 +6201,8 @@ Page({
   },
 
   selectClass(event) {
+    invalidateGearInteractionContext(this)
+    clearCommunityEnhancementImportState(this)
     const classIndex = Number(event.detail.value)
     const selectionState = createSelectionState(classIndex, 0, this.data.activeQueryKey)
     trackEvent('builds_class_select', {
@@ -4172,6 +6218,8 @@ Page({
   },
 
   selectSpec(event) {
+    invalidateGearInteractionContext(this)
+    clearCommunityEnhancementImportState(this)
     const specIndex = Number(event.detail.value)
     const selectionState = createSelectionState(this.data.selectedClassIndex, specIndex, this.data.activeQueryKey)
     trackEvent('builds_spec_select', {
@@ -4209,9 +6257,13 @@ Page({
     if (!specId) return
     this.setData({ loading: true })
     requestBuildsDetail(specId).then(({ payload, fromFallback, error }) => {
+      const gearPayload = fullGearPayloadForPage(this)
       this.setData({
         selectedDetail: payload,
-        ...createDetailDerivedState(payload, this.data.activeQueryKey, this.data),
+        ...createDetailDerivedState(payload, this.data.activeQueryKey, {
+          ...this.data,
+          gearPayload
+        }),
         fromFallback,
         requestError: error || ''
       })
@@ -4225,19 +6277,28 @@ Page({
     const selectedSpec = (selectionState && selectionState.selectedSpec) || this.data.selectedSpec || {}
     const keys = specWebsimKeys(selectedSpec)
     const selectionKey = `${keys.classKey}:${keys.specKey}`
-    const existingSelection = this.data.gearSelectionKey === selectionKey ? (this.data.selectedGearBySlot || {}) : {}
-    const existingEnhancement = this.data.gearSelectionKey === selectionKey ? (this.data.enhancementBySlot || {}) : {}
-    const existingStatsTalentImport = this.data.gearSelectionKey === selectionKey ? (this.data.gearStatsTalentImport || '') : ''
+    const existingSelectionKey = cleanGearString(this.data.gearSelectionKey)
+    // An empty key occurs during first load before a specialization owns a
+    // workbench. Only clear a previously bound selection; otherwise initial
+    // candidate evidence supplied by the page would be discarded.
+    const selectionChanged = !!existingSelectionKey && existingSelectionKey !== selectionKey
+    const existingSelection = !selectionChanged ? (this.data.selectedGearBySlot || {}) : {}
+    const existingEnhancement = !selectionChanged ? (this.data.enhancementBySlot || {}) : {}
+    const existingStatsTalentImport = !selectionChanged ? (this.data.gearStatsTalentImport || '') : ''
     const hasExistingRows = Array.isArray(this.data.gearSlotRows) && this.data.gearSlotRows.length > 0
-    if (this.data.gearSelectionKey !== selectionKey) {
+    const selectionReset = selectionChanged ? resetGearWorkbenchForSelection(this) : {}
+    if (selectionChanged) {
+      invalidateGearInteractionContext(this)
+      clearCommunityEnhancementImportState(this)
       this.gearPayloadCache = null
       this.gearSlotCandidateCache = {}
       this.gearSlotDetailRequestCache = {}
       this.gearStatsTalentImportKey = ''
     }
     this.setData({
+      ...selectionReset,
       gearLoading: true,
-      gearInitialLoading: !hasExistingRows,
+      gearInitialLoading: selectionChanged || !hasExistingRows,
       gearRequestError: '',
       gearDataFallback: false,
       gearDataWarningText: '',
@@ -4281,11 +6342,11 @@ Page({
         gearDataWarningText: gearDataWarningText(error || '', payload, gearDataFallback),
         enhancementBySlot
       })
-      maybeRefreshGearStatsForPage(this)
+      const resolution = resolveOrRefreshGearForPage(this, selectedGearBySlot, enhancementBySlot)
       if (typeof this.loadGearStatsTalentImport === 'function') {
         this.loadGearStatsTalentImport(keys, selectionKey)
       }
-      return payload
+      return Promise.resolve(resolution).then(() => payload)
     }).catch((error) => {
       this.gearPayloadCache = null
       this.gearSlotCandidateCache = {}
@@ -4337,7 +6398,7 @@ Page({
     const selectedSpec = this.data.selectedSpec || {}
     const activeDetail = this.data.activeDetail || {}
     const activeQuery = this.data.activeQuery || {}
-    return {
+    const context = {
       specId: selectedDetail.id || selectedSpec.id || '',
       className: selectedDetail.className || selectedSpec.className || '',
       specName: selectedDetail.specName || selectedSpec.specName || '',
@@ -4360,6 +6421,212 @@ Page({
         }
       }
     }
+    const committedWorkbenchState = committedGearWorkbenchStateForPage(this)
+    if (this.data.activeQueryKey === 'gear' && committedWorkbenchState && gearWorkbenchCanRunProfile(committedWorkbenchState)) {
+      const snapshot = committedWorkbenchState.currentSnapshot || {}
+      context.simulatorState.gear = {
+        selectionIntent: selectionIntentWithResolvedEnhancements(
+          committedWorkbenchState.confirmedIntent,
+          snapshot
+        ),
+        resolvedGearSignature: snapshot.resolvedGearSignature || '',
+        dependencyVector: snapshot.dependencyVector || {}
+      }
+    }
+    return context
+  },
+
+  confirmAndResolveGearIntent(selectedGearBySlot, enhancementBySlot, resolveContext) {
+    const acceptedSnapshotBeforeResolve = canonicalWorkbenchSnapshot(this)
+    const atomicEnhancementCommit = resolveContext && resolveContext.atomicEnhancementCommit &&
+      typeof resolveContext.atomicEnhancementCommit === 'object'
+      ? resolveContext.atomicEnhancementCommit
+      : null
+    if (!atomicEnhancementCommit) delete this.atomicEnhancementCommittedWorkbenchState
+    const completionContext = resolveContext && typeof resolveContext === 'object' ? resolveContext : {}
+    const displaySubmittedSelection = !atomicEnhancementCommit && completionContext.displaySubmittedSelection === true
+    const interactionContext = captureGearInteractionContext(this, completionContext)
+    const fencedCompletionContext = { ...completionContext, interactionContext }
+    const gearPayload = fullGearPayloadForPage(this) || this.data.gearPayload || {}
+    const selectedSpec = this.data.selectedSpec || {}
+    const keys = specWebsimKeys({
+      websimClassKey: selectedSpec.websimClassKey || selectedSpec.classKey || gearPayload.classKey,
+      websimSpecKey: selectedSpec.websimSpecKey || selectedSpec.specKey || gearPayload.specKey
+    })
+    const selection = selectedGearBySlot || {}
+    const enhancements = enhancementBySlot || {}
+    const committedEnhancementBySlot = enhancementBySlotFromResolvedSnapshot(acceptedSnapshotBeforeResolve)
+    const submittedEnhancementBySlot = optionIdentityEnhancementBySlot(enhancements)
+    const committedWorkbenchDataState = () => {
+      const verifiedCurrentSnapshot = gearWorkbenchCanUseVerifiedSnapshot(this.gearWorkbenchState)
+        ? this.gearWorkbenchState.currentSnapshot
+        : null
+      const displayEnhancementBySlot = !atomicEnhancementCommit && verifiedCurrentSnapshot
+        ? enhancementBySlotFromResolvedSnapshot(verifiedCurrentSnapshot)
+        : displaySubmittedSelection
+          ? submittedEnhancementBySlot
+          : committedEnhancementBySlot
+      const displayGearSlotRows = buildGearSlotRows(gearPayload, selection, displayEnhancementBySlot)
+      const displayData = {
+        ...this.data,
+        selectedGearBySlot: selection,
+        enhancementBySlot: displayEnhancementBySlot,
+        gearSlotRows: displayGearSlotRows
+      }
+      const workbenchData = gearWorkbenchDataState(
+        this.gearWorkbenchState,
+        displayData,
+        committedGearWorkbenchStateForPage(this)
+      )
+      if (atomicEnhancementCommit) return workbenchData
+      return {
+        selectedGearBySlot: selection,
+        enhancementBySlot: displayEnhancementBySlot,
+        gearSlotRows: displayGearSlotRows,
+        ...workbenchData,
+        ...(displaySubmittedSelection && !verifiedCurrentSnapshot
+          ? { gearAttributePanel: emptyGearAttributePanel() }
+          : {})
+      }
+    }
+    const selectionIntent = serializeGearSelectionIntent({
+      resolverContext: gearPayload.resolverContext,
+      eligibilityContext: {
+        classKey: keys.classKey,
+        specKey: keys.specKey,
+        level: Number(gearPayload.maxLevel) || 90
+      },
+      selectedGearBySlot: selection,
+      enhancementBySlot: enhancements
+    })
+    if (!selectionIntent) {
+      this.gearWorkbenchState = {
+        ...createGearWorkbenchState({}, {}),
+        resolveStatus: 'unavailable',
+        readOnly: true,
+        problems: [{ code: 'RESOLVER_CONTEXT_UNAVAILABLE', title: '缺少服务端装备校验上下文' }]
+      }
+      this.setData(committedWorkbenchDataState())
+      return Promise.resolve(null)
+    }
+
+    if (!this.gearWorkbenchState || !completeResolverContext(gearPayload.resolverContext)) {
+      this.gearWorkbenchState = createGearWorkbenchState(gearPayload.resolverContext, selectionIntent)
+    } else {
+      if (
+        atomicEnhancementCommit &&
+        !this.atomicEnhancementCommittedWorkbenchState &&
+        gearWorkbenchCanUseVerifiedSnapshot(this.gearWorkbenchState)
+      ) {
+        this.atomicEnhancementCommittedWorkbenchState = this.gearWorkbenchState
+      }
+      this.gearWorkbenchState = editGearIntent(this.gearWorkbenchState, selectionIntent)
+      this.gearWorkbenchState = confirmGearIntent(this.gearWorkbenchState)
+    }
+    const pending = beginGearResolve(this.gearWorkbenchState)
+    this.gearWorkbenchState = pending.state
+    this.setData(committedWorkbenchDataState())
+    const failedTransportResult = (error) => ({
+      fromFallback: true,
+      transportError: error && error.message ? error.message : String(error || 'gear resolve failed'),
+      offline: true
+    })
+
+    const applyResult = (request, transportResult) => {
+      if (!gearInteractionContextIsCurrent(this, interactionContext)) {
+        return canonicalWorkbenchSnapshot(this)
+      }
+      this.gearWorkbenchState = applyGearResolveResult(this.gearWorkbenchState, request, transportResult)
+      const envelope = transportResult && transportResult.payload
+      if (this.gearWorkbenchState.resolveStatus === 'revision_conflict') {
+        const rebased = rebaseGearIntentRevisions(this.gearWorkbenchState, envelope && envelope.releaseContext)
+        if (rebased !== this.gearWorkbenchState) {
+          this.gearWorkbenchState = rebased
+          const retry = beginGearResolve(this.gearWorkbenchState)
+          this.gearWorkbenchState = retry.state
+          this.setData(atomicEnhancementCommit
+            ? gearWorkbenchDataState(
+                this.gearWorkbenchState,
+                this.data,
+                committedGearWorkbenchStateForPage(this)
+              )
+            : committedWorkbenchDataState())
+          return requestWebsimGearResolve(retry.request.selectionIntent)
+            .then((retryResult) => applyResult(retry.request, retryResult))
+            .catch((error) => applyResult(retry.request, failedTransportResult(error)))
+        }
+      }
+      let currentSnapshot = this.gearWorkbenchState.currentSnapshot
+      const incompleteVerifiedOptions = acceptedVerifiedGearResolve(
+        this.gearWorkbenchState,
+        request,
+        currentSnapshot
+      ) && !resolvedSnapshotHasCompleteSelectedOptions(currentSnapshot, selection)
+      if (incompleteVerifiedOptions) {
+        this.gearWorkbenchState = {
+          ...this.gearWorkbenchState,
+          resolveStatus: 'blocked',
+          currentSnapshot: null,
+          lastVerifiedSnapshot: acceptedSnapshotBeforeResolve,
+          problems: [{
+            kind: 'MALFORMED_RESOLVED_SNAPSHOT',
+            code: 'GEAR_RESOLVED_OPTIONS_INCOMPLETE',
+            title: 'verified Resolve omitted selectedOptions'
+          }],
+          offline: false,
+          readOnly: true
+        }
+        currentSnapshot = null
+      }
+      const committed = commitVerifiedEnhancementSnapshot(this, request, currentSnapshot, {
+        gearPayload,
+        selectedGearBySlot: selection,
+        interactionContext
+      })
+      bindCommunityImportToResolvedSnapshot(this, request, currentSnapshot, fencedCompletionContext)
+      if (atomicEnhancementCommit && committed) delete this.atomicEnhancementCommittedWorkbenchState
+      const workbenchData = gearWorkbenchDataState(
+        this.gearWorkbenchState,
+        this.data,
+        committedGearWorkbenchStateForPage(this)
+      )
+      if (atomicEnhancementCommit) {
+        const matchingCompletion = Number(this.gearWorkbenchState.latestResolveSerial) === Number(request.serial) &&
+          Number(this.gearWorkbenchState.intentVersion) === Number(request.intentVersion) &&
+          gearInteractionContextIsCurrent(this, interactionContext)
+        if (committed) {
+          this.setData({
+            ...workbenchData,
+            gearEnhancementSheet: emptyGearEnhancementSheet()
+          })
+        } else if (matchingCompletion) {
+          const activeSlot = cleanGearString(atomicEnhancementCommit.activeSlot)
+          const draftEnhancementBySlot = normalizedEnhancementBySlot(
+            atomicEnhancementCommit.draftEnhancementBySlot || {}
+          )
+          const sheet = buildGearEnhancementSheetForPage(this, true, activeSlot, {
+            selectedGearBySlot: selection,
+            enhancementBySlot: draftEnhancementBySlot,
+            submitting: false
+          })
+          const problemTexts = workbenchProblemRows(this.gearWorkbenchState.problems).map((row) => row.text)
+          sheet.blockers = Array.from(new Set([...(sheet.blockers || []), ...problemTexts]))
+          this.setData({
+            ...workbenchData,
+            gearEnhancementSheet: sheet
+          })
+        } else {
+          this.setData(workbenchData)
+        }
+      } else {
+        this.setData(committedWorkbenchDataState())
+      }
+      return currentSnapshot
+    }
+
+    return requestWebsimGearResolve(pending.request.selectionIntent)
+      .then((result) => applyResult(pending.request, result))
+      .catch((error) => applyResult(pending.request, failedTransportResult(error)))
   },
 
   refreshDerivedState(overrides) {
@@ -4373,16 +6640,34 @@ Page({
         ...(overrides || {})
       }
     )
-    this.setData(this.gearPayloadCache ? gearDerivedStateForData(nextState) : nextState)
+    this.setData({
+      ...(this.gearPayloadCache ? gearDerivedStateForData(nextState) : nextState),
+      ...(this.gearWorkbenchState ? gearWorkbenchDataState(
+        this.gearWorkbenchState,
+        this.data,
+        committedGearWorkbenchStateForPage(this)
+      ) : {})
+    })
   },
 
   clearGearStatsSnapshot(blockers) {
+    if (this.gearStatSnapshotState) {
+      this.gearStatSnapshotState = invalidateGearStatSnapshot(this.gearStatSnapshotState)
+      if (this.gearWorkbenchState) {
+        this.gearWorkbenchState.statSnapshotStatus = this.gearStatSnapshotState.statSnapshotStatus
+        this.gearWorkbenchState.statSnapshotSignature = this.gearStatSnapshotState.statSnapshotSignature
+      }
+    }
     const messages = Array.isArray(blockers) && blockers.length ? blockers : ['等待完整装备和天赋后计算属性百分比']
-    const snapshot = defaultGearStatSnapshot(messages[0])
+    const lastVerified = this.gearStatSnapshotState && this.gearStatSnapshotState.lastVerifiedStatSnapshot
+    const snapshot = lastVerified
+      ? { ...lastVerified, stale: true, readOnly: true }
+      : defaultGearStatSnapshot(messages[0])
     snapshot.blockers = messages
     this.gearStatsRequestKey = ''
     const nextState = createDetailDerivedState(this.data.selectedDetail, this.data.activeQueryKey, {
       ...this.data,
+      gearPayload: fullGearPayloadForPage(this),
       gearStatSnapshot: snapshot
     })
     this.setData({
@@ -4390,7 +6675,12 @@ Page({
       gearStatSnapshot: snapshot,
       gearStatBlockers: messages,
       gearStatsLoading: false,
-      gearStatsRequestError: ''
+      gearStatsRequestError: '',
+      ...(this.gearWorkbenchState ? gearWorkbenchDataState(
+        this.gearWorkbenchState,
+        this.data,
+        committedGearWorkbenchStateForPage(this)
+      ) : {})
     })
     return Promise.resolve(null)
   },
@@ -4401,61 +6691,95 @@ Page({
       : gearStatsRequestForPage(this)
     if (!request.ready) return this.clearGearStatsSnapshot(request.blockers)
     const currentSnapshot = this.data.gearStatSnapshot
-    if (this.gearStatsRequestKey === request.signature) {
-      if (this.data.gearStatsLoading) return Promise.resolve(currentSnapshot || null)
-      if (currentSnapshot && currentSnapshot.statStatus === 'verified') return Promise.resolve(currentSnapshot)
+    const existingState = this.gearStatSnapshotState || createGearStatSnapshotState(
+      currentSnapshot && currentSnapshot.statStatus === 'verified' ? currentSnapshot : null,
+      this.gearWorkbenchState && this.gearWorkbenchState.statSnapshotSignature
+    )
+    if (existingState.activeStatRequest && existingState.activeStatRequest.contextKey === request.signature) {
+      return Promise.resolve(existingState.lastVerifiedStatSnapshot || null)
+    }
+    if (existingState.statSnapshotStatus === 'verified' && existingState.verifiedStatContextKey === request.signature) {
+      return Promise.resolve(existingState.currentStatSnapshot)
     }
     this.gearStatsRequestKey = request.signature
-    this.gearStatsRequestSerial = (this.gearStatsRequestSerial || 0) + 1
-    const requestSerial = this.gearStatsRequestSerial
-    const pendingSnapshot = defaultGearStatSnapshot('SimC 属性快照计算中')
-    const pendingState = createDetailDerivedState(this.data.selectedDetail, this.data.activeQueryKey, {
-      ...this.data,
-      gearStatSnapshot: pendingSnapshot
-    })
-    this.setData({
-      ...(this.gearPayloadCache ? gearDerivedStateForData(pendingState) : pendingState),
-      gearStatSnapshot: pendingSnapshot,
-      gearStatBlockers: [],
-      gearStatsLoading: true,
-      gearStatsRequestError: ''
-    })
-    return requestWebsimGearStats(request.payload).then(({ payload, error }) => {
-      if (requestSerial !== this.gearStatsRequestSerial) return null
-      const snapshot = payload && payload.statStatus
-        ? payload
-        : defaultGearStatSnapshot('属性快照返回为空')
-      const blockers = Array.isArray(snapshot.blockers) ? snapshot.blockers : []
+    const begun = beginGearStatSnapshot(existingState, {
+      contextKey: request.signature,
+      selectionIntent: request.payload.selectionIntent,
+      profileContext: request.payload.profileContext
+    }, Date.now())
+    this.gearStatSnapshotState = begun.state
+
+    const renderStatState = () => {
+      const statState = this.gearStatSnapshotState
+      const staleSnapshot = statState.lastVerifiedStatSnapshot
+        ? { ...statState.lastVerifiedStatSnapshot, stale: statState.statSnapshotStatus !== 'verified', readOnly: statState.statSnapshotStatus !== 'verified' }
+        : null
+      const snapshot = statState.currentStatSnapshot || staleSnapshot || defaultGearStatSnapshot(
+        statState.statSnapshotStatus === 'timed_out' ? '属性快照等待超时' : 'SimC 属性快照计算中'
+      )
+      const problemMessages = (statState.statProblems || []).map((problem) => cleanGearString(problem && (problem.title || problem.code))).filter(Boolean)
       const nextState = createDetailDerivedState(this.data.selectedDetail, this.data.activeQueryKey, {
         ...this.data,
+        gearPayload: fullGearPayloadForPage(this),
         gearStatSnapshot: snapshot
       })
+      if (this.gearWorkbenchState) {
+        this.gearWorkbenchState.statSnapshotStatus = statState.statSnapshotStatus
+        this.gearWorkbenchState.statSnapshotSignature = statState.statSnapshotSignature
+      }
       this.setData({
         ...(this.gearPayloadCache ? gearDerivedStateForData(nextState) : nextState),
         gearStatSnapshot: snapshot,
-        gearStatBlockers: blockers,
-        gearStatsLoading: false,
-        gearStatsRequestError: error || ''
+        gearStatBlockers: problemMessages.length ? problemMessages : (snapshot.blockers || []),
+        gearStatsLoading: !!statState.activeStatRequest,
+        gearStatsRequestError: ['offline', 'unavailable', 'revision_conflict', 'timed_out', 'blocked'].includes(statState.statSnapshotStatus)
+          ? (problemMessages.join('；') || '装备属性暂不可用')
+          : '',
+        ...(this.gearWorkbenchState ? gearWorkbenchDataState(
+          this.gearWorkbenchState,
+          { ...this.data, gearStatSnapshot: snapshot },
+          committedGearWorkbenchStateForPage(this)
+        ) : {})
       })
       return snapshot
+    }
+
+    renderStatState()
+    const poll = (statRequest) => requestWebsimGearStatSnapshot(
+      statRequest.selectionIntent,
+      statRequest.profileContext,
+      { timeoutMs: gearStatRequestTimeoutMs(statRequest, Date.now()) }
+    ).then((result) => {
+      const next = applyGearStatSnapshotResult(this.gearStatSnapshotState, statRequest, result, Date.now())
+      if (next === this.gearStatSnapshotState) return null
+      this.gearStatSnapshotState = next
+      const displayed = renderStatState()
+      const following = next.activeStatRequest
+      if (!following) {
+        if (next.statSnapshotStatus !== 'verified') this.gearStatsRequestKey = ''
+        return next.currentStatSnapshot || displayed
+      }
+      const wait = typeof this.waitForGearStatSnapshotRetry === 'function'
+        ? this.waitForGearStatSnapshotRetry(following.retryAfterMs)
+        : new Promise((resolve) => setTimeout(resolve, following.retryAfterMs))
+      return Promise.resolve(wait).then(() => {
+        const active = this.gearStatSnapshotState && this.gearStatSnapshotState.activeStatRequest
+        if (!active || active.serial !== following.serial || active.contextKey !== following.contextKey) return null
+        return poll(active)
+      })
     }).catch((error) => {
-      if (requestSerial !== this.gearStatsRequestSerial) return null
-      const message = error && error.message ? error.message : String(error || '属性快照请求失败')
+      const offlineResult = {
+        payload: null,
+        fromFallback: true,
+        error: error && error.message ? error.message : String(error || '属性快照请求失败'),
+        offline: true
+      }
+      this.gearStatSnapshotState = applyGearStatSnapshotResult(this.gearStatSnapshotState, statRequest, offlineResult, Date.now())
       this.gearStatsRequestKey = ''
-      const snapshot = defaultGearStatSnapshot(message)
-      const nextState = createDetailDerivedState(this.data.selectedDetail, this.data.activeQueryKey, {
-        ...this.data,
-        gearStatSnapshot: snapshot
-      })
-      this.setData({
-        ...(this.gearPayloadCache ? gearDerivedStateForData(nextState) : nextState),
-        gearStatSnapshot: snapshot,
-        gearStatBlockers: snapshot.blockers || [message],
-        gearStatsLoading: false,
-        gearStatsRequestError: message
-      })
+      renderStatState()
       return null
     })
+    return poll(begun.request)
   },
 
   loadGearSlotDetail(slot) {
@@ -4465,9 +6789,14 @@ Page({
   openGearSlotSheet(event) {
     const slot = event.currentTarget.dataset.slot || ''
     if (!slot) return Promise.resolve()
+    const interactionContext = captureGearInteractionContext(this)
+    const openRequest = beginGearSlotOpenRequest(this, slot)
     const openWithCurrentPayload = () => {
+      if (!gearInteractionContextIsCurrent(this, interactionContext)) return
+      if (!gearSlotOpenRequestIsCurrent(this, openRequest)) return
       const row = (this.data.gearSlotRows || []).find((item) => item.slot === slot) || {}
-      const candidates = buildGearCandidateRows(slot, fullGearPayloadForPage(this) || {}, this.data.selectedGearBySlot || {})
+      const gearPayload = fullGearPayloadForPage(this) || {}
+      const candidates = buildGearCandidateRows(slot, gearPayload, this.data.selectedGearBySlot || {}, this.data.selectedSpec)
       const selectedGear = ((this.data.selectedGearBySlot || {})[slot]) || {}
       const selectedItemId = String(selectedGear.itemId || selectedGear.id || row.itemId || '')
       const selectedCandidateIndex = Math.max(0, candidates.findIndex((item) => {
@@ -4488,7 +6817,7 @@ Page({
       })
     }
     if (gearPayloadNeedsSlotDetail(this, slot)) {
-      return loadGearSlotDetailForPage(this, slot)
+      return loadGearSlotDetailForPage(this, slot, { interactionContext })
         .catch(() => fullGearPayloadForPage(this))
         .then(openWithCurrentPayload)
     }
@@ -4497,119 +6826,294 @@ Page({
   },
 
   closeGearSlotSheet() {
+    invalidateGearSlotOpenRequest(this)
     this.setData({
       gearSlotSheet: emptyGearSlotSheet()
     })
   },
 
   openGearEnhancementSheet() {
+    const event = arguments[0]
+    const currentSheet = this.data.gearEnhancementSheet || emptyGearEnhancementSheet()
+    if (currentSheet.submitting) return Promise.resolve()
+    const activeType = normalizedGearEnhancementType(event && event.currentTarget && event.currentTarget.dataset && event.currentTarget.dataset.type)
+    const canonicalEditorState = this.gearWorkbenchState
+      ? canonicalEnhancementEditorWorkbenchState(this)
+      : null
+    if (this.gearWorkbenchState && !canonicalEditorState) {
+      showToast('当前装备配置正在校验，请稍后再编辑')
+      this.setData({
+        gearEnhancementSheet: {
+          ...emptyGearEnhancementSheet(),
+          embellishmentMax: 0
+        }
+      })
+      return Promise.resolve(null)
+    }
+    invalidateGearSlotOpenRequest(this)
     if (this.data.gearDataFallback) {
       showToast(this.data.gearDataWarningText || '装备接口暂不可用，无法配置强化')
       return Promise.resolve()
     }
-    const openWithCurrentPayload = (options) => {
-      const state = options || {}
+    const openWithCurrentPayload = () => {
       const gearPayload = fullGearPayloadForPage(this) || this.data.gearPayload || {}
       const currentSelectedGearBySlot = this.data.selectedGearBySlot || {}
-      const currentEnhancementBySlot = this.data.enhancementBySlot || {}
+      const canonicalSnapshot = canonicalEditorState && canonicalEditorState.currentSnapshot
+      const currentEnhancementBySlot = this.gearWorkbenchState
+        ? enhancementBySlotFromResolvedSnapshot(canonicalSnapshot)
+        : (this.data.enhancementBySlot || {})
       const selectedGearBySlot = prunedGearSelectionByWeaponRule(gearPayload, currentSelectedGearBySlot)
-      const enhancementBySlot = prunedEnhancementBySlot(gearPayload, selectedGearBySlot, currentEnhancementBySlot)
+      const enhancementBySlot = this.gearWorkbenchState
+        ? currentEnhancementBySlot
+        : prunedEnhancementBySlot(gearPayload, selectedGearBySlot, currentEnhancementBySlot)
       const selectionChanged = JSON.stringify(selectedGearBySlot) !== JSON.stringify(currentSelectedGearBySlot)
       const enhancementChanged = JSON.stringify(enhancementBySlot) !== JSON.stringify(currentEnhancementBySlot)
-      const sheet = buildGearEnhancementSheet(
-        gearPayload,
-        selectedGearBySlot,
-        enhancementBySlot,
-        true
-      )
-      if (state.loading) {
-        sheet.loading = true
-        if (sheet.emptyText) sheet.emptyText = '正在加载可配置宝石、附魔和美化...'
-      }
-      this.setData({
+      if (selectionChanged || enhancementChanged) this.setData({
         ...(selectionChanged ? { selectedGearBySlot } : {}),
         ...(enhancementChanged ? { enhancementBySlot } : {}),
-        ...((selectionChanged || enhancementChanged) ? {
-          gearSlotRows: buildGearSlotRows(gearPayload, selectedGearBySlot, enhancementBySlot),
-          gearAttributePanel: buildGearAttributePanel(gearPayload, selectedGearBySlot, this.data.selectedSpec, enhancementBySlot, this.data.gearStatSnapshot)
-        } : {}),
-        gearEnhancementSheet: sheet,
+        gearSlotRows: buildGearSlotRows(gearPayload, selectedGearBySlot, enhancementBySlot),
+        gearAttributePanel: this.gearWorkbenchState
+          ? canonicalGearAttributePanel(
+              acceptedGearDisplaySnapshot(this.gearWorkbenchState),
+              this.data.gearStatSnapshot
+            )
+          : buildGearAttributePanel(gearPayload, selectedGearBySlot, this.data.selectedSpec, enhancementBySlot, this.data.gearStatSnapshot)
+      })
+      this.setData({
+        gearEnhancementSheet: buildGearEnhancementSheetForPage(this, true, '', { activeType }),
         gearSlotSheet: emptyGearSlotSheet(),
         gearCommunityTemplateSheet: emptyGearCommunityTemplateSheet()
       })
-    }
-    const detailSlots = gearEnhancementDetailSlotsForPage(this)
-    if (detailSlots.length) {
-      openWithCurrentPayload({ loading: true })
-      loadGearSlotDetailsSequentiallyForPage(this, detailSlots).then(() => {
-        const sheet = this.data.gearEnhancementSheet || {}
-        if (sheet.visible) openWithCurrentPayload()
-      })
-      return Promise.resolve()
     }
     openWithCurrentPayload()
     return Promise.resolve()
   },
 
   closeGearEnhancementSheet() {
+    const currentSheet = this.data.gearEnhancementSheet || emptyGearEnhancementSheet()
+    if (currentSheet.submitting) return
     this.setData({
       gearEnhancementSheet: emptyGearEnhancementSheet()
     })
   },
 
   selectGearEnhancementSlot(event) {
+    const currentSheet = this.data.gearEnhancementSheet || emptyGearEnhancementSheet()
+    if (currentSheet.submitting) return Promise.resolve()
     const slot = event.currentTarget.dataset.slot || ''
-    if (!slot) return
+    if (!slot) return Promise.resolve()
+    const canonicalSnapshot = this.gearWorkbenchState
+      ? canonicalEnhancementEditorSnapshot(this)
+      : null
+    if (this.gearWorkbenchState && !canonicalSnapshot) {
+      showToast('当前装备配置正在校验，请稍后再编辑')
+      return Promise.resolve(null)
+    }
+    const interactionContext = captureGearInteractionContext(this)
     const gearPayload = fullGearPayloadForPage(this) || this.data.gearPayload || {}
-    this.setData({
-      gearEnhancementSheet: buildGearEnhancementSheet(
-        gearPayload,
-        this.data.selectedGearBySlot || {},
-        (this.data.gearEnhancementSheet && this.data.gearEnhancementSheet.draftEnhancementBySlot) || this.data.enhancementBySlot || {},
-        true,
-        slot
-      )
-    })
+    const selectedGearBySlot = this.data.selectedGearBySlot || {}
+    const enhancementBySlot = currentSheet.draftEnhancementBySlot || this.data.enhancementBySlot || {}
+    const selectedItem = enrichedSelectedGearByCanonicalSlot(gearPayload, selectedGearBySlot)[slot]
+    const needsDetail = gearPayloadNeedsSlotDetail(this, slot) &&
+      gearEnhancementSlotNeedsDetail(gearPayload, selectedItem, normalizedEnhancementBySlot(enhancementBySlot)[slot])
+    const nextSheet = buildGearEnhancementSheetForPage(this, true, slot)
+    if (!needsDetail) {
+      this.setData({ gearEnhancementSheet: nextSheet })
+      return Promise.resolve()
+    }
+    nextSheet.loading = true
+    if (nextSheet.emptyText) nextSheet.emptyText = '正在加载当前槽位的可配置选项...'
+    this.setData({ gearEnhancementSheet: nextSheet })
+    return loadGearSlotDetailForPage(this, slot, { interactionContext })
+      .catch(() => fullGearPayloadForPage(this) || gearPayload)
+      .then(() => {
+        if (!gearInteractionContextIsCurrent(this, interactionContext)) return
+        const activeSheet = this.data.gearEnhancementSheet || {}
+        if (!activeSheet.visible || activeSheet.activeSlot !== slot) return
+        const refreshedPayload = fullGearPayloadForPage(this) || gearPayload
+        const currentSelectedGearBySlot = this.data.selectedGearBySlot || selectedGearBySlot
+        const refreshedSelectedGearBySlot = prunedGearSelectionByWeaponRule(refreshedPayload, currentSelectedGearBySlot)
+        const preservedEnhancementBySlot = enhancementBySlotForSelectedGear(
+          refreshedSelectedGearBySlot,
+          activeSheet.draftEnhancementBySlot || enhancementBySlot
+        )
+        if (gearPayloadNeedsSlotDetail(this, slot)) {
+          const failedSheet = buildGearEnhancementSheetForPage(this, true, slot, {
+            selectedGearBySlot: refreshedSelectedGearBySlot,
+            enhancementBySlot: preservedEnhancementBySlot
+          })
+          failedSheet.loading = false
+          failedSheet.emptyText = '当前槽位配置加载失败，请稍后重试。'
+          this.setData({
+            ...(JSON.stringify(refreshedSelectedGearBySlot) !== JSON.stringify(currentSelectedGearBySlot)
+              ? { selectedGearBySlot: refreshedSelectedGearBySlot }
+              : {}),
+            gearEnhancementSheet: failedSheet
+          })
+          return
+        }
+        const editorSelectedGearBySlot = this.gearWorkbenchState
+          ? gearSelectionWithCanonicalEnhancementConstraints(
+              refreshedSelectedGearBySlot,
+              canonicalEnhancementEditorSnapshot(this)
+            )
+          : refreshedSelectedGearBySlot
+        const hydratedEnhancementBySlot = prunedEnhancementBySlot(
+          refreshedPayload,
+          editorSelectedGearBySlot,
+          activeSheet.draftEnhancementBySlot || enhancementBySlot
+        )
+        const refreshedEnhancementBySlot = preservedEnhancementBySlot
+        if (hydratedEnhancementBySlot[slot]) refreshedEnhancementBySlot[slot] = hydratedEnhancementBySlot[slot]
+        else delete refreshedEnhancementBySlot[slot]
+        const selectionChanged = JSON.stringify(refreshedSelectedGearBySlot) !== JSON.stringify(currentSelectedGearBySlot)
+        const enhancementChanged = JSON.stringify(refreshedEnhancementBySlot) !== JSON.stringify(activeSheet.draftEnhancementBySlot || enhancementBySlot)
+        if (selectionChanged || enhancementChanged) this.setData({
+          ...(selectionChanged ? { selectedGearBySlot: refreshedSelectedGearBySlot } : {}),
+          ...(!this.gearWorkbenchState && enhancementChanged ? { enhancementBySlot: refreshedEnhancementBySlot } : {}),
+          gearSlotRows: buildGearSlotRows(
+            refreshedPayload,
+            refreshedSelectedGearBySlot,
+            this.gearWorkbenchState
+              ? enhancementBySlotFromResolvedSnapshot(canonicalEnhancementEditorSnapshot(this))
+              : refreshedEnhancementBySlot
+          ),
+          gearAttributePanel: this.gearWorkbenchState
+            ? canonicalGearAttributePanel(
+                acceptedGearDisplaySnapshot(this.gearWorkbenchState),
+                this.data.gearStatSnapshot
+              )
+            : buildGearAttributePanel(
+              refreshedPayload,
+              refreshedSelectedGearBySlot,
+              this.data.selectedSpec,
+              refreshedEnhancementBySlot,
+              this.data.gearStatSnapshot
+            )
+        })
+        this.setData({
+          gearEnhancementSheet: buildGearEnhancementSheetForPage(this, true, slot, {
+            selectedGearBySlot: refreshedSelectedGearBySlot,
+            enhancementBySlot: refreshedEnhancementBySlot
+          })
+        })
+      })
   },
 
   selectGearEnhancementOption(event) {
+    const sheet = this.data.gearEnhancementSheet || emptyGearEnhancementSheet()
+    if (sheet.submitting) return
     const slot = event.currentTarget.dataset.slot || ''
     const type = event.currentTarget.dataset.type || ''
     const optionId = event.currentTarget.dataset.id || ''
+    const socketIndex = parseCanonicalSocketIndex(event.currentTarget.dataset.socketIndex)
     if (!slot || !type || !optionId) return
-    const sheet = this.data.gearEnhancementSheet || emptyGearEnhancementSheet()
     const rowsByType = {
       gem: sheet.gemRows || [],
       enchant: sheet.enchantRows || [],
       embellishment: sheet.embellishmentRows || []
     }
-    const row = (rowsByType[type] || []).find((item) => item.slot === slot)
+    const row = (rowsByType[type] || []).find((item) => (
+      item.slot === slot && (type !== 'gem' || item.socketIndex === socketIndex)
+    ))
     const option = row && (row.options || []).find((item) => item.id === optionId)
     if (!row || !option || option.disabled) return
     const current = normalizedEnhancementBySlot(sheet.draftEnhancementBySlot || this.data.enhancementBySlot || {})
     const existing = current[slot] || {}
-    const nextRecord = option.selected
-      ? removeEnhancementType(existing, type)
-      : { ...existing, ...enhancementSelectionFromOption(type, option) }
+    let nextRecord
+    if (type === 'gem') {
+      nextRecord = option.selected
+        ? removeGemOptionAtIndex(existing, socketIndex)
+        : replaceGemOptionAtIndex(existing, socketIndex, optionId, row.socketCapacity)
+    } else {
+      nextRecord = option.selected
+        ? removeEnhancementType(existing, type, optionId)
+        : { ...existing, ...enhancementSelectionFromOption(type, option, existing) }
+    }
     const compactRecord = compactEnhancementRecord(nextRecord)
     if (compactRecord) current[slot] = compactRecord
     else delete current[slot]
-    const gearPayload = fullGearPayloadForPage(this) || this.data.gearPayload || {}
     this.setData({
-      gearEnhancementSheet: buildGearEnhancementSheet(gearPayload, this.data.selectedGearBySlot || {}, current, true, sheet.activeSlot || slot)
+      gearEnhancementSheet: buildGearEnhancementSheetForPage(this, true, sheet.activeSlot || slot, {
+        selectedGearBySlot: this.data.selectedGearBySlot || {},
+        enhancementBySlot: current
+      })
     })
   },
 
   confirmGearEnhancementSheet() {
     const sheet = this.data.gearEnhancementSheet || emptyGearEnhancementSheet()
+    if (sheet.submitting) return
     const gearPayload = fullGearPayloadForPage(this) || this.data.gearPayload || {}
     const selectedGearBySlot = prunedGearSelectionByWeaponRule(gearPayload, this.data.selectedGearBySlot || {})
-    const enhancementBySlot = prunedEnhancementBySlot(
-      gearPayload,
-      selectedGearBySlot,
+    const canonicalSnapshot = this.gearWorkbenchState
+      ? canonicalEnhancementEditorSnapshot(this)
+      : null
+    if (this.gearWorkbenchState && !canonicalSnapshot) {
+      const problemRows = workbenchProblemRows([{
+        kind: 'VERIFIED_SNAPSHOT_REQUIRED',
+        code: 'GEAR_VERIFIED_SNAPSHOT_REQUIRED',
+        title: '当前没有可继续编辑的已验证配置'
+      }])
+      const blockerText = problemRows[0] && problemRows[0].text || '当前没有可继续编辑的已验证配置，请先重新校验装备'
+      showToast(blockerText)
+      this.setData({
+        selectedGearBySlot,
+        gearWorkbenchProblemRows: problemRows,
+        gearEnhancementSheet: {
+          ...sheet,
+          submitting: false,
+          blockers: Array.from(new Set([...(sheet.blockers || []), blockerText]))
+        }
+      })
+      return Promise.resolve(null)
+    }
+    const editorSelectedGearBySlot = this.gearWorkbenchState
+      ? gearSelectionWithCanonicalEnhancementConstraints(selectedGearBySlot, canonicalSnapshot)
+      : selectedGearBySlot
+    const draftEnhancementBySlot = enhancementBySlotForSelectedGear(selectedGearBySlot,
       sheet.draftEnhancementBySlot || this.data.enhancementBySlot || {}
     )
-    const validationSheet = buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementBySlot, true, sheet.activeSlot)
+    let enhancementBySlot
+    let validationSheet
+    if (this.gearWorkbenchState) {
+      enhancementBySlot = draftEnhancementBySlot
+      validationSheet = buildGearEnhancementSheetForPage(this, true, sheet.activeSlot, {
+        selectedGearBySlot,
+        enhancementBySlot: draftEnhancementBySlot
+      })
+    } else {
+      const draftGemBlockers = gemOptionIdentityBlockers(
+        gearPayload,
+        enrichedSelectedGearByCanonicalSlot(gearPayload, editorSelectedGearBySlot),
+        draftEnhancementBySlot
+      )
+      if (draftGemBlockers.length) {
+        const draftValidationSheet = buildGearEnhancementSheetForPage(this, true, sheet.activeSlot, {
+          selectedGearBySlot,
+          enhancementBySlot: draftEnhancementBySlot
+        })
+        draftValidationSheet.blockers = Array.from(new Set([
+          ...draftGemBlockers,
+          ...(draftValidationSheet.blockers || [])
+        ]))
+        showToast(draftGemBlockers[0])
+        this.setData({
+          selectedGearBySlot,
+          gearEnhancementSheet: draftValidationSheet
+        })
+        return
+      }
+      enhancementBySlot = prunedEnhancementBySlot(
+        gearPayload,
+        editorSelectedGearBySlot,
+        draftEnhancementBySlot
+      )
+      validationSheet = buildGearEnhancementSheetForPage(this, true, sheet.activeSlot, {
+        selectedGearBySlot,
+        enhancementBySlot
+      })
+    }
     if ((validationSheet.blockers || []).length || validationSheet.embellishmentUsed > validationSheet.embellishmentMax) {
       showToast((validationSheet.blockers || [])[0] || `美化已超过上限 ${validationSheet.embellishmentUsed}/${validationSheet.embellishmentMax}`)
       this.setData({
@@ -4618,17 +7122,58 @@ Page({
       })
       return
     }
+    if (this.gearWorkbenchState && !completeResolverContext(gearPayload.resolverContext)) {
+      const problemRows = workbenchProblemRows([{
+        kind: 'AUTHORITY_UNAVAILABLE',
+        code: 'RESOLVER_CONTEXT_UNAVAILABLE',
+        title: '缺少当前赛季校验上下文'
+      }])
+      const blockerText = problemRows[0] && problemRows[0].text || '缺少当前赛季校验上下文，请稍后重试'
+      const blockedSheet = {
+        ...validationSheet,
+        submitting: false,
+        blockers: Array.from(new Set([...(validationSheet.blockers || []), blockerText]))
+      }
+      showToast(blockerText)
+      this.setData({
+        selectedGearBySlot,
+        gearWorkbenchProblemRows: problemRows,
+        gearEnhancementSheet: blockedSheet
+      })
+      return Promise.resolve(null)
+    }
+    if (!this.gearWorkbenchState) {
+      this.setData({
+        selectedGearBySlot,
+        enhancementBySlot,
+        gearAttributePanel: buildGearAttributePanel(
+          gearPayload,
+          selectedGearBySlot,
+          this.data.selectedSpec,
+          enhancementBySlot,
+          this.data.gearStatSnapshot
+        ),
+        gearSlotRows: buildGearSlotRows(gearPayload, selectedGearBySlot, enhancementBySlot),
+        gearEnhancementSheet: emptyGearEnhancementSheet()
+      })
+      return resolveOrRefreshGearForPage(this, selectedGearBySlot, enhancementBySlot)
+    }
     this.setData({
-      selectedGearBySlot,
-      enhancementBySlot,
-      gearAttributePanel: buildGearAttributePanel(gearPayload, selectedGearBySlot, this.data.selectedSpec, enhancementBySlot, this.data.gearStatSnapshot),
-      gearSlotRows: buildGearSlotRows(gearPayload, selectedGearBySlot, enhancementBySlot),
-      gearEnhancementSheet: emptyGearEnhancementSheet()
+      gearEnhancementSheet: {
+        ...validationSheet,
+        submitting: true
+      }
     })
-    maybeRefreshGearStatsForPage(this)
+    return resolveOrRefreshGearForPage(this, selectedGearBySlot, enhancementBySlot, {
+      atomicEnhancementCommit: {
+        activeSlot: sheet.activeSlot,
+        draftEnhancementBySlot: enhancementBySlot
+      }
+    })
   },
 
   openGearCommunityTemplates() {
+    invalidateGearSlotOpenRequest(this)
     if (this.data.gearDataFallback) {
       showToast(this.data.gearDataWarningText || '装备接口暂不可用，无法导入社区模板')
       return
@@ -4643,12 +7188,16 @@ Page({
   },
 
   closeGearCommunityTemplates() {
+    invalidateGearInteractionContext(this)
     this.setData({
-      gearCommunityTemplateSheet: emptyGearCommunityTemplateSheet()
+      gearCommunityTemplateSheet: emptyGearCommunityTemplateSheet(),
+      communityTemplateImporting: false
     })
   },
 
   resetGearSelection() {
+    invalidateGearInteractionContext(this)
+    clearCommunityEnhancementImportState(this)
     const gearPayload = fullGearPayloadForPage(this)
     if (!gearPayload) {
       this.loadWebsimGearForSelection()
@@ -4661,6 +7210,7 @@ Page({
     const enhancementBySlot = {}
     const derivedState = createDetailDerivedState(this.data.selectedDetail, this.data.activeQueryKey, {
       ...this.data,
+      gearPayload,
       selectedGearBySlot,
       enhancementBySlot
     })
@@ -4671,10 +7221,13 @@ Page({
       gearEnhancementSheet: emptyGearEnhancementSheet(),
       gearCommunityTemplateSheet: emptyGearCommunityTemplateSheet()
     })
-    maybeRefreshGearStatsForPage(this)
+    const resolution = resolveOrRefreshGearForPage(this, selectedGearBySlot, enhancementBySlot, {
+      displaySubmittedSelection: true
+    })
     trackEvent('builds_gear_selection_reset', {
       specId: (this.data.selectedSpec && this.data.selectedSpec.id) || ''
     }, { page: 'pages/builds/detail' })
+    return resolution
   },
 
   applySavedGearTemplate(event) {
@@ -4685,19 +7238,31 @@ Page({
       return
     }
     const gearPayload = fullGearPayloadForPage(this) || {}
+    const importOrigin = savedCommunityImportOrigin(template.importOrigin)
+    if (importOrigin) return applySavedCommunityImportOrigin(this, importOrigin)
     const baselineSelection = equippedSetToSelection(gearPayload.equippedSet || {}, gearPayload)
-    const templateSelection = selectedGearByCanonicalSlot(template.savedGearBySlot || {})
-    if (!Object.keys(templateSelection).length) {
-      showToast('保存模板缺少装备配置')
+    const savedGearBySlot = template.savedGearBySlot || {}
+    const isLegacyCommunityImport = legacyCommunitySavedSelection(savedGearBySlot)
+    const templateSelection = isLegacyCommunityImport
+      ? rehydrateLegacySavedGearSelection(gearPayload, savedGearBySlot)
+      : selectedGearByCanonicalSlot(savedGearBySlot)
+    if (!templateSelection || !Object.keys(templateSelection).length) {
+      showToast(isLegacyCommunityImport ? '保存模板无法验证，暂不可导入' : '保存模板缺少装备配置')
       return
     }
+    invalidateGearInteractionContext(this)
+    clearCommunityEnhancementImportState(this)
     const selectedGearBySlot = prunedGearSelectionByWeaponRule(gearPayload, {
       ...baselineSelection,
       ...templateSelection
     })
-    const enhancementBySlot = prunedEnhancementBySlot(gearPayload, selectedGearBySlot, template.savedEnhancementBySlot || {})
+    const enhancementBySlot = completeResolverContext(gearPayload.resolverContext) &&
+      typeof this.confirmAndResolveGearIntent === 'function'
+      ? normalizedEnhancementBySlot(template.savedEnhancementBySlot || {})
+      : prunedEnhancementBySlot(gearPayload, selectedGearBySlot, template.savedEnhancementBySlot || {})
     const derivedState = createDetailDerivedState(this.data.selectedDetail, this.data.activeQueryKey, {
       ...this.data,
+      gearPayload,
       selectedGearBySlot,
       enhancementBySlot
     })
@@ -4708,12 +7273,15 @@ Page({
       gearEnhancementSheet: emptyGearEnhancementSheet(),
       gearCommunityTemplateSheet: emptyGearCommunityTemplateSheet()
     })
-    maybeRefreshGearStatsForPage(this)
+    const resolution = resolveOrRefreshGearForPage(this, selectedGearBySlot, enhancementBySlot, {
+      displaySubmittedSelection: true
+    })
     trackEvent('builds_gear_saved_template_apply', {
       templateId,
       readySlotCount: Object.keys(templateSelection).length,
       specId: (this.data.selectedSpec && this.data.selectedSpec.id) || ''
     }, { page: 'pages/builds/detail' })
+    return resolution
   },
 
   applyGearCommunityTemplate(event) {
@@ -4724,21 +7292,97 @@ Page({
       showToast('当前模板暂不可导入')
       return Promise.resolve()
     }
+    const atomicGearPayload = fullGearPayloadForPage(this) || this.data.gearPayload || {}
+    const expectedManifestRevision = communityImportExpectedManifestRevision(this)
+    if (completeResolverContext(atomicGearPayload.resolverContext) && expectedManifestRevision) {
+      invalidateGearInteractionContext(this)
+      const importSerial = Number(this.communityEnhancementImportSerial || 0) + 1
+      this.communityEnhancementImportSerial = importSerial
+      this.communityEnhancementImportState = {
+        ...emptyCommunityEnhancementImportState(),
+        templateId,
+        serial: importSerial
+      }
+      const interactionContext = captureGearInteractionContext(this, {
+        manifestRevision: expectedManifestRevision,
+        communityImport: { templateId, serial: importSerial }
+      })
+      const selectedSpec = this.data.selectedSpec || {}
+      const keys = specWebsimKeys({
+        websimClassKey: selectedSpec.websimClassKey || selectedSpec.classKey || atomicGearPayload.classKey,
+        websimSpecKey: selectedSpec.websimSpecKey || selectedSpec.specKey || atomicGearPayload.specKey
+      })
+      this.setData({ communityTemplateImporting: true })
+      return requestWebsimCommunityTemplateImport({
+        classKey: keys.classKey,
+        specKey: keys.specKey,
+        templateId,
+        expectedManifestRevision
+      }).then((result) => {
+        const committed = commitImportedCommunityTemplate(this, result, interactionContext)
+        if (!committed && gearInteractionContextIsCurrent(this, interactionContext)) {
+          showToast(communityImportFailureMessage(result))
+        }
+        return committed
+      }).catch((error) => {
+        if (gearInteractionContextIsCurrent(this, interactionContext)) {
+          showToast('社区模板未能安全导入，请稍后重试')
+        }
+        return null
+      }).finally(() => clearCommunityTemplateImportingOnlyIfCurrent(this, interactionContext))
+    }
+    invalidateGearInteractionContext(this)
+    const importSerial = Number(this.communityEnhancementImportSerial || 0) + 1
+    const importSelectionKey = this.data.gearSelectionKey || (() => {
+      const keys = specWebsimKeys(this.data.selectedSpec || {})
+      return `${keys.classKey}:${keys.specKey}`
+    })()
+    this.communityEnhancementImportSerial = importSerial
+    this.communityEnhancementImportState = {
+      ...emptyCommunityEnhancementImportState(),
+      templateId,
+      serial: importSerial
+    }
+    const interactionContext = captureGearInteractionContext(this, {
+      communityImport: { templateId, serial: importSerial }
+    })
+    const importIsCurrent = () => {
+      const state = this.communityEnhancementImportState || {}
+      const currentKeys = specWebsimKeys(this.data.selectedSpec || {})
+      const currentSelectionKey = this.data.gearSelectionKey || `${currentKeys.classKey}:${currentKeys.specKey}`
+      return gearInteractionContextIsCurrent(this, interactionContext) &&
+        state.templateId === templateId && state.serial === importSerial && currentSelectionKey === importSelectionKey
+    }
+    const detailRequestContext = {
+      requestKey: `community:${templateId}:${importSerial}`,
+      interactionContext,
+      shouldApply: importIsCurrent
+    }
     const applyWithCurrentPayload = () => {
+      if (!importIsCurrent()) return null
       const gearPayload = fullGearPayloadForPage(this) || {}
-      const selectedGearBySlot = repairedGearSelectionForSkippedWeapons(
+      const selectedGearBySlot = gearSelectionWithoutEmbeddedSimcEnhancements(repairedGearSelectionForSkippedWeapons(
         this,
         gearPayload,
         communityTemplateBaseGearSelection(gearPayload, template),
         template
-      )
-      const enhancementBySlot = prunedEnhancementBySlot(
+      ))
+      const reconciliation = reconcileCommunityTemplateEnhancements(
         gearPayload,
         selectedGearBySlot,
-        communityTemplateEmbeddedEnhancementBySlot(template, selectedGearBySlot)
+        communityTemplateRawEnhancementBySlot(template)
       )
+      const enhancementBySlot = reconciliation.enhancementBySlot
+      this.communityEnhancementImportState = {
+        templateId,
+        serial: importSerial,
+        resolvedGearSignature: '',
+        unresolvedBySlot: reconciliation.unresolvedBySlot,
+        warnings: reconciliation.warnings
+      }
       const derivedState = createDetailDerivedState(this.data.selectedDetail, this.data.activeQueryKey, {
         ...this.data,
+        gearPayload,
         selectedGearBySlot,
         enhancementBySlot
       })
@@ -4749,17 +7393,20 @@ Page({
         gearEnhancementSheet: emptyGearEnhancementSheet(),
         gearCommunityTemplateSheet: emptyGearCommunityTemplateSheet()
       })
-      maybeRefreshGearStatsForPage(this)
       trackEvent('builds_gear_community_template_apply', {
         templateId,
         readySlotCount: template.readySlotCount || Object.keys(selectedGearBySlot || {}).length,
         specId: (this.data.selectedSpec && this.data.selectedSpec.id) || ''
       }, { page: 'pages/builds/detail' })
+      return resolveOrRefreshGearForPage(this, selectedGearBySlot, enhancementBySlot, {
+        displaySubmittedSelection: true,
+        communityImport: { templateId, serial: importSerial }
+      })
     }
-    const detailPromise = loadCommunityTemplateWeaponRepairDetails(this, template)
-    if (detailPromise) return detailPromise.then(applyWithCurrentPayload)
-    applyWithCurrentPayload()
-    return Promise.resolve()
+    const detailPromise = loadCommunityTemplateWeaponRepairDetails(this, template, detailRequestContext)
+    return Promise.resolve(detailPromise)
+      .then(() => importIsCurrent() ? loadCommunityTemplateEnhancementDetails(this, template, detailRequestContext) : null)
+      .then(applyWithCurrentPayload)
   },
 
   setGearCandidateFilter(event) {
@@ -4846,17 +7493,43 @@ Page({
     const slot = sheet.slot || ''
     const candidate = sheet.appliedCandidate || appliedGearCandidate(sheet.activeCandidate, sheet.variantKey, sheet.craftedStatOptionKey)
     if (!slot || !candidate) return Promise.resolve()
-    if (!(candidate.simcReady && gearTemplateLine(candidate))) {
+    const gearPayload = fullGearPayloadForPage(this) || this.data.gearPayload || {}
+    const canonicalResolverAvailable = completeResolverContext(gearPayload.resolverContext)
+    const candidateCanEnterResolver = !!normalizedGearItemId(candidate)
+    if (!(canonicalResolverAvailable ? candidateCanEnterResolver : (candidate.simcReady && gearTemplateLine(candidate)))) {
       const trust = gearTrustState(candidate, candidate.statusClass, candidate.reason)
       showToast(trust.blockerLabel || trust.reason || '该装备数据待补，暂不能应用')
       return Promise.resolve()
     }
-    const gearPayload = fullGearPayloadForPage(this) || this.data.gearPayload || {}
+    const committedSnapshot = canonicalWorkbenchSnapshot(this)
+    const pendingConfirmedIntent = this.gearWorkbenchState &&
+      !this.atomicEnhancementCommittedWorkbenchState &&
+      !gearWorkbenchCanUseVerifiedSnapshot(this.gearWorkbenchState) &&
+      this.gearWorkbenchState.confirmedIntent &&
+      this.gearWorkbenchState.confirmedIntent.slots &&
+      typeof this.gearWorkbenchState.confirmedIntent.slots === 'object'
+      ? this.gearWorkbenchState.confirmedIntent
+      : null
+    const enhancementSourceBySlot = pendingConfirmedIntent
+      ? enhancementBySlotFromSelectionIntent(pendingConfirmedIntent)
+      : committedSnapshot
+        ? enhancementBySlotFromResolvedSnapshot(committedSnapshot)
+        : (this.data.enhancementBySlot || {})
+    invalidateGearInteractionContext(this)
+    const previousGearBySlot = prunedGearSelectionByWeaponRule(
+      gearPayload,
+      this.data.selectedGearBySlot || {}
+    )
     const selectedGearBySlot = prunedGearSelectionByWeaponRule(gearPayload, {
-      ...(this.data.selectedGearBySlot || {}),
+      ...previousGearBySlot,
       [slot]: candidate
     })
-    const enhancementBySlot = prunedEnhancementBySlot(gearPayload, selectedGearBySlot, this.data.enhancementBySlot || {})
+    const changedSlots = changedGearSlots(previousGearBySlot, selectedGearBySlot)
+    const enhancementBySlot = enhancementBySlotWithoutChangedGear(
+      enhancementSourceBySlot,
+      changedSlots,
+      selectedGearBySlot
+    )
     trackEvent('builds_gear_candidate_select', {
       gearSlot: slot,
       itemId: candidate.itemId || candidate.id || '',
@@ -4866,6 +7539,7 @@ Page({
     }, { page: 'pages/builds/detail' })
     const derivedState = createDetailDerivedState(this.data.selectedDetail, this.data.activeQueryKey, {
       ...this.data,
+      gearPayload,
       selectedGearBySlot,
       enhancementBySlot
     })
@@ -4875,8 +7549,9 @@ Page({
       gearSlotSheet: emptyGearSlotSheet(),
       gearEnhancementSheet: emptyGearEnhancementSheet()
     })
-    maybeRefreshGearStatsForPage(this)
-    return Promise.resolve()
+    return resolveOrRefreshGearForPage(this, selectedGearBySlot, enhancementBySlot, {
+      displaySubmittedSelection: true
+    })
   },
 
   selectGearTemplateScenario(event) {
@@ -4895,6 +7570,7 @@ Page({
       showToast(draft.blockMessage)
       return
     }
+    invalidateGearSlotOpenRequest(this)
     this.setData({
       selectedGearBySlot: draft.selectedGearBySlot,
       enhancementBySlot: draft.enhancementBySlot,
@@ -4977,6 +7653,11 @@ Page({
 
   openSimcWithBuildContext() {
     if (!this.data.selectedDetail || !this.data.activeDetail) return
+    const committedWorkbenchState = committedGearWorkbenchStateForPage(this)
+    if (this.data.activeQueryKey === 'gear' && !gearWorkbenchCanRunProfile(committedWorkbenchState)) {
+      showToast('当前装备配置尚未通过服务端校验，暂不能进入 SimC')
+      return
+    }
     const context = this.buildSimcContext()
     trackEvent('builds_simc_entry_click', {
       queryKey: context.activeQueryKey || '',

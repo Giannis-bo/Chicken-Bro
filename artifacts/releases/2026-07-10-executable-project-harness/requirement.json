@@ -1,0 +1,134 @@
+{
+  "schemaVersion": 1,
+  "slug": "executable-project-harness",
+  "classification": "Strict",
+  "status": "implementation_allowed",
+  "goal": "Create executable Requirement/Evidence contracts, a project-level owner map, unified verification profiles and PR CI for the Project Harness Engineering Normalization milestone.",
+  "userValue": "Future Harness PRs can fail fast on invalid packets, missing evidence, path escapes, runtime proof overclaims and critical owner-map gaps before implementation proceeds.",
+  "nonGoals": [
+    "No product semantic changes",
+    "No backend/API/PG read-model runtime behavior changes",
+    "No UI redesign",
+    "No sync/write/backfill/cleanup refactor",
+    "No dependency install or third-party download",
+    "No cloud deployment for docs/tooling-only work"
+  ],
+  "currentTruth": {
+    "sources": [
+      "docs/project-state.json",
+      "docs/roadmap.md",
+      "docs/harness.md",
+      "docs/README.md",
+      "docs/project-owner-map.json",
+      "docs/verification-matrix.md",
+      "docs/backend-owner-map.json",
+      "docs/plans/2026-07-10-project-harness-normalization-goal-plan.md",
+      "artifacts/releases/2026-07-10-harness-control-plane/requirement.json",
+      "artifacts/releases/2026-07-10-harness-control-plane/evidence.json"
+    ],
+    "activeMilestone": "project_harness_normalization",
+    "featureIteration": "frozen_until_milestone_exit"
+  },
+  "impactMap": {
+    "mustChange": [
+      "scripts/project-harness.js",
+      "tests/project-harness.test.js",
+      "docs/schemas/harness-requirement.schema.json",
+      "docs/schemas/harness-evidence.schema.json",
+      "docs/templates/harness-requirement.json",
+      "docs/templates/harness-evidence.json",
+      "docs/project-owner-map.json",
+      "docs/verification-matrix.md",
+      "docs/README.md",
+      "docs/project-state.json",
+      "scripts/verify-project.js",
+      "tests/project-owner-map.test.js",
+      "tests/verify-project.test.js",
+      ".github/workflows/project-harness.yml",
+      "artifacts/releases/2026-07-10-executable-project-harness/requirement.json",
+      "artifacts/releases/2026-07-10-executable-project-harness/evidence.json",
+      "artifacts/releases/2026-07-10-executable-project-harness/manifest.json"
+    ],
+    "mustNotChange": [
+      "server runtime behavior",
+      "public gear entry semantics",
+      "frontend UI behavior",
+      "sync/write/backfill/cleanup paths",
+      "database migrations",
+      "third-party dependencies"
+    ],
+    "evidenceRequired": [
+      "invalid fixture red tests",
+      "project harness validator tests",
+      "project owner-map contract tests",
+      "verification profile tests",
+      "local harness and full profile runs",
+      "real PR CI result",
+      "retroactive control-plane packet validation",
+      "current release packet validation",
+      "JSON validation",
+      "node syntax check",
+      "git diff --check",
+      "local CR"
+    ]
+  },
+  "ownership": {
+    "factOwner": "scripts/project-harness.js",
+    "consumers": [
+      "docs/schemas/harness-requirement.schema.json",
+      "docs/schemas/harness-evidence.schema.json",
+      "docs/templates/harness-requirement.json",
+      "docs/templates/harness-evidence.json",
+      "docs/project-owner-map.json",
+      "docs/verification-matrix.md",
+      "scripts/verify-project.js",
+      ".github/workflows/project-harness.yml",
+      "future scripts/verify-project.js profile runner",
+      "future project-harness CI"
+    ]
+  },
+  "engineeringHealth": {
+    "status": "health_safe",
+    "reason": "Docs/tooling-only validator work; no runtime surfaces, migrations, writes, deployments or public product semantics changed."
+  },
+  "acceptanceEvidence": [
+    "node --test tests/project-harness.test.js tests/project-owner-map.test.js tests/project-state.test.js",
+    "node --check scripts/project-harness.js",
+    "python3 -m json.tool docs/schemas/harness-requirement.schema.json",
+    "python3 -m json.tool docs/schemas/harness-evidence.schema.json",
+    "python3 -m json.tool docs/templates/harness-requirement.json",
+    "python3 -m json.tool docs/templates/harness-evidence.json",
+    "python3 -m json.tool docs/project-owner-map.json",
+    "node --test tests/verify-project.test.js",
+    "node scripts/verify-project.js --profile harness --release artifacts/releases/2026-07-10-executable-project-harness --base origin/main",
+    "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-10-executable-project-harness --base origin/main",
+    "python3 -m json.tool artifacts/releases/2026-07-10-executable-project-harness/requirement.json",
+    "python3 -m json.tool artifacts/releases/2026-07-10-executable-project-harness/evidence.json",
+    "node scripts/project-harness.js --check --requirement-file artifacts/releases/2026-07-10-executable-project-harness/requirement.json --evidence-file artifacts/releases/2026-07-10-executable-project-harness/evidence.json --base origin/main",
+    "node scripts/project-harness.js --check --requirement-file artifacts/releases/2026-07-10-harness-control-plane/requirement.json --evidence-file artifacts/releases/2026-07-10-harness-control-plane/evidence.json --base origin/main",
+    "git diff --check",
+    "local CR against the Goal Plan boundaries"
+  ],
+  "releaseTrigger": "docs_tooling_only",
+  "rollback": [
+    "code_rollback"
+  ],
+  "decisionLog": [
+    {
+      "date": "2026-07-10",
+      "decision": "Task 2 implements only local JSON/contract validation and stable reason codes; no runtime slice is required."
+    },
+    {
+      "date": "2026-07-10",
+      "decision": "Control plane bootstrap packet must validate with the new executable validator before this PR is complete; no second bootstrap exception is permitted."
+    },
+    {
+      "date": "2026-07-10",
+      "decision": "Task 3 freezes the 16 project critical domain IDs in docs/project-owner-map.json and integrates changed-path owner lookup into Harness check."
+    },
+    {
+      "date": "2026-07-10",
+      "decision": "Task 4 routes local verification and PR CI through scripts/verify-project.js with no deploy, SSH, migration, sync or production write side effects."
+    }
+  ]
+}

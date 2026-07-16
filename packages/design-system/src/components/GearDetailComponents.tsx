@@ -629,9 +629,11 @@ export function GearStatusDeck({ items, onAction }: GearStatusDeckProps) {
           data-role="gear-status-card"
           data-state={item.state}
           data-status-id={item.id}
-          data-action-id={item.actionLabel ? `status-${item.id}` : undefined}
-          role={item.actionLabel ? 'button' : undefined}
-          onClick={item.actionLabel ? () => onAction(item) : undefined}
+          {...(item.actionLabel ? {
+            'data-action-id': `status-${item.id}`,
+            role: 'button',
+            onClick: () => onAction(item),
+          } : {})}
         >
           <View className={style('statusContent')}>
             <SystemGlyph assetId={statusGlyph[item.id]} className={style('statusGlyph')} slotId="asset_slot.gear-status-glyphs" />

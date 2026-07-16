@@ -1,0 +1,146 @@
+{
+  "status": "merged",
+  "highestEvidenceLevel": "live_verified",
+  "scope": [
+    "server/pg_gear_template_selectors.py",
+    "server/postgres_cache_store.py",
+    "tests/pg_gear_template_selectors_test.py",
+    "tests/backend-owner-map.test.js",
+    "docs/backend-owner-map.json",
+    "docs/roadmap.md",
+    "docs/plans/2026-07-09-harness-guided-project-optimization-plan.md",
+    "artifacts/releases/2026-07-09-community-template-row-selector/evidence.json",
+    "artifacts/releases/2026-07-09-community-template-row-selector/manifest.json"
+  ],
+  "summary": "Phase 4 continues the read-only PostgreSQL gear template selector split. server/pg_gear_template_selectors.py now owns build_community_gear_template_read_model(), which turns a cache.websim_community_gear_templates row plus official item metadata into the backend-owned community template read model. server/postgres_cache_store.py keeps community template SQL reads, expiration filtering, official metadata SQL queries, offhand coverage repair as an adapter callback, dedupe, cache writes, and sync/write/backfill paths.",
+  "verification": [
+    {
+      "command": "python3 -m unittest tests.pg_gear_template_selectors_test.PgGearTemplateSelectorsTest.test_build_community_gear_template_read_model_preserves_payload_evidence",
+      "status": "red_then_pass",
+      "summary": "First run failed with ImportError because build_community_gear_template_read_model was missing; after adding the helper and aligning the fixture with normalize_source_refs() sourceKey contract, the targeted characterization passed."
+    },
+    {
+      "command": "python3 -m unittest tests.pg_gear_template_selectors_test tests.postgres_cache_store_test",
+      "status": "pass",
+      "summary": "106 targeted PG template selector and PG cache store tests passed locally."
+    },
+    {
+      "command": "node --test tests/backend-owner-map.test.js",
+      "status": "red_then_pass",
+      "summary": "Owner-map test was updated first and failed while docs/backend-owner-map.json still reported phase4_community_template_item_ref_selector_extracted; after updating the owner map it passed."
+    },
+    {
+      "command": "python3 -m unittest discover -s tests -p '*_test.py'",
+      "status": "pass",
+      "summary": "1028 Python unittest specs passed locally with 1 skipped."
+    },
+    {
+      "command": "node --test tests/*.test.js",
+      "status": "pass",
+      "summary": "344 Node tests passed locally."
+    },
+    {
+      "command": "python3 -m py_compile server/pg_gear_template_selectors.py server/postgres_cache_store.py",
+      "status": "pass",
+      "summary": "Touched Python modules compiled successfully."
+    },
+    {
+      "command": "node --check tests/backend-owner-map.test.js && node --check scripts/project-harness.js",
+      "status": "pass",
+      "summary": "Touched Node harness/test files passed syntax checks."
+    },
+    {
+      "command": "python3 -m json.tool docs/backend-owner-map.json >/dev/null && python3 -m json.tool artifacts/releases/2026-07-09-community-template-row-selector/evidence.json >/dev/null && python3 -m json.tool artifacts/releases/2026-07-09-community-template-row-selector/manifest.json >/dev/null",
+      "status": "pass",
+      "summary": "Owner map, evidence, and manifest JSON validated."
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass",
+      "summary": "No whitespace errors detected."
+    },
+    {
+      "command": "local CR",
+      "status": "pass",
+      "summary": "Diff review found no new sync/write/backfill/cleanup SQL paths, no cache write changes, no change to public observed-only template policy, and no frontend-owned source-quality inference."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "passed",
+    "requiredBeforeMerge": true,
+    "pullRequest": 28,
+    "branch": "codex/phase4-community-template-row-selector",
+    "commit": "d7404f5d6d9a8c3e4e9806352b0fec28a34612f0",
+    "command": "WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh",
+    "target": "ubuntu@124.223.51.33:/opt/wow-mini-program",
+    "deployedAt": "2026-07-09T12:44:52Z",
+    "asyncSyncStarted": false,
+    "asyncSyncNote": "Deploy did not start async syncs. The existing wow-gear-observed-backfill.timer fired automatically after deployment and completed with Result=success/ExecMainStatus=0.",
+    "smoke": {
+      "http": {
+        "baseUrl": "http://124.223.51.33",
+        "endpoints": [
+          {"path": "/health", "httpStatus": 200, "ok": true},
+          {"path": "/api/data/health", "httpStatus": 200, "overallStatus": "partial"},
+          {"path": "/api/websim/bootstrap", "httpStatus": 200, "dataStatus": "verified"},
+          {"path": "/api/websim/assets", "httpStatus": 200, "status": "verified"},
+          {"path": "/api/websim/talents?class=mage&spec=frost&hero=spellslinger", "httpStatus": 200, "dataStatus": "verified"},
+          {"path": "/api/websim/gear?class=mage&spec=frost&compact=1&mode=initial", "httpStatus": 200, "dataStatus": "verified", "communityTemplates": 1, "baselineTemplates": 0, "sourceKeys": ["raiderio_observed_profile"], "canApplyGear": [true]},
+          {"path": "/api/websim/gear?class=mage&spec=frost&compact=1&mode=slot&slot=head", "httpStatus": 200, "dataStatus": "verified", "communityTemplates": 1, "baselineTemplates": 0, "sourceKeys": ["raiderio_observed_profile"], "canApplyGear": [true]}
+        ]
+      },
+      "observedOnlyGearSweep": {
+        "checkedSpecs": 40,
+        "failures": 0,
+        "dataStatus": {"verified": 40},
+        "communityTemplates": {"1": 40},
+        "baselineTemplates": {"0": 40},
+        "sourceKeys": {"raiderio_observed_profile": 40},
+        "canApplyGear": {"True": 40}
+      },
+      "systemd": {
+        "backend": "active/running since 2026-07-09 20:44:52 CST",
+        "nginx": "active/running since 2026-07-09 20:44:52 CST",
+        "syncBackfillServices": "wow-websim-sync, wow-gear-observed-backfill, wow-stat-weights-sync, wow-community-template-sync, wow-community-best-guard-sync, wow-recommended-bis-guard-sync, and wow-season-recommended-gear-sync are inactive/dead with Result=success and ExecMainStatus=0 after smoke",
+        "timers": "7 loaded sync/backfill timers listed: wow-websim-sync, wow-gear-observed-backfill, wow-stat-weights-sync, wow-community-template-sync, wow-community-best-guard-sync, wow-recommended-bis-guard-sync, wow-season-recommended-gear-sync"
+      },
+      "runtime": {
+        "WOW_DATABASE_RUNTIME": "postgres_only",
+        "recentLogs": "no Traceback/ERROR/SQLite fallback in wow-backend or sync/backfill logs since deployment at 2026-07-09 20:44:52 CST",
+        "hashParity": {
+          "server/pg_gear_template_selectors.py": "3d4b6c92f653defd18fdb11e2d6ea1e5af3f190eac076d8169dbdb750beb3d49",
+          "server/postgres_cache_store.py": "1ffee54ade272cc676f09975d05af480841baea94b2a648e05396e80ab74bca9"
+        }
+      }
+    }
+  },
+  "merge": {
+    "status": "merged",
+    "pullRequest": 28,
+    "mergedAt": "2026-07-09T12:48:55Z",
+    "method": "rebase",
+    "mainCommit": "479df1ab567edc11a585189c7991f18e5b1863e4",
+    "mainTreeMatchesCandidateTree": true
+  },
+  "risks": [
+    {
+      "id": "full_local_verification_pending",
+      "status": "closed",
+      "detail": "Full Python/Node suites, compile checks, JSON validation, git diff check, and local CR passed before PR."
+    },
+    {
+      "id": "candidate_deployment_pending",
+      "status": "resolved",
+      "detail": "PR #28 branch passed Candidate Deployment Gate before merge: deploy succeeded, API smoke and 40-spec observed-only sweep passed, systemd/log/runtime hash parity checks passed."
+    },
+    {
+      "id": "write_paths_out_of_scope",
+      "status": "intentional",
+      "detail": "Sync, write, backfill, cleanup, PG SQL write paths, payload cache writes, public selector policy, and recommended/season prototype paths are intentionally unchanged in this read-only selector split."
+    }
+  ],
+  "rollback": [
+    "code_rollback",
+    "resync_repair"
+  ]
+}

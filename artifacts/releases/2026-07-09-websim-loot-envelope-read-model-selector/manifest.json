@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "status": "merged_to_main",
+  "generatedAt": "2026-07-09T15:04:08Z",
+  "release": {
+    "date": "2026-07-09",
+    "slug": "websim-loot-envelope-read-model-selector"
+  },
+  "harness": {
+    "version": "v0.5",
+    "lastUpdated": "2026-07-09",
+    "source": "docs/harness.md"
+  },
+  "safety": {
+    "repositoryRemoteSyncPreapproved": true,
+    "repositoryRemoteSyncScope": "configured_project_remote_only",
+    "autonomousProgressionEnabled": true,
+    "productionWrites": false
+  },
+  "gates": {
+    "currentTruth": {
+      "status": "ready",
+      "sources": [
+        "docs/roadmap.md",
+        "docs/harness.md",
+        "docs/backend-owner-map.json",
+        "docs/plans/2026-07-09-harness-guided-project-optimization-plan.md"
+      ]
+    },
+    "ownershipContract": {
+      "status": "ready",
+      "owner": "server/pg_gear_read_model_selectors.py",
+      "backendReadModelOwned": true,
+      "frontendConsumesStructuredResults": true
+    },
+    "engineeringHealth": {
+      "status": "local_verified_health_watch",
+      "hotspotFile": "server/postgres_cache_store.py",
+      "changeType": "read_only_websim_selector_extraction",
+      "localVerification": [
+        "python3 -m unittest discover -s tests -p '*_test.py'",
+        "node --test tests/*.test.js",
+        "python3 -m py_compile",
+        "node --check",
+        "JSON validation",
+        "git diff --check",
+        "local CR"
+      ]
+    },
+    "candidateDeployment": {
+      "status": "passed",
+      "requiredBeforeMergeForRuntimeChanges": true,
+      "runtimeChangeSurfaces": [
+        "backend_api",
+        "pg_read_model",
+        "websim_runtime"
+      ],
+      "pullRequest": "https://github.com/boyuan19910222-ui/wow_mini_program/pull/41",
+      "branch": "codex/phase4-websim-loot-envelope-read-model-selector",
+      "commit": "284004923283851e7c626f37bd51e88680336e3a",
+      "smoke": [
+        "/health",
+        "/api/data/health",
+        "/api/websim/bootstrap",
+        "/api/websim/assets",
+        "/api/websim/talents",
+        "/api/websim/loot",
+        "/api/websim/gear initial",
+        "/api/websim/gear slot",
+        "40-spec observed-only gear sweep",
+        "systemd/log/hash parity"
+      ]
+    },
+    "merge": {
+      "status": "merged_to_main",
+      "pullRequest": "https://github.com/boyuan19910222-ui/wow_mini_program/pull/41",
+      "mergeCommit": "0a2878dd4d4016b5bd29fddeb0e656f2696c4b26",
+      "headEqualsOriginMain": true
+    }
+  },
+  "evidenceFile": "artifacts/releases/2026-07-09-websim-loot-envelope-read-model-selector/evidence.json"
+}

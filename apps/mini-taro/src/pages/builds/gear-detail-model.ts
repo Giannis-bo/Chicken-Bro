@@ -1,6 +1,7 @@
 import type {
   CommunityTemplateReference,
   GearEnhancementOption,
+  GearEnhancementSelection,
   GearItemReference,
   GearStatsPayload,
   ReadinessState,
@@ -252,7 +253,7 @@ function optionLabel(option: GearEnhancementOption): string {
 
 export function gearEnhancementOptions(
   item: GearItemReference | undefined,
-  enhancements: Readonly<Record<string, string>>,
+  enhancements: Readonly<Record<string, GearEnhancementSelection>>,
   slot: string,
 ): readonly GearEnhancementOptionView[] {
   return enhancementDefinitions.flatMap((definition) => {
@@ -265,7 +266,7 @@ export function gearEnhancementOptions(
         kind: definition.id,
         label: optionLabel(option),
         ...(iconUrl ? { iconUrl } : {}),
-        selected: enhancements[`${slot}:${definition.id}`] === id,
+        selected: selectedGearEnhancementId(enhancements, slot, definition.id) === id,
       }
     })
   })
@@ -273,12 +274,12 @@ export function gearEnhancementOptions(
 
 export function gearEnhancementGroups(
   item: GearItemReference | undefined,
-  enhancements: Readonly<Record<string, string>>,
+  enhancements: Readonly<Record<string, GearEnhancementSelection>>,
   slot: string,
 ): readonly GearEnhancementGroupView[] {
   return enhancementDefinitions.map((definition) => {
     const options = item?.[definition.key] ?? []
-    const selected = enhancements[`${slot}:${definition.id}`]
+    const selected = selectedGearEnhancementId(enhancements, slot, definition.id)
     const selectedOption = options.find((option, index) => optionIdentity(option, index) === selected)
     return {
       id: definition.id,
@@ -288,6 +289,18 @@ export function gearEnhancementGroups(
       state: selectedOption ? 'ready' : options.length ? 'empty' : 'blocked',
     }
   })
+}
+
+export function selectedGearEnhancementId(
+  enhancements: Readonly<Record<string, GearEnhancementSelection>>,
+  slot: string,
+  kind: GearEnhancementGroupView['id'],
+): string {
+  const selected = enhancements[slot]
+  if (!selected) return ''
+  if (kind === 'socket') return selected.gemOptionIds[0] ?? ''
+  if (kind === 'enchant') return selected.enchantOptionId
+  return selected.embellishmentOptionId
 }
 
 export function templateGearItems(template: CommunityTemplateReference | undefined): Readonly<Record<string, GearItemReference>> | null {

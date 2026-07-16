@@ -1,0 +1,145 @@
+{
+  "status": "merged",
+  "highestEvidenceLevel": "live_verified",
+  "scope": [
+    "server/pg_gear_template_selectors.py",
+    "server/postgres_cache_store.py",
+    "tests/pg_gear_template_selectors_test.py",
+    "tests/backend-owner-map.test.js",
+    "docs/backend-owner-map.json",
+    "docs/roadmap.md",
+    "docs/plans/2026-07-09-harness-guided-project-optimization-plan.md",
+    "artifacts/releases/2026-07-09-official-item-metadata-selector/evidence.json",
+    "artifacts/releases/2026-07-09-official-item-metadata-selector/manifest.json"
+  ],
+  "summary": "Phase 4 continues the read-only PostgreSQL gear template selector split. server/pg_gear_template_selectors.py now owns build_official_item_metadata_by_id_read_model(), which converts cache.websim_items rows into official item metadata by id while preserving the existing official-source and verified official payload-shape filters. server/postgres_cache_store.py keeps template item id collection, PG SQL reads, cursor execution, community template row reads, hydration call sites, cache writes, and sync/write/backfill paths.",
+  "verification": [
+    {
+      "command": "python3 -m unittest tests.pg_gear_template_selectors_test.PgGearTemplateSelectorsTest.test_build_official_item_metadata_by_id_read_model_filters_unofficial_rows",
+      "status": "red_then_pass",
+      "summary": "First run failed with ImportError because build_official_item_metadata_by_id_read_model was missing; after adding the helper the targeted characterization passed."
+    },
+    {
+      "command": "python3 -m unittest tests.pg_gear_template_selectors_test tests.postgres_cache_store_test",
+      "status": "pass",
+      "summary": "103 targeted PG template selector and PG cache store tests passed locally."
+    },
+    {
+      "command": "node --test tests/backend-owner-map.test.js",
+      "status": "red_then_pass",
+      "summary": "Owner-map test was updated first and failed while docs/backend-owner-map.json still reported phase4_season_catalog_candidate_selector_extracted; after updating the owner map it passed."
+    },
+    {
+      "command": "python3 -m unittest discover -s tests -p '*_test.py'",
+      "status": "pass",
+      "summary": "1025 Python unittest specs passed locally with 1 skipped."
+    },
+    {
+      "command": "node --test tests/*.test.js",
+      "status": "pass",
+      "summary": "344 Node tests passed locally."
+    },
+    {
+      "command": "python3 -m py_compile server/pg_gear_template_selectors.py server/postgres_cache_store.py",
+      "status": "pass",
+      "summary": "Touched Python modules compiled successfully."
+    },
+    {
+      "command": "node --check tests/backend-owner-map.test.js && node --check scripts/project-harness.js",
+      "status": "pass",
+      "summary": "Touched Node harness/test files passed syntax checks."
+    },
+    {
+      "command": "python3 -m json.tool docs/backend-owner-map.json >/dev/null && python3 -m json.tool artifacts/releases/2026-07-09-official-item-metadata-selector/evidence.json >/dev/null && python3 -m json.tool artifacts/releases/2026-07-09-official-item-metadata-selector/manifest.json >/dev/null",
+      "status": "pass",
+      "summary": "Owner map, evidence, and manifest JSON validated."
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass",
+      "summary": "No whitespace errors detected."
+    },
+    {
+      "command": "local CR",
+      "status": "pass",
+      "summary": "Diff review found no new sync/write/backfill/cleanup SQL paths, no cache write changes, no change to public observed-only template policy, and no frontend-owned source-quality inference."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "passed",
+    "requiredBeforeMerge": true,
+    "pullRequest": 25,
+    "branch": "codex/phase4-official-item-metadata-selector",
+    "commit": "46d5d9670c291672019b537f8e45523977095a8b",
+    "command": "WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh",
+    "target": "ubuntu@124.223.51.33:/opt/wow-mini-program",
+    "deployedAt": "2026-07-09T12:14:38Z",
+    "asyncSyncStarted": false,
+    "smoke": {
+      "http": {
+        "baseUrl": "http://124.223.51.33",
+        "endpoints": [
+          {"path": "/health", "httpStatus": 200, "ok": true},
+          {"path": "/api/data/health", "httpStatus": 200, "overallStatus": "partial"},
+          {"path": "/api/websim/bootstrap", "httpStatus": 200, "dataStatus": "verified"},
+          {"path": "/api/websim/assets", "httpStatus": 200, "status": "verified"},
+          {"path": "/api/websim/talents?class=mage&spec=frost&hero=spellslinger", "httpStatus": 200, "dataStatus": "verified"},
+          {"path": "/api/websim/gear?class=mage&spec=frost&compact=1&mode=initial", "httpStatus": 200, "dataStatus": "verified", "communityTemplates": 1, "baselineTemplates": 0, "sourceKeys": ["raiderio_observed_profile"], "canApplyGear": [true]},
+          {"path": "/api/websim/gear?class=mage&spec=frost&compact=1&mode=slot&slot=head", "httpStatus": 200, "dataStatus": "verified", "communityTemplates": 1, "baselineTemplates": 0, "sourceKeys": ["raiderio_observed_profile"], "canApplyGear": [true]}
+        ]
+      },
+      "observedOnlyGearSweep": {
+        "checkedSpecs": 40,
+        "failures": 0,
+        "dataStatus": {"verified": 40},
+        "communityTemplates": {"1": 40},
+        "baselineTemplates": {"0": 40},
+        "sourceKeys": {"raiderio_observed_profile": 40},
+        "canApplyGear": {"True": 40}
+      },
+      "systemd": {
+        "backend": "active/running since 2026-07-09 20:13:10 CST",
+        "nginx": "active/running since 2026-07-09 20:13:10 CST",
+        "syncBackfillServices": "wow-stat-weights-sync.service is timer-triggered and currently activating/start; wow-websim-sync, wow-gear-observed-backfill, wow-community-template-sync, wow-community-best-guard-sync, wow-recommended-bis-guard-sync, and wow-season-recommended-gear-sync are inactive/dead after their latest runs",
+        "timers": "7 loaded sync/backfill timers listed: wow-websim-sync, wow-gear-observed-backfill, wow-stat-weights-sync, wow-community-template-sync, wow-community-best-guard-sync, wow-recommended-bis-guard-sync, wow-season-recommended-gear-sync"
+      },
+      "runtime": {
+        "WOW_DATABASE_RUNTIME": "postgres_only",
+        "recentLogs": "no Traceback/ERROR/SQLite fallback in wow-backend or sync/backfill logs since 20 minutes ago",
+        "hashParity": {
+          "server/pg_gear_template_selectors.py": "716fa9f4eb20533c0646901eeb3582b2caad3f8e77996f3ece42a4f8c131cd62",
+          "server/postgres_cache_store.py": "a842de39c6b92a13abdd57cfdfe731407743308a9bd17151ac93975b2618cb4e"
+        }
+      }
+    }
+  },
+  "merge": {
+    "status": "merged",
+    "pullRequest": 25,
+    "mergedAt": "2026-07-09T12:15:57Z",
+    "method": "rebase",
+    "mainCommit": "2e8943e5c951a48b454f84dcd9c3cdd81c84a572",
+    "mainTreeMatchesCandidateTree": true
+  },
+  "risks": [
+    {
+      "id": "full_local_verification_pending",
+      "status": "closed",
+      "detail": "Full Python/Node suites, compile checks, JSON validation, git diff check, and local CR passed before PR."
+    },
+    {
+      "id": "candidate_deployment_pending",
+      "status": "resolved",
+      "detail": "PR #25 branch passed Candidate Deployment Gate before merge: deploy succeeded, API smoke and 40-spec observed-only sweep passed, systemd/log/runtime hash parity checks passed."
+    },
+    {
+      "id": "write_paths_out_of_scope",
+      "status": "intentional",
+      "detail": "Sync, write, backfill, cleanup, PG SQL write paths, payload cache writes, template public selectors, and public observed-only source policy are intentionally unchanged in this read-only selector split."
+    }
+  ],
+  "rollback": [
+    "code_rollback",
+    "resync_repair"
+  ]
+}

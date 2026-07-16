@@ -1,0 +1,188 @@
+{
+  "status": "merged",
+  "highestEvidenceLevel": "live_verified",
+  "scope": [
+    "server/pg_gear_template_selectors.py",
+    "server/postgres_cache_store.py",
+    "tests/pg_gear_template_selectors_test.py",
+    "tests/backend-owner-map.test.js",
+    "docs/backend-owner-map.json",
+    "docs/roadmap.md",
+    "docs/plans/2026-07-09-harness-guided-project-optimization-plan.md",
+    "artifacts/releases/2026-07-09-admin-gear-template-queue-selector/evidence.json",
+    "artifacts/releases/2026-07-09-admin-gear-template-queue-selector/manifest.json"
+  ],
+  "summary": "Phase 4 continues the read-only PostgreSQL gear template selector split. server/pg_gear_template_selectors.py now owns build_admin_gear_template_queue_rows_read_model(), which turns admin gate community gear template rows plus official item metadata into backend-owned gear_templates queue summary rows. server/postgres_cache_store.py keeps admin gate SQL reads, table existence checks, official metadata SQL queries, offhand coverage repair as an adapter callback, cache writes, and sync/write/backfill paths.",
+  "verification": [
+    {
+      "command": "python3 -m unittest tests.pg_gear_template_selectors_test.PgGearTemplateSelectorsTest.test_build_admin_gear_template_queue_rows_read_model_preserves_blockers_after_repair",
+      "status": "red_then_pass",
+      "summary": "First run failed with ImportError because build_admin_gear_template_queue_rows_read_model was missing; after adding the helper the targeted characterization passed."
+    },
+    {
+      "command": "python3 -m unittest tests.pg_gear_template_selectors_test tests.postgres_cache_store_test",
+      "status": "pass",
+      "summary": "108 targeted PG template selector and PG cache store tests passed locally."
+    },
+    {
+      "command": "node --test tests/backend-owner-map.test.js",
+      "status": "red_then_pass",
+      "summary": "Owner-map test was updated first and failed while docs/backend-owner-map.json still reported phase4_community_template_list_selector_extracted; after updating the owner map it passed."
+    },
+    {
+      "command": "python3 -m unittest discover -s tests -p '*_test.py'",
+      "status": "pass",
+      "summary": "1030 Python unittest specs passed locally with 1 skipped."
+    },
+    {
+      "command": "node --test tests/*.test.js",
+      "status": "pass",
+      "summary": "344 Node tests passed locally."
+    },
+    {
+      "command": "python3 -m py_compile server/pg_gear_template_selectors.py server/postgres_cache_store.py",
+      "status": "pass",
+      "summary": "Touched Python modules compiled successfully."
+    },
+    {
+      "command": "node --check tests/backend-owner-map.test.js && node --check scripts/project-harness.js",
+      "status": "pass",
+      "summary": "Touched Node test/harness scripts passed syntax checks."
+    },
+    {
+      "command": "python3 -m json.tool docs/backend-owner-map.json artifacts/releases/2026-07-09-admin-gear-template-queue-selector/evidence.json artifacts/releases/2026-07-09-admin-gear-template-queue-selector/manifest.json",
+      "status": "pass",
+      "summary": "Owner map and release evidence artifacts are valid JSON."
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass",
+      "summary": "No whitespace errors detected."
+    },
+    {
+      "command": "local CR",
+      "status": "pass",
+      "summary": "Reviewed focused diffs and confirmed only admin gear template queue row assembly moved; admin SQL, table checks, sync/write/backfill, recommended/season internal paths, and public observed-only policy remain unchanged."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "passed",
+    "requiredBeforeMerge": true,
+    "pullRequest": 30,
+    "branch": "codex/phase4-admin-gear-template-queue-selector",
+    "commit": "3acad178319466d3678a38afbd68049591ab4e17",
+    "command": "WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh",
+    "target": "ubuntu@124.223.51.33:/opt/wow-mini-program",
+    "deployedAt": "2026-07-09T13:08:27Z",
+    "asyncSyncStarted": false,
+    "smoke": {
+      "http": {
+        "baseUrl": "http://124.223.51.33",
+        "endpoints": [
+          {
+            "path": "/health",
+            "httpStatus": 200,
+            "ok": true
+          },
+          {
+            "path": "/api/data/health",
+            "httpStatus": 200
+          },
+          {
+            "path": "/api/websim/bootstrap",
+            "httpStatus": 200
+          },
+          {
+            "path": "/api/websim/assets",
+            "httpStatus": 200
+          },
+          {
+            "path": "/api/websim/talents?class=mage&spec=frost",
+            "httpStatus": 200
+          },
+          {
+            "path": "/api/websim/gear?class=mage&spec=frost&compact=1&mode=initial",
+            "httpStatus": 200
+          },
+          {
+            "path": "/api/websim/gear?class=mage&spec=frost&compact=1&mode=slot&slot=head",
+            "httpStatus": 200
+          },
+          {
+            "path": "/api/admin/gates/summary",
+            "httpStatus": 200,
+            "queueCount": 2905,
+            "domainCounts": {
+              "news": 7,
+              "talents": 18,
+              "gear": 2836,
+              "gear_templates": 44
+            }
+          }
+        ]
+      },
+      "observedOnlyGearSweep": {
+        "checkedSpecs": 40,
+        "failures": 0,
+        "dataStatus": {
+          "verified": 40
+        },
+        "communityTemplates": {
+          "1": 40
+        },
+        "baselineTemplates": {
+          "0": 40
+        },
+        "sourceKeys": {
+          "raiderio_observed_profile": 40
+        },
+        "canApplyGear": {
+          "True": 40
+        }
+      },
+      "systemd": {
+        "backend": "active",
+        "nginx": "active",
+        "syncBackfillServices": "wow-websim-sync, wow-gear-observed-backfill, wow-stat-weights-sync, wow-community-template-sync, wow-community-best-guard-sync, wow-recommended-bis-guard-sync, and wow-season-recommended-gear-sync are inactive/dead with Result=success and ExecMainStatus=0 after smoke",
+        "timers": "9 wow-* timers listed, including sync/backfill and data health followup timers"
+      },
+      "runtime": {
+        "WOW_DATABASE_RUNTIME": "postgres_only",
+        "recentLogs": "no Traceback/ERROR/SQLite fallback in wow-backend or sync/backfill logs over the 10 minutes after candidate deployment",
+        "hashParity": {
+          "server/pg_gear_template_selectors.py": "973a9ef314de082df67ed51336b7dc775cdf5b91076811fc2658cb2cde0a3a6d",
+          "server/postgres_cache_store.py": "4726c4a80f9329b5c52b1b63b1ca73c2998b57f9256842119d29ef58fa780d91"
+        }
+      }
+    }
+  },
+  "merge": {
+    "status": "merged",
+    "pullRequest": 30,
+    "mergedAt": "2026-07-09T13:11:01Z",
+    "method": "rebase",
+    "mainCommit": "9ef78592df06c33c912e8db84ed900dd12547296",
+    "mainTreeMatchesPrBranchTreeBeforeMergeStatus": true
+  },
+  "risks": [
+    {
+      "id": "full_local_verification_pending",
+      "status": "closed",
+      "detail": "Full Python/Node suites, compile checks, JSON validation, git diff check, and local CR passed locally before PR."
+    },
+    {
+      "id": "candidate_deployment_pending",
+      "status": "resolved",
+      "detail": "PR #30 branch passed Candidate Deployment Gate before merge: deploy succeeded, admin/API smoke and 40-spec observed-only sweep passed, systemd/log/runtime hash parity checks passed."
+    },
+    {
+      "id": "write_paths_out_of_scope",
+      "status": "intentional",
+      "detail": "Sync, write, backfill, cleanup, PG SQL write paths, payload cache writes, public selector policy, and recommended/season prototype paths are intentionally unchanged in this read-only selector split."
+    }
+  ],
+  "rollback": [
+    "code_rollback",
+    "resync_repair"
+  ]
+}

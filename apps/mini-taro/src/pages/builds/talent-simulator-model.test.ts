@@ -52,7 +52,7 @@ describe('talent simulator target model', () => {
     const graph = buildTalentGraph({ nodes, ranks, routeState: 'ready' })
 
     expect(graph.nodeCount).toBe(3)
-    expect(graph.planeWidth).toBe(600)
+    expect(graph.planeWidth).toBe(350)
     expect(graph.uniquePositionCount).toBe(3)
     expect(graph.edges.map((edge) => edge.id)).toEqual(['root->child', 'child->locked'])
     expect(graph.nodes.find((node) => node.id === 'child')).toMatchObject({
@@ -77,7 +77,7 @@ describe('talent simulator target model', () => {
     const [first, second] = graph.nodes
 
     expect(graph.uniquePositionCount).toBe(2)
-    expect(Math.abs((second?.x ?? 0) - (first?.x ?? 0))).toBe(58)
+    expect(Math.abs((second?.x ?? 0) - (first?.x ?? 0))).toBe(52)
     expect(first?.y).toBe(second?.y)
     expect(Math.min(...graph.nodes.map((node) => node.x))).toBeGreaterThanOrEqual(0)
     expect(Math.max(...graph.nodes.map((node) => node.x + 36))).toBeLessThanOrEqual(graph.planeWidth)

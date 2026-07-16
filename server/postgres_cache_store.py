@@ -12,6 +12,66 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 try:
+    from . import gear_public_contract
+except ImportError:
+    import gear_public_contract
+
+try:
+    from . import pg_gear_template_selectors
+except ImportError:
+    import pg_gear_template_selectors
+
+try:
+    from . import pg_gear_read_model_selectors
+except ImportError:
+    import pg_gear_read_model_selectors
+
+try:
+    from . import pg_season_read_model_selectors
+except ImportError:
+    import pg_season_read_model_selectors
+
+try:
+    from . import pg_cache_read_model_selectors
+except ImportError:
+    import pg_cache_read_model_selectors
+
+try:
+    from .pg_gear_authority_loader import (
+        AUTHORITY_REVISION_SQL,
+        AuthorityContextCache,
+        candidate_authority_cache_key,
+        load_gear_authority_context,
+        resolver_authoring_context,
+    )
+except ImportError:
+    from pg_gear_authority_loader import (
+        AUTHORITY_REVISION_SQL,
+        AuthorityContextCache,
+        candidate_authority_cache_key,
+        load_gear_authority_context,
+        resolver_authoring_context,
+    )
+
+try:
+    from .gear_release_store import GearReleaseStore
+except ImportError:
+    from gear_release_store import GearReleaseStore
+
+try:
+    from .community_template_import import (
+        COMMUNITY_TEMPLATE_IMPORT_CONTRACT_REVISION,
+        build_community_template_import_source,
+        build_community_template_selection_intent,
+    )
+except ImportError:
+    from community_template_import import (
+        COMMUNITY_TEMPLATE_IMPORT_CONTRACT_REVISION,
+        build_community_template_import_source,
+        build_community_template_selection_intent,
+    )
+
+try:
     from .websim_payload import (
         CANONICAL_GEAR_SLOTS,
         COMMUNITY_TEMPLATE_AVAILABILITY_POLICY,
@@ -22,70 +82,46 @@ try:
         DEFAULT_GEAR_TEMPLATE_SOURCE_KEY,
         SEASON_RECOMMENDED_GEAR_TEMPLATE_SOURCE_KEY,
         GEAR_CATALOG_REVISION,
-        GEAR_SCHEMA_REVISION,
         GEAR_SLOT_LABELS,
         ITEM_METADATA_SOURCE,
         TALENT_SCHEMA_REVISION,
-        active_catalog_sources_for_replacement,
-        apply_gear_candidate_legality,
-        apply_gear_mod_option_display_fields,
         apply_gear_template_legality_gate,
         apply_item_metadata,
         blocked_baseline_gear_template,
         blocked_stat_snapshot,
         candidate_legality_audit_payload,
-        class_label,
         classes_payload,
-        compact_catalog_health_summary,
-        compact_community_gear_template,
         compact_gear_candidates,
         compact_gear_mod_options,
         community_talent_source_ref,
-        community_talent_template_slot_summary,
-        community_talent_templates_for_spec_slots,
         community_template_availability_expires_at,
         community_gear_import_coverage_summary,
-        community_gear_template_can_apply,
         dedupe_gear_community_templates,
         dedupe_real_talent_nodes,
         decorate_real_talent_node,
-        enrich_catalog_item,
         expected_spec_pairs,
-        current_season_payload,
         fallback_text_for,
         fallback_presets,
         game_asset_from_icon_url,
         game_asset_from_registry_row,
-        gear_candidate_for_slot,
-        gear_candidate_incompatible,
-        gear_candidate_quality_score,
-        gear_candidate_slots,
         gear_community_template_from_observed_items,
         gear_variant_slots_are_compatible_for_item,
-        gear_mod_option_display_fields,
-        gear_mod_option_is_supported_config_option,
-        gear_mod_option_payload_with_config_policy,
         gear_readiness,
         gear_template_slot_coverage,
         gear_slot_payload,
         gear_slot_readiness,
         hero_tree_for,
-        hero_tree_label,
         icon_url_from_media,
-        is_baseline_gear_template,
         is_active_community_observed_template,
-        is_real_community_gear_template,
         item_level_probe_main_hand_removes_offhand,
         item_level_probe_profile_candidates,
         localized_difficulty_label,
         official_item_level_probe_simc_slot,
         item_slot_from_payload,
         item_type_metadata_from_payload,
-        limit_replacement_candidates,
         normalize_source_refs,
         normalize_option_value,
         normalize_slot,
-        normalize_current_season_raid_pool_payload,
         normalize_gear_item,
         normalize_websim_gear_items,
         normalize_community_gear_template,
@@ -94,23 +130,8 @@ try:
         observed_variant_stat_identity_key,
         observed_variant_stat_payload_fields,
         pending_community_gear_template,
-        public_baseline_fallback_templates_for_spec,
-        public_gear_templates_for_spec,
-        real_player_gear_template_observed_display_name,
-        real_player_gear_template_observed_profile_url,
-        real_player_gear_template_observed_source_name,
-        real_player_gear_template_observed_template_id,
-        real_player_gear_template_pilot_spec,
-        real_player_gear_template_public_import_spec,
-        real_player_gear_template_recommended_display_name,
-        real_player_gear_template_recommended_source_name,
-        REAL_PLAYER_GEAR_TEMPLATE_LEGACY_SOURCE_KEYS,
-        REAL_PLAYER_GEAR_TEMPLATE_PILOT_SPECS,
-        REAL_PLAYER_GEAR_TEMPLATE_PUBLIC_POLICY,
-        sanitize_gear_candidate_mod_options,
         SCENARIOS,
         SIMC_GEAR_OPTION_KEYS,
-        scenario_title,
         season_metadata_fields,
         select_best_baseline_gear_templates,
         select_community_best_gear_templates,
@@ -122,18 +143,15 @@ try:
         simc_safe_item_name,
         simc_version_payload,
         slugify,
-        spec_label,
         talent_readiness_payload,
         websim_talent_import_response,
         talent_spell_display_description,
         talent_tree_sections,
         unique_text_list,
         validate_community_talent_template,
-        unique_gear_candidates,
         unique_locale_preferences,
         websim_simc_binary,
         websim_gear_community_templates,
-        websim_gear_community_template_sync_state,
         websim_gear_template_chain_state,
         websim_max_level,
         selected_gear_weapon_rule_blocker,
@@ -150,70 +168,46 @@ except ImportError:
         DEFAULT_GEAR_TEMPLATE_SOURCE_KEY,
         SEASON_RECOMMENDED_GEAR_TEMPLATE_SOURCE_KEY,
         GEAR_CATALOG_REVISION,
-        GEAR_SCHEMA_REVISION,
         GEAR_SLOT_LABELS,
         ITEM_METADATA_SOURCE,
         TALENT_SCHEMA_REVISION,
-        active_catalog_sources_for_replacement,
-        apply_gear_candidate_legality,
-        apply_gear_mod_option_display_fields,
         apply_gear_template_legality_gate,
         apply_item_metadata,
         blocked_baseline_gear_template,
         blocked_stat_snapshot,
         candidate_legality_audit_payload,
-        class_label,
         classes_payload,
-        compact_catalog_health_summary,
-        compact_community_gear_template,
         compact_gear_candidates,
         compact_gear_mod_options,
         community_talent_source_ref,
-        community_talent_template_slot_summary,
-        community_talent_templates_for_spec_slots,
         community_template_availability_expires_at,
         community_gear_import_coverage_summary,
-        community_gear_template_can_apply,
         dedupe_gear_community_templates,
         dedupe_real_talent_nodes,
         decorate_real_talent_node,
-        enrich_catalog_item,
         expected_spec_pairs,
-        current_season_payload,
         fallback_text_for,
         fallback_presets,
         game_asset_from_icon_url,
         game_asset_from_registry_row,
-        gear_candidate_for_slot,
-        gear_candidate_incompatible,
-        gear_candidate_quality_score,
-        gear_candidate_slots,
         gear_community_template_from_observed_items,
         gear_variant_slots_are_compatible_for_item,
-        gear_mod_option_display_fields,
-        gear_mod_option_is_supported_config_option,
-        gear_mod_option_payload_with_config_policy,
         gear_readiness,
         gear_template_slot_coverage,
         gear_slot_payload,
         gear_slot_readiness,
         hero_tree_for,
-        hero_tree_label,
         icon_url_from_media,
-        is_baseline_gear_template,
         is_active_community_observed_template,
-        is_real_community_gear_template,
         item_level_probe_main_hand_removes_offhand,
         item_level_probe_profile_candidates,
         localized_difficulty_label,
         official_item_level_probe_simc_slot,
         item_slot_from_payload,
         item_type_metadata_from_payload,
-        limit_replacement_candidates,
         normalize_source_refs,
         normalize_option_value,
         normalize_slot,
-        normalize_current_season_raid_pool_payload,
         normalize_gear_item,
         normalize_websim_gear_items,
         normalize_community_gear_template,
@@ -222,23 +216,8 @@ except ImportError:
         observed_variant_stat_identity_key,
         observed_variant_stat_payload_fields,
         pending_community_gear_template,
-        public_baseline_fallback_templates_for_spec,
-        public_gear_templates_for_spec,
-        real_player_gear_template_observed_display_name,
-        real_player_gear_template_observed_profile_url,
-        real_player_gear_template_observed_source_name,
-        real_player_gear_template_observed_template_id,
-        real_player_gear_template_pilot_spec,
-        real_player_gear_template_public_import_spec,
-        real_player_gear_template_recommended_display_name,
-        real_player_gear_template_recommended_source_name,
-        REAL_PLAYER_GEAR_TEMPLATE_LEGACY_SOURCE_KEYS,
-        REAL_PLAYER_GEAR_TEMPLATE_PILOT_SPECS,
-        REAL_PLAYER_GEAR_TEMPLATE_PUBLIC_POLICY,
-        sanitize_gear_candidate_mod_options,
         SCENARIOS,
         SIMC_GEAR_OPTION_KEYS,
-        scenario_title,
         season_metadata_fields,
         select_best_baseline_gear_templates,
         select_community_best_gear_templates,
@@ -250,18 +229,15 @@ except ImportError:
         simc_safe_item_name,
         simc_version_payload,
         slugify,
-        spec_label,
         talent_readiness_payload,
         websim_talent_import_response,
         talent_spell_display_description,
         talent_tree_sections,
         unique_text_list,
         validate_community_talent_template,
-        unique_gear_candidates,
         unique_locale_preferences,
         websim_simc_binary,
         websim_gear_community_templates,
-        websim_gear_community_template_sync_state,
         websim_gear_template_chain_state,
         websim_max_level,
         selected_gear_weapon_rule_blocker,
@@ -313,6 +289,8 @@ def utc_now():
 
 PG_GEAR_PAYLOAD_CACHE = {}
 PG_GEAR_PAYLOAD_CACHE_MAX = 80
+PG_COMMUNITY_TEMPLATE_IMPORT_CACHE = {}
+PG_COMMUNITY_TEMPLATE_IMPORT_CACHE_MAX = 64
 RECOMMENDED_BIS_SIMC_EVIDENCE_SYNC_KEY = "recommended_bis_v1_simc_evidence"
 RECOMMENDED_BIS_ENHANCEMENT_PILOT_SPECS = {("shaman", "elemental")}
 RECOMMENDED_BIS_ENHANCEMENT_COPY_KEYS = (
@@ -578,6 +556,86 @@ def _pg_gear_payload_cache_put(fingerprint, payload):
     PG_GEAR_PAYLOAD_CACHE[fingerprint] = copy.deepcopy(payload)
 
 
+def _pg_community_template_import_cache_get(fingerprint):
+    if not fingerprint or fingerprint not in PG_COMMUNITY_TEMPLATE_IMPORT_CACHE:
+        return None
+    payload = PG_COMMUNITY_TEMPLATE_IMPORT_CACHE.pop(fingerprint)
+    PG_COMMUNITY_TEMPLATE_IMPORT_CACHE[fingerprint] = payload
+    return copy.deepcopy(payload)
+
+
+def _pg_community_template_import_cache_put(fingerprint, payload):
+    data = payload.get("data") if isinstance(payload, dict) else None
+    problems = payload.get("problems") if isinstance(payload, dict) else None
+    if (
+        not fingerprint
+        or not isinstance(payload, dict)
+        or payload.get("status") != "verified"
+        or not isinstance(data, dict)
+        or data.get("status") != "verified"
+        or data.get("contractRevision") != COMMUNITY_TEMPLATE_IMPORT_CONTRACT_REVISION
+        or not isinstance(data.get("importedGearBySlot"), dict)
+        or problems not in (None, [])
+        or not isinstance(payload.get("releaseContext"), dict)
+    ):
+        return
+    if fingerprint in PG_COMMUNITY_TEMPLATE_IMPORT_CACHE:
+        PG_COMMUNITY_TEMPLATE_IMPORT_CACHE.pop(fingerprint)
+    while len(PG_COMMUNITY_TEMPLATE_IMPORT_CACHE) >= PG_COMMUNITY_TEMPLATE_IMPORT_CACHE_MAX:
+        PG_COMMUNITY_TEMPLATE_IMPORT_CACHE.pop(next(iter(PG_COMMUNITY_TEMPLATE_IMPORT_CACHE)))
+    PG_COMMUNITY_TEMPLATE_IMPORT_CACHE[fingerprint] = copy.deepcopy(payload)
+
+
+class CommunityTemplateImportError(RuntimeError):
+    """Sanitized import failure carrying only a stable public code."""
+
+    def __init__(
+        self,
+        code,
+        title,
+        *,
+        release_context=None,
+        unavailable=False,
+    ):
+        super().__init__(str(code))
+        self.code = str(code)
+        self.title = str(title)
+        self.release_context = copy.deepcopy(release_context) if isinstance(release_context, dict) else {}
+        self.unavailable = bool(unavailable)
+
+
+def _community_template_import_release_context(binding):
+    value = binding if isinstance(binding, dict) else {}
+    manifest = value.get("manifest") if isinstance(value.get("manifest"), dict) else {}
+    return {
+        "manifestRevision": str(manifest.get("manifestRevision") or value.get("manifestRevision") or "").strip(),
+        "pointerGeneration": _int_value(value.get("generation")),
+        "seasonRevision": str(manifest.get("seasonRevision") or "").strip(),
+        "gearCatalogReleaseId": str(manifest.get("gearCatalogReleaseId") or "").strip(),
+        "gearCatalogRevision": str(manifest.get("gearCatalogReleaseId") or "").strip(),
+        "communityTemplateRevision": str(manifest.get("communityTemplateReleaseId") or "").strip(),
+        "formalActiveManifest": value.get("formalActiveManifest") is True,
+    }
+
+
+def _community_template_import_cache_fingerprint(
+    release_context,
+    class_key,
+    spec_key,
+    template_id,
+):
+    context = release_context if isinstance(release_context, dict) else {}
+    identity = {
+        "contractRevision": COMMUNITY_TEMPLATE_IMPORT_CONTRACT_REVISION,
+        "manifestRevision": str(context.get("manifestRevision") or "").strip(),
+        "pointerGeneration": _int_value(context.get("pointerGeneration")),
+        "classKey": str(class_key or "").strip(),
+        "specKey": str(spec_key or "").strip(),
+        "templateId": str(template_id or "").strip(),
+    }
+    return json.dumps(identity, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
 def _datetime_value(value):
     if not value:
         return None
@@ -615,6 +673,82 @@ def _int_value(value, fallback=0):
         return int(value)
     except (TypeError, ValueError):
         return fallback
+
+
+def _simc_talent_signature_payload(value):
+    payload = _json_value(value, {})
+    payload = payload if isinstance(payload, dict) else {}
+    rank_entries = []
+    raw_rank_entries = payload.get("rankEntries")
+    raw_rank_entries = raw_rank_entries if isinstance(raw_rank_entries, list) else []
+    for raw_entry in raw_rank_entries:
+        if not isinstance(raw_entry, dict):
+            continue
+        rank_entries.append(
+            (
+                _int_value(raw_entry.get("traitId")),
+                _int_value(raw_entry.get("traitDefinitionId")),
+                _int_value(raw_entry.get("spellId")),
+                _int_value(raw_entry.get("selectionIndex")),
+                _int_value(raw_entry.get("rank")),
+                _int_value(raw_entry.get("points")),
+                _int_value(raw_entry.get("pointStart")),
+                _int_value(raw_entry.get("pointEnd")),
+            )
+        )
+    rank_entries.sort(key=lambda entry: (entry[3], entry[0], entry[2]))
+    return (
+        tuple(rank_entries),
+        _int_value(payload.get("selectionIndex")),
+        _int_value(payload.get("nodeType")),
+        _int_value(payload.get("rank")),
+        _int_value(payload.get("maxRank")),
+        _int_value(payload.get("selectedRank")),
+        _int_value(payload.get("grantedRank")),
+        bool(payload.get("granted")),
+        str(payload.get("choiceGroup") or "").strip(),
+        _int_value(payload.get("pointRequirement")),
+        str(payload.get("parentMode") or "any").strip().lower(),
+        str(payload.get("shape") or "").strip().lower(),
+    )
+
+
+def simc_talent_persisted_content_identity(
+    talent_id,
+    class_key,
+    spec_key,
+    tree_id,
+    row_index,
+    col_index,
+    spell_id,
+    name,
+    payload,
+):
+    """Canonical persisted node content, excluding only TraitEdge-derived fields."""
+
+    normalized_payload = copy.deepcopy(_json_value(payload, {}))
+    normalized_payload = normalized_payload if isinstance(normalized_payload, dict) else {}
+    normalized_payload.pop("parentIds", None)
+    normalized_payload.pop("dependencySource", None)
+    normalized_payload["parentMode"] = str(
+        normalized_payload.get("parentMode") or "any"
+    ).strip().lower()
+    return (
+        str(talent_id or ""),
+        str(class_key or ""),
+        str(spec_key or ""),
+        str(tree_id or ""),
+        _int_value(row_index),
+        _int_value(col_index),
+        _int_value(spell_id),
+        str(name or ""),
+        json.dumps(
+            normalized_payload,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ),
+    )
 
 
 def _observed_item_profile_url(item):
@@ -947,42 +1081,24 @@ def promote_community_talent_template_inventory(templates):
     }
 
 
-ADMIN_GATE_QUEUE_STATUSES = {
-    "partial",
-    "stale",
-    "blocked",
-    "missing_credentials",
-    "pending_official_audit",
-    "source_reference",
-}
-
-
-def _admin_gate_queue_summary(rows):
-    total = 0
-    domain_counts = {}
-    blocker_counts = {}
-    for domain, status, row_blockers in rows:
-        blockers = [str(item or "").strip() for item in (row_blockers or []) if str(item or "").strip()]
-        if status not in ADMIN_GATE_QUEUE_STATUSES and not blockers:
-            continue
-        domain_key = str(domain or "unknown")
-        total += 1
-        domain_counts[domain_key] = domain_counts.get(domain_key, 0) + 1
-        for blocker in blockers:
-            blocker_counts[blocker] = blocker_counts.get(blocker, 0) + 1
-    return {
-        "count": total,
-        "domainCounts": domain_counts,
-        "topBlockers": [
-            {"reason": reason, "count": count}
-            for reason, count in sorted(blocker_counts.items(), key=lambda item: (-item[1], item[0]))[:8]
-        ],
-    }
-
-
 class PostgresCacheStore:
-    def __init__(self, connection_factory):
+    def __init__(
+        self,
+        connection_factory,
+        gear_authority_context_cache=None,
+        gear_release_store=None,
+    ):
         self.connection_factory = connection_factory
+        self._gear_authority_context_cache = (
+            gear_authority_context_cache
+            if gear_authority_context_cache is not None
+            else AuthorityContextCache(max_entries=32, max_bytes=4 * 1024 * 1024)
+        )
+        self._gear_release_store = (
+            gear_release_store
+            if gear_release_store is not None
+            else GearReleaseStore(connection_factory)
+        )
 
     @contextmanager
     def connection(self):
@@ -1036,6 +1152,413 @@ class PostgresCacheStore:
             state = {}
         state["updatedAt"] = str(row[1] or "")
         return state
+
+    def get_gear_authority_context(self, selection_intent, runtime_authority):
+        """Load a dormant canonical gear authority context in one read-only transaction."""
+
+        binding = self._active_manifest_binding_for_authority()
+        binding = binding if isinstance(binding, dict) else {}
+        if binding.get("formalActiveManifest") is True:
+            return self._cached_active_authority_context(
+                selection_intent,
+                runtime_authority,
+                binding,
+            )
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SET TRANSACTION READ ONLY")
+                return load_gear_authority_context(
+                    cur,
+                    selection_intent,
+                    runtime_authority,
+                    cache=self._gear_authority_context_cache,
+                )
+
+    def get_community_template_import_context(
+        self,
+        *,
+        class_key,
+        spec_key,
+        template_id,
+        runtime_authority,
+        expected_manifest_revision="",
+    ):
+        """Load one import source and Resolver authority against the same Active Manifest."""
+
+        started = time.perf_counter()
+        binding = self._active_manifest_binding_for_authority()
+        release_context = _community_template_import_release_context(binding)
+        if binding.get("formalActiveManifest") is not True:
+            raise CommunityTemplateImportError(
+                "template_import_unavailable",
+                "The active Season Manifest is temporarily unavailable.",
+                release_context=release_context,
+                unavailable=True,
+            )
+        expected_revision = str(expected_manifest_revision or "").strip()
+        active_revision = str(release_context.get("manifestRevision") or "").strip()
+        if expected_revision and expected_revision != active_revision:
+            raise CommunityTemplateImportError(
+                "manifest_mismatch",
+                "The requested Manifest revision is no longer active.",
+                release_context=release_context,
+            )
+
+        normalized_class = str(class_key or "").strip()
+        normalized_spec = str(spec_key or "").strip()
+        normalized_template = str(template_id or "").strip()
+        cache_identity = _community_template_import_cache_fingerprint(
+            release_context,
+            normalized_class,
+            normalized_spec,
+            normalized_template,
+        )
+        cached = _pg_community_template_import_cache_get(cache_identity)
+        if cached is not None:
+            return {
+                "cache": {"hit": True},
+                "cachedPayload": cached,
+                "releaseReadMs": (time.perf_counter() - started) * 1000,
+                "reconcileMs": 0.0,
+                "cacheIdentity": cache_identity,
+            }
+
+        try:
+            release_rows = self._gear_release_store.load_active_community_template_import(
+                binding,
+                normalized_class,
+                normalized_spec,
+                normalized_template,
+            )
+        except Exception as error:
+            message = str(error)
+            code = "template_not_active" if "exactly one observed winner" in message else "template_import_blocked"
+            title = (
+                "The requested observed template is not active."
+                if code == "template_not_active"
+                else "The requested template cannot be imported safely."
+            )
+            raise CommunityTemplateImportError(
+                code,
+                title,
+                release_context=release_context,
+            ) from error
+
+        source_started = time.perf_counter()
+        source = build_community_template_import_source(
+            release_rows.get("winner"),
+            release_rows.get("variants"),
+            release_rows.get("options"),
+            items=release_rows.get("items"),
+            sources=release_rows.get("sources"),
+        )
+        selection_intent = build_community_template_selection_intent(source)
+        reconcile_ms = (time.perf_counter() - source_started) * 1000
+        if selection_intent is None:
+            return {
+                "cache": {"hit": False},
+                "source": source,
+                "authorityContext": {},
+                "releaseReadMs": (time.perf_counter() - started) * 1000,
+                "reconcileMs": reconcile_ms,
+                "cacheIdentity": cache_identity,
+            }
+        try:
+            authority_context = self._gear_release_store.load_active_authority_context(
+                selection_intent,
+                runtime_authority,
+                binding,
+            )
+        except Exception as error:
+            raise CommunityTemplateImportError(
+                "template_import_unavailable",
+                "Current gear authority is temporarily unavailable.",
+                release_context=release_context,
+                unavailable=True,
+            ) from error
+        return {
+            "cache": {"hit": False},
+            "source": source,
+            "authorityContext": authority_context if isinstance(authority_context, dict) else {},
+            "releaseReadMs": (time.perf_counter() - started) * 1000,
+            "reconcileMs": reconcile_ms,
+            "cacheIdentity": cache_identity,
+        }
+
+    def cache_community_template_import_verified(self, cache_identity, payload):
+        """Cache only a complete immutable import response under its Manifest identity."""
+
+        _pg_community_template_import_cache_put(cache_identity, payload)
+
+    def _active_manifest_binding_for_authority(self):
+        """Reuse a validated binding behind one cheap pointer identity read."""
+
+        pointer_reader = getattr(self._gear_release_store, "get_active_pointer", None)
+        if not callable(pointer_reader):
+            return self._gear_release_store.load_active_manifest_binding()
+        pointer = pointer_reader()
+        pointer = pointer if isinstance(pointer, dict) else {}
+        pointer_mode = str(pointer.get("pointerMode") or "").strip()
+        manifest_revision = str(pointer.get("manifestRevision") or "").strip()
+        generation = _int_value(pointer.get("generation"))
+        if pointer_mode == "active" and manifest_revision:
+            cache_key = f"active-manifest-binding:{generation}:{manifest_revision}"
+            cached = self._gear_authority_context_cache.get(cache_key)
+            if (
+                isinstance(cached, dict)
+                and cached.get("formalActiveManifest") is True
+                and _int_value(cached.get("generation")) == generation
+                and str(cached.get("manifestRevision") or "").strip() == manifest_revision
+            ):
+                return cached
+            binding = self._gear_release_store.load_active_manifest_binding()
+            if (
+                isinstance(binding, dict)
+                and binding.get("formalActiveManifest") is True
+                and _int_value(binding.get("generation")) == generation
+                and str(binding.get("manifestRevision") or "").strip() == manifest_revision
+            ):
+                self._gear_authority_context_cache.put(cache_key, binding)
+            return binding
+        return self._gear_release_store.load_active_manifest_binding()
+
+    def _cached_active_authority_context(
+        self,
+        selection_intent,
+        runtime_authority,
+        binding,
+    ):
+        manifest = binding.get("manifest") if isinstance(binding.get("manifest"), dict) else {}
+        gear_release_id = str(manifest.get("gearCatalogReleaseId") or "").strip()
+        identity = {
+            "selectionIntent": selection_intent if isinstance(selection_intent, dict) else {},
+            "runtimeDependencies": (
+                runtime_authority.get("dependencyRevisions")
+                if isinstance(runtime_authority, dict)
+                and isinstance(runtime_authority.get("dependencyRevisions"), dict)
+                else {}
+            ),
+            "gearReleaseId": gear_release_id,
+            "pointerGeneration": _int_value(binding.get("generation")),
+        }
+        digest = hashlib.sha256(
+            json.dumps(identity, ensure_ascii=False, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
+        ).hexdigest()
+        cache_key = f"active-authority:{digest}"
+        cached = self._gear_authority_context_cache.get(cache_key)
+        if cached is not None:
+            return cached
+        context = self._gear_release_store.load_active_authority_context(
+            selection_intent,
+            runtime_authority,
+            binding,
+        )
+        if isinstance(context, dict) and context.get("missingFields") == []:
+            self._gear_authority_context_cache.put(cache_key, context)
+        return context
+
+    def get_candidate_gear_authority_context(
+        self,
+        selection_intent,
+        runtime_authority,
+        gear_release_id,
+    ):
+        """Read exact inactive Gear Release authority for internal shadow use only."""
+
+        cache_key = candidate_authority_cache_key(
+            selection_intent,
+            runtime_authority,
+            gear_release_id,
+        )
+        cached = self._gear_authority_context_cache.get(cache_key)
+        if cached is not None:
+            return cached
+        context = self._gear_release_store.load_candidate_authority_context(
+            selection_intent,
+            runtime_authority,
+            gear_release_id,
+        )
+        if isinstance(context, dict) and context.get("missingFields") == []:
+            self._gear_authority_context_cache.put(cache_key, context)
+        return context
+
+    def get_candidate_community_release(self, gear_release_id, community_release_id):
+        """Read one exact inactive Community/Gear pair for internal shadow use only."""
+
+        return self._gear_release_store.load_community_release(
+            gear_release_id,
+            community_release_id,
+        )
+
+    def get_active_community_release(self):
+        """Read the exact sealed active pair for internal v2 shadow comparison.
+
+        The public gear payload intentionally projects only the winner payload.
+        This internal method keeps canonical Selection Intent available to the
+        release lifecycle without exposing it through the mini-program API.
+        """
+
+        binding = self._gear_release_store.load_active_manifest_binding()
+        if not isinstance(binding, dict) or binding.get("formalActiveManifest") is not True:
+            return {"formalActiveManifest": False, "winners": []}
+        manifest = binding.get("manifest") if isinstance(binding.get("manifest"), dict) else {}
+        gear_release_id = str(manifest.get("gearCatalogReleaseId") or "").strip()
+        community_release_id = str(manifest.get("communityTemplateReleaseId") or "").strip()
+        if not gear_release_id or not community_release_id:
+            return {
+                "formalActiveManifest": True,
+                "pointerGeneration": binding.get("generation"),
+                "manifestRevision": str(
+                    manifest.get("manifestRevision") or ""
+                ).strip(),
+                "winners": [],
+            }
+        pair = self._gear_release_store.load_community_release(
+            gear_release_id,
+            community_release_id,
+        )
+        return {
+            **pair,
+            "formalActiveManifest": True,
+            "pointerGeneration": binding.get("generation"),
+            "manifestRevision": str(manifest.get("manifestRevision") or "").strip(),
+        }
+
+    def gear_authority_cache_metrics(self):
+        """Expose bounded in-process cache usage for internal shadow evidence."""
+
+        return {
+            "entryCount": self._gear_authority_context_cache.entry_count,
+            "byteSize": self._gear_authority_context_cache.byte_size,
+            "maxEntries": self._gear_authority_context_cache.max_entries,
+            "maxBytes": self._gear_authority_context_cache.max_bytes,
+        }
+
+    def active_manifest_health(self):
+        """Expose truthful formal cutover state without reading mutable staging facts."""
+
+        try:
+            binding = self._gear_release_store.load_active_manifest_binding()
+        except Exception:
+            return {
+                "status": "blocked",
+                "details": {
+                    "pointerMode": "invalid",
+                    "formalActiveManifest": False,
+                    "pointerGeneration": 0,
+                },
+                "blockers": ["active Manifest pointer or release binding is invalid"],
+            }
+        manifest = binding.get("manifest") if isinstance(binding.get("manifest"), dict) else {}
+        mode = str(binding.get("pointerMode") or "invalid")
+        formal = binding.get("formalActiveManifest") is True
+        details = {
+            "pointerMode": mode,
+            "formalActiveManifest": formal,
+            "pointerGeneration": _int_value(binding.get("generation")),
+            "manifestRevision": str(binding.get("manifestRevision") or ""),
+            "rollbackManifestRevision": str(binding.get("rollbackManifestRevision") or ""),
+            "seasonRevision": str(manifest.get("seasonRevision") or ""),
+            "gearCatalogReleaseId": str(manifest.get("gearCatalogReleaseId") or ""),
+            "communityTemplateReleaseId": str(manifest.get("communityTemplateReleaseId") or ""),
+            "talentCatalogRevision": str(manifest.get("talentCatalogRevision") or ""),
+            "updatedAt": str(binding.get("updatedAt") or ""),
+        }
+        if mode == "active" and formal:
+            return {"status": "verified", "details": details, "blockers": []}
+        if mode in {"pre_cutover", "transitional"}:
+            return {
+                "status": "partial",
+                "details": details,
+                "blockers": [
+                    "formal retail Manifest has not been activated"
+                    if mode == "pre_cutover"
+                    else "formal retail Manifest is inactive after transitional rollback"
+                ],
+            }
+        return {
+            "status": "blocked",
+            "details": details,
+            "blockers": ["active Manifest pointer state is invalid"],
+        }
+
+    def release_refresh_health(self):
+        """Project one bounded release-refresh and timer control-plane state."""
+
+        active = self.active_manifest_health()
+        active_details = active.get("details") if isinstance(active.get("details"), dict) else {}
+        try:
+            latest = self._gear_release_store.latest_refresh_state()
+        except Exception:
+            latest = {}
+        latest = latest if isinstance(latest, dict) else {}
+        last_status = str(latest.get("status") or "never_run")
+        if last_status == "promoted":
+            status = "verified"
+        elif last_status in {"blocked", "manual_required", "failed"}:
+            status = "blocked"
+        else:
+            status = "partial"
+        blocker_codes = [str(code) for code in (latest.get("blockerCodes") or [])[:16] if str(code)]
+        blockers = blocker_codes
+        if not latest:
+            blockers = ["gear release refresh has not recorded a controlled run"]
+        elif last_status == "manual_required" and not blockers:
+            blockers = ["latest release candidate requires a controlled cutover"]
+        elif last_status == "failed" and not blockers:
+            blockers = ["latest release refresh failed before a safe pointer decision"]
+        return {
+            "status": status,
+            "details": {
+                "activeManifestRevision": str(active_details.get("manifestRevision") or ""),
+                "activeGearReleaseId": str(active_details.get("gearCatalogReleaseId") or ""),
+                "activeCommunityReleaseId": str(active_details.get("communityTemplateReleaseId") or ""),
+                "pointerGeneration": _int_value(active_details.get("pointerGeneration")),
+                "rollbackManifestRevision": str(active_details.get("rollbackManifestRevision") or ""),
+                "lastEventType": str(latest.get("eventType") or ""),
+                "lastStatus": last_status,
+                "lastRunAt": str(latest.get("checkedAt") or ""),
+                "candidateGearReleaseId": str(latest.get("gearReleaseId") or ""),
+                "candidateCommunityReleaseId": str(latest.get("communityReleaseId") or ""),
+                "candidateManifestRevision": str(latest.get("manifestRevision") or ""),
+                "lastRiskClass": str(latest.get("riskClass") or ""),
+                "lastDecision": str(latest.get("decision") or ""),
+                "counts": latest.get("counts") if isinstance(latest.get("counts"), dict) else {},
+                "gearChange": latest.get("gearChange") if isinstance(latest.get("gearChange"), dict) else {},
+                "sealStatus": latest.get("sealStatus") if isinstance(latest.get("sealStatus"), dict) else {},
+                "shadowStatus": str(latest.get("shadowStatus") or ""),
+                "shadowSpecCount": _int_value(latest.get("shadowSpecCount")),
+                "shadowPerformance": (
+                    latest.get("shadowPerformance")
+                    if isinstance(latest.get("shadowPerformance"), dict)
+                    else {}
+                ),
+                "blockerCodes": blocker_codes,
+                "timer": {
+                    "unit": "wow-gear-release-refresh.timer",
+                    "service": "wow-gear-release-refresh.service",
+                    "schedule": "*-*-* 18:30:00",
+                    "randomizedDelay": "15min",
+                    "persistent": True,
+                    "nextRunAuthority": "systemd",
+                    "deployStartsService": False,
+                },
+            },
+            "blockers": blockers,
+        }
+
+    def get_gear_resolver_context(self, runtime_authority, binding=None):
+        """Load the current Selection Intent authoring revisions without selected facts."""
+
+        binding = binding if isinstance(binding, dict) else self._gear_release_store.load_active_manifest_binding()
+        if binding.get("formalActiveManifest") is True:
+            return self._gear_release_store.active_resolver_context(binding, runtime_authority)
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SET TRANSACTION READ ONLY")
+                cur.execute(AUTHORITY_REVISION_SQL)
+                revision_row = tuple(cur.fetchone() or ())
+                return resolver_authoring_context(revision_row, runtime_authority)
 
     def save_raiderio_payload(self, payload):
         payload = payload if isinstance(payload, dict) else {}
@@ -1815,6 +2338,199 @@ class PostgresCacheStore:
         self.save_sync_state("gearCatalog", state, now)
         return state
 
+    def simc_talent_graph_baseline(self):
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    WITH resolved_talents AS (
+                        SELECT id,
+                               class_key,
+                               spec_key,
+                               tree_id,
+                               name,
+                               payload_json,
+                               row_index,
+                               col_index,
+                               spell_id,
+                               COALESCE(
+                                   NULLIF(payload_json->>'treeType', ''),
+                                   CASE WHEN spec_key = 'class' THEN 'class' ELSE 'spec' END
+                               ) AS tree_type
+                        FROM cache.websim_talents
+                        WHERE spell_id > 0
+                    ), talent_contexts AS (
+                        SELECT id,
+                               class_key,
+                               spec_key,
+                               tree_type,
+                               CASE
+                                   WHEN tree_type = 'hero'
+                                   THEN COALESCE(payload_json->>'heroKey', '')
+                                   ELSE ''
+                               END AS hero_key,
+                               tree_id,
+                               row_index,
+                               col_index,
+                               spell_id,
+                               name,
+                               payload_json->>'nodeId' AS node_id,
+                               payload_json->>'traitId' AS trait_id,
+                               payload_json,
+                               CASE
+                                   WHEN jsonb_typeof(payload_json->'parentIds') = 'array'
+                                   THEN payload_json->'parentIds'
+                                   ELSE '[]'::jsonb
+                               END AS parent_ids
+                        FROM resolved_talents
+                    )
+                    SELECT id,
+                           class_key,
+                           spec_key,
+                           tree_type,
+                           hero_key,
+                           tree_id,
+                           row_index,
+                           col_index,
+                           spell_id,
+                           name,
+                           node_id,
+                           trait_id,
+                           payload_json,
+                           parent_ids
+                    FROM talent_contexts
+                    ORDER BY class_key, spec_key, tree_type, hero_key, id
+                    """
+                )
+                rows = cur.fetchall()
+                cur.execute(
+                    """
+                    SELECT class_key, spec_key, profile
+                    FROM cache.websim_profile_presets
+                    WHERE BTRIM(profile) <> ''
+                    ORDER BY class_key, spec_key, id
+                    """
+                )
+                profile_rows = cur.fetchall()
+
+        contexts_by_key = {}
+        for row in rows:
+            context_key = tuple(str(value or "") for value in row[1:5])
+            context = contexts_by_key.setdefault(
+                context_key,
+                {
+                    "classKey": context_key[0],
+                    "specKey": context_key[1],
+                    "treeType": context_key[2],
+                    "heroKey": context_key[3],
+                    "nodes": 0,
+                    "dependencyNodes": 0,
+                    "dependencies": 0,
+                    "graphEntries": [],
+                    "contentEntries": [],
+                },
+            )
+            talent_id = str(row[0] or "")
+            tree_id = str(row[5] or "")
+            row_index = _int_value(row[6])
+            col_index = _int_value(row[7])
+            spell_id = _int_value(row[8])
+            name = str(row[9] or "")
+            node_id = _int_value(row[10])
+            trait_id = _int_value(row[11])
+            signature_payload = _simc_talent_signature_payload(row[12])
+            parent_ids = _json_value(row[13], [])
+            if not isinstance(parent_ids, list):
+                parent_ids = []
+            parent_ids = sorted(
+                str(parent_id or "").strip()
+                for parent_id in parent_ids
+                if str(parent_id or "").strip()
+            )
+            context["nodes"] += 1
+            context["dependencyNodes"] += int(bool(parent_ids))
+            context["dependencies"] += len(parent_ids)
+            context["contentEntries"].append(
+                simc_talent_persisted_content_identity(
+                    talent_id,
+                    context_key[0],
+                    context_key[1],
+                    tree_id,
+                    row_index,
+                    col_index,
+                    spell_id,
+                    name,
+                    row[12],
+                )
+            )
+            context["graphEntries"].append(
+                (
+                    talent_id,
+                    row_index,
+                    col_index,
+                    spell_id,
+                    node_id,
+                    trait_id,
+                    *signature_payload,
+                    parent_ids,
+                )
+            )
+
+        contexts = []
+        for context_key in sorted(contexts_by_key):
+            context = contexts_by_key[context_key]
+            graph_entries = sorted(context.pop("graphEntries"))
+            content_entries = sorted(context.pop("contentEntries"))
+            context["nodeIds"] = [entry[0] for entry in graph_entries]
+            context["structureSignature"] = hashlib.sha256(
+                json.dumps(
+                    content_entries,
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                ).encode("utf-8")
+            ).hexdigest()
+            context["parentIdsByNode"] = [
+                [entry[0], list(entry[-1])]
+                for entry in graph_entries
+            ]
+            context["graphSignature"] = hashlib.sha256(
+                json.dumps(graph_entries, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+            ).hexdigest()
+            contexts.append(context)
+
+        profile_specs = sorted(
+            {
+                f"{str(class_key or '').strip()}:{str(spec_key or '').strip()}"
+                for class_key, spec_key, profile in profile_rows
+                if str(class_key or "").strip()
+                and str(spec_key or "").strip()
+                and str(profile or "").strip()
+            }
+        )
+        profile_content_signatures = sorted(
+            {
+                (
+                    str(class_key or "").strip(),
+                    str(spec_key or "").strip(),
+                    hashlib.sha256(str(profile or "").strip().encode("utf-8")).hexdigest(),
+                )
+                for class_key, spec_key, profile in profile_rows
+                if str(class_key or "").strip()
+                and str(spec_key or "").strip()
+                and str(profile or "").strip()
+            }
+        )
+        return {
+            "contexts": contexts,
+            "talents": sum(context["nodes"] for context in contexts),
+            "dependencyNodes": sum(context["dependencyNodes"] for context in contexts),
+            "dependencies": sum(context["dependencies"] for context in contexts),
+            "profiles": len(profile_rows),
+            "profileSpecCoverage": len(profile_specs),
+            "profileSpecs": profile_specs,
+            "profileContentSignatures": profile_content_signatures,
+        }
+
     def replace_simc_generated_data(self, data):
         data = data if isinstance(data, dict) else {}
         talents = [item for item in (data.get("talents") or []) if isinstance(item, dict)]
@@ -1956,12 +2672,17 @@ class PostgresCacheStore:
             "spellIcons": int(data.get("spellIcons") or 0),
             "spellLocalizations": int(data.get("spellLocalizations") or 0),
             "dependencies": int(data.get("dependencies") or 0),
+            "dependencyNodes": int(data.get("dependencyNodes") or 0),
+            "specCoverage": int(data.get("specCoverage") or 0),
+            "heroCoverage": int(data.get("heroCoverage") or 0),
+            "profileSpecCoverage": int(data.get("profileSpecCoverage") or 0),
             "build": data.get("build") or "",
             "source": data.get("source") or "",
             "spellTextSource": data.get("spellTextSource") or "",
             "spellIconSource": data.get("spellIconSource") or "",
             "spellLocalizationSource": data.get("spellLocalizationSource") or "",
             "traitEdgeSource": data.get("traitEdgeSource") or "",
+            "traitEdgeError": data.get("traitEdgeError") or "",
         }
 
     def _status_counts(self, table_name):
@@ -2139,12 +2860,12 @@ class PostgresCacheStore:
         counts = {
             "scanRunId": scan_run_id or "",
             "checkedAt": checked_at,
-            "publicImportPolicy": REAL_PLAYER_GEAR_TEMPLATE_PUBLIC_POLICY,
-            "publicImportScope": "all_specs" if REAL_PLAYER_GEAR_TEMPLATE_PUBLIC_POLICY == "all_specs" else "configured_specs",
-            "publicHiddenSourceKeys": sorted([*REAL_PLAYER_GEAR_TEMPLATE_LEGACY_SOURCE_KEYS, "recommended_bis"]),
+            "publicImportPolicy": gear_public_contract.REAL_PLAYER_GEAR_TEMPLATE_PUBLIC_POLICY,
+            "publicImportScope": "all_specs" if gear_public_contract.REAL_PLAYER_GEAR_TEMPLATE_PUBLIC_POLICY == "all_specs" else "configured_specs",
+            "publicHiddenSourceKeys": sorted([*gear_public_contract.REAL_PLAYER_GEAR_TEMPLATE_LEGACY_SOURCE_KEYS, "recommended_bis"]),
             "destructiveCleanupScope": [
                 f"{class_key}:{spec_key}"
-                for class_key, spec_key in sorted(REAL_PLAYER_GEAR_TEMPLATE_PILOT_SPECS)
+                for class_key, spec_key in sorted(gear_public_contract.REAL_PLAYER_GEAR_TEMPLATE_PILOT_SPECS)
             ],
             "communityTemplateRowsDeleted": 0,
             "legacyTemplateRowsDeleted": 0,
@@ -2154,18 +2875,18 @@ class PostgresCacheStore:
             "renamedTemplateRows": 0,
             "observedVariantRowsBackfilled": 0,
         }
-        if not REAL_PLAYER_GEAR_TEMPLATE_PILOT_SPECS:
+        if not gear_public_contract.REAL_PLAYER_GEAR_TEMPLATE_PILOT_SPECS:
             return counts
-        legacy_source_keys = sorted(REAL_PLAYER_GEAR_TEMPLATE_LEGACY_SOURCE_KEYS)
+        legacy_source_keys = sorted(gear_public_contract.REAL_PLAYER_GEAR_TEMPLATE_LEGACY_SOURCE_KEYS)
         with self.connection() as conn:
             with conn.cursor() as cur:
-                for class_key, spec_key in sorted(REAL_PLAYER_GEAR_TEMPLATE_PILOT_SPECS):
-                    observed_template_id = real_player_gear_template_observed_template_id(class_key, spec_key)
-                    observed_profile_url = real_player_gear_template_observed_profile_url(class_key, spec_key)
-                    observed_display_name = real_player_gear_template_observed_display_name(class_key, spec_key)
-                    observed_source_name = real_player_gear_template_observed_source_name(class_key, spec_key)
-                    recommended_display_name = real_player_gear_template_recommended_display_name(class_key, spec_key)
-                    recommended_source_name = real_player_gear_template_recommended_source_name(class_key, spec_key)
+                for class_key, spec_key in sorted(gear_public_contract.REAL_PLAYER_GEAR_TEMPLATE_PILOT_SPECS):
+                    observed_template_id = gear_public_contract.real_player_gear_template_observed_template_id(class_key, spec_key)
+                    observed_profile_url = gear_public_contract.real_player_gear_template_observed_profile_url(class_key, spec_key)
+                    observed_display_name = gear_public_contract.real_player_gear_template_observed_display_name(class_key, spec_key)
+                    observed_source_name = gear_public_contract.real_player_gear_template_observed_source_name(class_key, spec_key)
+                    recommended_display_name = gear_public_contract.real_player_gear_template_recommended_display_name(class_key, spec_key)
+                    recommended_source_name = gear_public_contract.real_player_gear_template_recommended_source_name(class_key, spec_key)
                     cur.execute(
                         """
                         DELETE FROM cache.websim_community_gear_templates
@@ -2368,9 +3089,9 @@ class PostgresCacheStore:
             spec_id = f"{class_key}:{spec_key}" if class_key and spec_key else ""
             if spec_id not in grouped:
                 continue
-            if is_baseline_gear_template(template):
+            if gear_public_contract.is_baseline_gear_template(template):
                 grouped[spec_id]["baseline"].append(template)
-            elif is_real_community_gear_template(template):
+            elif gear_public_contract.is_real_community_gear_template(template):
                 grouped[spec_id]["community"].append(template)
 
         complete_specs = []
@@ -2531,8 +3252,8 @@ class PostgresCacheStore:
             "baselineTemplates": preflight["baseline"],
             "communityImportTemplates": preflight["communityImport"],
             "templateChains": websim_gear_template_chain_state(
-                [template for template in templates if not is_baseline_gear_template(template)],
-                [template for template in templates if is_baseline_gear_template(template)],
+                [template for template in templates if not gear_public_contract.is_baseline_gear_template(template)],
+                [template for template in templates if gear_public_contract.is_baseline_gear_template(template)],
                 expected_spec_ids=[spec_id for spec_id, _class_key, _spec_key in expected_specs],
                 checked_at=checked_at,
             ),
@@ -3936,41 +4657,20 @@ class PostgresCacheStore:
     def _season_recommended_catalog_candidates_by_slot(self, class_key, spec_key):
         season = self.get_active_season_payload()
         raw_rows = self._season_recommended_catalog_raw_rows()
-        catalog_items = self._gear_catalog_items(
+        catalog_items = pg_gear_read_model_selectors.build_gear_catalog_items_read_model(
             raw_rows.get("itemRows") or [],
-            self._gear_sources_by_item(raw_rows.get("sourceRows") or []),
-            self._gear_variants_by_item(raw_rows.get("variantRows") or []),
+            pg_gear_read_model_selectors.build_gear_sources_by_item_read_model(raw_rows.get("sourceRows") or []),
+            pg_gear_read_model_selectors.build_gear_variants_by_item_read_model(raw_rows.get("variantRows") or []),
             raw_rows.get("rawOptionsBySlot") or {},
             class_key,
             spec_key,
             season,
         )
-        catalog_items = sorted(catalog_items, key=gear_candidate_quality_score, reverse=True)
-        grouped = {slot: [] for slot in CANONICAL_GEAR_SLOTS}
-        for item in catalog_items:
-            candidate_slots = gear_candidate_slots(item, class_key, spec_key)
-            if not candidate_slots:
-                checked = apply_gear_candidate_legality(item, class_key, spec_key, item.get("slot"))
-                if gear_candidate_incompatible(checked):
-                    continue
-            for candidate_slot in candidate_slots:
-                if candidate_slot in grouped:
-                    candidate = apply_gear_candidate_legality(
-                        gear_candidate_for_slot(item, candidate_slot),
-                        class_key,
-                        spec_key,
-                        candidate_slot,
-                    )
-                    if gear_candidate_incompatible(candidate):
-                        continue
-                    grouped[candidate_slot].append(candidate)
-        return {
-            slot: limit_replacement_candidates(
-                sorted(unique_gear_candidates(items), key=gear_candidate_quality_score, reverse=True),
-                24,
-            )
-            for slot, items in grouped.items()
-        }
+        return pg_gear_read_model_selectors.build_season_recommended_catalog_candidates_by_slot_read_model(
+            catalog_items,
+            class_key,
+            spec_key,
+        )
 
     def _season_recommended_candidate_pools(self, class_key, spec_key, community_candidates):
         pools = {slot: [] for slot in CANONICAL_GEAR_SLOTS}
@@ -4037,7 +4737,7 @@ class PostgresCacheStore:
             template = self._community_gear_template_from_row(row, official_metadata_by_id, normalize_coverage=True)
             class_key = slugify(template.get("classKey"), "")
             spec_key = slugify(template.get("specKey"), "")
-            if not class_key or not spec_key or not is_real_community_gear_template(template):
+            if not class_key or not spec_key or not gear_public_contract.is_real_community_gear_template(template):
                 continue
             gated_template = apply_gear_template_legality_gate(template, class_key, spec_key)
             if gated_template.get("status") not in {"complete", "partial"} or not template.get("gearItems"):
@@ -4056,7 +4756,7 @@ class PostgresCacheStore:
         generated = []
         checked_at = utc_now()
         for (class_key, spec_key), candidates in sorted(grouped.items()):
-            if real_player_gear_template_pilot_spec(class_key, spec_key):
+            if gear_public_contract.real_player_gear_template_pilot_spec(class_key, spec_key):
                 continue
             best = select_community_best_gear_templates(
                 candidates,
@@ -4173,7 +4873,7 @@ class PostgresCacheStore:
             template = self._community_gear_template_from_row(row, official_metadata_by_id, normalize_coverage=True)
             class_key = slugify(template.get("classKey"), "")
             spec_key = slugify(template.get("specKey"), "")
-            if not class_key or not spec_key or not is_real_community_gear_template(template):
+            if not class_key or not spec_key or not gear_public_contract.is_real_community_gear_template(template):
                 continue
             gated_template = apply_gear_template_legality_gate(template, class_key, spec_key)
             if gated_template.get("status") not in {"complete", "partial"} or not template.get("gearItems"):
@@ -5124,20 +5824,7 @@ class PostgresCacheStore:
                     """
                 )
                 row = cur.fetchone()
-        if not row:
-            return {
-                "sourceStatus": "blocked",
-                "status": "blocked",
-                "errors": ["PostgreSQL Raider.IO cache is missing"],
-            }
-        payload = _json_value(row[0], {})
-        if not isinstance(payload, dict):
-            payload = {}
-        payload.setdefault("checkedAt", str(row[1] or ""))
-        payload.setdefault("updatedAt", str(row[1] or ""))
-        payload.setdefault("expiresAt", str(row[2] or ""))
-        payload.setdefault("sourceStatus", payload.get("status") or "blocked")
-        return payload
+        return pg_cache_read_model_selectors.build_raiderio_cache_read_model(row)
 
     def get_stat_weight_payload(self, class_key, spec_key, scenario_key):
         cache_key = f"{slugify(class_key, '')}:{slugify(spec_key, '')}:{str(scenario_key or '').strip()}"
@@ -5155,19 +5842,12 @@ class PostgresCacheStore:
                     (cache_key,),
                 )
                 row = cur.fetchone()
-        if not row:
-            return None
-        payload = _json_value(row[0], {})
-        if not isinstance(payload, dict):
-            payload = {}
-        payload.setdefault("classKey", slugify(class_key, ""))
-        payload.setdefault("specKey", slugify(spec_key, ""))
-        payload.setdefault("scenarioKey", scenario_key)
-        payload.setdefault("sourceStatus", row[1] or payload.get("status") or "blocked")
-        payload.setdefault("status", payload.get("sourceStatus") or "blocked")
-        payload.setdefault("checkedAt", str(row[2] or ""))
-        payload.setdefault("updatedAt", str(row[2] or ""))
-        return payload
+        return pg_cache_read_model_selectors.build_stat_weight_cache_read_model(
+            row,
+            class_key=slugify(class_key, ""),
+            spec_key=slugify(spec_key, ""),
+            scenario_key=scenario_key,
+        )
 
     def latest_stat_weight_run_payload(self):
         with self.connection() as conn:
@@ -5181,32 +5861,7 @@ class PostgresCacheStore:
                     """
                 )
                 rows = cur.fetchall()
-        if not rows:
-            return {
-                "refreshMode": "",
-                "refreshedAt": "",
-                "status": "blocked",
-                "sourceStatus": "blocked",
-                "acceptedCount": 0,
-                "blockedCount": 0,
-                "errors": ["PostgreSQL stat weight cache is empty"],
-            }
-        accepted_statuses = {"verified", "partial", "stale"}
-        accepted = sum(1 for row in rows if str(row[0] or "").strip() in accepted_statuses)
-        blocked = len(rows) - accepted
-        status = "verified" if accepted and not blocked else ("partial" if accepted else "blocked")
-        latest = max((str(row[1] or "") for row in rows), default="")
-        return {
-            "refreshMode": "postgres_cache",
-            "refreshedAt": latest,
-            "status": status,
-            "sourceStatus": status,
-            "acceptedCount": accepted,
-            "blockedCount": blocked,
-            "specCount": 0,
-            "scenarioCount": len(rows),
-            "errors": [],
-        }
+        return pg_cache_read_model_selectors.build_stat_weight_latest_run_read_model(rows)
 
     def enrich_builds_detail_stat_weights(self, payload):
         if not isinstance(payload, dict):
@@ -5246,33 +5901,6 @@ class PostgresCacheStore:
                 row = cur.fetchone()
                 if not row:
                     return {}
-                payload = _json_value(row[8], {})
-                if not isinstance(payload, dict) or not payload.get("seasonRevision"):
-                    payload = current_season_payload(
-                        season_id=row[0],
-                        season_label=row[1],
-                        locale=row[3] or DEFAULT_LOCALE,
-                        dungeons=[],
-                        data_status=row[4],
-                        verified_at=str(row[5] or ""),
-                        expires_at=str(row[6] or ""),
-                        source_refs=_json_value(row[7], []),
-                    )
-                payload["seasonId"] = row[0]
-                payload["id"] = row[0]
-                payload["seasonLabel"] = row[1]
-                payload["label"] = row[1]
-                payload["seasonRevision"] = row[2]
-                payload["revision"] = row[2]
-                payload["locale"] = row[3] or DEFAULT_LOCALE
-                expired = bool(_datetime_value(row[6]) and _datetime_value(row[6]) <= datetime.now(timezone.utc))
-                payload["dataStatus"] = "stale" if expired else row[4]
-                payload["verifiedAt"] = str(row[5] or "")
-                payload["expiresAt"] = str(row[6] or "")
-                payload["sourceRefs"] = _json_value(row[7], [])
-                if expired:
-                    errors = payload.get("errors") if isinstance(payload.get("errors"), list) else []
-                    payload["errors"] = [*errors, "season cache expired"]
                 cur.execute(
                     """
                     SELECT dungeon_id, instance_id, name, short_name, timer_seconds, payload_json
@@ -5283,21 +5911,7 @@ class PostgresCacheStore:
                     (row[2],),
                 )
                 dungeons = cur.fetchall()
-        payload["dungeons"] = [
-            {
-                "id": dungeon_row[0],
-                "dungeonId": dungeon_row[0],
-                "instanceId": dungeon_row[1],
-                "name": dungeon_row[2],
-                "shortName": dungeon_row[3],
-                "timerSeconds": dungeon_row[4],
-                "sourceRefs": payload["sourceRefs"],
-                "payload": _json_value(dungeon_row[5], {}),
-            }
-            for dungeon_row in dungeons
-        ]
-        normalize_current_season_raid_pool_payload(payload)
-        return payload
+        return pg_season_read_model_selectors.build_active_season_read_model(row, dungeons)
 
     def get_websim_instances(self):
         season = self.get_active_season_payload()
@@ -5323,13 +5937,7 @@ class PostgresCacheStore:
                     """
                 )
                 encounter_rows = cur.fetchall()
-        encounters = {}
-        for row in encounter_rows:
-            encounters.setdefault(row[1], []).append({"id": row[0], "instanceId": row[1], "name": row[2]})
-        return [
-            {"id": row[0], "name": row[1], "category": row[2], "encounters": encounters.get(row[0], [])}
-            for row in rows
-        ]
+        return pg_gear_read_model_selectors.build_websim_instances_read_model(rows, encounter_rows)
 
     def get_websim_default_selection(self):
         with self.connection() as conn:
@@ -5361,29 +5969,23 @@ class PostgresCacheStore:
                         """
                     )
                     row = cur.fetchone()
-        return {
-            "classKey": row[0] if row else "mage",
-            "specKey": row[1] if row else "arcane",
-        }
+        return pg_gear_read_model_selectors.build_websim_default_selection_read_model(row)
 
     def get_websim_bootstrap(self):
         season = self.get_active_season_payload()
         season_fields = season_metadata_fields(season)
-        return {
-            "navTitle": "WebSim",
-            "title": "SimC 构筑工坊",
-            "region": "us",
-            "locale": season_fields["locale"],
-            "localeFallbacks": unique_locale_preferences(season_fields["locale"]),
-            "classes": classes_payload(),
-            "gearSlots": gear_slot_payload(),
-            "scenarios": SCENARIOS,
-            "instances": self.get_websim_instances(),
-            "syncState": self.get_sync_state("websim_sync") or {"ok": False, "errors": ["PostgreSQL websim cache has not been synced"]},
-            "defaultSelection": self.get_websim_default_selection(),
-            "simcraftVersion": simc_version_payload(),
-            **season_fields,
-        }
+        sync_state = self.get_sync_state("websim_sync") or {"ok": False, "errors": ["PostgreSQL websim cache has not been synced"]}
+        return pg_gear_read_model_selectors.build_websim_bootstrap_read_model(
+            season_fields,
+            locale_fallbacks=unique_locale_preferences(season_fields["locale"]),
+            classes=classes_payload(),
+            gear_slots=gear_slot_payload(),
+            scenarios=SCENARIOS,
+            instances=self.get_websim_instances(),
+            sync_state=sync_state,
+            default_selection=self.get_websim_default_selection(),
+            simcraft_version=simc_version_payload(),
+        )
 
     def get_websim_assets(self, filters=None):
         filters = filters or {}
@@ -5427,39 +6029,16 @@ class PostgresCacheStore:
                 "status": "blocked",
                 "blockers": [f"PostgreSQL WebSim asset registry is not available: {error}"],
             }
-        assets = [game_asset_from_registry_row(row) for row in rows]
-        counts = {"byStatus": {}, "bySource": {}}
-        for asset in assets:
-            counts["byStatus"][asset["status"]] = counts["byStatus"].get(asset["status"], 0) + 1
-            counts["bySource"][asset["source"]] = counts["bySource"].get(asset["source"], 0) + 1
-        return {
-            "assets": assets,
-            "counts": counts,
-            "status": "verified" if assets else "empty",
-            "blockers": [],
-        }
+        return pg_gear_read_model_selectors.build_websim_assets_read_model(rows)
 
     def _talent_authority_payload(self, talent_status, season, nodes, sync_state):
-        simc_state = sync_state.get("simc") if isinstance(sync_state.get("simc"), dict) else {}
-        runtime_source = "fallback" if talent_status == "fallback" else "simc"
-        return {
-            "schemaRevision": TALENT_SCHEMA_REVISION,
-            "runtimeSource": runtime_source,
-            "diffStatus": "verified" if talent_status == "verified" else "pending_official_audit",
-            "checkedAt": sync_state.get("checkedAt") or sync_state.get("updatedAt") or utc_now(),
-            "runtime": {
-                "status": talent_status,
-                "source": runtime_source,
-                "simcBuild": simc_state.get("build") or "",
-                "traitEdgeSource": simc_state.get("traitEdgeSource") or "",
-                "nodeCount": len(nodes or []),
-            },
-            "official": {
-                "status": "pending_audit",
-                "revision": season.get("seasonRevision") or season.get("revision") or "",
-                "source": "blizzard-game-data-api",
-            },
-        }
+        return pg_gear_read_model_selectors.build_websim_talent_authority_read_model(
+            talent_status,
+            season,
+            nodes,
+            sync_state,
+            schema_revision=TALENT_SCHEMA_REVISION,
+        )
 
     def _websim_presets(self, cur, class_key, spec_key):
         cur.execute(
@@ -5475,18 +6054,7 @@ class PostgresCacheStore:
         rows = cur.fetchall()
         if not rows:
             return fallback_presets(class_key, spec_key)
-        return [
-            {
-                "id": row[0],
-                "classKey": row[1],
-                "specKey": row[2],
-                "name": row[3],
-                "profile": row[4],
-                "payload": _json_value(row[5], {}),
-                "updatedAt": str(row[6] or ""),
-            }
-            for row in rows
-        ]
+        return pg_gear_read_model_selectors.build_websim_profile_presets_read_model(rows)
 
     def _community_talent_templates(self, cur, class_key, spec_key, hero_key=""):
         cur.execute(
@@ -5507,55 +6075,12 @@ class PostgresCacheStore:
             (class_key, spec_key),
         )
         rows = cur.fetchall()
-        templates = []
-        for row in rows:
-            talent_state = _json_value(row[12], {"selectedNodes": []})
-            if not isinstance(talent_state, dict):
-                talent_state = {"selectedNodes": []}
-            payload = _json_value(row[18], {})
-            payload = payload if isinstance(payload, dict) else {}
-            websim_export_code = row[11] or ""
-            raw_import_code = row[10] or ""
-            selected_nodes = talent_state.get("selectedNodes") if isinstance(talent_state.get("selectedNodes"), list) else []
-            can_apply_visual = bool(str(websim_export_code).startswith("websim:") and selected_nodes)
-            raiderio_payload = payload.get("raiderio") if isinstance(payload.get("raiderio"), dict) else {}
-            player_id = str(payload.get("playerId") or raiderio_payload.get("characterName") or "").strip()
-            templates.append(
-                {
-                    "id": str(row[0]),
-                    "classKey": row[1],
-                    "specKey": row[2],
-                    "heroKey": row[3],
-                    "scenarioKey": row[4],
-                    "name": row[5],
-                    "flowLabel": row[6],
-                    "sourceKey": row[7],
-                    "sourceName": row[8],
-                    "sourceUrl": row[9],
-                    "rawImportCode": raw_import_code,
-                    "websimExportCode": websim_export_code,
-                    "talentState": talent_state,
-                    "sampleCount": _int_value(row[13]),
-                    "maxKeyLevel": _int_value(row[14]),
-                    "analysisWindow": row[15],
-                    "sourceStatus": row[16],
-                    "status": row[17],
-                    "payload": payload,
-                    "signature": row[21] or "",
-                    "sourceRefs": normalize_source_refs(_json_value(row[22], []) or []),
-                    "scanRunId": row[23] or "",
-                    "playerId": player_id,
-                    "classLabel": payload.get("classLabel") or class_label(row[1]),
-                    "specLabel": payload.get("specLabel") or spec_label(row[2]),
-                    "heroLabel": payload.get("heroLabel") or hero_tree_label(row[3]),
-                    "scenarioTitle": payload.get("scenarioTitle") or scenario_title(row[4]),
-                    "updatedAt": str(row[19] or ""),
-                    "expiresAt": str(row[20] or ""),
-                    "canApplyVisual": can_apply_visual,
-                    "canUseInSimc": bool(can_apply_visual or raw_import_code),
-                }
-            )
-        return community_talent_templates_for_spec_slots(class_key, spec_key, templates, hero_key)
+        return pg_gear_read_model_selectors.build_websim_community_talent_templates_read_model(
+            rows,
+            class_key,
+            spec_key,
+            hero_key,
+        )
 
     def get_websim_talents(self, class_key="mage", spec_key="arcane", hero_key=""):
         season = self.get_active_season_payload()
@@ -5630,33 +6155,21 @@ class PostgresCacheStore:
             tree_sections,
             talent_authority,
         )
-        community_state = dict(community_state) if isinstance(community_state, dict) else {}
-        community_state["activeSpecSlots"] = community_talent_template_slot_summary(community_templates)
-        community_state.setdefault(
-            "templates",
-            {
-                "total": len(community_templates),
-                "verified": len([item for item in community_templates if item.get("status") == "verified"]),
-                "blocked": 0,
-            },
+        return pg_gear_read_model_selectors.build_websim_talents_read_model(
+            class_key,
+            spec_key,
+            hero_key,
+            schema_revision=TALENT_SCHEMA_REVISION,
+            talent_authority=talent_authority,
+            talent_readiness=talent_readiness,
+            nodes=nodes,
+            presets=presets,
+            community_templates=community_templates,
+            community_state=community_state,
+            tree_sections=tree_sections,
+            talent_status=talent_status,
+            season=season,
         )
-        season_blockers = season.get("errors") if isinstance(season.get("errors"), list) else []
-        return {
-            "classKey": class_key,
-            "specKey": spec_key,
-            "heroKey": hero_key,
-            "talentSchemaRevision": TALENT_SCHEMA_REVISION,
-            "talentAuthority": talent_authority,
-            "talentReadiness": talent_readiness,
-            "blockers": unique_text_list([*(talent_readiness.get("blockers") or []), *season_blockers]),
-            "nodes": nodes,
-            "presets": presets,
-            "communityTemplates": community_templates,
-            "communityTemplateSync": community_state,
-            "treeSections": tree_sections,
-            "talentStatus": talent_status,
-            **season_metadata_fields(season),
-        }
 
     def get_websim_talent_import(self, class_key="mage", spec_key="arcane", hero_key=""):
         season = self.get_active_season_payload()
@@ -5697,182 +6210,8 @@ class PostgresCacheStore:
             class_key,
             spec_key,
             hero_key,
-            template={
-                "id": row[0],
-                "classKey": row[1],
-                "specKey": row[2],
-                "heroKey": row[3],
-                "scenarioKey": row[4],
-                "name": row[5],
-                "sourceKey": row[6],
-                "sourceName": row[7],
-                "sourceUrl": row[8],
-                "rawImportCode": row[9],
-                "sourceStatus": row[10],
-                "status": row[11],
-                "sampleCount": _int_value(row[12]),
-                "maxKeyLevel": _int_value(row[13]),
-                "analysisWindow": row[14] or "",
-                "updatedAt": str(row[15] or ""),
-                "canUseInSimc": True,
-            },
+            template=pg_gear_read_model_selectors.build_websim_talent_import_template_read_model(row),
         )
-
-    def _gear_sources_by_item(self, rows):
-        result = {}
-        for row in rows:
-            payload = _json_value(row[9], {})
-            payload = payload if isinstance(payload, dict) else {}
-            label = str(row[4] or row[3] or row[2] or "").strip()
-            source = {
-                "id": str(row[0]),
-                "itemId": str(row[1]),
-                "sourceType": row[2],
-                "sourceKey": row[3],
-                "label": label,
-                "sourceLabel": label,
-                "instanceId": row[5],
-                "encounterId": row[6],
-                "difficultyKey": row[7],
-                "difficultyLabel": localized_difficulty_label(row[7], label, row[2]),
-                "seasonRevision": row[8],
-                "payload": payload,
-                "updatedAt": str(row[10] or ""),
-            }
-            if payload.get("recommendationScore") is not None:
-                source["recommendationScore"] = payload.get("recommendationScore")
-            result.setdefault(str(row[1]), []).append(source)
-        return result
-
-    def _gear_variants_by_item(self, rows):
-        result = {}
-        for row in rows:
-            simc_options = _json_value(row[8], {})
-            if not isinstance(simc_options, dict):
-                simc_options = {}
-            blockers = _json_value(row[10], [])
-            if not isinstance(blockers, list):
-                blockers = [str(blockers)]
-            payload = _json_value(row[11], {})
-            payload = payload if isinstance(payload, dict) else {}
-            item_level = _int_value(row[7])
-            variant = {
-                "id": str(row[0]),
-                "itemId": str(row[1]),
-                "slot": normalize_slot(row[2]),
-                "key": row[3],
-                "variantKey": row[3],
-                "label": row[4],
-                "difficultyLabel": localized_difficulty_label(row[6], row[4], row[5]),
-                "sourceType": row[5],
-                "difficultyKey": row[6],
-                "itemLevel": item_level,
-                "ilevel": item_level,
-                "simcOptions": simc_options,
-                "status": row[9] or "blocked",
-                "blockers": [str(item) for item in blockers if str(item or "").strip()],
-                "payload": payload,
-                "updatedAt": str(row[12] or ""),
-            }
-            if payload.get("simcIlevelOnly"):
-                variant["simcIlevelOnly"] = True
-            result.setdefault(str(row[1]), []).append(variant)
-        return result
-
-    def _gear_mod_options_by_slot(self, rows):
-        result = {slot: [] for slot in CANONICAL_GEAR_SLOTS}
-        for row in rows:
-            option_type = str(row[1] or "").strip().lower()
-            slots = _json_value(row[4], [])
-            if isinstance(slots, str):
-                slots = [slots]
-            if not isinstance(slots, list):
-                slots = []
-            normalized_slots = [normalize_slot(slot) for slot in slots]
-            normalized_slots = [slot for slot in normalized_slots if slot]
-            if not normalized_slots or "*" in slots:
-                normalized_slots = list(CANONICAL_GEAR_SLOTS)
-            simc_options = _json_value(row[5], {})
-            if not isinstance(simc_options, dict):
-                simc_options = {}
-            simc_options = {
-                key: normalize_option_value(value)
-                for key, value in simc_options.items()
-                if key in SIMC_GEAR_OPTION_KEYS
-            }
-            payload = _json_value(row[7], {})
-            payload = payload if isinstance(payload, dict) else {}
-            payload = gear_mod_option_payload_with_config_policy(
-                option_type,
-                row[3],
-                simc_options,
-                payload,
-                normalized_slots,
-            )
-            if not gear_mod_option_is_supported_config_option(option_type, simc_options, payload, row[3]):
-                continue
-            display_fields = gear_mod_option_display_fields(option_type, row[3], simc_options, payload)
-            label = str(
-                display_fields.get("displayLabel")
-                or payload.get("displayLabel")
-                or payload.get("displayName")
-                or row[3]
-                or row[2]
-                or ""
-            ).strip()
-            option = {
-                "id": str(row[0]),
-                "type": option_type,
-                "optionType": option_type,
-                "name": label,
-                "label": label,
-                "rawName": row[3],
-                "simcOptions": simc_options,
-                "status": row[6] or "blocked",
-                "payload": payload,
-                "updatedAt": str(row[8] or ""),
-            }
-            option = apply_gear_mod_option_display_fields(option, display_fields)
-            for key in (
-                "displayName",
-                "displayLabel",
-                "displayKind",
-                "displayStatus",
-                "evidenceSource",
-                "evidenceRef",
-                "iconUrl",
-                "quality",
-                "gameAsset",
-                "metadataStatus",
-                "metadataSource",
-                "metadataLocale",
-                "itemStats",
-                "statSummary",
-                "slotGroup",
-                "slot_group",
-                "uniqueEquipped",
-                "unique_equipped",
-                "uniqueGroup",
-                "unique_group",
-                "uniqueLimit",
-                "unique_limit",
-                "uniqueScope",
-                "unique_scope",
-                "configCategory",
-                "config_category",
-                "exclusionReason",
-                "exclusion_reason",
-                "itemTypeRule",
-                "item_type_rule",
-            ):
-                if payload.get(key) not in (None, "", [], {}):
-                    if key in {"displayName", "displayLabel", "displayKind", "displayStatus", "evidenceSource", "evidenceRef"} and option.get(key) not in (None, "", [], {}):
-                        continue
-                    option[key] = payload.get(key)
-            for slot in normalized_slots:
-                if slot in result:
-                    result[slot].append(option)
-        return result
 
     def _gear_payload_fingerprint(self, cur, class_key, spec_key, compact, season, catalog_state, mode="", slot=""):
         cur.execute(
@@ -5918,27 +6257,6 @@ class PostgresCacheStore:
             table_rows,
         )
 
-    def _compact_initial_gear_item(self, item, compact=False):
-        items = compact_gear_candidates([item], include_mod_options=False) if compact else [dict(item)]
-        if not items:
-            return {}
-        output = dict(items[0])
-        output["detailMode"] = "summary"
-        output["slotDetailAvailable"] = True
-        return output
-
-    def _template_gear_by_slot(self, template, compact=False):
-        result = {}
-        for item in template.get("gearItems") or []:
-            if not isinstance(item, dict):
-                continue
-            slot = normalize_slot(item.get("simcSlot") or item.get("slot"))
-            if slot in CANONICAL_GEAR_SLOTS and slot not in result:
-                initial_item = self._compact_initial_gear_item(item, compact=compact)
-                if initial_item:
-                    result[slot] = initial_item
-        return result
-
     def _websim_gear_initial_payload(
         self,
         class_key,
@@ -5950,148 +6268,49 @@ class PostgresCacheStore:
         catalog_blockers,
         persisted_templates,
     ):
-        community_templates = select_community_best_gear_templates(
-            [template for template in persisted_templates if is_real_community_gear_template(template)],
+        template_read_model = pg_gear_template_selectors.build_public_gear_template_read_model(
+            persisted_templates,
             class_key,
             spec_key,
+            compact=compact,
         )
-        community_templates = public_gear_templates_for_spec(community_templates, class_key, spec_key)
-        if not community_templates and not real_player_gear_template_public_import_spec(class_key, spec_key):
-            community_templates = [pending_community_gear_template(class_key, spec_key)]
-        baseline_templates = public_gear_templates_for_spec(
-            select_best_baseline_gear_templates(
-                [template for template in persisted_templates if is_baseline_gear_template(template)]
-            ),
-            class_key,
-            spec_key,
-        )
-        if not baseline_templates:
-            baseline_templates = public_baseline_fallback_templates_for_spec(class_key, spec_key)
-        community_templates = [
-            apply_gear_template_legality_gate(template, class_key, spec_key)
-            for template in community_templates
-        ]
-        baseline_templates = [
-            apply_gear_template_legality_gate(template, class_key, spec_key)
-            for template in baseline_templates
-        ]
-        community_templates = public_gear_templates_for_spec(community_templates, class_key, spec_key)
-        baseline_templates = public_gear_templates_for_spec(baseline_templates, class_key, spec_key)
+        community_templates = template_read_model["selectedCommunityTemplates"]
+        baseline_templates = template_read_model["selectedBaselineTemplates"]
         baseline_template = baseline_templates[0] if baseline_templates else {}
-        baseline_items = baseline_template.get("gearItems") or []
-        equipped_set = self._template_gear_by_slot(baseline_template, compact=compact)
-        slot_groups = []
-        for slot in CANONICAL_GEAR_SLOTS:
-            item = equipped_set.get(slot)
-            slot_groups.append(
-                {
-                    "slot": slot,
-                    "simcSlot": slot,
-                    "label": GEAR_SLOT_LABELS.get(slot, slot),
-                    "items": [item] if item else [],
-                    "detailMode": "partial",
-                    "fullItemCount": 1 if item else 0,
-                }
-            )
-        output_baseline_set = compact_gear_candidates(baseline_items, include_mod_options=False) if compact else baseline_items
-        output_community_templates = (
-            [compact_community_gear_template(template) for template in community_templates]
-            if compact
-            else community_templates
+        initial_read_model = pg_gear_read_model_selectors.build_initial_gear_read_model_fragment(
+            baseline_template,
+            class_key,
+            spec_key,
+            compact=compact,
         )
-        output_baseline_templates = (
-            [compact_community_gear_template(template) for template in baseline_templates]
-            if compact
-            else baseline_templates
+        readiness = initial_read_model["readiness"]
+        catalog_state_read_model = pg_gear_read_model_selectors.build_catalog_state_read_model_fragment(
+            catalog_state,
+            catalog_blockers,
         )
-        readiness = gear_readiness(baseline_items)
+        common_read_model = pg_gear_read_model_selectors.build_common_gear_read_model_fragment(
+            class_key,
+            spec_key,
+            readiness,
+        )
         payload = {
             "classKey": class_key,
             "specKey": spec_key,
             "gearPayloadMode": "initial",
             "gearInitialCandidateLimit": 1,
-            "weaponRule": weapon_equipment_rule_payload(class_key, spec_key),
-            "slots": gear_slot_payload(),
-            "replacementCandidates": slot_groups,
-            "equippedSet": equipped_set,
-            "slotReadiness": gear_slot_readiness(baseline_items, class_key, spec_key),
-            "baselineSet": output_baseline_set,
-            "communityTemplates": output_community_templates,
-            "baselineTemplates": output_baseline_templates,
-            "communityTemplateSync": websim_gear_community_template_sync_state(
-                [*community_templates, *baseline_templates]
-            ),
-            "readiness": readiness,
-            "statSnapshot": blocked_stat_snapshot(
-                ["Select complete SimC-ready gear and talents to calculate a verified stat snapshot."],
-                class_key=class_key,
-                spec_key=spec_key,
-                gear_readiness_payload=readiness,
-            ),
-            "gearSchemaRevision": GEAR_SCHEMA_REVISION,
-            "gearCatalogRevision": catalog_state.get("schemaRevision") or GEAR_CATALOG_REVISION,
-            "catalogStatus": catalog_state.get("status") or "blocked",
-            "catalogHealthSummary": compact_catalog_health_summary(catalog_state),
-            "catalogCoverage": {
-                "slotCoverage": catalog_state.get("slotCoverage") or {},
-                "sourceCoverage": catalog_state.get("sourceCoverage") or {},
-                "observedVariantCount": catalog_state.get("observedVariantCount") or 0,
-                "verifiedObservedVariantCount": catalog_state.get("verifiedObservedVariantCount") or 0,
-                "verifiedVariantCount": catalog_state.get("verifiedCount") or 0,
-                "partialVariantCount": catalog_state.get("partialCount") or 0,
-                "blockedVariantCount": catalog_state.get("blockedCount") or 0,
-            },
-            "itemDatabaseRevision": catalog_state.get("itemDatabaseRevision") or "",
-            "variantRevision": catalog_state.get("variantRevision") or "",
-            "catalogCheckedAt": catalog_state.get("checkedAt") or catalog_state.get("updatedAt") or "",
-            "catalogBlockers": catalog_blockers,
-            "catalogItems": output_baseline_set[:120],
-            "maxLevel": websim_max_level(),
-            "checkedAt": utc_now(),
+            **common_read_model,
+            "replacementCandidates": initial_read_model["replacementCandidates"],
+            "equippedSet": initial_read_model["equippedSet"],
+            "slotReadiness": initial_read_model["slotReadiness"],
+            "baselineSet": initial_read_model["baselineSet"],
+            "communityTemplates": template_read_model["payloadCommunityTemplates"],
+            "baselineTemplates": template_read_model["payloadBaselineTemplates"],
+            "communityTemplateSync": template_read_model["communityTemplateSync"],
+            **catalog_state_read_model,
+            "catalogItems": initial_read_model["catalogItems"],
             **season_fields,
         }
         return payload
-
-    def _gear_catalog_items(self, item_rows, sources_by_item, variants_by_item, mod_options_by_slot, class_key, spec_key, season):
-        catalog_items = []
-        for row in item_rows:
-            payload = _json_value(row[4], {})
-            payload = payload if isinstance(payload, dict) else {}
-            item_id = str(row[0])
-            item_sources = active_catalog_sources_for_replacement(sources_by_item.get(item_id, []), season)
-            item_variants = variants_by_item.get(item_id, [])
-            if not item_sources:
-                continue
-            raw_item = {
-                "id": item_id,
-                "itemId": item_id,
-                "name": row[1],
-                "displayName": payload.get("displayName") or payload.get("name") or row[1],
-                "slot": row[2],
-                "itemLevel": row[3],
-                "ilevel": row[3],
-                "quality": payload.get("quality") or "",
-                "iconUrl": payload.get("iconUrl") or "",
-                "source": (sources_by_item.get(item_id) or [{}])[0].get("label") or "gear catalog",
-                "sourceType": "catalog",
-                "payload": payload,
-            }
-            item = normalize_gear_item(raw_item, class_key, spec_key, "catalog")
-            if not item:
-                continue
-            item = enrich_catalog_item(
-                item,
-                item_sources,
-                item_variants,
-                mod_options_by_slot.get("socket", {}).get(item["slot"], []),
-                mod_options_by_slot.get("enchant", {}).get(item["slot"], []),
-                mod_options_by_slot.get("embellishment", {}).get(item["slot"], []),
-                class_key,
-                spec_key,
-            )
-            if item:
-                catalog_items.append(sanitize_gear_candidate_mod_options(item))
-        return catalog_items
 
     def _official_item_metadata_by_id(self, cur, gear_items):
         item_ids = sorted({
@@ -6110,59 +6329,13 @@ class PostgresCacheStore:
             """,
             item_ids,
         )
-        metadata_by_id = {}
-        for row in cur.fetchall():
-            payload = _json_value(row[4], {})
-            payload = payload if isinstance(payload, dict) else {}
-            metadata = payload.get("_metadata") if isinstance(payload.get("_metadata"), dict) else {}
-            metadata_source = str(metadata.get("source") or payload.get("metadataSource") or "").strip()
-            source_status = str(row[5] or metadata.get("metadataStatus") or payload.get("sourceStatus") or "").strip()
-            has_official_payload_shape = bool(
-                payload.get("inventory_type")
-                or payload.get("inventoryType")
-                or payload.get("item_class")
-                or payload.get("itemClass")
-                or payload.get("item_subclass")
-                or payload.get("itemSubclass")
-            )
-            if metadata_source != ITEM_METADATA_SOURCE and not (
-                source_status == "verified" and has_official_payload_shape
-            ):
-                continue
-            type_metadata = item_type_metadata_from_payload(payload)
-            item_id = str(row[0] or "").strip()
-            display_name = (
-                payload.get("displayName")
-                or payload.get("localizedName")
-                or payload.get("name")
-                or row[1]
-                or f"Item {item_id}"
-            )
-            metadata_by_id[item_id] = {
-                "itemId": item_id,
-                "displayName": display_name,
-                "slot": row[2] or "",
-                "itemLevel": _int_value(row[3]),
-                "quality": payload.get("quality") or "",
-                "iconUrl": metadata.get("iconUrl") or payload.get("iconUrl") or "",
-                "payload": payload,
-                "metadataStatus": source_status or "verified",
-                "metadataSource": metadata_source or ITEM_METADATA_SOURCE,
-                "metadataLocale": metadata.get("locale") or "",
-                "englishName": metadata.get("englishName") or "",
-                **type_metadata,
-            }
-        return metadata_by_id
+        return pg_gear_template_selectors.build_official_item_metadata_by_id_read_model(cur.fetchall())
 
     def _hydrated_community_gear_items(self, gear_items, official_metadata_by_id):
-        hydrated = []
-        for item in _json_value(gear_items, []):
-            if not isinstance(item, dict):
-                continue
-            item_id = str(item.get("itemId") or item.get("id") or "").strip()
-            metadata = official_metadata_by_id.get(item_id) if item_id else None
-            hydrated.append(apply_item_metadata(item, metadata) if metadata else item)
-        return hydrated
+        return pg_gear_template_selectors.build_hydrated_community_gear_items_read_model(
+            gear_items,
+            official_metadata_by_id,
+        )
 
     def community_gear_template_item_metadata_gaps(self, limit=200):
         try:
@@ -6418,55 +6591,12 @@ class PostgresCacheStore:
         return repaired
 
     def _community_gear_template_from_row(self, row, official_metadata_by_id=None, normalize_coverage=True):
-        payload = _json_value(row[16], {})
-        payload = payload if isinstance(payload, dict) else {}
-        gear_items = self._hydrated_community_gear_items(row[11], official_metadata_by_id or {})
-        template = {
-            "id": str(row[0] or ""),
-            "classKey": row[1] or "",
-            "specKey": row[2] or "",
-            "name": row[3] or "",
-            "sourceKey": row[4] or "",
-            "sourceName": row[5] or "",
-            "sourceUrl": row[6] or "",
-            "sourceStatus": row[7] or "",
-            "status": row[8] or "",
-            "signature": row[9] or "",
-            "sourceRefs": normalize_source_refs(_json_value(row[10], [])),
-            "gearItems": gear_items,
-            "rawString": row[12] or "",
-            "readySlotCount": _int_value(row[13]),
-            "missingSlots": _json_value(row[14], []),
-            "analysisWindow": row[15] or "",
-            "payload": payload,
-            "updatedAt": str(row[17] or ""),
-            "expiresAt": str(row[18] or ""),
-            "scanRunId": row[19] or "",
-            "canApplyGear": True,
-            "templateRevision": COMMUNITY_TEMPLATE_REVISION,
-        }
-        scenario_key = payload.get("scenarioKey") if isinstance(payload, dict) else ""
-        if scenario_key:
-            template["scenarioKey"] = scenario_key
-        enhancement_readiness = payload.get("enhancementReadiness") if isinstance(payload, dict) else {}
-        if isinstance(enhancement_readiness, dict) and enhancement_readiness:
-            template["enhancementReadiness"] = enhancement_readiness
-        template_evidence = payload.get("templateEvidence") if isinstance(payload, dict) else {}
-        if isinstance(template_evidence, dict) and template_evidence:
-            template["templateEvidence"] = template_evidence
-        sample_count = _int_value(payload.get("sampleCount")) if isinstance(payload, dict) else 0
-        if sample_count:
-            template["sampleCount"] = sample_count
-        profile_hash = str(payload.get("profileHash") or "").strip() if isinstance(payload, dict) else ""
-        if profile_hash:
-            template["profileHash"] = profile_hash
-        gear_hash = str(payload.get("gearHash") or "").strip() if isinstance(payload, dict) else ""
-        if gear_hash:
-            template["gearHash"] = gear_hash
-        if normalize_coverage:
-            template = self._repair_template_offhand_occupancy(template)
-        template["canApplyGear"] = community_gear_template_can_apply(template)
-        return template
+        return pg_gear_template_selectors.build_community_gear_template_read_model(
+            row,
+            official_metadata_by_id or {},
+            normalize_coverage=normalize_coverage,
+            coverage_repair=self._repair_template_offhand_occupancy,
+        )
 
     def _gear_community_templates(self, cur, class_key, spec_key):
         cur.execute(
@@ -6486,23 +6616,190 @@ class PostgresCacheStore:
         rows = cur.fetchall()
         now = datetime.now(timezone.utc)
         rows = [row for row in rows if not _timestamp_expired(row[18], now)]
-        all_gear_items = []
-        for row in rows:
-            all_gear_items.extend(item for item in _json_value(row[11], []) if isinstance(item, dict))
+        all_gear_items = pg_gear_template_selectors.collect_community_template_item_refs_read_model(
+            rows,
+            gear_items_index=11,
+        )
         official_metadata_by_id = self._official_item_metadata_by_id(cur, all_gear_items)
-        templates = []
-        for row in rows:
-            template = self._community_gear_template_from_row(row, official_metadata_by_id, normalize_coverage=True)
-            templates.append(template)
-        return dedupe_gear_community_templates(templates)
+        return pg_gear_template_selectors.build_community_gear_templates_read_model(
+            rows,
+            official_metadata_by_id,
+            normalize_coverage=True,
+            coverage_repair=self._repair_template_offhand_occupancy,
+        )
+
+    @staticmethod
+    def _active_release_identity(binding, data):
+        manifest = binding.get("manifest") if isinstance(binding.get("manifest"), dict) else {}
+        gear = data.get("gearRelease") if isinstance(data.get("gearRelease"), dict) else {}
+        community = data.get("communityRelease") if isinstance(data.get("communityRelease"), dict) else {}
+        return {
+            "formalActiveManifest": True,
+            "manifestRevision": str(manifest.get("manifestRevision") or ""),
+            "pointerGeneration": _int_value(binding.get("generation")),
+            "seasonRevision": str(manifest.get("seasonRevision") or ""),
+            "gearCatalogReleaseId": str(gear.get("releaseId") or ""),
+            "gearCatalogRevision": str(gear.get("releaseId") or ""),
+            "communityTemplateReleaseId": str(community.get("releaseId") or ""),
+            "talentCatalogRevision": str(manifest.get("talentCatalogRevision") or ""),
+        }
+
+    def _active_websim_gear_payload(self, binding, class_key, spec_key, compact, mode, slot):
+        include_catalog = mode != "initial"
+        data = self._gear_release_store.load_active_public_gear(
+            binding,
+            class_key,
+            spec_key,
+            include_catalog=include_catalog,
+            catalog_slot=slot if mode == "slot" else "",
+        )
+        identity = self._active_release_identity(binding, data)
+        gear_release = data.get("gearRelease") if isinstance(data.get("gearRelease"), dict) else {}
+        release_status = str(gear_release.get("releaseStatus") or "blocked")
+        season = {
+            "seasonRevision": identity["seasonRevision"],
+            "dataStatus": "verified" if release_status == "validated" else "partial",
+            "errors": [],
+        }
+        season_fields = season_metadata_fields(season)
+        catalog_state = {
+            "status": "verified" if release_status == "validated" else "partial",
+            "sourceStatus": release_status,
+            "schemaRevision": identity["gearCatalogRevision"],
+            "itemDatabaseRevision": identity["gearCatalogRevision"],
+            "variantRevision": identity["gearCatalogRevision"],
+            "blockers": [] if release_status == "validated" else ["active Gear Release is degraded"],
+        }
+        catalog_blockers = list(catalog_state["blockers"])
+        persisted_templates = [
+            template
+            for template in data.get("communityTemplates") or []
+            if isinstance(template, dict)
+        ]
+        if mode == "initial":
+            payload = self._websim_gear_initial_payload(
+                class_key,
+                spec_key,
+                compact,
+                season,
+                season_fields,
+                catalog_state,
+                catalog_blockers,
+                persisted_templates,
+            )
+            return {**payload, **identity}
+
+        snapshot = data.get("gearSnapshot") if isinstance(data.get("gearSnapshot"), dict) else {}
+        source_rows = [
+            (
+                row.get("sourceId"), row.get("itemId"), row.get("sourceType"), row.get("sourceKey"),
+                row.get("sourceLabel"), row.get("instanceId"), row.get("encounterId"),
+                row.get("difficultyKey"), row.get("seasonRevision"), row.get("payload"), row.get("updatedAt"),
+            )
+            for row in snapshot.get("sources") or []
+            if isinstance(row, dict)
+        ]
+        variant_rows = [
+            (
+                row.get("variantId"), row.get("itemId"), row.get("slot"), row.get("variantKey"),
+                row.get("label"), row.get("sourceType"), row.get("difficultyKey"), row.get("itemLevel"),
+                row.get("simcOptions"), row.get("status"), row.get("blockers"), row.get("payload"),
+                row.get("updatedAt"),
+            )
+            for row in snapshot.get("variants") or []
+            if isinstance(row, dict)
+        ]
+        mod_option_rows = [
+            (
+                row.get("optionId"), row.get("optionType"), row.get("optionKey"), row.get("name"),
+                row.get("applicableSlots"), row.get("simcOptions"), row.get("status"), row.get("payload"),
+                row.get("updatedAt"),
+            )
+            for row in snapshot.get("options") or []
+            if isinstance(row, dict)
+        ]
+        item_rows = [
+            (
+                row.get("itemId"), row.get("name"), row.get("slot"), row.get("itemLevel"),
+                row.get("payload"), row.get("sourceStatus"),
+            )
+            for row in snapshot.get("items") or []
+            if isinstance(row, dict)
+        ]
+        sources_by_item = pg_gear_read_model_selectors.build_gear_sources_by_item_read_model(source_rows)
+        variants_by_item = pg_gear_read_model_selectors.build_gear_variants_by_item_read_model(variant_rows)
+        raw_options_by_slot = pg_gear_read_model_selectors.build_gear_mod_options_by_type_read_model(mod_option_rows)
+        catalog_items = pg_gear_read_model_selectors.build_gear_catalog_items_read_model(
+            item_rows,
+            sources_by_item,
+            variants_by_item,
+            raw_options_by_slot,
+            class_key,
+            spec_key,
+            season,
+        )
+        template_read_model = pg_gear_template_selectors.build_public_gear_template_read_model(
+            persisted_templates,
+            class_key,
+            spec_key,
+            compact=compact,
+        )
+        catalog_read_model = pg_gear_read_model_selectors.build_catalog_gear_read_model_fragment(
+            catalog_items,
+            raw_options_by_slot,
+            class_key,
+            spec_key,
+            compact=compact,
+        )
+        readiness = catalog_read_model["readiness"]
+        payload = {
+            "classKey": class_key,
+            "specKey": spec_key,
+            **pg_gear_read_model_selectors.build_common_gear_read_model_fragment(class_key, spec_key, readiness),
+            "replacementCandidates": catalog_read_model["replacementCandidates"],
+            "equippedSet": {},
+            "slotReadiness": catalog_read_model["slotReadiness"],
+            "baselineSet": [],
+            "communityTemplates": template_read_model["payloadCommunityTemplates"],
+            "baselineTemplates": template_read_model["payloadBaselineTemplates"],
+            "communityTemplateSync": template_read_model["communityTemplateSync"],
+            **pg_gear_read_model_selectors.build_catalog_state_read_model_fragment(catalog_state, catalog_blockers),
+            **season_fields,
+            **identity,
+        }
+        payload.update(
+            pg_gear_read_model_selectors.build_catalog_output_read_model_fragment(
+                catalog_read_model,
+                compact=compact,
+            )
+        )
+        return payload
 
     def get_websim_gear(self, class_key="mage", spec_key="arcane", compact=False, mode="", slot=""):
-        season = self.get_active_season_payload()
         class_key = slugify(class_key, "mage")
         spec_key = slugify(spec_key, "arcane")
         compact = bool(compact)
         mode = str(mode or "").strip().lower()
         slot = normalize_slot(slot) if mode == "slot" else str(slot or "").strip().lower()
+        binding = self._gear_release_store.load_active_manifest_binding()
+        if binding.get("formalActiveManifest") is True:
+            active_fingerprint = (
+                "pg-websim-gear-release-v1",
+                str(binding.get("manifestRevision") or ""),
+                _int_value(binding.get("generation")),
+                class_key,
+                spec_key,
+                compact,
+                mode,
+                slot,
+            )
+            cached_payload = _pg_gear_payload_cache_get(active_fingerprint)
+            if cached_payload is not None:
+                return {**cached_payload, "_activeManifestBinding": binding}
+            payload = self._active_websim_gear_payload(binding, class_key, spec_key, compact, mode, slot)
+            _pg_gear_payload_cache_put(active_fingerprint, payload)
+            return {**payload, "_activeManifestBinding": binding}
+        season = self.get_active_season_payload()
         season_fields = season_metadata_fields(season)
         catalog_state = self.get_sync_state("gearCatalog")
         season_errors = season.get("errors") if isinstance(season.get("errors"), list) else []
@@ -6582,14 +6879,10 @@ class PostgresCacheStore:
                     )
                     item_rows = cur.fetchall()
                 persisted_templates = self._gear_community_templates(cur, class_key, spec_key)
-        sources_by_item = self._gear_sources_by_item(source_rows)
-        variants_by_item = self._gear_variants_by_item(variant_rows)
-        raw_options_by_slot = {
-            "socket": self._gear_mod_options_by_slot([row for row in mod_option_rows if str(row[1] or "").lower() == "socket"]),
-            "enchant": self._gear_mod_options_by_slot([row for row in mod_option_rows if str(row[1] or "").lower() == "enchant"]),
-            "embellishment": self._gear_mod_options_by_slot([row for row in mod_option_rows if str(row[1] or "").lower() == "embellishment"]),
-        }
-        catalog_items = self._gear_catalog_items(
+        sources_by_item = pg_gear_read_model_selectors.build_gear_sources_by_item_read_model(source_rows)
+        variants_by_item = pg_gear_read_model_selectors.build_gear_variants_by_item_read_model(variant_rows)
+        raw_options_by_slot = pg_gear_read_model_selectors.build_gear_mod_options_by_type_read_model(mod_option_rows)
+        catalog_items = pg_gear_read_model_selectors.build_gear_catalog_items_read_model(
             item_rows,
             sources_by_item,
             variants_by_item,
@@ -6598,145 +6891,49 @@ class PostgresCacheStore:
             spec_key,
             season,
         )
-        catalog_items = sorted(catalog_items, key=gear_candidate_quality_score, reverse=True)
-        community_templates = select_community_best_gear_templates(
-            [template for template in persisted_templates if is_real_community_gear_template(template)],
+        template_read_model = pg_gear_template_selectors.build_public_gear_template_read_model(
+            persisted_templates,
             class_key,
             spec_key,
+            compact=compact,
         )
-        community_templates = public_gear_templates_for_spec(community_templates, class_key, spec_key)
-        if not community_templates and not real_player_gear_template_public_import_spec(class_key, spec_key):
-            community_templates = [pending_community_gear_template(class_key, spec_key)]
-        baseline_templates = public_gear_templates_for_spec(
-            select_best_baseline_gear_templates(
-                [template for template in persisted_templates if is_baseline_gear_template(template)]
-            ),
+        catalog_read_model = pg_gear_read_model_selectors.build_catalog_gear_read_model_fragment(
+            catalog_items,
+            raw_options_by_slot,
             class_key,
             spec_key,
+            compact=compact,
         )
-        if not baseline_templates:
-            baseline_templates = public_baseline_fallback_templates_for_spec(class_key, spec_key)
-        community_templates = [
-            apply_gear_template_legality_gate(template, class_key, spec_key)
-            for template in community_templates
-        ]
-        baseline_templates = [
-            apply_gear_template_legality_gate(template, class_key, spec_key)
-            for template in baseline_templates
-        ]
-        community_templates = public_gear_templates_for_spec(community_templates, class_key, spec_key)
-        baseline_templates = public_gear_templates_for_spec(baseline_templates, class_key, spec_key)
-        grouped = {slot: [] for slot in CANONICAL_GEAR_SLOTS}
-        candidate_legality_excluded = []
-        for item in catalog_items:
-            if gear_candidate_incompatible(item):
-                checked = apply_gear_candidate_legality(item, class_key, spec_key, item.get("slot"))
-                if checked.get("legalityStatus") == "blocked":
-                    candidate_legality_excluded.append(checked)
-                continue
-            candidate_slots = gear_candidate_slots(item, class_key, spec_key)
-            if not candidate_slots:
-                checked = apply_gear_candidate_legality(item, class_key, spec_key, item.get("slot"))
-                if checked.get("legalityStatus") == "blocked" or gear_candidate_incompatible(checked):
-                    candidate_legality_excluded.append(checked)
-                continue
-            for candidate_slot in candidate_slots:
-                if candidate_slot in grouped:
-                    candidate = apply_gear_candidate_legality(
-                        gear_candidate_for_slot(item, candidate_slot),
-                        class_key,
-                        spec_key,
-                        candidate_slot,
-                    )
-                    if candidate.get("legalityStatus") == "blocked" or gear_candidate_incompatible(candidate):
-                        candidate_legality_excluded.append(candidate)
-                        continue
-                    grouped[candidate_slot].append(candidate)
-        candidate_limit = 12 if compact else None
-        slot_groups = []
-        baseline_candidates_by_slot = {}
-        for slot in CANONICAL_GEAR_SLOTS:
-            items = sorted(unique_gear_candidates(grouped.get(slot, [])), key=gear_candidate_quality_score, reverse=True)
-            if candidate_limit:
-                items = limit_replacement_candidates(items, candidate_limit)
-            baseline_candidates_by_slot[slot] = items
-            socket_options = raw_options_by_slot["socket"].get(slot, []) if items else []
-            enchant_options = raw_options_by_slot["enchant"].get(slot, []) if items else []
-            embellishment_options = raw_options_by_slot["embellishment"].get(slot, []) if items else []
-            output_items = compact_gear_candidates(items, include_mod_options=False) if compact else items
-            slot_group = {
-                "slot": slot,
-                "simcSlot": slot,
-                "label": GEAR_SLOT_LABELS.get(slot, slot),
-                "items": output_items,
-            }
-            if socket_options:
-                slot_group["socketOptions"] = compact_gear_mod_options(socket_options) if compact else socket_options
-            if enchant_options:
-                slot_group["enchantOptions"] = compact_gear_mod_options(enchant_options) if compact else enchant_options
-            if embellishment_options:
-                slot_group["embellishmentOptions"] = compact_gear_mod_options(embellishment_options) if compact else embellishment_options
-            slot_groups.append(slot_group)
-        output_catalog_items = compact_gear_candidates(catalog_items) if compact else catalog_items
-        output_community_templates = (
-            [compact_community_gear_template(template) for template in community_templates]
-            if compact
-            else community_templates
+        slot_groups = catalog_read_model["replacementCandidates"]
+        readiness = catalog_read_model["readiness"]
+        catalog_state_read_model = pg_gear_read_model_selectors.build_catalog_state_read_model_fragment(
+            catalog_state,
+            catalog_blockers,
         )
-        output_baseline_templates = (
-            [compact_community_gear_template(template) for template in baseline_templates]
-            if compact
-            else baseline_templates
+        common_read_model = pg_gear_read_model_selectors.build_common_gear_read_model_fragment(
+            class_key,
+            spec_key,
+            readiness,
         )
-        readiness = gear_readiness(catalog_items)
+        catalog_output_read_model = pg_gear_read_model_selectors.build_catalog_output_read_model_fragment(
+            catalog_read_model,
+            compact=compact,
+        )
         payload = {
             "classKey": class_key,
             "specKey": spec_key,
-            "weaponRule": weapon_equipment_rule_payload(class_key, spec_key),
-            "slots": gear_slot_payload(),
+            **common_read_model,
             "replacementCandidates": slot_groups,
             "equippedSet": {},
-            "slotReadiness": gear_slot_readiness(catalog_items, class_key, spec_key),
+            "slotReadiness": catalog_read_model["slotReadiness"],
             "baselineSet": [],
-            "communityTemplates": output_community_templates,
-            "baselineTemplates": output_baseline_templates,
-            "communityTemplateSync": websim_gear_community_template_sync_state(
-                [*community_templates, *baseline_templates]
-            ),
-            "readiness": readiness,
-            "statSnapshot": blocked_stat_snapshot(
-                ["Select complete SimC-ready gear and talents to calculate a verified stat snapshot."],
-                class_key=class_key,
-                spec_key=spec_key,
-                gear_readiness_payload=readiness,
-            ),
-            "gearSchemaRevision": GEAR_SCHEMA_REVISION,
-            "gearCatalogRevision": catalog_state.get("schemaRevision") or GEAR_CATALOG_REVISION,
-            "catalogStatus": catalog_state.get("status") or "blocked",
-            "catalogHealthSummary": compact_catalog_health_summary(catalog_state),
-            "catalogCoverage": {
-                "slotCoverage": catalog_state.get("slotCoverage") or {},
-                "sourceCoverage": catalog_state.get("sourceCoverage") or {},
-                "observedVariantCount": catalog_state.get("observedVariantCount") or 0,
-                "verifiedObservedVariantCount": catalog_state.get("verifiedObservedVariantCount") or 0,
-                "verifiedVariantCount": catalog_state.get("verifiedCount") or 0,
-                "partialVariantCount": catalog_state.get("partialCount") or 0,
-                "blockedVariantCount": catalog_state.get("blockedCount") or 0,
-            },
-            "itemDatabaseRevision": catalog_state.get("itemDatabaseRevision") or "",
-            "variantRevision": catalog_state.get("variantRevision") or "",
-            "catalogCheckedAt": catalog_state.get("checkedAt") or catalog_state.get("updatedAt") or "",
-            "catalogBlockers": catalog_blockers,
-            "maxLevel": websim_max_level(),
-            "checkedAt": utc_now(),
+            "communityTemplates": template_read_model["payloadCommunityTemplates"],
+            "baselineTemplates": template_read_model["payloadBaselineTemplates"],
+            "communityTemplateSync": template_read_model["communityTemplateSync"],
+            **catalog_state_read_model,
             **season_fields,
         }
-        if not compact:
-            payload["slotGroups"] = slot_groups
-            payload["presets"] = []
-            payload["candidateItems"] = []
-            payload["candidateLegalityAudit"] = candidate_legality_audit_payload(candidate_legality_excluded)
-        payload["catalogItems"] = output_catalog_items[:120]
+        payload.update(catalog_output_read_model)
         if payload.get("replacementCandidates") or payload.get("dataStatus") in {"stale", "blocked"}:
             _pg_gear_payload_cache_put(cache_fingerprint, payload)
         return payload
@@ -6787,19 +6984,20 @@ class PostgresCacheStore:
                         """
                     )
                     template_rows = cur.fetchall()
-                    all_gear_items = []
-                    for row in template_rows:
-                        all_gear_items.extend(item for item in _json_value(row[11], []) if isinstance(item, dict))
+                    all_gear_items = pg_gear_template_selectors.collect_community_template_item_refs_read_model(
+                        template_rows,
+                        gear_items_index=11,
+                    )
                     official_metadata_by_id = self._official_item_metadata_by_id(cur, all_gear_items)
-                    for row in template_rows:
-                        template = self._community_gear_template_from_row(row, official_metadata_by_id, normalize_coverage=True)
-                        payload = template.get("payload") if isinstance(template.get("payload"), dict) else {}
-                        blockers = payload.get("blockers") if isinstance(payload.get("blockers"), list) else []
-                        missing_slots = template.get("missingSlots") or []
-                        if missing_slots:
-                            blockers = [*(blockers or []), f"missing slots: {', '.join(str(slot) for slot in missing_slots[:6])}"]
-                        rows.append(("gear_templates", template.get("status") or "", blockers))
-        return _admin_gate_queue_summary(rows)
+                    rows.extend(
+                        pg_gear_template_selectors.build_admin_gear_template_queue_rows_read_model(
+                            template_rows,
+                            official_metadata_by_id,
+                            normalize_coverage=True,
+                            coverage_repair=self._repair_template_offhand_occupancy,
+                        )
+                    )
+        return pg_cache_read_model_selectors.build_admin_gate_queue_summary_read_model(rows)
 
     def admin_gate_talent_records(self):
         with self.connection() as conn:
@@ -6826,94 +7024,10 @@ class PostgresCacheStore:
                     """
                 )
                 tree_rows = cur.fetchall()
-        now = datetime.now(timezone.utc)
-        template_rows = [row for row in template_rows if not _timestamp_expired(row[16], now)]
-        return {
-            "communityTalentTemplates": [
-                {
-                    "id": str(row[0] or ""),
-                    "classKey": row[1] or "",
-                    "specKey": row[2] or "",
-                    "heroKey": row[3] or "",
-                    "scenarioKey": row[4] or "",
-                    "name": row[5] or "",
-                    "sourceKey": row[6] or "",
-                    "sourceName": row[7] or "",
-                    "sourceUrl": row[8] or "",
-                    "sourceStatus": row[9] or "",
-                    "status": row[10] or "",
-                    "sampleCount": _int_value(row[11]),
-                    "maxKeyLevel": _int_value(row[12]),
-                    "analysisWindow": row[13] or "",
-                    "payload": _json_value(row[14], {}),
-                    "updatedAt": str(row[15] or ""),
-                    "expiresAt": str(row[16] or ""),
-                    "signature": row[17] or "",
-                    "sourceRefs": _json_value(row[18], []),
-                    "scanRunId": row[19] or "",
-                }
-                for row in template_rows
-            ],
-            "talentTrees": [
-                {
-                    "classKey": row[0] or "",
-                    "specKey": row[1] or "",
-                    "nodeCount": _int_value(row[2]),
-                    "updatedAt": str(row[3] or ""),
-                }
-                for row in tree_rows
-            ],
-        }
+        return pg_gear_read_model_selectors.build_admin_talent_records_read_model(template_rows, tree_rows)
 
     def _admin_gate_gear_template_display_records(self, templates):
-        display_slots = []
-        community_groups = {}
-        baseline_groups = {}
-        seen_community_slots = set()
-        seen_baseline_slots = set()
-        for template in templates or []:
-            if not isinstance(template, dict):
-                continue
-            class_key = slugify(template.get("classKey"), "")
-            spec_key = slugify(template.get("specKey"), "")
-            group_key = (class_key, spec_key)
-            if class_key and spec_key and is_baseline_gear_template(template):
-                baseline_groups.setdefault(group_key, []).append(template)
-                if group_key not in seen_baseline_slots:
-                    seen_baseline_slots.add(group_key)
-                    display_slots.append(("baseline", group_key))
-                continue
-            if class_key and spec_key and is_real_community_gear_template(template):
-                community_groups.setdefault(group_key, []).append(template)
-                if group_key not in seen_community_slots:
-                    seen_community_slots.add(group_key)
-                    display_slots.append(("community", group_key))
-                continue
-            display_slots.append(("raw", template))
-
-        selected_community = {}
-        for (class_key, spec_key), candidates in community_groups.items():
-            best = select_community_best_gear_templates(candidates, class_key, spec_key, strict_active=False)
-            if best:
-                selected_community[(class_key, spec_key)] = best[0]
-        selected_baseline = {}
-        for group_key, candidates in baseline_groups.items():
-            best = select_best_baseline_gear_templates(candidates)
-            if best:
-                selected_baseline[group_key] = best
-
-        display_records = []
-        for slot_type, value in display_slots:
-            if slot_type == "community":
-                selected = selected_community.get(value)
-                if selected:
-                    display_records.append(selected)
-            elif slot_type == "baseline":
-                for selected in selected_baseline.get(value) or []:
-                    display_records.append(selected)
-            else:
-                display_records.append(value)
-        return display_records
+        return pg_gear_template_selectors.build_admin_gear_template_display_records_read_model(templates)
 
     def admin_gate_gear_template_records(self):
         with self.connection() as conn:
@@ -6987,27 +7101,7 @@ class PostgresCacheStore:
                 )
                 variant_rows = cur.fetchall()
         return {
-            "gearVariants": [
-                {
-                    "id": str(row[0] or ""),
-                    "itemId": str(row[1] or ""),
-                    "itemName": str(row[2] or ""),
-                    "slot": row[3] or "",
-                    "label": row[4] or "",
-                    "sourceType": row[5] or "",
-                    "difficultyKey": row[6] or "",
-                    "itemLevel": _int_value(row[7]),
-                    "simcOptions": _json_value(row[8], {}),
-                    "status": row[9] or "",
-                    "blockers": _json_value(row[10], []),
-                    "payload": _json_value(row[11], {}),
-                    "itemPayload": _json_value(row[12], {}),
-                    "sourceLabel": str(row[13] or ""),
-                    "sourceInstanceId": str(row[14] or ""),
-                    "updatedAt": str(row[15] or ""),
-                }
-                for row in variant_rows
-            ],
+            "gearVariants": pg_gear_read_model_selectors.build_admin_gear_variant_records_read_model(variant_rows),
         }
 
     def admin_gate_gear_variant_records_page(self, limit=20, offset=0):
@@ -7082,27 +7176,7 @@ class PostgresCacheStore:
                     variant_rows = cur.fetchall()
         return {
             "totalGroups": total_groups,
-            "gearVariants": [
-                {
-                    "id": str(row[0] or ""),
-                    "itemId": str(row[1] or ""),
-                    "itemName": str(row[2] or ""),
-                    "slot": row[3] or "",
-                    "label": row[4] or "",
-                    "sourceType": row[5] or "",
-                    "difficultyKey": row[6] or "",
-                    "itemLevel": _int_value(row[7]),
-                    "simcOptions": _json_value(row[8], {}),
-                    "status": row[9] or "",
-                    "blockers": _json_value(row[10], []),
-                    "payload": _json_value(row[11], {}),
-                    "itemPayload": _json_value(row[12], {}),
-                    "sourceLabel": str(row[13] or ""),
-                    "sourceInstanceId": str(row[14] or ""),
-                    "updatedAt": str(row[15] or ""),
-                }
-                for row in variant_rows
-            ],
+            "gearVariants": pg_gear_read_model_selectors.build_admin_gear_variant_records_read_model(variant_rows),
         }
 
     def admin_gate_gear_records(self):
@@ -7116,8 +7190,9 @@ class PostgresCacheStore:
     def get_websim_loot(self, filters=None, limit=120):
         filters = filters or {}
         season = self.get_active_season_payload()
+        season_fields = season_metadata_fields(season)
         if season.get("dataStatus") != "verified":
-            return {"items": [], "instances": [], **season_metadata_fields(season)}
+            return pg_gear_read_model_selectors.build_websim_loot_read_model([], [], season_fields, limit=limit)
         with self.connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
@@ -7133,67 +7208,10 @@ class PostgresCacheStore:
                     """
                 )
                 rows = cur.fetchall()
-        items = []
-        for row in rows:
-            item_payload = _json_value(row[10], {})
-            item = normalize_gear_item(
-                {
-                    "id": row[5],
-                    "itemId": row[5],
-                    "name": row[6],
-                    "displayName": row[6],
-                    "slot": row[7],
-                    "quality": row[8],
-                    "iconUrl": row[9],
-                    "sourceType": "verifiedLoot",
-                    "source": f"{row[4] or 'Unknown Encounter'} - {row[2] or 'Unknown Instance'}",
-                    "payload": item_payload,
-                },
-                default_source_type="verifiedLoot",
-            )
-            if not item:
-                continue
-            loot_asset = game_asset_from_icon_url(
-                "item",
-                row[5],
-                "websim-loot",
-                row[9],
-                source="blizzard",
-                status="verified",
-                semantic_tags=["game", "gear", "item", "loot", row[7]],
-                usage=["websim_loot", "builds_detail"],
-                fallback_text=fallback_text_for(row[6]),
-            )
-            item.update(
-                {
-                    "id": row[0],
-                    "instanceId": row[1],
-                    "instanceName": row[2] or "Unknown Instance",
-                    "encounterId": row[3],
-                    "encounterName": row[4] or "Unknown Encounter",
-                    "itemId": row[5],
-                    "quality": row[8],
-                    "iconUrl": row[9],
-                    "gameAsset": loot_asset,
-                    "sourceType": "verifiedLoot",
-                }
-            )
-            items.append(item)
-        instance_id = str(filters.get("instanceId") or "")
-        encounter_id = str(filters.get("encounterId") or "")
-        slot = str(filters.get("slot") or "")
-        query = str(filters.get("q") or "").strip().lower()
-        if instance_id:
-            items = [item for item in items if str(item.get("instanceId")) == instance_id]
-        if encounter_id:
-            items = [item for item in items if str(item.get("encounterId")) == encounter_id]
-        if slot:
-            items = [item for item in items if item.get("slot") == slot]
-        if query:
-            items = [
-                item for item in items
-                if query in str(item.get("name", "")).lower()
-                or query in str(item.get("encounterName", "")).lower()
-                or query in str(item.get("instanceName", "")).lower()
-            ]
-        return {"items": items[:limit], "instances": self.get_websim_instances(), **season_metadata_fields(season)}
+        items = pg_gear_read_model_selectors.build_websim_loot_items_read_model(rows, filters, limit=limit)
+        return pg_gear_read_model_selectors.build_websim_loot_read_model(
+            items,
+            self.get_websim_instances(),
+            season_fields,
+            limit=limit,
+        )

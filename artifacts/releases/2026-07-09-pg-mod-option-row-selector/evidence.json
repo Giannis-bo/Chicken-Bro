@@ -1,0 +1,191 @@
+{
+  "status": "live_verified",
+  "highestEvidenceLevel": "live_verified",
+  "scope": [
+    "server/pg_gear_read_model_selectors.py",
+    "server/postgres_cache_store.py",
+    "tests/pg_gear_read_model_selectors_test.py",
+    "tests/backend-owner-map.test.js",
+    "docs/backend-owner-map.json",
+    "docs/roadmap.md",
+    "docs/plans/2026-07-09-harness-guided-project-optimization-plan.md",
+    "artifacts/releases/2026-07-09-pg-mod-option-row-selector/evidence.json",
+    "artifacts/releases/2026-07-09-pg-mod-option-row-selector/manifest.json"
+  ],
+  "summary": "Phase 4 continues the read-only PostgreSQL gear row/read-model split. server/pg_gear_read_model_selectors.py now owns build_gear_mod_options_by_slot_read_model(), which maps cache.websim_gear_mod_options rows into slot-grouped socket/enchant/embellishment option read-model fragments. server/postgres_cache_store.py keeps PG SQL reads, mod option row filtering, catalog item assembly, payload cache fingerprinting, cache writes, and sync/write/backfill paths.",
+  "verification": [
+    {
+      "command": "python3 -m unittest tests.pg_gear_read_model_selectors_test.PgGearReadModelSelectorsTest.test_build_gear_mod_options_by_slot_read_model_groups_option_rows",
+      "status": "red_then_pass",
+      "summary": "First run failed with ImportError because build_gear_mod_options_by_slot_read_model was missing; after adding the helper the targeted characterization passed."
+    },
+    {
+      "command": "python3 -m unittest tests.pg_gear_read_model_selectors_test tests.postgres_cache_store_test",
+      "status": "pass",
+      "summary": "108 targeted selector and PG cache store tests passed locally."
+    },
+    {
+      "command": "node --test tests/backend-owner-map.test.js",
+      "status": "red_then_pass",
+      "summary": "Owner-map test was updated first and failed while docs/backend-owner-map.json still reported phase4_pg_gear_variant_row_selector_extracted; after updating the owner map it passed."
+    },
+    {
+      "command": "python3 -m unittest discover -s tests -p '*_test.py'",
+      "status": "pass",
+      "summary": "1021 Python unittest specs passed locally with 1 skipped."
+    },
+    {
+      "command": "node --test tests/*.test.js",
+      "status": "pass",
+      "summary": "344 Node tests passed locally."
+    },
+    {
+      "command": "python3 -m py_compile server/pg_gear_read_model_selectors.py server/postgres_cache_store.py",
+      "status": "pass",
+      "summary": "Touched Python modules compiled successfully."
+    },
+    {
+      "command": "node --check tests/backend-owner-map.test.js && node --check scripts/project-harness.js",
+      "status": "pass",
+      "summary": "Touched Node harness/test files passed syntax checks."
+    },
+    {
+      "command": "python3 -m json.tool docs/backend-owner-map.json >/dev/null && python3 -m json.tool artifacts/releases/2026-07-09-pg-mod-option-row-selector/evidence.json >/dev/null && python3 -m json.tool artifacts/releases/2026-07-09-pg-mod-option-row-selector/manifest.json >/dev/null",
+      "status": "pass",
+      "summary": "Owner map, evidence, and manifest JSON validated."
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass",
+      "summary": "No whitespace errors detected."
+    },
+    {
+      "command": "local CR",
+      "status": "pass",
+      "summary": "Diff review found no sync/write/backfill changes, no SQL/cache write migration into the selector module, no leftover store helper references, and no public template source-key policy changes."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "passed",
+    "requiredBeforeMerge": true,
+    "pullRequest": 21,
+    "branch": "codex/phase4-pg-mod-option-row-selector",
+    "command": "WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh",
+    "target": "ubuntu@124.223.51.33:/opt/wow-mini-program",
+    "deployedAt": "2026-07-09T11:26:16Z",
+    "asyncSyncStarted": false,
+    "smoke": {
+      "http": {
+        "baseUrl": "http://124.223.51.33",
+        "endpoints": [
+          {
+            "path": "/health",
+            "status": 200
+          },
+          {
+            "path": "/api/data/health",
+            "status": 200,
+            "overallStatus": "partial"
+          },
+          {
+            "path": "/api/websim/bootstrap",
+            "status": 200,
+            "dataStatus": "verified"
+          },
+          {
+            "path": "/api/websim/assets",
+            "status": 200,
+            "dataStatus": "verified"
+          },
+          {
+            "path": "/api/websim/talents?class=mage&spec=frost&hero=spellslinger",
+            "status": 200,
+            "dataStatus": "verified"
+          },
+          {
+            "path": "/api/websim/gear?class=mage&spec=frost&compact=1&mode=initial",
+            "status": 200,
+            "dataStatus": "verified",
+            "communityTemplates": 1,
+            "baselineTemplates": 0,
+            "canApplyGear": [
+              true
+            ]
+          },
+          {
+            "path": "/api/websim/gear?class=mage&spec=frost&compact=1&mode=slot&slot=head",
+            "status": 200,
+            "dataStatus": "verified",
+            "communityTemplates": 1,
+            "baselineTemplates": 0,
+            "canApplyGear": [
+              true
+            ]
+          }
+        ]
+      },
+      "observedOnlyGearSweep": {
+        "checkedSpecs": 40,
+        "failures": 0,
+        "dataStatus": {
+          "verified": 40
+        },
+        "communityTemplates": {
+          "1": 40
+        },
+        "baselineTemplates": {
+          "0": 40
+        },
+        "sourceKeys": {
+          "raiderio_observed_profile": 40
+        },
+        "canApplyGear": {
+          "True": 40
+        }
+      },
+      "systemd": {
+        "backend": "active/running with Result=success and ExecMainStatus=0",
+        "nginx": "active/running with Result=success and ExecMainStatus=0",
+        "syncBackfillServices": "wow-websim-sync.service and wow-stat-weights-sync.service were timer-triggered and currently activating/start with Result=success and ExecMainStatus=0; wow-gear-observed-backfill, wow-community-template-sync, wow-community-best-guard-sync, wow-recommended-bis-guard-sync, and wow-season-recommended-gear-sync are inactive/dead with Result=success and ExecMainStatus=0",
+        "timers": "7 loaded sync/backfill timers active/waiting: wow-websim-sync, wow-gear-observed-backfill, wow-stat-weights-sync, wow-community-template-sync, wow-community-best-guard-sync, wow-recommended-bis-guard-sync, wow-season-recommended-gear-sync"
+      },
+      "runtime": {
+        "WOW_DATABASE_RUNTIME": "postgres_only",
+        "recentLogs": "no Traceback/ERROR/SQLite fallback in wow-backend or sync/backfill logs since 20 minutes ago",
+        "hashParity": {
+          "server/pg_gear_read_model_selectors.py": "37f1b06152445df3a24a20c1f8ae37e08b03b0ca98357a65c78f18262b586cf1",
+          "server/postgres_cache_store.py": "7a961e7c1e5c28f95159da7fe0be651ec288ab7686df23df416f7ea90ee52b2a"
+        }
+      }
+    }
+  },
+  "merge": {
+    "status": "merged",
+    "pullRequest": 21,
+    "mergedAt": "2026-07-09T11:27:57Z",
+    "method": "rebase",
+    "mainCommit": "a156e36253199e3abe69b643e4949fc948a5b9cd",
+    "mainTreeMatchesCandidateTree": true
+  },
+  "risks": [
+    {
+      "id": "local_verification_complete",
+      "status": "closed",
+      "detail": "Full Python/Node suites, syntax checks, JSON validation, git diff check, and local CR passed before PR."
+    },
+    {
+      "id": "candidate_deployment_pending",
+      "status": "resolved",
+      "detail": "PR #21 branch passed Candidate Deployment Gate before merge: deploy succeeded, API smoke and 40-spec observed-only sweep passed, systemd/log/runtime hash parity checks passed."
+    },
+    {
+      "id": "write_paths_out_of_scope",
+      "status": "intentional",
+      "detail": "Sync, write, backfill, PG SQL write paths, catalog item assembly, and payload cache writes are intentionally unchanged in this read-only selector split."
+    }
+  ],
+  "rollback": [
+    "code_rollback",
+    "resync_repair"
+  ]
+}

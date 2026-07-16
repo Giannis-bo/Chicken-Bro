@@ -1,0 +1,83 @@
+# Project Harness Verification Matrix
+
+本文件只定义当前验证入口和证据边界。历史阶段使用过的命令由对应 release packet 与 Git 保存，不在这里累计。
+
+## Profiles
+
+| Profile | 覆盖范围 | 当前自动化入口 |
+| --- | --- | --- |
+| `harness` | 状态、owner map、schema、release packet、diff | `node scripts/verify-project.js --profile harness` |
+| `backend` | Python 后端、PostgreSQL read model、API 和 worker | `node scripts/verify-project.js --profile backend` |
+| `frontend` | 旧兼容前端、Taro typed contract、架构审计、TypeScript 和 Vitest | `node scripts/verify-project.js --profile frontend` |
+| `full` | `harness + backend + frontend` 的最终提交验证 | `node scripts/verify-project.js --profile full` |
+
+`--release` 缺省时读取 `docs/project-state.json.activeReleaseArtifact`。用 `--dry-run --json` 查看确切命令，不执行。
+
+## 选择规则
+
+- 开发中先跑最小相关测试，不在每个小改动后串行跑 `frontend`、`backend`、`full`。
+- 最终候选只跑一次 `full`；它已包含 Harness、Node、Python、Taro、JSON、语法和 diff 检查。
+- 纯文档或 owner map 变更跑 `harness`；不因此重复业务全量。
+- 自动测试证明合同和代码结构，不授予视觉、生产数据或线上运行通过。
+
+## Taro UI
+
+自动层：
+
+```bash
+npm run audit:ui-architecture
+npm run typecheck
+npm run test:taro
+npm run verify:ui-baselines
+```
+
+`verify:ui-baselines` 只做 target/runtime 结构预检；像素与交互验收必须使用当前 target registry 对应的真实微信运行态。每个路由最终只保留一次视觉复核和一个核心交互结果。
+
+## Canonical gear
+
+装备改动至少覆盖以下分层合同：
+
+```bash
+python3 -m unittest \
+  tests.gear_contracts_test \
+  tests.gear_rule_matrix_test \
+  tests.gear_evidence_ledger_test \
+  tests.gear_resolver_test \
+  tests.gear_result_envelope_test \
+  tests.pg_gear_authority_loader_test \
+  tests.gear_release_test \
+  tests.gear_release_store_test \
+  tests.gear_release_shadow_test \
+  tests.gear_release_refresh_test \
+  tests.community_template_import_test \
+  tests.gear_stat_snapshot_test \
+  tests.gear_stat_snapshot_store_test \
+  tests.gear_stat_snapshot_api_test \
+  tests.gear_stat_snapshot_worker_test
+node --test tests/gear-workbench-state.test.js tests/frontend-api-client.test.js tests/builds-page.test.js
+npx vitest run packages/domain/src/gear-intent.test.ts packages/api-client/src/transport.test.ts packages/api-client/src/websim.test.ts
+```
+
+必须核对：
+
+- malformed intent 为 400，revision conflict 为 409，authority unavailable 为 503；结构化 problem 不得被 transport fallback 吞掉。
+- 旧 `pages/` 与活动 Taro 都只提交 identifier intent，最终事实来自同一 resolver/release authority。
+- community import 原子采用或 fail closed；不允许逐槽静默丢失。
+- stat snapshot 只接受 signature 匹配的 verified 结果，202 有界轮询，旧响应不能覆盖新选择。
+- `/api/websim/gear/stats` 只验证兼容性；活动 Taro 必须走 `/stat-snapshots`。
+
+## Runtime evidence
+
+涉及 backend/API、PG、同步、timer、部署或用户可见运行态时，最终候选还需记录：
+
+- 候选 commit 与实际部署 tree/hash 一致；
+- `/health`、`/api/data/health` 和受影响 API 内容 smoke；
+- PostgreSQL-only、active manifest、timer/backflow、worker 与近期日志状态；
+- 写入前备份和 rollback target；
+- 用户可见 UI 使用真实微信环境验证，不以浏览器或截图脚本代替。
+
+远端 smoke、迁移和生产写入不由本 profile 自动触发。
+
+## CI
+
+`.github/workflows/project-harness.yml` 只运行一个 `full` profile。任何测试、JSON、owner map、Harness packet、TypeScript、架构审计、语法或 whitespace 失败都必须返回非零；CI 不部署、不 SSH、不安装依赖、不迁移、不触发同步。

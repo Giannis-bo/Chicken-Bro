@@ -242,8 +242,10 @@ export const routeContracts = [
       "builds.home",
       "builds.detail",
       "websim.gear",
+      "websim.gearResolve",
+      "websim.gearCommunityImport",
+      "websim.gearStatSnapshots",
       "websim.talentImport",
-      "websim.gearStats",
       "templates.upsert"
     ],
     "storage": [
@@ -541,6 +543,27 @@ export const endpointContracts = [
     "path": "/api/websim/gear/stats",
     "auth": "none",
     "timeoutMs": 60000
+  },
+  {
+    "id": "websim.gearResolve",
+    "method": "POST",
+    "path": "/api/websim/gear/resolve",
+    "auth": "none",
+    "timeoutMs": 30000
+  },
+  {
+    "id": "websim.gearCommunityImport",
+    "method": "POST",
+    "path": "/api/websim/gear/community-import",
+    "auth": "none",
+    "timeoutMs": 30000
+  },
+  {
+    "id": "websim.gearStatSnapshots",
+    "method": "POST",
+    "path": "/api/websim/gear/stat-snapshots",
+    "auth": "none",
+    "timeoutMs": 30000
   },
   {
     "id": "simulator.analyze",

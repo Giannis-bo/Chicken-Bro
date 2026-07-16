@@ -1,0 +1,1470 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-07-15",
+  "status": "project_owner_map_active",
+  "harnessVersion": "v0.6",
+  "activeMilestone": "project_harness_normalization",
+  "unownedCriticalDomains": 0,
+  "conflictingFactOwners": 0,
+  "rules": {
+    "criticalDomainIdsFrozen": true,
+    "frontendCannotOwnBackendFactJudgment": true,
+    "healthAdminIsConsumerOrchestrator": true,
+    "deployIsConsumerOrchestrator": true,
+    "writeDomainsMustDeclareWriteOwner": true,
+    "backendOwnerMapRemainsSecondLevelDetail": true
+  },
+  "criticalDomains": [
+    {
+      "id": "app_shell_route_runtime",
+      "status": "active",
+      "ownerRole": "fact_owner",
+      "factOwner": "apps/mini-taro/src/app.config.ts",
+      "writeBehavior": false,
+      "writeOwner": null,
+      "consumers": [
+        "packages/domain/src/route-contract.ts",
+        "packages/design-system/src/components/AppShell.tsx",
+        "packages/design-system/src/components/PageFrame.tsx",
+        "apps/mini-taro/src/custom-tab-bar/index.tsx",
+        "app.json"
+      ],
+      "publicContracts": [
+        "apps/mini-taro/src/app.config.ts and the typed route contract define the active mini-program route shell.",
+        "The generated app.json compatibility surface must preserve the same 14 routes until legacy pages are retired."
+      ],
+      "mustNotChange": [
+        "Do not remove or rename Taro routes without updating the typed route contract and current UI evidence contract.",
+        "Do not treat static route presence as runtime UI acceptance."
+      ],
+      "characterization": [
+        "apps/mini-taro/src/pages/_shared/route-contract.test.ts",
+        "packages/design-system/src/components/PageFrame.test.ts",
+        "scripts/audit-ui-architecture.js"
+      ],
+      "runtimeSurfaces": [
+        "apps/mini-taro/src/app.config.ts",
+        "packages/domain/src/route-contract.ts",
+        "packages/design-system/src/components/AppShell.tsx",
+        "packages/design-system/src/components/PageFrame.tsx",
+        "app.json"
+      ],
+      "runbooks": [
+        "docs/README.md",
+        "docs/remote-debugging.md"
+      ],
+      "rollback": [
+        "code_rollback"
+      ],
+      "verificationProfiles": [
+        "frontend",
+        "full"
+      ],
+      "releaseTrigger": "frontend_user_visible",
+      "changedPathPatterns": [
+        "apps/mini-taro/src/app.config.ts",
+        "apps/mini-taro/src/custom-tab-bar/**",
+        "packages/domain/src/route-contract.ts",
+        "packages/design-system/src/components/{AppShell,PageFrame}.*",
+        "app.json"
+      ],
+      "criticalContract": {
+        "status": "characterized",
+        "summary": "The Taro app config, typed route contract, shared AppShell/PageFrame owners and architecture audit characterize the active 14-route shell.",
+        "coverage": [
+          "apps/mini-taro/src/pages/_shared/route-contract.test.ts",
+          "packages/design-system/src/components/PageFrame.test.ts",
+          "scripts/audit-ui-architecture.js"
+        ],
+        "runtimeEvidence": [],
+        "ownerMapRef": null
+      }
+    },
+    {
+      "id": "frontend_api_auth_transport",
+      "status": "active",
+      "ownerRole": "fact_owner",
+      "factOwner": "pages/common/api-client.js",
+      "writeBehavior": false,
+      "writeOwner": null,
+      "consumers": [
+        "pages/common/auth-client.js",
+        "pages/common/analytics-client.js",
+        "pages/builds/builds-api.js",
+        "pages/builds/websim-api.js",
+        "pages/simulator/simulator-api.js",
+        "pages/news/news-api.js"
+      ],
+      "publicContracts": [
+        "Frontend transport preserves auth token boundaries and does not send Bearer tokens on insecure HTTP.",
+        "API clients forward backend-owned facts instead of reclassifying source/status/verified state."
+      ],
+      "mustNotChange": [
+        "Do not make frontend pages the owner of backend source, status or verified judgments.",
+        "Do not bypass auth-client or api-client for user asset writes."
+      ],
+      "characterization": [
+        "tests/frontend-api-client.test.js",
+        "tests/profile-auth.test.js",
+        "tests/analytics-instrumentation.test.js"
+      ],
+      "runtimeSurfaces": [
+        "pages/common/api-client.js",
+        "pages/common/auth-client.js",
+        "pages/news/news-api.js",
+        "pages/builds/websim-api.js",
+        "pages/simulator/simulator-api.js"
+      ],
+      "runbooks": [
+        "docs/builds-architecture.md",
+        "docs/database-architecture.md"
+      ],
+      "rollback": [
+        "code_rollback"
+      ],
+      "verificationProfiles": [
+        "frontend",
+        "full"
+      ],
+      "releaseTrigger": "frontend_user_visible",
+      "changedPathPatterns": [
+        "pages/common/api-client.js",
+        "pages/common/auth-client.js",
+        "pages/**/**/*-api.js",
+        "pages/news/news-api.js",
+        "pages/builds/websim-api.js",
+        "pages/simulator/simulator-api.js"
+      ],
+      "criticalContract": {
+        "status": "characterized",
+        "summary": "Existing frontend API, profile auth and analytics tests characterize base URL, bearer safety and empty/error transport behavior.",
+        "coverage": [
+          "tests/frontend-api-client.test.js",
+          "tests/profile-auth.test.js",
+          "tests/analytics-instrumentation.test.js"
+        ],
+        "runtimeEvidence": [],
+        "ownerMapRef": null
+      }
+    },
+    {
+      "id": "personal_build_template_assets",
+      "status": "active",
+      "ownerRole": "fact_owner",
+      "factOwner": "server/news_backend.py",
+      "writeBehavior": true,
+      "writeOwner": "server/news_backend.py",
+      "consumers": [
+        "pages/common/build-template-storage.js",
+        "pages/profile/profile.js",
+        "pages/builds/detail.js",
+        "pages/builds/talent-simulator.js"
+      ],
+      "publicContracts": [
+        "Personal build templates are account-scoped assets.",
+        "List/detail/delete/write operations must preserve current owner isolation."
+      ],
+      "mustNotChange": [
+        "Do not let guest/local templates overwrite authenticated owner data.",
+        "Do not move template save/list authorization to frontend-only checks."
+      ],
+      "characterization": [
+        "tests/build-template-storage.test.js",
+        "tests/profile-auth.test.js",
+        "tests/builds-page.test.js",
+        "tests/news_backend_test.py"
+      ],
+      "runtimeSurfaces": [
+        "server/news_backend.py",
+        "pages/common/build-template-storage.js",
+        "pages/profile/profile.js"
+      ],
+      "runbooks": [
+        "docs/builds-architecture.md",
+        "docs/database-architecture.md"
+      ],
+      "rollback": [
+        "code_rollback",
+        "config_disable"
+      ],
+      "verificationProfiles": [
+        "backend",
+        "frontend",
+        "full"
+      ],
+      "releaseTrigger": "backend_api",
+      "changedPathPatterns": [
+        "server/news_backend.py",
+        "pages/common/build-template-storage.js",
+        "pages/profile/**",
+        "pages/builds/detail.*",
+        "pages/builds/talent-simulator.*"
+      ],
+      "criticalContract": {
+        "status": "characterized",
+        "summary": "Existing template storage, profile auth, builds page and backend tests characterize CRUD, owner isolation and local/account asset boundaries.",
+        "coverage": [
+          "tests/build-template-storage.test.js",
+          "tests/profile-auth.test.js",
+          "tests/builds-page.test.js",
+          "tests/news_backend_test.py"
+        ],
+        "runtimeEvidence": [],
+        "ownerMapRef": null
+      }
+    },
+    {
+      "id": "news_content_public_api",
+      "status": "active",
+      "ownerRole": "fact_owner",
+      "factOwner": "server/news_backend.py",
+      "writeBehavior": true,
+      "writeOwner": "server/postgres_content_store.py",
+      "consumers": [
+        "pages/news/news-api.js",
+        "pages/news/news.js",
+        "pages/news/list.js",
+        "pages/news/detail.js"
+      ],
+      "publicContracts": [
+        "News list/detail payloads preserve source fidelity and translation status.",
+        "Summary-only payloads do not become article detail bodies."
+      ],
+      "mustNotChange": [
+        "Do not let frontend repair untrusted or incomplete news payloads.",
+        "Do not promote summary-only content to full article detail."
+      ],
+      "characterization": [
+        "tests/news_backend_test.py",
+        "tests/news-api-client.test.js",
+        "tests/news-detail-view.test.js",
+        "tests/news-home-payload.test.js",
+        "apps/mini-taro/src/pages/news/news-home-model.test.ts"
+      ],
+      "runtimeSurfaces": [
+        "server/news_backend.py",
+        "server/postgres_content_store.py",
+        "pages/news/news-api.js",
+        "pages/news/news.js",
+        "pages/news/detail.js"
+      ],
+      "runbooks": [
+        "docs/news-architecture.md"
+      ],
+      "rollback": [
+        "code_rollback",
+        "data_restore"
+      ],
+      "verificationProfiles": [
+        "backend",
+        "frontend",
+        "full"
+      ],
+      "releaseTrigger": "backend_api",
+      "changedPathPatterns": [
+        "server/news_backend.py",
+        "server/postgres_content_store.py",
+        "server/news_collector.py",
+        "server/news_translator.py",
+        "pages/news/**"
+      ],
+      "backendOwnerMapRef": {
+        "hotspotFile": "server/news_backend.py",
+        "ownerId": "news_content_api",
+        "factOwner": "server/news_backend.py"
+      },
+      "criticalContract": {
+        "status": "characterized",
+        "summary": "Existing backend and frontend news tests characterize source fidelity, translation status and content API envelopes.",
+        "coverage": [
+          "tests/news_backend_test.py",
+          "tests/news-api-client.test.js",
+          "tests/news-detail-view.test.js",
+          "tests/news-home-payload.test.js",
+          "apps/mini-taro/src/pages/news/news-home-model.test.ts"
+        ],
+        "runtimeEvidence": [],
+        "ownerMapRef": {
+          "hotspotFile": "server/news_backend.py",
+          "ownerId": "news_content_api",
+          "factOwner": "server/news_backend.py"
+        }
+      }
+    },
+    {
+      "id": "websim_gear_public_read_model",
+      "status": "active",
+      "ownerRole": "fact_owner",
+      "factOwner": "server/gear_public_contract.py",
+      "writeBehavior": false,
+      "writeOwner": null,
+      "consumers": [
+        "server/websim_payload.py",
+        "server/pg_gear_template_selectors.py",
+        "pages/builds/websim-api.js",
+        "pages/builds/detail.js",
+        "packages/api-client/src/websim.ts",
+        "packages/domain/src/gear-intent.ts",
+        "apps/mini-taro/src/pages/builds/detail.tsx"
+      ],
+      "contractFoundations": {
+        "status": "active_canonical_runtime",
+        "modules": [
+          "server/gear_contracts.py",
+          "server/gear_result_envelope.py",
+          "server/gear_rule_matrix.py",
+          "server/gear_evidence_ledger.py",
+          "server/gear_resolver.py",
+          "server/pg_gear_authority_loader.py",
+          "server/community_template_import.py"
+        ],
+        "tests": [
+          "tests/gear_contracts_test.py",
+          "tests/gear_result_envelope_test.py",
+          "tests/gear_rule_matrix_test.py",
+          "tests/gear_evidence_ledger_test.py",
+          "tests/gear_resolver_test.py",
+          "tests/pg_gear_authority_loader_test.py",
+          "tests/community_template_import_test.py"
+        ],
+        "runtimeConsumers": [
+          "server/news_backend.py canonical resolve/community-import routes",
+          "pages/builds/detail.js legacy compatibility workbench",
+          "apps/mini-taro/src/pages/builds/detail.tsx active Taro workbench"
+        ]
+      },
+      "socketFactAuthority": {
+        "status": "pure_contract_only_unconsumed",
+        "factOwner": "server/gear_socket_authority.py",
+        "modules": [
+          "server/gear_socket_authority.py"
+        ],
+        "tests": [
+          "tests/gear_socket_authority_test.py"
+        ],
+        "runtimeConsumers": [],
+        "activationBoundary": "Task 1 defines deterministic max-not-sum socket facts only; release materialization and runtime consumption remain outside this slice."
+      },
+      "releaseTrainFoundations": {
+        "status": "phase4e_active_manifest_and_scheduled_candidates",
+        "modules": [
+          "server/gear_socket_authority.py",
+          "server/gear_release.py",
+          "server/gear_release_store.py",
+          "server/gear_release_tool.py",
+          "server/gear_release_shadow.py",
+          "server/gear_release_refresh.py",
+          "server/migrations/postgres/0013_websim_release_train.sql",
+          "server/migrations/postgres/0014_websim_active_manifest_pointer_state.sql",
+          "server/wow-gear-release-refresh.service",
+          "server/wow-gear-release-refresh.timer"
+        ],
+        "tests": [
+          "tests/gear_socket_authority_test.py",
+          "tests/gear_release_test.py",
+          "tests/gear_release_store_test.py",
+          "tests/gear_release_tool_test.py",
+          "tests/gear_release_shadow_test.py",
+          "tests/gear_release_refresh_test.py",
+          "tests/deploy-script.test.js",
+          "tests/postgres_schema_test.py"
+        ],
+        "runtimeConsumers": [
+          "server/gear_release_tool.py explicit operator command",
+          "server/gear_release_shadow.py internal active/candidate comparison",
+          "server/gear_release_refresh.py bounded scheduled candidate-first orchestrator"
+        ],
+        "activationBoundary": "Phase 4D is merged and live-verified with one formal active Manifest at generation 9. Phase 4E may consume staging into inactive candidates and auto-promote only same-Gear Community or fully compatible additive Gear changes; deploy-triggered refresh, Phase 5 and Catalyst remain forbidden."
+      },
+      "statSnapshotFoundations": {
+        "status": "phase5_complete_active_async_snapshot",
+        "factOwner": "server/gear_stat_snapshot_api.py",
+        "writeOwner": "server/gear_stat_snapshot_store.py",
+        "executionOwner": "server/gear_stat_snapshot_worker.py",
+        "modules": [
+          "server/gear_stat_snapshot.py",
+          "server/gear_stat_snapshot_store.py",
+          "server/gear_stat_snapshot_api.py",
+          "server/gear_stat_snapshot_worker.py",
+          "server/migrations/postgres/0015_websim_gear_stat_snapshots.sql",
+          "server/wow-gear-stat-snapshot-worker.service"
+        ],
+        "tests": [
+          "tests/gear_stat_snapshot_test.py",
+          "tests/gear_stat_snapshot_store_test.py",
+          "tests/gear_stat_snapshot_api_test.py",
+          "tests/gear_stat_snapshot_worker_test.py",
+          "tests/postgres_schema_test.py"
+        ],
+        "runtimeConsumers": [
+          "server/news_backend.py canonical async route and bounded health/admin projection",
+          "server/gear_stat_snapshot_worker.py one-child fenced execution loop",
+          "pages/builds/detail.js legacy compatibility consumer",
+          "apps/mini-taro/src/pages/builds/detail.tsx active Taro consumer"
+        ],
+        "activationBoundary": "Canonical async snapshots are active. Both frontend surfaces must preserve signature fencing and explicit verified/fail-closed outcomes; Catalyst remains disabled."
+      },
+      "dormantAdapters": {
+        "status": "contract_only_unconsumed",
+        "modules": [
+          "server/postgres_cache_store.py::get_gear_authority_context",
+          "server/websim_payload.py::gear_resolver_runtime_authority"
+        ],
+        "runtimeConsumers": [],
+        "queryBudget": "three cold domain queries or one warm revision query; no slot-count growth",
+        "cacheBoundary": "bounded entries and serialized bytes; incomplete contexts are not cached"
+      },
+      "publicContracts": [
+        "communityTemplates public entry allows active raiderio_observed_profile only.",
+        "baselineTemplates public default remains empty.",
+        "Phase 2 bounded Authority Context loader and dormant adapters do not replace the current public read model; Phase 3A may add backend resolverContext and Resolve/Profile routes while public observed-only selection remains unchanged."
+      ],
+      "mustNotChange": [
+        "Do not reintroduce recommended_bis, season_recommendation, default_template, simc_preset or baseline_blocked into public gear entry.",
+        "Do not move public source-quality decisions to frontend code."
+      ],
+      "characterization": [
+        "tests/gear_public_contract_test.py",
+        "tests/websim_payload_test.py",
+        "tests/news_backend_test.py",
+        "tests/pg_gear_template_selectors_test.py",
+        "tests/builds-page.test.js",
+        "tests/gear_contracts_test.py",
+        "tests/gear_result_envelope_test.py",
+        "tests/gear_rule_matrix_test.py",
+        "tests/gear_evidence_ledger_test.py",
+        "tests/gear_resolver_test.py",
+        "tests/pg_gear_authority_loader_test.py",
+        "tests/gear_release_test.py",
+        "tests/gear_release_store_test.py",
+        "tests/gear_release_tool_test.py",
+        "tests/gear_release_shadow_test.py",
+        "tests/gear_release_refresh_test.py",
+        "tests/gear_socket_authority_test.py",
+        "tests/community_template_import_test.py"
+      ],
+      "runtimeSurfaces": [
+        "server/gear_public_contract.py",
+        "server/websim_payload.py",
+        "server/pg_gear_template_selectors.py",
+        "server/community_template_import.py",
+        "pages/builds/websim-api.js",
+        "packages/api-client/src/websim.ts",
+        "packages/domain/src/gear-intent.ts",
+        "apps/mini-taro/src/pages/builds/detail.tsx"
+      ],
+      "runbooks": [
+        "docs/gear-simulation-full-chain-runbook.md",
+        "docs/community-template-import-full-chain-runbook.md"
+      ],
+      "rollback": [
+        "code_rollback",
+        "resync_repair"
+      ],
+      "verificationProfiles": [
+        "backend",
+        "frontend",
+        "full"
+      ],
+      "releaseTrigger": "public_payload",
+      "changedPathPatterns": [
+        "server/gear_public_contract.py",
+        "server/gear_socket_authority.py",
+        "server/websim_payload.py",
+        "server/pg_gear_template_selectors.py",
+        "server/gear_contracts.py",
+        "server/gear_result_envelope.py",
+        "server/gear_rule_matrix.py",
+        "server/gear_evidence_ledger.py",
+        "server/gear_resolver.py",
+        "server/gear_release.py",
+        "server/gear_release_store.py",
+        "server/gear_release_tool.py",
+        "server/gear_release_shadow.py",
+        "server/gear_release_refresh.py",
+        "server/migrations/postgres/0013_websim_release_train.sql",
+        "server/migrations/postgres/0014_websim_active_manifest_pointer_state.sql",
+        "server/gear_stat_snapshot.py",
+        "server/gear_stat_snapshot_store.py",
+        "server/migrations/postgres/0015_websim_gear_stat_snapshots.sql",
+        "server/wow-gear-release-refresh.service",
+        "server/wow-gear-release-refresh.timer",
+        "server/pg_gear_authority_loader.py",
+        "server/community_template_import.py",
+        "server/postgres_cache_store.py",
+        "pages/builds/websim-api.js",
+        "pages/builds/detail.*",
+        "packages/api-client/src/{transport,websim}.*",
+        "packages/domain/src/gear-intent.*",
+        "apps/mini-taro/src/pages/builds/detail.*",
+        "tests/gear_contracts_test.py",
+        "tests/gear_result_envelope_test.py",
+        "tests/gear_rule_matrix_test.py",
+        "tests/gear_evidence_ledger_test.py",
+        "tests/gear_resolver_test.py",
+        "tests/gear_release_test.py",
+        "tests/gear_release_store_test.py",
+        "tests/gear_release_tool_test.py",
+        "tests/gear_release_shadow_test.py",
+        "tests/gear_release_refresh_test.py",
+        "tests/gear_socket_authority_test.py",
+        "tests/gear_stat_snapshot_test.py",
+        "tests/gear_stat_snapshot_store_test.py",
+        "tests/pg_gear_authority_loader_test.py",
+        "tests/community_template_import_test.py"
+      ],
+      "backendOwnerMapRef": {
+        "hotspotFile": "server/websim_payload.py",
+        "ownerId": "gear_public_contract",
+        "factOwner": "server/gear_public_contract.py"
+      },
+      "criticalContract": {
+        "status": "characterized",
+        "summary": "Existing gear public contract, WebSim payload, PG selector and frontend gear tests characterize observed-only, baseline-empty, legality and structured payload behavior.",
+        "coverage": [
+          "tests/gear_public_contract_test.py",
+          "tests/websim_payload_test.py",
+          "tests/news_backend_test.py",
+          "tests/pg_gear_template_selectors_test.py",
+          "tests/builds-page.test.js",
+          "tests/gear_contracts_test.py",
+          "tests/gear_result_envelope_test.py",
+          "tests/gear_rule_matrix_test.py",
+          "tests/gear_evidence_ledger_test.py",
+          "tests/gear_resolver_test.py",
+          "tests/pg_gear_authority_loader_test.py",
+          "tests/gear_release_test.py",
+          "tests/gear_release_store_test.py",
+          "tests/gear_release_tool_test.py",
+          "tests/gear_release_shadow_test.py",
+          "tests/gear_socket_authority_test.py",
+          "tests/community_template_import_test.py"
+        ],
+        "runtimeEvidence": [],
+        "ownerMapRef": {
+          "hotspotFile": "server/websim_payload.py",
+          "ownerId": "gear_public_contract",
+          "factOwner": "server/gear_public_contract.py"
+        }
+      }
+    },
+    {
+      "id": "websim_talent_public_read_model",
+      "status": "active",
+      "ownerRole": "fact_owner",
+      "factOwner": "server/websim_payload.py",
+      "writeBehavior": false,
+      "writeOwner": null,
+      "consumers": [
+        "server/news_backend.py",
+        "pages/builds/websim-api.js",
+        "pages/builds/talent-simulator.js",
+        "pages/builds/talent-simulator-core.js"
+      ],
+      "publicContracts": [
+        "Talent readiness cannot be inferred from display-only spell text.",
+        "Fallback or blocked talent payloads do not become executable saveable templates."
+      ],
+      "mustNotChange": [
+        "Do not mark display-only talent descriptions as executable readiness.",
+        "Do not let frontend upgrade blocked talent payloads."
+      ],
+      "characterization": [
+        "tests/websim_payload_test.py",
+        "tests/news_backend_test.py",
+        "tests/talent-simulator-core.test.js"
+      ],
+      "runtimeSurfaces": [
+        "server/websim_payload.py",
+        "server/news_backend.py",
+        "pages/builds/talent-simulator.js",
+        "pages/builds/talent-simulator-core.js"
+      ],
+      "runbooks": [
+        "docs/talent-simulation-full-chain-runbook.md",
+        "docs/talent-simulation-full-chain-runbook.md"
+      ],
+      "rollback": [
+        "code_rollback",
+        "resync_repair"
+      ],
+      "verificationProfiles": [
+        "backend",
+        "frontend",
+        "full"
+      ],
+      "releaseTrigger": "public_payload",
+      "changedPathPatterns": [
+        "server/websim_payload.py",
+        "server/pg_gear_read_model_selectors.py",
+        "pages/builds/talent-simulator.*"
+      ],
+      "backendOwnerMapRef": {
+        "hotspotFile": "server/websim_payload.py",
+        "ownerId": "talent_public_contract",
+        "factOwner": "server/websim_payload.py"
+      },
+      "criticalContract": {
+        "status": "characterized",
+        "summary": "Existing WebSim payload, backend route and talent simulator tests characterize talent readiness, authority and community template applicability.",
+        "coverage": [
+          "tests/websim_payload_test.py",
+          "tests/news_backend_test.py",
+          "tests/talent-simulator-core.test.js"
+        ],
+        "runtimeEvidence": [],
+        "ownerMapRef": {
+          "hotspotFile": "server/websim_payload.py",
+          "ownerId": "talent_public_contract",
+          "factOwner": "server/websim_payload.py"
+        }
+      }
+    },
+    {
+      "id": "websim_loot_assets_bootstrap",
+      "status": "active",
+      "ownerRole": "fact_owner",
+      "factOwner": "server/pg_gear_read_model_selectors.py",
+      "writeBehavior": false,
+      "writeOwner": null,
+      "consumers": [
+        "server/postgres_cache_store.py",
+        "server/websim_payload.py",
+        "pages/pve/pve-api.js",
+        "pages/pve/pve.js"
+      ],
+      "publicContracts": [
+        "Loot/assets/bootstrap read models preserve backend-owned source and coverage state.",
+        "Frontend displays read-model envelopes and does not invent missing loot readiness."
+      ],
+      "mustNotChange": [
+        "Do not silently fall back to stale SQLite payloads for PG read-model gaps.",
+        "Do not make PVE pages the owner of loot source trust."
+      ],
+      "characterization": [
+        "tests/pg_gear_read_model_selectors_test.py",
+        "tests/postgres_cache_store_test.py",
+        "tests/pve-page.test.js",
+        "tests/websim_payload_test.py"
+      ],
+      "runtimeSurfaces": [
+        "server/pg_gear_read_model_selectors.py",
+        "server/postgres_cache_store.py",
+        "pages/pve/pve-api.js"
+      ],
+      "runbooks": [
+        "docs/gear-simulation-full-chain-runbook.md",
+        "docs/database-architecture.md"
+      ],
+      "rollback": [
+        "code_rollback",
+        "resync_repair"
+      ],
+      "verificationProfiles": [
+        "backend",
+        "frontend",
+        "full"
+      ],
+      "releaseTrigger": "pg_read_model",
+      "changedPathPatterns": [
+        "server/pg_gear_read_model_selectors.py",
+        "server/postgres_cache_store.py",
+        "pages/pve/**"
+      ],
+      "backendOwnerMapRef": {
+        "hotspotFile": "server/postgres_cache_store.py",
+        "ownerId": "gear_catalog_read_model_selectors",
+        "factOwner": "server/pg_gear_read_model_selectors.py"
+      },
+      "criticalContract": {
+        "status": "characterized",
+        "summary": "Existing PG read-model selector, cache-store, PVE and WebSim payload tests characterize loot/assets/bootstrap envelopes, season gates and blocker propagation.",
+        "coverage": [
+          "tests/pg_gear_read_model_selectors_test.py",
+          "tests/postgres_cache_store_test.py",
+          "tests/pve-page.test.js",
+          "tests/websim_payload_test.py"
+        ],
+        "runtimeEvidence": [],
+        "ownerMapRef": {
+          "hotspotFile": "server/postgres_cache_store.py",
+          "ownerId": "gear_catalog_read_model_selectors",
+          "factOwner": "server/pg_gear_read_model_selectors.py"
+        }
+      }
+    },
+    {
+      "id": "simc_template_task_pipeline",
+      "status": "active",
+      "ownerRole": "fact_owner",
+      "factOwner": "server/simc_profile_policy.py",
+      "writeBehavior": true,
+      "writeOwner": "server/news_backend.py",
+      "consumers": [
+        "server/websim_payload.py",
+        "server/simc_preparation.py",
+        "server/codex_worker.py",
+        "pages/simulator/simc.js",
+        "pages/simulator/simulator-api.js"
+      ],
+      "contractFoundations": {
+        "status": "contract_only_unconsumed",
+        "modules": [
+          "server/gear_contracts.py",
+          "server/gear_result_envelope.py",
+          "server/gear_rule_matrix.py",
+          "server/gear_evidence_ledger.py",
+          "server/gear_resolver.py",
+          "server/pg_gear_authority_loader.py"
+        ],
+        "tests": [
+          "tests/gear_contracts_test.py",
+          "tests/gear_result_envelope_test.py",
+          "tests/gear_rule_matrix_test.py",
+          "tests/gear_evidence_ledger_test.py",
+          "tests/gear_resolver_test.py",
+          "tests/pg_gear_authority_loader_test.py"
+        ],
+        "runtimeConsumers": []
+      },
+      "dormantAdapters": {
+        "status": "contract_only_unconsumed",
+        "modules": [
+          "server/postgres_cache_store.py::get_gear_authority_context",
+          "server/websim_payload.py::gear_resolver_runtime_authority",
+          "server/websim_payload.py::build_websim_profile_response_from_resolved_snapshot"
+        ],
+        "runtimeConsumers": [],
+        "queryBudget": "three cold domain queries or one warm revision query; no slot-count growth",
+        "cacheBoundary": "bounded entries and serialized bytes; incomplete contexts are not cached"
+      },
+      "publicContracts": [
+        "SimC profile generation stays backend-owned.",
+        "Submitted gear enhancements require backend-attached catalog authority before serialization.",
+        "Legacy gear stats preserve their response shape while stat_snapshot_v1 uses one iteration and process-global concurrency one.",
+        "Task list/detail evidence does not expose raw internal diagnostics as user-facing truth.",
+        "Phase 2A emits deterministic structured serializer input and five evidence groups, but no current serializer, route, task or Worker imports the Resolver or Ledger.",
+        "Phase 2 adds a PostgreSQL-only Authority Context loader and resolved-snapshot serializer parity facade. Phase 3 activates them only through separately gated backend/API and frontend Slices; compatibility-pg-live-v1 remains transitional and is not the formal Phase 4 Active Season Manifest."
+      ],
+      "mustNotChange": [
+        "Do not assemble authoritative SimC profile strings client-side.",
+        "Do not accept client-supplied gem, enchant or embellishment options as server authority.",
+        "Do not apply the stat_snapshot_v1 limiter or one-iteration flavor to normal profile or simulator execution.",
+        "Do not promote queued task success to DPS correctness."
+      ],
+      "characterization": [
+        "tests/websim_payload_test.py::WebSimPayloadTest.test_http_websim_gear_stats_runs_fake_simc_for_verified_snapshot",
+        "tests/websim_payload_test.py::WebSimPayloadTest.test_legacy_gear_stats_simc_execution_has_global_concurrency_one",
+        "tests/websim_payload_test.py::WebSimPayloadTest.test_http_websim_simulate_runs_encoded_profile_through_fake_simc",
+        "tests/websim_payload_test.py",
+        "tests/simulator-page.test.js",
+        "tests/news_backend_test.py",
+        "tests/codex_worker_test.py",
+        "tests/simulator_smoke_test.py",
+        "tests/gear_contracts_test.py",
+        "tests/gear_result_envelope_test.py",
+        "tests/gear_rule_matrix_test.py",
+        "tests/gear_evidence_ledger_test.py",
+        "tests/gear_resolver_test.py",
+        "tests/pg_gear_authority_loader_test.py"
+      ],
+      "runtimeSurfaces": [
+        "server/websim_payload.py",
+        "server/simc_profile_policy.py",
+        "server/simc_preparation.py",
+        "server/news_backend.py",
+        "pages/simulator/simc.js"
+      ],
+      "runbooks": [
+        "docs/simulator-simc-end-to-end.md",
+        "docs/simulator-simc-end-to-end.md"
+      ],
+      "rollback": [
+        "code_rollback",
+        "config_disable"
+      ],
+      "verificationProfiles": [
+        "backend",
+        "frontend",
+        "full"
+      ],
+      "releaseTrigger": "backend_api",
+      "changedPathPatterns": [
+        "server/websim_payload.py",
+        "server/simc_profile_policy.py",
+        "server/simc_preparation.py",
+        "server/gear_contracts.py",
+        "server/gear_result_envelope.py",
+        "server/gear_rule_matrix.py",
+        "server/gear_evidence_ledger.py",
+        "server/gear_resolver.py",
+        "server/pg_gear_authority_loader.py",
+        "server/postgres_cache_store.py",
+        "server/codex_worker.py",
+        "server/news_backend.py",
+        "pages/simulator/simc.*",
+        "pages/simulator/simulator-api.js",
+        "tests/gear_contracts_test.py",
+        "tests/gear_result_envelope_test.py",
+        "tests/gear_rule_matrix_test.py",
+        "tests/gear_evidence_ledger_test.py",
+        "tests/gear_resolver_test.py",
+        "tests/pg_gear_authority_loader_test.py",
+        "tests/postgres_cache_store_test.py",
+        "tests/websim_payload_test.py"
+      ],
+      "criticalContract": {
+        "status": "characterized",
+        "summary": "Existing simulator frontend, backend route, codex worker and smoke tests characterize serializer, task snapshot, owner isolation and deterministic fallback boundaries.",
+        "coverage": [
+          "tests/websim_payload_test.py::WebSimPayloadTest.test_http_websim_gear_stats_runs_fake_simc_for_verified_snapshot",
+          "tests/websim_payload_test.py::WebSimPayloadTest.test_legacy_gear_stats_simc_execution_has_global_concurrency_one",
+          "tests/websim_payload_test.py::WebSimPayloadTest.test_http_websim_simulate_runs_encoded_profile_through_fake_simc",
+          "tests/websim_payload_test.py",
+          "tests/simulator-page.test.js",
+          "tests/news_backend_test.py",
+          "tests/codex_worker_test.py",
+          "tests/simulator_smoke_test.py",
+          "tests/gear_contracts_test.py",
+          "tests/gear_result_envelope_test.py",
+          "tests/gear_rule_matrix_test.py",
+          "tests/gear_evidence_ledger_test.py",
+          "tests/gear_resolver_test.py",
+          "tests/pg_gear_authority_loader_test.py"
+        ],
+        "runtimeEvidence": [],
+        "ownerMapRef": null
+      }
+    },
+    {
+      "id": "chickenbro_session_evidence_pipeline",
+      "status": "active",
+      "ownerRole": "fact_owner",
+      "factOwner": "server/news_backend.py",
+      "writeBehavior": true,
+      "writeOwner": "server/news_backend.py",
+      "consumers": [
+        "server/codex_worker.py",
+        "pages/simulator/chickenbro.js",
+        "pages/simulator/chickenbro-chat.js",
+        "pages/simulator/simulator-api.js"
+      ],
+      "publicContracts": [
+        "Chickenbro may answer direct chat, but local evidence claims stay tied to backend evidence references.",
+        "Guest chat does not require WeChat login preflight."
+      ],
+      "mustNotChange": [
+        "Do not expose raw SimC, logs, tokens or internal blockers in chat payloads.",
+        "Do not let direct chat create verified local evidence without read-model support."
+      ],
+      "characterization": [
+        "tests/news_backend_test.py",
+        "tests/simulator-page.test.js",
+        "tests/profile-auth.test.js",
+        "tests/codex_worker_test.py"
+      ],
+      "runtimeSurfaces": [
+        "server/news_backend.py",
+        "server/codex_worker.py",
+        "pages/simulator/chickenbro.js",
+        "pages/simulator/chickenbro-chat.js"
+      ],
+      "runbooks": [
+        "docs/roadmap/ideas.md",
+        "docs/simulator-simc-end-to-end.md"
+      ],
+      "rollback": [
+        "code_rollback",
+        "config_disable"
+      ],
+      "verificationProfiles": [
+        "backend",
+        "frontend",
+        "full"
+      ],
+      "releaseTrigger": "backend_api",
+      "changedPathPatterns": [
+        "server/news_backend.py",
+        "server/codex_worker.py",
+        "pages/simulator/chickenbro.*",
+        "pages/simulator/chickenbro-chat.js"
+      ],
+      "backendOwnerMapRef": {
+        "hotspotFile": "server/news_backend.py",
+        "ownerId": "chickenbro_session_api",
+        "factOwner": "server/news_backend.py"
+      },
+      "criticalContract": {
+        "status": "characterized",
+        "summary": "Existing backend, simulator page, profile auth and codex worker tests characterize session/job ownership, evidence boundaries and fallback behavior.",
+        "coverage": [
+          "tests/news_backend_test.py",
+          "tests/simulator-page.test.js",
+          "tests/profile-auth.test.js",
+          "tests/codex_worker_test.py"
+        ],
+        "runtimeEvidence": [],
+        "ownerMapRef": {
+          "hotspotFile": "server/news_backend.py",
+          "ownerId": "chickenbro_session_api",
+          "factOwner": "server/news_backend.py"
+        }
+      }
+    },
+    {
+      "id": "external_source_provenance",
+      "status": "active",
+      "ownerRole": "fact_owner",
+      "factOwner": "server/websim_payload.py",
+      "writeBehavior": true,
+      "writeOwner": "server/websim_sync.py",
+      "consumers": [
+        "server/raiderio_payload.py",
+        "server/news_collector.py",
+        "server/stat_weights_payload.py",
+        "pages/pve/detail.js"
+      ],
+      "publicContracts": [
+        "External sources remain evidence with explicit source/status/confidence.",
+        "Observed evidence supports but does not upgrade authority to verified."
+      ],
+      "mustNotChange": [
+        "Do not treat Raider.IO, WCL or translation status as official truth without source evidence.",
+        "Do not hide stale, partial or blocked source state from backend payloads."
+      ],
+      "characterization": [
+        "tests/raiderio_payload_test.py",
+        "tests/news_collector_test.py",
+        "tests/stat_weights_payload_test.py",
+        "tests/websim_payload_test.py"
+      ],
+      "runtimeSurfaces": [
+        "server/websim_payload.py",
+        "server/raiderio_payload.py",
+        "server/news_collector.py",
+        "server/stat_weights_payload.py"
+      ],
+      "runbooks": [
+        "docs/gear-simulation-full-chain-runbook.md",
+        "docs/news-architecture.md"
+      ],
+      "rollback": [
+        "code_rollback",
+        "resync_repair"
+      ],
+      "verificationProfiles": [
+        "backend",
+        "full"
+      ],
+      "releaseTrigger": "backend_api",
+      "changedPathPatterns": [
+        "server/raiderio_payload.py",
+        "server/news_collector.py",
+        "server/stat_weights_payload.py",
+        "server/websim_payload.py",
+        "pages/pve/detail.*"
+      ],
+      "criticalContract": {
+        "status": "characterized",
+        "summary": "Existing Raider.IO, news collector, stat weights and WebSim payload tests characterize source keys, freshness and fail-closed provenance.",
+        "coverage": [
+          "tests/raiderio_payload_test.py",
+          "tests/news_collector_test.py",
+          "tests/stat_weights_payload_test.py",
+          "tests/websim_payload_test.py"
+        ],
+        "runtimeEvidence": [],
+        "ownerMapRef": null
+      }
+    },
+    {
+      "id": "postgres_runtime_schema_boundary",
+      "status": "active",
+      "ownerRole": "fact_owner",
+      "factOwner": "server/postgres_cache_store.py",
+      "writeBehavior": true,
+      "writeOwner": "server/migrations/postgres",
+      "consumers": [
+        "server/postgres_personal_store.py",
+        "server/postgres_content_store.py",
+        "server/postgres_cache_store.py",
+        "server/postgres_ops_store.py",
+        "server/gear_release_store.py",
+        "server/gear_release_tool.py",
+        "server/gear_release_shadow.py"
+      ],
+      "publicContracts": [
+        "PG-only runtime boundaries must fail closed without silent SQLite fallback.",
+        "Schema changes require explicit migration and rollback evidence."
+      ],
+      "mustNotChange": [
+        "Do not execute migrations inside Harness docs/tooling PRs.",
+        "Do not reintroduce silent SQLite fallback for PG runtime read models."
+      ],
+      "characterization": [
+        "tests/postgres_schema_test.py",
+        "tests/postgres_only_scripts_test.py",
+        "tests/postgres_cache_store_test.py",
+        "tests/database_adapter_test.py",
+        "tests/gear_release_store_test.py",
+        "tests/gear_release_tool_test.py",
+        "tests/gear_release_shadow_test.py"
+      ],
+      "runtimeSurfaces": [
+        "server/postgres_cache_store.py",
+        "server/postgres_personal_store.py",
+        "server/migrations/postgres",
+        "server/gear_release_store.py",
+        "server/gear_release_tool.py",
+        "server/gear_release_shadow.py"
+      ],
+      "runbooks": [
+        "docs/database-architecture.md",
+        "docs/postgres-identity-migration-runbook.md"
+      ],
+      "rollback": [
+        "code_rollback",
+        "data_restore"
+      ],
+      "verificationProfiles": [
+        "backend",
+        "full"
+      ],
+      "releaseTrigger": "pg_read_model",
+      "changedPathPatterns": [
+        "server/postgres_*_store.py",
+        "server/gear_release_store.py",
+        "server/gear_release_tool.py",
+        "server/gear_release_shadow.py",
+        "server/migrations/postgres/**",
+        "server/db.py"
+      ],
+      "backendOwnerMapRef": {
+        "hotspotFile": "server/postgres_cache_store.py",
+        "ownerId": "cache_payload_read_model_selectors",
+        "factOwner": "server/postgres_cache_store.py"
+      },
+      "criticalContract": {
+        "status": "characterized",
+        "summary": "Existing PostgreSQL schema, PG-only scripts, cache-store and database adapter tests characterize PG-only runtime, schema ownership and no silent SQLite fallback.",
+        "coverage": [
+          "tests/postgres_schema_test.py",
+          "tests/postgres_only_scripts_test.py",
+          "tests/postgres_cache_store_test.py",
+          "tests/database_adapter_test.py",
+          "tests/gear_release_store_test.py",
+          "tests/gear_release_tool_test.py",
+          "tests/gear_release_shadow_test.py"
+        ],
+        "runtimeEvidence": [],
+        "ownerMapRef": {
+          "hotspotFile": "server/postgres_cache_store.py",
+          "ownerId": "cache_payload_read_model_selectors",
+          "factOwner": "server/postgres_cache_store.py"
+        }
+      }
+    },
+    {
+      "id": "cache_sync_state_repository",
+      "status": "health_watch",
+      "ownerRole": "fact_owner",
+      "healthWatchTrigger": "Read/write state is owned by postgres_cache_store.py and sync scripts; future refactors must preserve sync-state partial/blocked truth and avoid cleanup/backfill side effects.",
+      "factOwner": "server/postgres_cache_store.py",
+      "writeBehavior": true,
+      "writeOwner": "server/postgres_cache_sync.py",
+      "consumers": [
+        "server/websim_sync.py",
+        "server/community_template_sync.py",
+        "server/data_health_followup.py",
+        "server/news_backend.py"
+      ],
+      "publicContracts": [
+        "Sync state records partial, stale and blocked truth without upgrading successful task execution to product quality.",
+        "Runtime reads do not hide stale PG cache state with fallback payloads."
+      ],
+      "mustNotChange": [
+        "Do not refactor sync/write/backfill/cleanup in this Harness normalization task.",
+        "Do not clear blockers or stale state without current sync evidence."
+      ],
+      "characterization": [
+        "tests/postgres_cache_sync_test.py",
+        "tests/websim_sync_test.py",
+        "tests/postgres_cache_store_test.py",
+        "tests/data_health_followup_test.py"
+      ],
+      "runtimeSurfaces": [
+        "server/postgres_cache_store.py",
+        "server/postgres_cache_sync.py",
+        "server/websim_sync.py",
+        "server/community_template_sync.py"
+      ],
+      "runbooks": [
+        "docs/community-template-import-full-chain-runbook.md",
+        "docs/database-architecture.md"
+      ],
+      "rollback": [
+        "code_rollback",
+        "resync_repair"
+      ],
+      "verificationProfiles": [
+        "backend",
+        "full"
+      ],
+      "releaseTrigger": "scheduled_jobs",
+      "changedPathPatterns": [
+        "server/postgres_cache_store.py",
+        "server/postgres_cache_sync.py",
+        "server/websim_sync.py",
+        "server/community_template_sync.py",
+        "server/*-sync.service",
+        "server/*-sync.timer"
+      ],
+      "backendOwnerMapRef": {
+        "hotspotFile": "server/postgres_cache_store.py",
+        "ownerId": "sync_state_repository",
+        "factOwner": "server/postgres_cache_store.py"
+      },
+      "criticalContract": {
+        "status": "health_watch",
+        "summary": "Existing cache sync, WebSim sync, cache-store and data-health tests characterize current sync-state read/write owner and partial health semantics; remains health_watch for future structure work.",
+        "coverage": [
+          "tests/postgres_cache_sync_test.py",
+          "tests/websim_sync_test.py",
+          "tests/postgres_cache_store_test.py",
+          "tests/data_health_followup_test.py"
+        ],
+        "runtimeEvidence": [],
+        "ownerMapRef": {
+          "hotspotFile": "server/postgres_cache_store.py",
+          "ownerId": "sync_state_repository",
+          "factOwner": "server/postgres_cache_store.py"
+        }
+      }
+    },
+    {
+      "id": "scheduled_sync_backfill_cleanup",
+      "status": "health_watch",
+      "ownerRole": "fact_owner",
+      "healthWatchTrigger": "Multiple scheduled jobs and backfill/cleanup scripts exist; owner map records current boundaries only and does not authorize refactor or execution.",
+      "factOwner": "docs/backend-owner-map.json",
+      "writeBehavior": true,
+      "writeOwner": "server/postgres_cache_sync.py",
+      "consumers": [
+        "server/community_best_guard_sync.py",
+        "server/recommended_bis_guard_sync.py",
+        "server/season_recommended_gear_sync.py",
+        "server/gear_observed_backfill.py",
+        "server/data_health_followup.py"
+      ],
+      "publicContracts": [
+        "Scheduled jobs must preserve observed-only public gear and baseline-default-empty semantics.",
+        "Cleanup/backfill residue controls must not overwrite public read-model gates."
+      ],
+      "mustNotChange": [
+        "Do not execute sync, write, backfill or cleanup tasks in this Harness normalization task.",
+        "Do not let recommended_bis or season_recommendation backflow into public entry."
+      ],
+      "characterization": [
+        "tests/postgres_cache_sync_test.py",
+        "tests/websim_sync_test.py",
+        "tests/gear_observed_backfill_test.py",
+        "tests/season_recommended_gear_test.py"
+      ],
+      "runtimeSurfaces": [
+        "server/community_best_guard_sync.py",
+        "server/recommended_bis_guard_sync.py",
+        "server/season_recommended_gear_sync.py",
+        "server/gear_observed_backfill.py",
+        "server/gear_release_refresh.py",
+        "server/wow-gear-release-refresh.service",
+        "server/wow-gear-release-refresh.timer",
+        "server/wow-community-template-sync.timer"
+      ],
+      "runbooks": [
+        "docs/community-template-import-full-chain-runbook.md",
+        "docs/gear-simulation-full-chain-runbook.md"
+      ],
+      "rollback": [
+        "code_rollback",
+        "resync_repair",
+        "config_disable"
+      ],
+      "verificationProfiles": [
+        "backend",
+        "full"
+      ],
+      "releaseTrigger": "scheduled_jobs",
+      "changedPathPatterns": [
+        "server/*_sync.py",
+        "server/*backfill*.py",
+        "server/*cleanup*.py",
+        "server/*.service",
+        "server/*.timer"
+      ],
+      "backendOwnerMapRef": {
+        "hotspotFile": "server/postgres_cache_store.py",
+        "ownerId": "cleanup_residue_control",
+        "factOwner": "docs/backend-owner-map.json"
+      },
+      "criticalContract": {
+        "status": "health_watch",
+        "summary": "Existing cache sync, WebSim sync, observed backfill and season recommendation tests characterize timers/backfill/backflow boundaries; remains health_watch because write/sync/cleanup refactor is frozen.",
+        "coverage": [
+          "tests/postgres_cache_sync_test.py",
+          "tests/websim_sync_test.py",
+        "tests/gear_observed_backfill_test.py",
+        "tests/season_recommended_gear_test.py",
+        "tests/gear_release_refresh_test.py",
+        "tests/deploy-script.test.js"
+        ],
+        "runtimeEvidence": [],
+        "ownerMapRef": {
+          "hotspotFile": "server/postgres_cache_store.py",
+          "ownerId": "cleanup_residue_control",
+          "factOwner": "docs/backend-owner-map.json"
+        }
+      }
+    },
+    {
+      "id": "health_admin_observability",
+      "status": "active",
+      "ownerRole": "consumer_orchestrator",
+      "factOwner": "docs/backend-owner-map.json",
+      "writeBehavior": false,
+      "writeOwner": null,
+      "consumers": [
+        "server/news_backend.py",
+        "server/postgres_ops_store.py",
+        "server/data_health_followup.py",
+        "pages/builds/intel.js"
+      ],
+      "publicContracts": [
+        "Health/admin displays authoritative backend state without upgrading partial or internal evidence.",
+        "Catalyst parser-option compatibility does not prove retained-secondary-stat conversion capability.",
+        "API 200 or task success does not become verified product quality."
+      ],
+      "mustNotChange": [
+        "Do not make health/admin the product fact owner.",
+        "Do not report Catalyst capability enabled before the approved proof matrix is complete.",
+        "Do not hide blocked or partial state in admin summaries."
+      ],
+      "characterization": [
+        "tests/news_backend_test.py::NewsBackendTest.test_catalyst_overlay_allowlist_does_not_prove_cutover_capability",
+        "tests/news_backend_test.py::NewsBackendTest.test_data_health_payload_includes_season_cutover_readiness_control_plane",
+        "tests/news_backend_test.py",
+        "tests/postgres_ops_store_test.py",
+        "tests/data_health_followup_test.py",
+        "tests/builds-page.test.js"
+      ],
+      "runtimeSurfaces": [
+        "server/news_backend.py",
+        "server/postgres_ops_store.py",
+        "server/data_health_followup.py",
+        "pages/builds/intel.js"
+      ],
+      "runbooks": [
+        "docs/remote-debugging.md",
+        "docs/database-architecture.md"
+      ],
+      "rollback": [
+        "code_rollback",
+        "config_disable"
+      ],
+      "verificationProfiles": [
+        "backend",
+        "frontend",
+        "full"
+      ],
+      "releaseTrigger": "health_admin",
+      "changedPathPatterns": [
+        "server/news_backend.py",
+        "server/postgres_ops_store.py",
+        "server/data_health_followup.py",
+        "pages/builds/intel.*"
+      ],
+      "backendOwnerMapRef": {
+        "hotspotFile": "server/news_backend.py",
+        "ownerId": "health_admin_summary",
+        "factOwner": "docs/backend-owner-map.json"
+      },
+      "criticalContract": {
+        "status": "characterized",
+        "summary": "Existing backend, ops store, data-health and frontend admin/intel tests characterize consumer-only observability and partial/blocked display boundaries.",
+        "coverage": [
+          "tests/news_backend_test.py::NewsBackendTest.test_catalyst_overlay_allowlist_does_not_prove_cutover_capability",
+          "tests/news_backend_test.py::NewsBackendTest.test_data_health_payload_includes_season_cutover_readiness_control_plane",
+          "tests/news_backend_test.py",
+          "tests/postgres_ops_store_test.py",
+          "tests/data_health_followup_test.py",
+          "tests/builds-page.test.js"
+        ],
+        "runtimeEvidence": [],
+        "ownerMapRef": {
+          "hotspotFile": "server/news_backend.py",
+          "ownerId": "health_admin_summary",
+          "factOwner": "docs/backend-owner-map.json"
+        }
+      }
+    },
+    {
+      "id": "deploy_runtime_services",
+      "status": "active",
+      "ownerRole": "consumer_orchestrator",
+      "factOwner": "docs/remote-debugging.md",
+      "writeBehavior": true,
+      "writeOwner": "server/deploy_lighthouse.sh",
+      "consumers": [
+        "server/wow-websim-sync.service",
+        "server/wow-websim-sync.timer",
+        "server/wow-gear-release-refresh.service",
+        "server/wow-gear-release-refresh.timer",
+        "server/wow-data-health-followup.service",
+        "server/wow-talent-graph-recovery.service",
+        "server/wow-simc-runtime-update.service"
+      ],
+      "publicContracts": [
+        "Deploy scripts orchestrate release mechanics and do not create product judgment.",
+        "Runtime PRs require candidate deployment smoke before merge when feasible."
+      ],
+      "mustNotChange": [
+        "Do not deploy docs/tooling-only PRs for meaningless cloud evidence.",
+        "Do not treat deployment success as product correctness without endpoint/health smoke."
+      ],
+      "characterization": [
+        "tests/deploy-script.test.js",
+        "tests/deploy_lighthouse_test.py",
+        "tests/data_health_followup_test.py"
+      ],
+      "runtimeSurfaces": [
+        "server/deploy_lighthouse.sh",
+        "server/wow-websim-sync.service",
+        "server/wow-gear-release-refresh.service",
+        "server/wow-gear-release-refresh.timer",
+        "server/wow-data-health-followup.service",
+        "server/wow-talent-graph-recovery.service",
+        "server/wow-simc-runtime-update.service"
+      ],
+      "runbooks": [
+        "docs/remote-debugging.md",
+        "docs/postgres-identity-migration-runbook.md"
+      ],
+      "rollback": [
+        "code_rollback",
+        "config_disable",
+        "data_restore"
+      ],
+      "verificationProfiles": [
+        "backend",
+        "full"
+      ],
+      "releaseTrigger": "deploy_scripts",
+      "changedPathPatterns": [
+        "server/deploy_lighthouse.sh",
+        "server/*.service",
+        "server/*.timer",
+        ".github/workflows/**"
+      ],
+      "criticalContract": {
+        "status": "characterized",
+        "summary": "Existing deploy script, Lighthouse deploy and data-health follow-up tests characterize deploy/systemd/rollback mechanics without making deploy a product fact owner.",
+        "coverage": [
+          "tests/deploy-script.test.js",
+          "tests/deploy_lighthouse_test.py",
+          "tests/data_health_followup_test.py"
+        ],
+        "runtimeEvidence": [],
+        "ownerMapRef": null
+      }
+    },
+    {
+      "id": "ui_runtime_evidence",
+      "status": "active",
+      "ownerRole": "fact_owner",
+      "factOwner": "docs/design/current-ui/runtime-review-contract.json",
+      "writeBehavior": false,
+      "writeOwner": null,
+      "consumers": [
+        "apps/mini-taro/src/app.config.ts",
+        "apps/mini-taro/src/pages",
+        "packages/design-system/src",
+        "packages/assets-manifest/src",
+        "docs/design/current-ui/target-registry.json",
+        "app.json"
+      ],
+      "publicContracts": [
+        "The current UI contract covers the same 14 routes in Taro app config and target registry.",
+        "Visual acceptance remains unverified until fresh real WeChat target/runtime evidence is explicitly promoted."
+      ],
+      "mustNotChange": [
+        "Do not use browser-only or static tests as UI runtime acceptance.",
+        "Shared chrome, safe area and controls are changed in shared owners and propagated across routes."
+      ],
+      "characterization": [
+        "scripts/audit-ui-architecture.js",
+        "scripts/verify-ui-baselines.js",
+        "packages/design-system/src/components/PageFrame.test.ts",
+        "apps/mini-taro/src/pages/_shared/route-contract.test.ts"
+      ],
+      "runtimeSurfaces": [
+        "apps/mini-taro/src/app.config.ts",
+        "apps/mini-taro/src/pages",
+        "packages/design-system/src",
+        "docs/design/current-ui/runtime-review-contract.json",
+        "docs/design/current-ui/target-registry.json"
+      ],
+      "runbooks": [
+        "docs/remote-debugging.md",
+        "docs/roadmap.md"
+      ],
+      "rollback": [
+        "code_rollback"
+      ],
+      "verificationProfiles": [
+        "frontend",
+        "full"
+      ],
+      "releaseTrigger": "user_visible_runtime",
+      "changedPathPatterns": [
+        "apps/mini-taro/**",
+        "packages/design-system/**",
+        "packages/assets-manifest/**",
+        "packages/domain/src/route-contract.ts",
+        "docs/design/current-ui/**",
+        "scripts/{audit-ui-architecture,verify-ui-baselines}.js"
+      ],
+      "appRoutes": [
+        "pages/news/news",
+        "pages/news/list",
+        "pages/news/detail",
+        "pages/builds/builds",
+        "pages/builds/workbench",
+        "pages/builds/intel",
+        "pages/builds/talent-simulator",
+        "pages/builds/detail",
+        "pages/simulator/simulator",
+        "pages/simulator/simc",
+        "pages/simulator/chickenbro",
+        "pages/simulator/tasks",
+        "pages/simulator/task-detail",
+        "pages/profile/profile"
+      ],
+      "criticalContract": {
+        "status": "characterized",
+        "summary": "The active Taro target registry, shared component owners and architecture/baseline checks characterize the 14-route proof matrix; pixel acceptance is still pending fresh real WeChat evidence.",
+        "coverage": [
+          "scripts/audit-ui-architecture.js",
+          "scripts/verify-ui-baselines.js",
+          "packages/design-system/src/components/PageFrame.test.ts",
+          "apps/mini-taro/src/pages/_shared/route-contract.test.ts"
+        ],
+        "runtimeEvidence": [],
+        "ownerMapRef": null
+      }
+    }
+  ],
+  "criticalContractUnknown": 0,
+  "criticalContractBlocked": 0,
+  "criticalContractCharacterized": 14,
+  "criticalContractHealthWatch": 2,
+  "criticalContractGapClosed": 0
+}

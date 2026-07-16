@@ -30,7 +30,12 @@ export {
   isInsecureHttpUrl,
 } from './transport'
 export { canonicalGearSlots, createWebsimClient } from './websim'
-export type { GearRequest, WebsimClient } from './websim'
+export type {
+  CommunityTemplateImportRequest,
+  GearRequest,
+  GearStatSnapshotRequest,
+  WebsimClient,
+} from './websim'
 export type {
   ApiResult,
   ApiTransport,

@@ -1,0 +1,25 @@
+[Unit]
+Description=Run the single-child WOW Gear stat snapshot worker
+After=network-online.target postgresql.service wow-backend.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/wow-mini-program
+EnvironmentFile=-/etc/wow-backend.env
+Environment=WOW_DATABASE_RUNTIME=postgres_only
+ExecStart=/usr/bin/python3 -m server.gear_stat_snapshot_worker
+Restart=always
+RestartSec=2
+TimeoutStopSec=30
+MemoryMax=2200M
+TasksMax=64
+Nice=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=read-only
+ProtectSystem=strict
+
+[Install]
+WantedBy=multi-user.target

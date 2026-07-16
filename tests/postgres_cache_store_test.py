@@ -1,5 +1,8 @@
+import hashlib
+import json
 import unittest
 import uuid
+from pathlib import Path
 from unittest.mock import patch
 
 
@@ -31,6 +34,11 @@ class FakeCursor:
                 else:
                     self.current_rows = list(rows)
                 break
+        if (
+            self.current_rows is None
+            and "FROM cache.websim_active_manifest_pointer pointer" in normalized_sql
+        ):
+            self.current_rows = []
 
     def fetchone(self):
         if self.current_rows is not None:
@@ -65,6 +73,15 @@ class FakeConnection:
 
     def rollback(self):
         self.rolled_back = True
+
+
+class PreCutoverReleaseStore:
+    def load_active_manifest_binding(self):
+        return {
+            "pointerMode": "pre_cutover",
+            "generation": 0,
+            "formalActiveManifest": False,
+        }
 
 
 class PostgresCacheStoreTest(unittest.TestCase):
@@ -1129,6 +1146,201 @@ class PostgresCacheStoreTest(unittest.TestCase):
         chain = payload["communityTemplateSync"]["templateChains"]
         self.assertEqual(chain["legacyFallback"]["totalSpecCount"], 0)
         self.assertEqual(chain["recommendedBis"]["totalSpecCount"], 0)
+
+    def test_pg_gear_template_selectors_match_observed_only_golden_payload(self):
+        from server.postgres_cache_store import PostgresCacheStore
+        from server.websim_payload import CANONICAL_GEAR_SLOTS
+
+        fixture_path = Path(__file__).parent / "fixtures" / "pg-gear-template-selectors-observed-only.json"
+        expected = json.loads(fixture_path.read_text(encoding="utf-8"))
+        weapon_types = {
+            "main_hand": "Wand",
+            "off_hand": "Held In Off-hand",
+        }
+        gear_items = [
+            {
+                "slot": slot,
+                "simcSlot": slot,
+                "itemId": str(610000 + index),
+                "id": str(610000 + index),
+                "name": f"observed_{slot}",
+                "displayName": f"Observed {slot}",
+                "ilevel": "707",
+                "bonus_id": "1808",
+                "simcReady": True,
+                **({"armorType": "Cloth"} if slot in {"head", "shoulder", "chest", "wrist", "hands", "waist", "legs", "feet"} else {}),
+                **({"weaponType": weapon_types[slot]} if slot in weapon_types else {}),
+            }
+            for index, slot in enumerate(CANONICAL_GEAR_SLOTS, start=1)
+        ]
+
+        def row(template_id, source_key, payload):
+            return (
+                template_id,
+                "mage",
+                "arcane",
+                template_id,
+                source_key,
+                source_key,
+                "https://raider.io/characters/cn/realm/Arcaneproof" if source_key == "raiderio_observed_profile" else "",
+                "synced",
+                "complete",
+                template_id,
+                [{"sourceKey": source_key}],
+                gear_items,
+                "\n".join(f"{item['slot']}={item['name']},id={item['id']},ilevel=707,bonus_id=1808" for item in gear_items),
+                16,
+                [],
+                "pg selector golden",
+                payload,
+                "2026-07-09T00:00:00+00:00",
+                "2099-01-01T00:00:00+00:00",
+                "scan-pg-selector-golden",
+            )
+
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_season_state": [
+                    (
+                        "season-pg",
+                        "Season PG",
+                        "season-pg-1",
+                        "zh_CN",
+                        "verified",
+                        "2026-07-09T00:00:00+00:00",
+                        "2099-01-01T00:00:00+00:00",
+                        [{"type": "official"}],
+                        {"seasonRevision": "season-pg-1", "raids": []},
+                    )
+                ],
+                "FROM cache.websim_season_dungeons": [],
+                "FROM cache.websim_sync_state": [
+                    (
+                        {"status": "partial", "schemaRevision": "gear-catalog-test", "blockers": []},
+                        "2026-07-09T00:01:00+00:00",
+                    )
+                ],
+                "FROM cache.websim_items": [],
+                "FROM cache.websim_community_gear_templates": [
+                    row(
+                        "observed-profile-mage-arcane",
+                        "raiderio_observed_profile",
+                        {
+                            "templateSlot": "community_best",
+                            "sampleCount": 1,
+                            "profileHash": "profile:mage:arcane:observed",
+                            "gearHash": "gear:mage:arcane:observed",
+                            "fetchedAt": "2026-07-09T00:00:00+00:00",
+                        },
+                    ),
+                    row(
+                        "recommended-bis-mage-arcane",
+                        "recommended_bis",
+                        {
+                            "templateType": "recommended_bis",
+                            "templateEvidence": {
+                                "schemaRevision": "recommended-bis-v1",
+                                "status": "projected_bis",
+                                "simc": {"status": "required", "highIterationRuns": 0, "pairwiseCompares": 0},
+                                "anchorValidation": {"status": "pending"},
+                            },
+                        },
+                    ),
+                    row(
+                        "season-recommendation-mage-arcane",
+                        "season_recommendation",
+                        {"templateSlot": "baseline", "templateEvidence": {"recommendationConfidence": "provisional"}},
+                    ),
+                ],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        payload = store.get_websim_gear("mage", "arcane", compact=True, mode="initial")
+        chain = payload["communityTemplateSync"]["templateChains"]
+        stable_chain = {
+            key: {
+                nested_key: nested_value
+                for nested_key, nested_value in (chain.get(key) or {}).items()
+                if nested_key != "lastGuardCheckAt"
+            }
+            for key in ("communityObserved", "recommendedBis", "legacyFallback")
+        }
+        actual = {
+            "communityTemplates": payload["communityTemplates"],
+            "baselineTemplates": payload["baselineTemplates"],
+            "baselineSet": payload["baselineSet"],
+            "equippedSet": payload["equippedSet"],
+            "templateChains": stable_chain,
+        }
+
+        self.assertEqual(actual, expected)
+
+    def test_pg_initial_gear_selector_calls_gear_public_contract_module(self):
+        import server.gear_public_contract as gear_public_contract
+        import server.postgres_cache_store as postgres_cache_store
+
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_season_state": [
+                    (
+                        "season-pg",
+                        "Season PG",
+                        "season-pg-1",
+                        "zh_CN",
+                        "verified",
+                        "2026-07-09T00:00:00+00:00",
+                        "2099-01-01T00:00:00+00:00",
+                        [{"type": "official"}],
+                        {"seasonRevision": "season-pg-1", "raids": []},
+                    )
+                ],
+                "FROM cache.websim_season_dungeons": [],
+                "FROM cache.websim_sync_state": [
+                    (
+                        {"status": "partial", "schemaRevision": "gear-catalog-test", "blockers": []},
+                        "2026-07-09T00:01:00+00:00",
+                    )
+                ],
+                "FROM cache.websim_items": [],
+                "FROM cache.websim_community_gear_templates": [],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+        original_public_selector = gear_public_contract.public_gear_templates_for_spec
+        original_baseline_fallback = gear_public_contract.public_baseline_fallback_templates_for_spec
+        public_selector_calls = []
+        baseline_fallback_calls = []
+
+        def track_public_selector(templates, class_key, spec_key, **kwargs):
+            public_selector_calls.append((list(templates or []), class_key, spec_key, kwargs))
+            return original_public_selector(templates, class_key, spec_key, **kwargs)
+
+        def track_baseline_fallback(class_key, spec_key, **kwargs):
+            baseline_fallback_calls.append((class_key, spec_key, kwargs))
+            return original_baseline_fallback(class_key, spec_key, **kwargs)
+
+        with patch.object(
+            postgres_cache_store.gear_public_contract,
+            "public_gear_templates_for_spec",
+            side_effect=track_public_selector,
+        ), patch.object(
+            postgres_cache_store.gear_public_contract,
+            "public_baseline_fallback_templates_for_spec",
+            side_effect=track_baseline_fallback,
+        ):
+            payload = store.get_websim_gear("mage", "arcane", compact=True, mode="initial")
+
+        self.assertEqual(payload["communityTemplates"], [])
+        self.assertEqual(payload["baselineTemplates"], [])
+        self.assertGreaterEqual(len(public_selector_calls), 2)
+        self.assertEqual(len(baseline_fallback_calls), 1)
+        self.assertTrue(
+            all(call[2] == "arcane" for call in public_selector_calls),
+            "PG gear selector should route public filtering through gear_public_contract",
+        )
 
     def test_initial_payload_hides_source_less_observed_template_blocked_by_legality_gate(self):
         from server.postgres_cache_store import PostgresCacheStore
@@ -3346,6 +3558,37 @@ class PostgresCacheStoreTest(unittest.TestCase):
         summary = store.admin_gate_queue_summary()
 
         self.assertEqual(summary["domainCounts"].get("gear_templates"), None)
+
+    def test_admin_gate_queue_summary_delegates_rows_to_cache_read_model_selector(self):
+        from server import pg_cache_read_model_selectors
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_community_talent_templates": [("talents", "verified", [])],
+                "FROM cache.websim_talents": [("mage", "frost", 0)],
+                "FROM cache.websim_gear_variants": [("gear", "partial", '["missing gear"]')],
+                "SELECT to_regclass": [(None,)],
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+        expected = {"sentinel": "admin queue summary"}
+
+        with patch.object(
+            pg_cache_read_model_selectors,
+            "build_admin_gate_queue_summary_read_model",
+            return_value=expected,
+        ) as selector:
+            payload = store.admin_gate_queue_summary()
+
+        self.assertIs(payload, expected)
+        selector.assert_called_once_with(
+            [
+                ("talents", "verified", []),
+                ("talents", "blocked", ["talent tree has no nodes"]),
+                ("gear", "partial", ["missing gear"]),
+            ]
+        )
 
     def test_stat_weight_read_model_uses_cache_schema(self):
         from server.postgres_cache_store import PostgresCacheStore
@@ -7630,6 +7873,278 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertIn("FROM cache.websim_gear_variants v", sql)
         self.assertNotIn("LIMIT 4000", sql)
 
+    def test_simc_talent_signature_payload_tolerates_malformed_rank_entries(self):
+        from server.postgres_cache_store import _simc_talent_signature_payload
+
+        signature = _simc_talent_signature_payload({"rankEntries": 42})
+
+        self.assertEqual(signature[0], ())
+
+    def test_simc_talent_graph_baseline_aggregates_payload_read_model_contexts(self):
+        from server.postgres_cache_store import (
+            PostgresCacheStore,
+            simc_talent_persisted_content_identity,
+        )
+
+        def graph_signature(entries):
+            return hashlib.sha256(
+                json.dumps(entries, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+            ).hexdigest()
+
+        def structure_signature(entries):
+            content_entries = []
+            for entry in entries:
+                talent_id, row, col, spell_id, node_id, trait_id = entry[:6]
+                tree_type = talent_id.split("-", 1)[0]
+                hero_key = "spellslinger" if tree_type == "hero" else ""
+                tree_id = {
+                    "class": "class:mage",
+                    "spec": "spec:mage:frost",
+                    "hero": "hero:spellslinger",
+                }[tree_type]
+                content_entries.append(
+                    simc_talent_persisted_content_identity(
+                        talent_id,
+                        "mage",
+                        "frost",
+                        tree_id,
+                        row,
+                        col,
+                        spell_id,
+                        f"Talent {talent_id}",
+                        talent_payload(node_id, trait_id, spell_id, entry[-1]),
+                    )
+                )
+            return graph_signature(content_entries)
+
+        def parent_ids_by_node(entries):
+            return [[entry[0], entry[-1]] for entry in entries]
+
+        def talent_payload(node_id, trait_id, spell_id, parent_ids):
+            return {
+                "nodeId": node_id,
+                "traitId": trait_id,
+                "traitDefinitionId": trait_id + 1000,
+                "parentIds": parent_ids,
+                "parentMode": "any",
+                "selectionIndex": 0,
+                "nodeType": 0,
+                "rank": 1,
+                "maxRank": 1,
+                "selectedRank": 0,
+                "grantedRank": 0,
+                "granted": False,
+                "choiceGroup": "",
+                "shape": "square",
+                "pointRequirement": 0,
+                "rankEntries": [
+                    {
+                        "traitId": trait_id,
+                        "traitDefinitionId": trait_id + 1000,
+                        "spellId": spell_id,
+                        "selectionIndex": 0,
+                        "rank": 1,
+                        "points": 1,
+                        "pointStart": 1,
+                        "pointEnd": 1,
+                    }
+                ],
+            }
+
+        def talent_row(talent_id, tree_type, hero_key, row, col, spell_id, node_id, trait_id, parent_ids):
+            tree_id = {
+                "class": "class:mage",
+                "spec": "spec:mage:frost",
+                "hero": "hero:spellslinger",
+            }[tree_type]
+            return (
+                talent_id,
+                "mage",
+                "frost",
+                tree_type,
+                hero_key,
+                tree_id,
+                row,
+                col,
+                spell_id,
+                f"Talent {talent_id}",
+                node_id,
+                trait_id,
+                talent_payload(node_id, trait_id, spell_id, parent_ids),
+                parent_ids,
+            )
+
+        def signature_entry(talent_id, row, col, spell_id, node_id, trait_id, parent_ids):
+            return (
+                talent_id,
+                row,
+                col,
+                spell_id,
+                node_id,
+                trait_id,
+                ((trait_id, trait_id + 1000, spell_id, 0, 1, 1, 1, 1),),
+                0,
+                0,
+                1,
+                1,
+                0,
+                0,
+                False,
+                "",
+                0,
+                "any",
+                "square",
+                parent_ids,
+            )
+
+        profile_rows = [
+            ("mage", "frost", 'mage="A"\nspec=frost'),
+            ("mage", "frost", 'mage="B"\nspec=frost'),
+            ("warlock", "destruction", 'warlock="C"\nspec=destruction'),
+        ]
+
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_talents": [
+                    talent_row("class-root", "class", "", 1, 1, 101, 201, 301, []),
+                    talent_row("class-child", "class", "", 2, 1, 102, 202, 302, ["class-root"]),
+                    talent_row("hero-root", "hero", "spellslinger", 1, 2, 103, 203, 303, []),
+                    talent_row("hero-child", "hero", "spellslinger", 2, 2, 104, 204, 304, ["hero-root"]),
+                    talent_row("spec-root", "spec", "", 1, 3, 105, 205, 305, []),
+                    talent_row("spec-child", "spec", "", 2, 3, 106, 206, 306, ["spec-root"]),
+                ],
+                "FROM cache.websim_profile_presets": profile_rows,
+            }
+        )
+        store = PostgresCacheStore(lambda: conn)
+
+        baseline = store.simc_talent_graph_baseline()
+
+        self.assertEqual(
+            baseline,
+            {
+                "contexts": [
+                    {
+                        "classKey": "mage",
+                        "specKey": "frost",
+                        "treeType": "class",
+                        "heroKey": "",
+                        "nodes": 2,
+                        "dependencyNodes": 1,
+                        "dependencies": 1,
+                        "nodeIds": ["class-child", "class-root"],
+                        "structureSignature": structure_signature(
+                            [
+                                signature_entry("class-child", 2, 1, 102, 202, 302, ["class-root"]),
+                                signature_entry("class-root", 1, 1, 101, 201, 301, []),
+                            ]
+                        ),
+                        "parentIdsByNode": parent_ids_by_node(
+                            [
+                                signature_entry("class-child", 2, 1, 102, 202, 302, ["class-root"]),
+                                signature_entry("class-root", 1, 1, 101, 201, 301, []),
+                            ]
+                        ),
+                        "graphSignature": graph_signature(
+                            [
+                                signature_entry("class-child", 2, 1, 102, 202, 302, ["class-root"]),
+                                signature_entry("class-root", 1, 1, 101, 201, 301, []),
+                            ]
+                        ),
+                    },
+                    {
+                        "classKey": "mage",
+                        "specKey": "frost",
+                        "treeType": "hero",
+                        "heroKey": "spellslinger",
+                        "nodes": 2,
+                        "dependencyNodes": 1,
+                        "dependencies": 1,
+                        "nodeIds": ["hero-child", "hero-root"],
+                        "structureSignature": structure_signature(
+                            [
+                                signature_entry("hero-child", 2, 2, 104, 204, 304, ["hero-root"]),
+                                signature_entry("hero-root", 1, 2, 103, 203, 303, []),
+                            ]
+                        ),
+                        "parentIdsByNode": parent_ids_by_node(
+                            [
+                                signature_entry("hero-child", 2, 2, 104, 204, 304, ["hero-root"]),
+                                signature_entry("hero-root", 1, 2, 103, 203, 303, []),
+                            ]
+                        ),
+                        "graphSignature": graph_signature(
+                            [
+                                signature_entry("hero-child", 2, 2, 104, 204, 304, ["hero-root"]),
+                                signature_entry("hero-root", 1, 2, 103, 203, 303, []),
+                            ]
+                        ),
+                    },
+                    {
+                        "classKey": "mage",
+                        "specKey": "frost",
+                        "treeType": "spec",
+                        "heroKey": "",
+                        "nodes": 2,
+                        "dependencyNodes": 1,
+                        "dependencies": 1,
+                        "nodeIds": ["spec-child", "spec-root"],
+                        "structureSignature": structure_signature(
+                            [
+                                signature_entry("spec-child", 2, 3, 106, 206, 306, ["spec-root"]),
+                                signature_entry("spec-root", 1, 3, 105, 205, 305, []),
+                            ]
+                        ),
+                        "parentIdsByNode": parent_ids_by_node(
+                            [
+                                signature_entry("spec-child", 2, 3, 106, 206, 306, ["spec-root"]),
+                                signature_entry("spec-root", 1, 3, 105, 205, 305, []),
+                            ]
+                        ),
+                        "graphSignature": graph_signature(
+                            [
+                                signature_entry("spec-child", 2, 3, 106, 206, 306, ["spec-root"]),
+                                signature_entry("spec-root", 1, 3, 105, 205, 305, []),
+                            ]
+                        ),
+                    },
+                ],
+                "talents": 6,
+                "dependencyNodes": 3,
+                "dependencies": 3,
+                "profiles": 3,
+                "profileSpecCoverage": 2,
+                "profileSpecs": ["mage:frost", "warlock:destruction"],
+                "profileContentSignatures": sorted(
+                    (
+                        class_key,
+                        spec_key,
+                        hashlib.sha256(profile.strip().encode("utf-8")).hexdigest(),
+                    )
+                    for class_key, spec_key, profile in profile_rows
+                ),
+            },
+        )
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertIn("FROM cache.websim_talents", sql)
+        self.assertIn("payload_json->>'treeType'", sql)
+        self.assertIn("WHEN spec_key = 'class' THEN 'class'", sql)
+        self.assertIn("WHEN tree_type = 'hero'", sql)
+        self.assertIn("payload_json->>'heroKey'", sql)
+        self.assertIn("payload_json->'parentIds'", sql)
+        self.assertIn("WHERE spell_id > 0", sql)
+        self.assertIn("row_index", sql)
+        self.assertIn("col_index", sql)
+        self.assertIn("tree_id", sql)
+        self.assertIn("name", sql)
+        self.assertIn("payload_json->>'nodeId'", sql)
+        self.assertIn("payload_json->>'traitId'", sql)
+        self.assertIn("FROM cache.websim_profile_presets", sql)
+        self.assertIn("SELECT class_key, spec_key, profile", sql)
+        self.assertNotIn("INSERT INTO", sql)
+        self.assertNotIn("UPDATE cache", sql)
+        self.assertNotIn("DELETE FROM", sql)
+
     def test_postgres_native_simc_generated_data_writer_uses_cache_schema(self):
         from server.postgres_cache_store import PostgresCacheStore
 
@@ -7671,6 +8186,12 @@ class PostgresCacheStoreTest(unittest.TestCase):
                 ],
                 "source": "simc",
                 "build": "simc-build",
+                "dependencies": 12,
+                "dependencyNodes": 10,
+                "specCoverage": 40,
+                "heroCoverage": 80,
+                "profileSpecCoverage": 33,
+                "traitEdgeError": "sentinel-edge-error",
             }
         )
 
@@ -7679,6 +8200,12 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertEqual(counts["profiles"], 1)
         self.assertEqual(counts["presets"], 1)
         self.assertEqual(counts["spellDetails"], 1)
+        self.assertEqual(counts["dependencies"], 12)
+        self.assertEqual(counts["dependencyNodes"], 10)
+        self.assertEqual(counts["specCoverage"], 40)
+        self.assertEqual(counts["heroCoverage"], 80)
+        self.assertEqual(counts["profileSpecCoverage"], 33)
+        self.assertEqual(counts["traitEdgeError"], "sentinel-edge-error")
         self.assertIn("DELETE FROM cache.websim_talents", sql)
         self.assertIn("DELETE FROM cache.websim_profile_presets", sql)
         self.assertIn("INSERT INTO cache.websim_talents", sql)
@@ -7885,6 +8412,719 @@ class PostgresCacheStoreTest(unittest.TestCase):
             )
         )
         self.assertIn("DELETE FROM cache.websim_gear_variants WHERE id = ANY", sql)
+
+    def test_gear_authority_context_loader_is_read_only_and_bounded(self):
+        from server import postgres_cache_store
+
+        class CountingConnection(FakeConnection):
+            def __init__(self):
+                super().__init__()
+                self.cursor_calls = 0
+
+            def cursor(self):
+                self.cursor_calls += 1
+                return super().cursor()
+
+        conn = CountingConnection()
+        store = postgres_cache_store.PostgresCacheStore(
+            lambda: conn,
+            gear_release_store=PreCutoverReleaseStore(),
+        )
+        intent = {"schemaRevision": "selection-intent-v1"}
+        runtime_authority = {"dependencyRevisions": {"simcRuntimeRevision": "simc-v1"}}
+        expected = {"contractRevision": "gear-authority-context-v1", "missingFields": []}
+
+        def assert_read_only_then_delegate(cursor, selection_intent, authority, *, cache=None):
+            self.assertIs(cursor, conn.cursor_instance)
+            self.assertEqual(cursor.statements, ["SET TRANSACTION READ ONLY"])
+            self.assertIs(selection_intent, intent)
+            self.assertIs(authority, runtime_authority)
+            self.assertIsInstance(cache, postgres_cache_store.AuthorityContextCache)
+            self.assertLessEqual(cache.max_entries, 64)
+            self.assertLessEqual(cache.max_bytes, 8 * 1024 * 1024)
+            return expected
+
+        with patch.object(
+            postgres_cache_store,
+            "load_gear_authority_context",
+            side_effect=assert_read_only_then_delegate,
+        ) as loader:
+            result = store.get_gear_authority_context(intent, runtime_authority)
+
+        self.assertEqual(result, expected)
+        self.assertEqual(conn.cursor_calls, 1)
+        self.assertTrue(conn.committed)
+        self.assertFalse(conn.rolled_back)
+        loader.assert_called_once()
+
+    def test_candidate_release_readers_delegate_to_single_release_repository(self):
+        from server import postgres_cache_store
+
+        class CandidateReleaseStore:
+            def __init__(self):
+                self.calls = []
+
+            def load_candidate_authority_context(self, intent, runtime_authority, gear_release_id):
+                self.calls.append(("authority", intent, runtime_authority, gear_release_id))
+                return {
+                    "manifest": {"gearCatalogReleaseId": gear_release_id},
+                    "missingFields": [],
+                }
+
+            def load_community_release(self, gear_release_id, community_release_id):
+                self.calls.append(("community", gear_release_id, community_release_id))
+                return {"winners": [{"templateId": "winner-a"}]}
+
+        release_store = CandidateReleaseStore()
+        store = postgres_cache_store.PostgresCacheStore(
+            lambda: self.fail("candidate facade must not open the staging store directly"),
+            gear_release_store=release_store,
+        )
+        intent = {
+            "schemaRevision": "selection-intent-v1",
+            "authoredAgainst": {
+                "seasonRevision": "season-r1",
+                "gearCatalogRevision": "gear-release:a",
+            },
+            "eligibilityContext": {"classKey": "warrior", "specKey": "arms", "level": 80},
+            "slots": {},
+        }
+        runtime = {"dependencyRevisions": {
+            "gearRuleRevision": "rule-r1",
+            "resolverContractRevision": "resolver-r1",
+            "serializerRevision": "serializer-r1",
+            "simcRuntimeRevision": "simc-r1",
+            "statPolicyRevision": "stat-r1",
+            "selectionSchemaRevision": "selection-intent-v1",
+        }}
+
+        authority = store.get_candidate_gear_authority_context(intent, runtime, "gear-release:a")
+        cached_authority = store.get_candidate_gear_authority_context(intent, runtime, "gear-release:a")
+        community = store.get_candidate_community_release("gear-release:a", "community-release:a")
+
+        self.assertEqual(authority["manifest"]["gearCatalogReleaseId"], "gear-release:a")
+        self.assertEqual(cached_authority, authority)
+        self.assertEqual(community["winners"][0]["templateId"], "winner-a")
+        self.assertEqual(store._gear_authority_context_cache.entry_count, 1)
+        self.assertEqual(store.gear_authority_cache_metrics(), {
+            "entryCount": 1,
+            "byteSize": store._gear_authority_context_cache.byte_size,
+            "maxEntries": 32,
+            "maxBytes": 4 * 1024 * 1024,
+        })
+        self.assertEqual(release_store.calls, [
+            ("authority", intent, runtime, "gear-release:a"),
+            ("community", "gear-release:a", "community-release:a"),
+        ])
+
+    def test_formal_authority_reuses_binding_after_one_pointer_identity_query(self):
+        from server import postgres_cache_store
+
+        class ActiveReleaseStore:
+            def __init__(self):
+                self.generation = 9
+                self.binding_calls = 0
+                self.pointer_calls = 0
+                self.authority_calls = 0
+
+            def get_active_pointer(self):
+                self.pointer_calls += 1
+                return {
+                    "pointerMode": "active",
+                    "generation": self.generation,
+                    "manifestRevision": f"manifest-{self.generation}",
+                }
+
+            def load_active_manifest_binding(self):
+                self.binding_calls += 1
+                return {
+                    "pointerMode": "active",
+                    "generation": self.generation,
+                    "manifestRevision": f"manifest-{self.generation}",
+                    "formalActiveManifest": True,
+                    "manifest": {"manifestRevision": f"manifest-{self.generation}"},
+                }
+
+            def load_active_authority_context(self, intent, runtime_authority, binding):
+                self.authority_calls += 1
+                return {
+                    "manifest": binding["manifest"],
+                    "dependencyVector": runtime_authority["dependencyRevisions"],
+                    "missingFields": [],
+                }
+
+        release_store = ActiveReleaseStore()
+        store = postgres_cache_store.PostgresCacheStore(
+            lambda: self.fail("formal authority must stay in the release repository"),
+            gear_release_store=release_store,
+        )
+        intent = {"schemaRevision": "selection-intent-v1"}
+        runtime = {"dependencyRevisions": {"simcRuntimeRevision": "simc-v1"}}
+
+        first = store.get_gear_authority_context(intent, runtime)
+        second = store.get_gear_authority_context(intent, runtime)
+        release_store.generation = 10
+        third = store.get_gear_authority_context(intent, runtime)
+
+        self.assertEqual(first["manifest"]["manifestRevision"], "manifest-9")
+        self.assertEqual(second["manifest"]["manifestRevision"], "manifest-9")
+        self.assertEqual(third["manifest"]["manifestRevision"], "manifest-10")
+        self.assertEqual(release_store.pointer_calls, 3)
+        self.assertEqual(release_store.binding_calls, 2)
+        self.assertEqual(release_store.authority_calls, 2)
+
+    def test_gear_resolver_context_is_one_read_only_revision_query(self):
+        from server import postgres_cache_store
+
+        revision_row = (
+            "season-17-active",
+            {"status": "partial"},
+            {"status": "partial"},
+            10,
+            "2026-07-10T10:00:00+00:00",
+            20,
+            "2026-07-10T10:01:00+00:00",
+            5,
+            "2026-07-10T10:02:00+00:00",
+            12,
+            "2026-07-10T10:03:00+00:00",
+        )
+        conn = FakeConnection(rows=[revision_row])
+        store = postgres_cache_store.PostgresCacheStore(
+            lambda: conn,
+            gear_release_store=PreCutoverReleaseStore(),
+        )
+        runtime_authority = {"dependencyRevisions": {"simcRuntimeRevision": "simc-v1"}}
+        expected = {
+            "contractRevision": "gear-resolver-context-v1",
+            "formalActiveManifest": False,
+        }
+
+        with patch.object(
+            postgres_cache_store,
+            "resolver_authoring_context",
+            return_value=expected,
+        ) as projector:
+            result = store.get_gear_resolver_context(runtime_authority)
+
+        self.assertEqual(result, expected)
+        self.assertEqual(conn.cursor_instance.statements[0], "SET TRANSACTION READ ONLY")
+        self.assertIn("gear_authority_revision", conn.cursor_instance.statements[1])
+        self.assertEqual(len(conn.cursor_instance.statements), 2)
+        self.assertTrue(conn.committed)
+        self.assertFalse(conn.rolled_back)
+        projector.assert_called_once_with(revision_row, runtime_authority)
+
+    def test_formal_manifest_routes_authority_and_resolver_context_to_exact_release_binding(self):
+        from server import postgres_cache_store
+
+        manifest = {
+            "schemaRevision": "active-season-manifest-v1",
+            "manifestRevision": "season-manifest:sha256:active",
+            "seasonRevision": "season-r1",
+            "gearCatalogReleaseId": "gear-release:active",
+            "communityTemplateReleaseId": "community-release:active",
+            "talentCatalogRevision": "talent-r1",
+            "dependencyRevisions": {
+                "gearRuleRevision": "rule-r1",
+                "resolverContractRevision": "resolver-r1",
+                "serializerRevision": "serializer-r1",
+                "simcRuntimeRevision": "simc-r1",
+                "statPolicyRevision": "stat-r1",
+                "selectionSchemaRevision": "selection-intent-v1",
+                "capabilityRevision": "capability-r1",
+            },
+            "rollbackManifestRevision": "",
+            "formalActiveManifest": True,
+        }
+        binding = {
+            "pointerMode": "active",
+            "generation": 3,
+            "manifestRevision": manifest["manifestRevision"],
+            "formalActiveManifest": True,
+            "manifest": manifest,
+            "gearRelease": {"releaseId": "gear-release:active"},
+            "communityRelease": {"releaseId": "community-release:active"},
+        }
+
+        class ActiveReleaseStore:
+            def __init__(self):
+                self.calls = []
+
+            def load_active_manifest_binding(self):
+                self.calls.append(("binding",))
+                return binding
+
+            def load_active_authority_context(self, intent, runtime_authority, exact_binding):
+                self.calls.append(("authority", intent, runtime_authority, exact_binding))
+                return {
+                    "manifest": {"formalActiveManifest": True, "manifestRevision": manifest["manifestRevision"]},
+                    "missingFields": [],
+                }
+
+            def active_resolver_context(self, exact_binding, runtime_authority):
+                self.calls.append(("resolver", exact_binding, runtime_authority))
+                return {
+                    "contractRevision": "gear-resolver-context-v1",
+                    "formalActiveManifest": True,
+                    "manifestRevision": manifest["manifestRevision"],
+                    "pointerGeneration": 3,
+                    "authoredAgainst": {
+                        "seasonRevision": "season-r1",
+                        "gearCatalogRevision": "gear-release:active",
+                    },
+                }
+
+            def load_active_public_gear(self, exact_binding, class_key, spec_key, *, include_catalog, catalog_slot=""):
+                self.calls.append(("browse", exact_binding, class_key, spec_key, include_catalog, catalog_slot))
+                return {
+                    "gearRelease": {
+                        "releaseId": "gear-release:active",
+                        "releaseStatus": "validated",
+                        "contentHash": "sha256:gear",
+                    },
+                    "communityRelease": {"releaseId": "community-release:active"},
+                    "communityTemplates": [{
+                        "id": "winner-a",
+                        "classKey": class_key,
+                        "specKey": spec_key,
+                        "status": "complete",
+                        "sourceStatus": "synced",
+                        "gearItems": [],
+                    }],
+                    "gearSnapshot": None,
+                }
+
+            def load_community_release(self, gear_release_id, community_release_id):
+                self.calls.append(("community", gear_release_id, community_release_id))
+                return {
+                    "gearRelease": {"releaseId": gear_release_id},
+                    "communityRelease": {"releaseId": community_release_id},
+                    "winners": [{
+                        "templateId": "winner-a",
+                        "classKey": "mage",
+                        "specKey": "arcane",
+                        "selectionIntent": {"schemaRevision": "selection-intent-v1"},
+                    }],
+                }
+
+        release_store = ActiveReleaseStore()
+        store = postgres_cache_store.PostgresCacheStore(
+            lambda: self.fail("formal readers must not query mutable staging"),
+            gear_release_store=release_store,
+        )
+        intent = {"schemaRevision": "selection-intent-v1"}
+        runtime = {"dependencyRevisions": {"simcRuntimeRevision": "simc-r1"}}
+
+        authority = store.get_gear_authority_context(intent, runtime)
+        resolver = store.get_gear_resolver_context(runtime)
+        browse = store.get_websim_gear("mage", "arcane", compact=True, mode="initial")
+        cached_browse = store.get_websim_gear("mage", "arcane", compact=True, mode="initial")
+
+        self.assertTrue(authority["manifest"]["formalActiveManifest"])
+        self.assertTrue(resolver["formalActiveManifest"])
+        self.assertEqual(resolver["pointerGeneration"], 3)
+        self.assertTrue(browse["formalActiveManifest"])
+        self.assertIs(browse["_activeManifestBinding"], binding)
+        self.assertEqual(cached_browse["manifestRevision"], browse["manifestRevision"])
+        self.assertEqual(release_store.calls, [
+            ("binding",),
+            ("authority", intent, runtime, binding),
+            ("binding",),
+            ("resolver", binding, runtime),
+            ("binding",),
+            ("browse", binding, "mage", "arcane", False, ""),
+            ("binding",),
+        ])
+
+        same_resolver = store.get_gear_resolver_context(runtime, binding=binding)
+        self.assertEqual(same_resolver["manifestRevision"], manifest["manifestRevision"])
+        self.assertEqual(release_store.calls[-1], ("resolver", binding, runtime))
+
+        active_pair = store.get_active_community_release()
+        self.assertTrue(active_pair["formalActiveManifest"])
+        self.assertEqual(active_pair["pointerGeneration"], 3)
+        self.assertEqual(
+            active_pair["winners"][0]["selectionIntent"],
+            {"schemaRevision": "selection-intent-v1"},
+        )
+        self.assertNotIn("selectionIntent", json.dumps(browse, sort_keys=True))
+        self.assertEqual(release_store.calls[-2:], [
+            ("binding",),
+            ("community", "gear-release:active", "community-release:active"),
+        ])
+
+    def test_transitional_manifest_binding_keeps_staging_authority_explicit(self):
+        from server import postgres_cache_store
+
+        class TransitionalReleaseStore:
+            def load_active_manifest_binding(self):
+                return {
+                    "pointerMode": "transitional",
+                    "generation": 2,
+                    "formalActiveManifest": False,
+                }
+
+        revision_row = (
+            "season-17-active", {"status": "partial"}, {"status": "partial"},
+            10, "2026-07-10T10:00:00+00:00", 20, "2026-07-10T10:01:00+00:00",
+            5, "2026-07-10T10:02:00+00:00", 12, "2026-07-10T10:03:00+00:00",
+        )
+        conn = FakeConnection(rows=[revision_row])
+        store = postgres_cache_store.PostgresCacheStore(
+            lambda: conn,
+            gear_release_store=TransitionalReleaseStore(),
+        )
+        runtime = {"dependencyRevisions": {"simcRuntimeRevision": "simc-r1"}}
+        with patch.object(
+            postgres_cache_store,
+            "resolver_authoring_context",
+            return_value={"formalActiveManifest": False},
+        ):
+            resolver = store.get_gear_resolver_context(runtime)
+
+        self.assertFalse(resolver["formalActiveManifest"])
+        self.assertIn("gear_authority_revision", conn.cursor_instance.statements[1])
+
+    def test_active_manifest_health_distinguishes_formal_transitional_and_invalid_states(self):
+        from server import postgres_cache_store
+
+        active_binding = {
+            "pointerMode": "active",
+            "generation": 3,
+            "manifestRevision": "season-manifest:sha256:active",
+            "rollbackManifestRevision": "season-manifest:sha256:old",
+            "formalActiveManifest": True,
+            "manifest": {
+                "seasonRevision": "season-r1",
+                "gearCatalogReleaseId": "gear-release:active",
+                "communityTemplateReleaseId": "community-release:active",
+                "talentCatalogRevision": "talent-r1",
+            },
+        }
+
+        class ReleaseStore:
+            def __init__(self, value=None, error=None):
+                self.value = value
+                self.error = error
+
+            def load_active_manifest_binding(self):
+                if self.error:
+                    raise self.error
+                return self.value
+
+        active = postgres_cache_store.PostgresCacheStore(
+            lambda: self.fail("health must use release repository"),
+            gear_release_store=ReleaseStore(active_binding),
+        ).active_manifest_health()
+        transitional = postgres_cache_store.PostgresCacheStore(
+            lambda: self.fail("health must use release repository"),
+            gear_release_store=ReleaseStore({
+                "pointerMode": "transitional",
+                "generation": 4,
+                "formalActiveManifest": False,
+            }),
+        ).active_manifest_health()
+        invalid = postgres_cache_store.PostgresCacheStore(
+            lambda: self.fail("health must use release repository"),
+            gear_release_store=ReleaseStore(error=RuntimeError("corrupt pointer")),
+        ).active_manifest_health()
+
+        self.assertEqual(active["status"], "verified")
+        self.assertEqual(active["details"]["pointerGeneration"], 3)
+        self.assertEqual(active["details"]["gearCatalogReleaseId"], "gear-release:active")
+        self.assertEqual(transitional["status"], "partial")
+        self.assertEqual(transitional["details"]["pointerMode"], "transitional")
+        self.assertTrue(transitional["blockers"])
+        self.assertEqual(invalid["status"], "blocked")
+        self.assertTrue(invalid["blockers"])
+
+    def test_release_refresh_health_combines_active_pointer_latest_candidate_and_timer_policy(self):
+        from server import postgres_cache_store
+
+        class ReleaseStore:
+            def load_active_manifest_binding(self):
+                return {
+                    "pointerMode": "active",
+                    "generation": 10,
+                    "manifestRevision": "season-manifest:active",
+                    "formalActiveManifest": True,
+                    "manifest": {
+                        "seasonRevision": "season-17",
+                        "gearCatalogReleaseId": "gear-release:active",
+                        "communityTemplateReleaseId": "community-release:active",
+                        "talentCatalogRevision": "talent-r1",
+                    },
+                }
+
+            def latest_refresh_state(self):
+                return {
+                    "eventType": "gear_release_refresh_completed",
+                    "status": "promoted",
+                    "checkedAt": "2026-07-11T12:00:00+00:00",
+                    "gearReleaseId": "gear-release:candidate",
+                    "communityReleaseId": "community-release:candidate",
+                    "manifestRevision": "season-manifest:candidate",
+                    "riskClass": "same_gear_community",
+                    "decision": "auto_promote",
+                    "blockerCodes": [],
+                    "counts": {"winner": 40, "standby": 0, "rejected": 319, "empty": 0},
+                    "gearChange": {"addedCounts": {"items": 2}},
+                    "sealStatus": {"gear": "inserted", "community": "inserted"},
+                    "shadowStatus": "pass",
+                    "shadowSpecCount": 40,
+                    "shadowPerformance": {"specP95Ms": 123.4},
+                }
+
+        health = postgres_cache_store.PostgresCacheStore(
+            lambda: self.fail("health must use release repository"),
+            gear_release_store=ReleaseStore(),
+        ).release_refresh_health()
+
+        self.assertEqual(health["status"], "verified")
+        self.assertEqual(health["details"]["pointerGeneration"], 10)
+        self.assertEqual(health["details"]["candidateManifestRevision"], "season-manifest:candidate")
+        self.assertEqual(health["details"]["counts"]["winner"], 40)
+        self.assertEqual(health["details"]["gearChange"]["addedCounts"]["items"], 2)
+        self.assertEqual(health["details"]["sealStatus"]["gear"], "inserted")
+        self.assertEqual(health["details"]["shadowStatus"], "pass")
+        self.assertEqual(health["details"]["shadowSpecCount"], 40)
+        self.assertEqual(health["details"]["shadowPerformance"]["specP95Ms"], 123.4)
+        self.assertEqual(health["details"]["timer"]["nextRunAuthority"], "systemd")
+        self.assertFalse(health["details"]["timer"]["deployStartsService"])
+
+    def test_gear_resolver_context_rolls_back_projection_failure(self):
+        from server import postgres_cache_store
+
+        conn = FakeConnection(rows=[("season-17-active",)])
+        store = postgres_cache_store.PostgresCacheStore(
+            lambda: conn,
+            gear_release_store=PreCutoverReleaseStore(),
+        )
+
+        with patch.object(
+            postgres_cache_store,
+            "resolver_authoring_context",
+            side_effect=RuntimeError("revision projection failed"),
+        ):
+            with self.assertRaises(RuntimeError):
+                store.get_gear_resolver_context({})
+
+        self.assertTrue(conn.rolled_back)
+        self.assertFalse(conn.committed)
+
+    def test_gear_authority_context_loader_rolls_back_transient_failure(self):
+        from server import postgres_cache_store
+
+        conn = FakeConnection()
+        store = postgres_cache_store.PostgresCacheStore(
+            lambda: conn,
+            gear_release_store=PreCutoverReleaseStore(),
+        )
+
+        with patch.object(
+            postgres_cache_store,
+            "load_gear_authority_context",
+            side_effect=RuntimeError("transient authority read failure"),
+        ):
+            with self.assertRaises(RuntimeError):
+                store.get_gear_authority_context({}, {})
+
+        self.assertTrue(conn.rolled_back)
+        self.assertFalse(conn.committed)
+        self.assertEqual(conn.cursor_instance.statements[0], "SET TRANSACTION READ ONLY")
+
+    def test_verified_community_import_cache_binds_one_manifest_for_source_and_resolver(self):
+        from server import gear_runtime, postgres_cache_store
+        postgres_cache_store.PG_COMMUNITY_TEMPLATE_IMPORT_CACHE.clear()
+
+        class ActiveImportReleaseStore:
+            def __init__(self):
+                self.generation = 7
+                self.import_calls = []
+                self.authority_calls = []
+
+            def get_active_pointer(self):
+                return {
+                    "pointerMode": "active",
+                    "generation": self.generation,
+                    "manifestRevision": f"manifest-{self.generation}",
+                }
+
+            def load_active_manifest_binding(self):
+                return {
+                    "pointerMode": "active",
+                    "generation": self.generation,
+                    "formalActiveManifest": True,
+                    "manifest": {
+                        "manifestRevision": f"manifest-{self.generation}",
+                        "seasonRevision": "season-17",
+                        "gearCatalogReleaseId": "gear-release-a",
+                        "communityTemplateReleaseId": "community-release-a",
+                    },
+                }
+
+            def load_active_community_template_import(self, binding, class_key, spec_key, template_id):
+                self.import_calls.append((binding, class_key, spec_key, template_id))
+                return {
+                    "winner": {
+                        "templateId": template_id,
+                        "classKey": class_key,
+                        "specKey": spec_key,
+                        "role": "winner",
+                        "sourceKey": "raiderio_observed_profile",
+                        "payload": {
+                            "name": "Observed Frost",
+                            "importEvidence": {
+                                "schemaRevision": "community-template-import-evidence-v1",
+                                "sourceFingerprint": "sha256:" + "a" * 64,
+                                "slots": {
+                                    "head": {
+                                        "itemId": "item-a",
+                                        "variantKey": "variant-a",
+                                        "observedItemLevel": 289,
+                                        "iconUrl": "https://render.worldofwarcraft.com/icons/item-a.jpg",
+                                    },
+                                },
+                            },
+                        },
+                        "selectionIntent": {
+                            "schemaRevision": "selection-intent-v1",
+                            "authoredAgainst": {"seasonRevision": "season-17", "gearCatalogRevision": "gear-release-a"},
+                            "eligibilityContext": {"classKey": class_key, "specKey": spec_key, "level": 90},
+                            "slots": {"head": {
+                                "itemId": "item-a", "variantKey": "variant-a", "gemOptionIds": ["gem-a", "gem-a"],
+                                "enchantOptionId": "", "embellishmentOptionId": "", "craftedOptionId": "", "catalystOptionId": "",
+                            }},
+                        },
+                    },
+                    "variants": [{
+                        "variantId": "variant-a-id", "itemId": "item-a", "variantKey": "variant-a", "slot": "head",
+                        "label": "Observed head", "itemLevel": 289, "status": "verified",
+                    }],
+                    "items": [{
+                        "itemId": "item-a",
+                        "name": "Observed head",
+                        "itemLevel": 197,
+                        "payload": {
+                            "_metadata": {
+                                "iconUrl": "https://render.worldofwarcraft.com/icons/item-a.jpg",
+                                "gameAsset": {"source": "blizzard", "status": "verified"},
+                            },
+                        },
+                    }],
+                    "sources": [{"sourceId": "source-a", "itemId": "item-a"}],
+                    "options": [{
+                        "optionKey": "gem-a", "optionType": "gem", "name": "Gem A", "status": "verified",
+                        "isVisible": True, "applicableSlots": ["head"],
+                    }],
+                }
+
+            def load_active_authority_context(self, intent, runtime_authority, binding):
+                self.authority_calls.append((intent, runtime_authority, binding))
+                return {
+                    "manifest": {
+                        **binding["manifest"],
+                        "formalActiveManifest": True,
+                        "pointerGeneration": binding["generation"],
+                    },
+                    "dependencyVector": {"simcRuntimeRevision": "simc-r1"},
+                    "missingFields": [],
+                }
+
+        release_store = ActiveImportReleaseStore()
+        store = postgres_cache_store.PostgresCacheStore(
+            lambda: self.fail("formal import must stay in the release repository"),
+            gear_release_store=release_store,
+        )
+        snapshot = {"status": "verified", "problems": [], "resolvedGearSignature": "sha256:import"}
+        request = {"classKey": "mage", "specKey": "frost", "templateId": "template-a"}
+        with patch.object(gear_runtime.gear_resolver, "resolve", return_value=snapshot) as resolver:
+            first_status, first, _first_timing = gear_runtime.import_community_template(
+                request, store=store, simc_runtime_revision="simc-r1", request_id="first"
+            )
+            second_status, second, second_timing = gear_runtime.import_community_template(
+                request, store=store, simc_runtime_revision="simc-r1", request_id="second"
+            )
+            release_store.generation = 8
+            third_status, third, _third_timing = gear_runtime.import_community_template(
+                request, store=store, simc_runtime_revision="simc-r1", request_id="third"
+            )
+
+        self.assertEqual((first_status, second_status, third_status), (200, 200, 200))
+        self.assertEqual(first["status"], "verified")
+        self.assertEqual(second["requestId"], "second")
+        self.assertEqual(second_timing["cache"], "hit")
+        self.assertEqual(third["releaseContext"]["pointerGeneration"], 8)
+        self.assertEqual(len(release_store.import_calls), 2)
+        self.assertEqual(len(release_store.authority_calls), 2)
+        self.assertIs(release_store.import_calls[0][0], release_store.authority_calls[0][2])
+        self.assertEqual(resolver.call_count, 2)
+        self.assertEqual(
+            release_store.authority_calls[0][0]["slots"]["head"]["gemOptionIds"],
+            ["gem-a", "gem-a"],
+        )
+
+    def test_community_import_cache_identity_is_scoped_to_v2_contract(self):
+        from server import postgres_cache_store
+        from server.postgres_cache_store import _community_template_import_cache_fingerprint
+
+        fingerprint = _community_template_import_cache_fingerprint(
+            {"manifestRevision": "manifest-a", "pointerGeneration": 7},
+            "mage",
+            "frost",
+            "template-a",
+        )
+
+        self.assertIn('"contractRevision":"websim-community-template-import-v2"', fingerprint)
+        postgres_cache_store.PG_COMMUNITY_TEMPLATE_IMPORT_CACHE.clear()
+        postgres_cache_store._pg_community_template_import_cache_put("legacy", {
+            "status": "verified",
+            "releaseContext": {},
+            "data": {
+                "status": "verified",
+                "contractRevision": "websim-community-template-import-v1",
+                "importedGearBySlot": {},
+            },
+        })
+        self.assertIsNone(postgres_cache_store._pg_community_template_import_cache_get("legacy"))
+
+    def test_community_import_manifest_mismatch_prevents_scoped_read(self):
+        from server import postgres_cache_store
+        from server.postgres_cache_store import CommunityTemplateImportError
+
+        class MismatchReleaseStore:
+            def __init__(self):
+                self.import_calls = 0
+
+            def get_active_pointer(self):
+                return {"pointerMode": "active", "generation": 7, "manifestRevision": "manifest-7"}
+
+            def load_active_manifest_binding(self):
+                return {
+                    "pointerMode": "active", "generation": 7, "formalActiveManifest": True,
+                    "manifest": {"manifestRevision": "manifest-7"},
+                }
+
+            def load_active_community_template_import(self, *_args):
+                self.import_calls += 1
+                raise AssertionError("mismatch must prevent the scoped read")
+
+        release_store = MismatchReleaseStore()
+        store = postgres_cache_store.PostgresCacheStore(
+            lambda: self.fail("mismatch must not open a legacy connection"),
+            gear_release_store=release_store,
+        )
+
+        with self.assertRaises(CommunityTemplateImportError) as raised:
+            store.get_community_template_import_context(
+                class_key="mage", spec_key="frost", template_id="template-a",
+                runtime_authority={"dependencyRevisions": {"simcRuntimeRevision": "simc-r1"}},
+                expected_manifest_revision="manifest-6",
+            )
+
+        self.assertEqual(raised.exception.code, "manifest_mismatch")
+        self.assertEqual(release_store.import_calls, 0)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,205 @@
+{
+  "status": "merged_to_main",
+  "highestEvidenceLevel": "candidate_deployment_verified",
+  "scope": [
+    "server/pg_cache_read_model_selectors.py",
+    "server/postgres_cache_store.py",
+    "tests/pg_cache_read_model_selectors_test.py",
+    "tests/postgres_cache_store_test.py",
+    "tests/backend-owner-map.test.js",
+    "docs/backend-owner-map.json",
+    "docs/roadmap.md",
+    "docs/plans/2026-07-09-harness-guided-project-optimization-plan.md",
+    "artifacts/releases/2026-07-10-stat-weight-cache-read-model-selector/evidence.json",
+    "artifacts/releases/2026-07-10-stat-weight-cache-read-model-selector/manifest.json"
+  ],
+  "summary": "Phase 4 extracts PostgreSQL stat-weight cache row-to-payload assembly into server/pg_cache_read_model_selectors.py. server/postgres_cache_store.py keeps cache-key validation, SQL, writes, latest-run aggregation, sync, and backfill paths.",
+  "impactMap": {
+    "mustChange": [
+      "Stat-weight cache row payload assembly delegates to server/pg_cache_read_model_selectors.py",
+      "Backend owner map records stat-weight cache row assembly under the read-only cache selector boundary"
+    ],
+    "mustNotChange": [
+      "Stat-weight cache-key validation, slugification, SQL, and connection handling",
+      "Existing payload identity, status, checkedAt, and updatedAt fields remain authoritative over defaults",
+      "save_stat_weight_payload, latest_stat_weight_run_payload, sync, backfill, cleanup, and other write paths",
+      "Public observed-only gear template policy and empty public baseline policy"
+    ],
+    "evidenceRequired": [
+      "Characterization red then green plus overwrite mutation sensitivity",
+      "Targeted and full local test suites",
+      "Candidate deployment stat-weight/API, 40-spec gear policy, systemd/log, and runtime hash parity smoke"
+    ]
+  },
+  "verification": [
+    {
+      "command": "python3 -m unittest tests.pg_cache_read_model_selectors_test",
+      "status": "red_then_pass",
+      "summary": "The new helper test first failed with ImportError while the helper was absent; final selector coverage passed 4 tests. A temporary overwrite mutation then failed the payload-precedence test after fixture aliasing was removed."
+    },
+    {
+      "command": "python3 -m unittest tests.postgres_cache_store_test.PostgresCacheStoreTest.test_stat_weight_read_model_uses_cache_schema",
+      "status": "pass",
+      "summary": "The existing PostgreSQL stat-weight read-model characterization passed."
+    },
+    {
+      "command": "node --test tests/backend-owner-map.test.js",
+      "status": "pass",
+      "summary": "The owner-map contract passed with the stat-weight cache read-model selector boundary."
+    },
+    {
+      "command": "python3 -m unittest discover -s tests -p '*_test.py'",
+      "status": "pass",
+      "summary": "1049 Python unittest tests passed locally with skipped=1; existing warning output remains present."
+    },
+    {
+      "command": "node --test tests/*.test.js",
+      "status": "pass",
+      "summary": "344 Node tests passed locally with 0 failures."
+    },
+    {
+      "command": "python3 -m py_compile server/pg_cache_read_model_selectors.py server/postgres_cache_store.py tests/pg_cache_read_model_selectors_test.py",
+      "status": "pass",
+      "summary": "Touched Python files compiled successfully."
+    },
+    {
+      "command": "node --check tests/backend-owner-map.test.js && node --check scripts/project-harness.js",
+      "status": "pass",
+      "summary": "Owner-map contract and project harness passed JavaScript syntax checks."
+    },
+    {
+      "command": "python3 -m json.tool docs/backend-owner-map.json && python3 -m json.tool release evidence/manifest JSON",
+      "status": "pass",
+      "summary": "Owner map and release JSON parsed successfully."
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass",
+      "summary": "Whitespace and patch-format checks passed."
+    }
+  ],
+  "localReview": {
+    "status": "pass",
+    "findings": [],
+    "summary": "Task review and final whole-branch review found no remaining Critical, Important, or Minor implementation findings after precedence and invalid-JSON characterization was strengthened."
+  },
+  "candidateDeployment": {
+    "status": "passed",
+    "requiredBeforeMerge": true,
+    "branch": "codex/phase4-stat-weight-cache-read-model-selector",
+    "baseCommit": "34ffc08cef96df210cb91b4edb093b1dc9f72c73",
+    "commit": "080e6e2e01fbdef110ed69755fe393d04de41815",
+    "pullRequest": "https://github.com/boyuan19910222-ui/wow_mini_program/pull/47",
+    "completedAt": "2026-07-10T03:23:36Z",
+    "command": "WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh",
+    "asyncSyncStarted": false,
+    "deploySummary": "Candidate deploy succeeded to ubuntu@124.223.51.33:/opt/wow-mini-program, reused remote bootstrap dependencies, passed nginx validation, restarted healthy wow-backend/nginx services at 11:19:47 CST, and skipped all async PG-native sync starts.",
+    "requiredSmoke": [
+      "/health",
+      "/api/data/health stat_weights component",
+      "/api/builds/stat-weights/refresh-runs/latest",
+      "/api/builds/detail statWeights read model",
+      "/api/game/season",
+      "/api/websim/bootstrap",
+      "/api/websim/assets",
+      "/api/websim/talents",
+      "/api/websim/loot",
+      "/api/websim/gear initial",
+      "/api/websim/gear slot",
+      "40-spec observed-only gear sweep",
+      "systemd backend/nginx/sync-backfill service/timer status",
+      "recent logs without Traceback/ERROR/SQLite fallback",
+      "runtime file hash parity"
+    ],
+    "httpSmoke": {
+      "base": "http://124.223.51.33",
+      "health": {"status": 200, "ok": true, "service": "wow-backend"},
+      "dataHealth": {
+        "status": 200,
+        "overallStatus": "partial",
+        "components": 14,
+        "raiderio": {"status": "verified", "region": "cn", "seasonSlug": "season-mn-1", "runCount": 160, "profileCount": 35, "blockers": []},
+        "statWeights": {"status": "partial", "acceptedCount": 35, "blockedCount": 85, "raiderioStatus": "synced", "specCount": 40, "scenarioCount": 3, "blockers": []}
+      },
+      "statWeightLatest": {"status": 200, "sourceStatus": "partial", "acceptedCount": 34, "blockedCount": 86, "scenarioCount": 120, "refreshMode": "postgres_cache", "errors": []},
+      "statWeightDetail": {"status": 200, "dataStatus": "verified", "sourceStatus": "partial", "defaultScenarioKey": "mplus_mixed_route", "scenarioWeights": 3, "stats": 5, "sampleCount": 7, "simcSuccessCount": 1, "requiredSuccessCount": 2, "blockers": []},
+      "season": {"status": 200, "dataStatus": "verified", "seasonRevision": "season-17-f131dd36ddf1", "dungeons": 8, "raids": 4, "sourceRefs": 2, "raidPoolBlockers": []},
+      "bootstrap": {"status": 200, "dataStatus": "verified", "classes": 13, "specs": 40, "instances": 12, "seasonRevision": "season-17-f131dd36ddf1"},
+      "assets": {"status": 200, "dataStatus": "verified", "assets": 200, "counts": {"byStatus": {"verified": 200}, "bySource": {"blizzard": 200}}, "blockers": []},
+      "talents": {"status": 200, "dataStatus": "verified", "talentStatus": "simc", "nodes": 110, "presets": 2, "communityTemplates": 2, "seasonRevision": "season-17-f131dd36ddf1"},
+      "loot": {"status": 200, "dataStatus": "verified", "items": 120, "instances": 12, "seasonRevision": "season-17-f131dd36ddf1"},
+      "gearInitial": {"status": 200, "dataStatus": "verified", "gearPayloadMode": "initial", "communityTemplates": 1, "baselineTemplates": 0, "sourceKeys": ["raiderio_observed_profile"], "canApplyGear": [true], "seasonRevision": "season-17-f131dd36ddf1"},
+      "gearSlot": {"status": 200, "dataStatus": "verified", "gearPayloadMode": "slot", "communityTemplates": 1, "baselineTemplates": 0, "sourceKeys": ["raiderio_observed_profile"], "canApplyGear": [true], "seasonRevision": "season-17-f131dd36ddf1"}
+    },
+    "gearSweep": {
+      "checkedSpecs": 40,
+      "failures": 0,
+      "dataStatus": {"verified": 40},
+      "communityTemplates": {"1": 40},
+      "baselineTemplates": {"0": 40},
+      "sourceKeys": {"raiderio_observed_profile": 40},
+      "canApplyGear": {"true": 40}
+    },
+    "systemd": {
+      "backend": {"activeState": "active", "subState": "running", "result": "success", "execMainStatus": 0, "startedAt": "2026-07-10 11:19:47 CST"},
+      "nginx": {"activeState": "active", "subState": "running", "result": "success", "execMainStatus": 0, "startedAt": "2026-07-10 11:19:47 CST"},
+      "syncBackfillServices": {
+        "wow-websim-sync.service": "inactive/dead result=success execMainStatus=0",
+        "wow-stat-weights-sync.service": "activating/start result=success execMainStatus=0; started 2026-07-10 10:04:50 CST before candidate deploy",
+        "wow-community-template-sync.service": "inactive/dead result=success execMainStatus=0",
+        "wow-gear-observed-backfill.service": "inactive/dead result=success execMainStatus=0",
+        "wow-season-recommended-gear-sync.service": "inactive/dead result=success execMainStatus=0",
+        "wow-community-best-guard-sync.service": "inactive/dead result=success execMainStatus=0",
+        "wow-recommended-bis-guard-sync.service": "inactive/dead result=success execMainStatus=0",
+        "wow-data-health-followup.service": "inactive/dead result=success execMainStatus=0"
+      },
+      "timers": "9 wow-* timers listed",
+      "timerBackflowObservation": "The deploy command skipped async sync starts. wow-stat-weights-sync was already running from 10:04:50 CST, before the 11:19:47 candidate deploy; all other inspected sync/backfill/follow-up services were inactive/dead with success."
+    },
+    "runtime": {
+      "WOW_DATABASE_RUNTIME": "postgres_only",
+      "recentLogs": "journalctl for wow-backend and nginx over the candidate window had no Traceback/ERROR/SQLite fallback matches",
+      "hashParity": {
+        "server/pg_cache_read_model_selectors.py": "c341019ed9af12556330152be260409fedb5bbfd12f0f08868923972ae356f7f",
+        "server/postgres_cache_store.py": "6aadad9c7950a72b6337d210940ac15c6ea17fdaf5fddaed53a8992cdda3cdd9",
+        "server/news_backend.py": "e30ef78c5d3a524f7b1f7b98c592bcdf5e91134d848799311de0af9b3ebbce99",
+        "server/websim_payload.py": "a2d85e61d935ce6e5e65186c0b3833b492cd72e4d0b85d7ed098107a17d45f7a",
+        "server/deploy_lighthouse.sh": "519d82e5ec62cb97fd3a1c9a92f9c5f98461cc56e748014a88323eed66a9594d"
+      }
+    }
+  },
+  "merge": {
+    "status": "merged_to_main",
+    "pullRequest": "https://github.com/boyuan19910222-ui/wow_mini_program/pull/47",
+    "mergedAt": "2026-07-10T03:27:46Z",
+    "mergeCommit": "8bac8c2dec64fcd1044f7b4e039431085a1ce3ae",
+    "localMainSynced": true,
+    "headEqualsOriginMain": true
+  },
+  "risks": [
+    {
+      "id": "candidate_deployment_pending",
+      "status": "closed",
+      "detail": "Harness v0.5 Candidate Deployment Gate passed on exact PR #47 head 080e6e2 before merge."
+    },
+    {
+      "id": "preexisting_stat_weight_partial",
+      "status": "open_existing",
+      "detail": "Stat-weight health and detail remain partial because the current cache has accepted/blocked rows and one of two required SimC successes. This is existing data truth, not a selector regression."
+    },
+    {
+      "id": "preexisting_stat_weight_sync_running",
+      "status": "observed_existing",
+      "detail": "wow-stat-weights-sync.service started at 10:04:50 CST, before the 11:19:47 candidate deploy. The deployment did not start async sync/backfill."
+    },
+    {
+      "id": "write_paths_out_of_scope",
+      "status": "intentional",
+      "detail": "Stat-weight writes, latest-run aggregation, sync, backfill, cleanup, other PG writes, and public gear selector policy are intentionally unchanged."
+    }
+  ],
+  "rollback": [
+    "code_rollback",
+    "Redeploy main@34ffc08 with WOW_DEPLOY_SKIP_BOOTSTRAP=1 and WOW_DEPLOY_START_ASYNC_SYNCS=0; this slice has no schema or data migration to reverse."
+  ]
+}

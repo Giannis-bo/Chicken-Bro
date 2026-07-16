@@ -1,0 +1,145 @@
+{
+  "schemaVersion": 1,
+  "status": "phase0_phase1_accepted_baseline_ready",
+  "generatedFor": "harness-guided-project-optimization",
+  "date": "2026-07-09",
+  "sourcePlan": "docs/plans/2026-07-09-harness-guided-project-optimization-plan.md",
+  "highestEvidenceLevel": "runtime_verified",
+  "summary": "Current dirty worktree is grouped into reviewable themes, and the UI proof matrix is accepted with 14/14 current automated screenshots and 0 risk.",
+  "executionBoundary": {
+    "noBusinessImplementationChangedByThisManifest": true,
+    "noDeploy": true,
+    "noSsh": true,
+    "noProductionWrite": true,
+    "noDownloadOrInstall": true,
+    "mainCheckout": true,
+    "worktreeStrategy": "work_in_place_for_phase0_scope_only_due_existing_dirty_checkout"
+  },
+  "themeGroups": [
+    {
+      "id": "harness_governance",
+      "status": "ready_for_review",
+      "purpose": "Repo-native Harness rules and first read-only aggregator.",
+      "files": [
+        "docs/harness.md",
+        "scripts/project-harness.js",
+        "tests/project-harness.test.js",
+        "artifacts/releases/2026-07-09-harness-v0-2/manifest.json",
+        "docs/README.md",
+        "docs/roadmap/ideas.md"
+      ],
+      "evidence": [
+        "node --check scripts/project-harness.js",
+        "node --test tests/project-harness.test.js"
+      ],
+      "nextAction": "Keep as a standalone review/commit unit before expanding the script beyond read-only aggregation.",
+      "mustNotClaim": [
+        "does_not_execute_tests",
+        "does_not_collect_runtime_evidence",
+        "does_not_deploy_or_verify_live_state"
+      ]
+    },
+    {
+      "id": "current_truth_and_optimization_plan",
+      "status": "accepted_baseline_ready_for_review",
+      "purpose": "Current-truth review and approved Harness-guided optimization route.",
+      "files": [
+        "docs/plans/2026-07-09-docs-implementation-current-truth-review.md",
+        "docs/plans/2026-07-09-harness-guided-project-optimization-plan.md",
+        "docs/plans/README.md",
+        "docs/roadmap.md"
+      ],
+      "evidence": [
+        "rg placeholder scan on the optimization plan",
+        "git diff --check"
+      ],
+      "nextAction": "Use this as the active execution index for Phase 2 Harness evidence packet standardization and Phase 3 backend owner mapping.",
+      "mustNotClaim": [
+        "does_not_authorize_business_code_changes",
+        "does_not_replace_domain_runbooks",
+        "does_not_verify_live_cloud_state"
+      ]
+    },
+    {
+      "id": "ui_runtime_evidence_recovery",
+      "status": "accepted_runtime_baseline",
+      "purpose": "Restore low-disruption WeChat DevTools endpoint probing and complete 14-page runtime screenshot proof for the accepted UI rescue baseline.",
+      "files": [
+        "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/README.md",
+        "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/automator-endpoint-probe.js",
+        "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/automator-endpoint-probe.json",
+        "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/auto-route-screenshot.js",
+        "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/delivery-summary.md",
+        "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/devtools-action-ledger.json",
+        "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/final-delivery-audit.json",
+        "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/final-delivery-audit.md",
+        "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/manifest.json",
+        "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/manifest.json",
+        "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/news_news_auto_20260709T031806Z.png",
+        "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/news_news_auto_latest.json",
+        "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/news_news_manual_20260709_after_compile.png",
+        "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/runtime-captures/current_auto_capture_probe_20260709.png",
+        "tests/ui-system-rebuild-goal.test.js",
+        "tests/ui-v2-1-strict-cut-contract.test.js",
+        "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/builds_workbench_auto_20260709T051629Z.png",
+        "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/builds_builds_auto_20260709T051856Z.png",
+        "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/builds_talent-simulator_auto_20260709T052151Z.png",
+        "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/builds_detail_auto_20260709T060642Z.png",
+        "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/simulator_simulator_auto_20260709T052530Z.png",
+        "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/simulator_simc_auto_20260709T052916Z.png",
+        "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/profile_profile_auto_20260709T053114Z.png",
+        "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/news_list_auto_20260709T053302Z.png",
+        "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/news_detail_auto_20260709T053334Z.png",
+        "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/builds_intel_auto_20260709T053348Z.png",
+        "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/simulator_chickenbro_auto_20260709T053404Z.png",
+        "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/simulator_tasks_auto_20260709T053422Z.png",
+        "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/news_news_auto_20260709T060230Z.png",
+        "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/page-captures/simulator_task-detail_auto_20260709T060703Z.png"
+      ],
+      "evidence": [
+        "automator_endpoint_probe_found_ready_endpoint",
+        "14/14 app.json routes have current automated route+screenshot proof",
+        "finalAccepted=true runtimeVerified=true currentRuntimeScreenshotCount=14 riskCount=0 failCount=0",
+        "node --test tests/ui-system-rebuild-goal.test.js tests/ui-v2-1-strict-cut-contract.test.js tests/deploy-script.test.js tests/builds-page.test.js",
+        "node --test tests/*.test.js"
+      ],
+      "nextAction": "Freeze this accepted UI rescue baseline; handle future visual or layout expectations as a separate Harness-scoped UI request.",
+      "mustNotClaim": [
+        "does_not_cover_future_ui_redesign_expectations",
+        "static_tests_alone_do_not_prove_future_ui_changes",
+        "does_not_verify_live_cloud_state"
+      ]
+    },
+    {
+      "id": "gear_public_entry_current_truth",
+      "status": "ready_for_review",
+      "purpose": "Align runbook wording with current public observed-only gear template contract.",
+      "files": [
+        "docs/gear-simulation-full-chain-runbook.md"
+      ],
+      "evidence": [
+        "docs/plans/2026-07-09-docs-implementation-current-truth-review.md",
+        "roadmap top current-truth entry"
+      ],
+      "nextAction": "Keep recommended_bis, season_recommendation, default_template, simc_preset, and baseline_blocked as internal or historical evidence unless a new gate reopens public entry.",
+      "mustNotClaim": [
+        "does_not_delete_legacy_pg_rows",
+        "does_not_reopen_recommended_or_season_baseline_public_entry",
+        "does_not_verify_bis_quality"
+      ]
+    }
+  ],
+  "recommendedReviewOrder": [
+    "harness_governance",
+    "current_truth_and_optimization_plan",
+    "gear_public_entry_current_truth",
+    "ui_runtime_evidence_recovery"
+  ],
+  "phase1EntryCriteria": [
+    "git diff --check passes",
+    "theme groups are reviewable",
+    "UI proof matrix accepted with 14/14 current screenshots and 0 risk"
+  ],
+  "phase1RecommendedRoutes": [],
+  "nextRecommendedPhase": "phase2_harness_evidence_packet_standardization"
+}

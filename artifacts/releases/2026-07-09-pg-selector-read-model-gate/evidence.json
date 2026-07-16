@@ -1,0 +1,141 @@
+{
+  "status": "live_verified",
+  "highestEvidenceLevel": "live_verified",
+  "scope": [
+    "harness_candidate_deployment_gate",
+    "pg_gear_template_selector_read_model_helper"
+  ],
+  "summary": "Harness v0.5 adds Candidate Deployment Gate, and PG gear template public selection now delegates to server/pg_gear_template_selectors.py without changing observed-only public entry semantics or sync write paths. PR branch candidate deployment passed before merge, and PR #12 was merged to main.",
+  "verification": [
+    {
+      "command": "node --test tests/project-harness.test.js",
+      "status": "pass",
+      "summary": "5 tests passed; manifest includes candidateDeployment gate."
+    },
+    {
+      "command": "node --test tests/backend-owner-map.test.js",
+      "status": "pass",
+      "summary": "Owner map status is phase4_pg_selector_helper_extracted."
+    },
+    {
+      "command": "python3 -m unittest tests.pg_gear_template_selectors_test.PgGearTemplateSelectorsTest.test_select_public_gear_templates_keeps_observed_only_and_empty_public_baseline",
+      "status": "pass",
+      "summary": "Selector helper keeps active observed-only community template and empty public baseline."
+    },
+    {
+      "command": "python3 -m unittest tests.postgres_cache_store_test.PostgresCacheStoreTest.test_pg_initial_gear_selector_calls_gear_public_contract_module tests.postgres_cache_store_test.PostgresCacheStoreTest.test_pg_gear_template_selectors_match_observed_only_golden_payload",
+      "status": "pass",
+      "summary": "PG store still routes public filtering through the backend contract and matches observed-only golden payload."
+    },
+    {
+      "command": "python3 -m unittest discover -s tests -p '*_test.py'",
+      "status": "pass",
+      "summary": "1012 tests OK (skipped=1)."
+    },
+    {
+      "command": "node --test tests/*.test.js",
+      "status": "pass",
+      "summary": "344 tests passed."
+    },
+    {
+      "command": "python3 -m py_compile server/pg_gear_template_selectors.py server/postgres_cache_store.py && node --check scripts/project-harness.js && python3 -m json.tool docs/backend-owner-map.json >/dev/null",
+      "status": "pass",
+      "summary": "Python modules compile, Harness script syntax is valid, and backend owner map is valid JSON."
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass",
+      "summary": "No whitespace errors."
+    },
+    {
+      "command": "WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh",
+      "status": "pass",
+      "summary": "Candidate PR branch hot-deployed to ubuntu@124.223.51.33:/opt/wow-mini-program; wow-backend reported ok and async sync starts were skipped."
+    },
+    {
+      "command": "HTTP smoke against http://124.223.51.33",
+      "status": "pass",
+      "summary": "/health, /api/data/health, /api/websim/bootstrap, /api/websim/assets, /api/websim/talents, /api/websim/gear initial, /api/websim/gear slot, and /websim/ returned 200."
+    },
+    {
+      "command": "40-spec live /api/websim/gear?compact=1&mode=initial sweep",
+      "status": "pass",
+      "summary": "checkedSpecs=40, failures=0, dataStatus={verified:40}, communityTemplates={1:40}, baselineTemplates={0:40}, sourceKeys={raiderio_observed_profile:40}, canApplyGear={True:40}."
+    },
+    {
+      "command": "systemd, runtime hash parity, and log smoke on ubuntu@124.223.51.33",
+      "status": "pass",
+      "summary": "wow-backend and nginx active; sync/backfill services inactive with Result=success; timers active/waiting; WOW_DATABASE_RUNTIME=postgres_only; key runtime file hashes match local branch; recent backend logs show no Traceback, ERROR, or SQLite fallback."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "passed",
+    "requiredBeforeMerge": true,
+    "branch": "codex/pg-selector-read-model-gate",
+    "commit": "2b8b6f063cdd458b1f7ebc577a67230007edab5b",
+    "mergedPr": 12,
+    "mergedCommit": "704714f48dd99d1b62166bb2f4059cab602e4d96",
+    "command": "WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh",
+    "deployedTarget": "ubuntu@124.223.51.33:/opt/wow-mini-program",
+    "asyncSyncStarted": false,
+    "smoke": {
+      "healthHttpStatus": 200,
+      "dataHealthOverallStatus": "partial",
+      "dataHealthExistingPartialOrBlockedComponents": [
+        "community_templates",
+        "websim_sync",
+        "template_simc_bridge",
+        "season_cutover_readiness",
+        "gear_catalog",
+        "gear_legality_authority",
+        "stat_weights",
+        "talent_catalog",
+        "news",
+        "wcl_credentials",
+        "blizzard_api"
+      ],
+      "gearInitialSweep": {
+        "checkedSpecs": 40,
+        "failures": 0,
+        "communityTemplateCounts": {
+          "1": 40
+        },
+        "baselineTemplateCounts": {
+          "0": 40
+        },
+        "sourceKeys": {
+          "raiderio_observed_profile": 40
+        },
+        "canApplyGear": {
+          "True": 40
+        }
+      },
+      "services": {
+        "wow-backend.service": "active/running",
+        "nginx.service": "active/running",
+        "syncBackfillServices": "inactive/dead with Result=success",
+        "syncBackfillTimers": "active/waiting"
+      },
+      "runtime": {
+        "WOW_DATABASE_RUNTIME": "postgres_only"
+      },
+      "logs": "No Traceback, ERROR, or SQLite fallback found in recent wow-backend logs."
+    }
+  },
+  "risks": [
+    {
+      "id": "candidate_deploy_gate",
+      "status": "resolved",
+      "detail": "PR branch candidate deployment and smoke passed before merge."
+    },
+    {
+      "id": "existing_partial_health_components",
+      "status": "known_existing",
+      "detail": "/api/data/health may remain partial for existing community_templates, websim_sync, template_simc_bridge, or season_cutover_readiness blockers unrelated to this read-only selector split."
+    }
+  ],
+  "rollback": [
+    "code_rollback",
+    "resync_repair"
+  ]
+}

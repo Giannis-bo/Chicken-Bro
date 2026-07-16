@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "slug": "equipment-simulator-phase2b-pg-loader-facade-parity",
+  "classification": "Strict",
+  "status": "implementation_allowed",
+  "goal": "Add a bounded PostgreSQL-only Authority Context loader, one dormant PostgresCacheStore method and a dormant websim compatibility facade over the live backend fact owner without activating a route or changing current runtime consumers.",
+  "userValue": "The future equipment workbench can resolve live PostgreSQL selections through the canonical Phase 2A boundary while preserving current profile output and proving bounded read cost before any API or UI cutover.",
+  "nonGoals": [
+    "No /api/websim/gear/resolve route or current /profile cutover",
+    "No frontend transport, state, workbench UI or template-policy change",
+    "No database migration, schema, write, sync, backfill, cleanup, job, Worker, service or timer change",
+    "No per-slot or dynamically constructed SQL",
+    "No unbounded or transient-failure cache",
+    "No formal Phase 4 Active Season Manifest or release registry",
+    "No current facade, route or serializer call-site activation",
+    "No Catalyst retained-secondary-stat capability activation",
+    "No dependency installation or third-party download"
+  ],
+  "currentTruth": {
+    "sources": [
+      "docs/project-state.json",
+      "docs/roadmap.md",
+      "docs/harness.md",
+      "docs/plans/2026-07-10-equipment-simulator-capability-architecture-design.md",
+      "docs/plans/2026-07-10-equipment-simulator-capability-delivery-plan.md",
+      "docs/plans/2026-07-10-equipment-simulator-phase2-canonical-resolver-plan.md",
+      "artifacts/releases/2026-07-10-equipment-simulator-phase2a-pure-resolver/evidence.json",
+      "docs/backend-owner-map.json",
+      "docs/project-owner-map.json"
+    ],
+    "activeMilestone": "equipment_simulator_phase2",
+    "featureIteration": "allowed_under_harness"
+  },
+  "impactMap": {
+    "mustChange": [
+      "server/pg_gear_authority_loader.py with exactly three cold domain queries and one warm revision query",
+      "server/postgres_cache_store.py with one dormant read-only transaction method",
+      "server/websim_payload.py with dormant runtime-authority and resolved-snapshot parity helpers",
+      "bounded entries-and-bytes cache with complete-context-only admission",
+      "focused query-budget, transformation, cache, store and facade parity tests",
+      "owner, verification, runbook and Strict release evidence"
+    ],
+    "mustNotChange": [
+      "existing get_websim_gear, /api/websim/profile and route behavior",
+      "frontend files or public observed-only and baseline-empty payload semantics",
+      "database schema, migrations, writes and scheduled jobs",
+      "Phase 0-2A fail-closed guards and active runtime consumers",
+      "Phase 6 Catalyst fail-closed state"
+    ],
+    "evidenceRequired": [
+      "one read-only transaction and exact cold/warm query-budget proof",
+      "array parameterization with no slot-count query growth",
+      "exact Authority Context maps and compatibility-manifest labeling",
+      "missing, hidden, unverified and client-forged facts fail closed",
+      "bounded entry-and-byte cache with dependency invalidation and no transient caching",
+      "legacy profile golden parity from structured serializer input",
+      "current route and facade non-consumption proof",
+      "backend and full verification profiles plus local CR",
+      "candidate remote loader/store/facade probes and unchanged live runtime smokes"
+    ]
+  },
+  "ownership": {
+    "factOwner": "docs/plans/2026-07-10-equipment-simulator-capability-architecture-design.md",
+    "consumers": [
+      "future /api/websim/gear/resolve route",
+      "future structured-problem frontend state",
+      "future canonical profile route cutover"
+    ]
+  },
+  "engineeringHealth": {
+    "status": "bounded_read_adapter",
+    "reason": "Slice 2B adds one read-only loader boundary and two dormant adapters with explicit query and cache budgets; current route and facade call sites remain unchanged."
+  },
+  "acceptanceEvidence": [
+    "python3 -m unittest tests.pg_gear_authority_loader_test tests.postgres_cache_store_test.PostgresCacheStoreTest.test_gear_authority_context_loader_is_read_only_and_bounded",
+    "six focused resolved-snapshot facade and runtime-authority parity tests",
+    "python3 -m unittest tests.gear_contracts_test tests.gear_result_envelope_test tests.gear_rule_matrix_test tests.gear_evidence_ledger_test tests.gear_resolver_test tests.pg_gear_authority_loader_test",
+    "python3 -m unittest tests.websim_payload_test tests.postgres_cache_store_test tests.news_backend_test",
+    "node --test tests/project-harness.test.js tests/backend-owner-map.test.js tests/project-owner-map.test.js tests/project-state.test.js",
+    "node scripts/verify-project.js --profile backend --release artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity --base origin/main",
+    "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity --base origin/main",
+    "node scripts/project-harness.js --check --requirement-file artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity/requirement.json --evidence-file artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity/evidence.json --base origin/main",
+    "Python compile, static SQL/query-budget inspection and git diff --check",
+    "candidate remote query/cache/parity probes plus unchanged live route, public payload, Phase 0-2A, timer and log evidence"
+  ],
+  "releaseTrigger": "backend_api",
+  "rollback": [
+    "code_rollback"
+  ],
+  "decisionLog": [
+    {
+      "date": "2026-07-10",
+      "decision": "Cold Authority Context loading is exactly three domain queries regardless of selected slot count; warm hits execute only the revision query."
+    },
+    {
+      "date": "2026-07-10",
+      "decision": "compatibility-pg-live-v1 is a bounded live compatibility identity, not the formal Phase 4 Active Season Manifest."
+    },
+    {
+      "date": "2026-07-10",
+      "decision": "Store and websim facade adapters remain test-only and dormant until a separately gated Phase 3 route."
+    }
+  ]
+}

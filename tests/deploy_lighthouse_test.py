@@ -4,6 +4,19 @@ from pathlib import Path
 
 
 class DeployLighthouseScriptTest(unittest.TestCase):
+    def test_stat_snapshot_worker_is_one_long_lived_hardened_service_enabled_by_deploy(self):
+        service = Path("server/wow-gear-stat-snapshot-worker.service").read_text(encoding="utf-8")
+        script = Path("server/deploy_lighthouse.sh").read_text(encoding="utf-8")
+
+        self.assertIn("python3 -m server.gear_stat_snapshot_worker", service)
+        self.assertIn("Restart=always", service)
+        self.assertIn("ProtectSystem=strict", service)
+        self.assertIn("ProtectHome=read-only", service)
+        self.assertIn("PrivateTmp=true", service)
+        self.assertIn('wow-gear-stat-snapshot-worker.service"', script)
+        self.assertIn("enable wow-gear-stat-snapshot-worker.service", script)
+        self.assertIn("restart wow-gear-stat-snapshot-worker.service", script)
+
     def test_deploy_script_prepares_codex_cli_worker_without_danger_full_access(self):
         script = Path("server/deploy_lighthouse.sh").read_text(encoding="utf-8")
 
@@ -105,6 +118,17 @@ class DeployLighthouseScriptTest(unittest.TestCase):
         self.assertNotIn("enable --now wow-gear-observed-backfill.timer", script)
         self.assertNotIn("start --no-block wow-gear-observed-backfill.service", script)
         self.assertNotIn("start wow-gear-observed-backfill.service", script)
+
+    def test_deploy_script_installs_manual_talent_graph_recovery_without_starting_it(self):
+        service = Path("server/wow-talent-graph-recovery.service").read_text(encoding="utf-8")
+        script = Path("server/deploy_lighthouse.sh").read_text(encoding="utf-8")
+
+        self.assertIn("WOW_WEBSIM_SKIP_BLIZZARD=1", service)
+        self.assertIn("WOW_WEBSIM_SKIP_RAIDERIO=1", service)
+        self.assertIn("/run/lock/wow-mini-program-sync.lock", service)
+        self.assertIn('wow-talent-graph-recovery.service"', script)
+        self.assertNotIn("start --no-block wow-talent-graph-recovery.service", script)
+        self.assertNotIn("start wow-talent-graph-recovery.service", script)
 
     def test_deploy_script_installs_season_recommended_gear_service_without_autostart(self):
         service = Path("server/wow-season-recommended-gear-sync.service").read_text(encoding="utf-8")

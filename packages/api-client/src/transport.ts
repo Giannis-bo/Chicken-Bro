@@ -15,6 +15,9 @@ export interface ApiResult<T> {
   payload: T
   fromFallback: boolean
   error: string
+  httpStatus?: number
+  transportError?: string
+  offline?: boolean
 }
 
 export type RequestMethod = 'GET' | 'POST' | 'PUT' | 'DELETE'
@@ -28,6 +31,7 @@ export interface RequestOptions<T> {
   auth?: boolean
   allowInsecureGuestRequest?: boolean
   attachAnalyticsHeaders?: boolean
+  responseMode?: 'default' | 'structured-problem'
   fallback: () => T
   validate?: (value: unknown) => boolean
 }
@@ -109,17 +113,20 @@ export function createTaroTransport(config: TransportConfig = {}): ApiTransport 
   const resolveBaseUrl = config.resolveBaseUrl ?? (() => configuredApiBaseUrl(storage))
 
   const request = async <T>(path: string, options: RequestOptions<T>): Promise<ApiResult<T>> => {
+    const structuredProblem = options.responseMode === 'structured-problem'
+    const fallbackResult = (error: string, httpStatus = 0, offline = false): ApiResult<T> => ({
+      payload: options.fallback(),
+      fromFallback: true,
+      error,
+      ...(structuredProblem ? { httpStatus, transportError: error, offline } : {}),
+    })
     const baseUrl = resolveBaseUrl()
     const url = baseUrl ? `${baseUrl}${path}` : ''
     if (!url) {
-      return { payload: options.fallback(), fromFallback: true, error: 'missing api base url' }
+      return fallbackResult('missing api base url', 0, true)
     }
     if (options.auth && isInsecureHttpUrl(url) && !options.allowInsecureGuestRequest) {
-      return {
-        payload: options.fallback(),
-        fromFallback: true,
-        error: 'insecure api base url for authenticated request',
-      }
+      return fallbackResult('insecure api base url for authenticated request')
     }
 
     const header: Record<string, string> = {
@@ -140,20 +147,22 @@ export function createTaroTransport(config: TransportConfig = {}): ApiTransport 
         timeout: options.timeoutMs ?? 6000,
       })
       const valid = options.validate?.(response.data) ?? Boolean(response.data)
+      if (structuredProblem && valid) {
+        return {
+          payload: response.data as T,
+          fromFallback: false,
+          error: '',
+          httpStatus: response.statusCode,
+          transportError: '',
+          offline: false,
+        }
+      }
       if (response.statusCode >= 200 && response.statusCode < 300 && valid) {
         return { payload: response.data as T, fromFallback: false, error: '' }
       }
-      return {
-        payload: options.fallback(),
-        fromFallback: true,
-        error: `HTTP ${response.statusCode}`,
-      }
+      return fallbackResult(`HTTP ${response.statusCode}`, response.statusCode)
     } catch (error) {
-      return {
-        payload: options.fallback(),
-        fromFallback: true,
-        error: errorMessage(error),
-      }
+      return fallbackResult(errorMessage(error), 0, true)
     }
   }
 

@@ -1,0 +1,129 @@
+{
+  "schemaVersion": 1,
+  "slug": "equipment-simulator-phase4d-atomic-manifest-cutover",
+  "classification": "Strict",
+  "status": "implementation_allowed",
+  "goal": "Atomically activate one formal retail Season Manifest over the live-verified Phase 4C Gear and Community Releases, cut browse/Resolve/Profile to release-scoped reads, and prove monotonic rollback and re-promotion without mixed releases or silent staging fallback.",
+  "userValue": "The equipment workbench reads one immutable, auditable season combination and can recover from the first formal cutover without editing release rows or losing current trusted observed winners.",
+  "nonGoals": [
+    "No scheduled release refresh service, timer or automatic promotion",
+    "No new Gear or Community election policy and no mutation of sealed release rows",
+    "No public baseline, recommendation, optimizer, BiS or DPS comparison behavior",
+    "No removal of transitional staging readers or mutable sync tables",
+    "No Phase 5 SimC job or Worker",
+    "No Phase 6 Catalyst retained-secondary-stat activation",
+    "No dependency installation or unapproved local download"
+  ],
+  "currentTruth": {
+    "sources": [
+      "docs/project-state.json",
+      "docs/roadmap.md",
+      "docs/harness.md",
+      "docs/gear-simulation-full-chain-runbook.md",
+      "docs/plans/2026-07-11-equipment-simulator-phase4-release-train-plan.md",
+      "artifacts/releases/2026-07-11-equipment-simulator-phase4c-release-shadow-readers/evidence.json",
+      "server/gear_release.py",
+      "server/gear_release_store.py",
+      "server/gear_release_shadow.py",
+      "server/gear_release_tool.py",
+      "server/gear_runtime.py",
+      "server/pg_gear_authority_loader.py",
+      "server/pg_gear_read_model_selectors.py",
+      "server/postgres_cache_store.py",
+      "server/news_backend.py",
+      "docs/backend-owner-map.json",
+      "docs/project-owner-map.json"
+    ],
+    "activeMilestone": "equipment_simulator_phase4",
+    "featureIteration": "allowed_under_harness",
+    "phase4cMergeCommit": "3e99d9811298788572f510592082b2f2978cb733",
+    "inactiveGearReleaseId": "gear-release:sha256:342e3918b685ca0145514485d115fb74079be660d85ea8b835760c4bc61350f6",
+    "inactiveCommunityReleaseId": "community-release:sha256:923ccd05f09fbe32b1827e45d7e9be163545fb187d49efcde730dbb0216682ed",
+    "formalActiveManifest": false,
+    "activeManifestPointerRows": 0,
+    "currentPointerSchema": "manifest_revision is NOT NULL and has no explicit transitional tombstone mode",
+    "publicManifest": "compatibility-pg-live-v1"
+  },
+  "impactMap": {
+    "mustChange": [
+      "one validated immutable Season Manifest binds the exact Gear and Community Release IDs plus all required dependency revisions",
+      "an additive migration extends the pointer state machine with an explicit transitional tombstone while preserving the retail primary key, foreign-key integrity for active Manifests and monotonic generation",
+      "one transaction seals or reuses the Manifest and compare-and-swaps the retail pointer generation",
+      "browse, Resolver authoring context, Resolve and canonical Profile read one pointer/Manifest identity and constrain every content query to that release combination",
+      "formalActiveManifest=true appears only after full pointer, Manifest, release binding and content integrity validation",
+      "the first-cutover rollback state is explicit and monotonic: rollback to transitional mode must retain generation history and cannot reintroduce an expectedGeneration=0 ABA window",
+      "health/admin distinguish active formal Manifest, transitional rollback state, candidate IDs, rollback target, generation and blockers without false green",
+      "candidate rehearsal exercises promote, rollback and re-promotion before merge"
+    ],
+    "mustNotChange": [
+      "sealed Gear and Community Release content or hashes",
+      "observed-only winner and baseline-empty public semantics",
+      "staging sync writers and existing timer ownership",
+      "deploy async-sync default WOW_DEPLOY_START_ASYNC_SYNCS=0",
+      "legacy Profile compatibility and frontend server-owned snapshot boundary",
+      "Phase 6 Catalyst disabled and fail-closed state"
+    ],
+    "evidenceRequired": [
+      "migration or pointer-state change is additive, backed up, atomic and grants only minimal runtime rights",
+      "stale generation, missing Manifest, invalid hash, mixed release IDs and corrupted content fail closed without staging fallback while formal mode is active",
+      "first promotion from zero rows, rollback to explicit transitional mode and re-promotion all advance generation monotonically",
+      "40-spec browse/Resolve/Profile and observed provenance remain revision-only across cutover",
+      "one old client Intent performs exactly one 409 revision rebase before verified Resolve",
+      "real WeChat evidence covers pending to 409 rebase to verified when the revision changes",
+      "health/admin, cache identity, query count/p95, service, timer/backflow, logs and rollback are captured at candidate and clean-main heads",
+      "backend/full verification, local CR, exact-head CI and runtime file parity pass before final live claim"
+    ]
+  },
+  "ownership": {
+    "factOwner": "server/gear_release_store.py owns Manifest/pointer SQL and server/gear_release.py owns pure pointer/Manifest policy",
+    "consumers": [
+      "server/postgres_cache_store.py release-scoped public read facade",
+      "server/pg_gear_authority_loader.py exact active Authority projection",
+      "server/pg_gear_read_model_selectors.py exact active browse projection",
+      "server/gear_runtime.py exact active Resolve/Profile",
+      "server/news_backend.py public route and health/admin composition",
+      "pages/builds/gear-workbench-state.js one-rebase client behavior"
+    ]
+  },
+  "engineeringHealth": {
+    "status": "planned_atomic_cutover_with_first_activation_correction",
+    "reason": "The existing pointer schema assumes rollback always targets another formal Manifest, but the first cutover starts from zero pointer rows. Slice 4D must model an explicit monotonic transitional rollback state instead of deleting the pointer, resetting generation, or pretending an identical formal Manifest is an operational rollback."
+  },
+  "acceptanceEvidence": [
+    "focused Manifest, pointer CAS, active-reader, route, health/admin and one-rebase tests",
+    "node --test tests/project-harness.test.js tests/backend-owner-map.test.js tests/project-owner-map.test.js tests/project-state.test.js",
+    "node scripts/verify-project.js --profile backend --release artifacts/releases/2026-07-11-equipment-simulator-phase4d-atomic-manifest-cutover --base origin/main",
+    "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-11-equipment-simulator-phase4d-atomic-manifest-cutover --base origin/main",
+    "node scripts/project-harness.js --check --requirement-file artifacts/releases/2026-07-11-equipment-simulator-phase4d-atomic-manifest-cutover/requirement.json --evidence-file artifacts/releases/2026-07-11-equipment-simulator-phase4d-atomic-manifest-cutover/evidence.json --base origin/main",
+    "candidate database backup, migration/grant inspection, pointer generations, 40-spec cutover/rollback/re-promotion matrices and runtime parity",
+    "real WeChat revision rebase proof plus post-merge lightweight 40-spec, negative, health/timer/log and rollback smoke"
+  ],
+  "releaseTrigger": "public_payload",
+  "rollback": [
+    "config_disable",
+    "code_rollback",
+    "data_restore"
+  ],
+  "decisionLog": [
+    {
+      "date": "2026-07-11",
+      "decision": "Keep Slice 4D independent from scheduled refresh. No timer or automatic promotion enters this packet."
+    },
+    {
+      "date": "2026-07-11",
+      "decision": "Treat zero-pointer to formal-pointer as a first-activation state transition. Rollback must preserve monotonic generation in an explicit transitional state; deleting the pointer and reopening expectedGeneration=0 is forbidden because it creates ABA replay risk."
+    },
+    {
+      "date": "2026-07-11",
+      "decision": "Use an additive PostgreSQL migration for the explicit transitional pointer state. Active mode still requires a valid Manifest foreign key; transitional mode carries no active Manifest but retains the retail row and generation."
+    },
+    {
+      "date": "2026-07-11",
+      "decision": "While formal mode is active, any missing or invalid pointer/Manifest/release fact returns 503 and never falls back to staging. Transitional reads are allowed only in the explicit pre-cutover or rollback state."
+    },
+    {
+      "date": "2026-07-11",
+      "decision": "Phase 4C legacy evidence-sensitive semantic hashes remain immutable historical evidence. Cutover parity uses the corrected user-visible semantic signature plus exact provenance proof and release content integrity."
+    }
+  ]
+}

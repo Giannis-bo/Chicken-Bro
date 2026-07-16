@@ -121,4 +121,46 @@ describe('Taro transport parity', () => {
       vi.unstubAllGlobals()
     }
   })
+
+  it('preserves structured problem envelopes and HTTP status for canonical gear conflicts', async () => {
+    const envelope = {
+      contractRevision: 'gear-result-envelope-v1',
+      requestId: 'request-conflict',
+      status: 'conflict',
+      releaseContext: { manifestRevision: 'manifest-2' },
+      data: {},
+      problems: [{ code: 'REVISION_CONFLICT' }],
+    }
+    taro.request.mockResolvedValue({ statusCode: 409, data: envelope })
+    const transport = createTaroTransport({ storage: new MemoryStorage(), resolveBaseUrl: () => 'https://example.test' })
+    const result = await transport.request('/api/websim/gear/resolve', {
+      method: 'POST',
+      data: {},
+      responseMode: 'structured-problem',
+      fallback: () => ({}),
+      validate: (value) => value === envelope,
+    })
+
+    expect(result).toMatchObject({
+      payload: envelope,
+      fromFallback: false,
+      httpStatus: 409,
+      transportError: '',
+      offline: false,
+    })
+  })
+
+  it('marks structured network failures as offline without promoting fallback payloads', async () => {
+    taro.request.mockRejectedValue(new Error('network down'))
+    const transport = createTaroTransport({ storage: new MemoryStorage(), resolveBaseUrl: () => 'https://example.test' })
+    const result = await transport.request('/api/websim/gear/stat-snapshots', {
+      method: 'POST',
+      data: {},
+      responseMode: 'structured-problem',
+      fallback: () => ({ status: 'unavailable' }),
+    })
+
+    expect(result).toMatchObject({ fromFallback: true, httpStatus: 0, offline: true })
+    expect(result.transportError).toContain('network down')
+  })
 })

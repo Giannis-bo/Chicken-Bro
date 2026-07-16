@@ -2,6 +2,12 @@ export {
   fallbackTrust,
   isReadyState,
 } from './models'
+export {
+  completeGearResolverContext,
+  gearEnhancementsFromResolvedSnapshot,
+  serializeGearSelectionIntent,
+} from './gear-intent'
+export type { SerializeGearIntentOptions } from './gear-intent'
 export type {
   ApiResultLike,
   BuildParams,
@@ -44,10 +50,19 @@ export type {
   ChatMessage,
   ChickenbroResponse,
   ClassOption,
+  CommunityTemplateImportData,
+  CommunityTemplateImportEnvelope,
   CommunityTemplateReference,
   GearEnhancementOption,
+  GearEnhancementSelection,
+  GearIntentSlot,
   GearItemReference,
+  GearProblem,
   GearReadiness,
+  GearResolvedSnapshot,
+  GearResolverContext,
+  GearResultEnvelope,
+  GearSelectionIntent,
   GearSlotDefinition,
   GearSlotReadiness,
   GearStatsPayload,

@@ -1,0 +1,180 @@
+{
+  "schemaVersion": 1,
+  "slug": "equipment-simulator-phase5a-stat-snapshot-store",
+  "requirementSlug": "equipment-simulator-phase5a-stat-snapshot-store",
+  "status": "archived",
+  "highestEvidenceLevel": "live_verified",
+  "branch": "codex/equipment-simulator-phase5-stat-snapshot",
+  "commit": "2b98dbe72dc789e7e0700d0274f8bc3a2f73de31",
+  "scope": [
+    "pure_stat_signature_policy",
+    "additive_pg_snapshot_job_schema",
+    "fenced_single_flight_repository"
+  ],
+  "verification": [
+    {
+      "command": "initial current-truth and Phase 5 plan review",
+      "status": "pass",
+      "summary": "Confirmed the synchronous legacy path, reusable canonical Resolver/Profile and stat_snapshot_v1 boundaries, and the absence of any async snapshot store, worker, endpoint or frontend polling path."
+    },
+    {
+      "command": "Phase 5 plan self-review",
+      "status": "pass",
+      "summary": "Authority, signature, transaction, concurrency, fencing, recovery, backpressure, privacy, compatibility, performance, deployment and rollback boundaries are explicit with no unresolved product decision."
+    },
+    {
+      "command": "python3 -m unittest tests.gear_stat_snapshot_test tests.gear_stat_snapshot_store_test tests.postgres_schema_test",
+      "status": "pass",
+      "summary": "35 pure signature, bounded snapshot, single-flight, limits, cooldown, lease, fencing, immutable content-hash, bounded health and migration contract tests passed."
+    },
+    {
+      "command": "python3 -m unittest tests.websim_payload_test tests.postgres_cache_store_test tests.news_backend_test",
+      "status": "pass",
+      "summary": "745 existing WebSim serializer, PG cache and backend route/health compatibility tests passed."
+    },
+    {
+      "command": "node --test tests/builds-page.test.js tests/frontend-api-client.test.js tests/project-harness.test.js",
+      "status": "pass",
+      "summary": "173 existing frontend page, API transport and Harness tests passed."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-11-equipment-simulator-phase5a-stat-snapshot-store --base origin/main",
+      "status": "pass",
+      "summary": "Full profile passed 388 Node tests, 1308 Python tests with 1 skipped, compileall, 130 JSON/syntax/Harness/diff commands and Strict Harness."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "live_verified",
+    "requiredBeforeMerge": true,
+    "branch": "codex/equipment-simulator-phase5-stat-snapshot",
+    "commit": "2b98dbe72dc789e7e0700d0274f8bc3a2f73de31",
+    "implementationCommit": "2b98dbe72dc789e7e0700d0274f8bc3a2f73de31",
+    "host": "wow-lighthouse",
+    "runtimePath": "/opt/wow-mini-program",
+    "database": "wow_test",
+    "databaseRuntime": "postgres_only",
+    "backup": {
+      "path": "/opt/wow-mini-program-candidate-backups/phase5a-pre-ef83fbc-20260711T115612Z",
+      "dump": "wow_test.dump",
+      "sha256": "30a1e2c609f98c8aadc4e32a485297d3f59c9fba11cd29ef402acf94ebdfe8d4"
+    },
+    "migration": {
+      "id": "0015_websim_gear_stat_snapshots",
+      "status": "applied",
+      "tables": [
+        "cache.websim_gear_stat_snapshots",
+        "ops.websim_gear_stat_jobs",
+        "ops.websim_gear_stat_worker_state",
+        "ops.websim_gear_stat_metrics"
+      ],
+      "dataRowsAfterSmoke": {
+        "snapshots": 0,
+        "jobs": 0,
+        "workers": 0
+      }
+    },
+    "deployFlags": {
+      "WOW_DEPLOY_SKIP_BOOTSTRAP": "1",
+      "WOW_DEPLOY_START_ASYNC_SYNCS": "0"
+    },
+    "smoke": {
+      "status": "pass",
+      "summary": "Real wow_app repository transaction proved queued pending, duplicate single-flight reuse, SKIP LOCKED claim, heartbeat, stale-token rejection, verified publication and exact hash reload; the transaction then rolled back to zero snapshot/job/worker rows."
+    },
+    "timerBackflow": {
+      "status": "pass",
+      "summary": "Slice 5A installs no worker or timer. Candidate deploy kept WOW_DEPLOY_START_ASYNC_SYNCS=0, did not trigger Phase 4 refresh, and left the new snapshot/job/worker tables at zero operational rows after transactional smoke."
+    },
+    "finalPointer": {
+      "mode": "active",
+      "generation": 9,
+      "manifestRevision": "season-manifest:sha256:551810fcc9d8f6b4dd2099cfafa4b67192476dc4f0bfe36bf827b9fa6ef3c07d"
+    },
+    "rollbackTarget": "stop future consumers if any, restore code to 1e4b549, retain additive dormant 0015 tables, and use the recorded wow_test dump only for corruption recovery"
+  },
+  "postMerge": {
+    "status": "live_verified",
+    "pullRequest": 79,
+    "mergeCommit": "8a75fd54375377ec2ca0b93aaebe4dc70fc8115d",
+    "runtimeParity": "main, origin/main and deployed gear_stat_snapshot.py, gear_stat_snapshot_store.py and migration 0015 matched",
+    "schemaState": {
+      "migrationRows": 1,
+      "snapshotRows": 0,
+      "jobRows": 0,
+      "workerRows": 0
+    },
+    "activeManifestGeneration": 9,
+    "summary": "Clean-main deploy preserved the dormant additive 0015 schema with zero operational rows, exact runtime parity, active generation 9 and an active backend with NRestarts=0."
+  },
+  "runtimeEvidence": [
+    {
+      "id": "migration_constraints_indexes_and_privileges",
+      "status": "pass",
+      "detail": "Migration 0015 applied after the recorded backup. All four tables and six indexes exist; the active-signature partial unique predicate is present. wow_app has SELECT/INSERT only on immutable snapshots, SELECT/INSERT/UPDATE on jobs/worker state/metrics, and no DELETE grants."
+    },
+    {
+      "id": "real_repository_transaction",
+      "status": "pass",
+      "detail": "Using the deployed repository with the real application PostgreSQL environment, a miss returned pending, a duplicate reused the same job, claim returned running, heartbeat succeeded, stale token publication was rejected, the valid token published and reloaded the exact content hash, and rollback restored snapshots/jobs/workers to 0/0/0."
+    },
+    {
+      "id": "candidate_sql_finding",
+      "status": "pass",
+      "detail": "The first real repository claim exposed an ambiguous unqualified job_id in UPDATE FROM RETURNING. The transaction rolled back with zero rows and no pointer impact. A focused red test was added, RETURNING columns were qualified with the job alias, and the final real repository transaction passed at 2b98dbe."
+    },
+    {
+      "id": "runtime_file_parity",
+      "status": "pass",
+      "detail": "SHA-256 parity matched between the candidate worktree and /opt/wow-mini-program for gear_stat_snapshot.py, gear_stat_snapshot_store.py and migration 0015; the final store hash after the SQL correction is ed5d582277b8c0252e56ad8639a14c28529de50756d49f60ef1e2ecb66d3dd76."
+    },
+    {
+      "id": "public_compatibility_and_phase6_boundary",
+      "status": "pass",
+      "detail": "Candidate deploy preserved generation 9. Public matrix passed 40/40 with zero failures, 11 resolved Profiles and 29 truthful blockers; malformed/stale/missing-item/unknown-Catalyst remained 400/409/503 fail-closed and legacy Profile remained non-empty."
+    },
+    {
+      "id": "service_health_logs_and_backflow",
+      "status": "pass",
+      "detail": "wow-backend remained active with NRestarts=0, MemoryCurrent 103936000 and MemoryPeak 104509440 bytes. No systemd units failed, backend warning count since final candidate deploy was zero, async sync stayed disabled, and Phase 4 refresh state remained manual_required without a new deploy-triggered run."
+    }
+  ],
+  "risks": [
+    {
+      "id": "incomplete_signature",
+      "status": "blocked_by_requirement",
+      "detail": "Signature includes server profile hash and the explicit revision vector; client-supplied signatures are never trusted."
+    },
+    {
+      "id": "duplicate_or_stale_workers",
+      "status": "blocked_by_requirement",
+      "detail": "Partial unique single-flight, SKIP LOCKED claim and lock-token fencing are mandatory before activation."
+    },
+    {
+      "id": "unsafe_schema_rollback",
+      "status": "blocked_by_requirement",
+      "detail": "Migration is additive and tables remain dormant in 5A; normal rollback is code/config, not destructive schema removal."
+    },
+    {
+      "id": "premature_worker_frontend_or_catalyst",
+      "status": "blocked_by_requirement",
+      "detail": "Route, worker, frontend cutover and Phase 6 Catalyst are explicitly excluded from Slice 5A."
+    }
+  ],
+  "rollback": [
+    "code_rollback",
+    "config_disable",
+    "data_restore"
+  ],
+  "cleanup": {
+    "required": false
+  },
+  "archivedReferences": [
+    "docs/project-state.json",
+    "docs/roadmap.md",
+    "docs/harness.md",
+    "docs/plans/2026-07-10-equipment-simulator-capability-architecture-design.md",
+    "docs/plans/2026-07-11-equipment-simulator-phase5-async-stat-snapshot-plan.md",
+    "artifacts/releases/2026-07-11-equipment-simulator-phase4e-scheduled-refresh/evidence.json"
+  ],
+  "summary": "Phase 5A is archived after PR #79 merged at 8a75fd5 and clean-main live verification passed. The pure revision-complete signature, additive PostgreSQL snapshot/job schema and fenced repository are active but dormant with zero operational rows. No route, worker, frontend behavior or Catalyst capability is active."
+}

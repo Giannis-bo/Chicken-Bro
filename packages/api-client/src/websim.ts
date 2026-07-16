@@ -1,5 +1,8 @@
 import type {
+  CommunityTemplateImportEnvelope,
   GearSlotDefinition,
+  GearResultEnvelope,
+  GearSelectionIntent,
   GearStatsPayload,
   TalentImportPayload,
   TalentNode,
@@ -159,11 +162,57 @@ export interface GearRequest extends WebsimSelection {
   slot?: string
 }
 
+export interface CommunityTemplateImportRequest extends WebsimSelection {
+  templateId: string
+  expectedManifestRevision?: string
+}
+
+export interface GearStatSnapshotRequest {
+  selectionIntent: GearSelectionIntent
+  profileContext: RequestData
+  timeoutMs?: number
+}
+
+function fallbackGearEnvelope(): GearResultEnvelope {
+  return {
+    contractRevision: 'gear-result-envelope-v1',
+    requestId: 'transport-fallback',
+    status: 'unavailable',
+    releaseContext: {},
+    data: {},
+    problems: [{ kind: 'TRANSPORT_ERROR', code: 'GEAR_TRANSPORT_UNAVAILABLE', retryable: true }],
+  }
+}
+
+function fallbackCommunityImportEnvelope(): CommunityTemplateImportEnvelope {
+  return {
+    contractRevision: 'community-template-import-envelope-v1',
+    requestId: 'transport-fallback',
+    status: 'unavailable',
+    releaseContext: {},
+    data: {},
+    problems: [{ kind: 'TRANSPORT_ERROR', code: 'GEAR_TRANSPORT_UNAVAILABLE', retryable: true }],
+  }
+}
+
+function isStructuredEnvelope(value: unknown, contractRevision: string): boolean {
+  return isRecord(value)
+    && value['contractRevision'] === contractRevision
+    && typeof value['requestId'] === 'string'
+    && typeof value['status'] === 'string'
+    && isRecord(value['releaseContext'])
+    && isRecord(value['data'])
+    && Array.isArray(value['problems'])
+}
+
 export interface WebsimClient {
   bootstrap(): Promise<ApiResult<WebsimBootstrapPayload>>
   talents(selection: WebsimSelection): Promise<ApiResult<WebsimTalentsPayload>>
   talentImport(selection: WebsimSelection): Promise<ApiResult<TalentImportPayload>>
   gear(request: GearRequest): Promise<ApiResult<WebsimGearPayload>>
+  gearResolve(selectionIntent: GearSelectionIntent): Promise<ApiResult<GearResultEnvelope>>
+  communityTemplateImport(request: CommunityTemplateImportRequest): Promise<ApiResult<CommunityTemplateImportEnvelope>>
+  gearStatSnapshot(request: GearStatSnapshotRequest): Promise<ApiResult<GearResultEnvelope>>
   gearStats(payload: RequestData & Partial<WebsimSelection>): Promise<ApiResult<GearStatsPayload>>
 }
 
@@ -202,6 +251,39 @@ export function createWebsimClient(transport: ApiTransport): WebsimClient {
           && Array.isArray(value['slots'])
           && isRecord(value['equippedSet'])
           && isRecord(value['readiness']),
+      })
+    },
+    gearResolve(selectionIntent) {
+      return transport.requestEndpoint('websim.gearResolve', '/api/websim/gear/resolve', {
+        data: { ...selectionIntent },
+        responseMode: 'structured-problem',
+        fallback: fallbackGearEnvelope,
+        validate: (value) => isStructuredEnvelope(value, 'gear-result-envelope-v1'),
+      })
+    },
+    communityTemplateImport(request) {
+      return transport.requestEndpoint('websim.gearCommunityImport', '/api/websim/gear/community-import', {
+        data: {
+          classKey: request.classKey,
+          specKey: request.specKey,
+          templateId: request.templateId,
+          expectedManifestRevision: request.expectedManifestRevision ?? '',
+        },
+        responseMode: 'structured-problem',
+        fallback: fallbackCommunityImportEnvelope,
+        validate: (value) => isStructuredEnvelope(value, 'community-template-import-envelope-v1'),
+      })
+    },
+    gearStatSnapshot(request) {
+      return transport.requestEndpoint('websim.gearStatSnapshots', '/api/websim/gear/stat-snapshots', {
+        data: {
+          selectionIntent: request.selectionIntent,
+          profileContext: request.profileContext,
+        },
+        timeoutMs: Math.min(30000, Math.max(1, request.timeoutMs ?? 30000)),
+        responseMode: 'structured-problem',
+        fallback: fallbackGearEnvelope,
+        validate: (value) => isStructuredEnvelope(value, 'gear-result-envelope-v1'),
       })
     },
     gearStats(payload) {
