@@ -1,0 +1,303 @@
+{
+  "schemaVersion": 1,
+  "route": "specialization_home/builds_home",
+  "status": "generated_pending_isolated_review",
+  "reviewStatus": "generated_pending_isolated_review",
+  "sourcePath": "/Users/heyesheng/.codex/generated_images/019f6171-d518-74b1-b4e6-667f09ee5681/exec-dec57f7e-97aa-45f5-8f3e-20bfdc6ffcd4.png",
+  "master": {
+    "path": "masters/builds-frame-atlas-master-v1.png",
+    "dimensions": {
+      "width": 1536,
+      "height": 1024
+    },
+    "bytes": 1814035,
+    "sha256": "508e100d7a2c9393f1af9a80faac3720b94714d65cf550c0635b18c26f91f8b1"
+  },
+  "assets": [
+    {
+      "assetId": "builds-frame.overview",
+      "variant": "overview",
+      "path1x": "runtime/1x/frames/builds-frame.overview.png",
+      "path2x": "runtime/2x/frames/builds-frame.overview.png",
+      "dimensions": {
+        "1x": {
+          "width": 128,
+          "height": 128
+        },
+        "2x": {
+          "width": 256,
+          "height": 256
+        }
+      },
+      "bytes": {
+        "1x": 11284,
+        "2x": 40026
+      },
+      "hash": {
+        "1x": "259a2bbdd785a0090488bfb511c432d90070e33e2b7446034c2d6727590a30ca",
+        "2x": "97aead93a5d3db30c8105ea9fd9d90d49432fc7ca1b9bc214e35e9d673fa1d10"
+      },
+      "sliceInset": {
+        "1x": 32,
+        "2x": 64
+      }
+    },
+    {
+      "assetId": "builds-frame.evidence-grid",
+      "variant": "evidence-grid",
+      "path1x": "runtime/1x/frames/builds-frame.evidence-grid.png",
+      "path2x": "runtime/2x/frames/builds-frame.evidence-grid.png",
+      "dimensions": {
+        "1x": {
+          "width": 128,
+          "height": 128
+        },
+        "2x": {
+          "width": 256,
+          "height": 256
+        }
+      },
+      "bytes": {
+        "1x": 13615,
+        "2x": 46567
+      },
+      "hash": {
+        "1x": "8dc81c3d8ff1f922cd56c3c1022e9afc12508b4728efcc163e53b1e67902a7b2",
+        "2x": "45336e8db1dc26c4871692a40936b2959ed953cf7a8baf6abdc4c006003b7a66"
+      },
+      "sliceInset": {
+        "1x": 32,
+        "2x": 64
+      }
+    },
+    {
+      "assetId": "builds-frame.workspace-gold",
+      "variant": "workspace-gold",
+      "path1x": "runtime/1x/frames/builds-frame.workspace-gold.png",
+      "path2x": "runtime/2x/frames/builds-frame.workspace-gold.png",
+      "dimensions": {
+        "1x": {
+          "width": 128,
+          "height": 128
+        },
+        "2x": {
+          "width": 256,
+          "height": 256
+        }
+      },
+      "bytes": {
+        "1x": 12847,
+        "2x": 43902
+      },
+      "hash": {
+        "1x": "be3b642d6190bafeb55f8e661076525e0b27345f44cd4ea886db56141de430fe",
+        "2x": "82c423053d68dfedc9d07e2255ff816a010ad1a2628d88cfa99085ca3dfd341c"
+      },
+      "sliceInset": {
+        "1x": 32,
+        "2x": 64
+      }
+    },
+    {
+      "assetId": "builds-frame.evidence-list",
+      "variant": "evidence-list",
+      "path1x": "runtime/1x/frames/builds-frame.evidence-list.png",
+      "path2x": "runtime/2x/frames/builds-frame.evidence-list.png",
+      "dimensions": {
+        "1x": {
+          "width": 128,
+          "height": 128
+        },
+        "2x": {
+          "width": 256,
+          "height": 256
+        }
+      },
+      "bytes": {
+        "1x": 13018,
+        "2x": 44550
+      },
+      "hash": {
+        "1x": "8554d602ccfb5c6e795d26f8a22a47972ac5b97ed487a8ffe781f216c4821080",
+        "2x": "c4186b732bac34a3d0bd1520615f762e0743cbb5ffb8a18235a64b690ccdbada"
+      },
+      "sliceInset": {
+        "1x": 32,
+        "2x": 64
+      }
+    },
+    {
+      "assetId": "builds-frame.workflow",
+      "variant": "workflow",
+      "path1x": "runtime/1x/frames/builds-frame.workflow.png",
+      "path2x": "runtime/2x/frames/builds-frame.workflow.png",
+      "dimensions": {
+        "1x": {
+          "width": 128,
+          "height": 128
+        },
+        "2x": {
+          "width": 256,
+          "height": 256
+        }
+      },
+      "bytes": {
+        "1x": 16453,
+        "2x": 55404
+      },
+      "hash": {
+        "1x": "5ae6eed6b1c3d5b3f755a03873c79eda096730c1636ea8ec707aa56929a43421",
+        "2x": "73138266dc30e0d207f46ccc2c0932be01f6caab319cbcf1a0b2964d8b737a25"
+      },
+      "sliceInset": {
+        "1x": 32,
+        "2x": 64
+      }
+    },
+    {
+      "assetId": "builds-frame.primary-action",
+      "variant": "primary-action",
+      "path1x": "runtime/1x/frames/builds-frame.primary-action.png",
+      "path2x": "runtime/2x/frames/builds-frame.primary-action.png",
+      "dimensions": {
+        "1x": {
+          "width": 128,
+          "height": 128
+        },
+        "2x": {
+          "width": 256,
+          "height": 256
+        }
+      },
+      "bytes": {
+        "1x": 10524,
+        "2x": 36066
+      },
+      "hash": {
+        "1x": "79c986ea44f6e2b125657ab7a0657f9f3880faf5bc64fe7d73565b7beca7c977",
+        "2x": "84b5af8c5fc3813e0e07ef29fcf826f6f4a51b039c3f3f8e3b7837e014cb1fd7"
+      },
+      "sliceInset": {
+        "1x": 32,
+        "2x": 64
+      }
+    }
+  ],
+  "checks": {
+    "atlasMapping": {
+      "result": "pass",
+      "method": "preserved isolated visual inspection of the source atlas",
+      "mapping": [
+        "builds-frame.overview",
+        "builds-frame.evidence-grid",
+        "builds-frame.workspace-gold",
+        "builds-frame.evidence-list",
+        "builds-frame.workflow",
+        "builds-frame.primary-action"
+      ]
+    },
+    "dimensions": {
+      "result": "pass",
+      "filesChecked": 12,
+      "expected": {
+        "1x": {
+          "width": 128,
+          "height": 128
+        },
+        "2x": {
+          "width": 256,
+          "height": 256
+        }
+      }
+    },
+    "rgba": {
+      "result": "pass",
+      "filesChecked": 12,
+      "expectedMode": "RGBA"
+    },
+    "transparentCenter": {
+      "result": "pass",
+      "filesChecked": 12,
+      "method": "center sample alpha and every alpha value in the declared center rectangle equal zero",
+      "visiblePixelCount": 0
+    },
+    "transparentCorners": {
+      "result": "pass",
+      "filesChecked": 12,
+      "method": "alpha at all four corner pixels equals zero"
+    },
+    "greenFringe": {
+      "result": "pass",
+      "filesChecked": 12,
+      "visibleGreenPixelCount": 0,
+      "threshold": "alpha>8 and G-max(R,B)>=24",
+      "despillPixelsCleared": 5,
+      "perFileCleared": {
+        "builds-frame.overview:1x": 1,
+        "builds-frame.overview:2x": 0,
+        "builds-frame.evidence-grid:1x": 0,
+        "builds-frame.evidence-grid:2x": 0,
+        "builds-frame.workspace-gold:1x": 0,
+        "builds-frame.workspace-gold:2x": 1,
+        "builds-frame.evidence-list:1x": 0,
+        "builds-frame.evidence-list:2x": 1,
+        "builds-frame.workflow:1x": 0,
+        "builds-frame.workflow:2x": 2,
+        "builds-frame.primary-action:1x": 0,
+        "builds-frame.primary-action:2x": 0
+      }
+    },
+    "ocr": {
+      "result": "pass_with_false_positive_adjudication",
+      "filesChecked": 12,
+      "engine": "tesseract 5.5.0",
+      "pageSegmentationMode": 11,
+      "detections": [
+        {
+          "path": "runtime/1x/frames/builds-frame.evidence-grid.png",
+          "text": "E3"
+        },
+        {
+          "path": "runtime/2x/frames/builds-frame.evidence-grid.png",
+          "text": "Ej"
+        }
+      ],
+      "rawDetections": [
+        {
+          "path": "runtime/1x/frames/builds-frame.evidence-grid.png",
+          "text": "E3"
+        },
+        {
+          "path": "runtime/2x/frames/builds-frame.evidence-grid.png",
+          "text": "Ej"
+        }
+      ],
+      "visualAdjudication": {
+        "result": "false_positive",
+        "basis": "The detections correspond to corner, rivet, and ornamental metal geometry; neither reviewed frame contains actual letters or digits."
+      },
+      "reviewedPaths": [
+        "runtime/1x/frames/builds-frame.evidence-grid.png",
+        "runtime/2x/frames/builds-frame.evidence-grid.png"
+      ],
+      "noActualText": true
+    },
+    "contentSafety": {
+      "result": "pass",
+      "method": "preserved isolated source-atlas review plus deterministic alpha-only despill",
+      "findings": "No text or digits, real WoW objects, official marks, or player identity; alpha-only cleanup introduced no content."
+    },
+    "fileIntegrity": {
+      "result": "pass",
+      "filesChecked": 12,
+      "requirements": "exists, bytes>0, SHA256 recorded"
+    }
+  },
+  "notes": [
+    "Both densities remain independently derived from the temporary 512x512 sources; no image generation or rescaling was performed during this repair.",
+    "The chroma-key helper was not used because its whole-image key matte and RGB cleanup would violate the required targeted alpha-only edit.",
+    "Only pixels matching alpha>8 and G-max(R,B)>=24 had alpha set to zero; every non-target pixel was verified unchanged before atomic replacement.",
+    "The raw OCR detections E3 and Ej were visually adjudicated as ornamental-frame false positives; no actual text or digits are present.",
+    "Final assets remain pending isolated route-level visual review."
+  ]
+}

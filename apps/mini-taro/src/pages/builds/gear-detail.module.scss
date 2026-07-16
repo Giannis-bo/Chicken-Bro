@@ -1,0 +1,91 @@
+.pageFrame {
+  position: relative;
+  box-sizing: border-box;
+  width: calc(100% - 4px);
+  max-width: 385px;
+  height: 820px;
+  margin: 3px auto 0;
+  padding: 2px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  clip-path: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+.surface {
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  max-width: 379px;
+  height: 776px;
+  margin-top: 4px;
+}
+
+.candidateDismissLayer {
+  position: absolute;
+  z-index: 20;
+  inset: 0;
+  background: transparent;
+}
+
+.professionRegion,
+.specializationRegion,
+.readinessRegion,
+.enhancementRegion,
+.workbenchRegion,
+.actionsRegion,
+.statusRegion {
+  position: absolute;
+}
+
+.professionRegion {
+  top: 7px;
+  left: 12px;
+  width: 174px;
+  height: 44px;
+}
+
+.specializationRegion {
+  top: 7px;
+  right: 12px;
+  width: 164px;
+  height: 44px;
+}
+
+.readinessRegion {
+  top: 61px;
+  left: 12px;
+  width: calc(100% - 24px);
+  height: 163px;
+}
+
+.enhancementRegion {
+  top: 230px;
+  left: 12px;
+  width: calc(100% - 24px);
+  height: 44px;
+}
+
+.workbenchRegion {
+  z-index: 21;
+  top: 281px;
+  left: 12px;
+  width: calc(100% - 24px);
+  height: 346px;
+}
+
+.actionsRegion {
+  top: 632px;
+  left: 12px;
+  width: calc(100% - 24px);
+  height: 40px;
+}
+
+.statusRegion {
+  top: 681px;
+  left: 12px;
+  width: calc(100% - 24px);
+  height: 93px;
+}

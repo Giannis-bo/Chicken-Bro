@@ -1,0 +1,145 @@
+{
+  "schemaVersion": 1,
+  "route": "news_list",
+  "status": "truth_adaptation_complete",
+  "authority": "docs/plans/2026-07-14-target-first-14-route-rebuild.md",
+  "targetInventory": "docs/design/current-ui/routes/news-list/target-inventory.json",
+  "targetGeometry": "docs/design/current-ui/routes/news-list/target-geometry.json",
+  "runtimeFacts": {
+    "route": "pages/news/list",
+    "navigation": "pushed",
+    "query": ["type", "key", "value"],
+    "endpoints": ["news.list", "analytics.track"],
+    "outgoing": ["news_detail"],
+    "localInteractions": ["category_filter", "sort_direction", "visible_page_size", "retry"]
+  },
+  "apiProbe": {
+    "probedAt": "2026-07-15T02:15:00+08:00",
+    "via": "http://127.0.0.1:10086/wow-api",
+    "query": { "type": "metric", "key": "today", "value": "" },
+    "httpStatus": 200,
+    "title": "今日更新",
+    "count": 33,
+    "articleCount": 33,
+    "sourceUrlMissingCount": 0,
+    "publishedAtMissingCount": 0,
+    "imageUrlMissingCount": 33,
+    "sourceTierCounts": { "official": 33 },
+    "verificationStatusCounts": { "official_verified": 33 },
+    "sourceCounts": { "Blizzard Forums": 11, "Blizzard News": 22 },
+    "sourceBadgeCounts": { "官方已核验": 33, "全文翻译": 33 },
+    "importantTagCounts": {
+      "class-change": 2,
+      "content-update": 20,
+      "event": 9,
+      "hotfix": 2,
+      "ptr": 8,
+      "trading-post": 3,
+      "weekly": 6
+    }
+  },
+  "trustRules": [
+    "The target title, count, six placeholder rows, statuses and relative times are structure only and never runtime facts.",
+    "List title and count come from the current news.list payload after the active local category filter.",
+    "A source chip uses article.sourceName only when sourceUrl is present; otherwise it shows 来源不可用 and the row remains blocked for source navigation.",
+    "Official or verified wording is shown only from explicit verificationStatus, sourceTier or sourceBadges on that article and is never assumed from the route query.",
+    "translationStatus=llm is labeled 机器翻译, not human translated; unknown or missing translation state remains 待核验.",
+    "Published time uses the real publishedAt value formatted as an absolute month/day label; target relative-time placeholders are not copied.",
+    "All probed articles currently lack imageUrl, so rows use one neutral document medallion and never fabricate WoW objects or article imagery.",
+    "The footer says 原始来源 rather than 官方 because community results are a valid query outcome."
+  ],
+  "categoryRules": [
+    {
+      "id": "all",
+      "label": "全部",
+      "predicate": "all articles returned by the current route query"
+    },
+    {
+      "id": "official",
+      "label": "官方",
+      "predicate": "verificationStatus=official_verified or sourceTier=official or sourceBadges explicitly contains 官方已核验"
+    },
+    {
+      "id": "blue_post",
+      "label": "蓝贴",
+      "predicate": "sourceName=Blizzard Forums; official status alone is insufficient"
+    },
+    {
+      "id": "updates",
+      "label": "更新",
+      "predicate": "explicit tags include content-update, hotfix, patch, ptr or class-change"
+    },
+    {
+      "id": "events",
+      "label": "活动",
+      "predicate": "explicit tags include event, trading-post, weekly or rewards"
+    },
+    {
+      "id": "community",
+      "label": "社区",
+      "predicate": "sourceTier=community, a community tag, or an explicitly non-Blizzard community source"
+    }
+  ],
+  "mappings": [
+    {
+      "region": "top_bar",
+      "slot": "title_and_back",
+      "target": "资讯列表 with back control",
+      "runtime": "fixed route title 资讯列表 and deterministic back navigation"
+    },
+    {
+      "region": "list_summary",
+      "slot": "title_count_action",
+      "target": "placeholder title, count and 订阅/筛选",
+      "runtime": "payload title, filtered count and 刷新列表 action",
+      "forbidden": ["claim subscription without a subscription backend", "copy target count 12"]
+    },
+    {
+      "region": "category_filter_bar",
+      "slot": "six_categories_and_sort",
+      "targetCount": 6,
+      "runtimeCount": 6,
+      "runtimeIds": ["all", "official", "blue_post", "updates", "events", "community"],
+      "filterControl": "toggle newest-first and oldest-first using publishedAt; it does not claim advanced server filtering"
+    },
+    {
+      "region": "news_results_list",
+      "slot": "visible_article_rows",
+      "targetCount": 6,
+      "runtimeInitialCount": 6,
+      "runtime": "first six truth-adapted articles after category and sort; 加载更多 increases the visible window by six",
+      "rowFields": ["title", "sourceName/sourceUrl", "translation or verification status", "publishedAt", "article id"],
+      "fallback": "six stable loading rows or zero populated rows plus the terminal empty mode"
+    },
+    {
+      "region": "empty_state_panel",
+      "slot": "terminal_state",
+      "conflict": "target visibly combines six populated rows with an empty-state panel",
+      "resolution": {
+        "more": "show real remaining count and 加载更多 when filteredCount > visibleCount",
+        "complete": "show 已显示全部 plus 刷新 when filteredCount > 0 and no rows remain",
+        "empty": "show 暂无符合条件的资讯 plus reset/retry only when filteredCount = 0",
+        "loading": "preserve the region with loading copy while the six row slots are mounted"
+      },
+      "forbidden": ["show 空状态 beside populated rows", "render a separate generic RouteStatePanel"]
+    },
+    {
+      "region": "reference_disclaimer",
+      "slot": "disclaimer",
+      "target": "仅供参考 · 请以官方最终信息为准",
+      "runtime": "仅供参考 · 请以原始来源为准",
+      "reason": "the route may contain community sources"
+    }
+  ],
+  "stateContract": {
+    "loading": "mount header, summary, six categories, six stable row slots, terminal region and disclaimer at final geometry",
+    "ready": "show real filtered count, up to six visible truth-adapted rows and the correct terminal mode",
+    "partial": "preserve all regions and mark each affected article source/status independently",
+    "stale": "preserve cached payload and label route/rows as local fallback without claiming current freshness",
+    "blocked": "preserve all regions, expose the backend reason and offer retry in the terminal region",
+    "error": "preserve all regions and offer deterministic retry without a duplicate content tree",
+    "empty": "render zero populated article rows, keep six row slots visually reserved if required by the H5 loading gate, and use the terminal empty mode"
+  },
+  "pendingTruthGaps": [],
+  "implementationStatus": "implemented_development_visual_review_passed"
+}

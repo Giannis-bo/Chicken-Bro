@@ -1,0 +1,34 @@
+.pageFrame {
+  position: relative;
+  width: 390px;
+  height: 825px;
+  margin: 0 auto;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.summaryRegion,
+.syncRegion,
+.filtersRegion,
+.listRegion,
+.guidanceRegion,
+.actionsRegion {
+  position: absolute;
+}
+
+.summaryRegion { top: 6.4145%; left: 2.0882%; width: calc(95.8237% + 2px); height: 9.9232%; }
+.syncRegion { top: 17.1601%; left: 2.3202%; width: calc(95.1276% + 2px); height: 6.1952%; }
+.filtersRegion { top: 24.7259%; left: 3.2483%; width: calc(93.7355% + 2px); height: 3.125%; }
+.listRegion { top: 28.7281%; left: 2.3202%; width: calc(95.1276% + 2px); height: 47.5329%; }
+.guidanceRegion { top: 76.9737%; left: 2.3202%; width: calc(95.1276% + 2px); height: 16.6667%; }
+.actionsRegion { top: 94.3531%; left: 3.1323%; width: calc(93.5035% + 2px); height: 4.2763%; }
+
+@media (max-width: 389px) {
+  .pageFrame {
+    width: 100vw;
+    height: calc(100vw * 2.115);
+  }
+}

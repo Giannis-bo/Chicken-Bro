@@ -4,6 +4,7 @@ const assert = require('node:assert/strict')
 const {
   buildNewsHomePayload,
   createRefreshState,
+  filterStoriesByMetric,
   shouldAutoRefresh,
   trustedSources
 } = require('../server/news/home-payload')
@@ -63,9 +64,26 @@ test('builds the news home payload expected by the first tab', () => {
   )
   assert.deepEqual(
     payload.metrics.map((metric) => metric.label),
-    ['今日更新', '职业变动', '测试服重点']
+    ['今日更新', '更新', '职业变动', '活动', '测试服重点']
   )
-  assert.ok(payload.highlights.length >= 3)
+  assert.deepEqual(
+    Object.fromEntries(payload.metrics.map((metric) => [metric.key, metric.value])),
+    { today: '4', updates: '4', 'class-change': '4', events: '0', ptr: '1' }
+  )
+  assert.deepEqual(payload.highlights.map((story) => story.id), ['d'])
+  assert.equal(payload.highlights.some((story) => payload.heroNews.some((hero) => hero.id === story.id)), false)
+})
+
+test('uses deterministic metric filters for target navigation categories', () => {
+  const stories = [
+    article({ id: 'mplus', title: 'Mythic+ keystone changes', tags: ['mythic-plus'] }),
+    article({ id: 'gear', title: 'New trinket and armor rewards', tags: ['gear'] }),
+    article({ id: 'system', title: 'Warband system interface update', tags: ['system'] })
+  ]
+
+  assert.deepEqual(filterStoriesByMetric(stories, 'mythic-plus').map((story) => story.id), ['mplus'])
+  assert.deepEqual(filterStoriesByMetric(stories, 'gear').map((story) => story.id), ['gear'])
+  assert.deepEqual(filterStoriesByMetric(stories, 'system').map((story) => story.id), ['system'])
 })
 
 test('prioritizes newest published stories before older high-importance stories', () => {
@@ -75,7 +93,7 @@ test('prioritizes newest published stories before older high-importance stories'
   ])
 
   assert.equal(payload.heroNews[0].id, 'new-published')
-  assert.equal(payload.highlights[0].id, 'new-published')
+  assert.deepEqual(payload.highlights, [])
 })
 
 test('keeps source and publication evidence on every visible story', () => {
@@ -125,7 +143,8 @@ test('drops stories from untrusted, incomplete, or not-ready source records', ()
     article({ id: 'blocked', contentStatus: 'blocked' })
   ])
 
-  assert.deepEqual(payload.highlights.map((story) => story.id), ['trusted'])
+  assert.deepEqual(payload.heroNews.map((story) => story.id), ['trusted'])
+  assert.deepEqual(payload.highlights, [])
   assert.deepEqual(payload.channels.map((channel) => channel.updateCount), [1, 0, 0])
 })
 
@@ -142,7 +161,7 @@ test('keeps trusted stories when URL constructor is unavailable in webview runti
     ])
 
     assert.equal(payload.metrics[0].value, '1')
-    assert.equal(payload.highlights[0].id, 'webview-compatible')
+    assert.equal(payload.heroNews[0].id, 'webview-compatible')
   } finally {
     global.URL = originalUrl
   }

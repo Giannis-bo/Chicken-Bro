@@ -1,0 +1,110 @@
+{
+  "schemaVersion": "target-geometry-v1",
+  "route": "tasks_list",
+  "authority": "canonical_target",
+  "source": {
+    "path": "/Users/heyesheng/Documents/code/github/wow_mini_program/artifacts/ui-visual-targets/current/tasks-list.png",
+    "width": 862,
+    "height": 1824,
+    "nativeWidth": 862,
+    "nativeHeight": 1824,
+    "bytes": 1804901,
+    "sha256": "58f83cfad123e1b2c2772df337021f62a54c50baba4f07bec1ff3ace11a5359d"
+  },
+  "measurement": {
+    "coordinateSpace": "native_pixels",
+    "normalizedCoordinateSpace": "canvas_fraction",
+    "targetOnly": true,
+    "runtimeInputsUsed": false
+  },
+  "regions": [
+    {
+      "id": "page_frame",
+      "order": 1,
+      "observedRole": "full-canvas ornamental page frame and dark textured surface",
+      "bounds": {"x": 0, "y": 0, "width": 862, "height": 1824},
+      "normalizedBounds": {"x": 0, "y": 0, "width": 1, "height": 1},
+      "internalStructure": ["outer beveled perimeter", "continuous dark surface"],
+      "alignment": "Fills the native canvas.",
+      "spacing": "Content remains inside the visible ornamental perimeter.",
+      "unresolved": ["Fine texture, ornament, and bevel thickness are not resolved to individual layers."]
+    },
+    {
+      "id": "page_header",
+      "order": 2,
+      "observedRole": "compact route header",
+      "bounds": {"x": 30, "y": 23, "width": 510, "height": 78},
+      "normalizedBounds": {"x": 0.034803, "y": 0.01261, "width": 0.591647, "height": 0.042763},
+      "internalStructure": ["circular back control", "centered route title"],
+      "alignment": "Back control is left aligned; title is centered on the canvas.",
+      "spacing": "Bounds end at the visible header content and do not include the empty band below it.",
+      "unresolved": ["Static appearance does not establish navigation behavior."]
+    },
+    {
+      "id": "task_summary",
+      "order": 3,
+      "observedRole": "simulation task overview",
+      "bounds": {"x": 18, "y": 117, "width": 826, "height": 181},
+      "normalizedBounds": {"x": 0.020882, "y": 0.064145, "width": 0.958237, "height": 0.099232},
+      "internalStructure": ["left emblem and overview title", "four status metrics", "recent-record panel"],
+      "alignment": "Single horizontal overview panel inside the page frame.",
+      "spacing": "Metric cells sit between the emblem/title group and the recent-record panel.",
+      "unresolved": ["The information glyph and recent-record surface may be interactive, but the target alone does not prove behavior."]
+    },
+    {
+      "id": "loading_state",
+      "order": 4,
+      "observedRole": "task synchronization loading state",
+      "bounds": {"x": 20, "y": 313, "width": 820, "height": 113},
+      "normalizedBounds": {"x": 0.023202, "y": 0.171601, "width": 0.951276, "height": 0.061952},
+      "internalStructure": ["spinner", "loading headline", "supporting synchronization message"],
+      "alignment": "Centered content group within a full-width inset panel.",
+      "spacing": "Separated from the overview and filter strip by narrow dark gaps.",
+      "unresolved": ["Animation timing and loading lifecycle are not observable in the static target."]
+    },
+    {
+      "id": "task_filters",
+      "order": 5,
+      "observedRole": "task status filter strip",
+      "bounds": {"x": 28, "y": 451, "width": 808, "height": 57},
+      "normalizedBounds": {"x": 0.032483, "y": 0.247259, "width": 0.937355, "height": 0.03125},
+      "internalStructure": ["five status tabs", "right-side filter control"],
+      "alignment": "Five tabs run left to right; the filter control is right aligned.",
+      "spacing": "All six controls occupy one compact horizontal band.",
+      "unresolved": ["The target shows the visual selection on 全部 but does not establish filtering behavior."]
+    },
+    {
+      "id": "task_list",
+      "order": 6,
+      "observedRole": "five stacked simulation task records",
+      "bounds": {"x": 20, "y": 524, "width": 820, "height": 867},
+      "normalizedBounds": {"x": 0.023202, "y": 0.287281, "width": 0.951276, "height": 0.475329},
+      "internalStructure": ["five beveled task rows", "left state emblems", "title/tag/description content", "right status and time columns", "two inline feedback messages"],
+      "alignment": "Rows share the same left and right edges and form one vertical stack.",
+      "spacing": "Narrow separators divide the five visible row surfaces.",
+      "unresolved": ["Row click behavior and the meaning of placeholder times are not established by the static target."]
+    },
+    {
+      "id": "empty_state",
+      "order": 7,
+      "observedRole": "independent no-record guidance panel",
+      "bounds": {"x": 20, "y": 1404, "width": 820, "height": 304},
+      "normalizedBounds": {"x": 0.023202, "y": 0.769737, "width": 0.951276, "height": 0.166667},
+      "internalStructure": ["central empty-record emblem", "empty-record heading", "three numbered guidance steps"],
+      "alignment": "Centered heading above three evenly distributed guidance columns.",
+      "spacing": "A distinct framed panel separates the guidance from the task rows and bottom actions.",
+      "unresolved": ["The coexistence of task rows and the no-record guidance is recorded exactly as visible; conditional display logic is not inferred."]
+    },
+    {
+      "id": "bottom_actions",
+      "order": 8,
+      "observedRole": "two primary bottom actions",
+      "bounds": {"x": 27, "y": 1721, "width": 806, "height": 78},
+      "normalizedBounds": {"x": 0.031323, "y": 0.943531, "width": 0.935035, "height": 0.042763},
+      "internalStructure": ["left 去 SimC action", "right 工作台 action"],
+      "alignment": "Two wide actions share one bottom row with a central gap.",
+      "spacing": "The row sits directly above the visible lower page-frame edge.",
+      "unresolved": ["Bottom placement is visible, but fixed or sticky viewport positioning is not established."]
+    }
+  ]
+}

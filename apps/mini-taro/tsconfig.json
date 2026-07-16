@@ -1,0 +1,8 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["@tarojs/taro", "@types/webpack-env"]
+  },
+  "include": ["config/**/*.ts", "src/**/*.ts", "src/**/*.tsx"]
+}

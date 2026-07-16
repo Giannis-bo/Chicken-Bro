@@ -1,0 +1,184 @@
+{
+  "schemaVersion": 1,
+  "route": "specialization_home/builds_home",
+  "status": "asset_contract_complete",
+  "authority": "docs/plans/2026-07-14-target-first-14-route-rebuild.md",
+  "targetInventory": "docs/design/current-ui/routes/builds-home/target-inventory.json",
+  "componentContract": "docs/design/current-ui/routes/builds-home/component-contract.json",
+  "productionRegistryStatus": "not_promoted",
+  "productionPromotionAuthorized": false,
+  "generationStatus": "generated_pending_route_visual_review",
+  "generationPolicy": {
+    "context": "disposable_isolated_imagegen_and_review",
+    "batchRule": "generate one coordinated builds-home material and medallion family after component bounds are stable, then cut deterministic 1x/2x runtime assets",
+    "mainSessionPayloadAllowed": false,
+    "targetCropAllowed": false,
+    "factBearingGenerationAllowed": false,
+    "returnToMainSession": ["paths", "dimensions", "bytes", "hashes", "slot ids", "structured review status"]
+  },
+  "slots": [
+    {
+      "slotId": "asset_slot.builds-surface-texture",
+      "owners": ["AppShell"],
+      "semanticRole": "near-black granular forged surface",
+      "sourceClass": "imagegen_raster",
+      "variants": ["default"],
+      "targetAspect": "seamless tile or full-surface cover",
+      "fit": "cover_or_repeat",
+      "factBearing": false,
+      "fallback": "flat #090b0c with restrained CSS noise-free shading",
+      "productionStatus": "generated_pending_isolated_review"
+    },
+    {
+      "slotId": "asset_slot.builds-frame-family",
+      "owners": ["BuildSpecializationOverview", "BuildEvidenceNavigator", "BuildWorkspaceEntry", "BuildWorkflowTimeline"],
+      "semanticRole": "coordinated steel and antique-gold frame family",
+      "sourceClass": "imagegen_raster",
+      "variants": ["overview", "evidence-grid", "workspace-gold", "evidence-list", "workflow", "primary-action"],
+      "targetAspect": "variant-specific transparent full frame or validated nine-slice",
+      "fit": "scaleToFill_only_when_full_frame_or_nine_slice_with_declared_insets",
+      "factBearing": false,
+      "fallback": "CSS cut-corner border with content-safe inset",
+      "productionStatus": "generated_pending_isolated_review"
+    },
+    {
+      "slotId": "asset_slot.builds-header-book-glyph",
+      "owners": ["PageFrame"],
+      "semanticRole": "open build-intel/source book action",
+      "sourceClass": "system_vector",
+      "variants": ["default"],
+      "targetAspect": "1:1 contain",
+      "factBearing": false,
+      "fallback": "lucide BookOpen",
+      "productionStatus": "pending_route_visual_verification"
+    },
+    {
+      "slotId": "asset_slot.source-badge-family",
+      "owners": ["PageFrame", "BuildSpecializationOverview"],
+      "semanticRole": "source-reference marker",
+      "sourceClass": "system_vector",
+      "variants": ["reference", "information"],
+      "targetAspect": "1:1 contain",
+      "factBearing": false,
+      "fallback": "text-only 来源参考",
+      "productionStatus": "candidate_reuse_pending_route_verification"
+    },
+    {
+      "slotId": "asset_slot.builds-specialization-medallion",
+      "owners": ["BuildSpecializationOverview"],
+      "semanticRole": "neutral carved medallion shell and non-factual empty fallback",
+      "sourceClass": "imagegen_raster",
+      "variants": ["shell", "neutral-fallback", "source-reference-stamp"],
+      "targetAspect": "1:1 contain with lower-right stamp overlap",
+      "factBearing": false,
+      "fallback": "CSS concentric medallion with 专精 label",
+      "productionStatus": "generated_pending_isolated_review"
+    },
+    {
+      "slotId": "asset_slot.builds-specialization-object",
+      "owners": ["BuildSpecializationOverview"],
+      "semanticRole": "selected specialization source-referenced icon",
+      "sourceClass": "verified_remote_runtime_media",
+      "variants": ["selected-spec"],
+      "targetAspect": "1:1 aspectFill inside the medallion shell",
+      "factBearing": true,
+      "fallback": "neutral non-factual specialization medallion",
+      "productionStatus": "runtime_source_reference_only"
+    },
+    {
+      "slotId": "asset_slot.builds-evidence-medallions",
+      "owners": ["BuildEvidenceNavigator"],
+      "semanticRole": "one coordinated carved glyph family for talents, gear, SimC, and tasks",
+      "sourceClass": "imagegen_raster",
+      "variants": ["talents", "gear", "simc", "tasks"],
+      "targetAspect": "1:1 contain",
+      "factBearing": false,
+      "fallback": "system vectors Network, Shirt, Activity, ListChecks",
+      "productionStatus": "generated_pending_isolated_review"
+    },
+    {
+      "slotId": "asset_slot.builds-workspace-medallion",
+      "owners": ["BuildWorkspaceEntry"],
+      "semanticRole": "neutral hammer-and-anvil workspace medallion",
+      "sourceClass": "imagegen_raster",
+      "variants": ["default", "blocked"],
+      "targetAspect": "1:1 contain",
+      "factBearing": false,
+      "fallback": "system vector Hammer",
+      "productionStatus": "generated_pending_isolated_review"
+    },
+    {
+      "slotId": "asset_slot.builds-primary-action-glyph",
+      "owners": ["BuildWorkspaceEntry"],
+      "semanticRole": "forge-tool affordance inside the primary action",
+      "sourceClass": "system_vector",
+      "variants": ["default"],
+      "targetAspect": "1:1 contain",
+      "factBearing": false,
+      "fallback": "lucide Hammer",
+      "productionStatus": "pending_route_visual_verification"
+    },
+    {
+      "slotId": "asset_slot.builds-workflow-medallions",
+      "owners": ["BuildWorkflowTimeline"],
+      "semanticRole": "input, validation, and tracking carved medallions",
+      "sourceClass": "imagegen_raster",
+      "variants": ["input", "validation", "tracking"],
+      "targetAspect": "1:1 contain",
+      "factBearing": false,
+      "fallback": "system vectors Inbox, ShieldCheck, Eye",
+      "productionStatus": "generated_pending_isolated_review"
+    },
+    {
+      "slotId": "asset_slot.builds-workflow-timeline",
+      "owners": ["BuildWorkflowTimeline"],
+      "semanticRole": "vertical forged rail and active/pending/inactive stage nodes",
+      "sourceClass": "imagegen_raster",
+      "variants": ["rail", "node-active", "node-pending", "node-inactive"],
+      "targetAspect": "narrow rail plus 1:1 node overlays",
+      "factBearing": false,
+      "fallback": "CSS rail and colored circular nodes",
+      "productionStatus": "generated_pending_isolated_review"
+    },
+    {
+      "slotId": "asset_slot.builds-chevron",
+      "owners": ["BuildEvidenceNavigator", "BuildWorkflowTimeline"],
+      "semanticRole": "repeated forward-navigation affordance",
+      "sourceClass": "system_vector",
+      "variants": ["default"],
+      "targetAspect": "1:1 contain",
+      "factBearing": false,
+      "fallback": "utility-glyph-family.chevron-right",
+      "productionStatus": "candidate_reuse_pending_route_verification"
+    },
+    {
+      "slotId": "asset_slot.product-tab-glyphs",
+      "owners": ["TabBar"],
+      "semanticRole": "four product navigation glyphs",
+      "sourceClass": "imagegen_raster",
+      "variants": ["news", "spec", "captain", "profile"],
+      "targetAspect": "1:1 contain",
+      "factBearing": false,
+      "fallback": "registered product-tab system vectors",
+      "productionStatus": "wechat_verified_production_reuse_from_news_home"
+    }
+  ],
+  "generatedAssetFamilies": [
+    "builds surface texture",
+    "six-variant builds frame family",
+    "specialization medallion shell/fallback/stamp",
+    "four evidence medallions",
+    "workspace medallion",
+    "three workflow medallions",
+    "workflow rail and node family"
+  ],
+  "visibleAssetGaps": [],
+  "promotionCriteria": [
+    "component bounds and content-safe insets are stable",
+    "isolated review confirms one coherent material family and no embedded text/UI",
+    "all 1x/2x files have dimensions, bytes, sha256, optical boxes, and slot mappings",
+    "H5 DPR2 has zero failed assets and zero visible clipping",
+    "WeChat runtime verifies frames do not cover content and the tab bar keeps native safe areas",
+    "route human review passes"
+  ]
+}

@@ -81,7 +81,7 @@
 - `/api/game/season` 和 `/api/data/health` 可以返回 M+ / 团本池、来源状态、blockers 和下一步，但当 deterministic SimC variant preset、SimC JSON 目标属性、Battle.net 凭据或同步数据不完整时，会把 season / sync / catalog 标为 `partial` 或 `blocked`。
 - `/api/websim/gear` 对职业 / 专精返回 16 槽 readiness 和 compact payload；首屏使用 `mode=initial`，装备抽屉/详情使用 `mode=slot`。即使 PostgreSQL season 状态为 `stale`，读模型也必须继续返回完整 schema 和已入库装备/模板，并把 stale/partial/blocker 显示为可信状态，而不是让前端退回空槽位 fallback。保存装备模板必须补齐 canonical 16 槽，off-hand 只在双手/无副手合理场景可空。
 
-历史上已验证过的 M+ 池包括执政团之座、艾杰斯亚学院、节点希纳斯、萨隆矿坑、迈萨拉洞窟、通天峰、风行者之塔、魔导师平台；团本池包括 The Voidspire、The Dreamrift、March on Quel'Danas、Sporefall。文档或 UI 不得仅因为历史覆盖通过就把当前 health 写成全量 verified；必须以线上 payload 的当前 `status`、`blockers` 和 `checkedAt` 为准。
+赛季副本池、团本池和来源覆盖不在文档中固定快照；必须以线上 payload 的当前 `status`、`blockers`、`revision` 和 `checkedAt` 为准。
 整体 catalog 仍可能是 `partial`。当前主要缺口是 deterministic SimC variant preset、少量天赋 spell detail、社区模板/WCL 凭据或 stat weight 数据，不影响已验证来源覆盖的表达，但会阻断强模拟结论。
 
 天赋链路的长期执行手册见 [全职业天赋模拟全链路 Runbook](talent-simulation-full-chain-runbook.md)。版本或赛季更新时先按该文档确认 SimC trait data、Wago trait edges、Blizzard spell/media、社区模板、health readiness、profile/simulate fail-closed 和回滚边界。

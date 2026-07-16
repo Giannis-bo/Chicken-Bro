@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "assetId": "build-intel-summary-medallion.default",
+  "slotId": "asset_slot.build-intel-summary-medallion",
+  "status": "candidate_pending_runtime_review",
+  "reviewedPath": "/Users/heyesheng/Documents/code/github/wow_mini_program/packages/design-system/assets/raster/build-intel-v1/runtime/2x/build-intel-summary-medallion.default.png",
+  "reviewContext": "disposable_isolated_single_asset",
+  "factBearing": false,
+  "verdict": "pass_for_candidate_runtime_review",
+  "summary": "The centered medallion has a clean circular-octagonal silhouette, a readable dark-iron and antique-bronze shell hierarchy, a distinct opaque recessed center, and generic compass-and-blank-scroll semantics. No text, digits, identity, branding, official logo, class or specialization mark, recognizable WoW object, green fringe, blur, or perspective error is visible.",
+  "sourceMetadata": {
+    "pixelWidth": 256,
+    "pixelHeight": 256,
+    "suggestedOneXWidth": 128,
+    "suggestedOneXHeight": 128,
+    "intendedCssOpticalBoxWidth": 92,
+    "intendedCssOpticalBoxHeight": 92,
+    "hasAlpha": true,
+    "format": "png",
+    "sha256": "72413f6c78ebecd144622fcddb23b5e19aaef8b65f55290ef945d1a8ed8a5c3b"
+  },
+  "findings": [
+    {
+      "criterion": "composition_and_centering",
+      "status": "pass",
+      "detail": "The medallion is face-on, centered, rotationally balanced, and fully contained with even transparent padding."
+    },
+    {
+      "criterion": "material_family",
+      "status": "pass",
+      "detail": "Three readable forged-metal levels separate muted bronze rims, dark-iron shell bands, and the recessed central plate."
+    },
+    {
+      "criterion": "neutral_intelligence_semantics",
+      "status": "pass",
+      "detail": "An abstract four-direction geometry and four blank rolled-paper contours suggest generic intelligence navigation without factual or branded content."
+    },
+    {
+      "criterion": "center_socket",
+      "status": "pass",
+      "detail": "The central recessed socket remains visually distinct and mechanically fully opaque across the recorded validation crop."
+    },
+    {
+      "criterion": "alpha_and_chroma_cleanup",
+      "status": "pass",
+      "detail": "The outside background is transparent with zero-alpha corners and edges and no measured visible green pixels."
+    },
+    {
+      "criterion": "prohibited_content",
+      "status": "pass",
+      "detail": "No text, digits, pseudo-writing, identity, character, official logo, class or specialization mark, or recognizable WoW object is present."
+    },
+    {
+      "criterion": "small_scale_readability",
+      "status": "pass",
+      "detail": "The outer silhouette, major bezel steps, compass geometry, and scroll contours remain separable at the intended reduced size."
+    }
+  ],
+  "runtimeReviewRequirements": [
+    "Render inside the 92x92 CSS optical box without non-uniform scaling or additional cropping.",
+    "Confirm the central relief does not compete with adjacent title or metric text in the real BuildIntelSummary composition.",
+    "Runtime composition review is required before promotion or route acceptance."
+  ],
+  "mainSessionImagePayloadUsed": false,
+  "isolatedReviewImagePayloadUsed": true,
+  "productionPromoted": false
+}

@@ -1,0 +1,128 @@
+{
+  "schemaVersion": 1,
+  "route": "SimC_submit",
+  "status": "truth_adaptation_complete",
+  "implementationStatus": "implemented_visual_debt_open",
+  "authority": "docs/plans/2026-07-14-target-first-14-route-rebuild.md",
+  "targetInventory": "docs/design/current-ui/routes/simc-submit/target-inventory.json",
+  "targetGeometry": "docs/design/current-ui/routes/simc-submit/target-geometry.json",
+  "runtimeFacts": {
+    "route": "pages/simulator/simc",
+    "navigation": "pushed_route_with_safe_action_dock",
+    "endpoints": [
+      "builds.home",
+      "templates.list",
+      "websim.gear-stats",
+      "simulator.tasks",
+      "simulator.analyze"
+    ],
+    "storage": [
+      "buildTemplates",
+      "simulator.guestId"
+    ],
+    "localInteractions": [
+      "specialization_select",
+      "race_select",
+      "scenario_select",
+      "duration_select",
+      "talent_template_select",
+      "gear_template_select",
+      "confirmation_invalidation",
+      "confirm_only_validation",
+      "final_task_submit",
+      "task_record_navigation"
+    ]
+  },
+  "apiProbe": {
+    "probedAt": "2026-07-15T06:19:17+08:00",
+    "via": "http://127.0.0.1:10086/wow-api",
+    "buildsHome": {
+      "httpStatus": 200,
+      "classCount": 13,
+      "dataStatus": "verified",
+      "currentSeasonStatus": "verified"
+    },
+    "taskList": {
+      "httpStatus": 200,
+      "guestId": "audit-simc-submit-20260715",
+      "taskCount": 0,
+      "activeTaskCount": 0
+    },
+    "personalTemplates": {
+      "talentHttpStatus": 401,
+      "gearHttpStatus": 401,
+      "response": "unauthorized",
+      "freshH5LocalTalentCount": 0,
+      "freshH5LocalGearCount": 0,
+      "rule": "Remote personal templates require an authenticated owner. Client fallback may expose locally owned templates but must not label them synced or remote."
+    }
+  },
+  "trustRules": [
+    "Target profession icons, race, template names, validation statuses, missing-item bullets, spinner state, task state and any result-like copy are placeholders and never runtime facts.",
+    "The target defines ten stable first-level regions, six visible specialization selector positions, two template slots, three scenario positions, one duration control, four buff-rule rows, six summary rows, five blocker rows, two primary actions and one footer utility action.",
+    "Profession or specialization choices come only from the verified builds.home class/spec mapping. Six positions are a visible viewport over the real collection and cannot imply only six supported specializations.",
+    "The supported race list is currently app-owned and incomplete; the selector must not claim to be a complete WoW race catalog.",
+    "Remote personal templates require an authenticated owner. A local template remains explicitly local or stale and cannot be presented as synchronized source evidence.",
+    "Talent and gear empty states keep their target slots and block confirmation. The page must not select or synthesize a template that does not exist.",
+    "The target's four buff rows remain visible, but the current request contract does not accept user-managed buff overrides. They are read-only rule or unavailable rows until a typed backend contract exists.",
+    "Changing specialization, race, scenario, duration, talent template or gear template invalidates any prior confirmation.",
+    "Confirmation first requires a parseable gear snapshot, then a non-fallback websim.gear-stats result whose statStatus is not blocked, then simulator.analyze with confirmOnly=true and explicit agent.validation.passed=true.",
+    "confirmOnly validation does not execute SimC, save a task or authorize any DPS claim. No result preview, DPS, rank or completion state may be fabricated before a real task completes.",
+    "Final submission re-reads simulator.tasks, blocks on an active task or transport fallback, sends confirmOnly=false and saveTask=true, and only succeeds when the backend returns a taskId.",
+    "Loading, empty, stale, blocked and error states retain all ten target regions; state copy inhabits the owned region instead of mounting generic RouteStatePanel, WowPanel, TemplateLibrary or EvidenceLedger compositions."
+  ],
+  "mappings": [
+    {
+      "region": "page_frame",
+      "runtime": "AppShell pushed-route surface and PageFrame simc-submit variant"
+    },
+    {
+      "region": "header_nav",
+      "runtime": "back navigation, fixed SimC 提交 title and real task-record navigation"
+    },
+    {
+      "region": "identity_selectors_panel",
+      "runtime": "six-position visible selector viewport over verified specializations plus the supported race selector"
+    },
+    {
+      "region": "talent_template_panel",
+      "runtime": "selected real local or remote talent template, or a stable empty blocked slot"
+    },
+    {
+      "region": "gear_template_panel",
+      "runtime": "selected real local or remote gear template, or a stable empty blocked slot"
+    },
+    {
+      "region": "combat_configuration_panel",
+      "runtime": "three real scenario options, one supported duration selector and four read-only buff-rule positions"
+    },
+    {
+      "region": "pre_submit_summary_panel",
+      "runtime": "six derived selection and readiness rows from current specialization, race, scenario, duration and template state"
+    },
+    {
+      "region": "blocking_warning_panel",
+      "runtime": "five stable blocker positions derived from template presence, active tasks, gear stats and backend validation"
+    },
+    {
+      "region": "submission_action_bar",
+      "runtime": "real confirmation state, confirm-only action, final submit action and returned taskId state"
+    },
+    {
+      "region": "footer_notice_row",
+      "runtime": "truth boundary notice and navigation to current task rules or records"
+    }
+  ],
+  "stateContract": {
+    "loading": "mount all ten regions with stable selector, template, configuration, summary, blocker and action positions",
+    "empty": "retain both template panels as empty blocked slots and derive missing-template blockers without inventing templates",
+    "stale": "retain local templates with explicit local or stale source state and require fresh backend confirmation",
+    "confirming": "retain geometry, disable duplicate actions and expose the gear-stats then confirm-only validation stage",
+    "ready": "enable final submit only after explicit validation.passed and retain the exact confirmed request snapshot",
+    "blocked": "retain all regions and show real parse, stats, validation or active-task blockers",
+    "submitting": "retain geometry, re-check active tasks and disable duplicate final submission",
+    "submitted": "show only the returned taskId and task navigation; do not synthesize result values",
+    "error": "retain all regions and allow deterministic retry after transport or missing-taskId failure"
+  },
+  "pendingTruthGaps": []
+}

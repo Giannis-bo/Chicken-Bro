@@ -1,0 +1,185 @@
+{
+  "schemaVersion": 1,
+  "collectionId": "news-list-v1",
+  "route": "news_list",
+  "status": "independent_review_passed_for_canary",
+  "sourceClass": "imagegen_raster",
+  "generatedAt": "2026-07-15T04:03:36Z",
+  "root": "packages/design-system/assets/raster/news-list-v1",
+  "productionPromoted": false,
+  "registeredInPackagesAssetsManifest": true,
+  "wiredIntoRuntimeCode": true,
+  "generation": {
+    "mode": "built_in_image_gen",
+    "callCount": 2,
+    "iterationCallCount": 0,
+    "sourceCount": 2,
+    "masterCount": 2,
+    "runtimeAssetIdCount": 2,
+    "runtimeFileCount": 4,
+    "record": "packages/design-system/assets/raster/news-list-v1/generation-record.json"
+  },
+  "mechanicalValidation": {
+    "allRuntimePassed": true,
+    "alphaRequired": true,
+    "transparentCornersRequired": true,
+    "transparentOuterEdgeRequired": true,
+    "visibleGreenFractionMaximum": 0,
+    "ocrTextOrDigitsAllowed": false,
+    "oneXMustDeriveFromTwoX": true,
+    "validators": [
+      "ImageMagick identify/magick",
+      "Tesseract psm 11",
+      "sips deterministic re-derivation plus cmp"
+    ],
+    "independentIsolatedVisualReviewPending": false
+  },
+  "independentReview": {
+    "status": "pass_for_canary",
+    "aggregate": "packages/design-system/assets/raster/news-list-v1/independent-review.json",
+    "reviewCount": 2,
+    "productionPromoted": false
+  },
+  "assets": [
+    {
+      "assetId": "news-list-document-medallion.default",
+      "slotId": "asset_slot.news-list-document-medallion",
+      "status": "independent_review_passed_for_canary",
+      "sourceClass": "imagegen_raster",
+      "productionPromoted": false,
+      "promptRef": "generation-record.json#news-list-document-medallion.default",
+      "builtInSavedPath": "/Users/heyesheng/.codex/generated_images/019f63e1-cb5f-7d63-9fb7-031d5ca16b32/exec-88ccb026-a0bc-4fb9-8836-57dfb07c0e49.png",
+      "source": {
+        "path": "packages/design-system/assets/raster/news-list-v1/sources/news-list-document-medallion.default.png",
+        "width": 1199,
+        "height": 1312,
+        "bytes": 1926560,
+        "sha256": "9aea17ad76377ff72fd54d67f14b4ad58a3d598e450fc1920f22da842689937f"
+      },
+      "master": {
+        "path": "packages/design-system/assets/raster/news-list-v1/masters/news-list-document-medallion.default.png",
+        "width": 1199,
+        "height": 1312,
+        "bytes": 1568970,
+        "sha256": "860ec5c6bd874505895085d0a554531d7bc3f875ca61e7353b4eae755f5b78e4"
+      },
+      "runtime": {
+        "2x": {
+          "path": "packages/design-system/assets/raster/news-list-v1/runtime/2x/news-list-document-medallion.default.png",
+          "width": 84,
+          "height": 92,
+          "bytes": 9613,
+          "sha256": "bf8a6a5dcf6001a9e7088aa265bc5388b82ba7b973cd6fbe05adec05f05e2152"
+        },
+        "1x": {
+          "path": "packages/design-system/assets/raster/news-list-v1/runtime/1x/news-list-document-medallion.default.png",
+          "width": 42,
+          "height": 46,
+          "bytes": 3199,
+          "sha256": "c5f16fa079d529e3ac23bf7d5d12c1f904fd1a2cd5aa1640d5e0f78b285b3c45"
+        }
+      },
+      "processingMethod": "remove_chroma_key.py with border auto-key, soft matte and despill; centered 1312x1198 crop; sips resize to 2x; 1x derived only from 2x",
+      "validation": {
+        "passed": true,
+        "sourceCopyByteIdenticalToBuiltInSavedPath": true,
+        "runtimeHasAlpha": true,
+        "cornerAlpha": {
+          "2x": [0, 0, 0, 0],
+          "1x": [0, 0, 0, 0]
+        },
+        "outerEdgeAlphaMaximum": {
+          "2x": 0,
+          "1x": 0
+        },
+        "meanAlphaCoverage": {
+          "2x": 0.461802,
+          "1x": 0.450889
+        },
+        "visibleGreenFraction": {
+          "2x": 0,
+          "1x": 0
+        },
+        "documentCenterAlphaMinimum": {
+          "2xCrop20x24": 1,
+          "1xCrop10x12": 1
+        },
+        "ocr": {
+          "2x": "",
+          "1x": ""
+        },
+        "oneXByteIdenticalToMechanicalRederivation": true
+      }
+    },
+    {
+      "assetId": "news-list-terminal-medallion.default",
+      "slotId": "asset_slot.news-list-terminal-emblem",
+      "status": "independent_review_passed_for_canary",
+      "sourceClass": "imagegen_raster",
+      "productionPromoted": false,
+      "promptRef": "generation-record.json#news-list-terminal-medallion.default",
+      "builtInSavedPath": "/Users/heyesheng/.codex/generated_images/019f63e1-cb5f-7d63-9fb7-031d5ca16b32/exec-29111be2-1f50-4f8f-a14d-1923ffdebea1.png",
+      "source": {
+        "path": "packages/design-system/assets/raster/news-list-v1/sources/news-list-terminal-medallion.default.png",
+        "width": 1254,
+        "height": 1254,
+        "bytes": 2154771,
+        "sha256": "ef0eedc1d5a2ebd8928e17e254667e2c3b1eaf84dc10aa83dac8eaf6133d5243"
+      },
+      "master": {
+        "path": "packages/design-system/assets/raster/news-list-v1/masters/news-list-terminal-medallion.default.png",
+        "width": 1254,
+        "height": 1254,
+        "bytes": 1631694,
+        "sha256": "d10427eeadbc97088d2a5c1320969bc0b4e30410c1a8a5438902fe4ab248f6a6"
+      },
+      "runtime": {
+        "2x": {
+          "path": "packages/design-system/assets/raster/news-list-v1/runtime/2x/news-list-terminal-medallion.default.png",
+          "width": 112,
+          "height": 112,
+          "bytes": 15328,
+          "sha256": "9d286790d4fd4b4060cf4c50929b8f3f74bc758e6f953d5c442e14219372eb9e"
+        },
+        "1x": {
+          "path": "packages/design-system/assets/raster/news-list-v1/runtime/1x/news-list-terminal-medallion.default.png",
+          "width": 56,
+          "height": 56,
+          "bytes": 5388,
+          "sha256": "61ef5dca58f5158dc6b62f386ace1f1a905548f809031d91ddd89eb9e3263646"
+        }
+      },
+      "processingMethod": "remove_chroma_key.py with border auto-key, soft matte and despill; square sips resize to 2x; 1x derived only from 2x",
+      "validation": {
+        "passed": true,
+        "sourceCopyByteIdenticalToBuiltInSavedPath": true,
+        "runtimeHasAlpha": true,
+        "cornerAlpha": {
+          "2x": [0, 0, 0, 0],
+          "1x": [0, 0, 0, 0]
+        },
+        "outerEdgeAlphaMaximum": {
+          "2x": 0,
+          "1x": 0
+        },
+        "meanAlphaCoverage": {
+          "2x": 0.392528,
+          "1x": 0.385315
+        },
+        "visibleGreenFraction": {
+          "2x": 0,
+          "1x": 0
+        },
+        "centerAlphaMaximum": {
+          "2xCrop32x32": 0,
+          "1xCrop16x16": 0
+        },
+        "ocr": {
+          "2x": "",
+          "1x": ""
+        },
+        "oneXByteIdenticalToMechanicalRederivation": true
+      }
+    }
+  ]
+}

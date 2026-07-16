@@ -1,0 +1,219 @@
+import type {
+  GearSlotDefinition,
+  GearStatsPayload,
+  TalentImportPayload,
+  TalentNode,
+  WebsimBootstrapPayload,
+  WebsimGearPayload,
+  WebsimSelection,
+  WebsimTalentsPayload,
+} from '@wow-mini/domain'
+
+import { cleanString, encodeQuery, isRecord, stringArray } from './guards'
+import type { ApiResult, ApiTransport, RequestData } from './transport'
+
+const slotLabels: Readonly<Record<string, string>> = {
+  head: '头部', neck: '颈部', shoulder: '肩部', back: '披风', chest: '胸部', wrist: '手腕',
+  hands: '手', waist: '腰部', legs: '腿部', feet: '脚', finger1: '戒指 1', finger2: '戒指 2',
+  trinket1: '饰品 1', trinket2: '饰品 2', main_hand: '主手', off_hand: '副手',
+}
+
+export const canonicalGearSlots = Object.keys(slotLabels)
+
+function slots(): readonly GearSlotDefinition[] {
+  return canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slotLabels[slot] ?? slot }))
+}
+
+function fallbackBootstrap(): WebsimBootstrapPayload {
+  return {
+    navTitle: 'WebSim', classes: [], scenarios: [], gearSlots: [],
+    defaultSelection: { classKey: 'mage', specKey: 'frost' },
+    currentSeason: { dataStatus: 'blocked', errors: ['missing api base url'] },
+    dataStatus: 'blocked',
+  }
+}
+
+function fallbackTalents(selection: WebsimSelection): WebsimTalentsPayload {
+  return {
+    classKey: selection.classKey,
+    specKey: selection.specKey,
+    ...(selection.heroKey ? { heroKey: selection.heroKey } : {}),
+    nodes: [], treeSections: [], presets: [], communityTemplates: [], talentStatus: 'blocked',
+    currentSeason: { dataStatus: 'blocked', errors: ['missing api base url'] },
+    errors: ['missing api base url'],
+  }
+}
+
+function finiteNumber(value: unknown): number | undefined {
+  if (typeof value !== 'number' && typeof value !== 'string') return undefined
+  const numeric = Number(value)
+  return Number.isFinite(numeric) ? numeric : undefined
+}
+
+export function normalizeTalentNode(value: unknown): TalentNode | null {
+  if (!isRecord(value)) return null
+  const id = cleanString(value['id'])
+  const name = cleanString(value['name'])
+  if (!id || !name) return null
+
+  const treeType = cleanString(value['treeType'])
+  const treeKey = cleanString(value['treeKey']) || treeType
+  const row = finiteNumber(value['row'])
+  const column = finiteNumber(value['column']) ?? finiteNumber(value['col'])
+  const selectedRank = finiteNumber(value['ranks']) ?? finiteNumber(value['selectedRank']) ?? 0
+  const maxRank = finiteNumber(value['maxRank']) ?? finiteNumber(value['rankCount']) ?? 1
+  const requiredPoints = finiteNumber(value['requiredPoints']) ?? finiteNumber(value['pointRequirement'])
+  const prerequisiteIds = stringArray(value['prerequisiteIds']).length
+    ? stringArray(value['prerequisiteIds'])
+    : stringArray(value['parentIds'])
+  const choiceOptions = Array.isArray(value['choiceOptions'])
+    ? value['choiceOptions']
+      .map(normalizeTalentNode)
+      .filter((node): node is TalentNode => node !== null)
+    : []
+
+  return {
+    id,
+    name,
+    ...(cleanString(value['key']) ? { key: cleanString(value['key']) } : {}),
+    ...(cleanString(value['description']) ? { description: cleanString(value['description']) } : {}),
+    ...(cleanString(value['descriptionStatus']) ? { descriptionStatus: cleanString(value['descriptionStatus']) } : {}),
+    ...(treeKey ? { treeKey } : {}),
+    ...(treeType ? { treeType } : {}),
+    ...(row !== undefined ? { row } : {}),
+    ...(column !== undefined ? { column } : {}),
+    maxRank: Math.max(1, Math.trunc(maxRank)),
+    ranks: Math.max(0, Math.trunc(selectedRank)),
+    ...(requiredPoints !== undefined ? { requiredPoints: Math.max(0, Math.trunc(requiredPoints)) } : {}),
+    ...(prerequisiteIds.length ? { prerequisiteIds } : {}),
+    ...(cleanString(value['parentMode']) ? { parentMode: cleanString(value['parentMode']) } : {}),
+    ...(cleanString(value['shape']) ? { shape: cleanString(value['shape']) } : {}),
+    ...(typeof value['granted'] === 'boolean' ? { granted: value['granted'] } : {}),
+    ...(choiceOptions.length ? { choiceOptions } : {}),
+    ...(cleanString(value['iconUrl']) ? { iconUrl: cleanString(value['iconUrl']) } : {}),
+    ...(cleanString(value['sourceUrl']) ? { sourceUrl: cleanString(value['sourceUrl']) } : {}),
+  }
+}
+
+export function normalizeTalentsPayload(payload: WebsimTalentsPayload): WebsimTalentsPayload {
+  return {
+    ...payload,
+    nodes: payload.nodes
+      .map((node) => normalizeTalentNode(node))
+      .filter((node): node is TalentNode => node !== null),
+  }
+}
+
+function fallbackTalentImport(selection: WebsimSelection): TalentImportPayload {
+  return {
+    classKey: selection.classKey,
+    specKey: selection.specKey,
+    ...(selection.heroKey ? { heroKey: selection.heroKey } : {}),
+    importCode: '', source: 'community_template', status: 'blocked',
+    blockers: ['no SimC-ready community talent import'],
+  }
+}
+
+function fallbackStats(selection: WebsimSelection): GearStatsPayload {
+  return {
+    classKey: selection.classKey,
+    specKey: selection.specKey,
+    ...(selection.heroKey ? { heroKey: selection.heroKey } : {}),
+    statStatus: 'blocked', blockers: ['backend unavailable'], primary: null, stamina: null,
+    secondary: [], armor: null, weaponDps: null,
+    itemLevel: { key: 'itemLevel', label: '装备等级', value: '0', rawValue: 0 },
+    gearReadiness: { fullReady: false, warnings: ['backend unavailable'] },
+    talentEncoding: { status: 'failed', lines: [], errors: ['backend unavailable'] },
+    checkedAt: '',
+  }
+}
+
+function fallbackGear(selection: WebsimSelection): WebsimGearPayload {
+  const definitions = slots()
+  const slotReadiness = Object.fromEntries(definitions.map((slot) => [slot.slot, {
+    slot: slot.slot, label: slot.label, status: 'blocked', simcReady: false,
+    missingFields: ['backend'], reason: 'backend unavailable',
+  }]))
+  const groups = definitions.map((slot) => ({ ...slot, items: [] }))
+  return {
+    classKey: selection.classKey,
+    specKey: selection.specKey,
+    ...(selection.heroKey ? { heroKey: selection.heroKey } : {}),
+    slots: definitions, slotGroups: groups, equippedSet: {}, slotReadiness,
+    replacementCandidates: groups, communityTemplates: [],
+    readiness: {
+      fullReady: false, simcReadyCount: 0, selectedCount: 0, candidateCount: 0,
+      missingRequiredSlots: canonicalGearSlots, missingCoreSlots: canonicalGearSlots.filter((slot) => slot !== 'off_hand'),
+      requiredReadyCount: canonicalGearSlots.length - 1,
+      itemLevel: { key: 'itemLevel', label: '装备等级', value: '0', rawValue: 0 },
+      warnings: ['backend unavailable'],
+    },
+    statSnapshot: fallbackStats(selection), catalogStatus: 'blocked',
+    catalogBlockers: ['backend unavailable'], checkedAt: '', dataStatus: 'blocked',
+  }
+}
+
+export interface GearRequest extends WebsimSelection {
+  compact?: boolean
+  mode?: string
+  slot?: string
+}
+
+export interface WebsimClient {
+  bootstrap(): Promise<ApiResult<WebsimBootstrapPayload>>
+  talents(selection: WebsimSelection): Promise<ApiResult<WebsimTalentsPayload>>
+  talentImport(selection: WebsimSelection): Promise<ApiResult<TalentImportPayload>>
+  gear(request: GearRequest): Promise<ApiResult<WebsimGearPayload>>
+  gearStats(payload: RequestData & Partial<WebsimSelection>): Promise<ApiResult<GearStatsPayload>>
+}
+
+export function createWebsimClient(transport: ApiTransport): WebsimClient {
+  return {
+    bootstrap() {
+      return transport.requestEndpoint('websim.bootstrap', '/api/websim/bootstrap', {
+        fallback: fallbackBootstrap,
+        validate: (value) => isRecord(value) && Array.isArray(value['classes']),
+      })
+    },
+    async talents(selection) {
+      const query = encodeQuery({ class: selection.classKey, spec: selection.specKey, hero: selection.heroKey })
+      const result = await transport.requestEndpoint<WebsimTalentsPayload>('websim.talents', `/api/websim/talents?${query}`, {
+        fallback: () => fallbackTalents(selection),
+        validate: (value) => isRecord(value) && Array.isArray(value['nodes']) && Array.isArray(value['treeSections']),
+      })
+      return { ...result, payload: normalizeTalentsPayload(result.payload) }
+    },
+    talentImport(selection) {
+      const query = encodeQuery({ class: selection.classKey, spec: selection.specKey, hero: selection.heroKey })
+      return transport.requestEndpoint('websim.talentImport', `/api/websim/talents/import?${query}`, {
+        fallback: () => fallbackTalentImport(selection),
+        validate: (value) => isRecord(value) && typeof value['importCode'] === 'string' && typeof value['status'] === 'string',
+      })
+    },
+    gear(request) {
+      const query = encodeQuery({
+        class: request.classKey, spec: request.specKey,
+        compact: request.compact === false ? undefined : 1,
+        mode: request.mode, slot: request.slot,
+      })
+      return transport.requestEndpoint('websim.gear', `/api/websim/gear?${query}`, {
+        fallback: () => fallbackGear(request),
+        validate: (value) => isRecord(value)
+          && Array.isArray(value['slots'])
+          && isRecord(value['equippedSet'])
+          && isRecord(value['readiness']),
+      })
+    },
+    gearStats(payload) {
+      const selection = {
+        classKey: typeof payload === 'object' && payload !== null && 'classKey' in payload && typeof payload.classKey === 'string' ? payload.classKey : '',
+        specKey: typeof payload === 'object' && payload !== null && 'specKey' in payload && typeof payload.specKey === 'string' ? payload.specKey : '',
+      }
+      return transport.requestEndpoint('websim.gearStats', '/api/websim/gear/stats', {
+        data: payload,
+        fallback: () => fallbackStats(selection),
+        validate: (value) => isRecord(value) && typeof value['statStatus'] === 'string' && Array.isArray(value['blockers']),
+      })
+    },
+  }
+}

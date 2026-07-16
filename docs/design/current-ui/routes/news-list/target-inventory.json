@@ -1,0 +1,412 @@
+{
+  "schemaVersion": "target-inventory-v1",
+  "route": "news_list",
+  "authority": "canonical_target",
+  "source": {
+    "path": "/Users/heyesheng/Documents/code/github/wow_mini_program/artifacts/ui-visual-targets/current/news-list.png",
+    "width": 864,
+    "height": 1821,
+    "sha256": "dd43a07a5ac26b8c3c65c90e8eb7a74e92f80bb74835f84d49ba058b892829cc"
+  },
+  "measurement": {
+    "runtimeInputsUsed": false
+  },
+  "visibleText": [
+    {
+      "text": "资讯列表",
+      "region": "top_bar",
+      "role": "page_title",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "待核验资讯标题",
+      "region": "list_summary",
+      "role": "summary_heading",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "共 12 篇",
+      "region": "list_summary",
+      "role": "result_count",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "订阅/筛选",
+      "region": "list_summary",
+      "role": "summary_action",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "全部",
+      "region": "category_filter_bar",
+      "role": "selected_category_tab",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "官方",
+      "region": "category_filter_bar",
+      "role": "category_tab",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "蓝贴",
+      "region": "category_filter_bar",
+      "role": "category_tab",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "更新",
+      "region": "category_filter_bar",
+      "role": "category_tab",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "活动",
+      "region": "category_filter_bar",
+      "role": "category_tab",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "社区",
+      "region": "category_filter_bar",
+      "role": "category_tab",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "待核验资讯标题",
+      "region": "news_results_list",
+      "role": "news_card_title",
+      "count": 6,
+      "confidence": 0.99
+    },
+    {
+      "text": "来源参考",
+      "region": "news_results_list",
+      "role": "source_chip",
+      "count": 6,
+      "confidence": 0.99
+    },
+    {
+      "text": "待核验",
+      "region": "news_results_list",
+      "role": "pending_status_chip",
+      "count": 4,
+      "confidence": 0.99
+    },
+    {
+      "text": "已翻译",
+      "region": "news_results_list",
+      "role": "translated_status_chip",
+      "count": 2,
+      "confidence": 0.99
+    },
+    {
+      "text": "刚刚",
+      "region": "news_results_list",
+      "role": "relative_time",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "15 分钟前",
+      "region": "news_results_list",
+      "role": "relative_time",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "1 小时前",
+      "region": "news_results_list",
+      "role": "relative_time",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "3 小时前",
+      "region": "news_results_list",
+      "role": "relative_time",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "5 小时前",
+      "region": "news_results_list",
+      "role": "relative_time",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "昨天",
+      "region": "news_results_list",
+      "role": "relative_time",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "空状态",
+      "region": "empty_state_panel",
+      "role": "empty_state_heading",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "暂无符合条件的资讯",
+      "region": "empty_state_panel",
+      "role": "empty_state_supporting_text",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "重试",
+      "region": "empty_state_panel",
+      "role": "retry_action",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "仅供参考 · 请以官方最终信息为准",
+      "region": "reference_disclaimer",
+      "role": "reference_disclaimer",
+      "count": 1,
+      "confidence": 0.99
+    }
+  ],
+  "elementCounts": {
+    "topBarBackButtons": 1,
+    "pageTitles": 1,
+    "summaryHeadings": 1,
+    "summaryCountLabels": 1,
+    "summaryActionButtons": 1,
+    "categoryTextTabs": 6,
+    "selectedCategoryTabs": 1,
+    "categoryFilterIconControls": 1,
+    "newsCards": 6,
+    "newsDocumentMedallions": 6,
+    "newsSourceChips": 6,
+    "newsStatusChips": 6,
+    "pendingStatusChips": 4,
+    "translatedStatusChips": 2,
+    "newsTimestampLabels": 6,
+    "newsChevronAffordances": 6,
+    "blueCardAccentRails": 3,
+    "goldCardAccentRails": 3,
+    "emptyStatePanels": 1,
+    "emptyStateMedallions": 1,
+    "emptyStateRetryButtons": 1,
+    "referenceDisclaimerBars": 1,
+    "productTabBars": 0,
+    "drawnSystemStatusBars": 0,
+    "drawnSystemCapsules": 0
+  },
+  "hierarchy": [
+    {
+      "region": "top_bar",
+      "structure": [
+        "shared_outer_shell",
+        "left_back_control",
+        "center_title_with_symmetric_flourishes"
+      ]
+    },
+    {
+      "region": "list_summary",
+      "structure": [
+        "left_summary_heading",
+        "left_result_count",
+        "right_subscription_filter_action"
+      ]
+    },
+    {
+      "region": "category_filter_bar",
+      "structure": [
+        "ornate_framed_container",
+        "selected_tab_all",
+        "tab_official",
+        "tab_blue_post",
+        "tab_update",
+        "tab_event",
+        "tab_community",
+        "right_filter_control"
+      ]
+    },
+    {
+      "region": "news_results_list",
+      "structure": [
+        "news_card_1_pending",
+        "news_card_2_translated",
+        "news_card_3_pending",
+        "news_card_4_translated",
+        "news_card_5_pending",
+        "news_card_6_pending"
+      ],
+      "children": [
+        "each card = framed_container + colored_left_accent + document_medallion + title + source_chip + status_chip + relative_time + right_chevron"
+      ]
+    },
+    {
+      "region": "empty_state_panel",
+      "structure": [
+        "framed_container",
+        "center_no_entry_medallion",
+        "empty_state_heading",
+        "supporting_copy",
+        "retry_button"
+      ]
+    },
+    {
+      "region": "reference_disclaimer",
+      "structure": [
+        "inset_footer_band",
+        "shield_icon",
+        "single_disclaimer_line",
+        "symmetric_side_fasteners"
+      ]
+    }
+  ],
+  "alignments": [
+    "page title and empty-state content are centered on the canvas horizontal axis",
+    "summary heading and count share one left rail while the subscription/filter action anchors to the right rail",
+    "category labels form one horizontal row with the selected first tab enclosed by a dedicated plate",
+    "all six news cards share fixed icon, title, chip, timestamp and chevron columns",
+    "news-card right chevrons align vertically near a common x position",
+    "empty-state emblem, heading, support text and retry action form a centered vertical stack",
+    "the bottom disclaimer icon and text form one centered horizontal group"
+  ],
+  "spacingRhythm": [
+    "header and summary are contiguous bands inside the shared shell",
+    "category filter frame sits directly below the summary and leaves roughly 24 px before the first result card",
+    "six result cards use approximately 146-148 px heights with approximately 10-12 px gaps",
+    "list to empty-state panel gap is approximately 16 px",
+    "empty-state panel to disclaimer gap is approximately 10 px",
+    "major framed regions use dark inset surfaces, clipped corners and layered metallic borders"
+  ],
+  "assetSlots": [
+    {
+      "id": "shared_outer_shell_material",
+      "region": "top_bar",
+      "role": "page_frame_and_surface",
+      "shapeOrAspect": "full-canvas dark texture with tall metal perimeter frame",
+      "contentSemantics": "non-factual black stone or oxidized-metal surface with layered corner hardware",
+      "count": 1,
+      "fallbackExpectation": "retain a dark high-contrast shell and visible perimeter hierarchy if detailed material is unavailable",
+      "confidence": 0.96
+    },
+    {
+      "id": "back_control_ornament",
+      "region": "top_bar",
+      "role": "back_navigation_icon_and_button_skin",
+      "shapeOrAspect": "near-square clipped metal button with large left chevron",
+      "contentSemantics": "back navigation",
+      "count": 1,
+      "fallbackExpectation": "preserve a clearly recognizable left-chevron back control",
+      "confidence": 0.99
+    },
+    {
+      "id": "title_flourish_pair",
+      "region": "top_bar",
+      "role": "title_decoration",
+      "shapeOrAspect": "two mirrored narrow horizontal ornaments",
+      "contentSemantics": "non-factual visual framing around the page title",
+      "count": 2,
+      "fallbackExpectation": "a symmetric thin-line ornament may replace micro-detail",
+      "confidence": 0.97
+    },
+    {
+      "id": "summary_action_icon",
+      "region": "list_summary",
+      "role": "subscription_filter_action_icon",
+      "shapeOrAspect": "small approximately square glyph",
+      "contentSemantics": "cycle, refresh or subscription-related action symbol",
+      "count": 1,
+      "fallbackExpectation": "retain a compact deterministic action glyph beside the button label",
+      "confidence": 0.88
+    },
+    {
+      "id": "category_filter_glyph",
+      "region": "category_filter_bar",
+      "role": "advanced_filter_control",
+      "shapeOrAspect": "small sliders glyph",
+      "contentSemantics": "filter adjustment affordance",
+      "count": 1,
+      "fallbackExpectation": "use a recognizable sliders/filter icon",
+      "confidence": 0.99
+    },
+    {
+      "id": "news_document_medallions",
+      "region": "news_results_list",
+      "role": "news_item_leading_icon",
+      "shapeOrAspect": "document symbol inside a clipped near-square metal holder",
+      "contentSemantics": "generic news document, not a factual article image",
+      "count": 6,
+      "fallbackExpectation": "repeat one consistent document icon holder for every row",
+      "confidence": 0.99
+    },
+    {
+      "id": "news_metadata_status_icons",
+      "region": "news_results_list",
+      "role": "source_and_status_markers",
+      "shapeOrAspect": "micro-icons inside compact rounded rectangular chips",
+      "contentSemantics": "source-reference marker, pending warning and translated check",
+      "count": 12,
+      "fallbackExpectation": "preserve source, warning and success distinctions with legible deterministic icons",
+      "confidence": 0.94
+    },
+    {
+      "id": "news_card_accent_rails",
+      "region": "news_results_list",
+      "role": "row_state_or_category_accent",
+      "shapeOrAspect": "narrow vertical segmented rail following the left clipped corners",
+      "contentSemantics": "three blue and three gold visual accents; target alone does not establish their data meaning",
+      "count": 6,
+      "fallbackExpectation": "retain a narrow two-color accent treatment without asserting semantic truth",
+      "confidence": 0.98
+    },
+    {
+      "id": "empty_state_emblem",
+      "region": "empty_state_panel",
+      "role": "empty_state_illustration",
+      "shapeOrAspect": "large circular medallion, approximately 1:1, with radial ornaments",
+      "contentSemantics": "no-entry or unavailable symbol",
+      "count": 1,
+      "fallbackExpectation": "retain a prominent centered unavailable-state icon",
+      "confidence": 0.99
+    },
+    {
+      "id": "reference_shield_icon",
+      "region": "reference_disclaimer",
+      "role": "disclaimer_marker",
+      "shapeOrAspect": "small shield outline",
+      "contentSemantics": "reference/caution marker",
+      "count": 1,
+      "fallbackExpectation": "retain one small caution or shield marker before the disclaimer",
+      "confidence": 0.97
+    }
+  ],
+  "interactionsSuggestedByTarget": [
+    "large left header control suggests back navigation",
+    "the outlined '订阅/筛选' action suggests opening subscription or filter controls",
+    "each of the six category labels suggests a mutually exclusive category selection",
+    "the far-right sliders glyph suggests opening advanced filters",
+    "each framed news card and its right chevron suggest opening a news detail route",
+    "the empty-state button labeled '重试' suggests retrying the current query or load"
+  ],
+  "unresolved": [
+    "exact font families, authored weights, letter spacing, line heights and shadow parameters cannot be recovered from the static raster",
+    "micro-details inside the source-reference chip icon are not pixel-certain and may read as a shield, pin or gem-like marker",
+    "the summary action glyph resembles a cycle or refresh symbol, but its exact semantic label cannot be proven from the icon alone",
+    "small circular marks near the top-right header area and footer sides appear decorative, but their exact material role is unresolved",
+    "thin inner highlights, frame shadows and clipped-corner protrusions may extend 1-3 px beyond measured region bounds",
+    "the static target does not reveal category hit-box widths, pressed states, focus states or scroll behavior",
+    "six populated rows and the empty-state panel are both visibly present; no runtime-state relationship is inferred",
+    "all titles, counts, statuses and relative times are target-visible placeholders and are not treated as current runtime truth"
+  ]
+}

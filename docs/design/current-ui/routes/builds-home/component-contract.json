@@ -1,0 +1,169 @@
+{
+  "schemaVersion": 1,
+  "route": "specialization_home/builds_home",
+  "status": "component_contract_complete",
+  "implementationStatus": "implemented_pending_visual_debt_resolution",
+  "authority": "docs/plans/2026-07-14-target-first-14-route-rebuild.md",
+  "targetInventory": "docs/design/current-ui/routes/builds-home/target-inventory.json",
+  "truthAdaptation": "docs/design/current-ui/routes/builds-home/truth-adaptation.json",
+  "compositionOwner": {
+    "name": "BuildsHomePage",
+    "location": "apps/mini-taro/src/pages/builds/builds.tsx",
+    "responsibility": "compose the seven target regions from one presentation model; no route-private visual patch for a shared owner"
+  },
+  "components": [
+    {
+      "owner": "PageFrame",
+      "decision": "reuse_and_configure",
+      "targetRegions": ["page_header"],
+      "location": "packages/design-system/src/components/PageFrame.tsx",
+      "requiredVariant": "builds-home",
+      "contract": {
+        "topology": "title, adjacent source chip, flexible middle, one square book action",
+        "inputs": ["title", "sourceLabel", "rightAction", "variant"],
+        "states": ["loading", "source_reference", "partial", "stale", "blocked", "error"],
+        "interaction": "book action opens build_intel",
+        "assetSlots": ["asset_slot.builds-header-book-glyph", "asset_slot.source-badge-family"]
+      }
+    },
+    {
+      "owner": "BuildSpecializationOverview",
+      "decision": "new_owner",
+      "targetRegions": ["specialization_overview"],
+      "location": "packages/design-system/src/components/BuildSpecializationOverview.tsx",
+      "contract": {
+        "topology": "one framed two-column surface with a fixed medallion pane and one identity/evidence pane",
+        "inputs": ["title", "description", "sourceLabel", "state", "identity", "loading", "onSelect"],
+        "states": ["loading", "source_reference", "partial", "stale", "blocked", "empty", "error"],
+        "interactions": ["open specialization picker without changing the outer geometry"],
+        "assetSlots": ["asset_slot.builds-frame-family", "asset_slot.builds-specialization-medallion", "asset_slot.builds-specialization-object"]
+      }
+    },
+    {
+      "owner": "BuildEvidenceNavigator",
+      "decision": "new_owner_with_shared_model_and_two_target_variants",
+      "targetRegions": ["evidence_category_grid", "evidence_category_list"],
+      "location": "packages/design-system/src/components/BuildEvidenceNavigator.tsx",
+      "contract": {
+        "variants": {
+          "grid": "one continuous 2x2 outer frame with cross dividers and four equal tiles",
+          "list": "one continuous outer frame with four fixed-column rows and horizontal separators"
+        },
+        "itemCount": 4,
+        "itemIds": ["talents", "gear", "simc", "tasks"],
+        "inputs": ["items", "variant", "loading", "onSelect"],
+        "states": ["loading", "unknown", "source_reference", "partial", "stale", "blocked", "error"],
+        "sharedInvariant": "the grid and list receive the same four item objects; title, state, value, navigation, and medallion semantics cannot diverge",
+        "assetSlots": ["asset_slot.builds-frame-family", "asset_slot.builds-evidence-medallions", "asset_slot.builds-chevron"]
+      }
+    },
+    {
+      "owner": "BuildWorkspaceEntry",
+      "decision": "new_owner",
+      "targetRegions": ["active_specialization_workspace"],
+      "location": "packages/design-system/src/components/BuildWorkspaceEntry.tsx",
+      "contract": {
+        "topology": "one raised gold-framed surface with medallion, status/copy column, and right primary action",
+        "inputs": ["title", "statusLabel", "summary", "detail", "state", "disabled", "loading", "onEnter"],
+        "states": ["loading", "source_reference", "partial", "stale", "blocked", "empty", "error"],
+        "interaction": "enter the selected specialization workbench",
+        "assetSlots": ["asset_slot.builds-frame-family", "asset_slot.builds-workspace-medallion", "asset_slot.builds-primary-action-glyph"]
+      }
+    },
+    {
+      "owner": "BuildWorkflowTimeline",
+      "decision": "new_owner",
+      "targetRegions": ["workflow_stage_list"],
+      "location": "packages/design-system/src/components/BuildWorkflowTimeline.tsx",
+      "contract": {
+        "topology": "one continuous three-row frame with a shared vertical rail and fixed icon/copy/status/chevron columns",
+        "stageCount": 3,
+        "stageIds": ["input", "validation", "tracking"],
+        "inputs": ["stages", "loading", "onSelect"],
+        "states": ["loading", "unknown", "partial", "source_reference", "stale", "blocked", "error"],
+        "interactions": ["input opens the first incomplete input route", "validation opens SimC", "tracking opens tasks"],
+        "assetSlots": ["asset_slot.builds-frame-family", "asset_slot.builds-workflow-medallions", "asset_slot.builds-workflow-timeline", "asset_slot.builds-chevron"]
+      }
+    },
+    {
+      "owner": "TabBar",
+      "decision": "reuse_verified_shared_owner",
+      "targetRegions": ["product_tab_bar"],
+      "location": "packages/design-system/src/components/TabBar.tsx",
+      "contract": {
+        "itemCount": 4,
+        "labels": ["资讯", "专精", "队长", "我的"],
+        "activeIndex": 1,
+        "topology": "four equal columns; active visuals never change column width or label position",
+        "nativeSafeArea": "background reaches the physical screen bottom and controls remain above safeArea.bottom",
+        "assetSlots": ["asset_slot.product-tab-glyphs"]
+      }
+    },
+    {
+      "owner": "ForgedPanel",
+      "decision": "reuse_as_low_level_frame_host_only",
+      "targetRegions": ["specialization_overview", "evidence_category_grid", "active_specialization_workspace", "evidence_category_list", "workflow_stage_list"],
+      "location": "packages/design-system/src/components/ReconstructionPrimitives.tsx",
+      "contract": {
+        "responsibility": "frame layer, content-safe inset, and owner/region metadata",
+        "forbidden": ["generic card layout", "independent frame per grid tile", "independent frame per list row", "frame smaller than content"]
+      }
+    }
+  ],
+  "rejectedReuse": [
+    {
+      "owner": "WorkbenchCockpit",
+      "reason": "legacy topology is icon plus generic module cards and cannot express the target overview, workspace CTA, or evidence matrices"
+    },
+    {
+      "owner": "RankedFeed",
+      "reason": "ranked content rows cannot express the target fixed evidence columns or workflow timeline and previously produced table-like layouts"
+    },
+    {
+      "owner": "WowPanel",
+      "reason": "may not own any of the five authored framed compositions; only lower-level forged frame hosting is allowed"
+    },
+    {
+      "owner": "RouteStatePanel",
+      "reason": "a standalone full-page state panel would replace target geometry; state must render inside every stable owner"
+    }
+  ],
+  "layoutContract": {
+    "targetWidthPx": 864,
+    "baselineCssWidthPx": 390,
+    "uniformScale": 0.451388889,
+    "baselineCssViewport": { "width": 390, "height": 830 },
+    "contentInsetCssPx": 12.638889,
+    "contentWidthCssPx": 364.722222,
+    "regionHeightsCssPx": {
+      "page_header": 29.791667,
+      "specialization_overview": 132.708333,
+      "evidence_category_grid": 148.958333,
+      "active_specialization_workspace": 109.236111,
+      "evidence_category_list": 148.055556,
+      "workflow_stage_list": 133.611111,
+      "product_tab_bar_target_scaled": 62.743056,
+      "product_tab_bar_verified_shared": 71
+    },
+    "rule": "H5 comparison keeps the target-scaled route content unchanged, reuses the verified shared TabBar as a 73px outer shell with 71px controls and 2px bottom continuation, and captures 780x1660 at DPR2; the inherited shared shell starts at y=757px while the target control region starts near y=759px, and this declared 2px reconciliation cannot create a route-private TabBar variant",
+    "nativeSafeArea": "WeChat may compact only declared vertical padding and gaps to absorb status-bar and home-indicator insets; horizontal geometry, font sizes, item counts, and topology remain unchanged"
+  },
+  "stateContract": {
+    "stableRegionCount": 7,
+    "stableEvidenceItemCount": 4,
+    "stableWorkflowStageCount": 3,
+    "loadingRule": "same owner DOM and region bounds with loading labels/assets; no blank first viewport",
+    "degradedRule": "partial/stale/blocked/error labels replace values but never remove target slots",
+    "clippingRule": "every visible Text node and action label must remain inside its owner at H5 DPR2 and WeChat native safe-area viewports"
+  },
+  "componentCapabilityGaps": [],
+  "implementationOrder": [
+    "BuildEvidenceNavigator shared item model and grid/list topology",
+    "BuildSpecializationOverview",
+    "BuildWorkspaceEntry",
+    "BuildWorkflowTimeline",
+    "BuildsHomePage composition and PageFrame configuration",
+    "stable loading/degraded states",
+    "asset family insertion after component bounds stabilize"
+  ]
+}

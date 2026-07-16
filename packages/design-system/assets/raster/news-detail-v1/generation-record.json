@@ -1,0 +1,321 @@
+{
+  "schemaVersion": 1,
+  "status": "generated_pending_independent_isolated_review",
+  "sourceClass": "imagegen_raster",
+  "generatedAt": "2026-07-15T06:10:03Z",
+  "mode": "built_in_image_gen",
+  "builtInImagegenCallCount": 6,
+  "iterationCallCount": 3,
+  "productionPromoted": false,
+  "referencePolicy": {
+    "inputImagesUsed": true,
+    "inputImageRoles": [
+      "each aperture iteration used only its own built-in initial generation as the edit target"
+    ],
+    "targetImagesRead": false,
+    "runtimeImagesRead": false,
+    "targetPixelsCopiedOrCropped": false,
+    "factualContentReproduced": false,
+    "textContractsRead": [
+      "AGENTS.md",
+      "docs/roadmap.md",
+      "docs/plans/2026-07-14-target-first-14-route-rebuild.md",
+      "DESIGN.md",
+      "docs/design/current-ui/README.md",
+      "docs/design/current-ui/routes/news-detail/asset-contract.json",
+      "docs/design/current-ui/routes/news-detail/target-inventory.json",
+      "docs/design/current-ui/routes/news-detail/target-geometry.json",
+      "docs/design/current-ui/routes/news-detail/component-contract.json",
+      "packages/design-system/assets/raster/news-list-v1/README.md",
+      "packages/design-system/assets/raster/news-list-v1/manifest.json",
+      "packages/design-system/assets/raster/shared-chrome-v1/README.md",
+      "packages/design-system/assets/raster/shared-chrome-v1/manifest.json"
+    ]
+  },
+  "processingEnvironment": {
+    "chromaRemoval": "/Users/heyesheng/.codex/skills/.system/imagegen/scripts/remove_chroma_key.py",
+    "chromaRemovalInterpreter": "python3",
+    "chromaRemovalArguments": "--auto-key border --soft-matte --transparent-threshold 12 --opaque-threshold 220 --despill",
+    "mechanicalTransformTool": "/usr/bin/sips",
+    "pixelValidationTools": [
+      "Pillow alpha-aware metadata checks",
+      "Tesseract psm 11",
+      "cmp"
+    ],
+    "visibleGreenDefinition": "alpha > 0.05 and green > 0.35 and green > 1.25 * red and green > 1.25 * blue",
+    "note": "No CLI image generation, third-party API, model-native transparency fallback, target image read, runtime image read, SVG drawing, component edit, or visual payload return to the main task was used. Built-in precise-object-edit calls changed only center-aperture proportions before the final sources were selected."
+  },
+  "generations": [
+    {
+      "generationId": "news-detail-source-crest.default",
+      "assetIds": [
+        "news-detail-source-crest.default"
+      ],
+      "status": "generated_pending_independent_isolated_review",
+      "sourceClass": "imagegen_raster",
+      "imagegenCallHistory": [
+        {
+          "kind": "initial_generation",
+          "status": "succeeded",
+          "builtInSavedPath": "/Users/heyesheng/.codex/generated_images/019f6450-b00e-7603-bf38-d2948ad2d0b6/exec-336a2856-58b8-46be-8d38-28e9e060f398.png",
+          "selected": false,
+          "reason": "center aperture was mechanically clear but too tight for a reusable small shell"
+        },
+        {
+          "kind": "single_variable_aperture_iteration",
+          "status": "succeeded",
+          "builtInSavedPath": "/Users/heyesheng/.codex/generated_images/019f6450-b00e-7603-bf38-d2948ad2d0b6/exec-543b7fda-81bc-4d32-8166-27c9f2a9e664.png",
+          "selected": true
+        }
+      ],
+      "imagegenCallResult": {
+        "status": "succeeded",
+        "resultKeys": ["image_url", "output_hint"],
+        "imagePayloadRecorded": false,
+        "builtInSavedPath": "/Users/heyesheng/.codex/generated_images/019f6450-b00e-7603-bf38-d2948ad2d0b6/exec-543b7fda-81bc-4d32-8166-27c9f2a9e664.png"
+      },
+      "initialPrompt": "Use case: stylized-concept\nAsset type: tiny reusable non-factual raster medallion shell for the news_detail source-reference slot\nPrimary request: Create exactly one hollow shield-shaped source crest shell, visually unified with a restrained premium forged game UI medallion family.\nSubject: A vertically oriented shield/crest ring with a strong simple silhouette, dark patinated bronze and near-black forged metal body, thin warm aged-gold outer and inner rims, two clearly readable bezel layers, restrained edge wear, and a completely empty central shield-shaped aperture. The aperture must show only the flat chroma-key background so it becomes transparent for a separate runtime glyph. No icon, insignia, scales, publisher mark, seal, coat of arms, rune, or image inside.\nStyle/medium: crisp polished raster game UI material render designed to remain clear at 32 by 38 CSS pixels; minimal micro-detail, broad readable metal planes, restrained not ornate.\nComposition/framing: exactly one object, orthographic face-on front view, no perspective and no rotation, vertically centered, slightly taller than wide with a 16:19 outer silhouette, generous even padding, full object visible.\nLighting/mood: neutral frontal studio lighting with modest warm rim highlights and deep controlled dark-metal shading; no glow, no cast shadow.\nColor palette: near-black iron, dark desaturated bronze, muted warm aged gold. No bright yellow and no green in the object.\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local background removal, including through the central aperture.\nConstraints: The background must be one uniform #00ff00 color with no gradient, texture, shadow, reflection, floor, halo, vignette, or lighting variation. Keep crisp clean edges. No text, letters, numbers, pseudo-writing, logo, brand, real publisher/source symbol, factual mark, watermark, weapons, faces, gems, icon, glyph, status conclusion, or canvas border. No contact shadow or reflection.",
+      "iterationPrompt": "Use case: precise-object-edit\nAsset type: tiny reusable non-factual raster medallion shell for the news_detail source-reference slot\nPrimary request: Change only the shield ring proportions so the empty central aperture is visibly larger and can safely hold a separate runtime glyph at 32 by 38 CSS pixels.\nEdit: Expand the green shield-shaped center opening by about 18 percent in width while preserving its centered shape. Reduce only the dark-metal band width as needed. Keep two readable bezel layers and keep the warm aged-gold outer and inner rims thin.\nInvariants: Preserve the exact upright shield outer silhouette, orthographic face-on orientation, object centering, transparent-key padding, dark patinated bronze and near-black metal, muted warm aged gold, restrained wear, frontal lighting, and perfectly flat #00ff00 background including through the aperture.\nConstraints: No icon, insignia, scales, publisher mark, seal, coat of arms, rune, text, letters, numbers, pseudo-writing, logo, brand, real source mark, watermark, factual symbol, glyph, status conclusion, shadow, reflection, glow, gradient, texture, halo, or vignette in the background. Do not add or remove any object other than changing the aperture and band proportions.",
+      "source": {
+        "path": "packages/design-system/assets/raster/news-detail-v1/sources/news-detail-source-crest.default.png",
+        "width": 1150,
+        "height": 1368,
+        "bytes": 1638156,
+        "sha256": "09af3f4a97cba5bf7ffe3eece5fede24373e7506e5b6060f8f50b447994e90db",
+        "byteIdenticalToBuiltInSavedPath": true
+      },
+      "master": {
+        "path": "packages/design-system/assets/raster/news-detail-v1/masters/news-detail-source-crest.default.png",
+        "width": 1150,
+        "height": 1368,
+        "bytes": 923895,
+        "sha256": "e88ded2a8350094d44f0a248d5d2674a6c780b89032f74f8c8381284eabfe1cd",
+        "sampledKeyColor": "#05ea10",
+        "transparentPixels": 1239825,
+        "partiallyTransparentPixels": 7013,
+        "totalPixels": 1573200
+      },
+      "processingCommands": [
+        "cp /Users/heyesheng/.codex/generated_images/019f6450-b00e-7603-bf38-d2948ad2d0b6/exec-543b7fda-81bc-4d32-8166-27c9f2a9e664.png packages/design-system/assets/raster/news-detail-v1/sources/news-detail-source-crest.default.png",
+        "python3 /Users/heyesheng/.codex/skills/.system/imagegen/scripts/remove_chroma_key.py --input packages/design-system/assets/raster/news-detail-v1/sources/news-detail-source-crest.default.png --out packages/design-system/assets/raster/news-detail-v1/masters/news-detail-source-crest.default.png --auto-key border --soft-matte --transparent-threshold 12 --opaque-threshold 220 --despill --force",
+        "sips -z 76 64 packages/design-system/assets/raster/news-detail-v1/masters/news-detail-source-crest.default.png --out packages/design-system/assets/raster/news-detail-v1/runtime/2x/news-detail-source-crest.default.png",
+        "sips -z 38 32 packages/design-system/assets/raster/news-detail-v1/runtime/2x/news-detail-source-crest.default.png --out packages/design-system/assets/raster/news-detail-v1/runtime/1x/news-detail-source-crest.default.png"
+      ],
+      "runtime": {
+        "2x": {
+          "path": "packages/design-system/assets/raster/news-detail-v1/runtime/2x/news-detail-source-crest.default.png",
+          "width": 64,
+          "height": 76,
+          "bytes": 5042,
+          "sha256": "c1708687507f20b7a37b392cfac9879770a470d08cc5eb511aeb0857602c15a0"
+        },
+        "1x": {
+          "path": "packages/design-system/assets/raster/news-detail-v1/runtime/1x/news-detail-source-crest.default.png",
+          "width": 32,
+          "height": 38,
+          "bytes": 2359,
+          "sha256": "3692082c3a27fb43d609b06dad17346a9132830d04e479b54a71fc525fc05e68",
+          "derivedFrom": "runtime/2x/news-detail-source-crest.default.png"
+        }
+      },
+      "validation": {
+        "passed": true,
+        "hasAlpha": true,
+        "transparentCorners": true,
+        "outerEdgeAlphaMaximum": 0,
+        "meanAlphaCoverageRangeObserved": [0.1983, 0.204034],
+        "visibleGreenPixelFraction": 0,
+        "centerAlphaMaximum": 0,
+        "centerApertureAt2x": { "horizontalTransparentRun": 36, "verticalTransparentRun": 51 },
+        "centerApertureAt1x": { "horizontalTransparentRun": 16, "verticalTransparentRun": 24 },
+        "ocrTextOrDigits": "",
+        "oneXByteIdenticalToMechanicalRederivation": true
+      }
+    },
+    {
+      "generationId": "news-detail-evidence-medallion.default",
+      "assetIds": [
+        "news-detail-evidence-medallion.default"
+      ],
+      "status": "generated_pending_independent_isolated_review",
+      "sourceClass": "imagegen_raster",
+      "imagegenCallHistory": [
+        {
+          "kind": "initial_generation",
+          "status": "succeeded",
+          "builtInSavedPath": "/Users/heyesheng/.codex/generated_images/019f6450-b00e-7603-bf38-d2948ad2d0b6/exec-231a3faa-45d0-4e34-b676-5c8c7b634f57.png",
+          "selected": false,
+          "reason": "center aperture was mechanically clear but too tight for a reusable small shell"
+        },
+        {
+          "kind": "single_variable_aperture_iteration",
+          "status": "succeeded",
+          "builtInSavedPath": "/Users/heyesheng/.codex/generated_images/019f6450-b00e-7603-bf38-d2948ad2d0b6/exec-6f741788-d321-46f0-8d0d-7efef87730e5.png",
+          "selected": true
+        }
+      ],
+      "imagegenCallResult": {
+        "status": "succeeded",
+        "resultKeys": ["image_url", "output_hint"],
+        "imagePayloadRecorded": false,
+        "builtInSavedPath": "/Users/heyesheng/.codex/generated_images/019f6450-b00e-7603-bf38-d2948ad2d0b6/exec-6f741788-d321-46f0-8d0d-7efef87730e5.png"
+      },
+      "initialPrompt": "Use case: stylized-concept\nAsset type: tiny reusable non-factual raster medallion shell for the news_detail evidence empty-state slot\nPrimary request: Create exactly one hollow circular-to-octagonal evidence medallion shell, visually unified with a restrained premium forged game UI family.\nSubject: A compact rotationally balanced low-sided polygon ring with a softly circular inner aperture, using the same dark patinated bronze and near-black forged metal body, thin warm aged-gold outer and inner rims, two clearly readable bezel layers, restrained edge wear, and a completely empty center. The aperture must show only the flat chroma-key background so it becomes transparent for a separate runtime glyph. No icon, exclamation mark, scales, number, seal, rune, or image inside.\nStyle/medium: crisp polished raster game UI material render designed to remain clear at 34 by 34 CSS pixels; minimal micro-detail, broad readable metal planes, restrained not ornate.\nComposition/framing: exactly one object, orthographic face-on front view, no perspective and no rotation, perfectly centered on a square canvas, strong symmetrical silhouette, generous even padding, full object visible.\nLighting/mood: neutral frontal studio lighting with modest warm rim highlights and deep controlled dark-metal shading; no glow, no cast shadow.\nColor palette: near-black iron, dark desaturated bronze, muted warm aged gold. No bright yellow and no green in the object.\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local background removal, including through the central aperture.\nConstraints: The background must be one uniform #00ff00 color with no gradient, texture, shadow, reflection, floor, halo, vignette, or lighting variation. Keep crisp clean edges. No text, letters, numbers, pseudo-writing, logo, brand, source identity, factual mark, watermark, weapons, faces, gems, icon, glyph, status conclusion, or canvas border. No contact shadow or reflection.",
+      "iterationPrompt": "Use case: precise-object-edit\nAsset type: tiny reusable non-factual raster medallion shell for the news_detail evidence empty-state slot\nPrimary request: Change only the ring proportions so the empty circular center aperture is visibly larger and can safely hold a separate runtime glyph at 34 by 34 CSS pixels.\nEdit: Expand the green circular center opening until its diameter is about 72 percent of the visible outer medallion width. Reduce only the dark-metal band width as needed. Keep the octagonal outer silhouette, two readable bezel layers, and thin warm aged-gold outer and inner rims.\nInvariants: Preserve the exact centered octagonal outer silhouette, orthographic face-on orientation, square composition, object centering, transparent-key padding, dark patinated bronze and near-black metal, muted warm aged gold, restrained wear, frontal lighting, and perfectly flat #00ff00 background including through the aperture.\nConstraints: No icon, exclamation mark, scales, number, seal, rune, text, letters, pseudo-writing, logo, brand, source identity, factual mark, watermark, glyph, status conclusion, shadow, reflection, glow, gradient, texture, halo, or vignette in the background. Do not add or remove any object other than changing the aperture and band proportions.",
+      "source": {
+        "path": "packages/design-system/assets/raster/news-detail-v1/sources/news-detail-evidence-medallion.default.png",
+        "width": 1254,
+        "height": 1254,
+        "bytes": 1889745,
+        "sha256": "141d650458c9aa5c957b1e5bd6869feeec00c470781c8b3f665005995c072d69",
+        "byteIdenticalToBuiltInSavedPath": true
+      },
+      "master": {
+        "path": "packages/design-system/assets/raster/news-detail-v1/masters/news-detail-evidence-medallion.default.png",
+        "width": 1254,
+        "height": 1254,
+        "bytes": 1119120,
+        "sha256": "467a5286933b08068f425c91777fae2cdbca1f407dc19c35ac5c7c1b6cb31af4",
+        "sampledKeyColor": "#07e218",
+        "transparentPixels": 1128202,
+        "partiallyTransparentPixels": 5599,
+        "totalPixels": 1572516
+      },
+      "processingCommands": [
+        "cp /Users/heyesheng/.codex/generated_images/019f6450-b00e-7603-bf38-d2948ad2d0b6/exec-6f741788-d321-46f0-8d0d-7efef87730e5.png packages/design-system/assets/raster/news-detail-v1/sources/news-detail-evidence-medallion.default.png",
+        "python3 /Users/heyesheng/.codex/skills/.system/imagegen/scripts/remove_chroma_key.py --input packages/design-system/assets/raster/news-detail-v1/sources/news-detail-evidence-medallion.default.png --out packages/design-system/assets/raster/news-detail-v1/masters/news-detail-evidence-medallion.default.png --auto-key border --soft-matte --transparent-threshold 12 --opaque-threshold 220 --despill --force",
+        "sips -z 68 68 packages/design-system/assets/raster/news-detail-v1/masters/news-detail-evidence-medallion.default.png --out packages/design-system/assets/raster/news-detail-v1/runtime/2x/news-detail-evidence-medallion.default.png",
+        "sips -z 34 34 packages/design-system/assets/raster/news-detail-v1/runtime/2x/news-detail-evidence-medallion.default.png --out packages/design-system/assets/raster/news-detail-v1/runtime/1x/news-detail-evidence-medallion.default.png"
+      ],
+      "runtime": {
+        "2x": {
+          "path": "packages/design-system/assets/raster/news-detail-v1/runtime/2x/news-detail-evidence-medallion.default.png",
+          "width": 68,
+          "height": 68,
+          "bytes": 5606,
+          "sha256": "e41310b2538e0e5ab7dcc8bde052b06fb4e33ca143af06f7bf735acedcb06ce6"
+        },
+        "1x": {
+          "path": "packages/design-system/assets/raster/news-detail-v1/runtime/1x/news-detail-evidence-medallion.default.png",
+          "width": 34,
+          "height": 34,
+          "bytes": 2480,
+          "sha256": "8dece967601eff05916d6c5228aaa118d0a8d59c972553d0601a0d98f6c5ce95",
+          "derivedFrom": "runtime/2x/news-detail-evidence-medallion.default.png"
+        }
+      },
+      "validation": {
+        "passed": true,
+        "hasAlpha": true,
+        "transparentCorners": true,
+        "outerEdgeAlphaMaximum": 0,
+        "meanAlphaCoverageRangeObserved": [0.265191, 0.272895],
+        "visibleGreenPixelFraction": 0,
+        "centerAlphaMaximum": 0,
+        "centerApertureAt2x": { "horizontalTransparentRun": 38, "verticalTransparentRun": 41 },
+        "centerApertureAt1x": { "horizontalTransparentRun": 18, "verticalTransparentRun": 19 },
+        "ocrTextOrDigits": "",
+        "oneXByteIdenticalToMechanicalRederivation": true
+      }
+    },
+    {
+      "generationId": "news-detail-terminal-medallion.default",
+      "assetIds": [
+        "news-detail-terminal-medallion.default"
+      ],
+      "status": "generated_pending_independent_isolated_review",
+      "sourceClass": "imagegen_raster",
+      "imagegenCallHistory": [
+        {
+          "kind": "initial_generation",
+          "status": "succeeded",
+          "builtInSavedPath": "/Users/heyesheng/.codex/generated_images/019f6450-b00e-7603-bf38-d2948ad2d0b6/exec-92c74b14-36dd-4ef4-b049-dcf167626755.png",
+          "selected": false,
+          "reason": "center aperture was mechanically clear but too tight for a reusable small shell"
+        },
+        {
+          "kind": "single_variable_aperture_iteration",
+          "status": "succeeded",
+          "builtInSavedPath": "/Users/heyesheng/.codex/generated_images/019f6450-b00e-7603-bf38-d2948ad2d0b6/exec-5f974135-78cf-40df-adb8-aea75d9f6642.png",
+          "selected": true
+        }
+      ],
+      "imagegenCallResult": {
+        "status": "succeeded",
+        "resultKeys": ["image_url", "output_hint"],
+        "imagePayloadRecorded": false,
+        "builtInSavedPath": "/Users/heyesheng/.codex/generated_images/019f6450-b00e-7603-bf38-d2948ad2d0b6/exec-5f974135-78cf-40df-adb8-aea75d9f6642.png"
+      },
+      "initialPrompt": "Use case: stylized-concept\nAsset type: tiny reusable non-factual raster medallion shell for the news_detail terminal-state slot\nPrimary request: Create exactly one hollow diamond-shaped terminal medallion shell, visually unified with a restrained premium forged game UI family.\nSubject: A compact square medallion rotated exactly 45 degrees into a diamond, using the same dark patinated bronze and near-black forged metal body, thin warm aged-gold outer and inner rims, two clearly readable bezel layers, subtly clipped four points, restrained edge wear, and a completely empty centered diamond aperture. The aperture must show only the flat chroma-key background so it becomes transparent for a separate runtime glyph. No icon, exclamation mark, status mark, check, cross, number, seal, rune, or image inside.\nStyle/medium: crisp polished raster game UI material render designed to remain clear at 40 by 40 CSS pixels; minimal micro-detail, broad readable metal planes, restrained not ornate.\nComposition/framing: exactly one object, orthographic face-on front view, no perspective, a geometrically centered 45-degree diamond on a square canvas, four points fully visible, strong symmetric silhouette, generous even padding.\nLighting/mood: neutral frontal studio lighting with modest warm rim highlights and deep controlled dark-metal shading; no glow, no cast shadow.\nColor palette: near-black iron, dark desaturated bronze, muted warm aged gold. No bright yellow and no green in the object.\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local background removal, including through the central aperture.\nConstraints: The background must be one uniform #00ff00 color with no gradient, texture, shadow, reflection, floor, halo, vignette, or lighting variation. Keep crisp clean edges. No text, letters, numbers, pseudo-writing, logo, brand, source identity, factual mark, watermark, weapons, faces, gems, icon, glyph, status conclusion, or canvas border. No contact shadow or reflection.",
+      "iterationPrompt": "Use case: precise-object-edit\nAsset type: tiny reusable non-factual raster medallion shell for the news_detail terminal-state slot\nPrimary request: Change only the diamond ring proportions so the empty center aperture is substantially larger and can safely hold a separate runtime glyph at 40 by 40 CSS pixels.\nEdit: Expand the green diamond-shaped center opening until its horizontal and vertical span is about 68 percent of the visible outer diamond span. Reduce only the dark-metal band width as needed. Keep the four-point diamond outer silhouette, two readable bezel layers, and thin warm aged-gold outer and inner rims.\nInvariants: Preserve the exact centered 45-degree diamond outer silhouette, orthographic face-on orientation, square composition, object centering, transparent-key padding, dark patinated bronze and near-black metal, muted warm aged gold, restrained wear, frontal lighting, and perfectly flat #00ff00 background including through the aperture.\nConstraints: No icon, exclamation mark, check, cross, status mark, number, seal, rune, text, letters, pseudo-writing, logo, brand, source identity, factual mark, watermark, glyph, status conclusion, shadow, reflection, glow, gradient, texture, halo, or vignette in the background. Do not add or remove any object other than changing the aperture and band proportions.",
+      "source": {
+        "path": "packages/design-system/assets/raster/news-detail-v1/sources/news-detail-terminal-medallion.default.png",
+        "width": 1254,
+        "height": 1254,
+        "bytes": 1487997,
+        "sha256": "7ea17e7494e580bb6963b02d3cc695634110da5979931c326b04c33b816fad72",
+        "byteIdenticalToBuiltInSavedPath": true
+      },
+      "master": {
+        "path": "packages/design-system/assets/raster/news-detail-v1/masters/news-detail-terminal-medallion.default.png",
+        "width": 1254,
+        "height": 1254,
+        "bytes": 703582,
+        "sha256": "0ef3976bfd30b2120cda579f97d96913e88cb493d7027eb458e052674a31c500",
+        "sampledKeyColor": "#09e313",
+        "transparentPixels": 1324185,
+        "partiallyTransparentPixels": 5335,
+        "totalPixels": 1572516
+      },
+      "processingCommands": [
+        "cp /Users/heyesheng/.codex/generated_images/019f6450-b00e-7603-bf38-d2948ad2d0b6/exec-5f974135-78cf-40df-adb8-aea75d9f6642.png packages/design-system/assets/raster/news-detail-v1/sources/news-detail-terminal-medallion.default.png",
+        "python3 /Users/heyesheng/.codex/skills/.system/imagegen/scripts/remove_chroma_key.py --input packages/design-system/assets/raster/news-detail-v1/sources/news-detail-terminal-medallion.default.png --out packages/design-system/assets/raster/news-detail-v1/masters/news-detail-terminal-medallion.default.png --auto-key border --soft-matte --transparent-threshold 12 --opaque-threshold 220 --despill --force",
+        "sips -z 80 80 packages/design-system/assets/raster/news-detail-v1/masters/news-detail-terminal-medallion.default.png --out packages/design-system/assets/raster/news-detail-v1/runtime/2x/news-detail-terminal-medallion.default.png",
+        "sips -z 40 40 packages/design-system/assets/raster/news-detail-v1/runtime/2x/news-detail-terminal-medallion.default.png --out packages/design-system/assets/raster/news-detail-v1/runtime/1x/news-detail-terminal-medallion.default.png"
+      ],
+      "runtime": {
+        "2x": {
+          "path": "packages/design-system/assets/raster/news-detail-v1/runtime/2x/news-detail-terminal-medallion.default.png",
+          "width": 80,
+          "height": 80,
+          "bytes": 5396,
+          "sha256": "dd24eb50594b2176f31da165ed72f8f0e0c1063f1aaa66d3b3efbc803a2e4237"
+        },
+        "1x": {
+          "path": "packages/design-system/assets/raster/news-detail-v1/runtime/1x/news-detail-terminal-medallion.default.png",
+          "width": 40,
+          "height": 40,
+          "bytes": 2575,
+          "sha256": "183adc935cbbfecbdf51b12c25117e34c42263eada436b180eb18bc87eb6fc63",
+          "derivedFrom": "runtime/2x/news-detail-terminal-medallion.default.png"
+        }
+      },
+      "validation": {
+        "passed": true,
+        "hasAlpha": true,
+        "transparentCorners": true,
+        "outerEdgeAlphaMaximum": 0,
+        "meanAlphaCoverageRangeObserved": [0.148642, 0.152771],
+        "visibleGreenPixelFraction": 0,
+        "centerAlphaMaximum": 0,
+        "centerApertureAt2x": { "horizontalTransparentRun": 46, "verticalTransparentRun": 46 },
+        "centerApertureAt1x": { "horizontalTransparentRun": 21, "verticalTransparentRun": 22 },
+        "ocrTextOrDigits": "",
+        "oneXByteIdenticalToMechanicalRederivation": true
+      }
+    }
+  ],
+  "overallValidation": {
+    "passed": true,
+    "runtimeFileCount": 6,
+    "sourceCopiesByteIdentical": true,
+    "runtimeHasAlpha": true,
+    "transparentCorners": true,
+    "transparentOuterEdges": true,
+    "transparentCenters": true,
+    "visibleGreenFractionMaximum": 0,
+    "ocrTextOrDigits": "",
+    "oneXByteIdenticalToMechanicalRederivation": true,
+    "productionPromoted": false
+  }
+}

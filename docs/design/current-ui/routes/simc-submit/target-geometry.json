@@ -1,0 +1,574 @@
+{
+  "schemaVersion": "target-geometry-v1",
+  "route": "SimC_submit",
+  "authority": "canonical_target",
+  "source": {
+    "path": "/Users/heyesheng/Documents/code/github/wow_mini_program/artifacts/ui-visual-targets/current/simc-submit.png",
+    "width": 862,
+    "height": 1825,
+    "nativeWidth": 862,
+    "nativeHeight": 1825,
+    "bytes": 1900151,
+    "sha256": "27daedcda3f186084893c274dbe96e54fbba2282441a60034631d6709f2d57c9"
+  },
+  "measurement": {
+    "coordinateSpace": "native_pixels",
+    "runtimeInputsUsed": false,
+    "targetOnly": true
+  },
+  "regions": [
+    {
+      "id": "page_frame",
+      "order": 1,
+      "observedRole": "full-height ornamental page frame and dark textured surface",
+      "bounds": {
+        "x": 7,
+        "y": 8,
+        "width": 848,
+        "height": 1809
+      },
+      "internalStructure": [
+        {
+          "observedRole": "outer beveled metal frame with corner ornaments",
+          "bounds": {
+            "x": 7,
+            "y": 8,
+            "width": 848,
+            "height": 1809
+          }
+        },
+        {
+          "observedRole": "continuous dark granular page texture",
+          "bounds": {
+            "x": 14,
+            "y": 15,
+            "width": 834,
+            "height": 1795
+          }
+        }
+      ],
+      "alignment": "Centered on the 862 px canvas with a narrow, nearly symmetric outer inset.",
+      "spacing": "Approximately 7 px at left and right, 8 px at top, and 8 px at bottom.",
+      "unresolved": [
+        "Fine engravings, texture grain, and bevel thickness are target-only visual estimates."
+      ]
+    },
+    {
+      "id": "header_nav",
+      "order": 2,
+      "observedRole": "top navigation band with back control, centered title, and records action",
+      "bounds": {
+        "x": 8,
+        "y": 9,
+        "width": 846,
+        "height": 98
+      },
+      "internalStructure": [
+        {
+          "observedRole": "circular back control",
+          "bounds": {
+            "x": 35,
+            "y": 31,
+            "width": 66,
+            "height": 68
+          }
+        },
+        {
+          "observedRole": "centered page title",
+          "bounds": {
+            "x": 333,
+            "y": 47,
+            "width": 198,
+            "height": 42
+          }
+        },
+        {
+          "observedRole": "right records action",
+          "bounds": {
+            "x": 659,
+            "y": 40,
+            "width": 160,
+            "height": 52
+          }
+        },
+        {
+          "observedRole": "bottom divider",
+          "bounds": {
+            "x": 16,
+            "y": 105,
+            "width": 831,
+            "height": 2
+          }
+        }
+      ],
+      "alignment": "Back control is left anchored, title is optically centered on the page, and records action is right anchored.",
+      "spacing": "The three controls share one horizontal centerline; the title remains visually independent of the unequal side-control widths.",
+      "unresolved": []
+    },
+    {
+      "id": "identity_selectors_panel",
+      "order": 3,
+      "observedRole": "two-column profession and race selector panel",
+      "bounds": {
+        "x": 26,
+        "y": 125,
+        "width": 811,
+        "height": 128
+      },
+      "internalStructure": [
+        {
+          "observedRole": "profession selector group with six circular options",
+          "bounds": {
+            "x": 27,
+            "y": 126,
+            "width": 473,
+            "height": 126
+          }
+        },
+        {
+          "observedRole": "vertical column divider",
+          "bounds": {
+            "x": 499,
+            "y": 128,
+            "width": 2,
+            "height": 123
+          }
+        },
+        {
+          "observedRole": "race selector group with one wide dropdown",
+          "bounds": {
+            "x": 502,
+            "y": 126,
+            "width": 334,
+            "height": 126
+          }
+        }
+      ],
+      "alignment": "Profession options read left to right in the wider left column; the race label and dropdown align to the left edge of the right column.",
+      "spacing": "Panel is inset about 26 px from the canvas; the divider leaves only a narrow visual gutter between the two columns.",
+      "unresolved": [
+        "The exact identities of the six profession glyphs and the race silhouette are not asserted from the target."
+      ]
+    },
+    {
+      "id": "talent_template_panel",
+      "order": 4,
+      "observedRole": "talent-template selection panel with empty-state slot and right action",
+      "bounds": {
+        "x": 27,
+        "y": 267,
+        "width": 809,
+        "height": 143
+      },
+      "internalStructure": [
+        {
+          "observedRole": "section heading and parenthetical source label",
+          "bounds": {
+            "x": 51,
+            "y": 282,
+            "width": 281,
+            "height": 28
+          }
+        },
+        {
+          "observedRole": "dashed empty-state template slot",
+          "bounds": {
+            "x": 48,
+            "y": 316,
+            "width": 590,
+            "height": 80
+          }
+        },
+        {
+          "observedRole": "select-template action",
+          "bounds": {
+            "x": 636,
+            "y": 317,
+            "width": 182,
+            "height": 78
+          }
+        }
+      ],
+      "alignment": "Heading sits above a left empty-state slot; the action is docked to the slot's right edge and shares its vertical span.",
+      "spacing": "Approximately 21 px panel side padding, 6 px between heading and slot, and no visible gap where the action meets the slot.",
+      "unresolved": []
+    },
+    {
+      "id": "gear_template_panel",
+      "order": 5,
+      "observedRole": "equipment-template selection panel with empty-state slot and right action",
+      "bounds": {
+        "x": 27,
+        "y": 423,
+        "width": 809,
+        "height": 144
+      },
+      "internalStructure": [
+        {
+          "observedRole": "section heading and parenthetical source label",
+          "bounds": {
+            "x": 51,
+            "y": 438,
+            "width": 281,
+            "height": 28
+          }
+        },
+        {
+          "observedRole": "dashed empty-state template slot",
+          "bounds": {
+            "x": 48,
+            "y": 473,
+            "width": 590,
+            "height": 79
+          }
+        },
+        {
+          "observedRole": "select-template action",
+          "bounds": {
+            "x": 636,
+            "y": 474,
+            "width": 182,
+            "height": 77
+          }
+        }
+      ],
+      "alignment": "Mirrors the talent-template panel: heading above a left slot with a right-docked action.",
+      "spacing": "Approximately 13 px below the preceding panel and the same internal horizontal geometry as the talent-template panel.",
+      "unresolved": []
+    },
+    {
+      "id": "combat_configuration_panel",
+      "order": 6,
+      "observedRole": "single framed combat-configuration region containing scene, duration, and buff controls",
+      "bounds": {
+        "x": 27,
+        "y": 579,
+        "width": 809,
+        "height": 515
+      },
+      "internalStructure": [
+        {
+          "observedRole": "combat-scene heading",
+          "bounds": {
+            "x": 44,
+            "y": 596,
+            "width": 110,
+            "height": 27
+          }
+        },
+        {
+          "observedRole": "three-option scene segmented control",
+          "bounds": {
+            "x": 44,
+            "y": 632,
+            "width": 774,
+            "height": 64
+          }
+        },
+        {
+          "observedRole": "combat-duration row",
+          "bounds": {
+            "x": 28,
+            "y": 711,
+            "width": 808,
+            "height": 75
+          }
+        },
+        {
+          "observedRole": "combat-duration dropdown",
+          "bounds": {
+            "x": 163,
+            "y": 720,
+            "width": 277,
+            "height": 54
+          }
+        },
+        {
+          "observedRole": "buff section heading and manage action",
+          "bounds": {
+            "x": 44,
+            "y": 795,
+            "width": 775,
+            "height": 44
+          }
+        },
+        {
+          "observRole": "four stacked buff selector rows",
+          "bounds": {
+            "x": 44,
+            "y": 840,
+            "width": 775,
+            "height": 240
+          }
+        }
+      ],
+      "alignment": "All subsections align to the same inner left edge; scene options span three columns, duration uses a left label plus dropdown, and buffs use four full-width rows.",
+      "spacing": "Approximately 12 px below the gear panel; scene buttons use about 8 px gaps, buff rows use about 8 px vertical gaps, and internal separators retain one enclosing outer frame.",
+      "unresolved": [
+        "The scene icons describe visible option roles only; no simulation semantics are inferred."
+      ]
+    },
+    {
+      "id": "pre_submit_summary_panel",
+      "order": 7,
+      "observedRole": "pre-submit confirmation panel with two columns of three status rows",
+      "bounds": {
+        "x": 27,
+        "y": 1111,
+        "width": 809,
+        "height": 234
+      },
+      "internalStructure": [
+        {
+          "observedRole": "section heading",
+          "bounds": {
+            "x": 51,
+            "y": 1128,
+            "width": 131,
+            "height": 30
+          }
+        },
+        {
+          "observedRole": "left summary column with three rows",
+          "bounds": {
+            "x": 44,
+            "y": 1166,
+            "width": 377,
+            "height": 170
+          }
+        },
+        {
+          "observedRole": "right summary column with three rows",
+          "bounds": {
+            "x": 438,
+            "y": 1166,
+            "width": 381,
+            "height": 170
+          }
+        }
+      ],
+      "alignment": "Heading is left aligned; two equal-height columns each contain icon-label pairs and right-aligned red status pills.",
+      "spacing": "Approximately 17 px below combat configuration; row pitch is about 58 px and the central column gutter is about 17 px.",
+      "unresolved": []
+    },
+    {
+      "id": "blocking_warning_panel",
+      "order": 8,
+      "observedRole": "red-accent blocking notice with title, helper line, and five missing-item bullets",
+      "bounds": {
+        "x": 27,
+        "y": 1359,
+        "width": 809,
+        "height": 233
+      },
+      "internalStructure": [
+        {
+          "observedRole": "warning badge",
+          "bounds": {
+            "x": 52,
+            "y": 1388,
+            "width": 47,
+            "height": 58
+          }
+        },
+        {
+          "observedRole": "warning title and helper copy",
+          "bounds": {
+            "x": 113,
+            "y": 1387,
+            "width": 327,
+            "height": 66
+          }
+        },
+        {
+          "observedRole": "left warning list with three bullets",
+          "bounds": {
+            "x": 55,
+            "y": 1466,
+            "width": 310,
+            "height": 111
+          }
+        },
+        {
+          "observedRole": "right warning list with two bullets",
+          "bounds": {
+            "x": 433,
+            "y": 1466,
+            "width": 310,
+            "height": 75
+          }
+        }
+      ],
+      "alignment": "Badge anchors the upper left; title and helper copy form a two-line block; bullets continue below in a 3-plus-2 two-column layout.",
+      "spacing": "Approximately 14 px below the summary panel, 14 px between title block and bullets, and a broad central column gutter.",
+      "unresolved": [
+        "The badge and bullet marks are recorded as target status graphics, not as assertions about runtime validation."
+      ]
+    },
+    {
+      "id": "submission_action_bar",
+      "order": 9,
+      "observedRole": "bottom action band with validation status and two large actions",
+      "bounds": {
+        "x": 26,
+        "y": 1607,
+        "width": 810,
+        "height": 115
+      },
+      "internalStructure": [
+        {
+          "observedRole": "validation status block with spinner and two text lines",
+          "bounds": {
+            "x": 43,
+            "y": 1621,
+            "width": 219,
+            "height": 86
+          }
+        },
+        {
+          "observedRole": "blue validate-combination action",
+          "bounds": {
+            "x": 286,
+            "y": 1620,
+            "width": 265,
+            "height": 88
+          }
+        },
+        {
+          "observedRole": "muted submit-task action with secondary status line",
+          "bounds": {
+            "x": 568,
+            "y": 1620,
+            "width": 257,
+            "height": 88
+          }
+        }
+      ],
+      "alignment": "Three horizontally aligned blocks; the status block is narrower, and the two actions use comparable fixed widths.",
+      "spacing": "Approximately 15 px below the warning panel; 24 px between status and validation action and 17 px between the two actions.",
+      "unresolved": [
+        "Spinner animation and action availability cannot be established from the static target."
+      ]
+    },
+    {
+      "id": "footer_notice_row",
+      "order": 10,
+      "observedRole": "final informational notice and task-rules utility row",
+      "bounds": {
+        "x": 28,
+        "y": 1733,
+        "width": 806,
+        "height": 66
+      },
+      "internalStructure": [
+        {
+          "observedRole": "left dashed informational notice",
+          "bounds": {
+            "x": 29,
+            "y": 1734,
+            "width": 608,
+            "height": 64
+          }
+        },
+        {
+          "observedRole": "right task-rules action",
+          "bounds": {
+            "x": 644,
+            "y": 1734,
+            "width": 180,
+            "height": 64
+          }
+        }
+      ],
+      "alignment": "Long notice occupies the left three quarters; compact rules action aligns to its right on the same baseline.",
+      "spacing": "Approximately 11 px below the action band, 7 px between the two footer blocks, and about 18 px remaining above the page-frame bottom.",
+      "unresolved": []
+    }
+  ],
+  "topology": {
+    "root": "page_frame",
+    "containment": [
+      {
+        "parent": "page_frame",
+        "children": [
+          "header_nav",
+          "identity_selectors_panel",
+          "talent_template_panel",
+          "gear_template_panel",
+          "combat_configuration_panel",
+          "pre_submit_summary_panel",
+          "blocking_warning_panel",
+          "submission_action_bar",
+          "footer_notice_row"
+        ]
+      },
+      {
+        "parent": "combat_configuration_panel",
+        "children": [
+          "combat_scene_segment",
+          "combat_duration_row",
+          "buff_selector_rows"
+        ]
+      }
+    ],
+    "verticalOrder": [
+      "header_nav",
+      "identity_selectors_panel",
+      "talent_template_panel",
+      "gear_template_panel",
+      "combat_configuration_panel",
+      "pre_submit_summary_panel",
+      "blocking_warning_panel",
+      "submission_action_bar",
+      "footer_notice_row"
+    ],
+    "adjacency": [
+      {
+        "above": "header_nav",
+        "below": "identity_selectors_panel"
+      },
+      {
+        "above": "identity_selectors_panel",
+        "below": "talent_template_panel"
+      },
+      {
+        "above": "talent_template_panel",
+        "below": "gear_template_panel"
+      },
+      {
+        "above": "gear_template_panel",
+        "below": "combat_configuration_panel"
+      },
+      {
+        "above": "combat_configuration_panel",
+        "below": "pre_submit_summary_panel"
+      },
+      {
+        "above": "pre_submit_summary_panel",
+        "below": "blocking_warning_panel"
+      },
+      {
+        "above": "blocking_warning_panel",
+        "below": "submission_action_bar"
+      },
+      {
+        "above": "submission_action_bar",
+        "below": "footer_notice_row"
+      }
+    ],
+    "repeatedStructures": [
+      "six horizontally arranged circular profession selectors",
+      "two matching template-selection panels",
+      "three combat-scene options",
+      "four stacked buff selector rows",
+      "two summary columns with three rows each",
+      "five warning bullets arranged as three left plus two right"
+    ]
+  },
+  "unresolved": [
+    "All geometry is a target-only visual estimate from the single canonical 862x1825 PNG.",
+    "Runtime, source code, CSS, component dimensions, review evidence, and other images were not used.",
+    "Antialiasing, glow, textured borders, and low-contrast bevels may introduce approximately 1-3 px uncertainty.",
+    "Visible labels and icon silhouettes are target placeholders and do not establish product, data, or interaction truth."
+  ]
+}

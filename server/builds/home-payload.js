@@ -370,6 +370,7 @@ function makeSpecialization(className, specName) {
   const specIconUrl = wowIconUrl(specIconNameByKey[specKey] || classIconNameByKey[classKey])
   return {
     id: slugFor(className, specName),
+    name: specName,
     className,
     specName,
     role,

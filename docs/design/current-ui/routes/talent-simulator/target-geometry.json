@@ -1,0 +1,168 @@
+{
+  "schemaVersion": "target-geometry-v1",
+  "route": "talent_simulator",
+  "authority": "canonical_target",
+  "source": {
+    "path": "/Users/heyesheng/Documents/code/github/wow_mini_program/artifacts/ui-visual-targets/current/talent-simulator.png",
+    "width": 894,
+    "height": 1758,
+    "nativeWidth": 894,
+    "nativeHeight": 1758,
+    "sha256": "b073f2ad8d0443ba67ef5d22de827e4e5a31e191efcda99f594ce4c3680b9320"
+  },
+  "measurement": {
+    "coordinateSpace": "native_pixels",
+    "runtimeInputsUsed": false,
+    "targetOnly": true,
+    "uncertaintyPolicy": "All bounds, labels, counts, and relationships are visual estimates from the canonical target image only; no runtime, repository, API, or implementation inference was used."
+  },
+  "regions": [
+    {
+      "id": "page_frame",
+      "order": 1,
+      "role": "outer visible frame and dark textured background",
+      "bounds": { "x": 13, "y": 12, "width": 868, "height": 1731 },
+      "normalized": { "x": 0.0145, "y": 0.0068, "width": 0.9709, "height": 0.9846 },
+      "internalStructure": "Continuous beveled border enclosing all visible content; dark stone-like texture behind stacked panels.",
+      "alignment": "Outer frame inset about 13 px from canvas left and right, full-height vertical composition centered on image.",
+      "spacing": "Primary content sits inside a 20-36 px inner margin with narrow bevel gutters between stacked regions.",
+      "unresolved": [
+        "Decorative frame materials and exact border thickness are target-only visual estimates."
+      ]
+    },
+    {
+      "id": "top_bar",
+      "order": 2,
+      "role": "title and back control header",
+      "bounds": { "x": 24, "y": 23, "width": 846, "height": 105 },
+      "normalized": { "x": 0.0268, "y": 0.0131, "width": 0.9463, "height": 0.0597 },
+      "internalStructure": "Circular back icon at left, large title text centered-left, textured dark header panel with beveled border.",
+      "alignment": "Back control centered around x 77 y 75; title baseline aligned horizontally near y 80; content follows left-to-right reading order.",
+      "spacing": "Back control about 35 px from left frame; title begins about 42 px to the right of back control.",
+      "unresolved": [
+        "Back-control icon identity is a target placeholder."
+      ]
+    },
+    {
+      "id": "selector_panel",
+      "order": 3,
+      "role": "three-column selector row",
+      "bounds": { "x": 18, "y": 130, "width": 858, "height": 153 },
+      "normalized": { "x": 0.0201, "y": 0.0739, "width": 0.9597, "height": 0.0870 },
+      "internalStructure": "Three selector groups for left, center, and right categories; each has a crest-like icon, small label, dark dropdown button, and chevron indicator.",
+      "alignment": "Three columns are horizontally distributed with approximate centers at x 169, 446, and 724; labels sit above dropdown text.",
+      "spacing": "Panel top is 2 px below header; columns separated by about 50-60 px; dropdown boxes are about 190 px wide.",
+      "unresolved": [
+        "Specific selector meanings and icon identities are placeholders only."
+      ]
+    },
+    {
+      "id": "talent_tabs",
+      "order": 4,
+      "role": "three tab segmented control",
+      "bounds": { "x": 30, "y": 302, "width": 834, "height": 70 },
+      "normalized": { "x": 0.0336, "y": 0.1718, "width": 0.9329, "height": 0.0398 },
+      "internalStructure": "Three large beveled tabs; left tab visually active with gold glow, middle inactive dark, right inactive/locked with small lock icon.",
+      "alignment": "Tabs span nearly full inner width; equal-height blocks aligned on one baseline; active tab text centered.",
+      "spacing": "About 10 px gap below selector panel; tab divisions at roughly x 304 and x 591.",
+      "unresolved": [
+        "Lock state and tab behavior are visual placeholders only."
+      ]
+    },
+    {
+      "id": "points_summary_bar",
+      "order": 5,
+      "role": "available used and remaining point counters",
+      "bounds": { "x": 18, "y": 386, "width": 858, "height": 80 },
+      "normalized": { "x": 0.0201, "y": 0.2196, "width": 0.9597, "height": 0.0455 },
+      "internalStructure": "Three horizontally spaced text labels with circular numeric badges; info icon at far right.",
+      "alignment": "Left, center, and right counters centered around x 177, 447, and 700; badges align to text baseline.",
+      "spacing": "Bar begins about 14 px below tabs; counters use broad horizontal gaps of about 170 px.",
+      "unresolved": [
+        "Numbers are visible target placeholders, not verified data."
+      ]
+    },
+    {
+      "id": "tree_canvas",
+      "order": 6,
+      "role": "talent node graph canvas",
+      "bounds": { "x": 24, "y": 467, "width": 846, "height": 720 },
+      "normalized": { "x": 0.0268, "y": 0.2656, "width": 0.9463, "height": 0.4096 },
+      "internalStructure": "Dark graph area with radial etched texture; 19 visible target-placeholder talent nodes connected by grey and gold target-observed link lines; central vertical path and mirrored side branches.",
+      "alignment": "Graph centered on x about 447; central vertical nodes align at x 446; left and right clusters balance around center.",
+      "spacing": "Node centers use approximate vertical rhythm of 105-115 px; side branches sit about 105-120 px from adjacent nodes.",
+      "unresolved": [
+        "Node identities, unlock rules, and line meanings are visual placeholders only."
+      ]
+    },
+    {
+      "id": "legend_bar",
+      "order": 7,
+      "role": "node state legend",
+      "bounds": { "x": 34, "y": 1197, "width": 826, "height": 72 },
+      "normalized": { "x": 0.0380, "y": 0.6809, "width": 0.9239, "height": 0.0410 },
+      "internalStructure": "Four legend items in one row with colored ring or lock icon followed by text.",
+      "alignment": "Items aligned along a horizontal centerline near y 1232; evenly distributed across width.",
+      "spacing": "Legend inset about 35 px from page frame; item gaps about 70-95 px.",
+      "unresolved": [
+        "Legend state meanings are displayed text placeholders only."
+      ]
+    },
+    {
+      "id": "websim_panel",
+      "order": 8,
+      "role": "import/status panel with side status list",
+      "bounds": { "x": 18, "y": 1284, "width": 858, "height": 207 },
+      "normalized": { "x": 0.0201, "y": 0.7304, "width": 0.9597, "height": 0.1177 },
+      "internalStructure": "Left block with globe-like icon and heading, nested import prompt area with cloud upload-like icon and two text lines; right column with three status rows and info icons.",
+      "alignment": "Left content occupies roughly x 34-633; right status column begins around x 662; rows align vertically at y 1322, 1380, and 1437.",
+      "spacing": "About 15 px gap below legend; inner import box inset about 20 px from panel edge.",
+      "unresolved": [
+        "Visible service label, status semantics, and icons are placeholders only."
+      ]
+    },
+    {
+      "id": "community_template_row",
+      "order": 9,
+      "role": "community template navigation row",
+      "bounds": { "x": 18, "y": 1505, "width": 858, "height": 96 },
+      "normalized": { "x": 0.0201, "y": 0.8561, "width": 0.9597, "height": 0.0546 },
+      "internalStructure": "Single wide beveled row with group icon, primary label, descriptive text, and right chevron.",
+      "alignment": "Icon at left around x 71 y 1549; text starts at x 111; chevron centered near right edge.",
+      "spacing": "About 14 px below websim panel; text and icon vertically centered.",
+      "unresolved": [
+        "Navigation destination and feature availability are placeholders."
+      ]
+    },
+    {
+      "id": "bottom_action_bar",
+      "order": 10,
+      "role": "three bottom action buttons",
+      "bounds": { "x": 30, "y": 1619, "width": 834, "height": 104 },
+      "normalized": { "x": 0.0336, "y": 0.9209, "width": 0.9329, "height": 0.0592 },
+      "internalStructure": "Three large beveled action buttons with icon and label; left gold-highlighted, middle blue-highlighted, right dark grey.",
+      "alignment": "Buttons form equal-height row; approximate x ranges 34-302, 317-585, and 600-862; icons precede centered labels.",
+      "spacing": "About 18 px below community row; button gaps about 14-15 px.",
+      "unresolved": [
+        "Button actions are visual affordances only, not behavior assertions."
+      ]
+    }
+  ],
+  "alignment": {
+    "page": "Single centered portrait layout inside ornate frame; all major panels share a common inner left and right edge with small variations from bevels.",
+    "vertical": "Regions stack top to bottom with narrow gutters; tree canvas is the dominant central region.",
+    "horizontal": "Primary controls use three-column symmetry; talent graph mirrors left and right branches around a central vertical axis."
+  },
+  "spacing": {
+    "outerInsetPx": "approximately 13-18 px from image edge to main frame",
+    "innerPanelInsetPx": "approximately 18-34 px",
+    "majorRegionGapPx": "approximately 8-18 px",
+    "buttonGapPx": "approximately 14-15 px",
+    "nodeCenterRhythmPx": "approximately 105-115 px vertically and 105-120 px diagonally/horizontally"
+  },
+  "unresolved": [
+    "All measurements are target-only visual estimates from the PNG.",
+    "No runtime inference, repository inspection, CSS reading, or implementation semantics are permitted.",
+    "Text, numbers, lock states, node states, and icon meanings are placeholders from the target image only."
+  ]
+}

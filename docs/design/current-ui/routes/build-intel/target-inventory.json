@@ -1,0 +1,1048 @@
+{
+  "schemaVersion": "target-inventory-v1",
+  "route": "build_intel",
+  "authority": "canonical_target",
+  "source": {
+    "path": "/Users/heyesheng/Documents/code/github/wow_mini_program/artifacts/ui-visual-targets/current/build-intel.png",
+    "width": 863,
+    "height": 1823,
+    "sha256": "3ce09b5ba6bb385cf0da65e25f762e9099b28cbd5d984e89dfdf21c28741eae1"
+  },
+  "measurement": {
+    "runtimeInputsUsed": false
+  },
+  "truthBoundary": {
+    "allVisibleTextRuntimeTruth": false,
+    "allVisibleObjectsRuntimeTruth": false,
+    "apiFactsInferred": false,
+    "notes": [
+      "the canonical target proves only visual composition, text placement and placeholder appearance",
+      "target-visible names, counts, statuses, sources, analysis windows, notes, medallions and action labels are not runtime facts",
+      "no class, specialization, talent, equipment, ranking, percentage, timestamp, recommendation or API state is inferred from the image"
+    ]
+  },
+  "visibleText": [
+    {
+      "text": "返回",
+      "region": "top_bar",
+      "role": "back_navigation_label",
+      "count": 1,
+      "confidence": 0.99,
+      "runtimeTruth": false,
+      "classification": "target_placeholder"
+    },
+    {
+      "text": "构筑情报",
+      "region": "top_bar",
+      "role": "page_title",
+      "count": 1,
+      "confidence": 0.99,
+      "runtimeTruth": false,
+      "classification": "target_placeholder"
+    },
+    {
+      "text": "构筑情报",
+      "region": "summary_card",
+      "role": "summary_title",
+      "count": 1,
+      "confidence": 0.99,
+      "runtimeTruth": false,
+      "classification": "target_placeholder"
+    },
+    {
+      "text": "汇总多源玩法构筑与证据，按时间窗口分析，",
+      "region": "summary_card",
+      "role": "summary_description_line",
+      "count": 1,
+      "confidence": 0.99,
+      "runtimeTruth": false,
+      "classification": "target_placeholder"
+    },
+    {
+      "text": "供你在模拟器中进一步验证与调整。",
+      "region": "summary_card",
+      "role": "summary_description_line",
+      "count": 1,
+      "confidence": 0.99,
+      "runtimeTruth": false,
+      "classification": "target_placeholder"
+    },
+    {
+      "text": "已分析构筑",
+      "region": "summary_card",
+      "role": "metric_label",
+      "count": 1,
+      "confidence": 0.99,
+      "runtimeTruth": false,
+      "classification": "target_placeholder"
+    },
+    {
+      "text": "0",
+      "region": "summary_card",
+      "role": "metric_value",
+      "count": 1,
+      "confidence": 0.99,
+      "runtimeTruth": false,
+      "classification": "target_placeholder"
+    },
+    {
+      "text": "上次分析",
+      "region": "summary_card",
+      "role": "metric_label",
+      "count": 1,
+      "confidence": 0.99,
+      "runtimeTruth": false,
+      "classification": "target_placeholder"
+    },
+    {
+      "text": "待补充",
+      "region": "summary_card",
+      "role": "metric_status_value",
+      "count": 1,
+      "confidence": 0.99,
+      "runtimeTruth": false,
+      "classification": "target_placeholder"
+    },
+    {
+      "text": "全部专精",
+      "region": "filter_sort_bar",
+      "role": "filter_label",
+      "count": 1,
+      "confidence": 0.99,
+      "runtimeTruth": false,
+      "classification": "target_placeholder"
+    },
+    {
+      "text": "最新分析",
+      "region": "filter_sort_bar",
+      "role": "sort_label",
+      "count": 1,
+      "confidence": 0.99,
+      "runtimeTruth": false,
+      "classification": "target_placeholder"
+    },
+    {
+      "text": "专精占位符 A",
+      "region": "build_card_a",
+      "role": "card_title",
+      "count": 1,
+      "confidence": 0.99,
+      "runtimeTruth": false,
+      "classification": "target_placeholder"
+    },
+    {
+      "text": "待补充",
+      "region": "build_card_a",
+      "role": "status_badge",
+      "count": 1,
+      "confidence": 0.99,
+      "runtimeTruth": false,
+      "classification": "target_placeholder"
+    },
+    {
+      "text": "查看构筑",
+      "region": "build_card_a",
+      "role": "primary_action_label",
+      "count": 1,
+      "confidence": 0.99,
+      "runtimeTruth": false,
+      "classification": "target_placeholder"
+    },
+    {
+      "text": "进入天赋模拟器",
+      "region": "build_card_a",
+      "role": "secondary_action_label",
+      "count": 1,
+      "confidence": 0.99,
+      "runtimeTruth": false,
+      "classification": "target_placeholder"
+    },
+    {
+      "text": "基于多源讨论与日志片段的构筑线索汇总，",
+      "region": "build_card_a",
+      "role": "card_description_line",
+      "count": 1,
+      "confidence": 0.99,
+      "runtimeTruth": false,
+      "classification": "target_placeholder"
+    },
+    {
+      "text": "包含天赋取舍、循环思路与场景适配要点。",
+      "region": "build_card_a",
+      "role": "card_description_line",
+      "count": 1,
+      "confidence": 0.99,
+      "runtimeTruth": false,
+      "classification": "target_placeholder"
+    },
+    {
+      "text": "来源参考",
+      "region": "build_card_a",
+      "role": "source_reference_label_and_value",
+      "count": 2,
+      "confidence": 0.99,
+      "runtimeTruth": false,
+      "classification": "target_placeholder"
+    },
+    {
+      "text": "分析窗口",
+      "region": "build_card_a",
+      "role": "analysis_window_label_and_value",
+      "count": 2,
+      "confidence": 0.99,
+      "runtimeTruth": false,
+      "classification": "target_placeholder"
+    },
+    {
+      "text": "来源备注",
+      "region": "build_card_a",
+      "role": "source_note_label",
+      "count": 1,
+      "confidence": 0.99,
+      "runtimeTruth": false,
+      "classification": "target_placeholder"
+    },
+    {
+      "text": "部分证据",
+      "region": "build_card_a",
+      "role": "source_note_value",
+      "count": 1,
+      "confidence": 0.99,
+      "runtimeTruth": false,
+      "classification": "target_placeholder"
+    },
+    {
+      "text": "专精占位符 B",
+      "region": "build_card_b",
+      "role": "card_title",
+      "count": 1,
+      "confidence": 0.99,
+      "runtimeTruth": false,
+      "classification": "target_placeholder"
+    },
+    {
+      "text": "待补充",
+      "region": "build_card_b",
+      "role": "status_badge",
+      "count": 1,
+      "confidence": 0.99,
+      "runtimeTruth": false,
+      "classification": "target_placeholder"
+    },
+    {
+      "text": "查看构筑",
+      "region": "build_card_b",
+      "role": "primary_action_label",
+      "count": 1,
+      "confidence": 0.99,
+      "runtimeTruth": false,
+      "classification": "target_placeholder"
+    },
+    {
+      "text": "进入天赋模拟器",
+      "region": "build_card_b",
+      "role": "secondary_action_label",
+      "count": 1,
+      "confidence": 0.99,
+      "runtimeTruth": false,
+      "classification": "target_placeholder"
+    },
+    {
+      "text": "围绕关键天赋节点与手法节奏的证据整理，",
+      "region": "build_card_b",
+      "role": "card_description_line",
+      "count": 1,
+      "confidence": 0.99,
+      "runtimeTruth": false,
+      "classification": "target_placeholder"
+    },
+    {
+      "text": "不同场景与组合仍需在模拟器中验证。",
+      "region": "build_card_b",
+      "role": "card_description_line",
+      "count": 1,
+      "confidence": 0.99,
+      "runtimeTruth": false,
+      "classification": "target_placeholder"
+    },
+    {
+      "text": "来源参考",
+      "region": "build_card_b",
+      "role": "source_reference_label_and_value",
+      "count": 2,
+      "confidence": 0.99,
+      "runtimeTruth": false,
+      "classification": "target_placeholder"
+    },
+    {
+      "text": "分析窗口",
+      "region": "build_card_b",
+      "role": "analysis_window_label_and_value",
+      "count": 2,
+      "confidence": 0.99,
+      "runtimeTruth": false,
+      "classification": "target_placeholder"
+    },
+    {
+      "text": "来源备注",
+      "region": "build_card_b",
+      "role": "source_note_label",
+      "count": 1,
+      "confidence": 0.99,
+      "runtimeTruth": false,
+      "classification": "target_placeholder"
+    },
+    {
+      "text": "部分证据",
+      "region": "build_card_b",
+      "role": "source_note_value",
+      "count": 1,
+      "confidence": 0.99,
+      "runtimeTruth": false,
+      "classification": "target_placeholder"
+    },
+    {
+      "text": "专精占位符 C",
+      "region": "build_card_c",
+      "role": "card_title",
+      "count": 1,
+      "confidence": 0.99,
+      "runtimeTruth": false,
+      "classification": "target_placeholder"
+    },
+    {
+      "text": "待补充",
+      "region": "build_card_c",
+      "role": "status_badge",
+      "count": 1,
+      "confidence": 0.99,
+      "runtimeTruth": false,
+      "classification": "target_placeholder"
+    },
+    {
+      "text": "查看构筑",
+      "region": "build_card_c",
+      "role": "primary_action_label",
+      "count": 1,
+      "confidence": 0.99,
+      "runtimeTruth": false,
+      "classification": "target_placeholder"
+    },
+    {
+      "text": "进入天赋模拟器",
+      "region": "build_card_c",
+      "role": "secondary_action_label",
+      "count": 1,
+      "confidence": 0.99,
+      "runtimeTruth": false,
+      "classification": "target_placeholder"
+    },
+    {
+      "text": "收集到的构筑思路与实战片段，包含天赋",
+      "region": "build_card_c",
+      "role": "card_description_line",
+      "count": 1,
+      "confidence": 0.99,
+      "runtimeTruth": false,
+      "classification": "target_placeholder"
+    },
+    {
+      "text": "搭配、属性倾向与应对思路的讨论。",
+      "region": "build_card_c",
+      "role": "card_description_line",
+      "count": 1,
+      "confidence": 0.99,
+      "runtimeTruth": false,
+      "classification": "target_placeholder"
+    },
+    {
+      "text": "来源参考",
+      "region": "build_card_c",
+      "role": "source_reference_label_and_value",
+      "count": 2,
+      "confidence": 0.99,
+      "runtimeTruth": false,
+      "classification": "target_placeholder"
+    },
+    {
+      "text": "分析窗口",
+      "region": "build_card_c",
+      "role": "analysis_window_label_and_value",
+      "count": 2,
+      "confidence": 0.99,
+      "runtimeTruth": false,
+      "classification": "target_placeholder"
+    },
+    {
+      "text": "来源备注",
+      "region": "build_card_c",
+      "role": "source_note_label",
+      "count": 1,
+      "confidence": 0.99,
+      "runtimeTruth": false,
+      "classification": "target_placeholder"
+    },
+    {
+      "text": "部分证据",
+      "region": "build_card_c",
+      "role": "source_note_value",
+      "count": 1,
+      "confidence": 0.99,
+      "runtimeTruth": false,
+      "classification": "target_placeholder"
+    },
+    {
+      "text": "构筑情报仅为证据信息聚合，非结论或推荐。请在天赋模拟器中自行验证。",
+      "region": "reference_disclaimer",
+      "role": "reference_disclaimer",
+      "count": 1,
+      "confidence": 0.99,
+      "runtimeTruth": false,
+      "classification": "target_placeholder"
+    }
+  ],
+  "elementCounts": {
+    "topBarBackButtons": 1,
+    "pageTitles": 1,
+    "summaryCards": 1,
+    "summaryMedallions": 1,
+    "summaryDescriptionLines": 2,
+    "summaryMetricGroups": 2,
+    "summaryMetricValues": 2,
+    "summaryMetricHorizontalDividers": 1,
+    "summaryMetricVerticalDividers": 1,
+    "filterSortBars": 1,
+    "filterControls": 1,
+    "sortControls": 1,
+    "buildCards": 3,
+    "buildCardFrames": 3,
+    "buildSpecMedallions": 3,
+    "buildStatusBadges": 3,
+    "primaryBuildButtons": 3,
+    "secondarySimulatorLinks": 3,
+    "buildDescriptionLines": 6,
+    "buildMetadataColumns": 9,
+    "buildMetadataIcons": 9,
+    "buildMetadataTopDividers": 3,
+    "buildMetadataColumnDividers": 6,
+    "sourceReferenceLabelValuePairs": 3,
+    "analysisWindowLabelValuePairs": 3,
+    "sourceNoteLabelValuePairs": 3,
+    "rightChevronAffordances": 3,
+    "referenceDisclaimerBars": 1,
+    "referenceInfoIcons": 1,
+    "productTabBars": 0,
+    "drawnSystemStatusBars": 0,
+    "drawnSystemCapsules": 0
+  },
+  "hierarchy": [
+    {
+      "region": "top_bar",
+      "structure": [
+        "left_back_arrow",
+        "left_back_label",
+        "center_page_title"
+      ]
+    },
+    {
+      "region": "summary_card",
+      "structure": [
+        "ornate_framed_container",
+        "left_circular_scroll_medallion_placeholder",
+        "right_summary_title",
+        "two_line_summary_description",
+        "horizontal_metric_divider",
+        "vertical_metric_divider",
+        "metric_group_analyzed_builds",
+        "metric_group_last_analysis"
+      ]
+    },
+    {
+      "region": "filter_sort_bar",
+      "structure": [
+        "framed_control_band",
+        "left_funnel_icon",
+        "left_filter_label",
+        "right_sort_label",
+        "right_down_chevron"
+      ]
+    },
+    {
+      "region": "build_card_a",
+      "structure": [
+        "framed_card_container",
+        "blue_circular_medallion_placeholder",
+        "card_title",
+        "pending_status_badge",
+        "two_line_description",
+        "right_primary_action_button",
+        "right_secondary_simulator_link",
+        "metadata_top_horizontal_divider",
+        "bottom_three_column_metadata_grid"
+      ]
+    },
+    {
+      "region": "build_card_b",
+      "structure": [
+        "framed_card_container",
+        "purple_circular_medallion_placeholder",
+        "card_title",
+        "pending_status_badge",
+        "two_line_description",
+        "right_primary_action_button",
+        "right_secondary_simulator_link",
+        "metadata_top_horizontal_divider",
+        "bottom_three_column_metadata_grid"
+      ]
+    },
+    {
+      "region": "build_card_c",
+      "structure": [
+        "framed_card_container",
+        "green_circular_medallion_placeholder",
+        "card_title",
+        "pending_status_badge",
+        "two_line_description",
+        "right_primary_action_button",
+        "right_secondary_simulator_link",
+        "metadata_top_horizontal_divider",
+        "bottom_three_column_metadata_grid"
+      ]
+    },
+    {
+      "region": "reference_disclaimer",
+      "structure": [
+        "framed_notice_bar",
+        "left_information_icon",
+        "single_disclaimer_line"
+      ]
+    }
+  ],
+  "alignments": [
+    "page title is centered on the canvas horizontal axis while the back group anchors left",
+    "summary card uses a left medallion column and a right title/copy/metrics column",
+    "filter/sort bar balances a left filter group against a right sort group",
+    "all three build cards share fixed left medallion, middle content, right action and bottom metadata columns",
+    "primary action buttons align to a common right rail across all build cards",
+    "bottom metadata grids use three visually equal columns separated by vertical dividers",
+    "main cards and disclaimer share near-common left and right outer bounds"
+  ],
+  "spacingRhythm": [
+    "major framed regions are separated by approximately 22-32 px vertical gaps after the summary card",
+    "build cards repeat a title, badge, body-copy, divider and metadata rhythm",
+    "metadata columns use a two-line label/value stack beneath small icons",
+    "right action areas pair a large gold button with a smaller simulator link below",
+    "dark stone surfaces, bronze clipped frames and gold typography repeat across the page"
+  ],
+  "assetSlots": [
+    {
+      "id": "page_background_material",
+      "region": "top_bar",
+      "role": "full_page_surface",
+      "shapeOrAspect": "full-canvas near-black textured surface",
+      "contentSemantics": "non-factual dark material background",
+      "count": 1,
+      "fallbackExpectation": "retain a dark high-contrast surface behind all framed regions",
+      "confidence": 0.96,
+      "runtimeTruth": false,
+      "classification": "target_visual_placeholder"
+    },
+    {
+      "id": "back_arrow_icon",
+      "region": "top_bar",
+      "role": "back_navigation_marker",
+      "shapeOrAspect": "large warm-gold left chevron",
+      "contentSemantics": "visual back affordance only",
+      "count": 1,
+      "fallbackExpectation": "retain a recognizable left-arrow navigation marker",
+      "confidence": 0.99,
+      "runtimeTruth": false,
+      "classification": "target_visual_placeholder"
+    },
+    {
+      "id": "summary_scroll_medallion",
+      "region": "summary_card",
+      "role": "summary_illustration_placeholder",
+      "shapeOrAspect": "large circular bronze medallion with compass-like points and scroll-like center mark",
+      "contentSemantics": "generic build-intel emblem; not a factual source or item identity",
+      "count": 1,
+      "fallbackExpectation": "retain a large ornate circular summary emblem",
+      "confidence": 0.93,
+      "runtimeTruth": false,
+      "classification": "target_visual_placeholder"
+    },
+    {
+      "id": "shared_panel_frame_material",
+      "region": "summary_card",
+      "role": "summary_panel_frame",
+      "shapeOrAspect": "large clipped bronze metal frame with dark textured interior",
+      "contentSemantics": "non-factual decorative frame system",
+      "count": 1,
+      "fallbackExpectation": "preserve clipped corners, layered rails and dark inset surface for the summary card",
+      "confidence": 0.97,
+      "runtimeTruth": false,
+      "classification": "target_visual_placeholder"
+    },
+    {
+      "id": "filter_sort_bar_frame",
+      "region": "filter_sort_bar",
+      "role": "control_bar_frame",
+      "shapeOrAspect": "wide clipped dark framed control band with warm-metal edge accents",
+      "contentSemantics": "non-factual decorative control frame",
+      "count": 1,
+      "fallbackExpectation": "preserve the single dark framed filter/sort band",
+      "confidence": 0.97,
+      "runtimeTruth": false,
+      "classification": "target_visual_placeholder"
+    },
+    {
+      "id": "build_card_a_frame",
+      "region": "build_card_a",
+      "role": "build_card_frame",
+      "shapeOrAspect": "large clipped bronze metal frame with dark textured interior",
+      "contentSemantics": "non-factual decorative card frame",
+      "count": 1,
+      "fallbackExpectation": "preserve the first build card's framed dark container",
+      "confidence": 0.97,
+      "runtimeTruth": false,
+      "classification": "target_visual_placeholder"
+    },
+    {
+      "id": "build_card_b_frame",
+      "region": "build_card_b",
+      "role": "build_card_frame",
+      "shapeOrAspect": "large clipped bronze metal frame with dark textured interior",
+      "contentSemantics": "non-factual decorative card frame",
+      "count": 1,
+      "fallbackExpectation": "preserve the second build card's framed dark container",
+      "confidence": 0.97,
+      "runtimeTruth": false,
+      "classification": "target_visual_placeholder"
+    },
+    {
+      "id": "build_card_c_frame",
+      "region": "build_card_c",
+      "role": "build_card_frame",
+      "shapeOrAspect": "large clipped bronze metal frame with dark textured interior",
+      "contentSemantics": "non-factual decorative card frame",
+      "count": 1,
+      "fallbackExpectation": "preserve the third build card's framed dark container",
+      "confidence": 0.97,
+      "runtimeTruth": false,
+      "classification": "target_visual_placeholder"
+    },
+    {
+      "id": "reference_disclaimer_frame",
+      "region": "reference_disclaimer",
+      "role": "notice_bar_frame",
+      "shapeOrAspect": "wide rounded dark notice frame with subtle border",
+      "contentSemantics": "non-factual decorative notice frame",
+      "count": 1,
+      "fallbackExpectation": "preserve the bottom framed disclaimer bar",
+      "confidence": 0.97,
+      "runtimeTruth": false,
+      "classification": "target_visual_placeholder"
+    },
+    {
+      "id": "summary_metric_horizontal_divider",
+      "region": "summary_card",
+      "role": "metric_section_separator",
+      "shapeOrAspect": "thin horizontal divider above the two metric groups",
+      "contentSemantics": "visual grouping separator",
+      "count": 1,
+      "fallbackExpectation": "retain a clear horizontal separation between copy and metrics",
+      "confidence": 0.98,
+      "runtimeTruth": false,
+      "classification": "target_visual_placeholder"
+    },
+    {
+      "id": "summary_metric_vertical_divider",
+      "region": "summary_card",
+      "role": "metric_separator",
+      "shapeOrAspect": "thin vertical warm-metal divider between two metric groups",
+      "contentSemantics": "visual grouping separator",
+      "count": 1,
+      "fallbackExpectation": "retain a clear vertical separation between the two metrics",
+      "confidence": 0.98,
+      "runtimeTruth": false,
+      "classification": "target_visual_placeholder"
+    },
+    {
+      "id": "filter_funnel_icon",
+      "region": "filter_sort_bar",
+      "role": "filter_control_marker",
+      "shapeOrAspect": "small warm-gold funnel glyph",
+      "contentSemantics": "filter affordance only",
+      "count": 1,
+      "fallbackExpectation": "retain a recognizable filter/funnel marker",
+      "confidence": 0.99,
+      "runtimeTruth": false,
+      "classification": "target_visual_placeholder"
+    },
+    {
+      "id": "sort_down_chevron",
+      "region": "filter_sort_bar",
+      "role": "sort_menu_marker",
+      "shapeOrAspect": "small warm-gold downward chevron",
+      "contentSemantics": "dropdown affordance only",
+      "count": 1,
+      "fallbackExpectation": "retain a small down-chevron near the sort label",
+      "confidence": 0.99,
+      "runtimeTruth": false,
+      "classification": "target_visual_placeholder"
+    },
+    {
+      "id": "build_card_a_medallion",
+      "region": "build_card_a",
+      "role": "build_card_leading_visual_placeholder",
+      "shapeOrAspect": "large circular blue medallion with shield-like internal mark",
+      "contentSemantics": "generic specialization/build visual; not a factual class or spec identity",
+      "count": 1,
+      "fallbackExpectation": "retain one blue circular leading medallion for the first card",
+      "confidence": 0.94,
+      "runtimeTruth": false,
+      "classification": "target_visual_placeholder"
+    },
+    {
+      "id": "build_card_b_medallion",
+      "region": "build_card_b",
+      "role": "build_card_leading_visual_placeholder",
+      "shapeOrAspect": "large circular purple medallion with angular internal mark",
+      "contentSemantics": "generic specialization/build visual; not a factual class or spec identity",
+      "count": 1,
+      "fallbackExpectation": "retain one purple circular leading medallion for the second card",
+      "confidence": 0.94,
+      "runtimeTruth": false,
+      "classification": "target_visual_placeholder"
+    },
+    {
+      "id": "build_card_c_medallion",
+      "region": "build_card_c",
+      "role": "build_card_leading_visual_placeholder",
+      "shapeOrAspect": "large circular green medallion with leaf-like internal mark",
+      "contentSemantics": "generic specialization/build visual; not a factual class or spec identity",
+      "count": 1,
+      "fallbackExpectation": "retain one green circular leading medallion for the third card",
+      "confidence": 0.94,
+      "runtimeTruth": false,
+      "classification": "target_visual_placeholder"
+    },
+    {
+      "id": "pending_status_badge_markers",
+      "region": "build_card_a",
+      "role": "small_status_badge_visuals",
+      "shapeOrAspect": "compact rounded dark badge with small muted circular dot",
+      "contentSemantics": "placeholder status badge, not a verified runtime state",
+      "count": 1,
+      "fallbackExpectation": "retain the first card's small status badge beside the title",
+      "confidence": 0.98,
+      "runtimeTruth": false,
+      "classification": "target_visual_placeholder"
+    },
+    {
+      "id": "build_card_b_pending_status_badge_marker",
+      "region": "build_card_b",
+      "role": "small_status_badge_visuals",
+      "shapeOrAspect": "compact rounded dark badge with small muted circular dot",
+      "contentSemantics": "placeholder status badge, not a verified runtime state",
+      "count": 1,
+      "fallbackExpectation": "retain the second card's small status badge beside the title",
+      "confidence": 0.98,
+      "runtimeTruth": false,
+      "classification": "target_visual_placeholder"
+    },
+    {
+      "id": "build_card_c_pending_status_badge_marker",
+      "region": "build_card_c",
+      "role": "small_status_badge_visuals",
+      "shapeOrAspect": "compact rounded dark badge with small muted circular dot",
+      "contentSemantics": "placeholder status badge, not a verified runtime state",
+      "count": 1,
+      "fallbackExpectation": "retain the third card's small status badge beside the title",
+      "confidence": 0.98,
+      "runtimeTruth": false,
+      "classification": "target_visual_placeholder"
+    },
+    {
+      "id": "build_card_a_primary_action_button_frame",
+      "region": "build_card_a",
+      "role": "primary_action_button_skin",
+      "shapeOrAspect": "gold beveled rectangular button with clipped ornamental frame",
+      "contentSemantics": "primary action styling only",
+      "count": 1,
+      "fallbackExpectation": "retain a strong gold primary button on the first build card",
+      "confidence": 0.98,
+      "runtimeTruth": false,
+      "classification": "target_visual_placeholder"
+    },
+    {
+      "id": "build_card_b_primary_action_button_frame",
+      "region": "build_card_b",
+      "role": "primary_action_button_skin",
+      "shapeOrAspect": "gold beveled rectangular button with clipped ornamental frame",
+      "contentSemantics": "primary action styling only",
+      "count": 1,
+      "fallbackExpectation": "retain a strong gold primary button on the second build card",
+      "confidence": 0.98,
+      "runtimeTruth": false,
+      "classification": "target_visual_placeholder"
+    },
+    {
+      "id": "build_card_c_primary_action_button_frame",
+      "region": "build_card_c",
+      "role": "primary_action_button_skin",
+      "shapeOrAspect": "gold beveled rectangular button with clipped ornamental frame",
+      "contentSemantics": "primary action styling only",
+      "count": 1,
+      "fallbackExpectation": "retain a strong gold primary button on the third build card",
+      "confidence": 0.98,
+      "runtimeTruth": false,
+      "classification": "target_visual_placeholder"
+    },
+    {
+      "id": "build_card_a_secondary_action_chevron",
+      "region": "build_card_a",
+      "role": "secondary_link_affordance",
+      "shapeOrAspect": "small warm-gold right chevron beside simulator link text",
+      "contentSemantics": "forward navigation affordance only",
+      "count": 1,
+      "fallbackExpectation": "retain one right chevron for the first simulator link",
+      "confidence": 0.99,
+      "runtimeTruth": false,
+      "classification": "target_visual_placeholder"
+    },
+    {
+      "id": "build_card_b_secondary_action_chevron",
+      "region": "build_card_b",
+      "role": "secondary_link_affordance",
+      "shapeOrAspect": "small warm-gold right chevron beside simulator link text",
+      "contentSemantics": "forward navigation affordance only",
+      "count": 1,
+      "fallbackExpectation": "retain one right chevron for the second simulator link",
+      "confidence": 0.99,
+      "runtimeTruth": false,
+      "classification": "target_visual_placeholder"
+    },
+    {
+      "id": "build_card_c_secondary_action_chevron",
+      "region": "build_card_c",
+      "role": "secondary_link_affordance",
+      "shapeOrAspect": "small warm-gold right chevron beside simulator link text",
+      "contentSemantics": "forward navigation affordance only",
+      "count": 1,
+      "fallbackExpectation": "retain one right chevron for the third simulator link",
+      "confidence": 0.99,
+      "runtimeTruth": false,
+      "classification": "target_visual_placeholder"
+    },
+    {
+      "id": "build_card_a_source_reference_icon",
+      "region": "build_card_a",
+      "role": "metadata_source_marker",
+      "shapeOrAspect": "small circular source/reference glyph in the first metadata column",
+      "contentSemantics": "generic source marker, not a factual source identity",
+      "count": 1,
+      "fallbackExpectation": "retain one small source/reference marker on the first card",
+      "confidence": 0.9,
+      "runtimeTruth": false,
+      "classification": "target_visual_placeholder"
+    },
+    {
+      "id": "build_card_b_source_reference_icon",
+      "region": "build_card_b",
+      "role": "metadata_source_marker",
+      "shapeOrAspect": "small circular source/reference glyph in the first metadata column",
+      "contentSemantics": "generic source marker, not a factual source identity",
+      "count": 1,
+      "fallbackExpectation": "retain one small source/reference marker on the second card",
+      "confidence": 0.9,
+      "runtimeTruth": false,
+      "classification": "target_visual_placeholder"
+    },
+    {
+      "id": "build_card_c_source_reference_icon",
+      "region": "build_card_c",
+      "role": "metadata_source_marker",
+      "shapeOrAspect": "small circular source/reference glyph in the first metadata column",
+      "contentSemantics": "generic source marker, not a factual source identity",
+      "count": 1,
+      "fallbackExpectation": "retain one small source/reference marker on the third card",
+      "confidence": 0.9,
+      "runtimeTruth": false,
+      "classification": "target_visual_placeholder"
+    },
+    {
+      "id": "build_card_a_analysis_window_icon",
+      "region": "build_card_a",
+      "role": "metadata_window_marker",
+      "shapeOrAspect": "small calendar-like glyph in the second metadata column",
+      "contentSemantics": "generic analysis-window marker, not a factual timestamp",
+      "count": 1,
+      "fallbackExpectation": "retain one small calendar/window marker on the first card",
+      "confidence": 0.96,
+      "runtimeTruth": false,
+      "classification": "target_visual_placeholder"
+    },
+    {
+      "id": "build_card_b_analysis_window_icon",
+      "region": "build_card_b",
+      "role": "metadata_window_marker",
+      "shapeOrAspect": "small calendar-like glyph in the second metadata column",
+      "contentSemantics": "generic analysis-window marker, not a factual timestamp",
+      "count": 1,
+      "fallbackExpectation": "retain one small calendar/window marker on the second card",
+      "confidence": 0.96,
+      "runtimeTruth": false,
+      "classification": "target_visual_placeholder"
+    },
+    {
+      "id": "build_card_c_analysis_window_icon",
+      "region": "build_card_c",
+      "role": "metadata_window_marker",
+      "shapeOrAspect": "small calendar-like glyph in the second metadata column",
+      "contentSemantics": "generic analysis-window marker, not a factual timestamp",
+      "count": 1,
+      "fallbackExpectation": "retain one small calendar/window marker on the third card",
+      "confidence": 0.96,
+      "runtimeTruth": false,
+      "classification": "target_visual_placeholder"
+    },
+    {
+      "id": "build_card_a_source_note_icon",
+      "region": "build_card_a",
+      "role": "metadata_note_marker",
+      "shapeOrAspect": "small document or note-like glyph in the third metadata column",
+      "contentSemantics": "generic note/evidence marker, not a factual evidence state",
+      "count": 1,
+      "fallbackExpectation": "retain one small note/evidence marker on the first card",
+      "confidence": 0.96,
+      "runtimeTruth": false,
+      "classification": "target_visual_placeholder"
+    },
+    {
+      "id": "build_card_b_source_note_icon",
+      "region": "build_card_b",
+      "role": "metadata_note_marker",
+      "shapeOrAspect": "small document or note-like glyph in the third metadata column",
+      "contentSemantics": "generic note/evidence marker, not a factual evidence state",
+      "count": 1,
+      "fallbackExpectation": "retain one small note/evidence marker on the second card",
+      "confidence": 0.96,
+      "runtimeTruth": false,
+      "classification": "target_visual_placeholder"
+    },
+    {
+      "id": "build_card_c_source_note_icon",
+      "region": "build_card_c",
+      "role": "metadata_note_marker",
+      "shapeOrAspect": "small document or note-like glyph in the third metadata column",
+      "contentSemantics": "generic note/evidence marker, not a factual evidence state",
+      "count": 1,
+      "fallbackExpectation": "retain one small note/evidence marker on the third card",
+      "confidence": 0.96,
+      "runtimeTruth": false,
+      "classification": "target_visual_placeholder"
+    },
+    {
+      "id": "build_card_a_metadata_top_divider",
+      "region": "build_card_a",
+      "role": "metadata_grid_top_separator",
+      "shapeOrAspect": "thin horizontal divider line above the metadata columns",
+      "contentSemantics": "visual grouping separator",
+      "count": 1,
+      "fallbackExpectation": "retain the first card's horizontal divider above the metadata grid",
+      "confidence": 0.98,
+      "runtimeTruth": false,
+      "classification": "target_visual_placeholder"
+    },
+    {
+      "id": "build_card_b_metadata_top_divider",
+      "region": "build_card_b",
+      "role": "metadata_grid_top_separator",
+      "shapeOrAspect": "thin horizontal divider line above the metadata columns",
+      "contentSemantics": "visual grouping separator",
+      "count": 1,
+      "fallbackExpectation": "retain the second card's horizontal divider above the metadata grid",
+      "confidence": 0.98,
+      "runtimeTruth": false,
+      "classification": "target_visual_placeholder"
+    },
+    {
+      "id": "build_card_c_metadata_top_divider",
+      "region": "build_card_c",
+      "role": "metadata_grid_top_separator",
+      "shapeOrAspect": "thin horizontal divider line above the metadata columns",
+      "contentSemantics": "visual grouping separator",
+      "count": 1,
+      "fallbackExpectation": "retain the third card's horizontal divider above the metadata grid",
+      "confidence": 0.98,
+      "runtimeTruth": false,
+      "classification": "target_visual_placeholder"
+    },
+    {
+      "id": "build_card_a_metadata_column_dividers",
+      "region": "build_card_a",
+      "role": "metadata_grid_separators",
+      "shapeOrAspect": "thin vertical divider lines between metadata columns",
+      "contentSemantics": "visual grouping separators",
+      "count": 2,
+      "fallbackExpectation": "retain two vertical separators in the first card metadata grid",
+      "confidence": 0.98,
+      "runtimeTruth": false,
+      "classification": "target_visual_placeholder"
+    },
+    {
+      "id": "build_card_b_metadata_column_dividers",
+      "region": "build_card_b",
+      "role": "metadata_grid_separators",
+      "shapeOrAspect": "thin vertical divider lines between metadata columns",
+      "contentSemantics": "visual grouping separators",
+      "count": 2,
+      "fallbackExpectation": "retain two vertical separators in the second card metadata grid",
+      "confidence": 0.98,
+      "runtimeTruth": false,
+      "classification": "target_visual_placeholder"
+    },
+    {
+      "id": "build_card_c_metadata_column_dividers",
+      "region": "build_card_c",
+      "role": "metadata_grid_separators",
+      "shapeOrAspect": "thin vertical divider lines between metadata columns",
+      "contentSemantics": "visual grouping separators",
+      "count": 2,
+      "fallbackExpectation": "retain two vertical separators in the third card metadata grid",
+      "confidence": 0.98,
+      "runtimeTruth": false,
+      "classification": "target_visual_placeholder"
+    },
+    {
+      "id": "reference_info_icon",
+      "region": "reference_disclaimer",
+      "role": "disclaimer_marker",
+      "shapeOrAspect": "small circular information glyph",
+      "contentSemantics": "reference/caution marker only",
+      "count": 1,
+      "fallbackExpectation": "retain one small information marker before the disclaimer",
+      "confidence": 0.99,
+      "runtimeTruth": false,
+      "classification": "target_visual_placeholder"
+    }
+  ],
+  "interactionsSuggestedByTarget": [
+    "the left arrow and '返回' label suggest back navigation",
+    "the funnel icon and '全部专精' label suggest opening or changing a specialization filter",
+    "the '最新分析' label and down chevron suggest a sort menu",
+    "each '查看构筑' gold button suggests opening a build detail or build view",
+    "each '进入天赋模拟器' row and right chevron suggest navigation to a talent simulator",
+    "suggested interactions are visual affordances only; target pixels do not prove runtime behavior"
+  ],
+  "unresolved": [
+    "exact font families, authored weights, line heights, letter spacing and text-shadow parameters cannot be recovered from the static raster",
+    "micro-details inside the summary medallion, three card medallions and small metadata glyphs are not pixel-certain",
+    "the static target does not reveal pressed states, disabled states, menus, hit boxes, scroll behavior, loading behavior or route transitions",
+    "the three visible build cards do not prove list length, actual order, real specialization identities or API content",
+    "all visible names, numbers, statuses, sources, analysis windows, notes and action labels are target placeholders and are not treated as runtime truth",
+    "no rankings, percentages, timestamps, recommendations, class/spec/talent/equipment identities or simulator facts are inferred from the target",
+    "thin frame highlights, corner hardware, inner shadows and soft glows may extend 1-3 px beyond measured region bounds"
+  ]
+}

@@ -1,0 +1,3258 @@
+{
+  "schemaVersion": 2,
+  "status": "wechat_verified_production",
+  "route": "news_home",
+  "target": {
+    "path": "artifacts/ui-visual-targets/current/news-home.png",
+    "sha256": "9d0c67401c6c43e412f099bc032ade9e0add87478ccd80881ee73057e866e7ac"
+  },
+  "assetCount": 33,
+  "masterCount": 2,
+  "masters": [
+    {
+      "path": "masters/news-hero-fallback-master-v3.png",
+      "sourceGeneration": "/Users/heyesheng/.codex/generated_images/019f5dcf-4be4-7382-a2a9-6cd18ed7a6ed/exec-4b057a14-bf97-4049-a6b0-e371ac528236.png",
+      "dimensions": {
+        "width": 832,
+        "height": 400
+      },
+      "sha256": "dc25206ab475a14a130b50f878abb510f0a50e644072c15e60464af6926ac203",
+      "bytes": 386457
+    },
+    {
+      "path": "masters/news-utility-glyphs-master.png",
+      "sourceGeneration": "/Users/heyesheng/.codex/generated_images/019f5cf0-9150-7e20-ade3-4c5ef6259c52/exec-34910f1e-dd2e-4602-9e27-9206f39aaf86.png",
+      "dimensions": {
+        "width": 1983,
+        "height": 793
+      },
+      "sha256": "2269bc46cf14ab02b6d39b665c2441dd0ca315a8d96812cac03871cdad5b5e0b",
+      "bytes": 1448760
+    }
+  ],
+  "assets": [
+    {
+      "assetId": "news-frame.panel",
+      "slotId": "news.frame.family",
+      "variant": "panel",
+      "path1x": "runtime/1x/frames/news-frame.panel.png",
+      "path2x": "runtime/2x/frames/news-frame.panel.png",
+      "dimensions": {
+        "1x": {
+          "width": 372,
+          "height": 121
+        },
+        "2x": {
+          "width": 744,
+          "height": 242
+        }
+      },
+      "hash": {
+        "1x": "3b11d945581cf0ae1ce449b9cdb2cc3c226bb54f469b271e7c0070fc5f80fc1c",
+        "2x": "2278a12ab9e9b2269d144a804b60c013dfe5026797209d33576c7e4f37d6b599"
+      },
+      "bytes": {
+        "1x": 21963,
+        "2x": 252538
+      },
+      "sourceMaster": null,
+      "sourceGeneration": null,
+      "sourceTarget": {
+        "path": "artifacts/ui-visual-targets/current/news-home.png",
+        "sha256": "9d0c67401c6c43e412f099bc032ade9e0add87478ccd80881ee73057e866e7ac",
+        "normalizedDimensions": {
+          "width": 780,
+          "height": 1552
+        },
+        "region": "daily_brief",
+        "regionRect": [
+          0,
+          86,
+          780,
+          242
+        ],
+        "cropRect": [
+          18,
+          0,
+          744,
+          242
+        ],
+        "keepRects": [
+          [
+            18,
+            0,
+            744,
+            10
+          ],
+          [
+            18,
+            229,
+            744,
+            13
+          ],
+          [
+            18,
+            8,
+            23,
+            222
+          ],
+          [
+            747,
+            8,
+            15,
+            222
+          ],
+          [
+            201,
+            5,
+            4,
+            151
+          ],
+          [
+            203,
+            154,
+            547,
+            4
+          ],
+          [
+            18,
+            0,
+            38,
+            28
+          ],
+          [
+            724,
+            0,
+            38,
+            28
+          ],
+          [
+            18,
+            214,
+            38,
+            28
+          ],
+          [
+            724,
+            214,
+            38,
+            28
+          ],
+          [
+            48,
+            169,
+            161,
+            8
+          ],
+          [
+            48,
+            217,
+            161,
+            8
+          ],
+          [
+            48,
+            177,
+            8,
+            40
+          ],
+          [
+            201,
+            177,
+            8,
+            40
+          ],
+          [
+            228,
+            169,
+            161,
+            8
+          ],
+          [
+            228,
+            217,
+            161,
+            8
+          ],
+          [
+            228,
+            177,
+            8,
+            40
+          ],
+          [
+            381,
+            177,
+            8,
+            40
+          ],
+          [
+            407,
+            169,
+            162,
+            8
+          ],
+          [
+            407,
+            217,
+            162,
+            8
+          ],
+          [
+            407,
+            177,
+            8,
+            40
+          ],
+          [
+            561,
+            177,
+            8,
+            40
+          ],
+          [
+            587,
+            169,
+            159,
+            8
+          ],
+          [
+            587,
+            217,
+            159,
+            8
+          ],
+          [
+            587,
+            177,
+            8,
+            40
+          ],
+          [
+            738,
+            177,
+            8,
+            40
+          ]
+        ]
+      },
+      "crop": {
+        "x": 18,
+        "y": 0,
+        "width": 744,
+        "height": 242,
+        "normalizedRegion": "daily_brief"
+      },
+      "opticalContentBox2x": null,
+      "transparentPadding": {
+        "1x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "2x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "thresholdAlpha": 8
+      },
+      "owner": "Frame",
+      "sourceClass": "canonical_target_derivative",
+      "reviewStatus": "wechat_verified_production",
+      "processing": {
+        "kind": "canonical_target_frame_overlay",
+        "keepRectCount": 26
+      }
+    },
+    {
+      "assetId": "news-frame.media",
+      "slotId": "news.frame.family",
+      "variant": "media",
+      "path1x": "runtime/1x/frames/news-frame.media.png",
+      "path2x": "runtime/2x/frames/news-frame.media.png",
+      "dimensions": {
+        "1x": {
+          "width": 372,
+          "height": 186
+        },
+        "2x": {
+          "width": 744,
+          "height": 372
+        }
+      },
+      "hash": {
+        "1x": "e6dea0c13f55365a53f0a30197021cc27eb87878a2bb2e1ad583ebd37a2e5e3f",
+        "2x": "60e2aa9bcfc4c67ad4f7e9d682cee173289fd6619ac3c7296e6e69379d048438"
+      },
+      "bytes": {
+        "1x": 15348,
+        "2x": 414703
+      },
+      "sourceMaster": null,
+      "sourceGeneration": null,
+      "sourceTarget": {
+        "path": "artifacts/ui-visual-targets/current/news-home.png",
+        "sha256": "9d0c67401c6c43e412f099bc032ade9e0add87478ccd80881ee73057e866e7ac",
+        "normalizedDimensions": {
+          "width": 780,
+          "height": 1552
+        },
+        "region": "featured_carousel",
+        "regionRect": [
+          0,
+          340,
+          780,
+          372
+        ],
+        "cropRect": [
+          18,
+          0,
+          744,
+          372
+        ],
+        "keepRects": [
+          [
+            18,
+            0,
+            744,
+            12
+          ],
+          [
+            18,
+            360,
+            744,
+            12
+          ],
+          [
+            18,
+            12,
+            12,
+            348
+          ],
+          [
+            750,
+            12,
+            12,
+            348
+          ],
+          [
+            18,
+            0,
+            34,
+            28
+          ],
+          [
+            728,
+            0,
+            34,
+            28
+          ],
+          [
+            18,
+            344,
+            34,
+            28
+          ],
+          [
+            728,
+            344,
+            34,
+            28
+          ]
+        ]
+      },
+      "crop": {
+        "x": 18,
+        "y": 0,
+        "width": 744,
+        "height": 372,
+        "normalizedRegion": "featured_carousel"
+      },
+      "opticalContentBox2x": null,
+      "transparentPadding": {
+        "1x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "2x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "thresholdAlpha": 8
+      },
+      "owner": "Frame",
+      "sourceClass": "canonical_target_derivative",
+      "reviewStatus": "wechat_verified_production",
+      "processing": {
+        "kind": "canonical_target_frame_overlay",
+        "keepRectCount": 8
+      }
+    },
+    {
+      "assetId": "news-frame.tile",
+      "slotId": "news.frame.family",
+      "variant": "tile",
+      "path1x": "runtime/1x/frames/news-frame.tile.png",
+      "path2x": "runtime/2x/frames/news-frame.tile.png",
+      "dimensions": {
+        "1x": {
+          "width": 374,
+          "height": 73
+        },
+        "2x": {
+          "width": 748,
+          "height": 146
+        }
+      },
+      "hash": {
+        "1x": "a1417fa1b8e5725db64ed0044f4fe2ae1613ed28ef9807789da86c428c81d952",
+        "2x": "8f08cad3c1e2dc8305fdf276a1867e1f3edc41bd1528871993da66a726fc6558"
+      },
+      "bytes": {
+        "1x": 18495,
+        "2x": 166564
+      },
+      "sourceMaster": null,
+      "sourceGeneration": null,
+      "sourceTarget": {
+        "path": "artifacts/ui-visual-targets/current/news-home.png",
+        "sha256": "9d0c67401c6c43e412f099bc032ade9e0add87478ccd80881ee73057e866e7ac",
+        "normalizedDimensions": {
+          "width": 780,
+          "height": 1552
+        },
+        "region": "channel_dock",
+        "regionRect": [
+          0,
+          724,
+          780,
+          146
+        ],
+        "cropRect": [
+          16,
+          0,
+          748,
+          146
+        ],
+        "keepRects": [
+          [
+            16,
+            0,
+            748,
+            18
+          ],
+          [
+            16,
+            130,
+            748,
+            16
+          ],
+          [
+            16,
+            18,
+            12,
+            112
+          ],
+          [
+            752,
+            18,
+            12,
+            112
+          ],
+          [
+            20,
+            18,
+            6,
+            112
+          ],
+          [
+            136,
+            18,
+            12,
+            112
+          ],
+          [
+            259,
+            18,
+            12,
+            112
+          ],
+          [
+            382,
+            18,
+            12,
+            112
+          ],
+          [
+            505,
+            18,
+            12,
+            112
+          ],
+          [
+            628,
+            18,
+            12,
+            112
+          ],
+          [
+            752,
+            18,
+            12,
+            112
+          ]
+        ]
+      },
+      "crop": {
+        "x": 16,
+        "y": 0,
+        "width": 748,
+        "height": 146,
+        "normalizedRegion": "channel_dock"
+      },
+      "opticalContentBox2x": null,
+      "transparentPadding": {
+        "1x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "2x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "thresholdAlpha": 8
+      },
+      "owner": "ChannelDock",
+      "sourceClass": "canonical_target_derivative",
+      "reviewStatus": "wechat_verified_production",
+      "processing": {
+        "kind": "canonical_target_frame_overlay",
+        "keepRectCount": 11
+      }
+    },
+    {
+      "assetId": "news-frame.feed",
+      "slotId": "news.frame.family",
+      "variant": "feed",
+      "path1x": "runtime/1x/frames/news-frame.feed.png",
+      "path2x": "runtime/2x/frames/news-frame.feed.png",
+      "dimensions": {
+        "1x": {
+          "width": 372,
+          "height": 252
+        },
+        "2x": {
+          "width": 744,
+          "height": 504
+        }
+      },
+      "hash": {
+        "1x": "c73108f9ada79cd11b38000df577be47a1323c0c2aebea44d90a563b640c5b0e",
+        "2x": "4084f638751db663b1a7c53875a2fa4719cdbebcae9af047ef8cb29dd7046ddb"
+      },
+      "bytes": {
+        "1x": 23531,
+        "2x": 471094
+      },
+      "sourceMaster": null,
+      "sourceGeneration": null,
+      "sourceTarget": {
+        "path": "artifacts/ui-visual-targets/current/news-home.png",
+        "sha256": "9d0c67401c6c43e412f099bc032ade9e0add87478ccd80881ee73057e866e7ac",
+        "normalizedDimensions": {
+          "width": 780,
+          "height": 1552
+        },
+        "region": "ranked_feed",
+        "regionRect": [
+          0,
+          882,
+          780,
+          506
+        ],
+        "cropRect": [
+          18,
+          0,
+          744,
+          504
+        ],
+        "keepRects": [
+          [
+            18,
+            0,
+            744,
+            9
+          ],
+          [
+            18,
+            0,
+            12,
+            486
+          ],
+          [
+            750,
+            0,
+            12,
+            486
+          ],
+          [
+            18,
+            68,
+            744,
+            12
+          ],
+          [
+            18,
+            483,
+            744,
+            23
+          ],
+          [
+            18,
+            0,
+            37,
+            39
+          ],
+          [
+            725,
+            0,
+            37,
+            39
+          ],
+          [
+            18,
+            57,
+            37,
+            23
+          ],
+          [
+            725,
+            57,
+            37,
+            23
+          ],
+          [
+            18,
+            477,
+            37,
+            29
+          ],
+          [
+            725,
+            477,
+            37,
+            29
+          ],
+          [
+            29,
+            177,
+            721,
+            1
+          ],
+          [
+            29,
+            283,
+            721,
+            1
+          ],
+          [
+            29,
+            389,
+            721,
+            1
+          ]
+        ]
+      },
+      "crop": {
+        "x": 18,
+        "y": 0,
+        "width": 744,
+        "height": 504,
+        "normalizedRegion": "ranked_feed"
+      },
+      "opticalContentBox2x": null,
+      "transparentPadding": {
+        "1x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "2x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "thresholdAlpha": 8
+      },
+      "owner": "RankedFeed",
+      "sourceClass": "canonical_target_derivative",
+      "reviewStatus": "wechat_verified_production",
+      "processing": {
+        "kind": "canonical_target_frame_overlay",
+        "keepRectCount": 14
+      }
+    },
+    {
+      "assetId": "news-frame.tab",
+      "slotId": "news.frame.family",
+      "variant": "tab",
+      "path1x": "runtime/1x/frames/news-frame.tab.png",
+      "path2x": "runtime/2x/frames/news-frame.tab.png",
+      "dimensions": {
+        "1x": {
+          "width": 386,
+          "height": 70
+        },
+        "2x": {
+          "width": 772,
+          "height": 140
+        }
+      },
+      "hash": {
+        "1x": "bea7baf6293f6075241383b5e38eab9f68546c469d0a29c65f5ec44e68f8a9ff",
+        "2x": "491a07c65b11a2f78fc3cf5fa4197a466ed597c5a29128e77f00f98c56d6075f"
+      },
+      "bytes": {
+        "1x": 13047,
+        "2x": 147049
+      },
+      "sourceMaster": null,
+      "sourceGeneration": null,
+      "sourceTarget": {
+        "path": "artifacts/ui-visual-targets/current/news-home.png",
+        "sha256": "9d0c67401c6c43e412f099bc032ade9e0add87478ccd80881ee73057e866e7ac",
+        "normalizedDimensions": {
+          "width": 780,
+          "height": 1552
+        },
+        "region": "product_tab_bar",
+        "regionRect": [
+          0,
+          1406,
+          780,
+          142
+        ],
+        "cropRect": [
+          4,
+          0,
+          772,
+          140
+        ],
+        "keepRects": [
+          [
+            4,
+            0,
+            772,
+            10
+          ],
+          [
+            4,
+            130,
+            772,
+            10
+          ],
+          [
+            4,
+            0,
+            14,
+            140
+          ],
+          [
+            762,
+            0,
+            14,
+            140
+          ],
+          [
+            198,
+            4,
+            6,
+            132
+          ],
+          [
+            390,
+            4,
+            6,
+            132
+          ],
+          [
+            582,
+            4,
+            6,
+            132
+          ]
+        ]
+      },
+      "crop": {
+        "x": 4,
+        "y": 0,
+        "width": 772,
+        "height": 140,
+        "normalizedRegion": "product_tab_bar"
+      },
+      "opticalContentBox2x": null,
+      "transparentPadding": {
+        "1x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "2x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "thresholdAlpha": 8
+      },
+      "owner": "ProductTabBar",
+      "sourceClass": "canonical_target_derivative",
+      "reviewStatus": "wechat_verified_production",
+      "processing": {
+        "kind": "canonical_target_frame_overlay",
+        "keepRectCount": 7
+      }
+    },
+    {
+      "assetId": "news-daily-emblem.default",
+      "slotId": "news.daily.emblem",
+      "variant": "default",
+      "path1x": "runtime/1x/emblems/news-daily-emblem.default.png",
+      "path2x": "runtime/2x/emblems/news-daily-emblem.default.png",
+      "dimensions": {
+        "1x": {
+          "width": 79,
+          "height": 78
+        },
+        "2x": {
+          "width": 157,
+          "height": 156
+        }
+      },
+      "hash": {
+        "1x": "615865a85a7f7b59311eab0ce3579a93b2c3d43946e4fe7aabe59fbb3dcc199e",
+        "2x": "d853ed31cbd9e2631fdadc1e131db396d690750ebff5939d589140d180481c18"
+      },
+      "bytes": {
+        "1x": 13130,
+        "2x": 48024
+      },
+      "sourceMaster": null,
+      "sourceGeneration": null,
+      "sourceTarget": {
+        "path": "artifacts/ui-visual-targets/current/news-home.png",
+        "sha256": "9d0c67401c6c43e412f099bc032ade9e0add87478ccd80881ee73057e866e7ac",
+        "normalizedDimensions": {
+          "width": 780,
+          "height": 1552
+        },
+        "region": "daily_brief",
+        "regionRect": [
+          0,
+          86,
+          780,
+          242
+        ],
+        "cropRect": [
+          36,
+          12,
+          157,
+          156
+        ],
+        "includesBackground": true
+      },
+      "crop": {
+        "x": 36,
+        "y": 12,
+        "width": 157,
+        "height": 156,
+        "normalizedRegion": "daily_brief"
+      },
+      "opticalContentBox2x": [
+        0,
+        0,
+        157,
+        156
+      ],
+      "transparentPadding": {
+        "1x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "2x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "thresholdAlpha": 8
+      },
+      "owner": "Brief",
+      "sourceClass": "canonical_target_derivative",
+      "reviewStatus": "wechat_verified_production",
+      "processing": {
+        "kind": "canonical_target_matted_crop"
+      }
+    },
+    {
+      "assetId": "news-channel-glyph.all",
+      "slotId": "news.channel.glyphs",
+      "variant": "all",
+      "path1x": "runtime/1x/channels/news-channel-glyph.all.png",
+      "path2x": "runtime/2x/channels/news-channel-glyph.all.png",
+      "dimensions": {
+        "1x": {
+          "width": 37,
+          "height": 37
+        },
+        "2x": {
+          "width": 74,
+          "height": 74
+        }
+      },
+      "hash": {
+        "1x": "e080c073ac844f7f5cecb254815c14c2cc19a34c60dc8daa09e062666b50bed9",
+        "2x": "58a1d2e41c2d0e5fdcf2fb7e7ff4cf28467efe9758ee4432c49e0b90d75db444"
+      },
+      "bytes": {
+        "1x": 4066,
+        "2x": 12427
+      },
+      "sourceMaster": null,
+      "sourceGeneration": null,
+      "sourceTarget": {
+        "path": "artifacts/ui-visual-targets/current/news-home.png",
+        "sha256": "9d0c67401c6c43e412f099bc032ade9e0add87478ccd80881ee73057e866e7ac",
+        "normalizedDimensions": {
+          "width": 780,
+          "height": 1552
+        },
+        "region": "channel_dock",
+        "regionRect": [
+          0,
+          724,
+          780,
+          146
+        ],
+        "cropRect": [
+          44,
+          24,
+          74,
+          74
+        ],
+        "includesBackground": false,
+        "backgroundRemoval": "four_corner_floodfill_connected_components_soft_matte"
+      },
+      "crop": {
+        "x": 44,
+        "y": 24,
+        "width": 74,
+        "height": 74,
+        "normalizedRegion": "channel_dock"
+      },
+      "opticalContentBox2x": [
+        3,
+        0,
+        71,
+        70
+      ],
+      "transparentPadding": {
+        "1x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "2x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "thresholdAlpha": 8
+      },
+      "owner": "ChannelDock",
+      "sourceClass": "canonical_target_derivative",
+      "reviewStatus": "wechat_verified_production",
+      "processing": {
+        "kind": "canonical_target_transparent_foreground",
+        "canvas2x": {
+          "width": 74,
+          "height": 74
+        },
+        "alphaMethod": "four_corner_floodfill_connected_components",
+        "fuzz": "8%",
+        "areaThreshold": 12,
+        "softMatte": {
+          "dilate": "Disk:2",
+          "blur": "0x0.75",
+          "blackPoint": "15%"
+        },
+        "placement": "fixed_target_canvas"
+      }
+    },
+    {
+      "assetId": "news-channel-glyph.class",
+      "slotId": "news.channel.glyphs",
+      "variant": "class",
+      "path1x": "runtime/1x/channels/news-channel-glyph.class.png",
+      "path2x": "runtime/2x/channels/news-channel-glyph.class.png",
+      "dimensions": {
+        "1x": {
+          "width": 37,
+          "height": 37
+        },
+        "2x": {
+          "width": 74,
+          "height": 74
+        }
+      },
+      "hash": {
+        "1x": "543384d536ba42f617058d34b8d10bd603d2ab383ef8ba5f7bddaaa558cbaa0b",
+        "2x": "fc3b1b6dc1b16a18de42183d20b55908f9766482cc58357a8366773aeb7b9499"
+      },
+      "bytes": {
+        "1x": 3775,
+        "2x": 12279
+      },
+      "sourceMaster": null,
+      "sourceGeneration": null,
+      "sourceTarget": {
+        "path": "artifacts/ui-visual-targets/current/news-home.png",
+        "sha256": "9d0c67401c6c43e412f099bc032ade9e0add87478ccd80881ee73057e866e7ac",
+        "normalizedDimensions": {
+          "width": 780,
+          "height": 1552
+        },
+        "region": "channel_dock",
+        "regionRect": [
+          0,
+          724,
+          780,
+          146
+        ],
+        "cropRect": [
+          168,
+          24,
+          74,
+          74
+        ],
+        "includesBackground": false,
+        "backgroundRemoval": "four_corner_floodfill_connected_components_soft_matte"
+      },
+      "crop": {
+        "x": 168,
+        "y": 24,
+        "width": 74,
+        "height": 74,
+        "normalizedRegion": "channel_dock"
+      },
+      "opticalContentBox2x": [
+        4,
+        0,
+        62,
+        68
+      ],
+      "transparentPadding": {
+        "1x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "2x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "thresholdAlpha": 8
+      },
+      "owner": "ChannelDock",
+      "sourceClass": "canonical_target_derivative",
+      "reviewStatus": "wechat_verified_production",
+      "processing": {
+        "kind": "canonical_target_transparent_foreground",
+        "canvas2x": {
+          "width": 74,
+          "height": 74
+        },
+        "alphaMethod": "four_corner_floodfill_connected_components",
+        "fuzz": "9%",
+        "areaThreshold": 5,
+        "softMatte": {
+          "dilate": "Disk:2",
+          "blur": "0x0.75",
+          "blackPoint": "15%"
+        },
+        "placement": "fixed_target_canvas"
+      }
+    },
+    {
+      "assetId": "news-channel-glyph.mythic",
+      "slotId": "news.channel.glyphs",
+      "variant": "mythic",
+      "path1x": "runtime/1x/channels/news-channel-glyph.mythic.png",
+      "path2x": "runtime/2x/channels/news-channel-glyph.mythic.png",
+      "dimensions": {
+        "1x": {
+          "width": 37,
+          "height": 37
+        },
+        "2x": {
+          "width": 74,
+          "height": 74
+        }
+      },
+      "hash": {
+        "1x": "93c563271f68a16ec11a44716fe19d064b832abc9d25f77c40e1913115ba8d00",
+        "2x": "6ad1a950969491b27172f189d4e8560e64068ef207909b0ea2a598ea3328f51d"
+      },
+      "bytes": {
+        "1x": 3554,
+        "2x": 11250
+      },
+      "sourceMaster": null,
+      "sourceGeneration": null,
+      "sourceTarget": {
+        "path": "artifacts/ui-visual-targets/current/news-home.png",
+        "sha256": "9d0c67401c6c43e412f099bc032ade9e0add87478ccd80881ee73057e866e7ac",
+        "normalizedDimensions": {
+          "width": 780,
+          "height": 1552
+        },
+        "region": "channel_dock",
+        "regionRect": [
+          0,
+          724,
+          780,
+          146
+        ],
+        "cropRect": [
+          292,
+          24,
+          74,
+          74
+        ],
+        "includesBackground": false,
+        "backgroundRemoval": "four_corner_floodfill_connected_components_soft_matte"
+      },
+      "crop": {
+        "x": 292,
+        "y": 24,
+        "width": 74,
+        "height": 74,
+        "normalizedRegion": "channel_dock"
+      },
+      "opticalContentBox2x": [
+        1,
+        0,
+        65,
+        68
+      ],
+      "transparentPadding": {
+        "1x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "2x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "thresholdAlpha": 8
+      },
+      "owner": "ChannelDock",
+      "sourceClass": "canonical_target_derivative",
+      "reviewStatus": "wechat_verified_production",
+      "processing": {
+        "kind": "canonical_target_transparent_foreground",
+        "canvas2x": {
+          "width": 74,
+          "height": 74
+        },
+        "alphaMethod": "four_corner_floodfill_connected_components",
+        "fuzz": "8.5%",
+        "areaThreshold": 5,
+        "softMatte": {
+          "dilate": "Disk:2",
+          "blur": "0x0.75",
+          "blackPoint": "15%"
+        },
+        "placement": "fixed_target_canvas"
+      }
+    },
+    {
+      "assetId": "news-channel-glyph.gear",
+      "slotId": "news.channel.glyphs",
+      "variant": "gear",
+      "path1x": "runtime/1x/channels/news-channel-glyph.gear.png",
+      "path2x": "runtime/2x/channels/news-channel-glyph.gear.png",
+      "dimensions": {
+        "1x": {
+          "width": 37,
+          "height": 37
+        },
+        "2x": {
+          "width": 74,
+          "height": 74
+        }
+      },
+      "hash": {
+        "1x": "23b35bc6a0547c2f2646782070367c402b2425682a7dda87d160f4488d2a2af3",
+        "2x": "f8ee9047ff9f4d62101d7cade8117641eea85669ec8ac2615b74a46f3f9fff16"
+      },
+      "bytes": {
+        "1x": 4188,
+        "2x": 13093
+      },
+      "sourceMaster": null,
+      "sourceGeneration": null,
+      "sourceTarget": {
+        "path": "artifacts/ui-visual-targets/current/news-home.png",
+        "sha256": "9d0c67401c6c43e412f099bc032ade9e0add87478ccd80881ee73057e866e7ac",
+        "normalizedDimensions": {
+          "width": 780,
+          "height": 1552
+        },
+        "region": "channel_dock",
+        "regionRect": [
+          0,
+          724,
+          780,
+          146
+        ],
+        "cropRect": [
+          416,
+          24,
+          74,
+          74
+        ],
+        "includesBackground": false,
+        "backgroundRemoval": "four_corner_floodfill_connected_components_soft_matte"
+      },
+      "crop": {
+        "x": 416,
+        "y": 24,
+        "width": 74,
+        "height": 74,
+        "normalizedRegion": "channel_dock"
+      },
+      "opticalContentBox2x": [
+        0,
+        0,
+        68,
+        69
+      ],
+      "transparentPadding": {
+        "1x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "2x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "thresholdAlpha": 8
+      },
+      "owner": "ChannelDock",
+      "sourceClass": "canonical_target_derivative",
+      "reviewStatus": "wechat_verified_production",
+      "processing": {
+        "kind": "canonical_target_transparent_foreground",
+        "canvas2x": {
+          "width": 74,
+          "height": 74
+        },
+        "alphaMethod": "four_corner_floodfill_connected_components",
+        "fuzz": "7.5%",
+        "areaThreshold": 5,
+        "softMatte": {
+          "dilate": "Disk:2",
+          "blur": "0x0.75",
+          "blackPoint": "15%"
+        },
+        "placement": "fixed_target_canvas"
+      }
+    },
+    {
+      "assetId": "news-channel-glyph.system",
+      "slotId": "news.channel.glyphs",
+      "variant": "system",
+      "path1x": "runtime/1x/channels/news-channel-glyph.system.png",
+      "path2x": "runtime/2x/channels/news-channel-glyph.system.png",
+      "dimensions": {
+        "1x": {
+          "width": 37,
+          "height": 37
+        },
+        "2x": {
+          "width": 74,
+          "height": 74
+        }
+      },
+      "hash": {
+        "1x": "4243216d7687496480024ea5ce75e1a12058956f06249237d9a809e51edfdbb7",
+        "2x": "15079a6b651e48c56a22e1c9537be640ec4f781871ece87c19297885637926f9"
+      },
+      "bytes": {
+        "1x": 3802,
+        "2x": 12241
+      },
+      "sourceMaster": null,
+      "sourceGeneration": null,
+      "sourceTarget": {
+        "path": "artifacts/ui-visual-targets/current/news-home.png",
+        "sha256": "9d0c67401c6c43e412f099bc032ade9e0add87478ccd80881ee73057e866e7ac",
+        "normalizedDimensions": {
+          "width": 780,
+          "height": 1552
+        },
+        "region": "channel_dock",
+        "regionRect": [
+          0,
+          724,
+          780,
+          146
+        ],
+        "cropRect": [
+          540,
+          24,
+          74,
+          74
+        ],
+        "includesBackground": false,
+        "backgroundRemoval": "four_corner_floodfill_connected_components_soft_matte"
+      },
+      "crop": {
+        "x": 540,
+        "y": 24,
+        "width": 74,
+        "height": 74,
+        "normalizedRegion": "channel_dock"
+      },
+      "opticalContentBox2x": [
+        1,
+        0,
+        65,
+        65
+      ],
+      "transparentPadding": {
+        "1x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "2x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "thresholdAlpha": 8
+      },
+      "owner": "ChannelDock",
+      "sourceClass": "canonical_target_derivative",
+      "reviewStatus": "wechat_verified_production",
+      "processing": {
+        "kind": "canonical_target_transparent_foreground",
+        "canvas2x": {
+          "width": 74,
+          "height": 74
+        },
+        "alphaMethod": "four_corner_floodfill_connected_components",
+        "fuzz": "8%",
+        "areaThreshold": 5,
+        "softMatte": {
+          "dilate": "Disk:2",
+          "blur": "0x0.75",
+          "blackPoint": "15%"
+        },
+        "placement": "fixed_target_canvas"
+      }
+    },
+    {
+      "assetId": "news-channel-glyph.more",
+      "slotId": "news.channel.glyphs",
+      "variant": "more",
+      "path1x": "runtime/1x/channels/news-channel-glyph.more.png",
+      "path2x": "runtime/2x/channels/news-channel-glyph.more.png",
+      "dimensions": {
+        "1x": {
+          "width": 37,
+          "height": 37
+        },
+        "2x": {
+          "width": 74,
+          "height": 74
+        }
+      },
+      "hash": {
+        "1x": "4cf4035e497e4ea9477811864fed143850c69581f7cd466477c6633c4bace8ac",
+        "2x": "faff4a148facd903019130d75a5bdb78f7c9a16ac07b59ee36bf75bb780c0642"
+      },
+      "bytes": {
+        "1x": 2824,
+        "2x": 9307
+      },
+      "sourceMaster": null,
+      "sourceGeneration": null,
+      "sourceTarget": {
+        "path": "artifacts/ui-visual-targets/current/news-home.png",
+        "sha256": "9d0c67401c6c43e412f099bc032ade9e0add87478ccd80881ee73057e866e7ac",
+        "normalizedDimensions": {
+          "width": 780,
+          "height": 1552
+        },
+        "region": "channel_dock",
+        "regionRect": [
+          0,
+          724,
+          780,
+          146
+        ],
+        "cropRect": [
+          664,
+          24,
+          74,
+          74
+        ],
+        "includesBackground": false,
+        "backgroundRemoval": "four_corner_floodfill_connected_components_soft_matte"
+      },
+      "crop": {
+        "x": 664,
+        "y": 24,
+        "width": 74,
+        "height": 74,
+        "normalizedRegion": "channel_dock"
+      },
+      "opticalContentBox2x": [
+        7,
+        6,
+        52,
+        52
+      ],
+      "transparentPadding": {
+        "1x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "2x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "thresholdAlpha": 8
+      },
+      "owner": "ChannelDock",
+      "sourceClass": "canonical_target_derivative",
+      "reviewStatus": "wechat_verified_production",
+      "processing": {
+        "kind": "canonical_target_transparent_foreground",
+        "canvas2x": {
+          "width": 74,
+          "height": 74
+        },
+        "alphaMethod": "four_corner_floodfill_connected_components",
+        "fuzz": "8.5%",
+        "areaThreshold": 5,
+        "softMatte": {
+          "dilate": "Disk:2",
+          "blur": "0x0.75",
+          "blackPoint": "15%"
+        },
+        "placement": "fixed_target_canvas"
+      }
+    },
+    {
+      "assetId": "product-tab-glyph.news",
+      "slotId": "product.tab.glyphs",
+      "variant": "news",
+      "path1x": "runtime/1x/product-tabs/product-tab-glyph.news.png",
+      "path2x": "runtime/2x/product-tabs/product-tab-glyph.news.png",
+      "dimensions": {
+        "1x": {
+          "width": 40,
+          "height": 40
+        },
+        "2x": {
+          "width": 80,
+          "height": 80
+        }
+      },
+      "hash": {
+        "1x": "aefc1dde9f1c3a642dc86d4dcc43f7d9c032d9778b170ea46ba6c2622f8f302b",
+        "2x": "f66c5d1b3e8096a28d89e6dd84f81dc1c06d5163f1ce3a28e3211a08a23a9d59"
+      },
+      "bytes": {
+        "1x": 3799,
+        "2x": 7116
+      },
+      "sourceMaster": null,
+      "sourceGeneration": null,
+      "sourceTarget": {
+        "path": "artifacts/ui-visual-targets/current/news-home.png",
+        "sha256": "9d0c67401c6c43e412f099bc032ade9e0add87478ccd80881ee73057e866e7ac",
+        "normalizedDimensions": {
+          "width": 780,
+          "height": 1552
+        },
+        "region": "product_tab_bar",
+        "regionRect": [
+          0,
+          1406,
+          780,
+          142
+        ],
+        "cropRect": [
+          76,
+          16,
+          70,
+          72
+        ],
+        "includesBackground": false,
+        "matte": "#171611",
+        "backgroundRemoval": "global_color_key_8_percent"
+      },
+      "crop": {
+        "x": 76,
+        "y": 16,
+        "width": 70,
+        "height": 72,
+        "normalizedRegion": "product_tab_bar"
+      },
+      "opticalContentBox2x": [
+        9,
+        8,
+        61,
+        66
+      ],
+      "transparentPadding": {
+        "1x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "2x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "thresholdAlpha": 8
+      },
+      "owner": "ProductTabBar",
+      "sourceClass": "canonical_target_derivative",
+      "reviewStatus": "wechat_verified_production",
+      "processing": {
+        "kind": "canonical_target_transparent_foreground",
+        "canvas2x": {
+          "width": 80,
+          "height": 80
+        },
+        "alphaMethod": "global_color_key",
+        "fuzz": "8%",
+        "runtimeOffset2x": [
+          11,
+          -4
+        ]
+      }
+    },
+    {
+      "assetId": "product-tab-glyph.spec",
+      "slotId": "product.tab.glyphs",
+      "variant": "spec",
+      "path1x": "runtime/1x/product-tabs/product-tab-glyph.spec.png",
+      "path2x": "runtime/2x/product-tabs/product-tab-glyph.spec.png",
+      "dimensions": {
+        "1x": {
+          "width": 40,
+          "height": 40
+        },
+        "2x": {
+          "width": 80,
+          "height": 80
+        }
+      },
+      "hash": {
+        "1x": "22da1f5589ef4e2940cf2c46b2f59a2c4e1969255a36984e57b899c790a7319d",
+        "2x": "f13f671e6359c55be3eb9c56ae8f7dddefaa86b61c7b1d1f5a2d299cda6843cb"
+      },
+      "bytes": {
+        "1x": 4169,
+        "2x": 6089
+      },
+      "sourceMaster": null,
+      "sourceGeneration": null,
+      "sourceTarget": {
+        "path": "artifacts/ui-visual-targets/current/news-home.png",
+        "sha256": "9d0c67401c6c43e412f099bc032ade9e0add87478ccd80881ee73057e866e7ac",
+        "normalizedDimensions": {
+          "width": 780,
+          "height": 1552
+        },
+        "region": "product_tab_bar",
+        "regionRect": [
+          0,
+          1406,
+          780,
+          142
+        ],
+        "cropRect": [
+          262,
+          14,
+          78,
+          78
+        ],
+        "includesBackground": false,
+        "matte": "#101314",
+        "backgroundRemoval": "global_color_key_8_percent"
+      },
+      "crop": {
+        "x": 262,
+        "y": 14,
+        "width": 78,
+        "height": 78,
+        "normalizedRegion": "product_tab_bar"
+      },
+      "opticalContentBox2x": [
+        5,
+        4,
+        69,
+        72
+      ],
+      "transparentPadding": {
+        "1x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "2x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "thresholdAlpha": 8
+      },
+      "owner": "ProductTabBar",
+      "sourceClass": "canonical_target_derivative",
+      "reviewStatus": "wechat_verified_production",
+      "processing": {
+        "kind": "canonical_target_transparent_foreground",
+        "canvas2x": {
+          "width": 80,
+          "height": 80
+        },
+        "alphaMethod": "global_color_key",
+        "fuzz": "8%",
+        "runtimeOffset2x": [
+          7,
+          -3
+        ]
+      }
+    },
+    {
+      "assetId": "product-tab-glyph.captain",
+      "slotId": "product.tab.glyphs",
+      "variant": "captain",
+      "path1x": "runtime/1x/product-tabs/product-tab-glyph.captain.png",
+      "path2x": "runtime/2x/product-tabs/product-tab-glyph.captain.png",
+      "dimensions": {
+        "1x": {
+          "width": 40,
+          "height": 40
+        },
+        "2x": {
+          "width": 80,
+          "height": 80
+        }
+      },
+      "hash": {
+        "1x": "8f29b7ccff77c8100d366219fca892899e19ea1772902acf473fef00863916aa",
+        "2x": "a49a19020beba5469b06fa6bf54c5cc6b04e451f27802c0d4e6dc900d1f95d54"
+      },
+      "bytes": {
+        "1x": 3689,
+        "2x": 5864
+      },
+      "sourceMaster": null,
+      "sourceGeneration": null,
+      "sourceTarget": {
+        "path": "artifacts/ui-visual-targets/current/news-home.png",
+        "sha256": "9d0c67401c6c43e412f099bc032ade9e0add87478ccd80881ee73057e866e7ac",
+        "normalizedDimensions": {
+          "width": 780,
+          "height": 1552
+        },
+        "region": "product_tab_bar",
+        "regionRect": [
+          0,
+          1406,
+          780,
+          142
+        ],
+        "cropRect": [
+          456,
+          16,
+          68,
+          76
+        ],
+        "includesBackground": false,
+        "matte": "#101314",
+        "backgroundRemoval": "global_color_key_8_percent"
+      },
+      "crop": {
+        "x": 456,
+        "y": 16,
+        "width": 68,
+        "height": 76,
+        "normalizedRegion": "product_tab_bar"
+      },
+      "opticalContentBox2x": [
+        11,
+        6,
+        58,
+        68
+      ],
+      "transparentPadding": {
+        "1x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "2x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "thresholdAlpha": 8
+      },
+      "owner": "ProductTabBar",
+      "sourceClass": "canonical_target_derivative",
+      "reviewStatus": "wechat_verified_production",
+      "processing": {
+        "kind": "canonical_target_transparent_foreground",
+        "canvas2x": {
+          "width": 80,
+          "height": 80
+        },
+        "alphaMethod": "global_color_key",
+        "fuzz": "8%",
+        "runtimeOffset2x": [
+          4,
+          -2
+        ]
+      }
+    },
+    {
+      "assetId": "product-tab-glyph.profile",
+      "slotId": "product.tab.glyphs",
+      "variant": "profile",
+      "path1x": "runtime/1x/product-tabs/product-tab-glyph.profile.png",
+      "path2x": "runtime/2x/product-tabs/product-tab-glyph.profile.png",
+      "dimensions": {
+        "1x": {
+          "width": 40,
+          "height": 40
+        },
+        "2x": {
+          "width": 80,
+          "height": 80
+        }
+      },
+      "hash": {
+        "1x": "1236b14ae54037a4fd9b6554182484465cb31fee4e276a1d61e3d1cbdb99fc99",
+        "2x": "2ef5f21a309b59fef3ee8b1bbf799bf2bd72faf7470ffe291928cfb649f0e50e"
+      },
+      "bytes": {
+        "1x": 3503,
+        "2x": 5248
+      },
+      "sourceMaster": null,
+      "sourceGeneration": null,
+      "sourceTarget": {
+        "path": "artifacts/ui-visual-targets/current/news-home.png",
+        "sha256": "9d0c67401c6c43e412f099bc032ade9e0add87478ccd80881ee73057e866e7ac",
+        "normalizedDimensions": {
+          "width": 780,
+          "height": 1552
+        },
+        "region": "product_tab_bar",
+        "regionRect": [
+          0,
+          1406,
+          780,
+          142
+        ],
+        "cropRect": [
+          646,
+          14,
+          66,
+          80
+        ],
+        "includesBackground": false,
+        "matte": "#101314",
+        "backgroundRemoval": "global_color_key_8_percent"
+      },
+      "crop": {
+        "x": 646,
+        "y": 14,
+        "width": 66,
+        "height": 80,
+        "normalizedRegion": "product_tab_bar"
+      },
+      "opticalContentBox2x": [
+        11,
+        6,
+        50,
+        65
+      ],
+      "transparentPadding": {
+        "1x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "2x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "thresholdAlpha": 8
+      },
+      "owner": "ProductTabBar",
+      "sourceClass": "canonical_target_derivative",
+      "reviewStatus": "wechat_verified_production",
+      "processing": {
+        "kind": "canonical_target_transparent_foreground",
+        "canvas2x": {
+          "width": 80,
+          "height": 80
+        },
+        "alphaMethod": "global_color_key",
+        "fuzz": "8%",
+        "runtimeOffset2x": [
+          -1,
+          -2
+        ]
+      }
+    },
+    {
+      "assetId": "news-hero-fallback.neutral-editorial",
+      "slotId": "news.hero.fallback",
+      "variant": "neutral-editorial",
+      "sourceMaster": "masters/news-hero-fallback-master-v3.png",
+      "sourceGeneration": "/Users/heyesheng/.codex/generated_images/019f5dcf-4be4-7382-a2a9-6cd18ed7a6ed/exec-4b057a14-bf97-4049-a6b0-e371ac528236.png",
+      "sourceTarget": null,
+      "crop": null,
+      "opticalContentBox2x": [
+        0,
+        0,
+        832,
+        400
+      ],
+      "transparentPadding": {
+        "1x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "2x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "thresholdAlpha": 8
+      },
+      "owner": "Carousel",
+      "sourceClass": "imagegen_raster",
+      "reviewStatus": "wechat_verified_production",
+      "processing": {
+        "kind": "imagegen_reference_edit_clean_scene",
+        "outputAspect": 2.08
+      },
+      "path1x": "runtime/1x/fallbacks/news-hero-fallback.neutral-editorial.png",
+      "path2x": "runtime/2x/fallbacks/news-hero-fallback.neutral-editorial.png",
+      "dimensions": {
+        "1x": {
+          "width": 416,
+          "height": 200
+        },
+        "2x": {
+          "width": 832,
+          "height": 400
+        }
+      },
+      "hash": {
+        "1x": "1634800ef4ed9a224baf28d67884845084b85038429ba344f57cd56269f74469",
+        "2x": "5a166db72d333f5d0f0c55bd0b4840683355a08380d1e3613203e864d8d70be1"
+      },
+      "bytes": {
+        "1x": 101228,
+        "2x": 386688
+      }
+    },
+    {
+      "assetId": "news-feed-fallback.neutral-01",
+      "slotId": "news.feed.fallback",
+      "variant": "neutral-01",
+      "path1x": "runtime/1x/fallbacks/news-feed-fallback.neutral-01.png",
+      "path2x": "runtime/2x/fallbacks/news-feed-fallback.neutral-01.png",
+      "dimensions": {
+        "1x": {
+          "width": 62,
+          "height": 40
+        },
+        "2x": {
+          "width": 123,
+          "height": 80
+        }
+      },
+      "hash": {
+        "1x": "6a4fb65e89efbcce0ea7a5273faa803f1133150be3e83b5f0a1429df510914c3",
+        "2x": "b462c0175d549246f24a13aefdd34bad56d4a5ed6dee4bd954c0500e6c57f115"
+      },
+      "bytes": {
+        "1x": 3153,
+        "2x": 11196
+      },
+      "sourceMaster": null,
+      "sourceGeneration": null,
+      "sourceTarget": {
+        "path": "artifacts/ui-visual-targets/current/news-home.png",
+        "sha256": "9d0c67401c6c43e412f099bc032ade9e0add87478ccd80881ee73057e866e7ac",
+        "normalizedDimensions": {
+          "width": 780,
+          "height": 1552
+        },
+        "region": "ranked_feed",
+        "regionRect": [
+          0,
+          882,
+          780,
+          506
+        ],
+        "cropRect": [
+          47,
+          88,
+          123,
+          80
+        ],
+        "includesBackground": true
+      },
+      "crop": {
+        "x": 47,
+        "y": 88,
+        "width": 123,
+        "height": 80,
+        "normalizedRegion": "ranked_feed"
+      },
+      "opticalContentBox2x": [
+        0,
+        0,
+        123,
+        80
+      ],
+      "transparentPadding": {
+        "1x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "2x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "thresholdAlpha": 8
+      },
+      "owner": "RankedFeed",
+      "sourceClass": "canonical_target_derivative",
+      "reviewStatus": "wechat_verified_production",
+      "processing": {
+        "kind": "canonical_target_matted_crop"
+      }
+    },
+    {
+      "assetId": "news-feed-fallback.neutral-02",
+      "slotId": "news.feed.fallback",
+      "variant": "neutral-02",
+      "path1x": "runtime/1x/fallbacks/news-feed-fallback.neutral-02.png",
+      "path2x": "runtime/2x/fallbacks/news-feed-fallback.neutral-02.png",
+      "dimensions": {
+        "1x": {
+          "width": 62,
+          "height": 40
+        },
+        "2x": {
+          "width": 123,
+          "height": 80
+        }
+      },
+      "hash": {
+        "1x": "6a4fb65e89efbcce0ea7a5273faa803f1133150be3e83b5f0a1429df510914c3",
+        "2x": "b462c0175d549246f24a13aefdd34bad56d4a5ed6dee4bd954c0500e6c57f115"
+      },
+      "bytes": {
+        "1x": 3153,
+        "2x": 11196
+      },
+      "sourceMaster": null,
+      "sourceGeneration": null,
+      "sourceTarget": {
+        "path": "artifacts/ui-visual-targets/current/news-home.png",
+        "sha256": "9d0c67401c6c43e412f099bc032ade9e0add87478ccd80881ee73057e866e7ac",
+        "normalizedDimensions": {
+          "width": 780,
+          "height": 1552
+        },
+        "region": "ranked_feed",
+        "regionRect": [
+          0,
+          882,
+          780,
+          506
+        ],
+        "cropRect": [
+          47,
+          88,
+          123,
+          80
+        ],
+        "includesBackground": true
+      },
+      "crop": {
+        "x": 47,
+        "y": 88,
+        "width": 123,
+        "height": 80,
+        "normalizedRegion": "ranked_feed"
+      },
+      "opticalContentBox2x": [
+        0,
+        0,
+        123,
+        80
+      ],
+      "transparentPadding": {
+        "1x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "2x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "thresholdAlpha": 8
+      },
+      "owner": "RankedFeed",
+      "sourceClass": "canonical_target_derivative",
+      "reviewStatus": "wechat_verified_production",
+      "processing": {
+        "kind": "canonical_target_matted_crop"
+      }
+    },
+    {
+      "assetId": "news-feed-fallback.neutral-03",
+      "slotId": "news.feed.fallback",
+      "variant": "neutral-03",
+      "path1x": "runtime/1x/fallbacks/news-feed-fallback.neutral-03.png",
+      "path2x": "runtime/2x/fallbacks/news-feed-fallback.neutral-03.png",
+      "dimensions": {
+        "1x": {
+          "width": 62,
+          "height": 40
+        },
+        "2x": {
+          "width": 123,
+          "height": 80
+        }
+      },
+      "hash": {
+        "1x": "6a4fb65e89efbcce0ea7a5273faa803f1133150be3e83b5f0a1429df510914c3",
+        "2x": "b462c0175d549246f24a13aefdd34bad56d4a5ed6dee4bd954c0500e6c57f115"
+      },
+      "bytes": {
+        "1x": 3153,
+        "2x": 11196
+      },
+      "sourceMaster": null,
+      "sourceGeneration": null,
+      "sourceTarget": {
+        "path": "artifacts/ui-visual-targets/current/news-home.png",
+        "sha256": "9d0c67401c6c43e412f099bc032ade9e0add87478ccd80881ee73057e866e7ac",
+        "normalizedDimensions": {
+          "width": 780,
+          "height": 1552
+        },
+        "region": "ranked_feed",
+        "regionRect": [
+          0,
+          882,
+          780,
+          506
+        ],
+        "cropRect": [
+          47,
+          88,
+          123,
+          80
+        ],
+        "includesBackground": true
+      },
+      "crop": {
+        "x": 47,
+        "y": 88,
+        "width": 123,
+        "height": 80,
+        "normalizedRegion": "ranked_feed"
+      },
+      "opticalContentBox2x": [
+        0,
+        0,
+        123,
+        80
+      ],
+      "transparentPadding": {
+        "1x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "2x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "thresholdAlpha": 8
+      },
+      "owner": "RankedFeed",
+      "sourceClass": "canonical_target_derivative",
+      "reviewStatus": "wechat_verified_production",
+      "processing": {
+        "kind": "canonical_target_matted_crop"
+      }
+    },
+    {
+      "assetId": "news-feed-fallback.neutral-04",
+      "slotId": "news.feed.fallback",
+      "variant": "neutral-04",
+      "path1x": "runtime/1x/fallbacks/news-feed-fallback.neutral-04.png",
+      "path2x": "runtime/2x/fallbacks/news-feed-fallback.neutral-04.png",
+      "dimensions": {
+        "1x": {
+          "width": 62,
+          "height": 40
+        },
+        "2x": {
+          "width": 123,
+          "height": 80
+        }
+      },
+      "hash": {
+        "1x": "6a4fb65e89efbcce0ea7a5273faa803f1133150be3e83b5f0a1429df510914c3",
+        "2x": "b462c0175d549246f24a13aefdd34bad56d4a5ed6dee4bd954c0500e6c57f115"
+      },
+      "bytes": {
+        "1x": 3153,
+        "2x": 11196
+      },
+      "sourceMaster": null,
+      "sourceGeneration": null,
+      "sourceTarget": {
+        "path": "artifacts/ui-visual-targets/current/news-home.png",
+        "sha256": "9d0c67401c6c43e412f099bc032ade9e0add87478ccd80881ee73057e866e7ac",
+        "normalizedDimensions": {
+          "width": 780,
+          "height": 1552
+        },
+        "region": "ranked_feed",
+        "regionRect": [
+          0,
+          882,
+          780,
+          506
+        ],
+        "cropRect": [
+          47,
+          88,
+          123,
+          80
+        ],
+        "includesBackground": true
+      },
+      "crop": {
+        "x": 47,
+        "y": 88,
+        "width": 123,
+        "height": 80,
+        "normalizedRegion": "ranked_feed"
+      },
+      "opticalContentBox2x": [
+        0,
+        0,
+        123,
+        80
+      ],
+      "transparentPadding": {
+        "1x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "2x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "thresholdAlpha": 8
+      },
+      "owner": "RankedFeed",
+      "sourceClass": "canonical_target_derivative",
+      "reviewStatus": "wechat_verified_production",
+      "processing": {
+        "kind": "canonical_target_matted_crop"
+      }
+    },
+    {
+      "assetId": "news-metric-glyph.headline",
+      "slotId": "news.metric.glyphs",
+      "variant": "headline",
+      "path1x": "runtime/1x/metrics/news-metric-glyph.headline.png",
+      "path2x": "runtime/2x/metrics/news-metric-glyph.headline.png",
+      "dimensions": {
+        "1x": {
+          "width": 18,
+          "height": 18
+        },
+        "2x": {
+          "width": 36,
+          "height": 36
+        }
+      },
+      "hash": {
+        "1x": "aaba9ad2094420c379d9ed9b59ba486eacf55963528ec6c841104bcab04ad4da",
+        "2x": "f5094e6562bab59a6f87cf739b0194343e4e88c985e22fc316af22ada8700152"
+      },
+      "bytes": {
+        "1x": 1311,
+        "2x": 2085
+      },
+      "sourceMaster": null,
+      "sourceGeneration": null,
+      "sourceTarget": {
+        "path": "artifacts/ui-visual-targets/current/news-home.png",
+        "sha256": "9d0c67401c6c43e412f099bc032ade9e0add87478ccd80881ee73057e866e7ac",
+        "normalizedDimensions": {
+          "width": 780,
+          "height": 1552
+        },
+        "region": "daily_brief",
+        "regionRect": [
+          0,
+          86,
+          780,
+          242
+        ],
+        "cropRect": [
+          72,
+          182,
+          28,
+          33
+        ],
+        "includesBackground": true,
+        "matte": "#141719"
+      },
+      "crop": {
+        "x": 72,
+        "y": 182,
+        "width": 28,
+        "height": 33,
+        "normalizedRegion": "daily_brief"
+      },
+      "opticalContentBox2x": [
+        4,
+        1,
+        28,
+        33
+      ],
+      "transparentPadding": {
+        "1x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "2x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "thresholdAlpha": 8
+      },
+      "owner": "Brief",
+      "sourceClass": "canonical_target_derivative",
+      "reviewStatus": "wechat_verified_production",
+      "processing": {
+        "kind": "canonical_target_matted_crop",
+        "canvas2x": {
+          "width": 36,
+          "height": 36
+        }
+      }
+    },
+    {
+      "assetId": "news-metric-glyph.updates",
+      "slotId": "news.metric.glyphs",
+      "variant": "updates",
+      "path1x": "runtime/1x/metrics/news-metric-glyph.updates.png",
+      "path2x": "runtime/2x/metrics/news-metric-glyph.updates.png",
+      "dimensions": {
+        "1x": {
+          "width": 18,
+          "height": 18
+        },
+        "2x": {
+          "width": 36,
+          "height": 36
+        }
+      },
+      "hash": {
+        "1x": "7e79ad928b2360dc077046fa95075465a8d3d19a14d3b91256b152cc5a2eb7a5",
+        "2x": "34b26e39e40df9d652020bb9518334b94d46ad68e99747f456cadfc570746baa"
+      },
+      "bytes": {
+        "1x": 1407,
+        "2x": 2821
+      },
+      "sourceMaster": null,
+      "sourceGeneration": null,
+      "sourceTarget": {
+        "path": "artifacts/ui-visual-targets/current/news-home.png",
+        "sha256": "9d0c67401c6c43e412f099bc032ade9e0add87478ccd80881ee73057e866e7ac",
+        "normalizedDimensions": {
+          "width": 780,
+          "height": 1552
+        },
+        "region": "daily_brief",
+        "regionRect": [
+          0,
+          86,
+          780,
+          242
+        ],
+        "cropRect": [
+          253,
+          182,
+          34,
+          33
+        ],
+        "includesBackground": true,
+        "matte": "#141719"
+      },
+      "crop": {
+        "x": 253,
+        "y": 182,
+        "width": 34,
+        "height": 33,
+        "normalizedRegion": "daily_brief"
+      },
+      "opticalContentBox2x": [
+        1,
+        1,
+        34,
+        33
+      ],
+      "transparentPadding": {
+        "1x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "2x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "thresholdAlpha": 8
+      },
+      "owner": "Brief",
+      "sourceClass": "canonical_target_derivative",
+      "reviewStatus": "wechat_verified_production",
+      "processing": {
+        "kind": "canonical_target_matted_crop",
+        "canvas2x": {
+          "width": 36,
+          "height": 36
+        }
+      }
+    },
+    {
+      "assetId": "news-metric-glyph.balance",
+      "slotId": "news.metric.glyphs",
+      "variant": "balance",
+      "path1x": "runtime/1x/metrics/news-metric-glyph.balance.png",
+      "path2x": "runtime/2x/metrics/news-metric-glyph.balance.png",
+      "dimensions": {
+        "1x": {
+          "width": 18,
+          "height": 18
+        },
+        "2x": {
+          "width": 36,
+          "height": 36
+        }
+      },
+      "hash": {
+        "1x": "8d1192c8ca40ea61589208749f32a70b71d9e98f6bd37f6135aa489685b41e5d",
+        "2x": "7b0d2712f4ed6ce6dba5f32ba12350bd24e867ff7e767fec83d18059b99575b4"
+      },
+      "bytes": {
+        "1x": 1410,
+        "2x": 2885
+      },
+      "sourceMaster": null,
+      "sourceGeneration": null,
+      "sourceTarget": {
+        "path": "artifacts/ui-visual-targets/current/news-home.png",
+        "sha256": "9d0c67401c6c43e412f099bc032ade9e0add87478ccd80881ee73057e866e7ac",
+        "normalizedDimensions": {
+          "width": 780,
+          "height": 1552
+        },
+        "region": "daily_brief",
+        "regionRect": [
+          0,
+          86,
+          780,
+          242
+        ],
+        "cropRect": [
+          433,
+          181,
+          34,
+          34
+        ],
+        "includesBackground": true,
+        "matte": "#141719"
+      },
+      "crop": {
+        "x": 433,
+        "y": 181,
+        "width": 34,
+        "height": 34,
+        "normalizedRegion": "daily_brief"
+      },
+      "opticalContentBox2x": [
+        1,
+        1,
+        34,
+        34
+      ],
+      "transparentPadding": {
+        "1x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "2x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "thresholdAlpha": 8
+      },
+      "owner": "Brief",
+      "sourceClass": "canonical_target_derivative",
+      "reviewStatus": "wechat_verified_production",
+      "processing": {
+        "kind": "canonical_target_matted_crop",
+        "canvas2x": {
+          "width": 36,
+          "height": 36
+        }
+      }
+    },
+    {
+      "assetId": "news-metric-glyph.events",
+      "slotId": "news.metric.glyphs",
+      "variant": "events",
+      "path1x": "runtime/1x/metrics/news-metric-glyph.events.png",
+      "path2x": "runtime/2x/metrics/news-metric-glyph.events.png",
+      "dimensions": {
+        "1x": {
+          "width": 18,
+          "height": 18
+        },
+        "2x": {
+          "width": 36,
+          "height": 36
+        }
+      },
+      "hash": {
+        "1x": "d8e80e9aedd5ec5746f3afd86cc36c91e052fe2663b2ea803ac7957bacc5e717",
+        "2x": "57df496c02a705c8ea791a1018f59ef8bf6238abdc530e6081e167fb36b0401d"
+      },
+      "bytes": {
+        "1x": 1072,
+        "2x": 2629
+      },
+      "sourceMaster": null,
+      "sourceGeneration": null,
+      "sourceTarget": {
+        "path": "artifacts/ui-visual-targets/current/news-home.png",
+        "sha256": "9d0c67401c6c43e412f099bc032ade9e0add87478ccd80881ee73057e866e7ac",
+        "normalizedDimensions": {
+          "width": 780,
+          "height": 1552
+        },
+        "region": "daily_brief",
+        "regionRect": [
+          0,
+          86,
+          780,
+          242
+        ],
+        "cropRect": [
+          611,
+          182,
+          34,
+          33
+        ],
+        "includesBackground": true,
+        "matte": "#141719"
+      },
+      "crop": {
+        "x": 611,
+        "y": 182,
+        "width": 34,
+        "height": 33,
+        "normalizedRegion": "daily_brief"
+      },
+      "opticalContentBox2x": [
+        1,
+        1,
+        34,
+        33
+      ],
+      "transparentPadding": {
+        "1x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "2x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "thresholdAlpha": 8
+      },
+      "owner": "Brief",
+      "sourceClass": "canonical_target_derivative",
+      "reviewStatus": "wechat_verified_production",
+      "processing": {
+        "kind": "canonical_target_matted_crop",
+        "canvas2x": {
+          "width": 36,
+          "height": 36
+        }
+      }
+    },
+    {
+      "assetId": "news-evidence-glyph.source",
+      "slotId": "news.evidence.glyph",
+      "variant": "source",
+      "path1x": "runtime/1x/evidence/news-evidence-glyph.source.png",
+      "path2x": "runtime/2x/evidence/news-evidence-glyph.source.png",
+      "dimensions": {
+        "1x": {
+          "width": 11,
+          "height": 11
+        },
+        "2x": {
+          "width": 22,
+          "height": 22
+        }
+      },
+      "hash": {
+        "1x": "36edf362e30132447c0b367762d2729da21cefa3c202bd37f418919c3530dd9d",
+        "2x": "9b39a62a88e300a6b865c77bcd4d259790a246eb8d2838a0b7a9730ac516e8be"
+      },
+      "bytes": {
+        "1x": 774,
+        "2x": 1410
+      },
+      "sourceMaster": null,
+      "sourceGeneration": null,
+      "sourceTarget": {
+        "path": "artifacts/ui-visual-targets/current/news-home.png",
+        "sha256": "9d0c67401c6c43e412f099bc032ade9e0add87478ccd80881ee73057e866e7ac",
+        "normalizedDimensions": {
+          "width": 780,
+          "height": 1552
+        },
+        "region": "ranked_feed",
+        "regionRect": [
+          0,
+          882,
+          780,
+          506
+        ],
+        "cropRect": [
+          198,
+          140,
+          21,
+          22
+        ],
+        "includesBackground": true,
+        "matte": "#0d1011"
+      },
+      "crop": {
+        "x": 198,
+        "y": 140,
+        "width": 21,
+        "height": 22,
+        "normalizedRegion": "ranked_feed"
+      },
+      "opticalContentBox2x": [
+        0,
+        0,
+        21,
+        22
+      ],
+      "transparentPadding": {
+        "1x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "2x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "thresholdAlpha": 8
+      },
+      "owner": "EvidenceBadge",
+      "sourceClass": "canonical_target_derivative",
+      "reviewStatus": "wechat_verified_production",
+      "processing": {
+        "kind": "canonical_target_matted_crop",
+        "canvas2x": {
+          "width": 22,
+          "height": 22
+        }
+      }
+    },
+    {
+      "assetId": "news-evidence-glyph.verified",
+      "slotId": "news.evidence.glyph",
+      "variant": "verified",
+      "path1x": "runtime/1x/evidence/news-evidence-glyph.verified.png",
+      "path2x": "runtime/2x/evidence/news-evidence-glyph.verified.png",
+      "dimensions": {
+        "1x": {
+          "width": 16,
+          "height": 16
+        },
+        "2x": {
+          "width": 32,
+          "height": 32
+        }
+      },
+      "hash": {
+        "1x": "eeeaf0f24fb12675f9d7ee3331b7c3ea49448cbdc44edf200522912f6256d39b",
+        "2x": "ac7c4389120ab556fe1581acd86d1082a49e713bdcd7dd1082880cb9363cf1d5"
+      },
+      "bytes": {
+        "1x": 835,
+        "2x": 2214
+      },
+      "sourceMaster": "masters/news-utility-glyphs-master.png",
+      "crop": {
+        "x": 0,
+        "y": 396,
+        "width": 397,
+        "height": 397,
+        "masterWidth": 1983,
+        "masterHeight": 793,
+        "subjectBoundsWithinCrop": {
+          "x": 169,
+          "y": 61,
+          "width": 209,
+          "height": 215
+        },
+        "cleanup": {
+          "clearTopPx": 0
+        }
+      },
+      "transparentPadding": {
+        "1x": {
+          "top": 1,
+          "right": 1,
+          "bottom": 1,
+          "left": 1
+        },
+        "2x": {
+          "top": 3,
+          "right": 4,
+          "bottom": 3,
+          "left": 3
+        },
+        "thresholdAlpha": 8
+      },
+      "opticalBox2x": {
+        "x": 5,
+        "y": 4,
+        "width": 22,
+        "height": 24
+      },
+      "owner": "EvidenceBadge",
+      "sourceClass": "imagegen_raster",
+      "reviewStatus": "wechat_verified_production",
+      "processing": {
+        "kind": "alpha_bbox_optical_normalization",
+        "targetLongSide2x": 26
+      }
+    },
+    {
+      "assetId": "news-evidence-glyph.unavailable",
+      "slotId": "news.evidence.glyph",
+      "variant": "unavailable",
+      "path1x": "runtime/1x/evidence/news-evidence-glyph.unavailable.png",
+      "path2x": "runtime/2x/evidence/news-evidence-glyph.unavailable.png",
+      "dimensions": {
+        "1x": {
+          "width": 16,
+          "height": 16
+        },
+        "2x": {
+          "width": 32,
+          "height": 32
+        }
+      },
+      "hash": {
+        "1x": "6e99912b0c352f94adb5f6dc39532776019c586d98aaa79d981e3c8835045040",
+        "2x": "94d476bff8a19a3b624e0c95447ff52062c88d40fa14d527b11e33db80d95b46"
+      },
+      "bytes": {
+        "1x": 889,
+        "2x": 2490
+      },
+      "sourceMaster": "masters/news-utility-glyphs-master.png",
+      "crop": {
+        "x": 793,
+        "y": 396,
+        "width": 397,
+        "height": 397,
+        "masterWidth": 1983,
+        "masterHeight": 793,
+        "subjectBoundsWithinCrop": {
+          "x": 91,
+          "y": 75,
+          "width": 201,
+          "height": 200
+        },
+        "cleanup": {
+          "clearTopPx": 0
+        }
+      },
+      "transparentPadding": {
+        "1x": {
+          "top": 1,
+          "right": 1,
+          "bottom": 1,
+          "left": 1
+        },
+        "2x": {
+          "top": 3,
+          "right": 3,
+          "bottom": 3,
+          "left": 3
+        },
+        "thresholdAlpha": 8
+      },
+      "opticalBox2x": {
+        "x": 5,
+        "y": 4,
+        "width": 22,
+        "height": 24
+      },
+      "owner": "EvidenceBadge",
+      "sourceClass": "imagegen_raster",
+      "reviewStatus": "wechat_verified_production",
+      "processing": {
+        "kind": "alpha_bbox_optical_normalization",
+        "targetLongSide2x": 26
+      }
+    },
+    {
+      "assetId": "news-evidence-glyph.fallback",
+      "slotId": "news.evidence.glyph",
+      "variant": "fallback",
+      "path1x": "runtime/1x/evidence/news-evidence-glyph.fallback.png",
+      "path2x": "runtime/2x/evidence/news-evidence-glyph.fallback.png",
+      "dimensions": {
+        "1x": {
+          "width": 16,
+          "height": 16
+        },
+        "2x": {
+          "width": 32,
+          "height": 32
+        }
+      },
+      "hash": {
+        "1x": "1a91fe8d6bbdd40933e71647045455be047d1eda08616df4e04ebf8af8cc9ebd",
+        "2x": "bbdfec9150099664daa77982c159e4a228199423a0e5f4bd4b797165ddbb0c1b"
+      },
+      "bytes": {
+        "1x": 753,
+        "2x": 1870
+      },
+      "sourceMaster": "masters/news-utility-glyphs-master.png",
+      "crop": {
+        "x": 397,
+        "y": 396,
+        "width": 396,
+        "height": 397,
+        "masterWidth": 1983,
+        "masterHeight": 793,
+        "subjectBoundsWithinCrop": {
+          "x": 127,
+          "y": 63,
+          "width": 186,
+          "height": 211
+        },
+        "cleanup": {
+          "clearTopPx": 0
+        }
+      },
+      "transparentPadding": {
+        "1x": {
+          "top": 1,
+          "right": 2,
+          "bottom": 1,
+          "left": 2
+        },
+        "2x": {
+          "top": 3,
+          "right": 5,
+          "bottom": 3,
+          "left": 4
+        },
+        "thresholdAlpha": 8
+      },
+      "opticalBox2x": {
+        "x": 5,
+        "y": 4,
+        "width": 22,
+        "height": 24
+      },
+      "owner": "EvidenceBadge",
+      "sourceClass": "imagegen_raster",
+      "reviewStatus": "wechat_verified_production",
+      "processing": {
+        "kind": "alpha_bbox_optical_normalization",
+        "targetLongSide2x": 26
+      }
+    },
+    {
+      "assetId": "news-favorite-control.default",
+      "slotId": "news.favorite.control",
+      "variant": "default",
+      "path1x": "runtime/1x/actions/news-favorite-control.default.png",
+      "path2x": "runtime/2x/actions/news-favorite-control.default.png",
+      "dimensions": {
+        "1x": {
+          "width": 35,
+          "height": 33
+        },
+        "2x": {
+          "width": 70,
+          "height": 66
+        }
+      },
+      "hash": {
+        "1x": "23fbacb0a6eb0060d2c4af191c4056c9b3527dec19c94f2797fe0bc76bf03192",
+        "2x": "a53b847cb24280968c6a67a6e6eb70f866a09133c12ea7d6ffd11bd9629bc9dc"
+      },
+      "bytes": {
+        "1x": 2452,
+        "2x": 7450
+      },
+      "sourceMaster": null,
+      "sourceGeneration": null,
+      "sourceTarget": {
+        "path": "artifacts/ui-visual-targets/current/news-home.png",
+        "sha256": "9d0c67401c6c43e412f099bc032ade9e0add87478ccd80881ee73057e866e7ac",
+        "normalizedDimensions": {
+          "width": 780,
+          "height": 1552
+        },
+        "region": "header",
+        "regionRect": [
+          0,
+          0,
+          780,
+          86
+        ],
+        "cropRect": [
+          686,
+          11,
+          70,
+          66
+        ],
+        "includesBackground": true
+      },
+      "crop": {
+        "x": 686,
+        "y": 11,
+        "width": 70,
+        "height": 66,
+        "normalizedRegion": "header"
+      },
+      "opticalContentBox2x": [
+        0,
+        0,
+        70,
+        66
+      ],
+      "transparentPadding": {
+        "1x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "2x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "thresholdAlpha": 8
+      },
+      "owner": "PageFrame",
+      "sourceClass": "canonical_target_derivative",
+      "reviewStatus": "wechat_verified_production",
+      "processing": {
+        "kind": "canonical_target_matted_crop"
+      }
+    },
+    {
+      "assetId": "news-favorite-control.selected",
+      "slotId": "news.favorite.control",
+      "variant": "selected",
+      "path1x": "runtime/1x/actions/news-favorite-control.selected.png",
+      "path2x": "runtime/2x/actions/news-favorite-control.selected.png",
+      "dimensions": {
+        "1x": {
+          "width": 35,
+          "height": 33
+        },
+        "2x": {
+          "width": 70,
+          "height": 66
+        }
+      },
+      "hash": {
+        "1x": "80463a0b251466058dda3123e718a9c79f56b8f238bfec28df218c2dd0d37e3c",
+        "2x": "440f24e5b3204113c2255194a4dd111e54015398b04bfc8264dc723be7b424af"
+      },
+      "bytes": {
+        "1x": 2478,
+        "2x": 7837
+      },
+      "sourceMaster": null,
+      "sourceGeneration": null,
+      "sourceTarget": {
+        "path": "artifacts/ui-visual-targets/current/news-home.png",
+        "sha256": "9d0c67401c6c43e412f099bc032ade9e0add87478ccd80881ee73057e866e7ac",
+        "normalizedDimensions": {
+          "width": 780,
+          "height": 1552
+        },
+        "region": "header",
+        "regionRect": [
+          0,
+          0,
+          780,
+          86
+        ],
+        "cropRect": [
+          686,
+          11,
+          70,
+          66
+        ],
+        "includesBackground": true
+      },
+      "crop": {
+        "x": 686,
+        "y": 11,
+        "width": 70,
+        "height": 66,
+        "normalizedRegion": "header"
+      },
+      "opticalContentBox2x": [
+        0,
+        0,
+        70,
+        66
+      ],
+      "transparentPadding": {
+        "1x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "2x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "thresholdAlpha": 8
+      },
+      "owner": "PageFrame",
+      "sourceClass": "canonical_target_derivative",
+      "reviewStatus": "wechat_verified_production",
+      "processing": {
+        "kind": "canonical_target_crop_selected_tone",
+        "modulate": "108,112,100"
+      }
+    },
+    {
+      "assetId": "news-bookmark-glyph.default",
+      "slotId": "news.bookmark.glyph",
+      "variant": "default",
+      "path1x": "runtime/1x/actions/news-bookmark-glyph.default.png",
+      "path2x": "runtime/2x/actions/news-bookmark-glyph.default.png",
+      "dimensions": {
+        "1x": {
+          "width": 14,
+          "height": 18
+        },
+        "2x": {
+          "width": 28,
+          "height": 36
+        }
+      },
+      "hash": {
+        "1x": "72572e9eb1ab4a69073db93ebaa0bf7f96bc5c373cc4372ebcc3b4648e402a04",
+        "2x": "ad26c16a9d15cdefcfbef9740cd4dddaa30b84021af15d2ec05c84fc20c832ab"
+      },
+      "bytes": {
+        "1x": 1131,
+        "2x": 1924
+      },
+      "sourceMaster": null,
+      "sourceGeneration": null,
+      "sourceTarget": {
+        "path": "artifacts/ui-visual-targets/current/news-home.png",
+        "sha256": "9d0c67401c6c43e412f099bc032ade9e0add87478ccd80881ee73057e866e7ac",
+        "normalizedDimensions": {
+          "width": 780,
+          "height": 1552
+        },
+        "region": "ranked_feed",
+        "regionRect": [
+          0,
+          882,
+          780,
+          506
+        ],
+        "cropRect": [
+          701,
+          110,
+          26,
+          35
+        ],
+        "includesBackground": true,
+        "matte": "#0d1011"
+      },
+      "crop": {
+        "x": 701,
+        "y": 110,
+        "width": 26,
+        "height": 35,
+        "normalizedRegion": "ranked_feed"
+      },
+      "opticalContentBox2x": [
+        1,
+        0,
+        26,
+        35
+      ],
+      "transparentPadding": {
+        "1x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "2x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "thresholdAlpha": 8
+      },
+      "owner": "RankedFeed",
+      "sourceClass": "canonical_target_derivative",
+      "reviewStatus": "wechat_verified_production",
+      "processing": {
+        "kind": "canonical_target_matted_crop",
+        "canvas2x": {
+          "width": 28,
+          "height": 36
+        }
+      }
+    },
+    {
+      "assetId": "news-bookmark-glyph.selected",
+      "slotId": "news.bookmark.glyph",
+      "variant": "selected",
+      "path1x": "runtime/1x/actions/news-bookmark-glyph.selected.png",
+      "path2x": "runtime/2x/actions/news-bookmark-glyph.selected.png",
+      "dimensions": {
+        "1x": {
+          "width": 14,
+          "height": 18
+        },
+        "2x": {
+          "width": 28,
+          "height": 36
+        }
+      },
+      "hash": {
+        "1x": "36db7e15ae36c91d2237a3d81c96649ec0f6354199d849da2a2887d4dfdf6c84",
+        "2x": "6131700268c0a8d6f75d8d7034941ea6e7a930e3812a5c82e0f7823a8dd6926f"
+      },
+      "bytes": {
+        "1x": 1188,
+        "2x": 2053
+      },
+      "sourceMaster": null,
+      "sourceGeneration": null,
+      "sourceTarget": {
+        "path": "artifacts/ui-visual-targets/current/news-home.png",
+        "sha256": "9d0c67401c6c43e412f099bc032ade9e0add87478ccd80881ee73057e866e7ac",
+        "normalizedDimensions": {
+          "width": 780,
+          "height": 1552
+        },
+        "region": "ranked_feed",
+        "regionRect": [
+          0,
+          882,
+          780,
+          506
+        ],
+        "cropRect": [
+          701,
+          110,
+          26,
+          35
+        ],
+        "includesBackground": true,
+        "matte": "#0d1011"
+      },
+      "crop": {
+        "x": 701,
+        "y": 110,
+        "width": 26,
+        "height": 35,
+        "normalizedRegion": "ranked_feed"
+      },
+      "opticalContentBox2x": [
+        1,
+        0,
+        26,
+        35
+      ],
+      "transparentPadding": {
+        "1x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "2x": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "thresholdAlpha": 8
+      },
+      "owner": "RankedFeed",
+      "sourceClass": "canonical_target_derivative",
+      "reviewStatus": "wechat_verified_production",
+      "processing": {
+        "kind": "canonical_target_crop_selected_tone",
+        "modulate": "118,120,100"
+      }
+    }
+  ]
+}

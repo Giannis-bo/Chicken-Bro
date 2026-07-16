@@ -1,0 +1,69 @@
+.page {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 0;
+  padding-top: 4px;
+  padding-bottom: 8px;
+  overflow-x: hidden;
+}
+
+.page [data-region='top_bar'] {
+  width: calc(100% - 13.54px);
+  height: 44px;
+  min-height: 44px;
+  margin-right: 6.77px;
+  margin-left: 6.77px;
+}
+
+.surface {
+  display: flex;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.region {
+  position: relative;
+  isolation: isolate;
+  width: calc(100% - 16.26px);
+  min-width: 0;
+  margin-right: 8.13px;
+  margin-left: 8.13px;
+  flex: 0 0 auto;
+}
+
+.region > view {
+  width: 100%;
+  height: 100%;
+}
+
+.hero {
+  height: 136.32px;
+  margin-top: 9.93px;
+}
+
+.translation {
+  height: 42.88px;
+  margin-top: 9.93px;
+}
+
+.body {
+  height: 263.1px;
+  margin-top: 9.03px;
+}
+
+.source {
+  height: 50.56px;
+  margin-top: 8.25px;
+}
+
+.evidence {
+  height: 142.64px;
+  margin-top: 8.51px;
+}
+
+.terminal {
+  height: 71.32px;
+  margin-top: 9.02px;
+}

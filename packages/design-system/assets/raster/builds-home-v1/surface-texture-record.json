@@ -1,0 +1,131 @@
+{
+  "sourceGeneration": {
+    "tool": "image_gen.imagegen",
+    "generatedPath": "/Users/heyesheng/.codex/generated_images/019f6166-1ff3-7261-86ea-9502644c70cf/exec-0f09fdb7-0418-4906-b107-4c78d2c1f841.png",
+    "dimensions": {
+      "width": 1254,
+      "height": 1254
+    },
+    "bytes": 2611290,
+    "sha256": "f7c8ced59538d4712077eda28c85219204597c827773f2b171d03899a9f1ae7d"
+  },
+  "sourceMaster": {
+    "path": "masters/builds-surface-texture-master-v1.png",
+    "exactCopyOfSourceGeneration": true
+  },
+  "assetId": "builds-surface-texture.default",
+  "paths": {
+    "sourceMaster": "masters/builds-surface-texture-master-v1.png",
+    "2x": "runtime/2x/surfaces/builds-surface-texture.default.png",
+    "1x": "runtime/1x/surfaces/builds-surface-texture.default.png"
+  },
+  "dimensions": {
+    "sourceMaster": {
+      "width": 1254,
+      "height": 1254
+    },
+    "2x": {
+      "width": 512,
+      "height": 512
+    },
+    "1x": {
+      "width": 256,
+      "height": 256
+    }
+  },
+  "bytes": {
+    "sourceMaster": 2611290,
+    "2x": 391070,
+    "1x": 93855
+  },
+  "sha256": {
+    "sourceMaster": "f7c8ced59538d4712077eda28c85219204597c827773f2b171d03899a9f1ae7d",
+    "2x": "eb93e1596c820bf0063c190dd26e418c3b9b5357b791362ac8492384a3f58770",
+    "1x": "12610119fbc253bc45d0666b6eccbc301bb565983c3f0895b3beaa293d2eb385"
+  },
+  "processing": {
+    "sourceCrop": {
+      "x": 275,
+      "y": 275,
+      "width": 704,
+      "height": 704
+    },
+    "tileMethod": "192px raised-cosine overlap wrap blend on the left and top bands",
+    "oneXDerivation": "2x2 box downsample from the 512x512 2x tile",
+    "colorMode": "RGB"
+  },
+  "edgeSeamMetrics": {
+    "method": "Opposite-edge wrap gradients compared with all same-axis interior adjacent-pixel gradients in RGB8; the values are also the joins exercised by a four-way 2x2 tile assembly.",
+    "thresholds": {
+      "maximumMeanRatio": 1.25,
+      "maximumP95Ratio": 1.5
+    },
+    "2x": {
+      "vertical": {
+        "wrapMeanAbsDeltaRgb8": 4.5365,
+        "interiorMeanAbsDeltaRgb8": 4.0512,
+        "meanRatio": 1.1198,
+        "wrapP95AbsDeltaRgb8": 11.0,
+        "interiorP95AbsDeltaRgb8": 10.0,
+        "p95Ratio": 1.1
+      },
+      "horizontal": {
+        "wrapMeanAbsDeltaRgb8": 4.6302,
+        "interiorMeanAbsDeltaRgb8": 4.6352,
+        "meanRatio": 0.9989,
+        "wrapP95AbsDeltaRgb8": 12.0,
+        "interiorP95AbsDeltaRgb8": 12.0,
+        "p95Ratio": 1.0
+      },
+      "fourEdgeTilingPass": true
+    },
+    "1x": {
+      "vertical": {
+        "wrapMeanAbsDeltaRgb8": 3.9974,
+        "interiorMeanAbsDeltaRgb8": 3.5085,
+        "meanRatio": 1.1394,
+        "wrapP95AbsDeltaRgb8": 10.0,
+        "interiorP95AbsDeltaRgb8": 9.0,
+        "p95Ratio": 1.1111
+      },
+      "horizontal": {
+        "wrapMeanAbsDeltaRgb8": 4.0521,
+        "interiorMeanAbsDeltaRgb8": 3.764,
+        "meanRatio": 1.0765,
+        "wrapP95AbsDeltaRgb8": 11.0,
+        "interiorP95AbsDeltaRgb8": 10.0,
+        "p95Ratio": 1.1
+      },
+      "fourEdgeTilingPass": true
+    }
+  },
+  "contentValidation": {
+    "method": "Single isolated visual inspection of the source plus deterministic crop, wrap-blend, and output statistics.",
+    "2x": {
+      "centerLineSecondDerivativeRatio": {
+        "vertical": 0.8876,
+        "horizontal": 0.9092,
+        "pass": true
+      },
+      "centerMeanLumaDeltaRgb8": 0.4584,
+      "edgeBandMeanLumaDeltaRgb8": 0.2033,
+      "goldLikePixelCount": 0
+    },
+    "1x": {
+      "centerLineSecondDerivativeRatio": {
+        "vertical": 1.1329,
+        "horizontal": 1.0868,
+        "pass": true
+      },
+      "centerMeanLumaDeltaRgb8": 0.4645,
+      "edgeBandMeanLumaDeltaRgb8": 0.2067,
+      "goldLikePixelCount": 0
+    },
+    "centerPattern": "pass",
+    "border": "pass",
+    "text": "pass",
+    "symbol": "pass",
+    "goldDecoration": "pass"
+  },
+  "reviewStatus": "generated_pending_isolated_review"
+}

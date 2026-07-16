@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 2,
+  "generations": [
+    {
+      "promptSummary": "Four metric, four evidence-state, and two gold-star bookmark glyphs optimized for small sizes on a flat magenta key.",
+      "imagegenSavedPath": "/Users/heyesheng/.codex/generated_images/019f5cf0-9150-7e20-ade3-4c5ef6259c52/exec-34910f1e-dd2e-4602-9e27-9206f39aaf86.png",
+      "generatedAt": "2026-07-13T19:33:46.698558+00:00",
+      "targetSha256": "9d0c67401c6c43e412f099bc032ade9e0add87478ccd80881ee73057e866e7ac"
+    },
+    {
+      "promptSummary": "Reference edit of the canonical carousel scene into a clean anonymous non-factual fantasy architecture fallback without UI or text.",
+      "imagegenSavedPath": "/Users/heyesheng/.codex/generated_images/019f5dcf-4be4-7382-a2a9-6cd18ed7a6ed/exec-4b057a14-bf97-4049-a6b0-e371ac528236.png",
+      "selectedPath": "/tmp/news-home-carousel-imagegen-selected-832x400.png",
+      "generatedAt": "2026-07-14T00:21:47.006Z",
+      "targetSha256": "9d0c67401c6c43e412f099bc032ade9e0add87478ccd80881ee73057e866e7ac"
+    }
+  ],
+  "stateDerivationPolicy": {
+    "favorite": "default is a canonical-target matted control crop; selected uses deterministic tone only",
+    "bookmark": "default is a canonical-target matted glyph crop; selected uses deterministic tone only"
+  }
+}

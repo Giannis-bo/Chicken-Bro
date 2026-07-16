@@ -97,58 +97,6 @@
       {
         "type": "glob",
         "value": "websim/**"
-      },
-      {
-        "type": "glob",
-        "value": "assets/generated/**"
-      },
-      {
-        "type": "glob",
-        "value": "assets/generated/**/design-board.*"
-      },
-      {
-        "type": "glob",
-        "value": "assets/generated/**/*source*.*"
-      },
-      {
-        "type": "glob",
-        "value": "assets/generated/**/*reference*.*"
-      },
-      {
-        "type": "glob",
-        "value": "assets/generated/**/*atlas*.*"
-      },
-      {
-        "type": "glob",
-        "value": "assets/generated/ui-redesign/20260630/**"
-      },
-      {
-        "type": "glob",
-        "value": "assets/generated/ui-v2-restoration/**"
-      },
-      {
-        "type": "glob",
-        "value": "assets/generated/ui-v3/**"
-      },
-      {
-        "type": "glob",
-        "value": "assets/generated/ui-v3-1/**"
-      },
-      {
-        "type": "file",
-        "value": "assets/generated/ui-v2-1-slices/20260703/news_tab_icon_atlas_pass36.png"
-      },
-      {
-        "type": "file",
-        "value": "assets/generated/ui-v2-1-slices/20260703/wow_layout_material_atlas.png"
-      },
-      {
-        "type": "file",
-        "value": "assets/generated/ui-v2-1-slices/20260703/builds_workbench_material_atlas.png"
-      },
-      {
-        "type": "file",
-        "value": "assets/generated/ui-v2-1-slices/20260703/builds_workbench_panel_atlas_v2.png"
       }
     ],
     "include": []

@@ -1,9 +1,0 @@
-{
-  "status": "route_selector_proof_not_completed",
-  "checkedAt": "2026-07-08T03:05:29.929Z",
-  "wsEndpoint": "ws://127.0.0.1:9854",
-  "selectedRoute": "pages/simulator/simulator",
-  "captureScreenshotUsed": false,
-  "forbiddenActionsUsed": [],
-  "error": "connect automator ws://127.0.0.1:9854 timed out after 2400ms"
-}

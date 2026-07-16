@@ -1,0 +1,122 @@
+{
+  "schemaVersion": 1,
+  "route": "news_detail",
+  "status": "truth_adaptation_complete",
+  "authority": "docs/plans/2026-07-14-target-first-14-route-rebuild.md",
+  "targetInventory": "docs/design/current-ui/routes/news-detail/target-inventory.json",
+  "targetGeometry": "docs/design/current-ui/routes/news-detail/target-geometry.json",
+  "runtimeFacts": {
+    "route": "pages/news/detail",
+    "navigation": "pushed",
+    "query": ["id"],
+    "endpoints": ["news.article"],
+    "outgoing": ["news_list", "external_source_copy"],
+    "localInteractions": ["copy_source", "evidence_collapse", "article_body_scroll", "retry"]
+  },
+  "apiProbe": {
+    "probedAt": "2026-07-15T02:58:00+08:00",
+    "via": "http://127.0.0.1:10086/wow-api",
+    "articleId": "us-forums-blizzard-com-46ce0fb09fd0",
+    "httpStatus": 200,
+    "sourceName": "Blizzard Forums",
+    "sourceUrlPresent": true,
+    "publishedAtPresent": true,
+    "imageUrlPresent": false,
+    "contentStatus": "ready",
+    "translationStatus": "llm",
+    "translationFidelity": "source_translation",
+    "verificationStatus": "official_verified",
+    "licenseStatus": "approved",
+    "sourceTier": "official",
+    "bodyZhLength": 1049,
+    "bodyBlockCount": 39,
+    "bodyBlockTypes": ["paragraph", "list"],
+    "tags": ["ptr", "content-update"],
+    "sourceBadges": ["官方已核验", "全文翻译"]
+  },
+  "trustRules": [
+    "Target title, source, verification, body copy and evidence labels are placeholders and never runtime facts.",
+    "Article title, summary, body blocks, source and publication time come only from the current news.article payload.",
+    "translationStatus=llm is displayed as 机器翻译 and never as 人工翻译 or merely 已翻译.",
+    "The three target translation plates are a read-only status segmented control because the backend exposes one body, not three user-selectable translations.",
+    "Official or verified wording requires explicit sourceTier, verificationStatus or sourceBadges on the article.",
+    "Source copy is enabled only when sourceUrl is present; otherwise the source region remains mounted and clearly unavailable.",
+    "The probed article has no imageUrl, so the route must not fabricate a source crest, article image or WoW object image as factual media.",
+    "Evidence fact groups use explicit source, translation, publication and license fields without invented credibility percentages; the four target labels remain a compact legend rather than forcing runtime truth into a generic table.",
+    "All 39 body blocks remain readable inside the target-owned reading surface; target placeholder line count does not authorize truncating the article."
+  ],
+  "translationStatusRules": [
+    { "id": "pending", "label": "待翻译", "activeWhen": "translationStatus missing or explicitly pending" },
+    { "id": "machine", "label": "机器翻译", "activeWhen": "translationStatus=llm" },
+    { "id": "human", "label": "人工翻译", "activeWhen": "an explicit human translation status is returned" }
+  ],
+  "mappings": [
+    {
+      "region": "top_bar",
+      "slot": "title_and_back",
+      "target": "资讯详情 with back control",
+      "runtime": "fixed route title 资讯详情 and deterministic back navigation"
+    },
+    {
+      "region": "article_header_card",
+      "slot": "article_identity",
+      "target": "placeholder title, source crest and pending verification",
+      "runtime": "real article title, sourceName and explicit verification state",
+      "fallback": "stable unavailable text and neutral reference glyph; no publisher crest is fabricated"
+    },
+    {
+      "region": "translation_status",
+      "slot": "read_only_translation_segments",
+      "targetCount": 3,
+      "runtimeCount": 3,
+      "runtime": "highlight exactly one segment from translationStatus without changing body content",
+      "forbidden": ["interactive translation switching without alternate bodies", "labeling llm output as human translation"]
+    },
+    {
+      "region": "article_body",
+      "slot": "complete_translated_body",
+      "target": "five placeholder paragraph groups and eight visible lines",
+      "runtime": "all bodyBlocksZh in a bounded vertical reading surface with paragraphs, headings, lists and quotes",
+      "fallback": "bodyZh paragraphs when structured blocks are absent; summary only when neither body field is available"
+    },
+    {
+      "region": "source_reference_action",
+      "slot": "source_and_copy",
+      "target": "placeholder source link and copy action",
+      "runtime": "sourceName plus sourceUrl availability and deterministic clipboard copy",
+      "forbidden": ["opening or copying a missing URL", "claiming official solely from sourceName"]
+    },
+    {
+      "region": "evidence_details_panel",
+      "slot": "article_evidence_records",
+      "target": "four-column header with zero records and an empty emblem",
+      "runtime": "up to four deterministic fact groups for source, translation, publication and license in a compact 2x2 matrix, preserving type, summary, status and date semantics without four directly ruled cells",
+      "empty": "show the target empty composition only when no evidence field is present",
+      "forbidden": ["invented credibility score", "generic EvidenceLedger topology"]
+    },
+    {
+      "region": "missing_article_state",
+      "slot": "terminal_state",
+      "conflict": "target visibly combines a complete article with a missing-article state",
+      "resolution": {
+        "loading": "show 正在读取文章 while all seven regions remain mounted",
+        "ready": "show 正文与来源已载入 as a quiet end-of-article marker",
+        "missing": "show 未找到文章 only when the API returns null or the id is absent",
+        "error": "show 文章读取失败 and retry",
+        "blocked": "show 当前文章不可用 and the backend reason"
+      },
+      "forbidden": ["show 未找到文章 beside a loaded article", "render a separate generic RouteStatePanel"]
+    }
+  ],
+  "stateContract": {
+    "loading": "mount all seven regions at final first-level geometry with truthful skeletons and a loading terminal",
+    "ready": "render the real article, one active translation status, source action, deterministic evidence rows and ready terminal",
+    "partial": "preserve the article and mark each absent source, translation, publication or license field independently",
+    "stale": "preserve cached article content and label route/evidence as local fallback without claiming current freshness",
+    "blocked": "preserve all regions, expose the backend reason in the terminal and disable unavailable source actions",
+    "error": "preserve all regions and offer deterministic retry in the terminal",
+    "empty": "preserve all regions with unavailable content slots and show the missing terminal only"
+  },
+  "pendingTruthGaps": [],
+  "implementationStatus": "implemented_development_visual_review_passed"
+}

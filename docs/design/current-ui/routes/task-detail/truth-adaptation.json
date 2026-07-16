@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "route": "task_detail",
+  "status": "truth_adaptation_complete",
+  "implementationStatus": "implemented_visual_debt_open",
+  "authority": "docs/plans/2026-07-14-target-first-14-route-rebuild.md",
+  "targetInventory": "docs/design/current-ui/routes/task-detail/target-inventory.json",
+  "targetGeometry": "docs/design/current-ui/routes/task-detail/target-geometry.json",
+  "runtimeFacts": {
+    "route": "pages/simulator/task-detail",
+    "navigation": "pushed_route",
+    "endpoint": "simulator.task",
+    "storage": ["simulator.guestId", "auth.accessToken"],
+    "queryContext": ["id"],
+    "outgoing": ["tasks_list"],
+    "localInteractions": ["manual_refresh", "attribute_detail", "preparation_detail", "error_detail", "back_navigation"]
+  },
+  "apiProbe": {
+    "probedAt": "2026-07-15T08:27:35+08:00",
+    "via": "http://127.0.0.1:10086/wow-api/api/simulator/task?id=codex-task-detail-audit&guest=1&guestId=codex-task-detail-audit",
+    "httpStatus": 401,
+    "response": {"error": "unauthorized"},
+    "meaning": "an unknown guest owner cannot read or create a task through the detail endpoint",
+    "backendDetailContract": {
+      "ownerIsolation": "authenticated user or exact simulator.guestId owner",
+      "crossOwnerOrMissingTask": "404 simulator_task_not_found after an owner is established",
+      "taskFields": ["taskId", "mode", "status", "question", "recommendations", "request", "analysis", "createdAt", "updatedAt"],
+      "simcTemplateSanitization": ["raw profile removed", "guestId removed", "LLM/Codex internals removed", "allowedNumbers removed", "agent draftProfile removed"],
+      "structuredSimcReport": ["state", "title", "summary", "statusText", "profileSource", "scenario", "preparation", "build", "result", "timing", "messages"]
+    }
+  },
+  "trustRules": [
+    "The target's SimC 副本模拟任务 title, 运行中 status, 待开始/待处理 values, 智能分析 source, pending result, progress state, dash attributes, pending buffs and failure placeholder are visual examples and never runtime facts.",
+    "Only a task returned by simulator.task for the current authenticated user or exact simulator.guestId may populate any region. Missing id, 401, 404 or transport fallback keeps all ten regions neutral and never reuses another owner's task.",
+    "Task title prefers a returned structured SimC report title, then a bounded returned question, then a deterministic mode label. It never infers a class, specialization, scenario, source or result.",
+    "Status, timestamps and progress are deterministic mappings of returned task.status and report timing. Missing or invalid timestamps display 未返回 rather than target placeholders.",
+    "DPS is visible only when a returned structured SimC report says result.ran=true and result.hasDps=true and supplies dpsDisplay. Preview, generated-profile, queued, running, failed, generic and missing-report tasks cannot display a DPS claim.",
+    "Raw SimC profiles, guest identifiers, LLM/Codex internals and backend-only number allowlists are never rendered. The frontend uses only the public sanitized request and analysis returned by simulator.task.",
+    "The result region preserves its target silhouette for pending, completed, failed and unsupported modes. It may say unavailable or blocked, but it may not delete the result slot or manufacture a result.",
+    "Run context cells use only returned template titles/ids, profileSource and explicit version fields. Missing context retains four neutral unavailable cells.",
+    "Scenario cells use only returned scenario label/fightStyle/durationSeconds/targets and an explicit returned level. They never infer enemy level or convert a target placeholder into fact.",
+    "Attribute cells use only a returned build.statSnapshot with statStatus=verified. Strength, agility, intellect and stamina positions show a matching returned metric or unavailable; primary and secondary positions summarize returned verified metrics only.",
+    "Combat-buff cells use only returned preparation.items/evidenceState. The five stable positions represent raid baseline, self-class buff, specialization preparation, temporary buffs and evidence state; missing items remain unavailable rather than copying target buff claims.",
+    "The exception region is always present. It shows returned blockers or failure text only for failed/blocked states; otherwise it explicitly reports no current exception and cannot claim a timeout.",
+    "Manual refresh reuses the same task id and preserves the existing geometry while loading. Detail actions expose only already returned public fields.",
+    "No ProductTabBar is mounted because task_detail is a pushed route."
+  ],
+  "mappings": [
+    {"region": "page_frame", "runtime": "AppShell pushed-route surface and PageFrame task-detail variant"},
+    {"region": "page_header", "runtime": "real back navigation and fixed route title 任务详情"},
+    {"region": "task_summary", "runtime": "returned task identity, deterministic status, created/start/elapsed/source metadata"},
+    {"region": "refresh_notice", "runtime": "truthful automatic-update copy and manual same-id refresh"},
+    {"region": "simc_result", "runtime": "formal result, pending progress, failed result or unsupported-report state in one stable panel"},
+    {"region": "run_context", "runtime": "four returned template/profile/version context positions"},
+    {"region": "scenario", "runtime": "four returned scenario positions without inferred values"},
+    {"region": "attribute_snapshot", "runtime": "six verified-stat positions and public detail action"},
+    {"region": "combat_buffs", "runtime": "five preparation/evidence positions and public detail action"},
+    {"region": "error_state", "runtime": "returned exception detail or explicit no-current-exception state"}
+  ],
+  "stateContract": {
+    "initial_loading": "mount all ten regions, retain final geometry, show neutral loading values and no task claim",
+    "ready_pending": "derive summary and four-stage progress from queued/running status while withholding result numbers",
+    "ready_completed": "show a formal result only when the structured report result gate passes; otherwise keep an unavailable result",
+    "ready_failed": "show returned blocker/error text without DPS and retain all context/stat/buff positions",
+    "ready_non_simc": "preserve the ten-region report composition but mark structured SimC-only fields unavailable",
+    "blocked": "missing id, owner denial, not-found and transport fallback retain all ten regions and expose retry without generic RouteStatePanel",
+    "refresh": "reload the same id, preserve current public task data while loading, and never duplicate or replace it with target examples"
+  },
+  "pendingTruthGaps": []
+}

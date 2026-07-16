@@ -1,0 +1,13 @@
+.surface {
+  display: grid;
+  width: 100%;
+  max-width: 390px;
+  min-width: 0;
+  grid-template-rows: 121px 186px 73px 252px;
+  gap: 6px;
+  margin: 0 auto;
+}
+
+.surface > view {
+  min-width: 0;
+}

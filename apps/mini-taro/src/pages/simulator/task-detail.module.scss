@@ -1,0 +1,38 @@
+.pageFrame {
+  position: relative;
+  width: 390px;
+  height: 847px;
+  margin: 0 auto;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.summaryRegion,
+.refreshRegion,
+.resultRegion,
+.contextRegion,
+.scenarioRegion,
+.attributesRegion,
+.preparationRegion,
+.exceptionRegion {
+  position: absolute;
+}
+
+.summaryRegion { top: 6.1147%; left: 3.8778%; width: calc(92.2444% + 2px); height: 11.3095%; }
+.refreshRegion { top: 17.9654%; left: 3.9953%; width: calc(92.1269% + 2px); height: 3.8961%; }
+.resultRegion { top: 22.4567%; left: 3.8778%; width: calc(92.2444% + 2px); height: 24.0801%; }
+.contextRegion { top: 47.1861%; left: 3.8778%; width: calc(92.2444% + 2px); height: 10.4978%; }
+.scenarioRegion { top: 58.3333%; left: 3.8778%; width: calc(92.2444% + 2px); height: 8.1169%; }
+.attributesRegion { top: 67.0455%; left: 3.8778%; width: calc(92.2444% + 2px); height: 11.9048%; }
+.preparationRegion { top: 79.5996%; left: 3.8778%; width: calc(92.2444% + 2px); height: 11.8506%; }
+.exceptionRegion { top: 92.0996%; left: 3.8778%; width: calc(92.2444% + 2px); height: 5.8983%; }
+
+@media (max-width: 389px) {
+  .pageFrame {
+    width: 100vw;
+    height: calc(100vw * 2.1718);
+  }
+}

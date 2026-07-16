@@ -1,0 +1,162 @@
+{
+  "schemaVersion": 1,
+  "route": "current_spec_workbench",
+  "status": "truth_adaptation_complete",
+  "authority": "docs/plans/2026-07-14-target-first-14-route-rebuild.md",
+  "targetInventory": "docs/design/current-ui/routes/workbench/target-inventory.json",
+  "targetGeometry": "docs/design/current-ui/routes/workbench/target-geometry.json",
+  "runtimeFacts": {
+    "route": "pages/builds/workbench",
+    "navigation": "pushed",
+    "query": ["spec", "from"],
+    "endpoints": ["builds.home", "websim.talents", "websim.gear", "templates.list"],
+    "storage": ["templates.local"],
+    "outgoing": ["talent_simulator", "gear_detail", "SimC_submit", "chickenbro_chat", "profile/templates"]
+  },
+  "apiProbe": {
+    "probedAt": "2026-07-15T01:31:00+08:00",
+    "via": "http://127.0.0.1:10086/wow-api",
+    "selection": { "classKey": "mage", "specKey": "frost", "specId": "法师-冰霜" },
+    "buildsHome": { "httpStatus": 200, "classCount": 13, "specializationCount": 40, "dataStatus": "verified", "sourceRefCount": 2 },
+    "talents": {
+      "httpStatus": 200,
+      "nodeCount": 111,
+      "treeSectionCount": 3,
+      "talentStatus": "simc",
+      "simcReady": true,
+      "sourceRefCount": 2,
+      "descriptionFormulaGapCount": 55,
+      "hardSubmissionBlocker": false
+    },
+    "gear": {
+      "httpStatus": 200,
+      "slotDefinitionCount": 16,
+      "simcReadyRequiredSlotCount": 14,
+      "requiredReadyCount": 15,
+      "fullReady": false,
+      "missingCoreSlots": ["finger2", "trinket2"],
+      "catalogStatus": "verified",
+      "sourceRefCount": 0,
+      "selectedCountRaw": 361,
+      "candidateCountRaw": 257,
+      "selectedCountSemanticsAllowedForSlotDisplay": false
+    },
+    "templates": {
+      "talentHttpStatus": 401,
+      "gearHttpStatus": 401,
+      "remoteStatus": "authenticated_source_unavailable",
+      "clientFallback": "templates.local",
+      "remoteCountsUsable": false
+    }
+  },
+  "trustRules": [
+    "Target placeholder counts and draft labels are visual structure only and never runtime facts.",
+    "A source count is shown only from explicit sourceRefs after a non-fallback response; otherwise the fixed cell displays --.",
+    "Gear readiness uses slotReadiness and requiredReadyCount; selectedCount and candidateCount are catalog/candidate quantities and must never be labeled as equipped slots.",
+    "Talent description or formula gaps remain visible as evidence gaps but do not override talentReadiness.simcReady when deciding encoding readiness.",
+    "SimC may be marked ready only when talent encoding is SimC-ready and gear fullReady has no missing core slots.",
+    "Authenticated remote template failure does not fail the core workbench; local templates remain separately labeled and never appear remote-verified.",
+    "The assistant receives only the selected specialization, scenario and current blocker/evidence summary; it cannot invent DPS, ranking, BiS, officiality or player identity."
+  ],
+  "mappings": [
+    {
+      "region": "top_bar",
+      "slot": "title",
+      "target": "专精工作台",
+      "runtime": "fixed route title 专精工作台",
+      "states": ["ready", "loading", "error", "stale"],
+      "interaction": "back returns to specialization_home/builds_home"
+    },
+    {
+      "region": "top_bar",
+      "slot": "right_menu",
+      "target": "square menu action",
+      "runtime": "open profile/templates management",
+      "fallback": "disabled only while navigation is unavailable"
+    },
+    {
+      "region": "hero_card",
+      "slot": "identity",
+      "target": "职业 · 专精 and empty medallion",
+      "runtime": "selected class/spec label and source-referenced icon when iconUrl plus sourceUrl are both trusted",
+      "fallback": "neutral non-factual specialization medallion"
+    },
+    {
+      "region": "hero_card",
+      "slot": "source_chip",
+      "target": "来源参考",
+      "runtime": "source_reference, local fallback, partial or blocked label from builds.home provenance",
+      "fallback": "来源不可用"
+    },
+    {
+      "region": "hero_card",
+      "slot": "context_summary",
+      "target": "当前构建 · 占位描述或目标场景",
+      "runtime": "selected scenario plus honest remote/local template availability",
+      "forbidden": ["unverified build score", "DPS", "rank", "BiS"]
+    },
+    {
+      "region": "warning_panel",
+      "slot": "status_and_headline",
+      "target": "缺少输入 / 当前不可提交模拟",
+      "runtime": "derived overallState and overallDetail from talent SimC encoding plus gear fullReady",
+      "stateCopy": {
+        "loading": "正在读取输入",
+        "blocked": "当前不可提交模拟",
+        "partial": "仍有输入未就绪",
+        "ready": "输入已通过准备检查",
+        "stale": "使用本地回退数据"
+      }
+    },
+    {
+      "region": "warning_panel",
+      "slot": "reasons",
+      "target": "two bullet explanation lines",
+      "runtime": "first two unique hard blockers; if ready, two truthful readiness statements",
+      "fallback": "input status unavailable"
+    },
+    {
+      "region": "warning_panel",
+      "slot": "primary_action",
+      "target": "下一步",
+      "runtime": "route to first blocking module, or SimC submit confirmation when ready",
+      "disabled": "no selected specialization or initial loading"
+    },
+    {
+      "region": "module_cards_row",
+      "slot": "modules",
+      "targetCount": 4,
+      "runtimeCount": 4,
+      "runtimeIds": ["talents", "gear", "simc", "assistant"],
+      "titles": ["天赋", "装备", "SimC", "队长"],
+      "stateRule": "each card keeps an independent ready/partial/blocked/stale/loading state and route action",
+      "fallback": "all four cards remain mounted with explicit unavailable copy"
+    },
+    {
+      "region": "ledger_table",
+      "slot": "ledger_rows",
+      "targetCount": 4,
+      "runtimeCount": 4,
+      "runtimeIds": ["talents", "gear", "simc", "assistant"],
+      "structure": "one continuous forged ledger with icon-led rows, not an HTML table and not four detached cards",
+      "columns": {
+        "source": "explicit sourceRefs count or --",
+        "blocker": "unique current blocker/gap count",
+        "revision": "real schema/revision label or 待核验",
+        "action": "route-specific 进入 action"
+      },
+      "forbidden": ["copy target zeroes", "copy target 草稿 label", "fabricate source count", "generic table borders"]
+    }
+  ],
+  "stateContract": {
+    "loading": "mount hero, warning panel, four modules and four ledger rows at final geometry with loading copy",
+    "ready": "show current selection, independent module states, real evidence cells and actionable next step",
+    "partial": "preserve all regions and expose exact missing input or evidence gaps",
+    "stale": "preserve cached values but label the affected source as local fallback",
+    "blocked": "preserve all regions, disable unavailable actions and expose retry or first recoverable action",
+    "error": "preserve final geometry and provide deterministic retry without duplicate content tree",
+    "empty": "preserve slots and explain missing specialization mapping"
+  },
+  "pendingTruthGaps": [],
+  "implementationStatus": "implemented_pending_visual_review"
+}

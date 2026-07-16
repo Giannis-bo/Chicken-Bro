@@ -7097,6 +7097,12 @@ def article_list_title(query):
         return "社区"
     if key == "guides":
         return "攻略"
+    if key == "mythic-plus":
+        return "大秘境"
+    if key == "gear":
+        return "装备"
+    if key == "system":
+        return "系统"
     return "今日更新"
 
 
@@ -7138,6 +7144,24 @@ def filter_articles(articles, query):
             for article in articles
             if re.search(r"guide|攻略|指南|how to|玩法|build|rotation|simc|wcl", article_search_text(article))
         ]
+    if key == "mythic-plus":
+        return [
+            article
+            for article in articles
+            if re.search(r"mythic[- ]?plus|mythic\+|keystone|m\+|大秘|史诗钥石|秘境", article_search_text(article))
+        ]
+    if key == "gear":
+        return [
+            article
+            for article in articles
+            if re.search(r"gear|item|loot|trinket|weapon|armor|tier[- ]?set|equipment|装备|物品|战利品|饰品|武器|护甲|套装", article_search_text(article))
+        ]
+    if key == "system":
+        return [
+            article
+            for article in articles
+            if re.search(r"system|feature|interface|warband|delve|housing|profession|collection|account|系统|功能|界面|战团|地下堡|住房|专业|收藏|账号", article_search_text(article))
+        ]
     return articles
 
 
@@ -7167,11 +7191,13 @@ def build_home_payload():
         "heroNews": articles[:3],
         "metrics": [
             {"key": "today", "value": str(len(articles)), "label": "今日更新"},
+            {"key": "updates", "value": str(len(filter_articles(articles, {"type": "metric", "key": "updates"}))), "label": "更新"},
             {"key": "class-change", "value": str(count_by_tag(articles, "class-change")), "label": "职业变动"},
+            {"key": "events", "value": str(len(filter_articles(articles, {"type": "metric", "key": "events"}))), "label": "活动"},
             {"key": "ptr", "value": str(sum(1 for article in articles if article.get("channel") == "测试服前瞻")), "label": "测试服重点"},
         ],
         "channels": channels_with_counts(articles),
-        "highlights": articles[:6],
+        "highlights": articles[3:9],
         "lastRefreshedAt": state["lastRefreshedAt"],
         "refreshMode": state["refreshMode"],
     }

@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "route": "chickenbro_chat",
+  "status": "component_contract_complete",
+  "implementationStatus": "implemented_visual_debt_open",
+  "authority": "docs/plans/2026-07-14-target-first-14-route-rebuild.md",
+  "components": [
+    { "owner": "AppShell", "regions": ["page_frame"], "responsibility": "pushed-route safe areas and full-height chat surface" },
+    { "owner": "PageFrame", "variant": "chickenbro-chat", "regions": ["header_nav"], "responsibility": "back navigation and captain route identity" },
+    { "owner": "ChickenbroContextPanel", "regions": ["workbench_context_panel"], "responsibility": "bounded workbench context, evidence state and workbench navigation" },
+    { "owner": "ChickenbroIntroMessage", "regions": ["assistant_intro_message"], "responsibility": "single app-authored evidence-boundary introduction" },
+    { "owner": "ChickenbroUserTurnSlot", "variants": ["primary", "followup", "empty"], "regions": ["user_question_primary", "user_question_followup"], "responsibility": "latest two real user turns without fabricated timestamps or identity" },
+    { "owner": "ChickenbroEvidenceAnswer", "regions": ["assistant_evidence_answer"], "responsibility": "backend answer, answer-source labels and up to two returned evidence references" },
+    { "owner": "ChickenbroEvidenceBoundary", "regions": ["evidence_boundary_panel"], "responsibility": "fixed missing-input and limitation positions derived from the latest payload" },
+    { "owner": "ChickenbroAssistantTurnSlot", "variants": ["followup", "empty"], "regions": ["assistant_insufficient_evidence_message"], "responsibility": "second real backend assistant turn or neutral empty state" },
+    { "owner": "ChickenbroAnswerStatePanel", "regions": ["answer_failure_panel"], "responsibility": "idle, sending, returned and transport-error state with real retry" },
+    { "owner": "ChickenbroTopicLibrary", "regions": ["topic_library_entry"], "responsibility": "local safe-prompt picker without remote library claims" },
+    { "owner": "ChickenbroComposer", "regions": ["composer_dock"], "responsibility": "new topic, bounded input, send and duplicate-submit protection" }
+  ],
+  "rejectedReuse": [
+    { "owner": "AssistantRoute", "reason": "the generic assistant shell does not own the target's twelve fixed regions or two-turn evidence layout" },
+    { "owner": "ChatShell", "reason": "the target composer and alternating message slots have route-specific fixed geometry" },
+    { "owner": "EvidenceLedger", "reason": "returned references and evidence boundaries are separate target regions, not a table" },
+    { "owner": "WowPanel", "reason": "generic titled cards collapse the target's context, answer, boundary, recovery and library compositions" },
+    { "owner": "RouteStatePanel", "reason": "loading and errors must inhabit stable target-owned regions" },
+    { "owner": "AppShellDock", "reason": "the composer is a route-owned bottom region with three fixed controls" }
+  ],
+  "layoutContract": {
+    "targetWidthPx": 853,
+    "targetHeightPx": 1844,
+    "baselineCssViewport": { "width": 390, "height": 843, "dpr": 2 },
+    "stableRegionCount": 12,
+    "stableContextColumnCount": 3,
+    "stableVisibleTurnCount": 2,
+    "stableEvidenceRowCount": 2,
+    "stableBoundaryColumnCount": 2,
+    "stableMissingInputPositionCount": 3,
+    "stableLimitationPositionCount": 3,
+    "stableComposerControlCount": 3,
+    "pageScroll": "none at baseline",
+    "conversationPolicy": "render the latest two real turns into fixed target slots; older turns remain session context but do not grow page geometry"
+  },
+  "stateContract": {
+    "stableRegionCount": 12,
+    "initialAssistantCount": 1,
+    "stableEvidenceRowCount": 2,
+    "stableMissingInputPositionCount": 3,
+    "stableLimitationPositionCount": 3,
+    "stableComposerControlCount": 3,
+    "loadingMustNotCollapse": true,
+    "emptyMustNotCollapse": true,
+    "blockedMustNotCollapse": true,
+    "errorMustNotCollapse": true
+  }
+}

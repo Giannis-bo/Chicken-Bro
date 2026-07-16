@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "route": "chickenbro_chat",
+  "status": "asset_contract_complete",
+  "authority": "docs/plans/2026-07-14-target-first-14-route-rebuild.md",
+  "targetInventory": "docs/design/current-ui/routes/chickenbro-chat/target-inventory.json",
+  "targetObservedAssetSlotCount": 32,
+  "targetObservedAssetGroupCount": 19,
+  "productionRegistryStatus": "partial_reuse_only",
+  "productionPromotionAuthorized": false,
+  "slots": [
+    { "id": "asset_slot.chickenbro-page-frame", "owner": "AppShell", "role": "full ornamental frame and continuous chat surface", "source": "future unified non-factual material family; deterministic CSS fallback now" },
+    { "id": "asset_slot.chickenbro-header-identity", "owner": "PageFrame", "role": "back control, captain medallion and left-flowing route title", "source": "shared pushed-route control plus reviewed mascot-shell-family.captain when available" },
+    { "id": "asset_slot.chickenbro-context-family", "owner": "ChickenbroContextPanel", "role": "workbench heading, three read-only context columns and evidence-boundary action", "source": "shared utility glyphs and target-owned inset surfaces" },
+    { "id": "asset_slot.chickenbro-captain-avatar", "owner": "ChickenbroIntroMessage,ChickenbroEvidenceAnswer,ChickenbroAssistantTurnSlot", "role": "app-owned captain identity repeated in assistant turns", "source": "mascot-shell-family.captain with neutral assistant-glyph fallback; never a real player portrait" },
+    { "id": "asset_slot.chickenbro-user-avatar", "owner": "ChickenbroUserTurnSlot", "role": "neutral user-role medallion", "source": "generic user silhouette only; no player identity claim" },
+    { "id": "asset_slot.chickenbro-bubble-family", "owner": "ChickenbroIntroMessage,ChickenbroUserTurnSlot,ChickenbroEvidenceAnswer,ChickenbroAssistantTurnSlot", "role": "assistant and user bubble surfaces with directional tails", "source": "future unified non-factual bubble material family; CSS fallback now" },
+    { "id": "asset_slot.chickenbro-answer-basis", "owner": "ChickenbroEvidenceAnswer", "role": "answer-source heading, confidence pill and inset evidence card", "source": "code-native trust state plus neutral utility glyphs" },
+    { "id": "asset_slot.chickenbro-evidence-rows", "owner": "ChickenbroEvidenceAnswer", "role": "two returned-reference or unavailable positions", "source": "backend evidenceRefs text with neutral document frames; no generated source identity" },
+    { "id": "asset_slot.chickenbro-boundary-family", "owner": "ChickenbroEvidenceBoundary", "role": "missing-input and limitation heading glyphs, chips and helper rails", "source": "shared warning/shield glyphs and code-native trust tokens" },
+    { "id": "asset_slot.chickenbro-answer-state", "owner": "ChickenbroAnswerStatePanel", "role": "idle, waiting, returned, blocked and transport-error state", "source": "code-native status plus warning/reset utility glyphs" },
+    { "id": "asset_slot.chickenbro-topic-library", "owner": "ChickenbroTopicLibrary", "role": "local safe-prompt picker entry", "source": "neutral document/book utility glyph; no remote library asset claim" },
+    { "id": "asset_slot.chickenbro-composer", "owner": "ChickenbroComposer", "role": "prompt field and bottom dock surface", "source": "target-owned CSS field and future non-factual dock frame" },
+    { "id": "asset_slot.chickenbro-composer-actions", "owner": "ChickenbroComposer", "role": "new-topic and send controls", "source": "shared plus/send utility glyphs with target-owned button frames" },
+    { "id": "asset_slot.chickenbro-selector-affordances", "owner": "ChickenbroContextPanel,ChickenbroEvidenceAnswer,ChickenbroTopicLibrary", "role": "disclosure and continuation chevrons", "source": "shared utility-glyph-family.chevron-right" }
+  ],
+  "visibleAssetGaps": [
+    { "id": "CB-ASSET-001", "region": "page_frame", "gap": "the continuous texture, carved perimeter and corner depth are not promoted" },
+    { "id": "CB-ASSET-002", "region": "header_nav", "gap": "the captain identity medallion and back-control material family are not route-reviewed" },
+    { "id": "CB-ASSET-003", "region": "workbench_context_panel", "gap": "the three-column inset context surface and heading family are incomplete" },
+    { "id": "CB-ASSET-004", "region": "conversation", "gap": "assistant and user bubble skins with tails are not promoted" },
+    { "id": "CB-ASSET-005", "region": "conversation", "gap": "captain and neutral user medallion frames are not unified" },
+    { "id": "CB-ASSET-006", "region": "assistant_evidence_answer", "gap": "answer-basis and two-row evidence-card material family is incomplete" },
+    { "id": "CB-ASSET-007", "region": "evidence_boundary_panel", "gap": "two-column chip and helper-rail family is not promoted" },
+    { "id": "CB-ASSET-008", "region": "answer_failure_panel", "gap": "idle, waiting and transport-error variants lack one reviewed frame family" },
+    { "id": "CB-ASSET-009", "region": "topic_library_entry", "gap": "safe-prompt picker needs a route-reviewed utility surface" },
+    { "id": "CB-ASSET-010", "region": "composer_dock", "gap": "composer dock, prompt field and action frames are not promoted" }
+  ],
+  "generationPolicy": {
+    "mainSessionPayloadAllowed": false,
+    "targetCropAllowed": false,
+    "factBearingGenerationAllowed": false,
+    "allowedFutureGeneration": [
+      "non-factual page, panel and composer frames",
+      "neutral assistant and user medallion sockets",
+      "assistant and user bubble surface variants",
+      "non-factual answer, boundary, recovery and topic-library materials"
+    ]
+  }
+}

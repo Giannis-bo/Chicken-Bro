@@ -1,0 +1,264 @@
+{
+  "schemaVersion": 1,
+  "collectionId": "build-intel-v1",
+  "route": "build_intel",
+  "status": "candidate_pending_runtime_review",
+  "sourceClass": "imagegen_raster",
+  "generatedAt": "2026-07-15T06:22:37Z",
+  "root": "packages/design-system/assets/raster/build-intel-v1",
+  "productionPromoted": false,
+  "registeredInPackagesAssetsManifest": false,
+  "wiredIntoRuntimeCode": false,
+  "generation": {
+    "mode": "built_in_image_gen",
+    "callCount": 3,
+    "iterationCallCount": 0,
+    "sourceCount": 3,
+    "masterCount": 3,
+    "runtimeAssetIdCount": 3,
+    "runtimeFileCount": 6,
+    "record": "packages/design-system/assets/raster/build-intel-v1/generation-record.json"
+  },
+  "mechanicalValidation": {
+    "allRuntimePassed": true,
+    "alphaRequired": true,
+    "transparentCornersRequired": true,
+    "transparentOuterEdgeRequired": true,
+    "visibleGreenFractionMaximum": 0,
+    "ocrTextOrDigitsAllowed": false,
+    "oneXMustDeriveFromTwoX": true,
+    "validators": [
+      "ImageMagick identify/magick",
+      "Tesseract psm 11",
+      "sips deterministic re-derivation plus cmp"
+    ],
+    "runtimeCompositionReviewPending": true
+  },
+  "independentReview": {
+    "status": "candidate_pending_runtime_review",
+    "staticAssetVerdict": "pass_for_candidate_runtime_review",
+    "aggregate": "packages/design-system/assets/raster/build-intel-v1/independent-review.json",
+    "reviewCount": 3,
+    "isolatedOneAssetAtATime": true,
+    "runtimeCompositionReviewPending": true,
+    "productionPromoted": false
+  },
+  "assets": [
+    {
+      "assetId": "build-intel-summary-medallion.default",
+      "slotId": "asset_slot.build-intel-summary-medallion",
+      "status": "candidate_pending_runtime_review",
+      "sourceClass": "imagegen_raster",
+      "factBearing": false,
+      "productionPromoted": false,
+      "promptRef": "generation-record.json#build-intel-summary-medallion.default",
+      "reviewRef": "reviews/summary-medallion.json",
+      "builtInSavedPath": "/Users/heyesheng/.codex/generated_images/019f6465-776f-7e52-b5cd-1b941c8c442b/exec-946d96d6-5070-44d0-a01b-1ebb0229ab77.png",
+      "source": {
+        "path": "packages/design-system/assets/raster/build-intel-v1/sources/build-intel-summary-medallion.default.png",
+        "width": 1254,
+        "height": 1254,
+        "bytes": 2698074,
+        "sha256": "7b25b90fb3d022263143530d99b4933f0e0a7c60fea9e1fde766a064f1155060"
+      },
+      "master": {
+        "path": "packages/design-system/assets/raster/build-intel-v1/masters/build-intel-summary-medallion.default.png",
+        "width": 1254,
+        "height": 1254,
+        "bytes": 2484208,
+        "sha256": "15cf3d03d78fb6ff9dc5cbda457930450a77f0e8a309a87626f14519cc1c3e58"
+      },
+      "runtime": {
+        "2x": {
+          "path": "packages/design-system/assets/raster/build-intel-v1/runtime/2x/build-intel-summary-medallion.default.png",
+          "width": 256,
+          "height": 256,
+          "bytes": 97954,
+          "sha256": "72413f6c78ebecd144622fcddb23b5e19aaef8b65f55290ef945d1a8ed8a5c3b"
+        },
+        "1x": {
+          "path": "packages/design-system/assets/raster/build-intel-v1/runtime/1x/build-intel-summary-medallion.default.png",
+          "width": 128,
+          "height": 128,
+          "bytes": 27361,
+          "sha256": "bef5f07ea7ed629017c4742d623be5b7cc3617f59d641c6c3175ada5fa0d6a6f"
+        }
+      },
+      "processingMethod": "built-in image_gen chroma-key source; remove_chroma_key.py with border auto-key, soft matte, and despill; ImageMagick trim/fit/extent to 2x; 1x derived only from 2x with sips",
+      "validation": {
+        "passed": true,
+        "sourceCopyByteIdenticalToBuiltInSavedPath": true,
+        "runtimeHasAlpha": true,
+        "cornerAlpha": {
+          "2x": [0, 0, 0, 0],
+          "1x": [0, 0, 0, 0]
+        },
+        "outerEdgeAlphaMaximum": {
+          "2x": 0,
+          "1x": 0
+        },
+        "meanAlphaCoverage": {
+          "2x": 0.59605,
+          "1x": 0.591346
+        },
+        "visibleGreenFraction": {
+          "2x": 0,
+          "1x": 0
+        },
+        "centerAlphaMinimum": {
+          "2xCrop64x64": 1,
+          "1xCrop32x32": 1
+        },
+        "ocr": {
+          "2x": "",
+          "1x": ""
+        },
+        "oneXByteIdenticalToMechanicalRederivation": true
+      }
+    },
+    {
+      "assetId": "build-intel-card-medallion-shell.default",
+      "slotId": "asset_slot.build-intel-card-medallion-shell",
+      "status": "candidate_pending_runtime_review",
+      "sourceClass": "imagegen_raster",
+      "factBearing": false,
+      "productionPromoted": false,
+      "promptRef": "generation-record.json#build-intel-card-medallion-shell.default",
+      "reviewRef": "reviews/card-medallion-shell.json",
+      "builtInSavedPath": "/Users/heyesheng/.codex/generated_images/019f6465-776f-7e52-b5cd-1b941c8c442b/exec-f76f830d-cf98-491e-a128-d885d3356090.png",
+      "source": {
+        "path": "packages/design-system/assets/raster/build-intel-v1/sources/build-intel-card-medallion-shell.default.png",
+        "width": 1254,
+        "height": 1254,
+        "bytes": 2046577,
+        "sha256": "e36778596f5460d73ec470255e86a0a9526bc353fd2efdbf21983c9092f08c78"
+      },
+      "master": {
+        "path": "packages/design-system/assets/raster/build-intel-v1/masters/build-intel-card-medallion-shell.default.png",
+        "width": 1254,
+        "height": 1254,
+        "bytes": 1519215,
+        "sha256": "7e873bd4de7e802317a727061a5c78709fd05ab0701147b9123be99690fff19b"
+      },
+      "runtime": {
+        "2x": {
+          "path": "packages/design-system/assets/raster/build-intel-v1/runtime/2x/build-intel-card-medallion-shell.default.png",
+          "width": 192,
+          "height": 192,
+          "bytes": 44601,
+          "sha256": "d96b363f94f487b948ec3255f0aca2a13fa69276d801048f801ae1a1026f714a"
+        },
+        "1x": {
+          "path": "packages/design-system/assets/raster/build-intel-v1/runtime/1x/build-intel-card-medallion-shell.default.png",
+          "width": 96,
+          "height": 96,
+          "bytes": 12899,
+          "sha256": "84faae69a596d17b29328c49fb78d4cc483382a7f114f873f75b9d8d8786ebe1"
+        }
+      },
+      "processingMethod": "built-in image_gen chroma-key source; remove_chroma_key.py with border auto-key, soft matte, and despill; ImageMagick trim/fit/extent to 2x; 1x derived only from 2x with sips",
+      "validation": {
+        "passed": true,
+        "sourceCopyByteIdenticalToBuiltInSavedPath": true,
+        "runtimeHasAlpha": true,
+        "cornerAlpha": {
+          "2x": [0, 0, 0, 0],
+          "1x": [0, 0, 0, 0]
+        },
+        "outerEdgeAlphaMaximum": {
+          "2x": 0,
+          "1x": 0
+        },
+        "meanAlphaCoverage": {
+          "2x": 0.396938,
+          "1x": 0.392874
+        },
+        "visibleGreenFraction": {
+          "2x": 0,
+          "1x": 0
+        },
+        "centerAlphaMaximum": {
+          "2xCrop64x64": 0,
+          "1xCrop32x32": 0
+        },
+        "ocr": {
+          "2x": "",
+          "1x": ""
+        },
+        "oneXByteIdenticalToMechanicalRederivation": true
+      }
+    },
+    {
+      "assetId": "build-intel-primary-action.default",
+      "slotId": "asset_slot.build-intel-primary-action",
+      "status": "candidate_pending_runtime_review",
+      "sourceClass": "imagegen_raster",
+      "factBearing": false,
+      "productionPromoted": false,
+      "promptRef": "generation-record.json#build-intel-primary-action.default",
+      "reviewRef": "reviews/primary-action.json",
+      "builtInSavedPath": "/Users/heyesheng/.codex/generated_images/019f6465-776f-7e52-b5cd-1b941c8c442b/exec-63d7b72a-fd95-4645-96b8-069342523f36.png",
+      "source": {
+        "path": "packages/design-system/assets/raster/build-intel-v1/sources/build-intel-primary-action.default.png",
+        "width": 1915,
+        "height": 821,
+        "bytes": 1701373,
+        "sha256": "282dbbc2d779e5e5255c291f106520e538de2967adb1e793228336a33f40ea72"
+      },
+      "master": {
+        "path": "packages/design-system/assets/raster/build-intel-v1/masters/build-intel-primary-action.default.png",
+        "width": 1915,
+        "height": 821,
+        "bytes": 1488286,
+        "sha256": "476108f8a8b30b920294342e3e3f7e7d220994e9d334d7d5cdb392f2e3896ce9"
+      },
+      "runtime": {
+        "2x": {
+          "path": "packages/design-system/assets/raster/build-intel-v1/runtime/2x/build-intel-primary-action.default.png",
+          "width": 336,
+          "height": 144,
+          "bytes": 43744,
+          "sha256": "a6529ec2484dca51816ce7da2d40aa71eb90b6530364e4ed5fbb811d5947a813"
+        },
+        "1x": {
+          "path": "packages/design-system/assets/raster/build-intel-v1/runtime/1x/build-intel-primary-action.default.png",
+          "width": 168,
+          "height": 72,
+          "bytes": 13848,
+          "sha256": "e8cfcd62a132cc1430f46f911349e6c9dbd766aa4fa9036bf4c6848fa5d1c1a3"
+        }
+      },
+      "processingMethod": "built-in image_gen chroma-key source; remove_chroma_key.py with border auto-key, soft matte, and despill; ImageMagick trim/fit/extent to 2x; 1x derived only from 2x with sips",
+      "validation": {
+        "passed": true,
+        "sourceCopyByteIdenticalToBuiltInSavedPath": true,
+        "runtimeHasAlpha": true,
+        "cornerAlpha": {
+          "2x": [0, 0, 0, 0],
+          "1x": [0, 0, 0, 0]
+        },
+        "outerEdgeAlphaMaximum": {
+          "2x": 0,
+          "1x": 0
+        },
+        "meanAlphaCoverage": {
+          "2x": 0.59688,
+          "1x": 0.591214
+        },
+        "visibleGreenFraction": {
+          "2x": 0,
+          "1x": 0
+        },
+        "centerAlphaMinimum": {
+          "2xCrop201x48": 1,
+          "1xCrop100x24": 1
+        },
+        "ocr": {
+          "2x": "",
+          "1x": ""
+        },
+        "oneXByteIdenticalToMechanicalRederivation": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 8,
+  "status": "active",
+  "authority": "docs/plans/2026-07-14-target-first-14-route-rebuild.md",
+  "authoritativeInputs": [
+    "docs/design/current-ui/target-registry.json",
+    "docs/design/current-ui/routes",
+    "artifacts/ui-visual-targets/current/*.png",
+    "apps/mini-taro",
+    "packages/design-system",
+    "packages/assets-manifest",
+    "packages/api-client",
+    "packages/domain",
+    "server"
+  ],
+  "allowedPlanFiles": [
+    "README.md",
+    "2026-07-14-target-first-14-route-rebuild.md"
+  ],
+  "allowedArtifactRoots": [
+    "ui-visual-targets"
+  ],
+  "requiredAbsentPaths": [
+    "docs/reviews",
+    "docs/evidence",
+    "docs/superpowers",
+    "apps/design-review"
+  ],
+  "rules": {
+    "unlinkedFilesMayInfluenceImplementation": false,
+    "runtimeMayWriteTargetGeometry": false,
+    "sourceComponentsMayProveVisualCompletion": false,
+    "runtimeUtilityAssetsMayProveTargetFidelity": false,
+    "unlistedPlanMayRemain": false,
+    "roadmapMayContainExecutionTimeline": false,
+    "targetGeometryRequiresTargetOnlyIsolation": true,
+    "mutableTemporaryCaptureMayProveAcceptance": false,
+    "acceptanceEvidenceRequiresImmutableRuntimePath": true,
+    "humanDecisionRequired": true,
+    "obsoleteReviewStatesMayRemain": false,
+    "repositoryMemoryMayRemain": false,
+    "unregisteredArtifactRootsMayRemain": false,
+    "visibleTextClippingMayRemain": false,
+    "threeBaselineWeChatLockRequired": true,
+    "routeScopedWeChatVerificationMayAuthorizeProduction": false
+  }
+}

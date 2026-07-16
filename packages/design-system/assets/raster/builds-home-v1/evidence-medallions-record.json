@@ -1,0 +1,382 @@
+{
+  "status": "generated_pending_isolated_review",
+  "sourceGeneration": {
+    "tool": "image_gen.imagegen",
+    "generatedPath": "/Users/heyesheng/.codex/generated_images/019f6160-1a14-7c90-972f-4e830578797e/exec-c609519c-c695-451d-a38e-2f18851120cf.png",
+    "referenceImage": "/Users/heyesheng/Documents/code/github/wow_mini_program/artifacts/ui-visual-targets/current/builds-home.png",
+    "prompt": "Use case stylized-concept; generate a clean 2x2 master sheet of four coordinated non-factual carved metal medallions for talents, gear, simulation, and tasks, matching the reference's near-black forged iron, antique gold edging and low-contrast relief; one centered round medallion per quadrant on perfectly uniform flat #00ff00 chroma-key background; no text, numbers, real WoW objects, official marks, player identity, watermark, shadows, reflections, or extra UI."
+  },
+  "sourceMaster": {
+    "path": "masters/builds-evidence-medallions-master-v1.png",
+    "dimensions": {
+      "width": 1254,
+      "height": 1254
+    },
+    "bytes": 2245687,
+    "sha256": "75f9b9c7522e5f11fc5647ddc79635dc75dd5191583170771f145ba6794bed0e",
+    "exactCopyOfSourceGeneration": true
+  },
+  "mappingBasis": {
+    "method": "single isolated visual inspection plus prompt reading order",
+    "quadrants": [
+      {
+        "variant": "talents",
+        "quadrant": "upper-left",
+        "sourceCrop": {
+          "x": 56,
+          "y": 45,
+          "width": 547,
+          "height": 547
+        },
+        "basis": "generic branching progression relief"
+      },
+      {
+        "variant": "gear",
+        "quadrant": "upper-right",
+        "sourceCrop": {
+          "x": 649,
+          "y": 45,
+          "width": 547,
+          "height": 547
+        },
+        "basis": "generic forged equipment relief"
+      },
+      {
+        "variant": "simc",
+        "quadrant": "lower-left",
+        "sourceCrop": {
+          "x": 56,
+          "y": 652,
+          "width": 547,
+          "height": 547
+        },
+        "basis": "abstract simulation and analysis relief"
+      },
+      {
+        "variant": "tasks",
+        "quadrant": "lower-right",
+        "sourceCrop": {
+          "x": 649,
+          "y": 652,
+          "width": 547,
+          "height": 547
+        },
+        "basis": "generic task completion relief"
+      }
+    ]
+  },
+  "processing": {
+    "chromaKeyHelper": "${CODEX_HOME}/skills/.system/imagegen/scripts/remove_chroma_key.py",
+    "keyColor": "#00ff00",
+    "alphaSettings": {
+      "autoKey": "border",
+      "softMatte": true,
+      "transparentThreshold": 12,
+      "opaqueThreshold": 220,
+      "edgeContract": 1,
+      "despill": true
+    },
+    "opticalSizing": {
+      "1x": {
+        "canvas": "40x40",
+        "opticalBox": "36x36",
+        "transparentSafetyEdge": 2
+      },
+      "2x": {
+        "canvas": "80x80",
+        "opticalBox": "72x72",
+        "transparentSafetyEdge": 4
+      }
+    }
+  },
+  "assets": [
+    {
+      "assetId": "builds-evidence-medallion.talents@1x",
+      "variant": "talents",
+      "scale": "1x",
+      "path": "runtime/1x/evidence/builds-evidence-medallion.talents.png",
+      "dimensions": {
+        "width": 40,
+        "height": 40
+      },
+      "bytes": 3891,
+      "sha256": "305f93f8fa82ccc9d1c0e0d520dd8005fe33ae252644d8f576208bb2ae72f903",
+      "alphaCorner": {
+        "topLeft": 0,
+        "topRight": 0,
+        "bottomLeft": 0,
+        "bottomRight": 0
+      },
+      "opticalBox": {
+        "x": 2,
+        "y": 2,
+        "width": 36,
+        "height": 36,
+        "safeEdges": {
+          "left": 2,
+          "top": 2,
+          "right": 2,
+          "bottom": 2
+        }
+      },
+      "visibleGreenDominantPixels": 0
+    },
+    {
+      "assetId": "builds-evidence-medallion.gear@1x",
+      "variant": "gear",
+      "scale": "1x",
+      "path": "runtime/1x/evidence/builds-evidence-medallion.gear.png",
+      "dimensions": {
+        "width": 40,
+        "height": 40
+      },
+      "bytes": 3837,
+      "sha256": "6935d503ab874db44a121628e2cc85e2b2a3f03ca983e31510c15e0356b1df49",
+      "alphaCorner": {
+        "topLeft": 0,
+        "topRight": 0,
+        "bottomLeft": 0,
+        "bottomRight": 0
+      },
+      "opticalBox": {
+        "x": 2,
+        "y": 2,
+        "width": 36,
+        "height": 36,
+        "safeEdges": {
+          "left": 2,
+          "top": 2,
+          "right": 2,
+          "bottom": 2
+        }
+      },
+      "visibleGreenDominantPixels": 0
+    },
+    {
+      "assetId": "builds-evidence-medallion.simc@1x",
+      "variant": "simc",
+      "scale": "1x",
+      "path": "runtime/1x/evidence/builds-evidence-medallion.simc.png",
+      "dimensions": {
+        "width": 40,
+        "height": 40
+      },
+      "bytes": 3821,
+      "sha256": "e019670dff29bf60fc60722d7c9d8504fd793801d11ae43d10fa7b3c53a5e6ad",
+      "alphaCorner": {
+        "topLeft": 0,
+        "topRight": 0,
+        "bottomLeft": 0,
+        "bottomRight": 0
+      },
+      "opticalBox": {
+        "x": 2,
+        "y": 2,
+        "width": 36,
+        "height": 36,
+        "safeEdges": {
+          "left": 2,
+          "top": 2,
+          "right": 2,
+          "bottom": 2
+        }
+      },
+      "visibleGreenDominantPixels": 0
+    },
+    {
+      "assetId": "builds-evidence-medallion.tasks@1x",
+      "variant": "tasks",
+      "scale": "1x",
+      "path": "runtime/1x/evidence/builds-evidence-medallion.tasks.png",
+      "dimensions": {
+        "width": 40,
+        "height": 40
+      },
+      "bytes": 3721,
+      "sha256": "5f7c12825834cfacb820f9090c4ef64f93740f658a2c306c2abab55d9730d246",
+      "alphaCorner": {
+        "topLeft": 0,
+        "topRight": 0,
+        "bottomLeft": 0,
+        "bottomRight": 0
+      },
+      "opticalBox": {
+        "x": 2,
+        "y": 2,
+        "width": 36,
+        "height": 36,
+        "safeEdges": {
+          "left": 2,
+          "top": 2,
+          "right": 2,
+          "bottom": 2
+        }
+      },
+      "visibleGreenDominantPixels": 0
+    },
+    {
+      "assetId": "builds-evidence-medallion.talents@2x",
+      "variant": "talents",
+      "scale": "2x",
+      "path": "runtime/2x/evidence/builds-evidence-medallion.talents.png",
+      "dimensions": {
+        "width": 80,
+        "height": 80
+      },
+      "bytes": 11934,
+      "sha256": "6b49f832dd160bad8468a666a42487df17c71792e945c1347f4e5f0f27e1158b",
+      "alphaCorner": {
+        "topLeft": 0,
+        "topRight": 0,
+        "bottomLeft": 0,
+        "bottomRight": 0
+      },
+      "opticalBox": {
+        "x": 4,
+        "y": 4,
+        "width": 72,
+        "height": 72,
+        "safeEdges": {
+          "left": 4,
+          "top": 4,
+          "right": 4,
+          "bottom": 4
+        }
+      },
+      "visibleGreenDominantPixels": 0
+    },
+    {
+      "assetId": "builds-evidence-medallion.gear@2x",
+      "variant": "gear",
+      "scale": "2x",
+      "path": "runtime/2x/evidence/builds-evidence-medallion.gear.png",
+      "dimensions": {
+        "width": 80,
+        "height": 80
+      },
+      "bytes": 11649,
+      "sha256": "d3124cb003cbd04384a350f2906ddf943e557da135faf957720c7e67cb63d6c5",
+      "alphaCorner": {
+        "topLeft": 0,
+        "topRight": 0,
+        "bottomLeft": 0,
+        "bottomRight": 0
+      },
+      "opticalBox": {
+        "x": 4,
+        "y": 4,
+        "width": 72,
+        "height": 72,
+        "safeEdges": {
+          "left": 4,
+          "top": 4,
+          "right": 4,
+          "bottom": 4
+        }
+      },
+      "visibleGreenDominantPixels": 0
+    },
+    {
+      "assetId": "builds-evidence-medallion.simc@2x",
+      "variant": "simc",
+      "scale": "2x",
+      "path": "runtime/2x/evidence/builds-evidence-medallion.simc.png",
+      "dimensions": {
+        "width": 80,
+        "height": 80
+      },
+      "bytes": 11557,
+      "sha256": "84fa5f74100f20bcca94cefc9599f9b7a80e82f57095c69d8827bb7eebc575f2",
+      "alphaCorner": {
+        "topLeft": 0,
+        "topRight": 0,
+        "bottomLeft": 0,
+        "bottomRight": 0
+      },
+      "opticalBox": {
+        "x": 4,
+        "y": 4,
+        "width": 72,
+        "height": 72,
+        "safeEdges": {
+          "left": 4,
+          "top": 4,
+          "right": 4,
+          "bottom": 4
+        }
+      },
+      "visibleGreenDominantPixels": 0
+    },
+    {
+      "assetId": "builds-evidence-medallion.tasks@2x",
+      "variant": "tasks",
+      "scale": "2x",
+      "path": "runtime/2x/evidence/builds-evidence-medallion.tasks.png",
+      "dimensions": {
+        "width": 80,
+        "height": 80
+      },
+      "bytes": 11196,
+      "sha256": "12c4139255c733e4d5d227858c4248df5e305f991a91680de840fa230383bcd2",
+      "alphaCorner": {
+        "topLeft": 0,
+        "topRight": 0,
+        "bottomLeft": 0,
+        "bottomRight": 0
+      },
+      "opticalBox": {
+        "x": 4,
+        "y": 4,
+        "width": 72,
+        "height": 72,
+        "safeEdges": {
+          "left": 4,
+          "top": 4,
+          "right": 4,
+          "bottom": 4
+        }
+      },
+      "visibleGreenDominantPixels": 0
+    }
+  ],
+  "validation": {
+    "sourceMasterExactCopy": {
+      "result": "pass",
+      "sourceSha256": "75f9b9c7522e5f11fc5647ddc79635dc75dd5191583170771f145ba6794bed0e",
+      "masterSha256": "75f9b9c7522e5f11fc5647ddc79635dc75dd5191583170771f145ba6794bed0e"
+    },
+    "dimensions": {
+      "result": "pass"
+    },
+    "transparentCorners": {
+      "result": "pass",
+      "criterion": "all four corner alpha values equal 0"
+    },
+    "opticalSafetyEdge": {
+      "result": "pass",
+      "criterion": "every alpha optical-box edge is 2-4 px"
+    },
+    "greenFringe": {
+      "result": "pass",
+      "criterion": "zero visible pixels with alpha > 8 and green dominance >= 24"
+    },
+    "noText": {
+      "result": "pass",
+      "method": "isolated visual inspection and Tesseract PSM 11 on each 2x asset",
+      "ocrDetections": {
+        "talents": "",
+        "gear": "",
+        "simc": "",
+        "tasks": ""
+      }
+    },
+    "nonFactualNoRealWowObjects": {
+      "result": "pass",
+      "method": "isolated visual inspection; only generic non-factual relief motifs observed"
+    },
+    "officialMarksPlayerIdentity": {
+      "result": "pass",
+      "method": "isolated visual inspection; none observed"
+    }
+  }
+}

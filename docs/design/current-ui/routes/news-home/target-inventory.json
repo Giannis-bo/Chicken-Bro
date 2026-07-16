@@ -1,0 +1,183 @@
+{
+  "schemaVersion": 1,
+  "route": "news_home",
+  "status": "target_inventory_complete",
+  "authority": "docs/plans/2026-07-14-target-first-14-route-rebuild.md",
+  "source": {
+    "path": "artifacts/ui-visual-targets/current/news-home.png",
+    "sha256": "9d0c67401c6c43e412f099bc032ade9e0add87478ccd80881ee73057e866e7ac",
+    "widthPx": 889,
+    "heightPx": 1770
+  },
+  "measurement": {
+    "context": "disposable_isolated_target_only",
+    "runtimeInputsUsed": false,
+    "existingCssUsed": false,
+    "existingComponentsUsed": false,
+    "reviewEvidenceUsed": false,
+    "geometryRef": "docs/design/current-ui/routes/news-home/target-geometry.json"
+  },
+  "visualLanguage": {
+    "description": "dark high-fantasy information surface with restrained metallic hierarchy",
+    "colorEstimates": {
+      "canvas": "#080c0e",
+      "panel": "#101416",
+      "raised": "#17191a",
+      "mediaFallback": "#252626",
+      "frameDark": "#4d4941",
+      "frameHighlight": "#81735e",
+      "gold": "#cfa365",
+      "activeGold": "#edbc66",
+      "textPrimary": "#d5cec4",
+      "textSecondary": "#a49c93",
+      "statusBlue": "#70aef7",
+      "statusPurple": "#b68af1",
+      "separator": "#292c2c"
+    },
+    "colorEstimateExact": false,
+    "cornerLanguage": "small cut corners and nested metallic outlines",
+    "density": "six authored regions fill one complete mobile viewport"
+  },
+  "typographyEstimatesPx": [
+    { "role": "page_title", "size": 42, "lineHeight": 52, "weight": 700 },
+    { "role": "brief_title", "size": 38, "lineHeight": 46, "weight": 700 },
+    { "role": "date", "size": 29, "lineHeight": 36, "weight": 600 },
+    { "role": "source_chip", "size": 22, "lineHeight": 30, "weight": 500 },
+    { "role": "metric", "size": 25, "lineHeight": 34, "weight": 600 },
+    { "role": "hero_title", "size": 38, "lineHeight": 48, "weight": 700 },
+    { "role": "hero_summary", "size": 24, "lineHeight": 34, "weight": 500 },
+    { "role": "channel", "size": 27, "lineHeight": 36, "weight": 600 },
+    { "role": "section_title", "size": 34, "lineHeight": 44, "weight": 700 },
+    { "role": "news_title", "size": 28, "lineHeight": 38, "weight": 600 },
+    { "role": "metadata", "size": 21, "lineHeight": 30, "weight": 500 },
+    { "role": "status", "size": 20, "lineHeight": 28, "weight": 600 },
+    { "role": "tab_label", "size": 29, "lineHeight": 38, "weight": 600 }
+  ],
+  "regions": [
+    {
+      "id": "header",
+      "boundsPx": { "x": 0, "y": 0, "width": 889, "height": 98 },
+      "visibleBoundsPx": { "x": 20, "y": 15, "width": 849, "height": 71 },
+      "structure": "three unequal groups, never equal thirds",
+      "slots": [
+        { "id": "title", "boundsPx": { "x": 38, "y": 29, "width": 176, "height": 44 }, "targetText": "最新资讯" },
+        { "id": "source_status", "boundsPx": { "x": 247, "y": 26, "width": 244, "height": 47 }, "targetText": "来源参考：更新中", "glyphBoundsPx": { "x": 453, "y": 38, "width": 23, "height": 23 } },
+        { "id": "flex_space", "boundsPx": { "x": 491, "y": 16, "width": 294, "height": 68 } },
+        { "id": "favorite_action", "boundsPx": { "x": 785, "y": 16, "width": 72, "height": 68 }, "glyphBoundsPx": { "x": 804, "y": 32, "width": 37, "height": 35 } }
+      ]
+    },
+    {
+      "id": "daily_brief",
+      "boundsPx": { "x": 20, "y": 98, "width": 849, "height": 276 },
+      "frame": "ornate outer frame with one upper split and one four-cell metric row",
+      "upper": {
+        "boundsPx": { "x": 29, "y": 105, "width": 831, "height": 171 },
+        "columnsPx": [203, 628],
+        "emblemPane": { "x": 29, "y": 105, "width": 203, "height": 171 },
+        "emblem": { "x": 42, "y": 112, "width": 176, "height": 166 },
+        "gem": { "x": 111, "y": 178, "width": 38, "height": 42 },
+        "title": { "x": 258, "y": 132, "width": 154, "height": 43, "targetText": "每日简报" },
+        "targetDateText": "05月23日",
+        "targetStatusText": "更新中",
+        "targetSourceText": "来源参考：多源汇总",
+        "sourceLineCount": 1,
+        "chevronX": 811
+      },
+      "metrics": {
+        "count": 4,
+        "boundsY": 292,
+        "height": 63,
+        "cells": [
+          { "id": "headline", "label": "要闻", "targetValue": "6", "glyphRole": "document", "x": 53, "width": 182 },
+          { "id": "updates", "label": "更新", "targetValue": "4", "glyphRole": "alert", "x": 260, "width": 182 },
+          { "id": "balance", "label": "平衡", "targetValue": "2", "glyphRole": "scales", "x": 463, "width": 187 },
+          { "id": "events", "label": "活动", "targetValue": "3", "glyphRole": "calendar", "x": 669, "width": 187 }
+        ]
+      }
+    },
+    {
+      "id": "featured_carousel",
+      "boundsPx": { "x": 20, "y": 388, "width": 849, "height": 425 },
+      "mediaBoundsPx": { "x": 29, "y": 398, "width": 831, "height": 399 },
+      "mediaAspectApprox": 2.08,
+      "sourceChip": { "x": 58, "y": 417, "width": 251, "height": 42, "count": 1 },
+      "statusChip": { "x": 733, "y": 417, "width": 99, "height": 42, "count": 1 },
+      "titleOriginPx": { "x": 57, "y": 665 },
+      "summaryOriginPx": { "x": 58, "y": 724 },
+      "paginationSlotCount": 5,
+      "activePaginationCount": 1,
+      "readabilityTreatment": "bottom overlay inside media frame"
+    },
+    {
+      "id": "channel_dock",
+      "boundsPx": { "x": 20, "y": 825, "width": 849, "height": 166 },
+      "activePointerExtendsToYApproxPx": 998,
+      "structure": "one continuous outer frame with six equal columns and internal dividers",
+      "tileCount": 6,
+      "labels": ["综合", "职业", "大秘", "装备", "系统", "更多"],
+      "glyphRoles": ["compass", "class_helmet", "mythic_key", "chest_armor", "system_reticle", "more_grid"],
+      "activeIndex": 0,
+      "activeTreatment": "gold selected-column border and wash aligned to the shared frame, with a bottom diamond pointer crossing the shared bottom edge",
+      "estimatedDividerBandPx": { "min": 4, "max": 6 }
+    },
+    {
+      "id": "ranked_feed",
+      "boundsPx": { "x": 20, "y": 1007, "width": 849, "height": 575 },
+      "title": "今日重点",
+      "headerBottomY": 1089,
+      "visibleRowCount": 4,
+      "rowBandsPx": [
+        { "y": 1089, "height": 121 },
+        { "y": 1210, "height": 120 },
+        { "y": 1330, "height": 119 },
+        { "y": 1449, "height": 129 }
+      ],
+      "rowContract": {
+        "thumbnail": { "x": 54, "width": 140, "heightApprox": 91, "aspectApprox": 1.54 },
+        "textColumnX": 224,
+        "thumbnailToTextGapPx": 30,
+        "bookmarkX": 800,
+        "titleLines": 1,
+        "sourceLineCount": 1,
+        "statusCount": 1,
+        "bookmarkCount": 1
+      }
+    },
+    {
+      "id": "product_tab_bar",
+      "boundsPx": { "x": 5, "y": 1602, "width": 879, "height": 161 },
+      "structure": "one continuous outer frame with four equal columns and internal dividers",
+      "itemCount": 4,
+      "labels": ["资讯", "专精", "队长", "我的"],
+      "glyphRoles": ["news_scroll", "spec_medallion", "captain_shield", "profile_helmet"],
+      "columnEndXApprox": [229, 447, 665, 884],
+      "activeIndex": 0,
+      "activeTreatment": "gold border and glow aligned to the full selected-column boundaries and shared frame edges, without an inset content box or geometry change",
+      "bottomClearancePx": 7
+    }
+  ],
+  "crossRegionAlignments": [
+    "daily_brief, featured_carousel, channel_dock, and ranked_feed share x=20 and right=869",
+    "daily_brief and featured_carousel inner frames align near x=29 and right=860",
+    "carousel source and copy align at x=58",
+    "feed thumbnails align at x=54 and text at x=224",
+    "channel and tab active states share the same gold/glow hierarchy"
+  ],
+  "assetSlots": [
+    { "id": "frame_family", "count": 5, "role": "shared ornate frame or 9-slice", "factRisk": "none" },
+    { "id": "daily_emblem", "count": 1, "role": "neutral compass/shield/gem emblem", "factRisk": "none" },
+    { "id": "hero_media", "count": 1, "role": "article media or neutral editorial fallback", "factRisk": "high" },
+    { "id": "feed_media", "count": 4, "role": "article thumbnail or neutral media fallback", "factRisk": "high" },
+    { "id": "metric_glyphs", "count": 4, "role": "document, alert, scales, calendar", "factRisk": "none" },
+    { "id": "channel_glyphs", "count": 6, "role": "category navigation", "factRisk": "low" },
+    { "id": "source_glyph", "count": 1, "role": "reusable evidence/source marker", "factRisk": "medium" },
+    { "id": "favorite_glyph", "count": 1, "role": "header favorite state action", "factRisk": "none" },
+    { "id": "bookmark_glyph", "count": 1, "role": "row saved state action", "factRisk": "none" },
+    { "id": "tab_glyphs", "count": 4, "role": "primary navigation", "factRisk": "none" }
+  ],
+  "unresolved": [
+    "exact frame texture and highlight values require asset-family review",
+    "exact glyph silhouettes require unified asset generation or approved vector mapping",
+    "target article imagery is composition evidence only and cannot be treated as factual runtime media"
+  ]
+}

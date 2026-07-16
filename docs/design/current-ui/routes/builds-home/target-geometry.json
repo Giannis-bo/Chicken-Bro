@@ -1,0 +1,93 @@
+{
+  "schemaVersion": 1,
+  "route": "specialization_home/builds_home",
+  "status": "target_measured",
+  "authority": "docs/plans/2026-07-14-target-first-14-route-rebuild.md",
+  "source": {
+    "path": "artifacts/ui-visual-targets/current/builds-home.png",
+    "sha256": "e418c45b1bf4fe62479f0a907706edadb9c46d2fd38220d6163284f727feee74",
+    "widthPx": 864,
+    "heightPx": 1821
+  },
+  "measurement": {
+    "context": "disposable_isolated_target_only",
+    "measuredAt": "2026-07-14T22:30:00+08:00",
+    "targetMeasuredBeforeRuntimeInspection": true,
+    "runtimeInputsUsed": false,
+    "existingInventoryUsed": false,
+    "previousRedlineUsed": false,
+    "estimatedMajorRegionTolerancePx": 4
+  },
+  "regions": [
+    {
+      "id": "page_header",
+      "boundsPx": { "xStart": 28, "yStart": 28, "xEnd": 836, "yEnd": 94, "width": 808, "height": 66 },
+      "boundsNormalized": { "xStart": 0.032407, "yStart": 0.015376, "xEnd": 0.967593, "yEnd": 0.05162, "width": 0.935185, "height": 0.036244 }
+    },
+    {
+      "id": "specialization_overview",
+      "boundsPx": { "xStart": 28, "yStart": 114, "xEnd": 836, "yEnd": 408, "width": 808, "height": 294 },
+      "boundsNormalized": { "xStart": 0.032407, "yStart": 0.062603, "xEnd": 0.967593, "yEnd": 0.224053, "width": 0.935185, "height": 0.16145 }
+    },
+    {
+      "id": "evidence_category_grid",
+      "boundsPx": { "xStart": 28, "yStart": 428, "xEnd": 836, "yEnd": 758, "width": 808, "height": 330 },
+      "boundsNormalized": { "xStart": 0.032407, "yStart": 0.235036, "xEnd": 0.967593, "yEnd": 0.416255, "width": 0.935185, "height": 0.181219 },
+      "tileCount": 4,
+      "topology": "one_continuous_2x2_frame_with_cross_dividers"
+    },
+    {
+      "id": "active_specialization_workspace",
+      "boundsPx": { "xStart": 28, "yStart": 770, "xEnd": 836, "yEnd": 1012, "width": 808, "height": 242 },
+      "boundsNormalized": { "xStart": 0.032407, "yStart": 0.422845, "xEnd": 0.967593, "yEnd": 0.555739, "width": 0.935185, "height": 0.132894 }
+    },
+    {
+      "id": "evidence_category_list",
+      "boundsPx": { "xStart": 28, "yStart": 1024, "xEnd": 836, "yEnd": 1352, "width": 808, "height": 328 },
+      "boundsNormalized": { "xStart": 0.032407, "yStart": 0.562328, "xEnd": 0.967593, "yEnd": 0.742449, "width": 0.935185, "height": 0.180121 },
+      "rowCount": 4,
+      "topology": "one_continuous_list_frame_with_four_rows"
+    },
+    {
+      "id": "workflow_stage_list",
+      "boundsPx": { "xStart": 28, "yStart": 1364, "xEnd": 836, "yEnd": 1660, "width": 808, "height": 296 },
+      "boundsNormalized": { "xStart": 0.032407, "yStart": 0.749039, "xEnd": 0.967593, "yEnd": 0.911587, "width": 0.935185, "height": 0.162548 },
+      "rowCount": 3,
+      "topology": "one_continuous_workflow_frame_with_vertical_timeline"
+    },
+    {
+      "id": "product_tab_bar",
+      "boundsPx": { "xStart": 0, "yStart": 1682, "xEnd": 864, "yEnd": 1821, "width": 864, "height": 139 },
+      "boundsNormalized": { "xStart": 0, "yStart": 0.923668, "xEnd": 1, "yEnd": 1, "width": 1, "height": 0.076332 },
+      "visibleColumnCount": 3,
+      "targetLabels": ["资讯", "专精", "我的"]
+    }
+  ],
+  "internalLandmarks": {
+    "specializationOverview": { "dividerXApprox": 343, "contentStartX": 372 },
+    "evidenceCategoryGrid": { "verticalDividerXApprox": 432, "tileCount": 4 },
+    "activeWorkspace": { "contentStartX": 244 },
+    "evidenceCategoryList": { "rowCount": 4, "rowHeightApproxPx": 79 },
+    "workflowStageList": { "timelineCenterX": 84, "iconCenterX": 169, "textStartX": 245, "statusStartX": 662, "chevronCenterX": 790 }
+  },
+  "gapsPx": {
+    "headerToOverview": 20,
+    "overviewToEvidenceGrid": 20,
+    "evidenceGridToWorkspace": 12,
+    "workspaceToEvidenceList": 12,
+    "evidenceListToWorkflow": 12,
+    "workflowToProductTabBar": 22
+  },
+  "viewportSemantics": {
+    "completeAuthoredFirstViewport": true,
+    "additionalScrollContentVisible": false,
+    "systemChromeIncluded": false,
+    "productTabBarOcclusion": false,
+    "runtimeComparisonMappingStatus": "pending_after_truth_and_component_contract"
+  },
+  "unresolved": [
+    "target pixels show three product-tab labels while the current product route contract contains four tab roots",
+    "exact font family and exact color samples are not measurable from the target bitmap",
+    "fine frame extents retain approximately 2-4px uncertainty"
+  ]
+}

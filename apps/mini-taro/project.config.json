@@ -1,0 +1,14 @@
+{
+  "appid": "wx17543b6fc4305479",
+  "compileType": "miniprogram",
+  "miniprogramRoot": "dist/weapp/",
+  "projectname": "wow-mini-taro",
+  "setting": {
+    "es6": true,
+    "enhance": true,
+    "minified": true,
+    "postcss": true,
+    "minifyWXML": true,
+    "urlCheck": false
+  }
+}

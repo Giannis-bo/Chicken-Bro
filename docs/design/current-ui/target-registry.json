@@ -1,0 +1,125 @@
+{
+  "schemaVersion": 2,
+  "status": "active",
+  "authority": "docs/plans/2026-07-14-target-first-14-route-rebuild.md",
+  "targetRoot": "artifacts/ui-visual-targets/current",
+  "baselineRoutes": [
+    "news_home",
+    "specialization_home/builds_home",
+    "current_spec_workbench"
+  ],
+  "canonicalTargets": [
+    {
+      "route": "news_home",
+      "path": "artifacts/ui-visual-targets/current/news-home.png",
+      "width": 889,
+      "height": 1770,
+      "bytes": 1822031,
+      "sha256": "9d0c67401c6c43e412f099bc032ade9e0add87478ccd80881ee73057e866e7ac"
+    },
+    {
+      "route": "specialization_home/builds_home",
+      "path": "artifacts/ui-visual-targets/current/builds-home.png",
+      "width": 864,
+      "height": 1821,
+      "bytes": 2016696,
+      "sha256": "e418c45b1bf4fe62479f0a907706edadb9c46d2fd38220d6163284f727feee74"
+    },
+    {
+      "route": "current_spec_workbench",
+      "path": "artifacts/ui-visual-targets/current/current-spec-workbench.png",
+      "width": 909,
+      "height": 1731,
+      "bytes": 1980958,
+      "sha256": "65deca229f53df065da135eb9a441507b4a27b354316db63847c3809e79f675b"
+    },
+    {
+      "route": "news_list",
+      "path": "artifacts/ui-visual-targets/current/news-list.png",
+      "width": 864,
+      "height": 1821,
+      "bytes": 1701406,
+      "sha256": "dd43a07a5ac26b8c3c65c90e8eb7a74e92f80bb74835f84d49ba058b892829cc"
+    },
+    {
+      "route": "news_detail",
+      "path": "artifacts/ui-visual-targets/current/news-detail.png",
+      "width": 864,
+      "height": 1821,
+      "bytes": 1698674,
+      "sha256": "256d02e05465e88643289eccfdc3988f911fd26da8bec898462a03e40ebc20b7"
+    },
+    {
+      "route": "build_intel",
+      "path": "artifacts/ui-visual-targets/current/build-intel.png",
+      "width": 863,
+      "height": 1823,
+      "bytes": 2137967,
+      "sha256": "3ce09b5ba6bb385cf0da65e25f762e9099b28cbd5d984e89dfdf21c28741eae1"
+    },
+    {
+      "route": "talent_simulator",
+      "path": "artifacts/ui-visual-targets/current/talent-simulator.png",
+      "width": 894,
+      "height": 1758,
+      "bytes": 2027764,
+      "sha256": "b073f2ad8d0443ba67ef5d22de827e4e5a31e191efcda99f594ce4c3680b9320"
+    },
+    {
+      "route": "gear_detail",
+      "path": "artifacts/ui-visual-targets/current/gear-detail.png",
+      "width": 862,
+      "height": 1825,
+      "bytes": 1589709,
+      "sha256": "123c27ada72ff2d75be86d5c8a35787069d4c2b562532bf18f0a0f5e8f37d2bd"
+    },
+    {
+      "route": "simulator_home",
+      "path": "artifacts/ui-visual-targets/current/simulator-home.png",
+      "width": 834,
+      "height": 1886,
+      "bytes": 1964831,
+      "sha256": "92e9c8e9d30d5be67fc40c125abfb9e78cac00e6a060f87678fd99a46cd78bcc"
+    },
+    {
+      "route": "SimC_submit",
+      "path": "artifacts/ui-visual-targets/current/simc-submit.png",
+      "width": 862,
+      "height": 1825,
+      "bytes": 1900151,
+      "sha256": "27daedcda3f186084893c274dbe96e54fbba2282441a60034631d6709f2d57c9"
+    },
+    {
+      "route": "chickenbro_chat",
+      "path": "artifacts/ui-visual-targets/current/chickenbro-chat.png",
+      "width": 853,
+      "height": 1844,
+      "bytes": 1890187,
+      "sha256": "61418f362c7814492f36be5d7f8f93addd1eff8ff2ef47b38d459668f56a421d"
+    },
+    {
+      "route": "tasks_list",
+      "path": "artifacts/ui-visual-targets/current/tasks-list.png",
+      "width": 862,
+      "height": 1824,
+      "bytes": 1804901,
+      "sha256": "58f83cfad123e1b2c2772df337021f62a54c50baba4f07bec1ff3ace11a5359d"
+    },
+    {
+      "route": "task_detail",
+      "path": "artifacts/ui-visual-targets/current/task-detail.png",
+      "width": 851,
+      "height": 1848,
+      "bytes": 1835810,
+      "sha256": "5a6e098673a626359fd70cbcf637d4cecd9e14e8e959ff9035c75465e87d1575"
+    },
+    {
+      "route": "profile/templates",
+      "path": "artifacts/ui-visual-targets/current/profile-templates.png",
+      "width": 813,
+      "height": 1934,
+      "bytes": 1871944,
+      "sha256": "8448acce4a97fbc7b2d477cff1c8329f773cc2d86fbfae332242eef48e29d455"
+    }
+  ]
+}

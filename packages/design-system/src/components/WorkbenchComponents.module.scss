@@ -1,0 +1,248 @@
+.specSummary {
+  display: grid;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  grid-template-columns: 82px minmax(0, 1fr) 24px;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 10px;
+  overflow: hidden;
+}
+
+.specMedallion {
+  display: grid;
+  width: 82px;
+  height: 82px;
+  place-items: center;
+}
+
+.specCopy {
+  display: grid;
+  min-width: 0;
+  align-content: center;
+  gap: 2px;
+}
+
+.specTitle {
+  box-sizing: border-box;
+  min-height: 23px;
+  padding: 1px 0;
+  overflow: hidden;
+  font-size: 16px;
+  line-height: 21px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.specStatus {
+  min-height: 17px;
+  margin-top: 0;
+}
+
+.scenarioControl {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) 12px;
+  align-items: center;
+  gap: 4px;
+}
+
+.scenarioLabel {
+  box-sizing: border-box;
+  min-height: 16px;
+  margin-top: 0;
+  padding: 1px 0;
+  overflow: hidden;
+  font-size: 10px;
+  line-height: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.selectionControl {
+  display: grid;
+  width: 24px;
+  height: 100%;
+  place-items: center;
+}
+
+.controlDisabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.readinessPanel {
+  display: grid;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  grid-template-columns: minmax(0, 1fr) 132px;
+  align-items: center;
+  gap: 11px;
+  padding: 13px 15px;
+  overflow: hidden;
+}
+
+.readinessCopy {
+  min-width: 0;
+}
+
+.readinessAction {
+  width: 164px;
+  min-width: 164px;
+  min-height: 38px;
+  margin-top: 9px;
+  padding: 0 12px;
+  color: #171109;
+  box-shadow: inset 0 1px rgba(255, 225, 157, 0.22), 0 3px 9px rgba(0, 0, 0, 0.28);
+  white-space: nowrap;
+}
+
+.readinessAction > [data-material-render='nine-slice'] {
+  opacity: 1;
+  filter: brightness(1.1) contrast(1.06) saturate(1.08);
+}
+
+.readinessEmblem {
+  width: 132px;
+  height: 132px;
+  justify-self: end;
+}
+
+.moduleGrid {
+  display: grid;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.moduleCard {
+  position: relative;
+  display: block;
+  box-sizing: border-box;
+  width: auto;
+  max-width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  justify-self: stretch;
+  overflow: hidden;
+  text-align: center;
+}
+
+.moduleContent {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  justify-items: center;
+  align-content: start;
+  gap: 3px;
+  padding: 8px 6px 21px;
+}
+
+.moduleDisabled {
+  opacity: 0.58;
+  pointer-events: none;
+}
+
+.moduleTalent {
+  --workbench-module-tone: #8f60b3;
+  --workbench-module-tone-bright: #bc91da;
+  --workbench-module-tone-border: #d7b7e8;
+  color: #9a72bb;
+}
+
+.moduleGear {
+  --workbench-module-tone: #5686b8;
+  --workbench-module-tone-bright: #8db8df;
+  --workbench-module-tone-border: #b5d2ea;
+  color: #6b99ca;
+}
+
+.moduleSimc {
+  --workbench-module-tone: #809844;
+  --workbench-module-tone-bright: #b4c872;
+  --workbench-module-tone-border: #d1dda1;
+  color: #94aa58;
+}
+
+.moduleAssistant {
+  --workbench-module-tone: #ad713f;
+  --workbench-module-tone-bright: #dc9d65;
+  --workbench-module-tone-border: #ecc19b;
+  color: #c68a52;
+}
+
+.moduleFlag {
+  display: grid;
+  place-items: center;
+}
+
+.moduleSocket {
+  display: grid;
+  width: 62px;
+  height: 62px;
+  place-items: center;
+}
+
+.moduleTitle {
+  box-sizing: border-box;
+  min-height: 18px;
+  padding: 1px 0;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.moduleCopy {
+  display: grid;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  gap: 0;
+  padding: 0 2px;
+}
+
+.moduleState,
+.moduleSummary {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 12px;
+  overflow: hidden;
+  font-size: 8px;
+  line-height: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.moduleState {
+  color: currentColor;
+  font-weight: 700;
+}
+
+.moduleSummary {
+  color: var(--wow-fg-muted);
+}
+
+.menu {
+  display: grid;
+  box-sizing: border-box;
+  width: 34px;
+  height: 34px;
+  place-content: center;
+  border-color: rgba(123, 96, 52, 0.72);
+  background: linear-gradient(180deg, rgba(37, 38, 39, 0.96), rgba(14, 16, 18, 0.98));
+  box-shadow:
+    inset 0 0 0 2px rgba(0, 0, 0, 0.42),
+    inset 0 1px 0 rgba(219, 177, 95, 0.09);
+}

@@ -1,0 +1,186 @@
+{
+  "schemaVersion": "target-inventory-v1",
+  "route": "tasks_list",
+  "authority": "canonical_target",
+  "source": {
+    "path": "/Users/heyesheng/Documents/code/github/wow_mini_program/artifacts/ui-visual-targets/current/tasks-list.png",
+    "width": 862,
+    "height": 1824,
+    "bytes": 1804901,
+    "sha256": "58f83cfad123e1b2c2772df337021f62a54c50baba4f07bec1ff3ace11a5359d"
+  },
+  "measurement": {
+    "targetOnly": true,
+    "runtimeInputsUsed": false
+  },
+  "topology": {
+    "root": "page_frame",
+    "regionOrder": ["page_frame", "page_header", "task_summary", "loading_state", "task_filters", "task_list", "empty_state", "bottom_actions"],
+    "pageChildren": ["page_header", "task_summary", "loading_state", "task_filters", "task_list", "empty_state", "bottom_actions"],
+    "flow": "compact header, overview, loading state, six filters, five task rows, no-record guidance, two bottom actions"
+  },
+  "visibleText": {
+    "instanceCount": 74,
+    "byRegion": [
+      {
+        "region": "page_header",
+        "items": ["模拟任务台"]
+      },
+      {
+        "region": "task_summary",
+        "items": ["模拟任务总览", "排队", "2", "运行中", "1", "失败", "1", "已完成", "3", "最近记录", "今日暂无"]
+      },
+      {
+        "region": "loading_state",
+        "items": ["正在加载任务中...", "请稍候，正在同步最新状态"]
+      },
+      {
+        "region": "task_filters",
+        "items": ["全部", "排队", "运行中", "失败", "已完成", "筛选"]
+      },
+      {
+        "region": "task_list",
+        "items": [
+          "构筑验证 · 场景A", "单体", "Patch 占位", "部分证据", "模拟构筑在指定场景下的表现验证（占位描述）", "排队", "创建时间", "--:--",
+          "多目标测试 · 场景B", "多目标", "来源参考", "公共模板", "在多目标场景下进行构筑模拟（占位描述）", "运行中", "开始时间", "--:--",
+          "极限压力测试 · 场景C", "极限", "待补充", "私人模板", "长时间战斗模拟压力测试（占位描述）", "失败", "结束时间", "--:--", "证据不足或输入缺失，请检查后重新提交任务",
+          "构筑对比 · 场景D", "对比", "来源参考", "公共模板", "对比两套配置在相同条件下的结果（占位描述）", "已完成", "完成时间", "--:--", "任务已完成，结果已归档到证据库",
+          "资源验证 · 场景E", "资源", "部分证据", "私人模板", "验证资源循环与技能覆盖情况（占位描述）", "已完成", "完成时间", "--:--"
+        ]
+      },
+      {
+        "region": "empty_state",
+        "items": ["暂无任务记录", "1", "前往 SimC", "配置并提交任务", "2", "任务在此追踪", "查看状态与进度", "3", "完成后查看记录", "归档到证据库"]
+      },
+      {
+        "region": "bottom_actions",
+        "items": ["去 SimC", "工作台"]
+      }
+    ]
+  },
+  "elementCounts": {
+    "regionDefinitions": 8,
+    "firstLevelRegions": 7,
+    "visibleTextInstances": 74,
+    "taskRows": 5,
+    "filterControls": 6,
+    "summaryStatusItems": 4,
+    "taskStatusBadges": 5,
+    "statusLabelInstances": 9,
+    "distinctStatusLabels": 4,
+    "visibleButtons": 9,
+    "utilityControlsOutsideFilters": 3,
+    "taskTagChips": 15,
+    "inlineFeedbackMessages": 2,
+    "emptyStateSteps": 3,
+    "assetSlotGroups": 13,
+    "assetSlotInstances": 28
+  },
+  "fixedElementCounts": {
+    "targetConfirmedRuntimeFixedPositionElements": 0,
+    "visuallyBottomAnchoredCandidates": 1,
+    "fixedCountBasis": "The two-action row is visibly near the bottom edge; fixed or sticky behavior is unresolved."
+  },
+  "assetSlots": {
+    "groups": [
+      {
+        "id": "page_frame_chrome",
+        "regions": ["page_frame"],
+        "count": 1,
+        "visibleRole": "ornamental page perimeter and dark textured surface",
+        "instances": ["page_perimeter"]
+      },
+      {
+        "id": "back_icon",
+        "regions": ["page_header"],
+        "count": 1,
+        "visibleRole": "left-pointing arrow inside the circular header control",
+        "instances": ["header_back_arrow"]
+      },
+      {
+        "id": "summary_emblem",
+        "regions": ["task_summary"],
+        "count": 1,
+        "visibleRole": "crossed-weapons shield emblem",
+        "instances": ["overview_shield"]
+      },
+      {
+        "id": "summary_info_icon",
+        "regions": ["task_summary"],
+        "count": 1,
+        "visibleRole": "circular information glyph",
+        "instances": ["overview_info"]
+      },
+      {
+        "id": "summary_status_dots",
+        "regions": ["task_summary"],
+        "count": 4,
+        "visibleRole": "colored dots for the four overview statuses",
+        "instances": ["summary_queued_dot", "summary_running_dot", "summary_failed_dot", "summary_completed_dot"]
+      },
+      {
+        "id": "recent_record_ornaments",
+        "regions": ["task_summary"],
+        "count": 2,
+        "visibleRole": "small ornaments flanking the recent-record label",
+        "instances": ["recent_record_left_ornament", "recent_record_right_ornament"]
+      },
+      {
+        "id": "loading_indicator",
+        "regions": ["loading_state"],
+        "count": 1,
+        "visibleRole": "segmented circular loading spinner",
+        "instances": ["task_loading_spinner"]
+      },
+      {
+        "id": "filter_icons",
+        "regions": ["task_filters"],
+        "count": 2,
+        "visibleRole": "funnel and dropdown-caret glyphs in the filter control",
+        "instances": ["filter_funnel", "filter_caret"]
+      },
+      {
+        "id": "task_identity_icons",
+        "regions": ["task_list"],
+        "count": 5,
+        "visibleRole": "large left-side identity emblem for each visible task row",
+        "instances": ["task_01_clock", "task_02_hourglass", "task_03_warning", "task_04_check", "task_05_check"]
+      },
+      {
+        "id": "task_status_dots",
+        "regions": ["task_list"],
+        "count": 5,
+        "visibleRole": "colored dot inside each visible task status badge",
+        "instances": ["task_01_status_dot", "task_02_status_dot", "task_03_status_dot", "task_04_status_dot", "task_05_status_dot"]
+      },
+      {
+        "id": "task_feedback_icons",
+        "regions": ["task_list"],
+        "count": 2,
+        "visibleRole": "inline feedback glyphs on the failed and completed rows",
+        "instances": ["task_03_feedback_icon", "task_04_feedback_icon"]
+      },
+      {
+        "id": "empty_state_emblem",
+        "regions": ["empty_state"],
+        "count": 1,
+        "visibleRole": "central winged archive-box emblem",
+        "instances": ["no_record_emblem"]
+      },
+      {
+        "id": "bottom_action_icons",
+        "regions": ["bottom_actions"],
+        "count": 2,
+        "visibleRole": "external-link and trophy glyphs for the two bottom actions",
+        "instances": ["go_to_simc_icon", "workbench_icon"]
+      }
+    ],
+    "visibleSlotCount": 28
+  },
+  "unresolved": [
+    "The target visibly reads Patch 占位; no version number such as Patch 8.2.5 is legible, so no version number is recorded.",
+    "No 地下城 or 团队副本 labels are legible in the target, so those draft labels are excluded.",
+    "The static target cannot establish click behavior, selection logic, scrolling, fixed or sticky positioning, animation timing, or runtime data truth.",
+    "Asset slots describe visible roles only and do not determine bitmap, vector, icon-font, or CSS construction."
+  ]
+}

@@ -1,0 +1,35 @@
+.pageFrame {
+  position: relative;
+  width: 384px;
+  height: 818px;
+  margin: 4px auto 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.identityRegion,
+.talentRegion,
+.gearRegion,
+.combatRegion,
+.summaryRegion,
+.blockerRegion,
+.actionRegion,
+.footerRegion {
+  position: absolute;
+}
+
+.identityRegion { top: 51px; left: 7px; width: 367px; height: 58px; }
+.talentRegion { top: 116px; left: 8px; width: 366px; height: 65px; }
+.gearRegion { top: 187px; left: 8px; width: 366px; height: 65px; }
+.combatRegion { top: 257px; left: 8px; width: 366px; height: 233px; }
+.summaryRegion { top: 498px; left: 8px; width: 366px; height: 106px; }
+.blockerRegion { top: 610px; left: 8px; width: 366px; height: 106px; }
+.actionRegion { top: 723px; left: 7px; width: 367px; height: 52px; }
+.footerRegion { top: 780px; left: 8px; width: 365px; height: 30px; }
+
+@media (max-width: 389px) {
+  .pageFrame { margin-left: 3px; }
+}

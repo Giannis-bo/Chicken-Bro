@@ -1,0 +1,18 @@
+{
+  "assetId": "pushed-back-medallion.default",
+  "status": "pass_for_canary",
+  "findings": [
+    "The outer silhouette and antialiased transparency edge are clean, with no visible green fringe, rectangular dark contamination, text, glyphs, or watermarking.",
+    "The forged dark-iron body and thin muted aged-gold rims form a coherent, restrained material hierarchy that remains readable at the intended 44x44 CSS size.",
+    "The center reads as a fully open aperture; the manifest's centerAlphaMaximum of 0 confirms that the apparent dark center is transparent rather than an opaque black plate.",
+    "The open center provides adequate clearance for a separately rendered back chevron without competing ornament or baked-in directional content."
+  ],
+  "integrationConstraints": [
+    "Render the 88x88 DPR2 asset at exactly 44x44 CSS pixels and preserve its alpha channel; do not add an opaque image background, tint, chroma treatment, or mask fill.",
+    "Place the chevron in a separate centered layer above the medallion and keep its visible bounds within approximately 16x16 CSS pixels so it remains clear of the inner rim.",
+    "Use a high-contrast neutral or restrained aged-gold chevron suitable for the inherited dark page background; do not bake the chevron into this socket asset.",
+    "Keep the image and chevron in a stable 44x44 control box with identical centering, and avoid cropping, non-uniform scaling, or runtime sharpening filters."
+  ],
+  "actuallyReviewed": true,
+  "productionPromoted": false
+}

@@ -1,0 +1,44 @@
+{
+  "schemaVersion": "wechat-runtime-review-v2",
+  "statusPolicy": {
+    "allowed": ["PASS", "FAIL", "UNVERIFIED"],
+    "passRequiresEveryRequiredField": true,
+    "missingFieldStatus": "UNVERIFIED",
+    "missingRuntimeArtifactStatus": "UNVERIFIED",
+    "missingTargetMappingStatus": "UNVERIFIED"
+  },
+  "requiredFields": [
+    "route",
+    "path",
+    "viewport",
+    "runtimeArtifact",
+    "targetArtifact",
+    "targetMapping",
+    "regions",
+    "assetSemantics",
+    "collisions",
+    "interaction",
+    "p0",
+    "p1",
+    "p2",
+    "status"
+  ],
+  "fieldContract": {
+    "viewport": ["width", "height", "dpr", "safeTop", "safeBottom", "capsuleBounds"],
+    "runtimeArtifact": ["path", "width", "height", "bytes", "sha256", "captureMethod"],
+    "targetArtifact": ["path", "width", "height", "sha256"],
+    "targetMapping": ["scale", "translateX", "translateY", "systemChromeIncluded", "contentOrigin"],
+    "regions": ["id", "targetBounds", "runtimeBounds", "delta", "tolerance", "status"],
+    "assetSemantics": ["slotId", "expectedRole", "runtimeRole", "status"],
+    "collisions": ["statusBar", "capsule", "header", "tabBar", "textClip", "componentOverlap"],
+    "interaction": ["name", "precondition", "action", "expected", "actual", "status"]
+  },
+  "passCriteria": {
+    "p0Count": 0,
+    "p1Count": 0,
+    "systemCollisionPx": 0,
+    "textClipCount": 0,
+    "componentOverlapPx": 0,
+    "majorRegionTolerance": "route target-geometry measurement tolerance, mapped without rounding expansion"
+  }
+}

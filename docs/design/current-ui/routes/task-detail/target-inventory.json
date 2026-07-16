@@ -1,0 +1,214 @@
+{
+  "schemaVersion": "target-inventory-v1",
+  "route": "task_detail",
+  "authority": "canonical_target",
+  "source": {
+    "path": "/Users/heyesheng/Documents/code/github/wow_mini_program/artifacts/ui-visual-targets/current/task-detail.png",
+    "width": 851,
+    "height": 1848,
+    "bytes": 1835810,
+    "sha256": "5a6e098673a626359fd70cbcf637d4cecd9e14e8e959ff9035c75465e87d1575"
+  },
+  "measurement": {
+    "targetOnly": true,
+    "runtimeInputsUsed": false
+  },
+  "topology": {
+    "root": "page_frame",
+    "regionOrder": ["page_frame", "page_header", "task_summary", "refresh_notice", "simc_result", "run_context", "scenario", "attribute_snapshot", "combat_buffs", "error_state"],
+    "pageChildren": ["page_header", "task_summary", "refresh_notice", "simc_result", "run_context", "scenario", "attribute_snapshot", "combat_buffs", "error_state"],
+    "flow": "compact header, task overview, refresh notice, pending SimC result and progress, four context cells, four scenario cells, six attributes, five combat buffs, bottom exception placeholder"
+  },
+  "visibleText": {
+    "instanceCount": 70,
+    "byRegion": [
+      {
+        "region": "page_header",
+        "items": ["任务详情"]
+      },
+      {
+        "region": "task_summary",
+        "items": ["SimC 副本模拟任务", "运行中", "创建时间", "待开始", "开始时间", "运行中", "时长上限", "待处理", "任务来源", "智能分析"]
+      },
+      {
+        "region": "refresh_notice",
+        "items": ["结果生成后将自动更新此页面", "刷新状态"]
+      },
+      {
+        "region": "simc_result",
+        "items": ["SimC 结果", "待返回结果", "待返回结果", "模拟正在运行中，结果生成后将自动展示", "任务已提交", "排队中", "模拟运行中", "结果生成中"]
+      },
+      {
+        "region": "run_context",
+        "items": ["运行上下文", "天赋构筑", "待加载", "SimC 版本", "待加载", "装备配置", "待加载", "配置文件", "待加载"]
+      },
+      {
+        "region": "scenario",
+        "items": ["场景", "场景类型", "待设置", "战斗时长", "待设置", "目标数量", "待设置", "敌人等级", "待设置"]
+      },
+      {
+        "region": "attribute_snapshot",
+        "items": ["属性快照", "力量", "—", "敏捷", "—", "智力", "—", "耐力", "—", "主属性", "—", "副属性", "—", "属性将在模拟结果返回后更新快照", "查看详情"]
+      },
+      {
+        "region": "combat_buffs",
+        "items": ["战斗增益", "团队增益", "待设置", "职业增益", "待设置", "药水合剂", "待设置", "食物增益", "待设置", "其他效果", "待设置", "增益配置将在模拟结果返回后确认生效", "查看详情"]
+      },
+      {
+        "region": "error_state",
+        "items": ["任务异常或超时将显示在此", "失败原因：待处理", "查看错误详情"]
+      }
+    ]
+  },
+  "elementCounts": {
+    "regionDefinitions": 10,
+    "firstLevelRegions": 9,
+    "visibleTextInstances": 70,
+    "headerControls": 1,
+    "visibleButtons": 5,
+    "statusBadges": 2,
+    "taskMetadataFields": 4,
+    "noticeRows": 3,
+    "resultPlaceholderPanels": 1,
+    "resultProgressSteps": 4,
+    "runContextCells": 4,
+    "scenarioCells": 4,
+    "attributeCells": 6,
+    "attributeDashValues": 6,
+    "combatBuffCells": 5,
+    "detailActionButtons": 2,
+    "errorActionButtons": 1,
+    "assetSlotGroups": 16,
+    "assetSlotInstances": 40
+  },
+  "fixedElementCounts": {
+    "targetConfirmedRuntimeFixedPositionElements": 0,
+    "visuallyBottomAnchoredCandidates": 1,
+    "candidateRegionIds": ["error_state"],
+    "fixedCountBasis": "The exception panel is visibly the final region near the lower page-frame edge; the static target does not establish fixed, sticky, or ordinary document-flow positioning."
+  },
+  "assetSlots": {
+    "groups": [
+      {
+        "id": "page_frame_chrome",
+        "regions": ["page_frame"],
+        "count": 1,
+        "visibleRole": "ornamental beveled page perimeter and dark textured surface",
+        "instances": ["page_perimeter"]
+      },
+      {
+        "id": "back_icon",
+        "regions": ["page_header"],
+        "count": 1,
+        "visibleRole": "left-pointing arrow inside the circular header control",
+        "instances": ["header_back_arrow"]
+      },
+      {
+        "id": "task_identity_emblem",
+        "regions": ["task_summary"],
+        "count": 1,
+        "visibleRole": "large clipboard-and-checklist emblem inside an ornamental polygonal medallion",
+        "instances": ["task_clipboard_medallion"]
+      },
+      {
+        "id": "task_status_indicator",
+        "regions": ["task_summary"],
+        "count": 1,
+        "visibleRole": "segmented blue circular indicator inside the running-status badge",
+        "instances": ["task_running_indicator"]
+      },
+      {
+        "id": "task_metadata_icons",
+        "regions": ["task_summary"],
+        "count": 4,
+        "visibleRole": "calendar, clock, hourglass, and tag glyphs for the four task metadata fields",
+        "instances": ["created_calendar", "started_clock", "duration_hourglass", "source_tag"]
+      },
+      {
+        "id": "section_info_icons",
+        "regions": ["refresh_notice", "attribute_snapshot", "combat_buffs"],
+        "count": 3,
+        "visibleRole": "circular information glyph leading each explanatory message row",
+        "instances": ["refresh_notice_info", "attribute_notice_info", "combat_buff_notice_info"]
+      },
+      {
+        "id": "refresh_icon",
+        "regions": ["refresh_notice"],
+        "count": 1,
+        "visibleRole": "two-arrow refresh glyph inside the manual refresh control",
+        "instances": ["refresh_status_icon"]
+      },
+      {
+        "id": "result_status_icon",
+        "regions": ["simc_result"],
+        "count": 1,
+        "visibleRole": "clock glyph inside the pending-result badge",
+        "instances": ["result_pending_clock"]
+      },
+      {
+        "id": "result_placeholder_emblem",
+        "regions": ["simc_result"],
+        "count": 1,
+        "visibleRole": "central geometric wireframe core with faint radial construction rings",
+        "instances": ["result_wireframe_core"]
+      },
+      {
+        "id": "result_progress_markers",
+        "regions": ["simc_result"],
+        "count": 4,
+        "visibleRole": "four circular stage markers for submitted, queued, running, and generating states",
+        "instances": ["progress_submitted_check", "progress_queued_ring", "progress_running_ring", "progress_generating_ring"]
+      },
+      {
+        "id": "run_context_icons",
+        "regions": ["run_context"],
+        "count": 4,
+        "visibleRole": "talent tree, cube, armor, and document glyphs for the four run-context cells",
+        "instances": ["context_talent_tree", "context_simc_cube", "context_equipment_armor", "context_config_document"]
+      },
+      {
+        "id": "scenario_icons",
+        "regions": ["scenario"],
+        "count": 4,
+        "visibleRole": "crossed weapons, hourglass, group, and skull glyphs for scenario type, duration, target count, and enemy level",
+        "instances": ["scenario_type_weapons", "scenario_duration_hourglass", "scenario_target_group", "scenario_enemy_skull"]
+      },
+      {
+        "id": "attribute_icons",
+        "regions": ["attribute_snapshot"],
+        "count": 6,
+        "visibleRole": "distinct glyphs for strength, agility, intellect, stamina, primary stat, and secondary stat",
+        "instances": ["attribute_strength_fist", "attribute_agility_feather", "attribute_intellect_book", "attribute_stamina_shield", "attribute_primary_star", "attribute_secondary_diamond"]
+      },
+      {
+        "id": "detail_eye_icons",
+        "regions": ["attribute_snapshot", "combat_buffs"],
+        "count": 2,
+        "visibleRole": "eye glyph inside each 查看详情 action",
+        "instances": ["attribute_detail_eye", "combat_buff_detail_eye"]
+      },
+      {
+        "id": "combat_buff_icons",
+        "regions": ["combat_buffs"],
+        "count": 5,
+        "visibleRole": "group, class emblem, flask, food, and effect glyphs for the five combat-buff categories",
+        "instances": ["buff_raid_group", "buff_class_emblem", "buff_flask", "buff_food", "buff_other_effects"]
+      },
+      {
+        "id": "error_warning_icon",
+        "regions": ["error_state"],
+        "count": 1,
+        "visibleRole": "large red warning triangle with exclamation mark",
+        "instances": ["task_error_warning"]
+      }
+    ],
+    "visibleSlotCount": 40
+  },
+  "unresolved": [
+    "The static target cannot establish click behavior, refresh polling, progress animation, scrolling, fixed or sticky positioning, or conditional visibility.",
+    "The value 待开始 is recorded exactly under 创建时间; no semantic correction or runtime truth is inferred.",
+    "Dash, 待加载, 待设置, 待处理, and 待返回结果 values are visual facts only and do not establish null, loading, error, or fallback rules.",
+    "The target does not prove whether the result, placeholder values, and exception panel are simultaneously persistent or state-dependent.",
+    "Asset slots describe visible roles only and do not determine bitmap, vector, icon-font, or CSS construction; decorative panel borders and connector lines are not split into independent asset slots."
+  ]
+}

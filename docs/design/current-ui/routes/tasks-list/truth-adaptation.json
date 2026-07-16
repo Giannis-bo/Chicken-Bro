@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "route": "tasks_list",
+  "status": "truth_adaptation_complete",
+  "implementationStatus": "implemented_visual_debt_open",
+  "authority": "docs/plans/2026-07-14-target-first-14-route-rebuild.md",
+  "targetInventory": "docs/design/current-ui/routes/tasks-list/target-inventory.json",
+  "targetGeometry": "docs/design/current-ui/routes/tasks-list/target-geometry.json",
+  "runtimeFacts": {
+    "route": "pages/simulator/tasks",
+    "navigation": "pushed_route",
+    "endpoints": ["simulator.tasks"],
+    "storage": ["simulator.guestId"],
+    "queryContext": ["from"],
+    "outgoing": ["task_detail", "SimC_submit", "current_spec_workbench"],
+    "localInteractions": ["refresh_on_resume", "status_filter", "sort_order", "internal_task_scroll", "task_detail_navigation", "create_simc_navigation", "workbench_navigation"]
+  },
+  "apiProbe": {
+    "probedAt": "2026-07-15T07:32:00+08:00",
+    "via": "http://127.0.0.1:10086/wow-api/api/simulator/tasks?guest=1&guestId=codex-tasks-list-audit",
+    "httpStatus": 200,
+    "user": null,
+    "taskCount": 0,
+    "responseShape": ["user", "tasks"],
+    "guestWithoutStoredOwner": "returns an empty task collection rather than fabricated examples",
+    "backendListContract": {
+      "ownerIsolation": "authenticated user or exact simulator.guestId owner",
+      "maximumRecords": 50,
+      "order": "createdAt descending",
+      "taskFields": ["taskId", "mode", "status", "question", "recommendations", "createdAt", "updatedAt", "simcReportSummary"]
+    }
+  },
+  "statusGroups": {
+    "queued": ["queued"],
+    "running": ["running", "processing"],
+    "failed": ["failed", "error", "canceled", "cancelled", "blocked"],
+    "completed": ["succeeded", "completed", "ready"],
+    "unknown": "remains visible under 全部 with a neutral status; it is never promoted to completed"
+  },
+  "trustRules": [
+    "The target's 2 queued, 1 running, 1 failed and 3 completed overview counts are placeholders and never runtime facts.",
+    "The target's five task names, scenario tags, Patch 占位, source labels, descriptions, --:-- timestamps and feedback messages are placeholders and never runtime facts.",
+    "The live guest probe returning zero tasks is a valid empty state. A transport fallback, missing owner or failed request must not manufacture target task rows.",
+    "Only simulator.tasks records owned by the current authenticated user or exact simulator.guestId may populate task rows, counts, recent-record text and status filters.",
+    "Task title prefers a returned simcReportSummary.title, then a bounded returned question, then a deterministic mode label. It never infers a class, specialization, scenario, patch or source.",
+    "Task description, tags, statusText, build and scenario labels may use only returned simcReportSummary fields. Missing fields retain neutral unavailable positions rather than target placeholder copy.",
+    "Task status labels are deterministic Chinese display mappings of the returned status. Unknown states remain unknown and cannot be counted as success.",
+    "Dates are formatted only from returned createdAt or updatedAt. Invalid or missing dates display 未返回时间, never --:-- as if it were a real timestamp.",
+    "The target simultaneously demonstrates loading, populated and empty compositions. Runtime mounts all eight regions but each region renders the current truth: loading skeletons while fetching, real rows when present, and empty guidance when none exist.",
+    "When real rows exist, the empty_state region becomes app-authored task-flow guidance and cannot claim 暂无任务记录. When no rows exist, the same region may use the target's empty heading and three deterministic navigation steps.",
+    "The task_list region shows up to five rows at once and uses internal scrolling for the backend's maximum 50 records so page geometry remains stable.",
+    "Refresh-on-resume and manual refresh reuse simulator.tasks. A failed refresh preserves no unverified replacement collection and exposes retry in loading_state.",
+    "No ProductTabBar is mounted because tasks_list is a pushed route. Bottom actions navigate to the real SimC submit and current workbench routes."
+  ],
+  "mappings": [
+    {"region": "page_frame", "runtime": "AppShell pushed-route surface and PageFrame tasks-list variant"},
+    {"region": "page_header", "runtime": "real back navigation and fixed route title 模拟任务台"},
+    {"region": "task_summary", "runtime": "derived counts for queued, running, failed and completed plus the latest real record"},
+    {"region": "loading_state", "runtime": "loading, synchronized, empty or transport-error status in one stable panel with manual retry"},
+    {"region": "task_filters", "runtime": "local 全部/排队/运行中/失败/已完成 filters and deterministic sort order control"},
+    {"region": "task_list", "runtime": "internally scrollable real owner-scoped tasks with five stable visible positions and neutral unavailable fillers"},
+    {"region": "empty_state", "runtime": "empty-task guidance or non-claiming task-flow guidance using the same three-step composition"},
+    {"region": "bottom_actions", "runtime": "real navigation to SimC submit and current specialization workbench"}
+  ],
+  "stateContract": {
+    "initial_loading": "mount all eight regions, keep summary/filter/list/guidance geometry, show five task skeleton positions and the target-owned synchronization state",
+    "ready_empty": "derive zero counts, keep five neutral unavailable list positions, show the no-record heading and three navigation steps",
+    "ready_populated": "derive counts and latest record from returned tasks, populate an internally scrollable list and use non-claiming task-flow guidance",
+    "filtered_empty": "retain fetched collection and stable geometry, state that the current local filter has no matching tasks, and expose reset without claiming the account has no tasks",
+    "error": "retain all regions, show transport error and retry in loading_state, keep task positions unavailable, and do not mount RouteStatePanel",
+    "resume_refresh": "reload the same owner-scoped endpoint on subsequent useDidShow without duplicating rows or changing page geometry"
+  },
+  "pendingTruthGaps": []
+}

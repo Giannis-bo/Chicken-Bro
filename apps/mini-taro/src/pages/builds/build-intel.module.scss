@@ -1,0 +1,113 @@
+.page {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 824px;
+  overflow: hidden;
+}
+
+.page [data-region='top_bar'] {
+  width: 100%;
+  height: 50.61px;
+  min-height: 50.61px;
+  border: 0;
+  border-bottom: 1px solid rgba(134, 100, 52, 0.48);
+  border-radius: 0;
+  background: rgba(8, 10, 12, 0.98);
+  box-shadow: none;
+}
+
+.surface {
+  display: flex;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.summary {
+  width: calc(100% - 20px);
+  max-width: 370.12px;
+  height: 152.29px;
+  margin-top: 5.43px;
+  margin-right: auto;
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+.filter {
+  width: calc(100% - 19px);
+  max-width: 371.02px;
+  height: 28.47px;
+  margin-top: 10.85px;
+  margin-right: auto;
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+.cardViewport {
+  box-sizing: border-box;
+  width: calc(100% - 20px);
+  max-width: 370.12px;
+  height: 509.75px;
+  margin-top: 9.94px;
+  margin-right: auto;
+  margin-left: auto;
+  flex: 0 0 auto;
+  overflow: hidden;
+}
+
+.cardScroll {
+  width: 100%;
+  height: 100%;
+}
+
+.cardStack {
+  display: flex;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  flex-direction: column;
+  padding-bottom: 1px;
+}
+
+.cardSlot {
+  width: 100%;
+  height: 163.59px;
+  min-height: 163.59px;
+  flex: 0 0 auto;
+}
+
+.cardSlotFirst {
+  height: 158.17px;
+  min-height: 158.17px;
+}
+
+.cardSlotSecond {
+  height: 161.78px;
+  min-height: 161.78px;
+  margin-top: 14.46px;
+}
+
+.cardSlotFollowing {
+  margin-top: 11.75px;
+}
+
+.cardSlot > view {
+  width: 100%;
+  height: 100%;
+}
+
+.disclaimer {
+  width: calc(100% - 20px);
+  max-width: 370.12px;
+  height: 32.99px;
+  margin-top: 11.76px;
+  margin-right: auto;
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+.disclaimer > view {
+  width: 100%;
+  height: 100%;
+}

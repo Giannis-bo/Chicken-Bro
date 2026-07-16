@@ -5,12 +5,15 @@ This repository maintains a project roadmap as shared context for all agents and
 ## Roadmap First
 
 - Read [docs/roadmap.md](docs/roadmap.md) before making product, UX, data, backend, simulator, WebSim, deployment, or prioritization decisions.
-- For current UI delivery work, immediately read [docs/plans/2026-07-08-codex-goal-mode-ui-delivery-handoff.md](docs/plans/2026-07-08-codex-goal-mode-ui-delivery-handoff.md), then [docs/plans/2026-07-08-ui-goal-mode-entry-contract.md](docs/plans/2026-07-08-ui-goal-mode-entry-contract.md), and then [docs/plans/2026-07-08-current-ui-delivery-source-of-truth.md](docs/plans/2026-07-08-current-ui-delivery-source-of-truth.md) after the roadmap and before all older UI plans, scorecards, owner registries, implementation permits, browser demos, imagegen targets, stale tests, or historical artifacts. The Codex goal-mode handoff is the active first-read UI delivery contract unless the user explicitly replaces it.
-- Current UI rescue work must start from the goal-mode entry contract, source-of-truth proof matrix, and fresh real WeChat evidence. Do not continue old pass36/pass37 fixes, browser-only validation, static-test confidence, or memory-based UI edits before reading the latest user correction, proof matrix, DevTools rules, and Codex Goal Text.
-- Treat [docs/plans/2026-07-08-0900-ui-emergency-delivery-lock.md](docs/plans/2026-07-08-0900-ui-emergency-delivery-lock.md) and [docs/plans/2026-07-08-0900-ui-delivery-handoff-lock.md](docs/plans/2026-07-08-0900-ui-delivery-handoff-lock.md) as historical rescue context unless the current source-of-truth document explicitly delegates to them.
-- If the top of `docs/roadmap.md` points to a current context lock, execution guard, or active delivery goal, read those linked documents before older plans, scorecards, implementation permits, or historical design docs. The newest roadmap control plane wins over stale plans.
+- For frontend work, read [docs/plans/2026-07-14-target-first-14-route-rebuild.md](docs/plans/2026-07-14-target-first-14-route-rebuild.md), [DESIGN.md](DESIGN.md), and [docs/design/current-ui/README.md](docs/design/current-ui/README.md) after the roadmap. These are the only active UI execution authorities.
+- Do not scan `docs/plans/` by date or treat directory presence as authority. [docs/plans/README.md](docs/plans/README.md) is the explicit plan whitelist; a domain plan may be read only when a current architecture or runbook links to that exact file.
+- Only files reachable from the current roadmap, plan whitelist, design contract, current UI control plane, or a stable architecture/runbook may influence implementation. Git history and unlinked files are not execution context.
+- Keep the existing Taro workspace, typed data/API layers, route behavior, build tooling, and the 14 files listed in `docs/design/current-ui/target-registry.json`. Source components and runtime utility assets are implementation inputs, not visual evidence.
+- Target geometry must come from an isolated target-only measurement. Runtime output, existing CSS, old review reports, component dimensions, and prior redlines may not write or adjust target bounds.
+- Pass `news_home` first, then the other two baselines and the remaining eleven routes. Fix shared rendering contracts in shared owners and do not add route-private visual patches for shared defects.
 - Use [docs/roadmap/ideas.md](docs/roadmap/ideas.md) as the intake pool for loose ideas, local discussion outcomes, and directions that are not yet committed to a milestone.
-- Keep existing execution plans under [docs/plans/](docs/plans/) as historical implementation evidence. Do not rewrite them just to match the current roadmap.
+- Delete superseded frontend execution documents and evidence from the working tree. Git history is the archive.
+- Do not append execution timelines to `docs/roadmap.md`. Keep it short enough to be read as control context; attach current evidence through stable architecture/runbook/source links.
 
 ## Capturing Confirmed Ideas
 
@@ -29,10 +32,19 @@ This repository maintains a project roadmap as shared context for all agents and
 
 - Use local CR as the primary pre-merge review path. Inspect the diff directly, read relevant project docs/context, run targeted verification with local tests, smoke checks, or runtime logs as appropriate, and report findings with file/line references.
 - Before commit, push, deployment, or handoff, review the diff against the roadmap and current plan boundaries, fix technically valid findings, and re-run the relevant verification.
-- Treat older plan documents as historical implementation evidence; current review practice is defined by this section and the active task scope.
+- Review only against the current roadmap, active plan, route contracts, source diff, tests, and fresh evidence.
 - `codex review` is optional second-opinion review only. Do not treat it as a required gate. If it is unavailable, slow, times out, hangs, or fails due to CLI argument/config/auth/environment issues, record that fact briefly and continue with local CR plus targeted tests.
 - When reviewing uncommitted work, use `codex review --uncommitted` only. When reviewing committed branch changes against a base branch, use `codex review --base <base>` only. Do not combine `--uncommitted` with `--base`.
 - Do not block commit, deploy, or handoff solely because `codex review` failed or did not return. Blocking decisions should come from local CR findings, failing tests, unsafe diff state, or unresolved user/product requirements.
+
+## Imagegen Asset Handling Guard
+
+- Imagegen and image-based design work are allowed. The guard prevents large image payloads from entering the long-lived main project session; it does not replace visual review with text-only guessing.
+- Do not load generated/reference PNG payloads into the main session with `view_image`, raw reads, base64, data URLs, Markdown embeds, or serialized image-tool/thread outputs.
+- Never inspect an imagegen task with thread/history readers such as `read_thread`, even with output inclusion disabled: completed image-generation records may still serialize the full PNG payload. Observe completion only through agent status plus filesystem path, mtime, byte-size, and hash metadata.
+- Run generation and visual review in disposable isolated contexts. Review one route target, or one target/runtime pair, at a time and return only whitelisted paths, metadata, structured differences, and status.
+- Target and runtime metadata may be checked by filesystem tools, but visual payloads remain confined to disposable contexts.
+- Image generation alone never proves design lock, component fidelity, runtime acceptance, or release readiness.
 
 ## Cloud Deployment Approval
 
@@ -46,4 +58,4 @@ This repository maintains a project roadmap as shared context for all agents and
 - The roadmap is the long-lived product and engineering control plane. It does not replace detailed task plans.
 - Concrete implementation plans may still live in `docs/plans/`.
 - Product direction, data trust rules, SimC/WebSim contracts, release readiness, and personal-workspace ideas should all be routed through the roadmap system.
-- For already implemented features, current code and live verification take precedence over stale wording in older docs; update README and architecture docs to match the shipped behavior, while treating old plans as historical evidence unless the user explicitly asks to rewrite them.
+- For implemented features, current code and live verification take precedence over documentation wording. Retain a domain plan only while a current architecture document or runbook links to it.

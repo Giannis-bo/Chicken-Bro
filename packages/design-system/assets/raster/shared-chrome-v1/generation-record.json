@@ -1,0 +1,305 @@
+{
+  "schemaVersion": 1,
+  "status": "generated_pending_independent_isolated_review",
+  "sourceClass": "imagegen_raster",
+  "generatedAt": "2026-07-15T02:42:05Z",
+  "mode": "built_in_image_gen",
+  "builtInImagegenCallCount": 4,
+  "iterationCallCount": 0,
+  "referencePolicy": {
+    "referencePath": "/Users/heyesheng/Documents/code/github/wow_mini_program/artifacts/ui-visual-targets/current/simulator-home.png",
+    "viewCount": 1,
+    "role": "non-factual material language only",
+    "targetPixelsCopiedOrCropped": false,
+    "factualContentReproduced": false,
+    "otherTargetOrRuntimeImagesRead": false
+  },
+  "processingEnvironment": {
+    "chromaRemoval": "/Users/heyesheng/.codex/skills/.system/imagegen/scripts/remove_chroma_key.py",
+    "chromaRemovalInterpreter": "python3",
+    "chromaRemovalArguments": "--auto-key border --soft-matte --transparent-threshold 12 --opaque-threshold 220 --despill",
+    "mechanicalTransformTool": "/usr/bin/sips",
+    "pixelValidationTools": [
+      "ImageMagick identify/magick",
+      "Tesseract psm 11"
+    ],
+    "note": "The unversioned python command was unavailable; the successful chroma-removal commands used python3 with the same installed helper and arguments. No Python redraw or model-native transparency was used."
+  },
+  "generations": [
+    {
+      "generationId": "shared-page-corner.default",
+      "assetIds": [
+        "shared-page-corner.default"
+      ],
+      "status": "generated_pending_independent_isolated_review",
+      "sourceClass": "imagegen_raster",
+      "builtInSavedPath": "/Users/heyesheng/.codex/generated_images/019f6396-3539-7681-bd52-af5f1a3e35ff/exec-7a66d396-e240-46e0-b682-d387a6de1961.png",
+      "prompt": "Use case: stylized-concept\nAsset type: single reusable game UI chrome raster asset\nPrimary request: Create one square 90-degree page corner bracket, intended as the top-left corner and designed so the same asset can be mirrored or rotated for all four corners.\nSubject: A thick but restrained L-shaped forged dark-iron corner fitting with equal horizontal and vertical arms, a low-saturation aged-gold edge, subtle layered bevels, and very light believable wear. The interior opening and all space outside the bracket must remain background. No separate pieces.\nStyle/medium: crisp high-detail game UI material render; dark stone-like forged iron base; restrained antique gold trim; sharp readable edge hierarchy; no blur.\nComposition/framing: exactly one centered square corner fitting with generous even padding; orthographic front view; perfectly flat, no perspective; arms meet at a clean 90-degree corner; silhouette must be suitable for rotation and mirroring.\nLighting/mood: controlled neutral frontal lighting, restrained highlights only.\nColor palette: charcoal and near-black iron, muted old gold; do not use bright yellow or #00ff00 in the subject.\nMaterials/textures: fine forged metal and dark stone texture, subtle scratches, layered bevel; no engraved characters.\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for background removal.\nConstraints: the background must be one uniform #00ff00 color with no shadows, gradients, texture, reflections, floor plane, or lighting variation. Keep the opaque subject fully separated from the background with crisp edges. No cast shadow, contact shadow, glow, reflection, watermark, border frame, text, numbers, letters, icons, symbols, crests, faces, weapons, gems, or rivets shaped like glyphs. Do not reproduce any factual UI content.",
+      "source": {
+        "path": "packages/design-system/assets/raster/shared-chrome-v1/sources/shared-page-corner.default.png",
+        "width": 1254,
+        "height": 1254,
+        "bytes": 1770255,
+        "sha256": "c8ccff397d218cb94cd7cc2463ad8aa230be7fdbeafbfaf984f1d100216d7f4b"
+      },
+      "master": {
+        "path": "packages/design-system/assets/raster/shared-chrome-v1/masters/shared-page-corner.default.png",
+        "width": 1254,
+        "height": 1254,
+        "bytes": 1217258,
+        "sha256": "e60265553205f2320bacfc21976de14ce5d6b2aaac80e4a1af8c03e2db732b34",
+        "sampledKeyColor": "#03f807",
+        "transparentPixels": 1048614,
+        "partiallyTransparentPixels": 5405,
+        "totalPixels": 1572516
+      },
+      "processingCommands": [
+        "cp /Users/heyesheng/.codex/generated_images/019f6396-3539-7681-bd52-af5f1a3e35ff/exec-7a66d396-e240-46e0-b682-d387a6de1961.png packages/design-system/assets/raster/shared-chrome-v1/sources/shared-page-corner.default.png",
+        "python3 /Users/heyesheng/.codex/skills/.system/imagegen/scripts/remove_chroma_key.py --input packages/design-system/assets/raster/shared-chrome-v1/sources/shared-page-corner.default.png --out packages/design-system/assets/raster/shared-chrome-v1/masters/shared-page-corner.default.png --auto-key border --soft-matte --transparent-threshold 12 --opaque-threshold 220 --despill",
+        "sips -z 112 112 packages/design-system/assets/raster/shared-chrome-v1/masters/shared-page-corner.default.png --out packages/design-system/assets/raster/shared-chrome-v1/runtime/2x/shared-page-corner.default.png",
+        "sips -z 56 56 packages/design-system/assets/raster/shared-chrome-v1/runtime/2x/shared-page-corner.default.png --out packages/design-system/assets/raster/shared-chrome-v1/runtime/1x/shared-page-corner.default.png"
+      ],
+      "runtime": {
+        "2x": {
+          "path": "packages/design-system/assets/raster/shared-chrome-v1/runtime/2x/shared-page-corner.default.png",
+          "width": 112,
+          "height": 112,
+          "bytes": 10219,
+          "sha256": "941e68f2e930a4f9565d3313c0928dd9e6df4ed0fa1e2f9b971beb76f6c59623"
+        },
+        "1x": {
+          "path": "packages/design-system/assets/raster/shared-chrome-v1/runtime/1x/shared-page-corner.default.png",
+          "width": 56,
+          "height": 56,
+          "bytes": 3439,
+          "sha256": "a6f0d0e991aa93db346dffd76e61e4b8e5029a2cdef91ceb6429e4f4526293ba"
+        }
+      },
+      "validation": {
+        "passed": true,
+        "hasAlpha": true,
+        "transparentCorners": true,
+        "coverageRangeObserved": [0.347337, 0.354911],
+        "visibleGreenPixelFraction": 0,
+        "ocrTextOrDigits": ""
+      }
+    },
+    {
+      "generationId": "shared-page-side-rail.default",
+      "assetIds": [
+        "shared-page-side-rail.default"
+      ],
+      "status": "generated_pending_independent_isolated_review",
+      "sourceClass": "imagegen_raster",
+      "builtInSavedPath": "/Users/heyesheng/.codex/generated_images/019f6396-3539-7681-bd52-af5f1a3e35ff/exec-c60e6b66-2ca3-4f45-a270-46e08fb0ef6d.png",
+      "prompt": "Use case: stylized-concept\nAsset type: single reusable repeat-y game UI chrome raster asset\nPrimary request: Create one narrow vertical forged-metal page side rail segment that can tile seamlessly along the Y axis.\nSubject: A single slim dark-iron rail with a low-saturation aged-gold edge, subtle layered bevels, and very light wear. The rail is center-symmetric left-to-right. Its top and bottom cut edges must have exactly the same cross-section, width, color, lighting, texture scale, and alignment so repeated copies join continuously with no cap, flare, notch, seam, or phase change.\nStyle/medium: crisp high-detail game UI material render; dark stone-like forged iron base; restrained antique gold trim; sharp readable edge hierarchy; no blur.\nComposition/framing: exactly one narrow vertical rail centered on the canvas, orthographic front view, no perspective. It runs continuously from the exact top edge to the exact bottom edge. Keep broad empty background on both sides. No top cap and no bottom cap.\nLighting/mood: controlled neutral frontal lighting, vertically uniform, restrained highlights only.\nColor palette: charcoal and near-black iron, muted old gold; do not use bright yellow or #00ff00 in the subject.\nMaterials/textures: fine forged metal and dark stone texture, subtle scratches and layered bevel; texture should not create a visible tile seam.\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for background removal.\nConstraints: the background must be one uniform #00ff00 color with no shadows, gradients, texture, reflections, floor plane, or lighting variation. Subject edges must be crisp. No cast shadow, contact shadow, glow, reflection, watermark, text, numbers, letters, icons, symbols, crests, faces, weapons, gems, ornaments, crossbars, end caps, or rivets shaped like glyphs. Do not reproduce any factual UI content.",
+      "source": {
+        "path": "packages/design-system/assets/raster/shared-chrome-v1/sources/shared-page-side-rail.default.png",
+        "width": 793,
+        "height": 1983,
+        "bytes": 1317674,
+        "sha256": "d7b58305bfd13042534448fd79a78918533849659540e7516bb59ba64f778dab"
+      },
+      "master": {
+        "path": "packages/design-system/assets/raster/shared-chrome-v1/masters/shared-page-side-rail.default.png",
+        "width": 793,
+        "height": 1983,
+        "bytes": 630987,
+        "sha256": "a4b8aa7c4021f76d1a1e5fa558effd5a9e0409622ed1f7bcaae1e8df0b1b5e99",
+        "sampledKeyColor": "#03f904",
+        "transparentPixels": 1294898,
+        "partiallyTransparentPixels": 5627,
+        "totalPixels": 1572519
+      },
+      "processingCommands": [
+        "cp /Users/heyesheng/.codex/generated_images/019f6396-3539-7681-bd52-af5f1a3e35ff/exec-c60e6b66-2ca3-4f45-a270-46e08fb0ef6d.png packages/design-system/assets/raster/shared-chrome-v1/sources/shared-page-side-rail.default.png",
+        "python3 /Users/heyesheng/.codex/skills/.system/imagegen/scripts/remove_chroma_key.py --input packages/design-system/assets/raster/shared-chrome-v1/sources/shared-page-side-rail.default.png --out packages/design-system/assets/raster/shared-chrome-v1/masters/shared-page-side-rail.default.png --auto-key border --soft-matte --transparent-threshold 12 --opaque-threshold 220 --despill",
+        "sips -c 1983 186 packages/design-system/assets/raster/shared-chrome-v1/masters/shared-page-side-rail.default.png --out packages/design-system/assets/raster/shared-chrome-v1/.work/shared-page-side-rail.crop.png",
+        "sips -z 256 24 packages/design-system/assets/raster/shared-chrome-v1/.work/shared-page-side-rail.crop.png --out packages/design-system/assets/raster/shared-chrome-v1/runtime/2x/shared-page-side-rail.default.png",
+        "sips -z 128 12 packages/design-system/assets/raster/shared-chrome-v1/runtime/2x/shared-page-side-rail.default.png --out packages/design-system/assets/raster/shared-chrome-v1/runtime/1x/shared-page-side-rail.default.png"
+      ],
+      "runtime": {
+        "2x": {
+          "path": "packages/design-system/assets/raster/shared-chrome-v1/runtime/2x/shared-page-side-rail.default.png",
+          "width": 24,
+          "height": 256,
+          "bytes": 10618,
+          "sha256": "0c7fc3ed36fcc1fdf92c0d439e454f860a29ced02c7e952b7ef2a9cad847ea52"
+        },
+        "1x": {
+          "path": "packages/design-system/assets/raster/shared-chrome-v1/runtime/1x/shared-page-side-rail.default.png",
+          "width": 12,
+          "height": 128,
+          "bytes": 3489,
+          "sha256": "3e7dc1ab370fac736e8fda5ce543e402fc05a98d5d890f8e331948b6869f234f"
+        }
+      },
+      "validation": {
+        "passed": true,
+        "hasAlpha": true,
+        "transparentCorners": true,
+        "coverageRangeObserved": [0.75, 0.833333],
+        "visibleGreenPixelFraction": 0,
+        "topBottomAlphaRmseNormalizedMaximum": 0.00506272,
+        "topBottomColorRmseNormalizedMaximum": 0.0294538,
+        "horizontalAlphaSymmetryRmseNormalizedMaximum": 0.0773294,
+        "ocrTextOrDigits": ""
+      }
+    },
+    {
+      "generationId": "title-ornament-family.rail-source",
+      "assetIds": [
+        "title-ornament-family.left-rail",
+        "title-ornament-family.right-rail"
+      ],
+      "status": "generated_pending_independent_isolated_review",
+      "sourceClass": "imagegen_raster",
+      "builtInSavedPath": "/Users/heyesheng/.codex/generated_images/019f6396-3539-7681-bd52-af5f1a3e35ff/exec-eee2cf73-554e-46c0-ba8a-296e9c6a2e79.png",
+      "prompt": "Use case: stylized-concept\nAsset type: single reusable mirrored game UI title ornament raster asset\nPrimary request: Create one left-side horizontal title rail ornament whose mirrored copy can serve as the right-side title rail.\nSubject: A single short forged dark-iron ornamental rail with a low-saturation aged-gold edge, subtle layered bevels, and very light wear. The right inner end is a clean restrained attachment edge near the title; the rail narrows gradually toward a fine but durable outer tip on the left. No central badge and no detached parts.\nStyle/medium: crisp high-detail game UI material render; dark stone-like forged iron base; restrained antique gold trim; sharp readable edge hierarchy; no blur.\nComposition/framing: exactly one horizontal ornament centered on the canvas with generous even padding; orthographic front view; perfectly flat, no perspective. Long and low profile. The silhouette must remain legible when reduced to 96x20 and must mirror cleanly.\nLighting/mood: controlled neutral frontal lighting, restrained highlights only.\nColor palette: charcoal and near-black iron, muted old gold; do not use bright yellow or #00ff00 in the subject.\nMaterials/textures: fine forged metal and dark stone texture, subtle scratches, layered bevel.\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for background removal.\nConstraints: the background must be one uniform #00ff00 color with no shadows, gradients, texture, reflections, floor plane, or lighting variation. Keep the subject fully separated from the background with crisp edges. No cast shadow, contact shadow, glow, reflection, watermark, text, numbers, letters, icons, symbols, crests, faces, weapons, gems, medallions, emblems, chevrons, arrows, or rivets shaped like glyphs. Do not reproduce any factual UI content.",
+      "source": {
+        "path": "packages/design-system/assets/raster/shared-chrome-v1/sources/title-ornament-family.left-rail.png",
+        "width": 1983,
+        "height": 793,
+        "bytes": 1347809,
+        "sha256": "db9ab541dbb6c383b7d0840ac09f5e2cad1a59d7918ce0aa3266787ccc4984bb"
+      },
+      "master": {
+        "path": "packages/design-system/assets/raster/shared-chrome-v1/masters/title-ornament-family.left-rail.png",
+        "width": 1983,
+        "height": 793,
+        "bytes": 636883,
+        "sha256": "7906e6268b35ecb92d5f2a02a925785c9ec1fef96c1c5fc4489b384dc6031c96",
+        "sampledKeyColor": "#05f80b",
+        "transparentPixels": 1332323,
+        "partiallyTransparentPixels": 4731,
+        "totalPixels": 1572519
+      },
+      "processingCommands": [
+        "cp /Users/heyesheng/.codex/generated_images/019f6396-3539-7681-bd52-af5f1a3e35ff/exec-eee2cf73-554e-46c0-ba8a-296e9c6a2e79.png packages/design-system/assets/raster/shared-chrome-v1/sources/title-ornament-family.left-rail.png",
+        "python3 /Users/heyesheng/.codex/skills/.system/imagegen/scripts/remove_chroma_key.py --input packages/design-system/assets/raster/shared-chrome-v1/sources/title-ornament-family.left-rail.png --out packages/design-system/assets/raster/shared-chrome-v1/masters/title-ornament-family.left-rail.png --auto-key border --soft-matte --transparent-threshold 12 --opaque-threshold 220 --despill",
+        "sips -c 413 1983 packages/design-system/assets/raster/shared-chrome-v1/masters/title-ornament-family.left-rail.png --out packages/design-system/assets/raster/shared-chrome-v1/.work/title-ornament-family.crop.png",
+        "sips -z 40 192 packages/design-system/assets/raster/shared-chrome-v1/.work/title-ornament-family.crop.png --out packages/design-system/assets/raster/shared-chrome-v1/runtime/2x/title-ornament-family.left-rail.png",
+        "sips -z 20 96 packages/design-system/assets/raster/shared-chrome-v1/runtime/2x/title-ornament-family.left-rail.png --out packages/design-system/assets/raster/shared-chrome-v1/runtime/1x/title-ornament-family.left-rail.png",
+        "sips -f horizontal packages/design-system/assets/raster/shared-chrome-v1/runtime/2x/title-ornament-family.left-rail.png --out packages/design-system/assets/raster/shared-chrome-v1/runtime/2x/title-ornament-family.right-rail.png",
+        "sips -f horizontal packages/design-system/assets/raster/shared-chrome-v1/runtime/1x/title-ornament-family.left-rail.png --out packages/design-system/assets/raster/shared-chrome-v1/runtime/1x/title-ornament-family.right-rail.png"
+      ],
+      "runtime": {
+        "title-ornament-family.left-rail": {
+          "2x": {
+            "path": "packages/design-system/assets/raster/shared-chrome-v1/runtime/2x/title-ornament-family.left-rail.png",
+            "width": 192,
+            "height": 40,
+            "bytes": 6874,
+            "sha256": "175132c52186159049ca38d05d0266616e18f57644b97838e0cc13b562cfa561"
+          },
+          "1x": {
+            "path": "packages/design-system/assets/raster/shared-chrome-v1/runtime/1x/title-ornament-family.left-rail.png",
+            "width": 96,
+            "height": 20,
+            "bytes": 2601,
+            "sha256": "4207e0743e8dd3857da7dc88ba5f966b4a309ae5c0f0442abc9be6f4e2a66d24"
+          }
+        },
+        "title-ornament-family.right-rail": {
+          "derivation": "horizontal mirror of the left-rail runtime at the same density; no fifth imagegen call",
+          "2x": {
+            "path": "packages/design-system/assets/raster/shared-chrome-v1/runtime/2x/title-ornament-family.right-rail.png",
+            "width": 192,
+            "height": 40,
+            "bytes": 7019,
+            "sha256": "21143b4f415ed725d6e8de601b480bc3a747c89c6dd32189d1003389d0909643"
+          },
+          "1x": {
+            "path": "packages/design-system/assets/raster/shared-chrome-v1/runtime/1x/title-ornament-family.right-rail.png",
+            "width": 96,
+            "height": 20,
+            "bytes": 2574,
+            "sha256": "04aa5deff9bd5674360c0a63535b623d490daa2fd7e3847d2c7f6ea8cdcdcbcd"
+          }
+        }
+      },
+      "validation": {
+        "passed": true,
+        "hasAlpha": true,
+        "transparentCorners": true,
+        "coverageRangeObserved": [0.317708, 0.351042],
+        "visibleGreenPixelFraction": 0,
+        "rightMirrorAbsoluteErrorPixels": {
+          "2x": 0,
+          "1x": 0
+        },
+        "ocrTextOrDigits": ""
+      }
+    },
+    {
+      "generationId": "pushed-back-medallion.default",
+      "assetIds": [
+        "pushed-back-medallion.default"
+      ],
+      "status": "generated_pending_independent_isolated_review",
+      "sourceClass": "imagegen_raster",
+      "builtInSavedPath": "/Users/heyesheng/.codex/generated_images/019f6396-3539-7681-bd52-af5f1a3e35ff/exec-ecfeecd1-35d8-4c3b-980d-cc2cb8321417.png",
+      "prompt": "Use case: stylized-concept\nAsset type: single reusable 44px game UI back-control socket shell raster asset\nPrimary request: Create one compact circular medallion socket shell for a back control. This is only the empty outer housing; the center must remain completely open and empty so a separate runtime arrow icon can be placed there.\nSubject: A restrained round ring-shaped socket shell in forged dark iron with a thin low-saturation aged-gold rim, subtle concentric layered bevels, and very light wear. The central opening is a large clean circular hole showing only the chroma-key background, with no inner plate, fill, highlight, texture, shadow, object, or mark.\nStyle/medium: crisp high-detail game UI material render; dark stone-like forged iron base; restrained antique gold trim; sharp readable edge hierarchy at 44px; no blur.\nComposition/framing: exactly one circular ring centered on a square canvas with generous even padding; orthographic front view; perfectly flat and face-on; rotationally balanced; no perspective. Keep the ring compact but sturdy.\nLighting/mood: controlled neutral frontal lighting, restrained highlights only.\nColor palette: charcoal and near-black iron, muted old gold; do not use bright yellow or #00ff00 in the subject.\nMaterials/textures: fine forged metal and dark stone texture, subtle scratches, layered bevel.\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for background removal, including the entire center hole.\nConstraints: the background and center hole must be one uniform #00ff00 color with no shadows, gradients, texture, reflections, floor plane, or lighting variation. Keep the shell fully separated from the background with crisp edges. No cast shadow, contact shadow, glow, reflection, watermark, text, numbers, letters, arrows, chevrons, icons, symbols, crests, faces, weapons, gems, inner disc, center plate, center texture, or rivets shaped like glyphs. Do not reproduce any factual UI content.",
+      "source": {
+        "path": "packages/design-system/assets/raster/shared-chrome-v1/sources/pushed-back-medallion.default.png",
+        "width": 1254,
+        "height": 1254,
+        "bytes": 1670789,
+        "sha256": "baa658e170570102d94697f9be2bbc7c563fe8d7c433c532a6f297214979121a"
+      },
+      "master": {
+        "path": "packages/design-system/assets/raster/shared-chrome-v1/masters/pushed-back-medallion.default.png",
+        "width": 1254,
+        "height": 1254,
+        "bytes": 1053241,
+        "sha256": "42153b09c1ccfc18b15e4e2a744b8ee6eb546b00033a559bcfaa4c98bb783542",
+        "sampledKeyColor": "#03f905",
+        "transparentPixels": 1122526,
+        "partiallyTransparentPixels": 6121,
+        "totalPixels": 1572516
+      },
+      "processingCommands": [
+        "cp /Users/heyesheng/.codex/generated_images/019f6396-3539-7681-bd52-af5f1a3e35ff/exec-ecfeecd1-35d8-4c3b-980d-cc2cb8321417.png packages/design-system/assets/raster/shared-chrome-v1/sources/pushed-back-medallion.default.png",
+        "python3 /Users/heyesheng/.codex/skills/.system/imagegen/scripts/remove_chroma_key.py --input packages/design-system/assets/raster/shared-chrome-v1/sources/pushed-back-medallion.default.png --out packages/design-system/assets/raster/shared-chrome-v1/masters/pushed-back-medallion.default.png --auto-key border --soft-matte --transparent-threshold 12 --opaque-threshold 220 --despill",
+        "sips -z 88 88 packages/design-system/assets/raster/shared-chrome-v1/masters/pushed-back-medallion.default.png --out packages/design-system/assets/raster/shared-chrome-v1/runtime/2x/pushed-back-medallion.default.png",
+        "sips -z 44 44 packages/design-system/assets/raster/shared-chrome-v1/runtime/2x/pushed-back-medallion.default.png --out packages/design-system/assets/raster/shared-chrome-v1/runtime/1x/pushed-back-medallion.default.png"
+      ],
+      "runtime": {
+        "2x": {
+          "path": "packages/design-system/assets/raster/shared-chrome-v1/runtime/2x/pushed-back-medallion.default.png",
+          "width": 88,
+          "height": 88,
+          "bytes": 8522,
+          "sha256": "69b7692cfbd0163dab2568141e4f50577737b6ba2e8cb80d4e59d1ddd14aa100"
+        },
+        "1x": {
+          "path": "packages/design-system/assets/raster/shared-chrome-v1/runtime/1x/pushed-back-medallion.default.png",
+          "width": 44,
+          "height": 44,
+          "bytes": 3401,
+          "sha256": "c5314c6d3065ba11db78535895c802750bb7e3c800a05512142b530ac6c77c04"
+        }
+      },
+      "validation": {
+        "passed": true,
+        "hasAlpha": true,
+        "transparentCorners": true,
+        "coverageRangeObserved": [0.312371, 0.340909],
+        "visibleGreenPixelFraction": 0,
+        "centerAlphaMaximum": 0,
+        "ocrTextOrDigits": ""
+      }
+    }
+  ],
+  "overallValidation": {
+    "allRuntimePassedMechanicalValidation": true,
+    "runtimeFilesWithAlpha": 10,
+    "runtimeFilesWithTransparentCorners": 10,
+    "runtimeFilesWithVisibleGreenPixels": 0,
+    "runtimeFilesWithOcrTextOrDigits": 0,
+    "independentIsolatedVisualReviewPending": true,
+    "registeredInPackagesAssetsManifest": false,
+    "wiredIntoRuntimeCode": false,
+    "productionOrAcceptedClaim": false
+  }
+}
