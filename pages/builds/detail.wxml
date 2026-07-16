@@ -82,14 +82,18 @@
           </view>
           <view class="gear-attribute-enhancement-row">
             <view class="gear-attribute-enhancement-grid">
-              <view class="gear-attribute-cell {{item.pending ? 'pending' : ''}}" wx:for="{{gearAttributePanel.enhancementRows}}" wx:key="key">
-                <text class="gear-attribute-label">{{item.label}}</text>
-                <text class="gear-attribute-value">{{item.value}}</text>
-              </view>
+              <block wx:for="{{gearAttributePanel.enhancementRows}}" wx:key="key">
+                <view class="gear-attribute-cell gear-attribute-enhancement-entry {{item.pending ? 'pending' : ''}} {{gearDataFallback ? 'disabled' : ''}}" wx:if="{{item.key == 'embellishment' || item.key == 'gem' || item.key == 'enchant'}}" data-type="{{item.key}}" bindtap="openGearEnhancementSheet">
+                  <text class="gear-attribute-label">{{item.label}}</text>
+                  <text class="gear-attribute-value">{{item.value}}</text>
+                  <text class="gear-attribute-enhancement-action">配置</text>
+                </view>
+                <view class="gear-attribute-cell {{item.pending ? 'pending' : ''}}" wx:else>
+                  <text class="gear-attribute-label">{{item.label}}</text>
+                  <text class="gear-attribute-value">{{item.value}}</text>
+                </view>
+              </block>
             </view>
-          </view>
-          <view class="gear-attribute-action-row">
-            <button class="gear-attribute-action" disabled="{{gearDataFallback}}" bindtap="openGearEnhancementSheet">配置宝石、附魔</button>
           </view>
         </view>
 
@@ -315,8 +319,8 @@
     <view class="gear-sheet-handle"></view>
     <view class="gear-sheet-header">
       <view>
-        <text class="gear-sheet-kicker">已使用 {{gearEnhancementSheet.embellishmentUsed}} / {{gearEnhancementSheet.embellishmentMax}} 美化</text>
-        <text class="gear-sheet-title">配置宝石、附魔、美化</text>
+        <text class="gear-sheet-kicker">{{gearEnhancementSheet.summaryText}}</text>
+        <text class="gear-sheet-title">{{gearEnhancementSheet.title}}</text>
       </view>
       <button class="gear-sheet-close" disabled="{{gearEnhancementSheet.submitting}}" bindtap="closeGearEnhancementSheet">关闭</button>
     </view>

@@ -3050,6 +3050,9 @@ function emptyGearEnhancementSheet() {
   return {
     visible: false,
     submitting: false,
+    activeType: '',
+    title: '配置强化项',
+    summaryText: '',
     equipmentRows: [],
     activeSlot: '',
     activeTitle: '',
@@ -3066,6 +3069,13 @@ function emptyGearEnhancementSheet() {
     blockers: [],
     emptyText: ''
   }
+}
+
+const gearEnhancementTypes = new Set(['gem', 'enchant', 'embellishment'])
+
+function normalizedGearEnhancementType(value) {
+  const type = cleanGearString(value).toLowerCase()
+  return gearEnhancementTypes.has(type) ? type : ''
 }
 
 function gearEnhancementSlotSortKey(slot, fallbackIndex) {
@@ -3162,9 +3172,10 @@ function gemOptionIdentityBlockers(gearPayload, indexed, enhancement) {
   return blockers
 }
 
-function buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementBySlot, visible, requestedActiveSlot, requestedEmbellishmentMax, requestedBuiltInEmbellishmentUsed) {
+function buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementBySlot, visible, requestedActiveSlot, requestedEmbellishmentMax, requestedBuiltInEmbellishmentUsed, requestedActiveType) {
   const indexed = enrichedSelectedGearByCanonicalSlot(gearPayload, selectedGearBySlot || {})
   const enhancement = normalizedEnhancementBySlot(enhancementBySlot || {})
+  const activeType = normalizedGearEnhancementType(requestedActiveType)
   const requestedEmbellishmentMaxValue = Number(requestedEmbellishmentMax)
   const embellishmentMax = requestedEmbellishmentMax !== undefined && requestedEmbellishmentMax !== null &&
     Number.isFinite(requestedEmbellishmentMaxValue) && requestedEmbellishmentMaxValue >= 0
@@ -3239,13 +3250,17 @@ function buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementB
       blockers.push(`${gearSlotDisplay(slot)} 美化已不兼容`)
     }
   })
-  const emptyText = gemRows.length || enchantRows.length || embellishmentRows.length
+  const visibleGemRows = activeType && activeType !== 'gem' ? [] : gemRows
+  const visibleEnchantRows = activeType && activeType !== 'enchant' ? [] : enchantRows
+  const visibleEmbellishmentRows = activeType && activeType !== 'embellishment' ? [] : embellishmentRows
+  const typeLabel = enhancementTypeLabel(activeType)
+  const emptyText = visibleGemRows.length || visibleEnchantRows.length || visibleEmbellishmentRows.length
     ? ''
-    : '当前已选装备没有可配置的宝石、附魔或美化。'
+    : (typeLabel ? `当前已选装备没有可配置的${typeLabel}。` : '当前已选装备没有可配置的宝石、附魔或美化。')
   const configurableSlots = requiredGearTemplateSlots(gearPayload || {}).filter((slot) => {
-    return gemRows.some((row) => row.slot === slot) ||
-      enchantRows.some((row) => row.slot === slot) ||
-      embellishmentRows.some((row) => row.slot === slot)
+    return visibleGemRows.some((row) => row.slot === slot) ||
+      visibleEnchantRows.some((row) => row.slot === slot) ||
+      visibleEmbellishmentRows.some((row) => row.slot === slot)
   }).sort((left, right) => {
     const allSlots = requiredGearTemplateSlots(gearPayload || {})
     const leftKey = gearEnhancementSlotSortKey(left, allSlots.indexOf(left))
@@ -3253,14 +3268,27 @@ function buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementB
     return leftKey[0] - rightKey[0] || leftKey[1] - rightKey[1]
   })
   const activeSlot = configurableSlots.includes(requestedActiveSlot) ? requestedActiveSlot : (configurableSlots[0] || '')
-  const equipmentRows = buildGearEnhancementEquipmentRows(configurableSlots, indexed, gemRows, enchantRows, embellishmentRows, activeSlot)
-  const activeGemRows = activeSlot ? gemRows.filter((row) => row.slot === activeSlot) : []
-  const activeEnchantRows = activeSlot ? enchantRows.filter((row) => row.slot === activeSlot) : []
-  const activeEmbellishmentRows = activeSlot ? embellishmentRows.filter((row) => row.slot === activeSlot) : []
+  const equipmentRows = buildGearEnhancementEquipmentRows(
+    configurableSlots,
+    indexed,
+    visibleGemRows,
+    visibleEnchantRows,
+    visibleEmbellishmentRows,
+    activeSlot
+  )
+  const activeGemRows = activeSlot ? visibleGemRows.filter((row) => row.slot === activeSlot) : []
+  const activeEnchantRows = activeSlot ? visibleEnchantRows.filter((row) => row.slot === activeSlot) : []
+  const activeEmbellishmentRows = activeSlot ? visibleEmbellishmentRows.filter((row) => row.slot === activeSlot) : []
+  const summaryText = activeType === 'embellishment'
+    ? `已使用 ${embellishmentUsed} / ${embellishmentMax} 美化 · 可配置 ${equipmentRows.length} 件装备`
+    : `可配置 ${equipmentRows.length} 件装备`
   return {
     visible: !!visible,
     loading: false,
     draftEnhancementBySlot: enhancement,
+    activeType,
+    title: typeLabel ? `配置${typeLabel}` : '配置强化项',
+    summaryText,
     equipmentRows,
     activeSlot,
     activeTitle: activeSlot ? (gearSlotDisplayLabels[activeSlot] || activeSlot) : '',
@@ -4919,6 +4947,11 @@ function canonicalLocalEnhancementBlockersForPage(
 function buildGearEnhancementSheetForPage(page, visible, requestedActiveSlot, overrides) {
   const state = overrides || {}
   const currentSheet = page && page.data && page.data.gearEnhancementSheet
+  const activeType = normalizedGearEnhancementType(
+    Object.prototype.hasOwnProperty.call(state, 'activeType')
+      ? state.activeType
+      : (currentSheet && currentSheet.visible && currentSheet.activeType)
+  )
   const gearPayload = fullGearPayloadForPage(page) || (page && page.data && page.data.gearPayload) || {}
   const currentSelectedGearBySlot = state.selectedGearBySlot || (page && page.data && page.data.selectedGearBySlot) || {}
   const canonicalWorkbench = !!(page && page.gearWorkbenchState)
@@ -4954,7 +4987,8 @@ function buildGearEnhancementSheetForPage(page, visible, requestedActiveSlot, ov
     visible,
     requestedActiveSlot,
     canonicalEmbellishmentMax,
-    canonicalBuiltInEmbellishmentUsed
+    canonicalBuiltInEmbellishmentUsed,
+    activeType
   )
   if (canonicalWorkbench && canonicalSnapshot) {
     sheet.blockers = canonicalLocalEnhancementBlockersForPage(
@@ -4978,11 +5012,21 @@ function buildGearEnhancementSheetForPage(page, visible, requestedActiveSlot, ov
   ]))
   const canonicalTypesBySlot = canonicalEnhancementTypesBySlot(canonicalSnapshot)
   const configurableSlots = (sheet.equipmentRows || []).map((row) => row.slot)
+  const isCurrentType = (slot) => {
+    if (!activeType) return true
+    const canonicalTypes = canonicalTypesBySlot[slot] || []
+    if (canonicalTypes.length) return canonicalTypes.includes(activeType)
+    const item = selectedGearBySlot[slot]
+    return !!(item && (
+      itemSupportsConfiguredEnhancementFallback(item, activeType) ||
+      enhancementRecordHasSelectedType(enhancementBySlot[slot], activeType)
+    ))
+  }
   const allSlots = requiredGearTemplateSlots(gearPayload || {})
   const equipmentSlots = Array.from(new Set([
     ...configurableSlots,
-    ...detailSlots,
-    ...Object.keys(canonicalTypesBySlot)
+    ...detailSlots.filter(isCurrentType),
+    ...Object.keys(canonicalTypesBySlot).filter(isCurrentType)
   ])).filter((slot) => !!selectedGearBySlot[slot]).sort((left, right) => {
     const leftKey = gearEnhancementSlotSortKey(left, allSlots.indexOf(left))
     const rightKey = gearEnhancementSlotSortKey(right, allSlots.indexOf(right))
@@ -4996,8 +5040,8 @@ function buildGearEnhancementSheetForPage(page, visible, requestedActiveSlot, ov
     : (sheet.activeSlot || equipmentSlots[0] || '')
   const indexed = enrichedSelectedGearByCanonicalSlot(gearPayload, selectedGearBySlot)
   const pendingSlots = new Set([
-    ...detailSlots,
-    ...Object.keys(canonicalTypesBySlot)
+    ...detailSlots.filter(isCurrentType),
+    ...Object.keys(canonicalTypesBySlot).filter(isCurrentType)
   ])
   const equipmentRows = buildGearEnhancementEquipmentRows(
     equipmentSlots,
@@ -5008,11 +5052,11 @@ function buildGearEnhancementSheetForPage(page, visible, requestedActiveSlot, ov
     activeSlot,
     pendingSlots
   ).map((row) => {
-    const canonicalTypes = canonicalTypesBySlot[row.slot] || []
+    const canonicalTypes = (canonicalTypesBySlot[row.slot] || []).filter((type) => !activeType || type === activeType)
     const hydratedTypes = []
-    if ((sheet.gemRows || []).some((item) => item.slot === row.slot)) hydratedTypes.push('gem')
-    if ((sheet.enchantRows || []).some((item) => item.slot === row.slot)) hydratedTypes.push('enchant')
-    if ((sheet.embellishmentRows || []).some((item) => item.slot === row.slot)) hydratedTypes.push('embellishment')
+    if ((!activeType || activeType === 'gem') && (sheet.gemRows || []).some((item) => item.slot === row.slot)) hydratedTypes.push('gem')
+    if ((!activeType || activeType === 'enchant') && (sheet.enchantRows || []).some((item) => item.slot === row.slot)) hydratedTypes.push('enchant')
+    if ((!activeType || activeType === 'embellishment') && (sheet.embellishmentRows || []).some((item) => item.slot === row.slot)) hydratedTypes.push('embellishment')
     const typeLabels = Array.from(new Set([
       ...canonicalTypes,
       ...hydratedTypes
@@ -5022,15 +5066,19 @@ function buildGearEnhancementSheetForPage(page, visible, requestedActiveSlot, ov
       typeSummary: typeLabels.length ? typeLabels.join(' / ') : row.typeSummary
     }
   })
+  const summaryText = activeType === 'embellishment'
+    ? `已使用 ${sheet.embellishmentUsed} / ${sheet.embellishmentMax} 美化 · 可配置 ${equipmentRows.length} 件装备`
+    : (activeType ? `可配置 ${equipmentRows.length} 件装备` : sheet.summaryText)
   return {
     ...sheet,
+    summaryText,
     equipmentRows,
     activeSlot,
     activeTitle: activeSlot ? (gearSlotDisplayLabels[activeSlot] || activeSlot) : '',
     activeItemName: activeSlot ? itemDisplayName(indexed[activeSlot]) : '',
-    activeGemRows: activeSlot ? (sheet.gemRows || []).filter((row) => row.slot === activeSlot) : [],
-    activeEnchantRows: activeSlot ? (sheet.enchantRows || []).filter((row) => row.slot === activeSlot) : [],
-    activeEmbellishmentRows: activeSlot ? (sheet.embellishmentRows || []).filter((row) => row.slot === activeSlot) : [],
+    activeGemRows: activeSlot && (!activeType || activeType === 'gem') ? (sheet.gemRows || []).filter((row) => row.slot === activeSlot) : [],
+    activeEnchantRows: activeSlot && (!activeType || activeType === 'enchant') ? (sheet.enchantRows || []).filter((row) => row.slot === activeSlot) : [],
+    activeEmbellishmentRows: activeSlot && (!activeType || activeType === 'embellishment') ? (sheet.embellishmentRows || []).filter((row) => row.slot === activeSlot) : [],
     warnings
   }
 }
@@ -6764,8 +6812,10 @@ Page({
   },
 
   openGearEnhancementSheet() {
+    const event = arguments[0]
     const currentSheet = this.data.gearEnhancementSheet || emptyGearEnhancementSheet()
     if (currentSheet.submitting) return Promise.resolve()
+    const activeType = normalizedGearEnhancementType(event && event.currentTarget && event.currentTarget.dataset && event.currentTarget.dataset.type)
     const canonicalEditorState = this.gearWorkbenchState
       ? canonicalEnhancementEditorWorkbenchState(this)
       : null
@@ -6809,7 +6859,7 @@ Page({
           : buildGearAttributePanel(gearPayload, selectedGearBySlot, this.data.selectedSpec, enhancementBySlot, this.data.gearStatSnapshot)
       })
       this.setData({
-        gearEnhancementSheet: buildGearEnhancementSheetForPage(this, true),
+        gearEnhancementSheet: buildGearEnhancementSheetForPage(this, true, '', { activeType }),
         gearSlotSheet: emptyGearSlotSheet(),
         gearCommunityTemplateSheet: emptyGearCommunityTemplateSheet()
       })

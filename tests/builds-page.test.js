@@ -53,6 +53,7 @@ globalThis.__detailHelpers = {
   removeEnhancementType,
   prunedEnhancementBySlot,
   buildGearEnhancementSheet,
+  buildGearEnhancementSheetForPage,
   communityTemplateRawEnhancementBySlot,
   reconcileCommunityTemplateEnhancements,
   gearSelectionWithoutEmbeddedSimcEnhancements
@@ -1750,12 +1751,15 @@ test('gear detail page exposes inline equipment simulator state and replacement 
   assert.match(wxml, /marker\.iconUrl/)
   assert.ok(wxml.indexOf('class="gear-attribute-panel"') < wxml.indexOf('class="gear-slot-grid"'))
   assert.ok(wxml.indexOf('class="gear-attribute-level"') < wxml.indexOf('class="gear-attribute-grid"'))
-  assert.ok(wxml.indexOf('class="gear-attribute-action"') > wxml.indexOf('class="gear-attribute-panel"'))
-  assert.ok(wxml.indexOf('class="gear-attribute-action"') < wxml.indexOf('class="gear-slot-grid"'))
-  assert.match(wxml, />配置宝石、附魔<\/button>/)
+  assert.ok(wxml.indexOf('gear-attribute-enhancement-entry') > wxml.indexOf('class="gear-attribute-panel"'))
+  assert.ok(wxml.indexOf('gear-attribute-enhancement-entry') < wxml.indexOf('class="gear-slot-grid"'))
+  assert.match(wxml, /data-type="\{\{item\.key\}\}" bindtap="openGearEnhancementSheet"/)
+  assert.match(wxml, /class="gear-attribute-enhancement-action">配置<\/text>/)
+  assert.doesNotMatch(wxml, /class="gear-attribute-action"/)
+  assert.doesNotMatch(wxml, />配置宝石、附魔<\/button>/)
   assert.doesNotMatch(wxml, />强化配置</)
   assert.ok(wxml.indexOf('class="gear-attribute-grid"') < wxml.indexOf('class="gear-attribute-enhancement-row"'))
-  assert.ok(wxml.indexOf('class="gear-attribute-enhancement-row"') < wxml.indexOf('class="gear-attribute-action-row"'))
+  assert.doesNotMatch(wxml, /class="gear-attribute-action-row"/)
   assert.doesNotMatch(wxml, /class="gear-attribute-primary"/)
   const gearSlotGridMarkup = wxml.match(/<view class="gear-slot-grid">[\s\S]*?<view class="gear-loading-state"/)
   assert.ok(gearSlotGridMarkup)
@@ -1863,9 +1867,11 @@ test('gear detail page exposes inline equipment simulator state and replacement 
   assert.doesNotMatch(css, /\.gear-stat-panel/)
   assert.match(css, /\.gear-attribute-panel/)
   assert.match(css, /\.gear-attribute-level/)
-  assert.match(css, /\.gear-attribute-action/)
+  assert.match(css, /\.gear-attribute-enhancement-entry/)
+  assert.match(css, /\.gear-attribute-enhancement-action/)
+  assert.doesNotMatch(css, /\.gear-attribute-action\s*\{/)
   assert.match(css, /\.gear-attribute-enhancement-row/)
-  assert.match(css, /\.gear-attribute-action-row/)
+  assert.doesNotMatch(css, /\.gear-attribute-action-row/)
   assert.doesNotMatch(css, /\.gear-attribute-primary/)
   assert.match(css, /\.gear-attribute-grid\s*\{[\s\S]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\);/)
   assert.match(css, /\.gear-attribute-enhancement-grid\s*\{[\s\S]*grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\);/)
@@ -1876,9 +1882,9 @@ test('gear detail page exposes inline equipment simulator state and replacement 
   const gearAttributeEnhancementCss = css.match(/\.gear-attribute-enhancement-row\s*\{[^}]*\}/)
   assert.ok(gearAttributeEnhancementCss)
   assert.doesNotMatch(gearAttributeEnhancementCss[0], /136rpx/)
-  const gearAttributeActionCss = css.match(/\.gear-attribute-action\s*\{[^}]*\}/)
-  assert.ok(gearAttributeActionCss)
-  assert.match(gearAttributeActionCss[0], /width:\s*100%;/)
+  const gearAttributeEnhancementEntryCss = css.match(/\.gear-attribute-enhancement-entry\s*\{[^}]*\}/)
+  assert.ok(gearAttributeEnhancementEntryCss)
+  assert.match(gearAttributeEnhancementEntryCss[0], /min-height:\s*102rpx;/)
   assert.match(css, /\.gear-slot-grid/)
   assert.match(css, /\.gear-slot-grid\s*\{[\s\S]*gap:\s*8rpx;[\s\S]*margin-top:\s*12rpx;/)
   assert.match(css, /\.gear-slot-card\s*\{[\s\S]*min-height:\s*126rpx;[\s\S]*padding:\s*12rpx;/)
@@ -5843,6 +5849,37 @@ test('gear enhancement sheet opens immediately and refreshes after selected slot
   assert.equal(JSON.stringify(page.data.gearEnhancementSheet.gemRows.map((row) => row.slot).sort()), JSON.stringify(['finger1', 'neck']))
   assert.equal(JSON.stringify(page.data.gearEnhancementSheet.enchantRows.map((row) => row.slot)), JSON.stringify(['legs', 'finger1']))
   assert.equal(JSON.stringify(page.data.gearEnhancementSheet.embellishmentRows.map((row) => row.slot)), JSON.stringify(['off_hand']))
+})
+
+test('typed enhancement sheet counts compatible slots while their detail is loading', () => {
+  const pageConfig = loadBuildsDetailPageConfig({ exposeDetailHelpers: true })
+  const neck = {
+    slot: 'neck', simcSlot: 'neck', itemId: 'neck-item', id: 'neck-item',
+    displayName: '待加载项链', simcReady: true,
+    modCapabilities: { hasSocket: true, socketCount: 1, canEnchant: false, canEmbellish: false }
+  }
+  const gearPayload = {
+    classKey: 'mage',
+    specKey: 'frost',
+    gearPayloadMode: 'initial',
+    slots: [{ slot: 'neck', simcSlot: 'neck', label: '项链' }],
+    replacementCandidates: []
+  }
+  const page = {
+    gearPayloadCache: gearPayload,
+    data: {
+      gearPayload,
+      selectedGearBySlot: { neck },
+      enhancementBySlot: {},
+      gearEnhancementSheet: { visible: false }
+    }
+  }
+
+  const sheet = pageConfig.__detailHelpers.buildGearEnhancementSheetForPage(page, true, '', { activeType: 'gem' })
+
+  assert.equal(sheet.activeType, 'gem')
+  assert.equal(sheet.summaryText, '可配置 1 件装备')
+  assert.deepEqual(JSON.parse(JSON.stringify(sheet.equipmentRows.map((row) => row.slot))), ['neck'])
 })
 
 test('gear detail preserves initial slot candidates when slot detail request falls back', async () => {
@@ -11151,6 +11188,78 @@ function embellishmentLimitBuilderFixture() {
     selectedGearBySlot
   }
 }
+
+test('enhancement sheet limits equipment and options to the selected enhancement type', () => {
+  const pageConfig = loadBuildsDetailPageConfig({ exposeDetailHelpers: true })
+  const buildSheet = pageConfig.__detailHelpers.buildGearEnhancementSheet
+  const verifiedOption = (id, label, simcOptions) => ({
+    id,
+    displayLabel: label,
+    displayStatus: 'verified',
+    evidenceSource: 'test_authority',
+    status: 'verified',
+    simcOptions,
+    payload: { qualityRank: 2 }
+  })
+  const neck = {
+    slot: 'neck', simcSlot: 'neck', itemId: 'neck-item', id: 'neck-item',
+    displayName: 'Socketed Necklace', simcReady: true,
+    modCapabilities: { hasSocket: true, socketCount: 1, canEnchant: false, canEmbellish: false }
+  }
+  const finger = {
+    slot: 'finger1', simcSlot: 'finger1', itemId: 'finger-item', id: 'finger-item',
+    displayName: 'Enchantable Ring', simcReady: true,
+    modCapabilities: { hasSocket: false, socketCount: 0, canEnchant: true, canEmbellish: false }
+  }
+  const chest = {
+    slot: 'chest', simcSlot: 'chest', itemId: 'chest-item', id: 'chest-item',
+    displayName: 'Crafted Chest', simcReady: true,
+    modCapabilities: { hasSocket: false, socketCount: 0, canEnchant: false, canEmbellish: true }
+  }
+  const gearPayload = {
+    classKey: 'mage', specKey: 'frost', maxLevel: 90,
+    slots: [
+      { slot: 'neck', simcSlot: 'neck', label: '项链' },
+      { slot: 'finger1', simcSlot: 'finger1', label: '戒指 1' },
+      { slot: 'chest', simcSlot: 'chest', label: '胸部' }
+    ],
+    replacementCandidates: [
+      { slot: 'neck', simcSlot: 'neck', detailMode: 'complete', items: [neck], socketOptions: [verifiedOption('gem-haste', '急速宝石', { gem_id: 'gem_haste' })] },
+      { slot: 'finger1', simcSlot: 'finger1', detailMode: 'complete', items: [finger], enchantOptions: [verifiedOption('enchant-haste', '急速附魔', { enchant_id: 'enchant_haste' })] },
+      { slot: 'chest', simcSlot: 'chest', detailMode: 'complete', items: [chest], embellishmentOptions: [verifiedOption('embellishment-haste', '急速美化', { embellishment: 'embellishment_haste' })] }
+    ]
+  }
+  const selectedGearBySlot = { neck, finger1: finger, chest }
+
+  const gemSheet = buildSheet(gearPayload, selectedGearBySlot, {}, true, '', undefined, undefined, 'gem')
+  assert.equal(gemSheet.activeType, 'gem')
+  assert.deepEqual(JSON.parse(JSON.stringify(gemSheet.equipmentRows.map((row) => row.slot))), ['neck'])
+  assert.equal(gemSheet.activeGemRows.length, 1)
+  assert.deepEqual(JSON.parse(JSON.stringify(gemSheet.activeEnchantRows)), [])
+  assert.deepEqual(JSON.parse(JSON.stringify(gemSheet.activeEmbellishmentRows)), [])
+
+  const enchantSheet = buildSheet(gearPayload, selectedGearBySlot, {}, true, '', undefined, undefined, 'enchant')
+  assert.equal(enchantSheet.activeType, 'enchant')
+  assert.deepEqual(JSON.parse(JSON.stringify(enchantSheet.equipmentRows.map((row) => row.slot))), ['finger1'])
+  assert.equal(enchantSheet.activeEnchantRows.length, 1)
+  assert.deepEqual(JSON.parse(JSON.stringify(enchantSheet.activeGemRows)), [])
+  assert.deepEqual(JSON.parse(JSON.stringify(enchantSheet.activeEmbellishmentRows)), [])
+
+  const embellishmentSheet = buildSheet(gearPayload, selectedGearBySlot, {}, true, '', undefined, undefined, 'embellishment')
+  assert.equal(embellishmentSheet.activeType, 'embellishment')
+  assert.deepEqual(JSON.parse(JSON.stringify(embellishmentSheet.equipmentRows.map((row) => row.slot))), ['chest'])
+  assert.equal(embellishmentSheet.activeEmbellishmentRows.length, 1)
+  assert.deepEqual(JSON.parse(JSON.stringify(embellishmentSheet.activeGemRows)), [])
+  assert.deepEqual(JSON.parse(JSON.stringify(embellishmentSheet.activeEnchantRows)), [])
+})
+
+test('gear attribute panel opens a typed enhancement sheet from each configurable metric', () => {
+  const wxml = fs.readFileSync('pages/builds/detail.wxml', 'utf8')
+
+  assert.match(wxml, /data-type="{{item\.key}}" bindtap="openGearEnhancementSheet"/)
+  assert.match(wxml, /{{gearEnhancementSheet\.title}}/)
+  assert.doesNotMatch(wxml, />配置宝石、附魔<\/button>/)
+})
 
 test('enhancement sheet construction applies canonical embellishment max zero one and three', () => {
   const pageConfig = loadBuildsDetailPageConfig({ exposeDetailHelpers: true })

@@ -703,37 +703,24 @@
   gap: 8rpx;
 }
 
-.gear-attribute-action-row {
-  margin-top: 8rpx;
+.gear-attribute-enhancement-entry {
+  min-height: 102rpx;
+  justify-content: space-between;
+  border-color: rgba(248, 183, 0, 0.28);
 }
 
-.gear-attribute-action {
-  width: 100%;
-  min-width: 0;
-  min-height: 64rpx;
-  margin: 0;
-  padding: 0 12rpx;
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 10rpx;
-  background: #2a2a2a;
-  color: #ffffff;
-  font-size: 21rpx;
+.gear-attribute-enhancement-action {
+  display: block;
+  margin-top: 6rpx;
+  color: #f8b700;
+  font-size: 18rpx;
   font-weight: 900;
   line-height: 1.15;
-  white-space: nowrap;
-  overflow: hidden;
 }
 
-.gear-attribute-action::after {
-  border: 0;
-}
-
-.gear-attribute-action[disabled] {
-  background: rgba(255, 255, 255, 0.06);
-  color: #777777;
+.gear-attribute-enhancement-entry.disabled {
+  border-color: rgba(255, 255, 255, 0.08);
+  opacity: 0.48;
 }
 
 .gear-attribute-grid {
@@ -1495,7 +1482,7 @@
   left: 0;
   z-index: 41;
   max-height: 78vh;
-  padding: 18rpx 22rpx calc(44rpx + env(safe-area-inset-bottom));
+  padding: 18rpx 22rpx calc(132rpx + env(safe-area-inset-bottom));
   box-sizing: border-box;
   border-radius: 22rpx 22rpx 0 0;
   background: #101010;
@@ -1516,6 +1503,7 @@
 
 .gear-enhancement-equipment-card {
   min-width: 0;
+  min-height: 112rpx;
   box-sizing: border-box;
   padding: 14rpx;
   border: 1rpx solid rgba(255, 255, 255, 0.08);
@@ -1648,7 +1636,7 @@ button.gear-enhancement-option[disabled] {
   position: sticky;
   bottom: 0;
   margin-top: 18rpx;
-  padding-top: 14rpx;
+  padding: 14rpx 0 env(safe-area-inset-bottom);
   background: linear-gradient(180deg, rgba(16, 16, 16, 0), #101010 28%);
 }
 
