@@ -43,6 +43,8 @@ globalThis.__detailHelpers = {
   savedCommunityImportOrigin: typeof savedCommunityImportOrigin === 'function' ? savedCommunityImportOrigin : undefined,
   canonicalEnhancementMarkers: typeof canonicalEnhancementMarkers === 'function' ? canonicalEnhancementMarkers : undefined,
   canonicalGearSlotRows: typeof canonicalGearSlotRows === 'function' ? canonicalGearSlotRows : undefined,
+  buildGearSlotRows: typeof buildGearSlotRows === 'function' ? buildGearSlotRows : undefined,
+  gearSlotCardLabel: typeof gearSlotCardLabel === 'function' ? gearSlotCardLabel : undefined,
   enhancementRecordSelectedCount,
   compactEnhancementRecord,
   enhancementOptionSelected,
@@ -1088,6 +1090,42 @@ test('gear-slot enhancement markers use only a verified canonical snapshot and p
       statusClass: 'verified'
     }]
   )
+})
+
+test('gear slot cards name selected weapon types instead of hand positions', () => {
+  const pageConfig = loadBuildsDetailPageConfig({ exposeDetailHelpers: true })
+  const helpers = pageConfig.__detailHelpers
+  const rows = helpers.buildGearSlotRows({
+    slots: [
+      { slot: 'main_hand', simcSlot: 'main_hand', label: '主手' },
+      { slot: 'off_hand', simcSlot: 'off_hand', label: '副手' }
+    ],
+    replacementCandidates: [],
+    equippedSet: {},
+    slotReadiness: {}
+  }, {
+    main_hand: {
+      slot: 'main_hand',
+      simcSlot: 'main_hand',
+      displayName: '不谐挽歌火杖',
+      weaponType: 'Staff',
+      simcReady: true
+    },
+    off_hand: {
+      slot: 'off_hand',
+      simcSlot: 'off_hand',
+      displayName: '试炼单手剑',
+      weaponType: 'One-Handed Sword',
+      simcReady: true
+    }
+  }, {})
+
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(rows.map((row) => row.label))),
+    ['法杖', '单手剑']
+  )
+  assert.equal(helpers.gearSlotCardLabel('main_hand', { weaponType: 'Two-Handed Mace' }, '主手'), '双手锤')
+  assert.equal(helpers.gearSlotCardLabel('off_hand', { weaponType: 'Shield' }, '副手'), '盾牌')
 })
 
 test('native talent simulator save flow names talent templates for the profile library', async () => {

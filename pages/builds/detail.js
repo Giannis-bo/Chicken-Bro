@@ -250,6 +250,25 @@ const gearSlotDisplayLabels = {
   main_hand: '主手',
   off_hand: '副手'
 }
+const gearWeaponTypeLabels = {
+  dagger: '匕首',
+  'fist weapon': '拳套',
+  'one-handed axe': '单手斧',
+  'one-handed mace': '单手锤',
+  'one-handed sword': '单手剑',
+  warglaive: '战刃',
+  wand: '魔杖',
+  'two-handed axe': '双手斧',
+  'two-handed mace': '双手锤',
+  'two-handed sword': '双手剑',
+  polearm: '长柄武器',
+  staff: '法杖',
+  bow: '弓',
+  crossbow: '弩',
+  gun: '枪械',
+  'held in off-hand': '副手物品',
+  shield: '盾牌'
+}
 
 function showToast(title) {
   if (typeof wx !== 'undefined' && typeof wx.showToast === 'function') {
@@ -1543,6 +1562,14 @@ function itemDisplayName(item) {
 
 function gearSlotDisplay(slot) {
   return `${gearSlotDisplayLabels[slot] || slot}(${slot})`
+}
+
+function gearSlotCardLabel(slot, item, fallbackLabel) {
+  if (slot !== 'main_hand' && slot !== 'off_hand') return fallbackLabel
+  const weaponType = cleanGearString(item && item.weaponType)
+  if (weaponType) return gearWeaponTypeLabels[weaponType.toLowerCase()] || weaponType
+  if (item && item.sourceType === 'weapon_rule') return '双手武器'
+  return '武器'
 }
 
 function normalizedGearItemId(item) {
@@ -5688,7 +5715,7 @@ function buildGearSlotRows(payload, selectedGearBySlot, enhancementBySlot) {
     const trust = gearTrustState(item, status, slotState.reason || (item.simcReady ? '可保存为配置' : '等待装备配置字段'))
     return attachGearGameAsset({
       slot,
-      label: slotMeta.label || slot,
+      label: gearSlotCardLabel(slot, item, slotMeta.label || slot),
       displayName: itemDisplayName(item),
       iconUrl: item.iconUrl || '',
       itemId: item.itemId || item.id || '',
