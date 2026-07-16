@@ -9,7 +9,7 @@ const controlPlaneRelease = 'artifacts/releases/2026-07-10-harness-control-plane
 const executableHarnessRelease = 'artifacts/releases/2026-07-10-executable-project-harness'
 const characterizationRelease = 'artifacts/releases/2026-07-10-critical-contract-characterization'
 const archivedPhase5Release = 'artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover'
-const activeHarnessEfficiencyRelease = 'artifacts/releases/2026-07-15-harness-v06-efficiency'
+const activeHarnessSuperpowersRelease = 'artifacts/releases/2026-07-16-harness-superpowers-method-layer'
 const archivedTalentLkgRelease = 'artifacts/releases/2026-07-13-talent-link-lkg-sync-guard'
 const archivedCommunityEnhancementRelease = 'artifacts/releases/2026-07-14-community-enhancement-editability'
 
@@ -31,10 +31,10 @@ test('project-state is the single machine-readable current truth entry', () => {
   const state = readJson(projectStatePath)
 
   assert.equal(state.schemaVersion, 1)
-  assert.equal(state.updatedAt, '2026-07-15')
+  assert.equal(state.updatedAt, '2026-07-16')
   assert.equal(state.activeMilestone, 'none')
   assert.equal(state.featureIteration, 'allowed_under_harness')
-  assert.equal(state.activeReleaseArtifact, activeHarnessEfficiencyRelease)
+  assert.equal(state.activeReleaseArtifact, activeHarnessSuperpowersRelease)
 
   assert.ok(Array.isArray(state.activeContracts), 'activeContracts should be an array')
   assert.ok(Array.isArray(state.completedBaselines), 'completedBaselines should be an array')
@@ -96,7 +96,7 @@ test('project-state is the single machine-readable current truth entry', () => {
     assert.ok(!activePaths.has(entry.path), `${entry.path} should not be both active and historical`)
   }
 
-  for (const releasePath of [activeHarnessEfficiencyRelease, archivedTalentLkgRelease, archivedCommunityEnhancementRelease, archivedPhase5Release, characterizationRelease, executableHarnessRelease, controlPlaneRelease]) {
+  for (const releasePath of [activeHarnessSuperpowersRelease, archivedTalentLkgRelease, archivedCommunityEnhancementRelease, archivedPhase5Release, characterizationRelease, executableHarnessRelease, controlPlaneRelease]) {
     assertPathExists(path.join(releasePath, 'requirement.json'))
     assertPathExists(path.join(releasePath, 'evidence.json'))
     assertPathExists(path.join(releasePath, 'manifest.json'))
@@ -116,6 +116,10 @@ test('project-state is the single machine-readable current truth entry', () => {
   assert.ok(
     state.completedBaselines.some((entry) => entry.id === 'harness_v06_efficiency_20260715'),
     'Harness v0.6 efficiency contract should be recorded as a completed baseline'
+  )
+  assert.ok(
+    state.completedBaselines.some((entry) => entry.id === 'harness_superpowers_method_layer_20260716'),
+    'Harness Superpowers method-layer contract should be recorded as a completed baseline'
   )
   assert.ok(
     state.completedBaselines.some((entry) => entry.id === 'equipment_simulator_phase1_20260710'),
@@ -233,12 +237,12 @@ test('current truth has one conclusion for UI, PG read-model, Harness normalizat
   assert.equal(byDomain.get('equipment_simulator_phase0_5').activeContract, null)
 })
 
-test('roadmap top is concise and phase 4 PR-level detail is archived', () => {
+test('roadmap control-plane summary retains current Harness facts and archives phase 4 PR-level detail', () => {
   assertPathExists(phase4HistoryPath)
-  const roadmapTop = fs.readFileSync('docs/roadmap.md', 'utf8')
-    .split(/\r?\n/)
-    .slice(0, 40)
-    .join('\n')
+  const roadmap = fs.readFileSync('docs/roadmap.md', 'utf8')
+  const evidenceBoundary = roadmap.indexOf('\n## 近期落地证据')
+  assert.ok(evidenceBoundary > 0, 'roadmap should separate the current control plane from historical delivery evidence')
+  const roadmapTop = roadmap.slice(0, evidenceBoundary)
   const history = fs.readFileSync(phase4HistoryPath, 'utf8')
 
   assert.match(roadmapTop, /Project Harness 工程规范化（已完成/)

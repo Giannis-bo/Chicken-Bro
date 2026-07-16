@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "slug": "harness-superpowers-method-layer",
+  "requirementSlug": "harness-superpowers-method-layer",
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
+  "branch": "codex/harness-superpowers-method-layer",
+  "commit": "pending_final_local_cr",
+  "scope": [
+    "superpowers_method_layer_precedence",
+    "light_fast_lane_protection",
+    "harness_manifest_contract",
+    "current_truth_release_pointer"
+  ],
+  "verification": [
+    {
+      "command": "node --test tests/project-harness.test.js tests/project-state.test.js",
+      "status": "pass",
+      "summary": "15 tests passed: v0.6.1 manifest contract, current-truth pointer, completed baseline and roadmap-control-plane selector."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile harness --release artifacts/releases/2026-07-16-harness-superpowers-method-layer --base origin/main",
+      "status": "pass",
+      "summary": "Harness profile passed: 28 contract tests, JSON validation, script syntax, packet check and git diff --check."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "not_applicable",
+    "reason": "Docs, local Harness tooling and tests only; no runtime surface changes."
+  },
+  "runtimeEvidence": [],
+  "risks": [
+    {
+      "id": "method_layer_drift",
+      "status": "mitigated_by_policy",
+      "detail": "Future skill updates can add methods, so Harness remains the explicit authority for classification, evidence, topology and closure."
+    }
+  ],
+  "rollback": [
+    "code_rollback"
+  ],
+  "cleanup": {
+    "required": true,
+    "scope": "Remove only this task worktree after its branch is safely integrated; leave unrelated worktrees untouched."
+  },
+  "archivedReferences": [
+    "artifacts/releases/2026-07-15-harness-v06-efficiency/evidence.json",
+    "docs/project-state.json"
+  ],
+  "summary": "Superpowers method-layer policy is locally verified with no runtime, deployment or data-surface change."
+}

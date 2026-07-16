@@ -1,5 +1,7 @@
 # WOW Mini Program Roadmap
 
+> 2026-07-16 CST Superpowers 方法层接入（已完成 / docs-tooling-only / local verified）: 用户确认继续启用已暴露的 Superpowers skills，但其定位固定为按需方法库；Harness 继续唯一决定任务分级、证据、候选、拓扑与收口。Light Fast Lane 不因设计/worktree/并行/收尾 skill 重新加重；禁止自动依赖安装与 branch-finish 菜单覆盖 Harness User Acceptance Closure。`project-harness` v0.6.1 manifest、current-truth 以及 Harness profile 已通过；无 runtime、部署或数据面改动。当前合同：[Repo-native Harness](harness.md)、[AGENTS.md](../AGENTS.md)；合同：[requirement](../artifacts/releases/2026-07-16-harness-superpowers-method-layer/requirement.json)；证据：[evidence](../artifacts/releases/2026-07-16-harness-superpowers-method-layer/evidence.json)。
+
 > 2026-07-16 CST 收尾本地分支卫生（正在推进 / 用户已确认设计）: 用户确认把“可以收尾”后的本地分支与 worktree 卫生检查纳入标准流程。`main` 推送并完成 local/origin SHA 对齐后，Agent 必须盘点所有本地 worktree 与分支；仅对已合入 `main` 且工作树干净的非 `main` 分支安全切回 `main` 后以普通删除清理。存在未提交改动、未合入分支或 detached worktree 时必须保留并说明原因，禁止 `-D`、强制 worktree 移除、reset 或历史改写。该盘点是合入后的非阻塞收尾，不影响已完成的发布。设计：[Closure Branch Hygiene Design](superpowers/specs/2026-07-16-closure-branch-hygiene-design.md)。
 
 > 2026-07-15 CST Light 修复与验收收尾优化（已完成 / docs-tooling-only）: 已确认明确、有界且不改变 API、数据、owner、运行时、部署或用户承诺的 Light 任务走快车道：只做一次简短 scope/risk/定向验证说明，只有真实展示语义歧义才问一个问题；Agent 自行选择子代理、worktree、分支或内联执行，不再让用户点选内部拓扑。需要手工验收的任务在用户明确“已测试通过 / 可以收尾 / 合入吧”后自动执行最终 CR、提交、同步并合入 `main`、合入结果定向复测、推送、local/origin SHA 对齐以及本任务分支/worktree 清理；冲突、验证失败、范围扩大或越权操作仍停止。执行入口：[Repo-native Harness](harness.md)、[AGENTS.md](../AGENTS.md)。

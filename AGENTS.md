@@ -13,6 +13,15 @@ This repository maintains a project roadmap as shared context for all agents and
 - Use [docs/roadmap/ideas.md](docs/roadmap/ideas.md) as the intake pool for loose ideas, local discussion outcomes, and directions that are not yet committed to a milestone.
 - Keep existing execution plans under [docs/plans/](docs/plans/) as historical implementation evidence. Do not rewrite them just to match the current roadmap.
 
+## Superpowers Method-Layer Integration
+
+- At the start of work, inspect the skills exposed in the current Codex session. If a relevant `superpowers:*` skill is present, load it through Codex's native skill system; if it is not exposed, report that fact and continue with the safe Harness fallback. Do not use the removed legacy bootstrap entrypoint under `~/.codex/superpowers/.codex/`.
+- Harness is the project control plane. It alone determines task classification, current-truth sources, verification profile, candidate deployment, evidence promotion, approval boundary, execution topology, and closure. Superpowers is a method layer and must not relax, duplicate, or replace those decisions.
+- Light Fast Lane defaults to the smallest applicable method set. Do not require design/plan, worktree, parallel-agent, or branch-finish skills merely because they are installed; retain the Fast Lane's targeted verification and one local CR. Use a debugging or test-first method only when it addresses a concrete behavior or regression risk.
+- For Standard and Strict work, select planning, debugging, TDD, review, and verification skills only when they reduce a concrete delivery risk. Their output belongs in the existing Harness contract, plan, evidence packet, or review; do not create a parallel process artifact solely for the skill.
+- The agent chooses whether isolation is beneficial. A worktree skill may detect or create isolation after that decision, but may not prompt the user to choose topology, auto-install dependencies, or replace the repository's targeted-baseline rule. Parallel-agent skills are reserved for genuinely independent tasks and do not introduce a lane registry or resource-lease process.
+- Harness User Acceptance Closure controls integration. Do not present a branch-finish menu after the user has supplied the explicit closure authorization required by Harness. Before any completion claim, use fresh evidence chosen by the Harness verification matrix.
+
 ## Capturing Confirmed Ideas
 
 - When the user clearly confirms an idea with “OK”, “认可”, “就按这个”, or an equivalent approval, update the roadmap system in the same turn whenever practical.

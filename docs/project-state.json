@@ -1,16 +1,16 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-07-15",
+  "updatedAt": "2026-07-16",
   "activeMilestone": "none",
   "featureIteration": "allowed_under_harness",
-  "activeReleaseArtifact": "artifacts/releases/2026-07-15-harness-v06-efficiency",
+  "activeReleaseArtifact": "artifacts/releases/2026-07-16-harness-superpowers-method-layer",
   "activeContracts": [
     {
       "id": "repo_native_harness_v0_6",
       "path": "docs/harness.md",
       "status": "active",
       "lifecycle": "active",
-      "notes": "Current risk-layered delivery gate, single-candidate-window and evidence-promotion contract."
+      "notes": "Current risk-layered delivery gate, single-candidate-window, evidence-promotion and Superpowers method-layer contract."
     },
     {
       "id": "backend_hotspot_owner_map",
@@ -62,6 +62,13 @@
       "status": "completed_local_verified",
       "evidence": "artifacts/releases/2026-07-15-harness-v06-efficiency/evidence.json",
       "notes": "Risk-layered verification, one CI full entrypoint, one final runtime candidate window and merge/archive separation completed without runtime changes."
+    },
+    {
+      "id": "harness_superpowers_method_layer_20260716",
+      "domain": "harness_superpowers_method_layer",
+      "status": "completed_local_verified",
+      "evidence": "artifacts/releases/2026-07-16-harness-superpowers-method-layer/evidence.json",
+      "notes": "User-approved docs/tooling policy that makes Superpowers an on-demand method layer under Harness control. Focused manifest/current-truth tests and the Harness profile passed; runtime, deployment and product contracts remain untouched."
     },
     {
       "id": "equipment_simulator_phase0_20260710",
