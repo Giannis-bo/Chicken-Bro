@@ -433,6 +433,39 @@ def _profile_outcomes_allow_migration(
     )
 
 
+def _bind_transitional_provenance_to_active_winner(
+    transitional_row: Any,
+    active_winner: Any,
+) -> dict[str, Any]:
+    """Use sealed active provenance when its public projection adds only a hash.
+
+    A legacy public template can expose an older profile hash that was never
+    carried by its sealed active winner.  When every other source identity is
+    exactly bound, the sealed Manifest remains authoritative: retain its
+    missing-hash state rather than manufacture a candidate mismatch.  Any
+    non-empty disagreement remains visible to the shadow comparison.
+    """
+
+    row = copy.deepcopy(transitional_row) if isinstance(transitional_row, dict) else {}
+    if not row or not isinstance(active_winner, dict):
+        return row
+    for field in ("templateId", "sourceKey", "sourceUrl", "gearHash"):
+        row_value = _text(row.get(field))
+        active_value = _text(active_winner.get(field))
+        if not row_value or row_value != active_value:
+            return row
+    row_sample_count = _int(row.get("sampleCount"))
+    active_sample_count = _int(active_winner.get("sampleCount"))
+    if not row_sample_count or row_sample_count != active_sample_count:
+        return row
+    sealed_profile_hash = _text(active_winner.get("profileHash"))
+    projected_profile_hash = _text(row.get("profileHash"))
+    if sealed_profile_hash and sealed_profile_hash != projected_profile_hash:
+        return row
+    row["profileHash"] = sealed_profile_hash
+    return row
+
+
 def _enhancement_selection_projection(intent: Any) -> dict[str, dict[str, Any]]:
     value = intent if isinstance(intent, dict) else {}
     result = {}
@@ -2520,6 +2553,8 @@ def run_release_shadow(
                 "capabilityRevision"
             )
         )
+        active_winner = None
+        active_binding_valid = False
         if active_capability_revision == gear_socket_authority.CAPABILITY_REVISION:
             active_winner = active_winners_by_spec.get(key)
             active_gear = (
@@ -2886,7 +2921,7 @@ def run_release_shadow(
                 allowed_enhancement_migrations.add(key)
             else:
                 migration_result = {"status": "blocked"}
-        legacy_rows.append(
+        transitional_shadow_row = (
             pg_gear_read_model_selectors.build_transitional_release_shadow_row(
                 public_template,
                 legacy_intent,
@@ -2895,6 +2930,12 @@ def run_release_shadow(
                 baseline_count=len(baselines),
             )
         )
+        if active_binding_valid and captured_active_identity is not None:
+            transitional_shadow_row = _bind_transitional_provenance_to_active_winner(
+                transitional_shadow_row,
+                active_winner,
+            )
+        legacy_rows.append(transitional_shadow_row)
         spec_results.append({
             "classKey": class_key,
             "specKey": spec_key,

@@ -4508,6 +4508,38 @@ class GearReleaseShadowTest(unittest.TestCase):
             {problem["code"] for problem in blocked["blockers"]},
         )
 
+    def test_sealed_active_provenance_overrides_only_a_missing_projection_profile_hash(self):
+        projected = {
+            "templateId": "observed_profile_mage_arcane",
+            "sourceKey": "raiderio_observed_profile",
+            "sourceUrl": "https://raider.io/characters/cn/example",
+            "gearHash": "gear:mage:arcane:example",
+            "sampleCount": 1,
+            "profileHash": "profile:mage:arcane:legacy-projection",
+        }
+        sealed = {
+            "templateId": "observed_profile_mage_arcane",
+            "sourceKey": "raiderio_observed_profile",
+            "sourceUrl": "https://raider.io/characters/cn/example",
+            "gearHash": "gear:mage:arcane:example",
+            "sampleCount": 1,
+            "profileHash": "",
+        }
+
+        aligned = gear_release_shadow._bind_transitional_provenance_to_active_winner(
+            projected,
+            sealed,
+        )
+        self.assertEqual(aligned["profileHash"], "")
+        self.assertEqual(projected["profileHash"], "profile:mage:arcane:legacy-projection")
+
+        sealed["sourceUrl"] = "https://raider.io/characters/cn/different"
+        mismatch = gear_release_shadow._bind_transitional_provenance_to_active_winner(
+            projected,
+            sealed,
+        )
+        self.assertEqual(mismatch, projected)
+
 
 if __name__ == "__main__":
     unittest.main()
