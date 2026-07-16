@@ -1039,8 +1039,7 @@ def _canonical_observed_template_variant(
     profile_urls = _observed_profile_urls(raw)
     expected_options = _observed_template_instance_options(raw, observed_item_level)
     if (
-        not normalized_variant_key
-        or conflicting_levels
+        conflicting_levels
         or observed_item_level <= 0
         or not profile_urls
         or not expected_options
@@ -1376,7 +1375,7 @@ def community_template_import_evidence_from_template(
         slot = normalize_slot(raw.get("slot") or raw.get("simcSlot"))
         item_id = _text(raw.get("itemId") or raw.get("id"))
         variant_key = _text(raw.get("variantKey"))
-        if not slot or not item_id or not variant_key or slot in slots:
+        if not slot or not item_id or slot in slots:
             raise GearReleaseIntegrityError("community import evidence selection is incomplete")
         # Observed-profile ingestion serializes an item instance's actual level as
         # ``ilevel``.  Older/community payloads may expose the same observed fact

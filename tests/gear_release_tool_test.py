@@ -476,15 +476,34 @@ class GearReleaseToolTest(unittest.TestCase):
         self.assertEqual(evidence["slots"]["head"]["variantKey"], canonical_variant_key)
         self.assertEqual(evidence["slots"]["head"]["observedItemLevel"], 292)
 
+        template_without_variant_key = copy.deepcopy(template)
+        template_without_variant_key["gearItems"][0].pop("variantKey")
+        missing_key_intent = selection_intent_from_template(
+            template_without_variant_key,
+            gear_release_id="gear-release:sha256:target",
+            season_revision="season-17",
+            level=90,
+            gear_snapshot=snapshot,
+            capability_revision="gear-capability-matrix-v2",
+        )
+        missing_key_evidence = community_template_import_evidence_from_template(
+            template_without_variant_key,
+            gear_release_id="gear-release:sha256:target",
+            gear_snapshot=snapshot,
+        )
+
+        self.assertEqual(missing_key_intent["slots"]["head"]["variantKey"], canonical_variant_key)
+        self.assertEqual(missing_key_evidence["slots"]["head"]["variantKey"], canonical_variant_key)
+
     def test_observed_template_does_not_canonicalize_a_variant_from_another_profile(self):
         from server.gear_release_store import GearReleaseIntegrityError
         from server.gear_release_tool import community_template_import_evidence_from_template
 
         template = self.template()
         template["gearItems"][0].pop("gem_id", None)
+        template["gearItems"][0].pop("variantKey")
         template["gearItems"][0].update({
             "itemLevel": 292,
-            "variantKey": "observed-profile-target-observed_profile-head-292-bonus_id:40ilevel:292",
             "bonus_id": "40",
             "observedProfileRefs": [{"profileUrl": "https://raider.io/characters/kr/azshara/target-player"}],
         })
