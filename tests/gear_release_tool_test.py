@@ -504,6 +504,55 @@ class GearReleaseToolTest(unittest.TestCase):
                 gear_snapshot=snapshot,
             )
 
+    def test_import_evidence_seals_target_verified_icon_when_catalog_metadata_is_missing(self):
+        from server.gear_release_tool import community_template_import_evidence_from_template
+
+        icon_url = "https://render.worldofwarcraft.com/icons/item-a-observed.jpg"
+        template = self.template()
+        template["gearItems"][0].update({
+            "iconUrl": icon_url,
+            "gameAsset": {
+                "status": "verified",
+                "entityType": "item",
+                "entityId": "item-a",
+                "iconUrl": icon_url,
+            },
+        })
+        snapshot = self.snapshot()
+        snapshot["items"][0]["payload"] = {}
+
+        evidence = community_template_import_evidence_from_template(
+            template,
+            gear_release_id="gear-release:sha256:target",
+            gear_snapshot=snapshot,
+        )
+
+        self.assertEqual(evidence["slots"]["head"]["iconUrl"], icon_url)
+
+    def test_import_evidence_rejects_unbound_target_icon_when_catalog_metadata_is_missing(self):
+        from server.gear_release_store import GearReleaseIntegrityError
+        from server.gear_release_tool import community_template_import_evidence_from_template
+
+        template = self.template()
+        template["gearItems"][0].update({
+            "iconUrl": "https://render.worldofwarcraft.com/icons/other-item.jpg",
+            "gameAsset": {
+                "status": "verified",
+                "entityType": "item",
+                "entityId": "item-other",
+                "iconUrl": "https://render.worldofwarcraft.com/icons/other-item.jpg",
+            },
+        })
+        snapshot = self.snapshot()
+        snapshot["items"][0]["payload"] = {}
+
+        with self.assertRaises(GearReleaseIntegrityError):
+            community_template_import_evidence_from_template(
+                template,
+                gear_release_id="gear-release:sha256:target",
+                gear_snapshot=snapshot,
+            )
+
     def test_import_evidence_rejects_incomplete_or_mismatched_observed_facts(self):
         from server.gear_release_store import GearReleaseIntegrityError
         from server.gear_release_tool import community_template_import_evidence_from_template

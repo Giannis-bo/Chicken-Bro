@@ -1067,6 +1067,36 @@ def _canonical_observed_template_variant(
     return equivalent[0] if len(equivalent) == 1 else {}
 
 
+def _verified_item_icon_url(
+    raw: dict[str, Any],
+    item: dict[str, Any],
+    item_id: str,
+) -> str:
+    """Return only icon evidence bound to the exact observed item identity."""
+
+    payload = item.get("payload") if isinstance(item.get("payload"), dict) else {}
+    metadata = payload.get("_metadata") if isinstance(payload.get("_metadata"), dict) else {}
+    game_asset = metadata.get("gameAsset") if isinstance(metadata.get("gameAsset"), dict) else {}
+    catalog_icon_url = _text(metadata.get("iconUrl"))
+    if _text(game_asset.get("status")).lower() == "verified" and catalog_icon_url:
+        return catalog_icon_url
+
+    # Some catalog rows are intentionally slim.  A real-player observed item may
+    # still carry a sealed Battle.net asset; accept it only when the asset itself
+    # names the same item and repeats the exact icon URL.
+    observed_asset = raw.get("gameAsset") if isinstance(raw.get("gameAsset"), dict) else {}
+    observed_icon_url = _text(raw.get("iconUrl"))
+    if (
+        _text(observed_asset.get("status")).lower() == "verified"
+        and _text(observed_asset.get("entityType")).lower() == "item"
+        and _text(observed_asset.get("entityId")) == _text(item_id)
+        and observed_icon_url
+        and _text(observed_asset.get("iconUrl")) == observed_icon_url
+    ):
+        return observed_icon_url
+    return ""
+
+
 def selection_intent_from_template(
     template: dict[str, Any],
     *,
@@ -1378,11 +1408,8 @@ def community_template_import_evidence_from_template(
             or _int(variant.get("itemLevel")) != observed_item_level
         ):
             raise GearReleaseIntegrityError("community import evidence variant does not match observed item level")
-        payload = item.get("payload") if isinstance(item.get("payload"), dict) else {}
-        metadata = payload.get("_metadata") if isinstance(payload.get("_metadata"), dict) else {}
-        game_asset = metadata.get("gameAsset") if isinstance(metadata.get("gameAsset"), dict) else {}
-        icon_url = _text(metadata.get("iconUrl"))
-        if _text(game_asset.get("status")).lower() != "verified" or not icon_url:
+        icon_url = _verified_item_icon_url(raw, item, item_id)
+        if not icon_url:
             raise GearReleaseIntegrityError("community import evidence verified item icon is missing")
         slots[slot] = {
             "itemId": item_id,
