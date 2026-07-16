@@ -86,17 +86,32 @@ def _winner_import_evidence(row: dict[str, Any]) -> dict[str, Any] | None:
     return evidence
 
 
-def _verified_item_icon(item: dict[str, Any]) -> tuple[str, dict[str, str]] | None:
+def _verified_item_icon(
+    item: dict[str, Any],
+    sealed_evidence: dict[str, Any],
+) -> tuple[str, dict[str, str]] | None:
+    """Return the sealed observed icon, optionally corroborated by catalog metadata."""
+
+    sealed_icon_url = _text(sealed_evidence.get("iconUrl"))
+    if not sealed_icon_url:
+        return None
     payload = item.get("payload") if isinstance(item.get("payload"), dict) else {}
     metadata = payload.get("_metadata") if isinstance(payload.get("_metadata"), dict) else {}
     game_asset = metadata.get("gameAsset") if isinstance(metadata.get("gameAsset"), dict) else {}
     icon_url = _text(metadata.get("iconUrl"))
-    if _text(game_asset.get("status")) != "verified" or not icon_url:
-        return None
-    return icon_url, {
-        "source": _text(game_asset.get("source")) or "blizzard",
+    if _text(game_asset.get("status")) == "verified" and icon_url == sealed_icon_url:
+        return sealed_icon_url, {
+            "source": _text(game_asset.get("source")) or "blizzard",
+            "status": "verified",
+            "iconUrl": sealed_icon_url,
+        }
+    # The release materializer only seals this field after binding it to the
+    # selected observed item. A slim or divergent generic catalog row cannot
+    # replace that player-specific display fact or make the import partial.
+    return sealed_icon_url, {
+        "source": "sealed_observed_profile",
         "status": "verified",
-        "iconUrl": icon_url,
+        "iconUrl": sealed_icon_url,
     }
 
 
@@ -205,8 +220,12 @@ def build_community_template_import_source(
         active_variant_key = _text(variant.get("variantKey"))
         item_candidates = items_by_id.get(item_id) or []
         item = item_candidates[0] if len(item_candidates) == 1 else None
-        image = _verified_item_icon(item) if isinstance(item, dict) else None
-        if not active_variant_key or image is None or image[0] != _text(evidence.get("iconUrl")):
+        image = (
+            _verified_item_icon(item, evidence)
+            if isinstance(item, dict)
+            else None
+        )
+        if not active_variant_key or image is None:
             return _blocked(_problem(
                 "template_import_evidence_incomplete",
                 "The active template does not have a verified matching item image.",

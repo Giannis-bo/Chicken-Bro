@@ -262,6 +262,30 @@ class CommunityTemplateImportTest(unittest.TestCase):
         self.assertNotIn("selectedGearBySlot", public)
         self.assertNotIn("unresolvedBySlot", public)
 
+    def test_verified_projection_uses_sealed_observed_icon_when_catalog_image_is_missing(self):
+        items = [{
+            "itemId": "item-head",
+            "name": "Observed Headpiece",
+            "itemLevel": 197,
+            "payload": {},
+        }]
+
+        source = self.build_source(items=items)
+
+        self.assertEqual(source["status"], "verified")
+        self.assertEqual(
+            source["importedGearBySlot"]["head"]["iconUrl"],
+            "https://render.worldofwarcraft.com/icons/observed-head.jpg",
+        )
+        self.assertEqual(
+            source["importedGearBySlot"]["head"]["gameAsset"],
+            {
+                "source": "sealed_observed_profile",
+                "status": "verified",
+                "iconUrl": "https://render.worldofwarcraft.com/icons/observed-head.jpg",
+            },
+        )
+
     def test_projection_blocks_if_any_sealed_fact_or_enhancement_is_incomplete(self):
         winner = copy.deepcopy(self.winner)
         winner["payload"]["importEvidence"] = {
