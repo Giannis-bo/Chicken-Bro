@@ -2341,6 +2341,19 @@ def run_release_shadow(
                 active_release_pair = loaded_active_pair
         except Exception:
             active_release_pair = {}
+    active_gear_descriptor = (
+        active_release_pair.get("gearRelease")
+        if isinstance(active_release_pair.get("gearRelease"), dict)
+        else {}
+    )
+    active_dependency_revisions = (
+        active_gear_descriptor.get("dependencyRevisions")
+        if isinstance(active_gear_descriptor.get("dependencyRevisions"), dict)
+        else {}
+    )
+    active_release_capability_revision = _text(
+        active_dependency_revisions.get("capabilityRevision")
+    )
     active_winners_by_spec = {
         (_text(winner.get("classKey")), _text(winner.get("specKey"))): winner
         for winner in active_release_pair.get("winners") or []
@@ -2756,10 +2769,11 @@ def run_release_shadow(
                 == captured_active_gear_id
             )
             observed_import_fidelity_cutover = (
-                active_capability_revision
-                == gear_socket_authority.LEGACY_CAPABILITY_REVISION
+                active_release_capability_revision
+                == gear_socket_authority.CAPABILITY_REVISION
                 and candidate_capability_revision
                 == gear_socket_authority.CAPABILITY_REVISION
+                and active_dependency_revisions == gear_dependencies
                 and profile_result["status"] == "pass"
                 and profile_migration_evidence
                 and exact_active_binding

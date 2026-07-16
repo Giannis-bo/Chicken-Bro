@@ -80,6 +80,15 @@ class PgGearReadModelSelectorsTest(unittest.TestCase):
         self.assertEqual(candidate["templateId"], "template-a")
         self.assertEqual(candidate["validatedAgainstGearReleaseId"], gear_release_id)
 
+        sealed = build_candidate_release_shadow_row({
+            "templateId": "template-a",
+            "payload": {"importEvidence": {"schemaRevision": "test"}},
+        }, gear_release_id=gear_release_id)
+        self.assertEqual(
+            sealed["importEvidence"],
+            {"schemaRevision": "test"},
+        )
+
     def test_build_websim_talents_read_model_assembles_sync_blockers_and_season(self):
         from server.pg_gear_read_model_selectors import build_websim_talents_read_model
 

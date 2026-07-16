@@ -4390,6 +4390,124 @@ class GearReleaseShadowTest(unittest.TestCase):
         self.assertEqual(old_intents, [intent])
         self.assertEqual(result["status"], "pass", result)
 
+    def test_active_v2_shadow_allows_only_same_dependency_import_fidelity_cutover(self):
+        candidate = self.candidate_row()
+        candidate["importEvidence"] = {
+            "schemaRevision": "community-template-import-evidence-v1",
+            "sourceFingerprint": "sha256:" + "a" * 64,
+            "slots": {
+                "head": {
+                    "itemId": "item-a",
+                    "variantKey": "variant-a",
+                    "observedItemLevel": 292,
+                    "iconUrl": "https://render.worldofwarcraft.com/icons/item-a.jpg",
+                },
+            },
+        }
+        active_winner = copy.deepcopy(candidate)
+        active_winner.pop("importEvidence")
+        dependencies = {
+            "capabilityRevision": gear_socket_authority.CAPABILITY_REVISION,
+        }
+
+        class ImportFidelityStore(FakeShadowStore):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.candidate_dependencies = copy.deepcopy(dependencies)
+
+            def get_candidate_community_release(
+                self,
+                gear_release_id,
+                community_release_id,
+            ):
+                pair = super().get_candidate_community_release(
+                    gear_release_id,
+                    community_release_id,
+                )
+                pair["gearRelease"]["dependencyRevisions"] = copy.deepcopy(
+                    self.candidate_dependencies
+                )
+                return pair
+
+            def get_gear_resolver_context(self, _runtime_authority):
+                return {
+                    "formalActiveManifest": True,
+                    "authoredAgainst": {
+                        "seasonRevision": "season-17",
+                        "gearCatalogRevision": "gear-release:sha256:target",
+                    },
+                    "dependencyRevisions": copy.deepcopy(dependencies),
+                }
+
+            def get_active_community_release(self):
+                return {
+                    "formalActiveManifest": True,
+                    "pointerGeneration": 1,
+                    "manifestRevision": "manifest:active-v2",
+                    "gearRelease": {
+                        "releaseId": "gear-release:sha256:target",
+                        "dependencyRevisions": copy.deepcopy(dependencies),
+                    },
+                    "communityRelease": {"releaseId": "community-release:active-v2"},
+                    "winners": [copy.deepcopy(active_winner)],
+                }
+
+        store = ImportFidelityStore(
+            candidate,
+            capability_revision=gear_socket_authority.CAPABILITY_REVISION,
+        )
+        snapshot = self.snapshot(candidate["selectionIntent"], "sha256:candidate")
+        profile = self.resolved_profile_envelope("mage=import-fidelity")
+        with patch.object(
+            gear_release_shadow.gear_runtime,
+            "resolve_selection_intent",
+            return_value=(200, {"status": "resolved", "data": snapshot, "problems": []}),
+        ), patch.object(
+            gear_release_shadow.gear_runtime,
+            "resolve_candidate_selection_intent",
+            return_value=(200, {"status": "resolved", "data": snapshot, "problems": []}),
+        ), patch.object(
+            gear_release_shadow.gear_runtime,
+            "build_profile_from_selection_intent",
+            return_value=(200, profile),
+        ), patch.object(
+            gear_release_shadow.gear_runtime,
+            "build_candidate_profile_from_selection_intent",
+            return_value=(200, profile),
+        ):
+            result = gear_release_shadow.run_release_shadow(
+                store,
+                expected_specs=[("mage", "arcane")],
+                gear_release_id="gear-release:sha256:target",
+                community_release_id="community-release:sha256:target",
+                simc_runtime_revision="simc-r1",
+                expect_formal_active=True,
+            )
+            store.candidate_dependencies["serializerRevision"] = "serializer-changed"
+            blocked = gear_release_shadow.run_release_shadow(
+                store,
+                expected_specs=[("mage", "arcane")],
+                gear_release_id="gear-release:sha256:target",
+                community_release_id="community-release:sha256:target",
+                simc_runtime_revision="simc-r1",
+                expect_formal_active=True,
+            )
+
+        self.assertEqual(result["status"], "pass", result)
+        self.assertEqual(
+            result["report"]["diffs"][0]["classification"],
+            "expected_import_fidelity_cutover",
+        )
+        self.assertEqual(
+            result["specResults"][0]["importFidelityCutoverParity"],
+            {"status": "pass", "mode": "sealed_observed_import"},
+        )
+        self.assertEqual(blocked["status"], "blocked")
+        self.assertIn(
+            "PUBLIC_WINNER_SEMANTIC_CHANGE",
+            {problem["code"] for problem in blocked["blockers"]},
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
