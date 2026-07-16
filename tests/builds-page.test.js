@@ -40,6 +40,7 @@ globalThis.__detailHelpers = {
   enhancementBySlotWithoutChangedGear: typeof enhancementBySlotWithoutChangedGear === 'function' ? enhancementBySlotWithoutChangedGear : undefined,
   gearSelectionWithCanonicalEnhancementConstraints: typeof gearSelectionWithCanonicalEnhancementConstraints === 'function' ? gearSelectionWithCanonicalEnhancementConstraints : undefined,
   invalidateGearInteractionContext: typeof invalidateGearInteractionContext === 'function' ? invalidateGearInteractionContext : undefined,
+  savedCommunityImportOrigin: typeof savedCommunityImportOrigin === 'function' ? savedCommunityImportOrigin : undefined,
   enhancementRecordSelectedCount,
   compactEnhancementRecord,
   enhancementOptionSelected,
@@ -13525,7 +13526,7 @@ function mageFrostCommunityEnhancementHarness(options = {}) {
                   classKey: 'mage',
                   specKey: 'frost',
                   sourceKey: 'raiderio_observed_profile',
-                  profileHash: 'profile-fingerprint',
+                  profileHash: options.profileHash === undefined ? 'profile-fingerprint' : options.profileHash,
                   gearHash: 'gear-fingerprint',
                   sourceFingerprint: 'sha256:mage-frost-import'
                 },
@@ -13649,6 +13650,37 @@ test('community import renders the sealed v2 item level and icon instead of a ge
   assert.equal(selected.ilevel, 292)
   assert.equal(selected.iconUrl, 'https://render.worldofwarcraft.com/icons/observed-292.jpg')
   assert.equal(selected.gameAsset.iconUrl, 'https://render.worldofwarcraft.com/icons/observed-292.jpg')
+})
+
+test('community import accepts sealed evidence when an older observed source has no profile hash', async () => {
+  const harness = await importMageFrostCommunityEnhancements(
+    mageFrostCommunityEnhancementHarness({ atomicImport: true, profileHash: '' })
+  )
+
+  assert.equal(harness.page.data.selectedGearBySlot.head.itemId, harness.importedGearBySlot.head.itemId)
+  assert.equal(harness.page.gearWorkbenchState.resolveStatus, 'verified')
+  assert.equal(harness.page.communityEnhancementImportState.sourceFingerprint, 'sha256:mage-frost-import')
+})
+
+test('saved observed import origin keeps the sealed source fingerprint when profile hash is unavailable', () => {
+  const pageConfig = loadBuildsDetailPageConfig({ exposeDetailHelpers: true })
+  const origin = pageConfig.__detailHelpers.savedCommunityImportOrigin({
+    contractRevision: 'websim-community-template-import-v2',
+    templateId: 'observed_profile_druid_feral',
+    profileHash: '',
+    gearHash: 'gear:druid:feral:c53e3a411eaf7178',
+    sourceFingerprint: 'sha256:4f34cf56a5bcd22164cb0659d0b23103daa002e91bcaafb4d7b0d0672ba5d508',
+    manifestRevision: 'season-manifest:sha256:active'
+  })
+
+  assert.deepEqual(JSON.parse(JSON.stringify(origin)), {
+    contractRevision: 'websim-community-template-import-v2',
+    templateId: 'observed_profile_druid_feral',
+    profileHash: '',
+    gearHash: 'gear:druid:feral:c53e3a411eaf7178',
+    sourceFingerprint: 'sha256:4f34cf56a5bcd22164cb0659d0b23103daa002e91bcaafb4d7b0d0672ba5d508',
+    manifestRevision: 'season-manifest:sha256:active'
+  })
 })
 
 test('community import blocks a malformed sealed v2 item level instead of committing a partial selection', async () => {
@@ -15088,6 +15120,58 @@ test('spec change invalidates pending enhancement commit', async () => {
 
   assert.deepEqual(JSON.parse(JSON.stringify(page.data.enhancementBySlot)), {})
   assert.notEqual(page.gearWorkbenchState.currentSnapshot && page.gearWorkbenchState.currentSnapshot.resolvedGearSignature, 'sha256:atomic-new')
+})
+
+test('loading a different specialization clears the prior verified gear snapshot immediately', () => {
+  const pageConfig = loadBuildsDetailPageConfig({
+    requestWebsimGear: () => new Promise(() => {})
+  })
+  const oldSnapshot = {
+    contractRevision: 'gear-resolved-snapshot-v1',
+    status: 'verified',
+    resolvedGearSignature: 'sha256:old-mage-frost',
+    aggregateLegality: { status: 'verified', problemCodes: [] },
+    staticAttributes: { totals: { intellect: 1412, stamina: 17732 } },
+    setState: { itemSetCounts: {} },
+    constraints: { slots: {} },
+    profileReadiness: { status: 'verified', simcReady: true },
+    resolvedSlots: {
+      head: { itemLevel: 292, selectedOptions: {} }
+    },
+    problems: []
+  }
+  const page = {
+    ...pageConfig,
+    gearPayloadCache: { classKey: 'mage', specKey: 'frost' },
+    gearWorkbenchState: {
+      confirmedIntent: {}, draftIntent: {}, intentVersion: 1, latestResolveSerial: 1,
+      resolveStatus: 'verified', activeRequest: null, currentSnapshot: oldSnapshot,
+      lastVerifiedSnapshot: oldSnapshot, problems: [], offline: false, readOnly: false,
+      revisionRetryCount: 0
+    },
+    gearStatSnapshotState: { latestStatSerial: 1, activeStatRequest: { serial: 1 } },
+    data: {
+      activeQueryKey: 'gear',
+      selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' },
+      gearSelectionKey: 'mage:frost',
+      selectedGearBySlot: { head: { slot: 'head', itemId: '250060' } },
+      enhancementBySlot: { head: { gemOptionIds: ['gem-old'] } },
+      gearSlotRows: [{ slot: 'head', itemId: '250060' }],
+      gearAttributePanel: { visible: true, summary: '已校验 1/1 槽' },
+      gearStatSnapshot: { statStatus: 'verified', primary: { value: '1412' } }
+    },
+    setData(update) { this.data = { ...this.data, ...update } }
+  }
+
+  pageConfig.loadWebsimGearForSelection.call(page, {
+    selectedSpec: { websimClassKey: 'druid', websimSpecKey: 'feral' }
+  })
+
+  assert.equal(page.data.gearSelectionKey, 'druid:feral')
+  assert.deepEqual(JSON.parse(JSON.stringify(page.data.selectedGearBySlot)), {})
+  assert.deepEqual(JSON.parse(JSON.stringify(page.data.enhancementBySlot)), {})
+  assert.equal(page.gearWorkbenchState.currentSnapshot, null)
+  assert.equal(page.data.gearAttributePanel.visible, false)
 })
 
 test('double confirm sends one active enhancement commit', async () => {

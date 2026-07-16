@@ -495,7 +495,10 @@ function validCommunityImportEnvelope(result, context) {
     manifest && releaseContext &&
     cleanGearString(manifest.manifestRevision) === expectedManifestRevision &&
     cleanGearString(releaseContext.manifestRevision) === expectedManifestRevision &&
-    data.template && cleanGearString(data.template.id) && cleanGearString(data.template.profileHash) &&
+    // Some older observed profiles have no source profile hash.  Their sealed
+    // source fingerprint and gear hash remain mandatory and bind the import to
+    // the exact active Manifest; do not fabricate a profile hash client-side.
+    data.template && cleanGearString(data.template.id) &&
     cleanGearString(data.template.gearHash) && cleanGearString(data.template.sourceFingerprint) &&
     data.resolvedSnapshot && data.resolvedSnapshot.status === 'verified' &&
     cleanGearString(data.resolvedSnapshot.resolvedGearSignature) &&
@@ -521,7 +524,7 @@ function savedCommunityImportOrigin(value) {
   const manifestRevision = cleanGearString(origin.manifestRevision)
   if (
     contractRevision !== COMMUNITY_TEMPLATE_IMPORT_CONTRACT_REVISION || !templateId ||
-    !profileHash || !gearHash || !sourceFingerprint || !manifestRevision
+    !gearHash || !sourceFingerprint || !manifestRevision
   ) return null
   return { contractRevision, templateId, profileHash, gearHash, sourceFingerprint, manifestRevision }
 }
@@ -533,7 +536,7 @@ function communityImportMatchesSavedOrigin(result, context, origin) {
   return (
     cleanGearString(data.contractRevision) === origin.contractRevision &&
     cleanGearString(template.id) === origin.templateId &&
-    cleanGearString(template.profileHash) === origin.profileHash &&
+    (!origin.profileHash || cleanGearString(template.profileHash) === origin.profileHash) &&
     cleanGearString(template.gearHash) === origin.gearHash &&
     cleanGearString(template.sourceFingerprint) === origin.sourceFingerprint &&
     cleanGearString(context.manifestRevision) === origin.manifestRevision
@@ -602,6 +605,23 @@ function applySavedCommunityImportOrigin(page, origin) {
 function clearCommunityTemplateImportingOnlyIfCurrent(page, context) {
   if (!gearInteractionContextIsCurrent(page, context)) return
   page.setData({ communityTemplateImporting: false })
+}
+
+function resetGearWorkbenchForSelection(page) {
+  const gearStatSnapshot = defaultGearStatSnapshot('等待当前职业装备数据')
+  page.gearWorkbenchState = createGearWorkbenchState()
+  page.gearStatSnapshotState = createGearStatSnapshotState()
+  page.gearStatsRequestKey = ''
+  return {
+    selectedGearBySlot: {},
+    enhancementBySlot: {},
+    gearSlotRows: [],
+    gearStatSnapshot,
+    gearStatBlockers: gearStatSnapshot.blockers,
+    gearStatsLoading: false,
+    gearStatsRequestError: '',
+    ...gearWorkbenchDataState(page.gearWorkbenchState, { gearStatSnapshot }, null)
+  }
 }
 
 function commitImportedCommunityTemplate(page, result, context) {
@@ -6056,19 +6076,28 @@ Page({
     const selectedSpec = (selectionState && selectionState.selectedSpec) || this.data.selectedSpec || {}
     const keys = specWebsimKeys(selectedSpec)
     const selectionKey = `${keys.classKey}:${keys.specKey}`
-    const existingSelection = this.data.gearSelectionKey === selectionKey ? (this.data.selectedGearBySlot || {}) : {}
-    const existingEnhancement = this.data.gearSelectionKey === selectionKey ? (this.data.enhancementBySlot || {}) : {}
-    const existingStatsTalentImport = this.data.gearSelectionKey === selectionKey ? (this.data.gearStatsTalentImport || '') : ''
+    const existingSelectionKey = cleanGearString(this.data.gearSelectionKey)
+    // An empty key occurs during first load before a specialization owns a
+    // workbench. Only clear a previously bound selection; otherwise initial
+    // candidate evidence supplied by the page would be discarded.
+    const selectionChanged = !!existingSelectionKey && existingSelectionKey !== selectionKey
+    const existingSelection = !selectionChanged ? (this.data.selectedGearBySlot || {}) : {}
+    const existingEnhancement = !selectionChanged ? (this.data.enhancementBySlot || {}) : {}
+    const existingStatsTalentImport = !selectionChanged ? (this.data.gearStatsTalentImport || '') : ''
     const hasExistingRows = Array.isArray(this.data.gearSlotRows) && this.data.gearSlotRows.length > 0
-    if (this.data.gearSelectionKey !== selectionKey) {
+    const selectionReset = selectionChanged ? resetGearWorkbenchForSelection(this) : {}
+    if (selectionChanged) {
+      invalidateGearInteractionContext(this)
+      clearCommunityEnhancementImportState(this)
       this.gearPayloadCache = null
       this.gearSlotCandidateCache = {}
       this.gearSlotDetailRequestCache = {}
       this.gearStatsTalentImportKey = ''
     }
     this.setData({
+      ...selectionReset,
       gearLoading: true,
-      gearInitialLoading: !hasExistingRows,
+      gearInitialLoading: selectionChanged || !hasExistingRows,
       gearRequestError: '',
       gearDataFallback: false,
       gearDataWarningText: '',
