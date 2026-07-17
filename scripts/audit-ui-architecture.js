@@ -397,9 +397,16 @@ record(
 )
 record(
   'news_translation_has_one_state_material_owner',
-  /\.newsDetailTranslationSegment\s*\{[^}]*background:\s*transparent;[^}]*box-shadow:\s*none;/su.test(reconstructionStyles)
+  /\.newsDetailTranslationLabel\s*\{[^}]*border:\s*0;[^}]*background:\s*transparent;[^}]*box-shadow:\s*none;/su.test(reconstructionStyles)
+    && /\.newsDetailTranslationSegments\s*\{[^}]*border:\s*0;[^}]*background:\s*transparent;[^}]*box-shadow:\s*none;/su.test(reconstructionStyles)
+    && /\.newsDetailTranslationSegment\s*\{[^}]*background:\s*transparent;[^}]*box-shadow:\s*none;/su.test(reconstructionStyles)
     && /\.newsDetailTranslationSegment\[data-selected='true'\]/u.test(reconstructionStyles),
   'inactive translation segments must stay flat and only the selected segment may own active material',
+)
+record(
+  'build_intel_disclaimer_stays_inside_the_wechat_viewport',
+  /\.cardViewport\s*\{[^}]*height:\s*498\.75px;/su.test(read('apps/mini-taro/src/pages/builds/build-intel.module.scss')),
+  'build intel card viewport must reserve enough height for the terminal disclaimer',
 )
 record(
   'build_intel_actions_override_native_button_width',
