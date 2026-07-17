@@ -8,6 +8,7 @@
     "docs/design/current-ui/selected-control-contract.json",
     "docs/design/current-ui/route-geometry-contract.json",
     "docs/design/current-ui/runtime-region-mapping-contract.json",
+    "docs/design/current-ui/runtime-asset-slot-mapping-contract.json",
     "docs/design/current-ui/runtime-review-contract.json",
     "docs/design/current-ui/runtime-review-status.json",
     "docs/design/current-ui/routes",

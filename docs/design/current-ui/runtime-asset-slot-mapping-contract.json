@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "status": "active",
+  "authority": "docs/plans/ui-reconstruction.md",
+  "sharedSlots": {
+    "asset_slot.utility-glyph-family": "shared non-factual utility glyph family",
+    "asset_slot.status-dot-family": "shared code-native status marker family"
+  },
+  "routes": [
+    {
+      "route": "news_detail",
+      "path": "/pages/news/detail?id=architecture-preflight",
+      "assetContract": "docs/design/current-ui/routes/news-detail/asset-contract.json",
+      "runtimeSlots": {
+        "asset_slot.news-detail-surface": "asset_slot.news-detail-surface",
+        "asset_slot.pushed-back-medallion": "asset_slot.pushed-back-medallion",
+        "asset_slot.news-detail-source-crest": "asset_slot.news-detail-source-crest",
+        "asset_slot.news-detail-source-actions": "asset_slot.news-detail-source-actions",
+        "asset_slot.news-detail-evidence-header": "asset_slot.news-detail-evidence-header",
+        "asset_slot.news-detail-evidence-emblem": "asset_slot.news-detail-evidence-emblem",
+        "asset_slot.news-detail-terminal-emblem": "asset_slot.news-detail-terminal-emblem",
+        "asset_slot.news-metric-glyphs": "asset_slot.news-detail-evidence-header",
+        "asset_slot.status-dot-family": "shared:asset_slot.status-dot-family",
+        "asset_slot.utility-glyph-family": "shared:asset_slot.utility-glyph-family"
+      }
+    },
+    {
+      "route": "build_intel",
+      "path": "/pages/builds/intel",
+      "assetContract": "docs/design/current-ui/routes/build-intel/asset-contract.json",
+      "runtimeSlots": {
+        "asset_slot.build-intel-surface": "asset_slot.build-intel-surface",
+        "asset_slot.pushed-back-medallion": "asset_slot.pushed-back-medallion",
+        "asset_slot.build-intel-summary-medallion": "asset_slot.build-intel-summary-medallion",
+        "asset_slot.build-intel-filter-sort-glyphs": "asset_slot.build-intel-filter-sort-glyphs",
+        "asset_slot.build-intel-card-medallion-shell": "asset_slot.build-intel-card-medallion-shell",
+        "asset_slot.build-intel-specialization-object": "asset_slot.build-intel-specialization-object",
+        "asset_slot.build-intel-primary-action": "asset_slot.build-intel-primary-action",
+        "asset_slot.build-intel-metadata-glyphs": "asset_slot.build-intel-metadata-glyphs",
+        "asset_slot.build-intel-disclaimer-glyph": "asset_slot.build-intel-disclaimer-glyph",
+        "asset_slot.utility-glyph-family": "shared:asset_slot.utility-glyph-family"
+      }
+    },
+    {
+      "route": "tasks_list",
+      "path": "/pages/simulator/tasks",
+      "assetContract": "docs/design/current-ui/routes/tasks-list/asset-contract.json",
+      "runtimeSlots": {
+        "asset_slot.tasks-page-frame": "asset_slot.tasks-page-frame",
+        "asset_slot.pushed-back-medallion": "asset_slot.tasks-header",
+        "asset_slot.tasks-overview-emblem": "asset_slot.tasks-overview-emblem",
+        "asset_slot.tasks-overview-status": "asset_slot.tasks-overview-status",
+        "asset_slot.tasks-sync": "asset_slot.tasks-sync",
+        "asset_slot.tasks-filter": "asset_slot.tasks-filter",
+        "asset_slot.tasks-row-identity": "asset_slot.tasks-row-identity",
+        "asset_slot.tasks-empty": "asset_slot.tasks-empty",
+        "asset_slot.tasks-actions": "asset_slot.tasks-actions",
+        "asset_slot.utility-glyph-family": "shared:asset_slot.utility-glyph-family"
+      }
+    },
+    {
+      "route": "task_detail",
+      "path": "/pages/simulator/task-detail?id=runtime-review",
+      "assetContract": "docs/design/current-ui/routes/task-detail/asset-contract.json",
+      "runtimeSlots": {
+        "asset_slot.task-detail-page-frame": "asset_slot.task-detail-page-frame",
+        "asset_slot.pushed-back-medallion": "asset_slot.task-detail-header",
+        "asset_slot.task-detail-identity": "asset_slot.task-detail-summary-emblem",
+        "asset_slot.task-detail-metadata": "asset_slot.task-detail-metadata",
+        "asset_slot.task-detail-refresh": "asset_slot.task-detail-refresh",
+        "asset_slot.task-detail-result-status": "asset_slot.task-detail-result-status",
+        "asset_slot.task-detail-result-core": "asset_slot.task-detail-result-emblem",
+        "asset_slot.task-detail-context": "asset_slot.task-detail-context",
+        "asset_slot.task-detail-scenario": "asset_slot.task-detail-scenario",
+        "asset_slot.task-detail-attributes": "asset_slot.task-detail-attributes",
+        "asset_slot.task-detail-attribute-notice": "asset_slot.task-detail-attributes",
+        "asset_slot.task-detail-attribute-action": "asset_slot.task-detail-detail-actions",
+        "asset_slot.task-detail-preparation": "asset_slot.task-detail-preparation",
+        "asset_slot.task-detail-preparation-notice": "asset_slot.task-detail-preparation",
+        "asset_slot.task-detail-preparation-action": "asset_slot.task-detail-detail-actions",
+        "asset_slot.task-detail-exception": "asset_slot.task-detail-error",
+        "asset_slot.task-detail-exception-action": "asset_slot.task-detail-error",
+        "asset_slot.task-detail-section": "asset_slot.task-detail-metadata",
+        "asset_slot.utility-glyph-family": "shared:asset_slot.utility-glyph-family"
+      }
+    }
+  ]
+}

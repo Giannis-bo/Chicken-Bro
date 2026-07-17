@@ -324,3 +324,15 @@ test('passing region comparisons require explicit immutable promotion', () => {
   assert.match(promotion, /COPYFILE_EXCL/)
   assert.match(promotion, /sha256/)
 })
+
+test('runtime asset-slot review is contract-mapped and bounded', () => {
+  const verifier = fs.readFileSync('scripts/verify-ui-asset-slots.js', 'utf8')
+  const contract = readJson('docs/design/current-ui/runtime-asset-slot-mapping-contract.json')
+  assert.equal(contract.routes.length, 4)
+  assert.match(verifier, /ASSET_SLOT_ROUTES/)
+  assert.match(verifier, /ASSET_SLOT_DETAIL_PATH/)
+  assert.match(verifier, /unregistered runtime slot/)
+  assert.match(verifier, /wx-data-asset-missing-true/)
+  assert.match(verifier, /routeFailures\.slice\(0, 10\)/)
+  assert.doesNotMatch(verifier, /WECHAT_AUTOMATOR_LAUNCH/)
+})

@@ -126,6 +126,7 @@ const interactionContract = JSON.parse(read('docs/design/current-ui/core-interac
 const selectedControlContract = JSON.parse(read('docs/design/current-ui/selected-control-contract.json'))
 const routeGeometryContract = JSON.parse(read('docs/design/current-ui/route-geometry-contract.json'))
 const runtimeRegionMappingContract = JSON.parse(read('docs/design/current-ui/runtime-region-mapping-contract.json'))
+const runtimeAssetSlotMappingContract = JSON.parse(read('docs/design/current-ui/runtime-asset-slot-mapping-contract.json'))
 const evidencePolicy = JSON.parse(read('docs/design/current-ui/active-evidence-policy.json'))
 const runtimeReviewContract = JSON.parse(read('docs/design/current-ui/runtime-review-contract.json'))
 const runtimeReviewStatus = JSON.parse(read('docs/design/current-ui/runtime-review-status.json'))
@@ -138,7 +139,7 @@ const expectedInteractionAcceptance = expectedInteractionStatus === 'verified'
     : 'pending_real_wechat_core_interaction_matrix'
 record(
   'runtime_review_records_are_authoritative_inputs',
-  ['docs/design/current-ui/runtime-review-contract.json', 'docs/design/current-ui/runtime-review-status.json', 'docs/design/current-ui/selected-control-contract.json', 'docs/design/current-ui/route-geometry-contract.json', 'docs/design/current-ui/runtime-region-mapping-contract.json']
+  ['docs/design/current-ui/runtime-review-contract.json', 'docs/design/current-ui/runtime-review-status.json', 'docs/design/current-ui/selected-control-contract.json', 'docs/design/current-ui/route-geometry-contract.json', 'docs/design/current-ui/runtime-region-mapping-contract.json', 'docs/design/current-ui/runtime-asset-slot-mapping-contract.json']
     .every((file) => evidencePolicy.authoritativeInputs?.includes(file)),
   `schemaVersion=${evidencePolicy.schemaVersion}`,
 )
@@ -540,6 +541,25 @@ record(
     && /COPYFILE_EXCL/u.test(read('scripts/promote-ui-region-comparison.js'))
     && /ui-runtime-reviews/u.test(read('scripts/promote-ui-region-comparison.js')),
   'passing structured comparisons must be content-addressed before becoming review evidence',
+)
+record(
+  'runtime_asset_slots_map_to_route_or_shared_contracts',
+  runtimeAssetSlotMappingContract.status === 'active'
+    && runtimeAssetSlotMappingContract.routes?.length === 4
+    && runtimeAssetSlotMappingContract.routes.every((route) => (
+      fs.existsSync(path.join(root, route.assetContract))
+      && Object.keys(route.runtimeSlots ?? {}).length >= 9
+      && Object.entries(route.runtimeSlots).every(([runtimeSlot, contractSlot]) => runtimeSlot.startsWith('asset_slot.') && typeof contractSlot === 'string')
+    )),
+  `routes=${runtimeAssetSlotMappingContract.routes?.length ?? 0}`,
+)
+record(
+  'runtime_asset_slot_verifier_reuses_existing_devtools_only',
+  fs.existsSync(path.join(root, 'scripts/verify-ui-asset-slots.js'))
+    && /connectMiniProgram/u.test(read('scripts/verify-ui-asset-slots.js'))
+    && /wx-data-asset-missing-true/u.test(read('scripts/verify-ui-asset-slots.js'))
+    && !/WECHAT_AUTOMATOR_LAUNCH/u.test(read('scripts/verify-ui-asset-slots.js')),
+  'runtime asset-slot review must be bounded and never launch or reload DevTools',
 )
 record(
   'shared_native_buttons_cannot_exceed_their_layout_cell',

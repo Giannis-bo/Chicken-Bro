@@ -26,6 +26,7 @@
     "compare:ui-runtime-regions": "node scripts/compare-ui-runtime-regions.js",
     "promote:ui-region-comparison": "node scripts/promote-ui-region-comparison.js",
     "verify:ui-selected-states": "node scripts/verify-ui-selected-states.js",
+    "verify:ui-asset-slots": "node scripts/verify-ui-asset-slots.js",
     "verify:ui-package": "node scripts/verify-ui-package.js"
   },
   "devDependencies": {
