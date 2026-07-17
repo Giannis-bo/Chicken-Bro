@@ -295,6 +295,29 @@ for (const observed of runtimeReviewStatus.observedAssetSlotReviews ?? []) {
     `artifact=${exists}; sha=${actualSha === observed.sha256}; routes=${routeNames.length}`,
   )
 }
+for (const historical of runtimeReviewStatus.historicalRuntimeArtifactReviews ?? []) {
+  const artifact = historical.artifact ?? {}
+  const artifactPath = path.join(root, artifact.path ?? '')
+  const receiptPath = path.join(root, artifact.receipt ?? '')
+  const artifactExists = fs.existsSync(artifactPath)
+  const receiptExists = fs.existsSync(receiptPath)
+  const actualSha = artifactExists ? crypto.createHash('sha256').update(fs.readFileSync(artifactPath)).digest('hex') : null
+  const receipt = receiptExists ? JSON.parse(fs.readFileSync(receiptPath, 'utf8')) : null
+  const receiptEntry = receipt?.promoted?.find((entry) => entry.route === historical.route)
+  record(
+    `historical_runtime_artifact_is_content_addressed:${historical.route}`,
+    historical.current === false
+      && typeof historical.supersededReason === 'string'
+      && historical.supersededReason.length > 0
+      && artifactExists
+      && receiptExists
+      && receipt?.schemaVersion === 'wechat-ui-runtime-promotion-v1'
+      && artifact.path.includes(artifact.sha256)
+      && actualSha === artifact.sha256
+      && receiptEntry?.runtimeArtifact?.path === artifact.path,
+    `historical=${historical.current === false}; artifact=${artifactExists}; receipt=${receiptExists}`,
+  )
+}
 for (const review of reviewRoutes) {
   const target = targetRegistry.canonicalTargets.find((candidate) => candidate.route === review.route)
   const interaction = interactionContract.interactions.find((candidate) => candidate.route === review.route)
@@ -324,12 +347,17 @@ for (const review of reviewRoutes) {
       `observed_runtime_artifact_is_content_addressed:${review.route}`,
       artifactExists
         && receiptExists
+        && receipt?.schemaVersion === 'wechat-ui-runtime-promotion-v2'
+        && receipt?.sourceManifest?.schemaVersion === 'wechat-ui-review-cache-v2'
         && runtimeReviewContract.fieldContract.runtimeArtifact.every((field) => Object.hasOwn(artifact, field))
         && artifact.path.includes(artifact.sha256)
         && actualSha === artifact.sha256
         && fs.statSync(artifactPath).size === artifact.bytes
         && receiptEntry?.runtimeArtifact?.path === artifact.path
-        && receiptEntry?.runtimeArtifact?.sha256 === artifact.sha256,
+        && receiptEntry?.runtimeArtifact?.sha256 === artifact.sha256
+        && receiptEntry?.rendererEvidence?.shellWidth > 0
+        && receiptEntry?.rendererEvidence?.shellHeight > 0
+        && receiptEntry?.rendererEvidence?.regionCount > 0,
       `artifact=${artifactExists}; receipt=${receiptExists}; sha=${actualSha === artifact.sha256}`,
     )
   }

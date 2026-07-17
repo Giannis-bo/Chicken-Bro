@@ -573,4 +573,7 @@ test('runtime review control plane references current immutable non-visual evide
   assert.ok(status.sharedMissingEvidence.includes('real_wechat_selected_controls'))
   assert.ok(status.sharedMissingEvidence.includes('human_visual_confirmation'))
   assert.ok(status.routes.every((route) => route.status === 'UNVERIFIED'))
+  assert.ok(status.routes.every((route) => route.observedRuntimeArtifact === undefined))
+  assert.equal(status.historicalRuntimeArtifactReviews.length, 4)
+  assert.ok(status.historicalRuntimeArtifactReviews.every((review) => review.current === false && review.supersededReason))
 })

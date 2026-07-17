@@ -73,6 +73,7 @@ function main() {
     promoted.push({
       route: capture.route,
       path: capture.path,
+      rendererEvidence: capture.rendererEvidence,
       runtimeArtifact: {
         path: relativePath.split(path.sep).join('/'),
         width: inspected.dimensions.width,
