@@ -1,0 +1,112 @@
+#!/usr/bin/env python3
+import json
+import unittest
+from pathlib import Path
+
+from server import gear_attribute_rules
+
+
+FIXTURE_PATH = Path(__file__).parent / "fixtures" / "gear-attribute-rulebook-v1.json"
+
+
+def fixture_rulebook():
+    return json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
+
+
+def verified_rulebook():
+    rulebook = fixture_rulebook()
+    context = rulebook["contexts"][0]
+    context["status"] = "verified"
+    context["sourceRefs"] = ["test:verified-source"]
+    context["goldenSampleIds"] = ["test:mage-frost-human"]
+    return rulebook
+
+
+class GearAttributeRulesTest(unittest.TestCase):
+    def test_public_context_excludes_unverified_rulebook_context(self):
+        context = gear_attribute_rules.public_attribute_calculator_context(
+            fixture_rulebook(), class_key="mage", spec_key="frost", level=90
+        )
+
+        self.assertEqual(context["status"], "rule_unavailable")
+        self.assertEqual(context["problems"][0]["code"], "ATTRIBUTE_RULE_UNAVAILABLE")
+        self.assertEqual(context["raceOptions"], [])
+        self.assertEqual(context["rules"], [])
+
+    def test_character_context_accepts_only_explicit_race_key(self):
+        parsed, issues = gear_attribute_rules.parse_attribute_character_context(
+            {"schemaRevision": "gear-attribute-character-v1", "raceKey": "human"}
+        )
+
+        self.assertEqual(issues, [])
+        self.assertEqual(
+            parsed,
+            {"schemaRevision": "gear-attribute-character-v1", "raceKey": "human"},
+        )
+
+    def test_character_context_rejects_unknown_empty_and_noncanonical_fields(self):
+        vectors = (
+            ({"schemaRevision": "gear-attribute-character-v1", "raceKey": ""}, "INVALID_RACE_KEY"),
+            ({"schemaRevision": "gear-attribute-character-v1", "raceKey": "Human"}, "INVALID_RACE_KEY"),
+            ({"schemaRevision": "gear-attribute-character-v1", "raceKey": "human", "stats": {}}, "UNKNOWN_FIELD"),
+            ({"raceKey": "human"}, "MISSING_SCHEMA_REVISION"),
+        )
+
+        for raw, expected_code in vectors:
+            with self.subTest(raw=raw):
+                parsed, issues = gear_attribute_rules.parse_attribute_character_context(raw)
+                self.assertIsNone(parsed)
+                self.assertTrue(any(issue["code"] == expected_code for issue in issues))
+
+    def test_rulebook_rejects_missing_sources_or_verified_golden_sample(self):
+        missing_sources = verified_rulebook()
+        missing_sources["contexts"][0]["sourceRefs"] = []
+        parsed, issues = gear_attribute_rules.validate_attribute_rulebook(missing_sources)
+        self.assertIsNone(parsed)
+        self.assertTrue(any(issue["code"] == "MISSING_SOURCE_REFS" for issue in issues))
+
+        missing_golden = verified_rulebook()
+        missing_golden["contexts"][0]["goldenSampleIds"] = []
+        parsed, issues = gear_attribute_rules.validate_attribute_rulebook(missing_golden)
+        self.assertIsNone(parsed)
+        self.assertTrue(any(issue["code"] == "MISSING_GOLDEN_SAMPLE" for issue in issues))
+
+    def test_rulebook_rejects_duplicate_secondary_output_keys(self):
+        duplicate = fixture_rulebook()
+        duplicate["contexts"][0]["secondaryRules"][1]["outputKey"] = "crit"
+
+        parsed, issues = gear_attribute_rules.validate_attribute_rulebook(duplicate)
+
+        self.assertIsNone(parsed)
+        self.assertTrue(any(issue["code"] == "DUPLICATE_OUTPUT_KEY" for issue in issues))
+
+    def test_verified_rule_lookup_rejects_unknown_race(self):
+        rule, issues = gear_attribute_rules.applicable_attribute_rule(
+            verified_rulebook(), class_key="mage", spec_key="frost", level=90, race_key="orc"
+        )
+
+        self.assertIsNone(rule)
+        self.assertEqual(issues[0]["code"], "ATTRIBUTE_RULE_UNAVAILABLE")
+
+    def test_verified_public_context_keeps_provenance_and_strips_implementation_notes(self):
+        rulebook = verified_rulebook()
+        public = gear_attribute_rules.public_attribute_calculator_context(
+            rulebook, class_key="mage", spec_key="frost", level=90
+        )
+
+        self.assertEqual(public["status"], "available")
+        self.assertEqual(public["attributeRuleRevision"], "fixture-r1")
+        self.assertEqual(public["raceOptions"], [{"raceKey": "human"}])
+        self.assertEqual(public["rules"][0]["sourceRefs"], ["test:verified-source"])
+        self.assertEqual(public["rules"][0]["goldenSampleIds"], ["test:mage-frost-human"])
+        self.assertNotIn("implementationNotes", public["rules"][0])
+
+        rule, issues = gear_attribute_rules.applicable_attribute_rule(
+            rulebook, class_key="mage", spec_key="frost", level=90, race_key="human"
+        )
+        self.assertEqual(issues, [])
+        self.assertEqual(rule["contextKey"], "mage:frost:90:human")
+
+
+if __name__ == "__main__":
+    unittest.main()
