@@ -15,6 +15,7 @@ export type AssetSourceClass = 'system_vector' | 'imagegen_raster' | 'canonical_
 export type CandidateReviewStatus =
   | 'untrusted_candidate'
   | 'generated_pending_isolated_review'
+  | 'candidate_pending_runtime_review'
   | 'independent_review_passed_for_canary'
 export type ProductionReviewStatus = 'wechat_verified_production'
 
@@ -83,7 +84,7 @@ const buildIntelCandidateAssets: readonly CandidateAsset[] = buildIntelRasterMan
   sourceClass: asset.sourceClass as AssetSourceClass,
   dimensions: [asset.runtime['2x'].width, asset.runtime['2x'].height] as const,
   sizeBytes: asset.runtime['2x'].bytes,
-  reviewStatus: 'independent_review_passed_for_canary',
+  reviewStatus: asset.status as CandidateReviewStatus,
 }))
 
 const buildIntelCandidateAssetSlots: readonly CandidateAssetSlot[] = Array.from(new Set(
@@ -91,7 +92,7 @@ const buildIntelCandidateAssetSlots: readonly CandidateAssetSlot[] = Array.from(
 )).map((slotId) => ({
   slotId,
   packageLocation: 'packages/design-system/assets/raster/build-intel-v1/runtime',
-  reviewStatus: 'independent_review_passed_for_canary',
+  reviewStatus: buildIntelRasterManifest.status as CandidateReviewStatus,
 }))
 
 const sharedChromeSlotIds: Readonly<Record<string, AssetSlotId>> = {

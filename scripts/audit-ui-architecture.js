@@ -423,6 +423,8 @@ const designTokenStyles = read('packages/design-system/src/tokens.scss')
 const designTokenSource = read('packages/design-system/src/tokens.ts')
 const tabBarStyles = read('packages/design-system/src/components/TabBar.module.scss')
 const buildsComponentContract = JSON.parse(read('docs/design/current-ui/routes/builds-home/component-contract.json'))
+const buildIntelRasterManifest = JSON.parse(read('packages/design-system/assets/raster/build-intel-v1/manifest.json'))
+const assetsManifestSource = read('packages/assets-manifest/src/index.ts')
 const sharedTabBarHeight = Number(designTokenStyles.match(/--tabbar-height:\s*([\d.]+)px/)?.[1])
 const isolatedTabBarHeight = Number(tabBarStyles.match(/--route-tabbar-control-height:\s*([\d.]+)px/)?.[1])
 const typedTabBarHeight = Number(designTokenSource.match(/tabBarHeight:\s*([\d.]+)/)?.[1])
@@ -454,6 +456,14 @@ record(
     && /\.specializationImage\s*\{[^}]*inset:\s*0;[^}]*display:\s*block;[^}]*width:\s*100%;[^}]*height:\s*100%;/s.test(buildsOverviewStyles)
     && !/\.specializationImage\s*\{[^}]*(?:border-radius|overflow|transform):/s.test(buildsOverviewStyles),
   'specialization object must fill the parent-owned circular viewport without a second native-image crop layer',
+)
+record(
+  'build_intel_asset_registry_preserves_runtime_review_status',
+  buildIntelRasterManifest.status === 'candidate_pending_runtime_review'
+    && buildIntelRasterManifest.assets.every((asset) => asset.status === buildIntelRasterManifest.status)
+    && assetsManifestSource.includes('reviewStatus: asset.status as CandidateReviewStatus')
+    && assetsManifestSource.includes('reviewStatus: buildIntelRasterManifest.status as CandidateReviewStatus'),
+  `manifest=${buildIntelRasterManifest.status}; assets=${buildIntelRasterManifest.assets.length}`,
 )
 
 const gameObjectIcon = read('packages/design-system/src/components/GameObjectIcon.tsx')

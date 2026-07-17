@@ -29,6 +29,7 @@ describe('current asset authority', () => {
       expect([
         'untrusted_candidate',
         'generated_pending_isolated_review',
+        'candidate_pending_runtime_review',
         'independent_review_passed_for_canary',
       ]).toContain(asset.reviewStatus)
       expect(fs.existsSync(path.join(process.cwd(), asset.filePath)), asset.filePath).toBe(true)
@@ -91,7 +92,7 @@ describe('current asset authority', () => {
     expect(assetRuntimePathForSlot('asset_slot.news-detail-terminal-emblem')).toBe('/assets/ui-v2/raster/news-detail-v1/runtime/2x/news-detail-terminal-medallion.default.png')
   })
 
-  it('registers independently reviewed build-intel route assets without promoting them', () => {
+  it('keeps build-intel route assets pending until runtime review', () => {
     const buildIntelAssets = candidateAssets.filter((asset) => asset.filePath.includes('/raster/build-intel-v1/'))
     const buildIntelSlotIds = [
       'asset_slot.build-intel-summary-medallion',
@@ -102,8 +103,8 @@ describe('current asset authority', () => {
 
     expect(buildIntelAssets).toHaveLength(3)
     expect(buildIntelSlots).toHaveLength(3)
-    expect(buildIntelAssets.every((asset) => asset.reviewStatus === 'independent_review_passed_for_canary')).toBe(true)
-    expect(buildIntelSlots.every((slot) => slot.reviewStatus === 'independent_review_passed_for_canary')).toBe(true)
+    expect(buildIntelAssets.every((asset) => asset.reviewStatus === 'candidate_pending_runtime_review')).toBe(true)
+    expect(buildIntelSlots.every((slot) => slot.reviewStatus === 'candidate_pending_runtime_review')).toBe(true)
     expect(productionAssets.some((asset) => asset.filePath.includes('/raster/build-intel-v1/'))).toBe(false)
     expect(assetRuntimePath('build-intel-summary-medallion.default')).toBe('/assets/ui-v2/raster/build-intel-v1/runtime/2x/build-intel-summary-medallion.default.png')
     expect(assetRuntimePath('build-intel-card-medallion-shell.default')).toBe('/assets/ui-v2/raster/build-intel-v1/runtime/2x/build-intel-card-medallion-shell.default.png')
