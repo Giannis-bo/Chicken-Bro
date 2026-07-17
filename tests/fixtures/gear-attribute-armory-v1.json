@@ -326,6 +326,12 @@
             "lifesteal": { "rating": 166, "finalPercent": 2.4057627 },
             "speed": { "rating": 55, "ratingBonusPercent": 4.7825403 }
           }
+        },
+        "officialTalentLoadout": {
+          "capturedAt": "2026-07-17T09:35:57Z",
+          "specKey": "arcane",
+          "heroKey": "spellslinger",
+          "talentLoadoutCode": "C4DAMhlVtghLZL4RZzExaQoBYNzwMLzMzsgZGamZGAAAGAAEwMzMLLzMxCAAbzYmZMbmlZmZMzYMMzMjFmZmxMAADAAgZWAAzAghB"
         }
       },
       "observedPanel": {
@@ -343,7 +349,7 @@
         "the authenticated official Profile captures item level and exact bonus IDs, but the project has no verified bonus-ID-to-canonical-variant and per-item stat rule source",
         "the official Profile identifies enchant IDs but does not provide a verified numeric contribution for every enchantment",
         "one Night Elf Arcane level-90 sample exposes observed rating and final effects but is not a normative source for the all-race, all-spec rating conversion and stable class/passive rules",
-        "the current active talent configuration and classification of visible conditional effects are not captured as stable rule inputs"
+        "the active Arcane Spellslinger loadout is captured as an opaque identity, but stable-vs-conditional talent effects and their arithmetic mapping are not yet verified"
       ]
     },
     {
