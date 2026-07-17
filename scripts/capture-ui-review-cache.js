@@ -8,6 +8,8 @@ const path = require('node:path')
 const { execFileSync } = require('node:child_process')
 
 const { connectMiniProgram, timeout } = require('./wechat-automator')
+const { readBoundedFile } = require('./bounded-file')
+const { readBoundedJson, writeBoundedJsonAtomic } = require('./bounded-json-detail')
 const interactionContract = require('../docs/design/current-ui/core-interaction-contract.json')
 
 const operationTimeoutMs = 10000
@@ -54,25 +56,25 @@ function validCaptureBounds(buffer, dimensions, viewport) {
 
 function inspectCachedCapture(capture, viewport) {
   if (!capture?.artifactPath || !fs.existsSync(capture.artifactPath)) return false
-  const artifactBytes = fs.statSync(capture.artifactPath).size
-  if (artifactBytes <= 0 || artifactBytes > maxCaptureBytes) return false
-  const buffer = fs.readFileSync(capture.artifactPath)
-  const dimensions = pngSize(buffer)
-  return capture.bytes === buffer.length
-    && capture.width === dimensions.width
-    && capture.height === dimensions.height
-    && capture.sha256 === crypto.createHash('sha256').update(buffer).digest('hex')
-    && validCaptureBounds(buffer, dimensions, viewport)
-    && capture.rendererEvidence?.path === capture.path.split('?')[0].replace(/^\//u, '')
-    && capture.rendererEvidence?.shellWidth > 0
-    && capture.rendererEvidence?.shellHeight > 0
-    && capture.rendererEvidence?.regionCount > 0
+  try {
+    const buffer = readBoundedFile(capture.artifactPath, maxCaptureBytes, `cached capture ${capture.route}`)
+    const dimensions = pngSize(buffer)
+    return capture.bytes === buffer.length
+      && capture.width === dimensions.width
+      && capture.height === dimensions.height
+      && capture.sha256 === crypto.createHash('sha256').update(buffer).digest('hex')
+      && validCaptureBounds(buffer, dimensions, viewport)
+      && capture.rendererEvidence?.path === capture.path.split('?')[0].replace(/^\//u, '')
+      && capture.rendererEvidence?.shellWidth > 0
+      && capture.rendererEvidence?.shellHeight > 0
+      && capture.rendererEvidence?.regionCount > 0
+  } catch {
+    return false
+  }
 }
 
 function writeManifest(manifestPath, manifest) {
-  const temporaryManifestPath = `${manifestPath}.tmp`
-  fs.writeFileSync(temporaryManifestPath, `${JSON.stringify(manifest, null, 2)}\n`)
-  fs.renameSync(temporaryManifestPath, manifestPath)
+  writeBoundedJsonAtomic(manifestPath, manifest, 'UI review cache manifest')
 }
 
 async function captureWithRetry(miniProgram, artifactPath, route) {
@@ -123,8 +125,8 @@ async function main() {
     fs.mkdirSync(outputRoot, { recursive: true })
     const manifestPath = path.join(outputRoot, 'manifest.json')
     let existing = null
-    if (fs.existsSync(manifestPath) && fs.statSync(manifestPath).size <= maxManifestBytes) {
-      try { existing = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) } catch {}
+    if (fs.existsSync(manifestPath)) {
+      try { existing = readBoundedJson(manifestPath, 'UI review cache manifest') } catch {}
     }
     const existingCaptures = existing?.schemaVersion === 'wechat-ui-review-cache-v3'
       && existing.commit === commit
@@ -153,9 +155,7 @@ async function main() {
         const rendererEvidence = await inspectRenderer(page, route)
         const artifactPath = path.join(outputRoot, `${safeName(route.route)}.png`)
         await captureWithRetry(miniProgram, artifactPath, route.route)
-        const artifactBytes = fs.statSync(artifactPath).size
-        if (artifactBytes <= 0 || artifactBytes > maxCaptureBytes) throw new Error(`capture exceeds bounded byte policy before read: ${route.route}`)
-        const buffer = fs.readFileSync(artifactPath)
+        const buffer = readBoundedFile(artifactPath, maxCaptureBytes, `capture ${route.route}`)
         const dimensions = pngSize(buffer)
         if (!validCaptureBounds(buffer, dimensions, viewport)) throw new Error(`capture exceeds bounded viewport artifact policy: ${route.route}`)
         capturesByRoute.set(route.route, {

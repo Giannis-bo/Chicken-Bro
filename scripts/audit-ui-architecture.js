@@ -842,6 +842,7 @@ record(
   'split runtime reviews must share commit and viewport before content-addressed promotion',
 )
 const visualCaptureSource = read('scripts/capture-ui-review-cache.js')
+const boundedFileSource = read('scripts/bounded-file.js')
 const onlineRouteBatchSource = read('scripts/online-route-batch.js')
 const boundedOnlineWechatValidators = [
   'scripts/verify-ui-route-geometry.js',
@@ -877,10 +878,12 @@ record(
   /maxCaptureBytes\s*=\s*8 \* 1024 \* 1024/u.test(visualCaptureSource)
     && /maxCaptureScale\s*=\s*4/u.test(visualCaptureSource)
     && /maxManifestBytes\s*=\s*1024 \* 1024/u.test(visualCaptureSource)
-    && /statSync\(capture\.artifactPath\)\.size/u.test(visualCaptureSource)
-    && /bounded byte policy before read/u.test(visualCaptureSource)
+    && /readBoundedFile\(capture\.artifactPath, maxCaptureBytes/u.test(visualCaptureSource)
+    && /readBoundedJson\(manifestPath/u.test(visualCaptureSource)
+    && /writeBoundedJsonAtomic\(manifestPath/u.test(visualCaptureSource)
     && /validCaptureBounds/u.test(visualCaptureSource)
-    && /bounded byte policy before read/u.test(read('scripts/promote-ui-review-cache.js'))
+    && /readBoundedFile\(capture\.artifactPath, maxCaptureBytes/u.test(read('scripts/promote-ui-review-cache.js'))
+    && /readBoundedJson\(manifestPath/u.test(read('scripts/promote-ui-review-cache.js'))
     && /manifest\.captures\.length > 14/u.test(read('scripts/promote-ui-review-cache.js'))
     && /validCaptureBounds/u.test(read('scripts/promote-ui-review-cache.js')),
   'abnormal screenshots must be rejected before they can grow cache, memory or immutable artifacts',
@@ -1023,10 +1026,12 @@ record(
   /maxStructuredDetailBytes = 1024 \* 1024/u.test(boundedJsonDetail)
     && /renameSync\(temporaryPath, filePath\)/u.test(boundedJsonDetail)
     && /randomUUID\(\)/u.test(boundedJsonDetail)
-    && /bounded byte policy before read/u.test(boundedJsonDetail)
-    && /Buffer\.allocUnsafe\(maxStructuredDetailBytes \+ 1\)/u.test(boundedJsonDetail)
-    && /bounded byte policy during read/u.test(boundedJsonDetail)
+    && /readBoundedFile\(filePath, maxStructuredDetailBytes/u.test(boundedJsonDetail)
     && !/readFileSync/u.test(boundedJsonDetail)
+    && /Buffer\.allocUnsafe\(maxBytes \+ 1\)/u.test(boundedFileSource)
+    && /bounded byte policy before read/u.test(boundedFileSource)
+    && /bounded byte policy during read/u.test(boundedFileSource)
+    && !/readFileSync/u.test(boundedFileSource)
     && structuredDetailWriters.every((file) => read(file).includes('writeBoundedJsonAtomic'))
     && structuredDetailReaders.every((file) => read(file).includes('readBoundedJson')),
   'geometry, interaction, selected-state and asset-slot details must share one bounded atomic JSON owner',

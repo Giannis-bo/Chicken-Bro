@@ -35,6 +35,9 @@ test('capture cache resumes only from a byte-identical PNG', () => {
   assert.equal(inspectCachedCapture(capture, viewport), true)
   assert.equal(inspectCachedCapture({ ...capture, bytes: buffer.length + 1 }, viewport), false)
   assert.equal(inspectCachedCapture({ ...capture, rendererEvidence: { ...capture.rendererEvidence, regionCount: 0 } }, viewport), false)
+  fs.truncateSync(artifactPath, (8 * 1024 * 1024) + 1)
+  assert.equal(inspectCachedCapture(capture, viewport), false)
+  fs.rmSync(directory, { recursive: true, force: true })
 })
 
 test('capture manifest checkpoint replaces the previous file atomically', () => {
@@ -43,7 +46,8 @@ test('capture manifest checkpoint replaces the previous file atomically', () => 
   writeManifest(manifestPath, { schemaVersion: 'first' })
   writeManifest(manifestPath, { schemaVersion: 'second', captures: [] })
   assert.equal(JSON.parse(fs.readFileSync(manifestPath, 'utf8')).schemaVersion, 'second')
-  assert.equal(fs.existsSync(`${manifestPath}.tmp`), false)
+  assert.equal(fs.readdirSync(directory).some((file) => file.includes('.tmp-')), false)
+  fs.rmSync(directory, { recursive: true, force: true })
 })
 
 test('online capture is restricted to resumable two-route batches', () => {

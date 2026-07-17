@@ -4,6 +4,7 @@
 const fs = require('node:fs')
 const path = require('node:path')
 const contract = require('../docs/design/current-ui/runtime-region-mapping-contract.json')
+const { readBoundedJson, writeBoundedJsonAtomic } = require('./bounded-json-detail')
 
 const root = path.resolve(__dirname, '..')
 
@@ -67,7 +68,7 @@ function compareRoute(mapping, runtimeRoute) {
 function main() {
   const detailPath = path.resolve(process.env.GEOMETRY_DETAIL_PATH ?? '')
   if (!process.env.GEOMETRY_DETAIL_PATH) throw new Error('GEOMETRY_DETAIL_PATH is required')
-  const runtime = JSON.parse(fs.readFileSync(detailPath, 'utf8'))
+  const runtime = readBoundedJson(detailPath, 'runtime geometry detail')
   if (runtime.schemaVersion !== 'wechat-route-geometry-detail-v1') throw new Error('unsupported geometry detail schema')
   if (!/^[a-f\d]{12}$/u.test(runtime.commit ?? '')) throw new Error('runtime geometry detail commit is missing')
   const comparisons = contract.routes.map((mapping) => {
@@ -79,8 +80,7 @@ function main() {
   let outputPath = null
   if (process.env.REGION_COMPARISON_OUTPUT) {
     outputPath = path.resolve(process.env.REGION_COMPARISON_OUTPUT)
-    fs.mkdirSync(path.dirname(outputPath), { recursive: true })
-    fs.writeFileSync(outputPath, `${JSON.stringify(record, null, 2)}\n`)
+    writeBoundedJsonAtomic(outputPath, record, 'target/runtime region comparison')
   }
   const failed = comparisons.filter((comparison) => comparison.status === 'FAIL')
   console.log(JSON.stringify({ status: failed.length === 0 ? 'pass' : 'fail', checkedRoutes: comparisons.length, checkedRegions: comparisons.reduce((sum, item) => sum + item.regions.length, 0), failedRoutes: failed.map((item) => item.route), outputPath }))

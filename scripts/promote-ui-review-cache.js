@@ -5,7 +5,9 @@ const crypto = require('node:crypto')
 const fs = require('node:fs')
 const path = require('node:path')
 
-const { maxCaptureBytes, maxManifestBytes, pngSize, validCaptureBounds } = require('./capture-ui-review-cache')
+const { maxCaptureBytes, pngSize, validCaptureBounds } = require('./capture-ui-review-cache')
+const { readBoundedFile } = require('./bounded-file')
+const { readBoundedJson } = require('./bounded-json-detail')
 const interactionContract = require('../docs/design/current-ui/core-interaction-contract.json')
 
 const repositoryRoot = path.resolve(__dirname, '..')
@@ -29,9 +31,7 @@ function selectedRoutes(value, captures) {
 }
 
 function inspectCapture(capture, viewport) {
-  const artifactBytes = fs.statSync(capture.artifactPath).size
-  if (artifactBytes <= 0 || artifactBytes > maxCaptureBytes) throw new Error(`cache artifact exceeds bounded byte policy before read: ${capture.route}`)
-  const buffer = fs.readFileSync(capture.artifactPath)
+  const buffer = readBoundedFile(capture.artifactPath, maxCaptureBytes, `cache artifact ${capture.route}`)
   const dimensions = pngSize(buffer)
   const sha256 = crypto.createHash('sha256').update(buffer).digest('hex')
   if (capture.bytes !== buffer.length || capture.width !== dimensions.width || capture.height !== dimensions.height || capture.sha256 !== sha256) {
@@ -47,9 +47,7 @@ function inspectCapture(capture, viewport) {
 
 function main() {
   const manifestPath = path.resolve(required(process.env.UI_REVIEW_MANIFEST, 'UI_REVIEW_MANIFEST'))
-  const manifestBytes = fs.statSync(manifestPath).size
-  if (manifestBytes <= 0 || manifestBytes > maxManifestBytes) throw new Error('UI review cache manifest exceeds bounded byte policy before read')
-  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
+  const manifest = readBoundedJson(manifestPath, 'UI review cache manifest')
   if (manifest.schemaVersion !== 'wechat-ui-review-cache-v3' || !Array.isArray(manifest.captures) || manifest.captures.length > 14) {
     throw new Error('unsupported UI review cache manifest')
   }
@@ -72,7 +70,7 @@ function main() {
     const destination = path.join(repositoryRoot, relativePath)
     fs.mkdirSync(path.dirname(destination), { recursive: true })
     if (fs.existsSync(destination)) {
-      const existingSha = crypto.createHash('sha256').update(fs.readFileSync(destination)).digest('hex')
+      const existingSha = crypto.createHash('sha256').update(readBoundedFile(destination, maxCaptureBytes, `promoted artifact ${capture.route}`)).digest('hex')
       if (existingSha !== inspected.sha256) throw new Error(`immutable artifact collision: ${relativePath}`)
     } else {
       fs.copyFileSync(capture.artifactPath, destination, fs.constants.COPYFILE_EXCL)
