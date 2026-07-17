@@ -2,6 +2,8 @@
 'use strict'
 
 const { connectMiniProgram, timeout } = require('./wechat-automator')
+const fs = require('node:fs')
+const path = require('node:path')
 const contract = require('../docs/design/current-ui/route-geometry-contract.json')
 
 const operationTimeoutMs = 10000
@@ -58,7 +60,12 @@ async function inspect(page, route, viewport) {
     timeout(page.$$('button'), 4000, 'query native buttons'),
     unavailableState(page, route.unavailableRouteStates),
   ])
-  if (regions.length === 0 && state) return { route: route.route, status: 'unavailable', routeState: state, regionCount: 0, buttonCount: buttons.length }
+  if (regions.length === 0 && state) {
+    return {
+      summary: { route: route.route, status: 'unavailable', routeState: state, regionCount: 0, semanticRegionCount: 0, buttonCount: buttons.length },
+      detail: { route: route.route, path: route.path, viewport, routeState: state, regions: [], buttons: [] },
+    }
+  }
 
   const shellBounds = shell ? await bounds(shell) : null
   const regionBounds = await Promise.all(regions.map(async (element, index) => {
@@ -92,7 +99,7 @@ async function inspect(page, route, viewport) {
       violations.push({ type: 'native-button-horizontal', index, left: button.left, right: button.right, width: button.width })
     }
   })
-  return {
+  const summary = {
     route: route.route,
     status: violations.length === 0 ? 'pass' : 'fail',
     regionCount: regionBounds.length,
@@ -104,6 +111,7 @@ async function inspect(page, route, viewport) {
     violationCount: violations.length,
     violations: violations.slice(0, 10),
   }
+  return { summary, detail: { route: route.route, path: route.path, viewport, regions: regionBounds, buttons: buttonBounds.map(({ className: _className, ...button }) => button) } }
 }
 
 async function main() {
@@ -113,7 +121,20 @@ async function main() {
     const system = await timeout(miniProgram.systemInfo(), 4000, 'read system info')
     const viewport = { width: system.windowWidth, height: system.windowHeight, dpr: system.pixelRatio }
     const results = []
-    for (const route of selectedRoutes()) results.push(await inspect(await open(miniProgram, route), route, viewport))
+    const details = []
+    for (const route of selectedRoutes()) {
+      const inspected = await inspect(await open(miniProgram, route), route, viewport)
+      results.push(inspected.summary)
+      details.push(inspected.detail)
+    }
+    let detailPath = null
+    if (process.env.GEOMETRY_DETAIL_PATH) {
+      detailPath = path.resolve(process.env.GEOMETRY_DETAIL_PATH)
+      fs.mkdirSync(path.dirname(detailPath), { recursive: true })
+      const temporaryPath = `${detailPath}.tmp`
+      fs.writeFileSync(temporaryPath, `${JSON.stringify({ schemaVersion: 'wechat-route-geometry-detail-v1', viewport, routes: details }, null, 2)}\n`)
+      fs.renameSync(temporaryPath, detailPath)
+    }
     const failures = results.filter((result) => result.status === 'fail')
     console.log(JSON.stringify({
       status: failures.length === 0 ? 'pass' : 'fail',
@@ -123,6 +144,7 @@ async function main() {
       unavailable: results.filter((result) => result.status === 'unavailable').length,
       failures,
       results,
+      detailPath,
     }))
     if (failures.length > 0) process.exitCode = 1
   } finally {

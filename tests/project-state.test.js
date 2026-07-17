@@ -303,3 +303,15 @@ test('runtime review regions cannot fall back to positional identities', () => {
   assert.match(audit, /route_regions_have_stable_semantic_ids/)
   assert.match(audit, /unnamedRouteRegions/)
 })
+
+test('target/runtime region comparison is semantic, bounded and image-free', () => {
+  const comparison = fs.readFileSync('scripts/compare-ui-runtime-regions.js', 'utf8')
+  const contract = readJson('docs/design/current-ui/runtime-region-mapping-contract.json')
+  assert.equal(contract.routes.length, 4)
+  assert.ok(contract.tolerance.positionPx <= 8)
+  assert.ok(contract.tolerance.sizePx <= 4)
+  assert.ok(contract.routes.every((route) => Object.keys(route.regions).length >= 6))
+  assert.match(comparison, /GEOMETRY_DETAIL_PATH is required/)
+  assert.match(comparison, /REGION_COMPARISON_OUTPUT/)
+  assert.doesNotMatch(comparison, /png|screenshot|sharp|canvas/i)
+})

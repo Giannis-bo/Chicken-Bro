@@ -91,7 +91,7 @@ export default function BuildIntelPage() {
           onBack={() => goBack('/pages/builds/builds')}
         >
           <RouteColumn>
-            <View className={styles['summary'] ?? ''}>
+            <RouteRegion className={styles['summary'] ?? ''} data-region="summary_card">
               <BuildIntelSummary
                 description={model.description}
                 loading={model.initialLoading}
@@ -100,8 +100,8 @@ export default function BuildIntelPage() {
                 stateLabel={model.stateLabel}
                 title={model.title}
               />
-            </View>
-            <View className={styles['filter'] ?? ''}>
+            </RouteRegion>
+            <RouteRegion className={styles['filter'] ?? ''} data-region="filter_sort_bar">
               <BuildIntelFilterBar
                 disabled={model.initialLoading}
                 filterLabel={model.filterLabel}
@@ -109,7 +109,7 @@ export default function BuildIntelPage() {
                 onFilter={cycleFilter}
                 onSort={() => setSortId((current) => current === 'source' ? 'name' : 'source')}
               />
-            </View>
+            </RouteRegion>
             <View className={styles['cardViewport'] ?? ''} data-owner="build-intel-card-viewport">
               <ScrollView
                 className={styles['cardScroll'] ?? ''}

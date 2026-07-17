@@ -125,6 +125,7 @@ const targetRegistry = JSON.parse(read('docs/design/current-ui/target-registry.j
 const interactionContract = JSON.parse(read('docs/design/current-ui/core-interaction-contract.json'))
 const selectedControlContract = JSON.parse(read('docs/design/current-ui/selected-control-contract.json'))
 const routeGeometryContract = JSON.parse(read('docs/design/current-ui/route-geometry-contract.json'))
+const runtimeRegionMappingContract = JSON.parse(read('docs/design/current-ui/runtime-region-mapping-contract.json'))
 const evidencePolicy = JSON.parse(read('docs/design/current-ui/active-evidence-policy.json'))
 const runtimeReviewContract = JSON.parse(read('docs/design/current-ui/runtime-review-contract.json'))
 const runtimeReviewStatus = JSON.parse(read('docs/design/current-ui/runtime-review-status.json'))
@@ -137,7 +138,7 @@ const expectedInteractionAcceptance = expectedInteractionStatus === 'verified'
     : 'pending_real_wechat_core_interaction_matrix'
 record(
   'runtime_review_records_are_authoritative_inputs',
-  ['docs/design/current-ui/runtime-review-contract.json', 'docs/design/current-ui/runtime-review-status.json', 'docs/design/current-ui/selected-control-contract.json', 'docs/design/current-ui/route-geometry-contract.json']
+  ['docs/design/current-ui/runtime-review-contract.json', 'docs/design/current-ui/runtime-review-status.json', 'docs/design/current-ui/selected-control-contract.json', 'docs/design/current-ui/route-geometry-contract.json', 'docs/design/current-ui/runtime-region-mapping-contract.json']
     .every((file) => evidencePolicy.authoritativeInputs?.includes(file)),
   `schemaVersion=${evidencePolicy.schemaVersion}`,
 )
@@ -490,6 +491,28 @@ record(
     && /native-button-horizontal/u.test(read('scripts/verify-ui-route-geometry.js'))
     && !/WECHAT_AUTOMATOR_LAUNCH/u.test(read('scripts/verify-ui-route-geometry.js')),
   '14-route geometry verification must remain bounded and never launch or reload DevTools',
+)
+record(
+  'runtime_region_mapping_is_semantic_and_bounded',
+  runtimeRegionMappingContract.status === 'active'
+    && runtimeRegionMappingContract.routes?.length === 4
+    && runtimeRegionMappingContract.tolerance?.positionPx <= 8
+    && runtimeRegionMappingContract.tolerance?.sizePx <= 4
+    && runtimeRegionMappingContract.routes.every((route) => (
+      fs.existsSync(path.join(root, route.targetGeometry))
+      && Object.keys(route.regions ?? {}).length >= 6
+      && Object.hasOwn(route.regions, route.anchorTop)
+      && Object.hasOwn(route.regions, route.anchorBottom)
+    )),
+  `routes=${runtimeRegionMappingContract.routes?.length ?? 0}`,
+)
+record(
+  'runtime_region_comparison_stays_structured_and_image_free',
+  fs.existsSync(path.join(root, 'scripts/compare-ui-runtime-regions.js'))
+    && /GEOMETRY_DETAIL_PATH is required/u.test(read('scripts/compare-ui-runtime-regions.js'))
+    && /target-runtime-region-comparison-v1/u.test(read('scripts/compare-ui-runtime-regions.js'))
+    && !/(?:png|screenshot|sharp|canvas)/iu.test(read('scripts/compare-ui-runtime-regions.js')),
+  'target/runtime comparison must consume structured geometry without loading screenshot pixels',
 )
 record(
   'shared_native_buttons_cannot_exceed_their_layout_cell',
