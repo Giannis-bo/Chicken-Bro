@@ -343,6 +343,7 @@ test('native buttons and selected segments have exclusive geometry owners', () =
   assert.doesNotMatch(reconstruction, /\.newsDetailTranslationSegment \+ \.newsDetailTranslationSegment \{[^}]*border-left:/s)
   assert.match(audit, /native_button_owner_neutralizes_wechat_geometry/)
   assert.match(audit, /every_native_control_has_stable_geometry_identity/)
+  assert.match(audit, /dead_route_surface_layout_owners_are_removed/)
   assert.match(audit, /selected_segment_material_owns_both_boundaries/)
   assert.match(audit, /selected_segments_exclusively_own_their_edge_material/)
 })

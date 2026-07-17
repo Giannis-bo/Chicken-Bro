@@ -1,84 +1,3 @@
-.routeSurface,
-.routeSurface view,
-.routeSurface text,
-.routeSurface image,
-.routeSurface button,
-.routeSurface swiper,
-.routeSurface swiper-item,
-.routeSurface scroll-view,
-.routeSurface input,
-.routeSurface textarea {
-  box-sizing: border-box;
-  letter-spacing: 0;
-}
-
-.routeSurface {
-  position: relative;
-  width: 100%;
-  min-height: 100vh;
-  overflow: hidden;
-  color: var(--wow-fg);
-  background:
-    radial-gradient(circle at 50% 10%, rgba(123, 92, 43, 0.1), transparent 34%),
-    linear-gradient(180deg, #121419 0%, #0b0d10 58%, #08090c 100%);
-  font-family: var(--wow-font-body);
-}
-
-/* Native-control adapter while route actions move behind ActionButton. */
-.routeSurface button {
-  box-sizing: border-box;
-  min-width: 0;
-  max-width: 100%;
-  min-height: 0;
-  margin: 0;
-  padding: 0;
-  border-radius: 0;
-  color: inherit;
-  background: transparent;
-  font: inherit;
-  line-height: inherit;
-}
-
-.routeSurface button::after { border: 0; }
-
-.routeSurfaceEmbedded { height: 100%; min-height: 0; }
-.routeSurfaceProfile { background: radial-gradient(circle at 50% 16%, rgba(86, 65, 31, 0.12), transparent 34%), linear-gradient(180deg, #15171b, #090b0e 72%); }
-.routeSurfaceProfile::before { border-color: rgba(203, 158, 75, 0.2); box-shadow: inset 7px 0 18px rgba(0, 0, 0, 0.38), inset -7px 0 18px rgba(0, 0, 0, 0.38); }
-
-.routeSurface::before {
-  position: absolute;
-  z-index: 0;
-  inset: 0;
-  border: 0;
-  box-shadow: inset 7px 0 18px rgba(0, 0, 0, 0.24), inset -7px 0 18px rgba(0, 0, 0, 0.24);
-  content: '';
-  pointer-events: none;
-}
-
-.routeContent {
-  --route-gutter: 10px;
-  position: relative;
-  z-index: 1;
-  display: grid;
-  align-content: start;
-  gap: 10px;
-  width: 100%;
-  max-width: 430px;
-  margin: 0 auto;
-  padding: 10px var(--route-gutter) 18px;
-}
-
-.routeContentNewsHome { --route-gutter: 7px; gap: 7px; padding-top: 16px; }
-.routeContentBuildsHome { gap: 4px; padding-top: 1px; }
-.routeContentWorkbench { gap: 8px; padding-top: 0; }
-.routeContentNewsList { min-height: 100vh; grid-template-rows: repeat(4, max-content) minmax(30px, 1fr); gap: 6px; padding-top: 4px; padding-bottom: 8px; }
-.routeContentNewsDetail { gap: 10px; padding-top: 4px; padding-bottom: 20px; }
-.routeSurfaceEmbedded .routeContent { height: 100%; grid-auto-rows: max-content; overflow-y: auto; overscroll-behavior: contain; }
-.routeSurfaceEmbedded .routeContent { scrollbar-width: none; }
-.routeSurfaceEmbedded .routeContent::-webkit-scrollbar { display: none; }
-.routeSurfaceEmbedded .routeContentNewsList { min-height: 100%; }
-.routeSurfacePushed::before { box-shadow: inset 7px 0 18px rgba(0, 0, 0, 0.32), inset -7px 0 18px rgba(0, 0, 0, 0.32); }
-
 .assetImage {
   display: block;
   width: 100%;
@@ -805,18 +724,6 @@
 .workbenchMenu > view,
 .workbenchMenu > image { width: 17px; height: 17px; }
 
-.routeContentBuildIntel { gap: 8px; padding-top: 4px; padding-bottom: 18px; }
-.routeContentTalentSimulator { gap: 4px; padding-top: 3px; padding-bottom: 14px; }
-.routeContentGearDetail { gap: 6px; padding-top: 3px; padding-bottom: 16px; }
-.routeContentSimulatorHome { gap: 7px; padding-top: 2px; padding-bottom: 18px; }
-.routeContentSimcSubmit { gap: 7px; padding-top: 3px; padding-bottom: 16px; }
-.routeContentChickenbroChat { gap: 7px; padding-top: 3px; padding-bottom: 18px; }
-.routeContentTasksList { display: flex; min-height: 100vh; flex-direction: column; gap: 5px; padding-top: 3px; padding-bottom: 12px; }
-.routeContentTaskDetail { gap: 6px; padding-top: 3px; padding-bottom: 16px; }
-.routeContentProfileTemplates { min-height: 100vh; gap: 6px; padding-top: 5px; padding-bottom: 18px; }
-.routeContentProfileTemplates [data-region='profile_templates_target_region_template-library-header'] { margin-top: 9px; }
-.routeContentProfileTemplates [data-region='profile_templates_target_region_recent-saved-header'] { margin-top: 5px; }
-.routeContentProfileTemplates [data-region='profile_templates_target_region_settings-header'] { margin-top: 10px; }
 .buildIntelBackControl { display: grid; width: 72px; height: 40px; place-items: center; }
 .buildIntelBackControl button { width: 100%; min-height: 36px; padding: 0 5px; }
 .buildIntelBackContent { position: relative; z-index: 4; display: flex; align-items: center; justify-content: flex-start; gap: 3px; color: #d7ad62; font-size: 10px; font-weight: 720; line-height: 13px; white-space: nowrap; }
@@ -1506,30 +1413,8 @@
 .profileEvidenceRow > :nth-child(2) > :last-child { margin-top: 2px; color: var(--wow-fg-muted); font-size: 7px; line-height: 9px; }
 .profileEvidenceRow [class*='statusLabel'] { font-size: 7px; line-height: 9px; }
 
-.routeContentSimulatorHome { min-height: 100vh; grid-template-rows: max-content max-content max-content minmax(max-content, 1fr) max-content max-content; }
-.routeContentSimulatorHome .assistantTranscript { height: 100%; align-content: space-between; }
-.routeContentChickenbroChat { min-height: 100vh; grid-template-rows: max-content max-content minmax(max-content, 1fr) max-content max-content; }
-.routeSurfaceEmbedded .routeContentSimulatorHome,
-.routeSurfaceEmbedded .routeContentChickenbroChat,
-.routeSurfaceEmbedded .routeContentTasksList,
-.routeSurfaceEmbedded .routeContentProfileTemplates { min-height: 100%; }
-.routeContentChickenbroChat .assistantTranscript { height: 100%; align-content: space-between; gap: 4px; padding-top: 1px; padding-bottom: 1px; }
-.routeContentChickenbroChat .assistantMessageBubble { padding: 6px 9px; }
-.routeContentChickenbroChat .assistantComposer { min-height: 52px; padding: 4px 6px; }
-.routeContentChickenbroChat .assistantComposerInput { min-height: 34px; max-height: 52px; padding: 5px 7px; }
-.routeContentChickenbroChat .assistantComposerHelper { display: none; }
-.routeContentChickenbroChat .assistantComposer > button { min-height: 34px; }
 
 @mixin compact-reconstruction {
-  .routeContent { --route-gutter: 8px; gap: 8px; }
-  .routeContentNewsHome { --route-gutter: 6px; gap: 6px; padding-top: 16px; }
-  .routeContentBuildsHome { gap: 4px; padding-top: 1px; }
-  .routeContentWorkbench { gap: 7px; padding-top: 0; }
-  .routeContentNewsList { gap: 6px; }
-  .routeContentNewsDetail { gap: 8px; }
-  .routeContentBuildIntel { gap: 7px; }
-  .routeContentTalentSimulator { gap: 4px; }
-  .routeContentGearDetail { gap: 5px; }
   .pageTitle { font-size: 19px; }
   .headerSourceSocket { min-width: 76px; padding-right: 6px; padding-left: 6px; }
   .newsListSummary { grid-template-columns: minmax(0, 1fr) 76px; gap: 7px; }
@@ -1582,8 +1467,6 @@
 }
 
 @mixin large-reconstruction {
-  .routeContent { --route-gutter: 14px; }
-  .routeContentNewsHome { --route-gutter: 10px; gap: 9px; padding-top: 18px; }
   .featuredMedia { height: 233px; }
   .channelCell { min-height: 93px; grid-template-rows: 30px 15px; }
   .channelCellSocket { width: 28px; height: 28px; }

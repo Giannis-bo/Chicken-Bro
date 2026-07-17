@@ -704,8 +704,14 @@ record(
 )
 record(
   'shared_native_buttons_cannot_exceed_their_layout_cell',
-  /\.routeSurface button\s*\{[^}]*max-width:\s*100%;/su.test(reconstructionStyles),
+  /\.nativeControl\s*\{[^}]*max-width:\s*100%;/su.test(read('packages/design-system/src/components/owners.module.scss')),
   'every native WeChat button must be clamped by its immediate layout cell',
+)
+record(
+  'dead_route_surface_layout_owners_are_removed',
+  !/\.route(?:Surface|Content)/u.test(reconstructionStyles)
+    && routeComponents.every((file) => !/route(?:Surface|Content)/u.test(read(file))),
+  'layout safety must come from mounted AppShell, RouteStage and RouteFlow owners rather than unreachable legacy CSS',
 )
 record(
   'news_translation_has_one_state_material_owner',
