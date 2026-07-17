@@ -1,5 +1,14 @@
 .page {
-  min-height: 824px;
+  display: flex;
+  height: calc(var(--route-safe-viewport-height) - var(--space-12));
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.contentColumn {
+  min-height: 0;
+  flex: 1 1 auto;
   overflow: hidden;
 }
 
@@ -27,11 +36,13 @@
   box-sizing: border-box;
   width: calc(100% - 20px);
   max-width: 370.12px;
-  height: 498.75px;
+  height: auto;
+  max-height: 498.75px;
+  min-height: 0;
   margin-top: 9.94px;
   margin-right: auto;
   margin-left: auto;
-  flex: 0 0 auto;
+  flex: 1 1 0;
   overflow: hidden;
 }
 

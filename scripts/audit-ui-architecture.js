@@ -901,8 +901,11 @@ record(
 )
 record(
   'build_intel_disclaimer_stays_inside_the_wechat_viewport',
-  /\.cardViewport\s*\{[^}]*height:\s*498\.75px;/su.test(read('apps/mini-taro/src/pages/builds/build-intel.module.scss')),
-  'build intel card viewport must reserve enough height for the terminal disclaimer',
+  /\.page\s*\{[^}]*height:\s*calc\(var\(--route-safe-viewport-height\) - var\(--space-12\)\);[^}]*min-height:\s*0;/su.test(read('apps/mini-taro/src/pages/builds/build-intel.module.scss'))
+    && /\.contentColumn\s*\{[^}]*min-height:\s*0;[^}]*flex:\s*1 1 auto;[^}]*overflow:\s*hidden;/su.test(read('apps/mini-taro/src/pages/builds/build-intel.module.scss'))
+    && /\.cardViewport\s*\{[^}]*height:\s*auto;[^}]*max-height:\s*498\.75px;[^}]*min-height:\s*0;[^}]*flex:\s*1 1 0;/su.test(read('apps/mini-taro/src/pages/builds/build-intel.module.scss'))
+    && /<RouteColumn className=\{styles\['contentColumn'\]/u.test(read('apps/mini-taro/src/pages/builds/intel.tsx')),
+  'build intel must allocate card scroll height from the safe viewport so the terminal disclaimer stays visible',
 )
 const viewportFitStyles = {
   newsDetail: read('apps/mini-taro/src/pages/news/news-detail.module.scss'),

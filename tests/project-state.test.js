@@ -670,3 +670,12 @@ test('all used Taro native layout nodes inherit border-box geometry', () => {
   }
   assert.match(appStyles, /textarea\s*\{\s*box-sizing:\s*border-box;/)
 })
+
+test('build intel allocates its card viewport below the safe terminal disclaimer', () => {
+  const styles = fs.readFileSync('apps/mini-taro/src/pages/builds/build-intel.module.scss', 'utf8')
+  const page = fs.readFileSync('apps/mini-taro/src/pages/builds/intel.tsx', 'utf8')
+  assert.match(styles, /\.page\s*\{[\s\S]*height:\s*calc\(var\(--route-safe-viewport-height\) - var\(--space-12\)\);[\s\S]*min-height:\s*0;/)
+  assert.match(styles, /\.contentColumn\s*\{[\s\S]*flex:\s*1 1 auto;[\s\S]*overflow:\s*hidden;/)
+  assert.match(styles, /\.cardViewport\s*\{[\s\S]*height:\s*auto;[\s\S]*max-height:\s*498\.75px;[\s\S]*flex:\s*1 1 0;/)
+  assert.match(page, /<RouteColumn className=\{styles\['contentColumn'\]/)
+})

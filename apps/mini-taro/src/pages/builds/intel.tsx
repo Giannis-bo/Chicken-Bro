@@ -90,7 +90,7 @@ export default function BuildIntelPage() {
           variant="build-intel"
           onBack={() => goBack('/pages/builds/builds')}
         >
-          <RouteColumn>
+          <RouteColumn className={styles['contentColumn'] ?? ''}>
             <RouteRegion className={styles['summary'] ?? ''} data-region="summary_card">
               <BuildIntelSummary
                 description={model.description}
