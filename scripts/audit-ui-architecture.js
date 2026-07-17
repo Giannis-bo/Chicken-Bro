@@ -889,7 +889,16 @@ for (const file of componentSources.filter((candidate) => candidate.endsWith('.t
         if (attribute.value?.type === 'JSXExpressionContainer' && attribute.value.expression.type === 'StringLiteral') return [[attribute.name.name, attribute.value.expression.value]]
         return []
       }))
-      if (attributes.assetId && attributes.slotId) literalAssetBindings.push({ assetId: attributes.assetId, slotId: attributes.slotId, file })
+      const bindingPairs = [
+        ['assetId', 'slotId', 'asset'],
+        ['frameAssetId', 'frameSlotId', 'frame'],
+        ['fallbackAssetId', 'fallbackSlotId', 'fallback'],
+      ]
+      for (const [assetKey, slotKey, bindingKind] of bindingPairs) {
+        if (attributes[assetKey] && attributes[slotKey]) {
+          literalAssetBindings.push({ assetId: attributes[assetKey], slotId: attributes[slotKey], bindingKind, file })
+        }
+      }
     },
   })
 }
@@ -914,6 +923,16 @@ record(
     && (assetReusePolicy.explicitReusableAssetIds ?? []).every((entry) => entry.assetId && entry.reason)
     && unapprovedCrossSlotAssets.length === 0,
   unapprovedCrossSlotAssets.join(', ') || `bindings=${literalAssetBindings.length}`,
+)
+const reconstructionPrimitives = read('packages/design-system/src/components/ReconstructionPrimitives.tsx')
+const newsDetailComponents = read('packages/design-system/src/components/NewsDetailComponents.tsx')
+record(
+  'disabled_frames_publish_no_asset_identity',
+  /frameMode === 'material' \? \{/u.test(reconstructionPrimitives)
+    && /'data-frame-asset-id': assetId/u.test(reconstructionPrimitives)
+    && !/frameAssetId="news-frame\./u.test(newsDetailComponents)
+    && !/frameSlotId="asset_slot\.news-detail-frame-family"/u.test(newsDetailComponents),
+  'CSS-only route panels must not impersonate a disabled cross-route raster frame binding',
 )
 
 const nativeControlStyles = read('packages/design-system/src/components/owners.module.scss')

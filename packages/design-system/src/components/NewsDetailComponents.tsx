@@ -30,9 +30,6 @@ export function NewsDetailHero({
     <ForgedPanel
       className={reconstructionStyle('newsDetailHeroOwner')}
       contentInset={12}
-      frameAssetId="news-frame.panel"
-      frameSlotId="asset_slot.news-detail-frame-family"
-      frameWidth={0}
       frameMode="none"
       materialFamily="news"
       owner="news-detail-hero"
@@ -101,9 +98,6 @@ export function TranslationStatusSegments({
     <ForgedPanel
       className={reconstructionStyle('newsDetailTranslationOwner')}
       contentInset={3}
-      frameAssetId="news-frame.tab"
-      frameSlotId="asset_slot.news-detail-frame-family"
-      frameWidth={0}
       frameMode="none"
       materialFamily="news"
       owner="translation-status-segments"
@@ -170,9 +164,6 @@ export function ArticleReadingSurface({ blocks, loading = false }: ArticleReadin
     <ForgedPanel
       className={reconstructionStyle('newsDetailReadingOwner')}
       contentInset={11}
-      frameAssetId="news-frame.feed"
-      frameSlotId="asset_slot.news-detail-frame-family"
-      frameWidth={0}
       frameMode="none"
       materialFamily="news"
       owner="article-reading-surface"
@@ -239,9 +230,6 @@ export function SourceReferenceAction({
     <ForgedPanel
       className={reconstructionStyle('newsDetailSourceActionOwner')}
       contentInset={8}
-      frameAssetId="news-frame.panel"
-      frameSlotId="asset_slot.news-detail-frame-family"
-      frameWidth={0}
       frameMode="none"
       materialFamily="news"
       owner="source-reference-action"
@@ -296,9 +284,6 @@ export function ArticleEvidencePanel({ rows, expanded, onToggle }: ArticleEviden
     <ForgedPanel
       className={reconstructionStyle('newsDetailEvidenceOwner')}
       contentInset={7}
-      frameAssetId="news-frame.panel"
-      frameSlotId="asset_slot.news-detail-frame-family"
-      frameWidth={0}
       frameMode="none"
       materialFamily="news"
       owner="article-evidence-panel"
@@ -402,9 +387,6 @@ export function NewsDetailTerminalPanel({
     <ForgedPanel
       className={reconstructionStyle('newsDetailTerminalOwner')}
       contentInset={7}
-      frameAssetId="news-frame.panel"
-      frameSlotId="asset_slot.news-detail-frame-family"
-      frameWidth={0}
       frameMode="none"
       materialFamily="news"
       owner="news-detail-terminal-panel"

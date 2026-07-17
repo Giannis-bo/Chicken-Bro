@@ -84,8 +84,10 @@ export function ForgedPanel({
       data-frame-layer={frameLayer}
       data-frame-mode={frameMode}
       data-frame-asset-ready={frameAssetReady ? 'true' : 'false'}
-      data-frame-asset-id={assetId}
-      data-frame-width={frameWidth}
+      {...(frameMode === 'material' ? {
+        'data-frame-asset-id': assetId,
+        'data-frame-width': frameWidth,
+      } : {})}
       data-interactive-inset={interactiveInset ?? contentInset}
       data-material-family={materialFamily}
       data-owner={owner}

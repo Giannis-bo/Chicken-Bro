@@ -360,6 +360,9 @@ test('cross-slot literal asset reuse is deny-by-default and documented', () => {
   assert.ok(policy.explicitReusableAssetIds.every((entry) => entry.assetId && entry.reason))
   assert.match(audit, /literal_assets_need_explicit_policy_before_cross_slot_reuse/)
   assert.match(audit, /unapprovedCrossSlotAssets/)
+  assert.match(audit, /\['frameAssetId', 'frameSlotId', 'frame'\]/)
+  assert.match(audit, /\['fallbackAssetId', 'fallbackSlotId', 'fallback'\]/)
+  assert.match(audit, /disabled_frames_publish_no_asset_identity/)
 })
 
 test('raster integration metadata cannot drift from registry and source bindings', () => {
