@@ -4,7 +4,7 @@
   "classification": "Strict",
   "status": "implementation_allowed",
   "goal": "Replace the equipment simulator's user-facing static-sum or asynchronous SimC-gated attribute display with a versioned deterministic non-combat character-panel calculation that refreshes immediately after a confirmed gear change.",
-  "userValue": "Players can trust that an imported community template and a manually adjusted gear combination show the same game-comparable base character attributes without waiting for a SimulationCraft job.",
+  "userValue": "Players can trust that an imported community template silently uses its verified source-race context while manual gear combinations use the stable human default, and both show game-comparable base character attributes without waiting for a SimulationCraft job.",
   "nonGoals": [
     "Do not model temporary combat buffs, consumables, trinket procs or other conditional effects as part of the non-combat base panel.",
     "Do not remove, weaken or place SimulationCraft DPS, scenario simulation, queue, worker or audit behavior on the attribute-display path.",
@@ -40,6 +40,7 @@
       "Frontend and backend golden-fixture parity tests, green-stat raw-plus-percent/effect presentation tests, and real mini-program performance evidence.",
       "docs/builds-architecture.md and docs/gear-simulation-full-chain-runbook.md to document the post-cutover ownership and SimC boundary.",
       "Winner-driven PostgreSQL attribute audit intent/worker/health boundary that is detached from Release promotion and player interactions."
+      ,"Verified source-race capture, sealed community import projection and implicit equipment-page character context without a user selector."
     ],
     "mustNotChange": [
       "Resolver legality, canonical selection, observed-only community eligibility, Release/Manifest authority and enhancement constraints.",
@@ -108,6 +109,10 @@
     {
       "date": "2026-07-17",
       "decision": "User approved implementation of the winner-driven audit as a fail-open background mechanism: audit failures, missing evidence and no published verified rule must never delay winner Release, community import, manual gear changes or SimC."
+    },
+    {
+      "date": "2026-07-17",
+      "decision": "User approved removing the equipment-page race selector: community imports silently retain a verified source race through later gear changes, while manual, reset, missing-source and legacy paths silently use human; this context must not enter SimC or add a network request."
     }
   ],
   "relatedDesign": "docs/superpowers/specs/2026-07-17-real-time-gear-stat-engine-design.md"
