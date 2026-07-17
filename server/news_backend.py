@@ -544,6 +544,17 @@ def gear_stat_snapshot_data_store():
     return GearStatSnapshotStore(lambda: connect_postgres(config.database_url))
 
 
+def attribute_rule_audit_data_store():
+    config = database_config_from_env()
+    if not postgres_personal_runtime_enabled(config):
+        return None
+    try:
+        from .attribute_rule_audit_store import AttributeRuleAuditStore
+    except ImportError:
+        from attribute_rule_audit_store import AttributeRuleAuditStore
+    return AttributeRuleAuditStore(lambda: connect_postgres(config.database_url))
+
+
 def init_db():
     with db_connection() as conn:
         ensure_schema_migrations(conn)
@@ -2415,6 +2426,77 @@ def gear_stat_snapshot_health_component(*, store=None, now="", simc_runtime_revi
     )
 
 
+def attribute_rule_audit_health_component(*, store=None, now=""):
+    checked_at = str(now or utc_now())
+    active_store = store if store is not None else attribute_rule_audit_data_store()
+    if active_store is None:
+        return data_health_component(
+            "attribute_rule_audit",
+            "Winner attribute rule audit",
+            "blocked",
+            checked_at=checked_at,
+            blockers=["attribute rule audit PostgreSQL store is unavailable"],
+        )
+    try:
+        summary = active_store.health_summary(now=checked_at)
+    except Exception:
+        return data_health_component(
+            "attribute_rule_audit",
+            "Winner attribute rule audit",
+            "blocked",
+            checked_at=checked_at,
+            blockers=["attribute rule audit health reader is unavailable"],
+        )
+    summary = summary if isinstance(summary, dict) else {}
+    queue = summary.get("queue") if isinstance(summary.get("queue"), dict) else {}
+    counts = summary.get("terminalCounts") if isinstance(summary.get("terminalCounts"), dict) else {}
+    findings = [
+        {
+            "attributeRuleRevision": str(row.get("attributeRuleRevision") or ""),
+            "contextKey": str(row.get("contextKey") or ""),
+        }
+        for row in (summary.get("findingRuleContexts") or [])[:8]
+        if isinstance(row, dict)
+        and str(row.get("attributeRuleRevision") or "")
+        and str(row.get("contextKey") or "")
+    ]
+    confirmed = int(counts.get("confirmedMismatch") or 0)
+    unavailable = int(counts.get("sourceUnavailable") or 0)
+    inconclusive = int(counts.get("inconclusive") or 0)
+    passed = int(counts.get("pass") or 0)
+    pending = int(queue.get("pending") or 0)
+    running = int(queue.get("running") or 0)
+    blockers = ["confirmed attribute rule mismatch requires a new rule revision review"] if confirmed else []
+    if confirmed:
+        status = "blocked"
+    elif unavailable or inconclusive or pending or running or not passed:
+        status = "partial"
+    else:
+        status = "verified"
+    return data_health_component(
+        "attribute_rule_audit",
+        "Winner attribute rule audit",
+        status,
+        checked_at=str(summary.get("latestCheckedAt") or checked_at),
+        details={
+            "queue": {"pending": pending, "running": running},
+            "terminalCounts": {
+                "pass": passed,
+                "confirmedMismatch": confirmed,
+                "inconclusive": inconclusive,
+                "sourceUnavailable": unavailable,
+            },
+            "latestCheckedAt": str(summary.get("latestCheckedAt") or ""),
+            "findingRuleContexts": findings,
+            "trigger": {
+                "unit": "wow-gear-release-refresh.service",
+                "onSuccessUnit": "wow-attribute-rule-audit.service",
+            },
+        },
+        blockers=blockers,
+    )
+
+
 def gear_legality_template_records_from_cache_store(cache_store):
     if not cache_store or not hasattr(cache_store, "admin_gate_gear_template_records"):
         return []
@@ -3249,6 +3331,7 @@ def build_postgres_only_data_health_payload(*, include_template_evidence_audit=T
         active_manifest_health_component(cache_store),
         release_refresh_health_component(cache_store),
         gear_stat_snapshot_health_component(),
+        attribute_rule_audit_health_component(),
         news_health_component_from_latest(latest),
         data_health_component(
             "raiderio",
@@ -3403,6 +3486,7 @@ def build_data_health_payload(*, include_template_evidence_audit=True):
         data_health_component("backend", "Backend service", "verified", checked_at=utc_now()),
         data_health_followup_health_component(cache_store),
         news_health_component(),
+        attribute_rule_audit_health_component(),
     ]
     with db_connection() as conn:
         raiderio = get_raiderio_payload(conn, allow_sync=False)

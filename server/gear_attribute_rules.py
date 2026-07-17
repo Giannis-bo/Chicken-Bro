@@ -445,6 +445,7 @@ def validate_attribute_rulebook(
     raw: object,
     *,
     golden_samples: object | None = None,
+    promotion_findings_reader: Any = None,
 ) -> tuple[dict | None, list[dict]]:
     """Validate a static rulebook and keep fixture-only contexts non-public."""
     if not isinstance(raw, dict):
@@ -487,6 +488,20 @@ def validate_attribute_rulebook(
                 for sample_id in context.get("goldenSampleIds", []):
                     if sample_id not in verified_sample_ids:
                         issues.append(_issue("INVALID_RULEBOOK", "UNVERIFIED_GOLDEN_SAMPLE", f"rulebook.contexts[{index}].goldenSampleIds", "verified rules require referenced verified Armory samples"))
+    if callable(promotion_findings_reader) and isinstance(raw.get("attributeRuleRevision"), str):
+        try:
+            findings = promotion_findings_reader(raw["attributeRuleRevision"])
+        except Exception:
+            findings = []
+            issues.append(_issue("INVALID_RULEBOOK", "ATTRIBUTE_RULE_AUDIT_FINDING_READER_UNAVAILABLE", "rulebook.attributeRuleRevision", "attribute audit finding reader is unavailable for rule promotion"))
+        for finding in findings if isinstance(findings, list) else []:
+            if not isinstance(finding, dict):
+                continue
+            if finding.get("attributeRuleRevision") != raw["attributeRuleRevision"]:
+                continue
+            context_key = _bounded_string(finding.get("contextKey")) or "attributeRuleAudit"
+            issues.append(_issue("INVALID_RULEBOOK", "ATTRIBUTE_RULE_AUDIT_MISMATCH_BLOCKS_PROMOTION", f"rulebook.contexts.{context_key}", "a confirmed winner attribute audit mismatch blocks this rule revision from promotion"))
+            break
     if issues:
         return None, issues
     return copy.deepcopy(raw), []

@@ -2,6 +2,7 @@
 Description=Build and gate immutable WOW gear release candidates
 After=network-online.target postgresql.service wow-backend.service
 Wants=network-online.target
+OnSuccess=wow-attribute-rule-audit.service
 
 [Service]
 Type=oneshot

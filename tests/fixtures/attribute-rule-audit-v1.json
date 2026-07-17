@@ -1,0 +1,109 @@
+{
+  "schemaRevision": "winner-attribute-rule-audit-v1",
+  "candidateContext": {
+    "candidateCommunityReleaseId": "community-release:fixture-candidate",
+    "candidateGearReleaseId": "gear-release:fixture-candidate",
+    "manifestRevision": "season-manifest:fixture-candidate"
+  },
+  "activeWinners": [
+    {
+      "templateId": "mage-frost-active",
+      "classKey": "mage",
+      "specKey": "frost",
+      "role": "winner",
+      "sourceKey": "raiderio_observed_profile",
+      "profileHash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "gearHash": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+    }
+  ],
+  "candidateRows": [
+    {
+      "templateId": "mage-frost-candidate",
+      "classKey": "mage",
+      "specKey": "frost",
+      "role": "winner",
+      "sourceKey": "raiderio_observed_profile",
+      "profileHash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+      "gearHash": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+      "selectionIntent": {
+        "schemaRevision": "gear-selection-intent-v1",
+        "eligibilityContext": {"classKey": "mage", "specKey": "frost", "level": 90},
+        "slots": {}
+      },
+      "evidence": {
+        "sourceRefs": [
+          {"region": "eu", "realmSlug": "blackrock", "characterName": "Fixturemage", "locale": "en_GB"}
+        ],
+        "attributeAudit": {
+          "characterContext": {"classKey": "mage", "specKey": "frost", "raceKey": "human", "level": 90},
+          "canonicalEquipment": [
+            {"slot": "head", "itemId": "100001", "itemLevel": 289, "bonusIds": [], "gemIds": [], "enchantIds": []},
+            {"slot": "neck", "itemId": "100002", "itemLevel": 289, "bonusIds": [], "gemIds": ["240914"], "enchantIds": []},
+            {"slot": "shoulder", "itemId": "100003", "itemLevel": 289, "bonusIds": [], "gemIds": [], "enchantIds": ["8031"]},
+            {"slot": "back", "itemId": "100004", "itemLevel": 289, "bonusIds": [], "gemIds": [], "enchantIds": []},
+            {"slot": "chest", "itemId": "100005", "itemLevel": 289, "bonusIds": [], "gemIds": [], "enchantIds": ["7987"]},
+            {"slot": "wrist", "itemId": "100006", "itemLevel": 289, "bonusIds": [], "gemIds": [], "enchantIds": []},
+            {"slot": "hands", "itemId": "100007", "itemLevel": 289, "bonusIds": [], "gemIds": [], "enchantIds": []},
+            {"slot": "waist", "itemId": "100008", "itemLevel": 289, "bonusIds": [], "gemIds": [], "enchantIds": []},
+            {"slot": "legs", "itemId": "100009", "itemLevel": 289, "bonusIds": [], "gemIds": [], "enchantIds": ["7935"]},
+            {"slot": "feet", "itemId": "100010", "itemLevel": 289, "bonusIds": [], "gemIds": [], "enchantIds": []},
+            {"slot": "finger1", "itemId": "100011", "itemLevel": 289, "bonusIds": [], "gemIds": [], "enchantIds": ["7893"]},
+            {"slot": "finger2", "itemId": "100012", "itemLevel": 289, "bonusIds": [], "gemIds": [], "enchantIds": []},
+            {"slot": "trinket1", "itemId": "100013", "itemLevel": 289, "bonusIds": [], "gemIds": [], "enchantIds": []},
+            {"slot": "trinket2", "itemId": "100014", "itemLevel": 289, "bonusIds": [], "gemIds": [], "enchantIds": []},
+            {"slot": "main_hand", "itemId": "100015", "itemLevel": 298, "bonusIds": ["6652"], "gemIds": [], "enchantIds": ["8368"]}
+          ],
+          "staticAttributes": {"intellect": 500, "stamina": 600, "haste_rating": 100},
+          "stableEffects": ["set:mage-2pc"],
+          "resolverStaticSignature": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      }
+    }
+  ],
+  "verifiedRulebook": {
+    "schemaRevision": "gear-attribute-rulebook-v1",
+    "attributeRuleRevision": "fixture-audit-r1",
+    "contexts": [
+      {
+        "contextKey": "mage:frost:90:human",
+        "classKey": "mage",
+        "specKey": "frost",
+        "level": 90,
+        "raceKey": "human",
+        "status": "verified",
+        "primaryKey": "intellect",
+        "baseAttributes": {"intellect": 1000, "stamina": 2000},
+        "stableModifiers": [],
+        "resources": {"health": {"base": 100, "perStamina": 20, "round": "floor"}},
+        "secondaryRules": [
+          {"inputKey": "haste_rating", "outputKey": "haste", "label": "Haste", "basePercent": 0, "ratingPerPercent": 50, "precision": 1, "sourceRefs": ["test:rule"], "displayUnit": "percent"}
+        ],
+        "sourceRefs": ["test:rule"],
+        "goldenSampleIds": ["test:golden"]
+      }
+    ]
+  },
+  "fixtureOnlyRulebook": {
+    "schemaRevision": "gear-attribute-rulebook-v1",
+    "attributeRuleRevision": "fixture-audit-r1",
+    "contexts": [
+      {
+        "contextKey": "mage:frost:90:human",
+        "classKey": "mage",
+        "specKey": "frost",
+        "level": 90,
+        "raceKey": "human",
+        "status": "fixture_only",
+        "primaryKey": "intellect",
+        "baseAttributes": {"intellect": 1000},
+        "stableModifiers": [],
+        "resources": {"health": {"base": 100, "perStamina": 20, "round": "floor"}},
+        "secondaryRules": [
+          {"inputKey": "haste_rating", "outputKey": "haste", "label": "Haste", "basePercent": 0, "ratingPerPercent": 50, "precision": 1, "sourceRefs": ["test:rule"], "displayUnit": "percent"}
+        ],
+        "sourceRefs": ["test:rule"],
+        "goldenSampleIds": []
+      }
+    ]
+  }
+}

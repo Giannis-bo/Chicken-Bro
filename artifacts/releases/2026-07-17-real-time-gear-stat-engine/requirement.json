@@ -22,6 +22,8 @@
       "docs/project-owner-map.json",
       "docs/backend-owner-map.json",
       "docs/superpowers/specs/2026-07-17-real-time-gear-stat-engine-design.md",
+      "docs/superpowers/specs/2026-07-17-winner-driven-attribute-rule-audit-design.md",
+      "docs/superpowers/plans/2026-07-17-winner-driven-attribute-rule-audit.md",
       "pages/builds/detail.js",
       "server/websim_payload.py",
       "server/gear_stat_snapshot_api.py"
@@ -36,12 +38,14 @@
       "Resolved gear payload or a dedicated read contract that supplies versioned attributeCalculationContext.",
       "pages/builds/detail.* and workbench state so the immediate base panel consumes the deterministic result rather than SimC snapshot availability.",
       "Frontend and backend golden-fixture parity tests, green-stat raw-plus-percent/effect presentation tests, and real mini-program performance evidence.",
-      "docs/builds-architecture.md and docs/gear-simulation-full-chain-runbook.md to document the post-cutover ownership and SimC boundary."
+      "docs/builds-architecture.md and docs/gear-simulation-full-chain-runbook.md to document the post-cutover ownership and SimC boundary.",
+      "Winner-driven PostgreSQL attribute audit intent/worker/health boundary that is detached from Release promotion and player interactions."
     ],
     "mustNotChange": [
       "Resolver legality, canonical selection, observed-only community eligibility, Release/Manifest authority and enhancement constraints.",
       "The existing gear_stat_snapshot SimC worker, queue, fencing and health semantics for simulation and audit purposes.",
-      "PG-only runtime and public-source trust boundaries."
+      "PG-only runtime and public-source trust boundaries.",
+      "Winner audit liveness, external official-profile availability and audit findings as prerequisites for any player-visible immediate attribute calculation."
     ],
     "riskUnknown": [
       "Verifiable rule sources for every first-release class/species/level/stable passive and all secondary-stat conversions.",
@@ -63,7 +67,9 @@
       "pages/builds/detail.* immediate attribute overview",
       "equipment workbench state and community-template import replay",
       "server-side reference validation and golden-sample audit",
-      "SimulationCraft scenario/DPS flows as a separate consumer of canonical gear inputs"
+      "SimulationCraft scenario/DPS flows as a separate consumer of canonical gear inputs",
+      "server/attribute_rule_audit_store.py as sole owner of audit queue/result state",
+      "server/attribute_rule_audit_worker.py as read-only external-profile consumer after a sealed winner election"
     ],
     "ownerMapRefs": [
       "docs/project-owner-map.json: WebSim gear/read-model and mini-program runtime domains",
@@ -98,6 +104,10 @@
     {
       "date": "2026-07-17",
       "decision": "User approved the Strict design contract and authorized progression to an implementation plan; no runtime implementation has started."
+    },
+    {
+      "date": "2026-07-17",
+      "decision": "User approved implementation of the winner-driven audit as a fail-open background mechanism: audit failures, missing evidence and no published verified rule must never delay winner Release, community import, manual gear changes or SimC."
     }
   ],
   "relatedDesign": "docs/superpowers/specs/2026-07-17-real-time-gear-stat-engine-design.md"

@@ -44,7 +44,7 @@ User-visible acceptance remains: importing a community template and changing one
 - Create: `tests/attribute_rule_audit_test.py`
 - Modify: `tests/gear_attribute_engine_test.py` only if a public result-shape invariant needs one additional assertion
 
-- [ ] **Step 1: Write failing pure-contract tests before implementation.**
+- [x] **Step 1: Write failing pure-contract tests before implementation.**
 
   Cover the following fixture-driven cases without a database, HTTP client, clock or SimC import:
 
@@ -70,7 +70,7 @@ User-visible acceptance remains: importing a community template and changing one
   self.assertTrue(intents[0]["auditKey"].startswith("attribute-audit:sha256:"))
   ```
 
-- [ ] **Step 2: Run the new test to prove the RED state.**
+- [x] **Step 2: Run the new test to prove the RED state.**
 
   Run:
 
@@ -80,7 +80,7 @@ User-visible acceptance remains: importing a community template and changing one
 
   Expected: import/module failures or assertion failures for the absent contract functions. Record this only in the implementation evidence, not as a completion result.
 
-- [ ] **Step 3: Implement one pure, bounded module.**
+- [x] **Step 3: Implement one pure, bounded module.**
 
   In `server/attribute_rule_audit.py`, expose and document these narrow functions:
 
@@ -103,7 +103,7 @@ User-visible acceptance remains: importing a community template and changing one
 
   `compare_attribute_panel()` must flatten primary, stamina, resource and secondary rows into keyed values. For every secondary, retain `rawRating`, `displayValue`, `displayUnit` and rule precision. It must compare non-combat values only and return one of `pass` / `confirmed_mismatch`; it must reject an unmatched input instead of comparing it.
 
-- [ ] **Step 4: Run focused regression checks.**
+- [x] **Step 4: Run focused regression checks.**
 
   Run:
 
@@ -122,7 +122,7 @@ User-visible acceptance remains: importing a community template and changing one
 - Create: `tests/attribute_rule_audit_store_test.py`
 - Modify: `tests/postgres_schema_test.py`
 
-- [ ] **Step 1: Write failing repository/migration tests.**
+- [x] **Step 1: Write failing repository/migration tests.**
 
   Tests must assert all of the following before store code exists:
 
@@ -132,7 +132,7 @@ User-visible acceptance remains: importing a community template and changing one
   - only the matching running lease can complete a record; terminal records cannot be reopened by a duplicate intent;
   - health summary returns bounded counts/latest terminal finding and never returns full input JSON/source identity.
 
-- [ ] **Step 2: Run the RED checks.**
+- [x] **Step 2: Run the RED checks.**
 
   ```bash
   python3 -m unittest -q tests.attribute_rule_audit_store_test tests.postgres_schema_test
@@ -140,7 +140,7 @@ User-visible acceptance remains: importing a community template and changing one
 
   Expected: failures reference the absent `0016` migration/store methods.
 
-- [ ] **Step 3: Define the audit ledger in `0016_websim_attribute_rule_audits.sql`.**
+- [x] **Step 3: Define the audit ledger in `0016_websim_attribute_rule_audits.sql`.**
 
   Use one append-preserving operational table rather than overloading `cache.websim_sync_state`:
 
@@ -170,7 +170,7 @@ User-visible acceptance remains: importing a community template and changing one
 
   Add a `pending` claim index `(status, queued_at, audit_key)`, a terminal finding index `(attribute_rule_revision, status, finished_at DESC)`, revoke `DELETE` from `wow_app`, grant only `SELECT, INSERT, UPDATE`, and register `0016` in `ops.schema_migrations`. Do not create triggers that update public rules, Releases, Manifests or cache entries.
 
-- [ ] **Step 4: Implement `AttributeRuleAuditStore` as the sole SQL owner.**
+- [x] **Step 4: Implement `AttributeRuleAuditStore` as the sole SQL owner.**
 
   Mirror the narrow, testable transactional conventions in `server/gear_stat_snapshot_store.py`, but do not reuse its request queue or health semantics:
 
@@ -183,7 +183,7 @@ User-visible acceptance remains: importing a community template and changing one
 
   Validate the `attribute-audit:sha256:` key, permitted status transition and bounded payloads before SQL. `enqueue_intents()` inserts `pending`, `not_applicable`, or `blocked_missing_evidence`; an `ON CONFLICT DO NOTHING` must preserve the original capture/result. `claim_next()` only claims `pending`; it may reclaim an expired `running` record up to three attempts and otherwise terminalizes as `blocked_source_unavailable` with a bounded code. `finish()` accepts only the four worker outcomes (`blocked_source_unavailable`, `inconclusive_input_mismatch`, `pass`, `confirmed_mismatch`) and requires the lease token.
 
-- [ ] **Step 5: Run focused storage checks.**
+- [x] **Step 5: Run focused storage checks.**
 
   ```bash
   python3 -m unittest -q tests.attribute_rule_audit_store_test tests.postgres_schema_test
@@ -200,7 +200,7 @@ User-visible acceptance remains: importing a community template and changing one
 - Modify: `tests/gear_release_refresh_test.py`
 - Modify: `tests/attribute_rule_audit_test.py`
 
-- [ ] **Step 1: Add failing orchestration tests around the existing `FakeStore`.**
+- [x] **Step 1: Add failing orchestration tests around the existing `FakeStore`.**
 
   Assert that:
 
@@ -210,7 +210,7 @@ User-visible acceptance remains: importing a community template and changing one
   - no audit adapter/HTTP/SimC callback is accepted by or invoked from `run_release_refresh()`;
   - existing release-refresh result payload stays backward compatible except for a bounded additive audit summary.
 
-- [ ] **Step 2: Run the RED check.**
+- [x] **Step 2: Run the RED check.**
 
   ```bash
   python3 -m unittest -q tests.gear_release_refresh_test tests.attribute_rule_audit_test
@@ -218,7 +218,7 @@ User-visible acceptance remains: importing a community template and changing one
 
   Expected: the new injection/ordering assertions fail before the refresh wiring exists.
 
-- [ ] **Step 3: Add a fail-open intent seam after sealing.**
+- [x] **Step 3: Add a fail-open intent seam after sealing.**
 
   Extend `run_release_refresh()` with optional injected collaborators, never a network client:
 
@@ -228,7 +228,7 @@ User-visible acceptance remains: importing a community template and changing one
 
   In `_run_from_environment()`, instantiate `AttributeRuleAuditStore` from the same PostgreSQL connection factory, pass `store.enqueue_intents`, and pass an explicit fail-closed published-rulebook loader. Until the production rulebook exists, that loader must return the existing empty/unavailable rulebook; this creates `not_applicable` evidence only and prevents any external fetch.
 
-- [ ] **Step 4: Run Release and contract regression checks.**
+- [x] **Step 4: Run Release and contract regression checks.**
 
   ```bash
   python3 -m unittest -q tests.gear_release_refresh_test tests.gear_release_store_test tests.attribute_rule_audit_test
@@ -247,7 +247,7 @@ User-visible acceptance remains: importing a community template and changing one
 - Modify: `server/wow-gear-release-refresh.service`
 - Modify: `tests/deploy-script.test.js`
 
-- [ ] **Step 1: Write failing worker tests using fake store/source/calculator collaborators.**
+- [x] **Step 1: Write failing worker tests using fake store/source/calculator collaborators.**
 
   Cover this exact sequence:
 
@@ -258,7 +258,7 @@ User-visible acceptance remains: importing a community template and changing one
   5. only matched input calls `applicable_attribute_rule()` plus `calculate_noncombat_attributes()` and writes `pass` or `confirmed_mismatch`;
   6. one worker invocation processes the configured small maximum (default `1`, hard maximum `3`), respects lease fencing, never imports/starts SimC, and returns a bounded JSON summary.
 
-- [ ] **Step 2: Run the RED check.**
+- [x] **Step 2: Run the RED check.**
 
   ```bash
   python3 -m unittest -q tests.attribute_rule_audit_worker_test
@@ -266,13 +266,13 @@ User-visible acceptance remains: importing a community template and changing one
 
   Expected: absent source/worker modules cause the intended failures.
 
-- [ ] **Step 3: Implement a source adapter with no persistence authority.**
+- [x] **Step 3: Implement a source adapter with no persistence authority.**
 
   `server/attribute_rule_audit_source.py` must wrap, not duplicate, `get_blizzard_access_token()` and `blizzard_get()` from `server/websim_payload.py`. It accepts only normalized `{region, realmSlug, characterName, locale}` identity from a claimed intent and requests the official profile/equipment/stat resources needed for the match. Return a normalized structured snapshot; redact/omit token, authorization header and unbounded upstream body from exceptions and summaries.
 
   The adapter entry point is `fetch_official_profile(identity) -> normalized profile snapshot`. It raises `AttributeAuditSourceUnavailable` with a stable public-safe code, never derives identity from URL/title text, and never writes a catalog row.
 
-- [ ] **Step 4: Implement the one-shot worker.**
+- [x] **Step 4: Implement the one-shot worker.**
 
   `server/attribute_rule_audit_worker.py` should parse `--json`, construct `AttributeRuleAuditStore`, claim one job at a time, call the Task 1 matcher before any arithmetic, and finish through the store's lease token. Reuse the sealed rule snapshot/revision from the intent rather than reading mutable candidate rows at execution time. Inject `source_fetcher`, `matcher`, `calculator` and `now` for tests.
 
@@ -289,7 +289,7 @@ User-visible acceptance remains: importing a community template and changing one
 
   No status in this worker is public readiness. Its `confirmed_mismatch` result is an internal finding only.
 
-- [ ] **Step 5: Add a detached systemd service.**
+- [x] **Step 5: Add a detached systemd service.**
 
   Use `OnSuccess=wow-attribute-rule-audit.service` in `server/wow-gear-release-refresh.service` so systemd schedules the independent audit only after a successful refresh; it must not be an `ExecStart`/`ExecStartPost` child of the refresh process. Create `server/wow-attribute-rule-audit.service` with:
 
@@ -318,7 +318,7 @@ User-visible acceptance remains: importing a community template and changing one
 
   Do **not** add a timer and do **not** start this service on deploy: its durable queue is created only after an election and `OnSuccess` provides the daily trigger. Extend deploy-script tests to require proxy configuration, installed unit file, the `OnSuccess` relationship and absence of deploy-triggered start.
 
-- [ ] **Step 6: Run worker/unit regression checks.**
+- [x] **Step 6: Run worker/unit regression checks.**
 
   ```bash
   python3 -m unittest -q tests.attribute_rule_audit_worker_test tests.attribute_rule_audit_store_test tests.gear_release_refresh_test
@@ -337,7 +337,7 @@ User-visible acceptance remains: importing a community template and changing one
 - Modify: `tests/news_backend_test.py`
 - Modify: `tests/gear_attribute_rules_test.py`
 
-- [ ] **Step 1: Add failing health and promotion-gate tests.**
+- [x] **Step 1: Add failing health and promotion-gate tests.**
 
   Required cases:
 
@@ -348,7 +348,7 @@ User-visible acceptance remains: importing a community template and changing one
   - an existing published rule remains returned unchanged until a separately explicit rule revision/feature-hide action occurs;
   - public `attributeCalculator` output and mini-program local context do not gain a dependency on audit liveness.
 
-- [ ] **Step 2: Run the RED check.**
+- [x] **Step 2: Run the RED check.**
 
   ```bash
   python3 -m unittest -q tests.attribute_rule_audit_health_test tests.news_backend_test tests.gear_attribute_rules_test
@@ -356,7 +356,7 @@ User-visible acceptance remains: importing a community template and changing one
 
   Expected: failures show the absent component/gate; do not weaken existing rulebook validation to make tests pass.
 
-- [ ] **Step 3: Implement bounded health projection and a future-promotion guard.**
+- [x] **Step 3: Implement bounded health projection and a future-promotion guard.**
 
   Follow the existing `gear_stat_snapshot_health_component()` shape in `server/news_backend.py` with a new `attribute_rule_audit_data_store()` factory and `attribute_rule_audit_health_component()`. Details may include only:
 
@@ -372,7 +372,7 @@ User-visible acceptance remains: importing a community template and changing one
 
   Add a narrowly injected `promotion_findings_reader` to the *future rule publication/validation* seam in `gear_attribute_rules.py`; it defaults to no findings for current public calculation. If the reader declares a matching confirmed mismatch, return an explicit validation issue such as `ATTRIBUTE_RULE_AUDIT_MISMATCH_BLOCKS_PROMOTION`. Do not import database code into the pure rule validator, and do not change `applicable_attribute_rule()` behavior for already published rules.
 
-- [ ] **Step 4: Run focused health/contract tests.**
+- [x] **Step 4: Run focused health/contract tests.**
 
   ```bash
   python3 -m unittest -q tests.attribute_rule_audit_health_test tests.news_backend_test tests.gear_attribute_rules_test tests.gear_attribute_api_test
@@ -392,11 +392,11 @@ User-visible acceptance remains: importing a community template and changing one
 - Modify: `docs/gear-simulation-full-chain-runbook.md`
 - Modify: `docs/builds-architecture.md`
 
-- [ ] **Step 1: Add failing deploy/document contract tests.**
+- [x] **Step 1: Add failing deploy/document contract tests.**
 
   Extend the Node deploy tests to require copying `wow-attribute-rule-audit.service`, preserving all external-source proxy settings, and never enabling/starting it directly on deployment. Extend Harness/document tests only where an existing machine-readable contract validates release evidence fields.
 
-- [ ] **Step 2: Run the RED check.**
+- [x] **Step 2: Run the RED check.**
 
   ```bash
   node --test tests/deploy-script.test.js tests/project-harness.test.js
@@ -404,7 +404,7 @@ User-visible acceptance remains: importing a community template and changing one
 
   Expected: missing unit installation and evidence contract assertions fail before the wiring/document updates.
 
-- [ ] **Step 3: Make deployment additive and dormant.**
+- [x] **Step 3: Make deployment additive and dormant.**
 
   `server/deploy_lighthouse.sh` copies the service unit and runs `daemon-reload`, but must not issue `enable --now`, `start`, an external query, a winner refresh or any SimC command for this service. The next successful scheduled Release refresh remains the first possible trigger.
 

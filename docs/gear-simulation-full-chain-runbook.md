@@ -23,6 +23,9 @@
 `server/gear_contracts.py`、`server/gear_result_envelope.py` 和 `server/gear_rule_matrix.py` 是可信装备配置工作台的 Phase 1 契约基础，Phase 3A 已通过单一 backend orchestrator 接入 active runtime：
 
 - `selection-intent-v1` 只接受选择意图；客户端提交的 `itemSetId`、属性、SimC 选项、合法性、readiness、证据或 claims 一律拒绝。
+- winner attribute audit 是 Release 后的只读后台证据链：仅封存 candidate winner 的 `profileHash` / `gearHash` 变化、完整身份和 canonical 装备/强化输入可写去重 intent；它不属于 `selection-intent-v1`、Resolver 或小程序交互请求。
+- `wow-gear-release-refresh.service` 成功后通过 `OnSuccess=wow-attribute-rule-audit.service` 触发一轮有界 PG worker。worker 至多领取少量 fenced intent、只读 Battle.net Profile，先对齐种族/等级/装备实例/装等/bonus/gem/enchant，再调用确定性属性解释器；不调用 SimC，不改 catalog/template/Release/Manifest。
+- `blocked_missing_evidence`、`blocked_source_unavailable` 与 `inconclusive_input_mismatch` 都是审计终态，不阻断 winner election、模板公开、导入或切装。只有相同完整输入下的 `confirmed_mismatch` 形成内部 health finding，并阻止该 revision 的未来规则 promotion；已有发布规则需新的 rule revision 或明确 feature-hide 才能改变。
 - `selectionSignature`、`resolvedGearSignature` 和 `profileSignature` 分别绑定选择、解析 authority、角色/天赋/serializer/SimC/stat policy 依赖，不允许用一个模糊 hash 替代三层失效边界。
 - `gear-result-envelope-v1` 的 HTTP 语义已在 Phase 3A `POST /api/websim/gear/resolve` 与 canonical Profile mode 生效；旧 Profile body 仍保持原 shape。
 - `gear-rule-matrix-v1` 固定按 10 条显式纯函数规则执行，只返回 ordered legality results，不生成 Resolved Snapshot、属性、套装归属、Evidence Claims、SimC lines 或 readiness。

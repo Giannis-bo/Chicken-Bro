@@ -164,6 +164,25 @@ class GearAttributeRulesTest(unittest.TestCase):
         self.assertIsNone(rule)
         self.assertEqual(issues[0]["code"], "ATTRIBUTE_RULE_UNAVAILABLE")
 
+    def test_confirmed_audit_finding_blocks_only_future_rule_promotion_validation(self):
+        rulebook = verified_rulebook()
+
+        parsed, issues = gear_attribute_rules.validate_attribute_rulebook(
+            rulebook,
+            promotion_findings_reader=lambda revision: [{
+                "attributeRuleRevision": revision,
+                "contextKey": "mage:frost:90:human",
+            }],
+        )
+        public_rule, public_issues = gear_attribute_rules.applicable_attribute_rule(
+            rulebook, class_key="mage", spec_key="frost", level=90, race_key="human"
+        )
+
+        self.assertIsNone(parsed)
+        self.assertTrue(any(issue["code"] == "ATTRIBUTE_RULE_AUDIT_MISMATCH_BLOCKS_PROMOTION" for issue in issues))
+        self.assertEqual(public_issues, [])
+        self.assertEqual(public_rule["attributeRuleRevision"], "fixture-r1")
+
     def test_verified_public_context_keeps_provenance_and_strips_implementation_notes(self):
         rulebook = verified_rulebook()
         public = gear_attribute_rules.public_attribute_calculator_context(
