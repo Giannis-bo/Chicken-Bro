@@ -1,0 +1,2651 @@
+{
+  "schemaVersion": "wechat-route-geometry-evidence-v1",
+  "commit": "b67be415751e",
+  "viewport": {
+    "width": 390,
+    "height": 844,
+    "dpr": 3,
+    "safeAreaBottom": 810,
+    "safeBottomInset": 34
+  },
+  "routes": [
+    {
+      "route": "news_home",
+      "path": "/pages/news/news",
+      "viewport": {
+        "width": 390,
+        "height": 844,
+        "dpr": 3,
+        "safeAreaBottom": 810,
+        "safeBottomInset": 34
+      },
+      "summary": {
+        "route": "news_home",
+        "status": "pass",
+        "regionCount": 4,
+        "semanticRegionCount": 4,
+        "buttonCount": 0,
+        "maxRegionRight": 390,
+        "shellRight": 390,
+        "maxBoundRegionBottom": 737,
+        "maxBoundButtonBottom": 0,
+        "safeAreaBottom": 810,
+        "safeBottomInset": 34,
+        "fixedDockButtonCount": 0,
+        "maxFixedDockButtonBottom": 0,
+        "shellBodyScrollable": true,
+        "shellBodyPaddingBottom": 24,
+        "shellBodyBottom": 747,
+        "tabBarTop": 747,
+        "violationCount": 0,
+        "violations": []
+      },
+      "shellBody": {
+        "left": 0,
+        "top": 0,
+        "right": 390,
+        "bottom": 747,
+        "width": 390,
+        "height": 747,
+        "clientHeight": 747,
+        "scrollHeight": 761,
+        "paddingBottom": 24
+      },
+      "tabBar": {
+        "left": 0,
+        "top": 747,
+        "right": 390,
+        "bottom": 844,
+        "width": 390,
+        "height": 97
+      },
+      "regions": [
+        {
+          "id": "daily_brief",
+          "visibleSlot": true,
+          "left": 0,
+          "top": 90,
+          "right": 390,
+          "bottom": 211,
+          "width": 390,
+          "height": 121
+        },
+        {
+          "id": "featured_carousel",
+          "visibleSlot": true,
+          "left": 0,
+          "top": 216,
+          "right": 390,
+          "bottom": 402,
+          "width": 390,
+          "height": 186
+        },
+        {
+          "id": "channel_dock",
+          "visibleSlot": true,
+          "left": 0,
+          "top": 407,
+          "right": 390,
+          "bottom": 480,
+          "width": 390,
+          "height": 73
+        },
+        {
+          "id": "ranked_feed",
+          "visibleSlot": true,
+          "left": 0,
+          "top": 485,
+          "right": 390,
+          "bottom": 737,
+          "width": 390,
+          "height": 252
+        }
+      ],
+      "buttons": [],
+      "fixedDockButtons": []
+    },
+    {
+      "route": "specialization_home/builds_home",
+      "path": "/pages/builds/builds",
+      "viewport": {
+        "width": 390,
+        "height": 844,
+        "dpr": 3,
+        "safeAreaBottom": 810,
+        "safeBottomInset": 34
+      },
+      "summary": {
+        "route": "specialization_home/builds_home",
+        "status": "pass",
+        "regionCount": 4,
+        "semanticRegionCount": 4,
+        "buttonCount": 12,
+        "maxRegionRight": 377,
+        "shellRight": 390,
+        "maxBoundRegionBottom": 791,
+        "maxBoundButtonBottom": 790,
+        "safeAreaBottom": 810,
+        "safeBottomInset": 34,
+        "fixedDockButtonCount": 0,
+        "maxFixedDockButtonBottom": 0,
+        "shellBodyScrollable": true,
+        "shellBodyPaddingBottom": 24,
+        "shellBodyBottom": 747,
+        "tabBarTop": 747,
+        "violationCount": 0,
+        "violations": []
+      },
+      "shellBody": {
+        "left": 0,
+        "top": 0,
+        "right": 390,
+        "bottom": 747,
+        "width": 390,
+        "height": 747,
+        "clientHeight": 747,
+        "scrollHeight": 815,
+        "paddingBottom": 24
+      },
+      "tabBar": {
+        "left": 0,
+        "top": 747,
+        "right": 390,
+        "bottom": 844,
+        "width": 390,
+        "height": 97
+      },
+      "regions": [
+        {
+          "id": "specialization_grid",
+          "visibleSlot": true,
+          "left": 13,
+          "top": 239,
+          "right": 377,
+          "bottom": 388,
+          "width": 364,
+          "height": 149
+        },
+        {
+          "id": "workspace_entry",
+          "visibleSlot": true,
+          "left": 13,
+          "top": 392,
+          "right": 377,
+          "bottom": 501,
+          "width": 364,
+          "height": 109
+        },
+        {
+          "id": "build_list",
+          "visibleSlot": true,
+          "left": 13,
+          "top": 505,
+          "right": 377,
+          "bottom": 653,
+          "width": 364,
+          "height": 148
+        },
+        {
+          "id": "workflow_guidance",
+          "visibleSlot": true,
+          "left": 13,
+          "top": 657,
+          "right": 377,
+          "bottom": 791,
+          "width": 364,
+          "height": 134
+        }
+      ],
+      "buttons": [
+        {
+          "left": 14,
+          "top": 99,
+          "right": 376,
+          "bottom": 230,
+          "width": 362,
+          "height": 131,
+          "role": ""
+        },
+        {
+          "left": 14,
+          "top": 240,
+          "right": 195,
+          "bottom": 314,
+          "width": 181,
+          "height": 74,
+          "role": ""
+        },
+        {
+          "left": 195,
+          "top": 240,
+          "right": 376,
+          "bottom": 314,
+          "width": 181,
+          "height": 74,
+          "role": ""
+        },
+        {
+          "left": 14,
+          "top": 313.5,
+          "right": 195,
+          "bottom": 386.5,
+          "width": 181,
+          "height": 73,
+          "role": ""
+        },
+        {
+          "left": 195,
+          "top": 313.5,
+          "right": 376,
+          "bottom": 386.5,
+          "width": 181,
+          "height": 73,
+          "role": ""
+        },
+        {
+          "left": 14,
+          "top": 506,
+          "right": 376,
+          "bottom": 543,
+          "width": 362,
+          "height": 37,
+          "role": ""
+        },
+        {
+          "left": 14,
+          "top": 542.5,
+          "right": 376,
+          "bottom": 578.5,
+          "width": 362,
+          "height": 36,
+          "role": ""
+        },
+        {
+          "left": 14,
+          "top": 579,
+          "right": 376,
+          "bottom": 616,
+          "width": 362,
+          "height": 37,
+          "role": ""
+        },
+        {
+          "left": 14,
+          "top": 615.5,
+          "right": 376,
+          "bottom": 651.5,
+          "width": 362,
+          "height": 36,
+          "role": ""
+        },
+        {
+          "left": 14,
+          "top": 658,
+          "right": 376,
+          "bottom": 702,
+          "width": 362,
+          "height": 44,
+          "role": ""
+        },
+        {
+          "left": 14,
+          "top": 702,
+          "right": 376,
+          "bottom": 746,
+          "width": 362,
+          "height": 44,
+          "role": ""
+        },
+        {
+          "left": 14,
+          "top": 746,
+          "right": 376,
+          "bottom": 790,
+          "width": 362,
+          "height": 44,
+          "role": ""
+        }
+      ],
+      "fixedDockButtons": []
+    },
+    {
+      "route": "current_spec_workbench",
+      "path": "/pages/builds/workbench",
+      "viewport": {
+        "width": 390,
+        "height": 844,
+        "dpr": 3,
+        "safeAreaBottom": 810,
+        "safeBottomInset": 34
+      },
+      "summary": {
+        "route": "current_spec_workbench",
+        "status": "pass",
+        "regionCount": 4,
+        "semanticRegionCount": 4,
+        "buttonCount": 0,
+        "maxRegionRight": 382,
+        "shellRight": 390,
+        "maxBoundRegionBottom": 766,
+        "maxBoundButtonBottom": 0,
+        "safeAreaBottom": 810,
+        "safeBottomInset": 34,
+        "fixedDockButtonCount": 0,
+        "maxFixedDockButtonBottom": 0,
+        "shellBodyScrollable": true,
+        "shellBodyPaddingBottom": 58,
+        "shellBodyBottom": 844,
+        "tabBarTop": null,
+        "violationCount": 0,
+        "violations": []
+      },
+      "shellBody": {
+        "left": 0,
+        "top": 0,
+        "right": 390,
+        "bottom": 844,
+        "width": 390,
+        "height": 844,
+        "clientHeight": 844,
+        "scrollHeight": 846,
+        "paddingBottom": 58
+      },
+      "tabBar": null,
+      "regions": [
+        {
+          "id": "workbench_hero",
+          "visibleSlot": true,
+          "left": 8,
+          "top": 97,
+          "right": 382,
+          "bottom": 195,
+          "width": 374,
+          "height": 98
+        },
+        {
+          "id": "readiness_summary",
+          "visibleSlot": true,
+          "left": 8,
+          "top": 206,
+          "right": 382,
+          "bottom": 398,
+          "width": 374,
+          "height": 192
+        },
+        {
+          "id": "module_grid",
+          "visibleSlot": true,
+          "left": 8,
+          "top": 409,
+          "right": 382,
+          "bottom": 565,
+          "width": 374,
+          "height": 156
+        },
+        {
+          "id": "evidence_ledger",
+          "visibleSlot": true,
+          "left": 9,
+          "top": 576,
+          "right": 382,
+          "bottom": 766,
+          "width": 373,
+          "height": 190
+        }
+      ],
+      "buttons": [],
+      "fixedDockButtons": []
+    },
+    {
+      "route": "news_list",
+      "path": "/pages/news/list",
+      "viewport": {
+        "width": 390,
+        "height": 844,
+        "dpr": 3,
+        "safeAreaBottom": 810,
+        "safeBottomInset": 34
+      },
+      "summary": {
+        "route": "news_list",
+        "status": "pass",
+        "regionCount": 5,
+        "semanticRegionCount": 5,
+        "buttonCount": 0,
+        "maxRegionRight": 382,
+        "shellRight": 390,
+        "maxBoundRegionBottom": 750,
+        "maxBoundButtonBottom": 0,
+        "safeAreaBottom": 810,
+        "safeBottomInset": 34,
+        "fixedDockButtonCount": 0,
+        "maxFixedDockButtonBottom": 0,
+        "shellBodyScrollable": false,
+        "shellBodyPaddingBottom": 58,
+        "shellBodyBottom": 844,
+        "tabBarTop": null,
+        "violationCount": 0,
+        "violations": []
+      },
+      "shellBody": {
+        "left": 0,
+        "top": 0,
+        "right": 390,
+        "bottom": 844,
+        "width": 390,
+        "height": 844,
+        "clientHeight": 844,
+        "scrollHeight": 844,
+        "paddingBottom": 58
+      },
+      "tabBar": null,
+      "regions": [
+        {
+          "id": "list_summary",
+          "visibleSlot": true,
+          "left": 7,
+          "top": 94,
+          "right": 382,
+          "bottom": 160,
+          "width": 375,
+          "height": 66
+        },
+        {
+          "id": "category_filter_bar",
+          "visibleSlot": true,
+          "left": 13,
+          "top": 160,
+          "right": 376,
+          "bottom": 207,
+          "width": 363,
+          "height": 47
+        },
+        {
+          "id": "news_results",
+          "visibleSlot": true,
+          "left": 15,
+          "top": 217,
+          "right": 374,
+          "bottom": 640,
+          "width": 359,
+          "height": 423
+        },
+        {
+          "id": "list_terminal",
+          "visibleSlot": true,
+          "left": 13,
+          "top": 647,
+          "right": 376,
+          "bottom": 718,
+          "width": 363,
+          "height": 71
+        },
+        {
+          "id": "reference_disclaimer",
+          "visibleSlot": true,
+          "left": 11,
+          "top": 723,
+          "right": 377,
+          "bottom": 750,
+          "width": 366,
+          "height": 27
+        }
+      ],
+      "buttons": [],
+      "fixedDockButtons": []
+    },
+    {
+      "route": "news_detail",
+      "path": "/pages/news/detail?id=architecture-preflight",
+      "viewport": {
+        "width": 390,
+        "height": 844,
+        "dpr": 3,
+        "safeAreaBottom": 810,
+        "safeBottomInset": 34
+      },
+      "summary": {
+        "route": "news_detail",
+        "status": "pass",
+        "regionCount": 6,
+        "semanticRegionCount": 6,
+        "buttonCount": 0,
+        "maxRegionRight": 382,
+        "shellRight": 390,
+        "maxBoundRegionBottom": 843,
+        "maxBoundButtonBottom": 0,
+        "safeAreaBottom": 810,
+        "safeBottomInset": 34,
+        "fixedDockButtonCount": 0,
+        "maxFixedDockButtonBottom": 0,
+        "shellBodyScrollable": true,
+        "shellBodyPaddingBottom": 58,
+        "shellBodyBottom": 844,
+        "tabBarTop": null,
+        "violationCount": 0,
+        "violations": []
+      },
+      "shellBody": {
+        "left": 0,
+        "top": 0,
+        "right": 390,
+        "bottom": 844,
+        "width": 390,
+        "height": 844,
+        "clientHeight": 844,
+        "scrollHeight": 909,
+        "paddingBottom": 58
+      },
+      "tabBar": null,
+      "regions": [
+        {
+          "id": "article_hero",
+          "visibleSlot": true,
+          "left": 8,
+          "top": 103,
+          "right": 382,
+          "bottom": 239,
+          "width": 374,
+          "height": 136
+        },
+        {
+          "id": "translation_status",
+          "visibleSlot": true,
+          "left": 8,
+          "top": 248,
+          "right": 382,
+          "bottom": 290,
+          "width": 374,
+          "height": 42
+        },
+        {
+          "id": "article_body",
+          "visibleSlot": true,
+          "left": 8,
+          "top": 299,
+          "right": 382,
+          "bottom": 555,
+          "width": 374,
+          "height": 256
+        },
+        {
+          "id": "source_reference",
+          "visibleSlot": true,
+          "left": 8,
+          "top": 563,
+          "right": 382,
+          "bottom": 613,
+          "width": 374,
+          "height": 50
+        },
+        {
+          "id": "evidence_details",
+          "visibleSlot": true,
+          "left": 8,
+          "top": 621,
+          "right": 382,
+          "bottom": 763,
+          "width": 374,
+          "height": 142
+        },
+        {
+          "id": "article_terminal",
+          "visibleSlot": true,
+          "left": 8,
+          "top": 772,
+          "right": 382,
+          "bottom": 843,
+          "width": 374,
+          "height": 71
+        }
+      ],
+      "buttons": [],
+      "fixedDockButtons": []
+    },
+    {
+      "route": "build_intel",
+      "path": "/pages/builds/intel",
+      "viewport": {
+        "width": 390,
+        "height": 844,
+        "dpr": 3,
+        "safeAreaBottom": 810,
+        "safeBottomInset": 34
+      },
+      "summary": {
+        "route": "build_intel",
+        "status": "pass",
+        "regionCount": 8,
+        "semanticRegionCount": 8,
+        "buttonCount": 12,
+        "maxRegionRight": 380.5,
+        "shellRight": 390,
+        "maxBoundRegionBottom": 842,
+        "maxBoundButtonBottom": 290,
+        "safeAreaBottom": 810,
+        "safeBottomInset": 34,
+        "fixedDockButtonCount": 0,
+        "maxFixedDockButtonBottom": 0,
+        "shellBodyScrollable": true,
+        "shellBodyPaddingBottom": 58,
+        "shellBodyBottom": 844,
+        "tabBarTop": null,
+        "violationCount": 0,
+        "violations": []
+      },
+      "shellBody": {
+        "left": 0,
+        "top": 0,
+        "right": 390,
+        "bottom": 844,
+        "width": 390,
+        "height": 844,
+        "clientHeight": 844,
+        "scrollHeight": 929,
+        "paddingBottom": 58
+      },
+      "tabBar": null,
+      "regions": [
+        {
+          "id": "summary_card",
+          "visibleSlot": true,
+          "left": 10,
+          "top": 102,
+          "right": 380,
+          "bottom": 254,
+          "width": 370,
+          "height": 152
+        },
+        {
+          "id": "filter_sort_bar",
+          "visibleSlot": true,
+          "left": 9.5,
+          "top": 264,
+          "right": 380.5,
+          "bottom": 292,
+          "width": 371,
+          "height": 28
+        },
+        {
+          "id": "build_card_a",
+          "visibleSlot": true,
+          "left": 10,
+          "top": 301,
+          "right": 380,
+          "bottom": 459,
+          "width": 370,
+          "height": 158
+        },
+        {
+          "id": "build_card_b",
+          "visibleSlot": true,
+          "left": 10,
+          "top": 473,
+          "right": 380,
+          "bottom": 634,
+          "width": 370,
+          "height": 161
+        },
+        {
+          "id": "build_card_c",
+          "visibleSlot": true,
+          "left": 10,
+          "top": 645,
+          "right": 380,
+          "bottom": 808,
+          "width": 370,
+          "height": 163
+        },
+        {
+          "id": "build_card_overflow",
+          "visibleSlot": false,
+          "left": 10,
+          "top": 819,
+          "right": 380,
+          "bottom": 982,
+          "width": 370,
+          "height": 163
+        },
+        {
+          "id": "build_card_overflow",
+          "visibleSlot": false,
+          "left": 10,
+          "top": 993,
+          "right": 380,
+          "bottom": 1156,
+          "width": 370,
+          "height": 163
+        },
+        {
+          "id": "reference_disclaimer",
+          "visibleSlot": true,
+          "left": 10,
+          "top": 810,
+          "right": 380,
+          "bottom": 842,
+          "width": 370,
+          "height": 32
+        }
+      ],
+      "buttons": [
+        {
+          "left": 18.5,
+          "top": 266,
+          "right": 195.5,
+          "bottom": 290,
+          "width": 177,
+          "height": 24,
+          "role": ""
+        },
+        {
+          "left": 195,
+          "top": 266,
+          "right": 371,
+          "bottom": 290,
+          "width": 176,
+          "height": 24,
+          "role": ""
+        },
+        {
+          "left": 268,
+          "top": 310,
+          "right": 372,
+          "bottom": 345,
+          "width": 104,
+          "height": 35,
+          "role": "build-intel-primary-action"
+        },
+        {
+          "left": 268,
+          "top": 349,
+          "right": 372,
+          "bottom": 375,
+          "width": 104,
+          "height": 26,
+          "role": "build-intel-secondary-action"
+        },
+        {
+          "left": 268,
+          "top": 482,
+          "right": 372,
+          "bottom": 517,
+          "width": 104,
+          "height": 35,
+          "role": "build-intel-primary-action"
+        },
+        {
+          "left": 268,
+          "top": 521,
+          "right": 372,
+          "bottom": 547,
+          "width": 104,
+          "height": 26,
+          "role": "build-intel-secondary-action"
+        },
+        {
+          "left": 268,
+          "top": 654,
+          "right": 372,
+          "bottom": 689,
+          "width": 104,
+          "height": 35,
+          "role": "build-intel-primary-action"
+        },
+        {
+          "left": 268,
+          "top": 693,
+          "right": 372,
+          "bottom": 719,
+          "width": 104,
+          "height": 26,
+          "role": "build-intel-secondary-action"
+        },
+        {
+          "left": 268,
+          "top": 828,
+          "right": 372,
+          "bottom": 863,
+          "width": 104,
+          "height": 35,
+          "role": "build-intel-primary-action"
+        },
+        {
+          "left": 268,
+          "top": 867,
+          "right": 372,
+          "bottom": 893,
+          "width": 104,
+          "height": 26,
+          "role": "build-intel-secondary-action"
+        },
+        {
+          "left": 268,
+          "top": 1002,
+          "right": 372,
+          "bottom": 1037,
+          "width": 104,
+          "height": 35,
+          "role": "build-intel-primary-action"
+        },
+        {
+          "left": 268,
+          "top": 1041,
+          "right": 372,
+          "bottom": 1067,
+          "width": 104,
+          "height": 26,
+          "role": "build-intel-secondary-action"
+        }
+      ],
+      "fixedDockButtons": []
+    },
+    {
+      "route": "talent_simulator",
+      "path": "/pages/builds/talent-simulator",
+      "viewport": {
+        "width": 390,
+        "height": 844,
+        "dpr": 3,
+        "safeAreaBottom": 810,
+        "safeBottomInset": 34
+      },
+      "summary": {
+        "route": "talent_simulator",
+        "status": "pass",
+        "regionCount": 8,
+        "semanticRegionCount": 8,
+        "buttonCount": 0,
+        "maxRegionRight": 382,
+        "shellRight": 390,
+        "maxBoundRegionBottom": 794,
+        "maxBoundButtonBottom": 0,
+        "safeAreaBottom": 810,
+        "safeBottomInset": 34,
+        "fixedDockButtonCount": 0,
+        "maxFixedDockButtonBottom": 0,
+        "shellBodyScrollable": true,
+        "shellBodyPaddingBottom": 58,
+        "shellBodyBottom": 844,
+        "tabBarTop": null,
+        "violationCount": 0,
+        "violations": []
+      },
+      "shellBody": {
+        "left": 0,
+        "top": 0,
+        "right": 390,
+        "bottom": 844,
+        "width": 390,
+        "height": 844,
+        "clientHeight": 844,
+        "scrollHeight": 865,
+        "paddingBottom": 58
+      },
+      "tabBar": null,
+      "regions": [
+        {
+          "id": "specialization_selector",
+          "visibleSlot": true,
+          "left": 8,
+          "top": 99,
+          "right": 382,
+          "bottom": 165,
+          "width": 374,
+          "height": 66
+        },
+        {
+          "id": "talent_tabs",
+          "visibleSlot": true,
+          "left": 12,
+          "top": 174,
+          "right": 376,
+          "bottom": 204,
+          "width": 364,
+          "height": 30
+        },
+        {
+          "id": "points_summary",
+          "visibleSlot": true,
+          "left": 8,
+          "top": 210,
+          "right": 382,
+          "bottom": 245,
+          "width": 374,
+          "height": 35
+        },
+        {
+          "id": "talent_graph",
+          "visibleSlot": true,
+          "left": 10,
+          "top": 246,
+          "right": 380,
+          "bottom": 559,
+          "width": 370,
+          "height": 313
+        },
+        {
+          "id": "talent_legend",
+          "visibleSlot": true,
+          "left": 15,
+          "top": 564,
+          "right": 375,
+          "bottom": 594,
+          "width": 360,
+          "height": 30
+        },
+        {
+          "id": "import_panel",
+          "visibleSlot": true,
+          "left": 8,
+          "top": 602,
+          "right": 382,
+          "bottom": 692,
+          "width": 374,
+          "height": 90
+        },
+        {
+          "id": "community_builds",
+          "visibleSlot": true,
+          "left": 8,
+          "top": 699,
+          "right": 382,
+          "bottom": 741,
+          "width": 374,
+          "height": 42
+        },
+        {
+          "id": "talent_actions",
+          "visibleSlot": true,
+          "left": 12,
+          "top": 749,
+          "right": 376,
+          "bottom": 794,
+          "width": 364,
+          "height": 45
+        }
+      ],
+      "buttons": [],
+      "fixedDockButtons": []
+    },
+    {
+      "route": "gear_detail",
+      "path": "/pages/builds/detail?query=gear",
+      "viewport": {
+        "width": 390,
+        "height": 844,
+        "dpr": 3,
+        "safeAreaBottom": 810,
+        "safeBottomInset": 34
+      },
+      "summary": {
+        "route": "gear_detail",
+        "status": "pass",
+        "regionCount": 7,
+        "semanticRegionCount": 7,
+        "buttonCount": 24,
+        "maxRegionRight": 375.5,
+        "shellRight": 390,
+        "maxBoundRegionBottom": 843,
+        "maxBoundButtonBottom": 742,
+        "safeAreaBottom": 810,
+        "safeBottomInset": 34,
+        "fixedDockButtonCount": 0,
+        "maxFixedDockButtonBottom": 0,
+        "shellBodyScrollable": true,
+        "shellBodyPaddingBottom": 58,
+        "shellBodyBottom": 844,
+        "tabBarTop": null,
+        "violationCount": 0,
+        "violations": []
+      },
+      "shellBody": {
+        "left": 0,
+        "top": 0,
+        "right": 390,
+        "bottom": 844,
+        "width": 390,
+        "height": 844,
+        "clientHeight": 844,
+        "scrollHeight": 927,
+        "paddingBottom": 58
+      },
+      "tabBar": null,
+      "regions": [
+        {
+          "id": "profession_selector",
+          "visibleSlot": true,
+          "left": 14.5,
+          "top": 104,
+          "right": 188.5,
+          "bottom": 147,
+          "width": 174,
+          "height": 43
+        },
+        {
+          "id": "specialization_selector",
+          "visibleSlot": true,
+          "left": 211.5,
+          "top": 104,
+          "right": 375.5,
+          "bottom": 147,
+          "width": 164,
+          "height": 43
+        },
+        {
+          "id": "readiness_summary",
+          "visibleSlot": true,
+          "left": 14.5,
+          "top": 158,
+          "right": 373.5,
+          "bottom": 321,
+          "width": 359,
+          "height": 163
+        },
+        {
+          "id": "enhancement_summary",
+          "visibleSlot": true,
+          "left": 14.5,
+          "top": 327,
+          "right": 373.5,
+          "bottom": 370,
+          "width": 359,
+          "height": 43
+        },
+        {
+          "id": "gear_workbench",
+          "visibleSlot": true,
+          "left": 14.5,
+          "top": 378,
+          "right": 373.5,
+          "bottom": 697,
+          "width": 359,
+          "height": 319
+        },
+        {
+          "id": "gear_actions",
+          "visibleSlot": true,
+          "left": 14.5,
+          "top": 702,
+          "right": 373.5,
+          "bottom": 742,
+          "width": 359,
+          "height": 40
+        },
+        {
+          "id": "gear_status",
+          "visibleSlot": true,
+          "left": 14.5,
+          "top": 750,
+          "right": 373.5,
+          "bottom": 843,
+          "width": 359,
+          "height": 93
+        }
+      ],
+      "buttons": [
+        {
+          "left": 14.5,
+          "top": 117,
+          "right": 198.5,
+          "bottom": 147,
+          "width": 184,
+          "height": 30,
+          "role": "gear-profession-option"
+        },
+        {
+          "left": 20.828125,
+          "top": 331,
+          "right": 135.828125,
+          "bottom": 366,
+          "width": 115,
+          "height": 35,
+          "role": ""
+        },
+        {
+          "left": 136.484375,
+          "top": 331,
+          "right": 251.484375,
+          "bottom": 366,
+          "width": 115,
+          "height": 35,
+          "role": ""
+        },
+        {
+          "left": 252.140625,
+          "top": 331,
+          "right": 367.140625,
+          "bottom": 366,
+          "width": 115,
+          "height": 35,
+          "role": ""
+        },
+        {
+          "left": 20.5,
+          "top": 387,
+          "right": 110.5,
+          "bottom": 417,
+          "width": 90,
+          "height": 30,
+          "role": "gear-slot-row"
+        },
+        {
+          "left": 20.5,
+          "top": 419.25,
+          "right": 110.5,
+          "bottom": 450.25,
+          "width": 90,
+          "height": 31,
+          "role": "gear-slot-row"
+        },
+        {
+          "left": 20.5,
+          "top": 451.5,
+          "right": 110.5,
+          "bottom": 481.5,
+          "width": 90,
+          "height": 30,
+          "role": "gear-slot-row"
+        },
+        {
+          "left": 20.5,
+          "top": 483.75,
+          "right": 110.5,
+          "bottom": 513.75,
+          "width": 90,
+          "height": 30,
+          "role": "gear-slot-row"
+        },
+        {
+          "left": 20.5,
+          "top": 516,
+          "right": 110.5,
+          "bottom": 546,
+          "width": 90,
+          "height": 30,
+          "role": "gear-slot-row"
+        },
+        {
+          "left": 20.5,
+          "top": 548.25,
+          "right": 110.5,
+          "bottom": 579.25,
+          "width": 90,
+          "height": 31,
+          "role": "gear-slot-row"
+        },
+        {
+          "left": 20.5,
+          "top": 580.5,
+          "right": 110.5,
+          "bottom": 610.5,
+          "width": 90,
+          "height": 30,
+          "role": "gear-slot-row"
+        },
+        {
+          "left": 20.5,
+          "top": 612.75,
+          "right": 110.5,
+          "bottom": 642.75,
+          "width": 90,
+          "height": 30,
+          "role": "gear-slot-row"
+        },
+        {
+          "left": 277.5,
+          "top": 387,
+          "right": 367.5,
+          "bottom": 417,
+          "width": 90,
+          "height": 30,
+          "role": "gear-slot-row"
+        },
+        {
+          "left": 277.5,
+          "top": 419.25,
+          "right": 367.5,
+          "bottom": 450.25,
+          "width": 90,
+          "height": 31,
+          "role": "gear-slot-row"
+        },
+        {
+          "left": 277.5,
+          "top": 451.5,
+          "right": 367.5,
+          "bottom": 481.5,
+          "width": 90,
+          "height": 30,
+          "role": "gear-slot-row"
+        },
+        {
+          "left": 277.5,
+          "top": 483.75,
+          "right": 367.5,
+          "bottom": 513.75,
+          "width": 90,
+          "height": 30,
+          "role": "gear-slot-row"
+        },
+        {
+          "left": 277.5,
+          "top": 516,
+          "right": 367.5,
+          "bottom": 546,
+          "width": 90,
+          "height": 30,
+          "role": "gear-slot-row"
+        },
+        {
+          "left": 277.5,
+          "top": 548.25,
+          "right": 367.5,
+          "bottom": 579.25,
+          "width": 90,
+          "height": 31,
+          "role": "gear-slot-row"
+        },
+        {
+          "left": 277.5,
+          "top": 580.5,
+          "right": 367.5,
+          "bottom": 610.5,
+          "width": 90,
+          "height": 30,
+          "role": "gear-slot-row"
+        },
+        {
+          "left": 277.5,
+          "top": 612.75,
+          "right": 367.5,
+          "bottom": 642.75,
+          "width": 90,
+          "height": 30,
+          "role": "gear-slot-row"
+        },
+        {
+          "left": 20.5,
+          "top": 655,
+          "right": 367.5,
+          "bottom": 689,
+          "width": 347,
+          "height": 34,
+          "role": "gear-primary-action"
+        },
+        {
+          "left": 14.5,
+          "top": 702,
+          "right": 131.5,
+          "bottom": 742,
+          "width": 117,
+          "height": 40,
+          "role": "gear-secondary-action"
+        },
+        {
+          "left": 135.5,
+          "top": 702,
+          "right": 252.5,
+          "bottom": 742,
+          "width": 117,
+          "height": 40,
+          "role": "gear-secondary-action"
+        },
+        {
+          "left": 256.5,
+          "top": 702,
+          "right": 373.5,
+          "bottom": 742,
+          "width": 117,
+          "height": 40,
+          "role": "gear-secondary-action"
+        }
+      ],
+      "fixedDockButtons": []
+    },
+    {
+      "route": "simulator_home",
+      "path": "/pages/simulator/simulator",
+      "viewport": {
+        "width": 390,
+        "height": 844,
+        "dpr": 3,
+        "safeAreaBottom": 810,
+        "safeBottomInset": 34
+      },
+      "summary": {
+        "route": "simulator_home",
+        "status": "pass",
+        "regionCount": 3,
+        "semanticRegionCount": 3,
+        "buttonCount": 0,
+        "maxRegionRight": 378,
+        "shellRight": 390,
+        "maxBoundRegionBottom": 665,
+        "maxBoundButtonBottom": 0,
+        "safeAreaBottom": 810,
+        "safeBottomInset": 34,
+        "fixedDockButtonCount": 0,
+        "maxFixedDockButtonBottom": 0,
+        "shellBodyScrollable": false,
+        "shellBodyPaddingBottom": 82,
+        "shellBodyBottom": 747,
+        "tabBarTop": 747,
+        "violationCount": 0,
+        "violations": []
+      },
+      "shellBody": {
+        "left": 0,
+        "top": 0,
+        "right": 390,
+        "bottom": 747,
+        "width": 390,
+        "height": 747,
+        "clientHeight": 747,
+        "scrollHeight": 747,
+        "paddingBottom": 82
+      },
+      "tabBar": {
+        "left": 0,
+        "top": 747,
+        "right": 390,
+        "bottom": 844,
+        "width": 390,
+        "height": 97
+      },
+      "regions": [
+        {
+          "id": "simulator_guidance",
+          "visibleSlot": true,
+          "left": 10,
+          "top": 106,
+          "right": 378,
+          "bottom": 326,
+          "width": 368,
+          "height": 220
+        },
+        {
+          "id": "simulator_transcript",
+          "visibleSlot": true,
+          "left": 14,
+          "top": 336,
+          "right": 370,
+          "bottom": 566,
+          "width": 356,
+          "height": 230
+        },
+        {
+          "id": "evidence_shelf",
+          "visibleSlot": true,
+          "left": 10,
+          "top": 572,
+          "right": 378,
+          "bottom": 665,
+          "width": 368,
+          "height": 93
+        }
+      ],
+      "buttons": [],
+      "fixedDockButtons": []
+    },
+    {
+      "route": "SimC_submit",
+      "path": "/pages/simulator/simc",
+      "viewport": {
+        "width": 390,
+        "height": 844,
+        "dpr": 3,
+        "safeAreaBottom": 810,
+        "safeBottomInset": 34
+      },
+      "summary": {
+        "route": "SimC_submit",
+        "status": "pass",
+        "regionCount": 8,
+        "semanticRegionCount": 8,
+        "buttonCount": 47,
+        "maxRegionRight": 377,
+        "shellRight": 390,
+        "maxBoundRegionBottom": 808,
+        "maxBoundButtonBottom": 808,
+        "safeAreaBottom": 810,
+        "safeBottomInset": 34,
+        "fixedDockButtonCount": 0,
+        "maxFixedDockButtonBottom": 0,
+        "shellBodyScrollable": true,
+        "shellBodyPaddingBottom": 58,
+        "shellBodyBottom": 844,
+        "tabBarTop": null,
+        "violationCount": 0,
+        "violations": []
+      },
+      "shellBody": {
+        "left": 0,
+        "top": 0,
+        "right": 390,
+        "bottom": 844,
+        "width": 390,
+        "height": 844,
+        "clientHeight": 844,
+        "scrollHeight": 927,
+        "paddingBottom": 58
+      },
+      "tabBar": null,
+      "regions": [
+        {
+          "id": "character_identity",
+          "visibleSlot": true,
+          "left": 10,
+          "top": 102,
+          "right": 377,
+          "bottom": 160,
+          "width": 367,
+          "height": 58
+        },
+        {
+          "id": "talent_template",
+          "visibleSlot": true,
+          "left": 11,
+          "top": 161,
+          "right": 377,
+          "bottom": 226,
+          "width": 366,
+          "height": 65
+        },
+        {
+          "id": "gear_source",
+          "visibleSlot": true,
+          "left": 11,
+          "top": 227,
+          "right": 377,
+          "bottom": 292,
+          "width": 366,
+          "height": 65
+        },
+        {
+          "id": "combat_parameters",
+          "visibleSlot": true,
+          "left": 11,
+          "top": 293,
+          "right": 377,
+          "bottom": 509,
+          "width": 366,
+          "height": 216
+        },
+        {
+          "id": "submission_summary",
+          "visibleSlot": true,
+          "left": 11,
+          "top": 510,
+          "right": 377,
+          "bottom": 616,
+          "width": 366,
+          "height": 106
+        },
+        {
+          "id": "submission_blockers",
+          "visibleSlot": true,
+          "left": 11,
+          "top": 617,
+          "right": 377,
+          "bottom": 723,
+          "width": 366,
+          "height": 106
+        },
+        {
+          "id": "submission_action",
+          "visibleSlot": true,
+          "left": 10,
+          "top": 723,
+          "right": 377,
+          "bottom": 775,
+          "width": 367,
+          "height": 52
+        },
+        {
+          "id": "submission_footer",
+          "visibleSlot": true,
+          "left": 11,
+          "top": 778,
+          "right": 376,
+          "bottom": 808,
+          "width": 365,
+          "height": 30
+        }
+      ],
+      "buttons": [
+        {
+          "left": 201,
+          "top": 58.5,
+          "right": 277,
+          "bottom": 85.5,
+          "width": 76,
+          "height": 27,
+          "role": ""
+        },
+        {
+          "left": 95,
+          "top": 118,
+          "right": 125,
+          "bottom": 155,
+          "width": 30,
+          "height": 37,
+          "role": "simc-specialization-option"
+        },
+        {
+          "left": 281,
+          "top": 118,
+          "right": 311,
+          "bottom": 155,
+          "width": 30,
+          "height": 37,
+          "role": "simc-specialization-option"
+        },
+        {
+          "left": 467,
+          "top": 118,
+          "right": 497,
+          "bottom": 155,
+          "width": 30,
+          "height": 37,
+          "role": "simc-specialization-option"
+        },
+        {
+          "left": 653,
+          "top": 118,
+          "right": 683,
+          "bottom": 155,
+          "width": 30,
+          "height": 37,
+          "role": "simc-specialization-option"
+        },
+        {
+          "left": 839,
+          "top": 118,
+          "right": 869,
+          "bottom": 155,
+          "width": 30,
+          "height": 37,
+          "role": "simc-specialization-option"
+        },
+        {
+          "left": 1025,
+          "top": 118,
+          "right": 1055,
+          "bottom": 155,
+          "width": 30,
+          "height": 37,
+          "role": "simc-specialization-option"
+        },
+        {
+          "left": 1211,
+          "top": 118,
+          "right": 1241,
+          "bottom": 155,
+          "width": 30,
+          "height": 37,
+          "role": "simc-specialization-option"
+        },
+        {
+          "left": 1397,
+          "top": 118,
+          "right": 1427,
+          "bottom": 155,
+          "width": 30,
+          "height": 37,
+          "role": "simc-specialization-option"
+        },
+        {
+          "left": 1583,
+          "top": 118,
+          "right": 1613,
+          "bottom": 155,
+          "width": 30,
+          "height": 37,
+          "role": "simc-specialization-option"
+        },
+        {
+          "left": 1769,
+          "top": 118,
+          "right": 1799,
+          "bottom": 155,
+          "width": 30,
+          "height": 37,
+          "role": "simc-specialization-option"
+        },
+        {
+          "left": 1955,
+          "top": 118,
+          "right": 1985,
+          "bottom": 155,
+          "width": 30,
+          "height": 37,
+          "role": "simc-specialization-option"
+        },
+        {
+          "left": 2141,
+          "top": 118,
+          "right": 2171,
+          "bottom": 155,
+          "width": 30,
+          "height": 37,
+          "role": "simc-specialization-option"
+        },
+        {
+          "left": 2327,
+          "top": 118,
+          "right": 2357,
+          "bottom": 155,
+          "width": 30,
+          "height": 37,
+          "role": "simc-specialization-option"
+        },
+        {
+          "left": 2513,
+          "top": 118,
+          "right": 2543,
+          "bottom": 155,
+          "width": 30,
+          "height": 37,
+          "role": "simc-specialization-option"
+        },
+        {
+          "left": 2699,
+          "top": 118,
+          "right": 2729,
+          "bottom": 155,
+          "width": 30,
+          "height": 37,
+          "role": "simc-specialization-option"
+        },
+        {
+          "left": 2885,
+          "top": 118,
+          "right": 2915,
+          "bottom": 155,
+          "width": 30,
+          "height": 37,
+          "role": "simc-specialization-option"
+        },
+        {
+          "left": 3071,
+          "top": 118,
+          "right": 3101,
+          "bottom": 155,
+          "width": 30,
+          "height": 37,
+          "role": "simc-specialization-option"
+        },
+        {
+          "left": 3257,
+          "top": 118,
+          "right": 3287,
+          "bottom": 155,
+          "width": 30,
+          "height": 37,
+          "role": "simc-specialization-option"
+        },
+        {
+          "left": 3443,
+          "top": 118,
+          "right": 3473,
+          "bottom": 155,
+          "width": 30,
+          "height": 37,
+          "role": "simc-specialization-option"
+        },
+        {
+          "left": 3629,
+          "top": 118,
+          "right": 3659,
+          "bottom": 155,
+          "width": 30,
+          "height": 37,
+          "role": "simc-specialization-option"
+        },
+        {
+          "left": 3815,
+          "top": 118,
+          "right": 3845,
+          "bottom": 155,
+          "width": 30,
+          "height": 37,
+          "role": "simc-specialization-option"
+        },
+        {
+          "left": 4001,
+          "top": 118,
+          "right": 4031,
+          "bottom": 155,
+          "width": 30,
+          "height": 37,
+          "role": "simc-specialization-option"
+        },
+        {
+          "left": 4187,
+          "top": 118,
+          "right": 4217,
+          "bottom": 155,
+          "width": 30,
+          "height": 37,
+          "role": "simc-specialization-option"
+        },
+        {
+          "left": 4373,
+          "top": 118,
+          "right": 4403,
+          "bottom": 155,
+          "width": 30,
+          "height": 37,
+          "role": "simc-specialization-option"
+        },
+        {
+          "left": 4559,
+          "top": 118,
+          "right": 4589,
+          "bottom": 155,
+          "width": 30,
+          "height": 37,
+          "role": "simc-specialization-option"
+        },
+        {
+          "left": 4745,
+          "top": 118,
+          "right": 4775,
+          "bottom": 155,
+          "width": 30,
+          "height": 37,
+          "role": "simc-specialization-option"
+        },
+        {
+          "left": 4931,
+          "top": 118,
+          "right": 4961,
+          "bottom": 155,
+          "width": 30,
+          "height": 37,
+          "role": "simc-specialization-option"
+        },
+        {
+          "left": 5117,
+          "top": 118,
+          "right": 5147,
+          "bottom": 155,
+          "width": 30,
+          "height": 37,
+          "role": "simc-specialization-option"
+        },
+        {
+          "left": 5303,
+          "top": 118,
+          "right": 5333,
+          "bottom": 155,
+          "width": 30,
+          "height": 37,
+          "role": "simc-specialization-option"
+        },
+        {
+          "left": 5489,
+          "top": 118,
+          "right": 5519,
+          "bottom": 155,
+          "width": 30,
+          "height": 37,
+          "role": "simc-specialization-option"
+        },
+        {
+          "left": 5675,
+          "top": 118,
+          "right": 5705,
+          "bottom": 155,
+          "width": 30,
+          "height": 37,
+          "role": "simc-specialization-option"
+        },
+        {
+          "left": 5861,
+          "top": 118,
+          "right": 5891,
+          "bottom": 155,
+          "width": 30,
+          "height": 37,
+          "role": "simc-specialization-option"
+        },
+        {
+          "left": 6047,
+          "top": 118,
+          "right": 6077,
+          "bottom": 155,
+          "width": 30,
+          "height": 37,
+          "role": "simc-specialization-option"
+        },
+        {
+          "left": 6233,
+          "top": 118,
+          "right": 6263,
+          "bottom": 155,
+          "width": 30,
+          "height": 37,
+          "role": "simc-specialization-option"
+        },
+        {
+          "left": 6419,
+          "top": 118,
+          "right": 6449,
+          "bottom": 155,
+          "width": 30,
+          "height": 37,
+          "role": "simc-specialization-option"
+        },
+        {
+          "left": 6605,
+          "top": 118,
+          "right": 6635,
+          "bottom": 155,
+          "width": 30,
+          "height": 37,
+          "role": "simc-specialization-option"
+        },
+        {
+          "left": 6791,
+          "top": 118,
+          "right": 6821,
+          "bottom": 155,
+          "width": 30,
+          "height": 37,
+          "role": "simc-specialization-option"
+        },
+        {
+          "left": 6977,
+          "top": 118,
+          "right": 7007,
+          "bottom": 155,
+          "width": 30,
+          "height": 37,
+          "role": "simc-specialization-option"
+        },
+        {
+          "left": 7163,
+          "top": 118,
+          "right": 7193,
+          "bottom": 155,
+          "width": 30,
+          "height": 37,
+          "role": "simc-specialization-option"
+        },
+        {
+          "left": 7349,
+          "top": 118,
+          "right": 7379,
+          "bottom": 155,
+          "width": 30,
+          "height": 37,
+          "role": "simc-specialization-option"
+        },
+        {
+          "left": 20,
+          "top": 320,
+          "right": 133,
+          "bottom": 354,
+          "width": 113,
+          "height": 34,
+          "role": "simc-scenario-option"
+        },
+        {
+          "left": 137.328125,
+          "top": 320,
+          "right": 251.328125,
+          "bottom": 354,
+          "width": 114,
+          "height": 34,
+          "role": "simc-scenario-option"
+        },
+        {
+          "left": 254.65625,
+          "top": 320,
+          "right": 367.65625,
+          "bottom": 354,
+          "width": 113,
+          "height": 34,
+          "role": "simc-scenario-option"
+        },
+        {
+          "left": 130,
+          "top": 730.5,
+          "right": 246,
+          "bottom": 767.5,
+          "width": 116,
+          "height": 37,
+          "role": ""
+        },
+        {
+          "left": 252.5,
+          "top": 730.5,
+          "right": 367.5,
+          "bottom": 767.5,
+          "width": 115,
+          "height": 37,
+          "role": ""
+        },
+        {
+          "left": 288,
+          "top": 778,
+          "right": 376,
+          "bottom": 808,
+          "width": 88,
+          "height": 30,
+          "role": "simc-footer-action"
+        }
+      ],
+      "fixedDockButtons": []
+    },
+    {
+      "route": "chickenbro_chat",
+      "path": "/pages/simulator/chickenbro",
+      "viewport": {
+        "width": 390,
+        "height": 844,
+        "dpr": 3,
+        "safeAreaBottom": 810,
+        "safeBottomInset": 34
+      },
+      "summary": {
+        "route": "chickenbro_chat",
+        "status": "pass",
+        "regionCount": 9,
+        "semanticRegionCount": 9,
+        "buttonCount": 5,
+        "maxRegionRight": 377,
+        "shellRight": 390,
+        "maxBoundRegionBottom": 808,
+        "maxBoundButtonBottom": 797,
+        "safeAreaBottom": 810,
+        "safeBottomInset": 34,
+        "fixedDockButtonCount": 2,
+        "maxFixedDockButtonBottom": 797,
+        "shellBodyScrollable": true,
+        "shellBodyPaddingBottom": 116,
+        "shellBodyBottom": 844,
+        "tabBarTop": null,
+        "violationCount": 0,
+        "violations": []
+      },
+      "shellBody": {
+        "left": 0,
+        "top": 0,
+        "right": 390,
+        "bottom": 844,
+        "width": 390,
+        "height": 844,
+        "clientHeight": 844,
+        "scrollHeight": 1003,
+        "paddingBottom": 116
+      },
+      "tabBar": null,
+      "regions": [
+        {
+          "id": "workbench_context",
+          "visibleSlot": true,
+          "left": 13,
+          "top": 98,
+          "right": 377,
+          "bottom": 215,
+          "width": 364,
+          "height": 117
+        },
+        {
+          "id": "assistant_intro",
+          "visibleSlot": true,
+          "left": 13,
+          "top": 222,
+          "right": 236,
+          "bottom": 283,
+          "width": 223,
+          "height": 61
+        },
+        {
+          "id": "primary_user_turn",
+          "visibleSlot": true,
+          "left": 94,
+          "top": 294,
+          "right": 375,
+          "bottom": 340,
+          "width": 281,
+          "height": 46
+        },
+        {
+          "id": "assistant_answer",
+          "visibleSlot": true,
+          "left": 13,
+          "top": 341,
+          "right": 366,
+          "bottom": 520,
+          "width": 353,
+          "height": 179
+        },
+        {
+          "id": "evidence_boundary",
+          "visibleSlot": true,
+          "left": 14,
+          "top": 526,
+          "right": 366,
+          "bottom": 592,
+          "width": 352,
+          "height": 66
+        },
+        {
+          "id": "followup_user_turn",
+          "visibleSlot": true,
+          "left": 112,
+          "top": 602,
+          "right": 375,
+          "bottom": 648,
+          "width": 263,
+          "height": 46
+        },
+        {
+          "id": "followup_answer",
+          "visibleSlot": true,
+          "left": 13,
+          "top": 648,
+          "right": 300,
+          "bottom": 697,
+          "width": 287,
+          "height": 49
+        },
+        {
+          "id": "answer_state",
+          "visibleSlot": true,
+          "left": 14,
+          "top": 706,
+          "right": 374,
+          "bottom": 758,
+          "width": 360,
+          "height": 52
+        },
+        {
+          "id": "topic_library",
+          "visibleSlot": true,
+          "left": 11,
+          "top": 765,
+          "right": 376,
+          "bottom": 808,
+          "width": 365,
+          "height": 43
+        }
+      ],
+      "buttons": [
+        {
+          "left": 282,
+          "top": 185,
+          "right": 366,
+          "bottom": 206,
+          "width": 84,
+          "height": 21,
+          "role": ""
+        },
+        {
+          "left": 55,
+          "top": 484,
+          "right": 356,
+          "bottom": 510,
+          "width": 301,
+          "height": 26,
+          "role": ""
+        },
+        {
+          "left": 279,
+          "top": 717,
+          "right": 363,
+          "bottom": 747,
+          "width": 84,
+          "height": 30,
+          "role": ""
+        },
+        {
+          "left": 11,
+          "top": 754,
+          "right": 79,
+          "bottom": 797,
+          "width": 68,
+          "height": 43,
+          "role": ""
+        },
+        {
+          "left": 310,
+          "top": 754,
+          "right": 379,
+          "bottom": 797,
+          "width": 69,
+          "height": 43,
+          "role": ""
+        }
+      ],
+      "fixedDockButtons": [
+        {
+          "left": 11,
+          "top": 754,
+          "right": 79,
+          "bottom": 797,
+          "width": 68,
+          "height": 43,
+          "role": ""
+        },
+        {
+          "left": 310,
+          "top": 754,
+          "right": 379,
+          "bottom": 797,
+          "width": 69,
+          "height": 43,
+          "role": ""
+        }
+      ]
+    },
+    {
+      "route": "tasks_list",
+      "path": "/pages/simulator/tasks",
+      "viewport": {
+        "width": 390,
+        "height": 844,
+        "dpr": 3,
+        "safeAreaBottom": 810,
+        "safeBottomInset": 34
+      },
+      "summary": {
+        "route": "tasks_list",
+        "status": "pass",
+        "regionCount": 6,
+        "semanticRegionCount": 6,
+        "buttonCount": 14,
+        "maxRegionRight": 383.140625,
+        "shellRight": 390,
+        "maxBoundRegionBottom": 776.265625,
+        "maxBoundButtonBottom": 776.265625,
+        "safeAreaBottom": 810,
+        "safeBottomInset": 34,
+        "fixedDockButtonCount": 0,
+        "maxFixedDockButtonBottom": 0,
+        "shellBodyScrollable": false,
+        "shellBodyPaddingBottom": 58,
+        "shellBodyBottom": 844,
+        "tabBarTop": null,
+        "violationCount": 0,
+        "violations": []
+      },
+      "shellBody": {
+        "left": 0,
+        "top": 0,
+        "right": 390,
+        "bottom": 844,
+        "width": 390,
+        "height": 844,
+        "clientHeight": 844,
+        "scrollHeight": 844,
+        "paddingBottom": 58
+      },
+      "tabBar": null,
+      "regions": [
+        {
+          "id": "task_summary",
+          "visibleSlot": true,
+          "left": 8.140625,
+          "top": 94.390625,
+          "right": 383.140625,
+          "bottom": 168.390625,
+          "width": 375,
+          "height": 74
+        },
+        {
+          "id": "task_sync",
+          "visibleSlot": true,
+          "left": 9.046875,
+          "top": 173.8125,
+          "right": 381.046875,
+          "bottom": 219.8125,
+          "width": 372,
+          "height": 46
+        },
+        {
+          "id": "task_filters",
+          "visibleSlot": true,
+          "left": 12.65625,
+          "top": 229.71875,
+          "right": 378.65625,
+          "bottom": 252.71875,
+          "width": 366,
+          "height": 23
+        },
+        {
+          "id": "task_list",
+          "visibleSlot": true,
+          "left": 9.046875,
+          "top": 259.296875,
+          "right": 381.046875,
+          "bottom": 611.296875,
+          "width": 372,
+          "height": 352
+        },
+        {
+          "id": "task_guidance",
+          "visibleSlot": true,
+          "left": 9.046875,
+          "top": 615.828125,
+          "right": 381.046875,
+          "bottom": 738.828125,
+          "width": 372,
+          "height": 123
+        },
+        {
+          "id": "bottom_actions",
+          "visibleSlot": true,
+          "left": 12.203125,
+          "top": 744.265625,
+          "right": 377.203125,
+          "bottom": 776.265625,
+          "width": 365,
+          "height": 32
+        }
+      ],
+      "buttons": [
+        {
+          "left": 231.1875,
+          "top": 184.703125,
+          "right": 287.1875,
+          "bottom": 208.703125,
+          "width": 56,
+          "height": 24,
+          "role": ""
+        },
+        {
+          "left": 13.65625,
+          "top": 230.71875,
+          "right": 74.65625,
+          "bottom": 251.71875,
+          "width": 61,
+          "height": 21,
+          "role": "task-status-filter"
+        },
+        {
+          "left": 74.15625,
+          "top": 230.71875,
+          "right": 134.15625,
+          "bottom": 251.71875,
+          "width": 60,
+          "height": 21,
+          "role": "task-status-filter"
+        },
+        {
+          "left": 134.65625,
+          "top": 230.71875,
+          "right": 195.65625,
+          "bottom": 251.71875,
+          "width": 61,
+          "height": 21,
+          "role": "task-status-filter"
+        },
+        {
+          "left": 195.15625,
+          "top": 230.71875,
+          "right": 255.15625,
+          "bottom": 251.71875,
+          "width": 60,
+          "height": 21,
+          "role": "task-status-filter"
+        },
+        {
+          "left": 255.65625,
+          "top": 230.71875,
+          "right": 316.65625,
+          "bottom": 251.71875,
+          "width": 61,
+          "height": 21,
+          "role": "task-status-filter"
+        },
+        {
+          "left": 325.21875,
+          "top": 229.71875,
+          "right": 379.21875,
+          "bottom": 252.71875,
+          "width": 54,
+          "height": 23,
+          "role": ""
+        },
+        {
+          "left": 12.046875,
+          "top": 262.296875,
+          "right": 378.046875,
+          "bottom": 339.296875,
+          "width": 366,
+          "height": 77,
+          "role": ""
+        },
+        {
+          "left": 12.046875,
+          "top": 340.296875,
+          "right": 378.046875,
+          "bottom": 417.296875,
+          "width": 366,
+          "height": 77,
+          "role": ""
+        },
+        {
+          "left": 12.046875,
+          "top": 418.296875,
+          "right": 378.046875,
+          "bottom": 495.296875,
+          "width": 366,
+          "height": 77,
+          "role": ""
+        },
+        {
+          "left": 12.046875,
+          "top": 496.296875,
+          "right": 378.046875,
+          "bottom": 573.296875,
+          "width": 366,
+          "height": 77,
+          "role": ""
+        },
+        {
+          "left": 12.046875,
+          "top": 574.296875,
+          "right": 378.046875,
+          "bottom": 651.296875,
+          "width": 366,
+          "height": 77,
+          "role": ""
+        },
+        {
+          "left": 12.203125,
+          "top": 744.265625,
+          "right": 190.203125,
+          "bottom": 776.265625,
+          "width": 178,
+          "height": 32,
+          "role": ""
+        },
+        {
+          "left": 198.53125,
+          "top": 744.265625,
+          "right": 377.53125,
+          "bottom": 776.265625,
+          "width": 179,
+          "height": 32,
+          "role": ""
+        }
+      ],
+      "fixedDockButtons": []
+    },
+    {
+      "route": "task_detail",
+      "path": "/pages/simulator/task-detail?id=runtime-review",
+      "viewport": {
+        "width": 390,
+        "height": 844,
+        "dpr": 3,
+        "safeAreaBottom": 810,
+        "safeBottomInset": 34
+      },
+      "summary": {
+        "route": "task_detail",
+        "status": "pass",
+        "regionCount": 8,
+        "semanticRegionCount": 8,
+        "buttonCount": 4,
+        "maxRegionRight": 376.109375,
+        "shellRight": 390,
+        "maxBoundRegionBottom": 794.71875,
+        "maxBoundButtonBottom": 782.71875,
+        "safeAreaBottom": 810,
+        "safeBottomInset": 34,
+        "fixedDockButtonCount": 0,
+        "maxFixedDockButtonBottom": 0,
+        "shellBodyScrollable": true,
+        "shellBodyPaddingBottom": 58,
+        "shellBodyBottom": 844,
+        "tabBarTop": null,
+        "violationCount": 0,
+        "violations": []
+      },
+      "shellBody": {
+        "left": 0,
+        "top": 0,
+        "right": 390,
+        "bottom": 844,
+        "width": 390,
+        "height": 844,
+        "clientHeight": 844,
+        "scrollHeight": 868,
+        "paddingBottom": 58
+      },
+      "tabBar": null,
+      "regions": [
+        {
+          "id": "task_summary",
+          "visibleSlot": true,
+          "left": 15.109375,
+          "top": 93.640625,
+          "right": 376.109375,
+          "bottom": 179.640625,
+          "width": 361,
+          "height": 86
+        },
+        {
+          "id": "refresh_notice",
+          "visibleSlot": true,
+          "left": 15.578125,
+          "top": 184.0625,
+          "right": 375.578125,
+          "bottom": 214.0625,
+          "width": 360,
+          "height": 30
+        },
+        {
+          "id": "simc_result",
+          "visibleSlot": true,
+          "left": 15.109375,
+          "top": 218.34375,
+          "right": 376.109375,
+          "bottom": 402.34375,
+          "width": 361,
+          "height": 184
+        },
+        {
+          "id": "character_context",
+          "visibleSlot": true,
+          "left": 15.109375,
+          "top": 407.015625,
+          "right": 376.109375,
+          "bottom": 487.015625,
+          "width": 361,
+          "height": 80
+        },
+        {
+          "id": "scenario_parameters",
+          "visibleSlot": true,
+          "left": 15.109375,
+          "top": 492.078125,
+          "right": 376.109375,
+          "bottom": 554.078125,
+          "width": 361,
+          "height": 62
+        },
+        {
+          "id": "attribute_snapshot",
+          "visibleSlot": true,
+          "left": 15.109375,
+          "top": 558.546875,
+          "right": 376.109375,
+          "bottom": 648.546875,
+          "width": 361,
+          "height": 90
+        },
+        {
+          "id": "combat_preparation",
+          "visibleSlot": true,
+          "left": 15.109375,
+          "top": 654.34375,
+          "right": 376.109375,
+          "bottom": 745.34375,
+          "width": 361,
+          "height": 91
+        },
+        {
+          "id": "exception_state",
+          "visibleSlot": true,
+          "left": 15.109375,
+          "top": 749.71875,
+          "right": 376.109375,
+          "bottom": 794.71875,
+          "width": 361,
+          "height": 45
+        }
+      ],
+      "buttons": [
+        {
+          "left": 298.859375,
+          "top": 189.0625,
+          "right": 367.859375,
+          "bottom": 212.0625,
+          "width": 69,
+          "height": 23,
+          "role": ""
+        },
+        {
+          "left": 292.859375,
+          "top": 622.875,
+          "right": 362.859375,
+          "bottom": 642.875,
+          "width": 70,
+          "height": 20,
+          "role": ""
+        },
+        {
+          "left": 292.859375,
+          "top": 718.25,
+          "right": 362.859375,
+          "bottom": 738.25,
+          "width": 70,
+          "height": 20,
+          "role": ""
+        },
+        {
+          "left": 300.859375,
+          "top": 761.71875,
+          "right": 366.859375,
+          "bottom": 782.71875,
+          "width": 66,
+          "height": 21,
+          "role": "task-detail-exception-action"
+        }
+      ],
+      "fixedDockButtons": []
+    },
+    {
+      "route": "profile/templates",
+      "path": "/pages/profile/profile",
+      "viewport": {
+        "width": 390,
+        "height": 844,
+        "dpr": 3,
+        "safeAreaBottom": 810,
+        "safeBottomInset": 34
+      },
+      "summary": {
+        "route": "profile/templates",
+        "status": "pass",
+        "regionCount": 4,
+        "semanticRegionCount": 4,
+        "buttonCount": 1,
+        "maxRegionRight": 382.671875,
+        "shellRight": 390,
+        "maxBoundRegionBottom": 843.953125,
+        "maxBoundButtonBottom": 213.171875,
+        "safeAreaBottom": 810,
+        "safeBottomInset": 34,
+        "fixedDockButtonCount": 0,
+        "maxFixedDockButtonBottom": 0,
+        "shellBodyScrollable": true,
+        "shellBodyPaddingBottom": 24,
+        "shellBodyBottom": 747,
+        "tabBarTop": 747,
+        "violationCount": 0,
+        "violations": []
+      },
+      "shellBody": {
+        "left": 0,
+        "top": 0,
+        "right": 390,
+        "bottom": 747,
+        "width": 390,
+        "height": 747,
+        "clientHeight": 747,
+        "scrollHeight": 896,
+        "paddingBottom": 24
+      },
+      "tabBar": {
+        "left": 0,
+        "top": 747,
+        "right": 390,
+        "bottom": 844,
+        "width": 390,
+        "height": 97
+      },
+      "regions": [
+        {
+          "id": "profile_summary",
+          "visibleSlot": true,
+          "left": 7.671875,
+          "top": 102.15625,
+          "right": 382.671875,
+          "bottom": 291.15625,
+          "width": 375,
+          "height": 189
+        },
+        {
+          "id": "template_library",
+          "visibleSlot": true,
+          "left": 11.03125,
+          "top": 311,
+          "right": 380.03125,
+          "bottom": 410,
+          "width": 369,
+          "height": 99
+        },
+        {
+          "id": "recent_templates",
+          "visibleSlot": true,
+          "left": 10.546875,
+          "top": 432.15625,
+          "right": 379.546875,
+          "bottom": 628.15625,
+          "width": 369,
+          "height": 196
+        },
+        {
+          "id": "settings_support",
+          "visibleSlot": true,
+          "left": 10.546875,
+          "top": 649.953125,
+          "right": 379.546875,
+          "bottom": 843.953125,
+          "width": 369,
+          "height": 194
+        }
+      ],
+      "buttons": [
+        {
+          "left": 19.671875,
+          "top": 117.171875,
+          "right": 101.671875,
+          "bottom": 213.171875,
+          "width": 82,
+          "height": 96,
+          "role": ""
+        }
+      ],
+      "fixedDockButtons": []
+    }
+  ]
+}
