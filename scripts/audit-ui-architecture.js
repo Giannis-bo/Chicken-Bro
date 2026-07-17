@@ -814,6 +814,14 @@ record(
   'build intel source disclaimer must not paint outside its initial safe-area region',
 )
 record(
+  'build_intel_primary_action_has_one_material_owner',
+  /data-material-owner="asset"/u.test(read('packages/design-system/src/components/BuildIntelComponents.tsx'))
+    && /button\.primaryAction\s*\{[^}]*width:\s*84px;[^}]*justify-self:\s*center;/su.test(buildIntelStyles)
+    && /\.primaryAction\s*\{[^}]*height:\s*36px;[^}]*border:\s*0;[^}]*background:\s*transparent;[^}]*box-shadow:\s*none;/su.test(buildIntelStyles)
+    && /\.primaryActionAsset\s*\{[^}]*opacity:\s*1;[^}]*filter:\s*none;/su.test(buildIntelStyles),
+  'the reviewed 84x36 production plate must not stack over a second CSS button material',
+)
+record(
   'news_translation_has_one_state_material_owner',
   /\.newsDetailTranslationLabel\s*\{[^}]*border:\s*0;[^}]*background:\s*transparent;[^}]*box-shadow:\s*none;/su.test(reconstructionStyles)
     && /\.newsDetailTranslationSegments\s*\{[^}]*border:\s*0;[^}]*background:\s*transparent;[^}]*box-shadow:\s*none;/su.test(reconstructionStyles)

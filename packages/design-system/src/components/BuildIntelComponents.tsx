@@ -289,6 +289,7 @@ export function BuildIntelCard({
                 (primaryDisabled || loading) && componentStyle('primaryActionDisabled'),
               )}
               data-disabled={primaryDisabled || loading ? 'true' : 'false'}
+              data-material-owner="asset"
               data-role="build-intel-primary-action"
               data-slot-id="asset_slot.build-intel-primary-action"
               disabled={primaryDisabled || loading}
