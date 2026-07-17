@@ -165,18 +165,22 @@ def _observed_panel(statistics: dict[str, Any]) -> dict[str, Any]:
         panel["primary"] = {"rawValue": primary}
     if stamina is not None:
         panel["stamina"] = {"rawValue": stamina}
-    for output_key, field_names, percent_fields in (
-        ("crit", ("spell_crit", "critical_strike", "crit"), ("value", "final_percent", "rating_bonus")),
-        ("haste", ("spell_haste", "haste"), ("value", "final_percent", "rating_bonus")),
-        ("mastery", ("mastery",), ("value", "final_percent", "rating_bonus")),
-        ("versatility", ("versatility",), ("damage_done_bonus", "value", "rating_bonus")),
-        ("avoidance", ("avoidance",), ("value", "rating_bonus")),
-        ("leech", ("lifesteal", "leech"), ("value", "rating_bonus")),
-        ("speed", ("speed",), ("value", "rating_bonus")),
+    for output_key, field_names, percent_fields, panel_percent_field in (
+        ("crit", ("spell_crit", "critical_strike", "crit"), ("value", "final_percent", "rating_bonus"), ""),
+        ("haste", ("spell_haste", "haste"), ("value", "final_percent", "rating_bonus"), ""),
+        ("mastery", ("mastery",), ("value", "final_percent", "rating_bonus"), ""),
+        ("versatility", ("versatility",), (), "versatility_damage_done_bonus"),
+        ("avoidance", ("avoidance",), ("value", "rating_bonus"), ""),
+        ("leech", ("lifesteal", "leech"), ("value", "rating_bonus"), ""),
+        ("speed", ("speed",), ("value", "rating_bonus"), ""),
     ):
         stat = next((statistics.get(field) for field in field_names if statistics.get(field) is not None), None)
         rating = _stat_number(stat, "rating", "rating_normalized")
-        percent = _stat_number(stat, *percent_fields)
+        percent = (
+            _stat_number(statistics.get(panel_percent_field), "value")
+            if panel_percent_field
+            else _stat_number(stat, *percent_fields)
+        )
         if rating is not None and percent is not None:
             panel["secondary"].append({
                 "key": output_key,
