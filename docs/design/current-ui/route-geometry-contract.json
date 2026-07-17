@@ -9,7 +9,7 @@
     { "route": "current_spec_workbench", "path": "/pages/builds/workbench" },
     { "route": "news_list", "path": "/pages/news/list" },
     { "route": "news_detail", "path": "/pages/news/detail?id=architecture-preflight" },
-    { "route": "build_intel", "path": "/pages/builds/intel", "allowedVerticalOverflowRegions": ["build_card_overflow"] },
+    { "route": "build_intel", "path": "/pages/builds/intel", "allowedVerticalOverflowRegions": ["build_card_overflow"], "allowedVerticalOverflowButtonRoles": ["build-intel-primary-action", "build-intel-secondary-action"] },
     { "route": "talent_simulator", "path": "/pages/builds/talent-simulator", "unavailableRouteStates": ["stale", "error"] },
     { "route": "gear_detail", "path": "/pages/builds/detail?query=gear" },
     { "route": "simulator_home", "path": "/pages/simulator/simulator" },

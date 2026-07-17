@@ -54,7 +54,8 @@ async function unavailableState(page, states) {
 async function inspect(page, route, viewport) {
   const tolerance = contract.tolerancePx
   const allowedVertical = new Set(route.allowedVerticalOverflowRegions ?? [])
-  const allowedButtonRoles = route.allowedHorizontalOverflowButtonRoles ?? []
+  const allowedHorizontalButtonRoles = route.allowedHorizontalOverflowButtonRoles ?? []
+  const allowedVerticalButtonRoles = route.allowedVerticalOverflowButtonRoles ?? []
   const [shell, regions, buttons, state] = await Promise.all([
     timeout(page.$('.wx-style-shell'), 4000, 'query route shell'),
     timeout(page.$$('.wx-style-routeregion'), 4000, 'query route regions'),
@@ -82,22 +83,33 @@ async function inspect(page, route, viewport) {
       ...geometry,
     }
   }))
-  const buttonBounds = await Promise.all(buttons.map(async (element) => ({
-    ...await bounds(element),
-    className: String(await timeout(element.attribute('class'), 1500, 'read button class') ?? ''),
-  })))
+  const buttonBounds = await Promise.all(buttons.map(async (element) => {
+    const [geometry, className, role] = await Promise.all([
+      bounds(element),
+      timeout(element.attribute('class'), 1500, 'read button class'),
+      timeout(element.attribute('data-role'), 1500, 'read button role'),
+    ])
+    return { ...geometry, className: String(className ?? ''), role: String(role ?? '') }
+  }))
   const violations = []
   if (!shellBounds) violations.push({ type: 'missing-shell' })
   else if (shellBounds.left < -tolerance || shellBounds.right > viewport.width + tolerance) violations.push({ type: 'shell-horizontal', left: shellBounds.left, right: shellBounds.right })
+  const minimumRegions = route.minimumRegions ?? 1
+  if (regionBounds.length < minimumRegions) violations.push({ type: 'missing-route-regions', minimum: minimumRegions, actual: regionBounds.length })
   for (const region of regionBounds) {
     if (/^region-\d+$/u.test(region.id)) violations.push({ type: 'anonymous-region-id', id: region.id })
     if (region.left < -tolerance || region.right > viewport.width + tolerance) violations.push({ type: 'region-horizontal', id: region.id, left: region.left, right: region.right })
     if (region.visibleSlot && !allowedVertical.has(region.id) && (region.top < -tolerance || region.bottom > viewport.height + tolerance)) violations.push({ type: 'region-vertical', id: region.id, top: region.top, bottom: region.bottom })
   }
   buttonBounds.forEach((button, index) => {
-    const allowedScrollContent = allowedButtonRoles.some((role) => button.className.includes(`wx-data-role-${role}`))
-    if (!allowedScrollContent && (button.left < -tolerance || button.right > viewport.width + tolerance || button.width > viewport.width + tolerance)) {
+    const hasRole = (role) => button.role === role || button.className.includes(`wx-data-role-${role}`)
+    const allowedHorizontalScrollContent = allowedHorizontalButtonRoles.some(hasRole)
+    const allowedVerticalScrollContent = allowedVerticalButtonRoles.some(hasRole)
+    if (!allowedHorizontalScrollContent && (button.left < -tolerance || button.right > viewport.width + tolerance || button.width > viewport.width + tolerance)) {
       violations.push({ type: 'native-button-horizontal', index, left: button.left, right: button.right, width: button.width })
+    }
+    if (!allowedVerticalScrollContent && (button.top < -tolerance || button.bottom > viewport.height + tolerance || button.height > viewport.height + tolerance)) {
+      violations.push({ type: 'native-button-vertical', index, role: button.role || null, top: button.top, bottom: button.bottom, height: button.height })
     }
   })
   const summary = {
@@ -109,6 +121,7 @@ async function inspect(page, route, viewport) {
     maxRegionRight: Math.max(0, ...regionBounds.map((item) => item.right)),
     shellRight: shellBounds?.right ?? null,
     maxBoundRegionBottom: Math.max(0, ...regionBounds.filter((item) => item.visibleSlot && !allowedVertical.has(item.id)).map((item) => item.bottom)),
+    maxBoundButtonBottom: Math.max(0, ...buttonBounds.filter((item) => !allowedVerticalButtonRoles.some((role) => item.role === role || item.className.includes(`wx-data-role-${role}`))).map((item) => item.bottom)),
     violationCount: violations.length,
     violations: violations.slice(0, 10),
   }

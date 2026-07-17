@@ -13,7 +13,7 @@ import {
 } from '@wow-mini/design-system/components/FeaturedCarousel'
 import { NewsHomeBrief } from '@wow-mini/design-system/components/NewsHomeBrief'
 import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
-import { RouteGrid } from '@wow-mini/design-system/components/RouteFlow'
+import { RouteGrid, RouteRegion } from '@wow-mini/design-system/components/RouteFlow'
 import {
   RankedFeed,
   type RankedFeedItem,
@@ -89,53 +89,61 @@ export default function NewsHomePage() {
         variant="news-home"
       >
         <RouteGrid className={styles['surface'] ?? ''} data-owner="news-home-surface">
-          <NewsHomeBrief
-            dateLabel={model.daily.dateLabel}
-            loading={model.initialLoading}
-            metrics={model.daily.metrics}
-            retryAvailable={model.retryAvailable}
-            sourceLabel={model.daily.sourceLabel}
-            statusLabel={model.daily.statusLabel}
-            onRetry={route.load}
-            onSelectMetric={(metric) => {
-              const target = model.daily.metrics.find((candidate) => candidate.id === metric.id)
-              if (target?.available) navigateTo('/pages/news/list', {
-                type: target.query.type,
-                key: target.query.key,
-              })
-            }}
-          />
-          <FeaturedCarousel
-            autoplay
-            items={featured}
-            loading={model.initialLoading}
-            paginationSlots={model.carousel.visualSlotCount}
-            variant="news-home"
-            onSelect={(item) => openArticle(item.id)}
-          />
-          <ChannelDock
-            activeId="all"
-            items={channels}
-            variant="news-home"
-            onSelect={(item) => {
-              const target = model.channels.find((candidate) => candidate.id === item.id)
-              if (target) navigateTo('/pages/news/list', {
-                type: target.query.type,
-                key: target.query.key,
-              })
-            }}
-          />
-          <RankedFeed
-            emptyText="暂无可用资讯"
-            items={feed}
-            loading={model.initialLoading}
-            loadingRows={4}
-            minimumRows={4}
-            title="今日重点"
-            variant="news-home"
-            onSelect={(item) => openArticle(item.id)}
-            onToggleSaved={toggleSavedArticle}
-          />
+          <RouteRegion data-region="daily_brief">
+            <NewsHomeBrief
+              dateLabel={model.daily.dateLabel}
+              loading={model.initialLoading}
+              metrics={model.daily.metrics}
+              retryAvailable={model.retryAvailable}
+              sourceLabel={model.daily.sourceLabel}
+              statusLabel={model.daily.statusLabel}
+              onRetry={route.load}
+              onSelectMetric={(metric) => {
+                const target = model.daily.metrics.find((candidate) => candidate.id === metric.id)
+                if (target?.available) navigateTo('/pages/news/list', {
+                  type: target.query.type,
+                  key: target.query.key,
+                })
+              }}
+            />
+          </RouteRegion>
+          <RouteRegion data-region="featured_carousel">
+            <FeaturedCarousel
+              autoplay
+              items={featured}
+              loading={model.initialLoading}
+              paginationSlots={model.carousel.visualSlotCount}
+              variant="news-home"
+              onSelect={(item) => openArticle(item.id)}
+            />
+          </RouteRegion>
+          <RouteRegion data-region="channel_dock">
+            <ChannelDock
+              activeId="all"
+              items={channels}
+              variant="news-home"
+              onSelect={(item) => {
+                const target = model.channels.find((candidate) => candidate.id === item.id)
+                if (target) navigateTo('/pages/news/list', {
+                  type: target.query.type,
+                  key: target.query.key,
+                })
+              }}
+            />
+          </RouteRegion>
+          <RouteRegion data-region="ranked_feed">
+            <RankedFeed
+              emptyText="暂无可用资讯"
+              items={feed}
+              loading={model.initialLoading}
+              loadingRows={4}
+              minimumRows={4}
+              title="今日重点"
+              variant="news-home"
+              onSelect={(item) => openArticle(item.id)}
+              onToggleSaved={toggleSavedArticle}
+            />
+          </RouteRegion>
         </RouteGrid>
       </PageFrame>
     </AppShell>
