@@ -315,6 +315,17 @@ record(
   'runtime audits must not create unregistered repository artifacts',
 )
 
+const wechatAutomator = read('scripts/wechat-automator.js')
+const reuseConnectTimeoutMs = Number(wechatAutomator.match(/const reuseConnectTimeoutMs = (\d+)/u)?.[1])
+record(
+  'wechat_automation_reuse_probe_is_bounded_and_launch_is_opt_in',
+  reuseConnectTimeoutMs > 0
+    && reuseConnectTimeoutMs <= 3000
+    && wechatAutomator.includes("process.env.WECHAT_AUTOMATOR_LAUNCH !== '1'")
+    && wechatAutomator.includes('refusing to relaunch DevTools'),
+  `reuseConnectTimeoutMs=${reuseConnectTimeoutMs || 'missing'}`,
+)
+
 const reconstructionPath = 'packages/design-system/src/components/reconstruction.module.scss'
 const reconstruction = read(reconstructionPath)
 const legacyChromeSelector = /\.(?:pageFrame|pageHeader|pageCenteredTitle|pageHeaderLeading|pageHeaderAction|pageHeaderFlexSpacer|pageRootContext|sharedBack|pushedBack|titleRail|newsPushedTitleRail)\b/

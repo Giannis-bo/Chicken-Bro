@@ -4,7 +4,8 @@ const path = require('node:path')
 const net = require('node:net')
 const automator = require('miniprogram-automator')
 
-const connectTimeoutMs = 30000
+const explicitConnectTimeoutMs = 30000
+const reuseConnectTimeoutMs = 2000
 
 function timeout(promise, milliseconds, label) {
   let timer
@@ -17,13 +18,13 @@ function timeout(promise, milliseconds, label) {
 async function connectMiniProgram() {
   const endpoint = process.env.WECHAT_AUTOMATOR_ENDPOINT
   if (endpoint) {
-    return timeout(automator.connect({ wsEndpoint: endpoint }), connectTimeoutMs, `connect ${endpoint}`)
+    return timeout(automator.connect({ wsEndpoint: endpoint }), explicitConnectTimeoutMs, `connect ${endpoint}`)
   }
 
   for (let port = 9420; port <= 9460; port += 1) {
     if (await portIsListening(port)) {
       try {
-        return await timeout(automator.connect({ wsEndpoint: `ws://127.0.0.1:${port}` }), connectTimeoutMs, `connect automation port ${port}`)
+        return await timeout(automator.connect({ wsEndpoint: `ws://127.0.0.1:${port}` }), reuseConnectTimeoutMs, `connect automation port ${port}`)
       } catch {
         // A listening port in this range is not necessarily a WeChat Automator endpoint.
       }
@@ -39,9 +40,9 @@ async function connectMiniProgram() {
   return timeout(automator.launch({
     projectPath,
     trustProject: true,
-    timeout: connectTimeoutMs,
+    timeout: explicitConnectTimeoutMs,
     ...(cliPath ? { cliPath } : {}),
-  }), connectTimeoutMs + 2000, 'launch automation channel')
+  }), explicitConnectTimeoutMs + 2000, 'launch automation channel')
 }
 
 function portIsListening(port) {
