@@ -247,9 +247,24 @@ test('real WeChat interaction verification cannot wait forever inside one route'
   assert.match(verifier, /status: unavailable \? 'UNAVAILABLE' : 'FAIL'/)
   assert.match(verifier, /result\.status === 'FAIL'/)
   assert.match(verifier, /unavailableRouteStates/)
+  assert.match(verifier, /INTERACTION_DETAIL_PATH/)
+  assert.match(verifier, /wechat-core-interaction-detail-v1/)
+  assert.match(verifier, /fs\.renameSync\(temporaryPath, detailPath\)/)
   assert.match(verifier, /timeout\(action\(\), caseTimeoutMs, `interaction \$\{route\}`\)/)
   assert.match(verifier, /\[interaction:start\]/)
   assert.match(verifier, /\[interaction:end\]/)
+})
+
+test('interaction evidence promotion is exact, immutable and content addressed', () => {
+  const promotion = fs.readFileSync('scripts/promote-ui-interaction-review.js', 'utf8')
+  assert.match(promotion, /INTERACTION_DETAIL_PATHS is required/)
+  assert.match(promotion, /interaction detail commits must match/)
+  assert.match(promotion, /interaction detail viewports must match/)
+  assert.match(promotion, /exact 14-route contract/)
+  assert.match(promotion, /interaction result is not promotable/)
+  assert.match(promotion, /createHash\('sha256'\)/)
+  assert.match(promotion, /flag: 'wx'/)
+  assert.doesNotMatch(promotion, /connectMiniProgram|WECHAT_AUTOMATOR_LAUNCH/)
 })
 
 test('visual review capture stays explicit, cached and out of the main session', () => {

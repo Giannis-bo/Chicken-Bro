@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 'use strict'
 
+const { execFileSync } = require('node:child_process')
+const fs = require('node:fs')
+const path = require('node:path')
 const { connectMiniProgram, timeout } = require('./wechat-automator')
 const coreInteractionContract = require('../docs/design/current-ui/core-interaction-contract.json')
 
@@ -319,6 +322,26 @@ async function main() {
       status: 'FAIL',
     }]
     const failures = [...results.filter((result) => result.status === 'FAIL'), ...coverageFailures]
+    let detailPath = null
+    if (process.env.INTERACTION_DETAIL_PATH) {
+      detailPath = path.resolve(process.env.INTERACTION_DETAIL_PATH)
+      fs.mkdirSync(path.dirname(detailPath), { recursive: true })
+      const temporaryPath = `${detailPath}.tmp`
+      const commit = execFileSync('git', ['rev-parse', '--short=12', 'HEAD'], { cwd: path.resolve(__dirname, '..'), encoding: 'utf8' }).trim()
+      const system = await timeout(miniProgram.systemInfo(), 4000, 'read system info for interaction evidence')
+      const viewport = { width: system.windowWidth, height: system.windowHeight, dpr: system.pixelRatio }
+      const detail = {
+        schemaVersion: 'wechat-core-interaction-detail-v1',
+        commit,
+        viewport,
+        scope: requestedRoutes.size === 0 ? 'all_14_canonical_routes' : 'selected_canonical_routes',
+        coverageMatches,
+        results,
+        failures,
+      }
+      fs.writeFileSync(temporaryPath, `${JSON.stringify(detail, null, 2)}\n`)
+      fs.renameSync(temporaryPath, detailPath)
+    }
     console.log(JSON.stringify({
       status: failures.length ? 'fail' : 'pass',
       evidence: 'real_wechat_core_interaction',
@@ -328,6 +351,7 @@ async function main() {
       unavailable: results.filter((result) => result.status === 'UNAVAILABLE').length,
       results,
       failures,
+      detailPath,
     }, null, 2))
     if (failures.length) process.exitCode = 1
   } finally {

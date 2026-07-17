@@ -22,6 +22,7 @@
     "test:taro": "vitest run",
     "verify:ui-baselines": "node scripts/verify-ui-baselines.js",
     "verify:ui-interactions": "node scripts/verify-ui-interactions.js",
+    "promote:ui-interactions": "node scripts/promote-ui-interaction-review.js",
     "verify:ui-route-geometry": "node scripts/verify-ui-route-geometry.js",
     "compare:ui-runtime-regions": "node scripts/compare-ui-runtime-regions.js",
     "promote:ui-region-comparison": "node scripts/promote-ui-region-comparison.js",
