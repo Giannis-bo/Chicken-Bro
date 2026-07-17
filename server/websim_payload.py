@@ -18,7 +18,7 @@ import threading
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from urllib.parse import unquote, urlencode, urlparse
+from urllib.parse import quote, unquote, urlencode, urlparse
 from urllib.request import Request, urlopen
 
 try:
@@ -3478,7 +3478,7 @@ def blizzard_get(path, token, region=DEFAULT_REGION, locale=DEFAULT_LOCALE, para
         "locale": locale,
     }
     query.update(params or {})
-    url = f"{blizzard_api_base(region)}{path}?{urlencode(query)}"
+    url = f"{blizzard_api_base(region)}{quote(str(path or ''), safe='/%')}?{urlencode(query)}"
     request = Request(url, headers={"Authorization": f"Bearer {token}"})
     with urlopen(request, timeout=int_env("WOW_BLIZZARD_TIMEOUT_SECONDS", 15)) as response:
         return json.loads(response.read().decode("utf-8"))

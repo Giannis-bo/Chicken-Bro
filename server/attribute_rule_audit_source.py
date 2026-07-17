@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import math
 import re
 from typing import Any
 
@@ -97,13 +98,71 @@ def _normalized_equipment(payload: dict[str, Any]) -> list[dict[str, Any]]:
     return rows
 
 
-def _observed_panel(profile: dict[str, Any]) -> dict[str, Any]:
-    """Accept only an already structured panel; unknown upstream shapes stay absent."""
-    return profile.get("attributeAuditPanel") if isinstance(profile.get("attributeAuditPanel"), dict) else {}
+def _number(value: Any) -> int | float | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    numeric = float(value)
+    if not math.isfinite(numeric):
+        return None
+    return int(numeric) if numeric.is_integer() else numeric
+
+
+def _stat_number(value: Any, *keys: str) -> int | float | None:
+    direct = _number(value)
+    if direct is not None:
+        return direct
+    if not isinstance(value, dict):
+        return None
+    for key in keys:
+        numeric = _number(value.get(key))
+        if numeric is not None:
+            return numeric
+    return None
+
+
+def _observed_panel(statistics: dict[str, Any]) -> dict[str, Any]:
+    """Normalize only documented public statistics fields into the audit comparator shape."""
+    if not isinstance(statistics, dict):
+        return {}
+    panel: dict[str, Any] = {"resources": {}, "secondary": []}
+    primary = _stat_number(statistics.get("intellect"), "effective", "value")
+    stamina = _stat_number(statistics.get("stamina"), "effective", "value")
+    if primary is not None:
+        panel["primary"] = {"rawValue": primary}
+    if stamina is not None:
+        panel["stamina"] = {"rawValue": stamina}
+    for output_key, field_names, percent_fields in (
+        ("crit", ("spell_crit", "critical_strike", "crit"), ("value", "final_percent", "rating_bonus")),
+        ("haste", ("spell_haste", "haste"), ("value", "final_percent", "rating_bonus")),
+        ("mastery", ("mastery",), ("value", "final_percent", "rating_bonus")),
+        ("versatility", ("versatility",), ("damage_done_bonus", "value", "rating_bonus")),
+        ("avoidance", ("avoidance",), ("value", "rating_bonus")),
+        ("leech", ("lifesteal", "leech"), ("value", "rating_bonus")),
+        ("speed", ("speed",), ("value", "rating_bonus")),
+    ):
+        stat = next((statistics.get(field) for field in field_names if statistics.get(field) is not None), None)
+        rating = _stat_number(stat, "rating")
+        percent = _stat_number(stat, *percent_fields)
+        if rating is not None and percent is not None:
+            panel["secondary"].append({
+                "key": output_key,
+                "rawValue": rating,
+                "convertedValue": f"{percent}%",
+                "displayUnit": "percent",
+            })
+    for output_key, field_names in (("health", ("health",)), ("mana", ("mana", "power"))):
+        value = next((_stat_number(statistics.get(field), "effective", "value") for field in field_names if statistics.get(field) is not None), None)
+        if value is not None:
+            panel["resources"][output_key] = {"rawValue": value}
+    if not panel["resources"]:
+        panel.pop("resources")
+    if not panel["secondary"]:
+        panel.pop("secondary")
+    return panel
 
 
 def fetch_official_profile(identity: dict[str, str]) -> dict[str, Any]:
-    """Fetch profile/equipment read-only and reduce any failure to a safe code."""
+    """Fetch profile/equipment/statistics read-only and reduce any failure to a safe code."""
     normalized = _identity(identity)
     try:
         token = get_blizzard_access_token(normalized["region"])
@@ -111,17 +170,18 @@ def fetch_official_profile(identity: dict[str, str]) -> dict[str, Any]:
         base = f"/profile/wow/character/{normalized['realmSlug']}/{normalized['characterName'].lower()}"
         profile = blizzard_get(base, token, region=normalized["region"], locale=normalized["locale"], namespace=namespace)
         equipment = blizzard_get(f"{base}/equipment", token, region=normalized["region"], locale=normalized["locale"], namespace=namespace)
+        statistics = blizzard_get(f"{base}/statistics", token, region=normalized["region"], locale=normalized["locale"], namespace=namespace)
     except AttributeAuditSourceUnavailable:
         raise
     except Exception as exc:
         code = "OFFICIAL_PROFILE_AUTH_UNAVAILABLE" if "token" in _text(exc).lower() or "credential" in _text(exc).lower() else "OFFICIAL_PROFILE_UNAVAILABLE"
         raise AttributeAuditSourceUnavailable(code) from None
-    if not isinstance(profile, dict) or not isinstance(equipment, dict):
+    if not isinstance(profile, dict) or not isinstance(equipment, dict) or not isinstance(statistics, dict):
         raise AttributeAuditSourceUnavailable("OFFICIAL_PROFILE_PAYLOAD_INVALID")
     normalized_profile = {"character": _profile_character(profile), "equipment": _normalized_equipment(equipment)}
     if not normalized_profile["equipment"]:
         raise AttributeAuditSourceUnavailable("OFFICIAL_PROFILE_EQUIPMENT_UNAVAILABLE")
-    return {"profile": normalized_profile, "panel": _observed_panel(profile)}
+    return {"profile": normalized_profile, "panel": _observed_panel(statistics)}
 
 
 __all__ = ("AttributeAuditSourceUnavailable", "fetch_official_profile")

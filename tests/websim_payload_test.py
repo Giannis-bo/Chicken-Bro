@@ -23327,6 +23327,35 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertNotIn("access_token", captured["url"])
         self.assertEqual(captured["auth"], "Bearer token-value")
 
+    def test_blizzard_get_percent_encodes_non_ascii_character_path(self):
+        captured = {}
+
+        class FakeResponse:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, traceback):
+                return False
+
+            def read(self):
+                return b'{"ok": true}'
+
+        def fake_urlopen(request, timeout):
+            captured["url"] = request.full_url
+            return FakeResponse()
+
+        original_urlopen = self.websim_payload.urlopen
+        self.addCleanup(setattr, self.websim_payload, "urlopen", original_urlopen)
+        self.websim_payload.urlopen = fake_urlopen
+
+        payload = self.websim_payload.blizzard_get(
+            "/profile/wow/character/kr/azshara/카르꽁스", "token-value", region="kr", locale="ko_KR", namespace="profile-kr"
+        )
+
+        self.assertEqual(payload, {"ok": True})
+        self.assertIn("/profile/wow/character/kr/azshara/%EC%B9%B4%EB%A5%B4%EA%BD%81%EC%8A%A4?", captured["url"])
+        self.assertNotIn("카르꽁스", captured["url"])
+
     def test_http_websim_routes_return_static_page_and_json(self):
         server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
         thread = threading.Thread(target=server.serve_forever, daemon=True)

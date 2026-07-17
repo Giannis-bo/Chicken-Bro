@@ -12,7 +12,7 @@ class AttributeRuleAuditSourceTest(unittest.TestCase):
                 fetch_official_profile({"region": "eu", "realmSlug": "blackrock"})
         token.assert_not_called()
 
-    def test_profile_and_equipment_are_normalized_without_exposing_token_or_raw_body(self):
+    def test_profile_equipment_and_statistics_are_normalized_without_exposing_token_or_raw_body(self):
         profile = {
             "character_class": {"name": "Mage"},
             "active_spec": {"name": "Arcane"},
@@ -31,11 +31,28 @@ class AttributeRuleAuditSourceTest(unittest.TestCase):
                 }
             ]
         }
+        statistics = {
+            "health": 458760,
+            "power": 342615,
+            "intellect": {"base": 620, "effective": 2462},
+            "stamina": {"base": 4600, "effective": 22938},
+            "spell_crit": {"rating": 558, "value": 19.130434},
+            "spell_haste": {"rating": 802, "value": 23.003637},
+            "mastery": {"rating": 785, "value": 37.04609},
+            "versatility": {"rating": 385, "damage_done_bonus": 7.1296296},
+            "avoidance": {"rating": 127, "rating_bonus": 3.4510376},
+            "lifesteal": {"rating": 166, "value": 2.4057627},
+            "speed": {"rating": 55, "rating_bonus": 4.7825403},
+        }
         calls = []
 
         def api(path, token, **kwargs):
             calls.append((path, token, kwargs))
-            return equipment if path.endswith("/equipment") else profile
+            if path.endswith("/equipment"):
+                return equipment
+            if path.endswith("/statistics"):
+                return statistics
+            return profile
 
         with patch("server.attribute_rule_audit_source.get_blizzard_access_token", return_value="secret-token"), patch(
             "server.attribute_rule_audit_source.blizzard_get", side_effect=api
@@ -51,8 +68,25 @@ class AttributeRuleAuditSourceTest(unittest.TestCase):
             "slot": "head", "itemId": "250060", "itemLevel": 289,
             "bonusIds": ["6652"], "gemIds": ["240914", "240914"], "enchantIds": ["8017"],
         })
-        self.assertEqual(result["panel"], {})
-        self.assertEqual(len(calls), 2)
+        self.assertEqual(result["panel"], {
+            "primary": {"rawValue": 2462},
+            "stamina": {"rawValue": 22938},
+            "resources": {
+                "health": {"rawValue": 458760},
+                "mana": {"rawValue": 342615},
+            },
+            "secondary": [
+                {"key": "crit", "rawValue": 558, "convertedValue": "19.130434%", "displayUnit": "percent"},
+                {"key": "haste", "rawValue": 802, "convertedValue": "23.003637%", "displayUnit": "percent"},
+                {"key": "mastery", "rawValue": 785, "convertedValue": "37.04609%", "displayUnit": "percent"},
+                {"key": "versatility", "rawValue": 385, "convertedValue": "7.1296296%", "displayUnit": "percent"},
+                {"key": "avoidance", "rawValue": 127, "convertedValue": "3.4510376%", "displayUnit": "percent"},
+                {"key": "leech", "rawValue": 166, "convertedValue": "2.4057627%", "displayUnit": "percent"},
+                {"key": "speed", "rawValue": 55, "convertedValue": "4.7825403%", "displayUnit": "percent"},
+            ],
+        })
+        self.assertEqual(len(calls), 3)
+        self.assertTrue(any(path.endswith("/statistics") for path, _, _ in calls))
         self.assertNotIn("secret-token", str(result))
 
     def test_upstream_failure_is_reduced_to_safe_code(self):
