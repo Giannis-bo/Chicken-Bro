@@ -271,6 +271,63 @@
           "reason": "two_hand_staff"
         }
       ],
+      "evidence": {
+        "officialProfileApi": {
+          "url": "https://eu.api.blizzard.com/profile/wow/character/blackrock/heated?namespace=profile-eu&locale=en_GB",
+          "capturedAt": "2026-07-17T04:43:43Z",
+          "credentialHandling": "read-only server-side OAuth; no token persisted"
+        },
+        "officialProfileSnapshot": {
+          "capturedAt": "2026-07-17T04:43:43Z",
+          "canonicalEquipmentCount": 15,
+          "excludedCosmeticSlots": [
+            {
+              "slot": "shirt",
+              "itemId": "45667",
+              "itemLevel": 1
+            },
+            {
+              "slot": "tabard",
+              "itemId": "31804",
+              "itemLevel": 10
+            }
+          ],
+          "instances": [
+            { "slot": "head", "itemId": "250060", "itemLevel": 289, "bonusIds": [40, 13440, 13338, 13575, 12806, 13534], "enchantIds": [8017], "gemIds": [240914] },
+            { "slot": "neck", "itemId": "268291", "itemLevel": 298, "bonusIds": [6652, 13668, 13335, 13786], "gemIds": [240967] },
+            { "slot": "shoulder", "itemId": "250058", "itemLevel": 289, "bonusIds": [13340, 13440, 6652, 13574, 12806], "enchantIds": [8031] },
+            { "slot": "chest", "itemId": "250063", "itemLevel": 298, "bonusIds": [6652, 13335, 13786, 13336, 13575, 3183], "enchantIds": [7987] },
+            { "slot": "waist", "itemId": "239649", "itemLevel": 285, "bonusIds": [12214, 13667, 12497, 12066, 8960, 12384, 8793, 13622, 12666], "gemIds": [240914] },
+            { "slot": "legs", "itemId": "250059", "itemLevel": 289, "bonusIds": [6652, 13440, 13339, 13575, 12806], "enchantIds": [7935] },
+            { "slot": "feet", "itemId": "268282", "itemLevel": 298, "bonusIds": [6652, 13577, 13335, 13786], "enchantIds": [7963] },
+            { "slot": "wrist", "itemId": "250056", "itemLevel": 289, "bonusIds": [6652, 13440, 12806, 13534], "gemIds": [240914] },
+            { "slot": "hands", "itemId": "251211", "itemLevel": 289, "bonusIds": [13440, 6652, 13577, 12699, 12806] },
+            { "slot": "finger1", "itemId": "240949", "itemLevel": 285, "bonusIds": [12214, 13667, 12497, 12066, 8795, 13622], "enchantIds": [7967], "gemIds": [240914] },
+            { "slot": "finger2", "itemId": "268290", "itemLevel": 298, "bonusIds": [42, 13668, 13335, 13786], "enchantIds": [7967], "gemIds": [240914] },
+            { "slot": "trinket1", "itemId": "249346", "itemLevel": 285, "bonusIds": [6652, 13334, 13653] },
+            { "slot": "trinket2", "itemId": "249343", "itemLevel": 298, "bonusIds": [6652, 13335, 13654] },
+            { "slot": "back", "itemId": "239656", "itemLevel": 285, "bonusIds": [12214, 13667, 12497, 12066, 8960, 12384, 8791, 13622] },
+            { "slot": "main_hand", "itemId": "258047", "itemLevel": 298, "bonusIds": [13440, 6652, 12701, 13654], "enchantIds": [8041] },
+            { "slot": "off_hand", "status": "empty", "reason": "two_hand_staff" }
+          ]
+        },
+        "officialProfilePanel": {
+          "capturedAt": "2026-07-17T04:43:43Z",
+          "values": {
+            "health": 458760,
+            "mana": 342615,
+            "intellect": { "base": 620, "effective": 2462 },
+            "stamina": { "base": 4600, "effective": 22938 },
+            "criticalStrike": { "rating": 558, "ratingBonusPercent": 12.130435, "finalPercent": 19.130434 },
+            "haste": { "rating": 802, "ratingBonusPercent": 18.227272, "finalPercent": 23.003637 },
+            "mastery": { "rating": 785, "ratingBonusPercent": 22.526089, "finalPercent": 37.04609 },
+            "versatility": { "rating": 385, "damageDonePercent": 7.1296296, "healingDonePercent": 7.1296296, "damageTakenReductionPercent": 3.5648148 },
+            "avoidance": { "rating": 127, "ratingBonusPercent": 3.4510376 },
+            "lifesteal": { "rating": 166, "finalPercent": 2.4057627 },
+            "speed": { "rating": 55, "ratingBonusPercent": 4.7825403 }
+          }
+        }
+      },
       "observedPanel": {
         "item_level": 291,
         "health": 458760,
@@ -283,10 +340,10 @@
         "versatility_percent": 7
       },
       "missingEvidence": [
-        "official character page does not expose item ids or exact variant identities in the rendered tooltip",
-        "official character page names several enchants but does not expose their numeric stat values in the rendered tooltip",
-        "official character page rounds secondary percentages and does not expose the rating conversion or stable class base attributes",
-        "conditional effects are visible but cannot be classified as stable without a rule source"
+        "the authenticated official Profile captures item level and exact bonus IDs, but the project has no verified bonus-ID-to-canonical-variant and per-item stat rule source",
+        "the official Profile identifies enchant IDs but does not provide a verified numeric contribution for every enchantment",
+        "one Night Elf Arcane level-90 sample exposes observed rating and final effects but is not a normative source for the all-race, all-spec rating conversion and stable class/passive rules",
+        "the current active talent configuration and classification of visible conditional effects are not captured as stable rule inputs"
       ]
     },
     {

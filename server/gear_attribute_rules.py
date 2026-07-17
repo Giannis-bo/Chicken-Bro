@@ -59,6 +59,7 @@ _ARMORY_SAMPLE_REQUIRED_KEYS = {
     "observedPanel",
     "missingEvidence",
 }
+_ARMORY_SAMPLE_OPTIONAL_KEYS = {"evidence"}
 _ARMORY_SOURCE_REQUIRED_KEYS = {"url", "capturedAt", "captureStatus"}
 _ARMORY_IDENTITY_REQUIRED_KEYS = {
     "region",
@@ -87,6 +88,11 @@ _ARMORY_REQUIRED_SLOTS = {
     "main_hand",
     "off_hand",
 }
+_ARMORY_EVIDENCE_KEYS = {"officialProfileApi", "officialProfileSnapshot", "officialProfilePanel"}
+_ARMORY_OFFICIAL_PROFILE_API_KEYS = {"url", "capturedAt", "credentialHandling"}
+_ARMORY_OFFICIAL_PROFILE_SNAPSHOT_REQUIRED_KEYS = {"capturedAt", "canonicalEquipmentCount", "instances"}
+_ARMORY_OFFICIAL_PROFILE_SNAPSHOT_OPTIONAL_KEYS = {"excludedCosmeticSlots"}
+_ARMORY_OFFICIAL_PROFILE_PANEL_KEYS = {"capturedAt", "values"}
 
 
 def _issue(kind: str, code: str, path: str, message: str) -> dict[str, str]:
@@ -146,16 +152,82 @@ def _has_complete_verified_equipment(equipment: Any) -> bool:
     return slots == _ARMORY_REQUIRED_SLOTS
 
 
+def _validate_armory_evidence(evidence: Any, path: str) -> list[dict[str, str]]:
+    issues: list[dict[str, str]] = []
+    if not isinstance(evidence, dict):
+        return [_issue("INVALID_ARMORY_SAMPLE", "INVALID_EVIDENCE", path, "evidence must be an object")]
+    for key in sorted(set(evidence) - _ARMORY_EVIDENCE_KEYS):
+        issues.append(_issue("INVALID_ARMORY_SAMPLE", "UNKNOWN_FIELD", f"{path}.{key}", "unknown evidence field"))
+
+    api = evidence.get("officialProfileApi")
+    if api is not None:
+        api_path = f"{path}.officialProfileApi"
+        if not isinstance(api, dict):
+            issues.append(_issue("INVALID_ARMORY_SAMPLE", "INVALID_OFFICIAL_PROFILE_API", api_path, "officialProfileApi must be an object"))
+        else:
+            for key in sorted(set(api) - _ARMORY_OFFICIAL_PROFILE_API_KEYS):
+                issues.append(_issue("INVALID_ARMORY_SAMPLE", "UNKNOWN_FIELD", f"{api_path}.{key}", "unknown official profile API field"))
+            for key in sorted(_ARMORY_OFFICIAL_PROFILE_API_KEYS - set(api)):
+                issues.append(_issue("INVALID_ARMORY_SAMPLE", "MISSING_REQUIRED_FIELD", f"{api_path}.{key}", "official profile API field is required"))
+            if _ARMORY_OFFICIAL_PROFILE_API_KEYS.issubset(api):
+                if not isinstance(api["url"], str) or not api["url"].startswith("https://"):
+                    issues.append(_issue("INVALID_ARMORY_SAMPLE", "INVALID_SOURCE_URL", f"{api_path}.url", "official profile API URL must use https"))
+                for key in ("capturedAt", "credentialHandling"):
+                    if _bounded_string(api[key]) is None:
+                        issues.append(_issue("INVALID_ARMORY_SAMPLE", "INVALID_EVIDENCE", f"{api_path}.{key}", "official profile API evidence text must be bounded"))
+
+    snapshot = evidence.get("officialProfileSnapshot")
+    if snapshot is not None:
+        snapshot_path = f"{path}.officialProfileSnapshot"
+        if not isinstance(snapshot, dict):
+            issues.append(_issue("INVALID_ARMORY_SAMPLE", "INVALID_OFFICIAL_PROFILE_SNAPSHOT", snapshot_path, "officialProfileSnapshot must be an object"))
+        else:
+            allowed_snapshot_keys = _ARMORY_OFFICIAL_PROFILE_SNAPSHOT_REQUIRED_KEYS | _ARMORY_OFFICIAL_PROFILE_SNAPSHOT_OPTIONAL_KEYS
+            for key in sorted(set(snapshot) - allowed_snapshot_keys):
+                issues.append(_issue("INVALID_ARMORY_SAMPLE", "UNKNOWN_FIELD", f"{snapshot_path}.{key}", "unknown official profile snapshot field"))
+            for key in sorted(_ARMORY_OFFICIAL_PROFILE_SNAPSHOT_REQUIRED_KEYS - set(snapshot)):
+                issues.append(_issue("INVALID_ARMORY_SAMPLE", "MISSING_REQUIRED_FIELD", f"{snapshot_path}.{key}", "official profile snapshot field is required"))
+            if _ARMORY_OFFICIAL_PROFILE_SNAPSHOT_REQUIRED_KEYS.issubset(snapshot):
+                if _bounded_string(snapshot["capturedAt"]) is None:
+                    issues.append(_issue("INVALID_ARMORY_SAMPLE", "INVALID_CAPTURE_TIME", f"{snapshot_path}.capturedAt", "official profile snapshot capture time must be bounded"))
+                count = snapshot["canonicalEquipmentCount"]
+                if isinstance(count, bool) or not isinstance(count, int) or not 0 <= count <= len(_ARMORY_REQUIRED_SLOTS):
+                    issues.append(_issue("INVALID_ARMORY_SAMPLE", "INVALID_EQUIPMENT", f"{snapshot_path}.canonicalEquipmentCount", "canonical equipment count must be an integer from 0 to 16"))
+                if not isinstance(snapshot["instances"], list):
+                    issues.append(_issue("INVALID_ARMORY_SAMPLE", "INVALID_EQUIPMENT", f"{snapshot_path}.instances", "official profile instances must be a list"))
+                if "excludedCosmeticSlots" in snapshot and not isinstance(snapshot["excludedCosmeticSlots"], list):
+                    issues.append(_issue("INVALID_ARMORY_SAMPLE", "INVALID_EQUIPMENT", f"{snapshot_path}.excludedCosmeticSlots", "excluded cosmetic slots must be a list"))
+
+    panel = evidence.get("officialProfilePanel")
+    if panel is not None:
+        panel_path = f"{path}.officialProfilePanel"
+        if not isinstance(panel, dict):
+            issues.append(_issue("INVALID_ARMORY_SAMPLE", "INVALID_OFFICIAL_PROFILE_PANEL", panel_path, "officialProfilePanel must be an object"))
+        else:
+            for key in sorted(set(panel) - _ARMORY_OFFICIAL_PROFILE_PANEL_KEYS):
+                issues.append(_issue("INVALID_ARMORY_SAMPLE", "UNKNOWN_FIELD", f"{panel_path}.{key}", "unknown official profile panel field"))
+            for key in sorted(_ARMORY_OFFICIAL_PROFILE_PANEL_KEYS - set(panel)):
+                issues.append(_issue("INVALID_ARMORY_SAMPLE", "MISSING_REQUIRED_FIELD", f"{panel_path}.{key}", "official profile panel field is required"))
+            if _ARMORY_OFFICIAL_PROFILE_PANEL_KEYS.issubset(panel):
+                if _bounded_string(panel["capturedAt"]) is None:
+                    issues.append(_issue("INVALID_ARMORY_SAMPLE", "INVALID_CAPTURE_TIME", f"{panel_path}.capturedAt", "official profile panel capture time must be bounded"))
+                if not isinstance(panel["values"], dict) or not panel["values"]:
+                    issues.append(_issue("INVALID_ARMORY_SAMPLE", "INVALID_OBSERVED_PANEL", f"{panel_path}.values", "official profile panel values must be a non-empty object"))
+    return issues
+
+
 def _validate_armory_golden_sample(sample: Any, index: int) -> list[dict[str, str]]:
     path = f"armorySamples.samples[{index}]"
     issues: list[dict[str, str]] = []
     if not isinstance(sample, dict):
         return [_issue("INVALID_ARMORY_SAMPLE", "INVALID_SAMPLE", path, "sample must be an object")]
-    for key in sorted(set(sample) - _ARMORY_SAMPLE_REQUIRED_KEYS):
+    sample_keys = _ARMORY_SAMPLE_REQUIRED_KEYS | _ARMORY_SAMPLE_OPTIONAL_KEYS
+    for key in sorted(set(sample) - sample_keys):
         issues.append(_issue("INVALID_ARMORY_SAMPLE", "UNKNOWN_FIELD", f"{path}.{key}", "unknown sample field"))
-    for key in sorted(_ARMORY_SAMPLE_REQUIRED_KEYS - set(sample)):
+    missing_sample_keys = _ARMORY_SAMPLE_REQUIRED_KEYS - set(sample)
+    for key in sorted(missing_sample_keys):
         issues.append(_issue("INVALID_ARMORY_SAMPLE", "MISSING_REQUIRED_FIELD", f"{path}.{key}", "required sample field is missing"))
-    if issues:
+    if missing_sample_keys:
         return issues
 
     if _bounded_string(sample["id"]) is None:
@@ -169,9 +241,10 @@ def _validate_armory_golden_sample(sample: Any, index: int) -> list[dict[str, st
     else:
         for key in sorted(set(source) - _ARMORY_SOURCE_REQUIRED_KEYS):
             issues.append(_issue("INVALID_ARMORY_SAMPLE", "UNKNOWN_FIELD", f"{path}.source.{key}", "unknown source field"))
-        for key in sorted(_ARMORY_SOURCE_REQUIRED_KEYS - set(source)):
+        missing_source_keys = _ARMORY_SOURCE_REQUIRED_KEYS - set(source)
+        for key in sorted(missing_source_keys):
             issues.append(_issue("INVALID_ARMORY_SAMPLE", "MISSING_REQUIRED_FIELD", f"{path}.source.{key}", "required source field is missing"))
-        if set(source) == _ARMORY_SOURCE_REQUIRED_KEYS:
+        if not missing_source_keys:
             if not isinstance(source["url"], str) or not source["url"].startswith("https://"):
                 issues.append(_issue("INVALID_ARMORY_SAMPLE", "INVALID_SOURCE_URL", f"{path}.source.url", "source url must use https"))
             if _bounded_string(source["capturedAt"]) is None:
@@ -187,9 +260,10 @@ def _validate_armory_golden_sample(sample: Any, index: int) -> list[dict[str, st
     else:
         for key in sorted(set(identity) - _ARMORY_IDENTITY_REQUIRED_KEYS):
             issues.append(_issue("INVALID_ARMORY_SAMPLE", "UNKNOWN_FIELD", f"{path}.identity.{key}", "unknown identity field"))
-        for key in sorted(_ARMORY_IDENTITY_REQUIRED_KEYS - set(identity)):
+        missing_identity_keys = _ARMORY_IDENTITY_REQUIRED_KEYS - set(identity)
+        for key in sorted(missing_identity_keys):
             issues.append(_issue("INVALID_ARMORY_SAMPLE", "MISSING_REQUIRED_FIELD", f"{path}.identity.{key}", "required identity field is missing"))
-        if set(identity) == _ARMORY_IDENTITY_REQUIRED_KEYS:
+        if not missing_identity_keys:
             for key in ("region", "realm", "name"):
                 if _bounded_string(identity[key]) is None:
                     issues.append(_issue("INVALID_ARMORY_SAMPLE", "INVALID_IDENTITY", f"{path}.identity.{key}", "identity text must be bounded"))
@@ -198,6 +272,9 @@ def _validate_armory_golden_sample(sample: Any, index: int) -> list[dict[str, st
                     issues.append(_issue("INVALID_ARMORY_SAMPLE", "INVALID_IDENTITY", f"{path}.identity.{key}", "identity keys must be lower-case identifiers"))
             if isinstance(identity["level"], bool) or not isinstance(identity["level"], int) or not 1 <= identity["level"] <= 100:
                 issues.append(_issue("INVALID_ARMORY_SAMPLE", "INVALID_LEVEL", f"{path}.identity.level", "level must be an integer from 1 to 100"))
+
+    if "evidence" in sample:
+        issues.extend(_validate_armory_evidence(sample["evidence"], f"{path}.evidence"))
 
     if not isinstance(sample["equipment"], list):
         issues.append(_issue("INVALID_ARMORY_SAMPLE", "INVALID_EQUIPMENT", f"{path}.equipment", "equipment must be a list"))

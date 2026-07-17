@@ -65,6 +65,40 @@ class GearAttributeRulesTest(unittest.TestCase):
         self.assertIsNone(parsed)
         self.assertTrue(any(issue["code"] == "VERIFIED_SAMPLE_INCOMPLETE_EQUIPMENT" for issue in issues))
 
+    def test_candidate_accepts_declared_official_profile_evidence(self):
+        samples = armory_samples()
+        candidate = next(sample for sample in samples["samples"] if sample["source"]["captureStatus"] == "captured")
+        candidate["evidence"] = {
+            "officialProfileApi": {
+                "url": "https://eu.api.blizzard.com/profile/wow/character/blackrock/heated?namespace=profile-eu&locale=en_GB",
+                "capturedAt": "2026-07-17T04:43:43Z",
+                "credentialHandling": "read-only server-side OAuth; no token persisted",
+            },
+            "officialProfileSnapshot": {
+                "capturedAt": "2026-07-17T04:43:43Z",
+                "canonicalEquipmentCount": 15,
+                "instances": [],
+            },
+        }
+
+        parsed, issues = gear_attribute_rules.validate_armory_golden_samples(samples)
+
+        self.assertEqual(issues, [])
+        self.assertEqual(parsed["samples"][0]["evidence"]["officialProfileSnapshot"]["canonicalEquipmentCount"], 15)
+
+    def test_unknown_sample_field_does_not_hide_verified_equipment_failure(self):
+        samples = armory_samples()
+        partial = next(sample for sample in samples["samples"] if sample["source"]["captureStatus"] == "captured")
+        partial["status"] = "verified"
+        partial["missingEvidence"] = []
+        partial["unexpected"] = True
+
+        parsed, issues = gear_attribute_rules.validate_armory_golden_samples(samples)
+
+        self.assertIsNone(parsed)
+        self.assertTrue(any(issue["code"] == "UNKNOWN_FIELD" for issue in issues))
+        self.assertTrue(any(issue["code"] == "VERIFIED_SAMPLE_INCOMPLETE_EQUIPMENT" for issue in issues))
+
     def test_public_context_excludes_unverified_rulebook_context(self):
         context = gear_attribute_rules.public_attribute_calculator_context(
             fixture_rulebook(), class_key="mage", spec_key="frost", level=90
