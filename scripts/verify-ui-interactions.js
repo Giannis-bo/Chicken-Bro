@@ -8,7 +8,9 @@ const { connectMiniProgram, timeout } = require('./wechat-automator')
 const coreInteractionContract = require('../docs/design/current-ui/core-interaction-contract.json')
 
 const operationTimeoutMs = 10000
-const caseTimeoutMs = 20000
+// A case includes a bounded route open plus a bounded precondition/action. Keep
+// a small outer margin so the semantic failure can win the timeout race.
+const caseTimeoutMs = 25000
 const requestedRoutes = new Set(
   (process.env.INTERACTION_ROUTES ?? '')
     .split(',')
