@@ -341,7 +341,8 @@
       "contract": "docs/design/current-ui/runtime-review-contract.json",
       "statusLedger": "docs/design/current-ui/runtime-review-status.json",
       "targetRegistry": "docs/design/current-ui/target-registry.json",
-      "visualAcceptance": "pending_fresh_real_wechat_evidence"
+      "visualAcceptance": "pending_fresh_real_wechat_evidence",
+      "interactionAcceptance": "pending_real_wechat_core_interaction_matrix"
     },
     "pgReadModel": {
       "status": "phase4_completed",

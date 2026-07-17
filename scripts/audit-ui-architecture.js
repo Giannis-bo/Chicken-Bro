@@ -112,7 +112,8 @@ record(
   'project_state_points_to_runtime_review_status',
   uiDeliveryConclusion?.status === runtimeReviewStatus.status
     && uiDeliveryConclusion?.evidence === 'docs/design/current-ui/runtime-review-status.json'
-    && projectState.runtimeBaseline?.uiRuntimeEvidence?.statusLedger === 'docs/design/current-ui/runtime-review-status.json',
+    && projectState.runtimeBaseline?.uiRuntimeEvidence?.statusLedger === 'docs/design/current-ui/runtime-review-status.json'
+    && projectState.runtimeBaseline?.uiRuntimeEvidence?.interactionAcceptance === 'pending_real_wechat_core_interaction_matrix',
   `status=${uiDeliveryConclusion?.status}; evidence=${uiDeliveryConclusion?.evidence}`,
 )
 record(
@@ -144,6 +145,12 @@ for (const interaction of interactionContract.interactions ?? []) {
 }
 const reviewRoutes = runtimeReviewStatus.routes ?? []
 const reviewRouteIds = sorted(reviewRoutes.map((review) => review.route))
+const requiredSharedReviewEvidence = [
+  'wechat_runtime_artifact',
+  'target_runtime_region_comparison',
+  'real_wechat_core_interaction',
+  'human_visual_confirmation',
+]
 const expectedReviewOverallStatus = reviewRoutes.every((review) => review.status === 'PASS')
   ? 'complete'
   : reviewRoutes.some((review) => review.status === 'FAIL')
@@ -152,7 +159,8 @@ const expectedReviewOverallStatus = reviewRoutes.every((review) => review.status
 record(
   'runtime_review_status_covers_all_target_routes',
   runtimeReviewStatus.status === expectedReviewOverallStatus
-    && JSON.stringify(reviewRouteIds) === JSON.stringify(targetRouteIds),
+    && JSON.stringify(reviewRouteIds) === JSON.stringify(targetRouteIds)
+    && requiredSharedReviewEvidence.every((evidence) => runtimeReviewStatus.sharedMissingEvidence?.includes(evidence)),
   `reviews=${reviewRouteIds.length}; status=${runtimeReviewStatus.status}; expected=${expectedReviewOverallStatus}`,
 )
 for (const review of reviewRoutes) {

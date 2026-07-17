@@ -4,6 +4,7 @@
   "sharedMissingEvidence": [
     "wechat_runtime_artifact",
     "target_runtime_region_comparison",
+    "real_wechat_core_interaction",
     "human_visual_confirmation"
   ],
   "routes": [

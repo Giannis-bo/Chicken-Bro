@@ -65,7 +65,7 @@ Review 窗口同时覆盖共享组件、页面 JSX 中的非组件 wrapper、rou
 
 | 系统问题 | 当前事实 | 关闭条件 |
 | --- | --- | --- |
-| 全量视觉闭环 | `runtime-review-status.json` 已逐路由绑定 path、canonical target、合同根与当前状态；14/14 因缺少微信运行态 artifact、target/runtime 区域差异和人工确认保持 `UNVERIFIED` | 每路由按 `runtime-review-contract.json` 提交完整结论，并由人工确认后单独晋级 |
+| 全量视觉闭环 | `runtime-review-status.json` 已逐路由绑定 path、canonical target、合同根与当前状态；14/14 因缺少微信运行态 artifact、target/runtime 区域差异、真实核心交互结果和人工确认保持 `UNVERIFIED` | 每路由按 `runtime-review-contract.json` 提交完整结论，并由人工确认后单独晋级 |
 | 素材生产链 | `news_home` 素材族已进入微信生产状态；builds、workbench、build-intel、talent-simulator 等仍包含生成待审、复用待验或未晋级槽位 | 素材进入统一 manifest，完成裁切、语义、清晰度和真机复核后晋级；COS/CDN 迁移作为独立工作包执行 |
 | 包体与远端资源 | `npm run verify:ui-package` 在隔离临时目录复跑两种 production 构建：本地素材包 5,039,793 bytes / 137 个素材文件，且与 6 个 raster runtime 家族及 vector 源目录逐路径闭包一致（missing 0 / unexpected 0）；显式版本化 HTTPS 素材根包 1,774,205 bytes / 0 个本地素材文件，已确认编译产物包含配置根且只保留一处未执行的默认 fallback 定义；`common.js` 383,805 bytes，`common.wxss` 354,405 bytes，均通过当前预算且不覆盖唯一 watch 输出。全部已登记 production/candidate asset 在切换根后均解析到 HTTPS 前缀，构建配置与运行时清单复用同一不可变根校验器，未版本化根会在构建阶段失败；生产资产上传/hash 与微信 request/download 合法域名审批尚未形成可验证记录 | COS/CDN 上传/hash、域名审批和生产 URL 在资源交付工作包内关闭；不可变路径、运行根切换、路径闭包与包体预算由隔离门禁持续阻断回归 |
 | 一级页面一致性 | 四个 root route 已共享 `PageFrame` 与 `ProductTabBar` owner，最终头部与底栏尺寸调整后需要同一真机窗口复核 | 四个一级页面在相同 viewport 下通过安全区、头部、正文起点和 TabBar 对比 |
