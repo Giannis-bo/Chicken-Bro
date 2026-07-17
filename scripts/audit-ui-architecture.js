@@ -156,6 +156,17 @@ for (const interaction of interactionContract.interactions ?? []) {
     sourceExists ? marker : `missing source ${interaction.source}`,
   )
 }
+const interactionExecutor = read('scripts/verify-ui-interactions.js')
+record(
+  'interaction_executor_consumes_authoritative_contract',
+  interactionExecutor.includes("require('../docs/design/current-ui/core-interaction-contract.json')")
+    && interactionExecutor.includes('contractDefinition(')
+    && interactionExecutor.includes('contractPath(')
+    && interactionExecutor.includes('coverageMatches')
+    && !/output:\s*\{\s*route:/u.test(interactionExecutor)
+    && !/open\(miniProgram,\s*['"]\/pages/u.test(interactionExecutor),
+  'executor metadata, paths and coverage must come from the core interaction contract',
+)
 const reviewRoutes = runtimeReviewStatus.routes ?? []
 const reviewRouteIds = sorted(reviewRoutes.map((review) => review.route))
 const requiredSharedReviewEvidence = [
