@@ -513,3 +513,15 @@ test('raster runtime assets are byte and hash verified without image payloads', 
   assert.doesNotMatch(verifier, /sharp|canvas|screenshot|connectMiniProgram/i)
   assert.equal((projectVerifier.match(/commandSpec\('raster asset integrity'/g) ?? []).length, 2)
 })
+
+test('runtime review control plane references current immutable non-visual evidence', () => {
+  const status = readJson('docs/design/current-ui/runtime-review-status.json')
+  assert.equal(status.observedRouteGeometryReviews.at(-1).routeCount, 14)
+  assert.equal(status.observedRouteGeometryReviews.at(-1).violationCount, 0)
+  assert.equal(status.observedCoreInteractionReviews.at(-1).failed, 0)
+  assert.equal(status.observedSelectedControlReviews.at(-1).materialMismatches, 0)
+  assert.ok(!status.sharedMissingEvidence.includes('real_wechat_core_interaction'))
+  assert.ok(status.sharedMissingEvidence.includes('wechat_runtime_artifact'))
+  assert.ok(status.sharedMissingEvidence.includes('human_visual_confirmation'))
+  assert.ok(status.routes.every((route) => route.status === 'UNVERIFIED'))
+})

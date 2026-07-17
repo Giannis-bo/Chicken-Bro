@@ -20,10 +20,13 @@ function expectedInteractionOverallStatus(interactions) {
 }
 
 function sharedEvidenceMatchesStatus(status, missingEvidence, requiredEvidence) {
-  if (!Array.isArray(missingEvidence)) return false
+  if (!Array.isArray(missingEvidence) || !Array.isArray(requiredEvidence)) return false
   if (status === 'complete') return missingEvidence.length === 0
   if (status === 'active_unverified') {
-    return [...missingEvidence].sort().join('\n') === [...requiredEvidence].sort().join('\n')
+    const required = new Set(requiredEvidence)
+    return missingEvidence.length > 0
+      && new Set(missingEvidence).size === missingEvidence.length
+      && missingEvidence.every((evidence) => required.has(evidence))
   }
   return status === 'active_failed'
 }

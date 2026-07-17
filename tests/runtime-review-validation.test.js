@@ -64,11 +64,14 @@ test('runtime review rejects incomplete or contradictory pass evidence', () => {
   }
 })
 
-test('runtime review status clears shared blockers only after every route passes', () => {
+test('runtime review status permits partial shared evidence progress without clearing every blocker', () => {
   const required = ['runtime', 'interaction', 'human']
   assert.equal(expectedReviewOverallStatus([{ status: 'UNVERIFIED' }, { status: 'PASS' }]), 'active_unverified')
   assert.equal(sharedEvidenceMatchesStatus('active_unverified', required, required), true)
+  assert.equal(sharedEvidenceMatchesStatus('active_unverified', ['runtime', 'human'], required), true)
   assert.equal(sharedEvidenceMatchesStatus('active_unverified', [], required), false)
+  assert.equal(sharedEvidenceMatchesStatus('active_unverified', ['unknown'], required), false)
+  assert.equal(sharedEvidenceMatchesStatus('active_unverified', ['runtime', 'runtime'], required), false)
   assert.equal(expectedReviewOverallStatus([{ status: 'PASS' }, { status: 'PASS' }]), 'complete')
   assert.equal(sharedEvidenceMatchesStatus('complete', [], required), true)
   assert.equal(sharedEvidenceMatchesStatus('complete', required, required), false)

@@ -215,6 +215,26 @@ record(
     && reviewEvidenceStateValid,
   `reviews=${reviewRouteIds.length}; status=${runtimeReviewStatus.status}; expected=${expectedOverallStatus}`,
 )
+const nonVisualReviewCollections = [
+  ['route_geometry', runtimeReviewStatus.observedRouteGeometryReviews],
+  ['core_interaction', runtimeReviewStatus.observedCoreInteractionReviews],
+  ['selected_control', runtimeReviewStatus.observedSelectedControlReviews],
+]
+for (const [kind, reviews] of nonVisualReviewCollections) {
+  for (const observed of reviews ?? []) {
+    const artifactPath = path.join(root, observed.path ?? '')
+    const exists = fs.existsSync(artifactPath)
+    const actualSha = exists ? crypto.createHash('sha256').update(fs.readFileSync(artifactPath)).digest('hex') : null
+    record(
+      `observed_${kind}_review_is_content_addressed:${observed.commit}`,
+      exists
+        && /^[a-f\d]{64}$/u.test(observed.sha256 ?? '')
+        && observed.sha256 === actualSha
+        && observed.path.includes(observed.sha256),
+      `path=${observed.path}; expected=${observed.sha256}; actual=${actualSha}`,
+    )
+  }
+}
 for (const observed of runtimeReviewStatus.observedRegionComparisons ?? []) {
   const comparisonPath = path.join(root, observed.path ?? '')
   const exists = fs.existsSync(comparisonPath)
