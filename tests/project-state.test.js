@@ -527,6 +527,16 @@ test('raster runtime assets are byte and hash verified without image payloads', 
   assert.equal((projectVerifier.match(/commandSpec\('raster asset integrity'/g) ?? []).length, 2)
 })
 
+test('UI package evidence cannot treat a placeholder remote asset origin as release-ready', () => {
+  const verifier = fs.readFileSync('scripts/verify-ui-package.js', 'utf8')
+  const packageJson = readJson('package.json')
+  assert.match(verifier, /packageMechanicsPass/)
+  assert.match(verifier, /releaseReady/)
+  assert.match(verifier, /hostname\.endsWith\('\.invalid'\)/)
+  assert.match(verifier, /WOW_ASSET_RUNTIME_ROOT must be an approved HTTPS named origin/)
+  assert.equal(packageJson.scripts['verify:ui-package:release'], 'node scripts/verify-ui-package.js --require-production-ready')
+})
+
 test('runtime review control plane references current immutable non-visual evidence', () => {
   const status = readJson('docs/design/current-ui/runtime-review-status.json')
   assert.equal(status.historicalRouteGeometryReviews.at(-1).routeCount, 14)

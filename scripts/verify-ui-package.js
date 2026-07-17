@@ -10,7 +10,9 @@ const root = path.resolve(__dirname, '..')
 const appRoot = path.join(root, 'apps/mini-taro')
 const auditRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'wow-mini-package-'))
 const defaultAssetRuntimeRoot = '/assets/ui-v2'
-const remoteAssetRuntimeRoot = 'https://assets.example.invalid/wow-assets/releases/2026-07-18-ui-v2'
+const placeholderRemoteAssetRuntimeRoot = 'https://assets.example.invalid/wow-assets/releases/2026-07-18-ui-v2'
+const remoteAssetRuntimeRoot = process.env.WOW_ASSET_RUNTIME_ROOT || placeholderRemoteAssetRuntimeRoot
+const requireProductionReady = process.argv.includes('--require-production-ready')
 const limits = {
   remoteTotalBytes: 2 * 1024 * 1024,
   commonJsBytes: 420 * 1024,
@@ -37,6 +39,18 @@ function walk(directory) {
 function countStringLiteral(source, value) {
   return source.split(JSON.stringify(value)).length - 1
     + source.split(`'${value}'`).length - 1
+}
+
+function isProductionAssetRoot(value) {
+  try {
+    const url = new URL(value)
+    return url.protocol === 'https:'
+      && url.hostname !== 'localhost'
+      && !url.hostname.endsWith('.invalid')
+      && !/^\d+(?:\.\d+){3}$/u.test(url.hostname)
+  } catch {
+    return false
+  }
 }
 
 function build(name, assetRuntimeRoot = '') {
@@ -100,9 +114,17 @@ try {
   if (remote.totalBytes > limits.remoteTotalBytes) failures.push(`remote build is ${remote.totalBytes} bytes`)
   if (remote.commonJsBytes > limits.commonJsBytes) failures.push(`common.js is ${remote.commonJsBytes} bytes`)
   if (remote.commonWxssBytes > limits.commonWxssBytes) failures.push(`common.wxss is ${remote.commonWxssBytes} bytes`)
+  const packageMechanicsPass = failures.length === 0
+  const releaseBlockers = []
+  if (!isProductionAssetRoot(remoteAssetRuntimeRoot)) releaseBlockers.push('WOW_ASSET_RUNTIME_ROOT must be an approved HTTPS named origin')
+  const releaseReady = packageMechanicsPass && releaseBlockers.length === 0
   console.log(JSON.stringify({
-    status: failures.length ? 'fail' : 'pass',
+    status: packageMechanicsPass ? (releaseReady ? 'pass' : 'partial') : 'fail',
     evidence: 'isolated_production_weapp_package',
+    packageMechanicsPass,
+    releaseReady,
+    remoteAssetOrigin: isProductionAssetRoot(remoteAssetRuntimeRoot) ? new URL(remoteAssetRuntimeRoot).origin : 'not_configured',
+    releaseBlockers,
     limits,
     local: {
       ...local,
@@ -115,7 +137,7 @@ try {
     remote: { ...remote, outputRoot: '<temporary>', assetFiles: undefined },
     failures,
   }, null, 2))
-  if (failures.length) process.exitCode = 1
+  if (!packageMechanicsPass || (requireProductionReady && !releaseReady)) process.exitCode = 1
 } finally {
   fs.rmSync(auditRoot, { recursive: true, force: true })
 }

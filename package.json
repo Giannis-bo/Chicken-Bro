@@ -32,6 +32,7 @@
     "verify:ui-asset-slots": "node scripts/verify-ui-asset-slots.js",
     "promote:ui-asset-slots": "node scripts/promote-ui-asset-slot-review.js",
     "verify:ui-package": "node scripts/verify-ui-package.js",
+    "verify:ui-package:release": "node scripts/verify-ui-package.js --require-production-ready",
     "verify:ui-asset-integrity": "node scripts/verify-ui-asset-integrity.js"
   },
   "devDependencies": {

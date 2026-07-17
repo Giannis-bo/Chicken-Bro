@@ -958,6 +958,16 @@ record(
 )
 
 const requestDomainAudit = read('scripts/audit-taro-request-domain.js')
+const packageAudit = read('scripts/verify-ui-package.js')
+record(
+  'ui_package_gate_separates_mechanics_from_release_readiness',
+  /packageMechanicsPass/u.test(packageAudit)
+    && /releaseReady/u.test(packageAudit)
+    && /WOW_ASSET_RUNTIME_ROOT must be an approved HTTPS named origin/u.test(packageAudit)
+    && /--require-production-ready/u.test(packageAudit)
+    && /verify:ui-package:release/u.test(read('package.json')),
+  'a placeholder remote asset origin may prove package mechanics but must never report release readiness',
+)
 record(
   'request_domain_audit_is_report_only_by_default',
   !requestDomainAudit.includes('writeFileSync') && !requestDomainAudit.includes('artifacts/current-ui'),
