@@ -200,6 +200,7 @@ function frontendCommands(root, release, base) {
   return [
     commandSpec('node test discover', 'node', ['--test', ...jsTestFiles(root)]),
     commandSpec('taro architecture audit', 'npm', ['run', 'audit:ui-architecture']),
+    commandSpec('raster asset integrity', 'npm', ['run', 'verify:ui-asset-integrity']),
     commandSpec('taro typecheck', 'npm', ['run', 'typecheck']),
     commandSpec('taro vitest', 'npm', ['run', 'test:taro']),
     ...syntaxCommands,
@@ -223,6 +224,7 @@ function profileCommands(options, release) {
     commandSpec('python compileall', 'python3', ['-m', 'compileall', '-q', 'server', 'tests']),
     commandSpec('taro typecheck', 'npm', ['run', 'typecheck']),
     commandSpec('taro vitest', 'npm', ['run', 'test:taro']),
+    commandSpec('raster asset integrity', 'npm', ['run', 'verify:ui-asset-integrity']),
     jsonValidationCommand(release),
     commandSpec('project harness syntax', 'node', ['--check', 'scripts/project-harness.js']),
     commandSpec('verify-project syntax', 'node', ['--check', 'scripts/verify-project.js']),

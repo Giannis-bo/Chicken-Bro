@@ -499,9 +499,11 @@ test('full asset-slot evidence requires exact immutable 14-route promotion', () 
 
 test('raster runtime assets are byte and hash verified without image payloads', () => {
   const verifier = fs.readFileSync('scripts/verify-ui-asset-integrity.js', 'utf8')
+  const projectVerifier = fs.readFileSync('scripts/verify-project.js', 'utf8')
   assert.match(verifier, /createHash\('sha256'\)/)
   assert.match(verifier, /runtime asset byte mismatch/)
   assert.match(verifier, /runtime asset hash mismatch/)
   assert.match(verifier, /failures\.slice\(0, 10\)/)
   assert.doesNotMatch(verifier, /sharp|canvas|screenshot|connectMiniProgram/i)
+  assert.equal((projectVerifier.match(/commandSpec\('raster asset integrity'/g) ?? []).length, 2)
 })
