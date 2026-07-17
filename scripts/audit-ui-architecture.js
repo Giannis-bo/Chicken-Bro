@@ -153,6 +153,16 @@ const fixedPixelRouteRegionWidths = routeStyles.flatMap((file) => (
     /\bwidth:\s*[\d.]+px\s*;/u.test(match[2]) ? [`${file}:${match[1]}`] : []
   ))
 ))
+const uncontainedRouteRegions = routeStyles.flatMap((file) => (
+  [...read(file).matchAll(/\.([A-Za-z][\w-]*Region)(?:\s*,[^{]+)?\s*\{([^}]*)\}/gu)].flatMap((match) => (
+    /\boverflow:\s*visible\s*;/u.test(match[2]) ? [`${file}:${match[1]}`] : []
+  ))
+))
+record(
+  'route_regions_do_not_bypass_content_containment',
+  uncontainedRouteRegions.length === 0,
+  uncontainedRouteRegions.join(', ') || 'none',
+)
 record(
   'route_regions_do_not_use_fixed_pixel_widths',
   fixedPixelRouteRegionWidths.length === 0,
