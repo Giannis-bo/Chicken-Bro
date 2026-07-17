@@ -718,6 +718,30 @@ const componentSources = walk('packages/design-system/src', ['.ts', '.tsx'])
 const rawButtonOwners = componentSources.filter((file) => file !== 'packages/design-system/src/components/ControlButton.tsx' && /<Button\b/.test(read(file)))
 record('native_button_has_one_shared_owner', rawButtonOwners.length === 0, rawButtonOwners.join(', ') || 'ControlButton only')
 
+const nativeControlStyles = read('packages/design-system/src/components/owners.module.scss')
+const nativeControlRule = nativeControlStyles.match(/\.nativeControl\s*\{(?<body>[^}]*)\}/su)?.groups?.body ?? ''
+record(
+  'native_button_owner_neutralizes_wechat_geometry',
+  /\bappearance\s*:\s*none\s*;/u.test(nativeControlRule)
+    && /\bmax-width\s*:\s*100%\s*;/u.test(nativeControlRule)
+    && /\bmin-width\s*:\s*0\s*;/u.test(nativeControlRule)
+    && /\bmin-height\s*:\s*0\s*;/u.test(nativeControlRule)
+    && /\bmargin\s*:\s*0\s*;/u.test(nativeControlRule)
+    && /\bpadding\s*:\s*0\s*;/u.test(nativeControlRule)
+    && /\.nativeControl::after\s*\{[^}]*\bborder\s*:\s*0\s*;/su.test(nativeControlStyles),
+  'ControlButton must neutralize native width, spacing, minimum height and ::after geometry',
+)
+
+const selectionMaterialStyles = read('packages/design-system/src/components/reconstruction.module.scss')
+record(
+  'selected_segments_exclusively_own_their_edge_material',
+  !/\.newsDetailTranslationSegment\s*\+\s*\.newsDetailTranslationSegment\s*\{[^}]*\bborder-left\s*:/su.test(selectionMaterialStyles)
+    && /\.newsDetailTranslationSegment\s*\+\s*\.newsDetailTranslationSegment::before\s*\{/u.test(selectionMaterialStyles)
+    && /\.newsDetailTranslationSegment\[data-selected='true'\]\s*\+\s*\.newsDetailTranslationSegment::before/u.test(selectionMaterialStyles)
+    && /\.newsDetailTranslationSegmentActive\s*\+\s*\.newsDetailTranslationSegment::before/u.test(selectionMaterialStyles),
+  'selected segment borders must suppress adjacent inactive separators instead of stacking edge materials',
+)
+
 const currentUiRecords = [
   ...walk('docs/design/current-ui', ['.json', '.md']),
   ...walk('packages/design-system/assets', ['.json', '.md']),
