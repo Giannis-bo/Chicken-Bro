@@ -1334,6 +1334,10 @@ function gearAttributeRuleForRace(gearPayload, raceKey) {
 function gearAttributeSourceContext(snapshot) {
   if (!snapshot || typeof snapshot !== 'object') return null
   return {
+    status: cleanGearString(snapshot.status),
+    staticAttributes: snapshot.staticAttributes && typeof snapshot.staticAttributes === 'object' && !Array.isArray(snapshot.staticAttributes)
+      ? snapshot.staticAttributes
+      : null,
     resolvedSlots: snapshot.resolvedSlots && typeof snapshot.resolvedSlots === 'object' ? snapshot.resolvedSlots : {},
     constraints: snapshot.constraints && typeof snapshot.constraints === 'object' ? snapshot.constraints : {},
     profileReadiness: snapshot.profileReadiness && typeof snapshot.profileReadiness === 'object' ? snapshot.profileReadiness : {},
@@ -1341,8 +1345,23 @@ function gearAttributeSourceContext(snapshot) {
   }
 }
 
+function verifiedGearAttributeStaticAttributes(sourceContext) {
+  if (!sourceContext || sourceContext.status !== 'verified') return null
+  const raw = sourceContext.staticAttributes
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+  const attributes = {}
+  for (const key of Object.keys(raw)) {
+    const normalizedKey = cleanGearString(key)
+    const value = gearNumericValue(raw[key])
+    if (!normalizedKey || value === null) return null
+    attributes[normalizedKey] = value
+  }
+  return attributes
+}
+
 function gearAttributeSourceMetrics(gearPayload, selectedGearBySlot, selectedSpec, enhancementBySlot, sourceContext) {
   const canonicalContext = sourceContext && typeof sourceContext === 'object' ? sourceContext : null
+  const verifiedStaticAttributes = verifiedGearAttributeStaticAttributes(canonicalContext)
   const canonicalReadiness = canonicalContext && canonicalContext.profileReadiness || {}
   const canonicalRequiredSlots = Array.isArray(canonicalReadiness.requiredSlots)
     ? canonicalReadiness.requiredSlots.filter((slot) => requiredGearSlots.includes(slot))
@@ -1439,7 +1458,7 @@ function gearAttributeSourceMetrics(gearPayload, selectedGearBySlot, selectedSpe
   return {
     requiredSlots,
     selectedItems,
-    staticAttributes,
+    staticAttributes: verifiedStaticAttributes || staticAttributes,
     primaryKey,
     itemLevel: itemLevels.length ? itemLevels.reduce((sum, value) => sum + value, 0) / itemLevels.length : null,
     enhancementRows: [

@@ -1208,6 +1208,60 @@ test('gear attribute panel defaults to human and recomputes locally without SimC
   assert.equal(typeof pageConfig.selectGearAttributeRace, 'undefined')
 })
 
+test('gear attribute panel prefers the verified resolver static snapshot over display item stats', () => {
+  const pageConfig = loadBuildsDetailPageConfig({ exposeDetailHelpers: true })
+  const rule = structuredClone(gearAttributeFixture.rule)
+  rule.status = 'verified'
+  const selectedGearBySlot = completeGearSelection()
+  selectedGearBySlot.head.itemStats = [{ key: 'haste_rating', value: 100 }]
+  const gearPayload = {
+    classKey: 'mage',
+    specKey: 'frost',
+    maxLevel: 90,
+    slots: canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot })),
+    equippedSet: selectedGearBySlot,
+    replacementCandidates: [],
+    slotReadiness: {},
+    readiness: { fullReady: true },
+    attributeCalculator: {
+      contractRevision: 'gear-attribute-calculator-context-v1',
+      status: 'available',
+      attributeRuleRevision: 'fixture-r1',
+      raceOptions: [{ raceKey: 'human' }],
+      rules: [rule],
+      problems: []
+    }
+  }
+  const page = {
+    ...pageConfig,
+    data: {
+      ...pageConfig.data,
+      activeQueryKey: 'gear',
+      selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' },
+      gearPayload,
+      selectedGearBySlot,
+      enhancementBySlot: {},
+      gearAttributeSourceContext: {
+        status: 'verified',
+        staticAttributes: { haste_rating: 200 },
+        profileReadiness: { requiredSlots: canonicalGearSlots }
+      }
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.refreshGearAttributePanel.call(page)
+  let haste = page.data.gearAttributePanel.statRows.find((row) => row.key === 'haste')
+  assert.equal(haste.rawValue, 200)
+
+  page.data.selectedGearBySlot.head.itemStats = [{ key: 'haste_rating', value: 999 }]
+  pageConfig.refreshGearAttributePanel.call(page, { previousCalculation: page.data.gearAttributeState })
+  haste = page.data.gearAttributePanel.statRows.find((row) => row.key === 'haste')
+  assert.equal(haste.rawValue, 200)
+})
+
 test('native talent simulator save flow names talent templates for the profile library', async () => {
   const { pageConfig, mocks } = loadTalentSimulatorPageConfig()
   const selectedNodes = [{ id: 'root', rank: 1 }]
