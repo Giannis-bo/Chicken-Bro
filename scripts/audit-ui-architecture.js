@@ -98,6 +98,7 @@ record(
 const targetRegistry = JSON.parse(read('docs/design/current-ui/target-registry.json'))
 const interactionContract = JSON.parse(read('docs/design/current-ui/core-interaction-contract.json'))
 const evidencePolicy = JSON.parse(read('docs/design/current-ui/active-evidence-policy.json'))
+const runtimeReviewContract = JSON.parse(read('docs/design/current-ui/runtime-review-contract.json'))
 const runtimeReviewStatus = JSON.parse(read('docs/design/current-ui/runtime-review-status.json'))
 record(
   'target_registry_is_active_and_complete',
@@ -128,24 +129,41 @@ for (const interaction of interactionContract.interactions ?? []) {
 }
 const reviewRoutes = runtimeReviewStatus.routes ?? []
 const reviewRouteIds = sorted(reviewRoutes.map((review) => review.route))
+const expectedReviewOverallStatus = reviewRoutes.every((review) => review.status === 'PASS')
+  ? 'complete'
+  : reviewRoutes.some((review) => review.status === 'FAIL')
+    ? 'active_failed'
+    : 'active_unverified'
 record(
   'runtime_review_status_covers_all_target_routes',
-  runtimeReviewStatus.status === 'active_unverified'
+  runtimeReviewStatus.status === expectedReviewOverallStatus
     && JSON.stringify(reviewRouteIds) === JSON.stringify(targetRouteIds),
-  `reviews=${reviewRouteIds.length}`,
+  `reviews=${reviewRouteIds.length}; status=${runtimeReviewStatus.status}; expected=${expectedReviewOverallStatus}`,
 )
 for (const review of reviewRoutes) {
   const target = targetRegistry.canonicalTargets.find((candidate) => candidate.route === review.route)
   const interaction = interactionContract.interactions.find((candidate) => candidate.route === review.route)
   const contractRootExists = typeof review.contractRoot === 'string' && fs.existsSync(path.join(root, review.contractRoot))
+  const passRecord = review.reviewRecord
+  const passRecordComplete = review.status !== 'PASS' || (
+    passRecord
+    && runtimeReviewContract.requiredFields.every((field) => Object.hasOwn(passRecord, field))
+    && passRecord.route === review.route
+    && passRecord.path === review.path
+    && passRecord.status === 'PASS'
+    && passRecord.interaction?.status === 'PASS'
+    && typeof passRecord.runtimeArtifact?.path === 'string'
+    && passRecord.runtimeArtifact.path.length > 0
+  )
   record(
     `runtime_review_boundary:${review.route}`,
     ['PASS', 'FAIL', 'UNVERIFIED'].includes(review.status)
       && review.targetArtifact === target?.path
       && review.path === interaction?.path
       && contractRootExists
+      && passRecordComplete
       && (review.status !== 'UNVERIFIED' || runtimeReviewStatus.sharedMissingEvidence?.length > 0),
-    `status=${review.status}; target=${Boolean(target)}; interaction=${Boolean(interaction)}; contract=${contractRootExists}`,
+    `status=${review.status}; target=${Boolean(target)}; interaction=${Boolean(interaction)}; contract=${contractRootExists}; passRecord=${passRecordComplete}`,
   )
 }
 
