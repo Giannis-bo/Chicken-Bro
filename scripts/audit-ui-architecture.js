@@ -98,6 +98,7 @@ record(
 const targetRegistry = JSON.parse(read('docs/design/current-ui/target-registry.json'))
 const interactionContract = JSON.parse(read('docs/design/current-ui/core-interaction-contract.json'))
 const evidencePolicy = JSON.parse(read('docs/design/current-ui/active-evidence-policy.json'))
+const runtimeReviewStatus = JSON.parse(read('docs/design/current-ui/runtime-review-status.json'))
 record(
   'target_registry_is_active_and_complete',
   targetRegistry.status === 'active' && targetRegistry.canonicalTargets?.length === 14,
@@ -123,6 +124,28 @@ for (const interaction of interactionContract.interactions ?? []) {
     `interaction_selector:${interaction.route}`,
     sourceExists && read(interaction.source).includes(marker),
     sourceExists ? marker : `missing source ${interaction.source}`,
+  )
+}
+const reviewRoutes = runtimeReviewStatus.routes ?? []
+const reviewRouteIds = sorted(reviewRoutes.map((review) => review.route))
+record(
+  'runtime_review_status_covers_all_target_routes',
+  runtimeReviewStatus.status === 'active_unverified'
+    && JSON.stringify(reviewRouteIds) === JSON.stringify(targetRouteIds),
+  `reviews=${reviewRouteIds.length}`,
+)
+for (const review of reviewRoutes) {
+  const target = targetRegistry.canonicalTargets.find((candidate) => candidate.route === review.route)
+  const interaction = interactionContract.interactions.find((candidate) => candidate.route === review.route)
+  const contractRootExists = typeof review.contractRoot === 'string' && fs.existsSync(path.join(root, review.contractRoot))
+  record(
+    `runtime_review_boundary:${review.route}`,
+    ['PASS', 'FAIL', 'UNVERIFIED'].includes(review.status)
+      && review.targetArtifact === target?.path
+      && review.path === interaction?.path
+      && contractRootExists
+      && (review.status !== 'UNVERIFIED' || runtimeReviewStatus.sharedMissingEvidence?.length > 0),
+    `status=${review.status}; target=${Boolean(target)}; interaction=${Boolean(interaction)}; contract=${contractRootExists}`,
   )
 }
 

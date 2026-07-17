@@ -24,6 +24,8 @@
 
 架构审计与几何预检不是视觉通过。缺少 target/runtime 像素复核时，路由状态仍为 `UNVERIFIED`。
 
+14 路由的当前结论只记录在 `runtime-review-status.json`。该文件必须与 target registry、核心交互合同和 route contract 根目录一致；没有微信运行态 artifact、区域差异和人工视觉确认时，不得把任何路由标为 `PASS`。
+
 ## 运行素材根
 
 默认微信构建把登记素材复制到 `/assets/ui-v2`，用于本地开发和未配置远端资源的候选构建。只有显式设置合法 HTTPS 根路径时，构建才切换到远端素材并停止复制本地素材：
