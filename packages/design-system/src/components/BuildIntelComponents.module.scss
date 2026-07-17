@@ -421,6 +421,7 @@
   min-width: 0;
   align-content: start;
   gap: 4px;
+  overflow: hidden;
 }
 
 .primaryAction,
@@ -434,6 +435,14 @@
   gap: 4px;
   margin: 0;
   font-family: inherit;
+}
+
+button.primaryAction,
+button.secondaryAction {
+  width: 100%;
+  max-width: 100%;
+  margin-right: 0;
+  margin-left: 0;
 }
 
 .primaryAction {

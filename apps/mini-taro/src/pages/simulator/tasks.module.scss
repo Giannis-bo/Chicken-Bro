@@ -1,5 +1,5 @@
 .pageFrame {
-  height: 825px;
+  height: 100%;
 }
 
 .summaryRegion,
@@ -16,10 +16,10 @@
 .filtersRegion { top: 24.7259%; left: 3.2483%; width: calc(93.7355% + 2px); height: 3.125%; }
 .listRegion { top: 28.7281%; left: 2.3202%; width: calc(95.1276% + 2px); height: 47.5329%; }
 .guidanceRegion { top: 76.9737%; left: 2.3202%; width: calc(95.1276% + 2px); height: 16.6667%; }
-.actionsRegion { top: 94.3531%; left: 3.1323%; width: calc(93.5035% + 2px); height: 4.2763%; }
+.actionsRegion { top: 94.3531%; left: 3.1323%; width: 93.5035%; height: 4.2763%; }
 
 @media (max-width: 389px) {
   .pageFrame {
-    height: calc(100vw * 2.115);
+    height: 100%;
   }
 }

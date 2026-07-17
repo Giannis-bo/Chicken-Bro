@@ -387,6 +387,32 @@ record(
 )
 
 const taskListStyles = read('packages/design-system/src/components/TaskListComponents.module.scss')
+const reconstructionStyles = read('packages/design-system/src/components/reconstruction.module.scss')
+const buildIntelStyles = read('packages/design-system/src/components/BuildIntelComponents.module.scss')
+const taskRouteStyles = read('apps/mini-taro/src/pages/simulator/tasks.module.scss')
+record(
+  'shared_native_buttons_cannot_exceed_their_layout_cell',
+  /\.routeSurface button\s*\{[^}]*max-width:\s*100%;/su.test(reconstructionStyles),
+  'every native WeChat button must be clamped by its immediate layout cell',
+)
+record(
+  'news_translation_has_one_state_material_owner',
+  /\.newsDetailTranslationSegment\s*\{[^}]*background:\s*transparent;[^}]*box-shadow:\s*none;/su.test(reconstructionStyles)
+    && /\.newsDetailTranslationSegment\[data-selected='true'\]/u.test(reconstructionStyles),
+  'inactive translation segments must stay flat and only the selected segment may own active material',
+)
+record(
+  'build_intel_actions_override_native_button_width',
+  /button\.primaryAction,[\s\S]*button\.secondaryAction\s*\{[^}]*width:\s*100%;[^}]*max-width:\s*100%;[^}]*margin-right:\s*0;[^}]*margin-left:\s*0;/u.test(buildIntelStyles),
+  'build intel action buttons must remain inside the narrow action column',
+)
+record(
+  'task_bottom_actions_stay_inside_the_route_region',
+  /\.pageFrame\s*\{[^}]*height:\s*100%;/su.test(taskRouteStyles)
+    && /\.actionsRegion\s*\{[^}]*width:\s*93\.5035%;/su.test(taskRouteStyles)
+    && /\.bottomActions button\s*\{[^}]*width:\s*100%;[^}]*max-width:\s*100%;/su.test(taskListStyles),
+  'task bottom actions must stay inside the safe viewport and measured route region',
+)
 record(
   'task_scroll_rows_fill_the_native_scroll_view',
   /\.recordRows\s*\{[^}]*box-sizing:\s*border-box;[^}]*width:\s*100%;/su.test(taskListStyles),
