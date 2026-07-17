@@ -77,6 +77,7 @@ export function AppShell({
         <View
           className={ownerClass(
             ownerStyle('shellDock'),
+            !tabRoot && ownerStyle('shellDockPushed'),
             dockVariant === 'safeAction' && ownerStyle('safeActionDock'),
           )}
         >

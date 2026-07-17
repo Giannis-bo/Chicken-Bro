@@ -56,10 +56,12 @@ async function inspect(page, route, viewport) {
   const allowedVertical = new Set(route.allowedVerticalOverflowRegions ?? [])
   const allowedHorizontalButtonRoles = route.allowedHorizontalOverflowButtonRoles ?? []
   const allowedVerticalButtonRoles = route.allowedVerticalOverflowButtonRoles ?? []
-  const [shell, regions, buttons, state] = await Promise.all([
+  const [shell, shellBody, regions, buttons, dockButtons, state] = await Promise.all([
     timeout(page.$('.wx-style-shell'), 4000, 'query route shell'),
+    timeout(page.$('.wx-style-shellbody'), 4000, 'query route shell body'),
     timeout(page.$$('.wx-style-routeregion'), 4000, 'query route regions'),
     timeout(page.$$('button'), 4000, 'query native buttons'),
+    timeout(page.$$('.wx-style-shelldock button'), 4000, 'query fixed dock buttons'),
     unavailableState(page, route.unavailableRouteStates),
   ])
   if (regions.length === 0 && state) {
@@ -83,14 +85,32 @@ async function inspect(page, route, viewport) {
       ...geometry,
     }
   }))
-  const buttonBounds = await Promise.all(buttons.map(async (element) => {
+  const inspectButton = async (element) => {
     const [geometry, className, role] = await Promise.all([
       bounds(element),
       timeout(element.attribute('class'), 1500, 'read button class'),
       timeout(element.attribute('data-role'), 1500, 'read button role'),
     ])
-    return { ...geometry, className: String(className ?? ''), role: String(role ?? '') }
-  }))
+    const normalizedClassName = String(className ?? '')
+    return {
+      ...geometry,
+      className: normalizedClassName,
+      role: String(role ?? '') || normalizedClassName.match(/(?:^|\s)wx-data-role-([^\s]+)/u)?.[1] || '',
+    }
+  }
+  const [buttonBounds, dockButtonBounds, shellBodyMetrics] = await Promise.all([
+    Promise.all(buttons.map(inspectButton)),
+    Promise.all(dockButtons.map(inspectButton)),
+    shellBody ? Promise.all([
+      timeout(shellBody.domProperty('clientHeight'), 2000, 'read shell body client height'),
+      timeout(shellBody.domProperty('scrollHeight'), 2000, 'read shell body scroll height'),
+      timeout(shellBody.style('padding-bottom'), 2000, 'read shell body bottom padding'),
+    ]).then(([clientHeight, scrollHeight, paddingBottom]) => ({
+      clientHeight: Number(clientHeight),
+      scrollHeight: Number(scrollHeight),
+      paddingBottom: Number.parseFloat(String(paddingBottom)) || 0,
+    })) : null,
+  ])
   const violations = []
   if (!shellBounds) violations.push({ type: 'missing-shell' })
   else if (shellBounds.left < -tolerance || shellBounds.right > viewport.width + tolerance) violations.push({ type: 'shell-horizontal', left: shellBounds.left, right: shellBounds.right })
@@ -112,6 +132,25 @@ async function inspect(page, route, viewport) {
       violations.push({ type: 'native-button-vertical', index, role: button.role || null, top: button.top, bottom: button.bottom, height: button.height })
     }
   })
+  const safeAreaBottom = viewport.safeAreaBottom
+  const safeBottomInset = viewport.safeBottomInset
+  const bodyCanRevealSafeAreaContent = Boolean(
+    shellBodyMetrics
+    && shellBodyMetrics.scrollHeight > shellBodyMetrics.clientHeight + tolerance
+    && shellBodyMetrics.paddingBottom + tolerance >= safeBottomInset,
+  )
+  dockButtonBounds.forEach((button, index) => {
+    if (contract.safeAreaPolicy?.fixedDockControlsMustEndAtSafeBottom && button.bottom > safeAreaBottom + tolerance) {
+      violations.push({ type: 'fixed-dock-button-safe-area', index, role: button.role || null, bottom: button.bottom, safeAreaBottom })
+    }
+  })
+  buttonBounds.forEach((button, index) => {
+    const belongsToDock = dockButtonBounds.some((dockButton) => Math.abs(dockButton.left - button.left) <= tolerance && Math.abs(dockButton.top - button.top) <= tolerance && Math.abs(dockButton.width - button.width) <= tolerance)
+    const entersVisibleSafeArea = button.top < viewport.height && button.bottom > safeAreaBottom + tolerance
+    if (!belongsToDock && entersVisibleSafeArea && contract.safeAreaPolicy?.scrollContentMayCrossSafeBottomOnlyWithScrollableOverflowAndSafePadding && !bodyCanRevealSafeAreaContent) {
+      violations.push({ type: 'scroll-button-safe-area-without-reveal-space', index, role: button.role || null, top: button.top, bottom: button.bottom, safeAreaBottom })
+    }
+  })
   const summary = {
     route: route.route,
     status: violations.length === 0 ? 'pass' : 'fail',
@@ -122,10 +161,16 @@ async function inspect(page, route, viewport) {
     shellRight: shellBounds?.right ?? null,
     maxBoundRegionBottom: Math.max(0, ...regionBounds.filter((item) => item.visibleSlot && !allowedVertical.has(item.id)).map((item) => item.bottom)),
     maxBoundButtonBottom: Math.max(0, ...buttonBounds.filter((item) => !allowedVerticalButtonRoles.some((role) => item.role === role || item.className.includes(`wx-data-role-${role}`))).map((item) => item.bottom)),
+    safeAreaBottom,
+    safeBottomInset,
+    fixedDockButtonCount: dockButtonBounds.length,
+    maxFixedDockButtonBottom: Math.max(0, ...dockButtonBounds.map((item) => item.bottom)),
+    shellBodyScrollable: Boolean(shellBodyMetrics && shellBodyMetrics.scrollHeight > shellBodyMetrics.clientHeight + tolerance),
+    shellBodyPaddingBottom: shellBodyMetrics?.paddingBottom ?? null,
     violationCount: violations.length,
     violations: violations.slice(0, 10),
   }
-  return { summary, detail: { route: route.route, path: route.path, viewport, regions: regionBounds, buttons: buttonBounds.map(({ className: _className, ...button }) => button) } }
+  return { summary, detail: { route: route.route, path: route.path, viewport, shellBody: shellBodyMetrics, regions: regionBounds, buttons: buttonBounds.map(({ className: _className, ...button }) => button), fixedDockButtons: dockButtonBounds.map(({ className: _className, ...button }) => button) } }
 }
 
 async function main() {
@@ -133,7 +178,14 @@ async function main() {
   try {
     miniProgram = await connectMiniProgram()
     const system = await timeout(miniProgram.systemInfo(), 4000, 'read system info')
-    const viewport = { width: system.windowWidth, height: system.windowHeight, dpr: system.pixelRatio }
+    const safeAreaBottom = Number(system.safeArea?.bottom ?? system.windowHeight)
+    const viewport = {
+      width: system.windowWidth,
+      height: system.windowHeight,
+      dpr: system.pixelRatio,
+      safeAreaBottom,
+      safeBottomInset: Math.max(0, Number(system.screenHeight ?? system.windowHeight) - safeAreaBottom),
+    }
     const results = []
     const details = []
     for (const route of selectedRoutes()) {

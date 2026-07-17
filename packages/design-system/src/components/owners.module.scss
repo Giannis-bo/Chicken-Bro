@@ -84,6 +84,11 @@
   left: 0;
 }
 
+.shellDockPushed {
+  box-sizing: border-box;
+  padding-bottom: var(--safe-bottom);
+}
+
 .shellTabRoot .shellDock {
   bottom: var(--tabbar-safe-height);
 }

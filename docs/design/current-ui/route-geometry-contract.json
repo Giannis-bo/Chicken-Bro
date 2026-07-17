@@ -3,6 +3,10 @@
   "status": "active",
   "authority": "docs/plans/ui-reconstruction.md",
   "tolerancePx": 1,
+  "safeAreaPolicy": {
+    "fixedDockControlsMustEndAtSafeBottom": true,
+    "scrollContentMayCrossSafeBottomOnlyWithScrollableOverflowAndSafePadding": true
+  },
   "routes": [
     { "route": "news_home", "path": "/pages/news/news" },
     { "route": "specialization_home/builds_home", "path": "/pages/builds/builds" },

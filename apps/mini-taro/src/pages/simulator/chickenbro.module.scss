@@ -23,4 +23,8 @@
 .followupAnswerRegion { top: 597px; left: 10px; width: 287px; height: 49px; }
 .answerStateRegion { top: 655px; left: 11px; width: 360px; height: 52px; }
 .topicRegion { top: 714px; left: 9px; width: 365px; height: 44px; }
-.composerDock { width: 100%; height: 70px; }
+.composerDock {
+  box-sizing: border-box;
+  width: 100%;
+  height: 70px;
+}

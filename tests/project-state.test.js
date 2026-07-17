@@ -321,6 +321,13 @@ test('native buttons and selected segments have exclusive geometry owners', () =
   assert.match(audit, /selected_segments_exclusively_own_their_edge_material/)
 })
 
+test('pushed fixed docks inherit safe-area padding from the shared shell owner', () => {
+  const shell = fs.readFileSync('packages/design-system/src/components/AppShell.tsx', 'utf8')
+  const owners = fs.readFileSync('packages/design-system/src/components/owners.module.scss', 'utf8')
+  assert.match(shell, /!tabRoot && ownerStyle\('shellDockPushed'\)/)
+  assert.match(owners, /\.shellDockPushed\s*\{[^}]*padding-bottom:\s*var\(--safe-bottom\)/s)
+})
+
 test('cross-route asset slots cannot hide semantic reuse behind aliases', () => {
   const audit = fs.readFileSync('scripts/audit-ui-architecture.js', 'utf8')
   const mapping = readJson('docs/design/current-ui/runtime-asset-slot-mapping-contract.json')
@@ -354,6 +361,10 @@ test('route geometry verification covers all routes without launching DevTools',
   assert.match(verifier, /native-button-vertical/)
   assert.match(verifier, /allowedVerticalOverflowButtonRoles/)
   assert.match(verifier, /maxBoundButtonBottom/)
+  assert.match(verifier, /fixed-dock-button-safe-area/)
+  assert.match(verifier, /scroll-button-safe-area-without-reveal-space/)
+  assert.match(verifier, /shellBodyPaddingBottom/)
+  assert.match(verifier, /safeAreaBottom/)
   assert.match(verifier, /violations\.slice\(0, 10\)/)
   assert.match(verifier, /connectMiniProgram/)
   assert.doesNotMatch(verifier, /WECHAT_AUTOMATOR_LAUNCH/)
