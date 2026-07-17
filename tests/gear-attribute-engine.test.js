@@ -57,6 +57,55 @@ test('unrecognized stable effects remain conditional and never change totals', (
   ])
 })
 
+test('pre-conversion stable modifiers retain their target key contract', () => {
+  const fixture = fixtures.cases[0]
+  const rule = structuredClone(fixture.rule)
+  rule.stableModifiers = [
+    { effectId: 'fixture:intellect-multiply', targetKey: 'intellect', operation: 'multiply', value: 2 }
+  ]
+
+  const result = calculateNonCombatAttributes(
+    rule,
+    fixture.characterContext,
+    fixture.staticAttributes,
+    [{ effectId: 'fixture:intellect-multiply' }],
+  )
+
+  assert.equal(result.status, 'calculated')
+  assert.equal(result.primary.rawValue, 3000)
+})
+
+test('post-conversion modifier order is declared by rule, not effect input order', () => {
+  const fixture = fixtures.cases[0]
+  const rule = structuredClone(fixture.rule)
+  rule.secondaryRules = [{
+    inputKey: 'haste_rating',
+    outputKey: 'haste',
+    label: '急速',
+    basePercent: 10,
+    ratingPerPercent: 50,
+    postConversionModifiers: [
+      { effectId: 'fixture:haste-add', operation: 'add', value: 2 },
+      { effectId: 'fixture:haste-multiply', operation: 'multiply', value: 1.05 }
+    ],
+    precision: 1,
+    sourceRefs: ['fixture:post-conversion-order'],
+    displayUnit: 'percent'
+  }]
+  const effects = [{ effectId: 'fixture:haste-multiply' }, { effectId: 'fixture:haste-add' }]
+
+  const declaredOrder = calculateNonCombatAttributes(
+    rule, fixture.characterContext, { haste_rating: 100 }, effects,
+  )
+  rule.secondaryRules[0].postConversionModifiers.reverse()
+  const reversedOrder = calculateNonCombatAttributes(
+    rule, fixture.characterContext, { haste_rating: 100 }, effects,
+  )
+
+  assert.equal(declaredOrder.secondary[0].convertedValue, '14.7%')
+  assert.equal(reversedOrder.secondary[0].convertedValue, '14.6%')
+})
+
 test('piecewise curve matches official Frost avoidance sample', () => {
   const fixture = fixtures.cases[0]
   const rule = structuredClone(fixture.rule)

@@ -46,6 +46,36 @@ class GearAttributeEngineTest(unittest.TestCase):
         self.assertEqual(declared_order["primary"]["rawValue"], 3020)
         self.assertEqual(reversed_order["primary"]["rawValue"], 3010)
 
+    def test_post_conversion_modifier_order_is_declared_by_rule_not_effect_input_order(self):
+        fixture = fixture_cases()[0]
+        rule = copy.deepcopy(fixture["rule"])
+        rule["secondaryRules"] = [{
+            "inputKey": "haste_rating",
+            "outputKey": "haste",
+            "label": "急速",
+            "basePercent": 10,
+            "ratingPerPercent": 50,
+            "postConversionModifiers": [
+                {"effectId": "fixture:haste-add", "operation": "add", "value": 2},
+                {"effectId": "fixture:haste-multiply", "operation": "multiply", "value": 1.05},
+            ],
+            "precision": 1,
+            "sourceRefs": ["fixture:post-conversion-order"],
+            "displayUnit": "percent",
+        }]
+        effects = [{"effectId": "fixture:haste-multiply"}, {"effectId": "fixture:haste-add"}]
+
+        declared_order = calculate_noncombat_attributes(
+            rule, fixture["characterContext"], {"haste_rating": 100}, effects
+        )
+        rule["secondaryRules"][0]["postConversionModifiers"].reverse()
+        reversed_order = calculate_noncombat_attributes(
+            rule, fixture["characterContext"], {"haste_rating": 100}, effects
+        )
+
+        self.assertEqual(declared_order["secondary"][0]["convertedValue"], "14.7%")
+        self.assertEqual(reversed_order["secondary"][0]["convertedValue"], "14.6%")
+
     def test_zero_rating_is_visible_and_unknown_stable_effect_is_conditional(self):
         fixture = fixture_cases()[0]
         attributes = {**fixture["staticAttributes"], "mastery_rating": 0}

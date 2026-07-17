@@ -43,10 +43,17 @@
           {
             "inputKey": "haste_rating",
             "outputKey": "haste",
-            "label": "急速",
-            "basePercent": 0,
-            "ratingPerPercent": 50,
-            "precision": 1,
+          "label": "急速",
+          "basePercent": 0,
+          "ratingPerPercent": 50,
+          "postConversionModifiers": [
+            {
+              "effectId": "fixture:haste-add",
+              "operation": "add",
+              "value": 2
+            }
+          ],
+          "precision": 1,
             "sourceRefs": ["fixture:gear-attribute-rulebook-v1"],
             "displayUnit": "percent"
           },
@@ -118,7 +125,11 @@
         "leech_rating": 10,
         "speed_rating": 5
       },
-      "stableEffects": [],
+      "stableEffects": [
+        {
+          "effectId": "fixture:haste-add"
+        }
+      ],
       "expected": {
         "contractRevision": "gear-attribute-calculation-v1",
         "status": "calculated",
@@ -159,7 +170,7 @@
             "label": "急速",
             "rawValue": 100,
             "value": "100",
-            "convertedValue": "2.0%",
+            "convertedValue": "4.0%",
             "displayUnit": "percent"
           },
           {
@@ -205,7 +216,7 @@
         ],
         "conditionals": [],
         "problems": [],
-        "inputSignature": "sha256:2a915e9279d1b799b21c44481987d300bc188abb5fa577f7b9c9d4eb73fec468"
+        "inputSignature": "sha256:526df1deea848478dc4f8de7123155bbb2aff2396ea219227fea27d335a518a9"
       }
     }
   ]

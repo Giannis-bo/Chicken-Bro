@@ -46,7 +46,9 @@ _SECONDARY_RULE_REQUIRED_KEYS = {
     "displayUnit",
 }
 _SECONDARY_RULE_CONVERSION_KEYS = {"ratingPerPercent", "ratingTransform"}
-_SECONDARY_RULE_KEYS = _SECONDARY_RULE_REQUIRED_KEYS | _SECONDARY_RULE_CONVERSION_KEYS
+_POST_CONVERSION_MODIFIER_KEYS = {"effectId", "operation", "value"}
+_SECONDARY_RULE_OPTIONAL_KEYS = {"postConversionModifiers"}
+_SECONDARY_RULE_KEYS = _SECONDARY_RULE_REQUIRED_KEYS | _SECONDARY_RULE_CONVERSION_KEYS | _SECONDARY_RULE_OPTIONAL_KEYS
 _RATING_TRANSFORM_KEYS = {"kind", "ratingPerPercent", "points", "outOfRange"}
 _RATING_TRANSFORM_POINT_KEYS = {"input", "output"}
 _MAX_RATING_TRANSFORM_POINTS = 128
@@ -200,6 +202,31 @@ def _validate_rating_transform(transform: Any, path: str, *, require_promotion_c
             ]
             if all(math.isclose(slope, slopes[0], rel_tol=0.0, abs_tol=1e-12) for slope in slopes[1:]):
                 issues.append(_issue("INVALID_RULEBOOK", "LINEAR_CURVE_NOT_PROMOTABLE", f"{path}.points", "verified contexts require a non-linear source curve rather than a disguised linear conversion"))
+    return issues
+
+
+def _validate_post_conversion_modifiers(raw_modifiers: Any, path: str) -> list[dict[str, str]]:
+    if not isinstance(raw_modifiers, list):
+        return [_issue("INVALID_RULEBOOK", "INVALID_POST_CONVERSION_MODIFIERS", path, "post-conversion modifiers must be an ordered list")]
+
+    issues: list[dict[str, str]] = []
+    for index, modifier in enumerate(raw_modifiers):
+        modifier_path = f"{path}[{index}]"
+        if not isinstance(modifier, dict):
+            issues.append(_issue("INVALID_RULEBOOK", "INVALID_POST_CONVERSION_MODIFIER", modifier_path, "post-conversion modifiers must be objects"))
+            continue
+        for key in sorted(set(modifier) - _POST_CONVERSION_MODIFIER_KEYS):
+            issues.append(_issue("INVALID_RULEBOOK", "UNKNOWN_FIELD", f"{modifier_path}.{key}", "unknown post-conversion modifier field"))
+        for key in sorted(_POST_CONVERSION_MODIFIER_KEYS - set(modifier)):
+            issues.append(_issue("INVALID_RULEBOOK", "MISSING_REQUIRED_FIELD", f"{modifier_path}.{key}", "required post-conversion modifier field is missing"))
+        if set(modifier) != _POST_CONVERSION_MODIFIER_KEYS:
+            continue
+        if _canonical_key(modifier["effectId"]) is None:
+            issues.append(_issue("INVALID_RULEBOOK", "INVALID_IDENTIFIER", f"{modifier_path}.effectId", "effectId must be a bounded lower-case identifier"))
+        if modifier["operation"] not in {"add", "multiply"}:
+            issues.append(_issue("INVALID_RULEBOOK", "INVALID_POST_CONVERSION_OPERATION", f"{modifier_path}.operation", "operation must be add or multiply"))
+        if not _is_finite_number(modifier["value"]):
+            issues.append(_issue("INVALID_RULEBOOK", "INVALID_POST_CONVERSION_VALUE", f"{modifier_path}.value", "value must be finite"))
     return issues
 
 
@@ -515,6 +542,11 @@ def _validate_rulebook_context(context: Any, index: int) -> list[dict[str, str]]
                 rule["ratingTransform"],
                 f"{rule_path}.ratingTransform",
                 require_promotion_curve_evidence=context["status"] == "verified",
+            ))
+        if "postConversionModifiers" in rule:
+            issues.extend(_validate_post_conversion_modifiers(
+                rule["postConversionModifiers"],
+                f"{rule_path}.postConversionModifiers",
             ))
         precision = rule["precision"]
         if isinstance(precision, bool) or not isinstance(precision, int) or precision < 0 or precision > 6:

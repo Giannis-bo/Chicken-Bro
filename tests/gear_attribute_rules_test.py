@@ -203,6 +203,21 @@ class GearAttributeRulesTest(unittest.TestCase):
         self.assertIsNone(parsed)
         self.assertTrue(any(issue["code"] == "LINEAR_CURVE_NOT_PROMOTABLE" for issue in issues))
 
+    def test_rulebook_accepts_ordered_post_conversion_modifiers(self):
+        rulebook = verified_rulebook()
+        rulebook["contexts"][0]["secondaryRules"][0]["postConversionModifiers"] = [
+            {"effectId": "mage:tome_of_rhonin", "operation": "add", "value": 2},
+            {"effectId": "mage:critical_multiplier", "operation": "multiply", "value": 1.05},
+        ]
+
+        parsed, issues = gear_attribute_rules.validate_attribute_rulebook(rulebook)
+
+        self.assertEqual(issues, [])
+        self.assertEqual(
+            parsed["contexts"][0]["secondaryRules"][0]["postConversionModifiers"],
+            rulebook["contexts"][0]["secondaryRules"][0]["postConversionModifiers"],
+        )
+
     def test_rulebook_rejects_duplicate_secondary_output_keys(self):
         duplicate = fixture_rulebook()
         duplicate["contexts"][0]["secondaryRules"][1]["outputKey"] = "crit"

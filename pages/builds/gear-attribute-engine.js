@@ -178,9 +178,7 @@ function applyStableModifiers(attributes, modifiers, effectIds) {
   return {
     value: {
       attributes,
-      conditionals: effectIds
-        .filter((effectId) => !allowedEffects.has(effectId))
-        .map((effectId) => ({ effectId, included: false, reason: 'UNSUPPORTED_STABLE_EFFECT' }))
+      allowedEffects
     }
   }
 }
@@ -264,7 +262,31 @@ function piecewiseRatingValue(rawValue, transform, path) {
   return { issue: issue('INVALID_RATING_TRANSFORM', path, 'curve interpolation did not resolve') }
 }
 
-function secondaryRows(secondaryRules, attributes) {
+function applyPostConversionModifiers(convertedValue, modifiers, effectIds, allowedEffects, path) {
+  if (modifiers === undefined) return { value: convertedValue }
+  if (!Array.isArray(modifiers)) {
+    return { issue: issue('INVALID_POST_CONVERSION_MODIFIERS', path, 'post-conversion modifiers must be an ordered list') }
+  }
+  const activeEffects = new Set(effectIds)
+  for (let index = 0; index < modifiers.length; index += 1) {
+    const modifier = modifiers[index]
+    const modifierPath = `${path}[${index}]`
+    if (!modifier || typeof modifier !== 'object' || Array.isArray(modifier) || Object.keys(modifier).length !== 3 || !('effectId' in modifier) || !('operation' in modifier) || !('value' in modifier)) {
+      return { issue: issue('INVALID_POST_CONVERSION_MODIFIER', modifierPath, 'post-conversion modifiers must be objects') }
+    }
+    const effectId = boundedKey(modifier.effectId)
+    const value = finiteNumber(modifier.value)
+    if (!effectId || !['add', 'multiply'].includes(modifier.operation) || value === null) {
+      return { issue: issue('INVALID_POST_CONVERSION_MODIFIER', modifierPath, 'post-conversion modifiers require effectId, operation and finite value') }
+    }
+    allowedEffects.add(effectId)
+    if (!activeEffects.has(effectId)) continue
+    convertedValue = modifier.operation === 'add' ? convertedValue + value : convertedValue * value
+  }
+  return { value: convertedValue }
+}
+
+function secondaryRows(secondaryRules, attributes, effectIds, allowedEffects) {
   const rows = []
   const outputKeys = new Set()
   for (let index = 0; index < secondaryRules.length; index += 1) {
@@ -309,6 +331,15 @@ function secondaryRows(secondaryRules, attributes) {
       }
       convertedValue = basePercent + rawValue / ratingPerPercent
     }
+    const postConversion = applyPostConversionModifiers(
+      convertedValue,
+      definition.postConversionModifiers,
+      effectIds,
+      allowedEffects,
+      `${path}.postConversionModifiers`,
+    )
+    if (postConversion.issue) return postConversion
+    convertedValue = postConversion.value
     rows.push({
       key: outputKey,
       label: definition.label,
@@ -453,7 +484,12 @@ function calculateNonCombatAttributes(rule, characterContext, staticAttributes, 
   if (appliedModifiers.issue) return unavailable(validated.revision, appliedModifiers.issue.code, appliedModifiers.issue.path, appliedModifiers.issue.message)
   const resources = resourceRows(rule.resources, appliedModifiers.value.attributes)
   if (resources.issue) return unavailable(validated.revision, resources.issue.code, resources.issue.path, resources.issue.message)
-  const secondary = secondaryRows(rule.secondaryRules, appliedModifiers.value.attributes)
+  const secondary = secondaryRows(
+    rule.secondaryRules,
+    appliedModifiers.value.attributes,
+    normalizedEffects.value,
+    appliedModifiers.value.allowedEffects,
+  )
   if (secondary.issue) return unavailable(validated.revision, secondary.issue.code, secondary.issue.path, secondary.issue.message)
 
   const primaryKey = STATIC_ATTRIBUTE_ALIASES[rule.primaryKey] || rule.primaryKey
@@ -467,7 +503,9 @@ function calculateNonCombatAttributes(rule, characterContext, staticAttributes, 
     stamina: { key: 'stamina', rawValue: cleanNumber(staminaValue), value: formatAttributeValue(staminaValue) },
     resources: resources.value,
     secondary: secondary.value,
-    conditionals: appliedModifiers.value.conditionals,
+    conditionals: normalizedEffects.value
+      .filter((effectId) => !appliedModifiers.value.allowedEffects.has(effectId))
+      .map((effectId) => ({ effectId, included: false, reason: 'UNSUPPORTED_STABLE_EFFECT' })),
     problems: [],
     inputSignature: inputSignature(rule, rule.raceKey, normalizedStatic.value, normalizedEffects.value)
   }

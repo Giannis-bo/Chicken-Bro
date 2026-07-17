@@ -165,31 +165,26 @@ def _validate_rule_and_character(rule: Any, character_context: Any) -> tuple[dic
 
 def _apply_stable_modifiers(
     attributes: dict[str, float], modifiers: list[Any], effect_ids: list[str]
-) -> tuple[dict[str, float] | None, list[dict], dict | None]:
+) -> tuple[dict[str, float] | None, set[str], dict | None]:
     active_effects = set(effect_ids)
     allowed_effects: set[str] = set()
     for index, modifier in enumerate(modifiers):
         path = f"rule.stableModifiers[{index}]"
         if not isinstance(modifier, dict):
-            return None, [], _issue("INVALID_STABLE_MODIFIER", path, "stable modifiers must be objects")
+            return None, set(), _issue("INVALID_STABLE_MODIFIER", path, "stable modifiers must be objects")
         effect_id = _bounded_key(modifier.get("effectId"))
         target_key = _bounded_key(modifier.get("targetKey"))
         operation = modifier.get("operation")
         value = _number(modifier.get("value"))
         if effect_id is None or target_key is None or operation not in {"add", "multiply"} or value is None:
-            return None, [], _issue("INVALID_STABLE_MODIFIER", path, "stable modifier requires effectId, targetKey, operation and finite value")
+            return None, set(), _issue("INVALID_STABLE_MODIFIER", path, "stable modifier requires effectId, targetKey, operation and finite value")
         allowed_effects.add(effect_id)
         if effect_id not in active_effects:
             continue
         current = attributes.get(target_key, 0.0)
         attributes[target_key] = current + value if operation == "add" else current * value
 
-    conditionals = [
-        {"effectId": effect_id, "included": False, "reason": "UNSUPPORTED_STABLE_EFFECT"}
-        for effect_id in effect_ids
-        if effect_id not in allowed_effects
-    ]
-    return attributes, conditionals, None
+    return attributes, allowed_effects, None
 
 
 def _resource_rows(resources: dict[str, Any], attributes: dict[str, float]) -> tuple[dict | None, dict | None]:
@@ -265,7 +260,39 @@ def _piecewise_rating_value(raw_value: float, transform: Any, path: str) -> tupl
     return None, _issue("INVALID_RATING_TRANSFORM", path, "curve interpolation did not resolve")
 
 
-def _secondary_rows(secondary_rules: list[Any], attributes: dict[str, float]) -> tuple[list[dict] | None, dict | None]:
+def _apply_post_conversion_modifiers(
+    converted_value: float,
+    raw_modifiers: Any,
+    effect_ids: list[str],
+    allowed_effects: set[str],
+    path: str,
+) -> tuple[float | None, dict | None]:
+    if not isinstance(raw_modifiers, list):
+        return None, _issue("INVALID_POST_CONVERSION_MODIFIERS", path, "post-conversion modifiers must be an ordered list")
+
+    active_effects = set(effect_ids)
+    for index, modifier in enumerate(raw_modifiers):
+        modifier_path = f"{path}[{index}]"
+        if not isinstance(modifier, dict) or set(modifier) != {"effectId", "operation", "value"}:
+            return None, _issue("INVALID_POST_CONVERSION_MODIFIER", modifier_path, "post-conversion modifiers must be objects")
+        effect_id = _bounded_key(modifier.get("effectId"))
+        operation = modifier.get("operation")
+        value = _number(modifier.get("value"))
+        if effect_id is None or operation not in {"add", "multiply"} or value is None:
+            return None, _issue("INVALID_POST_CONVERSION_MODIFIER", modifier_path, "post-conversion modifiers require effectId, operation and finite value")
+        allowed_effects.add(effect_id)
+        if effect_id not in active_effects:
+            continue
+        converted_value = converted_value + value if operation == "add" else converted_value * value
+    return converted_value, None
+
+
+def _secondary_rows(
+    secondary_rules: list[Any],
+    attributes: dict[str, float],
+    effect_ids: list[str],
+    allowed_effects: set[str],
+) -> tuple[list[dict] | None, dict | None]:
     rows: list[dict] = []
     output_keys: set[str] = set()
     for index, definition in enumerate(secondary_rules):
@@ -303,6 +330,15 @@ def _secondary_rows(secondary_rules: list[Any], attributes: dict[str, float]) ->
             if rating_per_percent is None or rating_per_percent <= 0:
                 return None, _issue("INVALID_RATING_CONVERSION", f"{path}.ratingPerPercent", "ratingPerPercent must be a finite number greater than zero")
             converted_value = base_percent + raw_value / rating_per_percent
+        converted_value, modifier_issue = _apply_post_conversion_modifiers(
+            converted_value,
+            definition["postConversionModifiers"] if "postConversionModifiers" in definition else [],
+            effect_ids,
+            allowed_effects,
+            f"{path}.postConversionModifiers",
+        )
+        if modifier_issue:
+            return None, modifier_issue
         rows.append(
             {
                 "key": output_key,
@@ -367,19 +403,26 @@ def calculate_noncombat_attributes(
     for key, value in normalized_static.items():
         attributes[key] = attributes.get(key, 0.0) + value
 
-    attributes, conditionals, modifier_issue = _apply_stable_modifiers(attributes, validated_rule["stableModifiers"], effect_ids)
+    attributes, allowed_effects, modifier_issue = _apply_stable_modifiers(attributes, validated_rule["stableModifiers"], effect_ids)
     if modifier_issue:
         return _unavailable(revision, modifier_issue["code"], modifier_issue["path"], modifier_issue["message"])
     resources, resource_issue = _resource_rows(validated_rule["resources"], attributes)
     if resource_issue:
         return _unavailable(revision, resource_issue["code"], resource_issue["path"], resource_issue["message"])
-    secondary, secondary_issue = _secondary_rows(validated_rule["secondaryRules"], attributes)
+    secondary, secondary_issue = _secondary_rows(
+        validated_rule["secondaryRules"], attributes, effect_ids, allowed_effects
+    )
     if secondary_issue:
         return _unavailable(revision, secondary_issue["code"], secondary_issue["path"], secondary_issue["message"])
 
     primary_key = _STATIC_ATTRIBUTE_ALIASES.get(validated_rule["primaryKey"], validated_rule["primaryKey"])
     primary_value = attributes.get(primary_key, 0.0)
     stamina_value = attributes.get("stamina", 0.0)
+    conditionals = [
+        {"effectId": effect_id, "included": False, "reason": "UNSUPPORTED_STABLE_EFFECT"}
+        for effect_id in effect_ids
+        if effect_id not in allowed_effects
+    ]
     return {
         "contractRevision": ATTRIBUTE_CALCULATION_CONTRACT_REVISION,
         "status": "calculated",
