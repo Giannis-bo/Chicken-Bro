@@ -672,6 +672,12 @@ record(
   'task detail terminal action must remain visible above the bottom safe area without requiring a scroll exception',
 )
 record(
+  'tab_root_scroll_viewport_ends_above_fixed_tabbar',
+  /\.shellTabRoot \.shellBody\s*\{[^}]*height:\s*calc\(100vh - var\(--tabbar-safe-height\)\);[^}]*min-height:\s*calc\(100vh - var\(--tabbar-safe-height\)\);/su.test(read('packages/design-system/src/components/owners.module.scss'))
+    && /tab-root-scroll-viewport-overlap/u.test(read('scripts/verify-ui-route-geometry.js')),
+  'root-route scrolling must stop at the fixed tab bar instead of painting behind it',
+)
+record(
   'build_intel_actions_override_native_button_width',
   /button\.primaryAction,[\s\S]*button\.secondaryAction\s*\{[^}]*width:\s*100%;[^}]*max-width:\s*100%;[^}]*margin-right:\s*0;[^}]*margin-left:\s*0;/u.test(buildIntelStyles),
   'build intel action buttons must remain inside the narrow action column',

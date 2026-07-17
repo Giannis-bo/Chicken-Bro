@@ -57,9 +57,10 @@ async function inspect(page, route, viewport) {
   const allowedHorizontalButtonRoles = route.allowedHorizontalOverflowButtonRoles ?? []
   const allowedVerticalButtonRoles = route.allowedVerticalOverflowButtonRoles ?? []
   const initialSafeAreaButtonRoles = route.initialSafeAreaButtonRoles ?? []
-  const [shell, shellBody, regions, buttons, dockButtons, state] = await Promise.all([
+  const [shell, shellBody, tabBar, regions, buttons, dockButtons, state] = await Promise.all([
     timeout(page.$('.wx-style-shell'), 4000, 'query route shell'),
     timeout(page.$('.wx-style-shellbody'), 4000, 'query route shell body'),
+    timeout(page.$('.wx-style-product-tab-bar'), 4000, 'query product tab bar'),
     timeout(page.$$('.wx-style-routeregion'), 4000, 'query route regions'),
     timeout(page.$$('button'), 4000, 'query native buttons'),
     timeout(page.$$('.wx-style-shelldock button'), 4000, 'query fixed dock buttons'),
@@ -100,14 +101,17 @@ async function inspect(page, route, viewport) {
       role: String(role ?? '') || normalizedClassName.match(/(?:^|\s)wx-data-role-([^\s]+)/u)?.[1] || '',
     }
   }
-  const [buttonBounds, dockButtonBounds, shellBodyMetrics] = await Promise.all([
+  const [buttonBounds, dockButtonBounds, tabBarBounds, shellBodyMetrics] = await Promise.all([
     Promise.all(buttons.map(inspectButton)),
     Promise.all(dockButtons.map(inspectButton)),
+    tabBar ? bounds(tabBar) : null,
     shellBody ? Promise.all([
+      bounds(shellBody),
       timeout(shellBody.domProperty('clientHeight'), 2000, 'read shell body client height'),
       timeout(shellBody.domProperty('scrollHeight'), 2000, 'read shell body scroll height'),
       timeout(shellBody.style('padding-bottom'), 2000, 'read shell body bottom padding'),
-    ]).then(([clientHeight, scrollHeight, paddingBottom]) => ({
+    ]).then(([geometry, clientHeight, scrollHeight, paddingBottom]) => ({
+      ...geometry,
       clientHeight: Number(clientHeight),
       scrollHeight: Number(scrollHeight),
       paddingBottom: Number.parseFloat(String(paddingBottom)) || 0,
@@ -141,6 +145,9 @@ async function inspect(page, route, viewport) {
     && shellBodyMetrics.scrollHeight > shellBodyMetrics.clientHeight + tolerance
     && shellBodyMetrics.paddingBottom + tolerance >= safeBottomInset,
   )
+  if (tabBarBounds && shellBodyMetrics && shellBodyMetrics.bottom > tabBarBounds.top + tolerance) {
+    violations.push({ type: 'tab-root-scroll-viewport-overlap', shellBodyBottom: shellBodyMetrics.bottom, tabBarTop: tabBarBounds.top })
+  }
   dockButtonBounds.forEach((button, index) => {
     if (contract.safeAreaPolicy?.fixedDockControlsMustEndAtSafeBottom && button.bottom > safeAreaBottom + tolerance) {
       violations.push({ type: 'fixed-dock-button-safe-area', index, role: button.role || null, bottom: button.bottom, safeAreaBottom })
@@ -172,10 +179,12 @@ async function inspect(page, route, viewport) {
     maxFixedDockButtonBottom: Math.max(0, ...dockButtonBounds.map((item) => item.bottom)),
     shellBodyScrollable: Boolean(shellBodyMetrics && shellBodyMetrics.scrollHeight > shellBodyMetrics.clientHeight + tolerance),
     shellBodyPaddingBottom: shellBodyMetrics?.paddingBottom ?? null,
+    shellBodyBottom: shellBodyMetrics?.bottom ?? null,
+    tabBarTop: tabBarBounds?.top ?? null,
     violationCount: violations.length,
     violations: violations.slice(0, 10),
   }
-  return { summary, detail: { route: route.route, path: route.path, viewport, summary, shellBody: shellBodyMetrics, regions: regionBounds, buttons: buttonBounds.map(({ className: _className, ...button }) => button), fixedDockButtons: dockButtonBounds.map(({ className: _className, ...button }) => button) } }
+  return { summary, detail: { route: route.route, path: route.path, viewport, summary, shellBody: shellBodyMetrics, tabBar: tabBarBounds, regions: regionBounds, buttons: buttonBounds.map(({ className: _className, ...button }) => button), fixedDockButtons: dockButtonBounds.map(({ className: _className, ...button }) => button) } }
 }
 
 async function main() {

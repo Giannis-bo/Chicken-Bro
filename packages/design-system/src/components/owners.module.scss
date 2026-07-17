@@ -65,7 +65,9 @@
 }
 
 .shellTabRoot .shellBody {
-  padding-bottom: var(--tabbar-safe-height);
+  height: calc(100vh - var(--tabbar-safe-height));
+  min-height: calc(100vh - var(--tabbar-safe-height));
+  padding-bottom: var(--space-12);
 }
 
 .shellWithDock .shellBody {
@@ -73,7 +75,7 @@
 }
 
 .shellTabRoot.shellWithDock .shellBody {
-  padding-bottom: calc(var(--tabbar-safe-height) + var(--bottom-input-height) + var(--space-12));
+  padding-bottom: calc(var(--bottom-input-height) + var(--space-12));
 }
 
 .shellDock {

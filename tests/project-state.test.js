@@ -375,6 +375,7 @@ test('route geometry verification covers all routes without launching DevTools',
   assert.match(verifier, /fixed-dock-button-safe-area/)
   assert.match(verifier, /scroll-button-safe-area-without-reveal-space/)
   assert.match(verifier, /initial-button-safe-area/)
+  assert.match(verifier, /tab-root-scroll-viewport-overlap/)
   assert.match(verifier, /initialSafeAreaButtonRoles\.includes\(button\.role\)/)
   assert.match(verifier, /shellBodyPaddingBottom/)
   assert.match(verifier, /safeAreaBottom/)
@@ -386,6 +387,8 @@ test('route geometry verification covers all routes without launching DevTools',
   assert.deepEqual(taskDetail.initialSafeAreaButtonRoles, ['task-detail-exception-action'])
   const simcSubmit = geometryContract.routes.find((route) => route.route === 'SimC_submit')
   assert.deepEqual(simcSubmit.initialSafeAreaButtonRoles, ['simc-footer-action'])
+  const shellStyles = fs.readFileSync('packages/design-system/src/components/owners.module.scss', 'utf8')
+  assert.match(shellStyles, /\.shellTabRoot \.shellBody\s*\{[^}]*height:\s*calc\(100vh - var\(--tabbar-safe-height\)\)/s)
 })
 
 test('route geometry evidence promotion is exact, safe-area aware and immutable', () => {
