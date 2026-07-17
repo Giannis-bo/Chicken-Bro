@@ -94,6 +94,11 @@
       "kind": "implicit_race_context_candidate",
       "status": "pass",
       "summary": "Candidate commit 41c4050 returned human/default_human for the existing v1 Frost community template through both compact gear read and verified community-import envelope. The six touched runtime Python files matched local SHA-256 values; no forced winner refresh was performed to manufacture a v2 source-race example."
+    },
+    {
+      "kind": "pg_attribute_calculator_payload_parity",
+      "status": "pass",
+      "summary": "Candidate commit 169cc03 proved the normal compact initial PostgreSQL gear read returns the explicit rule_unavailable attributeCalculator context, with runtime file parity, /health pass and no asynchronous sync start."
     }
   ],
   "risks": [
@@ -138,7 +143,8 @@
     "docs/superpowers/plans/2026-07-17-winner-driven-attribute-rule-audit.md",
     "docs/superpowers/specs/2026-07-17-implicit-gear-attribute-race-context-design.md",
     "docs/superpowers/plans/2026-07-17-implicit-gear-attribute-race-context.md",
-    "artifacts/releases/2026-07-17-real-time-gear-stat-engine/evidence/implicit-race-context-candidate.json"
+    "artifacts/releases/2026-07-17-real-time-gear-stat-engine/evidence/implicit-race-context-candidate.json",
+    "artifacts/releases/2026-07-17-real-time-gear-stat-engine/evidence/pg-attribute-calculator-payload-parity-candidate.json"
   ],
-  "summary": "The implementation keeps both audit and equipment-page race context off the SimC path. Local and final-head candidate verification are complete; source-race v2 evidence is ready for the next normal winner refresh, while current historical templates truthfully use human fallback. Real mini-program user acceptance is the remaining merge-closure gate."
+  "summary": "The implementation keeps audit and equipment-page race context off the SimC path. The PostgreSQL public gear route now explicitly mirrors the fail-closed attribute-calculator context rather than omitting it; source-race v2 evidence is ready for the next normal winner refresh, while current historical templates truthfully use human fallback. A verified ruleset and real mini-program user acceptance remain separate merge-closure gates."
 }

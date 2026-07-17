@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-17T10:07:45Z",
+  "scope": "PostgreSQL public gear payload attributeCalculator parity",
+  "branch": "codex/implicit-gear-attribute-race-context",
+  "runtimeCommit": "169cc033262f3f792093a71f7c5a19ab4eb5af61",
+  "environment": {
+    "target": "known candidate runtime",
+    "asyncSyncStart": false,
+    "simcChange": "none",
+    "dataMutation": "none"
+  },
+  "deployment": {
+    "command": "WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 bash server/deploy_lighthouse.sh",
+    "status": "pass",
+    "result": "wow-backend restarted; package bootstrap and asynchronous sync starts remained disabled"
+  },
+  "verification": {
+    "local": {
+      "python": "469 relevant tests passed: news backend, attribute engine/rules/audit suites and WebSim payload",
+      "node": "267 builds and gear-attribute tests passed",
+      "knownNonFailingWarning": "existing SQLite unclosed-connection ResourceWarning"
+    },
+    "publicInitialGearRead": {
+      "path": "/api/websim/gear?class=mage&spec=frost&compact=1&mode=initial",
+      "httpStatus": 200,
+      "attributeCalculator": {
+        "contractRevision": "gear-attribute-calculator-context-v1",
+        "status": "rule_unavailable",
+        "attributeRuleRevision": "",
+        "raceOptions": [],
+        "rulesCount": 0,
+        "problemCodes": ["ATTRIBUTE_RULE_UNAVAILABLE"]
+      },
+      "meaning": "The PostgreSQL-backed public route now distinguishes an intentionally unavailable rulebook from an omitted field. It publishes no numeric final attributes."
+    },
+    "health": {
+      "path": "/health",
+      "httpStatus": 200,
+      "body": {"ok": true, "service": "wow-backend"}
+    },
+    "unitIsolation": {
+      "wowBackend": "active",
+      "communityTemplateSync": "inactive",
+      "statWeightsSync": "inactive"
+    },
+    "runtimeParity": {
+      "server/news_backend.py": "c2feb538fe234594df64635dd6770a64df4983a3dc432f1faa4f2d36703bad52",
+      "server/websim_payload.py": "688b6269fd814af17d06e1f9a95196cdd2ac09764db5d6d09ae1f077620dcc47"
+    }
+  },
+  "rollback": {
+    "strategy": "code_rollback",
+    "action": "redeploy prior candidate commit 5a59f3bd6e734a47c2ea1133fc892e627206d94e with the same clean-worktree command; no schema or data rollback is required"
+  },
+  "knownLimitations": [
+    "No source-ledger-backed production attribute rulebook is published, so the user-facing panel remains truthfully unavailable rather than displaying synthetic or static-sum values.",
+    "This smoke verifies the public API contract only; real mini-program visual acceptance and a verified ruleset remain separate requirements."
+  ],
+  "conclusion": "The final PostgreSQL public gear route now carries the same explicit fail-closed attribute-calculator context as the direct payload path, without invoking SimulationCraft or a background sync."
+}
