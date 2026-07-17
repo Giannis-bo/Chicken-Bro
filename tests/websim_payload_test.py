@@ -24335,6 +24335,20 @@ class WebSimPayloadTest(unittest.TestCase):
                 "mage", "arcane", simc_runtime_revision=""
             )
 
+    def test_gear_payload_exposes_only_fail_closed_attribute_calculator_without_rules(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            payload = self.websim_payload.get_websim_gear(conn, "mage", "frost", compact=True)
+        finally:
+            conn.close()
+
+        calculator = payload["attributeCalculator"]
+        self.assertEqual(calculator["status"], "rule_unavailable")
+        self.assertEqual(calculator["raceOptions"], [])
+        self.assertEqual(calculator["rules"], [])
+        self.assertNotIn("staticAttributes", calculator)
+
 
 if __name__ == "__main__":
     unittest.main()

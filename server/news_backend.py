@@ -76,6 +76,7 @@ try:
         is_canonical_profile_request,
         resolve_selection_intent,
     )
+    from .gear_attribute_api import calculate_attributes_for_selection
     from .gear_stat_snapshot_api import get_or_start_stat_snapshot
     from .websim_payload import (
         COMMUNITY_TEMPLATE_SYNC_RUN_KEY,
@@ -180,6 +181,7 @@ except ImportError:
         is_canonical_profile_request,
         resolve_selection_intent,
     )
+    from gear_attribute_api import calculate_attributes_for_selection
     from gear_stat_snapshot_api import get_or_start_stat_snapshot
     from websim_payload import (
         COMMUNITY_TEMPLATE_SYNC_RUN_KEY,
@@ -12826,6 +12828,15 @@ class Handler(BaseHTTPRequestHandler):
                 envelope,
                 extra_headers={"Server-Timing": community_import_server_timing(timings)},
             )
+            return
+        if parsed.path == "/api/websim/gear/attributes":
+            http_status, envelope = calculate_attributes_for_selection(
+                read_json_body(self),
+                store=cache_data_store(),
+                simc_runtime_revision=current_gear_simc_runtime_revision(),
+                request_id=f"gear-attribute-{uuid.uuid4().hex}",
+            )
+            json_response(self, http_status, envelope)
             return
         if parsed.path == "/api/websim/gear/stat-snapshots":
             http_status, envelope = get_or_start_stat_snapshot(

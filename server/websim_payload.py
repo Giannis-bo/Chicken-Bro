@@ -48,6 +48,11 @@ except ImportError:
     import gear_public_contract
     import gear_socket_authority
 
+try:
+    from .gear_attribute_rules import public_attribute_calculator_context
+except ImportError:
+    from gear_attribute_rules import public_attribute_calculator_context
+
 
 BASE_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = BASE_DIR.parent
@@ -276,6 +281,11 @@ TALENT_SCHEMA_REVISION = "websim-talent-rules-v1"
 TALENT_CATALOG_REVISION = "websim-talent-catalog-v1"
 GEAR_SCHEMA_REVISION = "websim-gear-simulator-v1"
 GEAR_CATALOG_REVISION = "websim-gear-catalog-v1"
+ATTRIBUTE_RULEBOOK_UNAVAILABLE = {
+    "schemaRevision": "gear-attribute-rulebook-v1",
+    "attributeRuleRevision": "",
+    "contexts": [],
+}
 GEAR_OBSERVED_BACKFILL_SYNC_KEY = "gear_observed_backfill"
 GEAR_OBSERVED_BACKFILL_SCHEMA_VERSION = 1
 STALE_PLACEHOLDER_GEAR_MOD_OPTION_IDS = {"seed-socket-gem-240983", "seed-enchant-8017"}
@@ -20595,6 +20605,12 @@ def get_websim_gear(conn, class_key="mage", spec_key="arcane", compact=False):
             class_key=class_key,
             spec_key=spec_key,
             gear_readiness_payload=readiness,
+        ),
+        "attributeCalculator": public_attribute_calculator_context(
+            ATTRIBUTE_RULEBOOK_UNAVAILABLE,
+            class_key=class_key,
+            spec_key=spec_key,
+            level=websim_max_level(),
         ),
         "gearSchemaRevision": GEAR_SCHEMA_REVISION,
         "gearCatalogRevision": catalog_state.get("schemaRevision") or GEAR_CATALOG_REVISION,

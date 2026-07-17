@@ -58,7 +58,7 @@
 - Produces: `public_attribute_calculator_context(rulebook, class_key, spec_key, level)` and either a sealed applicable rule or `ATTRIBUTE_RULE_UNAVAILABLE`.
 - Produces: `parse_attribute_character_context(raw)` for the new `gear-attribute-character-v1` boundary; it accepts only `schemaRevision` and a bounded `raceKey`.
 
-- [ ] **Step 1: Write failing schema and availability tests**
+- [x] **Step 1: Write failing schema and availability tests**
 
 Create the rulebook fixture with one synthetic, explicitly non-production mage context and add these tests. The synthetic values test the contract only; the source ledger must label the context `fixture_only`, so it cannot appear in public payloads.
 
@@ -82,13 +82,13 @@ def test_character_context_accepts_only_explicit_race_key():
 
 Add negative cases for unknown fields, empty race, unknown race for an otherwise verified context, missing revision, missing `sourceRefs`, duplicate output keys and a rule marked `verified` without a golden sample ID.
 
-- [ ] **Step 2: Run the focused tests and confirm they fail**
+- [x] **Step 2: Run the focused tests and confirm they fail**
 
 Run: `python3 -m unittest tests.gear_attribute_rules_test`
 
 Expected: FAIL because `server.gear_attribute_rules` and its public/fail-closed APIs do not exist.
 
-- [ ] **Step 3: Implement the narrow pure rule contract**
+- [x] **Step 3: Implement the narrow pure rule contract**
 
 In `server/gear_attribute_rules.py`, define the following exact boundary. Keep the rulebook as ordinary data; do not add DB tables or network reads.
 
@@ -113,13 +113,13 @@ Use a context key of `"{classKey}:{specKey}:{level}:{raceKey}"`. The schema must
 
 Create `docs/gear-attribute-rule-source-ledger.md` with the columns `ruleContext`, `attributeRuleRevision`, `status`, `sourceRefs`, `goldenSampleIds`, `owner`, `lastVerifiedAt`, `coverage`. Its first rows must be `mage:frost:90:*` and `mage:arcane:90:*` with `status=blocked_pending_source_capture`, not invented production values.
 
-- [ ] **Step 4: Run rule tests and inspect the ledger gate**
+- [x] **Step 4: Run rule tests and inspect the ledger gate**
 
 Run: `python3 -m unittest tests.gear_attribute_rules_test`
 
 Expected: PASS; synthetic contexts are usable only by explicit fixture tests, while public context requests return `rule_unavailable` until source and golden IDs are both verified.
 
-- [ ] **Step 5: Commit the rule-contract slice**
+- [x] **Step 5: Commit the rule-contract slice**
 
 ```bash
 git add server/gear_attribute_rules.py tests/gear_attribute_rules_test.py tests/fixtures/gear-attribute-rulebook-v1.json tests/fixtures/gear-attribute-calculator-cases-v1.json docs/gear-attribute-rule-source-ledger.md docs/superpowers/specs/2026-07-17-real-time-gear-stat-engine-design.md
@@ -140,7 +140,7 @@ git commit -m "feat: add versioned gear attribute rule contract"
 - Produces: `gear-attribute-calculation-v1` with `status`, `attributeRuleRevision`, `primary`, `stamina`, `resources`, `secondary`, `conditionals`, `problems`, and `inputSignature`.
 - Produces: no database access, no Resolver call, no SimC call and no use of preformatted `value` strings.
 
-- [ ] **Step 1: Write failing calculation/rounding tests from the shared fixture**
+- [x] **Step 1: Write failing calculation/rounding tests from the shared fixture**
 
 Use one fixture case with static input `{intellect: 500, stamina: 600, crit_rating: 35, haste_rating: 100, mastery_rating: 75, versatility_rating: 25, avoidance_rating: 20, leech_rating: 10, speed_rating: 5}` and a synthetic rule whose expected output is already stored in the JSON fixture. Assert all fields, including the original rating and one-decimal percentage string.
 
@@ -158,13 +158,13 @@ assert result["secondary"][0] == {
 
 Also assert: modifier order is deterministic; zero rating still returns a row; `ratingPerPercent <= 0` blocks; an unsupported condition becomes a `conditional` row rather than changing totals; missing rule/race returns no numeric final panel; `inputSignature` changes for race, static value, stable modifier or rule revision.
 
-- [ ] **Step 2: Run the focused engine tests and confirm they fail**
+- [x] **Step 2: Run the focused engine tests and confirm they fail**
 
 Run: `python3 -m unittest tests.gear_attribute_engine_test`
 
 Expected: FAIL because `calculate_noncombat_attributes` is unavailable.
 
-- [ ] **Step 3: Implement the reference evaluator with one ordered arithmetic path**
+- [x] **Step 3: Implement the reference evaluator with one ordered arithmetic path**
 
 Implement these functions in `server/gear_attribute_engine.py`:
 
@@ -183,13 +183,13 @@ def calculate_noncombat_attributes(rule: dict, character_context: dict, static_a
 
 Normalize `crit`/`critical_strike` to `crit`, `haste`/`haste_rating` to `haste_rating`, and similarly for mastery, versatility, avoidance, leech and speed before arithmetic. Only modifiers present in the rule's allow-list may apply; every other effect goes to `conditionals` with `included=false`. The reference result must never read `gear_stat_snapshot`, SimC JSON or a client supplied final stat.
 
-- [ ] **Step 4: Run reference tests and the existing Resolver static-attribute test**
+- [x] **Step 4: Run reference tests and the existing Resolver static-attribute test**
 
 Run: `python3 -m unittest tests.gear_attribute_engine_test tests.gear_resolver_test`
 
 Expected: PASS; the resolver remains a static-input provider and the new evaluator produces deterministic complete rows from the fixture.
 
-- [ ] **Step 5: Commit the server-calculator slice**
+- [x] **Step 5: Commit the server-calculator slice**
 
 ```bash
 git add server/gear_attribute_engine.py tests/gear_attribute_engine_test.py tests/fixtures/gear-attribute-calculator-cases-v1.json
@@ -211,7 +211,7 @@ git commit -m "feat: add deterministic gear attribute reference engine"
 - Produces: the same `gear-attribute-calculation-v1` fields and formatting, with no `wx`, HTTP or `setData` dependency.
 - Produces: an exported `calculateNonCombatAttributes(rule, characterContext, staticAttributes, stableEffects)` function.
 
-- [ ] **Step 1: Write a Node test that reads every shared fixture case**
+- [x] **Step 1: Write a Node test that reads every shared fixture case**
 
 ```javascript
 const cases = require('./fixtures/gear-attribute-calculator-cases-v1.json')
@@ -229,13 +229,13 @@ for (const fixture of cases.cases) {
 
 Add explicit tests that a missing race, `fixture_only` rule, unsupported secondary rule and unrecognized stable effect produce the same bounded `rule_unavailable`/`conditional` output as Python. Extend `loadBuildsDetailPageConfig` in `tests/builds-page.test.js` so `detail.js` can require the new module in its existing VM loader.
 
-- [ ] **Step 2: Run the new Node tests and confirm they fail**
+- [x] **Step 2: Run the new Node tests and confirm they fail**
 
 Run: `node --test tests/gear-attribute-engine.test.js`
 
 Expected: FAIL because `pages/builds/gear-attribute-engine.js` does not exist.
 
-- [ ] **Step 3: Implement the JavaScript interpreter without UI coupling**
+- [x] **Step 3: Implement the JavaScript interpreter without UI coupling**
 
 ```javascript
 function calculateNonCombatAttributes(rule, characterContext, staticAttributes, stableEffects) {
@@ -249,13 +249,13 @@ module.exports = { calculateNonCombatAttributes, formatAttributeValue }
 
 Use plain objects and `Number.isFinite`; do not import `detail.js`, do not duplicate item parsing, do not read `gearStatSnapshot`, and do not make a default race selection. The test fixture is the exact parity surface: any added output field must first be added to the shared fixture and Python test.
 
-- [ ] **Step 4: Run both language suites against the same cases**
+- [x] **Step 4: Run both language suites against the same cases**
 
 Run: `python3 -m unittest tests.gear_attribute_engine_test && node --test tests/gear-attribute-engine.test.js`
 
 Expected: PASS; every JSON fixture has identical Python and JavaScript output.
 
-- [ ] **Step 5: Commit the client-calculator slice**
+- [x] **Step 5: Commit the client-calculator slice**
 
 ```bash
 git add pages/builds/gear-attribute-engine.js tests/gear-attribute-engine.test.js tests/builds-page.test.js tests/fixtures/gear-attribute-calculator-cases-v1.json
@@ -270,7 +270,7 @@ git commit -m "feat: add client gear attribute interpreter"
 - Create: `tests/gear_attribute_api_test.py`
 - Modify: `server/websim_payload.py:20383-20640`
 - Modify: `server/news_backend.py:12800-12837`
-- Modify: `pages/builds/builds-api.js`
+- Modify: `pages/builds/websim-api.js`
 - Modify: `tests/websim_payload_test.py`
 - Modify: `tests/news_backend_test.py`
 
@@ -280,7 +280,7 @@ git commit -m "feat: add client gear attribute interpreter"
 - `POST /api/websim/gear/attributes` accepts `{selectionIntent, characterContext}` and returns the existing result envelope with `{resolvedGearSignature, attributeCalculation}`.
 - `requestWebsimGearAttributeAudit(selectionIntent, characterContext)` is a best-effort client API. It never calls the SimC endpoint and callers must not use it as the panel's source of truth.
 
-- [ ] **Step 1: Write failing payload and endpoint tests**
+- [x] **Step 1: Write failing payload and endpoint tests**
 
 ```python
 payload = websim_payload.get_websim_gear(conn, "mage", "frost", compact=True)
@@ -297,13 +297,13 @@ assert envelope["data"]["attributeCalculation"]["status"] == "calculated"
 
 Add negative HTTP cases for client-authored static values, missing character context, invalid race, Resolver rejection and unverified rules. Assert that no test double for `run_websim_stat_simcraft` or the snapshot store is touched.
 
-- [ ] **Step 2: Run payload/API tests and confirm they fail**
+- [x] **Step 2: Run payload/API tests and confirm they fail**
 
 Run: `python3 -m unittest tests.gear_attribute_api_test tests.websim_payload_test tests.news_backend_test`
 
 Expected: FAIL because the calculator payload and `/api/websim/gear/attributes` route do not exist.
 
-- [ ] **Step 3: Implement the additive context serializer and audit endpoint**
+- [x] **Step 3: Implement the additive context serializer and audit endpoint**
 
 In `server/websim_payload.py`, append `attributeCalculator` to the final `get_websim_gear` payload using `public_attribute_calculator_context`; do not use `blocked_stat_snapshot` to represent rule availability.
 
@@ -324,13 +324,13 @@ def calculate_attributes_for_selection(raw_request, *, store, simc_runtime_revis
 
 Register the route before `/api/websim/gear/stats` in `server/news_backend.py`. In `pages/builds/builds-api.js`, add the client wrapper with the normal API error envelope but do not import it into the old SimC snapshot client.
 
-- [ ] **Step 4: Run focused server/API tests and prove SimC isolation**
+- [x] **Step 4: Run focused server/API tests and prove SimC isolation**
 
 Run: `python3 -m unittest tests.gear_attribute_api_test tests.websim_payload_test tests.news_backend_test`
 
 Expected: PASS; attribute audit returns a deterministic result or bounded rule problem, and the SimC mock invocation count is zero.
 
-- [ ] **Step 5: Commit the context and audit slice**
+- [x] **Step 5: Commit the context and audit slice**
 
 ```bash
 git add server/gear_attribute_api.py server/websim_payload.py server/news_backend.py pages/builds/builds-api.js tests/gear_attribute_api_test.py tests/websim_payload_test.py tests/news_backend_test.py

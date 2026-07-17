@@ -471,6 +471,30 @@ test('canonical async gear stat client preserves 202 and posts only Intent plus 
   assert.equal(captured[0].timeout, 30000)
 })
 
+test('attribute audit client posts only intent plus explicit character context', async () => {
+  const captured = []
+  global.wx = {
+    getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
+    getStorageSync: () => '',
+    setStorageSync: () => {},
+    request: (options) => {
+      captured.push(options)
+      options.success({ statusCode: 200, data: gearEnvelope('resolved', { data: { attributeCalculation: { status: 'rule_unavailable' } } }) })
+    }
+  }
+
+  const api = resetModule('../pages/builds/websim-api')
+  const selectionIntent = { schemaRevision: 'selection-intent-v1', slots: {} }
+  const characterContext = { schemaRevision: 'gear-attribute-character-v1', raceKey: 'human' }
+  const result = await api.requestWebsimGearAttributeAudit(selectionIntent, characterContext)
+
+  assert.equal(result.fromFallback, false)
+  assert.match(captured[0].url, /\/api\/websim\/gear\/attributes$/)
+  assert.equal(captured[0].method, 'POST')
+  assert.deepEqual(captured[0].data, { selectionIntent, characterContext })
+  assert.equal(captured[0].timeout, 6000)
+})
+
 test('canonical gear api clients reject malformed pseudo envelopes through fallback', async () => {
   global.wx = {
     getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
