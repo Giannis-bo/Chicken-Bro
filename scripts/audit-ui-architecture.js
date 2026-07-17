@@ -1317,6 +1317,16 @@ record(
   'critical terminal regions must be fully visible above the real WeChat safe-area bottom',
 )
 record(
+  'fixed_dock_controls_are_presence_complete_across_native_and_role_buttons',
+  /"route":\s*"simulator_home"[^\n]*"requiredFixedDockControlRoles":\s*\["simulator-dock-upload", "simulator-dock-paste", "simulator-dock-send"\]/u.test(read('docs/design/current-ui/route-geometry-contract.json'))
+    && /"route":\s*"chickenbro_chat"[^\n]*"requiredFixedDockControlRoles":\s*\["chickenbro-dock-new-topic", "chickenbro-dock-send"\]/u.test(read('docs/design/current-ui/route-geometry-contract.json'))
+    && /page\.\$\$\('\[role="button"\]'\)/u.test(read('scripts/verify-ui-route-geometry.js'))
+    && /page\.\$\$\('\.wx-style-shelldock \[role="button"\]'\)/u.test(read('scripts/verify-ui-route-geometry.js'))
+    && /missing-fixed-dock-control/u.test(read('scripts/verify-ui-route-geometry.js'))
+    && /missingFixedDockControlCount/u.test(read('scripts/verify-ui-route-geometry.js')),
+  'fixed docks must measure View role=button controls and fail when contracted controls are absent',
+)
+record(
   'tab_root_scroll_viewport_ends_above_fixed_tabbar',
   /\.shellTabRoot \.shellBody\s*\{[^}]*height:\s*calc\(100vh - var\(--tabbar-safe-height\)\);[^}]*min-height:\s*calc\(100vh - var\(--tabbar-safe-height\)\);/su.test(read('packages/design-system/src/components/owners.module.scss'))
     && /tab-root-scroll-viewport-overlap/u.test(read('scripts/verify-ui-route-geometry.js')),

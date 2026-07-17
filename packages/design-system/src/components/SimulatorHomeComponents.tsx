@@ -356,11 +356,11 @@ export function SimulatorComposer({
         onInput={(event) => onDraftChange(event.detail.value)}
       />
       <View className={styles['composerActions'] ?? ''}>
-        <View className={styles['interactive'] ?? ''} aria-label="上传证据暂未开放" data-action-id="upload-evidence" data-disabled="true" role="button">
+        <View className={styles['interactive'] ?? ''} aria-label="上传证据暂未开放" data-action-id="upload-evidence" data-disabled="true" data-role="simulator-dock-upload" role="button">
           <SystemGlyph assetId="utility-glyph-family.document" slotId="asset_slot.simulator-composer-family" />
           <Text>上传证据</Text>
         </View>
-        <View className={styles['interactive'] ?? ''} aria-label="粘贴链接暂未开放" data-action-id="paste-link" data-disabled="true" role="button">
+        <View className={styles['interactive'] ?? ''} aria-label="粘贴链接暂未开放" data-action-id="paste-link" data-disabled="true" data-role="simulator-dock-paste" role="button">
           <SystemGlyph assetId="utility-glyph-family.source-link" slotId="asset_slot.simulator-composer-family" />
           <Text>粘贴链接</Text>
         </View>
@@ -369,6 +369,7 @@ export function SimulatorComposer({
           data-action-id="send"
           data-action-mode={retrying ? 'retry' : 'send'}
           data-disabled={retrying ? (loading ? 'true' : 'false') : (!canSubmit ? 'true' : 'false')}
+          data-role="simulator-dock-send"
           role="button"
           onClick={() => {
             if (retrying ? !loading : canSubmit) (retrying ? onRetry : onSend)()

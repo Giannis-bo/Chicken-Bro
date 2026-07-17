@@ -270,7 +270,7 @@ export function ChickenbroComposer({ draft, state, onDraftChange, onNewTopic, on
   const sendDisabled = loading || !draft.trim()
   return (
     <View className={`${styles['composer'] ?? ''} ${styleSelectorClass('chickenbroComposer')}`} data-owner="chickenbro-composer" data-region="composer_dock" data-state={state}>
-      <ControlButton className={styleSelectorClass('chickenbroNewTopic')} data-action-id="new-topic" data-disabled={loading ? 'true' : 'false'} disabled={loading} onClick={onNewTopic}>
+      <ControlButton className={styleSelectorClass('chickenbroNewTopic')} data-action-id="new-topic" data-disabled={loading ? 'true' : 'false'} data-role="chickenbro-dock-new-topic" disabled={loading} onClick={onNewTopic}>
         <SystemGlyph assetId="utility-glyph-family.plus" dataRole="chickenbro-new-topic-glyph" slotId="asset_slot.chickenbro-composer-actions" />
         <Text>新话题</Text>
       </ControlButton>
@@ -291,6 +291,7 @@ export function ChickenbroComposer({ draft, state, onDraftChange, onNewTopic, on
         className={styles['sendAction'] ?? ''}
         data-action-id="send"
         data-disabled={sendDisabled ? 'true' : 'false'}
+        data-role="chickenbro-dock-send"
         disabled={sendDisabled}
         onClick={onSend}
       >
