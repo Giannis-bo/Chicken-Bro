@@ -87,6 +87,37 @@ const routeStyles = routeSources.filter((file) => file.endsWith('.scss'))
 const routeComponents = routeSources.filter((file) => file.endsWith('.tsx'))
 const componentStyleFiles = walk('packages/design-system/src/components', ['.module.scss'])
 
+function percentLayoutValue(block, property, axisPixels) {
+  const raw = block.match(new RegExp(`${property}:\\s*([^;]+);`, 'u'))?.[1]?.trim()
+  if (!raw) return null
+  const percent = Number(raw.match(/(-?[\d.]+)%/u)?.[1])
+  if (!Number.isFinite(percent)) return null
+  const pixelTerm = Number(raw.match(/([+-])\s*([\d.]+)px/u)?.[2] ?? 0)
+  const pixelSign = raw.match(/([+-])\s*[\d.]+px/u)?.[1] === '-' ? -1 : 1
+  return percent / 100 * axisPixels + pixelSign * pixelTerm
+}
+
+const minimumLayoutViewport = { width: 320, height: 568 }
+const specializedRegionBounds = routeStyles.flatMap((file) => (
+  [...read(file).matchAll(/\.([A-Za-z][\w-]*Region)\s*\{([^}]*)\}/gu)].flatMap((match) => {
+    const left = percentLayoutValue(match[2], 'left', minimumLayoutViewport.width)
+    const width = percentLayoutValue(match[2], 'width', minimumLayoutViewport.width)
+    const top = percentLayoutValue(match[2], 'top', minimumLayoutViewport.height)
+    const height = percentLayoutValue(match[2], 'height', minimumLayoutViewport.height)
+    if ([left, width, top, height].some((value) => value === null)) return []
+    return [{ file, region: match[1], left, right: left + width, top, bottom: top + height }]
+  })
+))
+const escapedSpecializedRegions = specializedRegionBounds.filter((region) => (
+  region.left < -1 || region.right > minimumLayoutViewport.width + 1
+  || region.top < -1 || region.bottom > minimumLayoutViewport.height + 1
+))
+record(
+  'specialized_percentage_regions_fit_the_minimum_layout_viewport',
+  specializedRegionBounds.length >= 15 && escapedSpecializedRegions.length === 0,
+  escapedSpecializedRegions.map((region) => `${region.file}:${region.region}`).join(', ') || `regions=${specializedRegionBounds.length}`,
+)
+
 const sharedRouteStylePath = 'apps/mini-taro/src/pages/_shared/routes.module.scss'
 const sharedRouteStyles = read(sharedRouteStylePath)
 const sharedRouteConsumers = [
