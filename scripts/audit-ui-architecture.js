@@ -435,6 +435,33 @@ record(
   routeGeometryContract.routes?.length === 14 && invalidRequiredRegionContracts.length === 0,
   invalidRequiredRegionContracts.join(', ') || '14 route semantic closures',
 )
+const componentContractsByRoute = new Map(
+  walk('docs/design/current-ui/routes', ['component-contract.json'])
+    .map((file) => JSON.parse(read(file)))
+    .map((contract) => [contract.route, contract]),
+)
+function valuesForKey(value, key) {
+  if (Array.isArray(value)) return value.flatMap((item) => valuesForKey(item, key))
+  if (!value || typeof value !== 'object') return []
+  return Object.entries(value).flatMap(([entryKey, entryValue]) => (
+    entryKey === key ? [entryValue] : valuesForKey(entryValue, key)
+  ))
+}
+const invalidRouteStageTargetCounts = (routeGeometryContract.routes ?? []).flatMap((route) => {
+  const sourcePath = `apps/mini-taro/src/${route.path.split('?')[0].replace(/^\//u, '')}.tsx`
+  const source = read(sourcePath)
+  if (!/<RouteStage\b/u.test(source)) return []
+  const publishedCounts = [...source.matchAll(/<RouteStage\b[\s\S]*?\btargetRegionCount=\{(\d+)\}/gu)].map((match) => Number(match[1]))
+  const contractCounts = [...new Set(valuesForKey(componentContractsByRoute.get(route.route), 'stableRegionCount'))]
+  return publishedCounts.length === 1 && contractCounts.length === 1 && publishedCounts[0] === contractCounts[0]
+    ? []
+    : [`${route.route}:published=${publishedCounts.join('|') || 'none'}:contract=${contractCounts.join('|') || 'none'}`]
+})
+record(
+  'route_stage_target_counts_match_component_contracts',
+  invalidRouteStageTargetCounts.length === 0,
+  invalidRouteStageTargetCounts.join(', ') || 'all RouteStage target counts match stableRegionCount',
+)
 const geometryControlRoleContracts = (routeGeometryContract.routes ?? []).flatMap((route) => (
   ['initialSafeAreaButtonRoles', 'requiredFixedDockControlRoles'].flatMap((contractKey) => (
     (route[contractKey] ?? []).map((role) => ({ route: route.route, contractKey, role }))
