@@ -321,6 +321,14 @@ test('native buttons and selected segments have exclusive geometry owners', () =
   assert.match(audit, /selected_segments_exclusively_own_their_edge_material/)
 })
 
+test('cross-route asset slots cannot hide semantic reuse behind aliases', () => {
+  const audit = fs.readFileSync('scripts/audit-ui-architecture.js', 'utf8')
+  const mapping = readJson('docs/design/current-ui/runtime-asset-slot-mapping-contract.json')
+  assert.match(audit, /cross_route_runtime_slots_have_one_canonical_shared_semantic/)
+  assert.ok(Object.hasOwn(mapping.sharedSlots, 'asset_slot.news-frame'))
+  assert.equal(mapping.routes.find((route) => route.route === 'news_detail').runtimeSlots['asset_slot.news-metric-glyphs'], undefined)
+})
+
 test('route geometry verification covers all routes without launching DevTools', () => {
   const verifier = fs.readFileSync('scripts/verify-ui-route-geometry.js', 'utf8')
   const contract = readJson('docs/design/current-ui/route-geometry-contract.json')

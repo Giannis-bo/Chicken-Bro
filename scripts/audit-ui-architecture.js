@@ -574,6 +574,26 @@ record(
     )),
   `routes=${runtimeAssetSlotMappingContract.routes?.length ?? 0}`,
 )
+const runtimeSlotUses = new Map()
+for (const route of runtimeAssetSlotMappingContract.routes ?? []) {
+  for (const [runtimeSlot, contractSlot] of Object.entries(route.runtimeSlots ?? {})) {
+    if (!runtimeSlotUses.has(runtimeSlot)) runtimeSlotUses.set(runtimeSlot, [])
+    runtimeSlotUses.get(runtimeSlot).push({ route: route.route, contractSlot })
+  }
+}
+const crossRouteSlotConflicts = [...runtimeSlotUses.entries()].flatMap(([runtimeSlot, uses]) => {
+  if (uses.length < 2) return []
+  const canonical = `shared:${runtimeSlot}`
+  const declaredShared = Object.prototype.hasOwnProperty.call(runtimeAssetSlotMappingContract.sharedSlots ?? {}, runtimeSlot)
+  return declaredShared && uses.every((use) => use.contractSlot === canonical)
+    ? []
+    : [`${runtimeSlot}:${uses.map((use) => `${use.route}=>${use.contractSlot}`).join('|')}`]
+})
+record(
+  'cross_route_runtime_slots_have_one_canonical_shared_semantic',
+  crossRouteSlotConflicts.length === 0,
+  crossRouteSlotConflicts.join(', ') || 'none',
+)
 record(
   'runtime_asset_slot_verifier_reuses_existing_devtools_only',
   fs.existsSync(path.join(root, 'scripts/verify-ui-asset-slots.js'))

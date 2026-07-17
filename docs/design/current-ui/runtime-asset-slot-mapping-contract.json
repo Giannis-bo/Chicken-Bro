@@ -8,6 +8,10 @@
     "asset_slot.source-badge-family": "shared evidence-source badge family",
     "asset_slot.product-tab-glyphs": "shared product navigation glyph family",
     "asset_slot.pushed-back-medallion": "shared pushed-route back control",
+    "asset_slot.news-frame": "shared news surface frame family",
+    "asset_slot.builds-surface-texture": "shared builds workspace surface texture",
+    "asset_slot.builds-frame-family": "shared builds workspace frame family",
+    "asset_slot.builds-specialization-medallion": "shared specialization medallion family",
     "asset_slot.quick-action-gear-glyph": "shared gear quick-action glyph",
     "asset_slot.quick-action-simc-glyph": "shared SimC quick-action glyph",
     "asset_slot.quick-action-talents-glyph": "shared talent quick-action glyph",
@@ -20,7 +24,7 @@
       "path": "/pages/news/news",
       "assetContract": "docs/design/current-ui/routes/news-home/asset-contract.json",
       "runtimeSlots": {
-        "asset_slot.news-frame": "news.frame.family",
+        "asset_slot.news-frame": "shared:asset_slot.news-frame",
         "asset_slot.news-daily-emblem": "news.daily.emblem",
         "asset_slot.news-hero-fallback-scene": "news.hero.fallback",
         "asset_slot.news-hero-media": "shared:asset_slot.trusted-source-media",
@@ -29,7 +33,7 @@
         "asset_slot.news-channel-glyphs": "news.channel.glyphs",
         "asset_slot.news-evidence-glyph": "news.evidence.glyph",
         "asset_slot.news-bookmark-glyph": "news.bookmark.glyph",
-        "asset_slot.product-tab-glyphs": "product.tab.glyphs",
+        "asset_slot.product-tab-glyphs": "shared:asset_slot.product-tab-glyphs",
         "asset_slot.source-badge-family": "shared:asset_slot.source-badge-family",
         "asset_slot.utility-glyph-family": "shared:asset_slot.utility-glyph-family"
       }
@@ -39,15 +43,15 @@
       "path": "/pages/builds/builds",
       "assetContract": "docs/design/current-ui/routes/builds-home/asset-contract.json",
       "runtimeSlots": {
-        "asset_slot.builds-surface-texture": "asset_slot.builds-surface-texture",
-        "asset_slot.builds-frame-family": "asset_slot.builds-frame-family",
-        "asset_slot.builds-specialization-medallion": "asset_slot.builds-specialization-medallion",
+        "asset_slot.builds-surface-texture": "shared:asset_slot.builds-surface-texture",
+        "asset_slot.builds-frame-family": "shared:asset_slot.builds-frame-family",
+        "asset_slot.builds-specialization-medallion": "shared:asset_slot.builds-specialization-medallion",
         "asset_slot.builds-evidence-medallions": "asset_slot.builds-evidence-medallions",
         "asset_slot.builds-workspace-medallion": "asset_slot.builds-workspace-medallion",
         "asset_slot.builds-workflow-medallions": "asset_slot.builds-workflow-medallions",
         "asset_slot.builds-workflow-timeline": "asset_slot.builds-workflow-timeline",
-        "asset_slot.product-tab-glyphs": "asset_slot.product-tab-glyphs",
-        "asset_slot.source-badge-family": "asset_slot.source-badge-family",
+        "asset_slot.product-tab-glyphs": "shared:asset_slot.product-tab-glyphs",
+        "asset_slot.source-badge-family": "shared:asset_slot.source-badge-family",
         "asset_slot.utility-glyph-family": "shared:asset_slot.utility-glyph-family"
       }
     },
@@ -56,15 +60,15 @@
       "path": "/pages/builds/workbench",
       "assetContract": "docs/design/current-ui/routes/workbench/asset-contract.json",
       "runtimeSlots": {
-        "asset_slot.builds-surface-texture": "asset_slot.builds-surface-texture",
-        "asset_slot.builds-frame-family": "asset_slot.builds-frame-family",
-        "asset_slot.builds-specialization-medallion": "asset_slot.builds-specialization-medallion",
+        "asset_slot.builds-surface-texture": "shared:asset_slot.builds-surface-texture",
+        "asset_slot.builds-frame-family": "shared:asset_slot.builds-frame-family",
+        "asset_slot.builds-specialization-medallion": "shared:asset_slot.builds-specialization-medallion",
         "asset_slot.pushed-back-medallion": "shared:asset_slot.pushed-back-medallion",
         "asset_slot.quick-action-gear-glyph": "shared:asset_slot.quick-action-gear-glyph",
         "asset_slot.quick-action-simc-glyph": "shared:asset_slot.quick-action-simc-glyph",
         "asset_slot.quick-action-talents-glyph": "shared:asset_slot.quick-action-talents-glyph",
         "asset_slot.status-dot-family": "shared:asset_slot.status-dot-family",
-        "asset_slot.utility-glyph-family": "asset_slot.utility-glyph-family",
+        "asset_slot.utility-glyph-family": "shared:asset_slot.utility-glyph-family",
         "asset_slot.workbench-module-medallions": "asset_slot.workbench-module-medallions",
         "asset_slot.workbench-readiness-emblem": "asset_slot.workbench-readiness-emblem"
       }
@@ -75,12 +79,12 @@
       "assetContract": "docs/design/current-ui/routes/news-list/asset-contract.json",
       "runtimeSlots": {
         "asset_slot.news-list-surface": "asset_slot.news-list-surface",
-        "asset_slot.pushed-back-medallion": "asset_slot.pushed-back-medallion",
-        "asset_slot.news-frame": "asset_slot.news-frame",
+        "asset_slot.pushed-back-medallion": "shared:asset_slot.pushed-back-medallion",
+        "asset_slot.news-frame": "shared:asset_slot.news-frame",
         "asset_slot.news-list-document-medallion": "asset_slot.news-list-document-medallion",
         "asset_slot.news-list-terminal-emblem": "asset_slot.news-list-terminal-emblem",
         "asset_slot.status-dot-family": "shared:asset_slot.status-dot-family",
-        "asset_slot.utility-glyph-family": "asset_slot.utility-glyph-family"
+        "asset_slot.utility-glyph-family": "shared:asset_slot.utility-glyph-family"
       }
     },
     {
@@ -89,7 +93,7 @@
       "assetContract": "docs/design/current-ui/routes/talent-simulator/asset-contract.json",
       "runtimeSlots": {
         "asset_slot.talent-simulator-surface": "asset_slot.talent-simulator-surface",
-        "asset_slot.pushed-back-medallion": "asset_slot.pushed-back-medallion",
+        "asset_slot.pushed-back-medallion": "shared:asset_slot.pushed-back-medallion",
         "asset_slot.talent-selector-frame": "asset_slot.talent-selector-frame",
         "asset_slot.talent-selector-object": "asset_slot.talent-selector-object",
         "asset_slot.talent-tab-frame": "asset_slot.talent-tab-frame",
@@ -107,7 +111,7 @@
       "assetContract": "docs/design/current-ui/routes/gear-detail/asset-contract.json",
       "runtimeSlots": {
         "asset_slot.gear-detail-surface": "asset_slot.gear-detail-surface",
-        "asset_slot.pushed-back-medallion": "asset_slot.pushed-back-medallion",
+        "asset_slot.pushed-back-medallion": "shared:asset_slot.pushed-back-medallion",
         "asset_slot.gear-class-medallion": "asset_slot.gear-class-medallion",
         "asset_slot.gear-readiness-emblem": "asset_slot.gear-readiness-emblem",
         "asset_slot.gear-readiness-rail": "asset_slot.gear-readiness-rail",
@@ -129,7 +133,7 @@
         "asset_slot.simulator-suggestion-family": "asset_slot.simulator-suggestion-family",
         "asset_slot.simulator-evidence-shelf": "asset_slot.simulator-evidence-shelf",
         "asset_slot.simulator-composer-family": "asset_slot.simulator-composer-family",
-        "asset_slot.product-tab-glyphs": "asset_slot.product-tab-glyphs",
+        "asset_slot.product-tab-glyphs": "shared:asset_slot.product-tab-glyphs",
         "asset_slot.utility-glyph-family": "shared:asset_slot.utility-glyph-family"
       }
     },
@@ -189,7 +193,7 @@
         "asset_slot.profile-categories": "asset_slot.profile-categories",
         "asset_slot.profile-recent": "asset_slot.profile-recent",
         "asset_slot.profile-settings": "asset_slot.profile-settings",
-        "asset_slot.product-tab-glyphs": "asset_slot.profile-tabbar",
+        "asset_slot.product-tab-glyphs": "shared:asset_slot.product-tab-glyphs",
         "asset_slot.quick-action-gear-glyph": "shared:asset_slot.quick-action-gear-glyph",
         "asset_slot.template-talent-medallion": "shared:asset_slot.template-talent-medallion"
       }
@@ -200,13 +204,12 @@
       "assetContract": "docs/design/current-ui/routes/news-detail/asset-contract.json",
       "runtimeSlots": {
         "asset_slot.news-detail-surface": "asset_slot.news-detail-surface",
-        "asset_slot.pushed-back-medallion": "asset_slot.pushed-back-medallion",
+        "asset_slot.pushed-back-medallion": "shared:asset_slot.pushed-back-medallion",
         "asset_slot.news-detail-source-crest": "asset_slot.news-detail-source-crest",
         "asset_slot.news-detail-source-actions": "asset_slot.news-detail-source-actions",
         "asset_slot.news-detail-evidence-header": "asset_slot.news-detail-evidence-header",
         "asset_slot.news-detail-evidence-emblem": "asset_slot.news-detail-evidence-emblem",
         "asset_slot.news-detail-terminal-emblem": "asset_slot.news-detail-terminal-emblem",
-        "asset_slot.news-metric-glyphs": "asset_slot.news-detail-evidence-header",
         "asset_slot.status-dot-family": "shared:asset_slot.status-dot-family",
         "asset_slot.utility-glyph-family": "shared:asset_slot.utility-glyph-family"
       }
@@ -217,7 +220,7 @@
       "assetContract": "docs/design/current-ui/routes/build-intel/asset-contract.json",
       "runtimeSlots": {
         "asset_slot.build-intel-surface": "asset_slot.build-intel-surface",
-        "asset_slot.pushed-back-medallion": "asset_slot.pushed-back-medallion",
+        "asset_slot.pushed-back-medallion": "shared:asset_slot.pushed-back-medallion",
         "asset_slot.build-intel-summary-medallion": "asset_slot.build-intel-summary-medallion",
         "asset_slot.build-intel-filter-sort-glyphs": "asset_slot.build-intel-filter-sort-glyphs",
         "asset_slot.build-intel-card-medallion-shell": "asset_slot.build-intel-card-medallion-shell",
@@ -234,7 +237,7 @@
       "assetContract": "docs/design/current-ui/routes/tasks-list/asset-contract.json",
       "runtimeSlots": {
         "asset_slot.tasks-page-frame": "asset_slot.tasks-page-frame",
-        "asset_slot.pushed-back-medallion": "asset_slot.tasks-header",
+        "asset_slot.pushed-back-medallion": "shared:asset_slot.pushed-back-medallion",
         "asset_slot.tasks-overview-emblem": "asset_slot.tasks-overview-emblem",
         "asset_slot.tasks-overview-status": "asset_slot.tasks-overview-status",
         "asset_slot.tasks-sync": "asset_slot.tasks-sync",
@@ -251,7 +254,7 @@
       "assetContract": "docs/design/current-ui/routes/task-detail/asset-contract.json",
       "runtimeSlots": {
         "asset_slot.task-detail-page-frame": "asset_slot.task-detail-page-frame",
-        "asset_slot.pushed-back-medallion": "asset_slot.task-detail-header",
+        "asset_slot.pushed-back-medallion": "shared:asset_slot.pushed-back-medallion",
         "asset_slot.task-detail-identity": "asset_slot.task-detail-summary-emblem",
         "asset_slot.task-detail-metadata": "asset_slot.task-detail-metadata",
         "asset_slot.task-detail-refresh": "asset_slot.task-detail-refresh",

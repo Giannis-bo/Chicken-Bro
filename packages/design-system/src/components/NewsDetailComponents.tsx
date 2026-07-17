@@ -314,7 +314,7 @@ export function ArticleEvidencePanel({ rows, expanded, onToggle }: ArticleEviden
               dataRole="news-detail-evidence-heading-glyph"
               fallbackAssetId="utility-glyph-family.adjust"
               fallbackSlotId="asset_slot.utility-glyph-family"
-              slotId="asset_slot.news-metric-glyphs"
+              slotId="asset_slot.news-detail-evidence-header"
             />
           </View>
           <Text>证据明细</Text>
