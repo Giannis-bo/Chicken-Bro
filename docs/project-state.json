@@ -342,7 +342,15 @@
       "statusLedger": "docs/design/current-ui/runtime-review-status.json",
       "targetRegistry": "docs/design/current-ui/target-registry.json",
       "visualAcceptance": "pending_fresh_real_wechat_evidence",
-      "interactionAcceptance": "pending_real_wechat_core_interaction_matrix"
+      "interactionAcceptance": "pending_real_wechat_core_interaction_matrix",
+      "productionRequestDomain": {
+        "status": "blocked_external_configuration",
+        "audit": "npm run audit:taro-domain",
+        "missing": [
+          "WOW_BACKEND_API_BASE_URL=https_named_origin",
+          "WOW_WECHAT_REQUEST_DOMAIN_APPROVED=yes"
+        ]
+      }
     },
     "pgReadModel": {
       "status": "phase4_completed",

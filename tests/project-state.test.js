@@ -34,6 +34,11 @@ test('project-state is the single machine-readable current truth entry', () => {
   assert.equal(state.activeMilestone, 'taro_target_first_14_route_rebuild')
   assert.equal(state.featureIteration, 'allowed_under_harness')
   assert.equal(state.activeReleaseArtifact, activeHarnessSuperpowersRelease)
+  assert.equal(state.runtimeBaseline.uiRuntimeEvidence.productionRequestDomain.status, 'blocked_external_configuration')
+  assert.deepEqual(state.runtimeBaseline.uiRuntimeEvidence.productionRequestDomain.missing, [
+    'WOW_BACKEND_API_BASE_URL=https_named_origin',
+    'WOW_WECHAT_REQUEST_DOMAIN_APPROVED=yes',
+  ])
 
   assert.ok(Array.isArray(state.activeContracts), 'activeContracts should be an array')
   assert.ok(Array.isArray(state.completedBaselines), 'completedBaselines should be an array')
