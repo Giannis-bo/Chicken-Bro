@@ -840,6 +840,29 @@ record(
 record('routes_use_only_current_app_shell_api', deprecatedAppShellProps.length === 0, deprecatedAppShellProps.join(', ') || 'none')
 
 const componentSources = walk('packages/design-system/src', ['.ts', '.tsx'])
+const unidentifiedNativeControls = []
+for (const file of componentSources.filter((candidate) => candidate.endsWith('.tsx'))) {
+  const ast = babelParser.parse(read(file), { sourceType: 'module', plugins: ['jsx', 'typescript'] })
+  traverse(ast, {
+    JSXOpeningElement(elementPath) {
+      const name = elementPath.node.name
+      if (name.type !== 'JSXIdentifier' || name.name !== 'ControlButton') return
+      const attributeNames = new Set(elementPath.node.attributes.flatMap((attribute) => (
+        attribute.type === 'JSXAttribute' && attribute.name.type === 'JSXIdentifier'
+          ? [attribute.name.name]
+          : []
+      )))
+      if (!attributeNames.has('data-role') && !attributeNames.has('data-action-id')) {
+        unidentifiedNativeControls.push(`${file}:${elementPath.node.loc?.start.line ?? 0}`)
+      }
+    },
+  })
+}
+record(
+  'every_native_control_has_stable_geometry_identity',
+  unidentifiedNativeControls.length === 0,
+  unidentifiedNativeControls.join(', ') || 'all ControlButton sites have role or action id',
+)
 const rawButtonOwners = componentSources.filter((file) => file !== 'packages/design-system/src/components/ControlButton.tsx' && /<Button\b/.test(read(file)))
 record('native_button_has_one_shared_owner', rawButtonOwners.length === 0, rawButtonOwners.join(', ') || 'ControlButton only')
 

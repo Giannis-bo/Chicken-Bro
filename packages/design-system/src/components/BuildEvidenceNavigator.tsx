@@ -192,6 +192,7 @@ export function BuildEvidenceNavigator({
                 data-detail={item.detail}
                 data-disabled={disabled ? 'true' : 'false'}
                 data-item-id={item.id}
+                data-role="build-evidence-item"
                 data-slot={'evidence-item.' + item.id}
                 data-state={effectiveState}
                 disabled={disabled}

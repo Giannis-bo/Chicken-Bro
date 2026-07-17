@@ -126,6 +126,7 @@ export function BuildIntelFilterBar({
         <ControlButton
           aria-label={`切换职责筛选，当前${filterLabel}`}
           className={componentStyle('filterButton')}
+          data-role="build-intel-filter-control"
           data-disabled={disabled ? 'true' : 'false'}
           disabled={disabled}
           onClick={onFilter}
@@ -145,6 +146,7 @@ export function BuildIntelFilterBar({
             componentStyle('sortButton'),
             componentStyle(sortLabel.includes('来源') ? 'sortSource' : 'sortName'),
           )}
+          data-role="build-intel-sort-control"
           data-disabled={disabled ? 'true' : 'false'}
           disabled={disabled}
           onClick={onSort}

@@ -506,6 +506,7 @@ export function GearSlotWorkbench({
                   key={item.id}
                   className={classes(style('candidateRow'), style(`candidateRow-${item.state}`))}
                   data-candidate-id={item.id}
+                  data-role="gear-candidate-row"
                   data-state={item.state}
                   disabled={item.state === 'blocked'}
                   onClick={() => onCandidate(item)}

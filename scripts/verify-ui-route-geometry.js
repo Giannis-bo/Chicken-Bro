@@ -139,6 +139,7 @@ async function inspect(page, route, viewport) {
   }
   buttonBounds.forEach((button, index) => {
     const hasRole = (role) => button.role === role || button.className.includes(`wx-data-role-${role}`)
+    if (!button.role && !button.actionId) violations.push({ type: 'anonymous-native-button', index })
     const allowedHorizontalScrollContent = allowedHorizontalButtonRoles.some(hasRole)
     const allowedVerticalScrollContent = allowedVerticalButtonRoles.some(hasRole)
     if (!allowedHorizontalScrollContent && (button.left < -tolerance || button.right > viewport.width + tolerance || button.width > viewport.width + tolerance)) {

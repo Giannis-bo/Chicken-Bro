@@ -117,6 +117,7 @@ export function BuildSpecializationOverview({
           className={buildStyle('overviewContent')}
           data-disabled={interactionDisabled ? 'true' : 'false'}
           data-frame-content="true"
+          data-role="build-specialization-selector"
           data-slot="specialization-selector"
           data-state={effectiveState}
           disabled={interactionDisabled}

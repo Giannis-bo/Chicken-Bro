@@ -182,6 +182,7 @@ export function TaskRecordList({ items, loading, onSelect }: TaskRecordListProps
               className={`${styles['recordRow'] ?? ''} ${styles[`record-${item.state}`] ?? ''} ${!item.navigable ? styles['recordDisabled'] ?? '' : ''}`}
               data-empty={item.id ? 'false' : 'true'}
               data-owner="task-record-row"
+              data-role="task-record-row"
               data-state={item.state}
               data-disabled={item.navigable ? 'false' : 'true'}
               {...(item.id ? { 'data-task-id': item.id } : { 'data-placeholder-index': String(index) })}
