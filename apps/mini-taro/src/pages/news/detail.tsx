@@ -3,16 +3,16 @@ import { View } from '@tarojs/components'
 import { useState } from 'react'
 
 import { wowApi } from '@wow-mini/api-client'
+import { AppShell } from '@wow-mini/design-system/components/AppShell'
 import {
-  AppShell,
   ArticleEvidencePanel,
   ArticleReadingSurface,
   NewsDetailHero,
   NewsDetailTerminalPanel,
-  PageFrame,
   SourceReferenceAction,
   TranslationStatusSegments,
-} from '@wow-mini/design-system'
+} from '@wow-mini/design-system/components/NewsDetailComponents'
+import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
 import type { RouteDataState } from '@wow-mini/domain'
 
 import {

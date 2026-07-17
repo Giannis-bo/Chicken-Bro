@@ -3,9 +3,9 @@ import { View } from '@tarojs/components'
 import { useMemo, useRef, useState } from 'react'
 
 import { wowApi } from '@wow-mini/api-client'
+import { AppShell } from '@wow-mini/design-system/components/AppShell'
+import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
 import {
-  AppShell,
-  PageFrame,
   TaskBottomActions,
   TaskEmptyGuidance,
   TaskOverview,
@@ -13,7 +13,7 @@ import {
   TaskStatusFilters,
   TaskSyncState,
   type TaskFilterControl,
-} from '@wow-mini/design-system'
+} from '@wow-mini/design-system/components/TaskListComponents'
 
 import { goBack, navigateTo, useAsyncRoute } from '../_shared/route-runtime'
 import {

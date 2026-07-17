@@ -2,9 +2,9 @@ import Taro, { useRouter } from '@tarojs/taro'
 import { View } from '@tarojs/components'
 
 import { wowApi } from '@wow-mini/api-client'
+import { AppShell } from '@wow-mini/design-system/components/AppShell'
+import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
 import {
-  AppShell,
-  PageFrame,
   TaskAttributeSnapshot,
   TaskCombatPreparation,
   TaskDetailSummary,
@@ -13,7 +13,7 @@ import {
   TaskRunContext,
   TaskScenarioGrid,
   TaskSimcResult,
-} from '@wow-mini/design-system'
+} from '@wow-mini/design-system/components/TaskDetailComponents'
 import type { RouteDataState } from '@wow-mini/domain'
 
 import { goBack, useAsyncRoute } from '../_shared/route-runtime'

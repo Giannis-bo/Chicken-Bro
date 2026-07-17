@@ -3,15 +3,15 @@ import { View } from '@tarojs/components'
 import { useEffect, useRef, useState } from 'react'
 
 import { wowApi } from '@wow-mini/api-client'
+import { AppShell } from '@wow-mini/design-system/components/AppShell'
+import { EvidenceLedger } from '@wow-mini/design-system/components/EvidenceLedger'
+import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
 import {
-  AppShell,
-  EvidenceLedger,
-  PageFrame,
   WorkbenchModuleDeck,
   WorkbenchReadinessPanel,
   WorkbenchSpecSummary,
   type WorkbenchModuleCard,
-} from '@wow-mini/design-system'
+} from '@wow-mini/design-system/components/WorkbenchComponents'
 
 import {
   defaultSpecId,

@@ -2,14 +2,14 @@ import { View } from '@tarojs/components'
 import { useMemo, useState } from 'react'
 
 import { wowApi } from '@wow-mini/api-client'
+import { AppShell } from '@wow-mini/design-system/components/AppShell'
+import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
 import {
-  AppShell,
-  PageFrame,
   SimulatorComposer,
   SimulatorEvidenceShelf,
   SimulatorGuidancePanel,
   SimulatorTranscript,
-} from '@wow-mini/design-system'
+} from '@wow-mini/design-system/components/SimulatorHomeComponents'
 import type { ChatMessage } from '@wow-mini/domain'
 
 import {

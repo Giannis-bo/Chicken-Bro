@@ -2,15 +2,15 @@ import { View } from '@tarojs/components'
 import { useState } from 'react'
 
 import { wowApi } from '@wow-mini/api-client'
+import { ActionButton } from '@wow-mini/design-system/components/ActionButton'
+import { AppShell } from '@wow-mini/design-system/components/AppShell'
+import { ChatShell } from '@wow-mini/design-system/components/ChatShell'
 import {
-  ActionButton,
-  AppShell,
-  ChatShell,
   EvidenceLedger,
-  PageFrame,
-  WowPanel,
   type EvidenceLedgerRow,
-} from '@wow-mini/design-system'
+} from '@wow-mini/design-system/components/EvidenceLedger'
+import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
+import { WowPanel } from '@wow-mini/design-system/components/WowPanel'
 import type { ChatMessage, ReadinessState } from '@wow-mini/domain'
 
 import { goBack } from './route-runtime'

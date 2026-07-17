@@ -1,4 +1,4 @@
-import type { TabBarItem } from '@wow-mini/design-system'
+import type { TabBarItem } from '@wow-mini/design-system/components/TabBar'
 
 export const tabBarItems: readonly TabBarItem[] = [
   {

@@ -1,7 +1,7 @@
 import Taro from '@tarojs/taro'
 import { useEffect, useState } from 'react'
 
-import { TabBar } from '@wow-mini/design-system'
+import { TabBar } from '@wow-mini/design-system/components/TabBar'
 
 import { isTabRoute, normalizeTabRoute, tabBarItems } from '../tab-bar-items'
 

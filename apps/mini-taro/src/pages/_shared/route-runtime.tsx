@@ -3,14 +3,12 @@ import { Text, View } from '@tarojs/components'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import type { ApiResult } from '@wow-mini/api-client'
-import {
-  ActionButton,
-  ChannelDock,
-  FeaturedCarousel,
-  RankedFeed,
-  StatusVisual,
-  WowPanel,
-} from '@wow-mini/design-system'
+import { ActionButton } from '@wow-mini/design-system/components/ActionButton'
+import { ChannelDock } from '@wow-mini/design-system/components/ChannelDock'
+import { FeaturedCarousel } from '@wow-mini/design-system/components/FeaturedCarousel'
+import { RankedFeed } from '@wow-mini/design-system/components/RankedFeed'
+import { StatusVisual } from '@wow-mini/design-system/components/StatusVisual'
+import { WowPanel } from '@wow-mini/design-system/components/WowPanel'
 import type { RouteDataState } from '@wow-mini/domain'
 
 import styles from './routes.module.scss'

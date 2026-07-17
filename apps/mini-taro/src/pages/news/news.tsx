@@ -3,17 +3,21 @@ import { View } from '@tarojs/components'
 import { useMemo, useState } from 'react'
 
 import { wowApi } from '@wow-mini/api-client'
+import { AppShell } from '@wow-mini/design-system/components/AppShell'
 import {
-  AppShell,
   ChannelDock,
-  FeaturedCarousel,
-  NewsHomeBrief,
-  PageFrame,
-  RankedFeed,
   type ChannelDockItem,
+} from '@wow-mini/design-system/components/ChannelDock'
+import {
+  FeaturedCarousel,
   type FeaturedCarouselItem,
+} from '@wow-mini/design-system/components/FeaturedCarousel'
+import { NewsHomeBrief } from '@wow-mini/design-system/components/NewsHomeBrief'
+import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
+import {
+  RankedFeed,
   type RankedFeedItem,
-} from '@wow-mini/design-system'
+} from '@wow-mini/design-system/components/RankedFeed'
 
 import { navigateTo, useAsyncRoute } from '../_shared/route-runtime'
 import { buildNewsHomeModel } from './news-home-model'

@@ -20,6 +20,7 @@
     "baseUrl": ".",
     "paths": {
       "@wow-mini/design-system": ["packages/design-system/src/index.ts"],
+      "@wow-mini/design-system/*": ["packages/design-system/src/*"],
       "@wow-mini/domain": ["packages/domain/src/index.ts"],
       "@wow-mini/api-client": ["packages/api-client/src/index.ts"],
       "@wow-mini/assets-manifest": ["packages/assets-manifest/src/index.ts"]

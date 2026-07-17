@@ -3,9 +3,9 @@ import { View } from '@tarojs/components'
 import { useEffect, useRef, useState } from 'react'
 
 import { wowApi } from '@wow-mini/api-client'
+import { AppShell } from '@wow-mini/design-system/components/AppShell'
+import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
 import {
-  AppShell,
-  PageFrame,
   TalentActionBar,
   TalentCommunityRow,
   TalentGraphViewport,
@@ -20,7 +20,7 @@ import {
   type TalentSelectorItem,
   type TalentSelectorOption,
   type TalentTreeTabItem,
-} from '@wow-mini/design-system'
+} from '@wow-mini/design-system/components/TalentSimulatorComponents'
 import type {
   BuildsHomePayload,
   ReadinessState,

@@ -31,4 +31,4 @@
 WOW_ASSET_RUNTIME_ROOT=https://cdn.example.com/wow-assets npm run build:weapp
 ```
 
-远端根目录必须保持 `packages/design-system/assets/` 下的相对目录结构。该开关只建立可验证的交付路径，不代表 CDN 已获准上线；在真实候选构建启用前，必须同时确认完整资产上传与 hash、不可变 URL、HTTPS 可用性、微信 request/download 合法域名和回退到本地素材构建的方式。HTTP 或其他协议配置会在构建阶段失败。
+远端根目录必须保持 `packages/design-system/assets/` 下的相对目录结构。该开关只建立可验证的交付路径，不代表 CDN 已获准上线；在真实候选构建启用前，必须同时确认完整资产上传与 hash、不可变 URL、HTTPS 可用性、微信 request/download 合法域名和恢复默认本地素材构建的方式。HTTP 或其他协议配置会在构建阶段失败。

@@ -3,8 +3,8 @@ import { View } from '@tarojs/components'
 import { useEffect, useRef, useState } from 'react'
 
 import { taroStorage, wowApi } from '@wow-mini/api-client'
+import { AppShell } from '@wow-mini/design-system/components/AppShell'
 import {
-  AppShell,
   GearActionRow,
   GearEnhancementBar,
   GearProfessionSelector,
@@ -12,13 +12,13 @@ import {
   GearSlotWorkbench,
   GearSpecializationSelector,
   GearStatusDeck,
-  PageFrame,
-  StatusVisual,
   type GearActionItem,
   type GearProfessionItem,
   type GearSpecializationItem,
   type GearStatusItem,
-} from '@wow-mini/design-system'
+} from '@wow-mini/design-system/components/GearDetailComponents'
+import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
+import { StatusVisual } from '@wow-mini/design-system/components/StatusVisual'
 import {
   storageKey,
   gearEnhancementsFromResolvedSnapshot,

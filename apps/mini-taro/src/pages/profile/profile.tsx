@@ -3,14 +3,14 @@ import { View } from '@tarojs/components'
 import { useEffect, useRef, useState } from 'react'
 
 import { wowApi } from '@wow-mini/api-client'
+import { AppShell } from '@wow-mini/design-system/components/AppShell'
+import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
 import {
-  AppShell,
-  PageFrame,
   ProfileRecentSaves,
   ProfileSettingsList,
   ProfileSummaryPanel,
   ProfileTemplateLibrary,
-} from '@wow-mini/design-system'
+} from '@wow-mini/design-system/components/ProfileTemplatesComponents'
 import type { AuthUser, BuildTemplate } from '@wow-mini/domain'
 
 import { navigateTo, useAsyncRoute } from '../_shared/route-runtime'

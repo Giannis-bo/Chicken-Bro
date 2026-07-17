@@ -3,16 +3,18 @@ import Taro, { usePullDownRefresh } from '@tarojs/taro'
 import { useMemo, useState } from 'react'
 
 import { wowApi } from '@wow-mini/api-client'
+import { AppShell } from '@wow-mini/design-system/components/AppShell'
 import {
-  AppShell,
   BuildEvidenceNavigator,
-  BuildSpecializationOverview,
-  BuildWorkflowTimeline,
-  BuildWorkspaceEntry,
-  PageFrame,
   type BuildEvidenceItem,
+} from '@wow-mini/design-system/components/BuildEvidenceNavigator'
+import { BuildSpecializationOverview } from '@wow-mini/design-system/components/BuildSpecializationOverview'
+import {
+  BuildWorkflowTimeline,
   type BuildWorkflowStage,
-} from '@wow-mini/design-system'
+} from '@wow-mini/design-system/components/BuildWorkflowTimeline'
+import { BuildWorkspaceEntry } from '@wow-mini/design-system/components/BuildWorkspaceEntry'
+import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
 
 import { flattenSpecs } from '../_shared/build-context'
 import { navigateTo, useAsyncRoute } from '../_shared/route-runtime'

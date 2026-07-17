@@ -2,14 +2,14 @@ import { ScrollView, View } from '@tarojs/components'
 import { useState } from 'react'
 
 import { wowApi } from '@wow-mini/api-client'
+import { AppShell } from '@wow-mini/design-system/components/AppShell'
 import {
-  AppShell,
   BuildIntelCard,
   BuildIntelDisclaimer,
   BuildIntelFilterBar,
   BuildIntelSummary,
-  PageFrame,
-} from '@wow-mini/design-system'
+} from '@wow-mini/design-system/components/BuildIntelComponents'
+import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
 import type { RouteDataState } from '@wow-mini/domain'
 
 import {
