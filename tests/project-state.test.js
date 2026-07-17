@@ -243,6 +243,7 @@ test('real WeChat interaction verification cannot wait forever inside one route'
   assert.match(verifier, /const caseTimeoutMs = 20000/)
   assert.match(verifier, /process\.env\.INTERACTION_ROUTES/)
   assert.match(verifier, /unknown INTERACTION_ROUTES/)
+  assert.match(verifier, /interaction precondition unavailable/)
   assert.match(verifier, /timeout\(action\(\), caseTimeoutMs, `interaction \$\{route\}`\)/)
   assert.match(verifier, /\[interaction:start\]/)
   assert.match(verifier, /\[interaction:end\]/)

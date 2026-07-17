@@ -65,6 +65,24 @@ async function requiredElements(page, selector, minimum) {
   throw new Error(`required interaction elements missing: ${selector} expected>=${minimum}`)
 }
 
+async function requiredElementsOrUnavailable(page, selector, minimum, unavailableStates) {
+  const deadline = Date.now() + operationTimeoutMs
+  while (Date.now() < deadline) {
+    try {
+      const elements = await timeout(page.$$(selector), 2000, `query ${selector}`)
+      if (elements.length >= minimum) return elements
+      for (const state of unavailableStates) {
+        const marker = await timeout(page.$(`.wx-data-route-state-${state}`), 1000, `query route state ${state}`)
+        if (marker) throw new Error(`interaction precondition unavailable: ${selector} count=${elements.length}; routeState=${state}`)
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith('interaction precondition unavailable:')) throw error
+    }
+    await settle(200)
+  }
+  throw new Error(`required interaction elements missing: ${selector} expected>=${minimum}`)
+}
+
 async function waitForTextChange(page, selector, before) {
   const deadline = Date.now() + operationTimeoutMs
   let actual = before
@@ -210,7 +228,12 @@ async function main() {
       (actual) => actual === 'active',
     ), async () => {
       const page = await open(miniProgram, contractPath('talent_simulator'))
-      const tabs = await requiredElements(page, contractSelector('talent_simulator'), 2)
+      const tabs = await requiredElementsOrUnavailable(
+        page,
+        contractSelector('talent_simulator'),
+        2,
+        ['stale', 'error', 'blocked', 'empty'],
+      )
       const activeSelector = `${contractSelector('talent_simulator')}.wx-data-active-true`
       const before = await timeout((await requiredElement(page, activeSelector)).text(), 2000, 'read initial talent tab')
       await timeout(tabs[1].tap(), 2000, 'switch talent tab')
