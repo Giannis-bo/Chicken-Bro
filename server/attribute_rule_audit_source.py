@@ -85,15 +85,21 @@ def _normalized_equipment(payload: dict[str, Any]) -> list[dict[str, Any]]:
             _text((socket.get("item") or {}).get("id"))
             for socket in sockets if isinstance(socket, dict) and _text((socket.get("item") or {}).get("id"))
         ])
-        enchantment = item.get("enchantment") if isinstance(item.get("enchantment"), dict) else {}
-        enchant_id = _text(enchantment.get("enchantment_id") or enchantment.get("id"))
+        enchantments = item.get("enchantments") if isinstance(item.get("enchantments"), list) else []
+        if not enchantments and isinstance(item.get("enchantment"), dict):
+            enchantments = [item["enchantment"]]
+        enchant_ids = sorted({
+            _text(enchantment.get("enchantment_id") or enchantment.get("id"))
+            for enchantment in enchantments
+            if isinstance(enchantment, dict) and _text(enchantment.get("enchantment_id") or enchantment.get("id"))
+        })
         rows.append({
             "slot": slot_key,
             "itemId": item_id,
             "itemLevel": item_level,
             "bonusIds": sorted({_text(value) for value in item.get("bonus_list") or [] if _text(value)}),
             "gemIds": gem_ids,
-            "enchantIds": [enchant_id] if enchant_id else [],
+            "enchantIds": enchant_ids,
         })
     return rows
 

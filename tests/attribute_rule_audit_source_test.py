@@ -27,7 +27,7 @@ class AttributeRuleAuditSourceTest(unittest.TestCase):
                     "level": {"value": 289},
                     "bonus_list": [6652],
                     "sockets": [{"item": {"id": 240914}}, {"item": {"id": 240914}}],
-                    "enchantment": {"enchantment_id": 8017},
+                    "enchantments": [{"enchantment_id": 8017}, {"enchantment_id": 8001}],
                 }
             ]
         }
@@ -66,7 +66,7 @@ class AttributeRuleAuditSourceTest(unittest.TestCase):
         })
         self.assertEqual(result["profile"]["equipment"][0], {
             "slot": "head", "itemId": "250060", "itemLevel": 289,
-            "bonusIds": ["6652"], "gemIds": ["240914", "240914"], "enchantIds": ["8017"],
+            "bonusIds": ["6652"], "gemIds": ["240914", "240914"], "enchantIds": ["8001", "8017"],
         })
         self.assertEqual(result["panel"], {
             "primary": {"rawValue": 2462},
