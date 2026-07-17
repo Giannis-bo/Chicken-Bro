@@ -9,6 +9,7 @@
   "productionPromoted": false,
   "registeredInPackagesAssetsManifest": true,
   "wiredIntoRuntimeCode": true,
+  "runtimeBindingStatus": "complete_3_of_3",
   "generation": {
     "mode": "built_in_image_gen",
     "callCount": 3,
