@@ -24,6 +24,7 @@
     "verify:ui-interactions": "node scripts/verify-ui-interactions.js",
     "promote:ui-interactions": "node scripts/promote-ui-interaction-review.js",
     "verify:ui-route-geometry": "node scripts/verify-ui-route-geometry.js",
+    "promote:ui-route-geometry": "node scripts/promote-ui-route-geometry.js",
     "compare:ui-runtime-regions": "node scripts/compare-ui-runtime-regions.js",
     "promote:ui-region-comparison": "node scripts/promote-ui-region-comparison.js",
     "verify:ui-selected-states": "node scripts/verify-ui-selected-states.js",

@@ -370,6 +370,19 @@ test('route geometry verification covers all routes without launching DevTools',
   assert.doesNotMatch(verifier, /WECHAT_AUTOMATOR_LAUNCH/)
 })
 
+test('route geometry evidence promotion is exact, safe-area aware and immutable', () => {
+  const promotion = fs.readFileSync('scripts/promote-ui-route-geometry.js', 'utf8')
+  assert.match(promotion, /GEOMETRY_DETAIL_PATHS is required/)
+  assert.match(promotion, /route geometry detail commits must match/)
+  assert.match(promotion, /safeAreaBottom/)
+  assert.match(promotion, /safeBottomInset/)
+  assert.match(promotion, /exact 14-route contract/)
+  assert.match(promotion, /route geometry result is not promotable/)
+  assert.match(promotion, /createHash\('sha256'\)/)
+  assert.match(promotion, /flag: 'wx'/)
+  assert.doesNotMatch(promotion, /connectMiniProgram|WECHAT_AUTOMATOR_LAUNCH/)
+})
+
 test('runtime review regions cannot fall back to positional identities', () => {
   const routeFlow = fs.readFileSync('packages/design-system/src/components/RouteFlow.tsx', 'utf8')
   const audit = fs.readFileSync('scripts/audit-ui-architecture.js', 'utf8')

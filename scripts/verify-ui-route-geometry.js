@@ -65,9 +65,10 @@ async function inspect(page, route, viewport) {
     unavailableState(page, route.unavailableRouteStates),
   ])
   if (regions.length === 0 && state) {
+    const summary = { route: route.route, status: 'unavailable', routeState: state, regionCount: 0, semanticRegionCount: 0, buttonCount: buttons.length }
     return {
-      summary: { route: route.route, status: 'unavailable', routeState: state, regionCount: 0, semanticRegionCount: 0, buttonCount: buttons.length },
-      detail: { route: route.route, path: route.path, viewport, routeState: state, regions: [], buttons: [] },
+      summary,
+      detail: { route: route.route, path: route.path, viewport, summary, routeState: state, regions: [], buttons: [], fixedDockButtons: [] },
     }
   }
 
@@ -170,7 +171,7 @@ async function inspect(page, route, viewport) {
     violationCount: violations.length,
     violations: violations.slice(0, 10),
   }
-  return { summary, detail: { route: route.route, path: route.path, viewport, shellBody: shellBodyMetrics, regions: regionBounds, buttons: buttonBounds.map(({ className: _className, ...button }) => button), fixedDockButtons: dockButtonBounds.map(({ className: _className, ...button }) => button) } }
+  return { summary, detail: { route: route.route, path: route.path, viewport, summary, shellBody: shellBodyMetrics, regions: regionBounds, buttons: buttonBounds.map(({ className: _className, ...button }) => button), fixedDockButtons: dockButtonBounds.map(({ className: _className, ...button }) => button) } }
 }
 
 async function main() {
