@@ -344,3 +344,13 @@ test('optional shell assets cannot leak undefined runtime slot identities', () =
   assert.match(appShell, /surfaceSlotId \? \{ 'data-slot-id': surfaceSlotId/)
   assert.doesNotMatch(feed, /slot-feed-thumb-placeholder/)
 })
+
+test('full asset-slot evidence requires exact immutable 14-route promotion', () => {
+  const promotion = fs.readFileSync('scripts/promote-ui-asset-slot-review.js', 'utf8')
+  assert.match(promotion, /ASSET_SLOT_DETAIL_PATHS is required/)
+  assert.match(promotion, /exact 14-route contract/)
+  assert.match(promotion, /commits must match/)
+  assert.match(promotion, /viewports must match/)
+  assert.match(promotion, /flag: 'wx'/)
+  assert.match(promotion, /sha256/)
+})

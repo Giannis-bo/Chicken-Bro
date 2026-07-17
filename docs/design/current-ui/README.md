@@ -20,6 +20,7 @@
 | 如何按语义区域比较 target/runtime 几何 | `runtime-region-mapping-contract.json`、`npm run compare:ui-runtime-regions` |
 | 如何晋级结构化区域差异证据 | `REGION_COMPARISON_PATH=<absolute path> npm run promote:ui-region-comparison` |
 | 可见运行素材槽是否回到路由合同 | `runtime-asset-slot-mapping-contract.json`、`npm run verify:ui-asset-slots` |
+| 如何合并并晋级全量素材槽证据 | `ASSET_SLOT_DETAIL_PATHS=<batch-a,batch-b> npm run promote:ui-asset-slots` |
 | 如何把隔离缓存晋级为不可变运行态 artifact | `npm run promote:ui-review-cache` |
 
 `artifacts/ui-visual-targets/current/` 保存 canonical target 本体。目录存在、源码可编译、DOM/AX 元素存在和单元测试通过只证明对应工程事实；视觉状态由 target/runtime 微信复核决定。

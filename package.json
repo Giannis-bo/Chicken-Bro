@@ -27,6 +27,7 @@
     "promote:ui-region-comparison": "node scripts/promote-ui-region-comparison.js",
     "verify:ui-selected-states": "node scripts/verify-ui-selected-states.js",
     "verify:ui-asset-slots": "node scripts/verify-ui-asset-slots.js",
+    "promote:ui-asset-slots": "node scripts/promote-ui-asset-slot-review.js",
     "verify:ui-package": "node scripts/verify-ui-package.js"
   },
   "devDependencies": {

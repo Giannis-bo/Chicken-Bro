@@ -63,6 +63,8 @@ async function main() {
   let miniProgram
   try {
     miniProgram = await connectMiniProgram()
+    const system = await timeout(miniProgram.systemInfo(), 4000, 'read system info')
+    const viewport = { width: system.windowWidth, height: system.windowHeight, dpr: system.pixelRatio }
     const results = []
     for (const route of selectedRoutes()) results.push(await inspect(miniProgram, route))
     const failures = results.filter((result) => result.status === 'fail')
@@ -71,10 +73,10 @@ async function main() {
       detailPath = path.resolve(process.env.ASSET_SLOT_DETAIL_PATH)
       fs.mkdirSync(path.dirname(detailPath), { recursive: true })
       const commit = execFileSync('git', ['rev-parse', '--short=12', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim()
-      fs.writeFileSync(detailPath, `${JSON.stringify({ schemaVersion: 'wechat-runtime-asset-slot-review-v1', commit, routes: results }, null, 2)}\n`)
+      fs.writeFileSync(detailPath, `${JSON.stringify({ schemaVersion: 'wechat-runtime-asset-slot-review-v1', commit, viewport, routes: results }, null, 2)}\n`)
     }
     const summaries = results.map(({ semanticMappings: _semanticMappings, failures: routeFailures, ...result }) => ({ ...result, failures: routeFailures.slice(0, 10) }))
-    console.log(JSON.stringify({ status: failures.length === 0 ? 'pass' : 'fail', checkedRoutes: results.length, visibleElements: results.reduce((sum, result) => sum + result.elementCount, 0), visibleSlots: results.reduce((sum, result) => sum + result.slotCount, 0), missingAssetElements: results.reduce((sum, result) => sum + result.missingAssetElements, 0), failedRoutes: failures.map((result) => result.route), results: summaries, detailPath }))
+    console.log(JSON.stringify({ status: failures.length === 0 ? 'pass' : 'fail', viewport, checkedRoutes: results.length, visibleElements: results.reduce((sum, result) => sum + result.elementCount, 0), visibleSlots: results.reduce((sum, result) => sum + result.slotCount, 0), missingAssetElements: results.reduce((sum, result) => sum + result.missingAssetElements, 0), failedRoutes: failures.map((result) => result.route), results: summaries, detailPath }))
     if (failures.length > 0) process.exitCode = 1
   } finally {
     if (miniProgram) miniProgram.disconnect()

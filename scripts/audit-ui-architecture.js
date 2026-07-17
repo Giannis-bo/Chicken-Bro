@@ -570,6 +570,14 @@ record(
   'optional shell metadata must be omitted and legacy feed slots must use the registered asset_slot namespace',
 )
 record(
+  'runtime_asset_slot_review_has_exact_immutable_promotion',
+  fs.existsSync(path.join(root, 'scripts/promote-ui-asset-slot-review.js'))
+    && /ASSET_SLOT_DETAIL_PATHS is required/u.test(read('scripts/promote-ui-asset-slot-review.js'))
+    && /exact 14-route contract/u.test(read('scripts/promote-ui-asset-slot-review.js'))
+    && /flag: 'wx'/u.test(read('scripts/promote-ui-asset-slot-review.js')),
+  'split runtime reviews must share commit and viewport before content-addressed promotion',
+)
+record(
   'shared_native_buttons_cannot_exceed_their_layout_cell',
   /\.routeSurface button\s*\{[^}]*max-width:\s*100%;/su.test(reconstructionStyles),
   'every native WeChat button must be clamped by its immediate layout cell',
