@@ -773,7 +773,7 @@
 .ledgerWorkbench > [data-material-render='nine-slice'] { opacity: 0.22; }
 .ledgerWorkbench > [data-frame-content='true'] { position: relative; z-index: 4; }
 .ledgerTitle { display: block; padding: var(--space-5); border-bottom: 1px solid var(--wow-line-brass-dim); color: var(--wow-fg-strong); background: var(--wow-surface-1); font-family: var(--wow-font-display); font-size: 16px; font-weight: 760; line-height: 22px; }
-.ledgerWorkbenchTitleBar { display: grid; min-width: 0; min-height: 32px; grid-template-columns: minmax(108px, 1.25fr) minmax(112px, 1fr) minmax(48px, 52px); align-items: center; gap: 7px; padding: 0 5px 5px; border-bottom: 0; }
+.ledgerWorkbenchTitleBar { display: grid; min-width: 0; min-height: 32px; grid-template-columns: minmax(92px, 1.25fr) minmax(74px, 1fr) minmax(42px, 52px); align-items: center; gap: 7px; padding: 0 5px 5px; border-bottom: 0; }
 .ledgerWorkbenchTitleIdentity { display: flex; min-width: 0; align-items: center; gap: 6px; }
 .ledgerWorkbenchTitleBar .ledgerTitle { padding: 0; border: 0; color: var(--wow-accent-gold-soft); background: transparent; font-size: 15px; line-height: 20px; }
 .ledgerWorkbenchScale { width: 16px; height: 16px; color: var(--wow-accent-gold); }
@@ -784,7 +784,7 @@
 .ledgerWorkbenchColumnSpacer { width: 1px; height: 1px; }
 .ledgerWorkbenchList { display: grid; min-width: 0; gap: 2px; }
 .ledgerWorkbenchRow { position: relative; box-sizing: border-box; min-width: 0; min-height: 34px; overflow: hidden; border: 1px solid rgba(117, 91, 51, 0.48); background: linear-gradient(90deg, rgba(43, 39, 32, 0.94), rgba(15, 17, 20, 0.98) 46%, rgba(10, 12, 15, 0.98)); box-shadow: inset 0 0 0 1px rgba(3, 4, 6, 0.76), inset 0 1px rgba(207, 168, 91, 0.08); clip-path: polygon(3px 0, calc(100% - 3px) 0, 100% 3px, 100% calc(100% - 3px), calc(100% - 3px) 100%, 3px 100%, 0 calc(100% - 3px), 0 3px); }
-.ledgerWorkbenchRowBody { position: relative; z-index: 2; display: grid; min-height: 32px; grid-template-columns: minmax(108px, 1.25fr) minmax(112px, 1fr) minmax(48px, 52px); align-items: center; gap: 7px; padding: 2px 5px; }
+.ledgerWorkbenchRowBody { position: relative; z-index: 2; display: grid; min-width: 0; min-height: 32px; grid-template-columns: minmax(92px, 1.25fr) minmax(74px, 1fr) minmax(42px, 52px); align-items: center; gap: 7px; padding: 2px 5px; }
 .ledgerWorkbenchIdentity { display: grid; min-width: 0; grid-template-columns: 29px minmax(0, 1fr); align-items: center; gap: 7px; }
 .ledgerWorkbenchIdentityCopy { display: grid; min-width: 0; gap: 1px; }
 .ledgerWorkbenchRowIcon { display: grid; width: 28px; height: 28px; place-items: center; border: 1px solid rgba(167, 127, 61, 0.68); border-radius: 50%; color: var(--wow-accent-gold-soft); background: radial-gradient(circle, #292d31, #090b0e 72%); box-shadow: inset 0 0 0 2px rgba(4, 5, 7, 0.84), 0 2px 5px rgba(0, 0, 0, 0.28); }

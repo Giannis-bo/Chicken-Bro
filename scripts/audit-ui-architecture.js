@@ -115,6 +115,21 @@ record(
   fixedPixelComponentControlWidths.length === 0,
   fixedPixelComponentControlWidths.join(', ') || 'none',
 )
+const rigidMultiColumnComponentGrids = componentStyleFiles.flatMap((file) => (
+  [...read(file).matchAll(/([^{}]+)\{([^{}]*\bgrid-template-columns:\s*([^;]+);[^{}]*)\}/gu)].flatMap((match) => {
+    const largeMinimums = [...match[3].matchAll(/minmax\((\d+)px,/gu)]
+      .map((column) => Number(column[1]))
+      .filter((minimum) => minimum >= 100)
+    return largeMinimums.length >= 2
+      ? [`${file}:${match[1].trim().replace(/\s+/gu, ' ')}:${largeMinimums.join('+')}`]
+      : []
+  })
+))
+record(
+  'component_grids_do_not_stack_multiple_rigid_large_columns',
+  rigidMultiColumnComponentGrids.length === 0,
+  rigidMultiColumnComponentGrids.join(', ') || 'none',
+)
 const gearDetailStyles = read('packages/design-system/src/components/GearDetailComponents.module.scss')
 record(
   'gear_enhancement_grid_children_shrink_with_tracks',
@@ -1224,6 +1239,12 @@ record(
   'task_rows_override_native_button_width',
   /button\.recordRow\s*\{[^}]*width:\s*100%;[^}]*margin-right:\s*0;[^}]*margin-left:\s*0;/su.test(taskListStyles),
   'native WeChat button styles must not collapse task rows to half width',
+)
+record(
+  'workbench_ledger_columns_fit_the_minimum_wechat_width',
+  /\.ledgerWorkbenchTitleBar\s*\{[^}]*grid-template-columns:\s*minmax\(92px, 1\.25fr\) minmax\(74px, 1fr\) minmax\(42px, 52px\);/su.test(read('packages/design-system/src/components/owners.module.scss'))
+    && /\.ledgerWorkbenchRowBody\s*\{[^}]*min-width:\s*0;[^}]*grid-template-columns:\s*minmax\(92px, 1\.25fr\) minmax\(74px, 1fr\) minmax\(42px, 52px\);/su.test(read('packages/design-system/src/components/owners.module.scss')),
+  'workbench evidence columns plus gap and padding must fit the 320px route content box',
 )
 const newsListRoute = read('apps/mini-taro/src/pages/news/list.tsx')
 const newsListComponents = read('packages/design-system/src/components/NewsListComponents.tsx')
