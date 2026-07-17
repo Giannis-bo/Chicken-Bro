@@ -173,7 +173,7 @@ export function TaskRecordList({ items, loading, onSelect }: TaskRecordListProps
   return (
     <View className={`${styles['recordList'] ?? ''} ${styleSelectorClass('taskRecordList')}`} data-owner="task-record-list" data-region="task_list" data-loading={loading ? 'true' : 'false'}>
       <ScrollView className={styles['recordScroll'] ?? ''} scrollY enhanced showScrollbar={false} data-role="task-scroll">
-        <View className={styles['recordRows'] ?? ''}>
+        <View className={styles['recordRows'] ?? ''} data-role="task-record-rows">
           {rows.map((item, index) => (
             <ControlButton
               key={item.id || `placeholder-${index}`}

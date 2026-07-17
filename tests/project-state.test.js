@@ -237,3 +237,11 @@ test('roadmap stays a concise current control plane without PR-level execution h
   assert.doesNotMatch(roadmap, /Phase 4 第[一二三四五六七八九十]+刀/)
   assert.ok(roadmap.split('\n').length <= 150)
 })
+
+test('real WeChat interaction verification cannot wait forever inside one route', () => {
+  const verifier = fs.readFileSync('scripts/verify-ui-interactions.js', 'utf8')
+  assert.match(verifier, /const caseTimeoutMs = 20000/)
+  assert.match(verifier, /timeout\(action\(\), caseTimeoutMs, `interaction \$\{route\}`\)/)
+  assert.match(verifier, /\[interaction:start\]/)
+  assert.match(verifier, /\[interaction:end\]/)
+})

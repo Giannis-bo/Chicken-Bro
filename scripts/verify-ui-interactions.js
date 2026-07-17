@@ -5,6 +5,7 @@ const { connectMiniProgram, timeout } = require('./wechat-automator')
 const coreInteractionContract = require('../docs/design/current-ui/core-interaction-contract.json')
 
 const operationTimeoutMs = 10000
+const caseTimeoutMs = 20000
 
 function contractDefinition(route, accept) {
   const interaction = coreInteractionContract.interactions.find((candidate) => candidate.route === route)
@@ -35,9 +36,38 @@ async function settle(milliseconds = 650) {
 }
 
 async function requiredElement(page, selector) {
-  const element = await timeout(page.$(selector), operationTimeoutMs, `query ${selector}`)
-  if (!element) throw new Error(`required interaction element missing: ${selector}`)
-  return element
+  const deadline = Date.now() + operationTimeoutMs
+  while (Date.now() < deadline) {
+    try {
+      const element = await timeout(page.$(selector), 2000, `query ${selector}`)
+      if (element) return element
+    } catch {}
+    await settle(200)
+  }
+  throw new Error(`required interaction element missing: ${selector}`)
+}
+
+async function requiredElements(page, selector, minimum) {
+  const deadline = Date.now() + operationTimeoutMs
+  while (Date.now() < deadline) {
+    try {
+      const elements = await timeout(page.$$(selector), 2000, `query ${selector}`)
+      if (elements.length >= minimum) return elements
+    } catch {}
+    await settle(200)
+  }
+  throw new Error(`required interaction elements missing: ${selector} expected>=${minimum}`)
+}
+
+async function waitForTextChange(page, selector, before) {
+  const deadline = Date.now() + operationTimeoutMs
+  let actual = before
+  while (Date.now() < deadline) {
+    actual = await timeout((await requiredElement(page, selector)).text(), 2000, `read ${selector} text`)
+    if (actual !== before) return actual
+    await settle(200)
+  }
+  throw new Error(`${selector} text did not change; actual=${actual}`)
 }
 
 async function currentPath(miniProgram) {
@@ -45,20 +75,50 @@ async function currentPath(miniProgram) {
 }
 
 async function open(miniProgram, path) {
-  const page = await timeout(miniProgram.reLaunch(path), operationTimeoutMs, `open ${path}`)
+  let page
+  try {
+    page = await timeout(miniProgram.reLaunch(path), operationTimeoutMs, `open ${path}`)
+  } catch (error) {
+    const expectedPath = path.split('?')[0].replace(/^\//u, '')
+    const deadline = Date.now() + Math.floor(operationTimeoutMs / 2)
+    while (Date.now() < deadline) {
+      try {
+        const current = await timeout(miniProgram.currentPage(), 2000, `recover open ${path}`)
+        if (current.path === expectedPath) {
+          page = current
+          break
+        }
+      } catch {}
+      await settle(200)
+    }
+    if (!page) throw error
+  }
   await settle()
   return page
 }
 
-async function tapAndReadPath(miniProgram, page, selector) {
+async function tapAndReadPath(miniProgram, page, selector, waitForChange = true) {
+  const before = await currentPath(miniProgram)
   await timeout((await requiredElement(page, selector)).tap(), operationTimeoutMs, `tap ${selector}`)
-  await settle()
-  return currentPath(miniProgram)
+  if (!waitForChange) {
+    await settle()
+    return currentPath(miniProgram)
+  }
+  const deadline = Date.now() + operationTimeoutMs
+  let actual = before
+  while (Date.now() < deadline) {
+    actual = await currentPath(miniProgram)
+    if (actual !== before) return actual
+    await settle(200)
+  }
+  return actual
 }
 
 async function runCase(results, definition, action) {
+  const route = definition.output.route
+  process.stderr.write(`[interaction:start] ${route}\n`)
   try {
-    const actual = await action()
+    const actual = await timeout(action(), caseTimeoutMs, `interaction ${route}`)
     const passed = definition.accept(actual)
     results.push({ ...definition.output, actual, status: passed ? 'PASS' : 'FAIL' })
   } catch (error) {
@@ -68,6 +128,7 @@ async function runCase(results, definition, action) {
       status: 'FAIL',
     })
   }
+  process.stderr.write(`[interaction:end] ${route} ${results.at(-1)?.status ?? 'FAIL'}\n`)
 }
 
 async function main() {
@@ -101,20 +162,21 @@ async function main() {
     ), async () => {
       const page = await open(miniProgram, contractPath('news_list'))
       let sort = await requiredElement(page, contractSelector('news_list'))
-      const before = await sort.attribute('data-sort-direction')
-      await sort.tap()
-      await settle()
-      sort = await requiredElement(page, contractSelector('news_list'))
-      return before !== await sort.attribute('data-sort-direction') ? 'changed' : 'unchanged'
+      const newestSelector = `${contractSelector('news_list')}.wx-data-sort-direction-newest`
+      const oldestSelector = `${contractSelector('news_list')}.wx-data-sort-direction-oldest`
+      const wasNewest = Boolean(await timeout(page.$(newestSelector), 2000, 'read initial news sort direction'))
+      await timeout(sort.tap(), 2000, 'toggle news sort direction')
+      await requiredElement(page, wasNewest ? oldestSelector : newestSelector)
+      return 'changed'
     })
 
     await runCase(results, contractDefinition('news_detail',
       (actual) => actual === 'collapsed',
     ), async () => {
       const page = await open(miniProgram, contractPath('news_detail'))
-      await (await requiredElement(page, contractSelector('news_detail'))).tap()
-      await settle()
-      return await page.$('.wx-data-role-news-detail-evidence-body') ? 'expanded' : 'collapsed'
+      await timeout((await requiredElement(page, contractSelector('news_detail'))).tap(), 2000, 'toggle news evidence')
+      await requiredElement(page, '.wx-data-role-news-detail-evidence-content.wx-data-expanded-false')
+      return 'collapsed'
     })
 
     await runCase(results, contractDefinition('build_intel',
@@ -125,12 +187,12 @@ async function main() {
       (actual) => actual === 'active',
     ), async () => {
       const page = await open(miniProgram, contractPath('talent_simulator'))
-      const tabs = await timeout(page.$$(contractSelector('talent_simulator')), operationTimeoutMs, 'query talent tabs')
-      if (tabs.length < 2) throw new Error('fewer than two talent tabs')
-      await tabs[1].tap()
-      await settle()
-      const refreshed = await timeout(page.$$(contractSelector('talent_simulator')), operationTimeoutMs, 'refresh talent tabs')
-      return await refreshed[1].attribute('data-active') === 'true' ? 'active' : 'inactive'
+      const tabs = await requiredElements(page, contractSelector('talent_simulator'), 2)
+      const activeSelector = `${contractSelector('talent_simulator')}.wx-data-active-true`
+      const before = await timeout((await requiredElement(page, activeSelector)).text(), 2000, 'read initial talent tab')
+      await timeout(tabs[1].tap(), 2000, 'switch talent tab')
+      await waitForTextChange(page, activeSelector, before)
+      return 'active'
     })
 
     await runCase(results, contractDefinition('gear_detail',
@@ -148,7 +210,7 @@ async function main() {
       const page = await open(miniProgram, contractPath('simulator_home'))
       await (await requiredElement(page, contractSelector('simulator_home'))).tap()
       await settle()
-      return (await requiredElement(page, '.wx-style-simulatorPrompt')).value()
+      return (await requiredElement(page, '.wx-data-role-simulator-prompt')).value()
     })
 
     await runCase(results, contractDefinition('SimC_submit',
@@ -180,7 +242,7 @@ async function main() {
 
     await runCase(results, contractDefinition('task_detail',
       (actual) => actual === 'pages/simulator/task-detail',
-    ), async () => tapAndReadPath(miniProgram, await open(miniProgram, contractPath('task_detail')), contractSelector('task_detail')))
+    ), async () => tapAndReadPath(miniProgram, await open(miniProgram, contractPath('task_detail')), contractSelector('task_detail'), false))
 
     await runCase(results, contractDefinition('profile/templates',
       (actual) => actual === 'pages/builds/talent-simulator',

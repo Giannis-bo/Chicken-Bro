@@ -304,7 +304,7 @@ export function ArticleEvidencePanel({ rows, expanded, onToggle }: ArticleEviden
       region="evidence_details_panel"
       tone="inset"
     >
-      <View className={reconstructionStyle('newsDetailEvidenceContent')} data-expanded={expanded ? 'true' : 'false'} data-frame-content="true">
+      <View className={reconstructionStyle('newsDetailEvidenceContent')} data-expanded={expanded ? 'true' : 'false'} data-frame-content="true" data-role="news-detail-evidence-content">
         <View className={reconstructionStyle('newsDetailEvidenceHeading')} data-role="news-detail-evidence-toggle" onClick={onToggle}>
           <View className={reconstructionStyle('newsDetailEvidenceHeadingGlyphSocket')} data-role="news-detail-evidence-heading-glyph-socket">
             <ProductionAssetGlyph

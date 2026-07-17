@@ -348,6 +348,7 @@ export function SimulatorComposer({
     >
       <Textarea
         className={`${styles['composerInput'] ?? ''} ${styleSelectorClass('simulatorPrompt')}`}
+        data-role="simulator-prompt"
         disabled={loading}
         maxlength={2000}
         placeholder="继续提问，或补充可验证的资料文本..."

@@ -386,6 +386,18 @@ record(
   sharedActionContentConsumers.filter((file) => !/<ActionContent\b/u.test(read(file))).join(', ') || 'none',
 )
 
+const taskListStyles = read('packages/design-system/src/components/TaskListComponents.module.scss')
+record(
+  'task_scroll_rows_fill_the_native_scroll_view',
+  /\.recordRows\s*\{[^}]*box-sizing:\s*border-box;[^}]*width:\s*100%;/su.test(taskListStyles),
+  'task record rows must not shrink to their content width inside the WeChat ScrollView',
+)
+record(
+  'task_rows_override_native_button_width',
+  /button\.recordRow\s*\{[^}]*width:\s*100%;[^}]*margin-right:\s*0;[^}]*margin-left:\s*0;/su.test(taskListStyles),
+  'native WeChat button styles must not collapse task rows to half width',
+)
+
 const deprecatedAppShellProps = []
 const unownedRouteInteractions = []
 for (const file of routeComponents) {
