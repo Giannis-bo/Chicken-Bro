@@ -258,3 +258,14 @@ test('visual review capture stays explicit, cached and out of the main session',
   assert.match(capture, /connectMiniProgram/)
   assert.doesNotMatch(capture, /WECHAT_AUTOMATOR_LAUNCH/)
 })
+
+test('cached visual review requires explicit immutable promotion', () => {
+  const promotion = fs.readFileSync('scripts/promote-ui-review-cache.js', 'utf8')
+  assert.match(promotion, /required\(process\.env\.UI_REVIEW_MANIFEST, 'UI_REVIEW_MANIFEST'\)/)
+  assert.match(promotion, /UI_REVIEW_ROUTES/)
+  assert.match(promotion, /cache artifact no longer matches manifest/)
+  assert.match(promotion, /artifacts.*ui-runtime-reviews/s)
+  assert.match(promotion, /COPYFILE_EXCL/)
+  assert.match(promotion, /receipts/)
+  assert.doesNotMatch(promotion, /connectMiniProgram|WECHAT_AUTOMATOR_LAUNCH/)
+})

@@ -15,12 +15,15 @@
 | 微信三基线的结构几何是否稳定 | `npm run verify:ui-baselines` |
 | 最终微信验收必须记录什么 | `runtime-review-contract.json` |
 | 每条路由必须验证哪个核心交互 | `core-interaction-contract.json` |
+| 如何把隔离缓存晋级为不可变运行态 artifact | `npm run promote:ui-review-cache` |
 
 `artifacts/ui-visual-targets/current/` 保存 canonical target 本体。目录存在、源码可编译、DOM/AX 元素存在和单元测试通过只证明对应工程事实；视觉状态由 target/runtime 微信复核决定。
 
 交付顺序、批次边界和验证节奏统一由 `docs/plans/ui-reconstruction.md` 维护，本目录不重复叙述执行流程。
 
 目标图载荷只进入一次性隔离上下文；主项目会话只接收路径、尺寸、hash、结构化边界、差异和状态。
+
+真实微信截图先由 `UI_REVIEW_ROUTES=<route,...> npm run capture:ui-review-cache` 写入仓库外缓存。只有显式提供 `UI_REVIEW_MANIFEST=<absolute manifest path>` 和 `UI_REVIEW_ROUTES=<route,...>` 后，`npm run promote:ui-review-cache` 才会重新核验 PNG 尺寸、字节数和 SHA-256，并复制到 `artifacts/ui-runtime-reviews/<commit>/<viewport>/<sha256>/`。晋级使用不可覆盖写入并生成内容寻址 receipt；它只建立可审计 artifact，不会自动把路由标为 `PASS`。
 
 架构审计与几何预检不是视觉通过。缺少 target/runtime 像素复核时，路由状态仍为 `UNVERIFIED`。
 

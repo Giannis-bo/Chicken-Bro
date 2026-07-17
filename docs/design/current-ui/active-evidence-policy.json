@@ -21,7 +21,8 @@
     "ui-reconstruction.md"
   ],
   "allowedArtifactRoots": [
-    "ui-visual-targets"
+    "ui-visual-targets",
+    "ui-runtime-reviews"
   ],
   "requiredAbsentPaths": [
     "docs/reviews",

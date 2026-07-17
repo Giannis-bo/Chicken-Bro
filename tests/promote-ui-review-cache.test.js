@@ -1,0 +1,43 @@
+'use strict'
+
+const assert = require('node:assert/strict')
+const crypto = require('node:crypto')
+const fs = require('node:fs')
+const os = require('node:os')
+const path = require('node:path')
+const test = require('node:test')
+
+const { inspectCapture, selectedRoutes } = require('../scripts/promote-ui-review-cache')
+
+function pngHeader(width, height) {
+  const buffer = Buffer.alloc(24)
+  Buffer.from('89504e470d0a1a0a', 'hex').copy(buffer)
+  buffer.writeUInt32BE(width, 16)
+  buffer.writeUInt32BE(height, 20)
+  return buffer
+}
+
+test('promotion revalidates cached bytes, dimensions and digest', () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'wow-ui-promotion-test-'))
+  const artifactPath = path.join(directory, 'route.png')
+  const buffer = pngHeader(390, 844)
+  fs.writeFileSync(artifactPath, buffer)
+  const capture = {
+    route: 'news_detail',
+    artifactPath,
+    bytes: buffer.length,
+    width: 390,
+    height: 844,
+    sha256: crypto.createHash('sha256').update(buffer).digest('hex'),
+  }
+  assert.equal(inspectCapture(capture).sha256, capture.sha256)
+  assert.throws(() => inspectCapture({ ...capture, bytes: capture.bytes + 1 }), /no longer matches manifest/)
+})
+
+test('promotion selection is explicit and rejects absent routes', () => {
+  const captures = [{ route: 'news_detail' }, { route: 'build_intel' }]
+  assert.deepEqual(selectedRoutes('build_intel', captures), [captures[1]])
+  assert.deepEqual(selectedRoutes('all', captures), captures)
+  assert.throws(() => selectedRoutes('', captures), /UI_REVIEW_ROUTES is required/)
+  assert.throws(() => selectedRoutes('unknown', captures), /absent from cache manifest/)
+})
