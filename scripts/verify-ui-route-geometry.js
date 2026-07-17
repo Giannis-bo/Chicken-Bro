@@ -146,10 +146,14 @@ async function inspect(page, route, viewport) {
   const minimumRegions = route.minimumRegions ?? 1
   if (regionBounds.length < minimumRegions) violations.push({ type: 'missing-route-regions', minimum: minimumRegions, actual: regionBounds.length })
   const presentRegionIds = new Set(regionBounds.map((region) => region.id))
+  const requiredRegionIds = new Set(route.requiredRegionIds ?? [])
   const duplicateRegionIds = [...presentRegionIds].filter((id) => regionBounds.filter((region) => region.id === id).length > 1)
   for (const id of duplicateRegionIds) violations.push({ type: 'duplicate-semantic-region', id, count: regionBounds.filter((region) => region.id === id).length })
-  for (const requiredRegionId of route.requiredRegionIds ?? []) {
+  for (const requiredRegionId of requiredRegionIds) {
     if (!presentRegionIds.has(requiredRegionId)) violations.push({ type: 'missing-semantic-region', id: requiredRegionId })
+  }
+  for (const presentRegionId of presentRegionIds) {
+    if (!requiredRegionIds.has(presentRegionId)) violations.push({ type: 'unexpected-semantic-region', id: presentRegionId })
   }
   for (const region of regionBounds) {
     if (/^region-\d+$/u.test(region.id)) violations.push({ type: 'anonymous-region-id', id: region.id })
@@ -233,8 +237,9 @@ async function inspect(page, route, viewport) {
     regionCount: regionBounds.length,
     semanticRegionCount: regionBounds.filter((item) => !/^region-\d+$/u.test(item.id)).length,
     duplicateRegionCount: duplicateRegionIds.length,
-    requiredRegionCount: (route.requiredRegionIds ?? []).length,
-    missingRequiredRegionCount: (route.requiredRegionIds ?? []).filter((id) => !presentRegionIds.has(id)).length,
+    requiredRegionCount: requiredRegionIds.size,
+    missingRequiredRegionCount: [...requiredRegionIds].filter((id) => !presentRegionIds.has(id)).length,
+    unexpectedRegionCount: [...presentRegionIds].filter((id) => !requiredRegionIds.has(id)).length,
     buttonCount: uniqueButtonBounds.length,
     controlCellCount: controlCellBounds.length,
     anonymousButtonCount: uniqueButtonBounds.filter((button) => !button.role && !button.actionId).length,
