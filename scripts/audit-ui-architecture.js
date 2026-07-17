@@ -258,6 +258,24 @@ const fixedPixelRouteRegionWidths = routeStyles.flatMap((file) => (
     /\bwidth:\s*[\d.]+px\s*;/u.test(match[2]) ? [`${file}:${match[1]}`] : []
   ))
 ))
+const fixedPixelVerticalRegionEscapes = routeStyles.flatMap((file) => {
+  const source = read(file)
+  const fixedHeight = (selector) => {
+    const body = source.match(new RegExp(`\\.${selector}\\s*\\{([^}]*)\\}`, 'u'))?.[1] ?? ''
+    return Number(body.match(/(?:^|;)\s*height:\s*([\d.]+)px\s*;/u)?.[1])
+  }
+  const surfaceHeight = fixedHeight('surface')
+  const pageFrameHeight = fixedHeight('pageFrame')
+  const containerHeight = Number.isFinite(surfaceHeight) ? surfaceHeight : pageFrameHeight
+  if (!Number.isFinite(containerHeight)) return []
+  return [...source.matchAll(/\.([A-Za-z][\w-]*Region)\s*\{([^}]*)\}/gu)].flatMap((match) => {
+    const top = Number(match[2].match(/(?:^|;)\s*top:\s*([\d.]+)px\s*;/u)?.[1])
+    const height = Number(match[2].match(/(?:^|;)\s*height:\s*([\d.]+)px\s*;/u)?.[1])
+    return Number.isFinite(top) && Number.isFinite(height) && top + height > containerHeight + 1
+      ? [`${file}:${match[1]}:bottom=${top + height}:container=${containerHeight}`]
+      : []
+  })
+})
 const uncontainedRouteRegions = routeStyles.flatMap((file) => (
   [...read(file).matchAll(/\.([A-Za-z][\w-]*Region)(?:\s*,[^{]+)?\s*\{([^}]*)\}/gu)].flatMap((match) => (
     /\boverflow:\s*visible\s*;/u.test(match[2]) ? [`${file}:${match[1]}`] : []
@@ -272,6 +290,11 @@ record(
   'route_regions_do_not_use_fixed_pixel_widths',
   fixedPixelRouteRegionWidths.length === 0,
   fixedPixelRouteRegionWidths.join(', ') || 'none',
+)
+record(
+  'fixed_pixel_vertical_regions_stay_inside_their_stage',
+  fixedPixelVerticalRegionEscapes.length === 0,
+  fixedPixelVerticalRegionEscapes.join(', ') || 'all fixed vertical regions are contained',
 )
 const overlappingSpecializedRegions = [...new Set(specializedRegionBounds.map((region) => region.file))].flatMap((file) => {
   const regions = specializedRegionBounds.filter((region) => region.file === file).sort((a, b) => a.top - b.top)
