@@ -89,16 +89,18 @@ async function inspect(page, route, viewport) {
     }
   }))
   const inspectButton = async (element) => {
-    const [geometry, className, role] = await Promise.all([
+    const [geometry, className, role, actionId] = await Promise.all([
       bounds(element),
       timeout(element.attribute('class'), 1500, 'read button class'),
       timeout(element.attribute('data-role'), 1500, 'read button role'),
+      timeout(element.attribute('data-action-id'), 1500, 'read button action id'),
     ])
     const normalizedClassName = String(className ?? '')
     return {
       ...geometry,
       className: normalizedClassName,
       role: String(role ?? '') || normalizedClassName.match(/(?:^|\s)wx-data-role-([^\s]+)/u)?.[1] || '',
+      actionId: String(actionId ?? '') || normalizedClassName.match(/(?:^|\s)wx-data-action-id-([^\s]+)/u)?.[1] || '',
     }
   }
   const [buttonBounds, dockButtonBounds, tabBarBounds, shellBodyMetrics] = await Promise.all([
@@ -135,7 +137,7 @@ async function inspect(page, route, viewport) {
       violations.push({ type: 'native-button-horizontal', index, left: button.left, right: button.right, width: button.width })
     }
     if (!allowedVerticalScrollContent && (button.top < -tolerance || button.bottom > viewport.height + tolerance || button.height > viewport.height + tolerance)) {
-      violations.push({ type: 'native-button-vertical', index, role: button.role || null, top: button.top, bottom: button.bottom, height: button.height })
+      violations.push({ type: 'native-button-vertical', index, role: button.role || null, actionId: button.actionId || null, top: button.top, bottom: button.bottom, height: button.height })
     }
   })
   const safeAreaBottom = viewport.safeAreaBottom
@@ -150,14 +152,14 @@ async function inspect(page, route, viewport) {
   }
   dockButtonBounds.forEach((button, index) => {
     if (contract.safeAreaPolicy?.fixedDockControlsMustEndAtSafeBottom && button.bottom > safeAreaBottom + tolerance) {
-      violations.push({ type: 'fixed-dock-button-safe-area', index, role: button.role || null, bottom: button.bottom, safeAreaBottom })
+      violations.push({ type: 'fixed-dock-button-safe-area', index, role: button.role || null, actionId: button.actionId || null, bottom: button.bottom, safeAreaBottom })
     }
   })
   buttonBounds.forEach((button, index) => {
     const belongsToDock = dockButtonBounds.some((dockButton) => Math.abs(dockButton.left - button.left) <= tolerance && Math.abs(dockButton.top - button.top) <= tolerance && Math.abs(dockButton.width - button.width) <= tolerance)
     const entersVisibleSafeArea = button.top < viewport.height && button.bottom > safeAreaBottom + tolerance
     if (!belongsToDock && entersVisibleSafeArea && contract.safeAreaPolicy?.scrollContentMayCrossSafeBottomOnlyWithScrollableOverflowAndSafePadding && !bodyCanRevealSafeAreaContent) {
-      violations.push({ type: 'scroll-button-safe-area-without-reveal-space', index, role: button.role || null, top: button.top, bottom: button.bottom, safeAreaBottom })
+      violations.push({ type: 'scroll-button-safe-area-without-reveal-space', index, role: button.role || null, actionId: button.actionId || null, top: button.top, bottom: button.bottom, safeAreaBottom })
     }
     if (initialSafeAreaButtonRoles.includes(button.role) && button.bottom > safeAreaBottom + tolerance) {
       violations.push({ type: 'initial-button-safe-area', index, role: button.role, bottom: button.bottom, safeAreaBottom })
@@ -169,6 +171,7 @@ async function inspect(page, route, viewport) {
     regionCount: regionBounds.length,
     semanticRegionCount: regionBounds.filter((item) => !/^region-\d+$/u.test(item.id)).length,
     buttonCount: buttonBounds.length,
+    anonymousButtonCount: buttonBounds.filter((button) => !button.role && !button.actionId).length,
     maxRegionRight: Math.max(0, ...regionBounds.map((item) => item.right)),
     shellRight: shellBounds?.right ?? null,
     maxBoundRegionBottom: Math.max(0, ...regionBounds.filter((item) => item.visibleSlot && !allowedVertical.has(item.id)).map((item) => item.bottom)),

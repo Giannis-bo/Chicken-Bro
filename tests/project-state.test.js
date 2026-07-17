@@ -391,6 +391,8 @@ test('route geometry verification covers all routes without launching DevTools',
   assert.match(verifier, /anonymous-region-id/)
   assert.match(verifier, /native-button-horizontal/)
   assert.match(verifier, /native-button-vertical/)
+  assert.match(verifier, /read button action id/)
+  assert.match(verifier, /anonymousButtonCount/)
   assert.match(verifier, /allowedVerticalOverflowButtonRoles/)
   assert.match(verifier, /maxBoundButtonBottom/)
   assert.match(verifier, /fixed-dock-button-safe-area/)
