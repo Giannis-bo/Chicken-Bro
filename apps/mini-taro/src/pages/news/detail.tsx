@@ -73,7 +73,7 @@ export default function NewsDetailPage() {
           onBack={() => goBack('/pages/news/news')}
         >
           <RouteColumn>
-            <RouteRegion className={`${styles['region'] ?? ''} ${styles['hero'] ?? ''}`}>
+            <RouteRegion className={`${styles['region'] ?? ''} ${styles['hero'] ?? ''}`} data-region="article_hero">
               <NewsDetailHero
                 loading={model.initialLoading}
                 sourceLabel={model.sourceLabel}
@@ -82,17 +82,17 @@ export default function NewsDetailPage() {
                 title={model.articleTitle}
               />
             </RouteRegion>
-            <RouteRegion className={`${styles['region'] ?? ''} ${styles['translation'] ?? ''}`}>
+            <RouteRegion className={`${styles['region'] ?? ''} ${styles['translation'] ?? ''}`} data-region="translation_status">
               <TranslationStatusSegments
                 activeId={model.activeTranslationId}
                 items={model.translationSegments}
                 loading={model.initialLoading}
               />
             </RouteRegion>
-            <RouteRegion className={`${styles['region'] ?? ''} ${styles['body'] ?? ''}`}>
+            <RouteRegion className={`${styles['region'] ?? ''} ${styles['body'] ?? ''}`} data-region="article_body">
               <ArticleReadingSurface blocks={model.bodyBlocks} loading={model.initialLoading} />
             </RouteRegion>
-            <RouteRegion className={`${styles['region'] ?? ''} ${styles['source'] ?? ''}`}>
+            <RouteRegion className={`${styles['region'] ?? ''} ${styles['source'] ?? ''}`} data-region="source_reference">
               <SourceReferenceAction
                 available={model.sourceAvailable}
                 sourceLabel={model.sourceLabel}
@@ -102,14 +102,14 @@ export default function NewsDetailPage() {
                 } : {})}
               />
             </RouteRegion>
-            <RouteRegion className={`${styles['region'] ?? ''} ${styles['evidence'] ?? ''}`}>
+            <RouteRegion className={`${styles['region'] ?? ''} ${styles['evidence'] ?? ''}`} data-region="evidence_details">
               <ArticleEvidencePanel
                 expanded={evidenceExpanded}
                 rows={model.evidenceRows}
                 onToggle={() => setEvidenceExpanded((current) => !current)}
               />
             </RouteRegion>
-            <RouteRegion className={`${styles['region'] ?? ''} ${styles['terminal'] ?? ''}`}>
+            <RouteRegion className={`${styles['region'] ?? ''} ${styles['terminal'] ?? ''}`} data-region="article_terminal">
               <NewsDetailTerminalPanel
                 detail={model.terminal.detail}
                 mode={model.terminal.mode}

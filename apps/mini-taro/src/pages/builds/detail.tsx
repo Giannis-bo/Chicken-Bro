@@ -700,10 +700,10 @@ export default function GearDetailPage() {
                 }}
               />
             ) : null}
-            <RouteRegion className={styles['professionRegion'] ?? ''}>
+            <RouteRegion className={styles['professionRegion'] ?? ''} data-region="profession_selector">
               <GearProfessionSelector items={classItems} loading={initialLoading} />
             </RouteRegion>
-            <RouteRegion className={styles['specializationRegion'] ?? ''}>
+            <RouteRegion className={styles['specializationRegion'] ?? ''} data-region="specialization_selector">
               <GearSpecializationSelector
                 items={specItems}
                 loading={initialLoading}
@@ -712,13 +712,13 @@ export default function GearDetailPage() {
                 onSelect={(item) => setSelectedSpecId(item.id)}
               />
             </RouteRegion>
-            <RouteRegion className={styles['readinessRegion'] ?? ''}>
+            <RouteRegion className={styles['readinessRegion'] ?? ''} data-region="readiness_summary">
               <GearReadinessOverview {...readiness} />
             </RouteRegion>
-            <RouteRegion className={styles['enhancementRegion'] ?? ''}>
+            <RouteRegion className={styles['enhancementRegion'] ?? ''} data-region="enhancement_summary">
               <GearEnhancementBar items={enhancementGroups} onSelect={(item) => void openEnhancementGroup(item)} />
             </RouteRegion>
-            <RouteRegion className={styles['workbenchRegion'] ?? ''}>
+            <RouteRegion className={styles['workbenchRegion'] ?? ''} data-region="gear_workbench">
               <GearSlotWorkbench
                 candidateOpen={candidateOpen}
                 candidateLoading={candidateLoading}
@@ -742,8 +742,8 @@ export default function GearDetailPage() {
                 onSlot={(item) => void chooseSlot(item)}
               />
             </RouteRegion>
-            <RouteRegion className={styles['actionsRegion'] ?? ''}><GearActionRow items={actions} /></RouteRegion>
-            <RouteRegion className={styles['statusRegion'] ?? ''}><GearStatusDeck items={statusItems} onAction={handleStatusAction} /></RouteRegion>
+            <RouteRegion className={styles['actionsRegion'] ?? ''} data-region="gear_actions"><GearActionRow items={actions} /></RouteRegion>
+            <RouteRegion className={styles['statusRegion'] ?? ''} data-region="gear_status"><GearStatusDeck items={statusItems} onAction={handleStatusAction} /></RouteRegion>
           </View>
         </PageFrame>
       </RouteStage>

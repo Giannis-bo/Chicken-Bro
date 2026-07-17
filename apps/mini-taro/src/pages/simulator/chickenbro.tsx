@@ -161,7 +161,7 @@ export default function ChickenbroPage() {
           variant="chickenbro-chat"
           onBack={() => goBack('/pages/simulator/simulator')}
         >
-          <RouteRegion className={styles['contextRegion'] ?? ''}>
+          <RouteRegion className={styles['contextRegion'] ?? ''} data-region="workbench_context">
             <ChickenbroContextPanel
               cells={[
                 { id: 'specialization', label: '职业 / 专精', value: chickenbroContextLabel(context) },
@@ -172,13 +172,13 @@ export default function ChickenbroPage() {
               onOpenWorkbench={() => goBack('/pages/builds/workbench')}
             />
           </RouteRegion>
-          <RouteRegion className={styles['introRegion'] ?? ''}>
+          <RouteRegion className={styles['introRegion'] ?? ''} data-region="assistant_intro">
             <ChickenbroIntroMessage content={chickenbroIntro(context)} />
           </RouteRegion>
-          <RouteRegion className={styles['primaryUserRegion'] ?? ''}>
+          <RouteRegion className={styles['primaryUserRegion'] ?? ''} data-region="primary_user_turn">
             <ChickenbroUserTurnSlot message={primaryTurn?.user} region="user_question_primary" />
           </RouteRegion>
-          <RouteRegion className={styles['answerRegion'] ?? ''}>
+          <RouteRegion className={styles['answerRegion'] ?? ''} data-region="assistant_answer">
             <ChickenbroEvidenceAnswer
               confidenceLabel={chickenbroConfidence(primaryTurn?.assistant?.payload)}
               evidenceCount={primaryTurn?.assistant?.payload?.evidenceRefs.length ?? 0}
@@ -188,20 +188,20 @@ export default function ChickenbroPage() {
               onInspectEvidence={inspectEvidence}
             />
           </RouteRegion>
-          <RouteRegion className={styles['boundaryRegion'] ?? ''}>
+          <RouteRegion className={styles['boundaryRegion'] ?? ''} data-region="evidence_boundary">
             <ChickenbroEvidenceBoundary
               helper={payload?.nextQuestion || '等待后端说明下一步'}
               limitations={chickenbroLimitations(payload)}
               missingInputs={chickenbroMissingInputs(payload)}
             />
           </RouteRegion>
-          <RouteRegion className={styles['followupUserRegion'] ?? ''}>
+          <RouteRegion className={styles['followupUserRegion'] ?? ''} data-region="followup_user_turn">
             <ChickenbroUserTurnSlot message={followupTurn?.user} region="user_question_followup" />
           </RouteRegion>
-          <RouteRegion className={styles['followupAnswerRegion'] ?? ''}>
+          <RouteRegion className={styles['followupAnswerRegion'] ?? ''} data-region="followup_answer">
             <ChickenbroAssistantTurnSlot message={followupTurn?.assistant} />
           </RouteRegion>
-          <RouteRegion className={styles['answerStateRegion'] ?? ''}>
+          <RouteRegion className={styles['answerStateRegion'] ?? ''} data-region="answer_state">
             <ChickenbroAnswerStatePanel
               canRetry={inputState === 'error' && Boolean(lastSubmitted)}
               detail={answerState.detail}
@@ -210,7 +210,7 @@ export default function ChickenbroPage() {
               onRetry={() => void send(lastSubmitted, false)}
             />
           </RouteRegion>
-          <RouteRegion className={styles['topicRegion'] ?? ''}>
+          <RouteRegion className={styles['topicRegion'] ?? ''} data-region="topic_library">
             <ChickenbroTopicLibrary prompts={prompts} onSelect={(index) => setDraft(prompts[index] ?? '')} />
           </RouteRegion>
         </PageFrame>

@@ -105,13 +105,13 @@ export default function TasksPage() {
           variant="tasks-list"
           onBack={() => goBack('/pages/simulator/simulator')}
         >
-          <RouteRegion className={styles['summaryRegion'] ?? ''}>
+          <RouteRegion className={styles['summaryRegion'] ?? ''} data-region="task_summary">
             <TaskOverview metrics={metrics} recentDetail={recent.detail} recentTitle={recent.title} />
           </RouteRegion>
-          <RouteRegion className={styles['syncRegion'] ?? ''}>
+          <RouteRegion className={styles['syncRegion'] ?? ''} data-region="task_sync">
             <TaskSyncState state={syncState} title={syncCopy.title} detail={syncCopy.detail} onRetry={route.load} />
           </RouteRegion>
-          <RouteRegion className={styles['filtersRegion'] ?? ''}>
+          <RouteRegion className={styles['filtersRegion'] ?? ''} data-region="task_filters">
             <TaskStatusFilters
               items={filterItems}
               selected={filter}
@@ -120,14 +120,14 @@ export default function TasksPage() {
               onToggleSort={() => setSortOrder((current) => current === 'newest' ? 'oldest' : 'newest')}
             />
           </RouteRegion>
-          <RouteRegion className={styles['listRegion'] ?? ''}>
+          <RouteRegion className={styles['listRegion'] ?? ''} data-region="task_list">
             <TaskRecordList
               items={visibleTasks}
               loading={initialLoading}
               onSelect={(id) => navigateTo('/pages/simulator/task-detail', { id })}
             />
           </RouteRegion>
-          <RouteRegion className={styles['guidanceRegion'] ?? ''}>
+          <RouteRegion className={styles['guidanceRegion'] ?? ''} data-region="task_guidance">
             <TaskEmptyGuidance
               detail={guidanceCopy.detail}
               mode={guidanceMode}
@@ -135,7 +135,7 @@ export default function TasksPage() {
               title={guidanceCopy.title}
             />
           </RouteRegion>
-          <RouteRegion className={styles['actionsRegion'] ?? ''}>
+          <RouteRegion className={styles['actionsRegion'] ?? ''} data-region="bottom_actions">
             <TaskBottomActions
               onCreateSimc={() => navigateTo('/pages/simulator/simc', { from: 'tasks' })}
               onOpenWorkbench={() => navigateTo('/pages/builds/workbench', { from: 'tasks' })}

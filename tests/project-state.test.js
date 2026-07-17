@@ -289,8 +289,17 @@ test('route geometry verification covers all routes without launching DevTools',
   assert.match(verifier, /GEOMETRY_ROUTES/)
   assert.match(verifier, /region-horizontal/)
   assert.match(verifier, /region-vertical/)
+  assert.match(verifier, /anonymous-region-id/)
   assert.match(verifier, /native-button-horizontal/)
   assert.match(verifier, /violations\.slice\(0, 10\)/)
   assert.match(verifier, /connectMiniProgram/)
   assert.doesNotMatch(verifier, /WECHAT_AUTOMATOR_LAUNCH/)
+})
+
+test('runtime review regions cannot fall back to positional identities', () => {
+  const routeFlow = fs.readFileSync('packages/design-system/src/components/RouteFlow.tsx', 'utf8')
+  const audit = fs.readFileSync('scripts/audit-ui-architecture.js', 'utf8')
+  assert.match(routeFlow, /'data-region': string/)
+  assert.match(audit, /route_regions_have_stable_semantic_ids/)
+  assert.match(audit, /unnamedRouteRegions/)
 })

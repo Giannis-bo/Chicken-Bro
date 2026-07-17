@@ -21,7 +21,9 @@ export type RouteGridProps = Omit<ComponentProps<typeof View>, 'children' | 'cla
   className?: string | undefined
 }
 
-export type RouteRegionProps = RouteGridProps
+export type RouteRegionProps = RouteGridProps & {
+  'data-region': string
+}
 
 export function RouteFlow({ children, className, routeState, variant = 'default' }: RouteFlowProps) {
   return (

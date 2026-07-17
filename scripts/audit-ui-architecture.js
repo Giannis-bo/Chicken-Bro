@@ -329,12 +329,21 @@ const routeColumnConsumers = routeComponents.filter((file) => /<RouteColumn\b/u.
 const routeGridConsumers = routeComponents.filter((file) => /<RouteGrid\b/u.test(read(file)))
 const routeRegionConsumers = routeComponents.filter((file) => /<RouteRegion\b/u.test(read(file)))
 const directNamedRegionOwners = []
+const unnamedRouteRegions = []
 for (const file of routeComponents.filter((candidate) => !candidate.includes('/_shared/'))) {
   const source = read(file)
   const ast = babelParser.parse(source, { sourceType: 'module', plugins: ['jsx', 'typescript'] })
   traverse(ast, {
     JSXOpeningElement(elementPath) {
       const name = elementPath.node.name
+      if (name.type === 'JSXIdentifier' && name.name === 'RouteRegion') {
+        const regionAttribute = elementPath.node.attributes.find((attribute) => (
+          attribute.type === 'JSXAttribute'
+          && attribute.name.type === 'JSXIdentifier'
+          && attribute.name.name === 'data-region'
+        ))
+        if (!regionAttribute?.value) unnamedRouteRegions.push(`${file}:${elementPath.node.loc?.start.line ?? 0}`)
+      }
       if (name.type !== 'JSXIdentifier' || name.name !== 'View') return
       const className = elementPath.node.attributes.find((attribute) => (
         attribute.type === 'JSXAttribute'
@@ -353,6 +362,12 @@ record(
   'named_route_regions_use_shared_layout_owner',
   directNamedRegionOwners.length === 0,
   directNamedRegionOwners.join(', ') || 'none',
+)
+record(
+  'route_regions_have_stable_semantic_ids',
+  unnamedRouteRegions.length === 0
+    && /'data-region': string/u.test(read('packages/design-system/src/components/RouteFlow.tsx')),
+  unnamedRouteRegions.join(', ') || 'all RouteRegion instances are named and the prop is type-required',
 )
 record(
   'shared_route_layout_owners_cover_current_layout_families',

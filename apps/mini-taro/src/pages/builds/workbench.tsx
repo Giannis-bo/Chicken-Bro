@@ -152,7 +152,7 @@ export default function WorkbenchPage() {
         onBack={() => goBack('/pages/builds/builds')}
       >
         <RouteColumn className={styles['surface'] ?? ''} routeState={route.state.state}>
-          <RouteRegion className={`${styles['region'] ?? ''} ${styles['hero'] ?? ''}`}>
+          <RouteRegion className={`${styles['region'] ?? ''} ${styles['hero'] ?? ''}`} data-region="workbench_hero">
             <WorkbenchSpecSummary
               contextDetail={model.contextDetail}
               identity={model.identity}
@@ -172,7 +172,7 @@ export default function WorkbenchPage() {
               }}
             />
           </RouteRegion>
-          <RouteRegion className={`${styles['region'] ?? ''} ${styles['readiness'] ?? ''}`}>
+          <RouteRegion className={`${styles['region'] ?? ''} ${styles['readiness'] ?? ''}`} data-region="readiness_summary">
             <WorkbenchReadinessPanel
               headline={model.readinessHeadline}
               primaryAction={{ label: model.primaryAction.label, disabled: model.primaryAction.disabled }}
@@ -182,10 +182,10 @@ export default function WorkbenchPage() {
               onPrimary={handlePrimary}
             />
           </RouteRegion>
-          <RouteRegion className={`${styles['region'] ?? ''} ${styles['modules'] ?? ''}`}>
+          <RouteRegion className={`${styles['region'] ?? ''} ${styles['modules'] ?? ''}`} data-region="module_grid">
             <WorkbenchModuleDeck modules={modules} onModule={openModule} />
           </RouteRegion>
-          <RouteRegion className={`${styles['region'] ?? ''} ${styles['ledger'] ?? ''}`}>
+          <RouteRegion className={`${styles['region'] ?? ''} ${styles['ledger'] ?? ''}`} data-region="evidence_ledger">
             <EvidenceLedger
               region="ledger_table"
               rows={evidence}

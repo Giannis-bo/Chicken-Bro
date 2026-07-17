@@ -84,7 +84,7 @@ export default function TaskDetailPage() {
           variant="task-detail"
           onBack={() => goBack('/pages/simulator/tasks')}
         >
-          <RouteRegion className={styles['summaryRegion'] ?? ''}>
+          <RouteRegion className={styles['summaryRegion'] ?? ''} data-region="task_summary">
             <TaskDetailSummary
               description={view.description}
               metadata={view.metadata}
@@ -93,23 +93,23 @@ export default function TaskDetailPage() {
               title={view.title}
             />
           </RouteRegion>
-          <RouteRegion className={styles['refreshRegion'] ?? ''}>
+          <RouteRegion className={styles['refreshRegion'] ?? ''} data-region="refresh_notice">
             <TaskRefreshNotice
               blocked={view.routePhase === 'blocked'}
               refreshing={view.refreshing}
               onRefresh={route.load}
             />
           </RouteRegion>
-          <RouteRegion className={styles['resultRegion'] ?? ''}>
+          <RouteRegion className={styles['resultRegion'] ?? ''} data-region="simc_result">
             <TaskSimcResult {...view.result} />
           </RouteRegion>
-          <RouteRegion className={styles['contextRegion'] ?? ''}>
+          <RouteRegion className={styles['contextRegion'] ?? ''} data-region="character_context">
             <TaskRunContext items={view.context} />
           </RouteRegion>
-          <RouteRegion className={styles['scenarioRegion'] ?? ''}>
+          <RouteRegion className={styles['scenarioRegion'] ?? ''} data-region="scenario_parameters">
             <TaskScenarioGrid items={view.scenario} />
           </RouteRegion>
-          <RouteRegion className={styles['attributesRegion'] ?? ''}>
+          <RouteRegion className={styles['attributesRegion'] ?? ''} data-region="attribute_snapshot">
             <TaskAttributeSnapshot
               items={view.attributes}
               notice={view.attributeNotice}
@@ -117,7 +117,7 @@ export default function TaskDetailPage() {
               onDetail={() => showDetails('属性快照', view.attributeDetail)}
             />
           </RouteRegion>
-          <RouteRegion className={styles['preparationRegion'] ?? ''}>
+          <RouteRegion className={styles['preparationRegion'] ?? ''} data-region="combat_preparation">
             <TaskCombatPreparation
               items={view.preparation}
               notice={view.preparationNotice}
@@ -125,7 +125,7 @@ export default function TaskDetailPage() {
               onDetail={() => showDetails('战斗准备', view.preparationDetail)}
             />
           </RouteRegion>
-          <RouteRegion className={styles['exceptionRegion'] ?? ''}>
+          <RouteRegion className={styles['exceptionRegion'] ?? ''} data-region="exception_state">
             <TaskExceptionState
               {...view.exception}
               onDetail={() => showDetails('任务异常详情', view.exceptionDetail)}

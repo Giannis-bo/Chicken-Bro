@@ -130,7 +130,7 @@ export default function BuildsHomePage() {
               onSelect={() => undefined}
             />
           </Picker>
-          <RouteRegion className={styles['gridRegion'] ?? ''}>
+          <RouteRegion className={styles['gridRegion'] ?? ''} data-region="specialization_grid">
             <BuildEvidenceNavigator
               items={model.evidenceItems}
               loading={model.initialLoading}
@@ -138,7 +138,7 @@ export default function BuildsHomePage() {
               onSelect={openEvidence}
             />
           </RouteRegion>
-          <RouteRegion className={styles['workspaceRegion'] ?? ''}>
+          <RouteRegion className={styles['workspaceRegion'] ?? ''} data-region="workspace_entry">
             <BuildWorkspaceEntry
               actionLabel={model.workspace.actionLabel}
               detail={model.workspace.detail}
@@ -151,7 +151,7 @@ export default function BuildsHomePage() {
               onEnter={useWorkspaceAction}
             />
           </RouteRegion>
-          <RouteRegion className={styles['listRegion'] ?? ''}>
+          <RouteRegion className={styles['listRegion'] ?? ''} data-region="build_list">
             <BuildEvidenceNavigator
               items={model.evidenceItems}
               loading={model.initialLoading}
@@ -159,7 +159,7 @@ export default function BuildsHomePage() {
               onSelect={openEvidence}
             />
           </RouteRegion>
-          <RouteRegion className={styles['workflowRegion'] ?? ''}>
+          <RouteRegion className={styles['workflowRegion'] ?? ''} data-region="workflow_guidance">
             <BuildWorkflowTimeline
               loading={model.initialLoading}
               stages={model.workflow}

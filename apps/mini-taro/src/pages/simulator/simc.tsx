@@ -330,7 +330,7 @@ export default function SimcSubmitPage() {
           variant="simc-submit"
           onBack={() => goBack('/pages/builds/workbench')}
         >
-          <RouteRegion className={styles['identityRegion'] ?? ''}>
+          <RouteRegion className={styles['identityRegion'] ?? ''} data-region="character_identity">
             <SimcIdentitySelectors
               loading={loading}
               races={races}
@@ -344,7 +344,7 @@ export default function SimcSubmitPage() {
               onSpecializationSelect={setSelectedSpecId}
             />
           </RouteRegion>
-          <RouteRegion className={styles['talentRegion'] ?? ''}>
+          <RouteRegion className={styles['talentRegion'] ?? ''} data-region="talent_template">
             <SimcTemplateSlot
               {...talentSlot}
               loading={loading}
@@ -356,7 +356,7 @@ export default function SimcSubmitPage() {
               }}
             />
           </RouteRegion>
-          <RouteRegion className={styles['gearRegion'] ?? ''}>
+          <RouteRegion className={styles['gearRegion'] ?? ''} data-region="gear_source">
             <SimcTemplateSlot
               {...gearSlot}
               loading={loading}
@@ -368,7 +368,7 @@ export default function SimcSubmitPage() {
               }}
             />
           </RouteRegion>
-          <RouteRegion className={styles['combatRegion'] ?? ''}>
+          <RouteRegion className={styles['combatRegion'] ?? ''} data-region="combat_parameters">
             <SimcCombatConfiguration
               buffRules={simcBuffRules}
               durations={durations}
@@ -385,13 +385,13 @@ export default function SimcSubmitPage() {
               }}
             />
           </RouteRegion>
-          <RouteRegion className={styles['summaryRegion'] ?? ''}>
+          <RouteRegion className={styles['summaryRegion'] ?? ''} data-region="submission_summary">
             <SimcPreSubmitSummary items={simcSummaryRows(modelInput)} />
           </RouteRegion>
-          <RouteRegion className={styles['blockerRegion'] ?? ''}>
+          <RouteRegion className={styles['blockerRegion'] ?? ''} data-region="submission_blockers">
             <SimcBlockerPanel items={simcBlockerRows(modelInput)} />
           </RouteRegion>
-          <RouteRegion className={styles['actionRegion'] ?? ''}>
+          <RouteRegion className={styles['actionRegion'] ?? ''} data-region="submission_action">
             <SimcSubmissionActionBar
               canConfirm={canPrepare}
               canSubmit={confirmation.state === 'ready'}
@@ -406,7 +406,7 @@ export default function SimcSubmitPage() {
               onViewTask={() => navigateTo('/pages/simulator/task-detail', { id: submittedTaskId })}
             />
           </RouteRegion>
-          <RouteRegion className={styles['footerRegion'] ?? ''}>
+          <RouteRegion className={styles['footerRegion'] ?? ''} data-region="submission_footer">
             <SimcFooterNotice
               actionLabel={data ? '任务规则' : '重新读取'}
               onAction={data ? () => navigateTo('/pages/simulator/tasks', { from: 'simc-rules' }) : route.load}

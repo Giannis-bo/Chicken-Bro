@@ -122,7 +122,7 @@ export default function NewsListPage() {
                 onRefresh={() => void route.load()}
               />
             </RouteRegion>
-            <RouteRegion className={`${styles['region'] ?? ''} ${styles['category'] ?? ''}`}>
+            <RouteRegion className={`${styles['region'] ?? ''} ${styles['category'] ?? ''}`} data-region="category_filter_bar">
               <NewsListCategoryFilter
                 activeId={model.activeCategory}
                 items={model.categories}
@@ -135,6 +135,7 @@ export default function NewsListPage() {
             </RouteRegion>
             <RouteRegion
               className={`${styles['region'] ?? ''} ${styles['results'] ?? ''}`}
+              data-region="news_results"
               style={{ height: `${listHeight}px` }}
             >
               <NewsListFeed
@@ -146,6 +147,7 @@ export default function NewsListPage() {
             </RouteRegion>
             <RouteRegion
               className={`${styles['region'] ?? ''} ${styles['terminal'] ?? ''}`}
+              data-region="list_terminal"
               data-terminal-mode={model.terminal.mode}
             >
               <NewsListTerminalPanel

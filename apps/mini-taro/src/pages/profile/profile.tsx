@@ -160,7 +160,7 @@ export default function ProfilePage() {
     >
       <RouteStage className={styles['pageFrame'] ?? ''} routeState={route.state.state} targetRegionCount={7} width="full">
         <PageFrame region="page_header" title="我的" variant="profile">
-          <RouteRegion className={styles['summaryRegion'] ?? ''}>
+          <RouteRegion className={styles['summaryRegion'] ?? ''} data-region="profile_summary">
             <ProfileSummaryPanel
               avatarUrl={view.avatarUrl}
               metrics={view.metrics}
@@ -173,7 +173,7 @@ export default function ProfilePage() {
               onEdit={() => void editProfile()}
             />
           </RouteRegion>
-          <RouteRegion className={styles['libraryRegion'] ?? ''}>
+          <RouteRegion className={styles['libraryRegion'] ?? ''} data-region="template_library">
             <ProfileTemplateLibrary
               items={view.categories}
               onSelect={(id) => navigateTo(
@@ -182,7 +182,7 @@ export default function ProfilePage() {
               )}
             />
           </RouteRegion>
-          <RouteRegion className={styles['recentRegion'] ?? ''}>
+          <RouteRegion className={styles['recentRegion'] ?? ''} data-region="recent_templates">
             <ProfileRecentSaves
               deletingId={deletingId}
               items={view.recent}
@@ -190,7 +190,7 @@ export default function ProfilePage() {
               onShowAll={() => void showAllTemplates()}
             />
           </RouteRegion>
-          <RouteRegion className={styles['settingsRegion'] ?? ''}>
+          <RouteRegion className={styles['settingsRegion'] ?? ''} data-region="settings_support">
             <ProfileSettingsList items={view.settings} onSelect={(id) => void openSetting(id)} />
           </RouteRegion>
         </PageFrame>

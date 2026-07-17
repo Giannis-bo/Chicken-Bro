@@ -343,14 +343,14 @@ export default function TalentSimulatorPage() {
           onBack={() => goBack('/pages/builds/builds')}
         >
           <View className={styles['surface'] ?? ''}>
-            <RouteRegion className={styles['selectorRegion'] ?? ''}>
+            <RouteRegion className={styles['selectorRegion'] ?? ''} data-region="specialization_selector">
               <TalentSelectorPanel
                 items={selectors}
                 loading={initialLoading}
                 onSelect={selectOption}
               />
             </RouteRegion>
-            <RouteRegion className={styles['tabsRegion'] ?? ''}>
+            <RouteRegion className={styles['tabsRegion'] ?? ''} data-region="talent_tabs">
               <TalentTreeTabs
                 activeId={activeTree}
                 items={tabs}
@@ -358,7 +358,7 @@ export default function TalentSimulatorPage() {
                 onSelect={(item) => setActiveTree(item.id)}
               />
             </RouteRegion>
-            <RouteRegion className={styles['pointsRegion'] ?? ''}>
+            <RouteRegion className={styles['pointsRegion'] ?? ''} data-region="points_summary">
               <TalentPointSummary
                 cap={points.cap}
                 loading={initialLoading}
@@ -366,7 +366,7 @@ export default function TalentSimulatorPage() {
                 spent={points.spent}
               />
             </RouteRegion>
-            <RouteRegion className={styles['graphRegion'] ?? ''}>
+            <RouteRegion className={styles['graphRegion'] ?? ''} data-region="talent_graph">
               <TalentGraphViewport
                 key={activeTree}
                 connectivityStatus={connectivityStatus}
@@ -380,8 +380,8 @@ export default function TalentSimulatorPage() {
                 onNode={selectNode}
               />
             </RouteRegion>
-            <RouteRegion className={styles['legendRegion'] ?? ''}><TalentLegend /></RouteRegion>
-            <RouteRegion className={styles['importRegion'] ?? ''}>
+            <RouteRegion className={styles['legendRegion'] ?? ''} data-region="talent_legend"><TalentLegend /></RouteRegion>
+            <RouteRegion className={styles['importRegion'] ?? ''} data-region="import_panel">
               <TalentImportStatus
                 detail={currentReason || (connectivityStatus === 'unavailable'
                   ? '上游未返回天赋连接关系，当前树只读'
@@ -395,7 +395,7 @@ export default function TalentSimulatorPage() {
                 } : {})}
               />
             </RouteRegion>
-            <RouteRegion className={styles['communityRegion'] ?? ''}>
+            <RouteRegion className={styles['communityRegion'] ?? ''} data-region="community_builds">
               <TalentCommunityRow
                 detail={initialLoading
                   ? '正在读取来源模板'
@@ -410,7 +410,7 @@ export default function TalentSimulatorPage() {
                 }}
               />
             </RouteRegion>
-            <RouteRegion className={styles['actionsRegion'] ?? ''}><TalentActionBar items={actions} /></RouteRegion>
+            <RouteRegion className={styles['actionsRegion'] ?? ''} data-region="talent_actions"><TalentActionBar items={actions} /></RouteRegion>
           </View>
         </PageFrame>
       </RouteStage>

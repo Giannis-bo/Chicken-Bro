@@ -155,7 +155,7 @@ export default function BuildIntelPage() {
                 </View>
               </ScrollView>
             </View>
-            <RouteRegion className={styles['disclaimer'] ?? ''}>
+            <RouteRegion className={styles['disclaimer'] ?? ''} data-region="reference_disclaimer">
               <BuildIntelDisclaimer copy={model.disclaimer} />
             </RouteRegion>
           </RouteColumn>

@@ -127,7 +127,7 @@ export default function SimulatorHomePage() {
           title="智能分析"
           variant="simulator-home"
         >
-          <RouteRegion className={styles['guidanceRegion'] ?? ''}>
+          <RouteRegion className={styles['guidanceRegion'] ?? ''} data-region="simulator_guidance">
             <SimulatorGuidancePanel
               answerSourceLabel={context.answerSourceLabel}
               confidenceLabel={context.confidenceLabel}
@@ -140,10 +140,10 @@ export default function SimulatorHomePage() {
               onSuggestion={setDraft}
             />
           </RouteRegion>
-          <RouteRegion className={styles['transcriptRegion'] ?? ''}>
+          <RouteRegion className={styles['transcriptRegion'] ?? ''} data-region="simulator_transcript">
             <SimulatorTranscript messages={messages} inputState={inputState} onRetry={retry} />
           </RouteRegion>
-          <RouteRegion className={styles['evidenceRegion'] ?? ''}>
+          <RouteRegion className={styles['evidenceRegion'] ?? ''} data-region="evidence_shelf">
             <SimulatorEvidenceShelf
               cards={evidenceCards}
               evidenceCount={context.evidenceCount}
