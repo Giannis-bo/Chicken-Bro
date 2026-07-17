@@ -13,6 +13,22 @@
     "mutations": [],
     "retryPolicy": "do_not_relaunch_reload_or_repeat_probe_until_external_renderer_state_changes"
   },
+  "assetPromotionGap": {
+    "status": "pending_runtime_review_and_promotion",
+    "evaluatedAtCommit": "901f015",
+    "evidenceSource": "packages/design-system/assets/raster/*/manifest.json",
+    "collectionCount": 6,
+    "assetCount": 69,
+    "promotedAssetCount": 33,
+    "pendingAssetCount": 36,
+    "pendingCollections": [
+      { "collection": "build-intel-v1", "pendingAssetCount": 3 },
+      { "collection": "builds-home-v1", "pendingAssetCount": 23 },
+      { "collection": "news-detail-v1", "pendingAssetCount": 3 },
+      { "collection": "news-list-v1", "pendingAssetCount": 2 },
+      { "collection": "shared-chrome-v1", "pendingAssetCount": 5 }
+    ]
+  },
   "sharedMissingEvidence": [
     "wechat_runtime_artifact",
     "target_runtime_region_comparison",

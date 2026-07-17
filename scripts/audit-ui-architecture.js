@@ -1093,6 +1093,38 @@ record(
   invalidRasterPromotionMetadata.join(', ') || `collections=${rasterCollectionManifests.length}`,
 )
 
+const expectedAssetPromotionGap = rasterCollectionManifests.reduce((gap, { manifest }) => {
+  const assets = manifest.assets ?? []
+  const promoted = manifest.productionPromoted === true
+    ? assets.filter((asset) => String(asset.reviewStatus ?? '').includes('production')).length
+    : 0
+  const pending = assets.length - promoted
+  gap.assetCount += assets.length
+  gap.promotedAssetCount += promoted
+  gap.pendingAssetCount += pending
+  if (pending > 0) gap.pendingCollections.push({ collection: manifest.collectionId, pendingAssetCount: pending })
+  return gap
+}, {
+  collectionCount: rasterCollectionManifests.length,
+  assetCount: 0,
+  promotedAssetCount: 0,
+  pendingAssetCount: 0,
+  pendingCollections: [],
+})
+expectedAssetPromotionGap.pendingCollections.sort((a, b) => a.collection.localeCompare(b.collection))
+const recordedAssetPromotionGap = runtimeReviewStatus.assetPromotionGap ?? {}
+record(
+  'runtime_review_asset_promotion_gap_matches_manifests',
+  recordedAssetPromotionGap.status === 'pending_runtime_review_and_promotion'
+    && recordedAssetPromotionGap.evidenceSource === 'packages/design-system/assets/raster/*/manifest.json'
+    && recordedAssetPromotionGap.collectionCount === expectedAssetPromotionGap.collectionCount
+    && recordedAssetPromotionGap.assetCount === expectedAssetPromotionGap.assetCount
+    && recordedAssetPromotionGap.promotedAssetCount === expectedAssetPromotionGap.promotedAssetCount
+    && recordedAssetPromotionGap.pendingAssetCount === expectedAssetPromotionGap.pendingAssetCount
+    && JSON.stringify(recordedAssetPromotionGap.pendingCollections) === JSON.stringify(expectedAssetPromotionGap.pendingCollections),
+  `pending=${expectedAssetPromotionGap.pendingAssetCount}; promoted=${expectedAssetPromotionGap.promotedAssetCount}`,
+)
+
 const literalAssetBindings = []
 for (const file of componentSources.filter((candidate) => candidate.endsWith('.tsx'))) {
   const ast = babelParser.parse(read(file), { sourceType: 'module', plugins: ['jsx', 'typescript'] })
