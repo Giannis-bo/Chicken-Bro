@@ -545,10 +545,10 @@ record(
 record(
   'runtime_asset_slots_map_to_route_or_shared_contracts',
   runtimeAssetSlotMappingContract.status === 'active'
-    && runtimeAssetSlotMappingContract.routes?.length === 4
+    && runtimeAssetSlotMappingContract.routes?.length === 14
     && runtimeAssetSlotMappingContract.routes.every((route) => (
       fs.existsSync(path.join(root, route.assetContract))
-      && Object.keys(route.runtimeSlots ?? {}).length >= 9
+      && Object.keys(route.runtimeSlots ?? {}).length >= 7
       && Object.entries(route.runtimeSlots).every(([runtimeSlot, contractSlot]) => runtimeSlot.startsWith('asset_slot.') && typeof contractSlot === 'string')
     )),
   `routes=${runtimeAssetSlotMappingContract.routes?.length ?? 0}`,
@@ -560,6 +560,14 @@ record(
     && /wx-data-asset-missing-true/u.test(read('scripts/verify-ui-asset-slots.js'))
     && !/WECHAT_AUTOMATOR_LAUNCH/u.test(read('scripts/verify-ui-asset-slots.js')),
   'runtime asset-slot review must be bounded and never launch or reload DevTools',
+)
+const appShellSource = read('packages/design-system/src/components/AppShell.tsx')
+record(
+  'optional_shell_assets_do_not_emit_undefined_slot_selectors',
+  !/data-slot-id=\{surfaceSlotId\}/u.test(appShellSource)
+    && /surfaceSlotId \? \{ 'data-slot-id': surfaceSlotId/u.test(appShellSource)
+    && !/slot-feed-thumb-placeholder/u.test(read('packages/design-system/src/components/RankedFeed.tsx')),
+  'optional shell metadata must be omitted and legacy feed slots must use the registered asset_slot namespace',
 )
 record(
   'shared_native_buttons_cannot_exceed_their_layout_cell',

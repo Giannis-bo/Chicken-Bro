@@ -56,15 +56,16 @@ export function AppShell({
         Boolean(dock) && ownerStyle('shellWithDock'),
         surfaceMaterialFamily === 'build-workspace' && ownerStyle('shellBuildWorkspaceMaterial'),
       )}
-      data-asset-fallback={surfaceAssetId ? (surfacePath ? 'false' : 'true') : undefined}
-      data-asset-id={surfaceAssetId}
-      data-asset-missing={surfaceAssetId ? (surfacePath ? 'false' : 'true') : undefined}
+      {...(surfaceAssetId ? {
+        'data-asset-fallback': surfacePath ? 'false' : 'true',
+        'data-asset-id': surfaceAssetId,
+        'data-asset-missing': surfacePath ? 'false' : 'true',
+        'data-surface-asset-id': surfaceAssetId,
+      } : {})}
       data-role="app-mobile-stage"
       data-layout-mode={tabRoot ? 'tab-root' : 'pushed'}
       data-surface-material-family={surfaceMaterialFamily}
-      data-slot-id={surfaceSlotId}
-      data-surface-asset-id={surfaceAssetId}
-      data-surface-slot-id={surfaceSlotId}
+      {...(surfaceSlotId ? { 'data-slot-id': surfaceSlotId, 'data-surface-slot-id': surfaceSlotId } : {})}
       style={shellStyle}
     >
       <View

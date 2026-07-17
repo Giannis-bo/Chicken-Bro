@@ -158,7 +158,7 @@ export function RankedFeed({
         ...Array.from({ length: minimumRows - items.length }, (_, index): RankedFeedItem => ({
           id: `unavailable-${items.length + index}`,
           title: '',
-          mediaSlotId: 'slot-feed-thumb-placeholder',
+          mediaSlotId: 'asset_slot.news-feed-fallback',
           disabled: true,
         })),
       ]
@@ -187,7 +187,7 @@ export function RankedFeed({
           >
             <View
               className={ownerStyle('feedThumbSkeleton')}
-              data-slot-id="slot-feed-thumb-placeholder"
+              data-slot-id="asset_slot.news-feed-fallback"
             />
             <View className={ownerStyle('feedMain')} data-role="feed-main">
               <View className={ownerStyle('skeletonLineStrong')} />
@@ -249,7 +249,7 @@ export function RankedFeed({
                 fallbackLabel="资讯暂不可用"
                 fallbackMode="aspectFill"
                 fallbackSlotId="asset_slot.news-feed-fallback"
-                slotId="slot-feed-thumb-placeholder"
+                slotId="asset_slot.news-feed-fallback"
                 sourceTrust="placeholder"
               />
               <View className={ownerStyle('feedMain')}>
