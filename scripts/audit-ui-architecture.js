@@ -233,6 +233,27 @@ for (const observed of runtimeReviewStatus.observedRegionComparisons ?? []) {
     `artifact=${exists}; sha=${actualSha === observed.sha256}; routes=${comparisonRoutes.length}`,
   )
 }
+for (const observed of runtimeReviewStatus.observedAssetSlotReviews ?? []) {
+  const evidencePath = path.join(root, observed.path ?? '')
+  const exists = fs.existsSync(evidencePath)
+  const actualSha = exists ? crypto.createHash('sha256').update(fs.readFileSync(evidencePath)).digest('hex') : null
+  const evidence = exists ? JSON.parse(fs.readFileSync(evidencePath, 'utf8')) : null
+  const routeNames = evidence?.routes?.map((route) => route.route) ?? []
+  record(
+    `observed_asset_slot_review_is_content_addressed:${observed.commit}`,
+    exists
+      && observed.path.includes(observed.sha256)
+      && actualSha === observed.sha256
+      && evidence?.schemaVersion === 'wechat-runtime-asset-slot-evidence-v1'
+      && evidence?.commit === observed.commit
+      && evidence?.routes?.length === observed.routeCount
+      && evidence.routes.every((route) => route.status === 'pass' && route.missingAssetElements === 0 && route.failures.length === 0 && route.semanticMappings.length === route.slotCount)
+      && evidence.routes.reduce((sum, route) => sum + route.elementCount, 0) === observed.visibleElements
+      && evidence.routes.reduce((sum, route) => sum + route.slotCount, 0) === observed.visibleSlots
+      && JSON.stringify(routeNames) === JSON.stringify(runtimeAssetSlotMappingContract.routes.map((route) => route.route)),
+    `artifact=${exists}; sha=${actualSha === observed.sha256}; routes=${routeNames.length}`,
+  )
+}
 for (const review of reviewRoutes) {
   const target = targetRegistry.canonicalTargets.find((candidate) => candidate.route === review.route)
   const interaction = interactionContract.interactions.find((candidate) => candidate.route === review.route)

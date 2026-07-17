@@ -18,6 +18,19 @@
       "path": "artifacts/ui-runtime-reviews/93f0cbd6d065/390x844@3/comparisons/859ba24b561e350861af4ebd02202f032a8a027644a97a4c1a3e685da6eb39ff.json"
     }
   ],
+  "observedAssetSlotReviews": [
+    {
+      "commit": "16e4da777937",
+      "viewport": { "width": 390, "height": 844, "dpr": 3 },
+      "routeCount": 14,
+      "visibleElements": 506,
+      "visibleSlots": 145,
+      "missingAssetElements": 0,
+      "status": "PASS",
+      "sha256": "e75fb966f80c2a688f33dba5f234aa84cdab6b58ada1714c246c727491c8fc16",
+      "path": "artifacts/ui-runtime-reviews/16e4da777937/390x844@3/asset-slots/e75fb966f80c2a688f33dba5f234aa84cdab6b58ada1714c246c727491c8fc16.json"
+    }
+  ],
   "routes": [
     { "route": "news_home", "path": "/pages/news/news", "targetArtifact": "artifacts/ui-visual-targets/current/news-home.png", "contractRoot": "docs/design/current-ui/routes/news-home", "status": "UNVERIFIED" },
     { "route": "specialization_home/builds_home", "path": "/pages/builds/builds", "targetArtifact": "artifacts/ui-visual-targets/current/builds-home.png", "contractRoot": "docs/design/current-ui/routes/builds-home", "status": "UNVERIFIED" },
