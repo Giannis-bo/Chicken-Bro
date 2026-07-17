@@ -398,6 +398,7 @@ test('native buttons and selected segments have exclusive geometry owners', () =
   const reconstruction = fs.readFileSync('packages/design-system/src/components/reconstruction.module.scss', 'utf8')
   const audit = fs.readFileSync('scripts/audit-ui-architecture.js', 'utf8')
   assert.match(owners, /\.nativeControl::after\s*\{\s*border:\s*0;/)
+  assert.match(owners, /\.nativeControl\s*\{[^}]*border:\s*0;[^}]*box-shadow:\s*none;/s)
   assert.match(reconstruction, /\.newsDetailTranslationSegment \+ \.newsDetailTranslationSegment::before/)
   assert.match(reconstruction, /\.newsDetailTranslationSegment\[data-selected='true'\] \+ \.newsDetailTranslationSegment::before/)
   assert.doesNotMatch(reconstruction, /\.newsDetailTranslationSegment \+ \.newsDetailTranslationSegment \{[^}]*border-left:/s)

@@ -1737,8 +1737,10 @@ record(
     && /\bmin-height\s*:\s*0\s*;/u.test(nativeControlRule)
     && /\bmargin\s*:\s*0\s*;/u.test(nativeControlRule)
     && /\bpadding\s*:\s*0\s*;/u.test(nativeControlRule)
+    && /\bborder\s*:\s*0\s*;/u.test(nativeControlRule)
+    && /\bbox-shadow\s*:\s*none\s*;/u.test(nativeControlRule)
     && /\.nativeControl::after\s*\{[^}]*\bborder\s*:\s*0\s*;/su.test(nativeControlStyles),
-  'ControlButton must neutralize native width, spacing, minimum height and ::after geometry',
+  'ControlButton must neutralize native width, spacing, minimum height, border, shadow and ::after geometry',
 )
 
 const miniAppStyles = read('apps/mini-taro/src/app.scss')
