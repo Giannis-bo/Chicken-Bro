@@ -44,6 +44,7 @@ export interface ProductionAssetSlot extends Omit<CandidateAssetSlot, 'reviewSta
 }
 
 export const defaultRuntimeAssetRoot = '/assets/ui-v2' as const
+const immutableRemoteAssetRootPattern = /^https:\/\/[^/?#\s]+(?:\/[^?#\s]*)?\/releases\/[a-z0-9][a-z0-9._-]{7,}\/?$/iu
 
 let configuredRuntimeAssetRoot: string = defaultRuntimeAssetRoot
 
@@ -51,7 +52,12 @@ function normalizeRoot(root: string): string {
   const value = root.trim()
   if (!value || value === '/') return ''
   if (value === '.') return '.'
-  if (/^https:\/\/[^/?#\s]+(?:\/[^?#\s]*)?$/iu.test(value)) return value.replace(/\/+$/g, '')
+  if (/^https:\/\//iu.test(value)) {
+    if (!immutableRemoteAssetRootPattern.test(value)) {
+      throw new Error(`Remote asset runtime root must use an immutable /releases/<release-id> HTTPS path: ${value}`)
+    }
+    return value.replace(/\/+$/g, '')
+  }
   if (/^[a-z][a-z\d+.-]*:\/\//iu.test(value)) {
     throw new Error(`Asset runtime root must use HTTPS: ${value}`)
   }

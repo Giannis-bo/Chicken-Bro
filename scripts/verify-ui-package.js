@@ -10,7 +10,7 @@ const root = path.resolve(__dirname, '..')
 const appRoot = path.join(root, 'apps/mini-taro')
 const auditRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'wow-mini-package-'))
 const defaultAssetRuntimeRoot = '/assets/ui-v2'
-const remoteAssetRuntimeRoot = 'https://assets.example.invalid/releases/ui-v2'
+const remoteAssetRuntimeRoot = 'https://assets.example.invalid/wow-assets/releases/2026-07-18-ui-v2'
 const limits = {
   remoteTotalBytes: 2 * 1024 * 1024,
   commonJsBytes: 420 * 1024,

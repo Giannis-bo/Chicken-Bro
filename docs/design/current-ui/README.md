@@ -29,7 +29,7 @@
 默认微信构建把登记素材复制到 `/assets/ui-v2`，用于本地开发和未配置远端资源的候选构建。只有显式设置合法 HTTPS 根路径时，构建才切换到远端素材并停止复制本地素材：
 
 ```bash
-WOW_ASSET_RUNTIME_ROOT=https://cdn.example.com/wow-assets npm run build:weapp
+WOW_ASSET_RUNTIME_ROOT=https://cdn.example.com/wow-assets/releases/2026-07-18-ui-v2 npm run build:weapp
 ```
 
-远端根目录必须保持 `packages/design-system/assets/` 下的相对目录结构。该开关只建立可验证的交付路径，不代表 CDN 已获准上线；在真实候选构建启用前，必须同时确认完整资产上传与 hash、不可变 URL、HTTPS 可用性、微信 request/download 合法域名和恢复默认本地素材构建的方式。HTTP 或其他协议配置会在构建阶段失败。
+远端根目录必须保持 `packages/design-system/assets/` 下的相对目录结构，并以 `/releases/<release-id>` 结尾；`release-id` 至少 8 个字符且只能使用字母、数字、点、下划线和连字符。未版本化根、`latest`、查询参数、HTTP 或其他协议会在构建阶段失败。该开关只建立可验证的交付路径，不代表 CDN 已获准上线；在真实候选构建启用前，仍须确认完整资产上传与 hash、HTTPS 可用性、微信 request/download 合法域名和恢复默认本地素材构建的方式。
