@@ -384,6 +384,8 @@ test('route geometry verification covers all routes without launching DevTools',
   const geometryContract = readJson('docs/design/current-ui/route-geometry-contract.json')
   const taskDetail = geometryContract.routes.find((route) => route.route === 'task_detail')
   assert.deepEqual(taskDetail.initialSafeAreaButtonRoles, ['task-detail-exception-action'])
+  const simcSubmit = geometryContract.routes.find((route) => route.route === 'SimC_submit')
+  assert.deepEqual(simcSubmit.initialSafeAreaButtonRoles, ['simc-footer-action'])
 })
 
 test('route geometry evidence promotion is exact, safe-area aware and immutable', () => {

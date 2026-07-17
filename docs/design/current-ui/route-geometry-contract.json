@@ -17,7 +17,7 @@
     { "route": "talent_simulator", "path": "/pages/builds/talent-simulator", "unavailableRouteStates": ["stale", "error"] },
     { "route": "gear_detail", "path": "/pages/builds/detail?query=gear" },
     { "route": "simulator_home", "path": "/pages/simulator/simulator" },
-    { "route": "SimC_submit", "path": "/pages/simulator/simc", "allowedHorizontalOverflowButtonRoles": ["simc-specialization-option"] },
+    { "route": "SimC_submit", "path": "/pages/simulator/simc", "allowedHorizontalOverflowButtonRoles": ["simc-specialization-option"], "initialSafeAreaButtonRoles": ["simc-footer-action"] },
     { "route": "chickenbro_chat", "path": "/pages/simulator/chickenbro" },
     { "route": "tasks_list", "path": "/pages/simulator/tasks" },
     { "route": "task_detail", "path": "/pages/simulator/task-detail?id=runtime-review", "initialSafeAreaButtonRoles": ["task-detail-exception-action"] },

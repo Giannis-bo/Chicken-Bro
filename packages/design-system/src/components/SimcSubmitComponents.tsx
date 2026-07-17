@@ -493,7 +493,7 @@ export function SimcFooterNotice({ actionLabel, onAction }: SimcFooterNoticeProp
         </View>
         <Text>确认只校验输入；真实结果需在任务完成后查看</Text>
       </View>
-      <ControlButton data-action-id="task-rules" onClick={onAction}>
+      <ControlButton data-action-id="task-rules" data-role="simc-footer-action" onClick={onAction}>
         <SystemGlyph assetId="utility-glyph-family.document" slotId="asset_slot.simc-footer-utilities" />
         <Text>{actionLabel}</Text>
         <SystemGlyph assetId="utility-glyph-family.chevron-right" slotId="asset_slot.simc-footer-utilities" />

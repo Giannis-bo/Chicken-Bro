@@ -659,7 +659,7 @@ record(
   /\.body\s*\{[^}]*height:\s*256\.6px;/su.test(viewportFitStyles.newsDetail)
     && /\.workbenchRegion\s*\{[^}]*height:\s*319px;/su.test(viewportFitStyles.gearDetail)
     && /\.statusRegion\s*\{[^}]*top:\s*654px;/su.test(viewportFitStyles.gearDetail)
-    && /\.footerRegion\s*\{[^}]*top:\s*763px;/su.test(viewportFitStyles.simcSubmit)
+    && /\.footerRegion\s*\{[^}]*top:\s*727px;/su.test(viewportFitStyles.simcSubmit)
     && /\.pageFrame\s*\{[^}]*height:\s*var\(--route-safe-viewport-height\);/su.test(viewportFitStyles.taskDetail)
     && /\.pageFrame\s*\{[^}]*height:\s*825px;/su.test(viewportFitStyles.profile),
   'single-screen terminal regions must not extend below the real WeChat viewport',
