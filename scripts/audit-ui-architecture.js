@@ -390,6 +390,17 @@ const taskListStyles = read('packages/design-system/src/components/TaskListCompo
 const reconstructionStyles = read('packages/design-system/src/components/reconstruction.module.scss')
 const buildIntelStyles = read('packages/design-system/src/components/BuildIntelComponents.module.scss')
 const taskRouteStyles = read('apps/mini-taro/src/pages/simulator/tasks.module.scss')
+const selectedStateOwners = [
+  ['packages/design-system/src/components/TabBar.tsx', 'product-tab-item'],
+  ['packages/design-system/src/components/TaskListComponents.tsx', 'task-status-filter'],
+  ['packages/design-system/src/components/SimcSubmitComponents.tsx', 'simc-specialization-option'],
+  ['packages/design-system/src/components/SimcSubmitComponents.tsx', 'simc-scenario-option'],
+]
+record(
+  'selected_controls_have_stable_group_roles',
+  selectedStateOwners.every(([file, role]) => read(file).includes(`data-role="${role}"`)),
+  'selected-state runtime review must group controls by stable role rather than generated CSS classes',
+)
 record(
   'shared_native_buttons_cannot_exceed_their_layout_cell',
   /\.routeSurface button\s*\{[^}]*max-width:\s*100%;/su.test(reconstructionStyles),

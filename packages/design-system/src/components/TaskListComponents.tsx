@@ -116,6 +116,7 @@ export function TaskStatusFilters({ items, selected, sortLabel, onSelect, onTogg
             key={item.id}
             className={`${selected === item.id ? styles['filterSelected'] ?? '' : ''} ${styleSelectorClass(`taskFilter${item.id}`)} ${selected === item.id ? styleSelectorClass('taskFilterSelected') : ''}`}
             data-filter-id={item.id}
+            data-role="task-status-filter"
             data-selected={selected === item.id ? 'true' : 'false'}
             onClick={() => onSelect(item.id)}
           >
