@@ -1,5 +1,5 @@
 .pageFrame {
-  height: 813px;
+  height: var(--route-safe-viewport-height);
 }
 
 .summaryRegion,
@@ -21,9 +21,3 @@
 .attributesRegion { top: 67.0455%; left: 3.8778%; width: calc(92.2444% + 2px); height: 11.9048%; }
 .preparationRegion { top: 79.5996%; left: 3.8778%; width: calc(92.2444% + 2px); height: 11.8506%; }
 .exceptionRegion { top: 92.0996%; left: 3.8778%; width: calc(92.2444% + 2px); height: 5.8983%; }
-
-@media (max-width: 389px) {
-  .pageFrame {
-    height: calc(100vw * 2.0846);
-  }
-}

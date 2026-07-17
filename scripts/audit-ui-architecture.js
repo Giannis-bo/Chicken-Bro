@@ -660,9 +660,16 @@ record(
     && /\.workbenchRegion\s*\{[^}]*height:\s*319px;/su.test(viewportFitStyles.gearDetail)
     && /\.statusRegion\s*\{[^}]*top:\s*654px;/su.test(viewportFitStyles.gearDetail)
     && /\.footerRegion\s*\{[^}]*top:\s*763px;/su.test(viewportFitStyles.simcSubmit)
-    && /\.pageFrame\s*\{[^}]*height:\s*813px;/su.test(viewportFitStyles.taskDetail)
+    && /\.pageFrame\s*\{[^}]*height:\s*var\(--route-safe-viewport-height\);/su.test(viewportFitStyles.taskDetail)
     && /\.pageFrame\s*\{[^}]*height:\s*825px;/su.test(viewportFitStyles.profile),
   'single-screen terminal regions must not extend below the real WeChat viewport',
+)
+record(
+  'task_detail_terminal_action_must_be_initially_safe',
+  /"route":\s*"task_detail"[^\n]*"initialSafeAreaButtonRoles":\s*\["task-detail-exception-action"\]/u.test(read('docs/design/current-ui/route-geometry-contract.json'))
+    && /initialSafeAreaButtonRoles\.includes\(button\.role\)/u.test(read('scripts/verify-ui-route-geometry.js'))
+    && /data-role="task-detail-exception-action"/u.test(read('packages/design-system/src/components/TaskDetailComponents.tsx')),
+  'task detail terminal action must remain visible above the bottom safe area without requiring a scroll exception',
 )
 record(
   'build_intel_actions_override_native_button_width',

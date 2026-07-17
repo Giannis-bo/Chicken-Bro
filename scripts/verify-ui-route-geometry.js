@@ -56,6 +56,7 @@ async function inspect(page, route, viewport) {
   const allowedVertical = new Set(route.allowedVerticalOverflowRegions ?? [])
   const allowedHorizontalButtonRoles = route.allowedHorizontalOverflowButtonRoles ?? []
   const allowedVerticalButtonRoles = route.allowedVerticalOverflowButtonRoles ?? []
+  const initialSafeAreaButtonRoles = route.initialSafeAreaButtonRoles ?? []
   const [shell, shellBody, regions, buttons, dockButtons, state] = await Promise.all([
     timeout(page.$('.wx-style-shell'), 4000, 'query route shell'),
     timeout(page.$('.wx-style-shellbody'), 4000, 'query route shell body'),
@@ -150,6 +151,9 @@ async function inspect(page, route, viewport) {
     const entersVisibleSafeArea = button.top < viewport.height && button.bottom > safeAreaBottom + tolerance
     if (!belongsToDock && entersVisibleSafeArea && contract.safeAreaPolicy?.scrollContentMayCrossSafeBottomOnlyWithScrollableOverflowAndSafePadding && !bodyCanRevealSafeAreaContent) {
       violations.push({ type: 'scroll-button-safe-area-without-reveal-space', index, role: button.role || null, top: button.top, bottom: button.bottom, safeAreaBottom })
+    }
+    if (initialSafeAreaButtonRoles.includes(button.role) && button.bottom > safeAreaBottom + tolerance) {
+      violations.push({ type: 'initial-button-safe-area', index, role: button.role, bottom: button.bottom, safeAreaBottom })
     }
   })
   const summary = {

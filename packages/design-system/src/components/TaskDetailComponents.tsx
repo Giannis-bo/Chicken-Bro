@@ -296,7 +296,7 @@ export function TaskExceptionState({ state, title, detail, onDetail }: TaskExcep
         <SystemGlyph assetId={state === 'none' ? 'utility-glyph-family.shield' : 'utility-glyph-family.warning'} slotId="asset_slot.task-detail-exception" />
       </View>
       <View><Text>{title}</Text><Text data-role="task-detail-exception-detail">{detail}</Text></View>
-      <ControlButton data-action-id="exception-detail" onClick={onDetail}>
+      <ControlButton data-action-id="exception-detail" data-role="task-detail-exception-action" onClick={onDetail}>
         <Text>查看详情</Text>
         <SystemGlyph assetId="utility-glyph-family.chevron-right" slotId="asset_slot.task-detail-exception-action" />
       </ControlButton>

@@ -374,11 +374,16 @@ test('route geometry verification covers all routes without launching DevTools',
   assert.match(verifier, /maxBoundButtonBottom/)
   assert.match(verifier, /fixed-dock-button-safe-area/)
   assert.match(verifier, /scroll-button-safe-area-without-reveal-space/)
+  assert.match(verifier, /initial-button-safe-area/)
+  assert.match(verifier, /initialSafeAreaButtonRoles\.includes\(button\.role\)/)
   assert.match(verifier, /shellBodyPaddingBottom/)
   assert.match(verifier, /safeAreaBottom/)
   assert.match(verifier, /violations\.slice\(0, 10\)/)
   assert.match(verifier, /connectMiniProgram/)
   assert.doesNotMatch(verifier, /WECHAT_AUTOMATOR_LAUNCH/)
+  const geometryContract = readJson('docs/design/current-ui/route-geometry-contract.json')
+  const taskDetail = geometryContract.routes.find((route) => route.route === 'task_detail')
+  assert.deepEqual(taskDetail.initialSafeAreaButtonRoles, ['task-detail-exception-action'])
 })
 
 test('route geometry evidence promotion is exact, safe-area aware and immutable', () => {

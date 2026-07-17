@@ -117,6 +117,7 @@ page,
 
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --route-safe-viewport-height: calc(100vh - var(--safe-top) - var(--safe-bottom));
   --tabbar-height: 63px;
   /* Product controls end above the native home-indicator area. */
   --tabbar-safe-height: calc(var(--tabbar-height) + var(--safe-bottom));
