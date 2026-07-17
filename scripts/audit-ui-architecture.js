@@ -201,10 +201,11 @@ const routeStageConsumers = routeComponents.filter((file) => /<RouteStage\b/u.te
 const routeFlowConsumers = routeComponents.filter((file) => /<RouteFlow\b/u.test(read(file)))
 const routeColumnConsumers = routeComponents.filter((file) => /<RouteColumn\b/u.test(read(file)))
 const routeGridConsumers = routeComponents.filter((file) => /<RouteGrid\b/u.test(read(file)))
+const routeRegionConsumers = routeComponents.filter((file) => /<RouteRegion\b/u.test(read(file)))
 record(
   'shared_route_layout_owners_cover_current_layout_families',
-  routeStageConsumers.length === 8 && routeFlowConsumers.length === 3 && routeColumnConsumers.length === 4 && routeGridConsumers.length === 2,
-  `stage=${routeStageConsumers.length}; flow=${routeFlowConsumers.length}; column=${routeColumnConsumers.length}; grid=${routeGridConsumers.length}`,
+  routeStageConsumers.length === 8 && routeFlowConsumers.length === 3 && routeColumnConsumers.length === 4 && routeGridConsumers.length === 2 && routeRegionConsumers.length === 4,
+  `stage=${routeStageConsumers.length}; flow=${routeFlowConsumers.length}; column=${routeColumnConsumers.length}; grid=${routeGridConsumers.length}; region=${routeRegionConsumers.length}`,
 )
 
 const privateStageFoundationOwners = routeStyles.filter((file) => {
@@ -235,6 +236,15 @@ record(
   'route_styles_do_not_reimplement_shared_grid_composition',
   privateGridOwners.length === 0,
   privateGridOwners.join(', ') || 'none',
+)
+
+const privateRegionFillOwners = routeStyles.filter((file) => (
+  /(?:\.region|\.cardSlot|\.disclaimer)\s*>\s*view\s*\{[^}]*width\s*:\s*100%;[^}]*height\s*:\s*100%;/su.test(read(file))
+))
+record(
+  'route_styles_do_not_reimplement_region_child_fill',
+  privateRegionFillOwners.length === 0,
+  privateRegionFillOwners.join(', ') || 'none',
 )
 
 const deprecatedAppShellProps = []

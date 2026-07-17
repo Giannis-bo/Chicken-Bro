@@ -177,6 +177,11 @@
   min-width: 0;
 }
 
+.routeRegion > view {
+  width: 100%;
+  height: 100%;
+}
+
 .frame {
   width: 100%;
   max-width: 720px;

@@ -1,12 +1,11 @@
 import Taro, { useRouter } from '@tarojs/taro'
-import { View } from '@tarojs/components'
 import { useEffect, useRef, useState } from 'react'
 
 import { wowApi } from '@wow-mini/api-client'
 import { AppShell } from '@wow-mini/design-system/components/AppShell'
 import { EvidenceLedger } from '@wow-mini/design-system/components/EvidenceLedger'
 import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
-import { RouteColumn } from '@wow-mini/design-system/components/RouteFlow'
+import { RouteColumn, RouteRegion } from '@wow-mini/design-system/components/RouteFlow'
 import {
   WorkbenchModuleDeck,
   WorkbenchReadinessPanel,
@@ -153,7 +152,7 @@ export default function WorkbenchPage() {
         onBack={() => goBack('/pages/builds/builds')}
       >
         <RouteColumn className={styles['surface'] ?? ''} routeState={route.state.state}>
-          <View className={`${styles['region'] ?? ''} ${styles['hero'] ?? ''}`}>
+          <RouteRegion className={`${styles['region'] ?? ''} ${styles['hero'] ?? ''}`}>
             <WorkbenchSpecSummary
               contextDetail={model.contextDetail}
               identity={model.identity}
@@ -172,8 +171,8 @@ export default function WorkbenchPage() {
                 if (next?.spec.id) setSelectedSpecId(next.spec.id)
               }}
             />
-          </View>
-          <View className={`${styles['region'] ?? ''} ${styles['readiness'] ?? ''}`}>
+          </RouteRegion>
+          <RouteRegion className={`${styles['region'] ?? ''} ${styles['readiness'] ?? ''}`}>
             <WorkbenchReadinessPanel
               headline={model.readinessHeadline}
               primaryAction={{ label: model.primaryAction.label, disabled: model.primaryAction.disabled }}
@@ -182,11 +181,11 @@ export default function WorkbenchPage() {
               statusLabel={model.overallLabel}
               onPrimary={handlePrimary}
             />
-          </View>
-          <View className={`${styles['region'] ?? ''} ${styles['modules'] ?? ''}`}>
+          </RouteRegion>
+          <RouteRegion className={`${styles['region'] ?? ''} ${styles['modules'] ?? ''}`}>
             <WorkbenchModuleDeck modules={modules} onModule={openModule} />
-          </View>
-          <View className={`${styles['region'] ?? ''} ${styles['ledger'] ?? ''}`}>
+          </RouteRegion>
+          <RouteRegion className={`${styles['region'] ?? ''} ${styles['ledger'] ?? ''}`}>
             <EvidenceLedger
               region="ledger_table"
               rows={evidence}
@@ -197,7 +196,7 @@ export default function WorkbenchPage() {
                 if (module) openModule(module)
               }}
             />
-          </View>
+          </RouteRegion>
         </RouteColumn>
       </PageFrame>
     </AppShell>

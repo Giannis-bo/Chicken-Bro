@@ -1,5 +1,4 @@
 import Taro, { usePullDownRefresh, useRouter } from '@tarojs/taro'
-import { View } from '@tarojs/components'
 import { useState } from 'react'
 
 import { wowApi } from '@wow-mini/api-client'
@@ -14,7 +13,7 @@ import {
   type NewsListFeedItem,
 } from '@wow-mini/design-system/components/NewsListComponents'
 import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
-import { RouteColumn, RouteFlow } from '@wow-mini/design-system/components/RouteFlow'
+import { RouteColumn, RouteFlow, RouteRegion } from '@wow-mini/design-system/components/RouteFlow'
 import type { NewsListParams, RouteDataState } from '@wow-mini/domain'
 
 import {
@@ -111,7 +110,7 @@ export default function NewsListPage() {
           onBack={() => goBack('/pages/news/news')}
         >
           <RouteColumn>
-            <View className={`${styles['region'] ?? ''} ${styles['summary'] ?? ''}`} data-region="list_summary">
+            <RouteRegion className={`${styles['region'] ?? ''} ${styles['summary'] ?? ''}`} data-region="list_summary">
               <NewsListSummary
                 countLabel={model.countLabel}
                 loading={route.state.state === 'loading'}
@@ -119,8 +118,8 @@ export default function NewsListPage() {
                 title={model.title}
                 onRefresh={() => void route.load()}
               />
-            </View>
-            <View className={`${styles['region'] ?? ''} ${styles['category'] ?? ''}`}>
+            </RouteRegion>
+            <RouteRegion className={`${styles['region'] ?? ''} ${styles['category'] ?? ''}`}>
               <NewsListCategoryFilter
                 activeId={model.activeCategory}
                 items={model.categories}
@@ -130,8 +129,8 @@ export default function NewsListPage() {
                 onSelect={selectCategory}
                 onSort={toggleSortDirection}
               />
-            </View>
-            <View
+            </RouteRegion>
+            <RouteRegion
               className={`${styles['region'] ?? ''} ${styles['results'] ?? ''}`}
               style={{ height: `${listHeight}px` }}
             >
@@ -141,8 +140,8 @@ export default function NewsListPage() {
                 loadingRows={model.visibleRowSlotCount}
                 onSelect={openArticle}
               />
-            </View>
-            <View
+            </RouteRegion>
+            <RouteRegion
               className={`${styles['region'] ?? ''} ${styles['terminal'] ?? ''}`}
               data-terminal-mode={model.terminal.mode}
             >
@@ -153,10 +152,10 @@ export default function NewsListPage() {
                 {...(model.terminal.actionLabel ? { actionLabel: model.terminal.actionLabel } : {})}
                 {...(model.terminal.action !== 'none' ? { onAction: handleTerminalAction } : {})}
               />
-            </View>
-            <View className={`${styles['region'] ?? ''} ${styles['disclaimer'] ?? ''}`} data-region="reference_disclaimer">
+            </RouteRegion>
+            <RouteRegion className={`${styles['region'] ?? ''} ${styles['disclaimer'] ?? ''}`} data-region="reference_disclaimer">
               <TrustDisclaimer />
-            </View>
+            </RouteRegion>
           </RouteColumn>
         </PageFrame>
       </RouteFlow>

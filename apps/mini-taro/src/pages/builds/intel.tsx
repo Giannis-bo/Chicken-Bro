@@ -10,7 +10,7 @@ import {
   BuildIntelSummary,
 } from '@wow-mini/design-system/components/BuildIntelComponents'
 import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
-import { RouteColumn, RouteFlow } from '@wow-mini/design-system/components/RouteFlow'
+import { RouteColumn, RouteFlow, RouteRegion } from '@wow-mini/design-system/components/RouteFlow'
 import type { RouteDataState } from '@wow-mini/domain'
 
 import {
@@ -119,7 +119,7 @@ export default function BuildIntelPage() {
               >
                 <View className={styles['cardStack'] ?? ''}>
                   {model.cards.map((card, index) => (
-                    <View
+                    <RouteRegion
                       key={card.id}
                       className={[
                         styles['cardSlot'] ?? '',
@@ -150,14 +150,14 @@ export default function BuildIntelPage() {
                           onSecondary: () => runAction(card.secondaryAction, card),
                         } : {})}
                       />
-                    </View>
+                    </RouteRegion>
                   ))}
                 </View>
               </ScrollView>
             </View>
-            <View className={styles['disclaimer'] ?? ''}>
+            <RouteRegion className={styles['disclaimer'] ?? ''}>
               <BuildIntelDisclaimer copy={model.disclaimer} />
-            </View>
+            </RouteRegion>
           </RouteColumn>
         </PageFrame>
       </RouteFlow>

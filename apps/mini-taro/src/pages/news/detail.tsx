@@ -1,5 +1,4 @@
 import Taro, { usePullDownRefresh, useRouter } from '@tarojs/taro'
-import { View } from '@tarojs/components'
 import { useState } from 'react'
 
 import { wowApi } from '@wow-mini/api-client'
@@ -13,7 +12,7 @@ import {
   TranslationStatusSegments,
 } from '@wow-mini/design-system/components/NewsDetailComponents'
 import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
-import { RouteColumn, RouteFlow } from '@wow-mini/design-system/components/RouteFlow'
+import { RouteColumn, RouteFlow, RouteRegion } from '@wow-mini/design-system/components/RouteFlow'
 import type { RouteDataState } from '@wow-mini/domain'
 
 import {
@@ -74,7 +73,7 @@ export default function NewsDetailPage() {
           onBack={() => goBack('/pages/news/news')}
         >
           <RouteColumn>
-            <View className={`${styles['region'] ?? ''} ${styles['hero'] ?? ''}`}>
+            <RouteRegion className={`${styles['region'] ?? ''} ${styles['hero'] ?? ''}`}>
               <NewsDetailHero
                 loading={model.initialLoading}
                 sourceLabel={model.sourceLabel}
@@ -82,18 +81,18 @@ export default function NewsDetailPage() {
                 stateLabel={model.heroStateLabel}
                 title={model.articleTitle}
               />
-            </View>
-            <View className={`${styles['region'] ?? ''} ${styles['translation'] ?? ''}`}>
+            </RouteRegion>
+            <RouteRegion className={`${styles['region'] ?? ''} ${styles['translation'] ?? ''}`}>
               <TranslationStatusSegments
                 activeId={model.activeTranslationId}
                 items={model.translationSegments}
                 loading={model.initialLoading}
               />
-            </View>
-            <View className={`${styles['region'] ?? ''} ${styles['body'] ?? ''}`}>
+            </RouteRegion>
+            <RouteRegion className={`${styles['region'] ?? ''} ${styles['body'] ?? ''}`}>
               <ArticleReadingSurface blocks={model.bodyBlocks} loading={model.initialLoading} />
-            </View>
-            <View className={`${styles['region'] ?? ''} ${styles['source'] ?? ''}`}>
+            </RouteRegion>
+            <RouteRegion className={`${styles['region'] ?? ''} ${styles['source'] ?? ''}`}>
               <SourceReferenceAction
                 available={model.sourceAvailable}
                 sourceLabel={model.sourceLabel}
@@ -102,15 +101,15 @@ export default function NewsDetailPage() {
                   onCopy: () => copyText(model.sourceUrl, '来源链接已复制'),
                 } : {})}
               />
-            </View>
-            <View className={`${styles['region'] ?? ''} ${styles['evidence'] ?? ''}`}>
+            </RouteRegion>
+            <RouteRegion className={`${styles['region'] ?? ''} ${styles['evidence'] ?? ''}`}>
               <ArticleEvidencePanel
                 expanded={evidenceExpanded}
                 rows={model.evidenceRows}
                 onToggle={() => setEvidenceExpanded((current) => !current)}
               />
-            </View>
-            <View className={`${styles['region'] ?? ''} ${styles['terminal'] ?? ''}`}>
+            </RouteRegion>
+            <RouteRegion className={`${styles['region'] ?? ''} ${styles['terminal'] ?? ''}`}>
               <NewsDetailTerminalPanel
                 detail={model.terminal.detail}
                 mode={model.terminal.mode}
@@ -118,7 +117,7 @@ export default function NewsDetailPage() {
                 {...(model.terminal.actionLabel ? { actionLabel: model.terminal.actionLabel } : {})}
                 {...(model.terminal.action !== 'none' ? { onAction: handleTerminalAction } : {})}
               />
-            </View>
+            </RouteRegion>
           </RouteColumn>
         </PageFrame>
       </RouteFlow>

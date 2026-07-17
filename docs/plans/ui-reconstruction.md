@@ -32,7 +32,7 @@
 | --- | --- |
 | `AppShell` | 安全区、390px 设计舞台、背景和纵向滚动 |
 | `PageFrame` | root / pushed / pushed-action / chat 头部与胶囊避让 |
-| `RouteStage` / `RouteFlow` / `RouteColumn` / `RouteGrid` | 固定舞台、流式状态边界、纵向 composition 与首页 grid 基础；route 只保留 target 高度、区域坐标、网格行、滚动和内容特化 |
+| `RouteStage` / `RouteFlow` / `RouteColumn` / `RouteGrid` / `RouteRegion` | 固定舞台、流式状态边界、纵向 composition、首页 grid 与区域子视图填充基础；route 只保留 target 高度、区域坐标、网格行、滚动和内容特化 |
 | `ActionButton` / `ControlButton` | 微信原生控件的尺寸与状态归一 |
 | `ProductTabBar` | 四个一级页面的四等分导航、底部安全区和正文占位 |
 | `Surface/Frame` | 边框、纹理、阴影和 fallback |
@@ -55,7 +55,7 @@
 5. 工具链失败时保留 `UNVERIFIED` 和诊断结果，下一轮先恢复环境；不在实现任务中扩建监督器、端口发现器或第二套验证框架。
 6. 单元测试、构建和 DOM 几何用于阻断回归；视觉通过只来自 target/runtime 对比和用户确认。
 
-Review 窗口同时覆盖共享组件、页面 JSX 中的非组件 wrapper、route SCSS 和跨路由相似布局。完全同构的舞台、状态边界、column composition 或 grid composition 必须归共享 owner；只有 target 高度、区域坐标、网格行、滚动窗口或交互覆盖范围确实不同的布局才保留 route 特化。`audit:ui-architecture` 阻断页面直接拥有 route-state/target-region-count、重复实现 stage foundation，或在 route SCSS 重建共享 column/grid composition。
+Review 窗口同时覆盖共享组件、页面 JSX 中的非组件 wrapper、route SCSS 和跨路由相似布局。完全同构的舞台、状态边界、column/grid composition 或区域子视图填充必须归共享 owner；只有 target 高度、区域坐标、网格行、滚动窗口或交互覆盖范围确实不同的布局才保留 route 特化。`audit:ui-architecture` 阻断页面直接拥有 route-state/target-region-count、重复实现 stage foundation，或在 route SCSS 重建共享 column/grid/region composition。
 
 ## 收口审计
 

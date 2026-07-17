@@ -21,6 +21,8 @@ export type RouteGridProps = Omit<ComponentProps<typeof View>, 'children' | 'cla
   className?: string | undefined
 }
 
+export type RouteRegionProps = RouteGridProps
+
 export function RouteFlow({ children, className, routeState, variant = 'default' }: RouteFlowProps) {
   return (
     <View
@@ -50,6 +52,17 @@ export function RouteGrid({ children, className, ...props }: RouteGridProps) {
     <View
       {...props}
       className={ownerClass(ownerStyle('routeGrid'), className)}
+    >
+      {children}
+    </View>
+  )
+}
+
+export function RouteRegion({ children, className, ...props }: RouteRegionProps) {
+  return (
+    <View
+      {...props}
+      className={ownerClass(ownerStyle('routeRegion'), className)}
     >
       {children}
     </View>
