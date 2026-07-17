@@ -280,3 +280,17 @@ test('selected control verification is bounded and cannot launch DevTools', () =
   assert.match(verifier, /connectMiniProgram/)
   assert.doesNotMatch(verifier, /WECHAT_AUTOMATOR_LAUNCH/)
 })
+
+test('route geometry verification covers all routes without launching DevTools', () => {
+  const verifier = fs.readFileSync('scripts/verify-ui-route-geometry.js', 'utf8')
+  const contract = readJson('docs/design/current-ui/route-geometry-contract.json')
+  assert.equal(contract.routes.length, 14)
+  assert.ok(contract.tolerancePx <= 1)
+  assert.match(verifier, /GEOMETRY_ROUTES/)
+  assert.match(verifier, /region-horizontal/)
+  assert.match(verifier, /region-vertical/)
+  assert.match(verifier, /native-button-horizontal/)
+  assert.match(verifier, /violations\.slice\(0, 10\)/)
+  assert.match(verifier, /connectMiniProgram/)
+  assert.doesNotMatch(verifier, /WECHAT_AUTOMATOR_LAUNCH/)
+})

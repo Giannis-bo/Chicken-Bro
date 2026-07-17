@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "status": "active",
+  "authority": "docs/plans/ui-reconstruction.md",
+  "tolerancePx": 1,
+  "routes": [
+    { "route": "news_home", "path": "/pages/news/news" },
+    { "route": "specialization_home/builds_home", "path": "/pages/builds/builds" },
+    { "route": "current_spec_workbench", "path": "/pages/builds/workbench" },
+    { "route": "news_list", "path": "/pages/news/list" },
+    { "route": "news_detail", "path": "/pages/news/detail?id=architecture-preflight" },
+    { "route": "build_intel", "path": "/pages/builds/intel", "allowedVerticalOverflowRegions": ["build_card_overflow"] },
+    { "route": "talent_simulator", "path": "/pages/builds/talent-simulator", "unavailableRouteStates": ["stale", "error"] },
+    { "route": "gear_detail", "path": "/pages/builds/detail?query=gear" },
+    { "route": "simulator_home", "path": "/pages/simulator/simulator" },
+    { "route": "SimC_submit", "path": "/pages/simulator/simc", "allowedHorizontalOverflowButtonRoles": ["simc-specialization-option"] },
+    { "route": "chickenbro_chat", "path": "/pages/simulator/chickenbro" },
+    { "route": "tasks_list", "path": "/pages/simulator/tasks" },
+    { "route": "task_detail", "path": "/pages/simulator/task-detail?id=runtime-review" },
+    { "route": "profile/templates", "path": "/pages/profile/profile" }
+  ]
+}

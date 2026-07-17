@@ -123,6 +123,7 @@ record(
 const targetRegistry = JSON.parse(read('docs/design/current-ui/target-registry.json'))
 const interactionContract = JSON.parse(read('docs/design/current-ui/core-interaction-contract.json'))
 const selectedControlContract = JSON.parse(read('docs/design/current-ui/selected-control-contract.json'))
+const routeGeometryContract = JSON.parse(read('docs/design/current-ui/route-geometry-contract.json'))
 const evidencePolicy = JSON.parse(read('docs/design/current-ui/active-evidence-policy.json'))
 const runtimeReviewContract = JSON.parse(read('docs/design/current-ui/runtime-review-contract.json'))
 const runtimeReviewStatus = JSON.parse(read('docs/design/current-ui/runtime-review-status.json'))
@@ -135,7 +136,7 @@ const expectedInteractionAcceptance = expectedInteractionStatus === 'verified'
     : 'pending_real_wechat_core_interaction_matrix'
 record(
   'runtime_review_records_are_authoritative_inputs',
-  ['docs/design/current-ui/runtime-review-contract.json', 'docs/design/current-ui/runtime-review-status.json', 'docs/design/current-ui/selected-control-contract.json']
+  ['docs/design/current-ui/runtime-review-contract.json', 'docs/design/current-ui/runtime-review-status.json', 'docs/design/current-ui/selected-control-contract.json', 'docs/design/current-ui/route-geometry-contract.json']
     .every((file) => evidencePolicy.authoritativeInputs?.includes(file)),
   `schemaVersion=${evidencePolicy.schemaVersion}`,
 )
@@ -433,6 +434,24 @@ record(
     && /connectMiniProgram/u.test(read('scripts/verify-ui-selected-states.js'))
     && !/WECHAT_AUTOMATOR_LAUNCH/u.test(read('scripts/verify-ui-selected-states.js')),
   'selected-state verification must never launch or reload DevTools',
+)
+const geometryRouteKeys = routeGeometryContract.routes?.map((route) => route.route) ?? []
+record(
+  'runtime_geometry_contract_covers_delivery_routes',
+  routeGeometryContract.status === 'active'
+    && routeGeometryContract.tolerancePx <= 1
+    && geometryRouteKeys.length === 14
+    && new Set(geometryRouteKeys).size === 14
+    && routeGeometryContract.routes.every((route) => interactionContract.interactions.some((interaction) => interaction.route === route.route && interaction.path === route.path)),
+  `routes=${geometryRouteKeys.length}; tolerance=${routeGeometryContract.tolerancePx}`,
+)
+record(
+  'runtime_geometry_verifier_reuses_existing_devtools_only',
+  fs.existsSync(path.join(root, 'scripts/verify-ui-route-geometry.js'))
+    && /connectMiniProgram/u.test(read('scripts/verify-ui-route-geometry.js'))
+    && /native-button-horizontal/u.test(read('scripts/verify-ui-route-geometry.js'))
+    && !/WECHAT_AUTOMATOR_LAUNCH/u.test(read('scripts/verify-ui-route-geometry.js')),
+  '14-route geometry verification must remain bounded and never launch or reload DevTools',
 )
 record(
   'shared_native_buttons_cannot_exceed_their_layout_cell',

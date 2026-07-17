@@ -16,6 +16,7 @@
 | 最终微信验收必须记录什么 | `runtime-review-contract.json` |
 | 每条路由必须验证哪个核心交互 | `core-interaction-contract.json` |
 | 哪些按钮组必须保证唯一激活材质 | `selected-control-contract.json`、`npm run verify:ui-selected-states` |
+| 14 路由和原生按钮是否越出微信视口 | `route-geometry-contract.json`、`npm run verify:ui-route-geometry` |
 | 如何把隔离缓存晋级为不可变运行态 artifact | `npm run promote:ui-review-cache` |
 
 `artifacts/ui-visual-targets/current/` 保存 canonical target 本体。目录存在、源码可编译、DOM/AX 元素存在和单元测试通过只证明对应工程事实；视觉状态由 target/runtime 微信复核决定。
