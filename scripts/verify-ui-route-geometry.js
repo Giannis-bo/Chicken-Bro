@@ -61,12 +61,13 @@ async function inspect(page, route, viewport) {
   const allowedVerticalButtonRoles = route.allowedVerticalOverflowButtonRoles ?? []
   const initialSafeAreaButtonRoles = route.initialSafeAreaButtonRoles ?? []
   const initialSafeAreaRegionIds = route.initialSafeAreaRegionIds ?? []
-  const [shell, shellBody, tabBar, regions, buttons, dockButtons, state] = await Promise.all([
+  const [shell, shellBody, tabBar, regions, buttons, controlCells, dockButtons, state] = await Promise.all([
     timeout(page.$('.wx-style-shell'), 4000, 'query route shell'),
     timeout(page.$('.wx-style-shellbody'), 4000, 'query route shell body'),
     timeout(page.$('.wx-style-product-tab-bar'), 4000, 'query product tab bar'),
     timeout(page.$$('.wx-style-routeregion'), 4000, 'query route regions'),
     timeout(page.$$('button'), 4000, 'query native buttons'),
+    timeout(page.$$('.wx-data-control-cell'), 4000, 'query control layout cells'),
     timeout(page.$$('.wx-style-shelldock button'), 4000, 'query fixed dock buttons'),
     unavailableState(page, route.unavailableRouteStates),
   ])
@@ -123,6 +124,13 @@ async function inspect(page, route, viewport) {
       paddingBottom: Number.parseFloat(String(paddingBottom)) || 0,
     })) : null,
   ])
+  const controlCellBounds = await Promise.all(controlCells.map(async (element) => {
+    const [geometry, roles] = await Promise.all([
+      bounds(element),
+      timeout(element.attribute('data-control-roles'), 1500, 'read control cell roles'),
+    ])
+    return { ...geometry, roles: String(roles ?? '').split(',').map((role) => role.trim()).filter(Boolean) }
+  }))
   const violations = []
   if (!shellBounds) violations.push({ type: 'missing-shell' })
   else if (shellBounds.left < -tolerance || shellBounds.right > viewport.width + tolerance) violations.push({ type: 'shell-horizontal', left: shellBounds.left, right: shellBounds.right })
@@ -149,6 +157,18 @@ async function inspect(page, route, viewport) {
       violations.push({ type: 'native-button-vertical', index, role: button.role || null, actionId: button.actionId || null, top: button.top, bottom: button.bottom, height: button.height })
     }
   })
+  for (const cell of controlCellBounds) {
+    if (cell.roles.length === 0) violations.push({ type: 'anonymous-control-cell' })
+    for (const role of cell.roles) {
+      const candidates = buttonBounds.filter((candidate) => candidate.role === role)
+      const contained = candidates.some((button) => button.left >= cell.left - tolerance && button.right <= cell.right + tolerance && button.top >= cell.top - tolerance && button.bottom <= cell.bottom + tolerance)
+      if (candidates.length === 0) {
+        violations.push({ type: 'missing-control-cell-button', role })
+      } else if (!contained) {
+        violations.push({ type: 'native-button-cell-overflow', role, buttons: candidates, cell: { left: cell.left, top: cell.top, right: cell.right, bottom: cell.bottom } })
+      }
+    }
+  }
   const safeAreaBottom = viewport.safeAreaBottom
   const safeBottomInset = viewport.safeBottomInset
   for (const regionId of initialSafeAreaRegionIds) {
@@ -190,6 +210,7 @@ async function inspect(page, route, viewport) {
     requiredRegionCount: (route.requiredRegionIds ?? []).length,
     missingRequiredRegionCount: (route.requiredRegionIds ?? []).filter((id) => !presentRegionIds.has(id)).length,
     buttonCount: buttonBounds.length,
+    controlCellCount: controlCellBounds.length,
     anonymousButtonCount: buttonBounds.filter((button) => !button.role && !button.actionId).length,
     maxRegionRight: Math.max(0, ...regionBounds.map((item) => item.right)),
     shellRight: shellBounds?.right ?? null,

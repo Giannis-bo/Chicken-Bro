@@ -714,6 +714,11 @@ record(
   'layout safety must come from mounted AppShell, RouteStage and RouteFlow owners rather than unreachable legacy CSS',
 )
 record(
+  'route_geometry_has_no_native_button_overflow_exemptions',
+  routeGeometryContract.routes.every((route) => (route.allowedVerticalOverflowButtonRoles ?? []).length === 0),
+  'native buttons must fit their mounted control cells instead of bypassing vertical geometry review',
+)
+record(
   'news_translation_has_one_state_material_owner',
   /\.newsDetailTranslationLabel\s*\{[^}]*border:\s*0;[^}]*background:\s*transparent;[^}]*box-shadow:\s*none;/su.test(reconstructionStyles)
     && /\.newsDetailTranslationSegments\s*\{[^}]*border:\s*0;[^}]*background:\s*transparent;[^}]*box-shadow:\s*none;/su.test(reconstructionStyles)

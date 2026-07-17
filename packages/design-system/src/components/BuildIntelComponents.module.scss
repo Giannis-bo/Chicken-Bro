@@ -419,6 +419,8 @@
 .cardActions {
   display: grid;
   min-width: 0;
+  min-height: 0;
+  grid-template-rows: 36px 26px;
   align-content: start;
   gap: 4px;
   overflow: hidden;
@@ -447,7 +449,8 @@ button.secondaryAction {
 
 .primaryAction {
   position: relative;
-  min-height: 36px;
+  height: 36px;
+  min-height: 0;
   padding: 0 6px;
   border: 1px solid rgba(218, 171, 77, 0.94);
   border-radius: 0;
@@ -486,7 +489,8 @@ button.secondaryAction {
 .primaryActionGlyph { width: 16px; height: 16px; filter: brightness(0.56) saturate(0.72); }
 
 .secondaryAction {
-  min-height: 26px;
+  height: 26px;
+  min-height: 0;
   padding: 0 4px;
   border: 1px solid rgba(184, 139, 70, 0.54);
   background: linear-gradient(180deg, rgba(58, 47, 31, 0.72), rgba(15, 18, 21, 0.88));

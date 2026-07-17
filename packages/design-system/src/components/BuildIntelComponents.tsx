@@ -278,7 +278,10 @@ export function BuildIntelCard({
               </>
             )}
           </View>
-          <View className={componentStyle('cardActions')}>
+          <View
+            className={componentClass(componentStyle('cardActions'), 'wx-data-control-cell')}
+            data-control-roles="build-intel-primary-action,build-intel-secondary-action"
+          >
             <ControlButton
               aria-label={primaryLabel}
               className={componentClass(
