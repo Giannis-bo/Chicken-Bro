@@ -31,7 +31,8 @@
     "promote:ui-selected-states": "node scripts/promote-ui-selected-state-review.js",
     "verify:ui-asset-slots": "node scripts/verify-ui-asset-slots.js",
     "promote:ui-asset-slots": "node scripts/promote-ui-asset-slot-review.js",
-    "verify:ui-package": "node scripts/verify-ui-package.js"
+    "verify:ui-package": "node scripts/verify-ui-package.js",
+    "verify:ui-asset-integrity": "node scripts/verify-ui-asset-integrity.js"
   },
   "devDependencies": {
     "@babel/parser": "7.29.7",

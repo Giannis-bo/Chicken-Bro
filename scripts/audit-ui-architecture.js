@@ -664,6 +664,16 @@ record(
     && /route\.slotCount < 1/u.test(assetSlotPromotion),
   'a route with no rendered asset elements or slots must fail verification and immutable promotion',
 )
+const assetIntegrityVerifier = read('scripts/verify-ui-asset-integrity.js')
+record(
+  'raster_runtime_files_are_byte_and_hash_verified',
+  /createHash\('sha256'\)/u.test(assetIntegrityVerifier)
+    && /runtime asset byte mismatch/u.test(assetIntegrityVerifier)
+    && /runtime asset hash mismatch/u.test(assetIntegrityVerifier)
+    && /failures\.slice\(0, 10\)/u.test(assetIntegrityVerifier)
+    && !/sharp|canvas|screenshot|connectMiniProgram/iu.test(assetIntegrityVerifier),
+  'all manifest runtime raster files must match recorded bytes and SHA-256 without loading image payloads',
+)
 record(
   'build_intel_disclaimer_stays_inside_the_wechat_viewport',
   /\.cardViewport\s*\{[^}]*height:\s*498\.75px;/su.test(read('apps/mini-taro/src/pages/builds/build-intel.module.scss')),
