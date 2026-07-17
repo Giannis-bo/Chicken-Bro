@@ -162,6 +162,21 @@
   flex-direction: column;
 }
 
+.routeGrid {
+  display: grid;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  margin-right: auto;
+  margin-left: auto;
+}
+
+.routeGrid > view,
+.routeGrid > picker,
+.routeGrid > taro-picker-core {
+  min-width: 0;
+}
+
 .frame {
   width: 100%;
   max-width: 720px;

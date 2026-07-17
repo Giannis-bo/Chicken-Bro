@@ -15,6 +15,7 @@ import {
 } from '@wow-mini/design-system/components/BuildWorkflowTimeline'
 import { BuildWorkspaceEntry } from '@wow-mini/design-system/components/BuildWorkspaceEntry'
 import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
+import { RouteGrid } from '@wow-mini/design-system/components/RouteFlow'
 
 import { flattenSpecs } from '../_shared/build-context'
 import { navigateTo, useAsyncRoute } from '../_shared/route-runtime'
@@ -100,7 +101,7 @@ export default function BuildsHomePage() {
         title={model.title}
         variant="builds-home"
       >
-        <View
+        <RouteGrid
           className={styles['surface'] ?? ''}
           data-owner="builds-home-surface"
           data-refreshing={model.refreshing ? 'true' : 'false'}
@@ -165,7 +166,7 @@ export default function BuildsHomePage() {
               onSelect={openWorkflow}
             />
           </View>
-        </View>
+        </RouteGrid>
       </PageFrame>
     </AppShell>
   )

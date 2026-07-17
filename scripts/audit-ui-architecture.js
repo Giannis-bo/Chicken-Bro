@@ -179,7 +179,7 @@ for (const authority of requiredAuthorities) {
   record(`authority:${authority}`, fs.existsSync(path.join(root, authority)), 'missing')
 }
 
-const deadShellRules = routeStyles.filter((file) => /^\.shell(?:\b|,)/m.test(read(file)))
+const deadShellRules = routeStyles.filter((file) => /^\s*\.shell(?:\b|,)/m.test(read(file)))
 record('route_styles_do_not_own_app_shell', deadShellRules.length === 0, deadShellRules.join(', ') || 'none')
 
 const routeSafeAreaOwners = routeSources.filter((file) => /--(?:safe-top|safe-bottom|capsule-safe-right)\b/.test(read(file)))
@@ -200,10 +200,11 @@ record(
 const routeStageConsumers = routeComponents.filter((file) => /<RouteStage\b/u.test(read(file)))
 const routeFlowConsumers = routeComponents.filter((file) => /<RouteFlow\b/u.test(read(file)))
 const routeColumnConsumers = routeComponents.filter((file) => /<RouteColumn\b/u.test(read(file)))
+const routeGridConsumers = routeComponents.filter((file) => /<RouteGrid\b/u.test(read(file)))
 record(
   'shared_route_layout_owners_cover_current_layout_families',
-  routeStageConsumers.length === 8 && routeFlowConsumers.length === 3 && routeColumnConsumers.length === 4,
-  `stage=${routeStageConsumers.length}; flow=${routeFlowConsumers.length}; column=${routeColumnConsumers.length}`,
+  routeStageConsumers.length === 8 && routeFlowConsumers.length === 3 && routeColumnConsumers.length === 4 && routeGridConsumers.length === 2,
+  `stage=${routeStageConsumers.length}; flow=${routeFlowConsumers.length}; column=${routeColumnConsumers.length}; grid=${routeGridConsumers.length}`,
 )
 
 const privateStageFoundationOwners = routeStyles.filter((file) => {
@@ -224,6 +225,16 @@ record(
   'route_styles_do_not_reimplement_shared_column_composition',
   privateColumnOwners.length === 0,
   privateColumnOwners.join(', ') || 'none',
+)
+
+const privateGridOwners = routeStyles.filter((file) => {
+  const surfaceRule = read(file).match(/\.surface\s*\{([\s\S]*?)\}/u)?.[1] ?? ''
+  return /display\s*:\s*grid/u.test(surfaceRule) && /(?:min-width\s*:\s*0|margin\s*:\s*[^;]*auto)/u.test(surfaceRule)
+})
+record(
+  'route_styles_do_not_reimplement_shared_grid_composition',
+  privateGridOwners.length === 0,
+  privateGridOwners.join(', ') || 'none',
 )
 
 const deprecatedAppShellProps = []

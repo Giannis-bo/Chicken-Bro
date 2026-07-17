@@ -1,5 +1,4 @@
 import Taro, { usePullDownRefresh } from '@tarojs/taro'
-import { View } from '@tarojs/components'
 import { useMemo, useState } from 'react'
 
 import { wowApi } from '@wow-mini/api-client'
@@ -14,6 +13,7 @@ import {
 } from '@wow-mini/design-system/components/FeaturedCarousel'
 import { NewsHomeBrief } from '@wow-mini/design-system/components/NewsHomeBrief'
 import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
+import { RouteGrid } from '@wow-mini/design-system/components/RouteFlow'
 import {
   RankedFeed,
   type RankedFeedItem,
@@ -88,7 +88,7 @@ export default function NewsHomePage() {
         title={model.title}
         variant="news-home"
       >
-        <View className={styles['surface'] ?? ''} data-owner="news-home-surface">
+        <RouteGrid className={styles['surface'] ?? ''} data-owner="news-home-surface">
           <NewsHomeBrief
             dateLabel={model.daily.dateLabel}
             loading={model.initialLoading}
@@ -136,7 +136,7 @@ export default function NewsHomePage() {
             onSelect={(item) => openArticle(item.id)}
             onToggleSaved={toggleSavedArticle}
           />
-        </View>
+        </RouteGrid>
       </PageFrame>
     </AppShell>
   )

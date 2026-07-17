@@ -1,5 +1,5 @@
 import { View } from '@tarojs/components'
-import type { ReactNode } from 'react'
+import type { ComponentProps, ReactNode } from 'react'
 
 import { ownerClass, ownerStyle } from './style'
 
@@ -14,6 +14,11 @@ export interface RouteColumnProps {
   children: ReactNode
   className?: string | undefined
   routeState?: string | undefined
+}
+
+export type RouteGridProps = Omit<ComponentProps<typeof View>, 'children' | 'className'> & {
+  children: ReactNode
+  className?: string | undefined
 }
 
 export function RouteFlow({ children, className, routeState, variant = 'default' }: RouteFlowProps) {
@@ -34,6 +39,17 @@ export function RouteColumn({ children, className, routeState }: RouteColumnProp
       className={ownerClass(ownerStyle('routeColumn'), className)}
       data-owner="route-column"
       data-route-state={routeState}
+    >
+      {children}
+    </View>
+  )
+}
+
+export function RouteGrid({ children, className, ...props }: RouteGridProps) {
+  return (
+    <View
+      {...props}
+      className={ownerClass(ownerStyle('routeGrid'), className)}
     >
       {children}
     </View>
