@@ -2467,18 +2467,26 @@ def attribute_rule_audit_health_component(*, store=None, now=""):
     pending = int(queue.get("pending") or 0)
     running = int(queue.get("running") or 0)
     blockers = ["confirmed attribute rule mismatch requires a new rule revision review"] if confirmed else []
-    if confirmed:
+    has_audit_activity = any((pending, running, passed, confirmed, unavailable, inconclusive))
+    if not has_audit_activity:
+        status = "verified"
+        audit_state = "not_applicable"
+    elif confirmed:
         status = "blocked"
+        audit_state = "finding"
     elif unavailable or inconclusive or pending or running or not passed:
         status = "partial"
+        audit_state = "incomplete"
     else:
         status = "verified"
+        audit_state = "passed"
     return data_health_component(
         "attribute_rule_audit",
         "Winner attribute rule audit",
         status,
         checked_at=str(summary.get("latestCheckedAt") or checked_at),
         details={
+            "auditState": audit_state,
             "queue": {"pending": pending, "running": running},
             "terminalCounts": {
                 "pass": passed,

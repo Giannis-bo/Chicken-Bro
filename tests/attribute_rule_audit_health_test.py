@@ -13,6 +13,21 @@ class AuditStore:
 
 
 class AttributeRuleAuditHealthTest(unittest.TestCase):
+    def test_empty_ledger_is_healthy_but_declares_audit_not_applicable(self):
+        component = news_backend.attribute_rule_audit_health_component(
+            store=AuditStore({
+                "queue": {"pending": 0, "running": 0},
+                "terminalCounts": {"pass": 0, "confirmedMismatch": 0, "inconclusive": 0, "sourceUnavailable": 0},
+                "latestCheckedAt": "2026-07-17T04:00:00+00:00",
+                "findingRuleContexts": [],
+            }),
+            now="2026-07-17T04:00:00+00:00",
+        )
+
+        self.assertEqual(component["status"], "verified")
+        self.assertEqual(component["details"]["auditState"], "not_applicable")
+        self.assertEqual(component["blockers"], [])
+
     def test_missing_store_is_truthful_blocked_component(self):
         component = news_backend.attribute_rule_audit_health_component(store=None, now="2026-07-17T04:00:00+00:00")
 
