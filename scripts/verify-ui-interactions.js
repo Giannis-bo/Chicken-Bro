@@ -145,6 +145,12 @@ async function runCase(results, definition, action) {
 }
 
 async function main() {
+  const knownRouteIds = new Set(coreInteractionContract.interactions.map((interaction) => interaction.route))
+  const unknownRoutes = [...requestedRoutes].filter((route) => !knownRouteIds.has(route))
+  if (unknownRoutes.length > 0) {
+    throw new Error(`unknown INTERACTION_ROUTES: ${unknownRoutes.join(', ')}`)
+  }
+
   let miniProgram
   try {
     miniProgram = await connectMiniProgram()
