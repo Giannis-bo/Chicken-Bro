@@ -89,6 +89,8 @@ SimC profile / worker ──> DPS、场景模拟、复杂条件效果、后台�
 
 生产规则的来源、黄金样本与覆盖范围由 [属性规则来源账本](../../gear-attribute-rule-source-ledger.md) 管理。`fixture_only` 规则只可用于本地双端算术测试，不能随公开 `attributeCalculator` 发布；账本未完成时必须 fail-closed。
 
+当前候选规则模型已提供严格的 `ratingTransform` 表达：`{ kind: "piecewise_linear", ratingPerPercent, points, outOfRange: "clamp" }`。两端对每一段作相同插值，并只接受单调、有限且有界的源点；发布验证拒绝以裸 `ratingPerPercent`、两点或共线伪曲线作为 `verified` 规则。结果 `inputSignature` 绑定完整运算规则，而非只绑定规则 revision，防止未递增 revision 的规则改写伪装为相同结果。该模型可精确承载已核验的 DBC 曲线，但不替代对职业基础、稳定天赋、资源和物品输入的来源审计。
+
 ### 5.2 小程序热路径
 
 页面在获得已解析的候选物品与规则上下文后，针对每一次**已确认**的装备、宝石、附魔或模板应用，在本地同步重算。一次重算必须：

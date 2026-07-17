@@ -20,6 +20,18 @@ def verified_rulebook():
     context["status"] = "verified"
     context["sourceRefs"] = ["test:verified-source"]
     context["goldenSampleIds"] = ["test:mage-frost-human"]
+    for secondary_rule in context["secondaryRules"]:
+        rating_per_percent = secondary_rule.pop("ratingPerPercent")
+        secondary_rule["ratingTransform"] = {
+            "kind": "piecewise_linear",
+            "ratingPerPercent": rating_per_percent,
+            "points": [
+                {"input": 0, "output": 0},
+                {"input": 10, "output": 10},
+                {"input": 20, "output": 19},
+            ],
+            "outOfRange": "clamp",
+        }
     return rulebook
 
 
@@ -153,6 +165,43 @@ class GearAttributeRulesTest(unittest.TestCase):
         parsed, issues = gear_attribute_rules.validate_attribute_rulebook(missing_golden)
         self.assertIsNone(parsed)
         self.assertTrue(any(issue["code"] == "MISSING_GOLDEN_SAMPLE" for issue in issues))
+
+    def test_verified_rulebook_rejects_legacy_linear_rating_conversion(self):
+        rulebook = fixture_rulebook()
+        context = rulebook["contexts"][0]
+        context["status"] = "verified"
+        context["sourceRefs"] = ["test:verified-source"]
+        context["goldenSampleIds"] = ["test:mage-frost-human"]
+
+        parsed, issues = gear_attribute_rules.validate_attribute_rulebook(rulebook)
+
+        self.assertIsNone(parsed)
+        self.assertTrue(any(issue["code"] == "LEGACY_LINEAR_TRANSFORM_NOT_PROMOTABLE" for issue in issues))
+
+    def test_verified_rulebook_rejects_a_two_point_curve_disguised_as_a_transform(self):
+        rulebook = verified_rulebook()
+        rulebook["contexts"][0]["secondaryRules"][0]["ratingTransform"]["points"] = [
+            {"input": 0, "output": 0},
+            {"input": 1000, "output": 1000},
+        ]
+
+        parsed, issues = gear_attribute_rules.validate_attribute_rulebook(rulebook)
+
+        self.assertIsNone(parsed)
+        self.assertTrue(any(issue["code"] == "INSUFFICIENT_CURVE_EVIDENCE_FOR_PROMOTION" for issue in issues))
+
+    def test_verified_rulebook_rejects_a_collinear_curve_disguised_as_a_transform(self):
+        rulebook = verified_rulebook()
+        rulebook["contexts"][0]["secondaryRules"][0]["ratingTransform"]["points"] = [
+            {"input": 0, "output": 0},
+            {"input": 10, "output": 10},
+            {"input": 20, "output": 20},
+        ]
+
+        parsed, issues = gear_attribute_rules.validate_attribute_rulebook(rulebook)
+
+        self.assertIsNone(parsed)
+        self.assertTrue(any(issue["code"] == "LINEAR_CURVE_NOT_PROMOTABLE" for issue in issues))
 
     def test_rulebook_rejects_duplicate_secondary_output_keys(self):
         duplicate = fixture_rulebook()

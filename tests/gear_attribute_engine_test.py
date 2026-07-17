@@ -64,6 +64,50 @@ class GearAttributeEngineTest(unittest.TestCase):
             [{"effectId": "fixture:not-allowed", "included": False, "reason": "UNSUPPORTED_STABLE_EFFECT"}],
         )
 
+    def test_piecewise_curve_matches_official_frost_avoidance_sample(self):
+        fixture = fixture_cases()[0]
+        rule = copy.deepcopy(fixture["rule"])
+        rule["secondaryRules"] = [{
+            "inputKey": "avoidance_rating",
+            "outputKey": "avoidance",
+            "label": "闪避",
+            "basePercent": 0,
+            "ratingTransform": {
+                "kind": "piecewise_linear",
+                "ratingPerPercent": 36.80052531,
+                "points": [
+                    {"input": 0, "output": 0},
+                    {"input": 0.5, "output": 0.5},
+                    {"input": 10, "output": 10},
+                    {"input": 15, "output": 14},
+                    {"input": 20, "output": 17},
+                    {"input": 25, "output": 19},
+                    {"input": 100, "output": 49},
+                ],
+                "outOfRange": "clamp",
+            },
+            "precision": 6,
+            "sourceRefs": ["simc:dbc:curve:21025"],
+            "displayUnit": "percent",
+        }]
+
+        result = calculate_noncombat_attributes(
+            rule,
+            fixture["characterContext"],
+            {"avoidance_rating": 470},
+            [],
+        )
+
+        self.assertEqual(result["status"], "calculated")
+        self.assertEqual(result["secondary"], [{
+            "key": "avoidance",
+            "label": "闪避",
+            "rawValue": 470,
+            "value": "470",
+            "convertedValue": "12.217245%",
+            "displayUnit": "percent",
+        }])
+
     def test_invalid_conversion_or_missing_rule_has_no_numeric_final_panel(self):
         fixture = fixture_cases()[0]
         invalid_rule = copy.deepcopy(fixture["rule"])
@@ -125,12 +169,21 @@ class GearAttributeEngineTest(unittest.TestCase):
             fixture["staticAttributes"],
             fixture["stableEffects"],
         )
+        changed_conversion_rule = copy.deepcopy(fixture["rule"])
+        changed_conversion_rule["secondaryRules"][0]["ratingPerPercent"] = 36
+        changed_conversion = calculate_noncombat_attributes(
+            changed_conversion_rule,
+            fixture["characterContext"],
+            fixture["staticAttributes"],
+            fixture["stableEffects"],
+        )
 
         baseline_signature = baseline["inputSignature"]
         self.assertNotEqual(baseline_signature, changed_race["inputSignature"])
         self.assertNotEqual(baseline_signature, changed_static["inputSignature"])
         self.assertNotEqual(baseline_signature, changed_modifier["inputSignature"])
         self.assertNotEqual(baseline_signature, changed_revision["inputSignature"])
+        self.assertNotEqual(baseline_signature, changed_conversion["inputSignature"])
 
 
 if __name__ == "__main__":

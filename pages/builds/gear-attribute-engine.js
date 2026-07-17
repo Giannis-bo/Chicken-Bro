@@ -1,5 +1,6 @@
 const ATTRIBUTE_CALCULATION_CONTRACT_REVISION = 'gear-attribute-calculation-v1'
 const MAX_IDENTIFIER_LENGTH = 256
+const MAX_RATING_TRANSFORM_POINTS = 128
 
 const STATIC_ATTRIBUTE_ALIASES = {
   int: 'intellect',
@@ -208,6 +209,61 @@ function resourceRows(resources, attributes) {
   return { value: rows }
 }
 
+function piecewiseRatingValue(rawValue, transform, path) {
+  const requiredKeys = ['kind', 'ratingPerPercent', 'points', 'outOfRange']
+  if (!transform || typeof transform !== 'object' || Array.isArray(transform) || Object.keys(transform).length !== requiredKeys.length || requiredKeys.some((key) => !(key in transform))) {
+    return { issue: issue('INVALID_RATING_TRANSFORM', path, 'ratingTransform must be an exact piecewise-linear transform') }
+  }
+  if (transform.kind !== 'piecewise_linear' || transform.outOfRange !== 'clamp') {
+    return { issue: issue('INVALID_RATING_TRANSFORM', path, 'ratingTransform must declare piecewise_linear clamp semantics') }
+  }
+  const ratingPerPercent = finiteNumber(transform.ratingPerPercent)
+  if (ratingPerPercent === null || ratingPerPercent <= 0) {
+    return { issue: issue('INVALID_RATING_CONVERSION', `${path}.ratingPerPercent`, 'ratingPerPercent must be a finite number greater than zero') }
+  }
+  if (!Array.isArray(transform.points) || transform.points.length < 2 || transform.points.length > MAX_RATING_TRANSFORM_POINTS) {
+    return { issue: issue('INVALID_RATING_TRANSFORM', `${path}.points`, 'ratingTransform points must contain two to 128 points') }
+  }
+
+  const points = []
+  let previousInput = null
+  let previousOutput = null
+  for (let index = 0; index < transform.points.length; index += 1) {
+    const point = transform.points[index]
+    const pointPath = `${path}.points[${index}]`
+    if (!point || typeof point !== 'object' || Array.isArray(point) || Object.keys(point).length !== 2 || !('input' in point) || !('output' in point)) {
+      return { issue: issue('INVALID_RATING_TRANSFORM', pointPath, 'curve points require only finite input and output values') }
+    }
+    const input = finiteNumber(point.input)
+    const output = finiteNumber(point.output)
+    if (input === null || output === null || input < 0 || output < 0) {
+      return { issue: issue('INVALID_RATING_TRANSFORM', pointPath, 'curve point values must be finite and non-negative') }
+    }
+    if (previousInput !== null && input <= previousInput) {
+      return { issue: issue('INVALID_RATING_TRANSFORM', `${pointPath}.input`, 'curve point inputs must be strictly increasing') }
+    }
+    if (previousOutput !== null && output < previousOutput) {
+      return { issue: issue('INVALID_RATING_TRANSFORM', `${pointPath}.output`, 'curve point outputs must be non-decreasing') }
+    }
+    points.push({ input, output })
+    previousInput = input
+    previousOutput = output
+  }
+
+  const curveInput = rawValue / ratingPerPercent
+  if (curveInput <= points[0].input) return { value: points[0].output }
+  if (curveInput >= points[points.length - 1].input) return { value: points[points.length - 1].output }
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const lower = points[index]
+    const upper = points[index + 1]
+    if (curveInput <= upper.input) {
+      const ratio = (curveInput - lower.input) / (upper.input - lower.input)
+      return { value: lower.output + (upper.output - lower.output) * ratio }
+    }
+  }
+  return { issue: issue('INVALID_RATING_TRANSFORM', path, 'curve interpolation did not resolve') }
+}
+
 function secondaryRows(secondaryRules, attributes) {
   const rows = []
   const outputKeys = new Set()
@@ -220,7 +276,6 @@ function secondaryRows(secondaryRules, attributes) {
     const inputKey = boundedKey(definition.inputKey)
     const outputKey = boundedKey(definition.outputKey)
     const basePercent = finiteNumber(definition.basePercent)
-    const ratingPerPercent = finiteNumber(definition.ratingPerPercent)
     const precision = definition.precision
     const displayUnit = definition.displayUnit
     if (!inputKey || !outputKey || typeof definition.label !== 'string' || !definition.label.trim()) {
@@ -228,8 +283,8 @@ function secondaryRows(secondaryRules, attributes) {
     }
     if (outputKeys.has(outputKey)) return { issue: issue('DUPLICATE_OUTPUT_KEY', `${path}.outputKey`, 'secondary output keys must be unique') }
     outputKeys.add(outputKey)
-    if (basePercent === null || ratingPerPercent === null || ratingPerPercent <= 0) {
-      return { issue: issue('INVALID_RATING_CONVERSION', `${path}.ratingPerPercent`, 'ratingPerPercent must be a finite number greater than zero') }
+    if (basePercent === null) {
+      return { issue: issue('INVALID_RATING_CONVERSION', `${path}.basePercent`, 'basePercent must be a finite number') }
     }
     if (!Number.isInteger(precision) || precision < 0 || precision > 6) {
       return { issue: issue('INVALID_PRECISION', `${path}.precision`, 'precision must be an integer from 0 to 6') }
@@ -239,7 +294,21 @@ function secondaryRows(secondaryRules, attributes) {
     }
     const canonicalInputKey = STATIC_ATTRIBUTE_ALIASES[inputKey] || inputKey
     const rawValue = attributes[canonicalInputKey] || 0
-    const convertedValue = basePercent + rawValue / ratingPerPercent
+    let convertedValue
+    if ('ratingTransform' in definition) {
+      if ('ratingPerPercent' in definition) {
+        return { issue: issue('INVALID_RATING_TRANSFORM', path, 'secondary rules must use exactly one rating conversion model') }
+      }
+      const transformed = piecewiseRatingValue(rawValue, definition.ratingTransform, `${path}.ratingTransform`)
+      if (transformed.issue) return transformed
+      convertedValue = basePercent + transformed.value
+    } else {
+      const ratingPerPercent = finiteNumber(definition.ratingPerPercent)
+      if (ratingPerPercent === null || ratingPerPercent <= 0) {
+        return { issue: issue('INVALID_RATING_CONVERSION', `${path}.ratingPerPercent`, 'ratingPerPercent must be a finite number greater than zero') }
+      }
+      convertedValue = basePercent + rawValue / ratingPerPercent
+    }
     rows.push({
       key: outputKey,
       label: definition.label,
@@ -342,11 +411,17 @@ function inputSignature(rule, raceKey, staticAttributes, effectIds) {
     attributeRuleRevision: rule.attributeRuleRevision,
     contextKey: rule.contextKey,
     raceKey,
+    calculationRule: {
+      primaryKey: rule.primaryKey,
+      baseAttributes: rule.baseAttributes,
+      stableModifiers: rule.stableModifiers,
+      resources: rule.resources,
+      secondaryRules: rule.secondaryRules
+    },
     staticAttributes: Object.keys(staticAttributes).sort().reduce((output, key) => {
       output[key] = cleanNumber(staticAttributes[key])
       return output
     }, {}),
-    stableModifiers: rule.stableModifiers,
     stableEffects: effectIds
   }
   return `sha256:${sha256Hex(canonicalJson(payload))}`

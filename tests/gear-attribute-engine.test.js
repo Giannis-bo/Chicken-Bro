@@ -57,6 +57,51 @@ test('unrecognized stable effects remain conditional and never change totals', (
   ])
 })
 
+test('piecewise curve matches official Frost avoidance sample', () => {
+  const fixture = fixtures.cases[0]
+  const rule = structuredClone(fixture.rule)
+  rule.secondaryRules = [{
+    inputKey: 'avoidance_rating',
+    outputKey: 'avoidance',
+    label: '闪避',
+    basePercent: 0,
+    ratingTransform: {
+      kind: 'piecewise_linear',
+      ratingPerPercent: 36.80052531,
+      points: [
+        { input: 0, output: 0 },
+        { input: 0.5, output: 0.5 },
+        { input: 10, output: 10 },
+        { input: 15, output: 14 },
+        { input: 20, output: 17 },
+        { input: 25, output: 19 },
+        { input: 100, output: 49 }
+      ],
+      outOfRange: 'clamp'
+    },
+    precision: 6,
+    sourceRefs: ['simc:dbc:curve:21025'],
+    displayUnit: 'percent'
+  }]
+
+  const result = calculateNonCombatAttributes(
+    rule,
+    fixture.characterContext,
+    { avoidance_rating: 470 },
+    [],
+  )
+
+  assert.equal(result.status, 'calculated')
+  assert.deepEqual(result.secondary, [{
+    key: 'avoidance',
+    label: '闪避',
+    rawValue: 470,
+    value: '470',
+    convertedValue: '12.217245%',
+    displayUnit: 'percent'
+  }])
+})
+
 test('candidate Armory records cannot become a calculated rule input', () => {
   const candidate = armoryFixtures.samples.find((sample) => sample.status === 'candidate')
   assert.ok(candidate)
@@ -76,4 +121,24 @@ test('candidate Armory records cannot become a calculated rule input', () => {
 
   assert.equal(result.status, 'rule_unavailable')
   assert.equal(result.primary, null)
+})
+
+test('input signature changes when a rating transform changes without a revision bump', () => {
+  const fixture = fixtures.cases[0]
+  const baseline = calculateNonCombatAttributes(
+    fixture.rule,
+    fixture.characterContext,
+    fixture.staticAttributes,
+    fixture.stableEffects,
+  )
+  const changedRule = structuredClone(fixture.rule)
+  changedRule.secondaryRules[0].ratingPerPercent = 36
+  const changed = calculateNonCombatAttributes(
+    changedRule,
+    fixture.characterContext,
+    fixture.staticAttributes,
+    fixture.stableEffects,
+  )
+
+  assert.notEqual(changed.inputSignature, baseline.inputSignature)
 })

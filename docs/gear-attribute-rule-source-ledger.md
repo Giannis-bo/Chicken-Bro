@@ -20,6 +20,8 @@
 - 这不足以把转换写成固定除法。运行时代码的 `apply_combat_rating_dr` 对二级/三级绿字应用递减曲线；两例官方面板也直接证明了差异：奥法闪避 `127 → 3.4510376%` 仍接近低档线性值，而冰法 `470 → 12.217245%` 已低于 `470 / 36.80052531 = 12.771556%`。因此现有 synthetic `ratingPerPercent` 只可验证解释器骨架，不能作为真实闪避、吸血、速度或其它可能递减属性的发布规则。
 - 官方当前活动天赋 tooltip 已提供下一层候选输入：两例均选择 `Inspired Intellect`（Arcane Intellect 额外 `2%` 智力）、`Tome of Rhonin`（`2%` 暴击）、`Tome of Antonidas`（`2%` 急速）、`Charm of Medivh`（`3%` 精通）。奥法还选择 `Arcane Familiar`（最大法力 `10%`）和 `Arcane Tempo`（`2%` 急速）；冰法还选择 `Winter's Blessing`（`3%` 急速及所有急速来源额外 `5%`）。`Brainstorm`、`Overflowing Energy`、`Greater Invisibility` 等明显依赖触发、施法或短时状态的条目保持条件效果，不能并入常态面板。
 - 上述 tooltip 是候选证据，不代表已完成分类或运算顺序：例如基础暴击、天赋加算和等级换算的先后、冰法“所有来源急速”对基础/评级/其它加成的作用范围、种族/套装/强化和资源的舍入仍需由版本化规则与逐字段黄金样本复核。任一不明确项继续阻止 promotion。
+- 候选解释器现已把曲线本身建模为严格的 `ratingTransform`：`piecewise_linear`、显式 `ratingPerPercent`、有序 `points` 和 `clamp` 越界语义。Python 参考解释器与小程序解释器共享该语义；用 DBC 曲线 `21025` 的源点和冰法 `470` 闪避复核，两端均得到官方未舍入值 `12.217245%`。任何 `verified` rule context 若仍只含旧的 `ratingPerPercent` 线性除法会以 `LEGACY_LINEAR_TRANSFORM_NOT_PROMOTABLE` 被拒绝；两点或共线“伪曲线”也会分别以 `INSUFFICIENT_CURVE_EVIDENCE_FOR_PROMOTION`、`LINEAR_CURVE_NOT_PROMOTABLE` 被拒绝。该能力只证明可以准确表达已证实曲线，**不**代表法师规则、天赋顺序或公开属性面板已发布。
+- 每次本地结果的 `inputSignature` 还会绑定实际参与运算的主属性、资源、稳定修正和全部绿字转换规则（包括曲线点），不能只依赖人工递增 `attributeRuleRevision`。因此即使错误地未提升 revision 而改写曲线，结果签名仍会变化并触发保存/审计/fixture 对照。
 
 ## 录入要求
 

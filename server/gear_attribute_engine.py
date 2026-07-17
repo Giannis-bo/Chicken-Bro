@@ -16,6 +16,7 @@ from typing import Any
 ATTRIBUTE_CALCULATION_CONTRACT_REVISION = "gear-attribute-calculation-v1"
 
 _MAX_IDENTIFIER_LENGTH = 256
+_MAX_RATING_TRANSFORM_POINTS = 128
 _STATIC_ATTRIBUTE_ALIASES = {
     "int": "intellect",
     "intellect": "intellect",
@@ -216,6 +217,54 @@ def _resource_rows(resources: dict[str, Any], attributes: dict[str, float]) -> t
     return rows, None
 
 
+def _piecewise_rating_value(raw_value: float, transform: Any, path: str) -> tuple[float | None, dict | None]:
+    required_keys = {"kind", "ratingPerPercent", "points", "outOfRange"}
+    if not isinstance(transform, dict) or set(transform) != required_keys:
+        return None, _issue("INVALID_RATING_TRANSFORM", path, "ratingTransform must be an exact piecewise-linear transform")
+    if transform["kind"] != "piecewise_linear" or transform["outOfRange"] != "clamp":
+        return None, _issue("INVALID_RATING_TRANSFORM", path, "ratingTransform must declare piecewise_linear clamp semantics")
+    rating_per_percent = _number(transform["ratingPerPercent"])
+    if rating_per_percent is None or rating_per_percent <= 0:
+        return None, _issue("INVALID_RATING_CONVERSION", f"{path}.ratingPerPercent", "ratingPerPercent must be a finite number greater than zero")
+    points = transform["points"]
+    if not isinstance(points, list) or not 2 <= len(points) <= _MAX_RATING_TRANSFORM_POINTS:
+        return None, _issue("INVALID_RATING_TRANSFORM", f"{path}.points", "ratingTransform points must contain two to 128 points")
+
+    normalized_points: list[tuple[float, float]] = []
+    previous_input: float | None = None
+    previous_output: float | None = None
+    for index, point in enumerate(points):
+        point_path = f"{path}.points[{index}]"
+        if not isinstance(point, dict) or set(point) != {"input", "output"}:
+            return None, _issue("INVALID_RATING_TRANSFORM", point_path, "curve points require only finite input and output values")
+        curve_input = _number(point["input"])
+        curve_output = _number(point["output"])
+        if curve_input is None or curve_output is None or curve_input < 0 or curve_output < 0:
+            return None, _issue("INVALID_RATING_TRANSFORM", point_path, "curve point values must be finite and non-negative")
+        if previous_input is not None and curve_input <= previous_input:
+            return None, _issue("INVALID_RATING_TRANSFORM", f"{point_path}.input", "curve point inputs must be strictly increasing")
+        if previous_output is not None and curve_output < previous_output:
+            return None, _issue("INVALID_RATING_TRANSFORM", f"{point_path}.output", "curve point outputs must be non-decreasing")
+        normalized_points.append((curve_input, curve_output))
+        previous_input = curve_input
+        previous_output = curve_output
+
+    curve_input = raw_value / rating_per_percent
+    first_input, first_output = normalized_points[0]
+    last_input, last_output = normalized_points[-1]
+    if curve_input <= first_input:
+        return first_output, None
+    if curve_input >= last_input:
+        return last_output, None
+    for lower, upper in zip(normalized_points, normalized_points[1:]):
+        lower_input, lower_output = lower
+        upper_input, upper_output = upper
+        if curve_input <= upper_input:
+            ratio = (curve_input - lower_input) / (upper_input - lower_input)
+            return lower_output + (upper_output - lower_output) * ratio, None
+    return None, _issue("INVALID_RATING_TRANSFORM", path, "curve interpolation did not resolve")
+
+
 def _secondary_rows(secondary_rules: list[Any], attributes: dict[str, float]) -> tuple[list[dict] | None, dict | None]:
     rows: list[dict] = []
     output_keys: set[str] = set()
@@ -227,7 +276,6 @@ def _secondary_rows(secondary_rules: list[Any], attributes: dict[str, float]) ->
         output_key = _bounded_key(definition.get("outputKey"))
         label = definition.get("label")
         base_percent = _number(definition.get("basePercent"))
-        rating_per_percent = _number(definition.get("ratingPerPercent"))
         precision = definition.get("precision")
         display_unit = definition.get("displayUnit")
         if input_key is None or output_key is None or not isinstance(label, str) or not label.strip():
@@ -235,15 +283,26 @@ def _secondary_rows(secondary_rules: list[Any], attributes: dict[str, float]) ->
         if output_key in output_keys:
             return None, _issue("DUPLICATE_OUTPUT_KEY", f"{path}.outputKey", "secondary output keys must be unique")
         output_keys.add(output_key)
-        if base_percent is None or rating_per_percent is None or rating_per_percent <= 0:
-            return None, _issue("INVALID_RATING_CONVERSION", f"{path}.ratingPerPercent", "ratingPerPercent must be a finite number greater than zero")
+        if base_percent is None:
+            return None, _issue("INVALID_RATING_CONVERSION", f"{path}.basePercent", "basePercent must be a finite number")
         if isinstance(precision, bool) or not isinstance(precision, int) or precision < 0 or precision > 6:
             return None, _issue("INVALID_PRECISION", f"{path}.precision", "precision must be an integer from 0 to 6")
         if display_unit not in {"percent", "effect"}:
             return None, _issue("INVALID_DISPLAY_UNIT", f"{path}.displayUnit", "displayUnit must be percent or effect")
         canonical_input_key = _STATIC_ATTRIBUTE_ALIASES.get(input_key, input_key)
         raw_value = attributes.get(canonical_input_key, 0.0)
-        converted_value = base_percent + raw_value / rating_per_percent
+        if "ratingTransform" in definition:
+            if "ratingPerPercent" in definition:
+                return None, _issue("INVALID_RATING_TRANSFORM", path, "secondary rules must use exactly one rating conversion model")
+            transformed_value, transform_issue = _piecewise_rating_value(raw_value, definition["ratingTransform"], f"{path}.ratingTransform")
+            if transform_issue:
+                return None, transform_issue
+            converted_value = base_percent + transformed_value
+        else:
+            rating_per_percent = _number(definition.get("ratingPerPercent"))
+            if rating_per_percent is None or rating_per_percent <= 0:
+                return None, _issue("INVALID_RATING_CONVERSION", f"{path}.ratingPerPercent", "ratingPerPercent must be a finite number greater than zero")
+            converted_value = base_percent + raw_value / rating_per_percent
         rows.append(
             {
                 "key": output_key,
@@ -262,8 +321,14 @@ def _input_signature(rule: dict, race_key: str, static_attributes: dict[str, flo
         "attributeRuleRevision": rule["attributeRuleRevision"],
         "contextKey": rule["contextKey"],
         "raceKey": race_key,
+        "calculationRule": {
+            "primaryKey": rule["primaryKey"],
+            "baseAttributes": rule["baseAttributes"],
+            "stableModifiers": rule["stableModifiers"],
+            "resources": rule["resources"],
+            "secondaryRules": rule["secondaryRules"],
+        },
         "staticAttributes": {key: _clean_number(value) for key, value in sorted(static_attributes.items())},
-        "stableModifiers": rule["stableModifiers"],
         "stableEffects": effect_ids,
     }
     encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")

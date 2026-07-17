@@ -76,7 +76,7 @@
         "stableModifiers": [],
         "resources": {"health": {"base": 100, "perStamina": 20, "round": "floor"}},
         "secondaryRules": [
-          {"inputKey": "haste_rating", "outputKey": "haste", "label": "Haste", "basePercent": 0, "ratingPerPercent": 50, "precision": 1, "sourceRefs": ["test:rule"], "displayUnit": "percent"}
+          {"inputKey": "haste_rating", "outputKey": "haste", "label": "Haste", "basePercent": 0, "ratingTransform": {"kind": "piecewise_linear", "ratingPerPercent": 50, "points": [{"input": 0, "output": 0}, {"input": 2, "output": 2}, {"input": 10, "output": 9}], "outOfRange": "clamp"}, "precision": 1, "sourceRefs": ["test:rule"], "displayUnit": "percent"}
         ],
         "sourceRefs": ["test:rule"],
         "goldenSampleIds": ["test:golden"]

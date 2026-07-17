@@ -9,6 +9,7 @@ rulebook and exposes verified rule contexts to downstream read paths.
 from __future__ import annotations
 
 import copy
+import math
 from typing import Any
 
 
@@ -35,16 +36,20 @@ _CONTEXT_REQUIRED_KEYS = {
     "goldenSampleIds",
 }
 _CONTEXT_OPTIONAL_KEYS = {"implementationNotes"}
-_SECONDARY_RULE_KEYS = {
+_SECONDARY_RULE_REQUIRED_KEYS = {
     "inputKey",
     "outputKey",
     "label",
     "basePercent",
-    "ratingPerPercent",
     "precision",
     "sourceRefs",
     "displayUnit",
 }
+_SECONDARY_RULE_CONVERSION_KEYS = {"ratingPerPercent", "ratingTransform"}
+_SECONDARY_RULE_KEYS = _SECONDARY_RULE_REQUIRED_KEYS | _SECONDARY_RULE_CONVERSION_KEYS
+_RATING_TRANSFORM_KEYS = {"kind", "ratingPerPercent", "points", "outOfRange"}
+_RATING_TRANSFORM_POINT_KEYS = {"input", "output"}
+_MAX_RATING_TRANSFORM_POINTS = 128
 _PUBLIC_STATUSES = {"verified"}
 _ALLOWED_STATUSES = _PUBLIC_STATUSES | {"fixture_only"}
 _ALLOWED_DISPLAY_UNITS = {"percent", "effect"}
@@ -127,6 +132,75 @@ def _string_list(value: Any) -> list[str] | None:
 
 def _is_number(value: Any) -> bool:
     return not isinstance(value, bool) and isinstance(value, (int, float))
+
+
+def _is_finite_number(value: Any) -> bool:
+    return _is_number(value) and math.isfinite(float(value))
+
+
+def _validate_rating_transform(transform: Any, path: str, *, require_promotion_curve_evidence: bool = False) -> list[dict[str, str]]:
+    issues: list[dict[str, str]] = []
+    if not isinstance(transform, dict):
+        return [_issue("INVALID_RULEBOOK", "INVALID_RATING_TRANSFORM", path, "ratingTransform must be an object")]
+    for key in sorted(set(transform) - _RATING_TRANSFORM_KEYS):
+        issues.append(_issue("INVALID_RULEBOOK", "UNKNOWN_FIELD", f"{path}.{key}", "unknown rating transform field"))
+    for key in sorted(_RATING_TRANSFORM_KEYS - set(transform)):
+        issues.append(_issue("INVALID_RULEBOOK", "MISSING_REQUIRED_FIELD", f"{path}.{key}", "rating transform field is required"))
+    if set(transform) != _RATING_TRANSFORM_KEYS:
+        return issues
+    if transform["kind"] != "piecewise_linear":
+        issues.append(_issue("INVALID_RULEBOOK", "INVALID_RATING_TRANSFORM", f"{path}.kind", "only piecewise_linear transforms are supported"))
+    if transform["outOfRange"] != "clamp":
+        issues.append(_issue("INVALID_RULEBOOK", "INVALID_RATING_TRANSFORM", f"{path}.outOfRange", "rating transforms must clamp outside source bounds"))
+    rating_per_percent = transform["ratingPerPercent"]
+    if not _is_finite_number(rating_per_percent) or rating_per_percent <= 0:
+        issues.append(_issue("INVALID_RULEBOOK", "INVALID_RATING_CONVERSION", f"{path}.ratingPerPercent", "ratingPerPercent must be a finite number greater than zero"))
+    points = transform["points"]
+    if not isinstance(points, list) or not 2 <= len(points) <= _MAX_RATING_TRANSFORM_POINTS:
+        issues.append(_issue("INVALID_RULEBOOK", "INVALID_RATING_TRANSFORM", f"{path}.points", "rating transform requires two to 128 points"))
+        return issues
+    previous_input: float | None = None
+    previous_output: float | None = None
+    normalized_points: list[tuple[float, float]] = []
+    for point_index, point in enumerate(points):
+        point_path = f"{path}.points[{point_index}]"
+        if not isinstance(point, dict):
+            issues.append(_issue("INVALID_RULEBOOK", "INVALID_RATING_TRANSFORM", point_path, "rating transform point must be an object"))
+            continue
+        for key in sorted(set(point) - _RATING_TRANSFORM_POINT_KEYS):
+            issues.append(_issue("INVALID_RULEBOOK", "UNKNOWN_FIELD", f"{point_path}.{key}", "unknown rating transform point field"))
+        for key in sorted(_RATING_TRANSFORM_POINT_KEYS - set(point)):
+            issues.append(_issue("INVALID_RULEBOOK", "MISSING_REQUIRED_FIELD", f"{point_path}.{key}", "rating transform point field is required"))
+        if set(point) != _RATING_TRANSFORM_POINT_KEYS:
+            continue
+        curve_input = point["input"]
+        curve_output = point["output"]
+        if not _is_finite_number(curve_input) or curve_input < 0:
+            issues.append(_issue("INVALID_RULEBOOK", "INVALID_RATING_TRANSFORM", f"{point_path}.input", "curve point input must be finite and non-negative"))
+            continue
+        if not _is_finite_number(curve_output) or curve_output < 0:
+            issues.append(_issue("INVALID_RULEBOOK", "INVALID_RATING_TRANSFORM", f"{point_path}.output", "curve point output must be finite and non-negative"))
+            continue
+        normalized_input = float(curve_input)
+        normalized_output = float(curve_output)
+        if previous_input is not None and normalized_input <= previous_input:
+            issues.append(_issue("INVALID_RULEBOOK", "INVALID_RATING_TRANSFORM", f"{point_path}.input", "curve point inputs must be strictly increasing"))
+        if previous_output is not None and normalized_output < previous_output:
+            issues.append(_issue("INVALID_RULEBOOK", "INVALID_RATING_TRANSFORM", f"{point_path}.output", "curve point outputs must be non-decreasing"))
+        previous_input = normalized_input
+        previous_output = normalized_output
+        normalized_points.append((normalized_input, normalized_output))
+    if require_promotion_curve_evidence and len(normalized_points) == len(points):
+        if len(normalized_points) < 3:
+            issues.append(_issue("INVALID_RULEBOOK", "INSUFFICIENT_CURVE_EVIDENCE_FOR_PROMOTION", f"{path}.points", "verified contexts require at least three source curve points"))
+        else:
+            slopes = [
+                (upper_output - lower_output) / (upper_input - lower_input)
+                for (lower_input, lower_output), (upper_input, upper_output) in zip(normalized_points, normalized_points[1:])
+            ]
+            if all(math.isclose(slope, slopes[0], rel_tol=0.0, abs_tol=1e-12) for slope in slopes[1:]):
+                issues.append(_issue("INVALID_RULEBOOK", "LINEAR_CURVE_NOT_PROMOTABLE", f"{path}.points", "verified contexts require a non-linear source curve rather than a disguised linear conversion"))
+    return issues
 
 
 def _has_complete_verified_equipment(equipment: Any) -> bool:
@@ -410,9 +484,14 @@ def _validate_rulebook_context(context: Any, index: int) -> list[dict[str, str]]
             continue
         for key in sorted(set(rule) - _SECONDARY_RULE_KEYS):
             issues.append(_issue("INVALID_RULEBOOK", "UNKNOWN_FIELD", f"{rule_path}.{key}", "unknown secondary rule field"))
-        for key in sorted(_SECONDARY_RULE_KEYS - set(rule)):
+        for key in sorted(_SECONDARY_RULE_REQUIRED_KEYS - set(rule)):
             issues.append(_issue("INVALID_RULEBOOK", "MISSING_REQUIRED_FIELD", f"{rule_path}.{key}", "required secondary rule field is missing"))
-        if set(rule) != _SECONDARY_RULE_KEYS:
+        conversion_keys = set(rule) & _SECONDARY_RULE_CONVERSION_KEYS
+        if not conversion_keys:
+            issues.append(_issue("INVALID_RULEBOOK", "MISSING_REQUIRED_FIELD", rule_path, "secondary rules require a rating conversion model"))
+        elif conversion_keys == _SECONDARY_RULE_CONVERSION_KEYS:
+            issues.append(_issue("INVALID_RULEBOOK", "INVALID_RATING_TRANSFORM", rule_path, "secondary rules must use exactly one rating conversion model"))
+        if set(rule) - _SECONDARY_RULE_KEYS or _SECONDARY_RULE_REQUIRED_KEYS - set(rule) or len(conversion_keys) != 1:
             continue
         input_key = _canonical_key(rule["inputKey"])
         output_key = _canonical_key(rule["outputKey"])
@@ -424,11 +503,19 @@ def _validate_rulebook_context(context: Any, index: int) -> list[dict[str, str]]
             output_keys.add(output_key)
         if _bounded_string(rule["label"]) is None:
             issues.append(_issue("INVALID_RULEBOOK", "INVALID_LABEL", f"{rule_path}.label", "secondary rule label must be a bounded string"))
-        for numeric_key in ("basePercent", "ratingPerPercent"):
-            if not _is_number(rule[numeric_key]):
-                issues.append(_issue("INVALID_RULEBOOK", "INVALID_SECONDARY_NUMBER", f"{rule_path}.{numeric_key}", "secondary conversion fields must be numeric"))
-        if _is_number(rule["ratingPerPercent"]) and rule["ratingPerPercent"] <= 0:
-            issues.append(_issue("INVALID_RULEBOOK", "INVALID_RATING_CONVERSION", f"{rule_path}.ratingPerPercent", "ratingPerPercent must be greater than zero"))
+        if not _is_finite_number(rule["basePercent"]):
+            issues.append(_issue("INVALID_RULEBOOK", "INVALID_SECONDARY_NUMBER", f"{rule_path}.basePercent", "basePercent must be finite"))
+        if "ratingPerPercent" in rule:
+            if not _is_finite_number(rule["ratingPerPercent"]) or rule["ratingPerPercent"] <= 0:
+                issues.append(_issue("INVALID_RULEBOOK", "INVALID_RATING_CONVERSION", f"{rule_path}.ratingPerPercent", "ratingPerPercent must be a finite number greater than zero"))
+            if context["status"] == "verified":
+                issues.append(_issue("INVALID_RULEBOOK", "LEGACY_LINEAR_TRANSFORM_NOT_PROMOTABLE", f"{rule_path}.ratingPerPercent", "verified contexts require a source-backed curve-aware ratingTransform"))
+        else:
+            issues.extend(_validate_rating_transform(
+                rule["ratingTransform"],
+                f"{rule_path}.ratingTransform",
+                require_promotion_curve_evidence=context["status"] == "verified",
+            ))
         precision = rule["precision"]
         if isinstance(precision, bool) or not isinstance(precision, int) or precision < 0 or precision > 6:
             issues.append(_issue("INVALID_RULEBOOK", "INVALID_PRECISION", f"{rule_path}.precision", "precision must be an integer from 0 to 6"))
