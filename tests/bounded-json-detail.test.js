@@ -1,0 +1,33 @@
+'use strict'
+
+const assert = require('node:assert/strict')
+const fs = require('node:fs')
+const os = require('node:os')
+const path = require('node:path')
+const test = require('node:test')
+
+const { maxStructuredDetailBytes, readBoundedJson, writeBoundedJsonAtomic } = require('../scripts/bounded-json-detail')
+
+test('structured review details write atomically and read within one MiB', () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'wow-bounded-detail-'))
+  const detailPath = path.join(directory, 'detail.json')
+  try {
+    writeBoundedJsonAtomic(detailPath, { status: 'pass' }, 'test detail')
+    assert.deepEqual(readBoundedJson(detailPath, 'test detail'), { status: 'pass' })
+    assert.equal(fs.readdirSync(directory).some((file) => file.includes('.tmp-')), false)
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+test('structured review details reject oversized files before read', () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'wow-bounded-detail-read-'))
+  const detailPath = path.join(directory, 'oversized.json')
+  const descriptor = fs.openSync(detailPath, 'w')
+  try { fs.ftruncateSync(descriptor, maxStructuredDetailBytes + 1) } finally { fs.closeSync(descriptor) }
+  try {
+    assert.throws(() => readBoundedJson(detailPath, 'test detail'), /bounded byte policy before read/)
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true })
+  }
+})

@@ -7,6 +7,7 @@ const { execFileSync } = require('node:child_process')
 const fs = require('node:fs')
 const path = require('node:path')
 const { requireOnlineRouteBatch } = require('./online-route-batch')
+const { writeBoundedJsonAtomic } = require('./bounded-json-detail')
 const contract = require('../docs/design/current-ui/selected-control-contract.json')
 
 const operationTimeoutMs = 10000
@@ -141,10 +142,7 @@ async function main() {
   }
   if (process.env.SELECTED_STATE_DETAIL_PATH) {
     const detailPath = path.resolve(process.env.SELECTED_STATE_DETAIL_PATH)
-    fs.mkdirSync(path.dirname(detailPath), { recursive: true })
-    const temporaryPath = `${detailPath}.tmp`
-    fs.writeFileSync(temporaryPath, `${JSON.stringify(detail, null, 2)}\n`)
-    fs.renameSync(temporaryPath, detailPath)
+    writeBoundedJsonAtomic(detailPath, detail, 'selected-state detail')
   }
   console.log(JSON.stringify({
     status: failed.length === 0 ? 'pass' : 'fail',

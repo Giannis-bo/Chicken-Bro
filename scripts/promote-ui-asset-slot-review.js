@@ -5,19 +5,14 @@ const crypto = require('node:crypto')
 const fs = require('node:fs')
 const path = require('node:path')
 const contract = require('../docs/design/current-ui/runtime-asset-slot-mapping-contract.json')
+const { readBoundedJson } = require('./bounded-json-detail')
 
 const root = path.resolve(__dirname, '..')
-const maxAssetSlotDetailBytes = 1024 * 1024
 
 function readDetails(value) {
   const paths = (value ?? '').split(',').map((item) => item.trim()).filter(Boolean)
   if (paths.length === 0) throw new Error('ASSET_SLOT_DETAIL_PATHS is required')
-  return paths.map((detailPath) => {
-    const resolved = path.resolve(detailPath)
-    const bytes = fs.statSync(resolved).size
-    if (bytes <= 0 || bytes > maxAssetSlotDetailBytes) throw new Error('asset-slot detail exceeds bounded byte policy before read')
-    return JSON.parse(fs.readFileSync(resolved, 'utf8'))
-  })
+  return paths.map((detailPath) => readBoundedJson(detailPath, 'asset-slot detail'))
 }
 
 function combineDetails(details) {

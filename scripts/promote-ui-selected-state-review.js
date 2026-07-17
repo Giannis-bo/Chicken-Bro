@@ -5,6 +5,7 @@ const crypto = require('node:crypto')
 const fs = require('node:fs')
 const path = require('node:path')
 const contract = require('../docs/design/current-ui/selected-control-contract.json')
+const { readBoundedJson } = require('./bounded-json-detail')
 
 const root = path.resolve(__dirname, '..')
 const contractPath = path.join(root, 'docs/design/current-ui/selected-control-contract.json')
@@ -17,7 +18,7 @@ function key(item) {
 function readDetails(value) {
   const paths = (value ?? '').split(',').map((item) => item.trim()).filter(Boolean)
   if (paths.length === 0) throw new Error('SELECTED_STATE_DETAIL_PATHS is required')
-  return paths.map((detailPath) => JSON.parse(fs.readFileSync(path.resolve(detailPath), 'utf8')))
+  return paths.map((detailPath) => readBoundedJson(detailPath, 'selected-state detail'))
 }
 
 function combineDetails(details) {

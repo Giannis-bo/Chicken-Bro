@@ -1005,6 +1005,28 @@ record(
 )
 const assetSlotVerifier = read('scripts/verify-ui-asset-slots.js')
 const assetSlotPromotion = read('scripts/promote-ui-asset-slot-review.js')
+const boundedJsonDetail = read('scripts/bounded-json-detail.js')
+const structuredDetailWriters = [
+  'scripts/verify-ui-route-geometry.js',
+  'scripts/verify-ui-interactions.js',
+  'scripts/verify-ui-selected-states.js',
+  'scripts/verify-ui-asset-slots.js',
+]
+const structuredDetailReaders = [
+  'scripts/promote-ui-route-geometry.js',
+  'scripts/promote-ui-interaction-review.js',
+  'scripts/promote-ui-selected-state-review.js',
+  'scripts/promote-ui-asset-slot-review.js',
+]
+record(
+  'structured_runtime_details_are_atomic_and_bounded_end_to_end',
+  /maxStructuredDetailBytes = 1024 \* 1024/u.test(boundedJsonDetail)
+    && /renameSync\(temporaryPath, filePath\)/u.test(boundedJsonDetail)
+    && /bounded byte policy before read/u.test(boundedJsonDetail)
+    && structuredDetailWriters.every((file) => read(file).includes('writeBoundedJsonAtomic'))
+    && structuredDetailReaders.every((file) => read(file).includes('readBoundedJson')),
+  'geometry, interaction, selected-state and asset-slot details must share one bounded atomic JSON owner',
+)
 const assetRenderingOwners = [
   'packages/design-system/src/components/ProductionAsset.tsx',
   'packages/design-system/src/components/ProductionAssetGlyph.tsx',
@@ -1020,9 +1042,8 @@ record(
     && assetRenderingOwners.every((file) => /assetPromotionStatus/u.test(read(file)) && /data-promotion-status/u.test(read(file)))
     && /wechat-runtime-asset-slot-review-v3/u.test(assetSlotVerifier)
     && /invalidMaterialOwnerElements/u.test(assetSlotVerifier)
-    && /maxAssetSlotDetailBytes = 1024 \* 1024/u.test(assetSlotVerifier)
-    && /renameSync\(temporaryPath, detailPath\)/u.test(assetSlotVerifier)
-    && /bounded byte policy before read/u.test(assetSlotPromotion)
+    && /writeBoundedJsonAtomic/u.test(assetSlotVerifier)
+    && /readBoundedJson/u.test(assetSlotPromotion)
     && /materialOwnerCounts/u.test(assetSlotPromotion)
     && /missingPromotionStatusElements/u.test(assetSlotVerifier)
     && /missingPromotionStatusElements !== 0/u.test(assetSlotPromotion),

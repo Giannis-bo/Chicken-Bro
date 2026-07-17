@@ -7,6 +7,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 const { execFileSync } = require('node:child_process')
 const { requireOnlineRouteBatch } = require('./online-route-batch')
+const { writeBoundedJsonAtomic } = require('./bounded-json-detail')
 const contract = require('../docs/design/current-ui/route-geometry-contract.json')
 
 const operationTimeoutMs = 10000
@@ -264,11 +265,8 @@ async function main() {
     let detailPath = null
     if (process.env.GEOMETRY_DETAIL_PATH) {
       detailPath = path.resolve(process.env.GEOMETRY_DETAIL_PATH)
-      fs.mkdirSync(path.dirname(detailPath), { recursive: true })
-      const temporaryPath = `${detailPath}.tmp`
       const commit = execFileSync('git', ['rev-parse', '--short=12', 'HEAD'], { cwd: path.resolve(__dirname, '..'), encoding: 'utf8' }).trim()
-      fs.writeFileSync(temporaryPath, `${JSON.stringify({ schemaVersion: 'wechat-route-geometry-detail-v1', contractSha256, commit, viewport, routes: details }, null, 2)}\n`)
-      fs.renameSync(temporaryPath, detailPath)
+      writeBoundedJsonAtomic(detailPath, { schemaVersion: 'wechat-route-geometry-detail-v1', contractSha256, commit, viewport, routes: details }, 'route geometry detail')
     }
     const failures = results.filter((result) => result.status === 'fail')
     console.log(JSON.stringify({

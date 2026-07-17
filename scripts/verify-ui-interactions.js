@@ -6,6 +6,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 const { connectMiniProgram, timeout } = require('./wechat-automator')
 const { requireOnlineRouteBatch } = require('./online-route-batch')
+const { writeBoundedJsonAtomic } = require('./bounded-json-detail')
 const coreInteractionContract = require('../docs/design/current-ui/core-interaction-contract.json')
 
 const operationTimeoutMs = 10000
@@ -327,8 +328,6 @@ async function main() {
     let detailPath = null
     if (process.env.INTERACTION_DETAIL_PATH) {
       detailPath = path.resolve(process.env.INTERACTION_DETAIL_PATH)
-      fs.mkdirSync(path.dirname(detailPath), { recursive: true })
-      const temporaryPath = `${detailPath}.tmp`
       const commit = execFileSync('git', ['rev-parse', '--short=12', 'HEAD'], { cwd: path.resolve(__dirname, '..'), encoding: 'utf8' }).trim()
       const system = await timeout(miniProgram.systemInfo(), 4000, 'read system info for interaction evidence')
       const viewport = { width: system.windowWidth, height: system.windowHeight, dpr: system.pixelRatio }
@@ -341,8 +340,7 @@ async function main() {
         results,
         failures,
       }
-      fs.writeFileSync(temporaryPath, `${JSON.stringify(detail, null, 2)}\n`)
-      fs.renameSync(temporaryPath, detailPath)
+      writeBoundedJsonAtomic(detailPath, detail, 'core interaction detail')
     }
     console.log(JSON.stringify({
       status: failures.length ? 'fail' : 'pass',
