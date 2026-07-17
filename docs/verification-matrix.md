@@ -9,20 +9,21 @@
 | `harness` | 状态、owner map、schema、release packet、diff | `node scripts/verify-project.js --profile harness` |
 | `backend` | Python 后端、PostgreSQL read model、API 和 worker | `node scripts/verify-project.js --profile backend` |
 | `frontend` | 旧兼容前端、Taro typed contract、架构审计、TypeScript 和 Vitest | `node scripts/verify-project.js --profile frontend` |
-| `full` | `harness + backend + frontend` 的最终提交验证 | `node scripts/verify-project.js --profile full` |
+| `full` | Harness、后端和适合 CI 的前端自动检查；不含 UI 架构审计 | `node scripts/verify-project.js --profile full` |
 
 `--release` 缺省时读取 `docs/project-state.json.activeReleaseArtifact`。用 `--dry-run --json` 查看确切命令，不执行。
 
 ## 选择规则
 
 - 开发中先跑最小相关测试，不在每个小改动后串行跑 `frontend`、`backend`、`full`。
-- 最终候选只跑一次 `full`；它已包含 Harness、Node、Python、Taro、JSON、语法和 diff 检查。
+- 最终候选只跑一次 `full`；它已包含 Harness、Node、Python、Taro 类型/单元测试、JSON、语法和 diff 检查，但不包含 UI 架构审计。
+- `audit:ui-architecture` 只在 UI owner、共享 chrome、路由合同或设计系统边界变化时显式运行，不作为 GitHub CI 阻断项。
 - 纯文档或 owner map 变更跑 `harness`；不因此重复业务全量。
 - 自动测试证明合同和代码结构，不授予视觉、生产数据或线上运行通过。
 
 ## Taro UI
 
-自动层：
+UI 阶段显式验证：
 
 ```bash
 npm run audit:ui-architecture

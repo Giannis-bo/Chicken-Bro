@@ -221,7 +221,6 @@ function profileCommands(options, release) {
     commandSpec('node test discover', 'node', ['--test', ...jsTestFiles(options.root)]),
     commandSpec('python unittest discover', 'python3', ['-m', 'unittest', 'discover', '-s', 'tests', '-p', '*_test.py']),
     commandSpec('python compileall', 'python3', ['-m', 'compileall', '-q', 'server', 'tests']),
-    commandSpec('taro architecture audit', 'npm', ['run', 'audit:ui-architecture']),
     commandSpec('taro typecheck', 'npm', ['run', 'typecheck']),
     commandSpec('taro vitest', 'npm', ['run', 'test:taro']),
     jsonValidationCommand(release),
