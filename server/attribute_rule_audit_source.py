@@ -104,6 +104,34 @@ def _normalized_equipment(payload: dict[str, Any]) -> list[dict[str, Any]]:
     return rows
 
 
+def _active_talent_loadout(payload: dict[str, Any], character: dict[str, Any]) -> dict[str, str]:
+    """Return the active specialization's opaque loadout identity, never a guessed effect list."""
+    active_specialization = payload.get("active_specialization") if isinstance(payload.get("active_specialization"), dict) else {}
+    active_spec_id = active_specialization.get("id")
+    if isinstance(active_spec_id, bool) or not isinstance(active_spec_id, int):
+        raise AttributeAuditSourceUnavailable("OFFICIAL_PROFILE_TALENT_LOADOUT_UNAVAILABLE")
+    specializations = payload.get("specializations") if isinstance(payload.get("specializations"), list) else []
+    for specialization in specializations:
+        if not isinstance(specialization, dict):
+            continue
+        spec = specialization.get("specialization") if isinstance(specialization.get("specialization"), dict) else {}
+        if spec.get("id") != active_spec_id:
+            continue
+        for loadout in specialization.get("loadouts") or []:
+            if not isinstance(loadout, dict) or loadout.get("is_active") is not True:
+                continue
+            code = _text(loadout.get("talent_loadout_code"))
+            hero = loadout.get("selected_hero_talent_tree") if isinstance(loadout.get("selected_hero_talent_tree"), dict) else {}
+            hero_key = _slug(hero.get("name"))
+            if code and hero_key:
+                return {
+                    "specKey": character["specKey"],
+                    "heroKey": hero_key,
+                    "talentLoadoutCode": code,
+                }
+    raise AttributeAuditSourceUnavailable("OFFICIAL_PROFILE_TALENT_LOADOUT_UNAVAILABLE")
+
+
 def _number(value: Any) -> int | float | None:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return None
@@ -168,7 +196,7 @@ def _observed_panel(statistics: dict[str, Any]) -> dict[str, Any]:
 
 
 def fetch_official_profile(identity: dict[str, str]) -> dict[str, Any]:
-    """Fetch profile/equipment/statistics read-only and reduce any failure to a safe code."""
+    """Fetch profile/equipment/statistics/talent identity read-only and reduce failures to a safe code."""
     normalized = _identity(identity)
     try:
         token = get_blizzard_access_token(normalized["region"])
@@ -181,14 +209,20 @@ def fetch_official_profile(identity: dict[str, str]) -> dict[str, Any]:
         profile = blizzard_get(base, token, region=normalized["region"], locale=audit_locale, namespace=namespace)
         equipment = blizzard_get(f"{base}/equipment", token, region=normalized["region"], locale=audit_locale, namespace=namespace)
         statistics = blizzard_get(f"{base}/statistics", token, region=normalized["region"], locale=audit_locale, namespace=namespace)
+        specializations = blizzard_get(f"{base}/specializations", token, region=normalized["region"], locale=audit_locale, namespace=namespace)
     except AttributeAuditSourceUnavailable:
         raise
     except Exception as exc:
         code = "OFFICIAL_PROFILE_AUTH_UNAVAILABLE" if "token" in _text(exc).lower() or "credential" in _text(exc).lower() else "OFFICIAL_PROFILE_UNAVAILABLE"
         raise AttributeAuditSourceUnavailable(code) from None
-    if not isinstance(profile, dict) or not isinstance(equipment, dict) or not isinstance(statistics, dict):
+    if not isinstance(profile, dict) or not isinstance(equipment, dict) or not isinstance(statistics, dict) or not isinstance(specializations, dict):
         raise AttributeAuditSourceUnavailable("OFFICIAL_PROFILE_PAYLOAD_INVALID")
-    normalized_profile = {"character": _profile_character(profile), "equipment": _normalized_equipment(equipment)}
+    character = _profile_character(profile)
+    normalized_profile = {
+        "character": character,
+        "equipment": _normalized_equipment(equipment),
+        "talentLoadout": _active_talent_loadout(specializations, character),
+    }
     if not normalized_profile["equipment"]:
         raise AttributeAuditSourceUnavailable("OFFICIAL_PROFILE_EQUIPMENT_UNAVAILABLE")
     return {"profile": normalized_profile, "panel": _observed_panel(statistics)}

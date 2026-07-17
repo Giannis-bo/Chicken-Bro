@@ -44,6 +44,27 @@ class AttributeRuleAuditSourceTest(unittest.TestCase):
             "lifesteal": {"rating_normalized": 166, "value": 2.4057627},
             "speed": {"rating_normalized": 55, "rating_bonus": 4.7825403},
         }
+        specializations = {
+            "active_specialization": {"id": 62, "name": "Arcane"},
+            "specializations": [
+                {
+                    "specialization": {"id": 62, "name": "Arcane"},
+                    "loadouts": [{
+                        "is_active": True,
+                        "talent_loadout_code": "C4DAMhlVtghLZL4RZzExaQoBY",
+                        "selected_hero_talent_tree": {"name": "Spellslinger"},
+                    }],
+                },
+                {
+                    "specialization": {"id": 64, "name": "Frost"},
+                    "loadouts": [{
+                        "is_active": True,
+                        "talent_loadout_code": "wrong-specialization-loadout",
+                        "selected_hero_talent_tree": {"name": "Frostfire"},
+                    }],
+                },
+            ],
+        }
         calls = []
 
         def api(path, token, **kwargs):
@@ -52,6 +73,8 @@ class AttributeRuleAuditSourceTest(unittest.TestCase):
                 return equipment
             if path.endswith("/statistics"):
                 return statistics
+            if path.endswith("/specializations"):
+                return specializations
             return profile
 
         with patch("server.attribute_rule_audit_source.get_blizzard_access_token", return_value="secret-token"), patch(
@@ -67,6 +90,11 @@ class AttributeRuleAuditSourceTest(unittest.TestCase):
         self.assertEqual(result["profile"]["equipment"][0], {
             "slot": "head", "itemId": "250060", "itemLevel": 289,
             "bonusIds": ["6652"], "gemIds": ["240914", "240914"], "enchantIds": ["8001", "8017"],
+        })
+        self.assertEqual(result["profile"]["talentLoadout"], {
+            "specKey": "arcane",
+            "heroKey": "spellslinger",
+            "talentLoadoutCode": "C4DAMhlVtghLZL4RZzExaQoBY",
         })
         self.assertEqual(result["panel"], {
             "primary": {"rawValue": 2462},
@@ -85,7 +113,8 @@ class AttributeRuleAuditSourceTest(unittest.TestCase):
                 {"key": "speed", "rawValue": 55, "convertedValue": "4.7825403%", "displayUnit": "percent"},
             ],
         })
-        self.assertEqual(len(calls), 3)
+        self.assertEqual(len(calls), 4)
+        self.assertTrue(any(path.endswith("/specializations") for path, _, _ in calls))
         self.assertTrue(any(path.endswith("/statistics") for path, _, _ in calls))
         self.assertTrue(all(kwargs["locale"] == "en_US" for _, _, kwargs in calls))
         self.assertNotIn("secret-token", str(result))
