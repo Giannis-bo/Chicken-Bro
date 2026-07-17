@@ -50,6 +50,8 @@ function validCaptureBounds(buffer, dimensions, viewport) {
 
 function inspectCachedCapture(capture, viewport) {
   if (!capture?.artifactPath || !fs.existsSync(capture.artifactPath)) return false
+  const artifactBytes = fs.statSync(capture.artifactPath).size
+  if (artifactBytes <= 0 || artifactBytes > maxCaptureBytes) return false
   const buffer = fs.readFileSync(capture.artifactPath)
   const dimensions = pngSize(buffer)
   return capture.bytes === buffer.length
@@ -145,6 +147,8 @@ async function main() {
         const rendererEvidence = await inspectRenderer(page, route)
         const artifactPath = path.join(outputRoot, `${safeName(route.route)}.png`)
         await captureWithRetry(miniProgram, artifactPath, route.route)
+        const artifactBytes = fs.statSync(artifactPath).size
+        if (artifactBytes <= 0 || artifactBytes > maxCaptureBytes) throw new Error(`capture exceeds bounded byte policy before read: ${route.route}`)
         const buffer = fs.readFileSync(artifactPath)
         const dimensions = pngSize(buffer)
         if (!validCaptureBounds(buffer, dimensions, viewport)) throw new Error(`capture exceeds bounded viewport artifact policy: ${route.route}`)
@@ -190,4 +194,4 @@ if (require.main === module) {
   })
 }
 
-module.exports = { captureWithRetry, inspectCachedCapture, inspectRenderer, pngSize, selectedRoutes, validCaptureBounds, writeManifest }
+module.exports = { captureWithRetry, inspectCachedCapture, inspectRenderer, maxCaptureBytes, pngSize, selectedRoutes, validCaptureBounds, writeManifest }

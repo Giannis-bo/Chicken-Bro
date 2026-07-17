@@ -1,6 +1,7 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
+const os = require('node:os')
 const path = require('node:path')
 
 const projectStatePath = 'docs/project-state.json'
@@ -282,6 +283,7 @@ test('visual review capture stays explicit, cached and out of the main session',
   assert.match(capture, /capture exceeds bounded viewport artifact policy/)
   assert.match(capture, /maxCaptureBytes = 8 \* 1024 \* 1024/)
   assert.match(capture, /maxCaptureScale = 4/)
+  assert.match(capture, /capture exceeds bounded byte policy before read/)
   assert.match(capture, /validCaptureBounds/)
   const audit = fs.readFileSync('scripts/audit-ui-architecture.js', 'utf8')
   assert.match(audit, /visual_capture_payload_is_bounded_before_cache_or_promotion/)
@@ -291,6 +293,23 @@ test('visual review capture stays explicit, cached and out of the main session',
   assert.match(capture, /writeManifest\(manifestPath, manifest\)/)
   assert.match(capture, /pendingRoutes/)
   assert.doesNotMatch(capture, /WECHAT_AUTOMATOR_LAUNCH/)
+})
+
+test('visual review cache rejects oversized artifacts before loading PNG bytes', () => {
+  const { inspectCachedCapture, maxCaptureBytes } = require('../scripts/capture-ui-review-cache')
+  const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'wow-ui-cache-bound-'))
+  const artifactPath = path.join(temporaryRoot, 'oversized.png')
+  const descriptor = fs.openSync(artifactPath, 'w')
+  try {
+    fs.ftruncateSync(descriptor, maxCaptureBytes + 1)
+  } finally {
+    fs.closeSync(descriptor)
+  }
+  try {
+    assert.equal(inspectCachedCapture({ artifactPath }, { width: 390, height: 844 }), false)
+  } finally {
+    fs.rmSync(temporaryRoot, { recursive: true, force: true })
+  }
 })
 
 test('cached visual review requires explicit immutable promotion', () => {
@@ -304,6 +323,7 @@ test('cached visual review requires explicit immutable promotion', () => {
   assert.match(promotion, /cache route identity mismatch/)
   assert.match(promotion, /cache renderer evidence is incomplete/)
   assert.match(promotion, /cache artifact exceeds bounded viewport policy/)
+  assert.match(promotion, /cache artifact exceeds bounded byte policy before read/)
   assert.match(promotion, /wechat-ui-runtime-promotion-v3/)
   assert.match(promotion, /cache capture and route navigation methods are inaccurate or unsupported/)
   assert.doesNotMatch(promotion, /connectMiniProgram|WECHAT_AUTOMATOR_LAUNCH/)

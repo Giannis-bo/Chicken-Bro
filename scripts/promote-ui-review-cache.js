@@ -5,7 +5,7 @@ const crypto = require('node:crypto')
 const fs = require('node:fs')
 const path = require('node:path')
 
-const { pngSize, validCaptureBounds } = require('./capture-ui-review-cache')
+const { maxCaptureBytes, pngSize, validCaptureBounds } = require('./capture-ui-review-cache')
 const interactionContract = require('../docs/design/current-ui/core-interaction-contract.json')
 
 const repositoryRoot = path.resolve(__dirname, '..')
@@ -29,6 +29,8 @@ function selectedRoutes(value, captures) {
 }
 
 function inspectCapture(capture, viewport) {
+  const artifactBytes = fs.statSync(capture.artifactPath).size
+  if (artifactBytes <= 0 || artifactBytes > maxCaptureBytes) throw new Error(`cache artifact exceeds bounded byte policy before read: ${capture.route}`)
   const buffer = fs.readFileSync(capture.artifactPath)
   const dimensions = pngSize(buffer)
   const sha256 = crypto.createHash('sha256').update(buffer).digest('hex')
