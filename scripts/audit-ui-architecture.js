@@ -775,7 +775,7 @@ const rawButtonOwners = componentSources.filter((file) => file !== 'packages/des
 record('native_button_has_one_shared_owner', rawButtonOwners.length === 0, rawButtonOwners.join(', ') || 'ControlButton only')
 
 const assetRegistrySource = read('packages/assets-manifest/src/index.ts')
-const runtimeAssetSourceFiles = [...componentSources, ...walk('apps/mini-taro/src/pages', ['.ts', '.tsx'])]
+const runtimeAssetSourceFiles = [...componentSources, ...walk('apps/mini-taro/src', ['.ts', '.tsx'])]
 const componentSourceCorpus = runtimeAssetSourceFiles.map((file) => read(file)).join('\n')
 const rasterCollectionManifests = walk('packages/design-system/assets/raster', ['.json'])
   .filter((file) => path.basename(file) === 'manifest.json')
@@ -788,8 +788,13 @@ const staleRasterIntegrationMetadata = rasterCollectionManifests.flatMap(({ file
   }
   if (typeof manifest.wiredIntoRuntimeCode === 'boolean') {
     const assetIds = (manifest.assets ?? []).map((asset) => asset.assetId)
-    const wired = assetIds.length > 0 && assetIds.every((assetId) => componentSourceCorpus.includes(assetId))
+    const referencedAssetCount = assetIds.filter((assetId) => componentSourceCorpus.includes(assetId)).length
+    const wired = assetIds.length > 0 && referencedAssetCount === assetIds.length
     if (wired !== manifest.wiredIntoRuntimeCode) findings.push(`${file}:wired=${manifest.wiredIntoRuntimeCode}:actual=${wired}`)
+    if (typeof manifest.runtimeBindingStatus === 'string') {
+      const expectedBindingStatus = `${wired ? 'complete' : 'partial'}_${referencedAssetCount}_of_${assetIds.length}`
+      if (manifest.runtimeBindingStatus !== expectedBindingStatus) findings.push(`${file}:runtimeBindingStatus=${manifest.runtimeBindingStatus}:actual=${expectedBindingStatus}`)
+    }
   }
   return findings
 })
