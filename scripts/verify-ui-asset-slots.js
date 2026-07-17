@@ -11,6 +11,7 @@ const contract = require('../docs/design/current-ui/runtime-asset-slot-mapping-c
 
 const root = path.resolve(__dirname, '..')
 const operationTimeoutMs = 10000
+const queryCaps = Object.freeze({ assetElements: 128, materialOwners: 128 })
 
 function classToken(slotId) {
   return slotId.replace(/[^a-zA-Z0-9_-]+/gu, '-')
@@ -24,10 +25,12 @@ function selectedRoutes() {
 async function inspect(miniProgram, route) {
   const page = await timeout(miniProgram.reLaunch(route.path), operationTimeoutMs, `open ${route.route}`)
   await new Promise((resolve) => setTimeout(resolve, 650))
-  const [elements, materialOwnerElements] = await Promise.all([
+  const [queriedElements, queriedMaterialOwnerElements] = await Promise.all([
     timeout(page.$$('[class*="wx-data-slot-id-"]'), 5000, `query slots ${route.route}`),
     timeout(page.$$('[class*="wx-data-material-owner-"]'), 5000, `query material owners ${route.route}`),
   ])
+  const elements = queriedElements.slice(0, queryCaps.assetElements)
+  const materialOwnerElements = queriedMaterialOwnerElements.slice(0, queryCaps.materialOwners)
   const observations = await Promise.all(elements.map(async (element) => ({
     className: await timeout(element.attribute('class'), 1500, 'read slot class'),
     assetId: await timeout(element.attribute('data-asset-id'), 1500, 'read asset id'),
@@ -53,6 +56,8 @@ async function inspect(miniProgram, route) {
     return { runtimeSlot, contractSlot: route.runtimeSlots[runtimeSlot] }
   })
   const failures = [
+    ...(queriedElements.length > queryCaps.assetElements ? [`asset element query cap exceeded: ${queriedElements.length}/${queryCaps.assetElements}`] : []),
+    ...(queriedMaterialOwnerElements.length > queryCaps.materialOwners ? [`material owner query cap exceeded: ${queriedMaterialOwnerElements.length}/${queryCaps.materialOwners}`] : []),
     ...(elements.length === 0 ? ['no visible asset elements'] : []),
     ...(observedTokens.length === 0 ? ['no visible runtime slots'] : []),
     ...unknown.map((token) => `unregistered runtime slot ${token}`),
@@ -60,7 +65,7 @@ async function inspect(miniProgram, route) {
     ...(missingPromotionStatusElements ? [`${missingPromotionStatusElements} visible asset elements lack a valid promotion status`] : []),
     ...(invalidMaterialOwnerElements ? [`${invalidMaterialOwnerElements} controls declare an invalid material owner`] : []),
   ]
-  return { route: route.route, status: failures.length === 0 ? 'pass' : 'fail', elementCount: elements.length, assetElementCount: assetObservations.length, slotCount: observedTokens.length, missingAssetElements, missingPromotionStatusElements, materialOwnerElementCount: materialOwnerElements.length, invalidMaterialOwnerElements, materialOwnerCounts, promotionCounts, semanticMappings, failures }
+  return { route: route.route, status: failures.length === 0 ? 'pass' : 'fail', elementCount: queriedElements.length, inspectedElementCount: elements.length, assetElementCount: assetObservations.length, slotCount: observedTokens.length, missingAssetElements, missingPromotionStatusElements, materialOwnerElementCount: queriedMaterialOwnerElements.length, inspectedMaterialOwnerCount: materialOwnerElements.length, invalidMaterialOwnerElements, materialOwnerCounts, promotionCounts, semanticMappings, failures }
 }
 
 function validateContract() {

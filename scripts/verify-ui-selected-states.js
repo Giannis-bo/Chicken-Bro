@@ -11,6 +11,7 @@ const { writeBoundedJsonAtomic } = require('./bounded-json-detail')
 const contract = require('../docs/design/current-ui/selected-control-contract.json')
 
 const operationTimeoutMs = 10000
+const maximumControlsPerGroup = 32
 const contractPath = path.resolve(__dirname, '../docs/design/current-ui/selected-control-contract.json')
 const contractSha256 = crypto.createHash('sha256').update(fs.readFileSync(contractPath)).digest('hex')
 function selectedGroups() {
@@ -41,7 +42,8 @@ async function routeState(page, states) {
 
 async function inspectGroup(page, group) {
   const selector = `.wx-data-role-${group.role}`
-  const controls = await timeout(page.$$(selector), 3000, `query ${group.role}`)
+  const queriedControls = await timeout(page.$$(selector), 3000, `query ${group.role}`)
+  const controls = queriedControls.slice(0, maximumControlsPerGroup)
   const state = await routeState(page, group.unavailableRouteStates)
   if (controls.length < group.minimumControls && state) {
     return { route: group.route, role: group.role, status: 'unavailable', routeState: state, controls: controls.length, active: 0 }
@@ -82,7 +84,8 @@ async function inspectGroup(page, group) {
     ? expectedBoundarySequence(controlStates)
     : []
   const boundaryMismatches = leadingBoundaries.filter((value, index) => value !== expectedLeadingBoundaries[index]).length
-  const pass = controls.length >= group.minimumControls
+  const pass = queriedControls.length <= maximumControlsPerGroup
+    && controls.length >= group.minimumControls
     && active.length >= group.minimumActive
     && active.length <= group.maximumActive
     && materialActive.length === active.length
@@ -96,7 +99,9 @@ async function inspectGroup(page, group) {
     route: group.route,
     role: group.role,
     status: pass ? 'pass' : 'fail',
-    controls: controls.length,
+    controls: queriedControls.length,
+    inspectedControls: controls.length,
+    queryCapExceeded: queriedControls.length > maximumControlsPerGroup,
     active: active.length,
     inactive: inactive.length,
     materialOwners: { active: materialActive.length, inactive: materialInactive.length },
