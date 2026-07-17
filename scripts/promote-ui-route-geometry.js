@@ -7,6 +7,8 @@ const path = require('node:path')
 const contract = require('../docs/design/current-ui/route-geometry-contract.json')
 
 const root = path.resolve(__dirname, '..')
+const contractPath = path.join(root, 'docs/design/current-ui/route-geometry-contract.json')
+const contractSha256 = crypto.createHash('sha256').update(fs.readFileSync(contractPath)).digest('hex')
 
 function readDetails(value) {
   const paths = (value ?? '').split(',').map((item) => item.trim()).filter(Boolean)
@@ -17,6 +19,7 @@ function readDetails(value) {
 function combineDetails(details) {
   const first = details[0]
   if (details.some((detail) => detail.schemaVersion !== 'wechat-route-geometry-detail-v1')) throw new Error('unsupported route geometry detail schema')
+  if (first.contractSha256 !== contractSha256 || details.some((detail) => detail.contractSha256 !== contractSha256)) throw new Error('route geometry detail contract SHA-256 is stale or mismatched')
   if (!/^[a-f\d]{12}$/u.test(first.commit ?? '') || details.some((detail) => detail.commit !== first.commit)) throw new Error('route geometry detail commits must match')
   const viewportKey = JSON.stringify(first.viewport)
   const viewportValues = [first.viewport?.width, first.viewport?.height, first.viewport?.dpr, first.viewport?.safeAreaBottom, first.viewport?.safeBottomInset]
@@ -40,6 +43,7 @@ function combineDetails(details) {
   const byRoute = new Map(routes.map((route) => [route.route, route]))
   return {
     schemaVersion: 'wechat-route-geometry-evidence-v1',
+    contractSha256,
     commit: first.commit,
     viewport: first.viewport,
     routes: expectedRoutes.map((route) => byRoute.get(route)),

@@ -4,9 +4,10 @@
   "sharedMissingEvidence": [
     "wechat_runtime_artifact",
     "target_runtime_region_comparison",
+    "real_wechat_route_geometry",
     "human_visual_confirmation"
   ],
-  "observedRouteGeometryReviews": [
+  "historicalRouteGeometryReviews": [
     {
       "commit": "b67be415751e",
       "viewport": { "width": 390, "height": 844, "dpr": 3, "safeAreaBottom": 810, "safeBottomInset": 34 },
@@ -15,6 +16,8 @@
       "unavailable": 0,
       "violationCount": 0,
       "status": "PASS",
+      "current": false,
+      "supersededReason": "route geometry contract now requires initial terminal-region safe-area evidence",
       "sha256": "afb8df11cb1740f59d265a60f81aed5e58060dd5ca21b63a6f17015f3e67eed6",
       "path": "artifacts/ui-runtime-reviews/b67be415751e/390x844@3/geometry/afb8df11cb1740f59d265a60f81aed5e58060dd5ca21b63a6f17015f3e67eed6.json"
     }

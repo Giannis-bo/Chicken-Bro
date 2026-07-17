@@ -13,14 +13,14 @@
     { "route": "current_spec_workbench", "path": "/pages/builds/workbench" },
     { "route": "news_list", "path": "/pages/news/list" },
     { "route": "news_detail", "path": "/pages/news/detail?id=architecture-preflight" },
-    { "route": "build_intel", "path": "/pages/builds/intel", "allowedVerticalOverflowRegions": ["build_card_overflow"], "allowedVerticalOverflowButtonRoles": ["build-intel-primary-action", "build-intel-secondary-action"] },
+    { "route": "build_intel", "path": "/pages/builds/intel", "allowedVerticalOverflowRegions": ["build_card_overflow"], "allowedVerticalOverflowButtonRoles": ["build-intel-primary-action", "build-intel-secondary-action"], "initialSafeAreaRegionIds": ["reference_disclaimer"] },
     { "route": "talent_simulator", "path": "/pages/builds/talent-simulator", "unavailableRouteStates": ["stale", "error"] },
     { "route": "gear_detail", "path": "/pages/builds/detail?query=gear" },
     { "route": "simulator_home", "path": "/pages/simulator/simulator" },
-    { "route": "SimC_submit", "path": "/pages/simulator/simc", "allowedHorizontalOverflowButtonRoles": ["simc-specialization-option"], "initialSafeAreaButtonRoles": ["simc-footer-action"] },
+    { "route": "SimC_submit", "path": "/pages/simulator/simc", "allowedHorizontalOverflowButtonRoles": ["simc-specialization-option"], "initialSafeAreaButtonRoles": ["simc-footer-action"], "initialSafeAreaRegionIds": ["submission_footer"] },
     { "route": "chickenbro_chat", "path": "/pages/simulator/chickenbro" },
     { "route": "tasks_list", "path": "/pages/simulator/tasks" },
-    { "route": "task_detail", "path": "/pages/simulator/task-detail?id=runtime-review", "initialSafeAreaButtonRoles": ["task-detail-exception-action"] },
+    { "route": "task_detail", "path": "/pages/simulator/task-detail?id=runtime-review", "initialSafeAreaButtonRoles": ["task-detail-exception-action"], "initialSafeAreaRegionIds": ["exception_state"] },
     { "route": "profile/templates", "path": "/pages/profile/profile" }
   ]
 }

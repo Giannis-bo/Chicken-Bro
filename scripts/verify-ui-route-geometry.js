@@ -2,12 +2,15 @@
 'use strict'
 
 const { connectMiniProgram, timeout } = require('./wechat-automator')
+const crypto = require('node:crypto')
 const fs = require('node:fs')
 const path = require('node:path')
 const { execFileSync } = require('node:child_process')
 const contract = require('../docs/design/current-ui/route-geometry-contract.json')
 
 const operationTimeoutMs = 10000
+const contractPath = path.resolve(__dirname, '../docs/design/current-ui/route-geometry-contract.json')
+const contractSha256 = crypto.createHash('sha256').update(fs.readFileSync(contractPath)).digest('hex')
 const requestedRoutes = new Set((process.env.GEOMETRY_ROUTES ?? '').split(',').map((value) => value.trim()).filter(Boolean))
 
 function selectedRoutes() {
@@ -57,6 +60,7 @@ async function inspect(page, route, viewport) {
   const allowedHorizontalButtonRoles = route.allowedHorizontalOverflowButtonRoles ?? []
   const allowedVerticalButtonRoles = route.allowedVerticalOverflowButtonRoles ?? []
   const initialSafeAreaButtonRoles = route.initialSafeAreaButtonRoles ?? []
+  const initialSafeAreaRegionIds = route.initialSafeAreaRegionIds ?? []
   const [shell, shellBody, tabBar, regions, buttons, dockButtons, state] = await Promise.all([
     timeout(page.$('.wx-style-shell'), 4000, 'query route shell'),
     timeout(page.$('.wx-style-shellbody'), 4000, 'query route shell body'),
@@ -142,6 +146,14 @@ async function inspect(page, route, viewport) {
   })
   const safeAreaBottom = viewport.safeAreaBottom
   const safeBottomInset = viewport.safeBottomInset
+  for (const regionId of initialSafeAreaRegionIds) {
+    const region = regionBounds.find((candidate) => candidate.id === regionId && candidate.visibleSlot)
+    if (!region) {
+      violations.push({ type: 'missing-initial-safe-area-region', id: regionId })
+    } else if (region.bottom > safeAreaBottom + tolerance) {
+      violations.push({ type: 'initial-region-safe-area', id: regionId, bottom: region.bottom, safeAreaBottom })
+    }
+  }
   const bodyCanRevealSafeAreaContent = Boolean(
     shellBodyMetrics
     && shellBodyMetrics.scrollHeight > shellBodyMetrics.clientHeight + tolerance
@@ -175,6 +187,7 @@ async function inspect(page, route, viewport) {
     maxRegionRight: Math.max(0, ...regionBounds.map((item) => item.right)),
     shellRight: shellBounds?.right ?? null,
     maxBoundRegionBottom: Math.max(0, ...regionBounds.filter((item) => item.visibleSlot && !allowedVertical.has(item.id)).map((item) => item.bottom)),
+    maxInitialSafeAreaRegionBottom: Math.max(0, ...regionBounds.filter((item) => initialSafeAreaRegionIds.includes(item.id) && item.visibleSlot).map((item) => item.bottom)),
     maxBoundButtonBottom: Math.max(0, ...buttonBounds.filter((item) => !allowedVerticalButtonRoles.some((role) => item.role === role || item.className.includes(`wx-data-role-${role}`))).map((item) => item.bottom)),
     safeAreaBottom,
     safeBottomInset,
@@ -216,7 +229,7 @@ async function main() {
       fs.mkdirSync(path.dirname(detailPath), { recursive: true })
       const temporaryPath = `${detailPath}.tmp`
       const commit = execFileSync('git', ['rev-parse', '--short=12', 'HEAD'], { cwd: path.resolve(__dirname, '..'), encoding: 'utf8' }).trim()
-      fs.writeFileSync(temporaryPath, `${JSON.stringify({ schemaVersion: 'wechat-route-geometry-detail-v1', commit, viewport, routes: details }, null, 2)}\n`)
+      fs.writeFileSync(temporaryPath, `${JSON.stringify({ schemaVersion: 'wechat-route-geometry-detail-v1', contractSha256, commit, viewport, routes: details }, null, 2)}\n`)
       fs.renameSync(temporaryPath, detailPath)
     }
     const failures = results.filter((result) => result.status === 'fail')

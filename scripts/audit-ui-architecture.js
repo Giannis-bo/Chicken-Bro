@@ -199,6 +199,7 @@ const requiredSharedReviewEvidence = [
   'wechat_runtime_artifact',
   'target_runtime_region_comparison',
   'real_wechat_core_interaction',
+  'real_wechat_route_geometry',
   'human_visual_confirmation',
 ]
 const expectedOverallStatus = expectedReviewOverallStatus(reviewRoutes)
@@ -217,6 +218,7 @@ record(
 )
 const nonVisualReviewCollections = [
   ['route_geometry', runtimeReviewStatus.observedRouteGeometryReviews],
+  ['historical_route_geometry', runtimeReviewStatus.historicalRouteGeometryReviews],
   ['core_interaction', runtimeReviewStatus.observedCoreInteractionReviews],
   ['selected_control', runtimeReviewStatus.observedSelectedControlReviews],
 ]
@@ -722,6 +724,15 @@ record(
     && /initialSafeAreaButtonRoles\.includes\(button\.role\)/u.test(read('scripts/verify-ui-route-geometry.js'))
     && /data-role="task-detail-exception-action"/u.test(read('packages/design-system/src/components/TaskDetailComponents.tsx')),
   'task detail terminal action must remain visible above the bottom safe area without requiring a scroll exception',
+)
+record(
+  'terminal_regions_must_be_initially_safe',
+  /"route":\s*"build_intel"[^\n]*"initialSafeAreaRegionIds":\s*\["reference_disclaimer"\]/u.test(read('docs/design/current-ui/route-geometry-contract.json'))
+    && /"route":\s*"SimC_submit"[^\n]*"initialSafeAreaRegionIds":\s*\["submission_footer"\]/u.test(read('docs/design/current-ui/route-geometry-contract.json'))
+    && /"route":\s*"task_detail"[^\n]*"initialSafeAreaRegionIds":\s*\["exception_state"\]/u.test(read('docs/design/current-ui/route-geometry-contract.json'))
+    && /initial-region-safe-area/u.test(read('scripts/verify-ui-route-geometry.js'))
+    && /missing-initial-safe-area-region/u.test(read('scripts/verify-ui-route-geometry.js')),
+  'critical terminal regions must be fully visible above the real WeChat safe-area bottom',
 )
 record(
   'tab_root_scroll_viewport_ends_above_fixed_tabbar',
