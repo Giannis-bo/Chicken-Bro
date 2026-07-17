@@ -93,6 +93,7 @@ Review 窗口同时覆盖共享组件、页面 JSX 中的非组件 wrapper、rou
 4. 连接恢复后依次执行结构几何预检、当前批次核心交互、14 路由 target/runtime 复核；三者证据不可互相替代。
 5. 结构预检输出 `visualPixelReview: UNVERIFIED` 是预期边界。只有按 `runtime-review-contract.json` 齐备运行态 artifact、target 映射、区域差异、素材语义、碰撞和交互结果，并经人工确认，路由才可标记 `PASS`。
 6. 最终候选再执行一次 Harness `full` 和 GitHub CI；工具恢复过程不生成第二套监督器、临时截图档案或会话记录。
+7. 若仓库已有 `.git/gc.log` 且包含大量不可达 loose objects，长期任务只允许用仓库本地 `gc.auto=0` 停止每次 commit 的重复自动整理尝试；不得在验收过程中删除 `gc.log`、运行 `prune` 或手动 `gc`，以免制造长时间停顿或破坏恢复对象。
 
 ## 完成标准
 

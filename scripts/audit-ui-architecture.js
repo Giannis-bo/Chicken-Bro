@@ -1504,7 +1504,8 @@ const summary = {
   checkedContracts: contractRoutes.length,
   checks: checks.length,
   reconstructionImportantCount: importantCount,
-  findings,
+  findingCount: findings.length,
+  findings: findings.slice(0, 20),
 }
 console.log(JSON.stringify(summary, null, 2))
 if (findings.length) process.exitCode = 1

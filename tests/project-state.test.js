@@ -716,6 +716,12 @@ test('runtime review commands keep full results out of stdout', () => {
   }
 })
 
+test('architecture audit caps failure output', () => {
+  const source = fs.readFileSync('scripts/audit-ui-architecture.js', 'utf8')
+  assert.match(source, /findingCount:\s*findings\.length/)
+  assert.match(source, /findings:\s*findings\.slice\(0, 20\)/)
+})
+
 test('SimC regions scale inside the shell content viewport', () => {
   const styles = fs.readFileSync('apps/mini-taro/src/pages/simulator/simc-submit.module.scss', 'utf8')
   assert.match(styles, /\.pageFrame\s*\{[\s\S]*height:\s*calc\(var\(--route-safe-viewport-height\) - var\(--space-12\)\);[\s\S]*min-height:\s*0;/)
