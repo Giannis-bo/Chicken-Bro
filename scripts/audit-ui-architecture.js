@@ -214,6 +214,7 @@ record('reconstruction_override_budget_is_bounded', importantCount <= 20, `impor
 const pageFrame = read('packages/design-system/src/components/PageFrame.tsx')
 const pageChrome = read('packages/design-system/src/components/PageFrame.chrome.ts')
 const ownerStyles = read('packages/design-system/src/components/owners.module.scss')
+const newsHomePage = read('apps/mini-taro/src/pages/news/news.tsx')
 record(
   'page_frame_uses_owner_geometry_only',
   pageFrame.includes("ownerStyle('pageFrameHeader')") && !/reconstructionStyle\('(?:pageFrame|pageHeader|sharedBack|titleRail)/.test(pageFrame),
@@ -224,6 +225,12 @@ record(
   ['news-home', 'builds-home', 'simulator-home', 'profile'].every((variant) => pageChrome.includes(`'${variant}'`))
     && ownerStyles.includes('.pageFrame-root .pageFrameHeader'),
   'root variants or root owner missing',
+)
+const newsCarouselInvocation = /<FeaturedCarousel[\s\S]*?\/>/u.exec(newsHomePage)?.[0] ?? ''
+record(
+  'news_home_carousel_keeps_autoplay_behavior',
+  /\bautoplay\b/u.test(newsCarouselInvocation),
+  'the root news carousel must opt into timed rotation explicitly',
 )
 
 const designTokenStyles = read('packages/design-system/src/tokens.scss')

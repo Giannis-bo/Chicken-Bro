@@ -102,6 +102,7 @@ export default function NewsHomePage() {
             }}
           />
           <FeaturedCarousel
+            autoplay
             items={featured}
             loading={model.initialLoading}
             paginationSlots={model.carousel.visualSlotCount}

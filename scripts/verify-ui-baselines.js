@@ -28,10 +28,31 @@ async function elementGeometry(page, selector, includeText = false) {
   }
 }
 
+async function elementText(page, selector) {
+  const element = await timeout(page.$(selector), operationTimeoutMs, `query ${selector}`)
+  return element ? timeout(element.text(), operationTimeoutMs, `${selector} text`) : null
+}
+
 async function measure(miniProgram, baseline) {
   const page = await timeout(miniProgram.reLaunch(baseline.url), operationTimeoutMs, `reLaunch ${baseline.id}`)
   if (!page) throw new Error(`reLaunch ${baseline.id} returned no page`)
   await new Promise((resolve) => setTimeout(resolve, 600))
+  let carousel = null
+  if (baseline.carouselAutoplay) {
+    const titleSelector = '.wx-data-role-featured-title'
+    const availableDots = await timeout(
+      page.$$('.wx-data-role-carousel-dot.wx-data-available-true'),
+      operationTimeoutMs,
+      'query available carousel items',
+    )
+    const before = await elementText(page, titleSelector)
+    let after = before
+    if (availableDots.length >= 2) {
+      await new Promise((resolve) => setTimeout(resolve, 6000))
+      after = await elementText(page, titleSelector)
+    }
+    carousel = { availableItemCount: availableDots.length, before, after }
+  }
   return {
     id: baseline.id,
     path: page.path,
@@ -39,6 +60,7 @@ async function measure(miniProgram, baseline) {
     header: await elementGeometry(page, '.wx-style-pageframeheader'),
     title: await elementGeometry(page, '.wx-style-pageframetitletext', true),
     back: await elementGeometry(page, '.wx-style-pageframebackcontrol'),
+    carousel,
   }
 }
 
@@ -53,7 +75,7 @@ async function main() {
     const systemInfo = await timeout(miniProgram.systemInfo(), operationTimeoutMs, 'systemInfo')
     const baselines = []
     for (const baseline of [
-      { id: 'news_home', url: '/pages/news/news', chrome: 'root', headerInset: 0 },
+      { id: 'news_home', url: '/pages/news/news', chrome: 'root', headerInset: 0, carouselAutoplay: true },
       { id: 'simulator_home', url: '/pages/simulator/simulator', chrome: 'root', headerInset: 0 },
       { id: 'news_detail', url: '/pages/news/detail?id=architecture-preflight', chrome: 'pushed', headerInset: 6.77 },
     ]) {
@@ -78,6 +100,15 @@ async function main() {
       } else {
         if (!baseline.back) failures.push(`${baseline.id}: pushed page lost back control`)
         if (baseline.title.offset.left <= 40) failures.push(`${baseline.id}: pushed title fell into the root title slot`)
+      }
+      if (baseline.carouselAutoplay) {
+        if (!baseline.carousel || baseline.carousel.availableItemCount < 2) {
+          failures.push(`${baseline.id}: autoplay baseline has fewer than two available items`)
+        } else if (!baseline.carousel.before || !baseline.carousel.after) {
+          failures.push(`${baseline.id}: featured carousel title is missing`)
+        } else if (baseline.carousel.before === baseline.carousel.after) {
+          failures.push(`${baseline.id}: featured carousel did not advance after one interval`)
+        }
       }
     }
 
