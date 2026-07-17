@@ -809,6 +809,12 @@ record(
   'horizontal tracks may move controls offscreen but no native control may be wider than the viewport',
 )
 record(
+  'initial_safe_area_button_contract_is_presence_complete',
+  /missing-initial-safe-area-button/u.test(read('scripts/verify-ui-route-geometry.js'))
+    && /missingInitialSafeAreaButtonCount/u.test(read('scripts/verify-ui-route-geometry.js')),
+  'safe-area evidence must fail when a required terminal button is absent, not only when an existing button overflows',
+)
+record(
   'route_geometry_rejects_duplicate_semantic_regions',
   /duplicate-semantic-region/u.test(read('scripts/verify-ui-route-geometry.js')),
   'each mounted route region id must resolve to exactly one geometry owner',
@@ -909,7 +915,8 @@ record(
 record(
   'task_detail_terminal_action_must_be_initially_safe',
   /"route":\s*"task_detail"[^\n]*"initialSafeAreaButtonRoles":\s*\["task-detail-exception-action"\]/u.test(read('docs/design/current-ui/route-geometry-contract.json'))
-    && /initialSafeAreaButtonRoles\.includes\(button\.role\)/u.test(read('scripts/verify-ui-route-geometry.js'))
+    && /for \(const role of initialSafeAreaButtonRoles\)/u.test(read('scripts/verify-ui-route-geometry.js'))
+    && /missing-initial-safe-area-button/u.test(read('scripts/verify-ui-route-geometry.js'))
     && /data-role="task-detail-exception-action"/u.test(read('packages/design-system/src/components/TaskDetailComponents.tsx')),
   'task detail terminal action must remain visible above the bottom safe area without requiring a scroll exception',
 )

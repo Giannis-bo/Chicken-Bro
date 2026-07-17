@@ -202,10 +202,17 @@ async function inspect(page, route, viewport) {
     if (!belongsToDock && entersVisibleSafeArea && contract.safeAreaPolicy?.scrollContentMayCrossSafeBottomOnlyWithScrollableOverflowAndSafePadding && !bodyCanRevealSafeAreaContent) {
       violations.push({ type: 'scroll-button-safe-area-without-reveal-space', index, role: button.role || null, actionId: button.actionId || null, top: button.top, bottom: button.bottom, safeAreaBottom })
     }
-    if (initialSafeAreaButtonRoles.includes(button.role) && button.bottom > safeAreaBottom + tolerance) {
-      violations.push({ type: 'initial-button-safe-area', index, role: button.role, bottom: button.bottom, safeAreaBottom })
-    }
   })
+  for (const role of initialSafeAreaButtonRoles) {
+    const matches = buttonBounds.filter((button) => button.role === role)
+    if (matches.length === 0) {
+      violations.push({ type: 'missing-initial-safe-area-button', role })
+    } else {
+      matches.forEach((button) => {
+        if (button.bottom > safeAreaBottom + tolerance) violations.push({ type: 'initial-button-safe-area', role, bottom: button.bottom, safeAreaBottom })
+      })
+    }
+  }
   const summary = {
     route: route.route,
     status: violations.length === 0 ? 'pass' : 'fail',
@@ -221,6 +228,7 @@ async function inspect(page, route, viewport) {
     shellRight: shellBounds?.right ?? null,
     maxBoundRegionBottom: Math.max(0, ...regionBounds.filter((item) => item.visibleSlot && !allowedVertical.has(item.id)).map((item) => item.bottom)),
     maxInitialSafeAreaRegionBottom: Math.max(0, ...regionBounds.filter((item) => initialSafeAreaRegionIds.includes(item.id) && item.visibleSlot).map((item) => item.bottom)),
+    missingInitialSafeAreaButtonCount: initialSafeAreaButtonRoles.filter((role) => !buttonBounds.some((button) => button.role === role)).length,
     maxBoundButtonBottom: Math.max(0, ...buttonBounds.filter((item) => !allowedVerticalButtonRoles.some((role) => item.role === role || item.className.includes(`wx-data-role-${role}`))).map((item) => item.bottom)),
     safeAreaBottom,
     safeBottomInset,
