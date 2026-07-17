@@ -130,6 +130,61 @@ record(
   rigidMultiColumnComponentGrids.length === 0,
   rigidMultiColumnComponentGrids.join(', ') || 'none',
 )
+function splitGridTracks(value) {
+  const tracks = []
+  let depth = 0
+  let current = ''
+  for (const character of value.trim()) {
+    if (character === '(') depth += 1
+    if (character === ')') depth -= 1
+    if (/\s/u.test(character) && depth === 0) {
+      if (current) tracks.push(current)
+      current = ''
+    } else {
+      current += character
+    }
+  }
+  if (current) tracks.push(current)
+  return tracks
+}
+
+function gridTrackMinimumPx(track) {
+  const fixed = track.match(/^(\d+(?:\.\d+)?)px$/u)
+  if (fixed) return Number(fixed[1])
+  const minmax = track.match(/^minmax\((\d+(?:\.\d+)?)px,/u)
+  if (minmax) return Number(minmax[1])
+  const repeat = track.match(/^repeat\((\d+),(.+)\)$/u)
+  if (repeat) return Number(repeat[1]) * gridTrackMinimumPx(repeat[2])
+  return 0
+}
+
+function explicitHorizontalPaddingPx(body) {
+  const values = body.match(/\bpadding:\s*([^;]+);/u)?.[1]?.trim().split(/\s+/u) ?? []
+  const pixels = values.map((value) => Number(value.match(/^(\d+(?:\.\d+)?)px$/u)?.[1] ?? 0))
+  if (pixels.length === 1) return pixels[0] * 2
+  if (pixels.length === 2 || pixels.length === 3) return pixels[1] * 2
+  if (pixels.length === 4) return pixels[1] + pixels[3]
+  return 0
+}
+
+const minimumGenericContentBoxWidth = 286
+const overflowingComponentGridFootprints = componentStyleFiles.flatMap((file) => (
+  [...read(file).matchAll(/([^{}]+)\{([^{}]*\bgrid-template-columns:\s*([^;]+);[^{}]*)\}/gu)].flatMap((match) => {
+    const tracks = splitGridTracks(match[3])
+    const columnGap = Number(match[2].match(/\b(?:column-)?gap:\s*(\d+(?:\.\d+)?)px/u)?.[1] ?? 0)
+    const footprint = tracks.reduce((sum, track) => sum + gridTrackMinimumPx(track), 0)
+      + Math.max(0, tracks.length - 1) * columnGap
+      + explicitHorizontalPaddingPx(match[2])
+    return footprint > minimumGenericContentBoxWidth
+      ? [`${file}:${match[1].trim().replace(/\s+/gu, ' ')}:${footprint}px`]
+      : []
+  })
+))
+record(
+  'component_grid_minimum_footprints_fit_narrow_content_boxes',
+  overflowingComponentGridFootprints.length === 0,
+  overflowingComponentGridFootprints.join(', ') || `max=${minimumGenericContentBoxWidth}px`,
+)
 const gearDetailStyles = read('packages/design-system/src/components/GearDetailComponents.module.scss')
 record(
   'gear_enhancement_grid_children_shrink_with_tracks',
