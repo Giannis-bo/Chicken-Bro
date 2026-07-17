@@ -81,6 +81,7 @@ export function ActionButton({
       data-action-id={dataActionId}
       data-disabled={disabled || loading ? 'true' : 'false'}
       data-loading={loading ? 'true' : 'false'}
+      data-material-owner={materialAssetId ? 'asset' : 'css'}
       data-role={dataRole}
       data-state={dataState}
       hoverClass={ownerStyle('buttonPressed')}

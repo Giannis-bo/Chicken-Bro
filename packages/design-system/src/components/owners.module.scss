@@ -582,7 +582,7 @@
 .button::after { border: 0; }
 .buttonPressed { filter: brightness(1.08); transform: translateY(1px); }
 .buttonPrimary { border-color: var(--wow-line-brass-hi); color: var(--wow-bg-void); background-color: var(--wow-accent-gold); }
-.buttonMaterial { border: 0; }
+.buttonMaterial { border: 0; background: transparent; box-shadow: none; }
 .button > view,
 .button > text,
 .button > image { position: relative; z-index: 2; }

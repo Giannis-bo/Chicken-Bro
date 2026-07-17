@@ -21,6 +21,7 @@ export function SimulatorCaptainAction({ disabled = false, onReset }: SimulatorC
       className={`${styles['captainAction'] ?? ''} ${styles['interactive'] ?? ''} ${styleSelectorClass('simulatorCaptainAction')}`}
       data-action-id="new-topic"
       data-disabled={disabled ? 'true' : 'false'}
+      data-material-owner="css"
       role="button"
       onClick={() => { if (!disabled) onReset() }}
     >

@@ -109,7 +109,7 @@ export function ProfileTemplateLibrary({ items, onSelect }: ProfileTemplateLibra
       <Text className={styles['sectionTitle'] ?? ''} data-role="profile-section-title">模板库</Text>
       <View className={styles['categoryGrid'] ?? ''} data-count={items.length}>
         {items.map((item) => (
-          <View key={item.id} className={`${styles['interactive'] ?? ''} ${item.id === 'talent' ? styles['categoryTalent'] ?? '' : styles['categoryGear'] ?? ''} ${styleSelectorClass(`profileCategory${item.id}`)}`} data-action-id={`open-${item.id}`} data-category-id={item.id} data-role="profile-category-card" role="button" onClick={() => onSelect(item.id)}>
+          <View key={item.id} className={`${styles['interactive'] ?? ''} ${item.id === 'talent' ? styles['categoryTalent'] ?? '' : styles['categoryGear'] ?? ''} ${styleSelectorClass(`profileCategory${item.id}`)}`} data-action-id={`open-${item.id}`} data-category-id={item.id} data-material-owner="css" data-role="profile-category-card" role="button" onClick={() => onSelect(item.id)}>
             <View className={styles['categoryEmblem'] ?? ''} data-role="profile-category-emblem">
               <ProductionAssetGlyph
                 assetId={item.id === 'talent' ? 'template-talent-medallion.default' : 'quick-action-gear-glyph.default'}

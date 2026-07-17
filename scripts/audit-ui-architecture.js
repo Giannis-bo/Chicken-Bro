@@ -1405,6 +1405,52 @@ record(
 record('routes_use_only_current_app_shell_api', deprecatedAppShellProps.length === 0, deprecatedAppShellProps.join(', ') || 'none')
 
 const componentSources = walk('packages/design-system/src', ['.ts', '.tsx'])
+const interactiveAssetMaterialOwners = []
+for (const file of componentSources.filter((candidate) => candidate.endsWith('.tsx'))) {
+  const ast = babelParser.parse(read(file), { sourceType: 'module', plugins: ['jsx', 'typescript'] })
+  traverse(ast, {
+    JSXElement(elementPath) {
+      const opening = elementPath.node.openingElement
+      const attributes = opening.attributes.filter((attribute) => attribute.type === 'JSXAttribute')
+      const name = opening.name.type === 'JSXIdentifier' ? opening.name.name : ''
+      const roleButton = attributes.some((attribute) => (
+        attribute.name.name === 'role' && attribute.value?.type === 'StringLiteral' && attribute.value.value === 'button'
+      ))
+      if (name !== 'ControlButton' && !roleButton) return
+      let containsMaterialAsset = false
+      elementPath.traverse({
+        JSXOpeningElement(descendantPath) {
+          const descendant = descendantPath.node.name
+          if (descendant.type === 'JSXIdentifier' && ['NineSliceFrame', 'ProductionAssetImage', 'ProductionAssetGlyph'].includes(descendant.name)) {
+            containsMaterialAsset = true
+          }
+        },
+      })
+      if (!containsMaterialAsset) return
+      const owner = attributes.find((attribute) => attribute.name.name === 'data-material-owner')
+      const validStatic = owner?.value?.type === 'StringLiteral' && ['asset', 'css'].includes(owner.value.value)
+      const expression = owner?.value?.type === 'JSXExpressionContainer' ? owner.value.expression : null
+      const validDynamic = expression?.type === 'ConditionalExpression'
+        && expression.consequent.type === 'StringLiteral'
+        && expression.alternate.type === 'StringLiteral'
+        && new Set([expression.consequent.value, expression.alternate.value]).size === 2
+        && [expression.consequent.value, expression.alternate.value].every((value) => ['asset', 'css'].includes(value))
+      const role = attributes.find((attribute) => attribute.name.name === 'data-role')?.value
+      interactiveAssetMaterialOwners.push({
+        file,
+        line: opening.loc?.start.line ?? 0,
+        role: role?.type === 'StringLiteral' ? role.value : name,
+        valid: validStatic || validDynamic,
+      })
+    },
+  })
+}
+record(
+  'all_interactive_asset_descendants_declare_material_ownership',
+  interactiveAssetMaterialOwners.length >= 9 && interactiveAssetMaterialOwners.every((owner) => owner.valid),
+  interactiveAssetMaterialOwners.filter((owner) => !owner.valid).map((owner) => `${owner.file}:${owner.line}:${owner.role}`).join(', ')
+    || `controls=${interactiveAssetMaterialOwners.length}`,
+)
 const productionAssetControlBlocks = componentSources.flatMap((file) => (
   file.endsWith('.tsx')
     ? [...read(file).matchAll(/<ControlButton\b[\s\S]*?<\/ControlButton>/gu)]
@@ -1417,6 +1463,13 @@ record(
   productionAssetControlBlocks.length >= 4
     && productionAssetControlBlocks.every(({ block }) => /data-material-owner="(?:asset|css)"/u.test(block)),
   productionAssetControlBlocks.filter(({ block }) => !/data-material-owner="(?:asset|css)"/u.test(block)).map(({ file }) => file).join(', ') || `controls=${productionAssetControlBlocks.length}`,
+)
+record(
+  'asset_owned_action_buttons_remove_the_css_plate',
+  /\.buttonMaterial\s*\{[^}]*border:\s*0;[^}]*background:\s*transparent;[^}]*box-shadow:\s*none;/su.test(read('packages/design-system/src/components/owners.module.scss'))
+    && /data-material-owner=\{materialAssetId \? 'asset' : 'css'\}/u.test(read('packages/design-system/src/components/ActionButton.tsx'))
+    && /data-material-owner=\{actionFrameReady \? 'asset' : 'css'\}/u.test(read('packages/design-system/src/components/BuildWorkspaceEntry.tsx')),
+  'full-frame assets must replace rather than overlay the shared CSS action plate',
 )
 const unidentifiedNativeControls = []
 for (const file of componentSources.filter((candidate) => candidate.endsWith('.tsx'))) {
