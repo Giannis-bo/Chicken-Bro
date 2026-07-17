@@ -85,6 +85,25 @@ const routeSources = walk('apps/mini-taro/src/pages', ['.ts', '.tsx', '.scss'])
 const routeStyles = routeSources.filter((file) => file.endsWith('.scss'))
 const routeComponents = routeSources.filter((file) => file.endsWith('.tsx'))
 
+const sharedRouteStylePath = 'apps/mini-taro/src/pages/_shared/routes.module.scss'
+const sharedRouteStyles = read(sharedRouteStylePath)
+const sharedRouteConsumers = [
+  'apps/mini-taro/src/pages/_shared/AssistantRoute.tsx',
+  'apps/mini-taro/src/pages/_shared/route-runtime.tsx',
+].map(read).join('\n')
+const sharedRouteClassNames = [...new Set(
+  [...sharedRouteStyles.matchAll(/\.([A-Za-z_][\w-]*)/gu)].map((match) => match[1]),
+)]
+const unusedSharedRouteClasses = sharedRouteClassNames.filter((className) => (
+  !sharedRouteConsumers.includes(`styles['${className}']`)
+  && !sharedRouteConsumers.includes(`styles.${className}`)
+))
+record(
+  'shared_route_styles_have_live_consumers',
+  unusedSharedRouteClasses.length === 0,
+  unusedSharedRouteClasses.join(', ') || 'none',
+)
+
 const fallbackJargonSources = routeSources.filter((file) => /回退/u.test(read(file)))
 record(
   'routes_do_not_expose_fallback_implementation_jargon',
