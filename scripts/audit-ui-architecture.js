@@ -132,10 +132,10 @@ record(
 
 const sharedRouteStylePath = 'apps/mini-taro/src/pages/_shared/routes.module.scss'
 const sharedRouteStyles = read(sharedRouteStylePath)
-const sharedRouteConsumers = [
-  'apps/mini-taro/src/pages/_shared/AssistantRoute.tsx',
-  'apps/mini-taro/src/pages/_shared/route-runtime.tsx',
-].map(read).join('\n')
+const sharedRouteConsumers = routeComponents
+  .filter((file) => read(file).includes("'./routes.module.scss'"))
+  .map(read)
+  .join('\n')
 const sharedRouteClassNames = [...new Set(
   [...sharedRouteStyles.matchAll(/\.([A-Za-z_][\w-]*)/gu)].map((match) => match[1]),
 )]
@@ -1403,6 +1403,39 @@ const pageFrame = read('packages/design-system/src/components/PageFrame.tsx')
 const pageChrome = read('packages/design-system/src/components/PageFrame.chrome.ts')
 const ownerStyles = read('packages/design-system/src/components/owners.module.scss')
 const newsHomePage = read('apps/mini-taro/src/pages/news/news.tsx')
+const specializedPageFrames = {
+  'apps/mini-taro/src/pages/news/news.tsx': 'news-home',
+  'apps/mini-taro/src/pages/news/list.tsx': 'news-list',
+  'apps/mini-taro/src/pages/news/detail.tsx': 'news-detail',
+  'apps/mini-taro/src/pages/builds/builds.tsx': 'builds-home',
+  'apps/mini-taro/src/pages/builds/workbench.tsx': 'workbench',
+  'apps/mini-taro/src/pages/builds/intel.tsx': 'build-intel',
+  'apps/mini-taro/src/pages/builds/talent-simulator.tsx': 'talent-simulator',
+  'apps/mini-taro/src/pages/builds/detail.tsx': 'gear-detail',
+  'apps/mini-taro/src/pages/simulator/simulator.tsx': 'simulator-home',
+  'apps/mini-taro/src/pages/simulator/simc.tsx': 'simc-submit',
+  'apps/mini-taro/src/pages/simulator/chickenbro.tsx': 'chickenbro-chat',
+  'apps/mini-taro/src/pages/simulator/tasks.tsx': 'tasks-list',
+  'apps/mini-taro/src/pages/simulator/task-detail.tsx': 'task-detail',
+  'apps/mini-taro/src/pages/profile/profile.tsx': 'profile',
+}
+const pageFrameCompositionFiles = routeComponents.filter((file) => read(file).includes('<PageFrame'))
+record(
+  'page_frame_compositions_are_limited_to_reviewed_routes',
+  JSON.stringify(sorted(pageFrameCompositionFiles)) === JSON.stringify(sorted(Object.keys(specializedPageFrames))),
+  `actual=${pageFrameCompositionFiles.length}; expected=${Object.keys(specializedPageFrames).length}`,
+)
+const unspecializedPageFrames = Object.entries(specializedPageFrames).filter(([file, variant]) => {
+  const source = read(file)
+  const invocations = source.split('<PageFrame').slice(1)
+  return !pageChrome.includes(`'${variant}'`)
+    || invocations.some((invocation) => !invocation.slice(0, 500).includes(`variant="${variant}"`))
+})
+record(
+  'every_reviewed_route_uses_its_specialized_page_frame_variant',
+  unspecializedPageFrames.length === 0,
+  `unspecialized=${unspecializedPageFrames.map(([file]) => file).join(',') || 'none'}`,
+)
 record(
   'page_frame_uses_owner_geometry_only',
   pageFrame.includes("ownerStyle('pageFrameHeader')") && !/reconstructionStyle\('(?:pageFrame|pageHeader|sharedBack|titleRail)/.test(pageFrame),

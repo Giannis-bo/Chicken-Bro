@@ -668,7 +668,7 @@ export default function GearDetailPage() {
   }
 
   if (queryMode !== 'gear') {
-    return <AppShell><PageFrame title="正在跳转天赋模拟"><StatusVisual state="loading" /></PageFrame></AppShell>
+    return <AppShell><PageFrame title="正在跳转天赋模拟" variant="gear-detail"><StatusVisual state="loading" /></PageFrame></AppShell>
   }
 
   return (

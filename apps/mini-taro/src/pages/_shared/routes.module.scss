@@ -99,12 +99,6 @@
   box-shadow: var(--inner-bevel);
 }
 
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-4);
-}
-
 @media (max-width: 374px) {
   .newsLoadingBriefing { grid-template-columns: 60px minmax(0, 1fr); gap: var(--space-4); }
   .newsLoadingCrest { width: 60px; height: 56px; }
