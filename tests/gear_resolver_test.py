@@ -746,6 +746,19 @@ class GearResolverTest(unittest.TestCase):
             any(problem["code"] == "GEAR_STATIC_ATTRIBUTE_NEGATIVE" for problem in result["problems"])
         )
 
+    def test_missing_selected_enhancement_static_facts_degrades_only_the_attribute_panel(self):
+        fixture = self.fixture()
+        fixture["authorityContext"]["optionsById"]["gem-haste"].pop("statDeltas")
+
+        result = self.resolve(fixture)
+
+        self.assertEqual(result["status"], "verified")
+        self.assertEqual(result["attributeStaticFacts"]["status"], "unavailable")
+        self.assertEqual(
+            result["attributeStaticFacts"]["problems"][0]["code"],
+            "ATTRIBUTE_STATIC_FACTS_UNAVAILABLE",
+        )
+
     def test_slot_pipeline_applies_base_variant_overlay_capabilities_then_enhancements(self):
         result = self.resolve()
         head = result["resolvedSlots"]["head"]

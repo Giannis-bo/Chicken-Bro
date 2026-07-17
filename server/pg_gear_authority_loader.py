@@ -1071,10 +1071,15 @@ def _project_option(
         return None
     if "statDeltas" in payload:
         stat_deltas = _authority_stat_map(payload.get("statDeltas"))
+        attribute_static_facts_status = "verified"
     elif "itemStats" in payload:
         stat_deltas = _authority_stat_map(payload.get("itemStats"))
+        attribute_static_facts_status = "verified"
     else:
         stat_deltas = {}
+        attribute_static_facts_status = _text(payload.get("attributeStaticFactsStatus"))
+        if attribute_static_facts_status not in {"not_applicable"}:
+            attribute_static_facts_status = "unavailable"
     evidence_id = _evidence_id("option", requested_option_id)
     evidence[evidence_id] = {
         "id": evidence_id,
@@ -1088,6 +1093,7 @@ def _project_option(
         "displayName": _text(payload.get("displayName") or record.get("name")),
         "applicableSlots": _texts(record.get("applicableSlots") or []),
         "statDeltas": stat_deltas,
+        "attributeStaticFactsStatus": attribute_static_facts_status,
         "simcOptions": _json_value(record.get("simcOptions"), {}),
         "uniqueGroupId": unique_groups[0] if unique_groups else "",
         "uniqueLimit": _option_unique_limit(record, payload),

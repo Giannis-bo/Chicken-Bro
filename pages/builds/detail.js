@@ -1338,6 +1338,9 @@ function gearAttributeSourceContext(snapshot) {
     staticAttributes: snapshot.staticAttributes && typeof snapshot.staticAttributes === 'object' && !Array.isArray(snapshot.staticAttributes)
       ? snapshot.staticAttributes
       : null,
+    attributeStaticFacts: snapshot.attributeStaticFacts && typeof snapshot.attributeStaticFacts === 'object' && !Array.isArray(snapshot.attributeStaticFacts)
+      ? snapshot.attributeStaticFacts
+      : null,
     resolvedSlots: snapshot.resolvedSlots && typeof snapshot.resolvedSlots === 'object' ? snapshot.resolvedSlots : {},
     constraints: snapshot.constraints && typeof snapshot.constraints === 'object' ? snapshot.constraints : {},
     profileReadiness: snapshot.profileReadiness && typeof snapshot.profileReadiness === 'object' ? snapshot.profileReadiness : {},
@@ -1362,6 +1365,11 @@ function verifiedGearAttributeStaticAttributes(sourceContext) {
 function gearAttributeSourceMetrics(gearPayload, selectedGearBySlot, selectedSpec, enhancementBySlot, sourceContext) {
   const canonicalContext = sourceContext && typeof sourceContext === 'object' ? sourceContext : null
   const verifiedStaticAttributes = verifiedGearAttributeStaticAttributes(canonicalContext)
+  const canonicalAttributeFacts = canonicalContext && canonicalContext.attributeStaticFacts
+  const attributeStaticFactsVerified = !canonicalContext || (
+    canonicalContext.status === 'verified' &&
+    canonicalAttributeFacts && canonicalAttributeFacts.status === 'verified'
+  )
   const canonicalReadiness = canonicalContext && canonicalContext.profileReadiness || {}
   const canonicalRequiredSlots = Array.isArray(canonicalReadiness.requiredSlots)
     ? canonicalReadiness.requiredSlots.filter((slot) => requiredGearSlots.includes(slot))
@@ -1459,6 +1467,7 @@ function gearAttributeSourceMetrics(gearPayload, selectedGearBySlot, selectedSpe
     requiredSlots,
     selectedItems,
     staticAttributes: verifiedStaticAttributes || staticAttributes,
+    attributeStaticFactsVerified,
     primaryKey,
     itemLevel: itemLevels.length ? itemLevels.reduce((sum, value) => sum + value, 0) / itemLevels.length : null,
     enhancementRows: [
@@ -1585,6 +1594,8 @@ function gearAttributeDerivedStateForData(data, previousCalculation) {
     calculation = gearAttributeUnavailableState('idle', calculator.attributeRuleRevision, 'GEAR_SELECTION_EMPTY', 'no gear is selected')
   } else if (calculator.status !== 'available') {
     calculation = gearAttributeUnavailableState('rule_unavailable', calculator.attributeRuleRevision, 'ATTRIBUTE_RULE_UNAVAILABLE', 'no verified attribute rule is available')
+  } else if (!source.attributeStaticFactsVerified) {
+    calculation = gearAttributeUnavailableState('rule_unavailable', calculator.attributeRuleRevision, 'ATTRIBUTE_STATIC_FACTS_UNAVAILABLE', 'selected gear or enhancements are missing canonical static attribute facts')
   } else {
     const rule = gearAttributeRuleForRace(gearPayload, characterContext.raceKey)
     calculation = rule

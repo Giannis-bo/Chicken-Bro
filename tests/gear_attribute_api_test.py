@@ -38,9 +38,22 @@ def valid_intent():
 
 def verified_rulebook():
     rulebook = json.loads((FIXTURE_DIR / "gear-attribute-rulebook-v1.json").read_text(encoding="utf-8"))
-    rulebook["contexts"][0]["status"] = "verified"
-    rulebook["contexts"][0]["sourceRefs"] = ["test:verified-source"]
-    rulebook["contexts"][0]["goldenSampleIds"] = ["test:mage-frost-human"]
+    context = rulebook["contexts"][0]
+    context["status"] = "verified"
+    context["sourceRefs"] = ["test:verified-source"]
+    context["goldenSampleIds"] = ["test:mage-frost-human"]
+    for secondary_rule in context["secondaryRules"]:
+        rating_per_percent = secondary_rule.pop("ratingPerPercent")
+        secondary_rule["ratingTransform"] = {
+            "kind": "piecewise_linear",
+            "ratingPerPercent": rating_per_percent,
+            "points": [
+                {"input": 0, "output": 0},
+                {"input": 10, "output": 10},
+                {"input": 20, "output": 19},
+            ],
+            "outOfRange": "clamp",
+        }
     return rulebook
 
 
@@ -56,6 +69,7 @@ def resolved_envelope(request_id):
         "data": {
             "resolvedGearSignature": "sha256:resolved-gear",
             "staticAttributes": calculator_case["staticAttributes"],
+            "attributeStaticFacts": {"status": "verified", "problems": []},
             "stableEffects": [],
         },
         "problems": [],
@@ -146,6 +160,38 @@ class GearAttributeApiTest(unittest.TestCase):
         self.assertEqual(calculation["status"], "rule_unavailable")
         self.assertIsNone(calculation["primary"])
         self.assertEqual(calculation["secondary"], [])
+
+    def test_incomplete_resolver_static_facts_hide_the_attribute_audit(self):
+        request = {
+            "selectionIntent": valid_intent(),
+            "characterContext": {
+                "schemaRevision": "gear-attribute-character-v1",
+                "raceKey": "human",
+            },
+        }
+        resolved = resolved_envelope("attribute-incomplete-static-facts")
+        resolved["data"]["attributeStaticFacts"] = {
+            "status": "unavailable",
+            "problems": [{"code": "ATTRIBUTE_STATIC_FACTS_UNAVAILABLE"}],
+        }
+        with patch.object(
+            gear_attribute_api,
+            "resolve_selection_intent",
+            return_value=(200, resolved),
+        ):
+            status, envelope = gear_attribute_api.calculate_attributes_for_selection(
+                request,
+                store=object(),
+                simc_runtime_revision="simc-v1",
+                request_id="attribute-incomplete-static-facts",
+                rulebook=verified_rulebook(),
+            )
+
+        calculation = envelope["data"]["attributeCalculation"]
+        self.assertEqual(status, 200)
+        self.assertEqual(calculation["status"], "rule_unavailable")
+        self.assertIsNone(calculation["primary"])
+        self.assertEqual(calculation["problems"][0]["code"], "ATTRIBUTE_STATIC_FACTS_UNAVAILABLE")
 
     def test_malformed_resolver_stable_effect_facts_fail_closed(self):
         request = {

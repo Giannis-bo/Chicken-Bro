@@ -1924,6 +1924,18 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
             {"haste": 10, "stamina": 130, "strength": 90},
         )
 
+    def test_loader_preserves_missing_selected_option_static_facts_for_attribute_downgrade(self):
+        option = self.option_row(payload={})
+        _cursor, context = self.load(cursor=self.cursor(option_rows=[option]))
+
+        self.assertEqual(
+            context["optionsById"]["gem-haste"]["attributeStaticFactsStatus"],
+            "unavailable",
+        )
+        snapshot = gear_resolver.resolve(self.intent(), context)
+        self.assertEqual(snapshot["status"], "verified")
+        self.assertEqual(snapshot["attributeStaticFacts"]["status"], "unavailable")
+
     def test_invalid_structured_option_stats_remain_authority_blockers(self):
         from server import gear_resolver
 

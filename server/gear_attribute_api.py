@@ -73,6 +73,25 @@ def _sealed_stable_effects(snapshot: Any) -> list[dict[str, str]] | None:
     return effects
 
 
+def _sealed_attribute_static_facts(snapshot: Any) -> bool:
+    """Only a resolver seal can authorize a final character-attribute panel."""
+    facts = snapshot.get("attributeStaticFacts") if isinstance(snapshot, dict) else None
+    return isinstance(facts, dict) and facts.get("status") == "verified"
+
+
+def _attribute_static_facts_unavailable_calculation() -> dict[str, Any]:
+    calculation = calculate_noncombat_attributes(None, {}, {}, [])
+    calculation["problems"] = [
+        {
+            "kind": "ATTRIBUTE_RULE_UNAVAILABLE",
+            "code": "ATTRIBUTE_STATIC_FACTS_UNAVAILABLE",
+            "path": "resolvedSnapshot.attributeStaticFacts",
+            "message": "selected gear or enhancements are missing canonical static attribute facts",
+        }
+    ]
+    return calculation
+
+
 def calculate_attributes_for_selection(
     raw_request: Any,
     *,
@@ -122,19 +141,22 @@ def calculate_attributes_for_selection(
 
     snapshot = resolved.get("data") if isinstance(resolved.get("data"), dict) else {}
     eligibility = intent["eligibilityContext"]
-    active_rule, _ = applicable_attribute_rule(
-        rulebook if isinstance(rulebook, dict) else _EMPTY_RULEBOOK,
-        class_key=eligibility["classKey"],
-        spec_key=eligibility["specKey"],
-        level=eligibility["level"],
-        race_key=character["raceKey"],
-    )
-    calculation = calculate_noncombat_attributes(
-        active_rule,
-        character,
-        snapshot.get("staticAttributes"),
-        _sealed_stable_effects(snapshot),
-    )
+    if not _sealed_attribute_static_facts(snapshot):
+        calculation = _attribute_static_facts_unavailable_calculation()
+    else:
+        active_rule, _ = applicable_attribute_rule(
+            rulebook if isinstance(rulebook, dict) else _EMPTY_RULEBOOK,
+            class_key=eligibility["classKey"],
+            spec_key=eligibility["specKey"],
+            level=eligibility["level"],
+            race_key=character["raceKey"],
+        )
+        calculation = calculate_noncombat_attributes(
+            active_rule,
+            character,
+            snapshot.get("staticAttributes"),
+            _sealed_stable_effects(snapshot),
+        )
     release_context = resolved.get("releaseContext") if isinstance(resolved.get("releaseContext"), dict) else {}
     envelope = result_envelope(
         "resolved",

@@ -1245,6 +1245,7 @@ test('gear attribute panel prefers the verified resolver static snapshot over di
       gearAttributeSourceContext: {
         status: 'verified',
         staticAttributes: { haste_rating: 200 },
+        attributeStaticFacts: { status: 'verified', problems: [] },
         profileReadiness: { requiredSlots: canonicalGearSlots }
       }
     },
@@ -1261,6 +1262,62 @@ test('gear attribute panel prefers the verified resolver static snapshot over di
   pageConfig.refreshGearAttributePanel.call(page, { previousCalculation: page.data.gearAttributeState })
   haste = page.data.gearAttributePanel.statRows.find((row) => row.key === 'haste')
   assert.equal(haste.rawValue, 200)
+})
+
+test('gear attribute panel hides final values when the resolver reports incomplete enhancement facts', () => {
+  const pageConfig = loadBuildsDetailPageConfig({ exposeDetailHelpers: true })
+  const rule = structuredClone(gearAttributeFixture.rule)
+  rule.status = 'verified'
+  const selectedGearBySlot = completeGearSelection()
+  selectedGearBySlot.head.itemStats = [{ key: 'haste_rating', value: 100 }]
+  const gearPayload = {
+    classKey: 'mage',
+    specKey: 'frost',
+    maxLevel: 90,
+    slots: canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot })),
+    equippedSet: selectedGearBySlot,
+    replacementCandidates: [],
+    slotReadiness: {},
+    readiness: { fullReady: true },
+    attributeCalculator: {
+      contractRevision: 'gear-attribute-calculator-context-v1',
+      status: 'available',
+      attributeRuleRevision: 'fixture-r1',
+      raceOptions: [{ raceKey: 'human' }],
+      rules: [rule],
+      problems: []
+    }
+  }
+  const page = {
+    ...pageConfig,
+    data: {
+      ...pageConfig.data,
+      activeQueryKey: 'gear',
+      selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' },
+      gearPayload,
+      selectedGearBySlot,
+      enhancementBySlot: {},
+      gearAttributeSourceContext: {
+        status: 'verified',
+        staticAttributes: { haste_rating: 200 },
+        attributeStaticFacts: {
+          status: 'unavailable',
+          problems: [{ code: 'ATTRIBUTE_STATIC_FACTS_UNAVAILABLE' }]
+        },
+        profileReadiness: { requiredSlots: canonicalGearSlots }
+      }
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.refreshGearAttributePanel.call(page)
+
+  assert.equal(page.data.gearAttributeState.status, 'rule_unavailable')
+  assert.equal(page.data.gearAttributeState.problems[0].code, 'ATTRIBUTE_STATIC_FACTS_UNAVAILABLE')
+  assert.deepEqual(JSON.parse(JSON.stringify(page.data.gearAttributePanel.statRows)), [])
+  assert.equal(page.data.gearAttributePanel.calculationStatusLabel, '属性资料待补齐')
 })
 
 test('gear attribute panel immediately uses the edited local selection instead of a stale resolver snapshot', () => {
