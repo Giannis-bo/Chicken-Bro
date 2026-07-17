@@ -120,6 +120,7 @@ const routeSources = walk('apps/mini-taro/src/pages', ['.ts', '.tsx', '.scss'])
 const routeStyles = routeSources.filter((file) => file.endsWith('.scss'))
 const routeComponents = routeSources.filter((file) => file.endsWith('.tsx'))
 const componentStyleFiles = walk('packages/design-system/src/components', ['.module.scss'])
+const routedUiStyleFiles = [...componentStyleFiles, ...routeStyles]
 const redundantRouteMediaHeightOverrides = routeStyles.flatMap((file) => {
   const source = read(file)
   const baseHeight = source.match(/\.pageFrame\s*\{[^}]*\bheight:\s*([^;]+);/u)?.[1]?.trim()
@@ -133,7 +134,7 @@ record(
   redundantRouteMediaHeightOverrides.length === 0,
   redundantRouteMediaHeightOverrides.join(', ') || 'none',
 )
-const fixedPixelComponentControlWidths = componentStyleFiles.flatMap((file) => (
+const fixedPixelComponentControlWidths = routedUiStyleFiles.flatMap((file) => (
   [...read(file).matchAll(/([^{}]+)\{([^{}]*)\}/gu)].flatMap((match) => (
     /(?:action|button|control)/iu.test(match[1])
       && (
@@ -149,7 +150,7 @@ record(
   fixedPixelComponentControlWidths.length === 0,
   fixedPixelComponentControlWidths.join(', ') || 'none',
 )
-const rigidMultiColumnComponentGrids = componentStyleFiles.flatMap((file) => (
+const rigidMultiColumnComponentGrids = routedUiStyleFiles.flatMap((file) => (
   [...read(file).matchAll(/([^{}]+)\{([^{}]*\bgrid-template-columns:\s*([^;]+);[^{}]*)\}/gu)].flatMap((match) => {
     const largeMinimums = [...match[3].matchAll(/minmax\((\d+)px,/gu)]
       .map((column) => Number(column[1]))
@@ -202,7 +203,7 @@ function explicitHorizontalPaddingPx(body) {
 }
 
 const minimumGenericContentBoxWidth = 286
-const overflowingComponentGridFootprints = componentStyleFiles.flatMap((file) => (
+const overflowingComponentGridFootprints = routedUiStyleFiles.flatMap((file) => (
   [...read(file).matchAll(/([^{}]+)\{([^{}]*\bgrid-template-columns:\s*([^;]+);[^{}]*)\}/gu)].flatMap((match) => {
     const tracks = splitGridTracks(match[3])
     const columnGap = Number(match[2].match(/\b(?:column-)?gap:\s*(\d+(?:\.\d+)?)px/u)?.[1] ?? 0)

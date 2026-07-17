@@ -780,6 +780,8 @@ test('SimC regions scale inside the shell content viewport', () => {
 })
 
 test('full-width absolute regions scale on narrow WeChat viewports', () => {
+  const audit = fs.readFileSync('scripts/audit-ui-architecture.js', 'utf8')
+  assert.match(audit, /routedUiStyleFiles = \[\.\.\.componentStyleFiles, \.\.\.routeStyles\]/)
   for (const file of [
     'apps/mini-taro/src/pages/simulator/simc-submit.module.scss',
     'apps/mini-taro/src/pages/simulator/chickenbro.module.scss',
