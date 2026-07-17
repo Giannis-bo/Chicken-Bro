@@ -86,6 +86,19 @@ const routeSources = walk('apps/mini-taro/src/pages', ['.ts', '.tsx', '.scss'])
 const routeStyles = routeSources.filter((file) => file.endsWith('.scss'))
 const routeComponents = routeSources.filter((file) => file.endsWith('.tsx'))
 const componentStyleFiles = walk('packages/design-system/src/components', ['.module.scss'])
+const fixedPixelComponentControlWidths = componentStyleFiles.flatMap((file) => (
+  [...read(file).matchAll(/([^{}]+)\{([^{}]*)\}/gu)].flatMap((match) => (
+    /(?:action|button|control)/iu.test(match[1])
+      && /\b(?:width|min-width):\s*(?:2[8-9]\d|[3-9]\d\d)px\s*;/u.test(match[2])
+      ? [`${file}:${match[1].trim().replace(/\s+/gu, ' ')}`]
+      : []
+  ))
+))
+record(
+  'large_component_controls_do_not_lock_to_fixed_pixel_widths',
+  fixedPixelComponentControlWidths.length === 0,
+  fixedPixelComponentControlWidths.join(', ') || 'none',
+)
 
 function percentLayoutValue(block, property, axisPixels) {
   const raw = block.match(new RegExp(`${property}:\\s*([^;]+);`, 'u'))?.[1]?.trim()
