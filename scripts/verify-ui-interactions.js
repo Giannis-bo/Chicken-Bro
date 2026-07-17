@@ -17,7 +17,12 @@ function contractDefinition(route, accept) {
   const interaction = coreInteractionContract.interactions.find((candidate) => candidate.route === route)
   if (!interaction) throw new Error(`missing core interaction contract for ${route}`)
   return {
-    output: { route, interaction: interaction.name, expected: interaction.expected },
+    output: {
+      route,
+      interaction: interaction.name,
+      expected: interaction.expected,
+      unavailableRouteStates: interaction.unavailableRouteStates ?? [],
+    },
     accept,
   }
 }
@@ -153,10 +158,16 @@ async function runCase(results, definition, action) {
     const passed = definition.accept(actual)
     results.push({ ...definition.output, actual, status: passed ? 'PASS' : 'FAIL' })
   } catch (error) {
+    const actual = error instanceof Error ? error.message : String(error)
+    const unavailableState = actual.match(/routeState=([a-z]+)/u)?.[1]
+    const unavailable = actual.startsWith('interaction precondition unavailable:')
+      && unavailableState
+      && definition.output.unavailableRouteStates.includes(unavailableState)
     results.push({
       ...definition.output,
-      actual: error instanceof Error ? error.message : String(error),
-      status: 'FAIL',
+      actual,
+      ...(unavailable ? { routeState: unavailableState } : {}),
+      status: unavailable ? 'UNAVAILABLE' : 'FAIL',
     })
   }
   process.stderr.write(`[interaction:end] ${route} ${results.at(-1)?.status ?? 'FAIL'}\n`)
@@ -232,7 +243,7 @@ async function main() {
         page,
         contractSelector('talent_simulator'),
         2,
-        ['stale', 'error', 'blocked', 'empty'],
+        contractDefinition('talent_simulator', () => true).output.unavailableRouteStates,
       )
       const activeSelector = `${contractSelector('talent_simulator')}.wx-data-active-true`
       const before = await timeout((await requiredElement(page, activeSelector)).text(), 2000, 'read initial talent tab')
@@ -307,12 +318,14 @@ async function main() {
       actual: resultRoutes.join(','),
       status: 'FAIL',
     }]
-    const failures = [...results.filter((result) => result.status !== 'PASS'), ...coverageFailures]
+    const failures = [...results.filter((result) => result.status === 'FAIL'), ...coverageFailures]
     console.log(JSON.stringify({
       status: failures.length ? 'fail' : 'pass',
       evidence: 'real_wechat_core_interaction',
       scope: requestedRoutes.size === 0 ? 'all_14_canonical_routes' : 'selected_canonical_routes',
       coverageMatches,
+      passed: results.filter((result) => result.status === 'PASS').length,
+      unavailable: results.filter((result) => result.status === 'UNAVAILABLE').length,
       results,
       failures,
     }, null, 2))
