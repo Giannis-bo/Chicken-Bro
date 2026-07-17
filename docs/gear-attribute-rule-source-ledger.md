@@ -24,6 +24,13 @@
 - 每次本地结果的 `inputSignature` 还会绑定实际参与运算的主属性、资源、稳定修正和全部绿字转换规则（包括曲线点），不能只依赖人工递增 `attributeRuleRevision`。因此即使错误地未提升 revision 而改写曲线，结果签名仍会变化并触发保存/审计/fixture 对照。
 - 公共 `GET /api/websim/gear` 的 PostgreSQL read-model 路径现与直出路径同构：当存储 payload 缺少 `attributeCalculator` 时，运行时以同一 serializer 补入明确的 `rule_unavailable` 上下文；若存储已提供带 `status` 的规则上下文则原样保留。该修复只消除“字段缺失”与“规则未就绪”的歧义，不会把 candidate、fixture 或 SimC 结果发布为角色属性。
 
+## 2026-07-17 离线实例静态事实探针（仍未发布）
+
+- 已在云端既有 SimulationCraft `12.0.7.68453` 中以 `item_db_source=local`、单次迭代和无网络物品查询，读取官方 Profile 已封存的 item ID、item level、bonus ID、附魔、宝石 ID 与活动天赋；该动作仅用于后台/黄金样本审计，没有参与玩家换装请求、没有写入数据库或刷新 winner。Frost Dwarf 的 15 槽输入可精确复现耐力 `23,001`、生命 `460,020`、智力 `2,485`、精通 rating `1,040` 和吸血 rating `55`。Arcane Night Elf 的同类输入可精确复现耐力 `22,938`、生命 `458,760`、智力 `2,462`、精通 `785`、全能 `385`、吸血 `166` 与速度 `55`。这证明现有 SimC 本地数据足以作为实例静态事实的**审计/交叉验证来源**，但不改变其不在前端实时路径中的边界。
+- 同一探针也发现不能把官方 Profile 中的 `bonus_id` 和 `gem_id` 机械相加。Frost 若传入全部记录的 gem ID，得到暴击 `877`、急速 `686`，而官方面板为 `861`、`669`；去掉全部 gem ID 后，急速恰为 `669`，但智力/暴击/精通又分别低为 `2,451`/`813`/`1,005`。Arcane 带全部 gem 时为暴击 `574`、急速 `818`（官方 `558`/`802`）；去掉 gem 后急速仍为 `818`、暴击降为 `539`、全能降为 `305`。因此剩余差异是实例 bonus、强化效果、互斥/条件语义或其序列化约定的组合问题，不能靠截断、常数补偿或前端猜测修正。
+- 已获授权的 Battle.net Game Data API 只读探针说明为什么不能直接补洞：`250060` 的通用 item 记录是未按角色实例缩放的 `197` 级基础词条（`+9` 智力、`+14` 耐力、`+12` 急速、`+6` 精通），而 Frost 官方实例为 `289` 级。Gem metadata 可读到 `240892` 为 `+14 Haste/+6 Mastery`、`240908` 为 `+14 Critical Strike/+6 Mastery`、`240983` 为 `+29 Primary Stat`，但前两者没有足以解释角色实例结果的 limit/条件投影。通用 Game Data 因此不能代替按 bonus/装备位置解析的 canonical 静态事实。
+- 结论：下一步必须由后端 Resolver/实例事实 owner 产出已解析物品、宝石、附魔与美化的 canonical 静态属性及其来源/条件标记；实时解释器只消费该 sealed 输入。只有两例官方面板的每个原始字段均能重现后，才可把它们从 `candidate` 提升为 `verified`，并发布对应 `attributeCalculator` rule context。
+
 ## 录入要求
 
 - `sourceRefs` 必须能指向具体的规则来源或可复核的官方证据，不能只写“英雄榜截图”或角色名。
