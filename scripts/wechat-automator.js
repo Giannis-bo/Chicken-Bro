@@ -7,10 +7,11 @@ const automator = require('miniprogram-automator')
 const connectTimeoutMs = 30000
 
 function timeout(promise, milliseconds, label) {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) => setTimeout(() => reject(new Error(`${label} timed out after ${milliseconds}ms`)), milliseconds)),
-  ])
+  let timer
+  const deadline = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label} timed out after ${milliseconds}ms`)), milliseconds)
+  })
+  return Promise.race([promise, deadline]).finally(() => clearTimeout(timer))
 }
 
 async function connectMiniProgram() {
@@ -21,7 +22,11 @@ async function connectMiniProgram() {
 
   for (let port = 9420; port <= 9460; port += 1) {
     if (await portIsListening(port)) {
-      return timeout(automator.connect({ wsEndpoint: `ws://127.0.0.1:${port}` }), connectTimeoutMs, `connect automation port ${port}`)
+      try {
+        return await timeout(automator.connect({ wsEndpoint: `ws://127.0.0.1:${port}` }), connectTimeoutMs, `connect automation port ${port}`)
+      } catch {
+        // A listening port in this range is not necessarily a WeChat Automator endpoint.
+      }
     }
   }
 
@@ -42,7 +47,10 @@ async function connectMiniProgram() {
 function portIsListening(port) {
   return new Promise((resolve) => {
     const socket = net.createConnection({ host: '127.0.0.1', port })
+    let settled = false
     const finish = (listening) => {
+      if (settled) return
+      settled = true
       socket.destroy()
       resolve(listening)
     }
