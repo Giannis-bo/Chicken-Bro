@@ -33,6 +33,14 @@ async function elementText(page, selector) {
   return element ? timeout(element.text(), operationTimeoutMs, `${selector} text`) : null
 }
 
+async function elementGeometries(page, selector) {
+  const elements = await timeout(page.$$(selector), operationTimeoutMs, `query all ${selector}`)
+  return Promise.all(elements.map(async (element) => ({
+    offset: await timeout(element.offset(), operationTimeoutMs, `${selector} offset`),
+    size: await timeout(element.size(), operationTimeoutMs, `${selector} size`),
+  })))
+}
+
 async function measure(miniProgram, baseline) {
   const page = await timeout(miniProgram.reLaunch(baseline.url), operationTimeoutMs, `reLaunch ${baseline.id}`)
   if (!page) throw new Error(`reLaunch ${baseline.id} returned no page`)
@@ -53,6 +61,27 @@ async function measure(miniProgram, baseline) {
     }
     carousel = { availableItemCount: availableDots.length, before, after }
   }
+  let metricAlignment = null
+  if (baseline.metricOpticalAlignment) {
+    const [glyphs, labels, values] = await Promise.all([
+      elementGeometries(page, '.wx-style-newshomebriefmetricglyph'),
+      elementGeometries(page, '.wx-style-newshomebriefmetriclabel'),
+      elementGeometries(page, '.wx-style-newshomebriefmetricvalue'),
+    ])
+    metricAlignment = glyphs.map((glyph, index) => {
+      const label = labels[index]
+      const value = values[index]
+      const glyphCenter = glyph.offset.top + glyph.size.height / 2
+      const labelCenter = label ? label.offset.top + label.size.height / 2 : null
+      const valueCenter = value ? value.offset.top + value.size.height / 2 : null
+      return {
+        glyphCenter,
+        labelCenter,
+        valueCenter,
+        opticalOffset: labelCenter === null ? null : glyphCenter - labelCenter,
+      }
+    })
+  }
   return {
     id: baseline.id,
     path: page.path,
@@ -61,6 +90,7 @@ async function measure(miniProgram, baseline) {
     title: await elementGeometry(page, '.wx-style-pageframetitletext', true),
     back: await elementGeometry(page, '.wx-style-pageframebackcontrol'),
     carousel,
+    metricAlignment,
   }
 }
 
@@ -75,7 +105,14 @@ async function main() {
     const systemInfo = await timeout(miniProgram.systemInfo(), operationTimeoutMs, 'systemInfo')
     const baselines = []
     for (const baseline of [
-      { id: 'news_home', url: '/pages/news/news', chrome: 'root', headerInset: 0, carouselAutoplay: true },
+      {
+        id: 'news_home',
+        url: '/pages/news/news',
+        chrome: 'root',
+        headerInset: 0,
+        carouselAutoplay: true,
+        metricOpticalAlignment: true,
+      },
       { id: 'simulator_home', url: '/pages/simulator/simulator', chrome: 'root', headerInset: 0 },
       { id: 'news_detail', url: '/pages/news/detail?id=architecture-preflight', chrome: 'pushed', headerInset: 6.77 },
     ]) {
@@ -108,6 +145,20 @@ async function main() {
           failures.push(`${baseline.id}: featured carousel title is missing`)
         } else if (baseline.carousel.before === baseline.carousel.after) {
           failures.push(`${baseline.id}: featured carousel did not advance after one interval`)
+        }
+      }
+      if (baseline.metricOpticalAlignment) {
+        if (!baseline.metricAlignment || baseline.metricAlignment.length !== 4) {
+          failures.push(`${baseline.id}: daily brief metric alignment evidence is incomplete`)
+        } else {
+          baseline.metricAlignment.forEach((metric, index) => {
+            if (!closeTo(metric.labelCenter, metric.valueCenter, 0.1)) {
+              failures.push(`${baseline.id}: metric ${index + 1} label/value centers drifted`)
+            }
+            if (!closeTo(metric.opticalOffset, 0.75, 0.3)) {
+              failures.push(`${baseline.id}: metric ${index + 1} glyph optical correction drifted`)
+            }
+          })
         }
       }
     }

@@ -1680,7 +1680,7 @@
 .newsHomeBriefMetrics { display: grid; min-width: 0; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8.5px; padding: 0 4px 0 10px; }
 .newsHomeBriefMetric { display: grid; min-width: 0; grid-template-columns: 18px auto auto; align-items: center; justify-content: center; gap: 2px; border: 0; color: #c8b49b; background: #141719; box-shadow: none; clip-path: none; }
 .newsHomeBriefMetric:active { background: rgba(207, 163, 101, 0.08); }
-.newsHomeBriefMetricGlyph { width: 18px; height: 18px; color: #c8b49b; }
+.newsHomeBriefMetricGlyph { width: 18px; height: 18px; color: #c8b49b; transform: translateY(0.5px); }
 .newsHomeBriefMetricLabel { min-height: 16px; overflow: hidden; color: #c8b49b; font-size: 11px; font-weight: 400; line-height: 16px; white-space: nowrap; }
 .newsHomeBriefMetricValue { min-height: 16px; color: #c8b49b; font-size: 11px; font-weight: 400; line-height: 16px; }
 .newsHomeBriefMetricUnavailable { opacity: 0.5; }
