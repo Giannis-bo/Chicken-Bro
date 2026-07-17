@@ -2,12 +2,15 @@
 'use strict'
 
 const { connectMiniProgram, timeout } = require('./wechat-automator')
+const crypto = require('node:crypto')
 const { execFileSync } = require('node:child_process')
 const fs = require('node:fs')
 const path = require('node:path')
 const contract = require('../docs/design/current-ui/selected-control-contract.json')
 
 const operationTimeoutMs = 10000
+const contractPath = path.resolve(__dirname, '../docs/design/current-ui/selected-control-contract.json')
+const contractSha256 = crypto.createHash('sha256').update(fs.readFileSync(contractPath)).digest('hex')
 const selectedRoutes = new Set((process.env.SELECTED_STATE_ROUTES ?? '').split(',').map((value) => value.trim()).filter(Boolean))
 
 function selectedGroups() {
@@ -96,6 +99,7 @@ async function main() {
   const resultKeys = results.map((result) => `${result.route}::${result.role}`)
   const detail = {
     schemaVersion: 'wechat-selected-control-detail-v1',
+    contractSha256,
     commit: execFileSync('git', ['rev-parse', '--short=12', 'HEAD'], { cwd: path.resolve(__dirname, '..'), encoding: 'utf8' }).trim(),
     viewport: { width: system.windowWidth, height: system.windowHeight, dpr: system.pixelRatio },
     scope: selectedRoutes.size === 0 ? 'all_contract_groups' : 'selected_routes',

@@ -7,6 +7,8 @@ const path = require('node:path')
 const contract = require('../docs/design/current-ui/selected-control-contract.json')
 
 const root = path.resolve(__dirname, '..')
+const contractPath = path.join(root, 'docs/design/current-ui/selected-control-contract.json')
+const contractSha256 = crypto.createHash('sha256').update(fs.readFileSync(contractPath)).digest('hex')
 
 function key(item) {
   return `${item.route}::${item.role}`
@@ -21,6 +23,7 @@ function readDetails(value) {
 function combineDetails(details) {
   const first = details[0]
   if (details.some((detail) => detail.schemaVersion !== 'wechat-selected-control-detail-v1')) throw new Error('unsupported selected control detail schema')
+  if (first.contractSha256 !== contractSha256 || details.some((detail) => detail.contractSha256 !== contractSha256)) throw new Error('selected control detail contract SHA-256 is stale or mismatched')
   if (!/^[a-f\d]{12}$/u.test(first.commit ?? '') || details.some((detail) => detail.commit !== first.commit)) throw new Error('selected control detail commits must match')
   const viewportKey = JSON.stringify(first.viewport)
   if (![first.viewport?.width, first.viewport?.height, first.viewport?.dpr].every((value) => Number.isFinite(value) && value > 0) || details.some((detail) => JSON.stringify(detail.viewport) !== viewportKey)) throw new Error('selected control detail viewports must match')
@@ -42,6 +45,7 @@ function combineDetails(details) {
   const byKey = new Map(results.map((result) => [key(result), result]))
   return {
     schemaVersion: 'wechat-selected-control-evidence-v1',
+    contractSha256,
     commit: first.commit,
     viewport: first.viewport,
     groups: expectedKeys.map((item) => byKey.get(item)),

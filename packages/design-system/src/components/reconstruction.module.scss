@@ -343,6 +343,7 @@
 .newsListCategoryItemOwner { position: relative; z-index: 4; display: grid; min-width: 0; margin: 2px 1px; place-items: center; color: #9e9587; font-size: 9px; font-weight: 720; line-height: 12px; white-space: nowrap; }
 .newsListCategoryItemOwner::before { position: absolute; inset: 2px; content: ''; border-top: 1px solid rgba(129, 105, 68, 0.14); border-bottom: 1px solid rgba(1, 2, 3, 0.46); pointer-events: none; }
 .newsListCategoryItemOwnerActive { margin: 0 1px; border: 1px solid rgba(201, 155, 78, 0.94); border-radius: 0; color: #f1ddb1; background: linear-gradient(180deg, rgba(82, 64, 39, 0.98), rgba(24, 23, 21, 0.99)); box-shadow: inset 0 0 0 2px rgba(5, 6, 8, 0.78), inset 0 1px rgba(255, 222, 153, 0.16), 0 0 7px rgba(184, 136, 56, 0.15); clip-path: polygon(5px 0, calc(100% - 5px) 0, 100% 5px, 100% calc(100% - 5px), calc(100% - 5px) 100%, 5px 100%, 0 calc(100% - 5px), 0 5px); }
+.newsListCategoryItemOwnerActive::before { display: none; }
 .newsListCategoryUnderline { position: absolute; right: 8px; bottom: 4px; left: 8px; height: 2px; background: linear-gradient(90deg, transparent, #e0b65c 18%, #e0b65c 82%, transparent); box-shadow: 0 0 6px rgba(224, 182, 92, 0.38); }
 .newsListSortControl { position: relative; z-index: 4; display: grid; min-width: 0; margin: 2px 0 2px 4px; place-items: center; border: 1px solid rgba(128, 96, 53, 0.82); color: #d1b779; background: linear-gradient(180deg, rgba(35, 33, 29, 0.94), rgba(7, 9, 12, 0.96)); box-shadow: inset 0 0 0 2px rgba(3, 4, 6, 0.82), inset 0 1px rgba(232, 193, 117, 0.08); clip-path: polygon(4px 0, calc(100% - 4px) 0, 100% 4px, 100% calc(100% - 4px), calc(100% - 4px) 100%, 4px 100%, 0 calc(100% - 4px), 0 4px); }
 .newsListSortControl > view { width: 17px; height: 17px; }
@@ -629,6 +630,8 @@
 .channelDockFixed { grid-template-columns: repeat(6, minmax(0, 1fr)); grid-auto-flow: initial; }
 .channelCell { position: relative; z-index: 2; display: grid; min-width: 0; min-height: 84px; grid-template-rows: 28px 14px; align-content: center; justify-items: center; gap: 3px; overflow: hidden; border: 0; border-radius: 0; color: var(--wow-fg-dim); background: linear-gradient(180deg, rgba(26, 28, 31, 0.92), rgba(14, 16, 20, 0.94)); }
 .channelCell:nth-child(n + 2) { border-left: 1px solid rgba(112, 88, 52, 0.5); }
+.channelCellActive,
+.channelCellActive + .channelCell { border-left-color: transparent; }
 .channelCell:last-child { border-right: 0; }
 .channelCell:active { background: rgba(231, 185, 61, 0.07); }
 .channelCell::before { display: none; }
@@ -914,6 +917,8 @@
 .talentTreeTabList { display: grid; height: 100%; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: var(--forged-content-inset, 4px); }
 .talentTreeTab { display: flex; min-width: 0; align-items: center; justify-content: center; gap: 4px; color: var(--wow-fg-muted); font-size: 9px; font-weight: 700; line-height: 12px; }
 .talentTreeTab:nth-child(n + 2) { border-left: 1px solid rgba(105, 83, 49, 0.45); }
+.talentTreeTabActive,
+.talentTreeTabActive + .talentTreeTab { border-left-color: transparent; }
 .talentTreeTabActive { color: var(--wow-accent-gold); background: rgba(134, 96, 28, 0.22); box-shadow: inset 0 -2px var(--wow-accent-gold); }
 .talentTreeTabDisabled { color: var(--wow-fg-dim); opacity: 0.55; }
 .talentTreeTab > view:last-child,

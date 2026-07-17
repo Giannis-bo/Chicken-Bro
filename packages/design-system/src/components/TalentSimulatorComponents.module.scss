@@ -240,6 +240,8 @@
 }
 
 .tab + .tab { border-left: 1px solid rgba(126, 95, 51, 0.72); }
+.tabActive,
+.tabActive + .tab { border-left-color: transparent; }
 
 .tab::after { display: none; }
 .tabActive {

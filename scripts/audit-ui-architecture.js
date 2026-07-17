@@ -200,6 +200,7 @@ const requiredSharedReviewEvidence = [
   'target_runtime_region_comparison',
   'real_wechat_core_interaction',
   'real_wechat_route_geometry',
+  'real_wechat_selected_controls',
   'human_visual_confirmation',
 ]
 const expectedOverallStatus = expectedReviewOverallStatus(reviewRoutes)
@@ -221,6 +222,7 @@ const nonVisualReviewCollections = [
   ['historical_route_geometry', runtimeReviewStatus.historicalRouteGeometryReviews],
   ['core_interaction', runtimeReviewStatus.observedCoreInteractionReviews],
   ['selected_control', runtimeReviewStatus.observedSelectedControlReviews],
+  ['historical_selected_control', runtimeReviewStatus.historicalSelectedControlReviews],
 ]
 for (const [kind, reviews] of nonVisualReviewCollections) {
   for (const observed of reviews ?? []) {
@@ -663,6 +665,16 @@ record(
     && /\.newsDetailTranslationSegment\s*\{[^}]*background:\s*transparent;[^}]*box-shadow:\s*none;/su.test(reconstructionStyles)
     && /\.newsDetailTranslationSegment\[data-selected='true'\]/u.test(reconstructionStyles),
   'inactive translation segments must stay flat and only the selected segment may own active material',
+)
+record(
+  'selected_segment_material_owns_both_boundaries',
+  /\.item\.selected,[\s\S]*\.selected \+ \.item\s*\{\s*border-left-color:\s*transparent;/u.test(read('packages/design-system/src/components/TabBar.module.scss'))
+    && /\.channelCellActive,[\s\S]*\.channelCellActive \+ \.channelCell\s*\{\s*border-left-color:\s*transparent;/u.test(reconstructionStyles)
+    && /\.newsListCategoryItemOwnerActive::before\s*\{\s*display:\s*none;/u.test(reconstructionStyles)
+    && /\.talentTreeTabActive,[\s\S]*\.talentTreeTabActive \+ \.talentTreeTab\s*\{\s*border-left-color:\s*transparent;/u.test(reconstructionStyles)
+    && /\.tabActive,[\s\S]*\.tabActive \+ \.tab\s*\{\s*border-left-color:\s*transparent;/u.test(read('packages/design-system/src/components/TalentSimulatorComponents.module.scss'))
+    && /button\[data-selected='true'\],[\s\S]*button\[data-selected='true'\] \+ button\s*\{\s*border-left-color:\s*transparent;/u.test(read('packages/design-system/src/components/TaskListComponents.module.scss')),
+  'active segmented controls must suppress ordinary-state separators and pseudo-element borders on both edges',
 )
 const selectedStateVerifier = read('scripts/verify-ui-selected-states.js')
 const selectedStatePromotion = read('scripts/promote-ui-selected-state-review.js')

@@ -61,6 +61,8 @@
 }
 
 .item + .item { border-left: 1px solid rgba(104, 78, 43, 0.62); }
+.item.selected,
+.selected + .item { border-left-color: transparent; }
 
 .item::before {
   position: absolute;
