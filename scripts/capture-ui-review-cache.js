@@ -14,6 +14,7 @@ const operationTimeoutMs = 10000
 const settleMs = 700
 const maxCaptureBytes = 8 * 1024 * 1024
 const maxCaptureScale = 4
+const maxManifestBytes = 1024 * 1024
 
 function selectedRoutes(value) {
   const requested = (value ?? '').split(',').map((item) => item.trim()).filter(Boolean)
@@ -119,12 +120,14 @@ async function main() {
     fs.mkdirSync(outputRoot, { recursive: true })
     const manifestPath = path.join(outputRoot, 'manifest.json')
     let existing = null
-    if (fs.existsSync(manifestPath)) {
+    if (fs.existsSync(manifestPath) && fs.statSync(manifestPath).size <= maxManifestBytes) {
       try { existing = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) } catch {}
     }
     const existingCaptures = existing?.schemaVersion === 'wechat-ui-review-cache-v3'
       && existing.commit === commit
       && JSON.stringify(existing.viewport) === JSON.stringify(viewport)
+      && Array.isArray(existing.captures)
+      && existing.captures.length <= 14
       ? existing.captures ?? []
       : []
     const capturesByRoute = new Map(existingCaptures.filter((capture) => inspectCachedCapture(capture, viewport)).map((capture) => [capture.route, capture]))
@@ -194,4 +197,4 @@ if (require.main === module) {
   })
 }
 
-module.exports = { captureWithRetry, inspectCachedCapture, inspectRenderer, maxCaptureBytes, pngSize, selectedRoutes, validCaptureBounds, writeManifest }
+module.exports = { captureWithRetry, inspectCachedCapture, inspectRenderer, maxCaptureBytes, maxManifestBytes, pngSize, selectedRoutes, validCaptureBounds, writeManifest }

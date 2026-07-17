@@ -5,7 +5,7 @@ const crypto = require('node:crypto')
 const fs = require('node:fs')
 const path = require('node:path')
 
-const { maxCaptureBytes, pngSize, validCaptureBounds } = require('./capture-ui-review-cache')
+const { maxCaptureBytes, maxManifestBytes, pngSize, validCaptureBounds } = require('./capture-ui-review-cache')
 const interactionContract = require('../docs/design/current-ui/core-interaction-contract.json')
 
 const repositoryRoot = path.resolve(__dirname, '..')
@@ -47,8 +47,10 @@ function inspectCapture(capture, viewport) {
 
 function main() {
   const manifestPath = path.resolve(required(process.env.UI_REVIEW_MANIFEST, 'UI_REVIEW_MANIFEST'))
+  const manifestBytes = fs.statSync(manifestPath).size
+  if (manifestBytes <= 0 || manifestBytes > maxManifestBytes) throw new Error('UI review cache manifest exceeds bounded byte policy before read')
   const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
-  if (manifest.schemaVersion !== 'wechat-ui-review-cache-v3' || !Array.isArray(manifest.captures)) {
+  if (manifest.schemaVersion !== 'wechat-ui-review-cache-v3' || !Array.isArray(manifest.captures) || manifest.captures.length > 14) {
     throw new Error('unsupported UI review cache manifest')
   }
   if (!/^[a-f\d]{12}$/u.test(manifest.commit)) throw new Error('cache manifest commit must be a 12-character Git SHA')

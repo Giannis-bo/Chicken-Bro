@@ -767,10 +767,12 @@ record(
   'visual_capture_payload_is_bounded_before_cache_or_promotion',
   /maxCaptureBytes\s*=\s*8 \* 1024 \* 1024/u.test(visualCaptureSource)
     && /maxCaptureScale\s*=\s*4/u.test(visualCaptureSource)
+    && /maxManifestBytes\s*=\s*1024 \* 1024/u.test(visualCaptureSource)
     && /statSync\(capture\.artifactPath\)\.size/u.test(visualCaptureSource)
     && /bounded byte policy before read/u.test(visualCaptureSource)
     && /validCaptureBounds/u.test(visualCaptureSource)
     && /bounded byte policy before read/u.test(read('scripts/promote-ui-review-cache.js'))
+    && /manifest\.captures\.length > 14/u.test(read('scripts/promote-ui-review-cache.js'))
     && /validCaptureBounds/u.test(read('scripts/promote-ui-review-cache.js')),
   'abnormal screenshots must be rejected before they can grow cache, memory or immutable artifacts',
 )
