@@ -65,13 +65,13 @@ Review 窗口同时覆盖共享组件、页面 JSX 中的非组件 wrapper、rou
 
 | 系统问题 | 当前事实 | 关闭条件 |
 | --- | --- | --- |
-| 全量视觉闭环 | `runtime-review-status.json` 已逐路由绑定 path、canonical target、合同根与当前状态；14/14 因缺少微信运行态 artifact、target/runtime 区域差异、真实核心交互结果和人工确认保持 `UNVERIFIED` | 每路由按 `runtime-review-contract.json` 提交完整结论，并由人工确认后单独晋级 |
+| 全量视觉闭环 | `runtime-review-status.json` 已逐路由绑定 path、canonical target、合同根与当前状态；真实微信已完成 14 路由结构/几何扫描，并在全量与定向复跑合并后观察到 13 路由核心交互通过，`talent` 因请求域名前置不可用明确返回 `routeState=stale`、tab 数量为 0。上述观察尚未晋级为包含 artifact、target/runtime 区域差异、素材语义、碰撞、交互和人工确认的逐路由完整记录，因此 14/14 继续保持 `UNVERIFIED` | 每路由按 `runtime-review-contract.json` 提交完整结论，并由人工确认后单独晋级 |
 | 素材生产链 | 14 个路由素材合同均已登记：`news_home` 1 个已进入微信生产状态，9 个仅允许部分复用，2 个未晋级，2 个尚无路由素材晋级。槽位级还有 15 个绑定生成待完成、7 个生成待隔离审查，以及多个复用/真机视觉验证待晋级槽位；包体通过不代表这些素材已交付 | 素材进入统一 manifest，完成裁切、语义、清晰度和真机复核后晋级；COS/CDN 迁移作为独立工作包执行 |
-| 包体与远端资源 | `npm run verify:ui-package` 在隔离临时目录复跑两种 production 构建：本地素材包 5,037,285 bytes / 137 个素材文件，且与 6 个 raster runtime 家族及 vector 源目录逐路径闭包一致（missing 0 / unexpected 0）；显式版本化 HTTPS 素材根包 1,771,697 bytes / 0 个本地素材文件，已确认编译产物包含配置根且只保留一处未执行的默认 fallback 定义；`common.js` 384,017 bytes，`common.wxss` 351,251 bytes，均通过当前预算且不覆盖唯一 watch 输出。全部已登记 production/candidate asset 在切换根后均解析到 HTTPS 前缀，构建配置与运行时清单复用同一不可变根校验器，未版本化根会在构建阶段失败；生产资产上传/hash 与微信 request/download 合法域名审批尚未形成可验证记录 | COS/CDN 上传/hash、域名审批和生产 URL 在资源交付工作包内关闭；不可变路径、运行根切换、路径闭包与包体预算由隔离门禁持续阻断回归 |
+| 包体与远端资源 | `npm run verify:ui-package` 在隔离临时目录复跑两种 production 构建：本地素材包 5,037,733 bytes / 137 个素材文件，且与 6 个 raster runtime 家族及 vector 源目录逐路径闭包一致（missing 0 / unexpected 0）；显式版本化 HTTPS 素材根包 1,772,145 bytes / 0 个本地素材文件，已确认编译产物包含配置根且只保留一处未执行的默认 fallback 定义；`common.js` 384,017 bytes，`common.wxss` 351,005 bytes，均通过当前预算且不覆盖唯一 watch 输出。全部已登记 production/candidate asset 在切换根后均解析到 HTTPS 前缀，构建配置与运行时清单复用同一不可变根校验器，未版本化根会在构建阶段失败；生产资产上传/hash 与微信 request/download 合法域名审批尚未形成可验证记录 | COS/CDN 上传/hash、域名审批和生产 URL 在资源交付工作包内关闭；不可变路径、运行根切换、路径闭包与包体预算由隔离门禁持续阻断回归 |
 | 微信 API 请求域名 | `npm run audit:taro-domain` 为 report-only：开发 origin 与 H5 proxy 均为显式 HTTP IP，认证请求在非 HTTPS 下 fail-closed，仓库未提交域名校验绕过；生产 `WOW_BACKEND_API_BASE_URL` 尚未配置为 HTTPS 命名 origin，`WOW_WECHAT_REQUEST_DOMAIN_APPROVED=yes` 审批记录缺失 | 配置生产 HTTPS 命名后端，在微信后台批准 request 合法域名，并以两项生产环境变量复跑审计为 `productionReady: true` |
 | 一级页面一致性 | 四个 root route 已共享 `PageFrame` 与 `ProductTabBar` owner，最终头部与底栏尺寸调整后需要同一真机窗口复核 | 四个一级页面在相同 viewport 下通过安全区、头部、正文起点和 TabBar 对比 |
 | 页面状态稳定性 | ready 主路径已有实现，loading、empty、error、stale 的完整几何证据仍不齐 | 每路由至少覆盖合同要求的可达状态，确认状态切换不改变共享 chrome 和关键布局 |
-| 核心交互 | `core-interaction-contract.json` 已为 14 路由各登记一个源码 owner、稳定选择器、前置条件、动作与预期；`npm run verify:ui-interactions` 已覆盖全部 14 条并逐条输出结果。装备选择保持本地草稿先落地、选择面板先关闭，再异步校验；当前没有可复用 automation endpoint，因此运行结果仍为 `UNVERIFIED` | 在不 launch/重载 DevTools 的既有 endpoint 上执行一次真实微信交互矩阵，记录实际结果 |
+| 核心交互 | `core-interaction-contract.json` 已为 14 路由各登记一个源码 owner、稳定选择器、前置条件、动作与预期；既有 DevTools Automator endpoint 上的全量与定向复跑合计已观察到 13 路由核心交互通过。`talent` 不再等待超时或误报选择器故障，而是在页面为 `stale` 且必需 tab 为 0 时快速报告外部请求域名前置不可用。装备选择保持本地草稿先落地、选择面板先关闭，再异步校验；完整不可变证据记录仍为 `UNVERIFIED` | 将 13 条通过结果与 `talent` 前置不可用诊断写入逐路由不可变证据；生产请求域名批准后补跑 `talent`，不 launch/重载 DevTools |
 | 业务事实边界 | Taro 通过 typed API 消费 resolver、community import 和 stat snapshot；装备主属性、兼容性与徽标由后端拥有 | 架构审计持续阻断前端重建职业/装备规则，前端只负责展示映射 |
 | 产品命名 | roadmap 定义“智能分析”，当前运行导航仍使用“队长” | 产品决策后一次同步导航、标题、README 与 route 合同 |
 
