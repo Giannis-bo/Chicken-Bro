@@ -4,6 +4,7 @@
 const { connectMiniProgram, timeout } = require('./wechat-automator')
 const fs = require('node:fs')
 const path = require('node:path')
+const { execFileSync } = require('node:child_process')
 const contract = require('../docs/design/current-ui/route-geometry-contract.json')
 
 const operationTimeoutMs = 10000
@@ -132,7 +133,8 @@ async function main() {
       detailPath = path.resolve(process.env.GEOMETRY_DETAIL_PATH)
       fs.mkdirSync(path.dirname(detailPath), { recursive: true })
       const temporaryPath = `${detailPath}.tmp`
-      fs.writeFileSync(temporaryPath, `${JSON.stringify({ schemaVersion: 'wechat-route-geometry-detail-v1', viewport, routes: details }, null, 2)}\n`)
+      const commit = execFileSync('git', ['rev-parse', '--short=12', 'HEAD'], { cwd: path.resolve(__dirname, '..'), encoding: 'utf8' }).trim()
+      fs.writeFileSync(temporaryPath, `${JSON.stringify({ schemaVersion: 'wechat-route-geometry-detail-v1', commit, viewport, routes: details }, null, 2)}\n`)
       fs.renameSync(temporaryPath, detailPath)
     }
     const failures = results.filter((result) => result.status === 'fail')

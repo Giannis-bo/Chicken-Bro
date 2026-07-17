@@ -69,12 +69,13 @@ function main() {
   if (!process.env.GEOMETRY_DETAIL_PATH) throw new Error('GEOMETRY_DETAIL_PATH is required')
   const runtime = JSON.parse(fs.readFileSync(detailPath, 'utf8'))
   if (runtime.schemaVersion !== 'wechat-route-geometry-detail-v1') throw new Error('unsupported geometry detail schema')
+  if (!/^[a-f\d]{12}$/u.test(runtime.commit ?? '')) throw new Error('runtime geometry detail commit is missing')
   const comparisons = contract.routes.map((mapping) => {
     const runtimeRoute = runtime.routes.find((route) => route.route === mapping.route)
     if (!runtimeRoute) throw new Error(`runtime geometry missing route: ${mapping.route}`)
     return compareRoute(mapping, runtimeRoute)
   })
-  const record = { schemaVersion: 'target-runtime-region-comparison-v1', viewport: runtime.viewport, tolerance: contract.tolerance, routes: comparisons }
+  const record = { schemaVersion: 'target-runtime-region-comparison-v1', commit: runtime.commit, viewport: runtime.viewport, tolerance: contract.tolerance, routes: comparisons }
   let outputPath = null
   if (process.env.REGION_COMPARISON_OUTPUT) {
     outputPath = path.resolve(process.env.REGION_COMPARISON_OUTPUT)

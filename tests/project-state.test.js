@@ -315,3 +315,12 @@ test('target/runtime region comparison is semantic, bounded and image-free', () 
   assert.match(comparison, /REGION_COMPARISON_OUTPUT/)
   assert.doesNotMatch(comparison, /png|screenshot|sharp|canvas/i)
 })
+
+test('passing region comparisons require explicit immutable promotion', () => {
+  const promotion = fs.readFileSync('scripts/promote-ui-region-comparison.js', 'utf8')
+  assert.match(promotion, /REGION_COMPARISON_PATH is required/)
+  assert.match(promotion, /only complete passing region comparisons may be promoted/)
+  assert.match(promotion, /ui-runtime-reviews/)
+  assert.match(promotion, /COPYFILE_EXCL/)
+  assert.match(promotion, /sha256/)
+})
