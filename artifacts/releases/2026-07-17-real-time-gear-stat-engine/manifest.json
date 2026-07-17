@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-17T06:26:15.411Z",
+  "generatedAt": "2026-07-17T06:40:19.322Z",
   "release": {
     "date": "2026-07-17",
     "slug": "real-time-gear-stat-engine"
@@ -53,7 +53,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 286412
+          "sizeBytes": 286826
         },
         {
           "path": "docs/README.md",
@@ -105,7 +105,7 @@
         {
           "path": "server/news_backend.py",
           "exists": true,
-          "lineCount": 13066,
+          "lineCount": 13074,
           "hotspot": true
         },
         {
@@ -327,7 +327,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-17-real-time-gear-stat-engine/evidence.json",
-    "sizeBytes": 4509,
+    "sizeBytes": 7048,
     "requiredFields": [
       "status",
       "highestEvidenceLevel",
@@ -345,9 +345,9 @@
       "rollback"
     ],
     "missingFields": [],
-    "declaredStatus": "local_verified",
-    "highestEvidenceLevel": "local_verified",
-    "summary": "The implementation keeps the audit entirely off the player attribute path and SimC path. Local verification and CR are complete; one final-head candidate deployment remains before user acceptance and merge closure."
+    "declaredStatus": "runtime_verified",
+    "highestEvidenceLevel": "runtime_verified",
+    "summary": "The implementation keeps the audit entirely off the player attribute path and SimC path. Local and final-head candidate verification are complete; a source-ledger-backed verified rule remains intentionally absent, so no real external-profile audit was fabricated. User acceptance is the remaining merge-closure gate."
   },
   "evidence": {
     "localTests": {
@@ -372,13 +372,13 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "4 changed files currently visible to git status."
+      "detail": "5 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
       "severity": "medium",
       "status": "watch",
-      "detail": "server/websim_payload.py:26245, server/news_backend.py:13066, server/postgres_cache_store.py:7218"
+      "detail": "server/websim_payload.py:26245, server/news_backend.py:13074, server/postgres_cache_store.py:7218"
     },
     {
       "id": "localTests_missing",
@@ -408,12 +408,13 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 4,
+      "changedFileCount": 5,
       "changedFiles": [
+        " M artifacts/releases/2026-07-17-real-time-gear-stat-engine/evidence.json",
+        " M docs/roadmap.md",
         " M docs/superpowers/plans/2026-07-17-winner-driven-attribute-rule-audit.md",
         " M project.config.json",
-        "?? artifacts/releases/2026-07-17-real-time-gear-stat-engine/evidence.json",
-        "?? artifacts/releases/2026-07-17-real-time-gear-stat-engine/manifest.json"
+        "?? artifacts/releases/2026-07-17-real-time-gear-stat-engine/evidence/"
       ]
     }
   },

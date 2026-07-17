@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "capturedOn": "2026-07-17",
+  "scope": "winner-driven attribute-rule audit candidate",
+  "branch": "codex/real-time-gear-stat-engine",
+  "runtimeCommit": "73e611ae52adae6e4873c41dfe74be9121b93d8e",
+  "environment": {
+    "database": "wow_test",
+    "asyncSyncStart": false,
+    "auditWorkerDeploymentMode": "installed_dormant_oneshot"
+  },
+  "backup": {
+    "postgres": "/opt/wow-mini-program-candidate-backups/attribute-rule-audit-c43f107-pre/wow_test-postgres.dump",
+    "postgresSha256": "b753db1f032e606b8ea375dbceb6964a3d5286dcab925fb88abd93e2a7c47e43",
+    "runtimeArchive": "/opt/wow-mini-program-candidate-backups/attribute-rule-audit-c43f107-pre/wow-mini-program.tar.gz",
+    "runtimeArchiveSha256": "14a83b9d90b018664e238d4b19c2fb3a4b5b221c94bff174315b9f1363318c75"
+  },
+  "migration": {
+    "id": "0016_websim_attribute_rule_audits.sql",
+    "atomic": true,
+    "status": "pass",
+    "verified": [
+      "ops.schema_migrations entry",
+      "ops.websim_attribute_rule_audits table",
+      "claim and finding indexes",
+      "wow_app has SELECT, INSERT and UPDATE only"
+    ]
+  },
+  "deployment": {
+    "command": "WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 bash server/deploy_lighthouse.sh",
+    "status": "pass",
+    "unitVerification": "systemd-analyze verify passed; an unrelated existing tat_agent.service legacy PIDFile warning was non-blocking.",
+    "fileAndUnitParity": "pass"
+  },
+  "smoke": {
+    "auditRowsBefore": 0,
+    "auditWorker": {
+      "invocation": "systemctl start wow-attribute-rule-audit.service",
+      "result": "success",
+      "execMainStatus": 0,
+      "auditRowsAfter": 0,
+      "meaning": "The worker found no pending job and did not need OAuth, a profile request, SimC, Release refresh, or WebSim sync."
+    },
+    "health": {
+      "path": "/health",
+      "httpStatus": 200,
+      "elapsedMs": 46.1
+    },
+    "dataHealth": {
+      "path": "/api/data/health",
+      "httpStatus": 200,
+      "attributeAudit": {
+        "status": "verified",
+        "auditState": "not_applicable",
+        "blockerCount": 0,
+        "pending": 0,
+        "running": 0
+      },
+      "overallStatus": "partial",
+      "overallStatusNote": "Partial is pre-existing from other health components; the audit component is not a blocker."
+    },
+    "gearRead": {
+      "path": "/api/websim/gear?class=mage&spec=frost&compact=1&mode=initial",
+      "httpStatus": 200,
+      "dataStatus": "verified",
+      "slotCount": 16,
+      "templateCount": 1,
+      "elapsedMs": 139.7
+    },
+    "timerAndBackflow": {
+      "gearReleaseRefreshService": "inactive",
+      "websimSyncService": "inactive",
+      "gearReleaseRefreshTimer": "enabled",
+      "dataHealthFollowupActionKeys": [],
+      "result": "pass"
+    }
+  },
+  "rollback": {
+    "immediateDisable": "systemctl stop wow-attribute-rule-audit.service",
+    "codeArchive": "/opt/wow-mini-program-candidate-backups/attribute-rule-audit-c43f107-pre/wow-mini-program.tar.gz",
+    "databaseBackup": "/opt/wow-mini-program-candidate-backups/attribute-rule-audit-c43f107-pre/wow_test-postgres.dump",
+    "candidateAuditRows": 0
+  },
+  "knownLimitations": [
+    "No source-ledger-backed verified attribute rulebook is currently published. The sealed Release path therefore records not_applicable and permits no official-profile request.",
+    "No real winner, official profile, Release or Manifest was fabricated or mutated to force pass, input mismatch, blocked-source, or confirmed-mismatch outcomes. Those terminal paths are covered by pure and worker fixtures, not claimed as remote confirmation.",
+    "A future verified rule context must also expose a supported official attribute-panel adapter; otherwise the worker terminates blocked_source_unavailable rather than asserting a mismatch."
+  ],
+  "preFinalCorrection": {
+    "candidateCommit": "c43f107a918d1e695cf033089c189057b7217136",
+    "observation": "An empty audit ledger appeared as partial in the first candidate health view.",
+    "resolution": "Final runtime commit 73e611a reports an idle ledger as verified/not_applicable; focused tests, full Harness, and the final candidate smoke passed."
+  },
+  "conclusion": "Candidate runtime isolation is verified. The background audit is not a user-facing prerequisite, does not start during deploy, and did not trigger SimC or external traffic in its no-rule/no-work state. Explicit user acceptance is still required before merge."
+}

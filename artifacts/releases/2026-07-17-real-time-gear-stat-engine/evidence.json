@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "slug": "real-time-gear-stat-engine",
   "requirementSlug": "real-time-gear-stat-engine",
-  "status": "local_verified",
-  "highestEvidenceLevel": "local_verified",
+  "status": "runtime_verified",
+  "highestEvidenceLevel": "runtime_verified",
   "branch": "codex/real-time-gear-stat-engine",
-  "commit": "0bad5a3143784b825915bd64d1cd6afe7b5ae907",
+  "commit": "73e611ae52adae6e4873c41dfe74be9121b93d8e",
   "scope": [
     "winner-driven deterministic attribute-rule audit contract",
     "PostgreSQL fenced audit ledger and migration 0016",
@@ -36,15 +36,45 @@
     {
       "command": "local CR against docs/superpowers/plans/2026-07-17-winner-driven-attribute-rule-audit.md",
       "status": "pass",
-      "summary": "Review confirmed audit enqueue follows Release sealing and catches failures fail-open; the worker has no SimC dependency; health is bounded and cannot expose profile identity; duplicate gem occurrence and terminal reason retention findings were fixed and retested."
+      "summary": "Review confirmed audit enqueue follows Release sealing and catches failures fail-open; the worker has no SimC dependency; health is bounded and cannot expose profile identity. Duplicate gem occurrence, terminal reason retention, and empty-ledger health-neutral findings were fixed and retested."
+    },
+    {
+      "command": "python3 -m unittest -q tests.attribute_rule_audit_test tests.attribute_rule_audit_store_test tests.attribute_rule_audit_source_test tests.attribute_rule_audit_worker_test tests.attribute_rule_audit_health_test tests.gear_release_refresh_test tests.gear_release_store_test tests.gear_attribute_rules_test tests.gear_attribute_engine_test tests.gear_attribute_api_test tests.news_backend_test tests.postgres_schema_test",
+      "status": "pass",
+      "summary": "Final runtime-head semantic regression set passed: 290 tests. Expected pre-existing simulator-task JSON warnings did not fail the suite."
     }
   ],
   "candidateDeployment": {
-    "status": "pending",
+    "status": "candidate_verified",
     "requiredBeforeMerge": true,
-    "reason": "Migration, health and systemd changes require one final-head candidate smoke before merge."
+    "branch": "codex/real-time-gear-stat-engine",
+    "commit": "73e611ae52adae6e4873c41dfe74be9121b93d8e",
+    "database": "wow_test",
+    "migration": "0016_websim_attribute_rule_audits.sql",
+    "reason": "Final-head candidate migration, dormant unit, health, gear-read and timer/backflow smoke passed; explicit user acceptance remains required before merge."
   },
-  "runtimeEvidence": [],
+  "runtimeEvidence": [
+    {
+      "kind": "postgres_migration",
+      "status": "pass",
+      "summary": "Migration 0016 was applied atomically. ops.schema_migrations, claim/finding indexes and wow_app SELECT/INSERT/UPDATE-only grants were verified."
+    },
+    {
+      "kind": "worker_isolation",
+      "status": "pass",
+      "summary": "The one-shot audit unit completed successfully with zero audit rows. The Release refresh and WebSim sync services remained inactive; no SimC, Release, or external-profile request was initiated."
+    },
+    {
+      "kind": "public_read_smoke",
+      "status": "pass",
+      "summary": "/health returned 200; /api/data/health exposed only verified/not_applicable with zero pending/running audit rows; /api/websim/gear returned 200 with a verified 16-slot payload."
+    },
+    {
+      "kind": "runtime_parity",
+      "status": "pass",
+      "summary": "All audited runtime Python files, SQL migration, and systemd unit files matched the final candidate SHA-256 values."
+    }
+  ],
   "risks": [
     {
       "id": "verified_rulebook_absent",
@@ -52,18 +82,24 @@
       "detail": "No source-ledger-backed production attribute rulebook exists, so sealed winners record not_applicable and make no official-profile request."
     },
     {
-      "id": "candidate_deployment_pending",
-      "status": "open",
-      "detail": "The final code head still needs the controlled PostgreSQL migration, unit and main-path isolation smoke."
+      "id": "candidate_deployment",
+      "status": "resolved",
+      "detail": "Final-head candidate deployment, migration, dormant-worker isolation, bounded health and gear-read smoke completed successfully."
+    },
+    {
+      "id": "pre_final_empty_ledger_health",
+      "status": "resolved",
+      "detail": "The first candidate exposed an incorrect partial health result for an idle audit ledger; final commit 73e611a changed it to verified/not_applicable and passed candidate smoke."
     }
   ],
   "rollback": [
+    "systemctl stop wow-attribute-rule-audit.service",
     "code_rollback",
-    "feature_hide"
+    "restore PostgreSQL backup before migration 0016 if rollback of the schema is required"
   ],
   "cleanup": {
     "required": false,
-    "note": "No temporary data, winner, rule or SimC state is created by local verification."
+    "note": "Candidate created no audit rows, winners, rules, SimC jobs, or external-profile captures. The dormant audit unit is inactive after its one-shot empty-queue smoke."
   },
   "archivedReferences": [
     "docs/project-state.json",
@@ -75,5 +111,5 @@
     "docs/superpowers/specs/2026-07-17-winner-driven-attribute-rule-audit-design.md",
     "docs/superpowers/plans/2026-07-17-winner-driven-attribute-rule-audit.md"
   ],
-  "summary": "The implementation keeps the audit entirely off the player attribute path and SimC path. Local verification and CR are complete; one final-head candidate deployment remains before user acceptance and merge closure."
+  "summary": "The implementation keeps the audit entirely off the player attribute path and SimC path. Local and final-head candidate verification are complete; a source-ledger-backed verified rule remains intentionally absent, so no real external-profile audit was fabricated. User acceptance is the remaining merge-closure gate."
 }

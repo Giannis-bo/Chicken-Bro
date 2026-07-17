@@ -437,7 +437,7 @@ User-visible acceptance remains: importing a community template and changing one
 
   Expected: all targeted checks plus the single final Harness full profile pass. Do not claim live behavior from these local tests.
 
-- [ ] **Step 5: Run one final-commit candidate deployment and smoke.**
+- [x] **Step 5: Run one final-commit candidate deployment and smoke.**
 
   On the candidate branch/commit only, first capture the commit SHA and a recoverable PostgreSQL backup. Apply migration `0016` atomically, verify `ops.schema_migrations`, table constraints/indexes/grants, deploy with `WOW_DEPLOY_START_ASYNC_SYNCS=0`, and verify file/unit parity.
 
@@ -452,6 +452,8 @@ User-visible acceptance remains: importing a community template and changing one
 
   Write only verified command outputs, SHA, migration identity, unit status, API results, timing trace, rollback result and known limitations into `winner-attribute-rule-audit-candidate.json`.
 
+  2026-07-17 candidate result: final runtime commit `73e611ae52adae6e4873c41dfe74be9121b93d8e` was deployed against the `wow_test` PostgreSQL runtime after a recoverable backup and atomic `0016` migration. Migration identity, indexes, least-privilege grants, runtime file/unit parity, one-shot empty-queue worker success, bounded health, gear read API, and no-async-backflow were verified. The production rulebook remains intentionally absent, so the candidate recorded `verified/not_applicable` with zero audit rows and made no external request; it did not fabricate a winner or official profile merely to exercise `pass`/`mismatch`. Those worker terminal paths remain fixture-proven and are deferred to the first source-ledger-backed verified rule context. See `artifacts/releases/2026-07-17-real-time-gear-stat-engine/evidence/winner-attribute-rule-audit-candidate.json`.
+
 ## Task 7: Local CR, acceptance, merge closure, and post-merge parity
 
 **Files:**
@@ -459,7 +461,7 @@ User-visible acceptance remains: importing a community template and changing one
 - Modify: `artifacts/releases/2026-07-17-real-time-gear-stat-engine/evidence/winner-attribute-rule-audit-candidate.json` only with real post-merge evidence, if candidate evidence is still current
 - Modify: `docs/roadmap.md` only to record actual status/evidence after results exist
 
-- [ ] **Step 1: Perform the required local CR against the implementation plan.**
+- [x] **Step 1: Perform the required local CR against the implementation plan.**
 
   Inspect the final diff for these high-risk findings:
 
@@ -470,6 +472,8 @@ User-visible acceptance remains: importing a community template and changing one
   - migration grants deletion/unbounded JSON/rewrite behavior or deploy starts the worker eagerly.
 
   Re-run the smallest affected test command for each finding fixed, then rerun the final Task 6 verification set.
+
+  2026-07-17 CR result: no remaining Critical, Important, or actionable Minor finding. Review corrected three findings before candidate evidence was accepted: duplicate gem occurrence is retained in canonical input signatures; terminal audit codes persist in ledger results; an empty audit ledger remains health-neutral as `verified/not_applicable`. Focused health regressions and the final full Harness profile passed after the final runtime commit.
 
 - [ ] **Step 2: Wait for explicit user acceptance after candidate/manual verification.**
 
