@@ -23,7 +23,10 @@ function selectedRoutes() {
 async function inspect(miniProgram, route) {
   const page = await timeout(miniProgram.reLaunch(route.path), operationTimeoutMs, `open ${route.route}`)
   await new Promise((resolve) => setTimeout(resolve, 650))
-  const elements = await timeout(page.$$('[class*="wx-data-slot-id-"]'), 5000, `query slots ${route.route}`)
+  const [elements, materialOwnerElements] = await Promise.all([
+    timeout(page.$$('[class*="wx-data-slot-id-"]'), 5000, `query slots ${route.route}`),
+    timeout(page.$$('[class*="wx-data-material-owner-"]'), 5000, `query material owners ${route.route}`),
+  ])
   const observations = await Promise.all(elements.map(async (element) => ({
     className: await timeout(element.attribute('class'), 1500, 'read slot class'),
     assetId: await timeout(element.attribute('data-asset-id'), 1500, 'read asset id'),
@@ -40,6 +43,10 @@ async function inspect(miniProgram, route) {
   const validPromotionStatuses = new Set(['production_promoted', 'candidate_pending_review', 'missing'])
   const missingPromotionStatusElements = assetObservations.filter((observation) => !validPromotionStatuses.has(observation.promotionStatus)).length
   const promotionCounts = Object.fromEntries([...validPromotionStatuses].map((status) => [status, assetObservations.filter((observation) => observation.promotionStatus === status).length]))
+  const materialOwners = await Promise.all(materialOwnerElements.map((element) => timeout(element.attribute('data-material-owner'), 1500, 'read material owner')))
+  const validMaterialOwners = new Set(['asset', 'css'])
+  const invalidMaterialOwnerElements = materialOwners.filter((owner) => !validMaterialOwners.has(owner)).length
+  const materialOwnerCounts = Object.fromEntries([...validMaterialOwners].map((owner) => [owner, materialOwners.filter((value) => value === owner).length]))
   const semanticMappings = observedTokens.filter((token) => configuredByToken.has(token)).map((token) => {
     const runtimeSlot = configuredByToken.get(token)
     return { runtimeSlot, contractSlot: route.runtimeSlots[runtimeSlot] }
@@ -50,8 +57,9 @@ async function inspect(miniProgram, route) {
     ...unknown.map((token) => `unregistered runtime slot ${token}`),
     ...(missingAssetElements ? [`${missingAssetElements} visible asset elements report missing=true`] : []),
     ...(missingPromotionStatusElements ? [`${missingPromotionStatusElements} visible asset elements lack a valid promotion status`] : []),
+    ...(invalidMaterialOwnerElements ? [`${invalidMaterialOwnerElements} controls declare an invalid material owner`] : []),
   ]
-  return { route: route.route, status: failures.length === 0 ? 'pass' : 'fail', elementCount: elements.length, assetElementCount: assetObservations.length, slotCount: observedTokens.length, missingAssetElements, missingPromotionStatusElements, promotionCounts, semanticMappings, failures }
+  return { route: route.route, status: failures.length === 0 ? 'pass' : 'fail', elementCount: elements.length, assetElementCount: assetObservations.length, slotCount: observedTokens.length, missingAssetElements, missingPromotionStatusElements, materialOwnerElementCount: materialOwnerElements.length, invalidMaterialOwnerElements, materialOwnerCounts, promotionCounts, semanticMappings, failures }
 }
 
 function validateContract() {
@@ -82,9 +90,9 @@ async function main() {
       detailPath = path.resolve(process.env.ASSET_SLOT_DETAIL_PATH)
       fs.mkdirSync(path.dirname(detailPath), { recursive: true })
       const commit = execFileSync('git', ['rev-parse', '--short=12', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim()
-      fs.writeFileSync(detailPath, `${JSON.stringify({ schemaVersion: 'wechat-runtime-asset-slot-review-v2', commit, viewport, routes: results }, null, 2)}\n`)
+      fs.writeFileSync(detailPath, `${JSON.stringify({ schemaVersion: 'wechat-runtime-asset-slot-review-v3', commit, viewport, routes: results }, null, 2)}\n`)
     }
-    console.log(JSON.stringify({ status: failures.length === 0 ? 'pass' : 'fail', viewport, checkedRoutes: results.length, visibleElements: results.reduce((sum, result) => sum + result.elementCount, 0), visibleAssetElements: results.reduce((sum, result) => sum + result.assetElementCount, 0), visibleSlots: results.reduce((sum, result) => sum + result.slotCount, 0), missingAssetElements: results.reduce((sum, result) => sum + result.missingAssetElements, 0), missingPromotionStatusElements: results.reduce((sum, result) => sum + result.missingPromotionStatusElements, 0), promotionCounts: { productionPromoted: results.reduce((sum, result) => sum + result.promotionCounts.production_promoted, 0), candidatePendingReview: results.reduce((sum, result) => sum + result.promotionCounts.candidate_pending_review, 0), missing: results.reduce((sum, result) => sum + result.promotionCounts.missing, 0) }, failureCount: failures.length, failedRoutes: failures.slice(0, 10).map((result) => result.route), detailPath }))
+    console.log(JSON.stringify({ status: failures.length === 0 ? 'pass' : 'fail', viewport, checkedRoutes: results.length, visibleElements: results.reduce((sum, result) => sum + result.elementCount, 0), visibleAssetElements: results.reduce((sum, result) => sum + result.assetElementCount, 0), visibleSlots: results.reduce((sum, result) => sum + result.slotCount, 0), visibleMaterialOwners: results.reduce((sum, result) => sum + result.materialOwnerElementCount, 0), invalidMaterialOwnerElements: results.reduce((sum, result) => sum + result.invalidMaterialOwnerElements, 0), missingAssetElements: results.reduce((sum, result) => sum + result.missingAssetElements, 0), missingPromotionStatusElements: results.reduce((sum, result) => sum + result.missingPromotionStatusElements, 0), promotionCounts: { productionPromoted: results.reduce((sum, result) => sum + result.promotionCounts.production_promoted, 0), candidatePendingReview: results.reduce((sum, result) => sum + result.promotionCounts.candidate_pending_review, 0), missing: results.reduce((sum, result) => sum + result.promotionCounts.missing, 0) }, failureCount: failures.length, failedRoutes: failures.slice(0, 10).map((result) => result.route), detailPath }))
     if (failures.length > 0) process.exitCode = 1
   } finally {
     if (miniProgram) miniProgram.disconnect()

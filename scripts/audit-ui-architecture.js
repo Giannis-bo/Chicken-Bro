@@ -1018,7 +1018,9 @@ record(
     && /production_promoted/u.test(read('packages/assets-manifest/src/index.ts'))
     && /candidate_pending_review/u.test(read('packages/assets-manifest/src/index.ts'))
     && assetRenderingOwners.every((file) => /assetPromotionStatus/u.test(read(file)) && /data-promotion-status/u.test(read(file)))
-    && /wechat-runtime-asset-slot-review-v2/u.test(assetSlotVerifier)
+    && /wechat-runtime-asset-slot-review-v3/u.test(assetSlotVerifier)
+    && /invalidMaterialOwnerElements/u.test(assetSlotVerifier)
+    && /materialOwnerCounts/u.test(assetSlotPromotion)
     && /missingPromotionStatusElements/u.test(assetSlotVerifier)
     && /missingPromotionStatusElements !== 0/u.test(assetSlotPromotion),
   'every rendered asset identity must expose production, candidate or missing status from the unified manifest',
