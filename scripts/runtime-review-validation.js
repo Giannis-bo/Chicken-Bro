@@ -13,6 +13,12 @@ function expectedReviewOverallStatus(routes) {
   return 'active_unverified'
 }
 
+function expectedInteractionOverallStatus(interactions) {
+  if (interactions.every((interaction) => interaction.status === 'PASS')) return 'verified'
+  if (interactions.some((interaction) => interaction.status === 'FAIL')) return 'active_failed'
+  return 'active_unverified'
+}
+
 function sharedEvidenceMatchesStatus(status, missingEvidence, requiredEvidence) {
   if (!Array.isArray(missingEvidence)) return false
   if (status === 'complete') return missingEvidence.length === 0
@@ -74,4 +80,9 @@ function isCompletePassRecord(review, contract) {
   )
 }
 
-module.exports = { expectedReviewOverallStatus, isCompletePassRecord, sharedEvidenceMatchesStatus }
+module.exports = {
+  expectedInteractionOverallStatus,
+  expectedReviewOverallStatus,
+  isCompletePassRecord,
+  sharedEvidenceMatchesStatus,
+}

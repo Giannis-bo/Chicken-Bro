@@ -26,6 +26,8 @@
 
 14 路由的当前结论只记录在 `runtime-review-status.json`。该文件必须与 target registry、核心交互合同和 route contract 根目录一致；没有路径包含自身完整 SHA-256 的微信运行态 artifact、全部通过且字段完整的区域与素材语义差异、零 P0/P1/碰撞/裁切/重叠指标、真实核心交互结果和带 UTC 时间的具名人工确认时，不得把任何路由标为 `PASS`。
 
+`core-interaction-contract.json` 的总状态由 14 条逐路由结果推导：存在未验证项时为 `active_unverified`，任一失败时为 `active_failed`，全部真实通过后才可为 `verified`。路由视觉状态不得在对应核心交互仍未通过时晋级 `PASS`。
+
 ## 运行素材根
 
 默认微信构建把登记素材复制到 `/assets/ui-v2`，用于本地开发和未配置远端资源的候选构建。只有显式设置合法 HTTPS 根路径时，构建才切换到远端素材并停止复制本地素材：

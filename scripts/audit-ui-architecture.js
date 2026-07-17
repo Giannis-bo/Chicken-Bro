@@ -6,6 +6,7 @@ const path = require('node:path')
 const babelParser = require('@babel/parser')
 const traverse = require('@babel/traverse').default
 const {
+  expectedInteractionOverallStatus,
   expectedReviewOverallStatus,
   isCompletePassRecord,
   sharedEvidenceMatchesStatus,
@@ -106,6 +107,12 @@ const evidencePolicy = JSON.parse(read('docs/design/current-ui/active-evidence-p
 const runtimeReviewContract = JSON.parse(read('docs/design/current-ui/runtime-review-contract.json'))
 const runtimeReviewStatus = JSON.parse(read('docs/design/current-ui/runtime-review-status.json'))
 const projectState = JSON.parse(read('docs/project-state.json'))
+const expectedInteractionStatus = expectedInteractionOverallStatus(interactionContract.interactions ?? [])
+const expectedInteractionAcceptance = expectedInteractionStatus === 'verified'
+  ? 'verified_real_wechat_core_interaction_matrix'
+  : expectedInteractionStatus === 'active_failed'
+    ? 'failed_real_wechat_core_interaction_matrix'
+    : 'pending_real_wechat_core_interaction_matrix'
 record(
   'runtime_review_records_are_authoritative_inputs',
   ['docs/design/current-ui/runtime-review-contract.json', 'docs/design/current-ui/runtime-review-status.json']
@@ -118,7 +125,8 @@ record(
   uiDeliveryConclusion?.status === runtimeReviewStatus.status
     && uiDeliveryConclusion?.evidence === 'docs/design/current-ui/runtime-review-status.json'
     && projectState.runtimeBaseline?.uiRuntimeEvidence?.statusLedger === 'docs/design/current-ui/runtime-review-status.json'
-    && projectState.runtimeBaseline?.uiRuntimeEvidence?.interactionAcceptance === 'pending_real_wechat_core_interaction_matrix',
+    && projectState.runtimeBaseline?.uiRuntimeEvidence?.status === runtimeReviewStatus.status
+    && projectState.runtimeBaseline?.uiRuntimeEvidence?.interactionAcceptance === expectedInteractionAcceptance,
   `status=${uiDeliveryConclusion?.status}; evidence=${uiDeliveryConclusion?.evidence}`,
 )
 record(
@@ -135,7 +143,7 @@ const targetRouteIds = sorted(targetRegistry.canonicalTargets.map((target) => ta
 const interactionRouteIds = sorted((interactionContract.interactions ?? []).map((interaction) => interaction.route))
 record(
   'core_interaction_contract_covers_all_target_routes',
-  interactionContract.status === 'active_unverified'
+  interactionContract.status === expectedInteractionStatus
     && JSON.stringify(interactionRouteIds) === JSON.stringify(targetRouteIds),
   `interactions=${interactionRouteIds.length}`,
 )
@@ -180,6 +188,7 @@ for (const review of reviewRoutes) {
     ['PASS', 'FAIL', 'UNVERIFIED'].includes(review.status)
       && review.targetArtifact === target?.path
       && review.path === interaction?.path
+      && (review.status !== 'PASS' || interaction?.status === 'PASS')
       && contractRootExists
       && passRecordComplete
       && (review.status !== 'UNVERIFIED' || runtimeReviewStatus.sharedMissingEvidence?.length > 0),

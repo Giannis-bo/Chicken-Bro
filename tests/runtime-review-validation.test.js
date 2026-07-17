@@ -3,6 +3,7 @@ const assert = require('node:assert/strict')
 const fs = require('node:fs')
 
 const {
+  expectedInteractionOverallStatus,
   expectedReviewOverallStatus,
   isCompletePassRecord,
   sharedEvidenceMatchesStatus,
@@ -71,4 +72,10 @@ test('runtime review status clears shared blockers only after every route passes
   assert.equal(expectedReviewOverallStatus([{ status: 'PASS' }, { status: 'PASS' }]), 'complete')
   assert.equal(sharedEvidenceMatchesStatus('complete', [], required), true)
   assert.equal(sharedEvidenceMatchesStatus('complete', required, required), false)
+})
+
+test('core interaction status advances only from real per-route results', () => {
+  assert.equal(expectedInteractionOverallStatus([{ status: 'UNVERIFIED' }, { status: 'PASS' }]), 'active_unverified')
+  assert.equal(expectedInteractionOverallStatus([{ status: 'FAIL' }, { status: 'PASS' }]), 'active_failed')
+  assert.equal(expectedInteractionOverallStatus([{ status: 'PASS' }, { status: 'PASS' }]), 'verified')
 })
