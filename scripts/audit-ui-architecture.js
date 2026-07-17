@@ -674,12 +674,22 @@ record(
   `groups=${selectedGroupKeys.length}`,
 )
 const contiguousSelectedGroups = selectedControlContract.groups.filter((group) => group.boundaryMode === 'contiguous')
+function rolePublishesBoundary(file, role) {
+  const source = read(file)
+  const marker = `data-role="${role}"`
+  let offset = source.indexOf(marker)
+  while (offset >= 0) {
+    if (source.slice(Math.max(0, offset - 800), offset + marker.length + 800).includes('data-leading-boundary=')) return true
+    offset = source.indexOf(marker, offset + marker.length)
+  }
+  return false
+}
 record(
   'contiguous_selected_controls_publish_boundary_ownership',
   contiguousSelectedGroups.length >= 5
     && contiguousSelectedGroups.every((group) => selectedStateOwners
       .filter(([, role]) => role === group.role)
-      .some(([file]) => read(file).includes('data-leading-boundary='))),
+      .some(([file, role]) => rolePublishesBoundary(file, role))),
   `contiguousGroups=${contiguousSelectedGroups.length}`,
 )
 record(
@@ -884,6 +894,13 @@ record(
   /\.filterTabs text\s*\{[^}]*max-width:\s*100%;[^}]*overflow:\s*hidden;[^}]*text-overflow:\s*ellipsis;/su.test(taskListStyles)
     && /\.sortControl text\s*\{[^}]*max-width:\s*100%;[^}]*overflow:\s*hidden;[^}]*text-overflow:\s*ellipsis;/su.test(taskListStyles),
   'task filter and sort labels must not paint across adjacent native controls',
+)
+record(
+  'task_filter_selected_material_has_one_state_owner',
+  !/filterSelected/u.test(read('packages/design-system/src/components/TaskListComponents.tsx'))
+    && !/\.filterSelected/u.test(taskListStyles)
+    && /button\[data-selected='true'\]\s*\{[^}]*background:/su.test(taskListStyles),
+  'task filter material must be selected by data-selected only',
 )
 record(
   'build_intel_disclaimer_copy_stays_inside_terminal_region',
