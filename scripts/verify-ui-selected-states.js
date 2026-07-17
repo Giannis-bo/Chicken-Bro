@@ -57,6 +57,22 @@ async function inspectGroup(page, group) {
     timeout(page.$$(`${activeSelector}.wx-data-selection-material-inactive`), 3000, `query active with inactive material ${group.role}`),
     timeout(page.$$(`${inactiveSelector}.wx-data-selection-material-active`), 3000, `query inactive with active material ${group.role}`),
   ])
+  const materialStyleProperties = [
+    'background-color', 'background-image', 'box-shadow',
+    'border-top-color', 'border-right-color', 'border-bottom-color', 'border-left-color',
+    'border-top-width', 'border-right-width', 'border-bottom-width', 'border-left-width',
+  ]
+  const materialSignature = async (element, label) => {
+    if (!element) return null
+    const values = await Promise.all(materialStyleProperties.map((property) => timeout(element.style(property), 1500, `read ${label} ${property}`)))
+    return Object.fromEntries(materialStyleProperties.map((property, index) => [property, String(values[index] ?? '')]))
+  }
+  const [activeMaterialStyle, inactiveMaterialStyle] = await Promise.all([
+    materialSignature(active[0], `active material ${group.role}`),
+    materialSignature(inactive[0], `inactive material ${group.role}`),
+  ])
+  const visualMaterialDistinct = controls.length < 2
+    || Boolean(activeMaterialStyle && inactiveMaterialStyle && JSON.stringify(activeMaterialStyle) !== JSON.stringify(inactiveMaterialStyle))
   const pass = controls.length >= group.minimumControls
     && active.length >= group.minimumActive
     && active.length <= group.maximumActive
@@ -65,6 +81,7 @@ async function inspectGroup(page, group) {
     && active.length + inactive.length === controls.length
     && activeWithInactiveMaterial.length === 0
     && inactiveWithActiveMaterial.length === 0
+    && visualMaterialDistinct
   return {
     route: group.route,
     role: group.role,
@@ -74,6 +91,8 @@ async function inspectGroup(page, group) {
     inactive: inactive.length,
     materialOwners: { active: materialActive.length, inactive: materialInactive.length },
     materialMismatches: activeWithInactiveMaterial.length + inactiveWithActiveMaterial.length,
+    visualMaterialDistinct,
+    materialStyles: { active: activeMaterialStyle, inactive: inactiveMaterialStyle },
     expected: { controlsAtLeast: group.minimumControls, activeAtLeast: group.minimumActive, activeAtMost: group.maximumActive },
   }
 }
@@ -98,7 +117,7 @@ async function main() {
   const expectedKeys = groups.map((group) => `${group.route}::${group.role}`)
   const resultKeys = results.map((result) => `${result.route}::${result.role}`)
   const detail = {
-    schemaVersion: 'wechat-selected-control-detail-v1',
+    schemaVersion: 'wechat-selected-control-detail-v2',
     contractSha256,
     commit: execFileSync('git', ['rev-parse', '--short=12', 'HEAD'], { cwd: path.resolve(__dirname, '..'), encoding: 'utf8' }).trim(),
     viewport: { width: system.windowWidth, height: system.windowHeight, dpr: system.pixelRatio },

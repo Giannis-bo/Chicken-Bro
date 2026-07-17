@@ -741,7 +741,9 @@ const selectedStatePromotion = read('scripts/promote-ui-selected-state-review.js
 record(
   'selected_control_evidence_is_explicit_immutable_and_offline_promoted',
   /SELECTED_STATE_DETAIL_PATH/u.test(selectedStateVerifier)
-    && /wechat-selected-control-detail-v1/u.test(selectedStateVerifier)
+    && /wechat-selected-control-detail-v2/u.test(selectedStateVerifier)
+    && /visualMaterialDistinct/u.test(selectedStateVerifier)
+    && /border-left-color/u.test(selectedStateVerifier)
     && /SELECTED_STATE_DETAIL_PATHS is required/u.test(selectedStatePromotion)
     && /exact selected-control contract/u.test(selectedStatePromotion)
     && /flag: 'wx'/u.test(selectedStatePromotion)

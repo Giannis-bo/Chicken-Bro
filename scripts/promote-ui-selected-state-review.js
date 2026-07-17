@@ -22,7 +22,7 @@ function readDetails(value) {
 
 function combineDetails(details) {
   const first = details[0]
-  if (details.some((detail) => detail.schemaVersion !== 'wechat-selected-control-detail-v1')) throw new Error('unsupported selected control detail schema')
+  if (details.some((detail) => detail.schemaVersion !== 'wechat-selected-control-detail-v2')) throw new Error('unsupported selected control detail schema')
   if (first.contractSha256 !== contractSha256 || details.some((detail) => detail.contractSha256 !== contractSha256)) throw new Error('selected control detail contract SHA-256 is stale or mismatched')
   if (!/^[a-f\d]{12}$/u.test(first.commit ?? '') || details.some((detail) => detail.commit !== first.commit)) throw new Error('selected control detail commits must match')
   const viewportKey = JSON.stringify(first.viewport)
@@ -37,14 +37,21 @@ function combineDetails(details) {
 
   const contractByKey = new Map(contract.groups.map((group) => [key(group), group]))
   for (const result of results) {
-    if (result.status === 'pass' && result.materialMismatches === 0 && result.active >= result.expected.activeAtLeast && result.active <= result.expected.activeAtMost) continue
+    if (
+      result.status === 'pass'
+      && result.materialMismatches === 0
+      && result.visualMaterialDistinct === true
+      && (result.controls < 2 || (result.materialStyles?.active && result.materialStyles?.inactive))
+      && result.active >= result.expected.activeAtLeast
+      && result.active <= result.expected.activeAtMost
+    ) continue
     const definition = contractByKey.get(key(result))
     if (result.status !== 'unavailable' || !(definition?.unavailableRouteStates ?? []).includes(result.routeState)) throw new Error(`selected control result is not promotable: ${key(result)}`)
   }
 
   const byKey = new Map(results.map((result) => [key(result), result]))
   return {
-    schemaVersion: 'wechat-selected-control-evidence-v1',
+    schemaVersion: 'wechat-selected-control-evidence-v2',
     contractSha256,
     commit: first.commit,
     viewport: first.viewport,
