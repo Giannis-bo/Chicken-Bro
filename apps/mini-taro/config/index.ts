@@ -6,6 +6,11 @@ const appRoot = path.resolve(__dirname, '..')
 const repositoryRoot = path.resolve(appRoot, '../..')
 const target = process.env['TARO_ENV'] === 'h5' ? 'h5' : 'weapp'
 const outputRoot = `dist/${target}`
+const configuredAssetRuntimeRoot = process.env['WOW_ASSET_RUNTIME_ROOT']?.trim() ?? ''
+if (configuredAssetRuntimeRoot && !/^https:\/\/[^/?#\s]+(?:\/[^?#\s]*)?$/iu.test(configuredAssetRuntimeRoot)) {
+  throw new Error('WOW_ASSET_RUNTIME_ROOT must be an HTTPS URL')
+}
+const localAssetRuntime = !configuredAssetRuntimeRoot
 const sharedCompileIncludes = [
   path.join(repositoryRoot, 'packages/design-system/src'),
   path.join(repositoryRoot, 'packages/domain/src'),
@@ -32,13 +37,16 @@ export default defineConfig<'webpack5'>({
   cache: {
     enable: true,
   },
+  defineConstants: {
+    __WOW_ASSET_RUNTIME_ROOT__: JSON.stringify(configuredAssetRuntimeRoot || '/assets/ui-v2'),
+  },
   csso: {
     config: {
       calc: false,
     },
   },
   copy: {
-    patterns: [
+    patterns: localAssetRuntime ? [
       {
         from: path.join(repositoryRoot, 'packages/design-system/assets/vector'),
         to: `${outputRoot}/assets/ui-v2/vector`,
@@ -67,7 +75,7 @@ export default defineConfig<'webpack5'>({
         from: path.join(repositoryRoot, 'packages/design-system/assets/raster/build-intel-v1/runtime/2x'),
         to: `${outputRoot}/assets/ui-v2/raster/build-intel-v1/runtime/2x`,
       },
-    ],
+    ] : [],
     options: {},
   },
   alias: {

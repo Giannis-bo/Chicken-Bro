@@ -9,6 +9,8 @@ import {
   assetRuntimePathForSlot,
   candidateAssets,
   candidateAssetSlots,
+  configureAssetRuntimeRoot,
+  currentAssetRuntimeRoot,
   productionAssets,
 } from './index'
 
@@ -139,5 +141,17 @@ describe('current asset authority', () => {
   it('fails closed for unregistered ids', () => {
     expect(assetRuntimePath('not-registered')).toBeNull()
     expect(assetRuntimePath('product-tab-news-icon.default')).toBe('/assets/ui-v2/vector/product-tab-news-icon/default.svg')
+  })
+
+  it('supports an explicit HTTPS runtime root without corrupting the URL', () => {
+    configureAssetRuntimeRoot('https://cdn.example.com/wow-assets/')
+    expect(currentAssetRuntimeRoot()).toBe('https://cdn.example.com/wow-assets')
+    expect(assetRuntimePath('news-frame.panel')).toBe(
+      'https://cdn.example.com/wow-assets/raster/news-home-v1/runtime/2x/frames/news-frame.panel.png',
+    )
+    expect(() => configureAssetRuntimeRoot('http://cdn.example.com/wow-assets')).toThrow('must use HTTPS')
+    expect(() => configureAssetRuntimeRoot('https://')).toThrow('must use HTTPS')
+    expect(() => configureAssetRuntimeRoot('https://cdn.example.com/assets?mutable=1')).toThrow('must use HTTPS')
+    configureAssetRuntimeRoot('/assets/ui-v2')
   })
 })

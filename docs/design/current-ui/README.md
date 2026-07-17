@@ -22,3 +22,13 @@
 目标图载荷只进入一次性隔离上下文；主项目会话只接收路径、尺寸、hash、结构化边界、差异和状态。
 
 架构审计与几何预检不是视觉通过。缺少 target/runtime 像素复核时，路由状态仍为 `UNVERIFIED`。
+
+## 运行素材根
+
+默认微信构建把登记素材复制到 `/assets/ui-v2`，用于本地开发和未配置远端资源的候选构建。只有显式设置合法 HTTPS 根路径时，构建才切换到远端素材并停止复制本地素材：
+
+```bash
+WOW_ASSET_RUNTIME_ROOT=https://cdn.example.com/wow-assets npm run build:weapp
+```
+
+远端根目录必须保持 `packages/design-system/assets/` 下的相对目录结构。该开关只建立可验证的交付路径，不代表 CDN 已获准上线；在真实候选构建启用前，必须同时确认完整资产上传与 hash、不可变 URL、HTTPS 可用性、微信 request/download 合法域名和回退到本地素材构建的方式。HTTP 或其他协议配置会在构建阶段失败。

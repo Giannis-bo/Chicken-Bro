@@ -48,9 +48,14 @@ export const defaultRuntimeAssetRoot = '/assets/ui-v2' as const
 let configuredRuntimeAssetRoot: string = defaultRuntimeAssetRoot
 
 function normalizeRoot(root: string): string {
-  if (!root || root === '/') return ''
-  if (root === '.') return '.'
-  return `/${root.replace(/^\/+|\/+$/g, '')}`
+  const value = root.trim()
+  if (!value || value === '/') return ''
+  if (value === '.') return '.'
+  if (/^https:\/\/[^/?#\s]+(?:\/[^?#\s]*)?$/iu.test(value)) return value.replace(/\/+$/g, '')
+  if (/^[a-z][a-z\d+.-]*:\/\//iu.test(value)) {
+    throw new Error(`Asset runtime root must use HTTPS: ${value}`)
+  }
+  return `/${value.replace(/^\/+|\/+$/g, '')}`
 }
 
 function toRuntimeRelativePath(filePath: string): string {
