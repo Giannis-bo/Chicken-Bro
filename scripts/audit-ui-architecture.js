@@ -374,6 +374,18 @@ record(
   privateRegionFillOwners.join(', ') || 'none',
 )
 
+const sharedActionContentConsumers = [
+  'packages/design-system/src/components/BuildWorkspaceEntry.tsx',
+  'packages/design-system/src/components/NewsListComponents.tsx',
+  'packages/design-system/src/components/NewsDetailComponents.tsx',
+]
+record(
+  'repeated_icon_label_actions_use_shared_content_layout',
+  fs.existsSync(path.join(root, 'packages/design-system/src/components/ActionContent.tsx'))
+    && sharedActionContentConsumers.every((file) => /<ActionContent\b/u.test(read(file))),
+  sharedActionContentConsumers.filter((file) => !/<ActionContent\b/u.test(read(file))).join(', ') || 'none',
+)
+
 const deprecatedAppShellProps = []
 const unownedRouteInteractions = []
 for (const file of routeComponents) {

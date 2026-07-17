@@ -2,6 +2,7 @@ import { ScrollView, Text, View } from '@tarojs/components'
 
 import type { NewsBodyBlock, ReadinessState } from '@wow-mini/domain'
 
+import { ActionContent } from './ActionContent'
 import { ActionButton } from './ActionButton'
 import { ProductionAssetGlyph } from './ProductionAssetGlyph'
 import { ProductionAssetImage } from './ProductionAsset'
@@ -263,10 +264,10 @@ export function SourceReferenceAction({
           data-role="news-detail-source-action-button"
         >
           <ActionButton ariaLabel="复制来源链接" disabled={!available} variant="secondaryMetal" {...(available && onCopy ? { onClick: onCopy } : {})}>
-            <View className={reconstructionStyle('newsDetailSourceActionButtonContent')}>
+            <ActionContent className={reconstructionStyle('newsDetailSourceActionButtonContent')}>
               <SystemGlyph assetId="utility-glyph-family.copy" slotId="asset_slot.news-detail-source-actions" />
               <Text>{available ? '复制来源' : '来源不可用'}</Text>
-            </View>
+            </ActionContent>
           </ActionButton>
         </View>
       </View>

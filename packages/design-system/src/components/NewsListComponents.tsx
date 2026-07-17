@@ -3,6 +3,7 @@ import type { CSSProperties } from 'react'
 
 import type { ReadinessState } from '@wow-mini/domain'
 
+import { ActionContent } from './ActionContent'
 import { ActionButton } from './ActionButton'
 import { ProductionAssetImage } from './ProductionAsset'
 import { ForgedPanel } from './ReconstructionPrimitives'
@@ -35,14 +36,14 @@ export function NewsListSummary({
       </View>
       <View className={reconstructionStyle('newsListSummaryAction')}>
         <ActionButton ariaLabel="刷新资讯列表" disabled={loading} variant="secondaryMetal" onClick={onRefresh}>
-          <View className={reconstructionStyle('newsListSummaryActionContent')}>
+          <ActionContent className={reconstructionStyle('newsListSummaryActionContent')}>
             <SystemGlyph
               assetId="utility-glyph-family.reset"
               className={reconstructionStyle('newsListSummaryActionGlyph')}
               slotId="asset_slot.utility-glyph-family"
             />
             <Text>{loading ? '刷新中' : '刷新列表'}</Text>
-          </View>
+          </ActionContent>
         </ActionButton>
       </View>
     </View>

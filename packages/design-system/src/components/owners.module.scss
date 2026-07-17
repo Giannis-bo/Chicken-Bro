@@ -182,6 +182,14 @@
   height: 100%;
 }
 
+.actionContent {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+}
+
 .frame {
   width: 100%;
   max-width: 720px;

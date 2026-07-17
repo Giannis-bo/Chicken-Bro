@@ -3,6 +3,7 @@ import { Text, View } from '@tarojs/components'
 import { assetRuntimePath } from '@wow-mini/assets-manifest'
 import type { ReadinessState } from '@wow-mini/domain'
 
+import { ActionContent } from './ActionContent'
 import { NineSliceFrame } from './NineSliceFrame'
 import { ProductionAssetGlyph } from './ProductionAssetGlyph'
 import { ForgedPanel } from './ReconstructionPrimitives'
@@ -135,7 +136,7 @@ export function BuildWorkspaceEntry({
                   slotId="asset_slot.builds-frame-family"
                 />
               ) : null}
-              <View
+              <ActionContent
                 className={buildStyle('workspaceActionContent')}
                 data-slot="asset_slot.builds-primary-action-glyph"
               >
@@ -148,7 +149,7 @@ export function BuildWorkspaceEntry({
                   slotId="asset_slot.builds-primary-action-glyph"
                 />
                 <Text className={buildStyle('workspaceActionLabel')}>{actionLabel}</Text>
-              </View>
+              </ActionContent>
             </View>
           </View>
         </View>
