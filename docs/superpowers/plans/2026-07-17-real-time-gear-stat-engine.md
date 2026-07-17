@@ -352,7 +352,7 @@ git commit -m "feat: expose deterministic gear attribute context"
 - `refreshGearAttributePanel(page, {previousCalculation})` consumes the current selection's locally derived static totals plus `gearPayload.attributeCalculator`; it synchronously updates `gearAttributePanel` and returns no Promise.
 - `selectGearAttributeRace(event)` accepts a race from server-provided `raceOptions`; it never changes `selection-intent-v1` and never starts SimC.
 
-- [ ] **Step 1: Write failing page-state tests for explicit race and immediate recompute**
+- [x] **Step 1: Write failing page-state tests for explicit race and immediate recompute**
 
 ```javascript
 const pageConfig = loadBuildsDetailPageConfig({ exposeDetailHelpers: true })
@@ -372,13 +372,13 @@ assert.equal(page.data.gearAttributePanel.statRows.find((row) => row.key === 'ha
 
 Add a same-event-loop test: set a new selected head item, call the existing confirm handler, and assert the panel's `haste.rawValue`, `convertedValue` and `deltaValue` update before the deferred `requestWebsimGearResolve` promise resolves. Add a missing-rule test that asserts no static integer is labeled as a final stat.
 
-- [ ] **Step 2: Run page tests and confirm they fail**
+- [x] **Step 2: Run page tests and confirm they fail**
 
 Run: `node --test tests/builds-page.test.js`
 
 Expected: FAIL because race state, immediate attribute state and `refreshGearAttributePanel` do not exist.
 
-- [ ] **Step 3: Add explicit race selection and local panel state**
+- [x] **Step 3: Add explicit race selection and local panel state**
 
 In `pages/builds/detail.js`, import `calculateNonCombatAttributes` and add:
 
@@ -401,13 +401,13 @@ function refreshGearAttributePanel(page, options = {}) {
 
 In WXML, place a small identity row above the attribute grid. It must display `种族 / 请选择种族` when missing, use the existing dark-sheet interaction style, and display a separate calculation status. In WXSS, reuse the panel's existing borders and typography; do not introduce a native picker/button that can reintroduce WebView composition issues.
 
-- [ ] **Step 4: Run the page tests and inspect the no-race state**
+- [x] **Step 4: Run the page tests and inspect the no-race state**
 
 Run: `node --test tests/builds-page.test.js`
 
 Expected: PASS; a user cannot see a fake final panel without a selected race, and an item change recalculates locally without waiting for Resolver or SimC.
 
-- [ ] **Step 5: Commit the identity and immediate-state slice**
+- [x] **Step 5: Commit the identity and immediate-state slice**
 
 ```bash
 git add pages/builds/detail.js pages/builds/detail.wxml pages/builds/detail.wxss tests/builds-page.test.js
@@ -430,7 +430,7 @@ git commit -m "feat: calculate gear attributes locally with race context"
 - `gearStatSnapshot` remains a SimC-only object for simulator/template metadata. It may be stale/read-only but must never add values or converted percentages to the gear attribute panel.
 - `maybeRefreshGearStatsForPage` remains callable only by explicit SimC/saved-template flows; gear load, item confirmation, enhancement confirmation, reset, saved apply, community import and scenario switch no longer invoke it automatically.
 
-- [ ] **Step 1: Rewrite failing regression tests around the new boundary**
+- [x] **Step 1: Rewrite failing regression tests around the new boundary**
 
 Replace the load-time expectation `gear detail requests SimC stat snapshot when gear and talents are complete` with an assertion that `requestWebsimGearStatSnapshot` is never called while an immediate local panel is calculated. Keep a direct `refreshGearStats` compatibility test to prove the existing polling/fencing behavior still works when a simulator flow explicitly invokes it.
 
@@ -444,13 +444,13 @@ assert.equal(simulatorPage.data.gearStatSnapshot.statStatus, 'verified')
 
 Add a stale-SimC test whose snapshot reports `intellect=999999` and `crit=99.9%`; assert the displayed local panel keeps the rule-engine numbers. Add import/manual parity: applying an imported sealed selection and choosing the same slots/options manually produces deep-equal `gearAttributeState` including `inputSignature`.
 
-- [ ] **Step 2: Run frontend and simulator tests and confirm they fail**
+- [x] **Step 2: Run frontend and simulator tests and confirm they fail**
 
 Run: `node --test tests/builds-page.test.js tests/simulator-page.test.js`
 
 Expected: FAIL because `canonicalGearAttributePanel` still reads `verifiedGearStatSnapshot` and the gear page still schedules SimC refreshes.
 
-- [ ] **Step 3: Remove snapshot reads from the panel and automatic triggers from gear interaction**
+- [x] **Step 3: Remove snapshot reads from the panel and automatic triggers from gear interaction**
 
 Replace the current panel composition with a renderer whose only numeric source is `gearAttributeState`:
 
@@ -472,13 +472,13 @@ Delete the `verifiedGearStatSnapshot` conversion fallback from `buildGearAttribu
 
 In `pages/simulator/simc.js`, continue consuming a verified SimC snapshot only for the simulator's own summary; do not read or overwrite `gearAttributeState` from the builds page.
 
-- [ ] **Step 4: Run focused regression tests and diff the two state lanes**
+- [x] **Step 4: Run focused regression tests and diff the two state lanes**
 
 Run: `node --test tests/builds-page.test.js tests/simulator-page.test.js`
 
 Expected: PASS; changing gear refreshes local values immediately, an explicit SimC request still follows its old pending/verified fencing, and neither lane overwrites the other.
 
-- [ ] **Step 5: Commit the decoupling slice**
+- [x] **Step 5: Commit the decoupling slice**
 
 ```bash
 git add pages/builds/detail.js pages/builds/detail.wxml pages/simulator/simc.js tests/builds-page.test.js tests/simulator-page.test.js

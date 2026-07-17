@@ -11,6 +11,7 @@ const {
   requestWebsimGearStatSnapshot,
   requestWebsimTalentImport
 } = require('./websim-api')
+const { calculateNonCombatAttributes } = require('./gear-attribute-engine')
 const {
   adoptVerifiedCommunityImport,
   applyGearResolveResult,
@@ -211,11 +212,6 @@ const gearCommunitySourceLabels = {
   raiderio: 'Raider.IO 观测',
   default_template: '默认模板'
 }
-const gearPrimaryStatLabels = {
-  strength: '力量',
-  agility: '敏捷',
-  intellect: '智力'
-}
 const gearTrackedAttributeKeys = [
   'strength',
   'agility',
@@ -225,6 +221,9 @@ const gearTrackedAttributeKeys = [
   'crit',
   'mastery',
   'versatility',
+  'avoidance',
+  'leech',
+  'speed',
   'armor'
 ]
 
@@ -403,42 +402,6 @@ function compactVerifiedGearStatSnapshot(snapshot) {
     secondary,
     itemLevel: compactGearStatSnapshotMetric(source.itemLevel)
   }
-}
-
-function gearStatSnapshotMetric(snapshot, key) {
-  const source = verifiedGearStatSnapshot(snapshot)
-  if (!source) return null
-  if (key === 'primary') return source.primary || null
-  if (key === 'stamina') return source.stamina || null
-  if (key === 'itemLevel') return source.itemLevel || null
-  if (key === 'armor') return source.armor || null
-  const secondary = Array.isArray(source.secondary) ? source.secondary : []
-  return secondary.find((row) => row && row.key === key) || null
-}
-
-function gearAttributeMetricFromSnapshot(row, fallbackKey, fallbackLabel) {
-  if (!row || typeof row !== 'object') return null
-  const value = cleanGearString(row.value)
-  if (!value) return null
-  const metric = {
-    key: row.key || fallbackKey,
-    label: row.label || fallbackLabel,
-    value,
-    rawValue: row.rawValue === undefined ? gearNumericValue(value) : row.rawValue,
-    pending: false
-  }
-  if (row.convertedValue) {
-    metric.convertedValue = row.convertedValue
-    metric.convertedRawValue = row.convertedRawValue
-    metric.convertedSourceValue = row.convertedSourceValue
-    metric.convertedSourceUnit = row.convertedSourceUnit
-  }
-  return metric
-}
-
-function gearAttributeMetricWithSnapshot(key, label, value, fallback, gearStatSnapshot) {
-  const snapshotMetric = gearAttributeMetricFromSnapshot(gearStatSnapshotMetric(gearStatSnapshot, key), key, label)
-  return snapshotMetric || gearAttributeMetric(key, label, value, fallback)
 }
 
 function gearEnhancementMetric(key, label, used, max) {
@@ -652,6 +615,11 @@ function resetGearWorkbenchForSelection(page) {
   return {
     selectedGearBySlot: {},
     enhancementBySlot: {},
+    ...gearAttributeDerivedStateForData({
+      selectedGearBySlot: {},
+      enhancementBySlot: {},
+      selectedSpec: page && page.data && page.data.selectedSpec
+    }),
     gearSlotRows: [],
     gearStatSnapshot,
     gearStatBlockers: gearStatSnapshot.blockers,
@@ -1095,6 +1063,9 @@ function gearStatKeyForLabel(label, primaryKey) {
   if (text.includes('暴击') || text.includes('爆击') || text.includes('critical') || text.includes('crit')) return 'crit'
   if (text.includes('精通') || text.includes('mastery')) return 'mastery'
   if (text.includes('全能') || text.includes('versatility')) return 'versatility'
+  if (text.includes('闪避') || text.includes('avoidance')) return 'avoidance'
+  if (text.includes('吸血') || text.includes('leech')) return 'leech'
+  if (text.includes('速度') || text.includes('speed')) return 'speed'
   if (text.includes('主属性') || text.includes('primary stat') || compact.includes('primarystat')) return primaryKey
   if ((text.includes('力量') && text.includes('敏捷') && text.includes('智力')) || compact.includes('stragiint')) return primaryKey
   if ((text.includes('strength') && text.includes('agility') && text.includes('intellect')) || compact.includes('strintagi')) return primaryKey
@@ -1214,6 +1185,9 @@ function directGearStatValue(source, statKey) {
     crit: ['crit', 'criticalStrike', 'critical_strike', 'criticalStrikeRating', 'critRating', '暴击', '爆击'],
     mastery: ['mastery', 'masteryRating', 'mastery_rating', '精通'],
     versatility: ['versatility', 'versatilityRating', 'versatility_rating', 'vers', '全能'],
+    avoidance: ['avoidance', 'avoidanceRating', 'avoidance_rating', '闪避'],
+    leech: ['leech', 'leechRating', 'leech_rating', '吸血'],
+    speed: ['speed', 'speedRating', 'speed_rating', '速度'],
     armor: ['armor', 'armorValue', 'armor_value', '护甲'],
     health: ['health', 'hp', 'maxHealth', 'max_health', '生命值'],
     mana: ['mana', 'mp', 'maxMana', 'max_mana', '法力值']
@@ -1228,31 +1202,11 @@ function directGearStatValue(source, statKey) {
   return null
 }
 
-function payloadGearStatValue(payload, statKey) {
-  const sources = [
-    payload && payload.characterStats,
-    payload && payload.character_stats,
-    payload && payload.statSnapshot,
-    payload && payload.stats,
-    payload && payload.resources,
-    payload && payload.attributes,
-    payload
-  ]
-  for (let index = 0; index < sources.length; index += 1) {
-    const source = sources[index]
-    if (!source) continue
-    const direct = directGearStatValue(source, statKey)
-    if (direct !== null) return direct
-    const structured = gearStatEntriesFromStructuredValue(source, 'intellect')
-    const matched = structured.find((item) => item.key === statKey)
-    if (matched) return matched.value
-  }
-  return null
-}
-
 function emptyGearAttributePanel() {
   return {
     visible: false,
+    status: 'idle',
+    calculationStatusLabel: '等待装备选择',
     summary: '已选 0/16 槽',
     itemLevel: gearAttributeMetric('itemLevel', '装备等级', null, '待补'),
     enhancementRows: [
@@ -1261,98 +1215,7 @@ function emptyGearAttributePanel() {
       gearEnhancementMetric('enchant', '附魔', 0, 0),
       gearEnhancementMetric('tierSet', '套装', 0, gearTierSetMax)
     ],
-    statRows: [
-      gearAttributeMetric('intellect', '智力', null, '待补'),
-      gearAttributeMetric('stamina', '耐力', null, '待补'),
-      gearAttributeMetric('haste', '急速', 0, '0'),
-      gearAttributeMetric('crit', '暴击', 0, '0'),
-      gearAttributeMetric('mastery', '精通', 0, '0'),
-      gearAttributeMetric('versatility', '全能', 0, '0')
-    ]
-  }
-}
-
-function buildGearAttributePanel(gearPayload, selectedGearBySlot, selectedSpec, enhancementBySlot, gearStatSnapshot) {
-  const requiredSlotsForPanel = requiredGearTemplateSlots(gearPayload || {})
-  const indexedSelection = enrichedSelectedGearByCanonicalSlot(gearPayload, selectedGearBySlot || {})
-  const selectedItems = requiredSlotsForPanel.map((slot) => indexedSelection[slot]).filter(Boolean)
-  if (!selectedItems.length) return emptyGearAttributePanel()
-  const specKeys = specWebsimKeys({
-    websimClassKey: (selectedSpec && (selectedSpec.websimClassKey || selectedSpec.classKey)) || (gearPayload && gearPayload.classKey),
-    websimSpecKey: (selectedSpec && (selectedSpec.websimSpecKey || selectedSpec.specKey)) || (gearPayload && gearPayload.specKey)
-  })
-  const primaryKey = primaryStatKeyForSpec(specKeys)
-  const totals = gearTrackedAttributeKeys.reduce((memo, key) => {
-    memo[key] = 0
-    return memo
-  }, {})
-  const itemLevels = []
-  selectedItems.forEach((item) => {
-    const itemLevel = gearNumericValue(item && (item.ilevel || item.itemLevel || item.item_level))
-    if (itemLevel !== null) itemLevels.push(itemLevel)
-    const itemTotals = {}
-    gearStatEntriesForItem(item, primaryKey).forEach((entry) => {
-      itemTotals[entry.key] = (itemTotals[entry.key] || 0) + entry.value
-    })
-    gearTrackedAttributeKeys.forEach((key) => {
-      if (itemTotals[key] === undefined) {
-        const direct = directGearStatValue(item, key)
-        if (direct !== null) itemTotals[key] = direct
-      }
-      if (itemTotals[key] !== undefined) totals[key] += itemTotals[key]
-    })
-  })
-  const enhancement = normalizedEnhancementBySlot(enhancementBySlot || {})
-  requiredSlotsForPanel.forEach((slot) => {
-    const item = indexedSelection[slot]
-    const selected = enhancement[slot]
-    if (!item || !selected) return
-    ;[
-      ['socketOptions', 'gem'],
-      ['enchantOptions', 'enchant'],
-      ['embellishmentOptions', 'embellishment']
-    ].forEach(([optionKey, type]) => {
-      const selectedOption = enhancementOptionsForSlot(gearPayload, item, optionKey)
-        .find((option) => enhancementOptionSelected(option, selected, type))
-      if (!selectedOption) return
-      gearStatEntriesForEnhancementOption(selectedOption, primaryKey).forEach((entry) => {
-        totals[entry.key] = (totals[entry.key] || 0) + entry.value
-      })
-    })
-  })
-  const itemLevelAverage = itemLevels.length
-    ? itemLevels.reduce((sum, value) => sum + value, 0) / itemLevels.length
-    : null
-  const payloadPrimary = payloadGearStatValue(gearPayload, primaryKey)
-  const payloadStamina = payloadGearStatValue(gearPayload, 'stamina')
-  const primaryValue = totals[primaryKey] > 0 ? totals[primaryKey] : payloadPrimary
-  const staminaValue = totals.stamina > 0 ? totals.stamina : payloadStamina
-  const verifiedSnapshot = verifiedGearStatSnapshot(gearStatSnapshot)
-  const snapshotPrimary = gearAttributeMetricFromSnapshot(gearStatSnapshotMetric(verifiedSnapshot, 'primary'), primaryKey, gearPrimaryStatLabels[primaryKey] || '主属性')
-  const snapshotStamina = gearAttributeMetricFromSnapshot(gearStatSnapshotMetric(verifiedSnapshot, 'stamina'), 'stamina', '耐力')
-  const snapshotItemLevel = gearAttributeMetricFromSnapshot(gearStatSnapshotMetric(verifiedSnapshot, 'itemLevel'), 'itemLevel', '装备等级')
-  const enhancementSheet = buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementBySlot || {}, false)
-  const gemUsage = gearEnhancementMetricUsage(gearPayload, requiredSlotsForPanel, indexedSelection, enhancement, 'gem', 'socketOptions')
-  const enchantUsage = gearEnhancementMetricUsage(gearPayload, requiredSlotsForPanel, indexedSelection, enhancement, 'enchant', 'enchantOptions')
-  const tierSetCount = gearTierSetCountForPanel(selectedItems)
-  return {
-    visible: true,
-    summary: `已选 ${selectedItems.length}/${requiredSlotsForPanel.length} 槽`,
-    itemLevel: snapshotItemLevel || gearAttributeMetric('itemLevel', '装备等级', itemLevelAverage, '待补'),
-    enhancementRows: [
-      gearEnhancementMetric('embellishment', '美化', enhancementSheet.embellishmentUsed, enhancementSheet.embellishmentMax),
-      gearEnhancementMetric('gem', '宝石', gemUsage.used, gemUsage.max),
-      gearEnhancementMetric('enchant', '附魔', enchantUsage.used, enchantUsage.max),
-      gearEnhancementMetric('tierSet', '套装', tierSetCount, gearTierSetMax)
-    ],
-    statRows: [
-      snapshotPrimary || gearAttributeMetric(primaryKey, gearPrimaryStatLabels[primaryKey] || '主属性', primaryValue, '待补'),
-      snapshotStamina || gearAttributeMetric('stamina', '耐力', staminaValue, '待补'),
-      gearAttributeMetricWithSnapshot('haste', '急速', totals.haste, '0', verifiedSnapshot),
-      gearAttributeMetricWithSnapshot('crit', '暴击', totals.crit, '0', verifiedSnapshot),
-      gearAttributeMetricWithSnapshot('mastery', '精通', totals.mastery, '0', verifiedSnapshot),
-      gearAttributeMetricWithSnapshot('versatility', '全能', totals.versatility, '0', verifiedSnapshot)
-    ]
+    statRows: []
   }
 }
 
@@ -1387,107 +1250,325 @@ const canonicalGearAttributeLabels = {
   speed_rating: '速度'
 }
 
-const flexiblePrimaryStatKeys = {
-  agiint: ['agility', 'intellect'],
-  agint: ['agility', 'intellect'],
-  intagi: ['agility', 'intellect'],
-  stragi: ['strength', 'agility'],
-  strint: ['strength', 'intellect'],
-  stragiint: ['strength', 'agility', 'intellect'],
-  stragint: ['strength', 'agility', 'intellect']
+const gearAttributeRaceLabels = {
+  human: '人类',
+  dwarf: '矮人',
+  night_elf: '暗夜精灵',
+  gnome: '侏儒',
+  draenei: '德莱尼',
+  worgen: '狼人',
+  pandaren: '熊猫人',
+  void_elf: '虚空精灵',
+  lightforged_draenei: '光铸德莱尼',
+  dark_iron_dwarf: '黑铁矮人',
+  mechagnome: '机械侏儒',
+  earthen: '土灵',
+  orc: '兽人',
+  undead: '亡灵',
+  tauren: '牛头人',
+  troll: '巨魔',
+  blood_elf: '血精灵',
+  goblin: '地精',
+  nightborne: '夜之子',
+  highmountain_tauren: '至高岭牛头人',
+  maghar_orc: '玛格汉兽人',
+  zandalari_troll: '赞达拉巨魔',
+  vulpera: '狐人'
 }
-const primaryGearAttributeKeys = new Set(['strength', 'agility', 'intellect'])
-
-function canonicalGearAttributeTotalsForSpec(rawTotals, eligibilityContext) {
-  const context = eligibilityContext && typeof eligibilityContext === 'object' ? eligibilityContext : null
-  const classKey = context && cleanGearString(context.classKey)
-  const primaryKey = classKey ? primaryStatKeyForSpec(context) : ''
-  return Object.keys(rawTotals || {}).reduce((totals, rawKey) => {
-    const normalizedKey = normalizedGearKey(rawKey)
-    const flexiblePrimaryKeys = flexiblePrimaryStatKeys[normalizedKey]
-    const key = flexiblePrimaryKeys
-      ? (primaryKey && flexiblePrimaryKeys.includes(primaryKey) ? primaryKey : (primaryKey ? '' : rawKey))
-      : (primaryKey && primaryGearAttributeKeys.has(normalizedKey) && normalizedKey !== primaryKey ? '' : rawKey)
-    if (!key) return totals
-    const value = gearNumericValue(rawTotals[rawKey])
-    if (value === null) {
-      totals[key] = rawTotals[rawKey]
-      return totals
-    }
-    totals[key] = (gearNumericValue(totals[key]) || 0) + value
-    return totals
-  }, {})
+const gearAttributeResourceLabels = {
+  health: '生命值',
+  mana: '法力值',
+  energy: '能量',
+  rage: '怒气',
+  focus: '集中值'
 }
 
-function canonicalGearAttributePanel(snapshot, statSnapshot) {
-  if (!snapshot || typeof snapshot !== 'object') return emptyGearAttributePanel()
-  const rawTotals = snapshot.staticAttributes && typeof snapshot.staticAttributes === 'object'
-    ? (snapshot.staticAttributes.totals || snapshot.staticAttributes)
-    : {}
-  const totals = canonicalGearAttributeTotalsForSpec(rawTotals, snapshot.eligibilityContext)
-  const resolvedSlots = snapshot.resolvedSlots && typeof snapshot.resolvedSlots === 'object'
-    ? snapshot.resolvedSlots
-    : {}
-  const itemLevels = Object.keys(resolvedSlots).map((slot) => Number(resolvedSlots[slot] && resolvedSlots[slot].itemLevel)).filter(Number.isFinite)
-  const itemLevel = itemLevels.length ? itemLevels.reduce((sum, value) => sum + value, 0) / itemLevels.length : null
-  const readiness = snapshot.profileReadiness && typeof snapshot.profileReadiness === 'object'
-    ? snapshot.profileReadiness
-    : {}
-  const requiredSlots = Array.isArray(readiness.requiredSlots) ? readiness.requiredSlots : Object.keys(resolvedSlots)
-  const readySlots = Array.isArray(readiness.readySlots) ? readiness.readySlots : Object.keys(resolvedSlots)
-  const constraints = snapshot.constraints && snapshot.constraints.slots && typeof snapshot.constraints.slots === 'object'
-    ? snapshot.constraints.slots
-    : {}
-  const selectedOptions = Object.keys(resolvedSlots).map((slot) => (resolvedSlots[slot] && resolvedSlots[slot].selectedOptions) || {})
-  const gemUsed = selectedOptions.reduce((count, options) => count + (Array.isArray(options.gemOptionIds) ? options.gemOptionIds.length : 0), 0)
-  const enchantUsed = selectedOptions.filter((options) => options.enchantOptionId).length
-  const selectedEmbellishmentUsed = selectedOptions.filter((options) => options.embellishmentOptionId).length
-  const canonicalEmbellishmentUsedValue = Number(snapshot.constraints && snapshot.constraints.embellishmentUsed)
-  const embellishmentUsed = Number.isFinite(canonicalEmbellishmentUsedValue) && canonicalEmbellishmentUsedValue >= 0
-    ? canonicalEmbellishmentUsedValue
-    : selectedEmbellishmentUsed
-  const gemMax = Object.keys(constraints).reduce((count, slot) => count + (Number(constraints[slot] && constraints[slot].socketCount) || 0), 0)
-  const enchantMax = Object.keys(constraints).filter((slot) => constraints[slot] && constraints[slot].canEnchant).length
-  const embellishmentMaxValue = Number(snapshot.constraints && snapshot.constraints.embellishmentMax)
-  const embellishmentMax = Number.isFinite(embellishmentMaxValue) && embellishmentMaxValue >= 0
-    ? embellishmentMaxValue
-    : 0
-  const setCounts = snapshot.setState && snapshot.setState.itemSetCounts && typeof snapshot.setState.itemSetCounts === 'object'
-    ? snapshot.setState.itemSetCounts
-    : {}
-  const tierCount = Object.keys(setCounts).reduce((maximum, key) => Math.max(maximum, Number(setCounts[key]) || 0), 0)
-  const preferredOrder = ['intellect', 'agility', 'strength', 'stamina', 'haste', 'crit', 'critical_strike', 'mastery', 'versatility', 'armor']
-  const verifiedStatSnapshot = verifiedGearStatSnapshot(statSnapshot)
-  const snapshotSecondaryKeys = Array.isArray(verifiedStatSnapshot && verifiedStatSnapshot.secondary)
-    ? verifiedStatSnapshot.secondary.map((row) => cleanGearString(row && row.key)).filter(Boolean)
-    : []
-  const orderedKeys = [
-    ...preferredOrder.filter((key) => Object.prototype.hasOwnProperty.call(totals, key)),
-    ...Object.keys(totals).sort().filter((key) => !preferredOrder.includes(key)),
-    ...snapshotSecondaryKeys.filter((key) => !Object.prototype.hasOwnProperty.call(totals, key))
-  ]
+function gearAttributeRaceOptions(gearPayload) {
+  const calculator = gearPayload && gearPayload.attributeCalculator
+  if (!calculator || calculator.status !== 'available' || !Array.isArray(calculator.raceOptions)) return []
+  const seen = new Set()
+  return calculator.raceOptions.reduce((options, option) => {
+    const raceKey = cleanGearString(option && option.raceKey).toLowerCase()
+    if (!raceKey || seen.has(raceKey)) return options
+    seen.add(raceKey)
+    options.push({
+      raceKey,
+      label: cleanGearString(option && (option.label || option.name)) || gearAttributeRaceLabels[raceKey] || raceKey
+    })
+    return options
+  }, [])
+}
+
+function gearAttributeRuleForRace(gearPayload, raceKey) {
+  const calculator = gearPayload && gearPayload.attributeCalculator
+  if (!calculator || calculator.status !== 'available' || !Array.isArray(calculator.rules)) return null
+  const normalizedRace = cleanGearString(raceKey).toLowerCase()
+  return calculator.rules.find((rule) => (
+    rule && rule.status === 'verified' && cleanGearString(rule.raceKey).toLowerCase() === normalizedRace
+  )) || null
+}
+
+function gearAttributeSourceContext(snapshot) {
+  if (!snapshot || typeof snapshot !== 'object') return null
   return {
-    visible: orderedKeys.length > 0 || Object.keys(resolvedSlots).length > 0,
-    summary: `已校验 ${readySlots.length}/${requiredSlots.length} 槽`,
-    itemLevel: gearAttributeMetric('itemLevel', '装备等级', itemLevel, '待补'),
+    resolvedSlots: snapshot.resolvedSlots && typeof snapshot.resolvedSlots === 'object' ? snapshot.resolvedSlots : {},
+    constraints: snapshot.constraints && typeof snapshot.constraints === 'object' ? snapshot.constraints : {},
+    profileReadiness: snapshot.profileReadiness && typeof snapshot.profileReadiness === 'object' ? snapshot.profileReadiness : {},
+    setState: snapshot.setState && typeof snapshot.setState === 'object' ? snapshot.setState : {}
+  }
+}
+
+function gearAttributeSourceMetrics(gearPayload, selectedGearBySlot, selectedSpec, enhancementBySlot, sourceContext) {
+  const canonicalContext = sourceContext && typeof sourceContext === 'object' ? sourceContext : null
+  const canonicalReadiness = canonicalContext && canonicalContext.profileReadiness || {}
+  const canonicalRequiredSlots = Array.isArray(canonicalReadiness.requiredSlots)
+    ? canonicalReadiness.requiredSlots.filter((slot) => requiredGearSlots.includes(slot))
+    : []
+  const requiredSlots = canonicalRequiredSlots.length ? canonicalRequiredSlots : requiredGearTemplateSlots(gearPayload || {})
+  const indexedSelection = enrichedSelectedGearByCanonicalSlot(gearPayload, selectedGearBySlot || {})
+  const selectedItems = requiredSlots.map((slot) => indexedSelection[slot]).filter(Boolean)
+  const specKeys = specWebsimKeys({
+    websimClassKey: (selectedSpec && (selectedSpec.websimClassKey || selectedSpec.classKey)) || (gearPayload && gearPayload.classKey),
+    websimSpecKey: (selectedSpec && (selectedSpec.websimSpecKey || selectedSpec.specKey)) || (gearPayload && gearPayload.specKey)
+  })
+  const primaryKey = primaryStatKeyForSpec(specKeys)
+  const staticAttributes = {}
+  const itemLevels = []
+  const add = (key, value) => {
+    const normalizedKey = cleanGearString(key)
+    const numeric = gearNumericValue(value)
+    if (!normalizedKey || numeric === null) return
+    staticAttributes[normalizedKey] = (staticAttributes[normalizedKey] || 0) + numeric
+  }
+  selectedItems.forEach((item) => {
+    const itemLevel = gearNumericValue(item && (item.ilevel || item.itemLevel || item.item_level))
+    if (itemLevel !== null) itemLevels.push(itemLevel)
+    const itemTotals = {}
+    gearStatEntriesForItem(item, primaryKey).forEach((entry) => {
+      itemTotals[entry.key] = (itemTotals[entry.key] || 0) + entry.value
+    })
+    gearTrackedAttributeKeys.forEach((key) => {
+      if (itemTotals[key] === undefined) {
+        const direct = directGearStatValue(item, key)
+        if (direct !== null) itemTotals[key] = direct
+      }
+    })
+    Object.keys(itemTotals).forEach((key) => add(key, itemTotals[key]))
+  })
+  const enhancement = normalizedEnhancementBySlot(enhancementBySlot || {})
+  requiredSlots.forEach((slot) => {
+    const item = indexedSelection[slot]
+    const selected = enhancement[slot]
+    if (!item || !selected) return
+    ;[
+      ['socketOptions', 'gem'],
+      ['enchantOptions', 'enchant'],
+      ['embellishmentOptions', 'embellishment']
+    ].forEach(([optionKey, type]) => {
+      const selectedOption = enhancementOptionsForSlot(gearPayload, item, optionKey)
+        .find((option) => enhancementOptionSelected(option, selected, type))
+      if (!selectedOption) return
+      gearStatEntriesForEnhancementOption(selectedOption, primaryKey).forEach((entry) => add(entry.key, entry.value))
+    })
+  })
+  const enhancementSheet = buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementBySlot || {}, false)
+  const canonicalConstraints = canonicalContext && canonicalContext.constraints || {}
+  const canonicalSlots = canonicalConstraints.slots && typeof canonicalConstraints.slots === 'object'
+    ? canonicalConstraints.slots
+    : {}
+  const canonicalResolvedSlots = canonicalContext && canonicalContext.resolvedSlots || {}
+  const hasCanonicalConstraints = Object.keys(canonicalSlots).length > 0
+  const canonicalSelectedOptions = Object.keys(canonicalResolvedSlots).reduce((result, slot) => {
+    const selectedOptions = canonicalResolvedSlots[slot] && canonicalResolvedSlots[slot].selectedOptions
+    if (selectedOptions && typeof selectedOptions === 'object') result[slot] = selectedOptions
+    return result
+  }, {})
+  const localGemUsage = gearEnhancementMetricUsage(gearPayload, requiredSlots, indexedSelection, enhancement, 'gem', 'socketOptions')
+  const localEnchantUsage = gearEnhancementMetricUsage(gearPayload, requiredSlots, indexedSelection, enhancement, 'enchant', 'enchantOptions')
+  const canonicalGemMax = Object.keys(canonicalSlots).reduce((sum, slot) => sum + Math.max(0, Number(canonicalSlots[slot] && canonicalSlots[slot].socketCount) || 0), 0)
+  const canonicalEnchantMax = Object.keys(canonicalSlots).filter((slot) => canonicalSlots[slot] && canonicalSlots[slot].canEnchant === true).length
+  const canonicalGemUsed = Object.keys(canonicalSelectedOptions).reduce((sum, slot) => {
+    const gems = canonicalSelectedOptions[slot] && canonicalSelectedOptions[slot].gemOptionIds
+    return sum + (Array.isArray(gems) ? gems.length : 0)
+  }, 0)
+  const canonicalEnchantUsed = Object.keys(canonicalSelectedOptions).filter((slot) => (
+    cleanGearString(canonicalSelectedOptions[slot] && canonicalSelectedOptions[slot].enchantOptionId)
+  )).length
+  const canonicalEmbellishmentUsed = Number(canonicalConstraints.embellishmentUsed)
+  const canonicalEmbellishmentMax = Number(canonicalConstraints.embellishmentMax)
+  const setCounts = canonicalContext && canonicalContext.setState && canonicalContext.setState.itemSetCounts
+  const canonicalTierCount = setCounts && typeof setCounts === 'object'
+    ? Object.keys(setCounts).reduce((maximum, key) => Math.max(maximum, Number(setCounts[key]) || 0), 0)
+    : null
+  const gemUsage = hasCanonicalConstraints
+    ? { used: canonicalGemUsed, max: canonicalGemMax }
+    : localGemUsage
+  const enchantUsage = hasCanonicalConstraints
+    ? { used: canonicalEnchantUsed, max: canonicalEnchantMax }
+    : localEnchantUsage
+  const embellishmentUsed = Number.isFinite(canonicalEmbellishmentUsed) && canonicalEmbellishmentUsed >= 0
+    ? canonicalEmbellishmentUsed
+    : enhancementSheet.embellishmentUsed
+  const embellishmentMax = Number.isFinite(canonicalEmbellishmentMax) && canonicalEmbellishmentMax >= 0
+    ? canonicalEmbellishmentMax
+    : enhancementSheet.embellishmentMax
+  const tierCount = canonicalTierCount === null ? gearTierSetCountForPanel(selectedItems) : canonicalTierCount
+  return {
+    requiredSlots,
+    selectedItems,
+    staticAttributes,
+    primaryKey,
+    itemLevel: itemLevels.length ? itemLevels.reduce((sum, value) => sum + value, 0) / itemLevels.length : null,
     enhancementRows: [
       gearEnhancementMetric('embellishment', '美化', embellishmentUsed, embellishmentMax),
-      gearEnhancementMetric('gem', '宝石', gemUsed, gemMax),
-      gearEnhancementMetric('enchant', '附魔', enchantUsed, enchantMax),
-      { ...gearEnhancementMetric('tierSet', '套装', tierCount, tierCount), value: String(tierCount) }
-    ],
-    statRows: orderedKeys.map((key) => {
-      const snapshotMetric = gearAttributeMetricFromSnapshot(
-        gearStatSnapshotMetric(verifiedStatSnapshot, key),
-        key,
-        canonicalGearAttributeLabels[key] || key
-      )
-      if (!Object.prototype.hasOwnProperty.call(totals, key)) return snapshotMetric || gearAttributeMetric(key, canonicalGearAttributeLabels[key] || key, 0, '0')
-      const canonicalMetric = gearAttributeMetric(key, canonicalGearAttributeLabels[key] || key, totals[key], '0')
-      return snapshotMetric && snapshotMetric.convertedValue
-        ? { ...canonicalMetric, convertedValue: snapshotMetric.convertedValue, convertedRawValue: snapshotMetric.convertedRawValue }
-        : canonicalMetric
-    })
+      gearEnhancementMetric('gem', '宝石', gemUsage.used, gemUsage.max),
+      gearEnhancementMetric('enchant', '附魔', enchantUsage.used, enchantUsage.max),
+      canonicalTierCount === null
+        ? gearEnhancementMetric('tierSet', '套装', tierCount, gearTierSetMax)
+        : { ...gearEnhancementMetric('tierSet', '套装', tierCount, tierCount), value: String(tierCount) }
+    ]
+  }
+}
+
+function gearAttributeUnavailableState(status, attributeRuleRevision, code, message) {
+  return {
+    contractRevision: 'gear-attribute-calculation-v1',
+    status,
+    attributeRuleRevision: cleanGearString(attributeRuleRevision),
+    primary: null,
+    stamina: null,
+    resources: {},
+    secondary: [],
+    conditionals: [],
+    problems: [{ kind: 'ATTRIBUTE_RULE_UNAVAILABLE', code, path: 'attributeCalculator', message }],
+    inputSignature: ''
+  }
+}
+
+function gearAttributeRawValues(calculation) {
+  const rows = {}
+  if (!calculation || typeof calculation !== 'object') return rows
+  ;[calculation.primary, calculation.stamina].forEach((row) => {
+    if (row && cleanGearString(row.key) && gearNumericValue(row.rawValue) !== null) rows[row.key] = Number(row.rawValue)
+  })
+  Object.keys(calculation.resources || {}).forEach((key) => {
+    const row = calculation.resources[key]
+    if (row && cleanGearString(row.key || key) && gearNumericValue(row.rawValue) !== null) rows[row.key || key] = Number(row.rawValue)
+  })
+  ;(Array.isArray(calculation.secondary) ? calculation.secondary : []).forEach((row) => {
+    if (row && cleanGearString(row.key) && gearNumericValue(row.rawValue) !== null) rows[row.key] = Number(row.rawValue)
+  })
+  return rows
+}
+
+function gearAttributeDelta(value, previousValue) {
+  const current = gearNumericValue(value)
+  const prior = gearNumericValue(previousValue)
+  if (current === null || prior === null || current === prior) return ''
+  const delta = current - prior
+  return `${delta > 0 ? '+' : ''}${formatGearAttributeValue(delta, '0')}`
+}
+
+function gearAttributeMetricFromCalculation(row, fallbackLabel, previousRawValues) {
+  if (!row || typeof row !== 'object') return null
+  const key = cleanGearString(row.key)
+  const rawValue = gearNumericValue(row.rawValue)
+  if (!key || rawValue === null) return null
+  return {
+    key,
+    label: cleanGearString(row.label) || fallbackLabel || canonicalGearAttributeLabels[key] || key,
+    value: cleanGearString(row.value) || formatGearAttributeValue(rawValue, '0'),
+    rawValue,
+    convertedValue: cleanGearString(row.convertedValue),
+    displayUnit: cleanGearString(row.displayUnit),
+    deltaValue: gearAttributeDelta(rawValue, previousRawValues && previousRawValues[key]),
+    pending: false
+  }
+}
+
+function gearAttributePanelFromCalculation(source, calculation, raceLabel, previousCalculation) {
+  if (!source.selectedItems.length) return {
+    ...emptyGearAttributePanel(),
+    status: 'idle',
+    calculationStatusLabel: '等待装备选择',
+    summary: `已选 0/${source.requiredSlots.length} 槽`,
+    statRows: []
+  }
+  const prefix = `已选 ${source.selectedItems.length}/${source.requiredSlots.length} 槽`
+  const base = {
+    visible: true,
+    status: calculation.status,
+    itemLevel: gearAttributeMetric('itemLevel', '装备等级', source.itemLevel, '待补'),
+    enhancementRows: source.enhancementRows,
+    statRows: [],
+    attributeRuleRevision: cleanGearString(calculation.attributeRuleRevision),
+    inputSignature: cleanGearString(calculation.inputSignature),
+    raceLabel: raceLabel || '未选择'
+  }
+  if (calculation.status === 'character_context_required') {
+    return { ...base, summary: `${prefix}；请选择种族后计算最终属性`, calculationStatusLabel: '请选择种族' }
+  }
+  if (calculation.status !== 'calculated') {
+    return { ...base, summary: `${prefix}；属性资料待补齐`, calculationStatusLabel: '属性资料待补齐' }
+  }
+  const previousRawValues = gearAttributeRawValues(previousCalculation)
+  const rows = [
+    gearAttributeMetricFromCalculation(calculation.primary, canonicalGearAttributeLabels[calculation.primary && calculation.primary.key], previousRawValues),
+    gearAttributeMetricFromCalculation(calculation.stamina, '耐力', previousRawValues),
+    ...Object.keys(calculation.resources || {}).sort().map((key) => (
+      gearAttributeMetricFromCalculation(calculation.resources[key], gearAttributeResourceLabels[key] || key, previousRawValues)
+    )),
+    ...(Array.isArray(calculation.secondary) ? calculation.secondary : []).map((row) => (
+      gearAttributeMetricFromCalculation(row, canonicalGearAttributeLabels[row && row.key], previousRawValues)
+    ))
+  ].filter(Boolean)
+  return {
+    ...base,
+    summary: `${prefix}；${raceLabel || '当前种族'}最终属性`,
+    calculationStatusLabel: '本地实时计算',
+    statRows: rows
+  }
+}
+
+function gearAttributeDerivedStateForData(data, previousCalculation) {
+  const sourceData = data || {}
+  const gearPayload = sourceData.gearPayload || {}
+  const source = gearAttributeSourceMetrics(
+    gearPayload,
+    sourceData.selectedGearBySlot || {},
+    sourceData.selectedSpec || {},
+    sourceData.enhancementBySlot || {},
+    sourceData.gearAttributeSourceContext
+  )
+  const raceOptions = gearAttributeRaceOptions(gearPayload)
+  const selectedRaceKey = cleanGearString(sourceData.selectedRaceKey).toLowerCase()
+  const selectedRace = raceOptions.find((option) => option.raceKey === selectedRaceKey)
+  const calculator = gearPayload.attributeCalculator || {}
+  let calculation
+  if (!source.selectedItems.length) {
+    calculation = gearAttributeUnavailableState('idle', calculator.attributeRuleRevision, 'GEAR_SELECTION_EMPTY', 'no gear is selected')
+  } else if (calculator.status !== 'available') {
+    calculation = gearAttributeUnavailableState('rule_unavailable', calculator.attributeRuleRevision, 'ATTRIBUTE_RULE_UNAVAILABLE', 'no verified attribute rule is available')
+  } else if (!selectedRace) {
+    calculation = gearAttributeUnavailableState('character_context_required', calculator.attributeRuleRevision, 'CHARACTER_CONTEXT_REQUIRED', 'select a race before calculating final attributes')
+  } else {
+    const rule = gearAttributeRuleForRace(gearPayload, selectedRace.raceKey)
+    calculation = rule
+      ? calculateNonCombatAttributes(
+          rule,
+          { schemaRevision: 'gear-attribute-character-v1', raceKey: selectedRace.raceKey },
+          source.staticAttributes,
+          []
+        )
+      : gearAttributeUnavailableState('rule_unavailable', calculator.attributeRuleRevision, 'ATTRIBUTE_RULE_UNAVAILABLE', 'no verified attribute rule is available for the selected race')
+  }
+  return {
+    selectedRaceKey: selectedRace ? selectedRace.raceKey : '',
+    selectedRaceName: selectedRace ? selectedRace.label : '',
+    gearAttributeRaceOptions: raceOptions,
+    gearAttributeState: calculation,
+    gearAttributeAudit: sourceData.gearAttributeAudit || { status: 'not_requested' },
+    gearAttributePanel: gearAttributePanelFromCalculation(source, calculation, selectedRace && selectedRace.label, previousCalculation)
   }
 }
 
@@ -1598,6 +1679,7 @@ function gearWorkbenchDataState(state, data, committedReadState) {
       }
     : liveView
   const displaySnapshot = acceptedGearDisplaySnapshot(state)
+  const attributeSourceContext = gearAttributeSourceContext(displaySnapshot)
   const displaySignature = cleanGearString(displaySnapshot && displaySnapshot.resolvedGearSignature)
   const statusText = {
     idle: '等待校验当前装备配置',
@@ -1615,7 +1697,11 @@ function gearWorkbenchDataState(state, data, committedReadState) {
     gearWorkbenchStatusText: statusText[view.resolveStatus] || '等待校验当前装备配置',
     gearWorkbenchSignatureLabel: displaySignature ? displaySignature.slice(0, 20) : '',
     gearWorkbenchProblemRows: workbenchProblemRows(state && state.problems),
-    gearAttributePanel: canonicalGearAttributePanel(displaySnapshot, data && data.gearStatSnapshot),
+    gearAttributeSourceContext: attributeSourceContext,
+    ...gearAttributeDerivedStateForData({
+      ...(data || {}),
+      gearAttributeSourceContext: attributeSourceContext
+    }, data && data.gearAttributeState),
     ...((data && Array.isArray(data.gearSlotRows)) ? { gearSlotRows: canonicalGearSlotRows(data.gearSlotRows, state) } : {})
   }
 }
@@ -2322,9 +2408,8 @@ function resolveOrRefreshGearForPage(page, selectedGearBySlot, enhancementBySlot
   const gearPayload = fullGearPayloadForPage(page) || (page && page.data && page.data.gearPayload) || {}
   if (completeResolverContext(gearPayload.resolverContext) && page && typeof page.confirmAndResolveGearIntent === 'function') {
     return page.confirmAndResolveGearIntent(selectedGearBySlot, enhancementBySlot, resolveContext)
-      .then(() => maybeRefreshGearStatsForPage(page))
   }
-  return maybeRefreshGearStatsForPage(page)
+  return Promise.resolve(null)
 }
 
 function optionQualityRank(option) {
@@ -5897,13 +5982,11 @@ function createDetailDerivedState(selectedDetail, queryKey, state) {
   const gearReadiness = currentState.gearReadiness || (gearPayload && gearPayload.readiness) || {}
   const gearSlotRows = buildGearSlotRows(gearPayload, selectedGearBySlot, currentState.enhancementBySlot)
   const gearStatSnapshot = currentState.gearStatSnapshot || (gearPayload && gearPayload.statSnapshot) || defaultGearStatSnapshot()
-  const gearAttributePanel = buildGearAttributePanel(
+  const gearAttributeState = gearAttributeDerivedStateForData({
+    ...currentState,
     gearPayload,
-    selectedGearBySlot,
-    currentState.selectedSpec,
-    currentState.enhancementBySlot,
-    gearStatSnapshot
-  )
+    selectedGearBySlot
+  }, currentState.gearAttributeState)
   const gearInitialLoading = !!(currentState.gearLoading && !gearSlotRows.length)
   const activeGearCommunityTemplates = gearCommunityTemplatesForPayload(gearPayload)
   const gearCommunityTemplateSync = (gearPayload && gearPayload.communityTemplateSync) || {}
@@ -5936,7 +6019,7 @@ function createDetailDerivedState(selectedDetail, queryKey, state) {
     gearDataWarningText: gearDataWarningText(currentState.gearRequestError || '', gearPayload, gearDataFallback),
     selectedGearBySlot,
     gearSlotRows,
-    gearAttributePanel,
+    ...gearAttributeState,
     gearStatSnapshot,
     gearStatBlockers: Array.isArray(gearStatSnapshot.blockers) ? gearStatSnapshot.blockers : [],
     gearInitialLoading,
@@ -6146,6 +6229,8 @@ Page({
     enhancementBySlot: {},
     gearSlotSheet: emptyGearSlotSheet(),
     gearEnhancementSheet: emptyGearEnhancementSheet(),
+    gearAttributeRaceSheet: { visible: false },
+    gearAttributeAudit: { status: 'not_requested' },
     gearSaveTemplateSheet: emptyGearSaveTemplateSheet(),
     gearCommunityTemplateSheet: emptyGearCommunityTemplateSheet(),
     gearWorkbenchView: {
@@ -6267,7 +6352,6 @@ Page({
         fromFallback,
         requestError: error || ''
       })
-      maybeRefreshGearStatsForPage(this)
     }).finally(() => {
       this.setData({ loading: false })
     })
@@ -6357,7 +6441,6 @@ Page({
         gearDataFallback: true,
         gearDataWarningText: gearDataWarningText(error.message || String(error), null, true)
       })
-      maybeRefreshGearStatsForPage(this)
       return null
     }).finally(() => {
       if (this.gearInitialRequestCache && this.gearInitialRequestCache[requestKey] === requestPromise) {
@@ -6384,7 +6467,7 @@ Page({
         gearStatsTalentImport: importCode,
         gearStatsTalentImportError: ''
       })
-      return maybeRefreshGearStatsForPage(this)
+      return importCode
     }).catch((error) => {
       if (this.data.gearSelectionKey !== selectionKey) return ''
       this.gearStatsTalentImportKey = ''
@@ -6478,15 +6561,17 @@ Page({
         displayData,
         committedGearWorkbenchStateForPage(this)
       )
-      if (atomicEnhancementCommit) return workbenchData
+      const attributeData = gearAttributeDerivedStateForData({
+        ...displayData,
+        gearPayload
+      }, this.data.gearAttributeState)
+      if (atomicEnhancementCommit) return { ...attributeData, ...workbenchData }
       return {
         selectedGearBySlot: selection,
         enhancementBySlot: displayEnhancementBySlot,
         gearSlotRows: displayGearSlotRows,
+        ...attributeData,
         ...workbenchData,
-        ...(displaySubmittedSelection && !verifiedCurrentSnapshot
-          ? { gearAttributePanel: emptyGearAttributePanel() }
-          : {})
       }
     }
     const selectionIntent = serializeGearSelectionIntent({
@@ -6596,6 +6681,12 @@ Page({
           gearInteractionContextIsCurrent(this, interactionContext)
         if (committed) {
           this.setData({
+            ...gearAttributeDerivedStateForData({
+              ...this.data,
+              gearPayload,
+              selectedGearBySlot: selection,
+              enhancementBySlot: this.data.enhancementBySlot || {}
+            }, this.data.gearAttributeState),
             ...workbenchData,
             gearEnhancementSheet: emptyGearEnhancementSheet()
           })
@@ -6648,6 +6739,50 @@ Page({
         committedGearWorkbenchStateForPage(this)
       ) : {})
     })
+  },
+
+  refreshGearAttributePanel(options) {
+    const source = options && typeof options === 'object' ? options : {}
+    const nextState = gearAttributeDerivedStateForData({
+      ...this.data,
+      gearPayload: fullGearPayloadForPage(this) || this.data.gearPayload || {},
+      ...(source.data || {})
+    }, source.previousCalculation || this.data.gearAttributeState)
+    this.setData(nextState)
+    return nextState.gearAttributeState
+  },
+
+  openGearAttributeRaceSheet() {
+    const options = Array.isArray(this.data.gearAttributeRaceOptions) ? this.data.gearAttributeRaceOptions : []
+    if (!options.length) {
+      showToast('属性资料待补齐')
+      return
+    }
+    this.setData({
+      gearAttributeRaceSheet: {
+        visible: true,
+        options,
+        selectedRaceKey: this.data.selectedRaceKey || ''
+      }
+    })
+  },
+
+  closeGearAttributeRaceSheet() {
+    this.setData({ gearAttributeRaceSheet: { visible: false } })
+  },
+
+  stopGearAttributeRaceSheet() {},
+
+  selectGearAttributeRace(event) {
+    const raceKey = cleanGearString(event && event.currentTarget && event.currentTarget.dataset && event.currentTarget.dataset.key).toLowerCase()
+    const option = (this.data.gearAttributeRaceOptions || []).find((item) => item.raceKey === raceKey)
+    if (!option) return null
+    this.setData({
+      selectedRaceKey: option.raceKey,
+      selectedRaceName: option.label,
+      gearAttributeRaceSheet: { visible: false }
+    })
+    return this.refreshGearAttributePanel({ previousCalculation: this.data.gearAttributeState })
   },
 
   clearGearStatsSnapshot(blockers) {
@@ -6872,12 +7007,12 @@ Page({
         ...(selectionChanged ? { selectedGearBySlot } : {}),
         ...(enhancementChanged ? { enhancementBySlot } : {}),
         gearSlotRows: buildGearSlotRows(gearPayload, selectedGearBySlot, enhancementBySlot),
-        gearAttributePanel: this.gearWorkbenchState
-          ? canonicalGearAttributePanel(
-              acceptedGearDisplaySnapshot(this.gearWorkbenchState),
-              this.data.gearStatSnapshot
-            )
-          : buildGearAttributePanel(gearPayload, selectedGearBySlot, this.data.selectedSpec, enhancementBySlot, this.data.gearStatSnapshot)
+        ...gearAttributeDerivedStateForData({
+          ...this.data,
+          gearPayload,
+          selectedGearBySlot,
+          enhancementBySlot
+        }, this.data.gearAttributeState)
       })
       this.setData({
         gearEnhancementSheet: buildGearEnhancementSheetForPage(this, true, '', { activeType }),
@@ -6978,18 +7113,14 @@ Page({
               ? enhancementBySlotFromResolvedSnapshot(canonicalEnhancementEditorSnapshot(this))
               : refreshedEnhancementBySlot
           ),
-          gearAttributePanel: this.gearWorkbenchState
-            ? canonicalGearAttributePanel(
-                acceptedGearDisplaySnapshot(this.gearWorkbenchState),
-                this.data.gearStatSnapshot
-              )
-            : buildGearAttributePanel(
-              refreshedPayload,
-              refreshedSelectedGearBySlot,
-              this.data.selectedSpec,
-              refreshedEnhancementBySlot,
-              this.data.gearStatSnapshot
-            )
+          ...gearAttributeDerivedStateForData({
+            ...this.data,
+            gearPayload: refreshedPayload,
+            selectedGearBySlot: refreshedSelectedGearBySlot,
+            enhancementBySlot: this.gearWorkbenchState
+              ? enhancementBySlotFromResolvedSnapshot(canonicalEnhancementEditorSnapshot(this))
+              : refreshedEnhancementBySlot
+          }, this.data.gearAttributeState)
         })
         this.setData({
           gearEnhancementSheet: buildGearEnhancementSheetForPage(this, true, slot, {
@@ -7146,13 +7277,12 @@ Page({
       this.setData({
         selectedGearBySlot,
         enhancementBySlot,
-        gearAttributePanel: buildGearAttributePanel(
+        ...gearAttributeDerivedStateForData({
+          ...this.data,
           gearPayload,
           selectedGearBySlot,
-          this.data.selectedSpec,
-          enhancementBySlot,
-          this.data.gearStatSnapshot
-        ),
+          enhancementBySlot
+        }, this.data.gearAttributeState),
         gearSlotRows: buildGearSlotRows(gearPayload, selectedGearBySlot, enhancementBySlot),
         gearEnhancementSheet: emptyGearEnhancementSheet()
       })
@@ -7559,7 +7689,6 @@ Page({
     this.setData({
       selectedGearTemplateScenarioIndex: Math.max(0, Math.min(index, gearTemplateScenarios.length - 1))
     })
-    maybeRefreshGearStatsForPage(this)
   },
 
   saveGearTemplate() {

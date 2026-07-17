@@ -3,6 +3,7 @@ const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const vm = require('node:vm')
 const { buildSpecializationHomePayload } = require('../server/builds/home-payload')
+const gearAttributeFixture = require('./fixtures/gear-attribute-calculator-cases-v1.json').cases[0]
 
 function assertNoIgnoredGeneratedRuntimeAssets(wxml) {
   assert.doesNotMatch(
@@ -43,7 +44,6 @@ globalThis.__detailHelpers = {
   savedCommunityImportOrigin: typeof savedCommunityImportOrigin === 'function' ? savedCommunityImportOrigin : undefined,
   canonicalEnhancementMarkers: typeof canonicalEnhancementMarkers === 'function' ? canonicalEnhancementMarkers : undefined,
   canonicalGearSlotRows: typeof canonicalGearSlotRows === 'function' ? canonicalGearSlotRows : undefined,
-  canonicalGearAttributePanel: typeof canonicalGearAttributePanel === 'function' ? canonicalGearAttributePanel : undefined,
   buildGearSlotRows: typeof buildGearSlotRows === 'function' ? buildGearSlotRows : undefined,
   gearSlotCardLabel: typeof gearSlotCardLabel === 'function' ? gearSlotCardLabel : undefined,
   enhancementRecordSelectedCount,
@@ -107,6 +107,9 @@ globalThis.__detailHelpers = {
           requestWebsimTalentImport: options.requestWebsimTalentImport || (() => Promise.resolve({ payload: {} })),
           requestWebsimTalents: options.requestWebsimTalents || (() => Promise.resolve({ payload: {} }))
         }
+      }
+      if (modulePath === './gear-attribute-engine') {
+        return require('../pages/builds/gear-attribute-engine')
       }
       if (modulePath === './gear-workbench-state') {
         return require('../pages/builds/gear-workbench-state')
@@ -1130,76 +1133,78 @@ test('gear slot cards name selected weapon types instead of hand positions', () 
   assert.equal(helpers.gearSlotCardLabel('off_hand', { weaponType: 'Shield' }, '副手'), '盾牌')
 })
 
-test('canonical gear attribute panel resolves flexible primary stats for the current specialization', () => {
+test('gear attribute panel requires an explicit race and recomputes locally without SimC', () => {
   const pageConfig = loadBuildsDetailPageConfig({ exposeDetailHelpers: true })
-  const helpers = pageConfig.__detailHelpers
-  const panelFor = (eligibilityContext, totals) => helpers.canonicalGearAttributePanel({
-    staticAttributes: {
-      totals
-    },
-    eligibilityContext,
-    resolvedSlots: {
-      head: { itemLevel: 293, selectedOptions: {} }
-    },
-    profileReadiness: { requiredSlots: ['head'], readySlots: ['head'] },
-    constraints: { slots: {} },
-    setState: { itemSetCounts: {} }
-  }, null)
-
-  assert.deepEqual(
-    JSON.parse(JSON.stringify(Object.fromEntries(panelFor({ classKey: 'mage', specKey: 'frost' }, {
-      intellect: 1412,
-      agility: 999,
-      strength: 999,
-      stamina: 17732,
-      agint: 128,
-      stragint: 67,
-      avoidance_rating: 253,
-      crit_rating: 55,
-      haste_rating: 1343,
-      leech_rating: 126,
-      mastery_rating: 834,
-      speed_rating: 55,
-      versatility_rating: 43
-    }).statRows.map((row) => [row.key, { label: row.label, rawValue: row.rawValue }])))),
-    {
-      intellect: { label: '智力', rawValue: 1607 },
-      stamina: { label: '耐力', rawValue: 17732 },
-      avoidance_rating: { label: '闪避', rawValue: 253 },
-      crit_rating: { label: '暴击', rawValue: 55 },
-      haste_rating: { label: '急速', rawValue: 1343 },
-      leech_rating: { label: '吸血', rawValue: 126 },
-      mastery_rating: { label: '精通', rawValue: 834 },
-      speed_rating: { label: '速度', rawValue: 55 },
-      versatility_rating: { label: '全能', rawValue: 43 }
+  const rule = structuredClone(gearAttributeFixture.rule)
+  rule.status = 'verified'
+  const selectedGearBySlot = completeGearSelection()
+  selectedGearBySlot.head.itemStats = [
+    { key: 'intellect', value: 500 },
+    { key: 'stamina', value: 600 },
+    { key: 'crit_rating', value: 35 },
+    { key: 'haste_rating', value: 100 },
+    { key: 'mastery_rating', value: 75 },
+    { key: 'versatility_rating', value: 25 },
+    { key: 'avoidance_rating', value: 20 },
+    { key: 'leech_rating', value: 10 },
+    { key: 'speed_rating', value: 5 }
+  ]
+  const gearPayload = {
+    classKey: 'mage',
+    specKey: 'frost',
+    maxLevel: 90,
+    slots: canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot })),
+    equippedSet: selectedGearBySlot,
+    replacementCandidates: [],
+    slotReadiness: {},
+    readiness: { fullReady: true },
+    attributeCalculator: {
+      contractRevision: 'gear-attribute-calculator-context-v1',
+      status: 'available',
+      attributeRuleRevision: 'fixture-r1',
+      raceOptions: [{ raceKey: 'human' }],
+      rules: [rule],
+      problems: []
     }
-  )
+  }
+  const page = {
+    ...pageConfig,
+    data: {
+      ...pageConfig.data,
+      activeQueryKey: 'gear',
+      selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' },
+      gearPayload,
+      selectedGearBySlot,
+      enhancementBySlot: {},
+      selectedRaceKey: '',
+      selectedRaceName: ''
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
 
-  assert.deepEqual(
-    JSON.parse(JSON.stringify(Object.fromEntries(panelFor({ classKey: 'rogue', specKey: 'subtlety' }, {
-      agility: 100,
-      intellect: 999,
-      strength: 999,
-      agiint: 20,
-      stragi: 30,
-      stragiint: 40,
-      strint: 50
-    }).statRows.map((row) => [row.key, row.rawValue])))),
-    { agility: 190 }
-  )
+  const missingRace = pageConfig.refreshGearAttributePanel.call(page)
+  assert.equal(missingRace.status, 'character_context_required')
+  assert.match(page.data.gearAttributePanel.summary, /请选择种族/)
+  assert.equal(page.data.gearAttributePanel.statRows.length, 0)
 
-  assert.deepEqual(
-    JSON.parse(JSON.stringify(Object.fromEntries(panelFor({ classKey: 'warrior', specKey: 'arms' }, {
-      strength: 100,
-      agility: 999,
-      intellect: 999,
-      stragi: 20,
-      strint: 30,
-      stragiint: 40,
-      agiint: 50
-    }).statRows.map((row) => [row.key, row.rawValue])))),
-    { strength: 190 }
-  )
+  pageConfig.selectGearAttributeRace.call(page, { currentTarget: { dataset: { key: 'human' } } })
+  const haste = page.data.gearAttributePanel.statRows.find((row) => row.key === 'haste')
+  assert.equal(page.data.gearAttributeState.status, 'calculated')
+  assert.equal(page.data.gearAttributePanel.attributeRuleRevision, 'fixture-r1')
+  assert.equal(haste.rawValue, 100)
+  assert.equal(haste.convertedValue, '2.0%')
+
+  page.data.selectedGearBySlot.head.itemStats = page.data.selectedGearBySlot.head.itemStats.map((row) => (
+    row.key === 'haste_rating' ? { ...row, value: 200 } : row
+  ))
+  const changed = pageConfig.refreshGearAttributePanel.call(page, { previousCalculation: page.data.gearAttributeState })
+  const changedHaste = page.data.gearAttributePanel.statRows.find((row) => row.key === 'haste')
+  assert.equal(changed.status, 'calculated')
+  assert.equal(changedHaste.rawValue, 200)
+  assert.equal(changedHaste.convertedValue, '4.0%')
+  assert.equal(changedHaste.deltaValue, '+100')
 })
 
 test('native talent simulator save flow names talent templates for the profile library', async () => {
@@ -1698,7 +1703,7 @@ test('gear detail page exposes inline equipment simulator state and replacement 
   assert.doesNotMatch(js, /\brequestWebsimGearStats\b/)
   assert.match(js, /selectedGearBySlot/)
   assert.match(js, /gearSlotRows/)
-  assert.match(js, /buildGearAttributePanel/)
+  assert.match(js, /gearAttributeDerivedStateForData/)
   assert.match(js, /gearInitialLoading/)
   assert.match(js, /gearStatSnapshot/)
   assert.match(js, /gearStatBlockers/)
@@ -1992,7 +1997,7 @@ test('gear detail page exposes inline equipment simulator state and replacement 
   assert.match(css, /\.gear-attribute-converted/)
 })
 
-test('canonical gear workbench ignores forged client final facts and renders resolver snapshot facts', async () => {
+test('canonical gear workbench does not render Resolver snapshot facts as final attributes', async () => {
   const resolveRequests = []
   const pageConfig = loadBuildsDetailPageConfig({
     requestWebsimGearResolve(selectionIntent) {
@@ -2058,8 +2063,9 @@ test('canonical gear workbench ignores forged client final facts and renders res
     'catalystOptionId', 'craftedOptionId', 'embellishmentOptionId', 'enchantOptionId',
     'gemOptionIds', 'itemId', 'variantKey'
   ])
-  assert.equal(page.data.gearAttributePanel.statRows.find((row) => row.key === 'intellect').value, '120')
-  assert.equal(page.data.gearAttributePanel.enhancementRows.find((row) => row.key === 'tierSet').value, '2')
+  assert.equal(page.data.gearAttributeState.status, 'rule_unavailable')
+  assert.equal(page.data.gearAttributePanel.statRows.length, 0)
+  assert.match(page.data.gearAttributePanel.summary, /属性资料待补齐/)
   assert.equal(page.data.gearWorkbenchView.canRunProfile, true)
   assert.equal(page.data.gearWorkbenchView.resolvedGearSignature, 'sha256:server-snapshot')
   assert.equal(page.data.gearSlotRows.find((row) => row.slot === 'head').statusLabel, '已校验')
@@ -2895,7 +2901,7 @@ test('canonical gear workbench performs one revision-only 409 rebase and preserv
   assert.equal(page.data.gearWorkbenchView.resolvedGearSignature, 'sha256:rebased')
 })
 
-test('canonical async stat request sends verified canonical Intent and profile context without replacing final facts', async () => {
+test('canonical async stat request keeps SimC output out of the real-time final-attribute panel', async () => {
   let statRequest = null
   const pageConfig = loadBuildsDetailPageConfig({
     requestWebsimGearResolve: () => Promise.resolve({
@@ -2962,7 +2968,8 @@ test('canonical async stat request sends verified canonical Intent and profile c
   assert.equal(statRequest.profileContext.scenarioKey, 'single')
   assert.equal(statRequest.profileContext.gearSelection, undefined)
   assert.equal(page.gearStatSnapshotState.statSnapshotSignature, 'sha256:server-stat')
-  assert.equal(page.data.gearAttributePanel.statRows.find((row) => row.key === 'intellect').value, '321')
+  assert.equal(page.data.gearAttributeState.status, 'rule_unavailable')
+  assert.equal(page.data.gearAttributePanel.statRows.length, 0)
   assert.equal(page.data.gearWorkbenchView.canRunProfile, true)
 })
 
@@ -3024,7 +3031,7 @@ test('canonical save gate binds Intent signature and dependency vector to legacy
   assert.equal(savedTemplates[0].metadata.selectionIntent.slots.head.simcReady, undefined)
 })
 
-test('gear detail summarizes selected equipment attributes above the slot grid', async () => {
+test('gear detail keeps source metrics but fails closed before a final-attribute rule is available', async () => {
   const selectedGear = completeGearSelection(['head', 'chest', 'finger1'])
   selectedGear.head = {
     ...selectedGear.head,
@@ -3124,30 +3131,21 @@ test('gear detail summarizes selected equipment attributes above the slot grid',
 
   const panel = page.data.gearAttributePanel
   assert.equal(panel.visible, true)
-  assert.equal(panel.summary, '已选 3/16 槽')
+  assert.equal(panel.summary, '已选 3/16 槽；属性资料待补齐')
   assert.equal(panel.itemLevel.value, '291')
   assert.equal(panel.primaryStat, undefined)
   assert.equal(panel.resourceRows, undefined)
   assert.equal(panel.statRows.find((row) => row.key === 'itemLevel'), undefined)
-  assert.equal(panel.statRows.find((row) => row.key === 'intellect').label, '智力')
-  assert.equal(panel.statRows.find((row) => row.key === 'intellect').value, '250')
+  assert.equal(panel.status, 'rule_unavailable')
+  assert.equal(panel.statRows.length, 0)
   assert.equal(panel.enhancementRows.find((row) => row.key === 'embellishment').value, '0/2')
   assert.equal(panel.enhancementRows.find((row) => row.key === 'gem').value, '0/1')
   assert.equal(panel.enhancementRows.find((row) => row.key === 'enchant').value, '0/1')
   assert.equal(panel.enhancementRows.find((row) => row.key === 'tierSet').label, '套装')
   assert.equal(panel.enhancementRows.find((row) => row.key === 'tierSet').value, '2/5')
-  assert.equal(panel.statRows.find((row) => row.key === 'stamina').value, '490')
-  assert.equal(panel.statRows.find((row) => row.key === 'haste').value, '45')
-  assert.equal(panel.statRows.find((row) => row.key === 'haste').convertedValue, undefined)
-  assert.equal(panel.statRows.find((row) => row.key === 'crit').value, '32')
-  assert.equal(panel.statRows.find((row) => row.key === 'crit').convertedValue, undefined)
-  assert.equal(panel.statRows.find((row) => row.key === 'mastery').value, '17')
-  assert.equal(panel.statRows.find((row) => row.key === 'mastery').convertedValue, undefined)
-  assert.equal(panel.statRows.find((row) => row.key === 'versatility').value, '11')
-  assert.equal(panel.statRows.find((row) => row.key === 'versatility').convertedValue, undefined)
 })
 
-test('gear attribute panel displays SimC verified character percentages when available', () => {
+test('gear attribute panel does not display SimC character percentages as real-time attribute results', () => {
   const pageConfig = loadBuildsDetailPageConfig()
   const slots = canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot }))
   const page = {
@@ -3204,13 +3202,8 @@ test('gear attribute panel displays SimC verified character percentages when ava
   pageConfig.refreshDerivedState.call(page)
 
   const panel = page.data.gearAttributePanel
-  assert.equal(panel.statRows.find((row) => row.key === 'intellect').value, '2,344')
-  assert.equal(panel.statRows.find((row) => row.key === 'stamina').value, '20,067')
-  assert.equal(panel.statRows.find((row) => row.key === 'crit').value, '994')
-  assert.equal(panel.statRows.find((row) => row.key === 'crit').convertedValue, '28.6%')
-  assert.equal(panel.statRows.find((row) => row.key === 'haste').convertedValue, '18.3%')
-  assert.equal(panel.statRows.find((row) => row.key === 'mastery').convertedValue, '36.6%')
-  assert.equal(panel.statRows.find((row) => row.key === 'versatility').convertedValue, '1.5%')
+  assert.equal(panel.status, 'rule_unavailable')
+  assert.equal(panel.statRows.length, 0)
 })
 
 test('gear attribute panel counts governed socket slots and caps tier set pieces', () => {
@@ -3835,7 +3828,7 @@ test('gear attribute panel and slot badges reflect configured neck and ring gems
   })
 })
 
-test('gear attribute panel maps hybrid primary stat labels to the active spec', () => {
+test('gear attribute panel does not expose static hybrid stats before a verified final-attribute rule exists', () => {
   const pageConfig = loadBuildsDetailPageConfig()
   const slots = canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot }))
   const page = {
@@ -3878,9 +3871,8 @@ test('gear attribute panel maps hybrid primary stat labels to the active spec', 
   }
 
   pageConfig.refreshDerivedState.call(page)
-  assert.equal(page.data.gearAttributePanel.primaryStat, undefined)
-  assert.equal(page.data.gearAttributePanel.statRows.find((row) => row.key === 'intellect').label, '智力')
-  assert.equal(page.data.gearAttributePanel.statRows.find((row) => row.key === 'intellect').value, '120')
+  assert.equal(page.data.gearAttributePanel.status, 'rule_unavailable')
+  assert.equal(page.data.gearAttributePanel.statRows.length, 0)
 
   page.data.selectedSpec = { websimClassKey: 'rogue', websimSpecKey: 'subtlety' }
   page.data.selectedGearBySlot = {
@@ -3894,12 +3886,11 @@ test('gear attribute panel maps hybrid primary stat labels to the active spec', 
     }
   }
   pageConfig.refreshDerivedState.call(page)
-  assert.equal(page.data.gearAttributePanel.primaryStat, undefined)
-  assert.equal(page.data.gearAttributePanel.statRows.find((row) => row.key === 'agility').label, '敏捷')
-  assert.equal(page.data.gearAttributePanel.statRows.find((row) => row.key === 'agility').value, '80')
+  assert.equal(page.data.gearAttributePanel.status, 'rule_unavailable')
+  assert.equal(page.data.gearAttributePanel.statRows.length, 0)
 })
 
-test('gear attribute panel includes selected gem stat bonuses', () => {
+test('gear attribute panel keeps gem source metrics but does not invent final values before rules are verified', () => {
   const pageConfig = loadBuildsDetailPageConfig()
   const slots = canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot }))
   const selection = completeGearSelection(['finger1', 'finger2'])
@@ -3996,11 +3987,8 @@ test('gear attribute panel includes selected gem stat bonuses', () => {
 
   const panel = page.data.gearAttributePanel
   assert.equal(panel.enhancementRows.find((row) => row.key === 'gem').value, '2/2')
-  assert.equal(panel.statRows.find((row) => row.key === 'intellect').value, '32')
-  assert.equal(panel.statRows.find((row) => row.key === 'mastery').value, '16')
-  assert.equal(panel.statRows.find((row) => row.key === 'mastery').convertedValue, undefined)
-  assert.equal(panel.statRows.find((row) => row.key === 'crit').value, '7')
-  assert.equal(panel.statRows.find((row) => row.key === 'crit').convertedValue, undefined)
+  assert.equal(panel.status, 'rule_unavailable')
+  assert.equal(panel.statRows.length, 0)
 })
 
 test('gear enhancement sheet filters configurable slots and disables extra embellishments at the cap', () => {
@@ -8706,12 +8694,8 @@ test('gear detail does not request stat snapshot when gear payload loads', async
   assert.equal(page.data.gearSlotRows.length, canonicalGearSlots.length)
 })
 
-test('gear detail requests SimC stat snapshot when gear and talents are complete', async () => {
+test('gear detail does not request a SimC stat snapshot when gear and talents are complete', async () => {
   let statsPayload = null
-  let resolveStats
-  const statsRequested = new Promise((resolve) => {
-    resolveStats = resolve
-  })
   const pageConfig = loadBuildsDetailPageConfig({
     requestWebsimGear: () => Promise.resolve({
       payload: {
@@ -8733,7 +8717,6 @@ test('gear detail requests SimC stat snapshot when gear and talents are complete
     requestWebsimGearResolve: (selectionIntent) => canonicalResolveTransport(selectionIntent),
     requestWebsimGearStatSnapshot: (selectionIntent, profileContext) => {
       statsPayload = { selectionIntent, profileContext }
-      resolveStats()
       return Promise.resolve(canonicalStatTransport({
           statStatus: 'verified',
           statSource: 'simulationcraft_json',
@@ -8769,23 +8752,16 @@ test('gear detail requests SimC stat snapshot when gear and talents are complete
   pageConfig.loadWebsimGearForSelection.call(page, {
     selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' }
   })
-  await statsRequested
   await new Promise((resolve) => setImmediate(resolve))
 
-  assert.equal(statsPayload.selectionIntent.eligibilityContext.classKey, 'mage')
-  assert.equal(statsPayload.selectionIntent.eligibilityContext.specKey, 'frost')
-  assert.equal(Object.keys(statsPayload.selectionIntent.slots).length, canonicalGearSlots.length)
-  assert.equal(statsPayload.profileContext.talents, 'C4DA')
-  assert.equal(page.data.gearAttributePanel.statRows.find((row) => row.key === 'crit').convertedValue, '28.6%')
+  assert.equal(statsPayload, null)
+  assert.equal(page.data.gearAttributeState.status, 'rule_unavailable')
+  assert.equal(page.data.gearAttributePanel.statRows.length, 0)
 })
 
-test('gear detail requests SimC stat snapshot with community talent import when detail lacks code', async () => {
+test('gear detail may load a community talent import without requesting a SimC stat snapshot', async () => {
   let statsPayload = null
   let importRequest = null
-  let resolveStats
-  const statsRequested = new Promise((resolve) => {
-    resolveStats = resolve
-  })
   const pageConfig = loadBuildsDetailPageConfig({
     requestWebsimGear: () => Promise.resolve({
       payload: {
@@ -8820,7 +8796,6 @@ test('gear detail requests SimC stat snapshot with community talent import when 
     },
     requestWebsimGearStatSnapshot: (selectionIntent, profileContext) => {
       statsPayload = { selectionIntent, profileContext }
-      resolveStats()
       return Promise.resolve(canonicalStatTransport({
           statStatus: 'verified',
           statSource: 'simulationcraft_json',
@@ -8852,14 +8827,14 @@ test('gear detail requests SimC stat snapshot with community talent import when 
   pageConfig.loadWebsimGearForSelection.call(page, {
     selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' }
   })
-  await statsRequested
+  await new Promise((resolve) => setImmediate(resolve))
   await new Promise((resolve) => setImmediate(resolve))
 
-  assert.equal(statsPayload.profileContext.talents, 'COMMUNITY-C4DA')
+  assert.equal(statsPayload, null)
   assert.equal(importRequest.classKey, 'mage')
   assert.equal(importRequest.specKey, 'frost')
   assert.equal(page.data.gearStatsTalentImport, 'COMMUNITY-C4DA')
-  assert.equal(page.data.gearAttributePanel.statRows.find((row) => row.key === 'crit').convertedValue, '28.6%')
+  assert.equal(page.data.gearAttributeState.status, 'rule_unavailable')
 })
 
 test('gear stats refresh polls one 202 into verified 200 and reuses the exact signature', async () => {
@@ -12945,7 +12920,7 @@ test('unmatched community enchant and embellishment identities keep normal edita
   assert.doesNotMatch(JSON.stringify(page.data.gearEnhancementSheet.draftEnhancementBySlot), new RegExp(rawIdentities[0]))
 })
 
-test('built-in community embellishment stays source-only through import and stat refresh', async () => {
+test('built-in community embellishment stays source-only through import without triggering a stat refresh', async () => {
   const builtInValue = 'built_in_stat_refresh_embellishment'
   const back = {
     slot: 'back', simcSlot: 'back', itemId: '299992', id: '299992', variantKey: 'back-stat-refresh',
@@ -13027,7 +13002,7 @@ test('built-in community embellishment stays source-only through import and stat
   assert.deepEqual(JSON.parse(JSON.stringify(page.data.enhancementBySlot)), {})
   assert.equal(page.data.selectedGearBySlot.back.hasBuiltInEmbellishment, true)
   assert.equal(page.data.selectedGearBySlot.back.builtInEmbellishment, builtInValue)
-  assert.equal(page.data.gearStatSnapshot.statStatus, 'verified')
+  assert.equal(page.data.gearStatSnapshot.statStatus, 'blocked')
   assert.equal(metric.value, '1/2')
   assert.equal(Object.prototype.hasOwnProperty.call(metric, 'inheritedCount'), false)
   assert.equal(page.data.gearSlotRows[0].embellishmentBadgeLabel, '美化')
@@ -14773,7 +14748,8 @@ test('gear replacement clears enhancements only for the changed item instance be
     JSON.parse(JSON.stringify(page.data.gearSlotRows.find((row) => row.slot === 'finger1').enhancementBadgeLabels)),
     []
   )
-  assert.equal(page.data.gearAttributePanel.visible, false)
+  assert.equal(page.data.gearAttributePanel.visible, true)
+  assert.equal(page.data.gearAttributePanel.status, 'rule_unavailable')
   assert.deepEqual(JSON.parse(JSON.stringify(pendingResolves[0].selectionIntent.slots.finger1.gemOptionIds)), [])
   assert.equal(pendingResolves[0].selectionIntent.slots.finger1.enchantOptionId, '')
   assert.deepEqual(
@@ -14815,7 +14791,8 @@ test('failed gear replacement keeps changed enhancements cleared and profile gat
     JSON.parse(JSON.stringify(page.data.gearSlotRows.find((row) => row.slot === 'finger1').enhancementBadgeLabels)),
     []
   )
-  assert.equal(page.data.gearAttributePanel.visible, false)
+  assert.equal(page.data.gearAttributePanel.visible, true)
+  assert.equal(page.data.gearAttributePanel.status, 'rule_unavailable')
   assert.equal(page.data.gearWorkbenchView.canRunProfile, false)
   assert.equal(pageConfig.buildSimcContext.call(page).simulatorState.gear, undefined)
 })
