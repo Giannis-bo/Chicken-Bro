@@ -36,13 +36,13 @@ class AttributeRuleAuditSourceTest(unittest.TestCase):
             "power": 342615,
             "intellect": {"base": 620, "effective": 2462},
             "stamina": {"base": 4600, "effective": 22938},
-            "spell_crit": {"rating": 558, "value": 19.130434},
-            "spell_haste": {"rating": 802, "value": 23.003637},
-            "mastery": {"rating": 785, "value": 37.04609},
-            "versatility": {"rating": 385, "damage_done_bonus": 7.1296296},
-            "avoidance": {"rating": 127, "rating_bonus": 3.4510376},
-            "lifesteal": {"rating": 166, "value": 2.4057627},
-            "speed": {"rating": 55, "rating_bonus": 4.7825403},
+            "spell_crit": {"rating_normalized": 558, "value": 19.130434},
+            "spell_haste": {"rating_normalized": 802, "value": 23.003637},
+            "mastery": {"rating_normalized": 785, "value": 37.04609},
+            "versatility": {"rating_normalized": 385, "damage_done_bonus": 7.1296296},
+            "avoidance": {"rating_normalized": 127, "rating_bonus": 3.4510376},
+            "lifesteal": {"rating_normalized": 166, "value": 2.4057627},
+            "speed": {"rating_normalized": 55, "rating_bonus": 4.7825403},
         }
         calls = []
 

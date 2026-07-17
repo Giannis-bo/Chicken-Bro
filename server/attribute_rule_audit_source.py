@@ -141,7 +141,7 @@ def _observed_panel(statistics: dict[str, Any]) -> dict[str, Any]:
         ("speed", ("speed",), ("value", "rating_bonus")),
     ):
         stat = next((statistics.get(field) for field in field_names if statistics.get(field) is not None), None)
-        rating = _stat_number(stat, "rating")
+        rating = _stat_number(stat, "rating", "rating_normalized")
         percent = _stat_number(stat, *percent_fields)
         if rating is not None and percent is not None:
             panel["secondary"].append({
