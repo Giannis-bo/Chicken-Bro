@@ -674,16 +674,21 @@ test('runtime review control plane separates current gaps from historical immuta
   assert.ok(status.sharedMissingEvidence.includes('real_wechat_asset_slots'))
   assert.ok(status.sharedMissingEvidence.includes('production_asset_promotion'))
   assert.equal(status.assetPromotionGap.status, 'pending_runtime_review_and_promotion')
-  assert.equal(status.assetPromotionGap.collectionCount, 6)
-  assert.equal(status.assetPromotionGap.assetCount, 69)
+  assert.deepEqual(status.assetPromotionGap.evidenceSources, [
+    'packages/design-system/assets/vector/manifest.json',
+    'packages/design-system/assets/raster/*/manifest.json',
+  ])
+  assert.equal(status.assetPromotionGap.collectionCount, 7)
+  assert.equal(status.assetPromotionGap.assetCount, 135)
   assert.equal(status.assetPromotionGap.promotedAssetCount, 33)
-  assert.equal(status.assetPromotionGap.pendingAssetCount, 36)
+  assert.equal(status.assetPromotionGap.pendingAssetCount, 102)
   assert.deepEqual(status.assetPromotionGap.pendingCollections, [
     { collection: 'build-intel-v1', pendingAssetCount: 3 },
     { collection: 'builds-home-v1', pendingAssetCount: 23 },
     { collection: 'news-detail-v1', pendingAssetCount: 3 },
     { collection: 'news-list-v1', pendingAssetCount: 2 },
     { collection: 'shared-chrome-v1', pendingAssetCount: 5 },
+    { collection: 'vector', pendingAssetCount: 66 },
   ])
   assert.equal(status.historicalRegionComparisons.at(-1).current, false)
   assert.equal(status.historicalAssetSlotReviews.at(-1).current, false)

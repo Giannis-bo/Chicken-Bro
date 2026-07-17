@@ -1203,7 +1203,11 @@ record(
   invalidRasterPromotionMetadata.join(', ') || `collections=${rasterCollectionManifests.length}`,
 )
 
-const expectedAssetPromotionGap = rasterCollectionManifests.reduce((gap, { manifest }) => {
+const assetPromotionManifests = [
+  ...rasterCollectionManifests,
+  { file: 'packages/design-system/assets/vector/manifest.json', manifest: JSON.parse(read('packages/design-system/assets/vector/manifest.json')) },
+]
+const expectedAssetPromotionGap = assetPromotionManifests.reduce((gap, { file, manifest }) => {
   const assets = manifest.assets ?? []
   const promoted = manifest.productionPromoted === true
     ? assets.filter((asset) => String(asset.reviewStatus ?? '').includes('production')).length
@@ -1212,10 +1216,10 @@ const expectedAssetPromotionGap = rasterCollectionManifests.reduce((gap, { manif
   gap.assetCount += assets.length
   gap.promotedAssetCount += promoted
   gap.pendingAssetCount += pending
-  if (pending > 0) gap.pendingCollections.push({ collection: manifest.collectionId, pendingAssetCount: pending })
+  if (pending > 0) gap.pendingCollections.push({ collection: manifest.collectionId ?? path.basename(path.dirname(file)), pendingAssetCount: pending })
   return gap
 }, {
-  collectionCount: rasterCollectionManifests.length,
+  collectionCount: assetPromotionManifests.length,
   assetCount: 0,
   promotedAssetCount: 0,
   pendingAssetCount: 0,
@@ -1226,7 +1230,10 @@ const recordedAssetPromotionGap = runtimeReviewStatus.assetPromotionGap ?? {}
 record(
   'runtime_review_asset_promotion_gap_matches_manifests',
   recordedAssetPromotionGap.status === 'pending_runtime_review_and_promotion'
-    && recordedAssetPromotionGap.evidenceSource === 'packages/design-system/assets/raster/*/manifest.json'
+    && JSON.stringify(recordedAssetPromotionGap.evidenceSources) === JSON.stringify([
+      'packages/design-system/assets/vector/manifest.json',
+      'packages/design-system/assets/raster/*/manifest.json',
+    ])
     && recordedAssetPromotionGap.collectionCount === expectedAssetPromotionGap.collectionCount
     && recordedAssetPromotionGap.assetCount === expectedAssetPromotionGap.assetCount
     && recordedAssetPromotionGap.promotedAssetCount === expectedAssetPromotionGap.promotedAssetCount
