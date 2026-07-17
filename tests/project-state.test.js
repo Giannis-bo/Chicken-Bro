@@ -689,3 +689,10 @@ test('task terminal controls use the shell content viewport', () => {
     assert.match(styles, /\.pageFrame\s*\{[\s\S]*height:\s*calc\(var\(--route-safe-viewport-height\) - var\(--space-12\)\);[\s\S]*min-height:\s*0;/)
   }
 })
+
+test('SimC regions scale inside the shell content viewport', () => {
+  const styles = fs.readFileSync('apps/mini-taro/src/pages/simulator/simc-submit.module.scss', 'utf8')
+  assert.match(styles, /\.pageFrame\s*\{[\s\S]*height:\s*calc\(var\(--route-safe-viewport-height\) - var\(--space-12\)\);[\s\S]*min-height:\s*0;/)
+  assert.doesNotMatch(styles, /(?:top|height):\s*(?:51|58|65|106|216|727|818)px/)
+  assert.match(styles, /\.footerRegion\s*\{[^}]*top:\s*88\.8753%;[^}]*height:\s*3\.6675%;/)
+})

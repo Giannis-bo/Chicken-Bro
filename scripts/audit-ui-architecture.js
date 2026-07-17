@@ -914,12 +914,38 @@ const viewportFitStyles = {
   taskDetail: read('apps/mini-taro/src/pages/simulator/task-detail.module.scss'),
   profile: read('apps/mini-taro/src/pages/profile/profile.module.scss'),
 }
+const simcVerticalRegionNames = [
+  'identityRegion',
+  'talentRegion',
+  'gearRegion',
+  'combatRegion',
+  'summaryRegion',
+  'blockerRegion',
+  'actionRegion',
+  'footerRegion',
+]
+const invalidSimcVerticalRegions = simcVerticalRegionNames.flatMap((name) => {
+  const rule = [...viewportFitStyles.simcSubmit.matchAll(new RegExp(`\\.${name}\\s*\\{(?<body>[^}]*)\\}`, 'gu'))]
+    .map((match) => match.groups.body)
+    .find((body) => /\btop:/u.test(body)) ?? ''
+  const top = Number(rule.match(/\btop:\s*(?<value>[\d.]+)%;/u)?.groups?.value)
+  const height = Number(rule.match(/\bheight:\s*(?<value>[\d.]+)%;/u)?.groups?.value)
+  return Number.isFinite(top) && Number.isFinite(height) && top >= 0 && height > 0 && top + height <= 100
+    ? []
+    : [`${name}:top=${top}:height=${height}`]
+})
+record(
+  'simc_vertical_regions_scale_inside_shell_content_viewport',
+  invalidSimcVerticalRegions.length === 0,
+  invalidSimcVerticalRegions.join(', ') || `regions=${simcVerticalRegionNames.length}`,
+)
 record(
   'single_screen_route_terminals_reserve_wechat_viewport_space',
   /\.body\s*\{[^}]*height:\s*256\.6px;/su.test(viewportFitStyles.newsDetail)
     && /\.workbenchRegion\s*\{[^}]*height:\s*319px;/su.test(viewportFitStyles.gearDetail)
     && /\.statusRegion\s*\{[^}]*top:\s*654px;/su.test(viewportFitStyles.gearDetail)
-    && /\.footerRegion\s*\{[^}]*top:\s*727px;/su.test(viewportFitStyles.simcSubmit)
+    && /\.pageFrame\s*\{[^}]*height:\s*calc\(var\(--route-safe-viewport-height\) - var\(--space-12\)\);[^}]*min-height:\s*0;/su.test(viewportFitStyles.simcSubmit)
+    && /\.footerRegion\s*\{[^}]*top:\s*88\.8753%;[^}]*height:\s*3\.6675%;/su.test(viewportFitStyles.simcSubmit)
     && /\.pageFrame\s*\{[^}]*height:\s*calc\(var\(--route-safe-viewport-height\) - var\(--space-12\)\);/su.test(viewportFitStyles.taskDetail)
     && /\.pageFrame\s*\{[^}]*height:\s*825px;/su.test(viewportFitStyles.profile),
   'single-screen terminal regions must not extend below the real WeChat viewport',
