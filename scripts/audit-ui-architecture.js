@@ -798,6 +798,11 @@ record(
   'native buttons must fit their mounted control cells instead of bypassing vertical geometry review',
 )
 record(
+  'route_geometry_has_no_region_overflow_exemptions',
+  routeGeometryContract.routes.every((route) => (route.allowedVerticalOverflowRegions ?? []).length === 0),
+  'visible route regions must pass real viewport geometry instead of relying on route-specific overflow exceptions',
+)
+record(
   'route_geometry_rejects_duplicate_semantic_regions',
   /duplicate-semantic-region/u.test(read('scripts/verify-ui-route-geometry.js')),
   'each mounted route region id must resolve to exactly one geometry owner',

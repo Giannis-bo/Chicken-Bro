@@ -127,7 +127,7 @@ export default function BuildIntelPage() {
                         index === 1 ? styles['cardSlotSecond'] ?? '' : '',
                         index >= 2 ? styles['cardSlotFollowing'] ?? '' : '',
                       ].filter(Boolean).join(' ')}
-                      data-region={visibleRegions[index] ?? 'build_card_overflow'}
+                      data-region={visibleRegions[index] ?? `build_card_overflow_${index + 1}`}
                       data-visible-slot={index < model.visibleCardSlotCount ? 'true' : 'false'}
                     >
                       <BuildIntelCard
