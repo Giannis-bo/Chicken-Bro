@@ -24,14 +24,19 @@ test('promotion revalidates cached bytes, dimensions and digest', () => {
   fs.writeFileSync(artifactPath, buffer)
   const capture = {
     route: 'news_detail',
+    path: '/pages/news/detail?id=architecture-preflight',
     artifactPath,
     bytes: buffer.length,
     width: 390,
     height: 844,
     sha256: crypto.createHash('sha256').update(buffer).digest('hex'),
+    rendererEvidence: { path: 'pages/news/detail', shellWidth: 390, shellHeight: 844, regionCount: 6 },
   }
-  assert.equal(inspectCapture(capture).sha256, capture.sha256)
-  assert.throws(() => inspectCapture({ ...capture, bytes: capture.bytes + 1 }), /no longer matches manifest/)
+  const viewport = { width: 390, height: 844, dpr: 3 }
+  assert.equal(inspectCapture(capture, viewport).sha256, capture.sha256)
+  assert.throws(() => inspectCapture({ ...capture, bytes: capture.bytes + 1 }, viewport), /no longer matches manifest/)
+  assert.throws(() => inspectCapture({ ...capture, rendererEvidence: { ...capture.rendererEvidence, regionCount: 0 } }, viewport), /renderer evidence is incomplete/)
+  assert.throws(() => inspectCapture({ ...capture, path: '/pages/news/list' }, viewport), /route identity mismatch/)
 })
 
 test('promotion selection is explicit and rejects absent routes', () => {

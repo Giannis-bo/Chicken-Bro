@@ -22,9 +22,19 @@ test('capture cache resumes only from a byte-identical PNG', () => {
   const artifactPath = path.join(directory, 'route.png')
   const buffer = pngHeader(780, 1688)
   fs.writeFileSync(artifactPath, buffer)
-  const capture = { artifactPath, bytes: buffer.length, width: 780, height: 1688, sha256: crypto.createHash('sha256').update(buffer).digest('hex') }
-  assert.equal(inspectCachedCapture(capture), true)
-  assert.equal(inspectCachedCapture({ ...capture, bytes: buffer.length + 1 }), false)
+  const viewport = { width: 390, height: 844, dpr: 3 }
+  const capture = {
+    artifactPath,
+    path: '/pages/news/detail?id=architecture-preflight',
+    bytes: buffer.length,
+    width: 780,
+    height: 1688,
+    sha256: crypto.createHash('sha256').update(buffer).digest('hex'),
+    rendererEvidence: { path: 'pages/news/detail', shellWidth: 390, shellHeight: 844, regionCount: 6 },
+  }
+  assert.equal(inspectCachedCapture(capture, viewport), true)
+  assert.equal(inspectCachedCapture({ ...capture, bytes: buffer.length + 1 }, viewport), false)
+  assert.equal(inspectCachedCapture({ ...capture, rendererEvidence: { ...capture.rendererEvidence, regionCount: 0 } }, viewport), false)
 })
 
 test('capture manifest checkpoint replaces the previous file atomically', () => {

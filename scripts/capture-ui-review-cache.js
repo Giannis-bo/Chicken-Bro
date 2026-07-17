@@ -36,7 +36,7 @@ function safeName(value) {
   return value.replace(/[^a-zA-Z0-9._-]+/gu, '-')
 }
 
-function inspectCachedCapture(capture) {
+function inspectCachedCapture(capture, viewport) {
   if (!capture?.artifactPath || !fs.existsSync(capture.artifactPath)) return false
   const buffer = fs.readFileSync(capture.artifactPath)
   const dimensions = pngSize(buffer)
@@ -44,6 +44,11 @@ function inspectCachedCapture(capture) {
     && capture.width === dimensions.width
     && capture.height === dimensions.height
     && capture.sha256 === crypto.createHash('sha256').update(buffer).digest('hex')
+    && dimensions.width * viewport.height === dimensions.height * viewport.width
+    && capture.rendererEvidence?.path === capture.path.split('?')[0].replace(/^\//u, '')
+    && capture.rendererEvidence?.shellWidth > 0
+    && capture.rendererEvidence?.shellHeight > 0
+    && capture.rendererEvidence?.regionCount > 0
 }
 
 function writeManifest(manifestPath, manifest) {
@@ -64,6 +69,20 @@ async function captureWithRetry(miniProgram, artifactPath, route) {
     }
   }
   throw lastError
+}
+
+async function inspectRenderer(page, route) {
+  const [shell, regions] = await Promise.all([
+    timeout(page.$('.wx-style-shell'), 3000, `query shell ${route.route}`),
+    timeout(page.$$('.wx-style-routeregion'), 3000, `query regions ${route.route}`),
+  ])
+  const expectedPath = route.path.split('?')[0].replace(/^\//u, '')
+  if (page.path !== expectedPath) throw new Error(`route path mismatch: expected ${expectedPath}, actual ${page.path}`)
+  if (!shell) throw new Error(`renderer shell missing: ${route.route}`)
+  if (regions.length === 0) throw new Error(`renderer regions missing: ${route.route}`)
+  const size = await timeout(shell.size(), 2500, `read shell size ${route.route}`)
+  if (!(size.width > 0 && size.height > 0)) throw new Error(`renderer shell is empty: ${route.route}`)
+  return { path: page.path, shellWidth: size.width, shellHeight: size.height, regionCount: regions.length }
 }
 
 async function main() {
@@ -89,15 +108,15 @@ async function main() {
     if (fs.existsSync(manifestPath)) {
       try { existing = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) } catch {}
     }
-    const existingCaptures = existing?.schemaVersion === 'wechat-ui-review-cache-v1'
+    const existingCaptures = existing?.schemaVersion === 'wechat-ui-review-cache-v2'
       && existing.commit === commit
       && JSON.stringify(existing.viewport) === JSON.stringify(viewport)
       ? existing.captures ?? []
       : []
-    const capturesByRoute = new Map(existingCaptures.filter(inspectCachedCapture).map((capture) => [capture.route, capture]))
+    const capturesByRoute = new Map(existingCaptures.filter((capture) => inspectCachedCapture(capture, viewport)).map((capture) => [capture.route, capture]))
     const failures = []
     const manifest = {
-      schemaVersion: 'wechat-ui-review-cache-v1',
+      schemaVersion: 'wechat-ui-review-cache-v2',
       commit,
       viewport,
       captureMethod: 'reused_wechat_devtools_automator_without_relaunch',
@@ -108,18 +127,22 @@ async function main() {
     for (const route of routes) {
       if (capturesByRoute.has(route.route)) continue
       try {
-        await timeout(miniProgram.reLaunch(route.path), operationTimeoutMs, `open ${route.route}`)
+        const page = await timeout(miniProgram.reLaunch(route.path), operationTimeoutMs, `open ${route.route}`)
         await new Promise((resolve) => setTimeout(resolve, settleMs))
+        const rendererEvidence = await inspectRenderer(page, route)
         const artifactPath = path.join(outputRoot, `${safeName(route.route)}.png`)
         await captureWithRetry(miniProgram, artifactPath, route.route)
         const buffer = fs.readFileSync(artifactPath)
+        const dimensions = pngSize(buffer)
+        if (dimensions.width * viewport.height !== dimensions.height * viewport.width) throw new Error(`capture viewport aspect mismatch: ${route.route}`)
         capturesByRoute.set(route.route, {
           route: route.route,
           path: route.path,
           artifactPath,
           bytes: buffer.length,
           sha256: crypto.createHash('sha256').update(buffer).digest('hex'),
-          ...pngSize(buffer),
+          ...dimensions,
+          rendererEvidence,
         })
         manifest.captures = [...capturesByRoute.values()]
         writeManifest(manifestPath, manifest)
@@ -154,4 +177,4 @@ if (require.main === module) {
   })
 }
 
-module.exports = { captureWithRetry, inspectCachedCapture, pngSize, selectedRoutes, writeManifest }
+module.exports = { captureWithRetry, inspectCachedCapture, inspectRenderer, pngSize, selectedRoutes, writeManifest }

@@ -6,6 +6,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 
 const { pngSize } = require('./capture-ui-review-cache')
+const interactionContract = require('../docs/design/current-ui/core-interaction-contract.json')
 
 const repositoryRoot = path.resolve(__dirname, '..')
 
@@ -27,20 +28,25 @@ function selectedRoutes(value, captures) {
   return [...new Set(requested)].map((route) => byRoute.get(route))
 }
 
-function inspectCapture(capture) {
+function inspectCapture(capture, viewport) {
   const buffer = fs.readFileSync(capture.artifactPath)
   const dimensions = pngSize(buffer)
   const sha256 = crypto.createHash('sha256').update(buffer).digest('hex')
   if (capture.bytes !== buffer.length || capture.width !== dimensions.width || capture.height !== dimensions.height || capture.sha256 !== sha256) {
     throw new Error(`cache artifact no longer matches manifest: ${capture.route}`)
   }
+  const contractRoute = interactionContract.interactions.find((route) => route.route === capture.route)
+  const expectedPath = contractRoute?.path.split('?')[0].replace(/^\//u, '')
+  if (!contractRoute || capture.path !== contractRoute.path || capture.rendererEvidence?.path !== expectedPath) throw new Error(`cache route identity mismatch: ${capture.route}`)
+  if (!(capture.rendererEvidence?.shellWidth > 0 && capture.rendererEvidence?.shellHeight > 0 && capture.rendererEvidence?.regionCount > 0)) throw new Error(`cache renderer evidence is incomplete: ${capture.route}`)
+  if (dimensions.width * viewport.height !== dimensions.height * viewport.width) throw new Error(`cache artifact viewport aspect mismatch: ${capture.route}`)
   return { buffer, dimensions, sha256 }
 }
 
 function main() {
   const manifestPath = path.resolve(required(process.env.UI_REVIEW_MANIFEST, 'UI_REVIEW_MANIFEST'))
   const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
-  if (manifest.schemaVersion !== 'wechat-ui-review-cache-v1' || !Array.isArray(manifest.captures)) {
+  if (manifest.schemaVersion !== 'wechat-ui-review-cache-v2' || !Array.isArray(manifest.captures)) {
     throw new Error('unsupported UI review cache manifest')
   }
   if (!/^[a-f\d]{12}$/u.test(manifest.commit)) throw new Error('cache manifest commit must be a 12-character Git SHA')
@@ -52,7 +58,7 @@ function main() {
   const viewportKey = `${viewport.width}x${viewport.height}@${viewport.dpr}`
   const promoted = []
   for (const capture of selectedRoutes(process.env.UI_REVIEW_ROUTES, manifest.captures)) {
-    const inspected = inspectCapture(capture)
+    const inspected = inspectCapture(capture, viewport)
     const relativePath = path.join(
       'artifacts', 'ui-runtime-reviews', manifest.commit, viewportKey, inspected.sha256, `${safeName(capture.route)}.png`,
     )
@@ -79,7 +85,7 @@ function main() {
   }
 
   const receiptBody = {
-    schemaVersion: 'wechat-ui-runtime-promotion-v1',
+    schemaVersion: 'wechat-ui-runtime-promotion-v2',
     sourceManifest: {
       schemaVersion: manifest.schemaVersion,
       commit: manifest.commit,
