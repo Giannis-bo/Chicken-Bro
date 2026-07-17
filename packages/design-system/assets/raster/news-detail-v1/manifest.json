@@ -8,7 +8,7 @@
   "root": "packages/design-system/assets/raster/news-detail-v1",
   "productionPromoted": false,
   "registeredInPackagesAssetsManifest": true,
-  "wiredIntoRuntimeCode": false,
+  "wiredIntoRuntimeCode": true,
   "generation": {
     "mode": "built_in_image_gen",
     "callCount": 6,

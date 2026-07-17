@@ -739,6 +739,30 @@ const componentSources = walk('packages/design-system/src', ['.ts', '.tsx'])
 const rawButtonOwners = componentSources.filter((file) => file !== 'packages/design-system/src/components/ControlButton.tsx' && /<Button\b/.test(read(file)))
 record('native_button_has_one_shared_owner', rawButtonOwners.length === 0, rawButtonOwners.join(', ') || 'ControlButton only')
 
+const assetRegistrySource = read('packages/assets-manifest/src/index.ts')
+const componentSourceCorpus = componentSources.map((file) => read(file)).join('\n')
+const rasterCollectionManifests = walk('packages/design-system/assets/raster', ['.json'])
+  .filter((file) => path.basename(file) === 'manifest.json')
+  .map((file) => ({ file, manifest: JSON.parse(read(file)) }))
+const staleRasterIntegrationMetadata = rasterCollectionManifests.flatMap(({ file, manifest }) => {
+  const findings = []
+  if (typeof manifest.registeredInPackagesAssetsManifest === 'boolean') {
+    const registered = assetRegistrySource.includes(`raster/${manifest.collectionId}/manifest.json`)
+    if (registered !== manifest.registeredInPackagesAssetsManifest) findings.push(`${file}:registered=${manifest.registeredInPackagesAssetsManifest}:actual=${registered}`)
+  }
+  if (typeof manifest.wiredIntoRuntimeCode === 'boolean') {
+    const assetIds = (manifest.assets ?? []).map((asset) => asset.assetId)
+    const wired = assetIds.length > 0 && assetIds.every((assetId) => componentSourceCorpus.includes(assetId))
+    if (wired !== manifest.wiredIntoRuntimeCode) findings.push(`${file}:wired=${manifest.wiredIntoRuntimeCode}:actual=${wired}`)
+  }
+  return findings
+})
+record(
+  'raster_collection_integration_metadata_matches_registry_and_runtime',
+  staleRasterIntegrationMetadata.length === 0,
+  staleRasterIntegrationMetadata.join(', ') || `collections=${rasterCollectionManifests.length}`,
+)
+
 const literalAssetBindings = []
 for (const file of componentSources.filter((candidate) => candidate.endsWith('.tsx'))) {
   const ast = babelParser.parse(read(file), { sourceType: 'module', plugins: ['jsx', 'typescript'] })

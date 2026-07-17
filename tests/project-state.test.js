@@ -346,6 +346,17 @@ test('cross-slot literal asset reuse is deny-by-default and documented', () => {
   assert.match(audit, /unapprovedCrossSlotAssets/)
 })
 
+test('raster integration metadata cannot drift from registry and source bindings', () => {
+  const audit = fs.readFileSync('scripts/audit-ui-architecture.js', 'utf8')
+  const buildIntel = readJson('packages/design-system/assets/raster/build-intel-v1/manifest.json')
+  const newsDetail = readJson('packages/design-system/assets/raster/news-detail-v1/manifest.json')
+  assert.equal(buildIntel.registeredInPackagesAssetsManifest, true)
+  assert.equal(buildIntel.wiredIntoRuntimeCode, true)
+  assert.equal(newsDetail.wiredIntoRuntimeCode, true)
+  assert.match(audit, /raster_collection_integration_metadata_matches_registry_and_runtime/)
+  assert.match(audit, /staleRasterIntegrationMetadata/)
+})
+
 test('route geometry verification covers all routes without launching DevTools', () => {
   const verifier = fs.readFileSync('scripts/verify-ui-route-geometry.js', 'utf8')
   const contract = readJson('docs/design/current-ui/route-geometry-contract.json')

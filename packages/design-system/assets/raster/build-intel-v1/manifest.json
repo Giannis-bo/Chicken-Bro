@@ -7,8 +7,8 @@
   "generatedAt": "2026-07-15T06:22:37Z",
   "root": "packages/design-system/assets/raster/build-intel-v1",
   "productionPromoted": false,
-  "registeredInPackagesAssetsManifest": false,
-  "wiredIntoRuntimeCode": false,
+  "registeredInPackagesAssetsManifest": true,
+  "wiredIntoRuntimeCode": true,
   "generation": {
     "mode": "built_in_image_gen",
     "callCount": 3,

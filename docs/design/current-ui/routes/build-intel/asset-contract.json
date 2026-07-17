@@ -5,9 +5,9 @@
   "authority": "docs/plans/ui-reconstruction.md",
   "targetInventory": "docs/design/current-ui/routes/build-intel/target-inventory.json",
   "componentContract": "docs/design/current-ui/routes/build-intel/component-contract.json",
-  "productionRegistryStatus": "no_route_assets_promoted",
+  "productionRegistryStatus": "candidate_registry_only_no_production_promotion",
   "productionPromotionAuthorized": false,
-  "generationStatus": "runtime_slots_partially_bound_visual_debt_open",
+  "generationStatus": "runtime_candidates_bound_composition_review_pending",
   "generationPolicy": {
     "context": "disposable_isolated_imagegen_and_review_after_component_bounds_stabilize",
     "batchRule": "generate the shared build-intel frame, emblem, medallion shell and action family only after the seven-region H5 geometry gate passes",
@@ -80,7 +80,7 @@
       "sourceClass": "imagegen_raster",
       "factBearing": false,
       "fallback": "utility records glyph in a CSS medallion",
-      "productionStatus": "slot_bound_generation_pending"
+      "productionStatus": "candidate_bound_runtime_composition_review_pending"
     },
     {
       "slotId": "asset_slot.build-intel-filter-sort-glyphs",
@@ -102,7 +102,7 @@
       "sourceClass": "imagegen_raster",
       "factBearing": false,
       "fallback": "CSS circular bronze shell",
-      "productionStatus": "slot_bound_generation_pending"
+      "productionStatus": "candidate_bound_runtime_composition_review_pending"
     },
     {
       "slotId": "asset_slot.build-intel-specialization-object",
@@ -124,7 +124,7 @@
       "sourceClass": "imagegen_raster",
       "factBearing": false,
       "fallback": "CSS gold bevel",
-      "productionStatus": "slot_bound_generation_pending"
+      "productionStatus": "candidate_bound_runtime_composition_review_pending"
     },
     {
       "slotId": "asset_slot.build-intel-metadata-glyphs",

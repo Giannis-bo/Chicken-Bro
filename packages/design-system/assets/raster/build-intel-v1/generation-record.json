@@ -316,8 +316,8 @@
     "primaryActionCenterOpaqueAtBothDensities": true,
     "isolatedStaticReviewPassed": true,
     "runtimeCompositionReviewPending": true,
-    "registeredInPackagesAssetsManifest": false,
-    "wiredIntoRuntimeCode": false,
+    "registeredInPackagesAssetsManifest": true,
+    "wiredIntoRuntimeCode": true,
     "productionPromoted": false
   }
 }
