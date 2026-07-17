@@ -216,6 +216,7 @@ export function TalentTreeTabs({
               (loading || item.disabled === true) && componentStyle('tabDisabled'),
             )}
             data-active={active ? 'true' : 'false'}
+            data-selection-material={active ? 'active' : 'inactive'}
             data-role="talent-tree-tab"
             disabled={loading || item.disabled === true}
             onClick={() => onSelect(item)}

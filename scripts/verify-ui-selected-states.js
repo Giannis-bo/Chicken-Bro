@@ -40,16 +40,34 @@ async function inspectGroup(page, group) {
     return { route: group.route, role: group.role, status: 'unavailable', routeState: state, controls: controls.length, active: 0 }
   }
   const activeSelector = `${selector}.wx-data-${group.state}-true`
-  const active = await timeout(page.$$(activeSelector), 3000, `query active ${group.role}`)
+  const inactiveSelector = `${selector}.wx-data-${group.state}-false`
+  const materialActiveSelector = `${selector}.wx-data-selection-material-active`
+  const materialInactiveSelector = `${selector}.wx-data-selection-material-inactive`
+  const [active, inactive, materialActive, materialInactive, activeWithInactiveMaterial, inactiveWithActiveMaterial] = await Promise.all([
+    timeout(page.$$(activeSelector), 3000, `query active ${group.role}`),
+    timeout(page.$$(inactiveSelector), 3000, `query inactive ${group.role}`),
+    timeout(page.$$(materialActiveSelector), 3000, `query active material ${group.role}`),
+    timeout(page.$$(materialInactiveSelector), 3000, `query inactive material ${group.role}`),
+    timeout(page.$$(`${activeSelector}.wx-data-selection-material-inactive`), 3000, `query active with inactive material ${group.role}`),
+    timeout(page.$$(`${inactiveSelector}.wx-data-selection-material-active`), 3000, `query inactive with active material ${group.role}`),
+  ])
   const pass = controls.length >= group.minimumControls
     && active.length >= group.minimumActive
     && active.length <= group.maximumActive
+    && materialActive.length === active.length
+    && materialInactive.length === inactive.length
+    && active.length + inactive.length === controls.length
+    && activeWithInactiveMaterial.length === 0
+    && inactiveWithActiveMaterial.length === 0
   return {
     route: group.route,
     role: group.role,
     status: pass ? 'pass' : 'fail',
     controls: controls.length,
     active: active.length,
+    inactive: inactive.length,
+    materialOwners: { active: materialActive.length, inactive: materialInactive.length },
+    materialMismatches: activeWithInactiveMaterial.length + inactiveWithActiveMaterial.length,
     expected: { controlsAtLeast: group.minimumControls, activeAtLeast: group.minimumActive, activeAtMost: group.maximumActive },
   }
 }

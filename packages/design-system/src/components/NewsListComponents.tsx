@@ -97,6 +97,7 @@ export function NewsListCategoryFilter({
                 selected && reconstructionStyle('newsListCategoryItemOwnerActive'),
               )}
               data-role="news-list-category"
+              data-selection-material={selected ? 'active' : 'inactive'}
               data-selected={selected ? 'true' : 'false'}
               onClick={() => !loading && onSelect(item)}
             >

@@ -65,6 +65,7 @@ export function ChannelDock({
                     loading && reconstructionStyle('newsListCategoryItemLoading'),
                   )}
                   data-role="news-list-category"
+                  data-selection-material={selected ? 'active' : 'inactive'}
                   data-selected={selected ? 'true' : 'false'}
                   onClick={() => !loading && onSelect?.(item)}
                 >
@@ -120,6 +121,7 @@ export function ChannelDock({
               loading && reconstructionStyle('channelCellLoading'),
             )}
             data-role="channel-segment"
+            data-selection-material={selected ? 'active' : 'inactive'}
             data-selected={selected ? 'true' : 'false'}
             onClick={() => !loading && onSelect?.(item)}
           >

@@ -97,6 +97,7 @@ export function SimcIdentitySelectors({
                 className={styles['specOption'] ?? ''}
                 aria-label={`${item.classLabel}：${item.label}`}
                 data-role="simc-specialization-option"
+                data-selection-material={item.id === selectedSpecializationId ? 'active' : 'inactive'}
                 data-selected={item.id === selectedSpecializationId ? 'true' : 'false'}
                 data-spec-id={item.id}
                 disabled={loading || item.id.startsWith('loading-')}
@@ -263,6 +264,7 @@ export function SimcCombatConfiguration({
             key={scenario.id}
             className={`${styles['scenarioOption'] ?? ''} ${styleSelectorClass(`simcScenarioOption${index}`)} ${index === selectedScenarioIndex ? styleSelectorClass('simcScenarioSelected') : ''}`}
             data-role="simc-scenario-option"
+            data-selection-material={index === selectedScenarioIndex ? 'active' : 'inactive'}
             data-scenario-id={scenario.id}
             data-selected={index === selectedScenarioIndex ? 'true' : 'false'}
             onClick={() => onScenarioSelect(index)}

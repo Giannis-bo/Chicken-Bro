@@ -104,6 +104,7 @@ export function GearProfessionSelector({ items, loading = false, onSelect }: Gea
                 item.selected && styleSelectorClass('gearProfessionActive'),
               )}
               data-active={item.selected ? 'true' : 'false'}
+              data-selection-material={item.selected ? 'active' : 'inactive'}
               data-role="gear-profession-option"
               data-loading={loading ? 'true' : 'false'}
               data-profession-id={item.id}
@@ -401,6 +402,7 @@ function GearSlotRow({
         style(`slotRow-${item.state}`),
       )}
       data-active={item.selected ? 'true' : 'false'}
+      data-selection-material={item.selected ? 'active' : 'inactive'}
       data-side={side}
       data-state={item.state}
       data-slot-key={item.slot}
@@ -536,6 +538,7 @@ export function GearSlotWorkbench({
                       key={`${item.kind}-${item.id}`}
                       className={classes(style('enhancementOption'), item.selected && style('enhancementOptionActive'))}
                       data-active={item.selected ? 'true' : 'false'}
+                      data-selection-material={item.selected ? 'active' : 'inactive'}
                       data-role="gear-enhancement-option"
                       onClick={() => onEnhancement(item)}
                     >

@@ -57,6 +57,7 @@ export function TabBar({ currentPath, items, onSelect }: TabBarProps) {
               aria-label={item.label}
               aria-current={selected ? 'page' : undefined}
               data-role="product-tab-item"
+              data-selection-material={selected ? 'active' : 'inactive'}
               data-selected={selected ? 'true' : 'false'}
               data-state={selected ? 'active' : 'inactive'}
               role="button"

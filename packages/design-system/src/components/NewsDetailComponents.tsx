@@ -120,6 +120,7 @@ export function TranslationStatusSegments({
                 item.selected && reconstructionStyle('newsDetailTranslationSegmentActive'),
               )}
               data-role="news-detail-translation-segment"
+              data-selection-material={item.selected ? 'active' : 'inactive'}
               data-segment-id={item.id}
               data-selected={item.selected ? 'true' : 'false'}
             >
