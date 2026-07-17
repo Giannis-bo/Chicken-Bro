@@ -22,6 +22,8 @@
         {
           "slot": "head",
           "name": "Voidbreaker's Veil",
+          "itemId": "250060",
+          "itemIdSource": "raider_io_profile_api:2026-07-17T04:25:50Z",
           "itemLevel": 289,
           "stats": {
             "intellect": 124,
@@ -34,11 +36,15 @@
             "versatility_rating": 16,
             "crit_rating": 7
           },
-          "enchant": "Enchant Helm - Empowered Rune of Avoidance"
+          "enchant": "Enchant Helm - Empowered Rune of Avoidance",
+          "enchantId": "8017",
+          "gemId": "240914"
         },
         {
           "slot": "neck",
           "name": "Rotmire's Sporeheart",
+          "itemId": "268291",
+          "itemIdSource": "raider_io_profile_api:2026-07-17T04:25:50Z",
           "itemLevel": 298,
           "stats": {
             "stamina": 1110,
@@ -48,11 +54,14 @@
           "conditionalEffects": [
             "+23 Primary Stat and +0.15% critical strike effectiveness per unique Midnight gem color",
             "protective toadstool proc"
-          ]
+          ],
+          "gemId": "240967"
         },
         {
           "slot": "shoulder",
           "name": "Voidbreaker's Leyline Nexi",
+          "itemId": "250058",
+          "itemIdSource": "raider_io_profile_api:2026-07-17T04:25:50Z",
           "itemLevel": 289,
           "stats": {
             "intellect": 93,
@@ -60,11 +69,14 @@
             "haste_rating": 81,
             "versatility_rating": 43
           },
-          "enchant": "Enchant Shoulders - Silvermoon's Mending"
+          "enchant": "Enchant Shoulders - Silvermoon's Mending",
+          "enchantId": "8031"
         },
         {
           "slot": "back",
           "name": "Adherent's Silken Shroud",
+          "itemId": "239656",
+          "itemIdSource": "raider_io_profile_api:2026-07-17T04:25:50Z",
           "itemLevel": 285,
           "stats": {
             "intellect": 67,
@@ -79,6 +91,8 @@
         {
           "slot": "chest",
           "name": "Voidbreaker's Robe",
+          "itemId": "250063",
+          "itemIdSource": "raider_io_profile_api:2026-07-17T04:25:50Z",
           "itemLevel": 298,
           "stats": {
             "intellect": 135,
@@ -86,11 +100,14 @@
             "crit_rating": 117,
             "haste_rating": 55
           },
-          "enchant": "Enchant Chest - Mark of the Worldsoul"
+          "enchant": "Enchant Chest - Mark of the Worldsoul",
+          "enchantId": "7987"
         },
         {
           "slot": "wrist",
           "name": "Voidbreaker's Bracers",
+          "itemId": "250056",
+          "itemIdSource": "raider_io_profile_api:2026-07-17T04:25:50Z",
           "itemLevel": 289,
           "stats": {
             "intellect": 70,
@@ -101,11 +118,14 @@
           "gem": {
             "versatility_rating": 16,
             "crit_rating": 7
-          }
+          },
+          "gemId": "240914"
         },
         {
           "slot": "hands",
           "name": "Fractured Fingerguards",
+          "itemId": "251211",
+          "itemIdSource": "raider_io_profile_api:2026-07-17T04:25:50Z",
           "itemLevel": 289,
           "stats": {
             "intellect": 93,
@@ -117,6 +137,8 @@
         {
           "slot": "waist",
           "name": "Martyr's Waistwrap",
+          "itemId": "239649",
+          "itemIdSource": "raider_io_profile_api:2026-07-17T04:25:50Z",
           "itemLevel": 285,
           "stats": {
             "intellect": 90,
@@ -130,11 +152,14 @@
           },
           "conditionalEffects": [
             "mana wyrm proc: +44 Intellect"
-          ]
+          ],
+          "gemId": "240914"
         },
         {
           "slot": "legs",
           "name": "Voidbreaker's Britches",
+          "itemId": "250059",
+          "itemIdSource": "raider_io_profile_api:2026-07-17T04:25:50Z",
           "itemLevel": 289,
           "stats": {
             "intellect": 124,
@@ -142,11 +167,14 @@
             "crit_rating": 55,
             "haste_rating": 110
           },
-          "enchant": "+41 Intellect & +115 Stamina"
+          "enchant": "+41 Intellect & +115 Stamina",
+          "enchantId": "7935"
         },
         {
           "slot": "feet",
           "name": "Luxurious Loamstriders",
+          "itemId": "268282",
+          "itemIdSource": "raider_io_profile_api:2026-07-17T04:25:50Z",
           "itemLevel": 298,
           "stats": {
             "intellect": 101,
@@ -154,11 +182,14 @@
             "crit_rating": 39,
             "mastery_rating": 90
           },
-          "enchant": "Enchant Boots - Lynx's Dexterity"
+          "enchant": "Enchant Boots - Lynx's Dexterity",
+          "enchantId": "7963"
         },
         {
           "slot": "finger1",
           "name": "Masterwork Sin'dorei Band",
+          "itemId": "240949",
+          "itemIdSource": "raider_io_profile_api:2026-07-17T04:25:50Z",
           "itemLevel": 285,
           "stats": {
             "stamina": 948,
@@ -169,11 +200,15 @@
             "versatility_rating": 16,
             "crit_rating": 7
           },
-          "enchant": "Enchant Ring - Eyes of the Eagle"
+          "enchant": "Enchant Ring - Eyes of the Eagle",
+          "enchantId": "7967",
+          "gemId": "240914"
         },
         {
           "slot": "finger2",
           "name": "Sporecaller's Blooming Loop",
+          "itemId": "268290",
+          "itemIdSource": "raider_io_profile_api:2026-07-17T04:25:50Z",
           "itemLevel": 298,
           "stats": {
             "stamina": 1110,
@@ -185,11 +220,15 @@
             "versatility_rating": 16,
             "crit_rating": 7
           },
-          "enchant": "Enchant Ring - Eyes of the Eagle"
+          "enchant": "Enchant Ring - Eyes of the Eagle",
+          "enchantId": "7967",
+          "gemId": "240914"
         },
         {
           "slot": "trinket1",
           "name": "Vaelgor's Final Stare",
+          "itemId": "249346",
+          "itemIdSource": "raider_io_profile_api:2026-07-17T04:25:50Z",
           "itemLevel": 285,
           "stats": {
             "intellect": 114
@@ -201,6 +240,8 @@
         {
           "slot": "trinket2",
           "name": "Gaze of the Alnseer",
+          "itemId": "249343",
+          "itemIdSource": "raider_io_profile_api:2026-07-17T04:25:50Z",
           "itemLevel": 298,
           "stats": {
             "mastery_rating": 123
@@ -212,6 +253,8 @@
         {
           "slot": "main_hand",
           "name": "Spire of the Furious Construct",
+          "itemId": "258047",
+          "itemIdSource": "raider_io_profile_api:2026-07-17T04:25:50Z",
           "itemLevel": 298,
           "stats": {
             "intellect": 600,
@@ -219,7 +262,8 @@
             "haste_rating": 90,
             "mastery_rating": 82
           },
-          "enchant": "Enchant Weapon - Arcane Mastery"
+          "enchant": "Enchant Weapon - Arcane Mastery",
+          "enchantId": "8041"
         },
         {
           "slot": "off_hand",
