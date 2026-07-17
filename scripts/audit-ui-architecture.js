@@ -112,6 +112,16 @@ const escapedSpecializedRegions = specializedRegionBounds.filter((region) => (
   region.left < -1 || region.right > minimumLayoutViewport.width + 1
   || region.top < -1 || region.bottom > minimumLayoutViewport.height + 1
 ))
+const fixedPixelRouteRegionWidths = routeStyles.flatMap((file) => (
+  [...read(file).matchAll(/\.([A-Za-z][\w-]*Region)\s*\{([^}]*)\}/gu)].flatMap((match) => (
+    /\bwidth:\s*[\d.]+px\s*;/u.test(match[2]) ? [`${file}:${match[1]}`] : []
+  ))
+))
+record(
+  'route_regions_do_not_use_fixed_pixel_widths',
+  fixedPixelRouteRegionWidths.length === 0,
+  fixedPixelRouteRegionWidths.join(', ') || 'none',
+)
 const overlappingSpecializedRegions = [...new Set(specializedRegionBounds.map((region) => region.file))].flatMap((file) => {
   const regions = specializedRegionBounds.filter((region) => region.file === file).sort((a, b) => a.top - b.top)
   return regions.slice(1).flatMap((region, index) => {

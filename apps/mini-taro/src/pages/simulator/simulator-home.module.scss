@@ -16,7 +16,7 @@
 .guidanceRegion {
   top: 59px;
   left: 10px;
-  width: 368px;
+  right: 10px;
   height: var(--guidance-height);
   min-height: 220px;
   max-height: 251px;
@@ -26,7 +26,7 @@
   top: calc(69px + var(--guidance-height));
   bottom: 99px;
   left: 15px;
-  width: 356px;
+  right: 19px;
   height: auto;
 }
 
@@ -34,7 +34,7 @@
   top: auto;
   bottom: 0;
   left: 10px;
-  width: 368px;
+  right: 12px;
   height: 93px;
 }
 
