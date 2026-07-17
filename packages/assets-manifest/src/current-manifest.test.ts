@@ -144,11 +144,14 @@ describe('current asset authority', () => {
   })
 
   it('supports an explicit HTTPS runtime root without corrupting the URL', () => {
-    configureAssetRuntimeRoot('https://cdn.example.com/wow-assets/')
-    expect(currentAssetRuntimeRoot()).toBe('https://cdn.example.com/wow-assets')
+    configureAssetRuntimeRoot('https://cdn.example.com/releases/ui-v2/')
+    expect(currentAssetRuntimeRoot()).toBe('https://cdn.example.com/releases/ui-v2')
     expect(assetRuntimePath('news-frame.panel')).toBe(
-      'https://cdn.example.com/wow-assets/raster/news-home-v1/runtime/2x/frames/news-frame.panel.png',
+      'https://cdn.example.com/releases/ui-v2/raster/news-home-v1/runtime/2x/frames/news-frame.panel.png',
     )
+    expect([...productionAssets, ...candidateAssets].every((asset) => (
+      assetRuntimePath(asset.assetId)?.startsWith('https://cdn.example.com/releases/ui-v2/')
+    ))).toBe(true)
     expect(() => configureAssetRuntimeRoot('http://cdn.example.com/wow-assets')).toThrow('must use HTTPS')
     expect(() => configureAssetRuntimeRoot('https://')).toThrow('must use HTTPS')
     expect(() => configureAssetRuntimeRoot('https://cdn.example.com/assets?mutable=1')).toThrow('must use HTTPS')

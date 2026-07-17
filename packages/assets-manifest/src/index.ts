@@ -267,16 +267,3 @@ export function assetRuntimePathForSlot(slotId: AssetSlotId, variant?: string): 
     : candidates[0]
   return asset ? assetRuntimePath(asset.assetId) : null
 }
-
-function requiredCandidatePath(assetId: string): string {
-  const runtimePath = assetRuntimePath(assetId)
-  if (!runtimePath) throw new Error(`Missing required utility candidate: ${assetId}`)
-  return runtimePath
-}
-
-export const systemVectorAssets = {
-  tabBarNews: requiredCandidatePath('product-tab-news-icon.default'),
-  tabBarSpecialization: requiredCandidatePath('product-tab-builds-icon.default'),
-  tabBarAssistant: requiredCandidatePath('product-tab-simulator-icon.default'),
-  tabBarProfile: requiredCandidatePath('product-tab-profile-icon.default'),
-} as const

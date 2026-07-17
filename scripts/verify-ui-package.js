@@ -9,6 +9,8 @@ const path = require('node:path')
 const root = path.resolve(__dirname, '..')
 const appRoot = path.join(root, 'apps/mini-taro')
 const auditRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'wow-mini-package-'))
+const defaultAssetRuntimeRoot = '/assets/ui-v2'
+const remoteAssetRuntimeRoot = 'https://assets.example.invalid/releases/ui-v2'
 const limits = {
   remoteTotalBytes: 2 * 1024 * 1024,
   commonJsBytes: 420 * 1024,
@@ -32,6 +34,11 @@ function walk(directory) {
   })
 }
 
+function countStringLiteral(source, value) {
+  return source.split(JSON.stringify(value)).length - 1
+    + source.split(`'${value}'`).length - 1
+}
+
 function build(name, assetRuntimeRoot = '') {
   const outputRoot = path.join(auditRoot, name)
   const result = spawnSync(path.join(root, 'node_modules/.bin/taro'), ['build', '--type', 'weapp'], {
@@ -51,6 +58,10 @@ function build(name, assetRuntimeRoot = '') {
     throw new Error(`${name} production build failed\n${diagnostic}`)
   }
   const files = walk(outputRoot).filter((file) => !file.endsWith('.map'))
+  const packageText = files
+    .filter((file) => /\.(?:js|json|wxml|wxss)$/u.test(file))
+    .map((file) => fs.readFileSync(file, 'utf8'))
+    .join('\n')
   const assetRoot = path.join(outputRoot, 'assets', 'ui-v2')
   const assetFiles = files
     .filter((file) => file.startsWith(assetRoot + path.sep))
@@ -61,6 +72,8 @@ function build(name, assetRuntimeRoot = '') {
     totalBytes: files.reduce((total, file) => total + fs.statSync(file).size, 0),
     assetFileCount: assetFiles.length,
     assetFiles,
+    configuredRootReferenceCount: countStringLiteral(packageText, assetRuntimeRoot || defaultAssetRuntimeRoot),
+    defaultRootReferenceCount: countStringLiteral(packageText, defaultAssetRuntimeRoot),
     commonJsBytes: fs.statSync(path.join(outputRoot, 'common.js')).size,
     commonWxssBytes: fs.statSync(path.join(outputRoot, 'common.wxss')).size,
   }
@@ -68,7 +81,7 @@ function build(name, assetRuntimeRoot = '') {
 
 try {
   const local = build('local')
-  const remote = build('remote', 'https://assets.example.invalid/ui-v2')
+  const remote = build('remote', remoteAssetRuntimeRoot)
   const failures = []
   const expectedLocalAssetFiles = localAssetSources.flatMap(([outputPrefix, sourceRoot]) => {
     const absoluteSourceRoot = path.join(root, sourceRoot)
@@ -81,6 +94,9 @@ try {
   if (missingLocalAssetFiles.length) failures.push(`local build is missing ${missingLocalAssetFiles.length} registered asset files: ${missingLocalAssetFiles.slice(0, 5).join(', ')}`)
   if (unexpectedLocalAssetFiles.length) failures.push(`local build has ${unexpectedLocalAssetFiles.length} unexpected asset files: ${unexpectedLocalAssetFiles.slice(0, 5).join(', ')}`)
   if (remote.assetFileCount !== 0) failures.push(`remote build copied ${remote.assetFileCount} local asset files`)
+  if (local.configuredRootReferenceCount === 0) failures.push('local build does not contain the default asset runtime root')
+  if (remote.configuredRootReferenceCount === 0) failures.push('remote build does not contain the configured HTTPS asset runtime root')
+  if (remote.defaultRootReferenceCount > 1) failures.push(`remote build contains ${remote.defaultRootReferenceCount} default local asset root references; only the manifest fallback definition is allowed`)
   if (remote.totalBytes > limits.remoteTotalBytes) failures.push(`remote build is ${remote.totalBytes} bytes`)
   if (remote.commonJsBytes > limits.commonJsBytes) failures.push(`common.js is ${remote.commonJsBytes} bytes`)
   if (remote.commonWxssBytes > limits.commonWxssBytes) failures.push(`common.wxss is ${remote.commonWxssBytes} bytes`)
