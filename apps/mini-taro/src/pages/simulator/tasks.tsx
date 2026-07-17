@@ -5,6 +5,7 @@ import { useMemo, useRef, useState } from 'react'
 import { wowApi } from '@wow-mini/api-client'
 import { AppShell } from '@wow-mini/design-system/components/AppShell'
 import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
+import { RouteStage } from '@wow-mini/design-system/components/RouteStage'
 import {
   TaskBottomActions,
   TaskEmptyGuidance,
@@ -96,7 +97,7 @@ export default function TasksPage() {
       surfaceMode="tile"
       surfaceSlotId="asset_slot.tasks-page-frame"
     >
-      <View className={styles['pageFrame'] ?? ''} data-route-state={route.state.state} data-target-region-count="8">
+      <RouteStage className={styles['pageFrame'] ?? ''} routeState={route.state.state} targetRegionCount={8} width="full">
         <PageFrame
           backRegion="tasks-list-back"
           region="page_header"
@@ -141,7 +142,7 @@ export default function TasksPage() {
             />
           </View>
         </PageFrame>
-      </View>
+      </RouteStage>
     </AppShell>
   )
 }

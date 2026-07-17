@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react'
 import { wowApi } from '@wow-mini/api-client'
 import { AppShell } from '@wow-mini/design-system/components/AppShell'
 import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
+import { RouteStage } from '@wow-mini/design-system/components/RouteStage'
 import {
   SimcBlockerPanel,
   SimcCombatConfiguration,
@@ -315,10 +316,11 @@ export default function SimcSubmitPage() {
       surfaceMode="tile"
       surfaceSlotId="asset_slot.simc-page-frame"
     >
-      <View
+      <RouteStage
         className={styles['pageFrame'] ?? ''}
-        data-route-state={route.state.state}
-        data-target-region-count="10"
+        routeState={route.state.state}
+        targetRegionCount={10}
+        width="inset"
       >
         <PageFrame
           backRegion="simc-submit-back"
@@ -411,7 +413,7 @@ export default function SimcSubmitPage() {
             />
           </View>
         </PageFrame>
-      </View>
+      </RouteStage>
     </AppShell>
   )
 }

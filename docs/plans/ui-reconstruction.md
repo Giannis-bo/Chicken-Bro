@@ -32,6 +32,7 @@
 | --- | --- |
 | `AppShell` | 安全区、390px 设计舞台、背景和纵向滚动 |
 | `PageFrame` | root / pushed / pushed-action / chat 头部与胶囊避让 |
+| `RouteStage` / `RouteFlow` / `RouteColumn` | 固定舞台、流式状态边界与纵向 composition 基础；route 只保留 target 高度、区域坐标、滚动和内容特化 |
 | `ActionButton` / `ControlButton` | 微信原生控件的尺寸与状态归一 |
 | `ProductTabBar` | 四个一级页面的四等分导航、底部安全区和正文占位 |
 | `Surface/Frame` | 边框、纹理、阴影和 fallback |
@@ -54,6 +55,8 @@
 5. 工具链失败时保留 `UNVERIFIED` 和诊断结果，下一轮先恢复环境；不在实现任务中扩建监督器、端口发现器或第二套验证框架。
 6. 单元测试、构建和 DOM 几何用于阻断回归；视觉通过只来自 target/runtime 对比和用户确认。
 
+Review 窗口同时覆盖共享组件、页面 JSX 中的非组件 wrapper、route SCSS 和跨路由相似布局。完全同构的舞台、状态边界或 column composition 必须归共享 owner；只有 target 高度、区域坐标、滚动窗口或交互覆盖范围确实不同的布局才保留 route 特化。`audit:ui-architecture` 阻断页面直接拥有 route-state/target-region-count、重复实现 stage foundation，或在 route SCSS 重建共享 column composition。
+
 ## 收口审计
 
 当前工作流控制面完整：14 个路由均已登记 canonical target，并具有目标结构、目标几何、事实适配、组件 owner 与素材槽合同；共享架构审计、微信三基线、固定批次和最终逐路由验收各有唯一入口。新执行者可以从本计划进入，不需要阅读历史计划、过程截图或会话记录。
@@ -64,7 +67,7 @@
 | --- | --- | --- |
 | 全量视觉闭环 | 架构合同覆盖 14 路由，最终 target/runtime 微信复核尚未覆盖 14 路由 | 每路由按 `runtime-review-contract.json` 提交完整结论，并由人工确认 |
 | 素材生产链 | `news_home` 素材族已进入微信生产状态；builds、workbench、build-intel、talent-simulator 等仍包含生成待审、复用待验或未晋级槽位 | 素材进入统一 manifest，完成裁切、语义、清晰度和真机复核后晋级；COS/CDN 迁移作为独立工作包执行 |
-| 包体与远端资源 | `npm run verify:ui-package` 在隔离临时目录复跑两种 production 构建：本地素材包 5,041,562 bytes / 137 个素材文件，显式 HTTPS 素材根包 1,775,943 bytes / 0 个本地素材文件，`common.js` 381,939 bytes，`common.wxss` 353,373 bytes，均通过当前预算且不覆盖唯一 watch 输出；生产资产上传、不可变 URL 与微信 request/download 合法域名审批尚未形成可验证记录 | COS/CDN、不可变 URL、域名审批和生产 URL 在资源交付工作包内关闭；包体预算由隔离门禁持续阻断回归 |
+| 包体与远端资源 | `npm run verify:ui-package` 在隔离临时目录复跑两种 production 构建：本地素材包 5,040,539 bytes / 137 个素材文件，显式 HTTPS 素材根包 1,774,920 bytes / 0 个本地素材文件，`common.js` 383,453 bytes，`common.wxss` 354,063 bytes，均通过当前预算且不覆盖唯一 watch 输出；生产资产上传、不可变 URL 与微信 request/download 合法域名审批尚未形成可验证记录 | COS/CDN、不可变 URL、域名审批和生产 URL 在资源交付工作包内关闭；包体预算由隔离门禁持续阻断回归 |
 | 一级页面一致性 | 四个 root route 已共享 `PageFrame` 与 `ProductTabBar` owner，最终头部与底栏尺寸调整后需要同一真机窗口复核 | 四个一级页面在相同 viewport 下通过安全区、头部、正文起点和 TabBar 对比 |
 | 页面状态稳定性 | ready 主路径已有实现，loading、empty、error、stale 的完整几何证据仍不齐 | 每路由至少覆盖合同要求的可达状态，确认状态切换不改变共享 chrome 和关键布局 |
 | 核心交互 | `core-interaction-contract.json` 已为 14 路由各登记一个源码 owner、稳定选择器、前置条件、动作与预期；`npm run verify:ui-interactions` 已覆盖全部 14 条并逐条输出结果。装备选择保持本地草稿先落地、选择面板先关闭，再异步校验；当前没有可复用 automation endpoint，因此运行结果仍为 `UNVERIFIED` | 在不 launch/重载 DevTools 的既有 endpoint 上执行一次真实微信交互矩阵，记录实际结果 |

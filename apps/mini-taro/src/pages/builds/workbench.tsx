@@ -6,6 +6,7 @@ import { wowApi } from '@wow-mini/api-client'
 import { AppShell } from '@wow-mini/design-system/components/AppShell'
 import { EvidenceLedger } from '@wow-mini/design-system/components/EvidenceLedger'
 import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
+import { RouteColumn } from '@wow-mini/design-system/components/RouteFlow'
 import {
   WorkbenchModuleDeck,
   WorkbenchReadinessPanel,
@@ -151,7 +152,7 @@ export default function WorkbenchPage() {
         variant="workbench"
         onBack={() => goBack('/pages/builds/builds')}
       >
-        <View className={styles['surface'] ?? ''} data-route-state={route.state.state}>
+        <RouteColumn className={styles['surface'] ?? ''} routeState={route.state.state}>
           <View className={`${styles['region'] ?? ''} ${styles['hero'] ?? ''}`}>
             <WorkbenchSpecSummary
               contextDetail={model.contextDetail}
@@ -197,7 +198,7 @@ export default function WorkbenchPage() {
               }}
             />
           </View>
-        </View>
+        </RouteColumn>
       </PageFrame>
     </AppShell>
   )

@@ -1,13 +1,5 @@
 .pageFrame {
-  position: relative;
-  width: 384px;
   height: 818px;
-  margin: 4px auto 0;
-  overflow: hidden;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
 }
 
 .identityRegion,
@@ -29,7 +21,3 @@
 .blockerRegion { top: 610px; left: 8px; width: 366px; height: 106px; }
 .actionRegion { top: 723px; left: 7px; width: 367px; height: 52px; }
 .footerRegion { top: 780px; left: 8px; width: 365px; height: 30px; }
-
-@media (max-width: 389px) {
-  .pageFrame { margin-left: 3px; }
-}

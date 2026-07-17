@@ -10,6 +10,7 @@ import {
   BuildIntelSummary,
 } from '@wow-mini/design-system/components/BuildIntelComponents'
 import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
+import { RouteColumn, RouteFlow } from '@wow-mini/design-system/components/RouteFlow'
 import type { RouteDataState } from '@wow-mini/domain'
 
 import {
@@ -81,7 +82,7 @@ export default function BuildIntelPage() {
       surfaceMaterialFamily="build-workspace"
       surfaceSlotId="asset_slot.build-intel-surface"
     >
-      <View className={styles['page'] ?? ''} data-route-state={route.state.state}>
+      <RouteFlow className={styles['page'] ?? ''} routeState={route.state.state}>
         <PageFrame
           backRegion="top_bar.back-control"
           region="top_bar"
@@ -89,7 +90,7 @@ export default function BuildIntelPage() {
           variant="build-intel"
           onBack={() => goBack('/pages/builds/builds')}
         >
-          <View className={styles['surface'] ?? ''}>
+          <RouteColumn>
             <View className={styles['summary'] ?? ''}>
               <BuildIntelSummary
                 description={model.description}
@@ -157,9 +158,9 @@ export default function BuildIntelPage() {
             <View className={styles['disclaimer'] ?? ''}>
               <BuildIntelDisclaimer copy={model.disclaimer} />
             </View>
-          </View>
+          </RouteColumn>
         </PageFrame>
-      </View>
+      </RouteFlow>
     </AppShell>
   )
 }

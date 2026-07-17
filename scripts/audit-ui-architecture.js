@@ -188,6 +188,44 @@ record('route_styles_do_not_recompute_safe_area', routeSafeAreaOwners.length ===
 const routeHeaderGeometryOwners = routeStyles.filter((file) => /\[data-region=['"]top_bar['"]\]/u.test(read(file)))
 record('route_styles_do_not_own_page_frame_geometry', routeHeaderGeometryOwners.length === 0, routeHeaderGeometryOwners.join(', ') || 'none')
 
+const directRouteStateOwners = routeComponents.filter((file) => (
+  !file.includes('/_shared/') && /data-(?:route-state|target-region-count)=/u.test(read(file))
+))
+record(
+  'route_components_use_shared_state_boundaries',
+  directRouteStateOwners.length === 0,
+  directRouteStateOwners.join(', ') || 'none',
+)
+
+const routeStageConsumers = routeComponents.filter((file) => /<RouteStage\b/u.test(read(file)))
+const routeFlowConsumers = routeComponents.filter((file) => /<RouteFlow\b/u.test(read(file)))
+const routeColumnConsumers = routeComponents.filter((file) => /<RouteColumn\b/u.test(read(file)))
+record(
+  'shared_route_layout_owners_cover_current_layout_families',
+  routeStageConsumers.length === 8 && routeFlowConsumers.length === 3 && routeColumnConsumers.length === 4,
+  `stage=${routeStageConsumers.length}; flow=${routeFlowConsumers.length}; column=${routeColumnConsumers.length}`,
+)
+
+const privateStageFoundationOwners = routeStyles.filter((file) => {
+  const pageFrameRule = read(file).match(/\.pageFrame\s*\{([\s\S]*?)\}/u)?.[1] ?? ''
+  return /\b(?:position|overflow|border|border-radius|box-shadow)\s*:/u.test(pageFrameRule)
+})
+record(
+  'route_styles_do_not_reimplement_stage_foundations',
+  privateStageFoundationOwners.length === 0,
+  privateStageFoundationOwners.join(', ') || 'none',
+)
+
+const privateColumnOwners = routeStyles.filter((file) => {
+  const surfaceRule = read(file).match(/\.surface\s*\{([\s\S]*?)\}/u)?.[1] ?? ''
+  return /display\s*:\s*flex/u.test(surfaceRule) && /flex-direction\s*:\s*column/u.test(surfaceRule)
+})
+record(
+  'route_styles_do_not_reimplement_shared_column_composition',
+  privateColumnOwners.length === 0,
+  privateColumnOwners.join(', ') || 'none',
+)
+
 const deprecatedAppShellProps = []
 for (const file of routeComponents) {
   const ast = babelParser.parse(read(file), { sourceType: 'module', plugins: ['jsx', 'typescript'] })

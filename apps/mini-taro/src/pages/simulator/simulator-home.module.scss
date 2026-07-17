@@ -1,18 +1,10 @@
 .pageFrame {
   --guidance-height: 220px;
-  position: relative;
-  width: 100%;
-  max-width: 390px;
   height: 100%;
   min-height: 0;
-  margin: 0 auto;
-  overflow: hidden;
-  border: 0;
-  border-radius: 0;
   background:
     linear-gradient(180deg, rgba(18, 20, 23, 0.98), rgba(7, 9, 11, 0.995)),
     #080a0c;
-  box-shadow: none;
 }
 
 .guidanceRegion,
@@ -47,9 +39,3 @@
 }
 
 .composerDock { width: 100%; height: 87px; }
-
-@media (max-width: 389px) {
-  .pageFrame {
-    width: 100%;
-  }
-}

@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { wowApi } from '@wow-mini/api-client'
 import { AppShell } from '@wow-mini/design-system/components/AppShell'
 import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
+import { RouteStage } from '@wow-mini/design-system/components/RouteStage'
 import {
   SimulatorComposer,
   SimulatorEvidenceShelf,
@@ -114,10 +115,11 @@ export default function SimulatorHomePage() {
         </View>
       )}
     >
-      <View
+      <RouteStage
         className={styles['pageFrame'] ?? ''}
-        data-route-state={inputState}
-        data-target-region-count="7"
+        routeState={inputState}
+        targetRegionCount={7}
+        width="full"
       >
         <PageFrame
           region="header_bar"
@@ -148,7 +150,7 @@ export default function SimulatorHomePage() {
             />
           </View>
         </PageFrame>
-      </View>
+      </RouteStage>
     </AppShell>
   )
 }

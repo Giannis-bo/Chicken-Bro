@@ -1,17 +1,10 @@
 .pageFrame {
-  position: relative;
-  box-sizing: border-box;
   width: calc(100% - 4px);
   max-width: 385px;
   height: 820px;
   margin: 3px auto 0;
   padding: 2px;
-  overflow: hidden;
-  border: 0;
-  border-radius: 0;
   clip-path: none;
-  background: transparent;
-  box-shadow: none;
 }
 
 .surface {

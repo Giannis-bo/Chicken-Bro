@@ -16,6 +16,7 @@ import {
   ChickenbroUserTurnSlot,
 } from '@wow-mini/design-system/components/ChickenbroChatComponents'
 import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
+import { RouteStage } from '@wow-mini/design-system/components/RouteStage'
 import type { ChatMessage } from '@wow-mini/domain'
 
 import { goBack, safeDecode } from '../_shared/route-runtime'
@@ -151,7 +152,7 @@ export default function ChickenbroPage() {
         </View>
       )}
     >
-      <View className={styles['pageFrame'] ?? ''} data-route-state={inputState} data-target-region-count="12">
+      <RouteStage className={styles['pageFrame'] ?? ''} routeState={inputState} targetRegionCount={12} width="inset">
         <PageFrame
           backRegion="chickenbro-chat-back"
           region="header_nav"
@@ -212,7 +213,7 @@ export default function ChickenbroPage() {
             <ChickenbroTopicLibrary prompts={prompts} onSelect={(index) => setDraft(prompts[index] ?? '')} />
           </View>
         </PageFrame>
-      </View>
+      </RouteStage>
     </AppShell>
   )
 }

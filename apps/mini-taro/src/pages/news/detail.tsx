@@ -13,6 +13,7 @@ import {
   TranslationStatusSegments,
 } from '@wow-mini/design-system/components/NewsDetailComponents'
 import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
+import { RouteColumn, RouteFlow } from '@wow-mini/design-system/components/RouteFlow'
 import type { RouteDataState } from '@wow-mini/domain'
 
 import {
@@ -64,7 +65,7 @@ export default function NewsDetailPage() {
     <AppShell
       surfaceSlotId="asset_slot.news-detail-surface"
     >
-      <View className={styles['page'] ?? ''} data-route-state={route.state.state}>
+      <RouteFlow routeState={route.state.state} variant="news">
         <PageFrame
           backRegion="top_bar.back-control"
           region="top_bar"
@@ -72,7 +73,7 @@ export default function NewsDetailPage() {
           variant="news-detail"
           onBack={() => goBack('/pages/news/news')}
         >
-          <View className={styles['surface'] ?? ''}>
+          <RouteColumn>
             <View className={`${styles['region'] ?? ''} ${styles['hero'] ?? ''}`}>
               <NewsDetailHero
                 loading={model.initialLoading}
@@ -118,9 +119,9 @@ export default function NewsDetailPage() {
                 {...(model.terminal.action !== 'none' ? { onAction: handleTerminalAction } : {})}
               />
             </View>
-          </View>
+          </RouteColumn>
         </PageFrame>
-      </View>
+      </RouteFlow>
     </AppShell>
   )
 }

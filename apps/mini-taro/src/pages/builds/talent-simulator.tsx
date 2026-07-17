@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react'
 import { wowApi } from '@wow-mini/api-client'
 import { AppShell } from '@wow-mini/design-system/components/AppShell'
 import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
+import { RouteStage } from '@wow-mini/design-system/components/RouteStage'
 import {
   TalentActionBar,
   TalentCommunityRow,
@@ -327,10 +328,11 @@ export default function TalentSimulatorPage() {
       surfaceMaterialFamily="build-workspace"
       surfaceSlotId="asset_slot.talent-simulator-surface"
     >
-      <View
+      <RouteStage
         className={styles['pageFrame'] ?? ''}
-        data-route-state={route.state.state}
-        data-target-region-count="10"
+        routeState={route.state.state}
+        targetRegionCount={10}
+        width="full"
       >
         <PageFrame
           backRegion="top_bar.back-control"
@@ -410,7 +412,7 @@ export default function TalentSimulatorPage() {
             <View className={styles['actionsRegion'] ?? ''}><TalentActionBar items={actions} /></View>
           </View>
         </PageFrame>
-      </View>
+      </RouteStage>
     </AppShell>
   )
 }

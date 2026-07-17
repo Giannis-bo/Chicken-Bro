@@ -1,16 +1,6 @@
 .page {
-  box-sizing: border-box;
-  width: 100%;
   min-height: 824px;
   overflow: hidden;
-}
-
-.surface {
-  display: flex;
-  box-sizing: border-box;
-  width: 100%;
-  min-width: 0;
-  flex-direction: column;
 }
 
 .summary {

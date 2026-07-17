@@ -14,6 +14,7 @@ import {
   type NewsListFeedItem,
 } from '@wow-mini/design-system/components/NewsListComponents'
 import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
+import { RouteColumn, RouteFlow } from '@wow-mini/design-system/components/RouteFlow'
 import type { NewsListParams, RouteDataState } from '@wow-mini/domain'
 
 import {
@@ -101,7 +102,7 @@ export default function NewsListPage() {
     <AppShell
       surfaceSlotId="asset_slot.news-list-surface"
     >
-      <View className={styles['page'] ?? ''} data-route-state={route.state.state}>
+      <RouteFlow routeState={route.state.state} variant="news">
         <PageFrame
           backRegion="top_bar.back-control"
           region="top_bar"
@@ -109,7 +110,7 @@ export default function NewsListPage() {
           variant="news-list"
           onBack={() => goBack('/pages/news/news')}
         >
-          <View className={styles['surface'] ?? ''}>
+          <RouteColumn>
             <View className={`${styles['region'] ?? ''} ${styles['summary'] ?? ''}`} data-region="list_summary">
               <NewsListSummary
                 countLabel={model.countLabel}
@@ -156,9 +157,9 @@ export default function NewsListPage() {
             <View className={`${styles['region'] ?? ''} ${styles['disclaimer'] ?? ''}`} data-region="reference_disclaimer">
               <TrustDisclaimer />
             </View>
-          </View>
+          </RouteColumn>
         </PageFrame>
-      </View>
+      </RouteFlow>
     </AppShell>
   )
 }

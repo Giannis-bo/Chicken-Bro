@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react'
 import { wowApi } from '@wow-mini/api-client'
 import { AppShell } from '@wow-mini/design-system/components/AppShell'
 import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
+import { RouteStage } from '@wow-mini/design-system/components/RouteStage'
 import {
   ProfileRecentSaves,
   ProfileSettingsList,
@@ -157,7 +158,7 @@ export default function ProfilePage() {
       surfaceSlotId="asset_slot.profile-page-frame"
       tabRoot
     >
-      <View className={styles['pageFrame'] ?? ''} data-route-state={route.state.state} data-target-region-count="7">
+      <RouteStage className={styles['pageFrame'] ?? ''} routeState={route.state.state} targetRegionCount={7} width="full">
         <PageFrame region="page_header" title="我的" variant="profile">
           <View className={styles['summaryRegion'] ?? ''}>
             <ProfileSummaryPanel
@@ -193,7 +194,7 @@ export default function ProfilePage() {
             <ProfileSettingsList items={view.settings} onSelect={(id) => void openSetting(id)} />
           </View>
         </PageFrame>
-      </View>
+      </RouteStage>
     </AppShell>
   )
 }

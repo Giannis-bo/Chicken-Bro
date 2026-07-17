@@ -18,6 +18,7 @@ import {
   type GearStatusItem,
 } from '@wow-mini/design-system/components/GearDetailComponents'
 import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
+import { RouteStage } from '@wow-mini/design-system/components/RouteStage'
 import { StatusVisual } from '@wow-mini/design-system/components/StatusVisual'
 import {
   storageKey,
@@ -674,7 +675,7 @@ export default function GearDetailPage() {
       surfaceMaterialFamily="build-workspace"
       surfaceSlotId="asset_slot.gear-detail-surface"
     >
-      <View className={styles['pageFrame'] ?? ''} data-route-state={route.state.state} data-target-region-count="9">
+      <RouteStage className={styles['pageFrame'] ?? ''} routeState={route.state.state} targetRegionCount={9} width="full">
         <PageFrame
           backRegion="header_nav.back-control"
           region="header_nav"
@@ -688,6 +689,7 @@ export default function GearDetailPage() {
                 aria-label="关闭装备候选"
                 className={styles['candidateDismissLayer'] ?? ''}
                 data-action-id="dismiss-candidates"
+                data-owner="gear-candidate-page-dismiss"
                 role="button"
                 onClick={() => {
                   candidateRequestId.current += 1
@@ -743,7 +745,7 @@ export default function GearDetailPage() {
             <View className={styles['statusRegion'] ?? ''}><GearStatusDeck items={statusItems} onAction={handleStatusAction} /></View>
           </View>
         </PageFrame>
-      </View>
+      </RouteStage>
     </AppShell>
   )
 }

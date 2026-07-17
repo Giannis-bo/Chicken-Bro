@@ -4,6 +4,7 @@ import { View } from '@tarojs/components'
 import { wowApi } from '@wow-mini/api-client'
 import { AppShell } from '@wow-mini/design-system/components/AppShell'
 import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
+import { RouteStage } from '@wow-mini/design-system/components/RouteStage'
 import {
   TaskAttributeSnapshot,
   TaskCombatPreparation,
@@ -70,10 +71,11 @@ export default function TaskDetailPage() {
       surfaceMode="tile"
       surfaceSlotId="asset_slot.task-detail-page-frame"
     >
-      <View
+      <RouteStage
         className={styles['pageFrame'] ?? ''}
-        data-route-state={route.state.state}
-        data-target-region-count="10"
+        routeState={route.state.state}
+        targetRegionCount={10}
+        width="full"
       >
         <PageFrame
           backRegion="task-detail-back"
@@ -130,7 +132,7 @@ export default function TaskDetailPage() {
             />
           </View>
         </PageFrame>
-      </View>
+      </RouteStage>
     </AppShell>
   )
 }
