@@ -383,6 +383,8 @@ test('raster integration metadata cannot drift from registry and source bindings
   assert.equal(newsHome.runtimeBindingStatus, 'partial_27_of_33')
   assert.match(audit, /raster_collection_integration_metadata_matches_registry_and_runtime/)
   assert.match(audit, /staleRasterIntegrationMetadata/)
+  assert.match(audit, /raster_production_promotion_matches_review_evidence/)
+  assert.match(audit, /invalidRasterPromotionMetadata/)
 })
 
 test('route geometry verification covers all routes without launching DevTools', () => {

@@ -813,6 +813,25 @@ record(
   staleRasterIntegrationMetadata.length === 0,
   staleRasterIntegrationMetadata.join(', ') || `collections=${rasterCollectionManifests.length}`,
 )
+const invalidRasterPromotionMetadata = rasterCollectionManifests.flatMap(({ file, manifest }) => {
+  const findings = []
+  if (typeof manifest.productionPromoted !== 'boolean') findings.push(`${file}:missing productionPromoted boolean`)
+  if (typeof manifest.registeredInPackagesAssetsManifest !== 'boolean') findings.push(`${file}:missing registeredInPackagesAssetsManifest boolean`)
+  const assets = manifest.assets ?? []
+  if (manifest.productionPromoted === true) {
+    if (!String(manifest.status ?? '').includes('production')) findings.push(`${file}:promoted collection lacks production status`)
+    if (manifest.registeredInPackagesAssetsManifest !== true) findings.push(`${file}:promoted collection is not registered`)
+    if (assets.length === 0 || assets.some((asset) => !String(asset.reviewStatus ?? '').includes('production'))) findings.push(`${file}:promoted collection has non-production asset review status`)
+  } else if (assets.some((asset) => asset.productionPromoted === true)) {
+    findings.push(`${file}:unpromoted collection contains promoted asset`)
+  }
+  return findings
+})
+record(
+  'raster_production_promotion_matches_review_evidence',
+  invalidRasterPromotionMetadata.length === 0,
+  invalidRasterPromotionMetadata.join(', ') || `collections=${rasterCollectionManifests.length}`,
+)
 
 const literalAssetBindings = []
 for (const file of componentSources.filter((candidate) => candidate.endsWith('.tsx'))) {
