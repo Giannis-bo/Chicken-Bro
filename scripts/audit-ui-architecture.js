@@ -920,7 +920,7 @@ record(
     && /\.workbenchRegion\s*\{[^}]*height:\s*319px;/su.test(viewportFitStyles.gearDetail)
     && /\.statusRegion\s*\{[^}]*top:\s*654px;/su.test(viewportFitStyles.gearDetail)
     && /\.footerRegion\s*\{[^}]*top:\s*727px;/su.test(viewportFitStyles.simcSubmit)
-    && /\.pageFrame\s*\{[^}]*height:\s*var\(--route-safe-viewport-height\);/su.test(viewportFitStyles.taskDetail)
+    && /\.pageFrame\s*\{[^}]*height:\s*calc\(var\(--route-safe-viewport-height\) - var\(--space-12\)\);/su.test(viewportFitStyles.taskDetail)
     && /\.pageFrame\s*\{[^}]*height:\s*825px;/su.test(viewportFitStyles.profile),
   'single-screen terminal regions must not extend below the real WeChat viewport',
 )
@@ -954,10 +954,15 @@ record(
 )
 record(
   'task_bottom_actions_stay_inside_the_route_region',
-  /\.pageFrame\s*\{[^}]*height:\s*100%;/su.test(taskRouteStyles)
+  /\.pageFrame\s*\{[^}]*height:\s*calc\(var\(--route-safe-viewport-height\) - var\(--space-12\)\);[^}]*min-height:\s*0;/su.test(taskRouteStyles)
     && /\.actionsRegion\s*\{[^}]*width:\s*93\.5035%;/su.test(taskRouteStyles)
     && /\.bottomActions button\s*\{[^}]*width:\s*100%;[^}]*max-width:\s*100%;/su.test(taskListStyles),
   'task bottom actions must stay inside the safe viewport and measured route region',
+)
+record(
+  'task_detail_terminal_action_uses_shell_content_viewport',
+  /\.pageFrame\s*\{[^}]*height:\s*calc\(var\(--route-safe-viewport-height\) - var\(--space-12\)\);[^}]*min-height:\s*0;/su.test(viewportFitStyles.taskDetail),
+  'task detail must subtract the shell bottom reveal space before positioning its terminal exception action',
 )
 record(
   'task_scroll_rows_fill_the_native_scroll_view',

@@ -1,5 +1,6 @@
 .pageFrame {
-  height: 100%;
+  height: calc(var(--route-safe-viewport-height) - var(--space-12));
+  min-height: 0;
 }
 
 .summaryRegion,
@@ -20,6 +21,6 @@
 
 @media (max-width: 389px) {
   .pageFrame {
-    height: 100%;
+    height: calc(var(--route-safe-viewport-height) - var(--space-12));
   }
 }

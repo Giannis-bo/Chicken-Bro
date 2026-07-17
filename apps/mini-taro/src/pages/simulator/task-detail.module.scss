@@ -1,5 +1,6 @@
 .pageFrame {
-  height: var(--route-safe-viewport-height);
+  height: calc(var(--route-safe-viewport-height) - var(--space-12));
+  min-height: 0;
 }
 
 .summaryRegion,

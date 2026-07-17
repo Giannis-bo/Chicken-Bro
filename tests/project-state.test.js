@@ -679,3 +679,13 @@ test('build intel allocates its card viewport below the safe terminal disclaimer
   assert.match(styles, /\.cardViewport\s*\{[\s\S]*height:\s*auto;[\s\S]*max-height:\s*498\.75px;[\s\S]*flex:\s*1 1 0;/)
   assert.match(page, /<RouteColumn className=\{styles\['contentColumn'\]/)
 })
+
+test('task terminal controls use the shell content viewport', () => {
+  for (const file of [
+    'apps/mini-taro/src/pages/simulator/tasks.module.scss',
+    'apps/mini-taro/src/pages/simulator/task-detail.module.scss',
+  ]) {
+    const styles = fs.readFileSync(file, 'utf8')
+    assert.match(styles, /\.pageFrame\s*\{[\s\S]*height:\s*calc\(var\(--route-safe-viewport-height\) - var\(--space-12\)\);[\s\S]*min-height:\s*0;/)
+  }
+})
