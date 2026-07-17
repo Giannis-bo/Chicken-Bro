@@ -6,6 +6,7 @@ import type {
 import type { ProductionAssetId } from '@wow-mini/assets-manifest'
 
 import { findSpecSelection, type SpecSelection } from '../_shared/build-context'
+import { cachedDataPresentation } from '../_shared/data-presentation'
 
 export type BuildsHomeEvidenceId = 'talents' | 'gear' | 'simc' | 'tasks'
 export type BuildsHomeWorkflowId = 'input' | 'validation' | 'tracking'
@@ -124,10 +125,15 @@ function healthState(payload: BuildsHomePayload | undefined, routeState: Readine
   return status === 'verified' ? 'source_reference' : 'unknown'
 }
 
-function headerSourceLabel(state: ReadinessState): string {
+function headerSourceLabel(selection: SpecSelection | null, state: ReadinessState): string {
+  if (selection) return selection.spec.sourceName || '来源参考'
+  return state === 'loading' ? '来源读取中' : '来源不可用'
+}
+
+function dataStateLabel(state: ReadinessState): string {
   if (state === 'loading') return '来源同步中'
-  if (state === 'partial') return '部分来源'
-  if (state === 'stale') return '本地回退'
+  if (state === 'partial') return '部分可用'
+  if (state === 'stale') return cachedDataPresentation.stateLabel
   if (state === 'blocked' || state === 'error' || state === 'empty') return '来源受限'
   return '来源参考'
 }
@@ -174,7 +180,7 @@ function degradedActionState(
 ): Pick<BuildsHomeEvidenceView, 'state' | 'stateLabel' | 'value'> {
   if (routeState === 'loading') return { state: 'loading', stateLabel: '读取中', value: '正在校验' }
   if (!actionAvailable) return { state: 'blocked', stateLabel: '入口不可用', value: '不可用' }
-  if (pageHealth === 'stale') return { state: 'stale', stateLabel: '本地回退', value: '进入后重试' }
+  if (pageHealth === 'stale') return { state: 'stale', stateLabel: cachedDataPresentation.stateLabel, value: '进入后重试' }
   if (pageHealth === 'blocked' || pageHealth === 'error' || pageHealth === 'empty') {
     return { state: pageHealth, stateLabel: '数据受限', value: '不可用' }
   }
@@ -260,7 +266,7 @@ export function buildBuildsHomeModel({
 
   return {
     title: payload?.navTitle || '职业专精',
-    headerSourceLabel: headerSourceLabel(pageHealth),
+    headerSourceLabel: headerSourceLabel(selection, pageHealth),
     initialLoading,
     refreshing,
     retryAvailable: pageHealth === 'stale' || pageHealth === 'blocked' || pageHealth === 'error' || pageHealth === 'empty',
@@ -271,7 +277,7 @@ export function buildBuildsHomeModel({
       description: selection?.spec.desc || payload?.desc || '选择专精后进入工作台校验天赋、装备与任务状态。',
       sourceLabel: sourceLabel(selection),
       state: selection ? (pageHealth === 'source_reference' ? 'source_reference' : pageHealth) : pageHealth,
-      stateLabel: selection ? headerSourceLabel(pageHealth) : '未选择专精',
+      stateLabel: selection ? dataStateLabel(pageHealth) : '未选择专精',
       identity: selectionIdentity(selection, pageHealth),
     },
     evidenceItems,

@@ -1,5 +1,7 @@
 import type { BuildsIntelPayload, ReadinessState, SpecializationSummary } from '@wow-mini/domain'
 
+import { cachedDataPresentation } from '../_shared/data-presentation'
+
 export type BuildIntelFilterId = 'all' | 'damage' | 'tank' | 'healer' | 'support'
 export type BuildIntelSortId = 'source' | 'name'
 export type BuildIntelCardAction = 'none' | 'simulator' | 'copy_source' | 'retry' | 'reset_filter'
@@ -85,7 +87,7 @@ export function buildIntelRoleFilter(item: SpecializationSummary): Exclude<Build
 
 function responseState(payload: BuildsIntelPayload | undefined, routeState: ReadinessState): Pick<BuildIntelViewModel, 'state' | 'stateLabel'> {
   if (routeState === 'loading') return { state: 'loading', stateLabel: payload ? '刷新中' : '读取中' }
-  if (routeState === 'stale') return { state: 'stale', stateLabel: '本地回退' }
+  if (routeState === 'stale') return { state: 'stale', stateLabel: cachedDataPresentation.stateLabel }
   if (routeState === 'error') return { state: payload ? 'stale' : 'error', stateLabel: payload ? '刷新失败' : '请求失败' }
   if (routeState === 'blocked') return { state: 'blocked', stateLabel: '请求受限' }
   if (routeState === 'empty') return { state: 'empty', stateLabel: '暂无记录' }
@@ -98,7 +100,7 @@ function responseState(payload: BuildsIntelPayload | undefined, routeState: Read
 }
 
 function itemState(item: SpecializationSummary, routeState: ReadinessState): Pick<BuildIntelCardView, 'state' | 'stateLabel'> {
-  if (routeState === 'stale' || routeState === 'error') return { state: 'stale', stateLabel: '本地回退' }
+  if (routeState === 'stale' || routeState === 'error') return { state: 'stale', stateLabel: cachedDataPresentation.stateLabel }
   if (item.dataStatus === 'blocked' || item.dataStatus === 'missing_credentials') {
     return { state: 'blocked', stateLabel: '来源受限' }
   }

@@ -83,7 +83,7 @@ export function AssistantRoute({ tabRoot = false, context }: AssistantRouteProps
     setMessages((current) => [...current, {
       ...assistant,
       messageId: assistant.messageId || `assistant-${Date.now()}`,
-      status: result.fromFallback ? '后端不可用 · 回退说明' : assistant.status || '已完成',
+      status: result.fromFallback ? '后端不可用 · 暂无结果' : assistant.status || '已完成',
     }].slice(-80))
     setInputState(result.fromFallback ? 'error' : 'ready')
   }
@@ -104,7 +104,7 @@ export function AssistantRoute({ tabRoot = false, context }: AssistantRouteProps
     },
     {
       id: 'answer', label: '回答来源',
-      value: '由后端返回；前端回退只说明服务不可用，不生成结论。',
+      value: '结果由后端返回；服务不可用时前端仅展示状态，不生成结论。',
       state: inputState === 'error' ? 'blocked' : 'source_reference',
     },
   ]

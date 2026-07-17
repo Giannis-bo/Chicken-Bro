@@ -107,6 +107,14 @@ describe('current spec workbench truth model', () => {
     expect(model.overallState).toBe('partial')
   })
 
+  it('keeps source identity separate from cached transport state', () => {
+    const model = buildCurrentSpecWorkbenchModel({ payload: payload(), routeState: 'stale' })
+
+    expect(model.identitySourceLabel).toBe('Battle.net')
+    expect(model.overallLabel).toBe('缓存可用')
+    expect(model.readinessHeadline).toBe('正在使用缓存数据')
+  })
+
   it('does not copy target placeholder zeroes into evidence counts', () => {
     const model = buildCurrentSpecWorkbenchModel({ payload: payload(), routeState: 'ready' })
 

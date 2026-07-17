@@ -79,6 +79,13 @@ const routeSources = walk('apps/mini-taro/src/pages', ['.ts', '.tsx', '.scss'])
 const routeStyles = routeSources.filter((file) => file.endsWith('.scss'))
 const routeComponents = routeSources.filter((file) => file.endsWith('.tsx'))
 
+const fallbackJargonSources = routeSources.filter((file) => /回退/u.test(read(file)))
+record(
+  'routes_do_not_expose_fallback_implementation_jargon',
+  fallbackJargonSources.length === 0,
+  fallbackJargonSources.join(', ') || 'none',
+)
+
 const appConfig = read('apps/mini-taro/src/app.config.ts')
 const pagesBlock = appConfig.match(/pages:\s*\[([\s\S]*?)\],\s*window:/)?.[1] ?? ''
 const configuredRoutes = [...pagesBlock.matchAll(/'([^']+)'/g)].map((match) => match[1])
@@ -190,6 +197,12 @@ const currentUiRecords = [
   ...walk('docs/design/current-ui', ['.json', '.md']),
   ...walk('packages/design-system/assets', ['.json', '.md']),
 ]
+const fallbackJargonRecords = currentUiRecords.filter((file) => /回退/u.test(read(file)))
+record(
+  'current_ui_contracts_do_not_prescribe_fallback_implementation_jargon',
+  fallbackJargonRecords.length === 0,
+  fallbackJargonRecords.join(', ') || 'none',
+)
 const nonPortableCurrentUiRecords = currentUiRecords.filter((file) => /(?:\/Users\/|[A-Z]:\\Users\\)/u.test(read(file)))
 record(
   'current_ui_records_use_portable_paths',

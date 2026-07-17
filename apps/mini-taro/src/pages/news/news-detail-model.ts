@@ -1,5 +1,7 @@
 import type { NewsArticle, NewsBodyBlock, ReadinessState } from '@wow-mini/domain'
 
+import { cachedDataPresentation } from '../_shared/data-presentation'
+
 export type NewsDetailTranslationId = 'pending' | 'machine' | 'human'
 export type NewsDetailTerminalMode = 'loading' | 'ready' | 'missing' | 'error' | 'blocked'
 export type NewsDetailTerminalAction = 'none' | 'retry' | 'go_back'
@@ -115,7 +117,7 @@ function heroState(
   routeState: ReadinessState,
 ): Pick<NewsDetailViewModel, 'heroState' | 'heroStateLabel'> {
   if (routeState === 'loading') return { heroState: 'loading', heroStateLabel: article ? '刷新中' : '读取中' }
-  if (routeState === 'stale') return { heroState: 'stale', heroStateLabel: '本地回退' }
+  if (routeState === 'stale') return { heroState: 'stale', heroStateLabel: cachedDataPresentation.stateLabel }
   if (routeState === 'error') return { heroState: 'error', heroStateLabel: article ? '刷新失败' : '读取失败' }
   if (routeState === 'blocked') return { heroState: 'blocked', heroStateLabel: '当前不可用' }
   if (!article) return { heroState: 'unknown', heroStateLabel: '来源待核验' }
@@ -253,7 +255,7 @@ function terminalView(
   return {
     mode: 'ready',
     title: '正文与来源已载入',
-    detail: routeState === 'stale' ? '当前为本地回退内容' : '已保留原始来源与翻译状态',
+    detail: routeState === 'stale' ? cachedDataPresentation.contentDetail : '已保留原始来源与翻译状态',
     action: 'none',
   }
 }

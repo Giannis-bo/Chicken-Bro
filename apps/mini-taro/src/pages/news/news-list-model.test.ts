@@ -137,7 +137,7 @@ describe('news list target model', () => {
     const model = build({ routeState: 'error', routeReason: 'network down' })
 
     expect(model.items).toHaveLength(6)
-    expect(model.items.every((item) => item.statusLabel === '本地回退')).toBe(true)
+    expect(model.items.every((item) => item.statusLabel === '缓存可用')).toBe(true)
     expect(model.terminal).toMatchObject({ mode: 'error', detail: 'network down', action: 'retry' })
   })
 })

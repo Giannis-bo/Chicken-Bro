@@ -386,7 +386,7 @@ export default function GearDetailPage() {
     } catch {
       if (candidateRequestId.current !== requestId) return
       setCandidates(local?.items ?? [])
-      setWorkbenchNotice('候选加载失败，已回退当前槽位的本地数据')
+      setWorkbenchNotice('候选加载失败，已显示当前槽位的缓存数据')
     } finally {
       if (candidateRequestId.current === requestId) setCandidateLoading(false)
     }

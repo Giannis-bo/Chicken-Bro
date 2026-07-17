@@ -89,8 +89,9 @@ describe('news detail target model', () => {
     const failed = buildNewsDetailModel({ routeState: 'error', routeReason: '网络失败' })
 
     expect(stale.bodyBlocks).toHaveLength(39)
-    expect(stale.heroStateLabel).toBe('本地回退')
-    expect(stale.terminal.detail).toBe('当前为本地回退内容')
+    expect(stale.heroStateLabel).toBe('缓存可用')
+    expect(stale.terminal.detail).toBe('当前显示缓存内容')
+    expect(stale.sourceLabel).toBe('Blizzard Forums')
     expect(failed.terminal).toMatchObject({ mode: 'error', detail: '网络失败', action: 'retry' })
   })
 

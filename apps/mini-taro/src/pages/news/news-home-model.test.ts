@@ -73,9 +73,10 @@ describe('news home target model', () => {
     })
 
     expect(model.initialLoading).toBe(false)
-    expect(model.headerStatusLabel).toBe('本地回退')
-    expect(model.daily.statusLabel).toBe('本地回退')
-    expect(model.carousel.items.every((item) => item.stateLabel === '本地回退')).toBe(true)
+    expect(model.headerStatusLabel).toBe('缓存可用')
+    expect(model.daily.statusLabel).toBe('缓存可用')
+    expect(model.carousel.items.every((item) => item.stateLabel === '缓存可用')).toBe(true)
+    expect(model.carousel.items[0]?.sourceLabel).toBe('Blizzard News')
   })
 
   it('uses one composition when refreshing previous data', () => {

@@ -1,5 +1,7 @@
 import type { NewsArticle, NewsHomePayload, ReadinessState } from '@wow-mini/domain'
 
+import { cachedDataPresentation } from '../_shared/data-presentation'
+
 export interface NewsHomeQuery {
   type: 'metric'
   key: string
@@ -102,14 +104,14 @@ function isOfficialReady(article: NewsArticle): boolean {
 
 function routeStatusLabel(state: ReadinessState, allOfficial: boolean): string {
   if (state === 'loading') return '更新中'
-  if (state === 'stale') return '本地回退'
+  if (state === 'stale') return cachedDataPresentation.stateLabel
   if (state === 'error' || state === 'blocked' || state === 'empty') return '不可用'
   return allOfficial ? '已更新' : '待核验'
 }
 
 function dailyStatusLabel(state: ReadinessState): string {
   if (state === 'loading') return '更新中'
-  if (state === 'stale') return '本地回退'
+  if (state === 'stale') return cachedDataPresentation.stateLabel
   if (state === 'error' || state === 'blocked') return '更新失败'
   if (state === 'empty') return '暂无内容'
   if (state === 'partial') return '部分可用'
@@ -117,7 +119,7 @@ function dailyStatusLabel(state: ReadinessState): string {
 }
 
 function articleState(article: NewsArticle, routeState: ReadinessState): Pick<NewsHomeArticleView, 'state' | 'stateLabel'> {
-  if (routeState === 'stale') return { state: 'stale', stateLabel: '本地回退' }
+  if (routeState === 'stale') return { state: 'stale', stateLabel: cachedDataPresentation.stateLabel }
   if (isOfficialReady(article)) return { state: 'ready', stateLabel: '已核验' }
   return { state: 'source_reference', stateLabel: '待核验' }
 }

@@ -63,7 +63,7 @@ describe('builds home target model', () => {
     const model = buildBuildsHomeModel({ payload: payload(), routeState: 'ready' })
 
     expect(model.healthState).toBe('partial')
-    expect(model.headerSourceLabel).toBe('部分来源')
+    expect(model.headerSourceLabel).toBe('Archon')
     expect(JSON.stringify(model)).not.toContain('maxKeyLevel')
     expect(JSON.stringify(model)).not.toContain('bestScore')
   })
@@ -82,8 +82,10 @@ describe('builds home target model', () => {
     const model = buildBuildsHomeModel({ payload: payload(), routeState: 'stale' })
 
     expect(model.healthState).toBe('stale')
-    expect(model.headerSourceLabel).toBe('本地回退')
+    expect(model.headerSourceLabel).toBe('Archon')
     expect(model.evidenceItems.every((item) => item.state === 'stale')).toBe(true)
+    expect(model.evidenceItems.every((item) => item.stateLabel === '缓存可用')).toBe(true)
+    expect(model.specialization.stateLabel).toBe('缓存可用')
     expect(model.workspace.statusLabel).toBe('使用缓存进入')
   })
 

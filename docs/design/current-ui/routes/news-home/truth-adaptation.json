@@ -41,7 +41,7 @@
         "loading": "来源参考：更新中",
         "ready_all_official": "来源参考：已更新",
         "ready_mixed_or_unverified": "来源参考：待核验",
-        "stale": "来源参考：本地回退",
+        "stale": "来源参考：缓存可用",
         "error_or_blocked": "来源参考：不可用"
       },
       "forbidden": ["duplicate source badge", "claiming official when any visible item is not official_verified"]
@@ -67,7 +67,7 @@
       "states": {
         "loading": "更新中",
         "ready": "已更新",
-        "stale": "本地回退",
+        "stale": "缓存可用",
         "error_or_blocked": "更新失败"
       }
     },
@@ -137,7 +137,7 @@
       "source": "activeArticle verification/content status plus route stale state",
       "states": {
         "official_ready": "已核验",
-        "stale": "本地回退",
+        "stale": "缓存可用",
         "other": "待核验"
       },
       "count": 1

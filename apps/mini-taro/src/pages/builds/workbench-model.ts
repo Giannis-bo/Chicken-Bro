@@ -8,6 +8,7 @@ import type {
 } from '@wow-mini/domain'
 
 import { findSpecSelection, scenarioOptions, specObject, type SpecSelection } from '../_shared/build-context'
+import { cachedDataPresentation } from '../_shared/data-presentation'
 
 export type WorkbenchModuleId = 'talents' | 'gear' | 'simc' | 'assistant'
 
@@ -122,7 +123,7 @@ function stateLabel(state: ReadinessState): string {
     blocked: '存在阻断',
     partial: '部分可用',
     ready: '可继续',
-    stale: '本地回退',
+    stale: cachedDataPresentation.stateLabel,
     source_reference: '来源参考',
     unknown: '待校验',
   }
@@ -180,7 +181,7 @@ function readinessHeadline(state: ReadinessState): string {
     blocked: '当前不可提交模拟',
     partial: '仍有输入未就绪',
     ready: '输入已通过准备检查',
-    stale: '正在使用本地回退数据',
+    stale: cachedDataPresentation.activeDetail,
     source_reference: '输入来源已建立',
     unknown: '输入状态待校验',
   }
@@ -356,13 +357,11 @@ export function buildCurrentSpecWorkbenchModel({
       : selection
         ? 'source_reference'
         : routeDegradedState(routeState) ?? 'blocked'
-  const identitySourceLabel = identityState === 'source_reference'
-    ? '来源参考'
-    : identityState === 'stale'
-      ? '本地回退'
-      : identityState === 'loading'
-        ? '读取来源'
-        : '来源不可用'
+  const identitySourceLabel = selection
+    ? selection.spec.sourceName || '来源参考'
+    : identityState === 'loading'
+      ? '读取来源'
+      : '来源不可用'
   const sourceErrors = unique([
     payload?.sources.home.error,
     payload?.sources.talents.error,

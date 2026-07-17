@@ -219,7 +219,7 @@
     {
       "state": "stale",
       "condition": "transport fallback, payload stale, or source expiry is in the past",
-      "presentation": "retain fallback structure with explicit 本地回退/数据过期 labels; never inherit fallback verified wording"
+      "presentation": "retain cached data-bearing structure with explicit 缓存可用/数据过期 state labels; source fields continue to show the declared source name and never inherit verified wording"
     },
     {
       "state": "blocked",

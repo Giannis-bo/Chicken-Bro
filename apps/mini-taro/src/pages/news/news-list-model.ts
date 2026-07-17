@@ -1,5 +1,7 @@
 import type { NewsArticle, NewsListPayload, ReadinessState } from '@wow-mini/domain'
 
+import { cachedDataPresentation } from '../_shared/data-presentation'
+
 export type NewsListCategoryId = 'all' | 'official' | 'blue_post' | 'updates' | 'events' | 'community'
 export type NewsListSortDirection = 'newest' | 'oldest'
 export type NewsListTerminalMode = 'loading' | 'more' | 'complete' | 'empty' | 'error' | 'blocked'
@@ -122,7 +124,7 @@ export function formatNewsListDate(value: string): string {
 }
 
 function articleStatus(article: NewsArticle, routeState: ReadinessState): Pick<NewsListArticleView, 'status' | 'statusLabel'> {
-  if (routeState === 'stale' || routeState === 'error') return { status: 'stale', statusLabel: '本地回退' }
+  if (routeState === 'stale' || routeState === 'error') return { status: 'stale', statusLabel: cachedDataPresentation.stateLabel }
   if (!article.sourceUrl.trim()) return { status: 'blocked', statusLabel: '来源不可用' }
   if (article.translationStatus === 'llm') return { status: 'source_reference', statusLabel: '机器翻译' }
   if (article.translationStatus) return { status: 'source_reference', statusLabel: '翻译待核验' }
@@ -132,7 +134,7 @@ function articleStatus(article: NewsArticle, routeState: ReadinessState): Pick<N
 
 function routeStateLabel(state: ReadinessState, hasPayload: boolean): string {
   if (state === 'loading') return hasPayload ? '刷新中' : '读取中'
-  if (state === 'stale') return '本地回退'
+  if (state === 'stale') return cachedDataPresentation.stateLabel
   if (state === 'error') return hasPayload ? '刷新失败' : '请求失败'
   if (state === 'blocked') return '请求受限'
   if (state === 'empty') return '暂无内容'
@@ -188,7 +190,7 @@ function terminalView(
     return {
       mode: 'more',
       title: `还有 ${remaining} 条资讯`,
-      detail: routeState === 'stale' ? '当前为本地回退内容' : '继续加载当前分类的下一组内容',
+      detail: routeState === 'stale' ? cachedDataPresentation.contentDetail : '继续加载当前分类的下一组内容',
       actionLabel: '加载更多',
       action: 'load_more',
     }
@@ -196,7 +198,7 @@ function terminalView(
   return {
     mode: 'complete',
     title: `已显示全部 ${filteredCount} 条资讯`,
-    detail: routeState === 'stale' ? '当前为本地回退内容' : '列表已到末尾',
+    detail: routeState === 'stale' ? cachedDataPresentation.contentDetail : '列表已到末尾',
     actionLabel: '刷新',
     action: 'refresh',
   }
