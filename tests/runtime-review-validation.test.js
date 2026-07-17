@@ -2,7 +2,11 @@ const test = require('node:test')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
 
-const { isCompletePassRecord } = require('../scripts/runtime-review-validation')
+const {
+  expectedReviewOverallStatus,
+  isCompletePassRecord,
+  sharedEvidenceMatchesStatus,
+} = require('../scripts/runtime-review-validation')
 
 const contract = JSON.parse(fs.readFileSync('docs/design/current-ui/runtime-review-contract.json', 'utf8'))
 const sha256 = 'a'.repeat(64)
@@ -57,4 +61,14 @@ test('runtime review rejects incomplete or contradictory pass evidence', () => {
     mutate(review)
     assert.equal(isCompletePassRecord(review, contract), false)
   }
+})
+
+test('runtime review status clears shared blockers only after every route passes', () => {
+  const required = ['runtime', 'interaction', 'human']
+  assert.equal(expectedReviewOverallStatus([{ status: 'UNVERIFIED' }, { status: 'PASS' }]), 'active_unverified')
+  assert.equal(sharedEvidenceMatchesStatus('active_unverified', required, required), true)
+  assert.equal(sharedEvidenceMatchesStatus('active_unverified', [], required), false)
+  assert.equal(expectedReviewOverallStatus([{ status: 'PASS' }, { status: 'PASS' }]), 'complete')
+  assert.equal(sharedEvidenceMatchesStatus('complete', [], required), true)
+  assert.equal(sharedEvidenceMatchesStatus('complete', required, required), false)
 })

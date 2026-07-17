@@ -7,6 +7,21 @@ function hasFields(value, fields) {
   return Boolean(value && fields.every((field) => Object.hasOwn(value, field)))
 }
 
+function expectedReviewOverallStatus(routes) {
+  if (routes.every((review) => review.status === 'PASS')) return 'complete'
+  if (routes.some((review) => review.status === 'FAIL')) return 'active_failed'
+  return 'active_unverified'
+}
+
+function sharedEvidenceMatchesStatus(status, missingEvidence, requiredEvidence) {
+  if (!Array.isArray(missingEvidence)) return false
+  if (status === 'complete') return missingEvidence.length === 0
+  if (status === 'active_unverified') {
+    return [...missingEvidence].sort().join('\n') === [...requiredEvidence].sort().join('\n')
+  }
+  return status === 'active_failed'
+}
+
 function isCompletePassRecord(review, contract) {
   const passRecord = review?.reviewRecord
   const passMetrics = passRecord?.passMetrics
@@ -59,4 +74,4 @@ function isCompletePassRecord(review, contract) {
   )
 }
 
-module.exports = { isCompletePassRecord }
+module.exports = { expectedReviewOverallStatus, isCompletePassRecord, sharedEvidenceMatchesStatus }

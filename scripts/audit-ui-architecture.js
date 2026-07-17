@@ -5,7 +5,11 @@ const fs = require('node:fs')
 const path = require('node:path')
 const babelParser = require('@babel/parser')
 const traverse = require('@babel/traverse').default
-const { isCompletePassRecord } = require('./runtime-review-validation')
+const {
+  expectedReviewOverallStatus,
+  isCompletePassRecord,
+  sharedEvidenceMatchesStatus,
+} = require('./runtime-review-validation')
 
 const root = path.resolve(__dirname, '..')
 const findings = []
@@ -152,17 +156,19 @@ const requiredSharedReviewEvidence = [
   'real_wechat_core_interaction',
   'human_visual_confirmation',
 ]
-const expectedReviewOverallStatus = reviewRoutes.every((review) => review.status === 'PASS')
-  ? 'complete'
-  : reviewRoutes.some((review) => review.status === 'FAIL')
-    ? 'active_failed'
-    : 'active_unverified'
+const expectedOverallStatus = expectedReviewOverallStatus(reviewRoutes)
+const sharedMissingEvidence = runtimeReviewStatus.sharedMissingEvidence ?? []
+const reviewEvidenceStateValid = sharedEvidenceMatchesStatus(
+  expectedOverallStatus,
+  sharedMissingEvidence,
+  requiredSharedReviewEvidence,
+)
 record(
   'runtime_review_status_covers_all_target_routes',
-  runtimeReviewStatus.status === expectedReviewOverallStatus
+  runtimeReviewStatus.status === expectedOverallStatus
     && JSON.stringify(reviewRouteIds) === JSON.stringify(targetRouteIds)
-    && requiredSharedReviewEvidence.every((evidence) => runtimeReviewStatus.sharedMissingEvidence?.includes(evidence)),
-  `reviews=${reviewRouteIds.length}; status=${runtimeReviewStatus.status}; expected=${expectedReviewOverallStatus}`,
+    && reviewEvidenceStateValid,
+  `reviews=${reviewRouteIds.length}; status=${runtimeReviewStatus.status}; expected=${expectedOverallStatus}`,
 )
 for (const review of reviewRoutes) {
   const target = targetRegistry.canonicalTargets.find((candidate) => candidate.route === review.route)
