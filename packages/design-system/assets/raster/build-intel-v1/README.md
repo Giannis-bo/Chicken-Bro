@@ -10,7 +10,7 @@ Production promoted: `false`
 
 This directory contains three candidate-only, non-factual decorative raster assets for `build_intel`. Each asset passed one-at-a-time isolated static review and deterministic alpha validation. Runtime composition, route fidelity, H5 behavior, WeChat behavior, and production promotion remain pending.
 
-The collection is not registered in `packages/assets-manifest`, is not wired into runtime code, and does not grant route visual acceptance.
+The collection is registered in `packages/assets-manifest` as candidate-only and all three asset IDs are bound in `BuildIntelComponents`. The current WeChat asset-slot scan proves those bindings are present, but does not grant route visual acceptance or production promotion.
 
 ## Generation Summary
 
@@ -74,4 +74,4 @@ See `reviews/summary-medallion.json`, `reviews/card-medallion-shell.json`, `revi
 
 ## Promotion Boundary
 
-All assets remain `candidate_pending_runtime_review`. Static review and mechanical validation do not prove target fidelity, runtime acceptance, H5 verification, WeChat verification, route acceptance, or release readiness. No registry, component, route, documentation control plane, or other path was modified by this package task.
+All assets remain `candidate_pending_runtime_review`. Static review, mechanical validation, registry presence and runtime binding do not prove target fidelity, visual composition, H5 acceptance, WeChat visual acceptance, route acceptance, or release readiness. `productionPromoted` remains `false`.

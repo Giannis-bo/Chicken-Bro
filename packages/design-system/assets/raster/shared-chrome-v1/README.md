@@ -1,10 +1,10 @@
 # Shared Chrome V1 Candidate Raster Assets
 
-Status: `generated_pending_independent_isolated_review`
+Status: `independent_review_passed_for_canary`
 
 Source class: `imagegen_raster`
 
-This directory contains candidate-only, non-factual shared page chrome. It is not registered in `packages/assets-manifest`, is not wired into runtime code, and makes no production or acceptance claim.
+This directory contains candidate-only, non-factual shared page chrome. It is registered in `packages/assets-manifest`; `pushed-back-medallion.default` is bound in `PageFrame`, while the corner, side rail and two title rails remain unbound candidates. Partial runtime binding makes no production or route-acceptance claim.
 
 ## Generation Summary
 
@@ -53,6 +53,6 @@ All 10 runtime PNGs passed the recorded mechanical checks:
 
 Detailed prompts, commands, per-file metadata, chroma-key statistics, and validation values are in `generation-record.json` and `manifest.json`.
 
-## Pending Review
+## Promotion Boundary
 
-Independent isolated visual review remains required for route-level material fit, perceived weight at final scale, title-slot composition, medallion/icon layering, and visible repeat-y behavior in the actual page compositor. Mechanical validation does not promote these candidates or establish production acceptance.
+Independent isolated review passed for candidate registration. Route-level material fit, perceived weight at final scale, title-slot composition, medallion/icon layering and visible repeat-y behavior in the actual page compositor remain unaccepted. Mechanical validation, candidate registration and the single current runtime binding do not promote this collection or establish production acceptance.

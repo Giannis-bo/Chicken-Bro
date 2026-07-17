@@ -5,6 +5,9 @@
   "sourceClass": "imagegen_raster",
   "generatedAt": "2026-07-15T02:42:05Z",
   "root": "packages/design-system/assets/raster/shared-chrome-v1",
+  "productionPromoted": false,
+  "registeredInPackagesAssetsManifest": true,
+  "wiredIntoRuntimeCode": false,
   "generation": {
     "mode": "built_in_image_gen",
     "callCount": 4,

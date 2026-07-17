@@ -6,7 +6,7 @@ Source class: `imagegen_raster`
 
 Production promoted: `false`
 
-This directory contains three candidate-only, non-factual raster medallion shells for `news_detail`. Each asset was generated and reviewed one at a time in the disposable isolated task, is registered as a non-production canary candidate, and is not wired into route components by this package-only change. This does not grant route visual acceptance or production promotion.
+This directory contains three candidate-only, non-factual raster medallion shells for `news_detail`. Each asset was generated and reviewed one at a time in the disposable isolated task, is registered as a non-production canary candidate, and is now bound in `NewsDetailComponents`. Runtime binding does not grant route visual acceptance or production promotion.
 
 ## Generation Summary
 
@@ -54,4 +54,4 @@ Detailed prompts, initial and aperture-iteration call paths, processing commands
 
 ## Independent Review
 
-All three assets passed one-asset-at-a-time isolated review for candidate registration. See `reviews/source-crest.json`, `reviews/evidence-medallion.json`, `reviews/terminal-medallion.json`, and `independent-review.json`. The review confirms a unified dark-patinated-bronze and warm-aged-gold family, clear small-size silhouettes, empty transparent centers, and no text, number, brand, real source mark, or baked-in status conclusion. Review and registration do not wire these files into route components, promote them to production, or establish route acceptance.
+All three assets passed one-asset-at-a-time isolated review for candidate registration. See `reviews/source-crest.json`, `reviews/evidence-medallion.json`, `reviews/terminal-medallion.json`, and `independent-review.json`. The review confirms a unified dark-patinated-bronze and warm-aged-gold family, clear small-size silhouettes, empty transparent centers, and no text, number, brand, real source mark, or baked-in status conclusion. Review, registration and current runtime binding still do not promote them to production or establish route acceptance.
