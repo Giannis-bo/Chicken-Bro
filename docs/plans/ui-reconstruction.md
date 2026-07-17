@@ -71,6 +71,7 @@ Review 窗口同时覆盖共享组件、页面 JSX 中的非组件 wrapper、rou
 | 微信 API 请求域名 | `npm run audit:taro-domain` 为 report-only：开发 origin 与 H5 proxy 均为显式 HTTP IP，认证请求在非 HTTPS 下 fail-closed，仓库未提交域名校验绕过；生产 `WOW_BACKEND_API_BASE_URL` 尚未配置为 HTTPS 命名 origin，`WOW_WECHAT_REQUEST_DOMAIN_APPROVED=yes` 审批记录缺失 | 配置生产 HTTPS 命名后端，在微信后台批准 request 合法域名，并以两项生产环境变量复跑审计为 `productionReady: true` |
 | 一级页面一致性 | 四个 root route 已共享 `PageFrame` 与 `ProductTabBar` owner，最终头部与底栏尺寸调整后需要同一真机窗口复核 | 四个一级页面在相同 viewport 下通过安全区、头部、正文起点和 TabBar 对比 |
 | 页面状态稳定性 | ready 主路径已有实现，loading、empty、error、stale 的完整几何证据仍不齐 | 每路由至少覆盖合同要求的可达状态，确认状态切换不改变共享 chrome 和关键布局 |
+| 选中态唯一性 | `selected-control-contract.json` 已登记 11 个高风险控件组并统一限制最多一个激活材质 owner；真实微信复跑 10 组通过，覆盖产品 TabBar、新闻频道/分类、05 翻译状态、装备职业/槽位/增强项、SimC 专精/场景和任务筛选。`talent` 页签因请求前置 `stale` 明确记为 unavailable；数量门禁不替代边框和材质叠层的最终像素 review | 生产请求域名恢复后补跑 `talent`；所有新增 `data-selected`/`data-active` 交互组必须登记稳定 role 与唯一激活上限，最终 artifact 继续审查普通态边框是否残留 |
 | 核心交互 | `core-interaction-contract.json` 已为 14 路由各登记一个源码 owner、稳定选择器、前置条件、动作与预期；既有 DevTools Automator endpoint 上的全量与定向复跑合计已观察到 13 路由核心交互通过。`talent` 不再等待超时或误报选择器故障，而是在页面为 `stale` 且必需 tab 为 0 时快速报告外部请求域名前置不可用。装备选择保持本地草稿先落地、选择面板先关闭，再异步校验；完整不可变证据记录仍为 `UNVERIFIED` | 将 13 条通过结果与 `talent` 前置不可用诊断写入逐路由不可变证据；生产请求域名批准后补跑 `talent`，不 launch/重载 DevTools |
 | 业务事实边界 | Taro 通过 typed API 消费 resolver、community import 和 stat snapshot；装备主属性、兼容性与徽标由后端拥有 | 架构审计持续阻断前端重建职业/装备规则，前端只负责展示映射 |
 | 产品命名 | roadmap 定义“智能分析”，当前运行导航仍使用“队长” | 产品决策后一次同步导航、标题、README 与 route 合同 |

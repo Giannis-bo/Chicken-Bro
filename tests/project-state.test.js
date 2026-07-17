@@ -269,3 +269,14 @@ test('cached visual review requires explicit immutable promotion', () => {
   assert.match(promotion, /receipts/)
   assert.doesNotMatch(promotion, /connectMiniProgram|WECHAT_AUTOMATOR_LAUNCH/)
 })
+
+test('selected control verification is bounded and cannot launch DevTools', () => {
+  const verifier = fs.readFileSync('scripts/verify-ui-selected-states.js', 'utf8')
+  const contract = readJson('docs/design/current-ui/selected-control-contract.json')
+  assert.ok(contract.groups.length >= 10)
+  assert.ok(contract.groups.every((group) => group.maximumActive === 1))
+  assert.match(verifier, /SELECTED_STATE_ROUTES/)
+  assert.match(verifier, /unknown SELECTED_STATE_ROUTES/)
+  assert.match(verifier, /connectMiniProgram/)
+  assert.doesNotMatch(verifier, /WECHAT_AUTOMATOR_LAUNCH/)
+})

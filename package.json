@@ -22,6 +22,7 @@
     "test:taro": "vitest run",
     "verify:ui-baselines": "node scripts/verify-ui-baselines.js",
     "verify:ui-interactions": "node scripts/verify-ui-interactions.js",
+    "verify:ui-selected-states": "node scripts/verify-ui-selected-states.js",
     "verify:ui-package": "node scripts/verify-ui-package.js"
   },
   "devDependencies": {

@@ -122,6 +122,7 @@ record(
 
 const targetRegistry = JSON.parse(read('docs/design/current-ui/target-registry.json'))
 const interactionContract = JSON.parse(read('docs/design/current-ui/core-interaction-contract.json'))
+const selectedControlContract = JSON.parse(read('docs/design/current-ui/selected-control-contract.json'))
 const evidencePolicy = JSON.parse(read('docs/design/current-ui/active-evidence-policy.json'))
 const runtimeReviewContract = JSON.parse(read('docs/design/current-ui/runtime-review-contract.json'))
 const runtimeReviewStatus = JSON.parse(read('docs/design/current-ui/runtime-review-status.json'))
@@ -134,7 +135,7 @@ const expectedInteractionAcceptance = expectedInteractionStatus === 'verified'
     : 'pending_real_wechat_core_interaction_matrix'
 record(
   'runtime_review_records_are_authoritative_inputs',
-  ['docs/design/current-ui/runtime-review-contract.json', 'docs/design/current-ui/runtime-review-status.json']
+  ['docs/design/current-ui/runtime-review-contract.json', 'docs/design/current-ui/runtime-review-status.json', 'docs/design/current-ui/selected-control-contract.json']
     .every((file) => evidencePolicy.authoritativeInputs?.includes(file)),
   `schemaVersion=${evidencePolicy.schemaVersion}`,
 )
@@ -392,14 +393,46 @@ const buildIntelStyles = read('packages/design-system/src/components/BuildIntelC
 const taskRouteStyles = read('apps/mini-taro/src/pages/simulator/tasks.module.scss')
 const selectedStateOwners = [
   ['packages/design-system/src/components/TabBar.tsx', 'product-tab-item'],
+  ['packages/design-system/src/components/ChannelDock.tsx', 'news-list-category'],
+  ['packages/design-system/src/components/ChannelDock.tsx', 'channel-segment'],
+  ['packages/design-system/src/components/NewsDetailComponents.tsx', 'news-detail-translation-segment'],
+  ['packages/design-system/src/components/NewsListComponents.tsx', 'news-list-category'],
+  ['packages/design-system/src/components/GearDetailComponents.tsx', 'gear-profession-option'],
+  ['packages/design-system/src/components/GearDetailComponents.tsx', 'gear-slot-row'],
+  ['packages/design-system/src/components/GearDetailComponents.tsx', 'gear-enhancement-option'],
+  ['packages/design-system/src/components/TalentSimulatorComponents.tsx', 'talent-tree-tab'],
   ['packages/design-system/src/components/TaskListComponents.tsx', 'task-status-filter'],
   ['packages/design-system/src/components/SimcSubmitComponents.tsx', 'simc-specialization-option'],
   ['packages/design-system/src/components/SimcSubmitComponents.tsx', 'simc-scenario-option'],
 ]
+const selectedGroupKeys = selectedControlContract.groups?.map((group) => `${group.route}:${group.role}`) ?? []
+record(
+  'selected_control_contract_has_unique_bounded_groups',
+  selectedControlContract.status === 'active'
+    && selectedGroupKeys.length >= 10
+    && new Set(selectedGroupKeys).size === selectedGroupKeys.length
+    && selectedControlContract.groups.every((group) => (
+      ['selected', 'active'].includes(group.state)
+      && Number.isInteger(group.minimumControls) && group.minimumControls >= 0
+      && Number.isInteger(group.minimumActive) && group.minimumActive >= 0
+      && Number.isInteger(group.maximumActive) && group.maximumActive === 1
+      && group.minimumActive <= group.maximumActive
+      && interactionContract.interactions.some((interaction) => interaction.route === group.route && interaction.path === group.path)
+    )),
+  `groups=${selectedGroupKeys.length}`,
+)
 record(
   'selected_controls_have_stable_group_roles',
-  selectedStateOwners.every(([file, role]) => read(file).includes(`data-role="${role}"`)),
+  selectedStateOwners.every(([file, role]) => read(file).includes(`data-role="${role}"`))
+    && selectedControlContract.groups.every((group) => selectedStateOwners.some(([, role]) => role === group.role)),
   'selected-state runtime review must group controls by stable role rather than generated CSS classes',
+)
+record(
+  'selected_state_verifier_reuses_existing_devtools_only',
+  fs.existsSync(path.join(root, 'scripts/verify-ui-selected-states.js'))
+    && /connectMiniProgram/u.test(read('scripts/verify-ui-selected-states.js'))
+    && !/WECHAT_AUTOMATOR_LAUNCH/u.test(read('scripts/verify-ui-selected-states.js')),
+  'selected-state verification must never launch or reload DevTools',
 )
 record(
   'shared_native_buttons_cannot_exceed_their_layout_cell',
