@@ -213,6 +213,25 @@ record(
     && reviewEvidenceStateValid,
   `reviews=${reviewRouteIds.length}; status=${runtimeReviewStatus.status}; expected=${expectedOverallStatus}`,
 )
+for (const observed of runtimeReviewStatus.observedRegionComparisons ?? []) {
+  const comparisonPath = path.join(root, observed.path ?? '')
+  const exists = fs.existsSync(comparisonPath)
+  const actualSha = exists ? crypto.createHash('sha256').update(fs.readFileSync(comparisonPath)).digest('hex') : null
+  const comparison = exists ? JSON.parse(fs.readFileSync(comparisonPath, 'utf8')) : null
+  const comparisonRoutes = comparison?.routes?.map((route) => route.route) ?? []
+  record(
+    `observed_region_comparison_is_content_addressed:${observed.commit}`,
+    exists
+      && observed.path.includes(observed.sha256)
+      && actualSha === observed.sha256
+      && comparison?.commit === observed.commit
+      && comparison?.schemaVersion === 'target-runtime-region-comparison-v1'
+      && comparison?.routes?.every((route) => route.status === 'PASS' && route.regions.every((region) => region.status === 'PASS'))
+      && comparison.routes.reduce((sum, route) => sum + route.regions.length, 0) === observed.regionCount
+      && JSON.stringify(comparisonRoutes) === JSON.stringify(observed.routes),
+    `artifact=${exists}; sha=${actualSha === observed.sha256}; routes=${comparisonRoutes.length}`,
+  )
+}
 for (const review of reviewRoutes) {
   const target = targetRegistry.canonicalTargets.find((candidate) => candidate.route === review.route)
   const interaction = interactionContract.interactions.find((candidate) => candidate.route === review.route)
