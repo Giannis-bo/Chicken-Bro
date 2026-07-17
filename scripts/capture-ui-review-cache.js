@@ -15,17 +15,20 @@ const settleMs = 700
 const maxCaptureBytes = 8 * 1024 * 1024
 const maxCaptureScale = 4
 const maxManifestBytes = 1024 * 1024
+const maxRoutesPerCaptureRun = 2
 
 function selectedRoutes(value) {
   const requested = (value ?? '').split(',').map((item) => item.trim()).filter(Boolean)
   if (requested.length === 0) {
-    throw new Error('UI_REVIEW_ROUTES is required; use comma-separated contract route ids or explicit "all"')
+    throw new Error('UI_REVIEW_ROUTES is required; use one or two comma-separated contract route ids')
   }
-  if (requested.length === 1 && requested[0] === 'all') return interactionContract.interactions
+  if (requested.includes('all')) throw new Error('online capture rejects "all"; collect at most two routes and merge offline')
+  const uniqueRoutes = [...new Set(requested)]
+  if (uniqueRoutes.length > maxRoutesPerCaptureRun) throw new Error(`online capture is limited to ${maxRoutesPerCaptureRun} routes per run`)
   const byRoute = new Map(interactionContract.interactions.map((item) => [item.route, item]))
-  const unknown = requested.filter((route) => !byRoute.has(route))
+  const unknown = uniqueRoutes.filter((route) => !byRoute.has(route))
   if (unknown.length > 0) throw new Error(`unknown UI_REVIEW_ROUTES: ${unknown.join(', ')}`)
-  return [...new Set(requested)].map((route) => byRoute.get(route))
+  return uniqueRoutes.map((route) => byRoute.get(route))
 }
 
 function pngSize(buffer) {
@@ -197,4 +200,4 @@ if (require.main === module) {
   })
 }
 
-module.exports = { captureWithRetry, inspectCachedCapture, inspectRenderer, maxCaptureBytes, maxManifestBytes, pngSize, selectedRoutes, validCaptureBounds, writeManifest }
+module.exports = { captureWithRetry, inspectCachedCapture, inspectRenderer, maxCaptureBytes, maxManifestBytes, maxRoutesPerCaptureRun, pngSize, selectedRoutes, validCaptureBounds, writeManifest }

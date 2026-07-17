@@ -820,6 +820,13 @@ record(
 )
 const visualCaptureSource = read('scripts/capture-ui-review-cache.js')
 record(
+  'online_visual_capture_is_limited_to_resumable_small_batches',
+  /maxRoutesPerCaptureRun = 2/u.test(visualCaptureSource)
+    && /online capture rejects "all"/u.test(visualCaptureSource)
+    && /uniqueRoutes\.length > maxRoutesPerCaptureRun/u.test(visualCaptureSource),
+  'online screenshot capture must use at most two routes; full closure is merged offline',
+)
+record(
   'visual_capture_is_resumable_without_devtools_restart',
   /captureWithRetry/u.test(visualCaptureSource)
     && /inspectCachedCapture/u.test(visualCaptureSource)

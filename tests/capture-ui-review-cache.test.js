@@ -7,7 +7,7 @@ const os = require('node:os')
 const path = require('node:path')
 const test = require('node:test')
 
-const { inspectCachedCapture, writeManifest } = require('../scripts/capture-ui-review-cache')
+const { inspectCachedCapture, maxRoutesPerCaptureRun, selectedRoutes, writeManifest } = require('../scripts/capture-ui-review-cache')
 
 function pngHeader(width, height) {
   const buffer = Buffer.alloc(24)
@@ -44,4 +44,11 @@ test('capture manifest checkpoint replaces the previous file atomically', () => 
   writeManifest(manifestPath, { schemaVersion: 'second', captures: [] })
   assert.equal(JSON.parse(fs.readFileSync(manifestPath, 'utf8')).schemaVersion, 'second')
   assert.equal(fs.existsSync(`${manifestPath}.tmp`), false)
+})
+
+test('online capture is restricted to resumable two-route batches', () => {
+  assert.equal(maxRoutesPerCaptureRun, 2)
+  assert.equal(selectedRoutes('news_home,news_detail').length, 2)
+  assert.throws(() => selectedRoutes('all'), /rejects "all"/)
+  assert.throws(() => selectedRoutes('news_home,news_detail,build_intel'), /limited to 2 routes/)
 })

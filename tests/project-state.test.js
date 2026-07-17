@@ -284,6 +284,8 @@ test('visual review capture stays explicit, cached and out of the main session',
   assert.match(capture, /maxCaptureBytes = 8 \* 1024 \* 1024/)
   assert.match(capture, /maxCaptureScale = 4/)
   assert.match(capture, /maxManifestBytes = 1024 \* 1024/)
+  assert.match(capture, /maxRoutesPerCaptureRun = 2/)
+  assert.match(capture, /online capture rejects "all"/)
   assert.match(capture, /capture exceeds bounded byte policy before read/)
   assert.match(capture, /validCaptureBounds/)
   const audit = fs.readFileSync('scripts/audit-ui-architecture.js', 'utf8')
