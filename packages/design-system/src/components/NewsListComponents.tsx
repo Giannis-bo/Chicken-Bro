@@ -94,7 +94,6 @@ export function NewsListCategoryFilter({
               aria-label={`${item.label}分类`}
               className={reconstructionClass(
                 reconstructionStyle('newsListCategoryItemOwner'),
-                selected && reconstructionStyle('newsListCategoryItemOwnerActive'),
               )}
               data-role="news-list-category"
               data-selection-material={selected ? 'active' : 'inactive'}

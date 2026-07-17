@@ -4,7 +4,7 @@ import type { AssetSlotId, ProductionAssetId } from '@wow-mini/assets-manifest'
 
 import { runtimeSafeAreaStyle } from '../runtime-safe-area'
 import { ProductionAssetGlyph } from './ProductionAssetGlyph'
-import { dataSelectorClass, selectorClass, styleSelectorClass } from './selector-markers'
+import { selectorClass, styleSelectorClass } from './selector-markers'
 
 import styles from './TabBar.module.scss'
 
@@ -51,9 +51,7 @@ export function TabBar({ currentPath, items, onSelect }: TabBarProps) {
               key={item.pagePath}
               className={selectorClass(
                 styles['item'] ?? '',
-                selected ? styles['selected'] : undefined,
                 styleSelectorClass('product-tab-item'),
-                dataSelectorClass('selected', selected),
               )}
               aria-label={item.label}
               aria-current={selected ? 'page' : undefined}
@@ -61,7 +59,6 @@ export function TabBar({ currentPath, items, onSelect }: TabBarProps) {
               data-leading-boundary={selected ? 'active' : previousSelected ? 'suppressed' : 'inactive'}
               data-selection-material={selected ? 'active' : 'inactive'}
               data-selected={selected ? 'true' : 'false'}
-              data-state={selected ? 'active' : 'inactive'}
               role="button"
               onClick={() => onSelect(item.pagePath)}
             >

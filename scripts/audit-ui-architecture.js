@@ -801,6 +801,61 @@ record(
     && selectedControlContract.groups.every((group) => selectedStateOwners.some(([, role]) => role === group.role)),
   'selected-state runtime review must group controls by stable role rather than generated CSS classes',
 )
+const selectedMaterialPublishers = []
+for (const file of [...new Set(selectedStateOwners.map(([ownerFile]) => ownerFile))]) {
+  const ast = babelParser.parse(read(file), { sourceType: 'module', plugins: ['jsx', 'typescript'] })
+  traverse(ast, {
+    JSXOpeningElement(elementPath) {
+      const attributes = elementPath.node.attributes.filter((attribute) => attribute.type === 'JSXAttribute')
+      if (!attributes.some((attribute) => attribute.name.name === 'data-selection-material')) return
+      const roleAttribute = attributes.find((attribute) => attribute.name.name === 'data-role')
+      const role = roleAttribute?.value?.type === 'StringLiteral' ? roleAttribute.value.value : ''
+      const stateAttributes = attributes.filter((attribute) => ['data-selected', 'data-active'].includes(attribute.name.name))
+      const boundary = attributes.some((attribute) => attribute.name.name === 'data-leading-boundary')
+      selectedMaterialPublishers.push({ file, role, stateAttributes: stateAttributes.map((attribute) => attribute.name.name), boundary })
+    },
+  })
+}
+const contractedSelectionRoles = new Set(selectedControlContract.groups.map((group) => group.role))
+const publishedSelectionRoles = new Set(selectedMaterialPublishers.map((publisher) => publisher.role).filter(Boolean))
+const invalidSelectedMaterialPublishers = selectedMaterialPublishers.filter((publisher) => {
+  const definition = selectedControlContract.groups.find((group) => group.role === publisher.role)
+  return !definition
+    || publisher.stateAttributes.length !== 1
+    || publisher.stateAttributes[0] !== `data-${definition.state}`
+    || (definition.boundaryMode === 'contiguous' && !publisher.boundary)
+})
+record(
+  'selected_material_publishers_exactly_close_the_contract',
+  invalidSelectedMaterialPublishers.length === 0
+    && [...contractedSelectionRoles].every((role) => publishedSelectionRoles.has(role))
+    && [...publishedSelectionRoles].every((role) => contractedSelectionRoles.has(role)),
+  invalidSelectedMaterialPublishers.map((publisher) => `${publisher.file}:${publisher.role || 'missing-role'}`).join(', ')
+    || `publishers=${selectedMaterialPublishers.length}; roles=${publishedSelectionRoles.size}`,
+)
+const deprecatedSelectionStateClasses = [
+  'newsListCategoryItemActive',
+  'newsListCategoryItemOwnerActive',
+  'newsDetailTranslationSegmentActive',
+  'channelCellActive',
+  'tabActive',
+  'professionActive',
+  'gearProfessionActive',
+  'slotRowActive',
+  'enhancementOptionActive',
+  'simcScenarioSelected',
+]
+const selectionOwnerSources = [...new Set([...selectedStateOwners.map(([file]) => file), ...componentStyleFiles])]
+const duplicatedSelectionStateOwners = selectionOwnerSources.flatMap((file) => deprecatedSelectionStateClasses
+  .filter((className) => read(file).includes(className))
+  .map((className) => `${file}:${className}`))
+record(
+  'contracted_controls_use_data_attributes_as_the_only_selection_state_owner',
+  duplicatedSelectionStateOwners.length === 0
+    && !/selected \? styles\['selected'\]/u.test(read('packages/design-system/src/components/TabBar.tsx'))
+    && !/dataSelectorClass\('selected'/u.test(read('packages/design-system/src/components/TabBar.tsx')),
+  duplicatedSelectionStateOwners.join(', ') || 'data-selected/data-active only',
+)
 record(
   'selected_state_verifier_reuses_existing_devtools_only',
   fs.existsSync(path.join(root, 'scripts/verify-ui-selected-states.js'))
@@ -1054,11 +1109,10 @@ record(
 )
 record(
   'selected_segment_material_owns_both_boundaries',
-  /\.item\.selected,[\s\S]*\.selected \+ \.item\s*\{\s*border-left-color:\s*transparent;/u.test(read('packages/design-system/src/components/TabBar.module.scss'))
-    && /\.channelCellActive,[\s\S]*\.channelCellActive \+ \.channelCell\s*\{\s*border-left-color:\s*transparent;/u.test(reconstructionStyles)
-    && /\.newsListCategoryItemOwnerActive::before\s*\{\s*display:\s*none;/u.test(reconstructionStyles)
-    && /\.talentTreeTabActive,[\s\S]*\.talentTreeTabActive \+ \.talentTreeTab\s*\{\s*border-left-color:\s*transparent;/u.test(reconstructionStyles)
-    && /\.tabActive,[\s\S]*\.tabActive \+ \.tab\s*\{\s*border-left-color:\s*transparent;/u.test(read('packages/design-system/src/components/TalentSimulatorComponents.module.scss'))
+  /\.item\[data-selected='true'\],[\s\S]*\.item\[data-selected='true'\] \+ \.item\s*\{\s*border-left-color:\s*transparent;/u.test(read('packages/design-system/src/components/TabBar.module.scss'))
+    && /\.channelCell\[data-selected='true'\],[\s\S]*\.channelCell\[data-selected='true'\] \+ \.channelCell\s*\{\s*border-left-color:\s*transparent;/u.test(reconstructionStyles)
+    && /\.newsListCategoryItemOwner\[data-selected='true'\]::before\s*\{\s*display:\s*none;/u.test(reconstructionStyles)
+    && /\.tab\[data-active='true'\],[\s\S]*\.tab\[data-active='true'\] \+ \.tab\s*\{\s*border-left-color:\s*transparent;/u.test(read('packages/design-system/src/components/TalentSimulatorComponents.module.scss'))
     && /button\[data-selected='true'\],[\s\S]*button\[data-selected='true'\] \+ button\s*\{\s*border-left-color:\s*transparent;/u.test(read('packages/design-system/src/components/TaskListComponents.module.scss')),
   'active segmented controls must suppress ordinary-state separators and pseudo-element borders on both edges',
 )
@@ -1581,7 +1635,7 @@ record(
   !/\.newsDetailTranslationSegment\s*\+\s*\.newsDetailTranslationSegment\s*\{[^}]*\bborder-left\s*:/su.test(selectionMaterialStyles)
     && /\.newsDetailTranslationSegment\s*\+\s*\.newsDetailTranslationSegment::before\s*\{/u.test(selectionMaterialStyles)
     && /\.newsDetailTranslationSegment\[data-selected='true'\]\s*\+\s*\.newsDetailTranslationSegment::before/u.test(selectionMaterialStyles)
-    && /\.newsDetailTranslationSegmentActive\s*\+\s*\.newsDetailTranslationSegment::before/u.test(selectionMaterialStyles),
+    && !/newsDetailTranslationSegmentActive/u.test(selectionMaterialStyles),
   'selected segment borders must suppress adjacent inactive separators instead of stacking edge materials',
 )
 

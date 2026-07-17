@@ -61,8 +61,8 @@
 }
 
 .item + .item { border-left: 1px solid rgba(104, 78, 43, 0.62); }
-.item.selected,
-.selected + .item { border-left-color: transparent; }
+.item[data-selected='true'],
+.item[data-selected='true'] + .item { border-left-color: transparent; }
 
 .item::before {
   position: absolute;
@@ -80,13 +80,13 @@
   z-index: 3;
 }
 
-.selected {
+.item[data-selected='true'] {
   color: #e4bb65;
   background: linear-gradient(180deg, rgba(120, 83, 32, 0.22), rgba(55, 37, 16, 0.11) 58%, rgba(9, 11, 13, 0));
   box-shadow: inset 0 1px rgba(241, 198, 107, 0.14), inset 0 -2px rgba(8, 9, 10, 0.62);
 }
 
-.selected::before {
+.item[data-selected='true']::before {
   top: 0;
   right: 0;
   bottom: 0;
@@ -115,7 +115,7 @@
   visibility: visible;
 }
 
-.selected .icon {
+.item[data-selected='true'] .icon {
   color: #e4bb65;
   filter: drop-shadow(0 1px 4px rgba(216, 157, 49, 0.4));
   opacity: 1;

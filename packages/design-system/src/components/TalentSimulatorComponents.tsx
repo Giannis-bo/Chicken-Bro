@@ -211,7 +211,6 @@ export function TalentTreeTabs({
             key={item.id}
             className={componentClass(
               componentStyle('tab'),
-              active && componentStyle('tabActive'),
               (loading || item.disabled === true) && componentStyle('tabDisabled'),
             )}
             data-active={active ? 'true' : 'false'}

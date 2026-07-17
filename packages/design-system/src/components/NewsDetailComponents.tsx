@@ -109,10 +109,7 @@ export function TranslationStatusSegments({
           {items.map((item, index) => (
             <View
               key={item.id}
-              className={reconstructionClass(
-                reconstructionStyle('newsDetailTranslationSegment'),
-                item.selected && reconstructionStyle('newsDetailTranslationSegmentActive'),
-              )}
+              className={reconstructionStyle('newsDetailTranslationSegment')}
               data-role="news-detail-translation-segment"
               data-leading-boundary={item.selected ? 'active' : index > 0 && items[index - 1]?.selected ? 'suppressed' : 'inactive'}
               data-selection-material={item.selected ? 'active' : 'inactive'}

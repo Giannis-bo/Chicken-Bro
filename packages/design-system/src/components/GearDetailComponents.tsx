@@ -99,9 +99,7 @@ export function GearProfessionSelector({ items, loading = false, onSelect }: Gea
               aria-label={`当前职业：${item.label}`}
               className={classes(
                 style('professionButton'),
-                item.selected && style('professionActive'),
                 loading && style('professionButtonLoading'),
-                item.selected && styleSelectorClass('gearProfessionActive'),
               )}
               data-active={item.selected ? 'true' : 'false'}
               data-selection-material={item.selected ? 'active' : 'inactive'}
@@ -398,7 +396,6 @@ function GearSlotRow({
       aria-label={`${item.label}：${item.itemLabel}`}
       className={classes(
         style('slotRow'),
-        item.selected && style('slotRowActive'),
         style(`slotRow-${item.state}`),
       )}
       data-active={item.selected ? 'true' : 'false'}
@@ -537,7 +534,7 @@ export function GearSlotWorkbench({
                   {enhancements.map((item) => (
                     <ControlButton
                       key={`${item.kind}-${item.id}`}
-                      className={classes(style('enhancementOption'), item.selected && style('enhancementOptionActive'))}
+                      className={style('enhancementOption')}
                       data-active={item.selected ? 'true' : 'false'}
                       data-selection-material={item.selected ? 'active' : 'inactive'}
                       data-role="gear-enhancement-option"

@@ -262,7 +262,7 @@ export function SimcCombatConfiguration({
         {scenarios.map((scenario, index) => (
           <ControlButton
             key={scenario.id}
-            className={`${styles['scenarioOption'] ?? ''} ${styleSelectorClass(`simcScenarioOption${index}`)} ${index === selectedScenarioIndex ? styleSelectorClass('simcScenarioSelected') : ''}`}
+            className={`${styles['scenarioOption'] ?? ''} ${styleSelectorClass(`simcScenarioOption${index}`)}`}
             data-role="simc-scenario-option"
             data-selection-material={index === selectedScenarioIndex ? 'active' : 'inactive'}
             data-scenario-id={scenario.id}

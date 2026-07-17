@@ -61,7 +61,6 @@ export function ChannelDock({
                   key={item.id}
                   className={reconstructionClass(
                     reconstructionStyle('newsListCategoryItem'),
-                    selected && reconstructionStyle('newsListCategoryItemActive'),
                     loading && reconstructionStyle('newsListCategoryItemLoading'),
                   )}
                   data-role="news-list-category"
@@ -117,7 +116,6 @@ export function ChannelDock({
             key={item.id}
             className={reconstructionClass(
               reconstructionStyle('channelCell'),
-              selected && reconstructionStyle('channelCellActive'),
               loading && reconstructionStyle('channelCellLoading'),
             )}
             data-role="channel-segment"
