@@ -3,6 +3,7 @@ import type { CSSProperties } from 'react'
 
 import {
   assetRuntimePath,
+  assetPromotionStatus,
   type AssetSlotId,
   type ProductionAssetId,
 } from '@wow-mini/assets-manifest'
@@ -36,6 +37,7 @@ export function NineSliceFrame({
   scope = 'owner',
 }: NineSliceFrameProps) {
   const runtimePath = assetRuntimePath(assetId)
+  const promotionStatus = assetPromotionStatus(assetId)
   if (!runtimePath) return null
 
   const profile = frameProfiles[assetId]
@@ -56,6 +58,7 @@ export function NineSliceFrame({
         data-asset-id={assetId}
         data-frame-scope={scope}
         data-material-render="full-frame"
+        data-promotion-status={promotionStatus}
         data-slot-id={slotId}
         mode="scaleToFill"
         src={runtimePath}
@@ -83,6 +86,7 @@ export function NineSliceFrame({
       data-frame-width={resolvedFrameWidth}
       data-frame-scope={scope}
       data-material-render="nine-slice"
+      data-promotion-status={promotionStatus}
       data-slot-id={slotId}
       style={style}
     />

@@ -7,12 +7,12 @@ const contract = require('../docs/design/current-ui/runtime-asset-slot-mapping-c
 const { combineDetails } = require('../scripts/promote-ui-asset-slot-review')
 
 function routeDetail(route) {
-  return { route, status: 'pass', elementCount: 1, slotCount: 1, missingAssetElements: 0, semanticMappings: [{ runtimeSlot: 'asset_slot.test', contractSlot: 'shared:asset_slot.utility-glyph-family' }], failures: [] }
+  return { route, status: 'pass', elementCount: 1, assetElementCount: 1, slotCount: 1, missingAssetElements: 0, missingPromotionStatusElements: 0, promotionCounts: { production_promoted: 0, candidate_pending_review: 1, missing: 0 }, semanticMappings: [{ runtimeSlot: 'asset_slot.test', contractSlot: 'shared:asset_slot.utility-glyph-family' }], failures: [] }
 }
 
 function batches() {
   const routes = contract.routes.map((route) => routeDetail(route.route))
-  const base = { schemaVersion: 'wechat-runtime-asset-slot-review-v1', commit: 'a'.repeat(12), viewport: { width: 390, height: 844, dpr: 3 } }
+  const base = { schemaVersion: 'wechat-runtime-asset-slot-review-v2', commit: 'a'.repeat(12), viewport: { width: 390, height: 844, dpr: 3 } }
   return [{ ...base, routes: routes.slice(0, 7) }, { ...base, routes: routes.slice(7) }]
 }
 
@@ -32,4 +32,7 @@ test('asset-slot promotion rejects repeated, mismatched or failing batches', () 
   const failing = batches()
   failing[0].routes[0].missingAssetElements = 1
   assert.throws(() => combineDetails(failing), /only complete passing/)
+  const missingPromotion = batches()
+  missingPromotion[0].routes[0].missingPromotionStatusElements = 1
+  assert.throws(() => combineDetails(missingPromotion), /only complete passing/)
 })

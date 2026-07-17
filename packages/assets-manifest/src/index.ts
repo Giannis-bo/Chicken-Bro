@@ -10,6 +10,7 @@ import { normalizeAssetRuntimeRoot } from './runtime-root.cjs'
 
 export type ProductionAssetId = string
 export type AssetSlotId = string
+export type AssetPromotionStatus = 'production_promoted' | 'candidate_pending_review' | 'missing'
 
 export type AssetSourceClass = 'system_vector' | 'imagegen_raster' | 'canonical_target_derivative'
 export type CandidateReviewStatus =
@@ -250,6 +251,12 @@ export function assetRuntimePath(assetId: ProductionAssetId): string | null {
   const asset = productionAssets.find((candidate) => candidate.assetId === assetId)
     ?? candidateAssets.find((candidate) => candidate.assetId === assetId)
   return asset ? `${configuredRuntimeAssetRoot}/${toRuntimeRelativePath(asset.filePath)}` : null
+}
+
+export function assetPromotionStatus(assetId: ProductionAssetId): AssetPromotionStatus {
+  if (productionAssets.some((asset) => asset.assetId === assetId)) return 'production_promoted'
+  if (candidateAssets.some((asset) => asset.assetId === assetId)) return 'candidate_pending_review'
+  return 'missing'
 }
 
 export function assetRuntimePathForSlot(slotId: AssetSlotId, variant?: string): string | null {

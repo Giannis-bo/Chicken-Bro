@@ -1,6 +1,6 @@
 import { Image } from '@tarojs/components'
 
-import { assetRuntimePath, type AssetSlotId, type ProductionAssetId } from '@wow-mini/assets-manifest'
+import { assetPromotionStatus, assetRuntimePath, type AssetSlotId, type ProductionAssetId } from '@wow-mini/assets-manifest'
 
 import { SystemGlyph } from './SystemGlyph'
 import { dataSelectorClass, selectorClass } from './selector-markers'
@@ -25,6 +25,7 @@ export function ProductionAssetGlyph({
   fit = 'contain',
 }: ProductionAssetGlyphProps) {
   const runtimePath = assetRuntimePath(assetId)
+  const promotionStatus = assetPromotionStatus(assetId)
   const resolvedClassName = selectorClass(className, dataSelectorClass('asset-id', assetId))
   if (!runtimePath) {
     return (
@@ -42,6 +43,7 @@ export function ProductionAssetGlyph({
       className={resolvedClassName}
       data-asset-fallback="false"
       data-asset-id={assetId}
+      data-promotion-status={promotionStatus}
       data-fit={fit}
       data-slot-id={slotId}
       mode={fit === 'cover' ? 'aspectFill' : 'aspectFit'}

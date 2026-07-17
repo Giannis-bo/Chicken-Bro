@@ -1,7 +1,7 @@
 import { Image, Text, View } from '@tarojs/components'
 import { useEffect, useState } from 'react'
 
-import { assetRuntimePath, type AssetSlotId, type ProductionAssetId } from '@wow-mini/assets-manifest'
+import { assetPromotionStatus, assetRuntimePath, type AssetSlotId, type ProductionAssetId } from '@wow-mini/assets-manifest'
 
 import { isTrustedRuntimeMediaUrl } from '../runtime-media'
 import { SystemGlyph } from './SystemGlyph'
@@ -103,6 +103,7 @@ export function MaterialImage({
                 fallbackSlotId && dataSelectorClass('slot-id', fallbackSlotId),
               )}
               data-asset-id={fallbackAssetId}
+              data-promotion-status={assetPromotionStatus(fallbackAssetId)}
               data-slot-id={fallbackSlotId}
               mode={fallbackMode}
               src={fallbackAssetPath}

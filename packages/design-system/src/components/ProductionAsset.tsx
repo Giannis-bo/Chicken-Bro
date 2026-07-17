@@ -3,6 +3,7 @@ import type { CSSProperties } from 'react'
 
 import {
   assetRuntimePath,
+  assetPromotionStatus,
   type AssetSlotId,
   type ProductionAssetId,
 } from '@wow-mini/assets-manifest'
@@ -28,6 +29,7 @@ export function ProductionAssetImage({
   enabled = true,
 }: ProductionAssetImageProps) {
   const runtimePath = enabled ? assetRuntimePath(assetId) : null
+  const promotionStatus = assetPromotionStatus(assetId)
   if (!runtimePath) {
     return (
       <View
@@ -41,6 +43,7 @@ export function ProductionAssetImage({
         data-asset-fallback="true"
         data-asset-missing="true"
         data-asset-id={assetId}
+        data-promotion-status={promotionStatus}
         data-slot-id={slotId}
       />
     )
@@ -55,6 +58,7 @@ export function ProductionAssetImage({
         className,
       )}
       data-asset-id={assetId}
+      data-promotion-status={promotionStatus}
       data-asset-fallback="false"
       data-slot-id={slotId}
       mode={fit === 'cover' ? 'aspectFill' : 'aspectFit'}
@@ -81,6 +85,7 @@ export function ProductionAssetSurface({
   dataRole,
 }: ProductionAssetSurfaceProps) {
   const runtimePath = enabled ? assetRuntimePath(assetId) : null
+  const promotionStatus = assetPromotionStatus(assetId)
   const style = runtimePath
     ? ({ '--production-asset-url': `url(${runtimePath})` } as CSSProperties)
     : undefined
@@ -98,6 +103,7 @@ export function ProductionAssetSurface({
       data-role={dataRole}
       data-slot-id={slotId}
       data-asset-id={assetId}
+      data-promotion-status={promotionStatus}
       {...(style ? { style } : {})}
     >
       {children}

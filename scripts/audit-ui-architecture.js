@@ -911,6 +911,24 @@ record(
 )
 const assetSlotVerifier = read('scripts/verify-ui-asset-slots.js')
 const assetSlotPromotion = read('scripts/promote-ui-asset-slot-review.js')
+const assetRenderingOwners = [
+  'packages/design-system/src/components/ProductionAsset.tsx',
+  'packages/design-system/src/components/ProductionAssetGlyph.tsx',
+  'packages/design-system/src/components/SystemGlyph.tsx',
+  'packages/design-system/src/components/NineSliceFrame.tsx',
+  'packages/design-system/src/components/MaterialImage.tsx',
+]
+record(
+  'runtime_asset_elements_publish_manifest_promotion_status',
+  /export function assetPromotionStatus/u.test(read('packages/assets-manifest/src/index.ts'))
+    && /production_promoted/u.test(read('packages/assets-manifest/src/index.ts'))
+    && /candidate_pending_review/u.test(read('packages/assets-manifest/src/index.ts'))
+    && assetRenderingOwners.every((file) => /assetPromotionStatus/u.test(read(file)) && /data-promotion-status/u.test(read(file)))
+    && /wechat-runtime-asset-slot-review-v2/u.test(assetSlotVerifier)
+    && /missingPromotionStatusElements/u.test(assetSlotVerifier)
+    && /missingPromotionStatusElements !== 0/u.test(assetSlotPromotion),
+  'every rendered asset identity must expose production, candidate or missing status from the unified manifest',
+)
 record(
   'asset_slot_evidence_rejects_empty_route_false_positives',
   /no visible asset elements/u.test(assetSlotVerifier)

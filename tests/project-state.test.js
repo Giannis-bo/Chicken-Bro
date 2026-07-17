@@ -582,10 +582,29 @@ test('runtime asset-slot review is contract-mapped and bounded', () => {
   assert.match(verifier, /unregistered runtime slot/)
   assert.match(verifier, /no visible asset elements/)
   assert.match(verifier, /no visible runtime slots/)
+  assert.match(verifier, /wechat-runtime-asset-slot-review-v2/)
+  assert.match(verifier, /missingPromotionStatusElements/)
+  assert.match(verifier, /candidate_pending_review/)
   assert.match(verifier, /wx-data-asset-missing-true/)
   assert.match(verifier, /failures\.slice\(0, 10\)/)
   assert.doesNotMatch(verifier, /results:\s*summaries/)
   assert.doesNotMatch(verifier, /WECHAT_AUTOMATOR_LAUNCH/)
+})
+
+test('asset rendering owners publish manifest promotion status', () => {
+  const registry = fs.readFileSync('packages/assets-manifest/src/index.ts', 'utf8')
+  assert.match(registry, /export function assetPromotionStatus/)
+  for (const file of [
+    'packages/design-system/src/components/ProductionAsset.tsx',
+    'packages/design-system/src/components/ProductionAssetGlyph.tsx',
+    'packages/design-system/src/components/SystemGlyph.tsx',
+    'packages/design-system/src/components/NineSliceFrame.tsx',
+    'packages/design-system/src/components/MaterialImage.tsx',
+  ]) {
+    const source = fs.readFileSync(file, 'utf8')
+    assert.match(source, /assetPromotionStatus/)
+    assert.match(source, /data-promotion-status/)
+  }
 })
 
 test('optional shell assets cannot leak undefined runtime slot identities', () => {

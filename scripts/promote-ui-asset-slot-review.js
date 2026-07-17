@@ -16,7 +16,7 @@ function readDetails(value) {
 
 function combineDetails(details) {
   const first = details[0]
-  if (details.some((detail) => detail.schemaVersion !== 'wechat-runtime-asset-slot-review-v1')) throw new Error('unsupported asset-slot detail schema')
+  if (details.some((detail) => detail.schemaVersion !== 'wechat-runtime-asset-slot-review-v2')) throw new Error('unsupported asset-slot detail schema')
   if (!/^[a-f\d]{12}$/u.test(first.commit ?? '') || details.some((detail) => detail.commit !== first.commit)) throw new Error('asset-slot detail commits must match')
   const viewportKey = JSON.stringify(first.viewport)
   if (![first.viewport?.width, first.viewport?.height, first.viewport?.dpr].every((value) => Number.isFinite(value) && value > 0) || details.some((detail) => JSON.stringify(detail.viewport) !== viewportKey)) throw new Error('asset-slot detail viewports must match')
@@ -25,10 +25,10 @@ function combineDetails(details) {
   if (new Set(routeNames).size !== routeNames.length) throw new Error('asset-slot detail routes must not repeat')
   const expectedRoutes = contract.routes.map((route) => route.route)
   if (expectedRoutes.some((route) => !routeNames.includes(route)) || routeNames.some((route) => !expectedRoutes.includes(route))) throw new Error('asset-slot detail must cover the exact 14-route contract')
-  if (routes.some((route) => route.status !== 'pass' || route.elementCount < 1 || route.slotCount < 1 || route.missingAssetElements !== 0 || route.failures.length !== 0 || route.semanticMappings.length !== route.slotCount)) throw new Error('only complete passing non-empty asset-slot reviews may be promoted')
+  if (routes.some((route) => route.status !== 'pass' || route.elementCount < 1 || route.assetElementCount < 1 || route.slotCount < 1 || route.missingAssetElements !== 0 || route.missingPromotionStatusElements !== 0 || route.failures.length !== 0 || route.semanticMappings.length !== route.slotCount)) throw new Error('only complete passing non-empty asset-slot reviews may be promoted')
   const byRoute = new Map(routes.map((route) => [route.route, route]))
   return {
-    schemaVersion: 'wechat-runtime-asset-slot-evidence-v1',
+    schemaVersion: 'wechat-runtime-asset-slot-evidence-v2',
     commit: first.commit,
     viewport: first.viewport,
     routes: expectedRoutes.map((route) => byRoute.get(route)),
