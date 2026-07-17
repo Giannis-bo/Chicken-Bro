@@ -97,6 +97,7 @@ class GearAttributeRulesTest(unittest.TestCase):
         self.assertEqual(public["status"], "available")
         self.assertEqual(public["attributeRuleRevision"], "fixture-r1")
         self.assertEqual(public["raceOptions"], [{"raceKey": "human"}])
+        self.assertEqual(public["rules"][0]["attributeRuleRevision"], "fixture-r1")
         self.assertEqual(public["rules"][0]["sourceRefs"], ["test:verified-source"])
         self.assertEqual(public["rules"][0]["goldenSampleIds"], ["test:mage-frost-human"])
         self.assertNotIn("implementationNotes", public["rules"][0])

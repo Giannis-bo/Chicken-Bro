@@ -255,9 +255,10 @@ def _normalize_public_query(class_key: Any, spec_key: Any, level: Any) -> tuple[
     return normalized_class, normalized_spec, level
 
 
-def _public_rule(rule: dict) -> dict:
+def _public_rule(rule: dict, attribute_rule_revision: str) -> dict:
     public_rule = copy.deepcopy(rule)
     public_rule.pop("implementationNotes", None)
+    public_rule["attributeRuleRevision"] = attribute_rule_revision
     return public_rule
 
 
@@ -287,7 +288,7 @@ def public_attribute_calculator_context(rulebook: dict, *, class_key: str, spec_
         "status": "available",
         "attributeRuleRevision": revision,
         "raceOptions": [{"raceKey": context["raceKey"]} for context in matching_rules],
-        "rules": [_public_rule(context) for context in matching_rules],
+        "rules": [_public_rule(context, revision) for context in matching_rules],
         "problems": [],
     }
 
@@ -317,7 +318,7 @@ def applicable_attribute_rule(
             and context["level"] == normalized_level
             and context["raceKey"] == normalized_race
         ):
-            return _public_rule(context), []
+            return _public_rule(context, validated["attributeRuleRevision"]), []
     return None, [
         _issue("ATTRIBUTE_RULE_UNAVAILABLE", "ATTRIBUTE_RULE_UNAVAILABLE", "attributeCalculator", "no verified attribute rule context is available")
     ]
