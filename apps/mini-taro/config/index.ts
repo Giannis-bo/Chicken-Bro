@@ -2,6 +2,8 @@ import path from 'node:path'
 
 import { defineConfig } from '@tarojs/cli'
 
+import { isImmutableRemoteAssetRoot } from '../../../packages/assets-manifest/src/runtime-root.cjs'
+
 const appRoot = path.resolve(__dirname, '..')
 const repositoryRoot = path.resolve(appRoot, '../..')
 const target = process.env['TARO_ENV'] === 'h5' ? 'h5' : 'weapp'
@@ -9,8 +11,7 @@ const configuredOutputRoot = process.env['WOW_TARO_OUTPUT_ROOT']?.trim()
 const outputRoot = configuredOutputRoot || `dist/${target}`
 const isolatedBuild = process.env['WOW_TARO_ISOLATED_BUILD'] === '1'
 const configuredAssetRuntimeRoot = process.env['WOW_ASSET_RUNTIME_ROOT']?.trim() ?? ''
-const immutableRemoteAssetRootPattern = /^https:\/\/[^/?#\s]+(?:\/[^?#\s]*)?\/releases\/[a-z0-9][a-z0-9._-]{7,}\/?$/iu
-if (configuredAssetRuntimeRoot && !immutableRemoteAssetRootPattern.test(configuredAssetRuntimeRoot)) {
+if (configuredAssetRuntimeRoot && !isImmutableRemoteAssetRoot(configuredAssetRuntimeRoot)) {
   throw new Error('WOW_ASSET_RUNTIME_ROOT must be an immutable HTTPS path ending in /releases/<release-id>')
 }
 const localAssetRuntime = !configuredAssetRuntimeRoot

@@ -6,6 +6,8 @@ import newsHomeRasterManifest from '../../design-system/assets/raster/news-home-
 import newsListRasterManifest from '../../design-system/assets/raster/news-list-v1/manifest.json'
 import sharedChromeRasterManifest from '../../design-system/assets/raster/shared-chrome-v1/manifest.json'
 
+import { normalizeAssetRuntimeRoot } from './runtime-root.cjs'
+
 export type ProductionAssetId = string
 export type AssetSlotId = string
 
@@ -44,25 +46,8 @@ export interface ProductionAssetSlot extends Omit<CandidateAssetSlot, 'reviewSta
 }
 
 export const defaultRuntimeAssetRoot = '/assets/ui-v2' as const
-const immutableRemoteAssetRootPattern = /^https:\/\/[^/?#\s]+(?:\/[^?#\s]*)?\/releases\/[a-z0-9][a-z0-9._-]{7,}\/?$/iu
 
 let configuredRuntimeAssetRoot: string = defaultRuntimeAssetRoot
-
-function normalizeRoot(root: string): string {
-  const value = root.trim()
-  if (!value || value === '/') return ''
-  if (value === '.') return '.'
-  if (/^https:\/\//iu.test(value)) {
-    if (!immutableRemoteAssetRootPattern.test(value)) {
-      throw new Error(`Remote asset runtime root must use an immutable /releases/<release-id> HTTPS path: ${value}`)
-    }
-    return value.replace(/\/+$/g, '')
-  }
-  if (/^[a-z][a-z\d+.-]*:\/\//iu.test(value)) {
-    throw new Error(`Asset runtime root must use HTTPS: ${value}`)
-  }
-  return `/${value.replace(/^\/+|\/+$/g, '')}`
-}
 
 function toRuntimeRelativePath(filePath: string): string {
   const marker = 'packages/design-system/assets/'
@@ -253,7 +238,7 @@ export const productionAssets: readonly ProductionAsset[] = newsHomeProductionAs
 export const assetSlots: readonly ProductionAssetSlot[] = newsHomeProductionAssetSlots
 
 export function configureAssetRuntimeRoot(root: string): void {
-  configuredRuntimeAssetRoot = normalizeRoot(root)
+  configuredRuntimeAssetRoot = normalizeAssetRuntimeRoot(root)
 }
 
 export function currentAssetRuntimeRoot(): string {
