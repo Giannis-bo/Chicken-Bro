@@ -67,13 +67,13 @@ const buildsHomeCandidateAssets: readonly CandidateAsset[] = buildsHomeRasterMan
   sourceClass: asset.sourceClass as AssetSourceClass,
   dimensions: [asset.dimensions['2x'].width, asset.dimensions['2x'].height] as const,
   sizeBytes: asset.bytes['2x'],
-  reviewStatus: 'generated_pending_isolated_review',
+  reviewStatus: asset.reviewStatus as CandidateReviewStatus,
 }))
 
 const buildsHomeCandidateAssetSlots: readonly CandidateAssetSlot[] = buildsHomeRasterManifest.slots.map((slot) => ({
   slotId: slot.slotId,
   packageLocation: slot.packageLocation,
-  reviewStatus: 'generated_pending_isolated_review',
+  reviewStatus: slot.reviewStatus as CandidateReviewStatus,
 }))
 
 const buildIntelCandidateAssets: readonly CandidateAsset[] = buildIntelRasterManifest.assets.map((asset) => ({
@@ -117,7 +117,7 @@ const sharedChromeCandidateAssets: readonly CandidateAsset[] = sharedChromeRaste
   sourceClass: asset.sourceClass as AssetSourceClass,
   dimensions: [asset.runtime['2x'].width, asset.runtime['2x'].height] as const,
   sizeBytes: asset.runtime['2x'].bytes,
-  reviewStatus: 'independent_review_passed_for_canary',
+  reviewStatus: asset.status as CandidateReviewStatus,
 }))
 
 const sharedChromeCandidateAssetSlots: readonly CandidateAssetSlot[] = Array.from(new Set(
@@ -125,7 +125,7 @@ const sharedChromeCandidateAssetSlots: readonly CandidateAssetSlot[] = Array.fro
 )).map((slotId) => ({
   slotId,
   packageLocation: 'packages/design-system/assets/raster/shared-chrome-v1/runtime',
-  reviewStatus: 'independent_review_passed_for_canary',
+  reviewStatus: sharedChromeRasterManifest.status as CandidateReviewStatus,
 }))
 
 const newsListCandidateAssets: readonly CandidateAsset[] = newsListRasterManifest.assets.map((asset) => ({
@@ -136,7 +136,7 @@ const newsListCandidateAssets: readonly CandidateAsset[] = newsListRasterManifes
   sourceClass: asset.sourceClass as AssetSourceClass,
   dimensions: [asset.runtime['2x'].width, asset.runtime['2x'].height] as const,
   sizeBytes: asset.runtime['2x'].bytes,
-  reviewStatus: 'independent_review_passed_for_canary',
+  reviewStatus: asset.status as CandidateReviewStatus,
 }))
 
 const newsListCandidateAssetSlots: readonly CandidateAssetSlot[] = Array.from(new Set(
@@ -144,7 +144,7 @@ const newsListCandidateAssetSlots: readonly CandidateAssetSlot[] = Array.from(ne
 )).map((slotId) => ({
   slotId,
   packageLocation: 'packages/design-system/assets/raster/news-list-v1/runtime',
-  reviewStatus: 'independent_review_passed_for_canary',
+  reviewStatus: newsListRasterManifest.status as CandidateReviewStatus,
 }))
 
 const newsDetailCandidateAssets: readonly CandidateAsset[] = newsDetailRasterManifest.assets.map((asset) => ({
@@ -155,7 +155,7 @@ const newsDetailCandidateAssets: readonly CandidateAsset[] = newsDetailRasterMan
   sourceClass: asset.sourceClass as AssetSourceClass,
   dimensions: [asset.runtime['2x'].width, asset.runtime['2x'].height] as const,
   sizeBytes: asset.runtime['2x'].bytes,
-  reviewStatus: 'independent_review_passed_for_canary',
+  reviewStatus: asset.status as CandidateReviewStatus,
 }))
 
 const newsDetailCandidateAssetSlots: readonly CandidateAssetSlot[] = Array.from(new Set(
@@ -163,7 +163,7 @@ const newsDetailCandidateAssetSlots: readonly CandidateAssetSlot[] = Array.from(
 )).map((slotId) => ({
   slotId,
   packageLocation: 'packages/design-system/assets/raster/news-detail-v1/runtime',
-  reviewStatus: 'independent_review_passed_for_canary',
+  reviewStatus: newsDetailRasterManifest.status as CandidateReviewStatus,
 }))
 
 const rasterSlotIds: Readonly<Record<string, AssetSlotId>> = {
@@ -194,7 +194,7 @@ export const candidateAssets: readonly CandidateAsset[] = [
     sourceClass: asset.sourceClass as AssetSourceClass,
     dimensions: asset.dimensions as [number, number],
     sizeBytes: asset.sizeBytes,
-    reviewStatus: 'untrusted_candidate' as const,
+    reviewStatus: asset.reviewStatus as CandidateReviewStatus,
   })),
   ...buildsHomeCandidateAssets,
   ...buildIntelCandidateAssets,
@@ -207,7 +207,7 @@ export const candidateAssetSlots: readonly CandidateAssetSlot[] = [
   ...rawCandidateSlots.map((slot) => ({
     slotId: slot.slotId,
     packageLocation: slot.packageLocation,
-    reviewStatus: 'untrusted_candidate' as const,
+    reviewStatus: slot.reviewStatus as CandidateReviewStatus,
   })),
   ...buildsHomeCandidateAssetSlots,
   ...buildIntelCandidateAssetSlots,
@@ -224,14 +224,14 @@ const newsHomeProductionAssets: readonly ProductionAsset[] = newsHomeRasterManif
   sourceClass: asset.sourceClass as AssetSourceClass,
   dimensions: [asset.dimensions['2x'].width, asset.dimensions['2x'].height] as const,
   sizeBytes: asset.bytes['2x'],
-  reviewStatus: 'wechat_verified_production',
+  reviewStatus: asset.reviewStatus as ProductionReviewStatus,
   route: 'news_home',
 }))
 
 const newsHomeProductionAssetSlots: readonly ProductionAssetSlot[] = Object.values(rasterSlotIds).map((slotId) => ({
   slotId,
   packageLocation: 'packages/design-system/assets/raster/news-home-v1/runtime',
-  reviewStatus: 'wechat_verified_production',
+  reviewStatus: newsHomeRasterManifest.status as ProductionReviewStatus,
   route: 'news_home',
 }))
 

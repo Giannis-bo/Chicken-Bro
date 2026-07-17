@@ -465,6 +465,13 @@ record(
     && assetsManifestSource.includes('reviewStatus: buildIntelRasterManifest.status as CandidateReviewStatus'),
   `manifest=${buildIntelRasterManifest.status}; assets=${buildIntelRasterManifest.assets.length}`,
 )
+record(
+  'asset_registry_does_not_hardcode_review_promotions',
+  !/reviewStatus:\s*'/u.test(assetsManifestSource)
+    && assetsManifestSource.includes('asset.reviewStatus as ProductionReviewStatus')
+    && assetsManifestSource.includes('newsHomeRasterManifest.status as ProductionReviewStatus'),
+  'candidate and production review states must flow from their source manifests',
+)
 
 const gameObjectIcon = read('packages/design-system/src/components/GameObjectIcon.tsx')
 const workbenchComponents = read('packages/design-system/src/components/WorkbenchComponents.tsx')
