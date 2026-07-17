@@ -67,7 +67,7 @@ Review 窗口同时覆盖共享组件、页面 JSX 中的非组件 wrapper、rou
 | --- | --- | --- |
 | 全量视觉闭环 | 架构合同覆盖 14 路由，最终 target/runtime 微信复核尚未覆盖 14 路由 | 每路由按 `runtime-review-contract.json` 提交完整结论，并由人工确认 |
 | 素材生产链 | `news_home` 素材族已进入微信生产状态；builds、workbench、build-intel、talent-simulator 等仍包含生成待审、复用待验或未晋级槽位 | 素材进入统一 manifest，完成裁切、语义、清晰度和真机复核后晋级；COS/CDN 迁移作为独立工作包执行 |
-| 包体与远端资源 | `npm run verify:ui-package` 在隔离临时目录复跑两种 production 构建：本地素材包 5,040,539 bytes / 137 个素材文件，显式 HTTPS 素材根包 1,774,920 bytes / 0 个本地素材文件，`common.js` 383,453 bytes，`common.wxss` 354,063 bytes，均通过当前预算且不覆盖唯一 watch 输出；生产资产上传、不可变 URL 与微信 request/download 合法域名审批尚未形成可验证记录 | COS/CDN、不可变 URL、域名审批和生产 URL 在资源交付工作包内关闭；包体预算由隔离门禁持续阻断回归 |
+| 包体与远端资源 | `npm run verify:ui-package` 在隔离临时目录复跑两种 production 构建：本地素材包 5,039,987 bytes / 137 个素材文件，且与 6 个 raster runtime 家族及 vector 源目录逐路径闭包一致（missing 0 / unexpected 0）；显式 HTTPS 素材根包 1,774,368 bytes / 0 个本地素材文件，`common.js` 383,999 bytes，`common.wxss` 354,405 bytes，均通过当前预算且不覆盖唯一 watch 输出；生产资产上传、不可变 URL 与微信 request/download 合法域名审批尚未形成可验证记录 | COS/CDN、不可变 URL、域名审批和生产 URL 在资源交付工作包内关闭；路径闭包与包体预算由隔离门禁持续阻断回归 |
 | 一级页面一致性 | 四个 root route 已共享 `PageFrame` 与 `ProductTabBar` owner，最终头部与底栏尺寸调整后需要同一真机窗口复核 | 四个一级页面在相同 viewport 下通过安全区、头部、正文起点和 TabBar 对比 |
 | 页面状态稳定性 | ready 主路径已有实现，loading、empty、error、stale 的完整几何证据仍不齐 | 每路由至少覆盖合同要求的可达状态，确认状态切换不改变共享 chrome 和关键布局 |
 | 核心交互 | `core-interaction-contract.json` 已为 14 路由各登记一个源码 owner、稳定选择器、前置条件、动作与预期；`npm run verify:ui-interactions` 已覆盖全部 14 条并逐条输出结果。装备选择保持本地草稿先落地、选择面板先关闭，再异步校验；当前没有可复用 automation endpoint，因此运行结果仍为 `UNVERIFIED` | 在不 launch/重载 DevTools 的既有 endpoint 上执行一次真实微信交互矩阵，记录实际结果 |
