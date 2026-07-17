@@ -11,6 +11,7 @@ const { writeBoundedJsonAtomic } = require('./bounded-json-detail')
 const contract = require('../docs/design/current-ui/route-geometry-contract.json')
 
 const operationTimeoutMs = 10000
+const queryCaps = Object.freeze({ regions: 32, buttons: 128, controlCells: 64, dockButtons: 32 })
 const contractPath = path.resolve(__dirname, '../docs/design/current-ui/route-geometry-contract.json')
 const contractSha256 = crypto.createHash('sha256').update(fs.readFileSync(contractPath)).digest('hex')
 const requestedRoutes = requireOnlineRouteBatch(process.env.GEOMETRY_ROUTES, 'GEOMETRY_ROUTES', contract.routes.map((route) => route.route))
@@ -60,7 +61,7 @@ async function inspect(page, route, viewport) {
   const initialSafeAreaButtonRoles = route.initialSafeAreaButtonRoles ?? []
   const initialSafeAreaRegionIds = route.initialSafeAreaRegionIds ?? []
   const requiredFixedDockControlRoles = route.requiredFixedDockControlRoles ?? []
-  const [shell, shellBody, tabBar, regions, nativeButtons, roleButtons, controlCells, nativeDockButtons, roleDockButtons, state] = await Promise.all([
+  const [shell, shellBody, tabBar, queriedRegions, nativeButtons, roleButtons, queriedControlCells, nativeDockButtons, roleDockButtons, state] = await Promise.all([
     timeout(page.$('.wx-style-shell'), 4000, 'query route shell'),
     timeout(page.$('.wx-style-shellbody'), 4000, 'query route shell body'),
     timeout(page.$('.wx-style-product-tab-bar'), 4000, 'query product tab bar'),
@@ -72,8 +73,18 @@ async function inspect(page, route, viewport) {
     timeout(page.$$('.wx-style-shelldock [role="button"]'), 4000, 'query role fixed dock buttons'),
     unavailableState(page, route.unavailableRouteStates),
   ])
-  const buttons = [...nativeButtons, ...roleButtons]
-  const dockButtons = [...nativeDockButtons, ...roleDockButtons]
+  const queriedButtons = [...nativeButtons, ...roleButtons]
+  const queriedDockButtons = [...nativeDockButtons, ...roleDockButtons]
+  const queryCapViolations = [
+    ['regions', queriedRegions.length],
+    ['buttons', queriedButtons.length],
+    ['controlCells', queriedControlCells.length],
+    ['dockButtons', queriedDockButtons.length],
+  ].flatMap(([kind, actual]) => actual > queryCaps[kind] ? [{ type: 'geometry-query-cap', kind, actual, maximum: queryCaps[kind] }] : [])
+  const regions = queriedRegions.slice(0, queryCaps.regions)
+  const buttons = queriedButtons.slice(0, queryCaps.buttons)
+  const controlCells = queriedControlCells.slice(0, queryCaps.controlCells)
+  const dockButtons = queriedDockButtons.slice(0, queryCaps.dockButtons)
   if (regions.length === 0 && state) {
     const summary = { route: route.route, status: 'unavailable', routeState: state, regionCount: 0, semanticRegionCount: 0, buttonCount: buttons.length }
     return {
@@ -140,7 +151,7 @@ async function inspect(page, route, viewport) {
     ])
     return { ...geometry, roles: String(roles ?? '').split(',').map((role) => role.trim()).filter(Boolean) }
   }))
-  const violations = []
+  const violations = [...queryCapViolations]
   if (!shellBounds) violations.push({ type: 'missing-shell' })
   else if (shellBounds.left < -tolerance || shellBounds.right > viewport.width + tolerance) violations.push({ type: 'shell-horizontal', left: shellBounds.left, right: shellBounds.right })
   const minimumRegions = route.minimumRegions ?? 1
