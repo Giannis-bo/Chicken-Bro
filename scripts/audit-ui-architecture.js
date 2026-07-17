@@ -1453,6 +1453,13 @@ record(
 )
 
 const wechatAutomator = read('scripts/wechat-automator.js')
+const projectHarnessWorkflow = read('.github/workflows/project-harness.yml')
+record(
+  'project_harness_cancels_superseded_pr_runs',
+  /concurrency:\s*\n\s*group:\s*project-harness-pr-\$\{\{ github\.event\.pull_request\.number \}\}/u.test(projectHarnessWorkflow)
+    && /cancel-in-progress:\s*true/u.test(projectHarnessWorkflow),
+  'only the latest head for a pull request should consume Harness capacity',
+)
 const reuseConnectTimeoutMs = Number(wechatAutomator.match(/const reuseConnectTimeoutMs = (\d+)/u)?.[1])
 record(
   'wechat_automation_reuse_probe_is_bounded_and_launch_is_opt_in',

@@ -26,6 +26,12 @@ function assertUniqueById(entries, label) {
   assert.equal(new Set(ids).size, ids.length, `${label} ids should be unique`)
 }
 
+test('Project Harness cancels superseded runs for the same pull request', () => {
+  const workflow = fs.readFileSync('.github/workflows/project-harness.yml', 'utf8')
+  assert.match(workflow, /concurrency:\s*\n\s*group:\s*project-harness-pr-\$\{\{ github\.event\.pull_request\.number \}\}/)
+  assert.match(workflow, /cancel-in-progress:\s*true/)
+})
+
 test('project-state is the single machine-readable current truth entry', () => {
   assertPathExists(projectStatePath)
   const state = readJson(projectStatePath)
