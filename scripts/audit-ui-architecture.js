@@ -183,6 +183,21 @@ const expectedInteractionAcceptance = expectedInteractionStatus === 'verified'
     ? 'failed_real_wechat_core_interaction_matrix'
     : 'pending_real_wechat_core_interaction_matrix'
 record(
+  'empty_devtools_renderer_is_recorded_without_claiming_runtime_evidence',
+  runtimeReviewStatus.runtimeAvailability?.status !== 'empty_renderer'
+    || (
+      runtimeReviewStatus.runtimeAvailability.shellCount === 0
+      && runtimeReviewStatus.runtimeAvailability.regionCount === 0
+      && runtimeReviewStatus.runtimeAvailability.buttonCount === 0
+      && runtimeReviewStatus.runtimeAvailability.method === 'existing_devtools_read_only_probe'
+      && runtimeReviewStatus.runtimeAvailability.mutations?.length === 0
+      && /do_not_relaunch_reload_or_repeat_probe/u.test(runtimeReviewStatus.runtimeAvailability.retryPolicy ?? '')
+      && runtimeReviewStatus.status === 'active_unverified'
+      && runtimeReviewStatus.sharedMissingEvidence?.includes('wechat_runtime_artifact')
+    ),
+  `runtime=${runtimeReviewStatus.runtimeAvailability?.status ?? 'not_recorded'}`,
+)
+record(
   'runtime_review_records_are_authoritative_inputs',
   ['docs/design/current-ui/runtime-review-contract.json', 'docs/design/current-ui/runtime-review-status.json', 'docs/design/current-ui/selected-control-contract.json', 'docs/design/current-ui/route-geometry-contract.json', 'docs/design/current-ui/runtime-region-mapping-contract.json', 'docs/design/current-ui/runtime-asset-slot-mapping-contract.json']
     .every((file) => evidencePolicy.authoritativeInputs?.includes(file)),

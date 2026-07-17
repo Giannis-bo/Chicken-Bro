@@ -1,6 +1,18 @@
 {
   "schemaVersion": "wechat-runtime-review-status-v1",
   "status": "active_unverified",
+  "runtimeAvailability": {
+    "status": "empty_renderer",
+    "observedAt": "2026-07-17T22:03:51Z",
+    "commit": "c4e16eae6be9",
+    "path": "pages/news/news",
+    "shellCount": 0,
+    "regionCount": 0,
+    "buttonCount": 0,
+    "method": "existing_devtools_read_only_probe",
+    "mutations": [],
+    "retryPolicy": "do_not_relaunch_reload_or_repeat_probe_until_external_renderer_state_changes"
+  },
   "sharedMissingEvidence": [
     "wechat_runtime_artifact",
     "target_runtime_region_comparison",
