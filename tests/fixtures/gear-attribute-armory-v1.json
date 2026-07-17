@@ -1,0 +1,274 @@
+{
+  "schemaRevision": "gear-attribute-armory-v1",
+  "samples": [
+    {
+      "id": "mage-arcane-armory-2026-07-17t041853z",
+      "status": "candidate",
+      "source": {
+        "url": "https://worldofwarcraft.blizzard.com/en-gb/character/eu/blackrock/Heated",
+        "capturedAt": "2026-07-17T04:18:53Z",
+        "captureStatus": "captured"
+      },
+      "identity": {
+        "region": "eu",
+        "realm": "Blackrock",
+        "name": "Heated",
+        "classKey": "mage",
+        "specKey": "arcane",
+        "raceKey": "night_elf",
+        "level": 90
+      },
+      "equipment": [
+        {
+          "slot": "head",
+          "name": "Voidbreaker's Veil",
+          "itemLevel": 289,
+          "stats": {
+            "intellect": 124,
+            "stamina": 1768,
+            "haste_rating": 109,
+            "mastery_rating": 55,
+            "avoidance_rating": 71
+          },
+          "gem": {
+            "versatility_rating": 16,
+            "crit_rating": 7
+          },
+          "enchant": "Enchant Helm - Empowered Rune of Avoidance"
+        },
+        {
+          "slot": "neck",
+          "name": "Rotmire's Sporeheart",
+          "itemLevel": 298,
+          "stats": {
+            "stamina": 1110,
+            "crit_rating": 48,
+            "mastery_rating": 275
+          },
+          "conditionalEffects": [
+            "+23 Primary Stat and +0.15% critical strike effectiveness per unique Midnight gem color",
+            "protective toadstool proc"
+          ]
+        },
+        {
+          "slot": "shoulder",
+          "name": "Voidbreaker's Leyline Nexi",
+          "itemLevel": 289,
+          "stats": {
+            "intellect": 93,
+            "stamina": 1326,
+            "haste_rating": 81,
+            "versatility_rating": 43
+          },
+          "enchant": "Enchant Shoulders - Silvermoon's Mending"
+        },
+        {
+          "slot": "back",
+          "name": "Adherent's Silken Shroud",
+          "itemLevel": 285,
+          "stats": {
+            "intellect": 67,
+            "stamina": 948,
+            "crit_rating": 45,
+            "mastery_rating": 45
+          },
+          "conditionalEffects": [
+            "mana wyrm proc: +44 Intellect"
+          ]
+        },
+        {
+          "slot": "chest",
+          "name": "Voidbreaker's Robe",
+          "itemLevel": 298,
+          "stats": {
+            "intellect": 135,
+            "stamina": 1974,
+            "crit_rating": 117,
+            "haste_rating": 55
+          },
+          "enchant": "Enchant Chest - Mark of the Worldsoul"
+        },
+        {
+          "slot": "wrist",
+          "name": "Voidbreaker's Bracers",
+          "itemLevel": 289,
+          "stats": {
+            "intellect": 70,
+            "stamina": 995,
+            "haste_rating": 29,
+            "versatility_rating": 64
+          },
+          "gem": {
+            "versatility_rating": 16,
+            "crit_rating": 7
+          }
+        },
+        {
+          "slot": "hands",
+          "name": "Fractured Fingerguards",
+          "itemLevel": 289,
+          "stats": {
+            "intellect": 93,
+            "stamina": 1326,
+            "crit_rating": 72,
+            "versatility_rating": 51
+          }
+        },
+        {
+          "slot": "waist",
+          "name": "Martyr's Waistwrap",
+          "itemLevel": 285,
+          "stats": {
+            "intellect": 90,
+            "stamina": 1264,
+            "haste_rating": 60,
+            "mastery_rating": 60
+          },
+          "gem": {
+            "versatility_rating": 16,
+            "crit_rating": 7
+          },
+          "conditionalEffects": [
+            "mana wyrm proc: +44 Intellect"
+          ]
+        },
+        {
+          "slot": "legs",
+          "name": "Voidbreaker's Britches",
+          "itemLevel": 289,
+          "stats": {
+            "intellect": 124,
+            "stamina": 1768,
+            "crit_rating": 55,
+            "haste_rating": 110
+          },
+          "enchant": "+41 Intellect & +115 Stamina"
+        },
+        {
+          "slot": "feet",
+          "name": "Luxurious Loamstriders",
+          "itemLevel": 298,
+          "stats": {
+            "intellect": 101,
+            "stamina": 1480,
+            "crit_rating": 39,
+            "mastery_rating": 90
+          },
+          "enchant": "Enchant Boots - Lynx's Dexterity"
+        },
+        {
+          "slot": "finger1",
+          "name": "Masterwork Sin'dorei Band",
+          "itemLevel": 285,
+          "stats": {
+            "stamina": 948,
+            "crit_rating": 147,
+            "versatility_rating": 147
+          },
+          "gem": {
+            "versatility_rating": 16,
+            "crit_rating": 7
+          },
+          "enchant": "Enchant Ring - Eyes of the Eagle"
+        },
+        {
+          "slot": "finger2",
+          "name": "Sporecaller's Blooming Loop",
+          "itemLevel": 298,
+          "stats": {
+            "stamina": 1110,
+            "haste_rating": 268,
+            "mastery_rating": 55,
+            "speed_rating": 55
+          },
+          "gem": {
+            "versatility_rating": 16,
+            "crit_rating": 7
+          },
+          "enchant": "Enchant Ring - Eyes of the Eagle"
+        },
+        {
+          "slot": "trinket1",
+          "name": "Vaelgor's Final Stare",
+          "itemLevel": 285,
+          "stats": {
+            "intellect": 114
+          },
+          "conditionalEffects": [
+            "on-use diminishing Mastery"
+          ]
+        },
+        {
+          "slot": "trinket2",
+          "name": "Gaze of the Alnseer",
+          "itemLevel": 298,
+          "stats": {
+            "mastery_rating": 123
+          },
+          "conditionalEffects": [
+            "Alnsight proc: +37 Intellect"
+          ]
+        },
+        {
+          "slot": "main_hand",
+          "name": "Spire of the Furious Construct",
+          "itemLevel": 298,
+          "stats": {
+            "intellect": 600,
+            "stamina": 1974,
+            "haste_rating": 90,
+            "mastery_rating": 82
+          },
+          "enchant": "Enchant Weapon - Arcane Mastery"
+        },
+        {
+          "slot": "off_hand",
+          "status": "empty",
+          "reason": "two_hand_staff"
+        }
+      ],
+      "observedPanel": {
+        "item_level": 291,
+        "health": 458760,
+        "mana": 342615,
+        "intellect": 2462,
+        "stamina": 22938,
+        "critical_strike_percent": 19,
+        "haste_percent": 23,
+        "mastery_percent": 37,
+        "versatility_percent": 7
+      },
+      "missingEvidence": [
+        "official character page does not expose item ids or exact variant identities in the rendered tooltip",
+        "official character page names several enchants but does not expose their numeric stat values in the rendered tooltip",
+        "official character page rounds secondary percentages and does not expose the rating conversion or stable class base attributes",
+        "conditional effects are visible but cannot be classified as stable without a rule source"
+      ]
+    },
+    {
+      "id": "mage-frost-armory-2026-07-17t041853z",
+      "status": "candidate",
+      "source": {
+        "url": "https://worldofwarcraft.blizzard.com/ko-kr/character/kr/azshara/%EC%B9%B4%EB%A5%B4%EA%B3%B5%EC%8A%A4",
+        "capturedAt": "2026-07-17T04:18:53Z",
+        "captureStatus": "not_found"
+      },
+      "identity": {
+        "region": "kr",
+        "realm": "Azshara",
+        "name": "카르공스",
+        "classKey": "mage",
+        "specKey": "frost",
+        "raceKey": "unknown",
+        "level": 90
+      },
+      "equipment": [],
+      "observedPanel": {},
+      "missingEvidence": [
+        "official character URL returned 404 at capture time",
+        "current race, equipment instances, enhancements, talents and Armory panel cannot be verified",
+        "the user-supplied screenshot is historical discussion evidence only and is not promoted into a rule input"
+      ]
+    }
+  ]
+}

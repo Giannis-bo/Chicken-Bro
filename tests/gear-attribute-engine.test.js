@@ -2,6 +2,7 @@ const assert = require('node:assert/strict')
 const test = require('node:test')
 
 const fixtures = require('./fixtures/gear-attribute-calculator-cases-v1.json')
+const armoryFixtures = require('./fixtures/gear-attribute-armory-v1.json')
 const { calculateNonCombatAttributes } = require('../pages/builds/gear-attribute-engine')
 
 for (const fixture of fixtures.cases) {
@@ -54,4 +55,25 @@ test('unrecognized stable effects remain conditional and never change totals', (
   assert.deepEqual(result.conditionals, [
     { effectId: 'fixture:not-allowed', included: false, reason: 'UNSUPPORTED_STABLE_EFFECT' },
   ])
+})
+
+test('candidate Armory records cannot become a calculated rule input', () => {
+  const candidate = armoryFixtures.samples.find((sample) => sample.status === 'candidate')
+  assert.ok(candidate)
+  const fixture = fixtures.cases[0]
+  const candidateRule = {
+    ...fixture.rule,
+    status: candidate.status,
+    goldenSampleIds: [candidate.id]
+  }
+
+  const result = calculateNonCombatAttributes(
+    candidateRule,
+    fixture.characterContext,
+    fixture.staticAttributes,
+    fixture.stableEffects,
+  )
+
+  assert.equal(result.status, 'rule_unavailable')
+  assert.equal(result.primary, null)
 })

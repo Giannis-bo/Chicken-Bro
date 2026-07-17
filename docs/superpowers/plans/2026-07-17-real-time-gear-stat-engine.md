@@ -503,7 +503,7 @@ git commit -m "refactor: decouple gear attributes from simc snapshots"
 - Produces: a `verified` rulebook context only when every referenced source and at least one golden sample ID exists; otherwise it remains `blocked_pending_source_capture`.
 - Produces: field-by-field test failures that say whether the mismatch is input, rule, raw rating, percentage/effect or a conditional exclusion.
 
-- [ ] **Step 1: Obtain the required network-write approval before capturing any external source into the repository**
+- [x] **Step 1: Obtain the required network-write approval before capturing any external source into the repository**
 
 Ask exactly: `我需要读取英雄榜/官方角色资料并将角色装备、属性和抓取时间写入 tests fixture 作为黄金样本。是否允许把这些网络来源内容写入仓库？`
 
@@ -511,7 +511,7 @@ Do not browse-and-save, paste character data into fixtures, or mark a rule verif
 
 - [ ] **Step 2: Write failing golden tests after approval**
 
-Create two entries, `mage-frost-armory-<capturedAt>` and `mage-arcane-armory-<capturedAt>`, with explicit `candidate` status first. After identity and full input agree, promote each entry to `verified` and add tests:
+Candidate preparation is complete: `mage-frost-armory-2026-07-17t041853z` and `mage-arcane-armory-2026-07-17t041853z` exist with explicit `candidate` status, and the failing-first registry test now proves that a `candidate` cannot satisfy `goldenSampleIds` validation. This step stays open until at least one identity- and input-complete sample can run the field-by-field golden loop; the Frost source currently returns 404 and the Arcane tooltip capture still lacks exact variant, enchant and conversion evidence.
 
 ```python
 for sample in verified_armory_samples():

@@ -7,6 +7,7 @@ from server import gear_attribute_rules
 
 
 FIXTURE_PATH = Path(__file__).parent / "fixtures" / "gear-attribute-rulebook-v1.json"
+ARMORY_FIXTURE_PATH = Path(__file__).parent / "fixtures" / "gear-attribute-armory-v1.json"
 
 
 def fixture_rulebook():
@@ -22,7 +23,48 @@ def verified_rulebook():
     return rulebook
 
 
+def armory_samples():
+    return json.loads(ARMORY_FIXTURE_PATH.read_text(encoding="utf-8"))
+
+
 class GearAttributeRulesTest(unittest.TestCase):
+    def test_candidate_armory_samples_cannot_satisfy_verified_rule_publication(self):
+        samples, sample_issues = gear_attribute_rules.validate_armory_golden_samples(armory_samples())
+        self.assertEqual(sample_issues, [])
+        candidate = next(sample for sample in samples["samples"] if sample["status"] == "candidate")
+        rulebook = verified_rulebook()
+        rulebook["contexts"][0]["goldenSampleIds"] = [candidate["id"]]
+
+        parsed, issues = gear_attribute_rules.validate_attribute_rulebook(
+            rulebook,
+            golden_samples=samples,
+        )
+
+        self.assertIsNone(parsed)
+        self.assertTrue(any(issue["code"] == "UNVERIFIED_GOLDEN_SAMPLE" for issue in issues))
+
+    def test_not_found_armory_source_cannot_be_promoted_to_verified(self):
+        samples = armory_samples()
+        unavailable = next(sample for sample in samples["samples"] if sample["source"]["captureStatus"] == "not_found")
+        unavailable["status"] = "verified"
+        unavailable["missingEvidence"] = []
+
+        parsed, issues = gear_attribute_rules.validate_armory_golden_samples(samples)
+
+        self.assertIsNone(parsed)
+        self.assertTrue(any(issue["code"] == "VERIFIED_SAMPLE_NOT_CAPTURED" for issue in issues))
+
+    def test_incomplete_armory_equipment_cannot_be_promoted_to_verified(self):
+        samples = armory_samples()
+        partial = next(sample for sample in samples["samples"] if sample["source"]["captureStatus"] == "captured")
+        partial["status"] = "verified"
+        partial["missingEvidence"] = []
+
+        parsed, issues = gear_attribute_rules.validate_armory_golden_samples(samples)
+
+        self.assertIsNone(parsed)
+        self.assertTrue(any(issue["code"] == "VERIFIED_SAMPLE_INCOMPLETE_EQUIPMENT" for issue in issues))
+
     def test_public_context_excludes_unverified_rulebook_context(self):
         context = gear_attribute_rules.public_attribute_calculator_context(
             fixture_rulebook(), class_key="mage", spec_key="frost", level=90

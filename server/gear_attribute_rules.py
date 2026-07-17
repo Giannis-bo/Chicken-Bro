@@ -15,6 +15,7 @@ from typing import Any
 ATTRIBUTE_RULEBOOK_SCHEMA_REVISION = "gear-attribute-rulebook-v1"
 ATTRIBUTE_CHARACTER_CONTEXT_REVISION = "gear-attribute-character-v1"
 ATTRIBUTE_CALCULATOR_CONTEXT_REVISION = "gear-attribute-calculator-context-v1"
+ATTRIBUTE_ARMORY_SAMPLE_SCHEMA_REVISION = "gear-attribute-armory-v1"
 
 _MAX_IDENTIFIER_LENGTH = 256
 _RULEBOOK_KEYS = {"schemaRevision", "attributeRuleRevision", "contexts"}
@@ -47,6 +48,45 @@ _SECONDARY_RULE_KEYS = {
 _PUBLIC_STATUSES = {"verified"}
 _ALLOWED_STATUSES = _PUBLIC_STATUSES | {"fixture_only"}
 _ALLOWED_DISPLAY_UNITS = {"percent", "effect"}
+_ARMORY_SAMPLE_STATUSES = {"candidate", "verified"}
+_ARMORY_SAMPLE_TOP_LEVEL_KEYS = {"schemaRevision", "samples"}
+_ARMORY_SAMPLE_REQUIRED_KEYS = {
+    "id",
+    "status",
+    "source",
+    "identity",
+    "equipment",
+    "observedPanel",
+    "missingEvidence",
+}
+_ARMORY_SOURCE_REQUIRED_KEYS = {"url", "capturedAt", "captureStatus"}
+_ARMORY_IDENTITY_REQUIRED_KEYS = {
+    "region",
+    "realm",
+    "name",
+    "classKey",
+    "specKey",
+    "raceKey",
+    "level",
+}
+_ARMORY_REQUIRED_SLOTS = {
+    "head",
+    "neck",
+    "shoulder",
+    "back",
+    "chest",
+    "wrist",
+    "hands",
+    "waist",
+    "legs",
+    "feet",
+    "finger1",
+    "finger2",
+    "trinket1",
+    "trinket2",
+    "main_hand",
+    "off_hand",
+}
 
 
 def _issue(kind: str, code: str, path: str, message: str) -> dict[str, str]:
@@ -80,6 +120,129 @@ def _string_list(value: Any) -> list[str] | None:
 
 def _is_number(value: Any) -> bool:
     return not isinstance(value, bool) and isinstance(value, (int, float))
+
+
+def _has_complete_verified_equipment(equipment: Any) -> bool:
+    if not isinstance(equipment, list) or len(equipment) != len(_ARMORY_REQUIRED_SLOTS):
+        return False
+    slots: set[str] = set()
+    for item in equipment:
+        if not isinstance(item, dict):
+            return False
+        slot = item.get("slot")
+        if slot not in _ARMORY_REQUIRED_SLOTS or slot in slots:
+            return False
+        slots.add(slot)
+        if item.get("status") == "empty":
+            if slot != "off_hand" or _bounded_string(item.get("reason")) is None:
+                return False
+            continue
+        if _bounded_string(item.get("itemId")) is None or _bounded_string(item.get("variantKey")) is None:
+            return False
+        if isinstance(item.get("itemLevel"), bool) or not isinstance(item.get("itemLevel"), int) or item["itemLevel"] < 1:
+            return False
+        if not isinstance(item.get("stats"), dict):
+            return False
+    return slots == _ARMORY_REQUIRED_SLOTS
+
+
+def _validate_armory_golden_sample(sample: Any, index: int) -> list[dict[str, str]]:
+    path = f"armorySamples.samples[{index}]"
+    issues: list[dict[str, str]] = []
+    if not isinstance(sample, dict):
+        return [_issue("INVALID_ARMORY_SAMPLE", "INVALID_SAMPLE", path, "sample must be an object")]
+    for key in sorted(set(sample) - _ARMORY_SAMPLE_REQUIRED_KEYS):
+        issues.append(_issue("INVALID_ARMORY_SAMPLE", "UNKNOWN_FIELD", f"{path}.{key}", "unknown sample field"))
+    for key in sorted(_ARMORY_SAMPLE_REQUIRED_KEYS - set(sample)):
+        issues.append(_issue("INVALID_ARMORY_SAMPLE", "MISSING_REQUIRED_FIELD", f"{path}.{key}", "required sample field is missing"))
+    if issues:
+        return issues
+
+    if _bounded_string(sample["id"]) is None:
+        issues.append(_issue("INVALID_ARMORY_SAMPLE", "INVALID_SAMPLE_ID", f"{path}.id", "sample id must be a bounded string"))
+    if sample["status"] not in _ARMORY_SAMPLE_STATUSES:
+        issues.append(_issue("INVALID_ARMORY_SAMPLE", "INVALID_SAMPLE_STATUS", f"{path}.status", "sample status must be candidate or verified"))
+
+    source = sample["source"]
+    if not isinstance(source, dict):
+        issues.append(_issue("INVALID_ARMORY_SAMPLE", "INVALID_SOURCE", f"{path}.source", "source must be an object"))
+    else:
+        for key in sorted(set(source) - _ARMORY_SOURCE_REQUIRED_KEYS):
+            issues.append(_issue("INVALID_ARMORY_SAMPLE", "UNKNOWN_FIELD", f"{path}.source.{key}", "unknown source field"))
+        for key in sorted(_ARMORY_SOURCE_REQUIRED_KEYS - set(source)):
+            issues.append(_issue("INVALID_ARMORY_SAMPLE", "MISSING_REQUIRED_FIELD", f"{path}.source.{key}", "required source field is missing"))
+        if set(source) == _ARMORY_SOURCE_REQUIRED_KEYS:
+            if not isinstance(source["url"], str) or not source["url"].startswith("https://"):
+                issues.append(_issue("INVALID_ARMORY_SAMPLE", "INVALID_SOURCE_URL", f"{path}.source.url", "source url must use https"))
+            if _bounded_string(source["capturedAt"]) is None:
+                issues.append(_issue("INVALID_ARMORY_SAMPLE", "INVALID_CAPTURE_TIME", f"{path}.source.capturedAt", "capturedAt must be a bounded string"))
+            if source["captureStatus"] not in {"captured", "not_found"}:
+                issues.append(_issue("INVALID_ARMORY_SAMPLE", "INVALID_CAPTURE_STATUS", f"{path}.source.captureStatus", "captureStatus must be captured or not_found"))
+            elif sample["status"] == "verified" and source["captureStatus"] != "captured":
+                issues.append(_issue("INVALID_ARMORY_SAMPLE", "VERIFIED_SAMPLE_NOT_CAPTURED", f"{path}.source.captureStatus", "verified samples require a successful official capture"))
+
+    identity = sample["identity"]
+    if not isinstance(identity, dict):
+        issues.append(_issue("INVALID_ARMORY_SAMPLE", "INVALID_IDENTITY", f"{path}.identity", "identity must be an object"))
+    else:
+        for key in sorted(set(identity) - _ARMORY_IDENTITY_REQUIRED_KEYS):
+            issues.append(_issue("INVALID_ARMORY_SAMPLE", "UNKNOWN_FIELD", f"{path}.identity.{key}", "unknown identity field"))
+        for key in sorted(_ARMORY_IDENTITY_REQUIRED_KEYS - set(identity)):
+            issues.append(_issue("INVALID_ARMORY_SAMPLE", "MISSING_REQUIRED_FIELD", f"{path}.identity.{key}", "required identity field is missing"))
+        if set(identity) == _ARMORY_IDENTITY_REQUIRED_KEYS:
+            for key in ("region", "realm", "name"):
+                if _bounded_string(identity[key]) is None:
+                    issues.append(_issue("INVALID_ARMORY_SAMPLE", "INVALID_IDENTITY", f"{path}.identity.{key}", "identity text must be bounded"))
+            for key in ("classKey", "specKey", "raceKey"):
+                if _canonical_key(identity[key]) is None:
+                    issues.append(_issue("INVALID_ARMORY_SAMPLE", "INVALID_IDENTITY", f"{path}.identity.{key}", "identity keys must be lower-case identifiers"))
+            if isinstance(identity["level"], bool) or not isinstance(identity["level"], int) or not 1 <= identity["level"] <= 100:
+                issues.append(_issue("INVALID_ARMORY_SAMPLE", "INVALID_LEVEL", f"{path}.identity.level", "level must be an integer from 1 to 100"))
+
+    if not isinstance(sample["equipment"], list):
+        issues.append(_issue("INVALID_ARMORY_SAMPLE", "INVALID_EQUIPMENT", f"{path}.equipment", "equipment must be a list"))
+    elif sample["status"] == "verified" and not _has_complete_verified_equipment(sample["equipment"]):
+        issues.append(_issue("INVALID_ARMORY_SAMPLE", "VERIFIED_SAMPLE_INCOMPLETE_EQUIPMENT", f"{path}.equipment", "verified samples require complete 16-slot item identities and variants"))
+    if not isinstance(sample["observedPanel"], dict):
+        issues.append(_issue("INVALID_ARMORY_SAMPLE", "INVALID_OBSERVED_PANEL", f"{path}.observedPanel", "observedPanel must be an object"))
+    elif any(_canonical_key(key) is None or not _is_number(value) for key, value in sample["observedPanel"].items()):
+        issues.append(_issue("INVALID_ARMORY_SAMPLE", "INVALID_OBSERVED_PANEL", f"{path}.observedPanel", "observed panel requires lower-case numeric fields"))
+    missing_evidence = _string_list(sample["missingEvidence"])
+    if missing_evidence is None:
+        issues.append(_issue("INVALID_ARMORY_SAMPLE", "INVALID_MISSING_EVIDENCE", f"{path}.missingEvidence", "missingEvidence must be a list of bounded strings"))
+    elif sample["status"] == "candidate" and not missing_evidence:
+        issues.append(_issue("INVALID_ARMORY_SAMPLE", "CANDIDATE_MISSING_GAP", f"{path}.missingEvidence", "candidate samples must state their evidence gap"))
+    elif sample["status"] == "verified" and missing_evidence:
+        issues.append(_issue("INVALID_ARMORY_SAMPLE", "VERIFIED_SAMPLE_HAS_GAP", f"{path}.missingEvidence", "verified samples cannot retain evidence gaps"))
+    return issues
+
+
+def validate_armory_golden_samples(raw: object) -> tuple[dict | None, list[dict]]:
+    """Validate captured Armory samples without treating candidates as rule evidence."""
+    if not isinstance(raw, dict):
+        return None, [_issue("INVALID_ARMORY_SAMPLE", "INVALID_REGISTRY", "armorySamples", "samples must be an object")]
+    issues: list[dict[str, str]] = []
+    for key in sorted(set(raw) - _ARMORY_SAMPLE_TOP_LEVEL_KEYS):
+        issues.append(_issue("INVALID_ARMORY_SAMPLE", "UNKNOWN_FIELD", f"armorySamples.{key}", "unknown registry field"))
+    for key in sorted(_ARMORY_SAMPLE_TOP_LEVEL_KEYS - set(raw)):
+        issues.append(_issue("INVALID_ARMORY_SAMPLE", "MISSING_REQUIRED_FIELD", f"armorySamples.{key}", "required registry field is missing"))
+    if raw.get("schemaRevision") != ATTRIBUTE_ARMORY_SAMPLE_SCHEMA_REVISION:
+        issues.append(_issue("INVALID_ARMORY_SAMPLE", "UNSUPPORTED_SCHEMA_REVISION", "armorySamples.schemaRevision", "unsupported Armory sample revision"))
+    samples = raw.get("samples")
+    if not isinstance(samples, list) or not samples:
+        issues.append(_issue("INVALID_ARMORY_SAMPLE", "INVALID_SAMPLES", "armorySamples.samples", "samples must be a non-empty list"))
+    else:
+        sample_ids: set[str] = set()
+        for index, sample in enumerate(samples):
+            issues.extend(_validate_armory_golden_sample(sample, index))
+            if isinstance(sample, dict) and isinstance(sample.get("id"), str):
+                sample_id = sample["id"]
+                if sample_id in sample_ids:
+                    issues.append(_issue("INVALID_ARMORY_SAMPLE", "DUPLICATE_SAMPLE_ID", f"armorySamples.samples[{index}].id", "sample id must be unique"))
+                sample_ids.add(sample_id)
+    if issues:
+        return None, issues
+    return copy.deepcopy(raw), []
 
 
 def _validate_rulebook_context(context: Any, index: int) -> list[dict[str, str]]:
@@ -201,7 +364,11 @@ def parse_attribute_character_context(raw: object) -> tuple[dict | None, list[di
     return {"schemaRevision": ATTRIBUTE_CHARACTER_CONTEXT_REVISION, "raceKey": race_key}, []
 
 
-def validate_attribute_rulebook(raw: object) -> tuple[dict | None, list[dict]]:
+def validate_attribute_rulebook(
+    raw: object,
+    *,
+    golden_samples: object | None = None,
+) -> tuple[dict | None, list[dict]]:
     """Validate a static rulebook and keep fixture-only contexts non-public."""
     if not isinstance(raw, dict):
         return None, [_issue("INVALID_RULEBOOK", "INVALID_RULEBOOK", "rulebook", "rulebook must be an object")]
@@ -227,6 +394,22 @@ def validate_attribute_rulebook(raw: object) -> tuple[dict | None, list[dict]]:
                 if context_key in context_keys:
                     issues.append(_issue("INVALID_RULEBOOK", "DUPLICATE_CONTEXT_KEY", f"rulebook.contexts[{index}].contextKey", "contextKey must be unique"))
                 context_keys.add(context_key)
+    if golden_samples is not None:
+        samples, sample_issues = validate_armory_golden_samples(golden_samples)
+        if sample_issues:
+            issues.extend(sample_issues)
+        elif isinstance(contexts, list):
+            verified_sample_ids = {
+                sample["id"]
+                for sample in samples["samples"]
+                if sample["status"] == "verified"
+            }
+            for index, context in enumerate(contexts):
+                if not isinstance(context, dict) or context.get("status") != "verified":
+                    continue
+                for sample_id in context.get("goldenSampleIds", []):
+                    if sample_id not in verified_sample_ids:
+                        issues.append(_issue("INVALID_RULEBOOK", "UNVERIFIED_GOLDEN_SAMPLE", f"rulebook.contexts[{index}].goldenSampleIds", "verified rules require referenced verified Armory samples"))
     if issues:
         return None, issues
     return copy.deepcopy(raw), []
