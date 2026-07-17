@@ -166,6 +166,22 @@ record(
 )
 const targetRouteIds = sorted(targetRegistry.canonicalTargets.map((target) => target.route))
 const interactionRouteIds = sorted((interactionContract.interactions ?? []).map((interaction) => interaction.route))
+const invalidRequiredRegionContracts = (routeGeometryContract.routes ?? []).flatMap((route) => {
+  const required = route.requiredRegionIds ?? []
+  const sourcePath = `apps/mini-taro/src/${route.path.split('?')[0].replace(/^\//u, '')}.tsx`
+  const sourceExists = fs.existsSync(path.join(root, sourcePath))
+  const source = sourceExists ? read(sourcePath) : ''
+  const missing = required.filter((regionId) => !source.includes(regionId))
+  const duplicateCount = required.length - new Set(required).size
+  return required.length >= 3 && sourceExists && missing.length === 0 && duplicateCount === 0
+    ? []
+    : [`${route.route}:required=${required.length}:missing=${missing.join('|')}:duplicates=${duplicateCount}:source=${sourceExists}`]
+})
+record(
+  'route_geometry_contract_requires_stable_semantic_region_closure',
+  routeGeometryContract.routes?.length === 14 && invalidRequiredRegionContracts.length === 0,
+  invalidRequiredRegionContracts.join(', ') || '14 route semantic closures',
+)
 record(
   'core_interaction_contract_covers_all_target_routes',
   interactionContract.status === expectedInteractionStatus

@@ -128,6 +128,10 @@ async function inspect(page, route, viewport) {
   else if (shellBounds.left < -tolerance || shellBounds.right > viewport.width + tolerance) violations.push({ type: 'shell-horizontal', left: shellBounds.left, right: shellBounds.right })
   const minimumRegions = route.minimumRegions ?? 1
   if (regionBounds.length < minimumRegions) violations.push({ type: 'missing-route-regions', minimum: minimumRegions, actual: regionBounds.length })
+  const presentRegionIds = new Set(regionBounds.map((region) => region.id))
+  for (const requiredRegionId of route.requiredRegionIds ?? []) {
+    if (!presentRegionIds.has(requiredRegionId)) violations.push({ type: 'missing-semantic-region', id: requiredRegionId })
+  }
   for (const region of regionBounds) {
     if (/^region-\d+$/u.test(region.id)) violations.push({ type: 'anonymous-region-id', id: region.id })
     if (region.left < -tolerance || region.right > viewport.width + tolerance) violations.push({ type: 'region-horizontal', id: region.id, left: region.left, right: region.right })
@@ -182,6 +186,8 @@ async function inspect(page, route, viewport) {
     status: violations.length === 0 ? 'pass' : 'fail',
     regionCount: regionBounds.length,
     semanticRegionCount: regionBounds.filter((item) => !/^region-\d+$/u.test(item.id)).length,
+    requiredRegionCount: (route.requiredRegionIds ?? []).length,
+    missingRequiredRegionCount: (route.requiredRegionIds ?? []).filter((id) => !presentRegionIds.has(id)).length,
     buttonCount: buttonBounds.length,
     anonymousButtonCount: buttonBounds.filter((button) => !button.role && !button.actionId).length,
     maxRegionRight: Math.max(0, ...regionBounds.map((item) => item.right)),
