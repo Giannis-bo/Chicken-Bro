@@ -803,6 +803,12 @@ record(
   'visible route regions must pass real viewport geometry instead of relying on route-specific overflow exceptions',
 )
 record(
+  'horizontal_scroll_exemptions_never_bypass_native_button_width',
+  /if \(button\.width > viewport\.width \+ tolerance\)/u.test(read('scripts/verify-ui-route-geometry.js'))
+    && /else if \(!allowedHorizontalScrollContent/u.test(read('scripts/verify-ui-route-geometry.js')),
+  'horizontal tracks may move controls offscreen but no native control may be wider than the viewport',
+)
+record(
   'route_geometry_rejects_duplicate_semantic_regions',
   /duplicate-semantic-region/u.test(read('scripts/verify-ui-route-geometry.js')),
   'each mounted route region id must resolve to exactly one geometry owner',

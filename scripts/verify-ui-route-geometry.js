@@ -152,7 +152,9 @@ async function inspect(page, route, viewport) {
     if (!button.role && !button.actionId) violations.push({ type: 'anonymous-native-button', index })
     const allowedHorizontalScrollContent = allowedHorizontalButtonRoles.some(hasRole)
     const allowedVerticalScrollContent = allowedVerticalButtonRoles.some(hasRole)
-    if (!allowedHorizontalScrollContent && (button.left < -tolerance || button.right > viewport.width + tolerance || button.width > viewport.width + tolerance)) {
+    if (button.width > viewport.width + tolerance) {
+      violations.push({ type: 'native-button-width', index, role: button.role || null, width: button.width, viewportWidth: viewport.width })
+    } else if (!allowedHorizontalScrollContent && (button.left < -tolerance || button.right > viewport.width + tolerance)) {
       violations.push({ type: 'native-button-horizontal', index, left: button.left, right: button.right, width: button.width })
     }
     if (!allowedVerticalScrollContent && (button.top < -tolerance || button.bottom > viewport.height + tolerance || button.height > viewport.height + tolerance)) {
