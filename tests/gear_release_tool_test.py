@@ -401,6 +401,71 @@ class GearReleaseToolTest(unittest.TestCase):
         })
         self.assertNotIn("197", str(evidence))
 
+    def test_import_evidence_binds_verified_source_race_into_v3_fingerprint(self):
+        from server.gear_release_tool import community_template_import_evidence_from_template
+
+        template = self.template()
+        template["attributeCharacterContext"] = {
+            "schemaRevision": "gear-attribute-character-v1",
+            "raceKey": "night_elf",
+            "origin": "source_profile",
+        }
+        snapshot = self.snapshot()
+
+        evidence = community_template_import_evidence_from_template(
+            template,
+            gear_release_id="gear-release:sha256:target",
+            gear_snapshot=snapshot,
+        )
+        human_template = copy.deepcopy(template)
+        human_template["attributeCharacterContext"]["raceKey"] = "human"
+        human_evidence = community_template_import_evidence_from_template(
+            human_template,
+            gear_release_id="gear-release:sha256:target",
+            gear_snapshot=snapshot,
+        )
+
+        self.assertEqual(evidence["schemaRevision"], "community-template-import-evidence-v3")
+        self.assertEqual(evidence["sourceRaceKey"], "night_elf")
+        self.assertEqual(evidence["sourceRaceOrigin"], "source_profile")
+        self.assertNotEqual(evidence["sourceFingerprint"], human_evidence["sourceFingerprint"])
+
+    def test_import_evidence_v3_seals_verified_source_stable_effects_into_fingerprint(self):
+        from server.gear_release_tool import community_template_import_evidence_from_template
+
+        template = self.template()
+        template["attributeCharacterContext"] = {
+            "schemaRevision": "gear-attribute-character-v1",
+            "raceKey": "dwarf",
+            "origin": "source_profile",
+        }
+        template["attributeStableEffectContext"] = {
+            "schemaRevision": "gear-attribute-stable-effects-v1",
+            "status": "verified",
+            "origin": "source_profile",
+            "effectIds": ["mage:inspired_intellect", "mage:tome_of_antonidas"],
+            "loadoutSignature": "sha256:" + "b" * 64,
+        }
+        template["payload"] = {"rawImportCode": "CAE_SOURCE_LOADOUT_MUST_NOT_LEAK"}
+
+        evidence = community_template_import_evidence_from_template(
+            template,
+            gear_release_id="gear-release:sha256:target",
+            gear_snapshot=self.snapshot(),
+        )
+        changed = copy.deepcopy(template)
+        changed["attributeStableEffectContext"]["effectIds"] = ["mage:inspired_intellect"]
+        changed_evidence = community_template_import_evidence_from_template(
+            changed,
+            gear_release_id="gear-release:sha256:target",
+            gear_snapshot=self.snapshot(),
+        )
+
+        self.assertEqual(evidence["schemaRevision"], "community-template-import-evidence-v3")
+        self.assertEqual(evidence["sourceStableEffects"], template["attributeStableEffectContext"])
+        self.assertNotEqual(evidence["sourceFingerprint"], changed_evidence["sourceFingerprint"])
+        self.assertNotIn("CAE_SOURCE_LOADOUT_MUST_NOT_LEAK", json.dumps(evidence, sort_keys=True))
+
     def test_import_evidence_rejects_conflicting_observed_item_level_spellings(self):
         from server.gear_release_store import GearReleaseIntegrityError
         from server.gear_release_tool import community_template_import_evidence_from_template
@@ -2039,7 +2104,7 @@ class GearReleaseToolTest(unittest.TestCase):
         self.assertEqual(prepared["rows"][0]["selectionIntent"], intent)
         self.assertEqual(
             prepared["rows"][0]["payload"]["importEvidence"]["schemaRevision"],
-            "community-template-import-evidence-v1",
+            "community-template-import-evidence-v3",
         )
         self.assertEqual(prepared["seal"]["status"], "inserted")
         self.assertEqual(len(store.community_seals), 1)

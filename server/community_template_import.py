@@ -8,8 +8,16 @@ from typing import Any
 
 
 COMMUNITY_TEMPLATE_IMPORT_CONTRACT_REVISION = "websim-community-template-import-v2"
-COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_REVISION = "community-template-import-evidence-v1"
+COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_V1 = "community-template-import-evidence-v1"
+COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_V2 = "community-template-import-evidence-v2"
+COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_REVISION = "community-template-import-evidence-v3"
+_SUPPORTED_COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_REVISIONS = {
+    COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_V1,
+    COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_V2,
+    COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_REVISION,
+}
 PUBLIC_OBSERVED_SOURCE_KEY = "raiderio_observed_profile"
+_ATTRIBUTE_STABLE_EFFECT_CONTEXT_REVISION = "gear-attribute-stable-effects-v1"
 
 _OPTION_FIELDS = (
     ("gemOptionIds", "gem", "gemCount"),
@@ -26,6 +34,65 @@ def _copy(value: Any) -> Any:
 
 def _text(value: Any) -> str:
     return value.strip() if isinstance(value, str) else ""
+
+
+def _attribute_race_key(value: Any) -> str:
+    key = _text(value)
+    return key if key and len(key) <= 80 and key[0].isalpha() and key == key.lower() and all(
+        character.isalnum() or character == "_" for character in key
+    ) else ""
+
+
+def _attribute_character_context_from_evidence(evidence: dict[str, Any]) -> dict[str, str]:
+    if (
+        _text(evidence.get("schemaRevision")) in {
+            COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_V2,
+            COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_REVISION,
+        }
+        and _text(evidence.get("sourceRaceOrigin")) == "source_profile"
+        and (race_key := _attribute_race_key(evidence.get("sourceRaceKey")))
+    ):
+        return {
+            "schemaRevision": "gear-attribute-character-v1",
+            "raceKey": race_key,
+            "origin": "source_profile",
+        }
+    return {
+        "schemaRevision": "gear-attribute-character-v1",
+        "raceKey": "human",
+        "origin": "default_human",
+    }
+
+
+def _attribute_stable_effect_context_from_evidence(evidence: dict[str, Any]) -> dict[str, Any] | None:
+    if _text(evidence.get("schemaRevision")) != COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_REVISION:
+        return None
+    context = evidence.get("sourceStableEffects")
+    if not isinstance(context, dict) or context.get("status") != "verified":
+        return None
+    effect_ids = context.get("effectIds")
+    signature = _text(context.get("loadoutSignature"))
+    if (
+        set(context) != {
+            "schemaRevision", "status", "origin", "effectIds", "loadoutSignature"
+        }
+        or context.get("schemaRevision") != _ATTRIBUTE_STABLE_EFFECT_CONTEXT_REVISION
+        or context.get("origin") != "source_profile"
+        or not isinstance(effect_ids, list)
+        or effect_ids != sorted(set(effect_ids))
+        or any(
+            not isinstance(effect_id, str)
+            or not effect_id
+            or effect_id != effect_id.lower()
+            or len(effect_id) > 256
+            for effect_id in effect_ids
+        )
+        or len(signature) != 71
+        or not signature.startswith("sha256:")
+        or any(character not in "0123456789abcdef" for character in signature[7:])
+    ):
+        return None
+    return _copy(context)
 
 
 def _int(value: Any) -> int:
@@ -78,9 +145,14 @@ def _winner_import_evidence(row: dict[str, Any]) -> dict[str, Any] | None:
     evidence = payload.get("importEvidence") if isinstance(payload.get("importEvidence"), dict) else {}
     slots = evidence.get("slots") if isinstance(evidence.get("slots"), dict) else {}
     if (
-        evidence.get("schemaRevision") != COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_REVISION
+        _text(evidence.get("schemaRevision")) not in _SUPPORTED_COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_REVISIONS
         or not _text(evidence.get("sourceFingerprint")).startswith("sha256:")
         or not slots
+    ):
+        return None
+    if (
+        _text(evidence.get("schemaRevision")) == COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_REVISION
+        and not isinstance(evidence.get("sourceStableEffects"), dict)
     ):
         return None
     return evidence
@@ -294,19 +366,25 @@ def build_community_template_import_source(
         if slot_visible_options:
             visible_options_by_slot[slot] = slot_visible_options
 
+    template = {
+        "id": _text(row.get("templateId")),
+        "classKey": class_key,
+        "specKey": spec_key,
+        "sourceKey": PUBLIC_OBSERVED_SOURCE_KEY,
+        "name": _text((row.get("payload") or {}).get("name")) if isinstance(row.get("payload"), dict) else "",
+        "profileHash": _text(row.get("profileHash")),
+        "gearHash": _text(row.get("gearHash")),
+        "sourceFingerprint": _text(import_evidence.get("sourceFingerprint")),
+        "attributeCharacterContext": _attribute_character_context_from_evidence(import_evidence),
+    }
+    stable_effect_context = _attribute_stable_effect_context_from_evidence(import_evidence)
+    if stable_effect_context:
+        template["attributeStableEffectContext"] = stable_effect_context
+
     source = {
         "contractRevision": COMMUNITY_TEMPLATE_IMPORT_CONTRACT_REVISION,
         "status": "verified",
-        "template": {
-            "id": _text(row.get("templateId")),
-            "classKey": class_key,
-            "specKey": spec_key,
-            "sourceKey": PUBLIC_OBSERVED_SOURCE_KEY,
-            "name": _text((row.get("payload") or {}).get("name")) if isinstance(row.get("payload"), dict) else "",
-            "profileHash": _text(row.get("profileHash")),
-            "gearHash": _text(row.get("gearHash")),
-            "sourceFingerprint": _text(import_evidence.get("sourceFingerprint")),
-        },
+        "template": template,
         "importedGearBySlot": imported_gear_by_slot,
         "visibleOptionsBySlot": visible_options_by_slot,
         "selectionIntent": {

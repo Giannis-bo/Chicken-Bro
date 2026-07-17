@@ -151,6 +151,12 @@ def normalize_spec_key(value):
     return slugify(value, "")
 
 
+def normalize_observed_race_key(value):
+    race_name, race_slug = dict_name_slug(value)
+    key = slugify(race_slug or race_name, "")
+    return key[:80] if key else ""
+
+
 def role_for_spec(spec_key):
     if spec_key in SPEC_ROLE:
         return SPEC_ROLE[spec_key]
@@ -973,6 +979,9 @@ def simplify_character(raw, default_region=None):
     data = raw.get("character") if isinstance(raw.get("character"), dict) else raw
     realm = data.get("realm") if isinstance(data.get("realm"), dict) else {}
     class_name, class_slug = dict_name_slug(data.get("class") or data.get("class_name"))
+    race_key = normalize_observed_race_key(
+        data.get("race") or data.get("race_name") or data.get("raceName") or data.get("race_slug")
+    )
     spec_source = data.get("spec") or data.get("spec_name") or data.get("active_spec_name") or data.get("activeSpecName")
     spec_name, spec_slug = dict_name_slug(spec_source)
     spec_id = ""
@@ -1001,6 +1010,8 @@ def simplify_character(raw, default_region=None):
         "role": role_for_spec(spec_key),
         "profileUrl": profile_url,
     }
+    if race_key:
+        result["raceKey"] = race_key
     raw_loadout = str(
         raw.get("loadout")
         or data.get("loadout")
@@ -2150,6 +2161,8 @@ def aggregate_runs(runs, profiles):
                         "rankingEvidence": profile.get("rankingEvidence") or run_ranking_evidence(run, character),
                         "gear": profile.get("gear"),
                     }
+                    if profile.get("raceKey"):
+                        observed_profile["raceKey"] = profile["raceKey"]
                     aggregate["observedGearProfiles"].append(observed_profile)
                     if not aggregate["observedGear"]:
                         aggregate["observedGear"] = profile.get("gear")

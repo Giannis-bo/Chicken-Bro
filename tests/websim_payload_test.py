@@ -5178,6 +5178,53 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(normalized_state["communityObserved"]["coveredSpecCount"], 1)
         self.assertEqual(normalized_state["communityObserved"]["blockedSpecCount"], 0)
 
+    def test_observed_gear_template_preserves_a_single_verified_source_race(self):
+        observed_items = [
+            {
+                "slot": "head",
+                "simcSlot": "head",
+                "id": "270001",
+                "itemId": "270001",
+                "name": "observed_head",
+                "displayName": "Observed Head",
+                "simcName": "observed_head",
+                "simcReady": True,
+                "bonus_id": "6652",
+                "observedProfileRefs": [
+                    {
+                        "sourceName": "Raider.IO observed profile",
+                        "profileUrl": "https://raider.io/characters/cn/realm/Mandur",
+                        "characterName": "Mandur",
+                        "region": "cn",
+                        "realmSlug": "realm",
+                        "raceKey": "night_elf",
+                    }
+                ],
+            }
+        ]
+
+        template = self.websim_payload.gear_community_template_from_observed_items(
+            observed_items,
+            "mage",
+            "frost",
+        )
+        normalized = self.websim_payload.normalize_community_gear_template(template)
+        compact = self.websim_payload.compact_community_gear_template(normalized)
+
+        self.assertEqual(template["sourceRefs"][0]["raceKey"], "night_elf")
+        self.assertEqual(template["payload"]["character"]["raceKey"], "night_elf")
+        self.assertEqual(normalized["payload"]["character"]["raceKey"], "night_elf")
+        self.assertEqual(compact["attributeCharacterContext"], {
+            "schemaRevision": "gear-attribute-character-v1",
+            "raceKey": "night_elf",
+            "origin": "source_profile",
+        })
+
+        invalid = self.websim_payload.normalize_source_refs([
+            {"sourceUrl": "https://raider.io/characters/cn/realm/invalid", "raceKey": "night elf!"}
+        ])
+        self.assertNotIn("raceKey", invalid[0])
+
     def test_template_chain_state_reports_public_readiness_after_legality_gate(self):
         gear_items = []
         for index, slot in enumerate(self.websim_payload.CANONICAL_GEAR_SLOTS, start=1):
@@ -23280,6 +23327,35 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertNotIn("access_token", captured["url"])
         self.assertEqual(captured["auth"], "Bearer token-value")
 
+    def test_blizzard_get_percent_encodes_non_ascii_character_path(self):
+        captured = {}
+
+        class FakeResponse:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, traceback):
+                return False
+
+            def read(self):
+                return b'{"ok": true}'
+
+        def fake_urlopen(request, timeout):
+            captured["url"] = request.full_url
+            return FakeResponse()
+
+        original_urlopen = self.websim_payload.urlopen
+        self.addCleanup(setattr, self.websim_payload, "urlopen", original_urlopen)
+        self.websim_payload.urlopen = fake_urlopen
+
+        payload = self.websim_payload.blizzard_get(
+            "/profile/wow/character/kr/azshara/카르꽁스", "token-value", region="kr", locale="ko_KR", namespace="profile-kr"
+        )
+
+        self.assertEqual(payload, {"ok": True})
+        self.assertIn("/profile/wow/character/kr/azshara/%EC%B9%B4%EB%A5%B4%EA%BD%81%EC%8A%A4?", captured["url"])
+        self.assertNotIn("카르꽁스", captured["url"])
+
     def test_http_websim_routes_return_static_page_and_json(self):
         server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
         thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -24334,6 +24410,27 @@ class WebSimPayloadTest(unittest.TestCase):
             self.websim_payload.gear_resolver_runtime_authority(
                 "mage", "arcane", simc_runtime_revision=""
             )
+
+    def test_gear_payload_exposes_verified_attribute_calculator_only_for_released_contexts(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            frost_payload = self.websim_payload.get_websim_gear(conn, "mage", "frost", compact=True)
+            fire_payload = self.websim_payload.get_websim_gear(conn, "mage", "fire", compact=True)
+        finally:
+            conn.close()
+
+        calculator = frost_payload["attributeCalculator"]
+        self.assertEqual(calculator["status"], "available")
+        self.assertEqual(calculator["attributeRuleRevision"], "midnight-mage-attributes-r1")
+        self.assertEqual(calculator["raceOptions"], [{"raceKey": "dwarf"}])
+        self.assertEqual(calculator["rules"][0]["contextKey"], "mage:frost:90:dwarf")
+        self.assertNotIn("staticAttributes", calculator)
+
+        unavailable = fire_payload["attributeCalculator"]
+        self.assertEqual(unavailable["status"], "rule_unavailable")
+        self.assertEqual(unavailable["raceOptions"], [])
+        self.assertEqual(unavailable["rules"], [])
 
 
 if __name__ == "__main__":

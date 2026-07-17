@@ -45,6 +45,9 @@
 - `POST /api/websim/gear/stat-snapshots` 是装备工作台和 SimC 模板确认页的活跃异步属性路径：提交 canonical `selectionIntent + profileContext`，cache miss 返回 `pending`，前端有界轮询并只接纳当前签名的 immutable verified snapshot；明确的 Worker problem/blocker 必须 fail-closed 且不得伪造 snapshot。
 - `profileReadiness=ready` 只授权 canonical profile 进入属性 Worker，stat execution outcome 仍独立收敛为 verified snapshot 或 explicit fail-closed problem。
 - 旧 `POST /api/websim/gear/stats` 仅保留兼容调用，不再由活跃前端发起，也不作为职业专精页的普通属性快照来源。
+- 2026-07-17 新增的 `attribute_rule_audit` 不是玩家请求路径：它只在 Release 已封存新 observed winner 后写入 PG intent，并由 `wow-gear-release-refresh.service` 成功后的独立 worker 读取。它不会进入 `/api/websim/gear`、Resolver、页面 `setData` 或 SimC queue。
+- winner audit 只验证已发布 `verified` 属性规则；当前没有 source-ledger-backed 规则时记录 `not_applicable` 且不访问 Battle.net。官方角色换装、资料不可用或输入不完全只产生内部 `inconclusive` / `blocked`，不能让模板导入或手动换装等待。
+- 审计 `confirmed_mismatch` 是后续 rule promotion 的内部阻断 finding，不会自动改写 winner、Release、Manifest 或已发布的玩家可见规则；health 只展示 revision/context/count，不展示角色身份或完整装备输入。
 
 每条前端可见构筑、装备、属性和循环数据都必须携带来源、时间窗口、状态或 blocker。缺来源字段的数据不得进入首页或详情页。
 

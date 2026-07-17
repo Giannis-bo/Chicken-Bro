@@ -664,6 +664,30 @@
   line-height: 1.25;
 }
 
+.gear-attribute-calculation-status,
+.gear-attribute-delta {
+  display: block;
+  color: #f8b700;
+  font-size: 18rpx;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.gear-attribute-calculation-status {
+  margin-top: 8rpx;
+  color: rgba(255, 255, 255, 0.58);
+}
+
+.gear-attribute-calculation-status.calculated,
+.gear-attribute-delta {
+  color: #57d38c;
+}
+
+.gear-attribute-calculation-status.rule_unavailable,
+.gear-attribute-calculation-status.character_context_required {
+  color: #f8b700;
+}
+
 .gear-attribute-level,
 .gear-attribute-cell {
   min-width: 0;

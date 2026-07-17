@@ -129,6 +129,7 @@ def _empty_snapshot(status: str, problems: Iterable[dict[str, Any]]) -> dict[str
         "ruleResults": [],
         "aggregateLegality": {"status": "blocked", "problemCodes": []},
         "staticAttributes": {},
+        "attributeStaticFacts": {"status": "unavailable", "problems": []},
         "setState": {"itemSetCounts": {}, "activeDynamicEffects": []},
         "profileReadiness": {
             "status": "blocked",
@@ -625,6 +626,49 @@ def _static_attributes(resolved_slots: dict[str, dict[str, Any]]) -> dict[str, i
     return {key: totals[key] for key in sorted(totals)}
 
 
+def _attribute_static_facts(
+    resolved_slots: dict[str, dict[str, Any]],
+    authority_context: dict[str, Any],
+) -> dict[str, Any]:
+    """Report whether selected enhancements have explicit attribute facts.
+
+    Resolver legality and SimC serialization remain usable when a selected
+    option has no numeric stat delta.  The real-time character panel needs the
+    stricter answer: an absent fact is not equivalent to a zero stat delta.
+    """
+
+    options = authority_context.get("optionsById", {})
+    problems: list[dict[str, Any]] = []
+    for slot in sorted(resolved_slots):
+        stat_deltas = resolved_slots[slot].get("statDeltas", {})
+        enhancements = stat_deltas.get("enhancements", []) if isinstance(stat_deltas, dict) else []
+        for enhancement in enhancements:
+            if not isinstance(enhancement, dict):
+                continue
+            option_id = enhancement.get("optionId")
+            option = options.get(option_id) if isinstance(options, dict) else None
+            if not isinstance(option, dict):
+                continue
+            status = option.get("attributeStaticFactsStatus")
+            if not isinstance(status, str):
+                status = "verified" if "statDeltas" in option else "unavailable"
+            if status in {"verified", "not_applicable"}:
+                continue
+            problems.append(
+                _problem(
+                    "AUTHORITY_UNAVAILABLE",
+                    "ATTRIBUTE_STATIC_FACTS_UNAVAILABLE",
+                    "Selected enhancement is missing canonical static attribute facts.",
+                    path=f"optionsById.{option_id}.attributeStaticFactsStatus",
+                    meta={"slot": slot, "optionId": option_id},
+                )
+            )
+    return {
+        "status": "verified" if not problems else "unavailable",
+        "problems": _dedupe_problems(problems),
+    }
+
+
 def _constraints(
     resolved_slots: dict[str, dict[str, Any]],
     authority_context: dict[str, Any],
@@ -948,6 +992,7 @@ def resolve(selection_intent: Any, authority_context: Any) -> dict[str, Any]:
         }
 
     static_attributes = _static_attributes(resolved_slots)
+    attribute_static_facts = _attribute_static_facts(resolved_slots, authority_context)
     set_state = _set_state(resolved_slots, authority_context)
     all_sources = [
         source for resolved in resolved_slots.values() for source in resolved["sourceRefIds"]
@@ -997,6 +1042,7 @@ def resolve(selection_intent: Any, authority_context: Any) -> dict[str, Any]:
         "ruleResults": _canonical(rule_results),
         "aggregateLegality": aggregate_legality,
         "staticAttributes": static_attributes,
+        "attributeStaticFacts": attribute_static_facts,
         "setState": set_state,
         "profileReadiness": readiness,
         "constraints": _constraints(resolved_slots, authority_context, intent),

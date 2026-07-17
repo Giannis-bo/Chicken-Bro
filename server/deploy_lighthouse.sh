@@ -459,6 +459,7 @@ sudo cp "${REMOTE_DIR}/server/wow-gear-observed-backfill.service" "/etc/systemd/
 sudo cp "${REMOTE_DIR}/server/wow-gear-observed-backfill.timer" "/etc/systemd/system/wow-gear-observed-backfill.timer"
 sudo cp "${REMOTE_DIR}/server/wow-gear-release-refresh.service" "/etc/systemd/system/wow-gear-release-refresh.service"
 sudo cp "${REMOTE_DIR}/server/wow-gear-release-refresh.timer" "/etc/systemd/system/wow-gear-release-refresh.timer"
+sudo cp "${REMOTE_DIR}/server/wow-attribute-rule-audit.service" "/etc/systemd/system/wow-attribute-rule-audit.service"
 sudo cp "${REMOTE_DIR}/server/wow-season-recommended-gear-sync.service" "/etc/systemd/system/wow-season-recommended-gear-sync.service"
 sudo cp "${REMOTE_DIR}/server/wow-season-recommended-gear-sync.timer" "/etc/systemd/system/wow-season-recommended-gear-sync.timer"
 sudo cp "${REMOTE_DIR}/server/wow-community-best-guard-sync.service" "/etc/systemd/system/wow-community-best-guard-sync.service"

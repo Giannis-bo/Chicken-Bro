@@ -252,6 +252,20 @@ function requestWebsimGearResolve(selectionIntent) {
   })
 }
 
+function requestWebsimGearAttributeAudit(selectionIntent, characterContext) {
+  return requestJson('/api/websim/gear/attributes', {
+    method: 'POST',
+    data: {
+      selectionIntent: selectionIntent || {},
+      characterContext: characterContext || {}
+    },
+    timeout: 6000,
+    responseMode: 'structured-problem',
+    fallback: () => null,
+    validate: isGearResultEnvelope
+  })
+}
+
 function requestWebsimCommunityTemplateImport(params) {
   const source = params || {}
   const data = {
@@ -336,6 +350,7 @@ module.exports = {
   requestWebsimBootstrap,
   requestWebsimCommunityTemplateImport,
   requestWebsimGear,
+  requestWebsimGearAttributeAudit,
   requestWebsimGearResolve,
   requestWebsimGearStatSnapshot,
   requestWebsimGearStats,

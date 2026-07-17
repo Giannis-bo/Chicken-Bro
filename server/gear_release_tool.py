@@ -92,10 +92,72 @@ _OFFICIAL_UNIQUE_GEM_POLICIES = {
 COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_REVISION = (
     gear_release.COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_REVISION
 )
+_ATTRIBUTE_STABLE_EFFECT_CONTEXT_REVISION = "gear-attribute-stable-effects-v1"
+_ATTRIBUTE_STABLE_EFFECT_ID_PATTERN = re.compile(r"[a-z][a-z0-9:_-]{0,255}")
 
 
 def _text(value: Any) -> str:
     return str(value or "").strip()
+
+
+def _attribute_race_key(value: Any) -> str:
+    key = _text(value)
+    if not re.fullmatch(r"[a-z][a-z0-9_]{0,79}", key):
+        return ""
+    return key
+
+
+def _attribute_character_context_from_template(template: dict[str, Any]) -> dict[str, str]:
+    payload = template.get("payload") if isinstance(template.get("payload"), dict) else {}
+    raw = template.get("attributeCharacterContext")
+    if not isinstance(raw, dict):
+        raw = payload.get("attributeCharacterContext") if isinstance(payload.get("attributeCharacterContext"), dict) else {}
+    race_key = _attribute_race_key(raw.get("raceKey"))
+    if (
+        raw.get("schemaRevision") == "gear-attribute-character-v1"
+        and raw.get("origin") == "source_profile"
+        and race_key
+    ):
+        return {"raceKey": race_key, "origin": "source_profile"}
+    return {"raceKey": "human", "origin": "default_human"}
+
+
+def _attribute_stable_effect_context_from_template(template: dict[str, Any]) -> dict[str, Any]:
+    """Return only a sealed source loadout projection, never its import code."""
+
+    payload = template.get("payload") if isinstance(template.get("payload"), dict) else {}
+    raw = template.get("attributeStableEffectContext")
+    if not isinstance(raw, dict):
+        raw = payload.get("attributeStableEffectContext") if isinstance(
+            payload.get("attributeStableEffectContext"), dict
+        ) else {}
+    effect_ids = raw.get("effectIds")
+    signature = _text(raw.get("loadoutSignature"))
+    if (
+        raw.get("schemaRevision") == _ATTRIBUTE_STABLE_EFFECT_CONTEXT_REVISION
+        and raw.get("status") == "verified"
+        and raw.get("origin") == "source_profile"
+        and isinstance(effect_ids, list)
+        and all(
+            isinstance(effect_id, str)
+            and bool(_ATTRIBUTE_STABLE_EFFECT_ID_PATTERN.fullmatch(effect_id))
+            for effect_id in effect_ids
+        )
+        and effect_ids == sorted(set(effect_ids))
+        and bool(re.fullmatch(r"sha256:[0-9a-f]{64}", signature))
+    ):
+        return {
+            "schemaRevision": _ATTRIBUTE_STABLE_EFFECT_CONTEXT_REVISION,
+            "status": "verified",
+            "origin": "source_profile",
+            "effectIds": list(effect_ids),
+            "loadoutSignature": signature,
+        }
+    return {
+        "schemaRevision": _ATTRIBUTE_STABLE_EFFECT_CONTEXT_REVISION,
+        "status": "unavailable",
+        "reason": "source_talent_loadout_unavailable",
+    }
 
 
 def _int(value: Any) -> int:
@@ -1451,6 +1513,8 @@ def community_template_import_evidence_from_template(
     if not slots:
         raise GearReleaseIntegrityError("community import evidence selection is empty")
     payload = template.get("payload") if isinstance(template.get("payload"), dict) else {}
+    attribute_character_context = _attribute_character_context_from_template(template)
+    attribute_stable_effect_context = _attribute_stable_effect_context_from_template(template)
     template_evidence = (
         payload.get("templateEvidence")
         if isinstance(payload.get("templateEvidence"), dict)
@@ -1463,11 +1527,17 @@ def community_template_import_evidence_from_template(
         "profileHash": _text(template.get("profileHash") or template_evidence.get("profileHash")),
         "gearHash": _text(template.get("gearHash") or template_evidence.get("gearHash") or template.get("signature")),
         "gearReleaseId": _text(gear_release_id),
+        "sourceRaceKey": attribute_character_context["raceKey"],
+        "sourceRaceOrigin": attribute_character_context["origin"],
+        "sourceStableEffects": attribute_stable_effect_context,
         "slots": ordered_slots,
     })
     return {
         "schemaRevision": COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_REVISION,
         "sourceFingerprint": source_fingerprint,
+        "sourceRaceKey": attribute_character_context["raceKey"],
+        "sourceRaceOrigin": attribute_character_context["origin"],
+        "sourceStableEffects": attribute_stable_effect_context,
         "slots": ordered_slots,
     }
 

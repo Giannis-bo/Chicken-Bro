@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "capturedOn": "2026-07-17",
+  "scope": "implicit equipment-page race context candidate",
+  "branch": "codex/implicit-gear-attribute-race-context",
+  "runtimeCommit": "41c4050302fcd65dad0c713d692ee61adad22001",
+  "environment": {
+    "database": "wow_test",
+    "asyncSyncStart": false,
+    "sourceRaceRefresh": "not_forced",
+    "simcChange": "none"
+  },
+  "backup": {
+    "postgres": "/opt/wow-mini-program-candidate-backups/implicit-race-context-41c4050-pre/wow_test-postgres.dump",
+    "postgresSha256": "84ea5bd208fbd14f0c8a4d63f0857b54484e2795f82186efb34db417751a209f",
+    "runtimeArchive": "/opt/wow-mini-program-candidate-backups/implicit-race-context-41c4050-pre/wow-mini-program.tar.gz",
+    "runtimeArchiveSha256": "ceb1f9261242ac310ee38a51121bc81d96ffdf3c923225177091d0145a7106e4"
+  },
+  "deployment": {
+    "command": "WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 bash server/deploy_lighthouse.sh",
+    "status": "pass",
+    "result": "wow-backend restarted; no package bootstrap, SimC update, or async sync start"
+  },
+  "smoke": {
+    "health": {
+      "path": "/health",
+      "httpStatus": 200,
+      "body": {"ok": true, "service": "wow-backend"}
+    },
+    "unitIsolation": {
+      "wowBackend": "active",
+      "gearReleaseRefresh": "inactive",
+      "websimSync": "inactive",
+      "attributeRuleAudit": "inactive"
+    },
+    "compactGearRead": {
+      "path": "/api/websim/gear?class=mage&spec=frost&compact=1&mode=initial",
+      "httpStatus": 200,
+      "slotCount": 16,
+      "templateCount": 1,
+      "firstTemplateContext": {
+        "schemaRevision": "gear-attribute-character-v1",
+        "raceKey": "human",
+        "origin": "default_human"
+      }
+    },
+    "communityImport": {
+      "path": "/api/websim/gear/community-import",
+      "method": "POST",
+      "httpStatus": 200,
+      "status": "verified",
+      "templateId": "observed_profile_mage_frost",
+      "contractRevision": "websim-community-template-import-v2",
+      "attributeCharacterContext": {
+        "schemaRevision": "gear-attribute-character-v1",
+        "raceKey": "human",
+        "origin": "default_human"
+      },
+      "meaning": "The existing active template carries historical v1 evidence and truthfully receives the compatibility default. The smoke made one existing import request and did not refresh a winner or invoke SimC."
+    }
+  },
+  "runtimeParity": {
+    "status": "pass",
+    "files": {
+      "server/community_template_import.py": "03f4ca64437ce5a4eb816aef2f593e41bb506ea4d726dadb42144618dbfc568a",
+      "server/gear_release.py": "98cb8a1ef36294c458a19077f6c90f608479b296a5edda9ba5278daab8d2e5b0",
+      "server/gear_release_tool.py": "f9e211904f255bddfa81cab04ea2599573b5b5d79b1d3113cf3ebe7c7588868a",
+      "server/postgres_cache_store.py": "45cef73475f467abab1be27ebcbfa575f8505dee7da3eec2103afba70643347d",
+      "server/raiderio_payload.py": "36b2e4b526e8a7be357ffc269894efee027c5dcc24ae4e172f0b178077399ad3",
+      "server/websim_payload.py": "653b48417618e512dd25db48e6b7d4953ec4df61bae2170890439165d00f2188"
+    }
+  },
+  "rollback": {
+    "codeArchive": "/opt/wow-mini-program-candidate-backups/implicit-race-context-41c4050-pre/wow-mini-program.tar.gz",
+    "databaseBackup": "/opt/wow-mini-program-candidate-backups/implicit-race-context-41c4050-pre/wow_test-postgres.dump",
+    "action": "restore the runtime archive and restart wow-backend; no schema rollback is required for this change"
+  },
+  "knownLimitations": [
+    "No existing winner was refreshed solely to create a v2 source-race smoke. The deployed historical v1 template correctly uses the human fallback.",
+    "The source-profile inheritance path, persistence through local equipment changes, selector removal and SimC/network isolation are proven by local bounded tests; real mini-program interaction still needs user acceptance."
+  ],
+  "conclusion": "Candidate runtime contracts are verified. The next normal observed winner release can carry its sealed source race; all manual and legacy paths are already stable human defaults. Explicit user acceptance remains required before merge."
+}

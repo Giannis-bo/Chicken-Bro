@@ -1,0 +1,223 @@
+{
+  "schemaRevision": "gear-attribute-calculator-cases-v1",
+  "cases": [
+    {
+      "id": "fixture-mage-frost-human-v1",
+      "rule": {
+        "attributeRuleRevision": "fixture-r1",
+        "contextKey": "mage:frost:90:human",
+        "classKey": "mage",
+        "specKey": "frost",
+        "level": 90,
+        "raceKey": "human",
+        "status": "fixture_only",
+        "primaryKey": "intellect",
+        "baseAttributes": {
+          "intellect": 1000,
+          "stamina": 2000
+        },
+        "stableModifiers": [],
+        "resources": {
+          "health": {
+            "base": 100,
+            "perStamina": 20,
+            "round": "floor"
+          },
+          "mana": {
+            "base": 10000,
+            "perIntellect": 5,
+            "round": "floor"
+          }
+        },
+        "secondaryRules": [
+          {
+            "inputKey": "crit_rating",
+            "outputKey": "crit",
+            "label": "暴击",
+            "basePercent": 5,
+            "ratingPerPercent": 35,
+            "precision": 1,
+            "sourceRefs": ["fixture:gear-attribute-rulebook-v1"],
+            "displayUnit": "percent"
+          },
+          {
+            "inputKey": "haste_rating",
+            "outputKey": "haste",
+          "label": "急速",
+          "basePercent": 0,
+          "ratingPerPercent": 50,
+          "postConversionModifiers": [
+            {
+              "effectId": "fixture:haste-add",
+              "operation": "add",
+              "value": 2
+            }
+          ],
+          "precision": 1,
+            "sourceRefs": ["fixture:gear-attribute-rulebook-v1"],
+            "displayUnit": "percent"
+          },
+          {
+            "inputKey": "mastery_rating",
+            "outputKey": "mastery",
+            "label": "精通",
+            "basePercent": 8,
+            "ratingPerPercent": 25,
+            "precision": 1,
+            "sourceRefs": ["fixture:gear-attribute-rulebook-v1"],
+            "displayUnit": "percent"
+          },
+          {
+            "inputKey": "versatility_rating",
+            "outputKey": "versatility",
+            "label": "全能",
+            "basePercent": 0,
+            "ratingPerPercent": 25,
+            "precision": 1,
+            "sourceRefs": ["fixture:gear-attribute-rulebook-v1"],
+            "displayUnit": "percent"
+          },
+          {
+            "inputKey": "avoidance_rating",
+            "outputKey": "avoidance",
+            "label": "闪避",
+            "basePercent": 0,
+            "ratingPerPercent": 20,
+            "precision": 1,
+            "sourceRefs": ["fixture:gear-attribute-rulebook-v1"],
+            "displayUnit": "percent"
+          },
+          {
+            "inputKey": "leech_rating",
+            "outputKey": "leech",
+            "label": "吸血",
+            "basePercent": 0,
+            "ratingPerPercent": 10,
+            "precision": 1,
+            "sourceRefs": ["fixture:gear-attribute-rulebook-v1"],
+            "displayUnit": "percent"
+          },
+          {
+            "inputKey": "speed_rating",
+            "outputKey": "speed",
+            "label": "速度",
+            "basePercent": 0,
+            "ratingPerPercent": 5,
+            "precision": 1,
+            "sourceRefs": ["fixture:gear-attribute-rulebook-v1"],
+            "displayUnit": "percent"
+          }
+        ],
+        "sourceRefs": ["fixture:gear-attribute-rulebook-v1"],
+        "goldenSampleIds": []
+      },
+      "characterContext": {
+        "raceKey": "human"
+      },
+      "staticAttributes": {
+        "intellect": 500,
+        "stamina": 600,
+        "crit_rating": 35,
+        "haste_rating": 100,
+        "mastery_rating": 75,
+        "versatility_rating": 25,
+        "avoidance_rating": 20,
+        "leech_rating": 10,
+        "speed_rating": 5
+      },
+      "stableEffects": [
+        {
+          "effectId": "fixture:haste-add"
+        }
+      ],
+      "expected": {
+        "contractRevision": "gear-attribute-calculation-v1",
+        "status": "calculated",
+        "attributeRuleRevision": "fixture-r1",
+        "primary": {
+          "key": "intellect",
+          "rawValue": 1500,
+          "value": "1,500"
+        },
+        "stamina": {
+          "key": "stamina",
+          "rawValue": 2600,
+          "value": "2,600"
+        },
+        "resources": {
+          "health": {
+            "key": "health",
+            "rawValue": 52100,
+            "value": "52,100"
+          },
+          "mana": {
+            "key": "mana",
+            "rawValue": 17500,
+            "value": "17,500"
+          }
+        },
+        "secondary": [
+          {
+            "key": "crit",
+            "label": "暴击",
+            "rawValue": 35,
+            "value": "35",
+            "convertedValue": "6.0%",
+            "displayUnit": "percent"
+          },
+          {
+            "key": "haste",
+            "label": "急速",
+            "rawValue": 100,
+            "value": "100",
+            "convertedValue": "4.0%",
+            "displayUnit": "percent"
+          },
+          {
+            "key": "mastery",
+            "label": "精通",
+            "rawValue": 75,
+            "value": "75",
+            "convertedValue": "11.0%",
+            "displayUnit": "percent"
+          },
+          {
+            "key": "versatility",
+            "label": "全能",
+            "rawValue": 25,
+            "value": "25",
+            "convertedValue": "1.0%",
+            "displayUnit": "percent"
+          },
+          {
+            "key": "avoidance",
+            "label": "闪避",
+            "rawValue": 20,
+            "value": "20",
+            "convertedValue": "1.0%",
+            "displayUnit": "percent"
+          },
+          {
+            "key": "leech",
+            "label": "吸血",
+            "rawValue": 10,
+            "value": "10",
+            "convertedValue": "1.0%",
+            "displayUnit": "percent"
+          },
+          {
+            "key": "speed",
+            "label": "速度",
+            "rawValue": 5,
+            "value": "5",
+            "convertedValue": "1.0%",
+            "displayUnit": "percent"
+          }
+        ],
+        "conditionals": [],
+        "problems": [],
+        "inputSignature": "sha256:526df1deea848478dc4f8de7123155bbb2aff2396ea219227fea27d335a518a9"
+      }
+    }
+  ]
+}

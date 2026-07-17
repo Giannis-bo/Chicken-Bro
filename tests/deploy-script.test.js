@@ -134,6 +134,26 @@ test('gear release refresh timer is installed without deploy-triggered execution
   assert.doesNotMatch(script, /systemctl start (?:--no-block )?wow-gear-release-refresh\.service/)
 })
 
+test('winner attribute audit is detached from release refresh and never deploy-started', () => {
+  const script = fs.readFileSync(scriptPath, 'utf8')
+  const refresh = fs.readFileSync('server/wow-gear-release-refresh.service', 'utf8')
+  const audit = fs.readFileSync('server/wow-attribute-rule-audit.service', 'utf8')
+
+  assert.match(refresh, /^OnSuccess=wow-attribute-rule-audit\.service$/m)
+  assert.match(audit, /Environment=WOW_DATABASE_RUNTIME=postgres_only/)
+  assert.match(audit, /Environment=WOW_ATTRIBUTE_RULE_AUDIT_MAX_JOBS=1/)
+  assert.match(audit, /flock -n \/run\/lock\/wow-attribute-rule-audit\.lock/)
+  assert.match(audit, /python3 \/opt\/wow-mini-program\/server\/attribute_rule_audit_worker\.py --json/)
+  assert.match(audit, /ReadWritePaths=\/run\/lock/)
+  assert.match(audit, /ProtectHome=read-only/)
+  assert.doesNotMatch(audit, /SIMC_GITHUB_REPO|simc_runtime_update|gear_stat_snapshot_worker/)
+  assertUsesMihomoProxy(audit, 'server/wow-attribute-rule-audit.service')
+
+  assert.match(script, /wow-attribute-rule-audit\.service/)
+  assert.doesNotMatch(script, /enable(?: --now)? wow-attribute-rule-audit\.service/)
+  assert.doesNotMatch(script, /systemctl start (?:--no-block )?wow-attribute-rule-audit\.service/)
+})
+
 test('recommended bis guard sync has a daily readiness-only systemd timer', () => {
   const service = fs.readFileSync('server/wow-recommended-bis-guard-sync.service', 'utf8')
   const timer = fs.readFileSync('server/wow-recommended-bis-guard-sync.timer', 'utf8')
@@ -252,6 +272,7 @@ test('external evidence fetch units use the local mihomo proxy', () => {
     'server/wow-stat-weights-sync.service',
     'server/wow-community-template-sync.service',
     'server/wow-gear-observed-backfill.service',
+    'server/wow-attribute-rule-audit.service',
     'server/wow-talent-graph-recovery.service',
     'server/wow-simc-runtime-update.service'
   ]) {

@@ -1924,6 +1924,157 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
             {"haste": 10, "stamina": 130, "strength": 90},
         )
 
+    def test_loader_preserves_missing_selected_option_static_facts_for_attribute_downgrade(self):
+        option = self.option_row(payload={})
+        _cursor, context = self.load(cursor=self.cursor(option_rows=[option]))
+
+        self.assertEqual(
+            context["optionsById"]["gem-haste"]["attributeStaticFactsStatus"],
+            "unavailable",
+        )
+        snapshot = gear_resolver.resolve(self.intent(), context)
+        self.assertEqual(snapshot["status"], "verified")
+        self.assertEqual(snapshot["attributeStaticFacts"]["status"], "unavailable")
+
+    def test_loader_projects_verified_static_facts_from_exact_gem_identifier(self):
+        option_id = "official-gem-240914"
+        option = self.option_row(
+            optionKey=option_id,
+            simcOptions={"gem_id": "240914"},
+            payload={
+                "statSummary": "+999 Intellect",
+                "evidenceSource": "display_only_fixture",
+            },
+        )
+        intent = self.intent(
+            {
+                "head": {
+                    "itemId": "item-head",
+                    "variantKey": "variant-head",
+                    "gemOptionIds": [option_id],
+                    "enchantOptionId": "",
+                    "embellishmentOptionId": "",
+                    "craftedOptionId": "",
+                    "catalystOptionId": "",
+                }
+            }
+        )
+
+        _cursor, context = self.load(
+            cursor=self.cursor(option_rows=[(option_id, option[1])]),
+            intent=intent,
+        )
+
+        projected = context["optionsById"][option_id]
+        self.assertEqual(projected["attributeStaticFactsStatus"], "verified")
+        self.assertEqual(
+            projected["statDeltas"],
+            {"crit_rating": 7, "versatility_rating": 16},
+        )
+        self.assertNotIn("999", json.dumps(projected))
+
+    def test_loader_projects_verified_static_facts_from_exact_enchant_identifier(self):
+        option_id = "official-enchant-8017"
+        option = self.option_row(
+            optionKey=option_id,
+            optionType="enchant",
+            simcOptions={"enchant_id": "8017"},
+            payload={"statSummary": "+999 Mastery"},
+        )
+        intent = self.intent(
+            {
+                "head": {
+                    "itemId": "item-head",
+                    "variantKey": "variant-head",
+                    "gemOptionIds": [],
+                    "enchantOptionId": option_id,
+                    "embellishmentOptionId": "",
+                    "craftedOptionId": "",
+                    "catalystOptionId": "",
+                }
+            }
+        )
+
+        _cursor, context = self.load(
+            cursor=self.cursor(option_rows=[(option_id, option[1])]),
+            intent=intent,
+        )
+
+        projected = context["optionsById"][option_id]
+        self.assertEqual(projected["attributeStaticFactsStatus"], "verified")
+        self.assertEqual(projected["statDeltas"], {"avoidance_rating": 37})
+        self.assertNotIn("999", json.dumps(projected))
+
+    def test_loader_projects_mage_primary_enchant_against_eligibility_context(self):
+        option_id = "official-enchant-7935"
+        option = self.option_row(
+            optionKey=option_id,
+            optionType="enchant",
+            simcOptions={"enchant_id": "7935"},
+            payload={"statSummary": "+999 Agility"},
+        )
+        intent = self.intent(
+            {
+                "head": {
+                    "itemId": "item-head",
+                    "variantKey": "variant-head",
+                    "gemOptionIds": [],
+                    "enchantOptionId": option_id,
+                    "embellishmentOptionId": "",
+                    "craftedOptionId": "",
+                    "catalystOptionId": "",
+                }
+            }
+        )
+        intent["eligibilityContext"] = {
+            "classKey": "mage",
+            "specKey": "frost",
+            "level": 90,
+        }
+
+        _cursor, context = self.load(
+            cursor=self.cursor(option_rows=[(option_id, option[1])]),
+            intent=intent,
+        )
+
+        projected = context["optionsById"][option_id]
+        self.assertEqual(projected["attributeStaticFactsStatus"], "verified")
+        self.assertEqual(projected["statDeltas"], {"intellect": 41, "stamina": 115})
+        self.assertNotIn("999", json.dumps(projected))
+
+    def test_loader_keeps_known_conditional_enchant_explicitly_non_panel(self):
+        option_id = "official-enchant-8039"
+        option = self.option_row(
+            optionKey=option_id,
+            optionType="enchant",
+            simcOptions={"enchant_id": "8039"},
+            payload={"statSummary": "+999 Haste"},
+        )
+        intent = self.intent(
+            {
+                "head": {
+                    "itemId": "item-head",
+                    "variantKey": "variant-head",
+                    "gemOptionIds": [],
+                    "enchantOptionId": option_id,
+                    "embellishmentOptionId": "",
+                    "craftedOptionId": "",
+                    "catalystOptionId": "",
+                }
+            }
+        )
+
+        _cursor, context = self.load(
+            cursor=self.cursor(option_rows=[(option_id, option[1])]),
+            intent=intent,
+        )
+
+        projected = context["optionsById"][option_id]
+        self.assertEqual(projected["attributeStaticFactsStatus"], "not_applicable")
+        self.assertEqual(projected["statDeltas"], {})
+        self.assertEqual(projected["attributeEffectClassification"], "conditional")
+        self.assertNotIn("999", json.dumps(projected))
+
     def test_invalid_structured_option_stats_remain_authority_blockers(self):
         from server import gear_resolver
 

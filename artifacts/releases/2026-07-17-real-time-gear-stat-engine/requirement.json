@@ -1,0 +1,119 @@
+{
+  "schemaVersion": 1,
+  "slug": "real-time-gear-stat-engine",
+  "classification": "Strict",
+  "status": "implementation_allowed",
+  "goal": "Replace the equipment simulator's user-facing static-sum or asynchronous SimC-gated attribute display with a versioned deterministic non-combat character-panel calculation that refreshes immediately after a confirmed gear change.",
+  "userValue": "Players can trust that an imported community template silently uses its verified source-race context while manual gear combinations use the stable human default, and both show game-comparable base character attributes without waiting for a SimulationCraft job.",
+  "nonGoals": [
+    "Do not model temporary combat buffs, consumables, trinket procs or other conditional effects as part of the non-combat base panel.",
+    "Do not remove, weaken or place SimulationCraft DPS, scenario simulation, queue, worker or audit behavior on the attribute-display path.",
+    "Do not change observed-only community-template eligibility, Resolver legality, Release/Manifest authority, enhancement capacity or canonical-selection rules.",
+    "Do not let the mini-program invent unresolved item variants, stable passives, source facts or rating conversion rules."
+  ],
+  "currentTruth": {
+    "sources": [
+      "AGENTS.md",
+      "docs/project-state.json",
+      "docs/roadmap.md",
+      "docs/harness.md",
+      "docs/builds-architecture.md",
+      "docs/gear-simulation-full-chain-runbook.md",
+      "docs/project-owner-map.json",
+      "docs/backend-owner-map.json",
+      "docs/superpowers/specs/2026-07-17-real-time-gear-stat-engine-design.md",
+      "docs/superpowers/specs/2026-07-17-winner-driven-attribute-rule-audit-design.md",
+      "docs/superpowers/plans/2026-07-17-winner-driven-attribute-rule-audit.md",
+      "pages/builds/detail.js",
+      "server/websim_payload.py",
+      "server/gear_stat_snapshot_api.py"
+    ],
+    "activeMilestone": "none",
+    "featureIteration": "allowed_under_harness",
+    "historicalBoundary": "Existing Phase 5 asynchronous stat-snapshot evidence remains historical evidence for SimC execution and cache behavior; it cannot promote the new immediate-display claim."
+  },
+  "impactMap": {
+    "mustChange": [
+      "Backend-owned deterministic attribute-rule model and reference evaluator boundary.",
+      "Resolved gear payload or a dedicated read contract that supplies versioned attributeCalculationContext.",
+      "pages/builds/detail.* and workbench state so the immediate base panel consumes the deterministic result rather than SimC snapshot availability.",
+      "Frontend and backend golden-fixture parity tests, green-stat raw-plus-percent/effect presentation tests, and real mini-program performance evidence.",
+      "docs/builds-architecture.md and docs/gear-simulation-full-chain-runbook.md to document the post-cutover ownership and SimC boundary.",
+      "Winner-driven PostgreSQL attribute audit intent/worker/health boundary that is detached from Release promotion and player interactions."
+      ,"Verified source-race capture, sealed community import projection and implicit equipment-page character context without a user selector."
+    ],
+    "mustNotChange": [
+      "Resolver legality, canonical selection, observed-only community eligibility, Release/Manifest authority and enhancement constraints.",
+      "The existing gear_stat_snapshot SimC worker, queue, fencing and health semantics for simulation and audit purposes.",
+      "PG-only runtime and public-source trust boundaries.",
+      "Winner audit liveness, external official-profile availability and audit findings as prerequisites for any player-visible immediate attribute calculation."
+    ],
+    "riskUnknown": [
+      "Verifiable rule sources for every first-release class/species/level/stable passive and all secondary-stat conversions.",
+      "Whether each Armory candidate captures the same equipment instances and time as its imported community template.",
+      "Exact non-combat treatment of niche stable set effects and avoidance, leech and speed display conversions."
+    ],
+    "evidenceRequired": [
+      "Rule-source ledger and attributeRuleRevision for every formula admitted to the first release.",
+      "Cross-runtime fixtures proving the service reference evaluator and mini-program interpreter produce identical fields for a fixed canonical input.",
+      "Confirmed Frost and Arcane Armory golden samples with source URL, captured time, full gear/enhancement input and field-level expected output.",
+      "Real mini-program evidence that imported and manually assembled identical selections match and that p95 confirmed-change-to-panel-update is at most 100ms when context is available.",
+      "Candidate deployment evidence that SimC worker failure or cache miss does not block the immediate base panel, while simulation/audit status remains truthful.",
+      "Final local CR, candidate rollback proof and timer/backflow check."
+    ]
+  },
+  "ownership": {
+    "factOwner": "The backend WebSim Resolver and the versioned deterministic attribute-rule contract own character inputs, source facts, rule revisions and the server reference result. The mini-program is a consumer and local interpreter of that sealed context only.",
+    "consumers": [
+      "pages/builds/detail.* immediate attribute overview",
+      "equipment workbench state and community-template import replay",
+      "server-side reference validation and golden-sample audit",
+      "SimulationCraft scenario/DPS flows as a separate consumer of canonical gear inputs",
+      "server/attribute_rule_audit_store.py as sole owner of audit queue/result state",
+      "server/attribute_rule_audit_worker.py as read-only external-profile consumer after a sealed winner election"
+    ],
+    "ownerMapRefs": [
+      "docs/project-owner-map.json: WebSim gear/read-model and mini-program runtime domains",
+      "docs/backend-owner-map.json: server/websim_payload.py public gear contract hotspot"
+    ]
+  },
+  "engineeringHealth": {
+    "status": "health_watch",
+    "reason": "The work crosses high-frequency pages/builds/detail.* and the server/websim_payload.py hotspot. Implementation must first characterize current static fallback, canonical selection, setData state replacement and SimC snapshot isolation; new arithmetic must live behind a narrow pure rule/evaluator boundary rather than route or page-event logic."
+  },
+  "acceptanceEvidence": [
+    "Targeted backend and frontend tests for fixed rule fixtures, rounding, incomplete context, all green-stat raw-plus-percent/effect display, and imported-versus-manual equality.",
+    "Cross-runtime parity fixture for the same attributeCalculationContext and attributeRuleRevision.",
+    "Golden-sample field-by-field comparison against confirmed Frost and Arcane Armory evidence.",
+    "Real mini-program performance trace and screenshots showing immediate base-panel refresh independent of SimC worker state.",
+    "Candidate deployment identity/parity, public payload/Resolver smoke, SimC isolation smoke, timer/backflow check and rollback rehearsal before merge."
+  ],
+  "releaseTrigger": "user_visible_runtime",
+  "rollback": [
+    "feature_hide",
+    "code_rollback"
+  ],
+  "decisionLog": [
+    {
+      "date": "2026-07-17",
+      "decision": "User confirmed the comparison target is the non-combat normal character panel: include level, race, stable specialization effects, confirmed gear, gems, enchants, embellishments and stable set effects; exclude temporary combat effects."
+    },
+    {
+      "date": "2026-07-17",
+      "decision": "User approved the versioned rule-context approach: local deterministic display calculation with a backend reference evaluator, while SimC remains separate for simulation, complex conditional effects and audit."
+    },
+    {
+      "date": "2026-07-17",
+      "decision": "User approved the Strict design contract and authorized progression to an implementation plan; no runtime implementation has started."
+    },
+    {
+      "date": "2026-07-17",
+      "decision": "User approved implementation of the winner-driven audit as a fail-open background mechanism: audit failures, missing evidence and no published verified rule must never delay winner Release, community import, manual gear changes or SimC."
+    },
+    {
+      "date": "2026-07-17",
+      "decision": "User approved removing the equipment-page race selector: community imports silently retain a verified source race through later gear changes, while manual, reset, missing-source and legacy paths silently use human; this context must not enter SimC or add a network request."
+    }
+  ],
+  "relatedDesign": "docs/superpowers/specs/2026-07-17-real-time-gear-stat-engine-design.md"
+}

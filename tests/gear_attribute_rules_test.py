@@ -1,0 +1,346 @@
+#!/usr/bin/env python3
+import json
+import unittest
+from pathlib import Path
+
+from server import gear_attribute_rules
+
+
+FIXTURE_PATH = Path(__file__).parent / "fixtures" / "gear-attribute-rulebook-v1.json"
+ARMORY_FIXTURE_PATH = Path(__file__).parent / "fixtures" / "gear-attribute-armory-v1.json"
+
+
+def fixture_rulebook():
+    return json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
+
+
+def verified_rulebook():
+    rulebook = fixture_rulebook()
+    context = rulebook["contexts"][0]
+    context["status"] = "verified"
+    context["sourceRefs"] = ["test:verified-source"]
+    context["goldenSampleIds"] = ["test:mage-frost-human"]
+    for secondary_rule in context["secondaryRules"]:
+        rating_per_percent = secondary_rule.pop("ratingPerPercent")
+        secondary_rule["ratingTransform"] = {
+            "kind": "piecewise_linear",
+            "ratingPerPercent": rating_per_percent,
+            "points": [
+                {"input": 0, "output": 0},
+                {"input": 10, "output": 10},
+                {"input": 20, "output": 19},
+            ],
+            "outOfRange": "clamp",
+        }
+    return rulebook
+
+
+def armory_samples():
+    return json.loads(ARMORY_FIXTURE_PATH.read_text(encoding="utf-8"))
+
+
+class GearAttributeRulesTest(unittest.TestCase):
+    def test_candidate_armory_samples_cannot_satisfy_verified_rule_publication(self):
+        samples, sample_issues = gear_attribute_rules.validate_armory_golden_samples(armory_samples())
+        self.assertEqual(sample_issues, [])
+        candidate = next(sample for sample in samples["samples"] if sample["status"] == "candidate")
+        rulebook = verified_rulebook()
+        rulebook["contexts"][0]["goldenSampleIds"] = [candidate["id"]]
+
+        parsed, issues = gear_attribute_rules.validate_attribute_rulebook(
+            rulebook,
+            golden_samples=samples,
+        )
+
+        self.assertIsNone(parsed)
+        self.assertTrue(any(issue["code"] == "UNVERIFIED_GOLDEN_SAMPLE" for issue in issues))
+
+    def test_not_found_armory_source_cannot_be_promoted_to_verified(self):
+        samples = armory_samples()
+        unavailable = next(sample for sample in samples["samples"] if sample["source"]["captureStatus"] == "not_found")
+        unavailable["status"] = "verified"
+        unavailable["missingEvidence"] = []
+
+        parsed, issues = gear_attribute_rules.validate_armory_golden_samples(samples)
+
+        self.assertIsNone(parsed)
+        self.assertTrue(any(issue["code"] == "VERIFIED_SAMPLE_NOT_CAPTURED" for issue in issues))
+
+    def test_incomplete_armory_equipment_cannot_be_promoted_to_verified(self):
+        samples = armory_samples()
+        partial = next(sample for sample in samples["samples"] if sample["source"]["captureStatus"] == "captured")
+        partial["status"] = "verified"
+        partial["missingEvidence"] = []
+        next(item for item in partial["equipment"] if item.get("status") != "empty").pop("variantKey")
+
+        parsed, issues = gear_attribute_rules.validate_armory_golden_samples(samples)
+
+        self.assertIsNone(parsed)
+        self.assertTrue(any(issue["code"] == "VERIFIED_SAMPLE_INCOMPLETE_EQUIPMENT" for issue in issues))
+
+    def test_verified_sample_variant_must_match_its_official_item_level_and_bonus_ids(self):
+        samples = armory_samples()
+        verified = next(sample for sample in samples["samples"] if sample["id"] == "mage-frost-armory-2026-07-17t091243z")
+        verified["equipment"][0]["variantKey"] = "blizzard:250060:197:40:12806:13335:13338:13534:13575"
+
+        parsed, issues = gear_attribute_rules.validate_armory_golden_samples(samples)
+
+        self.assertIsNone(parsed)
+        self.assertTrue(any(issue["code"] == "VERIFIED_SAMPLE_VARIANT_EVIDENCE_MISMATCH" for issue in issues))
+
+    def test_candidate_accepts_declared_official_profile_evidence(self):
+        samples = armory_samples()
+        candidate = next(sample for sample in samples["samples"] if sample["source"]["captureStatus"] == "captured")
+        candidate["status"] = "candidate"
+        candidate["missingEvidence"] = ["awaiting explicit promotion review"]
+        candidate["evidence"] = {
+            "officialProfileApi": {
+                "url": "https://eu.api.blizzard.com/profile/wow/character/blackrock/heated?namespace=profile-eu&locale=en_GB",
+                "capturedAt": "2026-07-17T04:43:43Z",
+                "credentialHandling": "read-only server-side OAuth; no token persisted",
+            },
+            "officialProfileSnapshot": {
+                "capturedAt": "2026-07-17T04:43:43Z",
+                "canonicalEquipmentCount": 15,
+                "instances": [],
+            },
+            "officialTalentLoadout": {
+                "capturedAt": "2026-07-17T04:43:43Z",
+                "specKey": "arcane",
+                "heroKey": "spellslinger",
+                "talentLoadoutCode": "C4DAMhlVtghLZL4RZzExaQoBY",
+            },
+        }
+
+        parsed, issues = gear_attribute_rules.validate_armory_golden_samples(samples)
+
+        self.assertEqual(issues, [])
+        self.assertEqual(parsed["samples"][0]["evidence"]["officialProfileSnapshot"]["canonicalEquipmentCount"], 15)
+        self.assertEqual(parsed["samples"][0]["evidence"]["officialTalentLoadout"]["heroKey"], "spellslinger")
+
+    def test_frost_candidate_keeps_the_fresh_official_typed_equipment_facts(self):
+        sample = next(
+            value for value in armory_samples()["samples"]
+            if value["id"] == "mage-frost-armory-2026-07-17t091243z"
+        )
+        equipment = sample["equipment"]
+        equipped = [item for item in equipment if item.get("status") != "empty"]
+        totals = {}
+        for item in equipped:
+            for key, value in item["stats"].items():
+                totals[key] = totals.get(key, 0) + value
+
+        self.assertEqual(len(equipment), 16)
+        self.assertEqual(len(equipped), 15)
+        self.assertEqual(sample["evidence"]["officialProfileSnapshot"]["canonicalEquipmentCount"], 15)
+        self.assertEqual(totals, {
+            "intellect": 1625,
+            "stamina": 18053,
+            "crit_rating": 797,
+            "haste_rating": 621,
+            "mastery_rating": 1005,
+            "avoidance_rating": 303,
+            "leech_rating": 55,
+        })
+
+    def test_unknown_sample_field_does_not_hide_verified_equipment_failure(self):
+        samples = armory_samples()
+        partial = next(sample for sample in samples["samples"] if sample["source"]["captureStatus"] == "captured")
+        partial["status"] = "verified"
+        partial["missingEvidence"] = []
+        next(item for item in partial["equipment"] if item.get("status") != "empty").pop("variantKey")
+        partial["unexpected"] = True
+
+        parsed, issues = gear_attribute_rules.validate_armory_golden_samples(samples)
+
+        self.assertIsNone(parsed)
+        self.assertTrue(any(issue["code"] == "UNKNOWN_FIELD" for issue in issues))
+        self.assertTrue(any(issue["code"] == "VERIFIED_SAMPLE_INCOMPLETE_EQUIPMENT" for issue in issues))
+
+    def test_public_context_excludes_unverified_rulebook_context(self):
+        context = gear_attribute_rules.public_attribute_calculator_context(
+            fixture_rulebook(), class_key="mage", spec_key="frost", level=90
+        )
+
+        self.assertEqual(context["status"], "rule_unavailable")
+        self.assertEqual(context["problems"][0]["code"], "ATTRIBUTE_RULE_UNAVAILABLE")
+        self.assertEqual(context["raceOptions"], [])
+        self.assertEqual(context["rules"], [])
+
+    def test_character_context_accepts_only_explicit_race_key(self):
+        parsed, issues = gear_attribute_rules.parse_attribute_character_context(
+            {"schemaRevision": "gear-attribute-character-v1", "raceKey": "human"}
+        )
+
+        self.assertEqual(issues, [])
+        self.assertEqual(
+            parsed,
+            {"schemaRevision": "gear-attribute-character-v1", "raceKey": "human"},
+        )
+
+    def test_character_context_rejects_unknown_empty_and_noncanonical_fields(self):
+        vectors = (
+            ({"schemaRevision": "gear-attribute-character-v1", "raceKey": ""}, "INVALID_RACE_KEY"),
+            ({"schemaRevision": "gear-attribute-character-v1", "raceKey": "Human"}, "INVALID_RACE_KEY"),
+            ({"schemaRevision": "gear-attribute-character-v1", "raceKey": "human", "stats": {}}, "UNKNOWN_FIELD"),
+            ({"raceKey": "human"}, "MISSING_SCHEMA_REVISION"),
+        )
+
+        for raw, expected_code in vectors:
+            with self.subTest(raw=raw):
+                parsed, issues = gear_attribute_rules.parse_attribute_character_context(raw)
+                self.assertIsNone(parsed)
+                self.assertTrue(any(issue["code"] == expected_code for issue in issues))
+
+    def test_rulebook_rejects_missing_sources_or_verified_golden_sample(self):
+        missing_sources = verified_rulebook()
+        missing_sources["contexts"][0]["sourceRefs"] = []
+        parsed, issues = gear_attribute_rules.validate_attribute_rulebook(missing_sources)
+        self.assertIsNone(parsed)
+        self.assertTrue(any(issue["code"] == "MISSING_SOURCE_REFS" for issue in issues))
+
+        missing_golden = verified_rulebook()
+        missing_golden["contexts"][0]["goldenSampleIds"] = []
+        parsed, issues = gear_attribute_rules.validate_attribute_rulebook(missing_golden)
+        self.assertIsNone(parsed)
+        self.assertTrue(any(issue["code"] == "MISSING_GOLDEN_SAMPLE" for issue in issues))
+
+    def test_verified_rulebook_rejects_legacy_linear_rating_conversion(self):
+        rulebook = fixture_rulebook()
+        context = rulebook["contexts"][0]
+        context["status"] = "verified"
+        context["sourceRefs"] = ["test:verified-source"]
+        context["goldenSampleIds"] = ["test:mage-frost-human"]
+
+        parsed, issues = gear_attribute_rules.validate_attribute_rulebook(rulebook)
+
+        self.assertIsNone(parsed)
+        self.assertTrue(any(issue["code"] == "LEGACY_LINEAR_TRANSFORM_NOT_PROMOTABLE" for issue in issues))
+
+    def test_verified_rulebook_rejects_a_two_point_curve_disguised_as_a_transform(self):
+        rulebook = verified_rulebook()
+        rulebook["contexts"][0]["secondaryRules"][0]["ratingTransform"]["points"] = [
+            {"input": 0, "output": 0},
+            {"input": 1000, "output": 1000},
+        ]
+
+        parsed, issues = gear_attribute_rules.validate_attribute_rulebook(rulebook)
+
+        self.assertIsNone(parsed)
+        self.assertTrue(any(issue["code"] == "INSUFFICIENT_CURVE_EVIDENCE_FOR_PROMOTION" for issue in issues))
+
+    def test_verified_rulebook_rejects_a_collinear_curve_disguised_as_a_transform(self):
+        rulebook = verified_rulebook()
+        rulebook["contexts"][0]["secondaryRules"][0]["ratingTransform"]["points"] = [
+            {"input": 0, "output": 0},
+            {"input": 10, "output": 10},
+            {"input": 20, "output": 20},
+        ]
+
+        parsed, issues = gear_attribute_rules.validate_attribute_rulebook(rulebook)
+
+        self.assertIsNone(parsed)
+        self.assertTrue(any(issue["code"] == "LINEAR_CURVE_NOT_PROMOTABLE" for issue in issues))
+
+    def test_rulebook_accepts_ordered_post_conversion_modifiers(self):
+        rulebook = verified_rulebook()
+        rulebook["contexts"][0]["secondaryRules"][0]["postConversionModifiers"] = [
+            {"effectId": "mage:tome_of_rhonin", "operation": "add", "value": 2},
+            {"effectId": "mage:critical_multiplier", "operation": "multiply", "value": 1.05},
+        ]
+
+        parsed, issues = gear_attribute_rules.validate_attribute_rulebook(rulebook)
+
+        self.assertEqual(issues, [])
+        self.assertEqual(
+            parsed["contexts"][0]["secondaryRules"][0]["postConversionModifiers"],
+            rulebook["contexts"][0]["secondaryRules"][0]["postConversionModifiers"],
+        )
+
+    def test_rulebook_accepts_total_post_conversion_multiplier(self):
+        rulebook = verified_rulebook()
+        rulebook["contexts"][0]["secondaryRules"][0]["postConversionModifiers"] = [
+            {"effectId": "mage:tome_of_antonidas", "operation": "multiply_total", "value": 1.02},
+        ]
+
+        parsed, issues = gear_attribute_rules.validate_attribute_rulebook(rulebook)
+
+        self.assertEqual(issues, [])
+        self.assertEqual(
+            parsed["contexts"][0]["secondaryRules"][0]["postConversionModifiers"][0]["operation"],
+            "multiply_total",
+        )
+
+    def test_rulebook_rejects_nonzero_raw_rating_rounding_value(self):
+        rulebook = fixture_rulebook()
+        rulebook["contexts"][0]["stableModifiers"] = [{
+            "effectId": "fixture:haste-round",
+            "targetKey": "haste_rating",
+            "operation": "round_nearest",
+            "value": 1,
+        }]
+
+        parsed, issues = gear_attribute_rules.validate_attribute_rulebook(rulebook)
+
+        self.assertIsNone(parsed)
+        self.assertTrue(any(issue["code"] == "INVALID_STABLE_MODIFIER" for issue in issues))
+
+    def test_rulebook_rejects_duplicate_secondary_output_keys(self):
+        duplicate = fixture_rulebook()
+        duplicate["contexts"][0]["secondaryRules"][1]["outputKey"] = "crit"
+
+        parsed, issues = gear_attribute_rules.validate_attribute_rulebook(duplicate)
+
+        self.assertIsNone(parsed)
+        self.assertTrue(any(issue["code"] == "DUPLICATE_OUTPUT_KEY" for issue in issues))
+
+    def test_verified_rule_lookup_rejects_unknown_race(self):
+        rule, issues = gear_attribute_rules.applicable_attribute_rule(
+            verified_rulebook(), class_key="mage", spec_key="frost", level=90, race_key="orc"
+        )
+
+        self.assertIsNone(rule)
+        self.assertEqual(issues[0]["code"], "ATTRIBUTE_RULE_UNAVAILABLE")
+
+    def test_confirmed_audit_finding_blocks_only_future_rule_promotion_validation(self):
+        rulebook = verified_rulebook()
+
+        parsed, issues = gear_attribute_rules.validate_attribute_rulebook(
+            rulebook,
+            promotion_findings_reader=lambda revision: [{
+                "attributeRuleRevision": revision,
+                "contextKey": "mage:frost:90:human",
+            }],
+        )
+        public_rule, public_issues = gear_attribute_rules.applicable_attribute_rule(
+            rulebook, class_key="mage", spec_key="frost", level=90, race_key="human"
+        )
+
+        self.assertIsNone(parsed)
+        self.assertTrue(any(issue["code"] == "ATTRIBUTE_RULE_AUDIT_MISMATCH_BLOCKS_PROMOTION" for issue in issues))
+        self.assertEqual(public_issues, [])
+        self.assertEqual(public_rule["attributeRuleRevision"], "fixture-r1")
+
+    def test_verified_public_context_keeps_provenance_and_strips_implementation_notes(self):
+        rulebook = verified_rulebook()
+        public = gear_attribute_rules.public_attribute_calculator_context(
+            rulebook, class_key="mage", spec_key="frost", level=90
+        )
+
+        self.assertEqual(public["status"], "available")
+        self.assertEqual(public["attributeRuleRevision"], "fixture-r1")
+        self.assertEqual(public["raceOptions"], [{"raceKey": "human"}])
+        self.assertEqual(public["rules"][0]["attributeRuleRevision"], "fixture-r1")
+        self.assertEqual(public["rules"][0]["sourceRefs"], ["test:verified-source"])
+        self.assertEqual(public["rules"][0]["goldenSampleIds"], ["test:mage-frost-human"])
+        self.assertNotIn("implementationNotes", public["rules"][0])
+
+        rule, issues = gear_attribute_rules.applicable_attribute_rule(
+            rulebook, class_key="mage", spec_key="frost", level=90, race_key="human"
+        )
+        self.assertEqual(issues, [])
+        self.assertEqual(rule["contextKey"], "mage:frost:90:human")
+
+
+if __name__ == "__main__":
+    unittest.main()

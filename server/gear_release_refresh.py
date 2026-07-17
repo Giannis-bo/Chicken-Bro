@@ -11,9 +11,11 @@ from typing import Any, Iterable, Mapping
 
 try:
     from . import gear_release
+    from .attribute_rule_audit import build_winner_audit_intents
     from .gear_release_store import canonical_row_hash
 except ImportError:
     import gear_release
+    from attribute_rule_audit import build_winner_audit_intents
     from gear_release_store import canonical_row_hash
 
 
@@ -506,6 +508,37 @@ def _event_summary(
     }
 
 
+def _enqueue_sealed_winner_audits(
+    *,
+    writer: Any,
+    rulebook_loader: Any,
+    active_winners: Any,
+    candidate_rows: Any,
+    candidate_context: dict[str, Any],
+    now: str,
+) -> dict[str, Any]:
+    """Persist bounded audit intent after Release sealing without changing its result."""
+    if not callable(writer):
+        return {"status": "not_requested"}
+    try:
+        rulebook = rulebook_loader() if callable(rulebook_loader) else {}
+        intents = build_winner_audit_intents(
+            active_winners=active_winners,
+            candidate_rows=candidate_rows,
+            candidate_context=candidate_context,
+            rulebook=rulebook if isinstance(rulebook, dict) else {},
+        )
+        result = writer(intents, now=_text(now))
+        result = result if isinstance(result, dict) else {}
+        return {
+            "status": "queued",
+            "inserted": int(result.get("inserted") or 0),
+            "reused": int(result.get("reused") or 0),
+        }
+    except Exception:
+        return {"status": "unavailable", "code": "ATTRIBUTE_AUDIT_INTENT_WRITE_FAILED"}
+
+
 def run_release_refresh(
     store: Any,
     *,
@@ -518,6 +551,8 @@ def run_release_refresh(
     candidate_builder: Any,
     shadow_runner: Any,
     socket_bonus_minimums_loader: Any,
+    audit_intent_writer: Any = None,
+    attribute_rulebook_loader: Any = None,
 ) -> dict[str, Any]:
     """Run one candidate-first refresh while keeping pointer mutation last."""
 
@@ -605,6 +640,19 @@ def run_release_refresh(
             else:
                 store.seal_manifest(manifest)
                 result_status = "manual_required" if status == "manual_required" else "blocked"
+            audit_summary = _enqueue_sealed_winner_audits(
+                writer=audit_intent_writer,
+                rulebook_loader=attribute_rulebook_loader,
+                active_winners=candidate.get("activeWinners") or [],
+                candidate_rows=candidate.get("candidateRows") or [],
+                candidate_context={
+                    "candidateCommunityReleaseId": _text(community.get("releaseId")),
+                    "candidateGearReleaseId": _text(gear.get("releaseId")),
+                    "manifestRevision": _text(manifest.get("manifestRevision")),
+                    "releaseDecision": status,
+                },
+                now=now,
+            )
             event = _event_summary(
                 status=result_status,
                 candidate=candidate,
@@ -613,6 +661,7 @@ def run_release_refresh(
                 shadow=shadow,
             )
             event["at"] = _text(now)
+            event["attributeRuleAudit"] = audit_summary
             store.record_refresh_event(
                 "gear_release_refresh_completed",
                 event,
@@ -624,6 +673,7 @@ def run_release_refresh(
                 "decision": decision,
                 "pointer": pointer,
                 "shadow": shadow,
+                "attributeRuleAudit": audit_summary,
             }
         except Exception:
             problem = _bounded_problem(
@@ -641,6 +691,7 @@ def _run_from_environment(*, updated_by: str) -> dict[str, Any]:
         from .db import connect_postgres, database_config_from_env, postgres_only_runtime_enabled
         from .gear_release_shadow import run_release_shadow
         from .gear_release_store import GearReleaseStore
+        from .attribute_rule_audit_store import AttributeRuleAuditStore
         from .gear_release_tool import (
             expected_spec_pairs,
             load_simc_socket_bonus_minimums,
@@ -652,6 +703,7 @@ def _run_from_environment(*, updated_by: str) -> dict[str, Any]:
         from db import connect_postgres, database_config_from_env, postgres_only_runtime_enabled
         from gear_release_shadow import run_release_shadow
         from gear_release_store import GearReleaseStore
+        from attribute_rule_audit_store import AttributeRuleAuditStore
         from gear_release_tool import (
             expected_spec_pairs,
             load_simc_socket_bonus_minimums,
@@ -665,6 +717,7 @@ def _run_from_environment(*, updated_by: str) -> dict[str, Any]:
         raise RuntimeError("release refresh requires the PostgreSQL-only runtime")
     connection_factory = lambda: connect_postgres(config.database_url)
     store = GearReleaseStore(connection_factory)
+    audit_store = AttributeRuleAuditStore(connection_factory)
     shadow_store = PostgresCacheStore(connection_factory)
     simc_status = simc_version_status()
     simc_binary_path, simc_revision = _simc_probe_identity_from_status(simc_status)
@@ -701,6 +754,12 @@ def _run_from_environment(*, updated_by: str) -> dict[str, Any]:
         socket_bonus_minimums_loader=lambda: load_simc_socket_bonus_minimums(
             simc_binary_path,
         ),
+        audit_intent_writer=audit_store.enqueue_intents,
+        attribute_rulebook_loader=lambda: {
+            "schemaRevision": "gear-attribute-rulebook-v1",
+            "attributeRuleRevision": "",
+            "contexts": [],
+        },
     )
 
 

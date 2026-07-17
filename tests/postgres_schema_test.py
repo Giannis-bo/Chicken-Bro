@@ -18,6 +18,7 @@ WEBSIM_ASSET_REGISTRY = ROOT / "server" / "migrations" / "postgres" / "0012_webs
 WEBSIM_RELEASE_TRAIN = ROOT / "server" / "migrations" / "postgres" / "0013_websim_release_train.sql"
 WEBSIM_POINTER_STATE = ROOT / "server" / "migrations" / "postgres" / "0014_websim_active_manifest_pointer_state.sql"
 WEBSIM_GEAR_STAT_SNAPSHOTS = ROOT / "server" / "migrations" / "postgres" / "0015_websim_gear_stat_snapshots.sql"
+WEBSIM_ATTRIBUTE_RULE_AUDITS = ROOT / "server" / "migrations" / "postgres" / "0016_websim_attribute_rule_audits.sql"
 
 
 class PostgresSchemaTest(unittest.TestCase):
@@ -366,3 +367,16 @@ class PostgresSchemaTest(unittest.TestCase):
         self.assertIn("REVOKE UPDATE, DELETE ON cache.websim_gear_stat_snapshots FROM wow_app", normalized)
         self.assertIn("REVOKE DELETE ON ops.websim_gear_stat_jobs FROM wow_app", normalized)
         self.assertIn("0015_websim_gear_stat_snapshots", normalized)
+
+    def test_websim_attribute_rule_audit_migration_adds_fenced_operational_ledger(self):
+        self.assertTrue(WEBSIM_ATTRIBUTE_RULE_AUDITS.exists(), "missing winner attribute rule audit migration")
+        normalized = " ".join(WEBSIM_ATTRIBUTE_RULE_AUDITS.read_text(encoding="utf-8").split())
+        self.assertIn("CREATE TABLE IF NOT EXISTS ops.websim_attribute_rule_audits", normalized)
+        self.assertIn("attribute-audit:sha256", normalized)
+        self.assertIn("idx_ops_websim_attribute_rule_audits_claim", normalized)
+        self.assertIn("candidate_community_release_id", normalized)
+        self.assertIn("manifest_revision", normalized)
+        self.assertIn("input_json", normalized)
+        self.assertIn("result_json", normalized)
+        self.assertIn("REVOKE DELETE ON ops.websim_attribute_rule_audits FROM wow_app", normalized)
+        self.assertIn("0016_websim_attribute_rule_audits", normalized)

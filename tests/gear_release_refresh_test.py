@@ -16,6 +16,7 @@ from server.gear_release_refresh import (
     run_release_refresh,
 )
 from server.gear_release_store import canonical_row_hash
+from tests.attribute_rule_audit_test import fixture as attribute_audit_fixture
 
 
 DEPENDENCIES = {
@@ -385,6 +386,87 @@ class GearReleaseRefreshPolicyTest(unittest.TestCase):
         self.assertEqual(event["shadowStatus"], "pass")
         self.assertEqual(event["shadowSpecCount"], 1)
         self.assertEqual(event["shadowPerformance"]["specP95Ms"], 12.5)
+
+    def test_sealed_refresh_enqueues_audit_only_after_pointer_promotion(self):
+        store = FakeStore()
+        data = attribute_audit_fixture()
+        candidate = candidate_bundle(store)
+        candidate["activeWinners"] = data["activeWinners"]
+        candidate["candidateRows"] = data["candidateRows"]
+        observed = []
+
+        def write_intents(intents, *, now):
+            self.assertEqual(len(store.promotions), 1, "audit intent must follow pointer sealing")
+            observed.extend(intents)
+            return {"inserted": len(intents), "reused": 0}
+
+        result = run_release_refresh(
+            store,
+            expected_specs=[("mage", "frost")],
+            dependency_revisions=DEPENDENCIES,
+            now="2026-07-17T04:00:00+00:00",
+            updated_by="attribute-audit-test",
+            lease=lease(),
+            socket_bonus_minimums_loader=lambda: {"9300": 1},
+            candidate_builder=lambda *_args, **_kwargs: candidate,
+            shadow_runner=lambda **_kwargs: passing_shadow(),
+            audit_intent_writer=write_intents,
+            attribute_rulebook_loader=lambda: data["verifiedRulebook"],
+        )
+
+        self.assertEqual(result["status"], "promoted")
+        self.assertEqual([intent["status"] for intent in observed], ["pending"])
+        self.assertEqual(result["attributeRuleAudit"], {"status": "queued", "inserted": 1, "reused": 0})
+        self.assertEqual(store.events[-1]["event"]["attributeRuleAudit"]["status"], "queued")
+
+    def test_audit_enqueue_failure_does_not_change_sealed_refresh_result(self):
+        store = FakeStore()
+        data = attribute_audit_fixture()
+        candidate = candidate_bundle(store)
+        candidate["activeWinners"] = data["activeWinners"]
+        candidate["candidateRows"] = data["candidateRows"]
+
+        result = run_release_refresh(
+            store,
+            expected_specs=[("mage", "frost")],
+            dependency_revisions=DEPENDENCIES,
+            now="2026-07-17T04:00:00+00:00",
+            updated_by="attribute-audit-test",
+            lease=lease(),
+            socket_bonus_minimums_loader=lambda: {"9300": 1},
+            candidate_builder=lambda *_args, **_kwargs: candidate,
+            shadow_runner=lambda **_kwargs: passing_shadow(),
+            audit_intent_writer=lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("audit database secret")),
+            attribute_rulebook_loader=lambda: data["verifiedRulebook"],
+        )
+
+        self.assertEqual(result["status"], "promoted")
+        self.assertEqual(len(store.promotions), 1)
+        self.assertEqual(result["attributeRuleAudit"], {
+            "status": "unavailable", "code": "ATTRIBUTE_AUDIT_INTENT_WRITE_FAILED"
+        })
+        self.assertNotIn("secret", str(result))
+
+    def test_lease_conflict_never_calls_audit_intent_writer(self):
+        store = FakeStore()
+        writer_calls = []
+
+        result = run_release_refresh(
+            store,
+            expected_specs=[("mage", "arcane")],
+            dependency_revisions=DEPENDENCIES,
+            now="2026-07-17T04:00:00+00:00",
+            updated_by="attribute-audit-test",
+            lease=lease(False),
+            socket_bonus_minimums_loader=lambda: {"9300": 1},
+            candidate_builder=lambda *_args, **_kwargs: candidate_bundle(store),
+            shadow_runner=lambda **_kwargs: passing_shadow(),
+            audit_intent_writer=lambda *_args, **_kwargs: writer_calls.append(True),
+            attribute_rulebook_loader=lambda: {},
+        )
+
+        self.assertEqual(result["status"], "lease_conflict")
+        self.assertEqual(writer_calls, [])
 
     def test_missing_still_legal_winner_blocks_and_preserves_pointer(self):
         store = FakeStore()

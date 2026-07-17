@@ -1,0 +1,494 @@
+{
+  "schemaRevision": "gear-attribute-armory-v1",
+  "samples": [
+    {
+      "id": "mage-arcane-armory-2026-07-17t041853z",
+      "status": "verified",
+      "source": {
+        "url": "https://worldofwarcraft.blizzard.com/en-gb/character/eu/blackrock/Heated",
+        "capturedAt": "2026-07-17T04:18:53Z",
+        "captureStatus": "captured"
+      },
+      "identity": {
+        "region": "eu",
+        "realm": "Blackrock",
+        "name": "Heated",
+        "classKey": "mage",
+        "specKey": "arcane",
+        "raceKey": "night_elf",
+        "level": 90
+      },
+      "equipment": [
+        {
+          "slot": "head",
+          "name": "Voidbreaker's Veil",
+          "itemId": "250060",
+          "itemIdSource": "raider_io_profile_api:2026-07-17T04:25:50Z",
+          "itemLevel": 289,
+          "variantKey": "blizzard:250060:289:40:12806:13338:13440:13534:13575",
+          "stats": {
+            "intellect": 124,
+            "stamina": 1768,
+            "haste_rating": 109,
+            "mastery_rating": 55,
+            "avoidance_rating": 71
+          },
+          "gem": {
+            "versatility_rating": 16,
+            "crit_rating": 7
+          },
+          "enchant": "Enchant Helm - Empowered Rune of Avoidance",
+          "enchantId": "8017",
+          "gemId": "240914"
+        },
+        {
+          "slot": "neck",
+          "name": "Rotmire's Sporeheart",
+          "itemId": "268291",
+          "itemIdSource": "raider_io_profile_api:2026-07-17T04:25:50Z",
+          "itemLevel": 298,
+          "variantKey": "blizzard:268291:298:6652:13335:13668:13786",
+          "stats": {
+            "stamina": 1110,
+            "crit_rating": 48,
+            "mastery_rating": 275
+          },
+          "conditionalEffects": [
+            "+23 Primary Stat and +0.15% critical strike effectiveness per unique Midnight gem color",
+            "protective toadstool proc"
+          ],
+          "gemId": "240967"
+        },
+        {
+          "slot": "shoulder",
+          "name": "Voidbreaker's Leyline Nexi",
+          "itemId": "250058",
+          "itemIdSource": "raider_io_profile_api:2026-07-17T04:25:50Z",
+          "itemLevel": 289,
+          "variantKey": "blizzard:250058:289:6652:12806:13340:13440:13574",
+          "stats": {
+            "intellect": 93,
+            "stamina": 1326,
+            "haste_rating": 81,
+            "versatility_rating": 43
+          },
+          "enchant": "Enchant Shoulders - Silvermoon's Mending",
+          "enchantId": "8031"
+        },
+        {
+          "slot": "back",
+          "name": "Adherent's Silken Shroud",
+          "itemId": "239656",
+          "itemIdSource": "raider_io_profile_api:2026-07-17T04:25:50Z",
+          "itemLevel": 285,
+          "variantKey": "blizzard:239656:285:8791:8960:12066:12214:12384:12497:13622:13667",
+          "stats": {
+            "intellect": 67,
+            "stamina": 948,
+            "crit_rating": 45,
+            "mastery_rating": 45
+          },
+          "conditionalEffects": [
+            "mana wyrm proc: +44 Intellect"
+          ]
+        },
+        {
+          "slot": "chest",
+          "name": "Voidbreaker's Robe",
+          "itemId": "250063",
+          "itemIdSource": "raider_io_profile_api:2026-07-17T04:25:50Z",
+          "itemLevel": 298,
+          "variantKey": "blizzard:250063:298:3183:6652:13335:13336:13575:13786",
+          "stats": {
+            "intellect": 135,
+            "stamina": 1974,
+            "crit_rating": 117,
+            "haste_rating": 55
+          },
+          "enchant": "Enchant Chest - Mark of the Worldsoul",
+          "enchantId": "7987"
+        },
+        {
+          "slot": "wrist",
+          "name": "Voidbreaker's Bracers",
+          "itemId": "250056",
+          "itemIdSource": "raider_io_profile_api:2026-07-17T04:25:50Z",
+          "itemLevel": 289,
+          "variantKey": "blizzard:250056:289:6652:12806:13440:13534",
+          "stats": {
+            "intellect": 70,
+            "stamina": 995,
+            "haste_rating": 29,
+            "versatility_rating": 64
+          },
+          "gem": {
+            "versatility_rating": 16,
+            "crit_rating": 7
+          },
+          "gemId": "240914"
+        },
+        {
+          "slot": "hands",
+          "name": "Fractured Fingerguards",
+          "itemId": "251211",
+          "itemIdSource": "raider_io_profile_api:2026-07-17T04:25:50Z",
+          "itemLevel": 289,
+          "variantKey": "blizzard:251211:289:6652:12699:12806:13440:13577",
+          "stats": {
+            "intellect": 93,
+            "stamina": 1326,
+            "crit_rating": 72,
+            "versatility_rating": 51
+          }
+        },
+        {
+          "slot": "waist",
+          "name": "Martyr's Waistwrap",
+          "itemId": "239649",
+          "itemIdSource": "raider_io_profile_api:2026-07-17T04:25:50Z",
+          "itemLevel": 285,
+          "variantKey": "blizzard:239649:285:8793:8960:12066:12214:12384:12497:12666:13622:13667",
+          "stats": {
+            "intellect": 90,
+            "stamina": 1264,
+            "haste_rating": 60,
+            "mastery_rating": 60
+          },
+          "gem": {
+            "versatility_rating": 16,
+            "crit_rating": 7
+          },
+          "conditionalEffects": [
+            "mana wyrm proc: +44 Intellect"
+          ],
+          "gemId": "240914"
+        },
+        {
+          "slot": "legs",
+          "name": "Voidbreaker's Britches",
+          "itemId": "250059",
+          "itemIdSource": "raider_io_profile_api:2026-07-17T04:25:50Z",
+          "itemLevel": 289,
+          "variantKey": "blizzard:250059:289:6652:12806:13339:13440:13575",
+          "stats": {
+            "intellect": 124,
+            "stamina": 1768,
+            "crit_rating": 55,
+            "haste_rating": 110
+          },
+          "enchant": "+41 Intellect & +115 Stamina",
+          "enchantId": "7935"
+        },
+        {
+          "slot": "feet",
+          "name": "Luxurious Loamstriders",
+          "itemId": "268282",
+          "itemIdSource": "raider_io_profile_api:2026-07-17T04:25:50Z",
+          "itemLevel": 298,
+          "variantKey": "blizzard:268282:298:6652:13335:13577:13786",
+          "stats": {
+            "intellect": 101,
+            "stamina": 1480,
+            "crit_rating": 39,
+            "mastery_rating": 90
+          },
+          "enchant": "Enchant Boots - Lynx's Dexterity",
+          "enchantId": "7963"
+        },
+        {
+          "slot": "finger1",
+          "name": "Masterwork Sin'dorei Band",
+          "itemId": "240949",
+          "itemIdSource": "raider_io_profile_api:2026-07-17T04:25:50Z",
+          "itemLevel": 285,
+          "variantKey": "blizzard:240949:285:8795:12066:12214:12497:13622:13667",
+          "stats": {
+            "stamina": 948,
+            "crit_rating": 147,
+            "versatility_rating": 147
+          },
+          "gem": {
+            "versatility_rating": 16,
+            "crit_rating": 7
+          },
+          "enchant": "Enchant Ring - Eyes of the Eagle",
+          "enchantId": "7967",
+          "gemId": "240914"
+        },
+        {
+          "slot": "finger2",
+          "name": "Sporecaller's Blooming Loop",
+          "itemId": "268290",
+          "itemIdSource": "raider_io_profile_api:2026-07-17T04:25:50Z",
+          "itemLevel": 298,
+          "variantKey": "blizzard:268290:298:42:13335:13668:13786",
+          "stats": {
+            "stamina": 1110,
+            "haste_rating": 268,
+            "mastery_rating": 55,
+            "speed_rating": 55
+          },
+          "gem": {
+            "versatility_rating": 16,
+            "crit_rating": 7
+          },
+          "enchant": "Enchant Ring - Eyes of the Eagle",
+          "enchantId": "7967",
+          "gemId": "240914"
+        },
+        {
+          "slot": "trinket1",
+          "name": "Vaelgor's Final Stare",
+          "itemId": "249346",
+          "itemIdSource": "raider_io_profile_api:2026-07-17T04:25:50Z",
+          "itemLevel": 285,
+          "variantKey": "blizzard:249346:285:6652:13334:13653",
+          "stats": {
+            "intellect": 114
+          },
+          "conditionalEffects": [
+            "on-use diminishing Mastery"
+          ]
+        },
+        {
+          "slot": "trinket2",
+          "name": "Gaze of the Alnseer",
+          "itemId": "249343",
+          "itemIdSource": "raider_io_profile_api:2026-07-17T04:25:50Z",
+          "itemLevel": 298,
+          "variantKey": "blizzard:249343:298:6652:13335:13654",
+          "stats": {
+            "mastery_rating": 123
+          },
+          "conditionalEffects": [
+            "Alnsight proc: +37 Intellect"
+          ]
+        },
+        {
+          "slot": "main_hand",
+          "name": "Spire of the Furious Construct",
+          "itemId": "258047",
+          "itemIdSource": "raider_io_profile_api:2026-07-17T04:25:50Z",
+          "itemLevel": 298,
+          "variantKey": "blizzard:258047:298:6652:12701:13440:13654",
+          "stats": {
+            "intellect": 600,
+            "stamina": 1974,
+            "haste_rating": 90,
+            "mastery_rating": 82
+          },
+          "enchant": "Enchant Weapon - Arcane Mastery",
+          "enchantId": "8041"
+        },
+        {
+          "slot": "off_hand",
+          "status": "empty",
+          "reason": "two_hand_staff"
+        }
+      ],
+      "evidence": {
+        "officialProfileApi": {
+          "url": "https://eu.api.blizzard.com/profile/wow/character/blackrock/heated?namespace=profile-eu&locale=en_GB",
+          "capturedAt": "2026-07-17T04:43:43Z",
+          "credentialHandling": "read-only server-side OAuth; no token persisted"
+        },
+        "officialProfileSnapshot": {
+          "capturedAt": "2026-07-17T04:43:43Z",
+          "canonicalEquipmentCount": 15,
+          "excludedCosmeticSlots": [
+            {
+              "slot": "shirt",
+              "itemId": "45667",
+              "itemLevel": 1
+            },
+            {
+              "slot": "tabard",
+              "itemId": "31804",
+              "itemLevel": 10
+            }
+          ],
+          "instances": [
+            { "slot": "head", "itemId": "250060", "itemLevel": 289, "bonusIds": [40, 13440, 13338, 13575, 12806, 13534], "enchantIds": [8017], "gemIds": [240914] },
+            { "slot": "neck", "itemId": "268291", "itemLevel": 298, "bonusIds": [6652, 13668, 13335, 13786], "gemIds": [240967] },
+            { "slot": "shoulder", "itemId": "250058", "itemLevel": 289, "bonusIds": [13340, 13440, 6652, 13574, 12806], "enchantIds": [8031] },
+            { "slot": "chest", "itemId": "250063", "itemLevel": 298, "bonusIds": [6652, 13335, 13786, 13336, 13575, 3183], "enchantIds": [7987] },
+            { "slot": "waist", "itemId": "239649", "itemLevel": 285, "bonusIds": [12214, 13667, 12497, 12066, 8960, 12384, 8793, 13622, 12666], "gemIds": [240914] },
+            { "slot": "legs", "itemId": "250059", "itemLevel": 289, "bonusIds": [6652, 13440, 13339, 13575, 12806], "enchantIds": [7935] },
+            { "slot": "feet", "itemId": "268282", "itemLevel": 298, "bonusIds": [6652, 13577, 13335, 13786], "enchantIds": [7963] },
+            { "slot": "wrist", "itemId": "250056", "itemLevel": 289, "bonusIds": [6652, 13440, 12806, 13534], "gemIds": [240914] },
+            { "slot": "hands", "itemId": "251211", "itemLevel": 289, "bonusIds": [13440, 6652, 13577, 12699, 12806] },
+            { "slot": "finger1", "itemId": "240949", "itemLevel": 285, "bonusIds": [12214, 13667, 12497, 12066, 8795, 13622], "enchantIds": [7967], "gemIds": [240914] },
+            { "slot": "finger2", "itemId": "268290", "itemLevel": 298, "bonusIds": [42, 13668, 13335, 13786], "enchantIds": [7967], "gemIds": [240914] },
+            { "slot": "trinket1", "itemId": "249346", "itemLevel": 285, "bonusIds": [6652, 13334, 13653] },
+            { "slot": "trinket2", "itemId": "249343", "itemLevel": 298, "bonusIds": [6652, 13335, 13654] },
+            { "slot": "back", "itemId": "239656", "itemLevel": 285, "bonusIds": [12214, 13667, 12497, 12066, 8960, 12384, 8791, 13622] },
+            { "slot": "main_hand", "itemId": "258047", "itemLevel": 298, "bonusIds": [13440, 6652, 12701, 13654], "enchantIds": [8041] },
+            { "slot": "off_hand", "status": "empty", "reason": "two_hand_staff" }
+          ]
+        },
+        "officialProfilePanel": {
+          "capturedAt": "2026-07-17T04:43:43Z",
+          "values": {
+            "health": 458760,
+            "mana": 342615,
+            "intellect": { "base": 620, "effective": 2462 },
+            "stamina": { "base": 4600, "effective": 22938 },
+            "criticalStrike": { "rating": 558, "ratingBonusPercent": 12.130435, "finalPercent": 19.130434 },
+            "haste": { "rating": 802, "ratingBonusPercent": 18.227272, "finalPercent": 23.003637 },
+            "mastery": { "rating": 785, "ratingBonusPercent": 22.526089, "finalPercent": 37.04609 },
+            "versatility": { "rating": 385, "damageDonePercent": 7.1296296, "healingDonePercent": 7.1296296, "damageTakenReductionPercent": 3.5648148 },
+            "avoidance": { "rating": 127, "ratingBonusPercent": 3.4510376 },
+            "lifesteal": { "rating": 166, "finalPercent": 2.4057627 },
+            "speed": { "rating": 55, "ratingBonusPercent": 4.7825403 }
+          }
+        },
+        "officialTalentLoadout": {
+          "capturedAt": "2026-07-17T09:35:57Z",
+          "specKey": "arcane",
+          "heroKey": "spellslinger",
+          "talentLoadoutCode": "C4DAMhlVtghLZL4RZzExaQoBYNzwMLzMzsgZGamZGAAAGAAEwMzMLLzMxCAAbzYmZMbmlZmZMzYMMzMjFmZmxMAADAAgZWAAzAghB"
+        }
+      },
+      "observedPanel": {
+        "item_level": 291,
+        "health": 458760,
+        "mana": 342615,
+        "intellect": 2462,
+        "stamina": 22938,
+        "critical_strike_percent": 19,
+        "haste_percent": 23,
+        "mastery_percent": 37,
+        "versatility_percent": 7
+      },
+      "missingEvidence": [
+      ]
+    },
+    {
+      "id": "mage-frost-armory-2026-07-17t041853z",
+      "status": "candidate",
+      "source": {
+        "url": "https://worldofwarcraft.blizzard.com/ko-kr/character/kr/azshara/%EC%B9%B4%EB%A5%B4%EA%B3%B5%EC%8A%A4",
+        "capturedAt": "2026-07-17T04:18:53Z",
+        "captureStatus": "not_found"
+      },
+      "identity": {
+        "region": "kr",
+        "realm": "Azshara",
+        "name": "카르공스",
+        "classKey": "mage",
+        "specKey": "frost",
+        "raceKey": "unknown",
+        "level": 90
+      },
+      "equipment": [],
+      "observedPanel": {},
+      "missingEvidence": [
+        "official character URL returned 404 at capture time",
+        "current race, equipment instances, enhancements, talents and Armory panel cannot be verified",
+        "the user-supplied screenshot is historical discussion evidence only and is not promoted into a rule input"
+      ]
+    },
+    {
+      "id": "mage-frost-armory-2026-07-17t091243z",
+      "status": "verified",
+      "source": {
+        "url": "https://worldofwarcraft.blizzard.com/en-us/character/kr/azshara/%EC%B9%B4%EB%A5%B4%EA%BD%81%EC%8A%A4",
+        "capturedAt": "2026-07-17T09:12:43Z",
+        "captureStatus": "captured"
+      },
+      "identity": {
+        "region": "kr",
+        "realm": "Azshara",
+        "name": "카르꽁스",
+        "classKey": "mage",
+        "specKey": "frost",
+        "raceKey": "dwarf",
+        "level": 90
+      },
+      "equipment": [
+        { "slot": "head", "itemId": "250060", "itemLevel": 289, "variantKey": "blizzard:250060:289:40:12806:13335:13338:13534:13575", "stats": { "intellect": 124, "stamina": 1768, "haste_rating": 109, "mastery_rating": 55, "avoidance_rating": 71 }, "gemId": "240892", "enchantId": "8017" },
+        { "slot": "neck", "itemId": "268291", "itemLevel": 298, "variantKey": "blizzard:268291:298:6652:13335:13668:13786", "stats": { "stamina": 1110, "crit_rating": 48, "mastery_rating": 275 }, "gemId": "240908" },
+        { "slot": "shoulder", "itemId": "251085", "itemLevel": 289, "variantKey": "blizzard:251085:289:6652:12699:12806:13440:13577", "stats": { "intellect": 93, "stamina": 1326, "crit_rating": 48, "mastery_rating": 75 }, "enchantId": "8001" },
+        { "slot": "back", "itemId": "239656", "itemLevel": 285, "variantKey": "blizzard:239656:285:8791:8960:12066:12214:12384:12497:13622:13667", "stats": { "intellect": 67, "stamina": 948, "crit_rating": 45, "mastery_rating": 45 }, "enchantId": "4897" },
+        { "slot": "chest", "itemId": "250063", "itemLevel": 298, "variantKey": "blizzard:250063:298:3183:6652:13335:13336:13575:13786", "stats": { "intellect": 135, "stamina": 1974, "crit_rating": 117, "haste_rating": 55 }, "enchantId": "7987" },
+        { "slot": "wrist", "itemId": "239648", "itemLevel": 285, "variantKey": "blizzard:239648:285:8791:8960:12066:12214:12384:12497:12666:13622:13667", "stats": { "intellect": 67, "stamina": 948, "crit_rating": 45, "mastery_rating": 45 }, "gemId": "240983" },
+        { "slot": "hands", "itemId": "250061", "itemLevel": 289, "variantKey": "blizzard:250061:289:40:12806:13337:13440:13574", "stats": { "intellect": 93, "stamina": 1326, "haste_rating": 41, "mastery_rating": 83, "avoidance_rating": 53 } },
+        { "slot": "waist", "itemId": "250057", "itemLevel": 289, "variantKey": "blizzard:250057:289:40:12806:13335:13534", "stats": { "intellect": 93, "stamina": 1326, "crit_rating": 85, "haste_rating": 38, "avoidance_rating": 53 }, "gemId": "240908", "enchantId": "4223" },
+        { "slot": "legs", "itemId": "250059", "itemLevel": 289, "variantKey": "blizzard:250059:289:40:12806:13335:13339:13575", "stats": { "intellect": 124, "stamina": 1768, "crit_rating": 55, "haste_rating": 110, "avoidance_rating": 71 }, "enchantId": "7935" },
+        { "slot": "feet", "itemId": "268282", "itemLevel": 298, "variantKey": "blizzard:268282:298:40:13335:13577:13786", "stats": { "intellect": 101, "stamina": 1480, "crit_rating": 39, "mastery_rating": 90, "avoidance_rating": 55 }, "enchantId": "7963" },
+        { "slot": "finger1", "itemId": "249919", "itemLevel": 289, "variantKey": "blizzard:249919:289:6652:12806:13335:13668", "stats": { "stamina": 995, "crit_rating": 248, "mastery_rating": 55 }, "gemId": "240908", "enchantId": "7967" },
+        { "slot": "finger2", "itemId": "268290", "itemLevel": 298, "variantKey": "blizzard:268290:298:6652:13335:13668:13786", "stats": { "stamina": 1110, "haste_rating": 268, "mastery_rating": 55 }, "gemId": "240908", "enchantId": "7967" },
+        { "slot": "trinket1", "itemId": "249343", "itemLevel": 298, "variantKey": "blizzard:249343:298:6652:13335:13654", "stats": { "mastery_rating": 123 } },
+        { "slot": "trinket2", "itemId": "249346", "itemLevel": 298, "variantKey": "blizzard:249346:298:41:13335:13654", "stats": { "intellect": 128, "leech_rating": 55 } },
+        { "slot": "main_hand", "itemId": "258514", "itemLevel": 298, "variantKey": "blizzard:258514:298:6652:12701:13440:13654", "stats": { "intellect": 600, "stamina": 1974, "crit_rating": 67, "mastery_rating": 104 }, "enchantId": "8039" },
+        { "slot": "off_hand", "status": "empty", "reason": "official_profile_has_no_off_hand" }
+      ],
+      "evidence": {
+        "officialProfileApi": {
+          "url": "https://kr.api.blizzard.com/profile/wow/character/azshara/%EC%B9%B4%EB%A5%B4%EA%BD%81%EC%8A%A4?namespace=profile-kr&locale=en_US",
+          "capturedAt": "2026-07-17T12:26:54Z",
+          "credentialHandling": "read-only server-side OAuth; no token persisted"
+        },
+        "officialProfileSnapshot": {
+          "capturedAt": "2026-07-17T12:26:54Z",
+          "canonicalEquipmentCount": 15,
+          "instances": [
+            { "slot": "head", "itemId": "250060", "itemLevel": 289, "bonusIds": [12806, 13335, 13338, 13534, 13575, 40], "enchantIds": [8017], "gemIds": [240892] },
+            { "slot": "neck", "itemId": "268291", "itemLevel": 298, "bonusIds": [13335, 13668, 13786, 6652], "gemIds": [240908] },
+            { "slot": "shoulder", "itemId": "251085", "itemLevel": 289, "bonusIds": [12699, 12806, 13440, 13577, 6652], "enchantIds": [8001] },
+            { "slot": "chest", "itemId": "250063", "itemLevel": 298, "bonusIds": [13335, 13336, 13575, 13786, 3183, 6652], "enchantIds": [7987] },
+            { "slot": "waist", "itemId": "250057", "itemLevel": 289, "bonusIds": [12806, 13335, 13534, 40], "enchantIds": [4223], "gemIds": [240908] },
+            { "slot": "legs", "itemId": "250059", "itemLevel": 289, "bonusIds": [12806, 13335, 13339, 13575, 40], "enchantIds": [7935] },
+            { "slot": "feet", "itemId": "268282", "itemLevel": 298, "bonusIds": [13335, 13577, 13786, 40], "enchantIds": [7963] },
+            { "slot": "wrist", "itemId": "239648", "itemLevel": 285, "bonusIds": [12066, 12214, 12384, 12497, 12666, 13622, 13667, 8791, 8960], "gemIds": [240983] },
+            { "slot": "hands", "itemId": "250061", "itemLevel": 289, "bonusIds": [12806, 13337, 13440, 13574, 40] },
+            { "slot": "finger1", "itemId": "249919", "itemLevel": 289, "bonusIds": [12806, 13335, 13668, 6652], "enchantIds": [7967], "gemIds": [240908] },
+            { "slot": "finger2", "itemId": "268290", "itemLevel": 298, "bonusIds": [13335, 13668, 13786, 6652], "enchantIds": [7967], "gemIds": [240908] },
+            { "slot": "trinket1", "itemId": "249343", "itemLevel": 298, "bonusIds": [13335, 13654, 6652] },
+            { "slot": "trinket2", "itemId": "249346", "itemLevel": 298, "bonusIds": [13335, 13654, 41] },
+            { "slot": "back", "itemId": "239656", "itemLevel": 285, "bonusIds": [12066, 12214, 12384, 12497, 13622, 13667, 8791, 8960], "enchantIds": [4897] },
+            { "slot": "main_hand", "itemId": "258514", "itemLevel": 298, "bonusIds": [12701, 13440, 13654, 6652], "enchantIds": [8039] },
+            { "slot": "off_hand", "status": "empty", "reason": "official_profile_has_no_off_hand" }
+          ]
+        },
+        "officialProfilePanel": {
+          "capturedAt": "2026-07-17T12:26:54Z",
+          "values": {
+            "health": 460020,
+            "mana": 250000,
+            "intellect": { "base": 619, "effective": 2485 },
+            "stamina": { "base": 4601, "effective": 23001 },
+            "criticalStrike": { "rating": 861, "ratingBonusPercent": 18.717392, "finalPercent": 25.717392 },
+            "haste": { "rating": 669, "ratingBonusPercent": 15.204545, "finalPercent": 21.033895 },
+            "mastery": { "rating": 1040, "ratingBonusPercent": 36.173916, "finalPercent": 53.773914 },
+            "versatility": { "rating": 0, "damageDonePercent": 0 },
+            "avoidance": { "rating": 470, "ratingBonusPercent": 12.217245 },
+            "lifesteal": { "rating": 55, "finalPercent": 0.79709005 },
+            "speed": { "rating": 0, "ratingBonusPercent": 0 }
+          }
+        },
+        "officialTalentLoadout": {
+          "capturedAt": "2026-07-17T12:26:54Z",
+          "specKey": "frost",
+          "heroKey": "spellslinger",
+          "talentLoadoutCode": "CAEAMhlVtghLZL4RZzExaQoBYZGGLzMzswMzEzMzYmZmZWMzMjZMDEAAYmZmllZm2AAgNAAAgNA2WGzMzgZbYMDLAAAMzGwMMGwMYA"
+        }
+      },
+      "observedPanel": {
+        "health": 460020,
+        "mana": 250000,
+        "intellect": 2485,
+        "stamina": 23001,
+        "critical_strike_percent": 25.717392,
+        "haste_percent": 21.033895,
+        "mastery_percent": 53.773914,
+        "versatility_percent": 0,
+        "avoidance_percent": 12.217245,
+        "leech_percent": 0.79709005,
+        "speed_percent": 0
+      },
+      "missingEvidence": [
+      ]
+    }
+  ]
+}

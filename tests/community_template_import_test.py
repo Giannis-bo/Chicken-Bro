@@ -147,6 +147,11 @@ class CommunityTemplateImportTest(unittest.TestCase):
             "profileHash": "profile-frost",
             "gearHash": "gear-frost",
             "sourceFingerprint": "sha256:" + "a" * 64,
+            "attributeCharacterContext": {
+                "schemaRevision": "gear-attribute-character-v1",
+                "raceKey": "human",
+                "origin": "default_human",
+            },
         })
 
         self.assertEqual(source["importedGearBySlot"], {
@@ -186,6 +191,47 @@ class CommunityTemplateImportTest(unittest.TestCase):
                 "catalystOptionId": "",
             },
         )
+
+    def test_v2_evidence_projects_its_sealed_source_race(self):
+        winner = copy.deepcopy(self.winner)
+        winner["payload"]["importEvidence"].update({
+            "schemaRevision": "community-template-import-evidence-v2",
+            "sourceRaceKey": "night_elf",
+            "sourceRaceOrigin": "source_profile",
+        })
+
+        source = self.build_source(winner=winner)
+
+        self.assertEqual(source["template"]["attributeCharacterContext"], {
+            "schemaRevision": "gear-attribute-character-v1",
+            "raceKey": "night_elf",
+            "origin": "source_profile",
+        })
+
+    def test_v3_evidence_projects_only_its_sealed_stable_effect_context(self):
+        winner = copy.deepcopy(self.winner)
+        stable_effect_context = {
+            "schemaRevision": "gear-attribute-stable-effects-v1",
+            "status": "verified",
+            "origin": "source_profile",
+            "effectIds": ["mage:inspired_intellect"],
+            "loadoutSignature": "sha256:" + "c" * 64,
+        }
+        winner["payload"]["importEvidence"].update({
+            "schemaRevision": "community-template-import-evidence-v3",
+            "sourceRaceKey": "dwarf",
+            "sourceRaceOrigin": "source_profile",
+            "sourceStableEffects": stable_effect_context,
+            "rawImportCode": "CAE_SOURCE_LOADOUT_MUST_NOT_LEAK",
+        })
+
+        source = self.build_source(winner=winner)
+
+        self.assertEqual(
+            source["template"].get("attributeStableEffectContext"),
+            stable_effect_context,
+        )
+        self.assertNotIn("CAE_SOURCE_LOADOUT_MUST_NOT_LEAK", json.dumps(source, sort_keys=True))
 
     def test_verified_projection_uses_sealed_observed_level_and_icon_not_generic_item(self):
         from server.community_template_import import (

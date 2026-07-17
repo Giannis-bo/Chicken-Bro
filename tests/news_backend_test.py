@@ -9845,7 +9845,9 @@ class NewsBackendTest(unittest.TestCase):
         ):
             payload = self.backend.runtime_websim_gear_payload("mage", "frost", compact=True)
 
-        self.assertIs(payload, stale_payload)
+        self.assertIsNot(payload, stale_payload)
+        self.assertNotIn("attributeCalculator", stale_payload)
+        self.assertEqual(payload["attributeCalculator"]["status"], "available")
 
     def test_runtime_websim_gear_forwards_payload_mode_to_postgres_store(self):
         captured = {}
@@ -9879,12 +9881,66 @@ class NewsBackendTest(unittest.TestCase):
                 slot="head",
             )
 
-        self.assertIs(payload, initial_payload)
+        self.assertIsNot(payload, initial_payload)
+        self.assertNotIn("attributeCalculator", initial_payload)
+        self.assertEqual(payload["attributeCalculator"]["status"], "available")
         self.assertEqual(captured["classKey"], "mage")
         self.assertEqual(captured["specKey"], "frost")
         self.assertTrue(captured["compact"])
         self.assertEqual(captured["mode"], "initial")
         self.assertEqual(captured["slot"], "head")
+
+    def test_runtime_websim_gear_adds_verified_attribute_calculator_to_postgres_payload(self):
+        initial_payload = {
+            "schemaRevision": "websim-gear-v1",
+            "classKey": "mage",
+            "specKey": "frost",
+            "gearPayloadMode": "initial",
+            "replacementCandidates": [],
+        }
+
+        class GearStore:
+            def get_websim_gear(self, class_key, spec_key, compact=False, mode="", slot=""):
+                return initial_payload
+
+        with patch.object(self.backend, "cache_data_store", return_value=GearStore()):
+            payload = self.backend.runtime_websim_gear_payload(
+                "mage",
+                "frost",
+                compact=True,
+                mode="initial",
+            )
+
+        self.assertIsNot(payload, initial_payload)
+        self.assertNotIn("attributeCalculator", initial_payload)
+        calculator = payload["attributeCalculator"]
+        self.assertEqual(calculator["status"], "available")
+        self.assertEqual(calculator["attributeRuleRevision"], "midnight-mage-attributes-r1")
+        self.assertEqual([rule["contextKey"] for rule in calculator["rules"]], ["mage:frost:90:dwarf"])
+
+    def test_runtime_websim_gear_preserves_existing_attribute_calculator_from_postgres(self):
+        calculator = {
+            "status": "ready",
+            "attributeRuleRevision": "gear-attribute-rulebook-v2",
+            "rules": [{"primaryKey": "intellect"}],
+        }
+        initial_payload = {
+            "schemaRevision": "websim-gear-v1",
+            "classKey": "mage",
+            "specKey": "frost",
+            "replacementCandidates": [],
+            "attributeCalculator": calculator,
+        }
+
+        class GearStore:
+            def get_websim_gear(self, class_key, spec_key, compact=False, mode="", slot=""):
+                return initial_payload
+
+        with patch.object(self.backend, "cache_data_store", return_value=GearStore()):
+            payload = self.backend.runtime_websim_gear_payload("mage", "frost", compact=True)
+
+        self.assertIs(payload, initial_payload)
+        self.assertIs(payload["attributeCalculator"], calculator)
 
     def test_runtime_websim_gear_attaches_backend_resolver_context(self):
         captured = {}
@@ -10057,7 +10113,9 @@ class NewsBackendTest(unittest.TestCase):
                 mode="initial",
             )
 
-        self.assertIs(payload, initial_payload)
+        self.assertIsNot(payload, initial_payload)
+        self.assertNotIn("attributeCalculator", initial_payload)
+        self.assertEqual(payload["attributeCalculator"]["status"], "available")
         self.assertNotIn("resolverContext", payload)
 
     def test_runtime_websim_gear_adds_template_chain_state_to_cached_postgres_payload(self):
@@ -10254,7 +10312,9 @@ class NewsBackendTest(unittest.TestCase):
         ):
             payload = self.backend.runtime_websim_gear_payload("mage", "frost", compact=True)
 
-        self.assertIs(payload, stale_payload)
+        self.assertIsNot(payload, stale_payload)
+        self.assertNotIn("attributeCalculator", stale_payload)
+        self.assertEqual(payload["attributeCalculator"]["status"], "available")
 
     def test_pg_only_runtime_returns_blocked_talent_payload_without_sqlite_fallback(self):
         blocked_payload = {
@@ -10879,6 +10939,63 @@ class NewsBackendTest(unittest.TestCase):
 
         self.assertEqual(value, {"ok": True})
         self.assertEqual(queue_ms, 32.0)
+
+    def test_pg_only_attribute_audit_route_uses_resolver_path_without_simc_snapshot(self):
+        store = object()
+        calls = []
+
+        def fake_audit(payload, *, store, simc_runtime_revision, request_id):
+            calls.append((payload, store, simc_runtime_revision, request_id))
+            return 200, {
+                "contractRevision": "gear-result-envelope-v1",
+                "requestId": request_id,
+                "status": "resolved",
+                "releaseContext": {},
+                "data": {"attributeCalculation": {"status": "rule_unavailable"}},
+                "problems": [],
+            }
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with patch.dict(
+                os.environ,
+                {
+                    "WOW_DATABASE_URL": "postgresql://wow_app@localhost/wow_test",
+                    "WOW_DATABASE_RUNTIME": "postgres_only",
+                },
+            ), patch.object(
+                self.backend, "cache_data_store", return_value=store
+            ), patch.object(
+                self.backend, "current_gear_simc_runtime_revision", return_value="simc-attribute-v1"
+            ), patch.object(
+                self.backend, "calculate_attributes_for_selection", side_effect=fake_audit, create=True
+            ), patch.object(
+                self.backend,
+                "get_or_start_stat_snapshot",
+                side_effect=AssertionError("attribute audit must not request a SimC snapshot"),
+                create=True,
+            ):
+                request = Request(
+                    f"http://127.0.0.1:{server.server_port}/api/websim/gear/attributes",
+                    data=json.dumps({"selectionIntent": {}, "characterContext": {}}).encode("utf-8"),
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                with urlopen(request, timeout=5) as response:
+                    body = json.loads(response.read().decode("utf-8"))
+        finally:
+            server.shutdown()
+            thread.join(timeout=2)
+            server.server_close()
+
+        self.assertEqual(response.status, 200)
+        self.assertEqual(body["data"]["attributeCalculation"]["status"], "rule_unavailable")
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0][0], {"selectionIntent": {}, "characterContext": {}})
+        self.assertIs(calls[0][1], store)
+        self.assertEqual(calls[0][2], "simc-attribute-v1")
 
 
 if __name__ == "__main__":

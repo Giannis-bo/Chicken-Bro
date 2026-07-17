@@ -1,0 +1,197 @@
+{
+  "schemaRevision": "gear-attribute-official-cases-v1",
+  "cases": [
+    {
+      "id": "mage-frost-dwarf-armory-2026-07-17",
+      "rule": {
+        "attributeRuleRevision": "midnight-mage-attributes-r1",
+        "contextKey": "mage:frost:90:dwarf",
+        "classKey": "mage",
+        "specKey": "frost",
+        "level": 90,
+        "raceKey": "dwarf",
+        "status": "fixture_only",
+        "primaryKey": "intellect",
+        "baseAttributes": {"intellect": 619, "stamina": 4601},
+        "stableModifiers": [
+          {"effectId": "mage:arcane_intellect", "targetKey": "intellect", "operation": "add_percent_of_base", "value": 0.03},
+          {"effectId": "mage:inspired_intellect", "targetKey": "intellect", "operation": "add_percent_of_base", "value": 0.02},
+          {"effectId": "mage:arcane_intellect", "targetKey": "intellect", "operation": "round_nearest", "value": 0},
+          {"effectId": "mage:frost_winters_blessing", "targetKey": "haste_rating", "operation": "multiply", "value": 1.05},
+          {"effectId": "mage:frost_winters_blessing", "targetKey": "haste_rating", "operation": "round_nearest", "value": 0}
+        ],
+        "resources": {
+          "health": {"base": 0, "perStamina": 20, "round": "floor"},
+          "mana": {"base": 250000, "round": "floor"}
+        },
+        "secondaryRules": [
+          {
+            "inputKey": "crit_rating", "outputKey": "crit", "label": "暴击", "basePercent": 5,
+            "ratingTransform": {"kind": "piecewise_linear", "ratingPerPercent": 46, "points": [{"input": 0, "output": 0}, {"input": 30, "output": 30}, {"input": 40, "output": 39}, {"input": 50, "output": 47}, {"input": 60, "output": 54}, {"input": 80, "output": 66}, {"input": 100, "output": 76}, {"input": 200, "output": 126}], "outOfRange": "clamp"},
+            "postConversionModifiers": [{"effectId": "mage:tome_of_rhonin", "operation": "add", "value": 2}], "precision": 6, "sourceRefs": ["simc-dbc-12.0.7.68453:combat-rating-21024"], "displayUnit": "percent"
+          },
+          {
+            "inputKey": "haste_rating", "outputKey": "haste", "label": "急速", "basePercent": 0,
+            "ratingTransform": {"kind": "piecewise_linear", "ratingPerPercent": 44, "points": [{"input": 0, "output": 0}, {"input": 30, "output": 30}, {"input": 40, "output": 39}, {"input": 50, "output": 47}, {"input": 60, "output": 54}, {"input": 80, "output": 66}, {"input": 100, "output": 76}, {"input": 200, "output": 126}], "outOfRange": "clamp"},
+            "postConversionModifiers": [{"effectId": "mage:tome_of_antonidas", "operation": "multiply_total", "value": 1.02}, {"effectId": "mage:frost_winters_blessing", "operation": "multiply_total", "value": 1.03}], "precision": 6, "sourceRefs": ["simc-dbc-12.0.7.68453:combat-rating-21024"], "displayUnit": "percent"
+          },
+          {
+            "inputKey": "mastery_rating", "outputKey": "mastery", "label": "精通", "basePercent": 8,
+            "ratingTransform": {"kind": "piecewise_linear", "ratingPerPercent": 46, "points": [{"input": 0, "output": 0}, {"input": 30, "output": 30}, {"input": 40, "output": 39}, {"input": 50, "output": 47}, {"input": 60, "output": 54}, {"input": 80, "output": 66}, {"input": 100, "output": 76}, {"input": 200, "output": 126}], "outOfRange": "clamp"},
+            "postConversionModifiers": [{"effectId": "mage:charm_of_medivh", "operation": "add", "value": 3}, {"effectId": "mage:frost_mastery", "operation": "multiply", "value": 1.6}], "precision": 6, "sourceRefs": ["simc-dbc-12.0.7.68453:spell-1246752"], "displayUnit": "percent"
+          },
+          {
+            "inputKey": "versatility_rating", "outputKey": "versatility", "label": "全能", "basePercent": 0,
+            "ratingTransform": {"kind": "piecewise_linear", "ratingPerPercent": 54, "points": [{"input": 0, "output": 0}, {"input": 30, "output": 30}, {"input": 40, "output": 39}, {"input": 50, "output": 47}, {"input": 60, "output": 54}, {"input": 80, "output": 66}, {"input": 100, "output": 76}, {"input": 200, "output": 126}], "outOfRange": "clamp"},
+            "precision": 6, "sourceRefs": ["simc-dbc-12.0.7.68453:combat-rating-21024"], "displayUnit": "percent"
+          },
+          {
+            "inputKey": "avoidance_rating", "outputKey": "avoidance", "label": "闪避", "basePercent": 0,
+            "ratingTransform": {"kind": "piecewise_linear", "ratingPerPercent": 36.80052531, "points": [{"input": 0, "output": 0}, {"input": 0.5, "output": 0.5}, {"input": 10, "output": 10}, {"input": 15, "output": 14}, {"input": 20, "output": 17}, {"input": 25, "output": 19}, {"input": 100, "output": 49}], "outOfRange": "clamp"},
+            "precision": 6, "sourceRefs": ["simc-dbc-12.0.7.68453:combat-rating-21025"], "displayUnit": "percent"
+          },
+          {
+            "inputKey": "leech_rating", "outputKey": "leech", "label": "吸血", "basePercent": 0,
+            "ratingTransform": {"kind": "piecewise_linear", "ratingPerPercent": 69.00098495, "points": [{"input": 0, "output": 0}, {"input": 0.5, "output": 0.5}, {"input": 10, "output": 10}, {"input": 15, "output": 14}, {"input": 20, "output": 17}, {"input": 25, "output": 19}, {"input": 100, "output": 49}], "outOfRange": "clamp"},
+            "precision": 6, "sourceRefs": ["simc-dbc-12.0.7.68453:combat-rating-21025"], "displayUnit": "percent"
+          },
+          {
+            "inputKey": "speed_rating", "outputKey": "speed", "label": "速度", "basePercent": 0,
+            "ratingTransform": {"kind": "piecewise_linear", "ratingPerPercent": 11.50016416, "points": [{"input": 0, "output": 0}, {"input": 0.5, "output": 0.5}, {"input": 10, "output": 10}, {"input": 15, "output": 14}, {"input": 20, "output": 17}, {"input": 25, "output": 19}, {"input": 100, "output": 49}], "outOfRange": "clamp"},
+            "precision": 6, "sourceRefs": ["simc-dbc-12.0.7.68453:combat-rating-21025"], "displayUnit": "percent"
+          }
+        ],
+        "sourceRefs": ["official-armory:mage-frost-dwarf-2026-07-17"],
+        "goldenSampleIds": ["mage-frost-armory-2026-07-17t091243z"]
+      },
+      "characterContext": {"raceKey": "dwarf"},
+      "staticAttributes": {"intellect": 1748, "stamina": 18400, "crit_rating": 861, "haste_rating": 637, "mastery_rating": 1040, "avoidance_rating": 470, "leech_rating": 55},
+      "observedArmory": {
+        "intellect": 2485,
+        "stamina": 23001,
+        "health": 460020,
+        "mana": 250000,
+        "secondaryPercent": {"crit": 25.717392, "haste": 21.033895, "mastery": 53.773914, "versatility": 0, "avoidance": 12.217245, "leech": 0.79709005, "speed": 0}
+      },
+      "stableEffects": [{"effectId": "mage:arcane_intellect"}, {"effectId": "mage:inspired_intellect"}, {"effectId": "mage:tome_of_antonidas"}, {"effectId": "mage:tome_of_rhonin"}, {"effectId": "mage:frost_winters_blessing"}, {"effectId": "mage:frost_mastery"}, {"effectId": "mage:charm_of_medivh"}],
+      "expectedCalculation": {
+        "contractRevision": "gear-attribute-calculation-v1",
+        "status": "calculated",
+        "attributeRuleRevision": "midnight-mage-attributes-r1",
+        "primary": {"key": "intellect", "rawValue": 2485, "value": "2,485"},
+        "stamina": {"key": "stamina", "rawValue": 23001, "value": "23,001"},
+        "resources": {
+          "health": {"key": "health", "rawValue": 460020, "value": "460,020"},
+          "mana": {"key": "mana", "rawValue": 250000, "value": "250,000"}
+        },
+        "secondary": [
+          {"key": "crit", "label": "暴击", "rawValue": 861, "value": "861", "convertedValue": "25.717391%", "displayUnit": "percent"},
+          {"key": "haste", "label": "急速", "rawValue": 669, "value": "669", "convertedValue": "21.033895%", "displayUnit": "percent"},
+          {"key": "mastery", "label": "精通", "rawValue": 1040, "value": "1,040", "convertedValue": "53.773913%", "displayUnit": "percent"},
+          {"key": "versatility", "label": "全能", "rawValue": 0, "value": "0", "convertedValue": "0.000000%", "displayUnit": "percent"},
+          {"key": "avoidance", "label": "闪避", "rawValue": 470, "value": "470", "convertedValue": "12.217245%", "displayUnit": "percent"},
+          {"key": "leech", "label": "吸血", "rawValue": 55, "value": "55", "convertedValue": "0.797090%", "displayUnit": "percent"},
+          {"key": "speed", "label": "速度", "rawValue": 0, "value": "0", "convertedValue": "0.000000%", "displayUnit": "percent"}
+        ],
+        "conditionals": [],
+        "problems": [],
+        "inputSignature": "sha256:2940bbc4f9ddb45d6b45d92312db996acc88c1b3660c73665af4815bd7709fde"
+      }
+    },
+    {
+      "id": "mage-arcane-night-elf-armory-2026-07-17",
+      "rule": {
+        "attributeRuleRevision": "midnight-mage-attributes-r1",
+        "contextKey": "mage:arcane:90:night_elf",
+        "classKey": "mage",
+        "specKey": "arcane",
+        "level": 90,
+        "raceKey": "night_elf",
+        "status": "fixture_only",
+        "primaryKey": "intellect",
+        "baseAttributes": {"intellect": 620, "stamina": 4600},
+        "stableModifiers": [
+          {"effectId": "mage:arcane_intellect", "targetKey": "intellect", "operation": "add_percent_of_base", "value": 0.03},
+          {"effectId": "mage:inspired_intellect", "targetKey": "intellect", "operation": "add_percent_of_base", "value": 0.02},
+          {"effectId": "mage:arcane_intellect", "targetKey": "intellect", "operation": "round_nearest", "value": 0}
+        ],
+        "resources": {
+          "health": {"base": 0, "perStamina": 20, "round": "floor"},
+          "mana": {"base": 250000, "percentFromSecondary": "mastery", "round": "floor"}
+        },
+        "secondaryRules": [
+          {
+            "inputKey": "crit_rating", "outputKey": "crit", "label": "暴击", "basePercent": 5,
+            "ratingTransform": {"kind": "piecewise_linear", "ratingPerPercent": 46, "points": [{"input": 0, "output": 0}, {"input": 30, "output": 30}, {"input": 40, "output": 39}, {"input": 50, "output": 47}, {"input": 60, "output": 54}, {"input": 80, "output": 66}, {"input": 100, "output": 76}, {"input": 200, "output": 126}], "outOfRange": "clamp"},
+            "postConversionModifiers": [{"effectId": "mage:tome_of_rhonin", "operation": "add", "value": 2}], "precision": 6, "sourceRefs": ["simc-dbc-12.0.7.68453:combat-rating-21024"], "displayUnit": "percent"
+          },
+          {
+            "inputKey": "haste_rating", "outputKey": "haste", "label": "急速", "basePercent": 0,
+            "ratingTransform": {"kind": "piecewise_linear", "ratingPerPercent": 44, "points": [{"input": 0, "output": 0}, {"input": 30, "output": 30}, {"input": 40, "output": 39}, {"input": 50, "output": 47}, {"input": 60, "output": 54}, {"input": 80, "output": 66}, {"input": 100, "output": 76}, {"input": 200, "output": 126}], "outOfRange": "clamp"},
+            "postConversionModifiers": [{"effectId": "mage:tome_of_antonidas", "operation": "multiply_total", "value": 1.02}, {"effectId": "mage:arcane_tempo", "operation": "multiply_total", "value": 1.02}], "precision": 6, "sourceRefs": ["simc-dbc-12.0.7.68453:combat-rating-21024"], "displayUnit": "percent"
+          },
+          {
+            "inputKey": "mastery_rating", "outputKey": "mastery", "label": "精通", "basePercent": 8,
+            "ratingTransform": {"kind": "piecewise_linear", "ratingPerPercent": 46, "points": [{"input": 0, "output": 0}, {"input": 30, "output": 30}, {"input": 40, "output": 39}, {"input": 50, "output": 47}, {"input": 60, "output": 54}, {"input": 80, "output": 66}, {"input": 100, "output": 76}, {"input": 200, "output": 126}], "outOfRange": "clamp"},
+            "postConversionModifiers": [{"effectId": "mage:charm_of_medivh", "operation": "add", "value": 3}, {"effectId": "mage:arcane_mastery", "operation": "multiply", "value": 1.32}], "precision": 6, "sourceRefs": ["simc-dbc-12.0.7.68453:spell-190740"], "displayUnit": "percent"
+          },
+          {
+            "inputKey": "versatility_rating", "outputKey": "versatility", "label": "全能", "basePercent": 0,
+            "ratingTransform": {"kind": "piecewise_linear", "ratingPerPercent": 54, "points": [{"input": 0, "output": 0}, {"input": 30, "output": 30}, {"input": 40, "output": 39}, {"input": 50, "output": 47}, {"input": 60, "output": 54}, {"input": 80, "output": 66}, {"input": 100, "output": 76}, {"input": 200, "output": 126}], "outOfRange": "clamp"},
+            "precision": 6, "sourceRefs": ["simc-dbc-12.0.7.68453:combat-rating-21024"], "displayUnit": "percent"
+          },
+          {
+            "inputKey": "avoidance_rating", "outputKey": "avoidance", "label": "闪避", "basePercent": 0,
+            "ratingTransform": {"kind": "piecewise_linear", "ratingPerPercent": 36.80052531, "points": [{"input": 0, "output": 0}, {"input": 0.5, "output": 0.5}, {"input": 10, "output": 10}, {"input": 15, "output": 14}, {"input": 20, "output": 17}, {"input": 25, "output": 19}, {"input": 100, "output": 49}], "outOfRange": "clamp"},
+            "precision": 6, "sourceRefs": ["simc-dbc-12.0.7.68453:combat-rating-21025"], "displayUnit": "percent"
+          },
+          {
+            "inputKey": "leech_rating", "outputKey": "leech", "label": "吸血", "basePercent": 0,
+            "ratingTransform": {"kind": "piecewise_linear", "ratingPerPercent": 69.00098495, "points": [{"input": 0, "output": 0}, {"input": 0.5, "output": 0.5}, {"input": 10, "output": 10}, {"input": 15, "output": 14}, {"input": 20, "output": 17}, {"input": 25, "output": 19}, {"input": 100, "output": 49}], "outOfRange": "clamp"},
+            "precision": 6, "sourceRefs": ["simc-dbc-12.0.7.68453:combat-rating-21025"], "displayUnit": "percent"
+          },
+          {
+            "inputKey": "speed_rating", "outputKey": "speed", "label": "速度", "basePercent": 0,
+            "ratingTransform": {"kind": "piecewise_linear", "ratingPerPercent": 11.50016416, "points": [{"input": 0, "output": 0}, {"input": 0.5, "output": 0.5}, {"input": 10, "output": 10}, {"input": 15, "output": 14}, {"input": 20, "output": 17}, {"input": 25, "output": 19}, {"input": 100, "output": 49}], "outOfRange": "clamp"},
+            "precision": 6, "sourceRefs": ["simc-dbc-12.0.7.68453:combat-rating-21025"], "displayUnit": "percent"
+          }
+        ],
+        "sourceRefs": ["official-armory:mage-arcane-night-elf-2026-07-17"],
+        "goldenSampleIds": ["mage-arcane-armory-2026-07-17t041853z"]
+      },
+      "characterContext": {"raceKey": "night_elf"},
+      "staticAttributes": {"intellect": 1725, "stamina": 18338, "crit_rating": 558, "haste_rating": 802, "mastery_rating": 785, "versatility_rating": 385, "avoidance_rating": 127, "leech_rating": 166, "speed_rating": 55},
+      "observedArmory": {
+        "intellect": 2462,
+        "stamina": 22938,
+        "health": 458760,
+        "mana": 342615,
+        "secondaryPercent": {"crit": 19.130434, "haste": 23.003637, "mastery": 37.04609, "versatility": 7.1296296, "avoidance": 3.4510376, "leech": 2.4057627, "speed": 4.7825403}
+      },
+      "stableEffects": [{"effectId": "mage:arcane_intellect"}, {"effectId": "mage:inspired_intellect"}, {"effectId": "mage:tome_of_antonidas"}, {"effectId": "mage:tome_of_rhonin"}, {"effectId": "mage:arcane_tempo"}, {"effectId": "mage:arcane_mastery"}, {"effectId": "mage:charm_of_medivh"}, {"effectId": "mage:arcane_familiar"}],
+      "expectedCalculation": {
+        "contractRevision": "gear-attribute-calculation-v1",
+        "status": "calculated",
+        "attributeRuleRevision": "midnight-mage-attributes-r1",
+        "primary": {"key": "intellect", "rawValue": 2462, "value": "2,462"},
+        "stamina": {"key": "stamina", "rawValue": 22938, "value": "22,938"},
+        "resources": {
+          "health": {"key": "health", "rawValue": 458760, "value": "458,760"},
+          "mana": {"key": "mana", "rawValue": 342615, "value": "342,615"}
+        },
+        "secondary": [
+          {"key": "crit", "label": "暴击", "rawValue": 558, "value": "558", "convertedValue": "19.130435%", "displayUnit": "percent"},
+          {"key": "haste", "label": "急速", "rawValue": 802, "value": "802", "convertedValue": "23.003655%", "displayUnit": "percent"},
+          {"key": "mastery", "label": "精通", "rawValue": 785, "value": "785", "convertedValue": "37.046087%", "displayUnit": "percent"},
+          {"key": "versatility", "label": "全能", "rawValue": 385, "value": "385", "convertedValue": "7.129630%", "displayUnit": "percent"},
+          {"key": "avoidance", "label": "闪避", "rawValue": 127, "value": "127", "convertedValue": "3.451038%", "displayUnit": "percent"},
+          {"key": "leech", "label": "吸血", "rawValue": 166, "value": "166", "convertedValue": "2.405763%", "displayUnit": "percent"},
+          {"key": "speed", "label": "速度", "rawValue": 55, "value": "55", "convertedValue": "4.782540%", "displayUnit": "percent"}
+        ],
+        "conditionals": [{"effectId": "mage:arcane_familiar", "included": false, "reason": "UNSUPPORTED_STABLE_EFFECT"}],
+        "problems": [],
+        "inputSignature": "sha256:a46bc4c96f7180583006723aa4981d28fad596886b97bbf75ab6a761cae0be94"
+      }
+    }
+  ]
+}

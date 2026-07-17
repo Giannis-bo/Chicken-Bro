@@ -76,6 +76,8 @@ try:
         is_canonical_profile_request,
         resolve_selection_intent,
     )
+    from .gear_attribute_api import calculate_attributes_for_selection
+    from .gear_attribute_preview_fixture import append_preview_template, preview_community_import, preview_enabled
     from .gear_stat_snapshot_api import get_or_start_stat_snapshot
     from .websim_payload import (
         COMMUNITY_TEMPLATE_SYNC_RUN_KEY,
@@ -110,6 +112,7 @@ try:
         import_talent_api_payload,
         websim_talent_import_response,
         websim_gear_community_template_sync_state,
+        websim_attribute_calculator_context,
         item_type_metadata_from_payload,
         normalized_armor_subclass,
         encode_websim_talents,
@@ -180,6 +183,8 @@ except ImportError:
         is_canonical_profile_request,
         resolve_selection_intent,
     )
+    from gear_attribute_api import calculate_attributes_for_selection
+    from gear_attribute_preview_fixture import append_preview_template, preview_community_import, preview_enabled
     from gear_stat_snapshot_api import get_or_start_stat_snapshot
     from websim_payload import (
         COMMUNITY_TEMPLATE_SYNC_RUN_KEY,
@@ -214,6 +219,7 @@ except ImportError:
         import_talent_api_payload,
         websim_talent_import_response,
         websim_gear_community_template_sync_state,
+        websim_attribute_calculator_context,
         item_type_metadata_from_payload,
         normalized_armor_subclass,
         encode_websim_talents,
@@ -540,6 +546,17 @@ def gear_stat_snapshot_data_store():
     except ImportError:
         from gear_stat_snapshot_store import GearStatSnapshotStore
     return GearStatSnapshotStore(lambda: connect_postgres(config.database_url))
+
+
+def attribute_rule_audit_data_store():
+    config = database_config_from_env()
+    if not postgres_personal_runtime_enabled(config):
+        return None
+    try:
+        from .attribute_rule_audit_store import AttributeRuleAuditStore
+    except ImportError:
+        from attribute_rule_audit_store import AttributeRuleAuditStore
+    return AttributeRuleAuditStore(lambda: connect_postgres(config.database_url))
 
 
 def init_db():
@@ -2413,6 +2430,85 @@ def gear_stat_snapshot_health_component(*, store=None, now="", simc_runtime_revi
     )
 
 
+def attribute_rule_audit_health_component(*, store=None, now=""):
+    checked_at = str(now or utc_now())
+    active_store = store if store is not None else attribute_rule_audit_data_store()
+    if active_store is None:
+        return data_health_component(
+            "attribute_rule_audit",
+            "Winner attribute rule audit",
+            "blocked",
+            checked_at=checked_at,
+            blockers=["attribute rule audit PostgreSQL store is unavailable"],
+        )
+    try:
+        summary = active_store.health_summary(now=checked_at)
+    except Exception:
+        return data_health_component(
+            "attribute_rule_audit",
+            "Winner attribute rule audit",
+            "blocked",
+            checked_at=checked_at,
+            blockers=["attribute rule audit health reader is unavailable"],
+        )
+    summary = summary if isinstance(summary, dict) else {}
+    queue = summary.get("queue") if isinstance(summary.get("queue"), dict) else {}
+    counts = summary.get("terminalCounts") if isinstance(summary.get("terminalCounts"), dict) else {}
+    findings = [
+        {
+            "attributeRuleRevision": str(row.get("attributeRuleRevision") or ""),
+            "contextKey": str(row.get("contextKey") or ""),
+        }
+        for row in (summary.get("findingRuleContexts") or [])[:8]
+        if isinstance(row, dict)
+        and str(row.get("attributeRuleRevision") or "")
+        and str(row.get("contextKey") or "")
+    ]
+    confirmed = int(counts.get("confirmedMismatch") or 0)
+    unavailable = int(counts.get("sourceUnavailable") or 0)
+    inconclusive = int(counts.get("inconclusive") or 0)
+    passed = int(counts.get("pass") or 0)
+    pending = int(queue.get("pending") or 0)
+    running = int(queue.get("running") or 0)
+    blockers = ["confirmed attribute rule mismatch requires a new rule revision review"] if confirmed else []
+    has_audit_activity = any((pending, running, passed, confirmed, unavailable, inconclusive))
+    if not has_audit_activity:
+        status = "verified"
+        audit_state = "not_applicable"
+    elif confirmed:
+        status = "blocked"
+        audit_state = "finding"
+    elif unavailable or inconclusive or pending or running or not passed:
+        status = "partial"
+        audit_state = "incomplete"
+    else:
+        status = "verified"
+        audit_state = "passed"
+    return data_health_component(
+        "attribute_rule_audit",
+        "Winner attribute rule audit",
+        status,
+        checked_at=str(summary.get("latestCheckedAt") or checked_at),
+        details={
+            "auditState": audit_state,
+            "queue": {"pending": pending, "running": running},
+            "terminalCounts": {
+                "pass": passed,
+                "confirmedMismatch": confirmed,
+                "inconclusive": inconclusive,
+                "sourceUnavailable": unavailable,
+            },
+            "latestCheckedAt": str(summary.get("latestCheckedAt") or ""),
+            "findingRuleContexts": findings,
+            "trigger": {
+                "unit": "wow-gear-release-refresh.service",
+                "onSuccessUnit": "wow-attribute-rule-audit.service",
+            },
+        },
+        blockers=blockers,
+    )
+
+
 def gear_legality_template_records_from_cache_store(cache_store):
     if not cache_store or not hasattr(cache_store, "admin_gate_gear_template_records"):
         return []
@@ -3247,6 +3343,7 @@ def build_postgres_only_data_health_payload(*, include_template_evidence_audit=T
         active_manifest_health_component(cache_store),
         release_refresh_health_component(cache_store),
         gear_stat_snapshot_health_component(),
+        attribute_rule_audit_health_component(),
         news_health_component_from_latest(latest),
         data_health_component(
             "raiderio",
@@ -3401,6 +3498,7 @@ def build_data_health_payload(*, include_template_evidence_audit=True):
         data_health_component("backend", "Backend service", "verified", checked_at=utc_now()),
         data_health_followup_health_component(cache_store),
         news_health_component(),
+        attribute_rule_audit_health_component(),
     ]
     with db_connection() as conn:
         raiderio = get_raiderio_payload(conn, allow_sync=False)
@@ -8051,6 +8149,18 @@ def websim_gear_payload_with_resolver_context(payload, store, class_key, spec_ke
     return {**public_payload, "resolverContext": resolver_context}
 
 
+def websim_gear_payload_with_attribute_calculator_context(payload, class_key, spec_key):
+    if not isinstance(payload, dict) or not payload:
+        return payload
+    calculator = payload.get("attributeCalculator")
+    if isinstance(calculator, dict) and str(calculator.get("status") or "").strip():
+        return payload
+    return {
+        **payload,
+        "attributeCalculator": websim_attribute_calculator_context(class_key, spec_key),
+    }
+
+
 def runtime_websim_gear_payload(class_key, spec_key, compact=False, mode="", slot=""):
     store = cache_data_store()
     allow_sqlite_fallback = (
@@ -8065,6 +8175,11 @@ def runtime_websim_gear_payload(class_key, spec_key, compact=False, mode="", slo
                 if "unexpected keyword" not in str(exc):
                     raise
                 payload = store.get_websim_gear(class_key, spec_key, compact=compact)
+            payload = websim_gear_payload_with_attribute_calculator_context(
+                payload,
+                class_key,
+                spec_key,
+            )
             payload = websim_gear_payload_with_resolver_context(
                 payload,
                 store,
@@ -8075,7 +8190,7 @@ def runtime_websim_gear_payload(class_key, spec_key, compact=False, mode="", slo
             payload = {}
         if postgres_only_runtime_enabled():
             if isinstance(payload, dict) and payload:
-                return websim_gear_payload_with_template_legality(payload)
+                return append_preview_template(websim_gear_payload_with_template_legality(payload))
             return {
                 "schemaRevision": "websim-gear-v1",
                 "classKey": class_key,
@@ -8089,9 +8204,9 @@ def runtime_websim_gear_payload(class_key, spec_key, compact=False, mode="", slo
             }
         if isinstance(payload, dict) and payload:
             if payload.get("dataStatus") == "verified" and websim_gear_payload_has_items(payload):
-                return websim_gear_payload_with_template_legality(payload)
+                return append_preview_template(websim_gear_payload_with_template_legality(payload))
             if not allow_sqlite_fallback:
-                return websim_gear_payload_with_template_legality(payload)
+                return append_preview_template(websim_gear_payload_with_template_legality(payload))
     if postgres_only_runtime_enabled():
         return {
             "schemaRevision": "websim-gear-v1",
@@ -8106,9 +8221,9 @@ def runtime_websim_gear_payload(class_key, spec_key, compact=False, mode="", slo
         }
     init_db()
     with db_connection() as conn:
-        return websim_gear_payload_with_template_legality(
+        return append_preview_template(websim_gear_payload_with_template_legality(
             get_websim_gear(conn, class_key, spec_key, compact=compact)
-        )
+        ))
 
 
 def websim_talent_payload_has_nodes(payload):
@@ -12836,6 +12951,20 @@ class Handler(BaseHTTPRequestHandler):
             payload = read_json_body(self)
 
             def build_import():
+                if preview_enabled():
+                    preview_payload = runtime_websim_gear_payload(
+                        payload.get("classKey", "") if isinstance(payload, dict) else "",
+                        payload.get("specKey", "") if isinstance(payload, dict) else "",
+                        compact=True,
+                        mode="initial",
+                    )
+                    preview = preview_community_import(
+                        payload,
+                        preview_payload,
+                        request_id=f"gear-import-{uuid.uuid4().hex}",
+                    )
+                    if preview is not None:
+                        return preview
                 return import_community_template(
                     payload,
                     store=cache_data_store(),
@@ -12852,6 +12981,15 @@ class Handler(BaseHTTPRequestHandler):
                 envelope,
                 extra_headers={"Server-Timing": community_import_server_timing(timings)},
             )
+            return
+        if parsed.path == "/api/websim/gear/attributes":
+            http_status, envelope = calculate_attributes_for_selection(
+                read_json_body(self),
+                store=cache_data_store(),
+                simc_runtime_revision=current_gear_simc_runtime_revision(),
+                request_id=f"gear-attribute-{uuid.uuid4().hex}",
+            )
+            json_response(self, http_status, envelope)
             return
         if parsed.path == "/api/websim/gear/stat-snapshots":
             http_status, envelope = get_or_start_stat_snapshot(

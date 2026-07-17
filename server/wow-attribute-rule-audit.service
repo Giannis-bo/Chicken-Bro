@@ -1,0 +1,27 @@
+[Unit]
+Description=Read-only WOW winner attribute-rule audit
+After=network-online.target postgresql.service mihomo.service
+Wants=network-online.target mihomo.service
+
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/opt/wow-mini-program
+EnvironmentFile=-/etc/wow-backend.env
+Environment=WOW_DATABASE_RUNTIME=postgres_only
+Environment=WOW_ATTRIBUTE_RULE_AUDIT_MAX_JOBS=1
+Environment=HTTPS_PROXY=http://127.0.0.1:7890
+Environment=HTTP_PROXY=http://127.0.0.1:7890
+Environment=ALL_PROXY=socks5h://127.0.0.1:7890
+Environment=NO_PROXY=127.0.0.1,localhost,::1,169.254.169.254
+Environment=https_proxy=http://127.0.0.1:7890
+Environment=http_proxy=http://127.0.0.1:7890
+Environment=all_proxy=socks5h://127.0.0.1:7890
+Environment=no_proxy=127.0.0.1,localhost,::1,169.254.169.254
+ExecStart=/usr/bin/flock -n /run/lock/wow-attribute-rule-audit.lock /usr/bin/python3 /opt/wow-mini-program/server/attribute_rule_audit_worker.py --json
+TimeoutStartSec=5min
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=read-only
+ProtectSystem=strict
+ReadWritePaths=/run/lock

@@ -73,11 +73,13 @@
               <text class="gear-attribute-value">{{gearAttributePanel.itemLevel.value}}</text>
             </view>
           </view>
+          <text class="gear-attribute-calculation-status {{gearAttributePanel.status}}">{{gearAttributePanel.calculationStatusLabel}}</text>
           <view class="gear-attribute-grid">
             <view class="gear-attribute-cell {{item.pending ? 'pending' : ''}}" wx:for="{{gearAttributePanel.statRows}}" wx:key="key">
               <text class="gear-attribute-label">{{item.label}}</text>
               <text class="gear-attribute-value">{{item.value}}</text>
               <text class="gear-attribute-converted" wx:if="{{item.convertedValue}}">{{item.convertedValue}}</text>
+              <text class="gear-attribute-delta" wx:if="{{item.deltaValue}}">{{item.deltaValue}}</text>
             </view>
           </view>
           <view class="gear-attribute-enhancement-row">
