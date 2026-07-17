@@ -662,3 +662,11 @@ test('runtime review control plane separates current gaps from historical immuta
   assert.equal(status.historicalRuntimeArtifactReviews.length, 4)
   assert.ok(status.historicalRuntimeArtifactReviews.every((review) => review.current === false && review.supersededReason))
 })
+
+test('all used Taro native layout nodes inherit border-box geometry', () => {
+  const appStyles = fs.readFileSync('apps/mini-taro/src/app.scss', 'utf8')
+  for (const selector of ['view', 'text', 'scroll-view', 'button', 'image', 'input', 'picker', 'textarea']) {
+    assert.match(appStyles, new RegExp(`(?:^|\\n)${selector}(?:,| \\{)`))
+  }
+  assert.match(appStyles, /textarea\s*\{\s*box-sizing:\s*border-box;/)
+})

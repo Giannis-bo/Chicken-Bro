@@ -1196,6 +1196,30 @@ record(
   'ControlButton must neutralize native width, spacing, minimum height and ::after geometry',
 )
 
+const miniAppStyles = read('apps/mini-taro/src/app.scss')
+const taroNativeSelectorByImport = {
+  Button: 'button',
+  Image: 'image',
+  Picker: 'picker',
+  ScrollView: 'scroll-view',
+  Text: 'text',
+  Textarea: 'textarea',
+  View: 'view',
+}
+const importedTaroNativeComponents = [...new Set(runtimeAssetSourceFiles.flatMap((file) => (
+  [...read(file).matchAll(/import\s*\{(?<imports>[^}]+)\}\s*from\s*['"]@tarojs\/components['"]/gs)]
+    .flatMap((match) => match.groups.imports.split(',').map((entry) => entry.trim().split(/\s+as\s+/u)[0]))
+    .filter((name) => taroNativeSelectorByImport[name])
+)))].sort()
+const borderBoxSelectorBlock = miniAppStyles.match(/(?<selectors>(?:[\w-]+,\s*)*[\w-]+)\s*\{\s*box-sizing:\s*border-box;\s*\}/u)?.groups?.selectors ?? ''
+const borderBoxSelectors = new Set(borderBoxSelectorBlock.split(',').map((selector) => selector.trim()).filter(Boolean))
+const nativeComponentsMissingBorderBox = importedTaroNativeComponents.filter((name) => !borderBoxSelectors.has(taroNativeSelectorByImport[name]))
+record(
+  'all_imported_taro_native_components_use_border_box_geometry',
+  nativeComponentsMissingBorderBox.length === 0,
+  nativeComponentsMissingBorderBox.join(', ') || `components=${importedTaroNativeComponents.length}`,
+)
+
 const selectionMaterialStyles = read('packages/design-system/src/components/reconstruction.module.scss')
 record(
   'selected_segments_exclusively_own_their_edge_material',
