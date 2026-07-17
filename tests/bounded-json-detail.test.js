@@ -20,6 +20,20 @@ test('structured review details write atomically and read within one MiB', () =>
   }
 })
 
+test('stale process-named temporary files do not block the next atomic write', () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'wow-bounded-detail-stale-'))
+  const detailPath = path.join(directory, 'detail.json')
+  const stalePath = `${detailPath}.tmp-${process.pid}`
+  try {
+    fs.writeFileSync(stalePath, 'stale')
+    writeBoundedJsonAtomic(detailPath, { status: 'recovered' }, 'test detail')
+    assert.deepEqual(readBoundedJson(detailPath, 'test detail'), { status: 'recovered' })
+    assert.equal(fs.readFileSync(stalePath, 'utf8'), 'stale')
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true })
+  }
+})
+
 test('structured review details reject oversized files before read', () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'wow-bounded-detail-read-'))
   const detailPath = path.join(directory, 'oversized.json')

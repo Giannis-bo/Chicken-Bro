@@ -1022,7 +1022,11 @@ record(
   'structured_runtime_details_are_atomic_and_bounded_end_to_end',
   /maxStructuredDetailBytes = 1024 \* 1024/u.test(boundedJsonDetail)
     && /renameSync\(temporaryPath, filePath\)/u.test(boundedJsonDetail)
+    && /randomUUID\(\)/u.test(boundedJsonDetail)
     && /bounded byte policy before read/u.test(boundedJsonDetail)
+    && /Buffer\.allocUnsafe\(maxStructuredDetailBytes \+ 1\)/u.test(boundedJsonDetail)
+    && /bounded byte policy during read/u.test(boundedJsonDetail)
+    && !/readFileSync/u.test(boundedJsonDetail)
     && structuredDetailWriters.every((file) => read(file).includes('writeBoundedJsonAtomic'))
     && structuredDetailReaders.every((file) => read(file).includes('readBoundedJson')),
   'geometry, interaction, selected-state and asset-slot details must share one bounded atomic JSON owner',
