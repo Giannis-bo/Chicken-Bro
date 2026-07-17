@@ -227,11 +227,27 @@ record(
 )
 
 const deprecatedAppShellProps = []
+const unownedRouteInteractions = []
 for (const file of routeComponents) {
   const ast = babelParser.parse(read(file), { sourceType: 'module', plugins: ['jsx', 'typescript'] })
   traverse(ast, {
     JSXOpeningElement(elementPath) {
       const name = elementPath.node.name
+      const attributes = elementPath.node.attributes
+      if (!file.includes('/_shared/') && name.type === 'JSXIdentifier' && (name.name === 'View' || name.name === 'Text')) {
+        const hasOnClick = attributes.some((attribute) => (
+          attribute.type === 'JSXAttribute' && attribute.name.name === 'onClick'
+        ))
+        if (hasOnClick) {
+          const ownerAttribute = attributes.find((attribute) => (
+            attribute.type === 'JSXAttribute' && attribute.name.name === 'data-owner'
+          ))
+          const owner = ownerAttribute?.type === 'JSXAttribute' && ownerAttribute.value?.type === 'StringLiteral'
+            ? ownerAttribute.value.value
+            : ''
+          if (owner !== 'gear-candidate-page-dismiss') unownedRouteInteractions.push(`${file}:${owner || 'unowned'}`)
+        }
+      }
       if (name.type !== 'JSXIdentifier' || name.name !== 'AppShell') return
       const names = elementPath.node.attributes.flatMap((attribute) => (
         attribute.type === 'JSXAttribute' && attribute.name.type === 'JSXIdentifier'
@@ -243,6 +259,11 @@ for (const file of routeComponents) {
     },
   })
 }
+record(
+  'route_pages_do_not_build_unowned_view_interactions',
+  unownedRouteInteractions.length === 0,
+  unownedRouteInteractions.join(', ') || 'none',
+)
 record('routes_use_only_current_app_shell_api', deprecatedAppShellProps.length === 0, deprecatedAppShellProps.join(', ') || 'none')
 
 const componentSources = walk('packages/design-system/src', ['.ts', '.tsx'])
