@@ -57,4 +57,3 @@ Raider.IO profile race
 3. 装备页没有种族行、选择 sheet、种族提示或相关事件处理；属性面板仍即时刷新。
 4. Community import 继续只有一个既有请求；无 SimC、无 profile 补抓、无 Release/Manifest 写入。
 5. 旧 v1 Release import 兼容；新 v2 evidence 的 fingerprint 绑定其来源 `raceKey`。
-

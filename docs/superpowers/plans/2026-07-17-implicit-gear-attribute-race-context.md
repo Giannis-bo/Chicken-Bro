@@ -202,4 +202,3 @@ From a clean candidate worktree, back up the runtime and PostgreSQL database, de
 - [ ] **Step 3: Local CR and user acceptance.**
 
 Review that race never becomes a new network input, Release mutation, SimC input path, or rendered equipment-page control. Wait for explicit post-test user acceptance before merge/push.
-
