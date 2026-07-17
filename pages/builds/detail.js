@@ -527,6 +527,10 @@ function savedCommunityImportOrigin(value) {
     !gearHash || !sourceFingerprint || !manifestRevision
   ) return null
   const rawAttributeCharacterContext = origin.attributeCharacterContext
+  const rawAttributeStableEffectContext = origin.attributeStableEffectContext
+  const stableEffectContext = rawAttributeStableEffectContext && typeof rawAttributeStableEffectContext === 'object'
+    ? gearAttributeStableEffectContextForData({ gearAttributeStableEffectContext: rawAttributeStableEffectContext })
+    : null
   return {
     contractRevision,
     templateId,
@@ -536,7 +540,8 @@ function savedCommunityImportOrigin(value) {
     manifestRevision,
     ...(rawAttributeCharacterContext && typeof rawAttributeCharacterContext === 'object'
       ? { attributeCharacterContext: gearAttributeCharacterContextForData({ gearAttributeCharacterContext: rawAttributeCharacterContext }) }
-      : {})
+      : {}),
+    ...(stableEffectContext ? { attributeStableEffectContext: stableEffectContext } : {})
   }
 }
 
@@ -553,10 +558,13 @@ function communityImportMatchesSavedOrigin(result, context, origin) {
     cleanGearString(context.manifestRevision) === origin.manifestRevision
   )
   if (!matchesIdentity) return false
-  if (!origin.attributeCharacterContext) return true
-  return JSON.stringify(gearAttributeCharacterContextForData({
+  if (origin.attributeCharacterContext && JSON.stringify(gearAttributeCharacterContextForData({
     gearAttributeCharacterContext: template.attributeCharacterContext
-  })) === JSON.stringify(origin.attributeCharacterContext)
+  })) !== JSON.stringify(origin.attributeCharacterContext)) return false
+  if (origin.attributeStableEffectContext && JSON.stringify(gearAttributeStableEffectContextForData({
+    gearAttributeStableEffectContext: template.attributeStableEffectContext
+  })) !== JSON.stringify(origin.attributeStableEffectContext)) return false
+  return true
 }
 
 function applySavedCommunityImportOrigin(page, origin) {
@@ -579,7 +587,9 @@ function applySavedCommunityImportOrigin(page, origin) {
     profileHash: origin.profileHash,
     gearHash: origin.gearHash,
     sourceFingerprint: origin.sourceFingerprint,
-    manifestRevision: origin.manifestRevision
+    manifestRevision: origin.manifestRevision,
+    ...(origin.attributeCharacterContext ? { attributeCharacterContext: origin.attributeCharacterContext } : {}),
+    ...(origin.attributeStableEffectContext ? { attributeStableEffectContext: origin.attributeStableEffectContext } : {})
   }
   const interactionContext = captureGearInteractionContext(page, {
     manifestRevision: expectedManifestRevision,
@@ -682,6 +692,9 @@ function commitImportedCommunityTemplate(page, result, context) {
 
   page.gearWorkbenchState = adopted
   page.gearStatSnapshotState = createGearStatSnapshotState()
+  const stableEffectContext = gearAttributeStableEffectContextForData({
+    gearAttributeStableEffectContext: data.template && data.template.attributeStableEffectContext
+  })
   page.communityEnhancementImportState = {
     templateId,
     serial: Number(context.communityImport.serial) || 0,
@@ -693,7 +706,8 @@ function commitImportedCommunityTemplate(page, result, context) {
     manifestRevision: cleanGearString(context && context.manifestRevision),
     attributeCharacterContext: gearAttributeCharacterContextForData({
       gearAttributeCharacterContext: data.template && data.template.attributeCharacterContext
-    })
+    }),
+    ...(stableEffectContext ? { attributeStableEffectContext: stableEffectContext } : {})
   }
   const gearStatSnapshot = defaultGearStatSnapshot('等待当前装备属性快照')
   const derivedState = createDetailDerivedState(page.data.selectedDetail, page.data.activeQueryKey, {
@@ -702,7 +716,8 @@ function commitImportedCommunityTemplate(page, result, context) {
     selectedGearBySlot,
     enhancementBySlot,
     gearStatSnapshot,
-    gearAttributeCharacterContext: page.communityEnhancementImportState.attributeCharacterContext
+    gearAttributeCharacterContext: page.communityEnhancementImportState.attributeCharacterContext,
+    gearAttributeStableEffectContext: stableEffectContext
   })
   const renderedData = { ...page.data, ...derivedState, enhancementBySlot, gearStatSnapshot }
   page.setData({
@@ -825,6 +840,9 @@ function communityImportOriginForSave(page, snapshot) {
     !templateId || contractRevision !== COMMUNITY_TEMPLATE_IMPORT_CONTRACT_REVISION ||
     !profileHash || !gearHash || !sourceFingerprint || !manifestRevision
   ) return null
+  const stableEffectContext = gearAttributeStableEffectContextForData({
+    gearAttributeStableEffectContext: state.attributeStableEffectContext
+  })
   return {
     contractRevision,
     templateId,
@@ -834,7 +852,8 @@ function communityImportOriginForSave(page, snapshot) {
     manifestRevision,
     attributeCharacterContext: gearAttributeCharacterContextForData({
       gearAttributeCharacterContext: state.attributeCharacterContext
-    })
+    }),
+    ...(stableEffectContext ? { attributeStableEffectContext: stableEffectContext } : {})
   }
 }
 
@@ -1290,6 +1309,7 @@ const gearAttributeResourceLabels = {
 }
 
 const gearAttributeCharacterContextRevision = 'gear-attribute-character-v1'
+const gearAttributeStableEffectContextRevision = 'gear-attribute-stable-effects-v1'
 
 function gearAttributeContextRaceKey(value) {
   const key = cleanGearString(value).toLowerCase()
@@ -1320,6 +1340,48 @@ function gearAttributeCharacterContextForData(data) {
     }
   }
   return defaultGearAttributeCharacterContext()
+}
+
+function gearAttributeStableEffectContextForData(data) {
+  const source = data && data.gearAttributeStableEffectContext && typeof data.gearAttributeStableEffectContext === 'object'
+    ? data.gearAttributeStableEffectContext
+    : (data && data.attributeStableEffectContext && typeof data.attributeStableEffectContext === 'object'
+        ? data.attributeStableEffectContext
+        : {})
+  const effectIds = source.effectIds
+  const loadoutSignature = cleanGearString(source.loadoutSignature)
+  if (
+    source.schemaRevision !== gearAttributeStableEffectContextRevision ||
+    source.status !== 'verified' ||
+    source.origin !== 'source_profile' ||
+    !Array.isArray(effectIds) ||
+    effectIds.some((effectId) => (
+      !cleanGearString(effectId) || !/^[a-z][a-z0-9:_-]{0,255}$/.test(cleanGearString(effectId))
+    )) ||
+    JSON.stringify(effectIds) !== JSON.stringify(Array.from(new Set(effectIds.map((effectId) => cleanGearString(effectId)))).sort()) ||
+    !/^sha256:[0-9a-f]{64}$/.test(loadoutSignature)
+  ) return null
+  return {
+    schemaRevision: gearAttributeStableEffectContextRevision,
+    status: 'verified',
+    origin: 'source_profile',
+    effectIds: effectIds.map((effectId) => cleanGearString(effectId)),
+    loadoutSignature
+  }
+}
+
+function gearAttributeRuleRequiresStableEffects(rule) {
+  const stableModifiers = Array.isArray(rule && rule.stableModifiers) ? rule.stableModifiers : []
+  const secondaryRules = Array.isArray(rule && rule.secondaryRules) ? rule.secondaryRules : []
+  return stableModifiers.some((modifier) => cleanGearString(modifier && modifier.effectId)) ||
+    secondaryRules.some((secondary) => (
+      Array.isArray(secondary && secondary.postConversionModifiers) &&
+      secondary.postConversionModifiers.some((modifier) => cleanGearString(modifier && modifier.effectId))
+    ))
+}
+
+function gearAttributeStableEffectsForCalculation(context) {
+  return context ? context.effectIds.map((effectId) => ({ effectId })) : []
 }
 
 function gearAttributeRuleForRace(gearPayload, raceKey) {
@@ -1602,6 +1664,7 @@ function gearAttributeDerivedStateForData(data, previousCalculation) {
     sourceData.gearAttributeSourceContext
   )
   const characterContext = gearAttributeCharacterContextForData(sourceData)
+  const stableEffectContext = gearAttributeStableEffectContextForData(sourceData)
   const calculator = gearPayload.attributeCalculator || {}
   let calculation
   if (!source.selectedItems.length) {
@@ -1612,17 +1675,20 @@ function gearAttributeDerivedStateForData(data, previousCalculation) {
     calculation = gearAttributeUnavailableState('rule_unavailable', calculator.attributeRuleRevision, 'ATTRIBUTE_STATIC_FACTS_UNAVAILABLE', 'selected gear or enhancements are missing canonical static attribute facts')
   } else {
     const rule = gearAttributeRuleForRace(gearPayload, characterContext.raceKey)
-    calculation = rule
-      ? calculateNonCombatAttributes(
-          rule,
-          { schemaRevision: gearAttributeCharacterContextRevision, raceKey: characterContext.raceKey },
-          source.staticAttributes,
-          []
-        )
-      : gearAttributeUnavailableState('rule_unavailable', calculator.attributeRuleRevision, 'ATTRIBUTE_RULE_UNAVAILABLE', 'no verified attribute rule is available for the current character context')
+    calculation = !rule
+      ? gearAttributeUnavailableState('rule_unavailable', calculator.attributeRuleRevision, 'ATTRIBUTE_RULE_UNAVAILABLE', 'no verified attribute rule is available for the current character context')
+      : gearAttributeRuleRequiresStableEffects(rule) && !stableEffectContext
+        ? gearAttributeUnavailableState('rule_unavailable', calculator.attributeRuleRevision, 'ATTRIBUTE_STABLE_EFFECTS_UNAVAILABLE', 'the active rule requires a sealed source talent loadout')
+        : calculateNonCombatAttributes(
+            rule,
+            { schemaRevision: gearAttributeCharacterContextRevision, raceKey: characterContext.raceKey },
+            source.staticAttributes,
+            gearAttributeStableEffectsForCalculation(stableEffectContext)
+          )
   }
   return {
     gearAttributeCharacterContext: characterContext,
+    gearAttributeStableEffectContext: stableEffectContext,
     gearAttributeState: calculation,
     gearAttributeAudit: sourceData.gearAttributeAudit || { status: 'not_requested' },
     gearAttributePanel: gearAttributePanelFromCalculation(source, calculation, previousCalculation)
@@ -7537,6 +7603,9 @@ Page({
         communityTemplateRawEnhancementBySlot(template)
       )
       const enhancementBySlot = reconciliation.enhancementBySlot
+      const stableEffectContext = gearAttributeStableEffectContextForData({
+        gearAttributeStableEffectContext: template.attributeStableEffectContext
+      })
       this.communityEnhancementImportState = {
         templateId,
         serial: importSerial,
@@ -7545,14 +7614,16 @@ Page({
         warnings: reconciliation.warnings,
         attributeCharacterContext: gearAttributeCharacterContextForData({
           gearAttributeCharacterContext: template.attributeCharacterContext
-        })
+        }),
+        ...(stableEffectContext ? { attributeStableEffectContext: stableEffectContext } : {})
       }
       const derivedState = createDetailDerivedState(this.data.selectedDetail, this.data.activeQueryKey, {
         ...this.data,
         gearPayload,
         selectedGearBySlot,
         enhancementBySlot,
-        gearAttributeCharacterContext: this.communityEnhancementImportState.attributeCharacterContext
+        gearAttributeCharacterContext: this.communityEnhancementImportState.attributeCharacterContext,
+        gearAttributeStableEffectContext: stableEffectContext
       })
       this.setData({
         ...derivedState,

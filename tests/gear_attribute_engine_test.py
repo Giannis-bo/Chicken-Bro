@@ -8,13 +8,50 @@ from server.gear_attribute_engine import calculate_noncombat_attributes
 
 
 FIXTURE_PATH = Path(__file__).parent / "fixtures" / "gear-attribute-calculator-cases-v1.json"
+OFFICIAL_FIXTURE_PATH = Path(__file__).parent / "fixtures" / "gear-attribute-official-cases-v1.json"
 
 
 def fixture_cases():
     return json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))["cases"]
 
 
+def official_cases():
+    return json.loads(OFFICIAL_FIXTURE_PATH.read_text(encoding="utf-8"))["cases"]
+
+
 class GearAttributeEngineTest(unittest.TestCase):
+    def test_official_armory_regression_cases_stay_within_display_tolerance(self):
+        for fixture in official_cases():
+            with self.subTest(case=fixture["id"]):
+                result = calculate_noncombat_attributes(
+                    fixture["rule"],
+                    fixture["characterContext"],
+                    fixture["staticAttributes"],
+                    fixture["stableEffects"],
+                )
+                observed = fixture["observedArmory"]
+                self.assertEqual(result["primary"]["rawValue"], observed["intellect"])
+                self.assertEqual(result["stamina"]["rawValue"], observed["stamina"])
+                self.assertEqual(result["resources"]["health"]["rawValue"], observed["health"])
+                self.assertEqual(result["resources"]["mana"]["rawValue"], observed["mana"])
+                calculated_secondaries = {
+                    row["key"]: float(row["convertedValue"].removesuffix("%"))
+                    for row in result["secondary"]
+                }
+                for key, expected in observed["secondaryPercent"].items():
+                    self.assertLessEqual(abs(calculated_secondaries[key] - expected), 0.01)
+
+    def test_calculates_every_official_armory_regression_case(self):
+        for fixture in official_cases():
+            with self.subTest(case=fixture["id"]):
+                result = calculate_noncombat_attributes(
+                    fixture["rule"],
+                    fixture["characterContext"],
+                    fixture["staticAttributes"],
+                    fixture["stableEffects"],
+                )
+                self.assertEqual(result, fixture["expectedCalculation"])
+
     def test_calculates_every_shared_fixture_case(self):
         for fixture in fixture_cases():
             with self.subTest(case=fixture["id"]):
@@ -210,6 +247,69 @@ class GearAttributeEngineTest(unittest.TestCase):
             "convertedValue": "12.217245%",
             "displayUnit": "percent",
         }])
+
+    def test_resource_can_derive_from_the_unrounded_secondary_percent(self):
+        fixture = fixture_cases()[0]
+        rule = copy.deepcopy(fixture["rule"])
+        rule["resources"] = {
+            "mana": {
+                "base": 250000,
+                "percentFromSecondary": "mastery",
+                "round": "floor",
+            },
+        }
+        rule["secondaryRules"] = [{
+            "inputKey": "mastery_rating",
+            "outputKey": "mastery",
+            "label": "精通",
+            "basePercent": 8,
+            "ratingPerPercent": 46,
+            "postConversionModifiers": [
+                {"effectId": "fixture:charm", "operation": "add", "value": 3},
+                {"effectId": "fixture:arcane-mastery", "operation": "multiply", "value": 1.32},
+            ],
+            "precision": 6,
+            "sourceRefs": ["fixture:arcane-mana-from-mastery"],
+            "displayUnit": "percent",
+        }]
+
+        result = calculate_noncombat_attributes(
+            rule,
+            fixture["characterContext"],
+            {"mastery_rating": 785},
+            [{"effectId": "fixture:charm"}, {"effectId": "fixture:arcane-mastery"}],
+        )
+
+        self.assertEqual(result["status"], "calculated")
+        self.assertEqual(result["secondary"][0]["convertedValue"], "37.046087%")
+        self.assertEqual(result["resources"]["mana"], {
+            "key": "mana",
+            "rawValue": 342615,
+            "value": "342,615",
+        })
+
+    def test_stable_percent_of_base_modifiers_add_before_rounding(self):
+        fixture = fixture_cases()[0]
+        rule = copy.deepcopy(fixture["rule"])
+        rule["stableModifiers"] = [
+            {"effectId": "fixture:arcane-intellect", "targetKey": "intellect", "operation": "add_percent_of_base", "value": 0.03},
+            {"effectId": "fixture:inspired", "targetKey": "intellect", "operation": "add_percent_of_base", "value": 0.02},
+            {"effectId": "fixture:intellect-round", "targetKey": "intellect", "operation": "round_nearest", "value": 0},
+        ]
+
+        result = calculate_noncombat_attributes(
+            rule,
+            fixture["characterContext"],
+            {"intellect": 1725},
+            [
+                {"effectId": "fixture:arcane-intellect"},
+                {"effectId": "fixture:inspired"},
+                {"effectId": "fixture:intellect-round"},
+            ],
+        )
+
+        self.assertEqual(result["status"], "calculated")
+        self.assertEqual(result["primary"]["rawValue"], 2861)
 
     def test_invalid_conversion_or_missing_rule_has_no_numeric_final_panel(self):
         fixture = fixture_cases()[0]

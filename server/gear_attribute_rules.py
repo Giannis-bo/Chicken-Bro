@@ -252,8 +252,8 @@ def _validate_stable_modifiers(raw_modifiers: Any, path: str) -> list[dict[str, 
         if _canonical_key(modifier["targetKey"]) is None:
             issues.append(_issue("INVALID_RULEBOOK", "INVALID_IDENTIFIER", f"{modifier_path}.targetKey", "targetKey must be a bounded lower-case identifier"))
         operation = modifier["operation"]
-        if operation not in {"add", "multiply", "round_nearest"}:
-            issues.append(_issue("INVALID_RULEBOOK", "INVALID_STABLE_MODIFIER", f"{modifier_path}.operation", "operation must be add, multiply or round_nearest"))
+        if operation not in {"add", "multiply", "add_percent_of_base", "round_nearest"}:
+            issues.append(_issue("INVALID_RULEBOOK", "INVALID_STABLE_MODIFIER", f"{modifier_path}.operation", "operation must be add, multiply, add_percent_of_base or round_nearest"))
         if not _is_finite_number(modifier["value"]):
             issues.append(_issue("INVALID_RULEBOOK", "INVALID_STABLE_MODIFIER", f"{modifier_path}.value", "value must be finite"))
         elif operation == "round_nearest" and modifier["value"] != 0:
@@ -283,6 +283,60 @@ def _has_complete_verified_equipment(equipment: Any) -> bool:
         if not isinstance(item.get("stats"), dict):
             return False
     return slots == _ARMORY_REQUIRED_SLOTS
+
+
+def _verified_equipment_matches_official_snapshot(sample: dict[str, Any]) -> bool:
+    """Bind a promoted sample's resolved variant to the captured official instance.
+
+    A text ``variantKey`` alone is not sufficient evidence: the item id, item
+    level and sorted bonus ids must reproduce the exact Blizzard variant key
+    from the same official profile snapshot.  Gems and enchants remain
+    separate facts because they do not belong to this gear-instance key.
+    """
+    evidence = sample.get("evidence")
+    snapshot = evidence.get("officialProfileSnapshot") if isinstance(evidence, dict) else None
+    instances = snapshot.get("instances") if isinstance(snapshot, dict) else None
+    equipment = sample.get("equipment")
+    if not isinstance(instances, list) or not isinstance(equipment, list):
+        return False
+
+    instances_by_slot: dict[str, dict[str, Any]] = {}
+    for instance in instances:
+        if not isinstance(instance, dict):
+            return False
+        slot = instance.get("slot")
+        if slot not in _ARMORY_REQUIRED_SLOTS or slot in instances_by_slot:
+            return False
+        instances_by_slot[slot] = instance
+    if set(instances_by_slot) != _ARMORY_REQUIRED_SLOTS:
+        return False
+
+    for item in equipment:
+        slot = item.get("slot") if isinstance(item, dict) else None
+        instance = instances_by_slot.get(slot)
+        if instance is None:
+            return False
+        if item.get("status") == "empty":
+            if instance.get("status") != "empty":
+                return False
+            continue
+        item_id = item.get("itemId")
+        item_level = item.get("itemLevel")
+        bonus_ids = instance.get("bonusIds")
+        if (
+            item_id != instance.get("itemId")
+            or item_level != instance.get("itemLevel")
+            or not isinstance(bonus_ids, list)
+            or any(isinstance(value, bool) or not isinstance(value, int) or value < 0 for value in bonus_ids)
+        ):
+            return False
+        expected_variant = ":".join(
+            ["blizzard", str(item_id), str(item_level)]
+            + [str(value) for value in sorted(bonus_ids)]
+        )
+        if item.get("variantKey") != expected_variant:
+            return False
+    return True
 
 
 def _validate_armory_evidence(evidence: Any, path: str) -> list[dict[str, str]]:
@@ -432,6 +486,8 @@ def _validate_armory_golden_sample(sample: Any, index: int) -> list[dict[str, st
         issues.append(_issue("INVALID_ARMORY_SAMPLE", "INVALID_EQUIPMENT", f"{path}.equipment", "equipment must be a list"))
     elif sample["status"] == "verified" and not _has_complete_verified_equipment(sample["equipment"]):
         issues.append(_issue("INVALID_ARMORY_SAMPLE", "VERIFIED_SAMPLE_INCOMPLETE_EQUIPMENT", f"{path}.equipment", "verified samples require complete 16-slot item identities and variants"))
+    elif sample["status"] == "verified" and not _verified_equipment_matches_official_snapshot(sample):
+        issues.append(_issue("INVALID_ARMORY_SAMPLE", "VERIFIED_SAMPLE_VARIANT_EVIDENCE_MISMATCH", f"{path}.equipment", "verified variants must match the captured official item level and bonus ids"))
     if not isinstance(sample["observedPanel"], dict):
         issues.append(_issue("INVALID_ARMORY_SAMPLE", "INVALID_OBSERVED_PANEL", f"{path}.observedPanel", "observedPanel must be an object"))
     elif any(_canonical_key(key) is None or not _is_number(value) for key, value in sample["observedPanel"].items()):

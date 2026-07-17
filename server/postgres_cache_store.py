@@ -4414,7 +4414,12 @@ class PostgresCacheStore:
                     else item
                     for item in items
                 ]
-            template = gear_community_template_from_observed_items(items, class_key, spec_key)
+            template = gear_community_template_from_observed_items(
+                items,
+                class_key,
+                spec_key,
+                source_profile=profile,
+            )
             if not template:
                 continue
             gated_template = apply_gear_template_legality_gate(template, class_key, spec_key)

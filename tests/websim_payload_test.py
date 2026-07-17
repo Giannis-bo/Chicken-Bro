@@ -24411,19 +24411,26 @@ class WebSimPayloadTest(unittest.TestCase):
                 "mage", "arcane", simc_runtime_revision=""
             )
 
-    def test_gear_payload_exposes_only_fail_closed_attribute_calculator_without_rules(self):
+    def test_gear_payload_exposes_verified_attribute_calculator_only_for_released_contexts(self):
         conn = sqlite3.connect(self.db_path)
         try:
             self.websim_payload.ensure_websim_tables(conn)
-            payload = self.websim_payload.get_websim_gear(conn, "mage", "frost", compact=True)
+            frost_payload = self.websim_payload.get_websim_gear(conn, "mage", "frost", compact=True)
+            fire_payload = self.websim_payload.get_websim_gear(conn, "mage", "fire", compact=True)
         finally:
             conn.close()
 
-        calculator = payload["attributeCalculator"]
-        self.assertEqual(calculator["status"], "rule_unavailable")
-        self.assertEqual(calculator["raceOptions"], [])
-        self.assertEqual(calculator["rules"], [])
+        calculator = frost_payload["attributeCalculator"]
+        self.assertEqual(calculator["status"], "available")
+        self.assertEqual(calculator["attributeRuleRevision"], "midnight-mage-attributes-r1")
+        self.assertEqual(calculator["raceOptions"], [{"raceKey": "dwarf"}])
+        self.assertEqual(calculator["rules"][0]["contextKey"], "mage:frost:90:dwarf")
         self.assertNotIn("staticAttributes", calculator)
+
+        unavailable = fire_payload["attributeCalculator"]
+        self.assertEqual(unavailable["status"], "rule_unavailable")
+        self.assertEqual(unavailable["raceOptions"], [])
+        self.assertEqual(unavailable["rules"], [])
 
 
 if __name__ == "__main__":

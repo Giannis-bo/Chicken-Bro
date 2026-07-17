@@ -2,6 +2,7 @@ const assert = require('node:assert/strict')
 const test = require('node:test')
 
 const fixtures = require('./fixtures/gear-attribute-calculator-cases-v1.json')
+const officialFixtures = require('./fixtures/gear-attribute-official-cases-v1.json')
 const armoryFixtures = require('./fixtures/gear-attribute-armory-v1.json')
 const { calculateNonCombatAttributes } = require('../pages/builds/gear-attribute-engine')
 
@@ -16,6 +17,42 @@ for (const fixture of fixtures.cases) {
       ),
       fixture.expected,
     )
+  })
+}
+
+for (const fixture of officialFixtures.cases) {
+  test(`official Armory attribute regression ${fixture.id}`, () => {
+    assert.deepEqual(
+      calculateNonCombatAttributes(
+        fixture.rule,
+        fixture.characterContext,
+        fixture.staticAttributes,
+        fixture.stableEffects,
+      ),
+      fixture.expectedCalculation,
+    )
+  })
+}
+
+for (const fixture of officialFixtures.cases) {
+  test(`official Armory display tolerance ${fixture.id}`, () => {
+    const result = calculateNonCombatAttributes(
+      fixture.rule,
+      fixture.characterContext,
+      fixture.staticAttributes,
+      fixture.stableEffects,
+    )
+    const observed = fixture.observedArmory
+    assert.equal(result.primary.rawValue, observed.intellect)
+    assert.equal(result.stamina.rawValue, observed.stamina)
+    assert.equal(result.resources.health.rawValue, observed.health)
+    assert.equal(result.resources.mana.rawValue, observed.mana)
+    const secondaryByKey = Object.fromEntries(
+      result.secondary.map((row) => [row.key, Number(row.convertedValue.replace('%', ''))]),
+    )
+    for (const [key, expected] of Object.entries(observed.secondaryPercent)) {
+      assert.ok(Math.abs(secondaryByKey[key] - expected) <= 0.01, `${key} exceeds display tolerance`)
+    }
   })
 }
 
@@ -224,6 +261,71 @@ test('piecewise curve matches official Frost avoidance sample', () => {
     convertedValue: '12.217245%',
     displayUnit: 'percent'
   }])
+})
+
+test('resource can derive from the unrounded secondary percent', () => {
+  const fixture = fixtures.cases[0]
+  const rule = structuredClone(fixture.rule)
+  rule.resources = {
+    mana: {
+      base: 250000,
+      percentFromSecondary: 'mastery',
+      round: 'floor'
+    }
+  }
+  rule.secondaryRules = [{
+    inputKey: 'mastery_rating',
+    outputKey: 'mastery',
+    label: '精通',
+    basePercent: 8,
+    ratingPerPercent: 46,
+    postConversionModifiers: [
+      { effectId: 'fixture:charm', operation: 'add', value: 3 },
+      { effectId: 'fixture:arcane-mastery', operation: 'multiply', value: 1.32 }
+    ],
+    precision: 6,
+    sourceRefs: ['fixture:arcane-mana-from-mastery'],
+    displayUnit: 'percent'
+  }]
+
+  const result = calculateNonCombatAttributes(
+    rule,
+    fixture.characterContext,
+    { mastery_rating: 785 },
+    [{ effectId: 'fixture:charm' }, { effectId: 'fixture:arcane-mastery' }],
+  )
+
+  assert.equal(result.status, 'calculated')
+  assert.equal(result.secondary[0].convertedValue, '37.046087%')
+  assert.deepEqual(result.resources.mana, {
+    key: 'mana',
+    rawValue: 342615,
+    value: '342,615'
+  })
+})
+
+test('stable percent of base modifiers add before rounding', () => {
+  const fixture = fixtures.cases[0]
+  const rule = structuredClone(fixture.rule)
+  rule.stableModifiers = [
+    { effectId: 'fixture:arcane-intellect', targetKey: 'intellect', operation: 'add_percent_of_base', value: 0.03 },
+    { effectId: 'fixture:inspired', targetKey: 'intellect', operation: 'add_percent_of_base', value: 0.02 },
+    { effectId: 'fixture:intellect-round', targetKey: 'intellect', operation: 'round_nearest', value: 0 }
+  ]
+
+  const result = calculateNonCombatAttributes(
+    rule,
+    fixture.characterContext,
+    { intellect: 1725 },
+    [
+      { effectId: 'fixture:arcane-intellect' },
+      { effectId: 'fixture:inspired' },
+      { effectId: 'fixture:intellect-round' }
+    ],
+  )
+
+  assert.equal(result.status, 'calculated')
+  assert.equal(result.primary.rawValue, 2861)
 })
 
 test('candidate Armory records cannot become a calculated rule input', () => {

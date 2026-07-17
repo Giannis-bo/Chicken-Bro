@@ -53,6 +53,11 @@ try:
 except ImportError:
     from gear_attribute_rules import public_attribute_calculator_context
 
+try:
+    from .gear_attribute_rulebook import ACTIVE_ATTRIBUTE_RULEBOOK
+except ImportError:
+    from gear_attribute_rulebook import ACTIVE_ATTRIBUTE_RULEBOOK
+
 
 BASE_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = BASE_DIR.parent
@@ -282,11 +287,6 @@ TALENT_SCHEMA_REVISION = "websim-talent-rules-v1"
 TALENT_CATALOG_REVISION = "websim-talent-catalog-v1"
 GEAR_SCHEMA_REVISION = "websim-gear-simulator-v1"
 GEAR_CATALOG_REVISION = "websim-gear-catalog-v1"
-ATTRIBUTE_RULEBOOK_UNAVAILABLE = {
-    "schemaRevision": "gear-attribute-rulebook-v1",
-    "attributeRuleRevision": "",
-    "contexts": [],
-}
 GEAR_OBSERVED_BACKFILL_SYNC_KEY = "gear_observed_backfill"
 GEAR_OBSERVED_BACKFILL_SCHEMA_VERSION = 1
 STALE_PLACEHOLDER_GEAR_MOD_OPTION_IDS = {"seed-socket-gem-240983", "seed-enchant-8017"}
@@ -2184,7 +2184,7 @@ def normalized_websim_level(value=None):
 
 def websim_attribute_calculator_context(class_key="mage", spec_key="arcane", level=None):
     return public_attribute_calculator_context(
-        ATTRIBUTE_RULEBOOK_UNAVAILABLE,
+        ACTIVE_ATTRIBUTE_RULEBOOK,
         class_key=slugify(class_key, "mage"),
         spec_key=slugify(spec_key, "arcane"),
         level=normalized_websim_level(level),
@@ -6892,6 +6892,155 @@ def decode_external_talent_import_code(raw_code, class_key="", spec_key=""):
         "loadout": loadout,
         "sourcePath": data.get("path") or "",
         "errors": errors,
+    }
+
+
+GEAR_ATTRIBUTE_STABLE_EFFECT_CONTEXT_REVISION = "gear-attribute-stable-effects-v1"
+_GEAR_ATTRIBUTE_STABLE_EFFECTS_BY_CONTEXT = {
+    ("mage", "arcane"): {
+        458437: "mage:inspired_intellect",
+        382490: "mage:tome_of_antonidas",
+        382493: "mage:tome_of_rhonin",
+        205022: "mage:arcane_familiar",
+        383980: "mage:arcane_tempo",
+        1244107: "mage:charm_of_medivh",
+    },
+    ("mage", "frost"): {
+        458437: "mage:inspired_intellect",
+        382490: "mage:tome_of_antonidas",
+        382493: "mage:tome_of_rhonin",
+        417489: "mage:frost_winters_blessing",
+        1244107: "mage:charm_of_medivh",
+    },
+}
+_GEAR_ATTRIBUTE_BASE_EFFECTS_BY_CONTEXT = {
+    ("mage", "arcane"): {"mage:arcane_intellect", "mage:arcane_mastery"},
+    ("mage", "frost"): {"mage:arcane_intellect", "mage:frost_mastery"},
+}
+
+
+def _attribute_talent_import_code(value):
+    source = value if isinstance(value, dict) else {}
+    nested = source.get("talentLoadout") if isinstance(source.get("talentLoadout"), dict) else {}
+    for candidate in (source, nested):
+        for key in ("rawImportCode", "raw_import_code", "loadout_text", "loadoutText", "importCode", "import_code"):
+            code = str(candidate.get(key) or "").strip()
+            if code:
+                return code
+    return ""
+
+
+def _attribute_selected_talent_spell_ids(decoded):
+    spell_ids = set()
+    for entry in decoded.get("loadout") or []:
+        if not isinstance(entry, dict):
+            continue
+        node = entry.get("node") if isinstance(entry.get("node"), dict) else {}
+        choices = node.get("entries") if isinstance(node.get("entries"), list) else []
+        entry_id = _int_value(entry.get("entryId") or entry.get("traitId"))
+        selected = next(
+            (
+                choice
+                for choice in choices
+                if isinstance(choice, dict)
+                and _int_value(choice.get("id") or choice.get("traitId")) == entry_id
+            ),
+            None,
+        )
+        if selected is None:
+            entry_index = _int_value(entry.get("entryIndex"))
+            if 0 <= entry_index < len(choices) and isinstance(choices[entry_index], dict):
+                selected = choices[entry_index]
+        spell = selected.get("spell") if isinstance(selected, dict) and isinstance(selected.get("spell"), dict) else {}
+        spell_id = _int_value(spell.get("id"))
+        if spell_id > 0:
+            spell_ids.add(spell_id)
+    return sorted(spell_ids)
+
+
+def _attribute_stable_effect_context_unavailable():
+    return {
+        "schemaRevision": GEAR_ATTRIBUTE_STABLE_EFFECT_CONTEXT_REVISION,
+        "status": "unavailable",
+        "origin": "source_profile",
+        "effectIds": [],
+        "loadoutSignature": "",
+    }
+
+
+def derive_gear_attribute_stable_effect_context(talent_loadout, class_key="", spec_key=""):
+    """Seal only known stable panel effects from one source-player loadout.
+
+    This runs during server-side source normalization.  It deliberately emits no
+    raw talent import code, and a missing/undecodable source fails closed rather
+    than letting the client infer a default loadout from its specialization.
+    """
+
+    normalized_class = slugify(class_key, "")
+    normalized_spec = slugify(spec_key, "")
+    known_effects = _GEAR_ATTRIBUTE_STABLE_EFFECTS_BY_CONTEXT.get((normalized_class, normalized_spec))
+    raw_import = _attribute_talent_import_code(talent_loadout)
+    if not raw_import or not known_effects:
+        return _attribute_stable_effect_context_unavailable()
+    decoded = decode_external_talent_import_code(raw_import, normalized_class, normalized_spec)
+    if (
+        not isinstance(decoded, dict)
+        or decoded.get("status") != "decoded"
+        or slugify(decoded.get("classKey"), "") != normalized_class
+        or slugify(decoded.get("specKey"), "") != normalized_spec
+    ):
+        return _attribute_stable_effect_context_unavailable()
+    selected_spell_ids = _attribute_selected_talent_spell_ids(decoded)
+    effect_ids = sorted(
+        _GEAR_ATTRIBUTE_BASE_EFFECTS_BY_CONTEXT.get((normalized_class, normalized_spec), set())
+        | {known_effects[spell_id] for spell_id in selected_spell_ids if spell_id in known_effects}
+    )
+    signature_payload = {
+        "classKey": normalized_class,
+        "specKey": normalized_spec,
+        "rawImportCode": raw_import,
+        "selectedSpellIds": selected_spell_ids,
+    }
+    signature = hashlib.sha256(
+        json.dumps(signature_payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    return {
+        "schemaRevision": GEAR_ATTRIBUTE_STABLE_EFFECT_CONTEXT_REVISION,
+        "status": "verified",
+        "origin": "source_profile",
+        "effectIds": effect_ids,
+        "loadoutSignature": f"sha256:{signature}",
+    }
+
+
+def normalize_attribute_stable_effect_context(value):
+    source = value if isinstance(value, dict) else {}
+    if set(source) != {"schemaRevision", "status", "origin", "effectIds", "loadoutSignature"}:
+        return None
+    if (
+        source.get("schemaRevision") != GEAR_ATTRIBUTE_STABLE_EFFECT_CONTEXT_REVISION
+        or source.get("status") != "verified"
+        or source.get("origin") != "source_profile"
+    ):
+        return None
+    signature = str(source.get("loadoutSignature") or "")
+    if not re.fullmatch(r"sha256:[0-9a-f]{64}", signature):
+        return None
+    raw_effect_ids = source.get("effectIds")
+    if not isinstance(raw_effect_ids, list):
+        return None
+    effect_ids = sorted({str(effect_id or "").strip() for effect_id in raw_effect_ids})
+    if len(effect_ids) != len(raw_effect_ids) or any(
+        not re.fullmatch(r"[a-z][a-z0-9:_-]{0,255}", effect_id)
+        for effect_id in effect_ids
+    ):
+        return None
+    return {
+        "schemaRevision": GEAR_ATTRIBUTE_STABLE_EFFECT_CONTEXT_REVISION,
+        "status": "verified",
+        "origin": "source_profile",
+        "effectIds": effect_ids,
+        "loadoutSignature": signature,
     }
 
 
@@ -12415,6 +12564,11 @@ def normalize_source_refs(refs):
         race_key = observed_profile_race_key(ref.get("raceKey"))
         if race_key:
             item["raceKey"] = race_key
+        stable_effect_context = normalize_attribute_stable_effect_context(
+            ref.get("attributeStableEffectContext")
+        )
+        if stable_effect_context:
+            item["attributeStableEffectContext"] = stable_effect_context
         if ref.get("fetchedAt"):
             item["fetchedAt"] = str(ref.get("fetchedAt") or "").strip()
         if ref.get("scanRunId") or ref.get("scan_run_id"):
@@ -18778,6 +18932,11 @@ def observed_profile_template_source_refs(items):
             race_key = observed_profile_race_key(ref.get("raceKey"))
             if race_key:
                 source_ref["raceKey"] = race_key
+            stable_effect_context = normalize_attribute_stable_effect_context(
+                ref.get("attributeStableEffectContext")
+            )
+            if stable_effect_context:
+                source_ref["attributeStableEffectContext"] = stable_effect_context
             if ranking_evidence:
                 source_ref["rankingEvidence"] = ranking_evidence
                 for key in ("rank", "score", "runId"):
@@ -19063,7 +19222,7 @@ def observed_profile_character_identity(source_refs):
     return {}
 
 
-def gear_community_template_from_observed_items(items, class_key, spec_key):
+def gear_community_template_from_observed_items(items, class_key, spec_key, source_profile=None):
     source_refs = observed_profile_template_source_refs(items)
     source_urls = [ref.get("sourceUrl") for ref in source_refs if ref.get("sourceUrl")]
     ranking_evidence = {}
@@ -19141,6 +19300,14 @@ def gear_community_template_from_observed_items(items, class_key, spec_key):
         "rankingEvidence": ranking_evidence,
         "attributeCharacterContext": attribute_character_context,
     }
+    stable_effect_context = derive_gear_attribute_stable_effect_context(
+        source_profile,
+        class_key,
+        spec_key,
+    )
+    if stable_effect_context.get("status") == "verified":
+        template["attributeStableEffectContext"] = stable_effect_context
+        template["payload"]["attributeStableEffectContext"] = stable_effect_context
     if character_identity:
         template["payload"]["character"] = character_identity
     replay_evidence = observed_template_replay_evidence(gear_items, source_urls, missing_slots)
@@ -20108,6 +20275,11 @@ def normalize_community_gear_template(template, class_key="", spec_key="", prese
         source.get("attributeCharacterContext") or payload.get("attributeCharacterContext")
     )
     payload["attributeCharacterContext"] = attribute_character_context
+    stable_effect_context = normalize_attribute_stable_effect_context(
+        source.get("attributeStableEffectContext") or payload.get("attributeStableEffectContext")
+    )
+    if stable_effect_context:
+        payload["attributeStableEffectContext"] = stable_effect_context
     sample_count = int_or_zero(source.get("sampleCount") or payload.get("sampleCount"))
     profile_hash = str(source.get("profileHash") or payload.get("profileHash") or "").strip()
     gear_hash = str(source.get("gearHash") or payload.get("gearHash") or "").strip()
@@ -20179,6 +20351,8 @@ def normalize_community_gear_template(template, class_key="", spec_key="", prese
         "attributeCharacterContext": attribute_character_context,
         "scanRunId": str(source.get("scanRunId") or source.get("scan_run_id") or "").strip(),
     }
+    if stable_effect_context:
+        normalized["attributeStableEffectContext"] = stable_effect_context
     normalized["canApplyGear"] = community_gear_template_can_apply(normalized)
     source_occupied_slots = source.get("occupiedSlots") if isinstance(source.get("occupiedSlots"), dict) else {}
     if source_occupied_slots or occupied_slots:
@@ -23483,6 +23657,13 @@ def compact_community_gear_template(template):
     compact_template["attributeCharacterContext"] = normalize_attribute_character_context(
         template.get("attributeCharacterContext") or payload.get("attributeCharacterContext")
     )
+    stable_effect_context = normalize_attribute_stable_effect_context(
+        template.get("attributeStableEffectContext") or payload.get("attributeStableEffectContext")
+    )
+    if stable_effect_context:
+        compact_template["attributeStableEffectContext"] = stable_effect_context
+    else:
+        compact_template.pop("attributeStableEffectContext", None)
     compact_template.pop("payload", None)
     compact_template["gearItems"] = compact_gear_candidates(template.get("gearItems") or [])
     return compact_template

@@ -158,6 +158,7 @@ function validateRuleAndCharacter(rule, characterContext) {
 function applyStableModifiers(attributes, modifiers, effectIds) {
   const activeEffects = new Set(effectIds)
   const allowedEffects = new Set()
+  const baseAttributes = { ...attributes }
   for (let index = 0; index < modifiers.length; index += 1) {
     const modifier = modifiers[index]
     const path = `rule.stableModifiers[${index}]`
@@ -167,7 +168,7 @@ function applyStableModifiers(attributes, modifiers, effectIds) {
     const effectId = boundedKey(modifier.effectId)
     const targetKey = boundedKey(modifier.targetKey)
     const value = finiteNumber(modifier.value)
-    if (!effectId || !targetKey || !['add', 'multiply', 'round_nearest'].includes(modifier.operation) || value === null || (modifier.operation === 'round_nearest' && value !== 0)) {
+    if (!effectId || !targetKey || !['add', 'multiply', 'add_percent_of_base', 'round_nearest'].includes(modifier.operation) || value === null || (modifier.operation === 'round_nearest' && value !== 0)) {
       return { issue: issue('INVALID_STABLE_MODIFIER', path, 'stable modifier requires effectId, targetKey, operation and finite value') }
     }
     allowedEffects.add(effectId)
@@ -175,6 +176,7 @@ function applyStableModifiers(attributes, modifiers, effectIds) {
     const current = attributes[targetKey] || 0
     if (modifier.operation === 'add') attributes[targetKey] = current + value
     else if (modifier.operation === 'multiply') attributes[targetKey] = current * value
+    else if (modifier.operation === 'add_percent_of_base') attributes[targetKey] = current + (baseAttributes[targetKey] || 0) * value
     else attributes[targetKey] = Math.floor(current + 0.5)
   }
   return {
@@ -185,7 +187,7 @@ function applyStableModifiers(attributes, modifiers, effectIds) {
   }
 }
 
-function resourceRows(resources, attributes) {
+function resourceRows(resources, attributes, secondaryValues) {
   const rows = {}
   for (const resourceKey of Object.keys(resources)) {
     const normalizedKey = boundedKey(resourceKey)
@@ -201,6 +203,14 @@ function resourceRows(resources, attributes) {
       return { issue: issue('INVALID_RESOURCE_RULE', path, 'resource definitions require finite base/per-attribute values and a round mode') }
     }
     let rawValue = base + (attributes.stamina || 0) * perStamina + (attributes.intellect || 0) * perIntellect
+    if (definition.percentFromSecondary !== undefined) {
+      const sourceKey = boundedKey(definition.percentFromSecondary)
+      const sourcePercent = sourceKey ? secondaryValues[sourceKey] : undefined
+      if (sourcePercent === undefined) {
+        return { issue: issue('INVALID_RESOURCE_RULE', `${path}.percentFromSecondary`, 'percentFromSecondary must name a calculated secondary output') }
+      }
+      rawValue *= 1 + sourcePercent / 100
+    }
     if (definition.round === 'floor') rawValue = Math.floor(rawValue)
     if (definition.round === 'ceil') rawValue = Math.ceil(rawValue)
     if (definition.round === 'round') rawValue = Math.round(rawValue)
@@ -292,6 +302,7 @@ function applyPostConversionModifiers(convertedValue, modifiers, effectIds, allo
 
 function secondaryRows(secondaryRules, attributes, effectIds, allowedEffects) {
   const rows = []
+  const numericValues = {}
   const outputKeys = new Set()
   for (let index = 0; index < secondaryRules.length; index += 1) {
     const definition = secondaryRules[index]
@@ -344,6 +355,7 @@ function secondaryRows(secondaryRules, attributes, effectIds, allowedEffects) {
     )
     if (postConversion.issue) return postConversion
     convertedValue = postConversion.value
+    numericValues[outputKey] = convertedValue
     rows.push({
       key: outputKey,
       label: definition.label,
@@ -353,7 +365,7 @@ function secondaryRows(secondaryRules, attributes, effectIds, allowedEffects) {
       displayUnit
     })
   }
-  return { value: rows }
+  return { value: rows, numericValues }
 }
 
 function canonicalJson(value) {
@@ -486,8 +498,6 @@ function calculateNonCombatAttributes(rule, characterContext, staticAttributes, 
 
   const appliedModifiers = applyStableModifiers(attributes, rule.stableModifiers, normalizedEffects.value)
   if (appliedModifiers.issue) return unavailable(validated.revision, appliedModifiers.issue.code, appliedModifiers.issue.path, appliedModifiers.issue.message)
-  const resources = resourceRows(rule.resources, appliedModifiers.value.attributes)
-  if (resources.issue) return unavailable(validated.revision, resources.issue.code, resources.issue.path, resources.issue.message)
   const secondary = secondaryRows(
     rule.secondaryRules,
     appliedModifiers.value.attributes,
@@ -495,6 +505,12 @@ function calculateNonCombatAttributes(rule, characterContext, staticAttributes, 
     appliedModifiers.value.allowedEffects,
   )
   if (secondary.issue) return unavailable(validated.revision, secondary.issue.code, secondary.issue.path, secondary.issue.message)
+  const resources = resourceRows(
+    rule.resources,
+    appliedModifiers.value.attributes,
+    secondary.numericValues,
+  )
+  if (resources.issue) return unavailable(validated.revision, resources.issue.code, resources.issue.path, resources.issue.message)
 
   const primaryKey = STATIC_ATTRIBUTE_ALIASES[rule.primaryKey] || rule.primaryKey
   const primaryValue = appliedModifiers.value.attributes[primaryKey] || 0

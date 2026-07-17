@@ -37,6 +37,13 @@ _OPTION_STATIC_FACTS = {
         "primaryStatDelta": 32,
         "sourceRef": "simc-dbc-12.0.7.68453:midnight-gem-240983",
     },
+    ("gem", "240967"): {
+        "status": "verified",
+        "statDeltas": {},
+        "primaryStatDelta": 23,
+        "effectClassification": "mixed_static_and_non_panel",
+        "sourceRef": "simc-dbc-12.0.7.68453:midnight-gem-240967",
+    },
     ("enchant", "4223"): {
         "status": "not_applicable",
         "statDeltas": {},

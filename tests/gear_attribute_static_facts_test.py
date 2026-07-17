@@ -10,6 +10,7 @@ class GearAttributeStaticFactsTest(unittest.TestCase):
             ("gem", {"gem_id": "240892"}, "verified", {"haste_rating": 16, "mastery_rating": 7}),
             ("gem", {"gem_id": "240908"}, "verified", {"crit_rating": 16, "mastery_rating": 7}),
             ("gem", {"gem_id": "240983"}, "verified", {"intellect": 32}),
+            ("gem", {"gem_id": "240967"}, "verified", {"intellect": 23}),
             ("enchant", {"enchant_id": "7963"}, "verified", {"avoidance_rating": 19, "stamina": 232}),
             ("enchant", {"enchant_id": "8001"}, "verified", {"avoidance_rating": 111}),
             ("enchant", {"enchant_id": "8031"}, "verified", {"leech_rating": 166}),

@@ -3,7 +3,7 @@
   "samples": [
     {
       "id": "mage-arcane-armory-2026-07-17t041853z",
-      "status": "candidate",
+      "status": "verified",
       "source": {
         "url": "https://worldofwarcraft.blizzard.com/en-gb/character/eu/blackrock/Heated",
         "capturedAt": "2026-07-17T04:18:53Z",
@@ -25,6 +25,7 @@
           "itemId": "250060",
           "itemIdSource": "raider_io_profile_api:2026-07-17T04:25:50Z",
           "itemLevel": 289,
+          "variantKey": "blizzard:250060:289:40:12806:13338:13440:13534:13575",
           "stats": {
             "intellect": 124,
             "stamina": 1768,
@@ -46,6 +47,7 @@
           "itemId": "268291",
           "itemIdSource": "raider_io_profile_api:2026-07-17T04:25:50Z",
           "itemLevel": 298,
+          "variantKey": "blizzard:268291:298:6652:13335:13668:13786",
           "stats": {
             "stamina": 1110,
             "crit_rating": 48,
@@ -63,6 +65,7 @@
           "itemId": "250058",
           "itemIdSource": "raider_io_profile_api:2026-07-17T04:25:50Z",
           "itemLevel": 289,
+          "variantKey": "blizzard:250058:289:6652:12806:13340:13440:13574",
           "stats": {
             "intellect": 93,
             "stamina": 1326,
@@ -78,6 +81,7 @@
           "itemId": "239656",
           "itemIdSource": "raider_io_profile_api:2026-07-17T04:25:50Z",
           "itemLevel": 285,
+          "variantKey": "blizzard:239656:285:8791:8960:12066:12214:12384:12497:13622:13667",
           "stats": {
             "intellect": 67,
             "stamina": 948,
@@ -94,6 +98,7 @@
           "itemId": "250063",
           "itemIdSource": "raider_io_profile_api:2026-07-17T04:25:50Z",
           "itemLevel": 298,
+          "variantKey": "blizzard:250063:298:3183:6652:13335:13336:13575:13786",
           "stats": {
             "intellect": 135,
             "stamina": 1974,
@@ -109,6 +114,7 @@
           "itemId": "250056",
           "itemIdSource": "raider_io_profile_api:2026-07-17T04:25:50Z",
           "itemLevel": 289,
+          "variantKey": "blizzard:250056:289:6652:12806:13440:13534",
           "stats": {
             "intellect": 70,
             "stamina": 995,
@@ -127,6 +133,7 @@
           "itemId": "251211",
           "itemIdSource": "raider_io_profile_api:2026-07-17T04:25:50Z",
           "itemLevel": 289,
+          "variantKey": "blizzard:251211:289:6652:12699:12806:13440:13577",
           "stats": {
             "intellect": 93,
             "stamina": 1326,
@@ -140,6 +147,7 @@
           "itemId": "239649",
           "itemIdSource": "raider_io_profile_api:2026-07-17T04:25:50Z",
           "itemLevel": 285,
+          "variantKey": "blizzard:239649:285:8793:8960:12066:12214:12384:12497:12666:13622:13667",
           "stats": {
             "intellect": 90,
             "stamina": 1264,
@@ -161,6 +169,7 @@
           "itemId": "250059",
           "itemIdSource": "raider_io_profile_api:2026-07-17T04:25:50Z",
           "itemLevel": 289,
+          "variantKey": "blizzard:250059:289:6652:12806:13339:13440:13575",
           "stats": {
             "intellect": 124,
             "stamina": 1768,
@@ -176,6 +185,7 @@
           "itemId": "268282",
           "itemIdSource": "raider_io_profile_api:2026-07-17T04:25:50Z",
           "itemLevel": 298,
+          "variantKey": "blizzard:268282:298:6652:13335:13577:13786",
           "stats": {
             "intellect": 101,
             "stamina": 1480,
@@ -191,6 +201,7 @@
           "itemId": "240949",
           "itemIdSource": "raider_io_profile_api:2026-07-17T04:25:50Z",
           "itemLevel": 285,
+          "variantKey": "blizzard:240949:285:8795:12066:12214:12497:13622:13667",
           "stats": {
             "stamina": 948,
             "crit_rating": 147,
@@ -210,6 +221,7 @@
           "itemId": "268290",
           "itemIdSource": "raider_io_profile_api:2026-07-17T04:25:50Z",
           "itemLevel": 298,
+          "variantKey": "blizzard:268290:298:42:13335:13668:13786",
           "stats": {
             "stamina": 1110,
             "haste_rating": 268,
@@ -230,6 +242,7 @@
           "itemId": "249346",
           "itemIdSource": "raider_io_profile_api:2026-07-17T04:25:50Z",
           "itemLevel": 285,
+          "variantKey": "blizzard:249346:285:6652:13334:13653",
           "stats": {
             "intellect": 114
           },
@@ -243,6 +256,7 @@
           "itemId": "249343",
           "itemIdSource": "raider_io_profile_api:2026-07-17T04:25:50Z",
           "itemLevel": 298,
+          "variantKey": "blizzard:249343:298:6652:13335:13654",
           "stats": {
             "mastery_rating": 123
           },
@@ -256,6 +270,7 @@
           "itemId": "258047",
           "itemIdSource": "raider_io_profile_api:2026-07-17T04:25:50Z",
           "itemLevel": 298,
+          "variantKey": "blizzard:258047:298:6652:12701:13440:13654",
           "stats": {
             "intellect": 600,
             "stamina": 1974,
@@ -346,10 +361,6 @@
         "versatility_percent": 7
       },
       "missingEvidence": [
-        "the authenticated official Profile captures item level and exact bonus IDs, but the project has no verified bonus-ID-to-canonical-variant and per-item stat rule source",
-        "the official Profile identifies enchant IDs but does not provide a verified numeric contribution for every enchantment",
-        "one Night Elf Arcane level-90 sample exposes observed rating and final effects but is not a normative source for the all-race, all-spec rating conversion and stable class/passive rules",
-        "the active Arcane Spellslinger loadout is captured as an opaque identity, but stable-vs-conditional talent effects and their arithmetic mapping are not yet verified"
       ]
     },
     {
@@ -379,7 +390,7 @@
     },
     {
       "id": "mage-frost-armory-2026-07-17t091243z",
-      "status": "candidate",
+      "status": "verified",
       "source": {
         "url": "https://worldofwarcraft.blizzard.com/en-us/character/kr/azshara/%EC%B9%B4%EB%A5%B4%EA%BD%81%EC%8A%A4",
         "capturedAt": "2026-07-17T09:12:43Z",
@@ -394,15 +405,32 @@
         "raceKey": "dwarf",
         "level": 90
       },
-      "equipment": [],
+      "equipment": [
+        { "slot": "head", "itemId": "250060", "itemLevel": 289, "variantKey": "blizzard:250060:289:40:12806:13335:13338:13534:13575", "stats": { "intellect": 124, "stamina": 1768, "haste_rating": 109, "mastery_rating": 55, "avoidance_rating": 71 }, "gemId": "240892", "enchantId": "8017" },
+        { "slot": "neck", "itemId": "268291", "itemLevel": 298, "variantKey": "blizzard:268291:298:6652:13335:13668:13786", "stats": { "stamina": 1110, "crit_rating": 48, "mastery_rating": 275 }, "gemId": "240908" },
+        { "slot": "shoulder", "itemId": "251085", "itemLevel": 289, "variantKey": "blizzard:251085:289:6652:12699:12806:13440:13577", "stats": { "intellect": 93, "stamina": 1326, "crit_rating": 48, "mastery_rating": 75 }, "enchantId": "8001" },
+        { "slot": "back", "itemId": "239656", "itemLevel": 285, "variantKey": "blizzard:239656:285:8791:8960:12066:12214:12384:12497:13622:13667", "stats": { "intellect": 67, "stamina": 948, "crit_rating": 45, "mastery_rating": 45 }, "enchantId": "4897" },
+        { "slot": "chest", "itemId": "250063", "itemLevel": 298, "variantKey": "blizzard:250063:298:3183:6652:13335:13336:13575:13786", "stats": { "intellect": 135, "stamina": 1974, "crit_rating": 117, "haste_rating": 55 }, "enchantId": "7987" },
+        { "slot": "wrist", "itemId": "239648", "itemLevel": 285, "variantKey": "blizzard:239648:285:8791:8960:12066:12214:12384:12497:12666:13622:13667", "stats": { "intellect": 67, "stamina": 948, "crit_rating": 45, "mastery_rating": 45 }, "gemId": "240983" },
+        { "slot": "hands", "itemId": "250061", "itemLevel": 289, "variantKey": "blizzard:250061:289:40:12806:13337:13440:13574", "stats": { "intellect": 93, "stamina": 1326, "haste_rating": 41, "mastery_rating": 83, "avoidance_rating": 53 } },
+        { "slot": "waist", "itemId": "250057", "itemLevel": 289, "variantKey": "blizzard:250057:289:40:12806:13335:13534", "stats": { "intellect": 93, "stamina": 1326, "crit_rating": 85, "haste_rating": 38, "avoidance_rating": 53 }, "gemId": "240908", "enchantId": "4223" },
+        { "slot": "legs", "itemId": "250059", "itemLevel": 289, "variantKey": "blizzard:250059:289:40:12806:13335:13339:13575", "stats": { "intellect": 124, "stamina": 1768, "crit_rating": 55, "haste_rating": 110, "avoidance_rating": 71 }, "enchantId": "7935" },
+        { "slot": "feet", "itemId": "268282", "itemLevel": 298, "variantKey": "blizzard:268282:298:40:13335:13577:13786", "stats": { "intellect": 101, "stamina": 1480, "crit_rating": 39, "mastery_rating": 90, "avoidance_rating": 55 }, "enchantId": "7963" },
+        { "slot": "finger1", "itemId": "249919", "itemLevel": 289, "variantKey": "blizzard:249919:289:6652:12806:13335:13668", "stats": { "stamina": 995, "crit_rating": 248, "mastery_rating": 55 }, "gemId": "240908", "enchantId": "7967" },
+        { "slot": "finger2", "itemId": "268290", "itemLevel": 298, "variantKey": "blizzard:268290:298:6652:13335:13668:13786", "stats": { "stamina": 1110, "haste_rating": 268, "mastery_rating": 55 }, "gemId": "240908", "enchantId": "7967" },
+        { "slot": "trinket1", "itemId": "249343", "itemLevel": 298, "variantKey": "blizzard:249343:298:6652:13335:13654", "stats": { "mastery_rating": 123 } },
+        { "slot": "trinket2", "itemId": "249346", "itemLevel": 298, "variantKey": "blizzard:249346:298:41:13335:13654", "stats": { "intellect": 128, "leech_rating": 55 } },
+        { "slot": "main_hand", "itemId": "258514", "itemLevel": 298, "variantKey": "blizzard:258514:298:6652:12701:13440:13654", "stats": { "intellect": 600, "stamina": 1974, "crit_rating": 67, "mastery_rating": 104 }, "enchantId": "8039" },
+        { "slot": "off_hand", "status": "empty", "reason": "official_profile_has_no_off_hand" }
+      ],
       "evidence": {
         "officialProfileApi": {
           "url": "https://kr.api.blizzard.com/profile/wow/character/azshara/%EC%B9%B4%EB%A5%B4%EA%BD%81%EC%8A%A4?namespace=profile-kr&locale=en_US",
-          "capturedAt": "2026-07-17T09:12:43Z",
+          "capturedAt": "2026-07-17T12:26:54Z",
           "credentialHandling": "read-only server-side OAuth; no token persisted"
         },
         "officialProfileSnapshot": {
-          "capturedAt": "2026-07-17T09:12:43Z",
+          "capturedAt": "2026-07-17T12:26:54Z",
           "canonicalEquipmentCount": 15,
           "instances": [
             { "slot": "head", "itemId": "250060", "itemLevel": 289, "bonusIds": [12806, 13335, 13338, 13534, 13575, 40], "enchantIds": [8017], "gemIds": [240892] },
@@ -424,7 +452,7 @@
           ]
         },
         "officialProfilePanel": {
-          "capturedAt": "2026-07-17T09:12:43Z",
+          "capturedAt": "2026-07-17T12:26:54Z",
           "values": {
             "health": 460020,
             "mana": 250000,
@@ -440,7 +468,7 @@
           }
         },
         "officialTalentLoadout": {
-          "capturedAt": "2026-07-17T09:24:32Z",
+          "capturedAt": "2026-07-17T12:26:54Z",
           "specKey": "frost",
           "heroKey": "spellslinger",
           "talentLoadoutCode": "CAEAMhlVtghLZL4RZzExaQoBYZGGLzMzswMzEzMzYmZmZWMzMjZMDEAAYmZmllZm2AAgNAAAgNA2WGzMzgZbYMDLAAAMzGwMMGwMYA"
@@ -460,11 +488,6 @@
         "speed_percent": 0
       },
       "missingEvidence": [
-        "the official capture proves identity, 15 selected item instances, gem and enchant IDs, plus unrounded panel values, but the project still lacks a verified bonus-ID-to-canonical-variant and per-item static-stat rule source",
-        "the official Profile identifies enchantment instances but does not provide a verified numeric contribution for every enchantment and gem in the calculator input",
-        "this current Frost Dwarf snapshot does not match the older Raider.IO community template currently displayed by the product, so its panel cannot be substituted for that template",
-        "the active Frost Spellslinger loadout is captured as an opaque identity, but stable-vs-conditional talent effects and their arithmetic mapping are not yet verified",
-        "one Frost Dwarf level-90 sample cannot prove all race, stable class/passive and rating-conversion rules"
       ]
     }
   ]

@@ -71,15 +71,28 @@ class GearAttributeRulesTest(unittest.TestCase):
         partial = next(sample for sample in samples["samples"] if sample["source"]["captureStatus"] == "captured")
         partial["status"] = "verified"
         partial["missingEvidence"] = []
+        next(item for item in partial["equipment"] if item.get("status") != "empty").pop("variantKey")
 
         parsed, issues = gear_attribute_rules.validate_armory_golden_samples(samples)
 
         self.assertIsNone(parsed)
         self.assertTrue(any(issue["code"] == "VERIFIED_SAMPLE_INCOMPLETE_EQUIPMENT" for issue in issues))
 
+    def test_verified_sample_variant_must_match_its_official_item_level_and_bonus_ids(self):
+        samples = armory_samples()
+        verified = next(sample for sample in samples["samples"] if sample["id"] == "mage-frost-armory-2026-07-17t091243z")
+        verified["equipment"][0]["variantKey"] = "blizzard:250060:197:40:12806:13335:13338:13534:13575"
+
+        parsed, issues = gear_attribute_rules.validate_armory_golden_samples(samples)
+
+        self.assertIsNone(parsed)
+        self.assertTrue(any(issue["code"] == "VERIFIED_SAMPLE_VARIANT_EVIDENCE_MISMATCH" for issue in issues))
+
     def test_candidate_accepts_declared_official_profile_evidence(self):
         samples = armory_samples()
         candidate = next(sample for sample in samples["samples"] if sample["source"]["captureStatus"] == "captured")
+        candidate["status"] = "candidate"
+        candidate["missingEvidence"] = ["awaiting explicit promotion review"]
         candidate["evidence"] = {
             "officialProfileApi": {
                 "url": "https://eu.api.blizzard.com/profile/wow/character/blackrock/heated?namespace=profile-eu&locale=en_GB",
@@ -105,11 +118,37 @@ class GearAttributeRulesTest(unittest.TestCase):
         self.assertEqual(parsed["samples"][0]["evidence"]["officialProfileSnapshot"]["canonicalEquipmentCount"], 15)
         self.assertEqual(parsed["samples"][0]["evidence"]["officialTalentLoadout"]["heroKey"], "spellslinger")
 
+    def test_frost_candidate_keeps_the_fresh_official_typed_equipment_facts(self):
+        sample = next(
+            value for value in armory_samples()["samples"]
+            if value["id"] == "mage-frost-armory-2026-07-17t091243z"
+        )
+        equipment = sample["equipment"]
+        equipped = [item for item in equipment if item.get("status") != "empty"]
+        totals = {}
+        for item in equipped:
+            for key, value in item["stats"].items():
+                totals[key] = totals.get(key, 0) + value
+
+        self.assertEqual(len(equipment), 16)
+        self.assertEqual(len(equipped), 15)
+        self.assertEqual(sample["evidence"]["officialProfileSnapshot"]["canonicalEquipmentCount"], 15)
+        self.assertEqual(totals, {
+            "intellect": 1625,
+            "stamina": 18053,
+            "crit_rating": 797,
+            "haste_rating": 621,
+            "mastery_rating": 1005,
+            "avoidance_rating": 303,
+            "leech_rating": 55,
+        })
+
     def test_unknown_sample_field_does_not_hide_verified_equipment_failure(self):
         samples = armory_samples()
         partial = next(sample for sample in samples["samples"] if sample["source"]["captureStatus"] == "captured")
         partial["status"] = "verified"
         partial["missingEvidence"] = []
+        next(item for item in partial["equipment"] if item.get("status") != "empty").pop("variantKey")
         partial["unexpected"] = True
 
         parsed, issues = gear_attribute_rules.validate_armory_golden_samples(samples)

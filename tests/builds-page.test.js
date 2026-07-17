@@ -4,6 +4,7 @@ const fs = require('node:fs')
 const vm = require('node:vm')
 const { buildSpecializationHomePayload } = require('../server/builds/home-payload')
 const gearAttributeFixture = require('./fixtures/gear-attribute-calculator-cases-v1.json').cases[0]
+const officialGearAttributeFixtures = require('./fixtures/gear-attribute-official-cases-v1.json').cases
 
 function assertNoIgnoredGeneratedRuntimeAssets(wxml) {
   assert.doesNotMatch(
@@ -1135,7 +1136,7 @@ test('gear slot cards name selected weapon types instead of hand positions', () 
   assert.equal(helpers.gearSlotCardLabel('off_hand', { weaponType: 'Shield' }, '副手'), '盾牌')
 })
 
-test('gear attribute panel defaults to human and recomputes locally without SimC or a race selector', () => {
+test('gear attribute panel defaults to human and applies sealed stable effects locally without SimC or a race selector', () => {
   const pageConfig = loadBuildsDetailPageConfig({ exposeDetailHelpers: true })
   const rule = structuredClone(gearAttributeFixture.rule)
   rule.status = 'verified'
@@ -1177,7 +1178,14 @@ test('gear attribute panel defaults to human and recomputes locally without SimC
       selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' },
       gearPayload,
       selectedGearBySlot,
-      enhancementBySlot: {}
+      enhancementBySlot: {},
+      gearAttributeStableEffectContext: {
+        schemaRevision: 'gear-attribute-stable-effects-v1',
+        status: 'verified',
+        origin: 'source_profile',
+        effectIds: ['fixture:haste-add'],
+        loadoutSignature: 'sha256:' + 'a'.repeat(64)
+      }
     },
     setData(update) {
       this.data = { ...this.data, ...update }
@@ -1193,7 +1201,7 @@ test('gear attribute panel defaults to human and recomputes locally without SimC
   assert.equal(page.data.gearAttributeState.status, 'calculated')
   assert.equal(page.data.gearAttributePanel.attributeRuleRevision, 'fixture-r1')
   assert.equal(haste.rawValue, 100)
-  assert.equal(haste.convertedValue, '2.0%')
+  assert.equal(haste.convertedValue, '4.0%')
 
   page.data.selectedGearBySlot.head.itemStats = page.data.selectedGearBySlot.head.itemStats.map((row) => (
     row.key === 'haste_rating' ? { ...row, value: 200 } : row
@@ -1202,12 +1210,150 @@ test('gear attribute panel defaults to human and recomputes locally without SimC
   const changedHaste = page.data.gearAttributePanel.statRows.find((row) => row.key === 'haste')
   assert.equal(changed.status, 'calculated')
   assert.equal(changedHaste.rawValue, 200)
-  assert.equal(changedHaste.convertedValue, '4.0%')
+  assert.equal(changedHaste.convertedValue, '6.0%')
   assert.equal(changedHaste.deltaValue, '+100')
 
   const wxml = fs.readFileSync('pages/builds/detail.wxml', 'utf8')
   assert.doesNotMatch(wxml, /请选择种族|gearAttributeRaceSheet|openGearAttributeRaceSheet/)
   assert.equal(typeof pageConfig.selectGearAttributeRace, 'undefined')
+})
+
+test('released Frost Armory import renders golden attributes, then recalculates a local gear edit without SimC', () => {
+  const pageConfig = loadBuildsDetailPageConfig({
+    requestWebsimGear() {
+      throw new Error('local attribute calculation must not request SimC')
+    }
+  })
+  const fixture = officialGearAttributeFixtures.find((item) => item.id === 'mage-frost-dwarf-armory-2026-07-17')
+  assert.ok(fixture)
+  const rule = structuredClone(fixture.rule)
+  rule.status = 'verified'
+  const selectedGearBySlot = completeGearSelection()
+  selectedGearBySlot.head.itemStats = Object.entries(fixture.staticAttributes).map(([key, value]) => ({ key, value }))
+  const stableEffectIds = fixture.stableEffects.map((item) => item.effectId).sort()
+  const gearPayload = {
+    classKey: 'mage',
+    specKey: 'frost',
+    maxLevel: 90,
+    slots: canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot })),
+    equippedSet: selectedGearBySlot,
+    replacementCandidates: [],
+    slotReadiness: {},
+    readiness: { fullReady: true },
+    attributeCalculator: {
+      contractRevision: 'gear-attribute-calculator-context-v1',
+      status: 'available',
+      attributeRuleRevision: rule.attributeRuleRevision,
+      raceOptions: [{ raceKey: 'dwarf' }],
+      rules: [rule],
+      problems: []
+    }
+  }
+  const page = {
+    ...pageConfig,
+    data: {
+      ...pageConfig.data,
+      activeQueryKey: 'gear',
+      selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' },
+      gearPayload,
+      selectedGearBySlot,
+      enhancementBySlot: {},
+      gearAttributeCharacterContext: {
+        schemaRevision: 'gear-attribute-character-v1', raceKey: fixture.characterContext.raceKey, origin: 'source_profile'
+      },
+      gearAttributeStableEffectContext: {
+        schemaRevision: 'gear-attribute-stable-effects-v1',
+        status: 'verified',
+        origin: 'source_profile',
+        effectIds: stableEffectIds,
+        loadoutSignature: 'sha256:' + 'f'.repeat(64)
+      },
+      gearAttributeSourceContext: {
+        status: 'verified',
+        staticAttributes: fixture.staticAttributes,
+        attributeStaticFacts: { status: 'verified', problems: [] },
+        profileReadiness: { requiredSlots: canonicalGearSlots }
+      }
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  const imported = pageConfig.refreshGearAttributePanel.call(page)
+  const expected = fixture.expectedCalculation
+  const importedRows = Object.fromEntries(page.data.gearAttributePanel.statRows.map((row) => [row.key, row]))
+  assert.equal(imported.status, 'calculated')
+  assert.equal(page.data.gearAttributePanel.calculationStatusLabel, '本地实时计算')
+  assert.equal(importedRows.intellect.rawValue, expected.primary.rawValue)
+  assert.equal(importedRows.stamina.rawValue, expected.stamina.rawValue)
+  assert.equal(importedRows.health.rawValue, expected.resources.health.rawValue)
+  assert.equal(importedRows.mana.rawValue, expected.resources.mana.rawValue)
+  for (const secondary of expected.secondary) {
+    assert.equal(importedRows[secondary.key].rawValue, secondary.rawValue, secondary.key)
+    assert.equal(importedRows[secondary.key].convertedValue, secondary.convertedValue, secondary.key)
+  }
+
+  page.data.gearAttributeSourceContext = null
+  page.data.selectedGearBySlot.head.itemStats = page.data.selectedGearBySlot.head.itemStats.map((item) => (
+    item.key === 'haste_rating' ? { ...item, value: item.value + 100 } : item
+  ))
+  const changed = pageConfig.refreshGearAttributePanel.call(page, { previousCalculation: page.data.gearAttributeState })
+  const changedHaste = page.data.gearAttributePanel.statRows.find((row) => row.key === 'haste')
+
+  assert.equal(changed.status, 'calculated')
+  assert.deepEqual(JSON.parse(JSON.stringify(page.data.gearAttributeCharacterContext)), {
+    schemaRevision: 'gear-attribute-character-v1', raceKey: 'dwarf', origin: 'source_profile'
+  })
+  assert.equal(changedHaste.rawValue, 774)
+  assert.equal(changedHaste.deltaValue, '+105')
+  assert.notEqual(changedHaste.convertedValue, expected.secondary.find((item) => item.key === 'haste').convertedValue)
+})
+
+test('gear attribute panel does not guess stable effects when a rule requires a sealed source loadout', () => {
+  const pageConfig = loadBuildsDetailPageConfig({ exposeDetailHelpers: true })
+  const rule = structuredClone(gearAttributeFixture.rule)
+  rule.status = 'verified'
+  const selectedGearBySlot = completeGearSelection()
+  selectedGearBySlot.head.itemStats = [{ key: 'haste_rating', value: 100 }]
+  const gearPayload = {
+    classKey: 'mage',
+    specKey: 'frost',
+    maxLevel: 90,
+    slots: canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot })),
+    equippedSet: selectedGearBySlot,
+    replacementCandidates: [],
+    slotReadiness: {},
+    readiness: { fullReady: true },
+    attributeCalculator: {
+      contractRevision: 'gear-attribute-calculator-context-v1',
+      status: 'available',
+      attributeRuleRevision: 'fixture-r1',
+      raceOptions: [{ raceKey: 'human' }],
+      rules: [rule],
+      problems: []
+    }
+  }
+  const page = {
+    ...pageConfig,
+    data: {
+      ...pageConfig.data,
+      activeQueryKey: 'gear',
+      selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' },
+      gearPayload,
+      selectedGearBySlot,
+      enhancementBySlot: {}
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.refreshGearAttributePanel.call(page)
+
+  assert.equal(page.data.gearAttributeState.status, 'rule_unavailable')
+  assert.equal(page.data.gearAttributeState.problems[0].code, 'ATTRIBUTE_STABLE_EFFECTS_UNAVAILABLE')
+  assert.deepEqual(JSON.parse(JSON.stringify(page.data.gearAttributePanel.statRows)), [])
 })
 
 test('gear attribute panel prefers the verified resolver static snapshot over display item stats', () => {
@@ -1243,6 +1389,13 @@ test('gear attribute panel prefers the verified resolver static snapshot over di
       gearPayload,
       selectedGearBySlot,
       enhancementBySlot: {},
+      gearAttributeStableEffectContext: {
+        schemaRevision: 'gear-attribute-stable-effects-v1',
+        status: 'verified',
+        origin: 'source_profile',
+        effectIds: [],
+        loadoutSignature: 'sha256:' + 'b'.repeat(64)
+      },
       gearAttributeSourceContext: {
         status: 'verified',
         staticAttributes: { haste_rating: 200 },
@@ -1414,7 +1567,14 @@ test('gear attribute panel immediately uses the edited local selection instead o
     gearPayload,
     selectedGearBySlot,
     selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' },
-    enhancementBySlot: {}
+    enhancementBySlot: {},
+    gearAttributeStableEffectContext: {
+      schemaRevision: 'gear-attribute-stable-effects-v1',
+      status: 'verified',
+      origin: 'source_profile',
+      effectIds: [],
+      loadoutSignature: 'sha256:' + 'c'.repeat(64)
+    }
   }, null)
   const haste = next.gearAttributePanel.statRows.find((row) => row.key === 'haste')
 
@@ -14113,7 +14273,10 @@ function mageFrostCommunityEnhancementHarness(options = {}) {
                   sourceFingerprint: 'sha256:mage-frost-import',
                   attributeCharacterContext: options.attributeCharacterContext || {
                     schemaRevision: 'gear-attribute-character-v1', raceKey: 'human', origin: 'default_human'
-                  }
+                  },
+                  ...(options.attributeStableEffectContext
+                    ? { attributeStableEffectContext: options.attributeStableEffectContext }
+                    : {})
                 },
                 manifest: { manifestRevision: 'manifest-mage-frost-import', pointerGeneration: 1 },
                 importedGearBySlot,
@@ -14268,6 +14431,40 @@ test('community import preserves its sealed source race through later local attr
   assert.equal(harness.page.data.gearAttributeCharacterContext.raceKey, 'night_elf')
 })
 
+test('community import preserves sealed stable effects through later local attribute refreshes', async () => {
+  const stableEffectContext = {
+    schemaRevision: 'gear-attribute-stable-effects-v1',
+    status: 'verified',
+    origin: 'source_profile',
+    effectIds: ['mage:inspired_intellect'],
+    loadoutSignature: 'sha256:' + 'd'.repeat(64)
+  }
+  const harness = await importMageFrostCommunityEnhancements(
+    mageFrostCommunityEnhancementHarness({
+      atomicImport: true,
+      attributeStableEffectContext: stableEffectContext
+    })
+  )
+
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(harness.page.data.gearAttributeStableEffectContext)),
+    stableEffectContext
+  )
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(harness.page.communityEnhancementImportState.attributeStableEffectContext)),
+    stableEffectContext
+  )
+  harness.page.data.selectedGearBySlot.head = {
+    ...harness.page.data.selectedGearBySlot.head,
+    itemLevel: harness.page.data.selectedGearBySlot.head.itemLevel + 1
+  }
+  harness.pageConfig.refreshGearAttributePanel.call(harness.page)
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(harness.page.data.gearAttributeStableEffectContext)),
+    stableEffectContext
+  )
+})
+
 test('saved observed import origin keeps the sealed source fingerprint when profile hash is unavailable', () => {
   const pageConfig = loadBuildsDetailPageConfig({ exposeDetailHelpers: true })
   const origin = pageConfig.__detailHelpers.savedCommunityImportOrigin({
@@ -14306,12 +14503,20 @@ test('community import blocks a malformed sealed v2 item level instead of commit
 })
 
 test('verified community save records the source identity and implicit race required for a later atomic reimport', async () => {
+  const stableEffectContext = {
+    schemaRevision: 'gear-attribute-stable-effects-v1',
+    status: 'verified',
+    origin: 'source_profile',
+    effectIds: ['mage:inspired_intellect'],
+    loadoutSignature: 'sha256:' + 'e'.repeat(64)
+  }
   const harness = await importMageFrostCommunityEnhancements(
     mageFrostCommunityEnhancementHarness({
       atomicImport: true,
       attributeCharacterContext: {
         schemaRevision: 'gear-attribute-character-v1', raceKey: 'night_elf', origin: 'source_profile'
-      }
+      },
+      attributeStableEffectContext: stableEffectContext
     })
   )
 
@@ -14326,7 +14531,8 @@ test('verified community save records the source identity and implicit race requ
     manifestRevision: 'manifest-mage-frost-import',
     attributeCharacterContext: {
       schemaRevision: 'gear-attribute-character-v1', raceKey: 'night_elf', origin: 'source_profile'
-    }
+    },
+    attributeStableEffectContext: stableEffectContext
   })
 })
 

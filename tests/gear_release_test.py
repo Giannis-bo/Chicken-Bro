@@ -474,6 +474,28 @@ class GearReleaseTest(unittest.TestCase):
         codes = {problem["code"] for row in election["rejected"] for problem in row["problems"]}
         self.assertIn("COMMUNITY_IMPORT_EVIDENCE_INVALID", codes)
 
+    def test_election_rejects_v3_stable_effects_without_a_strict_sealed_context(self):
+        malformed = self.candidate("missing-stable-effects")
+        malformed["importEvidence"].update({
+            "schemaRevision": "community-template-import-evidence-v3",
+            "sourceRaceKey": "dwarf",
+            "sourceRaceOrigin": "source_profile",
+        })
+        legacy = self.candidate("legacy-v1")
+
+        election = gear_release.elect_community_candidates(
+            [malformed, legacy],
+            gear_release_id="gear-release:sha256:target",
+            resolver=lambda _intent: self.verified_result(),
+            now="2026-07-11T05:00:00+00:00",
+            expected_specs=[("mage", "arcane")],
+        )
+
+        self.assertEqual(election["status"], "validated")
+        self.assertEqual(election["winners"][0]["candidateId"], "legacy-v1")
+        rejected = [row for row in election["rejected"] if row["candidateId"] == "missing-stable-effects"]
+        self.assertEqual(rejected[0]["problems"][0]["path"], "candidate.importEvidence.sourceStableEffects")
+
     def test_election_rejects_illegal_unready_or_release_mismatched_resolver_result(self):
         candidates = [
             self.candidate("illegal"),

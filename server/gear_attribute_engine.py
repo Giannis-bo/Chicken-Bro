@@ -168,6 +168,7 @@ def _apply_stable_modifiers(
 ) -> tuple[dict[str, float] | None, set[str], dict | None]:
     active_effects = set(effect_ids)
     allowed_effects: set[str] = set()
+    base_attributes = dict(attributes)
     for index, modifier in enumerate(modifiers):
         path = f"rule.stableModifiers[{index}]"
         if not isinstance(modifier, dict):
@@ -179,7 +180,7 @@ def _apply_stable_modifiers(
         if (
             effect_id is None
             or target_key is None
-            or operation not in {"add", "multiply", "round_nearest"}
+            or operation not in {"add", "multiply", "add_percent_of_base", "round_nearest"}
             or value is None
             or (operation == "round_nearest" and value != 0)
         ):
@@ -192,13 +193,19 @@ def _apply_stable_modifiers(
             attributes[target_key] = current + value
         elif operation == "multiply":
             attributes[target_key] = current * value
+        elif operation == "add_percent_of_base":
+            attributes[target_key] = current + base_attributes.get(target_key, 0.0) * value
         else:
             attributes[target_key] = float(math.floor(current + 0.5))
 
     return attributes, allowed_effects, None
 
 
-def _resource_rows(resources: dict[str, Any], attributes: dict[str, float]) -> tuple[dict | None, dict | None]:
+def _resource_rows(
+    resources: dict[str, Any],
+    attributes: dict[str, float],
+    secondary_values: dict[str, float],
+) -> tuple[dict | None, dict | None]:
     rows: dict[str, dict] = {}
     for resource_key, definition in resources.items():
         normalized_key = _bounded_key(resource_key)
@@ -212,6 +219,17 @@ def _resource_rows(resources: dict[str, Any], attributes: dict[str, float]) -> t
         if base is None or per_stamina is None or per_intellect is None or rounding not in {"floor", "ceil", "round"}:
             return None, _issue("INVALID_RESOURCE_RULE", path, "resource definitions require finite base/per-attribute values and a round mode")
         raw_value = base + attributes.get("stamina", 0.0) * per_stamina + attributes.get("intellect", 0.0) * per_intellect
+        percent_from_secondary = definition.get("percentFromSecondary")
+        if percent_from_secondary is not None:
+            source_key = _bounded_key(percent_from_secondary)
+            source_percent = secondary_values.get(source_key or "")
+            if source_key is None or source_percent is None:
+                return None, _issue(
+                    "INVALID_RESOURCE_RULE",
+                    f"{path}.percentFromSecondary",
+                    "percentFromSecondary must name a calculated secondary output",
+                )
+            raw_value *= 1.0 + source_percent / 100.0
         if rounding == "floor":
             raw_value = float(math.floor(raw_value))
         elif rounding == "ceil":
@@ -308,13 +326,14 @@ def _secondary_rows(
     attributes: dict[str, float],
     effect_ids: list[str],
     allowed_effects: set[str],
-) -> tuple[list[dict] | None, dict | None]:
+) -> tuple[list[dict] | None, dict[str, float] | None, dict | None]:
     rows: list[dict] = []
+    numeric_values: dict[str, float] = {}
     output_keys: set[str] = set()
     for index, definition in enumerate(secondary_rules):
         path = f"rule.secondaryRules[{index}]"
         if not isinstance(definition, dict):
-            return None, _issue("INVALID_SECONDARY_RULE", path, "secondary rules must be objects")
+            return None, None, _issue("INVALID_SECONDARY_RULE", path, "secondary rules must be objects")
         input_key = _bounded_key(definition.get("inputKey"))
         output_key = _bounded_key(definition.get("outputKey"))
         label = definition.get("label")
@@ -322,29 +341,29 @@ def _secondary_rows(
         precision = definition.get("precision")
         display_unit = definition.get("displayUnit")
         if input_key is None or output_key is None or not isinstance(label, str) or not label.strip():
-            return None, _issue("INVALID_SECONDARY_RULE", path, "secondary rules require input, output and label")
+            return None, None, _issue("INVALID_SECONDARY_RULE", path, "secondary rules require input, output and label")
         if output_key in output_keys:
-            return None, _issue("DUPLICATE_OUTPUT_KEY", f"{path}.outputKey", "secondary output keys must be unique")
+            return None, None, _issue("DUPLICATE_OUTPUT_KEY", f"{path}.outputKey", "secondary output keys must be unique")
         output_keys.add(output_key)
         if base_percent is None:
-            return None, _issue("INVALID_RATING_CONVERSION", f"{path}.basePercent", "basePercent must be a finite number")
+            return None, None, _issue("INVALID_RATING_CONVERSION", f"{path}.basePercent", "basePercent must be a finite number")
         if isinstance(precision, bool) or not isinstance(precision, int) or precision < 0 or precision > 6:
-            return None, _issue("INVALID_PRECISION", f"{path}.precision", "precision must be an integer from 0 to 6")
+            return None, None, _issue("INVALID_PRECISION", f"{path}.precision", "precision must be an integer from 0 to 6")
         if display_unit not in {"percent", "effect"}:
-            return None, _issue("INVALID_DISPLAY_UNIT", f"{path}.displayUnit", "displayUnit must be percent or effect")
+            return None, None, _issue("INVALID_DISPLAY_UNIT", f"{path}.displayUnit", "displayUnit must be percent or effect")
         canonical_input_key = _STATIC_ATTRIBUTE_ALIASES.get(input_key, input_key)
         raw_value = attributes.get(canonical_input_key, 0.0)
         if "ratingTransform" in definition:
             if "ratingPerPercent" in definition:
-                return None, _issue("INVALID_RATING_TRANSFORM", path, "secondary rules must use exactly one rating conversion model")
+                return None, None, _issue("INVALID_RATING_TRANSFORM", path, "secondary rules must use exactly one rating conversion model")
             transformed_value, transform_issue = _piecewise_rating_value(raw_value, definition["ratingTransform"], f"{path}.ratingTransform")
             if transform_issue:
-                return None, transform_issue
+                return None, None, transform_issue
             converted_value = base_percent + transformed_value
         else:
             rating_per_percent = _number(definition.get("ratingPerPercent"))
             if rating_per_percent is None or rating_per_percent <= 0:
-                return None, _issue("INVALID_RATING_CONVERSION", f"{path}.ratingPerPercent", "ratingPerPercent must be a finite number greater than zero")
+                return None, None, _issue("INVALID_RATING_CONVERSION", f"{path}.ratingPerPercent", "ratingPerPercent must be a finite number greater than zero")
             converted_value = base_percent + raw_value / rating_per_percent
         converted_value, modifier_issue = _apply_post_conversion_modifiers(
             converted_value,
@@ -354,7 +373,8 @@ def _secondary_rows(
             f"{path}.postConversionModifiers",
         )
         if modifier_issue:
-            return None, modifier_issue
+            return None, None, modifier_issue
+        numeric_values[output_key] = converted_value
         rows.append(
             {
                 "key": output_key,
@@ -365,7 +385,7 @@ def _secondary_rows(
                 "displayUnit": display_unit,
             }
         )
-    return rows, None
+    return rows, numeric_values, None
 
 
 def _input_signature(rule: dict, race_key: str, static_attributes: dict[str, float], effect_ids: list[str]) -> str:
@@ -422,14 +442,18 @@ def calculate_noncombat_attributes(
     attributes, allowed_effects, modifier_issue = _apply_stable_modifiers(attributes, validated_rule["stableModifiers"], effect_ids)
     if modifier_issue:
         return _unavailable(revision, modifier_issue["code"], modifier_issue["path"], modifier_issue["message"])
-    resources, resource_issue = _resource_rows(validated_rule["resources"], attributes)
-    if resource_issue:
-        return _unavailable(revision, resource_issue["code"], resource_issue["path"], resource_issue["message"])
-    secondary, secondary_issue = _secondary_rows(
+    secondary, secondary_values, secondary_issue = _secondary_rows(
         validated_rule["secondaryRules"], attributes, effect_ids, allowed_effects
     )
     if secondary_issue:
         return _unavailable(revision, secondary_issue["code"], secondary_issue["path"], secondary_issue["message"])
+    resources, resource_issue = _resource_rows(
+        validated_rule["resources"],
+        attributes,
+        secondary_values or {},
+    )
+    if resource_issue:
+        return _unavailable(revision, resource_issue["code"], resource_issue["path"], resource_issue["message"])
 
     primary_key = _STATIC_ATTRIBUTE_ALIASES.get(validated_rule["primaryKey"], validated_rule["primaryKey"])
     primary_value = attributes.get(primary_key, 0.0)

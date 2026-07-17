@@ -77,6 +77,7 @@ try:
         resolve_selection_intent,
     )
     from .gear_attribute_api import calculate_attributes_for_selection
+    from .gear_attribute_preview_fixture import append_preview_template, preview_community_import, preview_enabled
     from .gear_stat_snapshot_api import get_or_start_stat_snapshot
     from .websim_payload import (
         COMMUNITY_TEMPLATE_SYNC_RUN_KEY,
@@ -183,6 +184,7 @@ except ImportError:
         resolve_selection_intent,
     )
     from gear_attribute_api import calculate_attributes_for_selection
+    from gear_attribute_preview_fixture import append_preview_template, preview_community_import, preview_enabled
     from gear_stat_snapshot_api import get_or_start_stat_snapshot
     from websim_payload import (
         COMMUNITY_TEMPLATE_SYNC_RUN_KEY,
@@ -8162,7 +8164,7 @@ def runtime_websim_gear_payload(class_key, spec_key, compact=False, mode="", slo
             payload = {}
         if postgres_only_runtime_enabled():
             if isinstance(payload, dict) and payload:
-                return websim_gear_payload_with_template_legality(payload)
+                return append_preview_template(websim_gear_payload_with_template_legality(payload))
             return {
                 "schemaRevision": "websim-gear-v1",
                 "classKey": class_key,
@@ -8176,9 +8178,9 @@ def runtime_websim_gear_payload(class_key, spec_key, compact=False, mode="", slo
             }
         if isinstance(payload, dict) and payload:
             if payload.get("dataStatus") == "verified" and websim_gear_payload_has_items(payload):
-                return websim_gear_payload_with_template_legality(payload)
+                return append_preview_template(websim_gear_payload_with_template_legality(payload))
             if not allow_sqlite_fallback:
-                return websim_gear_payload_with_template_legality(payload)
+                return append_preview_template(websim_gear_payload_with_template_legality(payload))
     if postgres_only_runtime_enabled():
         return {
             "schemaRevision": "websim-gear-v1",
@@ -8193,9 +8195,9 @@ def runtime_websim_gear_payload(class_key, spec_key, compact=False, mode="", slo
         }
     init_db()
     with db_connection() as conn:
-        return websim_gear_payload_with_template_legality(
+        return append_preview_template(websim_gear_payload_with_template_legality(
             get_websim_gear(conn, class_key, spec_key, compact=compact)
-        )
+        ))
 
 
 def websim_talent_payload_has_nodes(payload):
@@ -12923,6 +12925,20 @@ class Handler(BaseHTTPRequestHandler):
             payload = read_json_body(self)
 
             def build_import():
+                if preview_enabled():
+                    preview_payload = runtime_websim_gear_payload(
+                        payload.get("classKey", "") if isinstance(payload, dict) else "",
+                        payload.get("specKey", "") if isinstance(payload, dict) else "",
+                        compact=True,
+                        mode="initial",
+                    )
+                    preview = preview_community_import(
+                        payload,
+                        preview_payload,
+                        request_id=f"gear-import-{uuid.uuid4().hex}",
+                    )
+                    if preview is not None:
+                        return preview
                 return import_community_template(
                     payload,
                     store=cache_data_store(),
