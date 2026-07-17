@@ -127,6 +127,7 @@ const selectedControlContract = JSON.parse(read('docs/design/current-ui/selected
 const routeGeometryContract = JSON.parse(read('docs/design/current-ui/route-geometry-contract.json'))
 const runtimeRegionMappingContract = JSON.parse(read('docs/design/current-ui/runtime-region-mapping-contract.json'))
 const runtimeAssetSlotMappingContract = JSON.parse(read('docs/design/current-ui/runtime-asset-slot-mapping-contract.json'))
+const assetReusePolicy = JSON.parse(read('docs/design/current-ui/asset-reuse-policy.json'))
 const evidencePolicy = JSON.parse(read('docs/design/current-ui/active-evidence-policy.json'))
 const runtimeReviewContract = JSON.parse(read('docs/design/current-ui/runtime-review-contract.json'))
 const runtimeReviewStatus = JSON.parse(read('docs/design/current-ui/runtime-review-status.json'))
@@ -737,6 +738,44 @@ record('routes_use_only_current_app_shell_api', deprecatedAppShellProps.length =
 const componentSources = walk('packages/design-system/src', ['.ts', '.tsx'])
 const rawButtonOwners = componentSources.filter((file) => file !== 'packages/design-system/src/components/ControlButton.tsx' && /<Button\b/.test(read(file)))
 record('native_button_has_one_shared_owner', rawButtonOwners.length === 0, rawButtonOwners.join(', ') || 'ControlButton only')
+
+const literalAssetBindings = []
+for (const file of componentSources.filter((candidate) => candidate.endsWith('.tsx'))) {
+  const ast = babelParser.parse(read(file), { sourceType: 'module', plugins: ['jsx', 'typescript'] })
+  traverse(ast, {
+    JSXOpeningElement(elementPath) {
+      const attributes = Object.fromEntries(elementPath.node.attributes.flatMap((attribute) => {
+        if (attribute.type !== 'JSXAttribute' || attribute.name.type !== 'JSXIdentifier') return []
+        if (attribute.value?.type === 'StringLiteral') return [[attribute.name.name, attribute.value.value]]
+        if (attribute.value?.type === 'JSXExpressionContainer' && attribute.value.expression.type === 'StringLiteral') return [[attribute.name.name, attribute.value.expression.value]]
+        return []
+      }))
+      if (attributes.assetId && attributes.slotId) literalAssetBindings.push({ assetId: attributes.assetId, slotId: attributes.slotId, file })
+    },
+  })
+}
+const bindingsByAsset = new Map()
+for (const binding of literalAssetBindings) {
+  if (!bindingsByAsset.has(binding.assetId)) bindingsByAsset.set(binding.assetId, [])
+  bindingsByAsset.get(binding.assetId).push(binding)
+}
+const reusablePrefixes = assetReusePolicy.reusableFamilyPrefixes ?? []
+const reusableAssetIds = new Set((assetReusePolicy.explicitReusableAssetIds ?? []).map((entry) => entry.assetId))
+const unapprovedCrossSlotAssets = [...bindingsByAsset.entries()].flatMap(([assetId, bindings]) => {
+  const slots = [...new Set(bindings.map((binding) => binding.slotId))]
+  if (slots.length < 2) return []
+  const allowed = reusablePrefixes.some((entry) => assetId.startsWith(entry.prefix)) || reusableAssetIds.has(assetId)
+  return allowed ? [] : [`${assetId}:${slots.join('|')}`]
+})
+record(
+  'literal_assets_need_explicit_policy_before_cross_slot_reuse',
+  assetReusePolicy.status === 'active'
+    && assetReusePolicy.default === 'deny_cross_semantic_slot_reuse'
+    && reusablePrefixes.every((entry) => entry.prefix && entry.reason)
+    && (assetReusePolicy.explicitReusableAssetIds ?? []).every((entry) => entry.assetId && entry.reason)
+    && unapprovedCrossSlotAssets.length === 0,
+  unapprovedCrossSlotAssets.join(', ') || `bindings=${literalAssetBindings.length}`,
+)
 
 const nativeControlStyles = read('packages/design-system/src/components/owners.module.scss')
 const nativeControlRule = nativeControlStyles.match(/\.nativeControl\s*\{(?<body>[^}]*)\}/su)?.groups?.body ?? ''

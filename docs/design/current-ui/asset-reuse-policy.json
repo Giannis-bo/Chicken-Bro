@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "status": "active",
+  "authority": "docs/plans/ui-reconstruction.md",
+  "default": "deny_cross_semantic_slot_reuse",
+  "reusableFamilyPrefixes": [
+    {
+      "prefix": "utility-glyph-family.",
+      "reason": "code-native non-factual system glyphs may express the same action in multiple registered semantic slots"
+    },
+    {
+      "prefix": "source-badge-family.",
+      "reason": "shared evidence-source state badges retain one meaning across route-specific holders"
+    }
+  ],
+  "explicitReusableAssetIds": [
+    {
+      "assetId": "mascot-shell-family.captain",
+      "reason": "the same named assistant identity is intentionally repeated in header, avatar and simulator contexts"
+    },
+    {
+      "assetId": "news-detail-evidence-chevron.expanded",
+      "reason": "the same evidence expansion affordance is shared by the generic ledger and news-detail evidence panel"
+    }
+  ]
+}

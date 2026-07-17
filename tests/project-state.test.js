@@ -329,6 +329,16 @@ test('cross-route asset slots cannot hide semantic reuse behind aliases', () => 
   assert.equal(mapping.routes.find((route) => route.route === 'news_detail').runtimeSlots['asset_slot.news-metric-glyphs'], undefined)
 })
 
+test('cross-slot literal asset reuse is deny-by-default and documented', () => {
+  const audit = fs.readFileSync('scripts/audit-ui-architecture.js', 'utf8')
+  const policy = readJson('docs/design/current-ui/asset-reuse-policy.json')
+  assert.equal(policy.default, 'deny_cross_semantic_slot_reuse')
+  assert.ok(policy.reusableFamilyPrefixes.every((entry) => entry.prefix && entry.reason))
+  assert.ok(policy.explicitReusableAssetIds.every((entry) => entry.assetId && entry.reason))
+  assert.match(audit, /literal_assets_need_explicit_policy_before_cross_slot_reuse/)
+  assert.match(audit, /unapprovedCrossSlotAssets/)
+})
+
 test('route geometry verification covers all routes without launching DevTools', () => {
   const verifier = fs.readFileSync('scripts/verify-ui-route-geometry.js', 'utf8')
   const contract = readJson('docs/design/current-ui/route-geometry-contract.json')
