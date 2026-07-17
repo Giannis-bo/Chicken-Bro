@@ -18,9 +18,3 @@
 .listRegion { top: 28.7281%; left: 2.3202%; width: calc(95.1276% + 2px); height: 47.5329%; }
 .guidanceRegion { top: 76.9737%; left: 2.3202%; width: calc(95.1276% + 2px); height: 16.6667%; }
 .actionsRegion { top: 94.3531%; left: 3.1323%; width: 93.5035%; height: 4.2763%; }
-
-@media (max-width: 389px) {
-  .pageFrame {
-    height: calc(var(--route-safe-viewport-height) - var(--space-12));
-  }
-}
