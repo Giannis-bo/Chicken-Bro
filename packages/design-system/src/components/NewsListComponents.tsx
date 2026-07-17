@@ -162,10 +162,11 @@ export function NewsListFeed({
         accent: index % 3 === 2 ? 'gold' : 'blue',
       }))
     : items
-  // Keep the target's six visual lanes even when live data returns fewer rows.
-  // Otherwise CSS grid stretches two records across the full results viewport.
+  // Loading keeps the target's six skeleton lanes. Once truth is available,
+  // the feed owns exactly the returned rows so sparse payloads do not leave
+  // invisible grid tracks and a large empty hole above the terminal panel.
   const rowStyle = {
-    '--news-list-row-count': Math.max(rows.length, loadingRows, 1),
+    '--news-list-row-count': Math.max(rows.length, loading ? loadingRows : 0, 1),
   } as CSSProperties
 
   return (

@@ -397,6 +397,14 @@ record(
   /button\.recordRow\s*\{[^}]*width:\s*100%;[^}]*margin-right:\s*0;[^}]*margin-left:\s*0;/su.test(taskListStyles),
   'native WeChat button styles must not collapse task rows to half width',
 )
+const newsListRoute = read('apps/mini-taro/src/pages/news/list.tsx')
+const newsListComponents = read('packages/design-system/src/components/NewsListComponents.tsx')
+record(
+  'news_list_sparse_truth_does_not_reserve_empty_target_lanes',
+  /const listHeight = listRowCount \* 70\.64/u.test(newsListRoute)
+    && /Math\.max\(rows\.length, loading \? loadingRows : 0, 1\)/u.test(newsListComponents),
+  'completed news feeds must size lanes from returned truth rather than the six-row loading target',
+)
 
 const deprecatedAppShellProps = []
 const unownedRouteInteractions = []

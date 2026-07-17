@@ -65,7 +65,10 @@ export default function NewsListPage() {
     fallbackTitle: safeDecode(query.value) || '资讯列表',
     ...(currentRouteReason ? { routeReason: currentRouteReason } : {}),
   })
-  const listHeight = 423.82 + Math.max(0, model.items.length - model.visibleRowSlotCount) * 70.64
+  const listRowCount = model.initialLoading
+    ? model.visibleRowSlotCount
+    : Math.max(model.items.length, 1)
+  const listHeight = listRowCount * 70.64
 
   const selectCategory = (item: NewsListCategoryItem) => {
     setActiveCategory(item.id as NewsListCategoryId)
