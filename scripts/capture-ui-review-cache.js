@@ -36,6 +36,36 @@ function safeName(value) {
   return value.replace(/[^a-zA-Z0-9._-]+/gu, '-')
 }
 
+function inspectCachedCapture(capture) {
+  if (!capture?.artifactPath || !fs.existsSync(capture.artifactPath)) return false
+  const buffer = fs.readFileSync(capture.artifactPath)
+  const dimensions = pngSize(buffer)
+  return capture.bytes === buffer.length
+    && capture.width === dimensions.width
+    && capture.height === dimensions.height
+    && capture.sha256 === crypto.createHash('sha256').update(buffer).digest('hex')
+}
+
+function writeManifest(manifestPath, manifest) {
+  const temporaryManifestPath = `${manifestPath}.tmp`
+  fs.writeFileSync(temporaryManifestPath, `${JSON.stringify(manifest, null, 2)}\n`)
+  fs.renameSync(temporaryManifestPath, manifestPath)
+}
+
+async function captureWithRetry(miniProgram, artifactPath, route) {
+  let lastError
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      await timeout(miniProgram.screenshot({ path: artifactPath }), 5000, `capture ${route} attempt ${attempt}`)
+      return
+    } catch (error) {
+      lastError = error
+      if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, 400))
+    }
+  }
+  throw lastError
+}
+
 async function main() {
   const routes = selectedRoutes(process.env.UI_REVIEW_ROUTES)
   const commit = execFileSync('git', ['rev-parse', '--short=12', 'HEAD'], { encoding: 'utf8' }).trim()
@@ -54,40 +84,64 @@ async function main() {
     const viewportKey = `${viewport.width}x${viewport.height}@${viewport.dpr}`
     const outputRoot = path.join(cacheRoot, commit, viewportKey)
     fs.mkdirSync(outputRoot, { recursive: true })
-    const captures = []
-    for (const route of routes) {
-      await timeout(miniProgram.reLaunch(route.path), operationTimeoutMs, `open ${route.route}`)
-      await new Promise((resolve) => setTimeout(resolve, settleMs))
-      const artifactPath = path.join(outputRoot, `${safeName(route.route)}.png`)
-      await timeout(miniProgram.screenshot({ path: artifactPath }), 5000, `capture ${route.route}`)
-      const buffer = fs.readFileSync(artifactPath)
-      captures.push({
-        route: route.route,
-        path: route.path,
-        artifactPath,
-        bytes: buffer.length,
-        sha256: crypto.createHash('sha256').update(buffer).digest('hex'),
-        ...pngSize(buffer),
-      })
+    const manifestPath = path.join(outputRoot, 'manifest.json')
+    let existing = null
+    if (fs.existsSync(manifestPath)) {
+      try { existing = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) } catch {}
     }
+    const existingCaptures = existing?.schemaVersion === 'wechat-ui-review-cache-v1'
+      && existing.commit === commit
+      && JSON.stringify(existing.viewport) === JSON.stringify(viewport)
+      ? existing.captures ?? []
+      : []
+    const capturesByRoute = new Map(existingCaptures.filter(inspectCachedCapture).map((capture) => [capture.route, capture]))
+    const failures = []
     const manifest = {
       schemaVersion: 'wechat-ui-review-cache-v1',
       commit,
       viewport,
       captureMethod: 'reused_wechat_devtools_automator_without_relaunch',
-      captures,
+      captures: [...capturesByRoute.values()],
+      failures,
     }
-    const manifestPath = path.join(outputRoot, 'manifest.json')
-    const temporaryManifestPath = `${manifestPath}.tmp`
-    fs.writeFileSync(temporaryManifestPath, `${JSON.stringify(manifest, null, 2)}\n`)
-    fs.renameSync(temporaryManifestPath, manifestPath)
+    writeManifest(manifestPath, manifest)
+    for (const route of routes) {
+      if (capturesByRoute.has(route.route)) continue
+      try {
+        await timeout(miniProgram.reLaunch(route.path), operationTimeoutMs, `open ${route.route}`)
+        await new Promise((resolve) => setTimeout(resolve, settleMs))
+        const artifactPath = path.join(outputRoot, `${safeName(route.route)}.png`)
+        await captureWithRetry(miniProgram, artifactPath, route.route)
+        const buffer = fs.readFileSync(artifactPath)
+        capturesByRoute.set(route.route, {
+          route: route.route,
+          path: route.path,
+          artifactPath,
+          bytes: buffer.length,
+          sha256: crypto.createHash('sha256').update(buffer).digest('hex'),
+          ...pngSize(buffer),
+        })
+        manifest.captures = [...capturesByRoute.values()]
+        writeManifest(manifestPath, manifest)
+      } catch (error) {
+        failures.push({ route: route.route, error: String(error instanceof Error ? error.message : error).slice(0, 240) })
+        writeManifest(manifestPath, manifest)
+        break
+      }
+    }
+    const selectedRouteNames = new Set(routes.map((route) => route.route))
+    const captures = [...capturesByRoute.values()].filter((capture) => selectedRouteNames.has(capture.route))
+    const pendingRoutes = routes.map((route) => route.route).filter((route) => !capturesByRoute.has(route))
     console.log(JSON.stringify({
-      status: 'pass',
+      status: pendingRoutes.length === 0 ? 'pass' : captures.length > 0 ? 'partial' : 'fail',
       cacheRoot: outputRoot,
       manifestPath,
       captureCount: captures.length,
       routes: captures.map((capture) => capture.route),
+      failedRoutes: failures.map((failure) => failure.route),
+      pendingRoutes,
     }))
+    if (pendingRoutes.length > 0) process.exitCode = 1
   } finally {
     if (miniProgram) miniProgram.disconnect()
   }
@@ -100,4 +154,4 @@ if (require.main === module) {
   })
 }
 
-module.exports = { pngSize, selectedRoutes }
+module.exports = { captureWithRetry, inspectCachedCapture, pngSize, selectedRoutes, writeManifest }

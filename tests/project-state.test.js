@@ -256,6 +256,10 @@ test('visual review capture stays explicit, cached and out of the main session',
   assert.match(capture, /sha256/)
   assert.match(capture, /manifest\.json/)
   assert.match(capture, /connectMiniProgram/)
+  assert.match(capture, /captureWithRetry/)
+  assert.match(capture, /inspectCachedCapture/)
+  assert.match(capture, /writeManifest\(manifestPath, manifest\)/)
+  assert.match(capture, /pendingRoutes/)
   assert.doesNotMatch(capture, /WECHAT_AUTOMATOR_LAUNCH/)
 })
 

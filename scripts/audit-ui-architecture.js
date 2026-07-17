@@ -598,6 +598,16 @@ record(
     && /flag: 'wx'/u.test(read('scripts/promote-ui-asset-slot-review.js')),
   'split runtime reviews must share commit and viewport before content-addressed promotion',
 )
+const visualCaptureSource = read('scripts/capture-ui-review-cache.js')
+record(
+  'visual_capture_is_resumable_without_devtools_restart',
+  /captureWithRetry/u.test(visualCaptureSource)
+    && /inspectCachedCapture/u.test(visualCaptureSource)
+    && /writeManifest\(manifestPath, manifest\)/u.test(visualCaptureSource)
+    && /pendingRoutes/u.test(visualCaptureSource)
+    && !/WECHAT_AUTOMATOR_LAUNCH/u.test(visualCaptureSource),
+  'each successful route must checkpoint and failed batches must resume without relaunching DevTools',
+)
 record(
   'shared_native_buttons_cannot_exceed_their_layout_cell',
   /\.routeSurface button\s*\{[^}]*max-width:\s*100%;/su.test(reconstructionStyles),
