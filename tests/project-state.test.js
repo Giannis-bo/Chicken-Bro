@@ -247,3 +247,13 @@ test('real WeChat interaction verification cannot wait forever inside one route'
   assert.match(verifier, /\[interaction:start\]/)
   assert.match(verifier, /\[interaction:end\]/)
 })
+
+test('visual review capture stays explicit, cached and out of the main session', () => {
+  const capture = fs.readFileSync('scripts/capture-ui-review-cache.js', 'utf8')
+  assert.match(capture, /UI_REVIEW_ROUTES is required/)
+  assert.match(capture, /wow-mini-ui-review-cache/)
+  assert.match(capture, /sha256/)
+  assert.match(capture, /manifest\.json/)
+  assert.match(capture, /connectMiniProgram/)
+  assert.doesNotMatch(capture, /WECHAT_AUTOMATOR_LAUNCH/)
+})

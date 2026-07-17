@@ -10,6 +10,7 @@
     "node": ">=20"
   },
   "scripts": {
+    "capture:ui-review-cache": "node scripts/capture-ui-review-cache.js",
     "audit:ui-architecture": "node scripts/audit-ui-architecture.js",
     "audit:taro-domain": "node scripts/audit-taro-request-domain.js",
     "audit:taro-domain:probe": "node scripts/audit-taro-request-domain.js --probe",
