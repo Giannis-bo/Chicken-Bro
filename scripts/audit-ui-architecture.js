@@ -419,6 +419,23 @@ record(
   /\.cardViewport\s*\{[^}]*height:\s*498\.75px;/su.test(read('apps/mini-taro/src/pages/builds/build-intel.module.scss')),
   'build intel card viewport must reserve enough height for the terminal disclaimer',
 )
+const viewportFitStyles = {
+  newsDetail: read('apps/mini-taro/src/pages/news/news-detail.module.scss'),
+  gearDetail: read('apps/mini-taro/src/pages/builds/gear-detail.module.scss'),
+  simcSubmit: read('apps/mini-taro/src/pages/simulator/simc-submit.module.scss'),
+  taskDetail: read('apps/mini-taro/src/pages/simulator/task-detail.module.scss'),
+  profile: read('apps/mini-taro/src/pages/profile/profile.module.scss'),
+}
+record(
+  'single_screen_route_terminals_reserve_wechat_viewport_space',
+  /\.body\s*\{[^}]*height:\s*256\.6px;/su.test(viewportFitStyles.newsDetail)
+    && /\.workbenchRegion\s*\{[^}]*height:\s*319px;/su.test(viewportFitStyles.gearDetail)
+    && /\.statusRegion\s*\{[^}]*top:\s*654px;/su.test(viewportFitStyles.gearDetail)
+    && /\.footerRegion\s*\{[^}]*top:\s*763px;/su.test(viewportFitStyles.simcSubmit)
+    && /\.pageFrame\s*\{[^}]*height:\s*813px;/su.test(viewportFitStyles.taskDetail)
+    && /\.pageFrame\s*\{[^}]*height:\s*825px;/su.test(viewportFitStyles.profile),
+  'single-screen terminal regions must not extend below the real WeChat viewport',
+)
 record(
   'build_intel_actions_override_native_button_width',
   /button\.primaryAction,[\s\S]*button\.secondaryAction\s*\{[^}]*width:\s*100%;[^}]*max-width:\s*100%;[^}]*margin-right:\s*0;[^}]*margin-left:\s*0;/u.test(buildIntelStyles),
