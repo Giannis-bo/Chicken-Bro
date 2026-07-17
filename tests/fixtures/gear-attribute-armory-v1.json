@@ -370,6 +370,89 @@
         "current race, equipment instances, enhancements, talents and Armory panel cannot be verified",
         "the user-supplied screenshot is historical discussion evidence only and is not promoted into a rule input"
       ]
+    },
+    {
+      "id": "mage-frost-armory-2026-07-17t091243z",
+      "status": "candidate",
+      "source": {
+        "url": "https://worldofwarcraft.blizzard.com/en-us/character/kr/azshara/%EC%B9%B4%EB%A5%B4%EA%BD%81%EC%8A%A4",
+        "capturedAt": "2026-07-17T09:12:43Z",
+        "captureStatus": "captured"
+      },
+      "identity": {
+        "region": "kr",
+        "realm": "Azshara",
+        "name": "카르꽁스",
+        "classKey": "mage",
+        "specKey": "frost",
+        "raceKey": "dwarf",
+        "level": 90
+      },
+      "equipment": [],
+      "evidence": {
+        "officialProfileApi": {
+          "url": "https://kr.api.blizzard.com/profile/wow/character/azshara/%EC%B9%B4%EB%A5%B4%EA%BD%81%EC%8A%A4?namespace=profile-kr&locale=en_US",
+          "capturedAt": "2026-07-17T09:12:43Z",
+          "credentialHandling": "read-only server-side OAuth; no token persisted"
+        },
+        "officialProfileSnapshot": {
+          "capturedAt": "2026-07-17T09:12:43Z",
+          "canonicalEquipmentCount": 15,
+          "instances": [
+            { "slot": "head", "itemId": "250060", "itemLevel": 289, "bonusIds": [12806, 13335, 13338, 13534, 13575, 40], "enchantIds": [8017], "gemIds": [240892] },
+            { "slot": "neck", "itemId": "268291", "itemLevel": 298, "bonusIds": [13335, 13668, 13786, 6652], "gemIds": [240908] },
+            { "slot": "shoulder", "itemId": "251085", "itemLevel": 289, "bonusIds": [12699, 12806, 13440, 13577, 6652], "enchantIds": [8001] },
+            { "slot": "chest", "itemId": "250063", "itemLevel": 298, "bonusIds": [13335, 13336, 13575, 13786, 3183, 6652], "enchantIds": [7987] },
+            { "slot": "waist", "itemId": "250057", "itemLevel": 289, "bonusIds": [12806, 13335, 13534, 40], "enchantIds": [4223], "gemIds": [240908] },
+            { "slot": "legs", "itemId": "250059", "itemLevel": 289, "bonusIds": [12806, 13335, 13339, 13575, 40], "enchantIds": [7935] },
+            { "slot": "feet", "itemId": "268282", "itemLevel": 298, "bonusIds": [13335, 13577, 13786, 40], "enchantIds": [7963] },
+            { "slot": "wrist", "itemId": "239648", "itemLevel": 285, "bonusIds": [12066, 12214, 12384, 12497, 12666, 13622, 13667, 8791, 8960], "gemIds": [240983] },
+            { "slot": "hands", "itemId": "250061", "itemLevel": 289, "bonusIds": [12806, 13337, 13440, 13574, 40] },
+            { "slot": "finger1", "itemId": "249919", "itemLevel": 289, "bonusIds": [12806, 13335, 13668, 6652], "enchantIds": [7967], "gemIds": [240908] },
+            { "slot": "finger2", "itemId": "268290", "itemLevel": 298, "bonusIds": [13335, 13668, 13786, 6652], "enchantIds": [7967], "gemIds": [240908] },
+            { "slot": "trinket1", "itemId": "249343", "itemLevel": 298, "bonusIds": [13335, 13654, 6652] },
+            { "slot": "trinket2", "itemId": "249346", "itemLevel": 298, "bonusIds": [13335, 13654, 41] },
+            { "slot": "back", "itemId": "239656", "itemLevel": 285, "bonusIds": [12066, 12214, 12384, 12497, 13622, 13667, 8791, 8960], "enchantIds": [4897] },
+            { "slot": "main_hand", "itemId": "258514", "itemLevel": 298, "bonusIds": [12701, 13440, 13654, 6652], "enchantIds": [8039] },
+            { "slot": "off_hand", "status": "empty", "reason": "official_profile_has_no_off_hand" }
+          ]
+        },
+        "officialProfilePanel": {
+          "capturedAt": "2026-07-17T09:12:43Z",
+          "values": {
+            "health": 460020,
+            "mana": 250000,
+            "intellect": { "base": 619, "effective": 2485 },
+            "stamina": { "base": 4601, "effective": 23001 },
+            "criticalStrike": { "rating": 861, "ratingBonusPercent": 18.717392, "finalPercent": 25.717392 },
+            "haste": { "rating": 669, "ratingBonusPercent": 15.204545, "finalPercent": 21.033895 },
+            "mastery": { "rating": 1040, "ratingBonusPercent": 36.173916, "finalPercent": 53.773914 },
+            "versatility": { "rating": 0, "damageDonePercent": 0 },
+            "avoidance": { "rating": 470, "ratingBonusPercent": 12.217245 },
+            "lifesteal": { "rating": 55, "finalPercent": 0.79709005 },
+            "speed": { "rating": 0, "ratingBonusPercent": 0 }
+          }
+        }
+      },
+      "observedPanel": {
+        "health": 460020,
+        "mana": 250000,
+        "intellect": 2485,
+        "stamina": 23001,
+        "critical_strike_percent": 25.717392,
+        "haste_percent": 21.033895,
+        "mastery_percent": 53.773914,
+        "versatility_percent": 0,
+        "avoidance_percent": 12.217245,
+        "leech_percent": 0.79709005,
+        "speed_percent": 0
+      },
+      "missingEvidence": [
+        "the official capture proves identity, 15 selected item instances, gem and enchant IDs, plus unrounded panel values, but the project still lacks a verified bonus-ID-to-canonical-variant and per-item static-stat rule source",
+        "the official Profile identifies enchantment instances but does not provide a verified numeric contribution for every enchantment and gem in the calculator input",
+        "this current Frost Dwarf snapshot does not match the older Raider.IO community template currently displayed by the product, so its panel cannot be substituted for that template",
+        "one Frost Dwarf level-90 sample cannot prove all race, stable class/passive, talent conditional and rating-conversion rules"
+      ]
     }
   ]
 }
