@@ -775,7 +775,8 @@ const rawButtonOwners = componentSources.filter((file) => file !== 'packages/des
 record('native_button_has_one_shared_owner', rawButtonOwners.length === 0, rawButtonOwners.join(', ') || 'ControlButton only')
 
 const assetRegistrySource = read('packages/assets-manifest/src/index.ts')
-const componentSourceCorpus = componentSources.map((file) => read(file)).join('\n')
+const runtimeAssetSourceFiles = [...componentSources, ...walk('apps/mini-taro/src/pages', ['.ts', '.tsx'])]
+const componentSourceCorpus = runtimeAssetSourceFiles.map((file) => read(file)).join('\n')
 const rasterCollectionManifests = walk('packages/design-system/assets/raster', ['.json'])
   .filter((file) => path.basename(file) === 'manifest.json')
   .map((file) => ({ file, manifest: JSON.parse(read(file)) }))

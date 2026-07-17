@@ -1,7 +1,11 @@
 {
   "schemaVersion": 1,
+  "collectionId": "builds-home-v1",
   "route": "specialization_home/builds_home",
   "status": "generated_pending_isolated_review",
+  "productionPromoted": false,
+  "registeredInPackagesAssetsManifest": true,
+  "wiredIntoRuntimeCode": true,
   "assetCount": 23,
   "masterCount": 4,
   "slots": [
