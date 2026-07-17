@@ -16,7 +16,7 @@ function validReview() {
       route: 'news_home',
       path: '/pages/news/news',
       viewport: { width: 390, height: 844, dpr: 3, safeTop: 47, safeBottom: 34, capsuleBounds: [296, 51, 87, 32] },
-      runtimeArtifact: { path: 'immutable/runtime/news-home.png', width: 1170, height: 2532, bytes: 1, sha256, captureMethod: 'wechat' },
+      runtimeArtifact: { path: `immutable/runtime/${sha256}/news-home.png`, width: 1170, height: 2532, bytes: 1, sha256, captureMethod: 'wechat' },
       targetArtifact: { path: 'artifacts/ui-visual-targets/current/news-home.png', width: 1170, height: 2532, sha256 },
       targetMapping: { scale: 1, translateX: 0, translateY: 0, systemChromeIncluded: true, contentOrigin: [0, 0] },
       regions: [{ id: 'page', targetBounds: [0, 0, 390, 844], runtimeBounds: [0, 0, 390, 844], delta: [0, 0, 0, 0], tolerance: 0, status: 'PASS' }],
@@ -40,6 +40,7 @@ test('runtime review accepts only a complete pass record', () => {
 test('runtime review rejects incomplete or contradictory pass evidence', () => {
   const mutations = [
     (review) => { review.reviewRecord.runtimeArtifact.sha256 = 'bad' },
+    (review) => { review.reviewRecord.runtimeArtifact.path = 'mutable/runtime/news-home.png' },
     (review) => { review.reviewRecord.regions[0].status = 'FAIL' },
     (review) => { review.reviewRecord.assetSemantics[0].status = 'FAIL' },
     (review) => { review.reviewRecord.p0.push({ issue: 'collision' }) },
@@ -47,6 +48,8 @@ test('runtime review rejects incomplete or contradictory pass evidence', () => {
     (review) => { review.reviewRecord.passMetrics.textClipCount = 1 },
     (review) => { review.reviewRecord.interaction.status = 'FAIL' },
     (review) => { review.reviewRecord.humanConfirmation.status = 'pending' },
+    (review) => { review.reviewRecord.humanConfirmation.confirmedAt = 'yesterday' },
+    (review) => { delete review.reviewRecord.regions[0].runtimeBounds },
     (review) => { delete review.reviewRecord.targetMapping },
   ]
   for (const mutate of mutations) {
