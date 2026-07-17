@@ -2,12 +2,11 @@
 'use strict'
 
 const crypto = require('node:crypto')
-const fs = require('node:fs')
 const path = require('node:path')
 
 const { maxCaptureBytes, pngSize, validCaptureBounds } = require('./capture-ui-review-cache')
-const { readBoundedFile } = require('./bounded-file')
-const { readBoundedJson } = require('./bounded-json-detail')
+const { readBoundedFile, writeBoundedFileImmutable } = require('./bounded-file')
+const { maxStructuredDetailBytes, readBoundedJson, serializeBoundedJson } = require('./bounded-json-detail')
 const interactionContract = require('../docs/design/current-ui/core-interaction-contract.json')
 
 const repositoryRoot = path.resolve(__dirname, '..')
@@ -68,13 +67,7 @@ function main() {
       'artifacts', 'ui-runtime-reviews', manifest.commit, viewportKey, inspected.sha256, `${safeName(capture.route)}.png`,
     )
     const destination = path.join(repositoryRoot, relativePath)
-    fs.mkdirSync(path.dirname(destination), { recursive: true })
-    if (fs.existsSync(destination)) {
-      const existingSha = crypto.createHash('sha256').update(readBoundedFile(destination, maxCaptureBytes, `promoted artifact ${capture.route}`)).digest('hex')
-      if (existingSha !== inspected.sha256) throw new Error(`immutable artifact collision: ${relativePath}`)
-    } else {
-      fs.copyFileSync(capture.artifactPath, destination, fs.constants.COPYFILE_EXCL)
-    }
+    writeBoundedFileImmutable(destination, inspected.buffer, maxCaptureBytes, `promoted artifact ${capture.route}`)
     promoted.push({
       route: capture.route,
       path: capture.path,
@@ -101,13 +94,12 @@ function main() {
     },
     promoted,
   }
-  const serialized = `${JSON.stringify(receiptBody, null, 2)}\n`
+  const serialized = serializeBoundedJson(receiptBody, 'UI review promotion receipt')
   const receiptSha = crypto.createHash('sha256').update(serialized).digest('hex')
   const receiptPath = path.join(
     repositoryRoot, 'artifacts', 'ui-runtime-reviews', manifest.commit, viewportKey, 'receipts', `${receiptSha}.json`,
   )
-  fs.mkdirSync(path.dirname(receiptPath), { recursive: true })
-  if (!fs.existsSync(receiptPath)) fs.writeFileSync(receiptPath, serialized, { flag: 'wx' })
+  writeBoundedFileImmutable(receiptPath, Buffer.from(serialized), maxStructuredDetailBytes, 'UI review promotion receipt')
 
   console.log(JSON.stringify({
     status: 'pass',

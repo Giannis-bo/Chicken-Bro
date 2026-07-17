@@ -836,9 +836,9 @@ record(
 record(
   'runtime_asset_slot_review_has_exact_immutable_promotion',
   fs.existsSync(path.join(root, 'scripts/promote-ui-asset-slot-review.js'))
-    && /ASSET_SLOT_DETAIL_PATHS is required/u.test(read('scripts/promote-ui-asset-slot-review.js'))
+    && /boundedDetailPaths\(value, 'ASSET_SLOT_DETAIL_PATHS'\)/u.test(read('scripts/promote-ui-asset-slot-review.js'))
     && /exact 14-route contract/u.test(read('scripts/promote-ui-asset-slot-review.js'))
-    && /flag: 'wx'/u.test(read('scripts/promote-ui-asset-slot-review.js')),
+    && /writeBoundedFileImmutable/u.test(read('scripts/promote-ui-asset-slot-review.js')),
   'split runtime reviews must share commit and viewport before content-addressed promotion',
 )
 const visualCaptureSource = read('scripts/capture-ui-review-cache.js')
@@ -999,10 +999,10 @@ record(
     && /visualMaterialDistinct/u.test(selectedStateVerifier)
     && /boundaryMismatches/u.test(selectedStateVerifier)
     && /border-left-color/u.test(selectedStateVerifier)
-    && /SELECTED_STATE_DETAIL_PATHS is required/u.test(selectedStatePromotion)
+    && /boundedDetailPaths\(value, 'SELECTED_STATE_DETAIL_PATHS'\)/u.test(selectedStatePromotion)
     && /exact selected-control contract/u.test(selectedStatePromotion)
     && /boundaryMismatches === 0/u.test(selectedStatePromotion)
-    && /flag: 'wx'/u.test(selectedStatePromotion)
+    && /writeBoundedFileImmutable/u.test(selectedStatePromotion)
     && !/connectMiniProgram|WECHAT_AUTOMATOR_LAUNCH/u.test(selectedStatePromotion),
   'selected material checks must checkpoint bounded runtime detail and promote an exact content-addressed contract offline',
 )
@@ -1021,6 +1021,12 @@ const structuredDetailReaders = [
   'scripts/promote-ui-selected-state-review.js',
   'scripts/promote-ui-asset-slot-review.js',
 ]
+const immutableStructuredEvidenceWriters = [
+  'scripts/promote-ui-route-geometry.js',
+  'scripts/promote-ui-interaction-review.js',
+  'scripts/promote-ui-selected-state-review.js',
+  'scripts/promote-ui-asset-slot-review.js',
+]
 record(
   'structured_runtime_details_are_atomic_and_bounded_end_to_end',
   /maxStructuredDetailBytes = 1024 \* 1024/u.test(boundedJsonDetail)
@@ -1032,9 +1038,21 @@ record(
     && /bounded byte policy before read/u.test(boundedFileSource)
     && /bounded byte policy during read/u.test(boundedFileSource)
     && !/readFileSync/u.test(boundedFileSource)
+    && /linkSync\(temporaryPath, filePath\)/u.test(boundedFileSource)
     && structuredDetailWriters.every((file) => read(file).includes('writeBoundedJsonAtomic'))
     && structuredDetailReaders.every((file) => read(file).includes('readBoundedJson')),
   'geometry, interaction, selected-state and asset-slot details must share one bounded atomic JSON owner',
+)
+record(
+  'immutable_runtime_evidence_is_bounded_atomic_and_recoverable',
+  immutableStructuredEvidenceWriters.every((file) => read(file).includes('writeBoundedFileImmutable'))
+    && immutableStructuredEvidenceWriters.every((file) => read(file).includes('serializeBoundedJson'))
+    && immutableStructuredEvidenceWriters.every((file) => read(file).includes('boundedDetailPaths'))
+    && /maxStructuredDetailFiles = 14/u.test(boundedJsonDetail)
+    && /writeBoundedFileImmutable\(destination, inspected\.buffer/u.test(read('scripts/promote-ui-review-cache.js'))
+    && /writeBoundedFileImmutable\(receiptPath/u.test(read('scripts/promote-ui-review-cache.js'))
+    && !/copyFileSync\(capture\.artifactPath/u.test(read('scripts/promote-ui-review-cache.js')),
+  'immutable evidence must atomically promote the already-validated bounded bytes and recover after interruption',
 )
 const assetRenderingOwners = [
   'packages/design-system/src/components/ProductionAsset.tsx',

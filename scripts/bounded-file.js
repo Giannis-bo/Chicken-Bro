@@ -2,6 +2,7 @@
 
 const fs = require('node:fs')
 const path = require('node:path')
+const { randomUUID } = require('node:crypto')
 
 function readBoundedFile(filePath, maxBytes, label) {
   if (!Number.isSafeInteger(maxBytes) || maxBytes <= 0) throw new Error(`${label} has an invalid byte limit`)
@@ -31,4 +32,32 @@ function readBoundedFile(filePath, maxBytes, label) {
   }
 }
 
-module.exports = { readBoundedFile }
+function writeBoundedFileImmutable(filePath, buffer, maxBytes, label) {
+  if (!Buffer.isBuffer(buffer) || buffer.length <= 0 || buffer.length > maxBytes) {
+    throw new Error(`${label} exceeds bounded immutable byte policy`)
+  }
+  fs.mkdirSync(path.dirname(filePath), { recursive: true })
+  const assertExisting = () => {
+    const existing = readBoundedFile(filePath, maxBytes, label)
+    if (!existing.equals(buffer)) throw new Error(`${label} immutable collision`)
+  }
+  if (fs.existsSync(filePath)) {
+    assertExisting()
+    return
+  }
+
+  const temporaryPath = `${filePath}.tmp-${process.pid}-${randomUUID()}`
+  try {
+    fs.writeFileSync(temporaryPath, buffer, { flag: 'wx' })
+    try {
+      fs.linkSync(temporaryPath, filePath)
+    } catch (error) {
+      if (error?.code !== 'EEXIST') throw error
+      assertExisting()
+    }
+  } finally {
+    fs.rmSync(temporaryPath, { force: true })
+  }
+}
+
+module.exports = { readBoundedFile, writeBoundedFileImmutable }

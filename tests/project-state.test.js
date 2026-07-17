@@ -264,13 +264,14 @@ test('real WeChat interaction verification cannot wait forever inside one route'
 
 test('interaction evidence promotion is exact, immutable and content addressed', () => {
   const promotion = fs.readFileSync('scripts/promote-ui-interaction-review.js', 'utf8')
-  assert.match(promotion, /INTERACTION_DETAIL_PATHS is required/)
+  assert.match(promotion, /boundedDetailPaths\(value, 'INTERACTION_DETAIL_PATHS'\)/)
   assert.match(promotion, /interaction detail commits must match/)
   assert.match(promotion, /interaction detail viewports must match/)
   assert.match(promotion, /exact 14-route contract/)
   assert.match(promotion, /interaction result is not promotable/)
   assert.match(promotion, /createHash\('sha256'\)/)
-  assert.match(promotion, /flag: 'wx'/)
+  assert.match(promotion, /writeBoundedFileImmutable/)
+  assert.match(promotion, /serializeBoundedJson/)
   assert.doesNotMatch(promotion, /connectMiniProgram|WECHAT_AUTOMATOR_LAUNCH/)
 })
 
@@ -329,7 +330,8 @@ test('cached visual review requires explicit immutable promotion', () => {
   assert.match(promotion, /UI_REVIEW_ROUTES/)
   assert.match(promotion, /cache artifact no longer matches manifest/)
   assert.match(promotion, /artifacts.*ui-runtime-reviews/s)
-  assert.match(promotion, /COPYFILE_EXCL/)
+  assert.match(promotion, /writeBoundedFileImmutable\(destination, inspected\.buffer/)
+  assert.doesNotMatch(promotion, /copyFileSync\(capture\.artifactPath/)
   assert.match(promotion, /receipts/)
   assert.match(promotion, /cache route identity mismatch/)
   assert.match(promotion, /cache renderer evidence is incomplete/)
@@ -373,7 +375,7 @@ test('selected control verification is bounded and cannot launch DevTools', () =
 
 test('selected control evidence promotion is exact, immutable and content addressed', () => {
   const promotion = fs.readFileSync('scripts/promote-ui-selected-state-review.js', 'utf8')
-  assert.match(promotion, /SELECTED_STATE_DETAIL_PATHS is required/)
+  assert.match(promotion, /boundedDetailPaths\(value, 'SELECTED_STATE_DETAIL_PATHS'\)/)
   assert.match(promotion, /selected control detail commits must match/)
   assert.match(promotion, /exact selected-control contract/)
   assert.match(promotion, /contract SHA-256 is stale or mismatched/)
@@ -383,7 +385,7 @@ test('selected control evidence promotion is exact, immutable and content addres
   assert.match(promotion, /boundaryMismatches === 0/)
   assert.match(promotion, /materialStyles\?\.active/)
   assert.match(promotion, /createHash\('sha256'\)/)
-  assert.match(promotion, /flag: 'wx'/)
+  assert.match(promotion, /writeBoundedFileImmutable/)
   assert.doesNotMatch(promotion, /connectMiniProgram|WECHAT_AUTOMATOR_LAUNCH/)
   const verifier = fs.readFileSync('scripts/verify-ui-selected-states.js', 'utf8')
   assert.match(verifier, /visualMaterialDistinct/)
@@ -540,7 +542,7 @@ test('route geometry verification covers all routes without launching DevTools',
 
 test('route geometry evidence promotion is exact, safe-area aware and immutable', () => {
   const promotion = fs.readFileSync('scripts/promote-ui-route-geometry.js', 'utf8')
-  assert.match(promotion, /GEOMETRY_DETAIL_PATHS is required/)
+  assert.match(promotion, /boundedDetailPaths\(value, 'GEOMETRY_DETAIL_PATHS'\)/)
   assert.match(promotion, /route geometry detail commits must match/)
   assert.match(promotion, /contract SHA-256 is stale or mismatched/)
   assert.match(promotion, /contractSha256/)
@@ -549,7 +551,7 @@ test('route geometry evidence promotion is exact, safe-area aware and immutable'
   assert.match(promotion, /exact 14-route contract/)
   assert.match(promotion, /route geometry result is not promotable/)
   assert.match(promotion, /createHash\('sha256'\)/)
-  assert.match(promotion, /flag: 'wx'/)
+  assert.match(promotion, /writeBoundedFileImmutable/)
   assert.doesNotMatch(promotion, /connectMiniProgram|WECHAT_AUTOMATOR_LAUNCH/)
 })
 
@@ -629,14 +631,14 @@ test('optional shell assets cannot leak undefined runtime slot identities', () =
 
 test('full asset-slot evidence requires exact immutable 14-route promotion', () => {
   const promotion = fs.readFileSync('scripts/promote-ui-asset-slot-review.js', 'utf8')
-  assert.match(promotion, /ASSET_SLOT_DETAIL_PATHS is required/)
+  assert.match(promotion, /boundedDetailPaths\(value, 'ASSET_SLOT_DETAIL_PATHS'\)/)
   assert.match(promotion, /readBoundedJson/)
   assert.match(promotion, /exact 14-route contract/)
   assert.match(promotion, /route\.elementCount < 1/)
   assert.match(promotion, /route\.slotCount < 1/)
   assert.match(promotion, /commits must match/)
   assert.match(promotion, /viewports must match/)
-  assert.match(promotion, /flag: 'wx'/)
+  assert.match(promotion, /writeBoundedFileImmutable/)
   assert.match(promotion, /sha256/)
 })
 

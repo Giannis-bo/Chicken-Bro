@@ -2,16 +2,15 @@
 'use strict'
 
 const crypto = require('node:crypto')
-const fs = require('node:fs')
 const path = require('node:path')
 const contract = require('../docs/design/current-ui/core-interaction-contract.json')
-const { readBoundedJson } = require('./bounded-json-detail')
+const { writeBoundedFileImmutable } = require('./bounded-file')
+const { boundedDetailPaths, maxStructuredDetailBytes, readBoundedJson, serializeBoundedJson } = require('./bounded-json-detail')
 
 const root = path.resolve(__dirname, '..')
 
 function readDetails(value) {
-  const paths = (value ?? '').split(',').map((item) => item.trim()).filter(Boolean)
-  if (paths.length === 0) throw new Error('INTERACTION_DETAIL_PATHS is required')
+  const paths = boundedDetailPaths(value, 'INTERACTION_DETAIL_PATHS')
   return paths.map((detailPath) => readBoundedJson(detailPath, 'core interaction detail'))
 }
 
@@ -50,19 +49,13 @@ function combineDetails(details) {
 
 function main() {
   const evidence = combineDetails(readDetails(process.env.INTERACTION_DETAIL_PATHS))
-  const serialized = `${JSON.stringify(evidence, null, 2)}\n`
+  const serialized = serializeBoundedJson(evidence, 'interaction evidence')
   const sha256 = crypto.createHash('sha256').update(serialized).digest('hex')
   const viewport = evidence.viewport
   const viewportName = `${viewport.width}x${viewport.height}@${viewport.dpr}`
   const relativePath = path.join('artifacts', 'ui-runtime-reviews', evidence.commit, viewportName, 'interactions', `${sha256}.json`)
   const destination = path.join(root, relativePath)
-  fs.mkdirSync(path.dirname(destination), { recursive: true })
-  if (fs.existsSync(destination)) {
-    const existingSha = crypto.createHash('sha256').update(fs.readFileSync(destination)).digest('hex')
-    if (existingSha !== sha256) throw new Error(`immutable interaction evidence collision: ${relativePath}`)
-  } else {
-    fs.writeFileSync(destination, serialized, { flag: 'wx' })
-  }
+  writeBoundedFileImmutable(destination, Buffer.from(serialized), maxStructuredDetailBytes, `interaction evidence ${relativePath}`)
   console.log(JSON.stringify({
     status: 'pass',
     commit: evidence.commit,
