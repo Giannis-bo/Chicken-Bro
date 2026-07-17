@@ -30,9 +30,12 @@ npm run audit:ui-architecture
 npm run typecheck
 npm run test:taro
 npm run verify:ui-baselines
+npm run verify:ui-interactions
 ```
 
-`verify:ui-baselines` 只做 target/runtime 结构预检；像素与交互验收必须使用当前 target registry 对应的真实微信运行态。每个路由最终只保留一次视觉复核和一个核心交互结果。
+`verify:ui-baselines` 只做 target/runtime 结构预检；`verify:ui-interactions` 记录当前固定批次的真实微信核心交互，并随批次推进扩充到 14 路由。像素验收必须使用当前 target registry 对应的真实微信运行态。每个路由最终只保留一次视觉复核和一个核心交互结果。
+
+本地微信链路保持一个 Taro watch。验证脚本默认扫描并复用 `9420-9460` 内已监听的 automation 端口，不依赖固定 `9421`，也不调用可能重载窗口的 CLI `auto`；需要连接指定会话时设置 `WECHAT_AUTOMATOR_ENDPOINT`。只有一次性建立会话时才显式设置 `WECHAT_AUTOMATOR_LAUNCH=1`，需要覆盖项目或 CLI 路径时分别设置 `WECHAT_AUTOMATOR_PROJECT`、`WECHAT_DEVTOOLS_CLI`。连接异常先检查 watch、开发者工具、项目路径和端口状态，不通过循环重启恢复。成功的结构预检必须输出设备、逐路由几何和 `failures`；没有输出不得视为通过。
 
 ## Canonical gear
 

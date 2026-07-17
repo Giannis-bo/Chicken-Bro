@@ -1,34 +1,9 @@
 #!/usr/bin/env node
 'use strict'
 
-const path = require('node:path')
-const automator = require('miniprogram-automator')
+const { connectMiniProgram, timeout } = require('./wechat-automator')
 
-const endpoint = process.env.WECHAT_AUTOMATOR_ENDPOINT
-const projectPath = process.env.WECHAT_AUTOMATOR_PROJECT || path.resolve(__dirname, '../apps/mini-taro')
-const cliPath = process.env.WECHAT_DEVTOOLS_CLI
-const connectTimeoutMs = 30000
 const operationTimeoutMs = 8000
-
-function timeout(promise, milliseconds, label) {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) => setTimeout(() => reject(new Error(`${label} timed out after ${milliseconds}ms`)), milliseconds)),
-  ])
-}
-
-async function connectMiniProgram() {
-  if (endpoint) {
-    return timeout(automator.connect({ wsEndpoint: endpoint }), connectTimeoutMs, `connect ${endpoint}`)
-  }
-
-  return timeout(automator.launch({
-    projectPath,
-    trustProject: true,
-    timeout: connectTimeoutMs,
-    ...(cliPath ? { cliPath } : {}),
-  }), connectTimeoutMs + 2000, 'launch automation channel')
-}
 
 async function elementGeometry(page, selector, includeText = false) {
   const element = await timeout(page.$(selector), operationTimeoutMs, `query ${selector}`)

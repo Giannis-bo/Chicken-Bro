@@ -18,7 +18,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint apps packages vitest.config.ts --max-warnings=0",
     "test:taro": "vitest run",
-    "verify:ui-baselines": "node scripts/verify-ui-baselines.js"
+    "verify:ui-baselines": "node scripts/verify-ui-baselines.js",
+    "verify:ui-interactions": "node scripts/verify-ui-interactions.js"
   },
   "devDependencies": {
     "@babel/parser": "7.29.7",

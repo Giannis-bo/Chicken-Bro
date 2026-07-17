@@ -121,6 +121,7 @@ export function BuildWorkspaceEntry({
               )}
               data-frame-asset-ready={actionFrameReady ? 'true' : 'false'}
               data-disabled={actionDisabled ? 'true' : 'false'}
+              data-role="build-workspace-action"
               data-slot="workspace-action"
               role="button"
               {...(!actionDisabled ? { onClick: onEnter } : {})}
