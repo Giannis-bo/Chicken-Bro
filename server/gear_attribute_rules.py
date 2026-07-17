@@ -88,11 +88,12 @@ _ARMORY_REQUIRED_SLOTS = {
     "main_hand",
     "off_hand",
 }
-_ARMORY_EVIDENCE_KEYS = {"officialProfileApi", "officialProfileSnapshot", "officialProfilePanel"}
+_ARMORY_EVIDENCE_KEYS = {"officialProfileApi", "officialProfileSnapshot", "officialProfilePanel", "officialTalentLoadout"}
 _ARMORY_OFFICIAL_PROFILE_API_KEYS = {"url", "capturedAt", "credentialHandling"}
 _ARMORY_OFFICIAL_PROFILE_SNAPSHOT_REQUIRED_KEYS = {"capturedAt", "canonicalEquipmentCount", "instances"}
 _ARMORY_OFFICIAL_PROFILE_SNAPSHOT_OPTIONAL_KEYS = {"excludedCosmeticSlots"}
 _ARMORY_OFFICIAL_PROFILE_PANEL_KEYS = {"capturedAt", "values"}
+_ARMORY_OFFICIAL_TALENT_LOADOUT_KEYS = {"capturedAt", "specKey", "heroKey", "talentLoadoutCode"}
 
 
 def _issue(kind: str, code: str, path: str, message: str) -> dict[str, str]:
@@ -213,6 +214,25 @@ def _validate_armory_evidence(evidence: Any, path: str) -> list[dict[str, str]]:
                     issues.append(_issue("INVALID_ARMORY_SAMPLE", "INVALID_CAPTURE_TIME", f"{panel_path}.capturedAt", "official profile panel capture time must be bounded"))
                 if not isinstance(panel["values"], dict) or not panel["values"]:
                     issues.append(_issue("INVALID_ARMORY_SAMPLE", "INVALID_OBSERVED_PANEL", f"{panel_path}.values", "official profile panel values must be a non-empty object"))
+
+    talent_loadout = evidence.get("officialTalentLoadout")
+    if talent_loadout is not None:
+        talent_path = f"{path}.officialTalentLoadout"
+        if not isinstance(talent_loadout, dict):
+            issues.append(_issue("INVALID_ARMORY_SAMPLE", "INVALID_OFFICIAL_TALENT_LOADOUT", talent_path, "officialTalentLoadout must be an object"))
+        else:
+            for key in sorted(set(talent_loadout) - _ARMORY_OFFICIAL_TALENT_LOADOUT_KEYS):
+                issues.append(_issue("INVALID_ARMORY_SAMPLE", "UNKNOWN_FIELD", f"{talent_path}.{key}", "unknown official talent loadout field"))
+            for key in sorted(_ARMORY_OFFICIAL_TALENT_LOADOUT_KEYS - set(talent_loadout)):
+                issues.append(_issue("INVALID_ARMORY_SAMPLE", "MISSING_REQUIRED_FIELD", f"{talent_path}.{key}", "official talent loadout field is required"))
+            if _ARMORY_OFFICIAL_TALENT_LOADOUT_KEYS.issubset(talent_loadout):
+                if _bounded_string(talent_loadout["capturedAt"]) is None:
+                    issues.append(_issue("INVALID_ARMORY_SAMPLE", "INVALID_CAPTURE_TIME", f"{talent_path}.capturedAt", "official talent loadout capture time must be bounded"))
+                for key in ("specKey", "heroKey"):
+                    if _canonical_key(talent_loadout[key]) is None:
+                        issues.append(_issue("INVALID_ARMORY_SAMPLE", "INVALID_EVIDENCE", f"{talent_path}.{key}", "official talent loadout key must be canonical"))
+                if _bounded_string(talent_loadout["talentLoadoutCode"]) is None:
+                    issues.append(_issue("INVALID_ARMORY_SAMPLE", "INVALID_EVIDENCE", f"{talent_path}.talentLoadoutCode", "official talent loadout code must be bounded"))
     return issues
 
 

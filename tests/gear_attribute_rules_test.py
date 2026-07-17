@@ -79,12 +79,19 @@ class GearAttributeRulesTest(unittest.TestCase):
                 "canonicalEquipmentCount": 15,
                 "instances": [],
             },
+            "officialTalentLoadout": {
+                "capturedAt": "2026-07-17T04:43:43Z",
+                "specKey": "arcane",
+                "heroKey": "spellslinger",
+                "talentLoadoutCode": "C4DAMhlVtghLZL4RZzExaQoBY",
+            },
         }
 
         parsed, issues = gear_attribute_rules.validate_armory_golden_samples(samples)
 
         self.assertEqual(issues, [])
         self.assertEqual(parsed["samples"][0]["evidence"]["officialProfileSnapshot"]["canonicalEquipmentCount"], 15)
+        self.assertEqual(parsed["samples"][0]["evidence"]["officialTalentLoadout"]["heroKey"], "spellslinger")
 
     def test_unknown_sample_field_does_not_hide_verified_equipment_failure(self):
         samples = armory_samples()

@@ -4,7 +4,7 @@
 
 | ruleContext | attributeRuleRevision | status | sourceRefs | goldenSampleIds | owner | lastVerifiedAt | coverage |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `mage:frost:90:dwarf` | — | `blocked_pending_rule_source` | Armory `https://worldofwarcraft.blizzard.com/en-us/character/kr/azshara/%EC%B9%B4%EB%A5%B4%EA%BD%81%EC%8A%A4` and authorized Battle.net Profile API (2026-07-17T09:12:43Z) | `mage-frost-armory-2026-07-17t091243z` (`candidate`) | 装备模拟 | — | 已确认法师/冰霜/矮人/90 级、15 件实际装备、bonus IDs、宝石/附魔 IDs 与未舍入面板；仍缺可发布的 variant 解析、每项强化数值、稳定被动/天赋分类和通用 rating 换算 |
+| `mage:frost:90:dwarf` | — | `blocked_pending_rule_source` | Armory `https://worldofwarcraft.blizzard.com/en-us/character/kr/azshara/%EC%B9%B4%EB%A5%B4%EA%BD%81%EC%8A%A4` and authorized Battle.net Profile API (2026-07-17T09:12:43Z; active loadout rechecked 2026-07-17T09:24:32Z) | `mage-frost-armory-2026-07-17t091243z` (`candidate`) | 装备模拟 | — | 已确认法师/冰霜/矮人/90 级、Spellslinger 活动配置码、15 件实际装备、bonus IDs、宝石/附魔 IDs 与未舍入面板；仍缺可发布的 variant 解析、每项强化数值、稳定被动与天赋效果分类/映射和通用 rating 换算 |
 | `mage:arcane:90:night_elf` | — | `blocked_pending_rule_source` | Armory `https://worldofwarcraft.blizzard.com/en-gb/character/eu/blackrock/Heated` (2026-07-17 captured); authorized Battle.net Profile API (2026-07-17T04:43:43Z); Raider.IO `https://raider.io/api/v1/characters/profile?region=eu&realm=blackrock&name=Heated&fields=gear%2Ctalents%2Cmythic_plus_scores_by_season%3Acurrent` (2026-07-17 captured) | `mage-arcane-armory-2026-07-17t041853z` (`candidate`) | 装备模拟 | — | 官方 API 已确认种族/专精、15 件实际装备、bonus IDs、宝石/附魔 IDs 及未舍入面板；仍无可发布的 variant 解析、所有附魔数值、全种族/专精基础与 rating 换算、条件效果分类规则 |
 
 ## 2026-07-17 授权候选采集

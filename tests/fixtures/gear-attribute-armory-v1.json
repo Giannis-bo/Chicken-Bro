@@ -432,6 +432,12 @@
             "lifesteal": { "rating": 55, "finalPercent": 0.79709005 },
             "speed": { "rating": 0, "ratingBonusPercent": 0 }
           }
+        },
+        "officialTalentLoadout": {
+          "capturedAt": "2026-07-17T09:24:32Z",
+          "specKey": "frost",
+          "heroKey": "spellslinger",
+          "talentLoadoutCode": "CAEAMhlVtghLZL4RZzExaQoBYZGGLzMzswMzEzMzYmZmZWMzMjZMDEAAYmZmllZm2AAgNAAAgNA2WGzMzgZbYMDLAAAMzGwMMGwMYA"
         }
       },
       "observedPanel": {
@@ -451,7 +457,8 @@
         "the official capture proves identity, 15 selected item instances, gem and enchant IDs, plus unrounded panel values, but the project still lacks a verified bonus-ID-to-canonical-variant and per-item static-stat rule source",
         "the official Profile identifies enchantment instances but does not provide a verified numeric contribution for every enchantment and gem in the calculator input",
         "this current Frost Dwarf snapshot does not match the older Raider.IO community template currently displayed by the product, so its panel cannot be substituted for that template",
-        "one Frost Dwarf level-90 sample cannot prove all race, stable class/passive, talent conditional and rating-conversion rules"
+        "the active Frost Spellslinger loadout is captured as an opaque identity, but stable-vs-conditional talent effects and their arithmetic mapping are not yet verified",
+        "one Frost Dwarf level-90 sample cannot prove all race, stable class/passive and rating-conversion rules"
       ]
     }
   ]
