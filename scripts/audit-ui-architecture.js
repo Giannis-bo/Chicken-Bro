@@ -3,6 +3,7 @@
 
 const fs = require('node:fs')
 const path = require('node:path')
+const crypto = require('node:crypto')
 const babelParser = require('@babel/parser')
 const traverse = require('@babel/traverse').default
 const {
@@ -227,6 +228,28 @@ for (const review of reviewRoutes) {
       && (review.status !== 'UNVERIFIED' || runtimeReviewStatus.sharedMissingEvidence?.length > 0),
     `status=${review.status}; target=${Boolean(target)}; interaction=${Boolean(interaction)}; contract=${contractRootExists}; passRecord=${passRecordComplete}`,
   )
+  if (review.observedRuntimeArtifact) {
+    const artifact = review.observedRuntimeArtifact
+    const artifactPath = path.join(root, artifact.path ?? '')
+    const receiptPath = path.join(root, artifact.receipt ?? '')
+    const artifactExists = fs.existsSync(artifactPath)
+    const receiptExists = fs.existsSync(receiptPath)
+    const actualSha = artifactExists ? crypto.createHash('sha256').update(fs.readFileSync(artifactPath)).digest('hex') : null
+    const receipt = receiptExists ? JSON.parse(fs.readFileSync(receiptPath, 'utf8')) : null
+    const receiptEntry = receipt?.promoted?.find((entry) => entry.route === review.route)
+    record(
+      `observed_runtime_artifact_is_content_addressed:${review.route}`,
+      artifactExists
+        && receiptExists
+        && runtimeReviewContract.fieldContract.runtimeArtifact.every((field) => Object.hasOwn(artifact, field))
+        && artifact.path.includes(artifact.sha256)
+        && actualSha === artifact.sha256
+        && fs.statSync(artifactPath).size === artifact.bytes
+        && receiptEntry?.runtimeArtifact?.path === artifact.path
+        && receiptEntry?.runtimeArtifact?.sha256 === artifact.sha256,
+      `artifact=${artifactExists}; receipt=${receiptExists}; sha=${actualSha === artifact.sha256}`,
+    )
+  }
 }
 
 const currentPlanFiles = sorted(fs.readdirSync(path.join(root, 'docs/plans')).filter((name) => fs.statSync(path.join(root, 'docs/plans', name)).isFile()))
