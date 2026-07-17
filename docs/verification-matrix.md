@@ -34,7 +34,7 @@ npm run verify:ui-interactions
 npm run verify:ui-package
 ```
 
-`verify:ui-baselines` 只做 target/runtime 结构预检；`verify:ui-interactions` 记录当前固定批次的真实微信核心交互，并随批次推进扩充到 14 路由。像素验收必须使用当前 target registry 对应的真实微信运行态。每个路由最终只保留一次视觉复核和一个核心交互结果。
+`verify:ui-baselines` 只做 target/runtime 结构预检；`verify:ui-interactions` 按核心交互合同逐条记录 14 个 canonical route 的真实微信动作与断言。像素验收必须使用当前 target registry 对应的真实微信运行态。每个路由最终只保留一次视觉复核和一个核心交互结果。
 
 `verify:ui-package` 在系统临时目录分别执行本地素材与显式 HTTPS 素材根的 production 构建，关闭构建缓存，不覆盖唯一 watch 的 `dist/weapp`。它阻断远端构建复制本地素材、远端非 source-map 包超过 2 MiB，以及 `common.js` / `common.wxss` 超过当前预算；临时产物在输出证据后删除。
 
