@@ -112,10 +112,22 @@ const escapedSpecializedRegions = specializedRegionBounds.filter((region) => (
   region.left < -1 || region.right > minimumLayoutViewport.width + 1
   || region.top < -1 || region.bottom > minimumLayoutViewport.height + 1
 ))
+const overlappingSpecializedRegions = [...new Set(specializedRegionBounds.map((region) => region.file))].flatMap((file) => {
+  const regions = specializedRegionBounds.filter((region) => region.file === file).sort((a, b) => a.top - b.top)
+  return regions.slice(1).flatMap((region, index) => {
+    const previous = regions[index]
+    return region.top < previous.bottom - 1 ? [{ file, previous: previous.region, region: region.region }] : []
+  })
+})
 record(
   'specialized_percentage_regions_fit_the_minimum_layout_viewport',
   specializedRegionBounds.length >= 15 && escapedSpecializedRegions.length === 0,
   escapedSpecializedRegions.map((region) => `${region.file}:${region.region}`).join(', ') || `regions=${specializedRegionBounds.length}`,
+)
+record(
+  'specialized_percentage_regions_do_not_overlap_vertically',
+  overlappingSpecializedRegions.length === 0,
+  overlappingSpecializedRegions.map((item) => `${item.file}:${item.previous}->${item.region}`).join(', ') || `regions=${specializedRegionBounds.length}`,
 )
 
 const sharedRouteStylePath = 'apps/mini-taro/src/pages/_shared/routes.module.scss'
