@@ -31,7 +31,7 @@ function stateGlyph(state: TaskVisualState): string {
 
 export function TaskOverview({ metrics, recentTitle, recentDetail }: TaskOverviewProps) {
   return (
-    <View className={`${styles['overview'] ?? ''} ${styleSelectorClass('taskOverview')}`} data-owner="task-overview" data-region="task_summary">
+    <View className={`${styles['overview'] ?? ''} ${styleSelectorClass('taskOverview')}`} data-owner="task-overview">
       <View className={styles['overviewIdentity'] ?? ''}>
         <View className={styles['overviewEmblem'] ?? ''} data-role="tasks-overview-emblem">
           <SystemGlyph assetId="utility-glyph-family.shield" slotId="asset_slot.tasks-overview-emblem" />
@@ -109,7 +109,7 @@ export interface TaskStatusFiltersProps {
 
 export function TaskStatusFilters({ items, selected, sortLabel, onSelect, onToggleSort }: TaskStatusFiltersProps) {
   return (
-    <View className={`${styles['filters'] ?? ''} ${styleSelectorClass('taskStatusFilters')}`} data-owner="task-status-filters" data-region="task_filters">
+    <View className={`${styles['filters'] ?? ''} ${styleSelectorClass('taskStatusFilters')}`} data-owner="task-status-filters">
       <View className={styles['filterTabs'] ?? ''}>
         {items.map((item) => (
           <ControlButton
@@ -173,7 +173,7 @@ export function TaskRecordList({ items, loading, onSelect }: TaskRecordListProps
     ? Array.from({ length: visiblePositions }, (_, index) => placeholder(index, true))
     : [...items, ...Array.from({ length: Math.max(0, visiblePositions - items.length) }, (_, index) => placeholder(index, false))]
   return (
-    <View className={`${styles['recordList'] ?? ''} ${styleSelectorClass('taskRecordList')}`} data-owner="task-record-list" data-region="task_list" data-loading={loading ? 'true' : 'false'}>
+    <View className={`${styles['recordList'] ?? ''} ${styleSelectorClass('taskRecordList')}`} data-owner="task-record-list" data-loading={loading ? 'true' : 'false'}>
       <ScrollView className={styles['recordScroll'] ?? ''} scrollY enhanced showScrollbar={false} data-role="task-scroll">
         <View className={styles['recordRows'] ?? ''} data-role="task-record-rows">
           {rows.map((item, index) => (
@@ -260,7 +260,7 @@ export interface TaskBottomActionsProps {
 
 export function TaskBottomActions({ onCreateSimc, onOpenWorkbench }: TaskBottomActionsProps) {
   return (
-    <View className={`${styles['bottomActions'] ?? ''} ${styleSelectorClass('taskBottomActions')}`} data-owner="task-bottom-actions" data-region="bottom_actions">
+    <View className={`${styles['bottomActions'] ?? ''} ${styleSelectorClass('taskBottomActions')}`} data-owner="task-bottom-actions">
       <ControlButton className={styles['bottomActionCool'] ?? ''} data-action-id="create-simc" data-variant="cool" onClick={onCreateSimc}>
         <SystemGlyph assetId="utility-glyph-family.runtime" slotId="asset_slot.tasks-actions" />
         <Text>去 SimC</Text>

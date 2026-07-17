@@ -89,7 +89,7 @@ export function GearProfessionSelector({ items, loading = false, onSelect }: Gea
     ? [{ id: 'loading-current', label: '读取中', selected: false }]
     : items
   return (
-    <View className={style('professionOwner')} data-owner="gear-profession-selector" data-region="profession_selector">
+    <View className={style('professionOwner')} data-owner="gear-profession-selector">
       <Text className={style('fieldLabel')}>职业</Text>
       <ScrollView className={style('professionScroll')} enhanced scrollX showScrollbar={false}>
         <View className={style('professionTrack')} data-role="gear-profession-track">
@@ -149,7 +149,7 @@ export function GearSpecializationSelector({
   onSelect,
 }: GearSpecializationSelectorProps) {
   return (
-    <View className={style('specializationOwner')} data-owner="gear-specialization-selector" data-region="specialization_selector">
+    <View className={style('specializationOwner')} data-owner="gear-specialization-selector">
       <Text className={style('fieldLabel')}>专精</Text>
       <Picker
         disabled={loading || items.length < 2}

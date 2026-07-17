@@ -202,7 +202,6 @@ export function TalentTreeTabs({
     <View
       className={componentStyle('tabsOwner')}
       data-owner="talent-tree-tabs"
-      data-region="talent_tabs"
       data-slot-id="asset_slot.talent-tab-frame"
     >
       {items.map((item) => {

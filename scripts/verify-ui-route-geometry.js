@@ -137,6 +137,8 @@ async function inspect(page, route, viewport) {
   const minimumRegions = route.minimumRegions ?? 1
   if (regionBounds.length < minimumRegions) violations.push({ type: 'missing-route-regions', minimum: minimumRegions, actual: regionBounds.length })
   const presentRegionIds = new Set(regionBounds.map((region) => region.id))
+  const duplicateRegionIds = [...presentRegionIds].filter((id) => regionBounds.filter((region) => region.id === id).length > 1)
+  for (const id of duplicateRegionIds) violations.push({ type: 'duplicate-semantic-region', id, count: regionBounds.filter((region) => region.id === id).length })
   for (const requiredRegionId of route.requiredRegionIds ?? []) {
     if (!presentRegionIds.has(requiredRegionId)) violations.push({ type: 'missing-semantic-region', id: requiredRegionId })
   }
@@ -207,6 +209,7 @@ async function inspect(page, route, viewport) {
     status: violations.length === 0 ? 'pass' : 'fail',
     regionCount: regionBounds.length,
     semanticRegionCount: regionBounds.filter((item) => !/^region-\d+$/u.test(item.id)).length,
+    duplicateRegionCount: duplicateRegionIds.length,
     requiredRegionCount: (route.requiredRegionIds ?? []).length,
     missingRequiredRegionCount: (route.requiredRegionIds ?? []).filter((id) => !presentRegionIds.has(id)).length,
     buttonCount: buttonBounds.length,

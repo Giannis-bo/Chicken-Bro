@@ -284,7 +284,6 @@ export function SimulatorEvidenceShelf({ cards, evidenceCount, onManageEvidence 
     <View
       className={`${styles['evidenceShelf'] ?? ''} ${styleSelectorClass('simulatorEvidenceShelf')}`}
       data-owner="simulator-evidence-shelf"
-      data-region="evidence_shelf"
     >
       <View className={styles['evidenceHeader'] ?? ''}>
         <View className={styles['evidenceHeaderIdentity'] ?? ''}>

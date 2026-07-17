@@ -51,7 +51,7 @@ export interface TaskDetailSummaryProps {
 
 export function TaskDetailSummary({ title, description, status, statusLabel, metadata }: TaskDetailSummaryProps) {
   return (
-    <View className={`${styles['summary'] ?? ''} ${styles[`summary-${status}`] ?? ''} ${styleSelectorClass('taskDetailSummary')}`} data-owner="task-detail-summary" data-region="task_summary" data-state={status}>
+    <View className={`${styles['summary'] ?? ''} ${styles[`summary-${status}`] ?? ''} ${styleSelectorClass('taskDetailSummary')}`} data-owner="task-detail-summary" data-state={status}>
       <View className={styles['summaryEmblem'] ?? ''} data-role="task-detail-summary-emblem">
         <SystemGlyph assetId="utility-glyph-family.document" dataRole="task-detail-summary-identity-glyph" slotId="asset_slot.task-detail-identity" />
       </View>
@@ -85,7 +85,7 @@ export interface TaskRefreshNoticeProps {
 
 export function TaskRefreshNotice({ refreshing, blocked, onRefresh }: TaskRefreshNoticeProps) {
   return (
-    <View className={`${styles['refreshNotice'] ?? ''} ${styleSelectorClass('taskRefreshNotice')}`} data-owner="task-refresh-notice" data-region="refresh_notice" data-state={blocked ? 'blocked' : refreshing ? 'refreshing' : 'ready'}>
+    <View className={`${styles['refreshNotice'] ?? ''} ${styleSelectorClass('taskRefreshNotice')}`} data-owner="task-refresh-notice" data-state={blocked ? 'blocked' : refreshing ? 'refreshing' : 'ready'}>
       <View className={styles['refreshGlyph'] ?? ''} data-role="task-detail-refresh-glyph">
         <SystemGlyph assetId={blocked ? 'utility-glyph-family.warning' : 'source-badge-family.information'} slotId="asset_slot.task-detail-refresh" />
       </View>
@@ -118,7 +118,7 @@ function resultGlyph(state: TaskDetailResultState) {
 
 export function TaskSimcResult({ state, statusLabel, metricLabel, metricValue, description, progress }: TaskSimcResultProps) {
   return (
-    <View className={`${styles['result'] ?? ''} ${styles[`result-${state}`] ?? ''} ${styleSelectorClass('taskSimcResult')}`} data-owner="task-simc-result" data-region="simc_result" data-state={state}>
+    <View className={`${styles['result'] ?? ''} ${styles[`result-${state}`] ?? ''} ${styleSelectorClass('taskSimcResult')}`} data-owner="task-simc-result" data-state={state}>
       <View className={styles['resultHeading'] ?? ''}>
         {panelHeading('SimC 结果', 'utility-glyph-family.runtime')}
         <View className={styles['resultStatus'] ?? ''}>
@@ -221,7 +221,7 @@ export interface TaskAttributeSnapshotProps {
 
 export function TaskAttributeSnapshot({ items, verified, notice, onDetail }: TaskAttributeSnapshotProps) {
   return (
-    <View className={`${styles['dataPanel'] ?? ''} ${styleSelectorClass('taskAttributeSnapshot')}`} data-owner="task-attribute-snapshot" data-region="attribute_snapshot" data-state={verified ? 'verified' : 'unavailable'}>
+    <View className={`${styles['dataPanel'] ?? ''} ${styleSelectorClass('taskAttributeSnapshot')}`} data-owner="task-attribute-snapshot" data-state={verified ? 'verified' : 'unavailable'}>
       {panelHeading('属性快照', 'utility-glyph-family.adjust')}
       <View className={styles['sixCellGrid'] ?? ''} data-role="task-detail-cell-grid" data-count={items.length}>
         {items.map((item, index) => (

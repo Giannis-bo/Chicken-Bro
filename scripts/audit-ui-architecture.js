@@ -719,6 +719,11 @@ record(
   'native buttons must fit their mounted control cells instead of bypassing vertical geometry review',
 )
 record(
+  'route_geometry_rejects_duplicate_semantic_regions',
+  /duplicate-semantic-region/u.test(read('scripts/verify-ui-route-geometry.js')),
+  'each mounted route region id must resolve to exactly one geometry owner',
+)
+record(
   'news_translation_has_one_state_material_owner',
   /\.newsDetailTranslationLabel\s*\{[^}]*border:\s*0;[^}]*background:\s*transparent;[^}]*box-shadow:\s*none;/su.test(reconstructionStyles)
     && /\.newsDetailTranslationSegments\s*\{[^}]*border:\s*0;[^}]*background:\s*transparent;[^}]*box-shadow:\s*none;/su.test(reconstructionStyles)

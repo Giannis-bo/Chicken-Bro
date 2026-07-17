@@ -48,7 +48,7 @@ export function ProfileSummaryPanel({
   const showAvatar = Boolean(avatarUrl) && !avatarFailed
 
   return (
-    <View className={`${styles['summary'] ?? ''} ${styleSelectorClass('profileSummary')}`} data-owner="profile-summary-panel" data-region="profile_summary" data-mode={storageMode}>
+    <View className={`${styles['summary'] ?? ''} ${styleSelectorClass('profileSummary')}`} data-owner="profile-summary-panel" data-mode={storageMode}>
       <View className={styles['identityAction'] ?? ''}>
         <ControlButton
           className={`${styles['avatarAction'] ?? ''} ${styles['interactive'] ?? ''}`}
@@ -105,7 +105,7 @@ export interface ProfileTemplateLibraryProps {
 
 export function ProfileTemplateLibrary({ items, onSelect }: ProfileTemplateLibraryProps) {
   return (
-    <View className={`${styles['library'] ?? ''} ${styleSelectorClass('profileTemplateLibrary')}`} data-owner="profile-template-library" data-region="template_library">
+    <View className={`${styles['library'] ?? ''} ${styleSelectorClass('profileTemplateLibrary')}`} data-owner="profile-template-library">
       <Text className={styles['sectionTitle'] ?? ''} data-role="profile-section-title">模板库</Text>
       <View className={styles['categoryGrid'] ?? ''} data-count={items.length}>
         {items.map((item) => (
@@ -225,7 +225,7 @@ const settingGlyphs = [
 
 export function ProfileSettingsList({ items, onSelect }: ProfileSettingsListProps) {
   return (
-    <View className={`${styles['settings'] ?? ''} ${styleSelectorClass('profileSettings')}`} data-owner="profile-settings-list" data-region="settings_support">
+    <View className={`${styles['settings'] ?? ''} ${styleSelectorClass('profileSettings')}`} data-owner="profile-settings-list">
       <Text className={styles['sectionTitle'] ?? ''} data-role="profile-section-title">设置与支持</Text>
       <View className={styles['settingRows'] ?? ''} data-count={items.length}>
         {items.map((item, index) => (
