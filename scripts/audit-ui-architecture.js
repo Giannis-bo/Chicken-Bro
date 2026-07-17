@@ -1467,7 +1467,10 @@ record(
 record(
   'asset_owned_action_buttons_remove_the_css_plate',
   /\.buttonMaterial\s*\{[^}]*border:\s*0;[^}]*background:\s*transparent;[^}]*box-shadow:\s*none;/su.test(read('packages/design-system/src/components/owners.module.scss'))
-    && /data-material-owner=\{materialAssetId \? 'asset' : 'css'\}/u.test(read('packages/design-system/src/components/ActionButton.tsx'))
+    && /materialAssetReady = materialAssetId \? Boolean\(assetRuntimePath\(materialAssetId\)\) : false/u.test(read('packages/design-system/src/components/ActionButton.tsx'))
+    && /materialAssetReady && ownerStyle\('buttonMaterial'\)/u.test(read('packages/design-system/src/components/ActionButton.tsx'))
+    && /data-material-owner=\{materialAssetReady \? 'asset' : 'css'\}/u.test(read('packages/design-system/src/components/ActionButton.tsx'))
+    && /materialAssetId && materialAssetReady/u.test(read('packages/design-system/src/components/ActionButton.tsx'))
     && /data-material-owner=\{actionFrameReady \? 'asset' : 'css'\}/u.test(read('packages/design-system/src/components/BuildWorkspaceEntry.tsx')),
   'full-frame assets must replace rather than overlay the shared CSS action plate',
 )

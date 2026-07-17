@@ -1,7 +1,7 @@
 import { Text, View } from '@tarojs/components'
 import type { CSSProperties, ReactNode } from 'react'
 
-import type { ProductionAssetId } from '@wow-mini/assets-manifest'
+import { assetRuntimePath, type ProductionAssetId } from '@wow-mini/assets-manifest'
 
 import { NineSliceFrame } from './NineSliceFrame'
 import { ownerClass, ownerStyle } from './style'
@@ -65,6 +65,7 @@ export function ActionButton({
   const materialAssetId = disabled && variant === 'primaryGold'
     ? 'action-material-family.gold-disabled'
     : materialByVariant[variant]
+  const materialAssetReady = materialAssetId ? Boolean(assetRuntimePath(materialAssetId)) : false
 
   return (
     <View
@@ -73,7 +74,7 @@ export function ActionButton({
         variantClass[variant],
         block && ownerStyle('buttonBlock'),
         iconOnly && ownerStyle('buttonIconOnly'),
-        materialAssetId && ownerStyle('buttonMaterial'),
+        materialAssetReady && ownerStyle('buttonMaterial'),
         disabled && ownerStyle('buttonDisabled'),
         className,
       )}
@@ -81,7 +82,7 @@ export function ActionButton({
       data-action-id={dataActionId}
       data-disabled={disabled || loading ? 'true' : 'false'}
       data-loading={loading ? 'true' : 'false'}
-      data-material-owner={materialAssetId ? 'asset' : 'css'}
+      data-material-owner={materialAssetReady ? 'asset' : 'css'}
       data-role={dataRole}
       data-state={dataState}
       hoverClass={ownerStyle('buttonPressed')}
@@ -90,7 +91,7 @@ export function ActionButton({
       {...(ariaLabel ? { 'aria-label': ariaLabel } : {})}
       {...(onClick ? { onClick: () => { if (!disabled && !loading) onClick() } } : {})}
     >
-      {materialAssetId ? (
+      {materialAssetId && materialAssetReady ? (
         <NineSliceFrame
           assetId={materialAssetId}
           frameWidth={10}
