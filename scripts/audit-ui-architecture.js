@@ -5,6 +5,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 const babelParser = require('@babel/parser')
 const traverse = require('@babel/traverse').default
+const { isCompletePassRecord } = require('./runtime-review-validation')
 
 const root = path.resolve(__dirname, '..')
 const findings = []
@@ -167,43 +168,7 @@ for (const review of reviewRoutes) {
   const target = targetRegistry.canonicalTargets.find((candidate) => candidate.route === review.route)
   const interaction = interactionContract.interactions.find((candidate) => candidate.route === review.route)
   const contractRootExists = typeof review.contractRoot === 'string' && fs.existsSync(path.join(root, review.contractRoot))
-  const passRecord = review.reviewRecord
-  const passMetrics = passRecord?.passMetrics
-  const sha256Pattern = /^[a-f\d]{64}$/u
-  const passRecordComplete = review.status !== 'PASS' || (
-    passRecord
-    && runtimeReviewContract.requiredFields.every((field) => Object.hasOwn(passRecord, field))
-    && passRecord.route === review.route
-    && passRecord.path === review.path
-    && passRecord.status === 'PASS'
-    && passRecord.interaction?.status === 'PASS'
-    && typeof passRecord.runtimeArtifact?.path === 'string'
-    && passRecord.runtimeArtifact.path.length > 0
-    && sha256Pattern.test(passRecord.runtimeArtifact?.sha256 ?? '')
-    && sha256Pattern.test(passRecord.targetArtifact?.sha256 ?? '')
-    && Array.isArray(passRecord.regions)
-    && passRecord.regions.length > 0
-    && passRecord.regions.every((region) => region.status === 'PASS')
-    && Array.isArray(passRecord.assetSemantics)
-    && passRecord.assetSemantics.length > 0
-    && passRecord.assetSemantics.every((asset) => asset.status === 'PASS')
-    && Array.isArray(passRecord.p0)
-    && passRecord.p0.length === 0
-    && Array.isArray(passRecord.p1)
-    && passRecord.p1.length === 0
-    && Array.isArray(passRecord.p2)
-    && runtimeReviewContract.fieldContract.collisions.every((field) => passRecord.collisions?.[field] === 0)
-    && passMetrics?.p0Count === runtimeReviewContract.passCriteria.p0Count
-    && passMetrics?.p1Count === runtimeReviewContract.passCriteria.p1Count
-    && passMetrics?.systemCollisionPx === runtimeReviewContract.passCriteria.systemCollisionPx
-    && passMetrics?.textClipCount === runtimeReviewContract.passCriteria.textClipCount
-    && passMetrics?.componentOverlapPx === runtimeReviewContract.passCriteria.componentOverlapPx
-    && passRecord.humanConfirmation?.status === 'confirmed'
-    && typeof passRecord.humanConfirmation?.reviewer === 'string'
-    && passRecord.humanConfirmation.reviewer.length > 0
-    && typeof passRecord.humanConfirmation?.confirmedAt === 'string'
-    && passRecord.humanConfirmation.confirmedAt.length > 0
-  )
+  const passRecordComplete = review.status !== 'PASS' || isCompletePassRecord(review, runtimeReviewContract)
   record(
     `runtime_review_boundary:${review.route}`,
     ['PASS', 'FAIL', 'UNVERIFIED'].includes(review.status)
