@@ -46,10 +46,13 @@ function inspectCapture(capture, viewport) {
 function main() {
   const manifestPath = path.resolve(required(process.env.UI_REVIEW_MANIFEST, 'UI_REVIEW_MANIFEST'))
   const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
-  if (manifest.schemaVersion !== 'wechat-ui-review-cache-v2' || !Array.isArray(manifest.captures)) {
+  if (manifest.schemaVersion !== 'wechat-ui-review-cache-v3' || !Array.isArray(manifest.captures)) {
     throw new Error('unsupported UI review cache manifest')
   }
   if (!/^[a-f\d]{12}$/u.test(manifest.commit)) throw new Error('cache manifest commit must be a 12-character Git SHA')
+  if (manifest.captureMethod !== 'reused_existing_wechat_devtools_process' || manifest.routeNavigationMethod !== 'mini_program_relaunch') {
+    throw new Error('cache capture and route navigation methods are inaccurate or unsupported')
+  }
   const viewport = manifest.viewport
   if (![viewport?.width, viewport?.height, viewport?.dpr].every((value) => Number.isFinite(value) && value > 0)) {
     throw new Error('cache manifest viewport is incomplete')
@@ -86,12 +89,13 @@ function main() {
   }
 
   const receiptBody = {
-    schemaVersion: 'wechat-ui-runtime-promotion-v2',
+    schemaVersion: 'wechat-ui-runtime-promotion-v3',
     sourceManifest: {
       schemaVersion: manifest.schemaVersion,
       commit: manifest.commit,
       viewport: manifest.viewport,
       captureMethod: manifest.captureMethod,
+      routeNavigationMethod: manifest.routeNavigationMethod,
     },
     promoted,
   }

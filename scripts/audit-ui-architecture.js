@@ -411,8 +411,10 @@ for (const review of reviewRoutes) {
       `observed_runtime_artifact_is_content_addressed:${review.route}`,
       artifactExists
         && receiptExists
-        && receipt?.schemaVersion === 'wechat-ui-runtime-promotion-v2'
-        && receipt?.sourceManifest?.schemaVersion === 'wechat-ui-review-cache-v2'
+        && receipt?.schemaVersion === 'wechat-ui-runtime-promotion-v3'
+        && receipt?.sourceManifest?.schemaVersion === 'wechat-ui-review-cache-v3'
+        && receipt?.sourceManifest?.captureMethod === 'reused_existing_wechat_devtools_process'
+        && receipt?.sourceManifest?.routeNavigationMethod === 'mini_program_relaunch'
         && runtimeReviewContract.fieldContract.runtimeArtifact.every((field) => Object.hasOwn(artifact, field))
         && artifact.path.includes(artifact.sha256)
         && actualSha === artifact.sha256

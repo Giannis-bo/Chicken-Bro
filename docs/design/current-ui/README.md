@@ -29,7 +29,7 @@
 
 目标图载荷只进入一次性隔离上下文；主项目会话只接收路径、尺寸、hash、结构化边界、差异和状态。
 
-真实微信截图先由 `UI_REVIEW_ROUTES=<route,...> npm run capture:ui-review-cache` 写入仓库外缓存。捕获按路由重试并在每张成功后原子更新 manifest；中途失败会保留已核验 PNG 和 pending 路由，后续同一 commit/viewport 从 checkpoint 续跑，不重启 DevTools 或重做整批。只有显式提供 `UI_REVIEW_MANIFEST=<absolute manifest path>` 和 `UI_REVIEW_ROUTES=<route,...>` 后，`npm run promote:ui-review-cache` 才会重新核验 PNG 尺寸、字节数和 SHA-256，并复制到 `artifacts/ui-runtime-reviews/<commit>/<viewport>/<sha256>/`。晋级使用不可覆盖写入并生成内容寻址 receipt；它只建立可审计 artifact，不会自动把路由标为 `PASS`。
+真实微信截图先由 `UI_REVIEW_ROUTES=<route,...> npm run capture:ui-review-cache` 写入仓库外缓存。捕获复用已存在的 DevTools 进程，但在小程序内部使用 `reLaunch(route)` 切换待审路由；manifest 必须分别记录 `captureMethod=reused_existing_wechat_devtools_process` 与 `routeNavigationMethod=mini_program_relaunch`，不得把“未重启 DevTools 进程”误写成“未 reLaunch 路由”。捕获按路由重试并在每张成功后原子更新 manifest；中途失败会保留已核验 PNG 和 pending 路由，后续同一 commit/viewport 从 checkpoint 续跑，不重启 DevTools 或重做整批。只有显式提供 `UI_REVIEW_MANIFEST=<absolute manifest path>` 和 `UI_REVIEW_ROUTES=<route,...>` 后，`npm run promote:ui-review-cache` 才会重新核验 PNG 尺寸、字节数和 SHA-256，并复制到 `artifacts/ui-runtime-reviews/<commit>/<viewport>/<sha256>/`。晋级使用不可覆盖写入并生成内容寻址 receipt；它只建立可审计 artifact，不会自动把路由标为 `PASS`。
 
 架构审计与几何预检不是视觉通过。缺少 target/runtime 像素复核时，路由状态仍为 `UNVERIFIED`。
 

@@ -108,7 +108,7 @@ async function main() {
     if (fs.existsSync(manifestPath)) {
       try { existing = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) } catch {}
     }
-    const existingCaptures = existing?.schemaVersion === 'wechat-ui-review-cache-v2'
+    const existingCaptures = existing?.schemaVersion === 'wechat-ui-review-cache-v3'
       && existing.commit === commit
       && JSON.stringify(existing.viewport) === JSON.stringify(viewport)
       ? existing.captures ?? []
@@ -116,10 +116,11 @@ async function main() {
     const capturesByRoute = new Map(existingCaptures.filter((capture) => inspectCachedCapture(capture, viewport)).map((capture) => [capture.route, capture]))
     const failures = []
     const manifest = {
-      schemaVersion: 'wechat-ui-review-cache-v2',
+      schemaVersion: 'wechat-ui-review-cache-v3',
       commit,
       viewport,
-      captureMethod: 'reused_wechat_devtools_automator_without_relaunch',
+      captureMethod: 'reused_existing_wechat_devtools_process',
+      routeNavigationMethod: 'mini_program_relaunch',
       captures: [...capturesByRoute.values()],
       failures,
     }
