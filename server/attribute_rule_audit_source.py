@@ -168,9 +168,13 @@ def fetch_official_profile(identity: dict[str, str]) -> dict[str, Any]:
         token = get_blizzard_access_token(normalized["region"])
         namespace = blizzard_namespace(normalized["region"], "profile")
         base = f"/profile/wow/character/{normalized['realmSlug']}/{normalized['characterName'].lower()}"
-        profile = blizzard_get(base, token, region=normalized["region"], locale=normalized["locale"], namespace=namespace)
-        equipment = blizzard_get(f"{base}/equipment", token, region=normalized["region"], locale=normalized["locale"], namespace=namespace)
-        statistics = blizzard_get(f"{base}/statistics", token, region=normalized["region"], locale=normalized["locale"], namespace=namespace)
+        # Character class/spec/race labels are locale-dependent, while the audit
+        # contract requires stable canonical keys. The official profile endpoint
+        # supports en_US in every supported region, so normalize at the source.
+        audit_locale = "en_US"
+        profile = blizzard_get(base, token, region=normalized["region"], locale=audit_locale, namespace=namespace)
+        equipment = blizzard_get(f"{base}/equipment", token, region=normalized["region"], locale=audit_locale, namespace=namespace)
+        statistics = blizzard_get(f"{base}/statistics", token, region=normalized["region"], locale=audit_locale, namespace=namespace)
     except AttributeAuditSourceUnavailable:
         raise
     except Exception as exc:

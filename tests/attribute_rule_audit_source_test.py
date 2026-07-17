@@ -58,7 +58,7 @@ class AttributeRuleAuditSourceTest(unittest.TestCase):
             "server.attribute_rule_audit_source.blizzard_get", side_effect=api
         ):
             result = fetch_official_profile({
-                "region": "eu", "realmSlug": "blackrock", "characterName": "Heated", "locale": "en_GB"
+                "region": "kr", "realmSlug": "azshara", "characterName": "카르꽁스", "locale": "ko_KR"
             })
 
         self.assertEqual(result["profile"]["character"], {
@@ -87,6 +87,7 @@ class AttributeRuleAuditSourceTest(unittest.TestCase):
         })
         self.assertEqual(len(calls), 3)
         self.assertTrue(any(path.endswith("/statistics") for path, _, _ in calls))
+        self.assertTrue(all(kwargs["locale"] == "en_US" for _, _, kwargs in calls))
         self.assertNotIn("secret-token", str(result))
 
     def test_upstream_failure_is_reduced_to_safe_code(self):
