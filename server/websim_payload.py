@@ -2182,6 +2182,15 @@ def normalized_websim_level(value=None):
         return clamp(websim_max_level(), 1, websim_max_level())
 
 
+def websim_attribute_calculator_context(class_key="mage", spec_key="arcane", level=None):
+    return public_attribute_calculator_context(
+        ATTRIBUTE_RULEBOOK_UNAVAILABLE,
+        class_key=slugify(class_key, "mage"),
+        spec_key=slugify(spec_key, "arcane"),
+        level=normalized_websim_level(level),
+    )
+
+
 def slugify(value, fallback="item"):
     text = re.sub(r"[^a-z0-9]+", "_", str(value or "").lower()).strip("_")
     return text[:80] if text else fallback
@@ -20655,12 +20664,7 @@ def get_websim_gear(conn, class_key="mage", spec_key="arcane", compact=False):
             spec_key=spec_key,
             gear_readiness_payload=readiness,
         ),
-        "attributeCalculator": public_attribute_calculator_context(
-            ATTRIBUTE_RULEBOOK_UNAVAILABLE,
-            class_key=class_key,
-            spec_key=spec_key,
-            level=websim_max_level(),
-        ),
+        "attributeCalculator": websim_attribute_calculator_context(class_key, spec_key),
         "gearSchemaRevision": GEAR_SCHEMA_REVISION,
         "gearCatalogRevision": catalog_state.get("schemaRevision") or GEAR_CATALOG_REVISION,
         "catalogStatus": catalog_state.get("status") or "blocked",

@@ -9821,7 +9821,9 @@ class NewsBackendTest(unittest.TestCase):
         ):
             payload = self.backend.runtime_websim_gear_payload("mage", "frost", compact=True)
 
-        self.assertIs(payload, stale_payload)
+        self.assertIsNot(payload, stale_payload)
+        self.assertNotIn("attributeCalculator", stale_payload)
+        self.assertEqual(payload["attributeCalculator"]["status"], "rule_unavailable")
 
     def test_runtime_websim_gear_forwards_payload_mode_to_postgres_store(self):
         captured = {}
@@ -9855,12 +9857,66 @@ class NewsBackendTest(unittest.TestCase):
                 slot="head",
             )
 
-        self.assertIs(payload, initial_payload)
+        self.assertIsNot(payload, initial_payload)
+        self.assertNotIn("attributeCalculator", initial_payload)
+        self.assertEqual(payload["attributeCalculator"]["status"], "rule_unavailable")
         self.assertEqual(captured["classKey"], "mage")
         self.assertEqual(captured["specKey"], "frost")
         self.assertTrue(captured["compact"])
         self.assertEqual(captured["mode"], "initial")
         self.assertEqual(captured["slot"], "head")
+
+    def test_runtime_websim_gear_adds_fail_closed_attribute_calculator_to_postgres_payload(self):
+        initial_payload = {
+            "schemaRevision": "websim-gear-v1",
+            "classKey": "mage",
+            "specKey": "frost",
+            "gearPayloadMode": "initial",
+            "replacementCandidates": [],
+        }
+
+        class GearStore:
+            def get_websim_gear(self, class_key, spec_key, compact=False, mode="", slot=""):
+                return initial_payload
+
+        with patch.object(self.backend, "cache_data_store", return_value=GearStore()):
+            payload = self.backend.runtime_websim_gear_payload(
+                "mage",
+                "frost",
+                compact=True,
+                mode="initial",
+            )
+
+        self.assertIsNot(payload, initial_payload)
+        self.assertNotIn("attributeCalculator", initial_payload)
+        calculator = payload["attributeCalculator"]
+        self.assertEqual(calculator["status"], "rule_unavailable")
+        self.assertEqual(calculator["raceOptions"], [])
+        self.assertEqual(calculator["rules"], [])
+
+    def test_runtime_websim_gear_preserves_existing_attribute_calculator_from_postgres(self):
+        calculator = {
+            "status": "ready",
+            "attributeRuleRevision": "gear-attribute-rulebook-v2",
+            "rules": [{"primaryKey": "intellect"}],
+        }
+        initial_payload = {
+            "schemaRevision": "websim-gear-v1",
+            "classKey": "mage",
+            "specKey": "frost",
+            "replacementCandidates": [],
+            "attributeCalculator": calculator,
+        }
+
+        class GearStore:
+            def get_websim_gear(self, class_key, spec_key, compact=False, mode="", slot=""):
+                return initial_payload
+
+        with patch.object(self.backend, "cache_data_store", return_value=GearStore()):
+            payload = self.backend.runtime_websim_gear_payload("mage", "frost", compact=True)
+
+        self.assertIs(payload, initial_payload)
+        self.assertIs(payload["attributeCalculator"], calculator)
 
     def test_runtime_websim_gear_attaches_backend_resolver_context(self):
         captured = {}
@@ -10033,7 +10089,9 @@ class NewsBackendTest(unittest.TestCase):
                 mode="initial",
             )
 
-        self.assertIs(payload, initial_payload)
+        self.assertIsNot(payload, initial_payload)
+        self.assertNotIn("attributeCalculator", initial_payload)
+        self.assertEqual(payload["attributeCalculator"]["status"], "rule_unavailable")
         self.assertNotIn("resolverContext", payload)
 
     def test_runtime_websim_gear_adds_template_chain_state_to_cached_postgres_payload(self):
@@ -10230,7 +10288,9 @@ class NewsBackendTest(unittest.TestCase):
         ):
             payload = self.backend.runtime_websim_gear_payload("mage", "frost", compact=True)
 
-        self.assertIs(payload, stale_payload)
+        self.assertIsNot(payload, stale_payload)
+        self.assertNotIn("attributeCalculator", stale_payload)
+        self.assertEqual(payload["attributeCalculator"]["status"], "rule_unavailable")
 
     def test_pg_only_runtime_returns_blocked_talent_payload_without_sqlite_fallback(self):
         blocked_payload = {

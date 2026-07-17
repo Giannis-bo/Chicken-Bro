@@ -111,6 +111,7 @@ try:
         import_talent_api_payload,
         websim_talent_import_response,
         websim_gear_community_template_sync_state,
+        websim_attribute_calculator_context,
         item_type_metadata_from_payload,
         normalized_armor_subclass,
         encode_websim_talents,
@@ -216,6 +217,7 @@ except ImportError:
         import_talent_api_payload,
         websim_talent_import_response,
         websim_gear_community_template_sync_state,
+        websim_attribute_calculator_context,
         item_type_metadata_from_payload,
         normalized_armor_subclass,
         encode_websim_talents,
@@ -8119,6 +8121,18 @@ def websim_gear_payload_with_resolver_context(payload, store, class_key, spec_ke
     return {**public_payload, "resolverContext": resolver_context}
 
 
+def websim_gear_payload_with_attribute_calculator_context(payload, class_key, spec_key):
+    if not isinstance(payload, dict) or not payload:
+        return payload
+    calculator = payload.get("attributeCalculator")
+    if isinstance(calculator, dict) and str(calculator.get("status") or "").strip():
+        return payload
+    return {
+        **payload,
+        "attributeCalculator": websim_attribute_calculator_context(class_key, spec_key),
+    }
+
+
 def runtime_websim_gear_payload(class_key, spec_key, compact=False, mode="", slot=""):
     store = cache_data_store()
     allow_sqlite_fallback = (
@@ -8133,6 +8147,11 @@ def runtime_websim_gear_payload(class_key, spec_key, compact=False, mode="", slo
                 if "unexpected keyword" not in str(exc):
                     raise
                 payload = store.get_websim_gear(class_key, spec_key, compact=compact)
+            payload = websim_gear_payload_with_attribute_calculator_context(
+                payload,
+                class_key,
+                spec_key,
+            )
             payload = websim_gear_payload_with_resolver_context(
                 payload,
                 store,

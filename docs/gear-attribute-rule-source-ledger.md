@@ -22,6 +22,7 @@
 - 上述 tooltip 是候选证据，不代表已完成分类或运算顺序：例如基础暴击、天赋加算和等级换算的先后、冰法“所有来源急速”对基础/评级/其它加成的作用范围、种族/套装/强化和资源的舍入仍需由版本化规则与逐字段黄金样本复核。任一不明确项继续阻止 promotion。
 - 候选解释器现已把曲线本身建模为严格的 `ratingTransform`：`piecewise_linear`、显式 `ratingPerPercent`、有序 `points` 和 `clamp` 越界语义。Python 参考解释器与小程序解释器共享该语义；用 DBC 曲线 `21025` 的源点和冰法 `470` 闪避复核，两端均得到官方未舍入值 `12.217245%`。任何 `verified` rule context 若仍只含旧的 `ratingPerPercent` 线性除法会以 `LEGACY_LINEAR_TRANSFORM_NOT_PROMOTABLE` 被拒绝；两点或共线“伪曲线”也会分别以 `INSUFFICIENT_CURVE_EVIDENCE_FOR_PROMOTION`、`LINEAR_CURVE_NOT_PROMOTABLE` 被拒绝。该能力只证明可以准确表达已证实曲线，**不**代表法师规则、天赋顺序或公开属性面板已发布。
 - 每次本地结果的 `inputSignature` 还会绑定实际参与运算的主属性、资源、稳定修正和全部绿字转换规则（包括曲线点），不能只依赖人工递增 `attributeRuleRevision`。因此即使错误地未提升 revision 而改写曲线，结果签名仍会变化并触发保存/审计/fixture 对照。
+- 公共 `GET /api/websim/gear` 的 PostgreSQL read-model 路径现与直出路径同构：当存储 payload 缺少 `attributeCalculator` 时，运行时以同一 serializer 补入明确的 `rule_unavailable` 上下文；若存储已提供带 `status` 的规则上下文则原样保留。该修复只消除“字段缺失”与“规则未就绪”的歧义，不会把 candidate、fixture 或 SimC 结果发布为角色属性。
 
 ## 录入要求
 
