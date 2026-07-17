@@ -97,8 +97,9 @@
 }
 
 .readinessAction {
-  width: 164px;
-  min-width: 164px;
+  width: 100%;
+  max-width: 164px;
+  min-width: 0;
   min-height: 38px;
   margin-top: 9px;
   padding: 0 12px;

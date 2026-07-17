@@ -89,7 +89,10 @@ const componentStyleFiles = walk('packages/design-system/src/components', ['.mod
 const fixedPixelComponentControlWidths = componentStyleFiles.flatMap((file) => (
   [...read(file).matchAll(/([^{}]+)\{([^{}]*)\}/gu)].flatMap((match) => (
     /(?:action|button|control)/iu.test(match[1])
-      && /\b(?:width|min-width):\s*(?:2[8-9]\d|[3-9]\d\d)px\s*;/u.test(match[2])
+      && (
+        /\bwidth:\s*(?:2[8-9]\d|[3-9]\d\d)px\s*;/u.test(match[2])
+        || /\bmin-width:\s*(?:9[6-9]|[1-9]\d\d)px\s*;/u.test(match[2])
+      )
       ? [`${file}:${match[1].trim().replace(/\s+/gu, ' ')}`]
       : []
   ))
@@ -98,6 +101,13 @@ record(
   'large_component_controls_do_not_lock_to_fixed_pixel_widths',
   fixedPixelComponentControlWidths.length === 0,
   fixedPixelComponentControlWidths.join(', ') || 'none',
+)
+const gearDetailStyles = read('packages/design-system/src/components/GearDetailComponents.module.scss')
+record(
+  'gear_enhancement_grid_children_shrink_with_tracks',
+  /\.enhancementOwner\s*\{[^}]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\);/su.test(gearDetailStyles)
+    && /\.enhancementItem\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*0;[^}]*max-width:\s*100%;/su.test(gearDetailStyles),
+  'three-column enhancement controls must follow their minmax grid tracks',
 )
 
 function percentLayoutValue(block, property, axisPixels) {
