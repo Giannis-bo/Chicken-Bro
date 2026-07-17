@@ -1,10 +1,12 @@
 {
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "status": "active",
   "authority": "docs/plans/ui-reconstruction.md",
   "authoritativeInputs": [
     "docs/design/current-ui/target-registry.json",
     "docs/design/current-ui/core-interaction-contract.json",
+    "docs/design/current-ui/runtime-review-contract.json",
+    "docs/design/current-ui/runtime-review-status.json",
     "docs/design/current-ui/routes",
     "artifacts/ui-visual-targets/current/*.png",
     "apps/mini-taro",

@@ -101,6 +101,12 @@ const evidencePolicy = JSON.parse(read('docs/design/current-ui/active-evidence-p
 const runtimeReviewContract = JSON.parse(read('docs/design/current-ui/runtime-review-contract.json'))
 const runtimeReviewStatus = JSON.parse(read('docs/design/current-ui/runtime-review-status.json'))
 record(
+  'runtime_review_records_are_authoritative_inputs',
+  ['docs/design/current-ui/runtime-review-contract.json', 'docs/design/current-ui/runtime-review-status.json']
+    .every((file) => evidencePolicy.authoritativeInputs?.includes(file)),
+  `schemaVersion=${evidencePolicy.schemaVersion}`,
+)
+record(
   'target_registry_is_active_and_complete',
   targetRegistry.status === 'active' && targetRegistry.canonicalTargets?.length === 14,
   `status=${targetRegistry.status}; targets=${targetRegistry.canonicalTargets?.length ?? 0}`,
