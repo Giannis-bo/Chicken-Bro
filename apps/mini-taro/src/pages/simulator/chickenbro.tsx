@@ -17,6 +17,7 @@ import {
 } from '@wow-mini/design-system/components/ChickenbroChatComponents'
 import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
 import { RouteStage } from '@wow-mini/design-system/components/RouteStage'
+import { RouteRegion } from '@wow-mini/design-system/components/RouteFlow'
 import type { ChatMessage } from '@wow-mini/domain'
 
 import { goBack, safeDecode } from '../_shared/route-runtime'
@@ -160,7 +161,7 @@ export default function ChickenbroPage() {
           variant="chickenbro-chat"
           onBack={() => goBack('/pages/simulator/simulator')}
         >
-          <View className={styles['contextRegion'] ?? ''}>
+          <RouteRegion className={styles['contextRegion'] ?? ''}>
             <ChickenbroContextPanel
               cells={[
                 { id: 'specialization', label: '职业 / 专精', value: chickenbroContextLabel(context) },
@@ -170,14 +171,14 @@ export default function ChickenbroPage() {
               evidenceLabel={evidenceLabel}
               onOpenWorkbench={() => goBack('/pages/builds/workbench')}
             />
-          </View>
-          <View className={styles['introRegion'] ?? ''}>
+          </RouteRegion>
+          <RouteRegion className={styles['introRegion'] ?? ''}>
             <ChickenbroIntroMessage content={chickenbroIntro(context)} />
-          </View>
-          <View className={styles['primaryUserRegion'] ?? ''}>
+          </RouteRegion>
+          <RouteRegion className={styles['primaryUserRegion'] ?? ''}>
             <ChickenbroUserTurnSlot message={primaryTurn?.user} region="user_question_primary" />
-          </View>
-          <View className={styles['answerRegion'] ?? ''}>
+          </RouteRegion>
+          <RouteRegion className={styles['answerRegion'] ?? ''}>
             <ChickenbroEvidenceAnswer
               confidenceLabel={chickenbroConfidence(primaryTurn?.assistant?.payload)}
               evidenceCount={primaryTurn?.assistant?.payload?.evidenceRefs.length ?? 0}
@@ -186,21 +187,21 @@ export default function ChickenbroPage() {
               sourceLabel={chickenbroAnswerSource(primaryTurn?.assistant?.payload)}
               onInspectEvidence={inspectEvidence}
             />
-          </View>
-          <View className={styles['boundaryRegion'] ?? ''}>
+          </RouteRegion>
+          <RouteRegion className={styles['boundaryRegion'] ?? ''}>
             <ChickenbroEvidenceBoundary
               helper={payload?.nextQuestion || '等待后端说明下一步'}
               limitations={chickenbroLimitations(payload)}
               missingInputs={chickenbroMissingInputs(payload)}
             />
-          </View>
-          <View className={styles['followupUserRegion'] ?? ''}>
+          </RouteRegion>
+          <RouteRegion className={styles['followupUserRegion'] ?? ''}>
             <ChickenbroUserTurnSlot message={followupTurn?.user} region="user_question_followup" />
-          </View>
-          <View className={styles['followupAnswerRegion'] ?? ''}>
+          </RouteRegion>
+          <RouteRegion className={styles['followupAnswerRegion'] ?? ''}>
             <ChickenbroAssistantTurnSlot message={followupTurn?.assistant} />
-          </View>
-          <View className={styles['answerStateRegion'] ?? ''}>
+          </RouteRegion>
+          <RouteRegion className={styles['answerStateRegion'] ?? ''}>
             <ChickenbroAnswerStatePanel
               canRetry={inputState === 'error' && Boolean(lastSubmitted)}
               detail={answerState.detail}
@@ -208,10 +209,10 @@ export default function ChickenbroPage() {
               title={answerState.title}
               onRetry={() => void send(lastSubmitted, false)}
             />
-          </View>
-          <View className={styles['topicRegion'] ?? ''}>
+          </RouteRegion>
+          <RouteRegion className={styles['topicRegion'] ?? ''}>
             <ChickenbroTopicLibrary prompts={prompts} onSelect={(index) => setDraft(prompts[index] ?? '')} />
-          </View>
+          </RouteRegion>
         </PageFrame>
       </RouteStage>
     </AppShell>

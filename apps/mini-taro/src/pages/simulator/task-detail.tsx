@@ -1,10 +1,10 @@
 import Taro, { useRouter } from '@tarojs/taro'
-import { View } from '@tarojs/components'
 
 import { wowApi } from '@wow-mini/api-client'
 import { AppShell } from '@wow-mini/design-system/components/AppShell'
 import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
 import { RouteStage } from '@wow-mini/design-system/components/RouteStage'
+import { RouteRegion } from '@wow-mini/design-system/components/RouteFlow'
 import {
   TaskAttributeSnapshot,
   TaskCombatPreparation,
@@ -84,7 +84,7 @@ export default function TaskDetailPage() {
           variant="task-detail"
           onBack={() => goBack('/pages/simulator/tasks')}
         >
-          <View className={styles['summaryRegion'] ?? ''}>
+          <RouteRegion className={styles['summaryRegion'] ?? ''}>
             <TaskDetailSummary
               description={view.description}
               metadata={view.metadata}
@@ -92,45 +92,45 @@ export default function TaskDetailPage() {
               statusLabel={view.statusLabel}
               title={view.title}
             />
-          </View>
-          <View className={styles['refreshRegion'] ?? ''}>
+          </RouteRegion>
+          <RouteRegion className={styles['refreshRegion'] ?? ''}>
             <TaskRefreshNotice
               blocked={view.routePhase === 'blocked'}
               refreshing={view.refreshing}
               onRefresh={route.load}
             />
-          </View>
-          <View className={styles['resultRegion'] ?? ''}>
+          </RouteRegion>
+          <RouteRegion className={styles['resultRegion'] ?? ''}>
             <TaskSimcResult {...view.result} />
-          </View>
-          <View className={styles['contextRegion'] ?? ''}>
+          </RouteRegion>
+          <RouteRegion className={styles['contextRegion'] ?? ''}>
             <TaskRunContext items={view.context} />
-          </View>
-          <View className={styles['scenarioRegion'] ?? ''}>
+          </RouteRegion>
+          <RouteRegion className={styles['scenarioRegion'] ?? ''}>
             <TaskScenarioGrid items={view.scenario} />
-          </View>
-          <View className={styles['attributesRegion'] ?? ''}>
+          </RouteRegion>
+          <RouteRegion className={styles['attributesRegion'] ?? ''}>
             <TaskAttributeSnapshot
               items={view.attributes}
               notice={view.attributeNotice}
               verified={view.attributeVerified}
               onDetail={() => showDetails('属性快照', view.attributeDetail)}
             />
-          </View>
-          <View className={styles['preparationRegion'] ?? ''}>
+          </RouteRegion>
+          <RouteRegion className={styles['preparationRegion'] ?? ''}>
             <TaskCombatPreparation
               items={view.preparation}
               notice={view.preparationNotice}
               state={view.preparationState}
               onDetail={() => showDetails('战斗准备', view.preparationDetail)}
             />
-          </View>
-          <View className={styles['exceptionRegion'] ?? ''}>
+          </RouteRegion>
+          <RouteRegion className={styles['exceptionRegion'] ?? ''}>
             <TaskExceptionState
               {...view.exception}
               onDetail={() => showDetails('任务异常详情', view.exceptionDetail)}
             />
-          </View>
+          </RouteRegion>
         </PageFrame>
       </RouteStage>
     </AppShell>

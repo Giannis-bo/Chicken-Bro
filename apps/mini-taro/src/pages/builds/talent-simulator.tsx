@@ -6,6 +6,7 @@ import { wowApi } from '@wow-mini/api-client'
 import { AppShell } from '@wow-mini/design-system/components/AppShell'
 import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
 import { RouteStage } from '@wow-mini/design-system/components/RouteStage'
+import { RouteRegion } from '@wow-mini/design-system/components/RouteFlow'
 import {
   TalentActionBar,
   TalentCommunityRow,
@@ -342,30 +343,30 @@ export default function TalentSimulatorPage() {
           onBack={() => goBack('/pages/builds/builds')}
         >
           <View className={styles['surface'] ?? ''}>
-            <View className={styles['selectorRegion'] ?? ''}>
+            <RouteRegion className={styles['selectorRegion'] ?? ''}>
               <TalentSelectorPanel
                 items={selectors}
                 loading={initialLoading}
                 onSelect={selectOption}
               />
-            </View>
-            <View className={styles['tabsRegion'] ?? ''}>
+            </RouteRegion>
+            <RouteRegion className={styles['tabsRegion'] ?? ''}>
               <TalentTreeTabs
                 activeId={activeTree}
                 items={tabs}
                 loading={initialLoading}
                 onSelect={(item) => setActiveTree(item.id)}
               />
-            </View>
-            <View className={styles['pointsRegion'] ?? ''}>
+            </RouteRegion>
+            <RouteRegion className={styles['pointsRegion'] ?? ''}>
               <TalentPointSummary
                 cap={points.cap}
                 loading={initialLoading}
                 remaining={points.remaining}
                 spent={points.spent}
               />
-            </View>
-            <View className={styles['graphRegion'] ?? ''}>
+            </RouteRegion>
+            <RouteRegion className={styles['graphRegion'] ?? ''}>
               <TalentGraphViewport
                 key={activeTree}
                 connectivityStatus={connectivityStatus}
@@ -378,9 +379,9 @@ export default function TalentSimulatorPage() {
                 uniquePositionCount={graph.uniquePositionCount}
                 onNode={selectNode}
               />
-            </View>
-            <View className={styles['legendRegion'] ?? ''}><TalentLegend /></View>
-            <View className={styles['importRegion'] ?? ''}>
+            </RouteRegion>
+            <RouteRegion className={styles['legendRegion'] ?? ''}><TalentLegend /></RouteRegion>
+            <RouteRegion className={styles['importRegion'] ?? ''}>
               <TalentImportStatus
                 detail={currentReason || (connectivityStatus === 'unavailable'
                   ? '上游未返回天赋连接关系，当前树只读'
@@ -393,8 +394,8 @@ export default function TalentSimulatorPage() {
                   onOpen: () => void copyText(data.talentImport.importCode, '已复制验证导入码'),
                 } : {})}
               />
-            </View>
-            <View className={styles['communityRegion'] ?? ''}>
+            </RouteRegion>
+            <RouteRegion className={styles['communityRegion'] ?? ''}>
               <TalentCommunityRow
                 detail={initialLoading
                   ? '正在读取来源模板'
@@ -408,8 +409,8 @@ export default function TalentSimulatorPage() {
                   })
                 }}
               />
-            </View>
-            <View className={styles['actionsRegion'] ?? ''}><TalentActionBar items={actions} /></View>
+            </RouteRegion>
+            <RouteRegion className={styles['actionsRegion'] ?? ''}><TalentActionBar items={actions} /></RouteRegion>
           </View>
         </PageFrame>
       </RouteStage>

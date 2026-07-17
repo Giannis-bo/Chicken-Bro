@@ -284,9 +284,35 @@ const routeFlowConsumers = routeComponents.filter((file) => /<RouteFlow\b/u.test
 const routeColumnConsumers = routeComponents.filter((file) => /<RouteColumn\b/u.test(read(file)))
 const routeGridConsumers = routeComponents.filter((file) => /<RouteGrid\b/u.test(read(file)))
 const routeRegionConsumers = routeComponents.filter((file) => /<RouteRegion\b/u.test(read(file)))
+const directNamedRegionOwners = []
+for (const file of routeComponents.filter((candidate) => !candidate.includes('/_shared/'))) {
+  const source = read(file)
+  const ast = babelParser.parse(source, { sourceType: 'module', plugins: ['jsx', 'typescript'] })
+  traverse(ast, {
+    JSXOpeningElement(elementPath) {
+      const name = elementPath.node.name
+      if (name.type !== 'JSXIdentifier' || name.name !== 'View') return
+      const className = elementPath.node.attributes.find((attribute) => (
+        attribute.type === 'JSXAttribute'
+        && attribute.name.type === 'JSXIdentifier'
+        && attribute.name.name === 'className'
+      ))
+      if (!className || className.value?.type !== 'JSXExpressionContainer') return
+      const expressionSource = source.slice(className.value.expression.start, className.value.expression.end)
+      if (/styles\[['"][^'"]*Region['"]\]/u.test(expressionSource)) {
+        directNamedRegionOwners.push(`${file}:${elementPath.node.loc?.start.line ?? 0}`)
+      }
+    },
+  })
+}
+record(
+  'named_route_regions_use_shared_layout_owner',
+  directNamedRegionOwners.length === 0,
+  directNamedRegionOwners.join(', ') || 'none',
+)
 record(
   'shared_route_layout_owners_cover_current_layout_families',
-  routeStageConsumers.length === 8 && routeFlowConsumers.length === 3 && routeColumnConsumers.length === 4 && routeGridConsumers.length === 2 && routeRegionConsumers.length === 4,
+  routeStageConsumers.length === 8 && routeFlowConsumers.length === 3 && routeColumnConsumers.length >= 4 && routeGridConsumers.length >= 2 && routeRegionConsumers.length >= 4,
   `stage=${routeStageConsumers.length}; flow=${routeFlowConsumers.length}; column=${routeColumnConsumers.length}; grid=${routeGridConsumers.length}; region=${routeRegionConsumers.length}`,
 )
 

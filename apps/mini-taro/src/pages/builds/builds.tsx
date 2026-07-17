@@ -1,4 +1,4 @@
-import { Picker, View } from '@tarojs/components'
+import { Picker } from '@tarojs/components'
 import Taro, { usePullDownRefresh } from '@tarojs/taro'
 import { useMemo, useState } from 'react'
 
@@ -15,7 +15,7 @@ import {
 } from '@wow-mini/design-system/components/BuildWorkflowTimeline'
 import { BuildWorkspaceEntry } from '@wow-mini/design-system/components/BuildWorkspaceEntry'
 import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
-import { RouteGrid } from '@wow-mini/design-system/components/RouteFlow'
+import { RouteGrid, RouteRegion } from '@wow-mini/design-system/components/RouteFlow'
 
 import { flattenSpecs } from '../_shared/build-context'
 import { navigateTo, useAsyncRoute } from '../_shared/route-runtime'
@@ -130,15 +130,15 @@ export default function BuildsHomePage() {
               onSelect={() => undefined}
             />
           </Picker>
-          <View className={styles['gridRegion'] ?? ''}>
+          <RouteRegion className={styles['gridRegion'] ?? ''}>
             <BuildEvidenceNavigator
               items={model.evidenceItems}
               loading={model.initialLoading}
               variant="grid"
               onSelect={openEvidence}
             />
-          </View>
-          <View className={styles['workspaceRegion'] ?? ''}>
+          </RouteRegion>
+          <RouteRegion className={styles['workspaceRegion'] ?? ''}>
             <BuildWorkspaceEntry
               actionLabel={model.workspace.actionLabel}
               detail={model.workspace.detail}
@@ -150,22 +150,22 @@ export default function BuildsHomePage() {
               title={model.workspace.title}
               onEnter={useWorkspaceAction}
             />
-          </View>
-          <View className={styles['listRegion'] ?? ''}>
+          </RouteRegion>
+          <RouteRegion className={styles['listRegion'] ?? ''}>
             <BuildEvidenceNavigator
               items={model.evidenceItems}
               loading={model.initialLoading}
               variant="list"
               onSelect={openEvidence}
             />
-          </View>
-          <View className={styles['workflowRegion'] ?? ''}>
+          </RouteRegion>
+          <RouteRegion className={styles['workflowRegion'] ?? ''}>
             <BuildWorkflowTimeline
               loading={model.initialLoading}
               stages={model.workflow}
               onSelect={openWorkflow}
             />
-          </View>
+          </RouteRegion>
         </RouteGrid>
       </PageFrame>
     </AppShell>

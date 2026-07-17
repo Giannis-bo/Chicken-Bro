@@ -19,6 +19,7 @@ import {
 } from '@wow-mini/design-system/components/GearDetailComponents'
 import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
 import { RouteStage } from '@wow-mini/design-system/components/RouteStage'
+import { RouteRegion } from '@wow-mini/design-system/components/RouteFlow'
 import { StatusVisual } from '@wow-mini/design-system/components/StatusVisual'
 import {
   storageKey,
@@ -699,10 +700,10 @@ export default function GearDetailPage() {
                 }}
               />
             ) : null}
-            <View className={styles['professionRegion'] ?? ''}>
+            <RouteRegion className={styles['professionRegion'] ?? ''}>
               <GearProfessionSelector items={classItems} loading={initialLoading} />
-            </View>
-            <View className={styles['specializationRegion'] ?? ''}>
+            </RouteRegion>
+            <RouteRegion className={styles['specializationRegion'] ?? ''}>
               <GearSpecializationSelector
                 items={specItems}
                 loading={initialLoading}
@@ -710,14 +711,14 @@ export default function GearDetailPage() {
                 value={selectedSpecLabel}
                 onSelect={(item) => setSelectedSpecId(item.id)}
               />
-            </View>
-            <View className={styles['readinessRegion'] ?? ''}>
+            </RouteRegion>
+            <RouteRegion className={styles['readinessRegion'] ?? ''}>
               <GearReadinessOverview {...readiness} />
-            </View>
-            <View className={styles['enhancementRegion'] ?? ''}>
+            </RouteRegion>
+            <RouteRegion className={styles['enhancementRegion'] ?? ''}>
               <GearEnhancementBar items={enhancementGroups} onSelect={(item) => void openEnhancementGroup(item)} />
-            </View>
-            <View className={styles['workbenchRegion'] ?? ''}>
+            </RouteRegion>
+            <RouteRegion className={styles['workbenchRegion'] ?? ''}>
               <GearSlotWorkbench
                 candidateOpen={candidateOpen}
                 candidateLoading={candidateLoading}
@@ -740,9 +741,9 @@ export default function GearDetailPage() {
                 onPrimary={statsReady ? handoffToSimc : () => void validateStats()}
                 onSlot={(item) => void chooseSlot(item)}
               />
-            </View>
-            <View className={styles['actionsRegion'] ?? ''}><GearActionRow items={actions} /></View>
-            <View className={styles['statusRegion'] ?? ''}><GearStatusDeck items={statusItems} onAction={handleStatusAction} /></View>
+            </RouteRegion>
+            <RouteRegion className={styles['actionsRegion'] ?? ''}><GearActionRow items={actions} /></RouteRegion>
+            <RouteRegion className={styles['statusRegion'] ?? ''}><GearStatusDeck items={statusItems} onAction={handleStatusAction} /></RouteRegion>
           </View>
         </PageFrame>
       </RouteStage>

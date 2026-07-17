@@ -5,6 +5,7 @@ import { wowApi } from '@wow-mini/api-client'
 import { AppShell } from '@wow-mini/design-system/components/AppShell'
 import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
 import { RouteStage } from '@wow-mini/design-system/components/RouteStage'
+import { RouteRegion } from '@wow-mini/design-system/components/RouteFlow'
 import {
   SimulatorComposer,
   SimulatorEvidenceShelf,
@@ -126,7 +127,7 @@ export default function SimulatorHomePage() {
           title="智能分析"
           variant="simulator-home"
         >
-          <View className={styles['guidanceRegion'] ?? ''}>
+          <RouteRegion className={styles['guidanceRegion'] ?? ''}>
             <SimulatorGuidancePanel
               answerSourceLabel={context.answerSourceLabel}
               confidenceLabel={context.confidenceLabel}
@@ -138,17 +139,17 @@ export default function SimulatorHomePage() {
               onManageEvidence={() => setDraft('请列出当前回答引用的证据、缺失输入和限制。')}
               onSuggestion={setDraft}
             />
-          </View>
-          <View className={styles['transcriptRegion'] ?? ''}>
+          </RouteRegion>
+          <RouteRegion className={styles['transcriptRegion'] ?? ''}>
             <SimulatorTranscript messages={messages} inputState={inputState} onRetry={retry} />
-          </View>
-          <View className={styles['evidenceRegion'] ?? ''}>
+          </RouteRegion>
+          <RouteRegion className={styles['evidenceRegion'] ?? ''}>
             <SimulatorEvidenceShelf
               cards={evidenceCards}
               evidenceCount={context.evidenceCount}
               onManageEvidence={() => setDraft('请列出当前回答引用的证据、缺失输入和限制。')}
             />
-          </View>
+          </RouteRegion>
         </PageFrame>
       </RouteStage>
     </AppShell>

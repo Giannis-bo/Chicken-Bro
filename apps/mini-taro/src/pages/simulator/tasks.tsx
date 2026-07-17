@@ -1,11 +1,11 @@
 import { useDidShow } from '@tarojs/taro'
-import { View } from '@tarojs/components'
 import { useMemo, useRef, useState } from 'react'
 
 import { wowApi } from '@wow-mini/api-client'
 import { AppShell } from '@wow-mini/design-system/components/AppShell'
 import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
 import { RouteStage } from '@wow-mini/design-system/components/RouteStage'
+import { RouteRegion } from '@wow-mini/design-system/components/RouteFlow'
 import {
   TaskBottomActions,
   TaskEmptyGuidance,
@@ -105,13 +105,13 @@ export default function TasksPage() {
           variant="tasks-list"
           onBack={() => goBack('/pages/simulator/simulator')}
         >
-          <View className={styles['summaryRegion'] ?? ''}>
+          <RouteRegion className={styles['summaryRegion'] ?? ''}>
             <TaskOverview metrics={metrics} recentDetail={recent.detail} recentTitle={recent.title} />
-          </View>
-          <View className={styles['syncRegion'] ?? ''}>
+          </RouteRegion>
+          <RouteRegion className={styles['syncRegion'] ?? ''}>
             <TaskSyncState state={syncState} title={syncCopy.title} detail={syncCopy.detail} onRetry={route.load} />
-          </View>
-          <View className={styles['filtersRegion'] ?? ''}>
+          </RouteRegion>
+          <RouteRegion className={styles['filtersRegion'] ?? ''}>
             <TaskStatusFilters
               items={filterItems}
               selected={filter}
@@ -119,28 +119,28 @@ export default function TasksPage() {
               onSelect={setFilter}
               onToggleSort={() => setSortOrder((current) => current === 'newest' ? 'oldest' : 'newest')}
             />
-          </View>
-          <View className={styles['listRegion'] ?? ''}>
+          </RouteRegion>
+          <RouteRegion className={styles['listRegion'] ?? ''}>
             <TaskRecordList
               items={visibleTasks}
               loading={initialLoading}
               onSelect={(id) => navigateTo('/pages/simulator/task-detail', { id })}
             />
-          </View>
-          <View className={styles['guidanceRegion'] ?? ''}>
+          </RouteRegion>
+          <RouteRegion className={styles['guidanceRegion'] ?? ''}>
             <TaskEmptyGuidance
               detail={guidanceCopy.detail}
               mode={guidanceMode}
               steps={guidanceSteps}
               title={guidanceCopy.title}
             />
-          </View>
-          <View className={styles['actionsRegion'] ?? ''}>
+          </RouteRegion>
+          <RouteRegion className={styles['actionsRegion'] ?? ''}>
             <TaskBottomActions
               onCreateSimc={() => navigateTo('/pages/simulator/simc', { from: 'tasks' })}
               onOpenWorkbench={() => navigateTo('/pages/builds/workbench', { from: 'tasks' })}
             />
-          </View>
+          </RouteRegion>
         </PageFrame>
       </RouteStage>
     </AppShell>

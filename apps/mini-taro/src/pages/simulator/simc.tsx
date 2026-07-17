@@ -1,11 +1,11 @@
 import Taro, { useRouter } from '@tarojs/taro'
-import { View } from '@tarojs/components'
 import { useEffect, useRef, useState } from 'react'
 
 import { wowApi } from '@wow-mini/api-client'
 import { AppShell } from '@wow-mini/design-system/components/AppShell'
 import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
 import { RouteStage } from '@wow-mini/design-system/components/RouteStage'
+import { RouteRegion } from '@wow-mini/design-system/components/RouteFlow'
 import {
   SimcBlockerPanel,
   SimcCombatConfiguration,
@@ -330,7 +330,7 @@ export default function SimcSubmitPage() {
           variant="simc-submit"
           onBack={() => goBack('/pages/builds/workbench')}
         >
-          <View className={styles['identityRegion'] ?? ''}>
+          <RouteRegion className={styles['identityRegion'] ?? ''}>
             <SimcIdentitySelectors
               loading={loading}
               races={races}
@@ -343,8 +343,8 @@ export default function SimcSubmitPage() {
               }}
               onSpecializationSelect={setSelectedSpecId}
             />
-          </View>
-          <View className={styles['talentRegion'] ?? ''}>
+          </RouteRegion>
+          <RouteRegion className={styles['talentRegion'] ?? ''}>
             <SimcTemplateSlot
               {...talentSlot}
               loading={loading}
@@ -355,8 +355,8 @@ export default function SimcSubmitPage() {
                 invalidateConfirmation()
               }}
             />
-          </View>
-          <View className={styles['gearRegion'] ?? ''}>
+          </RouteRegion>
+          <RouteRegion className={styles['gearRegion'] ?? ''}>
             <SimcTemplateSlot
               {...gearSlot}
               loading={loading}
@@ -367,8 +367,8 @@ export default function SimcSubmitPage() {
                 invalidateConfirmation()
               }}
             />
-          </View>
-          <View className={styles['combatRegion'] ?? ''}>
+          </RouteRegion>
+          <RouteRegion className={styles['combatRegion'] ?? ''}>
             <SimcCombatConfiguration
               buffRules={simcBuffRules}
               durations={durations}
@@ -384,14 +384,14 @@ export default function SimcSubmitPage() {
                 invalidateConfirmation()
               }}
             />
-          </View>
-          <View className={styles['summaryRegion'] ?? ''}>
+          </RouteRegion>
+          <RouteRegion className={styles['summaryRegion'] ?? ''}>
             <SimcPreSubmitSummary items={simcSummaryRows(modelInput)} />
-          </View>
-          <View className={styles['blockerRegion'] ?? ''}>
+          </RouteRegion>
+          <RouteRegion className={styles['blockerRegion'] ?? ''}>
             <SimcBlockerPanel items={simcBlockerRows(modelInput)} />
-          </View>
-          <View className={styles['actionRegion'] ?? ''}>
+          </RouteRegion>
+          <RouteRegion className={styles['actionRegion'] ?? ''}>
             <SimcSubmissionActionBar
               canConfirm={canPrepare}
               canSubmit={confirmation.state === 'ready'}
@@ -405,13 +405,13 @@ export default function SimcSubmitPage() {
               onSubmit={() => void submit()}
               onViewTask={() => navigateTo('/pages/simulator/task-detail', { id: submittedTaskId })}
             />
-          </View>
-          <View className={styles['footerRegion'] ?? ''}>
+          </RouteRegion>
+          <RouteRegion className={styles['footerRegion'] ?? ''}>
             <SimcFooterNotice
               actionLabel={data ? '任务规则' : '重新读取'}
               onAction={data ? () => navigateTo('/pages/simulator/tasks', { from: 'simc-rules' }) : route.load}
             />
-          </View>
+          </RouteRegion>
         </PageFrame>
       </RouteStage>
     </AppShell>

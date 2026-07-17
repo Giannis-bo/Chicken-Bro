@@ -1,11 +1,11 @@
 import Taro, { useDidShow } from '@tarojs/taro'
-import { View } from '@tarojs/components'
 import { useEffect, useRef, useState } from 'react'
 
 import { wowApi } from '@wow-mini/api-client'
 import { AppShell } from '@wow-mini/design-system/components/AppShell'
 import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
 import { RouteStage } from '@wow-mini/design-system/components/RouteStage'
+import { RouteRegion } from '@wow-mini/design-system/components/RouteFlow'
 import {
   ProfileRecentSaves,
   ProfileSettingsList,
@@ -160,7 +160,7 @@ export default function ProfilePage() {
     >
       <RouteStage className={styles['pageFrame'] ?? ''} routeState={route.state.state} targetRegionCount={7} width="full">
         <PageFrame region="page_header" title="我的" variant="profile">
-          <View className={styles['summaryRegion'] ?? ''}>
+          <RouteRegion className={styles['summaryRegion'] ?? ''}>
             <ProfileSummaryPanel
               avatarUrl={view.avatarUrl}
               metrics={view.metrics}
@@ -172,8 +172,8 @@ export default function ProfilePage() {
               onAvatarEdit={(avatarUrl) => void editAvatar(avatarUrl)}
               onEdit={() => void editProfile()}
             />
-          </View>
-          <View className={styles['libraryRegion'] ?? ''}>
+          </RouteRegion>
+          <RouteRegion className={styles['libraryRegion'] ?? ''}>
             <ProfileTemplateLibrary
               items={view.categories}
               onSelect={(id) => navigateTo(
@@ -181,18 +181,18 @@ export default function ProfilePage() {
                 id === 'talent' ? { from: 'profile' } : { from: 'profile', query: 'gear' },
               )}
             />
-          </View>
-          <View className={styles['recentRegion'] ?? ''}>
+          </RouteRegion>
+          <RouteRegion className={styles['recentRegion'] ?? ''}>
             <ProfileRecentSaves
               deletingId={deletingId}
               items={view.recent}
               onDelete={(id) => void deleteTemplate(id)}
               onShowAll={() => void showAllTemplates()}
             />
-          </View>
-          <View className={styles['settingsRegion'] ?? ''}>
+          </RouteRegion>
+          <RouteRegion className={styles['settingsRegion'] ?? ''}>
             <ProfileSettingsList items={view.settings} onSelect={(id) => void openSetting(id)} />
-          </View>
+          </RouteRegion>
         </PageFrame>
       </RouteStage>
     </AppShell>
