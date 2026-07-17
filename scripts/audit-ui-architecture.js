@@ -82,6 +82,40 @@ function sorted(values) {
   return [...values].sort((a, b) => a.localeCompare(b))
 }
 
+function publishedRouteRegionIds(source) {
+  const ast = babelParser.parse(source, { sourceType: 'module', plugins: ['jsx', 'typescript'] })
+  const stringArrays = new Map()
+  const regionValues = []
+  traverse(ast, {
+    VariableDeclarator(variablePath) {
+      if (variablePath.node.id.type !== 'Identifier') return
+      let initializer = variablePath.node.init
+      while (initializer?.type === 'TSAsExpression' || initializer?.type === 'TSSatisfiesExpression') initializer = initializer.expression
+      if (initializer?.type !== 'ArrayExpression') return
+      const values = initializer.elements.map((element) => element?.type === 'StringLiteral' ? element.value : null)
+      if (values.length > 0 && values.every(Boolean)) stringArrays.set(variablePath.node.id.name, values)
+    },
+    JSXOpeningElement(elementPath) {
+      if (elementPath.node.name.type !== 'JSXIdentifier' || elementPath.node.name.name !== 'RouteRegion') return
+      const attribute = elementPath.node.attributes.find((candidate) => (
+        candidate.type === 'JSXAttribute'
+        && candidate.name.type === 'JSXIdentifier'
+        && candidate.name.name === 'data-region'
+      ))
+      if (attribute?.value?.type === 'StringLiteral') {
+        regionValues.push(attribute.value.value)
+        return
+      }
+      if (attribute?.value?.type !== 'JSXExpressionContainer') return
+      const expressionSource = source.slice(attribute.value.expression.start, attribute.value.expression.end)
+      for (const [name, values] of stringArrays) {
+        if (new RegExp(`\\b${name}\\b`, 'u').test(expressionSource)) regionValues.push(...values)
+      }
+    },
+  })
+  return regionValues
+}
+
 const routeSources = walk('apps/mini-taro/src/pages', ['.ts', '.tsx', '.scss'])
 const routeStyles = routeSources.filter((file) => file.endsWith('.scss'))
 const routeComponents = routeSources.filter((file) => file.endsWith('.tsx'))
@@ -364,11 +398,13 @@ const invalidRequiredRegionContracts = (routeGeometryContract.routes ?? []).flat
   const sourcePath = `apps/mini-taro/src/${route.path.split('?')[0].replace(/^\//u, '')}.tsx`
   const sourceExists = fs.existsSync(path.join(root, sourcePath))
   const source = sourceExists ? read(sourcePath) : ''
-  const missing = required.filter((regionId) => !source.includes(regionId))
-  const duplicateCount = required.length - new Set(required).size
-  return required.length >= 3 && sourceExists && missing.length === 0 && duplicateCount === 0
+  const published = sourceExists ? publishedRouteRegionIds(source) : []
+  const missing = required.filter((regionId) => !published.includes(regionId))
+  const unexpected = published.filter((regionId) => !required.includes(regionId))
+  const duplicateCount = required.length - new Set(required).size + published.length - new Set(published).size
+  return required.length >= 3 && sourceExists && missing.length === 0 && unexpected.length === 0 && duplicateCount === 0
     ? []
-    : [`${route.route}:required=${required.length}:missing=${missing.join('|')}:duplicates=${duplicateCount}:source=${sourceExists}`]
+    : [`${route.route}:required=${required.length}:published=${published.length}:missing=${missing.join('|')}:unexpected=${unexpected.join('|')}:duplicates=${duplicateCount}:source=${sourceExists}`]
 })
 record(
   'route_geometry_contract_requires_stable_semantic_region_closure',

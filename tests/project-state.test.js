@@ -564,6 +564,8 @@ test('runtime review regions cannot fall back to positional identities', () => {
   assert.match(audit, /route_regions_have_stable_semantic_ids/)
   assert.match(audit, /unnamedRouteRegions/)
   assert.match(audit, /route_geometry_contract_requires_stable_semantic_region_closure/)
+  assert.match(audit, /publishedRouteRegionIds/)
+  assert.match(audit, /unexpected\.join/)
 })
 
 test('target/runtime region comparison is semantic, bounded and image-free', () => {
