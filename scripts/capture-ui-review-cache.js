@@ -12,6 +12,8 @@ const interactionContract = require('../docs/design/current-ui/core-interaction-
 
 const operationTimeoutMs = 10000
 const settleMs = 700
+const maxCaptureBytes = 8 * 1024 * 1024
+const maxCaptureScale = 4
 
 function selectedRoutes(value) {
   const requested = (value ?? '').split(',').map((item) => item.trim()).filter(Boolean)
@@ -36,6 +38,16 @@ function safeName(value) {
   return value.replace(/[^a-zA-Z0-9._-]+/gu, '-')
 }
 
+function validCaptureBounds(buffer, dimensions, viewport) {
+  return buffer.length > 0
+    && buffer.length <= maxCaptureBytes
+    && dimensions.width >= viewport.width
+    && dimensions.height >= viewport.height
+    && dimensions.width <= viewport.width * maxCaptureScale
+    && dimensions.height <= viewport.height * maxCaptureScale
+    && dimensions.width * viewport.height === dimensions.height * viewport.width
+}
+
 function inspectCachedCapture(capture, viewport) {
   if (!capture?.artifactPath || !fs.existsSync(capture.artifactPath)) return false
   const buffer = fs.readFileSync(capture.artifactPath)
@@ -44,7 +56,7 @@ function inspectCachedCapture(capture, viewport) {
     && capture.width === dimensions.width
     && capture.height === dimensions.height
     && capture.sha256 === crypto.createHash('sha256').update(buffer).digest('hex')
-    && dimensions.width * viewport.height === dimensions.height * viewport.width
+    && validCaptureBounds(buffer, dimensions, viewport)
     && capture.rendererEvidence?.path === capture.path.split('?')[0].replace(/^\//u, '')
     && capture.rendererEvidence?.shellWidth > 0
     && capture.rendererEvidence?.shellHeight > 0
@@ -135,7 +147,7 @@ async function main() {
         await captureWithRetry(miniProgram, artifactPath, route.route)
         const buffer = fs.readFileSync(artifactPath)
         const dimensions = pngSize(buffer)
-        if (dimensions.width * viewport.height !== dimensions.height * viewport.width) throw new Error(`capture viewport aspect mismatch: ${route.route}`)
+        if (!validCaptureBounds(buffer, dimensions, viewport)) throw new Error(`capture exceeds bounded viewport artifact policy: ${route.route}`)
         capturesByRoute.set(route.route, {
           route: route.route,
           path: route.path,
@@ -178,4 +190,4 @@ if (require.main === module) {
   })
 }
 
-module.exports = { captureWithRetry, inspectCachedCapture, inspectRenderer, pngSize, selectedRoutes, writeManifest }
+module.exports = { captureWithRetry, inspectCachedCapture, inspectRenderer, pngSize, selectedRoutes, validCaptureBounds, writeManifest }

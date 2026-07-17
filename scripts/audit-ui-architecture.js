@@ -764,6 +764,14 @@ record(
   'each successful route must checkpoint and failed batches must resume without relaunching DevTools',
 )
 record(
+  'visual_capture_payload_is_bounded_before_cache_or_promotion',
+  /maxCaptureBytes\s*=\s*8 \* 1024 \* 1024/u.test(visualCaptureSource)
+    && /maxCaptureScale\s*=\s*4/u.test(visualCaptureSource)
+    && /validCaptureBounds/u.test(visualCaptureSource)
+    && /validCaptureBounds/u.test(read('scripts/promote-ui-review-cache.js')),
+  'abnormal screenshots must be rejected before they can grow cache, memory or immutable artifacts',
+)
+record(
   'shared_native_buttons_cannot_exceed_their_layout_cell',
   /\.nativeControl\s*\{[^}]*max-width:\s*100%;/su.test(read('packages/design-system/src/components/owners.module.scss')),
   'every native WeChat button must be clamped by its immediate layout cell',

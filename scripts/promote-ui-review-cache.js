@@ -5,7 +5,7 @@ const crypto = require('node:crypto')
 const fs = require('node:fs')
 const path = require('node:path')
 
-const { pngSize } = require('./capture-ui-review-cache')
+const { pngSize, validCaptureBounds } = require('./capture-ui-review-cache')
 const interactionContract = require('../docs/design/current-ui/core-interaction-contract.json')
 
 const repositoryRoot = path.resolve(__dirname, '..')
@@ -39,7 +39,7 @@ function inspectCapture(capture, viewport) {
   const expectedPath = contractRoute?.path.split('?')[0].replace(/^\//u, '')
   if (!contractRoute || capture.path !== contractRoute.path || capture.rendererEvidence?.path !== expectedPath) throw new Error(`cache route identity mismatch: ${capture.route}`)
   if (!(capture.rendererEvidence?.shellWidth > 0 && capture.rendererEvidence?.shellHeight > 0 && capture.rendererEvidence?.regionCount > 0)) throw new Error(`cache renderer evidence is incomplete: ${capture.route}`)
-  if (dimensions.width * viewport.height !== dimensions.height * viewport.width) throw new Error(`cache artifact viewport aspect mismatch: ${capture.route}`)
+  if (!validCaptureBounds(buffer, dimensions, viewport)) throw new Error(`cache artifact exceeds bounded viewport policy: ${capture.route}`)
   return { buffer, dimensions, sha256 }
 }
 
