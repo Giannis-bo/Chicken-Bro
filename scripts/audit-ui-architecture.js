@@ -642,6 +642,18 @@ record(
     && /\.newsDetailTranslationSegment\[data-selected='true'\]/u.test(reconstructionStyles),
   'inactive translation segments must stay flat and only the selected segment may own active material',
 )
+const selectedStateVerifier = read('scripts/verify-ui-selected-states.js')
+const selectedStatePromotion = read('scripts/promote-ui-selected-state-review.js')
+record(
+  'selected_control_evidence_is_explicit_immutable_and_offline_promoted',
+  /SELECTED_STATE_DETAIL_PATH/u.test(selectedStateVerifier)
+    && /wechat-selected-control-detail-v1/u.test(selectedStateVerifier)
+    && /SELECTED_STATE_DETAIL_PATHS is required/u.test(selectedStatePromotion)
+    && /exact selected-control contract/u.test(selectedStatePromotion)
+    && /flag: 'wx'/u.test(selectedStatePromotion)
+    && !/connectMiniProgram|WECHAT_AUTOMATOR_LAUNCH/u.test(selectedStatePromotion),
+  'selected material checks must checkpoint bounded runtime detail and promote an exact content-addressed contract offline',
+)
 record(
   'build_intel_disclaimer_stays_inside_the_wechat_viewport',
   /\.cardViewport\s*\{[^}]*height:\s*498\.75px;/su.test(read('apps/mini-taro/src/pages/builds/build-intel.module.scss')),

@@ -15,7 +15,7 @@
 | 微信三基线的结构几何是否稳定 | `npm run verify:ui-baselines` |
 | 最终微信验收必须记录什么 | `runtime-review-contract.json` |
 | 每条路由必须验证哪个核心交互 | `core-interaction-contract.json` |
-| 哪些按钮组必须保证唯一激活材质 | `selected-control-contract.json`、`npm run verify:ui-selected-states` |
+| 哪些按钮组必须保证唯一激活材质 | `selected-control-contract.json`、`npm run verify:ui-selected-states`、`npm run promote:ui-selected-states` |
 | 14 路由和原生按钮是否越出微信视口 | `route-geometry-contract.json`、`npm run verify:ui-route-geometry` |
 | 如何按语义区域比较 target/runtime 几何 | `runtime-region-mapping-contract.json`、`npm run compare:ui-runtime-regions` |
 | 如何晋级结构化区域差异证据 | `REGION_COMPARISON_PATH=<absolute path> npm run promote:ui-region-comparison` |

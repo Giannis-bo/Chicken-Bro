@@ -2,6 +2,9 @@
 'use strict'
 
 const { connectMiniProgram, timeout } = require('./wechat-automator')
+const { execFileSync } = require('node:child_process')
+const fs = require('node:fs')
+const path = require('node:path')
 const contract = require('../docs/design/current-ui/selected-control-contract.json')
 
 const operationTimeoutMs = 10000
@@ -77,8 +80,10 @@ async function main() {
   const routes = [...new Map(groups.map((group) => [group.route, { route: group.route, path: group.path }])).values()]
   const results = []
   let miniProgram
+  let system
   try {
     miniProgram = await connectMiniProgram()
+    system = await timeout(miniProgram.systemInfo(), 4000, 'read system info')
     for (const route of routes) {
       const page = await open(miniProgram, route)
       for (const group of groups.filter((group) => group.route === route.route)) results.push(await inspectGroup(page, group))
@@ -87,6 +92,24 @@ async function main() {
     if (miniProgram) miniProgram.disconnect()
   }
   const failed = results.filter((result) => result.status === 'fail')
+  const expectedKeys = groups.map((group) => `${group.route}::${group.role}`)
+  const resultKeys = results.map((result) => `${result.route}::${result.role}`)
+  const detail = {
+    schemaVersion: 'wechat-selected-control-detail-v1',
+    commit: execFileSync('git', ['rev-parse', '--short=12', 'HEAD'], { cwd: path.resolve(__dirname, '..'), encoding: 'utf8' }).trim(),
+    viewport: { width: system.windowWidth, height: system.windowHeight, dpr: system.pixelRatio },
+    scope: selectedRoutes.size === 0 ? 'all_contract_groups' : 'selected_routes',
+    coverageMatches: expectedKeys.length === resultKeys.length && expectedKeys.every((key) => resultKeys.includes(key)),
+    results,
+    failures: failed,
+  }
+  if (process.env.SELECTED_STATE_DETAIL_PATH) {
+    const detailPath = path.resolve(process.env.SELECTED_STATE_DETAIL_PATH)
+    fs.mkdirSync(path.dirname(detailPath), { recursive: true })
+    const temporaryPath = `${detailPath}.tmp`
+    fs.writeFileSync(temporaryPath, `${JSON.stringify(detail, null, 2)}\n`)
+    fs.renameSync(temporaryPath, detailPath)
+  }
   console.log(JSON.stringify({
     status: failed.length === 0 ? 'pass' : 'fail',
     checkedGroups: results.length,
@@ -94,6 +117,7 @@ async function main() {
     unavailable: results.filter((result) => result.status === 'unavailable').length,
     failed,
     results,
+    detailPath: process.env.SELECTED_STATE_DETAIL_PATH ? path.resolve(process.env.SELECTED_STATE_DETAIL_PATH) : null,
   }))
   if (failed.length > 0) process.exitCode = 1
 }

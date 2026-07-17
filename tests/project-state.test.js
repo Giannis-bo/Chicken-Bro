@@ -305,8 +305,21 @@ test('selected control verification is bounded and cannot launch DevTools', () =
   assert.match(verifier, /wx-data-selection-material-active/)
   assert.match(verifier, /wx-data-selection-material-inactive/)
   assert.match(verifier, /materialMismatches/)
+  assert.match(verifier, /SELECTED_STATE_DETAIL_PATH/)
+  assert.match(verifier, /wechat-selected-control-detail-v1/)
   assert.match(verifier, /connectMiniProgram/)
   assert.doesNotMatch(verifier, /WECHAT_AUTOMATOR_LAUNCH/)
+})
+
+test('selected control evidence promotion is exact, immutable and content addressed', () => {
+  const promotion = fs.readFileSync('scripts/promote-ui-selected-state-review.js', 'utf8')
+  assert.match(promotion, /SELECTED_STATE_DETAIL_PATHS is required/)
+  assert.match(promotion, /selected control detail commits must match/)
+  assert.match(promotion, /exact selected-control contract/)
+  assert.match(promotion, /materialMismatches/)
+  assert.match(promotion, /createHash\('sha256'\)/)
+  assert.match(promotion, /flag: 'wx'/)
+  assert.doesNotMatch(promotion, /connectMiniProgram|WECHAT_AUTOMATOR_LAUNCH/)
 })
 
 test('native buttons and selected segments have exclusive geometry owners', () => {
