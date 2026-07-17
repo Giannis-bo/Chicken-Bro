@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "status": "active",
   "authority": "docs/plans/ui-reconstruction.md",
   "authoritativeInputs": [
@@ -23,7 +23,6 @@
   "requiredAbsentPaths": [
     "docs/reviews",
     "docs/evidence",
-    "docs/superpowers",
     "apps/design-review"
   ],
   "rules": {
@@ -43,6 +42,7 @@
     "currentUiRecordsUsePortablePaths": true,
     "visibleTextClippingMayRemain": false,
     "threeBaselineWeChatLockRequired": true,
-    "routeScopedWeChatVerificationMayAuthorizeProduction": false
+    "routeScopedWeChatVerificationMayAuthorizeProduction": false,
+    "methodLayerDocumentsMayProveUiVisualCompletion": false
   }
 }
