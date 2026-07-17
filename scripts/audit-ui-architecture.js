@@ -1742,6 +1742,19 @@ record(
     && /\.nativeControl::after\s*\{[^}]*\bborder\s*:\s*0\s*;/su.test(nativeControlStyles),
   'ControlButton must neutralize native width, spacing, minimum height, border, shadow and ::after geometry',
 )
+const componentButtonPseudoChrome = [...componentStyleFiles, 'packages/design-system/src/components/owners.module.scss', 'packages/design-system/src/components/reconstruction.module.scss'].flatMap((file) => (
+  [...read(file).matchAll(/(?<selector>[^{}]+)\{(?<body>[^{}]*)\}/gu)].flatMap((match) => {
+    if (!/(?:\bbutton|Button)::after\b/u.test(match.groups.selector)) return []
+    return /\bdisplay\s*:\s*none\s*;/u.test(match.groups.body) || /\bborder\s*:\s*0\s*;/u.test(match.groups.body)
+      ? []
+      : [`${file}:${match.groups.selector.trim().replace(/\s+/gu, ' ')}`]
+  })
+))
+record(
+  'component_button_pseudo_elements_cannot_restore_native_chrome',
+  componentButtonPseudoChrome.length === 0,
+  componentButtonPseudoChrome.join(', ') || 'all component button ::after rules are neutralized',
+)
 
 const miniAppStyles = read('apps/mini-taro/src/app.scss')
 const taroNativeSelectorByImport = {

@@ -403,6 +403,7 @@ test('native buttons and selected segments have exclusive geometry owners', () =
   assert.match(reconstruction, /\.newsDetailTranslationSegment\[data-selected='true'\] \+ \.newsDetailTranslationSegment::before/)
   assert.doesNotMatch(reconstruction, /\.newsDetailTranslationSegment \+ \.newsDetailTranslationSegment \{[^}]*border-left:/s)
   assert.match(audit, /native_button_owner_neutralizes_wechat_geometry/)
+  assert.match(audit, /component_button_pseudo_elements_cannot_restore_native_chrome/)
   assert.match(audit, /every_native_control_has_stable_geometry_identity/)
   assert.match(audit, /component_native_buttons_cannot_disable_shared_width_clamping/)
   assert.match(audit, /specialized_percentage_regions_fit_the_minimum_layout_viewport/)
