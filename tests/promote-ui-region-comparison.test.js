@@ -14,7 +14,11 @@ function comparison(status = 'PASS') {
     commit: 'a'.repeat(12),
     viewport: { width: 390, height: 844, dpr: 3 },
     tolerance: { positionPx: 8, sizePx: 4 },
-    routes: [{ route: 'news_detail', status, regions: [{ id: 'article_body', status }] }],
+    routes: ['news_detail', 'build_intel', 'tasks_list', 'task_detail'].map((route) => ({
+      route,
+      status,
+      regions: [{ id: `${route}_region`, status }],
+    })),
   }
 }
 
@@ -36,4 +40,19 @@ test('region comparison promotion rejects failed or unversioned evidence', () =>
   const missingCommit = comparison()
   delete missingCommit.commit
   assert.throws(() => inspectComparison(writeFixture(missingCommit)), /commit must be/)
+  const partial = comparison()
+  partial.routes.pop()
+  assert.throws(() => inspectComparison(writeFixture(partial)), /exact mapping contract/)
+})
+
+test('region comparison promotion rejects oversized evidence before reading it', () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'wow-region-promotion-size-'))
+  const file = path.join(directory, 'comparison.json')
+  const descriptor = fs.openSync(file, 'w')
+  try { fs.ftruncateSync(descriptor, (1024 * 1024) + 1) } finally { fs.closeSync(descriptor) }
+  try {
+    assert.throws(() => inspectComparison(file), /bounded byte policy before read/)
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true })
+  }
 })

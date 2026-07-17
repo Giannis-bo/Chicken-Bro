@@ -782,7 +782,9 @@ record(
   'runtime_region_comparison_has_immutable_promotion',
   fs.existsSync(path.join(root, 'scripts/promote-ui-region-comparison.js'))
     && /REGION_COMPARISON_PATH is required/u.test(read('scripts/promote-ui-region-comparison.js'))
-    && /COPYFILE_EXCL/u.test(read('scripts/promote-ui-region-comparison.js'))
+    && /readBoundedFile/u.test(read('scripts/promote-ui-region-comparison.js'))
+    && /writeBoundedFileImmutable/u.test(read('scripts/promote-ui-region-comparison.js'))
+    && /exact mapping contract/u.test(read('scripts/promote-ui-region-comparison.js'))
     && /ui-runtime-reviews/u.test(read('scripts/promote-ui-region-comparison.js')),
   'passing structured comparisons must be content-addressed before becoming review evidence',
 )

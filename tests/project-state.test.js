@@ -580,8 +580,10 @@ test('passing region comparisons require explicit immutable promotion', () => {
   const promotion = fs.readFileSync('scripts/promote-ui-region-comparison.js', 'utf8')
   assert.match(promotion, /REGION_COMPARISON_PATH is required/)
   assert.match(promotion, /only complete passing region comparisons may be promoted/)
+  assert.match(promotion, /exact mapping contract/)
   assert.match(promotion, /ui-runtime-reviews/)
-  assert.match(promotion, /COPYFILE_EXCL/)
+  assert.match(promotion, /readBoundedFile/)
+  assert.match(promotion, /writeBoundedFileImmutable/)
   assert.match(promotion, /sha256/)
 })
 
