@@ -724,6 +724,12 @@ record(
   'each mounted route region id must resolve to exactly one geometry owner',
 )
 record(
+  'task_control_labels_stay_inside_native_button_cells',
+  /\.filterTabs text\s*\{[^}]*max-width:\s*100%;[^}]*overflow:\s*hidden;[^}]*text-overflow:\s*ellipsis;/su.test(taskListStyles)
+    && /\.sortControl text\s*\{[^}]*max-width:\s*100%;[^}]*overflow:\s*hidden;[^}]*text-overflow:\s*ellipsis;/su.test(taskListStyles),
+  'task filter and sort labels must not paint across adjacent native controls',
+)
+record(
   'news_translation_has_one_state_material_owner',
   /\.newsDetailTranslationLabel\s*\{[^}]*border:\s*0;[^}]*background:\s*transparent;[^}]*box-shadow:\s*none;/su.test(reconstructionStyles)
     && /\.newsDetailTranslationSegments\s*\{[^}]*border:\s*0;[^}]*background:\s*transparent;[^}]*box-shadow:\s*none;/su.test(reconstructionStyles)
