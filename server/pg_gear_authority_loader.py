@@ -12,12 +12,17 @@ from typing import Any, Iterable
 
 try:
     from . import gear_socket_authority
+    from .gear_attribute_static_facts import (
+        STATIC_FACT_RULE_REVISION,
+        option_static_facts,
+    )
     from .gear_enhancement_management import (
         project_validated_enhancement_management,
         validated_enhancement_management_fields,
     )
 except ImportError:
     import gear_socket_authority
+    from gear_attribute_static_facts import STATIC_FACT_RULE_REVISION, option_static_facts
     from gear_enhancement_management import (
         project_validated_enhancement_management,
         validated_enhancement_management_fields,
@@ -1053,6 +1058,7 @@ def _project_option(
     requested_option_id: str,
     record: Any,
     evidence: dict[str, dict[str, Any]],
+    eligibility_context: dict[str, Any],
 ) -> dict[str, Any] | None:
     if (
         not isinstance(record, dict)
@@ -1069,6 +1075,7 @@ def _project_option(
     unique_groups = _option_unique_groups(record, payload)
     if len(unique_groups) > 1:
         return None
+    packaged_facts = None
     if "statDeltas" in payload:
         stat_deltas = _authority_stat_map(payload.get("statDeltas"))
         attribute_static_facts_status = "verified"
@@ -1076,10 +1083,19 @@ def _project_option(
         stat_deltas = _authority_stat_map(payload.get("itemStats"))
         attribute_static_facts_status = "verified"
     else:
-        stat_deltas = {}
-        attribute_static_facts_status = _text(payload.get("attributeStaticFactsStatus"))
-        if attribute_static_facts_status not in {"not_applicable"}:
-            attribute_static_facts_status = "unavailable"
+        packaged_facts = option_static_facts(
+            option_type,
+            _json_value(record.get("simcOptions"), {}),
+            eligibility_context,
+        )
+        if packaged_facts is not None:
+            stat_deltas = _authority_stat_map(packaged_facts.get("statDeltas"))
+            attribute_static_facts_status = _text(packaged_facts.get("status"))
+        else:
+            stat_deltas = {}
+            attribute_static_facts_status = _text(payload.get("attributeStaticFactsStatus"))
+            if attribute_static_facts_status not in {"not_applicable"}:
+                attribute_static_facts_status = "unavailable"
     evidence_id = _evidence_id("option", requested_option_id)
     evidence[evidence_id] = {
         "id": evidence_id,
@@ -1087,7 +1103,7 @@ def _project_option(
         "sourceRevision": _text(record.get("updatedAt")),
         "optionId": requested_option_id,
     }
-    return {
+    projected = {
         "optionId": requested_option_id,
         "optionType": option_type,
         "displayName": _text(payload.get("displayName") or record.get("name")),
@@ -1099,6 +1115,13 @@ def _project_option(
         "uniqueLimit": _option_unique_limit(record, payload),
         "sourceRefIds": [evidence_id],
     }
+    if packaged_facts is not None:
+        projected["attributeStaticFactsRevision"] = STATIC_FACT_RULE_REVISION
+        projected["attributeStaticFactsSourceRef"] = _text(packaged_facts.get("sourceRef"))
+        effect_classification = _text(packaged_facts.get("effectClassification"))
+        if effect_classification:
+            projected["attributeEffectClassification"] = effect_classification
+    return projected
 
 
 def _selected_option_ids(intent: dict[str, Any]) -> list[str]:
@@ -1204,6 +1227,7 @@ def build_gear_authority_context_from_rows(
             requested_option_id,
             row[1] if len(row) > 1 else None,
             evidence,
+            intent["eligibilityContext"],
         )
         if option is not None:
             options_by_id[requested_option_id] = option
