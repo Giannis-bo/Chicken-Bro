@@ -285,6 +285,7 @@ const requiredSharedReviewEvidence = [
   'real_wechat_route_geometry',
   'real_wechat_selected_controls',
   'real_wechat_asset_slots',
+  'production_asset_promotion',
   'human_visual_confirmation',
 ]
 const expectedOverallStatus = expectedReviewOverallStatus(reviewRoutes)

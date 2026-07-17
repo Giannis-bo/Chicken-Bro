@@ -641,6 +641,7 @@ test('runtime review control plane separates current gaps from historical immuta
   assert.ok(status.sharedMissingEvidence.includes('real_wechat_selected_controls'))
   assert.ok(status.sharedMissingEvidence.includes('real_wechat_core_interaction'))
   assert.ok(status.sharedMissingEvidence.includes('real_wechat_asset_slots'))
+  assert.ok(status.sharedMissingEvidence.includes('production_asset_promotion'))
   assert.equal(status.historicalRegionComparisons.at(-1).current, false)
   assert.equal(status.historicalAssetSlotReviews.at(-1).current, false)
   assert.ok(status.sharedMissingEvidence.includes('human_visual_confirmation'))
