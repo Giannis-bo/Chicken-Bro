@@ -218,6 +218,20 @@ class GearAttributeRulesTest(unittest.TestCase):
             rulebook["contexts"][0]["secondaryRules"][0]["postConversionModifiers"],
         )
 
+    def test_rulebook_accepts_total_post_conversion_multiplier(self):
+        rulebook = verified_rulebook()
+        rulebook["contexts"][0]["secondaryRules"][0]["postConversionModifiers"] = [
+            {"effectId": "mage:tome_of_antonidas", "operation": "multiply_total", "value": 1.02},
+        ]
+
+        parsed, issues = gear_attribute_rules.validate_attribute_rulebook(rulebook)
+
+        self.assertEqual(issues, [])
+        self.assertEqual(
+            parsed["contexts"][0]["secondaryRules"][0]["postConversionModifiers"][0]["operation"],
+            "multiply_total",
+        )
+
     def test_rulebook_rejects_nonzero_raw_rating_rounding_value(self):
         rulebook = fixture_rulebook()
         rulebook["contexts"][0]["stableModifiers"] = [{

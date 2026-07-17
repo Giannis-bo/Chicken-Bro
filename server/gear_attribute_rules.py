@@ -224,8 +224,8 @@ def _validate_post_conversion_modifiers(raw_modifiers: Any, path: str) -> list[d
             continue
         if _canonical_key(modifier["effectId"]) is None:
             issues.append(_issue("INVALID_RULEBOOK", "INVALID_IDENTIFIER", f"{modifier_path}.effectId", "effectId must be a bounded lower-case identifier"))
-        if modifier["operation"] not in {"add", "multiply"}:
-            issues.append(_issue("INVALID_RULEBOOK", "INVALID_POST_CONVERSION_OPERATION", f"{modifier_path}.operation", "operation must be add or multiply"))
+        if modifier["operation"] not in {"add", "multiply", "multiply_total"}:
+            issues.append(_issue("INVALID_RULEBOOK", "INVALID_POST_CONVERSION_OPERATION", f"{modifier_path}.operation", "operation must be add, multiply or multiply_total"))
         if not _is_finite_number(modifier["value"]):
             issues.append(_issue("INVALID_RULEBOOK", "INVALID_POST_CONVERSION_VALUE", f"{modifier_path}.value", "value must be finite"))
     return issues

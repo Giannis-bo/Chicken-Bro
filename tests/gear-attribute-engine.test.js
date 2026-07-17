@@ -142,6 +142,45 @@ test('post-conversion modifier order is declared by rule, not effect input order
   assert.equal(reversedOrder.secondary[0].convertedValue, '14.6%')
 })
 
+test('post-conversion total multipliers preserve the haste baseline', () => {
+  const fixture = fixtures.cases[0]
+  const rule = structuredClone(fixture.rule)
+  rule.stableModifiers = [
+    { effectId: 'fixture:rating-scale', targetKey: 'haste_rating', operation: 'multiply', value: 1.05 },
+    { effectId: 'fixture:rating-round', targetKey: 'haste_rating', operation: 'round_nearest', value: 0 }
+  ]
+  rule.secondaryRules = [{
+    inputKey: 'haste_rating',
+    outputKey: 'haste',
+    label: '急速',
+    basePercent: 0,
+    ratingPerPercent: 44,
+    postConversionModifiers: [
+      { effectId: 'fixture:haste-total-2', operation: 'multiply_total', value: 1.02 },
+      { effectId: 'fixture:haste-total-3', operation: 'multiply_total', value: 1.03 }
+    ],
+    precision: 6,
+    sourceRefs: ['fixture:total-haste-multipliers'],
+    displayUnit: 'percent'
+  }]
+
+  const result = calculateNonCombatAttributes(
+    rule,
+    fixture.characterContext,
+    { haste_rating: 637 },
+    [
+      { effectId: 'fixture:rating-scale' },
+      { effectId: 'fixture:rating-round' },
+      { effectId: 'fixture:haste-total-2' },
+      { effectId: 'fixture:haste-total-3' }
+    ],
+  )
+
+  assert.equal(result.status, 'calculated')
+  assert.equal(result.secondary[0].rawValue, 669)
+  assert.equal(result.secondary[0].convertedValue, '21.033895%')
+})
+
 test('piecewise curve matches official Frost avoidance sample', () => {
   const fixture = fixtures.cases[0]
   const rule = structuredClone(fixture.rule)

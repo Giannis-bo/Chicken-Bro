@@ -76,6 +76,44 @@ class GearAttributeEngineTest(unittest.TestCase):
         self.assertEqual(declared_order["secondary"][0]["convertedValue"], "14.7%")
         self.assertEqual(reversed_order["secondary"][0]["convertedValue"], "14.6%")
 
+    def test_post_conversion_total_multipliers_preserve_the_haste_baseline(self):
+        fixture = fixture_cases()[0]
+        rule = copy.deepcopy(fixture["rule"])
+        rule["stableModifiers"] = [
+            {"effectId": "fixture:rating-scale", "targetKey": "haste_rating", "operation": "multiply", "value": 1.05},
+            {"effectId": "fixture:rating-round", "targetKey": "haste_rating", "operation": "round_nearest", "value": 0},
+        ]
+        rule["secondaryRules"] = [{
+            "inputKey": "haste_rating",
+            "outputKey": "haste",
+            "label": "急速",
+            "basePercent": 0,
+            "ratingPerPercent": 44,
+            "postConversionModifiers": [
+                {"effectId": "fixture:haste-total-2", "operation": "multiply_total", "value": 1.02},
+                {"effectId": "fixture:haste-total-3", "operation": "multiply_total", "value": 1.03},
+            ],
+            "precision": 6,
+            "sourceRefs": ["fixture:total-haste-multipliers"],
+            "displayUnit": "percent",
+        }]
+
+        result = calculate_noncombat_attributes(
+            rule,
+            fixture["characterContext"],
+            {"haste_rating": 637},
+            [
+                {"effectId": "fixture:rating-scale"},
+                {"effectId": "fixture:rating-round"},
+                {"effectId": "fixture:haste-total-2"},
+                {"effectId": "fixture:haste-total-3"},
+            ],
+        )
+
+        self.assertEqual(result["status"], "calculated")
+        self.assertEqual(result["secondary"][0]["rawValue"], 669)
+        self.assertEqual(result["secondary"][0]["convertedValue"], "21.033895%")
+
     def test_zero_rating_is_visible_and_unknown_stable_effect_is_conditional(self):
         fixture = fixture_cases()[0]
         attributes = {**fixture["staticAttributes"], "mastery_rating": 0}

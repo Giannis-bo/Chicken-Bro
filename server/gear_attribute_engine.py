@@ -289,12 +289,17 @@ def _apply_post_conversion_modifiers(
         effect_id = _bounded_key(modifier.get("effectId"))
         operation = modifier.get("operation")
         value = _number(modifier.get("value"))
-        if effect_id is None or operation not in {"add", "multiply"} or value is None:
+        if effect_id is None or operation not in {"add", "multiply", "multiply_total"} or value is None:
             return None, _issue("INVALID_POST_CONVERSION_MODIFIER", modifier_path, "post-conversion modifiers require effectId, operation and finite value")
         allowed_effects.add(effect_id)
         if effect_id not in active_effects:
             continue
-        converted_value = converted_value + value if operation == "add" else converted_value * value
+        if operation == "add":
+            converted_value += value
+        elif operation == "multiply":
+            converted_value *= value
+        else:
+            converted_value = ((1.0 + converted_value / 100.0) * value - 1.0) * 100.0
     return converted_value, None
 
 

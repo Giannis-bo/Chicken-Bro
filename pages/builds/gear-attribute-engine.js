@@ -278,12 +278,14 @@ function applyPostConversionModifiers(convertedValue, modifiers, effectIds, allo
     }
     const effectId = boundedKey(modifier.effectId)
     const value = finiteNumber(modifier.value)
-    if (!effectId || !['add', 'multiply'].includes(modifier.operation) || value === null) {
+    if (!effectId || !['add', 'multiply', 'multiply_total'].includes(modifier.operation) || value === null) {
       return { issue: issue('INVALID_POST_CONVERSION_MODIFIER', modifierPath, 'post-conversion modifiers require effectId, operation and finite value') }
     }
     allowedEffects.add(effectId)
     if (!activeEffects.has(effectId)) continue
-    convertedValue = modifier.operation === 'add' ? convertedValue + value : convertedValue * value
+    if (modifier.operation === 'add') convertedValue += value
+    else if (modifier.operation === 'multiply') convertedValue *= value
+    else convertedValue = ((1 + convertedValue / 100) * value - 1) * 100
   }
   return { value: convertedValue }
 }
