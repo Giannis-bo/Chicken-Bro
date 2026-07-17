@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "slug": "real-time-gear-stat-engine",
+  "requirementSlug": "real-time-gear-stat-engine",
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
+  "branch": "codex/real-time-gear-stat-engine",
+  "commit": "0bad5a3143784b825915bd64d1cd6afe7b5ae907",
+  "scope": [
+    "winner-driven deterministic attribute-rule audit contract",
+    "PostgreSQL fenced audit ledger and migration 0016",
+    "sealed Release intent, detached read-only official-profile worker and bounded health finding",
+    "deployment unit installation without deploy-starting the audit worker"
+  ],
+  "verification": [
+    {
+      "command": "TDD characterization for pure audit, ledger, Release ordering, worker/source, health and promotion guard",
+      "status": "pass",
+      "summary": "Each new boundary was exercised red before its minimal implementation, including final review fixes for duplicate-gem multiplicity and terminal reason persistence."
+    },
+    {
+      "command": "python3 -m unittest -q tests.attribute_rule_audit_test tests.attribute_rule_audit_store_test tests.attribute_rule_audit_source_test tests.attribute_rule_audit_worker_test tests.attribute_rule_audit_health_test tests.gear_release_refresh_test tests.gear_release_store_test tests.gear_attribute_rules_test tests.gear_attribute_engine_test tests.gear_attribute_api_test tests.news_backend_test tests.postgres_schema_test",
+      "status": "pass",
+      "summary": "377 focused cross-module tests passed; expected existing simulator-task JSON warnings did not fail the suite."
+    },
+    {
+      "command": "node --test tests/deploy-script.test.js tests/project-harness.test.js && python3 -m py_compile server/attribute_rule_audit.py server/attribute_rule_audit_store.py server/attribute_rule_audit_source.py server/attribute_rule_audit_worker.py server/gear_release_refresh.py server/news_backend.py server/gear_attribute_rules.py && git diff --check",
+      "status": "pass",
+      "summary": "29 Node deployment/Harness tests, all touched Python syntax checks, and whitespace validation passed."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-17-real-time-gear-stat-engine --base origin/main",
+      "status": "pass",
+      "summary": "Final full profile passed: Node discovery reported 550 passing tests; Python discovery, compileall, JSON validation, JavaScript syntax, Harness packet check and diff validation all completed successfully."
+    },
+    {
+      "command": "local CR against docs/superpowers/plans/2026-07-17-winner-driven-attribute-rule-audit.md",
+      "status": "pass",
+      "summary": "Review confirmed audit enqueue follows Release sealing and catches failures fail-open; the worker has no SimC dependency; health is bounded and cannot expose profile identity; duplicate gem occurrence and terminal reason retention findings were fixed and retested."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "pending",
+    "requiredBeforeMerge": true,
+    "reason": "Migration, health and systemd changes require one final-head candidate smoke before merge."
+  },
+  "runtimeEvidence": [],
+  "risks": [
+    {
+      "id": "verified_rulebook_absent",
+      "status": "intentional_fail_closed",
+      "detail": "No source-ledger-backed production attribute rulebook exists, so sealed winners record not_applicable and make no official-profile request."
+    },
+    {
+      "id": "candidate_deployment_pending",
+      "status": "open",
+      "detail": "The final code head still needs the controlled PostgreSQL migration, unit and main-path isolation smoke."
+    }
+  ],
+  "rollback": [
+    "code_rollback",
+    "feature_hide"
+  ],
+  "cleanup": {
+    "required": false,
+    "note": "No temporary data, winner, rule or SimC state is created by local verification."
+  },
+  "archivedReferences": [
+    "docs/project-state.json",
+    "docs/roadmap.md",
+    "docs/harness.md",
+    "docs/builds-architecture.md",
+    "docs/gear-simulation-full-chain-runbook.md",
+    "docs/superpowers/specs/2026-07-17-real-time-gear-stat-engine-design.md",
+    "docs/superpowers/specs/2026-07-17-winner-driven-attribute-rule-audit-design.md",
+    "docs/superpowers/plans/2026-07-17-winner-driven-attribute-rule-audit.md"
+  ],
+  "summary": "The implementation keeps the audit entirely off the player attribute path and SimC path. Local verification and CR are complete; one final-head candidate deployment remains before user acceptance and merge closure."
+}

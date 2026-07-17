@@ -416,7 +416,7 @@ User-visible acceptance remains: importing a community template and changing one
 
   Record candidate evidence only after the actual candidate run; do not prefill live values or call a test fixture “official confirmation.”
 
-- [ ] **Step 4: Run final local verification before candidate deployment.**
+- [x] **Step 4: Run final local verification before candidate deployment.**
 
   ```bash
   python3 -m unittest -q \
