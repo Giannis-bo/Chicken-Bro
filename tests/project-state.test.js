@@ -30,7 +30,7 @@ test('project-state is the single machine-readable current truth entry', () => {
   const state = readJson(projectStatePath)
 
   assert.equal(state.schemaVersion, 1)
-  assert.equal(state.updatedAt, '2026-07-17')
+  assert.equal(state.updatedAt, '2026-07-18')
   assert.equal(state.activeMilestone, 'taro_target_first_14_route_rebuild')
   assert.equal(state.featureIteration, 'allowed_under_harness')
   assert.equal(state.activeReleaseArtifact, activeHarnessSuperpowersRelease)
