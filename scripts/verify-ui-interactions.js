@@ -351,10 +351,10 @@ async function main() {
       coverageMatches,
       passed: results.filter((result) => result.status === 'PASS').length,
       unavailable: results.filter((result) => result.status === 'UNAVAILABLE').length,
-      results,
-      failures,
+      failureCount: failures.length,
+      failedRoutes: failures.slice(0, 10).map((result) => result.route),
       detailPath,
-    }, null, 2))
+    }))
     if (failures.length) process.exitCode = 1
   } finally {
     if (miniProgram) miniProgram.disconnect()

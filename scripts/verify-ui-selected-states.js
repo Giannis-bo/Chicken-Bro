@@ -155,8 +155,8 @@ async function main() {
     checkedGroups: results.length,
     passed: results.filter((result) => result.status === 'pass').length,
     unavailable: results.filter((result) => result.status === 'unavailable').length,
-    failed,
-    results,
+    failureCount: failed.length,
+    failedGroups: failed.slice(0, 10).map((result) => `${result.route}::${result.role}`),
     detailPath: process.env.SELECTED_STATE_DETAIL_PATH ? path.resolve(process.env.SELECTED_STATE_DETAIL_PATH) : null,
   }))
   if (failed.length > 0) process.exitCode = 1

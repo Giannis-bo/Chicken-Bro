@@ -77,8 +77,7 @@ async function main() {
       const commit = execFileSync('git', ['rev-parse', '--short=12', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim()
       fs.writeFileSync(detailPath, `${JSON.stringify({ schemaVersion: 'wechat-runtime-asset-slot-review-v1', commit, viewport, routes: results }, null, 2)}\n`)
     }
-    const summaries = results.map(({ semanticMappings: _semanticMappings, failures: routeFailures, ...result }) => ({ ...result, failures: routeFailures.slice(0, 10) }))
-    console.log(JSON.stringify({ status: failures.length === 0 ? 'pass' : 'fail', viewport, checkedRoutes: results.length, visibleElements: results.reduce((sum, result) => sum + result.elementCount, 0), visibleSlots: results.reduce((sum, result) => sum + result.slotCount, 0), missingAssetElements: results.reduce((sum, result) => sum + result.missingAssetElements, 0), failedRoutes: failures.map((result) => result.route), results: summaries, detailPath }))
+    console.log(JSON.stringify({ status: failures.length === 0 ? 'pass' : 'fail', viewport, checkedRoutes: results.length, visibleElements: results.reduce((sum, result) => sum + result.elementCount, 0), visibleSlots: results.reduce((sum, result) => sum + result.slotCount, 0), missingAssetElements: results.reduce((sum, result) => sum + result.missingAssetElements, 0), failureCount: failures.length, failedRoutes: failures.slice(0, 10).map((result) => result.route), detailPath }))
     if (failures.length > 0) process.exitCode = 1
   } finally {
     if (miniProgram) miniProgram.disconnect()

@@ -280,8 +280,8 @@ async function main() {
       checkedRoutes: results.length,
       passed: results.filter((result) => result.status === 'pass').length,
       unavailable: results.filter((result) => result.status === 'unavailable').length,
-      failures,
-      results,
+      failureCount: failures.length,
+      failedRoutes: failures.slice(0, 10).map((result) => result.route),
       detailPath,
     }))
     if (failures.length > 0) process.exitCode = 1

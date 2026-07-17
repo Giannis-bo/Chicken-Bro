@@ -798,6 +798,21 @@ record(
     && /validCaptureBounds/u.test(read('scripts/promote-ui-review-cache.js')),
   'abnormal screenshots must be rejected before they can grow cache, memory or immutable artifacts',
 )
+const runtimeReviewVerifierSources = [
+  'scripts/verify-ui-route-geometry.js',
+  'scripts/verify-ui-interactions.js',
+  'scripts/verify-ui-selected-states.js',
+  'scripts/verify-ui-asset-slots.js',
+].map((file) => ({ file, source: read(file) }))
+const unboundedRuntimeReviewStdout = runtimeReviewVerifierSources.filter(({ source }) => (
+  /console\.log\(JSON\.stringify\(\{[\s\S]*?\n\s*(?:results|failures|failed),\n[\s\S]*?\}\)\)/u.test(source)
+  || !/\.slice\(0, 10\)/u.test(source)
+))
+record(
+  'runtime_review_stdout_is_bounded_to_compact_summaries',
+  unboundedRuntimeReviewStdout.length === 0,
+  unboundedRuntimeReviewStdout.map(({ file }) => file).join(', ') || `verifiers=${runtimeReviewVerifierSources.length}`,
+)
 record(
   'shared_native_buttons_cannot_exceed_their_layout_cell',
   /\.nativeControl\s*\{[^}]*max-width:\s*100%;/su.test(read('packages/design-system/src/components/owners.module.scss')),

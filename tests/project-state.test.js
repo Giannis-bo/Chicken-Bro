@@ -583,7 +583,8 @@ test('runtime asset-slot review is contract-mapped and bounded', () => {
   assert.match(verifier, /no visible asset elements/)
   assert.match(verifier, /no visible runtime slots/)
   assert.match(verifier, /wx-data-asset-missing-true/)
-  assert.match(verifier, /routeFailures\.slice\(0, 10\)/)
+  assert.match(verifier, /failures\.slice\(0, 10\)/)
+  assert.doesNotMatch(verifier, /results:\s*summaries/)
   assert.doesNotMatch(verifier, /WECHAT_AUTOMATOR_LAUNCH/)
 })
 
@@ -698,6 +699,20 @@ test('task terminal controls use the shell content viewport', () => {
   ]) {
     const styles = fs.readFileSync(file, 'utf8')
     assert.match(styles, /\.pageFrame\s*\{[\s\S]*height:\s*calc\(var\(--route-safe-viewport-height\) - var\(--space-12\)\);[\s\S]*min-height:\s*0;/)
+  }
+})
+
+test('runtime review commands keep full results out of stdout', () => {
+  for (const file of [
+    'scripts/verify-ui-route-geometry.js',
+    'scripts/verify-ui-interactions.js',
+    'scripts/verify-ui-selected-states.js',
+    'scripts/verify-ui-asset-slots.js',
+  ]) {
+    const source = fs.readFileSync(file, 'utf8')
+    const stdout = source.match(/console\.log\(JSON\.stringify\(\{[\s\S]*?\}\)\)/)?.[0] ?? ''
+    assert.doesNotMatch(stdout, /\n\s*(?:results|failures|failed),/)
+    assert.match(source, /\.slice\(0, 10\)/)
   }
 })
 
