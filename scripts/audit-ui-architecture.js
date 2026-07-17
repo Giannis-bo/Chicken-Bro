@@ -85,6 +85,7 @@ function sorted(values) {
 const routeSources = walk('apps/mini-taro/src/pages', ['.ts', '.tsx', '.scss'])
 const routeStyles = routeSources.filter((file) => file.endsWith('.scss'))
 const routeComponents = routeSources.filter((file) => file.endsWith('.tsx'))
+const componentStyleFiles = walk('packages/design-system/src/components', ['.module.scss'])
 
 const sharedRouteStylePath = 'apps/mini-taro/src/pages/_shared/routes.module.scss'
 const sharedRouteStyles = read(sharedRouteStylePath)
@@ -706,6 +707,11 @@ record(
   'shared_native_buttons_cannot_exceed_their_layout_cell',
   /\.nativeControl\s*\{[^}]*max-width:\s*100%;/su.test(read('packages/design-system/src/components/owners.module.scss')),
   'every native WeChat button must be clamped by its immediate layout cell',
+)
+record(
+  'component_native_buttons_cannot_disable_shared_width_clamping',
+  !componentStyleFiles.some((file) => /max-width:\s*none;/u.test(read(file))),
+  componentStyleFiles.filter((file) => /max-width:\s*none;/u.test(read(file))).join(', ') || 'none',
 )
 record(
   'dead_route_surface_layout_owners_are_removed',

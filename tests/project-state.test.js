@@ -349,6 +349,7 @@ test('native buttons and selected segments have exclusive geometry owners', () =
   assert.doesNotMatch(reconstruction, /\.newsDetailTranslationSegment \+ \.newsDetailTranslationSegment \{[^}]*border-left:/s)
   assert.match(audit, /native_button_owner_neutralizes_wechat_geometry/)
   assert.match(audit, /every_native_control_has_stable_geometry_identity/)
+  assert.match(audit, /component_native_buttons_cannot_disable_shared_width_clamping/)
   assert.match(audit, /dead_route_surface_layout_owners_are_removed/)
   assert.match(audit, /route_geometry_has_no_native_button_overflow_exemptions/)
   assert.match(audit, /route_geometry_rejects_duplicate_semantic_regions/)

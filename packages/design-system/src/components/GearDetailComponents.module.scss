@@ -402,7 +402,7 @@
   line-height: 9px;
 }
 .workbenchNotice > view { width: 10px; height: 10px; color: #ba9457; }
-.candidateRow { display: grid; width: 100%; min-width: 0; max-width: none; min-height: 52px; grid-template-columns: 32px minmax(0, 1fr); align-items: center; gap: 6px; margin: 0; padding: 4px; overflow: hidden; border: 1px solid rgba(103, 86, 61, 0.62); border-radius: 2px; color: #b5aa98; background: #0e1115; text-align: left; }
+.candidateRow { display: grid; width: 100%; min-width: 0; max-width: 100%; min-height: 52px; grid-template-columns: 32px minmax(0, 1fr); align-items: center; gap: 6px; margin: 0; padding: 4px; overflow: hidden; border: 1px solid rgba(103, 86, 61, 0.62); border-radius: 2px; color: #b5aa98; background: #0e1115; text-align: left; }
 .candidateRow::after { display: none; }
 .candidateRow[data-state='ready'],
 .candidateRow-ready { border-color: rgba(119, 101, 67, 0.82); }
@@ -424,7 +424,7 @@
 .enhancementOptions { display: grid; gap: 3px; margin-top: 3px; padding-top: 4px; border-top: 1px solid rgba(113, 88, 52, 0.45); }
 .enhancementOptionsTitle { color: #b5a78f; font-size: 7px; font-weight: 720; line-height: 10px; }
 .enhancementOptions { grid-column: 1 / -1; }
-.enhancementOption { display: grid; width: 100%; min-width: 0; max-width: none; min-height: 28px; grid-template-columns: 22px minmax(0, 1fr); align-items: center; gap: 5px; margin: 0; padding: 2px 4px; border: 1px solid rgba(96, 80, 57, 0.58); border-radius: 2px; color: #948d82; background: #0d1013; font-size: 6px; line-height: 9px; text-align: left; }
+.enhancementOption { display: grid; width: 100%; min-width: 0; max-width: 100%; min-height: 28px; grid-template-columns: 22px minmax(0, 1fr); align-items: center; gap: 5px; margin: 0; padding: 2px 4px; border: 1px solid rgba(96, 80, 57, 0.58); border-radius: 2px; color: #948d82; background: #0d1013; font-size: 6px; line-height: 9px; text-align: left; }
 .enhancementOption::after { display: none; }
 .enhancementOption[data-active='true'],
 .enhancementOptionActive { border-color: #c99c49; color: #d5c093; background: #211b10; }
