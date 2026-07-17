@@ -485,8 +485,10 @@ button.workflowRow {
 
 .evidenceContentGrid .evidenceItem {
   grid-template-columns: 50px minmax(0, 1fr) 9px;
-  grid-template-rows: auto auto;
+  grid-template-rows: max-content max-content;
+  align-content: center;
   column-gap: 6px;
+  row-gap: 4px;
   padding: 6px 8px;
 }
 
@@ -574,6 +576,10 @@ button.workflowRow {
   align-content: center;
   gap: 1px;
   overflow: hidden;
+}
+
+.evidenceContentGrid .evidenceCopy {
+  gap: 4px;
 }
 
 .evidenceTitle {

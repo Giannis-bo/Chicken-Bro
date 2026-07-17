@@ -82,6 +82,25 @@ async function measure(miniProgram, baseline) {
       }
     })
   }
+  let evidenceTextRhythm = null
+  if (baseline.evidenceTextRhythm) {
+    const [titles, statuses, values, medallions] = await Promise.all([
+      elementGeometries(page, '.wx-style-evidencecontentgrid .wx-style-evidencetitle'),
+      elementGeometries(page, '.wx-style-evidencecontentgrid .wx-style-evidencestatus'),
+      elementGeometries(page, '.wx-style-evidencecontentgrid .wx-style-evidencevalue'),
+      elementGeometries(page, '.wx-style-evidencecontentgrid .wx-style-evidencemedallion'),
+    ])
+    evidenceTextRhythm = titles.map((title, index) => {
+      const status = statuses[index]
+      const value = values[index]
+      const medallion = medallions[index]
+      const titleStatusGap = status ? status.offset.top - title.offset.top - title.size.height : null
+      const statusValueGap = status && value ? value.offset.top - status.offset.top - status.size.height : null
+      const copyCenter = value ? (title.offset.top + value.offset.top + value.size.height) / 2 : null
+      const medallionCenter = medallion ? medallion.offset.top + medallion.size.height / 2 : null
+      return { titleStatusGap, statusValueGap, copyCenter, medallionCenter }
+    })
+  }
   return {
     id: baseline.id,
     path: page.path,
@@ -91,6 +110,7 @@ async function measure(miniProgram, baseline) {
     back: await elementGeometry(page, '.wx-style-pageframebackcontrol'),
     carousel,
     metricAlignment,
+    evidenceTextRhythm,
   }
 }
 
@@ -112,6 +132,13 @@ async function main() {
         headerInset: 0,
         carouselAutoplay: true,
         metricOpticalAlignment: true,
+      },
+      {
+        id: 'builds_home',
+        url: '/pages/builds/builds',
+        chrome: 'root',
+        headerInset: 0,
+        evidenceTextRhythm: true,
       },
       { id: 'simulator_home', url: '/pages/simulator/simulator', chrome: 'root', headerInset: 0 },
       { id: 'news_detail', url: '/pages/news/detail?id=architecture-preflight', chrome: 'pushed', headerInset: 6.77 },
@@ -157,6 +184,20 @@ async function main() {
             }
             if (!closeTo(metric.opticalOffset, 0.75, 0.3)) {
               failures.push(`${baseline.id}: metric ${index + 1} glyph optical correction drifted`)
+            }
+          })
+        }
+      }
+      if (baseline.evidenceTextRhythm) {
+        if (!baseline.evidenceTextRhythm || baseline.evidenceTextRhythm.length !== 4) {
+          failures.push(`${baseline.id}: evidence grid text rhythm evidence is incomplete`)
+        } else {
+          baseline.evidenceTextRhythm.forEach((item, index) => {
+            if (!closeTo(item.titleStatusGap, 4, 0.25) || !closeTo(item.statusValueGap, 4, 0.25)) {
+              failures.push(`${baseline.id}: evidence item ${index + 1} does not use equal three-line spacing`)
+            }
+            if (!closeTo(item.copyCenter, item.medallionCenter, 0.5)) {
+              failures.push(`${baseline.id}: evidence item ${index + 1} copy is not centered with its medallion`)
             }
           })
         }
