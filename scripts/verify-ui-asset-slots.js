@@ -39,6 +39,8 @@ async function inspect(miniProgram, route) {
     return { runtimeSlot, contractSlot: route.runtimeSlots[runtimeSlot] }
   })
   const failures = [
+    ...(elements.length === 0 ? ['no visible asset elements'] : []),
+    ...(observedTokens.length === 0 ? ['no visible runtime slots'] : []),
     ...unknown.map((token) => `unregistered runtime slot ${token}`),
     ...(missingAssetElements ? [`${missingAssetElements} visible asset elements report missing=true`] : []),
   ]

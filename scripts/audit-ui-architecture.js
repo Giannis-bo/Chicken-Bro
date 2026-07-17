@@ -654,6 +654,16 @@ record(
     && !/connectMiniProgram|WECHAT_AUTOMATOR_LAUNCH/u.test(selectedStatePromotion),
   'selected material checks must checkpoint bounded runtime detail and promote an exact content-addressed contract offline',
 )
+const assetSlotVerifier = read('scripts/verify-ui-asset-slots.js')
+const assetSlotPromotion = read('scripts/promote-ui-asset-slot-review.js')
+record(
+  'asset_slot_evidence_rejects_empty_route_false_positives',
+  /no visible asset elements/u.test(assetSlotVerifier)
+    && /no visible runtime slots/u.test(assetSlotVerifier)
+    && /route\.elementCount < 1/u.test(assetSlotPromotion)
+    && /route\.slotCount < 1/u.test(assetSlotPromotion),
+  'a route with no rendered asset elements or slots must fail verification and immutable promotion',
+)
 record(
   'build_intel_disclaimer_stays_inside_the_wechat_viewport',
   /\.cardViewport\s*\{[^}]*height:\s*498\.75px;/su.test(read('apps/mini-taro/src/pages/builds/build-intel.module.scss')),
