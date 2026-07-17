@@ -260,12 +260,16 @@ export interface TaskBottomActionsProps {
 
 export function TaskBottomActions({ onCreateSimc, onOpenWorkbench }: TaskBottomActionsProps) {
   return (
-    <View className={`${styles['bottomActions'] ?? ''} ${styleSelectorClass('taskBottomActions')}`} data-owner="task-bottom-actions">
-      <ControlButton className={styles['bottomActionCool'] ?? ''} data-action-id="create-simc" data-variant="cool" onClick={onCreateSimc}>
+    <View
+      className={`${styles['bottomActions'] ?? ''} ${styleSelectorClass('taskBottomActions')} wx-data-control-cell`}
+      data-control-roles="task-create-simc-action,task-open-workbench-action"
+      data-owner="task-bottom-actions"
+    >
+      <ControlButton className={styles['bottomActionCool'] ?? ''} data-action-id="create-simc" data-role="task-create-simc-action" data-variant="cool" onClick={onCreateSimc}>
         <SystemGlyph assetId="utility-glyph-family.runtime" slotId="asset_slot.tasks-actions" />
         <Text>去 SimC</Text>
       </ControlButton>
-      <ControlButton data-action-id="open-workbench" data-variant="warm" onClick={onOpenWorkbench}>
+      <ControlButton data-action-id="open-workbench" data-role="task-open-workbench-action" data-variant="warm" onClick={onOpenWorkbench}>
         <SystemGlyph assetId="utility-glyph-family.briefcase" slotId="asset_slot.tasks-actions" />
         <Text>工作台</Text>
       </ControlButton>
