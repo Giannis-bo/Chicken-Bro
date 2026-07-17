@@ -619,6 +619,10 @@ test('UI package evidence cannot treat a placeholder remote asset origin as rele
 
 test('runtime review control plane separates current gaps from historical immutable evidence', () => {
   const status = readJson('docs/design/current-ui/runtime-review-status.json')
+  const contract = readJson('docs/design/current-ui/runtime-review-contract.json')
+  assert.equal(contract.schemaVersion, 'wechat-runtime-review-v3')
+  assert.ok(contract.fieldContract.assetSemantics.includes('promotionStatus'))
+  assert.deepEqual(contract.passCriteria.assetPromotionStatuses, ['production_promoted', 'not_applicable_code_native'])
   assert.equal(status.historicalRouteGeometryReviews.at(-1).routeCount, 14)
   assert.equal(status.historicalRouteGeometryReviews.at(-1).violationCount, 0)
   assert.equal(status.historicalRouteGeometryReviews.at(-1).current, false)

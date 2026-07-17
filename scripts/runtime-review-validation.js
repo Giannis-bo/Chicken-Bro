@@ -58,7 +58,9 @@ function isCompletePassRecord(review, contract) {
     && Array.isArray(passRecord.assetSemantics)
     && passRecord.assetSemantics.length > 0
     && passRecord.assetSemantics.every((asset) => (
-      hasFields(asset, contract.fieldContract.assetSemantics) && asset.status === 'PASS'
+      hasFields(asset, contract.fieldContract.assetSemantics)
+      && asset.status === 'PASS'
+      && contract.passCriteria.assetPromotionStatuses.includes(asset.promotionStatus)
     ))
     && Array.isArray(passRecord.p0)
     && passRecord.p0.length === 0

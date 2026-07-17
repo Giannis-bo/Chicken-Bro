@@ -177,6 +177,14 @@ const runtimeReviewContract = JSON.parse(read('docs/design/current-ui/runtime-re
 const runtimeReviewStatus = JSON.parse(read('docs/design/current-ui/runtime-review-status.json'))
 const projectState = JSON.parse(read('docs/project-state.json'))
 const expectedInteractionStatus = expectedInteractionOverallStatus(interactionContract.interactions ?? [])
+record(
+  'runtime_pass_requires_asset_promotion_or_code_native_status',
+  runtimeReviewContract.schemaVersion === 'wechat-runtime-review-v3'
+    && runtimeReviewContract.fieldContract.assetSemantics.includes('promotionStatus')
+    && JSON.stringify(runtimeReviewContract.passCriteria.assetPromotionStatuses) === JSON.stringify(['production_promoted', 'not_applicable_code_native'])
+    && /assetPromotionStatuses\.includes\(asset\.promotionStatus\)/u.test(read('scripts/runtime-review-validation.js')),
+  'candidate or pending runtime assets must not satisfy a route PASS record',
+)
 const expectedInteractionAcceptance = expectedInteractionStatus === 'verified'
   ? 'verified_real_wechat_core_interaction_matrix'
   : expectedInteractionStatus === 'active_failed'

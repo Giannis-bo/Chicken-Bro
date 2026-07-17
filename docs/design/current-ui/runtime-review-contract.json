@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "wechat-runtime-review-v2",
+  "schemaVersion": "wechat-runtime-review-v3",
   "statusPolicy": {
     "allowed": ["PASS", "FAIL", "UNVERIFIED"],
     "passRequiresEveryRequiredField": true,
@@ -31,7 +31,7 @@
     "targetArtifact": ["path", "width", "height", "sha256"],
     "targetMapping": ["scale", "translateX", "translateY", "systemChromeIncluded", "contentOrigin"],
     "regions": ["id", "targetBounds", "runtimeBounds", "delta", "tolerance", "status"],
-    "assetSemantics": ["slotId", "expectedRole", "runtimeRole", "status"],
+    "assetSemantics": ["slotId", "expectedRole", "runtimeRole", "promotionStatus", "status"],
     "collisions": ["statusBar", "capsule", "header", "tabBar", "textClip", "componentOverlap"],
     "interaction": ["name", "precondition", "action", "expected", "actual", "status"],
     "passMetrics": ["p0Count", "p1Count", "systemCollisionPx", "textClipCount", "componentOverlapPx"],
@@ -43,6 +43,7 @@
     "systemCollisionPx": 0,
     "textClipCount": 0,
     "componentOverlapPx": 0,
+    "assetPromotionStatuses": ["production_promoted", "not_applicable_code_native"],
     "majorRegionTolerance": "route target-geometry measurement tolerance, mapped without rounding expansion"
   }
 }
