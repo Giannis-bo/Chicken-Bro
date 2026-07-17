@@ -26,6 +26,12 @@ class AttributeRuleAuditSourceTest(unittest.TestCase):
                     "item": {"id": 250060},
                     "level": {"value": 289},
                     "bonus_list": [6652],
+                    "stats": [
+                        {"type": {"type": "INTELLECT"}, "value": 124, "display": {"display_string": "+124 Intellect"}},
+                        {"type": {"type": "STAMINA"}, "value": 1768, "display": {"display_string": "+1,768 Stamina"}},
+                        {"type": {"type": "HASTE_RATING"}, "value": 109, "display": {"display_string": "+109 Haste"}},
+                        {"type": {"type": "COMBAT_RATING_AVOIDANCE"}, "value": 71, "display": {"display_string": "+71 Avoidance"}},
+                    ],
                     "sockets": [{"item": {"id": 240914}}, {"item": {"id": 240914}}],
                     "enchantments": [{"enchantment_id": 8017}, {"enchantment_id": 8001}],
                 }
@@ -91,6 +97,16 @@ class AttributeRuleAuditSourceTest(unittest.TestCase):
         self.assertEqual(result["profile"]["equipment"][0], {
             "slot": "head", "itemId": "250060", "itemLevel": 289,
             "bonusIds": ["6652"], "gemIds": ["240914", "240914"], "enchantIds": ["8001", "8017"],
+            "staticFacts": {
+                "status": "verified",
+                "values": {
+                    "intellect": 124,
+                    "stamina": 1768,
+                    "haste_rating": 109,
+                    "avoidance_rating": 71,
+                },
+                "unmappedTypes": [],
+            },
         })
         self.assertEqual(result["profile"]["talentLoadout"], {
             "specKey": "arcane",
@@ -119,6 +135,60 @@ class AttributeRuleAuditSourceTest(unittest.TestCase):
         self.assertTrue(any(path.endswith("/statistics") for path, _, _ in calls))
         self.assertTrue(all(kwargs["locale"] == "en_US" for _, _, kwargs in calls))
         self.assertNotIn("secret-token", str(result))
+
+    def test_unknown_official_stat_type_stays_incomplete_without_parsing_display_text(self):
+        profile = {
+            "character_class": {"name": "Mage"},
+            "active_spec": {"name": "Arcane"},
+            "race": {"name": "Night Elf"},
+            "level": 90,
+        }
+        equipment = {
+            "equipped_items": [{
+                "slot": {"type": "HEAD"},
+                "item": {"id": 250060},
+                "level": {"value": 289},
+                "stats": [{
+                    "type": {"type": "UNMAPPED_OFFICIAL_STAT"},
+                    "value": 999,
+                    "display": {"display_string": "+999 Intellect"},
+                }],
+            }],
+        }
+        statistics = {}
+        specializations = {
+            "active_specialization": {"id": 62},
+            "specializations": [{
+                "specialization": {"id": 62},
+                "loadouts": [{
+                    "is_active": True,
+                    "talent_loadout_code": "C4DAMhlVtghLZL4RZzExaQoBY",
+                    "selected_hero_talent_tree": {"name": "Spellslinger"},
+                }],
+            }],
+        }
+
+        def api(path, token, **kwargs):
+            if path.endswith("/equipment"):
+                return equipment
+            if path.endswith("/statistics"):
+                return statistics
+            if path.endswith("/specializations"):
+                return specializations
+            return profile
+
+        with patch("server.attribute_rule_audit_source.get_blizzard_access_token", return_value="secret-token"), patch(
+            "server.attribute_rule_audit_source.blizzard_get", side_effect=api
+        ):
+            result = fetch_official_profile({
+                "region": "eu", "realmSlug": "blackrock", "characterName": "Heated", "locale": "en_GB"
+            })
+
+        self.assertEqual(result["profile"]["equipment"][0]["staticFacts"], {
+            "status": "incomplete",
+            "values": {},
+            "unmappedTypes": ["UNMAPPED_OFFICIAL_STAT"],
+        })
 
     def test_upstream_failure_is_reduced_to_safe_code(self):
         with patch("server.attribute_rule_audit_source.get_blizzard_access_token", side_effect=RuntimeError("token=top-secret")):

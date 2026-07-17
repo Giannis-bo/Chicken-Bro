@@ -28,6 +28,20 @@ _SLOT_KEYS = {
     "MAIN_HAND": "main_hand", "OFF_HAND": "off_hand",
 }
 
+_OFFICIAL_ITEM_STAT_KEYS = {
+    "STRENGTH": "strength",
+    "AGILITY": "agility",
+    "INTELLECT": "intellect",
+    "STAMINA": "stamina",
+    "CRIT_RATING": "crit_rating",
+    "HASTE_RATING": "haste_rating",
+    "MASTERY_RATING": "mastery_rating",
+    "VERSATILITY": "versatility_rating",
+    "COMBAT_RATING_AVOIDANCE": "avoidance_rating",
+    "COMBAT_RATING_LIFESTEAL": "leech_rating",
+    "COMBAT_RATING_SPEED": "speed_rating",
+}
+
 
 def _text(value: Any) -> str:
     return str(value or "").strip()
@@ -66,6 +80,32 @@ def _profile_character(profile: dict[str, Any]) -> dict[str, Any]:
     return character
 
 
+def _normalized_static_facts(item: dict[str, Any]) -> dict[str, Any]:
+    """Preserve typed official item facts; display strings are non-canonical evidence only."""
+    official_stats = item.get("stats")
+    if not isinstance(official_stats, list):
+        return {"status": "unavailable", "values": {}, "unmappedTypes": []}
+    values: dict[str, int | float] = {}
+    unmapped_types: set[str] = set()
+    for stat in official_stats:
+        if not isinstance(stat, dict):
+            unmapped_types.add("OFFICIAL_ITEM_STAT_INVALID")
+            continue
+        stat_type = stat.get("type") if isinstance(stat.get("type"), dict) else {}
+        official_type = _text(stat_type.get("type"))
+        value = _number(stat.get("value"))
+        canonical_key = _OFFICIAL_ITEM_STAT_KEYS.get(official_type)
+        if not canonical_key or value is None:
+            unmapped_types.add(official_type or "OFFICIAL_ITEM_STAT_INVALID")
+            continue
+        values[canonical_key] = values.get(canonical_key, 0) + value
+    return {
+        "status": "verified" if not unmapped_types else "incomplete",
+        "values": values,
+        "unmappedTypes": sorted(unmapped_types),
+    }
+
+
 def _normalized_equipment(payload: dict[str, Any]) -> list[dict[str, Any]]:
     equipment_rows = payload.get("equipped_items") if isinstance(payload.get("equipped_items"), list) else []
     rows: list[dict[str, Any]] = []
@@ -100,6 +140,7 @@ def _normalized_equipment(payload: dict[str, Any]) -> list[dict[str, Any]]:
             "bonusIds": sorted({_text(value) for value in item.get("bonus_list") or [] if _text(value)}),
             "gemIds": gem_ids,
             "enchantIds": enchant_ids,
+            "staticFacts": _normalized_static_facts(item),
         })
     return rows
 

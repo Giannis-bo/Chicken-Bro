@@ -4,8 +4,8 @@
 
 | ruleContext | attributeRuleRevision | status | sourceRefs | goldenSampleIds | owner | lastVerifiedAt | coverage |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `mage:frost:90:dwarf` | — | `blocked_pending_rule_source` | Armory `https://worldofwarcraft.blizzard.com/en-us/character/kr/azshara/%EC%B9%B4%EB%A5%B4%EA%BD%81%EC%8A%A4` and authorized Battle.net Profile API (2026-07-17T09:12:43Z; active loadout rechecked 2026-07-17T09:24:32Z) | `mage-frost-armory-2026-07-17t091243z` (`candidate`) | 装备模拟 | — | 已确认法师/冰霜/矮人/90 级、Spellslinger 活动配置码、15 件实际装备、bonus IDs、宝石/附魔 IDs 与未舍入面板；仍缺可发布的 variant 解析、每项强化数值、稳定被动与天赋效果分类/映射和通用 rating 换算 |
-| `mage:arcane:90:night_elf` | — | `blocked_pending_rule_source` | Armory `https://worldofwarcraft.blizzard.com/en-gb/character/eu/blackrock/Heated` (2026-07-17 captured); authorized Battle.net Profile API (2026-07-17T04:43:43Z; active loadout rechecked 2026-07-17T09:35:57Z); Raider.IO `https://raider.io/api/v1/characters/profile?region=eu&realm=blackrock&name=Heated&fields=gear%2Ctalents%2Cmythic_plus_scores_by_season%3Acurrent` (2026-07-17 captured) | `mage-arcane-armory-2026-07-17t041853z` (`candidate`) | 装备模拟 | — | 官方 API 已确认种族/专精、15 件实际装备、bonus IDs、宝石/附魔 IDs、Spellslinger 活动配置码及未舍入面板；仍无可发布的 variant 解析、所有附魔数值、全种族/专精基础与 rating 换算、稳定与条件效果分类/映射规则 |
+| `mage:frost:90:dwarf` | — | `blocked_pending_rule_source` | Armory `https://worldofwarcraft.blizzard.com/en-us/character/kr/azshara/%EC%B9%B4%EB%A5%B4%EA%BD%81%EC%8A%A4` and authorized Battle.net Profile API (2026-07-17T09:12:43Z; active loadout rechecked 2026-07-17T09:24:32Z) | `mage-frost-armory-2026-07-17t091243z` (`candidate`) | 装备模拟 | — | 已确认法师/冰霜/矮人/90 级、Spellslinger 活动配置码、15 件实际装备、bonus IDs、宝石/附魔 IDs、每件官方 typed item stats 与未舍入面板；仍缺可发布的 variant/宝石解析、稳定被动与天赋效果分类/映射和完整 rating 换算 |
+| `mage:arcane:90:night_elf` | — | `blocked_pending_rule_source` | Armory `https://worldofwarcraft.blizzard.com/en-gb/character/eu/blackrock/Heated` (2026-07-17 captured); authorized Battle.net Profile API (2026-07-17T04:43:43Z; active loadout rechecked 2026-07-17T09:35:57Z); Raider.IO `https://raider.io/api/v1/characters/profile?region=eu&realm=blackrock&name=Heated&fields=gear%2Ctalents%2Cmythic_plus_scores_by_season%3Acurrent` (2026-07-17 captured) | `mage-arcane-armory-2026-07-17t041853z` (`candidate`) | 装备模拟 | — | 官方 API 已确认种族/专精、15 件实际装备、bonus IDs、宝石/附魔 IDs、每件官方 typed item stats、Spellslinger 活动配置码及未舍入面板；仍无可发布的 variant/宝石解析、全强化数值、全种族/专精基础与 rating 换算、稳定与条件效果分类/映射规则 |
 
 ## 2026-07-17 授权候选采集
 
@@ -33,6 +33,14 @@
 - 2026-07-17 的只读生产 PG 核查进一步确认了当前降级的必要性：`7935`、`7963`、`7967`、`7987`、`8041` 等 observed enchant option 虽标记为 `verified`，但 `payload.statDeltas` 均为空，仅保存 `enchant_id`；`8017` 也不在该批可用 option 行中。这里的 `verified` 只表示该选项身份/可用性已观察到，**不**表示它已有可用于属性计算的 canonical 数值，不能把空对象当成零属性。
 - 同一版本的离线 SimC DBC 单槽探针能解释部分现象（奥法头部实例闪避 `71`，`8017` 贡献 `37`，鞋子 `7963` 贡献 `19`，合计恰为英雄榜 `127`），但其它同一候选输入仍与已保存候选静态词条相冲突（例如 `258047` 主手在该 DBC 解析为 `465` 智力，而候选记录的辅助静态来源为 `600`）。因此这些探针只能作为待对账证据；未完成角色实例、附魔、宝石和条件效果的一致解析前，绝不从单项差额反推规则或发布数值。
 - 结论：下一步必须由后端 Resolver/实例事实 owner 产出已解析物品、宝石、附魔与美化的 canonical 静态属性及其来源/条件标记；实时解释器只消费该 sealed 输入。只有两例官方面板的每个原始字段均能重现后，才可把它们从 `candidate` 提升为 `verified`，并发布对应 `attributeCalculator` rule context。
+
+## 2026-07-17 官方实例词条复核（仍未发布）
+
+- Battle.net Profile `equipment` 的每个实际装备行包含结构化 `stats[].type.type` 与 `stats[].value`；它是按角色实例/bonus 后的数值，不是通用 Game Data 的基础物品词条。审计适配器现只保留这个类型和值：`INTELLECT`、`STAMINA`、四种 rating、`VERSATILITY`、闪避、吸血和速度都会归一成 canonical key；任何未知 type 一律标为 `incomplete`，绝不解析本地化 `display_string` 猜数值。
+- 官方结构化词条的两例合计分别为：奥法装备 `1611` 智力、`17991` 耐力、暴击 `523`、急速 `802`、精通 `785`、全能 `305`、闪避 `71`、速度 `55`；冰法装备 `1625` 智力、`18053` 耐力、暴击 `797`、急速 `621`、精通 `1005`、闪避 `303`、吸血 `55`。这已精确解释奥法的装备 raw 急速/精通/速度，以及两例加入官方 gem 后的暴击与部分其它绿字；尚未被 canonical gem/强化规则覆盖的字段继续阻断发布。
+- SimC DBC 的同等级缩放预算与官方静态面板差额相互校验：`7935` 为 `+41` 智力及 `+115` 耐力、`7963` 为 `+19` 闪避及 `+232` 耐力、`8017` 为 `+37` 闪避、`8001` 为 `+111` 闪避、`8031` 为 `+166` 吸血、`7987` 为 `+50` 主属性。这里的值来自受控离线 DBC 公式，且 `8031` 已经由单槽 profile 对照显示 `166` 吸血；它们仍须经过 Resolver option/static-fact owner 才能成为公开计算输入。
+- 先前将 `258047` 的 `600` 智力描述为辅助来源已被更正：当前官方实例 `equipment.stats` 直接返回 `+600 Intellect`、`+1974 Stamina`、`+90 Haste`、`+82 Mastery`。同一角色输入在 SimC DBC 中得到 `465` 智力是尚未解释的离线 DBC/实例解析差异；官方实例值优先，SimC 不能覆盖它，也不能进入实时路径。
+- 奥法当前智力 `2462` 与已确认的静态输入存在一个恰好可由条件天赋 `Brainstorm` 多层 `+1%` 智力解释的差额（含 `Inspired Intellect` 后，已知静态前值 `2345` 的 `5%` 为 `2462.25`）。但官方 Profile 没有封存该瞬时层数，因此这只是拒绝把该面板当作静态规则黄金值的解释，不是允许写入 `+5%` 常驻修正的证据。冰法不存在这一已知差额，但两例都必须逐字段稳定复现后才能 promotion。
 
 ## 录入要求
 
