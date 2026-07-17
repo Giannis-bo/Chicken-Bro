@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-07-17",
+  "updatedAt": "2026-07-18",
   "activeMilestone": "taro_target_first_14_route_rebuild",
   "featureIteration": "allowed_under_harness",
   "activeReleaseArtifact": "artifacts/releases/2026-07-16-harness-superpowers-method-layer",
@@ -302,7 +302,7 @@
       "domain": "ui_delivery",
       "status": "active_unverified",
       "activeContract": "docs/plans/ui-reconstruction.md",
-      "evidence": "docs/design/current-ui/runtime-review-contract.json"
+      "evidence": "docs/design/current-ui/runtime-review-status.json"
     },
     {
       "domain": "pg_read_model_phase4",
@@ -339,6 +339,7 @@
       "status": "active_unverified",
       "routeCount": 14,
       "contract": "docs/design/current-ui/runtime-review-contract.json",
+      "statusLedger": "docs/design/current-ui/runtime-review-status.json",
       "targetRegistry": "docs/design/current-ui/target-registry.json",
       "visualAcceptance": "pending_fresh_real_wechat_evidence"
     },

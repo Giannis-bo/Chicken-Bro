@@ -100,11 +100,20 @@ const interactionContract = JSON.parse(read('docs/design/current-ui/core-interac
 const evidencePolicy = JSON.parse(read('docs/design/current-ui/active-evidence-policy.json'))
 const runtimeReviewContract = JSON.parse(read('docs/design/current-ui/runtime-review-contract.json'))
 const runtimeReviewStatus = JSON.parse(read('docs/design/current-ui/runtime-review-status.json'))
+const projectState = JSON.parse(read('docs/project-state.json'))
 record(
   'runtime_review_records_are_authoritative_inputs',
   ['docs/design/current-ui/runtime-review-contract.json', 'docs/design/current-ui/runtime-review-status.json']
     .every((file) => evidencePolicy.authoritativeInputs?.includes(file)),
   `schemaVersion=${evidencePolicy.schemaVersion}`,
+)
+const uiDeliveryConclusion = projectState.controlPlaneConclusions?.find((item) => item.domain === 'ui_delivery')
+record(
+  'project_state_points_to_runtime_review_status',
+  uiDeliveryConclusion?.status === runtimeReviewStatus.status
+    && uiDeliveryConclusion?.evidence === 'docs/design/current-ui/runtime-review-status.json'
+    && projectState.runtimeBaseline?.uiRuntimeEvidence?.statusLedger === 'docs/design/current-ui/runtime-review-status.json',
+  `status=${uiDeliveryConclusion?.status}; evidence=${uiDeliveryConclusion?.evidence}`,
 )
 record(
   'target_registry_is_active_and_complete',
