@@ -356,6 +356,7 @@ test('native buttons and selected segments have exclusive geometry owners', () =
   assert.match(audit, /route_geometry_has_no_native_button_overflow_exemptions/)
   assert.match(audit, /route_geometry_rejects_duplicate_semantic_regions/)
   assert.match(audit, /task_control_labels_stay_inside_native_button_cells/)
+  assert.match(audit, /build_intel_disclaimer_copy_stays_inside_terminal_region/)
   assert.match(audit, /selected_segment_material_owns_both_boundaries/)
   assert.match(audit, /selected_segments_exclusively_own_their_edge_material/)
 })

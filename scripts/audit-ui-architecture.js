@@ -794,6 +794,11 @@ record(
   'task filter and sort labels must not paint across adjacent native controls',
 )
 record(
+  'build_intel_disclaimer_copy_stays_inside_terminal_region',
+  /\.disclaimerContent > text\s*\{[^}]*max-width:\s*100%;[^}]*overflow:\s*hidden;[^}]*text-overflow:\s*ellipsis;/su.test(buildIntelStyles),
+  'build intel source disclaimer must not paint outside its initial safe-area region',
+)
+record(
   'news_translation_has_one_state_material_owner',
   /\.newsDetailTranslationLabel\s*\{[^}]*border:\s*0;[^}]*background:\s*transparent;[^}]*box-shadow:\s*none;/su.test(reconstructionStyles)
     && /\.newsDetailTranslationSegments\s*\{[^}]*border:\s*0;[^}]*background:\s*transparent;[^}]*box-shadow:\s*none;/su.test(reconstructionStyles)

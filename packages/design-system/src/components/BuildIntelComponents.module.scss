@@ -616,7 +616,8 @@ button.secondaryAction {
 
 .disclaimerContent > text {
   min-width: 0;
-  overflow: visible;
-  text-overflow: clip;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
