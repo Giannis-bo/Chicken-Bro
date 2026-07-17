@@ -96,6 +96,7 @@ record(
 )
 
 const targetRegistry = JSON.parse(read('docs/design/current-ui/target-registry.json'))
+const interactionContract = JSON.parse(read('docs/design/current-ui/core-interaction-contract.json'))
 const evidencePolicy = JSON.parse(read('docs/design/current-ui/active-evidence-policy.json'))
 record(
   'target_registry_is_active_and_complete',
@@ -107,6 +108,23 @@ record(
   JSON.stringify(targetRegistry.baselineRoutes) === JSON.stringify(expectedBaselineRoutes),
   `baselines=${(targetRegistry.baselineRoutes ?? []).join(',')}`,
 )
+const targetRouteIds = sorted(targetRegistry.canonicalTargets.map((target) => target.route))
+const interactionRouteIds = sorted((interactionContract.interactions ?? []).map((interaction) => interaction.route))
+record(
+  'core_interaction_contract_covers_all_target_routes',
+  interactionContract.status === 'active_unverified'
+    && JSON.stringify(interactionRouteIds) === JSON.stringify(targetRouteIds),
+  `interactions=${interactionRouteIds.length}`,
+)
+for (const interaction of interactionContract.interactions ?? []) {
+  const sourceExists = typeof interaction.source === 'string' && fs.existsSync(path.join(root, interaction.source))
+  const marker = `${interaction.selectorAttribute}="${interaction.selectorValue}"`
+  record(
+    `interaction_selector:${interaction.route}`,
+    sourceExists && read(interaction.source).includes(marker),
+    sourceExists ? marker : `missing source ${interaction.source}`,
+  )
+}
 
 const currentPlanFiles = sorted(fs.readdirSync(path.join(root, 'docs/plans')).filter((name) => fs.statSync(path.join(root, 'docs/plans', name)).isFile()))
 record(

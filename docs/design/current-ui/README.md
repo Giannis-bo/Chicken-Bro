@@ -14,6 +14,7 @@
 | 共享架构是否仍满足 14 路由合同 | `npm run audit:ui-architecture` |
 | 微信三基线的结构几何是否稳定 | `npm run verify:ui-baselines` |
 | 最终微信验收必须记录什么 | `runtime-review-contract.json` |
+| 每条路由必须验证哪个核心交互 | `core-interaction-contract.json` |
 
 `artifacts/ui-visual-targets/current/` 保存 canonical target 本体。目录存在、源码可编译、DOM/AX 元素存在和单元测试通过只证明对应工程事实；视觉状态由 target/runtime 微信复核决定。
 
