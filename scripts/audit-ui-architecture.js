@@ -162,6 +162,7 @@ record(
   interactionExecutor.includes("require('../docs/design/current-ui/core-interaction-contract.json')")
     && interactionExecutor.includes('contractDefinition(')
     && interactionExecutor.includes('contractPath(')
+    && interactionExecutor.includes('contractSelector(')
     && interactionExecutor.includes('coverageMatches')
     && !/output:\s*\{\s*route:/u.test(interactionExecutor)
     && !/open\(miniProgram,\s*['"]\/pages/u.test(interactionExecutor),

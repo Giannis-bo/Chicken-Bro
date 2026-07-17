@@ -21,6 +21,15 @@ function contractPath(route) {
   return interaction.path
 }
 
+function contractSelector(route) {
+  const interaction = coreInteractionContract.interactions.find((candidate) => candidate.route === route)
+  if (!interaction) throw new Error(`missing core interaction contract for ${route}`)
+  if (!/^[a-z][a-z\d-]*$/u.test(interaction.selectorAttribute) || !/^[a-z\d-]+$/u.test(interaction.selectorValue)) {
+    throw new Error(`invalid core interaction selector for ${route}`)
+  }
+  return `.wx-${interaction.selectorAttribute}-${interaction.selectorValue}`
+}
+
 async function settle(milliseconds = 650) {
   await new Promise((resolve) => setTimeout(resolve, milliseconds))
 }
@@ -71,7 +80,7 @@ async function main() {
       (actual) => actual === 'pages/news/list',
     ), async () => {
       const page = await open(miniProgram, contractPath('news_home'))
-      const metrics = await timeout(page.$$('.wx-data-role-news-home-metric'), operationTimeoutMs, 'query news metrics')
+      const metrics = await timeout(page.$$(contractSelector('news_home')), operationTimeoutMs, 'query news metrics')
       const available = (await Promise.all(metrics.map(async (element) => ({ element, available: await element.attribute('data-available') })))).find((item) => item.available !== 'false')
       if (!available) throw new Error('no available news metric')
       await available.element.tap()
@@ -81,21 +90,21 @@ async function main() {
 
     await runCase(results, contractDefinition('specialization_home/builds_home',
       (actual) => actual === 'pages/builds/workbench',
-    ), async () => tapAndReadPath(miniProgram, await open(miniProgram, contractPath('specialization_home/builds_home')), '.wx-data-role-build-workspace-action'))
+    ), async () => tapAndReadPath(miniProgram, await open(miniProgram, contractPath('specialization_home/builds_home')), contractSelector('specialization_home/builds_home')))
 
     await runCase(results, contractDefinition('current_spec_workbench',
       (actual) => typeof actual === 'string' && actual !== 'pages/builds/workbench',
-    ), async () => tapAndReadPath(miniProgram, await open(miniProgram, contractPath('current_spec_workbench')), '.wx-data-role-workbench-module-card'))
+    ), async () => tapAndReadPath(miniProgram, await open(miniProgram, contractPath('current_spec_workbench')), contractSelector('current_spec_workbench')))
 
     await runCase(results, contractDefinition('news_list',
       (actual) => actual === 'changed',
     ), async () => {
       const page = await open(miniProgram, contractPath('news_list'))
-      let sort = await requiredElement(page, '.wx-data-role-news-list-sort')
+      let sort = await requiredElement(page, contractSelector('news_list'))
       const before = await sort.attribute('data-sort-direction')
       await sort.tap()
       await settle()
-      sort = await requiredElement(page, '.wx-data-role-news-list-sort')
+      sort = await requiredElement(page, contractSelector('news_list'))
       return before !== await sort.attribute('data-sort-direction') ? 'changed' : 'unchanged'
     })
 
@@ -103,24 +112,24 @@ async function main() {
       (actual) => actual === 'collapsed',
     ), async () => {
       const page = await open(miniProgram, contractPath('news_detail'))
-      await (await requiredElement(page, '.wx-data-role-news-detail-evidence-toggle')).tap()
+      await (await requiredElement(page, contractSelector('news_detail'))).tap()
       await settle()
       return await page.$('.wx-data-role-news-detail-evidence-body') ? 'expanded' : 'collapsed'
     })
 
     await runCase(results, contractDefinition('build_intel',
       (actual) => actual === 'pages/builds/talent-simulator',
-    ), async () => tapAndReadPath(miniProgram, await open(miniProgram, contractPath('build_intel')), '.wx-data-role-build-intel-primary-action'))
+    ), async () => tapAndReadPath(miniProgram, await open(miniProgram, contractPath('build_intel')), contractSelector('build_intel')))
 
     await runCase(results, contractDefinition('talent_simulator',
       (actual) => actual === 'active',
     ), async () => {
       const page = await open(miniProgram, contractPath('talent_simulator'))
-      const tabs = await timeout(page.$$('.wx-data-role-talent-tree-tab'), operationTimeoutMs, 'query talent tabs')
+      const tabs = await timeout(page.$$(contractSelector('talent_simulator')), operationTimeoutMs, 'query talent tabs')
       if (tabs.length < 2) throw new Error('fewer than two talent tabs')
       await tabs[1].tap()
       await settle()
-      const refreshed = await timeout(page.$$('.wx-data-role-talent-tree-tab'), operationTimeoutMs, 'refresh talent tabs')
+      const refreshed = await timeout(page.$$(contractSelector('talent_simulator')), operationTimeoutMs, 'refresh talent tabs')
       return await refreshed[1].attribute('data-active') === 'true' ? 'active' : 'inactive'
     })
 
@@ -128,7 +137,7 @@ async function main() {
       (actual) => typeof actual === 'string' && actual.length > 0,
     ), async () => {
       const page = await open(miniProgram, contractPath('gear_detail'))
-      await (await requiredElement(page, '.wx-data-role-gear-slot-row')).tap()
+      await (await requiredElement(page, contractSelector('gear_detail'))).tap()
       await settle()
       return (await requiredElement(page, '.wx-data-role-gear-candidate-count')).text()
     })
@@ -137,14 +146,14 @@ async function main() {
       (actual) => typeof actual === 'string' && actual.includes('证据'),
     ), async () => {
       const page = await open(miniProgram, contractPath('simulator_home'))
-      await (await requiredElement(page, '.wx-data-action-id-manage-evidence')).tap()
+      await (await requiredElement(page, contractSelector('simulator_home'))).tap()
       await settle()
       return (await requiredElement(page, '.wx-style-simulatorPrompt')).value()
     })
 
     await runCase(results, contractDefinition('SimC_submit',
       (actual) => actual === 'pages/simulator/tasks',
-    ), async () => tapAndReadPath(miniProgram, await open(miniProgram, contractPath('SimC_submit')), '.wx-data-action-id-submission-records'))
+    ), async () => tapAndReadPath(miniProgram, await open(miniProgram, contractPath('SimC_submit')), contractSelector('SimC_submit')))
 
     await runCase(results, contractDefinition('chickenbro_chat',
       (actual) => actual === '',
@@ -152,7 +161,7 @@ async function main() {
       const page = await open(miniProgram, contractPath('chickenbro_chat'))
       const prompt = await requiredElement(page, '.wx-data-action-id-prompt')
       await prompt.input('运行态复核草稿')
-      await (await requiredElement(page, '.wx-data-action-id-new-topic')).tap()
+      await (await requiredElement(page, contractSelector('chickenbro_chat'))).tap()
       await settle()
       return (await requiredElement(page, '.wx-data-action-id-prompt')).value()
     })
@@ -161,21 +170,21 @@ async function main() {
       (actual) => actual === 'changed',
     ), async () => {
       const page = await open(miniProgram, contractPath('tasks_list'))
-      let sort = await requiredElement(page, '.wx-data-action-id-toggle-sort')
+      let sort = await requiredElement(page, contractSelector('tasks_list'))
       const before = await sort.text()
       await sort.tap()
       await settle()
-      sort = await requiredElement(page, '.wx-data-action-id-toggle-sort')
+      sort = await requiredElement(page, contractSelector('tasks_list'))
       return before !== await sort.text() ? 'changed' : 'unchanged'
     })
 
     await runCase(results, contractDefinition('task_detail',
       (actual) => actual === 'pages/simulator/task-detail',
-    ), async () => tapAndReadPath(miniProgram, await open(miniProgram, contractPath('task_detail')), '.wx-data-action-id-refresh-task'))
+    ), async () => tapAndReadPath(miniProgram, await open(miniProgram, contractPath('task_detail')), contractSelector('task_detail')))
 
     await runCase(results, contractDefinition('profile/templates',
       (actual) => actual === 'pages/builds/talent-simulator',
-    ), async () => tapAndReadPath(miniProgram, await open(miniProgram, contractPath('profile/templates')), '.wx-data-role-profile-category-card'))
+    ), async () => tapAndReadPath(miniProgram, await open(miniProgram, contractPath('profile/templates')), contractSelector('profile/templates')))
 
     const resultRoutes = results.map((result) => result.route).sort()
     const contractRoutes = coreInteractionContract.interactions.map((interaction) => interaction.route).sort()
