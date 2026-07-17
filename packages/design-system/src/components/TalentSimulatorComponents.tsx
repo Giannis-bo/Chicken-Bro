@@ -204,7 +204,7 @@ export function TalentTreeTabs({
       data-owner="talent-tree-tabs"
       data-slot-id="asset_slot.talent-tab-frame"
     >
-      {items.map((item) => {
+      {items.map((item, index) => {
         const active = item.id === activeId
         return (
           <ControlButton
@@ -215,6 +215,7 @@ export function TalentTreeTabs({
               (loading || item.disabled === true) && componentStyle('tabDisabled'),
             )}
             data-active={active ? 'true' : 'false'}
+            data-leading-boundary={active ? 'active' : index > 0 && items[index - 1]?.id === activeId ? 'suppressed' : 'inactive'}
             data-selection-material={active ? 'active' : 'inactive'}
             data-role="talent-tree-tab"
             disabled={loading || item.disabled === true}

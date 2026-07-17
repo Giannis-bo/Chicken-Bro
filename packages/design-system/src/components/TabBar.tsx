@@ -42,8 +42,9 @@ export function TabBar({ currentPath, items, onSelect }: TabBarProps) {
         )}
         data-role="product-tab-list"
       >
-        {items.map((item) => {
+        {items.map((item, index) => {
           const selected = normalizePath(item.pagePath) === normalizedCurrent
+          const previousSelected = index > 0 && normalizePath(items[index - 1]?.pagePath ?? '') === normalizedCurrent
 
           return (
             <View
@@ -57,6 +58,7 @@ export function TabBar({ currentPath, items, onSelect }: TabBarProps) {
               aria-label={item.label}
               aria-current={selected ? 'page' : undefined}
               data-role="product-tab-item"
+              data-leading-boundary={selected ? 'active' : previousSelected ? 'suppressed' : 'inactive'}
               data-selection-material={selected ? 'active' : 'inactive'}
               data-selected={selected ? 'true' : 'false'}
               data-state={selected ? 'active' : 'inactive'}

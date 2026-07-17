@@ -22,7 +22,7 @@ function readDetails(value) {
 
 function combineDetails(details) {
   const first = details[0]
-  if (details.some((detail) => detail.schemaVersion !== 'wechat-selected-control-detail-v2')) throw new Error('unsupported selected control detail schema')
+  if (details.some((detail) => detail.schemaVersion !== 'wechat-selected-control-detail-v3')) throw new Error('unsupported selected control detail schema')
   if (first.contractSha256 !== contractSha256 || details.some((detail) => detail.contractSha256 !== contractSha256)) throw new Error('selected control detail contract SHA-256 is stale or mismatched')
   if (!/^[a-f\d]{12}$/u.test(first.commit ?? '') || details.some((detail) => detail.commit !== first.commit)) throw new Error('selected control detail commits must match')
   const viewportKey = JSON.stringify(first.viewport)
@@ -41,6 +41,7 @@ function combineDetails(details) {
       result.status === 'pass'
       && result.materialMismatches === 0
       && result.visualMaterialDistinct === true
+      && result.boundaryMismatches === 0
       && (result.controls < 2 || (result.materialStyles?.active && result.materialStyles?.inactive))
       && result.active >= result.expected.activeAtLeast
       && result.active <= result.expected.activeAtMost
@@ -51,7 +52,7 @@ function combineDetails(details) {
 
   const byKey = new Map(results.map((result) => [key(result), result]))
   return {
-    schemaVersion: 'wechat-selected-control-evidence-v2',
+    schemaVersion: 'wechat-selected-control-evidence-v3',
     contractSha256,
     commit: first.commit,
     viewport: first.viewport,

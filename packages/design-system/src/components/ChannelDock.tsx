@@ -121,6 +121,7 @@ export function ChannelDock({
               loading && reconstructionStyle('channelCellLoading'),
             )}
             data-role="channel-segment"
+            data-leading-boundary={selected ? 'active' : index > 0 && visibleItems[index - 1]?.id === activeId ? 'suppressed' : 'inactive'}
             data-selection-material={selected ? 'active' : 'inactive'}
             data-selected={selected ? 'true' : 'false'}
             onClick={() => !loading && onSelect?.(item)}

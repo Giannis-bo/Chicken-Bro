@@ -633,11 +633,15 @@ const selectedStateOwners = [
 const selectedGroupKeys = selectedControlContract.groups?.map((group) => `${group.route}:${group.role}`) ?? []
 record(
   'selected_control_contract_has_unique_bounded_groups',
-  selectedControlContract.status === 'active'
+  selectedControlContract.schemaVersion === 3
+    && selectedControlContract.status === 'active'
+    && selectedControlContract.materialOwnership.boundaryAttribute === 'data-leading-boundary'
+    && JSON.stringify(selectedControlContract.materialOwnership.boundaryValues) === JSON.stringify(['active', 'suppressed', 'inactive'])
     && selectedGroupKeys.length >= 10
     && new Set(selectedGroupKeys).size === selectedGroupKeys.length
     && selectedControlContract.groups.every((group) => (
       ['selected', 'active'].includes(group.state)
+      && ['contiguous', 'isolated'].includes(group.boundaryMode)
       && Number.isInteger(group.minimumControls) && group.minimumControls >= 0
       && Number.isInteger(group.minimumActive) && group.minimumActive >= 0
       && Number.isInteger(group.maximumActive) && group.maximumActive === 1
@@ -645,6 +649,15 @@ record(
       && interactionContract.interactions.some((interaction) => interaction.route === group.route && interaction.path === group.path)
     )),
   `groups=${selectedGroupKeys.length}`,
+)
+const contiguousSelectedGroups = selectedControlContract.groups.filter((group) => group.boundaryMode === 'contiguous')
+record(
+  'contiguous_selected_controls_publish_boundary_ownership',
+  contiguousSelectedGroups.length >= 5
+    && contiguousSelectedGroups.every((group) => selectedStateOwners
+      .filter(([, role]) => role === group.role)
+      .some(([file]) => read(file).includes('data-leading-boundary='))),
+  `contiguousGroups=${contiguousSelectedGroups.length}`,
 )
 record(
   'selected_controls_have_stable_group_roles',
@@ -870,11 +883,13 @@ const selectedStatePromotion = read('scripts/promote-ui-selected-state-review.js
 record(
   'selected_control_evidence_is_explicit_immutable_and_offline_promoted',
   /SELECTED_STATE_DETAIL_PATH/u.test(selectedStateVerifier)
-    && /wechat-selected-control-detail-v2/u.test(selectedStateVerifier)
+    && /wechat-selected-control-detail-v3/u.test(selectedStateVerifier)
     && /visualMaterialDistinct/u.test(selectedStateVerifier)
+    && /boundaryMismatches/u.test(selectedStateVerifier)
     && /border-left-color/u.test(selectedStateVerifier)
     && /SELECTED_STATE_DETAIL_PATHS is required/u.test(selectedStatePromotion)
     && /exact selected-control contract/u.test(selectedStatePromotion)
+    && /boundaryMismatches === 0/u.test(selectedStatePromotion)
     && /flag: 'wx'/u.test(selectedStatePromotion)
     && !/connectMiniProgram|WECHAT_AUTOMATOR_LAUNCH/u.test(selectedStatePromotion),
   'selected material checks must checkpoint bounded runtime detail and promote an exact content-addressed contract offline',

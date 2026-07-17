@@ -21,6 +21,10 @@ function selectedGroups() {
   return contract.groups.filter((group) => selectedRoutes.has(group.route))
 }
 
+function expectedBoundarySequence(controlStates) {
+  return controlStates.map((value, index) => value === 'true' ? 'active' : controlStates[index - 1] === 'true' ? 'suppressed' : 'inactive')
+}
+
 async function settle(milliseconds = 650) {
   await new Promise((resolve) => setTimeout(resolve, milliseconds))
 }
@@ -73,6 +77,14 @@ async function inspectGroup(page, group) {
   ])
   const visualMaterialDistinct = controls.length < 2
     || Boolean(activeMaterialStyle && inactiveMaterialStyle && JSON.stringify(activeMaterialStyle) !== JSON.stringify(inactiveMaterialStyle))
+  const controlStates = await Promise.all(controls.map((element) => timeout(element.attribute(`data-${group.state}`), 1500, `read ${group.role} state`)))
+  const leadingBoundaries = group.boundaryMode === 'contiguous'
+    ? await Promise.all(controls.map((element) => timeout(element.attribute(contract.materialOwnership.boundaryAttribute), 1500, `read ${group.role} leading boundary`)))
+    : []
+  const expectedLeadingBoundaries = group.boundaryMode === 'contiguous'
+    ? expectedBoundarySequence(controlStates)
+    : []
+  const boundaryMismatches = leadingBoundaries.filter((value, index) => value !== expectedLeadingBoundaries[index]).length
   const pass = controls.length >= group.minimumControls
     && active.length >= group.minimumActive
     && active.length <= group.maximumActive
@@ -82,6 +94,7 @@ async function inspectGroup(page, group) {
     && activeWithInactiveMaterial.length === 0
     && inactiveWithActiveMaterial.length === 0
     && visualMaterialDistinct
+    && boundaryMismatches === 0
   return {
     route: group.route,
     role: group.role,
@@ -92,6 +105,10 @@ async function inspectGroup(page, group) {
     materialOwners: { active: materialActive.length, inactive: materialInactive.length },
     materialMismatches: activeWithInactiveMaterial.length + inactiveWithActiveMaterial.length,
     visualMaterialDistinct,
+    boundaryMode: group.boundaryMode,
+    leadingBoundaries,
+    expectedLeadingBoundaries,
+    boundaryMismatches,
     materialStyles: { active: activeMaterialStyle, inactive: inactiveMaterialStyle },
     expected: { controlsAtLeast: group.minimumControls, activeAtLeast: group.minimumActive, activeAtMost: group.maximumActive },
   }
@@ -117,7 +134,7 @@ async function main() {
   const expectedKeys = groups.map((group) => `${group.route}::${group.role}`)
   const resultKeys = results.map((result) => `${result.route}::${result.role}`)
   const detail = {
-    schemaVersion: 'wechat-selected-control-detail-v2',
+    schemaVersion: 'wechat-selected-control-detail-v3',
     contractSha256,
     commit: execFileSync('git', ['rev-parse', '--short=12', 'HEAD'], { cwd: path.resolve(__dirname, '..'), encoding: 'utf8' }).trim(),
     viewport: { width: system.windowWidth, height: system.windowHeight, dpr: system.pixelRatio },
@@ -152,4 +169,4 @@ if (require.main === module) {
   })
 }
 
-module.exports = { selectedGroups }
+module.exports = { expectedBoundarySequence, selectedGroups }

@@ -111,11 +111,12 @@ export function TaskStatusFilters({ items, selected, sortLabel, onSelect, onTogg
   return (
     <View className={`${styles['filters'] ?? ''} ${styleSelectorClass('taskStatusFilters')}`} data-owner="task-status-filters">
       <View className={styles['filterTabs'] ?? ''}>
-        {items.map((item) => (
+        {items.map((item, index) => (
           <ControlButton
             key={item.id}
             className={`${selected === item.id ? styles['filterSelected'] ?? '' : ''} ${styleSelectorClass(`taskFilter${item.id}`)} ${selected === item.id ? styleSelectorClass('taskFilterSelected') : ''}`}
             data-filter-id={item.id}
+            data-leading-boundary={selected === item.id ? 'active' : index > 0 && items[index - 1]?.id === selected ? 'suppressed' : 'inactive'}
             data-role="task-status-filter"
             data-selection-material={selected === item.id ? 'active' : 'inactive'}
             data-selected={selected === item.id ? 'true' : 'false'}
