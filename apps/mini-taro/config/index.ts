@@ -5,7 +5,9 @@ import { defineConfig } from '@tarojs/cli'
 const appRoot = path.resolve(__dirname, '..')
 const repositoryRoot = path.resolve(appRoot, '../..')
 const target = process.env['TARO_ENV'] === 'h5' ? 'h5' : 'weapp'
-const outputRoot = `dist/${target}`
+const configuredOutputRoot = process.env['WOW_TARO_OUTPUT_ROOT']?.trim()
+const outputRoot = configuredOutputRoot || `dist/${target}`
+const isolatedBuild = process.env['WOW_TARO_ISOLATED_BUILD'] === '1'
 const configuredAssetRuntimeRoot = process.env['WOW_ASSET_RUNTIME_ROOT']?.trim() ?? ''
 if (configuredAssetRuntimeRoot && !/^https:\/\/[^/?#\s]+(?:\/[^?#\s]*)?$/iu.test(configuredAssetRuntimeRoot)) {
   throw new Error('WOW_ASSET_RUNTIME_ROOT must be an HTTPS URL')
@@ -35,7 +37,7 @@ export default defineConfig<'webpack5'>({
     },
   },
   cache: {
-    enable: true,
+    enable: !isolatedBuild,
   },
   defineConstants: {
     __WOW_ASSET_RUNTIME_ROOT__: JSON.stringify(configuredAssetRuntimeRoot || '/assets/ui-v2'),
