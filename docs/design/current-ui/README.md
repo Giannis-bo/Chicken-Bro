@@ -24,7 +24,7 @@
 
 架构审计与几何预检不是视觉通过。缺少 target/runtime 像素复核时，路由状态仍为 `UNVERIFIED`。
 
-14 路由的当前结论只记录在 `runtime-review-status.json`。该文件必须与 target registry、核心交互合同和 route contract 根目录一致；没有微信运行态 artifact、区域差异和人工视觉确认时，不得把任何路由标为 `PASS`。
+14 路由的当前结论只记录在 `runtime-review-status.json`。该文件必须与 target registry、核心交互合同和 route contract 根目录一致；没有带 hash 的微信运行态 artifact、全部通过的区域与素材语义差异、零 P0/P1/碰撞/裁切/重叠指标、真实核心交互结果和具名人工确认时，不得把任何路由标为 `PASS`。
 
 ## 运行素材根
 

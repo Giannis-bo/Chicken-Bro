@@ -18,6 +18,8 @@
     "assetSemantics",
     "collisions",
     "interaction",
+    "passMetrics",
+    "humanConfirmation",
     "p0",
     "p1",
     "p2",
@@ -31,7 +33,9 @@
     "regions": ["id", "targetBounds", "runtimeBounds", "delta", "tolerance", "status"],
     "assetSemantics": ["slotId", "expectedRole", "runtimeRole", "status"],
     "collisions": ["statusBar", "capsule", "header", "tabBar", "textClip", "componentOverlap"],
-    "interaction": ["name", "precondition", "action", "expected", "actual", "status"]
+    "interaction": ["name", "precondition", "action", "expected", "actual", "status"],
+    "passMetrics": ["p0Count", "p1Count", "systemCollisionPx", "textClipCount", "componentOverlapPx"],
+    "humanConfirmation": ["reviewer", "confirmedAt", "status"]
   },
   "passCriteria": {
     "p0Count": 0,
