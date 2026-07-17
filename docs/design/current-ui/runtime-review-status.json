@@ -4,8 +4,10 @@
   "sharedMissingEvidence": [
     "wechat_runtime_artifact",
     "target_runtime_region_comparison",
+    "real_wechat_core_interaction",
     "real_wechat_route_geometry",
     "real_wechat_selected_controls",
+    "real_wechat_asset_slots",
     "human_visual_confirmation"
   ],
   "historicalRouteGeometryReviews": [
@@ -23,7 +25,7 @@
       "path": "artifacts/ui-runtime-reviews/b67be415751e/390x844@3/geometry/afb8df11cb1740f59d265a60f81aed5e58060dd5ca21b63a6f17015f3e67eed6.json"
     }
   ],
-  "observedCoreInteractionReviews": [
+  "historicalCoreInteractionReviews": [
     {
       "commit": "b8d01d20a1ab",
       "viewport": { "width": 390, "height": 844, "dpr": 3 },
@@ -32,6 +34,8 @@
       "unavailable": 1,
       "failed": 0,
       "status": "PASS_WITH_CONTRACT_UNAVAILABLE",
+      "current": false,
+      "supersededReason": "runtime UI source changed after the captured commit",
       "sha256": "abf32769ccce1d030cf41dcb1ef91764a444a63f216066caaf0ff3b4aae408f0",
       "path": "artifacts/ui-runtime-reviews/b8d01d20a1ab/390x844@3/interactions/abf32769ccce1d030cf41dcb1ef91764a444a63f216066caaf0ff3b4aae408f0.json"
     }
@@ -51,18 +55,20 @@
       "path": "artifacts/ui-runtime-reviews/cee4032427a8/390x844@3/selected-controls/78a242097caef4d59ddaaedc4a5f2be5c0f94dd976fd787671afce57c55291c8.json"
     }
   ],
-  "observedRegionComparisons": [
+  "historicalRegionComparisons": [
     {
       "commit": "93f0cbd6d065",
       "viewport": { "width": 390, "height": 844, "dpr": 3 },
       "routes": ["news_detail", "build_intel", "tasks_list", "task_detail"],
       "regionCount": 26,
       "status": "PASS",
+      "current": false,
+      "supersededReason": "route geometry contract and runtime UI source changed after the compared commit",
       "sha256": "859ba24b561e350861af4ebd02202f032a8a027644a97a4c1a3e685da6eb39ff",
       "path": "artifacts/ui-runtime-reviews/93f0cbd6d065/390x844@3/comparisons/859ba24b561e350861af4ebd02202f032a8a027644a97a4c1a3e685da6eb39ff.json"
     }
   ],
-  "observedAssetSlotReviews": [
+  "historicalAssetSlotReviews": [
     {
       "commit": "16e4da777937",
       "viewport": { "width": 390, "height": 844, "dpr": 3 },
@@ -71,6 +77,8 @@
       "visibleSlots": 145,
       "missingAssetElements": 0,
       "status": "PASS",
+      "current": false,
+      "supersededReason": "runtime frame bindings and asset identity publication changed after the captured commit",
       "sha256": "e75fb966f80c2a688f33dba5f234aa84cdab6b58ada1714c246c727491c8fc16",
       "path": "artifacts/ui-runtime-reviews/16e4da777937/390x844@3/asset-slots/e75fb966f80c2a688f33dba5f234aa84cdab6b58ada1714c246c727491c8fc16.json"
     }

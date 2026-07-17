@@ -217,6 +217,7 @@ const requiredSharedReviewEvidence = [
   'real_wechat_core_interaction',
   'real_wechat_route_geometry',
   'real_wechat_selected_controls',
+  'real_wechat_asset_slots',
   'human_visual_confirmation',
 ]
 const expectedOverallStatus = expectedReviewOverallStatus(reviewRoutes)
@@ -236,7 +237,7 @@ record(
 const nonVisualReviewCollections = [
   ['route_geometry', runtimeReviewStatus.observedRouteGeometryReviews],
   ['historical_route_geometry', runtimeReviewStatus.historicalRouteGeometryReviews],
-  ['core_interaction', runtimeReviewStatus.observedCoreInteractionReviews],
+  ['historical_core_interaction', runtimeReviewStatus.historicalCoreInteractionReviews],
   ['selected_control', runtimeReviewStatus.observedSelectedControlReviews],
   ['historical_selected_control', runtimeReviewStatus.historicalSelectedControlReviews],
 ]
@@ -255,7 +256,7 @@ for (const [kind, reviews] of nonVisualReviewCollections) {
     )
   }
 }
-for (const observed of runtimeReviewStatus.observedRegionComparisons ?? []) {
+for (const observed of runtimeReviewStatus.historicalRegionComparisons ?? []) {
   const comparisonPath = path.join(root, observed.path ?? '')
   const exists = fs.existsSync(comparisonPath)
   const actualSha = exists ? crypto.createHash('sha256').update(fs.readFileSync(comparisonPath)).digest('hex') : null
@@ -263,7 +264,9 @@ for (const observed of runtimeReviewStatus.observedRegionComparisons ?? []) {
   const comparisonRoutes = comparison?.routes?.map((route) => route.route) ?? []
   record(
     `observed_region_comparison_is_content_addressed:${observed.commit}`,
-    exists
+      observed.current === false
+      && typeof observed.supersededReason === 'string'
+      && exists
       && observed.path.includes(observed.sha256)
       && actualSha === observed.sha256
       && comparison?.commit === observed.commit
@@ -274,7 +277,7 @@ for (const observed of runtimeReviewStatus.observedRegionComparisons ?? []) {
     `artifact=${exists}; sha=${actualSha === observed.sha256}; routes=${comparisonRoutes.length}`,
   )
 }
-for (const observed of runtimeReviewStatus.observedAssetSlotReviews ?? []) {
+for (const observed of runtimeReviewStatus.historicalAssetSlotReviews ?? []) {
   const evidencePath = path.join(root, observed.path ?? '')
   const exists = fs.existsSync(evidencePath)
   const actualSha = exists ? crypto.createHash('sha256').update(fs.readFileSync(evidencePath)).digest('hex') : null
@@ -282,7 +285,9 @@ for (const observed of runtimeReviewStatus.observedAssetSlotReviews ?? []) {
   const routeNames = evidence?.routes?.map((route) => route.route) ?? []
   record(
     `observed_asset_slot_review_is_content_addressed:${observed.commit}`,
-    exists
+    observed.current === false
+      && typeof observed.supersededReason === 'string'
+      && exists
       && observed.path.includes(observed.sha256)
       && actualSha === observed.sha256
       && evidence?.schemaVersion === 'wechat-runtime-asset-slot-evidence-v1'
