@@ -94,6 +94,41 @@ class GearAttributeEngineTest(unittest.TestCase):
             [{"effectId": "fixture:not-allowed", "included": False, "reason": "UNSUPPORTED_STABLE_EFFECT"}],
         )
 
+    def test_stable_raw_rating_rounding_happens_before_percent_conversion(self):
+        fixture = fixture_cases()[0]
+        rule = copy.deepcopy(fixture["rule"])
+        rule["stableModifiers"] = [
+            {"effectId": "fixture:haste-scale", "targetKey": "haste_rating", "operation": "multiply", "value": 1.05},
+            {"effectId": "fixture:haste-round", "targetKey": "haste_rating", "operation": "round_nearest", "value": 0},
+        ]
+        rule["secondaryRules"] = [{
+            "inputKey": "haste_rating",
+            "outputKey": "haste",
+            "label": "急速",
+            "basePercent": 0,
+            "ratingPerPercent": 44,
+            "precision": 6,
+            "sourceRefs": ["fixture:stable-rating-rounding"],
+            "displayUnit": "percent",
+        }]
+
+        result = calculate_noncombat_attributes(
+            rule,
+            fixture["characterContext"],
+            {"haste_rating": 637},
+            [{"effectId": "fixture:haste-scale"}, {"effectId": "fixture:haste-round"}],
+        )
+
+        self.assertEqual(result["status"], "calculated")
+        self.assertEqual(result["secondary"], [{
+            "key": "haste",
+            "label": "急速",
+            "rawValue": 669,
+            "value": "669",
+            "convertedValue": "15.204545%",
+            "displayUnit": "percent",
+        }])
+
     def test_piecewise_curve_matches_official_frost_avoidance_sample(self):
         fixture = fixture_cases()[0]
         rule = copy.deepcopy(fixture["rule"])

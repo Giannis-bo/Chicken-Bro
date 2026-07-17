@@ -47,6 +47,7 @@ _SECONDARY_RULE_REQUIRED_KEYS = {
 }
 _SECONDARY_RULE_CONVERSION_KEYS = {"ratingPerPercent", "ratingTransform"}
 _POST_CONVERSION_MODIFIER_KEYS = {"effectId", "operation", "value"}
+_STABLE_MODIFIER_KEYS = {"effectId", "targetKey", "operation", "value"}
 _SECONDARY_RULE_OPTIONAL_KEYS = {"postConversionModifiers"}
 _SECONDARY_RULE_KEYS = _SECONDARY_RULE_REQUIRED_KEYS | _SECONDARY_RULE_CONVERSION_KEYS | _SECONDARY_RULE_OPTIONAL_KEYS
 _RATING_TRANSFORM_KEYS = {"kind", "ratingPerPercent", "points", "outOfRange"}
@@ -227,6 +228,36 @@ def _validate_post_conversion_modifiers(raw_modifiers: Any, path: str) -> list[d
             issues.append(_issue("INVALID_RULEBOOK", "INVALID_POST_CONVERSION_OPERATION", f"{modifier_path}.operation", "operation must be add or multiply"))
         if not _is_finite_number(modifier["value"]):
             issues.append(_issue("INVALID_RULEBOOK", "INVALID_POST_CONVERSION_VALUE", f"{modifier_path}.value", "value must be finite"))
+    return issues
+
+
+def _validate_stable_modifiers(raw_modifiers: Any, path: str) -> list[dict[str, str]]:
+    if not isinstance(raw_modifiers, list):
+        return [_issue("INVALID_RULEBOOK", "INVALID_STABLE_MODIFIERS", path, "stableModifiers must be an ordered list")]
+
+    issues: list[dict[str, str]] = []
+    for index, modifier in enumerate(raw_modifiers):
+        modifier_path = f"{path}[{index}]"
+        if not isinstance(modifier, dict):
+            issues.append(_issue("INVALID_RULEBOOK", "INVALID_STABLE_MODIFIER", modifier_path, "stable modifiers must be objects"))
+            continue
+        for key in sorted(set(modifier) - _STABLE_MODIFIER_KEYS):
+            issues.append(_issue("INVALID_RULEBOOK", "UNKNOWN_FIELD", f"{modifier_path}.{key}", "unknown stable modifier field"))
+        for key in sorted(_STABLE_MODIFIER_KEYS - set(modifier)):
+            issues.append(_issue("INVALID_RULEBOOK", "MISSING_REQUIRED_FIELD", f"{modifier_path}.{key}", "required stable modifier field is missing"))
+        if set(modifier) != _STABLE_MODIFIER_KEYS:
+            continue
+        if _canonical_key(modifier["effectId"]) is None:
+            issues.append(_issue("INVALID_RULEBOOK", "INVALID_IDENTIFIER", f"{modifier_path}.effectId", "effectId must be a bounded lower-case identifier"))
+        if _canonical_key(modifier["targetKey"]) is None:
+            issues.append(_issue("INVALID_RULEBOOK", "INVALID_IDENTIFIER", f"{modifier_path}.targetKey", "targetKey must be a bounded lower-case identifier"))
+        operation = modifier["operation"]
+        if operation not in {"add", "multiply", "round_nearest"}:
+            issues.append(_issue("INVALID_RULEBOOK", "INVALID_STABLE_MODIFIER", f"{modifier_path}.operation", "operation must be add, multiply or round_nearest"))
+        if not _is_finite_number(modifier["value"]):
+            issues.append(_issue("INVALID_RULEBOOK", "INVALID_STABLE_MODIFIER", f"{modifier_path}.value", "value must be finite"))
+        elif operation == "round_nearest" and modifier["value"] != 0:
+            issues.append(_issue("INVALID_RULEBOOK", "INVALID_STABLE_MODIFIER", f"{modifier_path}.value", "round_nearest requires value 0"))
     return issues
 
 
@@ -484,8 +515,7 @@ def _validate_rulebook_context(context: Any, index: int) -> list[dict[str, str]]
             if _canonical_key(attribute_key) is None or not _is_number(value):
                 issues.append(_issue("INVALID_RULEBOOK", "INVALID_BASE_ATTRIBUTE", f"{path}.baseAttributes.{attribute_key}", "base attributes require lower-case keys and numeric values"))
 
-    if not isinstance(context["stableModifiers"], list):
-        issues.append(_issue("INVALID_RULEBOOK", "INVALID_STABLE_MODIFIERS", f"{path}.stableModifiers", "stableModifiers must be an ordered list"))
+    issues.extend(_validate_stable_modifiers(context["stableModifiers"], f"{path}.stableModifiers"))
     if not isinstance(context["resources"], dict):
         issues.append(_issue("INVALID_RULEBOOK", "INVALID_RESOURCES", f"{path}.resources", "resources must be an object"))
 

@@ -218,6 +218,20 @@ class GearAttributeRulesTest(unittest.TestCase):
             rulebook["contexts"][0]["secondaryRules"][0]["postConversionModifiers"],
         )
 
+    def test_rulebook_rejects_nonzero_raw_rating_rounding_value(self):
+        rulebook = fixture_rulebook()
+        rulebook["contexts"][0]["stableModifiers"] = [{
+            "effectId": "fixture:haste-round",
+            "targetKey": "haste_rating",
+            "operation": "round_nearest",
+            "value": 1,
+        }]
+
+        parsed, issues = gear_attribute_rules.validate_attribute_rulebook(rulebook)
+
+        self.assertIsNone(parsed)
+        self.assertTrue(any(issue["code"] == "INVALID_STABLE_MODIFIER" for issue in issues))
+
     def test_rulebook_rejects_duplicate_secondary_output_keys(self):
         duplicate = fixture_rulebook()
         duplicate["contexts"][0]["secondaryRules"][1]["outputKey"] = "crit"

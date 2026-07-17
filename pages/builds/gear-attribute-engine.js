@@ -167,13 +167,15 @@ function applyStableModifiers(attributes, modifiers, effectIds) {
     const effectId = boundedKey(modifier.effectId)
     const targetKey = boundedKey(modifier.targetKey)
     const value = finiteNumber(modifier.value)
-    if (!effectId || !targetKey || !['add', 'multiply'].includes(modifier.operation) || value === null) {
+    if (!effectId || !targetKey || !['add', 'multiply', 'round_nearest'].includes(modifier.operation) || value === null || (modifier.operation === 'round_nearest' && value !== 0)) {
       return { issue: issue('INVALID_STABLE_MODIFIER', path, 'stable modifier requires effectId, targetKey, operation and finite value') }
     }
     allowedEffects.add(effectId)
     if (!activeEffects.has(effectId)) continue
     const current = attributes[targetKey] || 0
-    attributes[targetKey] = modifier.operation === 'add' ? current + value : current * value
+    if (modifier.operation === 'add') attributes[targetKey] = current + value
+    else if (modifier.operation === 'multiply') attributes[targetKey] = current * value
+    else attributes[targetKey] = Math.floor(current + 0.5)
   }
   return {
     value: {

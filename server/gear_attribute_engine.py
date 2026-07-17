@@ -176,13 +176,24 @@ def _apply_stable_modifiers(
         target_key = _bounded_key(modifier.get("targetKey"))
         operation = modifier.get("operation")
         value = _number(modifier.get("value"))
-        if effect_id is None or target_key is None or operation not in {"add", "multiply"} or value is None:
+        if (
+            effect_id is None
+            or target_key is None
+            or operation not in {"add", "multiply", "round_nearest"}
+            or value is None
+            or (operation == "round_nearest" and value != 0)
+        ):
             return None, set(), _issue("INVALID_STABLE_MODIFIER", path, "stable modifier requires effectId, targetKey, operation and finite value")
         allowed_effects.add(effect_id)
         if effect_id not in active_effects:
             continue
         current = attributes.get(target_key, 0.0)
-        attributes[target_key] = current + value if operation == "add" else current * value
+        if operation == "add":
+            attributes[target_key] = current + value
+        elif operation == "multiply":
+            attributes[target_key] = current * value
+        else:
+            attributes[target_key] = float(math.floor(current + 0.5))
 
     return attributes, allowed_effects, None
 

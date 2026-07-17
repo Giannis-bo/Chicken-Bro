@@ -75,6 +75,42 @@ test('pre-conversion stable modifiers retain their target key contract', () => {
   assert.equal(result.primary.rawValue, 3000)
 })
 
+test('stable raw rating rounding happens before percent conversion', () => {
+  const fixture = fixtures.cases[0]
+  const rule = structuredClone(fixture.rule)
+  rule.stableModifiers = [
+    { effectId: 'fixture:haste-scale', targetKey: 'haste_rating', operation: 'multiply', value: 1.05 },
+    { effectId: 'fixture:haste-round', targetKey: 'haste_rating', operation: 'round_nearest', value: 0 }
+  ]
+  rule.secondaryRules = [{
+    inputKey: 'haste_rating',
+    outputKey: 'haste',
+    label: '急速',
+    basePercent: 0,
+    ratingPerPercent: 44,
+    precision: 6,
+    sourceRefs: ['fixture:stable-rating-rounding'],
+    displayUnit: 'percent'
+  }]
+
+  const result = calculateNonCombatAttributes(
+    rule,
+    fixture.characterContext,
+    { haste_rating: 637 },
+    [{ effectId: 'fixture:haste-scale' }, { effectId: 'fixture:haste-round' }],
+  )
+
+  assert.equal(result.status, 'calculated')
+  assert.deepEqual(result.secondary, [{
+    key: 'haste',
+    label: '急速',
+    rawValue: 669,
+    value: '669',
+    convertedValue: '15.204545%',
+    displayUnit: 'percent'
+  }])
+})
+
 test('post-conversion modifier order is declared by rule, not effect input order', () => {
   const fixture = fixtures.cases[0]
   const rule = structuredClone(fixture.rule)
