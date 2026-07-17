@@ -1,10 +1,13 @@
 'use strict'
 
 const assert = require('node:assert/strict')
+const fs = require('node:fs')
+const os = require('node:os')
+const path = require('node:path')
 const test = require('node:test')
 
 const contract = require('../docs/design/current-ui/runtime-asset-slot-mapping-contract.json')
-const { combineDetails } = require('../scripts/promote-ui-asset-slot-review')
+const { combineDetails, readDetails } = require('../scripts/promote-ui-asset-slot-review')
 
 function routeDetail(route) {
   return { route, status: 'pass', elementCount: 1, assetElementCount: 1, slotCount: 1, missingAssetElements: 0, missingPromotionStatusElements: 0, materialOwnerElementCount: 0, invalidMaterialOwnerElements: 0, materialOwnerCounts: { asset: 0, css: 0 }, promotionCounts: { production_promoted: 0, candidate_pending_review: 1, missing: 0 }, semanticMappings: [{ runtimeSlot: 'asset_slot.test', contractSlot: 'shared:asset_slot.utility-glyph-family' }], failures: [] }
@@ -39,4 +42,20 @@ test('asset-slot promotion rejects repeated, mismatched or failing batches', () 
   invalidOwner[0].routes[0].materialOwnerElementCount = 1
   invalidOwner[0].routes[0].invalidMaterialOwnerElements = 1
   assert.throws(() => combineDetails(invalidOwner), /only complete passing/)
+})
+
+test('asset-slot promotion rejects oversized detail before loading JSON', () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'wow-asset-slot-detail-bound-'))
+  const detailPath = path.join(directory, 'oversized.json')
+  const descriptor = fs.openSync(detailPath, 'w')
+  try {
+    fs.ftruncateSync(descriptor, 1024 * 1024 + 1)
+  } finally {
+    fs.closeSync(descriptor)
+  }
+  try {
+    assert.throws(() => readDetails(detailPath), /bounded byte policy before read/)
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true })
+  }
 })

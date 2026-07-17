@@ -587,6 +587,8 @@ test('runtime asset-slot review is contract-mapped and bounded', () => {
   assert.equal(contract.routes.length, 14)
   assert.match(verifier, /ASSET_SLOT_ROUTES/)
   assert.match(verifier, /ASSET_SLOT_DETAIL_PATH/)
+  assert.match(verifier, /fs\.renameSync\(temporaryPath, detailPath\)/)
+  assert.match(verifier, /maxAssetSlotDetailBytes = 1024 \* 1024/)
   assert.match(verifier, /unregistered runtime slot/)
   assert.match(verifier, /no visible asset elements/)
   assert.match(verifier, /no visible runtime slots/)
@@ -627,6 +629,7 @@ test('optional shell assets cannot leak undefined runtime slot identities', () =
 test('full asset-slot evidence requires exact immutable 14-route promotion', () => {
   const promotion = fs.readFileSync('scripts/promote-ui-asset-slot-review.js', 'utf8')
   assert.match(promotion, /ASSET_SLOT_DETAIL_PATHS is required/)
+  assert.match(promotion, /bounded byte policy before read/)
   assert.match(promotion, /exact 14-route contract/)
   assert.match(promotion, /route\.elementCount < 1/)
   assert.match(promotion, /route\.slotCount < 1/)

@@ -10,6 +10,7 @@ const contract = require('../docs/design/current-ui/runtime-asset-slot-mapping-c
 
 const root = path.resolve(__dirname, '..')
 const operationTimeoutMs = 10000
+const maxAssetSlotDetailBytes = 1024 * 1024
 
 function classToken(slotId) {
   return slotId.replace(/[^a-zA-Z0-9_-]+/gu, '-')
@@ -90,7 +91,11 @@ async function main() {
       detailPath = path.resolve(process.env.ASSET_SLOT_DETAIL_PATH)
       fs.mkdirSync(path.dirname(detailPath), { recursive: true })
       const commit = execFileSync('git', ['rev-parse', '--short=12', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim()
-      fs.writeFileSync(detailPath, `${JSON.stringify({ schemaVersion: 'wechat-runtime-asset-slot-review-v3', commit, viewport, routes: results }, null, 2)}\n`)
+      const serialized = `${JSON.stringify({ schemaVersion: 'wechat-runtime-asset-slot-review-v3', commit, viewport, routes: results }, null, 2)}\n`
+      if (Buffer.byteLength(serialized) > maxAssetSlotDetailBytes) throw new Error('asset-slot detail exceeds bounded byte policy')
+      const temporaryPath = `${detailPath}.tmp`
+      fs.writeFileSync(temporaryPath, serialized)
+      fs.renameSync(temporaryPath, detailPath)
     }
     console.log(JSON.stringify({ status: failures.length === 0 ? 'pass' : 'fail', viewport, checkedRoutes: results.length, visibleElements: results.reduce((sum, result) => sum + result.elementCount, 0), visibleAssetElements: results.reduce((sum, result) => sum + result.assetElementCount, 0), visibleSlots: results.reduce((sum, result) => sum + result.slotCount, 0), visibleMaterialOwners: results.reduce((sum, result) => sum + result.materialOwnerElementCount, 0), invalidMaterialOwnerElements: results.reduce((sum, result) => sum + result.invalidMaterialOwnerElements, 0), missingAssetElements: results.reduce((sum, result) => sum + result.missingAssetElements, 0), missingPromotionStatusElements: results.reduce((sum, result) => sum + result.missingPromotionStatusElements, 0), promotionCounts: { productionPromoted: results.reduce((sum, result) => sum + result.promotionCounts.production_promoted, 0), candidatePendingReview: results.reduce((sum, result) => sum + result.promotionCounts.candidate_pending_review, 0), missing: results.reduce((sum, result) => sum + result.promotionCounts.missing, 0) }, failureCount: failures.length, failedRoutes: failures.slice(0, 10).map((result) => result.route), detailPath }))
     if (failures.length > 0) process.exitCode = 1

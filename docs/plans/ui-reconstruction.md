@@ -77,7 +77,7 @@ Review 窗口同时覆盖共享组件、页面 JSX 中的非组件 wrapper、rou
 | 业务事实边界 | Taro 通过 typed API 消费 resolver、community import 和 stat snapshot；装备主属性、兼容性与徽标由后端拥有 | 架构审计持续阻断前端重建职业/装备规则，前端只负责展示映射 |
 | 产品命名 | roadmap 定义“智能分析”，当前运行导航仍使用“队长” | 产品决策后一次同步导航、标题、README 与 route 合同 |
 
-素材状态证据约束：所有发布 `data-asset-id` 的五类渲染 owner 必须同时从统一 manifest 发布 `data-promotion-status=production_promoted/candidate_pending_review/missing`。当前完整队列覆盖 1 个 vector manifest 与 6 个 raster collection，共 135 个资产：33 个已生产晋级、102 个待审；vector 的 66 个 `untrusted_candidate` 不得再被 raster-only 统计漏掉。素材槽 detail v3 记录逐路由生产、候选、缺失和可见 material owner 计数；缺少合法状态的可见素材、非法 owner 或 owner 计数不闭合均不能晋级。任何内部包含 ProductionAsset/NineSliceFrame 的 ControlButton 还必须显式声明 `data-material-owner=asset/css`：完整底板只能由 asset 绘制，徽章、节点或 glyph 则由 css 拥有按钮材质，禁止两套底板语义同时存在。该证据只区分生产与候选，不会把“已接线”冒充“已完成真机与人工复核”。
+素材状态证据约束：所有发布 `data-asset-id` 的五类渲染 owner 必须同时从统一 manifest 发布 `data-promotion-status=production_promoted/candidate_pending_review/missing`。当前完整队列覆盖 1 个 vector manifest 与 6 个 raster collection，共 135 个资产：33 个已生产晋级、102 个待审；vector 的 66 个 `untrusted_candidate` 不得再被 raster-only 统计漏掉。素材槽 detail v3 记录逐路由生产、候选、缺失和可见 material owner 计数；缺少合法状态的可见素材、非法 owner 或 owner 计数不闭合均不能晋级。detail 以 `.tmp + rename` 原子落盘，在线写入和离线读取两端均限制为 1 MiB，异常中断或超大文件不得破坏续跑。任何内部包含 ProductionAsset/NineSliceFrame 的 ControlButton 还必须显式声明 `data-material-owner=asset/css`：完整底板只能由 asset 绘制，徽章、节点或 glyph 则由 css 拥有按钮材质，禁止两套底板语义同时存在。该证据只区分生产与候选，不会把“已接线”冒充“已完成真机与人工复核”。
 
 上述条目是当前长期缺口，不记录某次执行过程。临时截图、一次性脚本和旧计划不进入仓库；Git 历史承担追溯职责。
 

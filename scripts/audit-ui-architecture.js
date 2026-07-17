@@ -1020,6 +1020,9 @@ record(
     && assetRenderingOwners.every((file) => /assetPromotionStatus/u.test(read(file)) && /data-promotion-status/u.test(read(file)))
     && /wechat-runtime-asset-slot-review-v3/u.test(assetSlotVerifier)
     && /invalidMaterialOwnerElements/u.test(assetSlotVerifier)
+    && /maxAssetSlotDetailBytes = 1024 \* 1024/u.test(assetSlotVerifier)
+    && /renameSync\(temporaryPath, detailPath\)/u.test(assetSlotVerifier)
+    && /bounded byte policy before read/u.test(assetSlotPromotion)
     && /materialOwnerCounts/u.test(assetSlotPromotion)
     && /missingPromotionStatusElements/u.test(assetSlotVerifier)
     && /missingPromotionStatusElements !== 0/u.test(assetSlotPromotion),
