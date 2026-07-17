@@ -95,6 +95,7 @@ SEASON_TTL_HOURS = int(os.environ.get("WOW_SEASON_TTL_HOURS", "24"))
 COMMUNITY_TEMPLATE_FRESHNESS_TTL_HOURS = int(os.environ.get("WOW_COMMUNITY_TEMPLATE_FRESHNESS_TTL_HOURS", "24"))
 COMMUNITY_TEMPLATE_AVAILABILITY_TTL_HOURS = int(os.environ.get("WOW_COMMUNITY_TEMPLATE_AVAILABILITY_TTL_HOURS", str(24 * 14)))
 COMMUNITY_TEMPLATE_AVAILABILITY_POLICY = "keep_available_until_replaced_or_hard_invalid"
+GEAR_ATTRIBUTE_CHARACTER_CONTEXT_REVISION = "gear-attribute-character-v1"
 MIDNIGHT_SEASON_ONE_DUNGEONS = [
     "Magisters' Terrace",
     "Maisara Caverns",
@@ -2184,6 +2185,31 @@ def normalized_websim_level(value=None):
 def slugify(value, fallback="item"):
     text = re.sub(r"[^a-z0-9]+", "_", str(value or "").lower()).strip("_")
     return text[:80] if text else fallback
+
+
+def observed_profile_race_key(value):
+    if not isinstance(value, str):
+        return ""
+    key = value.strip()
+    if not re.fullmatch(r"[a-z][a-z0-9_]{0,79}", key):
+        return ""
+    return key
+
+
+def normalize_attribute_character_context(value):
+    source = value if isinstance(value, dict) else {}
+    race_key = observed_profile_race_key(source.get("raceKey"))
+    if race_key:
+        return {
+            "schemaRevision": GEAR_ATTRIBUTE_CHARACTER_CONTEXT_REVISION,
+            "raceKey": race_key,
+            "origin": "source_profile",
+        }
+    return {
+        "schemaRevision": GEAR_ATTRIBUTE_CHARACTER_CONTEXT_REVISION,
+        "raceKey": "human",
+        "origin": "default_human",
+    }
 
 
 def simc_item_name_is_placeholder(value, item_id=""):
@@ -12377,6 +12403,9 @@ def normalize_source_refs(refs):
             item["region"] = str(ref.get("region") or "").strip()
         if ref.get("realmSlug"):
             item["realmSlug"] = str(ref.get("realmSlug") or "").strip()
+        race_key = observed_profile_race_key(ref.get("raceKey"))
+        if race_key:
+            item["raceKey"] = race_key
         if ref.get("fetchedAt"):
             item["fetchedAt"] = str(ref.get("fetchedAt") or "").strip()
         if ref.get("scanRunId") or ref.get("scan_run_id"):
@@ -18737,6 +18766,9 @@ def observed_profile_template_source_refs(items):
             for key in ("characterName", "region", "realmSlug"):
                 if ref.get(key):
                     source_ref[key] = ref.get(key)
+            race_key = observed_profile_race_key(ref.get("raceKey"))
+            if race_key:
+                source_ref["raceKey"] = race_key
             if ranking_evidence:
                 source_ref["rankingEvidence"] = ranking_evidence
                 for key in ("rank", "score", "runId"):
@@ -18999,6 +19031,11 @@ def observed_profile_hash(class_key, spec_key, source_urls, gear_hash, ranking_e
 
 
 def observed_profile_character_identity(source_refs):
+    race_keys = {
+        observed_profile_race_key(ref.get("raceKey"))
+        for ref in source_refs or []
+        if isinstance(ref, dict) and observed_profile_race_key(ref.get("raceKey"))
+    }
     for ref in source_refs or []:
         if not isinstance(ref, dict):
             continue
@@ -19006,11 +19043,14 @@ def observed_profile_character_identity(source_refs):
         region = str(ref.get("region") or "").strip()
         realm_slug = str(ref.get("realmSlug") or "").strip()
         if character_name or region or realm_slug:
-            return {
+            identity = {
                 "name": character_name,
                 "region": region,
                 "realmSlug": realm_slug,
             }
+            if len(race_keys) == 1:
+                identity["raceKey"] = next(iter(race_keys))
+            return identity
     return {}
 
 
@@ -19081,6 +19121,8 @@ def gear_community_template_from_observed_items(items, class_key, spec_key):
     enhancement_fingerprint = observed_profile_enhancement_fingerprint(gear_items)
     profile_hash = observed_profile_hash(class_key, spec_key, source_urls, template["gearHash"], ranking_evidence)
     template["profileHash"] = profile_hash
+    attribute_character_context = normalize_attribute_character_context(character_identity)
+    template["attributeCharacterContext"] = attribute_character_context
     template["payload"] = {
         "profileHash": profile_hash,
         "gearHash": template["gearHash"],
@@ -19088,6 +19130,7 @@ def gear_community_template_from_observed_items(items, class_key, spec_key):
         "sampleCount": template["sampleCount"],
         "fetchedAt": fetched_at,
         "rankingEvidence": ranking_evidence,
+        "attributeCharacterContext": attribute_character_context,
     }
     if character_identity:
         template["payload"]["character"] = character_identity
@@ -20052,6 +20095,10 @@ def normalize_community_gear_template(template, class_key="", spec_key="", prese
     spec_key = slugify(source.get("specKey") or spec_key, "arcane")
     payload = source.get("payload") if isinstance(source.get("payload"), dict) else {}
     payload = dict(payload)
+    attribute_character_context = normalize_attribute_character_context(
+        source.get("attributeCharacterContext") or payload.get("attributeCharacterContext")
+    )
+    payload["attributeCharacterContext"] = attribute_character_context
     sample_count = int_or_zero(source.get("sampleCount") or payload.get("sampleCount"))
     profile_hash = str(source.get("profileHash") or payload.get("profileHash") or "").strip()
     gear_hash = str(source.get("gearHash") or payload.get("gearHash") or "").strip()
@@ -20120,6 +20167,7 @@ def normalize_community_gear_template(template, class_key="", spec_key="", prese
         "missingSlots": missing_slots,
         "canApplyGear": True,
         "payload": payload,
+        "attributeCharacterContext": attribute_character_context,
         "scanRunId": str(source.get("scanRunId") or source.get("scan_run_id") or "").strip(),
     }
     normalized["canApplyGear"] = community_gear_template_can_apply(normalized)
@@ -20238,6 +20286,7 @@ def get_persisted_community_gear_templates(conn, class_key, spec_key):
             "missingSlots": safe_json_loads(row[14], []) or [],
             "analysisWindow": row[15],
             "payload": payload,
+            "attributeCharacterContext": normalize_attribute_character_context(payload.get("attributeCharacterContext")),
             "scenarioKey": payload.get("scenarioKey") or "",
             "enhancementReadiness": payload.get("enhancementReadiness") if isinstance(payload.get("enhancementReadiness"), dict) else {},
             "templateEvidence": payload.get("templateEvidence") if isinstance(payload.get("templateEvidence"), dict) else {},
@@ -23427,6 +23476,9 @@ def compact_community_gear_template(template):
     for key in ("sampleCount", "profileHash", "gearHash", "fetchedAt"):
         if not compact_template.get(key) and payload.get(key):
             compact_template[key] = payload.get(key)
+    compact_template["attributeCharacterContext"] = normalize_attribute_character_context(
+        template.get("attributeCharacterContext") or payload.get("attributeCharacterContext")
+    )
     compact_template.pop("payload", None)
     compact_template["gearItems"] = compact_gear_candidates(template.get("gearItems") or [])
     return compact_template

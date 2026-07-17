@@ -526,14 +526,25 @@ function savedCommunityImportOrigin(value) {
     contractRevision !== COMMUNITY_TEMPLATE_IMPORT_CONTRACT_REVISION || !templateId ||
     !gearHash || !sourceFingerprint || !manifestRevision
   ) return null
-  return { contractRevision, templateId, profileHash, gearHash, sourceFingerprint, manifestRevision }
+  const rawAttributeCharacterContext = origin.attributeCharacterContext
+  return {
+    contractRevision,
+    templateId,
+    profileHash,
+    gearHash,
+    sourceFingerprint,
+    manifestRevision,
+    ...(rawAttributeCharacterContext && typeof rawAttributeCharacterContext === 'object'
+      ? { attributeCharacterContext: gearAttributeCharacterContextForData({ gearAttributeCharacterContext: rawAttributeCharacterContext }) }
+      : {})
+  }
 }
 
 function communityImportMatchesSavedOrigin(result, context, origin) {
   if (!validCommunityImportEnvelope(result, context)) return false
   const data = result.payload.data
   const template = data && data.template && typeof data.template === 'object' ? data.template : {}
-  return (
+  const matchesIdentity = (
     cleanGearString(data.contractRevision) === origin.contractRevision &&
     cleanGearString(template.id) === origin.templateId &&
     (!origin.profileHash || cleanGearString(template.profileHash) === origin.profileHash) &&
@@ -541,6 +552,11 @@ function communityImportMatchesSavedOrigin(result, context, origin) {
     cleanGearString(template.sourceFingerprint) === origin.sourceFingerprint &&
     cleanGearString(context.manifestRevision) === origin.manifestRevision
   )
+  if (!matchesIdentity) return false
+  if (!origin.attributeCharacterContext) return true
+  return JSON.stringify(gearAttributeCharacterContextForData({
+    gearAttributeCharacterContext: template.attributeCharacterContext
+  })) === JSON.stringify(origin.attributeCharacterContext)
 }
 
 function applySavedCommunityImportOrigin(page, origin) {
@@ -618,7 +634,8 @@ function resetGearWorkbenchForSelection(page) {
     ...gearAttributeDerivedStateForData({
       selectedGearBySlot: {},
       enhancementBySlot: {},
-      selectedSpec: page && page.data && page.data.selectedSpec
+      selectedSpec: page && page.data && page.data.selectedSpec,
+      gearAttributeCharacterContext: defaultGearAttributeCharacterContext()
     }),
     gearSlotRows: [],
     gearStatSnapshot,
@@ -673,7 +690,10 @@ function commitImportedCommunityTemplate(page, result, context) {
     profileHash: cleanGearString(data.template && data.template.profileHash),
     gearHash: cleanGearString(data.template && data.template.gearHash),
     sourceFingerprint: cleanGearString(data.template && data.template.sourceFingerprint),
-    manifestRevision: cleanGearString(context && context.manifestRevision)
+    manifestRevision: cleanGearString(context && context.manifestRevision),
+    attributeCharacterContext: gearAttributeCharacterContextForData({
+      gearAttributeCharacterContext: data.template && data.template.attributeCharacterContext
+    })
   }
   const gearStatSnapshot = defaultGearStatSnapshot('等待当前装备属性快照')
   const derivedState = createDetailDerivedState(page.data.selectedDetail, page.data.activeQueryKey, {
@@ -681,7 +701,8 @@ function commitImportedCommunityTemplate(page, result, context) {
     gearPayload,
     selectedGearBySlot,
     enhancementBySlot,
-    gearStatSnapshot
+    gearStatSnapshot,
+    gearAttributeCharacterContext: page.communityEnhancementImportState.attributeCharacterContext
   })
   const renderedData = { ...page.data, ...derivedState, enhancementBySlot, gearStatSnapshot }
   page.setData({
@@ -804,7 +825,17 @@ function communityImportOriginForSave(page, snapshot) {
     !templateId || contractRevision !== COMMUNITY_TEMPLATE_IMPORT_CONTRACT_REVISION ||
     !profileHash || !gearHash || !sourceFingerprint || !manifestRevision
   ) return null
-  return { contractRevision, templateId, profileHash, gearHash, sourceFingerprint, manifestRevision }
+  return {
+    contractRevision,
+    templateId,
+    profileHash,
+    gearHash,
+    sourceFingerprint,
+    manifestRevision,
+    attributeCharacterContext: gearAttributeCharacterContextForData({
+      gearAttributeCharacterContext: state.attributeCharacterContext
+    })
+  }
 }
 
 function gearItemIsTierSet(item) {
@@ -1250,31 +1281,6 @@ const canonicalGearAttributeLabels = {
   speed_rating: '速度'
 }
 
-const gearAttributeRaceLabels = {
-  human: '人类',
-  dwarf: '矮人',
-  night_elf: '暗夜精灵',
-  gnome: '侏儒',
-  draenei: '德莱尼',
-  worgen: '狼人',
-  pandaren: '熊猫人',
-  void_elf: '虚空精灵',
-  lightforged_draenei: '光铸德莱尼',
-  dark_iron_dwarf: '黑铁矮人',
-  mechagnome: '机械侏儒',
-  earthen: '土灵',
-  orc: '兽人',
-  undead: '亡灵',
-  tauren: '牛头人',
-  troll: '巨魔',
-  blood_elf: '血精灵',
-  goblin: '地精',
-  nightborne: '夜之子',
-  highmountain_tauren: '至高岭牛头人',
-  maghar_orc: '玛格汉兽人',
-  zandalari_troll: '赞达拉巨魔',
-  vulpera: '狐人'
-}
 const gearAttributeResourceLabels = {
   health: '生命值',
   mana: '法力值',
@@ -1283,20 +1289,37 @@ const gearAttributeResourceLabels = {
   focus: '集中值'
 }
 
-function gearAttributeRaceOptions(gearPayload) {
-  const calculator = gearPayload && gearPayload.attributeCalculator
-  if (!calculator || calculator.status !== 'available' || !Array.isArray(calculator.raceOptions)) return []
-  const seen = new Set()
-  return calculator.raceOptions.reduce((options, option) => {
-    const raceKey = cleanGearString(option && option.raceKey).toLowerCase()
-    if (!raceKey || seen.has(raceKey)) return options
-    seen.add(raceKey)
-    options.push({
+const gearAttributeCharacterContextRevision = 'gear-attribute-character-v1'
+
+function gearAttributeContextRaceKey(value) {
+  const key = cleanGearString(value).toLowerCase()
+  return /^[a-z][a-z0-9_]{0,79}$/.test(key) ? key : ''
+}
+
+function defaultGearAttributeCharacterContext() {
+  return {
+    schemaRevision: gearAttributeCharacterContextRevision,
+    raceKey: 'human',
+    origin: 'default_human'
+  }
+}
+
+function gearAttributeCharacterContextForData(data) {
+  const source = data && data.gearAttributeCharacterContext && typeof data.gearAttributeCharacterContext === 'object'
+    ? data.gearAttributeCharacterContext
+    : {}
+  const raceKey = gearAttributeContextRaceKey(source.raceKey)
+  if (
+    source.schemaRevision === gearAttributeCharacterContextRevision &&
+    source.origin === 'source_profile' && raceKey
+  ) {
+    return {
+      schemaRevision: gearAttributeCharacterContextRevision,
       raceKey,
-      label: cleanGearString(option && (option.label || option.name)) || gearAttributeRaceLabels[raceKey] || raceKey
-    })
-    return options
-  }, [])
+      origin: 'source_profile'
+    }
+  }
+  return defaultGearAttributeCharacterContext()
 }
 
 function gearAttributeRuleForRace(gearPayload, raceKey) {
@@ -1486,7 +1509,7 @@ function gearAttributeMetricFromCalculation(row, fallbackLabel, previousRawValue
   }
 }
 
-function gearAttributePanelFromCalculation(source, calculation, raceLabel, previousCalculation) {
+function gearAttributePanelFromCalculation(source, calculation, previousCalculation) {
   if (!source.selectedItems.length) return {
     ...emptyGearAttributePanel(),
     status: 'idle',
@@ -1502,11 +1525,7 @@ function gearAttributePanelFromCalculation(source, calculation, raceLabel, previ
     enhancementRows: source.enhancementRows,
     statRows: [],
     attributeRuleRevision: cleanGearString(calculation.attributeRuleRevision),
-    inputSignature: cleanGearString(calculation.inputSignature),
-    raceLabel: raceLabel || '未选择'
-  }
-  if (calculation.status === 'character_context_required') {
-    return { ...base, summary: `${prefix}；请选择种族后计算最终属性`, calculationStatusLabel: '请选择种族' }
+    inputSignature: cleanGearString(calculation.inputSignature)
   }
   if (calculation.status !== 'calculated') {
     return { ...base, summary: `${prefix}；属性资料待补齐`, calculationStatusLabel: '属性资料待补齐' }
@@ -1524,7 +1543,7 @@ function gearAttributePanelFromCalculation(source, calculation, raceLabel, previ
   ].filter(Boolean)
   return {
     ...base,
-    summary: `${prefix}；${raceLabel || '当前种族'}最终属性`,
+    summary: `${prefix}；本地实时最终属性`,
     calculationStatusLabel: '本地实时计算',
     statRows: rows
   }
@@ -1540,35 +1559,29 @@ function gearAttributeDerivedStateForData(data, previousCalculation) {
     sourceData.enhancementBySlot || {},
     sourceData.gearAttributeSourceContext
   )
-  const raceOptions = gearAttributeRaceOptions(gearPayload)
-  const selectedRaceKey = cleanGearString(sourceData.selectedRaceKey).toLowerCase()
-  const selectedRace = raceOptions.find((option) => option.raceKey === selectedRaceKey)
+  const characterContext = gearAttributeCharacterContextForData(sourceData)
   const calculator = gearPayload.attributeCalculator || {}
   let calculation
   if (!source.selectedItems.length) {
     calculation = gearAttributeUnavailableState('idle', calculator.attributeRuleRevision, 'GEAR_SELECTION_EMPTY', 'no gear is selected')
   } else if (calculator.status !== 'available') {
     calculation = gearAttributeUnavailableState('rule_unavailable', calculator.attributeRuleRevision, 'ATTRIBUTE_RULE_UNAVAILABLE', 'no verified attribute rule is available')
-  } else if (!selectedRace) {
-    calculation = gearAttributeUnavailableState('character_context_required', calculator.attributeRuleRevision, 'CHARACTER_CONTEXT_REQUIRED', 'select a race before calculating final attributes')
   } else {
-    const rule = gearAttributeRuleForRace(gearPayload, selectedRace.raceKey)
+    const rule = gearAttributeRuleForRace(gearPayload, characterContext.raceKey)
     calculation = rule
       ? calculateNonCombatAttributes(
           rule,
-          { schemaRevision: 'gear-attribute-character-v1', raceKey: selectedRace.raceKey },
+          { schemaRevision: gearAttributeCharacterContextRevision, raceKey: characterContext.raceKey },
           source.staticAttributes,
           []
         )
-      : gearAttributeUnavailableState('rule_unavailable', calculator.attributeRuleRevision, 'ATTRIBUTE_RULE_UNAVAILABLE', 'no verified attribute rule is available for the selected race')
+      : gearAttributeUnavailableState('rule_unavailable', calculator.attributeRuleRevision, 'ATTRIBUTE_RULE_UNAVAILABLE', 'no verified attribute rule is available for the current character context')
   }
   return {
-    selectedRaceKey: selectedRace ? selectedRace.raceKey : '',
-    selectedRaceName: selectedRace ? selectedRace.label : '',
-    gearAttributeRaceOptions: raceOptions,
+    gearAttributeCharacterContext: characterContext,
     gearAttributeState: calculation,
     gearAttributeAudit: sourceData.gearAttributeAudit || { status: 'not_requested' },
-    gearAttributePanel: gearAttributePanelFromCalculation(source, calculation, selectedRace && selectedRace.label, previousCalculation)
+    gearAttributePanel: gearAttributePanelFromCalculation(source, calculation, previousCalculation)
   }
 }
 
@@ -2365,7 +2378,7 @@ function gearStatsRequestForPage(page) {
   }
   const profileContext = {
     name: cleanGearString(data.selectedCharacterName || data.characterName || ''),
-    race: cleanGearString(data.selectedRaceKey || data.raceKey || ''),
+    race: cleanGearString(data.raceKey || ''),
     scenarioKey: gearScenarioAt(data.selectedGearTemplateScenarioIndex).key,
     heroKey: cleanGearString(data.selectedHeroKey || ''),
     talents
@@ -6229,7 +6242,6 @@ Page({
     enhancementBySlot: {},
     gearSlotSheet: emptyGearSlotSheet(),
     gearEnhancementSheet: emptyGearEnhancementSheet(),
-    gearAttributeRaceSheet: { visible: false },
     gearAttributeAudit: { status: 'not_requested' },
     gearSaveTemplateSheet: emptyGearSaveTemplateSheet(),
     gearCommunityTemplateSheet: emptyGearCommunityTemplateSheet(),
@@ -6750,39 +6762,6 @@ Page({
     }, source.previousCalculation || this.data.gearAttributeState)
     this.setData(nextState)
     return nextState.gearAttributeState
-  },
-
-  openGearAttributeRaceSheet() {
-    const options = Array.isArray(this.data.gearAttributeRaceOptions) ? this.data.gearAttributeRaceOptions : []
-    if (!options.length) {
-      showToast('属性资料待补齐')
-      return
-    }
-    this.setData({
-      gearAttributeRaceSheet: {
-        visible: true,
-        options,
-        selectedRaceKey: this.data.selectedRaceKey || ''
-      }
-    })
-  },
-
-  closeGearAttributeRaceSheet() {
-    this.setData({ gearAttributeRaceSheet: { visible: false } })
-  },
-
-  stopGearAttributeRaceSheet() {},
-
-  selectGearAttributeRace(event) {
-    const raceKey = cleanGearString(event && event.currentTarget && event.currentTarget.dataset && event.currentTarget.dataset.key).toLowerCase()
-    const option = (this.data.gearAttributeRaceOptions || []).find((item) => item.raceKey === raceKey)
-    if (!option) return null
-    this.setData({
-      selectedRaceKey: option.raceKey,
-      selectedRaceName: option.label,
-      gearAttributeRaceSheet: { visible: false }
-    })
-    return this.refreshGearAttributePanel({ previousCalculation: this.data.gearAttributeState })
   },
 
   clearGearStatsSnapshot(blockers) {
@@ -7342,7 +7321,8 @@ Page({
       ...this.data,
       gearPayload,
       selectedGearBySlot,
-      enhancementBySlot
+      enhancementBySlot,
+      gearAttributeCharacterContext: defaultGearAttributeCharacterContext()
     })
     this.setData({
       ...derivedState,
@@ -7394,7 +7374,8 @@ Page({
       ...this.data,
       gearPayload,
       selectedGearBySlot,
-      enhancementBySlot
+      enhancementBySlot,
+      gearAttributeCharacterContext: defaultGearAttributeCharacterContext()
     })
     this.setData({
       ...derivedState,
@@ -7508,13 +7489,17 @@ Page({
         serial: importSerial,
         resolvedGearSignature: '',
         unresolvedBySlot: reconciliation.unresolvedBySlot,
-        warnings: reconciliation.warnings
+        warnings: reconciliation.warnings,
+        attributeCharacterContext: gearAttributeCharacterContextForData({
+          gearAttributeCharacterContext: template.attributeCharacterContext
+        })
       }
       const derivedState = createDetailDerivedState(this.data.selectedDetail, this.data.activeQueryKey, {
         ...this.data,
         gearPayload,
         selectedGearBySlot,
-        enhancementBySlot
+        enhancementBySlot,
+        gearAttributeCharacterContext: this.communityEnhancementImportState.attributeCharacterContext
       })
       this.setData({
         ...derivedState,

@@ -98,6 +98,28 @@ def _text(value: Any) -> str:
     return str(value or "").strip()
 
 
+def _attribute_race_key(value: Any) -> str:
+    key = _text(value)
+    if not re.fullmatch(r"[a-z][a-z0-9_]{0,79}", key):
+        return ""
+    return key
+
+
+def _attribute_character_context_from_template(template: dict[str, Any]) -> dict[str, str]:
+    payload = template.get("payload") if isinstance(template.get("payload"), dict) else {}
+    raw = template.get("attributeCharacterContext")
+    if not isinstance(raw, dict):
+        raw = payload.get("attributeCharacterContext") if isinstance(payload.get("attributeCharacterContext"), dict) else {}
+    race_key = _attribute_race_key(raw.get("raceKey"))
+    if (
+        raw.get("schemaRevision") == "gear-attribute-character-v1"
+        and raw.get("origin") == "source_profile"
+        and race_key
+    ):
+        return {"raceKey": race_key, "origin": "source_profile"}
+    return {"raceKey": "human", "origin": "default_human"}
+
+
 def _int(value: Any) -> int:
     if isinstance(value, bool):
         return 0
@@ -1451,6 +1473,7 @@ def community_template_import_evidence_from_template(
     if not slots:
         raise GearReleaseIntegrityError("community import evidence selection is empty")
     payload = template.get("payload") if isinstance(template.get("payload"), dict) else {}
+    attribute_character_context = _attribute_character_context_from_template(template)
     template_evidence = (
         payload.get("templateEvidence")
         if isinstance(payload.get("templateEvidence"), dict)
@@ -1463,11 +1486,15 @@ def community_template_import_evidence_from_template(
         "profileHash": _text(template.get("profileHash") or template_evidence.get("profileHash")),
         "gearHash": _text(template.get("gearHash") or template_evidence.get("gearHash") or template.get("signature")),
         "gearReleaseId": _text(gear_release_id),
+        "sourceRaceKey": attribute_character_context["raceKey"],
+        "sourceRaceOrigin": attribute_character_context["origin"],
         "slots": ordered_slots,
     })
     return {
         "schemaRevision": COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_REVISION,
         "sourceFingerprint": source_fingerprint,
+        "sourceRaceKey": attribute_character_context["raceKey"],
+        "sourceRaceOrigin": attribute_character_context["origin"],
         "slots": ordered_slots,
     }
 

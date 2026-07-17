@@ -147,6 +147,11 @@ class CommunityTemplateImportTest(unittest.TestCase):
             "profileHash": "profile-frost",
             "gearHash": "gear-frost",
             "sourceFingerprint": "sha256:" + "a" * 64,
+            "attributeCharacterContext": {
+                "schemaRevision": "gear-attribute-character-v1",
+                "raceKey": "human",
+                "origin": "default_human",
+            },
         })
 
         self.assertEqual(source["importedGearBySlot"], {
@@ -186,6 +191,22 @@ class CommunityTemplateImportTest(unittest.TestCase):
                 "catalystOptionId": "",
             },
         )
+
+    def test_v2_evidence_projects_its_sealed_source_race(self):
+        winner = copy.deepcopy(self.winner)
+        winner["payload"]["importEvidence"].update({
+            "schemaRevision": "community-template-import-evidence-v2",
+            "sourceRaceKey": "night_elf",
+            "sourceRaceOrigin": "source_profile",
+        })
+
+        source = self.build_source(winner=winner)
+
+        self.assertEqual(source["template"]["attributeCharacterContext"], {
+            "schemaRevision": "gear-attribute-character-v1",
+            "raceKey": "night_elf",
+            "origin": "source_profile",
+        })
 
     def test_verified_projection_uses_sealed_observed_level_and_icon_not_generic_item(self):
         from server.community_template_import import (

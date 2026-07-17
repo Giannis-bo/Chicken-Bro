@@ -127,6 +127,7 @@ try:
         normalize_community_gear_template,
         normalize_community_talent_template,
         observed_gear_simc_options,
+        observed_profile_race_key,
         observed_variant_stat_identity_key,
         observed_variant_stat_payload_fields,
         pending_community_gear_template,
@@ -213,6 +214,7 @@ except ImportError:
         normalize_community_gear_template,
         normalize_community_talent_template,
         observed_gear_simc_options,
+        observed_profile_race_key,
         observed_variant_stat_identity_key,
         observed_variant_stat_payload_fields,
         pending_community_gear_template,
@@ -4316,6 +4318,9 @@ class PostgresCacheStore:
             "scanRunId": scan_run_id or profile.get("scanRunId") or "",
             "maxKeyLevel": profile.get("maxKeyLevel") or (ranking_evidence or {}).get("maxKeyLevel") or 0,
         }
+        race_key = observed_profile_race_key(profile.get("raceKey"))
+        if race_key:
+            source_ref["raceKey"] = race_key
         if ranking_evidence:
             source_ref["rankingEvidence"] = ranking_evidence
             for key in ("rank", "score", "runId"):

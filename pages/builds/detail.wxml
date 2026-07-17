@@ -73,13 +73,6 @@
               <text class="gear-attribute-value">{{gearAttributePanel.itemLevel.value}}</text>
             </view>
           </view>
-          <view class="gear-attribute-identity" bindtap="openGearAttributeRaceSheet">
-            <view>
-              <text class="gear-attribute-label">种族</text>
-              <text class="gear-attribute-identity-value">{{selectedRaceName || '请选择种族'}}</text>
-            </view>
-            <text class="gear-attribute-identity-action">切换</text>
-          </view>
           <text class="gear-attribute-calculation-status {{gearAttributePanel.status}}">{{gearAttributePanel.calculationStatusLabel}}</text>
           <view class="gear-attribute-grid">
             <view class="gear-attribute-cell {{item.pending ? 'pending' : ''}}" wx:for="{{gearAttributePanel.statRows}}" wx:key="key">
@@ -144,21 +137,6 @@
           <button class="gear-template-action-button primary" loading="{{gearTemplateSaving}}" disabled="{{gearDataFallback || gearTemplateSaving || !gearWorkbenchView.canUseVerifiedSnapshot}}" bindtap="saveGearTemplate">保存模板</button>
           <button class="gear-template-action-button import" disabled="{{gearDataFallback}}" bindtap="openGearCommunityTemplates">导入</button>
           <button class="gear-template-action-button muted" bindtap="resetGearSelection">重置</button>
-        </view>
-      </view>
-
-      <view class="gear-attribute-race-mask" wx:if="{{gearAttributeRaceSheet.visible}}" bindtap="closeGearAttributeRaceSheet">
-        <view class="gear-attribute-race-sheet" catchtap="stopGearAttributeRaceSheet">
-          <view class="gear-attribute-race-sheet-header">
-            <text class="gear-attribute-race-sheet-title">选择种族</text>
-            <text class="gear-attribute-race-sheet-close" bindtap="closeGearAttributeRaceSheet">关闭</text>
-          </view>
-          <view class="gear-attribute-race-options">
-            <view class="gear-attribute-race-option {{item.raceKey == selectedRaceKey ? 'selected' : ''}}" wx:for="{{gearAttributeRaceSheet.options}}" wx:key="raceKey" data-key="{{item.raceKey}}" bindtap="selectGearAttributeRace">
-              <text>{{item.label}}</text>
-              <text class="gear-attribute-race-check" wx:if="{{item.raceKey == selectedRaceKey}}">已选</text>
-            </view>
-          </view>
         </view>
       </view>
 

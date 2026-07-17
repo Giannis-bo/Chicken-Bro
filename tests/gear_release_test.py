@@ -432,6 +432,48 @@ class GearReleaseTest(unittest.TestCase):
         self.assertIn("COMMUNITY_IMPORT_EVIDENCE_MISSING", codes)
         self.assertIn("COMMUNITY_IMPORT_EVIDENCE_IDENTITY_MISMATCH", codes)
 
+    def test_election_rejects_malformed_v2_source_race_evidence_but_retains_v1_compatibility(self):
+        malformed = self.candidate("malformed-race")
+        malformed["importEvidence"].update({
+            "schemaRevision": "community-template-import-evidence-v2",
+            "sourceRaceKey": "Night Elf",
+            "sourceRaceOrigin": "source_profile",
+        })
+        legacy = self.candidate("legacy-v1")
+
+        election = gear_release.elect_community_candidates(
+            [malformed, legacy],
+            gear_release_id="gear-release:sha256:target",
+            resolver=lambda _intent: self.verified_result(),
+            now="2026-07-11T05:00:00+00:00",
+            expected_specs=[("mage", "arcane")],
+        )
+
+        self.assertEqual(election["status"], "validated")
+        self.assertEqual(election["winners"][0]["candidateId"], "legacy-v1")
+        codes = {problem["code"] for row in election["rejected"] for problem in row["problems"]}
+        self.assertIn("COMMUNITY_IMPORT_EVIDENCE_INVALID", codes)
+
+    def test_election_rejects_non_human_default_v2_source_race_evidence(self):
+        malformed = self.candidate("invalid-default-race")
+        malformed["importEvidence"].update({
+            "schemaRevision": "community-template-import-evidence-v2",
+            "sourceRaceKey": "night_elf",
+            "sourceRaceOrigin": "default_human",
+        })
+
+        election = gear_release.elect_community_candidates(
+            [malformed],
+            gear_release_id="gear-release:sha256:target",
+            resolver=lambda _intent: self.verified_result(),
+            now="2026-07-11T05:00:00+00:00",
+            expected_specs=[("mage", "arcane")],
+        )
+
+        self.assertEqual(election["status"], "degraded")
+        codes = {problem["code"] for row in election["rejected"] for problem in row["problems"]}
+        self.assertIn("COMMUNITY_IMPORT_EVIDENCE_INVALID", codes)
+
     def test_election_rejects_illegal_unready_or_release_mismatched_resolver_result(self):
         candidates = [
             self.candidate("illegal"),

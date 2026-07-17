@@ -11,6 +11,7 @@ from __future__ import annotations
 from datetime import datetime
 import hashlib
 import json
+import re
 from typing import Any, Callable, Iterable
 
 try:
@@ -23,7 +24,12 @@ GEAR_RELEASE_SCHEMA_REVISION = "gear-release-v1"
 COMMUNITY_RELEASE_SCHEMA_REVISION = "community-release-v1"
 ACTIVE_SEASON_MANIFEST_SCHEMA_REVISION = "active-season-manifest-v1"
 ACTIVE_MANIFEST_POINTER_COMMAND_REVISION = "active-manifest-pointer-command-v2"
-COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_REVISION = "community-template-import-evidence-v1"
+COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_V1 = "community-template-import-evidence-v1"
+COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_REVISION = "community-template-import-evidence-v2"
+_SUPPORTED_COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_REVISIONS = {
+    COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_V1,
+    COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_REVISION,
+}
 
 _RELEASE_KINDS = {"gear", "community"}
 _RELEASE_STATUSES = {"validated", "degraded", "blocked"}
@@ -68,6 +74,11 @@ def _sha256(value: Any) -> str:
 
 def _text(value: Any) -> str:
     return str(value or "").strip()
+
+
+def _attribute_race_key(value: Any) -> str:
+    key = _text(value)
+    return key if re.fullmatch(r"[a-z][a-z0-9_]{0,79}", key) else ""
 
 
 def is_public_observed_source(source_key: Any) -> bool:
@@ -515,7 +526,8 @@ def _candidate_import_evidence_issues(
                 "Observed candidates require sealed import evidence.",
             )
         ]
-    if evidence.get("schemaRevision") != COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_REVISION:
+    revision = _text(evidence.get("schemaRevision"))
+    if revision not in _SUPPORTED_COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_REVISIONS:
         return [
             _candidate_problem(
                 "COMMUNITY_IMPORT_EVIDENCE_INVALID",
@@ -523,6 +535,21 @@ def _candidate_import_evidence_issues(
                 "Import evidence uses an unsupported schema revision.",
             )
         ]
+    if revision == COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_REVISION:
+        source_race_key = _attribute_race_key(evidence.get("sourceRaceKey"))
+        source_race_origin = _text(evidence.get("sourceRaceOrigin"))
+        if (
+            not source_race_key
+            or source_race_origin not in {"source_profile", "default_human"}
+            or (source_race_origin == "default_human" and source_race_key != "human")
+        ):
+            return [
+                _candidate_problem(
+                    "COMMUNITY_IMPORT_EVIDENCE_INVALID",
+                    "candidate.importEvidence.sourceRaceKey",
+                    "v2 import evidence requires a bounded race context.",
+                )
+            ]
     fingerprint = _text(evidence.get("sourceFingerprint"))
     if (
         not fingerprint.startswith("sha256:")

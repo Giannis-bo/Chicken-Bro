@@ -5178,6 +5178,53 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(normalized_state["communityObserved"]["coveredSpecCount"], 1)
         self.assertEqual(normalized_state["communityObserved"]["blockedSpecCount"], 0)
 
+    def test_observed_gear_template_preserves_a_single_verified_source_race(self):
+        observed_items = [
+            {
+                "slot": "head",
+                "simcSlot": "head",
+                "id": "270001",
+                "itemId": "270001",
+                "name": "observed_head",
+                "displayName": "Observed Head",
+                "simcName": "observed_head",
+                "simcReady": True,
+                "bonus_id": "6652",
+                "observedProfileRefs": [
+                    {
+                        "sourceName": "Raider.IO observed profile",
+                        "profileUrl": "https://raider.io/characters/cn/realm/Mandur",
+                        "characterName": "Mandur",
+                        "region": "cn",
+                        "realmSlug": "realm",
+                        "raceKey": "night_elf",
+                    }
+                ],
+            }
+        ]
+
+        template = self.websim_payload.gear_community_template_from_observed_items(
+            observed_items,
+            "mage",
+            "frost",
+        )
+        normalized = self.websim_payload.normalize_community_gear_template(template)
+        compact = self.websim_payload.compact_community_gear_template(normalized)
+
+        self.assertEqual(template["sourceRefs"][0]["raceKey"], "night_elf")
+        self.assertEqual(template["payload"]["character"]["raceKey"], "night_elf")
+        self.assertEqual(normalized["payload"]["character"]["raceKey"], "night_elf")
+        self.assertEqual(compact["attributeCharacterContext"], {
+            "schemaRevision": "gear-attribute-character-v1",
+            "raceKey": "night_elf",
+            "origin": "source_profile",
+        })
+
+        invalid = self.websim_payload.normalize_source_refs([
+            {"sourceUrl": "https://raider.io/characters/cn/realm/invalid", "raceKey": "night elf!"}
+        ])
+        self.assertNotIn("raceKey", invalid[0])
+
     def test_template_chain_state_reports_public_readiness_after_legality_gate(self):
         gear_items = []
         for index, slot in enumerate(self.websim_payload.CANONICAL_GEAR_SLOTS, start=1):

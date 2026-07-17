@@ -8,7 +8,12 @@ from typing import Any
 
 
 COMMUNITY_TEMPLATE_IMPORT_CONTRACT_REVISION = "websim-community-template-import-v2"
-COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_REVISION = "community-template-import-evidence-v1"
+COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_V1 = "community-template-import-evidence-v1"
+COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_REVISION = "community-template-import-evidence-v2"
+_SUPPORTED_COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_REVISIONS = {
+    COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_V1,
+    COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_REVISION,
+}
 PUBLIC_OBSERVED_SOURCE_KEY = "raiderio_observed_profile"
 
 _OPTION_FIELDS = (
@@ -26,6 +31,31 @@ def _copy(value: Any) -> Any:
 
 def _text(value: Any) -> str:
     return value.strip() if isinstance(value, str) else ""
+
+
+def _attribute_race_key(value: Any) -> str:
+    key = _text(value)
+    return key if key and len(key) <= 80 and key[0].isalpha() and key == key.lower() and all(
+        character.isalnum() or character == "_" for character in key
+    ) else ""
+
+
+def _attribute_character_context_from_evidence(evidence: dict[str, Any]) -> dict[str, str]:
+    if (
+        _text(evidence.get("schemaRevision")) == COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_REVISION
+        and _text(evidence.get("sourceRaceOrigin")) == "source_profile"
+        and (race_key := _attribute_race_key(evidence.get("sourceRaceKey")))
+    ):
+        return {
+            "schemaRevision": "gear-attribute-character-v1",
+            "raceKey": race_key,
+            "origin": "source_profile",
+        }
+    return {
+        "schemaRevision": "gear-attribute-character-v1",
+        "raceKey": "human",
+        "origin": "default_human",
+    }
 
 
 def _int(value: Any) -> int:
@@ -78,7 +108,7 @@ def _winner_import_evidence(row: dict[str, Any]) -> dict[str, Any] | None:
     evidence = payload.get("importEvidence") if isinstance(payload.get("importEvidence"), dict) else {}
     slots = evidence.get("slots") if isinstance(evidence.get("slots"), dict) else {}
     if (
-        evidence.get("schemaRevision") != COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_REVISION
+        _text(evidence.get("schemaRevision")) not in _SUPPORTED_COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_REVISIONS
         or not _text(evidence.get("sourceFingerprint")).startswith("sha256:")
         or not slots
     ):
@@ -306,6 +336,7 @@ def build_community_template_import_source(
             "profileHash": _text(row.get("profileHash")),
             "gearHash": _text(row.get("gearHash")),
             "sourceFingerprint": _text(import_evidence.get("sourceFingerprint")),
+            "attributeCharacterContext": _attribute_character_context_from_evidence(import_evidence),
         },
         "importedGearBySlot": imported_gear_by_slot,
         "visibleOptionsBySlot": visible_options_by_slot,

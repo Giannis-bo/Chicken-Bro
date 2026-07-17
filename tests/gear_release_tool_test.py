@@ -401,6 +401,35 @@ class GearReleaseToolTest(unittest.TestCase):
         })
         self.assertNotIn("197", str(evidence))
 
+    def test_import_evidence_binds_verified_source_race_into_v2_fingerprint(self):
+        from server.gear_release_tool import community_template_import_evidence_from_template
+
+        template = self.template()
+        template["attributeCharacterContext"] = {
+            "schemaRevision": "gear-attribute-character-v1",
+            "raceKey": "night_elf",
+            "origin": "source_profile",
+        }
+        snapshot = self.snapshot()
+
+        evidence = community_template_import_evidence_from_template(
+            template,
+            gear_release_id="gear-release:sha256:target",
+            gear_snapshot=snapshot,
+        )
+        human_template = copy.deepcopy(template)
+        human_template["attributeCharacterContext"]["raceKey"] = "human"
+        human_evidence = community_template_import_evidence_from_template(
+            human_template,
+            gear_release_id="gear-release:sha256:target",
+            gear_snapshot=snapshot,
+        )
+
+        self.assertEqual(evidence["schemaRevision"], "community-template-import-evidence-v2")
+        self.assertEqual(evidence["sourceRaceKey"], "night_elf")
+        self.assertEqual(evidence["sourceRaceOrigin"], "source_profile")
+        self.assertNotEqual(evidence["sourceFingerprint"], human_evidence["sourceFingerprint"])
+
     def test_import_evidence_rejects_conflicting_observed_item_level_spellings(self):
         from server.gear_release_store import GearReleaseIntegrityError
         from server.gear_release_tool import community_template_import_evidence_from_template
@@ -2039,7 +2068,7 @@ class GearReleaseToolTest(unittest.TestCase):
         self.assertEqual(prepared["rows"][0]["selectionIntent"], intent)
         self.assertEqual(
             prepared["rows"][0]["payload"]["importEvidence"]["schemaRevision"],
-            "community-template-import-evidence-v1",
+            "community-template-import-evidence-v2",
         )
         self.assertEqual(prepared["seal"]["status"], "inserted")
         self.assertEqual(len(store.community_seals), 1)

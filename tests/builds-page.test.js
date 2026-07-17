@@ -1133,7 +1133,7 @@ test('gear slot cards name selected weapon types instead of hand positions', () 
   assert.equal(helpers.gearSlotCardLabel('off_hand', { weaponType: 'Shield' }, '副手'), '盾牌')
 })
 
-test('gear attribute panel requires an explicit race and recomputes locally without SimC', () => {
+test('gear attribute panel defaults to human and recomputes locally without SimC or a race selector', () => {
   const pageConfig = loadBuildsDetailPageConfig({ exposeDetailHelpers: true })
   const rule = structuredClone(gearAttributeFixture.rule)
   rule.status = 'verified'
@@ -1175,22 +1175,19 @@ test('gear attribute panel requires an explicit race and recomputes locally with
       selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' },
       gearPayload,
       selectedGearBySlot,
-      enhancementBySlot: {},
-      selectedRaceKey: '',
-      selectedRaceName: ''
+      enhancementBySlot: {}
     },
     setData(update) {
       this.data = { ...this.data, ...update }
     }
   }
 
-  const missingRace = pageConfig.refreshGearAttributePanel.call(page)
-  assert.equal(missingRace.status, 'character_context_required')
-  assert.match(page.data.gearAttributePanel.summary, /请选择种族/)
-  assert.equal(page.data.gearAttributePanel.statRows.length, 0)
-
-  pageConfig.selectGearAttributeRace.call(page, { currentTarget: { dataset: { key: 'human' } } })
+  const initial = pageConfig.refreshGearAttributePanel.call(page)
   const haste = page.data.gearAttributePanel.statRows.find((row) => row.key === 'haste')
+  assert.equal(initial.status, 'calculated')
+  assert.deepEqual(JSON.parse(JSON.stringify(page.data.gearAttributeCharacterContext)), {
+    schemaRevision: 'gear-attribute-character-v1', raceKey: 'human', origin: 'default_human'
+  })
   assert.equal(page.data.gearAttributeState.status, 'calculated')
   assert.equal(page.data.gearAttributePanel.attributeRuleRevision, 'fixture-r1')
   assert.equal(haste.rawValue, 100)
@@ -1205,6 +1202,10 @@ test('gear attribute panel requires an explicit race and recomputes locally with
   assert.equal(changedHaste.rawValue, 200)
   assert.equal(changedHaste.convertedValue, '4.0%')
   assert.equal(changedHaste.deltaValue, '+100')
+
+  const wxml = fs.readFileSync('pages/builds/detail.wxml', 'utf8')
+  assert.doesNotMatch(wxml, /请选择种族|gearAttributeRaceSheet|openGearAttributeRaceSheet/)
+  assert.equal(typeof pageConfig.selectGearAttributeRace, 'undefined')
 })
 
 test('native talent simulator save flow names talent templates for the profile library', async () => {
@@ -10160,6 +10161,9 @@ test('gear community template reconciles observed enhancements and ignores forge
     templateId: 'observed-enhancements',
     serial: 1,
     resolvedGearSignature: 'sha256:test-resolved',
+    attributeCharacterContext: {
+      schemaRevision: 'gear-attribute-character-v1', raceKey: 'human', origin: 'default_human'
+    },
     unresolvedBySlot: {},
     warnings: []
   })
@@ -10250,6 +10254,9 @@ test('unmatched community slot detail failure imports matched facts and keeps ra
     templateId: 'observed-detail-failure',
     serial: 1,
     resolvedGearSignature: 'sha256:test-resolved',
+    attributeCharacterContext: {
+      schemaRevision: 'gear-attribute-character-v1', raceKey: 'human', origin: 'default_human'
+    },
     unresolvedBySlot: {
       back: {
         gemIds: [],
@@ -11165,6 +11172,9 @@ test('slower community enhancement hydration cannot overwrite a newer community 
     templateId: 'newer-import',
     serial: 2,
     resolvedGearSignature: 'sha256:test-resolved',
+    attributeCharacterContext: {
+      schemaRevision: 'gear-attribute-character-v1', raceKey: 'human', origin: 'default_human'
+    },
     unresolvedBySlot: {},
     warnings: []
   })
@@ -13884,7 +13894,10 @@ function mageFrostCommunityEnhancementHarness(options = {}) {
                   sourceKey: 'raiderio_observed_profile',
                   profileHash: options.profileHash === undefined ? 'profile-fingerprint' : options.profileHash,
                   gearHash: 'gear-fingerprint',
-                  sourceFingerprint: 'sha256:mage-frost-import'
+                  sourceFingerprint: 'sha256:mage-frost-import',
+                  attributeCharacterContext: options.attributeCharacterContext || {
+                    schemaRevision: 'gear-attribute-character-v1', raceKey: 'human', origin: 'default_human'
+                  }
                 },
                 manifest: { manifestRevision: 'manifest-mage-frost-import', pointerGeneration: 1 },
                 importedGearBySlot,
@@ -14018,6 +14031,27 @@ test('community import accepts sealed evidence when an older observed source has
   assert.equal(harness.page.communityEnhancementImportState.sourceFingerprint, 'sha256:mage-frost-import')
 })
 
+test('community import preserves its sealed source race through later local attribute refreshes', async () => {
+  const harness = await importMageFrostCommunityEnhancements(
+    mageFrostCommunityEnhancementHarness({
+      atomicImport: true,
+      attributeCharacterContext: {
+        schemaRevision: 'gear-attribute-character-v1', raceKey: 'night_elf', origin: 'source_profile'
+      }
+    })
+  )
+
+  assert.deepEqual(JSON.parse(JSON.stringify(harness.page.data.gearAttributeCharacterContext)), {
+    schemaRevision: 'gear-attribute-character-v1', raceKey: 'night_elf', origin: 'source_profile'
+  })
+  harness.page.data.selectedGearBySlot.head = {
+    ...harness.page.data.selectedGearBySlot.head,
+    itemLevel: harness.page.data.selectedGearBySlot.head.itemLevel + 1
+  }
+  harness.pageConfig.refreshGearAttributePanel.call(harness.page)
+  assert.equal(harness.page.data.gearAttributeCharacterContext.raceKey, 'night_elf')
+})
+
 test('saved observed import origin keeps the sealed source fingerprint when profile hash is unavailable', () => {
   const pageConfig = loadBuildsDetailPageConfig({ exposeDetailHelpers: true })
   const origin = pageConfig.__detailHelpers.savedCommunityImportOrigin({
@@ -14055,9 +14089,14 @@ test('community import blocks a malformed sealed v2 item level instead of commit
   assert.match(toasts.at(-1).title, /未能安全导入/)
 })
 
-test('verified community save records the source identity required for a later atomic reimport', async () => {
+test('verified community save records the source identity and implicit race required for a later atomic reimport', async () => {
   const harness = await importMageFrostCommunityEnhancements(
-    mageFrostCommunityEnhancementHarness({ atomicImport: true })
+    mageFrostCommunityEnhancementHarness({
+      atomicImport: true,
+      attributeCharacterContext: {
+        schemaRevision: 'gear-attribute-character-v1', raceKey: 'night_elf', origin: 'source_profile'
+      }
+    })
   )
 
   await confirmGearTemplateSave(harness.pageConfig, harness.page, 'Observed Frost exact source')
@@ -14068,7 +14107,10 @@ test('verified community save records the source identity required for a later a
     profileHash: 'profile-fingerprint',
     gearHash: 'gear-fingerprint',
     sourceFingerprint: 'sha256:mage-frost-import',
-    manifestRevision: 'manifest-mage-frost-import'
+    manifestRevision: 'manifest-mage-frost-import',
+    attributeCharacterContext: {
+      schemaRevision: 'gear-attribute-character-v1', raceKey: 'night_elf', origin: 'source_profile'
+    }
   })
 })
 

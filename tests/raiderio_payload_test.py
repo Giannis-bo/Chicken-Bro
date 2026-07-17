@@ -2240,5 +2240,21 @@ class RaiderIOPayloadTest(unittest.TestCase):
         self.assertEqual(profile["role"], "healer")
         self.assertEqual(profile["talentLoadout"]["rawImportCode"], "CEQAAAAAAAAAAAAAAAAAAAAA")
 
+    def test_profile_summary_normalizes_observed_source_race_without_inventing_one(self):
+        source_profile = sample_profile_payload()
+        source_profile["race"] = {"name": "Night Elf", "slug": "night-elf"}
+
+        self.assertEqual(
+            raiderio_payload.profile_summary(source_profile)["raceKey"],
+            "night_elf",
+        )
+
+        missing_race_profile = sample_profile_payload("NoRace")
+        self.assertNotIn("raceKey", raiderio_payload.profile_summary(missing_race_profile))
+
+        invalid_race_profile = sample_profile_payload("InvalidRace")
+        invalid_race_profile["race"] = {"name": "@@@", "slug": "@@@"}
+        self.assertNotIn("raceKey", raiderio_payload.profile_summary(invalid_race_profile))
+
 if __name__ == "__main__":
     unittest.main()
