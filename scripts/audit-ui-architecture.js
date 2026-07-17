@@ -1220,6 +1220,19 @@ record(
 record('routes_use_only_current_app_shell_api', deprecatedAppShellProps.length === 0, deprecatedAppShellProps.join(', ') || 'none')
 
 const componentSources = walk('packages/design-system/src', ['.ts', '.tsx'])
+const productionAssetControlBlocks = componentSources.flatMap((file) => (
+  file.endsWith('.tsx')
+    ? [...read(file).matchAll(/<ControlButton\b[\s\S]*?<\/ControlButton>/gu)]
+      .filter((match) => /<(?:ProductionAsset(?:Image|Glyph)|NineSliceFrame)\b/u.test(match[0]))
+      .map((match) => ({ file, block: match[0] }))
+    : []
+))
+record(
+  'controls_with_production_assets_declare_one_material_owner',
+  productionAssetControlBlocks.length >= 4
+    && productionAssetControlBlocks.every(({ block }) => /data-material-owner="(?:asset|css)"/u.test(block)),
+  productionAssetControlBlocks.filter(({ block }) => !/data-material-owner="(?:asset|css)"/u.test(block)).map(({ file }) => file).join(', ') || `controls=${productionAssetControlBlocks.length}`,
+)
 const unidentifiedNativeControls = []
 for (const file of componentSources.filter((candidate) => candidate.endsWith('.tsx'))) {
   const ast = babelParser.parse(read(file), { sourceType: 'module', plugins: ['jsx', 'typescript'] })

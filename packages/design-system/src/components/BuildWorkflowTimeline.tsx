@@ -182,6 +182,7 @@ export function BuildWorkflowTimeline({
                   disabled && buildStyle('workflowRowDisabled'),
                 )}
                 data-disabled={disabled ? 'true' : 'false'}
+                data-material-owner="css"
                 data-role="build-workflow-stage"
                 data-slot={'workflow-stage.' + stage.id}
                 data-stage-id={stage.id}
