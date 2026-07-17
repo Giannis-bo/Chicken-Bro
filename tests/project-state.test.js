@@ -481,6 +481,7 @@ test('raster integration metadata cannot drift from registry and source bindings
 
 test('route geometry verification covers all routes without launching DevTools', () => {
   const verifier = fs.readFileSync('scripts/verify-ui-route-geometry.js', 'utf8')
+  const audit = fs.readFileSync('scripts/audit-ui-architecture.js', 'utf8')
   const contract = readJson('docs/design/current-ui/route-geometry-contract.json')
   assert.equal(contract.routes.length, 14)
   assert.ok(contract.routes.every((route) => route.requiredRegionIds.length >= 3))
@@ -515,6 +516,8 @@ test('route geometry verification covers all routes without launching DevTools',
   assert.match(verifier, /initial-button-safe-area/)
   assert.match(verifier, /missing-initial-safe-area-button/)
   assert.match(verifier, /missingInitialSafeAreaButtonCount/)
+  assert.match(audit, /geometry_safe_area_control_roles_have_single_publishers/)
+  assert.match(audit, /geometryControlRolePublishers/)
   assert.match(verifier, /initial-region-safe-area/)
   assert.match(verifier, /missing-initial-safe-area-region/)
   assert.match(verifier, /initialSafeAreaRegionIds/)

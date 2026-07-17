@@ -411,6 +411,40 @@ record(
   routeGeometryContract.routes?.length === 14 && invalidRequiredRegionContracts.length === 0,
   invalidRequiredRegionContracts.join(', ') || '14 route semantic closures',
 )
+const geometryControlRoleContracts = (routeGeometryContract.routes ?? []).flatMap((route) => (
+  ['initialSafeAreaButtonRoles', 'requiredFixedDockControlRoles'].flatMap((contractKey) => (
+    (route[contractKey] ?? []).map((role) => ({ route: route.route, contractKey, role }))
+  ))
+))
+const geometryControlRolePublishers = new Map()
+for (const file of [...routeComponents, ...walk('packages/design-system/src', ['.tsx'])]) {
+  const ast = babelParser.parse(read(file), { sourceType: 'module', plugins: ['jsx', 'typescript'] })
+  traverse(ast, {
+    JSXAttribute(attributePath) {
+      const attribute = attributePath.node
+      if (attribute.name.type !== 'JSXIdentifier' || attribute.name.name !== 'data-role' || attribute.value?.type !== 'StringLiteral') return
+      const publishers = geometryControlRolePublishers.get(attribute.value.value) ?? []
+      publishers.push(`${file}:${attribute.loc?.start.line ?? 0}`)
+      geometryControlRolePublishers.set(attribute.value.value, publishers)
+    },
+  })
+}
+const duplicateGeometryControlContracts = geometryControlRoleContracts.filter((entry, index, entries) => (
+  entries.findIndex((candidate) => candidate.role === entry.role) !== index
+))
+const invalidGeometryControlPublishers = geometryControlRoleContracts.flatMap((entry) => {
+  const publishers = geometryControlRolePublishers.get(entry.role) ?? []
+  return publishers.length === 1 ? [] : [`${entry.route}:${entry.contractKey}:${entry.role}:publishers=${publishers.join('|') || 'none'}`]
+})
+record(
+  'geometry_safe_area_control_roles_have_single_publishers',
+  geometryControlRoleContracts.length > 0
+    && duplicateGeometryControlContracts.length === 0
+    && invalidGeometryControlPublishers.length === 0,
+  invalidGeometryControlPublishers.join(', ')
+    || duplicateGeometryControlContracts.map((entry) => entry.role).join(', ')
+    || `roles=${geometryControlRoleContracts.length}`,
+)
 record(
   'core_interaction_contract_covers_all_target_routes',
   interactionContract.status === expectedInteractionStatus
