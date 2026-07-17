@@ -1362,14 +1362,19 @@ function verifiedGearAttributeStaticAttributes(sourceContext) {
   return attributes
 }
 
+function gearAttributeStaticFactsAreVerified(value) {
+  const source = value && typeof value === 'object' ? value : {}
+  const nested = source.attributeStaticFacts && typeof source.attributeStaticFacts === 'object'
+    ? source.attributeStaticFacts.status
+    : ''
+  const status = cleanGearString(source.attributeStaticFactsStatus || nested).toLowerCase()
+  return status === 'verified' || status === 'not_applicable'
+}
+
 function gearAttributeSourceMetrics(gearPayload, selectedGearBySlot, selectedSpec, enhancementBySlot, sourceContext) {
   const canonicalContext = sourceContext && typeof sourceContext === 'object' ? sourceContext : null
   const verifiedStaticAttributes = verifiedGearAttributeStaticAttributes(canonicalContext)
   const canonicalAttributeFacts = canonicalContext && canonicalContext.attributeStaticFacts
-  const attributeStaticFactsVerified = !canonicalContext || (
-    canonicalContext.status === 'verified' &&
-    canonicalAttributeFacts && canonicalAttributeFacts.status === 'verified'
-  )
   const canonicalReadiness = canonicalContext && canonicalContext.profileReadiness || {}
   const canonicalRequiredSlots = Array.isArray(canonicalReadiness.requiredSlots)
     ? canonicalReadiness.requiredSlots.filter((slot) => requiredGearSlots.includes(slot))
@@ -1384,6 +1389,7 @@ function gearAttributeSourceMetrics(gearPayload, selectedGearBySlot, selectedSpe
   const primaryKey = primaryStatKeyForSpec(specKeys)
   const staticAttributes = {}
   const itemLevels = []
+  let localAttributeStaticFactsVerified = selectedItems.length > 0 && selectedItems.every(gearAttributeStaticFactsAreVerified)
   const add = (key, value) => {
     const normalizedKey = cleanGearString(key)
     const numeric = gearNumericValue(value)
@@ -1417,10 +1423,18 @@ function gearAttributeSourceMetrics(gearPayload, selectedGearBySlot, selectedSpe
     ].forEach(([optionKey, type]) => {
       const selectedOption = enhancementOptionsForSlot(gearPayload, item, optionKey)
         .find((option) => enhancementOptionSelected(option, selected, type))
-      if (!selectedOption) return
+      if (!selectedOption) {
+        if (enhancementRecordHasSelectedType(selected, type)) localAttributeStaticFactsVerified = false
+        return
+      }
+      if (!gearAttributeStaticFactsAreVerified(selectedOption)) localAttributeStaticFactsVerified = false
       gearStatEntriesForEnhancementOption(selectedOption, primaryKey).forEach((entry) => add(entry.key, entry.value))
     })
   })
+  const attributeStaticFactsVerified = canonicalContext ? (
+    canonicalContext.status === 'verified' &&
+    canonicalAttributeFacts && canonicalAttributeFacts.status === 'verified'
+  ) : localAttributeStaticFactsVerified
   const enhancementSheet = buildGearEnhancementSheet(gearPayload, selectedGearBySlot, enhancementBySlot || {}, false)
   const canonicalConstraints = canonicalContext && canonicalContext.constraints || {}
   const canonicalSlots = canonicalConstraints.slots && typeof canonicalConstraints.slots === 'object'

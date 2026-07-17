@@ -168,6 +168,7 @@ function completeGearSelection(slots = canonicalGearSlots) {
       sources: [{ label: '测试首领 - 测试副本', sourceType: 'dungeon' }],
       ilevel: 707,
       bonus_id: '12345',
+      attributeStaticFactsStatus: 'verified',
       simcReady: true
     }
     return selection
@@ -1318,6 +1319,56 @@ test('gear attribute panel hides final values when the resolver reports incomple
   assert.equal(page.data.gearAttributeState.problems[0].code, 'ATTRIBUTE_STATIC_FACTS_UNAVAILABLE')
   assert.deepEqual(JSON.parse(JSON.stringify(page.data.gearAttributePanel.statRows)), [])
   assert.equal(page.data.gearAttributePanel.calculationStatusLabel, '属性资料待补齐')
+})
+
+test('gear attribute panel does not estimate a locally edited item without static-fact evidence', () => {
+  const pageConfig = loadBuildsDetailPageConfig({ exposeDetailHelpers: true })
+  const rule = structuredClone(gearAttributeFixture.rule)
+  rule.status = 'verified'
+  const selectedGearBySlot = completeGearSelection()
+  selectedGearBySlot.head = {
+    ...selectedGearBySlot.head,
+    attributeStaticFactsStatus: 'unavailable',
+    itemStats: [{ key: 'haste_rating', value: 100 }]
+  }
+  const gearPayload = {
+    classKey: 'mage',
+    specKey: 'frost',
+    maxLevel: 90,
+    slots: canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot })),
+    equippedSet: selectedGearBySlot,
+    replacementCandidates: [],
+    slotReadiness: {},
+    readiness: { fullReady: true },
+    attributeCalculator: {
+      contractRevision: 'gear-attribute-calculator-context-v1',
+      status: 'available',
+      attributeRuleRevision: 'fixture-r1',
+      raceOptions: [{ raceKey: 'human' }],
+      rules: [rule],
+      problems: []
+    }
+  }
+  const page = {
+    ...pageConfig,
+    data: {
+      ...pageConfig.data,
+      activeQueryKey: 'gear',
+      selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' },
+      gearPayload,
+      selectedGearBySlot,
+      enhancementBySlot: {}
+    },
+    setData(update) {
+      this.data = { ...this.data, ...update }
+    }
+  }
+
+  pageConfig.refreshGearAttributePanel.call(page)
+
+  assert.equal(page.data.gearAttributeState.status, 'rule_unavailable')
+  assert.equal(page.data.gearAttributeState.problems[0].code, 'ATTRIBUTE_STATIC_FACTS_UNAVAILABLE')
+  assert.deepEqual(JSON.parse(JSON.stringify(page.data.gearAttributePanel.statRows)), [])
 })
 
 test('gear attribute panel immediately uses the edited local selection instead of a stale resolver snapshot', () => {
