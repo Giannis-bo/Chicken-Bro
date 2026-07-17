@@ -728,3 +728,18 @@ test('SimC regions scale inside the shell content viewport', () => {
   assert.doesNotMatch(styles, /(?:top|height):\s*(?:51|58|65|106|216|727|818)px/)
   assert.match(styles, /\.footerRegion\s*\{[^}]*top:\s*88\.8753%;[^}]*height:\s*3\.6675%;/)
 })
+
+test('full-width absolute regions scale on narrow WeChat viewports', () => {
+  for (const file of [
+    'apps/mini-taro/src/pages/simulator/simc-submit.module.scss',
+    'apps/mini-taro/src/pages/simulator/chickenbro.module.scss',
+  ]) {
+    const styles = fs.readFileSync(file, 'utf8')
+    for (const match of styles.matchAll(/\.\w+Region\s*\{(?<body>[^}]*)\}/gu)) {
+      if (!/\bleft:/u.test(match.groups.body)) continue
+      const left = Number(match.groups.body.match(/\bleft:\s*(?<value>[\d.]+)%;/u)?.groups?.value)
+      const width = Number(match.groups.body.match(/\bwidth:\s*(?<value>[\d.]+)%;/u)?.groups?.value)
+      assert.ok(Number.isFinite(left) && Number.isFinite(width) && left + width <= 100, `${file}: ${match[0]}`)
+    }
+  }
+})

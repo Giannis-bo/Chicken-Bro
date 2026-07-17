@@ -941,6 +941,7 @@ const viewportFitStyles = {
   newsDetail: read('apps/mini-taro/src/pages/news/news-detail.module.scss'),
   gearDetail: read('apps/mini-taro/src/pages/builds/gear-detail.module.scss'),
   simcSubmit: read('apps/mini-taro/src/pages/simulator/simc-submit.module.scss'),
+  chickenbro: read('apps/mini-taro/src/pages/simulator/chickenbro.module.scss'),
   taskDetail: read('apps/mini-taro/src/pages/simulator/task-detail.module.scss'),
   profile: read('apps/mini-taro/src/pages/profile/profile.module.scss'),
 }
@@ -968,6 +969,33 @@ record(
   'simc_vertical_regions_scale_inside_shell_content_viewport',
   invalidSimcVerticalRegions.length === 0,
   invalidSimcVerticalRegions.join(', ') || `regions=${simcVerticalRegionNames.length}`,
+)
+const responsiveHorizontalRegionGroups = [
+  {
+    route: 'simc',
+    source: viewportFitStyles.simcSubmit,
+    names: simcVerticalRegionNames,
+  },
+  {
+    route: 'chickenbro',
+    source: viewportFitStyles.chickenbro,
+    names: ['contextRegion', 'introRegion', 'primaryUserRegion', 'answerRegion', 'boundaryRegion', 'followupUserRegion', 'followupAnswerRegion', 'answerStateRegion', 'topicRegion'],
+  },
+]
+const invalidResponsiveHorizontalRegions = responsiveHorizontalRegionGroups.flatMap(({ route, source, names }) => names.flatMap((name) => {
+  const rule = [...source.matchAll(new RegExp(`\\.${name}\\s*\\{(?<body>[^}]*)\\}`, 'gu'))]
+    .map((match) => match.groups.body)
+    .find((body) => /\bleft:/u.test(body)) ?? ''
+  const left = Number(rule.match(/\bleft:\s*(?<value>[\d.]+)%;/u)?.groups?.value)
+  const width = Number(rule.match(/\bwidth:\s*(?<value>[\d.]+)%;/u)?.groups?.value)
+  return Number.isFinite(left) && Number.isFinite(width) && left >= 0 && width > 0 && left + width <= 100
+    ? []
+    : [`${route}:${name}:left=${left}:width=${width}`]
+}))
+record(
+  'full_width_absolute_regions_scale_on_narrow_wechat_viewports',
+  invalidResponsiveHorizontalRegions.length === 0,
+  invalidResponsiveHorizontalRegions.join(', ') || `regions=${responsiveHorizontalRegionGroups.reduce((sum, group) => sum + group.names.length, 0)}`,
 )
 record(
   'single_screen_route_terminals_reserve_wechat_viewport_space',
