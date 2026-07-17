@@ -56,7 +56,8 @@ globalThis.__detailHelpers = {
   buildGearEnhancementSheetForPage,
   communityTemplateRawEnhancementBySlot,
   reconcileCommunityTemplateEnhancements,
-  gearSelectionWithoutEmbeddedSimcEnhancements
+  gearSelectionWithoutEmbeddedSimcEnhancements,
+  gearWorkbenchDataState
 }
 ` : '')
   const sandbox = {
@@ -1260,6 +1261,59 @@ test('gear attribute panel prefers the verified resolver static snapshot over di
   pageConfig.refreshGearAttributePanel.call(page, { previousCalculation: page.data.gearAttributeState })
   haste = page.data.gearAttributePanel.statRows.find((row) => row.key === 'haste')
   assert.equal(haste.rawValue, 200)
+})
+
+test('gear attribute panel immediately uses the edited local selection instead of a stale resolver snapshot', () => {
+  const pageConfig = loadBuildsDetailPageConfig({ exposeDetailHelpers: true })
+  const rule = structuredClone(gearAttributeFixture.rule)
+  rule.status = 'verified'
+  const selectedGearBySlot = completeGearSelection()
+  selectedGearBySlot.head.itemStats = [{ key: 'haste_rating', value: 100 }]
+  const gearPayload = {
+    classKey: 'mage',
+    specKey: 'frost',
+    maxLevel: 90,
+    slots: canonicalGearSlots.map((slot) => ({ slot, simcSlot: slot, label: slot })),
+    equippedSet: selectedGearBySlot,
+    replacementCandidates: [],
+    slotReadiness: {},
+    readiness: { fullReady: true },
+    attributeCalculator: {
+      contractRevision: 'gear-attribute-calculator-context-v1',
+      status: 'available',
+      attributeRuleRevision: 'fixture-r1',
+      raceOptions: [{ raceKey: 'human' }],
+      rules: [rule],
+      problems: []
+    }
+  }
+  const staleSnapshot = {
+    status: 'verified',
+    resolvedGearSignature: 'sha256:before-edit',
+    staticAttributes: { haste_rating: 200 },
+    profileReadiness: { requiredSlots: canonicalGearSlots },
+    resolvedSlots: {},
+    constraints: {},
+    setState: { itemSetCounts: {}, activeDynamicEffects: [] }
+  }
+  const state = {
+    ...require('../pages/builds/gear-workbench-state').createGearWorkbenchState(),
+    resolveStatus: 'dirty',
+    lastVerifiedSnapshot: staleSnapshot
+  }
+
+  const next = pageConfig.__detailHelpers.gearWorkbenchDataState(state, {
+    gearPayload,
+    selectedGearBySlot,
+    selectedSpec: { websimClassKey: 'mage', websimSpecKey: 'frost' },
+    enhancementBySlot: {}
+  }, null)
+  const haste = next.gearAttributePanel.statRows.find((row) => row.key === 'haste')
+
+  assert.equal(next.gearAttributeSourceContext, null)
+  assert.equal(next.gearAttributeState.status, 'calculated')
+  assert.equal(haste.rawValue, 100)
+  assert.equal(haste.convertedValue, '2.0%')
 })
 
 test('native talent simulator save flow names talent templates for the profile library', async () => {

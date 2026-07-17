@@ -1711,7 +1711,16 @@ function gearWorkbenchDataState(state, data, committedReadState) {
       }
     : liveView
   const displaySnapshot = acceptedGearDisplaySnapshot(state)
-  const attributeSourceContext = gearAttributeSourceContext(displaySnapshot)
+  // A last verified resolver snapshot may describe the configuration before a
+  // local edit. It remains useful for the workbench read-only display, but it
+  // must never override the instant attribute calculation for the new local
+  // selection. Only a snapshot verified for the current intent can be an
+  // attribute input; otherwise the pure local calculator consumes the edited
+  // selection immediately.
+  const attributeSnapshot = gearWorkbenchCanUseVerifiedSnapshot(state)
+    ? state.currentSnapshot
+    : null
+  const attributeSourceContext = gearAttributeSourceContext(attributeSnapshot)
   const displaySignature = cleanGearString(displaySnapshot && displaySnapshot.resolvedGearSignature)
   const statusText = {
     idle: '等待校验当前装备配置',
