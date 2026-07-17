@@ -6,6 +6,12 @@ const coreInteractionContract = require('../docs/design/current-ui/core-interact
 
 const operationTimeoutMs = 10000
 const caseTimeoutMs = 20000
+const requestedRoutes = new Set(
+  (process.env.INTERACTION_ROUTES ?? '')
+    .split(',')
+    .map((route) => route.trim())
+    .filter(Boolean),
+)
 
 function contractDefinition(route, accept) {
   const interaction = coreInteractionContract.interactions.find((candidate) => candidate.route === route)
@@ -91,7 +97,13 @@ async function open(miniProgram, path) {
       } catch {}
       await settle(200)
     }
-    if (!page) throw error
+    if (!page) {
+      try {
+        page = await timeout(miniProgram.navigateTo(path), 4000, `fallback navigate ${path}`)
+      } catch {
+        throw error
+      }
+    }
   }
   await settle()
   return page
@@ -116,6 +128,7 @@ async function tapAndReadPath(miniProgram, page, selector, waitForChange = true)
 
 async function runCase(results, definition, action) {
   const route = definition.output.route
+  if (requestedRoutes.size > 0 && !requestedRoutes.has(route)) return
   process.stderr.write(`[interaction:start] ${route}\n`)
   try {
     const actual = await timeout(action(), caseTimeoutMs, `interaction ${route}`)
@@ -155,7 +168,11 @@ async function main() {
 
     await runCase(results, contractDefinition('current_spec_workbench',
       (actual) => typeof actual === 'string' && actual !== 'pages/builds/workbench',
-    ), async () => tapAndReadPath(miniProgram, await open(miniProgram, contractPath('current_spec_workbench')), contractSelector('current_spec_workbench')))
+    ), async () => tapAndReadPath(
+      miniProgram,
+      await open(miniProgram, contractPath('current_spec_workbench')),
+      `${contractSelector('current_spec_workbench')}.wx-data-disabled-false`,
+    ))
 
     await runCase(results, contractDefinition('news_list',
       (actual) => actual === 'changed',
@@ -222,10 +239,10 @@ async function main() {
     ), async () => {
       const page = await open(miniProgram, contractPath('chickenbro_chat'))
       const prompt = await requiredElement(page, '.wx-data-action-id-prompt')
-      await prompt.input('运行态复核草稿')
-      await (await requiredElement(page, contractSelector('chickenbro_chat'))).tap()
+      await timeout(prompt.input('运行态复核草稿'), 2000, 'input chickenbro prompt')
+      await timeout((await requiredElement(page, contractSelector('chickenbro_chat'))).tap(), 2000, 'submit chickenbro prompt')
       await settle()
-      return (await requiredElement(page, '.wx-data-action-id-prompt')).value()
+      return timeout((await requiredElement(page, '.wx-data-action-id-prompt')).value(), 2000, 'read cleared chickenbro prompt')
     })
 
     await runCase(results, contractDefinition('tasks_list',
@@ -249,7 +266,10 @@ async function main() {
     ), async () => tapAndReadPath(miniProgram, await open(miniProgram, contractPath('profile/templates')), contractSelector('profile/templates')))
 
     const resultRoutes = results.map((result) => result.route).sort()
-    const contractRoutes = coreInteractionContract.interactions.map((interaction) => interaction.route).sort()
+    const contractRoutes = coreInteractionContract.interactions
+      .map((interaction) => interaction.route)
+      .filter((route) => requestedRoutes.size === 0 || requestedRoutes.has(route))
+      .sort()
     const coverageMatches = JSON.stringify(resultRoutes) === JSON.stringify(contractRoutes)
     const coverageFailures = coverageMatches ? [] : [{
       route: 'contract_coverage',
@@ -262,7 +282,7 @@ async function main() {
     console.log(JSON.stringify({
       status: failures.length ? 'fail' : 'pass',
       evidence: 'real_wechat_core_interaction',
-      scope: 'all_14_canonical_routes',
+      scope: requestedRoutes.size === 0 ? 'all_14_canonical_routes' : 'selected_canonical_routes',
       coverageMatches,
       results,
       failures,
