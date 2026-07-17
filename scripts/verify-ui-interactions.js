@@ -5,17 +5,17 @@ const { execFileSync } = require('node:child_process')
 const fs = require('node:fs')
 const path = require('node:path')
 const { connectMiniProgram, timeout } = require('./wechat-automator')
+const { requireOnlineRouteBatch } = require('./online-route-batch')
 const coreInteractionContract = require('../docs/design/current-ui/core-interaction-contract.json')
 
 const operationTimeoutMs = 10000
 // A case includes a bounded route open plus a bounded precondition/action. Keep
 // a small outer margin so the semantic failure can win the timeout race.
 const caseTimeoutMs = 25000
-const requestedRoutes = new Set(
-  (process.env.INTERACTION_ROUTES ?? '')
-    .split(',')
-    .map((route) => route.trim())
-    .filter(Boolean),
+const requestedRoutes = requireOnlineRouteBatch(
+  process.env.INTERACTION_ROUTES,
+  'INTERACTION_ROUTES',
+  coreInteractionContract.interactions.map((interaction) => interaction.route),
 )
 
 function contractDefinition(route, accept) {
@@ -336,7 +336,7 @@ async function main() {
         schemaVersion: 'wechat-core-interaction-detail-v1',
         commit,
         viewport,
-        scope: requestedRoutes.size === 0 ? 'all_14_canonical_routes' : 'selected_canonical_routes',
+        scope: 'selected_canonical_routes',
         coverageMatches,
         results,
         failures,
@@ -347,7 +347,7 @@ async function main() {
     console.log(JSON.stringify({
       status: failures.length ? 'fail' : 'pass',
       evidence: 'real_wechat_core_interaction',
-      scope: requestedRoutes.size === 0 ? 'all_14_canonical_routes' : 'selected_canonical_routes',
+      scope: 'selected_canonical_routes',
       coverageMatches,
       passed: results.filter((result) => result.status === 'PASS').length,
       unavailable: results.filter((result) => result.status === 'UNAVAILABLE').length,

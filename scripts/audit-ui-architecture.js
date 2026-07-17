@@ -819,6 +819,20 @@ record(
   'split runtime reviews must share commit and viewport before content-addressed promotion',
 )
 const visualCaptureSource = read('scripts/capture-ui-review-cache.js')
+const onlineRouteBatchSource = read('scripts/online-route-batch.js')
+const boundedOnlineWechatValidators = [
+  'scripts/verify-ui-route-geometry.js',
+  'scripts/verify-ui-interactions.js',
+  'scripts/verify-ui-selected-states.js',
+  'scripts/verify-ui-asset-slots.js',
+]
+record(
+  'online_wechat_validators_require_resumable_two_route_batches',
+  /maxOnlineRoutesPerRun = 2/u.test(onlineRouteBatchSource)
+    && /rejects "all"/u.test(onlineRouteBatchSource)
+    && boundedOnlineWechatValidators.every((file) => read(file).includes("require('./online-route-batch')")),
+  boundedOnlineWechatValidators.filter((file) => !read(file).includes("require('./online-route-batch')")).join(', ') || 'all bounded',
+)
 record(
   'online_visual_capture_is_limited_to_resumable_small_batches',
   /maxRoutesPerCaptureRun = 2/u.test(visualCaptureSource)

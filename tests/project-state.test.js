@@ -351,7 +351,7 @@ test('selected control verification is bounded and cannot launch DevTools', () =
   assert.deepEqual(expectedBoundarySequence(['false', 'true', 'false']), ['inactive', 'active', 'suppressed'])
   assert.deepEqual(expectedBoundarySequence(['false', 'false', 'true']), ['inactive', 'inactive', 'active'])
   assert.match(verifier, /SELECTED_STATE_ROUTES/)
-  assert.match(verifier, /unknown SELECTED_STATE_ROUTES/)
+  assert.match(verifier, /requireOnlineRouteBatch/)
   assert.match(verifier, /wx-data-selection-material-active/)
   assert.match(verifier, /wx-data-selection-material-inactive/)
   assert.match(verifier, /materialMismatches/)

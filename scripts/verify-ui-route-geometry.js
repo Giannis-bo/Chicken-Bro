@@ -6,18 +6,15 @@ const crypto = require('node:crypto')
 const fs = require('node:fs')
 const path = require('node:path')
 const { execFileSync } = require('node:child_process')
+const { requireOnlineRouteBatch } = require('./online-route-batch')
 const contract = require('../docs/design/current-ui/route-geometry-contract.json')
 
 const operationTimeoutMs = 10000
 const contractPath = path.resolve(__dirname, '../docs/design/current-ui/route-geometry-contract.json')
 const contractSha256 = crypto.createHash('sha256').update(fs.readFileSync(contractPath)).digest('hex')
-const requestedRoutes = new Set((process.env.GEOMETRY_ROUTES ?? '').split(',').map((value) => value.trim()).filter(Boolean))
+const requestedRoutes = requireOnlineRouteBatch(process.env.GEOMETRY_ROUTES, 'GEOMETRY_ROUTES', contract.routes.map((route) => route.route))
 
 function selectedRoutes() {
-  if (requestedRoutes.size === 0) return contract.routes
-  const known = new Set(contract.routes.map((route) => route.route))
-  const unknown = [...requestedRoutes].filter((route) => !known.has(route))
-  if (unknown.length > 0) throw new Error(`unknown GEOMETRY_ROUTES: ${unknown.join(', ')}`)
   return contract.routes.filter((route) => requestedRoutes.has(route.route))
 }
 

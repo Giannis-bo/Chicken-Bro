@@ -5,21 +5,18 @@ const fs = require('node:fs')
 const path = require('node:path')
 const { execFileSync } = require('node:child_process')
 const { connectMiniProgram, timeout } = require('./wechat-automator')
+const { requireOnlineRouteBatch } = require('./online-route-batch')
 const contract = require('../docs/design/current-ui/runtime-asset-slot-mapping-contract.json')
 
 const root = path.resolve(__dirname, '..')
 const operationTimeoutMs = 10000
-const requestedRoutes = new Set((process.env.ASSET_SLOT_ROUTES ?? '').split(',').map((value) => value.trim()).filter(Boolean))
 
 function classToken(slotId) {
   return slotId.replace(/[^a-zA-Z0-9_-]+/gu, '-')
 }
 
 function selectedRoutes() {
-  if (requestedRoutes.size === 0) return contract.routes
-  const known = new Set(contract.routes.map((route) => route.route))
-  const unknown = [...requestedRoutes].filter((route) => !known.has(route))
-  if (unknown.length > 0) throw new Error(`unknown ASSET_SLOT_ROUTES: ${unknown.join(', ')}`)
+  const requestedRoutes = requireOnlineRouteBatch(process.env.ASSET_SLOT_ROUTES, 'ASSET_SLOT_ROUTES', contract.routes.map((route) => route.route))
   return contract.routes.filter((route) => requestedRoutes.has(route.route))
 }
 

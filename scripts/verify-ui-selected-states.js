@@ -6,18 +6,14 @@ const crypto = require('node:crypto')
 const { execFileSync } = require('node:child_process')
 const fs = require('node:fs')
 const path = require('node:path')
+const { requireOnlineRouteBatch } = require('./online-route-batch')
 const contract = require('../docs/design/current-ui/selected-control-contract.json')
 
 const operationTimeoutMs = 10000
 const contractPath = path.resolve(__dirname, '../docs/design/current-ui/selected-control-contract.json')
 const contractSha256 = crypto.createHash('sha256').update(fs.readFileSync(contractPath)).digest('hex')
-const selectedRoutes = new Set((process.env.SELECTED_STATE_ROUTES ?? '').split(',').map((value) => value.trim()).filter(Boolean))
-
 function selectedGroups() {
-  if (selectedRoutes.size === 0) return contract.groups
-  const known = new Set(contract.groups.map((group) => group.route))
-  const unknown = [...selectedRoutes].filter((route) => !known.has(route))
-  if (unknown.length > 0) throw new Error(`unknown SELECTED_STATE_ROUTES: ${unknown.join(', ')}`)
+  const selectedRoutes = requireOnlineRouteBatch(process.env.SELECTED_STATE_ROUTES, 'SELECTED_STATE_ROUTES', contract.groups.map((group) => group.route))
   return contract.groups.filter((group) => selectedRoutes.has(group.route))
 }
 
@@ -138,7 +134,7 @@ async function main() {
     contractSha256,
     commit: execFileSync('git', ['rev-parse', '--short=12', 'HEAD'], { cwd: path.resolve(__dirname, '..'), encoding: 'utf8' }).trim(),
     viewport: { width: system.windowWidth, height: system.windowHeight, dpr: system.pixelRatio },
-    scope: selectedRoutes.size === 0 ? 'all_contract_groups' : 'selected_routes',
+    scope: 'selected_routes',
     coverageMatches: expectedKeys.length === resultKeys.length && expectedKeys.every((key) => resultKeys.includes(key)),
     results,
     failures: failed,
