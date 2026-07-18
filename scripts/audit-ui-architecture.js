@@ -397,6 +397,24 @@ const anchoredRegionsWithoutNumericGeometry = routeRegionLayoutDeclarations.filt
   const key = `${region.file}:${region.region}`
   return !responsiveHorizontalRegionKeys.has(key) || !responsiveVerticalRegionKeys.has(key)
 })
+const horizontalRegionGeometry = new Map(responsiveHorizontalRouteRegions.map((region) => [`${region.file}:${region.region}`, region]))
+const verticalRegionGeometry = new Map([...specializedRegionBounds, ...fixedPixelVerticalRegions].map((region) => [`${region.file}:${region.region}`, region]))
+const numericRouteRegionRectangles = routeRegionLayoutDeclarations.flatMap((region) => {
+  const key = `${region.file}:${region.region}`
+  const horizontal = horizontalRegionGeometry.get(key)
+  const vertical = verticalRegionGeometry.get(key)
+  return horizontal && vertical ? [{ ...region, left: horizontal.left, right: horizontal.right, top: vertical.top, bottom: vertical.bottom }] : []
+})
+const overlappingRouteRegionRectangles = [...new Set(numericRouteRegionRectangles.map((region) => region.file))].flatMap((file) => {
+  const regions = numericRouteRegionRectangles.filter((region) => region.file === file)
+  return regions.flatMap((region, index) => regions.slice(index + 1).flatMap((candidate) => {
+    const overlapWidth = Math.min(region.right, candidate.right) - Math.max(region.left, candidate.left)
+    const overlapHeight = Math.min(region.bottom, candidate.bottom) - Math.max(region.top, candidate.top)
+    return overlapWidth > 1 && overlapHeight > 1
+      ? [{ file, region: region.region, candidate: candidate.region, overlapWidth, overlapHeight }]
+      : []
+  }))
+})
 const uncontainedRouteRegions = routeStyles.flatMap((file) => (
   [...read(file).matchAll(/\.([A-Za-z][\w-]*Region)(?:\s*,[^{]+)?\s*\{([^}]*)\}/gu)].flatMap((match) => (
     /\boverflow:\s*visible\s*;/u.test(match[2]) ? [`${file}:${match[1]}`] : []
@@ -436,6 +454,12 @@ record(
   'all_anchored_route_regions_have_numeric_minimum_viewport_geometry',
   anchoredRegionsWithoutNumericGeometry.length === 0,
   anchoredRegionsWithoutNumericGeometry.map((region) => `${region.file}:${region.region}`).join(', ') || `regions=${routeRegionLayoutDeclarations.length}`,
+)
+record(
+  'route_regions_do_not_overlap_in_two_dimensions',
+  overlappingRouteRegionRectangles.length === 0,
+  overlappingRouteRegionRectangles.map((item) => `${item.file}:${item.region}<->${item.candidate}:${item.overlapWidth}x${item.overlapHeight}`).join(', ')
+    || `regions=${numericRouteRegionRectangles.length}`,
 )
 const overlappingSpecializedRegions = [...new Set(specializedRegionBounds.map((region) => region.file))].flatMap((file) => {
   const regions = specializedRegionBounds.filter((region) => region.file === file).sort((a, b) => a.top - b.top)
