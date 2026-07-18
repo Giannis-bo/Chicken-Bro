@@ -12,6 +12,7 @@ const {
   isCompletePassRecord,
   sharedEvidenceMatchesStatus,
 } = require('./runtime-review-validation')
+const { repoRelativePath, repoPathDirname, repoPathJoin } = require('./repo-relative-path')
 
 const root = path.resolve(__dirname, '..')
 const findings = []
@@ -59,14 +60,14 @@ const requiredContractFiles = [
 ]
 
 function read(relativePath) {
-  return fs.readFileSync(path.join(root, relativePath), 'utf8')
+  return fs.readFileSync(path.join(root, repoRelativePath(relativePath)), 'utf8')
 }
 
 function walk(relativeDir, extensions) {
-  const base = path.join(root, relativeDir)
+  const base = path.join(root, repoRelativePath(relativeDir))
   const files = []
   for (const entry of fs.readdirSync(base, { withFileTypes: true })) {
-    const relativePath = path.join(relativeDir, entry.name)
+    const relativePath = repoPathJoin(relativeDir, entry.name)
     if (entry.isDirectory()) files.push(...walk(relativePath, extensions))
     else if (extensions.some((extension) => entry.name.endsWith(extension))) files.push(relativePath)
   }
@@ -123,7 +124,7 @@ const literalRouteCssModuleReferences = routeComponents.flatMap((file) => {
   const source = read(file)
   return [...source.matchAll(/import\s+([A-Za-z_$][\w$]*)\s+from\s+['"]([^'"]+\.module\.scss)['"]/gu)].flatMap((styleImport) => {
     const [, identifier, relativeStylePath] = styleImport
-    const stylePath = path.join(path.dirname(file), relativeStylePath)
+    const stylePath = repoPathJoin(repoPathDirname(file), relativeStylePath)
     if (!fs.existsSync(path.join(root, stylePath))) return [{ file, stylePath, className: null, exists: false }]
     const classNames = new Set([...read(stylePath).matchAll(/\.([A-Za-z_][\w-]*)/gu)].map((match) => match[1]))
     return [...source.matchAll(new RegExp(`\\b${identifier}(?:\\[['\"]([^'\"]+)['\"]\\]|\\.([A-Za-z_][\\w-]*))`, 'gu'))]
@@ -730,7 +731,7 @@ const routeRegionStyleBindingIssues = routeComponents
       if (statement.type !== 'ImportDeclaration' || !statement.source.value.endsWith('.module.scss')) continue
       const defaultImport = statement.specifiers.find((specifier) => specifier.type === 'ImportDefaultSpecifier')
       if (!defaultImport) continue
-      const stylePath = path.join(path.dirname(file), statement.source.value)
+      const stylePath = repoPathJoin(repoPathDirname(file), statement.source.value)
       const classNames = new Set([...read(stylePath).matchAll(/\.([A-Za-z_][\w-]*)/gu)].map((match) => match[1]))
       styleImports.set(defaultImport.local.name, { stylePath, classNames })
     }
@@ -1072,7 +1073,7 @@ const initialSafeAreaRoutesWithoutSharedHeight = initialSafeAreaRoutes.flatMap((
   const sourcePath = `apps/mini-taro/src/${route.path.split('?')[0].replace(/^\//u, '')}.tsx`
   const source = read(sourcePath)
   const stylePaths = [...source.matchAll(/import\s+[A-Za-z_$][\w$]*\s+from\s+['"]([^'"]+\.module\.scss)['"]/gu)]
-    .map((match) => path.join(path.dirname(sourcePath), match[1]))
+    .map((match) => repoPathJoin(repoPathDirname(sourcePath), match[1]))
   return stylePaths.some((stylePath) => read(stylePath).includes('var(--route-safe-viewport-height)'))
     ? []
     : [`${route.route}:${stylePaths.join('|') || 'missing-style-module'}`]
@@ -2332,7 +2333,7 @@ const expectedAssetPromotionGap = assetPromotionManifests.reduce((gap, { file, m
   gap.assetCount += assets.length
   gap.promotedAssetCount += promoted
   gap.pendingAssetCount += pending
-  if (pending > 0) gap.pendingCollections.push({ collection: manifest.collectionId ?? path.basename(path.dirname(file)), pendingAssetCount: pending })
+  if (pending > 0) gap.pendingCollections.push({ collection: manifest.collectionId ?? path.posix.basename(repoPathDirname(file)), pendingAssetCount: pending })
   return gap
 }, {
   collectionCount: assetPromotionManifests.length,
