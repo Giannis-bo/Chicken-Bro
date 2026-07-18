@@ -1509,6 +1509,15 @@ record(
     && !/WECHAT_AUTOMATOR_LAUNCH/u.test(read('scripts/verify-ui-selected-states.js')),
   'selected-state verification must never launch or reload DevTools',
 )
+const baselineVerifierSource = read('scripts/verify-ui-baselines.js')
+record(
+  'baseline_verifier_requires_an_explicit_bounded_route_batch_before_connecting',
+  /BASELINE_ROUTES/u.test(baselineVerifierSource)
+    && /requireOnlineRouteBatch/u.test(baselineVerifierSource)
+    && baselineVerifierSource.indexOf('selectedBaselines()') < baselineVerifierSource.indexOf('connectMiniProgram()')
+    && !/WECHAT_AUTOMATOR_LAUNCH/u.test(baselineVerifierSource),
+  'BASELINE_ROUTES must fail closed before connectMiniProgram',
+)
 const geometryRouteKeys = routeGeometryContract.routes?.map((route) => route.route) ?? []
 record(
   'runtime_geometry_contract_covers_delivery_routes',

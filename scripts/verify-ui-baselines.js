@@ -2,8 +2,37 @@
 'use strict'
 
 const { connectMiniProgram, timeout } = require('./wechat-automator')
+const { requireOnlineRouteBatch } = require('./online-route-batch')
 
 const operationTimeoutMs = 8000
+const baselineDefinitions = Object.freeze([
+  {
+    id: 'news_home',
+    url: '/pages/news/news',
+    chrome: 'root',
+    headerInset: 0,
+    carouselAutoplay: true,
+    metricOpticalAlignment: true,
+  },
+  {
+    id: 'builds_home',
+    url: '/pages/builds/builds',
+    chrome: 'root',
+    headerInset: 0,
+    evidenceTextRhythm: true,
+  },
+  { id: 'simulator_home', url: '/pages/simulator/simulator', chrome: 'root', headerInset: 0 },
+  { id: 'news_detail', url: '/pages/news/detail?id=architecture-preflight', chrome: 'pushed', headerInset: 6.77 },
+])
+
+function selectedBaselines() {
+  const requested = requireOnlineRouteBatch(
+    process.env.BASELINE_ROUTES,
+    'BASELINE_ROUTES',
+    baselineDefinitions.map((baseline) => baseline.id),
+  )
+  return baselineDefinitions.filter((baseline) => requested.has(baseline.id))
+}
 
 async function elementGeometry(page, selector, includeText = false) {
   const element = await timeout(page.$(selector), operationTimeoutMs, `query ${selector}`)
@@ -110,30 +139,13 @@ function closeTo(actual, expected, tolerance = 1) {
 }
 
 async function main() {
+  const requestedBaselines = selectedBaselines()
   let miniProgram
   try {
     miniProgram = await connectMiniProgram()
     const systemInfo = await timeout(miniProgram.systemInfo(), operationTimeoutMs, 'systemInfo')
     const baselines = []
-    for (const baseline of [
-      {
-        id: 'news_home',
-        url: '/pages/news/news',
-        chrome: 'root',
-        headerInset: 0,
-        carouselAutoplay: true,
-        metricOpticalAlignment: true,
-      },
-      {
-        id: 'builds_home',
-        url: '/pages/builds/builds',
-        chrome: 'root',
-        headerInset: 0,
-        evidenceTextRhythm: true,
-      },
-      { id: 'simulator_home', url: '/pages/simulator/simulator', chrome: 'root', headerInset: 0 },
-      { id: 'news_detail', url: '/pages/news/detail?id=architecture-preflight', chrome: 'pushed', headerInset: 6.77 },
-    ]) {
+    for (const baseline of requestedBaselines) {
       baselines.push({ ...baseline, ...await measure(miniProgram, baseline) })
     }
 

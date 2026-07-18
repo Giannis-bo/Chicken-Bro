@@ -102,6 +102,7 @@ Review 窗口同时覆盖共享组件、页面 JSX 中的非组件 wrapper、rou
 - Builds workflow 的 entry 与 timeline 几何只归 `WorkbenchComponents`/`BuildWorkflowTimeline` 当前组件；共享 reconstruction 禁止旧 112px workbench entry、158px timeline 及 `timelineNode-*` 平行 owner，仍在使用的 `workbenchBlocker*` 保留。
 - `reconstruction.module.scss` 执行全量反向引用门禁：每个 CSS 类必须在 design-system 或 mini app 的 TypeScript/TSX 中有明确字面 owner；动态拼类必须显式登记，禁止无引用样式、仅 CSS 内互引状态类和整组平行 route owner再次积累。
 - 反向引用门禁覆盖全部 route/component CSS Modules：普通类必须有 TS/TSX 字面 owner；动态状态类按文件、有限状态集合和模板调用三者精确登记；仅 Taro textarea 内部类作为外部 owner。未登记类、过宽动态前缀和仅 CSS 自引用均阻断审计。
+- 所有在线微信验证必须在连接 DevTools 前解析显式 route batch，单次最多 2 条且拒绝 `all`；baseline verifier 使用 `BASELINE_ROUTES`，缺失时 fail closed，不得再默认 `reLaunch` 四条基线。离线 package/asset integrity 可独立运行，不能把缺少在线 batch 误报为代码回归。
 
 ## 微信验收与恢复链路
 

@@ -378,6 +378,14 @@ test('selected control verification is bounded and cannot launch DevTools', () =
   assert.doesNotMatch(verifier, /WECHAT_AUTOMATOR_LAUNCH/)
 })
 
+test('baseline verification requires an explicit resumable route batch', () => {
+  const verifier = fs.readFileSync('scripts/verify-ui-baselines.js', 'utf8')
+  assert.match(verifier, /BASELINE_ROUTES/)
+  assert.match(verifier, /requireOnlineRouteBatch/)
+  assert.match(verifier, /selectedBaselines\(\)/)
+  assert.doesNotMatch(verifier, /WECHAT_AUTOMATOR_LAUNCH/)
+})
+
 test('selected control evidence promotion is exact, immutable and content addressed', () => {
   const promotion = fs.readFileSync('scripts/promote-ui-selected-state-review.js', 'utf8')
   assert.match(promotion, /boundedDetailPaths\(value, 'SELECTED_STATE_DETAIL_PATHS'\)/)
@@ -838,6 +846,7 @@ test('SimC regions scale inside the shell content viewport', () => {
   assert.match(audit, /build_workflow_geometry_has_no_parallel_reconstruction_owner/)
   assert.match(audit, /every_reconstruction_css_class_has_an_explicit_typescript_owner/)
   assert.match(audit, /every_routed_ui_css_class_has_an_explicit_or_bounded_dynamic_owner/)
+  assert.match(audit, /baseline_verifier_requires_an_explicit_bounded_route_batch_before_connecting/)
   assert.match(audit, /anchored_route_regions_close_both_layout_axes/)
   assert.match(audit, /partiallyAnchoredRouteRegions/)
   assert.match(audit, /fixed_route_stage_regions_bind_existing_layout_classes/)
