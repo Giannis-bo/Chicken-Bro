@@ -271,3 +271,65 @@ describe('authoritative talent edit endpoints', () => {
     ])
   })
 })
+
+describe('canonical gear stat snapshot endpoint', () => {
+  const signature = `stat-snapshot:sha256:${'a'.repeat(64)}`
+  const intent = {
+    schemaRevision: 'selection-intent-v1',
+    authoredAgainst: { seasonRevision: 'season-17', gearCatalogRevision: 'gear-r17' },
+    eligibilityContext: { classKey: 'mage', specKey: 'frost', level: 90 },
+    slots: {},
+  }
+  const profileContext = {
+    classKey: 'mage', specKey: 'frost', race: 'human', scenarioKey: 'single', talents: 'talents=CAE',
+  }
+  const snapshot = {
+    schemaRevision: 'gear-stat-snapshot-v1', statStatus: 'verified', statSignature: signature,
+    classKey: 'mage', specKey: 'frost', blockers: [], secondary: [],
+  }
+  const resolved = {
+    contractRevision: 'gear-result-envelope-v1', requestId: 'snapshot-request', status: 'resolved',
+    releaseContext: {}, data: { statSignature: signature, statSnapshot: snapshot }, problems: [],
+  }
+
+  it('accepts only a resolved snapshot bound to the exact signature and profile identity', async () => {
+    const valid = await createWebsimClient(responseTransport(resolved)).gearStatSnapshot({
+      selectionIntent: intent,
+      profileContext,
+    })
+    expect(valid.fromFallback).toBe(false)
+
+    const invalid = [
+      { ...resolved, data: { ...resolved.data, statSignature: 'forged' } },
+      { ...resolved, data: { ...resolved.data, statSnapshot: { ...snapshot, schemaRevision: 'gear-stat-snapshot-v0' } } },
+      { ...resolved, data: { ...resolved.data, statSnapshot: { ...snapshot, statStatus: 'partial' } } },
+      { ...resolved, data: { ...resolved.data, statSnapshot: { ...snapshot, statSignature: `stat-snapshot:sha256:${'b'.repeat(64)}` } } },
+      { ...resolved, data: { ...resolved.data, statSnapshot: { ...snapshot, classKey: 'warrior' } } },
+      { ...resolved, data: { ...resolved.data, statSnapshot: { ...snapshot, specKey: 'fire' } } },
+    ]
+    const results = await Promise.all(invalid.map((payload) => (
+      createWebsimClient(responseTransport(payload)).gearStatSnapshot({
+        selectionIntent: intent,
+        profileContext,
+      })
+    )))
+    expect(results.every((result) => result.fromFallback)).toBe(true)
+  })
+
+  it('accepts a signed pending envelope and rejects unsigned pending state', async () => {
+    const pending = {
+      contractRevision: 'gear-result-envelope-v1', requestId: 'snapshot-request', status: 'pending',
+      releaseContext: {}, data: { statSignature: signature, retryAfterMs: 1500 }, problems: [],
+    }
+    const accepted = await createWebsimClient(responseTransport(pending)).gearStatSnapshot({
+      selectionIntent: intent,
+      profileContext,
+    })
+    const rejected = await createWebsimClient(responseTransport({
+      ...pending, data: { ...pending.data, statSignature: 'pending-forged' },
+    })).gearStatSnapshot({ selectionIntent: intent, profileContext })
+
+    expect(accepted.fromFallback).toBe(false)
+    expect(rejected.fromFallback).toBe(true)
+  })
+})

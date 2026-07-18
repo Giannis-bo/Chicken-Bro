@@ -92,4 +92,62 @@ describe('SimulatorClient task contract', () => {
     expect(result.payload.scenarios[0]).toMatchObject({ targets: 7, durationSeconds: 417 })
     expect(result.payload.preparation.rows[0]?.overrideSupported).toBe(true)
   })
+
+  it('fails closed on incompatible, duplicate, or unbounded simc-options-v1 facts', async () => {
+    const valid = {
+      contractRevision: 'simc-options-v1', status: 'ready',
+      races: {
+        status: 'supported', defaultKey: 'human', supportedKeys: ['human', 'troll'],
+        defaultByClass: { mage: 'human' },
+      },
+      scenarios: [{
+        key: 'single', label: 'Single', fightStyle: 'Patchwerk', targets: 1,
+        durationSeconds: 300, status: 'supported',
+      }],
+      preparation: {
+        schemaRevision: 'simc-preparation-v1', status: 'ready',
+        rows: [{
+          key: 'optimal_raid', category: 'raid', label: 'Raid', defaultState: 'disabled',
+          evidenceState: 'verified', overrideSupported: true,
+        }],
+      },
+    }
+    const invalid: readonly unknown[] = [
+      { ...valid, status: 'partial' },
+      { ...valid, races: { ...valid.races, status: 'ready' } },
+      { ...valid, races: { ...valid.races, supportedKeys: [] } },
+      { ...valid, races: { ...valid.races, supportedKeys: ['human', 'human'] } },
+      { ...valid, races: { ...valid.races, defaultKey: 'orc' } },
+      { ...valid, races: { ...valid.races, defaultByClass: { mage: 'orc' } } },
+      { ...valid, scenarios: [{ ...valid.scenarios[0], key: '' }] },
+      { ...valid, scenarios: [valid.scenarios[0], { ...valid.scenarios[0] }] },
+      { ...valid, scenarios: [{ ...valid.scenarios[0], targets: 1.5 }] },
+      { ...valid, scenarios: [{ ...valid.scenarios[0], durationSeconds: 0 }] },
+      { ...valid, preparation: { ...valid.preparation, schemaRevision: 'simc-preparation-v0' } },
+      { ...valid, preparation: { ...valid.preparation, status: 'partial' } },
+      { ...valid, preparation: { ...valid.preparation, rows: [] } },
+      { ...valid, preparation: { ...valid.preparation, rows: [valid.preparation.rows[0], { ...valid.preparation.rows[0] }] } },
+      { ...valid, preparation: { ...valid.preparation, rows: [{ ...valid.preparation.rows[0], defaultState: 'automatic' }] } },
+      { ...valid, preparation: { ...valid.preparation, rows: [{ ...valid.preparation.rows[0], evidenceState: 'ready' }] } },
+    ]
+
+    const results = await Promise.all(invalid.map(async (payload) => {
+      const requestEndpoint = async <T>(
+        _endpoint: string,
+        _path: string,
+        options: Omit<RequestOptions<T>, 'method'>,
+      ): Promise<ApiResult<T>> => options.validate?.(payload)
+        ? { payload: payload as T, fromFallback: false, error: '' }
+        : { payload: options.fallback(), fromFallback: true, error: 'invalid payload' }
+      return new SimulatorClient({ requestEndpoint } as unknown as ApiTransport, new MemoryStorage()).options()
+    }))
+
+    expect(results.every((result) => result.fromFallback)).toBe(true)
+    expect(results.every((result) => (
+      result.payload.status === 'blocked'
+      && result.payload.races.supportedKeys.length === 0
+      && result.payload.scenarios.length === 0
+      && result.payload.preparation.rows.length === 0
+    ))).toBe(true)
+  })
 })

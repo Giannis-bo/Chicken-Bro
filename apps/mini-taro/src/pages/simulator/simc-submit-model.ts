@@ -6,6 +6,7 @@ import type {
   SimcPreparationOption,
   SimcProfileContext,
 } from '@wow-mini/domain'
+import { canonicalGearSelectionIntent } from '@wow-mini/domain'
 
 export type SimcTruthState = 'ready' | 'partial' | 'blocked' | 'unknown'
 
@@ -44,6 +45,19 @@ export interface SimcOptionsView {
 export interface CanonicalSimcContext {
   selectionIntent: GearSelectionIntent
   profileContext: SimcProfileContext
+}
+
+export interface SimcSubmissionToken {
+  readonly inputRevision: number
+  readonly operationRevision: number
+}
+
+export interface SimcSubmissionSession {
+  begin: () => SimcSubmissionToken
+  invalidate: () => void
+  mount: () => void
+  unmount: () => void
+  isCurrent: (token: SimcSubmissionToken) => boolean
 }
 
 export interface SimcSummaryRowView {
@@ -113,6 +127,71 @@ function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
+export function simcRouteFromFallback(input: {
+  homeFromFallback: boolean
+  optionsFromFallback: boolean
+  talentsFromFallback: boolean
+  tasksFromFallback: boolean
+}): boolean {
+  return input.homeFromFallback || input.optionsFromFallback || input.tasksFromFallback
+}
+
+export function simcCanPrepare(input: {
+  routeState: ReadinessState
+  optionsState: SimcOptionsView['state']
+  canonicalContextAvailable: boolean
+  activeTaskCount: number
+  submitting: boolean
+}): boolean {
+  return input.routeState === 'ready'
+    && input.optionsState === 'ready'
+    && input.canonicalContextAvailable
+    && input.activeTaskCount === 0
+    && !input.submitting
+}
+
+export function createSimcSubmissionSession(): SimcSubmissionSession {
+  let mounted = true
+  let inputRevision = 0
+  let operationRevision = 0
+  return {
+    begin() {
+      operationRevision += 1
+      return { inputRevision, operationRevision }
+    },
+    invalidate() {
+      inputRevision += 1
+      operationRevision += 1
+    },
+    mount() {
+      mounted = true
+      inputRevision += 1
+      operationRevision += 1
+    },
+    unmount() {
+      mounted = false
+      inputRevision += 1
+      operationRevision += 1
+    },
+    isCurrent(token) {
+      return mounted
+        && token.inputRevision === inputRevision
+        && token.operationRevision === operationRevision
+    },
+  }
+}
+
+export function canonicalSimcBuildIntent(
+  buildContext: unknown,
+  classKey: string,
+  specKey: string,
+): GearSelectionIntent | null {
+  if (!isRecord(buildContext)
+    || buildContext['classKey'] !== classKey
+    || buildContext['specKey'] !== specKey) return null
+  return canonicalGearSelectionIntent(buildContext['selectionIntent'], classKey, specKey)
+}
+
 export function deriveSimcOptionsView(
   options: SimcOptionsPayload,
   classKey: string,
@@ -173,25 +252,24 @@ export function buildCanonicalSimcContext(input: {
 }): CanonicalSimcContext | null {
   const context = input.buildContext
   const template = input.talentTemplate
-  if (!isRecord(context)
-    || context['classKey'] !== input.classKey
-    || context['specKey'] !== input.specKey
-    || !isRecord(context['selectionIntent'])
+  const intent = canonicalSimcBuildIntent(context, input.classKey, input.specKey)
+  if (!intent
     || !template
     || !input.raceKey
     || !input.scenarioKey) return null
 
-  const intent = context['selectionIntent']
   const rawTalent = template.rawString.trim()
   if (!rawTalent) return null
   const profileContext: SimcProfileContext = {
+    classKey: input.classKey,
+    specKey: input.specKey,
     race: input.raceKey,
     scenarioKey: input.scenarioKey,
     ...(template.heroKey ? { heroKey: template.heroKey } : {}),
     talents: rawTalent,
   }
   return {
-    selectionIntent: intent as unknown as GearSelectionIntent,
+    selectionIntent: intent,
     profileContext,
   }
 }

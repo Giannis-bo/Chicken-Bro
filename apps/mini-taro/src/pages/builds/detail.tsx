@@ -32,6 +32,7 @@ import {
   type GearEnhancementSelection,
   type GearResolvedSnapshot,
   type GearSelectionIntent,
+  type GearStatSnapshotPayload,
   type GearStatsPayload,
   type RouteDataState,
   type TalentImportPayload,
@@ -71,7 +72,7 @@ interface GearPagePayload {
 
 interface StatsState {
   loading: boolean
-  payload?: GearStatsPayload
+  payload?: GearStatsPayload | GearStatSnapshotPayload
   error?: string
 }
 

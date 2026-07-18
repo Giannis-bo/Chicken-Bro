@@ -534,6 +534,23 @@ export interface GearStatsPayload extends WebsimSelection {
   checkedAt?: string
 }
 
+export type GearStatSignature = `stat-snapshot:sha256:${string}`
+
+export interface GearStatSnapshotPayload extends WebsimSelection {
+  schemaRevision: 'gear-stat-snapshot-v1'
+  statStatus: 'verified'
+  statSignature: GearStatSignature
+  blockers: readonly string[]
+  primary?: StatValue | null
+  stamina?: StatValue | null
+  secondary: readonly StatValue[]
+  armor?: StatValue | null
+  itemLevel?: StatValue
+  checkedAt?: string
+  verifiedAt?: string
+  [key: string]: unknown
+}
+
 export interface GearIntentSlot {
   itemId: string
   variantKey: string
@@ -599,12 +616,30 @@ export interface GearResultEnvelope<T = GearResolvedSnapshot> {
   problems: readonly GearProblem[]
 }
 
-export interface SimcRaceOptions {
-  status: string
+export interface GearStatSnapshotData {
+  statSignature?: GearStatSignature
+  statSnapshot?: GearStatSnapshotPayload
+  retryAfterMs?: number
+  [key: string]: unknown
+}
+
+export type GearStatSnapshotEnvelope = GearResultEnvelope<GearStatSnapshotData>
+
+export interface SimcSupportedRaceOptions {
+  status: 'supported'
   defaultKey: string
   supportedKeys: readonly string[]
   defaultByClass: Readonly<Record<string, string>>
 }
+
+export interface SimcBlockedRaceOptions {
+  status: 'blocked'
+  defaultKey: ''
+  supportedKeys: readonly []
+  defaultByClass: Readonly<Record<string, never>>
+}
+
+export type SimcRaceOptions = SimcSupportedRaceOptions | SimcBlockedRaceOptions
 
 export interface SimcScenarioOption {
   key: string
@@ -612,8 +647,11 @@ export interface SimcScenarioOption {
   fightStyle: string
   targets: number
   durationSeconds: number
-  status: string
+  status: 'supported'
 }
+
+export type SimcPreparationDefaultState = 'enabled' | 'disabled' | 'pending_evidence'
+export type SimcPreparationEvidenceState = 'verified' | 'partial'
 
 export interface SimcPreparationOption {
   key: string
@@ -621,24 +659,42 @@ export interface SimcPreparationOption {
   classKey?: string
   specKey?: string
   label: string
-  defaultState: string
-  evidenceState: string
+  defaultState: SimcPreparationDefaultState
+  evidenceState: SimcPreparationEvidenceState
   overrideSupported: boolean
 }
 
-export interface SimcPreparationOptions {
-  schemaRevision: string
-  status: string
+export interface SimcReadyPreparationOptions {
+  schemaRevision: 'simc-preparation-v1'
+  status: 'ready'
   rows: readonly SimcPreparationOption[]
 }
 
-export interface SimcOptionsPayload {
-  contractRevision: 'simc-options-v1'
-  status: string
-  races: SimcRaceOptions
-  scenarios: readonly SimcScenarioOption[]
-  preparation: SimcPreparationOptions
+export interface SimcBlockedPreparationOptions {
+  schemaRevision: 'simc-preparation-v1'
+  status: 'blocked'
+  rows: readonly []
 }
+
+export type SimcPreparationOptions = SimcReadyPreparationOptions | SimcBlockedPreparationOptions
+
+export interface SimcOptionsReadyPayload {
+  contractRevision: 'simc-options-v1'
+  status: 'ready'
+  races: SimcSupportedRaceOptions
+  scenarios: readonly SimcScenarioOption[]
+  preparation: SimcReadyPreparationOptions
+}
+
+export interface SimcOptionsBlockedPayload {
+  contractRevision: 'simc-options-v1'
+  status: 'blocked'
+  races: SimcBlockedRaceOptions
+  scenarios: readonly []
+  preparation: SimcBlockedPreparationOptions
+}
+
+export type SimcOptionsPayload = SimcOptionsReadyPayload | SimcOptionsBlockedPayload
 
 export interface SimcBuildContext {
   specId?: string
@@ -651,12 +707,14 @@ export interface SimcBuildContext {
   enhancementBySlot?: Readonly<Record<string, GearEnhancementSelection>>
   selectionIntent: GearSelectionIntent
   resolvedGearSignature?: string
-  statSnapshot?: GearStatsPayload
+  statSnapshot?: GearStatsPayload | GearStatSnapshotPayload
   source?: string
 }
 
 export interface SimcProfileContext {
   readonly [key: string]: unknown
+  classKey: string
+  specKey: string
   race: string
   scenarioKey: string
   heroKey?: string

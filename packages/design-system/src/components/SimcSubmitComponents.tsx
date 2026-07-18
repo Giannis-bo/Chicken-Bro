@@ -40,6 +40,7 @@ export interface SimcIdentitySelectorsProps {
   races: readonly SimcRaceItem[]
   selectedRaceIndex: number
   loading?: boolean | undefined
+  disabled?: boolean | undefined
   onSpecializationSelect: (id: string) => void
   onRaceSelect: (index: number) => void
 }
@@ -73,6 +74,7 @@ export function SimcIdentitySelectors({
   races,
   selectedRaceIndex,
   loading = false,
+  disabled = false,
   onSpecializationSelect,
   onRaceSelect,
 }: SimcIdentitySelectorsProps) {
@@ -101,7 +103,7 @@ export function SimcIdentitySelectors({
                 data-selection-material={item.id === selectedSpecializationId ? 'active' : 'inactive'}
                 data-selected={item.id === selectedSpecializationId ? 'true' : 'false'}
                 data-spec-id={item.id}
-                disabled={loading || item.id.startsWith('loading-')}
+                disabled={disabled || loading || item.id.startsWith('loading-')}
                 onClick={() => onSpecializationSelect(item.id)}
               >
                 <View className={styles['specMedallion'] ?? ''} data-role="simc-spec-medallion">
@@ -116,7 +118,7 @@ export function SimcIdentitySelectors({
       <View className={styles['raceGroup'] ?? ''}>
         <Text className={styles['sectionLabel'] ?? ''}>支持种族</Text>
         <Picker
-          disabled={loading || races.length === 0}
+          disabled={disabled || loading || races.length === 0}
           mode="selector"
           range={races.map((race) => race.label)}
           value={selectedRaceIndex}
@@ -146,6 +148,7 @@ export interface SimcTemplateSlotProps {
   options: readonly string[]
   selectedIndex: number
   loading?: boolean | undefined
+  disabled?: boolean | undefined
   onSelect: (index: number) => void
 }
 
@@ -159,6 +162,7 @@ export function SimcTemplateSlot({
   options,
   selectedIndex,
   loading = false,
+  disabled = false,
   onSelect,
 }: SimcTemplateSlotProps) {
   return (
@@ -186,7 +190,7 @@ export function SimcTemplateSlot({
         </View>
         <Picker
           className={styles['templatePicker'] ?? ''}
-          disabled={loading || options.length === 0}
+          disabled={disabled || loading || options.length === 0}
           mode="selector"
           range={[...options]}
           value={selectedIndex}
@@ -226,6 +230,7 @@ export interface SimcCombatConfigurationProps {
   durations: readonly number[]
   selectedDurationIndex: number
   buffRules: readonly SimcBuffRuleItem[]
+  disabled?: boolean | undefined
   onScenarioSelect: (index: number) => void
   onDurationSelect: (index: number) => void
 }
@@ -249,6 +254,7 @@ export function SimcCombatConfiguration({
   durations,
   selectedDurationIndex,
   buffRules,
+  disabled = false,
   onScenarioSelect,
   onDurationSelect,
 }: SimcCombatConfigurationProps) {
@@ -269,6 +275,7 @@ export function SimcCombatConfiguration({
             data-selection-material={index === selectedScenarioIndex ? 'active' : 'inactive'}
             data-scenario-id={scenario.id}
             data-selected={index === selectedScenarioIndex ? 'true' : 'false'}
+            disabled={disabled}
             onClick={() => onScenarioSelect(index)}
           >
             <SystemGlyph assetId={sceneGlyphs[index] ?? 'utility-glyph-family.target'} slotId="asset_slot.simc-scene-family" />
@@ -282,7 +289,7 @@ export function SimcCombatConfiguration({
           <Text>战斗时长</Text>
         </View>
         <Picker
-          disabled={durations.length <= 1}
+          disabled={disabled || durations.length <= 1}
           mode="selector"
           range={durations.map((duration) => `${duration} 秒`)}
           value={selectedDurationIndex}

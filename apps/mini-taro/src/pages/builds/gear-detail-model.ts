@@ -3,6 +3,7 @@ import type {
   GearEnhancementOption,
   GearEnhancementSelection,
   GearItemReference,
+  GearStatSnapshotPayload,
   GearStatsPayload,
   ReadinessState,
   WebsimGearPayload,
@@ -330,7 +331,9 @@ export function gearSlots(
   })
 }
 
-function verifiedMetrics(stats: GearStatsPayload | undefined): readonly GearMetricView[] {
+type GearDisplayStats = GearStatsPayload | GearStatSnapshotPayload
+
+function verifiedMetrics(stats: GearDisplayStats | undefined): readonly GearMetricView[] {
   const primaryKey = primaryStatKey(stats?.primary?.key || stats?.primary?.label)
   const fallbacks = metricFallbacks.map((item) => item.id === 'primary'
     ? { ...item, label: statLabels[primaryKey] ?? (text(stats?.primary?.label) || item.label) }
@@ -354,7 +357,7 @@ function verifiedMetrics(stats: GearStatsPayload | undefined): readonly GearMetr
 
 export function gearReadiness(
   equipped: Readonly<Record<string, GearItemReference>>,
-  stats: GearStatsPayload | undefined,
+  stats: GearDisplayStats | undefined,
   routeState: ReadinessState,
 ): GearReadinessView {
   const selectedItems = Object.entries(equipped).filter(([, item]) => Boolean(gearItemId(item)))
@@ -481,7 +484,7 @@ function checkedAtLabel(checkedAt: string | undefined): string {
 export function gearStatusDeck(
   payload: WebsimGearPayload | undefined,
   readiness: GearReadinessView,
-  stats: GearStatsPayload | undefined,
+  stats: GearDisplayStats | undefined,
   routeState: ReadinessState,
   routeReason: string,
 ): readonly GearStatusView[] {

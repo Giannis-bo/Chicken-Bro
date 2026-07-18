@@ -13,7 +13,7 @@ import {
 const localTemplate: BuildTemplate = {
   id: 'local-talent', clientId: 'local-talent', type: 'talent', title: '本地天赋',
   classKey: 'mage', className: '法师', specKey: 'frost', specName: '冰霜',
-  heroKey: '', heroLabel: '', scenarioKey: 'single', scenarioTitle: '单体', rawString: 'talents=',
+  heroKey: '', heroLabel: '', scenarioKey: 'single', scenarioTitle: '单体', rawString: 'talents=CAE',
   simcLines: [], status: 'ready', statusLabel: '本地', source: 'local', metadata: {},
   createdAt: '', updatedAt: '', remote: false, schemaVersion: 1,
   trust: { level: 'local_only', reason: '仅保存在当前设备' },
@@ -65,6 +65,69 @@ describe('SimC submit truth model', () => {
     expect(simcBlockerRows(input).find((row) => row.id === 'gear')).toMatchObject({
       blocked: false, detail: '冰霜 · canonical intent 已带入；等待本次后端快照校验',
     })
+  })
+
+  it('keeps an HTTP or unauthenticated talent fallback local-only without staling the canonical page', () => {
+    const routeFromFallback = (modelExports as Readonly<Record<string, unknown>>)['simcRouteFromFallback'] as
+      | ((input: Readonly<Record<string, boolean>>) => boolean)
+      | undefined
+    const canPrepare = (modelExports as Readonly<Record<string, unknown>>)['simcCanPrepare'] as
+      | ((input: Readonly<Record<string, unknown>>) => boolean)
+      | undefined
+    const selectionIntent = {
+      schemaRevision: 'selection-intent-v1',
+      authoredAgainst: { seasonRevision: 'season-17', gearCatalogRevision: 'gear-r17' },
+      eligibilityContext: { classKey: 'mage', specKey: 'frost', level: 90 },
+      slots: {},
+    }
+    const canonical = modelExports.buildCanonicalSimcContext({
+      buildContext: { classKey: 'mage', specKey: 'frost', selectionIntent },
+      classKey: 'mage', specKey: 'frost', raceKey: 'human', scenarioKey: 'single',
+      talentTemplate: localTemplate,
+    })
+
+    expect(routeFromFallback).toBeTypeOf('function')
+    expect(canPrepare).toBeTypeOf('function')
+    if (!routeFromFallback || !canPrepare) return
+    expect(routeFromFallback({
+      homeFromFallback: false,
+      optionsFromFallback: false,
+      talentsFromFallback: true,
+      tasksFromFallback: false,
+    })).toBe(false)
+    expect(simcTemplateSlot('talent', [localTemplate], localTemplate.id).state).toBe('partial')
+    expect(canonical).not.toBeNull()
+    expect(canPrepare({
+      routeState: 'ready', optionsState: 'ready', canonicalContextAvailable: Boolean(canonical),
+      activeTaskCount: 0, submitting: false,
+    })).toBe(true)
+  })
+
+  it('invalidates async work on input revision changes and unmount', () => {
+    const createSession = (modelExports as Readonly<Record<string, unknown>>)['createSimcSubmissionSession'] as
+      | (() => {
+        begin: () => unknown
+        invalidate: () => void
+        mount: () => void
+        unmount: () => void
+        isCurrent: (token: unknown) => boolean
+      })
+      | undefined
+
+    expect(createSession).toBeTypeOf('function')
+    if (!createSession) return
+    const session = createSession()
+    const first = session.begin()
+    expect(session.isCurrent(first)).toBe(true)
+    session.invalidate()
+    expect(session.isCurrent(first)).toBe(false)
+    const second = session.begin()
+    expect(session.isCurrent(second)).toBe(true)
+    session.unmount()
+    expect(session.isCurrent(second)).toBe(false)
+    session.mount()
+    const third = session.begin()
+    expect(session.isCurrent(third)).toBe(true)
   })
 
   it('does not claim a result before a returned task id exists', () => {
@@ -160,7 +223,7 @@ describe('SimC submit truth model', () => {
       | undefined
     const selectionIntent = {
       schemaRevision: 'selection-intent-v1',
-      authoredAgainst: { manifestRevision: 'manifest-r1' },
+      authoredAgainst: { seasonRevision: 'season-17', gearCatalogRevision: 'gear-r17' },
       eligibilityContext: { classKey: 'mage', specKey: 'frost', level: 90 },
       slots: {},
     }
@@ -174,12 +237,21 @@ describe('SimC submit truth model', () => {
     })).toEqual({
       selectionIntent,
       profileContext: {
+        classKey: 'mage', specKey: 'frost',
         race: 'zandalari_troll', scenarioKey: 'backend_raid',
         talents: 'websim:mage:frost::root:1',
       },
     })
     expect(build({
       buildContext: { classKey: 'shaman', specKey: 'elemental', selectionIntent },
+      classKey: 'mage', specKey: 'frost', raceKey: 'zandalari_troll',
+      scenarioKey: 'backend_raid', talentTemplate: localTemplate,
+    })).toBeNull()
+    expect(build({
+      buildContext: {
+        classKey: 'mage', specKey: 'frost',
+        selectionIntent: { ...selectionIntent, schemaRevision: 'selection-intent-v0' },
+      },
       classKey: 'mage', specKey: 'frost', raceKey: 'zandalari_troll',
       scenarioKey: 'backend_raid', talentTemplate: localTemplate,
     })).toBeNull()

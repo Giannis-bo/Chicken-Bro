@@ -25,4 +25,26 @@ describe('SimC active Taro canonical contract', () => {
     expect(source).not.toMatch(/const durations\s*=/)
     expect(source).not.toContain('scenarioOptions')
   })
+
+  it('keeps local talent fallback usable and fences confirm or submit against stale input', () => {
+    const source = readFileSync(resolve(
+      process.cwd(),
+      'apps/mini-taro/src/pages/simulator/simc.tsx',
+    ), 'utf8')
+    const components = readFileSync(resolve(
+      process.cwd(),
+      'packages/design-system/src/components/SimcSubmitComponents.tsx',
+    ), 'utf8')
+
+    expect(source).toContain('simcRouteFromFallback({')
+    expect(source).toContain('talentsFromFallback: talentsResult.fromFallback')
+    expect(source).not.toContain('homeResult.error, optionsResult.error, talentsResult.error')
+    expect(source).toContain('submissionSession.current.unmount()')
+    expect(source.match(/submissionSession\.current\.isCurrent\(token\)/g)?.length ?? 0).toBeGreaterThanOrEqual(8)
+    expect(source).toContain('pendingSignature')
+    expect(source).toContain('属性快照签名在轮询期间发生变化')
+    expect(source.match(/disabled=\{submitting\}/g)?.length ?? 0).toBeGreaterThanOrEqual(3)
+    expect(source.match(/if \(submittingRef\.current\) return/g)?.length ?? 0).toBeGreaterThanOrEqual(3)
+    expect(components).toContain('disabled?: boolean | undefined')
+  })
 })

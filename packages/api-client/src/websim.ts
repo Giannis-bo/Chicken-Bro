@@ -3,6 +3,8 @@ import type {
   GearSlotDefinition,
   GearResultEnvelope,
   GearSelectionIntent,
+  GearStatSignature,
+  GearStatSnapshotEnvelope,
   GearStatsPayload,
   TalentApiExportPayload,
   TalentApiImportPayload,
@@ -292,11 +294,22 @@ export interface CommunityTemplateImportRequest extends WebsimSelection {
 
 export interface GearStatSnapshotRequest {
   selectionIntent: GearSelectionIntent
-  profileContext: RequestData
+  profileContext: Readonly<Record<string, unknown>>
   timeoutMs?: number
 }
 
 function fallbackGearEnvelope(): GearResultEnvelope {
+  return {
+    contractRevision: 'gear-result-envelope-v1',
+    requestId: 'transport-fallback',
+    status: 'unavailable',
+    releaseContext: {},
+    data: {},
+    problems: [{ kind: 'TRANSPORT_ERROR', code: 'GEAR_TRANSPORT_UNAVAILABLE', retryable: true }],
+  }
+}
+
+function fallbackGearStatSnapshotEnvelope(): GearStatSnapshotEnvelope {
   return {
     contractRevision: 'gear-result-envelope-v1',
     requestId: 'transport-fallback',
@@ -328,6 +341,61 @@ function isStructuredEnvelope(value: unknown, contractRevision: string): boolean
     && Array.isArray(value['problems'])
 }
 
+const statSignaturePattern = /^stat-snapshot:sha256:[0-9a-f]{64}$/
+
+function isStatSignature(value: unknown): value is GearStatSignature {
+  return typeof value === 'string' && statSignaturePattern.test(value)
+}
+
+function isGearStatSnapshotEnvelope(
+  value: unknown,
+  request: GearStatSnapshotRequest,
+): value is GearStatSnapshotEnvelope {
+  if (!isRecord(value)
+    || value['contractRevision'] !== 'gear-result-envelope-v1'
+    || typeof value['requestId'] !== 'string'
+    || !value['requestId']
+    || !isRecord(value['releaseContext'])
+    || !isRecord(value['data'])
+    || !Array.isArray(value['problems'])
+    || !value['problems'].every(isRecord)) return false
+
+  const eligibility = request.selectionIntent.eligibilityContext
+  const expectedClassKey = eligibility?.classKey
+  const expectedSpecKey = eligibility?.specKey
+  const contextClassKey = request.profileContext['classKey']
+  const contextSpecKey = request.profileContext['specKey']
+  if (typeof expectedClassKey !== 'string'
+    || !expectedClassKey
+    || typeof expectedSpecKey !== 'string'
+    || !expectedSpecKey
+    || (contextClassKey !== undefined && contextClassKey !== expectedClassKey)
+    || (contextSpecKey !== undefined && contextSpecKey !== expectedSpecKey)) return false
+
+  const data = value['data']
+  if (value['status'] === 'pending') {
+    return isStatSignature(data['statSignature'])
+      && typeof data['retryAfterMs'] === 'number'
+      && Number.isInteger(data['retryAfterMs'])
+      && data['retryAfterMs'] > 0
+  }
+  if (value['status'] === 'resolved') {
+    const snapshot = data['statSnapshot']
+    return isStatSignature(data['statSignature'])
+      && isRecord(snapshot)
+      && snapshot['schemaRevision'] === 'gear-stat-snapshot-v1'
+      && snapshot['statStatus'] === 'verified'
+      && snapshot['statSignature'] === data['statSignature']
+      && snapshot['classKey'] === expectedClassKey
+      && snapshot['specKey'] === expectedSpecKey
+      && Array.isArray(snapshot['blockers'])
+      && snapshot['blockers'].every((item) => typeof item === 'string')
+      && Array.isArray(snapshot['secondary'])
+      && snapshot['secondary'].every(isRecord)
+  }
+  return value['status'] === 'blocked' || value['status'] === 'unavailable'
+}
+
 export interface WebsimClient {
   bootstrap(): Promise<ApiResult<WebsimBootstrapPayload>>
   talents(selection: WebsimSelection): Promise<ApiResult<WebsimTalentsPayload>>
@@ -338,7 +406,7 @@ export interface WebsimClient {
   gear(request: GearRequest): Promise<ApiResult<WebsimGearPayload>>
   gearResolve(selectionIntent: GearSelectionIntent): Promise<ApiResult<GearResultEnvelope>>
   communityTemplateImport(request: CommunityTemplateImportRequest): Promise<ApiResult<CommunityTemplateImportEnvelope>>
-  gearStatSnapshot(request: GearStatSnapshotRequest): Promise<ApiResult<GearResultEnvelope>>
+  gearStatSnapshot(request: GearStatSnapshotRequest): Promise<ApiResult<GearStatSnapshotEnvelope>>
   gearStats(payload: RequestData & Partial<WebsimSelection>): Promise<ApiResult<GearStatsPayload>>
 }
 
@@ -434,8 +502,8 @@ export function createWebsimClient(transport: ApiTransport): WebsimClient {
         },
         timeoutMs: Math.min(30000, Math.max(1, request.timeoutMs ?? 30000)),
         responseMode: 'structured-problem',
-        fallback: fallbackGearEnvelope,
-        validate: (value) => isStructuredEnvelope(value, 'gear-result-envelope-v1'),
+        fallback: fallbackGearStatSnapshotEnvelope,
+        validate: (value) => isGearStatSnapshotEnvelope(value, request),
       })
     },
     gearStats(payload) {
