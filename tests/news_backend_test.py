@@ -1937,7 +1937,24 @@ class NewsBackendTest(unittest.TestCase):
         self.assertFalse(preparation_rows[("", "temporary_combat_buffs")]["overrideSupported"])
         self.assertFalse(preparation_rows[("shaman", "enhancement_weapon_imbues")]["overrideSupported"])
 
-    def test_simcraft_template_canonical_context_re_resolves_for_confirm_and_final_without_legacy_fallback(self):
+    def test_simcraft_template_canonical_context_uses_server_owned_snapshot_for_confirm_and_final_without_legacy_fallback(self):
+        expected_signature = "stat-snapshot:sha256:" + "a" * 64
+        server_owned_snapshot = {
+            "schemaRevision": "gear-stat-snapshot-v1",
+            "statStatus": "verified",
+            "statSource": "simulationcraft_json",
+            "statSignature": expected_signature,
+            "classKey": "mage",
+            "specKey": "arcane",
+            "primary": {"key": "intellect", "label": "智力", "value": "2,624"},
+            "secondary": [{"key": "crit", "label": "暴击", "value": "8,100", "percent": "25%"}],
+            "blockers": [],
+        }
+        client_tampered_snapshot = {
+            **server_owned_snapshot,
+            "primary": {"key": "intellect", "label": "智力", "value": "999,999"},
+            "secondary": [{"key": "crit", "label": "暴击", "value": "999,999", "percent": "99%"}],
+        }
         payload = self.simc_template_payload(talent_raw="legacy-talent-must-not-be-read", gear_raw="legacy-gear-must-not-be-read")
         payload.update(
             {
@@ -1950,11 +1967,7 @@ class NewsBackendTest(unittest.TestCase):
                     "scenarioKey": "single",
                     "talents": "CAE_CANONICAL",
                 },
-                "statSnapshot": {
-                    **self.simc_template_stat_snapshot(),
-                    "schemaRevision": "gear-stat-snapshot-v1",
-                    "statSignature": "stat-snapshot:sha256:" + "a" * 64,
-                },
+                "statSnapshot": client_tampered_snapshot,
             }
         )
         simc_items = list(self.simc_template_structured_gear_snapshot()["gearBySlot"].values())
@@ -1979,7 +1992,6 @@ class NewsBackendTest(unittest.TestCase):
                 "calculate_scale_factors=0",
             ]
         )
-        expected_signature = "stat-snapshot:sha256:" + "a" * 64
         authority_snapshot = {
             "contractRevision": "gear-resolved-snapshot-v1",
             "status": "verified",
@@ -1991,6 +2003,19 @@ class NewsBackendTest(unittest.TestCase):
             "gearCatalogRevision": "gear-release:r17",
         }
         calls = []
+
+        class FakeSnapshotStore:
+            def __init__(self):
+                self.calls = []
+
+            def lookup_snapshot(self, signature, *, record_request=False):
+                self.calls.append((signature, record_request))
+                return {
+                    "statSignature": signature,
+                    "snapshot": server_owned_snapshot,
+                }
+
+        snapshot_store = FakeSnapshotStore()
 
         def fake_serializer(_snapshot, source_context=None, execution_flavor="standard_profile"):
             return {
@@ -2036,13 +2061,17 @@ class NewsBackendTest(unittest.TestCase):
             return_value={"statSignature": expected_signature},
         ), patch.object(
             self.backend,
+            "gear_stat_snapshot_data_store",
+            return_value=snapshot_store,
+        ), patch.object(
+            self.backend,
             "simcraft_template_talent_context",
             side_effect=AssertionError("canonical context must not parse legacy talent rawString"),
         ), patch.object(
             self.backend,
             "parse_simcraft_template_gear_raw",
             side_effect=AssertionError("canonical context must not parse legacy gear rawString/gearSnapshot"),
-        ):
+        ), patch.dict(os.environ, {"WOW_SIMC_TEMPLATE_TASK_AUTORUN": "0"}):
             for confirm_only in (True, False):
                 with self.subTest(confirmOnly=confirm_only):
                     payload["confirmOnly"] = confirm_only
@@ -2052,13 +2081,27 @@ class NewsBackendTest(unittest.TestCase):
                     self.assertEqual(prepared["inputContract"], "canonical_selection_intent_v1")
                     self.assertEqual(prepared["canonicalProfile"], canonical_profile)
                     self.assertEqual(prepared["gearSelection"]["items"], simc_items)
+                    self.assertEqual(prepared["statSnapshot"], server_owned_snapshot)
+                    self.assertEqual(
+                        prepared["templateContext"]["gear"]["metadata"]["statSnapshot"],
+                        server_owned_snapshot,
+                    )
 
             payload["confirmOnly"] = True
             payload["saveTask"] = False
             analysis = self.backend.analyze_and_store_simulator_task(payload)
 
-        self.assertEqual(len(calls), 3)
+            payload["confirmOnly"] = False
+            payload["saveTask"] = True
+            payload["guestId"] = "canonical-stat-authority-device"
+            queued = self.backend.analyze_and_store_simulator_task(payload)
+
+        self.assertEqual(len(calls), 4)
+        self.assertEqual(snapshot_store.calls, [(expected_signature, False)] * 4)
         self.assertEqual(analysis["agent"]["status"], "template_ready")
+        self.assertEqual(analysis["simcReport"]["build"]["statSnapshot"]["primary"]["value"], "2,624")
+        self.assertEqual(queued["status"], "queued")
+        self.assertEqual(queued["simcReport"]["build"]["statSnapshot"]["primary"]["value"], "2,624")
         self.assertIn("# canonical-resolver-profile", analysis["agent"]["draftProfile"])
         self.assertIn("talents=CAE_CANONICAL", analysis["agent"]["draftProfile"])
         self.assertNotIn("legacy-talent-must-not-be-read", analysis["agent"]["draftProfile"])

@@ -4441,6 +4441,30 @@ def simcraft_template_canonical_stat_snapshot_problem(source, expected_signature
     return None
 
 
+def simcraft_template_server_owned_stat_snapshot(expected_signature):
+    try:
+        store = gear_stat_snapshot_data_store()
+        stored = store.lookup_snapshot(expected_signature, record_request=False) if store is not None else {}
+    except Exception:
+        stored = {}
+    snapshot = stored.get("snapshot") if isinstance(stored, dict) and isinstance(stored.get("snapshot"), dict) else {}
+    if (
+        str(stored.get("statSignature") or "").strip() != expected_signature
+        or simcraft_template_canonical_stat_snapshot_problem(
+            {"statSnapshot": snapshot},
+            expected_signature,
+        )
+    ):
+        return {}, simcraft_template_problem(
+            "SIMC_CANONICAL_STAT_SNAPSHOT_UNAVAILABLE",
+            "Canonical Gear stat snapshot is not available from server authority.",
+            kind="AUTHORITY_UNAVAILABLE",
+            path="statSnapshot",
+            retryable=True,
+        )
+    return copy.deepcopy(snapshot), None
+
+
 def simcraft_template_gear_snapshot_raw(metadata):
     source = metadata if isinstance(metadata, dict) else {}
     snapshot = source.get("gearSnapshot")
@@ -4681,6 +4705,7 @@ def prepare_canonical_simcraft_template_request(request_payload):
     profile_envelope = {}
     profile_data = {}
     canonical_stat_context = {}
+    canonical_stat_snapshot = {}
 
     def canonical_profile_builder(resolved_snapshot, *, source_context=None):
         standard_profile = build_websim_profile_response_from_resolved_snapshot(
@@ -4774,6 +4799,12 @@ def prepare_canonical_simcraft_template_request(request_payload):
                     )
                     if snapshot_problem:
                         problems.append(snapshot_problem)
+                    else:
+                        canonical_stat_snapshot, snapshot_problem = simcraft_template_server_owned_stat_snapshot(
+                            expected_signature,
+                        )
+                        if snapshot_problem:
+                            problems.append(snapshot_problem)
 
     class_key = clean_text(eligibility.get("classKey"), 64)
     spec_key = clean_text(eligibility.get("specKey"), 64)
@@ -4800,7 +4831,7 @@ def prepare_canonical_simcraft_template_request(request_payload):
     errors.extend(simcraft_template_problem_messages(problems))
     errors = simcraft_template_unique_messages(errors)
     scenario = SIMCRAFT_TEMPLATE_SCENARIOS.get(scenario_key) or SIMCRAFT_TEMPLATE_SCENARIOS["single"]
-    stat_snapshot = source.get("statSnapshot") if isinstance(source.get("statSnapshot"), dict) else {}
+    stat_snapshot = canonical_stat_snapshot
     resolved_signature = clean_text(profile_data.get("resolvedGearSignature"), 200)
     talent_template = {
         "id": "canonical-profile",
@@ -4854,6 +4885,7 @@ def prepare_canonical_simcraft_template_request(request_payload):
             "raceKey": race_key,
             "scenarioKey": scenario_key or "single",
             "analysisType": analysis_type,
+            "statSnapshot": copy.deepcopy(stat_snapshot),
             "message": f"{spec_key}{class_key} · {scenario['label']} · {analysis_type}",
             "prompt": f"{spec_key}{class_key} · {scenario['label']} · {analysis_type}",
             "canonicalProfile": str(profile_data.get("profile") or "").strip(),
