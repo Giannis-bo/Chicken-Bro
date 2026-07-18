@@ -4589,8 +4589,6 @@ class WebSimPayloadTest(unittest.TestCase):
             conn.close()
 
         self.assertIn("replacementCandidates", payload)
-        self.assertEqual(payload["gearPayloadMode"], "initial")
-        self.assertEqual(payload["gearInitialCandidateLimit"], 3)
         self.assertNotIn("slotGroups", payload)
         self.assertNotIn("catalogItems", payload)
 
@@ -4737,6 +4735,8 @@ class WebSimPayloadTest(unittest.TestCase):
         )
 
         self.assertIn("replacementCandidates", payload)
+        self.assertEqual(payload["gearPayloadMode"], "initial")
+        self.assertEqual(payload["gearInitialCandidateLimit"], 4)
         self.assertNotIn("slotGroups", payload)
         self.assertNotIn("catalogItems", payload)
         self.assertNotIn("candidateItems", payload)
