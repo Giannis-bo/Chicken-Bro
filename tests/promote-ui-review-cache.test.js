@@ -33,7 +33,7 @@ test('promotion revalidates cached bytes, dimensions and digest', () => {
     sha256: crypto.createHash('sha256').update(buffer).digest('hex'),
     rendererEvidence: { path: 'pages/news/detail', shellWidth: 390, shellHeight: 844, regionCount: 6 },
   }
-  const viewport = { width: 390, height: 844, dpr: 3 }
+  const viewport = { width: 390, height: 844, dpr: 3, capsuleBounds: [296, 51, 87, 32] }
   assert.equal(inspectCapture(capture, viewport, directory).sha256, capture.sha256)
   assert.throws(() => inspectCapture({ ...capture, bytes: capture.bytes + 1 }, viewport, directory), /no longer matches manifest/)
   assert.throws(() => inspectCapture({ ...capture, rendererEvidence: { ...capture.rendererEvidence, regionCount: 0 } }, viewport, directory), /renderer evidence is incomplete/)
@@ -51,7 +51,7 @@ test('promotion selection is explicit and rejects absent routes', () => {
 
 test('promotion binds a cache manifest to a real repository commit and viewport directory', () => {
   const commit = execFileSync('git', ['rev-parse', '--short=12', 'HEAD'], { encoding: 'utf8' }).trim()
-  const viewport = { width: 390, height: 844, dpr: 3 }
+  const viewport = { width: 390, height: 844, dpr: 3, capsuleBounds: [296, 51, 87, 32] }
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'wow-ui-cache-identity-'))
   const manifestPath = path.join(directory, commit, '390x844@3', 'manifest.json')
   const identity = validateManifestCacheIdentity(manifestPath, { commit, viewport })

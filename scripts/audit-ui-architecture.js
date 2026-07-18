@@ -979,8 +979,8 @@ for (const review of reviewRoutes) {
       `observed_runtime_artifact_is_content_addressed:${review.route}`,
       artifactExists
         && receiptExists
-        && receipt?.schemaVersion === 'wechat-ui-runtime-promotion-v3'
-        && receipt?.sourceManifest?.schemaVersion === 'wechat-ui-review-cache-v3'
+        && receipt?.schemaVersion === 'wechat-ui-runtime-promotion-v4'
+        && receipt?.sourceManifest?.schemaVersion === 'wechat-ui-review-cache-v4'
         && receipt?.sourceManifest?.captureMethod === 'reused_existing_wechat_devtools_process'
         && receipt?.sourceManifest?.routeNavigationMethod === 'mini_program_relaunch'
         && runtimeReviewContract.fieldContract.runtimeArtifact.every((field) => Object.hasOwn(artifact, field))
@@ -1733,13 +1733,14 @@ const reviewCachePromotion = read('scripts/promote-ui-review-cache.js')
 const normalizedWechatViewportSource = read('scripts/wechat-viewport.js')
 record(
   'runtime_review_safe_area_uses_one_window_coordinate_model',
-  /function normalizeSystemViewport\(system\)/u.test(normalizedWechatViewportSource)
+  /function normalizeSystemViewport\(system, menuButton\)/u.test(normalizedWechatViewportSource)
     && /safeBottomInset:\s*safeBottom/u.test(normalizedWechatViewportSource)
-    && /normalizeSystemViewport\(system\)/u.test(reviewCacheCapture)
-    && /normalizeSystemViewport\(system\)/u.test(read('scripts/verify-ui-route-geometry.js'))
+    && /capsuleBounds:\s*normalizeCapsuleBounds/u.test(normalizedWechatViewportSource)
+    && /normalizeSystemViewport\(system, menuButton\)/u.test(reviewCacheCapture)
+    && /normalizeSystemViewport\(system, menuButton\)/u.test(read('scripts/verify-ui-route-geometry.js'))
     && !/screenHeight/u.test(read('scripts/verify-ui-route-geometry.js'))
     && /safeAreaBottom \+ first\.viewport\?\.safeBottomInset === first\.viewport\?\.height/u.test(read('scripts/promote-ui-route-geometry.js')),
-  'capture manifests and geometry details must agree on safe-bottom coordinates for the same WeChat viewport',
+  'capture manifests and geometry details must agree on safe-area and capsule coordinates for the same WeChat viewport',
 )
 record(
   'ui_review_cache_identity_is_bound_to_git_commit_and_viewport_path',

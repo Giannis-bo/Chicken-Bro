@@ -68,7 +68,7 @@ function main() {
   const detailPath = path.resolve(process.env.GEOMETRY_DETAIL_PATH ?? '')
   if (!process.env.GEOMETRY_DETAIL_PATH) throw new Error('GEOMETRY_DETAIL_PATH is required')
   const runtime = readBoundedJson(detailPath, 'runtime geometry detail')
-  if (runtime.schemaVersion !== 'wechat-route-geometry-detail-v1') throw new Error('unsupported geometry detail schema')
+  if (runtime.schemaVersion !== 'wechat-route-geometry-detail-v2') throw new Error('unsupported geometry detail schema')
   if (!/^[a-f\d]{12}$/u.test(runtime.commit ?? '')) throw new Error('runtime geometry detail commit is missing')
   const comparisons = contract.routes.map((mapping) => {
     const runtimeRoute = runtime.routes.find((route) => route.route === mapping.route)

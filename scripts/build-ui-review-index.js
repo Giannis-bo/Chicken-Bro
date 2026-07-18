@@ -78,7 +78,7 @@ function main() {
   const manifestPath = path.resolve(required(process.env.UI_REVIEW_MANIFEST, 'UI_REVIEW_MANIFEST'))
   const outputPath = path.resolve(required(process.env.UI_REVIEW_INDEX, 'UI_REVIEW_INDEX'))
   const manifest = readBoundedJson(manifestPath, 'UI review cache manifest')
-  if (manifest.schemaVersion !== 'wechat-ui-review-cache-v3' || !Array.isArray(manifest.captures) || manifest.captures.length > 14) {
+  if (manifest.schemaVersion !== 'wechat-ui-review-cache-v4' || !Array.isArray(manifest.captures) || manifest.captures.length > 14) {
     throw new Error('unsupported UI review cache manifest')
   }
   if (manifest.captureMethod !== 'reused_existing_wechat_devtools_process' || manifest.routeNavigationMethod !== 'mini_program_relaunch') {

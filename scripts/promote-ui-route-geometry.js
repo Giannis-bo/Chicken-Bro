@@ -19,13 +19,15 @@ function readDetails(value) {
 
 function combineDetails(details) {
   const first = details[0]
-  if (details.some((detail) => detail.schemaVersion !== 'wechat-route-geometry-detail-v1')) throw new Error('unsupported route geometry detail schema')
+  if (details.some((detail) => detail.schemaVersion !== 'wechat-route-geometry-detail-v2')) throw new Error('unsupported route geometry detail schema')
   if (first.contractSha256 !== contractSha256 || details.some((detail) => detail.contractSha256 !== contractSha256)) throw new Error('route geometry detail contract SHA-256 is stale or mismatched')
   if (!/^[a-f\d]{12}$/u.test(first.commit ?? '') || details.some((detail) => detail.commit !== first.commit)) throw new Error('route geometry detail commits must match')
   const viewportKey = JSON.stringify(first.viewport)
-  const viewportValues = [first.viewport?.width, first.viewport?.height, first.viewport?.dpr, first.viewport?.safeAreaBottom, first.viewport?.safeBottomInset]
+  const viewportValues = [first.viewport?.width, first.viewport?.height, first.viewport?.dpr, first.viewport?.safeAreaBottom, first.viewport?.safeBottomInset, ...(first.viewport?.capsuleBounds ?? [])]
   const safeAreaMatchesWindow = first.viewport?.safeAreaBottom + first.viewport?.safeBottomInset === first.viewport?.height
-  if (!viewportValues.every((value) => Number.isFinite(value) && value >= 0) || first.viewport.width <= 0 || first.viewport.height <= 0 || first.viewport.dpr <= 0 || !safeAreaMatchesWindow || details.some((detail) => JSON.stringify(detail.viewport) !== viewportKey)) throw new Error('route geometry detail viewports must match one window-coordinate safe area')
+  const [capsuleLeft, capsuleTop, capsuleWidth, capsuleHeight] = first.viewport?.capsuleBounds ?? []
+  const capsuleFitsWindow = first.viewport?.capsuleBounds?.length === 4 && capsuleWidth > 0 && capsuleHeight > 0 && capsuleLeft + capsuleWidth <= first.viewport.width + 2 && capsuleTop + capsuleHeight <= first.viewport.height + 2
+  if (!viewportValues.every((value) => Number.isFinite(value) && value >= 0) || first.viewport.width <= 0 || first.viewport.height <= 0 || first.viewport.dpr <= 0 || !safeAreaMatchesWindow || !capsuleFitsWindow || details.some((detail) => JSON.stringify(detail.viewport) !== viewportKey)) throw new Error('route geometry detail viewports must match one window-coordinate safe area and capsule')
 
   const routes = details.flatMap((detail) => detail.routes ?? [])
   const routeNames = routes.map((route) => route.route)
@@ -44,7 +46,7 @@ function combineDetails(details) {
 
   const byRoute = new Map(routes.map((route) => [route.route, route]))
   return {
-    schemaVersion: 'wechat-route-geometry-evidence-v1',
+    schemaVersion: 'wechat-route-geometry-evidence-v2',
     contractSha256,
     commit: first.commit,
     viewport: first.viewport,

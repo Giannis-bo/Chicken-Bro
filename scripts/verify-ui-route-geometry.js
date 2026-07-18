@@ -281,7 +281,8 @@ async function main() {
   try {
     miniProgram = await connectMiniProgram()
     const system = await timeout(miniProgram.systemInfo(), 4000, 'read system info')
-    const viewport = normalizeSystemViewport(system)
+    const menuButton = await timeout(miniProgram.callWxMethod('getMenuButtonBoundingClientRect'), 4000, 'read menu button bounds')
+    const viewport = normalizeSystemViewport(system, menuButton)
     const results = []
     const details = []
     for (const route of routes) {
@@ -293,7 +294,7 @@ async function main() {
     if (process.env.GEOMETRY_DETAIL_PATH) {
       detailPath = path.resolve(process.env.GEOMETRY_DETAIL_PATH)
       const commit = execFileSync('git', ['rev-parse', '--short=12', 'HEAD'], { cwd: path.resolve(__dirname, '..'), encoding: 'utf8' }).trim()
-      writeBoundedJsonAtomic(detailPath, { schemaVersion: 'wechat-route-geometry-detail-v1', contractSha256, commit, viewport, routes: details }, 'route geometry detail')
+      writeBoundedJsonAtomic(detailPath, { schemaVersion: 'wechat-route-geometry-detail-v2', contractSha256, commit, viewport, routes: details }, 'route geometry detail')
     }
     const failures = results.filter((result) => result.status === 'fail')
     console.log(JSON.stringify({

@@ -24,7 +24,12 @@ function safeName(value) {
 function validateManifestCacheIdentity(manifestPath, manifest) {
   if (!/^[a-f\d]{12}$/u.test(manifest.commit)) throw new Error('cache manifest commit must be a 12-character Git SHA')
   const viewport = manifest.viewport
-  if (![viewport?.width, viewport?.height, viewport?.dpr].every((value) => Number.isFinite(value) && value > 0)) {
+  const [capsuleLeft, capsuleTop, capsuleWidth, capsuleHeight] = viewport?.capsuleBounds ?? []
+  const capsuleFitsWindow = viewport?.capsuleBounds?.length === 4
+    && [capsuleLeft, capsuleTop, capsuleWidth, capsuleHeight].every(Number.isFinite)
+    && capsuleLeft >= 0 && capsuleTop >= 0 && capsuleWidth > 0 && capsuleHeight > 0
+    && capsuleLeft + capsuleWidth <= viewport.width + 2 && capsuleTop + capsuleHeight <= viewport.height + 2
+  if (![viewport?.width, viewport?.height, viewport?.dpr].every((value) => Number.isFinite(value) && value > 0) || !capsuleFitsWindow) {
     throw new Error('cache manifest viewport is incomplete')
   }
   const manifestDirectory = path.dirname(path.resolve(manifestPath))
@@ -73,7 +78,7 @@ function inspectCapture(capture, viewport, cacheRoot) {
 function main() {
   const manifestPath = path.resolve(required(process.env.UI_REVIEW_MANIFEST, 'UI_REVIEW_MANIFEST'))
   const manifest = readBoundedJson(manifestPath, 'UI review cache manifest')
-  if (manifest.schemaVersion !== 'wechat-ui-review-cache-v3' || !Array.isArray(manifest.captures) || manifest.captures.length > 14) {
+  if (manifest.schemaVersion !== 'wechat-ui-review-cache-v4' || !Array.isArray(manifest.captures) || manifest.captures.length > 14) {
     throw new Error('unsupported UI review cache manifest')
   }
   if (manifest.captureMethod !== 'reused_existing_wechat_devtools_process' || manifest.routeNavigationMethod !== 'mini_program_relaunch') {
@@ -105,7 +110,7 @@ function main() {
   }
 
   const receiptBody = {
-    schemaVersion: 'wechat-ui-runtime-promotion-v3',
+    schemaVersion: 'wechat-ui-runtime-promotion-v4',
     sourceManifest: {
       schemaVersion: manifest.schemaVersion,
       commit: manifest.commit,

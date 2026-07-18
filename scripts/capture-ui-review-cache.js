@@ -123,7 +123,8 @@ async function main() {
   try {
     miniProgram = await connectMiniProgram()
     const system = await timeout(miniProgram.systemInfo(), 4000, 'read WeChat system info')
-    const viewport = normalizeSystemViewport(system)
+    const menuButton = await timeout(miniProgram.callWxMethod('getMenuButtonBoundingClientRect'), 4000, 'read WeChat menu button bounds')
+    const viewport = normalizeSystemViewport(system, menuButton)
     const viewportKey = `${viewport.width}x${viewport.height}@${viewport.dpr}`
     const outputRoot = path.join(cacheRoot, commit, viewportKey)
     fs.mkdirSync(outputRoot, { recursive: true })
@@ -132,7 +133,7 @@ async function main() {
     if (fs.existsSync(manifestPath)) {
       try { existing = readBoundedJson(manifestPath, 'UI review cache manifest') } catch {}
     }
-    const existingCaptures = existing?.schemaVersion === 'wechat-ui-review-cache-v3'
+    const existingCaptures = existing?.schemaVersion === 'wechat-ui-review-cache-v4'
       && existing.commit === commit
       && JSON.stringify(existing.viewport) === JSON.stringify(viewport)
       && Array.isArray(existing.captures)
@@ -142,7 +143,7 @@ async function main() {
     const capturesByRoute = new Map(existingCaptures.filter((capture) => inspectCachedCapture(capture, viewport, outputRoot)).map((capture) => [capture.route, capture]))
     const failures = []
     const manifest = {
-      schemaVersion: 'wechat-ui-review-cache-v3',
+      schemaVersion: 'wechat-ui-review-cache-v4',
       commit,
       viewport,
       captureMethod: 'reused_existing_wechat_devtools_process',

@@ -53,7 +53,7 @@
       "violationCount": 0,
       "status": "PASS",
       "current": false,
-      "supersededReason": "route geometry contract now requires initial terminal-region safe-area evidence",
+      "supersededReason": "route geometry evidence now requires initial terminal-region safe-area evidence and measured window-coordinate capsule bounds",
       "sha256": "afb8df11cb1740f59d265a60f81aed5e58060dd5ca21b63a6f17015f3e67eed6",
       "path": "artifacts/ui-runtime-reviews/b67be415751e/390x844@3/geometry/afb8df11cb1740f59d265a60f81aed5e58060dd5ca21b63a6f17015f3e67eed6.json"
     }
