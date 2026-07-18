@@ -212,7 +212,8 @@ test('Taro and typed packages own the active frontend contract while root routes
     appConfigRole: 'root_route_compatibility_surface',
     pagesRoot: 'pages',
     pagesRole: 'legacy_route_compatibility_consumers',
-    retirement: 'retain_without_new_first_level_ownership'
+    retirement: 'retain_without_new_first_level_ownership',
+    deletionRequirement: 'prove_no_active_callers_before_individual_legacy_deletion'
   })
   assert.ok(appShellDomain.consumers.includes('app.json'))
   assert.ok(appShellDomain.consumers.includes('pages'))
