@@ -540,6 +540,53 @@ record(
   invalidRouteStageTargetCounts.length === 0,
   invalidRouteStageTargetCounts.join(', ') || 'all RouteStage target counts match stableRegionCount',
 )
+const invalidRouteStageRegionStyleBindings = routeComponents
+  .filter((file) => /<RouteStage\b/u.test(read(file)))
+  .flatMap((file) => {
+    const source = read(file)
+    const ast = babelParser.parse(source, { sourceType: 'module', plugins: ['jsx', 'typescript'] })
+    const styleImports = new Map()
+    for (const statement of ast.program.body) {
+      if (statement.type !== 'ImportDeclaration' || !statement.source.value.endsWith('.module.scss')) continue
+      const defaultImport = statement.specifiers.find((specifier) => specifier.type === 'ImportDefaultSpecifier')
+      if (!defaultImport) continue
+      const stylePath = path.join(path.dirname(file), statement.source.value)
+      const classNames = new Set([...read(stylePath).matchAll(/\.([A-Za-z_][\w-]*)/gu)].map((match) => match[1]))
+      styleImports.set(defaultImport.local.name, { stylePath, classNames })
+    }
+    const invalid = []
+    traverse(ast, {
+      JSXOpeningElement(elementPath) {
+        if (elementPath.node.name.type !== 'JSXIdentifier' || elementPath.node.name.name !== 'RouteRegion') return
+        const regionAttribute = elementPath.node.attributes.find((attribute) => (
+          attribute.type === 'JSXAttribute' && attribute.name.type === 'JSXIdentifier' && attribute.name.name === 'data-region'
+        ))
+        const classAttribute = elementPath.node.attributes.find((attribute) => (
+          attribute.type === 'JSXAttribute' && attribute.name.type === 'JSXIdentifier' && attribute.name.name === 'className'
+        ))
+        const region = regionAttribute?.value?.type === 'StringLiteral' ? regionAttribute.value.value : `line-${elementPath.node.loc?.start.line ?? 0}`
+        if (classAttribute?.value?.type !== 'JSXExpressionContainer') {
+          invalid.push(`${file}:${region}:missing-class-expression`)
+          return
+        }
+        const expression = source.slice(classAttribute.value.expression.start, classAttribute.value.expression.end)
+        const references = [...styleImports].flatMap(([identifier, styleImport]) => (
+          [...expression.matchAll(new RegExp(`\\b${identifier}(?:\\[['\"]([^'\"]+)['\"]\\]|\\.([A-Za-z_][\\w-]*))`, 'gu'))]
+            .map((match) => ({ identifier, className: match[1] ?? match[2], ...styleImport }))
+        ))
+        if (references.length === 0) invalid.push(`${file}:${region}:missing-style-reference`)
+        for (const reference of references) {
+          if (!reference.classNames.has(reference.className)) invalid.push(`${file}:${region}:missing-${reference.stylePath}:${reference.className}`)
+        }
+      },
+    })
+    return invalid
+  })
+record(
+  'fixed_route_stage_regions_bind_existing_layout_classes',
+  invalidRouteStageRegionStyleBindings.length === 0,
+  invalidRouteStageRegionStyleBindings.join(', ') || 'all fixed RouteRegion publishers bind existing CSS module classes',
+)
 const geometryControlRoleContracts = (routeGeometryContract.routes ?? []).flatMap((route) => (
   ['initialSafeAreaButtonRoles', 'requiredFixedDockControlRoles'].flatMap((contractKey) => (
     (route[contractKey] ?? []).map((role) => ({ route: route.route, contractKey, role }))
