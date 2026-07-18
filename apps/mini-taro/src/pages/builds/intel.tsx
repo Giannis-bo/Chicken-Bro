@@ -43,7 +43,7 @@ export default function BuildIntelPage() {
   const [sortId, setSortId] = useState<BuildIntelSortId>('source')
   const route = useAsyncRoute(
     () => wowApi.builds.intel(),
-    { fallbackPolicy: 'stale', isEmpty: (value) => value.items.length === 0 },
+    { fallbackPolicy: 'blocked', isEmpty: (value) => value.items.length === 0 },
   )
   const currentRouteReason = routeReason(route.state)
   const model = buildBuildIntelModel({

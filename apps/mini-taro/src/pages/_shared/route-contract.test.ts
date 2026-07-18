@@ -121,6 +121,25 @@ describe('Taro source route contract', () => {
     expect(source).not.toContain('<RouteStatePanel')
   })
 
+  it('blocks unavailable news and build facts while retaining local profile stale state', () => {
+    const businessRoutes = [
+      'apps/mini-taro/src/pages/news/news.tsx',
+      'apps/mini-taro/src/pages/news/list.tsx',
+      'apps/mini-taro/src/pages/news/detail.tsx',
+      'apps/mini-taro/src/pages/builds/builds.tsx',
+      'apps/mini-taro/src/pages/builds/workbench.tsx',
+      'apps/mini-taro/src/pages/builds/intel.tsx',
+      'apps/mini-taro/src/pages/builds/talent-simulator.tsx',
+      'apps/mini-taro/src/pages/builds/detail.tsx',
+    ]
+    for (const file of businessRoutes) {
+      const source = fs.readFileSync(path.join(process.cwd(), file), 'utf8')
+      expect(source).not.toContain("fallbackPolicy: 'stale'")
+    }
+    const profile = fs.readFileSync(path.join(process.cwd(), 'apps/mini-taro/src/pages/profile/profile.tsx'), 'utf8')
+    expect(profile).toContain("fallbackPolicy: 'stale'")
+  })
+
   it('uses redirect fallback for directly opened non-tab routes', () => {
     const source = fs.readFileSync(
       path.join(process.cwd(), 'apps/mini-taro/src/pages/_shared/route-runtime.tsx'),

@@ -26,7 +26,7 @@ import styles from './news-home.module.scss'
 export default function NewsHomePage() {
   const route = useAsyncRoute(
     () => wowApi.news.home('manual'),
-    { fallbackPolicy: 'stale' },
+    { fallbackPolicy: 'blocked' },
   )
   const [savedArticleIds, setSavedArticleIds] = useState<readonly string[]>(() => wowApi.news.savedArticleIds())
 

@@ -76,7 +76,7 @@ export default function WorkbenchPage() {
       fromFallback: homeResult.fromFallback || talentResult.fromFallback || gearResult.fromFallback,
       error: errors.join(' / '),
     }
-  }, { fallbackPolicy: 'stale' })
+  }, { fallbackPolicy: 'blocked' })
 
   useEffect(() => {
     if (!selectionChanged.current) {

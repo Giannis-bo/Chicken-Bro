@@ -10,10 +10,6 @@ import type {
   SpecializationOption,
 } from '@wow-mini/domain'
 
-import {
-  buildsHomeFallbackSnapshot,
-  buildsIntelFallbackSnapshot,
-} from './fallback-snapshots'
 import { isNonEmptyString, isRecord } from './guards'
 import type { ApiResult, ApiTransport } from './transport'
 
@@ -330,9 +326,9 @@ function normalizeHome(payload: BuildsHomeWirePayload, fromFallback: boolean): B
     })),
     currentSeason: {
       ...payload.currentSeason,
-      dataStatus: fromFallback ? 'stale' : payload.currentSeason.dataStatus ?? payload.dataStatus,
+      dataStatus: payload.currentSeason.dataStatus ?? payload.dataStatus,
     },
-    dataStatus: fromFallback ? 'stale' : payload.dataStatus,
+    dataStatus: payload.dataStatus,
     raiderio,
   }
 }
@@ -348,18 +344,46 @@ function isBuildsDetail(value: unknown): value is BuildsDetailPayload {
 }
 
 function fallbackDetail(specId: string): BuildsDetailPayload {
-  const summary = buildsIntelFallbackSnapshot.items.find((item) => item.id === specId)
-    ?? buildsIntelFallbackSnapshot.items[0]
   return {
     id: specId,
-    className: summary?.className ?? '',
-    specName: summary?.specName ?? '',
-    role: summary?.role ?? '',
-    title: summary?.title ?? specId,
+    className: '',
+    specName: '',
+    role: '',
+    title: '',
     status: 'blocked',
     desc: '后端不可用，专精详情未加载。',
     dataStatus: 'blocked',
     details: {},
+  }
+}
+
+function blockedHome(): BuildsHomeWirePayload {
+  return {
+    navTitle: '',
+    kicker: '',
+    title: '',
+    desc: '',
+    quickActions: [],
+    classOptions: [],
+    featuredSpecializations: [],
+    trustedSources: [],
+    currentSeason: { dataStatus: 'blocked' },
+    dataStatus: 'blocked',
+    blockedReason: 'backend data unavailable',
+    sourceRefs: [],
+    raiderio: fallbackRaiderio,
+  }
+}
+
+function blockedIntel(): BuildsIntelPayload {
+  return {
+    navTitle: '',
+    title: '',
+    desc: '',
+    count: 0,
+    items: [],
+    trustedSources: [],
+    dataStatus: 'blocked',
   }
 }
 
@@ -373,7 +397,7 @@ export function createBuildsClient(transport: ApiTransport): BuildsClient {
   return {
     home() {
       return transport.requestEndpoint<BuildsHomeWirePayload>('builds.home', '/api/builds/home', {
-        fallback: () => normalizeHome(buildsHomeFallbackSnapshot, true),
+        fallback: blockedHome,
         validate: isBuildsHomePayload,
       }).then((result) => ({
         ...result,
@@ -382,7 +406,7 @@ export function createBuildsClient(transport: ApiTransport): BuildsClient {
     },
     intel() {
       return transport.requestEndpoint('builds.intel', '/api/builds/intel', {
-        fallback: () => buildsIntelFallbackSnapshot,
+        fallback: blockedIntel,
         validate: isBuildsIntel,
       })
     },

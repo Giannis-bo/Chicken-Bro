@@ -211,7 +211,7 @@ export default function GearDetailPage() {
         || importResult.fromFallback,
       error: errors.join(' / '),
     }
-  }, { fallbackPolicy: 'stale' })
+  }, { fallbackPolicy: 'blocked' })
 
   useEffect(() => {
     if (!selectionChanged.current) {

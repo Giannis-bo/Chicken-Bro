@@ -1,6 +1,5 @@
 import { storageKey, type NewsArticle, type NewsHomePayload, type NewsListParams, type NewsListPayload } from '@wow-mini/domain'
 
-import { newsFallbackSnapshot } from './fallback-snapshots'
 import { cleanString, encodeQuery, isRecord } from './guards'
 import { taroStorage, type StorageAdapter } from './storage'
 import type { ApiResult, ApiTransport } from './transport'
@@ -77,7 +76,12 @@ function isReadyNewsList(value: unknown): value is NewsListPayload {
 
 function fallbackHome(refreshMode: string): NewsHomePayload {
   return {
-    ...newsFallbackSnapshot,
+    navTitle: '',
+    heroNews: [],
+    metrics: [],
+    channels: [],
+    highlights: [],
+    lastRefreshedAt: '',
     refreshMode,
   }
 }
@@ -205,7 +209,7 @@ function fallbackList(params: NewsListParams): NewsListPayload {
     key: params.key ?? 'today',
     value: params.value ?? '',
   }
-  let articles = [...newsFallbackSnapshot.highlights]
+  let articles: NewsArticle[] = []
   if (query.type === 'channel') {
     articles = articles.filter((article) => article.channel === query.value)
   } else if (query.key === 'class-change') {
@@ -293,11 +297,9 @@ export function createNewsClient(
       })
     },
     article(id) {
-      const fallback = [...newsFallbackSnapshot.heroNews, ...newsFallbackSnapshot.highlights]
-        .find((article) => article.id === id) ?? null
       return transport.requestEndpoint('news.article', `/api/news/article?id=${encodeURIComponent(id)}`, {
         attachAnalyticsHeaders: false,
-        fallback: () => fallback,
+        fallback: () => null,
         validate: (value) => isRecord(value) && isReadyNewsArticle(value['article'] ?? value),
       }).then((result) => {
         if (!result.fromFallback && isRecord(result.payload) && 'article' in result.payload) {
