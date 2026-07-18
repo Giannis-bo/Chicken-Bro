@@ -252,6 +252,7 @@ record(
 function percentLayoutValue(block, property, axisPixels) {
   const raw = block.match(new RegExp(`(?:^|;)\\s*${property}:\\s*([^;]+);`, 'u'))?.[1]?.trim()
   if (!raw) return null
+  if (/^0(?:\.0+)?$/u.test(raw)) return 0
   const percent = Number(raw.match(/(-?[\d.]+)%/u)?.[1])
   if (!Number.isFinite(percent)) return null
   const pixelTerm = Number(raw.match(/([+-])\s*([\d.]+)px/u)?.[2] ?? 0)
@@ -261,8 +262,21 @@ function percentLayoutValue(block, property, axisPixels) {
 
 function responsiveLayoutValue(block, property, axisPixels) {
   const raw = block.match(new RegExp(`(?:^|;)\\s*${property}:\\s*([^;]+);`, 'u'))?.[1]?.trim()
+  if (/^0(?:\.0+)?$/u.test(raw ?? '')) return 0
   const pixels = Number(raw?.match(/^(-?[\d.]+)px$/u)?.[1])
   return Number.isFinite(pixels) ? pixels : percentLayoutValue(block, property, axisPixels)
+}
+
+function fixedPixelLayoutValue(block, property, variables = new Map()) {
+  let raw = block.match(new RegExp(`(?:^|;)\\s*${property}:\\s*([^;]+);`, 'u'))?.[1]?.trim()
+  if (!raw || ['auto', 'initial', 'none', 'unset'].includes(raw)) return null
+  if (/^0(?:\.0+)?$/u.test(raw)) return 0
+  raw = raw.replace(/var\(--([\w-]+)\)/gu, (_, name) => variables.has(name) ? `${variables.get(name)}px` : `var(--${name})`)
+  const pixels = Number(raw.match(/^(-?[\d.]+)px$/u)?.[1])
+  if (Number.isFinite(pixels)) return pixels
+  const calculation = raw.match(/^calc\(\s*(-?[\d.]+)px\s*([+-])\s*([\d.]+)px\s*\)$/u)
+  if (!calculation) return null
+  return Number(calculation[1]) + (calculation[2] === '-' ? -1 : 1) * Number(calculation[3])
 }
 
 const minimumLayoutViewport = { width: 320, height: 568 }
@@ -331,6 +345,7 @@ const escapedResponsiveHorizontalRouteRegions = responsiveHorizontalRouteRegions
 ))
 const fixedPixelVerticalRegions = routeStyles.flatMap((file) => {
   const source = read(file)
+  const pixelVariables = new Map([...source.matchAll(/--([\w-]+):\s*([\d.]+)px\s*;/gu)].map((match) => [match[1], Number(match[2])]))
   const fixedHeight = (selector) => {
     const body = source.match(new RegExp(`\\.${selector}\\s*\\{([^}]*)\\}`, 'u'))?.[1] ?? ''
     return Number(body.match(/(?:^|;)\s*height:\s*([\d.]+)px\s*;/u)?.[1])
@@ -339,11 +354,11 @@ const fixedPixelVerticalRegions = routeStyles.flatMap((file) => {
   const pageFrameHeight = fixedHeight('pageFrame')
   const containerHeight = Number.isFinite(surfaceHeight) ? surfaceHeight : Number.isFinite(pageFrameHeight) ? pageFrameHeight : minimumLayoutViewport.height
   return [...source.matchAll(/\.([A-Za-z][\w-]*Region)\s*\{([^}]*)\}/gu)].flatMap((match) => {
-    const top = Number(match[2].match(/(?:^|;)\s*top:\s*([\d.]+)px\s*;/u)?.[1])
-    const bottom = Number(match[2].match(/(?:^|;)\s*bottom:\s*([\d.]+)px\s*;/u)?.[1])
-    const height = Number(match[2].match(/(?:^|;)\s*height:\s*([\d.]+)px\s*;/u)?.[1])
-    const resolvedTop = Number.isFinite(top) ? top : Number.isFinite(bottom) && Number.isFinite(height) ? containerHeight - bottom - height : null
-    const resolvedHeight = Number.isFinite(height) ? height : Number.isFinite(top) && Number.isFinite(bottom) ? containerHeight - top - bottom : null
+    const top = fixedPixelLayoutValue(match[2], 'top', pixelVariables)
+    const bottom = fixedPixelLayoutValue(match[2], 'bottom', pixelVariables)
+    const height = fixedPixelLayoutValue(match[2], 'height', pixelVariables)
+    const resolvedTop = top !== null ? top : bottom !== null && height !== null ? containerHeight - bottom - height : null
+    const resolvedHeight = height !== null ? height : top !== null && bottom !== null ? containerHeight - top - bottom : null
     return resolvedTop !== null && resolvedHeight !== null
       ? [{ file, region: match[1], top: resolvedTop, bottom: resolvedTop + resolvedHeight, height: resolvedHeight, containerHeight }]
       : []
@@ -359,6 +374,15 @@ const fixedPixelVerticalRegionOverlaps = [...new Set(fixedPixelVerticalRegions.m
   return rows.slice(1).flatMap((row, index) => row.top < rows[index].bottom - 1
     ? [{ file, previous: rows[index].regions.join('|'), region: row.regions.join('|') }]
     : [])
+})
+const responsiveHorizontalRegionKeys = new Set(responsiveHorizontalRouteRegions.map((region) => `${region.file}:${region.region}`))
+const responsiveVerticalRegionKeys = new Set([...specializedRegionBounds, ...fixedPixelVerticalRegions].map((region) => `${region.file}:${region.region}`))
+const anchoredRegionsWithoutNumericGeometry = routeRegionLayoutDeclarations.filter((region) => {
+  const horizontalAnchored = usableRouteRegionLayoutValue(region.left) || usableRouteRegionLayoutValue(region.right)
+  const verticalAnchored = usableRouteRegionLayoutValue(region.top) || usableRouteRegionLayoutValue(region.bottom)
+  if (!horizontalAnchored && !verticalAnchored) return false
+  const key = `${region.file}:${region.region}`
+  return !responsiveHorizontalRegionKeys.has(key) || !responsiveVerticalRegionKeys.has(key)
 })
 const uncontainedRouteRegions = routeStyles.flatMap((file) => (
   [...read(file).matchAll(/\.([A-Za-z][\w-]*Region)(?:\s*,[^{]+)?\s*\{([^}]*)\}/gu)].flatMap((match) => (
@@ -394,6 +418,11 @@ record(
   'fixed_pixel_vertical_region_rows_do_not_overlap',
   fixedPixelVerticalRegionOverlaps.length === 0,
   fixedPixelVerticalRegionOverlaps.map((item) => `${item.file}:${item.previous}->${item.region}`).join(', ') || `regions=${fixedPixelVerticalRegions.length}`,
+)
+record(
+  'all_anchored_route_regions_have_numeric_minimum_viewport_geometry',
+  anchoredRegionsWithoutNumericGeometry.length === 0,
+  anchoredRegionsWithoutNumericGeometry.map((region) => `${region.file}:${region.region}`).join(', ') || `regions=${routeRegionLayoutDeclarations.length}`,
 )
 const overlappingSpecializedRegions = [...new Set(specializedRegionBounds.map((region) => region.file))].flatMap((file) => {
   const regions = specializedRegionBounds.filter((region) => region.file === file).sort((a, b) => a.top - b.top)
