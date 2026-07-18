@@ -90,7 +90,7 @@ function main() {
   const selected = selectedRoutes(process.env.UI_REVIEW_ROUTES || 'all', manifest.captures)
   if (selected.length === 0) throw new Error('UI review index requires at least one verified capture')
   const captures = selected.map((capture) => {
-    inspectCapture(capture, viewport)
+    inspectCapture(capture, viewport, path.dirname(manifestPath))
     return { capture, target: inspectTarget(capture.route) }
   })
   const bytes = writeIndexAtomic(outputPath, buildReviewIndex(manifest, captures))

@@ -44,6 +44,15 @@ function safeName(value) {
   return value.replace(/[^a-zA-Z0-9._-]+/gu, '-')
 }
 
+function capturePathMatches(capture, cacheRoot) {
+  if (!capture?.route || !capture.artifactPath || !cacheRoot) return false
+  const artifactPath = path.resolve(capture.artifactPath)
+  const expectedPath = path.join(path.resolve(cacheRoot), `${safeName(capture.route)}.png`)
+  if (artifactPath !== expectedPath || !fs.existsSync(artifactPath)) return false
+  const entry = fs.lstatSync(artifactPath)
+  return entry.isFile() && !entry.isSymbolicLink()
+}
+
 function validCaptureBounds(buffer, dimensions, viewport) {
   return buffer.length > 0
     && buffer.length <= maxCaptureBytes
@@ -54,8 +63,8 @@ function validCaptureBounds(buffer, dimensions, viewport) {
     && dimensions.width * viewport.height === dimensions.height * viewport.width
 }
 
-function inspectCachedCapture(capture, viewport) {
-  if (!capture?.artifactPath || !fs.existsSync(capture.artifactPath)) return false
+function inspectCachedCapture(capture, viewport, cacheRoot) {
+  if (!capturePathMatches(capture, cacheRoot)) return false
   try {
     const buffer = readBoundedFile(capture.artifactPath, maxCaptureBytes, `cached capture ${capture.route}`)
     const dimensions = pngSize(buffer)
@@ -135,7 +144,7 @@ async function main() {
       && existing.captures.length <= 14
       ? existing.captures ?? []
       : []
-    const capturesByRoute = new Map(existingCaptures.filter((capture) => inspectCachedCapture(capture, viewport)).map((capture) => [capture.route, capture]))
+    const capturesByRoute = new Map(existingCaptures.filter((capture) => inspectCachedCapture(capture, viewport, outputRoot)).map((capture) => [capture.route, capture]))
     const failures = []
     const manifest = {
       schemaVersion: 'wechat-ui-review-cache-v3',
@@ -200,4 +209,4 @@ if (require.main === module) {
   })
 }
 
-module.exports = { captureWithRetry, inspectCachedCapture, inspectRenderer, maxCaptureBytes, maxManifestBytes, maxRoutesPerCaptureRun, pngSize, selectedRoutes, validCaptureBounds, writeManifest }
+module.exports = { capturePathMatches, captureWithRetry, inspectCachedCapture, inspectRenderer, maxCaptureBytes, maxManifestBytes, maxRoutesPerCaptureRun, pngSize, selectedRoutes, validCaptureBounds, writeManifest }

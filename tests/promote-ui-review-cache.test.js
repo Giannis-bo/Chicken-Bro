@@ -19,7 +19,7 @@ function pngHeader(width, height) {
 
 test('promotion revalidates cached bytes, dimensions and digest', () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'wow-ui-promotion-test-'))
-  const artifactPath = path.join(directory, 'route.png')
+  const artifactPath = path.join(directory, 'news_detail.png')
   const buffer = pngHeader(390, 844)
   fs.writeFileSync(artifactPath, buffer)
   const capture = {
@@ -33,10 +33,11 @@ test('promotion revalidates cached bytes, dimensions and digest', () => {
     rendererEvidence: { path: 'pages/news/detail', shellWidth: 390, shellHeight: 844, regionCount: 6 },
   }
   const viewport = { width: 390, height: 844, dpr: 3 }
-  assert.equal(inspectCapture(capture, viewport).sha256, capture.sha256)
-  assert.throws(() => inspectCapture({ ...capture, bytes: capture.bytes + 1 }, viewport), /no longer matches manifest/)
-  assert.throws(() => inspectCapture({ ...capture, rendererEvidence: { ...capture.rendererEvidence, regionCount: 0 } }, viewport), /renderer evidence is incomplete/)
-  assert.throws(() => inspectCapture({ ...capture, path: '/pages/news/list' }, viewport), /route identity mismatch/)
+  assert.equal(inspectCapture(capture, viewport, directory).sha256, capture.sha256)
+  assert.throws(() => inspectCapture({ ...capture, bytes: capture.bytes + 1 }, viewport, directory), /no longer matches manifest/)
+  assert.throws(() => inspectCapture({ ...capture, rendererEvidence: { ...capture.rendererEvidence, regionCount: 0 } }, viewport, directory), /renderer evidence is incomplete/)
+  assert.throws(() => inspectCapture({ ...capture, path: '/pages/news/list' }, viewport, directory), /route identity mismatch/)
+  assert.throws(() => inspectCapture({ ...capture, artifactPath: path.join(directory, '..', 'news_detail.png') }, viewport, directory), /escapes manifest directory/)
 })
 
 test('promotion selection is explicit and rejects absent routes', () => {

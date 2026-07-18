@@ -4,7 +4,7 @@
 const crypto = require('node:crypto')
 const path = require('node:path')
 
-const { maxCaptureBytes, pngSize, validCaptureBounds } = require('./capture-ui-review-cache')
+const { capturePathMatches, maxCaptureBytes, pngSize, validCaptureBounds } = require('./capture-ui-review-cache')
 const { readBoundedFile, writeBoundedFileImmutable } = require('./bounded-file')
 const { maxStructuredDetailBytes, readBoundedJson, serializeBoundedJson } = require('./bounded-json-detail')
 const interactionContract = require('../docs/design/current-ui/core-interaction-contract.json')
@@ -29,7 +29,8 @@ function selectedRoutes(value, captures) {
   return [...new Set(requested)].map((route) => byRoute.get(route))
 }
 
-function inspectCapture(capture, viewport) {
+function inspectCapture(capture, viewport, cacheRoot) {
+  if (!capturePathMatches(capture, cacheRoot)) throw new Error(`cache artifact escapes manifest directory: ${capture.route}`)
   const buffer = readBoundedFile(capture.artifactPath, maxCaptureBytes, `cache artifact ${capture.route}`)
   const dimensions = pngSize(buffer)
   const sha256 = crypto.createHash('sha256').update(buffer).digest('hex')
@@ -62,7 +63,7 @@ function main() {
   const viewportKey = `${viewport.width}x${viewport.height}@${viewport.dpr}`
   const promoted = []
   for (const capture of selectedRoutes(process.env.UI_REVIEW_ROUTES, manifest.captures)) {
-    const inspected = inspectCapture(capture, viewport)
+    const inspected = inspectCapture(capture, viewport, path.dirname(manifestPath))
     const relativePath = path.join(
       'artifacts', 'ui-runtime-reviews', manifest.commit, viewportKey, inspected.sha256, `${safeName(capture.route)}.png`,
     )
