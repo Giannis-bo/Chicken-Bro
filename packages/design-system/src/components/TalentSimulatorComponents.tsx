@@ -215,6 +215,7 @@ export function TalentTreeTabs({
             )}
             data-active={active ? 'true' : 'false'}
             data-leading-boundary={active ? 'active' : index > 0 && items[index - 1]?.id === activeId ? 'suppressed' : 'inactive'}
+            data-material-owner="css"
             data-selection-material={active ? 'active' : 'inactive'}
             data-role="talent-tree-tab"
             disabled={loading || item.disabled === true}

@@ -41,6 +41,8 @@ function combineDetails(details) {
     if (
       result.status === 'pass'
       && result.materialMismatches === 0
+      && result.materialOwnerMismatches === 0
+      && result.nestedMaterialRenderCount === 0
       && result.visualMaterialDistinct === true
       && result.boundaryMismatches === 0
       && (result.controls < 2 || (result.materialStyles?.active && result.materialStyles?.inactive))

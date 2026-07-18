@@ -1362,6 +1362,7 @@ record(
   selectedControlContract.schemaVersion === 3
     && selectedControlContract.status === 'active'
     && selectedControlContract.materialOwnership.boundaryAttribute === 'data-leading-boundary'
+    && selectedControlContract.materialOwnership.controlMaterialOwner === 'css'
     && JSON.stringify(selectedControlContract.materialOwnership.boundaryValues) === JSON.stringify(['active', 'suppressed', 'inactive'])
     && selectedGroupKeys.length >= 10
     && new Set(selectedGroupKeys).size === selectedGroupKeys.length
@@ -1424,6 +1425,7 @@ for (const file of componentTsxFiles) {
         const expectedStateAttribute = `data-${definition.state}`
         const stateAttributes = attributes.filter((attribute) => ['data-selected', 'data-active'].includes(attribute.name.name))
         const materialAttribute = attributes.find((attribute) => attribute.name.name === 'data-selection-material')
+        const materialOwnerAttribute = attributes.find((attribute) => attribute.name.name === 'data-material-owner')
         const materialExpression = materialAttribute?.value
           ? source.slice(materialAttribute.value.start, materialAttribute.value.end)
           : ''
@@ -1434,6 +1436,8 @@ for (const file of componentTsxFiles) {
           || !materialAttribute
           || !materialExpression.includes("'active'")
           || !materialExpression.includes("'inactive'")
+          || materialOwnerAttribute?.value?.type !== 'StringLiteral'
+          || materialOwnerAttribute.value.value !== selectedControlContract.materialOwnership.controlMaterialOwner
           || (definition.boundaryMode === 'contiguous' && !ownsBoundary)
         ) {
           invalidContractedSelectionNodes.push(`${file}:${role}`)
@@ -1859,11 +1863,15 @@ record(
   /SELECTED_STATE_DETAIL_PATH/u.test(selectedStateVerifier)
     && /wechat-selected-control-detail-v3/u.test(selectedStateVerifier)
     && /visualMaterialDistinct/u.test(selectedStateVerifier)
+    && /materialOwnerMismatches/u.test(selectedStateVerifier)
+    && /nestedMaterialRenderCount/u.test(selectedStateVerifier)
     && /boundaryMismatches/u.test(selectedStateVerifier)
     && /border-left-color/u.test(selectedStateVerifier)
     && /boundedDetailPaths\(value, 'SELECTED_STATE_DETAIL_PATHS'\)/u.test(selectedStatePromotion)
     && /exact selected-control contract/u.test(selectedStatePromotion)
     && /boundaryMismatches === 0/u.test(selectedStatePromotion)
+    && /materialOwnerMismatches === 0/u.test(selectedStatePromotion)
+    && /nestedMaterialRenderCount === 0/u.test(selectedStatePromotion)
     && /writeBoundedFileImmutable/u.test(selectedStatePromotion)
     && !/connectMiniProgram|WECHAT_AUTOMATOR_LAUNCH/u.test(selectedStatePromotion),
   'selected material checks must checkpoint bounded runtime detail and promote an exact content-addressed contract offline',

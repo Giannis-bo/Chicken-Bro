@@ -118,6 +118,7 @@ export function TaskStatusFilters({ items, selected, sortLabel, onSelect, onTogg
             data-filter-id={item.id}
             data-leading-boundary={selected === item.id ? 'active' : index > 0 && items[index - 1]?.id === selected ? 'suppressed' : 'inactive'}
             data-role="task-status-filter"
+            data-material-owner="css"
             data-selection-material={selected === item.id ? 'active' : 'inactive'}
             data-selected={selected === item.id ? 'true' : 'false'}
             onClick={() => onSelect(item.id)}

@@ -112,6 +112,7 @@ export function TranslationStatusSegments({
               className={reconstructionStyle('newsDetailTranslationSegment')}
               data-role="news-detail-translation-segment"
               data-leading-boundary={item.selected ? 'active' : index > 0 && items[index - 1]?.selected ? 'suppressed' : 'inactive'}
+              data-material-owner="css"
               data-selection-material={item.selected ? 'active' : 'inactive'}
               data-segment-id={item.id}
               data-selected={item.selected ? 'true' : 'false'}

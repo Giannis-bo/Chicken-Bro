@@ -6,6 +6,7 @@
     "attribute": "data-selection-material",
     "activeValue": "active",
     "inactiveValue": "inactive",
+    "controlMaterialOwner": "css",
     "boundaryAttribute": "data-leading-boundary",
     "boundaryValues": ["active", "suppressed", "inactive"],
     "policy": "every available control must have exactly one material owner matching its selected or active state",

@@ -64,6 +64,7 @@ export function ChannelDock({
                     loading && reconstructionStyle('newsListCategoryItemLoading'),
                   )}
                   data-role="news-list-category"
+                  data-material-owner="css"
                   data-selection-material={selected ? 'active' : 'inactive'}
                   data-selected={selected ? 'true' : 'false'}
                   onClick={() => !loading && onSelect?.(item)}
@@ -120,6 +121,7 @@ export function ChannelDock({
             )}
             data-role="channel-segment"
             data-leading-boundary={selected ? 'active' : index > 0 && visibleItems[index - 1]?.id === activeId ? 'suppressed' : 'inactive'}
+            data-material-owner="css"
             data-selection-material={selected ? 'active' : 'inactive'}
             data-selected={selected ? 'true' : 'false'}
             onClick={() => !loading && onSelect?.(item)}

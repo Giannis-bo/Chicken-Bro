@@ -52,13 +52,14 @@ async function inspectGroup(page, group) {
   const inactiveSelector = `${selector}.wx-data-${group.state}-false`
   const materialActiveSelector = `${selector}.wx-data-selection-material-active`
   const materialInactiveSelector = `${selector}.wx-data-selection-material-inactive`
-  const [active, inactive, materialActive, materialInactive, activeWithInactiveMaterial, inactiveWithActiveMaterial] = await Promise.all([
+  const [active, inactive, materialActive, materialInactive, activeWithInactiveMaterial, inactiveWithActiveMaterial, nestedMaterialRenders] = await Promise.all([
     timeout(page.$$(activeSelector), 3000, `query active ${group.role}`),
     timeout(page.$$(inactiveSelector), 3000, `query inactive ${group.role}`),
     timeout(page.$$(materialActiveSelector), 3000, `query active material ${group.role}`),
     timeout(page.$$(materialInactiveSelector), 3000, `query inactive material ${group.role}`),
     timeout(page.$$(`${activeSelector}.wx-data-selection-material-inactive`), 3000, `query active with inactive material ${group.role}`),
     timeout(page.$$(`${inactiveSelector}.wx-data-selection-material-active`), 3000, `query inactive with active material ${group.role}`),
+    timeout(page.$$(`${selector} [class*="wx-data-material-render-"]`), 3000, `query nested material renders ${group.role}`),
   ])
   const materialStyleProperties = [
     'background-color', 'background-image', 'box-shadow',
@@ -76,7 +77,11 @@ async function inspectGroup(page, group) {
   ])
   const visualMaterialDistinct = controls.length < 2
     || Boolean(activeMaterialStyle && inactiveMaterialStyle && JSON.stringify(activeMaterialStyle) !== JSON.stringify(inactiveMaterialStyle))
-  const controlStates = await Promise.all(controls.map((element) => timeout(element.attribute(`data-${group.state}`), 1500, `read ${group.role} state`)))
+  const [controlStates, controlMaterialOwners] = await Promise.all([
+    Promise.all(controls.map((element) => timeout(element.attribute(`data-${group.state}`), 1500, `read ${group.role} state`))),
+    Promise.all(controls.map((element) => timeout(element.attribute('data-material-owner'), 1500, `read ${group.role} material owner`))),
+  ])
+  const materialOwnerMismatches = controlMaterialOwners.filter((owner) => owner !== contract.materialOwnership.controlMaterialOwner).length
   const leadingBoundaries = group.boundaryMode === 'contiguous'
     ? await Promise.all(controls.map((element) => timeout(element.attribute(contract.materialOwnership.boundaryAttribute), 1500, `read ${group.role} leading boundary`)))
     : []
@@ -94,6 +99,8 @@ async function inspectGroup(page, group) {
     && activeWithInactiveMaterial.length === 0
     && inactiveWithActiveMaterial.length === 0
     && visualMaterialDistinct
+    && materialOwnerMismatches === 0
+    && nestedMaterialRenders.length === 0
     && boundaryMismatches === 0
   return {
     route: group.route,
@@ -106,6 +113,9 @@ async function inspectGroup(page, group) {
     inactive: inactive.length,
     materialOwners: { active: materialActive.length, inactive: materialInactive.length },
     materialMismatches: activeWithInactiveMaterial.length + inactiveWithActiveMaterial.length,
+    controlMaterialOwners,
+    materialOwnerMismatches,
+    nestedMaterialRenderCount: nestedMaterialRenders.length,
     visualMaterialDistinct,
     boundaryMode: group.boundaryMode,
     leadingBoundaries,
