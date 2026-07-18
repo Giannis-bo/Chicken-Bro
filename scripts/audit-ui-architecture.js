@@ -1743,6 +1743,17 @@ record(
   'capture manifests and geometry details must agree on safe-area and capsule coordinates for the same WeChat viewport',
 )
 record(
+  'route_geometry_proves_header_content_clears_the_wechat_capsule',
+  /\.wx-style-pageframeheaderleading/u.test(read('scripts/verify-ui-route-geometry.js'))
+    && /function rectanglesOverlap/u.test(read('scripts/verify-ui-route-geometry.js'))
+    && /capsule-header-content-collision/u.test(read('scripts/verify-ui-route-geometry.js'))
+    && /status-bar-header-content-collision/u.test(read('scripts/verify-ui-route-geometry.js'))
+    && /missing-header-content-slots/u.test(read('scripts/verify-ui-route-geometry.js'))
+    && /status: violations\.length === 0 \? 'unavailable' : 'fail'/u.test(read('scripts/verify-ui-route-geometry.js'))
+    && /capsuleCollisionCount/u.test(read('scripts/verify-ui-route-geometry.js')),
+  'measured status-bar and capsule bounds must be tested against every bounded page-header content slot even when route data is unavailable',
+)
+record(
   'ui_review_cache_identity_is_bound_to_git_commit_and_viewport_path',
   /function validateManifestCacheIdentity\(manifestPath, manifest\)/u.test(reviewCachePromotion)
     && /rev-parse', '--verify'/u.test(reviewCachePromotion)

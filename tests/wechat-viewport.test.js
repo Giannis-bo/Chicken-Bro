@@ -4,6 +4,7 @@ const assert = require('node:assert/strict')
 const test = require('node:test')
 
 const { normalizeSystemViewport } = require('../scripts/wechat-viewport')
+const { rectanglesOverlap } = require('../scripts/verify-ui-route-geometry')
 
 test('normalizes safe-area evidence in window coordinates for every UI verifier', () => {
   assert.deepEqual(normalizeSystemViewport({
@@ -47,4 +48,16 @@ test('converts capsule top from screen coordinates to window coordinates', () =>
     pixelRatio: 3,
   }, { left: 296, top: 75, width: 87, height: 32 })
   assert.deepEqual(viewport.capsuleBounds, [296, 51, 87, 32])
+})
+
+test('capsule collision requires actual area overlap beyond tolerance', () => {
+  assert.equal(rectanglesOverlap(296, 51, 87, 32, { left: 300, top: 55, right: 330, bottom: 75 }, 1), true)
+  assert.equal(rectanglesOverlap(296, 51, 87, 32, { left: 10, top: 51, right: 290, bottom: 83 }, 1), false)
+  assert.equal(rectanglesOverlap(296, 51, 87, 32, { left: 383, top: 51, right: 390, bottom: 83 }, 1), false)
+})
+
+test('status-bar collision uses the same measured rectangle semantics', () => {
+  const headerSlot = { left: 10, top: 46, right: 120, bottom: 90 }
+  assert.equal(rectanglesOverlap(0, 0, 390, 47, headerSlot, 0), true)
+  assert.equal(rectanglesOverlap(0, 0, 390, 47, headerSlot, 1), false)
 })
