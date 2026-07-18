@@ -390,6 +390,55 @@ export interface TalentImportPayload extends WebsimSelection {
   blockers: readonly string[]
 }
 
+export interface TalentSelectedNode {
+  id: string
+  rank: number
+}
+
+export interface TalentSelectionState {
+  selectedNodes: readonly TalentSelectedNode[]
+}
+
+export interface TalentEditRequest extends WebsimSelection {
+  talentState: TalentSelectionState
+}
+
+export interface TalentImportCodeRequest {
+  code: string
+  classKey?: string
+  specKey?: string
+  heroKey?: string
+}
+
+export interface TalentValidationPayload extends WebsimSelection {
+  status: string
+  source: string
+  schemaRevision: string
+  errors: readonly string[]
+  warnings: readonly string[]
+  lines: readonly string[]
+  selectedCounts: Readonly<Record<string, number>>
+  talentState: TalentSelectionState
+  talentSchemaRevision?: string
+  talentAuthority?: Readonly<Record<string, unknown>> | null
+  talentReadiness?: TalentReadinessSummary | null
+  blockers: readonly string[]
+}
+
+export interface TalentApiExportPayload extends WebsimSelection {
+  talentState: TalentSelectionState
+  websimExportCode: string
+  validation: TalentValidationPayload
+  talentSchemaRevision: string
+}
+
+export interface TalentApiImportPayload extends WebsimSelection {
+  rawImportCode?: string
+  talentState: TalentSelectionState
+  validation: TalentValidationPayload
+  talentSchemaRevision: string
+}
+
 export interface GearSlotDefinition {
   slot: string
   simcSlot?: string

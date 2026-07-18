@@ -1,6 +1,7 @@
 import type {
   ReadinessState,
   TalentNode,
+  TalentValidationPayload,
   TalentTreeSection,
   WebsimTalentsPayload,
 } from '@wow-mini/domain'
@@ -303,30 +304,14 @@ export function talentPoints(
   return { cap, spent, remaining: Math.max(0, cap - spent) }
 }
 
-function prerequisitesMet(
-  node: TalentNode,
-  ranks: Readonly<Record<string, number>>,
-): boolean {
-  const parentIds = node.prerequisiteIds ?? []
-  if (!parentIds.length) return true
-  const parentRank = (id: string) => Math.max(0, ranks[id] ?? 0)
-  if (node.parentMode === 'all') return parentIds.every((id) => parentRank(id) > 0)
-  return parentIds.some((id) => parentRank(id) > 0)
-}
-
 function nodeState(
   node: TalentNode,
   ranks: Readonly<Record<string, number>>,
-  spent: number,
   interactive: boolean,
 ): TalentGraphNodeState {
   if (rankFor(node, ranks) > 0) return 'selected'
   if (!interactive) return 'blocked'
-  const parentsReady = prerequisitesMet(node, ranks)
-  const requirement = Math.max(0, finiteInteger(node.requiredPoints, 0))
-  if (parentsReady && requirement <= spent) return 'available'
-  if (parentsReady) return 'unselected'
-  return 'blocked'
+  return 'available'
 }
 
 function edgeGeometry(
@@ -436,7 +421,6 @@ export function buildTalentGraph(input: {
     const positionKey = `${row}:${column}`
     positionCounts.set(positionKey, (positionCounts.get(positionKey) ?? 0) + 1)
   }
-  const spent = projectedNodes.reduce((total, node) => total + rankFor(node, input.ranks), 0)
   const positionUse = new Map<string, number>()
   const nodes = projectedNodes.map((node): TalentGraphNodeView => {
     const row = Math.max(1, finiteInteger(node.row, 1))
@@ -465,7 +449,7 @@ export function buildTalentGraph(input: {
       choiceOptionIds: projection.choiceOptionIdsByNodeId.get(node.id) ?? [],
       granted: grantedRankFor(node) > 0,
       ...(node.iconUrl ? { iconUrl: node.iconUrl } : {}),
-      state: nodeState(node, input.ranks, spent, interactive),
+      state: nodeState(node, input.ranks, interactive),
       loading: false,
     }
   })
@@ -507,17 +491,6 @@ export function buildTalentGraph(input: {
   }
 }
 
-function selectedDependentsRemainValid(
-  nodeId: string,
-  nodes: readonly TalentNode[],
-  nextRanks: Readonly<Record<string, number>>,
-): boolean {
-  return nodes.every((candidate) => {
-    if (rankFor(candidate, nextRanks) <= 0 || !candidate.prerequisiteIds?.includes(nodeId)) return true
-    return prerequisitesMet(candidate, nextRanks)
-  })
-}
-
 function setNodeRank(
   ranks: Record<string, number>,
   node: TalentNode,
@@ -536,70 +509,67 @@ function choiceGroupNodes(node: TalentNode, nodes: readonly TalentNode[]): reado
   ))
 }
 
-function pruneInvalidRanks(
-  nodes: readonly TalentNode[],
-  ranks: Readonly<Record<string, number>>,
-): Readonly<Record<string, number>> {
-  const next = { ...ranks }
-  let changed = true
-  while (changed) {
-    changed = false
-    for (const node of nodes) {
-      if (rankFor(node, next) <= grantedRankFor(node) || prerequisitesMet(node, next)) continue
-      setNodeRank(next, node, grantedRankFor(node))
-      changed = true
-    }
-  }
-  return next
-}
-
-export function cycleTalentRank(input: {
+export function proposeTalentRank(input: {
   nodeId: string
   nodes: readonly TalentNode[]
   ranks: Readonly<Record<string, number>>
-  pointCap: number
 }): Readonly<Record<string, number>> {
   const node = input.nodes.find((candidate) => candidate.id === input.nodeId)
   if (!node) return input.ranks
   const current = rankFor(node, input.ranks)
   const floor = grantedRankFor(node)
   const maxRank = nodeMaxRank(node)
-  const spent = input.nodes.reduce((total, candidate) => total + rankFor(candidate, input.ranks), 0)
-
-  if (current < maxRank) {
-    if (!prerequisitesMet(node, input.ranks)) return input.ranks
-    if (Math.max(0, finiteInteger(node.requiredPoints, 0)) > spent) return input.ranks
-    if (spent >= input.pointCap) return input.ranks
-    const next = { ...input.ranks }
-    setNodeRank(next, node, current + 1)
-    return next
-  }
-
-  if (current <= floor) return input.ranks
   const next = { ...input.ranks }
-  setNodeRank(next, node, floor)
-  return selectedDependentsRemainValid(node.id, input.nodes, next) ? next : input.ranks
+  setNodeRank(next, node, current < maxRank ? current + 1 : floor)
+  return next
 }
 
-export function selectTalentChoice(input: {
+export function proposeTalentChoice(input: {
   nodeId: string
   nodes: readonly TalentNode[]
   ranks: Readonly<Record<string, number>>
-  pointCap: number
 }): Readonly<Record<string, number>> {
   const node = input.nodes.find((candidate) => candidate.id === input.nodeId)
-  if (!node || !node.choiceGroup || grantedRankFor(node) > 0) return input.ranks
+  if (!node || !node.choiceGroup) return input.ranks
   const choices = choiceGroupNodes(node, input.nodes)
-  if (choices.length < 2 || rankFor(node, input.ranks) > 0) return input.ranks
-  if (!prerequisitesMet(node, input.ranks)) return input.ranks
-
-  const spent = input.nodes.reduce((total, candidate) => total + rankFor(candidate, input.ranks), 0)
-  const switching = choices.some((candidate) => candidate.id !== node.id && rankFor(candidate, input.ranks) > 0)
-  if (!switching && spent >= input.pointCap) return input.ranks
+  if (choices.length < 2) return input.ranks
 
   const next = { ...input.ranks }
   for (const choice of choices) {
-    setNodeRank(next, choice, choice.id === node.id ? 1 : grantedRankFor(choice))
+    const proposedRank = choice.id === node.id
+      ? Math.max(1, grantedRankFor(choice))
+      : grantedRankFor(choice)
+    setNodeRank(next, choice, proposedRank)
   }
-  return pruneInvalidRanks(input.nodes, next)
+  return next
+}
+
+export interface TalentValidationDecision {
+  accepted: boolean
+  ranks: Readonly<Record<string, number>>
+  error: string
+}
+
+export function applyTalentValidation(
+  currentRanks: Readonly<Record<string, number>>,
+  validation: TalentValidationPayload,
+  fromFallback: boolean,
+  transportError = '',
+): TalentValidationDecision {
+  const accepted = !fromFallback && validation.status === 'encoded' && validation.errors.length === 0
+  if (accepted) {
+    return {
+      accepted: true,
+      ranks: Object.fromEntries(validation.talentState.selectedNodes
+        .filter((node) => node.id && node.rank > 0)
+        .map((node) => [node.id, node.rank])),
+      error: '',
+    }
+  }
+  return {
+    accepted: false,
+    ranks: currentRanks,
+    error: [transportError, ...validation.errors, ...validation.blockers].filter(Boolean).join(' / ')
+      || '当前天赋修改未通过后端校验',
+  }
 }

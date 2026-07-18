@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import type { WebsimTalentsPayload } from '@wow-mini/domain'
+import type {
+  TalentApiExportPayload,
+  TalentApiImportPayload,
+  TalentValidationPayload,
+  WebsimTalentsPayload,
+} from '@wow-mini/domain'
 
 import { createWebsimClient, normalizeTalentNode } from './websim'
 import type { ApiResult, ApiTransport, RequestOptions } from './transport'
@@ -132,5 +137,58 @@ describe('websim talent normalization', () => {
 
     expect(normalized?.ranks).toBe(0)
     expect(normalized?.maxRank).toBe(3)
+  })
+})
+
+describe('authoritative talent edit endpoints', () => {
+  it('posts typed validate, export, and import requests to the existing backend contracts', async () => {
+    const calls: Array<{ endpoint: string; path: string; data: unknown }> = []
+    const validation: TalentValidationPayload = {
+      classKey: 'mage', specKey: 'frost', heroKey: 'frostfire',
+      status: 'encoded', source: 'simc', schemaRevision: 'websim-talent-rules-v1',
+      errors: [], warnings: [], lines: ['class_talents=1:1'],
+      selectedCounts: { class: 1, spec: 0, hero: 0 },
+      talentState: { selectedNodes: [{ id: 'root', rank: 1 }] },
+      talentSchemaRevision: 'websim-talent-rules-v1', blockers: [],
+    }
+    const exported: TalentApiExportPayload = {
+      classKey: 'mage', specKey: 'frost', heroKey: 'frostfire',
+      talentState: validation.talentState,
+      websimExportCode: 'websim:mage:frost:frostfire:root:1',
+      validation,
+      talentSchemaRevision: 'websim-talent-rules-v1',
+    }
+    const imported: TalentApiImportPayload = {
+      classKey: 'mage', specKey: 'frost', heroKey: 'frostfire',
+      talentState: validation.talentState,
+      validation,
+      talentSchemaRevision: 'websim-talent-rules-v1',
+    }
+    const responses = [validation, exported, imported]
+    const transport: ApiTransport = {
+      request: async (_path, options) => ({ payload: options.fallback(), fromFallback: true, error: '' }),
+      requestEndpoint: async (endpoint, path, options) => {
+        calls.push({ endpoint, path, data: options.data })
+        return { payload: responses.shift() as never, fromFallback: false, error: '' }
+      },
+    }
+    const client = createWebsimClient(transport)
+    const intent = {
+      classKey: 'mage', specKey: 'frost', heroKey: 'frostfire',
+      talentState: { selectedNodes: [{ id: 'root', rank: 1 }] },
+    }
+
+    await client.talentValidate(intent)
+    await client.talentExport(intent)
+    await client.talentImportCode({ code: 'websim:mage:frost:frostfire:root:1' })
+
+    expect(calls).toEqual([
+      { endpoint: 'talents.validate', path: '/api/talents/validate', data: intent },
+      { endpoint: 'talents.export', path: '/api/talents/export', data: intent },
+      {
+        endpoint: 'talents.import', path: '/api/talents/import',
+        data: { code: 'websim:mage:frost:frostfire:root:1' },
+      },
+    ])
   })
 })

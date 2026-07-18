@@ -4,8 +4,13 @@ import type {
   GearResultEnvelope,
   GearSelectionIntent,
   GearStatsPayload,
+  TalentApiExportPayload,
+  TalentApiImportPayload,
+  TalentEditRequest,
+  TalentImportCodeRequest,
   TalentImportPayload,
   TalentNode,
+  TalentValidationPayload,
   WebsimBootstrapPayload,
   WebsimGearPayload,
   WebsimSelection,
@@ -122,6 +127,65 @@ function fallbackTalentImport(selection: WebsimSelection): TalentImportPayload {
   }
 }
 
+function fallbackTalentValidation(request: TalentEditRequest): TalentValidationPayload {
+  return {
+    classKey: request.classKey,
+    specKey: request.specKey,
+    ...(request.heroKey ? { heroKey: request.heroKey } : {}),
+    status: 'failed',
+    source: 'transport_fallback',
+    schemaRevision: 'websim-talent-rules-v1',
+    errors: ['talent validation service unavailable'],
+    warnings: [],
+    lines: [],
+    selectedCounts: { class: 0, spec: 0, hero: 0 },
+    talentState: request.talentState,
+    talentSchemaRevision: 'websim-talent-rules-v1',
+    blockers: ['talent validation service unavailable'],
+  }
+}
+
+function fallbackTalentExport(request: TalentEditRequest): TalentApiExportPayload {
+  return {
+    classKey: request.classKey,
+    specKey: request.specKey,
+    ...(request.heroKey ? { heroKey: request.heroKey } : {}),
+    talentState: request.talentState,
+    websimExportCode: '',
+    validation: fallbackTalentValidation(request),
+    talentSchemaRevision: 'websim-talent-rules-v1',
+  }
+}
+
+function fallbackTalentCodeImport(request: TalentImportCodeRequest): TalentApiImportPayload {
+  const editRequest: TalentEditRequest = {
+    classKey: request.classKey ?? '',
+    specKey: request.specKey ?? '',
+    ...(request.heroKey ? { heroKey: request.heroKey } : {}),
+    talentState: { selectedNodes: [] },
+  }
+  return {
+    classKey: editRequest.classKey,
+    specKey: editRequest.specKey,
+    ...(editRequest.heroKey ? { heroKey: editRequest.heroKey } : {}),
+    rawImportCode: request.code,
+    talentState: editRequest.talentState,
+    validation: fallbackTalentValidation(editRequest),
+    talentSchemaRevision: 'websim-talent-rules-v1',
+  }
+}
+
+function isTalentValidationPayload(value: unknown): value is TalentValidationPayload {
+  return isRecord(value)
+    && typeof value['status'] === 'string'
+    && Array.isArray(value['errors'])
+    && Array.isArray(value['warnings'])
+    && Array.isArray(value['lines'])
+    && isRecord(value['selectedCounts'])
+    && isRecord(value['talentState'])
+    && Array.isArray(value['talentState']['selectedNodes'])
+}
+
 function fallbackStats(selection: WebsimSelection): GearStatsPayload {
   return {
     classKey: selection.classKey,
@@ -214,6 +278,9 @@ export interface WebsimClient {
   bootstrap(): Promise<ApiResult<WebsimBootstrapPayload>>
   talents(selection: WebsimSelection): Promise<ApiResult<WebsimTalentsPayload>>
   talentImport(selection: WebsimSelection): Promise<ApiResult<TalentImportPayload>>
+  talentValidate(request: TalentEditRequest): Promise<ApiResult<TalentValidationPayload>>
+  talentExport(request: TalentEditRequest): Promise<ApiResult<TalentApiExportPayload>>
+  talentImportCode(request: TalentImportCodeRequest): Promise<ApiResult<TalentApiImportPayload>>
   gear(request: GearRequest): Promise<ApiResult<WebsimGearPayload>>
   gearResolve(selectionIntent: GearSelectionIntent): Promise<ApiResult<GearResultEnvelope>>
   communityTemplateImport(request: CommunityTemplateImportRequest): Promise<ApiResult<CommunityTemplateImportEnvelope>>
@@ -242,6 +309,37 @@ export function createWebsimClient(transport: ApiTransport): WebsimClient {
       return transport.requestEndpoint('websim.talentImport', `/api/websim/talents/import?${query}`, {
         fallback: () => fallbackTalentImport(selection),
         validate: (value) => isRecord(value) && typeof value['importCode'] === 'string' && typeof value['status'] === 'string',
+      })
+    },
+    talentValidate(request) {
+      return transport.requestEndpoint('talents.validate', '/api/talents/validate', {
+        data: { ...request },
+        fallback: () => fallbackTalentValidation(request),
+        validate: isTalentValidationPayload,
+      })
+    },
+    talentExport(request) {
+      return transport.requestEndpoint('talents.export', '/api/talents/export', {
+        data: { ...request },
+        fallback: () => fallbackTalentExport(request),
+        validate: (value) => isRecord(value)
+          && typeof value['websimExportCode'] === 'string'
+          && isRecord(value['talentState'])
+          && isTalentValidationPayload(value['validation']),
+      })
+    },
+    talentImportCode(request) {
+      return transport.requestEndpoint('talents.import', '/api/talents/import', {
+        data: {
+          code: request.code,
+          ...(request.classKey ? { classKey: request.classKey } : {}),
+          ...(request.specKey ? { specKey: request.specKey } : {}),
+          ...(request.heroKey ? { heroKey: request.heroKey } : {}),
+        },
+        fallback: () => fallbackTalentCodeImport(request),
+        validate: (value) => isRecord(value)
+          && isRecord(value['talentState'])
+          && isTalentValidationPayload(value['validation']),
       })
     },
     gear(request) {

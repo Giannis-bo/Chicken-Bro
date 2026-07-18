@@ -46,10 +46,11 @@ import {
 import {
   activeTalentNodes,
   activeTalentSection,
+  applyTalentValidation,
   buildTalentGraph,
-  cycleTalentRank,
   initialTalentRanks,
-  selectTalentChoice,
+  proposeTalentChoice,
+  proposeTalentRank,
   talentPoints,
 } from './talent-simulator-model'
 import styles from './talent-simulator.module.scss'
@@ -93,8 +94,13 @@ export default function TalentSimulatorPage() {
   const [selectedSpecId, setSelectedSpecId] = useState(safeDecode(router.params['spec']) || defaultSpecId)
   const [activeTree, setActiveTree] = useState('class')
   const [ranks, setRanks] = useState<Readonly<Record<string, number>>>({})
+  const [validating, setValidating] = useState(false)
+  const [editValidated, setEditValidated] = useState(false)
+  const [editMessage, setEditMessage] = useState('')
+  const [exportCode, setExportCode] = useState('')
   const [saving, setSaving] = useState(false)
   const selectionChanged = useRef(false)
+  const validationSequence = useRef(0)
   const route = useAsyncRoute<TalentPagePayload>(async () => {
     const [homeResult, bootstrapResult] = await Promise.all([
       wowApi.builds.home(),
@@ -143,8 +149,13 @@ export default function TalentSimulatorPage() {
 
   useEffect(() => {
     if (!route.data) return
+    validationSequence.current += 1
     setRanks(initialTalentRanks(route.data.talents.nodes))
     setActiveTree(route.data.talents.treeSections[0]?.key || 'class')
+    setValidating(false)
+    setEditValidated(false)
+    setEditMessage('')
+    setExportCode('')
   }, [route.data])
 
   const data = route.data
@@ -169,7 +180,7 @@ export default function TalentSimulatorPage() {
       : graphRouteState(route.state.state, data),
     loading: initialLoading || activeNodes.length === 0,
   })
-  const importReady = data?.talentImport.status === 'verified'
+  const communityImportReady = data?.talentImport.status === 'verified'
     && Boolean(data.talentImport.importCode)
   const readiness = data?.talents.talentReadiness
 
@@ -243,13 +254,62 @@ export default function TalentSimulatorPage() {
     },
     {
       id: 'import',
-      label: initialLoading ? '读取中' : importReady ? '可导入' : '导入不可用',
-      state: importReady ? 'ready' : 'blocked',
+      label: initialLoading
+        ? '读取中'
+        : validating
+          ? '后端校验中'
+          : editMessage
+            ? '修改未通过'
+            : editValidated
+              ? '当前修改已校验'
+              : '待后端校验',
+      state: editValidated && !editMessage ? 'ready' : 'blocked',
     },
   ]
 
   const selectOption = (item: TalentSelectorItem, option: TalentSelectorOption) => {
-    if (item.id === 'class' || item.id === 'spec') setSelectedSpecId(option.id)
+    if (item.id === 'class' || item.id === 'spec') {
+      validationSequence.current += 1
+      setValidating(false)
+      setSelectedSpecId(option.id)
+    }
+  }
+
+  const talentEditRequest = (proposedRanks: Readonly<Record<string, number>>) => {
+    if (!data) return null
+    return {
+      classKey: data.selection.classKey,
+      specKey: data.selection.specKey,
+      ...(data.talents.heroKey || data.selection.heroKey
+        ? { heroKey: data.talents.heroKey || data.selection.heroKey }
+        : {}),
+      talentState: {
+        selectedNodes: Object.entries(proposedRanks)
+          .filter(([, rank]) => rank > 0)
+          .map(([id, rank]) => ({ id, rank })),
+      },
+    }
+  }
+
+  const submitTalentProposal = async (proposal: Readonly<Record<string, number>>) => {
+    const request = talentEditRequest(proposal)
+    if (!request) return
+    const sequence = validationSequence.current + 1
+    validationSequence.current = sequence
+    setValidating(true)
+    setEditMessage('')
+    const result = await wowApi.websim.talentValidate(request)
+    if (validationSequence.current !== sequence) return
+    const decision = applyTalentValidation(ranks, result.payload, result.fromFallback, result.error)
+    setValidating(false)
+    if (decision.accepted) {
+      setRanks(decision.ranks)
+      setEditValidated(true)
+      setExportCode('')
+      return
+    }
+    setEditMessage(decision.error)
+    await Taro.showToast({ title: decision.error, icon: 'none' })
   }
 
   const selectNode = (node: TalentGraphNodeItem) => {
@@ -263,45 +323,83 @@ export default function TalentSimulatorPage() {
           success: ({ tapIndex }) => {
             const choice = choices[tapIndex]
             if (!choice) return
-            setRanks((current) => selectTalentChoice({
+            void submitTalentProposal(proposeTalentChoice({
               nodeId: choice.id,
               nodes: activeNodes,
-              ranks: current,
-              pointCap: points.cap,
+              ranks,
             }))
           },
         })
         return
       }
     }
-    setRanks((current) => cycleTalentRank({
+    void submitTalentProposal(proposeTalentRank({
       nodeId: node.id,
       nodes: activeNodes,
-      ranks: current,
-      pointCap: points.cap,
+      ranks,
     }))
   }
 
+  const exportCurrentTalent = async () => {
+    const request = talentEditRequest(ranks)
+    if (!request) return null
+    const sequence = validationSequence.current + 1
+    validationSequence.current = sequence
+    setValidating(true)
+    setEditMessage('')
+    const result = await wowApi.websim.talentExport(request)
+    if (validationSequence.current !== sequence) return null
+    setValidating(false)
+    const decision = applyTalentValidation(ranks, result.payload.validation, result.fromFallback, result.error)
+    const code = result.payload.websimExportCode.trim()
+    if (!decision.accepted || !code) {
+      const error = decision.error || '后端未返回当前构筑的导出码'
+      setEditMessage(error)
+      setEditValidated(false)
+      setExportCode('')
+      await Taro.showToast({ title: error, icon: 'none' })
+      return null
+    }
+    setRanks(decision.ranks)
+    setEditValidated(true)
+    setExportCode(code)
+    return { code, validation: result.payload.validation }
+  }
+
   const saveImportTemplate = async () => {
-    if (!data || !importReady) return
+    if (!data) return
     setSaving(true)
     try {
+      const exportDecision = await exportCurrentTalent()
+      if (!exportDecision) return
       const result = await wowApi.templates.upsert({
         type: 'talent',
-        title: `${data.selection.label} · 社区导入`,
+        title: `${data.selection.label} · 天赋构筑`,
         classKey: data.selection.classKey,
         className: data.selection.classItem.name,
         specKey: data.selection.specKey,
         specName: data.selection.spec.specName || data.selection.spec.name,
         heroKey: data.talents.heroKey || data.selection.heroKey,
-        rawString: data.talentImport.importCode,
+        rawString: exportDecision.code,
         status: 'encoded',
         statusLabel: '已编码',
-        source: data.talentImport.source,
-        metadata: { sourceStatus: data.talentImport.status },
+        source: 'WebSim 天赋模拟器',
+        metadata: {
+          exportAuthority: 'backend',
+          talentSchemaRevision: exportDecision.validation.talentSchemaRevision,
+          validationStatus: exportDecision.validation.status,
+        },
       })
+      const template = result.payload.template
+      const savedLocally = template?.trust.level === 'local_only' || result.fromFallback
+      const title = !template
+        ? '保存失败'
+        : savedLocally
+          ? '已保存到本地，远端未确认'
+          : '模板已保存并由远端确认'
+      setEditMessage(template ? '' : result.error || title)
       await Taro.showToast({
-        title: result.payload.template ? '模板已保存' : '保存失败',
+        title,
         icon: 'none',
       })
     } finally {
@@ -310,7 +408,7 @@ export default function TalentSimulatorPage() {
   }
 
   const currentReason = routeReason(route.state)
-  const resetRanks = () => setRanks(initialTalentRanks(data?.talents.nodes ?? []))
+  const resetRanks = () => void submitTalentProposal(initialTalentRanks(data?.talents.nodes ?? []))
   const communityCount = (data?.talents.communityTemplates.length ?? 0)
     + (data?.talents.presets.length ?? 0)
 
@@ -325,23 +423,26 @@ export default function TalentSimulatorPage() {
           id: 'save',
           label: saving ? '保存中' : '保存模板',
           tone: 'gold',
-          disabled: !importReady || saving,
+          disabled: !data || validating || saving,
           onClick: () => void saveImportTemplate(),
         },
         {
           id: 'import',
           label: '导入',
           tone: 'blue',
-          disabled: !importReady,
+          disabled: !data || validating || saving,
           onClick: () => {
-            if (data?.talentImport.importCode) void copyText(data.talentImport.importCode, '已复制验证导入码')
+            void exportCurrentTalent().then((decision) => {
+              if (decision) return copyText(decision.code, '已复制后端导出码')
+              return undefined
+            })
           },
         },
         {
           id: 'reset',
           label: '重置',
           tone: 'metal',
-          disabled: !data || route.state.state === 'loading',
+          disabled: !data || route.state.state === 'loading' || validating || saving,
           onClick: resetRanks,
         },
       ]
@@ -397,7 +498,7 @@ export default function TalentSimulatorPage() {
                 nodes={graph.nodes}
                 planeHeight={graph.planeHeight}
                 planeWidth={graph.planeWidth}
-                readonly={route.state.state !== 'ready' || connectivityStatus !== 'ready'}
+                readonly={route.state.state !== 'ready' || connectivityStatus !== 'ready' || validating || saving}
                 uniquePositionCount={graph.uniquePositionCount}
                 onNode={selectNode}
               />
@@ -405,15 +506,15 @@ export default function TalentSimulatorPage() {
             <RouteRegion className={styles['legendRegion'] ?? ''} data-region="talent_legend"><TalentLegend /></RouteRegion>
             <RouteRegion className={styles['importRegion'] ?? ''} data-region="import_panel">
               <TalentImportStatus
-                detail={currentReason || (connectivityStatus === 'unavailable'
+                detail={currentReason || editMessage || (connectivityStatus === 'unavailable'
                   ? '上游未返回天赋连接关系，当前树只读'
-                  : importReady ? '已取得后端验证导入码' : '后端未返回可用导入码')}
-                headline={importReady ? '已导入构筑' : '未导入构筑'}
+                  : exportCode ? '已取得当前构筑的后端导出码' : '修改提交后由后端校验')}
+                headline={exportCode ? '当前构筑已导出' : editValidated ? '当前修改已校验' : '当前构筑待校验'}
                 loading={initialLoading}
                 statuses={importStatuses}
                 title="WebSim 构筑"
-                {...(importReady && data ? {
-                  onOpen: () => void copyText(data.talentImport.importCode, '已复制验证导入码'),
+                {...(exportCode ? {
+                  onOpen: () => void copyText(exportCode, '已复制后端导出码'),
                 } : {})}
               />
             </RouteRegion>
@@ -421,12 +522,12 @@ export default function TalentSimulatorPage() {
               <TalentCommunityRow
                 detail={initialLoading
                   ? '正在读取来源模板'
-                  : `${communityCount} 份来源模板 · ${importReady ? '已验证' : '暂不可应用'}`}
+                  : `${communityCount} 份来源模板 · ${communityImportReady ? '已验证' : '暂不可应用'}`}
                 disabled={initialLoading}
                 title="社区模板"
                 onClick={() => {
                   void Taro.showToast({
-                    title: importReady ? '模板导入证据可用' : '来源模板尚无可应用导入码',
+                    title: communityImportReady ? '模板导入证据可用' : '来源模板尚无可应用导入码',
                     icon: 'none',
                   })
                 }}

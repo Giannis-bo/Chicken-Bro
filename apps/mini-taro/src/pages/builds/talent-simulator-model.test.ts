@@ -4,9 +4,10 @@ import type { TalentNode } from '@wow-mini/domain'
 
 import {
   buildTalentGraph,
-  cycleTalentRank,
+  applyTalentValidation,
   initialTalentRanks,
-  selectTalentChoice,
+  proposeTalentChoice,
+  proposeTalentRank,
   talentPoints,
 } from './talent-simulator-model'
 
@@ -48,7 +49,7 @@ const nodes: readonly TalentNode[] = [
 ]
 
 describe('talent simulator target model', () => {
-  it('retains real coordinates and prerequisite edges', () => {
+  it('retains real coordinates and prerequisite edges without presenting local legality as authoritative', () => {
     const ranks = initialTalentRanks(nodes)
     const graph = buildTalentGraph({ nodes, ranks, routeState: 'ready' })
 
@@ -62,7 +63,7 @@ describe('talent simulator target model', () => {
       column: 3,
       state: 'available',
     })
-    expect(graph.nodes.find((node) => node.id === 'locked')?.state).toBe('blocked')
+    expect(graph.nodes.find((node) => node.id === 'locked')?.state).toBe('available')
   })
 
   it('fans choice nodes at one logical position into non-overlapping sockets', () => {
@@ -292,17 +293,9 @@ describe('talent simulator target model', () => {
     expect(graph.planeWidth).toBe(660)
   })
 
-  it('cycles ranks only when prerequisites and point caps allow it', () => {
+  it('constructs a rank proposal without locally enforcing prerequisite or point-cap rules', () => {
     const initial = initialTalentRanks(nodes)
-    const first = cycleTalentRank({ nodeId: 'child', nodes, ranks: initial, pointCap: 3 })
-    const second = cycleTalentRank({ nodeId: 'child', nodes, ranks: first, pointCap: 3 })
-    const reset = cycleTalentRank({ nodeId: 'child', nodes, ranks: second, pointCap: 3 })
-
-    expect(first['child']).toBe(1)
-    expect(second['child']).toBe(2)
-    expect(reset['child']).toBeUndefined()
-    expect(cycleTalentRank({ nodeId: 'locked', nodes, ranks: initial, pointCap: 3 })).toBe(initial)
-    expect(cycleTalentRank({ nodeId: 'root', nodes, ranks: initial, pointCap: 3 })).toBe(initial)
+    expect(proposeTalentRank({ nodeId: 'locked', nodes, ranks: initial })).toEqual({ root: 1, locked: 1 })
   })
 
   it('switches the selected alternative within one legacy choice group without spending another point', () => {
@@ -331,12 +324,29 @@ describe('talent simulator target model', () => {
       },
     ]
 
-    expect(selectTalentChoice({
+    expect(proposeTalentChoice({
       nodeId: 'choice-b',
       nodes: choiceNodes,
       ranks: initialTalentRanks(choiceNodes),
-      pointCap: 1,
     })).toEqual({ 'choice-b': 1 })
+  })
+
+  it('keeps the previous visible ranks when backend validation rejects a proposal', () => {
+    const current = { root: 1 }
+    const decision = applyTalentValidation(current, {
+      classKey: 'mage', specKey: 'frost', heroKey: 'frostfire',
+      status: 'failed', source: 'simc', schemaRevision: 'websim-talent-rules-v1',
+      errors: ['missing parent talent for locked'], warnings: [], lines: [],
+      selectedCounts: { class: 0, spec: 0, hero: 0 },
+      talentState: { selectedNodes: [{ id: 'locked', rank: 1 }] },
+      talentSchemaRevision: 'websim-talent-rules-v1', blockers: [],
+    }, false)
+
+    expect(decision).toEqual({
+      accepted: false,
+      ranks: current,
+      error: 'missing parent talent for locked',
+    })
   })
 
   it('derives point counters from real selected ranks and section caps', () => {

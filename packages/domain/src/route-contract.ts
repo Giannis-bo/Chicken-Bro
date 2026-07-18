@@ -201,6 +201,8 @@ export const routeContracts = [
       "websim.bootstrap",
       "websim.talents",
       "websim.talentImport",
+      "talents.validate",
+      "talents.export",
       "templates.upsert"
     ],
     "storage": [
@@ -529,6 +531,27 @@ export const endpointContracts = [
     "path": "/api/websim/talents/import?class=&spec=&hero=",
     "auth": "none",
     "timeoutMs": 30000
+  },
+  {
+    "id": "talents.validate",
+    "method": "POST",
+    "path": "/api/talents/validate",
+    "auth": "none",
+    "fallback": "blocked"
+  },
+  {
+    "id": "talents.export",
+    "method": "POST",
+    "path": "/api/talents/export",
+    "auth": "none",
+    "fallback": "blocked"
+  },
+  {
+    "id": "talents.import",
+    "method": "POST",
+    "path": "/api/talents/import",
+    "auth": "none",
+    "fallback": "blocked"
   },
   {
     "id": "websim.gear",
