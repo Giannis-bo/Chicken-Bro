@@ -708,7 +708,7 @@ test('UI package evidence cannot treat a placeholder remote asset origin as rele
   assert.match(verifier, /packageMechanicsPass/)
   assert.match(verifier, /releaseReady/)
   assert.match(domainPolicy, /hostname\.endsWith\('\.invalid'\)/)
-  assert.match(domainPolicy, /WOW_ASSET_RUNTIME_ROOT must be an approved HTTPS named origin/)
+  assert.match(domainPolicy, /WOW_ASSET_RUNTIME_ROOT must be an approved named HTTPS immutable \/releases\/<release-id> path/)
   assert.match(domainPolicy, /WOW_BACKEND_API_BASE_URL must be an approved HTTPS named origin/)
   assert.match(domainPolicy, /WOW_WECHAT_REQUEST_DOMAIN_APPROVED must be explicit yes/)
   assert.match(verifier, /maximumWalkFiles = 4096/)

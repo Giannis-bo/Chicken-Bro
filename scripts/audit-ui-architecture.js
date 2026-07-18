@@ -2523,7 +2523,7 @@ record(
   /packageMechanicsPass/u.test(packageAudit)
     && /releaseReady/u.test(packageAudit)
     && /releaseDomainBlockers/u.test(packageAudit)
-    && /WOW_ASSET_RUNTIME_ROOT must be an approved HTTPS named origin/u.test(releaseDomainPolicy)
+    && /WOW_ASSET_RUNTIME_ROOT must be an approved named HTTPS immutable \/releases\/<release-id> path/u.test(releaseDomainPolicy)
     && /WOW_BACKEND_API_BASE_URL must be an approved HTTPS named origin/u.test(releaseDomainPolicy)
     && /WOW_WECHAT_REQUEST_DOMAIN_APPROVED must be explicit yes/u.test(releaseDomainPolicy)
     && /--require-production-ready/u.test(packageAudit)

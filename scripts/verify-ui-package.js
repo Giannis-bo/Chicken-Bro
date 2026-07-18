@@ -6,7 +6,7 @@ const fs = require('node:fs')
 const os = require('node:os')
 const path = require('node:path')
 const { readBoundedFile } = require('./bounded-file')
-const { isProductionNamedHttps, releaseDomainBlockers } = require('./release-domain-policy')
+const { isProductionAssetRuntimeRoot, isProductionBackendOrigin, releaseDomainBlockers } = require('./release-domain-policy')
 
 const root = path.resolve(__dirname, '..')
 const appRoot = path.join(root, 'apps/mini-taro')
@@ -128,8 +128,8 @@ try {
     evidence: 'isolated_production_weapp_package',
     packageMechanicsPass,
     releaseReady,
-    remoteAssetOrigin: isProductionNamedHttps(remoteAssetRuntimeRoot) ? new URL(remoteAssetRuntimeRoot).origin : 'not_configured',
-    backendApiOrigin: isProductionNamedHttps(backendApiBaseUrl) ? new URL(backendApiBaseUrl).origin : 'not_configured',
+    remoteAssetOrigin: isProductionAssetRuntimeRoot(remoteAssetRuntimeRoot) ? new URL(remoteAssetRuntimeRoot).origin : 'not_configured',
+    backendApiOrigin: isProductionBackendOrigin(backendApiBaseUrl) ? new URL(backendApiBaseUrl).origin : 'not_configured',
     wechatRequestDomainApproved,
     releaseBlockers,
     limits,
