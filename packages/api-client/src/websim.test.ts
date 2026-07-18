@@ -61,6 +61,32 @@ function rawTalents(): WebsimTalentsPayload {
 }
 
 describe('websim talent normalization', () => {
+  it('preserves the legacy choice and granted-rank semantics needed by the talent tree', () => {
+    const normalized = normalizeTalentNode({
+      id: 'choice-a',
+      name: '选项甲',
+      treeType: 'spec',
+      row: 3,
+      col: 4,
+      selectedRank: 0,
+      grantedRank: 1,
+      nodeType: 2,
+      choiceGroup: 'spec-row-3',
+      parentIds: ['root'],
+      pointRequirement: 8,
+    })
+
+    expect(normalized).toMatchObject({
+      column: 4,
+      ranks: 0,
+      grantedRank: 1,
+      nodeType: 2,
+      choiceGroup: 'spec-row-3',
+      prerequisiteIds: ['root'],
+      requiredPoints: 8,
+    })
+  })
+
   it('maps backend rule fields into the canonical typed node contract', () => {
     const normalized = normalizeTalentNode(rawTalents().nodes[1])
 

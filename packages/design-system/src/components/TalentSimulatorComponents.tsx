@@ -290,6 +290,7 @@ export interface TalentGraphNodeItem {
   maxRank: number
   iconUrl?: string | undefined
   shape: string
+  choiceOptionIds: readonly string[]
   granted: boolean
   state: 'selected' | 'available' | 'unselected' | 'blocked' | 'loading'
   loading: boolean
@@ -312,12 +313,14 @@ interface TalentGraphNodeProps {
 
 function TalentGraphNode({ node, readonly, onNode }: TalentGraphNodeProps) {
   const nodeStyle = {
-    left: `${node.x}px`,
-    top: `${node.y}px`,
+    left: `${node.x}rpx`,
+    top: `${node.y}rpx`,
   } as CSSProperties
   return (
     <View
-      aria-label={node.loading ? '天赋节点读取中' : `${node.label}，${node.rank}/${node.maxRank}`}
+      aria-label={node.loading
+        ? '天赋节点读取中'
+        : `${node.label}，${node.rank}/${node.maxRank}${node.choiceOptionIds.length > 1 ? `，${node.choiceOptionIds.length}选1` : ''}`}
       className={componentClass(
         componentStyle('graphNode'),
         componentStyle(`graphNode-${node.state}`),
@@ -339,6 +342,9 @@ function TalentGraphNode({ node, readonly, onNode }: TalentGraphNodeProps) {
     >
       {node.loading ? <View className={componentStyle('nodeSkeleton')} /> : (
         <>
+          {node.shape === 'choice' ? (
+            <View className={componentStyle('choiceFrame')} data-role="talent-choice-frame" />
+          ) : null}
           <TrustedTalentMedia
             className={componentClass(componentStyle('nodeMedia'), node.loading && componentStyle('nodeMediaLoading'))}
             iconUrl={node.iconUrl}
@@ -365,12 +371,7 @@ export interface TalentGraphViewportProps {
   onNode: (node: TalentGraphNodeItem) => void
 }
 
-const graphViewportWidth = 369
-const graphViewportHeight = 314
-const graphInset = 20
-const readyNodeSize = 36
-const loadingNodeSize = 30
-const targetNodeSize = 30
+const graphViewportHeight = 628
 
 export function TalentGraphViewport({
   nodes,
@@ -384,35 +385,23 @@ export function TalentGraphViewport({
   onNode,
 }: TalentGraphViewportProps) {
   const loading = nodes.every((node) => node.loading)
-  const nodeSize = loading ? loadingNodeSize : readyNodeSize
   const minNodeX = nodes.length ? Math.min(...nodes.map((node) => node.x)) : 0
   const minNodeY = nodes.length ? Math.min(...nodes.map((node) => node.y)) : 0
-  const maxNodeX = nodes.length ? Math.max(...nodes.map((node) => node.x + nodeSize)) : planeWidth
-  const maxNodeY = nodes.length ? Math.max(...nodes.map((node) => node.y + nodeSize)) : planeHeight
+  const maxNodeX = nodes.length ? Math.max(...nodes.map((node) => node.x)) : planeWidth
+  const maxNodeY = nodes.length ? Math.max(...nodes.map((node) => node.y)) : planeHeight
   const nodeBoundsWidth = Math.max(1, maxNodeX - minNodeX)
   const nodeBoundsHeight = Math.max(1, maxNodeY - minNodeY)
-  const targetContentWidth = graphViewportWidth - graphInset * 2
-  const graphScale = Math.min(
-    1,
-    Math.max(targetNodeSize / nodeSize, targetContentWidth / nodeBoundsWidth),
-  )
-  const renderedBoundsWidth = nodeBoundsWidth * graphScale
-  const renderedBoundsHeight = nodeBoundsHeight * graphScale
-  const stageWidth = Math.max(graphViewportWidth, renderedBoundsWidth + graphInset * 2)
-  const stageHeight = Math.max(graphViewportHeight, renderedBoundsHeight + graphInset * 2)
-  const planeLeft = (stageWidth - renderedBoundsWidth) / 2 - minNodeX * graphScale
-  const planeTop = (stageHeight - renderedBoundsHeight) / 2 - minNodeY * graphScale
+  const stageWidth = planeWidth
+  const stageHeight = planeHeight
   const stageStyle = {
-    width: `${stageWidth}px`,
-    height: `${stageHeight}px`,
+    width: `${stageWidth}rpx`,
+    height: `${stageHeight}rpx`,
   } as CSSProperties
   const planeStyle = {
-    width: `${planeWidth}px`,
-    height: `${planeHeight}px`,
-    left: `${planeLeft}px`,
-    top: `${planeTop}px`,
-    transform: `scale(${graphScale})`,
-    transformOrigin: 'top left',
+    width: `${planeWidth}rpx`,
+    height: `${planeHeight}rpx`,
+    left: '0rpx',
+    top: '0rpx',
   } as CSSProperties
   return (
     <View
@@ -439,9 +428,9 @@ export function TalentGraphViewport({
       ) : null}
       <ScrollView
         className={componentStyle('graphScroll')}
-        scrollLeft={Math.max(0, (stageWidth - graphViewportWidth) / 2)}
-        scrollTop={Math.max(0, (stageHeight - graphViewportHeight) / 2)}
-        scrollX={stageWidth > graphViewportWidth}
+        scrollLeft={0}
+        scrollTop={0}
+        scrollX={false}
         scrollY={stageHeight > graphViewportHeight}
         showScrollbar={false}
       >
@@ -452,12 +441,13 @@ export function TalentGraphViewport({
               <View
                 key={edge.id}
                 className={componentClass(componentStyle('graphEdge'), componentStyle(`graphEdge-${edge.state}`))}
+                data-arrow="end"
                 data-edge-id={edge.id}
                 data-state={edge.state}
                 style={{
-                  left: `${edge.x}px`,
-                  top: `${edge.y}px`,
-                  width: `${edge.width}px`,
+                  left: `${edge.x}rpx`,
+                  top: `${edge.y}rpx`,
+                  width: `${edge.width}rpx`,
                   transform: `rotate(${edge.angle}deg)`,
                 }}
               />

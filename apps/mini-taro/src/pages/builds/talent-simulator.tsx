@@ -49,6 +49,7 @@ import {
   buildTalentGraph,
   cycleTalentRank,
   initialTalentRanks,
+  selectTalentChoice,
   talentPoints,
 } from './talent-simulator-model'
 import styles from './talent-simulator.module.scss'
@@ -252,6 +253,27 @@ export default function TalentSimulatorPage() {
   }
 
   const selectNode = (node: TalentGraphNodeItem) => {
+    if (node.choiceOptionIds.length > 1) {
+      const choices = node.choiceOptionIds
+        .map((id) => activeNodes.find((candidate) => candidate.id === id))
+        .filter((candidate): candidate is NonNullable<typeof candidate> => Boolean(candidate))
+      if (choices.length > 1) {
+        void Taro.showActionSheet({
+          itemList: choices.map((choice) => choice.name),
+          success: ({ tapIndex }) => {
+            const choice = choices[tapIndex]
+            if (!choice) return
+            setRanks((current) => selectTalentChoice({
+              nodeId: choice.id,
+              nodes: activeNodes,
+              ranks: current,
+              pointCap: points.cap,
+            }))
+          },
+        })
+        return
+      }
+    }
     setRanks((current) => cycleTalentRank({
       nodeId: node.id,
       nodes: activeNodes,

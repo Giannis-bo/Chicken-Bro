@@ -307,9 +307,12 @@ export interface TalentNode {
   column?: number
   maxRank?: number
   ranks?: number
+  grantedRank?: number
   requiredPoints?: number
   prerequisiteIds?: readonly string[]
   parentMode?: string
+  choiceGroup?: string
+  nodeType?: number
   shape?: string
   granted?: boolean
   choiceOptions?: readonly TalentNode[]

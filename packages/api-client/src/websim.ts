@@ -66,6 +66,8 @@ export function normalizeTalentNode(value: unknown): TalentNode | null {
   const selectedRank = finiteNumber(value['ranks']) ?? finiteNumber(value['selectedRank']) ?? 0
   const maxRank = finiteNumber(value['maxRank']) ?? finiteNumber(value['rankCount']) ?? 1
   const requiredPoints = finiteNumber(value['requiredPoints']) ?? finiteNumber(value['pointRequirement'])
+  const grantedRank = finiteNumber(value['grantedRank'])
+  const nodeType = finiteNumber(value['nodeType'])
   const prerequisiteIds = stringArray(value['prerequisiteIds']).length
     ? stringArray(value['prerequisiteIds'])
     : stringArray(value['parentIds'])
@@ -87,9 +89,12 @@ export function normalizeTalentNode(value: unknown): TalentNode | null {
     ...(column !== undefined ? { column } : {}),
     maxRank: Math.max(1, Math.trunc(maxRank)),
     ranks: Math.max(0, Math.trunc(selectedRank)),
+    ...(grantedRank !== undefined ? { grantedRank: Math.max(0, Math.trunc(grantedRank)) } : {}),
     ...(requiredPoints !== undefined ? { requiredPoints: Math.max(0, Math.trunc(requiredPoints)) } : {}),
     ...(prerequisiteIds.length ? { prerequisiteIds } : {}),
     ...(cleanString(value['parentMode']) ? { parentMode: cleanString(value['parentMode']) } : {}),
+    ...(cleanString(value['choiceGroup']) ? { choiceGroup: cleanString(value['choiceGroup']) } : {}),
+    ...(nodeType !== undefined ? { nodeType: Math.trunc(nodeType) } : {}),
     ...(cleanString(value['shape']) ? { shape: cleanString(value['shape']) } : {}),
     ...(typeof value['granted'] === 'boolean' ? { granted: value['granted'] } : {}),
     ...(choiceOptions.length ? { choiceOptions } : {}),
