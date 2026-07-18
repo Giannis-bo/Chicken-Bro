@@ -810,6 +810,7 @@ test('architecture audit caps failure output', () => {
 test('SimC regions scale inside the shell content viewport', () => {
   const audit = fs.readFileSync('scripts/audit-ui-architecture.js', 'utf8')
   assert.match(audit, /fixed_pixel_vertical_regions_stay_inside_their_stage/)
+  assert.match(audit, /fixed_pixel_vertical_region_rows_do_not_overlap/)
   const styles = fs.readFileSync('apps/mini-taro/src/pages/simulator/simc-submit.module.scss', 'utf8')
   assert.match(styles, /\.pageFrame\s*\{[\s\S]*height:\s*calc\(var\(--route-safe-viewport-height\) - var\(--space-12\)\);[\s\S]*min-height:\s*0;/)
   assert.doesNotMatch(styles, /(?:top|height):\s*(?:51|58|65|106|216|727|818)px/)

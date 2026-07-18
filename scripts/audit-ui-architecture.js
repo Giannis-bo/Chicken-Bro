@@ -258,7 +258,7 @@ const fixedPixelRouteRegionWidths = routeStyles.flatMap((file) => (
     /\bwidth:\s*[\d.]+px\s*;/u.test(match[2]) ? [`${file}:${match[1]}`] : []
   ))
 ))
-const fixedPixelVerticalRegionEscapes = routeStyles.flatMap((file) => {
+const fixedPixelVerticalRegions = routeStyles.flatMap((file) => {
   const source = read(file)
   const fixedHeight = (selector) => {
     const body = source.match(new RegExp(`\\.${selector}\\s*\\{([^}]*)\\}`, 'u'))?.[1] ?? ''
@@ -271,10 +271,21 @@ const fixedPixelVerticalRegionEscapes = routeStyles.flatMap((file) => {
   return [...source.matchAll(/\.([A-Za-z][\w-]*Region)\s*\{([^}]*)\}/gu)].flatMap((match) => {
     const top = Number(match[2].match(/(?:^|;)\s*top:\s*([\d.]+)px\s*;/u)?.[1])
     const height = Number(match[2].match(/(?:^|;)\s*height:\s*([\d.]+)px\s*;/u)?.[1])
-    return Number.isFinite(top) && Number.isFinite(height) && top + height > containerHeight + 1
-      ? [`${file}:${match[1]}:bottom=${top + height}:container=${containerHeight}`]
+    return Number.isFinite(top) && Number.isFinite(height)
+      ? [{ file, region: match[1], top, bottom: top + height, containerHeight }]
       : []
   })
+})
+const fixedPixelVerticalRegionEscapes = fixedPixelVerticalRegions.filter((region) => region.bottom > region.containerHeight + 1)
+const fixedPixelVerticalRegionOverlaps = [...new Set(fixedPixelVerticalRegions.map((region) => region.file))].flatMap((file) => {
+  const rows = [...new Map(fixedPixelVerticalRegions.filter((region) => region.file === file).map((region) => [
+    region.top,
+    fixedPixelVerticalRegions.filter((candidate) => candidate.file === file && candidate.top === region.top),
+  ]))].map(([top, regions]) => ({ top, bottom: Math.max(...regions.map((region) => region.bottom)), regions: regions.map((region) => region.region) }))
+    .sort((a, b) => a.top - b.top)
+  return rows.slice(1).flatMap((row, index) => row.top < rows[index].bottom - 1
+    ? [{ file, previous: rows[index].regions.join('|'), region: row.regions.join('|') }]
+    : [])
 })
 const uncontainedRouteRegions = routeStyles.flatMap((file) => (
   [...read(file).matchAll(/\.([A-Za-z][\w-]*Region)(?:\s*,[^{]+)?\s*\{([^}]*)\}/gu)].flatMap((match) => (
@@ -294,7 +305,12 @@ record(
 record(
   'fixed_pixel_vertical_regions_stay_inside_their_stage',
   fixedPixelVerticalRegionEscapes.length === 0,
-  fixedPixelVerticalRegionEscapes.join(', ') || 'all fixed vertical regions are contained',
+  fixedPixelVerticalRegionEscapes.map((region) => `${region.file}:${region.region}:bottom=${region.bottom}:container=${region.containerHeight}`).join(', ') || 'all fixed vertical regions are contained',
+)
+record(
+  'fixed_pixel_vertical_region_rows_do_not_overlap',
+  fixedPixelVerticalRegionOverlaps.length === 0,
+  fixedPixelVerticalRegionOverlaps.map((item) => `${item.file}:${item.previous}->${item.region}`).join(', ') || `regions=${fixedPixelVerticalRegions.length}`,
 )
 const overlappingSpecializedRegions = [...new Set(specializedRegionBounds.map((region) => region.file))].flatMap((file) => {
   const regions = specializedRegionBounds.filter((region) => region.file === file).sort((a, b) => a.top - b.top)
