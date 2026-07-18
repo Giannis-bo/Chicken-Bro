@@ -8,12 +8,18 @@ const PROFILES = new Set(['harness', 'backend', 'frontend', 'full'])
 const DEFAULT_BASE = 'origin/main'
 const maxSpawnBufferBytes = 1024 * 1024
 const maxRecordedCommandOutputBytes = 64 * 1024
+const maxTotalRecordedOutputBytes = 256 * 1024
 
-function boundedCommandOutput(value) {
+function boundedCommandOutput(value, remainingBytes = maxRecordedCommandOutputBytes) {
   if (!value) return ''
   const buffer = Buffer.from(value)
-  if (buffer.length <= maxRecordedCommandOutputBytes) return value
-  return `[output truncated: ${buffer.length} bytes; retaining final ${maxRecordedCommandOutputBytes} bytes]\n${buffer.subarray(-maxRecordedCommandOutputBytes).toString('utf8')}`
+  const maximumBytes = Math.max(0, Math.min(maxRecordedCommandOutputBytes, remainingBytes))
+  if (buffer.length <= maximumBytes) return value
+  if (maximumBytes === 0) return `[output omitted: ${buffer.length} bytes; total output budget exhausted]\n`
+  const marker = Buffer.from(`[output truncated: ${buffer.length} bytes; retaining tail within ${maximumBytes}-byte budget]\n`)
+  const tailBytes = Math.max(0, maximumBytes - marker.length)
+  const tail = tailBytes > 0 ? buffer.subarray(-tailBytes) : Buffer.alloc(0)
+  return Buffer.concat([marker.subarray(0, maximumBytes), tail]).subarray(0, maximumBytes).toString('utf8')
 }
 
 function parseArgs(argv) {
@@ -250,6 +256,7 @@ function profileCommands(options, release) {
 
 function runCommands(root, commands, jsonMode) {
   const results = []
+  let remainingOutputBytes = maxTotalRecordedOutputBytes
   for (const command of commands) {
     if (!jsonMode) {
       process.stdout.write(`> ${command.command}\n`)
@@ -260,8 +267,10 @@ function runCommands(root, commands, jsonMode) {
       encoding: 'utf8',
       maxBuffer: maxSpawnBufferBytes
     })
-    const stdout = boundedCommandOutput(result.stdout)
-    const stderr = boundedCommandOutput(result.stderr || result.error?.message)
+    const stdout = boundedCommandOutput(result.stdout, remainingOutputBytes)
+    remainingOutputBytes = Math.max(0, remainingOutputBytes - Buffer.byteLength(stdout))
+    const stderr = boundedCommandOutput(result.stderr || result.error?.message, remainingOutputBytes)
+    remainingOutputBytes = Math.max(0, remainingOutputBytes - Buffer.byteLength(stderr))
     if (!jsonMode) {
       if (stdout) process.stdout.write(stdout)
       if (stderr) process.stderr.write(stderr)

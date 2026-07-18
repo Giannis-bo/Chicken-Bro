@@ -795,7 +795,9 @@ test('project verification bounds retained child process output', () => {
   const verifier = fs.readFileSync('scripts/verify-project.js', 'utf8')
   assert.match(verifier, /maxSpawnBufferBytes = 1024 \* 1024/)
   assert.match(verifier, /maxRecordedCommandOutputBytes = 64 \* 1024/)
-  assert.match(verifier, /boundedCommandOutput\(result\.stdout\)/)
+  assert.match(verifier, /maxTotalRecordedOutputBytes = 256 \* 1024/)
+  assert.match(verifier, /remainingOutputBytes = maxTotalRecordedOutputBytes/)
+  assert.match(verifier, /boundedCommandOutput\(result\.stdout, remainingOutputBytes\)/)
   assert.match(verifier, /output truncated:/)
 })
 
