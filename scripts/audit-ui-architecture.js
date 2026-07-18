@@ -258,6 +258,42 @@ record(
   negativeHorizontalWrapperMargins.length === 0,
   negativeHorizontalWrapperMargins.join(', ') || 'none',
 )
+const maximumDecorativeHorizontalEscapePx = 8
+const largeHorizontalPositionEscapes = routedUiStyleFiles.flatMap((file) => (
+  [...read(file).matchAll(/([^{}]+)\{([^{}]*)\}/gu)].flatMap((match) => {
+    const selector = match[1].trim().replace(/\s+/gu, ' ')
+    const offsets = [
+      ...[...match[2].matchAll(/\b(?:left|right):\s*-(?<value>[\d.]+)px\s*;/giu)]
+        .map((offset) => Number(offset.groups.value)),
+      ...[...match[2].matchAll(/\btranslateX\(\s*-(?<value>[\d.]+)px\s*\)/giu)]
+        .map((offset) => Number(offset.groups.value)),
+    ]
+    return offsets.some((offset) => offset > maximumDecorativeHorizontalEscapePx)
+      ? [`${file}:${selector}:${Math.max(...offsets)}px`]
+      : []
+  })
+))
+record(
+  'positioned_ui_does_not_escape_narrow_layouts_with_large_horizontal_offsets',
+  largeHorizontalPositionEscapes.length === 0,
+  largeHorizontalPositionEscapes.join(', ') || `max=${maximumDecorativeHorizontalEscapePx}px`,
+)
+const expandedPercentageWidths = routedUiStyleFiles.flatMap((file) => (
+  [...read(file).matchAll(/([^{}]+)\{([^{}]*)\}/gu)].flatMap((match) => {
+    const selector = match[1].trim().replace(/\s+/gu, ' ')
+    if (!/\bwidth:\s*calc\(\s*100%\s*\+\s*[\d.]+px\s*\)\s*;/iu.test(match[2])) return []
+    const ownerKey = `${file}:${selector}`
+    return new Set([
+      "packages/design-system/src/components/reconstruction.module.scss:.channelDockFixed > [data-material-render='full-frame']",
+      'packages/design-system/src/components/BuildIntelComponents.module.scss:.cardMedallionShell',
+    ]).has(ownerKey) ? [] : [ownerKey]
+  })
+))
+record(
+  'percentage_width_expansion_is_owned_by_an_explicit_production_asset_shell',
+  expandedPercentageWidths.length === 0,
+  expandedPercentageWidths.join(', ') || 'explicit-production-asset-shells-only',
+)
 const overflowingComponentGridFootprints = routedUiStyleFiles.flatMap((file) => (
   [...read(file).matchAll(/([^{}]+)\{([^{}]*\bgrid-template-columns:\s*([^;]+);[^{}]*)\}/gu)].flatMap((match) => {
     const tracks = splitGridTracks(match[3])
