@@ -129,15 +129,16 @@ describe('Taro source route contract', () => {
       'apps/mini-taro/src/pages/builds/builds.tsx',
       'apps/mini-taro/src/pages/builds/workbench.tsx',
       'apps/mini-taro/src/pages/builds/intel.tsx',
-      'apps/mini-taro/src/pages/builds/talent-simulator.tsx',
       'apps/mini-taro/src/pages/builds/detail.tsx',
     ]
     for (const file of businessRoutes) {
       const source = fs.readFileSync(path.join(process.cwd(), file), 'utf8')
-      expect(source).not.toContain("fallbackPolicy: 'stale'")
+      expect(source).toContain("fallbackPolicy: 'blocked'")
     }
     const profile = fs.readFileSync(path.join(process.cwd(), 'apps/mini-taro/src/pages/profile/profile.tsx'), 'utf8')
     expect(profile).toContain("fallbackPolicy: 'stale'")
+    const talentSimulator = fs.readFileSync(path.join(process.cwd(), 'apps/mini-taro/src/pages/builds/talent-simulator.tsx'), 'utf8')
+    expect(talentSimulator).toContain("fallbackPolicy: 'stale'")
   })
 
   it('uses redirect fallback for directly opened non-tab routes', () => {

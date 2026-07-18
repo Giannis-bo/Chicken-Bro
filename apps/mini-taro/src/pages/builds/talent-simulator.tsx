@@ -131,7 +131,7 @@ export default function TalentSimulatorPage() {
         || importResult.fromFallback,
       error: errors.join(' / '),
     }
-  }, { fallbackPolicy: 'blocked' })
+  }, { fallbackPolicy: 'stale' })
 
   useEffect(() => {
     if (!selectionChanged.current) {
