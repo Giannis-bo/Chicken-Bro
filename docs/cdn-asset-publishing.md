@@ -47,9 +47,19 @@
    npm run verify:ui-package:release
    ```
 
+6. 生成供微信开发者工具真机调试/上传的 CDN 版本构建：
+
+   ```bash
+   npm run build:weapp:release
+   ```
+
+   `build:weapp` 默认保留本地素材，便于离线开发，因此会超过微信 2 MiB 主包限制；真机调试和发布必须使用 `build:weapp:release`。发布命令会禁用 Taro 构建缓存，避免上一次本地构建的素材根常量污染 CDN 包。切换 CDN `release-id` 时，同步更新该命令中的不可变根目录。
+
 ## 失败与回滚
 
-- `publish` 在上传后强制从 CDN 回读所有文件；任一 HTTP、字节数或 SHA-256 不一致即失败。
-- 不修补已经发布的版本目录。修正源文件、换新 `release-id` 重新发布。
+- `publish` 在上传后以 8 路受控并发从 CDN 回读所有文件；任一 HTTP、字节数或 SHA-256 不一致即失败。
+- 若已发布版本只缺 `release-manifest.json`，必须先用同一 `release-id` 重新 `prepare`，再逐个确认全部远端资源与本地清单的字节数和 SHA-256 一致；只有 100% 一致时才允许恢复内容完全相同的清单。任一资源缺失或不一致都必须换新 `release-id`。
+- 除上述“全部资源一致、只恢复相同清单”的窄例外外，不修补已经发布的版本目录。修正源文件、换新 `release-id` 重新发布。
 - 回滚小程序时，把 `WOW_ASSET_RUNTIME_ROOT` 恢复到上一版不可变目录；COS 和 CDN 中的旧版本保留。
+- 存储桶只需公有读、私有写；匿名写入不是 CDN 回源要求。生产发布应使用受控的腾讯云身份，不能长期保留“公有读写”。
 - 腾讯云访问密钥、临时令牌和 `coscli` 配置不得写入仓库或构建产物。

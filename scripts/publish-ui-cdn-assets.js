@@ -14,6 +14,9 @@ const publicOrigin = process.env.WOW_CDN_PUBLIC_ORIGIN || 'https://static.chicke
 const releasePrefix = 'wow-assets/releases'
 const maximumFiles = 256
 const maximumTotalBytes = 8 * 1024 * 1024
+const verificationConcurrency = 8
+const assetRequestTimeoutMs = 20_000
+const maximumVerificationAttempts = 2
 const runtimeAssetExtensions = new Set(['.png', '.svg', '.webp'])
 const assetSources = [
   ['vector', 'packages/design-system/assets/vector'],
@@ -50,6 +53,20 @@ function walk(directory) {
 
 function sha256(buffer) {
   return createHash('sha256').update(buffer).digest('hex')
+}
+
+async function fetchReleaseObject(url, label) {
+  let lastFailure = 'unknown failure'
+  for (let attempt = 1; attempt <= maximumVerificationAttempts; attempt += 1) {
+    try {
+      const response = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(assetRequestTimeoutMs) })
+      if (response.ok) return response
+      lastFailure = `HTTP ${response.status}`
+    } catch (error) {
+      lastFailure = error instanceof Error ? error.message : String(error)
+    }
+  }
+  throw new Error(`${label} failed after ${maximumVerificationAttempts} attempts: ${lastFailure}`)
 }
 
 function collectAssets() {
@@ -100,19 +117,35 @@ function buildRelease(releaseId) {
 
 async function verifyRelease(releaseId, localManifest) {
   const manifestUrl = `${publicOrigin}/${releasePrefix}/${releaseId}/release-manifest.json`
-  const response = await fetch(manifestUrl, { cache: 'no-store', signal: AbortSignal.timeout(10_000) })
-  if (!response.ok) throw new Error(`remote manifest request failed: ${response.status} ${manifestUrl}`)
+  const response = await fetchReleaseObject(manifestUrl, `remote manifest request ${manifestUrl}`)
   const remoteManifest = await response.json()
   const expected = localManifest ?? releaseManifest(releaseId).manifest
   if (remoteManifest.releaseId !== releaseId || remoteManifest.fileCount !== expected.fileCount || remoteManifest.totalBytes !== expected.totalBytes) {
     throw new Error('remote CDN release manifest does not match the local release')
   }
-  for (const record of expected.files) {
-    const assetResponse = await fetch(`${publicOrigin}/${releasePrefix}/${releaseId}/${record.path}`, { signal: AbortSignal.timeout(10_000) })
-    if (!assetResponse.ok) throw new Error(`remote asset request failed: ${assetResponse.status} ${record.path}`)
-    const bytes = Buffer.from(await assetResponse.arrayBuffer())
-    if (bytes.length !== record.bytes || sha256(bytes) !== record.sha256) throw new Error(`remote asset integrity mismatch: ${record.path}`)
+  const failures = new Array(expected.files.length)
+  let nextRecordIndex = 0
+  const verifyWorker = async () => {
+    while (nextRecordIndex < expected.files.length) {
+      const recordIndex = nextRecordIndex
+      nextRecordIndex += 1
+      const record = expected.files[recordIndex]
+      try {
+        const assetResponse = await fetchReleaseObject(
+          `${publicOrigin}/${releasePrefix}/${releaseId}/${record.path}`,
+          `remote asset request ${record.path}`,
+        )
+        const bytes = Buffer.from(await assetResponse.arrayBuffer())
+        if (bytes.length !== record.bytes || sha256(bytes) !== record.sha256) throw new Error(`remote asset integrity mismatch: ${record.path}`)
+      } catch (error) {
+        failures[recordIndex] = error instanceof Error ? error.message : String(error)
+      }
+    }
   }
+  const workerCount = Math.min(verificationConcurrency, expected.files.length)
+  await Promise.all(Array.from({ length: workerCount }, () => verifyWorker()))
+  const firstFailure = failures.find(Boolean)
+  if (firstFailure) throw new Error(firstFailure)
   return { status: 'pass', releaseId, publicRoot: expected.immutableRoot, fileCount: expected.fileCount, totalBytes: expected.totalBytes }
 }
 
