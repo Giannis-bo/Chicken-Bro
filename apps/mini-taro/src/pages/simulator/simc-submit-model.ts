@@ -1,4 +1,11 @@
-import type { BuildTemplate, ReadinessState } from '@wow-mini/domain'
+import type {
+  BuildTemplate,
+  GearSelectionIntent,
+  ReadinessState,
+  SimcOptionsPayload,
+  SimcPreparationOption,
+  SimcProfileContext,
+} from '@wow-mini/domain'
 
 export type SimcTruthState = 'ready' | 'partial' | 'blocked' | 'unknown'
 
@@ -14,10 +21,29 @@ export interface SimcTemplateSlotView {
 }
 
 export interface SimcBuffRuleView {
-  id: 'group' | 'consumable' | 'food' | 'preparation'
+  id: string
   label: string
   value: string
-  state: 'partial' | 'blocked'
+  state: 'ready' | 'partial' | 'blocked'
+  overrideSupported?: boolean
+}
+
+export interface SimcOptionsView {
+  state: 'ready' | 'empty' | 'blocked'
+  races: readonly { id: string; label: string }[]
+  scenarios: readonly { id: string; label: string }[]
+  selectedRaceKey: string
+  selectedRaceIndex: number
+  selectedScenarioKey: string
+  selectedScenarioIndex: number
+  durationSeconds: number | undefined
+  targets: number | undefined
+  preparationRows: readonly SimcPreparationOption[]
+}
+
+export interface CanonicalSimcContext {
+  selectionIntent: GearSelectionIntent
+  profileContext: SimcProfileContext
 }
 
 export interface SimcSummaryRowView {
@@ -38,9 +64,13 @@ export interface SimcSubmitModelInput {
   specializationLabel: string
   raceLabel: string
   scenarioLabel: string
-  durationSeconds: number
+  scenarioTargets?: number | undefined
+  durationSeconds?: number | undefined
   talentTemplate?: BuildTemplate | undefined
-  gearTemplate?: BuildTemplate | undefined
+  gearContextAvailable?: boolean | undefined
+  gearContextLabel?: string | undefined
+  preparationLabel?: string | undefined
+  preparationState?: 'ready' | 'partial' | 'blocked' | undefined
   activeTaskCount: number
   confirmationState: ReadinessState
   confirmationError?: string | undefined
@@ -79,12 +109,92 @@ export function simcTemplateSlot(
   }
 }
 
-export const simcBuffRules: readonly SimcBuffRuleView[] = [
-  { id: 'group', label: '团队 / 队伍增益', value: '由后端按专精规则处理', state: 'partial' },
-  { id: 'consumable', label: '药水与合剂', value: '未提供可验证输入', state: 'blocked' },
-  { id: 'food', label: '食物与符文', value: '未提供可验证输入', state: 'blocked' },
-  { id: 'preparation', label: '其他准备', value: '未经验证不写入 profile', state: 'blocked' },
-]
+function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+export function deriveSimcOptionsView(
+  options: SimcOptionsPayload,
+  classKey: string,
+  specKey: string,
+  preferredRaceKey: string,
+  preferredScenarioKey: string,
+): SimcOptionsView {
+  const contractReady = options.contractRevision === 'simc-options-v1' && options.status === 'ready'
+  const raceReady = contractReady && options.races.status === 'supported'
+  const preparationReady = contractReady && options.preparation.status === 'ready'
+  const supportedRaceKeys = raceReady
+    ? options.races.supportedKeys.filter((key) => typeof key === 'string' && key.length > 0)
+    : []
+  const supportedScenarios = contractReady
+    ? options.scenarios.filter((scenario) => scenario.status === 'supported')
+    : []
+  const classDefault = options.races.defaultByClass[classKey] ?? ''
+  const selectedRaceKey = [preferredRaceKey, classDefault, options.races.defaultKey]
+    .find((key) => supportedRaceKeys.includes(key))
+    ?? supportedRaceKeys[0]
+    ?? ''
+  const selectedScenario = supportedScenarios.find((scenario) => scenario.key === preferredScenarioKey)
+    ?? supportedScenarios[0]
+  const preparationRows = preparationReady
+    ? options.preparation.rows.filter((row) => (
+      (!row.classKey || row.classKey === classKey)
+      && (!row.specKey || row.specKey === specKey)
+    ))
+    : []
+  const empty = supportedRaceKeys.length === 0
+    || supportedScenarios.length === 0
+    || preparationRows.length === 0
+
+  return {
+    state: !contractReady || !raceReady || !preparationReady ? 'blocked' : empty ? 'empty' : 'ready',
+    races: supportedRaceKeys.map((key) => ({ id: key, label: key })),
+    scenarios: supportedScenarios.map((scenario) => ({ id: scenario.key, label: scenario.label })),
+    selectedRaceKey,
+    selectedRaceIndex: Math.max(0, supportedRaceKeys.indexOf(selectedRaceKey)),
+    selectedScenarioKey: selectedScenario?.key ?? '',
+    selectedScenarioIndex: Math.max(
+      0,
+      supportedScenarios.findIndex((scenario) => scenario.key === selectedScenario?.key),
+    ),
+    durationSeconds: selectedScenario?.durationSeconds,
+    targets: selectedScenario?.targets,
+    preparationRows,
+  }
+}
+
+export function buildCanonicalSimcContext(input: {
+  buildContext: unknown
+  classKey: string
+  specKey: string
+  raceKey: string
+  scenarioKey: string
+  talentTemplate: BuildTemplate | undefined
+}): CanonicalSimcContext | null {
+  const context = input.buildContext
+  const template = input.talentTemplate
+  if (!isRecord(context)
+    || context['classKey'] !== input.classKey
+    || context['specKey'] !== input.specKey
+    || !isRecord(context['selectionIntent'])
+    || !template
+    || !input.raceKey
+    || !input.scenarioKey) return null
+
+  const intent = context['selectionIntent']
+  const rawTalent = template.rawString.trim()
+  if (!rawTalent) return null
+  const profileContext: SimcProfileContext = {
+    race: input.raceKey,
+    scenarioKey: input.scenarioKey,
+    ...(template.heroKey ? { heroKey: template.heroKey } : {}),
+    talents: rawTalent,
+  }
+  return {
+    selectionIntent: intent as unknown as GearSelectionIntent,
+    profileContext,
+  }
+}
 
 function templateState(template: BuildTemplate | undefined): SimcTruthState {
   if (!template) return 'blocked'
@@ -102,7 +212,9 @@ export function simcSummaryRows(input: SimcSubmitModelInput): readonly SimcSumma
     {
       id: 'scenario',
       label: '战斗场景',
-      value: input.scenarioLabel || '未选择',
+      value: input.scenarioLabel
+        ? `${input.scenarioLabel}${input.scenarioTargets ? ` · ${input.scenarioTargets} 目标` : ''}`
+        : '未选择',
       state: input.scenarioLabel ? 'ready' : 'blocked',
     },
     {
@@ -114,20 +226,24 @@ export function simcSummaryRows(input: SimcSubmitModelInput): readonly SimcSumma
     {
       id: 'buffs',
       label: '战斗增益',
-      value: '后端规则 · 手动配置未开放',
-      state: 'partial',
+      value: input.preparationLabel || '后端未返回准备规则',
+      state: input.preparationState || 'blocked',
     },
     {
       id: 'gear',
-      label: '装备模板',
-      value: input.gearTemplate?.title || '未选择',
-      state: templateState(input.gearTemplate),
+      label: '装备来源',
+      value: input.gearContextLabel || '未带入',
+      state: input.gearContextAvailable ? 'partial' : 'blocked',
     },
     {
       id: 'preparation',
       label: '其他准备',
-      value: `${input.durationSeconds} 秒 · 确认时校验`,
-      state: input.confirmationState === 'ready' ? 'ready' : 'unknown',
+      value: input.durationSeconds === undefined
+        ? '后端未返回时长'
+        : `${input.durationSeconds} 秒 · 确认时校验`,
+      state: input.durationSeconds === undefined
+        ? 'blocked'
+        : input.confirmationState === 'ready' ? 'ready' : 'unknown',
     },
   ]
 }
@@ -144,8 +260,10 @@ export function simcBlockerRows(input: SimcSubmitModelInput): readonly SimcBlock
     {
       id: 'scenario',
       label: input.scenarioLabel ? '战斗场景与时长已选择' : '尚未选择战斗场景',
-      detail: input.scenarioLabel ? `${input.scenarioLabel} / ${input.durationSeconds} 秒` : '场景会影响确认请求',
-      blocked: !input.scenarioLabel,
+      detail: input.scenarioLabel && input.durationSeconds !== undefined
+        ? `${input.scenarioLabel} / ${input.durationSeconds} 秒`
+        : '场景及时长均以后端选项为准',
+      blocked: !input.scenarioLabel || input.durationSeconds === undefined,
     },
     {
       id: 'talent',
@@ -155,9 +273,13 @@ export function simcBlockerRows(input: SimcSubmitModelInput): readonly SimcBlock
     },
     {
       id: 'gear',
-      label: input.gearTemplate ? '装备模板已选择' : '尚未选择装备模板',
-      detail: input.gearTemplate?.title || '不会生成默认装备',
-      blocked: !input.gearTemplate,
+      label: input.gearContextAvailable
+        ? 'canonical intent 已带入'
+        : '尚未带入装备上下文',
+      detail: input.gearContextAvailable
+        ? `${input.gearContextLabel || '本机装备意图'}；等待本次后端快照校验`
+        : '不会生成默认装备',
+      blocked: !input.gearContextAvailable,
     },
     {
       id: 'validation',

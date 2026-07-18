@@ -1,6 +1,7 @@
 import {
   storageKey,
   type ChickenbroResponse,
+  type SimcOptionsPayload,
   type SimulatorAnalysisResponse,
   type SimulatorTaskRecord,
 } from '@wow-mini/domain'
@@ -15,6 +16,61 @@ export interface TaskDetailPayload { task: SimulatorTaskRecord | null }
 export interface SimulatorRequestOptions {
   auth?: boolean
   allowInsecureGuestRequest?: boolean
+}
+
+function stringRecord(value: unknown): value is Readonly<Record<string, string>> {
+  return isRecord(value) && Object.values(value).every((item) => typeof item === 'string')
+}
+
+function isSimcScenario(value: unknown): boolean {
+  return isRecord(value)
+    && ['key', 'label', 'fightStyle', 'status'].every((key) => typeof value[key] === 'string')
+    && typeof value['targets'] === 'number'
+    && Number.isFinite(value['targets'])
+    && value['targets'] > 0
+    && typeof value['durationSeconds'] === 'number'
+    && Number.isFinite(value['durationSeconds'])
+    && value['durationSeconds'] > 0
+}
+
+function isSimcPreparationRow(value: unknown): boolean {
+  return isRecord(value)
+    && ['key', 'category', 'label', 'defaultState', 'evidenceState']
+      .every((key) => typeof value[key] === 'string')
+    && (value['classKey'] === undefined || typeof value['classKey'] === 'string')
+    && (value['specKey'] === undefined || typeof value['specKey'] === 'string')
+    && typeof value['overrideSupported'] === 'boolean'
+}
+
+function isSimcOptionsPayload(value: unknown): value is SimcOptionsPayload {
+  if (!isRecord(value)
+    || value['contractRevision'] !== 'simc-options-v1'
+    || typeof value['status'] !== 'string'
+    || !isRecord(value['races'])
+    || !Array.isArray(value['scenarios'])
+    || !isRecord(value['preparation'])) return false
+  const races = value['races']
+  const preparation = value['preparation']
+  return typeof races['status'] === 'string'
+    && typeof races['defaultKey'] === 'string'
+    && Array.isArray(races['supportedKeys'])
+    && races['supportedKeys'].every((item) => typeof item === 'string')
+    && stringRecord(races['defaultByClass'])
+    && value['scenarios'].every(isSimcScenario)
+    && typeof preparation['schemaRevision'] === 'string'
+    && typeof preparation['status'] === 'string'
+    && Array.isArray(preparation['rows'])
+    && preparation['rows'].every(isSimcPreparationRow)
+}
+
+function fallbackSimcOptions(): SimcOptionsPayload {
+  return {
+    contractRevision: 'simc-options-v1',
+    status: 'blocked',
+    races: { status: 'blocked', defaultKey: '', supportedKeys: [], defaultByClass: {} },
+    scenarios: [],
+    preparation: { schemaRevision: 'simc-preparation-v1', status: 'blocked', rows: [] },
+  }
 }
 
 export class SimulatorClient {
@@ -51,6 +107,13 @@ export class SimulatorClient {
         simulation: { ran: false, available: false, error: 'backend confirmation unavailable' },
       }),
       validate: (value) => isRecord(value) && typeof value['status'] === 'string' && Array.isArray(value['recommendations']),
+    })
+  }
+
+  options(): Promise<ApiResult<SimcOptionsPayload>> {
+    return this.transport.requestEndpoint('simulator.simcOptions', '/api/simulator/simc/options', {
+      fallback: fallbackSimcOptions,
+      validate: isSimcOptionsPayload,
     })
   }
 

@@ -156,6 +156,16 @@ describe('Taro source route contract', () => {
       'utf8',
     )
     expect(source).toContain('const invalidateConfirmation = () =>')
-    expect(source.match(/invalidateConfirmation\(\)/g)?.length ?? 0).toBeGreaterThanOrEqual(5)
+    // Race, scenario, and talent remain user-selectable. Duration follows the backend
+    // scenario and gear comes from the canonical handoff, so neither adds a local input.
+    expect(source.match(/invalidateConfirmation\(\)/g)?.length ?? 0).toBeGreaterThanOrEqual(3)
+  })
+
+  it('registers the active SimC route against options, canonical stat snapshots, and the gear handoff', () => {
+    const route = routeContracts.find((candidate) => candidate.routeKey === 'SimC_submit')
+    expect(route?.endpoints).toContain('simulator.simcOptions')
+    expect(route?.endpoints).toContain('websim.gearStatSnapshots')
+    expect(route?.endpoints).not.toContain('websim.gearStats')
+    expect(route?.storage).toContain('simc.buildContext')
   })
 })

@@ -599,6 +599,73 @@ export interface GearResultEnvelope<T = GearResolvedSnapshot> {
   problems: readonly GearProblem[]
 }
 
+export interface SimcRaceOptions {
+  status: string
+  defaultKey: string
+  supportedKeys: readonly string[]
+  defaultByClass: Readonly<Record<string, string>>
+}
+
+export interface SimcScenarioOption {
+  key: string
+  label: string
+  fightStyle: string
+  targets: number
+  durationSeconds: number
+  status: string
+}
+
+export interface SimcPreparationOption {
+  key: string
+  category: string
+  classKey?: string
+  specKey?: string
+  label: string
+  defaultState: string
+  evidenceState: string
+  overrideSupported: boolean
+}
+
+export interface SimcPreparationOptions {
+  schemaRevision: string
+  status: string
+  rows: readonly SimcPreparationOption[]
+}
+
+export interface SimcOptionsPayload {
+  contractRevision: 'simc-options-v1'
+  status: string
+  races: SimcRaceOptions
+  scenarios: readonly SimcScenarioOption[]
+  preparation: SimcPreparationOptions
+}
+
+export interface SimcBuildContext {
+  specId?: string
+  className?: string
+  specName?: string
+  classKey: string
+  specKey: string
+  raceKey?: string
+  gearBySlot?: Readonly<Record<string, GearItemReference>>
+  enhancementBySlot?: Readonly<Record<string, GearEnhancementSelection>>
+  selectionIntent: GearSelectionIntent
+  resolvedGearSignature?: string
+  statSnapshot?: GearStatsPayload
+  source?: string
+}
+
+export interface SimcProfileContext {
+  readonly [key: string]: unknown
+  race: string
+  scenarioKey: string
+  heroKey?: string
+  talents?: string
+  talentImport?: string
+  websimExportCode?: string
+  talentState?: Readonly<Record<string, unknown>>
+}
+
 export interface CommunityTemplateImportData {
   contractRevision?: string
   status?: string

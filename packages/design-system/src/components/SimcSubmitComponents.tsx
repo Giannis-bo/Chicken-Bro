@@ -217,7 +217,7 @@ export interface SimcBuffRuleItem {
   id: string
   label: string
   value: string
-  state: 'partial' | 'blocked'
+  state: 'ready' | 'partial' | 'blocked'
 }
 
 export interface SimcCombatConfigurationProps {
@@ -282,13 +282,14 @@ export function SimcCombatConfiguration({
           <Text>战斗时长</Text>
         </View>
         <Picker
+          disabled={durations.length <= 1}
           mode="selector"
           range={durations.map((duration) => `${duration} 秒`)}
           value={selectedDurationIndex}
           onChange={(event) => onDurationSelect(Number(event.detail.value))}
         >
           <View className={styles['durationField'] ?? ''} data-role="simc-duration-field" data-selector-id="duration">
-            <Text>{durations[selectedDurationIndex] ?? 300} 秒</Text>
+            <Text>{durations[selectedDurationIndex] === undefined ? '未返回' : `${durations[selectedDurationIndex]} 秒`}</Text>
             <SystemGlyph assetId="utility-glyph-family.chevron-right" slotId="asset_slot.simc-selector-affordances" />
           </View>
         </Picker>
@@ -297,7 +298,7 @@ export function SimcCombatConfiguration({
         <Text>战斗增益 (Buff)</Text>
         <View data-disabled="true">
           <SystemGlyph assetId="utility-glyph-family.adjust" slotId="asset_slot.simc-buff-rule-family" />
-          <Text>手动配置未开放</Text>
+          <Text>以后端规则为准</Text>
         </View>
       </View>
       <View className={styles['buffRows'] ?? ''}>

@@ -319,12 +319,14 @@ export const routeContracts = [
       "builds.home",
       "templates.list",
       "templates.upsert",
-      "websim.gearStats",
+      "websim.gearStatSnapshots",
+      "simulator.simcOptions",
       "simulator.tasks",
       "simulator.analyze"
     ],
     "storage": [
       "templates.local",
+      "simc.buildContext",
       "simulator.guestId"
     ],
     "outgoing": [],
@@ -589,6 +591,13 @@ export const endpointContracts = [
     "timeoutMs": 30000
   },
   {
+    "id": "simulator.simcOptions",
+    "method": "GET",
+    "path": "/api/simulator/simc/options",
+    "auth": "none",
+    "timeoutMs": 30000
+  },
+  {
     "id": "simulator.analyze",
     "method": "POST",
     "path": "/api/simulator/analyze",
@@ -718,7 +727,7 @@ export const storageContracts = [
   {
     "id": "simc.buildContext",
     "key": "wow_simc_build_context",
-    "compatibilityBehavior": "written_by_gear_detail_but_not_read_by_any_registered_route"
+    "compatibilityBehavior": "written_by_gear_detail_and_read_by_active_simc_submit"
   }
 ] as const
 

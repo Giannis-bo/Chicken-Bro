@@ -1,7 +1,7 @@
 import Taro, { useRouter } from '@tarojs/taro'
 import { useEffect, useRef, useState } from 'react'
 
-import { wowApi } from '@wow-mini/api-client'
+import { taroStorage, wowApi } from '@wow-mini/api-client'
 import { AppShell } from '@wow-mini/design-system/components/AppShell'
 import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
 import { RouteStage } from '@wow-mini/design-system/components/RouteStage'
@@ -17,20 +17,23 @@ import {
   SimcTemplateSlot,
   type SimcSpecializationItem,
 } from '@wow-mini/design-system/components/SimcSubmitComponents'
-import type {
-  BuildTemplate,
-  BuildsHomePayload,
-  GearStatsPayload,
-  ReadinessState,
-  SimulatorAnalysisResponse,
-  SimulatorTaskRecord,
+import {
+  storageKey,
+  type BuildTemplate,
+  type BuildsHomePayload,
+  type GearProblem,
+  type GearStatsPayload,
+  type ReadinessState,
+  type SimcBuildContext,
+  type SimcOptionsPayload,
+  type SimulatorAnalysisResponse,
+  type SimulatorTaskRecord,
 } from '@wow-mini/domain'
 
 import {
   defaultSpecId,
   findSpecSelection,
   flattenSpecs,
-  scenarioOptions,
   type SpecSelection,
 } from '../_shared/build-context'
 import {
@@ -40,19 +43,24 @@ import {
   useAsyncRoute,
 } from '../_shared/route-runtime'
 import {
+  buildCanonicalSimcContext,
+  deriveSimcOptionsView,
   simcBlockerRows,
-  simcBuffRules,
   simcConfirmationLabel,
   simcSummaryRows,
   simcTemplateSlot,
+  type SimcBuffRuleView,
+  type SimcOptionsView,
+  type SimcTemplateSlotView,
 } from './simc-submit-model'
 import styles from './simc-submit.module.scss'
 
 interface SimcPagePayload {
   home: BuildsHomePayload
   selection: SpecSelection
+  options: SimcOptionsPayload
+  buildContext?: SimcBuildContext | undefined
   talentTemplates: readonly BuildTemplate[]
-  gearTemplates: readonly BuildTemplate[]
   tasks: readonly SimulatorTaskRecord[]
 }
 
@@ -64,15 +72,18 @@ interface ConfirmationState {
   stats?: GearStatsPayload
 }
 
-const races = [
-  { id: 'human', label: '人类' },
-  { id: 'orc', label: '兽人' },
-  { id: 'night_elf', label: '暗夜精灵' },
-  { id: 'dwarf', label: '矮人' },
-  { id: 'blood_elf', label: '血精灵' },
-] as const
-
-const durations = [180, 300, 360] as const
+const blockedOptionsView: SimcOptionsView = {
+  state: 'blocked',
+  races: [],
+  scenarios: [],
+  selectedRaceKey: '',
+  selectedRaceIndex: 0,
+  selectedScenarioKey: '',
+  selectedScenarioIndex: 0,
+  durationSeconds: undefined,
+  targets: undefined,
+  preparationRows: [],
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -81,15 +92,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function activeTask(task: SimulatorTaskRecord): boolean {
   const status = task.status.toLowerCase()
   return status === 'queued' || status === 'running' || status === 'processing'
-}
-
-function parsedGear(template: BuildTemplate): Readonly<Record<string, unknown>> | null {
-  try {
-    const parsed: unknown = JSON.parse(template.rawString)
-    return isRecord(parsed) ? parsed : null
-  } catch {
-    return null
-  }
 }
 
 function explicitValidationPassed(response: SimulatorAnalysisResponse): boolean {
@@ -109,43 +111,65 @@ function compatibleTemplates(
   ))
 }
 
+function envelopeMessage(problems: readonly GearProblem[], fallback: string): string {
+  return problems
+    .map((problem) => problem.detail || problem.title || problem.code || problem.kind || '')
+    .filter(Boolean)
+    .join(' / ') || fallback
+}
+
+function preparationState(evidenceState: string): SimcBuffRuleView['state'] {
+  if (evidenceState === 'verified') return 'ready'
+  if (evidenceState === 'blocked') return 'blocked'
+  return 'partial'
+}
+
 export default function SimcSubmitPage() {
   const router = useRouter()
   const initialSpec = safeDecode(router.params['spec'])
   const [selectedSpecId, setSelectedSpecId] = useState(initialSpec)
   const [talentTemplateId, setTalentTemplateId] = useState('')
-  const [gearTemplateId, setGearTemplateId] = useState('')
-  const [raceIndex, setRaceIndex] = useState(0)
-  const [scenarioIndex, setScenarioIndex] = useState(Math.max(0, scenarioOptions.findIndex((item) => item.key === safeDecode(router.params['scenario']))))
-  const [durationIndex, setDurationIndex] = useState(1)
+  const [selectedRaceKey, setSelectedRaceKey] = useState('')
+  const [selectedScenarioKey, setSelectedScenarioKey] = useState(safeDecode(router.params['scenario']))
   const [confirmation, setConfirmation] = useState<ConfirmationState>({ state: 'unknown' })
   const [submitting, setSubmitting] = useState(false)
   const [submittedTaskId, setSubmittedTaskId] = useState('')
   const selectionChanged = useRef(false)
+  const confirmationRequestId = useRef(0)
 
   const route = useAsyncRoute<SimcPagePayload>(async () => {
-    const [homeResult, talentsResult, gearResult, tasksResult] = await Promise.all([
+    const buildContext = taroStorage.get<SimcBuildContext>(storageKey('simc.buildContext'))
+    const [homeResult, optionsResult, talentsResult, tasksResult] = await Promise.all([
       wowApi.builds.home(),
+      wowApi.simulator.options(),
       wowApi.templates.fetch('talent'),
-      wowApi.templates.fetch('gear'),
       wowApi.simulator.tasks(),
     ])
     const keyMatch = flattenSpecs(homeResult.payload.classOptions).find((entry) => (
       entry.spec.websimClassKey === safeDecode(router.params['classKey'])
       && entry.spec.websimSpecKey === safeDecode(router.params['specKey'])
     ))
-    const selection = findSpecSelection(homeResult.payload, selectedSpecId || keyMatch?.spec.id || defaultSpecId)
+    const selection = findSpecSelection(
+      homeResult.payload,
+      selectedSpecId || buildContext?.specId || keyMatch?.spec.id || defaultSpecId,
+    )
     if (!selection) throw new Error('没有可用的职业专精映射')
     return {
       payload: {
         home: homeResult.payload,
         selection,
+        options: optionsResult.payload,
+        ...(buildContext ? { buildContext } : {}),
         talentTemplates: talentsResult.payload.templates,
-        gearTemplates: gearResult.payload.templates,
         tasks: tasksResult.fromFallback ? [] : tasksResult.payload.tasks,
       },
-      fromFallback: homeResult.fromFallback || tasksResult.fromFallback,
-      error: [homeResult.error, tasksResult.error].filter(Boolean).join(' / '),
+      fromFallback: homeResult.fromFallback
+        || optionsResult.fromFallback
+        || talentsResult.fromFallback
+        || tasksResult.fromFallback,
+      error: [homeResult.error, optionsResult.error, talentsResult.error, tasksResult.error]
+        .filter(Boolean)
+        .join(' / '),
     }
   }, { fallbackPolicy: 'stale' })
 
@@ -154,6 +178,7 @@ export default function SimcSubmitPage() {
       selectionChanged.current = true
       return
     }
+    confirmationRequestId.current += 1
     setConfirmation({ state: 'unknown' })
     setSubmittedTaskId('')
     void route.load()
@@ -162,90 +187,118 @@ export default function SimcSubmitPage() {
   useEffect(() => {
     if (!route.data) return
     const talents = compatibleTemplates(route.data.talentTemplates, route.data.selection)
-    const gear = compatibleTemplates(route.data.gearTemplates, route.data.selection)
     setTalentTemplateId((current) => talents.some((item) => item.id === current) ? current : talents[0]?.id || '')
-    setGearTemplateId((current) => gear.some((item) => item.id === current) ? current : gear[0]?.id || '')
   }, [route.data])
 
   const data = route.data
   const talentTemplates = compatibleTemplates(data?.talentTemplates ?? [], data?.selection)
-  const gearTemplates = compatibleTemplates(data?.gearTemplates ?? [], data?.selection)
   const talentTemplate = talentTemplates.find((template) => template.id === talentTemplateId)
-  const gearTemplate = gearTemplates.find((template) => template.id === gearTemplateId)
   const activeTasks = data?.tasks.filter(activeTask) ?? []
+  const optionsView = data
+    ? deriveSimcOptionsView(
+      data.options,
+      data.selection.classKey,
+      data.selection.specKey,
+      selectedRaceKey || data.buildContext?.raceKey || '',
+      selectedScenarioKey,
+    )
+    : blockedOptionsView
+  const canonicalContext = data
+    ? buildCanonicalSimcContext({
+      buildContext: data.buildContext,
+      classKey: data.selection.classKey,
+      specKey: data.selection.specKey,
+      raceKey: optionsView.selectedRaceKey,
+      scenarioKey: optionsView.selectedScenarioKey,
+      talentTemplate,
+    })
+    : null
+  const gearContextAvailable = Boolean(
+    data?.buildContext
+    && data.buildContext.classKey === data.selection.classKey
+    && data.buildContext.specKey === data.selection.specKey
+    && data.buildContext.selectionIntent,
+  )
   const canPrepare = route.state.state === 'ready'
-    && Boolean(talentTemplate && gearTemplate)
+    && optionsView.state === 'ready'
+    && Boolean(canonicalContext)
     && activeTasks.length === 0
 
   const invalidateConfirmation = () => {
+    confirmationRequestId.current += 1
     setConfirmation({ state: 'unknown' })
     setSubmittedTaskId('')
   }
 
   const buildRequest = (): Readonly<Record<string, unknown>> | null => {
-    if (!data || !talentTemplate || !gearTemplate) return null
+    if (!canonicalContext) return null
     return {
       mode: 'simcraft_template',
       confirmOnly: true,
       saveTask: false,
-      classKey: data.selection.classKey,
-      specKey: data.selection.specKey,
-      raceKey: races[raceIndex]?.id ?? 'human',
-      scenarioKey: scenarioOptions[scenarioIndex]?.key ?? 'single',
-      durationSeconds: durations[durationIndex] ?? 300,
-      analysisType: 'simcraft',
-      templateContext: {
-        talent: {
-          id: talentTemplate.id,
-          rawString: talentTemplate.rawString,
-          source: talentTemplate.source,
-        },
-        gear: {
-          id: gearTemplate.id,
-          rawString: gearTemplate.rawString,
-          source: gearTemplate.source,
-          metadata: gearTemplate.metadata,
-        },
-      },
+      selectionIntent: canonicalContext.selectionIntent,
+      profileContext: canonicalContext.profileContext,
     }
   }
 
   const confirm = async () => {
     const request = buildRequest()
-    if (!request || !canPrepare || !gearTemplate || !talentTemplate) return
-    const gearBySlot = parsedGear(gearTemplate)
-    if (!gearBySlot) {
-      setConfirmation({ state: 'blocked', error: '装备模板不是可校验的结构化快照。' })
-      return
-    }
+    if (!request || !canPrepare || !canonicalContext) return
+    const requestId = confirmationRequestId.current + 1
+    confirmationRequestId.current = requestId
     setConfirmation({ state: 'loading' })
     try {
-      const statsResult = await wowApi.websim.gearStats({
-        classKey: data?.selection.classKey ?? '',
-        specKey: data?.selection.specKey ?? '',
-        talents: talentTemplate.rawString,
-        gearBySlot,
-        scenarioKey: scenarioOptions[scenarioIndex]?.key ?? 'single',
-      })
-      if (statsResult.fromFallback || statsResult.payload.statStatus === 'blocked') {
-        setConfirmation({
-          state: 'blocked',
-          error: statsResult.error || statsResult.payload.blockers.join(' / ') || '装备属性校验未通过',
+      const startedAt = Date.now()
+      for (let attempt = 0; attempt < 15 && Date.now() - startedAt < 45000; attempt += 1) {
+        const statsResult = await wowApi.websim.gearStatSnapshot({
+          selectionIntent: canonicalContext.selectionIntent,
+          profileContext: canonicalContext.profileContext,
+          timeoutMs: Math.max(1, 45000 - (Date.now() - startedAt)),
         })
-        return
+        if (confirmationRequestId.current !== requestId) return
+        if (statsResult.fromFallback) {
+          setConfirmation({ state: 'blocked', error: statsResult.error || '属性快照服务不可用' })
+          return
+        }
+        const snapshot = statsResult.payload.data.statSnapshot
+        if (statsResult.httpStatus === 200
+          && statsResult.payload.status === 'resolved'
+          && snapshot?.statStatus === 'verified') {
+          const confirmedRequest = { ...request, statSnapshot: snapshot }
+          const result = await wowApi.simulator.analyze(confirmedRequest)
+          if (confirmationRequestId.current !== requestId) return
+          if (result.fromFallback || !explicitValidationPassed(result.payload)) {
+            setConfirmation({
+              state: 'blocked',
+              error: result.error || '后端没有明确返回 validation.passed=true',
+              response: result.payload,
+              stats: snapshot,
+            })
+            return
+          }
+          setConfirmation({
+            state: 'ready',
+            request: confirmedRequest,
+            response: result.payload,
+            stats: snapshot,
+          })
+          return
+        }
+        if (statsResult.httpStatus !== 202 || statsResult.payload.status !== 'pending') {
+          setConfirmation({
+            state: 'blocked',
+            error: envelopeMessage(statsResult.payload.problems, '属性快照未通过后端校验'),
+          })
+          return
+        }
+        const delay = Math.min(5000, Math.max(250, Number(statsResult.payload.data.retryAfterMs) || 1500))
+        await new Promise((resolve) => setTimeout(resolve, delay))
       }
-      const result = await wowApi.simulator.analyze(request)
-      if (result.fromFallback || !explicitValidationPassed(result.payload)) {
-        setConfirmation({
-          state: 'blocked',
-          error: result.error || '后端没有明确返回 validation.passed=true',
-          response: result.payload,
-          stats: statsResult.payload,
-        })
-        return
+      if (confirmationRequestId.current === requestId) {
+        setConfirmation({ state: 'blocked', error: '属性快照等待超时' })
       }
-      setConfirmation({ state: 'ready', request, response: result.payload, stats: statsResult.payload })
     } catch (error) {
+      if (confirmationRequestId.current !== requestId) return
       setConfirmation({
         state: 'error',
         error: error instanceof Error ? error.message : '组合校验请求失败，请重试。',
@@ -295,14 +348,57 @@ export default function SimcSubmitPage() {
     }]
   })
   const talentSlot = simcTemplateSlot('talent', talentTemplates, talentTemplateId)
-  const gearSlot = simcTemplateSlot('gear', gearTemplates, gearTemplateId)
+  const gearContextLabel = gearContextAvailable
+    ? `${data?.buildContext?.specName || data?.selection.label || '当前专精'} · canonical intent 已带入`
+    : ''
+  const gearSlot: SimcTemplateSlotView = {
+    type: 'gear',
+    title: '装备来源',
+    sourceLabel: '来自装备详情',
+    valueLabel: gearContextLabel || '未带入装备配置',
+    helperLabel: gearContextAvailable ? '本机意图待本次后端快照校验' : '请从装备详情带入',
+    state: gearContextAvailable ? 'partial' : 'blocked',
+    options: [],
+    selectedIndex: 0,
+  }
+  const preparationRules: readonly SimcBuffRuleView[] = optionsView.preparationRows.length
+    ? optionsView.preparationRows.map((row) => ({
+      id: row.key,
+      label: row.label,
+      value: `${row.defaultState} · ${row.overrideSupported ? '支持覆盖' : '只读'}`,
+      state: preparationState(row.evidenceState),
+      overrideSupported: row.overrideSupported,
+    }))
+    : [{
+      id: 'options-unavailable',
+      label: '准备规则',
+      value: optionsView.state === 'empty' ? '后端未返回可用规则' : '等待后端选项',
+      state: 'blocked',
+    }]
+  const selectedScenario = data?.options.scenarios.find((scenario) => (
+    scenario.key === optionsView.selectedScenarioKey
+  ))
+  const preparationSummaryState = preparationRules.some((rule) => rule.state === 'blocked')
+    ? 'blocked' as const
+    : preparationRules.some((rule) => rule.state === 'partial')
+      ? 'partial' as const
+      : 'ready' as const
+  const preparationLabel = optionsView.preparationRows.length
+    ? `${optionsView.preparationRows.length} 项后端规则 · ${
+      optionsView.preparationRows.some((row) => row.overrideSupported) ? '含可覆盖项' : '只读'
+    }`
+    : '后端未返回准备规则'
   const modelInput = {
     specializationLabel: data?.selection.label ?? '',
-    raceLabel: races[raceIndex]?.label ?? '未选择',
-    scenarioLabel: scenarioOptions[scenarioIndex]?.title ?? '',
-    durationSeconds: durations[durationIndex] ?? 300,
+    raceLabel: optionsView.selectedRaceKey,
+    scenarioLabel: selectedScenario?.label ?? '',
+    ...(optionsView.targets !== undefined ? { scenarioTargets: optionsView.targets } : {}),
+    ...(optionsView.durationSeconds !== undefined ? { durationSeconds: optionsView.durationSeconds } : {}),
     ...(talentTemplate ? { talentTemplate } : {}),
-    ...(gearTemplate ? { gearTemplate } : {}),
+    gearContextAvailable,
+    ...(gearContextLabel ? { gearContextLabel } : {}),
+    preparationLabel,
+    preparationState: preparationSummaryState,
     activeTaskCount: activeTasks.length,
     confirmationState: confirmation.state,
     ...(confirmation.error ? { confirmationError: confirmation.error } : {}),
@@ -333,12 +429,14 @@ export default function SimcSubmitPage() {
           <RouteRegion className={styles['identityRegion'] ?? ''} data-region="character_identity">
             <SimcIdentitySelectors
               loading={loading}
-              races={races}
-              selectedRaceIndex={raceIndex}
+              races={optionsView.races}
+              selectedRaceIndex={optionsView.selectedRaceIndex}
               selectedSpecializationId={data?.selection.specId ?? selectedSpecId}
               specializations={specializationItems}
               onRaceSelect={(index) => {
-                setRaceIndex(index)
+                const next = optionsView.races[index]
+                if (!next) return
+                setSelectedRaceKey(next.id)
                 invalidateConfirmation()
               }}
               onSpecializationSelect={setSelectedSpecId}
@@ -357,30 +455,20 @@ export default function SimcSubmitPage() {
             />
           </RouteRegion>
           <RouteRegion className={styles['gearRegion'] ?? ''} data-region="gear_source">
-            <SimcTemplateSlot
-              {...gearSlot}
-              loading={loading}
-              onSelect={(index) => {
-                const next = gearTemplates[index]
-                if (!next) return
-                setGearTemplateId(next.id)
-                invalidateConfirmation()
-              }}
-            />
+            <SimcTemplateSlot {...gearSlot} loading={loading} onSelect={() => {}} />
           </RouteRegion>
           <RouteRegion className={styles['combatRegion'] ?? ''} data-region="combat_parameters">
             <SimcCombatConfiguration
-              buffRules={simcBuffRules}
-              durations={durations}
-              scenarios={scenarioOptions.map((scenario) => ({ id: scenario.key, label: scenario.title }))}
-              selectedDurationIndex={durationIndex}
-              selectedScenarioIndex={scenarioIndex}
-              onDurationSelect={(index) => {
-                setDurationIndex(index)
-                invalidateConfirmation()
-              }}
+              buffRules={preparationRules}
+              durations={optionsView.durationSeconds === undefined ? [] : [optionsView.durationSeconds]}
+              scenarios={optionsView.scenarios}
+              selectedDurationIndex={0}
+              selectedScenarioIndex={optionsView.selectedScenarioIndex}
+              onDurationSelect={() => {}}
               onScenarioSelect={(index) => {
-                setScenarioIndex(index)
+                const next = optionsView.scenarios[index]
+                if (!next) return
+                setSelectedScenarioKey(next.id)
                 invalidateConfirmation()
               }}
             />

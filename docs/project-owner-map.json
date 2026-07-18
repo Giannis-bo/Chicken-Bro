@@ -410,9 +410,10 @@
           "server/news_backend.py canonical async route and bounded health/admin projection",
           "server/gear_stat_snapshot_worker.py one-child fenced execution loop",
           "pages/builds/detail.js legacy compatibility consumer",
-          "apps/mini-taro/src/pages/builds/detail.tsx active Taro consumer"
+          "apps/mini-taro/src/pages/builds/detail.tsx active Taro consumer",
+          "apps/mini-taro/src/pages/simulator/simc.tsx active Taro confirmation consumer"
         ],
-        "activationBoundary": "Canonical async snapshots are active. Both frontend surfaces must preserve signature fencing and explicit verified/fail-closed outcomes; Catalyst remains disabled."
+        "activationBoundary": "Canonical async snapshots are active. Frontend consumers must preserve signature fencing and explicit verified/fail-closed outcomes; Catalyst remains disabled."
       },
       "dormantAdapters": {
         "status": "contract_only_unconsumed",
@@ -461,7 +462,8 @@
         "pages/builds/websim-api.js",
         "packages/api-client/src/websim.ts",
         "packages/domain/src/gear-intent.ts",
-        "apps/mini-taro/src/pages/builds/detail.tsx"
+        "apps/mini-taro/src/pages/builds/detail.tsx",
+        "apps/mini-taro/src/pages/simulator/simc.tsx"
       ],
       "runbooks": [
         "docs/gear-simulation-full-chain-runbook.md",
@@ -715,7 +717,10 @@
         "server/simc_preparation.py",
         "server/codex_worker.py",
         "pages/simulator/simc.js",
-        "pages/simulator/simulator-api.js"
+        "pages/simulator/simulator-api.js",
+        "packages/api-client/src/simulator.ts",
+        "packages/domain/src/entities.ts",
+        "apps/mini-taro/src/pages/simulator/simc.tsx"
       ],
       "contractFoundations": {
         "status": "active_canonical_profile_consumed",
@@ -760,10 +765,11 @@
         "Legacy gear stats preserve their response shape while stat_snapshot_v1 uses one iteration and process-global concurrency one.",
         "Task list/detail evidence does not expose raw internal diagnostics as user-facing truth.",
         "Canonical simcraft_template requests re-resolve selectionIntent through the active backend authority and never fall back to legacy rawString/gearSnapshot parsing.",
-        "GET /api/simulator/simc/options exposes backend-owned races, scenarios and preparation override capability under simc-options-v1; legacy templateContext remains compatibility-only when canonical context is absent."
+        "GET /api/simulator/simc/options exposes backend-owned races, scenarios and preparation override capability under simc-options-v1; the active Taro route submits selectionIntent plus profileContext and legacy templateContext remains compatibility-only when canonical context is absent."
       ],
       "mustNotChange": [
         "Do not assemble authoritative SimC profile strings client-side.",
+        "Do not classify or rewrite backend-accepted talent source encodings in the frontend.",
         "Do not accept client-supplied gem, enchant or embellishment options as server authority.",
         "Do not apply the stat_snapshot_v1 limiter or one-iteration flavor to normal profile or simulator execution.",
         "Do not promote queued task success to DPS correctness."
@@ -786,14 +792,20 @@
         "tests/news_backend_test.py::NewsBackendTest.test_http_simc_options_exposes_only_backend_owned_supported_contract",
         "tests/news_backend_test.py::NewsBackendTest.test_simcraft_template_canonical_context_re_resolves_for_confirm_and_final_without_legacy_fallback",
         "tests/news_backend_test.py::NewsBackendTest.test_simcraft_template_partial_or_blocked_canonical_context_never_falls_back_to_legacy_templates",
-        "tests/news_backend_test.py::NewsBackendTest.test_simcraft_template_canonical_resolver_problem_is_structured_and_fail_closed"
+        "tests/news_backend_test.py::NewsBackendTest.test_simcraft_template_canonical_resolver_problem_is_structured_and_fail_closed",
+        "packages/api-client/src/simulator.test.ts",
+        "apps/mini-taro/src/pages/simulator/simc-submit-model.test.ts",
+        "apps/mini-taro/src/pages/simulator/simc-page-contract.test.ts"
       ],
       "runtimeSurfaces": [
         "server/websim_payload.py",
         "server/simc_profile_policy.py",
         "server/simc_preparation.py",
         "server/news_backend.py",
-        "pages/simulator/simc.js"
+        "pages/simulator/simc.js",
+        "packages/api-client/src/simulator.ts",
+        "packages/domain/src/entities.ts",
+        "apps/mini-taro/src/pages/simulator/simc.tsx"
       ],
       "runbooks": [
         "docs/simulator-simc-end-to-end.md",
@@ -822,6 +834,10 @@
         "server/postgres_cache_store.py",
         "server/codex_worker.py",
         "server/news_backend.py",
+        "packages/api-client/src/simulator.ts",
+        "packages/domain/src/{entities,route-contract}.ts",
+        "packages/design-system/src/components/SimcSubmitComponents.tsx",
+        "apps/mini-taro/src/pages/simulator/simc*.{ts,tsx}",
         "pages/simulator/simc.*",
         "pages/simulator/simulator-api.js",
         "tests/gear_contracts_test.py",
@@ -850,7 +866,10 @@
           "tests/gear_rule_matrix_test.py",
           "tests/gear_evidence_ledger_test.py",
           "tests/gear_resolver_test.py",
-          "tests/pg_gear_authority_loader_test.py"
+          "tests/pg_gear_authority_loader_test.py",
+          "packages/api-client/src/simulator.test.ts",
+          "apps/mini-taro/src/pages/simulator/simc-submit-model.test.ts",
+          "apps/mini-taro/src/pages/simulator/simc-page-contract.test.ts"
         ],
         "runtimeEvidence": [],
         "ownerMapRef": null
