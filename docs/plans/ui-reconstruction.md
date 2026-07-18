@@ -100,6 +100,7 @@ Review 窗口同时覆盖共享组件、页面 JSX 中的非组件 wrapper、rou
 - Profile 的 identity、template categories、recent records 与 evidence ledger 几何只归 `ProfileIdentity`/`ProfileTemplatesComponents` 当前 owner；共享 reconstruction 禁止旧 215/84/183/120px `.profile*` 固定面板回流。
 - News Detail 的 hero、translation/truth、reading body 与 source action 统一使用当前 `newsDetail*` owner；共享 reconstruction 禁止旧 `articleHero*`、`truthStatus*`、`articleBody*`、`sourceReference*` 平行布局，仍在 carousel 使用的 `sourceBadge*` 不受影响。
 - Builds workflow 的 entry 与 timeline 几何只归 `WorkbenchComponents`/`BuildWorkflowTimeline` 当前组件；共享 reconstruction 禁止旧 112px workbench entry、158px timeline 及 `timelineNode-*` 平行 owner，仍在使用的 `workbenchBlocker*` 保留。
+- `reconstruction.module.scss` 执行全量反向引用门禁：每个 CSS 类必须在 design-system 或 mini app 的 TypeScript/TSX 中有明确字面 owner；动态拼类必须显式登记，禁止无引用样式、仅 CSS 内互引状态类和整组平行 route owner再次积累。
 
 ## 微信验收与恢复链路
 

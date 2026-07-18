@@ -36,13 +36,6 @@
   pointer-events: none;
 }
 
-.assetFallback {
-  display: block;
-  width: 100%;
-  height: 100%;
-  border: 1px dashed var(--wow-line-panel);
-  background: rgba(14, 12, 9, 0.72);
-}
 
 .forgedPanel {
   position: relative;
@@ -176,10 +169,8 @@
 .routeStatePage .routeStateDetail { font-size: 10px; line-height: 15px; }
 .routeStateAction { min-width: 84px; }
 .routeStateAction button { width: 100%; min-height: 30px; }
-.pageTitleStack { min-width: 0; }
 .pageKicker { display: block; color: var(--wow-fg-muted); font-size: 9px; font-weight: 650; line-height: 12px; }
 .pageTitle { display: block; overflow: hidden; color: #d8bc78; font-family: var(--wow-font-display); font-size: var(--wow-type-display-size); font-weight: 800; line-height: var(--wow-type-display-line); text-overflow: ellipsis; white-space: nowrap; }
-.newsListHeaderDetail { width: 22px; height: 22px; justify-self: end; opacity: 0.72; }
 .pageDescription { display: block; margin-top: -4px; color: var(--wow-fg-muted); font-size: 12px; line-height: 18px; }
 
 .headerSourceSocket {
@@ -209,7 +200,6 @@
 .headerActionSocket button { width: 36px; min-height: 36px; padding: 0; }
 .headerActionGlyph { width: 19px; height: 19px; color: var(--wow-accent-gold-soft); }
 
-.newsListSummary { display: grid; min-height: 65px; grid-template-columns: minmax(0, 1fr) 82px; align-items: center; gap: 10px; padding: var(--forged-content-inset, 12px); }
 .newsListSummaryCopy { min-width: 0; }
 .newsListSummaryTitle { display: -webkit-box; overflow: hidden; color: #d8bc78; font-family: var(--wow-font-display); font-size: 16px; font-weight: 800; line-height: 20px; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .newsListSummaryCount { display: block; margin-top: 3px; color: var(--wow-fg-muted); font-size: 10px; line-height: 13px; }
@@ -243,8 +233,6 @@
 .newsListFeedTrailing { display: grid; min-width: 0; grid-template-columns: minmax(0, 1fr) 16px; align-items: center; gap: 4px; color: var(--wow-fg-dim); }
 .newsListFeedTrailing > :last-child { width: 16px; height: 16px; color: #b3a587; }
 .newsListFeedTime { overflow: hidden; font-size: 8px; line-height: 11px; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
-.trustDisclaimer { display: flex; min-height: 30px; align-self: end; align-items: center; justify-content: center; gap: 5px; padding: 5px 8px; border-top: 1px solid rgba(113, 87, 49, 0.62); border-bottom: 1px solid rgba(67, 57, 42, 0.52); color: var(--wow-fg-dim); background: rgba(11, 13, 16, 0.9); font-size: 8px; line-height: 12px; text-align: center; }
-.trustDisclaimer > :first-child { width: 11px; height: 11px; flex: 0 0 auto; color: var(--wow-status-source); }
 
 .newsListSummaryOwner { position: relative; display: grid; width: 100%; height: 100%; grid-template-columns: minmax(0, 1fr) 92px; align-items: center; gap: 14px; padding: 10px 16px 9px; border-bottom: 1px solid rgba(131, 101, 56, 0.72); background: linear-gradient(180deg, rgba(27, 27, 27, 0.92), rgba(8, 10, 13, 0.96)); box-shadow: inset 0 -3px rgba(3, 4, 6, 0.82), inset 0 1px rgba(228, 188, 112, 0.1); }
 .newsListSummaryOwner::after { position: absolute; right: 16px; bottom: 4px; left: 16px; height: 2px; content: ''; background: linear-gradient(90deg, transparent, rgba(188, 141, 69, 0.2) 8%, rgba(188, 141, 69, 0.58) 50%, rgba(188, 141, 69, 0.2) 92%, transparent); }
@@ -472,8 +460,6 @@
 .featuredCarousel { position: relative; overflow: hidden; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
 .featuredCarousel > [data-material-render='nine-slice'] { opacity: 0.86; }
 .featuredMedia { position: relative; height: 211px; overflow: hidden; }
-.featuredMedia > :first-child,
-.featuredMedia [data-slot-id='asset_slot.news-hero-media'] { height: 100%; border: 0; border-radius: 0; background: transparent; box-shadow: none; aspect-ratio: auto; }
 .featuredMedia > :first-child > :last-child {
   background:
     linear-gradient(145deg, transparent 0 36%, rgba(88, 112, 151, 0.18) 36.5% 38%, transparent 38.5% 62%, rgba(199, 161, 82, 0.08) 62.5% 64%, transparent 64.5%),
@@ -496,7 +482,6 @@
 .featuredCopy { position: absolute; z-index: 2; right: 15%; bottom: 0; left: 0; padding: 38px 14px 25px; background: linear-gradient(transparent, rgba(7, 8, 11, 0.96)); }
 .featuredTitle { display: -webkit-box; overflow: hidden; color: var(--wow-fg-strong); font-family: var(--wow-font-display); font-size: 14px; font-weight: 810; line-height: 18px; text-shadow: 0 2px 6px #000; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .featuredSummary { display: -webkit-box; margin-top: 3px; overflow: hidden; color: #c3bdb1; font-size: 9px; line-height: 12px; -webkit-box-orient: vertical; -webkit-line-clamp: 1; }
-.skeletonText { color: var(--wow-fg-muted); }
 .carouselDots { position: absolute; z-index: 3; right: 0; bottom: 11px; left: 0; display: flex; align-items: center; justify-content: center; gap: 7px; }
 .carouselDot { width: 7px; height: 7px; border: 0; border-radius: 50%; background: #69655e; }
 .carouselDotActive { width: 8px; height: 8px; background: #edbc66; box-shadow: 0 0 6px rgba(237, 188, 102, 0.42); }
@@ -523,28 +508,18 @@
 .channelLabelSkeleton { width: 26px; height: 6px; border-radius: 3px; background: var(--wow-line-subtle); }
 
 .identitySummary { display: grid; grid-template-columns: 108px minmax(0, 1fr) 30px; align-items: center; gap: 14px; min-height: 148px; padding: 13px 15px; }
-.identitySummary-builds-home { grid-template-columns: 100px minmax(0, 1fr); gap: 10px; min-height: 136px; padding: 8px 10px; }
 .identitySummary-workbench { width: 100%; height: 100%; min-height: 0; grid-template-columns: 72px minmax(0, 1fr) 26px; gap: 8px; padding: var(--forged-content-inset, 7px) 9px; overflow: hidden; }
 .identityMedallion { position: relative; display: grid; width: 108px; height: 108px; place-items: center; background-size: 100% 100%; }
-.identitySummary-builds-home .identityMedallion { width: 100px; height: 100px; }
 .identitySummary-workbench .identityMedallion { width: 72px; height: 72px; }
 .identityMedallionCore { position: relative; z-index: 1; display: grid; width: 80%; height: 80%; place-items: center; overflow: hidden; border: 1px solid rgba(207, 174, 105, 0.42); border-radius: 50%; color: var(--wow-fg-dim); background: radial-gradient(circle at 48% 42%, #1f2630 0 34%, #11161d 55%, #080a0d 100%); box-shadow: inset 0 0 0 3px rgba(4, 5, 7, 0.62), inset 0 0 12px rgba(0, 0, 0, 0.82), 0 0 0 1px rgba(88, 66, 32, 0.5); text-align: center; }
 .identitySummary-workbench .identityMedallionCore { width: 84%; height: 84%; }
-.identityMedallionImage { width: 100%; height: 100%; }
-.identityBadge { position: absolute; right: 4px; bottom: 4px; display: grid; width: 27px; height: 27px; place-items: center; border: 1px solid var(--wow-line-brass); border-radius: 50%; color: var(--wow-accent-gold); background: var(--wow-bg-route); box-shadow: 0 2px 7px rgba(0, 0, 0, 0.55); }
-.identityBadge > view,
-.identityBadge > image { width: 14px; height: 14px; }
 .identityCopy { min-width: 0; }
 .identityTitle { display: block; overflow-wrap: anywhere; color: var(--wow-fg-strong); font-family: var(--wow-font-display); font-size: 21px; font-weight: 800; line-height: 27px; }
-.identitySummary-builds-home .identityTitle { overflow: hidden; font-size: 20px; line-height: 26px; text-overflow: ellipsis; white-space: nowrap; }
 .identitySummary-workbench .identityTitle { font-size: 16px; line-height: 21px; }
 .identitySummary-workbench .identityStatus { margin-top: 2px; }
 .identitySummary-workbench .identityStatus [class*='statusPill'] { min-height: 17px; padding: 0 5px; }
 .identitySummary-workbench .identityStatus [class*='statusLabel'] { font-size: 8px; line-height: 11px; }
 .identitySummary-workbench .identitySubtitle { margin-top: 3px; font-size: 10px; line-height: 14px; -webkit-line-clamp: 2; }
-.identitySummary-workbench .identityMeta { gap: 4px; margin-top: 3px; }
-.identitySummary-workbench .identityMeta > :first-child { width: 11px; height: 11px; }
-.identitySummary-workbench .identityMetaLabel { font-size: 9px; line-height: 12px; }
 .identitySummary-workbench .identityChevron { width: 15px; height: 15px; }
 .workbenchIdentityMedallionShell { position: absolute; z-index: 2; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .workbenchScenarioControl { display: grid; width: max-content; max-width: 100%; min-width: 0; grid-template-columns: minmax(0, 1fr) 12px; align-items: center; gap: 3px; justify-self: start; }
@@ -554,15 +529,8 @@
 .workbenchSelectionControl { display: grid; width: 26px; height: 100%; place-items: center; }
 .workbenchSelectionControl[data-disabled='true'] { opacity: 0.45; pointer-events: none; }
 .identityStatus { margin-top: 6px; }
-.identitySummary-builds-home .identityStatus { margin-top: 3px; }
 .identityStatus [class*='statusPill'] { min-height: 21px; padding: 1px 7px; }
 .identitySubtitle { display: -webkit-box; margin-top: 7px; overflow: hidden; color: var(--wow-fg-muted); font-size: 11px; line-height: 16px; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-.identitySummary-builds-home .identitySubtitle { margin-top: 4px; font-size: 10px; line-height: 14px; }
-.identityMeta { display: flex; min-width: 0; align-items: center; gap: 6px; margin-top: 7px; color: var(--wow-status-source); }
-.identitySummary-builds-home .identityMeta { margin-top: 4px; }
-.identityMeta > :first-child { width: 14px; height: 14px; }
-.identityMetaLabel { overflow: hidden; color: var(--wow-fg-dim); font-size: 10px; line-height: 14px; text-overflow: ellipsis; white-space: nowrap; }
-.identityMetaDot { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; background: var(--wow-status-source); box-shadow: 0 0 0 2px rgba(110, 153, 195, 0.12); }
 .identitySummary > [data-material-render='nine-slice'] { opacity: 0.68; }
 .identityChevron { width: 18px; height: 18px; color: var(--wow-accent-gold-soft); }
 
@@ -606,34 +574,12 @@
 .workbenchMenu > view,
 .workbenchMenu > image { width: 17px; height: 17px; }
 
-.gearDetailBackControl { display: grid; width: 42px; height: 40px; place-items: center; }
-.gearDetailBackControl button { width: 42px; min-width: 42px; min-height: 40px; padding: 0; color: #dfb65e; }
-.gearDetailBackControl [class*='buttonIcon'] { width: 31px; height: 31px; color: #efc66d; filter: drop-shadow(0 1px 3px rgba(216, 166, 67, 0.42)); }
-.assistantCaptainChip { display: grid; width: 76px; min-height: 38px; grid-template-columns: 30px minmax(0, 1fr); align-items: center; gap: 4px; padding: 3px 5px; border: 1px solid rgba(154, 113, 51, 0.76); border-radius: 3px; background: linear-gradient(180deg, #26241f, #101216); box-shadow: inset 0 0 0 2px rgba(4, 5, 7, 0.58); }
-.assistantCaptainChip::after { border: 0; }
-.assistantCaptainChipAvatar { position: relative; display: grid; width: 28px; height: 28px; place-items: center; }
-.assistantCaptainChipAvatar > :last-child { position: absolute; width: 12px; height: 12px; color: var(--wow-accent-gold-soft); }
-.assistantCaptainChipCopy { min-width: 0; }
-.assistantCaptainChipCopy > text { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.assistantCaptainChipCopy > :first-child { color: var(--wow-accent-gold-soft); font-size: 7px; font-weight: 760; line-height: 9px; }
-.assistantCaptainChipCopy > :last-child { color: var(--wow-fg-dim); font-size: 6px; line-height: 8px; }
 .pageCenteredCopy { min-width: 0; text-align: center; }
 .pageCenteredCopy .pageKicker { color: var(--wow-fg-dim); font-size: 6px; line-height: 8px; }
-.pageChickenbroIdentity { display: grid; min-width: 0; grid-template-columns: 38px minmax(0, 1fr); align-items: center; gap: 8px; }
-.pageChickenbroAvatar { position: relative; display: grid; width: 36px; height: 36px; place-items: center; border: 1px solid rgba(142, 103, 51, 0.76); border-radius: 50%; background: linear-gradient(180deg, #25221c, #0c0f12); box-shadow: inset 0 0 0 2px rgba(3, 4, 6, 0.72); }
-.pageChickenbroAvatar > :last-child { width: 18px; height: 18px; color: var(--wow-accent-gold-soft); }
 
 
 
 
-.assistantFailureBanner { min-height: 68px; }
-.assistantFailureBanner > :last-child { display: grid; grid-template-columns: minmax(0, 1fr) 88px; align-items: center; gap: 8px; padding: var(--forged-content-inset, 9px); }
-.assistantFailureBanner button { min-height: 30px; padding: 0 5px; }
-.topicLauncher { display: grid; min-width: 0; min-height: 52px; grid-template-columns: 26px minmax(0, 1fr) 12px; align-items: center; gap: 7px; padding: 5px 10px; border: 1px solid rgba(112, 87, 50, 0.7); border-radius: 4px; background: linear-gradient(180deg, #202228, #101216); }
-.topicLauncher > :first-child { width: 20px; height: 20px; color: var(--wow-accent-gold-soft); }
-.topicLauncher > :last-child { width: 11px; height: 11px; color: var(--wow-accent-gold-soft); }
-.topicLauncher > :nth-child(2) > :first-child { display: block; color: var(--wow-fg-strong); font-size: 9px; font-weight: 730; line-height: 12px; }
-.topicLauncher > :nth-child(2) > :last-child { display: block; overflow: hidden; color: var(--wow-fg-dim); font-size: 7px; line-height: 9px; text-overflow: ellipsis; white-space: nowrap; }
 
 
 
@@ -642,7 +588,6 @@
 @mixin compact-reconstruction {
   .pageTitle { font-size: 19px; }
   .headerSourceSocket { min-width: 76px; padding-right: 6px; padding-left: 6px; }
-  .newsListSummary { grid-template-columns: minmax(0, 1fr) 76px; gap: 7px; }
   .newsListCategoryDock { grid-template-columns: repeat(6, minmax(41px, 1fr)) 32px; }
   .newsListFeedCard { grid-template-columns: 4px 34px minmax(0, 1fr) 74px; gap: 5px; }
   .newsListFeedIcon { width: 30px; }
@@ -651,10 +596,8 @@
   .channelCellSocket { width: 24px; height: 24px; }
   .channelCellGlyph { width: 18px; height: 18px; }
   .identitySummary { grid-template-columns: 96px minmax(0, 1fr) 26px; gap: 10px; min-height: 140px; padding: 10px; }
-  .identitySummary-builds-home { grid-template-columns: 94px minmax(0, 1fr); gap: 8px; min-height: 132px; padding: 7px 8px; }
   .identitySummary-workbench { grid-template-columns: 70px minmax(0, 1fr) 24px; gap: 7px; min-height: 102px; padding: 7px 8px; }
   .identityMedallion { width: 96px; height: 96px; }
-  .identitySummary-builds-home .identityMedallion { width: 94px; height: 94px; }
   .identitySummary-workbench .identityMedallion { width: 70px; height: 70px; }
   .identityTitle { font-size: 19px; line-height: 25px; }
   .workbenchBlocker { grid-template-columns: minmax(0, 1.42fr) 124px; min-height: 189px; padding: 9px 10px; }
@@ -705,25 +648,7 @@
 .headerEvidenceStatus { min-width: 0; flex: 0 0 auto; color: #8491a5; }
 .headerEvidenceSocket .headerEvidenceGlyph { width: 10.5px; height: 10.5px; flex: 0 0 auto; margin-left: 4px; color: #918b7e; }
 
-.headerFavoriteSocket {
-  position: relative;
-  display: grid;
-  width: 35px;
-  height: 33px;
-  place-items: center;
-  overflow: visible;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-  transform: translateY(0.5px);
-}
 
-.headerFavoriteSocket::after { display: none; }
-.headerFavoriteSocket > view,
-.headerFavoriteSocket button { position: absolute; inset: 0; display: block; width: 35px; height: 33px; min-height: 33px; padding: 0; overflow: visible; border: 0; background: transparent; line-height: 0; }
-.headerFavoriteGlyph { display: block; width: 35px; height: 33px; color: #cfa365; filter: none; }
-.headerFavoriteSocketSelected { border: 0; box-shadow: none; }
-.headerFavoriteSocketSelected .headerFavoriteGlyph { filter: none; }
 
 .newsHomeBrief {
   position: relative;

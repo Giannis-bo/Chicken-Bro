@@ -1180,6 +1180,22 @@ const taskListStyles = read('packages/design-system/src/components/TaskListCompo
 const reconstructionStyles = read('packages/design-system/src/components/reconstruction.module.scss')
 const buildIntelStyles = read('packages/design-system/src/components/BuildIntelComponents.module.scss')
 const taskRouteStyles = read('apps/mini-taro/src/pages/simulator/tasks.module.scss')
+const reconstructionConsumerSource = [
+  ...walk('packages/design-system/src/components', ['.ts', '.tsx']),
+  ...walk('apps/mini-taro/src', ['.ts', '.tsx']),
+].map((file) => read(file)).join('\n')
+const unreferencedReconstructionClasses = [...new Set(
+  [...reconstructionStyles.matchAll(/\.([A-Za-z_][\w-]*)/gu)].map((match) => match[1]),
+)].filter((className) => (
+  !reconstructionConsumerSource.includes(`'${className}'`)
+  && !reconstructionConsumerSource.includes(`"${className}"`)
+  && !reconstructionConsumerSource.includes(`\`${className}\``)
+))
+record(
+  'every_reconstruction_css_class_has_an_explicit_typescript_owner',
+  unreferencedReconstructionClasses.length === 0,
+  unreferencedReconstructionClasses.join(', ') || 'all-reverse-referenced',
+)
 const legacySimcParallelLayoutOwners = [
   'simcIdentityRow',
   'simcTemplateCard',
