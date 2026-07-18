@@ -14,11 +14,7 @@ const operationTimeoutMs = 10000
 // a small outer margin so the semantic failure can win the timeout race.
 const caseTimeoutMs = 25000
 const maximumInteractionElements = 32
-const requestedRoutes = requireOnlineRouteBatch(
-  process.env.INTERACTION_ROUTES,
-  'INTERACTION_ROUTES',
-  coreInteractionContract.interactions.map((interaction) => interaction.route),
-)
+let requestedRoutes = new Set()
 
 function contractDefinition(route, accept) {
   const interaction = coreInteractionContract.interactions.find((candidate) => candidate.route === route)
@@ -185,11 +181,11 @@ async function runCase(results, definition, action) {
 }
 
 async function main() {
-  const knownRouteIds = new Set(coreInteractionContract.interactions.map((interaction) => interaction.route))
-  const unknownRoutes = [...requestedRoutes].filter((route) => !knownRouteIds.has(route))
-  if (unknownRoutes.length > 0) {
-    throw new Error(`unknown INTERACTION_ROUTES: ${unknownRoutes.join(', ')}`)
-  }
+  requestedRoutes = requireOnlineRouteBatch(
+    process.env.INTERACTION_ROUTES,
+    'INTERACTION_ROUTES',
+    coreInteractionContract.interactions.map((interaction) => interaction.route),
+  )
 
   let miniProgram
   try {

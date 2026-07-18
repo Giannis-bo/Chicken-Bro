@@ -15,9 +15,8 @@ const operationTimeoutMs = 10000
 const queryCaps = Object.freeze({ regions: 32, buttons: 128, controlCells: 64, dockButtons: 32 })
 const contractPath = path.resolve(__dirname, '../docs/design/current-ui/route-geometry-contract.json')
 const contractSha256 = crypto.createHash('sha256').update(fs.readFileSync(contractPath)).digest('hex')
-const requestedRoutes = requireOnlineRouteBatch(process.env.GEOMETRY_ROUTES, 'GEOMETRY_ROUTES', contract.routes.map((route) => route.route))
-
-function selectedRoutes() {
+function selectedRoutes(value = process.env.GEOMETRY_ROUTES) {
+  const requestedRoutes = requireOnlineRouteBatch(value, 'GEOMETRY_ROUTES', contract.routes.map((route) => route.route))
   return contract.routes.filter((route) => requestedRoutes.has(route.route))
 }
 
@@ -277,6 +276,7 @@ async function inspect(page, route, viewport) {
 }
 
 async function main() {
+  const routes = selectedRoutes()
   let miniProgram
   try {
     miniProgram = await connectMiniProgram()
@@ -284,7 +284,7 @@ async function main() {
     const viewport = normalizeSystemViewport(system)
     const results = []
     const details = []
-    for (const route of selectedRoutes()) {
+    for (const route of routes) {
       const inspected = await inspect(await open(miniProgram, route), route, viewport)
       results.push(inspected.summary)
       details.push(inspected.detail)

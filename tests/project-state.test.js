@@ -252,7 +252,7 @@ test('real WeChat interaction verification cannot wait forever inside one route'
   assert.match(verifier, /interaction query cap exceeded/)
   assert.match(verifier, /metrics\.slice\(0, maximumInteractionElements\)/)
   assert.match(verifier, /process\.env\.INTERACTION_ROUTES/)
-  assert.match(verifier, /unknown INTERACTION_ROUTES/)
+  assert.match(verifier, /requireOnlineRouteBatch/)
   assert.match(verifier, /interaction precondition unavailable/)
   assert.match(verifier, /status: unavailable \? 'UNAVAILABLE' : 'FAIL'/)
   assert.match(verifier, /result\.status === 'FAIL'/)
