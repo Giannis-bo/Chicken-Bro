@@ -68,16 +68,13 @@ async function main() {
   const devtoolsDomainBypassCommitted = projectConfig.setting?.urlCheck === false
   const productionReady = productionHttpsOrigin && approvedInWechatAdmin && !devtoolsDomainBypassCommitted
   const probes = shouldProbe && developmentBaseUrl
-    ? await Promise.all([
-        probe(`${developmentBaseUrl}/api/data/health`),
-        probe(`${developmentBaseUrl.replace(/^http:/, 'https:')}/api/data/health`),
-      ])
+    ? await Promise.all([probe(`${developmentBaseUrl}/api/data/health`)])
     : []
 
   const checks = [
     {
-      id: 'development_base_is_explicit_http_ip',
-      pass: /^http:\/\/\d+\.\d+\.\d+\.\d+(?::\d+)?$/.test(developmentBaseUrl),
+      id: 'development_base_is_named_https_origin',
+      pass: isProductionBackendOrigin(developmentBaseUrl),
       scope: 'development_fact',
       detail: safeOrigin(developmentBaseUrl),
     },
@@ -113,7 +110,7 @@ async function main() {
     },
   ]
   const report = {
-    version: 'current-ui-request-domain-audit-v1',
+    version: 'current-ui-request-domain-audit-v2',
     authority: 'docs/plans/ui-reconstruction.md',
     checkedAt: new Date().toISOString(),
     status: productionReady ? 'pass' : 'partial',
@@ -121,7 +118,7 @@ async function main() {
     development: {
       baseOrigin: safeOrigin(developmentBaseUrl),
       h5ProxyOrigin: safeOrigin(h5ProxyTarget),
-      wechatDomainExpectation: 'blocked_unless_local_devtools_domain_check_is_disabled',
+      wechatDomainExpectation: 'allowed_after_api.chickenbro.cloud_is_registered_as_a_request_domain',
       devtoolsDomainBypassCommitted,
       probes,
     },

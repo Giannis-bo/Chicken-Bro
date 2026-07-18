@@ -103,7 +103,7 @@ export default defineConfig<'webpack5'>({
       port: 10086,
       proxy: {
         '/wow-api': {
-          target: 'http://124.223.51.33',
+          target: 'https://api.chickenbro.cloud',
           changeOrigin: true,
           pathRewrite: { '^/wow-api': '' },
         },

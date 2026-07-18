@@ -5,7 +5,7 @@
   "authority": "docs/plans/ui-reconstruction.md",
   "targetInventory": "docs/design/current-ui/routes/builds-home/target-inventory.json",
   "apiProbe": {
-    "endpoint": "http://124.223.51.33/api/builds/home",
+    "endpoint": "https://api.chickenbro.cloud/api/builds/home",
     "checkedAt": "2026-07-14T22:32:00+08:00",
     "dataStatus": "verified",
     "classCount": 13,

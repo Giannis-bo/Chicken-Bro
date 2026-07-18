@@ -9,7 +9,7 @@ import {
 import { AnalyticsIdentity } from './analytics'
 import { taroStorage, type StorageAdapter } from './storage'
 
-export const DEV_API_BASE_URL = 'http://124.223.51.33'
+export const DEV_API_BASE_URL = 'https://api.chickenbro.cloud'
 
 export interface ApiResult<T> {
   payload: T
