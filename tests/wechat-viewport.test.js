@@ -51,6 +51,7 @@ test('converts capsule top from screen coordinates to window coordinates', () =>
 })
 
 test('capsule collision requires actual area overlap beyond tolerance', () => {
+  assert.equal(rectanglesOverlap(296, 51, 87, 32, null, 1), false)
   assert.equal(rectanglesOverlap(296, 51, 87, 32, { left: 300, top: 55, right: 330, bottom: 75 }, 1), true)
   assert.equal(rectanglesOverlap(296, 51, 87, 32, { left: 10, top: 51, right: 290, bottom: 83 }, 1), false)
   assert.equal(rectanglesOverlap(296, 51, 87, 32, { left: 383, top: 51, right: 390, bottom: 83 }, 1), false)

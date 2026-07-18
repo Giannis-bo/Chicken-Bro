@@ -54,6 +54,7 @@ async function unavailableState(page, states) {
 }
 
 function rectanglesOverlap(left, top, width, height, bounds, tolerance = 0) {
+  if (!bounds) return false
   const right = left + width
   const bottom = top + height
   return bounds.right > left + tolerance
@@ -102,6 +103,7 @@ async function inspect(page, route, viewport) {
   const controlCells = queriedControlCells.slice(0, queryCaps.controlCells)
   const dockButtons = queriedDockButtons.slice(0, queryCaps.dockButtons)
   const headerSlotBounds = await Promise.all(headerSlots.slice(0, 8).map(bounds))
+  const missingHeaderSlotBounds = headerSlotBounds.filter((slot) => !slot).length
   const [capsuleLeft, capsuleTop, capsuleWidth, capsuleHeight] = viewport.capsuleBounds
   const capsuleHeaderCollisions = headerSlotBounds.flatMap((slot, index) => (
     rectanglesOverlap(capsuleLeft, capsuleTop, capsuleWidth, capsuleHeight, slot, tolerance)
@@ -117,6 +119,7 @@ async function inspect(page, route, viewport) {
     const violations = [
       ...(headerSlots.length === 0 ? [{ type: 'missing-header-content-slots' }] : []),
       ...(headerSlots.length > 8 ? [{ type: 'header-slot-query-cap', actual: headerSlots.length, maximum: 8 }] : []),
+      ...(missingHeaderSlotBounds > 0 ? [{ type: 'unmeasurable-header-content-slots', count: missingHeaderSlotBounds }] : []),
       ...capsuleHeaderCollisions,
       ...statusBarHeaderCollisions,
     ]
@@ -189,6 +192,7 @@ async function inspect(page, route, viewport) {
   const capsuleCollisionCount = capsuleHeaderCollisions.length
   if (headerSlots.length === 0) violations.push({ type: 'missing-header-content-slots' })
   if (headerSlots.length > 8) violations.push({ type: 'header-slot-query-cap', actual: headerSlots.length, maximum: 8 })
+  if (missingHeaderSlotBounds > 0) violations.push({ type: 'unmeasurable-header-content-slots', count: missingHeaderSlotBounds })
   violations.push(...capsuleHeaderCollisions)
   violations.push(...statusBarHeaderCollisions)
   if (!shellBounds) violations.push({ type: 'missing-shell' })
