@@ -3,6 +3,7 @@
 
 const crypto = require('node:crypto')
 const path = require('node:path')
+const { execFileSync } = require('node:child_process')
 
 const { capturePathMatches, maxCaptureBytes, pngSize, validCaptureBounds } = require('./capture-ui-review-cache')
 const { readBoundedFile, writeBoundedFileImmutable } = require('./bounded-file')
@@ -18,6 +19,30 @@ function required(value, name) {
 
 function safeName(value) {
   return value.replace(/[^a-zA-Z0-9._-]+/gu, '-')
+}
+
+function validateManifestCacheIdentity(manifestPath, manifest) {
+  if (!/^[a-f\d]{12}$/u.test(manifest.commit)) throw new Error('cache manifest commit must be a 12-character Git SHA')
+  const viewport = manifest.viewport
+  if (![viewport?.width, viewport?.height, viewport?.dpr].every((value) => Number.isFinite(value) && value > 0)) {
+    throw new Error('cache manifest viewport is incomplete')
+  }
+  const manifestDirectory = path.dirname(path.resolve(manifestPath))
+  const viewportKey = `${viewport.width}x${viewport.height}@${viewport.dpr}`
+  if (path.basename(manifestDirectory) !== viewportKey || path.basename(path.dirname(manifestDirectory)) !== manifest.commit) {
+    throw new Error('cache manifest path does not match its commit and viewport identity')
+  }
+  try {
+    const resolvedCommit = execFileSync('git', ['rev-parse', '--verify', `${manifest.commit}^{commit}`], {
+      cwd: repositoryRoot,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim()
+    if (!resolvedCommit.startsWith(manifest.commit)) throw new Error('resolved commit prefix mismatch')
+  } catch {
+    throw new Error('cache manifest commit is not available in this repository')
+  }
+  return { manifestDirectory, viewport, viewportKey }
 }
 
 function selectedRoutes(value, captures) {
@@ -51,19 +76,14 @@ function main() {
   if (manifest.schemaVersion !== 'wechat-ui-review-cache-v3' || !Array.isArray(manifest.captures) || manifest.captures.length > 14) {
     throw new Error('unsupported UI review cache manifest')
   }
-  if (!/^[a-f\d]{12}$/u.test(manifest.commit)) throw new Error('cache manifest commit must be a 12-character Git SHA')
   if (manifest.captureMethod !== 'reused_existing_wechat_devtools_process' || manifest.routeNavigationMethod !== 'mini_program_relaunch') {
     throw new Error('cache capture and route navigation methods are inaccurate or unsupported')
   }
-  const viewport = manifest.viewport
-  if (![viewport?.width, viewport?.height, viewport?.dpr].every((value) => Number.isFinite(value) && value > 0)) {
-    throw new Error('cache manifest viewport is incomplete')
-  }
+  const { manifestDirectory, viewport, viewportKey } = validateManifestCacheIdentity(manifestPath, manifest)
 
-  const viewportKey = `${viewport.width}x${viewport.height}@${viewport.dpr}`
   const promoted = []
   for (const capture of selectedRoutes(process.env.UI_REVIEW_ROUTES, manifest.captures)) {
-    const inspected = inspectCapture(capture, viewport, path.dirname(manifestPath))
+    const inspected = inspectCapture(capture, viewport, manifestDirectory)
     const relativePath = path.join(
       'artifacts', 'ui-runtime-reviews', manifest.commit, viewportKey, inspected.sha256, `${safeName(capture.route)}.png`,
     )
@@ -121,4 +141,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { inspectCapture, selectedRoutes }
+module.exports = { inspectCapture, selectedRoutes, validateManifestCacheIdentity }

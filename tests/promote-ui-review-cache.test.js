@@ -5,9 +5,10 @@ const crypto = require('node:crypto')
 const fs = require('node:fs')
 const os = require('node:os')
 const path = require('node:path')
+const { execFileSync } = require('node:child_process')
 const test = require('node:test')
 
-const { inspectCapture, selectedRoutes } = require('../scripts/promote-ui-review-cache')
+const { inspectCapture, selectedRoutes, validateManifestCacheIdentity } = require('../scripts/promote-ui-review-cache')
 
 function pngHeader(width, height) {
   const buffer = Buffer.alloc(24)
@@ -46,4 +47,21 @@ test('promotion selection is explicit and rejects absent routes', () => {
   assert.deepEqual(selectedRoutes('all', captures), captures)
   assert.throws(() => selectedRoutes('', captures), /UI_REVIEW_ROUTES is required/)
   assert.throws(() => selectedRoutes('unknown', captures), /absent from cache manifest/)
+})
+
+test('promotion binds a cache manifest to a real repository commit and viewport directory', () => {
+  const commit = execFileSync('git', ['rev-parse', '--short=12', 'HEAD'], { encoding: 'utf8' }).trim()
+  const viewport = { width: 390, height: 844, dpr: 3 }
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'wow-ui-cache-identity-'))
+  const manifestPath = path.join(directory, commit, '390x844@3', 'manifest.json')
+  const identity = validateManifestCacheIdentity(manifestPath, { commit, viewport })
+  assert.equal(identity.viewportKey, '390x844@3')
+  assert.throws(
+    () => validateManifestCacheIdentity(path.join(directory, commit, '393x852@3', 'manifest.json'), { commit, viewport }),
+    /path does not match/,
+  )
+  assert.throws(
+    () => validateManifestCacheIdentity(path.join(directory, '000000000000', '390x844@3', 'manifest.json'), { commit: '000000000000', viewport }),
+    /commit is not available/,
+  )
 })

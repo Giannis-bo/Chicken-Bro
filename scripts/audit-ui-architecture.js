@@ -1705,18 +1705,26 @@ const reviewIndexBuilder = read('scripts/build-ui-review-index.js')
 const reviewCacheCapture = read('scripts/capture-ui-review-cache.js')
 const reviewCachePromotion = read('scripts/promote-ui-review-cache.js')
 record(
+  'ui_review_cache_identity_is_bound_to_git_commit_and_viewport_path',
+  /function validateManifestCacheIdentity\(manifestPath, manifest\)/u.test(reviewCachePromotion)
+    && /rev-parse', '--verify'/u.test(reviewCachePromotion)
+    && /cache manifest path does not match its commit and viewport identity/u.test(reviewCachePromotion)
+    && /validateManifestCacheIdentity\(manifestPath, manifest\)/u.test(reviewIndexBuilder),
+  'promotion and offline review must reject screenshots attributed to an unavailable commit or a mismatched cache directory',
+)
+record(
   'ui_review_cache_artifacts_stay_inside_the_manifest_directory',
   /function capturePathMatches\(capture, cacheRoot\)/u.test(reviewCacheCapture)
     && /!entry\.isSymbolicLink\(\)/u.test(reviewCacheCapture)
     && /inspectCachedCapture\(capture, viewport, outputRoot\)/u.test(reviewCacheCapture)
     && /capturePathMatches\(capture, cacheRoot\)/u.test(reviewCachePromotion)
-    && /inspectCapture\(capture, viewport, path\.dirname\(manifestPath\)\)/u.test(reviewCachePromotion)
-    && /inspectCapture\(capture, viewport, path\.dirname\(manifestPath\)\)/u.test(reviewIndexBuilder),
+    && /inspectCapture\(capture, viewport, manifestDirectory\)/u.test(reviewCachePromotion)
+    && /inspectCapture\(capture, viewport, manifestDirectory\)/u.test(reviewIndexBuilder),
   'capture resume, promotion and offline review must reject traversal, cross-cache files and symbolic links',
 )
 record(
   'offline_review_index_is_bounded_image_free_and_cache_verified',
-  /inspectCapture\(capture, viewport, path\.dirname\(manifestPath\)\)/u.test(reviewIndexBuilder)
+  /inspectCapture\(capture, viewport, manifestDirectory\)/u.test(reviewIndexBuilder)
     && /inspectTarget\(capture\.route\)/u.test(reviewIndexBuilder)
     && /maxStructuredDetailBytes/u.test(reviewIndexBuilder)
     && /UI review index requires at least one verified capture/u.test(reviewIndexBuilder)

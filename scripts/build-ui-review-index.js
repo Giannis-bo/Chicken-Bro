@@ -10,7 +10,7 @@ const { randomUUID } = require('node:crypto')
 const { maxCaptureBytes, pngSize } = require('./capture-ui-review-cache')
 const { readBoundedFile } = require('./bounded-file')
 const { maxStructuredDetailBytes, readBoundedJson } = require('./bounded-json-detail')
-const { inspectCapture, selectedRoutes } = require('./promote-ui-review-cache')
+const { inspectCapture, selectedRoutes, validateManifestCacheIdentity } = require('./promote-ui-review-cache')
 const targetRegistry = require('../docs/design/current-ui/target-registry.json')
 
 const repositoryRoot = path.resolve(__dirname, '..')
@@ -81,16 +81,14 @@ function main() {
   if (manifest.schemaVersion !== 'wechat-ui-review-cache-v3' || !Array.isArray(manifest.captures) || manifest.captures.length > 14) {
     throw new Error('unsupported UI review cache manifest')
   }
-  if (!/^[a-f\d]{12}$/u.test(manifest.commit)) throw new Error('cache manifest commit must be a 12-character Git SHA')
   if (manifest.captureMethod !== 'reused_existing_wechat_devtools_process' || manifest.routeNavigationMethod !== 'mini_program_relaunch') {
     throw new Error('cache capture and route navigation methods are inaccurate or unsupported')
   }
-  const viewport = manifest.viewport
-  if (![viewport?.width, viewport?.height, viewport?.dpr].every((value) => Number.isFinite(value) && value > 0)) throw new Error('cache manifest viewport is incomplete')
+  const { manifestDirectory, viewport } = validateManifestCacheIdentity(manifestPath, manifest)
   const selected = selectedRoutes(process.env.UI_REVIEW_ROUTES || 'all', manifest.captures)
   if (selected.length === 0) throw new Error('UI review index requires at least one verified capture')
   const captures = selected.map((capture) => {
-    inspectCapture(capture, viewport, path.dirname(manifestPath))
+    inspectCapture(capture, viewport, manifestDirectory)
     return { capture, target: inspectTarget(capture.route) }
   })
   const bytes = writeIndexAtomic(outputPath, buildReviewIndex(manifest, captures))
