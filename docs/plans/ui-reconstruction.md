@@ -93,6 +93,7 @@ Review 窗口同时覆盖共享组件、页面 JSX 中的非组件 wrapper、rou
 - 合同校验按 JSX 节点闭合：每个已登记 role 的实例必须发布合同指定的唯一 `data-selected`/`data-active`、同时包含 active/inactive 材质分支，连续分段还必须发布 leading-boundary；同 role 的漏标副本不能再被集合级检查掩盖。
 - SimC 的 route 内部几何唯一归 `SimcSubmitComponents.module.scss`；`reconstruction.module.scss` 不得恢复旧的 identity/template/scenario/boundary/gate/blocker/action/footer 平行 owner，避免固定 33/56px 旧布局重新撑破当前百分比 RouteRegion。
 - 构筑情报 route 的内部几何唯一归 `BuildIntelComponents.module.scss`；`reconstruction.module.scss` 禁止任何 `.buildIntel*` 平行 owner，包括旧的 158/174px 卡片、三列 main 和窄屏 override，避免 06 再被未接线特化误导或意外覆盖。
+- Gear Detail 的职业/专精、readiness、装备栏、候选列表和底部 action 几何只允许当前组件样式 owner；`reconstruction.module.scss` 禁止旧 `.gearReadiness*`、`.gearBoard*`、54px action row 等平行实现，避免固定高度和三列特化重新造成底部越界。
 
 ## 微信验收与恢复链路
 

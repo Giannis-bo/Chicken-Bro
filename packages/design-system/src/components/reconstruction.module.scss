@@ -824,88 +824,6 @@
 .editorActionDock { display: grid; height: 55px; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: center; gap: 6px; padding: 7px; border-top: 1px solid rgba(133, 101, 50, 0.68); background: #101216; }
 .editorActionDock button { width: 100%; min-width: 0; min-height: 40px; padding: 0 5px; }
 
-.gearClassSpecSelector { display: grid; height: 50px; grid-template-columns: 150px minmax(0, 1fr); align-items: center; gap: 9px; padding: 0 9px; border: 1px solid rgba(117, 89, 48, 0.72); border-radius: 4px; background: linear-gradient(180deg, #1b1d22, #111318); }
-.gearSelectorMedallions { display: grid; grid-template-columns: repeat(4, 34px); align-items: center; gap: 4px; }
-.gearSelectorMedallion { position: relative; display: grid; width: 34px; height: 34px; place-items: center; opacity: 0.58; }
-.gearSelectorMedallionSelected { opacity: 1; filter: drop-shadow(0 0 5px rgba(219, 174, 67, 0.5)); }
-.gearSelectorMedallion > :last-child { position: absolute; width: 14px; height: 14px; color: var(--wow-accent-gold-soft); }
-.gearSpecField { display: grid; min-width: 0; height: 34px; grid-template-columns: minmax(0, 1fr) 12px; align-items: center; gap: 5px; padding: 0 9px; border: 1px solid rgba(122, 94, 51, 0.62); border-radius: 3px; background: rgba(8, 10, 13, 0.62); }
-.gearSpecField > :last-child { width: 11px; height: 11px; color: var(--wow-accent-gold-soft); }
-.gearSelectorCopy { min-width: 0; }
-.gearSelectorKicker { display: block; overflow: hidden; color: var(--wow-fg-dim); font-size: 7px; line-height: 9px; text-overflow: ellipsis; white-space: nowrap; }
-.gearSelectorValue { display: block; overflow: hidden; color: var(--wow-fg-strong); font-family: var(--wow-font-display); font-size: 14px; font-weight: 780; line-height: 18px; text-overflow: ellipsis; white-space: nowrap; }
-.gearReadinessSummary { height: 161px; }
-.gearReadinessSummary { background: radial-gradient(circle at 15% 39%, rgba(92, 118, 150, 0.17), transparent 30%), linear-gradient(165deg, #202329, #0e1014 74%); }
-.gearReadinessSummary > [data-material-render='nine-slice'] { opacity: 0.7; }
-.gearReadinessContent { height: 100%; padding: var(--forged-content-inset, 12px); }
-.gearReadinessMain { min-height: 0; --layered-reserved-inline-start: 126px !important; }
-.gearReadinessEmblemSlot { display: grid; width: 126px; height: 137px; place-items: center; }
-.gearReadinessEmblem { position: relative; display: grid; width: 118px; height: 118px; place-items: center; }
-.gearReadinessEmblemAsset { width: 100%; height: 100%; background-size: 182% 182%; }
-.gearReadinessItemLevel { position: absolute; display: grid; justify-items: center; }
-.gearReadinessItemLevelValue { color: var(--wow-fg-strong); font-family: var(--wow-font-display); font-size: 24px; font-weight: 840; line-height: 27px; }
-.gearReadinessItemLevelLabel { color: var(--wow-fg-dim); font-size: 7px; font-weight: 720; line-height: 9px; }
-.gearReadinessCopy { min-width: 0; }
-.gearReadinessTitleRow { display: flex; min-width: 0; align-items: center; gap: 5px; }
-.gearReadinessTitle { min-width: 0; flex: 1; overflow: hidden; color: var(--wow-fg-strong); font-family: var(--wow-font-display); font-size: 16px; font-weight: 800; line-height: 21px; text-overflow: ellipsis; white-space: nowrap; }
-.gearReadinessDetail { display: -webkit-box; margin-top: 2px; overflow: hidden; color: var(--wow-fg-muted); font-size: 8px; line-height: 10px; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-.gearReadinessTimeline { display: grid; min-width: 0; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 4px; }
-.gearReadinessStage { position: relative; display: grid; min-width: 0; justify-items: center; gap: 2px; }
-.gearReadinessStageNode { position: relative; z-index: 1; display: grid; width: 18px; height: 18px; place-items: center; border: 1px solid rgba(148, 113, 58, 0.78); border-radius: 50%; background: #111318; box-shadow: 0 0 0 2px rgba(7, 8, 10, 0.82); }
-.gearReadinessStageNode[data-active='true'] { border-color: rgba(214, 174, 88, 0.92); box-shadow: 0 0 0 2px rgba(7, 8, 10, 0.82), 0 0 7px rgba(207, 164, 75, 0.38); }
-.gearReadinessStageMarker { width: 7px; height: 7px; border-radius: 50%; background: #59616b; }
-.gearReadinessStageNode[data-active='true'] .gearReadinessStageMarker { background: var(--wow-accent-gold); }
-.gearReadinessStageConnector { position: absolute; z-index: 0; top: 9px; left: calc(50% + 9px); width: calc(100% - 18px); height: 1px; background: linear-gradient(90deg, rgba(184, 143, 65, 0.78), rgba(82, 94, 108, 0.64)); }
-.gearReadinessStageLabel { overflow: hidden; color: var(--wow-fg-dim); font-size: 6px; line-height: 8px; text-overflow: ellipsis; white-space: nowrap; }
-.gearReadinessProgressLabel { display: block; overflow: hidden; color: var(--wow-accent-gold-soft); font-size: 7px; font-weight: 720; line-height: 9px; text-overflow: ellipsis; white-space: nowrap; }
-.gearReadinessBlockers { min-width: 0; }
-.gearReadinessBlockerText { display: block; overflow: hidden; color: var(--wow-fg-dim); font-size: 6px; line-height: 8px; text-overflow: ellipsis; white-space: nowrap; }
-.gearReadinessMetrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: stretch; gap: 3px; margin-top: 3px; }
-.gearReadinessMetric { display: grid; min-width: 0; min-height: 24px; align-content: center; justify-items: center; border: 1px solid rgba(98, 78, 49, 0.52); border-radius: 3px; background: rgba(7, 9, 12, 0.48); }
-.gearReadinessMetric:nth-child(n + 2) { border-left: 1px solid rgba(110, 84, 48, 0.34); }
-.gearReadinessMetricLabel { color: var(--wow-fg-dim); font-size: 6px; line-height: 8px; }
-.gearReadinessMetricValue { max-width: 100%; overflow: hidden; color: var(--wow-fg-strong); font-size: 9px; font-weight: 730; line-height: 12px; text-overflow: ellipsis; white-space: nowrap; }
-.gearReadinessFooter { display: grid; min-width: 0; grid-template-columns: minmax(0, 1fr) 76px; align-items: center; gap: 5px; margin-top: 3px; }
-.gearReadinessFooter button { min-height: 24px; padding: 0 3px; font-size: 7px; }
-.enhancementStatusStrip { display: grid; height: 46px; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid rgba(113, 87, 48, 0.7); border-radius: 4px; background: #111318; }
-.enhancementStatusCell { display: grid; min-width: 0; grid-template-columns: 9px minmax(0, 1fr); align-items: center; gap: 5px; padding: 0 9px; }
-.enhancementStatusCell:nth-child(n + 2) { border-left: 1px solid rgba(113, 87, 48, 0.45); }
-.enhancementStatusCell [class*='statusLabel'] { display: none; }
-.enhancementStatusCopy { min-width: 0; }
-.enhancementStatusLabel { display: block; color: var(--wow-fg-dim); font-size: 7px; line-height: 9px; }
-.enhancementStatusValue { display: block; overflow: hidden; color: var(--wow-fg-muted); font-size: 9px; font-weight: 700; line-height: 12px; text-overflow: ellipsis; white-space: nowrap; }
-.gearLoadoutBoard { height: 311px; }
-.gearBoardLayout { display: grid; height: 100%; grid-template-columns: minmax(82px, .9fr) minmax(0, 1.55fr) minmax(82px, .9fr); gap: 6px; padding: var(--forged-content-inset, 10px); }
-.gearBoardColumn { display: grid; min-width: 0; grid-template-rows: repeat(8, minmax(0, 1fr)); gap: 2px; }
-.gearBoardSlot { display: grid; min-width: 0; grid-template-columns: 27px minmax(0, 1fr) 7px; align-items: center; gap: 3px; padding: 1px 3px; border: 0; border-radius: 3px; background: linear-gradient(90deg, rgba(29, 32, 38, 0.94), rgba(12, 14, 17, 0.64)); }
-.gearBoardSlotSelected { background: linear-gradient(90deg, rgba(116, 80, 20, 0.38), rgba(22, 20, 16, 0.74)); box-shadow: inset 2px 0 var(--wow-accent-gold), inset 0 0 0 1px rgba(194, 149, 57, 0.34); }
-.gearBoardSocket { position: relative; display: grid; width: 27px; height: 27px; place-items: center; }
-.gearBoardSocket > :last-child { position: absolute; }
-.gearBoardAbstractGlyph { position: absolute; width: 10px; height: 10px; color: #8996a5; opacity: 0.78; }
-.gearBoardSlotCopy { min-width: 0; }
-.gearBoardSlotLabel { display: block; overflow: hidden; color: var(--wow-fg-strong); font-size: 7px; font-weight: 720; line-height: 9px; text-overflow: ellipsis; white-space: nowrap; }
-.gearBoardSlotValue { display: block; overflow: hidden; color: var(--wow-fg-dim); font-size: 5px; line-height: 7px; text-overflow: ellipsis; white-space: nowrap; }
-.gearBoardSlot [class*='statusLabel'] { display: none; }
-.gearBoardSlot [class*='statusDot'] { width: 4px; height: 4px; opacity: 0.66; box-shadow: none; }
-.gearBoardInspector { display: grid; min-width: 0; align-content: start; justify-items: center; padding: 7px 5px; border: 0; border-radius: 5px; background: radial-gradient(circle at 50% 28%, rgba(80, 105, 139, 0.2), transparent 48%), rgba(7, 9, 12, 0.35); text-align: center; }
-.gearBoardInspectorKicker { color: var(--wow-fg-dim); font-size: 7px; line-height: 9px; }
-.gearBoardInspectorSocket { position: relative; display: grid; width: 74px; height: 74px; place-items: center; margin-top: 2px; }
-.gearBoardInspectorSocket > :last-child { position: absolute; }
-.gearBoardInspectorGlyph { position: absolute; width: 24px; height: 24px; color: #8996a5; opacity: 0.72; }
-.gearBoardInspectorTitle { display: block; max-width: 100%; margin-top: 3px; overflow: hidden; color: var(--wow-fg-strong); font-size: 10px; font-weight: 740; line-height: 13px; text-overflow: ellipsis; white-space: nowrap; }
-.gearBoardInspector [class*='statusPill'] { margin-top: 2px; }
-.gearCandidateList { display: grid; width: 100%; align-content: start; gap: 3px; margin-top: 5px; }
-.gearCandidateRow { display: grid; min-width: 0; min-height: 31px; grid-template-columns: 8px minmax(0, 1fr) 9px; align-items: center; gap: 3px; padding: 2px 4px; border-top: 1px solid rgba(88, 72, 51, 0.5); text-align: left; }
-.gearCandidateRow [class*='statusLabel'] { display: none; }
-.gearCandidateCopy { min-width: 0; }
-.gearCandidateTitle { display: block; overflow: hidden; color: var(--wow-fg-muted); font-size: 7px; font-weight: 700; line-height: 9px; text-overflow: ellipsis; white-space: nowrap; }
-.gearCandidateDetail { display: block; overflow: hidden; color: var(--wow-fg-dim); font-size: 5px; line-height: 7px; text-overflow: ellipsis; white-space: nowrap; }
-.gearCandidateRow > :last-child { width: 8px; height: 8px; }
-.gearCandidateEmpty { display: block; padding: 10px 2px; color: var(--wow-fg-dim); font-size: 7px; line-height: 10px; text-align: center; }
-.gearPrimaryAction { height: 42px; padding: 2px 12px; }
-.gearPrimaryAction button { width: 100%; min-height: 38px; }
-.gearActionRow { display: grid; height: 54px; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: center; gap: 6px; padding: 5px 7px; border-top: 1px solid rgba(126, 95, 49, 0.65); background: #101216; }
-.gearActionRow button { width: 100%; min-width: 0; min-height: 40px; padding: 0 4px; }
 
 .assistantContextSlab { height: 132px; background: radial-gradient(circle at 15% 40%, rgba(92, 121, 151, 0.2), transparent 29%), linear-gradient(160deg, #24262b, #0c0e12 74%); }
 .assistantContextSlab > [data-material-render='nine-slice'] { opacity: 0.48; }
@@ -1305,15 +1223,6 @@
   .talentSelectorMedallion { width: 30px; height: 30px; }
   .talentTreeGraph { padding-right: 5px; padding-left: 5px; }
   .talentTreeNode { width: 42px; height: 42px; }
-  .gearBoardLayout { grid-template-columns: 80px minmax(0, 1fr) 80px; gap: 4px; padding: 10px; }
-  .gearBoardSlot { grid-template-columns: 25px minmax(0, 1fr) 6px; gap: 2px; padding-right: 2px; padding-left: 2px; }
-  .gearBoardSocket { width: 25px; height: 25px; }
-  .gearClassSpecSelector { grid-template-columns: 134px minmax(0, 1fr); }
-  .gearSelectorMedallions { grid-template-columns: repeat(4, 30px); gap: 3px; }
-  .gearSelectorMedallion { width: 30px; height: 30px; }
-  .gearReadinessMain { --layered-reserved-inline-start: 108px !important; }
-  .gearReadinessEmblemSlot { width: 108px; }
-  .gearReadinessEmblem { width: 100px; height: 100px; }
 }
 
 @mixin large-reconstruction {

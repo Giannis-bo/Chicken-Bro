@@ -1202,6 +1202,13 @@ record(
   legacyBuildIntelParallelLayoutOwners.length === 0,
   [...new Set(legacyBuildIntelParallelLayoutOwners)].join(', ') || 'BuildIntelComponents.module.scss',
 )
+const legacyGearDetailParallelLayoutOwners = [...reconstructionStyles.matchAll(/\.(?:gearClassSpec|gearSelector|gearSpecField|gearReadiness|gearLoadoutBoard|gearBoard|gearCandidate|gearPrimaryAction|gearActionRow)[\w-]*/gu)]
+  .map((match) => match[0])
+record(
+  'gear_detail_geometry_has_no_parallel_reconstruction_owner',
+  legacyGearDetailParallelLayoutOwners.length === 0,
+  [...new Set(legacyGearDetailParallelLayoutOwners)].join(', ') || 'component-style-owners-only',
+)
 const selectedStateOwners = [
   ['packages/design-system/src/components/TabBar.tsx', 'product-tab-item'],
   ['packages/design-system/src/components/ChannelDock.tsx', 'news-list-category'],
