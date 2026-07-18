@@ -141,6 +141,26 @@ describe('Taro source route contract', () => {
     expect(talentSimulator).toContain("fallbackPolicy: 'stale'")
   })
 
+  it('classifies a canonical empty news home only after the transport fallback boundary', () => {
+    const newsHome = fs.readFileSync(
+      path.join(process.cwd(), 'apps/mini-taro/src/pages/news/news.tsx'),
+      'utf8',
+    )
+    expect(newsHome).toContain("import { isNewsHomeVisuallyEmpty, wowApi } from '@wow-mini/api-client'")
+    expect(newsHome).toContain("fallbackPolicy: 'blocked'")
+    expect(newsHome).toContain('isEmpty: isNewsHomeVisuallyEmpty')
+
+    const runtime = fs.readFileSync(
+      path.join(process.cwd(), 'apps/mini-taro/src/pages/_shared/route-runtime.tsx'),
+      'utf8',
+    )
+    const fallbackBoundary = runtime.indexOf('if (result.fromFallback)')
+    const emptyBoundary = runtime.indexOf('if (currentOptions.isEmpty?.(result.payload))')
+    expect(fallbackBoundary).toBeGreaterThan(-1)
+    expect(emptyBoundary).toBeGreaterThan(fallbackBoundary)
+    expect(runtime.slice(fallbackBoundary, emptyBoundary)).toContain("state: 'blocked'")
+  })
+
   it('uses redirect fallback for directly opened non-tab routes', () => {
     const source = fs.readFileSync(
       path.join(process.cwd(), 'apps/mini-taro/src/pages/_shared/route-runtime.tsx'),

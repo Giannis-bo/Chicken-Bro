@@ -65,7 +65,11 @@ export function isReadyNewsHomePayload(value: unknown): value is NewsHomePayload
     || !value['metrics'].every(isNewsMetric)
     || !value['channels'].every(isNewsChannel)) return false
   const visible = [...value['heroNews'], ...value['highlights']]
-  return visible.length > 0 && visible.every(isReadyNewsArticle)
+  return visible.every(isReadyNewsArticle)
+}
+
+export function isNewsHomeVisuallyEmpty(value: NewsHomePayload): boolean {
+  return value.heroNews.length === 0 && value.highlights.length === 0
 }
 
 function isReadyNewsList(value: unknown): value is NewsListPayload {

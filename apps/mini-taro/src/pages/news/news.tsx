@@ -1,7 +1,7 @@
 import Taro, { usePullDownRefresh } from '@tarojs/taro'
 import { useMemo, useState } from 'react'
 
-import { wowApi } from '@wow-mini/api-client'
+import { isNewsHomeVisuallyEmpty, wowApi } from '@wow-mini/api-client'
 import { AppShell } from '@wow-mini/design-system/components/AppShell'
 import {
   ChannelDock,
@@ -26,7 +26,7 @@ import styles from './news-home.module.scss'
 export default function NewsHomePage() {
   const route = useAsyncRoute(
     () => wowApi.news.home('manual'),
-    { fallbackPolicy: 'blocked' },
+    { fallbackPolicy: 'blocked', isEmpty: isNewsHomeVisuallyEmpty },
   )
   const [savedArticleIds, setSavedArticleIds] = useState<readonly string[]>(() => wowApi.news.savedArticleIds())
 

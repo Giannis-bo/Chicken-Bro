@@ -10,7 +10,7 @@ vi.mock('@tarojs/taro', () => ({
 
 import { storageKey, type NewsArticle } from '@wow-mini/domain'
 
-import { createNewsClient, isReadyNewsHomePayload } from './news'
+import { createNewsClient, isNewsHomeVisuallyEmpty, isReadyNewsHomePayload } from './news'
 import { newsFallbackSnapshot } from './fallback-snapshots'
 import type { StorageAdapter } from './storage'
 import type { ApiTransport, RequestOptions } from './transport'
@@ -71,6 +71,28 @@ describe('news client target contract', () => {
     expect(isReadyNewsHomePayload({
       ...newsFallbackSnapshot,
       channels: [{ id: 'official', title: '', updateCount: 1 }],
+    })).toBe(false)
+  })
+
+  it('accepts a canonical zero-article home payload and classifies its visual emptiness separately', () => {
+    const canonicalEmpty = {
+      ...newsFallbackSnapshot,
+      heroNews: [],
+      highlights: [],
+    }
+    expect(isReadyNewsHomePayload(canonicalEmpty)).toBe(true)
+    expect(isNewsHomeVisuallyEmpty(canonicalEmpty)).toBe(true)
+    expect(isNewsHomeVisuallyEmpty({
+      ...canonicalEmpty,
+      heroNews: [liveArticle('visible')],
+    })).toBe(false)
+    expect(isReadyNewsHomePayload({
+      ...canonicalEmpty,
+      heroNews: [{ ...liveArticle('invalid-article'), title: '' }],
+    })).toBe(false)
+    expect(isReadyNewsHomePayload({
+      ...canonicalEmpty,
+      metrics: [{ key: 'today', label: '', value: '0' }],
     })).toBe(false)
   })
 
