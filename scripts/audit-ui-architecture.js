@@ -302,12 +302,12 @@ const specializedRegionBounds = routeStyles.flatMap((file) => (
     const top = percentLayoutValue(match[2], 'top', minimumLayoutViewport.height)
     const height = percentLayoutValue(match[2], 'height', minimumLayoutViewport.height)
     if ([left, width, top, height].some((value) => value === null)) return []
-    return [{ file, region: match[1], left, right: left + width, top, bottom: top + height }]
+    return [{ file, region: match[1], left, right: left + width, width, top, bottom: top + height, height }]
   })
 ))
 const escapedSpecializedRegions = specializedRegionBounds.filter((region) => (
-  region.left < -1 || region.right > minimumLayoutViewport.width + 1
-  || region.top < -1 || region.bottom > minimumLayoutViewport.height + 1
+  region.left < -1 || region.width <= 0 || region.right > minimumLayoutViewport.width + 1
+  || region.top < -1 || region.height <= 0 || region.bottom > minimumLayoutViewport.height + 1
 ))
 const fixedPixelRouteRegionWidths = routeStyles.flatMap((file) => (
   [...read(file).matchAll(/\.([A-Za-z][\w-]*Region)\s*\{([^}]*)\}/gu)].flatMap((match) => (
@@ -345,11 +345,11 @@ const fixedPixelVerticalRegions = routeStyles.flatMap((file) => {
     const resolvedTop = Number.isFinite(top) ? top : Number.isFinite(bottom) && Number.isFinite(height) ? containerHeight - bottom - height : null
     const resolvedHeight = Number.isFinite(height) ? height : Number.isFinite(top) && Number.isFinite(bottom) ? containerHeight - top - bottom : null
     return resolvedTop !== null && resolvedHeight !== null
-      ? [{ file, region: match[1], top: resolvedTop, bottom: resolvedTop + resolvedHeight, containerHeight }]
+      ? [{ file, region: match[1], top: resolvedTop, bottom: resolvedTop + resolvedHeight, height: resolvedHeight, containerHeight }]
       : []
   })
 })
-const fixedPixelVerticalRegionEscapes = fixedPixelVerticalRegions.filter((region) => region.top < -1 || region.bottom > region.containerHeight + 1)
+const fixedPixelVerticalRegionEscapes = fixedPixelVerticalRegions.filter((region) => region.top < -1 || region.height <= 0 || region.bottom > region.containerHeight + 1)
 const fixedPixelVerticalRegionOverlaps = [...new Set(fixedPixelVerticalRegions.map((region) => region.file))].flatMap((file) => {
   const rows = [...new Map(fixedPixelVerticalRegions.filter((region) => region.file === file).map((region) => [
     region.top,
