@@ -413,7 +413,8 @@ test('native buttons and selected segments have exclusive geometry owners', () =
   assert.match(owners, /\.nativeControl::after\s*\{\s*border:\s*0;/)
   assert.match(owners, /\.nativeControl\s*\{[^}]*border:\s*0;[^}]*box-shadow:\s*none;/s)
   assert.match(reconstruction, /\.newsDetailTranslationSegment \+ \.newsDetailTranslationSegment::before/)
-  assert.match(reconstruction, /\.newsDetailTranslationSegment\[data-selected='true'\] \+ \.newsDetailTranslationSegment::before/)
+  assert.match(reconstruction, /\.newsDetailTranslationSegment\[data-leading-boundary='active'\]::before/)
+  assert.match(reconstruction, /\.newsDetailTranslationSegment\[data-leading-boundary='suppressed'\]::before/)
   assert.doesNotMatch(reconstruction, /\.newsDetailTranslationSegment \+ \.newsDetailTranslationSegment \{[^}]*border-left:/s)
   assert.match(audit, /native_button_owner_neutralizes_wechat_geometry/)
   assert.match(audit, /component_button_pseudo_elements_cannot_restore_native_chrome/)
@@ -432,6 +433,7 @@ test('native buttons and selected segments have exclusive geometry owners', () =
   assert.match(audit, /build_intel_primary_action_has_one_material_owner/)
   assert.match(audit, /selected_segment_material_owns_both_boundaries/)
   assert.match(audit, /selected_segments_exclusively_own_their_edge_material/)
+  assert.match(audit, /contiguous_selected_controls_consume_explicit_boundary_material_state/)
 })
 
 test('pushed fixed docks inherit safe-area padding from the shared shell owner', () => {

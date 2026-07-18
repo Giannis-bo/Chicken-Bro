@@ -596,6 +596,28 @@ const runtimeReviewContract = JSON.parse(read('docs/design/current-ui/runtime-re
 const runtimeReviewStatus = JSON.parse(read('docs/design/current-ui/runtime-review-status.json'))
 const projectState = JSON.parse(read('docs/project-state.json'))
 const expectedInteractionStatus = expectedInteractionOverallStatus(interactionContract.interactions ?? [])
+const contiguousBoundaryStyleOwners = [
+  ['packages/design-system/src/components/TabBar.module.scss', '.item'],
+  ['packages/design-system/src/components/reconstruction.module.scss', '.channelCell'],
+  ['packages/design-system/src/components/reconstruction.module.scss', '.newsDetailTranslationSegment'],
+  ['packages/design-system/src/components/TalentSimulatorComponents.module.scss', '.tab'],
+  ['packages/design-system/src/components/TaskListComponents.module.scss', '.filterTabs button'],
+]
+const missingExplicitBoundaryOwners = contiguousBoundaryStyleOwners.filter(([file, selector]) => {
+  const source = read(file)
+  return !source.includes(`${selector}[data-leading-boundary='active']`)
+    || !source.includes(`${selector}[data-leading-boundary='suppressed']`)
+})
+const inferredSiblingBoundaryStyles = componentStyleFiles.filter((file) => (
+  /\[data-(?:selected|active)=['"]true['"]\]\s*\+\s*(?:\.|button)/u.test(read(file))
+))
+record(
+  'contiguous_selected_controls_consume_explicit_boundary_material_state',
+  selectedControlContract.groups.filter((group) => group.boundaryMode === 'contiguous').length === contiguousBoundaryStyleOwners.length
+    && missingExplicitBoundaryOwners.length === 0
+    && inferredSiblingBoundaryStyles.length === 0,
+  [...missingExplicitBoundaryOwners.map(([file, selector]) => `${file}:${selector}`), ...inferredSiblingBoundaryStyles].join(', ') || `owners=${contiguousBoundaryStyleOwners.length}`,
+)
 record(
   'runtime_pass_requires_asset_promotion_or_code_native_status',
   runtimeReviewContract.schemaVersion === 'wechat-runtime-review-v3'
@@ -1823,11 +1845,11 @@ record(
 )
 record(
   'selected_segment_material_owns_both_boundaries',
-  /\.item\[data-selected='true'\],[\s\S]*\.item\[data-selected='true'\] \+ \.item\s*\{\s*border-left-color:\s*transparent;/u.test(read('packages/design-system/src/components/TabBar.module.scss'))
-    && /\.channelCell\[data-selected='true'\],[\s\S]*\.channelCell\[data-selected='true'\] \+ \.channelCell\s*\{\s*border-left-color:\s*transparent;/u.test(reconstructionStyles)
+  /\.item\[data-leading-boundary='active'\],[\s\S]*\.item\[data-leading-boundary='suppressed'\]\s*\{\s*border-left-color:\s*transparent;/u.test(read('packages/design-system/src/components/TabBar.module.scss'))
+    && /\.channelCell\[data-leading-boundary='active'\],[\s\S]*\.channelCell\[data-leading-boundary='suppressed'\]\s*\{\s*border-left-color:\s*transparent;/u.test(reconstructionStyles)
     && /\.newsListCategoryItemOwner\[data-selected='true'\]::before\s*\{\s*display:\s*none;/u.test(reconstructionStyles)
-    && /\.tab\[data-active='true'\],[\s\S]*\.tab\[data-active='true'\] \+ \.tab\s*\{\s*border-left-color:\s*transparent;/u.test(read('packages/design-system/src/components/TalentSimulatorComponents.module.scss'))
-    && /button\[data-selected='true'\],[\s\S]*button\[data-selected='true'\] \+ button\s*\{\s*border-left-color:\s*transparent;/u.test(read('packages/design-system/src/components/TaskListComponents.module.scss')),
+    && /\.tab\[data-leading-boundary='active'\],[\s\S]*\.tab\[data-leading-boundary='suppressed'\]\s*\{\s*border-left-color:\s*transparent;/u.test(read('packages/design-system/src/components/TalentSimulatorComponents.module.scss'))
+    && /button\[data-leading-boundary='active'\],[\s\S]*button\[data-leading-boundary='suppressed'\]\s*\{\s*border-left-color:\s*transparent;/u.test(read('packages/design-system/src/components/TaskListComponents.module.scss')),
   'active segmented controls must suppress ordinary-state separators and pseudo-element borders on both edges',
 )
 const selectedStateVerifier = read('scripts/verify-ui-selected-states.js')
@@ -2463,7 +2485,7 @@ record(
   'selected_segments_exclusively_own_their_edge_material',
   !/\.newsDetailTranslationSegment\s*\+\s*\.newsDetailTranslationSegment\s*\{[^}]*\bborder-left\s*:/su.test(selectionMaterialStyles)
     && /\.newsDetailTranslationSegment\s*\+\s*\.newsDetailTranslationSegment::before\s*\{/u.test(selectionMaterialStyles)
-    && /\.newsDetailTranslationSegment\[data-selected='true'\]\s*\+\s*\.newsDetailTranslationSegment::before/u.test(selectionMaterialStyles)
+    && /\.newsDetailTranslationSegment\[data-leading-boundary='active'\]::before,[\s\S]*\.newsDetailTranslationSegment\[data-leading-boundary='suppressed'\]::before/u.test(selectionMaterialStyles)
     && !/newsDetailTranslationSegmentActive/u.test(selectionMaterialStyles),
   'selected segment borders must suppress adjacent inactive separators instead of stacking edge materials',
 )

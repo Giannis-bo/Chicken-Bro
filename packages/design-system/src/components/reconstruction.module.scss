@@ -366,8 +366,8 @@
 .newsDetailTranslationSegments { display: grid; min-width: 0; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; padding-left: 0; border: 0; background: transparent; box-shadow: none; }
 .newsDetailTranslationSegment { position: relative; display: grid; min-width: 0; margin: 0; place-items: center; border: 0; color: #817b72; font-size: 8px; font-weight: 700; line-height: 11px; background: transparent; box-shadow: none; }
 .newsDetailTranslationSegment + .newsDetailTranslationSegment::before { position: absolute; top: 5px; bottom: 5px; left: 0; width: 1px; content: ''; background: rgba(81, 66, 45, 0.42); pointer-events: none; }
-.newsDetailTranslationSegment[data-selected='true']::before,
-.newsDetailTranslationSegment[data-selected='true'] + .newsDetailTranslationSegment::before { display: none; }
+.newsDetailTranslationSegment[data-leading-boundary='active']::before,
+.newsDetailTranslationSegment[data-leading-boundary='suppressed']::before { display: none; }
 .newsDetailTranslationSegment[data-selected='true'] { border: 1px solid rgba(205, 157, 77, 0.94); color: #f0dcb3; background: linear-gradient(180deg, rgba(83, 65, 39, 0.98), rgba(21, 21, 20, 0.99)); box-shadow: inset 0 0 0 1px rgba(5, 6, 8, 0.78); }
 .newsDetailTranslationSkeleton { width: 28px; height: 7px; border-radius: 2px; background: rgba(154, 143, 122, 0.16); }
 
@@ -491,8 +491,8 @@
 .channelDockFixed { grid-template-columns: repeat(6, minmax(0, 1fr)); grid-auto-flow: initial; }
 .channelCell { position: relative; z-index: 2; display: grid; min-width: 0; min-height: 84px; grid-template-rows: 28px 14px; align-content: center; justify-items: center; gap: 3px; overflow: hidden; border: 0; border-radius: 0; color: var(--wow-fg-dim); background: linear-gradient(180deg, rgba(26, 28, 31, 0.92), rgba(14, 16, 20, 0.94)); }
 .channelCell:nth-child(n + 2) { border-left: 1px solid rgba(112, 88, 52, 0.5); }
-.channelCell[data-selected='true'],
-.channelCell[data-selected='true'] + .channelCell { border-left-color: transparent; }
+.channelCell[data-leading-boundary='active'],
+.channelCell[data-leading-boundary='suppressed'] { border-left-color: transparent; }
 .channelCell:last-child { border-right: 0; }
 .channelCell:active { background: rgba(231, 185, 61, 0.07); }
 .channelCell::before { display: none; }

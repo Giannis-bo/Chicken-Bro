@@ -240,8 +240,8 @@
 }
 
 .tab + .tab { border-left: 1px solid rgba(126, 95, 51, 0.72); }
-.tab[data-active='true'],
-.tab[data-active='true'] + .tab { border-left-color: transparent; }
+.tab[data-leading-boundary='active'],
+.tab[data-leading-boundary='suppressed'] { border-left-color: transparent; }
 
 .tab::after { display: none; }
 .tab[data-active='true'] {
