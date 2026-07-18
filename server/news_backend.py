@@ -81,6 +81,7 @@ try:
     )
     from .gear_attribute_api import calculate_attributes_for_selection
     from .gear_attribute_preview_fixture import append_preview_template, preview_community_import, preview_enabled
+    from .gear_stat_snapshot import STAT_SNAPSHOT_SCHEMA_REVISION, build_stat_signature
     from .gear_stat_snapshot_api import get_or_start_stat_snapshot
     from .websim_payload import (
         COMMUNITY_TEMPLATE_SYNC_RUN_KEY,
@@ -101,6 +102,7 @@ try:
         gear_resolver_runtime_authority,
         GAME_CLASS_ID_TO_KEY,
         GEAR_SLOT_LABELS,
+        WEBSIM_EXECUTION_FLAVOR_STAT_SNAPSHOT_V1,
         talent_catalog_health_payload,
         export_talent_api_payload,
         get_active_season_payload,
@@ -191,6 +193,7 @@ except ImportError:
     )
     from gear_attribute_api import calculate_attributes_for_selection
     from gear_attribute_preview_fixture import append_preview_template, preview_community_import, preview_enabled
+    from gear_stat_snapshot import STAT_SNAPSHOT_SCHEMA_REVISION, build_stat_signature
     from gear_stat_snapshot_api import get_or_start_stat_snapshot
     from websim_payload import (
         COMMUNITY_TEMPLATE_SYNC_RUN_KEY,
@@ -211,6 +214,7 @@ except ImportError:
         gear_resolver_runtime_authority,
         GAME_CLASS_ID_TO_KEY,
         GEAR_SLOT_LABELS,
+        WEBSIM_EXECUTION_FLAVOR_STAT_SNAPSHOT_V1,
         talent_catalog_health_payload,
         export_talent_api_payload,
         get_active_season_payload,
@@ -4215,6 +4219,7 @@ SIMCRAFT_TEMPLATE_REQUIRED_GEAR_SLOTS = [
 SIMCRAFT_TEMPLATE_ANALYSIS_TYPES = {"baseline", "stat_weights"}
 SIMCRAFT_TEMPLATE_READY_GEAR_STATUSES = {"complete", "complete_with_warnings"}
 SIMCRAFT_TEMPLATE_STAT_SNAPSHOT_REQUIRED_ERROR = "gear stat snapshot is not verified"
+SIMCRAFT_TEMPLATE_STAT_SIGNATURE_PATTERN = re.compile(r"^stat-snapshot:sha256:[0-9a-f]{64}$")
 SIMCRAFT_OPTIONS_CONTRACT_REVISION = "simc-options-v1"
 SIMCRAFT_TEMPLATE_CANONICAL_INPUT_CONTRACT = "canonical_selection_intent_v1"
 SIMCRAFT_TEMPLATE_LEGACY_INPUT_CONTRACT = "legacy_template_v1"
@@ -4409,6 +4414,31 @@ def simcraft_template_has_verified_stat_snapshot(source, gear_template):
         if isinstance(candidate, dict) and candidate.get("statStatus") == "verified":
             return True
     return False
+
+
+def simcraft_template_canonical_stat_snapshot_problem(source, expected_signature):
+    request = source if isinstance(source, dict) else {}
+    snapshot = request.get("statSnapshot") if isinstance(request.get("statSnapshot"), dict) else {}
+    signature = str(snapshot.get("statSignature") or "").strip()
+    if (
+        snapshot.get("schemaRevision") != STAT_SNAPSHOT_SCHEMA_REVISION
+        or snapshot.get("statStatus") != "verified"
+        or SIMCRAFT_TEMPLATE_STAT_SIGNATURE_PATTERN.fullmatch(signature) is None
+    ):
+        return simcraft_template_problem(
+            "SIMC_CANONICAL_STAT_SNAPSHOT_INVALID",
+            "Canonical Gear stat snapshot is missing or invalid.",
+            path="statSnapshot",
+        )
+    if signature != expected_signature:
+        return simcraft_template_problem(
+            "SIMC_CANONICAL_STAT_SIGNATURE_MISMATCH",
+            "Canonical Gear stat snapshot does not match the resolved selection.",
+            kind="REVISION_CONFLICT",
+            path="statSnapshot.statSignature",
+            retryable=True,
+        )
+    return None
 
 
 def simcraft_template_gear_snapshot_raw(metadata):
@@ -4650,13 +4680,29 @@ def prepare_canonical_simcraft_template_request(request_payload):
 
     profile_envelope = {}
     profile_data = {}
+    canonical_stat_context = {}
+
+    def canonical_profile_builder(resolved_snapshot, *, source_context=None):
+        standard_profile = build_websim_profile_response_from_resolved_snapshot(
+            resolved_snapshot,
+            source_context=source_context,
+        )
+        stat_profile = build_websim_profile_response_from_resolved_snapshot(
+            resolved_snapshot,
+            source_context=source_context,
+            execution_flavor=WEBSIM_EXECUTION_FLAVOR_STAT_SNAPSHOT_V1,
+        )
+        canonical_stat_context["resolvedSnapshot"] = resolved_snapshot
+        canonical_stat_context["statProfile"] = stat_profile
+        return standard_profile
+
     if not problems:
         http_status, profile_envelope = build_profile_from_selection_intent(
             source,
             store=cache_data_store(),
             simc_runtime_revision=current_gear_simc_runtime_revision(),
             request_id=f"simc-template-profile-{uuid.uuid4().hex}",
-            profile_builder=build_websim_profile_response_from_resolved_snapshot,
+            profile_builder=canonical_profile_builder,
         )
         if http_status != 200 or profile_envelope.get("status") != "resolved":
             resolver_problems = profile_envelope.get("problems")
@@ -4681,6 +4727,53 @@ def prepare_canonical_simcraft_template_request(request_payload):
                         kind="ILLEGAL_SELECTION",
                     )
                 )
+            stat_profile_data = canonical_stat_context.get("statProfile")
+            stat_profile_data = stat_profile_data if isinstance(stat_profile_data, dict) else {}
+            stat_profile_readiness = (
+                stat_profile_data.get("profileReadiness")
+                if isinstance(stat_profile_data.get("profileReadiness"), dict)
+                else {}
+            )
+            stat_profile_text = str(stat_profile_data.get("profile") or "").strip()
+            if (
+                stat_profile_data.get("status") != "resolved"
+                or stat_profile_readiness.get("simcReady") is not True
+                or not stat_profile_text
+            ):
+                problems.append(
+                    simcraft_template_problem(
+                        "SIMC_CANONICAL_STAT_PROFILE_UNAVAILABLE",
+                        "Canonical Gear stat profile could not be prepared.",
+                        kind="AUTHORITY_UNAVAILABLE",
+                        retryable=True,
+                    )
+                )
+            else:
+                try:
+                    signature_data = build_stat_signature(
+                        canonical_stat_context.get("resolvedSnapshot"),
+                        stat_profile_text,
+                        profile_envelope.get("releaseContext"),
+                    )
+                    expected_signature = str(signature_data.get("statSignature") or "").strip()
+                    if SIMCRAFT_TEMPLATE_STAT_SIGNATURE_PATTERN.fullmatch(expected_signature) is None:
+                        raise ValueError("canonical stat signature is invalid")
+                except (TypeError, ValueError):
+                    problems.append(
+                        simcraft_template_problem(
+                            "SIMC_CANONICAL_STAT_SIGNATURE_UNAVAILABLE",
+                            "Canonical Gear stat signature could not be prepared.",
+                            kind="AUTHORITY_UNAVAILABLE",
+                            retryable=True,
+                        )
+                    )
+                else:
+                    snapshot_problem = simcraft_template_canonical_stat_snapshot_problem(
+                        source,
+                        expected_signature,
+                    )
+                    if snapshot_problem:
+                        problems.append(snapshot_problem)
 
     class_key = clean_text(eligibility.get("classKey"), 64)
     spec_key = clean_text(eligibility.get("specKey"), 64)
@@ -4703,8 +4796,6 @@ def prepare_canonical_simcraft_template_request(request_payload):
             scenario_key,
         )
         errors.extend(compatibility_errors)
-        if not compatibility_errors and not simcraft_template_has_verified_stat_snapshot(source, {}):
-            errors.append(SIMCRAFT_TEMPLATE_STAT_SNAPSHOT_REQUIRED_ERROR)
 
     errors.extend(simcraft_template_problem_messages(problems))
     errors = simcraft_template_unique_messages(errors)
