@@ -1216,6 +1216,13 @@ record(
   legacyTalentParallelLayoutOwners.length === 0,
   [...new Set(legacyTalentParallelLayoutOwners)].join(', ') || 'TalentSimulatorComponents.module.scss',
 )
+const legacyTaskParallelLayoutOwners = [...reconstructionStyles.matchAll(/\.task[A-Z][\w-]*/gu)]
+  .map((match) => match[0])
+record(
+  'task_routes_have_no_parallel_reconstruction_geometry_owner',
+  legacyTaskParallelLayoutOwners.length === 0,
+  [...new Set(legacyTaskParallelLayoutOwners)].join(', ') || 'TaskListComponents/TaskDetailComponents',
+)
 const selectedStateOwners = [
   ['packages/design-system/src/components/TabBar.tsx', 'product-tab-item'],
   ['packages/design-system/src/components/ChannelDock.tsx', 'news-list-category'],
