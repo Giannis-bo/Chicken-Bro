@@ -1,0 +1,87 @@
+#!/usr/bin/env node
+'use strict'
+
+const crypto = require('node:crypto')
+const fs = require('node:fs')
+const path = require('node:path')
+const contract = require('../docs/design/current-ui/selected-control-contract.json')
+const { writeBoundedFileImmutable } = require('./bounded-file')
+const { boundedDetailPaths, maxStructuredDetailBytes, readBoundedJson, serializeBoundedJson } = require('./bounded-json-detail')
+
+const root = path.resolve(__dirname, '..')
+const contractPath = path.join(root, 'docs/design/current-ui/selected-control-contract.json')
+const contractSha256 = crypto.createHash('sha256').update(fs.readFileSync(contractPath)).digest('hex')
+
+function key(item) {
+  return `${item.route}::${item.role}`
+}
+
+function readDetails(value) {
+  const paths = boundedDetailPaths(value, 'SELECTED_STATE_DETAIL_PATHS')
+  return paths.map((detailPath) => readBoundedJson(detailPath, 'selected-state detail'))
+}
+
+function combineDetails(details) {
+  const first = details[0]
+  if (details.some((detail) => detail.schemaVersion !== 'wechat-selected-control-detail-v3')) throw new Error('unsupported selected control detail schema')
+  if (first.contractSha256 !== contractSha256 || details.some((detail) => detail.contractSha256 !== contractSha256)) throw new Error('selected control detail contract SHA-256 is stale or mismatched')
+  if (!/^[a-f\d]{12}$/u.test(first.commit ?? '') || details.some((detail) => detail.commit !== first.commit)) throw new Error('selected control detail commits must match')
+  const viewportKey = JSON.stringify(first.viewport)
+  if (![first.viewport?.width, first.viewport?.height, first.viewport?.dpr].every((value) => Number.isFinite(value) && value > 0) || details.some((detail) => JSON.stringify(detail.viewport) !== viewportKey)) throw new Error('selected control detail viewports must match')
+  if (details.some((detail) => detail.coverageMatches !== true || !Array.isArray(detail.failures) || detail.failures.length !== 0)) throw new Error('only complete passing selected control batches may be promoted')
+
+  const results = details.flatMap((detail) => detail.results ?? [])
+  const resultKeys = results.map(key)
+  if (new Set(resultKeys).size !== resultKeys.length) throw new Error('selected control detail groups must not repeat')
+  const expectedKeys = contract.groups.map(key)
+  if (expectedKeys.some((item) => !resultKeys.includes(item)) || resultKeys.some((item) => !expectedKeys.includes(item))) throw new Error('selected control details must cover the exact selected-control contract')
+
+  const contractByKey = new Map(contract.groups.map((group) => [key(group), group]))
+  for (const result of results) {
+    if (
+      result.status === 'pass'
+      && result.materialMismatches === 0
+      && result.materialOwnerMismatches === 0
+      && result.nestedMaterialRenderCount === 0
+      && result.visualMaterialDistinct === true
+      && result.boundaryMismatches === 0
+      && (result.controls < 2 || (result.materialStyles?.active && result.materialStyles?.inactive))
+      && result.active >= result.expected.activeAtLeast
+      && result.active <= result.expected.activeAtMost
+    ) continue
+    const definition = contractByKey.get(key(result))
+    if (result.status !== 'unavailable' || !(definition?.unavailableRouteStates ?? []).includes(result.routeState)) throw new Error(`selected control result is not promotable: ${key(result)}`)
+  }
+
+  const byKey = new Map(results.map((result) => [key(result), result]))
+  return {
+    schemaVersion: 'wechat-selected-control-evidence-v3',
+    contractSha256,
+    commit: first.commit,
+    viewport: first.viewport,
+    groups: expectedKeys.map((item) => byKey.get(item)),
+  }
+}
+
+function main() {
+  const evidence = combineDetails(readDetails(process.env.SELECTED_STATE_DETAIL_PATHS))
+  const serialized = serializeBoundedJson(evidence, 'selected control evidence')
+  const sha256 = crypto.createHash('sha256').update(serialized).digest('hex')
+  const viewport = evidence.viewport
+  const viewportName = `${viewport.width}x${viewport.height}@${viewport.dpr}`
+  const relativePath = path.join('artifacts', 'ui-runtime-reviews', evidence.commit, viewportName, 'selected-controls', `${sha256}.json`)
+  const destination = path.join(root, relativePath)
+  writeBoundedFileImmutable(destination, Buffer.from(serialized), maxStructuredDetailBytes, `selected control evidence ${relativePath}`)
+  console.log(JSON.stringify({
+    status: 'pass', commit: evidence.commit, viewport: viewportName, groupCount: evidence.groups.length,
+    passed: evidence.groups.filter((group) => group.status === 'pass').length,
+    unavailable: evidence.groups.filter((group) => group.status === 'unavailable').length,
+    sha256, evidencePath: relativePath.split(path.sep).join('/'),
+  }))
+}
+
+if (require.main === module) {
+  try { main() } catch (error) { console.error(error instanceof Error ? error.message : String(error)); process.exit(1) }
+}
+
+module.exports = { combineDetails, readDetails }

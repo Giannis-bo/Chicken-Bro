@@ -1,0 +1,341 @@
+{
+  "schemaVersion": "target-geometry-v1",
+  "route": "news_detail",
+  "authority": "canonical_target",
+  "source": {
+    "path": "artifacts/ui-visual-targets/current/news-detail.png",
+    "width": 864,
+    "height": 1821,
+    "sha256": "256d02e05465e88643289eccfdc3988f911fd26da8bec898462a03e40ebc20b7"
+  },
+  "measurement": {
+    "runtimeInputsUsed": false,
+    "coordinateSpace": "native_source_pixels",
+    "normalizedTo": {
+      "width": 864,
+      "height": 1821
+    },
+    "method": "single-image manual visual measurement from canonical target only; bounds estimated to outer visible edges of major first-level regions in native pixels",
+    "precision": "integer pixel bounds for regions; normalized values rounded to 6 decimals; decorative shadows and fine frame protrusions excluded unless they define the visible panel edge"
+  },
+  "regions": [
+    {
+      "id": "top_bar",
+      "label": "news detail navigation header",
+      "boundsPx": {
+        "x": 15,
+        "y": 19,
+        "width": 834,
+        "height": 96,
+        "x2": 849,
+        "y2": 115
+      },
+      "boundsNormalized": {
+        "x": 0.017361,
+        "y": 0.010434,
+        "width": 0.965278,
+        "height": 0.052718,
+        "x2": 0.982639,
+        "y2": 0.063152
+      },
+      "confidence": 0.97,
+      "internalStructure": [
+        "dark full-width header band",
+        "large clipped-square back control at left",
+        "centered gold page title",
+        "mirrored narrow title flourishes with small diamond ornaments"
+      ],
+      "alignment": [
+        "page title centered on the canvas horizontal axis",
+        "back control vertically centered in the header band",
+        "title ornaments balanced symmetrically around the title"
+      ],
+      "spacing": [
+        "~16 px left inset to the back-control frame",
+        "back control occupies roughly 99 x 92 px",
+        "~22 px gap from header bottom to article header card"
+      ],
+      "notes": [
+        "no system status bar, WeChat capsule or product tab bar is drawn",
+        "header right side contains no resolved action control"
+      ]
+    },
+    {
+      "id": "article_header_card",
+      "label": "article title and source summary",
+      "boundsPx": {
+        "x": 18,
+        "y": 137,
+        "width": 829,
+        "height": 302,
+        "x2": 847,
+        "y2": 439
+      },
+      "boundsNormalized": {
+        "x": 0.020833,
+        "y": 0.075233,
+        "width": 0.959491,
+        "height": 0.165843,
+        "x2": 0.980324,
+        "y2": 0.241076
+      },
+      "confidence": 0.98,
+      "internalStructure": [
+        "large ornate framed card",
+        "large article-title line at upper left",
+        "source crest followed by source label",
+        "outlined source-verification status plate below the source row",
+        "intentionally open negative space on the right"
+      ],
+      "alignment": [
+        "title, source row and status plate align to one left content rail",
+        "source crest and source label are vertically centered as one row",
+        "status plate begins slightly left of the source label but aligns with the title rail"
+      ],
+      "spacing": [
+        "~53 px left inner padding",
+        "~48 px top padding to article title",
+        "~27 px from title to source row",
+        "~18 px from source row to status plate",
+        "~22 px gap from card bottom to translation-status region"
+      ],
+      "notes": [
+        "title, source label and verification state are target placeholders only",
+        "outer frame uses clipped corners, layered bronze rails and subtle inner highlights"
+      ]
+    },
+    {
+      "id": "translation_status",
+      "label": "translation mode selector",
+      "boundsPx": {
+        "x": 18,
+        "y": 461,
+        "width": 829,
+        "height": 95,
+        "x2": 847,
+        "y2": 556
+      },
+      "boundsNormalized": {
+        "x": 0.020833,
+        "y": 0.253158,
+        "width": 0.959491,
+        "height": 0.052169,
+        "x2": 0.980324,
+        "y2": 0.305327
+      },
+      "confidence": 0.98,
+      "internalStructure": [
+        "single full-width framed control band",
+        "left section label",
+        "three adjacent translation-mode options",
+        "first option shown as selected with warm gold border and fill"
+      ],
+      "alignment": [
+        "section label vertically centered at left",
+        "three options form one horizontal row aligned to a common top and bottom",
+        "option labels centered within their respective plates"
+      ],
+      "spacing": [
+        "~32 px left inset to section label",
+        "selected option begins near x~295",
+        "options touch or nearly touch with shared divider rails",
+        "~20 px gap from control-band bottom to article body"
+      ],
+      "notes": [
+        "selection styling is visible, but target alone does not define behavior or truth state",
+        "inactive options use darker metal faces and lower-contrast text"
+      ]
+    },
+    {
+      "id": "article_body",
+      "label": "article content panel",
+      "boundsPx": {
+        "x": 18,
+        "y": 576,
+        "width": 829,
+        "height": 583,
+        "x2": 847,
+        "y2": 1159
+      },
+      "boundsNormalized": {
+        "x": 0.020833,
+        "y": 0.31631,
+        "width": 0.959491,
+        "height": 0.320154,
+        "x2": 0.980324,
+        "y2": 0.636464
+      },
+      "confidence": 0.97,
+      "internalStructure": [
+        "large dark framed reading surface",
+        "five visually separated placeholder paragraph groups",
+        "eight visible text lines in total",
+        "no inline image, list, subheading or visible body action"
+      ],
+      "alignment": [
+        "all body lines align to a common left rail near x~54",
+        "text wraps before the right frame rail with a stable right inset",
+        "paragraph groups preserve visibly larger vertical gaps than line spacing"
+      ],
+      "spacing": [
+        "~36 px left inner padding",
+        "~52 px top padding to first text line",
+        "line baselines are separated by roughly 49 px",
+        "paragraph-group gaps are roughly 24-31 px larger than wrapped-line spacing",
+        "~20 px gap from body panel bottom to source-reference action"
+      ],
+      "notes": [
+        "all body copy is visibly placeholder text and must not be treated as article truth",
+        "text is muted warm gray against a near-black reading surface"
+      ]
+    },
+    {
+      "id": "source_reference_action",
+      "label": "source reference and copy action",
+      "boundsPx": {
+        "x": 18,
+        "y": 1177,
+        "width": 829,
+        "height": 112,
+        "x2": 847,
+        "y2": 1289
+      },
+      "boundsNormalized": {
+        "x": 0.020833,
+        "y": 0.646348,
+        "width": 0.959491,
+        "height": 0.061505,
+        "x2": 0.980324,
+        "y2": 0.707853
+      },
+      "confidence": 0.98,
+      "internalStructure": [
+        "framed horizontal source card",
+        "large chain-link icon at left",
+        "two-line source text block",
+        "right-aligned gold outlined copy button with copy glyph"
+      ],
+      "alignment": [
+        "chain icon and text block form one left group",
+        "source heading and supporting text share one left rail",
+        "copy button vertically centered and aligned to the right internal rail"
+      ],
+      "spacing": [
+        "~34 px left inset to chain icon",
+        "~24 px from chain icon to text block",
+        "~19 px between source heading and supporting line",
+        "~29 px right inset to copy button",
+        "~19 px gap to evidence panel below"
+      ],
+      "notes": [
+        "visible source link wording is a target placeholder, not a verified URL",
+        "button is the strongest explicit action in this region"
+      ]
+    },
+    {
+      "id": "evidence_details_panel",
+      "label": "evidence detail table and empty state",
+      "boundsPx": {
+        "x": 18,
+        "y": 1308,
+        "width": 829,
+        "height": 316,
+        "x2": 847,
+        "y2": 1624
+      },
+      "boundsNormalized": {
+        "x": 0.020833,
+        "y": 0.718287,
+        "width": 0.959491,
+        "height": 0.173531,
+        "x2": 0.980324,
+        "y2": 0.891818
+      },
+      "confidence": 0.98,
+      "internalStructure": [
+        "large framed evidence container",
+        "warm dark-brown header band with scales icon, section title and upward chevron",
+        "four-column table header",
+        "empty table body with centered exclamation medallion and label"
+      ],
+      "alignment": [
+        "header icon and title align at left while collapse chevron aligns right",
+        "four column labels align to fixed vertical divisions",
+        "empty-state medallion and label center within the table body"
+      ],
+      "spacing": [
+        "header band height ~73 px",
+        "column-header band height ~53 px",
+        "~28 px left inset to scales icon",
+        "~25 px gap between icon and section title",
+        "~19 px gap from panel bottom to the final missing-article state"
+      ],
+      "notes": [
+        "upward chevron suggests the section is expanded",
+        "column headings and empty state are visible composition only; no evidence records or credibility values are asserted"
+      ]
+    },
+    {
+      "id": "missing_article_state",
+      "label": "article-not-found state",
+      "boundsPx": {
+        "x": 18,
+        "y": 1644,
+        "width": 829,
+        "height": 158,
+        "x2": 847,
+        "y2": 1802
+      },
+      "boundsNormalized": {
+        "x": 0.020833,
+        "y": 0.902801,
+        "width": 0.959491,
+        "height": 0.086766,
+        "x2": 0.980324,
+        "y2": 0.989566
+      },
+      "confidence": 0.98,
+      "internalStructure": [
+        "wide framed dark state panel",
+        "centered diamond-shaped exclamation emblem",
+        "centered missing-article label below the emblem"
+      ],
+      "alignment": [
+        "emblem and label centered on the panel horizontal axis",
+        "content forms a compact vertical stack"
+      ],
+      "spacing": [
+        "~21 px from panel top to emblem",
+        "~11 px from emblem to label",
+        "~19 px from panel bottom to canvas edge"
+      ],
+      "notes": [
+        "no retry or navigation action is visible in this state panel",
+        "the state coexists visibly with the article-detail composition but is not treated as runtime truth"
+      ]
+    }
+  ],
+  "globalAlignment": [
+    "all major content panels share near-common horizontal bounds around x~18-847",
+    "the top-bar title, evidence empty state and missing-article state align to the page horizontal center",
+    "article header, body and source-reference text use stable left content rails",
+    "the composition is a single vertical flow: top bar -> article header -> translation status -> body -> source action -> evidence details -> missing article state"
+  ],
+  "globalSpacing": [
+    "top bar to article header gap ~22 px",
+    "article header to translation status gap ~22 px",
+    "translation status to article body gap ~20 px",
+    "article body to source-reference action gap ~18 px",
+    "source-reference action to evidence details gap ~19 px",
+    "evidence details to missing-article state gap ~20 px",
+    "missing-article state to canvas bottom gap ~19 px"
+  ],
+  "unresolved": [
+    "fine panel shadows, inner highlights and clipped-corner protrusions may extend 1-3 px beyond listed bounds",
+    "exact glyph baselines, font metrics, authored letter spacing and shadow offsets were not measured at subpixel level",
+    "paragraph grouping is inferred from visible vertical gaps; static pixels do not expose source markup",
+    "the exact widths of translation-option hit areas and evidence table columns cannot be recovered beyond visible frame divisions",
+    "micro-details inside source, scales, copy and exclamation icons are not pixel-certain",
+    "the simultaneous presence of article content, evidence empty state and missing-article state is recorded as target composition only, not runtime-state logic"
+  ]
+}

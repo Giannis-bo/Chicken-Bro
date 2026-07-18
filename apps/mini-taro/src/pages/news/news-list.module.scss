@@ -1,0 +1,47 @@
+.region {
+  min-width: 0;
+  flex: 0 0 auto;
+}
+
+.summary {
+  width: calc(100% - 15.34px);
+  height: 66.81px;
+  margin-right: 7.67px;
+  margin-left: 7.67px;
+}
+
+.category {
+  width: calc(100% - 27.98px);
+  height: 47.4px;
+  margin-right: 13.99px;
+  margin-left: 13.99px;
+}
+
+.results {
+  width: calc(100% - 31.6px);
+  min-height: 423.82px;
+  margin-top: 10.83px;
+  margin-right: 15.8px;
+  margin-left: 15.8px;
+}
+
+.terminal {
+  width: calc(100% - 27.98px);
+  height: 155.28px;
+  margin-top: 7.35px;
+  margin-right: 13.99px;
+  margin-left: 13.99px;
+}
+
+.terminal[data-terminal-mode='more'],
+.terminal[data-terminal-mode='complete'] {
+  height: 72px;
+}
+
+.disclaimer {
+  width: calc(100% - 24px);
+  height: 28px;
+  margin-top: 6px;
+  margin-right: 12px;
+  margin-left: 12px;
+}

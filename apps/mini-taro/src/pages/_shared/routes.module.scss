@@ -1,0 +1,105 @@
+.section {
+  display: grid;
+  gap: var(--section-gap);
+}
+
+.sectionTitle {
+  display: block;
+  color: var(--wow-fg-strong);
+  font-size: 16px;
+  font-weight: 750;
+  line-height: 22px;
+}
+
+.statePanel {
+  display: flex;
+  min-height: 120px;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-6);
+}
+
+.newsLoading {
+  display: grid;
+  gap: var(--section-gap-lg);
+}
+
+.newsLoadingBriefing {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-6);
+  margin-top: var(--space-6);
+}
+
+.newsLoadingCrest {
+  width: 72px;
+  height: 64px;
+  border: 1px solid var(--wow-line-brass-dim);
+  border-radius: var(--radius-sm);
+  background: var(--wow-surface-inset);
+  box-shadow: var(--inner-bevel);
+}
+
+.newsLoadingCopy {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.newsLoadingMetrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin-top: var(--space-6);
+}
+
+.newsLoadingMetric {
+  display: grid;
+  min-height: 52px;
+  align-content: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-left: 2px solid var(--wow-line-brass-dim);
+  background: var(--wow-surface-inset);
+}
+
+.skeletonLine,
+.skeletonStrong,
+.skeletonShort {
+  width: 100%;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--wow-line-panel);
+  animation: routeSkeletonPulse 1.6s ease-in-out infinite;
+}
+
+.skeletonStrong {
+  width: 82%;
+  height: 13px;
+  background: var(--wow-line-brass-dim);
+}
+
+.skeletonShort { width: 48%; }
+
+@keyframes routeSkeletonPulse {
+  0%, 100% { opacity: 0.42; }
+  50% { opacity: 0.82; }
+}
+
+.routeStateMarker {
+  display: none;
+}
+
+.staleNotice {
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--wow-line-panel);
+  border-left: 3px solid var(--wow-status-stale);
+  border-radius: var(--radius-sm);
+  background: var(--wow-surface-inset);
+  box-shadow: var(--inner-bevel);
+}
+
+@media (max-width: 374px) {
+  .newsLoadingBriefing { grid-template-columns: 60px minmax(0, 1fr); gap: var(--space-4); }
+  .newsLoadingCrest { width: 60px; height: 56px; }
+}

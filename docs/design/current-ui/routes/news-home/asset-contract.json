@@ -1,0 +1,201 @@
+{
+  "schemaVersion": 1,
+  "route": "news_home",
+  "status": "wechat_verified",
+  "authority": "docs/plans/ui-reconstruction.md",
+  "productionRegistryStatus": "wechat_verified_production",
+  "generationPolicy": {
+    "imagegenAllowed": true,
+    "isolationRequired": true,
+    "mainSessionImagePayloadAllowed": false,
+    "batchRule": "generate coherent families after component slots and dimensions are implemented",
+    "stateVariantRule": "default and selected variants share one alpha silhouette and optical box; selected changes only tone and inner glow",
+    "factualMediaRule": "never generate a specific article, event, item, class, source, or official image as runtime fact"
+  },
+  "slots": [
+    {
+      "slotId": "news.frame.family",
+      "owners": [
+        "NewsHomeBrief",
+        "FeaturedCarousel",
+        "ChannelDock",
+        "RankedFeed",
+        "TabBar"
+      ],
+      "variants": [
+        "panel",
+        "media",
+        "tile",
+        "feed",
+        "tab"
+      ],
+      "format": "transparent PNG 9-slice or CSS-compatible edge atlas",
+      "visualRole": "dark metal frame with muted brass inner highlight and small cut corners",
+      "factRisk": "none",
+      "currentFallback": "single CSS fallback outline only when the raster frame is unavailable",
+      "productionStatus": "wechat_verified_production"
+    },
+    {
+      "slotId": "news.daily.emblem",
+      "owners": [
+        "NewsHomeBrief"
+      ],
+      "variants": [
+        "default"
+      ],
+      "aspect": "approximately 1.06:1",
+      "visualRole": "neutral compass/shield medallion with blue gem",
+      "factRisk": "none",
+      "currentFallback": "CSS medallion and utility compass glyph",
+      "productionStatus": "wechat_verified_production"
+    },
+    {
+      "slotId": "news.hero.fallback",
+      "owners": [
+        "FeaturedCarousel"
+      ],
+      "variants": [
+        "neutral-editorial"
+      ],
+      "aspect": "2.08:1",
+      "visualRole": "dark non-factual editorial material that supports overlaid copy",
+      "forbiddenContent": [
+        "specific WoW location",
+        "specific event",
+        "specific item",
+        "official logo",
+        "readable text"
+      ],
+      "factRisk": "high",
+      "currentFallback": "neutral CSS editorial material without a factual or decorative media glyph",
+      "productionStatus": "wechat_verified_production"
+    },
+    {
+      "slotId": "news.feed.fallback",
+      "owners": [
+        "RankedFeed"
+      ],
+      "variants": [
+        "neutral-thumbnail"
+      ],
+      "aspect": "1.54:1",
+      "visualRole": "neutral thumbnail material distinct from the hero fallback",
+      "forbiddenContent": [
+        "specific item",
+        "specific character",
+        "specific event",
+        "official logo",
+        "readable text"
+      ],
+      "factRisk": "high",
+      "currentFallback": "neutral CSS thumbnail material without a factual or decorative media glyph",
+      "productionStatus": "wechat_verified_production"
+    },
+    {
+      "slotId": "news.metric.glyphs",
+      "owners": [
+        "NewsHomeBrief"
+      ],
+      "variants": [
+        "headline-document",
+        "updates-alert",
+        "balance-scales",
+        "events-calendar"
+      ],
+      "visualRole": "small brass utility glyph family",
+      "factRisk": "none",
+      "currentFallback": "code-native utility vectors",
+      "productionStatus": "wechat_verified_production"
+    },
+    {
+      "slotId": "news.channel.glyphs",
+      "owners": [
+        "ChannelDock"
+      ],
+      "variants": [
+        "all-compass",
+        "class-helmet",
+        "mythic-key",
+        "gear-armor",
+        "system-reticle",
+        "more-grid"
+      ],
+      "visualRole": "six category medallions with one shared silhouette and stroke family",
+      "factRisk": "low",
+      "currentFallback": "code-native utility vectors",
+      "productionStatus": "wechat_verified_production"
+    },
+    {
+      "slotId": "news.evidence.glyph",
+      "owners": [
+        "PageFrame",
+        "NewsHomeBrief",
+        "FeaturedCarousel",
+        "RankedFeed"
+      ],
+      "variants": [
+        "source",
+        "verified",
+        "fallback",
+        "unavailable"
+      ],
+      "visualRole": "small evidence marker; never a large decorative badge",
+      "factRisk": "medium",
+      "visibilityRule": "render only with a real source or explicit fallback state",
+      "currentFallback": "code-native utility vectors",
+      "productionStatus": "wechat_verified_production"
+    },
+    {
+      "slotId": "news.favorite.glyph",
+      "owners": [
+        "PageFrame"
+      ],
+      "variants": [
+        "default",
+        "selected"
+      ],
+      "visualRole": "header favorite action with a clear star silhouette and no built-in container",
+      "factRisk": "none",
+      "currentFallback": "code-native star vector",
+      "productionStatus": "wechat_verified_production"
+    },
+    {
+      "slotId": "news.bookmark.glyph",
+      "owners": [
+        "RankedFeed"
+      ],
+      "variants": [
+        "default",
+        "selected"
+      ],
+      "visualRole": "vertical saved-item bookmark with a bottom notch and no built-in container",
+      "factRisk": "none",
+      "currentFallback": "code-native bookmark vector",
+      "productionStatus": "wechat_verified_production"
+    },
+    {
+      "slotId": "product.tab.glyphs",
+      "owners": [
+        "TabBar"
+      ],
+      "variants": [
+        "news-scroll",
+        "spec-medallion",
+        "captain-shield",
+        "profile-helmet"
+      ],
+      "visualRole": "primary navigation icon family",
+      "factRisk": "none",
+      "currentFallback": "current runtime utility vectors",
+      "productionStatus": "wechat_verified_production"
+    }
+  ],
+  "slicingRequirements": [
+    "all raster outputs retain source master and deterministic slice metadata",
+    "1x and 2x runtime sizes are generated from the same master",
+    "transparent padding is measured and excluded from layout bounds",
+    "icons share optical box, baseline, stroke weight, active treatment, and naming",
+    "asset manifest records hash, dimensions, bytes, owner, slot, variant, source class, and review status"
+  ],
+  "visibleAssetGaps": []
+}

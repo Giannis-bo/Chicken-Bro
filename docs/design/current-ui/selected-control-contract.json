@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 3,
+  "status": "active",
+  "authority": "docs/plans/ui-reconstruction.md",
+  "materialOwnership": {
+    "attribute": "data-selection-material",
+    "activeValue": "active",
+    "inactiveValue": "inactive",
+    "controlMaterialOwner": "css",
+    "boundaryAttribute": "data-leading-boundary",
+    "boundaryValues": ["active", "suppressed", "inactive"],
+    "policy": "every available control must have exactly one material owner matching its selected or active state",
+    "boundaryPolicy": "selected segmented controls own both visual boundaries; inactive separators and pseudo-element borders must not render through or immediately beside the active material"
+  },
+  "groups": [
+    { "route": "news_home", "path": "/pages/news/news", "role": "product-tab-item", "state": "selected", "boundaryMode": "contiguous", "minimumControls": 4, "minimumActive": 1, "maximumActive": 1 },
+    { "route": "news_home", "path": "/pages/news/news", "role": "channel-segment", "state": "selected", "boundaryMode": "contiguous", "minimumControls": 4, "minimumActive": 1, "maximumActive": 1 },
+    { "route": "news_list", "path": "/pages/news/list", "role": "news-list-category", "state": "selected", "boundaryMode": "isolated", "minimumControls": 2, "minimumActive": 1, "maximumActive": 1 },
+    { "route": "news_detail", "path": "/pages/news/detail?id=architecture-preflight", "role": "news-detail-translation-segment", "state": "selected", "boundaryMode": "contiguous", "minimumControls": 3, "minimumActive": 1, "maximumActive": 1 },
+    { "route": "gear_detail", "path": "/pages/builds/detail?query=gear", "role": "gear-profession-option", "state": "active", "boundaryMode": "isolated", "minimumControls": 1, "minimumActive": 1, "maximumActive": 1 },
+    { "route": "gear_detail", "path": "/pages/builds/detail?query=gear", "role": "gear-slot-row", "state": "active", "boundaryMode": "isolated", "minimumControls": 1, "minimumActive": 0, "maximumActive": 1 },
+    { "route": "gear_detail", "path": "/pages/builds/detail?query=gear", "role": "gear-enhancement-option", "state": "active", "boundaryMode": "isolated", "minimumControls": 0, "minimumActive": 0, "maximumActive": 1 },
+    { "route": "talent_simulator", "path": "/pages/builds/talent-simulator", "role": "talent-tree-tab", "state": "active", "boundaryMode": "contiguous", "minimumControls": 2, "minimumActive": 1, "maximumActive": 1, "unavailableRouteStates": ["stale", "error"] },
+    { "route": "SimC_submit", "path": "/pages/simulator/simc", "role": "simc-specialization-option", "state": "selected", "boundaryMode": "isolated", "minimumControls": 1, "minimumActive": 1, "maximumActive": 1 },
+    { "route": "SimC_submit", "path": "/pages/simulator/simc", "role": "simc-scenario-option", "state": "selected", "boundaryMode": "isolated", "minimumControls": 2, "minimumActive": 1, "maximumActive": 1 },
+    { "route": "tasks_list", "path": "/pages/simulator/tasks", "role": "task-status-filter", "state": "selected", "boundaryMode": "contiguous", "minimumControls": 4, "minimumActive": 1, "maximumActive": 1 }
+  ]
+}

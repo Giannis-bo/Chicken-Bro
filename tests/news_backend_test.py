@@ -1403,6 +1403,30 @@ class NewsBackendTest(unittest.TestCase):
             [channel["updateCount"] for channel in payload["channels"]],
             [2, 1, 1],
         )
+        self.assertEqual(
+            {metric["key"]: metric["value"] for metric in payload["metrics"]},
+            {"today": "4", "updates": "4", "class-change": "1", "events": "0", "ptr": "1"},
+        )
+
+    def test_news_target_categories_have_deterministic_titles_and_filters(self):
+        articles = [
+            {"id": "mplus", "title": "Mythic+ keystone changes", "tags": ["mythic-plus"]},
+            {"id": "gear", "title": "New trinket and armor rewards", "tags": ["gear"]},
+            {"id": "system", "title": "Warband system interface update", "tags": ["system"]},
+        ]
+
+        expected = {
+            "mythic-plus": ("大秘境", "mplus"),
+            "gear": ("装备", "gear"),
+            "system": ("系统", "system"),
+        }
+        for key, (title, article_id) in expected.items():
+            query = {"type": "metric", "key": key}
+            self.assertEqual(self.backend.article_list_title(query), title)
+            self.assertEqual(
+                [article["id"] for article in self.backend.filter_articles(articles, query)],
+                [article_id],
+            )
 
     def test_news_home_and_list_prioritize_newest_published_articles(self):
         def article(article_id, importance, published_at):
@@ -1452,7 +1476,7 @@ class NewsBackendTest(unittest.TestCase):
             list_payload = self.backend.build_article_list_payload({"type": "metric", "key": "today"})
 
         self.assertEqual(home["heroNews"][0]["id"], "new-published")
-        self.assertEqual(home["highlights"][0]["id"], "new-published")
+        self.assertEqual(home["highlights"], [])
         self.assertEqual(list_payload["articles"][0]["id"], "new-published")
 
     def test_load_articles_does_not_publish_seed_without_source_translation_when_collectors_are_missing(self):

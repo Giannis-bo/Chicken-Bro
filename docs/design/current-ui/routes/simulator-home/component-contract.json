@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "route": "simulator_home",
+  "status": "component_contract_complete",
+  "implementationStatus": "implemented_visual_debt_open",
+  "authority": "docs/plans/ui-reconstruction.md",
+  "components": [
+    {
+      "owner": "AppShell",
+      "regions": [
+        "page_frame",
+        "product_tab_bar"
+      ],
+      "responsibility": "tab-root safe areas, route surface and shared product navigation mounting"
+    },
+    {
+      "owner": "PageFrame",
+      "variant": "simulator-home",
+      "regions": [
+        "header_bar"
+      ],
+      "responsibility": "capsule-safe centered title and captain new-topic action"
+    },
+    {
+      "owner": "SimulatorGuidancePanel",
+      "regions": [
+        "analysis_guidance_panel"
+      ],
+      "responsibility": "truth-safe context readiness and exactly three suggested prompt rows"
+    },
+    {
+      "owner": "SimulatorTranscript",
+      "regions": [
+        "chat_transcript"
+      ],
+      "responsibility": "bounded internal conversation scroll with real message roles, states and source metadata"
+    },
+    {
+      "owner": "SimulatorEvidenceShelf",
+      "regions": [
+        "evidence_shelf"
+      ],
+      "responsibility": "two real-or-blocked evidence reference cards and one unavailable ingestion card"
+    },
+    {
+      "owner": "SimulatorComposer",
+      "regions": [
+        "message_composer"
+      ],
+      "responsibility": "draft input, unsupported ingestion affordances, send, loading and retry"
+    },
+    {
+      "owner": "ProductTabBar",
+      "regions": [
+        "product_tab_bar"
+      ],
+      "responsibility": "four equal registered product destinations with stable selected geometry"
+    }
+  ],
+  "rejectedReuse": [
+    {
+      "owner": "ChatShell",
+      "reason": "the generic fixed input dock omits the target evidence shelf and target-owned guidance, transcript and composer region geometry"
+    },
+    {
+      "owner": "EvidenceLedger",
+      "reason": "the target uses a horizontal three-card evidence shelf, not a table or ledger"
+    },
+    {
+      "owner": "WowPanel",
+      "reason": "generic titled cards cannot own the seven fixed target regions"
+    },
+    {
+      "owner": "RouteStatePanel",
+      "reason": "route state must inhabit the existing target regions instead of adding a card"
+    }
+  ],
+  "layoutContract": {
+    "targetWidthPx": 834,
+    "targetHeightPx": 1886,
+    "baselineCssViewport": {
+      "width": 390,
+      "height": 882,
+      "dpr": 2
+    },
+    "stableRegionCount": 7,
+    "stableSuggestedPromptCount": 3,
+    "stableEvidenceCardCount": 3,
+    "stableComposerActionCount": 3,
+    "stableProductTabCount": 4,
+    "transcriptSurface": "internal vertical scroll; message count follows truth and does not inherit the target placeholder count",
+    "pageScroll": "none at baseline; transcript scrolls internally"
+  },
+  "stateContract": {
+    "stableRegionCount": 7,
+    "stableSuggestedPromptCount": 3,
+    "stableEvidenceCardCount": 3,
+    "stableComposerActionCount": 3,
+    "stableProductTabCount": 4,
+    "loadingMustNotCollapse": true,
+    "emptyMustNotCollapse": true,
+    "errorMustNotCollapse": true
+  }
+}

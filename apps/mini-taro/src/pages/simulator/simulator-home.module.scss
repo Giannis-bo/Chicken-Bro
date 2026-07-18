@@ -1,0 +1,41 @@
+.pageFrame {
+  --guidance-height: 220px;
+  height: 100%;
+  min-height: 0;
+  background:
+    linear-gradient(180deg, rgba(18, 20, 23, 0.98), rgba(7, 9, 11, 0.995)),
+    #080a0c;
+}
+
+.guidanceRegion,
+.transcriptRegion,
+.evidenceRegion {
+  position: absolute;
+}
+
+.guidanceRegion {
+  top: 59px;
+  left: 10px;
+  right: 10px;
+  height: var(--guidance-height);
+  min-height: 220px;
+  max-height: 251px;
+}
+
+.transcriptRegion {
+  top: calc(69px + var(--guidance-height));
+  bottom: 99px;
+  left: 15px;
+  right: 19px;
+  height: auto;
+}
+
+.evidenceRegion {
+  top: auto;
+  bottom: 0;
+  left: 10px;
+  right: 12px;
+  height: 93px;
+}
+
+.composerDock { width: 100%; height: 87px; }

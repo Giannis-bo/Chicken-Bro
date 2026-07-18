@@ -1,49 +1,35 @@
 # 文档地图
 
-`docs/` 里现在保留两类文档：
-
-- 当前契约：roadmap、架构文档和 runbook。凡是要改产品行为、数据契约、部署、模拟链路或 WebSim / SimC 逻辑，先看这里。
-- 历史证据：带日期的实施计划、审计、交接和 Agent 产物。它们解释过去为什么这么做，但除非被当前契约明确引用，否则不作为最新决策入口。
+`docs/` 只保留当前契约，以及被当前架构或 runbook 精确引用的领域记录。只有本页和这些文档继续链接的文件可以进入执行上下文；Git 历史承担过程归档。
 
 ## 先看这里
 
 | 需求 | 当前文档 | 说明 |
 | --- | --- | --- |
-| 当前机器可读状态、feature freeze、active release artifact | [project-state.json](project-state.json) | Standard / Strict 工作的第一入口；列出 active milestone、accepted baselines、historical contracts 和当前 release packet。 |
-| 产品方向、里程碑和状态 | [roadmap.md](roadmap.md) | 长期控制台；功能落地后在这里更新状态和证据。 |
-| 还没进入正式里程碑的想法 | [roadmap/ideas.md](roadmap/ideas.md) | 想法池和已采纳索引。 |
-| 文档结构、历史计划落点 | [plans/README.md](plans/README.md) | 记录 `docs/plans/` 每份历史计划现在对应的真实入口。 |
-| 需求挑战、方案门禁和交付 Harness | [harness.md](harness.md) | 所有需求进入实现前的分级、质疑、用户确认和证据晋级规则。 |
-| Harness 工程规范化完成基线 | [project-state.json](project-state.json), [plans/2026-07-10-project-harness-normalization-goal-plan.md](plans/2026-07-10-project-harness-normalization-goal-plan.md), [../artifacts/releases/2026-07-10-project-harness-normalization/closure-audit.json](../artifacts/releases/2026-07-10-project-harness-normalization/closure-audit.json) | B 路线已完成；后续需求和功能迭代恢复为 `allowed_under_harness`，但必须继续使用 Harness contract、owner map、active release packet、verification profiles、CI 和 runtime candidate gate。 |
-| Phase 4 PG read-model 逐 PR 历史 | [roadmap/history/2026-07-phase4-pg-read-model.md](roadmap/history/2026-07-phase4-pg-read-model.md) | 从 roadmap 顶部迁出的候选部署、验证和合入日志；当前结论仍以 `project-state.json` 和 roadmap 顶部为准。 |
-| 项目级 critical domain owner map | [project-owner-map.json](project-owner-map.json) | 16 个冻结 critical domain 的一级 fact/write owner、consumer、public contract、verification profile 和 release trigger。 |
-| 统一验证 profiles 和 CI 入口 | [verification-matrix.md](verification-matrix.md) | `harness` / `backend` / `frontend` / `full` profile 的本地与 PR CI 执行入口。 |
-| 后端热点文件 owner map / 重构前 characterization | [backend-owner-map.json](backend-owner-map.json) | `websim_payload.py`、`news_backend.py`、`postgres_cache_store.py` 拆分前的 owner、禁止改变项和 characterization anchors。 |
-| 职业专精、天赋、装备、SimC 入口 | [builds-architecture.md](builds-architecture.md) | 职业专精 tab 的产品和前后端架构。 |
-| PostgreSQL-only 运行时、schema 域、数据归属 | [database-architecture.md](database-architecture.md) | 当前数据库契约。 |
-| 装备库治理 | [gear-database-governance.md](gear-database-governance.md) | 物品、变体、宝石、附魔、美化和 health 的可信规则。 |
-| 装备模拟更新和发布流程 | [gear-simulation-full-chain-runbook.md](gear-simulation-full-chain-runbook.md) | `/api/websim/gear`、装备序列化和 readiness 运维。 |
-| 天赋模拟更新和发布流程 | [talent-simulation-full-chain-runbook.md](talent-simulation-full-chain-runbook.md) | `/api/websim/talents`、天赋规则、profile 和 simulate 运维。 |
-| 社区天赋 / 装备模板导入 | [community-template-import-full-chain-runbook.md](community-template-import-full-chain-runbook.md) | 来源真实性、同步、promotion、展示、导入和回滚。 |
-| SimC 提交和任务契约 | [simulator-simc-end-to-end.md](simulator-simc-end-to-end.md) | 当前模板到 SimC 任务链路，以及 legacy raw profile 边界。 |
-| 资讯内容服务 | [news-architecture.md](news-architecture.md) | 当前资讯后端、来源保真、翻译和内容路径。 |
-| 云端访问和运维 | [remote-debugging.md](remote-debugging.md) | 已知主机、服务路径、日志和 smoke 命令。 |
-| 视觉 / UI 规则 | [ui-style-guide.md](ui-style-guide.md) | 小程序共享 UI 约定。 |
-
-## 历史区域
-
-| 区域 | 保留为 | 当前入口 |
-| --- | --- | --- |
-| `docs/plans/` 下的日期计划 | 历史实施证据 | 先看 [plans/README.md](plans/README.md)，再看上方对应的当前契约。 |
-| `docs/superpowers/` 下的 Agent 规格和计划 | 历史执行产物 | [superpowers/README.md](superpowers/README.md)，以及其中链接到的 roadmap / runbook。 |
-| PostgreSQL identity migration runbook | 带当前状态说明的历史迁移 runbook | 活跃运行时以 [database-architecture.md](database-architecture.md) 为准。 |
-| `docs/evidence/` 下的截图或浏览器证据 | 支撑审计材料 | 以链接到该证据的 runbook 或 roadmap 条目为准。 |
+| 机器可读状态与当前发布包 | [project-state.json](project-state.json) | Standard / Strict 工作第一入口。 |
+| 产品方向、里程碑和状态 | [roadmap.md](roadmap.md) | 长期控制台。 |
+| 还没进入正式里程碑的想法 | [roadmap/ideas.md](roadmap/ideas.md) | 想法池。 |
+| 当前计划白名单 | [plans/README.md](plans/README.md) | 只有白名单中的计划拥有执行权。 |
+| 需求分级与交付门禁 | [harness.md](harness.md) | Harness 的分类、证据和关闭规则。 |
+| 关键领域 owner | [project-owner-map.json](project-owner-map.json) | 事实 owner、consumer、验证和发布触发器。 |
+| 后端热点 owner | [backend-owner-map.json](backend-owner-map.json) | 后端拆分边界与 characterization anchors。 |
+| 统一验证入口 | [verification-matrix.md](verification-matrix.md) | `harness` / `backend` / `frontend` / `full` profiles。 |
+| 职业专精、天赋、装备、SimC | [builds-architecture.md](builds-architecture.md) | 构筑产品与前后端架构。 |
+| PostgreSQL-only 运行时 | [database-architecture.md](database-architecture.md) | schema、数据归属和运行时契约。 |
+| 装备库治理 | [gear-database-governance.md](gear-database-governance.md) | 物品、变体、强化和 health 的可信规则。 |
+| 装备模拟全链路 | [gear-simulation-full-chain-runbook.md](gear-simulation-full-chain-runbook.md) | resolver、release、属性快照、导入与回滚。 |
+| 天赋模拟全链路 | [talent-simulation-full-chain-runbook.md](talent-simulation-full-chain-runbook.md) | 天赋规则、profile 和 simulate 运维。 |
+| 社区模板导入 | [community-template-import-full-chain-runbook.md](community-template-import-full-chain-runbook.md) | 来源、同步、promotion、展示和回滚。 |
+| SimC 任务链路 | [simulator-simc-end-to-end.md](simulator-simc-end-to-end.md) | 模板到任务与报告。 |
+| 资讯内容服务 | [news-architecture.md](news-architecture.md) | 来源、翻译和内容路径。 |
+| 云端运维 | [remote-debugging.md](remote-debugging.md) | 主机、服务、日志和 smoke。 |
+| 14 路由 Target-First 重建 | [plans/ui-reconstruction.md](plans/ui-reconstruction.md) | 当前唯一 UI 执行计划。 |
+| 当前 UI 控制面 | [design/current-ui/README.md](design/current-ui/README.md) | Target registry、证据策略和逐路由合同。 |
+| 稳定设计合同 | [../DESIGN.md](../DESIGN.md) | 设计语言、组件和素材边界。 |
 
 ## 维护规则
 
-- 不要再把一次性实施笔记直接放到 `docs/` 顶层。
-- 活跃产品方向放进 `roadmap.md` 或 `roadmap/ideas.md`。
-- 可复用运维流程放进对应 runbook。
-- 稳定系统契约放进对应 architecture / governance 文档。
-- `docs/plans/` 下的日期计划作为历史实施证据保留，不为了匹配当前行为而改写旧文档。
-- 计划落地或被取代后，更新 [plans/README.md](plans/README.md) 的状态和当前入口，不再新增中间态说明文档。
+- 一次性实施、思考、审计和交接记录不进入长期文档。
+- 活跃方向进 roadmap；稳定事实进 architecture / governance / runbook；多步骤执行只进计划白名单。
+- 计划落地或被替代后删除文件并移出白名单，Git 历史即归档。
+- 证据保存在 release packet 或当前 UI 控制面明确登记的位置，不复制成叙事流水。

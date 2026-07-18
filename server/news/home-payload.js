@@ -10,6 +10,14 @@ const trustedSources = [
   { name: 'Icy Veins', hostnames: ['www.icy-veins.com'] }
 ]
 
+const METRIC_PATTERNS = {
+  updates: /content-update|hotfix|patch|ptr|beta|class-change|更新|热修|测试服|职业调整/,
+  events: /event|trading-post|weekly|rewards|活动|商栈|周报|奖励|timeways/,
+  'mythic-plus': /mythic[- ]?plus|mythic\+|keystone|m\+|大秘|史诗钥石|秘境/,
+  gear: /gear|item|loot|trinket|weapon|armor|tier[- ]?set|equipment|装备|物品|战利品|饰品|武器|护甲|套装/,
+  system: /system|feature|interface|warband|delve|housing|profession|collection|account|系统|功能|界面|战团|地下堡|住房|专业|收藏|账号/
+}
+
 function isValidDate(value) {
   return /^\d{4}-\d{2}-\d{2}$/.test(value || '')
 }
@@ -128,6 +136,32 @@ function countByChannel(stories, channelTitle) {
   return stories.filter((story) => story.channel === channelTitle).length
 }
 
+function storySearchText(story) {
+  return [
+    story.title,
+    story.summary,
+    story.channel,
+    story.category,
+    story.sourceName,
+    story.sourceTier,
+    story.verificationStatus,
+    ...(story.tags || []),
+    ...(story.tagItems || []).map((tag) => `${tag.id || ''} ${tag.label || ''}`)
+  ].join(' ').toLowerCase()
+}
+
+function filterStoriesByMetric(stories, key) {
+  if (key === 'today') return stories
+  if (key === 'class-change') {
+    return stories.filter((story) => (story.tags || []).includes('class-change'))
+  }
+  if (key === 'ptr') {
+    return stories.filter((story) => story.channel === '测试服前瞻')
+  }
+  const pattern = METRIC_PATTERNS[key]
+  return pattern ? stories.filter((story) => pattern.test(storySearchText(story))) : stories
+}
+
 function channelsWithCounts(stories) {
   return CHANNELS.map((channel) => ({
     ...channel,
@@ -143,11 +177,13 @@ function buildNewsHomePayload(articles, refreshState = {}) {
     heroNews: stories.slice(0, 3),
     metrics: [
       { key: 'today', value: String(stories.length), label: '今日更新' },
+      { key: 'updates', value: String(filterStoriesByMetric(stories, 'updates').length), label: '更新' },
       { key: 'class-change', value: String(countByTag(stories, 'class-change')), label: '职业变动' },
+      { key: 'events', value: String(filterStoriesByMetric(stories, 'events').length), label: '活动' },
       { key: 'ptr', value: String(stories.filter((story) => story.channel === '测试服前瞻').length), label: '测试服重点' }
     ],
     channels: channelsWithCounts(stories),
-    highlights: stories.slice(0, 6),
+    highlights: stories.slice(3, 9),
     lastRefreshedAt: refreshState.lastRefreshedAt || '',
     refreshMode: refreshState.refreshMode || 'bootstrap'
   }
@@ -174,6 +210,7 @@ function createRefreshState(refreshMode = 'scheduled', now = new Date().toISOStr
 module.exports = {
   buildNewsHomePayload,
   createRefreshState,
+  filterStoriesByMetric,
   shouldAutoRefresh,
   trustedSources
 }

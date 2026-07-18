@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "assetId": "news-detail-terminal-medallion.default",
+  "reviewedPath": "packages/design-system/assets/raster/news-detail-v1/runtime/2x/news-detail-terminal-medallion.default.png",
+  "reviewedVisualSourcePath": "local-generation-output-not-retained",
+  "reviewContext": "disposable_isolated_single_asset",
+  "verdict": "pass_for_canary",
+  "summary": "45 度菱形轮廓、暗青铜宽面和暖金双细边在 40x40 光学盒中清楚，中心菱形孔完全留空；未内置文字、状态结论、感叹号、勾叉或其他事实符号，适合作为终态候选壳。",
+  "sourceMetadata": {
+    "pixelWidth": 80,
+    "pixelHeight": 80,
+    "intendedCssWidth": 40,
+    "intendedCssHeight": 40,
+    "hasAlpha": true,
+    "format": "png",
+    "sha256": "dd24eb50594b2176f31da165ed72f8f0e0c1063f1aaa66d3b3efbc803a2e4237"
+  },
+  "findings": [
+    {
+      "criterion": "composition_and_centering",
+      "status": "pass",
+      "detail": "四个菱角完整、中心孔居中，水平和垂直轴稳定，适配 40x40 CSS 光学盒。"
+    },
+    {
+      "criterion": "silhouette_and_family_material",
+      "status": "pass",
+      "detail": "菱形与另外两件圆/盾轮廓形成角色区分，同时复用同一暗青铜/近黑金属和暖金双边材质语言。"
+    },
+    {
+      "criterion": "neutral_terminal_semantics",
+      "status": "pass",
+      "detail": "素材仅提供终态壳，不预设 loading、ready、missing、error 或 blocked 结论，不含文字、勾叉、感叹号或状态色。"
+    },
+    {
+      "criterion": "transparent_center_clearance",
+      "status": "pass",
+      "detail": "中心 alpha 为 0；DPR2 横向/纵向连续透明净空均为 46 像素，DPR1 为 21x22 像素，菱形孔在两档密度均保留。"
+    },
+    {
+      "criterion": "alpha_and_chroma_cleanup",
+      "status": "pass",
+      "detail": "四角及最外缘 alpha 均为 0，可见绿边比例为 0，未见矩形底色或残留键色。"
+    },
+    {
+      "criterion": "prohibited_artifacts",
+      "status": "pass",
+      "detail": "未见文字、数字、伪文字、品牌、水印、事实物件、状态结论或错误透视；OCR 为空。"
+    }
+  ],
+  "integrationNotes": [
+    "按 80x80 像素资源映射到 40x40 CSS 光学盒，保持 alpha、居中和 1:1 比例。",
+    "菱形中心的轴向净空充足，但后续 glyph 必须保持紧凑并在 NewsDetailTerminalPanel 中做单独组合复核。",
+    "本结论仅批准 candidate registry canary，不代表组件接入、页面目标对齐、运行时验收或 production promotion。"
+  ],
+  "mainSessionImagePayloadUsed": false,
+  "productionPromoted": false
+}

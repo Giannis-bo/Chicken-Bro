@@ -1,0 +1,190 @@
+{
+  "schemaVersion": "target-inventory-v1",
+  "route": "profile/templates",
+  "authority": "canonical_target",
+  "source": {
+    "path": "artifacts/ui-visual-targets/current/profile-templates.png",
+    "width": 813,
+    "height": 1934,
+    "bytes": 1871944,
+    "sha256": "8448acce4a97fbc7b2d477cff1c8329f773cc2d86fbfae332242eef48e29d455"
+  },
+  "measurement": {
+    "targetOnly": true,
+    "runtimeInputsUsed": false
+  },
+  "topology": {
+    "root": "page_frame",
+    "regionOrder": ["page_frame", "page_header", "profile_summary", "template_library", "recent_saves", "settings_support", "product_tabbar"],
+    "pageChildren": ["page_header", "profile_summary", "template_library", "recent_saves", "settings_support", "product_tabbar"],
+    "flow": "centered title, profile summary, two template library cards, two recent saved templates, four settings rows, four-item bottom product navigation"
+  },
+  "visibleText": {
+    "instanceCount": 37,
+    "byRegion": [
+      {
+        "region": "page_header",
+        "items": ["我的"]
+      },
+      {
+        "region": "profile_summary",
+        "items": ["点击设置昵称", "未设置个性签名", "本地模式", "天赋模板", "--", "装备模板", "--", "档案状态", "未创建"]
+      },
+      {
+        "region": "template_library",
+        "items": ["模板库", "天赋模板", "创建与管理天赋方案", "装备模板", "搭配与管理装备方案"]
+      },
+      {
+        "region": "recent_saves",
+        "items": ["最近保存", "全部", "天赋方案 · 方案一", "天赋模板", "刚刚保存", "删除", "装备搭配 · 方案一", "装备模板", "刚刚保存", "删除"]
+      },
+      {
+        "region": "settings_support",
+        "items": ["设置与支持", "角色与服务器", "未设置", "职业偏好", "未设置", "数据源设置", "本地模式", "帮助与反馈"]
+      },
+      {
+        "region": "product_tabbar",
+        "items": ["最新资讯", "职业专精", "智能分析", "我的"]
+      }
+    ]
+  },
+  "elementCounts": {
+    "regionDefinitions": 7,
+    "firstLevelRegions": 6,
+    "visibleTextInstances": 37,
+    "profileMetricCells": 3,
+    "templateCategoryCards": 2,
+    "recentSaveRows": 2,
+    "recentSaveTimestampChips": 2,
+    "recentSaveDeleteActions": 2,
+    "settingsRows": 4,
+    "settingsValueLabels": 3,
+    "tabBarItems": 4,
+    "activeTabItems": 1,
+    "visibleButtons": 14,
+    "chevronIndicators": 7,
+    "assetSlotGroups": 15,
+    "assetSlotInstances": 37
+  },
+  "fixedElementCounts": {
+    "targetConfirmedRuntimeFixedPositionElements": 0,
+    "visuallyBottomAnchoredCandidates": 1,
+    "fixedCountBasis": "The product tab bar is visibly anchored at the bottom edge of the target; fixed or sticky runtime behavior is unresolved."
+  },
+  "assetSlots": {
+    "groups": [
+      {
+        "id": "page_frame_chrome",
+        "regions": ["page_frame"],
+        "count": 1,
+        "visibleRole": "full-canvas dark textured surface and ornamental page framing",
+        "instances": ["page_perimeter"]
+      },
+      {
+        "id": "top_header_ornaments",
+        "regions": ["page_header"],
+        "count": 5,
+        "visibleRole": "gold divider lines and diamond ornaments flanking the title",
+        "instances": ["top_left_rule", "top_left_diamond", "top_center_left_diamond", "top_center_right_diamond", "top_right_rule"]
+      },
+      {
+        "id": "profile_avatar_placeholder",
+        "regions": ["profile_summary"],
+        "count": 1,
+        "visibleRole": "large circular gray silhouette avatar placeholder",
+        "instances": ["profile_avatar_silhouette"]
+      },
+      {
+        "id": "profile_edit_icon",
+        "regions": ["profile_summary"],
+        "count": 1,
+        "visibleRole": "small pencil glyph beside the nickname prompt",
+        "instances": ["nickname_edit_pencil"]
+      },
+      {
+        "id": "local_mode_icon",
+        "regions": ["profile_summary"],
+        "count": 1,
+        "visibleRole": "small storage-device glyph inside the local-mode badge",
+        "instances": ["local_mode_storage_icon"]
+      },
+      {
+        "id": "profile_metric_icons",
+        "regions": ["profile_summary"],
+        "count": 3,
+        "visibleRole": "gold icons for talent templates, gear templates, and archive status",
+        "instances": ["metric_talent_book", "metric_gear_shield", "metric_archive_scroll"]
+      },
+      {
+        "id": "template_category_icons",
+        "regions": ["template_library"],
+        "count": 2,
+        "visibleRole": "large circular icons for the two template library categories",
+        "instances": ["library_talent_tree_icon", "library_gear_chest_icon"]
+      },
+      {
+        "id": "chevron_icons",
+        "regions": ["template_library", "recent_saves", "settings_support"],
+        "count": 7,
+        "visibleRole": "right-pointing chevrons for category cards, the all link, and settings rows",
+        "instances": ["library_talent_chevron", "library_gear_chevron", "recent_all_chevron", "setting_character_chevron", "setting_profession_chevron", "setting_data_source_chevron", "setting_help_chevron"]
+      },
+      {
+        "id": "recent_template_icons",
+        "regions": ["recent_saves"],
+        "count": 2,
+        "visibleRole": "square thumbnail icons for the two recent saved templates",
+        "instances": ["recent_talent_template_icon", "recent_gear_template_icon"]
+      },
+      {
+        "id": "recent_timestamp_icons",
+        "regions": ["recent_saves"],
+        "count": 2,
+        "visibleRole": "small clock glyph inside each saved-time chip",
+        "instances": ["recent_talent_time_clock", "recent_gear_time_clock"]
+      },
+      {
+        "id": "recent_delete_icons",
+        "regions": ["recent_saves"],
+        "count": 2,
+        "visibleRole": "trash glyph in each delete action column",
+        "instances": ["recent_talent_delete_trash", "recent_gear_delete_trash"]
+      },
+      {
+        "id": "settings_row_icons",
+        "regions": ["settings_support"],
+        "count": 4,
+        "visibleRole": "left-side gold icons for character, profession, data source, and help settings",
+        "instances": ["setting_character_person", "setting_profession_crossed_weapons", "setting_data_source_database", "setting_help_question"]
+      },
+      {
+        "id": "tabbar_chrome",
+        "regions": ["product_tabbar"],
+        "count": 1,
+        "visibleRole": "large ornamental bottom navigation frame",
+        "instances": ["bottom_product_nav_frame"]
+      },
+      {
+        "id": "tabbar_icons",
+        "regions": ["product_tabbar"],
+        "count": 4,
+        "visibleRole": "icons above the four product navigation labels",
+        "instances": ["tab_news_icon", "tab_specialization_icon", "tab_analysis_icon", "tab_profile_icon"]
+      },
+      {
+        "id": "active_tab_highlight",
+        "regions": ["product_tabbar"],
+        "count": 1,
+        "visibleRole": "gold highlighted frame around the active 我的 navigation cell",
+        "instances": ["active_profile_tab_frame"]
+      }
+    ],
+    "visibleSlotCount": 37
+  },
+  "unresolved": [
+    "The target alone cannot establish click behavior, navigation destinations, edit flows, deletion confirmation, persistence, scrolling, fixed or sticky positioning, or runtime data truth.",
+    "The gray avatar is recorded as a visible placeholder; no real user avatar or identity fact is inferred.",
+    "The visible local-mode and unset labels are recorded as target text only and do not prove storage, account, server, or API state.",
+    "Asset slots describe visible roles only and do not determine bitmap, vector, icon-font, CSS, or generated-image construction."
+  ]
+}

@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 1,
+  "route": "news_list",
+  "status": "asset_contract_complete",
+  "authority": "docs/plans/ui-reconstruction.md",
+  "targetInventory": "docs/design/current-ui/routes/news-list/target-inventory.json",
+  "componentContract": "docs/design/current-ui/routes/news-list/component-contract.json",
+  "productionRegistryStatus": "partial_reuse_only",
+  "productionPromotionAuthorized": false,
+  "generationStatus": "development_asset_family_visual_review_passed_pending_platform_promotion",
+  "generationPolicy": {
+    "context": "disposable_isolated_imagegen_and_review_after_component_bounds_stabilize",
+    "batchRule": "generate the missing pushed-header, document-medallion and terminal-emblem family only after the six-region H5 geometry gate passes",
+    "mainSessionPayloadAllowed": false,
+    "targetCropAllowed": false,
+    "factBearingGenerationAllowed": false,
+    "returnToMainSession": ["paths", "dimensions", "bytes", "hashes", "slot ids", "structured review status"]
+  },
+  "slots": [
+    {
+      "slotId": "asset_slot.news-list-surface",
+      "owners": ["AppShell"],
+      "semanticRole": "dark forged pushed-route surface",
+      "sourceClass": "css_or_imagegen_raster",
+      "factBearing": false,
+      "fallback": "near-black CSS surface",
+      "productionStatus": "css_news_material_active_cross_route_raster_forbidden"
+    },
+    {
+      "slotId": "asset_slot.pushed-back-medallion",
+      "owners": ["PageFrame"],
+      "semanticRole": "ornate clipped back-control shell",
+      "sourceClass": "shared_css_or_registered_raster",
+      "factBearing": false,
+      "fallback": "existing CSS clipped button plus pushed-back-chevron.default",
+      "productionStatus": "development_visual_review_passed_pending_route_promotion"
+    },
+    {
+      "slotId": "asset_slot.title-ornament-family",
+      "owners": ["PageFrame"],
+      "semanticRole": "mirrored title flourishes",
+      "sourceClass": "shared_css_or_registered_raster",
+      "factBearing": false,
+      "fallback": "symmetric CSS brass lines",
+      "productionStatus": "development_visual_review_passed_pending_route_promotion"
+    },
+    {
+      "slotId": "asset_slot.news-frame",
+      "owners": ["NewsListCategoryFilter", "NewsListFeed", "NewsListTerminalPanel"],
+      "semanticRole": "verified news-home frame family reused provisionally for tab, feed and panel regions",
+      "sourceClass": "imagegen_raster",
+      "variants": ["tab", "feed", "panel"],
+      "factBearing": false,
+      "fallback": "CSS cut-corner frames",
+      "productionStatus": "wechat_verified_family_development_review_passed_pending_route_promotion"
+    },
+    {
+      "slotId": "asset_slot.news-list-document-medallion",
+      "owners": ["NewsListFeed"],
+      "semanticRole": "generic non-factual document medallion",
+      "sourceClass": "imagegen_raster",
+      "factBearing": false,
+      "fallback": "utility-glyph-family.document inside a CSS metal holder",
+      "productionStatus": "development_visual_review_passed_pending_route_promotion"
+    },
+    {
+      "slotId": "asset_slot.news-evidence-glyph",
+      "owners": ["NewsListFeed"],
+      "semanticRole": "source, verified, unavailable and fallback markers",
+      "sourceClass": "imagegen_raster",
+      "factBearing": false,
+      "fallback": "registered semantic status vectors",
+      "productionStatus": "wechat_verified_family_development_review_passed_pending_route_promotion"
+    },
+    {
+      "slotId": "asset_slot.news-list-terminal-emblem",
+      "owners": ["NewsListTerminalPanel"],
+      "semanticRole": "large loading, more, complete, empty or error emblem family",
+      "sourceClass": "imagegen_raster",
+      "factBearing": false,
+      "fallback": "system document, records, shield or warning glyph inside a CSS medallion",
+      "productionStatus": "development_visual_review_passed_pending_route_promotion"
+    },
+    {
+      "slotId": "asset_slot.utility-glyph-family",
+      "owners": ["NewsListSummary", "NewsListCategoryFilter", "NewsListFeed", "TrustDisclaimer"],
+      "semanticRole": "refresh, filter, document, chevron and shield controls",
+      "sourceClass": "system_vector",
+      "factBearing": false,
+      "fallback": "text-only deterministic action",
+      "productionStatus": "development_visual_review_passed_pending_route_promotion"
+    }
+  ],
+  "visibleAssetGaps": [],
+  "promotionBlockers": [
+    "immutable runtime evidence with matching source, build and target fingerprints",
+    "explicit human review",
+    "route H5 milestone verification",
+    "route WeChat verification"
+  ],
+  "promotionCriteria": [
+    "six-region and loading/ready geometry passes at 390px DPR2",
+    "missing route-specific assets are generated and reviewed as one isolated family without embedded text",
+    "all source and translation chips derive from article truth fields",
+    "zero failed assets, visible clipping, card overlap or fabricated article media",
+    "route human, H5 and WeChat reviews pass"
+  ]
+}

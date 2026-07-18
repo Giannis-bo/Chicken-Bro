@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "route": "news_detail",
+  "status": "component_contract_complete",
+  "implementationStatus": "implemented_development_visual_review_passed",
+  "authority": "docs/plans/ui-reconstruction.md",
+  "targetInventory": "docs/design/current-ui/routes/news-detail/target-inventory.json",
+  "truthAdaptation": "docs/design/current-ui/routes/news-detail/truth-adaptation.json",
+  "compositionOwner": {
+    "name": "NewsDetailPage",
+    "location": "apps/mini-taro/src/pages/news/detail.tsx",
+    "responsibility": "compose seven target regions from one article presentation model without generic replacement state panels"
+  },
+  "components": [
+    {
+      "owner": "PageFrame",
+      "decision": "reuse_and_configure",
+      "targetRegions": ["top_bar"],
+      "location": "packages/design-system/src/components/PageFrame.tsx",
+      "requiredVariant": "news-detail",
+      "contract": { "inputs": ["title", "onBack", "variant"], "forbidden": ["kicker stack", "right product action", "product TabBar"] }
+    },
+    {
+      "owner": "NewsDetailHero",
+      "decision": "new_owner",
+      "targetRegions": ["article_header_card"],
+      "location": "packages/design-system/src/components/NewsDetailComponents.tsx",
+      "contract": { "inputs": ["title", "sourceLabel", "state", "stateLabel", "loading"], "forbidden": ["factual publisher crest without a verified asset", "article image fallback"] }
+    },
+    {
+      "owner": "TranslationStatusSegments",
+      "decision": "new_read_only_owner",
+      "targetRegions": ["translation_status"],
+      "location": "packages/design-system/src/components/NewsDetailComponents.tsx",
+      "contract": { "itemCount": 3, "itemIds": ["pending", "machine", "human"], "inputs": ["activeId", "loading"], "forbidden": ["onSelect", "alternate body claims"] }
+    },
+    {
+      "owner": "ArticleReadingSurface",
+      "decision": "new_owner",
+      "targetRegions": ["article_body"],
+      "location": "packages/design-system/src/components/NewsDetailComponents.tsx",
+      "contract": { "inputs": ["blocks", "loading"], "topology": "bounded vertical ScrollView preserving every real body block", "supportedBlockTypes": ["paragraph", "heading", "list", "quote"] }
+    },
+    {
+      "owner": "SourceReferenceAction",
+      "decision": "new_owner",
+      "targetRegions": ["source_reference_action"],
+      "location": "packages/design-system/src/components/NewsDetailComponents.tsx",
+      "contract": { "inputs": ["sourceLabel", "sourceUrlLabel", "available", "onCopy"], "forbidden": ["enabled copy for missing sourceUrl"] }
+    },
+    {
+      "owner": "ArticleEvidencePanel",
+      "decision": "new_explicit_four_field_fact_group_owner",
+      "targetRegions": ["evidence_details_panel"],
+      "location": "packages/design-system/src/components/NewsDetailComponents.tsx",
+      "contract": { "columns": ["类型", "内容摘要", "状态", "时间"], "topology": "retain the target four-field legend while populated truth renders as a two-column by two-row matrix of dedicated two-part evidence fact groups instead of four directly ruled table cells", "inputs": ["rows", "expanded", "onToggle"], "forbidden": ["credibility percentage", "generic EvidenceLedger", "four directly ruled table cells per record", "one dense ruled row stack"] }
+    },
+    {
+      "owner": "NewsDetailTerminalPanel",
+      "decision": "new_owner_with_truth_modes",
+      "targetRegions": ["missing_article_state"],
+      "location": "packages/design-system/src/components/NewsDetailComponents.tsx",
+      "contract": { "modes": ["loading", "ready", "missing", "error", "blocked"], "inputs": ["mode", "title", "detail", "actionLabel", "onAction"], "forbidden": ["missing copy beside a ready article", "generic RouteStatePanel"] }
+    },
+    {
+      "owner": "ForgedPanel",
+      "decision": "reuse_as_low_level_frame_host_only",
+      "targetRegions": ["article_header_card", "translation_status", "article_body", "source_reference_action", "evidence_details_panel", "missing_article_state"],
+      "location": "packages/design-system/src/components/ReconstructionPrimitives.tsx",
+      "contract": { "responsibility": "frame layers, content-safe insets, stable region metadata and the shared news material-family token scope", "materialFamily": "news" }
+    }
+  ],
+  "rejectedReuse": [
+    { "owner": "WowPanel", "reason": "generic title/body panels cannot express the seven target regions" },
+    { "owner": "RouteStatePanel", "reason": "replacement loading and missing panels delete the target composition" },
+    { "owner": "EvidenceLedger", "reason": "the target has a dedicated four-field article evidence surface whose populated truth uses compact fact groups rather than the shared ledger topology" }
+  ],
+  "layoutContract": {
+    "targetWidthPx": 864,
+    "targetHeightPx": 1821,
+    "baselineCssWidthPx": 390,
+    "uniformScale": 0.451388889,
+    "baselineCssViewport": { "width": 390, "height": 822 },
+    "regionBoundsCssPx": {
+      "top_bar": { "x": 6.77, "y": 8.58, "width": 376.46, "height": 43.33 },
+      "article_header_card": { "x": 8.13, "y": 61.84, "width": 374.2, "height": 136.32 },
+      "translation_status": { "x": 8.13, "y": 208.09, "width": 374.2, "height": 42.88 },
+      "article_body": { "x": 8.13, "y": 260, "width": 374.2, "height": 263.1 },
+      "source_reference_action": { "x": 8.13, "y": 531.35, "width": 374.2, "height": 50.56 },
+      "evidence_details_panel": { "x": 8.13, "y": 590.42, "width": 374.2, "height": 142.64 },
+      "missing_article_state": { "x": 8.13, "y": 742.08, "width": 374.2, "height": 71.32 }
+    },
+    "rule": "the 390px H5 stage uses target-scaled first-level bounds; the article body scrolls internally so real content does not move the remaining target regions",
+    "nativeSafeArea": "PageFrame and AppShell own native insets; this pushed route has no product TabBar"
+  },
+  "stateContract": {
+    "stableRegionCount": 7,
+    "stableTranslationSegmentCount": 3,
+    "stableEvidenceColumnCount": 4,
+    "loadingRule": "mount all seven regions before news.article resolves",
+    "clippingRule": "titles, source labels, body controls, evidence cells and terminal copy remain inside the 390px DPR2 stage"
+  },
+  "componentCapabilityGaps": []
+}

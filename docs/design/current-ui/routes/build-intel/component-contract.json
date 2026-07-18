@@ -1,0 +1,241 @@
+{
+  "schemaVersion": 1,
+  "route": "build_intel",
+  "status": "component_contract_complete",
+  "implementationStatus": "implemented_pending_unified_assets_and_visual_review",
+  "authority": "docs/plans/ui-reconstruction.md",
+  "targetInventory": "docs/design/current-ui/routes/build-intel/target-inventory.json",
+  "truthAdaptation": "docs/design/current-ui/routes/build-intel/truth-adaptation.json",
+  "compositionOwner": {
+    "name": "BuildIntelPage",
+    "location": "apps/mini-taro/src/pages/builds/intel.tsx",
+    "responsibility": "compose seven target regions and a five-record internal scroll surface from one sanitized builds.intel presentation model"
+  },
+  "components": [
+    {
+      "owner": "PageFrame",
+      "decision": "reuse_and_configure",
+      "targetRegions": [
+        "top_bar"
+      ],
+      "location": "packages/design-system/src/components/PageFrame.tsx",
+      "requiredVariant": "build-intel",
+      "contract": {
+        "inputs": [
+          "title",
+          "onBack",
+          "variant"
+        ],
+        "forbidden": [
+          "product TabBar",
+          "route-private safe-area calculation"
+        ]
+      }
+    },
+    {
+      "owner": "BuildIntelSummary",
+      "decision": "new_owner",
+      "targetRegions": [
+        "summary_card"
+      ],
+      "location": "packages/design-system/src/components/BuildIntelComponents.tsx",
+      "contract": {
+        "inputs": [
+          "title",
+          "description",
+          "recordCountLabel",
+          "stateLabel",
+          "state",
+          "loading"
+        ],
+        "forbidden": [
+          "ranking metric",
+          "invented last-analysis time"
+        ]
+      }
+    },
+    {
+      "owner": "BuildIntelFilterBar",
+      "decision": "new_owner",
+      "targetRegions": [
+        "filter_sort_bar"
+      ],
+      "location": "packages/design-system/src/components/BuildIntelComponents.tsx",
+      "contract": {
+        "inputs": [
+          "filterLabel",
+          "sortLabel",
+          "onFilter",
+          "onSort",
+          "disabled"
+        ],
+        "forbidden": [
+          "latest-analysis wording without timestamps",
+          "rank sorting without usable metrics"
+        ]
+      }
+    },
+    {
+      "owner": "BuildIntelCard",
+      "decision": "new_repeated_owner",
+      "targetRegions": [
+        "build_card_a",
+        "build_card_b",
+        "build_card_c"
+      ],
+      "location": "packages/design-system/src/components/BuildIntelComponents.tsx",
+      "contract": {
+        "visibleSlotCount": 3,
+        "topology": "left trusted specialization medallion, middle copy, right two-action rail, bottom three-column metadata grid",
+        "inputs": [
+          "id",
+          "title",
+          "description",
+          "iconUrl",
+          "state",
+          "stateLabel",
+          "metadata",
+          "primaryAction",
+          "secondaryAction",
+          "loading"
+        ],
+        "forbidden": [
+          "rank number",
+          "tier",
+          "DPS",
+          "score",
+          "sample count",
+          "BiS claim",
+          "generated factual specialization icon"
+        ]
+      }
+    },
+    {
+      "owner": "BuildIntelCardViewport",
+      "decision": "new_composition_owner",
+      "targetRegions": [
+        "build_card_a",
+        "build_card_b",
+        "build_card_c"
+      ],
+      "location": "apps/mini-taro/src/pages/builds/intel.tsx",
+      "contract": {
+        "topology": "bounded vertical ScrollView exposing all real records while keeping three baseline slots visible",
+        "loadingSlotCount": 3,
+        "minimumStateSlotCount": 3
+      }
+    },
+    {
+      "owner": "BuildIntelDisclaimer",
+      "decision": "new_owner",
+      "targetRegions": [
+        "reference_disclaimer"
+      ],
+      "location": "packages/design-system/src/components/BuildIntelComponents.tsx",
+      "contract": {
+        "inputs": [
+          "copy"
+        ],
+        "forbidden": [
+          "recommendation claim",
+          "official endorsement claim"
+        ]
+      }
+    },
+    {
+      "owner": "ForgedPanel",
+      "decision": "reuse_as_low_level_frame_host_only",
+      "targetRegions": [
+        "summary_card",
+        "filter_sort_bar",
+        "build_card_a",
+        "build_card_b",
+        "build_card_c",
+        "reference_disclaimer"
+      ],
+      "location": "packages/design-system/src/components/ReconstructionPrimitives.tsx"
+    }
+  ],
+  "rejectedReuse": [
+    {
+      "owner": "RankedFeed",
+      "reason": "the payload has no usable ranking facts and the target cards have a dedicated identity/action/metadata topology"
+    },
+    {
+      "owner": "EvidenceLedger",
+      "reason": "the target uses metadata columns inside every build card rather than a separate ledger"
+    },
+    {
+      "owner": "WowPanel",
+      "reason": "generic title/body panels cannot express the summary, filter and repeated build-card compositions"
+    },
+    {
+      "owner": "RouteStatePanel",
+      "reason": "replacement state panels delete the seven target regions"
+    }
+  ],
+  "layoutContract": {
+    "targetWidthPx": 863,
+    "targetHeightPx": 1823,
+    "baselineCssWidthPx": 390,
+    "uniformScale": 0.4519119351,
+    "baselineCssViewport": {
+      "width": 390,
+      "height": 824
+    },
+    "regionBoundsCssPx": {
+      "top_bar": {
+        "x": 0,
+        "y": 0,
+        "width": 390,
+        "height": 50.61
+      },
+      "summary_card": {
+        "x": 9.94,
+        "y": 56.04,
+        "width": 370.12,
+        "height": 152.29
+      },
+      "filter_sort_bar": {
+        "x": 9.49,
+        "y": 219.18,
+        "width": 371.02,
+        "height": 28.47
+      },
+      "build_card_a": {
+        "x": 9.94,
+        "y": 257.59,
+        "width": 370.12,
+        "height": 158.17
+      },
+      "build_card_b": {
+        "x": 9.94,
+        "y": 430.22,
+        "width": 370.12,
+        "height": 161.78
+      },
+      "build_card_c": {
+        "x": 9.94,
+        "y": 603.75,
+        "width": 370.12,
+        "height": 163.59
+      },
+      "reference_disclaimer": {
+        "x": 9.94,
+        "y": 779.1,
+        "width": 370.12,
+        "height": 32.99
+      }
+    },
+    "rule": "the 390px H5 stage uses target-scaled first-level bounds; the bounded card viewport owns list overflow and the page itself does not reflow around record count",
+    "nativeSafeArea": "PageFrame and AppShell own native insets; this pushed route has no product TabBar"
+  },
+  "stateContract": {
+    "stableRegionCount": 7,
+    "stableVisibleCardSlotCount": 3,
+    "stableMetadataColumnCountPerCard": 3,
+    "loadingRule": "mount all seven regions and three card skeletons before builds.intel resolves",
+    "clippingRule": "titles, descriptions, actions, metadata labels and disclaimer remain inside the 390px DPR2 stage"
+  },
+  "componentCapabilityGaps": []
+}

@@ -1,0 +1,197 @@
+{
+  "schemaVersion": 1,
+  "route": "specialization_home/builds_home",
+  "status": "target_inventory_complete",
+  "authority": "docs/plans/ui-reconstruction.md",
+  "source": {
+    "path": "artifacts/ui-visual-targets/current/builds-home.png",
+    "sha256": "e418c45b1bf4fe62479f0a907706edadb9c46d2fd38220d6163284f727feee74",
+    "widthPx": 864,
+    "heightPx": 1821
+  },
+  "measurement": {
+    "context": "disposable_isolated_target_only",
+    "reviewerContext": "019f60fb-3ddd-7a81-aed5-cdbb72f5abb3",
+    "runtimeInputsUsed": false,
+    "existingCssUsed": false,
+    "existingComponentsUsed": false,
+    "reviewEvidenceUsed": false,
+    "estimatedMajorRegionTolerancePx": 4,
+    "geometryRef": "docs/design/current-ui/routes/builds-home/target-geometry.json"
+  },
+  "viewport": {
+    "contentHorizontalInsetPx": 28,
+    "primaryContentWidthPx": 808,
+    "topContentStartY": 28,
+    "statusBarDrawn": false,
+    "systemCapsuleDrawn": false,
+    "homeIndicatorDrawn": false,
+    "completeAuthoredFirstViewport": true
+  },
+  "visualLanguage": {
+    "description": "near-black forged workspace with dense evidence controls, carved medallions, steel frames, and restrained antique-gold hierarchy",
+    "colorEstimates": {
+      "canvas": "#090b0c",
+      "panel": "#111516",
+      "inset": "#07090a",
+      "textPrimary": "#d5c1a3",
+      "textSecondary": "#988c7f",
+      "frameSteel": "#5b605f",
+      "antiqueGold": "#b88a45",
+      "actionGold": "#dfa224",
+      "statusBlue": "#6e9bb3",
+      "statusGreen": "#94b96d"
+    },
+    "colorEstimateExact": false,
+    "cornerLanguage": "small cut corners, nested steel or antique-gold bevels, and carved corner ornaments",
+    "density": "six authored content regions plus one product tab bar fill the viewport"
+  },
+  "typographyEstimatesPx": [
+    { "role": "page_title", "glyphHeightRange": [37, 42], "weight": "medium_to_semibold" },
+    { "role": "feature_heading", "glyphHeightRange": [34, 41], "weight": "medium" },
+    { "role": "tile_title", "glyphHeightRange": [27, 32], "weight": "medium" },
+    { "role": "body", "glyphHeightRange": [20, 24], "weight": "regular" },
+    { "role": "status_badge", "glyphHeightRange": [18, 21], "weight": "regular_to_medium" },
+    { "role": "tab_label", "glyphHeightRange": [24, 27], "weight": "medium" }
+  ],
+  "regions": [
+    {
+      "id": "page_header",
+      "boundsPx": { "x": 28, "y": 28, "width": 808, "height": 66 },
+      "gapAfterPx": 20,
+      "frame": "unframed row on the page surface",
+      "structure": "title, adjacent source-reference chip, flexible space, one square book action",
+      "visibleElements": [
+        { "type": "page_title", "count": 1, "targetText": "职业专精" },
+        { "type": "source_reference_chip", "count": 1, "targetText": "来源参考", "glyphRole": "link" },
+        { "type": "icon_action", "count": 1, "glyphRole": "open_book" }
+      ]
+    },
+    {
+      "id": "specialization_overview",
+      "boundsPx": { "x": 28, "y": 114, "width": 808, "height": 294 },
+      "gapAfterPx": 20,
+      "frame": "deep charcoal panel with nested steel bevels, cut corners, and a weak vertical divider near x=343",
+      "structure": "fixed left medallion column and right identity/evidence column",
+      "landmarksPx": {
+        "leftVisualInset": 48,
+        "rightContentStartX": 372,
+        "rightContentInset": 58
+      },
+      "visibleElements": [
+        { "type": "hero_medallion", "count": 1, "glyphRole": "abstract_specialization_sigil", "overlayRole": "verified_stamp" },
+        { "type": "section_title", "count": 1, "targetText": "职业 · 专精" },
+        { "type": "status_badge", "count": 1, "targetText": "等待证据" },
+        { "type": "body", "count": 1, "targetText": "收集完整证据后即可生成与追踪构建。" },
+        { "type": "source_reference", "count": 1, "targetText": "来源参考", "glyphRole": "gold_dot" }
+      ]
+    },
+    {
+      "id": "evidence_category_grid",
+      "boundsPx": { "x": 28, "y": 428, "width": 808, "height": 330 },
+      "gapAfterPx": 12,
+      "frame": "one continuous 2x2 steel frame with cross dividers and one central gold diamond",
+      "structure": "four equal evidence-entry tiles; each has a carved medallion, title, status, value, and chevron",
+      "tileCount": 4,
+      "tiles": [
+        { "id": "talents", "position": "top_left", "targetTitle": "天赋", "targetStatus": "等待证据", "targetValue": "未收集", "glyphRole": "talent_tree" },
+        { "id": "gear", "position": "top_right", "targetTitle": "装备", "targetStatus": "部分证据", "targetValue": "2/6 已收集", "glyphRole": "chest_armor" },
+        { "id": "simc", "position": "bottom_left", "targetTitle": "SimC", "targetStatus": "等待证据", "targetValue": "未收集", "glyphRole": "rising_chart" },
+        { "id": "captain", "position": "bottom_right", "targetTitle": "队长", "targetStatus": "等待证据", "targetValue": "未收集", "glyphRole": "hanging_banner" }
+      ]
+    },
+    {
+      "id": "active_specialization_workspace",
+      "boundsPx": { "x": 28, "y": 770, "width": 808, "height": 242 },
+      "gapAfterPx": 12,
+      "frame": "warm-black raised panel with ornate antique-gold nested frame",
+      "structure": "large forge medallion, status/copy column, and one right-aligned primary action",
+      "landmarksPx": { "leftInset": 33, "contentStartX": 244, "rightInset": 33 },
+      "visibleElements": [
+        { "type": "workspace_medallion", "count": 1, "glyphRole": "hammer_and_anvil" },
+        { "type": "section_title", "count": 1, "targetText": "当前专精工作台" },
+        { "type": "status_badge", "count": 1, "targetText": "可继续查看" },
+        { "type": "body", "count": 2, "targetTexts": ["已收集 2/6 项证据", "继续完善以生成构建与记录。"] },
+        { "type": "primary_action", "count": 1, "targetText": "进入工作台", "glyphRole": "forge_tool" }
+      ]
+    },
+    {
+      "id": "evidence_category_list",
+      "boundsPx": { "x": 28, "y": 1024, "width": 808, "height": 328 },
+      "gapAfterPx": 12,
+      "frame": "one continuous steel list frame with four horizontal rows and subtle separators",
+      "structure": "four fixed-column rows: medallion, title/status, right value, chevron",
+      "rowCount": 4,
+      "rowHeightApproxPx": 79,
+      "rows": [
+        { "id": "talents", "targetTitle": "天赋", "targetStatus": "等待证据", "targetValue": "未收集", "glyphRole": "talent_tree" },
+        { "id": "gear", "targetTitle": "装备", "targetStatus": "部分证据", "targetValue": "2/6 已收集", "glyphRole": "chest_armor" },
+        { "id": "simc", "targetTitle": "SimC", "targetStatus": "等待证据", "targetValue": "未收集", "glyphRole": "rising_chart" },
+        { "id": "captain", "targetTitle": "队长", "targetStatus": "等待证据", "targetValue": "未收集", "glyphRole": "hanging_banner" }
+      ]
+    },
+    {
+      "id": "workflow_stage_list",
+      "boundsPx": { "x": 28, "y": 1364, "width": 808, "height": 296 },
+      "gapAfterPx": 22,
+      "frame": "one continuous three-row steel workflow frame with horizontal separators and a vertical timeline",
+      "structure": "three fixed-column rows: timeline node, medallion, title/detail, status, chevron",
+      "rowCount": 3,
+      "landmarksPx": { "timelineCenterX": 84, "iconCenterX": 169, "textStartX": 245, "statusStartX": 662, "chevronCenterX": 790 },
+      "rows": [
+        { "id": "input", "targetTitle": "输入", "targetDetail": "收集天赋、装备、SimC、队长证据", "targetStatus": "进行中", "glyphRole": "input_container", "nodeState": "active_blue" },
+        { "id": "validation", "targetTitle": "验证", "targetDetail": "校验证据完整性与一致性", "targetStatus": "待开始", "glyphRole": "shield", "nodeState": "pending_gold" },
+        { "id": "tracking", "targetTitle": "追踪", "targetDetail": "追踪更新、记录变更与版本历史", "targetStatus": "待开始", "glyphRole": "eye", "nodeState": "inactive_gray" }
+      ]
+    },
+    {
+      "id": "product_tab_bar",
+      "boundsPx": { "x": 0, "y": 1682, "width": 864, "height": 139 },
+      "gapAfterPx": 0,
+      "frame": "full-width heavy black-metal navigation frame with raised top edge and restrained dividers",
+      "structure": "target pixels show three labeled columns; center specialization column is selected",
+      "visibleColumnCount": 3,
+      "labels": ["资讯", "专精", "我的"],
+      "activeIndex": 1,
+      "activeTreatment": "larger glowing gold medallion, gold label, full-column baseline, and centered pointer without moving neighboring columns"
+    }
+  ],
+  "crossRegionAlignments": [
+    "all six content regions share x=28, right=836, and width=808",
+    "the evidence grid and evidence list reuse the same four semantic categories and medallion family",
+    "the evidence list and workflow list use one outer frame each rather than independent row cards",
+    "the overview and active-workspace regions use stable left visual columns and right content columns"
+  ],
+  "assetSlots": [
+    { "id": "asset_slot.builds-surface-texture", "ownerHint": "AppShell", "role": "near-black granular page material", "factRisk": "none", "imagegenAllowed": true },
+    { "id": "asset_slot.builds-frame-family", "ownerHint": "ForgedPanel", "role": "shared steel and antique-gold nine-slice frames", "factRisk": "none", "imagegenAllowed": true },
+    { "id": "asset_slot.builds-header-book-glyph", "ownerHint": "BuildsHomeHeader", "role": "book action utility glyph", "factRisk": "none", "imagegenAllowed": false },
+    { "id": "asset_slot.builds-specialization-medallion", "ownerHint": "SpecializationOverview", "role": "abstract specialization identity medallion", "factRisk": "medium", "imagegenAllowed": true },
+    { "id": "asset_slot.builds-evidence-medallions", "ownerHint": "EvidenceCategoryNavigator", "role": "talent, gear, SimC, and captain carved glyph family", "factRisk": "low", "imagegenAllowed": true },
+    { "id": "asset_slot.builds-workspace-medallion", "ownerHint": "ActiveSpecializationWorkspace", "role": "neutral hammer-and-anvil workspace medallion", "factRisk": "none", "imagegenAllowed": true },
+    { "id": "asset_slot.builds-workflow-medallions", "ownerHint": "BuildWorkflowTimeline", "role": "input, validation, and tracking carved glyph family", "factRisk": "none", "imagegenAllowed": true },
+    { "id": "asset_slot.builds-workflow-timeline", "ownerHint": "BuildWorkflowTimeline", "role": "rail and three state nodes", "factRisk": "none", "imagegenAllowed": true },
+    { "id": "asset_slot.builds-chevron", "ownerHint": "EvidenceCategoryNavigator", "role": "repeated navigation affordance", "factRisk": "none", "imagegenAllowed": false },
+    { "id": "asset_slot.product-tab-glyphs", "ownerHint": "TabBar", "role": "primary product navigation glyphs", "factRisk": "none", "imagegenAllowed": false }
+  ],
+  "unresolved": [
+    {
+      "id": "product_tab_count_conflict",
+      "targetObservation": "the target visibly contains only 资讯, 专精, 我的",
+      "resolutionStage": "truth_adaptation",
+      "mustNotAssume": "do not invent or remove a product route during target measurement"
+    },
+    { "id": "font_family", "detail": "font family, exact weights, and exact letter spacing cannot be proven from the bitmap" },
+    { "id": "specialization_sigil_identity", "detail": "the overview sigil remains abstract and cannot be treated as a factual WoW object" },
+    { "id": "fine_frame_extents", "detail": "dark frame edges have approximately 2-4px uncertainty" },
+    { "id": "exact_color_values", "detail": "palette values are visual estimates, not sampled source colors" }
+  ],
+  "measurementConfidence": {
+    "overall": 0.91,
+    "firstLevelRegionBounds": 0.95,
+    "visibleTextTranscription": 0.99,
+    "internalElementBounds": 0.88,
+    "assetSemantics": 0.87,
+    "colorEstimates": 0.76
+  }
+}

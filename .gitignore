@@ -13,3 +13,11 @@ server/data/
 
 # Local parallel worktrees
 .worktrees/
+
+# Taro workspace
+node_modules/
+coverage/
+apps/mini-taro/dist/
+apps/mini-taro/.swc/
+packages/*/dist/
+.taro/

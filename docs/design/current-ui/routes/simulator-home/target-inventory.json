@@ -1,0 +1,1627 @@
+{
+  "schemaVersion": "target-inventory-v1",
+  "route": "simulator_home",
+  "authority": "canonical_target",
+  "source": {
+    "path": "artifacts/ui-visual-targets/current/simulator-home.png",
+    "width": 834,
+    "height": 1886,
+    "nativeWidth": 834,
+    "nativeHeight": 1886,
+    "sha256": "92e9c8e9d30d5be67fc40c125abfb9e78cac00e6a060f87678fd99a46cd78bcc"
+  },
+  "measurement": {
+    "coordinateSpace": "native_pixels",
+    "runtimeInputsUsed": false,
+    "targetOnly": true
+  },
+  "topology": {
+    "routeClass": "tab-root",
+    "productTabBar": {
+      "regionId": "product_tab_bar",
+      "itemCount": 4,
+      "activeIndex": 0,
+      "layout": "four_equal_columns",
+      "visibleOrder": [
+        "智能分析",
+        "最新资讯",
+        "职业专精",
+        "我的"
+      ],
+      "columnBounds": [
+        {
+          "index": 0,
+          "bounds": {
+            "x": 5,
+            "y": 1750,
+            "width": 207,
+            "height": 132
+          },
+          "state": "active"
+        },
+        {
+          "index": 1,
+          "bounds": {
+            "x": 213,
+            "y": 1750,
+            "width": 203,
+            "height": 132
+          },
+          "state": "inactive"
+        },
+        {
+          "index": 2,
+          "bounds": {
+            "x": 417,
+            "y": 1750,
+            "width": 203,
+            "height": 132
+          },
+          "state": "inactive"
+        },
+        {
+          "index": 3,
+          "bounds": {
+            "x": 621,
+            "y": 1750,
+            "width": 207,
+            "height": 132
+          },
+          "state": "inactive"
+        }
+      ],
+      "runtimeInputsUsed": false,
+      "identityStatus": "target_placeholder"
+    }
+  },
+  "visibleText": [
+    {
+      "id": "text_001",
+      "regionId": "header_bar",
+      "text": "智能分析",
+      "bounds": {
+        "x": 318,
+        "y": 55,
+        "width": 198,
+        "height": 54
+      },
+      "count": 1,
+      "contentStatus": "placeholder",
+      "identityStatus": "target_placeholder"
+    },
+    {
+      "id": "text_002",
+      "regionId": "header_bar",
+      "text": "问炸鸡队长",
+      "bounds": {
+        "x": 670,
+        "y": 70,
+        "width": 97,
+        "height": 28
+      },
+      "count": 1,
+      "contentStatus": "placeholder",
+      "identityStatus": "target_placeholder"
+    },
+    {
+      "id": "text_003",
+      "regionId": "analysis_guidance_panel",
+      "text": "当前分析上下文",
+      "bounds": {
+        "x": 163,
+        "y": 173,
+        "width": 166,
+        "height": 33
+      },
+      "count": 1,
+      "contentStatus": "placeholder",
+      "identityStatus": "target_placeholder"
+    },
+    {
+      "id": "text_004",
+      "regionId": "analysis_guidance_panel",
+      "text": "2/10 条证据已使用",
+      "bounds": {
+        "x": 163,
+        "y": 219,
+        "width": 160,
+        "height": 25
+      },
+      "count": 1,
+      "contentStatus": "placeholder",
+      "identityStatus": "target_placeholder"
+    },
+    {
+      "id": "text_005",
+      "regionId": "analysis_guidance_panel",
+      "text": "20%",
+      "bounds": {
+        "x": 730,
+        "y": 219,
+        "width": 40,
+        "height": 25
+      },
+      "count": 1,
+      "contentStatus": "placeholder",
+      "identityStatus": "target_placeholder"
+    },
+    {
+      "id": "text_006",
+      "regionId": "analysis_guidance_panel",
+      "text": "证据越多，回答越准。超出后将按重要性自动精简。",
+      "bounds": {
+        "x": 99,
+        "y": 298,
+        "width": 472,
+        "height": 27
+      },
+      "count": 1,
+      "contentStatus": "placeholder",
+      "identityStatus": "target_placeholder"
+    },
+    {
+      "id": "text_007",
+      "regionId": "analysis_guidance_panel",
+      "text": "管理证据",
+      "bounds": {
+        "x": 647,
+        "y": 297,
+        "width": 88,
+        "height": 25
+      },
+      "count": 1,
+      "contentStatus": "placeholder",
+      "identityStatus": "target_placeholder"
+    },
+    {
+      "id": "text_008",
+      "regionId": "analysis_guidance_panel",
+      "text": "建议你这样问",
+      "bounds": {
+        "x": 99,
+        "y": 376,
+        "width": 168,
+        "height": 34
+      },
+      "count": 1,
+      "contentStatus": "placeholder",
+      "identityStatus": "target_placeholder"
+    },
+    {
+      "id": "text_009",
+      "regionId": "analysis_guidance_panel",
+      "text": "缺资料时先给下一步，我再补充证据",
+      "bounds": {
+        "x": 129,
+        "y": 445,
+        "width": 377,
+        "height": 29
+      },
+      "count": 1,
+      "contentStatus": "placeholder",
+      "identityStatus": "target_placeholder"
+    },
+    {
+      "id": "text_010",
+      "regionId": "analysis_guidance_panel",
+      "text": "有什么关键信息还需要我提供？",
+      "bounds": {
+        "x": 129,
+        "y": 523,
+        "width": 342,
+        "height": 27
+      },
+      "count": 1,
+      "contentStatus": "placeholder",
+      "identityStatus": "target_placeholder"
+    },
+    {
+      "id": "text_011",
+      "regionId": "analysis_guidance_panel",
+      "text": "请只解释证据，先给结论要点",
+      "bounds": {
+        "x": 129,
+        "y": 600,
+        "width": 356,
+        "height": 28
+      },
+      "count": 1,
+      "contentStatus": "placeholder",
+      "identityStatus": "target_placeholder"
+    },
+    {
+      "id": "text_012",
+      "regionId": "chat_transcript",
+      "text": "问炸鸡队长：为什么我的输出起伏很大？",
+      "bounds": {
+        "x": 291,
+        "y": 722,
+        "width": 374,
+        "height": 28
+      },
+      "count": 1,
+      "contentStatus": "placeholder",
+      "identityStatus": "target_placeholder"
+    },
+    {
+      "id": "text_013",
+      "regionId": "chat_transcript",
+      "text": "10:15",
+      "bounds": {
+        "x": 646,
+        "y": 785,
+        "width": 48,
+        "height": 25
+      },
+      "count": 2,
+      "contentStatus": "placeholder",
+      "identityStatus": "target_placeholder"
+    },
+    {
+      "id": "text_014",
+      "regionId": "chat_transcript",
+      "text": "收到！我会基于你提供的证据进行分析，",
+      "bounds": {
+        "x": 164,
+        "y": 843,
+        "width": 357,
+        "height": 28
+      },
+      "count": 1,
+      "contentStatus": "placeholder",
+      "identityStatus": "target_placeholder"
+    },
+    {
+      "id": "text_015",
+      "regionId": "chat_transcript",
+      "text": "只解释证据，不做超出证据范围的推断。",
+      "bounds": {
+        "x": 164,
+        "y": 872,
+        "width": 365,
+        "height": 28
+      },
+      "count": 1,
+      "contentStatus": "placeholder",
+      "identityStatus": "target_placeholder"
+    },
+    {
+      "id": "text_016",
+      "regionId": "chat_transcript",
+      "text": "缺资料时先给下一步。",
+      "bounds": {
+        "x": 164,
+        "y": 902,
+        "width": 215,
+        "height": 27
+      },
+      "count": 1,
+      "contentStatus": "placeholder",
+      "identityStatus": "target_placeholder"
+    },
+    {
+      "id": "text_017",
+      "regionId": "chat_transcript",
+      "text": "当前战斗中，有哪些关键时间点点需要关注？",
+      "bounds": {
+        "x": 276,
+        "y": 1028,
+        "width": 380,
+        "height": 27
+      },
+      "count": 1,
+      "contentStatus": "placeholder",
+      "identityStatus": "target_placeholder"
+    },
+    {
+      "id": "text_018",
+      "regionId": "chat_transcript",
+      "text": "10:17",
+      "bounds": {
+        "x": 646,
+        "y": 1092,
+        "width": 48,
+        "height": 25
+      },
+      "count": 2,
+      "contentStatus": "placeholder",
+      "identityStatus": "target_placeholder"
+    },
+    {
+      "id": "text_019",
+      "regionId": "chat_transcript",
+      "text": "基于你提供的证据，以下是需要关注的关键信息：",
+      "bounds": {
+        "x": 164,
+        "y": 1149,
+        "width": 454,
+        "height": 28
+      },
+      "count": 1,
+      "contentStatus": "placeholder",
+      "identityStatus": "target_placeholder"
+    },
+    {
+      "id": "text_020",
+      "regionId": "chat_transcript",
+      "text": "- 在时间轴 A 段，关键技能覆盖率下降。",
+      "bounds": {
+        "x": 164,
+        "y": 1186,
+        "width": 386,
+        "height": 27
+      },
+      "count": 1,
+      "contentStatus": "placeholder",
+      "identityStatus": "target_placeholder"
+    },
+    {
+      "id": "text_021",
+      "regionId": "chat_transcript",
+      "text": "- B 段存在资源溢出，可能影响后续爆发。",
+      "bounds": {
+        "x": 164,
+        "y": 1221,
+        "width": 400,
+        "height": 27
+      },
+      "count": 1,
+      "contentStatus": "placeholder",
+      "identityStatus": "target_placeholder"
+    },
+    {
+      "id": "text_022",
+      "regionId": "chat_transcript",
+      "text": "如需更准确结论，请补充：战斗日志片段或技能详情。",
+      "bounds": {
+        "x": 164,
+        "y": 1260,
+        "width": 454,
+        "height": 28
+      },
+      "count": 1,
+      "contentStatus": "placeholder",
+      "identityStatus": "target_placeholder"
+    },
+    {
+      "id": "text_023",
+      "regionId": "evidence_shelf",
+      "text": "只解释证据",
+      "bounds": {
+        "x": 95,
+        "y": 1361,
+        "width": 118,
+        "height": 30
+      },
+      "count": 1,
+      "contentStatus": "placeholder",
+      "identityStatus": "target_placeholder"
+    },
+    {
+      "id": "text_024",
+      "regionId": "evidence_shelf",
+      "text": "点击可查看或替换证据（已用 2/10）",
+      "bounds": {
+        "x": 231,
+        "y": 1367,
+        "width": 298,
+        "height": 25
+      },
+      "count": 1,
+      "contentStatus": "placeholder",
+      "identityStatus": "target_placeholder"
+    },
+    {
+      "id": "text_025",
+      "regionId": "evidence_shelf",
+      "text": "管理证据",
+      "bounds": {
+        "x": 691,
+        "y": 1366,
+        "width": 72,
+        "height": 24
+      },
+      "count": 1,
+      "contentStatus": "placeholder",
+      "identityStatus": "target_placeholder"
+    },
+    {
+      "id": "text_026",
+      "regionId": "evidence_shelf",
+      "text": "来源参考 01",
+      "bounds": {
+        "x": 132,
+        "y": 1438,
+        "width": 111,
+        "height": 26
+      },
+      "count": 1,
+      "contentStatus": "placeholder",
+      "identityStatus": "target_placeholder"
+    },
+    {
+      "id": "text_027",
+      "regionId": "evidence_shelf",
+      "text": "战斗记录摘要",
+      "bounds": {
+        "x": 132,
+        "y": 1478,
+        "width": 105,
+        "height": 31
+      },
+      "count": 1,
+      "contentStatus": "placeholder",
+      "identityStatus": "target_placeholder"
+    },
+    {
+      "id": "text_028",
+      "regionId": "evidence_shelf",
+      "text": "来源参考 02",
+      "bounds": {
+        "x": 388,
+        "y": 1438,
+        "width": 112,
+        "height": 26
+      },
+      "count": 1,
+      "contentStatus": "placeholder",
+      "identityStatus": "target_placeholder"
+    },
+    {
+      "id": "text_029",
+      "regionId": "evidence_shelf",
+      "text": "时间轴片段",
+      "bounds": {
+        "x": 388,
+        "y": 1478,
+        "width": 93,
+        "height": 31
+      },
+      "count": 1,
+      "contentStatus": "placeholder",
+      "identityStatus": "target_placeholder"
+    },
+    {
+      "id": "text_030",
+      "regionId": "evidence_shelf",
+      "text": "添加证据",
+      "bounds": {
+        "x": 630,
+        "y": 1480,
+        "width": 91,
+        "height": 31
+      },
+      "count": 1,
+      "contentStatus": "placeholder",
+      "identityStatus": "target_placeholder"
+    },
+    {
+      "id": "text_031",
+      "regionId": "message_composer",
+      "text": "继续提问，或粘贴资料链接 / 文本...",
+      "bounds": {
+        "x": 58,
+        "y": 1594,
+        "width": 440,
+        "height": 33
+      },
+      "count": 1,
+      "contentStatus": "placeholder",
+      "identityStatus": "target_placeholder"
+    },
+    {
+      "id": "text_032",
+      "regionId": "message_composer",
+      "text": "上传证据",
+      "bounds": {
+        "x": 101,
+        "y": 1686,
+        "width": 87,
+        "height": 27
+      },
+      "count": 1,
+      "contentStatus": "placeholder",
+      "identityStatus": "target_placeholder"
+    },
+    {
+      "id": "text_033",
+      "regionId": "message_composer",
+      "text": "粘贴链接",
+      "bounds": {
+        "x": 282,
+        "y": 1686,
+        "width": 89,
+        "height": 27
+      },
+      "count": 1,
+      "contentStatus": "placeholder",
+      "identityStatus": "target_placeholder"
+    },
+    {
+      "id": "text_034",
+      "regionId": "message_composer",
+      "text": "发送",
+      "bounds": {
+        "x": 718,
+        "y": 1685,
+        "width": 46,
+        "height": 28
+      },
+      "count": 1,
+      "contentStatus": "placeholder",
+      "identityStatus": "target_placeholder"
+    },
+    {
+      "id": "text_035",
+      "regionId": "product_tab_bar",
+      "text": "智能分析",
+      "bounds": {
+        "x": 66,
+        "y": 1833,
+        "width": 88,
+        "height": 31
+      },
+      "count": 1,
+      "contentStatus": "placeholder",
+      "identityStatus": "target_placeholder"
+    },
+    {
+      "id": "text_036",
+      "regionId": "product_tab_bar",
+      "text": "最新资讯",
+      "bounds": {
+        "x": 270,
+        "y": 1833,
+        "width": 89,
+        "height": 31
+      },
+      "count": 1,
+      "contentStatus": "placeholder",
+      "identityStatus": "target_placeholder"
+    },
+    {
+      "id": "text_037",
+      "regionId": "product_tab_bar",
+      "text": "职业专精",
+      "bounds": {
+        "x": 474,
+        "y": 1833,
+        "width": 89,
+        "height": 31
+      },
+      "count": 1,
+      "contentStatus": "placeholder",
+      "identityStatus": "target_placeholder"
+    },
+    {
+      "id": "text_038",
+      "regionId": "product_tab_bar",
+      "text": "我的",
+      "bounds": {
+        "x": 694,
+        "y": 1833,
+        "width": 45,
+        "height": 31
+      },
+      "count": 1,
+      "contentStatus": "placeholder",
+      "identityStatus": "target_placeholder"
+    }
+  ],
+  "repeatedItems": [
+    {
+      "id": "suggested_question_rows",
+      "regionId": "analysis_guidance_panel",
+      "count": 3,
+      "itemBounds": [
+        {
+          "x": 48,
+          "y": 422,
+          "width": 736,
+          "height": 66
+        },
+        {
+          "x": 48,
+          "y": 501,
+          "width": 736,
+          "height": 66
+        },
+        {
+          "x": 48,
+          "y": 579,
+          "width": 736,
+          "height": 66
+        }
+      ],
+      "identityStatus": "target_placeholder"
+    },
+    {
+      "id": "chat_bubbles",
+      "regionId": "chat_transcript",
+      "count": 4,
+      "itemBounds": [
+        {
+          "x": 265,
+          "y": 695,
+          "width": 455,
+          "height": 76
+        },
+        {
+          "x": 116,
+          "y": 814,
+          "width": 458,
+          "height": 137
+        },
+        {
+          "x": 251,
+          "y": 998,
+          "width": 469,
+          "height": 76
+        },
+        {
+          "x": 116,
+          "y": 1117,
+          "width": 552,
+          "height": 181
+        }
+      ],
+      "identityStatus": "target_placeholder"
+    },
+    {
+      "id": "chat_avatars",
+      "regionId": "chat_transcript",
+      "count": 4,
+      "itemBounds": [
+        {
+          "x": 719,
+          "y": 688,
+          "width": 77,
+          "height": 77
+        },
+        {
+          "x": 34,
+          "y": 813,
+          "width": 84,
+          "height": 84
+        },
+        {
+          "x": 719,
+          "y": 991,
+          "width": 77,
+          "height": 77
+        },
+        {
+          "x": 34,
+          "y": 1110,
+          "width": 84,
+          "height": 84
+        }
+      ],
+      "identityStatus": "target_placeholder"
+    },
+    {
+      "id": "evidence_cards",
+      "regionId": "evidence_shelf",
+      "count": 3,
+      "itemBounds": [
+        {
+          "x": 42,
+          "y": 1411,
+          "width": 242,
+          "height": 108
+        },
+        {
+          "x": 298,
+          "y": 1411,
+          "width": 242,
+          "height": 108
+        },
+        {
+          "x": 553,
+          "y": 1411,
+          "width": 237,
+          "height": 108
+        }
+      ],
+      "identityStatus": "target_placeholder"
+    },
+    {
+      "id": "composer_action_buttons",
+      "regionId": "message_composer",
+      "count": 3,
+      "itemBounds": [
+        {
+          "x": 41,
+          "y": 1671,
+          "width": 166,
+          "height": 58
+        },
+        {
+          "x": 222,
+          "y": 1671,
+          "width": 170,
+          "height": 58
+        },
+        {
+          "x": 648,
+          "y": 1665,
+          "width": 142,
+          "height": 63
+        }
+      ],
+      "identityStatus": "target_placeholder"
+    },
+    {
+      "id": "product_tab_items",
+      "regionId": "product_tab_bar",
+      "count": 4,
+      "itemBounds": [
+        {
+          "x": 5,
+          "y": 1750,
+          "width": 207,
+          "height": 132
+        },
+        {
+          "x": 213,
+          "y": 1750,
+          "width": 203,
+          "height": 132
+        },
+        {
+          "x": 417,
+          "y": 1750,
+          "width": 203,
+          "height": 132
+        },
+        {
+          "x": 621,
+          "y": 1750,
+          "width": 207,
+          "height": 132
+        }
+      ],
+      "identityStatus": "target_placeholder"
+    }
+  ],
+  "assetSlots": [
+    {
+      "id": "asset_001",
+      "regionId": "page_frame",
+      "observedRole": "full page ornamental metal-and-stone frame",
+      "bounds": {
+        "x": 2,
+        "y": 4,
+        "width": 830,
+        "height": 1880
+      },
+      "normalizedBounds": {
+        "x": 0.002398,
+        "y": 0.002121,
+        "width": 0.995204,
+        "height": 0.996819
+      },
+      "identityStatus": "target_placeholder",
+      "unresolved": [
+        "Grouped frame texture, bevel, corner caps, and vertical rails."
+      ]
+    },
+    {
+      "id": "asset_002",
+      "regionId": "header_bar",
+      "observedRole": "title divider ornaments",
+      "bounds": {
+        "x": 239,
+        "y": 71,
+        "width": 355,
+        "height": 22
+      },
+      "normalizedBounds": {
+        "x": 0.286571,
+        "y": 0.037646,
+        "width": 0.425659,
+        "height": 0.011665
+      },
+      "identityStatus": "target_placeholder",
+      "unresolved": [
+        "Left and right divider ornaments are grouped as one symmetric title ornament slot."
+      ]
+    },
+    {
+      "id": "asset_003",
+      "regionId": "header_bar",
+      "observedRole": "captain identity button frame",
+      "bounds": {
+        "x": 608,
+        "y": 55,
+        "width": 192,
+        "height": 54
+      },
+      "normalizedBounds": {
+        "x": 0.729017,
+        "y": 0.029162,
+        "width": 0.230216,
+        "height": 0.028632
+      },
+      "identityStatus": "target_placeholder",
+      "unresolved": []
+    },
+    {
+      "id": "asset_004",
+      "regionId": "header_bar",
+      "observedRole": "captain identity emblem",
+      "bounds": {
+        "x": 627,
+        "y": 66,
+        "width": 35,
+        "height": 34
+      },
+      "normalizedBounds": {
+        "x": 0.751799,
+        "y": 0.034995,
+        "width": 0.041966,
+        "height": 0.018028
+      },
+      "identityStatus": "target_placeholder",
+      "unresolved": []
+    },
+    {
+      "id": "asset_005",
+      "regionId": "analysis_guidance_panel",
+      "observedRole": "upper analysis guidance panel border",
+      "bounds": {
+        "x": 24,
+        "y": 130,
+        "width": 787,
+        "height": 536
+      },
+      "normalizedBounds": {
+        "x": 0.028777,
+        "y": 0.068929,
+        "width": 0.943645,
+        "height": 0.284199
+      },
+      "identityStatus": "target_placeholder",
+      "unresolved": []
+    },
+    {
+      "id": "asset_006",
+      "regionId": "analysis_guidance_panel",
+      "observedRole": "current analysis context card border",
+      "bounds": {
+        "x": 40,
+        "y": 148,
+        "width": 750,
+        "height": 198
+      },
+      "normalizedBounds": {
+        "x": 0.047962,
+        "y": 0.078473,
+        "width": 0.899281,
+        "height": 0.104984
+      },
+      "identityStatus": "target_placeholder",
+      "unresolved": []
+    },
+    {
+      "id": "asset_007",
+      "regionId": "analysis_guidance_panel",
+      "observedRole": "treasure chest context emblem",
+      "bounds": {
+        "x": 56,
+        "y": 166,
+        "width": 84,
+        "height": 94
+      },
+      "normalizedBounds": {
+        "x": 0.067146,
+        "y": 0.088017,
+        "width": 0.100719,
+        "height": 0.049841
+      },
+      "identityStatus": "target_placeholder",
+      "unresolved": []
+    },
+    {
+      "id": "asset_008",
+      "regionId": "analysis_guidance_panel",
+      "observedRole": "evidence progress rail and fill",
+      "bounds": {
+        "x": 164,
+        "y": 214,
+        "width": 608,
+        "height": 47
+      },
+      "normalizedBounds": {
+        "x": 0.196643,
+        "y": 0.113468,
+        "width": 0.729017,
+        "height": 0.024921
+      },
+      "identityStatus": "target_placeholder",
+      "unresolved": []
+    },
+    {
+      "id": "asset_009",
+      "regionId": "analysis_guidance_panel",
+      "observedRole": "context info icon",
+      "bounds": {
+        "x": 64,
+        "y": 296,
+        "width": 26,
+        "height": 26
+      },
+      "normalizedBounds": {
+        "x": 0.076739,
+        "y": 0.156946,
+        "width": 0.031175,
+        "height": 0.013786
+      },
+      "identityStatus": "target_placeholder",
+      "unresolved": []
+    },
+    {
+      "id": "asset_010",
+      "regionId": "analysis_guidance_panel",
+      "observedRole": "manage evidence button border and chevron",
+      "bounds": {
+        "x": 624,
+        "y": 284,
+        "width": 150,
+        "height": 46
+      },
+      "normalizedBounds": {
+        "x": 0.748201,
+        "y": 0.150583,
+        "width": 0.179856,
+        "height": 0.02439
+      },
+      "identityStatus": "target_placeholder",
+      "unresolved": []
+    },
+    {
+      "id": "asset_011",
+      "regionId": "analysis_guidance_panel",
+      "observedRole": "suggested questions title sparkle icon",
+      "bounds": {
+        "x": 57,
+        "y": 374,
+        "width": 31,
+        "height": 34
+      },
+      "normalizedBounds": {
+        "x": 0.068345,
+        "y": 0.198303,
+        "width": 0.03717,
+        "height": 0.018028
+      },
+      "identityStatus": "target_placeholder",
+      "unresolved": []
+    },
+    {
+      "id": "asset_012",
+      "regionId": "analysis_guidance_panel",
+      "observedRole": "suggested question row borders",
+      "bounds": {
+        "x": 48,
+        "y": 422,
+        "width": 736,
+        "height": 223
+      },
+      "normalizedBounds": {
+        "x": 0.057554,
+        "y": 0.223754,
+        "width": 0.882494,
+        "height": 0.11824
+      },
+      "identityStatus": "target_placeholder",
+      "unresolved": [
+        "Three repeated row frames are grouped; repeatedItems records individual row bounds."
+      ]
+    },
+    {
+      "id": "asset_013",
+      "regionId": "analysis_guidance_panel",
+      "observedRole": "suggested question row icons",
+      "bounds": {
+        "x": 76,
+        "y": 444,
+        "width": 31,
+        "height": 184
+      },
+      "normalizedBounds": {
+        "x": 0.091127,
+        "y": 0.235419,
+        "width": 0.03717,
+        "height": 0.097561
+      },
+      "identityStatus": "target_placeholder",
+      "unresolved": [
+        "Footprint, question-mark, and document-like row icons are grouped as repeated question-leading icons."
+      ]
+    },
+    {
+      "id": "asset_014",
+      "regionId": "analysis_guidance_panel",
+      "observedRole": "suggested question chevrons",
+      "bounds": {
+        "x": 742,
+        "y": 444,
+        "width": 16,
+        "height": 184
+      },
+      "normalizedBounds": {
+        "x": 0.889688,
+        "y": 0.235419,
+        "width": 0.019185,
+        "height": 0.097561
+      },
+      "identityStatus": "target_placeholder",
+      "unresolved": [
+        "Three repeated chevrons are grouped."
+      ]
+    },
+    {
+      "id": "asset_015",
+      "regionId": "chat_transcript",
+      "observedRole": "user message bubble skins",
+      "bounds": {
+        "x": 251,
+        "y": 695,
+        "width": 469,
+        "height": 379
+      },
+      "normalizedBounds": {
+        "x": 0.300959,
+        "y": 0.368505,
+        "width": 0.56235,
+        "height": 0.200955
+      },
+      "identityStatus": "target_placeholder",
+      "unresolved": [
+        "Two blue user bubbles are grouped; repeatedItems records individual bubble bounds."
+      ]
+    },
+    {
+      "id": "asset_016",
+      "regionId": "chat_transcript",
+      "observedRole": "captain message bubble skins",
+      "bounds": {
+        "x": 116,
+        "y": 814,
+        "width": 552,
+        "height": 484
+      },
+      "normalizedBounds": {
+        "x": 0.139089,
+        "y": 0.431601,
+        "width": 0.661871,
+        "height": 0.256628
+      },
+      "identityStatus": "target_placeholder",
+      "unresolved": [
+        "Two dark captain bubbles are grouped; repeatedItems records individual bubble bounds."
+      ]
+    },
+    {
+      "id": "asset_017",
+      "regionId": "chat_transcript",
+      "observedRole": "user silhouette avatar slots",
+      "bounds": {
+        "x": 719,
+        "y": 688,
+        "width": 77,
+        "height": 380
+      },
+      "normalizedBounds": {
+        "x": 0.86211,
+        "y": 0.364793,
+        "width": 0.092326,
+        "height": 0.201485
+      },
+      "identityStatus": "target_placeholder",
+      "unresolved": [
+        "Two repeated user avatars are grouped."
+      ]
+    },
+    {
+      "id": "asset_018",
+      "regionId": "chat_transcript",
+      "observedRole": "captain helmet avatar slots",
+      "bounds": {
+        "x": 34,
+        "y": 813,
+        "width": 84,
+        "height": 381
+      },
+      "normalizedBounds": {
+        "x": 0.040767,
+        "y": 0.431071,
+        "width": 0.100719,
+        "height": 0.202015
+      },
+      "identityStatus": "target_placeholder",
+      "unresolved": [
+        "Two repeated captain avatars are grouped."
+      ]
+    },
+    {
+      "id": "asset_019",
+      "regionId": "evidence_shelf",
+      "observedRole": "evidence shelf panel border",
+      "bounds": {
+        "x": 24,
+        "y": 1340,
+        "width": 786,
+        "height": 198
+      },
+      "normalizedBounds": {
+        "x": 0.028777,
+        "y": 0.710498,
+        "width": 0.942446,
+        "height": 0.104984
+      },
+      "identityStatus": "target_placeholder",
+      "unresolved": []
+    },
+    {
+      "id": "asset_020",
+      "regionId": "evidence_shelf",
+      "observedRole": "evidence mode scale icon",
+      "bounds": {
+        "x": 57,
+        "y": 1358,
+        "width": 31,
+        "height": 34
+      },
+      "normalizedBounds": {
+        "x": 0.068345,
+        "y": 0.720042,
+        "width": 0.03717,
+        "height": 0.018028
+      },
+      "identityStatus": "target_placeholder",
+      "unresolved": []
+    },
+    {
+      "id": "asset_021",
+      "regionId": "evidence_shelf",
+      "observedRole": "compact manage evidence button",
+      "bounds": {
+        "x": 669,
+        "y": 1355,
+        "width": 117,
+        "height": 45
+      },
+      "normalizedBounds": {
+        "x": 0.802158,
+        "y": 0.718452,
+        "width": 0.140288,
+        "height": 0.02386
+      },
+      "identityStatus": "target_placeholder",
+      "unresolved": []
+    },
+    {
+      "id": "asset_022",
+      "regionId": "evidence_shelf",
+      "observedRole": "source reference 01 card border",
+      "bounds": {
+        "x": 42,
+        "y": 1411,
+        "width": 242,
+        "height": 108
+      },
+      "normalizedBounds": {
+        "x": 0.05036,
+        "y": 0.748144,
+        "width": 0.290168,
+        "height": 0.057264
+      },
+      "identityStatus": "target_placeholder",
+      "unresolved": []
+    },
+    {
+      "id": "asset_023",
+      "regionId": "evidence_shelf",
+      "observedRole": "source reference 01 document icon",
+      "bounds": {
+        "x": 74,
+        "y": 1435,
+        "width": 43,
+        "height": 49
+      },
+      "normalizedBounds": {
+        "x": 0.088729,
+        "y": 0.76087,
+        "width": 0.051559,
+        "height": 0.025981
+      },
+      "identityStatus": "target_placeholder",
+      "unresolved": []
+    },
+    {
+      "id": "asset_024",
+      "regionId": "evidence_shelf",
+      "observedRole": "source reference 01 close control",
+      "bounds": {
+        "x": 254,
+        "y": 1419,
+        "width": 24,
+        "height": 24
+      },
+      "normalizedBounds": {
+        "x": 0.304556,
+        "y": 0.752386,
+        "width": 0.028777,
+        "height": 0.012725
+      },
+      "identityStatus": "target_placeholder",
+      "unresolved": []
+    },
+    {
+      "id": "asset_025",
+      "regionId": "evidence_shelf",
+      "observedRole": "source reference 02 card border",
+      "bounds": {
+        "x": 298,
+        "y": 1411,
+        "width": 242,
+        "height": 108
+      },
+      "normalizedBounds": {
+        "x": 0.357314,
+        "y": 0.748144,
+        "width": 0.290168,
+        "height": 0.057264
+      },
+      "identityStatus": "target_placeholder",
+      "unresolved": []
+    },
+    {
+      "id": "asset_026",
+      "regionId": "evidence_shelf",
+      "observedRole": "source reference 02 waveform icon",
+      "bounds": {
+        "x": 329,
+        "y": 1445,
+        "width": 56,
+        "height": 39
+      },
+      "normalizedBounds": {
+        "x": 0.394484,
+        "y": 0.766172,
+        "width": 0.067146,
+        "height": 0.020679
+      },
+      "identityStatus": "target_placeholder",
+      "unresolved": []
+    },
+    {
+      "id": "asset_027",
+      "regionId": "evidence_shelf",
+      "observedRole": "source reference 02 close control",
+      "bounds": {
+        "x": 510,
+        "y": 1419,
+        "width": 24,
+        "height": 24
+      },
+      "normalizedBounds": {
+        "x": 0.611511,
+        "y": 0.752386,
+        "width": 0.028777,
+        "height": 0.012725
+      },
+      "identityStatus": "target_placeholder",
+      "unresolved": []
+    },
+    {
+      "id": "asset_028",
+      "regionId": "evidence_shelf",
+      "observedRole": "add evidence dashed card",
+      "bounds": {
+        "x": 553,
+        "y": 1411,
+        "width": 237,
+        "height": 108
+      },
+      "normalizedBounds": {
+        "x": 0.66307,
+        "y": 0.748144,
+        "width": 0.284173,
+        "height": 0.057264
+      },
+      "identityStatus": "target_placeholder",
+      "unresolved": []
+    },
+    {
+      "id": "asset_029",
+      "regionId": "evidence_shelf",
+      "observedRole": "add evidence plus icon",
+      "bounds": {
+        "x": 658,
+        "y": 1437,
+        "width": 44,
+        "height": 42
+      },
+      "normalizedBounds": {
+        "x": 0.788969,
+        "y": 0.76193,
+        "width": 0.052758,
+        "height": 0.022269
+      },
+      "identityStatus": "target_placeholder",
+      "unresolved": []
+    },
+    {
+      "id": "asset_030",
+      "regionId": "message_composer",
+      "observedRole": "composer panel and text area border",
+      "bounds": {
+        "x": 25,
+        "y": 1548,
+        "width": 785,
+        "height": 193
+      },
+      "normalizedBounds": {
+        "x": 0.029976,
+        "y": 0.820785,
+        "width": 0.941247,
+        "height": 0.102333
+      },
+      "identityStatus": "target_placeholder",
+      "unresolved": []
+    },
+    {
+      "id": "asset_031",
+      "regionId": "message_composer",
+      "observedRole": "upload evidence button frame",
+      "bounds": {
+        "x": 41,
+        "y": 1671,
+        "width": 166,
+        "height": 58
+      },
+      "normalizedBounds": {
+        "x": 0.049161,
+        "y": 0.886002,
+        "width": 0.199041,
+        "height": 0.030753
+      },
+      "identityStatus": "target_placeholder",
+      "unresolved": []
+    },
+    {
+      "id": "asset_032",
+      "regionId": "message_composer",
+      "observedRole": "upload evidence paperclip icon",
+      "bounds": {
+        "x": 63,
+        "y": 1682,
+        "width": 27,
+        "height": 31
+      },
+      "normalizedBounds": {
+        "x": 0.07554,
+        "y": 0.891835,
+        "width": 0.032374,
+        "height": 0.016437
+      },
+      "identityStatus": "target_placeholder",
+      "unresolved": []
+    },
+    {
+      "id": "asset_033",
+      "regionId": "message_composer",
+      "observedRole": "paste link button frame",
+      "bounds": {
+        "x": 222,
+        "y": 1671,
+        "width": 170,
+        "height": 58
+      },
+      "normalizedBounds": {
+        "x": 0.266187,
+        "y": 0.886002,
+        "width": 0.203837,
+        "height": 0.030753
+      },
+      "identityStatus": "target_placeholder",
+      "unresolved": []
+    },
+    {
+      "id": "asset_034",
+      "regionId": "message_composer",
+      "observedRole": "paste link chain icon",
+      "bounds": {
+        "x": 248,
+        "y": 1683,
+        "width": 26,
+        "height": 28
+      },
+      "normalizedBounds": {
+        "x": 0.297362,
+        "y": 0.892365,
+        "width": 0.031175,
+        "height": 0.014846
+      },
+      "identityStatus": "target_placeholder",
+      "unresolved": []
+    },
+    {
+      "id": "asset_035",
+      "regionId": "message_composer",
+      "observedRole": "send primary button frame",
+      "bounds": {
+        "x": 648,
+        "y": 1665,
+        "width": 142,
+        "height": 63
+      },
+      "normalizedBounds": {
+        "x": 0.776978,
+        "y": 0.882821,
+        "width": 0.170264,
+        "height": 0.033404
+      },
+      "identityStatus": "target_placeholder",
+      "unresolved": []
+    },
+    {
+      "id": "asset_036",
+      "regionId": "message_composer",
+      "observedRole": "send paper-plane icon",
+      "bounds": {
+        "x": 676,
+        "y": 1683,
+        "width": 33,
+        "height": 29
+      },
+      "normalizedBounds": {
+        "x": 0.810552,
+        "y": 0.892365,
+        "width": 0.039568,
+        "height": 0.015376
+      },
+      "identityStatus": "target_placeholder",
+      "unresolved": []
+    },
+    {
+      "id": "asset_037",
+      "regionId": "product_tab_bar",
+      "observedRole": "ProductTabBar outer shell and dividers",
+      "bounds": {
+        "x": 2,
+        "y": 1746,
+        "width": 830,
+        "height": 137
+      },
+      "normalizedBounds": {
+        "x": 0.002398,
+        "y": 0.925769,
+        "width": 0.995204,
+        "height": 0.07264
+      },
+      "identityStatus": "target_placeholder",
+      "unresolved": []
+    },
+    {
+      "id": "asset_038",
+      "regionId": "product_tab_bar",
+      "observedRole": "active first tab background",
+      "bounds": {
+        "x": 5,
+        "y": 1750,
+        "width": 207,
+        "height": 132
+      },
+      "normalizedBounds": {
+        "x": 0.005995,
+        "y": 0.92789,
+        "width": 0.248201,
+        "height": 0.069989
+      },
+      "identityStatus": "target_placeholder",
+      "unresolved": []
+    },
+    {
+      "id": "asset_039",
+      "regionId": "product_tab_bar",
+      "observedRole": "intelligent analysis tab medallion icon",
+      "bounds": {
+        "x": 73,
+        "y": 1766,
+        "width": 74,
+        "height": 66
+      },
+      "normalizedBounds": {
+        "x": 0.08753,
+        "y": 0.936373,
+        "width": 0.088729,
+        "height": 0.034995
+      },
+      "identityStatus": "target_placeholder",
+      "unresolved": []
+    },
+    {
+      "id": "asset_040",
+      "regionId": "product_tab_bar",
+      "observedRole": "latest news tab scroll icon",
+      "bounds": {
+        "x": 284,
+        "y": 1768,
+        "width": 62,
+        "height": 61
+      },
+      "normalizedBounds": {
+        "x": 0.340528,
+        "y": 0.937434,
+        "width": 0.074341,
+        "height": 0.032344
+      },
+      "identityStatus": "target_placeholder",
+      "unresolved": []
+    },
+    {
+      "id": "asset_041",
+      "regionId": "product_tab_bar",
+      "observedRole": "specialization tab shield icon",
+      "bounds": {
+        "x": 488,
+        "y": 1767,
+        "width": 64,
+        "height": 62
+      },
+      "normalizedBounds": {
+        "x": 0.585132,
+        "y": 0.936903,
+        "width": 0.076739,
+        "height": 0.032874
+      },
+      "identityStatus": "target_placeholder",
+      "unresolved": []
+    },
+    {
+      "id": "asset_042",
+      "regionId": "product_tab_bar",
+      "observedRole": "profile tab portrait icon",
+      "bounds": {
+        "x": 696,
+        "y": 1769,
+        "width": 62,
+        "height": 61
+      },
+      "normalizedBounds": {
+        "x": 0.834532,
+        "y": 0.937964,
+        "width": 0.074341,
+        "height": 0.032344
+      },
+      "identityStatus": "target_placeholder",
+      "unresolved": []
+    }
+  ],
+  "elementCounts": {
+    "firstLevelRegionCount": 7,
+    "visibleTextEntryCount": 38,
+    "visibleTextInstanceCount": 40,
+    "assetSlotCount": 42,
+    "suggestedQuestionRowCount": 3,
+    "chatBubbleCount": 4,
+    "chatAvatarCount": 4,
+    "chatTimestampInstanceCount": 4,
+    "evidenceCardCount": 3,
+    "evidenceSourceCardCount": 2,
+    "evidenceAddCardCount": 1,
+    "composerActionButtonCount": 3,
+    "productTabItemCount": 4,
+    "activeProductTabCount": 1
+  },
+  "unresolved": [
+    "All names, values, percentages, times, source labels, identities, role names, icon meanings, portraits, and decorative art are target placeholders.",
+    "Visible text entries with repeated count use the first measurable instance bounds; repeatedItems provides the repeated geometry where required.",
+    "Small low-contrast ornament, bevel, texture, shadow, and bubble-tail details are grouped under their nearest visible owner.",
+    "JSON was authored from the provided simulator-home target image only; no runtime, CSS, source implementation, browser page, previous review, redline, Git history, generated image, or secondary image evidence was used."
+  ]
+}

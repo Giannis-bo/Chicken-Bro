@@ -1,0 +1,163 @@
+{
+  "schemaVersion": 1,
+  "route": "talent_simulator",
+  "status": "truth_adaptation_complete",
+  "implementationStatus": "implemented_visual_debt_open",
+  "authority": "docs/plans/ui-reconstruction.md",
+  "targetInventory": "docs/design/current-ui/routes/talent-simulator/target-inventory.json",
+  "targetGeometry": "docs/design/current-ui/routes/talent-simulator/target-geometry.json",
+  "runtimeFacts": {
+    "route": "pages/builds/talent-simulator",
+    "navigation": "pushed",
+    "endpoints": [
+      "builds.home",
+      "websim.bootstrap",
+      "websim.talents",
+      "websim.talentImport",
+      "templates.upsert"
+    ],
+    "outgoing": [],
+    "localInteractions": [
+      "class_selector",
+      "specialization_selector",
+      "tree_tab",
+      "talent_rank_cycle",
+      "tree_scroll",
+      "community_template_status",
+      "copy_verified_import",
+      "save_verified_import",
+      "reset"
+    ]
+  },
+  "apiProbe": {
+    "probedAt": "2026-07-15T04:10:00+08:00",
+    "via": "http://127.0.0.1:10086/wow-api/api/websim/talents?class=mage&spec=frost&hero=frostfire",
+    "httpStatus": 200,
+    "selection": {
+      "classKey": "mage",
+      "specKey": "frost",
+      "heroKey": "frostfire"
+    },
+    "dataStatus": "verified",
+    "talentStatus": "simc",
+    "talentSchemaRevision": "websim-talent-rules-v1",
+    "nodeCount": 111,
+    "sectionCounts": {
+      "class": 49,
+      "spec": 44,
+      "hero": 18
+    },
+    "sectionPointCaps": {
+      "class": 34,
+      "spec": 34,
+      "hero": 13
+    },
+    "treeReady": true,
+    "ruleReady": true,
+    "spellReady": false,
+    "encodingReady": true,
+    "simcReady": true,
+    "descriptionCoverage": {
+      "covered": 56,
+      "total": 111,
+      "percent": 50.45,
+      "unresolvedFormulaCount": 55
+    },
+    "presetCount": 2,
+    "communityTemplateCount": 2,
+    "talentImport": {
+      "status": "blocked",
+      "source": "community_template",
+      "importCodeLength": 0,
+      "blockers": [
+        "no SimC-ready community talent import"
+      ]
+    }
+  },
+  "typedNormalization": {
+    "owner": "packages/api-client/src/websim.ts",
+    "rule": "The API client normalizes backend rule fields once before route code sees the payload.",
+    "fieldMap": {
+      "col": "column",
+      "selectedRank": "ranks",
+      "parentIds": "prerequisiteIds",
+      "pointRequirement": "requiredPoints",
+      "treeType": "treeKey"
+    },
+    "forbidden": [
+      "route-local index fallback when col is present",
+      "dropping parentIds and drawing an invented grid",
+      "treating backend rank as selectedRank",
+      "local talent encoding without a verified backend import code"
+    ]
+  },
+  "trustRules": [
+    "All target labels, point values, node identities, ranks, edges, lock states and service statuses are placeholders and never runtime facts.",
+    "The target defines the ten-region composition and baseline visual density; the API defines the real 111 nodes, section counts, ranks, coordinates, parent edges and point caps.",
+    "All real nodes remain reachable in an internal tree scroll surface; the route must not delete nodes to force the target placeholder count of 19.",
+    "Only backend node iconUrl values accepted by the trusted runtime media allowlist may represent real talents; generated art may only frame those icons.",
+    "spellReady=false and 55 unresolved formulas require a partial evidence state; unresolved descriptions cannot be presented as complete spell text.",
+    "encodingReady=true does not make a blocked empty talentImport usable. Copy and save stay disabled until status is verified and importCode is non-empty.",
+    "Community templates are source references only until a verified import can be decoded or returned; the route must not fabricate selected ranks from template titles.",
+    "Loading, empty, blocked and error states retain all ten target regions and the target's 19-socket loading density."
+  ],
+  "mappings": [
+    {
+      "region": "top_bar",
+      "slot": "title_and_back",
+      "runtime": "fixed title 天赋构筑 and deterministic back navigation"
+    },
+    {
+      "region": "selector_panel",
+      "slot": "class_spec_hero",
+      "runtime": "real builds.home class and specialization selectors plus the hero section returned by websim.talents",
+      "fallback": "retain three slots and show 未提供 when the backend has no hero selector catalog"
+    },
+    {
+      "region": "talent_tabs",
+      "slot": "tree_sections",
+      "runtime": "the real class, spec and hero treeSections in backend order"
+    },
+    {
+      "region": "points_summary_bar",
+      "slot": "point_counters",
+      "runtime": "active section pointCap, sum of normalized selected ranks and deterministic remaining points"
+    },
+    {
+      "region": "tree_canvas",
+      "slot": "real_talent_graph",
+      "runtime": "all active-section nodes placed from normalized row/column and connected from normalized prerequisiteIds inside a bounded scroll viewport",
+      "fallback": "19 neutral loading or unavailable sockets without fabricated names or ranks"
+    },
+    {
+      "region": "legend_bar",
+      "slot": "node_states",
+      "runtime": "selected, available, unselected and blocked states derived from ranks, prerequisites and requiredPoints"
+    },
+    {
+      "region": "websim_panel",
+      "slot": "readiness_and_import",
+      "runtime": "talentReadiness spell/encoding/simc flags and talentImport status/blockers"
+    },
+    {
+      "region": "community_template_row",
+      "slot": "community_references",
+      "runtime": "real presets/communityTemplates count and an honest unavailable-to-apply status when no verified code exists"
+    },
+    {
+      "region": "bottom_action_bar",
+      "slot": "save_import_reset",
+      "runtime": "save and import operate only on verified non-empty importCode; reset restores backend selected ranks"
+    }
+  ],
+  "stateContract": {
+    "loading": "mount ten regions, three selector skeletons, three tabs, counters, 19 neutral sockets, legend, readiness panel, community row and three actions",
+    "ready": "render all real nodes and edges in the active internal tree surface",
+    "partial": "preserve graph interaction while clearly marking incomplete spell evidence",
+    "stale": "preserve cached graph and expose stale state without upgrading readiness",
+    "blocked": "preserve all regions, graph slots and backend blockers; disable unsupported save/import actions",
+    "error": "preserve all regions and map the first action slot to deterministic retry",
+    "empty": "preserve all regions and 19 neutral sockets without invented talents"
+  },
+  "pendingTruthGaps": []
+}

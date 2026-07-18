@@ -1,0 +1,170 @@
+{
+  "schemaVersion": 1,
+  "route": "gear_detail",
+  "status": "truth_adaptation_complete",
+  "implementationStatus": "implemented_visual_debt_open",
+  "authority": "docs/plans/ui-reconstruction.md",
+  "targetInventory": "docs/design/current-ui/routes/gear-detail/target-inventory.json",
+  "targetGeometry": "docs/design/current-ui/routes/gear-detail/target-geometry.json",
+  "runtimeFacts": {
+    "route": "pages/builds/detail?query=gear",
+    "navigation": "pushed",
+    "endpoints": [
+      "builds.home",
+      "builds.detail",
+      "websim.gear",
+      "websim.gearResolve",
+      "websim.gearCommunityImport",
+      "websim.gearStatSnapshots",
+      "websim.talentImport",
+      "templates.fetch",
+      "templates.upsert"
+    ],
+    "localInteractions": [
+      "class_selector",
+      "specialization_selector",
+      "slot_selector",
+      "candidate_selector",
+      "enhancement_selector",
+      "community_template_import",
+      "save_template",
+      "reset",
+      "verified_stat_check",
+      "simc_handoff"
+    ]
+  },
+  "apiProbe": {
+    "probedAt": "2026-07-17T01:18:14+08:00",
+    "via": "http://124.223.51.33/api/websim/gear?class=mage&spec=frost&compact=1",
+    "httpStatus": 200,
+    "selection": {
+      "classKey": "mage",
+      "specKey": "frost"
+    },
+    "dataStatus": "verified",
+    "catalogStatus": "verified",
+    "slotCount": 16,
+    "replacementGroupCount": 16,
+    "initialEquippedCount": 0,
+    "initialSelectedCountFromEquippedSet": 0,
+    "compactCandidateCount": 199,
+    "initialModeCaveat": "mode=initial returns empty replacement item arrays and is not used for the catalog bootstrap",
+    "requiredReadyCount": 15,
+    "communityTemplateCount": 1,
+    "statStatus": "blocked",
+    "gearSchemaRevision": "websim-gear-simulator-v1",
+    "resolverContractRevision": "gear-resolver-contract-v1",
+    "selectionSchemaRevision": "selection-intent-v1",
+    "manifestGeneration": 20,
+    "officialItemMediaHost": "render.worldofwarcraft.com",
+    "slotDetailEvidence": {
+      "slot": "neck",
+      "detailMode": "complete",
+      "candidateCount": 44,
+      "verifiedCandidateFields": [
+        "itemId",
+        "name",
+        "ilevel",
+        "iconUrl",
+        "simcReady",
+        "compatibility",
+        "metadataStatus",
+        "statDisplayStatus",
+        "statSummary",
+        "source",
+        "variantKey"
+      ],
+      "verifiedEnhancementKinds": [
+        "socketOptions",
+        "enchantOptions",
+        "embellishmentOptions"
+      ]
+    }
+  },
+  "compactPayloadCaveat": {
+    "observed": true,
+    "compactSelectedCount": 361,
+    "compactItemLevelSelectedCount": 356,
+    "reason": "compact mode aggregates catalog candidates through gear_readiness and does not describe the editable equippedSet",
+    "rule": "compact mode may supply the lightweight candidate catalog, but the route must ignore compact readiness for editable state and derive all selected/readiness/item-level values from equippedSet"
+  },
+  "mainSyncContractAudit": {
+    "auditedAgainst": "origin/main@752828b",
+    "backendMutationAllowed": false,
+    "connected": [
+      "resolver and revision-conflict recovery",
+      "atomic community template import and enhancement recovery",
+      "asynchronous verified stat snapshots",
+      "on-demand slot candidate detail",
+      "weapon-aware slot labels",
+      "specialization-aware primary and rating stat localization",
+      "candidate equipment badges",
+      "enhancement type to compatible-slot selection"
+    ],
+    "compatibilityOnly": [
+      "websim.gearStats remains available to the SimC route but is not the gear-detail truth source",
+      "legacy pages/builds/detail remains compatibility code and is not the Taro implementation owner"
+    ]
+  },
+  "trustRules": [
+    "All target item names, numbers, slot icons, attributes, statuses and class identities are placeholders; only the nine-region composition and visible density are authoritative.",
+    "The editable loadout starts from equippedSet only. An empty equippedSet remains empty and must not be synthesized from slotReadiness, replacementCandidates or the first community template.",
+    "The route uses compact mode only as a lightweight candidate catalog; compact readiness aggregates catalog candidates and is never editable-state truth.",
+    "The catalog bootstrap omits mode=initial because that backend mode intentionally returns slot shells with empty item arrays; mode=slot is reserved for on-demand details.",
+    "Candidate identity, item level, stats, compatibility, source and enhancement options render only when the backend returns those fields for that candidate.",
+    "Only HTTPS item or enhancement media on the explicit trusted runtime allowlist may render as real WoW objects; generated or decorative art cannot impersonate an item.",
+    "Readiness progress is derived from the current editable equippedSet: unique SimC-ready required slots divided by 15. Candidate counts are never presented as equipped counts.",
+    "Average item level is derived only from currently selected items with real ilevel or itemLevel values, or from a non-blocked gearStats response.",
+    "Primary and secondary attributes remain 待校验 until gearStats returns non-blocked values for the current gear and a verified non-empty talent import code.",
+    "Community gear may be imported only from a returned template containing real gearItems; the UI identifies it as a source template, not BiS or an official recommendation.",
+    "Loading, empty, blocked, stale and error states retain all nine target regions, sixteen slot rows, three action positions and four footer status positions."
+  ],
+  "mappings": [
+    {
+      "region": "page_frame",
+      "runtime": "shared pushed-route surface and fixed-height target composition"
+    },
+    {
+      "region": "header_nav",
+      "runtime": "fixed title 装备详情 and deterministic back navigation"
+    },
+    {
+      "region": "profession_selector",
+      "runtime": "real builds.home classes in a horizontally reachable circular selector; six remain visible at baseline width"
+    },
+    {
+      "region": "specialization_selector",
+      "runtime": "real specializations for the selected class"
+    },
+    {
+      "region": "readiness_overview_panel",
+      "runtime": "selected item count, current selected-item average level, 15-slot SimC readiness and verified gearStats only"
+    },
+    {
+      "region": "enhancement_categories_bar",
+      "runtime": "real socket, enchant and embellishment options for the active selected item"
+    },
+    {
+      "region": "equipment_slots_panel",
+      "runtime": "sixteen canonical slots plus an internal candidate/detail surface sourced from replacementCandidates"
+    },
+    {
+      "region": "secondary_actions_row",
+      "runtime": "save current selection, import a returned source template and reset local edits"
+    },
+    {
+      "region": "status_footer_cards",
+      "runtime": "catalog, editable selection, stat validation and evidence boundary states"
+    }
+  ],
+  "stateContract": {
+    "loading": "mount all nine regions, six neutral class sockets, sixteen empty gear slots, three actions and four status cards",
+    "ready": "render the editable equippedSet and real candidate catalog without auto-selecting candidates",
+    "partial": "preserve editing while marking incompatible, non-SimC-ready or unverified candidate fields",
+    "stale": "preserve cached editing state and mark catalog evidence stale",
+    "blocked": "preserve all target regions and disable stat or handoff actions that lack verified inputs",
+    "error": "preserve all target regions and expose deterministic retry in the status deck",
+    "empty": "preserve sixteen slots and the center empty state without invented items or attributes"
+  },
+  "pendingTruthGaps": []
+}

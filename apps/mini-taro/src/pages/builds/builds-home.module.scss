@@ -1,0 +1,38 @@
+.surface {
+  width: calc(100% - 26px);
+  max-width: 365px;
+  grid-template-rows: 133px 153px 109px 148px 134px;
+  gap: 5px;
+  margin-top: 9px;
+}
+
+.overviewRegion,
+.gridRegion,
+.workspaceRegion,
+.listRegion,
+.workflowRegion {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.overviewRegion {
+  height: 133px;
+}
+
+.gridRegion {
+  height: 149px;
+  align-self: end;
+}
+
+.workspaceRegion {
+  height: 109px;
+}
+
+.listRegion {
+  height: 148px;
+}
+
+.workflowRegion {
+  height: 134px;
+}

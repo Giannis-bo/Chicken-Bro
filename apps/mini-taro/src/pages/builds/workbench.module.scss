@@ -1,0 +1,34 @@
+.surface {
+  height: 699px;
+  flex: 0 0 auto;
+  padding: 7px 9px 0;
+  overflow: hidden;
+}
+
+.region {
+  width: 100%;
+  min-width: 0;
+  flex: 0 0 auto;
+}
+
+.hero {
+  height: 98px;
+}
+
+.readiness {
+  height: 192px;
+  margin-top: 11px;
+}
+
+.modules {
+  height: 157px;
+  margin-top: 11px;
+}
+
+.ledger {
+  width: calc(100% - 2px);
+  height: 190px;
+  margin-top: 12px;
+  margin-right: 1px;
+  margin-left: 1px;
+}

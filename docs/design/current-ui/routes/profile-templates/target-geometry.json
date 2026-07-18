@@ -1,0 +1,99 @@
+{
+  "schemaVersion": "target-geometry-v1",
+  "route": "profile/templates",
+  "authority": "canonical_target",
+  "source": {
+    "path": "artifacts/ui-visual-targets/current/profile-templates.png",
+    "width": 813,
+    "height": 1934,
+    "nativeWidth": 813,
+    "nativeHeight": 1934,
+    "bytes": 1871944,
+    "sha256": "8448acce4a97fbc7b2d477cff1c8329f773cc2d86fbfae332242eef48e29d455"
+  },
+  "measurement": {
+    "coordinateSpace": "native_pixels",
+    "normalizedCoordinateSpace": "canvas_fraction",
+    "targetOnly": true,
+    "runtimeInputsUsed": false
+  },
+  "regions": [
+    {
+      "id": "page_frame",
+      "order": 1,
+      "observedRole": "full-canvas dark ornamental page surface",
+      "bounds": {"x": 0, "y": 0, "width": 813, "height": 1934},
+      "normalizedBounds": {"x": 0, "y": 0, "width": 1, "height": 1},
+      "internalStructure": ["dark textured canvas", "full-width top title ornament", "large lower product tab frame"],
+      "alignment": "Fills the native canvas and provides the visual root for all content regions.",
+      "spacing": "Content regions remain inside the dark page surface; the tab bar touches the bottom canvas edge.",
+      "unresolved": ["Fine texture, bevel layers, ornament thickness, and construction method are not resolved into separate geometry."]
+    },
+    {
+      "id": "page_header",
+      "order": 2,
+      "observedRole": "centered current tab title",
+      "bounds": {"x": 0, "y": 34, "width": 813, "height": 70},
+      "normalizedBounds": {"x": 0, "y": 0.01758, "width": 1, "height": 0.036194},
+      "internalStructure": ["centered title text", "left and right gold divider ornaments"],
+      "alignment": "Title is horizontally centered on the canvas with mirrored ornamental rules.",
+      "spacing": "Header sits above the profile summary card with a visible dark gap.",
+      "unresolved": ["Header ornament pieces are recorded as one visual group; static target does not establish any navigation behavior."]
+    },
+    {
+      "id": "profile_summary",
+      "order": 3,
+      "observedRole": "personal profile summary and local archive metrics",
+      "bounds": {"x": 16, "y": 117, "width": 781, "height": 401},
+      "normalizedBounds": {"x": 0.01968, "y": 0.060496, "width": 0.96064, "height": 0.207342},
+      "internalStructure": ["large beveled panel", "left circular avatar placeholder", "nickname and signature block", "right local-mode badge", "three lower metric cells"],
+      "alignment": "Panel is horizontally inset from both canvas edges; avatar anchors left, identity text sits center-left, and local-mode badge aligns to the upper right.",
+      "spacing": "A divider separates the identity area from the metric row; metric cells are evenly spaced with vertical separators.",
+      "unresolved": ["Avatar image source, edit action, local-mode behavior, and metric data truth are not established by the static target."]
+    },
+    {
+      "id": "template_library",
+      "order": 4,
+      "observedRole": "two-entry template library section",
+      "bounds": {"x": 23, "y": 560, "width": 767, "height": 210},
+      "normalizedBounds": {"x": 0.02829, "y": 0.289555, "width": 0.943419, "height": 0.108583},
+      "internalStructure": ["section heading", "left talent-template card", "right gear-template card"],
+      "alignment": "Heading is left aligned; two cards share a horizontal row with matching height and a narrow central gap.",
+      "spacing": "The card row starts below the heading; each card contains a left circular emblem, text block, and right chevron.",
+      "unresolved": ["The cards appear actionable, but click behavior and destination routes are not proven from the target."]
+    },
+    {
+      "id": "recent_saves",
+      "order": 5,
+      "observedRole": "recently saved template list",
+      "bounds": {"x": 22, "y": 817, "width": 768, "height": 416},
+      "normalizedBounds": {"x": 0.02706, "y": 0.422441, "width": 0.944649, "height": 0.215098},
+      "internalStructure": ["section heading with right all link", "framed two-row list", "left thumbnail per row", "middle title/type/time chip", "right delete action column"],
+      "alignment": "Heading and list align to the same left inset; delete columns align vertically on the right side of the list.",
+      "spacing": "Two list rows are separated by a horizontal divider; each row keeps consistent thumbnail, text, and action columns.",
+      "unresolved": ["The static target cannot establish list scrollability, delete confirmation behavior, or whether the all link is a navigation action."]
+    },
+    {
+      "id": "settings_support",
+      "order": 6,
+      "observedRole": "settings and support menu",
+      "bounds": {"x": 22, "y": 1279, "width": 768, "height": 411},
+      "normalizedBounds": {"x": 0.02706, "y": 0.661324, "width": 0.944649, "height": 0.212513},
+      "internalStructure": ["section heading", "four-row framed settings list", "left icon per row", "primary label", "optional right value", "right chevron"],
+      "alignment": "Rows share a common framed panel; labels align after the icon column and values align near the right edge.",
+      "spacing": "Rows have uniform height and thin separators between them.",
+      "unresolved": ["Static target does not prove row actions, form states, persistence, or external support behavior."]
+    },
+    {
+      "id": "product_tabbar",
+      "order": 7,
+      "observedRole": "four-item bottom product navigation",
+      "bounds": {"x": 0, "y": 1750, "width": 813, "height": 184},
+      "normalizedBounds": {"x": 0, "y": 0.90486, "width": 1, "height": 0.09514},
+      "internalStructure": ["full-width ornamental tab bar frame", "four equal navigation cells", "active 我的 cell with gold highlight"],
+      "alignment": "Tab bar spans the full canvas width at the bottom; four cells are evenly distributed.",
+      "spacing": "The active rightmost cell has an inset highlighted frame; other cells share the remaining three columns.",
+      "unresolved": ["Bottom placement is visible, but fixed or sticky runtime positioning cannot be established from the static target."]
+    }
+  ]
+}

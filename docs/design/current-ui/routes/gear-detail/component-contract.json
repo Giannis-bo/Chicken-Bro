@@ -1,0 +1,99 @@
+{
+  "schemaVersion": 1,
+  "route": "gear_detail",
+  "status": "component_contract_complete",
+  "implementationStatus": "implemented_visual_debt_open",
+  "authority": "docs/plans/ui-reconstruction.md",
+  "components": [
+    {
+      "owner": "PageFrame",
+      "regions": ["page_frame", "header_nav"],
+      "responsibility": "pushed-route frame, title and back control"
+    },
+    {
+      "owner": "GearProfessionSelector",
+      "regions": ["profession_selector"],
+      "responsibility": "real class selection with six visible circular sockets"
+    },
+    {
+      "owner": "GearSpecializationSelector",
+      "regions": ["specialization_selector"],
+      "responsibility": "real specialization picker"
+    },
+    {
+      "owner": "GearReadinessOverview",
+      "regions": ["readiness_overview_panel"],
+      "responsibility": "truth-safe selected loadout readiness, item level and verified stats"
+    },
+    {
+      "owner": "GearEnhancementBar",
+      "regions": ["enhancement_categories_bar"],
+      "responsibility": "socket, enchant and embellishment option summaries"
+    },
+    {
+      "owner": "GearSlotWorkbench",
+      "regions": ["equipment_slots_panel"],
+      "responsibility": "sixteen slot rows and internal candidate/detail interaction"
+    },
+    {
+      "owner": "GearActionRow",
+      "regions": ["secondary_actions_row"],
+      "responsibility": "save, source-template import and reset"
+    },
+    {
+      "owner": "GearStatusDeck",
+      "regions": ["status_footer_cards"],
+      "responsibility": "four stable truth and failure status positions"
+    },
+    {
+      "owner": "TrustedGearMedia",
+      "regions": ["profession_selector", "equipment_slots_panel", "enhancement_categories_bar"],
+      "responsibility": "allowlisted real media with deterministic neutral fallback"
+    }
+  ],
+  "rejectedReuse": [
+    {
+      "owner": "GearLoadout",
+      "reason": "the generic grid does not preserve the target left-center-right workbench composition"
+    },
+    {
+      "owner": "RankedFeed",
+      "reason": "a route-level feed inserts a non-target card; candidates belong inside GearSlotWorkbench"
+    },
+    {
+      "owner": "TemplateLibrary",
+      "reason": "saved templates are actions and source inputs here, not an additional route section"
+    },
+    {
+      "owner": "EvidenceLedger",
+      "reason": "the target uses four equal footer status cards, not a table or ledger"
+    },
+    {
+      "owner": "WowPanel",
+      "reason": "generic titled cards cannot express the fixed nine-region target geometry"
+    },
+    {
+      "owner": "RouteStatePanel",
+      "reason": "route state must inhabit the existing nine regions instead of creating another card"
+    }
+  ],
+  "layoutContract": {
+    "baselineCssViewport": {"width": 390, "height": 826, "dpr": 2},
+    "stableRegionCount": 9,
+    "stableSlotCount": 16,
+    "visibleClassSocketCount": 6,
+    "stableActionCount": 3,
+    "stableStatusCardCount": 4,
+    "candidateSurface": "internal to equipment_slots_panel",
+    "pageScroll": "none at baseline; candidate details scroll internally"
+  },
+  "stateContract": {
+    "stableRegionCount": 9,
+    "stableGearSlotCount": 16,
+    "stableSecondaryActionCount": 3,
+    "stableFooterStatusCount": 4,
+    "loadingMustNotCollapse": true,
+    "emptyMustNotCollapse": true,
+    "errorMustNotCollapse": true
+  }
+}

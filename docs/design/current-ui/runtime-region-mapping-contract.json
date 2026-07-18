@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "status": "active",
+  "authority": "docs/plans/ui-reconstruction.md",
+  "tolerance": { "positionPx": 8, "sizePx": 4 },
+  "routes": [
+    {
+      "route": "news_detail",
+      "targetGeometry": "docs/design/current-ui/routes/news-detail/target-geometry.json",
+      "anchorTop": "article_header_card",
+      "anchorBottom": "missing_article_state",
+      "regions": { "article_header_card": "article_hero", "translation_status": "translation_status", "article_body": "article_body", "source_reference_action": "source_reference", "evidence_details_panel": "evidence_details", "missing_article_state": "article_terminal" }
+    },
+    {
+      "route": "build_intel",
+      "targetGeometry": "docs/design/current-ui/routes/build-intel/target-geometry.json",
+      "anchorTop": "summary_card",
+      "anchorBottom": "reference_disclaimer",
+      "regions": { "summary_card": "summary_card", "filter_sort_bar": "filter_sort_bar", "build_card_a": "build_card_a", "build_card_b": "build_card_b", "build_card_c": "build_card_c", "reference_disclaimer": "reference_disclaimer" }
+    },
+    {
+      "route": "tasks_list",
+      "targetGeometry": "docs/design/current-ui/routes/tasks-list/target-geometry.json",
+      "anchorTop": "task_summary",
+      "anchorBottom": "bottom_actions",
+      "regions": { "task_summary": "task_summary", "loading_state": "task_sync", "task_filters": "task_filters", "task_list": "task_list", "empty_state": "task_guidance", "bottom_actions": "bottom_actions" }
+    },
+    {
+      "route": "task_detail",
+      "targetGeometry": "docs/design/current-ui/routes/task-detail/target-geometry.json",
+      "anchorTop": "task_summary",
+      "anchorBottom": "error_state",
+      "regions": { "task_summary": "task_summary", "refresh_notice": "refresh_notice", "simc_result": "simc_result", "run_context": "character_context", "scenario": "scenario_parameters", "attribute_snapshot": "attribute_snapshot", "combat_buffs": "combat_preparation", "error_state": "exception_state" }
+    }
+  ]
+}

@@ -73,12 +73,23 @@ test('verify-project dry-run exposes backend, frontend and full profile boundari
   assert.ok(backend.commands.some((command) => command.command.includes('python3 -m compileall')))
   assert.ok(frontend.commands.some((command) => command.command.includes('node --test')))
   assert.ok(frontend.commands.some((command) => command.command.includes('node --check')))
+  assert.ok(frontend.commands.some((command) => command.command === 'npm run audit:ui-architecture'))
+  assert.ok(frontend.commands.some((command) => command.command === 'npm run typecheck'))
+  assert.ok(frontend.commands.some((command) => command.command === 'npm run lint'))
+  assert.ok(frontend.commands.some((command) => command.command === 'npm run test:taro'))
+  assert.ok(frontend.commands.some((command) => command.command === 'npm run verify:ui-asset-integrity'))
+  assert.ok(frontend.commands.some((command) => command.command === 'npm run verify:ui-package'))
   assert.ok(full.commands.some((command) => command.command.includes('python3 -m unittest discover')))
   assert.ok(full.commands.some((command) => command.command.includes('node --test')))
   assert.ok(full.commands.some((command) => command.command.includes('scripts/project-harness.js --check')))
+  assert.ok(full.commands.some((command) => command.command === 'npm run audit:ui-architecture'))
+  assert.ok(full.commands.some((command) => command.command === 'npm run lint'))
+  assert.ok(full.commands.some((command) => command.command === 'npm run verify:ui-asset-integrity'))
+  assert.ok(full.commands.some((command) => command.command === 'npm run verify:ui-package'))
+  assert.ok(full.commands.some((command) => command.command === 'npm run test:taro'))
 })
 
-test('GitHub CI runs only the full profile because it subsumes the Harness checks', () => {
+test('GitHub CI installs dependencies and runs the full profile with UI release mechanics', () => {
   const workflow = fs.readFileSync('.github/workflows/project-harness.yml', 'utf8')
   const profileRuns = workflow.match(/node scripts\/verify-project\.js --profile/g) || []
   const release = JSON.parse(fs.readFileSync('docs/project-state.json', 'utf8')).activeReleaseArtifact
@@ -88,11 +99,16 @@ test('GitHub CI runs only the full profile because it subsumes the Harness check
   const fullTests = full.commands.find((command) => command.label === 'node test discover')
 
   assert.equal(profileRuns.length, 1)
+  assert.match(workflow, /run: npm ci/)
   assert.match(workflow, /name: Full profile/)
   assert.match(workflow, /--profile full/)
   assert.doesNotMatch(workflow, /name: Harness profile/)
   assert.ok(harnessTests)
   assert.ok(fullTests)
+  assert.ok(full.commands.some((command) => command.command === 'npm run audit:ui-architecture'))
+  assert.ok(full.commands.some((command) => command.command === 'npm run lint'))
+  assert.ok(full.commands.some((command) => command.command === 'npm run verify:ui-asset-integrity'))
+  assert.ok(full.commands.some((command) => command.command === 'npm run verify:ui-package'))
   for (const testFile of harnessTests.args.slice(2)) {
     assert.ok(fullTests.args.includes(testFile), `full profile must include ${testFile}`)
   }

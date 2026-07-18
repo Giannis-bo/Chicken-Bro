@@ -1,0 +1,400 @@
+{
+  "schemaVersion": "target-inventory-v1",
+  "route": "current_spec_workbench",
+  "authority": "canonical_target",
+  "source": {
+    "path": "artifacts/ui-visual-targets/current/current-spec-workbench.png",
+    "width": 909,
+    "height": 1731,
+    "sha256": "65deca229f53df065da135eb9a441507b4a27b354316db63847c3809e79f675b"
+  },
+  "measurement": {
+    "runtimeInputsUsed": false
+  },
+  "visibleText": [
+    {
+      "text": "专精工作台",
+      "region": "top_bar",
+      "role": "page_title",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "职业 · 专精",
+      "region": "hero_card",
+      "role": "section_heading",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "来源参考",
+      "region": "hero_card",
+      "role": "chip_label",
+      "count": 1,
+      "confidence": 0.98
+    },
+    {
+      "text": "当前构建 · 占位描述或目标场景",
+      "region": "hero_card",
+      "role": "supporting_text",
+      "count": 1,
+      "confidence": 0.93
+    },
+    {
+      "text": "缺少输入",
+      "region": "warning_panel",
+      "role": "status_heading",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "当前不可提交模拟",
+      "region": "warning_panel",
+      "role": "primary_warning",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "缺少必要输入或证据，",
+      "region": "warning_panel",
+      "role": "bullet_text",
+      "count": 1,
+      "confidence": 0.96
+    },
+    {
+      "text": "无法生成有效结果",
+      "region": "warning_panel",
+      "role": "bullet_text",
+      "count": 1,
+      "confidence": 0.98
+    },
+    {
+      "text": "下一步",
+      "region": "warning_panel",
+      "role": "primary_cta",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "天赋",
+      "region": "module_cards_row",
+      "role": "card_title",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "天赋配置",
+      "region": "module_cards_row",
+      "role": "card_subtitle",
+      "count": 1,
+      "confidence": 0.97
+    },
+    {
+      "text": "占位描述",
+      "region": "module_cards_row",
+      "role": "card_subtitle",
+      "count": 4,
+      "confidence": 0.99
+    },
+    {
+      "text": "装备",
+      "region": "module_cards_row",
+      "role": "card_title",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "装备选择",
+      "region": "module_cards_row",
+      "role": "card_subtitle",
+      "count": 1,
+      "confidence": 0.97
+    },
+    {
+      "text": "SimC",
+      "region": "module_cards_row",
+      "role": "card_title",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "模拟方案",
+      "region": "module_cards_row",
+      "role": "card_subtitle",
+      "count": 1,
+      "confidence": 0.98
+    },
+    {
+      "text": "队长",
+      "region": "module_cards_row",
+      "role": "card_title",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "团队需求",
+      "region": "module_cards_row",
+      "role": "card_subtitle",
+      "count": 1,
+      "confidence": 0.98
+    },
+    {
+      "text": "EvidenceLedger",
+      "region": "ledger_table",
+      "role": "table_title",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "来源",
+      "region": "ledger_table",
+      "role": "column_header",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "阻断",
+      "region": "ledger_table",
+      "role": "column_header",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "修订",
+      "region": "ledger_table",
+      "role": "column_header",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "天赋",
+      "region": "ledger_table",
+      "role": "row_label",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "装备",
+      "region": "ledger_table",
+      "role": "row_label",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "SimC",
+      "region": "ledger_table",
+      "role": "row_label",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "队长",
+      "region": "ledger_table",
+      "role": "row_label",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "0",
+      "region": "ledger_table",
+      "role": "source_count",
+      "count": 4,
+      "confidence": 0.99
+    },
+    {
+      "text": "0",
+      "region": "ledger_table",
+      "role": "blocker_count",
+      "count": 4,
+      "confidence": 0.99
+    },
+    {
+      "text": "草稿",
+      "region": "ledger_table",
+      "role": "revision_status",
+      "count": 4,
+      "confidence": 0.99
+    },
+    {
+      "text": "进入",
+      "region": "ledger_table",
+      "role": "row_cta",
+      "count": 4,
+      "confidence": 0.99
+    }
+  ],
+  "elementCounts": {
+    "topBarBackButtons": 1,
+    "topBarMenuButtons": 1,
+    "heroCards": 1,
+    "warningPanels": 1,
+    "featureCards": 4,
+    "featureCardBadges": 4,
+    "featureCardCircularSlots": 4,
+    "featureCardBottomChevrons": 4,
+    "tableRows": 4,
+    "tableRowIconCircles": 4,
+    "tableRowActionButtons": 4,
+    "numericSourceCells": 4,
+    "numericBlockerCells": 4,
+    "draftStatusCells": 4,
+    "prominentCircularMedallions": 6,
+    "rightFacingChevronAffordances": 7
+  },
+  "hierarchy": [
+    {
+      "region": "top_bar",
+      "structure": [
+        "navigation_back_control",
+        "center_title",
+        "navigation_menu_control"
+      ]
+    },
+    {
+      "region": "hero_card",
+      "structure": [
+        "framed_container",
+        "left_avatar_or_class_slot",
+        "heading_block",
+        "heading_chip",
+        "supporting_copy",
+        "right_chevron_affordance"
+      ]
+    },
+    {
+      "region": "warning_panel",
+      "structure": [
+        "framed_container",
+        "warning_icon_and_label",
+        "headline",
+        "divider",
+        "bullet_copy",
+        "primary_button",
+        "right_warning_emblem"
+      ]
+    },
+    {
+      "region": "module_cards_row",
+      "structure": [
+        "card_1_talent",
+        "card_2_gear",
+        "card_3_simc",
+        "card_4_leader"
+      ],
+      "children": [
+        "each card = framed_container + top_left_badge + circular_slot + title + two_line_subtitle + bottom_chevron"
+      ]
+    },
+    {
+      "region": "ledger_table",
+      "structure": [
+        "framed_container",
+        "header_row",
+        "data_row_talent",
+        "data_row_gear",
+        "data_row_simc",
+        "data_row_leader"
+      ],
+      "children": [
+        "each data row = left_icon_circle + row_label + source_cell + blocker_cell + revision_cell + right_action_button"
+      ]
+    },
+    {
+      "region": "bottom_canvas_tail",
+      "structure": [
+        "empty_margin_only"
+      ]
+    }
+  ],
+  "alignments": [
+    "header title is centered; content cards and table are centered within a shared page column",
+    "hero card text block and warning panel text block both align to strong left internal rails",
+    "module cards form a uniform four-column grid with equal heights",
+    "ledger table rows align to a fixed multi-column structure: label, source, blocker, revision, action",
+    "right-facing navigational affordances consistently appear at far right of actionable containers"
+  ],
+  "spacingRhythm": [
+    "outer page sections separated mostly by mid-20 px vertical gaps",
+    "framed containers use inner padding roughly in the 18-42 px range depending on component scale",
+    "module card interiors use vertically stacked spacing from badge to ring to title to subtitle to chevron",
+    "ledger rows keep consistent horizontal padding and column spacing across all four rows"
+  ],
+  "assetSlots": [
+    {
+      "id": "hero_avatar_slot",
+      "region": "hero_card",
+      "role": "portrait_or_class_emblem",
+      "shapeOrAspect": "circle, approx 1:1",
+      "contentSemantics": "empty avatar/class specialization visual slot",
+      "count": 1,
+      "fallbackExpectation": "decorative empty medallion may remain visible if no portrait/emblem available",
+      "confidence": 0.97
+    },
+    {
+      "id": "warning_emblem_slot",
+      "region": "warning_panel",
+      "role": "status_illustration",
+      "shapeOrAspect": "large circle with centered symbol, approx 1:1",
+      "contentSemantics": "warning/failure state emblem with exclamation mark",
+      "count": 1,
+      "fallbackExpectation": "prominent warning iconography should remain if custom artwork unavailable",
+      "confidence": 0.99
+    },
+    {
+      "id": "feature_card_ring_slots",
+      "region": "module_cards_row",
+      "role": "module_thumbnail_or_emblem",
+      "shapeOrAspect": "circle, approx 1:1",
+      "contentSemantics": "empty module-specific ring/emblem areas for four cards",
+      "count": 4,
+      "fallbackExpectation": "empty decorated rings acceptable as placeholders",
+      "confidence": 0.98
+    },
+    {
+      "id": "feature_card_badges",
+      "region": "module_cards_row",
+      "role": "module_category_badge",
+      "shapeOrAspect": "small shield/banner at top-left",
+      "contentSemantics": "distinct icon badge per module category",
+      "count": 4,
+      "fallbackExpectation": "simple icon badge or colored emblem if detailed asset unavailable",
+      "confidence": 0.96
+    },
+    {
+      "id": "ledger_header_icon",
+      "region": "ledger_table",
+      "role": "section_icon",
+      "shapeOrAspect": "small icon",
+      "contentSemantics": "ledger/scales-style section marker",
+      "count": 1,
+      "fallbackExpectation": "single small thematic icon adjacent to title",
+      "confidence": 0.9
+    },
+    {
+      "id": "ledger_row_icons",
+      "region": "ledger_table",
+      "role": "row_category_icons",
+      "shapeOrAspect": "small symbol inside circular frame",
+      "contentSemantics": "row-specific icons for talent, gear, SimC, leader",
+      "count": 4,
+      "fallbackExpectation": "distinct simplified icons inside circular holders",
+      "confidence": 0.97
+    }
+  ],
+  "interactionsSuggestedByTarget": [
+    "back navigation control in header",
+    "menu or drawer trigger in header",
+    "hero card chip may be tappable",
+    "hero card right chevron suggests entering details",
+    "primary warning-panel button suggests advancing to required next step",
+    "each of the four feature cards appears tappable as a navigation tile",
+    "each ledger row action button labeled '进入' suggests row-specific drill-in",
+    "right-facing chevrons generally indicate forward navigation"
+  ],
+  "unresolved": [
+    "the exact iconography inside small badges and some table row icons is partially legible but not pixel-certain at micro-detail",
+    "some subtitle text may have minor kerning or punctuation nuances not resolvable beyond the transcribed visible copy",
+    "whether the hero chip includes an additional icon beyond the visible blue dot is uncertain from the target alone",
+    "the table revision status icon preceding '草稿' is visible as a circular arrow-like symbol but not semantically certain beyond draft/revision styling"
+  ]
+}

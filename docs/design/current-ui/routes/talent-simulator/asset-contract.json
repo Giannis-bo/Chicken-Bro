@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 1,
+  "route": "talent_simulator",
+  "status": "asset_contract_complete",
+  "authority": "docs/plans/ui-reconstruction.md",
+  "targetInventory": "docs/design/current-ui/routes/talent-simulator/target-inventory.json",
+  "componentContract": "docs/design/current-ui/routes/talent-simulator/component-contract.json",
+  "targetObservedSlotCount": 48,
+  "productionRegistryStatus": "no_route_assets_promoted",
+  "productionPromotionAuthorized": false,
+  "generationStatus": "slots_bound_unified_generation_pending",
+  "generationPolicy": {
+    "context": "disposable_isolated_imagegen_and_review_after_component_bounds_stabilize",
+    "mainSessionPayloadAllowed": false,
+    "targetCropAllowed": false,
+    "factBearingGenerationAllowed": false,
+    "returnToMainSession": ["paths", "dimensions", "bytes", "hashes", "slot ids", "structured review status"]
+  },
+  "slots": [
+    {
+      "slotId": "asset_slot.talent-simulator-surface",
+      "owners": ["AppShell"],
+      "semanticRole": "dark etched talent workspace surface",
+      "sourceClass": "css_or_imagegen_raster",
+      "factBearing": false,
+      "fallback": "near-black radial CSS surface",
+      "productionStatus": "slot_bound_generation_pending"
+    },
+    {
+      "slotId": "asset_slot.pushed-back-medallion",
+      "owners": ["PageFrame"],
+      "semanticRole": "ornate back-control shell",
+      "sourceClass": "imagegen_raster",
+      "factBearing": false,
+      "fallback": "shared CSS shell",
+      "productionStatus": "slot_bound_generation_pending"
+    },
+    {
+      "slotId": "asset_slot.talent-selector-frame",
+      "owners": ["TalentSelectorPanel"],
+      "semanticRole": "three-column selector frame family",
+      "sourceClass": "imagegen_raster",
+      "factBearing": false,
+      "fallback": "CSS bronze bevel",
+      "productionStatus": "slot_bound_generation_pending"
+    },
+    {
+      "slotId": "asset_slot.talent-selector-object",
+      "owners": ["TalentSelectorPanel"],
+      "semanticRole": "backend class and specialization media",
+      "sourceClass": "verified_runtime_media",
+      "factBearing": true,
+      "fallback": "neutral utility glyph",
+      "productionStatus": "runtime_allowlist_required"
+    },
+    {
+      "slotId": "asset_slot.talent-tab-frame",
+      "owners": ["TalentTreeTabs"],
+      "semanticRole": "three-state beveled tab rail",
+      "sourceClass": "imagegen_raster",
+      "factBearing": false,
+      "fallback": "CSS segmented rail",
+      "productionStatus": "slot_bound_generation_pending"
+    },
+    {
+      "slotId": "asset_slot.talent-node-shell",
+      "owners": ["TalentGraphViewport", "TalentLegend"],
+      "semanticRole": "shared selected available neutral and blocked socket shells",
+      "sourceClass": "imagegen_raster",
+      "factBearing": false,
+      "fallback": "CSS circular and choice shells",
+      "productionStatus": "slot_bound_generation_pending"
+    },
+    {
+      "slotId": "asset_slot.talent-node-object",
+      "owners": ["TalentGraphViewport"],
+      "semanticRole": "backend talent icons",
+      "sourceClass": "verified_runtime_media",
+      "factBearing": true,
+      "fallback": "neutral socket with abbreviated real name",
+      "productionStatus": "runtime_allowlist_required"
+    },
+    {
+      "slotId": "asset_slot.talent-tree-connections",
+      "owners": ["TalentGraphViewport"],
+      "semanticRole": "real prerequisite connection rail",
+      "sourceClass": "css_geometry",
+      "factBearing": true,
+      "fallback": "hide only an individual edge whose parent id is absent",
+      "productionStatus": "runtime_geometry"
+    },
+    {
+      "slotId": "asset_slot.talent-readiness-glyphs",
+      "owners": ["TalentPointSummary", "TalentImportStatus", "TalentLegend"],
+      "semanticRole": "utility status and information markers",
+      "sourceClass": "system_vector",
+      "factBearing": false,
+      "fallback": "registered utility glyphs",
+      "productionStatus": "candidate_reuse_pending_route_verification"
+    },
+    {
+      "slotId": "asset_slot.talent-community-row",
+      "owners": ["TalentCommunityRow"],
+      "semanticRole": "community reference row icon and chevron",
+      "sourceClass": "system_vector",
+      "factBearing": false,
+      "fallback": "registered utility glyphs",
+      "productionStatus": "candidate_reuse_pending_route_verification"
+    },
+    {
+      "slotId": "asset_slot.talent-action-frame",
+      "owners": ["TalentActionBar"],
+      "semanticRole": "save import and reset action frame family",
+      "sourceClass": "imagegen_raster",
+      "factBearing": false,
+      "fallback": "CSS gold blue and metal bevels",
+      "productionStatus": "slot_bound_generation_pending"
+    }
+  ],
+  "visibleAssetGaps": [
+    {"slotId": "asset_slot.talent-simulator-surface", "blockingStage": "visual_self_review"}
+  ]
+}

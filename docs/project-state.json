@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-07-16",
-  "activeMilestone": "none",
+  "updatedAt": "2026-07-18",
+  "activeMilestone": "taro_target_first_14_route_rebuild",
   "featureIteration": "allowed_under_harness",
   "activeReleaseArtifact": "artifacts/releases/2026-07-16-harness-superpowers-method-layer",
   "activeContracts": [
@@ -32,21 +32,21 @@
       "status": "active",
       "lifecycle": "active",
       "notes": "Harness/backend/frontend/full verification profile contract and CI entrypoint."
+    },
+    {
+      "id": "taro_target_first_14_route_rebuild",
+      "path": "docs/plans/ui-reconstruction.md",
+      "status": "active",
+      "lifecycle": "active",
+      "notes": "Active Taro UI contract, including canonical gear API parity and fresh real WeChat acceptance."
     }
   ],
   "completedBaselines": [
     {
-      "id": "ui_runtime_rescue_20260709",
-      "domain": "ui_delivery",
-      "status": "accepted_baseline",
-      "evidence": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/manifest.json",
-      "notes": "14/14 current automated mini-program route screenshots accepted on 2026-07-09; future UI changes require a new Harness contract."
-    },
-    {
       "id": "phase4_pg_read_model_selector_baseline",
       "domain": "pg_read_model_phase4",
       "status": "completed",
-      "evidence": "docs/roadmap/history/2026-07-phase4-pg-read-model.md",
+      "evidence": "docs/backend-owner-map.json",
       "notes": "PG/cache/admin read-only selector vertical closed after the fortieth slice; sync_state_repository remains out of scope."
     },
     {
@@ -206,53 +206,11 @@
       "evidence": "artifacts/releases/2026-07-14-community-enhancement-editability/evidence.json"
     },
     {
-      "id": "community_enhancement_editability_v2_design",
-      "path": "docs/superpowers/specs/2026-07-14-community-enhancement-editability-v2-design.md",
-      "status": "completed_live_verified_archived",
-      "lifecycle": "historical",
-      "evidence": "artifacts/releases/2026-07-14-community-enhancement-editability/evidence.json"
-    },
-    {
-      "id": "community_enhancement_editability_v2_plan",
-      "path": "docs/superpowers/plans/2026-07-14-community-enhancement-editability-v2.md",
-      "status": "completed_live_verified_archived",
-      "lifecycle": "historical",
-      "evidence": "artifacts/releases/2026-07-14-community-enhancement-editability/evidence.json"
-    },
-    {
-      "id": "community_template_enhancement_import_v1_design",
-      "path": "docs/superpowers/specs/2026-07-13-community-template-enhancement-import-design.md",
-      "status": "completed_live_verified_superseded_for_capacity_and_editability",
-      "lifecycle": "historical",
-      "evidence": ".gstack/deploy-reports/2026-07-13-pr85-deploy.md"
-    },
-    {
-      "id": "community_template_enhancement_import_v1_plan",
-      "path": "docs/superpowers/plans/2026-07-13-community-template-enhancement-import.md",
-      "status": "completed_live_verified_superseded_for_capacity_and_editability",
-      "lifecycle": "historical",
-      "evidence": ".gstack/deploy-reports/2026-07-13-pr85-deploy.md"
-    },
-    {
       "id": "equipment_simulator_phase5c_frontend_cutover",
       "path": "artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover/requirement.json",
       "status": "completed_live_verified_archived",
       "lifecycle": "historical",
       "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover/evidence.json"
-    },
-    {
-      "id": "equipment_simulator_phase5_async_stat_snapshot_plan",
-      "path": "docs/plans/2026-07-11-equipment-simulator-phase5-async-stat-snapshot-plan.md",
-      "status": "completed_live_verified_archived",
-      "lifecycle": "historical",
-      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover/closure-audit.json"
-    },
-    {
-      "id": "equipment_simulator_capability_architecture",
-      "path": "docs/plans/2026-07-10-equipment-simulator-capability-architecture-design.md",
-      "status": "phase0_5_completed_phase6_external_todo",
-      "lifecycle": "historical",
-      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover/closure-audit.json"
     },
     {
       "id": "equipment_simulator_phase5b_stat_snapshot_worker_api",
@@ -271,13 +229,6 @@
     {
       "id": "equipment_simulator_phase4e_scheduled_refresh",
       "path": "artifacts/releases/2026-07-11-equipment-simulator-phase4e-scheduled-refresh/requirement.json",
-      "status": "completed_live_verified_archived",
-      "lifecycle": "historical",
-      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase4e-scheduled-refresh/evidence.json"
-    },
-    {
-      "id": "equipment_simulator_phase4_release_train_plan",
-      "path": "docs/plans/2026-07-11-equipment-simulator-phase4-release-train-plan.md",
       "status": "completed_live_verified_archived",
       "lifecycle": "historical",
       "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase4e-scheduled-refresh/evidence.json"
@@ -311,13 +262,6 @@
       "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase4a-release-contracts/evidence.json"
     },
     {
-      "id": "equipment_simulator_phase3_resolve_profile_workbench_plan",
-      "path": "docs/plans/2026-07-11-equipment-simulator-phase3-resolve-profile-workbench-plan.md",
-      "status": "completed_live_verified_archived",
-      "lifecycle": "historical",
-      "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase3c-workbench-cutover/evidence.json"
-    },
-    {
       "id": "equipment_simulator_phase3c_workbench_cutover",
       "path": "artifacts/releases/2026-07-11-equipment-simulator-phase3c-workbench-cutover/requirement.json",
       "status": "completed_live_verified_archived",
@@ -346,77 +290,25 @@
       "evidence": "artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity/evidence.json"
     },
     {
-      "id": "equipment_simulator_phase2_canonical_resolver_plan",
-      "path": "docs/plans/2026-07-10-equipment-simulator-phase2-canonical-resolver-plan.md",
-      "status": "completed_live_verified_archived",
-      "lifecycle": "historical",
-      "evidence": "artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity/evidence.json"
-    },
-    {
       "id": "equipment_simulator_phase2a_pure_resolver",
       "path": "artifacts/releases/2026-07-10-equipment-simulator-phase2a-pure-resolver/requirement.json",
       "status": "completed_live_verified_archived",
       "lifecycle": "historical",
       "evidence": "artifacts/releases/2026-07-10-equipment-simulator-phase2a-pure-resolver/evidence.json"
-    },
-    {
-      "id": "equipment_simulator_phase1_contracts_plan",
-      "path": "docs/plans/2026-07-10-equipment-simulator-phase1-contracts-rule-authority-plan.md",
-      "status": "completed_live_verified_archived",
-      "lifecycle": "historical",
-      "evidence": "artifacts/releases/2026-07-10-equipment-simulator-phase1-contracts-rule-authority/evidence.json"
-    },
-    {
-      "id": "equipment_simulator_phase0_safety",
-      "path": "docs/plans/2026-07-10-equipment-simulator-phase0-safety-plan.md",
-      "status": "completed_live_verified_archived",
-      "lifecycle": "historical",
-      "evidence": "artifacts/releases/2026-07-10-equipment-simulator-phase0c-legacy-stat-containment/evidence.json"
-    },
-    {
-      "id": "project_harness_normalization_goal",
-      "path": "docs/plans/2026-07-10-project-harness-normalization-goal-plan.md",
-      "status": "completed",
-      "lifecycle": "historical",
-      "evidence": "artifacts/releases/2026-07-10-project-harness-normalization/closure-audit.json"
-    },
-    {
-      "id": "harness_guided_project_optimization_plan",
-      "path": "docs/plans/2026-07-09-harness-guided-project-optimization-plan.md",
-      "status": "superseded_by_project_harness_normalization_goal",
-      "lifecycle": "historical"
-    },
-    {
-      "id": "ui_codex_goal_mode_handoff",
-      "path": "docs/plans/2026-07-08-codex-goal-mode-ui-delivery-handoff.md",
-      "status": "accepted_baseline_archived",
-      "lifecycle": "historical"
-    },
-    {
-      "id": "ui_goal_mode_entry_contract",
-      "path": "docs/plans/2026-07-08-ui-goal-mode-entry-contract.md",
-      "status": "accepted_baseline_archived",
-      "lifecycle": "historical"
-    },
-    {
-      "id": "ui_current_delivery_source_of_truth",
-      "path": "docs/plans/2026-07-08-current-ui-delivery-source-of-truth.md",
-      "status": "accepted_baseline_archived",
-      "lifecycle": "historical"
     }
   ],
   "controlPlaneConclusions": [
     {
       "domain": "ui_delivery",
-      "status": "accepted_baseline",
-      "activeContract": null,
-      "evidence": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/manifest.json"
+      "status": "active_unverified",
+      "activeContract": "docs/plans/ui-reconstruction.md",
+      "evidence": "docs/design/current-ui/runtime-review-status.json"
     },
     {
       "domain": "pg_read_model_phase4",
       "status": "completed",
       "activeContract": null,
-      "evidence": "docs/roadmap/history/2026-07-phase4-pg-read-model.md"
+      "evidence": "docs/backend-owner-map.json"
     },
     {
       "domain": "project_harness_normalization",
@@ -444,14 +336,26 @@
       ]
     },
     "uiRuntimeEvidence": {
-      "status": "accepted_baseline",
+      "status": "active_unverified",
       "routeCount": 14,
-      "manifest": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/manifest.json"
+      "contract": "docs/design/current-ui/runtime-review-contract.json",
+      "statusLedger": "docs/design/current-ui/runtime-review-status.json",
+      "targetRegistry": "docs/design/current-ui/target-registry.json",
+      "visualAcceptance": "pending_fresh_real_wechat_evidence",
+      "interactionAcceptance": "pending_real_wechat_core_interaction_matrix",
+      "productionRequestDomain": {
+        "status": "blocked_external_configuration",
+        "audit": "npm run audit:taro-domain",
+        "missing": [
+          "WOW_BACKEND_API_BASE_URL=https_named_origin",
+          "WOW_WECHAT_REQUEST_DOMAIN_APPROVED=yes"
+        ]
+      }
     },
     "pgReadModel": {
       "status": "phase4_completed",
       "ownerMap": "docs/backend-owner-map.json",
-      "history": "docs/roadmap/history/2026-07-phase4-pg-read-model.md"
+      "evidence": "docs/backend-owner-map.json"
     },
     "canonicalGearApi": {
       "status": "phase3_complete_live_verified",
@@ -460,9 +364,13 @@
       "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase3c-workbench-cutover/evidence.json"
     },
     "gearWorkbenchState": {
-      "status": "phase3c_active_live_verified",
-      "module": "pages/builds/gear-workbench-state.js",
-      "activeConsumerCount": 1,
+      "status": "dual_surface_canonical_api_connected_taro_runtime_unverified",
+      "modules": [
+        "pages/builds/gear-workbench-state.js",
+        "packages/domain/src/gear-intent.ts",
+        "packages/api-client/src/websim.ts"
+      ],
+      "activeConsumerCount": 2,
       "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase3c-workbench-cutover/evidence.json"
     },
     "gearReleaseTrain": {
@@ -472,7 +380,7 @@
       "pointerGeneration": 16,
       "activeManifestRevision": "season-manifest:sha256:34325b76e6b12544b0cf511c89852722784675495b757b6dce522d531660e436",
       "rollbackManifestRevision": "season-manifest:sha256:551810fcc9d8f6b4dd2099cfafa4b67192476dc4f0bfe36bf827b9fa6ef3c07d",
-      "plan": "docs/plans/2026-07-11-equipment-simulator-phase4-release-train-plan.md",
+      "runbook": "docs/gear-simulation-full-chain-runbook.md",
       "purePolicyModule": "server/gear_release.py",
       "releaseRepository": "server/gear_release_store.py",
       "activeGearReleaseId": "gear-release:sha256:cfb1680130402b3c610d5eab3b0dbe50dd7186facc6a0371951eb5c10ed993c5",
@@ -483,7 +391,7 @@
     },
     "gearStatSnapshot": {
       "status": "phase5_complete_live_verified",
-      "plan": "docs/plans/2026-07-11-equipment-simulator-phase5-async-stat-snapshot-plan.md",
+      "runbook": "docs/gear-simulation-full-chain-runbook.md",
       "archivedEvidence": "artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover/evidence.json",
       "closureAudit": "artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover/closure-audit.json",
       "legacyPath": "/api/websim/gear/stats",

@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "route": "news_detail",
+  "status": "asset_contract_complete",
+  "authority": "docs/plans/ui-reconstruction.md",
+  "targetInventory": "docs/design/current-ui/routes/news-detail/target-inventory.json",
+  "componentContract": "docs/design/current-ui/routes/news-detail/component-contract.json",
+  "productionRegistryStatus": "partial_reuse_only",
+  "productionPromotionAuthorized": false,
+  "generationStatus": "development_asset_family_visual_review_passed_pending_platform_promotion",
+  "generationPolicy": {
+    "context": "disposable_isolated_imagegen_and_review_after_component_bounds_stabilize",
+    "batchRule": "generate the missing detail frame, neutral source crest and terminal/evidence emblems only after the seven-region H5 geometry gate passes",
+    "mainSessionPayloadAllowed": false,
+    "targetCropAllowed": false,
+    "factBearingGenerationAllowed": false,
+    "returnToMainSession": ["paths", "dimensions", "bytes", "hashes", "slot ids", "structured review status"]
+  },
+  "slots": [
+    { "slotId": "asset_slot.news-detail-surface", "owners": ["AppShell"], "semanticRole": "dark forged reading surface", "sourceClass": "css_material_contract", "factBearing": false, "fallback": "near-black CSS surface", "productionStatus": "css_news_material_active_cross_route_raster_forbidden" },
+    { "slotId": "asset_slot.pushed-back-medallion", "owners": ["PageFrame"], "semanticRole": "ornate back-control shell", "sourceClass": "shared_css_or_registered_raster", "factBearing": false, "fallback": "shared CSS fallback", "productionStatus": "development_visual_review_passed_pending_route_promotion" },
+    { "slotId": "asset_slot.title-ornament-family", "owners": ["PageFrame"], "semanticRole": "mirrored title flourishes", "sourceClass": "shared_css_or_registered_raster", "factBearing": false, "fallback": "shared CSS brass lines", "productionStatus": "development_visual_review_passed_pending_route_promotion" },
+    { "slotId": "asset_slot.news-detail-frame-family", "owners": ["NewsDetailHero", "TranslationStatusSegments", "ArticleReadingSurface", "SourceReferenceAction", "ArticleEvidencePanel", "NewsDetailTerminalPanel"], "semanticRole": "route-specific clipped panel material family", "sourceClass": "css_material_contract", "factBearing": false, "fallback": "CSS clipped news material", "productionStatus": "development_visual_review_passed_pending_route_promotion" },
+    { "slotId": "asset_slot.news-detail-source-crest", "owners": ["NewsDetailHero"], "semanticRole": "generic non-branded source reference crest", "sourceClass": "registered_raster", "factBearing": false, "fallback": "utility-glyph-family.shield in a CSS holder", "productionStatus": "development_visual_review_passed_pending_route_promotion" },
+    { "slotId": "asset_slot.news-detail-source-actions", "owners": ["SourceReferenceAction"], "semanticRole": "source link and copy glyphs", "sourceClass": "system_vector", "factBearing": false, "fallback": "text-only deterministic actions", "productionStatus": "development_visual_review_passed_pending_route_promotion" },
+    { "slotId": "asset_slot.news-detail-evidence-header", "owners": ["ArticleEvidencePanel"], "semanticRole": "production scales identity and collapse glyph", "sourceClass": "registered_raster_and_system_vector", "factBearing": false, "fallback": "registered utility glyphs", "productionStatus": "development_visual_review_passed_pending_route_promotion" },
+    { "slotId": "asset_slot.news-detail-evidence-emblem", "owners": ["ArticleEvidencePanel"], "semanticRole": "empty evidence medallion", "sourceClass": "registered_raster", "factBearing": false, "fallback": "utility warning glyph in CSS medallion", "productionStatus": "development_visual_review_passed_pending_route_promotion" },
+    { "slotId": "asset_slot.news-detail-terminal-emblem", "owners": ["NewsDetailTerminalPanel"], "semanticRole": "loading, ready, missing, error and blocked terminal emblem family", "sourceClass": "registered_raster", "factBearing": false, "fallback": "registered utility glyph in CSS diamond holder", "productionStatus": "development_visual_review_passed_pending_route_promotion" }
+  ],
+  "visibleAssetGaps": [],
+  "promotionBlockers": [
+    "immutable runtime evidence with matching source, build and target fingerprints",
+    "explicit human review",
+    "route H5 milestone verification",
+    "route WeChat verification"
+  ]
+}

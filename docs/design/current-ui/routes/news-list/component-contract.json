@@ -1,0 +1,138 @@
+{
+  "schemaVersion": 1,
+  "route": "news_list",
+  "status": "component_contract_complete",
+  "implementationStatus": "implemented_development_visual_review_passed",
+  "authority": "docs/plans/ui-reconstruction.md",
+  "targetInventory": "docs/design/current-ui/routes/news-list/target-inventory.json",
+  "truthAdaptation": "docs/design/current-ui/routes/news-list/truth-adaptation.json",
+  "compositionOwner": {
+    "name": "NewsListPage",
+    "location": "apps/mini-taro/src/pages/news/list.tsx",
+    "responsibility": "compose the six target regions from one query-aware presentation model without generic replacement loading or empty panels"
+  },
+  "components": [
+    {
+      "owner": "PageFrame",
+      "decision": "reuse_and_configure",
+      "targetRegions": ["top_bar"],
+      "location": "packages/design-system/src/components/PageFrame.tsx",
+      "requiredVariant": "news-list",
+      "contract": {
+        "topology": "ornate left back control, centered title and symmetric title ornaments",
+        "inputs": ["title", "onBack", "variant"],
+        "forbidden": ["kicker stack", "right product action", "product TabBar"]
+      }
+    },
+    {
+      "owner": "NewsListSummary",
+      "decision": "new_owner",
+      "targetRegions": ["list_summary"],
+      "location": "packages/design-system/src/components/NewsListComponents.tsx",
+      "contract": {
+        "topology": "unframed left title/count block and fixed right refresh action",
+        "inputs": ["title", "countLabel", "state", "onRefresh"],
+        "stableInvariant": "long payload titles wrap within two lines without moving the following category region"
+      }
+    },
+    {
+      "owner": "NewsListCategoryFilter",
+      "decision": "new_owner",
+      "targetRegions": ["category_filter_bar"],
+      "location": "packages/design-system/src/components/NewsListComponents.tsx",
+      "contract": {
+        "topology": "one continuous framed row with six equal category controls and one fixed sort control",
+        "itemCount": 6,
+        "itemIds": ["all", "official", "blue_post", "updates", "events", "community"],
+        "inputs": ["items", "activeId", "sortDirection", "loading", "onSelect", "onSort"],
+        "forbidden": ["one detached pill per category", "horizontal text collision", "advanced-filter claims"]
+      }
+    },
+    {
+      "owner": "NewsListFeed",
+      "decision": "new_owner",
+      "targetRegions": ["news_results_list"],
+      "location": "packages/design-system/src/components/NewsListComponents.tsx",
+      "contract": {
+        "topology": "six stable stacked row slots with accent rail, generic document medallion, title, source/status chips, absolute date and chevron",
+        "visibleRowCount": 6,
+        "inputs": ["items", "loading", "onSelect"],
+        "states": ["loading", "source_reference", "partial", "stale", "blocked", "error"],
+        "assetRule": "article imageUrl never replaces the neutral document medallion in this target composition"
+      }
+    },
+    {
+      "owner": "NewsListTerminalPanel",
+      "decision": "new_owner_with_truth_modes",
+      "targetRegions": ["empty_state_panel"],
+      "location": "packages/design-system/src/components/NewsListComponents.tsx",
+      "contract": {
+        "modes": ["loading", "more", "complete", "empty", "error", "blocked"],
+        "topology": "one large centered emblem/copy/action panel retained in every mode",
+        "inputs": ["mode", "title", "detail", "actionLabel", "onAction"],
+        "forbidden": ["showing empty copy when populated rows exist", "generic RouteStatePanel"]
+      }
+    },
+    {
+      "owner": "TrustDisclaimer",
+      "decision": "new_owner",
+      "targetRegions": ["reference_disclaimer"],
+      "location": "packages/design-system/src/components/NewsListComponents.tsx",
+      "contract": {
+        "topology": "one full-width inset footer band with shield icon and one centered line",
+        "copy": "仅供参考 · 请以原始来源为准"
+      }
+    },
+    {
+      "owner": "ForgedPanel",
+      "decision": "reuse_as_low_level_frame_host_only",
+      "targetRegions": ["category_filter_bar", "news_results_list", "empty_state_panel"],
+      "location": "packages/design-system/src/components/ReconstructionPrimitives.tsx",
+      "contract": {
+        "responsibility": "frame layers, content-safe insets, stable region metadata and the shared news material-family token scope",
+        "materialFamily": "news",
+        "forbidden": ["generic card ownership", "frame smaller than row content", "one frame per metadata chip"]
+      }
+    }
+  ],
+  "rejectedReuse": [
+    {
+      "owner": "RankedFeed",
+      "reason": "generic ranked rows cannot express the target document medallion, two truth chips, fixed trailing date column or six-slot loading geometry"
+    },
+    {
+      "owner": "WowPanel",
+      "reason": "generic titled panels cannot own the summary, filter, terminal or disclaimer regions"
+    },
+    {
+      "owner": "RouteStatePanel",
+      "reason": "a standalone state panel deletes the six target row slots and duplicates the terminal-state owner"
+    }
+  ],
+  "layoutContract": {
+    "targetWidthPx": 864,
+    "targetHeightPx": 1821,
+    "baselineCssWidthPx": 390,
+    "uniformScale": 0.451388889,
+    "baselineCssViewport": { "width": 390, "height": 822 },
+    "regionBoundsCssPx": {
+      "top_bar": { "x": 6.77, "y": 6.32, "width": 376.46, "height": 58.23 },
+      "list_summary": { "x": 7.67, "y": 64.55, "width": 374.65, "height": 66.81 },
+      "category_filter_bar": { "x": 13.99, "y": 131.35, "width": 362.07, "height": 47.4 },
+      "news_results_list": { "x": 15.8, "y": 189.58, "width": 359.31, "height": 423.82 },
+      "empty_state_panel": { "x": 13.99, "y": 620.75, "width": 362.07, "height": 155.28 },
+      "reference_disclaimer": { "x": 7.67, "y": 780.6, "width": 374.65, "height": 36.11 }
+    },
+    "rule": "the 390px H5 stage uses the target-scaled bounds directly; route states and long runtime copy cannot shift the six first-level regions",
+    "nativeSafeArea": "PageFrame and AppShell own native top/bottom insets; this pushed route has no product TabBar"
+  },
+  "stateContract": {
+    "stableRegionCount": 6,
+    "stableCategoryCount": 6,
+    "stableVisibleRowSlots": 6,
+    "loadingRule": "mount all six regions and six row slots before the API resolves",
+    "degradedRule": "stale, blocked and error states keep the same composition and move recovery into NewsListTerminalPanel",
+    "clippingRule": "titles, chips, counts, dates and actions remain inside the 390px DPR2 stage"
+  },
+  "componentCapabilityGaps": []
+}

@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "assetId": "news-detail-source-crest.default",
+  "reviewedPath": "packages/design-system/assets/raster/news-detail-v1/runtime/2x/news-detail-source-crest.default.png",
+  "reviewedVisualSourcePath": "local-generation-output-not-retained",
+  "reviewContext": "disposable_isolated_single_asset",
+  "verdict": "pass_for_canary",
+  "summary": "纵向盾形外轮廓明确，暗青铜宽面与暖金双细边形成清晰小尺寸层级；中心完全留空，不含品牌、文字、真实来源标志或内部徽记，适合作为 news_detail 来源参考候选壳。",
+  "sourceMetadata": {
+    "pixelWidth": 64,
+    "pixelHeight": 76,
+    "intendedCssWidth": 32,
+    "intendedCssHeight": 38,
+    "hasAlpha": true,
+    "format": "png",
+    "sha256": "c1708687507f20b7a37b392cfac9879770a470d08cc5eb511aeb0857602c15a0"
+  },
+  "findings": [
+    {
+      "criterion": "composition_and_centering",
+      "status": "pass",
+      "detail": "盾形壳正视、竖直且居中，左右金属带和平衡留白稳定，适配 32x38 CSS 光学盒。"
+    },
+    {
+      "criterion": "silhouette_and_family_material",
+      "status": "pass",
+      "detail": "尖顶、收腰与下端盾尖在小尺寸仍可辨；暗青铜/近黑金属和暖金双边与另外两件素材保持同一克制材质家族。"
+    },
+    {
+      "criterion": "generic_source_semantics",
+      "status": "pass",
+      "detail": "仅保留通用来源参考壳语义，未出现品牌、发布方标志、真实来源徽记、文字或事实符号。"
+    },
+    {
+      "criterion": "transparent_center_clearance",
+      "status": "pass",
+      "detail": "中心 alpha 为 0；DPR2 横向/纵向连续透明净空为 36x51 像素，DPR1 为 16x24 像素，中心孔在两档密度均保留。"
+    },
+    {
+      "criterion": "alpha_and_chroma_cleanup",
+      "status": "pass",
+      "detail": "四角及最外缘 alpha 均为 0，可见绿边比例为 0，未见矩形底色或残留键色。"
+    },
+    {
+      "criterion": "prohibited_artifacts",
+      "status": "pass",
+      "detail": "未见文字、数字、伪文字、徽记、品牌、水印、状态结论或错误透视；OCR 为空。"
+    }
+  ],
+  "integrationNotes": [
+    "按 64x76 像素资源映射到 32x38 CSS 光学盒，保持 alpha、居中和原始纵横比。",
+    "素材仅提供通用空壳；若后续叠加运行时 glyph，应在独立图层内完成并重新做组合视觉复核。",
+    "本结论仅批准 candidate registry canary，不代表组件接入、页面目标对齐、运行时验收或 production promotion。"
+  ],
+  "mainSessionImagePayloadUsed": false,
+  "productionPromoted": false
+}

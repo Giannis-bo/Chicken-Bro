@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "1.0",
+  "assetId": "news-list-terminal-medallion.default",
+  "reviewedPath": "packages/design-system/assets/raster/news-list-v1/runtime/2x/news-list-terminal-medallion.default.png",
+  "reviewContext": "disposable_isolated_single_asset",
+  "verdict": "pass_for_canary",
+  "summary": "外壳具备清晰的暗铁与青铜多层环、透明中心净空和透明外部背景；无内置图标、文字、品牌、事实物件、绿边、模糊或错误透视。56x56 光学盒内轮廓可辨，顶部高光稍强且外环细节略密，但不阻碍金丝雀集成。",
+  "findings": [
+    {
+      "criterion": "transparent_center_clearance",
+      "status": "pass",
+      "detail": "中心为清晰透明圆孔，无内置图形或杂质，可供运行时状态 glyph 叠加。"
+    },
+    {
+      "criterion": "dark_iron_bronze_multilayer_rings",
+      "status": "pass",
+      "detail": "深灰暗铁与偏青铜的多层环结构清楚，金属层次可辨。"
+    },
+    {
+      "criterion": "transparent_outer_background",
+      "status": "pass",
+      "detail": "外部背景透明，未见实底或矩形边框残留。"
+    },
+    {
+      "criterion": "generic_non_factual_shell",
+      "status": "pass",
+      "detail": "未见图标、文字、品牌或事实物件，也未见绿色边缘。"
+    },
+    {
+      "criterion": "clarity_and_perspective",
+      "status": "pass",
+      "detail": "边缘清晰，主体采用稳定正视角，未见明显模糊或错误透视。"
+    },
+    {
+      "criterion": "small_size_optical_balance",
+      "status": "concern",
+      "detail": "56x56 预期尺寸下外环细节略密、顶部高光稍强，但主体轮廓与中心净空仍清楚，视觉中心基本稳定。"
+    }
+  ],
+  "integrationNotes": [
+    "可用于 news list terminal 区 56x56 CSS 光学盒的通用金属徽章外壳金丝雀集成。",
+    "运行时 glyph 应保持在透明中心内，并避免过粗描边压缩净空观感。"
+  ],
+  "mainSessionImagePayloadUsed": false
+}

@@ -1,0 +1,194 @@
+{
+  "schemaVersion": 1,
+  "status": "generated_pending_independent_isolated_review",
+  "sourceClass": "imagegen_raster",
+  "generatedAt": "2026-07-15T04:03:36Z",
+  "mode": "built_in_image_gen",
+  "builtInImagegenCallCount": 2,
+  "iterationCallCount": 0,
+  "productionPromoted": false,
+  "referencePolicy": {
+    "inputImagesUsed": false,
+    "targetImagesRead": false,
+    "runtimeImagesRead": false,
+    "targetPixelsCopiedOrCropped": false,
+    "factualContentReproduced": false,
+    "textContractsRead": [
+      "DESIGN.md",
+      "docs/design/current-ui/routes/news-list/asset-contract.json",
+      "docs/design/current-ui/routes/news-list/target-inventory.json",
+      "packages/design-system/assets/raster/shared-chrome-v1/README.md",
+      "packages/design-system/assets/raster/shared-chrome-v1/manifest.json"
+    ]
+  },
+  "processingEnvironment": {
+    "chromaRemoval": "imagegen/remove_chroma_key.py",
+    "chromaRemovalInterpreter": "python3",
+    "chromaRemovalArguments": "--auto-key border --soft-matte --transparent-threshold 12 --opaque-threshold 220 --despill",
+    "mechanicalTransformTool": "/usr/bin/sips",
+    "pixelValidationTools": [
+      "ImageMagick identify/magick",
+      "Tesseract psm 11",
+      "cmp"
+    ],
+    "visibleGreenDefinition": "alpha > 0.05 and green > 0.35 and green > 1.25 * red and green > 1.25 * blue",
+    "note": "No CLI image generation, third-party API, SVG drawing, model-native transparency fallback, target image read, runtime image read, or visual payload return was used."
+  },
+  "generations": [
+    {
+      "generationId": "news-list-document-medallion.default",
+      "assetIds": [
+        "news-list-document-medallion.default"
+      ],
+      "status": "generated_pending_independent_isolated_review",
+      "sourceClass": "imagegen_raster",
+      "imagegenCallResult": {
+        "status": "succeeded",
+        "resultKeys": ["image_url", "output_hint"],
+        "imagePayloadRecorded": false,
+        "builtInSavedPath": "local-generation-output-not-retained"
+      },
+      "prompt": "Use case: stylized-concept\nAsset type: small reusable non-factual game UI medallion raster for a news-list leading slot\nPrimary request: Create exactly one vertically oriented clipped document medallion in the same restrained dark-steel and antique-brass material family as premium forged game UI chrome.\nSubject: A compact portrait medallion with a clipped-corner dark forged-steel outer silhouette, thin muted antique-brass trim, two or three clearly layered metal bezel steps, and a centered generic blank parchment/document relief. The parchment is recognizable only from its single-sheet silhouette, shallow raised surface, and one folded upper corner. It contains absolutely no writing, lines, runes, seal, crest, logo, or symbol.\nStyle/medium: crisp high-detail game UI material render, controlled realistic metal and parchment microtexture, readable after reduction to 42 by 46 pixels, restrained rather than ornate.\nComposition/framing: exactly one object, orthographic face-on front view, no perspective, no rotation, vertically centered on a portrait canvas close to a 21:23 aspect ratio, with generous even chroma-key padding on every side. Strong clean silhouette and cut corners.\nLighting/mood: neutral frontal studio lighting with restrained edge highlights; no glow and no dramatic shadows.\nColor palette: charcoal and near-black steel, low-saturation old brass, muted warm parchment. Do not use bright yellow or #00ff00 anywhere in the object.\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local background removal.\nConstraints: The background must be one uniform #00ff00 color with no shadows, gradient, texture, reflection, floor plane, or lighting variation. Keep the opaque object fully separated from the background with crisp edges. No cast shadow, contact shadow, reflection, watermark, border around the canvas, text, numbers, letters, pseudo-writing, glyphs, icons, faction marks, branded game objects, World of Warcraft logos, weapons, faces, gems, or factual symbols. The medallion is generic and non-factual.",
+      "source": {
+        "path": "packages/design-system/assets/raster/news-list-v1/sources/news-list-document-medallion.default.png",
+        "width": 1199,
+        "height": 1312,
+        "bytes": 1926560,
+        "sha256": "9aea17ad76377ff72fd54d67f14b4ad58a3d598e450fc1920f22da842689937f",
+        "byteIdenticalToBuiltInSavedPath": true
+      },
+      "master": {
+        "path": "packages/design-system/assets/raster/news-list-v1/masters/news-list-document-medallion.default.png",
+        "width": 1199,
+        "height": 1312,
+        "bytes": 1568970,
+        "sha256": "860ec5c6bd874505895085d0a554531d7bc3f875ca61e7353b4eae755f5b78e4",
+        "sampledKeyColor": "#02f903",
+        "transparentPixels": 828148,
+        "partiallyTransparentPixels": 5028,
+        "totalPixels": 1573088
+      },
+      "processingCommands": [
+        "cp local-generation-output-not-retained packages/design-system/assets/raster/news-list-v1/sources/news-list-document-medallion.default.png",
+        "python3 imagegen/remove_chroma_key.py --input packages/design-system/assets/raster/news-list-v1/sources/news-list-document-medallion.default.png --out packages/design-system/assets/raster/news-list-v1/masters/news-list-document-medallion.default.png --auto-key border --soft-matte --transparent-threshold 12 --opaque-threshold 220 --despill",
+        "sips -c 1312 1198 packages/design-system/assets/raster/news-list-v1/masters/news-list-document-medallion.default.png --out packages/design-system/assets/raster/news-list-v1/.work/news-list-document-medallion.crop.png",
+        "sips -z 92 84 packages/design-system/assets/raster/news-list-v1/.work/news-list-document-medallion.crop.png --out packages/design-system/assets/raster/news-list-v1/runtime/2x/news-list-document-medallion.default.png",
+        "sips -z 46 42 packages/design-system/assets/raster/news-list-v1/runtime/2x/news-list-document-medallion.default.png --out packages/design-system/assets/raster/news-list-v1/runtime/1x/news-list-document-medallion.default.png"
+      ],
+      "runtime": {
+        "2x": {
+          "path": "packages/design-system/assets/raster/news-list-v1/runtime/2x/news-list-document-medallion.default.png",
+          "width": 84,
+          "height": 92,
+          "bytes": 9613,
+          "sha256": "bf8a6a5dcf6001a9e7088aa265bc5388b82ba7b973cd6fbe05adec05f05e2152"
+        },
+        "1x": {
+          "path": "packages/design-system/assets/raster/news-list-v1/runtime/1x/news-list-document-medallion.default.png",
+          "width": 42,
+          "height": 46,
+          "bytes": 3199,
+          "sha256": "c5f16fa079d529e3ac23bf7d5d12c1f904fd1a2cd5aa1640d5e0f78b285b3c45",
+          "derivedFrom": "runtime/2x/news-list-document-medallion.default.png"
+        }
+      },
+      "validation": {
+        "passed": true,
+        "hasAlpha": true,
+        "transparentCorners": true,
+        "outerEdgeAlphaMaximum": 0,
+        "meanAlphaCoverageRangeObserved": [0.450889, 0.461802],
+        "visibleGreenPixelFraction": 0,
+        "documentCenterAlphaMinimum": 1,
+        "ocrTextOrDigits": "",
+        "oneXByteIdenticalToMechanicalRederivation": true
+      }
+    },
+    {
+      "generationId": "news-list-terminal-medallion.default",
+      "assetIds": [
+        "news-list-terminal-medallion.default"
+      ],
+      "status": "generated_pending_independent_isolated_review",
+      "sourceClass": "imagegen_raster",
+      "imagegenCallResult": {
+        "status": "succeeded",
+        "resultKeys": ["image_url", "output_hint"],
+        "imagePayloadRecorded": false,
+        "builtInSavedPath": "local-generation-output-not-retained"
+      },
+      "prompt": "Use case: stylized-concept\nAsset type: large reusable non-factual game UI terminal-state socket raster for a news-list panel\nPrimary request: Create exactly one circular-to-octagonal empty terminal medallion socket in the same restrained dark-steel and antique-brass material family as the companion document medallion. This asset is only the outer housing for a separate runtime vector glyph.\nSubject: A compact rotationally balanced octagonal ring with a softly circular inner opening, forged dark-steel body, thin muted antique-brass trim, layered concentric metal steps, restrained cut corners, and subtle wear. The large center opening must show only the flat chroma-key background and remain completely empty and unobstructed for a runtime glyph. No inner plate, object, mark, symbol, or texture in the opening.\nStyle/medium: crisp high-detail game UI material render, controlled realistic forged-metal microtexture, readable after reduction to 56 by 56 pixels, restrained rather than ornate, visually consistent with a premium small document medallion.\nComposition/framing: exactly one centered socket on a square canvas, orthographic face-on front view, no perspective, no rotation, with generous even chroma-key padding on every side. Strong clean octagonal/circular silhouette. The empty center should occupy roughly 42 percent of the full socket diameter.\nLighting/mood: neutral frontal studio lighting with restrained edge highlights; no glow and no dramatic shadows.\nColor palette: charcoal and near-black steel with low-saturation old brass. Do not use bright yellow or #00ff00 anywhere in the metal object.\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local background removal, including the entire center opening.\nConstraints: The background and center opening must be one uniform #00ff00 color with no shadows, gradient, texture, reflection, floor plane, or lighting variation. Keep the opaque ring fully separated from the background with crisp edges. No cast shadow, contact shadow, reflection, watermark, border around the canvas, text, numbers, letters, pseudo-writing, glyphs, icons, arrows, checkmarks, warning marks, shields, crests, faction marks, branded game objects, World of Warcraft logos, weapons, faces, gems, or factual symbols. The socket is generic and non-factual.",
+      "source": {
+        "path": "packages/design-system/assets/raster/news-list-v1/sources/news-list-terminal-medallion.default.png",
+        "width": 1254,
+        "height": 1254,
+        "bytes": 2154771,
+        "sha256": "ef0eedc1d5a2ebd8928e17e254667e2c3b1eaf84dc10aa83dac8eaf6133d5243",
+        "byteIdenticalToBuiltInSavedPath": true
+      },
+      "master": {
+        "path": "packages/design-system/assets/raster/news-list-v1/masters/news-list-terminal-medallion.default.png",
+        "width": 1254,
+        "height": 1254,
+        "bytes": 1631694,
+        "sha256": "d10427eeadbc97088d2a5c1320969bc0b4e30410c1a8a5438902fe4ab248f6a6",
+        "sampledKeyColor": "#04ea12",
+        "transparentPixels": 941927,
+        "partiallyTransparentPixels": 6044,
+        "totalPixels": 1572516
+      },
+      "processingCommands": [
+        "cp local-generation-output-not-retained packages/design-system/assets/raster/news-list-v1/sources/news-list-terminal-medallion.default.png",
+        "python3 imagegen/remove_chroma_key.py --input packages/design-system/assets/raster/news-list-v1/sources/news-list-terminal-medallion.default.png --out packages/design-system/assets/raster/news-list-v1/masters/news-list-terminal-medallion.default.png --auto-key border --soft-matte --transparent-threshold 12 --opaque-threshold 220 --despill",
+        "sips -z 112 112 packages/design-system/assets/raster/news-list-v1/masters/news-list-terminal-medallion.default.png --out packages/design-system/assets/raster/news-list-v1/runtime/2x/news-list-terminal-medallion.default.png",
+        "sips -z 56 56 packages/design-system/assets/raster/news-list-v1/runtime/2x/news-list-terminal-medallion.default.png --out packages/design-system/assets/raster/news-list-v1/runtime/1x/news-list-terminal-medallion.default.png"
+      ],
+      "runtime": {
+        "2x": {
+          "path": "packages/design-system/assets/raster/news-list-v1/runtime/2x/news-list-terminal-medallion.default.png",
+          "width": 112,
+          "height": 112,
+          "bytes": 15328,
+          "sha256": "9d286790d4fd4b4060cf4c50929b8f3f74bc758e6f953d5c442e14219372eb9e"
+        },
+        "1x": {
+          "path": "packages/design-system/assets/raster/news-list-v1/runtime/1x/news-list-terminal-medallion.default.png",
+          "width": 56,
+          "height": 56,
+          "bytes": 5388,
+          "sha256": "61ef5dca58f5158dc6b62f386ace1f1a905548f809031d91ddd89eb9e3263646",
+          "derivedFrom": "runtime/2x/news-list-terminal-medallion.default.png"
+        }
+      },
+      "validation": {
+        "passed": true,
+        "hasAlpha": true,
+        "transparentCorners": true,
+        "outerEdgeAlphaMaximum": 0,
+        "meanAlphaCoverageRangeObserved": [0.385315, 0.392528],
+        "visibleGreenPixelFraction": 0,
+        "centerAlphaMaximum": 0,
+        "centerValidationCrops": {
+          "2x": "32x32",
+          "1x": "16x16"
+        },
+        "ocrTextOrDigits": "",
+        "oneXByteIdenticalToMechanicalRederivation": true
+      }
+    }
+  ],
+  "overallValidation": {
+    "allRuntimePassedMechanicalValidation": true,
+    "runtimeFilesWithAlpha": 4,
+    "runtimeFilesWithTransparentCorners": 4,
+    "runtimeFilesWithTransparentOuterEdges": 4,
+    "runtimeFilesWithVisibleGreenPixels": 0,
+    "runtimeFilesWithOcrTextOrDigits": 0,
+    "oneXFilesByteIdenticalToMechanicalRederivation": 2,
+    "terminalCenterTransparentAtBothDensities": true,
+    "independentIsolatedVisualReviewPending": true,
+    "registeredInPackagesAssetsManifest": false,
+    "wiredIntoRuntimeCode": false,
+    "productionPromoted": false
+  }
+}

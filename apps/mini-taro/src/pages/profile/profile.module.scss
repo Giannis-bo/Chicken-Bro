@@ -1,0 +1,18 @@
+.pageFrame {
+  height: 825px;
+  background:
+    radial-gradient(circle at 50% 19%, rgba(72, 78, 82, 0.1), transparent 31%),
+    linear-gradient(180deg, rgba(17, 20, 23, 0.995), rgba(6, 8, 10, 0.998));
+}
+
+.summaryRegion,
+.libraryRegion,
+.recentRegion,
+.settingsRegion {
+  position: absolute;
+}
+
+.summaryRegion { top: 6.6857%; left: 1.968%; width: calc(96.064% + 2px); height: 22.9143%; }
+.libraryRegion { top: 32%; left: 2.829%; width: calc(94.3419% + 2px); height: 12%; }
+.recentRegion { top: 46.6857%; left: 2.706%; width: calc(94.4649% + 2px); height: 23.7714%; }
+.settingsRegion { top: 73.0857%; left: 2.706%; width: calc(94.4649% + 2px); height: 23.4857%; }

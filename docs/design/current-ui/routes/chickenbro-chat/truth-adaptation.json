@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "route": "chickenbro_chat",
+  "status": "truth_adaptation_complete",
+  "implementationStatus": "implemented_visual_debt_open",
+  "authority": "docs/plans/ui-reconstruction.md",
+  "targetInventory": "docs/design/current-ui/routes/chickenbro-chat/target-inventory.json",
+  "targetGeometry": "docs/design/current-ui/routes/chickenbro-chat/target-geometry.json",
+  "runtimeFacts": {
+    "route": "pages/simulator/chickenbro",
+    "navigation": "pushed_route_with_input_dock",
+    "endpoints": ["chickenbro.messages"],
+    "storage": ["simulator.guestId"],
+    "queryContext": ["from", "classKey", "specKey", "spec", "scenario"],
+    "localInteractions": [
+      "bounded_context_display",
+      "safe_topic_select",
+      "message_compose",
+      "message_send",
+      "transport_retry",
+      "new_topic",
+      "workbench_navigation",
+      "returned_evidence_inspection"
+    ]
+  },
+  "apiProbe": {
+    "probedAt": "2026-07-15T06:52:09+08:00",
+    "via": "http://127.0.0.1:10086/wow-api/api/chickenbro/messages",
+    "specificWowContext": {
+      "httpStatus": 200,
+      "classKey": "mage",
+      "specKey": "frost",
+      "scenarioKey": "mplus_fortified",
+      "jobStatus": "succeeded",
+      "answerSource": "deterministic_fallback",
+      "confidence": "low",
+      "answerLayer": "diagnostic",
+      "basisLabel": "需要证据确认",
+      "priorityActionCount": 3,
+      "evidenceRefCount": 0,
+      "missingInputs": ["simc_or_wcl", "published_profile"],
+      "limitations": ["missing_published_profile"],
+      "codexStatus": "failed",
+      "codexError": "timed_out",
+      "validationStatus": "failed",
+      "rule": "A succeeded backend job may still contain a labeled deterministic fallback after model timeout. The UI may show that backend-returned bounded checklist only with its low-confidence and missing-evidence labels."
+    },
+    "scopeBoundary": {
+      "httpStatus": 200,
+      "answerSource": "deterministic_scope_refusal",
+      "confidence": "blocked",
+      "evidenceRefCount": 0,
+      "limitations": ["non_wow_topic"]
+    }
+  },
+  "trustRules": [
+    "The target's profession, specialization, scene, evidence status, timestamps, user portrait, conversation history, source references and source count are placeholders and never runtime facts.",
+    "The target defines twelve stable first-level regions: page, header, workbench context, intro, two user-turn positions, two assistant-answer positions, evidence boundary, answer state, topic library and composer.",
+    "URL workbench context is bounded app context, not verified evidence. It may seed labels and the backend request but cannot authorize DPS, rank, BiS, official-source or player-identity claims.",
+    "A fresh route begins with one app-authored evidence-boundary introduction and no fabricated user question, assistant answer, timestamp or prior conversation.",
+    "Conversation slots show at most the latest two real user/assistant turns while retaining the bounded session id for subsequent backend messages. Empty slots remain visibly empty and never impersonate message history.",
+    "Only a non-fallback chickenbro.messages response may append its assistantMessage. A transport fallback retains the real user turn, exposes retry in answer_failure_panel and must not append the API client's frontend fallback as an assistant answer.",
+    "Backend deterministic_fallback and deterministic_scope_refusal answers are displayable only with answerSource, confidence, basisLabel, missingInputs, limitations and evidenceRefs from the same response.",
+    "Evidence rows come only from assistantMessage.payload.evidenceRefs. Zero returned refs keeps two stable unavailable positions and cannot synthesize source names, URLs, official status or a source count.",
+    "Priority actions, missing-input chips, limitation chips and next question come only from the latest backend payload. Known codes may receive a Chinese display label without changing their meaning.",
+    "The route has no registered session-history, upload, URL-ingestion or external topic-library endpoint. The topic-library region is a local safe-prompt picker, not a claim that stored topics exist.",
+    "Message input is trimmed and capped at 2000 characters, duplicate sends are disabled while waiting, and new topic clears local turns and session id without claiming server-side deletion.",
+    "Loading, empty, blocked and error states retain all twelve regions; state copy inhabits target-owned slots instead of mounting AssistantRoute, ChatShell, WowPanel, EvidenceLedger or RouteStatePanel."
+  ],
+  "mappings": [
+    { "region": "page_frame", "runtime": "AppShell pushed-route surface and PageFrame chickenbro-chat variant" },
+    { "region": "header_nav", "runtime": "back navigation, app-owned captain identity shell and fixed route title" },
+    { "region": "workbench_context_panel", "runtime": "bounded query context, latest backend evidence state and real workbench navigation" },
+    { "region": "assistant_intro_message", "runtime": "one app-authored evidence-boundary introduction only" },
+    { "region": "user_question_primary", "runtime": "first of the latest two real user turns or a neutral empty slot" },
+    { "region": "assistant_evidence_answer", "runtime": "first corresponding backend assistant turn with up to two real evidence refs" },
+    { "region": "evidence_boundary_panel", "runtime": "latest backend missingInputs, limitations and nextQuestion in fixed two-column positions" },
+    { "region": "user_question_followup", "runtime": "second of the latest two real user turns or a neutral empty slot" },
+    { "region": "assistant_insufficient_evidence_message", "runtime": "second corresponding backend assistant turn or a neutral empty slot" },
+    { "region": "answer_failure_panel", "runtime": "idle, waiting, backend-returned or transport-error state with retry only for the last real submission" },
+    { "region": "topic_library_entry", "runtime": "local safe-prompt picker; no remote library claim" },
+    { "region": "composer_dock", "runtime": "new-topic, 2000-character prompt and send/retry-safe actions" }
+  ],
+  "stateContract": {
+    "initial": "mount all twelve regions with one intro, empty turn slots, bounded context, empty evidence positions and an enabled composer",
+    "sending": "retain geometry, append only the real user turn, disable duplicate send and mark answer state waiting",
+    "ready": "append the backend assistantMessage and derive evidence, missing inputs, limitations and source labels from its payload",
+    "bounded_fallback": "show a backend deterministic fallback only with low or blocked confidence and the same response's evidence boundary",
+    "transport_error": "do not synthesize an assistant turn; retain user text and enable retry in answer_failure_panel",
+    "retry": "resubmit the exact last real user message and preserve the existing session id when available",
+    "new_topic": "clear local turns, draft, last submission and session id; preserve route context and stable geometry"
+  },
+  "pendingTruthGaps": []
+}

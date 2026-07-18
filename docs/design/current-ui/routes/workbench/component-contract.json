@@ -1,0 +1,160 @@
+{
+  "schemaVersion": 1,
+  "route": "current_spec_workbench",
+  "status": "component_contract_complete",
+  "implementationStatus": "implemented_pending_unified_assets_and_visual_review",
+  "authority": "docs/plans/ui-reconstruction.md",
+  "targetInventory": "docs/design/current-ui/routes/workbench/target-inventory.json",
+  "truthAdaptation": "docs/design/current-ui/routes/workbench/truth-adaptation.json",
+  "compositionOwner": {
+    "name": "CurrentSpecWorkbenchPage",
+    "location": "apps/mini-taro/src/pages/builds/workbench.tsx",
+    "responsibility": "compose the six measured target regions from one truth-adapted presentation model while keeping loading, degraded and ready states in the same geometry"
+  },
+  "components": [
+    {
+      "owner": "PageFrame",
+      "decision": "reuse_and_configure",
+      "targetRegions": ["top_bar"],
+      "location": "packages/design-system/src/components/PageFrame.tsx",
+      "requiredVariant": "workbench",
+      "contract": {
+        "topology": "left back control, horizontally centered route title and one square templates action",
+        "inputs": ["title", "onBack", "rightAction", "variant"],
+        "interaction": "back returns to specialization_home/builds_home; right action opens profile/templates",
+        "forbidden": ["root TabBar", "title rails", "kicker stack", "route-private safe-area offsets"]
+      }
+    },
+    {
+      "owner": "WorkbenchSpecSummary",
+      "decision": "new_owner",
+      "targetRegions": ["hero_card"],
+      "location": "packages/design-system/src/components/WorkbenchComponents.tsx",
+      "contract": {
+        "topology": "one continuous framed identity row with left medallion, title/source/context copy and right specialization picker affordance",
+        "inputs": ["title", "sourceLabel", "contextDetail", "state", "identity", "selectionOptions", "scenarioOptions"],
+        "states": ["loading", "source_reference", "partial", "stale", "blocked", "empty", "error", "ready"],
+        "interactions": ["the single trailing right chevron selects specialization", "the context line selects scenario and keeps its down chevron adjacent to the context text"],
+        "assetSlots": ["asset_slot.builds-frame-family", "asset_slot.builds-specialization-medallion", "asset_slot.workbench-specialization-object", "asset_slot.source-badge-family", "asset_slot.utility-glyph-family"]
+      }
+    },
+    {
+      "owner": "WorkbenchReadinessPanel",
+      "decision": "new_owner",
+      "targetRegions": ["warning_panel"],
+      "location": "packages/design-system/src/components/WorkbenchComponents.tsx",
+      "contract": {
+        "topology": "one large forged panel with left status/headline/divider/two reasons/primary action and one reserved emblem well on the right",
+        "inputs": ["statusLabel", "headline", "reasons", "state", "primaryAction"],
+        "states": ["loading", "partial", "stale", "blocked", "error", "ready"],
+        "interaction": "retry on route failure, otherwise open the first blocking module or SimC submit when ready",
+        "assetSlots": ["asset_slot.builds-frame-family", "asset_slot.workbench-readiness-emblem", "asset_slot.utility-glyph-family"]
+      }
+    },
+    {
+      "owner": "WorkbenchModuleDeck",
+      "decision": "new_owner",
+      "targetRegions": ["module_cards_row"],
+      "location": "packages/design-system/src/components/WorkbenchComponents.tsx",
+      "contract": {
+        "topology": "exactly four equal vertical cards with a top-left state pennant, circular module socket, title, two-line truthful summary and bottom chevron",
+        "itemCount": 4,
+        "itemIds": ["talents", "gear", "simc", "assistant"],
+        "inputs": ["modules", "onModule"],
+        "states": ["loading", "source_reference", "partial", "stale", "blocked", "error", "ready"],
+        "stableInvariant": "all four cards remain mounted and equal in every route state; a disabled action cannot change card size",
+        "assetSlots": ["asset_slot.builds-frame-family", "asset_slot.workbench-module-medallions", "asset_slot.utility-glyph-family"]
+      }
+    },
+    {
+      "owner": "EvidenceLedger",
+      "decision": "extend_with_workbench_forged_variant",
+      "targetRegions": ["ledger_table"],
+      "location": "packages/design-system/src/components/EvidenceLedger.tsx",
+      "requiredVariant": "workbench",
+      "contract": {
+        "topology": "one continuous forged ledger with one title band and four icon-led rows separated only horizontally",
+        "rowCount": 4,
+        "rowIds": ["talents", "gear", "simc", "assistant"],
+        "opticalBands": ["identity", "source", "blocker", "revision", "action"],
+        "inputs": ["title", "rows", "onSource", "variant"],
+        "forbidden": ["HTML table", "CSS table layout", "vertical cell borders", "detached row cards", "generic grid frame around each cell", "target placeholder zeroes", "target draft labels"],
+        "assetSlots": ["asset_slot.builds-frame-family", "asset_slot.workbench-ledger-row-glyphs", "asset_slot.utility-glyph-family"]
+      }
+    },
+    {
+      "owner": "ForgedPanel",
+      "decision": "reuse_as_low_level_frame_host_only",
+      "targetRegions": ["hero_card", "warning_panel", "module_cards_row", "ledger_table"],
+      "location": "packages/design-system/src/components/ReconstructionPrimitives.tsx",
+      "contract": {
+        "responsibility": "frame layer, content-safe inset, stable region metadata and explicit frame asset status",
+        "forbidden": ["owning route copy", "generic card composition", "frame bounds smaller than content", "overlaying interactive text"]
+      }
+    }
+  ],
+  "rejectedReuse": [
+    {
+      "owner": "WorkbenchCockpit legacy variant",
+      "reason": "the old icon plus generic 2x2 module-card composition does not match the measured warning panel, four-card deck or continuous ledger"
+    },
+    {
+      "owner": "WowPanel",
+      "reason": "a generic titled panel cannot own any authored workbench region"
+    },
+    {
+      "owner": "RouteStatePanel",
+      "reason": "a standalone loading/error panel replaces target geometry and causes the forbidden blank first viewport"
+    },
+    {
+      "owner": "semantic or CSS table",
+      "reason": "the ledger is a continuous authored list composition; table borders and independent cells caused repeated visual rejection"
+    }
+  ],
+  "layoutContract": {
+    "targetWidthPx": 909,
+    "targetHeightPx": 1731,
+    "baselineCssWidthPx": 390,
+    "uniformScale": 0.429042904,
+    "baselineCssViewport": { "width": 390, "height": 743 },
+    "regionHeightsCssPx": {
+      "top_bar": 44,
+      "hero_card": 98,
+      "warning_panel": 192,
+      "module_cards_row": 157,
+      "ledger_table": 190,
+      "bottom_canvas_tail": 20
+    },
+    "verticalGapsCssPx": {
+      "top_bar_to_hero": 7,
+      "hero_to_warning": 11,
+      "warning_to_modules": 11,
+      "modules_to_ledger": 12
+    },
+    "horizontalInsetsCssPx": {
+      "hero_card": 9,
+      "warning_panel": 9,
+      "module_cards_row": 9,
+      "ledger_table": 10
+    },
+    "rule": "the H5 comparison uses the native 390px stage without screenshot scaling; small one-pixel optical inset differences may be component-specific but cannot create drifting outer columns",
+    "nativeSafeArea": "PageFrame and AppShell own WeChat safe areas; this pushed route has no product TabBar and may compact declared vertical gaps only after H5 composition passes"
+  },
+  "stateContract": {
+    "stableRegionCount": 6,
+    "stableModuleCount": 4,
+    "stableLedgerRowCount": 4,
+    "loadingRule": "render the same header, hero, readiness panel, four modules and four ledger rows immediately; only copy, state and asset readiness change",
+    "degradedRule": "partial, stale, blocked and error states keep every measured region and expose exact provenance or blocker copy",
+    "clippingRule": "visible text and actions stay inside the 390px stage at DPR2 and inside the WeChat safe-area viewport"
+  },
+  "componentCapabilityGaps": [],
+  "implementationOrder": [
+    "WorkbenchSpecSummary and scenario/specialization controls",
+    "WorkbenchReadinessPanel",
+    "WorkbenchModuleDeck",
+    "EvidenceLedger workbench forged variant",
+    "CurrentSpecWorkbenchPage stable-state composition",
+    "route-specific unified assets after component bounds stabilize"
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "collectionId": "build-intel-v1",
+  "reviewedAt": "2026-07-15T14:22:37+08:00",
+  "reviewMode": "one_asset_at_a_time_in_disposable_isolated_context",
+  "overallStatus": "candidate_pending_runtime_review",
+  "staticAssetVerdict": "pass_for_candidate_runtime_review",
+  "mainSessionImagePayloadUsed": false,
+  "isolatedReviewImagePayloadUsed": true,
+  "productionPromoted": false,
+  "reviews": [
+    {
+      "assetId": "build-intel-summary-medallion.default",
+      "slotId": "asset_slot.build-intel-summary-medallion",
+      "path": "packages/design-system/assets/raster/build-intel-v1/reviews/summary-medallion.json",
+      "factBearing": false,
+      "verdict": "pass_for_candidate_runtime_review"
+    },
+    {
+      "assetId": "build-intel-card-medallion-shell.default",
+      "slotId": "asset_slot.build-intel-card-medallion-shell",
+      "path": "packages/design-system/assets/raster/build-intel-v1/reviews/card-medallion-shell.json",
+      "factBearing": false,
+      "verdict": "pass_for_candidate_runtime_review"
+    },
+    {
+      "assetId": "build-intel-primary-action.default",
+      "slotId": "asset_slot.build-intel-primary-action",
+      "path": "packages/design-system/assets/raster/build-intel-v1/reviews/primary-action.json",
+      "factBearing": false,
+      "verdict": "pass_for_candidate_runtime_review"
+    }
+  ],
+  "crossAssetConsistency": {
+    "status": "pass",
+    "detail": "All three candidates share restrained antique-bronze rims, dark forged-iron separation, face-on geometry, controlled highlights, and neutral non-factual ornament."
+  },
+  "runtimeReviewRequirements": [
+    "Review the summary medallion inside the actual 92x92 CSS optical box.",
+    "Review trusted specialization media and neutral fallback layering inside the card shell's transparent aperture.",
+    "Review glyph and label contrast, fit, pressed state, and disabled state over the primary-action plate.",
+    "Confirm route composition, target fidelity, H5 behavior, and WeChat behavior before any production promotion."
+  ],
+  "acceptanceGranted": false,
+  "routeVisualAcceptanceGranted": false
+}

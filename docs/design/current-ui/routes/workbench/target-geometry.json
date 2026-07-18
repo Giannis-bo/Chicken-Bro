@@ -1,0 +1,288 @@
+{
+  "schemaVersion": "target-geometry-v1",
+  "route": "current_spec_workbench",
+  "authority": "canonical_target",
+  "source": {
+    "path": "artifacts/ui-visual-targets/current/current-spec-workbench.png",
+    "width": 909,
+    "height": 1731,
+    "sha256": "65deca229f53df065da135eb9a441507b4a27b354316db63847c3809e79f675b"
+  },
+  "measurement": {
+    "runtimeInputsUsed": false,
+    "coordinateSpace": "native_source_pixels",
+    "normalizedTo": {
+      "width": 909,
+      "height": 1731
+    },
+    "method": "single-image manual visual measurement from canonical target only; bounds estimated to outer visible edges of major first-level regions in native pixels",
+    "precision": "integer pixel bounds for regions; normalized values rounded to 6 decimals; decorative glows/shadows excluded unless part of visible panel edge"
+  },
+  "regions": [
+    {
+      "id": "top_bar",
+      "label": "top navigation bar",
+      "boundsPx": {
+        "x": 0,
+        "y": 0,
+        "width": 909,
+        "height": 102,
+        "x2": 909,
+        "y2": 102
+      },
+      "boundsNormalized": {
+        "x": 0,
+        "y": 0,
+        "width": 1,
+        "height": 0.058925,
+        "x2": 1,
+        "y2": 0.058925
+      },
+      "confidence": 0.99,
+      "internalStructure": [
+        "full-width dark textured header band",
+        "left back chevron control",
+        "centered gold title text",
+        "right square menu button"
+      ],
+      "alignment": [
+        "title centered on page horizontal axis",
+        "back and menu controls vertically centered within header",
+        "left and right controls inset symmetrically from edges"
+      ],
+      "spacing": [
+        "~35 px from left edge to back control",
+        "~28 px from right edge to menu control",
+        "~16 px gap from header bottom to next card"
+      ],
+      "notes": [
+        "top edge flush to canvas",
+        "header includes subtle bottom divider"
+      ]
+    },
+    {
+      "id": "hero_card",
+      "label": "profile summary card",
+      "boundsPx": {
+        "x": 20,
+        "y": 118,
+        "width": 869,
+        "height": 228,
+        "x2": 889,
+        "y2": 346
+      },
+      "boundsNormalized": {
+        "x": 0.022002,
+        "y": 0.068169,
+        "width": 0.955996,
+        "height": 0.131716,
+        "x2": 0.977998,
+        "y2": 0.199884
+      },
+      "confidence": 0.96,
+      "internalStructure": [
+        "ornate framed card container",
+        "left circular empty portrait/medallion slot",
+        "center-left title block with main heading, pill chip, subtext",
+        "right edge chevron affordance"
+      ],
+      "alignment": [
+        "avatar slot aligned left within card",
+        "text block vertically stacked and left-aligned",
+        "right chevron vertically centered in card"
+      ],
+      "spacing": [
+        "~34 px left padding to avatar outer ring",
+        "~36 px gap from avatar to text block",
+        "~28 px right padding to chevron"
+      ],
+      "notes": [
+        "decorative frame corners project slightly inward",
+        "avatar circle interior intentionally empty"
+      ]
+    },
+    {
+      "id": "warning_panel",
+      "label": "warning and next-step panel",
+      "boundsPx": {
+        "x": 20,
+        "y": 372,
+        "width": 869,
+        "height": 448,
+        "x2": 889,
+        "y2": 820
+      },
+      "boundsNormalized": {
+        "x": 0.022002,
+        "y": 0.214905,
+        "width": 0.955996,
+        "height": 0.25881,
+        "x2": 0.977998,
+        "y2": 0.473715
+      },
+      "confidence": 0.97,
+      "internalStructure": [
+        "large ornate framed panel",
+        "left warning heading with icon",
+        "large message headline",
+        "horizontal divider line",
+        "bullet explanation text",
+        "gold primary button near lower left",
+        "large circular exclamation emblem on right"
+      ],
+      "alignment": [
+        "left text column aligned to common left inset",
+        "right circular emblem centered vertically in panel's right half",
+        "button aligned to left text column"
+      ],
+      "spacing": [
+        "~42 px top padding to warning row",
+        "~28 px from warning row to headline",
+        "~24 px from headline to divider",
+        "~31 px from divider to bullet text",
+        "~31 px from bullet text to button"
+      ],
+      "notes": [
+        "button and emblem occupy lower-left and right visual balance",
+        "right emblem has glow halo beyond metal ring"
+      ]
+    },
+    {
+      "id": "module_cards_row",
+      "label": "four feature cards row",
+      "boundsPx": {
+        "x": 22,
+        "y": 846,
+        "width": 865,
+        "height": 367,
+        "x2": 887,
+        "y2": 1213
+      },
+      "boundsNormalized": {
+        "x": 0.024202,
+        "y": 0.488735,
+        "width": 0.951595,
+        "height": 0.212016,
+        "x2": 0.975798,
+        "y2": 0.700751
+      },
+      "confidence": 0.95,
+      "internalStructure": [
+        "four evenly sized vertical cards",
+        "each card contains top-left badge ribbon",
+        "large circular slot near top",
+        "title text",
+        "two-line subtitle",
+        "bottom chevron"
+      ],
+      "alignment": [
+        "cards share common top and bottom edges",
+        "consistent inter-card gaps",
+        "content within each card centered horizontally except top-left badge"
+      ],
+      "spacing": [
+        "card widths ~205 px each",
+        "gaps between cards ~14 px",
+        "~26-30 px top padding from card edge to circular slot"
+      ],
+      "notes": [
+        "third card title uses Latin letters 'SimC' and slightly different vertical rhythm",
+        "all four circular slots are empty"
+      ]
+    },
+    {
+      "id": "ledger_table",
+      "label": "evidence ledger table",
+      "boundsPx": {
+        "x": 24,
+        "y": 1242,
+        "width": 861,
+        "height": 444,
+        "x2": 885,
+        "y2": 1686
+      },
+      "boundsNormalized": {
+        "x": 0.026403,
+        "y": 0.717504,
+        "width": 0.947195,
+        "height": 0.256499,
+        "x2": 0.973597,
+        "y2": 0.974003
+      },
+      "confidence": 0.97,
+      "internalStructure": [
+        "framed table container",
+        "header band with icon and section title at left plus three column labels",
+        "four horizontal rows",
+        "each row contains left icon circle and label, three status cells, right action button"
+      ],
+      "alignment": [
+        "header labels align with underlying columns",
+        "rows stacked with equal heights",
+        "right action buttons align vertically in a single column"
+      ],
+      "spacing": [
+        "~18 px from container top to header content",
+        "~64 px header band height",
+        "row heights ~91 px",
+        "~2-4 px separators between rows"
+      ],
+      "notes": [
+        "table bottom sits above black canvas tail",
+        "first column is much wider than numeric/status columns"
+      ]
+    },
+    {
+      "id": "bottom_canvas_tail",
+      "label": "empty bottom margin",
+      "boundsPx": {
+        "x": 0,
+        "y": 1686,
+        "width": 909,
+        "height": 45,
+        "x2": 909,
+        "y2": 1731
+      },
+      "boundsNormalized": {
+        "x": 0,
+        "y": 0.974003,
+        "width": 1,
+        "height": 0.025997,
+        "x2": 1,
+        "y2": 1
+      },
+      "confidence": 0.99,
+      "internalStructure": [
+        "plain black margin without visible controls"
+      ],
+      "alignment": [
+        "full-width"
+      ],
+      "spacing": [
+        "~45 px tall"
+      ],
+      "notes": [
+        "appears as empty trailing canvas area below main content"
+      ]
+    }
+  ],
+  "globalAlignment": [
+    "major framed content regions share near-common horizontal inset: left ~20-24 px, right ~20-24 px",
+    "hero card, warning panel, and ledger table are centered within canvas and span nearly full width",
+    "main vertical flow is single-column: header -> hero card -> warning panel -> module row -> ledger table",
+    "within content panels, primary text tends to align to a left inner rail while CTA buttons align to that same rail"
+  ],
+  "globalSpacing": [
+    "header to hero card gap ~16 px",
+    "hero card to warning panel gap ~26 px",
+    "warning panel to module cards row gap ~26 px",
+    "module cards row to ledger table gap ~29 px",
+    "bottom of ledger table to canvas edge gap ~45 px"
+  ],
+  "unresolved": [
+    "exact outer bounds of subtle shadows and glow halos are intentionally excluded",
+    "fine-grained text baseline positions inside cards and rows were not measured at glyph level",
+    "some decorative frame protrusions may extend by 1-3 px beyond listed bounds",
+    "the small top-left table icon semantics are inferred as scales but textural detail is decorative, not fully resolved"
+  ]
+}

@@ -63,7 +63,7 @@ PVE 专区、WCL 深度日志复盘、完整公共知识库和复杂后台管理
 └── sitemap.json
 ```
 
-文档入口见 [docs/README.md](docs/README.md)。当前长期方向以 [docs/roadmap.md](docs/roadmap.md) 为准；`docs/plans/` 和 `docs/superpowers/` 主要保留历史实施证据，查阅前先看对应索引。
+文档入口见 [docs/README.md](docs/README.md)。当前长期方向以 [docs/roadmap.md](docs/roadmap.md) 为准；`docs/plans/README.md` 是当前计划白名单，未列入白名单的日期计划不拥有执行权，历史追溯使用 Git。
 
 ## 本地开发
 

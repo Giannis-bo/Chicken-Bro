@@ -1,0 +1,232 @@
+{
+  "schemaVersion": 1,
+  "route": "news_home",
+  "status": "truth_adaptation_complete",
+  "authority": "docs/plans/ui-reconstruction.md",
+  "targetInventory": "docs/design/current-ui/routes/news-home/target-inventory.json",
+  "apiProbe": {
+    "endpoint": "http://124.223.51.33/api/news/home",
+    "checkedOn": "2026-07-14",
+    "lastRefreshedAt": "2026-07-13 08:00:01+08:00",
+    "refreshMode": "scheduled",
+    "metricKeys": ["today", "class-change", "ptr"],
+    "metricValues": { "today": "33", "class-change": "2", "ptr": "11" },
+    "channelCount": 3,
+    "heroCount": 3,
+    "highlightCount": 6,
+    "visibleUniqueSourceNames": ["Blizzard Forums", "Blizzard News"],
+    "visibleArticlesOfficialVerified": true,
+    "visibleArticleImageCount": 0
+  },
+  "globalRules": [
+    "target placeholder values and copy are never runtime data",
+    "one visible source reference per content unit",
+    "one visible trust/status marker per content unit",
+    "missing media uses a neutral non-factual fallback",
+    "loading, empty, error, stale, and ready preserve the six major target regions",
+    "refresh with previous data keeps one composition and changes only state labels"
+  ],
+  "mappings": [
+    {
+      "slot": "header.title",
+      "targetRole": "page title",
+      "source": "NewsHomePayload.navTitle",
+      "fallback": "最新资讯"
+    },
+    {
+      "slot": "header.source_status",
+      "targetRole": "single home-level source/refresh summary",
+      "source": "route state plus visible article verificationStatus/sourceTier",
+      "states": {
+        "loading": "来源参考：更新中",
+        "ready_all_official": "来源参考：已更新",
+        "ready_mixed_or_unverified": "来源参考：待核验",
+        "stale": "来源参考：缓存可用",
+        "error_or_blocked": "来源参考：不可用"
+      },
+      "forbidden": ["duplicate source badge", "claiming official when any visible item is not official_verified"]
+    },
+    {
+      "slot": "header.favorite_action",
+      "targetRole": "favorite toggle",
+      "source": "local storage news.homeFavorite",
+      "behavior": "toggle current home favorite state and announce result",
+      "networkWrite": false
+    },
+    {
+      "slot": "daily_brief.date",
+      "targetRole": "data freshness date",
+      "source": "NewsHomePayload.lastRefreshedAt",
+      "format": "MM月DD日",
+      "fallback": "--月--日"
+    },
+    {
+      "slot": "daily_brief.status",
+      "targetRole": "refresh state",
+      "source": "route state and refreshMode",
+      "states": {
+        "loading": "更新中",
+        "ready": "已更新",
+        "stale": "缓存可用",
+        "error_or_blocked": "更新失败"
+      }
+    },
+    {
+      "slot": "daily_brief.source",
+      "targetRole": "single aggregate source line",
+      "source": "unique verified source names among visible articles",
+      "format": "来源参考：{officialSourceCount} 个官方渠道",
+      "fallback": "来源参考：暂不可用",
+      "countIsDerived": true
+    },
+    {
+      "slot": "daily_brief.metrics.headline",
+      "label": "要闻",
+      "source": "metrics[key=today].value",
+      "listQuery": { "type": "metric", "key": "today" },
+      "missingValue": "--"
+    },
+    {
+      "slot": "daily_brief.metrics.updates",
+      "label": "更新",
+      "source": "metrics[key=updates].value",
+      "derivation": "backend count using the same deterministic updates filter as news.list",
+      "listQuery": { "type": "metric", "key": "updates" },
+      "missingValue": "--",
+      "backendGapAtProbe": true,
+      "localImplementationStatus": "implemented",
+      "remoteDeploymentStatus": "pending"
+    },
+    {
+      "slot": "daily_brief.metrics.balance",
+      "label": "平衡",
+      "source": "metrics[key=class-change].value",
+      "listQuery": { "type": "metric", "key": "class-change" },
+      "missingValue": "--"
+    },
+    {
+      "slot": "daily_brief.metrics.events",
+      "label": "活动",
+      "source": "metrics[key=events].value",
+      "derivation": "backend count using the same deterministic events filter as news.list",
+      "listQuery": { "type": "metric", "key": "events" },
+      "missingValue": "--",
+      "backendGapAtProbe": true,
+      "localImplementationStatus": "implemented",
+      "remoteDeploymentStatus": "pending"
+    },
+    {
+      "slot": "featured_carousel.items",
+      "targetRole": "five-position carousel with real content only",
+      "source": "NewsHomePayload.heroNews",
+      "realItemCountNow": 3,
+      "visualSlotCount": 5,
+      "behavior": "real items are selectable; unused positions remain inert and visually unavailable",
+      "forbidden": ["repeating stories", "inventing two stories", "making unavailable dots clickable"]
+    },
+    {
+      "slot": "featured_carousel.source",
+      "targetRole": "one article source chip",
+      "source": "activeArticle.sourceName",
+      "visibility": "only when sourceName is non-empty",
+      "count": 1
+    },
+    {
+      "slot": "featured_carousel.status",
+      "targetRole": "one article trust chip",
+      "source": "activeArticle verification/content status plus route stale state",
+      "states": {
+        "official_ready": "已核验",
+        "stale": "缓存可用",
+        "other": "待核验"
+      },
+      "count": 1
+    },
+    {
+      "slot": "featured_carousel.media",
+      "targetRole": "article media",
+      "source": "activeArticle.imageUrl only when trusted URL validation passes",
+      "currentLiveState": "missing",
+      "fallback": "neutral dark editorial material, no WoW object, event, location, readable text, or official claim"
+    },
+    {
+      "slot": "channel_dock",
+      "targetRole": "six content taxonomy navigation items",
+      "source": "fixed route navigation contract; not NewsHomePayload.channels",
+      "items": [
+        { "label": "综合", "glyph": "compass", "query": { "type": "metric", "key": "today" } },
+        { "label": "职业", "glyph": "class_helmet", "query": { "type": "metric", "key": "class-change" } },
+        { "label": "大秘", "glyph": "mythic_key", "query": { "type": "metric", "key": "mythic-plus" }, "backendGapAtProbe": true, "localImplementationStatus": "implemented", "remoteDeploymentStatus": "pending" },
+        { "label": "装备", "glyph": "chest_armor", "query": { "type": "metric", "key": "gear" }, "backendGapAtProbe": true, "localImplementationStatus": "implemented", "remoteDeploymentStatus": "pending" },
+        { "label": "系统", "glyph": "system_reticle", "query": { "type": "metric", "key": "system" }, "backendGapAtProbe": true, "localImplementationStatus": "implemented", "remoteDeploymentStatus": "pending" },
+        { "label": "更多", "glyph": "more_grid", "query": { "type": "metric", "key": "today" } }
+      ],
+      "forbidden": ["rendering the three backend source channels into six target tiles", "mapping a label to a semantically different filter"]
+    },
+    {
+      "slot": "ranked_feed.items",
+      "targetRole": "four current highlights, not a ranking",
+      "source": "up to four NewsHomePayload.highlights whose ids do not occur in heroNews; while the remote home endpoint is behind, fill only from the real news.list(today) result",
+      "visibleItemCount": 4,
+      "title": "今日重点",
+      "rowMeta": ["sourceName", "single trust status"],
+      "forbidden": ["rank numbers", "duplicate source label", "duplicating a hero article", "discussion status without discussion data"]
+    },
+    {
+      "slot": "ranked_feed.media",
+      "targetRole": "one thumbnail per visible row",
+      "source": "article.imageUrl only when trusted URL validation passes",
+      "currentLiveState": "all missing",
+      "fallback": "neutral media placeholder with no specific item or event depiction"
+    },
+    {
+      "slot": "ranked_feed.bookmark",
+      "targetRole": "saved article toggle",
+      "source": "local storage news.savedArticleIds",
+      "behavior": "toggle the article id and announce result",
+      "networkWrite": false
+    },
+    {
+      "slot": "product_tab_bar",
+      "targetRole": "four primary routes",
+      "source": "current Taro tab roots",
+      "items": [
+        { "label": "资讯", "pagePath": "pages/news/news" },
+        { "label": "专精", "pagePath": "pages/builds/builds" },
+        { "label": "队长", "pagePath": "pages/simulator/simulator" },
+        { "label": "我的", "pagePath": "pages/profile/profile" }
+      ]
+    }
+  ],
+  "stateContract": {
+    "initialLoading": "render all six regions once with target-shaped skeleton slots",
+    "refreshingWithData": "keep existing data visible; mark header and daily status as updating; do not render a second page skeleton",
+    "empty": "keep all target regions; show unavailable values and disabled content slots",
+    "errorWithoutData": "keep all target regions; place retry in the daily brief action area",
+    "stale": "render fallback data with home-level and item-level local fallback labels; never display official-ready status",
+    "ready": "render only backend-verified article fields and trusted media"
+  },
+  "implementationStatus": {
+    "backend": {
+      "status": "implemented_pending_remote_deploy",
+      "changes": [
+        "updates and events metrics use news.list filter parity",
+        "mythic-plus, gear, and system have deterministic list filters and titles",
+        "API-client supplements live home metrics only while the remote home endpoint is behind",
+        "heroNews and highlights are disjoint; the API-client fills remote legacy gaps only from the real news.list(today) result",
+        "offline fallback mirrors the same filters"
+      ],
+      "files": [
+        "server/news/home-payload.js",
+        "server/news_backend.py",
+        "packages/api-client/src/news.ts",
+        "packages/api-client/src/fallback-snapshots.ts"
+      ]
+    },
+    "storage": {
+      "status": "implemented_and_runtime_verified",
+      "keys": ["news.homeFavorite", "news.savedArticleIds"]
+    }
+  },
+  "pendingTruthGaps": []
+}

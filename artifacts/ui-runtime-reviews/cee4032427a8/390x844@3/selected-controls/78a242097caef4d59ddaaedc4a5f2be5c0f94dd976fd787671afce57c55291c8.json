@@ -1,0 +1,199 @@
+{
+  "schemaVersion": "wechat-selected-control-evidence-v1",
+  "commit": "cee4032427a8",
+  "viewport": {
+    "width": 390,
+    "height": 844,
+    "dpr": 3
+  },
+  "groups": [
+    {
+      "route": "news_home",
+      "role": "product-tab-item",
+      "status": "pass",
+      "controls": 4,
+      "active": 1,
+      "inactive": 3,
+      "materialOwners": {
+        "active": 1,
+        "inactive": 3
+      },
+      "materialMismatches": 0,
+      "expected": {
+        "controlsAtLeast": 4,
+        "activeAtLeast": 1,
+        "activeAtMost": 1
+      }
+    },
+    {
+      "route": "news_home",
+      "role": "channel-segment",
+      "status": "pass",
+      "controls": 6,
+      "active": 1,
+      "inactive": 5,
+      "materialOwners": {
+        "active": 1,
+        "inactive": 5
+      },
+      "materialMismatches": 0,
+      "expected": {
+        "controlsAtLeast": 4,
+        "activeAtLeast": 1,
+        "activeAtMost": 1
+      }
+    },
+    {
+      "route": "news_list",
+      "role": "news-list-category",
+      "status": "pass",
+      "controls": 6,
+      "active": 1,
+      "inactive": 5,
+      "materialOwners": {
+        "active": 1,
+        "inactive": 5
+      },
+      "materialMismatches": 0,
+      "expected": {
+        "controlsAtLeast": 2,
+        "activeAtLeast": 1,
+        "activeAtMost": 1
+      }
+    },
+    {
+      "route": "news_detail",
+      "role": "news-detail-translation-segment",
+      "status": "pass",
+      "controls": 3,
+      "active": 1,
+      "inactive": 2,
+      "materialOwners": {
+        "active": 1,
+        "inactive": 2
+      },
+      "materialMismatches": 0,
+      "expected": {
+        "controlsAtLeast": 3,
+        "activeAtLeast": 1,
+        "activeAtMost": 1
+      }
+    },
+    {
+      "route": "gear_detail",
+      "role": "gear-profession-option",
+      "status": "pass",
+      "controls": 1,
+      "active": 1,
+      "inactive": 0,
+      "materialOwners": {
+        "active": 1,
+        "inactive": 0
+      },
+      "materialMismatches": 0,
+      "expected": {
+        "controlsAtLeast": 1,
+        "activeAtLeast": 1,
+        "activeAtMost": 1
+      }
+    },
+    {
+      "route": "gear_detail",
+      "role": "gear-slot-row",
+      "status": "pass",
+      "controls": 16,
+      "active": 0,
+      "inactive": 16,
+      "materialOwners": {
+        "active": 0,
+        "inactive": 16
+      },
+      "materialMismatches": 0,
+      "expected": {
+        "controlsAtLeast": 1,
+        "activeAtLeast": 0,
+        "activeAtMost": 1
+      }
+    },
+    {
+      "route": "gear_detail",
+      "role": "gear-enhancement-option",
+      "status": "pass",
+      "controls": 0,
+      "active": 0,
+      "inactive": 0,
+      "materialOwners": {
+        "active": 0,
+        "inactive": 0
+      },
+      "materialMismatches": 0,
+      "expected": {
+        "controlsAtLeast": 0,
+        "activeAtLeast": 0,
+        "activeAtMost": 1
+      }
+    },
+    {
+      "route": "talent_simulator",
+      "role": "talent-tree-tab",
+      "status": "unavailable",
+      "routeState": "stale",
+      "controls": 0,
+      "active": 0
+    },
+    {
+      "route": "SimC_submit",
+      "role": "simc-specialization-option",
+      "status": "pass",
+      "controls": 40,
+      "active": 1,
+      "inactive": 39,
+      "materialOwners": {
+        "active": 1,
+        "inactive": 39
+      },
+      "materialMismatches": 0,
+      "expected": {
+        "controlsAtLeast": 1,
+        "activeAtLeast": 1,
+        "activeAtMost": 1
+      }
+    },
+    {
+      "route": "SimC_submit",
+      "role": "simc-scenario-option",
+      "status": "pass",
+      "controls": 3,
+      "active": 1,
+      "inactive": 2,
+      "materialOwners": {
+        "active": 1,
+        "inactive": 2
+      },
+      "materialMismatches": 0,
+      "expected": {
+        "controlsAtLeast": 2,
+        "activeAtLeast": 1,
+        "activeAtMost": 1
+      }
+    },
+    {
+      "route": "tasks_list",
+      "role": "task-status-filter",
+      "status": "pass",
+      "controls": 5,
+      "active": 1,
+      "inactive": 4,
+      "materialOwners": {
+        "active": 1,
+        "inactive": 4
+      },
+      "materialMismatches": 0,
+      "expected": {
+        "controlsAtLeast": 4,
+        "activeAtLeast": 1,
+        "activeAtMost": 1
+      }
+    }
+  ]
+}

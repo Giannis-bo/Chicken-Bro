@@ -1,0 +1,128 @@
+{
+  "schemaVersion": 1,
+  "route": "news_home",
+  "status": "target_measured",
+  "authority": "docs/plans/ui-reconstruction.md",
+  "source": {
+    "path": "artifacts/ui-visual-targets/current/news-home.png",
+    "sha256": "9d0c67401c6c43e412f099bc032ade9e0add87478ccd80881ee73057e866e7ac",
+    "widthPx": 889,
+    "heightPx": 1770
+  },
+  "measurement": {
+    "context": "disposable_isolated_target_only",
+    "measuredAt": "2026-07-14T01:08:26+08:00",
+    "targetMeasuredBeforeRuntimeInspection": true,
+    "runtimeInputsUsed": false,
+    "existingInventoryUsed": false,
+    "previousRedlineUsed": false,
+    "estimatedMajorRegionTolerancePx": 2,
+    "estimatedHeaderTolerancePx": 3
+  },
+  "regions": [
+    {
+      "id": "header",
+      "boundsPx": { "xStart": 0, "yStart": 0, "xEnd": 889, "yEnd": 98, "width": 889, "height": 98 },
+      "boundsNormalized": { "xStart": 0, "yStart": 0, "xEnd": 1, "yEnd": 0.055367, "width": 1, "height": 0.055367 },
+      "visibleContentUnionPx": { "xStart": 37, "yStart": 15, "xEnd": 857, "yEnd": 86, "width": 820, "height": 71 }
+    },
+    {
+      "id": "daily_brief",
+      "boundsPx": { "xStart": 20, "yStart": 98, "xEnd": 869, "yEnd": 374, "width": 849, "height": 276 },
+      "boundsNormalized": { "xStart": 0.022497, "yStart": 0.055367, "xEnd": 0.977503, "yEnd": 0.211299, "width": 0.955006, "height": 0.155932 }
+    },
+    {
+      "id": "featured_carousel",
+      "boundsPx": { "xStart": 20, "yStart": 388, "xEnd": 869, "yEnd": 813, "width": 849, "height": 425 },
+      "boundsNormalized": { "xStart": 0.022497, "yStart": 0.219209, "xEnd": 0.977503, "yEnd": 0.459322, "width": 0.955006, "height": 0.240113 }
+    },
+    {
+      "id": "channel_dock",
+      "boundsPx": { "xStart": 20, "yStart": 825, "xEnd": 869, "yEnd": 991, "width": 849, "height": 166 },
+      "boundsNormalized": { "xStart": 0.022497, "yStart": 0.466102, "xEnd": 0.977503, "yEnd": 0.559887, "width": 0.955006, "height": 0.093785 }
+    },
+    {
+      "id": "ranked_feed",
+      "boundsPx": { "xStart": 20, "yStart": 1007, "xEnd": 869, "yEnd": 1582, "width": 849, "height": 575 },
+      "boundsNormalized": { "xStart": 0.022497, "yStart": 0.568927, "xEnd": 0.977503, "yEnd": 0.893785, "width": 0.955006, "height": 0.324859 },
+      "visibleRowCount": 4,
+      "clippedByTabBar": false
+    },
+    {
+      "id": "product_tab_bar",
+      "boundsPx": { "xStart": 5, "yStart": 1602, "xEnd": 884, "yEnd": 1763, "width": 879, "height": 161 },
+      "boundsNormalized": { "xStart": 0.005624, "yStart": 0.905085, "xEnd": 0.994376, "yEnd": 0.996045, "width": 0.988751, "height": 0.09096 },
+      "itemCount": 4,
+      "bottomClearancePx": 7
+    }
+  ],
+  "internalLandmarks": {
+    "dailyBriefEmblem": {
+      "boundsPx": { "xStart": 40, "yStart": 110, "xEnd": 219, "yEnd": 286, "width": 179, "height": 176 },
+      "normalizedWidth": 0.20135
+    },
+    "carouselMedia": {
+      "boundsPx": { "xStart": 28, "xEnd": 861, "width": 833 },
+      "frameInsetPx": { "left": 8, "right": 8 },
+      "normalizedWidth": 0.937008
+    },
+    "channelDock": {
+      "segmentCount": 6,
+      "structure": "one_continuous_outer_frame_with_six_equal_columns_and_internal_dividers",
+      "estimatedDividerBandPx": { "min": 4, "max": 6 }
+    },
+    "feed": {
+      "headerBottomY": 1089,
+      "rowBandsPx": [
+        { "yStart": 1089, "yEnd": 1210, "height": 121 },
+        { "yStart": 1210, "yEnd": 1330, "height": 120 },
+        { "yStart": 1330, "yEnd": 1449, "height": 119 },
+        { "yStart": 1449, "yEnd": 1578, "height": 129 }
+      ],
+      "averageVisibleRowHeightPx": 122.25,
+      "thumbnail": { "xStart": 54, "xEnd": 194, "width": 140, "normalizedWidth": 0.15748 },
+      "textColumnStartX": 224,
+      "textColumnStartNormalized": 0.251969,
+      "thumbnailToTextGapPx": 30
+    }
+  },
+  "gapsPx": {
+    "dailyBriefToCarousel": 14,
+    "carouselToChannelDock": 12,
+    "channelDockToFeed": 16,
+    "feedToProductTabBar": 20
+  },
+  "viewportSemantics": {
+    "completeAuthoredFirstViewport": true,
+    "additionalScrollContentVisible": false,
+    "fourFeedRowsMustRemainAboveTabBar": true,
+    "tabBarOcclusion": false
+  },
+  "reviewCanvas": {
+    "alignedComparisonBoard": {
+      "default": false,
+      "targetTransform": "uniform_scale_to_780px_width_top_left_anchor",
+      "targetScaledSizePx": { "width": 780, "height": 1553 },
+      "runtimeTransform": "native_780x1552_dpr2",
+      "sharedComparisonCanvasPx": { "width": 780, "height": 1552 },
+      "reconciliation": "top_left_intersection_crop_1px_from_target_bottom",
+      "nonUniformResizeAllowed": false
+    },
+    "nativePixelBoard": {
+      "default": true,
+      "displayMapping": "one_source_pixel_to_one_css_pixel",
+      "cssResizingAllowed": false,
+      "targetSizePx": { "width": 889, "height": 1770 },
+      "runtimeSizePx": { "width": 780, "height": 1552 },
+      "resamplingAllowed": false
+    },
+    "forbidden": [
+      "non_uniform_resize",
+      "center_crop_cover",
+      "vertical_centering",
+      "region_independent_alignment",
+      "synthetic_edge_or_blur_padding",
+      "sharpen_blur_denoise_recolor_gamma"
+    ]
+  }
+}

@@ -4,6 +4,11 @@
   "communityTemplates": [
     {
       "analysisWindow": "pg selector golden",
+      "attributeCharacterContext": {
+        "origin": "default_human",
+        "raceKey": "human",
+        "schemaRevision": "gear-attribute-character-v1"
+      },
       "canApplyGear": true,
       "classKey": "mage",
       "dedupedCount": 1,

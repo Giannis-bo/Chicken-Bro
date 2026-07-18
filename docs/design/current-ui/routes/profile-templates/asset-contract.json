@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "route": "profile/templates",
+  "status": "asset_contract_complete",
+  "authority": "docs/plans/ui-reconstruction.md",
+  "targetInventory": "docs/design/current-ui/routes/profile-templates/target-inventory.json",
+  "targetObservedAssetSlotCount": 37,
+  "targetObservedAssetGroupCount": 15,
+  "productionRegistryStatus": "partial_reuse_only",
+  "productionPromotionAuthorized": false,
+  "slots": [
+    {"id": "asset_slot.profile-page-frame", "owner": "AppShell", "role": "ornamental dark profile surface", "source": "future unified non-factual material family; deterministic CSS fallback now"},
+    {"id": "asset_slot.profile-header", "owner": "PageFrame", "role": "mirrored title ornaments", "source": "shared title ornament family"},
+    {"id": "asset_slot.profile-avatar", "owner": "ProfileSummaryPanel", "role": "returned avatar or neutral silhouette", "source": "trusted avatarUrl only; utility silhouette fallback"},
+    {"id": "asset_slot.profile-edit", "owner": "ProfileSummaryPanel", "role": "profile edit affordance", "source": "utility adjust glyph"},
+    {"id": "asset_slot.profile-mode", "owner": "ProfileSummaryPanel", "role": "local, mixed or account storage marker", "source": "utility save/source glyph"},
+    {"id": "asset_slot.profile-metrics", "owner": "ProfileSummaryPanel", "role": "three archive metric glyphs", "source": "utility topic, shield and records glyphs"},
+    {"id": "asset_slot.profile-categories", "owner": "ProfileTemplateLibrary", "role": "two template category emblems and chevrons", "source": "utility topic/shield and chevron glyphs"},
+    {"id": "asset_slot.profile-recent", "owner": "ProfileRecentSaves", "role": "two type thumbnails, timestamps and delete actions", "source": "utility glyphs; no real item art"},
+    {"id": "asset_slot.profile-settings", "owner": "ProfileSettingsList", "role": "four settings category glyphs and chevrons", "source": "utility glyph family"},
+    {"id": "asset_slot.profile-tabbar", "owner": "ProductTabBar", "role": "shared four-item navigation", "source": "shared production tab glyphs and tab frame"}
+  ],
+  "visibleAssetGaps": [
+    {"id": "PT-ASSET-001", "region": "page_frame", "gap": "continuous texture and carved perimeter are not promoted"},
+    {"id": "PT-ASSET-002", "region": "profile_summary", "gap": "avatar socket, mode badge and three metric cells lack one reviewed material family"},
+    {"id": "PT-ASSET-003", "region": "template_library", "gap": "two category medallions and card frames are utility fallbacks"},
+    {"id": "PT-ASSET-004", "region": "recent_saves", "gap": "row thumbnails, timestamp chips and delete rail lack target-reviewed depth"},
+    {"id": "PT-ASSET-005", "region": "settings_support", "gap": "settings row icon sockets and shared list frame are not promoted"},
+    {"id": "PT-ASSET-006", "region": "product_tabbar", "gap": "shared TabBar geometry and active/inactive material debt remains open"}
+  ],
+  "generationPolicy": {
+    "mainSessionPayloadAllowed": false,
+    "targetCropAllowed": false,
+    "factBearingGenerationAllowed": false,
+    "allowedFutureGeneration": ["non-factual profile frame", "neutral avatar socket", "category medallions", "neutral row and settings sockets"]
+  }
+}

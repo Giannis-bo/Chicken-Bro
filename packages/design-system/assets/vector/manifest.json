@@ -1,0 +1,956 @@
+{
+  "schemaVersion": 2,
+  "status": "untrusted_candidate",
+  "authority": "docs/plans/ui-reconstruction.md",
+  "sourceClass": "system_vector",
+  "slotCount": 17,
+  "assetCount": 66,
+  "totalBytes": 20585,
+  "slots": [
+    {
+      "slotId": "asset_slot.news-detail-evidence-chevron",
+      "packageLocation": "packages/design-system/assets/vector/news-detail-evidence-chevron",
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "slotId": "asset_slot.product-tab-builds-icon",
+      "packageLocation": "packages/design-system/assets/vector/product-tab-builds-icon",
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "slotId": "asset_slot.product-tab-news-icon",
+      "packageLocation": "packages/design-system/assets/vector/product-tab-news-icon",
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "slotId": "asset_slot.product-tab-profile-icon",
+      "packageLocation": "packages/design-system/assets/vector/product-tab-profile-icon",
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "slotId": "asset_slot.product-tab-simulator-icon",
+      "packageLocation": "packages/design-system/assets/vector/product-tab-simulator-icon",
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "slotId": "asset_slot.pushed-back-chevron",
+      "packageLocation": "packages/design-system/assets/vector/pushed-back-chevron",
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "slotId": "asset_slot.quick-action-gear-glyph",
+      "packageLocation": "packages/design-system/assets/vector/quick-action-gear-glyph",
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "slotId": "asset_slot.quick-action-simc-glyph",
+      "packageLocation": "packages/design-system/assets/vector/quick-action-simc-glyph",
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "slotId": "asset_slot.quick-action-talents-glyph",
+      "packageLocation": "packages/design-system/assets/vector/quick-action-talents-glyph",
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "slotId": "asset_slot.source-badge-family",
+      "packageLocation": "packages/design-system/assets/vector/source-badge-family",
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "slotId": "asset_slot.status-dot-family",
+      "packageLocation": "packages/design-system/assets/vector/status-dot-family",
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "slotId": "asset_slot.status-pill-family",
+      "packageLocation": "packages/design-system/assets/vector/status-pill-family",
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "slotId": "asset_slot.template-talent-medallion",
+      "packageLocation": "packages/design-system/assets/vector/template-talent-medallion",
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "slotId": "asset_slot.utility-glyph-family",
+      "packageLocation": "packages/design-system/assets/vector/utility-glyph-family",
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "slotId": "asset_slot.gear-back-arrow",
+      "packageLocation": "packages/design-system/assets/vector/gear-back-arrow",
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "slotId": "asset_slot.gear-enhancement-medallions",
+      "packageLocation": "packages/design-system/assets/vector/gear-enhancement-glyph",
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "slotId": "asset_slot.gear-slot-silhouette",
+      "packageLocation": "packages/design-system/assets/vector/gear-slot-silhouette",
+      "reviewStatus": "untrusted_candidate"
+    }
+  ],
+  "assets": [
+    {
+      "assetId": "news-detail-evidence-chevron.expanded",
+      "slotId": "asset_slot.news-detail-evidence-chevron",
+      "variant": "expanded",
+      "filePath": "packages/design-system/assets/vector/news-detail-evidence-chevron/expanded.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "lucide@1.8.0:ChevronDown",
+      "dimensions": [
+        24,
+        24
+      ],
+      "sizeBytes": 226,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "product-tab-builds-icon.default",
+      "slotId": "asset_slot.product-tab-builds-icon",
+      "variant": "default",
+      "filePath": "packages/design-system/assets/vector/product-tab-builds-icon/default.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "lucide@1.8.0:Hammer",
+      "dimensions": [
+        24,
+        24
+      ],
+      "sizeBytes": 465,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "product-tab-news-icon.default",
+      "slotId": "asset_slot.product-tab-news-icon",
+      "variant": "default",
+      "filePath": "packages/design-system/assets/vector/product-tab-news-icon/default.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "lucide@1.8.0:Newspaper",
+      "dimensions": [
+        24,
+        24
+      ],
+      "sizeBytes": 394,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "product-tab-profile-icon.default",
+      "slotId": "asset_slot.product-tab-profile-icon",
+      "variant": "default",
+      "filePath": "packages/design-system/assets/vector/product-tab-profile-icon/default.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "lucide@1.8.0:CircleUserRound",
+      "dimensions": [
+        24,
+        24
+      ],
+      "sizeBytes": 312,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "product-tab-simulator-icon.default",
+      "slotId": "asset_slot.product-tab-simulator-icon",
+      "variant": "default",
+      "filePath": "packages/design-system/assets/vector/product-tab-simulator-icon/default.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "lucide@1.8.0:MessageCircle",
+      "dimensions": [
+        24,
+        24
+      ],
+      "sizeBytes": 337,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "pushed-back-chevron.default",
+      "slotId": "asset_slot.pushed-back-chevron",
+      "variant": "default",
+      "filePath": "packages/design-system/assets/vector/pushed-back-chevron/default.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "lucide@1.8.0:ChevronLeft",
+      "dimensions": [
+        24,
+        24
+      ],
+      "sizeBytes": 228,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "quick-action-gear-glyph.default",
+      "slotId": "asset_slot.quick-action-gear-glyph",
+      "variant": "default",
+      "filePath": "packages/design-system/assets/vector/quick-action-gear-glyph/default.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "lucide@1.8.0:Shirt",
+      "dimensions": [
+        24,
+        24
+      ],
+      "sizeBytes": 391,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "quick-action-simc-glyph.default",
+      "slotId": "asset_slot.quick-action-simc-glyph",
+      "variant": "default",
+      "filePath": "packages/design-system/assets/vector/quick-action-simc-glyph/default.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "lucide@1.8.0:Activity",
+      "dimensions": [
+        24,
+        24
+      ],
+      "sizeBytes": 336,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "quick-action-talents-glyph.default",
+      "slotId": "asset_slot.quick-action-talents-glyph",
+      "variant": "default",
+      "filePath": "packages/design-system/assets/vector/quick-action-talents-glyph/default.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "lucide@1.8.0:Network",
+      "dimensions": [
+        24,
+        24
+      ],
+      "sizeBytes": 419,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "source-badge-family.reference",
+      "slotId": "asset_slot.source-badge-family",
+      "variant": "reference",
+      "filePath": "packages/design-system/assets/vector/source-badge-family/reference.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "lucide@1.8.0:Link2",
+      "dimensions": [
+        24,
+        24
+      ],
+      "sizeBytes": 312,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "source-badge-family.information",
+      "slotId": "asset_slot.source-badge-family",
+      "variant": "information",
+      "filePath": "packages/design-system/assets/vector/source-badge-family/information.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "lucide@1.8.0:Info",
+      "dimensions": [
+        24,
+        24
+      ],
+      "sizeBytes": 276,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "source-badge-family.verified",
+      "slotId": "asset_slot.source-badge-family",
+      "variant": "verified",
+      "filePath": "packages/design-system/assets/vector/source-badge-family/verified.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "lucide@1.8.0:CircleCheckBig",
+      "dimensions": [
+        24,
+        24
+      ],
+      "sizeBytes": 271,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "status-dot-family.reference",
+      "slotId": "asset_slot.status-dot-family",
+      "variant": "reference",
+      "filePath": "packages/design-system/assets/vector/status-dot-family/reference.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "lucide@1.8.0:CircleDot",
+      "dimensions": [
+        24,
+        24
+      ],
+      "sizeBytes": 265,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "status-dot-family.ready",
+      "slotId": "asset_slot.status-dot-family",
+      "variant": "ready",
+      "filePath": "packages/design-system/assets/vector/status-dot-family/ready.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "lucide@1.8.0:CircleCheckBig",
+      "dimensions": [
+        24,
+        24
+      ],
+      "sizeBytes": 271,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "status-dot-family.running",
+      "slotId": "asset_slot.status-dot-family",
+      "variant": "running",
+      "filePath": "packages/design-system/assets/vector/status-dot-family/running.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "lucide@1.8.0:Clock3",
+      "dimensions": [
+        24,
+        24
+      ],
+      "sizeBytes": 255,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "status-dot-family.error",
+      "slotId": "asset_slot.status-dot-family",
+      "variant": "error",
+      "filePath": "packages/design-system/assets/vector/status-dot-family/error.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "lucide@1.8.0:CircleX",
+      "dimensions": [
+        24,
+        24
+      ],
+      "sizeBytes": 275,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "status-pill-family.partial",
+      "slotId": "asset_slot.status-pill-family",
+      "variant": "partial",
+      "filePath": "packages/design-system/assets/vector/status-pill-family/partial.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "lucide@1.8.0:AlertTriangle",
+      "dimensions": [
+        24,
+        24
+      ],
+      "sizeBytes": 327,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "template-talent-medallion.default",
+      "slotId": "asset_slot.template-talent-medallion",
+      "variant": "default",
+      "filePath": "packages/design-system/assets/vector/template-talent-medallion/default.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "lucide@1.8.0:Network",
+      "dimensions": [
+        24,
+        24
+      ],
+      "sizeBytes": 419,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "utility-glyph-family.filter",
+      "slotId": "asset_slot.utility-glyph-family",
+      "variant": "filter",
+      "filePath": "packages/design-system/assets/vector/utility-glyph-family/filter.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "lucide@1.8.0:ListFilter",
+      "dimensions": [
+        24,
+        24
+      ],
+      "sizeBytes": 247,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "utility-glyph-family.document",
+      "slotId": "asset_slot.utility-glyph-family",
+      "variant": "document",
+      "filePath": "packages/design-system/assets/vector/utility-glyph-family/document.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "lucide@1.8.0:FileText",
+      "dimensions": [
+        24,
+        24
+      ],
+      "sizeBytes": 418,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "utility-glyph-family.chevron-right",
+      "slotId": "asset_slot.utility-glyph-family",
+      "variant": "chevron-right",
+      "filePath": "packages/design-system/assets/vector/utility-glyph-family/chevron-right.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "lucide@1.8.0:ChevronRight",
+      "dimensions": [
+        24,
+        24
+      ],
+      "sizeBytes": 227,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "utility-glyph-family.shield",
+      "slotId": "asset_slot.utility-glyph-family",
+      "variant": "shield",
+      "filePath": "packages/design-system/assets/vector/utility-glyph-family/shield.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "lucide@1.8.0:Shield",
+      "dimensions": [
+        24,
+        24
+      ],
+      "sizeBytes": 376,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "utility-glyph-family.copy",
+      "slotId": "asset_slot.utility-glyph-family",
+      "variant": "copy",
+      "filePath": "packages/design-system/assets/vector/utility-glyph-family/copy.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "lucide@1.8.0:Copy",
+      "dimensions": [
+        24,
+        24
+      ],
+      "sizeBytes": 325,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "utility-glyph-family.source-link",
+      "slotId": "asset_slot.utility-glyph-family",
+      "variant": "source-link",
+      "filePath": "packages/design-system/assets/vector/utility-glyph-family/source-link.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "lucide@1.8.0:Link2",
+      "dimensions": [
+        24,
+        24
+      ],
+      "sizeBytes": 312,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "utility-glyph-family.save",
+      "slotId": "asset_slot.utility-glyph-family",
+      "variant": "save",
+      "filePath": "packages/design-system/assets/vector/utility-glyph-family/save.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "lucide@1.8.0:Bookmark",
+      "dimensions": [
+        24,
+        24
+      ],
+      "sizeBytes": 332,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "utility-glyph-family.reset",
+      "slotId": "asset_slot.utility-glyph-family",
+      "variant": "reset",
+      "filePath": "packages/design-system/assets/vector/utility-glyph-family/reset.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "lucide@1.8.0:RotateCcw",
+      "dimensions": [
+        24,
+        24
+      ],
+      "sizeBytes": 283,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "utility-glyph-family.records",
+      "slotId": "asset_slot.utility-glyph-family",
+      "variant": "records",
+      "filePath": "packages/design-system/assets/vector/utility-glyph-family/records.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "lucide@1.8.0:Database",
+      "dimensions": [
+        24,
+        24
+      ],
+      "sizeBytes": 311,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "utility-glyph-family.menu",
+      "slotId": "asset_slot.utility-glyph-family",
+      "variant": "menu",
+      "filePath": "packages/design-system/assets/vector/utility-glyph-family/menu.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "lucide@1.8.0:Menu",
+      "dimensions": [
+        24,
+        24
+      ],
+      "sizeBytes": 261,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "utility-glyph-family.adjust",
+      "slotId": "asset_slot.utility-glyph-family",
+      "variant": "adjust",
+      "filePath": "packages/design-system/assets/vector/utility-glyph-family/adjust.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "lucide@1.8.0:SlidersHorizontal",
+      "dimensions": [
+        24,
+        24
+      ],
+      "sizeBytes": 380,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "utility-glyph-family.topic",
+      "slotId": "asset_slot.utility-glyph-family",
+      "variant": "topic",
+      "filePath": "packages/design-system/assets/vector/utility-glyph-family/topic.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "lucide@1.8.0:BookOpen",
+      "dimensions": [
+        24,
+        24
+      ],
+      "sizeBytes": 364,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "utility-glyph-family.media",
+      "slotId": "asset_slot.utility-glyph-family",
+      "variant": "media",
+      "filePath": "packages/design-system/assets/vector/utility-glyph-family/media.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "lucide@1.8.0:Image",
+      "dimensions": [
+        24,
+        24
+      ],
+      "sizeBytes": 340,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "utility-glyph-family.warning",
+      "slotId": "asset_slot.utility-glyph-family",
+      "variant": "warning",
+      "filePath": "packages/design-system/assets/vector/utility-glyph-family/warning.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "lucide@1.8.0:TriangleAlert",
+      "dimensions": [
+        24,
+        24
+      ],
+      "sizeBytes": 327,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "utility-glyph-family.assistant",
+      "slotId": "asset_slot.utility-glyph-family",
+      "variant": "assistant",
+      "filePath": "packages/design-system/assets/vector/utility-glyph-family/assistant.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "lucide@1.8.0:Bot",
+      "dimensions": [
+        24,
+        24
+      ],
+      "sizeBytes": 350,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "utility-glyph-family.user",
+      "slotId": "asset_slot.utility-glyph-family",
+      "variant": "user",
+      "filePath": "packages/design-system/assets/vector/utility-glyph-family/user.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "lucide@1.8.0:User",
+      "dimensions": [
+        24,
+        24
+      ],
+      "sizeBytes": 285,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "utility-glyph-family.target",
+      "slotId": "asset_slot.utility-glyph-family",
+      "variant": "target",
+      "filePath": "packages/design-system/assets/vector/utility-glyph-family/target.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "lucide@1.8.0:Crosshair",
+      "dimensions": [
+        24,
+        24
+      ],
+      "sizeBytes": 385,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "utility-glyph-family.group",
+      "slotId": "asset_slot.utility-glyph-family",
+      "variant": "group",
+      "filePath": "packages/design-system/assets/vector/utility-glyph-family/group.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "lucide@1.8.0:Users",
+      "dimensions": [
+        24,
+        24
+      ],
+      "sizeBytes": 359,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "utility-glyph-family.dungeon",
+      "slotId": "asset_slot.utility-glyph-family",
+      "variant": "dungeon",
+      "filePath": "packages/design-system/assets/vector/utility-glyph-family/dungeon.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "lucide@1.8.0:Castle",
+      "dimensions": [
+        24,
+        24
+      ],
+      "sizeBytes": 365,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "utility-glyph-family.timer",
+      "slotId": "asset_slot.utility-glyph-family",
+      "variant": "timer",
+      "filePath": "packages/design-system/assets/vector/utility-glyph-family/timer.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "lucide@1.8.0:Timer",
+      "dimensions": [
+        24,
+        24
+      ],
+      "sizeBytes": 309,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "utility-glyph-family.flag",
+      "slotId": "asset_slot.utility-glyph-family",
+      "variant": "flag",
+      "filePath": "packages/design-system/assets/vector/utility-glyph-family/flag.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "lucide@1.8.0:Flag",
+      "dimensions": [24, 24],
+      "sizeBytes": 307,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "utility-glyph-family.flask",
+      "slotId": "asset_slot.utility-glyph-family",
+      "variant": "flask",
+      "filePath": "packages/design-system/assets/vector/utility-glyph-family/flask.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "lucide@1.8.0:FlaskConical",
+      "dimensions": [24, 24],
+      "sizeBytes": 325,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "utility-glyph-family.utensils",
+      "slotId": "asset_slot.utility-glyph-family",
+      "variant": "utensils",
+      "filePath": "packages/design-system/assets/vector/utility-glyph-family/utensils.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "lucide@1.8.0:Utensils",
+      "dimensions": [24, 24],
+      "sizeBytes": 336,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "utility-glyph-family.swords",
+      "slotId": "asset_slot.utility-glyph-family",
+      "variant": "swords",
+      "filePath": "packages/design-system/assets/vector/utility-glyph-family/swords.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "lucide@1.8.0:Swords",
+      "dimensions": [24, 24],
+      "sizeBytes": 535,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "utility-glyph-family.plus",
+      "slotId": "asset_slot.utility-glyph-family",
+      "variant": "plus",
+      "filePath": "packages/design-system/assets/vector/utility-glyph-family/plus.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "lucide@1.8.0:Plus",
+      "dimensions": [
+        24,
+        24
+      ],
+      "sizeBytes": 242,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "utility-glyph-family.send",
+      "slotId": "asset_slot.utility-glyph-family",
+      "variant": "send",
+      "filePath": "packages/design-system/assets/vector/utility-glyph-family/send.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "lucide@1.8.0:Send",
+      "dimensions": [
+        24,
+        24
+      ],
+      "sizeBytes": 256,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "utility-glyph-family.briefcase",
+      "slotId": "asset_slot.utility-glyph-family",
+      "variant": "briefcase",
+      "filePath": "packages/design-system/assets/vector/utility-glyph-family/briefcase.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "lucide@1.8.0:BriefcaseBusiness",
+      "dimensions": [
+        24,
+        24
+      ],
+      "sizeBytes": 305,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "utility-glyph-family.runtime",
+      "slotId": "asset_slot.utility-glyph-family",
+      "variant": "runtime",
+      "filePath": "packages/design-system/assets/vector/utility-glyph-family/runtime.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "lucide@1.8.0:Terminal",
+      "dimensions": [
+        24,
+        24
+      ],
+      "sizeBytes": 247,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "utility-glyph-family.globe",
+      "slotId": "asset_slot.utility-glyph-family",
+      "variant": "globe",
+      "filePath": "packages/design-system/assets/vector/utility-glyph-family/globe.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "lucide@1.8.0:Globe2",
+      "dimensions": [
+        24,
+        24
+      ],
+      "sizeBytes": 356,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "utility-glyph-family.cloud-upload",
+      "slotId": "asset_slot.utility-glyph-family",
+      "variant": "cloud-upload",
+      "filePath": "packages/design-system/assets/vector/utility-glyph-family/cloud-upload.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "lucide@1.8.0:CloudUpload",
+      "dimensions": [
+        24,
+        24
+      ],
+      "sizeBytes": 333,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "gear-back-arrow.filled",
+      "slotId": "asset_slot.gear-back-arrow",
+      "variant": "filled",
+      "filePath": "packages/design-system/assets/vector/gear-back-arrow/filled.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "repository-authored:filled-chevron-left-v1",
+      "dimensions": [24, 24],
+      "sizeBytes": 183,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "gear-enhancement-glyph.gem",
+      "slotId": "asset_slot.gear-enhancement-medallions",
+      "variant": "gem",
+      "filePath": "packages/design-system/assets/vector/gear-enhancement-glyph/gem.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "repository-authored:gem-object-v1",
+      "dimensions": [24, 24],
+      "sizeBytes": 342,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "gear-enhancement-glyph.enchant-scroll",
+      "slotId": "asset_slot.gear-enhancement-medallions",
+      "variant": "enchant-scroll",
+      "filePath": "packages/design-system/assets/vector/gear-enhancement-glyph/enchant-scroll.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "repository-authored:enchant-scroll-v1",
+      "dimensions": [24, 24],
+      "sizeBytes": 344,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "gear-enhancement-glyph.ornament",
+      "slotId": "asset_slot.gear-enhancement-medallions",
+      "variant": "ornament",
+      "filePath": "packages/design-system/assets/vector/gear-enhancement-glyph/ornament.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "repository-authored:ornament-spark-v1",
+      "dimensions": [24, 24],
+      "sizeBytes": 325,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "gear-slot-silhouette.head",
+      "slotId": "asset_slot.gear-slot-silhouette",
+      "variant": "head",
+      "filePath": "packages/design-system/assets/vector/gear-slot-silhouette/head.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "repository-authored:gear-head-silhouette-v1",
+      "dimensions": [24, 24],
+      "sizeBytes": 242,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "gear-slot-silhouette.neck",
+      "slotId": "asset_slot.gear-slot-silhouette",
+      "variant": "neck",
+      "filePath": "packages/design-system/assets/vector/gear-slot-silhouette/neck.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "repository-authored:gear-neck-silhouette-v1",
+      "dimensions": [24, 24],
+      "sizeBytes": 301,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "gear-slot-silhouette.shoulder",
+      "slotId": "asset_slot.gear-slot-silhouette",
+      "variant": "shoulder",
+      "filePath": "packages/design-system/assets/vector/gear-slot-silhouette/shoulder.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "repository-authored:gear-shoulder-silhouette-v1",
+      "dimensions": [24, 24],
+      "sizeBytes": 290,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "gear-slot-silhouette.back",
+      "slotId": "asset_slot.gear-slot-silhouette",
+      "variant": "back",
+      "filePath": "packages/design-system/assets/vector/gear-slot-silhouette/back.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "repository-authored:gear-cloak-silhouette-v1",
+      "dimensions": [24, 24],
+      "sizeBytes": 237,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "gear-slot-silhouette.chest",
+      "slotId": "asset_slot.gear-slot-silhouette",
+      "variant": "chest",
+      "filePath": "packages/design-system/assets/vector/gear-slot-silhouette/chest.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "repository-authored:gear-chest-silhouette-v1",
+      "dimensions": [24, 24],
+      "sizeBytes": 273,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "gear-slot-silhouette.wrist",
+      "slotId": "asset_slot.gear-slot-silhouette",
+      "variant": "wrist",
+      "filePath": "packages/design-system/assets/vector/gear-slot-silhouette/wrist.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "repository-authored:gear-wrist-silhouette-v1",
+      "dimensions": [24, 24],
+      "sizeBytes": 430,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "gear-slot-silhouette.hands",
+      "slotId": "asset_slot.gear-slot-silhouette",
+      "variant": "hands",
+      "filePath": "packages/design-system/assets/vector/gear-slot-silhouette/hands.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "repository-authored:gear-hands-silhouette-v1",
+      "dimensions": [24, 24],
+      "sizeBytes": 267,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "gear-slot-silhouette.waist",
+      "slotId": "asset_slot.gear-slot-silhouette",
+      "variant": "waist",
+      "filePath": "packages/design-system/assets/vector/gear-slot-silhouette/waist.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "repository-authored:gear-waist-silhouette-v1",
+      "dimensions": [24, 24],
+      "sizeBytes": 259,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "gear-slot-silhouette.legs",
+      "slotId": "asset_slot.gear-slot-silhouette",
+      "variant": "legs",
+      "filePath": "packages/design-system/assets/vector/gear-slot-silhouette/legs.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "repository-authored:gear-legs-silhouette-v1",
+      "dimensions": [24, 24],
+      "sizeBytes": 213,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "gear-slot-silhouette.feet",
+      "slotId": "asset_slot.gear-slot-silhouette",
+      "variant": "feet",
+      "filePath": "packages/design-system/assets/vector/gear-slot-silhouette/feet.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "repository-authored:gear-feet-silhouette-v1",
+      "dimensions": [24, 24],
+      "sizeBytes": 195,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "gear-slot-silhouette.finger",
+      "slotId": "asset_slot.gear-slot-silhouette",
+      "variant": "finger",
+      "filePath": "packages/design-system/assets/vector/gear-slot-silhouette/finger.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "repository-authored:gear-finger-silhouette-v1",
+      "dimensions": [24, 24],
+      "sizeBytes": 297,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "gear-slot-silhouette.trinket",
+      "slotId": "asset_slot.gear-slot-silhouette",
+      "variant": "trinket",
+      "filePath": "packages/design-system/assets/vector/gear-slot-silhouette/trinket.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "repository-authored:gear-trinket-silhouette-v1",
+      "dimensions": [24, 24],
+      "sizeBytes": 361,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "gear-slot-silhouette.main-hand",
+      "slotId": "asset_slot.gear-slot-silhouette",
+      "variant": "main-hand",
+      "filePath": "packages/design-system/assets/vector/gear-slot-silhouette/main-hand.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "repository-authored:gear-main-hand-silhouette-v1",
+      "dimensions": [24, 24],
+      "sizeBytes": 222,
+      "reviewStatus": "untrusted_candidate"
+    },
+    {
+      "assetId": "gear-slot-silhouette.off-hand",
+      "slotId": "asset_slot.gear-slot-silhouette",
+      "variant": "off-hand",
+      "filePath": "packages/design-system/assets/vector/gear-slot-silhouette/off-hand.svg",
+      "sourceClass": "system_vector",
+      "sourceRef": "repository-authored:gear-off-hand-silhouette-v1",
+      "dimensions": [24, 24],
+      "sizeBytes": 227,
+      "reviewStatus": "untrusted_candidate"
+    }
+  ]
+}

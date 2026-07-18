@@ -1,0 +1,269 @@
+{
+  "schemaVersion": 1,
+  "route": "specialization_home/builds_home",
+  "status": "truth_adaptation_complete",
+  "authority": "docs/plans/ui-reconstruction.md",
+  "targetInventory": "docs/design/current-ui/routes/builds-home/target-inventory.json",
+  "apiProbe": {
+    "endpoint": "http://124.223.51.33/api/builds/home",
+    "checkedAt": "2026-07-14T22:32:00+08:00",
+    "dataStatus": "verified",
+    "classCount": 13,
+    "specializationCount": 40,
+    "quickActionKeys": ["talents", "gear", "simc", "tasks"],
+    "featuredSpecializationCount": 0,
+    "season": {
+      "id": "17",
+      "label": "至暗之夜 Season 1",
+      "revision": "season-17-f131dd36ddf1",
+      "verifiedAt": "2026-07-14 21:07:16+08:00",
+      "expiresAt": "2026-07-15 21:07:16+08:00",
+      "dataStatus": "verified"
+    },
+    "specializationEvidencePublishedAt": "2026-06-09",
+    "raiderio": {
+      "sourceStatus": "blocked",
+      "sampleCount": 0,
+      "numericValuesUsable": false
+    },
+    "note": "top-level verified describes the current season catalog, not per-specialization readiness, rank, DPS, BiS, templates, or collected evidence"
+  },
+  "globalRules": [
+    "target copy and numeric values are composition evidence only",
+    "the builds.home response proves catalog entries, route actions, source references, and season state; it does not prove per-specialization readiness",
+    "all seven target regions remain visible in loading, ready, stale, partial, blocked, empty, and error states",
+    "no homepage slot may claim collected template counts without querying and validating the owning downstream source",
+    "a blocked source with numeric zero values remains blocked and the zero values are never presented as observations",
+    "one visible source reference and one visible trust/status marker are sufficient for each content unit",
+    "no DPS, ranking, tier, BiS, player identity, task history, or simulation readiness is inferred"
+  ],
+  "conflictResolutions": [
+    {
+      "id": "product_tab_count",
+      "targetFact": "the target bitmap shows 资讯, 专精, 我的 in three columns",
+      "productFact": "tabBarItems and the registered tab-root route contract require 资讯, 专精, 队长, 我的",
+      "decision": "runtime keeps four equal product columns, inserts the real 队长 route as column three, keeps 专精 selected as column two, and uses the shared 63px control region that matches the target-scaled 62.74px height; native safe-bottom remains outside the product controls",
+      "classification": "truth_required_target_deviation",
+      "forbidden": ["remove simulator_home", "merge 队长 into another tab", "keep three unequal columns", "create a builds-only TabBar height"]
+    },
+    {
+      "id": "fourth_evidence_category",
+      "targetFact": "the fourth target evidence tile and row are labeled 队长",
+      "routeFact": "the fourth required builds.home action is tasks and the route outgoing contract requires tasks_list",
+      "decision": "the fourth evidence tile and row retain their position but display 任务 and navigate to tasks_list; 队长 remains the separate product tab",
+      "classification": "truth_required_content_adaptation",
+      "forbidden": ["label a tasks navigation as 队长", "drop tasks_list", "claim assistant evidence was collected"]
+    },
+    {
+      "id": "target_evidence_counts",
+      "targetFact": "the target contains 2/6 已收集 and 已收集 2/6 项证据",
+      "apiFact": "builds.home exposes no saved-template, task, SimC, talent, or gear completion counts",
+      "decision": "replace all counts with deterministic non-numeric states such as 进入后校验, 未校验, or 数据不可用 while retaining the same slots",
+      "classification": "truth_required_copy_adaptation"
+    },
+    {
+      "id": "header_book_action",
+      "targetFact": "the header contains one book-shaped action",
+      "routeFact": "build_intel is a registered source-window route but is not currently linked from builds_home",
+      "decision": "map the book action to build_intel and add build_intel to the builds_home outgoing route contract",
+      "classification": "real_route_activation"
+    }
+  ],
+  "mappings": [
+    {
+      "slot": "page_header.title",
+      "source": "BuildsHomePayload.navTitle",
+      "fallback": "职业专精"
+    },
+    {
+      "slot": "page_header.source_reference",
+      "source": "BuildsHomePayload.dataStatus + currentSeason.dataStatus + sourceRefs",
+      "readyCopy": "来源参考",
+      "degradedCopy": "来源受限",
+      "interaction": "non_interactive_status"
+    },
+    {
+      "slot": "page_header.book_action",
+      "source": "registered route build_intel",
+      "label": "构筑情报",
+      "navigation": "/pages/builds/intel"
+    },
+    {
+      "slot": "specialization_overview.identity",
+      "source": "selected ClassOption + SpecializationOption",
+      "displayRule": "className/specName or title; never synthesize another class/spec when an explicit selection is invalid",
+      "defaultRule": "use 法师-冰霜 only when it exists in the returned catalog; otherwise use the first real entry"
+    },
+    {
+      "slot": "specialization_overview.medallion",
+      "source": "selected specialization specIconUrl/iconUrl when source-referenced",
+      "fallback": "neutral abstract specialization medallion explicitly treated as non-factual",
+      "trustRule": "a backend URL is source_referenced, not automatically backend_verified"
+    },
+    {
+      "slot": "specialization_overview.status",
+      "source": "transport state + payload dataStatus + selected specialization sourceName/sourceUrl/publishedAt",
+      "readyRule": "source_reference",
+      "neverMeans": "talent, gear, SimC, or task readiness"
+    },
+    {
+      "slot": "specialization_overview.body",
+      "source": "BuildsHomePayload.desc",
+      "fallback": "选择专精后进入工作台校验天赋、装备与任务状态。"
+    },
+    {
+      "slot": "specialization_overview.source",
+      "source": "selected specialization sourceName + publishedAt + analysisWindow",
+      "fallback": "来源信息不可用"
+    },
+    {
+      "slot": "evidence_category_grid.talents",
+      "source": "quickActions[key=talents]",
+      "titleRule": "short label 天赋",
+      "valueRule": "进入后校验",
+      "stateRule": "unknown unless a downstream talent source is explicitly queried",
+      "navigation": "/pages/builds/talent-simulator?spec=<selectedSpecId>"
+    },
+    {
+      "slot": "evidence_category_grid.gear",
+      "source": "quickActions[key=gear]",
+      "titleRule": "short label 装备",
+      "valueRule": "进入后校验",
+      "stateRule": "unknown unless a downstream gear source is explicitly queried",
+      "navigation": "/pages/builds/detail?spec=<selectedSpecId>&query=gear"
+    },
+    {
+      "slot": "evidence_category_grid.simc",
+      "source": "quickActions[key=simc]",
+      "titleRule": "short label SimC",
+      "valueRule": "进入后校验",
+      "stateRule": "unknown; route availability is not SimC readiness",
+      "navigation": "/pages/simulator/simc?spec=<selectedSpecId>&from=builds"
+    },
+    {
+      "slot": "evidence_category_grid.tasks",
+      "source": "quickActions[key=tasks]",
+      "titleRule": "short label 任务",
+      "valueRule": "进入后查看",
+      "stateRule": "unknown; the homepage does not query task history",
+      "navigation": "/pages/simulator/tasks?from=builds"
+    },
+    {
+      "slot": "active_specialization_workspace.status",
+      "source": "selected specialization exists + workbench route is registered",
+      "readyCopy": "可进入工作台",
+      "degradedCopy": "数据受限",
+      "neverMeans": "ready to submit a simulation"
+    },
+    {
+      "slot": "active_specialization_workspace.summary",
+      "source": "deterministic summary of four action states",
+      "copyRule": "状态将在工作台按真实输入逐项校验；never display a numeric collected count"
+    },
+    {
+      "slot": "active_specialization_workspace.action",
+      "source": "registered current_spec_workbench route",
+      "label": "进入工作台",
+      "navigation": "/pages/builds/workbench?spec=<selectedSpecId>",
+      "disabledWhen": "no real specialization selection"
+    },
+    {
+      "slot": "evidence_category_list.rows",
+      "source": "the same four normalized quick actions used by evidence_category_grid",
+      "count": 4,
+      "reuseRule": "same state, value, navigation, and medallion semantics as the corresponding grid tile"
+    },
+    {
+      "slot": "workflow_stage_list.input",
+      "source": "talents + gear action availability",
+      "detailRule": "整理天赋与装备输入",
+      "statusRule": "待校验 until downstream input sources are read"
+    },
+    {
+      "slot": "workflow_stage_list.validation",
+      "source": "simc action availability",
+      "detailRule": "固定输入后进行 SimC 校验",
+      "statusRule": "待开始; do not infer template readiness"
+    },
+    {
+      "slot": "workflow_stage_list.tracking",
+      "source": "tasks action availability",
+      "detailRule": "进入任务列表追踪真实结果",
+      "statusRule": "进入后查看; do not infer task count or history"
+    },
+    {
+      "slot": "product_tab_bar.items",
+      "source": "tabBarItems",
+      "count": 4,
+      "labels": ["资讯", "专精", "队长", "我的"],
+      "activeIndex": 1,
+      "layoutRule": "four equal columns; selected state cannot change column geometry"
+    }
+  ],
+  "stateMatrix": [
+    {
+      "state": "loading",
+      "condition": "initial or retry request pending",
+      "presentation": "retain all seven regions, stable labels, medallion/frame placeholders, and loading values without an empty first viewport"
+    },
+    {
+      "state": "ready_source_reference",
+      "condition": "transport success and payload/currentSeason verified with at least one real specialization",
+      "presentation": "show catalog and source references; all downstream evidence categories remain unknown until entered"
+    },
+    {
+      "state": "partial",
+      "condition": "payload or currentSeason partial, a required source is blocked, or required catalog fields are absent",
+      "presentation": "retain data-bearing slots, label the affected source as partial, and keep downstream values unverified"
+    },
+    {
+      "state": "stale",
+      "condition": "transport fallback, payload stale, or source expiry is in the past",
+      "presentation": "retain cached data-bearing structure with explicit 缓存可用/数据过期 state labels; source fields continue to show the declared source name and never inherit verified wording"
+    },
+    {
+      "state": "blocked",
+      "condition": "payload/currentSeason blocked or no trustworthy source window is available",
+      "presentation": "retain all target regions, disable actions that require a real selection, show blocker reason, and expose retry"
+    },
+    {
+      "state": "empty",
+      "condition": "classOptions contains no usable specialization",
+      "presentation": "retain all target regions with 暂无可用专精 and disabled selected-spec actions"
+    },
+    {
+      "state": "error",
+      "condition": "unexpected request or normalization failure without usable previous data",
+      "presentation": "retain all target regions, show request error and retry, and make no source or readiness claims"
+    }
+  ],
+  "implementationRequirements": [
+    {
+      "id": "deep_payload_contract",
+      "owner": "packages/domain + packages/api-client",
+      "requirement": "type and validate dataStatus, blockedReason, season metadata, source refs, Raider.IO state, nested class/spec fields, and all four actions"
+    },
+    {
+      "id": "presentation_model",
+      "owner": "apps/mini-taro/src/pages/builds/builds-home-model.ts",
+      "requirement": "derive every visible status/copy/navigation from the payload and route state without numeric fabrication"
+    },
+    {
+      "id": "selection_and_trust",
+      "owner": "apps/mini-taro/src/pages/_shared/build-context.ts",
+      "requirement": "remove silent mage/frost key substitution for invalid explicit selections and downgrade source-backed icons to source_referenced trust"
+    },
+    {
+      "id": "empty_and_degraded_states",
+      "owner": "apps/mini-taro/src/pages/builds/builds.tsx",
+      "requirement": "use a real empty predicate and consume payload dataStatus rather than treating every HTTP 200 response as ready"
+    },
+    {
+      "id": "route_parity",
+      "owner": "packages/domain/src/route-contract.ts",
+      "requirement": "add build_intel to outgoing routes and stop passing ignored spec to tasks_list"
+    }
+  ],
+  "pendingTruthGaps": [],
+  "implementationStatus": "implemented_pending_route_visual_review"
+}

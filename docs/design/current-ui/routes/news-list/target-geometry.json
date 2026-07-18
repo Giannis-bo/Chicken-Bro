@@ -1,0 +1,300 @@
+{
+  "schemaVersion": "target-geometry-v1",
+  "route": "news_list",
+  "authority": "canonical_target",
+  "source": {
+    "path": "artifacts/ui-visual-targets/current/news-list.png",
+    "width": 864,
+    "height": 1821,
+    "sha256": "dd43a07a5ac26b8c3c65c90e8eb7a74e92f80bb74835f84d49ba058b892829cc"
+  },
+  "measurement": {
+    "runtimeInputsUsed": false,
+    "coordinateSpace": "native_source_pixels",
+    "normalizedTo": {
+      "width": 864,
+      "height": 1821
+    },
+    "method": "single-image manual visual measurement from canonical target only; bounds estimated to outer visible edges of major first-level regions in native pixels",
+    "precision": "integer pixel bounds for regions; normalized values rounded to 6 decimals; fine frame protrusions, glows and shadows excluded unless they define the visible panel edge"
+  },
+  "regions": [
+    {
+      "id": "top_bar",
+      "label": "news list navigation header",
+      "boundsPx": {
+        "x": 15,
+        "y": 14,
+        "width": 834,
+        "height": 129,
+        "x2": 849,
+        "y2": 143
+      },
+      "boundsNormalized": {
+        "x": 0.017361,
+        "y": 0.007688,
+        "width": 0.965278,
+        "height": 0.07084,
+        "x2": 0.982639,
+        "y2": 0.078528
+      },
+      "confidence": 0.97,
+      "internalStructure": [
+        "full-width dark textured header inside the shared outer metal shell",
+        "large square back control at left",
+        "centered gold page title",
+        "symmetric horizontal title flourishes with small diamond ornaments"
+      ],
+      "alignment": [
+        "page title centered on the canvas horizontal axis",
+        "back control vertically centered within the header band",
+        "title flourishes extend symmetrically to both sides of the title"
+      ],
+      "spacing": [
+        "~20 px from header frame left edge to back control",
+        "back control occupies roughly 91 x 79 px",
+        "~14 px inset from canvas top to visible header frame",
+        "header bottom meets the summary region at y~143"
+      ],
+      "notes": [
+        "no system status bar, WeChat capsule or product tab bar is drawn",
+        "small circular marks near the upper-right area appear decorative rather than a resolved control"
+      ]
+    },
+    {
+      "id": "list_summary",
+      "label": "result summary and subscription action",
+      "boundsPx": {
+        "x": 17,
+        "y": 143,
+        "width": 830,
+        "height": 148,
+        "x2": 847,
+        "y2": 291
+      },
+      "boundsNormalized": {
+        "x": 0.019676,
+        "y": 0.078528,
+        "width": 0.960648,
+        "height": 0.081274,
+        "x2": 0.980324,
+        "y2": 0.159802
+      },
+      "confidence": 0.96,
+      "internalStructure": [
+        "left-aligned large summary heading",
+        "smaller article-count line below the heading",
+        "right-aligned outlined subscription/filter action with a cycle-arrow icon"
+      ],
+      "alignment": [
+        "heading and count share a left text rail near x~58",
+        "action button aligns to the right internal rail near x~806",
+        "left text block and right action are vertically balanced within the region"
+      ],
+      "spacing": [
+        "~41 px left inset to heading",
+        "~14 px vertical gap between heading and count line",
+        "~41 px right inset from shared shell to action button"
+      ],
+      "notes": [
+        "region has no independent enclosing card; it sits between the header divider and category frame",
+        "visible title and count are target copy only and do not assert runtime data"
+      ]
+    },
+    {
+      "id": "category_filter_bar",
+      "label": "news category tabs and filter control",
+      "boundsPx": {
+        "x": 31,
+        "y": 291,
+        "width": 802,
+        "height": 105,
+        "x2": 833,
+        "y2": 396
+      },
+      "boundsNormalized": {
+        "x": 0.03588,
+        "y": 0.159802,
+        "width": 0.928241,
+        "height": 0.057661,
+        "x2": 0.96412,
+        "y2": 0.217463
+      },
+      "confidence": 0.98,
+      "internalStructure": [
+        "single ornate horizontal frame",
+        "six text category tabs",
+        "selected first tab inside an inset metal plate with a gold underline",
+        "sliders-style filter icon at far right"
+      ],
+      "alignment": [
+        "tabs arranged in one horizontal row",
+        "all labels vertically centered",
+        "selected tab plate aligns to the frame's inner top and bottom rails",
+        "filter glyph occupies a fixed far-right slot"
+      ],
+      "spacing": [
+        "~17 px inner horizontal inset from frame to selected plate",
+        "tab labels use broadly even visual spacing across the available row",
+        "~24 px gap from filter-frame bottom to the first news card"
+      ],
+      "notes": [
+        "selected state is communicated by brighter ivory text, enclosed plate and short gold underline",
+        "the target alone does not define tab hit-box boundaries"
+      ]
+    },
+    {
+      "id": "news_results_list",
+      "label": "six visible news result cards",
+      "boundsPx": {
+        "x": 35,
+        "y": 420,
+        "width": 796,
+        "height": 939,
+        "x2": 831,
+        "y2": 1359
+      },
+      "boundsNormalized": {
+        "x": 0.040509,
+        "y": 0.230643,
+        "width": 0.921296,
+        "height": 0.515651,
+        "x2": 0.961806,
+        "y2": 0.746293
+      },
+      "confidence": 0.97,
+      "internalStructure": [
+        "six vertically stacked framed news cards",
+        "each card has a narrow blue or gold left accent rail",
+        "each card has a left document medallion",
+        "each card has one title and two metadata/status chips",
+        "each card has a right chevron above or beside a relative-time label"
+      ],
+      "alignment": [
+        "all cards share common left and right edges",
+        "document medallions form one vertical column",
+        "titles and chips share fixed left rails across all six cards",
+        "timestamps and chevrons align to a common right-side column"
+      ],
+      "spacing": [
+        "card heights are approximately 146-148 px",
+        "vertical gaps between cards are approximately 10-12 px",
+        "~25 px from card left edge to document medallion",
+        "~23 px from medallion right edge to title column",
+        "chips are arranged horizontally with approximately 17 px between them"
+      ],
+      "notes": [
+        "visible status pattern is four pending-review chips and two translated chips",
+        "visible accent pattern is blue, blue, gold, blue, gold, gold from top to bottom",
+        "repeated titles, statuses and relative times are target placeholders rather than runtime truth"
+      ]
+    },
+    {
+      "id": "empty_state_panel",
+      "label": "empty result state panel",
+      "boundsPx": {
+        "x": 31,
+        "y": 1375,
+        "width": 802,
+        "height": 344,
+        "x2": 833,
+        "y2": 1719
+      },
+      "boundsNormalized": {
+        "x": 0.03588,
+        "y": 0.75508,
+        "width": 0.928241,
+        "height": 0.188907,
+        "x2": 0.96412,
+        "y2": 0.943987
+      },
+      "confidence": 0.98,
+      "internalStructure": [
+        "large framed dark panel",
+        "centered circular no-entry emblem with small radial ornaments",
+        "centered empty-state heading",
+        "centered supporting sentence",
+        "centered outlined retry button"
+      ],
+      "alignment": [
+        "all content centered on the panel horizontal axis",
+        "emblem, heading, supporting text and button form one vertical stack",
+        "retry button centered below the supporting sentence"
+      ],
+      "spacing": [
+        "~45 px from panel top to emblem",
+        "~17 px from emblem to heading",
+        "~16 px from heading to supporting text",
+        "~27 px from supporting text to retry button"
+      ],
+      "notes": [
+        "the target visibly shows this panel after six populated rows; this is an inventory fact, not a claim that both runtime states coexist",
+        "outer panel shadow is excluded from bounds"
+      ]
+    },
+    {
+      "id": "reference_disclaimer",
+      "label": "bottom reference disclaimer bar",
+      "boundsPx": {
+        "x": 17,
+        "y": 1729,
+        "width": 830,
+        "height": 80,
+        "x2": 847,
+        "y2": 1809
+      },
+      "boundsNormalized": {
+        "x": 0.019676,
+        "y": 0.949478,
+        "width": 0.960648,
+        "height": 0.043932,
+        "x2": 0.980324,
+        "y2": 0.99341
+      },
+      "confidence": 0.98,
+      "internalStructure": [
+        "full-width inset metal footer band",
+        "small shield icon",
+        "single centered disclaimer line with middle-dot separator",
+        "small circular fastener ornaments near both sides"
+      ],
+      "alignment": [
+        "shield and disclaimer text form one horizontally centered group",
+        "footer content vertically centered within the band",
+        "side fasteners are approximately symmetric"
+      ],
+      "spacing": [
+        "~10 px gap from empty-state panel to footer band",
+        "~18 px between shield icon and disclaimer text",
+        "~12 px decorative shell remainder below the footer"
+      ],
+      "notes": [
+        "footer is a reference warning, not a product tab bar",
+        "the visible disclaimer is target copy and not an assertion about source authority"
+      ]
+    }
+  ],
+  "globalAlignment": [
+    "the outer decorative shell spans nearly the full 864 px canvas with visible rails around x~5-859",
+    "top bar, summary and disclaimer use a wider inner rail near x~15-17",
+    "category and empty-state frames share a narrower rail near x~31-833",
+    "news cards share the narrowest content rail near x~35-831",
+    "the composition is a single vertical flow: top bar -> summary -> category filter -> six-card list -> empty state -> disclaimer"
+  ],
+  "globalSpacing": [
+    "top bar and summary meet at y~143",
+    "summary and category frame meet at y~291",
+    "category frame to first card gap ~24 px",
+    "news list to empty-state panel gap ~16 px",
+    "empty-state panel to disclaimer gap ~10 px",
+    "disclaimer to canvas bottom decorative remainder ~12 px"
+  ],
+  "unresolved": [
+    "exact outer bounds of thin shadows, inner highlights and frame protrusions may vary by 1-3 px",
+    "fine glyph baselines, authored letter spacing and font metrics were not measured at subpixel level",
+    "the small circular mark near the header's upper-right area is not semantically resolvable beyond likely decoration",
+    "the exact hit-box widths of the six category labels and far-right filter glyph cannot be determined from a static target",
+    "micro-details inside document, source, pending, translated, shield and no-entry icons are not pixel-certain",
+    "the simultaneous visibility of populated rows and the empty-state panel is recorded as target composition only, not runtime state truth"
+  ]
+}

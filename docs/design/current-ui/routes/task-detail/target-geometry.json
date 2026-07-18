@@ -1,0 +1,132 @@
+{
+  "schemaVersion": "target-geometry-v1",
+  "route": "task_detail",
+  "authority": "canonical_target",
+  "source": {
+    "path": "artifacts/ui-visual-targets/current/task-detail.png",
+    "width": 851,
+    "height": 1848,
+    "nativeWidth": 851,
+    "nativeHeight": 1848,
+    "bytes": 1835810,
+    "sha256": "5a6e098673a626359fd70cbcf637d4cecd9e14e8e959ff9035c75465e87d1575"
+  },
+  "measurement": {
+    "coordinateSpace": "native_pixels",
+    "normalizedCoordinateSpace": "canvas_fraction",
+    "targetOnly": true,
+    "runtimeInputsUsed": false
+  },
+  "regions": [
+    {
+      "id": "page_frame",
+      "order": 1,
+      "observedRole": "full-canvas ornamental page frame and dark textured surface",
+      "bounds": {"x": 0, "y": 0, "width": 851, "height": 1848},
+      "normalizedBounds": {"x": 0, "y": 0, "width": 1, "height": 1},
+      "internalStructure": ["outer beveled perimeter", "continuous dark textured surface", "single vertically ordered content column"],
+      "alignment": "Fills the native canvas; all content regions remain inside the visible ornamental perimeter.",
+      "spacing": "The major content column uses a common approximately 33px left inset and 33px right inset.",
+      "unresolved": ["Fine texture, bevel, glow, and antialiased edge layers are not resolved as separate geometry or assets."]
+    },
+    {
+      "id": "page_header",
+      "order": 2,
+      "observedRole": "compact task-detail route header",
+      "bounds": {"x": 35, "y": 27, "width": 474, "height": 77},
+      "normalizedBounds": {"x": 0.041128, "y": 0.01461, "width": 0.556992, "height": 0.041667},
+      "internalStructure": ["circular back control", "centered route title"],
+      "alignment": "Back control is left aligned; title is centered on the canvas rather than centered in the remaining horizontal space.",
+      "spacing": "A narrow open band separates the header content from the first framed section.",
+      "unresolved": ["The static target does not establish navigation behavior or sticky positioning."]
+    },
+    {
+      "id": "task_summary",
+      "order": 3,
+      "observedRole": "task identity, live status, and task metadata overview",
+      "bounds": {"x": 33, "y": 113, "width": 785, "height": 209},
+      "normalizedBounds": {"x": 0.038778, "y": 0.061147, "width": 0.922444, "height": 0.113095},
+      "internalStructure": ["large left clipboard medallion", "task title and running-status badge", "inset metadata surface", "created and started columns", "duration and source rows"],
+      "alignment": "The emblem occupies the left column; title, status, and metadata align in the wider right column.",
+      "spacing": "The metadata surface begins below the title row and uses vertical dividers between its first two columns and right-side metadata group.",
+      "unresolved": ["The badge animation and the semantic relationship between 创建时间 and its visible value 待开始 cannot be inferred from the target."]
+    },
+    {
+      "id": "refresh_notice",
+      "order": 4,
+      "observedRole": "automatic-update notice with manual refresh action",
+      "bounds": {"x": 34, "y": 332, "width": 784, "height": 72},
+      "normalizedBounds": {"x": 0.039953, "y": 0.179654, "width": 0.921269, "height": 0.038961},
+      "internalStructure": ["left information icon and update message", "right refresh control"],
+      "alignment": "Message is vertically centered on the left; the framed action is vertically centered and right aligned.",
+      "spacing": "A compact single-row band sits between the task overview and result section with narrow vertical gaps.",
+      "unresolved": ["Refresh behavior, disabled state, and polling cadence are not observable."]
+    },
+    {
+      "id": "simc_result",
+      "order": 5,
+      "observedRole": "pending SimulationCraft result and four-stage progress presentation",
+      "bounds": {"x": 33, "y": 415, "width": 785, "height": 445},
+      "normalizedBounds": {"x": 0.038778, "y": 0.224567, "width": 0.922444, "height": 0.240801},
+      "internalStructure": ["section heading", "top-right pending-result badge", "large inset result surface", "central wireframe emblem", "pending-result headline and supporting text", "four connected progress steps"],
+      "alignment": "Heading and badge share the top row; the placeholder content is centered; progress markers are distributed evenly along one horizontal connector.",
+      "spacing": "The inset result surface occupies most of the region, with the progress tracker anchored near its lower edge.",
+      "unresolved": ["Progress animation, completed-step transitions, result replacement behavior, and exact connector construction are not observable in the static target."]
+    },
+    {
+      "id": "run_context",
+      "order": 6,
+      "observedRole": "four-item simulation input context",
+      "bounds": {"x": 33, "y": 872, "width": 785, "height": 194},
+      "normalizedBounds": {"x": 0.038778, "y": 0.471861, "width": 0.922444, "height": 0.104978},
+      "internalStructure": ["section heading", "two-column by two-row context grid", "icon and label per cell", "right-aligned pending value per cell"],
+      "alignment": "The four cells share equal outer edges in a 2x2 grid; labels align left and pending values align right.",
+      "spacing": "A narrow gutter separates the two columns, while the two rows meet at a shared horizontal divider.",
+      "unresolved": ["The target does not establish whether context cells are interactive or how loaded values affect line wrapping."]
+    },
+    {
+      "id": "scenario",
+      "order": 7,
+      "observedRole": "four-field simulation scenario summary",
+      "bounds": {"x": 33, "y": 1078, "width": 785, "height": 150},
+      "normalizedBounds": {"x": 0.038778, "y": 0.583333, "width": 0.922444, "height": 0.081169},
+      "internalStructure": ["section heading", "single row of four framed scenario cells", "icon, label, and pending value per cell"],
+      "alignment": "Four equal-width cells run left to right beneath the heading; each cell centers its pending value below the icon-label row.",
+      "spacing": "Small uniform horizontal gaps separate the four cells.",
+      "unresolved": ["The target does not establish editing behavior, allowed values, or responsive wrapping."]
+    },
+    {
+      "id": "attribute_snapshot",
+      "order": 8,
+      "observedRole": "six-stat placeholder snapshot with explanatory detail row",
+      "bounds": {"x": 33, "y": 1239, "width": 785, "height": 220},
+      "normalizedBounds": {"x": 0.038778, "y": 0.670455, "width": 0.922444, "height": 0.119048},
+      "internalStructure": ["section heading", "single row of six framed statistic cells", "icon and label per cell", "dash placeholder per cell", "bottom information row", "right detail action"],
+      "alignment": "Six near-equal cells span the section width; the bottom message aligns left and the detail action aligns right.",
+      "spacing": "Small horizontal gaps separate statistic cells; a narrow vertical gap separates the cells from the bottom information row.",
+      "unresolved": ["Dash placeholders do not establish null semantics, numeric formats, or whether the detail action is enabled before results arrive."]
+    },
+    {
+      "id": "combat_buffs",
+      "order": 9,
+      "observedRole": "five-category combat buff placeholder summary with explanatory detail row",
+      "bounds": {"x": 33, "y": 1471, "width": 785, "height": 219},
+      "normalizedBounds": {"x": 0.038778, "y": 0.795996, "width": 0.922444, "height": 0.118506},
+      "internalStructure": ["section heading", "single row of five framed buff cells", "icon, label, and pending value per cell", "bottom information row", "right detail action"],
+      "alignment": "Five near-equal cells span the section width; the bottom message aligns left and the detail action aligns right.",
+      "spacing": "Small horizontal gaps separate buff cells; a narrow vertical gap separates the cells from the bottom information row.",
+      "unresolved": ["The target does not establish buff selection, source truth, or whether the detail action is enabled while values remain 待设置."]
+    },
+    {
+      "id": "error_state",
+      "order": 10,
+      "observedRole": "bottom task exception and timeout placeholder",
+      "bounds": {"x": 33, "y": 1702, "width": 785, "height": 109},
+      "normalizedBounds": {"x": 0.038778, "y": 0.920996, "width": 0.922444, "height": 0.058983},
+      "internalStructure": ["large warning emblem", "exception heading and failure-reason line", "right error-detail action"],
+      "alignment": "Warning emblem and text stack align left; the framed action is vertically centered and right aligned.",
+      "spacing": "The panel follows the combat-buff section with the same narrow inter-section gap and remains above the visible lower page-frame edge.",
+      "unresolved": ["Bottom placement is visible, but fixed or sticky positioning and conditional visibility are not established."]
+    }
+  ]
+}

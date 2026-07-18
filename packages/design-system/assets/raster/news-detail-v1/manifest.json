@@ -1,0 +1,257 @@
+{
+  "schemaVersion": 1,
+  "collectionId": "news-detail-v1",
+  "route": "news_detail",
+  "status": "independent_review_passed_for_canary",
+  "sourceClass": "imagegen_raster",
+  "generatedAt": "2026-07-15T06:10:03Z",
+  "root": "packages/design-system/assets/raster/news-detail-v1",
+  "productionPromoted": false,
+  "registeredInPackagesAssetsManifest": true,
+  "wiredIntoRuntimeCode": true,
+  "runtimeBindingStatus": "complete_3_of_3",
+  "generation": {
+    "mode": "built_in_image_gen",
+    "callCount": 6,
+    "iterationCallCount": 3,
+    "sourceCount": 3,
+    "masterCount": 3,
+    "runtimeAssetIdCount": 3,
+    "runtimeFileCount": 6,
+    "record": "packages/design-system/assets/raster/news-detail-v1/generation-record.json"
+  },
+  "mechanicalValidation": {
+    "allRuntimePassed": true,
+    "alphaRequired": true,
+    "transparentCornersRequired": true,
+    "transparentOuterEdgeRequired": true,
+    "transparentCenterRequired": true,
+    "visibleGreenFractionMaximum": 0,
+    "ocrTextOrDigitsAllowed": false,
+    "oneXMustDeriveFromTwoX": true,
+    "validators": [
+      "Pillow alpha-aware metadata checks",
+      "Tesseract psm 11",
+      "sips deterministic re-derivation plus cmp"
+    ],
+    "independentIsolatedVisualReviewPending": false
+  },
+  "independentReview": {
+    "status": "pass_for_canary",
+    "aggregate": "packages/design-system/assets/raster/news-detail-v1/independent-review.json",
+    "reviewCount": 3,
+    "productionPromoted": false
+  },
+  "assets": [
+    {
+      "assetId": "news-detail-source-crest.default",
+      "slotId": "asset_slot.news-detail-source-crest",
+      "status": "independent_review_passed_for_canary",
+      "sourceClass": "imagegen_raster",
+      "productionPromoted": false,
+      "promptRef": "generation-record.json#news-detail-source-crest.default",
+      "builtInSavedPath": "local-generation-output-not-retained",
+      "source": {
+        "path": "packages/design-system/assets/raster/news-detail-v1/sources/news-detail-source-crest.default.png",
+        "width": 1150,
+        "height": 1368,
+        "bytes": 1638156,
+        "sha256": "09af3f4a97cba5bf7ffe3eece5fede24373e7506e5b6060f8f50b447994e90db"
+      },
+      "master": {
+        "path": "packages/design-system/assets/raster/news-detail-v1/masters/news-detail-source-crest.default.png",
+        "width": 1150,
+        "height": 1368,
+        "bytes": 923895,
+        "sha256": "e88ded2a8350094d44f0a248d5d2674a6c780b89032f74f8c8381284eabfe1cd"
+      },
+      "runtime": {
+        "2x": {
+          "path": "packages/design-system/assets/raster/news-detail-v1/runtime/2x/news-detail-source-crest.default.png",
+          "width": 64,
+          "height": 76,
+          "bytes": 5042,
+          "sha256": "c1708687507f20b7a37b392cfac9879770a470d08cc5eb511aeb0857602c15a0"
+        },
+        "1x": {
+          "path": "packages/design-system/assets/raster/news-detail-v1/runtime/1x/news-detail-source-crest.default.png",
+          "width": 32,
+          "height": 38,
+          "bytes": 2359,
+          "sha256": "3692082c3a27fb43d609b06dad17346a9132830d04e479b54a71fc525fc05e68"
+        }
+      },
+      "processingMethod": "remove_chroma_key.py with border auto-key, soft matte and despill; aspect-matched sips resize to 2x; 1x derived only from 2x",
+      "validation": {
+        "passed": true,
+        "sourceCopyByteIdenticalToBuiltInSavedPath": true,
+        "runtimeHasAlpha": true,
+        "cornerAlpha": {
+          "2x": [0, 0, 0, 0],
+          "1x": [0, 0, 0, 0]
+        },
+        "outerEdgeAlphaMaximum": {
+          "2x": 0,
+          "1x": 0
+        },
+        "meanAlphaCoverage": {
+          "2x": 0.204034,
+          "1x": 0.1983
+        },
+        "visibleGreenFraction": {
+          "2x": 0,
+          "1x": 0
+        },
+        "centerAperture": {
+          "2x": { "centerAlpha": 0, "horizontalTransparentRun": 36, "verticalTransparentRun": 51, "centeredTransparentSquare": 28 },
+          "1x": { "centerAlpha": 0, "horizontalTransparentRun": 16, "verticalTransparentRun": 24, "centeredTransparentSquare": 14 }
+        },
+        "ocr": {
+          "2x": "",
+          "1x": ""
+        },
+        "oneXByteIdenticalToMechanicalRederivation": true
+      }
+    },
+    {
+      "assetId": "news-detail-evidence-medallion.default",
+      "slotId": "asset_slot.news-detail-evidence-emblem",
+      "status": "independent_review_passed_for_canary",
+      "sourceClass": "imagegen_raster",
+      "productionPromoted": false,
+      "promptRef": "generation-record.json#news-detail-evidence-medallion.default",
+      "builtInSavedPath": "local-generation-output-not-retained",
+      "source": {
+        "path": "packages/design-system/assets/raster/news-detail-v1/sources/news-detail-evidence-medallion.default.png",
+        "width": 1254,
+        "height": 1254,
+        "bytes": 1889745,
+        "sha256": "141d650458c9aa5c957b1e5bd6869feeec00c470781c8b3f665005995c072d69"
+      },
+      "master": {
+        "path": "packages/design-system/assets/raster/news-detail-v1/masters/news-detail-evidence-medallion.default.png",
+        "width": 1254,
+        "height": 1254,
+        "bytes": 1119120,
+        "sha256": "467a5286933b08068f425c91777fae2cdbca1f407dc19c35ac5c7c1b6cb31af4"
+      },
+      "runtime": {
+        "2x": {
+          "path": "packages/design-system/assets/raster/news-detail-v1/runtime/2x/news-detail-evidence-medallion.default.png",
+          "width": 68,
+          "height": 68,
+          "bytes": 5606,
+          "sha256": "e41310b2538e0e5ab7dcc8bde052b06fb4e33ca143af06f7bf735acedcb06ce6"
+        },
+        "1x": {
+          "path": "packages/design-system/assets/raster/news-detail-v1/runtime/1x/news-detail-evidence-medallion.default.png",
+          "width": 34,
+          "height": 34,
+          "bytes": 2480,
+          "sha256": "8dece967601eff05916d6c5228aaa118d0a8d59c972553d0601a0d98f6c5ce95"
+        }
+      },
+      "processingMethod": "remove_chroma_key.py with border auto-key, soft matte and despill; square sips resize to 2x; 1x derived only from 2x",
+      "validation": {
+        "passed": true,
+        "sourceCopyByteIdenticalToBuiltInSavedPath": true,
+        "runtimeHasAlpha": true,
+        "cornerAlpha": {
+          "2x": [0, 0, 0, 0],
+          "1x": [0, 0, 0, 0]
+        },
+        "outerEdgeAlphaMaximum": {
+          "2x": 0,
+          "1x": 0
+        },
+        "meanAlphaCoverage": {
+          "2x": 0.272895,
+          "1x": 0.265191
+        },
+        "visibleGreenFraction": {
+          "2x": 0,
+          "1x": 0
+        },
+        "centerAperture": {
+          "2x": { "centerAlpha": 0, "horizontalTransparentRun": 38, "verticalTransparentRun": 41, "centeredTransparentSquare": 28 },
+          "1x": { "centerAlpha": 0, "horizontalTransparentRun": 18, "verticalTransparentRun": 19, "centeredTransparentSquare": 14 }
+        },
+        "ocr": {
+          "2x": "",
+          "1x": ""
+        },
+        "oneXByteIdenticalToMechanicalRederivation": true
+      }
+    },
+    {
+      "assetId": "news-detail-terminal-medallion.default",
+      "slotId": "asset_slot.news-detail-terminal-emblem",
+      "status": "independent_review_passed_for_canary",
+      "sourceClass": "imagegen_raster",
+      "productionPromoted": false,
+      "promptRef": "generation-record.json#news-detail-terminal-medallion.default",
+      "builtInSavedPath": "local-generation-output-not-retained",
+      "source": {
+        "path": "packages/design-system/assets/raster/news-detail-v1/sources/news-detail-terminal-medallion.default.png",
+        "width": 1254,
+        "height": 1254,
+        "bytes": 1487997,
+        "sha256": "7ea17e7494e580bb6963b02d3cc695634110da5979931c326b04c33b816fad72"
+      },
+      "master": {
+        "path": "packages/design-system/assets/raster/news-detail-v1/masters/news-detail-terminal-medallion.default.png",
+        "width": 1254,
+        "height": 1254,
+        "bytes": 703582,
+        "sha256": "0ef3976bfd30b2120cda579f97d96913e88cb493d7027eb458e052674a31c500"
+      },
+      "runtime": {
+        "2x": {
+          "path": "packages/design-system/assets/raster/news-detail-v1/runtime/2x/news-detail-terminal-medallion.default.png",
+          "width": 80,
+          "height": 80,
+          "bytes": 5396,
+          "sha256": "dd24eb50594b2176f31da165ed72f8f0e0c1063f1aaa66d3b3efbc803a2e4237"
+        },
+        "1x": {
+          "path": "packages/design-system/assets/raster/news-detail-v1/runtime/1x/news-detail-terminal-medallion.default.png",
+          "width": 40,
+          "height": 40,
+          "bytes": 2575,
+          "sha256": "183adc935cbbfecbdf51b12c25117e34c42263eada436b180eb18bc87eb6fc63"
+        }
+      },
+      "processingMethod": "remove_chroma_key.py with border auto-key, soft matte and despill; square sips resize to 2x; 1x derived only from 2x",
+      "validation": {
+        "passed": true,
+        "sourceCopyByteIdenticalToBuiltInSavedPath": true,
+        "runtimeHasAlpha": true,
+        "cornerAlpha": {
+          "2x": [0, 0, 0, 0],
+          "1x": [0, 0, 0, 0]
+        },
+        "outerEdgeAlphaMaximum": {
+          "2x": 0,
+          "1x": 0
+        },
+        "meanAlphaCoverage": {
+          "2x": 0.152771,
+          "1x": 0.148642
+        },
+        "visibleGreenFraction": {
+          "2x": 0,
+          "1x": 0
+        },
+        "centerAperture": {
+          "2x": { "centerAlpha": 0, "horizontalTransparentRun": 46, "verticalTransparentRun": 46, "centeredTransparentSquare": 24 },
+          "1x": { "centerAlpha": 0, "horizontalTransparentRun": 21, "verticalTransparentRun": 22, "centeredTransparentSquare": 10 }
+        },
+        "ocr": {
+          "2x": "",
+          "1x": ""
+        },
+        "oneXByteIdenticalToMechanicalRederivation": true
+      }
+    }
+  ]
+}

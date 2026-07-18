@@ -1,0 +1,368 @@
+{
+  "schemaVersion": "target-inventory-v1",
+  "route": "news_detail",
+  "authority": "canonical_target",
+  "source": {
+    "path": "artifacts/ui-visual-targets/current/news-detail.png",
+    "width": 864,
+    "height": 1821,
+    "sha256": "256d02e05465e88643289eccfdc3988f911fd26da8bec898462a03e40ebc20b7"
+  },
+  "measurement": {
+    "runtimeInputsUsed": false
+  },
+  "visibleText": [
+    {
+      "text": "资讯详情",
+      "region": "top_bar",
+      "role": "page_title",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "待核验资讯标题",
+      "region": "article_header_card",
+      "role": "article_title",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "来源参考",
+      "region": "article_header_card",
+      "role": "source_label",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "来源信息待核验",
+      "region": "article_header_card",
+      "role": "source_verification_status",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "翻译状态",
+      "region": "translation_status",
+      "role": "section_label",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "待翻译",
+      "region": "translation_status",
+      "role": "selected_translation_option",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "机译",
+      "region": "translation_status",
+      "role": "translation_option",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "人工翻译",
+      "region": "translation_status",
+      "role": "translation_option",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "正文占位段落",
+      "region": "article_body",
+      "role": "body_placeholder_phrase",
+      "count": 24,
+      "confidence": 0.99
+    },
+    {
+      "text": "来源参考",
+      "region": "source_reference_action",
+      "role": "source_section_heading",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "来源链接待核验",
+      "region": "source_reference_action",
+      "role": "source_link_status",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "复制来源",
+      "region": "source_reference_action",
+      "role": "copy_source_action",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "证据明细",
+      "region": "evidence_details_panel",
+      "role": "section_heading",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "类型",
+      "region": "evidence_details_panel",
+      "role": "column_header",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "内容摘要",
+      "region": "evidence_details_panel",
+      "role": "column_header",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "可信度",
+      "region": "evidence_details_panel",
+      "role": "column_header",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "时间",
+      "region": "evidence_details_panel",
+      "role": "column_header",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "证据明细",
+      "region": "evidence_details_panel",
+      "role": "empty_state_label",
+      "count": 1,
+      "confidence": 0.99
+    },
+    {
+      "text": "未找到文章",
+      "region": "missing_article_state",
+      "role": "missing_state_label",
+      "count": 1,
+      "confidence": 0.99
+    }
+  ],
+  "elementCounts": {
+    "topBarBackButtons": 1,
+    "pageTitles": 1,
+    "articleHeaderCards": 1,
+    "articleTitles": 1,
+    "sourceCrests": 1,
+    "sourceVerificationPlates": 1,
+    "translationStatusBands": 1,
+    "translationOptions": 3,
+    "selectedTranslationOptions": 1,
+    "articleBodyPanels": 1,
+    "bodyPlaceholderPhrases": 24,
+    "bodyTextLines": 8,
+    "bodyParagraphGroups": 5,
+    "sourceReferenceCards": 1,
+    "copySourceButtons": 1,
+    "evidenceDetailPanels": 1,
+    "evidenceColumnHeaders": 4,
+    "evidenceRecordRows": 0,
+    "evidenceEmptyStateMedallions": 1,
+    "evidenceEmptyStateLabels": 1,
+    "evidenceCollapseChevrons": 1,
+    "missingArticlePanels": 1,
+    "missingArticleMedallions": 1,
+    "missingArticleActions": 0,
+    "productTabBars": 0,
+    "drawnSystemStatusBars": 0,
+    "drawnSystemCapsules": 0
+  },
+  "hierarchy": [
+    {
+      "region": "top_bar",
+      "structure": [
+        "left_back_control",
+        "center_title",
+        "mirrored_title_flourishes"
+      ]
+    },
+    {
+      "region": "article_header_card",
+      "structure": [
+        "ornate_framed_container",
+        "article_title",
+        "source_crest_and_label",
+        "source_verification_plate"
+      ]
+    },
+    {
+      "region": "translation_status",
+      "structure": [
+        "framed_control_band",
+        "left_section_label",
+        "option_pending_selected",
+        "option_machine_translation",
+        "option_human_translation"
+      ]
+    },
+    {
+      "region": "article_body",
+      "structure": [
+        "framed_reading_surface",
+        "five_placeholder_paragraph_groups",
+        "eight_visible_text_lines"
+      ]
+    },
+    {
+      "region": "source_reference_action",
+      "structure": [
+        "framed_source_container",
+        "chain_icon",
+        "two_line_source_text",
+        "copy_source_button"
+      ]
+    },
+    {
+      "region": "evidence_details_panel",
+      "structure": [
+        "framed_evidence_container",
+        "section_header_with_scales_icon_and_up_chevron",
+        "four_column_header",
+        "empty_table_body",
+        "center_exclamation_medallion_and_label"
+      ]
+    },
+    {
+      "region": "missing_article_state",
+      "structure": [
+        "framed_state_container",
+        "center_diamond_exclamation_medallion",
+        "missing_article_label"
+      ]
+    }
+  ],
+  "alignments": [
+    "page title, evidence empty state and missing-article state are centered on the canvas horizontal axis",
+    "article title, source row and source-status plate share a strong left content rail",
+    "translation options form a contiguous horizontal selector to the right of the section label",
+    "body placeholder lines share one left rail and stable right wrapping boundary",
+    "source-reference icon and text form a left group while the copy action anchors to the right rail",
+    "evidence header columns align to visible vertical divisions",
+    "all major framed regions share near-common left and right outer bounds"
+  ],
+  "spacingRhythm": [
+    "major first-level regions are separated by approximately 18-22 px vertical gaps",
+    "article body uses tighter wrapped-line spacing and larger paragraph-group gaps",
+    "translation options use compact contiguous plates inside a taller control band",
+    "source-reference action balances a two-line text group against one large right-side button",
+    "evidence panel divides vertically into section header, table header and empty table body",
+    "dark reading surfaces, bronze clipped frames and warm gold hierarchy repeat across the page"
+  ],
+  "assetSlots": [
+    {
+      "id": "shared_panel_frame_material",
+      "region": "article_header_card",
+      "role": "shared_page_and_panel_frame_family",
+      "shapeOrAspect": "variable-width clipped metal frames and near-black textured surfaces",
+      "contentSemantics": "non-factual bronze and dark-steel visual shell",
+      "count": 7,
+      "fallbackExpectation": "preserve the clipped-corner hierarchy and dark high-contrast reading surfaces",
+      "confidence": 0.96
+    },
+    {
+      "id": "back_control_ornament",
+      "region": "top_bar",
+      "role": "back_navigation_button",
+      "shapeOrAspect": "near-square clipped metal button with large left arrow",
+      "contentSemantics": "back navigation",
+      "count": 1,
+      "fallbackExpectation": "retain a clearly recognizable left-arrow control",
+      "confidence": 0.99
+    },
+    {
+      "id": "title_flourish_pair",
+      "region": "top_bar",
+      "role": "title_decoration",
+      "shapeOrAspect": "two mirrored narrow horizontal ornaments",
+      "contentSemantics": "non-factual title framing",
+      "count": 2,
+      "fallbackExpectation": "retain symmetric thin-line ornaments around the title",
+      "confidence": 0.98
+    },
+    {
+      "id": "source_crest",
+      "region": "article_header_card",
+      "role": "source_identity_marker",
+      "shapeOrAspect": "small shield crest, taller than wide",
+      "contentSemantics": "generic source/reference emblem with scale-like internal mark; not a verified publisher identity",
+      "count": 1,
+      "fallbackExpectation": "use a non-branded source or reference crest",
+      "confidence": 0.91
+    },
+    {
+      "id": "source_chain_icon",
+      "region": "source_reference_action",
+      "role": "source_link_marker",
+      "shapeOrAspect": "small chain-link glyph",
+      "contentSemantics": "source link",
+      "count": 1,
+      "fallbackExpectation": "retain a recognizable link icon",
+      "confidence": 0.99
+    },
+    {
+      "id": "copy_source_icon",
+      "region": "source_reference_action",
+      "role": "copy_action_marker",
+      "shapeOrAspect": "small overlapping-document glyph",
+      "contentSemantics": "copy source",
+      "count": 1,
+      "fallbackExpectation": "retain a recognizable copy icon beside the button label",
+      "confidence": 0.98
+    },
+    {
+      "id": "evidence_header_icon",
+      "region": "evidence_details_panel",
+      "role": "evidence_section_marker",
+      "shapeOrAspect": "small balanced-scales glyph",
+      "contentSemantics": "evidence or verification section",
+      "count": 1,
+      "fallbackExpectation": "use a clear evidence or scales icon",
+      "confidence": 0.98
+    },
+    {
+      "id": "evidence_empty_emblem",
+      "region": "evidence_details_panel",
+      "role": "empty_evidence_illustration",
+      "shapeOrAspect": "large circular exclamation medallion, approximately 1:1",
+      "contentSemantics": "no evidence-detail records visible",
+      "count": 1,
+      "fallbackExpectation": "retain a centered warning or empty-state medallion",
+      "confidence": 0.99
+    },
+    {
+      "id": "missing_article_emblem",
+      "region": "missing_article_state",
+      "role": "missing_article_illustration",
+      "shapeOrAspect": "diamond-framed exclamation symbol, approximately 1:1",
+      "contentSemantics": "article not found",
+      "count": 1,
+      "fallbackExpectation": "retain a centered missing-state warning icon",
+      "confidence": 0.99
+    }
+  ],
+  "interactionsSuggestedByTarget": [
+    "large left header control suggests back navigation",
+    "the three translation plates suggest mutually exclusive translation-mode selection",
+    "the button labeled '复制来源' suggests copying the source reference",
+    "the upward chevron in the evidence header suggests collapsing the expanded evidence section"
+  ],
+  "unresolved": [
+    "exact font families, authored weights, letter spacing, line heights and text-shadow parameters cannot be recovered from the static raster",
+    "the source crest's micro-icon resembles scales or a reference mark but is not semantically pixel-certain",
+    "body punctuation is visible around repeated placeholder phrases, but source paragraph markup and wrapping rules cannot be inferred",
+    "the exact translation-option hit boxes, disabled states and whether selection changes body content are not observable",
+    "the evidence header's upward chevron implies expansion state, but animation and collapsed geometry are not visible",
+    "micro-details of copy, source, scales and exclamation icons are not pixel-certain",
+    "thin inner highlights, corner protrusions and soft shadows may extend 1-3 px beyond measured region bounds",
+    "all titles, source labels, verification states and body copy are target placeholders and are not treated as runtime truth",
+    "article content, evidence empty state and missing-article state coexist visibly; no runtime-state relationship is inferred"
+  ]
+}

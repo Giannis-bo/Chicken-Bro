@@ -1,430 +1,90 @@
 # Project Harness Verification Matrix
 
-This matrix defines the local and CI verification profiles for the Project Harness Engineering Normalization milestone. All profiles resolve a single release packet from either `--release` or `docs/project-state.json.activeReleaseArtifact`.
+本文件只定义当前验证入口和证据边界。历史阶段使用过的命令由对应 release packet 与 Git 保存，不在这里累计。
 
-| Profile | Purpose | Commands are owned by |
+## Profiles
+
+| Profile | 覆盖范围 | 当前自动化入口 |
 | --- | --- | --- |
-| `harness` | Docs, schemas, owner maps, evidence and Harness tooling | `scripts/verify-project.js` |
-| `backend` | Python backend, data and read-model contracts | `scripts/verify-project.js` |
-| `frontend` | Mini-program JavaScript contract and syntax | `scripts/verify-project.js` |
-| `full` | Exact final-head CI closure; includes harness packet, JSON, syntax, Node and Python checks | `scripts/verify-project.js` |
+| `harness` | 状态、owner map、schema、release packet、diff | `node scripts/verify-project.js --profile harness` |
+| `backend` | Python 后端、PostgreSQL read model、API 和 worker | `node scripts/verify-project.js --profile backend` |
+| `frontend` | 旧兼容前端、Taro typed contract、架构审计、TypeScript 和 Vitest | `node scripts/verify-project.js --profile frontend` |
+| `full` | Harness、后端和适合 CI 的前端自动检查；不含 UI 架构审计 | `node scripts/verify-project.js --profile full` |
 
-## Local Usage
+`--release` 缺省时读取 `docs/project-state.json.activeReleaseArtifact`。用 `--dry-run --json` 查看确切命令，不执行。
 
-```bash
-node scripts/verify-project.js --profile harness --release artifacts/releases/2026-07-10-executable-project-harness
-node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-10-executable-project-harness
-```
+## 选择规则
 
-Use `--dry-run --json` to inspect the exact command list without executing it.
+- 开发中先跑最小相关测试，不在每个小改动后串行跑 `frontend`、`backend`、`full`。
+- 最终候选只跑一次 `full`；它已包含 Harness、Node、Python、Taro 类型/单元测试、JSON、语法和 diff 检查，但不包含 UI 架构审计。
+- `audit:ui-architecture` 只在 UI owner、共享 chrome、路由合同或设计系统边界变化时显式运行，不作为 GitHub CI 阻断项。
+- 纯文档或 owner map 变更跑 `harness`；不因此重复业务全量。
+- 自动测试证明合同和代码结构，不授予视觉、生产数据或线上运行通过。
 
-## v0.6 Selection Rules
+## Taro UI
 
-- Development uses the smallest affected test command first.
-- Do not run `frontend`, `backend`, then `full` serially: `full` already contains the Node, Python, JSON, syntax, packet and diff checks.
-- Docs, evidence and archive-only changes run `harness`; when the runtime tree is unchanged, they do not rerun business `full`.
-- A normal runtime PR relies on one `full` CI run for its exact final head, then runs one candidate smoke. A write path, migration or data-repair PR may run one additional local `full` before candidate deployment.
-
-## CI Contract
-
-`.github/workflows/project-harness.yml` resolves the active release from `docs/project-state.json` and invokes one exact-final-head full profile:
+UI 阶段显式验证：
 
 ```bash
-node scripts/verify-project.js --profile full --release "$ACTIVE_RELEASE" --base origin/main
+npm run audit:ui-architecture
+npm run typecheck
+npm run test:taro
+npm run verify:ui-baselines
+npm run verify:ui-interactions
+npm run verify:ui-package
 ```
 
-The workflow does not deploy, SSH, install repository dependencies, run migrations, trigger sync jobs, or write production data. Failing tests, invalid JSON, owner-map conflicts, Harness packet failures, syntax failures, or whitespace errors must return nonzero.
+`verify:ui-baselines` 只做 target/runtime 结构预检；`verify:ui-interactions` 按核心交互合同逐条记录 14 个 canonical route 的真实微信动作与断言。像素验收必须使用当前 target registry 对应的真实微信运行态。每个路由最终只保留一次视觉复核和一个核心交互结果。
 
-## Equipment Simulator Phase 0A Profile
+`verify:ui-package` 在系统临时目录分别执行本地素材与显式 HTTPS 素材根的 production 构建，关闭构建缓存，不覆盖唯一 watch 的 `dist/weapp`。它阻断远端构建复制本地素材、远端非 source-map 包超过 2 MiB，以及 `common.js` / `common.wxss` 超过当前预算；临时产物在输出证据后删除。
 
-The Strict Slice 0A packet at `artifacts/releases/2026-07-10-equipment-simulator-phase0a-pg-enhancement-guard` adds a PostgreSQL-only serializer safety profile. Run it before candidate deployment:
+本地微信链路保持一个 Taro watch。验证脚本默认扫描并复用 `9420-9460` 内已监听的 automation 端口，不依赖固定 `9421`，也不调用可能重载窗口的 CLI `auto`；需要连接指定会话时设置 `WECHAT_AUTOMATOR_ENDPOINT`。只有一次性建立会话时才显式设置 `WECHAT_AUTOMATOR_LAUNCH=1`，需要覆盖项目或 CLI 路径时分别设置 `WECHAT_AUTOMATOR_PROJECT`、`WECHAT_DEVTOOLS_CLI`。连接异常先检查 watch、开发者工具、项目路径和端口状态，不通过循环重启恢复。成功的结构预检必须输出设备、逐路由几何和 `failures`；没有输出不得视为通过。
 
-```bash
-python3 -m unittest \
-  tests.websim_payload_test.WebSimPayloadTest.test_pg_only_structured_enhancement_rejects_client_catalog_forgery \
-  tests.websim_payload_test.WebSimPayloadTest.test_merge_enhancements_strips_forged_server_authority_marker \
-  tests.websim_payload_test.WebSimPayloadTest.test_enhancement_validator_defaults_to_no_server_authority \
-  tests.websim_payload_test.WebSimPayloadTest.test_structured_enhancement_snapshot_blocks_uncatalogued_options \
-  tests.websim_payload_test.WebSimPayloadTest.test_structured_enhancement_snapshot_uses_server_catalog_over_client_options \
-  tests.websim_payload_test.WebSimPayloadTest.test_structured_enhancement_snapshot_rejects_catalog_options_without_item_capability
-python3 -m unittest tests.websim_payload_test tests.news_backend_test
-node scripts/verify-project.js --profile backend \
-  --release artifacts/releases/2026-07-10-equipment-simulator-phase0a-pg-enhancement-guard \
-  --base origin/main
-node scripts/verify-project.js --profile full \
-  --release artifacts/releases/2026-07-10-equipment-simulator-phase0a-pg-enhancement-guard \
-  --base origin/main
-node scripts/project-harness.js --check \
-  --requirement-file artifacts/releases/2026-07-10-equipment-simulator-phase0a-pg-enhancement-guard/requirement.json \
-  --evidence-file artifacts/releases/2026-07-10-equipment-simulator-phase0a-pg-enhancement-guard/evidence.json \
-  --base origin/main
-python3 -m json.tool docs/backend-owner-map.json >/dev/null
-python3 -m json.tool docs/project-owner-map.json >/dev/null
-python3 -m json.tool docs/project-state.json >/dev/null
-git diff --check
-```
+## Canonical gear
 
-Candidate verification must additionally prove exact PR commit/runtime hash parity, PostgreSQL-only `/api/websim/profile` rejection of a forged client enhancement, unchanged public observed-only gear initial/slot payloads, current timer/backflow state, recent logs, and `code_rollback` to the previous main commit.
-
-## Equipment Simulator Phase 0B Profile
-
-The Strict Slice 0B packet at `artifacts/releases/2026-07-10-equipment-simulator-phase0b-catalyst-fail-closed` separates SimC parser compatibility from Catalyst capability proof. Run it before candidate deployment:
-
-```bash
-python3 -m unittest \
-  tests.news_backend_test.NewsBackendTest.test_catalyst_overlay_allowlist_does_not_prove_cutover_capability \
-  tests.news_backend_test.NewsBackendTest.test_data_health_payload_includes_season_cutover_readiness_control_plane \
-  tests.news_backend_test.NewsBackendTest.test_catalyst_redirected_base_stats_is_a_controlled_simc_option
-python3 -m unittest tests.news_backend_test
-node scripts/verify-project.js --profile backend \
-  --release artifacts/releases/2026-07-10-equipment-simulator-phase0b-catalyst-fail-closed \
-  --base origin/main
-node scripts/verify-project.js --profile full \
-  --release artifacts/releases/2026-07-10-equipment-simulator-phase0b-catalyst-fail-closed \
-  --base origin/main
-node scripts/project-harness.js --check \
-  --requirement-file artifacts/releases/2026-07-10-equipment-simulator-phase0b-catalyst-fail-closed/requirement.json \
-  --evidence-file artifacts/releases/2026-07-10-equipment-simulator-phase0b-catalyst-fail-closed/evidence.json \
-  --base origin/main
-python3 -m json.tool docs/backend-owner-map.json >/dev/null
-python3 -m json.tool docs/project-owner-map.json >/dev/null
-python3 -m json.tool docs/project-state.json >/dev/null
-git diff --check
-```
-
-Candidate verification must additionally prove final PR-head/runtime hash parity, `WOW_DATABASE_RUNTIME=postgres_only`, live `/api/data/health` Catalyst `status=blocked` with `capabilityEnabled=false`, `optionParseSupported=true` and the proof-matrix blocker, unchanged public observed-only initial/slot payloads, current timer/backflow state, recent logs, and `code_rollback` to the previous main commit.
-
-## Equipment Simulator Phase 0C Profile
-
-The Strict Slice 0C packet at `artifacts/releases/2026-07-10-equipment-simulator-phase0c-legacy-stat-containment` contains the synchronous legacy stat endpoint until the Phase 5 Worker cutover. Run the complete Phase 0 verification before candidate deployment:
-
-```bash
-python3 -m unittest \
-  tests.websim_payload_test.WebSimPayloadTest.test_http_websim_gear_stats_runs_fake_simc_for_verified_snapshot \
-  tests.websim_payload_test.WebSimPayloadTest.test_http_websim_simulate_runs_encoded_profile_through_fake_simc \
-  tests.websim_payload_test.WebSimPayloadTest.test_legacy_gear_stats_simc_execution_has_global_concurrency_one \
-  tests.websim_payload_test.WebSimPayloadTest.test_http_websim_gear_stats_prefers_simc_json_character_snapshot \
-  tests.websim_payload_test.WebSimPayloadTest.test_http_websim_gear_stats_blocks_when_simc_is_unavailable \
-  tests.websim_payload_test.WebSimPayloadTest.test_http_websim_gear_stats_sanitizes_simc_crashes
-python3 -m unittest tests.websim_payload_test tests.postgres_cache_store_test tests.news_backend_test
-node --test tests/builds-page.test.js tests/frontend-api-client.test.js
-node --test tests/project-harness.test.js tests/backend-owner-map.test.js tests/project-owner-map.test.js tests/project-state.test.js
-node scripts/verify-project.js --profile backend \
-  --release artifacts/releases/2026-07-10-equipment-simulator-phase0c-legacy-stat-containment \
-  --base origin/main
-node scripts/verify-project.js --profile frontend \
-  --release artifacts/releases/2026-07-10-equipment-simulator-phase0c-legacy-stat-containment \
-  --base origin/main
-node scripts/verify-project.js --profile full \
-  --release artifacts/releases/2026-07-10-equipment-simulator-phase0c-legacy-stat-containment \
-  --base origin/main
-node scripts/project-harness.js --check \
-  --requirement-file artifacts/releases/2026-07-10-equipment-simulator-phase0c-legacy-stat-containment/requirement.json \
-  --evidence-file artifacts/releases/2026-07-10-equipment-simulator-phase0c-legacy-stat-containment/evidence.json \
-  --base origin/main
-python3 -m py_compile server/websim_payload.py server/news_backend.py tests/websim_payload_test.py tests/news_backend_test.py
-python3 -m json.tool docs/backend-owner-map.json >/dev/null
-python3 -m json.tool docs/project-owner-map.json >/dev/null
-python3 -m json.tool docs/project-state.json >/dev/null
-git diff --check
-```
-
-Candidate verification must additionally prove final PR-head/runtime hash parity, `WOW_DATABASE_RUNTIME=postgres_only`, legacy HTTP response fields, live-module `stat_snapshot_v1` `iterations=1`, two-thread `maxActive=1`, unchanged standard profile behavior, Phase 0A forged-enhancement and Phase 0B Catalyst guards, unchanged public observed-only initial/slot payloads, current timer/backflow state, recent logs, and `code_rollback` to the previous main commit.
-
-## Equipment Simulator Phase 1 Contract Profile
-
-The Strict Phase 1 packet at `artifacts/releases/2026-07-10-equipment-simulator-phase1-contracts-rule-authority` defines a dormant resolver boundary. Run it before candidate deployment:
+装备改动至少覆盖以下分层合同：
 
 ```bash
 python3 -m unittest \
   tests.gear_contracts_test \
-  tests.gear_result_envelope_test \
-  tests.gear_rule_matrix_test
-python3 -m unittest tests.websim_payload_test tests.postgres_cache_store_test tests.news_backend_test
-node --test tests/project-harness.test.js tests/backend-owner-map.test.js tests/project-owner-map.test.js tests/project-state.test.js
-node scripts/verify-project.js --profile backend \
-  --release artifacts/releases/2026-07-10-equipment-simulator-phase1-contracts-rule-authority \
-  --base origin/main
-node scripts/verify-project.js --profile full \
-  --release artifacts/releases/2026-07-10-equipment-simulator-phase1-contracts-rule-authority \
-  --base origin/main
-python3 -m py_compile \
-  server/gear_contracts.py \
-  server/gear_result_envelope.py \
-  server/gear_rule_matrix.py
-```
-
-Phase 1 is contract-only and has no active runtime consumer. Selection Intent rejects client-authored final facts; selection, resolved-gear and profile signatures each declare a different dependency subset; the Result Envelope HTTP mapping stays dormant until Phase 3; and the ordered pure Rule Matrix reports legality without producing a Resolved Snapshot. The current facade, frontend, PostgreSQL selectors and observed-only public read model remain active.
-
-Candidate verification must prove the new modules import on the deployed runtime tree while the current gear/profile/health surfaces and the Phase 0A–0C guards remain unchanged. Deployment does not activate a route, selector, Worker, sync job, database write, or Catalyst capability.
-
-## Equipment Simulator Phase 2A Pure Resolver Profile
-
-The Strict Slice 2A packet at `artifacts/releases/2026-07-10-equipment-simulator-phase2a-pure-resolver` adds a pure canonical Resolver and five-group Evidence Ledger without activating a runtime consumer. Run it before candidate deployment:
-
-```bash
-python3 -m unittest \
-  tests.gear_contracts_test \
-  tests.gear_result_envelope_test \
-  tests.gear_rule_matrix_test \
-  tests.gear_evidence_ledger_test \
-  tests.gear_resolver_test
-python3 -m unittest tests.websim_payload_test tests.postgres_cache_store_test tests.news_backend_test
-node --test tests/project-harness.test.js tests/backend-owner-map.test.js tests/project-owner-map.test.js tests/project-state.test.js
-node scripts/verify-project.js --profile backend \
-  --release artifacts/releases/2026-07-10-equipment-simulator-phase2a-pure-resolver \
-  --base origin/main
-node scripts/verify-project.js --profile full \
-  --release artifacts/releases/2026-07-10-equipment-simulator-phase2a-pure-resolver \
-  --base origin/main
-python3 -m py_compile \
-  server/gear_contracts.py \
-  server/gear_result_envelope.py \
-  server/gear_rule_matrix.py \
-  server/gear_evidence_ledger.py \
-  server/gear_resolver.py
-```
-
-Slice 2A fixes the slot pipeline at base item → verified variant → verified overlay → effective capabilities → legal enhancements. It returns structured static facts, canonical set state, ordered legality, readiness, constraints, serializer input and immutable Evidence Claim IDs; it never produces a profile string or DPS. Missing authority, evidence, resolved stats or overlay identity fails closed, and dynamic effects never become static attributes.
-
-Candidate verification must prove exact PR-head hashes and pure fixture outputs on the remote runtime tree while `/resolve` remains 404 and the current facade, PostgreSQL selectors, public observed-only payload, Phase 0A–0C guards, Phase 1 contracts, Catalyst blocker, timers and logs remain unchanged. Deployment does not activate a loader, facade, route, frontend consumer, Worker, write, migration, sync or cleanup.
-
-## Equipment Simulator Phase 2B PG Loader and Dormant Facade Profile
-
-The Strict Slice 2B packet at `artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity` adds the PostgreSQL-only Authority Context loader, bounded cache, one dormant store method, server-owned runtime-authority projection and resolved-snapshot serializer parity facade. Run it before candidate deployment:
-
-```bash
-python3 -m unittest \
-  tests.gear_contracts_test \
-  tests.gear_result_envelope_test \
   tests.gear_rule_matrix_test \
   tests.gear_evidence_ledger_test \
   tests.gear_resolver_test \
-  tests.pg_gear_authority_loader_test
-python3 -m unittest tests.websim_payload_test tests.postgres_cache_store_test tests.news_backend_test
-node --test tests/project-harness.test.js tests/backend-owner-map.test.js tests/project-owner-map.test.js tests/project-state.test.js
-node scripts/verify-project.js --profile backend \
-  --release artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity \
-  --base origin/main
-node scripts/verify-project.js --profile full \
-  --release artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity \
-  --base origin/main
-python3 -m py_compile \
-  server/gear_evidence_ledger.py \
-  server/gear_resolver.py \
-  server/pg_gear_authority_loader.py \
-  server/postgres_cache_store.py \
-  server/websim_payload.py
-```
-
-Cold reads execute exactly three static domain queries for one or sixteen slots; a warm hit executes only the revision query. The item/variant query must accept both an exact PG variant key and the existing `normalize_option_value` public alias, bind aliases to the requested item, block collisions, deduplicate reused pairs, project Battle.net structured armor/weapon/handedness and equivalent-slot facts through existing helpers, aggregate canonical trusted tier set IDs with conflict blocking, and cap source evidence at one latest row per type/eight rows per item. The cache is bounded by both entry count and canonical serialized bytes, keys bind the complete dependency vector and selection signature, and incomplete/transient authority is never cached. Loader output identifies `compatibility-pg-live-v1` as a compatibility view with `formalActiveManifest=false`; Phase 4 remains the formal Active Season Manifest owner.
-
-Candidate verification must execute the loader against the live PostgreSQL schema inside one read-only transaction, prove the cold/warm query budget, import the dormant facade, and reproduce the checked-in parity fixture. It must also prove no current route, serializer call site, Worker, frontend, sync job or public payload consumes either adapter: `/resolve` remains 404, the current `/profile` behavior stays unchanged, Catalyst remains fail-closed, and Phase 0–2A/public/timer/log guards remain green.
-
-## Equipment Simulator Phase 3A Resolve/Profile API Profile
-
-The Strict Slice 3A packet at `artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api` activates the Phase 2 boundary through a backend runtime orchestrator. Before candidate deployment run:
-
-```bash
-python3 -m unittest \
-  tests.gear_contracts_test \
   tests.gear_result_envelope_test \
-  tests.gear_rule_matrix_test \
-  tests.gear_evidence_ledger_test \
-  tests.gear_resolver_test \
   tests.pg_gear_authority_loader_test \
-  tests.gear_runtime_test
-python3 -m unittest tests.websim_payload_test tests.postgres_cache_store_test tests.news_backend_test
-node --test tests/project-harness.test.js tests/backend-owner-map.test.js tests/project-owner-map.test.js tests/project-state.test.js
-node scripts/verify-project.js --profile backend \
-  --release artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api \
-  --base origin/main
-node scripts/verify-project.js --profile full \
-  --release artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api \
-  --base origin/main
-python3 -m py_compile \
-  server/gear_runtime.py \
-  server/pg_gear_authority_loader.py \
-  server/postgres_cache_store.py \
-  server/news_backend.py
-```
-
-Slice 3A must add `resolverContext` from the same live revision authority as the loader, keep `formalActiveManifest=false`, map `/gear/resolve` through exact 200/400/409/503 Result Envelope semantics, and make only profile bodies containing `selectionIntent` enter canonical re-resolve mode. Legacy profile bodies and `/gear/stats` remain compatible. Candidate evidence requires 40/40 public observed Intent resolution, representative canonical profile output, malformed/stale/illegal/missing-authority probes, fixed query and latency budgets, public observed-only/baseline-empty parity, PostgreSQL-only runtime, no deploy-driven async work, truthful SimC updater state, logs and code-only rollback.
-
-## Equipment Simulator Phase 4A Pure Release Contracts Profile
-
-The Strict Slice 4A packet at `artifacts/releases/2026-07-11-equipment-simulator-phase4a-release-contracts` adds only a dependency-free release policy domain. Before candidate deployment run:
-
-```bash
-python3 -m unittest \
   tests.gear_release_test \
-  tests.gear_contracts_test \
-  tests.gear_resolver_test \
-  tests.gear_evidence_ledger_test
-node --test tests/project-harness.test.js tests/backend-owner-map.test.js tests/project-owner-map.test.js tests/project-state.test.js
-node scripts/verify-project.js --profile backend \
-  --release artifacts/releases/2026-07-11-equipment-simulator-phase4a-release-contracts \
-  --base origin/main
-node scripts/verify-project.js --profile full \
-  --release artifacts/releases/2026-07-11-equipment-simulator-phase4a-release-contracts \
-  --base origin/main
-python3 -m py_compile server/gear_release.py
-git diff --check
-```
-
-Slice 4A must prove canonical hash-addressed Gear/Community Releases, exact manifest binding, deterministic observed winner/standby election, rejection of illegal/stale/source-invalid/mixed-release candidates, strict 40-spec shadow classification, risk-classified promotion decisions and pointer compare-and-swap command shapes. `server/gear_release.py` has no SQL, store, route, environment, filesystem, network, clock or process-execution owner and calls current Resolver behavior only through an injected callable. Candidate deployment proves import/hash/pure fixture parity and unchanged live gear/Profile/health/Catalyst behavior; no schema, write, release row, shadow reader, formal pointer, timer or public cutover may be claimed.
-
-## Equipment Simulator Phase 4B PG Registry And Legacy Import Profile
-
-The Strict Slice 4B packet at `artifacts/releases/2026-07-11-equipment-simulator-phase4b-pg-registry-legacy-import` adds one append-only PostgreSQL release registry/repository and one explicit inactive import tool. Before candidate deployment run:
-
-```bash
-python3 -m unittest \
-  tests.gear_release_tool_test \
   tests.gear_release_store_test \
-  tests.gear_release_test \
-  tests.pg_gear_authority_loader_test \
-  tests.gear_resolver_test \
-  tests.postgres_schema_test
-node --test tests/project-harness.test.js tests/backend-owner-map.test.js tests/project-owner-map.test.js tests/project-state.test.js
-node scripts/verify-project.js --profile backend \
-  --release artifacts/releases/2026-07-11-equipment-simulator-phase4b-pg-registry-legacy-import \
-  --base origin/main
-node scripts/verify-project.js --profile full \
-  --release artifacts/releases/2026-07-11-equipment-simulator-phase4b-pg-registry-legacy-import \
-  --base origin/main
-python3 -m py_compile \
-  server/gear_release.py \
-  server/gear_release_store.py \
-  server/gear_release_tool.py \
-  server/pg_gear_authority_loader.py
-git diff --check
-```
-
-Slice 4B must prove an additive immutable schema, exact-descriptor idempotency, repeatable-read legacy snapshots, inactive Gear/Community `legacy-import-r0` construction, exact candidate Gear Release authority binding, current Resolver revalidation, strict pointer CAS validation and zero pointer mutation. Candidate deployment requires a pre-migration PostgreSQL backup, exact implementation identity, migration/grant/trigger inspection, inactive release row/count/hash evidence, zero active pointer rows, unchanged 40/40 observed-only public selection with zero baseline/formal manifest activation, Resolve/Profile/health/Catalyst parity, timer/backflow state and an explicit rollback path. No public/shadow reader, pointer promotion, scheduled refresh, Catalyst capability enablement or public cutover may be claimed.
-
-## Equipment Simulator Phase 4C Release Shadow Readers Profile
-
-The Strict Slice 4C packet at `artifacts/releases/2026-07-11-equipment-simulator-phase4c-release-shadow-readers` adds only release-scoped read-only candidate projections and internal old/new shadow orchestration. Before candidate deployment run:
-
-```bash
-python3 -m unittest \
   tests.gear_release_shadow_test \
-  tests.gear_release_store_test \
-  tests.gear_release_tool_test \
-  tests.gear_release_test \
-  tests.gear_runtime_test \
-  tests.pg_gear_authority_loader_test \
-  tests.pg_gear_read_model_selectors_test \
-  tests.postgres_cache_store_test
-node --test tests/project-harness.test.js tests/backend-owner-map.test.js tests/project-owner-map.test.js tests/project-state.test.js
-node scripts/verify-project.js --profile backend \
-  --release artifacts/releases/2026-07-11-equipment-simulator-phase4c-release-shadow-readers \
-  --base origin/main
-node scripts/verify-project.js --profile full \
-  --release artifacts/releases/2026-07-11-equipment-simulator-phase4c-release-shadow-readers \
-  --base origin/main
-python3 -m py_compile \
-  server/gear_release.py \
-  server/gear_release_store.py \
-  server/gear_release_shadow.py \
-  server/gear_release_tool.py \
-  server/gear_runtime.py \
-  server/pg_gear_authority_loader.py \
-  server/pg_gear_read_model_selectors.py \
-  server/postgres_cache_store.py
-git diff --check
-```
-
-Slice 4C must prove one exact Gear/Community binding, release-ID constraints on every candidate content query, complete Community content-hash verification, selected Authority fail-closed behavior, current Resolver and canonical Profile shadow parity, 40-spec observed winner/provenance/semantic/baseline comparison, and bounded statement/latency/cache behavior. Public routes must continue transitional reads with `formalActiveManifest=false`; zero Manifest/Pointer rows, zero release/staging writes and zero release timer are hard gates. Missing/tampered/mixed release content cannot fall back to staging. Pointer cutover remains Slice 4D and scheduled refresh remains Slice 4E.
-
-## Equipment Simulator Phase 4D Atomic Manifest Cutover Profile
-
-The Strict Slice 4D packet at `artifacts/releases/2026-07-11-equipment-simulator-phase4d-atomic-manifest-cutover` activates one formal retail Season Manifest over the already sealed Phase 4C release pair. Before candidate deployment run:
-
-```bash
-python3 -m unittest \
-  tests.gear_release_test \
-  tests.gear_release_store_test \
-  tests.gear_release_tool_test \
-  tests.gear_runtime_test \
-  tests.postgres_cache_store_test \
-  tests.postgres_schema_test \
-  tests.news_backend_test
-node --test tests/project-harness.test.js tests/backend-owner-map.test.js tests/project-owner-map.test.js tests/project-state.test.js
-node scripts/verify-project.js --profile backend \
-  --release artifacts/releases/2026-07-11-equipment-simulator-phase4d-atomic-manifest-cutover \
-  --base origin/main
-node scripts/verify-project.js --profile full \
-  --release artifacts/releases/2026-07-11-equipment-simulator-phase4d-atomic-manifest-cutover \
-  --base origin/main
-python3 -m py_compile \
-  server/gear_release.py \
-  server/gear_release_store.py \
-  server/gear_release_tool.py \
-  server/gear_runtime.py \
-  server/news_backend.py \
-  server/postgres_cache_store.py
-git diff --check
-```
-
-Slice 4D must prove migration 0014 is additive, preserves one `retail` pointer row, keeps `generation` monotonic and represents first-cutover rollback as `pointer_mode=transitional` with no active Manifest. Promotion must seal or reuse the exact Manifest and perform pointer CAS in one transaction; stale generation rolls back both writes. Formal browse, authoring context, Resolve and canonical Profile bind one pointer/Manifest identity and query only the referenced immutable Releases. Missing/tampered/mixed formal state returns 503 and never falls back to staging. Candidate evidence must record database backup, exact branch/runtime parity, generation `0→1 promote →2 transitional rollback →3 re-promote`, 40-spec browse/Resolve/Profile parity, one real WeChat 409 rebase, health/admin truth, p95/query/cache bounds, `WOW_DEPLOY_START_ASYNC_SYNCS=0`, timers/backflow, logs and rollback. Scheduled refresh remains Slice 4E; Phase 5 and Catalyst remain excluded.
-
-The Strict Slice 4E packet at `artifacts/releases/2026-07-11-equipment-simulator-phase4e-scheduled-refresh` adds the final Phase 4 candidate-first scheduled refresh and risk-classified promotion boundary. Before candidate deployment run:
-
-```bash
-python3 -m unittest \
   tests.gear_release_refresh_test \
-  tests.gear_release_store_test \
-  tests.gear_release_shadow_test \
-  tests.gear_release_tool_test \
-  tests.gear_release_test \
-  tests.postgres_cache_store_test \
-  tests.postgres_schema_test \
-  tests.news_backend_test
-node --test tests/deploy-script.test.js tests/project-harness.test.js tests/backend-owner-map.test.js tests/project-owner-map.test.js tests/project-state.test.js
-node scripts/verify-project.js --profile backend \
-  --release artifacts/releases/2026-07-11-equipment-simulator-phase4e-scheduled-refresh \
-  --base origin/main
-node scripts/verify-project.js --profile full \
-  --release artifacts/releases/2026-07-11-equipment-simulator-phase4e-scheduled-refresh \
-  --base origin/main
-python3 -m py_compile \
-  server/gear_release.py \
-  server/gear_release_store.py \
-  server/gear_release_shadow.py \
-  server/gear_release_tool.py \
-  server/gear_release_refresh.py \
-  server/news_backend.py \
-  server/postgres_cache_store.py
-bash -n server/deploy_lighthouse.sh
-git diff --check
-```
-
-Slice 4E must prove every run consumes existing staging only, creates or reuses inactive immutable candidates before any pointer decision, rejects overlap through systemd and PostgreSQL leases, and records bounded append-only run facts. Same-Gear Community changes may auto-promote only after election, active/candidate shadow, 40-spec browse/Resolve/Profile and coverage gates; a still-legal active winner loss blocks, while a terminally illegal or expired winner may become an explicit degraded empty spec without baseline fallback. Additive Gear must preserve every active identity and row hash before full-matrix auto-promotion; mutation/removal and season/rule/serializer/schema/capability changes remain manual. Candidate deployment must prove the timer/service are installed without deploy-triggered execution, one controlled run, health/admin/timer truth, exact runtime parity, PG-only state, public/legacy compatibility, query/SLO/cache/memory bounds and rollback. Phase 5 and Catalyst remain excluded.
-
-## Equipment Simulator Phase 5A Stat Snapshot Store Profile
-
-The Strict Slice 5A packet at `artifacts/releases/2026-07-11-equipment-simulator-phase5a-stat-snapshot-store` opens only the dormant pure signature, additive PostgreSQL schema and fenced repository boundary:
-
-```bash
-python3 -m unittest \
+  tests.community_template_import_test \
   tests.gear_stat_snapshot_test \
   tests.gear_stat_snapshot_store_test \
-  tests.postgres_schema_test
-node --test tests/project-state.test.js tests/project-harness.test.js tests/backend-owner-map.test.js tests/project-owner-map.test.js
-node scripts/verify-project.js --profile backend \
-  --release artifacts/releases/2026-07-11-equipment-simulator-phase5a-stat-snapshot-store \
-  --base origin/main
-node scripts/verify-project.js --profile full \
-  --release artifacts/releases/2026-07-11-equipment-simulator-phase5a-stat-snapshot-store \
-  --base origin/main
-python3 -m py_compile server/gear_stat_snapshot.py server/gear_stat_snapshot_store.py
-node scripts/project-harness.js --check \
-  --requirement-file artifacts/releases/2026-07-11-equipment-simulator-phase5a-stat-snapshot-store/requirement.json \
-  --evidence-file artifacts/releases/2026-07-11-equipment-simulator-phase5a-stat-snapshot-store/evidence.json \
-  --base origin/main
-git diff --check
+  tests.gear_stat_snapshot_api_test \
+  tests.gear_stat_snapshot_worker_test
+node --test tests/gear-workbench-state.test.js tests/frontend-api-client.test.js tests/builds-page.test.js
+npx vitest run packages/domain/src/gear-intent.test.ts packages/api-client/src/transport.test.ts packages/api-client/src/websim.test.ts
 ```
 
-Slice 5A must prove order-stable revision-complete signatures, bounded no-DPS snapshot records, immutable content-hash reuse, partial-unique single-flight, global/per-client limits, deterministic blocker reuse, transient cooldown, SKIP LOCKED claim, heartbeat, maximum attempts, expired reclaim, stale-token fencing and bounded health aggregates. Candidate migration evidence must include a `wow_test` backup, atomic migration 0015 apply, exact constraints/indexes/grants, direct store smoke and post-merge schema parity. Route, worker, systemd service, frontend cutover, legacy behavior changes and Catalyst remain excluded.
+必须核对：
+
+- malformed intent 为 400，revision conflict 为 409，authority unavailable 为 503；结构化 problem 不得被 transport fallback 吞掉。
+- 旧 `pages/` 与活动 Taro 都只提交 identifier intent，最终事实来自同一 resolver/release authority。
+- community import 原子采用或 fail closed；不允许逐槽静默丢失。
+- stat snapshot 只接受 signature 匹配的 verified 结果，202 有界轮询，旧响应不能覆盖新选择。
+- `/api/websim/gear/stats` 只验证兼容性；活动 Taro 必须走 `/stat-snapshots`。
+
+## Runtime evidence
+
+涉及 backend/API、PG、同步、timer、部署或用户可见运行态时，最终候选还需记录：
+
+- 候选 commit 与实际部署 tree/hash 一致；
+- `/health`、`/api/data/health` 和受影响 API 内容 smoke；
+- PostgreSQL-only、active manifest、timer/backflow、worker 与近期日志状态；
+- 写入前备份和 rollback target；
+- 用户可见 UI 使用真实微信环境验证，不以浏览器或截图脚本代替。
+
+远端 smoke、迁移和生产写入不由本 profile 自动触发。
+
+## CI
+
+`.github/workflows/project-harness.yml` 只运行一个 `full` profile。任何测试、JSON、owner map、Harness packet、TypeScript、架构审计、语法或 whitespace 失败都必须返回非零；CI 不部署、不 SSH、不安装依赖、不迁移、不触发同步。

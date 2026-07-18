@@ -1,0 +1,138 @@
+{
+  "schemaVersion": 1,
+  "route": "SimC_submit",
+  "status": "component_contract_complete",
+  "implementationStatus": "implemented_visual_debt_open",
+  "authority": "docs/plans/ui-reconstruction.md",
+  "components": [
+    {
+      "owner": "AppShell",
+      "regions": [
+        "page_frame"
+      ],
+      "responsibility": "pushed-route safe areas and full-height SimC surface"
+    },
+    {
+      "owner": "PageFrame",
+      "variant": "simc-submit",
+      "regions": [
+        "header_nav"
+      ],
+      "responsibility": "back navigation, centered title, capsule-safe task-record action"
+    },
+    {
+      "owner": "SimcIdentitySelectors",
+      "regions": [
+        "identity_selectors_panel"
+      ],
+      "responsibility": "six-position visible specialization viewport and supported race selector"
+    },
+    {
+      "owner": "SimcTemplateSlot",
+      "variants": [
+        "talent",
+        "gear"
+      ],
+      "regions": [
+        "talent_template_panel",
+        "gear_template_panel"
+      ],
+      "responsibility": "real local/remote template selection, source state and stable empty/loading/error slots"
+    },
+    {
+      "owner": "SimcCombatConfiguration",
+      "regions": [
+        "combat_configuration_panel"
+      ],
+      "responsibility": "scenario, duration and four truth-safe read-only buff-rule positions"
+    },
+    {
+      "owner": "SimcPreSubmitSummary",
+      "regions": [
+        "pre_submit_summary_panel"
+      ],
+      "responsibility": "six derived selection and readiness rows without result claims"
+    },
+    {
+      "owner": "SimcBlockerPanel",
+      "regions": [
+        "blocking_warning_panel"
+      ],
+      "responsibility": "five stable blocker positions derived from template, task, stat and validation gates"
+    },
+    {
+      "owner": "SimcSubmissionActionBar",
+      "regions": [
+        "submission_action_bar"
+      ],
+      "responsibility": "confirmation stage, confirm-only validation, final submit and returned task navigation"
+    },
+    {
+      "owner": "SimcFooterNotice",
+      "regions": [
+        "footer_notice_row"
+      ],
+      "responsibility": "no-local-result boundary and task-rules navigation"
+    }
+  ],
+  "rejectedReuse": [
+    {
+      "owner": "WowPanel",
+      "reason": "generic titled cards cannot own the ten fixed target regions or their internal geometry"
+    },
+    {
+      "owner": "TemplateLibrary",
+      "reason": "the target uses one stable template slot and one docked selection action per template type, not a repeated card library"
+    },
+    {
+      "owner": "EvidenceLedger",
+      "reason": "the target uses a two-column six-row summary plus a separate five-position blocker panel, not a table ledger"
+    },
+    {
+      "owner": "StatusVisual",
+      "reason": "confirmation and task state belong inside the fixed submission action bar"
+    },
+    {
+      "owner": "RouteStatePanel",
+      "reason": "loading, empty, stale, blocked and error states must inhabit stable target regions"
+    },
+    {
+      "owner": "AppShellDock",
+      "reason": "the target submission action bar is an in-page region and must not be replaced by a generic fixed dock"
+    }
+  ],
+  "layoutContract": {
+    "targetWidthPx": 862,
+    "targetHeightPx": 1825,
+    "baselineCssViewport": {
+      "width": 390,
+      "height": 826,
+      "dpr": 2
+    },
+    "stableRegionCount": 10,
+    "stableVisibleSpecializationCount": 6,
+    "stableTemplateSlotCount": 2,
+    "stableScenarioCount": 3,
+    "stableDurationControlCount": 1,
+    "stableBuffRuleCount": 4,
+    "stableSummaryRowCount": 6,
+    "stableBlockerRowCount": 5,
+    "stablePrimaryActionCount": 2,
+    "stableFooterActionCount": 1,
+    "specializationSurface": "internal horizontal scroll when the verified collection exceeds six visible positions",
+    "pageScroll": "none at baseline"
+  },
+  "stateContract": {
+    "stableRegionCount": 10,
+    "stableVisibleSpecializationCount": 6,
+    "stableTemplateSlotCount": 2,
+    "stableBuffRuleCount": 4,
+    "stableSummaryRowCount": 6,
+    "stableBlockerRowCount": 5,
+    "stablePrimaryActionCount": 2,
+    "loadingMustNotCollapse": true,
+    "emptyMustNotCollapse": true,
+    "blockedMustNotCollapse": true,
+    "errorMustNotCollapse": true
+  }
+}

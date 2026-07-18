@@ -1,0 +1,149 @@
+{
+  "schemaVersion": 1,
+  "route": "SimC_submit",
+  "status": "asset_contract_complete",
+  "authority": "docs/plans/ui-reconstruction.md",
+  "targetInventory": "docs/design/current-ui/routes/simc-submit/target-inventory.json",
+  "targetObservedAssetSlotCount": 52,
+  "targetObservedAssetGroupCount": 19,
+  "productionRegistryStatus": "partial_reuse_only",
+  "productionPromotionAuthorized": false,
+  "slots": [
+    {
+      "id": "asset_slot.simc-page-frame",
+      "owner": "AppShell",
+      "role": "full ornamental frame and continuous dark surface",
+      "source": "future unified non-factual material family; deterministic CSS fallback now"
+    },
+    {
+      "id": "asset_slot.simc-header-navigation",
+      "owner": "PageFrame",
+      "role": "back, title balance and task-record action",
+      "source": "shared pushed-route controls and utility document glyph"
+    },
+    {
+      "id": "asset_slot.simc-specialization-media",
+      "owner": "SimcIdentitySelectors",
+      "role": "six visible real specialization medallions",
+      "source": "trusted verified builds.home specIconUrl/iconUrl with neutral blocked fallback"
+    },
+    {
+      "id": "asset_slot.simc-selector-affordances",
+      "owner": "SimcIdentitySelectors",
+      "role": "selector frames, race field and chevrons",
+      "source": "shared utility glyphs and target-owned CSS frames"
+    },
+    {
+      "id": "asset_slot.simc-template-family",
+      "owner": "SimcTemplateSlot",
+      "role": "talent and gear template empty, local, remote and selection states",
+      "source": "neutral document, talent and shield utility glyphs with target-owned frames"
+    },
+    {
+      "id": "asset_slot.simc-scene-family",
+      "owner": "SimcCombatConfiguration",
+      "role": "three scenario controls",
+      "source": "non-factual target-role glyph family with utility fallbacks"
+    },
+    {
+      "id": "asset_slot.simc-duration-control",
+      "owner": "SimcCombatConfiguration",
+      "role": "duration selector and hourglass role",
+      "source": "utility timing glyph fallback and target-owned field frame"
+    },
+    {
+      "id": "asset_slot.simc-buff-rule-family",
+      "owner": "SimcCombatConfiguration",
+      "role": "four read-only buff-rule positions and manage-unavailable state",
+      "source": "neutral rule glyphs and target-owned rows; no generated factual buff identity"
+    },
+    {
+      "id": "asset_slot.simc-summary-family",
+      "owner": "SimcPreSubmitSummary",
+      "role": "six summary glyphs and status pills",
+      "source": "shared utility glyphs and code-native truth state tokens"
+    },
+    {
+      "id": "asset_slot.simc-blocker-family",
+      "owner": "SimcBlockerPanel",
+      "role": "warning badge and five blocker markers",
+      "source": "shared warning glyph with target-owned badge and row frames"
+    },
+    {
+      "id": "asset_slot.simc-validation-indicator",
+      "owner": "SimcSubmissionActionBar",
+      "role": "unknown, validating, ready, blocked, submitting and submitted state",
+      "source": "code-native deterministic state indicator; animation only while genuinely active"
+    },
+    {
+      "id": "asset_slot.simc-primary-actions",
+      "owner": "SimcSubmissionActionBar",
+      "role": "confirm-only and final-submit controls",
+      "source": "shared action material with shield and send utility fallbacks"
+    },
+    {
+      "id": "asset_slot.simc-footer-utilities",
+      "owner": "SimcFooterNotice",
+      "role": "truth-boundary notice and task-rules action",
+      "source": "shared information, question and chevron utilities"
+    }
+  ],
+  "visibleAssetGaps": [
+    {
+      "id": "SC-ASSET-001",
+      "region": "page_frame",
+      "gap": "the route frame, continuous texture and corner depth are not yet promoted"
+    },
+    {
+      "id": "SC-ASSET-002",
+      "region": "identity_selectors_panel",
+      "gap": "a reviewed six-position specialization medallion frame family is missing"
+    },
+    {
+      "id": "SC-ASSET-003",
+      "region": "talent_template_panel,gear_template_panel",
+      "gap": "template empty, local and remote frame variants are not yet promoted"
+    },
+    {
+      "id": "SC-ASSET-004",
+      "region": "combat_configuration_panel",
+      "gap": "scenario, duration and read-only buff rule visual family is incomplete"
+    },
+    {
+      "id": "SC-ASSET-005",
+      "region": "pre_submit_summary_panel",
+      "gap": "six-row summary glyph and status family is not route-reviewed"
+    },
+    {
+      "id": "SC-ASSET-006",
+      "region": "blocking_warning_panel",
+      "gap": "warning badge and blocker row material family is not promoted"
+    },
+    {
+      "id": "SC-ASSET-007",
+      "region": "submission_action_bar",
+      "gap": "validation indicator and dual primary action family is incomplete"
+    },
+    {
+      "id": "SC-ASSET-008",
+      "region": "footer_notice_row",
+      "gap": "footer notice and utility action frame are not promoted"
+    },
+    {
+      "id": "SC-ASSET-009",
+      "region": "shared",
+      "gap": "the target-wide shared bevel and inset material remains a future unified family"
+    }
+  ],
+  "generationPolicy": {
+    "mainSessionPayloadAllowed": false,
+    "targetCropAllowed": false,
+    "factBearingGenerationAllowed": false,
+    "allowedFutureGeneration": [
+      "non-factual page and panel frames",
+      "neutral selector sockets",
+      "button and warning badge materials",
+      "non-factual scenario and rule glyph frames"
+    ]
+  }
+}

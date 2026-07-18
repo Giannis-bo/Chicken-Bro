@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 10,
+  "status": "active",
+  "authority": "docs/plans/ui-reconstruction.md",
+  "authoritativeInputs": [
+    "docs/design/current-ui/target-registry.json",
+    "docs/design/current-ui/core-interaction-contract.json",
+    "docs/design/current-ui/selected-control-contract.json",
+    "docs/design/current-ui/route-geometry-contract.json",
+    "docs/design/current-ui/runtime-region-mapping-contract.json",
+    "docs/design/current-ui/runtime-asset-slot-mapping-contract.json",
+    "docs/design/current-ui/runtime-review-contract.json",
+    "docs/design/current-ui/runtime-review-status.json",
+    "docs/design/current-ui/routes",
+    "artifacts/ui-visual-targets/current/*.png",
+    "apps/mini-taro",
+    "packages/design-system",
+    "packages/assets-manifest",
+    "packages/api-client",
+    "packages/domain",
+    "server"
+  ],
+  "allowedPlanFiles": [
+    "README.md",
+    "ui-reconstruction.md"
+  ],
+  "allowedArtifactRoots": [
+    "ui-visual-targets",
+    "ui-runtime-reviews"
+  ],
+  "requiredAbsentPaths": [
+    "docs/reviews",
+    "docs/evidence",
+    "apps/design-review"
+  ],
+  "rules": {
+    "unlinkedFilesMayInfluenceImplementation": false,
+    "runtimeMayWriteTargetGeometry": false,
+    "sourceComponentsMayProveVisualCompletion": false,
+    "runtimeUtilityAssetsMayProveTargetFidelity": false,
+    "unlistedPlanMayRemain": false,
+    "roadmapMayContainExecutionTimeline": false,
+    "targetGeometryRequiresTargetOnlyIsolation": true,
+    "mutableTemporaryCaptureMayProveAcceptance": false,
+    "acceptanceEvidenceRequiresImmutableRuntimePath": true,
+    "humanDecisionRequired": true,
+    "obsoleteReviewStatesMayRemain": false,
+    "repositoryMemoryMayRemain": false,
+    "unregisteredArtifactRootsMayRemain": false,
+    "currentUiRecordsUsePortablePaths": true,
+    "visibleTextClippingMayRemain": false,
+    "threeBaselineWeChatLockRequired": true,
+    "routeScopedWeChatVerificationMayAuthorizeProduction": false,
+    "methodLayerDocumentsMayProveUiVisualCompletion": false
+  }
+}

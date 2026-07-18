@@ -85,6 +85,20 @@ test('specialization payload exposes WebSim class and spec keys', () => {
   assert.equal(frostMage.websimSpecKey, 'frost')
 })
 
+test('specialization payload includes the canonical spec name on every nested option', () => {
+  const payload = buildSpecializationHomePayload()
+  const specializations = payload.classOptions.flatMap((item) => item.specializations)
+
+  assert.equal(specializations.length, 40)
+  for (const specialization of specializations) {
+    assert.match(specialization.name, /\S/)
+    assert.equal(specialization.name, specialization.specName)
+    assert.match(specialization.className, /\S/)
+    assert.match(specialization.websimClassKey, /\S/)
+    assert.match(specialization.websimSpecKey, /\S/)
+  }
+})
+
 test('trusted source allowlist covers high-end mythic plus raid and WCL analysis', () => {
   assert.ok(trustedBuildSources.some((source) => source.name === 'Raider.IO'))
   assert.ok(trustedBuildSources.some((source) => source.name === 'Warcraft Logs'))

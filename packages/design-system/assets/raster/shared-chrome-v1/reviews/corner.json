@@ -1,0 +1,21 @@
+{
+  "assetId": "shared-page-corner.default",
+  "status": "pass_for_canary",
+  "findings": [
+    "At the reviewed 112x112 runtime size, the outer surround and inner opening read as transparent; no opaque matte rectangle or hard clipped canvas edge is visible.",
+    "No fluorescent chroma-green fringe is visible. The slight olive cast belongs to the restrained aged-gold trim rather than a separate spill halo.",
+    "No text, digits, glyph-like marks, watermark, or detached black block is visible. The near-black elbow is continuous with the forged-iron body, although it forms a deliberately dense local mass.",
+    "The charcoal dark-iron body, restrained antique-gold edge, bevel depth, and light wear are visually consistent with the shared dark-metal chrome direction.",
+    "The flat equal-arm silhouette is usable for four corners through horizontal and vertical mirroring. Mirrored wear and highlights will be noticeable as paired repetition but are not a canary blocker.",
+    "The thick elbow and inward-running arms can cover header or body content when placed in the foreground or anchored without a content-safe offset."
+  ],
+  "integrationConstraints": [
+    "Render the 112x112 file at exactly 56x56 CSS pixels for DPR2; do not stretch, crop, or scale the axes independently.",
+    "Create the four orientations from the top-left source with no transform for top-left, scaleX(-1) for top-right, scaleY(-1) for bottom-left, and scale(-1, -1) for bottom-right, using a stable centered transform origin.",
+    "Integrate only through the shared page-chrome owner as absolute, clipped, pointer-events-none, accessibility-hidden decoration; it must not participate in layout or own an interaction layer.",
+    "Keep the asset below all text and controls, and keep its opaque inward footprint outside header, menu-capsule, body, and bottom-safe-area content. Resolve offsets in the shared owner rather than with route-private padding.",
+    "Before any production promotion, verify one non-home 390px canary at DPR2 in all four corners against the actual dark shell, including scroll and safe-area states, with no content occlusion or corner-to-rail gap."
+  ],
+  "actuallyReviewed": true,
+  "productionPromoted": false
+}

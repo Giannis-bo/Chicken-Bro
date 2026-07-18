@@ -1,0 +1,135 @@
+{
+  "schemaVersion": 1,
+  "route": "news_home",
+  "status": "component_contract_complete",
+  "implementationStatus": "wechat_verified",
+  "authority": "docs/plans/ui-reconstruction.md",
+  "targetInventory": "docs/design/current-ui/routes/news-home/target-inventory.json",
+  "truthAdaptation": "docs/design/current-ui/routes/news-home/truth-adaptation.json",
+  "composition": {
+    "owner": "NewsHomePage",
+    "layoutOwner": "NewsHomeSurface",
+    "majorRegionCount": 6,
+    "regionOrder": ["header", "daily_brief", "featured_carousel", "channel_dock", "ranked_feed", "product_tab_bar"],
+    "forbidden": [
+      "generic WowPanel wrappers around target-authored regions",
+      "separate full-page loading composition rendered beside previous data",
+      "route-private overrides for shared PageFrame, ChannelDock, RankedFeed, or TabBar defects"
+    ]
+  },
+  "components": [
+    {
+      "owner": "PageFrame",
+      "decision": "extend_shared_variant",
+      "variant": "news-home",
+      "requiredCapabilities": [
+        "three unequal header groups",
+        "title without kicker",
+        "single source/trust line",
+        "favorite toggle with selected state",
+        "98/889 target height ratio and 20px target side alignment",
+        "no geometry change between loading, ready, stale, and favorite states"
+      ],
+      "resolvedGaps": ["page uses the news-home variant", "right action is a persistent favorite toggle", "major header geometry follows target measurement"],
+      "selfReviewValidation": "passed_in_dpr2_h5_and_isolated_region_review"
+    },
+    {
+      "owner": "NewsHomeBrief",
+      "decision": "create_shared_owner",
+      "requiredCapabilities": [
+        "one framed 203/628 upper split",
+        "emblem slot",
+        "title, date, refresh state, one source line, chevron",
+        "four fixed metric cells with icon, label, value, click query",
+        "source, metric labels, and values preserve the rendered font ascent and descent without clipping",
+        "same DOM and geometry for loading, empty, error, stale, and ready",
+        "retry action in the existing action slot"
+      ],
+      "resolvedGaps": ["shared owner exists", "target upper split and four metric cells replace the generic cockpit panel", "date and status share the target-authored middle row", "runtime text boxes preserve the full source and metric glyph height"],
+      "selfReviewValidation": "passed_in_dpr2_h5_and_isolated_region_review"
+    },
+    {
+      "owner": "FeaturedCarousel",
+      "decision": "extend_shared_variant",
+      "variant": "news-home",
+      "requiredCapabilities": [
+        "fixed target media inset and aspect",
+        "one optional source chip and one trust chip",
+        "five pagination positions independent from real item count",
+        "inert unavailable positions",
+        "neutral non-factual media fallback",
+        "controlled click only when a real active item exists",
+        "target-shaped loading without invented copy",
+        "title and summary preserve the rendered font ascent and descent without clipping"
+      ],
+      "resolvedGaps": ["five visual dots are independent from item count", "fallback copy does not imply facts", "media geometry passed the current DPR2 self-review gate without promoting the H5 milestone", "source label no longer repeats the long evidence prefix", "the featured title text box no longer clips glyphs vertically"],
+      "selfReviewValidation": "passed_in_dpr2_h5_and_isolated_region_review"
+    },
+    {
+      "owner": "ChannelDock",
+      "decision": "extend_shared_variant",
+      "variant": "news-home",
+      "requiredCapabilities": [
+        "exactly six equal fixed columns",
+        "one continuous outer frame with internal dividers",
+        "explicit icon role per item instead of array index",
+        "gold selected-column border/glow aligned to the shared frame plus a bottom diamond pointer",
+        "stable column width across states",
+        "query payload carried by each item"
+      ],
+      "resolvedGaps": ["glyph role is explicit per item", "the page passes the fixed six-item taxonomy"],
+      "selfReviewValidation": "passed_in_dpr2_h5_and_isolated_region_review"
+    },
+    {
+      "owner": "RankedFeed",
+      "decision": "extend_shared_variant",
+      "variant": "news-home",
+      "requiredCapabilities": [
+        "framed section header titled 今日重点",
+        "exactly four visible rows or four target-shaped state rows",
+        "140:91 target thumbnail ratio",
+        "single-line title",
+        "one source line and one trust status",
+        "interactive saved toggle with selected state",
+        "row click and bookmark click do not trigger each other"
+      ],
+      "resolvedGaps": ["thumbnail uses the target ratio", "bookmark is an isolated persistent action", "source/status render once per item", "page uses the news-home variant"],
+      "selfReviewValidation": "passed_in_dpr2_h5_and_isolated_region_review"
+    },
+    {
+      "owner": "TabBar",
+      "decision": "rebuild_shared_owner",
+      "requiredCapabilities": [
+        "one continuous outer frame with four equal columns and internal dividers",
+        "labels 资讯, 专精, 队长, 我的",
+        "selected-column gold border/glow aligned to full column boundaries and shared frame edges without geometry shift or a separate item frame",
+        "stable icon and label sockets",
+        "safe-area included outside authored 161px target body when required",
+        "same DOM and CSS in H5 and WeChat"
+      ],
+      "resolvedGaps": ["one shared frame owns the complete navigation bar and columns have no inter-item gaps", "labels match the target", "active state does not change item geometry"],
+      "selfReviewValidation": "passed_in_dpr2_h5_and_isolated_region_review"
+    },
+    {
+      "owner": "NewsHomeModel",
+      "decision": "create_pure_route_model",
+      "requiredCapabilities": [
+        "map API metrics to four target slots",
+        "map fixed six navigation items to honest list filters",
+        "derive source and trust labels",
+        "limit visible feed to four",
+        "preserve five carousel positions without fake articles",
+        "map all route states without changing region count",
+        "unit-test every mapping and missing-field fallback"
+      ]
+    },
+    {
+      "owner": "RouteStatePanel",
+      "decision": "remove_from_news_home_composition",
+      "reason": "news_home state rendering belongs inside the same six-region composition; a second full layout duplicates previous data during refresh"
+    }
+  ],
+  "sharedFixesAuthorized": ["PageFrame.news-home", "FeaturedCarousel.news-home", "ChannelDock.news-home", "RankedFeed.news-home", "TabBar"],
+  "routePrivateStyleAllowed": ["NewsHomeSurface region grid and page-only composition spacing"],
+  "componentCapabilityGaps": []
+}

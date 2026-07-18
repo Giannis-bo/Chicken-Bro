@@ -1,0 +1,662 @@
+{
+  "schemaVersion": "target-geometry-v1",
+  "route": "simulator_home",
+  "authority": "canonical_target",
+  "source": {
+    "path": "artifacts/ui-visual-targets/current/simulator-home.png",
+    "width": 834,
+    "height": 1886,
+    "nativeWidth": 834,
+    "nativeHeight": 1886,
+    "sha256": "92e9c8e9d30d5be67fc40c125abfb9e78cac00e6a060f87678fd99a46cd78bcc"
+  },
+  "measurement": {
+    "coordinateSpace": "native_pixels",
+    "runtimeInputsUsed": false,
+    "targetOnly": true
+  },
+  "regions": [
+    {
+      "id": "page_frame",
+      "order": 1,
+      "observedRole": "full-screen dark stone-and-metal page frame with ornamental corner engravings",
+      "bounds": {
+        "x": 2,
+        "y": 4,
+        "width": 830,
+        "height": 1880
+      },
+      "normalizedBounds": {
+        "x": 0.002398,
+        "y": 0.002121,
+        "width": 0.995204,
+        "height": 0.996819
+      },
+      "internalStructure": [
+        {
+          "observedRole": "outer bevel frame and clipped corner metalwork",
+          "bounds": {
+            "x": 2,
+            "y": 4,
+            "width": 830,
+            "height": 1880
+          }
+        },
+        {
+          "observedRole": "inner dark textured surface",
+          "bounds": {
+            "x": 22,
+            "y": 31,
+            "width": 790,
+            "height": 1845
+          }
+        },
+        {
+          "observedRole": "thin left vertical frame rail",
+          "bounds": {
+            "x": 2,
+            "y": 70,
+            "width": 22,
+            "height": 1728
+          }
+        },
+        {
+          "observedRole": "thin right vertical frame rail",
+          "bounds": {
+            "x": 810,
+            "y": 71,
+            "width": 22,
+            "height": 1727
+          }
+        }
+      ],
+      "alignment": "fills the native target with a narrow 2-4px outside inset and visible beveled frame on all sides",
+      "spacing": "about 22px inner left/right inset before content; top and bottom frame corners occupy the full width",
+      "unresolved": [
+        "Low-contrast stone texture and fine engraving strokes are grouped as frame material rather than individually bounded."
+      ]
+    },
+    {
+      "id": "header_bar",
+      "order": 2,
+      "observedRole": "tab-root header with centered gold title, decorative separators, and right-side captain identity entry",
+      "bounds": {
+        "x": 31,
+        "y": 37,
+        "width": 772,
+        "height": 91
+      },
+      "normalizedBounds": {
+        "x": 0.03717,
+        "y": 0.019618,
+        "width": 0.925659,
+        "height": 0.04825
+      },
+      "internalStructure": [
+        {
+          "observedRole": "center title text",
+          "bounds": {
+            "x": 318,
+            "y": 55,
+            "width": 198,
+            "height": 54
+          }
+        },
+        {
+          "observedRole": "left title divider ornament",
+          "bounds": {
+            "x": 239,
+            "y": 71,
+            "width": 43,
+            "height": 22
+          }
+        },
+        {
+          "observedRole": "right title divider ornament",
+          "bounds": {
+            "x": 551,
+            "y": 71,
+            "width": 43,
+            "height": 22
+          }
+        },
+        {
+          "observedRole": "right identity button",
+          "bounds": {
+            "x": 608,
+            "y": 55,
+            "width": 192,
+            "height": 54
+          }
+        },
+        {
+          "observedRole": "captain emblem inside identity button",
+          "bounds": {
+            "x": 627,
+            "y": 66,
+            "width": 35,
+            "height": 34
+          }
+        },
+        {
+          "observedRole": "identity button text",
+          "bounds": {
+            "x": 670,
+            "y": 70,
+            "width": 97,
+            "height": 28
+          }
+        }
+      ],
+      "alignment": "title is optically centered in the page; identity entry is right aligned inside the header safe area",
+      "spacing": "about 92px from title right edge to identity button; about 31px left page inset and 31px right page inset",
+      "unresolved": [
+        "Header decorative line ends are approximate because the ornament is low contrast against the dark background."
+      ]
+    },
+    {
+      "id": "analysis_guidance_panel",
+      "order": 3,
+      "observedRole": "upper analysis context and suggested-question panel",
+      "bounds": {
+        "x": 24,
+        "y": 130,
+        "width": 787,
+        "height": 536
+      },
+      "normalizedBounds": {
+        "x": 0.028777,
+        "y": 0.068929,
+        "width": 0.943645,
+        "height": 0.284199
+      },
+      "internalStructure": [
+        {
+          "observedRole": "panel border and inset dark surface",
+          "bounds": {
+            "x": 24,
+            "y": 130,
+            "width": 787,
+            "height": 536
+          }
+        },
+        {
+          "observedRole": "current analysis context card",
+          "bounds": {
+            "x": 40,
+            "y": 148,
+            "width": 750,
+            "height": 198
+          }
+        },
+        {
+          "observedRole": "context emblem slot",
+          "bounds": {
+            "x": 56,
+            "y": 166,
+            "width": 84,
+            "height": 94
+          }
+        },
+        {
+          "observedRole": "context title",
+          "bounds": {
+            "x": 163,
+            "y": 173,
+            "width": 166,
+            "height": 33
+          }
+        },
+        {
+          "observedRole": "evidence usage text",
+          "bounds": {
+            "x": 163,
+            "y": 219,
+            "width": 160,
+            "height": 25
+          }
+        },
+        {
+          "observedRole": "usage percent text",
+          "bounds": {
+            "x": 730,
+            "y": 219,
+            "width": 40,
+            "height": 25
+          }
+        },
+        {
+          "observedRole": "black progress rail",
+          "bounds": {
+            "x": 333,
+            "y": 214,
+            "width": 386,
+            "height": 31
+          }
+        },
+        {
+          "observedRole": "gold progress line and fill",
+          "bounds": {
+            "x": 164,
+            "y": 251,
+            "width": 608,
+            "height": 10
+          }
+        },
+        {
+          "observedRole": "context helper icon and explanatory text",
+          "bounds": {
+            "x": 64,
+            "y": 296,
+            "width": 506,
+            "height": 31
+          }
+        },
+        {
+          "observedRole": "manage evidence button",
+          "bounds": {
+            "x": 624,
+            "y": 284,
+            "width": 150,
+            "height": 46
+          }
+        },
+        {
+          "observedRole": "suggested questions section title row",
+          "bounds": {
+            "x": 57,
+            "y": 374,
+            "width": 211,
+            "height": 36
+          }
+        },
+        {
+          "observedRole": "suggested question row 1",
+          "bounds": {
+            "x": 48,
+            "y": 422,
+            "width": 736,
+            "height": 66
+          }
+        },
+        {
+          "observedRole": "suggested question row 2",
+          "bounds": {
+            "x": 48,
+            "y": 501,
+            "width": 736,
+            "height": 66
+          }
+        },
+        {
+          "observedRole": "suggested question row 3",
+          "bounds": {
+            "x": 48,
+            "y": 579,
+            "width": 736,
+            "height": 66
+          }
+        }
+      ],
+      "alignment": "all upper content uses the same approximately 24px page inset; suggestion rows align to one left edge and one right edge",
+      "spacing": "18px top inset to the context card, 29px gap from context card to suggestions title, 12-13px gaps between suggestion rows",
+      "unresolved": [
+        "Progress rail and fill bounds are visually separated into the black top rail and the gold bottom line because both are visible target elements.",
+        "Small row icon silhouettes are placeholders and not authentic semantic identities."
+      ]
+    },
+    {
+      "id": "chat_transcript",
+      "order": 4,
+      "observedRole": "scrolling conversation transcript with alternating user and captain bubbles",
+      "bounds": {
+        "x": 34,
+        "y": 688,
+        "width": 762,
+        "height": 640
+      },
+      "normalizedBounds": {
+        "x": 0.040767,
+        "y": 0.364793,
+        "width": 0.913669,
+        "height": 0.339343
+      },
+      "internalStructure": [
+        {
+          "observedRole": "user message 1 bubble",
+          "bounds": {
+            "x": 265,
+            "y": 695,
+            "width": 455,
+            "height": 76
+          }
+        },
+        {
+          "observedRole": "user avatar 1",
+          "bounds": {
+            "x": 719,
+            "y": 688,
+            "width": 77,
+            "height": 77
+          }
+        },
+        {
+          "observedRole": "user message 1 time",
+          "bounds": {
+            "x": 646,
+            "y": 785,
+            "width": 48,
+            "height": 25
+          }
+        },
+        {
+          "observedRole": "captain avatar 1",
+          "bounds": {
+            "x": 34,
+            "y": 813,
+            "width": 84,
+            "height": 84
+          }
+        },
+        {
+          "observedRole": "captain message 1 bubble",
+          "bounds": {
+            "x": 116,
+            "y": 814,
+            "width": 458,
+            "height": 137
+          }
+        },
+        {
+          "observedRole": "captain message 1 time",
+          "bounds": {
+            "x": 137,
+            "y": 961,
+            "width": 48,
+            "height": 25
+          }
+        },
+        {
+          "observedRole": "user message 2 bubble",
+          "bounds": {
+            "x": 251,
+            "y": 998,
+            "width": 469,
+            "height": 76
+          }
+        },
+        {
+          "observedRole": "user avatar 2",
+          "bounds": {
+            "x": 719,
+            "y": 991,
+            "width": 77,
+            "height": 77
+          }
+        },
+        {
+          "observedRole": "user message 2 time",
+          "bounds": {
+            "x": 646,
+            "y": 1092,
+            "width": 48,
+            "height": 25
+          }
+        },
+        {
+          "observedRole": "captain avatar 2",
+          "bounds": {
+            "x": 34,
+            "y": 1110,
+            "width": 84,
+            "height": 84
+          }
+        },
+        {
+          "observedRole": "captain message 2 bubble",
+          "bounds": {
+            "x": 116,
+            "y": 1117,
+            "width": 552,
+            "height": 181
+          }
+        },
+        {
+          "observedRole": "captain message 2 time",
+          "bounds": {
+            "x": 137,
+            "y": 1300,
+            "width": 48,
+            "height": 25
+          }
+        }
+      ],
+      "alignment": "user bubbles right align near the avatar column; captain bubbles left align after the captain avatar column",
+      "spacing": "about 42px vertical gap between user time and next captain row; about 31px left transcript inset and 38px right avatar edge inset",
+      "unresolved": [
+        "Bubble tails and texture scratches are included with each bubble rectangle rather than separately bounded.",
+        "Avatar identities are target placeholders only."
+      ]
+    },
+    {
+      "id": "evidence_shelf",
+      "order": 5,
+      "observedRole": "evidence control shelf with mode label, manage action, two evidence cards, and one add-evidence card",
+      "bounds": {
+        "x": 24,
+        "y": 1340,
+        "width": 786,
+        "height": 198
+      },
+      "normalizedBounds": {
+        "x": 0.028777,
+        "y": 0.710498,
+        "width": 0.942446,
+        "height": 0.104984
+      },
+      "internalStructure": [
+        {
+          "observedRole": "shelf border and dark inset",
+          "bounds": {
+            "x": 24,
+            "y": 1340,
+            "width": 786,
+            "height": 198
+          }
+        },
+        {
+          "observedRole": "evidence shelf header",
+          "bounds": {
+            "x": 57,
+            "y": 1354,
+            "width": 728,
+            "height": 48
+          }
+        },
+        {
+          "observedRole": "manage evidence compact button",
+          "bounds": {
+            "x": 669,
+            "y": 1355,
+            "width": 117,
+            "height": 45
+          }
+        },
+        {
+          "observedRole": "source reference card 1",
+          "bounds": {
+            "x": 42,
+            "y": 1411,
+            "width": 242,
+            "height": 108
+          }
+        },
+        {
+          "observedRole": "source reference card 2",
+          "bounds": {
+            "x": 298,
+            "y": 1411,
+            "width": 242,
+            "height": 108
+          }
+        },
+        {
+          "observedRole": "add evidence dashed card",
+          "bounds": {
+            "x": 553,
+            "y": 1411,
+            "width": 237,
+            "height": 108
+          }
+        }
+      ],
+      "alignment": "header controls align to the shelf width; three bottom cards sit in one row with consistent top and bottom edges",
+      "spacing": "about 14px gap after header to cards; about 14px horizontal gap between cards",
+      "unresolved": [
+        "Card border bevels and dashed-card dash segmentation are grouped at card level."
+      ]
+    },
+    {
+      "id": "message_composer",
+      "order": 6,
+      "observedRole": "bottom text composer with prompt field, upload/link actions, and primary send button",
+      "bounds": {
+        "x": 25,
+        "y": 1548,
+        "width": 785,
+        "height": 193
+      },
+      "normalizedBounds": {
+        "x": 0.029976,
+        "y": 0.820785,
+        "width": 0.941247,
+        "height": 0.102333
+      },
+      "internalStructure": [
+        {
+          "observedRole": "composer background panel",
+          "bounds": {
+            "x": 25,
+            "y": 1548,
+            "width": 785,
+            "height": 193
+          }
+        },
+        {
+          "observedRole": "textarea field",
+          "bounds": {
+            "x": 41,
+            "y": 1570,
+            "width": 750,
+            "height": 87
+          }
+        },
+        {
+          "observedRole": "upload evidence button",
+          "bounds": {
+            "x": 41,
+            "y": 1671,
+            "width": 166,
+            "height": 58
+          }
+        },
+        {
+          "observedRole": "paste link button",
+          "bounds": {
+            "x": 222,
+            "y": 1671,
+            "width": 170,
+            "height": 58
+          }
+        },
+        {
+          "observedRole": "send button",
+          "bounds": {
+            "x": 648,
+            "y": 1665,
+            "width": 142,
+            "height": 63
+          }
+        }
+      ],
+      "alignment": "textarea spans nearly the full composer width; secondary buttons align left and send button aligns right",
+      "spacing": "about 14px composer side padding, 14px gap below textarea, 15px gap between secondary buttons",
+      "unresolved": []
+    },
+    {
+      "id": "product_tab_bar",
+      "order": 7,
+      "observedRole": "tab-root ProductTabBar with four equal product destinations and active first tab",
+      "bounds": {
+        "x": 2,
+        "y": 1746,
+        "width": 830,
+        "height": 137
+      },
+      "normalizedBounds": {
+        "x": 0.002398,
+        "y": 0.925769,
+        "width": 0.995204,
+        "height": 0.07264
+      },
+      "internalStructure": [
+        {
+          "observedRole": "tab bar outer shell and top divider",
+          "bounds": {
+            "x": 2,
+            "y": 1746,
+            "width": 830,
+            "height": 137
+          }
+        },
+        {
+          "observedRole": "tab item 1 active intelligent analysis",
+          "bounds": {
+            "x": 5,
+            "y": 1750,
+            "width": 207,
+            "height": 132
+          }
+        },
+        {
+          "observedRole": "tab item 2 latest news",
+          "bounds": {
+            "x": 213,
+            "y": 1750,
+            "width": 203,
+            "height": 132
+          }
+        },
+        {
+          "observedRole": "tab item 3 specialization",
+          "bounds": {
+            "x": 417,
+            "y": 1750,
+            "width": 203,
+            "height": 132
+          }
+        },
+        {
+          "observedRole": "tab item 4 profile",
+          "bounds": {
+            "x": 621,
+            "y": 1750,
+            "width": 207,
+            "height": 132
+          }
+        }
+      ],
+      "alignment": "four tab items form a full-width root navigation strip; active item occupies the first column without changing column rhythm",
+      "spacing": "tab columns are approximately quarter width, separated by thin vertical dividers at x=212, x=416, and x=620",
+      "unresolved": [
+        "Bottom safe-area ownership cannot be inferred from target pixels; only visible ProductTabBar topology is recorded."
+      ]
+    }
+  ],
+  "unresolved": [
+    "All measurements are target-only visual estimates from the single attached 834x1886 PNG.",
+    "No runtime screenshot, source implementation, CSS, browser page, prior review, redline, old evidence, Git history, or secondary image was used.",
+    "Text, names, percentages, times, identities, icons, and illustrated roles are target placeholders and do not establish product or business truth.",
+    "Fine texture, bevel, shadow, and ornamental line details are grouped at their closest visible owner when pixel-exact separation is not reliable."
+  ]
+}

@@ -1,0 +1,818 @@
+{
+  "schemaVersion": "target-geometry-v1",
+  "route": "chickenbro_chat",
+  "authority": "canonical_target",
+  "source": {
+    "path": "artifacts/ui-visual-targets/current/chickenbro-chat.png",
+    "width": 853,
+    "height": 1844,
+    "nativeWidth": 853,
+    "nativeHeight": 1844,
+    "bytes": 1890187,
+    "sha256": "61418f362c7814492f36be5d7f8f93addd1eff8ff2ef47b38d459668f56a421d"
+  },
+  "measurement": {
+    "coordinateSpace": "native_pixels",
+    "normalizedCoordinateSpace": "canvas_fraction",
+    "runtimeInputsUsed": false,
+    "targetOnly": true
+  },
+  "regions": [
+    {
+      "id": "page_frame",
+      "order": 1,
+      "observedRole": "full-height ornamental page frame and continuous dark textured chat surface",
+      "bounds": {
+        "x": 7,
+        "y": 8,
+        "width": 839,
+        "height": 1828
+      },
+      "normalizedBounds": {
+        "x": 0.008206,
+        "y": 0.004338,
+        "width": 0.983587,
+        "height": 0.991323
+      },
+      "internalStructure": [
+        {
+          "observedRole": "outer beveled metal perimeter with clipped ornamental corners",
+          "bounds": {
+            "x": 7,
+            "y": 8,
+            "width": 839,
+            "height": 1828
+          }
+        },
+        {
+          "observedRole": "continuous granular black inner surface",
+          "bounds": {
+            "x": 15,
+            "y": 16,
+            "width": 823,
+            "height": 1812
+          }
+        }
+      ],
+      "alignment": "Centered on the 853 px canvas with a narrow, nearly symmetric outer inset.",
+      "spacing": "Approximately 7 px at left, 7 px at right, 8 px at top, and 8 px at bottom.",
+      "unresolved": [
+        "Fine engravings, corner construction, texture grain, and bevel thickness are target-only visual estimates."
+      ]
+    },
+    {
+      "id": "header_nav",
+      "order": 2,
+      "observedRole": "top navigation band with back control, captain identity medallion, and route title",
+      "bounds": {
+        "x": 8,
+        "y": 9,
+        "width": 838,
+        "height": 95
+      },
+      "normalizedBounds": {
+        "x": 0.009379,
+        "y": 0.004881,
+        "width": 0.982415,
+        "height": 0.051518
+      },
+      "internalStructure": [
+        {
+          "observedRole": "large circular back control",
+          "bounds": {
+            "x": 27,
+            "y": 24,
+            "width": 77,
+            "height": 78
+          }
+        },
+        {
+          "observedRole": "circular captain portrait medallion",
+          "bounds": {
+            "x": 131,
+            "y": 25,
+            "width": 78,
+            "height": 76
+          }
+        },
+        {
+          "observedRole": "route title",
+          "bounds": {
+            "x": 229,
+            "y": 46,
+            "width": 156,
+            "height": 34
+          }
+        }
+      ],
+      "alignment": "Back control and captain medallion are left anchored on one horizontal centerline; the title follows them rather than centering on the canvas.",
+      "spacing": "About 27 px from the canvas left to the back control, 27 px between the two circles, and 20 px between the captain medallion and title.",
+      "unresolved": []
+    },
+    {
+      "id": "workbench_context_panel",
+      "order": 3,
+      "observedRole": "ornamental current-workbench context panel with three selectors and an evidence-boundary action row",
+      "bounds": {
+        "x": 30,
+        "y": 113,
+        "width": 794,
+        "height": 256
+      },
+      "normalizedBounds": {
+        "x": 0.03517,
+        "y": 0.06128,
+        "width": 0.930832,
+        "height": 0.138829
+      },
+      "internalStructure": [
+        {
+          "observedRole": "briefcase heading row",
+          "bounds": {
+            "x": 55,
+            "y": 136,
+            "width": 176,
+            "height": 34
+          }
+        },
+        {
+          "observedRole": "three-column inset selector surface",
+          "bounds": {
+            "x": 53,
+            "y": 183,
+            "width": 747,
+            "height": 107
+          }
+        },
+        {
+          "observedRole": "profession and specialization selector column",
+          "bounds": {
+            "x": 53,
+            "y": 183,
+            "width": 262,
+            "height": 107
+          }
+        },
+        {
+          "observedRole": "scene selector column",
+          "bounds": {
+            "x": 315,
+            "y": 183,
+            "width": 255,
+            "height": 107
+          }
+        },
+        {
+          "observedRole": "evidence-status selector column",
+          "bounds": {
+            "x": 570,
+            "y": 183,
+            "width": 230,
+            "height": 107
+          }
+        },
+        {
+          "observedRole": "information note",
+          "bounds": {
+            "x": 54,
+            "y": 313,
+            "width": 493,
+            "height": 37
+          }
+        },
+        {
+          "observedRole": "view-workbench action",
+          "bounds": {
+            "x": 614,
+            "y": 303,
+            "width": 186,
+            "height": 46
+          }
+        }
+      ],
+      "alignment": "Heading and note align to the same left content edge; selector columns are separated by two vertical rules, and the action is right anchored below them.",
+      "spacing": "Approximately 23 px outer side padding, 13 px between heading and selector surface, and 13 px between selector surface and the lower note/action row.",
+      "unresolved": [
+        "The target shows selector-like rows, but their interaction model and actual data state are not established by the static image."
+      ]
+    },
+    {
+      "id": "assistant_intro_message",
+      "order": 4,
+      "observedRole": "left-aligned captain greeting with avatar and three-line assistant bubble",
+      "bounds": {
+        "x": 31,
+        "y": 386,
+        "width": 486,
+        "height": 133
+      },
+      "normalizedBounds": {
+        "x": 0.036342,
+        "y": 0.209328,
+        "width": 0.569754,
+        "height": 0.072126
+      },
+      "internalStructure": [
+        {
+          "observedRole": "captain avatar",
+          "bounds": {
+            "x": 31,
+            "y": 386,
+            "width": 65,
+            "height": 65
+          }
+        },
+        {
+          "observedRole": "assistant speech bubble",
+          "bounds": {
+            "x": 115,
+            "y": 386,
+            "width": 402,
+            "height": 133
+          }
+        }
+      ],
+      "alignment": "Avatar is left anchored; the bubble begins to its right and its top edge aligns with the avatar top.",
+      "spacing": "Approximately 19 px between avatar and bubble, with about 22 px bubble padding around the three text lines.",
+      "unresolved": []
+    },
+    {
+      "id": "user_question_primary",
+      "order": 5,
+      "observedRole": "right-aligned first user question with profile medallion and timestamp",
+      "bounds": {
+        "x": 208,
+        "y": 543,
+        "width": 614,
+        "height": 99
+      },
+      "normalizedBounds": {
+        "x": 0.243845,
+        "y": 0.294469,
+        "width": 0.719812,
+        "height": 0.053688
+      },
+      "internalStructure": [
+        {
+          "observedRole": "blue user speech bubble",
+          "bounds": {
+            "x": 208,
+            "y": 545,
+            "width": 537,
+            "height": 64
+          }
+        },
+        {
+          "observedRole": "user profile medallion",
+          "bounds": {
+            "x": 755,
+            "y": 543,
+            "width": 67,
+            "height": 67
+          }
+        },
+        {
+          "observedRole": "message timestamp",
+          "bounds": {
+            "x": 680,
+            "y": 620,
+            "width": 48,
+            "height": 22
+          }
+        }
+      ],
+      "alignment": "Bubble and avatar are right anchored; the timestamp sits below the bubble near its right edge.",
+      "spacing": "Approximately 10 px between bubble tail and avatar and about 10 px between bubble bottom and timestamp.",
+      "unresolved": []
+    },
+    {
+      "id": "assistant_evidence_answer",
+      "order": 6,
+      "observedRole": "large left-aligned assistant answer containing a two-row evidence card",
+      "bounds": {
+        "x": 31,
+        "y": 648,
+        "width": 772,
+        "height": 390
+      },
+      "normalizedBounds": {
+        "x": 0.036342,
+        "y": 0.35141,
+        "width": 0.905041,
+        "height": 0.211497
+      },
+      "internalStructure": [
+        {
+          "observedRole": "captain avatar",
+          "bounds": {
+            "x": 31,
+            "y": 648,
+            "width": 65,
+            "height": 65
+          }
+        },
+        {
+          "observedRole": "assistant answer bubble",
+          "bounds": {
+            "x": 102,
+            "y": 648,
+            "width": 701,
+            "height": 390
+          }
+        },
+        {
+          "observedRole": "answer introduction line",
+          "bounds": {
+            "x": 132,
+            "y": 672,
+            "width": 638,
+            "height": 31
+          }
+        },
+        {
+          "observedRole": "nested answer-basis evidence card",
+          "bounds": {
+            "x": 131,
+            "y": 714,
+            "width": 651,
+            "height": 307
+          }
+        },
+        {
+          "observedRole": "evidence card heading with status pill",
+          "bounds": {
+            "x": 131,
+            "y": 714,
+            "width": 651,
+            "height": 54
+          }
+        },
+        {
+          "observedRole": "first source-reference row",
+          "bounds": {
+            "x": 145,
+            "y": 777,
+            "width": 622,
+            "height": 85
+          }
+        },
+        {
+          "observedRole": "second source-reference row",
+          "bounds": {
+            "x": 145,
+            "y": 872,
+            "width": 622,
+            "height": 85
+          }
+        },
+        {
+          "observedRole": "view-all-evidence footer action",
+          "bounds": {
+            "x": 131,
+            "y": 968,
+            "width": 651,
+            "height": 53
+          }
+        }
+      ],
+      "alignment": "Avatar anchors the left edge; the answer bubble occupies the remaining width, and the nested evidence card aligns to a consistent inner inset.",
+      "spacing": "Approximately 6 px between avatar and bubble tail, 29 px left/right bubble padding, 11 px between introduction and evidence card, and about 10 px between source rows.",
+      "unresolved": [
+        "The source icons and labels are visible placeholders; no provenance or evidence truth is inferred from them."
+      ]
+    },
+    {
+      "id": "evidence_boundary_panel",
+      "order": 7,
+      "observedRole": "two-column panel listing missing inputs and current evidence limitations",
+      "bounds": {
+        "x": 32,
+        "y": 1050,
+        "width": 770,
+        "height": 145
+      },
+      "normalizedBounds": {
+        "x": 0.037515,
+        "y": 0.569414,
+        "width": 0.902696,
+        "height": 0.078633
+      },
+      "internalStructure": [
+        {
+          "observedRole": "missing-inputs column",
+          "bounds": {
+            "x": 53,
+            "y": 1064,
+            "width": 347,
+            "height": 116
+          }
+        },
+        {
+          "observedRole": "three missing-input chips",
+          "bounds": {
+            "x": 53,
+            "y": 1104,
+            "width": 344,
+            "height": 42
+          }
+        },
+        {
+          "observedRole": "vertical column divider",
+          "bounds": {
+            "x": 419,
+            "y": 1064,
+            "width": 2,
+            "height": 116
+          }
+        },
+        {
+          "observedRole": "current-limitations column",
+          "bounds": {
+            "x": 442,
+            "y": 1064,
+            "width": 338,
+            "height": 116
+          }
+        },
+        {
+          "observedRole": "three limitation chips",
+          "bounds": {
+            "x": 442,
+            "y": 1104,
+            "width": 328,
+            "height": 42
+          }
+        }
+      ],
+      "alignment": "Two near-equal columns share one outer panel and a central divider; each uses a heading, one horizontal chip row, and a bottom helper line.",
+      "spacing": "Approximately 21 px outer side padding, 20 px between headings and chips, and 11 px between chips and helper lines.",
+      "unresolved": [
+        "The chips describe visible target states only; whether they are interactive cannot be established."
+      ]
+    },
+    {
+      "id": "user_question_followup",
+      "order": 8,
+      "observedRole": "right-aligned follow-up user question with profile medallion and timestamp",
+      "bounds": {
+        "x": 247,
+        "y": 1216,
+        "width": 575,
+        "height": 100
+      },
+      "normalizedBounds": {
+        "x": 0.289566,
+        "y": 0.659436,
+        "width": 0.674091,
+        "height": 0.05423
+      },
+      "internalStructure": [
+        {
+          "observedRole": "blue user speech bubble",
+          "bounds": {
+            "x": 247,
+            "y": 1219,
+            "width": 498,
+            "height": 65
+          }
+        },
+        {
+          "observedRole": "user profile medallion",
+          "bounds": {
+            "x": 755,
+            "y": 1217,
+            "width": 67,
+            "height": 67
+          }
+        },
+        {
+          "observedRole": "message timestamp",
+          "bounds": {
+            "x": 680,
+            "y": 1295,
+            "width": 48,
+            "height": 21
+          }
+        }
+      ],
+      "alignment": "Mirrors the first user-message topology but uses a narrower bubble; timestamp remains below the bubble near its right edge.",
+      "spacing": "Approximately 10 px between bubble tail and avatar and about 10 px between bubble bottom and timestamp.",
+      "unresolved": []
+    },
+    {
+      "id": "assistant_insufficient_evidence_message",
+      "order": 9,
+      "observedRole": "left-aligned assistant response declining to extrapolate beyond available evidence",
+      "bounds": {
+        "x": 31,
+        "y": 1317,
+        "width": 628,
+        "height": 105
+      },
+      "normalizedBounds": {
+        "x": 0.036342,
+        "y": 0.714208,
+        "width": 0.736225,
+        "height": 0.056941
+      },
+      "internalStructure": [
+        {
+          "observedRole": "captain avatar",
+          "bounds": {
+            "x": 31,
+            "y": 1318,
+            "width": 65,
+            "height": 65
+          }
+        },
+        {
+          "observedRole": "two-line assistant speech bubble",
+          "bounds": {
+            "x": 102,
+            "y": 1317,
+            "width": 557,
+            "height": 105
+          }
+        }
+      ],
+      "alignment": "Avatar and bubble repeat the left-aligned assistant-message pattern; bubble top aligns with avatar top.",
+      "spacing": "Approximately 6 px between avatar and bubble tail and about 25 px vertical bubble padding around two lines.",
+      "unresolved": []
+    },
+    {
+      "id": "answer_failure_panel",
+      "order": 10,
+      "observedRole": "dashed warning panel for an unavailable answer with retry action",
+      "bounds": {
+        "x": 32,
+        "y": 1445,
+        "width": 788,
+        "height": 112
+      },
+      "normalizedBounds": {
+        "x": 0.037515,
+        "y": 0.783623,
+        "width": 0.923798,
+        "height": 0.060738
+      },
+      "internalStructure": [
+        {
+          "observedRole": "large triangular warning badge",
+          "bounds": {
+            "x": 60,
+            "y": 1470,
+            "width": 65,
+            "height": 61
+          }
+        },
+        {
+          "observedRole": "failure title and helper copy",
+          "bounds": {
+            "x": 151,
+            "y": 1468,
+            "width": 390,
+            "height": 65
+          }
+        },
+        {
+          "observedRole": "retry action",
+          "bounds": {
+            "x": 614,
+            "y": 1468,
+            "width": 184,
+            "height": 64
+          }
+        }
+      ],
+      "alignment": "Warning badge, two-line message, and retry action form one horizontal row centered vertically inside the dashed panel.",
+      "spacing": "Approximately 28 px left inset, 26 px between badge and text, and a broad flexible gap before the right-anchored retry action.",
+      "unresolved": [
+        "Retry behavior and the failure cause are not established by the static target."
+      ]
+    },
+    {
+      "id": "topic_library_entry",
+      "order": 11,
+      "observedRole": "full-width topic-library utility entry with icon, two-line label, and disclosure chevron",
+      "bounds": {
+        "x": 29,
+        "y": 1574,
+        "width": 797,
+        "height": 96
+      },
+      "normalizedBounds": {
+        "x": 0.033998,
+        "y": 0.853579,
+        "width": 0.934349,
+        "height": 0.052061
+      },
+      "internalStructure": [
+        {
+          "observedRole": "book-stack utility icon",
+          "bounds": {
+            "x": 47,
+            "y": 1587,
+            "width": 68,
+            "height": 65
+          }
+        },
+        {
+          "observedRole": "topic-library title and helper copy",
+          "bounds": {
+            "x": 135,
+            "y": 1589,
+            "width": 396,
+            "height": 60
+          }
+        },
+        {
+          "observedRole": "right disclosure chevron",
+          "bounds": {
+            "x": 773,
+            "y": 1607,
+            "width": 24,
+            "height": 34
+          }
+        }
+      ],
+      "alignment": "Icon and two-line label are left aligned; the disclosure chevron is right anchored and vertically centered.",
+      "spacing": "Approximately 18 px between icon and text and 29 px from the right edge to the disclosure chevron.",
+      "unresolved": []
+    },
+    {
+      "id": "composer_dock",
+      "order": 12,
+      "observedRole": "bottom input dock with new-topic action, two-line prompt field, and send action",
+      "bounds": {
+        "x": 8,
+        "y": 1682,
+        "width": 837,
+        "height": 153
+      },
+      "normalizedBounds": {
+        "x": 0.009379,
+        "y": 0.912148,
+        "width": 0.981243,
+        "height": 0.082972
+      },
+      "internalStructure": [
+        {
+          "observedRole": "ornamental top divider and dock surface",
+          "bounds": {
+            "x": 8,
+            "y": 1682,
+            "width": 837,
+            "height": 153
+          }
+        },
+        {
+          "observedRole": "new-topic action",
+          "bounds": {
+            "x": 31,
+            "y": 1710,
+            "width": 149,
+            "height": 91
+          }
+        },
+        {
+          "observedRole": "prompt field with placeholder and evidence-boundary helper",
+          "bounds": {
+            "x": 197,
+            "y": 1707,
+            "width": 450,
+            "height": 105
+          }
+        },
+        {
+          "observedRole": "blue send action",
+          "bounds": {
+            "x": 669,
+            "y": 1707,
+            "width": 151,
+            "height": 94
+          }
+        }
+      ],
+      "alignment": "Three horizontally aligned controls sit inside a full-width dock; the prompt field is widest and the two actions use stable side widths.",
+      "spacing": "Approximately 17 px between new-topic action and prompt field, 22 px between prompt field and send action, and 25-31 px dock side padding.",
+      "unresolved": [
+        "The dock is visually anchored at the bottom of this target, but fixed or sticky runtime behavior cannot be proven from a static image.",
+        "Input focus, keyboard behavior, disabled state, and send interaction are not observable."
+      ]
+    }
+  ],
+  "topology": {
+    "root": "page_frame",
+    "containment": [
+      {
+        "parent": "page_frame",
+        "children": [
+          "header_nav",
+          "workbench_context_panel",
+          "assistant_intro_message",
+          "user_question_primary",
+          "assistant_evidence_answer",
+          "evidence_boundary_panel",
+          "user_question_followup",
+          "assistant_insufficient_evidence_message",
+          "answer_failure_panel",
+          "topic_library_entry",
+          "composer_dock"
+        ]
+      },
+      {
+        "parent": "assistant_evidence_answer",
+        "children": [
+          "answer_introduction",
+          "answer_basis_card"
+        ]
+      },
+      {
+        "parent": "answer_basis_card",
+        "children": [
+          "answer_basis_header",
+          "source_reference_row_01",
+          "source_reference_row_02",
+          "view_all_evidence_action"
+        ]
+      },
+      {
+        "parent": "evidence_boundary_panel",
+        "children": [
+          "missing_inputs_column",
+          "current_limitations_column"
+        ]
+      }
+    ],
+    "verticalOrder": [
+      "header_nav",
+      "workbench_context_panel",
+      "assistant_intro_message",
+      "user_question_primary",
+      "assistant_evidence_answer",
+      "evidence_boundary_panel",
+      "user_question_followup",
+      "assistant_insufficient_evidence_message",
+      "answer_failure_panel",
+      "topic_library_entry",
+      "composer_dock"
+    ],
+    "adjacency": [
+      {
+        "above": "header_nav",
+        "below": "workbench_context_panel"
+      },
+      {
+        "above": "workbench_context_panel",
+        "below": "assistant_intro_message"
+      },
+      {
+        "above": "assistant_intro_message",
+        "below": "user_question_primary"
+      },
+      {
+        "above": "user_question_primary",
+        "below": "assistant_evidence_answer"
+      },
+      {
+        "above": "assistant_evidence_answer",
+        "below": "evidence_boundary_panel"
+      },
+      {
+        "above": "evidence_boundary_panel",
+        "below": "user_question_followup"
+      },
+      {
+        "above": "user_question_followup",
+        "below": "assistant_insufficient_evidence_message"
+      },
+      {
+        "above": "assistant_insufficient_evidence_message",
+        "below": "answer_failure_panel"
+      },
+      {
+        "above": "answer_failure_panel",
+        "below": "topic_library_entry"
+      },
+      {
+        "above": "topic_library_entry",
+        "below": "composer_dock"
+      }
+    ],
+    "repeatedStructures": [
+      "three workbench selector columns",
+      "three left-aligned captain message groups",
+      "two right-aligned user message groups with timestamps",
+      "two source-reference rows inside one answer-basis card",
+      "two evidence-boundary columns with three chips each",
+      "one three-control bottom composer dock"
+    ]
+  },
+  "unresolved": [
+    "All geometry is a target-only visual estimate from the single canonical 853x1844 target supplied for chickenbro_chat.",
+    "Runtime, source code, CSS, component dimensions, review evidence, and other images were not used.",
+    "Antialiasing, glow, textured borders, speech-bubble tails, and low-contrast bevels may introduce approximately 1-4 px uncertainty.",
+    "The static target cannot prove scrolling, fixed positioning, keyboard behavior, animation, click targets, or enabled and disabled interaction states.",
+    "Visible labels, timestamps, statuses, portraits, and source references are target instances only and do not establish product, identity, provenance, or data truth."
+  ]
+}

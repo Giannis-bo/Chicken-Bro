@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022", "DOM"],
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "useUnknownInCatchVariables": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@wow-mini/design-system": ["packages/design-system/src/index.ts"],
+      "@wow-mini/design-system/*": ["packages/design-system/src/*"],
+      "@wow-mini/domain": ["packages/domain/src/index.ts"],
+      "@wow-mini/api-client": ["packages/api-client/src/index.ts"],
+      "@wow-mini/assets-manifest": ["packages/assets-manifest/src/index.ts"]
+    }
+  }
+}

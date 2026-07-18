@@ -1,0 +1,137 @@
+{
+  "schemaVersion": 1,
+  "route": "simulator_home",
+  "status": "asset_contract_complete",
+  "authority": "docs/plans/ui-reconstruction.md",
+  "targetInventory": "docs/design/current-ui/routes/simulator-home/target-inventory.json",
+  "targetObservedAssetSlotCount": 42,
+  "productionRegistryStatus": "partial_reuse_only",
+  "productionPromotionAuthorized": false,
+  "slots": [
+    {
+      "id": "asset_slot.simulator-page-frame",
+      "owner": "AppShell",
+      "role": "full ornamental route frame",
+      "source": "shared production frame when target-compatible, otherwise deterministic CSS fallback"
+    },
+    {
+      "id": "asset_slot.simulator-title-ornaments",
+      "owner": "PageFrame",
+      "role": "center-title divider ornament family",
+      "source": "shared title ornament family"
+    },
+    {
+      "id": "asset_slot.simulator-captain-identity",
+      "owner": "PageFrame",
+      "role": "captain identity medallion and action frame",
+      "source": "existing non-factual captain mascot shell with utility fallback"
+    },
+    {
+      "id": "asset_slot.simulator-guidance-frame",
+      "owner": "SimulatorGuidancePanel",
+      "role": "analysis guidance and context frames",
+      "source": "unified future material family; CSS fallback now"
+    },
+    {
+      "id": "asset_slot.simulator-context-emblem",
+      "owner": "SimulatorGuidancePanel",
+      "role": "non-factual analysis context emblem",
+      "source": "neutral assistant utility glyph fallback; generated identity prohibited"
+    },
+    {
+      "id": "asset_slot.simulator-evidence-meter",
+      "owner": "SimulatorGuidancePanel",
+      "role": "truth-state rail without invented percentage",
+      "source": "code-native rail and status token"
+    },
+    {
+      "id": "asset_slot.simulator-suggestion-family",
+      "owner": "SimulatorGuidancePanel",
+      "role": "three suggestion row frames, leading glyphs and chevrons",
+      "source": "shared utility glyphs with target-owned frames"
+    },
+    {
+      "id": "asset_slot.simulator-chat-bubbles",
+      "owner": "SimulatorTranscript",
+      "role": "user and captain bubble skins",
+      "source": "target-owned CSS material fallback pending unified family"
+    },
+    {
+      "id": "asset_slot.simulator-chat-avatars",
+      "owner": "SimulatorTranscript",
+      "role": "neutral user and captain avatar frames",
+      "source": "non-personal neutral glyph and captain mascot shell"
+    },
+    {
+      "id": "asset_slot.simulator-evidence-shelf",
+      "owner": "SimulatorEvidenceShelf",
+      "role": "shelf, two source cards, unavailable add card and utility glyphs",
+      "source": "target-owned CSS frames and shared source/blocked glyphs"
+    },
+    {
+      "id": "asset_slot.simulator-composer-family",
+      "owner": "SimulatorComposer",
+      "role": "composer field, upload/link/send frames and glyphs",
+      "source": "target-owned CSS frames and shared utility glyphs"
+    },
+    {
+      "id": "asset_slot.product-tab-glyphs",
+      "owner": "ProductTabBar",
+      "role": "four registered product tab icons and shared frame",
+      "source": "current production product tab family"
+    }
+  ],
+  "visibleAssetGaps": [
+    {
+      "id": "SH-ASSET-001",
+      "region": "page_frame",
+      "gap": "target frame material and corner depth are not yet proven for this route"
+    },
+    {
+      "id": "SH-ASSET-002",
+      "region": "header_bar",
+      "gap": "captain identity frame is not yet a route-reviewed production asset"
+    },
+    {
+      "id": "SH-ASSET-003",
+      "region": "analysis_guidance_panel",
+      "gap": "guidance, context and suggestion frame family is not yet promoted"
+    },
+    {
+      "id": "SH-ASSET-004",
+      "region": "chat_transcript",
+      "gap": "user and captain bubble skin family is not yet promoted"
+    },
+    {
+      "id": "SH-ASSET-005",
+      "region": "chat_transcript",
+      "gap": "neutral user and captain avatar frame family is not yet route-reviewed"
+    },
+    {
+      "id": "SH-ASSET-006",
+      "region": "evidence_shelf",
+      "gap": "evidence shelf and evidence-card frame family is not yet promoted"
+    },
+    {
+      "id": "SH-ASSET-007",
+      "region": "message_composer",
+      "gap": "composer and secondary action frame family is not yet promoted"
+    },
+    {
+      "id": "SH-ASSET-008",
+      "region": "product_tab_bar",
+      "gap": "shared ProductTabBar still carries the explicitly recorded cross-route visual debt"
+    }
+  ],
+  "generationPolicy": {
+    "mainSessionPayloadAllowed": false,
+    "targetCropAllowed": false,
+    "factBearingGenerationAllowed": false,
+    "allowedFutureGeneration": [
+      "non-factual frame material",
+      "bubble skins",
+      "neutral sockets",
+      "button and panel decoration"
+    ]
+  }
+}

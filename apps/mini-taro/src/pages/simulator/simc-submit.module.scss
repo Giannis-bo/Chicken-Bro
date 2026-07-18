@@ -1,0 +1,24 @@
+.pageFrame {
+  height: calc(var(--route-safe-viewport-height) - var(--space-12));
+  min-height: 0;
+}
+
+.identityRegion,
+.talentRegion,
+.gearRegion,
+.combatRegion,
+.summaryRegion,
+.blockerRegion,
+.actionRegion,
+.footerRegion {
+  position: absolute;
+}
+
+.identityRegion { top: 6.2347%; left: 1.7949%; width: 94.1026%; height: 7.0905%; }
+.talentRegion { top: 13.4474%; left: 2.0513%; width: 93.8462%; height: 7.9462%; }
+.gearRegion { top: 21.5159%; left: 2.0513%; width: 93.8462%; height: 7.9462%; }
+.combatRegion { top: 29.5844%; left: 2.0513%; width: 93.8462%; height: 26.4059%; }
+.summaryRegion { top: 56.1125%; left: 2.0513%; width: 93.8462%; height: 12.9584%; }
+.blockerRegion { top: 69.1932%; left: 2.0513%; width: 93.8462%; height: 12.9584%; }
+.actionRegion { top: 82.2738%; left: 1.7949%; width: 94.1026%; height: 6.357%; }
+.footerRegion { top: 88.8753%; left: 2.0513%; width: 93.5897%; height: 3.6675%; }

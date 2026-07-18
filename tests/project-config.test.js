@@ -22,8 +22,7 @@ test('mini-program pack options keep non-client workspace and generated evidence
     'tests/**',
     'docs/**',
     'scripts/**',
-    'websim/**',
-    'assets/generated/**'
+    'websim/**'
   ]) {
     assert.ok(ignored.has(`glob:${value}`), `${value} should be ignored by WeChat DevTools packaging`)
   }

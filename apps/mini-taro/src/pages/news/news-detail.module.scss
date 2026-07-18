@@ -1,0 +1,39 @@
+.region {
+  position: relative;
+  isolation: isolate;
+  width: calc(100% - 16.26px);
+  min-width: 0;
+  margin-right: 8.13px;
+  margin-left: 8.13px;
+  flex: 0 0 auto;
+}
+
+.hero {
+  height: 136.32px;
+  margin-top: 9.93px;
+}
+
+.translation {
+  height: 42.88px;
+  margin-top: 9.93px;
+}
+
+.body {
+  height: 256.6px;
+  margin-top: 9.03px;
+}
+
+.source {
+  height: 50.56px;
+  margin-top: 8.25px;
+}
+
+.evidence {
+  height: 142.64px;
+  margin-top: 8.51px;
+}
+
+.terminal {
+  height: 71.32px;
+  margin-top: 9.02px;
+}

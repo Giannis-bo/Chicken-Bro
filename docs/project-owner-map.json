@@ -19,36 +19,35 @@
       "id": "app_shell_route_runtime",
       "status": "active",
       "ownerRole": "fact_owner",
-      "factOwner": "app.json",
+      "factOwner": "apps/mini-taro/src/app.config.ts",
       "writeBehavior": false,
       "writeOwner": null,
       "consumers": [
-        "pages/common/tabbar-sync.js",
-        "pages/news/news.js",
-        "pages/builds/builds.js",
-        "pages/simulator/simulator.js",
-        "pages/profile/profile.js"
+        "packages/domain/src/route-contract.ts",
+        "packages/design-system/src/components/AppShell.tsx",
+        "packages/design-system/src/components/PageFrame.tsx",
+        "apps/mini-taro/src/custom-tab-bar/index.tsx",
+        "app.json"
       ],
       "publicContracts": [
-        "app.json pages and tabBar define the mini-program route shell.",
-        "Every app.json route must stay smokeable before UI runtime evidence is promoted."
+        "apps/mini-taro/src/app.config.ts and the typed route contract define the active mini-program route shell.",
+        "The generated app.json compatibility surface must preserve the same 14 routes until legacy pages are retired."
       ],
       "mustNotChange": [
-        "Do not remove or rename app.json routes without a current UI runtime evidence contract.",
+        "Do not remove or rename Taro routes without updating the typed route contract and current UI evidence contract.",
         "Do not treat static route presence as runtime UI acceptance."
       ],
       "characterization": [
-        "tests/project-config.test.js",
-        "tests/navigation-bar.test.js",
-        "tests/page-scroll-layout.test.js"
+        "apps/mini-taro/src/pages/_shared/route-contract.test.ts",
+        "packages/design-system/src/components/PageFrame.test.ts",
+        "scripts/audit-ui-architecture.js"
       ],
       "runtimeSurfaces": [
-        "app.json",
-        "project.config.json",
-        "pages/news/news.json",
-        "pages/builds/builds.json",
-        "pages/simulator/simulator.json",
-        "pages/profile/profile.json"
+        "apps/mini-taro/src/app.config.ts",
+        "packages/domain/src/route-contract.ts",
+        "packages/design-system/src/components/AppShell.tsx",
+        "packages/design-system/src/components/PageFrame.tsx",
+        "app.json"
       ],
       "runbooks": [
         "docs/README.md",
@@ -63,18 +62,19 @@
       ],
       "releaseTrigger": "frontend_user_visible",
       "changedPathPatterns": [
-        "app.json",
-        "project.config.json",
-        "pages/**/*.json",
-        "pages/common/tabbar-sync.js"
+        "apps/mini-taro/src/app.config.ts",
+        "apps/mini-taro/src/custom-tab-bar/**",
+        "packages/domain/src/route-contract.ts",
+        "packages/design-system/src/components/{AppShell,PageFrame}.*",
+        "app.json"
       ],
       "criticalContract": {
         "status": "characterized",
-        "summary": "Existing app config, navigation and scroll-layout tests characterize route shell, tab bar and page chrome contracts.",
+        "summary": "The Taro app config, typed route contract, shared AppShell/PageFrame owners and architecture audit characterize the active 14-route shell.",
         "coverage": [
-          "tests/project-config.test.js",
-          "tests/navigation-bar.test.js",
-          "tests/page-scroll-layout.test.js"
+          "apps/mini-taro/src/pages/_shared/route-contract.test.ts",
+          "packages/design-system/src/components/PageFrame.test.ts",
+          "scripts/audit-ui-architecture.js"
         ],
         "runtimeEvidence": [],
         "ownerMapRef": null
@@ -239,7 +239,7 @@
         "tests/news-api-client.test.js",
         "tests/news-detail-view.test.js",
         "tests/news-home-payload.test.js",
-        "tests/news-page-style.test.js"
+        "apps/mini-taro/src/pages/news/news-home-model.test.ts"
       ],
       "runtimeSurfaces": [
         "server/news_backend.py",
@@ -281,7 +281,7 @@
           "tests/news-api-client.test.js",
           "tests/news-detail-view.test.js",
           "tests/news-home-payload.test.js",
-          "tests/news-page-style.test.js"
+          "apps/mini-taro/src/pages/news/news-home-model.test.ts"
         ],
         "runtimeEvidence": [],
         "ownerMapRef": {
@@ -302,10 +302,13 @@
         "server/websim_payload.py",
         "server/pg_gear_template_selectors.py",
         "pages/builds/websim-api.js",
-        "pages/builds/detail.js"
+        "pages/builds/detail.js",
+        "packages/api-client/src/websim.ts",
+        "packages/domain/src/gear-intent.ts",
+        "apps/mini-taro/src/pages/builds/detail.tsx"
       ],
       "contractFoundations": {
-        "status": "contract_only_unconsumed",
+        "status": "active_canonical_runtime",
         "modules": [
           "server/gear_contracts.py",
           "server/gear_result_envelope.py",
@@ -324,7 +327,11 @@
           "tests/pg_gear_authority_loader_test.py",
           "tests/community_template_import_test.py"
         ],
-        "runtimeConsumers": []
+        "runtimeConsumers": [
+          "server/news_backend.py canonical resolve/community-import routes",
+          "pages/builds/detail.js legacy compatibility workbench",
+          "apps/mini-taro/src/pages/builds/detail.tsx active Taro workbench"
+        ]
       },
       "socketFactAuthority": {
         "status": "pure_contract_only_unconsumed",
@@ -370,7 +377,7 @@
         "activationBoundary": "Phase 4D is merged and live-verified with one formal active Manifest at generation 9. Phase 4E may consume staging into inactive candidates and auto-promote only same-Gear Community or fully compatible additive Gear changes; deploy-triggered refresh, Phase 5 and Catalyst remain forbidden."
       },
       "statSnapshotFoundations": {
-        "status": "phase5a_complete_phase5b_worker_api_implementation_allowed",
+        "status": "phase5_complete_active_async_snapshot",
         "factOwner": "server/gear_stat_snapshot_api.py",
         "writeOwner": "server/gear_stat_snapshot_store.py",
         "executionOwner": "server/gear_stat_snapshot_worker.py",
@@ -391,9 +398,11 @@
         ],
         "runtimeConsumers": [
           "server/news_backend.py canonical async route and bounded health/admin projection",
-          "server/gear_stat_snapshot_worker.py one-child fenced execution loop"
+          "server/gear_stat_snapshot_worker.py one-child fenced execution loop",
+          "pages/builds/detail.js legacy compatibility consumer",
+          "apps/mini-taro/src/pages/builds/detail.tsx active Taro consumer"
         ],
-        "activationBoundary": "Slice 5B may activate the canonical async route, one-child fenced worker/service, bounded operations projection and best-effort legacy telemetry. Frontend cutover remains forbidden until 5C and Catalyst remains disabled."
+        "activationBoundary": "Canonical async snapshots are active. Both frontend surfaces must preserve signature fencing and explicit verified/fail-closed outcomes; Catalyst remains disabled."
       },
       "dormantAdapters": {
         "status": "contract_only_unconsumed",
@@ -439,7 +448,10 @@
         "server/websim_payload.py",
         "server/pg_gear_template_selectors.py",
         "server/community_template_import.py",
-        "pages/builds/websim-api.js"
+        "pages/builds/websim-api.js",
+        "packages/api-client/src/websim.ts",
+        "packages/domain/src/gear-intent.ts",
+        "apps/mini-taro/src/pages/builds/detail.tsx"
       ],
       "runbooks": [
         "docs/gear-simulation-full-chain-runbook.md",
@@ -482,6 +494,9 @@
         "server/postgres_cache_store.py",
         "pages/builds/websim-api.js",
         "pages/builds/detail.*",
+        "packages/api-client/src/{transport,websim}.*",
+        "packages/domain/src/gear-intent.*",
+        "apps/mini-taro/src/pages/builds/detail.*",
         "tests/gear_contracts_test.py",
         "tests/gear_result_envelope_test.py",
         "tests/gear_rule_matrix_test.py",
@@ -567,7 +582,7 @@
       ],
       "runbooks": [
         "docs/talent-simulation-full-chain-runbook.md",
-        "docs/plans/2026-06-22-talent-catalog-health-contract.md"
+        "docs/talent-simulation-full-chain-runbook.md"
       ],
       "rollback": [
         "code_rollback",
@@ -762,7 +777,7 @@
       ],
       "runbooks": [
         "docs/simulator-simc-end-to-end.md",
-        "docs/plans/2026-06-11-simc-flow-risk-avoidance.md"
+        "docs/simulator-simc-end-to-end.md"
       ],
       "rollback": [
         "code_rollback",
@@ -856,7 +871,7 @@
       ],
       "runbooks": [
         "docs/roadmap/ideas.md",
-        "docs/superpowers/plans/2026-06-28-simc-task-execution-budget.md"
+        "docs/simulator-simc-end-to-end.md"
       ],
       "rollback": [
         "code_rollback",
@@ -1167,7 +1182,7 @@
       ],
       "runbooks": [
         "docs/community-template-import-full-chain-runbook.md",
-        "docs/roadmap/history/2026-07-phase4-pg-read-model.md"
+        "docs/gear-simulation-full-chain-runbook.md"
       ],
       "rollback": [
         "code_rollback",
@@ -1248,8 +1263,8 @@
         "pages/builds/intel.js"
       ],
       "runbooks": [
-        "docs/plans/2026-06-29-admin-gate-visualization-design.md",
-        "docs/roadmap/history/2026-07-phase4-pg-read-model.md"
+        "docs/remote-debugging.md",
+        "docs/database-architecture.md"
       ],
       "rollback": [
         "code_rollback",
@@ -1295,7 +1310,7 @@
       "id": "deploy_runtime_services",
       "status": "active",
       "ownerRole": "consumer_orchestrator",
-      "factOwner": "docs/plans/2026-06-09-unified-backend-cloud-deploy.md",
+      "factOwner": "docs/remote-debugging.md",
       "writeBehavior": true,
       "writeOwner": "server/deploy_lighthouse.sh",
       "consumers": [
@@ -1330,7 +1345,7 @@
         "server/wow-simc-runtime-update.service"
       ],
       "runbooks": [
-        "docs/plans/2026-06-09-unified-backend-cloud-deploy.md",
+        "docs/remote-debugging.md",
         "docs/postgres-identity-migration-runbook.md"
       ],
       "rollback": [
@@ -1365,48 +1380,37 @@
       "id": "ui_runtime_evidence",
       "status": "active",
       "ownerRole": "fact_owner",
-      "factOwner": "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/manifest.json",
+      "factOwner": "docs/design/current-ui/runtime-review-contract.json",
       "writeBehavior": false,
       "writeOwner": null,
       "consumers": [
-        "app.json",
-        "pages/news/news.js",
-        "pages/news/list.js",
-        "pages/news/detail.js",
-        "pages/builds/builds.js",
-        "pages/builds/workbench.js",
-        "pages/builds/intel.js",
-        "pages/builds/talent-simulator.js",
-        "pages/builds/detail.js",
-        "pages/simulator/simulator.js",
-        "pages/simulator/simc.js",
-        "pages/simulator/chickenbro.js",
-        "pages/simulator/tasks.js",
-        "pages/simulator/task-detail.js",
-        "pages/profile/profile.js"
+        "apps/mini-taro/src/app.config.ts",
+        "apps/mini-taro/src/pages",
+        "packages/design-system/src",
+        "packages/assets-manifest/src",
+        "docs/design/current-ui/target-registry.json",
+        "app.json"
       ],
       "publicContracts": [
-        "Current accepted UI runtime baseline covers all 14 app.json routes.",
-        "Future UI changes require fresh real mini-program evidence before promotion."
+        "The current UI contract covers the same 14 routes in Taro app config and target registry.",
+        "Visual acceptance remains unverified until fresh real WeChat target/runtime evidence is explicitly promoted."
       ],
       "mustNotChange": [
         "Do not use browser-only or static tests as UI runtime acceptance.",
-        "Do not continue old pass36/pass37 fixes without a new active UI contract."
+        "Shared chrome, safe area and controls are changed in shared owners and propagated across routes."
       ],
       "characterization": [
-        "tests/ui-system-rebuild-goal.test.js",
-        "tests/ui-v2-1-browser-harness.test.js",
-        "tests/websim-page.test.js",
-        "tests/builds-page.test.js",
-        "tests/simulator-page.test.js"
+        "scripts/audit-ui-architecture.js",
+        "scripts/verify-ui-baselines.js",
+        "packages/design-system/src/components/PageFrame.test.ts",
+        "apps/mini-taro/src/pages/_shared/route-contract.test.ts"
       ],
       "runtimeSurfaces": [
-        "app.json",
-        "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/manifest.json",
-        "pages/news/news.js",
-        "pages/builds/builds.js",
-        "pages/simulator/simulator.js",
-        "pages/profile/profile.js"
+        "apps/mini-taro/src/app.config.ts",
+        "apps/mini-taro/src/pages",
+        "packages/design-system/src",
+        "docs/design/current-ui/runtime-review-contract.json",
+        "docs/design/current-ui/target-registry.json"
       ],
       "runbooks": [
         "docs/remote-debugging.md",
@@ -1421,10 +1425,12 @@
       ],
       "releaseTrigger": "user_visible_runtime",
       "changedPathPatterns": [
-        "app.json",
-        "pages/**",
-        "components/**",
-        "artifacts/ui-system-rebuild/**"
+        "apps/mini-taro/**",
+        "packages/design-system/**",
+        "packages/assets-manifest/**",
+        "packages/domain/src/route-contract.ts",
+        "docs/design/current-ui/**",
+        "scripts/{audit-ui-architecture,verify-ui-baselines}.js"
       ],
       "appRoutes": [
         "pages/news/news",
@@ -1444,17 +1450,14 @@
       ],
       "criticalContract": {
         "status": "characterized",
-        "summary": "Existing UI goal, browser harness, page and runtime manifest tests characterize the accepted 14-route proof matrix and DevTools evidence rule.",
+        "summary": "The active Taro target registry, shared component owners and architecture/baseline checks characterize the 14-route proof matrix; pixel acceptance is still pending fresh real WeChat evidence.",
         "coverage": [
-          "tests/ui-system-rebuild-goal.test.js",
-          "tests/ui-v2-1-browser-harness.test.js",
-          "tests/websim-page.test.js",
-          "tests/builds-page.test.js",
-          "tests/simulator-page.test.js"
+          "scripts/audit-ui-architecture.js",
+          "scripts/verify-ui-baselines.js",
+          "packages/design-system/src/components/PageFrame.test.ts",
+          "apps/mini-taro/src/pages/_shared/route-contract.test.ts"
         ],
-        "runtimeEvidence": [
-          "artifacts/ui-system-rebuild/20260708-0900-runtime-screenshot-manifest/manifest.json"
-        ],
+        "runtimeEvidence": [],
         "ownerMapRef": null
       }
     }
