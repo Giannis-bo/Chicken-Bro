@@ -90,6 +90,7 @@ Review 窗口同时覆盖共享组件、页面 JSX 中的非组件 wrapper、rou
 - 当前批次：builds，优先 `builds_home` 和 `gear_detail` 的尺度、图标裁切与装备选择交互。Gear Detail 三列强化控件现跟随 `minmax(0, 1fr)` 轨道收缩；Workbench readiness 操作从固定 `min-width:164px` 改为父栏宽度与 164px 上限共同约束。继续扩大到非组件 wrapper 后发现 Workbench Evidence Ledger 在 320px 微信宽度下，内部约 286px 内容盒小于旧三列最小宽度、gap 与 padding 的 292px 总需求；标题和行列现改为 92/74/42px 可伸缩下限并为行体补 `min-width:0`。架构审计禁止大型控件固定宽度、禁止 Action/Button/Control 使用 96px 以上固定最小宽度，并禁止一个组件网格同时堆叠两个 100px 以上刚性最小列；通用 footprint 门禁还会解析固定列、`minmax()` 下限、`repeat()`、列间距和显式水平 padding，任何组件网格的最小总占用不得超过 286px 窄屏内容盒，同时保留明确位于横向 ScrollView 内的职业选项宽度。普通 route wrapper 的固定 `width`/`min-width` 同样不得超过 286px，也不得用负的左右 margin 逃逸窄屏内容盒；唯一固定 390px 的共享 TabBar 外壳只在 `min-width:480px` 桌面预览下居中使用，并由精确文件、选择器和尺寸白名单约束。
 - 横向逃逸门禁：绝对定位和像素 `translateX` 只允许不超过 8px 的装饰性微调，`calc(100% + …)` 扩宽只属于精确登记的 ProductionAsset shell（共享 full-frame 或 Build Intel 徽章外壳）；普通 wrapper 不得借定位或变换绕过 286px 内容盒。
 - 选中态材质门禁遍历整个 design-system TSX，而不是手工 owner 文件清单；任何 `data-selected` 发布者都必须同时提供稳定 `data-role`、`data-selection-material` 和 selected-control contract 登记，避免新按钮绕开普通态/激活态唯一 owner。
+- 合同校验按 JSX 节点闭合：每个已登记 role 的实例必须发布合同指定的唯一 `data-selected`/`data-active`、同时包含 active/inactive 材质分支，连续分段还必须发布 leading-boundary；同 role 的漏标副本不能再被集合级检查掩盖。
 
 ## 微信验收与恢复链路
 

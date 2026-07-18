@@ -1239,8 +1239,10 @@ record(
     && selectedControlContract.groups.every((group) => selectedStateOwners.some(([, role]) => role === group.role)),
   'selected-state runtime review must group controls by stable role rather than generated CSS classes',
 )
+const contractedSelectionRoles = new Set(selectedControlContract.groups.map((group) => group.role))
 const selectedMaterialPublishers = []
 const unownedDataSelectedPublishers = []
+const invalidContractedSelectionNodes = []
 const componentTsxFiles = walk('packages/design-system/src/components', ['.tsx'])
 for (const file of componentTsxFiles) {
   const source = read(file)
@@ -1254,6 +1256,26 @@ for (const file of componentTsxFiles) {
       const publishesMaterial = attributes.some((attribute) => attribute.name.name === 'data-selection-material')
       if (publishesSelected && (!publishesMaterial || !role)) {
         unownedDataSelectedPublishers.push(`${file}:${role || 'missing-role'}:${publishesMaterial ? 'material' : 'missing-material'}`)
+      }
+      const definition = selectedControlContract.groups.find((group) => group.role === role)
+      if (definition) {
+        const expectedStateAttribute = `data-${definition.state}`
+        const stateAttributes = attributes.filter((attribute) => ['data-selected', 'data-active'].includes(attribute.name.name))
+        const materialAttribute = attributes.find((attribute) => attribute.name.name === 'data-selection-material')
+        const materialExpression = materialAttribute?.value
+          ? source.slice(materialAttribute.value.start, materialAttribute.value.end)
+          : ''
+        const ownsBoundary = attributes.some((attribute) => attribute.name.name === 'data-leading-boundary')
+        if (
+          stateAttributes.length !== 1
+          || stateAttributes[0].name.name !== expectedStateAttribute
+          || !materialAttribute
+          || !materialExpression.includes("'active'")
+          || !materialExpression.includes("'inactive'")
+          || (definition.boundaryMode === 'contiguous' && !ownsBoundary)
+        ) {
+          invalidContractedSelectionNodes.push(`${file}:${role}`)
+        }
       }
       if (!publishesMaterial) return
       const stateAttributes = attributes.filter((attribute) => ['data-selected', 'data-active'].includes(attribute.name.name))
@@ -1275,7 +1297,11 @@ record(
   unownedDataSelectedPublishers.length === 0,
   unownedDataSelectedPublishers.join(', ') || `tsx=${componentTsxFiles.length}`,
 )
-const contractedSelectionRoles = new Set(selectedControlContract.groups.map((group) => group.role))
+record(
+  'every_contracted_selection_node_publishes_its_exact_state_material_and_boundary',
+  invalidContractedSelectionNodes.length === 0,
+  invalidContractedSelectionNodes.join(', ') || `roles=${contractedSelectionRoles.size}`,
+)
 const publishedSelectionRoles = new Set(selectedMaterialPublishers.map((publisher) => publisher.role).filter(Boolean))
 const invalidSelectedMaterialPublishers = selectedMaterialPublishers.filter((publisher) => {
   const definition = selectedControlContract.groups.find((group) => group.role === publisher.role)

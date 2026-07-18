@@ -826,6 +826,7 @@ test('SimC regions scale inside the shell content viewport', () => {
   assert.match(audit, /largeHorizontalPositionEscapes/)
   assert.match(audit, /percentage_width_expansion_is_owned_by_an_explicit_production_asset_shell/)
   assert.match(audit, /every_data_selected_publisher_has_a_stable_contracted_material_owner/)
+  assert.match(audit, /every_contracted_selection_node_publishes_its_exact_state_material_and_boundary/)
   assert.match(audit, /anchored_route_regions_close_both_layout_axes/)
   assert.match(audit, /partiallyAnchoredRouteRegions/)
   assert.match(audit, /fixed_route_stage_regions_bind_existing_layout_classes/)
