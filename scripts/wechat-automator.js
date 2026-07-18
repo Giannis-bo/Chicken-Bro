@@ -7,6 +7,7 @@ const automator = require('miniprogram-automator')
 const explicitConnectTimeoutMs = 30000
 const reuseConnectTimeoutMs = 2000
 const renderedPageTimeoutMs = 30000
+const systemInfoTimeoutMs = 30000
 
 function timeout(promise, milliseconds, label) {
   let timer
@@ -34,6 +35,23 @@ async function waitForRenderedPage(page, label = `render ${page.path}`) {
   }
   const detail = lastError instanceof Error ? `; last error: ${lastError.message}` : ''
   throw new Error(`${label} timed out after ${renderedPageTimeoutMs}ms${detail}`)
+}
+
+async function waitForSystemInfo(miniProgram, label = 'read WeChat system info') {
+  const deadline = Date.now() + systemInfoTimeoutMs
+  let lastError = null
+  while (Date.now() < deadline) {
+    try {
+      const info = await timeout(miniProgram.systemInfo(), 5000, label)
+      if (Number(info?.windowWidth) > 0 && Number(info?.windowHeight) > 0) return info
+      lastError = new Error('system info did not include a positive window size')
+    } catch (error) {
+      lastError = error
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250))
+  }
+  const detail = lastError instanceof Error ? `; last error: ${lastError.message}` : ''
+  throw new Error(`${label} timed out after ${systemInfoTimeoutMs}ms${detail}`)
 }
 
 async function readSemanticValue(element, attribute, label = attribute) {
@@ -92,4 +110,11 @@ function portIsListening(port) {
   })
 }
 
-module.exports = { connectMiniProgram, hasRenderedRoot, readSemanticValue, timeout, waitForRenderedPage }
+module.exports = {
+  connectMiniProgram,
+  hasRenderedRoot,
+  readSemanticValue,
+  timeout,
+  waitForRenderedPage,
+  waitForSystemInfo,
+}

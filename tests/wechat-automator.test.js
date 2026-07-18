@@ -6,6 +6,7 @@ const test = require('node:test')
 const {
   hasRenderedRoot,
   readSemanticValue,
+  waitForSystemInfo,
 } = require('../scripts/wechat-automator')
 
 test('hasRenderedRoot rejects the transient empty Taro root', () => {
@@ -28,4 +29,21 @@ test('readSemanticValue falls back to the WeChat selector marker class', async (
   }
   assert.equal(await readSemanticValue(element, 'material-owner'), 'css')
   assert.equal(await readSemanticValue(element, 'data-leading-boundary'), 'active')
+})
+
+test('waitForSystemInfo tolerates the build handoff before the WeChat runtime responds', async () => {
+  let calls = 0
+  const miniProgram = {
+    systemInfo: async () => {
+      calls += 1
+      if (calls === 1) throw new Error('runtime compiling')
+      return { windowWidth: 390, windowHeight: 844, pixelRatio: 3 }
+    },
+  }
+  assert.deepEqual(await waitForSystemInfo(miniProgram), {
+    windowWidth: 390,
+    windowHeight: 844,
+    pixelRatio: 3,
+  })
+  assert.equal(calls, 2)
 })

@@ -7,7 +7,7 @@ const os = require('node:os')
 const path = require('node:path')
 const { execFileSync } = require('node:child_process')
 
-const { connectMiniProgram, timeout, waitForRenderedPage } = require('./wechat-automator')
+const { connectMiniProgram, timeout, waitForRenderedPage, waitForSystemInfo } = require('./wechat-automator')
 const { readBoundedFile } = require('./bounded-file')
 const { readBoundedJson, writeBoundedJsonAtomic } = require('./bounded-json-detail')
 const { normalizeSystemViewport } = require('./wechat-viewport')
@@ -122,7 +122,7 @@ async function main() {
   let miniProgram
   try {
     miniProgram = await connectMiniProgram()
-    const system = await timeout(miniProgram.systemInfo(), 4000, 'read WeChat system info')
+    const system = await waitForSystemInfo(miniProgram)
     const menuButton = await timeout(
       miniProgram.evaluate(() => wx.getMenuButtonBoundingClientRect()),
       4000,

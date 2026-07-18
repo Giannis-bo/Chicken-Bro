@@ -227,7 +227,6 @@ const minimumGenericContentBoxWidth = 286
 const fixedWidthLayoutEscapes = routedUiStyleFiles.flatMap((file) => (
   [...read(file).matchAll(/([^{}]+)\{([^{}]*)\}/gu)].flatMap((match) => {
     const selector = match[1].trim().replace(/\s+/gu, ' ')
-    if (/:global\(#app\) \.\w*shell|:global\(#app\) \.inputDock/iu.test(selector)) return []
     return [...match[2].matchAll(/(?:^|;)\s*(?<property>width|min-width):\s*(?<value>[\d.]+)px\s*;/giu)].flatMap((size) => (
       Number(size.groups.value) > minimumGenericContentBoxWidth
         && !(
@@ -245,6 +244,23 @@ record(
   'fixed_wrapper_widths_fit_narrow_content_boxes',
   fixedWidthLayoutEscapes.length === 0,
   fixedWidthLayoutEscapes.join(', ') || `max=${minimumGenericContentBoxWidth}px`,
+)
+const componentAppIdSelectors = routedUiStyleFiles
+  .filter((file) => read(file).includes(':global(#app)'))
+record(
+  'wechat_component_styles_do_not_emit_app_id_selectors',
+  componentAppIdSelectors.length === 0,
+  componentAppIdSelectors.join(', ') || 'no :global(#app) selectors',
+)
+const newsListRouteSource = read('apps/mini-taro/src/pages/news/list.tsx')
+const newsListComponentSource = read('packages/design-system/src/components/NewsListComponents.tsx')
+record(
+  'news_list_result_geometry_is_owned_by_the_shared_component',
+  /<NewsListResultsRegion[\s\S]*rowCount=\{resultRowCount\}/u.test(newsListRouteSource)
+    && !/style=\{\{\s*height:/u.test(newsListRouteSource)
+    && /const NEWS_LIST_RESULT_ROW_HEIGHT_PX = 70\.64/u.test(newsListComponentSource)
+    && /data-owner="news-list-results-region"/u.test(newsListComponentSource),
+  'news list route must delegate dynamic result height to NewsListResultsRegion',
 )
 const negativeHorizontalWrapperMargins = routedUiStyleFiles.flatMap((file) => (
   [...read(file).matchAll(/([^{}]+)\{([^{}]*)\}/gu)].flatMap((match) => (
@@ -679,7 +695,12 @@ const invalidRequiredRegionContracts = (routeGeometryContract.routes ?? []).flat
   const sourcePath = `apps/mini-taro/src/${route.path.split('?')[0].replace(/^\//u, '')}.tsx`
   const sourceExists = fs.existsSync(path.join(root, sourcePath))
   const source = sourceExists ? read(sourcePath) : ''
-  const published = sourceExists ? publishedRouteRegionIds(source) : []
+  const sharedPublished = route.route === 'news_list'
+    && source.includes('<NewsListResultsRegion')
+    && read('packages/design-system/src/components/NewsListComponents.tsx').includes('data-region="news_results"')
+    ? ['news_results']
+    : []
+  const published = sourceExists ? [...publishedRouteRegionIds(source), ...sharedPublished] : []
   const missing = required.filter((regionId) => !published.includes(regionId))
   const unexpected = published.filter((regionId) => !required.includes(regionId))
   const duplicateCount = required.length - new Set(required).size + published.length - new Set(published).size
@@ -2127,7 +2148,9 @@ const newsListRoute = read('apps/mini-taro/src/pages/news/list.tsx')
 const newsListComponents = read('packages/design-system/src/components/NewsListComponents.tsx')
 record(
   'news_list_sparse_truth_does_not_reserve_empty_target_lanes',
-  /const listHeight = listRowCount \* 70\.64/u.test(newsListRoute)
+  /const resultRowCount = model\.initialLoading/u.test(newsListRoute)
+    && /rowCount=\{resultRowCount\}/u.test(newsListRoute)
+    && /height: `\$\{Math\.max\(1, rowCount\) \* NEWS_LIST_RESULT_ROW_HEIGHT_PX\}px`/u.test(newsListComponents)
     && /Math\.max\(rows\.length, loading \? loadingRows : 0, 1\)/u.test(newsListComponents),
   'completed news feeds must size lanes from returned truth rather than the six-row loading target',
 )

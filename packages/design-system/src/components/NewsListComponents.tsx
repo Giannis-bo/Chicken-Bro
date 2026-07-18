@@ -1,5 +1,5 @@
 import { Text, View } from '@tarojs/components'
-import type { CSSProperties } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 
 import type { ReadinessState } from '@wow-mini/domain'
 
@@ -8,6 +8,7 @@ import { ActionButton } from './ActionButton'
 import { ProductionAssetImage } from './ProductionAsset'
 import { ForgedPanel } from './ReconstructionPrimitives'
 import { StatusVisual } from './StatusVisual'
+import { RouteRegion } from './RouteFlow'
 import { SystemGlyph } from './SystemGlyph'
 import { reconstructionClass, reconstructionStyle } from './reconstruction-style'
 
@@ -143,6 +144,34 @@ export interface NewsListFeedProps {
   loading?: boolean
   loadingRows?: number
   onSelect: (item: NewsListFeedItem) => void
+}
+
+const NEWS_LIST_RESULT_ROW_HEIGHT_PX = 70.64
+
+export interface NewsListResultsRegionProps {
+  children: ReactNode
+  className?: string | undefined
+  rowCount: number
+}
+
+export function NewsListResultsRegion({
+  children,
+  className,
+  rowCount,
+}: NewsListResultsRegionProps) {
+  const style = {
+    height: `${Math.max(1, rowCount) * NEWS_LIST_RESULT_ROW_HEIGHT_PX}px`,
+  }
+  return (
+    <RouteRegion
+      className={className}
+      data-owner="news-list-results-region"
+      data-region="news_results"
+      style={style}
+    >
+      {children}
+    </RouteRegion>
+  )
 }
 
 export function NewsListFeed({

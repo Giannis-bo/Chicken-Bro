@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict'
 
-const { connectMiniProgram, readSemanticValue, timeout, waitForRenderedPage } = require('./wechat-automator')
+const { connectMiniProgram, readSemanticValue, timeout, waitForRenderedPage, waitForSystemInfo } = require('./wechat-automator')
 const crypto = require('node:crypto')
 const { execFileSync } = require('node:child_process')
 const fs = require('node:fs')
@@ -139,7 +139,7 @@ async function main() {
   let system
   try {
     miniProgram = await connectMiniProgram()
-    system = await timeout(miniProgram.systemInfo(), 4000, 'read system info')
+    system = await waitForSystemInfo(miniProgram, 'read system info')
     for (const route of routes) {
       const page = await open(miniProgram, route)
       for (const group of groups.filter((group) => group.route === route.route)) results.push(await inspectGroup(page, group))

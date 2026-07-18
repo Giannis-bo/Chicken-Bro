@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict'
 
-const { connectMiniProgram, timeout, waitForRenderedPage } = require('./wechat-automator')
+const { connectMiniProgram, timeout, waitForRenderedPage, waitForSystemInfo } = require('./wechat-automator')
 const crypto = require('node:crypto')
 const fs = require('node:fs')
 const path = require('node:path')
@@ -327,7 +327,7 @@ async function main() {
   let miniProgram
   try {
     miniProgram = await connectMiniProgram()
-    const system = await timeout(miniProgram.systemInfo(), 4000, 'read system info')
+    const system = await waitForSystemInfo(miniProgram, 'read system info')
     const menuButton = await timeout(
       miniProgram.evaluate(() => wx.getMenuButtonBoundingClientRect()),
       4000,

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict'
 
-const { connectMiniProgram, timeout, waitForRenderedPage } = require('./wechat-automator')
+const { connectMiniProgram, timeout, waitForRenderedPage, waitForSystemInfo } = require('./wechat-automator')
 const { requireOnlineRouteBatch } = require('./online-route-batch')
 
 const operationTimeoutMs = 8000
@@ -144,7 +144,7 @@ async function main() {
   let miniProgram
   try {
     miniProgram = await connectMiniProgram()
-    const systemInfo = await timeout(miniProgram.systemInfo(), operationTimeoutMs, 'systemInfo')
+    const systemInfo = await waitForSystemInfo(miniProgram, 'systemInfo')
     const baselines = []
     for (const baseline of requestedBaselines) {
       baselines.push({ ...baseline, ...await measure(miniProgram, baseline) })

@@ -4,7 +4,7 @@
 const fs = require('node:fs')
 const path = require('node:path')
 const { execFileSync } = require('node:child_process')
-const { connectMiniProgram, readSemanticValue, timeout, waitForRenderedPage } = require('./wechat-automator')
+const { connectMiniProgram, readSemanticValue, timeout, waitForRenderedPage, waitForSystemInfo } = require('./wechat-automator')
 const { requireOnlineRouteBatch } = require('./online-route-batch')
 const { writeBoundedJsonAtomic } = require('./bounded-json-detail')
 const contract = require('../docs/design/current-ui/runtime-asset-slot-mapping-contract.json')
@@ -88,7 +88,7 @@ async function main() {
   let miniProgram
   try {
     miniProgram = await connectMiniProgram()
-    const system = await timeout(miniProgram.systemInfo(), 4000, 'read system info')
+    const system = await waitForSystemInfo(miniProgram, 'read system info')
     const viewport = { width: system.windowWidth, height: system.windowHeight, dpr: system.pixelRatio }
     const results = []
     for (const route of routes) results.push(await inspect(miniProgram, route))
