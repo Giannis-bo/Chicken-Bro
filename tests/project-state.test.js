@@ -681,6 +681,9 @@ test('raster runtime assets are byte and hash verified without image payloads', 
   assert.match(verifier, /failures\.slice\(0, 10\)/)
   assert.doesNotMatch(verifier, /sharp|canvas|screenshot|connectMiniProgram/i)
   assert.equal((projectVerifier.match(/commandSpec\('raster asset integrity'/g) ?? []).length, 2)
+  assert.equal((projectVerifier.match(/commandSpec\('UI package mechanics'/g) ?? []).length, 2)
+  assert.equal((projectVerifier.match(/commandSpec\('taro architecture audit'/g) ?? []).length, 2)
+  assert.equal((projectVerifier.match(/commandSpec\('taro lint'/g) ?? []).length, 2)
 })
 
 test('UI package evidence cannot treat a placeholder remote asset origin as release-ready', () => {
