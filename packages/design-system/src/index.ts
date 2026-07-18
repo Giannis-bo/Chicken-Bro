@@ -2,9 +2,13 @@ export { designTokens } from './tokens'
 export type { DesignTokens } from './tokens'
 
 export {
+  configureRuntimeMediaRoot,
   configureTrustedMediaHosts,
+  currentRuntimeMediaRoot,
   currentTrustedMediaHosts,
   isTrustedRuntimeMediaUrl,
+  resolveRuntimeMediaUrl,
+  resetRuntimeMediaRoot,
   resetTrustedMediaHosts,
 } from './runtime-media'
 export { runtimeSafeAreaStyle, safeAreaMetricsFromWindowInfo } from './runtime-safe-area'

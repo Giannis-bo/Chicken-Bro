@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 
 import { assetPromotionStatus, assetRuntimePath, type AssetSlotId, type ProductionAssetId } from '@wow-mini/assets-manifest'
 
-import { isTrustedRuntimeMediaUrl } from '../runtime-media'
+import { resolveRuntimeMediaUrl } from '../runtime-media'
 import { SystemGlyph } from './SystemGlyph'
 import { dataSelectorClass } from './selector-markers'
 import { ownerClass, ownerStyle } from './style'
@@ -50,14 +50,15 @@ export function MaterialImage({
 }: MaterialImageProps) {
   const [loadFailed, setLoadFailed] = useState(false)
 
+  const resolvedSource = sourceTrust === 'verified_media'
+    ? resolveRuntimeMediaUrl(source)
+    : source ?? ''
+
   useEffect(() => {
     setLoadFailed(false)
-  }, [source])
+  }, [resolvedSource])
 
-  const trustedSource = sourceTrust === 'verified_media'
-    ? isTrustedRuntimeMediaUrl(source)
-    : Boolean(source)
-  const canRender = trustedSource
+  const canRender = Boolean(resolvedSource)
     && sourceTrust !== 'design_only'
     && sourceTrust !== 'placeholder'
     && !loadFailed
@@ -89,7 +90,7 @@ export function MaterialImage({
         <Image
           className={ownerStyle('materialImage')}
           mode={mode}
-          src={source ?? ''}
+          src={resolvedSource}
           onError={() => setLoadFailed(true)}
         />
       ) : null}

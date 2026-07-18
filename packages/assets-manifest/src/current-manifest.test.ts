@@ -141,7 +141,7 @@ describe('current asset authority', () => {
 
   it('fails closed for unregistered ids', () => {
     expect(assetRuntimePath('not-registered')).toBeNull()
-    expect(assetRuntimePath('product-tab-news-icon.default')).toBe('/assets/ui-v2/vector/product-tab-news-icon/default.svg')
+    expect(assetRuntimePath('product-tab-news-icon.default')).toBe('/assets/ui-v2/vector-runtime/product-tab-news-icon/default.png')
   })
 
   it('supports an explicit HTTPS runtime root without corrupting the URL', () => {
@@ -150,8 +150,12 @@ describe('current asset authority', () => {
     expect(assetRuntimePath('news-frame.panel')).toBe(
       'https://cdn.example.com/wow-assets/releases/2026-07-18-ui-v2/raster/news-home-v1/runtime/2x/frames/news-frame.panel.png',
     )
-    expect([...productionAssets, ...candidateAssets].every((asset) => (
+    expect([...productionAssets, ...candidateAssets].filter((asset) => asset.sourceClass !== 'system_vector').every((asset) => (
       assetRuntimePath(asset.assetId)?.startsWith('https://cdn.example.com/wow-assets/releases/2026-07-18-ui-v2/')
+    ))).toBe(true)
+    expect([...productionAssets, ...candidateAssets].filter((asset) => asset.sourceClass === 'system_vector').every((asset) => (
+      assetRuntimePath(asset.assetId)?.startsWith('/assets/ui-v2/vector-runtime/')
+        && assetRuntimePath(asset.assetId)?.endsWith('.png')
     ))).toBe(true)
     expect(() => configureAssetRuntimeRoot('http://cdn.example.com/wow-assets')).toThrow('must use HTTPS')
     expect(() => configureAssetRuntimeRoot('https://')).toThrow('immutable')

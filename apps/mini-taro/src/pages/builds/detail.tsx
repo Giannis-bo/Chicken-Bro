@@ -186,7 +186,7 @@ export default function GearDetailPage() {
     const request = { classKey: selection.classKey, specKey: selection.specKey }
     const [detailResult, gearResult, importResult, templateResult] = await Promise.all([
       wowApi.builds.detail(selection.specId),
-      wowApi.websim.gear({ ...request, compact: true }),
+      wowApi.websim.gear({ ...request, compact: true, mode: 'initial' }),
       wowApi.websim.talentImport(request),
       wowApi.templates.fetch('gear'),
     ])

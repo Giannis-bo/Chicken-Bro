@@ -57,6 +57,14 @@ function toRuntimeRelativePath(filePath: string): string {
   return filePath.slice(marker.length)
 }
 
+function toVectorRuntimeRelativePath(filePath: string): string {
+  const relative = toRuntimeRelativePath(filePath)
+  if (!relative.startsWith('vector/') || !relative.endsWith('.svg')) {
+    throw new Error(`System vector is outside the registered SVG root: ${filePath}`)
+  }
+  return relative.replace(/^vector\//u, 'vector-runtime/').replace(/\.svg$/u, '.png')
+}
+
 const rawCandidateAssets = vectorManifest.assets
 const rawCandidateSlots = vectorManifest.slots
 
@@ -250,7 +258,14 @@ export function currentAssetRuntimeRoot(): string {
 export function assetRuntimePath(assetId: ProductionAssetId): string | null {
   const asset = productionAssets.find((candidate) => candidate.assetId === assetId)
     ?? candidateAssets.find((candidate) => candidate.assetId === assetId)
-  return asset ? `${configuredRuntimeAssetRoot}/${toRuntimeRelativePath(asset.filePath)}` : null
+  if (!asset) return null
+  const runtimeRoot = asset.sourceClass === 'system_vector'
+    ? defaultRuntimeAssetRoot
+    : configuredRuntimeAssetRoot
+  const relativePath = asset.sourceClass === 'system_vector'
+    ? toVectorRuntimeRelativePath(asset.filePath)
+    : toRuntimeRelativePath(asset.filePath)
+  return `${runtimeRoot}/${relativePath}`
 }
 
 export function assetPromotionStatus(assetId: ProductionAssetId): AssetPromotionStatus {

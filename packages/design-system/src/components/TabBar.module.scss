@@ -132,7 +132,7 @@
   white-space: nowrap;
 }
 
-.selected .label {
+.item[data-selected='true'] .label {
   color: #e4bb65;
   font-weight: 650;
   text-shadow: 0 1px 5px rgba(213, 157, 55, 0.26);

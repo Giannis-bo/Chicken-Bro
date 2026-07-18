@@ -1,12 +1,12 @@
 import { Image, Picker, ScrollView, Text, View } from '@tarojs/components'
 
 import { ControlButton } from './ControlButton'
-import { useEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
 
-import { isTrustedRuntimeMediaUrl } from '../runtime-media'
+import { resolveRuntimeMediaUrl } from '../runtime-media'
 import { styleSelectorClass } from './selector-markers'
 import { SystemGlyph } from './SystemGlyph'
+import { useTrustedMediaLoadState } from './useTrustedMediaLoadState'
 import styles from './TalentSimulatorComponents.module.scss'
 
 function componentStyle(name: string): string {
@@ -38,16 +38,9 @@ function TrustedTalentMedia({
   dataRole,
   frameVariant = 'plain',
 }: TrustedTalentMediaProps) {
-  const trustedUrl = isTrustedRuntimeMediaUrl(iconUrl) ? iconUrl ?? '' : ''
-  const [loaded, setLoaded] = useState(false)
-  const [failed, setFailed] = useState(false)
-
-  useEffect(() => {
-    setLoaded(false)
-    setFailed(false)
-  }, [trustedUrl])
-
-  const visible = Boolean(trustedUrl) && loaded && !failed
+  const trustedUrl = resolveRuntimeMediaUrl(iconUrl)
+  const mediaLoadState = useTrustedMediaLoadState(trustedUrl)
+  const visible = mediaLoadState.visible
   return (
     <View
       className={componentClass(
@@ -77,8 +70,8 @@ function TrustedTalentMedia({
             data-loaded={visible ? 'true' : 'false'}
             mode="aspectFill"
             src={trustedUrl}
-            onError={() => setFailed(true)}
-            onLoad={() => setLoaded(true)}
+            onError={mediaLoadState.onError}
+            onLoad={mediaLoadState.onLoad}
           />
         ) : null}
       </View>

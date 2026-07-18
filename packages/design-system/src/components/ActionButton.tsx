@@ -1,5 +1,5 @@
-import { Text, View } from '@tarojs/components'
-import type { CSSProperties, ReactNode } from 'react'
+import { Image, Text, View } from '@tarojs/components'
+import type { ReactNode } from 'react'
 
 import { assetRuntimePath, type ProductionAssetId } from '@wow-mini/assets-manifest'
 
@@ -54,10 +54,6 @@ export function ActionButton({
   dataState,
   onClick,
 }: ActionButtonProps) {
-  const iconStyle = iconPath
-    ? ({ '--icon-url': `url(${iconPath})` } as CSSProperties)
-    : undefined
-
   const iconOnly = children === null || children === undefined
   const content = typeof children === 'string' || typeof children === 'number'
     ? <Text>{children}</Text>
@@ -100,10 +96,11 @@ export function ActionButton({
         />
       ) : null}
       {iconPath ? (
-        <View
+        <Image
           className={ownerClass(ownerStyle('buttonIcon'), iconDirection === 'back' && ownerStyle('buttonIconBack'))}
+          mode="aspectFit"
+          src={iconPath}
           {...(iconSlotId ? { 'data-slot-id': iconSlotId } : {})}
-          style={iconStyle ?? {}}
         />
       ) : null}
       {iconOnly ? null : content}

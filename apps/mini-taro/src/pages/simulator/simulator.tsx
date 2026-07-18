@@ -14,6 +14,7 @@ import {
 } from '@wow-mini/design-system/components/SimulatorHomeComponents'
 import type { ChatMessage } from '@wow-mini/domain'
 
+import { useTabRootIdentity } from '../../use-tab-root-identity'
 import {
   initialSimulatorHomeMessages,
   simulatorAssistantStatus,
@@ -33,6 +34,7 @@ function updateMessageStatus(
 }
 
 export default function SimulatorHomePage() {
+  useTabRootIdentity('pages/simulator/simulator')
   const [messages, setMessages] = useState<readonly ChatMessage[]>(initialSimulatorHomeMessages)
   const [draft, setDraft] = useState('')
   const [sessionId, setSessionId] = useState('')

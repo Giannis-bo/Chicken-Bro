@@ -43,3 +43,15 @@ export function isTabRoute(path: string): boolean {
   const normalized = normalizeTabRoute(path)
   return tabBarItems.some((item) => item.pagePath === normalized)
 }
+
+export function resolveActiveTabRoute(
+  candidates: readonly (string | null | undefined)[],
+  fallback = tabBarItems[0]?.pagePath ?? 'pages/news/news',
+): string {
+  for (const candidate of candidates) {
+    if (!candidate) continue
+    const normalized = normalizeTabRoute(candidate)
+    if (isTabRoute(normalized)) return normalized
+  }
+  return normalizeTabRoute(fallback)
+}

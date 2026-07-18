@@ -20,10 +20,12 @@ import {
 } from '@wow-mini/design-system/components/RankedFeed'
 
 import { navigateTo, useAsyncRoute } from '../_shared/route-runtime'
+import { useTabRootIdentity } from '../../use-tab-root-identity'
 import { buildNewsHomeModel } from './news-home-model'
 import styles from './news-home.module.scss'
 
 export default function NewsHomePage() {
+  useTabRootIdentity('pages/news/news')
   const route = useAsyncRoute(
     () => wowApi.news.home('manual'),
     { fallbackPolicy: 'stale' },

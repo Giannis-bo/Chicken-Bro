@@ -21,6 +21,8 @@ ssh wow-lighthouse
 
 新机器首次连接前，在云厂商控制台核对 host key，再写入 `known_hosts`。不要关闭 `StrictHostKeyChecking`。
 
+部署脚本会显式读取 `WOW_LIGHTHOUSE_KNOWN_HOSTS`（默认 `$HOME/.ssh/known_hosts`），不继承用户 SSH 配置中的 `UserKnownHostsFile` 覆盖。当前实例 ED25519 指纹固定为 `SHA256:qKAZEsRSoaAWDhWj1OSGogjMKRzYLy/vPWirfagkdXs`；指纹变化时必须回到腾讯云控制台核对，不能直接替换。
+
 ## Runtime 边界
 
 - 服务环境必须使用 `WOW_DATABASE_RUNTIME=postgres_only`。
@@ -70,6 +72,16 @@ HTTP 200 只证明请求可达；还要检查 `status`、`blockers`、`checkedAt
 
 ```bash
 WOW_DEPLOY_SKIP_BOOTSTRAP=1 ./server/deploy_lighthouse.sh
+```
+
+本机使用非默认私钥时显式传入路径：
+
+```bash
+WOW_LIGHTHOUSE_KEY="$HOME/.ssh/ShamisenM4Max4TB64GB.pem" \
+WOW_LIGHTHOUSE_KNOWN_HOSTS="$HOME/.ssh/known_hosts" \
+WOW_DEPLOY_SKIP_BOOTSTRAP=1 \
+WOW_DEPLOY_START_ASYNC_SYNCS=0 \
+./server/deploy_lighthouse.sh
 ```
 
 部署前：

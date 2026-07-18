@@ -12710,6 +12710,8 @@ class Handler(BaseHTTPRequestHandler):
             class_key = query.get("class", query.get("classKey", ["mage"]))[0]
             spec_key = query.get("spec", query.get("specKey", ["arcane"]))[0]
             mode = query.get("mode", [""])[0]
+            if platform == "miniprogram" and not str(mode or "").strip():
+                mode = "initial"
             slot = query.get("slot", [""])[0]
 
             def build_payload():

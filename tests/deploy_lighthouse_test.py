@@ -35,6 +35,7 @@ class DeployLighthouseScriptTest(unittest.TestCase):
         script = Path("server/deploy_lighthouse.sh").read_text(encoding="utf-8")
 
         self.assertIn("reject_path_traversal REMOTE_DIR", script)
+        self.assertIn("reject_path_traversal SSH_KNOWN_HOSTS_FILE", script)
         self.assertIn("reject_path_traversal CODEX_JOBS_DIR", script)
         self.assertIn("reject_path_traversal CODEX_HOME_DIR", script)
 

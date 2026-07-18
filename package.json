@@ -17,7 +17,7 @@
     "audit:taro-domain": "node scripts/audit-taro-request-domain.js",
     "audit:taro-domain:probe": "node scripts/audit-taro-request-domain.js --probe",
     "build:weapp": "npm --workspace @wow-mini/mini-taro run build:weapp",
-    "build:weapp:release": "NODE_ENV=production WOW_TARO_ISOLATED_BUILD=1 WOW_ASSET_RUNTIME_ROOT=https://static.chickenbro.cloud/wow-assets/releases/2026-07-18-ui-v2 WOW_BACKEND_API_BASE_URL=https://api.chickenbro.cloud WOW_WECHAT_REQUEST_DOMAIN_APPROVED=yes npm run build:weapp",
+    "build:weapp:release": "NODE_ENV=production WOW_TARO_ISOLATED_BUILD=1 WOW_ASSET_RUNTIME_ROOT=https://static.chickenbro.cloud/wow-assets/releases/2026-07-18-ui-v2 WOW_RUNTIME_MEDIA_ROOT=https://static.chickenbro.cloud/wow-media/releases/2026-07-19-wow-icons-v1 WOW_BACKEND_API_BASE_URL=https://api.chickenbro.cloud WOW_WECHAT_REQUEST_DOMAIN_APPROVED=yes npm run build:weapp",
     "dev:weapp": "npm --workspace @wow-mini/mini-taro run dev:weapp",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint apps packages vitest.config.ts --max-warnings=0",
@@ -36,9 +36,13 @@
     "verify:ui-package": "node scripts/verify-ui-package.js",
     "verify:ui-package:release": "node scripts/verify-ui-package.js --require-production-ready",
     "verify:ui-asset-integrity": "node scripts/verify-ui-asset-integrity.js",
+    "generate:weapp-vector-runtime": "node scripts/generate-weapp-vector-runtime.js",
     "prepare:ui-cdn": "node scripts/publish-ui-cdn-assets.js prepare",
     "publish:ui-cdn": "node scripts/publish-ui-cdn-assets.js publish",
-    "verify:ui-cdn": "node scripts/publish-ui-cdn-assets.js verify"
+    "verify:ui-cdn": "node scripts/publish-ui-cdn-assets.js verify",
+    "prepare:runtime-media": "node scripts/publish-runtime-media.js prepare",
+    "publish:runtime-media": "node scripts/publish-runtime-media.js publish",
+    "verify:runtime-media": "node scripts/publish-runtime-media.js verify"
   },
   "devDependencies": {
     "@babel/parser": "7.29.7",

@@ -1,16 +1,16 @@
 import { Image, Text, View } from '@tarojs/components'
 
 import { ControlButton } from './ControlButton'
-import { useEffect, useState } from 'react'
 
 import type { ReadinessState } from '@wow-mini/domain'
 
-import { isTrustedRuntimeMediaUrl } from '../runtime-media'
+import { resolveRuntimeMediaUrl } from '../runtime-media'
 import { ProductionAssetImage } from './ProductionAsset'
 import { ProductionAssetGlyph } from './ProductionAssetGlyph'
 import { ForgedPanel } from './ReconstructionPrimitives'
 import { SystemGlyph } from './SystemGlyph'
 import { styleSelectorClass } from './selector-markers'
+import { useTrustedMediaLoadState } from './useTrustedMediaLoadState'
 import styles from './BuildsHomeComponents.module.scss'
 
 export interface BuildSpecializationIdentity {
@@ -73,18 +73,10 @@ export function BuildSpecializationOverview({
 }: BuildSpecializationOverviewProps) {
   const effectiveState: ReadinessState = loading ? 'loading' : state
   const trustedIconUrl = identityIsSourceReferenced(identity)
-    && isTrustedRuntimeMediaUrl(identity?.iconUrl)
-    ? identity.iconUrl
+    ? resolveRuntimeMediaUrl(identity?.iconUrl)
     : ''
-  const [iconFailed, setIconFailed] = useState(false)
-  const [iconLoaded, setIconLoaded] = useState(false)
-
-  useEffect(() => {
-    setIconFailed(false)
-    setIconLoaded(false)
-  }, [trustedIconUrl])
-
-  const showSourceIcon = Boolean(trustedIconUrl) && iconLoaded && !iconFailed && !loading
+  const iconLoadState = useTrustedMediaLoadState(trustedIconUrl)
+  const showSourceIcon = iconLoadState.visible && !loading
   const interactionDisabled = loading
     || state === 'empty'
     || state === 'error'
@@ -146,11 +138,8 @@ export function BuildSpecializationOverview({
                   data-slot="asset_slot.builds-specialization-object"
                   mode="aspectFill"
                   src={trustedIconUrl}
-                  onError={() => {
-                    setIconFailed(true)
-                    setIconLoaded(false)
-                  }}
-                  onLoad={() => setIconLoaded(true)}
+                  onError={iconLoadState.onError}
+                  onLoad={iconLoadState.onLoad}
                 />
                 <View
                   className={buildClass(

@@ -1,5 +1,4 @@
-import { View } from '@tarojs/components'
-import type { CSSProperties } from 'react'
+import { Image, View } from '@tarojs/components'
 
 import { assetPromotionStatus, assetRuntimePath, type ProductionAssetId } from '@wow-mini/assets-manifest'
 
@@ -16,19 +15,31 @@ interface SystemGlyphProps {
 export function SystemGlyph({ assetId, slotId, className, dataRole }: SystemGlyphProps) {
   const runtimePath = assetRuntimePath(assetId)
   const promotionStatus = assetPromotionStatus(assetId)
-  const style = runtimePath
-    ? ({ '--system-glyph-url': `url(${runtimePath})` } as CSSProperties)
-    : undefined
+  const resolvedClassName = ownerClass(ownerStyle('systemGlyph'), dataSelectorClass('asset-id', assetId), className)
+
+  if (!runtimePath) {
+    return (
+      <View
+        className={resolvedClassName}
+        data-asset-id={assetId}
+        data-asset-missing="true"
+        data-promotion-status={promotionStatus}
+        data-role={dataRole}
+        data-slot-id={slotId}
+      />
+    )
+  }
 
   return (
-    <View
-      className={ownerClass(ownerStyle('systemGlyph'), dataSelectorClass('asset-id', assetId), className)}
+    <Image
+      className={resolvedClassName}
       data-asset-id={assetId}
-      data-asset-missing={runtimePath ? 'false' : 'true'}
+      data-asset-missing="false"
       data-promotion-status={promotionStatus}
       data-role={dataRole}
       data-slot-id={slotId}
-      {...(style ? { style } : {})}
+      mode="aspectFit"
+      src={runtimePath}
     />
   )
 }

@@ -1,14 +1,14 @@
 import { Image, Picker, ScrollView, Text, View } from '@tarojs/components'
 
 import { ControlButton } from './ControlButton'
-import { useEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
 
 import type { ProductionAssetId } from '@wow-mini/assets-manifest'
 
-import { isTrustedRuntimeMediaUrl } from '../runtime-media'
+import { resolveRuntimeMediaUrl } from '../runtime-media'
 import { styleSelectorClass } from './selector-markers'
 import { SystemGlyph } from './SystemGlyph'
+import { useTrustedMediaLoadState } from './useTrustedMediaLoadState'
 import styles from './GearDetailComponents.module.scss'
 
 function style(name: string): string {
@@ -36,15 +36,10 @@ function TrustedGearMedia({
   fallbackAssetId = 'quick-action-gear-glyph.default',
   dataRole,
 }: TrustedGearMediaProps) {
-  const trustedUrl = isTrustedRuntimeMediaUrl(iconUrl) ? iconUrl ?? '' : ''
-  const [loaded, setLoaded] = useState(false)
-  const [failed, setFailed] = useState(false)
-  useEffect(() => {
-    setLoaded(false)
-    setFailed(false)
-  }, [trustedUrl])
-  const visible = Boolean(trustedUrl && loaded && !failed)
-  const mediaState = !trustedUrl ? 'fallback' : failed ? 'failed' : loaded ? 'loaded' : 'loading'
+  const trustedUrl = resolveRuntimeMediaUrl(iconUrl)
+  const mediaLoadState = useTrustedMediaLoadState(trustedUrl)
+  const visible = mediaLoadState.visible
+  const mediaState = !trustedUrl ? 'fallback' : mediaLoadState.failed ? 'failed' : mediaLoadState.loaded ? 'loaded' : 'loading'
   return (
     <View
       className={classes(style('trustedMedia'), className)}
@@ -63,8 +58,8 @@ function TrustedGearMedia({
           data-loaded={visible ? 'true' : 'false'}
           mode="aspectFill"
           src={trustedUrl}
-          onError={() => setFailed(true)}
-          onLoad={() => setLoaded(true)}
+          onError={mediaLoadState.onError}
+          onLoad={mediaLoadState.onLoad}
         />
       ) : null}
     </View>

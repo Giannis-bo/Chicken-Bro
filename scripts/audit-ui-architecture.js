@@ -2640,6 +2640,16 @@ record(
   'PageFrame owner boundary',
 )
 record(
+  'page_frame_header_owns_shared_safe_area_sticky',
+  /stickyHeader\s*=\s*true/u.test(pageFrame)
+    && /\.shellBody\s*\{[^}]*padding-top:\s*0;/u.test(ownerStyles)
+    && /\.routeStage\s*\{[^}]*overflow:\s*visible;/u.test(ownerStyles)
+    && /\.pageFrameOwner\s*\{[^}]*display:\s*block;/u.test(ownerStyles)
+    && /\.pageFrameHeader\s*\{[^}]*height:\s*calc\(var\(--safe-top\) \+ 44px\);[^}]*padding:\s*var\(--safe-top\)/u.test(ownerStyles)
+    && /\.pageFrameHeaderSticky\s*\{[^}]*position:\s*sticky;[^}]*top:\s*0;/u.test(ownerStyles),
+  'all reviewed routes must keep one safe-area-owning shared header sticky above route content',
+)
+record(
   'four_primary_tabs_share_root_chrome_contract',
   ['news-home', 'builds-home', 'simulator-home', 'profile'].every((variant) => pageChrome.includes(`'${variant}'`))
     && ownerStyles.includes('.pageFrame-root .pageFrameHeader'),

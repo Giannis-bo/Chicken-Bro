@@ -1,4 +1,5 @@
 import { Image } from '@tarojs/components'
+import { useState } from 'react'
 
 import { assetPromotionStatus, assetRuntimePath, type AssetSlotId, type ProductionAssetId } from '@wow-mini/assets-manifest'
 
@@ -25,9 +26,10 @@ export function ProductionAssetGlyph({
   fit = 'contain',
 }: ProductionAssetGlyphProps) {
   const runtimePath = assetRuntimePath(assetId)
+  const [failedRuntimePath, setFailedRuntimePath] = useState('')
   const promotionStatus = assetPromotionStatus(assetId)
   const resolvedClassName = selectorClass(className, dataSelectorClass('asset-id', assetId))
-  if (!runtimePath) {
+  if (!runtimePath || failedRuntimePath === runtimePath) {
     return (
       <SystemGlyph
         assetId={fallbackAssetId}
@@ -48,6 +50,8 @@ export function ProductionAssetGlyph({
       data-slot-id={slotId}
       mode={fit === 'cover' ? 'aspectFill' : 'aspectFit'}
       src={runtimePath}
+      onError={() => setFailedRuntimePath(runtimePath)}
+      onLoad={() => setFailedRuntimePath((current) => current === runtimePath ? '' : current)}
       {...(dataRole ? { 'data-role': dataRole } : {})}
     />
   )

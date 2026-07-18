@@ -19,6 +19,7 @@ import { RouteGrid, RouteRegion } from '@wow-mini/design-system/components/Route
 
 import { flattenSpecs } from '../_shared/build-context'
 import { navigateTo, useAsyncRoute } from '../_shared/route-runtime'
+import { useTabRootIdentity } from '../../use-tab-root-identity'
 import { buildBuildsHomeModel, type BuildsHomeEvidenceId } from './builds-home-model'
 import styles from './builds-home.module.scss'
 
@@ -30,6 +31,7 @@ const evidenceRoutes: Readonly<Record<BuildsHomeEvidenceId, string>> = {
 }
 
 export default function BuildsHomePage() {
+  useTabRootIdentity('pages/builds/builds')
   const [selectedSpecId, setSelectedSpecId] = useState<string>()
   const route = useAsyncRoute(
     () => wowApi.builds.home(),

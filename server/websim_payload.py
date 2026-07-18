@@ -502,7 +502,7 @@ SPEC_ICON_NAMES = {
     "unholy": "spell_deathknight_unholypresence",
     "havoc": "ability_demonhunter_specdps",
     "vengeance": "ability_demonhunter_spectank",
-    "devourer": "ability_demonhunter_specdevourer",
+    "devourer": "classicon_demonhunter_void",
     "balance": "spell_nature_starfall",
     "feral": "ability_druid_catform",
     "guardian": "ability_racial_bearform",

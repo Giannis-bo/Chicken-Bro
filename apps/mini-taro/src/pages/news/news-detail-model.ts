@@ -105,11 +105,11 @@ function articleBodyBlocks(article: NewsArticle | undefined): readonly NewsBodyB
 
 function sourceUrlLabel(value: string): string {
   if (!value) return '来源链接不可用'
-  try {
-    return new URL(value).hostname || '来源链接可复制'
-  } catch {
-    return '来源链接可复制'
-  }
+  const match = /^https?:\/\/([^/?#\s]+)/iu.exec(value.trim())
+  if (!match) return '来源链接可复制'
+  const authority = match[1] ?? ''
+  const host = authority.replace(/^.*@/u, '').replace(/:\d+$/u, '')
+  return host || '来源链接可复制'
 }
 
 function heroState(
