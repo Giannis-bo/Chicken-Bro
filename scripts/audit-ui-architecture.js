@@ -2640,14 +2640,15 @@ record(
   'PageFrame owner boundary',
 )
 record(
-  'page_frame_header_owns_shared_safe_area_sticky',
+  'app_shell_owns_safe_area_and_page_frame_owns_sticky_header',
   /stickyHeader\s*=\s*true/u.test(pageFrame)
-    && /\.shellBody\s*\{[^}]*padding-top:\s*0;/u.test(ownerStyles)
+    && /\.shell::before\s*\{[^}]*z-index:\s*var\(--z-sticky\);/u.test(ownerStyles)
+    && /\.shellBody\s*\{[^}]*padding-top:\s*var\(--safe-top\);/u.test(ownerStyles)
     && /\.routeStage\s*\{[^}]*overflow:\s*visible;/u.test(ownerStyles)
     && /\.pageFrameOwner\s*\{[^}]*display:\s*block;/u.test(ownerStyles)
-    && /\.pageFrameHeader\s*\{[^}]*height:\s*calc\(var\(--safe-top\) \+ 44px\);[^}]*padding:\s*var\(--safe-top\)/u.test(ownerStyles)
-    && /\.pageFrameHeaderSticky\s*\{[^}]*position:\s*sticky;[^}]*top:\s*0;/u.test(ownerStyles),
-  'all reviewed routes must keep one safe-area-owning shared header sticky above route content',
+    && /\.pageFrameHeader\s*\{[^}]*height:\s*44px;[^}]*padding:\s*0 calc\(var\(--capsule-safe-right, 0px\) \+ 8px\)/u.test(ownerStyles)
+    && /\.pageFrameHeaderSticky\s*\{[^}]*position:\s*sticky;[^}]*top:\s*var\(--safe-top\);/u.test(ownerStyles),
+  'AppShell must reserve and mask the native top inset while PageFrame stays sticky below it',
 )
 record(
   'four_primary_tabs_share_root_chrome_contract',
