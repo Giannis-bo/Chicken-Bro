@@ -1362,6 +1362,18 @@ record(
   unboundedRuntimeReviewStdout.length === 0,
   unboundedRuntimeReviewStdout.map(({ file }) => file).join(', ') || `verifiers=${runtimeReviewVerifierSources.length}`,
 )
+const reviewIndexBuilder = read('scripts/build-ui-review-index.js')
+record(
+  'offline_review_index_is_bounded_image_free_and_cache_verified',
+  /inspectCapture\(capture, viewport\)/u.test(reviewIndexBuilder)
+    && /inspectTarget\(capture\.route\)/u.test(reviewIndexBuilder)
+    && /maxStructuredDetailBytes/u.test(reviewIndexBuilder)
+    && /UI review index requires at least one verified capture/u.test(reviewIndexBuilder)
+    && /pathToFileURL/u.test(reviewIndexBuilder)
+    && !/data:image\//u.test(reviewIndexBuilder)
+    && !/connectMiniProgram|WECHAT_AUTOMATOR_LAUNCH|miniProgram\.screenshot/u.test(reviewIndexBuilder),
+  'review material must reference bounded verified local PNGs without loading pixels, embedding payloads or connecting DevTools',
+)
 record(
   'shared_native_buttons_cannot_exceed_their_layout_cell',
   /\.nativeControl\s*\{[^}]*max-width:\s*100%;/su.test(read('packages/design-system/src/components/owners.module.scss')),

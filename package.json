@@ -11,6 +11,7 @@
   },
   "scripts": {
     "capture:ui-review-cache": "node scripts/capture-ui-review-cache.js",
+    "build:ui-review-index": "node scripts/build-ui-review-index.js",
     "promote:ui-review-cache": "node scripts/promote-ui-review-cache.js",
     "audit:ui-architecture": "node scripts/audit-ui-architecture.js",
     "audit:taro-domain": "node scripts/audit-taro-request-domain.js",
