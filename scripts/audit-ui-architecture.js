@@ -1230,6 +1230,13 @@ record(
   legacyAssistantParallelLayoutOwners.length === 0,
   [...new Set(legacyAssistantParallelLayoutOwners)].join(', ') || 'SimulatorHomeComponents/ChickenbroChatComponents',
 )
+const legacyProfileParallelLayoutOwners = [...reconstructionStyles.matchAll(/\.profile[A-Z][\w-]*/gu)]
+  .map((match) => match[0])
+record(
+  'profile_geometry_has_no_parallel_reconstruction_owner',
+  legacyProfileParallelLayoutOwners.length === 0,
+  [...new Set(legacyProfileParallelLayoutOwners)].join(', ') || 'ProfileIdentity/ProfileTemplatesComponents',
+)
 const selectedStateOwners = [
   ['packages/design-system/src/components/TabBar.tsx', 'product-tab-item'],
   ['packages/design-system/src/components/ChannelDock.tsx', 'news-list-category'],

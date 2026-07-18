@@ -97,6 +97,7 @@ Review 窗口同时覆盖共享组件、页面 JSX 中的非组件 wrapper、rou
 - Talent Simulator 的 selector、tabs、point budget、tree canvas/node、import/evidence、community row 与 action dock 唯一归 `TalentSimulatorComponents.module.scss`；共享 reconstruction 禁止恢复旧 324px 画布、46px 节点、83px import 和对应窄屏 override。
 - Tasks List/Detail 的 summary、sync、filters、record、empty/guidance、bottom action、result/context/exception 几何只归 `TaskListComponents.module.scss` 与 `TaskDetailComponents.module.scss`；共享 reconstruction 禁止 `.task*` 平行 owner，尤其禁止旧 48px action dock 和固定高度 detail panel 回流。
 - Simulator Home/Chickenbro 的 quick action、context、shortcut、evidence、composer、summary/answer/limitations 几何只归当前 SimulatorHome/ChickenbroChat 组件；共享 reconstruction 仅保留真实使用的 `chickenbroHeader*`，禁止旧 150px quick shell、64px composer 与 194px answer card 回流。
+- Profile 的 identity、template categories、recent records 与 evidence ledger 几何只归 `ProfileIdentity`/`ProfileTemplatesComponents` 当前 owner；共享 reconstruction 禁止旧 215/84/183/120px `.profile*` 固定面板回流。
 
 ## 微信验收与恢复链路
 
