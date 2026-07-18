@@ -7,7 +7,13 @@ import type {
   WebsimTalentsPayload,
 } from '@wow-mini/domain'
 
-import { createWebsimClient, normalizeTalentNode } from './websim'
+import {
+  createWebsimClient,
+  isTalentExportPayload,
+  isTalentImportPayload,
+  isTalentValidationPayload,
+  normalizeTalentNode,
+} from './websim'
 import type { ApiResult, ApiTransport, RequestOptions } from './transport'
 
 function responseTransport(response: unknown): ApiTransport {
@@ -141,35 +147,86 @@ describe('websim talent normalization', () => {
 })
 
 describe('authoritative talent edit endpoints', () => {
+  const validation: TalentValidationPayload = {
+    classKey: 'mage', specKey: 'frost', heroKey: 'frostfire',
+    status: 'encoded', source: 'simc', schemaRevision: 'websim-talent-rules-v1',
+    errors: [], warnings: [], lines: ['class_talents=1:1'],
+    selectedCounts: { class: 1, spec: 0, hero: 0 },
+    talentState: { selectedNodes: [{ id: 'root', rank: 1 }] },
+    talentSchemaRevision: 'websim-talent-rules-v1', blockers: [],
+  }
+  const exported: TalentApiExportPayload = {
+    classKey: 'mage', specKey: 'frost', heroKey: 'frostfire',
+    talentState: validation.talentState,
+    websimExportCode: 'websim:mage:frost:frostfire:root:1',
+    validation,
+    talentSchemaRevision: 'websim-talent-rules-v1',
+  }
+  const imported: TalentApiImportPayload = {
+    classKey: 'mage', specKey: 'frost', heroKey: 'frostfire',
+    talentState: validation.talentState,
+    validation,
+    talentSchemaRevision: 'websim-talent-rules-v1',
+  }
+
+  it('accepts complete backend payloads and rejects malformed nested contract data', () => {
+    expect(isTalentValidationPayload(validation)).toBe(true)
+    expect(isTalentExportPayload(exported)).toBe(true)
+    expect(isTalentImportPayload(imported)).toBe(true)
+
+    const invalidValidations: unknown[] = [
+      { ...validation, classKey: 7 },
+      { ...validation, status: '' },
+      { ...validation, source: '' },
+      { ...validation, schemaRevision: '' },
+      { ...validation, blockers: ['blocked', 7] },
+      { ...validation, errors: 'bad' },
+      { ...validation, selectedCounts: { class: 1, spec: 0 } },
+      { ...validation, selectedCounts: { class: '1', spec: 0, hero: 0 } },
+      { ...validation, talentState: { selectedNodes: [{ id: '', rank: 1 }] } },
+      { ...validation, talentState: { selectedNodes: [{ id: 'root', rank: Number.NaN }] } },
+      { ...validation, talentState: { selectedNodes: ['root'] } },
+    ]
+    expect(invalidValidations.every((value) => !isTalentValidationPayload(value))).toBe(true)
+
+    expect(isTalentExportPayload({ ...exported, websimExportCode: 7 })).toBe(false)
+    expect(isTalentExportPayload({ ...exported, websimExportCode: '' })).toBe(false)
+    expect(isTalentExportPayload({ ...exported, talentSchemaRevision: '' })).toBe(false)
+    expect(isTalentExportPayload({ ...exported, validation: { ...validation, blockers: 7 } })).toBe(false)
+    expect(isTalentImportPayload({ ...imported, rawImportCode: 7 })).toBe(false)
+    expect(isTalentImportPayload({ ...imported, talentState: { selectedNodes: [{}] } })).toBe(false)
+    expect(isTalentImportPayload({ ...imported, talentSchemaRevision: null })).toBe(false)
+  })
+
+  it('returns a complete blocked fallback when a runtime response fails validation', async () => {
+    const client = createWebsimClient(responseTransport({ ...validation, blockers: [7] }))
+    const result = await client.talentValidate({
+      classKey: 'mage',
+      specKey: 'frost',
+      talentState: { selectedNodes: [{ id: 'root', rank: 1 }] },
+    })
+
+    expect(result.fromFallback).toBe(true)
+    expect(result.payload).toMatchObject({
+      classKey: 'mage',
+      specKey: 'frost',
+      heroKey: '',
+      status: 'failed',
+      blockers: ['talent validation service unavailable'],
+    })
+  })
+
   it('posts typed validate, export, and import requests to the existing backend contracts', async () => {
     const calls: Array<{ endpoint: string; path: string; data: unknown }> = []
-    const validation: TalentValidationPayload = {
-      classKey: 'mage', specKey: 'frost', heroKey: 'frostfire',
-      status: 'encoded', source: 'simc', schemaRevision: 'websim-talent-rules-v1',
-      errors: [], warnings: [], lines: ['class_talents=1:1'],
-      selectedCounts: { class: 1, spec: 0, hero: 0 },
-      talentState: { selectedNodes: [{ id: 'root', rank: 1 }] },
-      talentSchemaRevision: 'websim-talent-rules-v1', blockers: [],
-    }
-    const exported: TalentApiExportPayload = {
-      classKey: 'mage', specKey: 'frost', heroKey: 'frostfire',
-      talentState: validation.talentState,
-      websimExportCode: 'websim:mage:frost:frostfire:root:1',
-      validation,
-      talentSchemaRevision: 'websim-talent-rules-v1',
-    }
-    const imported: TalentApiImportPayload = {
-      classKey: 'mage', specKey: 'frost', heroKey: 'frostfire',
-      talentState: validation.talentState,
-      validation,
-      talentSchemaRevision: 'websim-talent-rules-v1',
-    }
     const responses = [validation, exported, imported]
     const transport: ApiTransport = {
       request: async (_path, options) => ({ payload: options.fallback(), fromFallback: true, error: '' }),
       requestEndpoint: async (endpoint, path, options) => {
         calls.push({ endpoint, path, data: options.data })
-        return { payload: responses.shift() as never, fromFallback: false, error: '' }
+        const response = responses.shift()
+        return options.validate?.(response)
+          ? { payload: response as never, fromFallback: false, error: '' }
+          : { payload: options.fallback(), fromFallback: true, error: 'invalid response payload' }
       },
     }
     const client = createWebsimClient(transport)

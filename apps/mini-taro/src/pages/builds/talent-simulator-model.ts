@@ -556,7 +556,10 @@ export function applyTalentValidation(
   fromFallback: boolean,
   transportError = '',
 ): TalentValidationDecision {
-  const accepted = !fromFallback && validation.status === 'encoded' && validation.errors.length === 0
+  const accepted = !fromFallback
+    && validation.status === 'encoded'
+    && validation.errors.length === 0
+    && validation.blockers.length === 0
   if (accepted) {
     return {
       accepted: true,
@@ -572,4 +575,21 @@ export function applyTalentValidation(
     error: [transportError, ...validation.errors, ...validation.blockers].filter(Boolean).join(' / ')
       || '当前天赋修改未通过后端校验',
   }
+}
+
+export type FencedTalentSaveOutcome = 'completed' | 'blocked' | 'stale'
+
+export async function runFencedTalentSave<TExport, TSaved>(input: {
+  isCurrent(): boolean
+  exportCurrent(): Promise<TExport | null>
+  persist(exported: TExport): Promise<TSaved>
+  complete(saved: TSaved): Promise<void> | void
+}): Promise<FencedTalentSaveOutcome> {
+  const exported = await input.exportCurrent()
+  if (!input.isCurrent()) return 'stale'
+  if (!exported) return 'blocked'
+  const saved = await input.persist(exported)
+  if (!input.isCurrent()) return 'stale'
+  await input.complete(saved)
+  return 'completed'
 }

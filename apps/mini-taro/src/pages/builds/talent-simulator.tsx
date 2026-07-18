@@ -51,6 +51,7 @@ import {
   initialTalentRanks,
   proposeTalentChoice,
   proposeTalentRank,
+  runFencedTalentSave,
   talentPoints,
 } from './talent-simulator-model'
 import styles from './talent-simulator.module.scss'
@@ -156,6 +157,7 @@ export default function TalentSimulatorPage() {
     setEditValidated(false)
     setEditMessage('')
     setExportCode('')
+    setSaving(false)
   }, [route.data])
 
   const data = route.data
@@ -271,6 +273,10 @@ export default function TalentSimulatorPage() {
     if (item.id === 'class' || item.id === 'spec') {
       validationSequence.current += 1
       setValidating(false)
+      setSaving(false)
+      setEditValidated(false)
+      setEditMessage('')
+      setExportCode('')
       setSelectedSpecId(option.id)
     }
   }
@@ -340,11 +346,11 @@ export default function TalentSimulatorPage() {
     }))
   }
 
-  const exportCurrentTalent = async () => {
+  const exportCurrentTalent = async (operationSequence?: number) => {
     const request = talentEditRequest(ranks)
     if (!request) return null
-    const sequence = validationSequence.current + 1
-    validationSequence.current = sequence
+    const sequence = operationSequence ?? validationSequence.current + 1
+    if (operationSequence === undefined) validationSequence.current = sequence
     setValidating(true)
     setEditMessage('')
     const result = await wowApi.websim.talentExport(request)
@@ -368,42 +374,45 @@ export default function TalentSimulatorPage() {
 
   const saveImportTemplate = async () => {
     if (!data) return
+    const operationSequence = validationSequence.current + 1
+    validationSequence.current = operationSequence
     setSaving(true)
     try {
-      const exportDecision = await exportCurrentTalent()
-      if (!exportDecision) return
-      const result = await wowApi.templates.upsert({
-        type: 'talent',
-        title: `${data.selection.label} · 天赋构筑`,
-        classKey: data.selection.classKey,
-        className: data.selection.classItem.name,
-        specKey: data.selection.specKey,
-        specName: data.selection.spec.specName || data.selection.spec.name,
-        heroKey: data.talents.heroKey || data.selection.heroKey,
-        rawString: exportDecision.code,
-        status: 'encoded',
-        statusLabel: '已编码',
-        source: 'WebSim 天赋模拟器',
-        metadata: {
-          exportAuthority: 'backend',
-          talentSchemaRevision: exportDecision.validation.talentSchemaRevision,
-          validationStatus: exportDecision.validation.status,
+      await runFencedTalentSave({
+        isCurrent: () => validationSequence.current === operationSequence,
+        exportCurrent: () => exportCurrentTalent(operationSequence),
+        persist: (exportDecision) => wowApi.templates.upsert({
+          type: 'talent',
+          title: `${data.selection.label} · 天赋构筑`,
+          classKey: data.selection.classKey,
+          className: data.selection.classItem.name,
+          specKey: data.selection.specKey,
+          specName: data.selection.spec.specName || data.selection.spec.name,
+          heroKey: data.talents.heroKey || data.selection.heroKey,
+          rawString: exportDecision.code,
+          status: 'encoded',
+          statusLabel: '已编码',
+          source: 'WebSim 天赋模拟器',
+          metadata: {
+            exportAuthority: 'backend',
+            talentSchemaRevision: exportDecision.validation.talentSchemaRevision,
+            validationStatus: exportDecision.validation.status,
+          },
+        }),
+        complete: async (result) => {
+          const template = result.payload.template
+          const savedLocally = template?.trust.level === 'local_only' || result.fromFallback
+          const title = !template
+            ? '保存失败'
+            : savedLocally
+              ? '已保存到本地，远端未确认'
+              : '模板已保存并由远端确认'
+          setEditMessage(template ? '' : result.error || title)
+          await Taro.showToast({ title, icon: 'none' })
         },
       })
-      const template = result.payload.template
-      const savedLocally = template?.trust.level === 'local_only' || result.fromFallback
-      const title = !template
-        ? '保存失败'
-        : savedLocally
-          ? '已保存到本地，远端未确认'
-          : '模板已保存并由远端确认'
-      setEditMessage(template ? '' : result.error || title)
-      await Taro.showToast({
-        title,
-        icon: 'none',
-      })
     } finally {
-      setSaving(false)
+      if (validationSequence.current === operationSequence) setSaving(false)
     }
   }
 

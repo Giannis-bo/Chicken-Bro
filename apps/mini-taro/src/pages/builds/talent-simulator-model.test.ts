@@ -8,6 +8,7 @@ import {
   initialTalentRanks,
   proposeTalentChoice,
   proposeTalentRank,
+  runFencedTalentSave,
   talentPoints,
 } from './talent-simulator-model'
 
@@ -347,6 +348,41 @@ describe('talent simulator target model', () => {
       ranks: current,
       error: 'missing parent talent for locked',
     })
+  })
+
+  it('treats encoded validation with blockers as rejected without throwing', () => {
+    const current = { root: 1 }
+    expect(applyTalentValidation(current, {
+      classKey: 'mage', specKey: 'frost', heroKey: 'frostfire',
+      status: 'encoded', source: 'simc', schemaRevision: 'websim-talent-rules-v1',
+      errors: [], warnings: [], lines: ['class_talents=1:1'],
+      selectedCounts: { class: 1, spec: 0, hero: 0 },
+      talentState: { selectedNodes: [{ id: 'root', rank: 1 }] },
+      talentSchemaRevision: 'websim-talent-rules-v1',
+      blockers: ['talent authority unavailable'],
+    }, false)).toEqual({
+      accepted: false,
+      ranks: current,
+      error: 'talent authority unavailable',
+    })
+  })
+
+  it('drops a save completion when selection changes while persistence is pending', async () => {
+    let current = true
+    let resolvePersist: ((value: string) => void) | undefined
+    const completed: string[] = []
+    const operation = runFencedTalentSave({
+      isCurrent: () => current,
+      exportCurrent: async () => ({ code: 'websim:mage:frost::root:1' }),
+      persist: async () => new Promise<string>((resolve) => { resolvePersist = resolve }),
+      complete: async (saved) => { completed.push(saved) },
+    })
+    await Promise.resolve()
+    current = false
+    resolvePersist?.('saved-old-spec')
+
+    await expect(operation).resolves.toBe('stale')
+    expect(completed).toEqual([])
   })
 
   it('derives point counters from real selected ranks and section caps', () => {

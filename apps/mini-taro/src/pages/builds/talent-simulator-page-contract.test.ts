@@ -20,5 +20,7 @@ describe('talent simulator authoritative edit contract', () => {
     expect(source).toContain("'模板已保存并由远端确认'")
     expect(source).not.toContain('setEditMessage(template ? title')
     expect(source).toContain("connectivityStatus !== 'ready' || validating || saving")
+    expect(source).toContain('runFencedTalentSave')
+    expect(source).toContain('isCurrent: () => validationSequence.current === operationSequence')
   })
 })

@@ -131,7 +131,7 @@ function fallbackTalentValidation(request: TalentEditRequest): TalentValidationP
   return {
     classKey: request.classKey,
     specKey: request.specKey,
-    ...(request.heroKey ? { heroKey: request.heroKey } : {}),
+    heroKey: request.heroKey ?? '',
     status: 'failed',
     source: 'transport_fallback',
     schemaRevision: 'websim-talent-rules-v1',
@@ -149,7 +149,7 @@ function fallbackTalentExport(request: TalentEditRequest): TalentApiExportPayloa
   return {
     classKey: request.classKey,
     specKey: request.specKey,
-    ...(request.heroKey ? { heroKey: request.heroKey } : {}),
+    heroKey: request.heroKey ?? '',
     talentState: request.talentState,
     websimExportCode: '',
     validation: fallbackTalentValidation(request),
@@ -161,13 +161,13 @@ function fallbackTalentCodeImport(request: TalentImportCodeRequest): TalentApiIm
   const editRequest: TalentEditRequest = {
     classKey: request.classKey ?? '',
     specKey: request.specKey ?? '',
-    ...(request.heroKey ? { heroKey: request.heroKey } : {}),
+    heroKey: request.heroKey ?? '',
     talentState: { selectedNodes: [] },
   }
   return {
     classKey: editRequest.classKey,
     specKey: editRequest.specKey,
-    ...(editRequest.heroKey ? { heroKey: editRequest.heroKey } : {}),
+    heroKey: editRequest.heroKey ?? '',
     rawImportCode: request.code,
     talentState: editRequest.talentState,
     validation: fallbackTalentValidation(editRequest),
@@ -175,15 +175,69 @@ function fallbackTalentCodeImport(request: TalentImportCodeRequest): TalentApiIm
   }
 }
 
-function isTalentValidationPayload(value: unknown): value is TalentValidationPayload {
+function isStringArray(value: unknown): value is readonly string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === 'string')
+}
+
+function isTalentSelectionState(value: unknown): boolean {
   return isRecord(value)
-    && typeof value['status'] === 'string'
-    && Array.isArray(value['errors'])
-    && Array.isArray(value['warnings'])
-    && Array.isArray(value['lines'])
-    && isRecord(value['selectedCounts'])
-    && isRecord(value['talentState'])
-    && Array.isArray(value['talentState']['selectedNodes'])
+    && Array.isArray(value['selectedNodes'])
+    && value['selectedNodes'].every((node) => isRecord(node)
+      && typeof node['id'] === 'string'
+      && node['id'].trim().length > 0
+      && typeof node['rank'] === 'number'
+      && Number.isInteger(node['rank'])
+      && node['rank'] >= 0)
+}
+
+function isTalentSelectedCounts(value: unknown): boolean {
+  return isRecord(value)
+    && ['class', 'spec', 'hero'].every((key) => typeof value[key] === 'number'
+      && Number.isInteger(value[key])
+      && (value[key] as number) >= 0)
+}
+
+function hasTalentSelectionKeys(value: Readonly<Record<string, unknown>>): boolean {
+  return typeof value['classKey'] === 'string'
+    && typeof value['specKey'] === 'string'
+    && typeof value['heroKey'] === 'string'
+}
+
+function hasSchemaRevision(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0
+}
+
+export function isTalentValidationPayload(value: unknown): value is TalentValidationPayload {
+  return isRecord(value)
+    && hasTalentSelectionKeys(value)
+    && hasSchemaRevision(value['status'])
+    && hasSchemaRevision(value['source'])
+    && hasSchemaRevision(value['schemaRevision'])
+    && isStringArray(value['errors'])
+    && isStringArray(value['warnings'])
+    && isStringArray(value['lines'])
+    && isStringArray(value['blockers'])
+    && isTalentSelectedCounts(value['selectedCounts'])
+    && isTalentSelectionState(value['talentState'])
+    && (value['talentSchemaRevision'] === undefined || hasSchemaRevision(value['talentSchemaRevision']))
+}
+
+export function isTalentExportPayload(value: unknown): value is TalentApiExportPayload {
+  return isRecord(value)
+    && hasTalentSelectionKeys(value)
+    && hasSchemaRevision(value['websimExportCode'])
+    && hasSchemaRevision(value['talentSchemaRevision'])
+    && isTalentSelectionState(value['talentState'])
+    && isTalentValidationPayload(value['validation'])
+}
+
+export function isTalentImportPayload(value: unknown): value is TalentApiImportPayload {
+  return isRecord(value)
+    && hasTalentSelectionKeys(value)
+    && (value['rawImportCode'] === undefined || typeof value['rawImportCode'] === 'string')
+    && hasSchemaRevision(value['talentSchemaRevision'])
+    && isTalentSelectionState(value['talentState'])
+    && isTalentValidationPayload(value['validation'])
 }
 
 function fallbackStats(selection: WebsimSelection): GearStatsPayload {
@@ -322,10 +376,7 @@ export function createWebsimClient(transport: ApiTransport): WebsimClient {
       return transport.requestEndpoint('talents.export', '/api/talents/export', {
         data: { ...request },
         fallback: () => fallbackTalentExport(request),
-        validate: (value) => isRecord(value)
-          && typeof value['websimExportCode'] === 'string'
-          && isRecord(value['talentState'])
-          && isTalentValidationPayload(value['validation']),
+        validate: isTalentExportPayload,
       })
     },
     talentImportCode(request) {
@@ -337,9 +388,7 @@ export function createWebsimClient(transport: ApiTransport): WebsimClient {
           ...(request.heroKey ? { heroKey: request.heroKey } : {}),
         },
         fallback: () => fallbackTalentCodeImport(request),
-        validate: (value) => isRecord(value)
-          && isRecord(value['talentState'])
-          && isTalentValidationPayload(value['validation']),
+        validate: isTalentImportPayload,
       })
     },
     gear(request) {
