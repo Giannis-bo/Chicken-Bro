@@ -119,6 +119,27 @@ function publishedRouteRegionIds(source) {
 const routeSources = walk('apps/mini-taro/src/pages', ['.ts', '.tsx', '.scss'])
 const routeStyles = routeSources.filter((file) => file.endsWith('.scss'))
 const routeComponents = routeSources.filter((file) => file.endsWith('.tsx'))
+const literalRouteCssModuleReferences = routeComponents.flatMap((file) => {
+  const source = read(file)
+  return [...source.matchAll(/import\s+([A-Za-z_$][\w$]*)\s+from\s+['"]([^'"]+\.module\.scss)['"]/gu)].flatMap((styleImport) => {
+    const [, identifier, relativeStylePath] = styleImport
+    const stylePath = path.join(path.dirname(file), relativeStylePath)
+    if (!fs.existsSync(path.join(root, stylePath))) return [{ file, stylePath, className: null, exists: false }]
+    const classNames = new Set([...read(stylePath).matchAll(/\.([A-Za-z_][\w-]*)/gu)].map((match) => match[1]))
+    return [...source.matchAll(new RegExp(`\\b${identifier}(?:\\[['\"]([^'\"]+)['\"]\\]|\\.([A-Za-z_][\\w-]*))`, 'gu'))]
+      .map((match) => {
+        const className = match[1] ?? match[2]
+        return { file, stylePath, className, exists: classNames.has(className) }
+      })
+  })
+})
+const missingLiteralRouteCssModuleReferences = literalRouteCssModuleReferences.filter((reference) => !reference.exists)
+record(
+  'all_literal_route_css_module_references_resolve',
+  literalRouteCssModuleReferences.length > 0 && missingLiteralRouteCssModuleReferences.length === 0,
+  missingLiteralRouteCssModuleReferences.map((reference) => `${reference.file}:${reference.stylePath}:${reference.className ?? 'missing-module'}`).join(', ')
+    || `references=${literalRouteCssModuleReferences.length}`,
+)
 const componentStyleFiles = walk('packages/design-system/src/components', ['.module.scss'])
 const routedUiStyleFiles = [...componentStyleFiles, ...routeStyles]
 const redundantRouteMediaHeightOverrides = routeStyles.flatMap((file) => {
