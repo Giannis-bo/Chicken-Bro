@@ -287,17 +287,19 @@ const fixedPixelVerticalRegions = routeStyles.flatMap((file) => {
   }
   const surfaceHeight = fixedHeight('surface')
   const pageFrameHeight = fixedHeight('pageFrame')
-  const containerHeight = Number.isFinite(surfaceHeight) ? surfaceHeight : pageFrameHeight
-  if (!Number.isFinite(containerHeight)) return []
+  const containerHeight = Number.isFinite(surfaceHeight) ? surfaceHeight : Number.isFinite(pageFrameHeight) ? pageFrameHeight : minimumLayoutViewport.height
   return [...source.matchAll(/\.([A-Za-z][\w-]*Region)\s*\{([^}]*)\}/gu)].flatMap((match) => {
     const top = Number(match[2].match(/(?:^|;)\s*top:\s*([\d.]+)px\s*;/u)?.[1])
+    const bottom = Number(match[2].match(/(?:^|;)\s*bottom:\s*([\d.]+)px\s*;/u)?.[1])
     const height = Number(match[2].match(/(?:^|;)\s*height:\s*([\d.]+)px\s*;/u)?.[1])
-    return Number.isFinite(top) && Number.isFinite(height)
-      ? [{ file, region: match[1], top, bottom: top + height, containerHeight }]
+    const resolvedTop = Number.isFinite(top) ? top : Number.isFinite(bottom) && Number.isFinite(height) ? containerHeight - bottom - height : null
+    const resolvedHeight = Number.isFinite(height) ? height : Number.isFinite(top) && Number.isFinite(bottom) ? containerHeight - top - bottom : null
+    return resolvedTop !== null && resolvedHeight !== null
+      ? [{ file, region: match[1], top: resolvedTop, bottom: resolvedTop + resolvedHeight, containerHeight }]
       : []
   })
 })
-const fixedPixelVerticalRegionEscapes = fixedPixelVerticalRegions.filter((region) => region.bottom > region.containerHeight + 1)
+const fixedPixelVerticalRegionEscapes = fixedPixelVerticalRegions.filter((region) => region.top < -1 || region.bottom > region.containerHeight + 1)
 const fixedPixelVerticalRegionOverlaps = [...new Set(fixedPixelVerticalRegions.map((region) => region.file))].flatMap((file) => {
   const rows = [...new Map(fixedPixelVerticalRegions.filter((region) => region.file === file).map((region) => [
     region.top,

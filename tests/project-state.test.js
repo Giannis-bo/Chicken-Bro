@@ -811,6 +811,8 @@ test('SimC regions scale inside the shell content viewport', () => {
   const audit = fs.readFileSync('scripts/audit-ui-architecture.js', 'utf8')
   assert.match(audit, /fixed_pixel_vertical_regions_stay_inside_their_stage/)
   assert.match(audit, /fixed_pixel_vertical_region_rows_do_not_overlap/)
+  assert.match(audit, /containerHeight - bottom - height/)
+  assert.match(audit, /containerHeight - top - bottom/)
   assert.match(audit, /all_anchored_route_regions_fit_the_minimum_viewport_width/)
   assert.match(audit, /rightInset !== null && explicitWidth !== null/)
   const styles = fs.readFileSync('apps/mini-taro/src/pages/simulator/simc-submit.module.scss', 'utf8')
