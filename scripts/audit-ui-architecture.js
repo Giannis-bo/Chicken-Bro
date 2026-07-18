@@ -292,6 +292,19 @@ const routeRegionLayoutDeclarations = routeStyles.flatMap((file) => {
   }
   return [...declarations].map(([region, values]) => ({ file, region, ...values }))
 })
+const mixedVerticalUnitRouteFiles = routeStyles.flatMap((file) => {
+  const verticalValues = routeRegionLayoutDeclarations
+    .filter((region) => region.file === file)
+    .flatMap((region) => [region.top, region.bottom, region.height].filter(Boolean))
+  const usesPixels = verticalValues.some((value) => /(?:\dpx\b|var\(--[\w-]+\))/u.test(value))
+  const usesPercent = verticalValues.some((value) => /%/u.test(value))
+  return usesPixels && usesPercent ? [file] : []
+})
+record(
+  'route_region_vertical_units_are_consistent_per_stage',
+  mixedVerticalUnitRouteFiles.length === 0,
+  mixedVerticalUnitRouteFiles.join(', ') || 'each route stage uses one vertical coordinate system',
+)
 const usableRouteRegionLayoutValue = (value) => value && !['auto', 'initial', 'none', 'unset'].includes(value)
 const partiallyAnchoredRouteRegions = routeRegionLayoutDeclarations.flatMap((region) => {
   const hasHorizontalCoordinate = usableRouteRegionLayoutValue(region.left) || usableRouteRegionLayoutValue(region.right)

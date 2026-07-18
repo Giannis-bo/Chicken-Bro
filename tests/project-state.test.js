@@ -817,6 +817,8 @@ test('SimC regions scale inside the shell content viewport', () => {
   assert.match(audit, /region\.width <= 0/)
   assert.match(audit, /all_anchored_route_regions_have_numeric_minimum_viewport_geometry/)
   assert.match(audit, /anchoredRegionsWithoutNumericGeometry/)
+  assert.match(audit, /route_region_vertical_units_are_consistent_per_stage/)
+  assert.match(audit, /mixedVerticalUnitRouteFiles/)
   assert.match(audit, /anchored_route_regions_close_both_layout_axes/)
   assert.match(audit, /partiallyAnchoredRouteRegions/)
   assert.match(audit, /fixed_route_stage_regions_bind_existing_layout_classes/)
