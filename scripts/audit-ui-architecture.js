@@ -898,6 +898,33 @@ record('route_styles_do_not_own_app_shell', deadShellRules.length === 0, deadShe
 const routeSafeAreaOwners = routeSources.filter((file) => /--(?:safe-top|safe-bottom|capsule-safe-right)\b/.test(read(file)))
 record('route_styles_do_not_recompute_safe_area', routeSafeAreaOwners.length === 0, routeSafeAreaOwners.join(', ') || 'none')
 
+const routeViewportHeightBypasses = routeStyles.filter((file) => (
+  /\b(?:height|min-height|max-height):\s*[^;]*(?:100[ds]?vh|env\(safe-area-inset-)/u.test(read(file))
+))
+record(
+  'route_styles_do_not_bypass_shared_safe_viewport_height',
+  routeViewportHeightBypasses.length === 0,
+  routeViewportHeightBypasses.join(', ') || 'all route viewport heights come from shared owners',
+)
+
+const initialSafeAreaRoutes = routeGeometryContract.routes.filter((route) => (
+  (route.initialSafeAreaRegionIds ?? []).length > 0 || (route.initialSafeAreaButtonRoles ?? []).length > 0
+))
+const initialSafeAreaRoutesWithoutSharedHeight = initialSafeAreaRoutes.flatMap((route) => {
+  const sourcePath = `apps/mini-taro/src/${route.path.split('?')[0].replace(/^\//u, '')}.tsx`
+  const source = read(sourcePath)
+  const stylePaths = [...source.matchAll(/import\s+[A-Za-z_$][\w$]*\s+from\s+['"]([^'"]+\.module\.scss)['"]/gu)]
+    .map((match) => path.join(path.dirname(sourcePath), match[1]))
+  return stylePaths.some((stylePath) => read(stylePath).includes('var(--route-safe-viewport-height)'))
+    ? []
+    : [`${route.route}:${stylePaths.join('|') || 'missing-style-module'}`]
+})
+record(
+  'initial_safe_area_routes_consume_shared_safe_viewport_height',
+  initialSafeAreaRoutes.length > 0 && initialSafeAreaRoutesWithoutSharedHeight.length === 0,
+  initialSafeAreaRoutesWithoutSharedHeight.join(', ') || `routes=${initialSafeAreaRoutes.length}`,
+)
+
 const routeHeaderGeometryOwners = routeStyles.filter((file) => /\[data-region=['"]top_bar['"]\]/u.test(read(file)))
 record('route_styles_do_not_own_page_frame_geometry', routeHeaderGeometryOwners.length === 0, routeHeaderGeometryOwners.join(', ') || 'none')
 
