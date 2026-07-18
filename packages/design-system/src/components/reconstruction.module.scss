@@ -567,45 +567,6 @@
 .identityChevron { width: 18px; height: 18px; color: var(--wow-accent-gold-soft); }
 
 
-.workbenchEntry { display: grid; grid-template-columns: 72px minmax(0, 1fr) minmax(96px, 108px); align-items: center; gap: 8px; min-height: 112px; padding: var(--forged-content-inset, 14px); background: linear-gradient(145deg, rgba(205, 156, 57, 0.15), transparent 38%), linear-gradient(180deg, #26272a, #15171c); }
-.workbenchEntry > [data-material-render='nine-slice'] { opacity: 0.82; }
-.workbenchEntryUnavailable { background: linear-gradient(145deg, rgba(205, 156, 57, 0.1), transparent 38%), linear-gradient(180deg, #232428, #14161a); }
-.workbenchEntryEmblem { position: relative; width: 72px; height: 72px; }
-.workbenchEntryGlyph { position: absolute; top: 50%; left: 50%; width: 23px; height: 23px; color: var(--wow-accent-gold); transform: translate(-50%, -50%); }
-.workbenchEntryCopy { min-width: 0; }
-.workbenchEntryTitle { display: block; color: var(--wow-fg-strong); font-family: var(--wow-font-display); font-size: 16px; font-weight: 800; line-height: 21px; }
-.workbenchEntryCopy [class*='statusBlock'] { margin-top: 2px; }
-.workbenchEntryCopy [class*='statusPill'] { min-height: 15px; padding: 0 4px; }
-.workbenchEntryCopy [class*='statusLabel'] { font-size: 7px; line-height: 9px; }
-.workbenchEntryEvidence { display: block; margin-top: 3px; overflow: hidden; color: var(--wow-accent-gold-soft); font-size: 9px; line-height: 12px; text-overflow: ellipsis; white-space: nowrap; }
-.workbenchEntrySummary { display: -webkit-box; margin-top: 2px; overflow: hidden; color: var(--wow-fg-muted); font-size: 9px; line-height: 12px; -webkit-box-orient: vertical; -webkit-line-clamp: 1; }
-.workbenchEntryAction { min-width: 0; grid-column: 3; }
-.workbenchEntryAction button { width: 100%; min-height: 40px; padding: 0 6px; }
-
-.buildTimeline { min-height: 158px; padding: var(--forged-content-inset, 8px); }
-.buildTimeline > [data-material-render='nine-slice'] { opacity: 0.7; }
-.buildTimelineTrack { display: grid; min-height: 142px; }
-.timelineRow { position: relative; display: grid; min-height: 47px; grid-template-columns: 40px minmax(0, 1fr) auto 12px; align-items: center; gap: 7px; padding: 3px 7px 3px 2px; border: 0; background: linear-gradient(90deg, rgba(158, 115, 43, 0.055), transparent 46%); }
-.timelineRow:nth-child(n + 2) { box-shadow: inset 0 1px rgba(91, 75, 52, 0.32); }
-.timelineNode { z-index: 1; display: grid; width: 36px; height: 36px; place-items: center; border: 1px solid var(--wow-line-panel); border-radius: 50%; color: var(--wow-fg-dim); background: radial-gradient(circle, #22262c, #0e1115 70%); box-shadow: inset 0 0 0 3px rgba(0, 0, 0, 0.42), 0 0 0 1px rgba(99, 75, 41, 0.34); }
-.timelineNode > view,
-.timelineNode > image { width: 18px; height: 18px; }
-.timelineNode-ready { border-color: var(--wow-status-ready); color: var(--wow-status-ready); }
-.timelineNode-partial,
-.timelineNode-loading { border-color: var(--wow-status-source); color: var(--wow-status-source); }
-.timelineNode-blocked,
-.timelineNode-error { border-color: var(--wow-status-blocked); color: var(--wow-status-blocked); }
-.timelineSpine { position: absolute; z-index: 0; top: 37px; bottom: -12px; left: 19px; width: 2px; background: linear-gradient(180deg, rgba(214, 170, 78, 0.86), rgba(80, 104, 134, 0.62)); box-shadow: 0 0 5px rgba(181, 131, 43, 0.2); }
-.timelineCopy { min-width: 0; }
-.timelinePhaseLabel { display: block; color: #9c7b3e; font-size: 7px; font-weight: 760; line-height: 8px; }
-.timelineTitle { display: block; color: var(--wow-fg-strong); font-family: var(--wow-font-display); font-size: 12px; font-weight: 760; line-height: 15px; }
-.timelineSummary { display: block; overflow: hidden; color: var(--wow-fg-muted); font-size: 8px; line-height: 10px; text-overflow: ellipsis; white-space: nowrap; }
-.timelineRow [class*='statusPill'] { min-height: 15px; padding: 0 4px; }
-.timelineRow [class*='statusLabel'] { font-size: 8px; line-height: 10px; }
-.timelineChevron { width: 12px; height: 12px; color: var(--wow-accent-gold-soft); }
-
-.workbenchBlocker { display: grid; width: 100%; height: 100%; min-height: 0; grid-template-columns: minmax(0, 1.4fr) 140px; align-items: center; gap: 10px; padding: var(--forged-content-inset, 11px); overflow: hidden; border-width: 1px; }
-.workbenchBlockerCopy { min-width: 0; }
 .workbenchBlockerTitleRow { display: flex; align-items: center; gap: 7px; }
 .workbenchBlockerLock { width: 20px; height: 20px; color: var(--wow-accent-gold); }
 .workbenchBlockerEyebrow { display: block; color: var(--wow-accent-gold-soft); font-size: 10px; font-weight: 780; line-height: 14px; }
@@ -696,8 +657,6 @@
   .identitySummary-builds-home .identityMedallion { width: 94px; height: 94px; }
   .identitySummary-workbench .identityMedallion { width: 70px; height: 70px; }
   .identityTitle { font-size: 19px; line-height: 25px; }
-  .workbenchEntry { grid-template-columns: 58px minmax(0, 1fr) minmax(90px, 96px); min-height: 104px; gap: 7px; }
-  .workbenchEntryEmblem { width: 58px; height: 58px; }
   .workbenchBlocker { grid-template-columns: minmax(0, 1.42fr) 124px; min-height: 189px; padding: 9px 10px; }
   .workbenchBlockerHeadline { font-size: 19px; line-height: 25px; }
   .workbenchBlockerEmblem { width: 124px; height: 124px; }

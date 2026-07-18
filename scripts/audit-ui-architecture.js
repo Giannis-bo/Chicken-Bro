@@ -1244,6 +1244,13 @@ record(
   legacyNewsDetailParallelLayoutOwners.length === 0,
   [...new Set(legacyNewsDetailParallelLayoutOwners)].join(', ') || 'NewsDetailComponents.newsDetail*',
 )
+const legacyBuildWorkflowParallelLayoutOwners = [...reconstructionStyles.matchAll(/\.(?:workbenchEntry|buildTimeline|timeline(?:Row|Node|Spine|Copy|Phase|Title|Summary|Chevron))[\w-]*/gu)]
+  .map((match) => match[0])
+record(
+  'build_workflow_geometry_has_no_parallel_reconstruction_owner',
+  legacyBuildWorkflowParallelLayoutOwners.length === 0,
+  [...new Set(legacyBuildWorkflowParallelLayoutOwners)].join(', ') || 'WorkbenchComponents/BuildWorkflowTimeline',
+)
 const selectedStateOwners = [
   ['packages/design-system/src/components/TabBar.tsx', 'product-tab-item'],
   ['packages/design-system/src/components/ChannelDock.tsx', 'news-list-category'],
