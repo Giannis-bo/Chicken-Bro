@@ -718,7 +718,7 @@
         "pages/simulator/simulator-api.js"
       ],
       "contractFoundations": {
-        "status": "contract_only_unconsumed",
+        "status": "active_canonical_profile_consumed",
         "modules": [
           "server/gear_contracts.py",
           "server/gear_result_envelope.py",
@@ -735,16 +735,22 @@
           "tests/gear_resolver_test.py",
           "tests/pg_gear_authority_loader_test.py"
         ],
-        "runtimeConsumers": []
+        "runtimeConsumers": [
+          "server/gear_runtime.py::resolve_selection_intent",
+          "server/news_backend.py::prepare_canonical_simcraft_template_request"
+        ]
       },
       "dormantAdapters": {
-        "status": "contract_only_unconsumed",
+        "status": "active_canonical_profile_consumed",
         "modules": [
           "server/postgres_cache_store.py::get_gear_authority_context",
           "server/websim_payload.py::gear_resolver_runtime_authority",
           "server/websim_payload.py::build_websim_profile_response_from_resolved_snapshot"
         ],
-        "runtimeConsumers": [],
+        "runtimeConsumers": [
+          "server/gear_runtime.py::build_profile_from_selection_intent",
+          "server/news_backend.py::prepare_canonical_simcraft_template_request"
+        ],
         "queryBudget": "three cold domain queries or one warm revision query; no slot-count growth",
         "cacheBoundary": "bounded entries and serialized bytes; incomplete contexts are not cached"
       },
@@ -753,8 +759,8 @@
         "Submitted gear enhancements require backend-attached catalog authority before serialization.",
         "Legacy gear stats preserve their response shape while stat_snapshot_v1 uses one iteration and process-global concurrency one.",
         "Task list/detail evidence does not expose raw internal diagnostics as user-facing truth.",
-        "Phase 2A emits deterministic structured serializer input and five evidence groups, but no current serializer, route, task or Worker imports the Resolver or Ledger.",
-        "Phase 2 adds a PostgreSQL-only Authority Context loader and resolved-snapshot serializer parity facade. Phase 3 activates them only through separately gated backend/API and frontend Slices; compatibility-pg-live-v1 remains transitional and is not the formal Phase 4 Active Season Manifest."
+        "Canonical simcraft_template requests re-resolve selectionIntent through the active backend authority and never fall back to legacy rawString/gearSnapshot parsing.",
+        "GET /api/simulator/simc/options exposes backend-owned races, scenarios and preparation override capability under simc-options-v1; legacy templateContext remains compatibility-only when canonical context is absent."
       ],
       "mustNotChange": [
         "Do not assemble authoritative SimC profile strings client-side.",
@@ -776,7 +782,11 @@
         "tests/gear_rule_matrix_test.py",
         "tests/gear_evidence_ledger_test.py",
         "tests/gear_resolver_test.py",
-        "tests/pg_gear_authority_loader_test.py"
+        "tests/pg_gear_authority_loader_test.py",
+        "tests/news_backend_test.py::NewsBackendTest.test_http_simc_options_exposes_only_backend_owned_supported_contract",
+        "tests/news_backend_test.py::NewsBackendTest.test_simcraft_template_canonical_context_re_resolves_for_confirm_and_final_without_legacy_fallback",
+        "tests/news_backend_test.py::NewsBackendTest.test_simcraft_template_partial_or_blocked_canonical_context_never_falls_back_to_legacy_templates",
+        "tests/news_backend_test.py::NewsBackendTest.test_simcraft_template_canonical_resolver_problem_is_structured_and_fail_closed"
       ],
       "runtimeSurfaces": [
         "server/websim_payload.py",

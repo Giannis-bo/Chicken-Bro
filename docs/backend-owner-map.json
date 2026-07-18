@@ -152,13 +152,16 @@
           "id": "gear_serializer_golden_payload",
           "status": "golden_payload_characterized",
           "phase2bDormantFacade": {
-            "status": "contract_only_unconsumed",
+            "status": "active_canonical_profile_facade",
             "helpers": [
               "build_websim_profile_response_from_resolved_snapshot",
               "gear_resolver_runtime_authority"
             ],
-            "runtimeConsumers": [],
-            "activationBoundary": "Tests prove legacy profile-line parity and current route non-consumption. Phase 3A may add a canonical profile caller only for bodies containing selectionIntent; legacy bodies remain on the existing path, and frontend activation waits for Slice 3C."
+            "runtimeConsumers": [
+              "server/gear_runtime.py::build_profile_from_selection_intent",
+              "server/news_backend.py::prepare_canonical_simcraft_template_request"
+            ],
+            "activationBoundary": "Canonical /api/websim/profile and simcraft_template bodies containing selectionIntent use the resolved-snapshot facade; bodies without canonical context retain the explicit legacy compatibility path."
           },
           "owns": [
             "compact_community_gear_template",

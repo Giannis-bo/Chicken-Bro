@@ -228,6 +228,59 @@ def simc_preparation_report(preparation):
     }
 
 
+def simc_preparation_options_payload():
+    rows = [
+        {
+            "key": "optimal_raid",
+            "category": "raid_buff_baseline",
+            "label": "Full raid buff package",
+            "defaultState": "disabled",
+            "evidenceState": "verified",
+            "overrideSupported": True,
+        }
+    ]
+    for class_key, buff in sorted(SELF_CLASS_RAID_BUFFS.items()):
+        rows.append(
+            {
+                "key": buff["key"],
+                "category": "self_class_raid_buff",
+                "classKey": class_key,
+                "label": buff["label"],
+                "defaultState": "enabled",
+                "evidenceState": "verified",
+                "overrideSupported": True,
+            }
+        )
+    for (class_key, spec_key), pending in sorted(PENDING_SPEC_PREPARATION.items()):
+        rows.append(
+            {
+                "key": pending["key"],
+                "category": "spec_combat_preparation",
+                "classKey": class_key,
+                "specKey": spec_key,
+                "label": pending["label"],
+                "defaultState": "pending_evidence",
+                "evidenceState": "partial",
+                "overrideSupported": False,
+            }
+        )
+    rows.append(
+        {
+            "key": "temporary_combat_buffs",
+            "category": "temporary_combat_buffs",
+            "label": "Temporary combat buffs",
+            "defaultState": "disabled",
+            "evidenceState": "verified",
+            "overrideSupported": False,
+        }
+    )
+    return {
+        "schemaRevision": SIMC_PREPARATION_REVISION,
+        "status": "ready",
+        "rows": rows,
+    }
+
+
 def apply_simc_preparation_lines(lines, class_key="", spec_key="", temporary_buffs=None):
     if not isinstance(lines, list):
         return simc_preparation_payload(class_key, spec_key, temporary_buffs)
