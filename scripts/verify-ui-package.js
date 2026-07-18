@@ -5,6 +5,7 @@ const { spawnSync } = require('node:child_process')
 const fs = require('node:fs')
 const os = require('node:os')
 const path = require('node:path')
+const { readBoundedFile } = require('./bounded-file')
 
 const root = path.resolve(__dirname, '..')
 const appRoot = path.join(root, 'apps/mini-taro')
@@ -13,6 +14,9 @@ const defaultAssetRuntimeRoot = '/assets/ui-v2'
 const placeholderRemoteAssetRuntimeRoot = 'https://assets.example.invalid/wow-assets/releases/2026-07-18-ui-v2'
 const remoteAssetRuntimeRoot = process.env.WOW_ASSET_RUNTIME_ROOT || placeholderRemoteAssetRuntimeRoot
 const requireProductionReady = process.argv.includes('--require-production-ready')
+const maximumWalkFiles = 4096
+const maximumPackageTextFileBytes = 1024 * 1024
+const maximumPackageTextBytes = 4 * 1024 * 1024
 const limits = {
   remoteTotalBytes: 2 * 1024 * 1024,
   commonJsBytes: 420 * 1024,
@@ -30,10 +34,17 @@ const localAssetSources = [
 
 function walk(directory) {
   if (!fs.existsSync(directory)) return []
-  return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-    const target = path.join(directory, entry.name)
-    return entry.isDirectory() ? walk(target) : [target]
-  })
+  const files = []
+  const visit = (current) => {
+    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+      const target = path.join(current, entry.name)
+      if (entry.isDirectory()) visit(target)
+      else files.push(target)
+      if (files.length > maximumWalkFiles) throw new Error(`package file query cap exceeded: ${files.length}/${maximumWalkFiles}`)
+    }
+  }
+  visit(directory)
+  return files
 }
 
 function countStringLiteral(source, value) {
@@ -72,9 +83,11 @@ function build(name, assetRuntimeRoot = '') {
     throw new Error(`${name} production build failed\n${diagnostic}`)
   }
   const files = walk(outputRoot).filter((file) => !file.endsWith('.map'))
-  const packageText = files
-    .filter((file) => /\.(?:js|json|wxml|wxss)$/u.test(file))
-    .map((file) => fs.readFileSync(file, 'utf8'))
+  const packageTextFiles = files.filter((file) => /\.(?:js|json|wxml|wxss)$/u.test(file))
+  const packageTextBytes = packageTextFiles.reduce((total, file) => total + fs.statSync(file).size, 0)
+  if (packageTextBytes > maximumPackageTextBytes) throw new Error(`package text byte cap exceeded: ${packageTextBytes}/${maximumPackageTextBytes}`)
+  const packageText = packageTextFiles
+    .map((file) => readBoundedFile(file, maximumPackageTextFileBytes, 'package text file').toString('utf8'))
     .join('\n')
   const assetRoot = path.join(outputRoot, 'assets', 'ui-v2')
   const assetFiles = files
@@ -84,6 +97,8 @@ function build(name, assetRuntimeRoot = '') {
   return {
     outputRoot,
     totalBytes: files.reduce((total, file) => total + fs.statSync(file).size, 0),
+    fileCount: files.length,
+    packageTextBytes,
     assetFileCount: assetFiles.length,
     assetFiles,
     configuredRootReferenceCount: countStringLiteral(packageText, assetRuntimeRoot || defaultAssetRuntimeRoot),

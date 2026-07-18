@@ -683,6 +683,9 @@ test('UI package evidence cannot treat a placeholder remote asset origin as rele
   assert.match(verifier, /releaseReady/)
   assert.match(verifier, /hostname\.endsWith\('\.invalid'\)/)
   assert.match(verifier, /WOW_ASSET_RUNTIME_ROOT must be an approved HTTPS named origin/)
+  assert.match(verifier, /maximumWalkFiles = 4096/)
+  assert.match(verifier, /maximumPackageTextBytes = 4 \* 1024 \* 1024/)
+  assert.match(verifier, /readBoundedFile\(file, maximumPackageTextFileBytes/)
   assert.equal(packageJson.scripts['verify:ui-package:release'], 'node scripts/verify-ui-package.js --require-production-ready')
 })
 
