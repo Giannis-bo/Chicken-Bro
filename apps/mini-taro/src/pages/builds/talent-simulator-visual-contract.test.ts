@@ -33,7 +33,7 @@ describe('talent simulator legacy visual contract', () => {
   })
 
   it('keeps a two-choice frame free of the generic rectangular status outline', () => {
-    const styleSource = readFileSync(stylePath, 'utf8')
+    const styleSource = readFileSync(stylePath, 'utf8').replace(/\r\n/g, '\n')
 
     expect(styleSource).toContain(".graphNode[data-shape='choice'][data-state] {\n  box-shadow: none;\n}")
   })
