@@ -721,10 +721,6 @@
 .workbenchMenu > view,
 .workbenchMenu > image { width: 17px; height: 17px; }
 
-.buildIntelBackControl { display: grid; width: 72px; height: 40px; place-items: center; }
-.buildIntelBackControl button { width: 100%; min-height: 36px; padding: 0 5px; }
-.buildIntelBackContent { position: relative; z-index: 4; display: flex; align-items: center; justify-content: flex-start; gap: 3px; color: #d7ad62; font-size: 10px; font-weight: 720; line-height: 13px; white-space: nowrap; }
-.buildIntelBackGlyph { width: 18px; height: 18px; transform: rotate(180deg); color: #d7ad62; }
 .gearDetailBackControl { display: grid; width: 42px; height: 40px; place-items: center; }
 .gearDetailBackControl button { width: 42px; min-width: 42px; min-height: 40px; padding: 0; color: #dfb65e; }
 .gearDetailBackControl [class*='buttonIcon'] { width: 31px; height: 31px; color: #efc66d; filter: drop-shadow(0 1px 3px rgba(216, 166, 67, 0.42)); }
@@ -742,65 +738,6 @@
 .pageChickenbroAvatar { position: relative; display: grid; width: 36px; height: 36px; place-items: center; border: 1px solid rgba(142, 103, 51, 0.76); border-radius: 50%; background: linear-gradient(180deg, #25221c, #0c0f12); box-shadow: inset 0 0 0 2px rgba(3, 4, 6, 0.72); }
 .pageChickenbroAvatar > :last-child { width: 18px; height: 18px; color: var(--wow-accent-gold-soft); }
 
-.buildIntelSummary { height: 158px; }
-.buildIntelSummary { background: radial-gradient(circle at 15% 38%, rgba(104, 75, 26, 0.2), transparent 29%), linear-gradient(165deg, #202228, #0e1014 72%); }
-.buildIntelSummary > [data-material-render='nine-slice'] { opacity: 0.92; }
-.buildIntelSummaryContent { display: grid; height: 100%; grid-template-rows: minmax(0, 1fr) 42px; padding: var(--forged-content-inset, 12px); }
-.buildIntelSummaryMain { min-height: 0; --layered-reserved-inline-start: 128px !important; }
-.buildIntelHeroEmblemSlot { display: grid; width: 128px; height: 106px; place-items: center; }
-.buildIntelHeroEmblem { position: relative; display: grid; width: 112px; height: 112px; place-items: center; }
-.buildIntelHeroEmblemAsset { width: 100%; height: 100%; object-fit: contain; }
-.buildIntelEmblemAsset { width: 100%; height: 100%; background-size: 182% 182%; }
-.buildIntelSummaryCopy { min-width: 0; padding-right: 2px; }
-.buildIntelSummaryTitleRow { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 6px; }
-.buildIntelSummaryTitle { display: block; overflow: hidden; color: var(--wow-fg-strong); font-family: var(--wow-font-display); font-size: 18px; font-weight: 820; line-height: 23px; text-overflow: ellipsis; white-space: nowrap; }
-.buildIntelSummaryDescription { display: -webkit-box; margin-top: 6px; overflow: hidden; color: var(--wow-fg-muted); font-size: 10px; line-height: 15px; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
-.buildIntelSummaryStatus { display: inline-flex; margin-top: 5px; color: var(--wow-fg-dim); opacity: 0.78; }
-.buildIntelSummaryStatus [class*='statusLabel'] { color: var(--wow-fg-dim); font-size: 7px; line-height: 9px; }
-.buildIntelSummaryStatus [class*='statusDot'] { width: 5px; height: 5px; }
-.buildIntelMetrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: 1px solid rgba(133, 103, 55, 0.48); }
-.buildIntelMetric { display: grid; min-width: 0; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 7px; padding: 5px 10px; }
-.buildIntelMetric:nth-child(n + 2) { border-left: 1px solid rgba(133, 103, 55, 0.48); }
-.buildIntelMetricLabel { color: var(--wow-fg-dim); font-size: 8px; line-height: 11px; }
-.buildIntelMetricValue { overflow: hidden; color: var(--wow-accent-gold-soft); font-size: 12px; font-weight: 760; line-height: 16px; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
-.buildIntelFilterRail { display: grid; height: 34px; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; overflow: hidden; border: 1px solid rgba(114, 87, 47, 0.74); border-radius: 4px; background: #111318; }
-.buildIntelFilterControl { display: grid; min-width: 0; grid-template-columns: 14px minmax(0, 1fr) 12px; align-items: center; gap: 5px; padding: 0 9px; }
-.buildIntelFilterControl:nth-child(n + 2) { border-left: 1px solid rgba(114, 87, 47, 0.52); }
-.buildIntelFilterControl > :first-child,
-.buildIntelFilterControl > :last-child { width: 12px; height: 12px; color: var(--wow-accent-gold-soft); }
-.buildIntelFilterHint { display: none; }
-.buildIntelFilterLabel { width: 100%; min-width: 0; overflow: hidden; color: var(--wow-fg-muted); font-size: 9px; font-weight: 700; line-height: 13px; text-overflow: ellipsis; white-space: nowrap; }
-.buildIntelCard { height: 174px; }
-.buildIntelCardCompact { height: 144px; }
-.buildIntelCard { border-radius: 2px; background: radial-gradient(circle at 13% 38%, rgba(84, 118, 154, 0.3), transparent 32%), linear-gradient(145deg, rgba(104, 82, 47, 0.32), transparent 42%), linear-gradient(165deg, #292c32, #090b0e 80%); box-shadow: 0 10px 24px rgba(0, 0, 0, 0.52); clip-path: polygon(8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px), 0 8px); }
-.buildIntelCard-nature { background: radial-gradient(circle at 13% 38%, rgba(93, 130, 78, 0.25), transparent 30%), linear-gradient(145deg, rgba(73, 62, 43, 0.28), transparent 40%), linear-gradient(165deg, #24272e, #0a0c0f 78%); }
-.buildIntelCard-ember { background: radial-gradient(circle at 13% 38%, rgba(151, 84, 48, 0.26), transparent 30%), linear-gradient(145deg, rgba(73, 62, 43, 0.28), transparent 40%), linear-gradient(165deg, #24272e, #0a0c0f 78%); }
-.buildIntelCard > [data-material-render='nine-slice'] { opacity: 0.96; }
-.buildIntelCardContent { position: relative; z-index: 1; display: grid; height: 100%; grid-template-rows: minmax(0, 1fr) 42px; padding: var(--forged-content-inset, 10px); }
-.buildIntelCardMain { display: grid; min-height: 0; grid-template-columns: 114px minmax(0, 1fr) 70px; align-items: center; gap: 7px; }
-.buildIntelCardEmblem { position: relative; display: grid; width: 110px; height: 110px; place-items: center; color: #789ec6; }
-.buildIntelCard-nature .buildIntelCardEmblem { color: #88a86f; }
-.buildIntelCard-ember .buildIntelCardEmblem { color: #c48258; }
-.buildIntelCardEmblemGlyph { position: absolute; z-index: 1; width: 42px; height: 42px; color: currentColor; filter: drop-shadow(0 0 9px currentColor); }
-.buildIntelCardEmblemArt { position: absolute; z-index: 1; width: 78px; height: 78px; object-fit: contain; }
-.buildIntelCardCopy { min-width: 0; }
-.buildIntelCardHeading { display: flex; min-width: 0; align-items: center; gap: 5px; }
-.buildIntelCardTitle { display: block; min-width: 0; flex: 1; overflow: hidden; color: var(--wow-fg-strong); font-family: var(--wow-font-display); font-size: 15px; font-weight: 790; line-height: 20px; text-overflow: ellipsis; white-space: nowrap; }
-.buildIntelCardDescription { display: -webkit-box; margin-top: 5px; overflow: hidden; color: var(--wow-fg-muted); font-size: 9px; line-height: 13px; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
-.buildIntelCardState { display: inline-flex; margin-top: 5px; opacity: 0.7; }
-.buildIntelCardState [class*='statusLabel'] { color: var(--wow-fg-dim); font-size: 6px; line-height: 8px; }
-.buildIntelCardState [class*='statusGlyph'] { width: 7px; height: 7px; }
-.buildIntelCardCompact .buildIntelCardDescription { -webkit-line-clamp: 2; }
-.buildIntelCardAction { display: grid; min-width: 0; justify-items: stretch; gap: 5px; }
-.buildIntelCardAction button { width: 100%; min-height: 34px; padding: 0 5px; }
-.buildIntelCardCue { display: flex; min-width: 0; align-items: center; justify-content: center; gap: 2px; color: var(--wow-fg-dim); }
-.buildIntelCardCueLabel { overflow: hidden; font-size: 7px; line-height: 10px; text-overflow: ellipsis; white-space: nowrap; }
-.buildIntelCardCue > :last-child { width: 9px; height: 9px; }
-.buildIntelCardMeta { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid rgba(104, 82, 49, 0.54); }
-.buildIntelCardMetaCell { display: grid; min-width: 0; align-content: center; justify-items: center; padding: 3px 5px; }
-.buildIntelCardMetaCell:nth-child(n + 2) { border-left: 0; }
-.buildIntelCardMetaLabel { color: var(--wow-fg-dim); font-size: 7px; line-height: 9px; }
-.buildIntelCardMetaValue { max-width: 100%; overflow: hidden; color: var(--wow-fg-muted); font-size: 9px; font-weight: 700; line-height: 12px; text-overflow: ellipsis; white-space: nowrap; }
 
 .talentSelectorPanel { height: 65px; }
 .talentSelectorPanel > [data-material-render='nine-slice'],
@@ -1364,11 +1301,6 @@
   .workbenchModuleGrid { gap: 3px; }
   .workbenchModule { min-height: 162px; padding-right: 2px; padding-left: 2px; }
   .workbenchModuleSocket { width: 56px; height: 56px; }
-  .buildIntelSummaryMain { --layered-reserved-inline-start: 96px !important; }
-  .buildIntelHeroEmblemSlot { width: 96px; }
-  .buildIntelHeroEmblem { width: 84px; height: 84px; }
-  .buildIntelCardMain { grid-template-columns: 72px minmax(0, 1fr) 64px; gap: 6px; }
-  .buildIntelCardEmblem { width: 70px; height: 70px; }
   .talentSelectorCell { grid-template-columns: 30px minmax(0, 1fr) 10px; gap: 3px; padding-right: 4px; padding-left: 4px; }
   .talentSelectorMedallion { width: 30px; height: 30px; }
   .talentTreeGraph { padding-right: 5px; padding-left: 5px; }

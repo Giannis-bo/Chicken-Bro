@@ -1195,6 +1195,13 @@ record(
   legacySimcParallelLayoutOwners.length === 0,
   legacySimcParallelLayoutOwners.join(', ') || 'SimcSubmitComponents.module.scss',
 )
+const legacyBuildIntelParallelLayoutOwners = [...reconstructionStyles.matchAll(/\.buildIntel[\w-]*/gu)]
+  .map((match) => match[0])
+record(
+  'build_intel_geometry_has_one_component_style_owner',
+  legacyBuildIntelParallelLayoutOwners.length === 0,
+  [...new Set(legacyBuildIntelParallelLayoutOwners)].join(', ') || 'BuildIntelComponents.module.scss',
+)
 const selectedStateOwners = [
   ['packages/design-system/src/components/TabBar.tsx', 'product-tab-item'],
   ['packages/design-system/src/components/ChannelDock.tsx', 'news-list-category'],
