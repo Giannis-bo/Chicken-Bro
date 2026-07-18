@@ -5,8 +5,8 @@ const { spawnSync } = require('node:child_process')
 const fs = require('node:fs')
 const os = require('node:os')
 const path = require('node:path')
-const net = require('node:net')
 const { readBoundedFile } = require('./bounded-file')
+const { isProductionNamedHttps, releaseDomainBlockers } = require('./release-domain-policy')
 
 const root = path.resolve(__dirname, '..')
 const appRoot = path.join(root, 'apps/mini-taro')
@@ -53,30 +53,6 @@ function walk(directory) {
 function countStringLiteral(source, value) {
   return source.split(JSON.stringify(value)).length - 1
     + source.split(`'${value}'`).length - 1
-}
-
-function isProductionAssetRoot(value) {
-  try {
-    const url = new URL(value)
-    return url.protocol === 'https:'
-      && url.hostname !== 'localhost'
-      && !url.hostname.endsWith('.invalid')
-      && !/^\d+(?:\.\d+){3}$/u.test(url.hostname)
-  } catch {
-    return false
-  }
-}
-
-function isProductionBackendOrigin(value) {
-  try {
-    const url = new URL(value)
-    return url.protocol === 'https:'
-      && url.hostname !== 'localhost'
-      && !url.hostname.endsWith('.invalid')
-      && net.isIP(url.hostname) === 0
-  } catch {
-    return false
-  }
 }
 
 function build(name, assetRuntimeRoot = '') {
@@ -145,18 +121,15 @@ try {
   if (remote.commonJsBytes > limits.commonJsBytes) failures.push(`common.js is ${remote.commonJsBytes} bytes`)
   if (remote.commonWxssBytes > limits.commonWxssBytes) failures.push(`common.wxss is ${remote.commonWxssBytes} bytes`)
   const packageMechanicsPass = failures.length === 0
-  const releaseBlockers = []
-  if (!isProductionAssetRoot(remoteAssetRuntimeRoot)) releaseBlockers.push('WOW_ASSET_RUNTIME_ROOT must be an approved HTTPS named origin')
-  if (!isProductionBackendOrigin(backendApiBaseUrl)) releaseBlockers.push('WOW_BACKEND_API_BASE_URL must be an approved HTTPS named origin')
-  if (!wechatRequestDomainApproved) releaseBlockers.push('WOW_WECHAT_REQUEST_DOMAIN_APPROVED must be explicit yes')
+  const releaseBlockers = releaseDomainBlockers({ assetRuntimeRoot: remoteAssetRuntimeRoot, backendApiBaseUrl, wechatRequestDomainApproved })
   const releaseReady = packageMechanicsPass && releaseBlockers.length === 0
   console.log(JSON.stringify({
     status: packageMechanicsPass ? (releaseReady ? 'pass' : 'partial') : 'fail',
     evidence: 'isolated_production_weapp_package',
     packageMechanicsPass,
     releaseReady,
-    remoteAssetOrigin: isProductionAssetRoot(remoteAssetRuntimeRoot) ? new URL(remoteAssetRuntimeRoot).origin : 'not_configured',
-    backendApiOrigin: isProductionBackendOrigin(backendApiBaseUrl) ? new URL(backendApiBaseUrl).origin : 'not_configured',
+    remoteAssetOrigin: isProductionNamedHttps(remoteAssetRuntimeRoot) ? new URL(remoteAssetRuntimeRoot).origin : 'not_configured',
+    backendApiOrigin: isProductionNamedHttps(backendApiBaseUrl) ? new URL(backendApiBaseUrl).origin : 'not_configured',
     wechatRequestDomainApproved,
     releaseBlockers,
     limits,

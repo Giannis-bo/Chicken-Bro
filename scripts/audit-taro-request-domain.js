@@ -4,8 +4,8 @@
 const fs = require('node:fs')
 const http = require('node:http')
 const https = require('node:https')
-const net = require('node:net')
 const path = require('node:path')
+const { isProductionNamedHttps } = require('./release-domain-policy')
 
 const root = path.resolve(__dirname, '..')
 const shouldProbe = process.argv.includes('--probe')
@@ -64,12 +64,7 @@ async function main() {
   const productionOrigin = safeOrigin(process.env.WOW_BACKEND_API_BASE_URL || '')
   const productionUrl = productionOrigin ? new URL(productionOrigin) : null
   const approvedInWechatAdmin = process.env.WOW_WECHAT_REQUEST_DOMAIN_APPROVED === 'yes'
-  const productionHttpsOrigin = Boolean(
-    productionUrl
-    && productionUrl.protocol === 'https:'
-    && net.isIP(productionUrl.hostname) === 0
-    && productionUrl.hostname !== 'localhost',
-  )
+  const productionHttpsOrigin = Boolean(productionUrl && isProductionNamedHttps(productionOrigin))
   const devtoolsDomainBypassCommitted = projectConfig.setting?.urlCheck === false
   const productionReady = productionHttpsOrigin && approvedInWechatAdmin && !devtoolsDomainBypassCommitted
   const probes = shouldProbe && developmentBaseUrl
