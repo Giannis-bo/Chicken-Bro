@@ -245,6 +245,35 @@ function responsiveLayoutValue(block, property, axisPixels) {
 }
 
 const minimumLayoutViewport = { width: 320, height: 568 }
+const routeRegionLayoutDeclarations = routeStyles.flatMap((file) => {
+  const declarations = new Map()
+  for (const match of read(file).matchAll(/\.([A-Za-z][\w-]*Region)\s*\{([^}]*)\}/gu)) {
+    const current = declarations.get(match[1]) ?? {}
+    for (const property of ['left', 'right', 'width', 'top', 'bottom', 'height']) {
+      const value = match[2].match(new RegExp(`(?:^|;)\\s*${property}:\\s*([^;]+);`, 'u'))?.[1]?.trim()
+      if (value) current[property] = value
+    }
+    declarations.set(match[1], current)
+  }
+  return [...declarations].map(([region, values]) => ({ file, region, ...values }))
+})
+const usableRouteRegionLayoutValue = (value) => value && !['auto', 'initial', 'none', 'unset'].includes(value)
+const partiallyAnchoredRouteRegions = routeRegionLayoutDeclarations.flatMap((region) => {
+  const hasHorizontalCoordinate = usableRouteRegionLayoutValue(region.left) || usableRouteRegionLayoutValue(region.right)
+  const hasVerticalCoordinate = usableRouteRegionLayoutValue(region.top) || usableRouteRegionLayoutValue(region.bottom)
+  if (!hasHorizontalCoordinate && !hasVerticalCoordinate) return []
+  const horizontalClosed = (
+    (usableRouteRegionLayoutValue(region.left) && usableRouteRegionLayoutValue(region.width))
+    || (usableRouteRegionLayoutValue(region.right) && usableRouteRegionLayoutValue(region.width))
+    || (usableRouteRegionLayoutValue(region.left) && usableRouteRegionLayoutValue(region.right))
+  )
+  const verticalClosed = (
+    (usableRouteRegionLayoutValue(region.top) && usableRouteRegionLayoutValue(region.height))
+    || (usableRouteRegionLayoutValue(region.bottom) && usableRouteRegionLayoutValue(region.height))
+    || (usableRouteRegionLayoutValue(region.top) && usableRouteRegionLayoutValue(region.bottom))
+  )
+  return horizontalClosed && verticalClosed ? [] : [{ ...region, horizontalClosed: Boolean(horizontalClosed), verticalClosed: Boolean(verticalClosed) }]
+})
 const specializedRegionBounds = routeStyles.flatMap((file) => (
   [...read(file).matchAll(/\.([A-Za-z][\w-]*Region)\s*\{([^}]*)\}/gu)].flatMap((match) => {
     const left = percentLayoutValue(match[2], 'left', minimumLayoutViewport.width)
@@ -324,6 +353,11 @@ record(
   'route_regions_do_not_use_fixed_pixel_widths',
   fixedPixelRouteRegionWidths.length === 0,
   fixedPixelRouteRegionWidths.join(', ') || 'none',
+)
+record(
+  'anchored_route_regions_close_both_layout_axes',
+  partiallyAnchoredRouteRegions.length === 0,
+  partiallyAnchoredRouteRegions.map((region) => `${region.file}:${region.region}:horizontal=${region.horizontalClosed}:vertical=${region.verticalClosed}`).join(', ') || `regions=${routeRegionLayoutDeclarations.length}`,
 )
 record(
   'all_anchored_route_regions_fit_the_minimum_viewport_width',
