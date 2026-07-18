@@ -1078,7 +1078,8 @@ record(
 )
 const selectedMaterialPublishers = []
 for (const file of [...new Set(selectedStateOwners.map(([ownerFile]) => ownerFile))]) {
-  const ast = babelParser.parse(read(file), { sourceType: 'module', plugins: ['jsx', 'typescript'] })
+  const source = read(file)
+  const ast = babelParser.parse(source, { sourceType: 'module', plugins: ['jsx', 'typescript'] })
   traverse(ast, {
     JSXOpeningElement(elementPath) {
       const attributes = elementPath.node.attributes.filter((attribute) => attribute.type === 'JSXAttribute')
@@ -1087,7 +1088,15 @@ for (const file of [...new Set(selectedStateOwners.map(([ownerFile]) => ownerFil
       const role = roleAttribute?.value?.type === 'StringLiteral' ? roleAttribute.value.value : ''
       const stateAttributes = attributes.filter((attribute) => ['data-selected', 'data-active'].includes(attribute.name.name))
       const boundary = attributes.some((attribute) => attribute.name.name === 'data-leading-boundary')
-      selectedMaterialPublishers.push({ file, role, stateAttributes: stateAttributes.map((attribute) => attribute.name.name), boundary })
+      const classAttribute = attributes.find((attribute) => attribute.name.name === 'className')
+      const classExpression = classAttribute?.value?.type === 'JSXExpressionContainer'
+        ? source.slice(classAttribute.value.expression.start, classAttribute.value.expression.end)
+        : ''
+      const classNames = [...new Set([
+        ...[...classExpression.matchAll(/\bstyles\[['"]([^'"]+)['"]\]/gu)].map((match) => match[1]),
+        ...[...classExpression.matchAll(/\b(?:reconstructionStyle|componentStyle|style)\(['"]([^'"]+)['"]\)/gu)].map((match) => match[1]),
+      ])]
+      selectedMaterialPublishers.push({ file, role, stateAttributes: stateAttributes.map((attribute) => attribute.name.name), boundary, classNames })
     },
   })
 }
@@ -1107,6 +1116,27 @@ record(
     && [...publishedSelectionRoles].every((role) => contractedSelectionRoles.has(role)),
   invalidSelectedMaterialPublishers.map((publisher) => `${publisher.file}:${publisher.role || 'missing-role'}`).join(', ')
     || `publishers=${selectedMaterialPublishers.length}; roles=${publishedSelectionRoles.size}`,
+)
+const reconstructionSelectionStyles = read('packages/design-system/src/components/reconstruction.module.scss')
+const selectedPublishersWithoutStyleOwners = selectedMaterialPublishers.flatMap((publisher) => {
+  const stateAttribute = publisher.stateAttributes[0]
+  if (!stateAttribute) return [`${publisher.file}:${publisher.role}:missing-state-attribute`]
+  const localStylePath = publisher.file.replace(/\.tsx$/u, '.module.scss')
+  const localStyleSources = fs.existsSync(path.join(root, localStylePath)) ? [read(localStylePath)] : []
+  const styleSources = [reconstructionSelectionStyles, ...localStyleSources]
+  const stateSelector = `\\[${stateAttribute}=['"]true['"]\\]`
+  const ownsDirectMaterial = publisher.classNames.some((className) => styleSources.some((styles) => (
+    new RegExp(`\\.${className}${stateSelector}`, 'u').test(styles)
+  )))
+  const ownsAncestorMaterial = publisher.classNames.length === 0 && localStyleSources.some((styles) => (
+    new RegExp(`[^{}]+${stateSelector}\\s*\\{`, 'u').test(styles)
+  ))
+  return ownsDirectMaterial || ownsAncestorMaterial ? [] : [`${publisher.file}:${publisher.role}:${publisher.classNames.join('|') || 'ancestor'}`]
+})
+record(
+  'selected_material_publishers_bind_active_style_owners',
+  selectedPublishersWithoutStyleOwners.length === 0,
+  selectedPublishersWithoutStyleOwners.join(', ') || `publishers=${selectedMaterialPublishers.length}`,
 )
 const deprecatedSelectionStateClasses = [
   'newsListCategoryItemActive',

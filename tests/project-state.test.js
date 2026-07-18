@@ -821,6 +821,8 @@ test('SimC regions scale inside the shell content viewport', () => {
   assert.match(audit, /invalidRouteRegionStyleReferences/)
   assert.match(audit, /all_literal_route_css_module_references_resolve/)
   assert.match(audit, /missingLiteralRouteCssModuleReferences/)
+  assert.match(audit, /selected_material_publishers_bind_active_style_owners/)
+  assert.match(audit, /selectedPublishersWithoutStyleOwners/)
   assert.match(audit, /all_anchored_route_regions_fit_the_minimum_viewport_width/)
   assert.match(audit, /rightInset !== null && explicitWidth !== null/)
   const styles = fs.readFileSync('apps/mini-taro/src/pages/simulator/simc-submit.module.scss', 'utf8')
