@@ -225,7 +225,7 @@ export function isTalentValidationPayload(value: unknown): value is TalentValida
 export function isTalentExportPayload(value: unknown): value is TalentApiExportPayload {
   return isRecord(value)
     && hasTalentSelectionKeys(value)
-    && hasSchemaRevision(value['websimExportCode'])
+    && typeof value['websimExportCode'] === 'string'
     && hasSchemaRevision(value['talentSchemaRevision'])
     && isTalentSelectionState(value['talentState'])
     && isTalentValidationPayload(value['validation'])

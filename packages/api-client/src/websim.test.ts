@@ -190,12 +190,34 @@ describe('authoritative talent edit endpoints', () => {
     expect(invalidValidations.every((value) => !isTalentValidationPayload(value))).toBe(true)
 
     expect(isTalentExportPayload({ ...exported, websimExportCode: 7 })).toBe(false)
-    expect(isTalentExportPayload({ ...exported, websimExportCode: '' })).toBe(false)
     expect(isTalentExportPayload({ ...exported, talentSchemaRevision: '' })).toBe(false)
     expect(isTalentExportPayload({ ...exported, validation: { ...validation, blockers: 7 } })).toBe(false)
     expect(isTalentImportPayload({ ...imported, rawImportCode: 7 })).toBe(false)
     expect(isTalentImportPayload({ ...imported, talentState: { selectedNodes: [{}] } })).toBe(false)
     expect(isTalentImportPayload({ ...imported, talentSchemaRevision: null })).toBe(false)
+  })
+
+  it('preserves a structured backend export rejection when its code is empty', async () => {
+    const rejectedExport: TalentApiExportPayload = {
+      ...exported,
+      websimExportCode: '',
+      validation: {
+        ...validation,
+        status: 'failed',
+        errors: ['missing parent talent for locked'],
+        lines: [],
+      },
+    }
+    const result = await createWebsimClient(responseTransport(rejectedExport)).talentExport({
+      classKey: 'mage',
+      specKey: 'frost',
+      heroKey: 'frostfire',
+      talentState: { selectedNodes: [{ id: 'locked', rank: 1 }] },
+    })
+
+    expect(isTalentExportPayload(rejectedExport)).toBe(true)
+    expect(result.fromFallback).toBe(false)
+    expect(result.payload.validation.errors).toEqual(['missing parent talent for locked'])
   })
 
   it('returns a complete blocked fallback when a runtime response fails validation', async () => {

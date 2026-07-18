@@ -22,5 +22,6 @@ describe('talent simulator authoritative edit contract', () => {
     expect(source).toContain("connectivityStatus !== 'ready' || validating || saving")
     expect(source).toContain('runFencedTalentSave')
     expect(source).toContain('isCurrent: () => validationSequence.current === operationSequence')
+    expect(source).toContain('if (!decision.accepted || !code)')
   })
 })
