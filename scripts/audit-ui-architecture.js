@@ -1994,15 +1994,36 @@ const nativeControlRule = nativeControlStyles.match(/\.nativeControl\s*\{(?<body
 record(
   'native_button_owner_neutralizes_wechat_geometry',
   /\bappearance\s*:\s*none\s*;/u.test(nativeControlRule)
+    && /\bwidth\s*:\s*auto\s*;/u.test(nativeControlRule)
     && /\bmax-width\s*:\s*100%\s*;/u.test(nativeControlRule)
     && /\bmin-width\s*:\s*0\s*;/u.test(nativeControlRule)
     && /\bmin-height\s*:\s*0\s*;/u.test(nativeControlRule)
     && /\bmargin\s*:\s*0\s*;/u.test(nativeControlRule)
     && /\bpadding\s*:\s*0\s*;/u.test(nativeControlRule)
     && /\bborder\s*:\s*0\s*;/u.test(nativeControlRule)
+    && /\bborder-radius\s*:\s*0\s*;/u.test(nativeControlRule)
+    && /\bbackground\s*:\s*transparent\s*;/u.test(nativeControlRule)
     && /\bbox-shadow\s*:\s*none\s*;/u.test(nativeControlRule)
+    && /\bfont\s*:\s*inherit\s*;/u.test(nativeControlRule)
+    && /\bline-height\s*:\s*inherit\s*;/u.test(nativeControlRule)
+    && /\btext-align\s*:\s*inherit\s*;/u.test(nativeControlRule)
     && /\.nativeControl::after\s*\{[^}]*\bborder\s*:\s*0\s*;/su.test(nativeControlStyles),
   'ControlButton must neutralize native width, spacing, minimum height, border, shadow and ::after geometry',
+)
+const componentButtonHorizontalMargins = routedUiStyleFiles.flatMap((file) => (
+  [...read(file).matchAll(/(?<selector>[^{}]*\bbutton\b[^{}]*)\{(?<body>[^{}]*)\}/giu)].flatMap((match) => (
+    ['margin-left', 'margin-right'].flatMap((property) => {
+      const value = match.groups.body.match(new RegExp(`\\b${property}:\\s*([^;]+);`, 'u'))?.[1]?.trim()
+      return value && !/^0(?:px|rpx|rem|em|%)?$/u.test(value)
+        ? [`${file}:${match.groups.selector.trim().replace(/\s+/gu, ' ')}:${property}=${value}`]
+        : []
+    })
+  ))
+))
+record(
+  'component_buttons_do_not_escape_cells_with_horizontal_margins',
+  componentButtonHorizontalMargins.length === 0,
+  componentButtonHorizontalMargins.join(', ') || 'all component button horizontal margins are zero',
 )
 const componentButtonPseudoChrome = [...componentStyleFiles, 'packages/design-system/src/components/owners.module.scss', 'packages/design-system/src/components/reconstruction.module.scss'].flatMap((file) => (
   [...read(file).matchAll(/(?<selector>[^{}]+)\{(?<body>[^{}]*)\}/gu)].flatMap((match) => {
