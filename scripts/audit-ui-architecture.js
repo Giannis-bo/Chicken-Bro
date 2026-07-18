@@ -1223,6 +1223,13 @@ record(
   legacyTaskParallelLayoutOwners.length === 0,
   [...new Set(legacyTaskParallelLayoutOwners)].join(', ') || 'TaskListComponents/TaskDetailComponents',
 )
+const legacyAssistantParallelLayoutOwners = [...reconstructionStyles.matchAll(/\.(?:quickAction|assistant(?:Context|Shortcut|Evidence|Composer)|chickenbro(?:Summary|Answer|Limit|Next))[\w-]*/gu)]
+  .map((match) => match[0])
+record(
+  'simulator_and_chickenbro_geometry_have_no_parallel_reconstruction_owner',
+  legacyAssistantParallelLayoutOwners.length === 0,
+  [...new Set(legacyAssistantParallelLayoutOwners)].join(', ') || 'SimulatorHomeComponents/ChickenbroChatComponents',
+)
 const selectedStateOwners = [
   ['packages/design-system/src/components/TabBar.tsx', 'product-tab-item'],
   ['packages/design-system/src/components/ChannelDock.tsx', 'news-list-category'],

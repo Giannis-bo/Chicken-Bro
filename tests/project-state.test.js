@@ -832,6 +832,7 @@ test('SimC regions scale inside the shell content viewport', () => {
   assert.match(audit, /gear_detail_geometry_has_no_parallel_reconstruction_owner/)
   assert.match(audit, /talent_simulator_geometry_has_one_component_style_owner/)
   assert.match(audit, /task_routes_have_no_parallel_reconstruction_geometry_owner/)
+  assert.match(audit, /simulator_and_chickenbro_geometry_have_no_parallel_reconstruction_owner/)
   assert.match(audit, /anchored_route_regions_close_both_layout_axes/)
   assert.match(audit, /partiallyAnchoredRouteRegions/)
   assert.match(audit, /fixed_route_stage_regions_bind_existing_layout_classes/)
