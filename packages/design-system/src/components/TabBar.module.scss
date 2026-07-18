@@ -139,10 +139,11 @@
 }
 
 @media (min-width: 480PX) {
-  :global(#app) .root {
+  .root {
     right: auto;
     left: 50%;
-    width: 390PX;
+    width: 100%;
+    max-width: 390PX;
     transform: translateX(-50%);
   }
 }

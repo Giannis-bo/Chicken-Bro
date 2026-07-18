@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict'
 
-const { connectMiniProgram, timeout } = require('./wechat-automator')
+const { connectMiniProgram, timeout, waitForRenderedPage } = require('./wechat-automator')
 const crypto = require('node:crypto')
 const fs = require('node:fs')
 const path = require('node:path')
@@ -27,12 +27,14 @@ async function settle(milliseconds = 650) {
 async function open(miniProgram, route) {
   try {
     const page = await timeout(miniProgram.reLaunch(route.path), operationTimeoutMs, `open ${route.route}`)
+    await waitForRenderedPage(page, `render ${route.route}`)
     await settle()
     return page
   } catch (error) {
     const expectedPath = route.path.split('?')[0].replace(/^\//u, '')
     const current = await timeout(miniProgram.currentPage(), 2500, `recover ${route.route}`)
     if (current.path !== expectedPath) throw error
+    await waitForRenderedPage(current, `recover render ${route.route}`)
     await settle(200)
     return current
   }
@@ -326,7 +328,11 @@ async function main() {
   try {
     miniProgram = await connectMiniProgram()
     const system = await timeout(miniProgram.systemInfo(), 4000, 'read system info')
-    const menuButton = await timeout(miniProgram.callWxMethod('getMenuButtonBoundingClientRect'), 4000, 'read menu button bounds')
+    const menuButton = await timeout(
+      miniProgram.evaluate(() => wx.getMenuButtonBoundingClientRect()),
+      4000,
+      'read menu button bounds',
+    )
     const viewport = normalizeSystemViewport(system, menuButton)
     const results = []
     const details = []

@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "build:h5": "taro build --type h5",
-    "build:weapp": "taro build --type weapp",
+    "build:weapp": "taro build --type weapp && node ../../scripts/finalize-weapp-build.js",
     "dev:h5": "taro build --type h5 --watch",
     "dev:weapp": "taro build --type weapp --watch"
   },

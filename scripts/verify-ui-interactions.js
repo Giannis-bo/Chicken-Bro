@@ -4,7 +4,7 @@
 const { execFileSync } = require('node:child_process')
 const fs = require('node:fs')
 const path = require('node:path')
-const { connectMiniProgram, timeout } = require('./wechat-automator')
+const { connectMiniProgram, timeout, waitForRenderedPage } = require('./wechat-automator')
 const { requireOnlineRouteBatch } = require('./online-route-batch')
 const { writeBoundedJsonAtomic } = require('./bounded-json-detail')
 const coreInteractionContract = require('../docs/design/current-ui/core-interaction-contract.json')
@@ -135,6 +135,7 @@ async function open(miniProgram, path) {
       }
     }
   }
+  await waitForRenderedPage(page, `render ${path}`)
   await settle()
   return page
 }

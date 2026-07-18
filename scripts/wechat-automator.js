@@ -6,6 +6,7 @@ const automator = require('miniprogram-automator')
 
 const explicitConnectTimeoutMs = 30000
 const reuseConnectTimeoutMs = 2000
+const renderedPageTimeoutMs = 30000
 
 function timeout(promise, milliseconds, label) {
   let timer
@@ -13,6 +14,35 @@ function timeout(promise, milliseconds, label) {
     timer = setTimeout(() => reject(new Error(`${label} timed out after ${milliseconds}ms`)), milliseconds)
   })
   return Promise.race([promise, deadline]).finally(() => clearTimeout(timer))
+}
+
+function hasRenderedRoot(data) {
+  return Array.isArray(data?.root?.cn) && data.root.cn.length > 0
+}
+
+async function waitForRenderedPage(page, label = `render ${page.path}`) {
+  const deadline = Date.now() + renderedPageTimeoutMs
+  let lastError = null
+  while (Date.now() < deadline) {
+    try {
+      const data = await timeout(page.data(), 2000, `read ${page.path} root data`)
+      if (hasRenderedRoot(data)) return page
+    } catch (error) {
+      lastError = error
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250))
+  }
+  const detail = lastError instanceof Error ? `; last error: ${lastError.message}` : ''
+  throw new Error(`${label} timed out after ${renderedPageTimeoutMs}ms${detail}`)
+}
+
+async function readSemanticValue(element, attribute, label = attribute) {
+  const normalizedAttribute = attribute.replace(/^data-/u, '')
+  const direct = await timeout(element.attribute(`data-${normalizedAttribute}`), 1500, `read ${label}`)
+  if (direct !== null && direct !== undefined && direct !== '') return direct
+  const className = String(await timeout(element.attribute('class'), 1500, `read ${label} marker class`) ?? '')
+  const marker = className.match(new RegExp(`(?:^|\\s)wx-data-${normalizedAttribute}-([^\\s]+)`, 'u'))
+  return marker?.[1] ?? null
 }
 
 async function connectMiniProgram() {
@@ -62,4 +92,4 @@ function portIsListening(port) {
   })
 }
 
-module.exports = { connectMiniProgram, timeout }
+module.exports = { connectMiniProgram, hasRenderedRoot, readSemanticValue, timeout, waitForRenderedPage }

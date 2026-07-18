@@ -4,7 +4,7 @@
 const fs = require('node:fs')
 const path = require('node:path')
 const { execFileSync } = require('node:child_process')
-const { connectMiniProgram, timeout } = require('./wechat-automator')
+const { connectMiniProgram, readSemanticValue, timeout, waitForRenderedPage } = require('./wechat-automator')
 const { requireOnlineRouteBatch } = require('./online-route-batch')
 const { writeBoundedJsonAtomic } = require('./bounded-json-detail')
 const contract = require('../docs/design/current-ui/runtime-asset-slot-mapping-contract.json')
@@ -24,6 +24,7 @@ function selectedRoutes() {
 
 async function inspect(miniProgram, route) {
   const page = await timeout(miniProgram.reLaunch(route.path), operationTimeoutMs, `open ${route.route}`)
+  await waitForRenderedPage(page, `render ${route.route}`)
   await new Promise((resolve) => setTimeout(resolve, 650))
   const [queriedElements, queriedMaterialOwnerElements] = await Promise.all([
     timeout(page.$$('[class*="wx-data-slot-id-"]'), 5000, `query slots ${route.route}`),
@@ -33,8 +34,8 @@ async function inspect(miniProgram, route) {
   const materialOwnerElements = queriedMaterialOwnerElements.slice(0, queryCaps.materialOwners)
   const observations = await Promise.all(elements.map(async (element) => ({
     className: await timeout(element.attribute('class'), 1500, 'read slot class'),
-    assetId: await timeout(element.attribute('data-asset-id'), 1500, 'read asset id'),
-    promotionStatus: await timeout(element.attribute('data-promotion-status'), 1500, 'read promotion status'),
+    assetId: await readSemanticValue(element, 'asset-id', 'asset id'),
+    promotionStatus: await readSemanticValue(element, 'promotion-status', 'promotion status'),
   })))
   const classes = observations.map((observation) => observation.className)
   const observedTokens = [...new Set(classes.flatMap((className) => (
@@ -47,7 +48,7 @@ async function inspect(miniProgram, route) {
   const validPromotionStatuses = new Set(['production_promoted', 'candidate_pending_review', 'missing'])
   const missingPromotionStatusElements = assetObservations.filter((observation) => !validPromotionStatuses.has(observation.promotionStatus)).length
   const promotionCounts = Object.fromEntries([...validPromotionStatuses].map((status) => [status, assetObservations.filter((observation) => observation.promotionStatus === status).length]))
-  const materialOwners = await Promise.all(materialOwnerElements.map((element) => timeout(element.attribute('data-material-owner'), 1500, 'read material owner')))
+  const materialOwners = await Promise.all(materialOwnerElements.map((element) => readSemanticValue(element, 'material-owner', 'material owner')))
   const validMaterialOwners = new Set(['asset', 'css'])
   const invalidMaterialOwnerElements = materialOwners.filter((owner) => !validMaterialOwners.has(owner)).length
   const materialOwnerCounts = Object.fromEntries([...validMaterialOwners].map((owner) => [owner, materialOwners.filter((value) => value === owner).length]))
