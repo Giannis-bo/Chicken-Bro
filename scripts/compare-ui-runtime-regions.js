@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 'use strict'
 
-const fs = require('node:fs')
 const path = require('node:path')
 const contract = require('../docs/design/current-ui/runtime-region-mapping-contract.json')
 const { readBoundedJson, writeBoundedJsonAtomic } = require('./bounded-json-detail')
@@ -19,7 +18,7 @@ function round(value) {
 }
 
 function compareRoute(mapping, runtimeRoute) {
-  const target = JSON.parse(fs.readFileSync(path.join(root, mapping.targetGeometry), 'utf8'))
+  const target = readBoundedJson(path.join(root, mapping.targetGeometry), `target geometry ${mapping.route}`)
   const targetById = new Map(target.regions.map((region) => [region.id, region]))
   const runtimeById = new Map(runtimeRoute.regions.filter((region) => region.visibleSlot).map((region) => [region.id, region]))
   const pairs = Object.entries(mapping.regions).map(([targetId, runtimeId]) => {

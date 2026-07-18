@@ -592,6 +592,8 @@ test('target/runtime region comparison is semantic, bounded and image-free', () 
   assert.ok(contract.routes.every((route) => Object.keys(route.regions).length >= 6))
   assert.match(comparison, /GEOMETRY_DETAIL_PATH is required/)
   assert.match(comparison, /REGION_COMPARISON_OUTPUT/)
+  assert.match(comparison, /readBoundedJson\(path\.join\(root, mapping\.targetGeometry\), `target geometry \$\{mapping\.route\}`\)/)
+  assert.doesNotMatch(comparison, /readFileSync/)
   assert.doesNotMatch(comparison, /png|screenshot|sharp|canvas/i)
 })
 
