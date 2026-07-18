@@ -107,8 +107,8 @@ Review 窗口同时覆盖共享组件、页面 JSX 中的非组件 wrapper、rou
 ## 微信验收与恢复链路
 
 1. 保持一个 `taro build --type weapp --watch`，不得为单次验收再启动第二个 watch。
-2. 验证入口默认复用 `9420-9460` 范围内已监听的 automation 端口，或连接明确提供的 `WECHAT_AUTOMATOR_ENDPOINT`；默认不得调用 DevTools CLI `auto`，因为它可能导致窗口重载。
-3. 只有确认当前没有可复用 endpoint、且允许一次性建立 automation 会话时，才显式设置 `WECHAT_AUTOMATOR_LAUNCH=1`。同一会话后续验证必须连接既有端口，不得重复 launch、退出或重启开发者工具。
+2. 验证入口只复用 `9420-9460` 范围内已监听的 automation 端口，或连接明确提供的 `WECHAT_AUTOMATOR_ENDPOINT`；helper 不具备 DevTools launch 能力，并在连接后校验当前 `wow-mini-taro` AppID，禁止误连其他项目或新游客实例。
+3. 开发者工具账户、当前项目和 automation 端口是受保护会话状态。自动化不得点击账户区、退出登录、关闭、重启或重新打开项目；孤立出现的“游客模式”入口不能单独作为掉线证据。扫码登录成功后若 DevTools 把项目窗口收回入口页，只从当前已登录入口恢复 `apps/mini-taro`，不得另起实例；连接异常时保持现场并明确失败，不得把重复扫码当作恢复步骤。
 4. 连接恢复后依次执行结构几何预检、当前批次核心交互、14 路由 target/runtime 复核；三者证据不可互相替代。截图、几何、核心交互、选中态和素材槽五类在线入口统一要求显式路由、拒绝 `all` 且每次最多 2 路由；空环境变量不得默认为全量执行。各小批 detail 仅由对应离线晋级器合并为精确 14 路由闭包。
 5. 结构预检输出 `visualPixelReview: UNVERIFIED` 是预期边界。只有按 `runtime-review-contract.json` 齐备运行态 artifact、target 映射、区域差异、素材语义、碰撞和交互结果，并经人工确认，路由才可标记 `PASS`。
 6. 最终候选再执行一次 Harness `full` 和 GitHub CI；工具恢复过程不生成第二套监督器、临时截图档案或会话记录。

@@ -38,7 +38,7 @@ npm run verify:ui-package
 
 `verify:ui-package` 在系统临时目录分别执行本地素材与显式 HTTPS 素材根的 production 构建，关闭构建缓存，不覆盖唯一 watch 的 `dist/weapp`。它阻断远端构建复制本地素材、远端非 source-map 包超过 2 MiB，以及 `common.js` / `common.wxss` 超过当前预算；临时产物在输出证据后删除。
 
-本地微信链路保持一个 Taro watch。验证脚本默认扫描并复用 `9420-9460` 内已监听的 automation 端口，不依赖固定 `9421`，也不调用可能重载窗口的 CLI `auto`；需要连接指定会话时设置 `WECHAT_AUTOMATOR_ENDPOINT`。只有一次性建立会话时才显式设置 `WECHAT_AUTOMATOR_LAUNCH=1`，需要覆盖项目或 CLI 路径时分别设置 `WECHAT_AUTOMATOR_PROJECT`、`WECHAT_DEVTOOLS_CLI`。连接异常先检查 watch、开发者工具、项目路径和端口状态，不通过循环重启恢复。成功的结构预检必须输出设备、逐路由几何和 `failures`；没有输出不得视为通过。
+本地微信链路保持一个 Taro watch。验证脚本默认扫描并复用 `9420-9460` 内已监听的 automation 端口，不依赖固定 `9421`，不调用 DevTools CLI，也不具备 launch 能力；每次连接必须通过 `getAccountInfoSync` 校验为当前 `wow-mini-taro` AppID。需要连接指定会话时设置 `WECHAT_AUTOMATOR_ENDPOINT`。开发者工具账户、当前项目和 automation 端口属于受保护会话状态：自动化不得点击账户区、退出登录、关闭、重启或重新打开项目。孤立出现的“游客模式”文字不能单独证明掉线；以 DevTools 登录成功状态、当前账号头像和项目属性刷新结果交叉确认。扫码登录成功后若项目窗口回到入口页，只从当前已登录入口重新打开 `apps/mini-taro`，不得另起 DevTools、CLI `auto` 或游客实例。连接异常先检查 watch、已登录开发者工具、项目路径和端口状态，不通过循环重启或要求重复扫码恢复。成功的结构预检必须输出设备、逐路由几何和 `failures`；没有输出不得视为通过。
 
 ## Canonical gear
 

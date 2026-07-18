@@ -1,13 +1,14 @@
 'use strict'
 
-const path = require('node:path')
 const net = require('node:net')
 const automator = require('miniprogram-automator')
+const projectConfig = require('../apps/mini-taro/project.config.json')
 
 const explicitConnectTimeoutMs = 30000
 const reuseConnectTimeoutMs = 2000
 const renderedPageTimeoutMs = 30000
 const systemInfoTimeoutMs = 30000
+const expectedAppId = projectConfig.appid
 
 function timeout(promise, milliseconds, label) {
   let timer
@@ -66,31 +67,44 @@ async function readSemanticValue(element, attribute, label = attribute) {
 async function connectMiniProgram() {
   const endpoint = process.env.WECHAT_AUTOMATOR_ENDPOINT
   if (endpoint) {
-    return timeout(automator.connect({ wsEndpoint: endpoint }), explicitConnectTimeoutMs, `connect ${endpoint}`)
+    const miniProgram = await timeout(automator.connect({ wsEndpoint: endpoint }), explicitConnectTimeoutMs, `connect ${endpoint}`)
+    try {
+      await assertExpectedProject(miniProgram)
+      return miniProgram
+    } catch (error) {
+      miniProgram.disconnect()
+      throw error
+    }
   }
 
   for (let port = 9420; port <= 9460; port += 1) {
     if (await portIsListening(port)) {
+      let miniProgram
       try {
-        return await timeout(automator.connect({ wsEndpoint: `ws://127.0.0.1:${port}` }), reuseConnectTimeoutMs, `connect automation port ${port}`)
+        miniProgram = await timeout(automator.connect({ wsEndpoint: `ws://127.0.0.1:${port}` }), reuseConnectTimeoutMs, `connect automation port ${port}`)
+        await assertExpectedProject(miniProgram)
+        return miniProgram
       } catch {
+        if (miniProgram) miniProgram.disconnect()
         // A listening port in this range is not necessarily a WeChat Automator endpoint.
       }
     }
   }
 
-  if (process.env.WECHAT_AUTOMATOR_LAUNCH !== '1') {
-    throw new Error('No reusable WeChat automation endpoint found on ports 9420-9460; refusing to relaunch DevTools. Start automation once with WECHAT_AUTOMATOR_LAUNCH=1 or provide WECHAT_AUTOMATOR_ENDPOINT.')
-  }
+  throw new Error(`No reusable WeChat automation endpoint for ${expectedAppId} found on ports 9420-9460; refusing to launch or relaunch DevTools. Open and log in to the existing wow-mini-taro project manually, or provide its WECHAT_AUTOMATOR_ENDPOINT.`)
+}
 
-  const projectPath = process.env.WECHAT_AUTOMATOR_PROJECT || path.resolve(__dirname, '../apps/mini-taro')
-  const cliPath = process.env.WECHAT_DEVTOOLS_CLI
-  return timeout(automator.launch({
-    projectPath,
-    trustProject: true,
-    timeout: explicitConnectTimeoutMs,
-    ...(cliPath ? { cliPath } : {}),
-  }), explicitConnectTimeoutMs + 2000, 'launch automation channel')
+async function assertExpectedProject(miniProgram) {
+  const accountInfo = await timeout(
+    miniProgram.callWxMethod('getAccountInfoSync'),
+    reuseConnectTimeoutMs,
+    'read connected mini program identity',
+  )
+  const actualAppId = accountInfo?.miniProgram?.appId
+  if (actualAppId !== expectedAppId) {
+    throw new Error(`WeChat automation endpoint belongs to ${actualAppId || 'an unknown app'}, expected ${expectedAppId}`)
+  }
+  return accountInfo
 }
 
 function portIsListening(port) {
@@ -111,7 +125,9 @@ function portIsListening(port) {
 }
 
 module.exports = {
+  assertExpectedProject,
   connectMiniProgram,
+  expectedAppId,
   hasRenderedRoot,
   readSemanticValue,
   timeout,

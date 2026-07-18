@@ -2581,11 +2581,12 @@ record(
 )
 const reuseConnectTimeoutMs = Number(wechatAutomator.match(/const reuseConnectTimeoutMs = (\d+)/u)?.[1])
 record(
-  'wechat_automation_reuse_probe_is_bounded_and_launch_is_opt_in',
+  'wechat_automation_reuse_probe_is_bounded_and_never_launches_devtools',
   reuseConnectTimeoutMs > 0
     && reuseConnectTimeoutMs <= 3000
-    && wechatAutomator.includes("process.env.WECHAT_AUTOMATOR_LAUNCH !== '1'")
-    && wechatAutomator.includes('refusing to relaunch DevTools'),
+    && !/automator\.launch|WECHAT_AUTOMATOR_LAUNCH|WECHAT_DEVTOOLS_CLI|WECHAT_AUTOMATOR_PROJECT/u.test(wechatAutomator)
+    && wechatAutomator.includes("callWxMethod('getAccountInfoSync')")
+    && wechatAutomator.includes('refusing to launch or relaunch DevTools'),
   `reuseConnectTimeoutMs=${reuseConnectTimeoutMs || 'missing'}`,
 )
 

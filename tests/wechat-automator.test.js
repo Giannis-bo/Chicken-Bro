@@ -4,10 +4,33 @@ const assert = require('node:assert/strict')
 const test = require('node:test')
 
 const {
+  assertExpectedProject,
+  expectedAppId,
   hasRenderedRoot,
   readSemanticValue,
   waitForSystemInfo,
 } = require('../scripts/wechat-automator')
+
+test('assertExpectedProject accepts only the configured wow mini program', async () => {
+  const accountInfo = { miniProgram: { appId: expectedAppId } }
+  const miniProgram = {
+    callWxMethod: async (method) => {
+      assert.equal(method, 'getAccountInfoSync')
+      return accountInfo
+    },
+  }
+  assert.equal(await assertExpectedProject(miniProgram), accountInfo)
+})
+
+test('assertExpectedProject rejects an automation endpoint for another project', async () => {
+  const miniProgram = {
+    callWxMethod: async () => ({ miniProgram: { appId: 'wx-another-project' } }),
+  }
+  await assert.rejects(
+    assertExpectedProject(miniProgram),
+    new RegExp(`expected ${expectedAppId}$`, 'u'),
+  )
+})
 
 test('hasRenderedRoot rejects the transient empty Taro root', () => {
   assert.equal(hasRenderedRoot({ root: { cn: [] } }), false)
