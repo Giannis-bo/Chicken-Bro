@@ -38,7 +38,7 @@
 | P0 | 文档控制面收敛 | roadmap 无执行流水；plans 只有活动入口；Harness 状态、稳定合同和 release evidence 各有唯一 owner | 本文件、[plans/README.md](plans/README.md)、[project-state.json](project-state.json) |
 | P1 | 构筑到模拟闭环稳定 | 天赋/装备模板可确定性加载、转换、校验、提交和复盘；不可执行状态 fail closed | [builds-architecture.md](builds-architecture.md)、[simulator-simc-end-to-end.md](simulator-simc-end-to-end.md) |
 | P1 | 证据化报告 | 玩家可见数字来自 runner、日志或明确参考源；模型只负责解释 | `server/simulator_payload.py` |
-| P1 | 发布与可观测 | 核心 API、刷新任务、SimC 和数据健康有可重复 smoke、超时与故障定位 | [remote-debugging.md](remote-debugging.md)、[verification-matrix.md](verification-matrix.md) |
+| P1 | 发布与可观测 | 核心 API、刷新任务、SimC 和数据健康有可重复 smoke、超时与故障定位；美术资源经版本化 COS/CDN 通路上传、逐文件回读校验并可按不可变根目录回滚 | [remote-debugging.md](remote-debugging.md)、[CDN 美术发布 runbook](cdn-asset-publishing.md)、[verification-matrix.md](verification-matrix.md) |
 | P2 | 个人化工作台 | 角色、收藏、模板和任务历史围绕微信账号 owner 组织 | `apps/mini-taro/src/pages/profile/`、`server/news_backend.py` |
 | P2 | PVE / WCL 恢复决策 | 明确数据授权、样本窗口、入口价值和失败边界 | `pages/pve/`、`pages/simulator/wcl.*` |
 | 待决策 | 产品命名与首页权重 | 确定一句对外定位和第一主线，并同步 README 与导航文案 | [ideas.md](roadmap/ideas.md) |

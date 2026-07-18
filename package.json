@@ -34,7 +34,10 @@
     "promote:ui-asset-slots": "node scripts/promote-ui-asset-slot-review.js",
     "verify:ui-package": "node scripts/verify-ui-package.js",
     "verify:ui-package:release": "node scripts/verify-ui-package.js --require-production-ready",
-    "verify:ui-asset-integrity": "node scripts/verify-ui-asset-integrity.js"
+    "verify:ui-asset-integrity": "node scripts/verify-ui-asset-integrity.js",
+    "prepare:ui-cdn": "node scripts/publish-ui-cdn-assets.js prepare",
+    "publish:ui-cdn": "node scripts/publish-ui-cdn-assets.js publish",
+    "verify:ui-cdn": "node scripts/publish-ui-cdn-assets.js verify"
   },
   "devDependencies": {
     "@babel/parser": "7.29.7",
