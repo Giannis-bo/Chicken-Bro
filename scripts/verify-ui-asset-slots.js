@@ -82,6 +82,7 @@ function validateContract() {
 }
 
 async function main() {
+  const routes = selectedRoutes()
   validateContract()
   let miniProgram
   try {
@@ -89,7 +90,7 @@ async function main() {
     const system = await timeout(miniProgram.systemInfo(), 4000, 'read system info')
     const viewport = { width: system.windowWidth, height: system.windowHeight, dpr: system.pixelRatio }
     const results = []
-    for (const route of selectedRoutes()) results.push(await inspect(miniProgram, route))
+    for (const route of routes) results.push(await inspect(miniProgram, route))
     const failures = results.filter((result) => result.status === 'fail')
     let detailPath = null
     if (process.env.ASSET_SLOT_DETAIL_PATH) {

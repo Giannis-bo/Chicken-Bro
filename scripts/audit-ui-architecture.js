@@ -1518,6 +1518,22 @@ record(
     && !/WECHAT_AUTOMATOR_LAUNCH/u.test(baselineVerifierSource),
   'BASELINE_ROUTES must fail closed before connectMiniProgram',
 )
+const onlineVerifierBatchOrder = [
+  ['scripts/capture-ui-review-cache.js', /async function main\(\) \{\s+const routes = selectedRoutes\(process\.env\.UI_REVIEW_ROUTES\)/u],
+  ['scripts/verify-ui-route-geometry.js', /const requestedRoutes = requireOnlineRouteBatch/u],
+  ['scripts/verify-ui-selected-states.js', /async function main\(\) \{\s+const groups = selectedGroups\(\)/u],
+  ['scripts/verify-ui-asset-slots.js', /async function main\(\) \{\s+const routes = selectedRoutes\(\)\s+validateContract\(\)/u],
+  ['scripts/verify-ui-baselines.js', /async function main\(\) \{\s+const requestedBaselines = selectedBaselines\(\)/u],
+  ['scripts/verify-ui-interactions.js', /const requestedRoutes = requireOnlineRouteBatch/u],
+]
+const onlineVerifiersWithLateBatchGuards = onlineVerifierBatchOrder.flatMap(([file, pattern]) => (
+  pattern.test(read(file)) ? [] : [file]
+))
+record(
+  'all_online_wechat_verifiers_close_route_batches_before_connecting',
+  onlineVerifiersWithLateBatchGuards.length === 0,
+  onlineVerifiersWithLateBatchGuards.join(', ') || `scripts=${onlineVerifierBatchOrder.length}`,
+)
 const geometryRouteKeys = routeGeometryContract.routes?.map((route) => route.route) ?? []
 record(
   'runtime_geometry_contract_covers_delivery_routes',
