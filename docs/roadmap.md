@@ -1,5 +1,7 @@
 # WOW Mini Program Roadmap
 
+Active frontend ownership is explicit: `apps/mini-taro` owns the active 14-route runtime and `packages/api-client/src` owns typed transport. The root `app.json` and `pages/` tree remain compatibility consumers only, preserving the 14-route surface without receiving new first-level ownership. The machine-readable route matrix is `docs/project-owner-map.json`.
+
 状态：`active`
 更新时间：`2026-07-17`
 

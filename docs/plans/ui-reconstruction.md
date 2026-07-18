@@ -1,5 +1,7 @@
 # WOW 小程序 UI 重建
 
+> Active frontend ownership: `apps/mini-taro` owns the active 14-route mini-program runtime, and `packages/api-client/src` owns the active typed frontend transport contract. The root `app.json` and matching `pages/` clients preserve the same 14 routes as compatibility consumers only; they do not receive new first-level frontend ownership or deletion authorization. `docs/project-owner-map.json` is the machine-readable owner/compatibility matrix.
+
 状态：`正在推进`
 
 ## 目标

@@ -183,6 +183,43 @@ test('ui runtime evidence domain explicitly covers every app.json route', () => 
   assert.equal(uiDomain.appRoutes.length, 14)
 })
 
+test('Taro and typed packages own the active frontend contract while root routes and pages remain compatibility consumers', () => {
+  const ownerMap = readOwnerMap()
+  const appConfig = readJson(appConfigPath)
+  const appShellDomain = ownerMap.criticalDomains.find((domain) => domain.id === 'app_shell_route_runtime')
+  const transportDomain = ownerMap.criticalDomains.find((domain) => domain.id === 'frontend_api_auth_transport')
+  const uiDomain = ownerMap.criticalDomains.find((domain) => domain.id === 'ui_runtime_evidence')
+
+  assert.ok(appShellDomain, 'app_shell_route_runtime domain should exist')
+  assert.ok(transportDomain, 'frontend_api_auth_transport domain should exist')
+  assert.ok(uiDomain, 'ui_runtime_evidence domain should exist')
+  assert.equal(transportDomain.factOwner, 'packages/api-client/src')
+  assert.ok(transportDomain.consumers.includes('pages/common/api-client.js'))
+  assert.ok(transportDomain.consumers.includes('pages/common/auth-client.js'))
+
+  assert.deepEqual(uiDomain.activeRouteOwners.map((entry) => entry.route), appConfig.pages)
+  assert.equal(uiDomain.activeRouteOwners.length, 14)
+  for (const routeOwner of uiDomain.activeRouteOwners) {
+    assert.equal(routeOwner.role, 'active_taro_route_owner')
+    assert.equal(routeOwner.owner, `apps/mini-taro/src/${routeOwner.route}.tsx`)
+    assert.equal(routeOwner.legacyCompatibilityConsumer, `${routeOwner.route}.js`)
+    assertPathExists(routeOwner.owner, `${routeOwner.route} active Taro owner`)
+    assertPathExists(routeOwner.legacyCompatibilityConsumer, `${routeOwner.route} legacy compatibility consumer`)
+  }
+
+  assert.deepEqual(uiDomain.legacyCompatibility, {
+    appConfig: 'app.json',
+    appConfigRole: 'root_route_compatibility_surface',
+    pagesRoot: 'pages',
+    pagesRole: 'legacy_route_compatibility_consumers',
+    retirement: 'retain_without_new_first_level_ownership'
+  })
+  assert.ok(appShellDomain.consumers.includes('app.json'))
+  assert.ok(appShellDomain.consumers.includes('pages'))
+  assertPathExists(uiDomain.legacyCompatibility.appConfig)
+  assertPathExists(uiDomain.legacyCompatibility.pagesRoot)
+})
+
 test('project owner map and backend owner map do not conflict on backend hotspot fact owners', () => {
   const ownerMap = readOwnerMap()
   const backendOwnerMap = readJson(backendOwnerMapPath)

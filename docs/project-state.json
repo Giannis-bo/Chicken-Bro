@@ -337,6 +337,10 @@
     },
     "uiRuntimeEvidence": {
       "status": "active_unverified",
+      "activeFrontendOwner": "apps/mini-taro",
+      "activeTypedTransportOwner": "packages/api-client/src",
+      "legacyCompatibilitySurface": "app.json and pages/ retain 14-route compatibility-consumer roles only",
+      "ownerMap": "docs/project-owner-map.json",
       "routeCount": 14,
       "contract": "docs/design/current-ui/runtime-review-contract.json",
       "statusLedger": "docs/design/current-ui/runtime-review-status.json",

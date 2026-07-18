@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-07-15",
+  "updatedAt": "2026-07-18",
   "status": "project_owner_map_active",
   "harnessVersion": "v0.6",
-  "activeMilestone": "project_harness_normalization",
+  "activeMilestone": "taro_target_first_14_route_rebuild",
   "unownedCriticalDomains": 0,
   "conflictingFactOwners": 0,
   "rules": {
@@ -12,7 +12,9 @@
     "healthAdminIsConsumerOrchestrator": true,
     "deployIsConsumerOrchestrator": true,
     "writeDomainsMustDeclareWriteOwner": true,
-    "backendOwnerMapRemainsSecondLevelDetail": true
+    "backendOwnerMapRemainsSecondLevelDetail": true,
+    "taroAndTypedPackagesOwnActiveFrontendContracts": true,
+    "legacyPagesRemainCompatibilityConsumers": true
   },
   "criticalDomains": [
     {
@@ -27,11 +29,12 @@
         "packages/design-system/src/components/AppShell.tsx",
         "packages/design-system/src/components/PageFrame.tsx",
         "apps/mini-taro/src/custom-tab-bar/index.tsx",
-        "app.json"
+        "app.json",
+        "pages"
       ],
       "publicContracts": [
         "apps/mini-taro/src/app.config.ts and the typed route contract define the active mini-program route shell.",
-        "The generated app.json compatibility surface must preserve the same 14 routes until legacy pages are retired."
+        "The root app.json and matching pages/ route clients are compatibility consumers that must preserve the same 14 routes until legacy pages are retired."
       ],
       "mustNotChange": [
         "Do not remove or rename Taro routes without updating the typed route contract and current UI evidence contract.",
@@ -84,10 +87,12 @@
       "id": "frontend_api_auth_transport",
       "status": "active",
       "ownerRole": "fact_owner",
-      "factOwner": "pages/common/api-client.js",
+      "factOwner": "packages/api-client/src",
       "writeBehavior": false,
       "writeOwner": null,
       "consumers": [
+        "apps/mini-taro/src/pages",
+        "pages/common/api-client.js",
         "pages/common/auth-client.js",
         "pages/common/analytics-client.js",
         "pages/builds/builds-api.js",
@@ -96,7 +101,8 @@
         "pages/news/news-api.js"
       ],
       "publicContracts": [
-        "Frontend transport preserves auth token boundaries and does not send Bearer tokens on insecure HTTP.",
+        "packages/api-client/src is the active typed frontend transport owner and preserves auth token boundaries without sending Bearer tokens on insecure HTTP.",
+        "pages/common/api-client.js and legacy route clients consume the active typed transport contract for compatibility only.",
         "API clients forward backend-owned facts instead of reclassifying source/status/verified state."
       ],
       "mustNotChange": [
@@ -109,6 +115,8 @@
         "tests/analytics-instrumentation.test.js"
       ],
       "runtimeSurfaces": [
+        "packages/api-client/src",
+        "apps/mini-taro/src/pages",
         "pages/common/api-client.js",
         "pages/common/auth-client.js",
         "pages/news/news-api.js",
@@ -128,6 +136,8 @@
       ],
       "releaseTrigger": "frontend_user_visible",
       "changedPathPatterns": [
+        "packages/api-client/src/**",
+        "apps/mini-taro/src/pages/**",
         "pages/common/api-client.js",
         "pages/common/auth-client.js",
         "pages/**/**/*-api.js",
@@ -137,7 +147,7 @@
       ],
       "criticalContract": {
         "status": "characterized",
-        "summary": "Existing frontend API, profile auth and analytics tests characterize base URL, bearer safety and empty/error transport behavior.",
+        "summary": "The typed API package is the active frontend transport owner; legacy API clients remain compatibility consumers, with existing tests characterizing base URL, bearer safety and empty/error transport behavior.",
         "coverage": [
           "tests/frontend-api-client.test.js",
           "tests/profile-auth.test.js",
@@ -1448,6 +1458,29 @@
         "pages/simulator/task-detail",
         "pages/profile/profile"
       ],
+      "activeRouteOwners": [
+        { "route": "pages/news/news", "role": "active_taro_route_owner", "owner": "apps/mini-taro/src/pages/news/news.tsx", "legacyCompatibilityConsumer": "pages/news/news.js" },
+        { "route": "pages/news/list", "role": "active_taro_route_owner", "owner": "apps/mini-taro/src/pages/news/list.tsx", "legacyCompatibilityConsumer": "pages/news/list.js" },
+        { "route": "pages/news/detail", "role": "active_taro_route_owner", "owner": "apps/mini-taro/src/pages/news/detail.tsx", "legacyCompatibilityConsumer": "pages/news/detail.js" },
+        { "route": "pages/builds/builds", "role": "active_taro_route_owner", "owner": "apps/mini-taro/src/pages/builds/builds.tsx", "legacyCompatibilityConsumer": "pages/builds/builds.js" },
+        { "route": "pages/builds/workbench", "role": "active_taro_route_owner", "owner": "apps/mini-taro/src/pages/builds/workbench.tsx", "legacyCompatibilityConsumer": "pages/builds/workbench.js" },
+        { "route": "pages/builds/intel", "role": "active_taro_route_owner", "owner": "apps/mini-taro/src/pages/builds/intel.tsx", "legacyCompatibilityConsumer": "pages/builds/intel.js" },
+        { "route": "pages/builds/talent-simulator", "role": "active_taro_route_owner", "owner": "apps/mini-taro/src/pages/builds/talent-simulator.tsx", "legacyCompatibilityConsumer": "pages/builds/talent-simulator.js" },
+        { "route": "pages/builds/detail", "role": "active_taro_route_owner", "owner": "apps/mini-taro/src/pages/builds/detail.tsx", "legacyCompatibilityConsumer": "pages/builds/detail.js" },
+        { "route": "pages/simulator/simulator", "role": "active_taro_route_owner", "owner": "apps/mini-taro/src/pages/simulator/simulator.tsx", "legacyCompatibilityConsumer": "pages/simulator/simulator.js" },
+        { "route": "pages/simulator/simc", "role": "active_taro_route_owner", "owner": "apps/mini-taro/src/pages/simulator/simc.tsx", "legacyCompatibilityConsumer": "pages/simulator/simc.js" },
+        { "route": "pages/simulator/chickenbro", "role": "active_taro_route_owner", "owner": "apps/mini-taro/src/pages/simulator/chickenbro.tsx", "legacyCompatibilityConsumer": "pages/simulator/chickenbro.js" },
+        { "route": "pages/simulator/tasks", "role": "active_taro_route_owner", "owner": "apps/mini-taro/src/pages/simulator/tasks.tsx", "legacyCompatibilityConsumer": "pages/simulator/tasks.js" },
+        { "route": "pages/simulator/task-detail", "role": "active_taro_route_owner", "owner": "apps/mini-taro/src/pages/simulator/task-detail.tsx", "legacyCompatibilityConsumer": "pages/simulator/task-detail.js" },
+        { "route": "pages/profile/profile", "role": "active_taro_route_owner", "owner": "apps/mini-taro/src/pages/profile/profile.tsx", "legacyCompatibilityConsumer": "pages/profile/profile.js" }
+      ],
+      "legacyCompatibility": {
+        "appConfig": "app.json",
+        "appConfigRole": "root_route_compatibility_surface",
+        "pagesRoot": "pages",
+        "pagesRole": "legacy_route_compatibility_consumers",
+        "retirement": "retain_without_new_first_level_ownership"
+      },
       "criticalContract": {
         "status": "characterized",
         "summary": "The active Taro target registry, shared component owners and architecture/baseline checks characterize the 14-route proof matrix; pixel acceptance is still pending fresh real WeChat evidence.",
