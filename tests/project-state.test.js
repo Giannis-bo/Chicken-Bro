@@ -791,6 +791,14 @@ test('runtime review commands keep full results out of stdout', () => {
   }
 })
 
+test('project verification bounds retained child process output', () => {
+  const verifier = fs.readFileSync('scripts/verify-project.js', 'utf8')
+  assert.match(verifier, /maxSpawnBufferBytes = 1024 \* 1024/)
+  assert.match(verifier, /maxRecordedCommandOutputBytes = 64 \* 1024/)
+  assert.match(verifier, /boundedCommandOutput\(result\.stdout\)/)
+  assert.match(verifier, /output truncated:/)
+})
+
 test('architecture audit caps failure output', () => {
   const source = fs.readFileSync('scripts/audit-ui-architecture.js', 'utf8')
   assert.match(source, /findingCount:\s*findings\.length/)

@@ -6,6 +6,15 @@ const { spawnSync } = require('node:child_process')
 
 const PROFILES = new Set(['harness', 'backend', 'frontend', 'full'])
 const DEFAULT_BASE = 'origin/main'
+const maxSpawnBufferBytes = 1024 * 1024
+const maxRecordedCommandOutputBytes = 64 * 1024
+
+function boundedCommandOutput(value) {
+  if (!value) return ''
+  const buffer = Buffer.from(value)
+  if (buffer.length <= maxRecordedCommandOutputBytes) return value
+  return `[output truncated: ${buffer.length} bytes; retaining final ${maxRecordedCommandOutputBytes} bytes]\n${buffer.subarray(-maxRecordedCommandOutputBytes).toString('utf8')}`
+}
 
 function parseArgs(argv) {
   const options = {
@@ -248,11 +257,14 @@ function runCommands(root, commands, jsonMode) {
     const startedAt = Date.now()
     const result = spawnSync(command.cmd, command.args, {
       cwd: root,
-      encoding: 'utf8'
+      encoding: 'utf8',
+      maxBuffer: maxSpawnBufferBytes
     })
+    const stdout = boundedCommandOutput(result.stdout)
+    const stderr = boundedCommandOutput(result.stderr || result.error?.message)
     if (!jsonMode) {
-      if (result.stdout) process.stdout.write(result.stdout)
-      if (result.stderr) process.stderr.write(result.stderr)
+      if (stdout) process.stdout.write(stdout)
+      if (stderr) process.stderr.write(stderr)
     }
     const item = {
       ...command,
@@ -261,8 +273,8 @@ function runCommands(root, commands, jsonMode) {
       durationMs: Date.now() - startedAt
     }
     if (jsonMode) {
-      item.stdout = result.stdout
-      item.stderr = result.stderr
+      item.stdout = stdout
+      item.stderr = stderr
     }
     results.push(item)
     if (result.status !== 0) {
