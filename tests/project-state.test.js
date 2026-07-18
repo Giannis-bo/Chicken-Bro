@@ -821,6 +821,8 @@ test('SimC regions scale inside the shell content viewport', () => {
   assert.match(audit, /mixedVerticalUnitRouteFiles/)
   assert.match(audit, /route_regions_do_not_overlap_in_two_dimensions/)
   assert.match(audit, /overlappingRouteRegionRectangles/)
+  assert.match(audit, /fixed_wrapper_widths_fit_narrow_content_boxes/)
+  assert.match(audit, /negativeHorizontalWrapperMargins/)
   assert.match(audit, /anchored_route_regions_close_both_layout_axes/)
   assert.match(audit, /partiallyAnchoredRouteRegions/)
   assert.match(audit, /fixed_route_stage_regions_bind_existing_layout_classes/)

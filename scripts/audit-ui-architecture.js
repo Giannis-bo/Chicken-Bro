@@ -224,6 +224,40 @@ function explicitHorizontalPaddingPx(body) {
 }
 
 const minimumGenericContentBoxWidth = 286
+const fixedWidthLayoutEscapes = routedUiStyleFiles.flatMap((file) => (
+  [...read(file).matchAll(/([^{}]+)\{([^{}]*)\}/gu)].flatMap((match) => {
+    const selector = match[1].trim().replace(/\s+/gu, ' ')
+    if (/:global\(#app\) \.\w*shell|:global\(#app\) \.inputDock/iu.test(selector)) return []
+    return [...match[2].matchAll(/(?:^|;)\s*(?<property>width|min-width):\s*(?<value>[\d.]+)px\s*;/giu)].flatMap((size) => (
+      Number(size.groups.value) > minimumGenericContentBoxWidth
+        && !(
+          file === 'packages/design-system/src/components/TabBar.module.scss'
+          && selector === ':global(#app) .root'
+          && size.groups.property.toLowerCase() === 'width'
+          && Number(size.groups.value) === 390
+        )
+        ? [`${file}:${selector}:${size.groups.property}=${size.groups.value}px`]
+        : []
+    ))
+  })
+))
+record(
+  'fixed_wrapper_widths_fit_narrow_content_boxes',
+  fixedWidthLayoutEscapes.length === 0,
+  fixedWidthLayoutEscapes.join(', ') || `max=${minimumGenericContentBoxWidth}px`,
+)
+const negativeHorizontalWrapperMargins = routedUiStyleFiles.flatMap((file) => (
+  [...read(file).matchAll(/([^{}]+)\{([^{}]*)\}/gu)].flatMap((match) => (
+    /\bmargin-(?:left|right):\s*-[\d.]+px\s*;/iu.test(match[2])
+      ? [`${file}:${match[1].trim().replace(/\s+/gu, ' ')}`]
+      : []
+  ))
+))
+record(
+  'wrappers_do_not_escape_narrow_layouts_with_negative_horizontal_margins',
+  negativeHorizontalWrapperMargins.length === 0,
+  negativeHorizontalWrapperMargins.join(', ') || 'none',
+)
 const overflowingComponentGridFootprints = routedUiStyleFiles.flatMap((file) => (
   [...read(file).matchAll(/([^{}]+)\{([^{}]*\bgrid-template-columns:\s*([^;]+);[^{}]*)\}/gu)].flatMap((match) => {
     const tracks = splitGridTracks(match[3])
