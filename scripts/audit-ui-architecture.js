@@ -229,13 +229,19 @@ record(
 )
 
 function percentLayoutValue(block, property, axisPixels) {
-  const raw = block.match(new RegExp(`${property}:\\s*([^;]+);`, 'u'))?.[1]?.trim()
+  const raw = block.match(new RegExp(`(?:^|;)\\s*${property}:\\s*([^;]+);`, 'u'))?.[1]?.trim()
   if (!raw) return null
   const percent = Number(raw.match(/(-?[\d.]+)%/u)?.[1])
   if (!Number.isFinite(percent)) return null
   const pixelTerm = Number(raw.match(/([+-])\s*([\d.]+)px/u)?.[2] ?? 0)
   const pixelSign = raw.match(/([+-])\s*[\d.]+px/u)?.[1] === '-' ? -1 : 1
   return percent / 100 * axisPixels + pixelSign * pixelTerm
+}
+
+function responsiveLayoutValue(block, property, axisPixels) {
+  const raw = block.match(new RegExp(`(?:^|;)\\s*${property}:\\s*([^;]+);`, 'u'))?.[1]?.trim()
+  const pixels = Number(raw?.match(/^(-?[\d.]+)px$/u)?.[1])
+  return Number.isFinite(pixels) ? pixels : percentLayoutValue(block, property, axisPixels)
 }
 
 const minimumLayoutViewport = { width: 320, height: 568 }
@@ -257,6 +263,21 @@ const fixedPixelRouteRegionWidths = routeStyles.flatMap((file) => (
   [...read(file).matchAll(/\.([A-Za-z][\w-]*Region)\s*\{([^}]*)\}/gu)].flatMap((match) => (
     /\bwidth:\s*[\d.]+px\s*;/u.test(match[2]) ? [`${file}:${match[1]}`] : []
   ))
+))
+const responsiveHorizontalRouteRegions = routeStyles.flatMap((file) => (
+  [...read(file).matchAll(/\.([A-Za-z][\w-]*Region)\s*\{([^}]*)\}/gu)].flatMap((match) => {
+    const left = responsiveLayoutValue(match[2], 'left', minimumLayoutViewport.width)
+    const rightInset = responsiveLayoutValue(match[2], 'right', minimumLayoutViewport.width)
+    const explicitWidth = responsiveLayoutValue(match[2], 'width', minimumLayoutViewport.width)
+    const resolvedLeft = left ?? (rightInset !== null && explicitWidth !== null ? minimumLayoutViewport.width - rightInset - explicitWidth : null)
+    const resolvedWidth = explicitWidth ?? (left !== null && rightInset !== null ? minimumLayoutViewport.width - left - rightInset : null)
+    return resolvedLeft !== null && resolvedWidth !== null
+      ? [{ file, region: match[1], left: resolvedLeft, right: resolvedLeft + resolvedWidth, width: resolvedWidth }]
+      : []
+  })
+))
+const escapedResponsiveHorizontalRouteRegions = responsiveHorizontalRouteRegions.filter((region) => (
+  region.left < -1 || region.width <= 0 || region.right > minimumLayoutViewport.width + 1
 ))
 const fixedPixelVerticalRegions = routeStyles.flatMap((file) => {
   const source = read(file)
@@ -301,6 +322,11 @@ record(
   'route_regions_do_not_use_fixed_pixel_widths',
   fixedPixelRouteRegionWidths.length === 0,
   fixedPixelRouteRegionWidths.join(', ') || 'none',
+)
+record(
+  'all_anchored_route_regions_fit_the_minimum_viewport_width',
+  responsiveHorizontalRouteRegions.length >= 25 && escapedResponsiveHorizontalRouteRegions.length === 0,
+  escapedResponsiveHorizontalRouteRegions.map((region) => `${region.file}:${region.region}:left=${region.left}:right=${region.right}`).join(', ') || `regions=${responsiveHorizontalRouteRegions.length}`,
 )
 record(
   'fixed_pixel_vertical_regions_stay_inside_their_stage',
