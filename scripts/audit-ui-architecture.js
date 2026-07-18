@@ -1237,6 +1237,13 @@ record(
   legacyProfileParallelLayoutOwners.length === 0,
   [...new Set(legacyProfileParallelLayoutOwners)].join(', ') || 'ProfileIdentity/ProfileTemplatesComponents',
 )
+const legacyNewsDetailParallelLayoutOwners = [...reconstructionStyles.matchAll(/\.(?:articleHero|articleBody|truthStatus|sourceReference)[\w-]*/gu)]
+  .map((match) => match[0])
+record(
+  'news_detail_geometry_uses_only_the_current_news_detail_owner',
+  legacyNewsDetailParallelLayoutOwners.length === 0,
+  [...new Set(legacyNewsDetailParallelLayoutOwners)].join(', ') || 'NewsDetailComponents.newsDetail*',
+)
 const selectedStateOwners = [
   ['packages/design-system/src/components/TabBar.tsx', 'product-tab-item'],
   ['packages/design-system/src/components/ChannelDock.tsx', 'news-list-category'],

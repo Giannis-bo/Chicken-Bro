@@ -468,46 +468,6 @@
 .newsDetailTerminalAction button { min-width: 62px; min-height: 26px; padding: 0 6px; border-radius: 0; font-size: 7px; clip-path: polygon(4px 0, calc(100% - 4px) 0, 100% 4px, 100% calc(100% - 4px), calc(100% - 4px) 100%, 4px 100%, 0 calc(100% - 4px), 0 4px); }
 .newsDetailTerminalSpacer { width: 1px; height: 1px; }
 
-.articleHero { display: grid; min-height: 150px; align-content: center; padding: var(--forged-content-inset, 16px); border-radius: 4px; background: #0d1014; }
-.articleHero > [data-material-render='nine-slice'],
-.truthStatusBar > [data-material-render='nine-slice'],
-.articleBodyPanel > [data-material-render='nine-slice'],
-.sourceReferencePanel > [data-material-render='nine-slice'] { opacity: 0.4; }
-.articleHeroCopy { min-width: 0; }
-.articleHeroTitle { display: -webkit-box; overflow: hidden; color: var(--wow-fg-strong); font-family: var(--wow-font-display); font-size: 23px; font-weight: 820; line-height: 29px; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-.articleHeroMeta { display: flex; min-width: 0; align-items: center; gap: 5px; margin-top: 6px; color: var(--wow-fg-muted); }
-.articleHeroMeta > :first-child { width: 12px; height: 12px; flex: 0 0 auto; color: var(--wow-status-source); }
-.articleHeroMetaText { overflow: hidden; font-size: 10px; line-height: 13px; text-overflow: ellipsis; white-space: nowrap; }
-.articleHeroStatus { margin-top: 4px; }
-.articleHeroStatus [class*='statusPill'] { min-height: 18px; padding: 0 6px; }
-.articleHeroStatus [class*='statusLabel'] { font-size: 8px; line-height: 10px; }
-.articleHeroSummary { display: -webkit-box; margin-top: 7px; overflow: hidden; color: #c8c0b4; font-size: 11px; line-height: 16px; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-.truthStatusBar { display: grid; min-height: 48px; grid-template-columns: 66px minmax(0, 1fr); align-items: center; gap: 7px; padding: var(--forged-content-inset, 10px); border-radius: 4px; background: #0d1014; }
-.truthStatusTitle { color: var(--wow-accent-gold-soft); font-size: 11px; font-weight: 760; line-height: 14px; }
-.truthStatusSegments { display: grid; min-width: 0; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; padding: 2px; border: 1px solid rgba(84, 78, 69, 0.52); border-radius: 3px; background: rgba(6, 8, 11, 0.7); }
-.truthStatusSegment { display: grid; min-width: 0; min-height: 28px; align-content: center; gap: 0; padding: 2px 4px; border: 1px solid transparent; border-radius: 2px; background: rgba(15, 17, 21, 0.82); text-align: center; }
-.truthStatusSegment[data-state='ready'] { border-color: rgba(102, 143, 68, 0.72); background: rgba(44, 73, 29, 0.28); }
-.truthStatusSegment[data-state='source_reference'] { border-color: rgba(91, 126, 164, 0.72); background: rgba(31, 53, 76, 0.3); }
-.truthStatusSegment[data-state='blocked'],
-.truthStatusSegment[data-state='error'] { border-color: rgba(156, 79, 55, 0.72); background: rgba(79, 34, 25, 0.28); }
-.truthStatusLabel { overflow: hidden; color: var(--wow-fg-strong); font-size: 9px; font-weight: 720; line-height: 11px; text-overflow: ellipsis; white-space: nowrap; }
-.truthStatusValue { overflow: hidden; color: #9d9588; font-size: 7px; line-height: 9px; text-overflow: ellipsis; white-space: nowrap; }
-.articleBodyPanel { min-height: 275px; padding: var(--forged-content-inset, 16px); border-radius: 4px; background: #0c0f13; }
-.articleBodyFlow { display: grid; min-height: 243px; align-content: space-between; gap: 12px; }
-.articleBodyHeading { display: block; color: var(--wow-accent-gold-soft); font-family: var(--wow-font-display); font-size: 16px; font-weight: 780; line-height: 22px; }
-.articleBodyParagraph { display: block; color: #d2cabe; font-size: 11px; line-height: 19px; }
-.articleBodyQuote { padding: 7px 10px; border-left: 2px solid var(--wow-accent-gold-soft); color: #bdb5a8; background: rgba(7, 9, 12, 0.42); }
-.articleBodyList { display: grid; gap: 5px; }
-.articleBodyListItem { display: block; color: #d2cabe; font-size: 11px; line-height: 18px; }
-.articleBodyMissing { display: grid; min-height: 220px; place-items: center; color: var(--wow-fg-muted); font-size: 11px; line-height: 17px; text-align: center; }
-.sourceReferencePanel { display: grid; min-height: 54px; grid-template-columns: minmax(0, 1fr) 104px; align-items: center; gap: 8px; padding: var(--forged-content-inset, 12px); border-radius: 4px; background: #0d1014; }
-.sourceReferenceIdentity { display: grid; min-width: 0; grid-template-columns: 20px minmax(0, 1fr); align-items: center; gap: 7px; }
-.sourceReferenceIdentity > :first-child { width: 18px; height: 18px; color: var(--wow-status-source); }
-.sourceReferenceCopy { min-width: 0; }
-.sourceReferenceName { display: block; overflow: hidden; color: var(--wow-fg-strong); font-size: 10px; font-weight: 720; line-height: 13px; text-overflow: ellipsis; white-space: nowrap; }
-.sourceReferenceNote { display: block; margin-top: 2px; overflow: hidden; color: var(--wow-fg-muted); font-size: 8px; line-height: 11px; text-overflow: ellipsis; white-space: nowrap; }
-.sourceReferenceAction { min-width: 0; }
-.sourceReferenceAction button { width: 100%; min-height: 30px; padding: 0 5px; font-size: 8px; }
 
 .featuredCarousel { position: relative; overflow: hidden; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
 .featuredCarousel > [data-material-render='nine-slice'] { opacity: 0.86; }
@@ -725,10 +685,6 @@
   .newsListCategoryDock { grid-template-columns: repeat(6, minmax(41px, 1fr)) 32px; }
   .newsListFeedCard { grid-template-columns: 4px 34px minmax(0, 1fr) 74px; gap: 5px; }
   .newsListFeedIcon { width: 30px; }
-  .articleHeroTitle { font-size: 21px; line-height: 27px; }
-  .truthStatusBar { grid-template-columns: 64px minmax(0, 1fr); gap: 5px; }
-  .truthStatusSegment { padding-right: 2px; padding-left: 2px; }
-  .sourceReferencePanel { grid-template-columns: minmax(0, 1fr) 96px; gap: 6px; }
   .featuredMedia { height: 200px; }
   .channelCell { min-height: 79px; grid-template-rows: 26px 13px; }
   .channelCellSocket { width: 24px; height: 24px; }
