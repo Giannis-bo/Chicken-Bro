@@ -13,6 +13,7 @@ const operationTimeoutMs = 10000
 // A case includes a bounded route open plus a bounded precondition/action. Keep
 // a small outer margin so the semantic failure can win the timeout race.
 const caseTimeoutMs = 25000
+const maximumInteractionElements = 32
 const requestedRoutes = requireOnlineRouteBatch(
   process.env.INTERACTION_ROUTES,
   'INTERACTION_ROUTES',
@@ -69,8 +70,11 @@ async function requiredElements(page, selector, minimum) {
   while (Date.now() < deadline) {
     try {
       const elements = await timeout(page.$$(selector), 2000, `query ${selector}`)
+      if (elements.length > maximumInteractionElements) throw new Error(`interaction query cap exceeded: ${selector} ${elements.length}/${maximumInteractionElements}`)
       if (elements.length >= minimum) return elements
-    } catch {}
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith('interaction query cap exceeded:')) throw error
+    }
     await settle(200)
   }
   throw new Error(`required interaction elements missing: ${selector} expected>=${minimum}`)
@@ -81,13 +85,14 @@ async function requiredElementsOrUnavailable(page, selector, minimum, unavailabl
   while (Date.now() < deadline) {
     try {
       const elements = await timeout(page.$$(selector), 2000, `query ${selector}`)
+      if (elements.length > maximumInteractionElements) throw new Error(`interaction query cap exceeded: ${selector} ${elements.length}/${maximumInteractionElements}`)
       if (elements.length >= minimum) return elements
       for (const state of unavailableStates) {
         const marker = await timeout(page.$(`.wx-data-route-state-${state}`), 1000, `query route state ${state}`)
         if (marker) throw new Error(`interaction precondition unavailable: ${selector} count=${elements.length}; routeState=${state}`)
       }
     } catch (error) {
-      if (error instanceof Error && error.message.startsWith('interaction precondition unavailable:')) throw error
+      if (error instanceof Error && (error.message.startsWith('interaction precondition unavailable:') || error.message.startsWith('interaction query cap exceeded:'))) throw error
     }
     await settle(200)
   }
@@ -196,7 +201,8 @@ async function main() {
     ), async () => {
       const page = await open(miniProgram, contractPath('news_home'))
       const metrics = await timeout(page.$$(contractSelector('news_home')), operationTimeoutMs, 'query news metrics')
-      const available = (await Promise.all(metrics.map(async (element) => ({ element, available: await element.attribute('data-available') })))).find((item) => item.available !== 'false')
+      if (metrics.length > maximumInteractionElements) throw new Error(`interaction query cap exceeded: news metrics ${metrics.length}/${maximumInteractionElements}`)
+      const available = (await Promise.all(metrics.slice(0, maximumInteractionElements).map(async (element) => ({ element, available: await element.attribute('data-available') })))).find((item) => item.available !== 'false')
       if (!available) throw new Error('no available news metric')
       await available.element.tap()
       await settle()
