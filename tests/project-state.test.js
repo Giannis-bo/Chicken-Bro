@@ -837,6 +837,7 @@ test('SimC regions scale inside the shell content viewport', () => {
   assert.match(audit, /news_detail_geometry_uses_only_the_current_news_detail_owner/)
   assert.match(audit, /build_workflow_geometry_has_no_parallel_reconstruction_owner/)
   assert.match(audit, /every_reconstruction_css_class_has_an_explicit_typescript_owner/)
+  assert.match(audit, /every_routed_ui_css_class_has_an_explicit_or_bounded_dynamic_owner/)
   assert.match(audit, /anchored_route_regions_close_both_layout_axes/)
   assert.match(audit, /partiallyAnchoredRouteRegions/)
   assert.match(audit, /fixed_route_stage_regions_bind_existing_layout_classes/)

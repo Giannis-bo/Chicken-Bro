@@ -197,83 +197,15 @@
   justify-content: center;
 }
 
-.frame {
-  width: 100%;
-  max-width: 720px;
-  margin: 0 auto;
-  padding: var(--space-6) var(--page-gutter-standard) var(--space-12);
-}
 
-.frameCompact {
-  padding-right: var(--page-gutter-compact);
-  padding-left: var(--page-gutter-compact);
-}
 
-.frameLarge {
-  padding-right: var(--page-gutter-large);
-  padding-left: var(--page-gutter-large);
-}
 
-.frameHeader {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-  min-height: 52px;
-  margin-bottom: var(--section-gap);
-  padding-right: var(--capsule-safe-right, 0px);
-}
 
-.frameHeaderSticky {
-  position: sticky;
-  z-index: var(--z-sticky);
-  top: 0;
-  margin-right: calc(var(--page-gutter-standard) * -1);
-  margin-left: calc(var(--page-gutter-standard) * -1);
-  padding: var(--space-3) var(--page-gutter-standard);
-  border-bottom: var(--border-hairline);
-  background: var(--wow-surface-glass);
-}
 
-.frameHeading {
-  flex: 1 1 auto;
-  min-width: 0;
-}
 
-.frameKicker,
-.eyebrow {
-  display: block;
-  overflow-wrap: break-word;
-  color: var(--wow-accent-gold-soft);
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 15px;
-}
 
-.frameTitle {
-  display: block;
-  overflow-wrap: break-word;
-  word-break: normal;
-  color: var(--wow-fg-strong);
-  font-size: 20px;
-  font-weight: 750;
-  line-height: 28px;
-}
 
-.frameDescription {
-  display: block;
-  margin-top: var(--space-2);
-  overflow-wrap: anywhere;
-  color: var(--wow-fg-muted);
-  font-size: 13px;
-  line-height: 19px;
-}
 
-.frameActionSlot {
-  display: flex;
-  flex: 0 0 auto;
-  min-width: 36px;
-  justify-content: center;
-}
 
 .panel {
   position: relative;
@@ -318,9 +250,7 @@
   padding: 0;
 }
 
-.panelTitleRow,
-.sectionTitleRow,
-.rowBetween {
+.panelTitleRow {
   display: flex;
   min-width: 0;
   align-items: center;
@@ -346,15 +276,7 @@
   line-height: 19px;
 }
 
-.stack {
-  display: grid;
-  gap: var(--section-gap);
-}
 
-.stackTight {
-  display: grid;
-  gap: var(--row-gap);
-}
 
 .material {
   position: relative;
@@ -372,7 +294,6 @@
 .materialBanner { aspect-ratio: 2.2 / 1; }
 .materialSocket { height: 100%; border: 0; border-radius: 50%; background: transparent; }
 .materialSocket .materialFallback { grid-template-rows: 1fr; gap: 0; padding: 0; background: transparent; }
-.materialSocket .materialFallbackFrame,
 .materialSocket .materialFallbackLabel { display: none; }
 
 .materialImage {
@@ -396,45 +317,12 @@
   text-align: center;
 }
 
-.materialFallbackFrame {
-  position: relative;
-  width: 76%;
-  max-width: 156px;
-  aspect-ratio: 1.56 / 1;
-  align-self: end;
-  border: 1px solid var(--wow-line-panel);
-  border-left: 3px solid var(--wow-line-brass-dim);
-  background: rgba(7, 6, 4, 0.42);
-  box-shadow: var(--inner-bevel);
-}
 
 .materialFallbackAsset { width: 100%; height: 100%; object-fit: contain; }
 .materialFallbackGlyph { width: 24px; height: 24px; align-self: center; color: var(--wow-fg-dim); }
 
-.materialFallbackFrame::before {
-  position: absolute;
-  top: 18%;
-  right: 10%;
-  width: 28%;
-  aspect-ratio: 1 / 1;
-  border: 1px solid var(--wow-line-brass-dim);
-  content: '';
-}
 
-.materialFallbackLine,
-.materialFallbackLineShort {
-  position: absolute;
-  right: 10%;
-  bottom: 24%;
-  left: 10%;
-  height: 2px;
-  background: var(--wow-line-panel);
-}
 
-.materialFallbackLineShort {
-  right: 34%;
-  bottom: 14%;
-}
 
 .materialFallbackLabel {
   align-self: start;
@@ -645,25 +533,7 @@
 
 .buttonIconBack { transform: rotate(180deg); }
 
-.carousel { padding: 2px; overflow: hidden; border: 4px solid var(--wow-line-brass-dim); border-image-slice: 48; border-image-width: 4px; border-image-repeat: stretch; border-radius: var(--radius-md); background-color: var(--wow-surface-1); }
-.carouselSwiper { height: 260px; }
-.carouselSlide { height: 100%; }
-.carouselSlide .material { height: 100%; border: 0; aspect-ratio: auto; }
-.carouselContent { position: absolute; right: 0; bottom: 0; left: 0; padding: var(--space-8); background: linear-gradient(transparent, rgba(7, 6, 4, 0.94)); }
-.carouselTitle { display: block; overflow-wrap: anywhere; color: var(--wow-fg-strong); font-size: 20px; font-weight: 750; line-height: 27px; }
-.carouselSummary { display: -webkit-box; margin-top: var(--space-2); overflow: hidden; color: var(--wow-fg-muted); font-size: 13px; line-height: 18px; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-.carouselPlaceholder { position: relative; height: 260px; }
-.carouselPlaceholder .material { height: 100%; border: 0; aspect-ratio: auto; }
-.carouselSkeletonCopy { position: absolute; right: var(--space-7); bottom: var(--space-7); left: var(--space-7); display: grid; gap: var(--space-3); }
 
-.channelScroll { width: 100%; white-space: nowrap; }
-.channelList { display: inline-flex; gap: var(--space-3); padding: 1px; }
-.channelItem { display: inline-flex; min-width: 92px; min-height: 44px; align-items: center; justify-content: center; gap: var(--space-3); padding: 0 var(--space-5); border: var(--border-hairline); border-radius: var(--radius-sm); color: var(--wow-fg-muted); background: var(--wow-surface-inset); box-shadow: var(--inner-bevel); }
-.channelActive { border-color: var(--wow-line-brass); color: var(--wow-fg-strong); background: var(--wow-highlight-warm); }
-.channelCount { color: var(--wow-accent-gold-soft); font-size: 11px; }
-.channelGlyph { width: 16px; height: 16px; color: var(--wow-accent-gold-soft); }
-.channelLoading { pointer-events: none; }
-.skeletonChannelLabel { width: 42px; height: 8px; border-radius: 2px; background: var(--wow-line-panel); }
 
 .feed { display: grid; }
 .feedSectionHeader { display: flex; min-height: 37px; align-items: center; justify-content: space-between; gap: 8px; padding: 0 10px; border-bottom: 1px solid rgba(154, 115, 53, 0.68); background: linear-gradient(180deg, #2d2b26, #17191e); box-shadow: inset 0 1px rgba(255, 255, 255, 0.055), inset 0 -2px rgba(0, 0, 0, 0.42); }
@@ -671,7 +541,6 @@
 .feedSectionChevron { width: 15px; height: 15px; color: var(--wow-accent-gold-soft); }
 .feedRow { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--space-5); min-height: 78px; padding: var(--space-5) 0; border-bottom: var(--border-hairline); }
 .feedRowWithMedia .materialFallback { gap: 0; padding: var(--space-2); }
-.feedRowWithMedia .materialFallbackFrame { width: 78%; border-left-width: 2px; }
 .feedRowWithMedia .materialFallbackLabel { display: none; }
 .feedRow:last-child { border-bottom: 0; }
 .feedMain { min-width: 0; }
@@ -730,7 +599,6 @@
 .feedNewsHome .feedRowWithMedia .materialFallbackAsset { opacity: 1; filter: none; transform: none; }
 .feedNewsHome .feedRowWithMedia .material::after { display: none; }
 .feedNewsHome .feedRowWithMedia .materialFallbackGlyph { width: 18px; height: 18px; color: #75869b; }
-.feedNewsHome .feedRowWithMedia .materialFallbackFrame { display: none; }
 .feedNewsHome .feedBookmarkVisual { width: 26px; height: 25px; color: #a49c93; cursor: pointer; }
 .feedNewsHome .feedBookmarkVisual > view,
 .feedNewsHome .feedBookmarkVisual > image { width: 14px; height: 18px; }
@@ -762,7 +630,6 @@
 }
 
 @media (max-width: 374px) {
-  .channelItem { min-width: 84px; padding: 0 var(--space-4); }
   .feedRowWithMedia { grid-template-columns: 64px minmax(0, 1fr) auto; gap: var(--space-4); }
   .feedRowWithMedia .material,
   .feedThumbSkeleton { width: 64px; }
@@ -832,7 +699,6 @@
 .ledgerDetailActionSpacer { width: 32px; height: 1px; }
 .ledgerDetailEmpty { display: grid; min-height: 96px; place-items: center; align-content: center; gap: 5px; color: var(--wow-fg-muted); font-size: 9px; text-align: center; }
 .ledgerDetailEmptyEmblem { width: 50px; height: 50px; }
-.ledgerCounts { display: flex; flex-wrap: wrap; gap: var(--space-4); margin-top: var(--space-2); color: var(--wow-fg-dim); font-size: 10px; line-height: 14px; }
 
 .cockpitHero { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: var(--space-6); }
 .cockpitTitle { display: block; overflow-wrap: anywhere; color: var(--wow-fg-strong); font-size: 22px; font-weight: 780; line-height: 29px; }
@@ -890,15 +756,11 @@
 .templateCategoryGlyph { width: 14px; height: 14px; color: var(--wow-accent-gold-soft); }
 
 @media (max-width: 374px) {
-  .frame { padding-right: var(--page-gutter-compact); padding-left: var(--page-gutter-compact); }
   .cockpitModules,
   .gearGrid { grid-template-columns: minmax(0, 1fr); }
-  .carouselSwiper,
-  .carouselPlaceholder { height: 232px; }
 }
 
 @media (min-width: 430px) {
-  .frame { padding-right: var(--page-gutter-large); padding-left: var(--page-gutter-large); }
 }
 
 /* PageFrame owns all product chrome geometry. Route modules only compose the

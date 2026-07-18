@@ -1196,6 +1196,59 @@ record(
   unreferencedReconstructionClasses.length === 0,
   unreferencedReconstructionClasses.join(', ') || 'all-reverse-referenced',
 )
+const dynamicStyleFamilies = [
+  { file: 'packages/design-system/src/components/BuildIntelComponents.module.scss', pattern: /^state-(?:ready|source_reference|partial|stale|loading|blocked|error)$/u, ownerMarker: 'state-${state}' },
+  { file: 'packages/design-system/src/components/GearDetailComponents.module.scss', pattern: /^enhancementKind-(?:socket|enchant|embellishment)$/u, ownerMarker: 'enhancementKind-${item.id}' },
+  { file: 'packages/design-system/src/components/GearDetailComponents.module.scss', pattern: /^enhancementState-(?:ready|empty)$/u, ownerMarker: 'enhancementState-${item.state}' },
+  { file: 'packages/design-system/src/components/GearDetailComponents.module.scss', pattern: /^slotRow-ready$/u, ownerMarker: 'slotRow-${item.state}' },
+  { file: 'packages/design-system/src/components/GearDetailComponents.module.scss', pattern: /^candidateRow-(?:ready|blocked)$/u, ownerMarker: 'candidateRow-${item.state}' },
+  { file: 'packages/design-system/src/components/GearDetailComponents.module.scss', pattern: /^secondaryAction-(?:gold|blue)$/u, ownerMarker: 'secondaryAction-${item.tone}' },
+  { file: 'packages/design-system/src/components/GearDetailComponents.module.scss', pattern: /^statusCard-(?:ready|error|blocked)$/u, ownerMarker: 'statusCard-${item.state}' },
+  { file: 'packages/design-system/src/components/ProfileTemplatesComponents.module.scss', pattern: /^setting-(?:preference|source|help)$/u, ownerMarker: 'setting-${item.id}' },
+  { file: 'packages/design-system/src/components/TalentSimulatorComponents.module.scss', pattern: /^pointBadge-(?:gold|green)$/u, ownerMarker: 'pointBadge-${counter.tone}' },
+  { file: 'packages/design-system/src/components/TalentSimulatorComponents.module.scss', pattern: /^graphEdge-(?:selected|available|loading)$/u, ownerMarker: 'graphEdge-${edge.state}' },
+  { file: 'packages/design-system/src/components/TalentSimulatorComponents.module.scss', pattern: /^graphNode-(?:selected|available|unselected|blocked)$/u, ownerMarker: 'graphNode-${node.state}' },
+  { file: 'packages/design-system/src/components/TalentSimulatorComponents.module.scss', pattern: /^legendItem-(?:selected|available|blocked)$/u, ownerMarker: 'legendItem-${item.id}' },
+  { file: 'packages/design-system/src/components/TalentSimulatorComponents.module.scss', pattern: /^importStatusRow-(?:ready|partial|blocked)$/u, ownerMarker: 'importStatusRow-${status.state}' },
+  { file: 'packages/design-system/src/components/TalentSimulatorComponents.module.scss', pattern: /^actionButton-(?:gold|blue|metal)$/u, ownerMarker: 'actionButton-${item.tone}' },
+  { file: 'packages/design-system/src/components/TaskDetailComponents.module.scss', pattern: /^summary-(?:completed|failed|blocked)$/u, ownerMarker: 'summary-${status}' },
+  { file: 'packages/design-system/src/components/TaskDetailComponents.module.scss', pattern: /^result-(?:completed|failed|blocked)$/u, ownerMarker: 'result-${state}' },
+  { file: 'packages/design-system/src/components/TaskDetailComponents.module.scss', pattern: /^resultCore-(?:loading|pending|completed|failed|blocked)$/u, ownerMarker: 'resultCore-${state}' },
+  { file: 'packages/design-system/src/components/TaskDetailComponents.module.scss', pattern: /^progress-(?:complete|active|error)$/u, ownerMarker: 'progress-${step.state}' },
+  { file: 'packages/design-system/src/components/TaskDetailComponents.module.scss', pattern: /^tone-(?:verified|blocked|danger)$/u, ownerMarker: 'tone-${item.tone}' },
+  { file: 'packages/design-system/src/components/TaskDetailComponents.module.scss', pattern: /^exception-(?:failed|blocked)$/u, ownerMarker: 'exception-${state}' },
+  { file: 'packages/design-system/src/components/TaskListComponents.module.scss', pattern: /^status-(?:queued|running|failed|completed)$/u, ownerMarker: 'status-${metric.id}' },
+  { file: 'packages/design-system/src/components/TaskListComponents.module.scss', pattern: /^sync-(?:loading|error)$/u, ownerMarker: 'sync-${state}' },
+  { file: 'packages/design-system/src/components/TaskListComponents.module.scss', pattern: /^record-(?:running|failed|completed)$/u, ownerMarker: 'record-${item.state}' },
+  { file: 'packages/design-system/src/components/owners.module.scss', pattern: /^routeStage-(?:full|inset)$/u, ownerMarker: 'routeStage-${width}' },
+  { file: 'packages/design-system/src/components/owners.module.scss', pattern: /^routeFlow-news$/u, ownerMarker: 'routeFlow-${variant}' },
+  { file: 'packages/design-system/src/components/owners.module.scss', pattern: /^pageFrame-(?:root|pushed|pushed-action|chat)$/u, ownerMarker: 'pageFrame-${chromeMode}' },
+]
+const externallyOwnedStyleClasses = new Set([
+  'packages/design-system/src/components/ChickenbroChatComponents.module.scss:taro-textarea',
+  'packages/design-system/src/components/SimulatorHomeComponents.module.scss:taro-textarea',
+])
+const unownedUiStyleClasses = routedUiStyleFiles.flatMap((file) => {
+  const classNames = [...new Set([...read(file).matchAll(/\.([A-Za-z_][\w-]*)/gu)].map((match) => match[1]))]
+  return classNames.flatMap((className) => {
+    const explicitlyOwned = reconstructionConsumerSource.includes(`'${className}'`)
+      || reconstructionConsumerSource.includes(`"${className}"`)
+      || reconstructionConsumerSource.includes(`\`${className}\``)
+    const dynamicallyOwned = dynamicStyleFamilies.some((family) => (
+      family.file === file
+      && family.pattern.test(className)
+      && reconstructionConsumerSource.includes(family.ownerMarker)
+    ))
+    return explicitlyOwned || dynamicallyOwned || externallyOwnedStyleClasses.has(`${file}:${className}`)
+      ? []
+      : [`${file}:${className}`]
+  })
+})
+record(
+  'every_routed_ui_css_class_has_an_explicit_or_bounded_dynamic_owner',
+  unownedUiStyleClasses.length === 0,
+  unownedUiStyleClasses.join(', ') || `files=${routedUiStyleFiles.length}`,
+)
 const legacySimcParallelLayoutOwners = [
   'simcIdentityRow',
   'simcTemplateCard',
