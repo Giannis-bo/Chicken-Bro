@@ -91,6 +91,7 @@ Review 窗口同时覆盖共享组件、页面 JSX 中的非组件 wrapper、rou
 - 横向逃逸门禁：绝对定位和像素 `translateX` 只允许不超过 8px 的装饰性微调，`calc(100% + …)` 扩宽只属于精确登记的 ProductionAsset shell（共享 full-frame 或 Build Intel 徽章外壳）；普通 wrapper 不得借定位或变换绕过 286px 内容盒。
 - 选中态材质门禁遍历整个 design-system TSX，而不是手工 owner 文件清单；任何 `data-selected` 发布者都必须同时提供稳定 `data-role`、`data-selection-material` 和 selected-control contract 登记，避免新按钮绕开普通态/激活态唯一 owner。
 - 合同校验按 JSX 节点闭合：每个已登记 role 的实例必须发布合同指定的唯一 `data-selected`/`data-active`、同时包含 active/inactive 材质分支，连续分段还必须发布 leading-boundary；同 role 的漏标副本不能再被集合级检查掩盖。
+- SimC 的 route 内部几何唯一归 `SimcSubmitComponents.module.scss`；`reconstruction.module.scss` 不得恢复旧的 identity/template/scenario/boundary/gate/blocker/action/footer 平行 owner，避免固定 33/56px 旧布局重新撑破当前百分比 RouteRegion。
 
 ## 微信验收与恢复链路
 

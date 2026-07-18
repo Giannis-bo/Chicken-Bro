@@ -1180,6 +1180,21 @@ const taskListStyles = read('packages/design-system/src/components/TaskListCompo
 const reconstructionStyles = read('packages/design-system/src/components/reconstruction.module.scss')
 const buildIntelStyles = read('packages/design-system/src/components/BuildIntelComponents.module.scss')
 const taskRouteStyles = read('apps/mini-taro/src/pages/simulator/tasks.module.scss')
+const legacySimcParallelLayoutOwners = [
+  'simcIdentityRow',
+  'simcTemplateCard',
+  'simcScenarioCard',
+  'simcBuffBoundary',
+  'simcGateMatrix',
+  'simcBlockerNotice',
+  'simcActionBar',
+  'simcFooterNotice',
+].filter((className) => new RegExp(`\\.${className}(?:\\s|[,{:.[])`, 'u').test(reconstructionStyles))
+record(
+  'simc_route_geometry_has_one_component_style_owner',
+  legacySimcParallelLayoutOwners.length === 0,
+  legacySimcParallelLayoutOwners.join(', ') || 'SimcSubmitComponents.module.scss',
+)
 const selectedStateOwners = [
   ['packages/design-system/src/components/TabBar.tsx', 'product-tab-item'],
   ['packages/design-system/src/components/ChannelDock.tsx', 'news-list-category'],
