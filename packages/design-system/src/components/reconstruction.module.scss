@@ -739,90 +739,6 @@
 .pageChickenbroAvatar > :last-child { width: 18px; height: 18px; color: var(--wow-accent-gold-soft); }
 
 
-.talentSelectorPanel { height: 65px; }
-.talentSelectorPanel > [data-material-render='nine-slice'],
-.talentTreeTabs > [data-material-render='nine-slice'],
-.talentImportBoundary > [data-material-render='nine-slice'] { opacity: 0.66; }
-.talentSelectorCells { display: grid; height: 100%; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: var(--forged-content-inset, 8px); }
-.talentSelectorCell { display: grid; min-width: 0; grid-template-columns: 34px minmax(0, 1fr) 12px; align-items: center; gap: 4px; padding: 0 6px; }
-.talentSelectorCell:nth-child(n + 2) { border-left: 1px solid rgba(116, 89, 48, 0.55); }
-.talentSelectorCellDisabled { opacity: 0.58; }
-.talentSelectorMedallion { position: relative; display: grid; width: 34px; height: 34px; place-items: center; }
-.talentSelectorMedallion > :last-child { position: absolute; width: 14px; height: 14px; color: var(--wow-accent-gold-soft); }
-.talentSelectorCopy { min-width: 0; }
-.talentSelectorLabel { display: block; color: var(--wow-fg-dim); font-size: 7px; line-height: 9px; }
-.talentSelectorValue { display: block; overflow: hidden; color: var(--wow-fg-strong); font-size: 10px; font-weight: 750; line-height: 13px; text-overflow: ellipsis; white-space: nowrap; }
-.talentSelectorDetail { display: block; overflow: hidden; color: var(--wow-fg-dim); font-size: 7px; line-height: 9px; text-overflow: ellipsis; white-space: nowrap; }
-.talentSelectorCell > :last-child { width: 11px; height: 11px; color: var(--wow-accent-gold-soft); }
-.talentTreeTabs { height: 34px; }
-.talentTreeTabList { display: grid; height: 100%; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: var(--forged-content-inset, 4px); }
-.talentTreeTab { display: flex; min-width: 0; align-items: center; justify-content: center; gap: 4px; color: var(--wow-fg-muted); font-size: 9px; font-weight: 700; line-height: 12px; }
-.talentTreeTab:nth-child(n + 2) { border-left: 1px solid rgba(105, 83, 49, 0.45); }
-.talentTreeTabDisabled { color: var(--wow-fg-dim); opacity: 0.55; }
-.talentTreeTab > view:last-child,
-.talentTreeTab > image:last-child { width: 10px; height: 10px; }
-.talentPointBudget { display: grid; height: 40px; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid rgba(137, 105, 55, 0.65); border-bottom: 1px solid rgba(137, 105, 55, 0.65); background: linear-gradient(180deg, #181a1f, #101216); }
-.talentPointMetric { display: flex; min-width: 0; align-items: center; justify-content: center; gap: 7px; }
-.talentPointMetric:nth-child(n + 2) { border-left: 1px solid rgba(104, 82, 49, 0.4); }
-.talentPointRing { position: relative; display: grid; width: 30px; height: 30px; place-items: center; }
-.talentPointValue { position: absolute; color: var(--wow-fg-strong); font-size: 10px; font-weight: 800; line-height: 12px; }
-.talentPointLabel { overflow: hidden; color: var(--wow-fg-muted); font-size: 8px; line-height: 11px; text-overflow: ellipsis; white-space: nowrap; }
-.talentTreeCanvas { height: 324px; }
-.talentTreeField { position: relative; height: 100%; overflow: hidden; padding: var(--forged-content-inset, 8px); background-color: #080a0d; background-size: cover; background-blend-mode: multiply; isolation: isolate; }
-.talentTreeField::before { position: absolute; z-index: 0; inset: 0; background: rgba(6, 8, 11, 0.78); content: ''; pointer-events: none; }
-.talentTreeGraph { position: relative; z-index: 1; display: grid; height: 100%; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-template-rows: repeat(5, 52px); align-content: center; justify-items: center; padding: 2px 10px 34px; }
-.talentTreeConnectorCell { position: relative; z-index: 1; width: 100%; height: 100%; align-self: stretch; justify-self: stretch; color: #788fa9; pointer-events: none; }
-.talentTreeConnectorActive { color: #d0ad54; }
-.talentTreeConnectorBlocked { color: #59616b; opacity: 0.5; }
-.talentTreeConnectorStroke { position: absolute; inset: 0; background: currentColor; clip-path: polygon(calc(var(--talent-edge-start-x) - 1.5px) var(--talent-edge-start-y), calc(var(--talent-edge-start-x) + 1.5px) var(--talent-edge-start-y), calc(var(--talent-edge-end-x) + 1.5px) var(--talent-edge-end-y), calc(var(--talent-edge-end-x) - 1.5px) var(--talent-edge-end-y)); filter: drop-shadow(0 0 4px currentColor); }
-.talentTreeNode { position: relative; z-index: 2; display: grid; width: 46px; height: 46px; place-items: center; overflow: visible; border: 2px solid rgba(137, 109, 63, 0.82); border-radius: 50%; color: var(--wow-fg-muted); background: radial-gradient(circle, #252a31 0 45%, #0b0d11 47% 67%, #665035 69% 73%, #111318 75%); box-shadow: inset 0 0 0 2px rgba(4, 5, 7, 0.86), 0 3px 6px rgba(0, 0, 0, 0.76); text-align: center; }
-.talentTreeNodeFocused { border-color: #8eb5d9; box-shadow: inset 0 0 0 2px rgba(5, 8, 12, 0.9), 0 0 0 2px rgba(91, 139, 184, 0.38), 0 0 10px rgba(101, 160, 220, 0.72); }
-.talentTreeNodeBlocked { opacity: 0.52; }
-.talentTreeNodeSocket { position: absolute; inset: 1px; overflow: hidden; border-radius: 50%; opacity: 0.5; transform: scale(1.18); }
-.talentTreeNodeMedia { position: absolute; z-index: 1; inset: 9px; width: auto; height: auto; overflow: hidden; border-radius: 50%; filter: drop-shadow(0 0 4px rgba(120, 164, 207, 0.42)); }
-.talentTreeNodeLabel { position: absolute; z-index: 3; top: 45px; display: block; width: 54px; overflow: hidden; color: var(--wow-fg-muted); font-size: 6px; font-weight: 700; line-height: 8px; text-overflow: ellipsis; white-space: nowrap; }
-.talentTreeNodeRank { position: absolute; z-index: 4; right: -2px; bottom: -2px; min-width: 16px; padding: 0 2px; border-radius: 5px; color: #17130b; background: var(--wow-accent-gold-soft); font-size: 6px; font-weight: 800; line-height: 9px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.72); }
-.talentNodeInspector { position: absolute; z-index: 4; right: 10px; bottom: 8px; left: 10px; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; min-height: 44px; padding: 5px 7px; border: 1px solid rgba(117, 91, 51, 0.76); border-radius: 4px; background: rgba(12, 14, 18, 0.94); }
-.talentNodeInspectorCopy { min-width: 0; }
-.talentNodeInspectorTitle { display: block; color: var(--wow-fg-strong); font-size: 10px; font-weight: 760; line-height: 13px; }
-.talentNodeInspectorDetail { display: block; overflow: hidden; color: var(--wow-fg-muted); font-size: 7px; line-height: 9px; text-overflow: ellipsis; white-space: nowrap; }
-.talentNodeInspectorActions { display: grid; grid-template-columns: 30px 30px 30px; align-items: center; gap: 3px; text-align: center; }
-.talentNodeInspectorActions button { min-height: 28px; padding: 0; }
-.talentNodeInspectorRank { color: var(--wow-fg-strong); font-size: 9px; }
-.talentStateLegend { display: grid; height: 34px; grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: center; padding: 0 8px; border: 1px solid rgba(112, 86, 48, 0.65); border-radius: 4px; background: #111318; }
-.talentLegendItem { display: flex; min-width: 0; align-items: center; justify-content: center; gap: 4px; color: var(--wow-fg-muted); font-size: 7px; line-height: 10px; }
-.talentLegendItem > :first-child { width: 14px; height: 14px; }
-.talentLegendItem[data-state='learned'] > :first-child { color: var(--wow-accent-gold); }
-.talentLegendItem[data-state='available'] > :first-child { color: var(--wow-accent-arcane); }
-.talentLegendItem[data-state='unknown'] > :first-child { color: #777b80; }
-.talentLegendItem[data-state='blocked'] > :first-child { color: var(--wow-status-blocked); }
-.talentImportBoundary { height: 83px; }
-.talentImportLayout { display: grid; box-sizing: border-box; height: 100%; min-height: 0; grid-template-columns: minmax(0, 1.3fr) minmax(0, .9fr); gap: 8px; overflow: hidden; padding: var(--forged-content-inset, 10px); }
-.talentImportMain { display: grid; min-width: 0; min-height: 0; grid-template-columns: 42px minmax(0, 1fr); align-items: center; gap: 7px; overflow: hidden; }
-.talentImportMain > :first-child { width: 42px; height: 42px; }
-.talentImportCopy { min-width: 0; }
-.talentImportTitleRow { display: flex; min-width: 0; align-items: center; gap: 4px; }
-.talentImportTitle { overflow: hidden; color: var(--wow-fg-strong); font-size: 11px; font-weight: 760; line-height: 14px; text-overflow: ellipsis; white-space: nowrap; }
-.talentImportTitleRow [class*='statusBlock'] { flex: 0 0 auto; }
-.talentImportTitleRow [class*='statusLabel'] { font-size: 6px; line-height: 8px; }
-.talentImportTitleRow [class*='statusDot'] { width: 4px; height: 4px; }
-.talentImportCode { display: block; margin-top: 3px; overflow: hidden; color: var(--wow-accent-arcane); font-size: 8px; line-height: 11px; text-overflow: ellipsis; white-space: nowrap; }
-.talentImportSource { display: block; overflow: hidden; color: var(--wow-fg-dim); font-size: 7px; line-height: 10px; text-overflow: ellipsis; white-space: nowrap; }
-.talentEvidenceRail { display: grid; min-width: 0; min-height: 0; grid-template-rows: repeat(3, minmax(0, 1fr)); gap: 0; overflow: hidden; padding-left: 7px; border-left: 1px solid rgba(113, 87, 48, 0.52); }
-.talentEvidenceRow { display: grid; min-width: 0; min-height: 0; grid-template-columns: 8px minmax(0, 1fr); align-items: center; gap: 4px; overflow: hidden; }
-.talentEvidenceRow [class*='statusLabel'] { display: none; }
-.talentEvidenceLabel { color: var(--wow-fg-dim); font-size: 6px; line-height: 8px; }
-.talentEvidenceValue { display: block; overflow: hidden; color: var(--wow-fg-muted); font-size: 7px; line-height: 9px; text-overflow: ellipsis; white-space: nowrap; }
-.communityTemplateRow { display: grid; height: 42px; grid-template-columns: 24px minmax(0, 1fr) auto 12px; align-items: center; gap: 7px; padding: 0 12px; border: 1px solid rgba(113, 87, 48, 0.68); border-radius: 4px; background: linear-gradient(180deg, #1b1d22, #111318); }
-.communityTemplateRowDisabled { opacity: 0.56; }
-.communityTemplateRow > :first-child { width: 22px; height: 22px; color: var(--wow-accent-arcane); }
-.communityTemplateRow > :last-child { width: 11px; height: 11px; color: var(--wow-accent-gold-soft); }
-.communityTemplateCopy { min-width: 0; }
-.communityTemplateTitle { display: block; color: var(--wow-fg-strong); font-size: 10px; font-weight: 750; line-height: 13px; }
-.communityTemplateSummary { display: block; overflow: hidden; color: var(--wow-fg-muted); font-size: 7px; line-height: 9px; text-overflow: ellipsis; white-space: nowrap; }
-.communityTemplateCount { color: var(--wow-fg-dim); font-size: 7px; line-height: 10px; white-space: nowrap; }
-.editorActionDock { display: grid; height: 55px; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: center; gap: 6px; padding: 7px; border-top: 1px solid rgba(133, 101, 50, 0.68); background: #101216; }
-.editorActionDock button { width: 100%; min-width: 0; min-height: 40px; padding: 0 5px; }
 
 
 .assistantContextSlab { height: 132px; background: radial-gradient(circle at 15% 40%, rgba(92, 121, 151, 0.2), transparent 29%), linear-gradient(160deg, #24262b, #0c0e12 74%); }
@@ -1219,10 +1135,6 @@
   .workbenchModuleGrid { gap: 3px; }
   .workbenchModule { min-height: 162px; padding-right: 2px; padding-left: 2px; }
   .workbenchModuleSocket { width: 56px; height: 56px; }
-  .talentSelectorCell { grid-template-columns: 30px minmax(0, 1fr) 10px; gap: 3px; padding-right: 4px; padding-left: 4px; }
-  .talentSelectorMedallion { width: 30px; height: 30px; }
-  .talentTreeGraph { padding-right: 5px; padding-left: 5px; }
-  .talentTreeNode { width: 42px; height: 42px; }
 }
 
 @mixin large-reconstruction {

@@ -1209,6 +1209,13 @@ record(
   legacyGearDetailParallelLayoutOwners.length === 0,
   [...new Set(legacyGearDetailParallelLayoutOwners)].join(', ') || 'component-style-owners-only',
 )
+const legacyTalentParallelLayoutOwners = [...reconstructionStyles.matchAll(/\.(?:talentSelector|talentTree|talentPoint|talentNodeInspector|talentStateLegend|talentLegend|talentImport|talentEvidence|communityTemplate|editorActionDock)[\w-]*/gu)]
+  .map((match) => match[0])
+record(
+  'talent_simulator_geometry_has_one_component_style_owner',
+  legacyTalentParallelLayoutOwners.length === 0,
+  [...new Set(legacyTalentParallelLayoutOwners)].join(', ') || 'TalentSimulatorComponents.module.scss',
+)
 const selectedStateOwners = [
   ['packages/design-system/src/components/TabBar.tsx', 'product-tab-item'],
   ['packages/design-system/src/components/ChannelDock.tsx', 'news-list-category'],

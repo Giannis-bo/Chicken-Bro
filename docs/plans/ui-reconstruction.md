@@ -94,6 +94,7 @@ Review 窗口同时覆盖共享组件、页面 JSX 中的非组件 wrapper、rou
 - SimC 的 route 内部几何唯一归 `SimcSubmitComponents.module.scss`；`reconstruction.module.scss` 不得恢复旧的 identity/template/scenario/boundary/gate/blocker/action/footer 平行 owner，避免固定 33/56px 旧布局重新撑破当前百分比 RouteRegion。
 - 构筑情报 route 的内部几何唯一归 `BuildIntelComponents.module.scss`；`reconstruction.module.scss` 禁止任何 `.buildIntel*` 平行 owner，包括旧的 158/174px 卡片、三列 main 和窄屏 override，避免 06 再被未接线特化误导或意外覆盖。
 - Gear Detail 的职业/专精、readiness、装备栏、候选列表和底部 action 几何只允许当前组件样式 owner；`reconstruction.module.scss` 禁止旧 `.gearReadiness*`、`.gearBoard*`、54px action row 等平行实现，避免固定高度和三列特化重新造成底部越界。
+- Talent Simulator 的 selector、tabs、point budget、tree canvas/node、import/evidence、community row 与 action dock 唯一归 `TalentSimulatorComponents.module.scss`；共享 reconstruction 禁止恢复旧 324px 画布、46px 节点、83px import 和对应窄屏 override。
 
 ## 微信验收与恢复链路
 
