@@ -6,7 +6,15 @@ const { randomUUID } = require('node:crypto')
 
 function readBoundedFile(filePath, maxBytes, label) {
   if (!Number.isSafeInteger(maxBytes) || maxBytes <= 0) throw new Error(`${label} has an invalid byte limit`)
-  const descriptor = fs.openSync(path.resolve(filePath), 'r')
+  const resolvedPath = path.resolve(filePath)
+  if (fs.lstatSync(resolvedPath).isSymbolicLink()) throw new Error(`${label} refuses symbolic links`)
+  let descriptor
+  try {
+    descriptor = fs.openSync(resolvedPath, fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW ?? 0))
+  } catch (error) {
+    if (error?.code === 'ELOOP') throw new Error(`${label} refuses symbolic links`)
+    throw error
+  }
   try {
     const bytesBeforeRead = fs.fstatSync(descriptor).size
     if (bytesBeforeRead <= 0 || bytesBeforeRead > maxBytes) {

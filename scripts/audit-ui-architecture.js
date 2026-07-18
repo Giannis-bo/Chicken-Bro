@@ -1519,6 +1519,8 @@ record(
     && /Buffer\.allocUnsafe\(maxBytes \+ 1\)/u.test(boundedFileSource)
     && /bounded byte policy before read/u.test(boundedFileSource)
     && /bounded byte policy during read/u.test(boundedFileSource)
+    && /O_NOFOLLOW/u.test(boundedFileSource)
+    && /refuses symbolic links/u.test(boundedFileSource)
     && !/readFileSync/u.test(boundedFileSource)
     && /linkSync\(temporaryPath, filePath\)/u.test(boundedFileSource)
     && structuredDetailWriters.every((file) => read(file).includes('writeBoundedJsonAtomic'))
