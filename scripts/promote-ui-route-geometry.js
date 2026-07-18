@@ -24,7 +24,8 @@ function combineDetails(details) {
   if (!/^[a-f\d]{12}$/u.test(first.commit ?? '') || details.some((detail) => detail.commit !== first.commit)) throw new Error('route geometry detail commits must match')
   const viewportKey = JSON.stringify(first.viewport)
   const viewportValues = [first.viewport?.width, first.viewport?.height, first.viewport?.dpr, first.viewport?.safeAreaBottom, first.viewport?.safeBottomInset]
-  if (!viewportValues.every((value) => Number.isFinite(value) && value >= 0) || first.viewport.width <= 0 || first.viewport.height <= 0 || first.viewport.dpr <= 0 || details.some((detail) => JSON.stringify(detail.viewport) !== viewportKey)) throw new Error('route geometry detail viewports must match')
+  const safeAreaMatchesWindow = first.viewport?.safeAreaBottom + first.viewport?.safeBottomInset === first.viewport?.height
+  if (!viewportValues.every((value) => Number.isFinite(value) && value >= 0) || first.viewport.width <= 0 || first.viewport.height <= 0 || first.viewport.dpr <= 0 || !safeAreaMatchesWindow || details.some((detail) => JSON.stringify(detail.viewport) !== viewportKey)) throw new Error('route geometry detail viewports must match one window-coordinate safe area')
 
   const routes = details.flatMap((detail) => detail.routes ?? [])
   const routeNames = routes.map((route) => route.route)

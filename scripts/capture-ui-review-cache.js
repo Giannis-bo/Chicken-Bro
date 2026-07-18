@@ -10,6 +10,7 @@ const { execFileSync } = require('node:child_process')
 const { connectMiniProgram, timeout } = require('./wechat-automator')
 const { readBoundedFile } = require('./bounded-file')
 const { readBoundedJson, writeBoundedJsonAtomic } = require('./bounded-json-detail')
+const { normalizeSystemViewport } = require('./wechat-viewport')
 const interactionContract = require('../docs/design/current-ui/core-interaction-contract.json')
 
 const operationTimeoutMs = 10000
@@ -122,13 +123,7 @@ async function main() {
   try {
     miniProgram = await connectMiniProgram()
     const system = await timeout(miniProgram.systemInfo(), 4000, 'read WeChat system info')
-    const viewport = {
-      width: system.windowWidth,
-      height: system.windowHeight,
-      dpr: system.pixelRatio,
-      safeTop: system.safeArea?.top ?? 0,
-      safeBottom: Math.max(0, system.windowHeight - (system.safeArea?.bottom ?? system.windowHeight)),
-    }
+    const viewport = normalizeSystemViewport(system)
     const viewportKey = `${viewport.width}x${viewport.height}@${viewport.dpr}`
     const outputRoot = path.join(cacheRoot, commit, viewportKey)
     fs.mkdirSync(outputRoot, { recursive: true })

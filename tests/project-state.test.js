@@ -571,6 +571,7 @@ test('route geometry evidence promotion is exact, safe-area aware and immutable'
   assert.match(promotion, /contractSha256/)
   assert.match(promotion, /safeAreaBottom/)
   assert.match(promotion, /safeBottomInset/)
+  assert.match(promotion, /safeAreaMatchesWindow/)
   assert.match(promotion, /exact 14-route contract/)
   assert.match(promotion, /route geometry result is not promotable/)
   assert.match(promotion, /createHash\('sha256'\)/)

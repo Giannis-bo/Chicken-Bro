@@ -8,6 +8,7 @@ const path = require('node:path')
 const { execFileSync } = require('node:child_process')
 const { requireOnlineRouteBatch } = require('./online-route-batch')
 const { writeBoundedJsonAtomic } = require('./bounded-json-detail')
+const { normalizeSystemViewport } = require('./wechat-viewport')
 const contract = require('../docs/design/current-ui/route-geometry-contract.json')
 
 const operationTimeoutMs = 10000
@@ -280,14 +281,7 @@ async function main() {
   try {
     miniProgram = await connectMiniProgram()
     const system = await timeout(miniProgram.systemInfo(), 4000, 'read system info')
-    const safeAreaBottom = Number(system.safeArea?.bottom ?? system.windowHeight)
-    const viewport = {
-      width: system.windowWidth,
-      height: system.windowHeight,
-      dpr: system.pixelRatio,
-      safeAreaBottom,
-      safeBottomInset: Math.max(0, Number(system.screenHeight ?? system.windowHeight) - safeAreaBottom),
-    }
+    const viewport = normalizeSystemViewport(system)
     const results = []
     const details = []
     for (const route of selectedRoutes()) {

@@ -1704,6 +1704,17 @@ record(
 const reviewIndexBuilder = read('scripts/build-ui-review-index.js')
 const reviewCacheCapture = read('scripts/capture-ui-review-cache.js')
 const reviewCachePromotion = read('scripts/promote-ui-review-cache.js')
+const normalizedWechatViewportSource = read('scripts/wechat-viewport.js')
+record(
+  'runtime_review_safe_area_uses_one_window_coordinate_model',
+  /function normalizeSystemViewport\(system\)/u.test(normalizedWechatViewportSource)
+    && /safeBottomInset:\s*safeBottom/u.test(normalizedWechatViewportSource)
+    && /normalizeSystemViewport\(system\)/u.test(reviewCacheCapture)
+    && /normalizeSystemViewport\(system\)/u.test(read('scripts/verify-ui-route-geometry.js'))
+    && !/screenHeight/u.test(read('scripts/verify-ui-route-geometry.js'))
+    && /safeAreaBottom \+ first\.viewport\?\.safeBottomInset === first\.viewport\?\.height/u.test(read('scripts/promote-ui-route-geometry.js')),
+  'capture manifests and geometry details must agree on safe-bottom coordinates for the same WeChat viewport',
+)
 record(
   'ui_review_cache_identity_is_bound_to_git_commit_and_viewport_path',
   /function validateManifestCacheIdentity\(manifestPath, manifest\)/u.test(reviewCachePromotion)
