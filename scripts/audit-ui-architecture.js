@@ -2522,6 +2522,8 @@ record(
   /packageMechanicsPass/u.test(packageAudit)
     && /releaseReady/u.test(packageAudit)
     && /WOW_ASSET_RUNTIME_ROOT must be an approved HTTPS named origin/u.test(packageAudit)
+    && /WOW_BACKEND_API_BASE_URL must be an approved HTTPS named origin/u.test(packageAudit)
+    && /WOW_WECHAT_REQUEST_DOMAIN_APPROVED must be explicit yes/u.test(packageAudit)
     && /--require-production-ready/u.test(packageAudit)
     && /verify:ui-package:release/u.test(read('package.json')),
   'a placeholder remote asset origin may prove package mechanics but must never report release readiness',

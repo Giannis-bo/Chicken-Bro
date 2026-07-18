@@ -5,6 +5,7 @@ const { spawnSync } = require('node:child_process')
 const fs = require('node:fs')
 const os = require('node:os')
 const path = require('node:path')
+const net = require('node:net')
 const { readBoundedFile } = require('./bounded-file')
 
 const root = path.resolve(__dirname, '..')
@@ -13,6 +14,8 @@ const auditRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'wow-mini-package-'))
 const defaultAssetRuntimeRoot = '/assets/ui-v2'
 const placeholderRemoteAssetRuntimeRoot = 'https://assets.example.invalid/wow-assets/releases/2026-07-18-ui-v2'
 const remoteAssetRuntimeRoot = process.env.WOW_ASSET_RUNTIME_ROOT || placeholderRemoteAssetRuntimeRoot
+const backendApiBaseUrl = process.env.WOW_BACKEND_API_BASE_URL || ''
+const wechatRequestDomainApproved = process.env.WOW_WECHAT_REQUEST_DOMAIN_APPROVED === 'yes'
 const requireProductionReady = process.argv.includes('--require-production-ready')
 const maximumWalkFiles = 4096
 const maximumPackageTextFileBytes = 1024 * 1024
@@ -59,6 +62,18 @@ function isProductionAssetRoot(value) {
       && url.hostname !== 'localhost'
       && !url.hostname.endsWith('.invalid')
       && !/^\d+(?:\.\d+){3}$/u.test(url.hostname)
+  } catch {
+    return false
+  }
+}
+
+function isProductionBackendOrigin(value) {
+  try {
+    const url = new URL(value)
+    return url.protocol === 'https:'
+      && url.hostname !== 'localhost'
+      && !url.hostname.endsWith('.invalid')
+      && net.isIP(url.hostname) === 0
   } catch {
     return false
   }
@@ -132,6 +147,8 @@ try {
   const packageMechanicsPass = failures.length === 0
   const releaseBlockers = []
   if (!isProductionAssetRoot(remoteAssetRuntimeRoot)) releaseBlockers.push('WOW_ASSET_RUNTIME_ROOT must be an approved HTTPS named origin')
+  if (!isProductionBackendOrigin(backendApiBaseUrl)) releaseBlockers.push('WOW_BACKEND_API_BASE_URL must be an approved HTTPS named origin')
+  if (!wechatRequestDomainApproved) releaseBlockers.push('WOW_WECHAT_REQUEST_DOMAIN_APPROVED must be explicit yes')
   const releaseReady = packageMechanicsPass && releaseBlockers.length === 0
   console.log(JSON.stringify({
     status: packageMechanicsPass ? (releaseReady ? 'pass' : 'partial') : 'fail',
@@ -139,6 +156,8 @@ try {
     packageMechanicsPass,
     releaseReady,
     remoteAssetOrigin: isProductionAssetRoot(remoteAssetRuntimeRoot) ? new URL(remoteAssetRuntimeRoot).origin : 'not_configured',
+    backendApiOrigin: isProductionBackendOrigin(backendApiBaseUrl) ? new URL(backendApiBaseUrl).origin : 'not_configured',
+    wechatRequestDomainApproved,
     releaseBlockers,
     limits,
     local: {
