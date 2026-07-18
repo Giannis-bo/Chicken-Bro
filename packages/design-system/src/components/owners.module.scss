@@ -621,6 +621,13 @@
 .nativeControl::after { border: 0; }
 .nativeControlPressed { filter: brightness(1.08); }
 
+.shell [role='button'][data-material-owner='asset'],
+.shell button[data-material-owner='asset'] {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
 .buttonIcon {
   width: 18px;
   height: 18px;

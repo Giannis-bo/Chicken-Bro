@@ -1760,11 +1760,13 @@ for (const file of componentSources.filter((candidate) => candidate.endsWith('.t
       ))
       if (name !== 'ControlButton' && !roleButton) return
       let containsMaterialAsset = false
+      let containsFullFrameAsset = false
       elementPath.traverse({
         JSXOpeningElement(descendantPath) {
           const descendant = descendantPath.node.name
           if (descendant.type === 'JSXIdentifier' && ['NineSliceFrame', 'ProductionAssetImage', 'ProductionAssetGlyph'].includes(descendant.name)) {
             containsMaterialAsset = true
+            if (descendant.name !== 'ProductionAssetGlyph') containsFullFrameAsset = true
           }
         },
       })
@@ -1782,6 +1784,8 @@ for (const file of componentSources.filter((candidate) => candidate.endsWith('.t
         file,
         line: opening.loc?.start.line ?? 0,
         role: role?.type === 'StringLiteral' ? role.value : name,
+        assetCapable: (validStatic && owner.value.value === 'asset') || validDynamic,
+        fullFrame: containsFullFrameAsset,
         valid: validStatic || validDynamic,
       })
     },
@@ -1792,6 +1796,13 @@ record(
   interactiveAssetMaterialOwners.length >= 9 && interactiveAssetMaterialOwners.every((owner) => owner.valid),
   interactiveAssetMaterialOwners.filter((owner) => !owner.valid).map((owner) => `${owner.file}:${owner.line}:${owner.role}`).join(', ')
     || `controls=${interactiveAssetMaterialOwners.length}`,
+)
+const fullFrameAssetOwnedControls = interactiveAssetMaterialOwners.filter((owner) => owner.assetCapable && owner.fullFrame)
+record(
+  'all_asset_owned_controls_remove_the_css_plate',
+  fullFrameAssetOwnedControls.length >= 3
+    && /\.shell \[role='button'\]\[data-material-owner='asset'\],[\s\S]*\.shell button\[data-material-owner='asset'\]\s*\{[^}]*border-color:\s*transparent;[^}]*background:\s*transparent;[^}]*box-shadow:\s*none;/su.test(read('packages/design-system/src/components/owners.module.scss')),
+  `controls=${fullFrameAssetOwnedControls.length}`,
 )
 const productionAssetControlBlocks = componentSources.flatMap((file) => (
   file.endsWith('.tsx')
