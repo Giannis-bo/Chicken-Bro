@@ -1240,15 +1240,22 @@ record(
   'selected-state runtime review must group controls by stable role rather than generated CSS classes',
 )
 const selectedMaterialPublishers = []
-for (const file of [...new Set(selectedStateOwners.map(([ownerFile]) => ownerFile))]) {
+const unownedDataSelectedPublishers = []
+const componentTsxFiles = walk('packages/design-system/src/components', ['.tsx'])
+for (const file of componentTsxFiles) {
   const source = read(file)
   const ast = babelParser.parse(source, { sourceType: 'module', plugins: ['jsx', 'typescript'] })
   traverse(ast, {
     JSXOpeningElement(elementPath) {
       const attributes = elementPath.node.attributes.filter((attribute) => attribute.type === 'JSXAttribute')
-      if (!attributes.some((attribute) => attribute.name.name === 'data-selection-material')) return
       const roleAttribute = attributes.find((attribute) => attribute.name.name === 'data-role')
       const role = roleAttribute?.value?.type === 'StringLiteral' ? roleAttribute.value.value : ''
+      const publishesSelected = attributes.some((attribute) => attribute.name.name === 'data-selected')
+      const publishesMaterial = attributes.some((attribute) => attribute.name.name === 'data-selection-material')
+      if (publishesSelected && (!publishesMaterial || !role)) {
+        unownedDataSelectedPublishers.push(`${file}:${role || 'missing-role'}:${publishesMaterial ? 'material' : 'missing-material'}`)
+      }
+      if (!publishesMaterial) return
       const stateAttributes = attributes.filter((attribute) => ['data-selected', 'data-active'].includes(attribute.name.name))
       const boundary = attributes.some((attribute) => attribute.name.name === 'data-leading-boundary')
       const classAttribute = attributes.find((attribute) => attribute.name.name === 'className')
@@ -1263,6 +1270,11 @@ for (const file of [...new Set(selectedStateOwners.map(([ownerFile]) => ownerFil
     },
   })
 }
+record(
+  'every_data_selected_publisher_has_a_stable_contracted_material_owner',
+  unownedDataSelectedPublishers.length === 0,
+  unownedDataSelectedPublishers.join(', ') || `tsx=${componentTsxFiles.length}`,
+)
 const contractedSelectionRoles = new Set(selectedControlContract.groups.map((group) => group.role))
 const publishedSelectionRoles = new Set(selectedMaterialPublishers.map((publisher) => publisher.role).filter(Boolean))
 const invalidSelectedMaterialPublishers = selectedMaterialPublishers.filter((publisher) => {
