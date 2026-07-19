@@ -354,7 +354,7 @@
         "manualAcceptanceBoundary": "post-candidate news_home and gear_detail accepted; truthful aggregate is 6 accepted and 8 not_run_user_waived, not 14/14"
       },
       "visualAcceptance": "partial_6_routes_accepted_8_not_run_user_waived",
-      "interactionAcceptance": "partial_6_routes_accepted_8_not_run_user_waived",
+      "interactionAcceptance": "pending_real_wechat_core_interaction_matrix",
       "manualAcceptanceException": {
         "status": "user_authorized_merge_without_remaining_route_acceptance",
         "authorizedAt": "2026-07-19",
