@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "status": "active_audited",
+  "status": "local_verified",
   "repository": "boyuan19910222-ui/wow_mini_program",
   "pullRequest": 91,
   "commonBase": "2f8222f6df96e3cd0936ed07386a0e06def32079",
@@ -10,9 +10,11 @@
   "productionAssetRoot": "https://api.chickenbro.cloud/wow-assets/releases/2026-07-19-taro-full-integration",
   "excludedAssetRoot": "https://static.chickenbro.cloud/wow-media/releases/2026-07-19-wow-icons-v1",
   "currentStage": {
-    "status": "local_contracts_verified_pending_whole_branch_candidate_and_fresh_manual_acceptance",
+    "status": "local_verified_pending_candidate_and_fresh_manual_acceptance",
     "architectureAudit": "14 routes, 290 checks, 0 findings",
     "releasePackage": "releaseReady=true with current production asset root and runtime media root not configured",
+    "fullProfile": "160 commands passed at afe5e9b24d5616e8e1953f2b529b026c6c12d56f",
+    "evidence": "artifacts/releases/2026-07-19-pr91-reconciliation/evidence.json",
     "manualAcceptanceBoundary": "preserve existing 5 accepted and 9 not_run_user_waived routes; require fresh news_home and gear_detail acceptance before merge"
   },
   "commits": [
@@ -187,16 +189,19 @@
       "retainedBehaviors": [
         "four Tab roots publish route identity during useDidShow",
         "custom TabBar subscribes to one validated active-route store",
-        "shared header and scroll masks stay within AppShell and PageFrame owners"
+        "shared header and scroll masks stay within AppShell and PageFrame owners",
+        "the known missing Devourer specialization icon uses the audited classicon_demonhunter_void fallback"
       ],
       "excludedBehaviors": [
         "removal of current #92 page actions",
         "fallback-policy or canonical empty-state changes",
-        "route-private shared chrome"
+        "route-private shared chrome",
+        "unrelated deploy known_hosts changes"
       ],
       "evidence": [
         "npx vitest run apps/mini-taro/src/tab-bar-items.test.ts apps/mini-taro/src/tab-bar-state.test.ts apps/mini-taro/src/pages/_shared/route-contract.test.ts",
-        "npm run audit:ui-architecture"
+        "npm run audit:ui-architecture",
+        "node --test tests/publish-runtime-media.test.js"
       ]
     },
     {

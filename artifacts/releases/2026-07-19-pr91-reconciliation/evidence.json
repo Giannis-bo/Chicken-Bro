@@ -1,0 +1,173 @@
+{
+  "schemaVersion": 1,
+  "slug": "pr91-reconciliation",
+  "requirementSlug": "pr91-reconciliation",
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
+  "branch": "codex/cdn-api-publishing",
+  "commit": "afe5e9b24d5616e8e1953f2b529b026c6c12d56f",
+  "scope": [
+    "pr91_history_reconciliation_without_rewrite",
+    "custom_tab_bar_route_identity",
+    "safe_weapp_atomic_promotion",
+    "protected_wechat_automator_session",
+    "miniprogram_gear_initial_default",
+    "local_png_runtime_and_trusted_media_fallback",
+    "shared_pageframe_capsule_clearance",
+    "dormant_manual_cdn_publishers_with_current_root_retained"
+  ],
+  "excludedScope": [
+    "no_activation_of_unpublished_static_chickenbro_cloud_runtime_media_root",
+    "no_unrelated_deploy_known_hosts_change",
+    "no_rollback_of_main_typed_fail_closed_or_canonical_contracts",
+    "no_claim_of_fourteen_route_manual_acceptance"
+  ],
+  "verification": [
+    {
+      "command": "npm run typecheck && npm run lint && npm run test:taro && npm run audit:ui-architecture",
+      "status": "pass",
+      "summary": "TypeScript and ESLint pass; 41 Taro files and 254 tests pass; 14 routes, 290 architecture checks, and zero findings."
+    },
+    {
+      "command": "node --test tests/build-weapp-safely.test.js tests/finalize-weapp-build.test.js tests/wechat-automator.test.js tests/frontend-api-client.test.js tests/project-state.test.js tests/publish-runtime-media.test.js tests/release-domain-policy.test.js tests/taro-production-build.test.js",
+      "status": "pass",
+      "summary": "106 tests pass, zero fail, and one Windows symbolic-link privilege case is skipped."
+    },
+    {
+      "command": "python -m unittest tests.websim_payload_test",
+      "status": "pass",
+      "summary": "425 tests pass sequentially on Windows."
+    },
+    {
+      "command": "WOW_BACKEND_API_BASE_URL=https://api.chickenbro.cloud WOW_ASSET_RUNTIME_ROOT=https://api.chickenbro.cloud/wow-assets/releases/2026-07-19-taro-full-integration WOW_WECHAT_REQUEST_DOMAIN_APPROVED=yes npm run audit:taro-domain",
+      "status": "pass",
+      "summary": "The production request-domain audit reports productionReady=true while retaining the current development HTTP-IP contract."
+    },
+    {
+      "command": "NODE_ENV=production WOW_BACKEND_API_BASE_URL=https://api.chickenbro.cloud WOW_ASSET_RUNTIME_ROOT=https://api.chickenbro.cloud/wow-assets/releases/2026-07-19-taro-full-integration npm run build:weapp",
+      "status": "pass",
+      "summary": "Taro production build completes through staged atomic promotion with 144 files; the optional runtime media root is compiled to an empty string and no unresolved __WOW_RUNTIME_MEDIA_ROOT__ identifier remains."
+    },
+    {
+      "command": "WOW_BACKEND_API_BASE_URL=https://api.chickenbro.cloud WOW_ASSET_RUNTIME_ROOT=https://api.chickenbro.cloud/wow-assets/releases/2026-07-19-taro-full-integration WOW_WECHAT_REQUEST_DOMAIN_APPROVED=yes npm run verify:ui-package:release",
+      "status": "pass",
+      "summary": "releaseReady=true with zero blockers, 67 local vector PNGs in the remote-asset package, the current production root, and runtimeMediaOrigin=not_configured."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile full",
+      "status": "pass",
+      "summary": "160 commands pass: Node 632 pass and 3 Windows symbolic-link skips; Python 1719 pass and 1 skip; compileall, typecheck, lint, Taro 254, architecture 290/0, 69 assets and 138 files, package mechanics, Harness check, and diff check pass."
+    },
+    {
+      "command": "git diff --check origin/main...HEAD",
+      "status": "pass",
+      "summary": "The reconciled whole-branch diff has no whitespace errors."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "pending",
+    "reason": "Three runtime files remain changed and require one final candidate deployment with file parity, service, health, API, log, backup, and rollback evidence before manual acceptance."
+  },
+  "candidate": {
+    "branch": "codex/cdn-api-publishing",
+    "runtimeCommit": "afe5e9b24d5616e8e1953f2b529b026c6c12d56f",
+    "baseMain": "65be719204d4e398cede2dd1a947821cbd00c3d4",
+    "productionBackendOrigin": "https://api.chickenbro.cloud",
+    "productionAssetRuntimeRoot": "https://api.chickenbro.cloud/wow-assets/releases/2026-07-19-taro-full-integration",
+    "runtimeMediaRoot": "not_configured",
+    "runtimeFiles": [
+      "server/builds/home-payload.js",
+      "server/news_backend.py",
+      "server/websim_payload.py"
+    ],
+    "deploymentStatus": "pending"
+  },
+  "runtimeEvidence": [
+    {
+      "surface": "production_weapp_package",
+      "status": "local_verified",
+      "fileCount": 144,
+      "totalBytes": 1649136,
+      "vectorPngCount": 67,
+      "releaseReady": true
+    }
+  ],
+  "manualAcceptance": {
+    "status": "pending_fresh_post_candidate_evidence",
+    "routes": [
+      {
+        "path": "pages/news/news",
+        "acceptance": "Switch across all four Tab items; the active item follows the visible root and no tap is dead."
+      },
+      {
+        "path": "pages/builds/detail",
+        "acceptance": "Scroll and use Back; title and Back stay below and left of the system capsule and do not scroll away incorrectly."
+      }
+    ],
+    "existingBoundary": "The prior five accepted routes remain historical evidence; nine routes remain not_run_user_waived and are not promoted to fourteen-of-fourteen."
+  },
+  "wholeBranchReview": {
+    "status": "pass_with_findings_fixed",
+    "reviewedAgainst": [
+      "origin/main",
+      "artifacts/releases/2026-07-19-pr91-reconciliation/design.md",
+      "artifacts/releases/2026-07-19-pr91-reconciliation/commit-disposition.json",
+      "docs/project-state.json",
+      "docs/plans/ui-reconstruction.md"
+    ],
+    "fixedFindings": [
+      "Removed hard-coded activation of the unpublished alternate media CDN root.",
+      "Normalized staged build paths and launched Taro with the current Node runtime on Windows.",
+      "Restored current-main development domain facts and the byte-for-byte historical truth-adaptation provenance records.",
+      "Removed unrelated deploy known_hosts changes from the reconciled net diff.",
+      "Injected __WOW_RUNTIME_MEDIA_ROOT__ through Taro defineConstants after a red-green regression proved the production bundle retained an unresolved identifier."
+    ],
+    "openCritical": 0,
+    "openImportant": 0
+  },
+  "risks": [
+    {
+      "id": "candidate_runtime_not_yet_verified",
+      "status": "pending",
+      "detail": "Runtime file parity, service state, health/API smoke, logs, backup, and rollback are not yet recorded for the final PR head."
+    },
+    {
+      "id": "fresh_manual_acceptance_not_yet_recorded",
+      "status": "pending",
+      "detail": "The post-reconciliation production package still needs the two bounded real-WeChat checks before merge."
+    },
+    {
+      "id": "alternate_runtime_media_root_dormant",
+      "status": "accepted",
+      "detail": "WOW_RUNTIME_MEDIA_ROOT remains unset; trusted upstream media and committed local PNG fallbacks continue to serve runtime behavior."
+    },
+    {
+      "id": "nine_routes_not_run_user_waived",
+      "status": "accepted_with_truth_boundary",
+      "detail": "The existing waiver remains unchanged and cannot be represented as fourteen-of-fourteen manual acceptance."
+    }
+  ],
+  "rollback": [
+    "Before merge, reset only the PR branch through an ordinary follow-up revert of the reconciliation commits; do not rewrite history or force-push.",
+    "Keep WOW_ASSET_RUNTIME_ROOT on https://api.chickenbro.cloud/wow-assets/releases/2026-07-19-taro-full-integration and leave WOW_RUNTIME_MEDIA_ROOT unset.",
+    "For the candidate backend window, restore the three runtime files from the recorded remote backup and restart the existing wow-backend service.",
+    "After merge, revert the PR merge commit if scoped merge-result verification or live smoke fails."
+  ],
+  "cleanup": {
+    "required": true,
+    "status": "pending_after_merge",
+    "targets": [
+      "G:/Codex/wow/.worktrees/cdn-api-publishing",
+      "local codex/cdn-api-publishing",
+      "remote codex/cdn-api-publishing"
+    ]
+  },
+  "archivedReferences": [
+    "docs/project-state.json",
+    "docs/plans/ui-reconstruction.md",
+    "artifacts/releases/2026-07-19-pr91-reconciliation/design.md",
+    "artifacts/releases/2026-07-19-pr91-reconciliation/implementation-plan.md",
+    "artifacts/releases/2026-07-19-pr91-reconciliation/commit-disposition.json"
+  ],
+  "summary": "PR #91 is reconciled onto current main without history rewrite and is locally verified at afe5e9b. The unpublished alternate media root is not activated. Candidate deployment and fresh two-route real-WeChat acceptance remain mandatory before merge."
+}

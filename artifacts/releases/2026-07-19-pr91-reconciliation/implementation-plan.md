@@ -392,7 +392,7 @@ Expected: the commit contains only shared-owner adaptations, gates, and truthful
 - Consumes: final branch diff against `origin/main`
 - Produces: final verification results, risks, rollback, candidate identity, and CR findings
 
-- [ ] **Step 1: Run targeted frontend/backend checks**
+- [x] **Step 1: Run targeted frontend/backend checks**
 
 ```powershell
 npm run typecheck
@@ -405,7 +405,7 @@ python -m unittest tests.websim_payload_test
 
 Expected: every command exits 0. Python runs sequentially on Windows.
 
-- [ ] **Step 2: Run current release package gates**
+- [x] **Step 2: Run current release package gates**
 
 ```powershell
 $env:WOW_BACKEND_API_BASE_URL='https://api.chickenbro.cloud'
@@ -418,7 +418,7 @@ npm run verify:ui-package:release
 
 Expected: domain audit reports `productionReady=true`; release package reports `releaseReady=true`; the build contains the current root and not the unpublished alternative root.
 
-- [ ] **Step 3: Run one final Harness full profile**
+- [x] **Step 3: Run one final Harness full profile**
 
 ```powershell
 node scripts/verify-project.js --profile full
@@ -426,7 +426,7 @@ node scripts/verify-project.js --profile full
 
 Expected: the final head full profile exits 0; do not repeat frontend/backend/full profiles serially.
 
-- [ ] **Step 4: Perform whole-branch local CR**
+- [x] **Step 4: Perform whole-branch local CR**
 
 ```powershell
 git diff --check origin/main...HEAD
@@ -436,7 +436,7 @@ git log --oneline --decorate origin/main..HEAD
 
 Review the full diff against the design, disposition matrix, current owner map, fail-closed semantics, package/root constants, performance, and rollback. Fix every valid Critical or Important finding and rerun its affected checks.
 
-- [ ] **Step 5: Write and validate the evidence packet**
+- [x] **Step 5: Write and validate the evidence packet**
 
 `evidence.json` must include `status`, `highestEvidenceLevel`, `scope`, `verification`, `risks`, `rollback`, `candidate`, `manualAcceptance`, and `wholeBranchReview`. Before manual WeChat acceptance, set `highestEvidenceLevel` no higher than `local_verified` or `deployable` according to actual candidate evidence.
 
