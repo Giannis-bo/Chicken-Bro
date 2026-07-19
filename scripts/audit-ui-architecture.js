@@ -2670,8 +2670,8 @@ record(
     && /\.routeStage\s*\{[^}]*overflow:\s*visible;/u.test(ownerStyles)
     && /\.pageFrameOwner\s*\{[^}]*display:\s*block;/u.test(ownerStyles)
     && /\.pageFrameHeader\s*\{[^}]*height:\s*44px;[^}]*padding:\s*0 calc\(var\(--capsule-safe-right, 0px\) \+ 8px\)/u.test(ownerStyles)
-    && /\.pageFrameHeaderSticky\s*\{[^}]*position:\s*sticky;[^}]*top:\s*var\(--safe-top\);/u.test(ownerStyles),
-  'AppShell must reserve and mask the native top inset while PageFrame stays sticky below it',
+    && /\.pageFrameHeaderSticky\s*\{[^}]*position:\s*sticky;[^}]*top:\s*0;/u.test(ownerStyles),
+  'AppShell must reserve and mask the native top inset while PageFrame sticks to the padded scrollport edge',
 )
 record(
   'four_primary_tabs_share_root_chrome_contract',
