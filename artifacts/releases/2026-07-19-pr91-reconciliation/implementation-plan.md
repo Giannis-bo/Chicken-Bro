@@ -46,10 +46,13 @@ Expected: both worktrees have no uncommitted files; `origin/main` is `65be719204
 - [ ] **Step 2: Merge current main with main-side conflict preference**
 
 ```powershell
-git merge --no-ff -X theirs origin/main -m "merge: reconcile PR91 with current main"
+git merge --no-ff -X theirs --no-commit origin/main
+git restore --source=origin/main --staged --worktree -- docs/project-state.json docs/roadmap.md docs/plans/ui-reconstruction.md DESIGN.md docs/design/current-ui/README.md
+git diff --name-only --diff-filter=U
+git commit -m "merge: reconcile PR91 with current main"
 ```
 
-Expected: a normal merge commit is created without history rewrite. If unresolved paths remain, inspect each path and reconstruct it against the current owner; do not choose the #91 version merely to make the merge finish.
+Expected: the unresolved-path command prints nothing and a normal merge commit is created without history rewrite. If unresolved paths remain, inspect each path and reconstruct it against the current owner; do not choose the #91 version merely to make the merge finish.
 
 - [ ] **Step 3: Verify current control-plane files match merged main**
 
