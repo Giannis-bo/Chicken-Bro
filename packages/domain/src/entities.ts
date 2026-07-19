@@ -320,6 +320,20 @@ export interface TalentNode {
   sourceUrl?: string
 }
 
+export type TalentNodeAvailabilityState = 'selected' | 'available' | 'blocked'
+
+export interface TalentNodeAvailability {
+  state: TalentNodeAvailabilityState
+  reasonCode: string
+  reason: string
+}
+
+export interface TalentNodeAvailabilityPayload {
+  schemaRevision: string
+  source: string
+  nodes: Readonly<Record<string, TalentNodeAvailability>>
+}
+
 export interface TalentTreeSection {
   key: string
   title: string
@@ -376,6 +390,7 @@ export interface WebsimTalentsPayload extends WebsimSelection {
   talentSchemaRevision?: string
   talentReadiness?: TalentReadinessSummary
   talentAuthority?: Readonly<Record<string, unknown>>
+  nodeAvailability?: TalentNodeAvailabilityPayload
   blockers?: readonly string[]
   currentSeason?: SeasonSnapshot
   dataStatus?: string
@@ -419,6 +434,7 @@ export interface TalentValidationPayload extends WebsimSelection {
   lines: readonly string[]
   selectedCounts: Readonly<Record<string, number>>
   talentState: TalentSelectionState
+  nodeAvailability?: TalentNodeAvailabilityPayload
   talentSchemaRevision?: string
   talentAuthority?: Readonly<Record<string, unknown>> | null
   talentReadiness?: TalentReadinessSummary | null
@@ -590,6 +606,16 @@ export interface GearProblem {
   [key: string]: unknown
 }
 
+export interface GearProfileReadiness {
+  status: string
+  simcReady: boolean
+  requiredSlots: readonly string[]
+  readySlots: readonly string[]
+  serializerRevision?: string
+  simcRuntimeRevision?: string
+  problems?: readonly GearProblem[]
+}
+
 export interface GearResolvedSnapshot {
   contractRevision?: string
   status?: string
@@ -599,7 +625,7 @@ export interface GearResolvedSnapshot {
   staticAttributes?: Readonly<Record<string, unknown>>
   setState?: Readonly<Record<string, unknown>>
   constraints?: Readonly<Record<string, unknown>>
-  profileReadiness?: Readonly<Record<string, unknown>>
+  profileReadiness?: GearProfileReadiness
   statSnapshot?: GearStatsPayload
   statSignature?: string
   retryAfterMs?: number

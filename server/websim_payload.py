@@ -284,6 +284,7 @@ DEFAULT_GEAR_TEMPLATE_ILEVEL_GUARDRAIL = 6
 DEFAULT_GEAR_TEMPLATE_TRINKET_WARNING = "trinket effects are not optimized"
 TEMPLATE_EVIDENCE_AUDIT_REVISION = "template-evidence-audit-v1"
 TALENT_SCHEMA_REVISION = "websim-talent-rules-v1"
+TALENT_NODE_AVAILABILITY_SCHEMA_REVISION = "websim-talent-node-availability-v1"
 TALENT_CATALOG_REVISION = "websim-talent-catalog-v1"
 GEAR_SCHEMA_REVISION = "websim-gear-simulator-v1"
 GEAR_CATALOG_REVISION = "websim-gear-catalog-v1"
@@ -12286,7 +12287,7 @@ def get_websim_talents(conn, class_key="mage", spec_key="arcane", hero_key=""):
     community_templates = get_websim_community_talent_templates(conn, class_key, spec_key, hero_key)
     community_state = community_talent_sync_state(conn)
     community_state = {**community_state, "activeSpecSlots": community_talent_template_slot_summary(community_templates)}
-    return {
+    return append_websim_talent_node_availability({
         "classKey": class_key,
         "specKey": spec_key,
         "heroKey": hero_key,
@@ -12301,7 +12302,7 @@ def get_websim_talents(conn, class_key="mage", spec_key="arcane", hero_key=""):
         "treeSections": tree_sections,
         "talentStatus": talent_status,
         **season_metadata_fields(season),
-    }
+    })
 
 
 def get_websim_presets(conn, class_key="mage", spec_key="arcane"):
@@ -24988,6 +24989,14 @@ def websim_parent_mode(node):
     return "all" if value == "all" else "any"
 
 
+def websim_parent_rank_satisfied(node, selected_by_id):
+    try:
+        max_rank = max(1, int(node.get("maxRank") or node.get("rank") or 1))
+    except (AttributeError, TypeError, ValueError):
+        max_rank = 1
+    return selected_by_id.get(str(node.get("id") or ""), 0) >= max_rank
+
+
 def build_websim_authority_nodes(conn, class_key, spec_key, hero_key):
     if hasattr(conn, "get_websim_talents"):
         payload = conn.get_websim_talents(class_key, spec_key, hero_key)
@@ -25112,7 +25121,11 @@ def validate_websim_talent_selection(nodes_by_id, selected_rows, tree_sections):
             continue
         parent_ids = [parent_id for parent_id in node.get("parentIds") or [] if parent_id in nodes_by_id]
         if parent_ids:
-            selected_parent_ids = [parent_id for parent_id in parent_ids if selected_by_id.get(parent_id, 0) > 0]
+            selected_parent_ids = [
+                parent_id
+                for parent_id in parent_ids
+                if websim_parent_rank_satisfied(nodes_by_id[parent_id], selected_by_id)
+            ]
             if websim_parent_mode(node) == "all":
                 missing_parent_ids = [parent_id for parent_id in parent_ids if parent_id not in selected_parent_ids]
                 if missing_parent_ids:
@@ -25142,6 +25155,138 @@ def validate_websim_talent_selection(nodes_by_id, selected_rows, tree_sections):
             errors.append(f"{tree_type} talent points exceed cap: {points}/{point_caps[tree_type]}")
 
     return encoded, purchased_counts, errors, warnings
+
+
+def websim_talent_selected_rows_from_nodes(nodes):
+    selected_rows = []
+    for node in nodes or []:
+        if not isinstance(node, dict):
+            continue
+        node_id = str(node.get("id") or "").strip()
+        if not node_id:
+            continue
+        raw_rank = node.get("selectedRank")
+        if raw_rank is None:
+            raw_rank = node.get("ranks")
+        try:
+            rank = max(0, int(raw_rank or 0))
+        except (TypeError, ValueError):
+            rank = 0
+        if rank > 0:
+            selected_rows.append({"id": node_id, "rank": rank})
+    return selected_rows
+
+
+def talent_node_availability_reason_code(error):
+    message = str(error or "").strip().lower()
+    if "missing parent talent" in message:
+        return "missing_parent"
+    if "talent point gate not satisfied" in message:
+        return "point_requirement"
+    if "talent points exceed cap" in message:
+        return "point_cap"
+    if "multiple talents selected in choice group" in message:
+        return "choice_conflict"
+    if "no simc entry id" in message or "unsupported talent tree type" in message:
+        return "authority_incomplete"
+    return "validation_failed"
+
+
+def websim_talent_node_availability(nodes, selected_rows, tree_sections):
+    canonical_nodes = [node for node in (nodes or []) if isinstance(node, dict) and str(node.get("id") or "").strip()]
+    nodes_by_id = {str(node.get("id") or "").strip(): node for node in canonical_nodes}
+    selected_ranks = {}
+    for row in selected_rows or []:
+        if not isinstance(row, dict):
+            continue
+        node_id = str(row.get("id") or "").strip()
+        if not node_id:
+            continue
+        try:
+            rank = max(0, int(row.get("rank") or 0))
+        except (TypeError, ValueError):
+            rank = 0
+        if rank <= 0:
+            continue
+        selected_ranks[node_id] = max(selected_ranks.get(node_id, 0), rank)
+    normalized_rows = [{"id": node_id, "rank": rank} for node_id, rank in selected_ranks.items()]
+
+    _, _, current_errors, _ = validate_websim_talent_selection(nodes_by_id, normalized_rows, tree_sections)
+    availability = {}
+    for node_id, node in nodes_by_id.items():
+        try:
+            max_rank = max(1, int(node.get("maxRank") or node.get("rank") or 1))
+            granted_rank = max(0, min(max_rank, int(node.get("grantedRank") or 0)))
+        except (TypeError, ValueError):
+            granted_rank = 0
+        current_rank = max(granted_rank, selected_ranks.get(node_id, 0))
+        if current_rank > 0:
+            availability[node_id] = {
+                "state": "selected",
+                "reasonCode": "selected",
+                "reason": "selected by backend validation",
+            }
+            continue
+        if current_errors:
+            availability[node_id] = {
+                "state": "blocked",
+                "reasonCode": "current_selection_invalid",
+                "reason": str(current_errors[0]),
+            }
+            continue
+
+        trial_ranks = dict(selected_ranks)
+        choice_group = str(node.get("choiceGroup") or "").strip()
+        tree_type = node.get("treeType") or ("class" if node.get("specKey") == "class" else "spec")
+        if choice_group:
+            for peer_id, peer in nodes_by_id.items():
+                peer_tree_type = peer.get("treeType") or ("class" if peer.get("specKey") == "class" else "spec")
+                if (
+                    peer_id != node_id
+                    and peer_tree_type == tree_type
+                    and str(peer.get("choiceGroup") or "").strip() == choice_group
+                ):
+                    trial_ranks.pop(peer_id, None)
+        trial_ranks[node_id] = 1
+        trial_rows = [{"id": trial_id, "rank": rank} for trial_id, rank in trial_ranks.items() if rank > 0]
+        _, _, trial_errors, _ = validate_websim_talent_selection(nodes_by_id, trial_rows, tree_sections)
+        if trial_errors:
+            availability[node_id] = {
+                "state": "blocked",
+                "reasonCode": talent_node_availability_reason_code(trial_errors[0]),
+                "reason": str(trial_errors[0]),
+            }
+        else:
+            availability[node_id] = {
+                "state": "available",
+                "reasonCode": "available",
+                "reason": "available by backend validation",
+            }
+    return {
+        "schemaRevision": TALENT_NODE_AVAILABILITY_SCHEMA_REVISION,
+        "source": "backend_validation",
+        "nodes": availability,
+    }
+
+
+def append_websim_talent_node_availability(payload, selected_rows=None):
+    if not isinstance(payload, dict) or not payload.get("nodes"):
+        return payload
+    nodes = payload.get("nodes") or []
+    effective_rows = websim_talent_selected_rows_from_nodes(nodes) if selected_rows is None else selected_rows
+    tree_sections = payload.get("treeSections") or talent_tree_sections(
+        payload.get("classKey") or "",
+        payload.get("specKey") or "",
+        payload.get("heroKey") or "",
+    )
+    return {
+        **payload,
+        "nodeAvailability": websim_talent_node_availability(
+            nodes,
+            effective_rows,
+            tree_sections,
+        ),
+    }
 
 
 def encode_websim_talents(conn, payload):
@@ -25228,12 +25373,18 @@ def validate_talent_api_payload(conn, payload):
     else:
         talent_payload = get_websim_talents(conn, class_key, spec_key, hero_key)
     encoding = encode_websim_talents(conn, request_payload)
+    selected_rows = websim_selected_talent_nodes(request_payload)
     return {
         **encoding,
         "classKey": class_key,
         "specKey": spec_key,
         "heroKey": hero_key,
-        "talentState": {"selectedNodes": websim_selected_talent_nodes(request_payload)},
+        "talentState": {"selectedNodes": selected_rows},
+        "nodeAvailability": websim_talent_node_availability(
+            talent_payload.get("nodes") or [],
+            selected_rows,
+            talent_payload.get("treeSections") or talent_tree_sections(class_key, spec_key, hero_key),
+        ),
         "talentSchemaRevision": TALENT_SCHEMA_REVISION,
         "talentAuthority": talent_payload.get("talentAuthority"),
         "talentReadiness": talent_payload.get("talentReadiness"),

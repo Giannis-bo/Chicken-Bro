@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import type { TalentNode } from '@wow-mini/domain'
+import type { TalentNode, TalentNodeAvailabilityPayload } from '@wow-mini/domain'
 
 import {
   buildTalentGraph,
@@ -49,14 +49,24 @@ const nodes: readonly TalentNode[] = [
   },
 ]
 
+const availability: TalentNodeAvailabilityPayload = {
+  schemaRevision: 'websim-talent-node-availability-v1',
+  source: 'backend_validation',
+  nodes: {
+    root: { state: 'selected', reasonCode: 'selected', reason: 'selected by backend validation' },
+    child: { state: 'available', reasonCode: 'available', reason: 'available by backend validation' },
+    locked: { state: 'blocked', reasonCode: 'missing_parent', reason: 'missing parent talent for locked' },
+  },
+}
+
 describe('talent simulator target model', () => {
   it('retains real coordinates and prerequisite edges without presenting local legality as authoritative', () => {
     const ranks = initialTalentRanks(nodes)
-    const graph = buildTalentGraph({ nodes, ranks, routeState: 'ready' })
+    const graph = buildTalentGraph({ nodes, ranks, availability, routeState: 'ready' })
 
     expect(graph.nodeCount).toBe(3)
-    expect(graph.planeWidth).toBe(660)
-    expect(graph.planeHeight).toBe(1080)
+    expect(graph.planeWidth).toBe(350)
+    expect(graph.planeHeight).toBe(314)
     expect(graph.uniquePositionCount).toBe(3)
     expect(graph.edges.map((edge) => edge.id)).toEqual(['root->child', 'child->locked'])
     expect(graph.nodes.find((node) => node.id === 'child')).toMatchObject({
@@ -64,7 +74,19 @@ describe('talent simulator target model', () => {
       column: 3,
       state: 'available',
     })
-    expect(graph.nodes.find((node) => node.id === 'locked')?.state).toBe('available')
+    expect(graph.nodes.find((node) => node.id === 'locked')?.state).toBe('blocked')
+  })
+
+  it('fails closed when backend node availability is missing', () => {
+    const graph = buildTalentGraph({
+      nodes,
+      ranks: initialTalentRanks(nodes),
+      routeState: 'ready',
+    })
+
+    expect(graph.nodes.find((node) => node.id === 'root')?.state).toBe('selected')
+    expect(graph.nodes.find((node) => node.id === 'child')?.state).toBe('blocked')
+    expect(graph.nodes.find((node) => node.id === 'locked')?.state).toBe('blocked')
   })
 
   it('fans choice nodes at one logical position into non-overlapping sockets', () => {
@@ -81,10 +103,36 @@ describe('talent simulator target model', () => {
     const [first, second] = graph.nodes
 
     expect(graph.uniquePositionCount).toBe(2)
-    expect(Math.abs((second?.x ?? 0) - (first?.x ?? 0))).toBe(92)
+    expect(Math.abs((second?.x ?? 0) - (first?.x ?? 0))).toBe(52)
     expect(first?.y).toBe(second?.y)
-    expect(Math.min(...graph.nodes.map((node) => node.x - 32))).toBeGreaterThanOrEqual(0)
-    expect(Math.max(...graph.nodes.map((node) => node.x + 32))).toBeLessThanOrEqual(graph.planeWidth)
+    expect(Math.min(...graph.nodes.map((node) => node.x - (node.shape === 'choice' ? 7 : 0)))).toBeGreaterThanOrEqual(0)
+    expect(Math.max(...graph.nodes.map((node) => node.x + (node.shape === 'choice' ? 43 : 36)))).toBeLessThanOrEqual(graph.planeWidth)
+  })
+
+  it('keeps duplicate authority nodes at an edge inside the canvas', () => {
+    const duplicatedEdgeRow: readonly TalentNode[] = [
+      ...[1, 1, 2, 3, 4, 5, 6, 7].map((column, index): TalentNode => ({
+        ...nodes[1]!,
+        id: `edge-${column}-${index}`,
+        name: `边界节点 ${column}-${index}`,
+        row: 4,
+        column,
+        prerequisiteIds: [],
+        shape: 'circle',
+      })),
+    ]
+    const graph = buildTalentGraph({
+      nodes: duplicatedEdgeRow,
+      ranks: initialTalentRanks(duplicatedEdgeRow),
+      routeState: 'ready',
+    })
+    const duplicateNodes = graph.nodes
+      .filter((node) => node.column === 1)
+      .sort((left, right) => left.x - right.x)
+
+    expect(duplicateNodes[1]!.x - duplicateNodes[0]!.x).toBeGreaterThanOrEqual(36)
+    expect(Math.min(...graph.nodes.map((node) => node.x))).toBeGreaterThanOrEqual(0)
+    expect(Math.max(...graph.nodes.map((node) => node.x + 36))).toBeLessThanOrEqual(graph.planeWidth)
   })
 
   it('projects a legacy choice group into one visible slot and retains its granted rank', () => {
@@ -140,7 +188,7 @@ describe('talent simulator target model', () => {
     })
   })
 
-  it('keeps canonical column geometry instead of reflowing adjacent branch nodes', () => {
+  it('centers a sparse two-node row instead of preserving its distant canonical lanes', () => {
     const crowdedRow: readonly TalentNode[] = [
       { ...nodes[0]!, id: 'left-branch', name: '左分支', row: 1, column: 8, prerequisiteIds: [] },
       { ...nodes[1]!, id: 'right-branch', name: '右分支', row: 1, column: 9, prerequisiteIds: [] },
@@ -151,9 +199,155 @@ describe('talent simulator target model', () => {
       routeState: 'ready',
     })
     const sorted = [...graph.nodes].sort((left, right) => left.x - right.x)
-    const expectedColumnGap = 660 / 9
 
-    expect(sorted[1]!.x - sorted[0]!.x).toBeCloseTo(expectedColumnGap)
+    expect(sorted[1]!.x - sorted[0]!.x).toBe(52)
+    expect((sorted[0]!.x + 18 + sorted[1]!.x + 18) / 2).toBe(175)
+  })
+
+  it('centers sparse and crowded rows independently with uniform adjacent gaps', () => {
+    const alignedTree: readonly TalentNode[] = [
+      ...[2, 3, 4, 5, 6, 7].map((column): TalentNode => ({
+        ...nodes[1]!,
+        id: `crowded-${column}`,
+        name: `拥挤行 ${column}`,
+        row: 4,
+        column,
+        prerequisiteIds: [],
+      })),
+      {
+        ...nodes[1]!,
+        id: 'sparse-4',
+        name: '稀疏行 4',
+        row: 5,
+        column: 4,
+        prerequisiteIds: [],
+      },
+    ]
+    const graph = buildTalentGraph({
+      nodes: alignedTree,
+      ranks: initialTalentRanks(alignedTree),
+      routeState: 'ready',
+    })
+    const crowdedColumnFour = graph.nodes.find((node) => node.id === 'crowded-4')!
+    const sparseColumnFour = graph.nodes.find((node) => node.id === 'sparse-4')!
+    const crowdedRow = graph.nodes
+      .filter((node) => node.row === 4)
+      .sort((left, right) => left.column - right.column)
+    const crowdedCenters = crowdedRow.map((node) => node.x + 18)
+    const crowdedGaps = crowdedCenters.slice(1).map((center, index) => (
+      center - crowdedCenters[index]!
+    ))
+
+    expect(crowdedColumnFour.x).not.toBe(sparseColumnFour.x)
+    expect(sparseColumnFour.x + 18).toBe(175)
+    expect(crowdedCenters.reduce((total, center) => total + center, 0) / crowdedCenters.length).toBe(175)
+    expect(crowdedGaps.every((gap) => gap === crowdedGaps[0])).toBe(true)
+    expect(Math.min(...graph.nodes.map((node) => node.x))).toBeGreaterThanOrEqual(0)
+    expect(Math.max(...graph.nodes.map((node) => node.x + 36))).toBeLessThanOrEqual(graph.planeWidth)
+  })
+
+  it('centers each row from one through nine nodes with exact symmetry and equal spacing', () => {
+    const symmetricRows: readonly TalentNode[] = Array.from({ length: 9 }, (_, rowIndex) => (
+      Array.from({ length: rowIndex + 1 }, (_, nodeIndex): TalentNode => ({
+        ...nodes[1]!,
+        id: `row-${rowIndex + 1}-node-${nodeIndex + 1}`,
+        name: `Row ${rowIndex + 1} node ${nodeIndex + 1}`,
+        row: rowIndex + 1,
+        column: nodeIndex * 2 + 1,
+        prerequisiteIds: [],
+        ...(rowIndex === 8 && nodeIndex === 0 ? { shape: 'choice' } : {}),
+      }))
+    )).flat()
+    const graph = buildTalentGraph({
+      nodes: symmetricRows,
+      ranks: initialTalentRanks(symmetricRows),
+      routeState: 'ready',
+    })
+
+    for (let rowNumber = 1; rowNumber <= 9; rowNumber += 1) {
+      const row = graph.nodes
+        .filter((node) => node.row === rowNumber)
+        .sort((left, right) => left.column - right.column)
+      const centers = row.map((node) => node.x + 18)
+      const gaps = centers.slice(1).map((center, index) => center - centers[index]!)
+
+      expect(centers.reduce((total, center) => total + center, 0) / centers.length).toBeCloseTo(175)
+      expect(gaps.every((gap) => Math.abs(gap - gaps[0]!) < 0.001)).toBe(true)
+      centers.forEach((center, index) => {
+        expect(350 - center).toBeCloseTo(centers[centers.length - 1 - index]!)
+      })
+    }
+
+    expect(Math.min(...graph.nodes.map((node) => (
+      node.x - (node.shape === 'choice' ? 7 : 0)
+    )))).toBeGreaterThanOrEqual(0)
+    expect(Math.max(...graph.nodes.map((node) => (
+      node.x + (node.shape === 'choice' ? 43 : 36)
+    )))).toBeLessThanOrEqual(graph.planeWidth)
+  })
+
+  it('keeps dense rows independently centered and inside the compact canvas', () => {
+    const staggeredTree: readonly TalentNode[] = [
+      ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map((column): TalentNode => ({
+        ...nodes[1]!,
+        id: `dense-${column}`,
+        name: `密集行 ${column}`,
+        row: 5,
+        column,
+        prerequisiteIds: [],
+        ...(column === 1 ? { shape: 'choice' } : {}),
+      })),
+      ...[1, 3, 5, 7, 9].map((column): TalentNode => ({
+        ...nodes[1]!,
+        id: `staggered-${column}`,
+        name: `交错行 ${column}`,
+        row: 6,
+        column,
+        prerequisiteIds: [],
+      })),
+    ]
+    const graph = buildTalentGraph({
+      nodes: staggeredTree,
+      ranks: initialTalentRanks(staggeredTree),
+      routeState: 'ready',
+    })
+    const byId = new Map(graph.nodes.map((node) => [node.id, node]))
+    const denseRow = graph.nodes
+      .filter((node) => node.row === 5)
+      .sort((left, right) => left.column - right.column)
+    const staggeredRow = graph.nodes
+      .filter((node) => node.row === 6)
+      .sort((left, right) => left.column - right.column)
+    const denseCenters = denseRow.map((node) => node.x + 18)
+    const staggeredCenters = staggeredRow.map((node) => node.x + 18)
+
+    expect(byId.get('dense-1')?.x).not.toBe(byId.get('staggered-1')?.x)
+    expect(byId.get('dense-9')?.x).not.toBe(byId.get('staggered-9')?.x)
+    expect(denseCenters.reduce((total, center) => total + center, 0) / denseCenters.length).toBeCloseTo(175)
+    expect(staggeredCenters.reduce((total, center) => total + center, 0) / staggeredCenters.length).toBeCloseTo(175)
+    expect(denseRow.slice(1).every((node, index) => (
+      node.x - denseRow[index]!.x > 36
+    ))).toBe(true)
+    expect(Math.min(...graph.nodes.map((node) => (
+      node.x - (node.shape === 'choice' ? 7 : 0)
+    )))).toBeGreaterThanOrEqual(0)
+    expect(Math.max(...graph.nodes.map((node) => node.x + 36))).toBeLessThanOrEqual(graph.planeWidth)
+  })
+
+  it('centers single nodes regardless of their canonical column number', () => {
+    const wideTree: readonly TalentNode[] = [
+      { ...nodes[0]!, id: 'far-left', row: 1, column: 1, prerequisiteIds: [] },
+      { ...nodes[1]!, id: 'far-right', row: 2, column: 11, prerequisiteIds: [] },
+    ]
+    const graph = buildTalentGraph({
+      nodes: wideTree,
+      ranks: initialTalentRanks(wideTree),
+      routeState: 'ready',
+    })
+
+    expect(graph.nodes.map((node) => node.x + 18)).toEqual([175, 175])
+    expect(Math.min(...graph.nodes.map((node) => node.x))).toBeGreaterThanOrEqual(0)
+    expect(Math.max(...graph.nodes.map((node) => node.x + 36))).toBeLessThanOrEqual(graph.planeWidth)
   })
 
   it('normalizes legacy talent-node shape aliases before rendering', () => {
@@ -193,8 +387,8 @@ describe('talent simulator target model', () => {
     const edge = graph.edges[0]!
     const centerDistance = Math.hypot(leaf.x - root.x, leaf.y - root.y)
 
-    expect(graph.planeHeight).toBe(1080)
-    expect(leaf.y - root.y).toBe(1080 * 7 / 8)
+    expect(graph.planeHeight).toBe(408)
+    expect(leaf.y - root.y).toBe(48 * 7)
     expect(edge.width).toBeLessThan(centerDistance)
   })
 
@@ -239,10 +433,20 @@ describe('talent simulator target model', () => {
     const outgoing = graph.edges.find((edge) => edge.id === 'choice-a->child')!
     const incomingDistance = Math.hypot(choice.x - root.x, choice.y - root.y)
     const outgoingDistance = Math.hypot(child.x - choice.x, child.y - choice.y)
+    const incomingUnitX = Math.abs(choice.x - root.x) / incomingDistance
+    const incomingUnitY = Math.abs(choice.y - root.y) / incomingDistance
+    const incomingChoiceRadius = 1 / Math.sqrt(
+      (incomingUnitX * incomingUnitX) / (25 * 25) + (incomingUnitY * incomingUnitY) / (20 * 20),
+    )
+    const outgoingUnitX = Math.abs(child.x - choice.x) / outgoingDistance
+    const outgoingUnitY = Math.abs(child.y - choice.y) / outgoingDistance
+    const outgoingChoiceRadius = 1 / Math.sqrt(
+      (outgoingUnitX * outgoingUnitX) / (25 * 25) + (outgoingUnitY * outgoingUnitY) / (20 * 20),
+    )
 
     expect(choice.shape).toBe('choice')
-    expect(incoming.width).toBeCloseTo(incomingDistance - (32 + 8) - (45 + 8 + 12))
-    expect(outgoing.width).toBeCloseTo(outgoingDistance - (45 + 8) - (32 + 8 + 12))
+    expect(incoming.width).toBeCloseTo(incomingDistance - 18 - (incomingChoiceRadius + 6))
+    expect(outgoing.width).toBeCloseTo(outgoingDistance - outgoingChoiceRadius - (18 + 6))
   })
 
   it('reserves a visible gutter between a two-choice frame and its adjacent column', () => {
@@ -277,7 +481,7 @@ describe('talent simulator target model', () => {
     const choice = graph.nodes.find((node) => node.id === 'choice-a')!
     const adjacent = graph.nodes.find((node) => node.id === 'adjacent')!
 
-    expect(adjacent.x - choice.x).toBeGreaterThanOrEqual(109)
+    expect(adjacent.x - choice.x).toBeGreaterThanOrEqual(52)
   })
 
   it('keeps the target nineteen-socket and twenty-four-edge loading density', () => {
@@ -291,7 +495,7 @@ describe('talent simulator target model', () => {
     expect(graph.nodes).toHaveLength(19)
     expect(graph.edges).toHaveLength(24)
     expect(graph.nodes.every((node) => node.loading)).toBe(true)
-    expect(graph.planeWidth).toBe(660)
+    expect(graph.planeWidth).toBe(350)
   })
 
   it('constructs a rank proposal without locally enforcing prerequisite or point-cap rules', () => {
@@ -350,7 +554,7 @@ describe('talent simulator target model', () => {
     })
   })
 
-  it('treats encoded validation with blockers as rejected without throwing', () => {
+  it('treats encoded validation with unavailable rule authority as rejected without throwing', () => {
     const current = { root: 1 }
     expect(applyTalentValidation(current, {
       classKey: 'mage', specKey: 'frost', heroKey: 'frostfire',
@@ -359,11 +563,50 @@ describe('talent simulator target model', () => {
       selectedCounts: { class: 1, spec: 0, hero: 0 },
       talentState: { selectedNodes: [{ id: 'root', rank: 1 }] },
       talentSchemaRevision: 'websim-talent-rules-v1',
+      talentReadiness: {
+        treeReady: true,
+        ruleReady: false,
+        spellReady: false,
+        encodingReady: true,
+        simcReady: false,
+        blockers: ['talent authority unavailable'],
+      },
       blockers: ['talent authority unavailable'],
     }, false)).toEqual({
       accepted: false,
       ranks: current,
       error: 'talent authority unavailable',
+    })
+  })
+
+  it('accepts a backend-encoded edit when only spell presentation evidence is incomplete', () => {
+    const current = { root: 1 }
+    expect(applyTalentValidation(current, {
+      classKey: 'mage', specKey: 'frost', heroKey: 'frostfire',
+      status: 'encoded', source: 'simc', schemaRevision: 'websim-talent-rules-v1',
+      errors: [], warnings: [], lines: ['class_talents=1:1/2:1'],
+      selectedCounts: { class: 2, spec: 0, hero: 0 },
+      talentState: { selectedNodes: [{ id: 'root', rank: 1 }, { id: 'child', rank: 1 }] },
+      talentSchemaRevision: 'websim-talent-rules-v1',
+      talentReadiness: {
+        treeReady: true,
+        ruleReady: true,
+        spellReady: false,
+        encodingReady: true,
+        simcReady: true,
+        blockers: [
+          'talent spell descriptions/icons are incomplete',
+          'talent spell descriptions contain unresolved formula text for 109 talent nodes',
+        ],
+      },
+      blockers: [
+        'talent spell descriptions/icons are incomplete',
+        'talent spell descriptions contain unresolved formula text for 109 talent nodes',
+      ],
+    }, false)).toEqual({
+      accepted: true,
+      ranks: { root: 1, child: 1 },
+      error: '',
     })
   })
 

@@ -8,6 +8,19 @@ export interface ChickenbroContextValue {
   scenario?: string | undefined
 }
 
+export function chickenbroBackendContext(
+  context: ChickenbroContextValue,
+): Readonly<Record<string, string>> {
+  const output: Record<string, string> = {}
+  for (const key of ['from', 'classKey', 'specKey', 'spec'] as const) {
+    const value = context[key]?.trim()
+    if (value) output[key] = value
+  }
+  const scenarioKey = context.scenario?.trim()
+  if (scenarioKey) output['scenarioKey'] = scenarioKey
+  return output
+}
+
 export interface ChickenbroTurn {
   user: ChatMessage
   assistant?: ChatMessage | undefined

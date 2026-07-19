@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-07-18",
+  "updatedAt": "2026-07-19",
   "status": "project_owner_map_active",
   "harnessVersion": "v0.6",
   "activeMilestone": "taro_target_first_14_route_rebuild",
@@ -165,6 +165,11 @@
       "writeBehavior": true,
       "writeOwner": "server/news_backend.py",
       "consumers": [
+        "packages/api-client/src/templates.ts",
+        "apps/mini-taro/src/pages/profile/profile.tsx",
+        "apps/mini-taro/src/pages/builds/detail.tsx",
+        "apps/mini-taro/src/pages/builds/talent-simulator.tsx",
+        "apps/mini-taro/src/pages/simulator/simc.tsx",
         "pages/common/build-template-storage.js",
         "pages/profile/profile.js",
         "pages/builds/detail.js",
@@ -172,13 +177,18 @@
       ],
       "publicContracts": [
         "Personal build templates are account-scoped assets.",
-        "List/detail/delete/write operations must preserve current owner isolation."
+        "List/detail/delete/write operations must preserve current owner isolation.",
+        "packages/api-client/src/templates.ts is the active typed repository; Taro profile, gear, talent and SimC routes consume its local/account trust boundary while legacy pages remain compatibility consumers."
       ],
       "mustNotChange": [
         "Do not let guest/local templates overwrite authenticated owner data.",
         "Do not move template save/list authorization to frontend-only checks."
       ],
       "characterization": [
+        "packages/api-client/src/templates.test.ts",
+        "apps/mini-taro/src/pages/profile/profile-templates-model.test.ts",
+        "apps/mini-taro/src/pages/builds/gear-request-fence.test.ts",
+        "apps/mini-taro/src/pages/simulator/simc-submit-model.test.ts",
         "tests/build-template-storage.test.js",
         "tests/profile-auth.test.js",
         "tests/builds-page.test.js",
@@ -186,6 +196,11 @@
       ],
       "runtimeSurfaces": [
         "server/news_backend.py",
+        "packages/api-client/src/templates.ts",
+        "apps/mini-taro/src/pages/profile/profile.tsx",
+        "apps/mini-taro/src/pages/builds/detail.tsx",
+        "apps/mini-taro/src/pages/builds/talent-simulator.tsx",
+        "apps/mini-taro/src/pages/simulator/simc.tsx",
         "pages/common/build-template-storage.js",
         "pages/profile/profile.js"
       ],
@@ -205,6 +220,11 @@
       "releaseTrigger": "backend_api",
       "changedPathPatterns": [
         "server/news_backend.py",
+        "packages/api-client/src/templates.*",
+        "apps/mini-taro/src/pages/profile/**",
+        "apps/mini-taro/src/pages/builds/detail.*",
+        "apps/mini-taro/src/pages/builds/talent-simulator.*",
+        "apps/mini-taro/src/pages/simulator/simc*",
         "pages/common/build-template-storage.js",
         "pages/profile/**",
         "pages/builds/detail.*",
@@ -214,6 +234,10 @@
         "status": "characterized",
         "summary": "Existing template storage, profile auth, builds page and backend tests characterize CRUD, owner isolation and local/account asset boundaries.",
         "coverage": [
+          "packages/api-client/src/templates.test.ts",
+          "apps/mini-taro/src/pages/profile/profile-templates-model.test.ts",
+          "apps/mini-taro/src/pages/builds/gear-request-fence.test.ts",
+          "apps/mini-taro/src/pages/simulator/simc-submit-model.test.ts",
           "tests/build-template-storage.test.js",
           "tests/profile-auth.test.js",
           "tests/builds-page.test.js",

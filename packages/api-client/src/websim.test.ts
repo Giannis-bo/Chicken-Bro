@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import type {
   TalentApiExportPayload,
   TalentApiImportPayload,
+  TalentNodeAvailabilityPayload,
   TalentValidationPayload,
   WebsimTalentsPayload,
 } from '@wow-mini/domain'
@@ -67,6 +68,14 @@ function rawTalents(): WebsimTalentsPayload {
     presets: [],
     communityTemplates: [],
     talentStatus: 'simc',
+    nodeAvailability: {
+      schemaRevision: 'websim-talent-node-availability-v1',
+      source: 'backend_validation',
+      nodes: {
+        root: { state: 'selected', reasonCode: 'selected', reason: 'selected by backend validation' },
+        child: { state: 'available', reasonCode: 'available', reason: 'available by backend validation' },
+      },
+    },
     errors: [],
   }
 }
@@ -129,6 +138,26 @@ describe('websim talent normalization', () => {
       granted: true,
     })
     expect(result.payload.nodes[1]?.prerequisiteIds).toEqual(['root'])
+    expect(result.payload.nodeAvailability?.nodes['child']?.state).toBe('available')
+  })
+
+  it('drops malformed backend node availability instead of promoting it to UI truth', async () => {
+    const malformed = {
+      ...rawTalents(),
+      nodeAvailability: {
+        schemaRevision: 'websim-talent-node-availability-v1',
+        source: 'backend_validation',
+        nodes: { child: { state: 'maybe', reasonCode: 'unknown', reason: 'invalid state' } },
+      } as unknown as TalentNodeAvailabilityPayload,
+    }
+    const result = await createWebsimClient(responseTransport(malformed)).talents({
+      classKey: 'mage',
+      specKey: 'frost',
+      heroKey: 'frostfire',
+    })
+
+    expect(result.fromFallback).toBe(false)
+    expect(result.payload.nodeAvailability).toBeUndefined()
   })
 
   it('never treats the backend rank field as selected rank', () => {
@@ -153,6 +182,14 @@ describe('authoritative talent edit endpoints', () => {
     errors: [], warnings: [], lines: ['class_talents=1:1'],
     selectedCounts: { class: 1, spec: 0, hero: 0 },
     talentState: { selectedNodes: [{ id: 'root', rank: 1 }] },
+    nodeAvailability: {
+      schemaRevision: 'websim-talent-node-availability-v1',
+      source: 'backend_validation',
+      nodes: {
+        root: { state: 'selected', reasonCode: 'selected', reason: 'selected by backend validation' },
+        child: { state: 'available', reasonCode: 'available', reason: 'available by backend validation' },
+      },
+    },
     talentSchemaRevision: 'websim-talent-rules-v1', blockers: [],
   }
   const exported: TalentApiExportPayload = {
@@ -186,6 +223,7 @@ describe('authoritative talent edit endpoints', () => {
       { ...validation, talentState: { selectedNodes: [{ id: '', rank: 1 }] } },
       { ...validation, talentState: { selectedNodes: [{ id: 'root', rank: Number.NaN }] } },
       { ...validation, talentState: { selectedNodes: ['root'] } },
+      { ...validation, nodeAvailability: { ...validation.nodeAvailability, nodes: { child: { state: 'maybe' } } } },
     ]
     expect(invalidValidations.every((value) => !isTalentValidationPayload(value))).toBe(true)
 
@@ -269,6 +307,49 @@ describe('authoritative talent edit endpoints', () => {
         data: { code: 'websim:mage:frost:frostfire:root:1' },
       },
     ])
+  })
+})
+
+describe('canonical gear resolver endpoint', () => {
+  const intent = {
+    schemaRevision: 'selection-intent-v1',
+    authoredAgainst: { seasonRevision: 'season-17', gearCatalogRevision: 'gear-r17' },
+    eligibilityContext: { classKey: 'deathknight', specKey: 'blood', level: 90 },
+    slots: {},
+  }
+  const resolved = {
+    contractRevision: 'gear-result-envelope-v1',
+    requestId: 'gear-resolve-request',
+    status: 'blocked',
+    releaseContext: {},
+    data: {
+      contractRevision: 'gear-resolved-snapshot-v1',
+      status: 'blocked',
+      profileReadiness: {
+        status: 'blocked',
+        simcReady: false,
+        readySlots: ['head'],
+        requiredSlots: [
+          'head', 'neck', 'shoulder', 'back', 'chest', 'wrist', 'hands', 'waist',
+          'legs', 'feet', 'finger1', 'finger2', 'trinket1', 'trinket2', 'main_hand', 'off_hand',
+        ],
+      },
+    },
+    problems: [{ code: 'GEAR_PROFILE_NOT_READY' }],
+  }
+
+  it('rejects resolver snapshots whose backend readiness contract is malformed', async () => {
+    const valid = await createWebsimClient(responseTransport(resolved)).gearResolve(intent)
+    const invalid = await createWebsimClient(responseTransport({
+      ...resolved,
+      data: {
+        ...resolved.data,
+        profileReadiness: { ...resolved.data.profileReadiness, requiredSlots: 'head' },
+      },
+    })).gearResolve(intent)
+
+    expect(valid.fromFallback).toBe(false)
+    expect(invalid.fromFallback).toBe(true)
   })
 })
 

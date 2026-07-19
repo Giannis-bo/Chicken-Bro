@@ -28,6 +28,7 @@ import type {
   ReadinessState,
   RouteDataState,
   TalentImportPayload,
+  TalentNodeAvailabilityPayload,
   WebsimBootstrapPayload,
   WebsimTalentsPayload,
 } from '@wow-mini/domain'
@@ -95,6 +96,7 @@ export default function TalentSimulatorPage() {
   const [selectedSpecId, setSelectedSpecId] = useState(safeDecode(router.params['spec']) || defaultSpecId)
   const [activeTree, setActiveTree] = useState('class')
   const [ranks, setRanks] = useState<Readonly<Record<string, number>>>({})
+  const [nodeAvailability, setNodeAvailability] = useState<TalentNodeAvailabilityPayload | undefined>()
   const [validating, setValidating] = useState(false)
   const [editValidated, setEditValidated] = useState(false)
   const [editMessage, setEditMessage] = useState('')
@@ -152,6 +154,7 @@ export default function TalentSimulatorPage() {
     if (!route.data) return
     validationSequence.current += 1
     setRanks(initialTalentRanks(route.data.talents.nodes))
+    setNodeAvailability(route.data.talents.nodeAvailability)
     setActiveTree(route.data.talents.treeSections[0]?.key || 'class')
     setValidating(false)
     setEditValidated(false)
@@ -177,6 +180,7 @@ export default function TalentSimulatorPage() {
   const graph = buildTalentGraph({
     nodes: activeNodes,
     ranks,
+    ...(nodeAvailability ? { availability: nodeAvailability } : {}),
     routeState: connectivityStatus === 'unavailable'
       ? 'blocked'
       : graphRouteState(route.state.state, data),
@@ -310,6 +314,7 @@ export default function TalentSimulatorPage() {
     setValidating(false)
     if (decision.accepted) {
       setRanks(decision.ranks)
+      setNodeAvailability(result.payload.nodeAvailability)
       setEditValidated(true)
       setExportCode('')
       return
@@ -367,6 +372,7 @@ export default function TalentSimulatorPage() {
       return null
     }
     setRanks(decision.ranks)
+    setNodeAvailability(result.payload.validation.nodeAvailability)
     setEditValidated(true)
     setExportCode(code)
     return { code, validation: result.payload.validation }

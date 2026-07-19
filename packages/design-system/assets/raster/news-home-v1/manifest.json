@@ -5,7 +5,7 @@
   "productionPromoted": true,
   "registeredInPackagesAssetsManifest": true,
   "wiredIntoRuntimeCode": false,
-  "runtimeBindingStatus": "partial_27_of_33",
+  "runtimeBindingStatus": "partial_29_of_33",
   "route": "news_home",
   "target": {
     "path": "artifacts/ui-visual-targets/current/news-home.png",

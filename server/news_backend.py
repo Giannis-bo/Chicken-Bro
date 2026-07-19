@@ -87,6 +87,7 @@ try:
         COMMUNITY_TEMPLATE_SYNC_RUN_KEY,
         COMMUNITY_TALENT_SYNC_KEY,
         ARMOR_SLOTS,
+        append_websim_talent_node_availability,
         apply_gear_template_legality_gate,
         build_websim_profile,
         build_websim_gear_stats_response,
@@ -199,6 +200,7 @@ except ImportError:
         COMMUNITY_TEMPLATE_SYNC_RUN_KEY,
         COMMUNITY_TALENT_SYNC_KEY,
         ARMOR_SLOTS,
+        append_websim_talent_node_availability,
         apply_gear_template_legality_gate,
         build_websim_profile,
         build_websim_gear_stats_response,
@@ -8668,7 +8670,7 @@ def runtime_websim_talents_payload(class_key, spec_key, hero_key=""):
             payload = {}
         if postgres_only_runtime_enabled():
             if isinstance(payload, dict) and payload:
-                return payload
+                return append_websim_talent_node_availability(payload)
             return {
                 "schemaRevision": "websim-talents-v1",
                 "classKey": class_key,
@@ -8686,7 +8688,7 @@ def runtime_websim_talents_payload(class_key, spec_key, hero_key=""):
             and payload.get("dataStatus") == "verified"
             and websim_talent_payload_has_nodes(payload)
         ):
-            return payload
+            return append_websim_talent_node_availability(payload)
     if postgres_only_runtime_enabled():
         return {
             "schemaRevision": "websim-talents-v1",
@@ -8770,6 +8772,11 @@ def postgres_only_talent_validation_payload(payload):
         "specKey": request_payload.get("specKey") or "",
         "heroKey": request_payload.get("heroKey") or "",
         "talentState": {"selectedNodes": []},
+        "nodeAvailability": {
+            "schemaRevision": "websim-talent-node-availability-v1",
+            "source": "authority_unavailable",
+            "nodes": {},
+        },
         "talentAuthority": {"runtime": {"status": "blocked"}, "blockers": blockers},
         "talentReadiness": {"status": "blocked", "blockers": blockers},
         "blockers": blockers,

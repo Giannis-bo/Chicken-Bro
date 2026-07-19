@@ -1,6 +1,7 @@
 import type {
   ReadinessState,
   TalentNode,
+  TalentNodeAvailabilityPayload,
   TalentValidationPayload,
   TalentTreeSection,
   WebsimTalentsPayload,
@@ -57,26 +58,18 @@ export interface TalentPointView {
   remaining: number
 }
 
-const loadingSourceWidth = 350
-const loadingSourceHeight = 300
-const loadingGraphWidth = 660
-const loadingGraphHeight = 566
-const loadingNodeRadius = 27
-const talentGridWidth = 660
-const talentGridHeights: Readonly<Record<string, number>> = {
-  class: 1080,
-  spec: 1080,
-  hero: 820,
-}
-const talentNodeRadius = 32
-const choiceNodeLinkRadius = 45
-const readyMinimumGridDimension = 4
-const choiceNodeSpread = 92
-const linkVisibleGap = 8
-const linkArrowHead = 12
-const normalColumnGutter = 8
-const choiceColumnGutter = 32
-const treeHorizontalInset = 0
+const loadingGraphWidth = 350
+const loadingGraphHeight = 300
+const loadingNodeSize = 30
+const readyGraphWidth = 350
+const readyNodeSize = 36
+const readyGraphPad = 18
+const readyRowGap = 48
+const readyNodeSeparation = 52
+const choiceNodeHorizontalRadius = 25
+const choiceNodeVerticalRadius = 20
+const linkVisibleGap = 0
+const linkArrowHead = 6
 
 const loadingPositions = [
   [168.39, 6.54], [45.37, 32.72], [168.83, 69.36], [293.59, 32.72],
@@ -123,109 +116,20 @@ function nodeShape(node: TalentNode): string {
   return 'square'
 }
 
-function nodeLinkRadius(node: Pick<TalentGraphNodeView, 'shape'>): number {
-  return node.shape === 'choice' ? choiceNodeLinkRadius : talentNodeRadius
-}
-
-interface TalentGridMetrics {
-  columnCount: number
-  rowCount: number
-  planeWidth: number
-  planeHeight: number
-  columnCenters: readonly number[]
-}
-
-function talentNodeColumn(node: TalentNode): number {
-  return Math.max(1, finiteInteger(node.column, 1))
-}
-
-function talentNodeRow(node: TalentNode): number {
-  return Math.max(1, finiteInteger(node.row, 1))
-}
-
-function talentNodeVisualRadius(node: TalentNode): number {
-  return nodeShape(node) === 'choice' ? choiceNodeLinkRadius : talentNodeRadius
-}
-
-function talentColumnCenters(nodes: readonly TalentNode[], columnCount: number): readonly number[] {
-  if (columnCount === 1) return [talentGridWidth / 2]
-
-  const gaps = Array.from(
-    { length: columnCount - 1 },
-    () => talentNodeRadius * 2 + normalColumnGutter,
+function nodeLinkRadius(
+  node: Pick<TalentGraphNodeView, 'shape'>,
+  deltaX: number,
+  deltaY: number,
+): number {
+  if (node.shape !== 'choice') return readyNodeSize / 2
+  const distance = Math.hypot(deltaX, deltaY)
+  if (distance <= 0) return choiceNodeHorizontalRadius
+  const unitX = Math.abs(deltaX) / distance
+  const unitY = Math.abs(deltaY) / distance
+  return 1 / Math.sqrt(
+    (unitX * unitX) / (choiceNodeHorizontalRadius * choiceNodeHorizontalRadius)
+      + (unitY * unitY) / (choiceNodeVerticalRadius * choiceNodeVerticalRadius),
   )
-  const nodesByRow = new Map<number, TalentNode[]>()
-  for (const node of nodes) {
-    const row = talentNodeRow(node)
-    const rowNodes = nodesByRow.get(row) ?? []
-    rowNodes.push(node)
-    nodesByRow.set(row, rowNodes)
-  }
-  for (const rowNodes of nodesByRow.values()) {
-    const ordered = [...rowNodes].sort((left, right) => talentNodeColumn(left) - talentNodeColumn(right))
-    for (let index = 1; index < ordered.length; index += 1) {
-      const left = ordered[index - 1]!
-      const right = ordered[index]!
-      const leftColumn = talentNodeColumn(left)
-      if (talentNodeColumn(right) !== leftColumn + 1) continue
-      const hasChoice = nodeShape(left) === 'choice' || nodeShape(right) === 'choice'
-      const requiredGap = talentNodeVisualRadius(left)
-        + talentNodeVisualRadius(right)
-        + (hasChoice ? choiceColumnGutter : normalColumnGutter)
-      gaps[leftColumn - 1] = Math.max(gaps[leftColumn - 1] ?? 0, requiredGap)
-    }
-  }
-
-  const normalColumnGap = talentNodeRadius * 2 + normalColumnGutter
-  if (!gaps.some((gap) => gap > normalColumnGap)) {
-    return Array.from(
-      { length: columnCount },
-      (_, index) => ((index + 0.5) / columnCount) * talentGridWidth,
-    )
-  }
-
-  const firstColumnNodes = nodes.filter((node) => talentNodeColumn(node) === 1)
-  const lastColumnNodes = nodes.filter((node) => talentNodeColumn(node) === columnCount)
-  const leftRadius = Math.max(talentNodeRadius, ...firstColumnNodes.map(talentNodeVisualRadius))
-  const rightRadius = Math.max(talentNodeRadius, ...lastColumnNodes.map(talentNodeVisualRadius))
-  const requiredWidth = leftRadius + rightRadius + treeHorizontalInset * 2
-    + gaps.reduce((total, gap) => total + gap, 0)
-  const extraPerGap = Math.max(0, talentGridWidth - requiredWidth) / gaps.length
-  const centers = [treeHorizontalInset + leftRadius]
-  for (const gap of gaps) {
-    centers.push((centers.at(-1) ?? 0) + gap + extraPerGap)
-  }
-  return centers
-}
-
-function talentGridMetrics(nodes: readonly TalentNode[]): TalentGridMetrics {
-  const columnCount = Math.max(
-    readyMinimumGridDimension,
-    ...nodes.map((node) => Math.max(1, finiteInteger(node.column, 1))),
-  )
-  const rowCount = Math.max(
-    readyMinimumGridDimension,
-    ...nodes.map((node) => Math.max(1, finiteInteger(node.row, 1))),
-  )
-  const treeKey = nodes[0] ? nodeTreeKey(nodes[0]) : 'spec'
-  return {
-    columnCount,
-    rowCount,
-    planeWidth: talentGridWidth,
-    planeHeight: talentGridHeights[treeKey] ?? talentGridHeights['spec']!,
-    columnCenters: talentColumnCenters(nodes, columnCount),
-  }
-}
-
-function talentNodePosition(
-  row: number,
-  column: number,
-  metrics: TalentGridMetrics,
-): { x: number; y: number } {
-  return {
-    x: metrics.columnCenters[column - 1] ?? metrics.planeWidth / 2,
-    y: ((row - 0.5) / metrics.rowCount) * metrics.planeHeight,
-  }
 }
 
 function choiceSlotKey(node: TalentNode): string {
@@ -308,10 +212,11 @@ function nodeState(
   node: TalentNode,
   ranks: Readonly<Record<string, number>>,
   interactive: boolean,
+  availability: TalentNodeAvailabilityPayload | undefined,
 ): TalentGraphNodeState {
   if (rankFor(node, ranks) > 0) return 'selected'
   if (!interactive) return 'blocked'
-  return 'available'
+  return availability?.nodes[node.id]?.state === 'available' ? 'available' : 'blocked'
 }
 
 function edgeGeometry(
@@ -361,8 +266,8 @@ function buildLoadingGraph(): TalentGraphView {
     descriptionStatus: 'loading',
     row: index + 1,
     column: 1,
-    x: ((x + 15) / loadingSourceWidth) * loadingGraphWidth,
-    y: ((y + 15) / loadingSourceHeight) * loadingGraphHeight,
+    x,
+    y,
     rank: 0,
     maxRank: 1,
     requiredPoints: 0,
@@ -382,12 +287,12 @@ function buildLoadingGraph(): TalentGraphView {
       `loading-edge-${index + 1}`,
       from.id,
       to.id,
-      from.x,
-      from.y,
-      to.x,
-      to.y,
-      loadingNodeRadius,
-      loadingNodeRadius,
+      from.x + loadingNodeSize / 2,
+      from.y + loadingNodeSize / 2,
+      to.x + loadingNodeSize / 2,
+      to.y + loadingNodeSize / 2,
+      loadingNodeSize / 2,
+      loadingNodeSize / 2,
       'loading',
     )
   })
@@ -405,6 +310,7 @@ function buildLoadingGraph(): TalentGraphView {
 export function buildTalentGraph(input: {
   nodes: readonly TalentNode[]
   ranks: Readonly<Record<string, number>>
+  availability?: TalentNodeAvailabilityPayload
   routeState: ReadinessState
   loading?: boolean
 }): TalentGraphView {
@@ -413,7 +319,14 @@ export function buildTalentGraph(input: {
   const interactive = input.routeState === 'ready' || input.routeState === 'partial'
   const projection = projectTalentNodes(input.nodes, input.ranks)
   const projectedNodes = projection.nodes
-  const grid = talentGridMetrics(projectedNodes)
+  const columnCount = Math.max(
+    1,
+    ...projectedNodes.map((node) => Math.max(1, finiteInteger(node.column, 1))),
+  )
+  const maxRow = Math.max(
+    1,
+    ...projectedNodes.map((node) => Math.max(1, finiteInteger(node.row, 1))),
+  )
   const positionCounts = new Map<string, number>()
   for (const node of projectedNodes) {
     const row = Math.max(1, finiteInteger(node.row, 1))
@@ -421,16 +334,10 @@ export function buildTalentGraph(input: {
     const positionKey = `${row}:${column}`
     positionCounts.set(positionKey, (positionCounts.get(positionKey) ?? 0) + 1)
   }
-  const positionUse = new Map<string, number>()
+  const projectedOrder = new Map(projectedNodes.map((node, index) => [node.id, index]))
   const nodes = projectedNodes.map((node): TalentGraphNodeView => {
     const row = Math.max(1, finiteInteger(node.row, 1))
     const column = Math.max(1, finiteInteger(node.column, 1))
-    const positionKey = `${row}:${column}`
-    const duplicateIndex = positionUse.get(positionKey) ?? 0
-    positionUse.set(positionKey, duplicateIndex + 1)
-    const duplicateCount = positionCounts.get(positionKey) ?? 1
-    const duplicateOffset = (duplicateIndex - (duplicateCount - 1) / 2) * choiceNodeSpread
-    const position = talentNodePosition(row, column, grid)
     return {
       id: node.id,
       label: node.name,
@@ -438,8 +345,8 @@ export function buildTalentGraph(input: {
       descriptionStatus: node.descriptionStatus ?? 'unknown',
       row,
       column,
-      x: position.x + duplicateOffset,
-      y: position.y,
+      x: 0,
+      y: readyGraphPad + (row - 1) * readyRowGap,
       rank: rankFor(node, input.ranks),
       maxRank: nodeMaxRank(node),
       requiredPoints: Math.max(0, finiteInteger(node.requiredPoints, 0)),
@@ -449,10 +356,37 @@ export function buildTalentGraph(input: {
       choiceOptionIds: projection.choiceOptionIdsByNodeId.get(node.id) ?? [],
       granted: grantedRankFor(node) > 0,
       ...(node.iconUrl ? { iconUrl: node.iconUrl } : {}),
-      state: nodeState(node, input.ranks, interactive),
+      state: nodeState(node, input.ranks, interactive, input.availability),
       loading: false,
     }
   })
+
+  const nodesByRow = new Map<number, TalentGraphNodeView[]>()
+  for (const node of nodes) {
+    const row = nodesByRow.get(node.row) ?? []
+    row.push(node)
+    nodesByRow.set(node.row, row)
+  }
+  for (const row of nodesByRow.values()) {
+    row.sort((left, right) => (
+      left.column - right.column
+      || (projectedOrder.get(left.id) ?? 0) - (projectedOrder.get(right.id) ?? 0)
+    ))
+    const intervalCount = row.length - 1
+    const firstRadius = nodeLinkRadius(row[0]!, 1, 0)
+    const lastRadius = nodeLinkRadius(row[row.length - 1]!, 1, 0)
+    const centerGap = intervalCount === 0
+      ? 0
+      : Math.max(0, Math.min(
+        readyNodeSeparation,
+        (readyGraphWidth - firstRadius * 2) / intervalCount,
+        (readyGraphWidth - lastRadius * 2) / intervalCount,
+      ))
+    for (const [index, node] of row.entries()) {
+      node.x = (readyGraphWidth - readyNodeSize) / 2
+        + (index - intervalCount / 2) * centerGap
+    }
+  }
 
   const byId = new Map(nodes.map((node) => [node.id, node]))
   const edges: TalentGraphEdgeView[] = []
@@ -469,12 +403,12 @@ export function buildTalentGraph(input: {
         `${parentId}->${node.id}`,
         parentId,
         node.id,
-        parent.x,
-        parent.y,
-        node.x,
-        node.y,
-        nodeLinkRadius(parent),
-        nodeLinkRadius(node),
+        parent.x + readyNodeSize / 2,
+        parent.y + readyNodeSize / 2,
+        node.x + readyNodeSize / 2,
+        node.y + readyNodeSize / 2,
+        nodeLinkRadius(parent, node.x - parent.x, node.y - parent.y),
+        nodeLinkRadius(node, parent.x - node.x, parent.y - node.y),
         state,
       ))
     }
@@ -483,11 +417,14 @@ export function buildTalentGraph(input: {
   return {
     nodes,
     edges,
-    planeWidth: grid.planeWidth,
-    planeHeight: grid.planeHeight,
-    columnCount: grid.columnCount,
+    planeWidth: readyGraphWidth,
+    planeHeight: Math.max(
+      314,
+      readyGraphPad * 2 + (maxRow - 1) * readyRowGap + readyNodeSize,
+    ),
+    columnCount,
     nodeCount: nodes.length,
-    uniquePositionCount: positionUse.size,
+    uniquePositionCount: positionCounts.size,
   }
 }
 
@@ -550,16 +487,33 @@ export interface TalentValidationDecision {
   error: string
 }
 
+function hasPresentationOnlyTalentBlockers(validation: TalentValidationPayload): boolean {
+  const readiness = validation.talentReadiness
+  if (!readiness
+    || readiness.treeReady !== true
+    || readiness.ruleReady !== true
+    || readiness.encodingReady !== true
+    || readiness.simcReady !== true
+    || readiness.spellReady !== false) {
+    return false
+  }
+  const readinessBlockers = new Set(readiness.blockers ?? [])
+  return validation.blockers.length > 0
+    && validation.blockers.every((blocker) => readinessBlockers.has(blocker))
+}
+
 export function applyTalentValidation(
   currentRanks: Readonly<Record<string, number>>,
   validation: TalentValidationPayload,
   fromFallback: boolean,
   transportError = '',
 ): TalentValidationDecision {
+  const blockersAllowValidatedSelection = validation.blockers.length === 0
+    || hasPresentationOnlyTalentBlockers(validation)
   const accepted = !fromFallback
     && validation.status === 'encoded'
     && validation.errors.length === 0
-    && validation.blockers.length === 0
+    && blockersAllowValidatedSelection
   if (accepted) {
     return {
       accepted: true,

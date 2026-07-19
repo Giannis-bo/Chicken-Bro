@@ -12,7 +12,7 @@ import {
   type FeaturedCarouselItem,
 } from '@wow-mini/design-system/components/FeaturedCarousel'
 import { NewsHomeBrief } from '@wow-mini/design-system/components/NewsHomeBrief'
-import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
+import { PageFrame, PageFrameFavoriteAction } from '@wow-mini/design-system/components/PageFrame'
 import { RouteGrid, RouteRegion } from '@wow-mini/design-system/components/RouteFlow'
 import {
   RankedFeed,
@@ -28,6 +28,7 @@ export default function NewsHomePage() {
     () => wowApi.news.home('manual'),
     { fallbackPolicy: 'blocked', isEmpty: isNewsHomeVisuallyEmpty },
   )
+  const [homeFavorite, setHomeFavorite] = useState(() => wowApi.news.isHomeFavorite())
   const [savedArticleIds, setSavedArticleIds] = useState<readonly string[]>(() => wowApi.news.savedArticleIds())
 
   usePullDownRefresh(() => {
@@ -36,10 +37,10 @@ export default function NewsHomePage() {
 
   const model = useMemo(() => buildNewsHomeModel({
     routeState: route.state.state,
-    homeFavorite: false,
+    homeFavorite,
     savedArticleIds,
     ...(route.data ? { payload: route.data } : {}),
-  }), [route.data, route.state.state, savedArticleIds])
+  }), [homeFavorite, route.data, route.state.state, savedArticleIds])
 
   const featured: readonly FeaturedCarouselItem[] = model.carousel.items.map((article) => ({
     id: article.id,
@@ -80,10 +81,21 @@ export default function NewsHomePage() {
     setSavedArticleIds(wowApi.news.setArticleSaved(item.id, !item.saved))
   }
 
+  const toggleHomeFavorite = () => {
+    const next = !homeFavorite
+    wowApi.news.setHomeFavorite(next)
+    setHomeFavorite(next)
+    void Taro.showToast({
+      title: next ? '已收藏资讯首页' : '已取消收藏',
+      icon: 'none',
+    })
+  }
+
   return (
     <AppShell tabRoot>
       <PageFrame
         headerStatusLabel={model.headerStatusLabel}
+        rightAction={<PageFrameFavoriteAction selected={model.homeFavorite} onClick={toggleHomeFavorite} />}
         sourceLabel={model.headerSourceLabel}
         title={model.title}
         variant="news-home"

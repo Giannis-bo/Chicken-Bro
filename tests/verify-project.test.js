@@ -64,6 +64,18 @@ test('verify-project dry-run resolves the active release and selects harness com
   assert.ok(!summary.commands.some((command) => /ssh|deploy_lighthouse|rsync|scp/.test(command.command)))
 })
 
+test('verify-project launches Windows command shims through executable runtimes', () => {
+  const source = fs.readFileSync(verifyScript, 'utf8')
+
+  assert.match(source, /process\.platform !== 'win32'/)
+  assert.match(source, /process\.execPath/)
+  assert.match(source, /node_modules', 'npm', 'bin', 'npm-cli\.js'/)
+  assert.match(source, /command\.cmd === 'python3'/)
+  assert.match(source, /function childProcessEnv\(/)
+  assert.match(source, /path\.dirname\(process\.execPath\)/)
+  assert.match(source, /Path: nodeRuntimePath/)
+})
+
 test('verify-project dry-run exposes backend, frontend and full profile boundaries', () => {
   const backend = parseJson(runVerify(['--json', '--dry-run', '--profile', 'backend', '--release', 'artifacts/releases/2026-07-10-executable-project-harness']))
   const frontend = parseJson(runVerify(['--json', '--dry-run', '--profile', 'frontend', '--release', 'artifacts/releases/2026-07-10-executable-project-harness']))

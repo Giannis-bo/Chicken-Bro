@@ -33,6 +33,133 @@ function positiveInteger(value: unknown): value is number {
   return typeof value === 'number' && Number.isInteger(value) && value > 0
 }
 
+function stringList(value: unknown): value is readonly string[] {
+  return Array.isArray(value) && value.every(nonEmptyString)
+}
+
+function optionalString(value: unknown): boolean {
+  return value === undefined || nonEmptyString(value)
+}
+
+function optionalText(value: unknown): boolean {
+  return value === undefined || typeof value === 'string'
+}
+
+function optionalRecord(value: unknown): boolean {
+  return value === undefined || isRecord(value)
+}
+
+function isSimulatorAnalysisResponse(value: unknown): boolean {
+  return isRecord(value)
+    && nonEmptyString(value['mode'])
+    && nonEmptyString(value['status'])
+    && stringList(value['recommendations'])
+    && optionalString(value['taskId'])
+    && optionalRecord(value['request'])
+    && optionalRecord(value['agent'])
+    && optionalRecord(value['simulation'])
+    && optionalRecord(value['simcReport'])
+    && (value['stages'] === undefined
+      || (Array.isArray(value['stages']) && value['stages'].every(isRecord)))
+}
+
+function hasExplicitValidation(value: unknown): boolean {
+  if (!isRecord(value) || !isRecord(value['agent'])) return false
+  const validation = value['agent']['validation']
+  return isRecord(validation) && typeof validation['passed'] === 'boolean'
+}
+
+function isSimulatorAnalysisForRequest(
+  value: unknown,
+  request: Readonly<Record<string, unknown>>,
+): boolean {
+  if (!isSimulatorAnalysisResponse(value) || !isRecord(value)) return false
+  const requestedMode = request['mode']
+  if (typeof requestedMode === 'string' && value['mode'] !== requestedMode) return false
+  if (request['confirmOnly'] === true) {
+    return value['taskId'] === undefined
+      && isRecord(value['request'])
+      && isRecord(value['simulation'])
+      && hasExplicitValidation(value)
+  }
+  if (request['saveTask'] === true) {
+    return nonEmptyString(value['taskId'])
+      && isRecord(value['request'])
+      && isRecord(value['simulation'])
+      && hasExplicitValidation(value)
+  }
+  return true
+}
+
+function isSimulatorTaskReportSummary(value: unknown): boolean {
+  return isRecord(value)
+    && optionalText(value['state'])
+    && optionalText(value['title'])
+    && optionalText(value['summary'])
+    && optionalText(value['dpsDisplay'])
+    && optionalText(value['statusText'])
+    && optionalText(value['updatedAt'])
+    && optionalRecord(value['scenario'])
+    && optionalRecord(value['preparation'])
+    && optionalRecord(value['build'])
+    && optionalRecord(value['timing'])
+}
+
+function isSimulatorTaskRecord(value: unknown): boolean {
+  return isRecord(value)
+    && nonEmptyString(value['taskId'])
+    && nonEmptyString(value['status'])
+    && optionalText(value['id'])
+    && optionalText(value['mode'])
+    && optionalText(value['question'])
+    && optionalText(value['createdAt'])
+    && optionalText(value['updatedAt'])
+    && optionalRecord(value['request'])
+    && (value['analysis'] === undefined || isSimulatorAnalysisResponse(value['analysis']))
+    && (value['recommendations'] === undefined || stringList(value['recommendations']))
+    && (value['simcReportSummary'] === undefined || isSimulatorTaskReportSummary(value['simcReportSummary']))
+}
+
+function isChickenbroMessage(value: unknown, role: 'user' | 'assistant'): boolean {
+  return isRecord(value)
+    && value['role'] === role
+    && nonEmptyString(value['content'])
+    && optionalString(value['messageId'])
+    && optionalString(value['status'])
+}
+
+function isChickenbroAssistantPayload(value: unknown): boolean {
+  if (!isRecord(value)
+    || !nonEmptyString(value['answerSource'])
+    || !nonEmptyString(value['confidence'])
+    || !Array.isArray(value['priorityActions'])
+    || !stringList(value['evidenceRefs'])
+    || !stringList(value['limitations'])
+    || !optionalString(value['answerLayer'])
+    || !optionalString(value['basisLabel'])
+    || !optionalString(value['nextQuestion'])
+    || (value['missingInputs'] !== undefined && !stringList(value['missingInputs']))) return false
+
+  return value['priorityActions'].every((action) => isRecord(action)
+    && nonEmptyString(action['title'])
+    && stringList(action['evidenceRefs']))
+}
+
+function isChickenbroResponse(value: unknown): boolean {
+  if (!isRecord(value)
+    || value['mode'] !== 'chickenbro'
+    || !isRecord(value['session'])
+    || !nonEmptyString(value['session']['sessionId'])
+    || !optionalString(value['session']['title'])
+    || !isChickenbroMessage(value['userMessage'], 'user')
+    || !isChickenbroMessage(value['assistantMessage'], 'assistant')) return false
+
+  const assistantMessage = value['assistantMessage'] as Readonly<Record<string, unknown>>
+  if (!isChickenbroAssistantPayload(assistantMessage['payload'])) return false
+  const job = value['job']
+  return job === undefined || (isRecord(job) && nonEmptyString(job['jobId']) && nonEmptyString(job['status']))
+}
+
 function isSimcScenario(value: unknown): value is SimcOptionsPayload['scenarios'][number] {
   return isRecord(value)
     && nonEmptyString(value['key'])
@@ -135,7 +262,7 @@ export class SimulatorClient {
         recommendations: ['后端暂时无法完成 SimC 需求确认，请稍后重试。'],
         simulation: { ran: false, available: false, error: 'backend confirmation unavailable' },
       }),
-      validate: (value) => isRecord(value) && typeof value['status'] === 'string' && Array.isArray(value['recommendations']),
+      validate: (value) => isSimulatorAnalysisForRequest(value, request),
     })
   }
 
@@ -152,7 +279,9 @@ export class SimulatorClient {
       auth: true,
       allowInsecureGuestRequest: true,
       fallback: () => ({ tasks: [] }),
-      validate: (value) => isRecord(value) && Array.isArray(value['tasks']),
+      validate: (value) => isRecord(value)
+        && Array.isArray(value['tasks'])
+        && value['tasks'].every(isSimulatorTaskRecord),
     })
   }
 
@@ -164,7 +293,7 @@ export class SimulatorClient {
       fallback: () => ({ task: null }),
       validate: (value) => isRecord(value) && (
         value['task'] === null
-        || (isRecord(value['task']) && typeof value['task']['taskId'] === 'string')
+        || isSimulatorTaskRecord(value['task'])
       ),
     })
   }
@@ -189,10 +318,7 @@ export class SimulatorClient {
           },
         },
       }),
-      validate: (value) => isRecord(value)
-        && value['mode'] === 'chickenbro'
-        && isRecord(value['session'])
-        && isRecord(value['assistantMessage']),
+      validate: isChickenbroResponse,
     })
   }
 }

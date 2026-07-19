@@ -47,4 +47,22 @@ describe('SimC active Taro canonical contract', () => {
     expect(source.match(/if \(submittingRef\.current\) return/g)?.length ?? 0).toBeGreaterThanOrEqual(3)
     expect(components).toContain('disabled?: boolean | undefined')
   })
+
+  it('wires real gear-template selection and renders scenario-owned duration as read-only', () => {
+    const source = readFileSync(resolve(
+      process.cwd(),
+      'apps/mini-taro/src/pages/simulator/simc.tsx',
+    ), 'utf8')
+    const components = readFileSync(resolve(
+      process.cwd(),
+      'packages/design-system/src/components/SimcSubmitComponents.tsx',
+    ), 'utf8')
+
+    expect(source).toContain("wowApi.templates.fetch('gear')")
+    expect(source).toContain('setGearSourceId(next.id)')
+    expect(source).not.toContain('onSelect={() => {}}')
+    expect(source).not.toContain('onDurationSelect={() => {}}')
+    expect(components).toContain('data-readonly="true"')
+    expect(components).not.toContain('onDurationSelect: (index: number) => void')
+  })
 })

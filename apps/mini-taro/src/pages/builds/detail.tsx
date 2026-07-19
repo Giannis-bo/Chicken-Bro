@@ -59,6 +59,7 @@ import {
   gearStatusDeck,
   templateGearItems,
 } from './gear-detail-model'
+import { GearRequestFence } from './gear-request-fence'
 import styles from './gear-detail.module.scss'
 
 interface GearPagePayload {
@@ -82,6 +83,11 @@ interface CanonicalGearState {
   snapshot?: GearResolvedSnapshot
   error?: string
 }
+
+type ResolveSelectionResult =
+  | { status: 'resolved'; intent: GearSelectionIntent; snapshot: GearResolvedSnapshot }
+  | { status: 'failed' }
+  | { status: 'stale' }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -170,8 +176,7 @@ export default function GearDetailPage() {
   const [workbenchNotice, setWorkbenchNotice] = useState('')
   const selectionChanged = useRef(false)
   const candidateRequestId = useRef(0)
-  const resolveRequestId = useRef(0)
-  const statRequestId = useRef(0)
+  const requestFence = useRef(new GearRequestFence())
 
   useEffect(() => {
     if (queryMode === 'gear') return
@@ -219,11 +224,13 @@ export default function GearDetailPage() {
       selectionChanged.current = true
       return
     }
+    requestFence.current.replaceDraft()
     void route.load()
   }, [selectedSpecId, route.load])
 
   useEffect(() => {
     if (!route.data) return
+    requestFence.current.replaceDraft()
     const initialEquipped = route.data.gear.equippedSet
     setEquipped(initialEquipped)
     candidateRequestId.current += 1
@@ -231,8 +238,6 @@ export default function GearDetailPage() {
     setCandidateOpen(false)
     setCandidates([])
     setEnhancements({})
-    resolveRequestId.current += 1
-    statRequestId.current += 1
     setCanonical({ loading: false })
     setStats({ loading: false, payload: route.data.gear.statSnapshot })
     setDirty(false)
@@ -263,10 +268,14 @@ export default function GearDetailPage() {
   const slotViews = gearSlots(data?.gear, equipped, selectedSlot)
   const candidateViews = gearCandidates(candidates)
   const selectedCandidate = equipped[selectedSlot]
+  const readinessAuthority = canonical.loading
+    ? undefined
+    : canonical.snapshot?.profileReadiness ?? (!dirty ? data?.gear.readiness : undefined)
   const readiness = gearReadiness(
     equipped,
     stats.payload,
-    route.state.state,
+    canonical.loading ? 'loading' : route.state.state,
+    readinessAuthority,
   )
   const enhancementGroups = gearEnhancementGroups(selectedCandidate, enhancements, selectedSlot).map((group) => {
     const compatibleSlotCount = slotViews.filter((slot) => gearEnhancementOptions(equipped[slot.slot], enhancements, slot.slot)
@@ -289,8 +298,14 @@ export default function GearDetailPage() {
   })
   const enhancementOptions = gearEnhancementOptions(selectedCandidate, enhancements, selectedSlot)
   const selectedSlotLabel = slotViews.find((slot) => slot.slot === selectedSlot)?.label ?? ''
-  const currentReason = canonical.error || stats.error || routeReason(route.state)
-  const statusItems = gearStatusDeck(data?.gear, readiness, stats.payload, route.state.state, currentReason)
+  const statusItems = gearStatusDeck(
+    data?.gear,
+    readiness,
+    stats.payload,
+    route.state.state,
+    routeReason(route.state),
+    canonical.error || stats.error || '',
+  )
   const importReady = data?.talentImport.status === 'verified' && Boolean(data.talentImport.importCode)
   const statsReady = Boolean(
     canonical.snapshot?.status === 'verified'
@@ -305,8 +320,8 @@ export default function GearDetailPage() {
   const resolveSelection = async (
     nextEquipped: Readonly<Record<string, GearItemReference>>,
     nextEnhancements: Readonly<Record<string, GearEnhancementSelection>>,
-  ): Promise<{ intent: GearSelectionIntent; snapshot: GearResolvedSnapshot } | null> => {
-    if (!data) return null
+  ): Promise<ResolveSelectionResult> => {
+    if (!data) return { status: 'failed' }
     const intent = serializeGearSelectionIntent({
       ...(data.gear.resolverContext ? { resolverContext: data.gear.resolverContext } : {}),
       selection: data.selection,
@@ -315,28 +330,27 @@ export default function GearDetailPage() {
       enhancementBySlot: nextEnhancements,
     })
     if (!intent) {
+      requestFence.current.beginResolve()
       setCanonical({ loading: false, error: '后端未提供完整装备校验上下文' })
-      return null
+      return { status: 'failed' }
     }
-    const requestId = resolveRequestId.current + 1
-    resolveRequestId.current = requestId
-    statRequestId.current += 1
     setCanonical((current) => ({
       loading: true,
       ...(current.intent ? { intent: current.intent } : {}),
       ...(current.snapshot ? { snapshot: current.snapshot } : {}),
     }))
-    const result = await wowApi.websim.gearResolve(intent)
-    if (resolveRequestId.current !== requestId) return null
+    const completion = await requestFence.current.runResolve(() => wowApi.websim.gearResolve(intent))
+    if (completion.status === 'stale') return completion
+    const result = completion.value
     if (result.fromFallback) {
       setCanonical({ loading: false, intent, error: result.error || '装备校验服务不可用' })
-      return null
+      return { status: 'failed' }
     }
     if (result.httpStatus === 409) {
       setCanonical({ loading: false, intent, error: '装备数据版本已更新，正在重新加载' })
       setWorkbenchNotice('装备数据已更新，请重新选择')
       void route.load()
-      return null
+      return { status: 'failed' }
     }
     const snapshot = result.payload.data
     if (result.httpStatus !== 200 || result.payload.status !== 'resolved' || snapshot.status !== 'verified') {
@@ -346,10 +360,10 @@ export default function GearDetailPage() {
         snapshot,
         error: envelopeMessage(result.payload.problems, '当前装备组合未通过后端校验'),
       })
-      return null
+      return { status: 'failed' }
     }
     setCanonical({ loading: false, intent, snapshot })
-    return { intent, snapshot }
+    return { status: 'resolved', intent, snapshot }
   }
 
   const chooseSlot = async (slot: { slot: string }) => {
@@ -385,11 +399,11 @@ export default function GearDetailPage() {
         ? local
         : result.payload.replacementCandidates.find((item) => item.slot === slot.slot)
       setCandidates(group?.items ?? [])
-      if (result.fromFallback) setWorkbenchNotice('网络暂不可用，显示当前槽位的本地候选')
+      if (result.fromFallback) setWorkbenchNotice('网络暂不可用，保留上次从后端加载的候选')
     } catch {
       if (candidateRequestId.current !== requestId) return
       setCandidates(local?.items ?? [])
-      setWorkbenchNotice('候选加载失败，已显示当前槽位的缓存数据')
+      setWorkbenchNotice('候选加载失败，保留上次从后端加载的候选')
     } finally {
       if (candidateRequestId.current === requestId) setCandidateLoading(false)
     }
@@ -404,6 +418,7 @@ export default function GearDetailPage() {
     const nextEnhancements = Object.fromEntries(Object.entries(enhancements).filter(([key]) => key !== slot))
 
     candidateRequestId.current += 1
+    requestFence.current.replaceDraft()
     setCandidateOpen(false)
     setCandidates([])
     setCandidateLoading(false)
@@ -424,7 +439,7 @@ export default function GearDetailPage() {
         : { ...current, embellishmentOptionId: item.id }
     const nextEnhancements = { ...enhancements, [slot]: nextSelection }
     const resolved = await resolveSelection(equipped, nextEnhancements)
-    if (!resolved) return
+    if (resolved.status !== 'resolved') return
     setEnhancements(nextEnhancements)
     setStats({ loading: false })
     setDirty(true)
@@ -459,14 +474,15 @@ export default function GearDetailPage() {
     }
     setStats({ loading: true })
     const resolved = await resolveSelection(equipped, enhancements)
-    if (!resolved) {
+    if (resolved.status === 'stale') return
+    if (resolved.status === 'failed') {
       setStats({ loading: false, error: '当前装备组合未通过后端校验' })
       return
     }
-    const requestId = statRequestId.current + 1
-    statRequestId.current = requestId
+    const requestToken = requestFence.current.beginStats()
     const startedAt = Date.now()
     for (let attempt = 0; attempt < 15 && Date.now() - startedAt < 45000; attempt += 1) {
+      if (!requestFence.current.isStatsCurrent(requestToken)) return
       const result = await wowApi.websim.gearStatSnapshot({
         selectionIntent: resolved.intent,
         profileContext: {
@@ -475,7 +491,7 @@ export default function GearDetailPage() {
         },
         timeoutMs: Math.max(1, 45000 - (Date.now() - startedAt)),
       })
-      if (statRequestId.current !== requestId) return
+      if (!requestFence.current.isStatsCurrent(requestToken)) return
       if (result.fromFallback) {
         setStats({ loading: false, error: result.error || '属性快照服务不可用' })
         return
@@ -493,7 +509,9 @@ export default function GearDetailPage() {
       const delay = Math.min(5000, Math.max(250, Number(result.payload.data.retryAfterMs) || 1500))
       await new Promise((resolve) => setTimeout(resolve, delay))
     }
-    if (statRequestId.current === requestId) setStats({ loading: false, error: '属性快照等待超时' })
+    if (requestFence.current.isStatsCurrent(requestToken)) {
+      setStats({ loading: false, error: '属性快照等待超时' })
+    }
   }
 
   const saveTemplate = async () => {
@@ -501,7 +519,8 @@ export default function GearDetailPage() {
     setSaving(true)
     try {
       const resolved = await resolveSelection(equipped, enhancements)
-      if (!resolved) {
+      if (resolved.status === 'stale') return
+      if (resolved.status === 'failed') {
         await Taro.showToast({ title: '装备未通过后端校验，暂不能保存', icon: 'none' })
         return
       }
@@ -530,6 +549,7 @@ export default function GearDetailPage() {
   }
 
   const importTemplate = async () => {
+    const importToken = requestFence.current.beginImport()
     let imported: Readonly<Record<string, GearItemReference>> | null = null
     let importedSnapshot: GearResolvedSnapshot | undefined
     let importedIntent: GearSelectionIntent | undefined
@@ -541,6 +561,7 @@ export default function GearDetailPage() {
         templateId: communityTemplate.id,
         ...(data.gear.manifestRevision ? { expectedManifestRevision: data.gear.manifestRevision } : {}),
       })
+      if (!requestFence.current.isImportCurrent(importToken)) return
       if (!result.fromFallback && result.httpStatus === 200 && result.payload.status === 'verified') {
         imported = importedGearBySlot(result.payload.data['importedGearBySlot'])
         importedSnapshot = result.payload.data.resolvedSnapshot
@@ -571,10 +592,13 @@ export default function GearDetailPage() {
       void Taro.showToast({ title: '没有可导入的真实装备模板', icon: 'none' })
       return
     }
+    if (!requestFence.current.isImportCurrent(importToken)) return
     const firstSlot = data?.gear.slots.find((slot) => imported[slot.slot])?.slot
       ?? Object.keys(imported)[0]
       ?? ''
     const group = data?.gear.replacementCandidates.find((item) => item.slot === firstSlot)
+    requestFence.current.replaceDraft()
+    candidateRequestId.current += 1
     setEquipped(imported)
     setSelectedSlot(firstSlot)
     setCandidateOpen(false)
@@ -594,6 +618,8 @@ export default function GearDetailPage() {
     const initial = data?.gear.equippedSet ?? {}
     const firstSlot = data?.gear.slots[0]?.slot ?? ''
     const group = data?.gear.replacementCandidates.find((item) => item.slot === firstSlot)
+    requestFence.current.replaceDraft()
+    candidateRequestId.current += 1
     setEquipped(initial)
     setSelectedSlot(firstSlot)
     setCandidateOpen(false)

@@ -12,6 +12,7 @@ import type {
   TalentImportCodeRequest,
   TalentImportPayload,
   TalentNode,
+  TalentNodeAvailabilityPayload,
   TalentValidationPayload,
   WebsimBootstrapPayload,
   WebsimGearPayload,
@@ -110,12 +111,36 @@ export function normalizeTalentNode(value: unknown): TalentNode | null {
   }
 }
 
+export function normalizeTalentNodeAvailability(value: unknown): TalentNodeAvailabilityPayload | null {
+  if (!isRecord(value)) return null
+  const schemaRevision = cleanString(value['schemaRevision'])
+  const source = cleanString(value['source'])
+  const rawNodes = value['nodes']
+  if (!schemaRevision || !source || !isRecord(rawNodes)) return null
+
+  const entries: Array<[string, TalentNodeAvailabilityPayload['nodes'][string]]> = []
+  for (const [nodeId, rawState] of Object.entries(rawNodes)) {
+    if (!nodeId.trim() || !isRecord(rawState)) return null
+    const state = rawState['state']
+    const reasonCode = cleanString(rawState['reasonCode'])
+    const reason = cleanString(rawState['reason'])
+    if ((state !== 'selected' && state !== 'available' && state !== 'blocked') || !reasonCode || !reason) {
+      return null
+    }
+    entries.push([nodeId, { state, reasonCode, reason }])
+  }
+  return { schemaRevision, source, nodes: Object.fromEntries(entries) }
+}
+
 export function normalizeTalentsPayload(payload: WebsimTalentsPayload): WebsimTalentsPayload {
+  const { nodeAvailability: rawAvailability, ...rest } = payload
+  const nodeAvailability = normalizeTalentNodeAvailability(rawAvailability)
   return {
-    ...payload,
+    ...rest,
     nodes: payload.nodes
       .map((node) => normalizeTalentNode(node))
       .filter((node): node is TalentNode => node !== null),
+    ...(nodeAvailability ? { nodeAvailability } : {}),
   }
 }
 
@@ -222,6 +247,7 @@ export function isTalentValidationPayload(value: unknown): value is TalentValida
     && isTalentSelectedCounts(value['selectedCounts'])
     && isTalentSelectionState(value['talentState'])
     && (value['talentSchemaRevision'] === undefined || hasSchemaRevision(value['talentSchemaRevision']))
+    && (value['nodeAvailability'] === undefined || normalizeTalentNodeAvailability(value['nodeAvailability']) !== null)
 }
 
 export function isTalentExportPayload(value: unknown): value is TalentApiExportPayload {
@@ -339,6 +365,32 @@ function isStructuredEnvelope(value: unknown, contractRevision: string): boolean
     && isRecord(value['releaseContext'])
     && isRecord(value['data'])
     && Array.isArray(value['problems'])
+}
+
+function isGearProfileReadiness(value: unknown): boolean {
+  return isRecord(value)
+    && typeof value['status'] === 'string'
+    && typeof value['simcReady'] === 'boolean'
+    && Array.isArray(value['requiredSlots'])
+    && value['requiredSlots'].every((slot) => typeof slot === 'string' && Boolean(slot))
+    && Array.isArray(value['readySlots'])
+    && value['readySlots'].every((slot) => typeof slot === 'string' && Boolean(slot))
+}
+
+function isGearResolveEnvelope(value: unknown): boolean {
+  if (!isStructuredEnvelope(value, 'gear-result-envelope-v1')
+    || !isRecord(value)
+    || !Array.isArray(value['problems'])
+    || !value['problems'].every(isRecord)) return false
+
+  const data = value['data']
+  if (!isRecord(data)) return false
+  if (Object.keys(data).length === 0) {
+    return (value['status'] === 'blocked' || value['status'] === 'unavailable') && value['problems'].length > 0
+  }
+  return data['contractRevision'] === 'gear-resolved-snapshot-v1'
+    && typeof data['status'] === 'string'
+    && isGearProfileReadiness(data['profileReadiness'])
 }
 
 const statSignaturePattern = /^stat-snapshot:sha256:[0-9a-f]{64}$/
@@ -478,7 +530,7 @@ export function createWebsimClient(transport: ApiTransport): WebsimClient {
         data: { ...selectionIntent },
         responseMode: 'structured-problem',
         fallback: fallbackGearEnvelope,
-        validate: (value) => isStructuredEnvelope(value, 'gear-result-envelope-v1'),
+        validate: isGearResolveEnvelope,
       })
     },
     communityTemplateImport(request) {

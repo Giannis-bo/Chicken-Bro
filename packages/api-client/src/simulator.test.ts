@@ -41,6 +41,47 @@ describe('SimulatorClient task contract', () => {
     expect(result).toEqual({ payload: { task: null }, fromFallback: false, error: '' })
   })
 
+  it('accepts only typed owner-scoped task records for list and detail responses', async () => {
+    const validTask = {
+      taskId: 'task-1',
+      status: 'queued',
+      mode: 'simcraft_template',
+      question: '',
+      recommendations: [],
+      createdAt: '2026-07-19T00:00:00Z',
+      updatedAt: '2026-07-19T00:00:00Z',
+      request: { buildContext: {} },
+      analysis: { mode: 'simcraft_template', status: 'queued', recommendations: [] },
+      simcReportSummary: { state: 'queued', title: '任务', build: {}, scenario: {} },
+    }
+    const invalidTasks: readonly unknown[] = [
+      { ...validTask, taskId: 42 },
+      { ...validTask, status: null },
+      { ...validTask, recommendations: '稍后重试' },
+      { ...validTask, request: [] },
+      { ...validTask, analysis: { mode: 'simcraft_template', status: 1, recommendations: [] } },
+      { ...validTask, simcReportSummary: 'queued' },
+    ]
+    const call = async (payload: unknown, detail: boolean) => {
+      const requestEndpoint = async <T>(
+        _endpoint: string,
+        _path: string,
+        options: Omit<RequestOptions<T>, 'method'>,
+      ): Promise<ApiResult<T>> => options.validate?.(payload)
+        ? { payload: payload as T, fromFallback: false, error: '' }
+        : { payload: options.fallback(), fromFallback: true, error: 'invalid payload' }
+      const client = new SimulatorClient({ requestEndpoint } as unknown as ApiTransport, new MemoryStorage())
+      return detail ? client.task('task-1') : client.tasks()
+    }
+
+    expect((await call({ tasks: [validTask] }, false)).fromFallback).toBe(false)
+    expect((await call({ task: validTask }, true)).fromFallback).toBe(false)
+    for (const invalidTask of invalidTasks) {
+      expect((await call({ tasks: [invalidTask] }, false)).fromFallback).toBe(true)
+      expect((await call({ task: invalidTask }, true)).fromFallback).toBe(true)
+    }
+  })
+
   it('reads the backend-owned SimC options contract without local option fallbacks', async () => {
     const payload = {
       contractRevision: 'simc-options-v1',
@@ -149,5 +190,118 @@ describe('SimulatorClient task contract', () => {
       && result.payload.scenarios.length === 0
       && result.payload.preparation.rows.length === 0
     ))).toBe(true)
+  })
+
+  it('accepts only a complete typed Chickenbro answer and rejects malformed assistant evidence', async () => {
+    const valid = {
+      mode: 'chickenbro',
+      session: { sessionId: 'session-1', title: '证据检查' },
+      job: { jobId: 'job-1', status: 'succeeded' },
+      userMessage: { role: 'user', content: '当前缺什么证据？' },
+      assistantMessage: {
+        role: 'assistant',
+        content: '当前需要补充可验证输入。',
+        payload: {
+          answerSource: 'deterministic_fallback',
+          confidence: 'low',
+          answerLayer: 'diagnostic',
+          basisLabel: '需要证据确认',
+          priorityActions: [{ title: '补充 SimC', evidenceRefs: ['simc://task/1'] }],
+          evidenceRefs: ['simc://task/1'],
+          limitations: ['missing_published_profile'],
+          missingInputs: ['simc_or_wcl'],
+          nextQuestion: '是否已有 SimC 报告？',
+        },
+      },
+    }
+    const invalid: readonly unknown[] = [
+      { ...valid, session: { sessionId: 1 } },
+      { ...valid, assistantMessage: { ...valid.assistantMessage, role: 'user' } },
+      { ...valid, assistantMessage: { ...valid.assistantMessage, content: null } },
+      { ...valid, assistantMessage: { ...valid.assistantMessage, payload: { ...valid.assistantMessage.payload, evidenceRefs: 'simc://task/1' } } },
+      { ...valid, assistantMessage: { ...valid.assistantMessage, payload: { ...valid.assistantMessage.payload, priorityActions: [{ title: '', evidenceRefs: [] }] } } },
+    ]
+    const responses = [valid, ...invalid]
+    const results = await Promise.all(responses.map(async (payload) => {
+      const requestEndpoint = async <T>(
+        _endpoint: string,
+        _path: string,
+        options: Omit<RequestOptions<T>, 'method'>,
+      ): Promise<ApiResult<T>> => options.validate?.(payload)
+        ? { payload: payload as T, fromFallback: false, error: '' }
+        : { payload: options.fallback(), fromFallback: true, error: 'invalid payload' }
+      return new SimulatorClient({ requestEndpoint } as unknown as ApiTransport, new MemoryStorage())
+        .message({ mode: 'chickenbro', message: '当前缺什么证据？', sessionId: '' })
+    }))
+
+    expect(results[0]?.fromFallback).toBe(false)
+    expect(results.slice(1).every((result) => result.fromFallback)).toBe(true)
+  })
+
+  it('requires a complete confirmation response for the requested SimC mode', async () => {
+    const valid = {
+      mode: 'simcraft_template',
+      status: 'template_ready',
+      recommendations: [],
+      request: { confirmOnly: true, saveTask: false },
+      agent: { validation: { passed: true, errors: [], warnings: [] } },
+      simulation: { ran: false, available: true },
+      stages: [{ key: 'validation', status: 'completed' }],
+    }
+    const invalid: readonly unknown[] = [
+      { ...valid, mode: 'simcraft_agent' },
+      { ...valid, agent: undefined },
+      { ...valid, agent: { validation: { passed: 'yes' } } },
+      { ...valid, stages: ['completed'] },
+      { ...valid, taskId: '' },
+    ]
+    const call = async (payload: unknown) => {
+      const requestEndpoint = async <T>(
+        _endpoint: string,
+        _path: string,
+        options: Omit<RequestOptions<T>, 'method'>,
+      ): Promise<ApiResult<T>> => options.validate?.(payload)
+        ? { payload: payload as T, fromFallback: false, error: '' }
+        : { payload: options.fallback(), fromFallback: true, error: 'invalid payload' }
+      return new SimulatorClient({ requestEndpoint } as unknown as ApiTransport, new MemoryStorage()).analyze({
+        mode: 'simcraft_template', confirmOnly: true, saveTask: false,
+      })
+    }
+
+    expect((await call(valid)).fromFallback).toBe(false)
+    for (const payload of invalid) expect((await call(payload)).fromFallback).toBe(true)
+  })
+
+  it('accepts a final saved SimC response only when the backend returns a non-empty task id', async () => {
+    const valid = {
+      mode: 'simcraft_template',
+      status: 'queued',
+      taskId: 'task-queued-1',
+      recommendations: [],
+      request: { confirmOnly: false, saveTask: true },
+      agent: { validation: { passed: true }, status: 'simc_queued' },
+      simulation: { ran: false, status: 'queued' },
+    }
+    const invalid: readonly unknown[] = [
+      { ...valid, taskId: undefined },
+      { ...valid, taskId: '' },
+      { ...valid, request: undefined },
+      { ...valid, simulation: undefined },
+    ]
+    const call = async (payload: unknown) => {
+      const requestEndpoint = async <T>(
+        _endpoint: string,
+        _path: string,
+        options: Omit<RequestOptions<T>, 'method'>,
+      ): Promise<ApiResult<T>> => options.validate?.(payload)
+        ? { payload: payload as T, fromFallback: false, error: '' }
+        : { payload: options.fallback(), fromFallback: true, error: 'invalid payload' }
+      return new SimulatorClient({ requestEndpoint } as unknown as ApiTransport, new MemoryStorage()).analyze({
+        mode: 'simcraft_template', confirmOnly: false, saveTask: true,
+      })
+    }
+
+    expect((await call(valid)).fromFallback).toBe(false)
+    for (const payload of invalid) expect((await call(payload)).fromFallback).toBe(true)
   })
 })

@@ -2,6 +2,7 @@ import type {
   BuildTemplate,
   GearSelectionIntent,
   ReadinessState,
+  SimcBuildContext,
   SimcOptionsPayload,
   SimcPreparationOption,
   SimcProfileContext,
@@ -27,6 +28,15 @@ export interface SimcBuffRuleView {
   value: string
   state: 'ready' | 'partial' | 'blocked'
   overrideSupported?: boolean
+}
+
+export interface SimcGearSourceView {
+  id: string
+  kind: 'handoff' | 'template'
+  label: string
+  helperLabel: string
+  state: 'ready' | 'partial'
+  buildContext: SimcBuildContext
 }
 
 export interface SimcOptionsView {
@@ -190,6 +200,89 @@ export function canonicalSimcBuildIntent(
     || buildContext['classKey'] !== classKey
     || buildContext['specKey'] !== specKey) return null
   return canonicalGearSelectionIntent(buildContext['selectionIntent'], classKey, specKey)
+}
+
+function optionalContextString(
+  value: Readonly<Record<string, unknown>>,
+  key: string,
+): string | undefined {
+  const field = value[key]
+  return typeof field === 'string' && field ? field : undefined
+}
+
+function sanitizedBuildContext(
+  value: unknown,
+  classKey: string,
+  specKey: string,
+): SimcBuildContext | null {
+  if (!isRecord(value)) return null
+  const selectionIntent = canonicalSimcBuildIntent(value, classKey, specKey)
+  if (!selectionIntent) return null
+  const specId = optionalContextString(value, 'specId')
+  const className = optionalContextString(value, 'className')
+  const specName = optionalContextString(value, 'specName')
+  const raceKey = optionalContextString(value, 'raceKey')
+  const resolvedGearSignature = optionalContextString(value, 'resolvedGearSignature')
+  const source = optionalContextString(value, 'source')
+  return {
+    classKey,
+    specKey,
+    selectionIntent,
+    ...(specId ? { specId } : {}),
+    ...(className ? { className } : {}),
+    ...(specName ? { specName } : {}),
+    ...(raceKey ? { raceKey } : {}),
+    ...(resolvedGearSignature ? { resolvedGearSignature } : {}),
+    ...(source ? { source } : {}),
+  }
+}
+
+export function simcGearSources(input: {
+  buildContext?: unknown
+  templates: readonly BuildTemplate[]
+  classKey: string
+  specKey: string
+  specializationLabel: string
+}): readonly SimcGearSourceView[] {
+  const sources: SimcGearSourceView[] = []
+  const handoff = sanitizedBuildContext(input.buildContext, input.classKey, input.specKey)
+  if (handoff) {
+    sources.push({
+      id: 'handoff',
+      kind: 'handoff',
+      label: `${input.specializationLabel || handoff.specName || '当前专精'} · 装备详情带入`,
+      helperLabel: '本机 canonical intent 待本次后端快照校验',
+      state: 'partial',
+      buildContext: handoff,
+    })
+  }
+  for (const template of input.templates) {
+    if (template.type !== 'gear'
+      || template.classKey !== input.classKey
+      || template.specKey !== input.specKey) continue
+    const selectionIntent = canonicalGearSelectionIntent(
+      template.metadata['selectionIntent'],
+      input.classKey,
+      input.specKey,
+    )
+    if (!selectionIntent) continue
+    sources.push({
+      id: `template:${template.id}`,
+      kind: 'template',
+      label: template.title,
+      helperLabel: template.remote ? '账户模板已同步；提交前仍重新校验' : '本机模板；提交前仍重新校验',
+      state: template.remote ? 'ready' : 'partial',
+      buildContext: {
+        classKey: input.classKey,
+        specKey: input.specKey,
+        className: template.className,
+        specName: template.specName,
+        selectionIntent,
+        source: template.remote ? 'remote_gear_template' : 'local_gear_template',
+      },
+    })
+  }
+  return sources
 }
 
 export function deriveSimcOptionsView(

@@ -16,8 +16,8 @@
     "localInteractions": ["refresh_on_resume", "status_filter", "sort_order", "internal_task_scroll", "task_detail_navigation", "create_simc_navigation", "workbench_navigation"]
   },
   "apiProbe": {
-    "probedAt": "2026-07-15T07:32:00+08:00",
-    "via": "http://127.0.0.1:10086/wow-api/api/simulator/tasks?guest=1&guestId=codex-tasks-list-audit",
+    "probedAt": "2026-07-19T14:19:00+08:00",
+    "via": "http://124.223.51.33/api/simulator/tasks?guest=1&guestId=audit-taro-full-20260719-final",
     "httpStatus": 200,
     "user": null,
     "taskCount": 0,
@@ -42,6 +42,7 @@
     "The target's five task names, scenario tags, Patch 占位, source labels, descriptions, --:-- timestamps and feedback messages are placeholders and never runtime facts.",
     "The live guest probe returning zero tasks is a valid empty state. A transport fallback, missing owner or failed request must not manufacture target task rows.",
     "Only simulator.tasks records owned by the current authenticated user or exact simulator.guestId may populate task rows, counts, recent-record text and status filters.",
+    "The typed API rejects a task collection when any row lacks a non-empty taskId/status or contains malformed recommendations, request, analysis or report-summary fields; it falls back to blocked rather than passing partial transport data to the route.",
     "Task title prefers a returned simcReportSummary.title, then a bounded returned question, then a deterministic mode label. It never infers a class, specialization, scenario, patch or source.",
     "Task description, tags, statusText, build and scenario labels may use only returned simcReportSummary fields. Missing fields retain neutral unavailable positions rather than target placeholder copy.",
     "Task status labels are deterministic Chinese display mappings of the returned status. Unknown states remain unknown and cannot be counted as success.",

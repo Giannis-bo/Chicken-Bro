@@ -13,6 +13,7 @@ const {
   sharedEvidenceMatchesStatus,
 } = require('./runtime-review-validation')
 const { repoRelativePath, repoPathDirname, repoPathJoin } = require('./repo-relative-path')
+const { pageFrameLiteralVariants } = require('./ui-architecture-ast')
 
 const root = path.resolve(__dirname, '..')
 const findings = []
@@ -2591,9 +2592,10 @@ record(
 )
 const unspecializedPageFrames = Object.entries(specializedPageFrames).filter(([file, variant]) => {
   const source = read(file)
-  const invocations = source.split('<PageFrame').slice(1)
+  const literalVariants = pageFrameLiteralVariants(source)
   return !pageChrome.includes(`'${variant}'`)
-    || invocations.some((invocation) => !invocation.slice(0, 500).includes(`variant="${variant}"`))
+    || literalVariants.length === 0
+    || literalVariants.some((literalVariant) => literalVariant !== variant)
 })
 record(
   'every_reviewed_route_uses_its_specialized_page_frame_variant',

@@ -22,7 +22,8 @@
 
 .captainAction {
   display: grid;
-  width: 74px;
+  width: 90px;
+  max-width: 100%;
   height: 32px;
   min-height: 32px;
   grid-template-columns: 27px minmax(0, 1fr);
@@ -177,3 +178,13 @@
 .composerActions .interactive[data-disabled='true'] { opacity: 0.68; }
 .composerActions .interactive > view { width: 11px; height: 11px; color: currentColor; }
 .composerActions .interactive > text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+@media (max-width: 350px) {
+  .captainAction {
+    width: 36px;
+    grid-template-columns: 1fr;
+    padding-right: 3px;
+  }
+
+  .captainActionCopy { display: none; }
+}

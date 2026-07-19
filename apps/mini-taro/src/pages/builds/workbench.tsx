@@ -7,6 +7,7 @@ import { EvidenceLedger } from '@wow-mini/design-system/components/EvidenceLedge
 import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
 import { RouteColumn, RouteRegion } from '@wow-mini/design-system/components/RouteFlow'
 import {
+  WorkbenchMenuAction,
   WorkbenchModuleDeck,
   WorkbenchReadinessPanel,
   WorkbenchSpecSummary,
@@ -147,6 +148,7 @@ export default function WorkbenchPage() {
     >
       <PageFrame
         region="top_bar"
+        rightAction={<WorkbenchMenuAction onClick={() => void Taro.switchTab({ url: '/pages/profile/profile' })} />}
         title="专精工作台"
         variant="workbench"
         onBack={() => goBack('/pages/builds/builds')}

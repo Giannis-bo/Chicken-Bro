@@ -44,6 +44,31 @@ test('UI audit normalizes Windows separators before explicit owner comparisons',
   assert.match(audit, /repoPathJoin\(repoPathDirname\(file\), statement\.source\.value\)/u)
 })
 
+test('PageFrame variant audit parses complete JSX opening elements', () => {
+  const helperPath = path.join(root, 'scripts', 'ui-architecture-ast.js')
+  assert.equal(fs.existsSync(helperPath), true, 'missing UI architecture AST helper')
+  if (!fs.existsSync(helperPath)) return
+
+  const { pageFrameLiteralVariants } = require(helperPath)
+  const longAction = 'x'.repeat(700)
+  const source = `
+    export function Route() {
+      return (
+        <PageFrame
+          rightAction={<Action description="${longAction}" />}
+          variant="news-home"
+        />
+      )
+    }
+  `
+
+  assert.deepEqual(pageFrameLiteralVariants(source), ['news-home'])
+
+  const audit = fs.readFileSync(path.join(root, 'scripts', 'audit-ui-architecture.js'), 'utf8')
+  assert.match(audit, /pageFrameLiteralVariants/u)
+  assert.doesNotMatch(audit, /invocation\.slice\(0, 500\)/u)
+})
+
 test('content-addressed runtime review JSON declares LF byte preservation', () => {
   const attributesPath = path.join(root, '.gitattributes')
   assert.equal(fs.existsSync(attributesPath), true, 'missing runtime evidence byte policy')

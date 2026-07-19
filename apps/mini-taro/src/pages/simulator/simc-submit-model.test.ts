@@ -19,6 +19,13 @@ const localTemplate: BuildTemplate = {
   trust: { level: 'local_only', reason: '仅保存在当前设备' },
 }
 
+const canonicalSelectionIntent = {
+  schemaRevision: 'selection-intent-v1',
+  authoredAgainst: { seasonRevision: 'season-17', gearCatalogRevision: 'gear-r17' },
+  eligibilityContext: { classKey: 'mage', specKey: 'frost', level: 90 },
+  slots: {},
+} as const
+
 describe('SimC submit truth model', () => {
   it('preserves empty template slots without inventing templates', () => {
     expect(simcTemplateSlot('talent', [], '')).toMatchObject({
@@ -260,5 +267,50 @@ describe('SimC submit truth model', () => {
       classKey: 'mage', specKey: 'frost', raceKey: 'zandalari_troll',
       scenarioKey: 'backend_raid', talentTemplate: { ...localTemplate, rawString: 'talents=CAE_CANONICAL' },
     })).toMatchObject({ profileContext: { talents: 'talents=CAE_CANONICAL' } })
+  })
+
+  it('offers only canonical gear handoffs or typed gear templates with a valid selection intent', () => {
+    const sources = modelExports.simcGearSources({
+      buildContext: {
+        classKey: 'mage', specKey: 'frost', specName: '冰霜',
+        selectionIntent: canonicalSelectionIntent,
+      },
+      templates: [
+        {
+          ...localTemplate,
+          id: 'gear-valid', type: 'gear', title: '已验证装备模板', remote: true,
+          metadata: { selectionIntent: canonicalSelectionIntent },
+        },
+        {
+          ...localTemplate,
+          id: 'gear-missing-intent', type: 'gear', title: '缺少意图',
+          metadata: {},
+        },
+        {
+          ...localTemplate,
+          id: 'gear-wrong-spec', type: 'gear', title: '其他专精', specKey: 'fire',
+          metadata: { selectionIntent: canonicalSelectionIntent },
+        },
+      ],
+      classKey: 'mage', specKey: 'frost', specializationLabel: '冰霜法师',
+    })
+
+    expect(sources.map((source) => source.id)).toEqual(['handoff', 'template:gear-valid'])
+    expect(sources[0]).toMatchObject({ state: 'partial', label: '冰霜法师 · 装备详情带入' })
+    expect(sources[1]).toMatchObject({ state: 'ready', label: '已验证装备模板' })
+    expect(sources[1]?.buildContext.selectionIntent).toEqual(canonicalSelectionIntent)
+  })
+
+  it('does not manufacture a SimC gear context from template display fields or raw JSON alone', () => {
+    const sources = modelExports.simcGearSources({
+      templates: [{
+        ...localTemplate,
+        id: 'gear-raw-only', type: 'gear', title: '只有 rawString',
+        rawString: JSON.stringify({ head: { itemId: 123 } }), metadata: {},
+      }],
+      classKey: 'mage', specKey: 'frost', specializationLabel: '冰霜法师',
+    })
+
+    expect(sources).toEqual([])
   })
 })

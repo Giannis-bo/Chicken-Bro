@@ -49,10 +49,23 @@
       "remoteCountsUsable": false
     }
   },
+  "latestCompactAuthorityProbe": {
+    "probedAt": "2026-07-19T13:48:00+08:00",
+    "via": "http://124.223.51.33",
+    "classKey": "mage",
+    "specKey": "frost",
+    "catalogStatus": "verified",
+    "equippedSetCount": 0,
+    "compactSelectedCount": 361,
+    "compactSimcReadyCount": 14,
+    "compactRequiredReadyCount": 15,
+    "compactCandidateCount": 257,
+    "rule": "compact readiness is a catalog aggregate and cannot describe the current editable gear draft"
+  },
   "trustRules": [
     "Target placeholder counts and draft labels are visual structure only and never runtime facts.",
     "A source count is shown only from explicit sourceRefs after a non-fallback response; otherwise the fixed cell displays --.",
-    "Gear readiness uses slotReadiness and requiredReadyCount; selectedCount and candidateCount are catalog/candidate quantities and must never be labeled as equipped slots.",
+    "The workbench requests compact gear mode, so slotReadiness and readiness counts are catalog aggregates rather than current editable gear truth. The route may report verified catalog availability, but it must show the current gear draft as 待校验 and route the user to gear_detail for backend resolution; selectedCount, simcReadyCount, requiredReadyCount and candidateCount never upgrade workbench or SimC readiness.",
     "Talent description or formula gaps remain visible as evidence gaps but do not override talentReadiness.simcReady when deciding encoding readiness.",
     "SimC may be marked ready only when talent encoding is SimC-ready and gear fullReady has no missing core slots.",
     "Authenticated remote template failure does not fail the core workbench; local templates remain separately labeled and never appear remote-verified.",
@@ -99,7 +112,7 @@
       "region": "warning_panel",
       "slot": "status_and_headline",
       "target": "缺少输入 / 当前不可提交模拟",
-      "runtime": "derived overallState and overallDetail from talent SimC encoding plus gear fullReady",
+      "runtime": "derived overallState and overallDetail from talent encoding capability plus the absence of a backend-resolved editable gear draft; compact catalog readiness never upgrades the workbench to ready",
       "stateCopy": {
         "loading": "正在读取输入",
         "blocked": "当前不可提交模拟",

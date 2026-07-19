@@ -50,6 +50,7 @@ import {
   simcCanPrepare,
   simcBlockerRows,
   simcConfirmationLabel,
+  simcGearSources,
   simcSummaryRows,
   simcTemplateSlot,
   simcRouteFromFallback,
@@ -65,6 +66,7 @@ interface SimcPagePayload {
   options: SimcOptionsPayload
   buildContext?: SimcBuildContext | undefined
   talentTemplates: readonly BuildTemplate[]
+  gearTemplates: readonly BuildTemplate[]
   tasks: readonly SimulatorTaskRecord[]
 }
 
@@ -133,6 +135,7 @@ export default function SimcSubmitPage() {
   const initialSpec = safeDecode(router.params['spec'])
   const [selectedSpecId, setSelectedSpecId] = useState(initialSpec)
   const [talentTemplateId, setTalentTemplateId] = useState('')
+  const [gearSourceId, setGearSourceId] = useState('')
   const [selectedRaceKey, setSelectedRaceKey] = useState('')
   const [selectedScenarioKey, setSelectedScenarioKey] = useState(safeDecode(router.params['scenario']))
   const [confirmation, setConfirmation] = useState<ConfirmationState>({ state: 'unknown' })
@@ -149,10 +152,11 @@ export default function SimcSubmitPage() {
 
   const route = useAsyncRoute<SimcPagePayload>(async () => {
     const storedBuildContext = taroStorage.get<unknown>(storageKey('simc.buildContext'))
-    const [homeResult, optionsResult, talentsResult, tasksResult] = await Promise.all([
+    const [homeResult, optionsResult, talentsResult, gearResult, tasksResult] = await Promise.all([
       wowApi.builds.home(),
       wowApi.simulator.options(),
       wowApi.templates.fetch('talent'),
+      wowApi.templates.fetch('gear'),
       wowApi.simulator.tasks(),
     ])
     const keyMatch = flattenSpecs(homeResult.payload.classOptions).find((entry) => (
@@ -183,6 +187,7 @@ export default function SimcSubmitPage() {
         options: optionsResult.payload,
         ...(buildContext ? { buildContext } : {}),
         talentTemplates: talentsResult.payload.templates,
+        gearTemplates: gearResult.payload.templates,
         tasks: tasksResult.fromFallback ? [] : tasksResult.payload.tasks,
       },
       fromFallback: simcRouteFromFallback({
@@ -211,25 +216,42 @@ export default function SimcSubmitPage() {
   useEffect(() => {
     if (!route.data) return
     const talents = compatibleTemplates(route.data.talentTemplates, route.data.selection)
+    const gearSources = simcGearSources({
+      buildContext: route.data.buildContext,
+      templates: route.data.gearTemplates,
+      classKey: route.data.selection.classKey,
+      specKey: route.data.selection.specKey,
+      specializationLabel: route.data.selection.label,
+    })
     setTalentTemplateId((current) => talents.some((item) => item.id === current) ? current : talents[0]?.id || '')
+    setGearSourceId((current) => gearSources.some((item) => item.id === current) ? current : gearSources[0]?.id || '')
   }, [route.data])
 
   const data = route.data
   const talentTemplates = compatibleTemplates(data?.talentTemplates ?? [], data?.selection)
   const talentTemplate = talentTemplates.find((template) => template.id === talentTemplateId)
+  const gearSources = data ? simcGearSources({
+    buildContext: data.buildContext,
+    templates: data.gearTemplates,
+    classKey: data.selection.classKey,
+    specKey: data.selection.specKey,
+    specializationLabel: data.selection.label,
+  }) : []
+  const selectedGearSource = gearSources.find((source) => source.id === gearSourceId) ?? gearSources[0]
+  const activeBuildContext = selectedGearSource?.buildContext
   const activeTasks = data?.tasks.filter(activeTask) ?? []
   const optionsView = data
     ? deriveSimcOptionsView(
       data.options,
       data.selection.classKey,
       data.selection.specKey,
-      selectedRaceKey || data.buildContext?.raceKey || '',
+      selectedRaceKey || activeBuildContext?.raceKey || '',
       selectedScenarioKey,
     )
     : blockedOptionsView
   const canonicalContext = data
     ? buildCanonicalSimcContext({
-      buildContext: data.buildContext,
+      buildContext: activeBuildContext,
       classKey: data.selection.classKey,
       specKey: data.selection.specKey,
       raceKey: optionsView.selectedRaceKey,
@@ -238,7 +260,7 @@ export default function SimcSubmitPage() {
     })
     : null
   const gearContextAvailable = Boolean(data && canonicalSimcBuildIntent(
-    data.buildContext,
+    activeBuildContext,
     data.selection.classKey,
     data.selection.specKey,
   ))
@@ -403,17 +425,17 @@ export default function SimcSubmitPage() {
   })
   const talentSlot = simcTemplateSlot('talent', talentTemplates, talentTemplateId)
   const gearContextLabel = gearContextAvailable
-    ? `${data?.buildContext?.specName || data?.selection.label || '当前专精'} · canonical intent 已带入`
+    ? `${selectedGearSource?.label || data?.selection.label || '当前专精'} · canonical intent 已带入`
     : ''
   const gearSlot: SimcTemplateSlotView = {
     type: 'gear',
     title: '装备来源',
-    sourceLabel: '来自装备详情',
-    valueLabel: gearContextLabel || '未带入装备配置',
-    helperLabel: gearContextAvailable ? '本机意图待本次后端快照校验' : '请从装备详情带入',
-    state: gearContextAvailable ? 'partial' : 'blocked',
-    options: [],
-    selectedIndex: 0,
+    sourceLabel: selectedGearSource?.kind === 'template' ? '来自装备模板' : '来自装备详情',
+    valueLabel: selectedGearSource?.label || '未带入装备配置',
+    helperLabel: selectedGearSource?.helperLabel || '请从装备详情带入或保存有效模板',
+    state: selectedGearSource?.state ?? 'blocked',
+    options: gearSources.map((source) => source.label),
+    selectedIndex: Math.max(0, gearSources.findIndex((source) => source.id === selectedGearSource?.id)),
   }
   const preparationRules: readonly SimcBuffRuleView[] = optionsView.preparationRows.length
     ? optionsView.preparationRows.map((row) => ({
@@ -517,17 +539,26 @@ export default function SimcSubmitPage() {
             />
           </RouteRegion>
           <RouteRegion className={styles['gearRegion'] ?? ''} data-region="gear_source">
-            <SimcTemplateSlot {...gearSlot} disabled={submitting} loading={loading} onSelect={() => {}} />
+            <SimcTemplateSlot
+              {...gearSlot}
+              disabled={submitting}
+              loading={loading}
+              onSelect={(index) => {
+                if (submittingRef.current) return
+                const next = gearSources[index]
+                if (!next) return
+                invalidateConfirmation()
+                setGearSourceId(next.id)
+              }}
+            />
           </RouteRegion>
           <RouteRegion className={styles['combatRegion'] ?? ''} data-region="combat_parameters">
             <SimcCombatConfiguration
               buffRules={preparationRules}
               disabled={submitting}
-              durations={optionsView.durationSeconds === undefined ? [] : [optionsView.durationSeconds]}
+              durationSeconds={optionsView.durationSeconds}
               scenarios={optionsView.scenarios}
-              selectedDurationIndex={0}
               selectedScenarioIndex={optionsView.selectedScenarioIndex}
-              onDurationSelect={() => {}}
               onScenarioSelect={(index) => {
                 if (submittingRef.current) return
                 const next = optionsView.scenarios[index]

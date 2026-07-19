@@ -188,14 +188,26 @@ test('Taro and typed packages own the active frontend contract while root routes
   const appConfig = readJson(appConfigPath)
   const appShellDomain = ownerMap.criticalDomains.find((domain) => domain.id === 'app_shell_route_runtime')
   const transportDomain = ownerMap.criticalDomains.find((domain) => domain.id === 'frontend_api_auth_transport')
+  const templateDomain = ownerMap.criticalDomains.find((domain) => domain.id === 'personal_build_template_assets')
   const uiDomain = ownerMap.criticalDomains.find((domain) => domain.id === 'ui_runtime_evidence')
 
   assert.ok(appShellDomain, 'app_shell_route_runtime domain should exist')
   assert.ok(transportDomain, 'frontend_api_auth_transport domain should exist')
+  assert.ok(templateDomain, 'personal_build_template_assets domain should exist')
   assert.ok(uiDomain, 'ui_runtime_evidence domain should exist')
   assert.equal(transportDomain.factOwner, 'packages/api-client/src')
   assert.ok(transportDomain.consumers.includes('pages/common/api-client.js'))
   assert.ok(transportDomain.consumers.includes('pages/common/auth-client.js'))
+  for (const activeConsumer of [
+    'packages/api-client/src/templates.ts',
+    'apps/mini-taro/src/pages/profile/profile.tsx',
+    'apps/mini-taro/src/pages/builds/detail.tsx',
+    'apps/mini-taro/src/pages/builds/talent-simulator.tsx',
+    'apps/mini-taro/src/pages/simulator/simc.tsx',
+  ]) {
+    assert.ok(templateDomain.consumers.includes(activeConsumer), `template domain should include ${activeConsumer}`)
+    assert.ok(templateDomain.runtimeSurfaces.includes(activeConsumer), `template runtime should include ${activeConsumer}`)
+  }
 
   assert.deepEqual(uiDomain.activeRouteOwners.map((entry) => entry.route), appConfig.pages)
   assert.equal(uiDomain.activeRouteOwners.length, 14)

@@ -227,12 +227,10 @@ export interface SimcBuffRuleItem {
 export interface SimcCombatConfigurationProps {
   scenarios: readonly SimcScenarioItem[]
   selectedScenarioIndex: number
-  durations: readonly number[]
-  selectedDurationIndex: number
+  durationSeconds?: number | undefined
   buffRules: readonly SimcBuffRuleItem[]
   disabled?: boolean | undefined
   onScenarioSelect: (index: number) => void
-  onDurationSelect: (index: number) => void
 }
 
 const sceneGlyphs = [
@@ -251,12 +249,10 @@ const buffGlyphs = [
 export function SimcCombatConfiguration({
   scenarios,
   selectedScenarioIndex,
-  durations,
-  selectedDurationIndex,
+  durationSeconds,
   buffRules,
   disabled = false,
   onScenarioSelect,
-  onDurationSelect,
 }: SimcCombatConfigurationProps) {
   return (
     <View
@@ -288,18 +284,15 @@ export function SimcCombatConfiguration({
           <SystemGlyph assetId="utility-glyph-family.timer" dataRole="simc-duration-glyph" slotId="asset_slot.simc-duration-control" />
           <Text>战斗时长</Text>
         </View>
-        <Picker
-          disabled={disabled || durations.length <= 1}
-          mode="selector"
-          range={durations.map((duration) => `${duration} 秒`)}
-          value={selectedDurationIndex}
-          onChange={(event) => onDurationSelect(Number(event.detail.value))}
+        <View
+          className={styles['durationField'] ?? ''}
+          data-readonly="true"
+          data-role="simc-duration-field"
+          data-selector-id="duration"
         >
-          <View className={styles['durationField'] ?? ''} data-role="simc-duration-field" data-selector-id="duration">
-            <Text>{durations[selectedDurationIndex] === undefined ? '未返回' : `${durations[selectedDurationIndex]} 秒`}</Text>
-            <SystemGlyph assetId="utility-glyph-family.chevron-right" slotId="asset_slot.simc-selector-affordances" />
-          </View>
-        </Picker>
+          <Text>{durationSeconds === undefined ? '未返回' : `${durationSeconds} 秒`}</Text>
+          <Text>场景固定</Text>
+        </View>
       </View>
       <View className={styles['buffHeader'] ?? ''}>
         <Text>战斗增益 (Buff)</Text>

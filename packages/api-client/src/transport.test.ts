@@ -27,6 +27,8 @@ describe('Taro transport parity', () => {
     taro.request.mockReset()
     taro.request.mockResolvedValue({ statusCode: 200, data: { ok: true } })
     taro.getEnv.mockReturnValue('WEAPP')
+    taro.getAccountInfoSync.mockReset()
+    taro.getAccountInfoSync.mockReturnValue({ miniProgram: { envVersion: 'develop' } })
   })
 
   it('fails closed before an authenticated request can use insecure HTTP', async () => {
@@ -117,6 +119,46 @@ describe('Taro transport parity', () => {
     try {
       taro.getEnv.mockReturnValue('WEAPP')
       expect(configuredApiBaseUrl(new MemoryStorage())).toBe(DEV_API_BASE_URL)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it.each(['release', 'trial'])('ignores stored overrides in the %s mini-program and accepts only a named HTTPS build origin', (envVersion) => {
+    const storage = new MemoryStorage()
+    storage.set(storageKey('api.base'), 'http://124.223.51.33')
+    taro.getAccountInfoSync.mockReturnValue({ miniProgram: { envVersion } })
+    vi.stubGlobal('__WOW_BACKEND_API_BASE_URL__', 'https://api.chickenbro.cloud')
+    try {
+      expect(configuredApiBaseUrl(storage)).toBe('https://api.chickenbro.cloud')
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it.each([
+    'http://api.chickenbro.cloud',
+    'https://124.223.51.33',
+    'not-a-url',
+  ])('fails closed in release when the build origin is not a named HTTPS URL: %s', (origin) => {
+    const storage = new MemoryStorage()
+    storage.set(storageKey('api.base'), 'https://stored.example.test')
+    taro.getAccountInfoSync.mockReturnValue({ miniProgram: { envVersion: 'release' } })
+    vi.stubGlobal('__WOW_BACKEND_API_BASE_URL__', origin)
+    try {
+      expect(configuredApiBaseUrl(storage)).toBe('')
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('fails closed when the mini-program environment cannot be identified', () => {
+    const storage = new MemoryStorage()
+    storage.set(storageKey('api.base'), DEV_API_BASE_URL)
+    taro.getAccountInfoSync.mockImplementation(() => { throw new Error('account info unavailable') })
+    vi.stubGlobal('__WOW_BACKEND_API_BASE_URL__', 'https://api.chickenbro.cloud')
+    try {
+      expect(configuredApiBaseUrl(storage)).toBe('')
     } finally {
       vi.unstubAllGlobals()
     }

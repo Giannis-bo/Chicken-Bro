@@ -28,6 +28,34 @@ export interface PageFrameProps {
   region?: string | undefined
 }
 
+export interface PageFrameFavoriteActionProps {
+  selected: boolean
+  onClick: () => void
+}
+
+export function PageFrameFavoriteAction({ selected, onClick }: PageFrameFavoriteActionProps) {
+  return (
+    <View className={ownerStyle('pageFrameFavoriteSocket')}>
+      <ActionButton
+        ariaLabel={selected ? '取消收藏资讯首页' : '收藏资讯首页'}
+        className={ownerStyle('pageFrameFavoriteButton')}
+        dataActionId="news-home-favorite"
+        dataRole="news-home-favorite"
+        dataState={selected ? 'selected' : 'default'}
+        variant="ghost"
+        onClick={onClick}
+      >
+        <ProductionAssetImage
+          alt={selected ? '已收藏资讯首页' : '未收藏资讯首页'}
+          assetId={selected ? 'news-favorite-control.selected' : 'news-favorite-control.default'}
+          className={ownerStyle('pageFrameFavoriteImage')}
+          slotId="asset_slot.news-favorite-control"
+        />
+      </ActionButton>
+    </View>
+  )
+}
+
 export function PageFrame({
   children,
   title,
