@@ -345,6 +345,14 @@
       "contract": "docs/design/current-ui/runtime-review-contract.json",
       "statusLedger": "docs/design/current-ui/runtime-review-status.json",
       "targetRegistry": "docs/design/current-ui/target-registry.json",
+      "activeReconciliation": {
+        "pullRequest": 91,
+        "status": "local_contracts_verified_pending_whole_branch_candidate_and_fresh_manual_acceptance",
+        "evidence": "artifacts/releases/2026-07-19-pr91-reconciliation/commit-disposition.json",
+        "productionAssetRuntimeRoot": "https://api.chickenbro.cloud/wow-assets/releases/2026-07-19-taro-full-integration",
+        "runtimeMediaRoot": "not_configured",
+        "manualAcceptanceBoundary": "existing 5 accepted and 9 not_run_user_waived routes remain unchanged until fresh post-candidate evidence"
+      },
       "visualAcceptance": "pending_fresh_real_wechat_evidence",
       "interactionAcceptance": "pending_real_wechat_core_interaction_matrix",
       "manualAcceptanceException": {

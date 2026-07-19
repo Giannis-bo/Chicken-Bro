@@ -346,7 +346,7 @@ Expected: only registered runtime assets, shared media code, dormant tooling, te
 - Consumes: current `AppShell`, `PageFrame`, `ProductTabBar`, route geometry, selected-state, package, and evidence contracts
 - Produces: one shared-owner implementation and a current-truth record that does not promote unverified routes
 
-- [ ] **Step 1: Compare #91 shared-chrome changes against current owners**
+- [x] **Step 1: Compare #91 shared-chrome changes against current owners**
 
 ```powershell
 git diff origin/main...HEAD -- packages/design-system/src/components/PageFrame.tsx packages/design-system/src/components/owners.module.scss packages/design-system/src/components/TabBar.module.scss
@@ -355,15 +355,15 @@ npm run audit:ui-architecture
 
 Expected: route-private ownership regressions are identified; any already-equivalent #91 rule is classified as superseded instead of duplicated.
 
-- [ ] **Step 2: Keep only current-owner fixes**
+- [x] **Step 2: Keep only current-owner fixes**
 
 Header/capsule spacing remains owned by `PageFrame`; top/bottom safe area remains owned by `AppShell`; Tab geometry and active material remain owned by `ProductTabBar`. Remove stale duplicate selectors, fixed-width route patches, old control-plane wording, and any rule that weakens the current geometry/selection contracts.
 
-- [ ] **Step 3: Update current state without overclaiming**
+- [x] **Step 3: Update current state without overclaiming**
 
 Record the PR #91 reconciliation status and evidence path. Preserve `active_unverified` and the existing 5 accepted / 9 `not_run_user_waived` manual boundary until new manual evidence exists. Do not claim 14/14 visual acceptance.
 
-- [ ] **Step 4: Run architecture, geometry-source, and project-state tests**
+- [x] **Step 4: Run architecture, geometry-source, and project-state tests**
 
 ```powershell
 npm run audit:ui-architecture
@@ -373,7 +373,7 @@ git diff --check
 
 Expected: 14-route architecture audit reports zero findings; project-state and release-domain tests pass.
 
-- [ ] **Step 5: Commit current contracts**
+- [x] **Step 5: Commit current contracts**
 
 ```powershell
 git add packages/design-system/src/components scripts/audit-ui-architecture.js scripts/verify-ui-route-geometry.js scripts/verify-ui-package.js docs/plans/ui-reconstruction.md docs/project-state.json artifacts/releases/2026-07-19-pr91-reconciliation/commit-disposition.json

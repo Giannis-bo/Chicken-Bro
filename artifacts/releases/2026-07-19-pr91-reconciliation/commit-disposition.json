@@ -9,6 +9,12 @@
   "reconciliationMerge": "d9410def8de630a6ab9ee402c57aea54761e39c0",
   "productionAssetRoot": "https://api.chickenbro.cloud/wow-assets/releases/2026-07-19-taro-full-integration",
   "excludedAssetRoot": "https://static.chickenbro.cloud/wow-media/releases/2026-07-19-wow-icons-v1",
+  "currentStage": {
+    "status": "local_contracts_verified_pending_whole_branch_candidate_and_fresh_manual_acceptance",
+    "architectureAudit": "14 routes, 290 checks, 0 findings",
+    "releasePackage": "releaseReady=true with current production asset root and runtime media root not configured",
+    "manualAcceptanceBoundary": "preserve existing 5 accepted and 9 not_run_user_waived routes; require fresh news_home and gear_detail acceptance before merge"
+  },
   "commits": [
     {
       "commit": "59545084e43920f133b3cd85b38ec2b0bc89ecd9",
