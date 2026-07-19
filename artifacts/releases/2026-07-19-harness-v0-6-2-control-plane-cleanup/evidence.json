@@ -2,10 +2,10 @@
   "schemaVersion": 2,
   "slug": "harness-v0-6-2-control-plane-cleanup",
   "requirementSlug": "harness-v0-6-2-control-plane-cleanup",
-  "status": "local_verified",
-  "highestEvidenceLevel": "local_verified",
+  "status": "archived",
+  "highestEvidenceLevel": "archived",
   "branch": "codex/harness-v062-control-plane-cleanup",
-  "commit": "pending_pr_head",
+  "commit": "a15bca56164ab2ec859e73082b9cb6d6c9cffb6b",
   "identities": {
     "runtime": {
       "status": "not_applicable",
@@ -17,8 +17,9 @@
       "value": "HEAD"
     },
     "closure": {
-      "status": "pending",
-      "reason": "No merge or archive closure has occurred."
+      "status": "bound",
+      "kind": "merge_commit",
+      "value": "e024075703ebfa8344a2e6a8c85c7a443ca8ffdd"
     }
   },
   "manualAcceptance": {
@@ -63,6 +64,11 @@
       "command": "whole-diff local CR against base 414ef43 plus independent reviewer",
       "status": "pass",
       "summary": "Five actionable findings were fixed: immutable runtime matching, clean HEAD binding, exact manual-acceptance sets, stale UI runtime observation and stale AGENTS release wording."
+    },
+    {
+      "command": "GitHub Project Harness PR #93 full profile at a15bca56164ab2ec859e73082b9cb6d6c9cffb6b",
+      "status": "pass",
+      "summary": "The exact PR head passed the full Project Harness workflow. The first dependency download hit ECONNRESET before verification; the failed job was rerun and completed successfully in 7m4s."
     }
   ],
   "candidateDeployment": {
@@ -90,7 +96,8 @@
   "archivedReferences": [
     "docs/project-state.json",
     "docs/roadmap.md",
-    "docs/plans/harness-v0-6-2-control-plane-cleanup.md"
+    "docs/harness.md",
+    "docs/compatibility-retirement.json"
   ],
-  "summary": "Harness v0.6.2 and the control-plane cleanup are locally verified. Evidence is bounded to a clean exact Git HEAD at check time; no runtime, deployment or live claim is made."
+  "summary": "Harness v0.6.2 and the control-plane cleanup were merged through PR #93 at e024075703ebfa8344a2e6a8c85c7a443ca8ffdd and archived after explicit user closure authorization. Evidence remains bounded to clean exact Git heads; no runtime, deployment or live claim is made."
 }

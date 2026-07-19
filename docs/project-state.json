@@ -47,13 +47,6 @@
       "status": "active",
       "lifecycle": "active",
       "notes": "Active Taro UI contract, including canonical gear API parity and fresh real WeChat acceptance."
-    },
-    {
-      "id": "harness_v0_6_2_control_plane_cleanup",
-      "path": "docs/plans/harness-v0-6-2-control-plane-cleanup.md",
-      "status": "local_verified_pending_pr",
-      "lifecycle": "active",
-      "notes": "Strict docs/tooling task locally verified on the task branch; PR/CI and merge closure remain pending. It implements task-scoped release resolution, immutable identity binding, exact manual-acceptance sets, superseded document/evidence cleanup and compatibility caller-proof governance."
     }
   ],
   "completedBaselines": [
@@ -84,6 +77,13 @@
       "status": "completed_local_verified",
       "evidence": "artifacts/releases/2026-07-16-harness-superpowers-method-layer/evidence.json",
       "notes": "User-approved docs/tooling policy that makes Superpowers an on-demand method layer under Harness control. Focused manifest/current-truth tests and the Harness profile passed; runtime, deployment and product contracts remain untouched."
+    },
+    {
+      "id": "harness_v0_6_2_control_plane_cleanup_20260719",
+      "domain": "harness_control_plane",
+      "status": "completed_local_verified_archived",
+      "evidence": "artifacts/releases/2026-07-19-harness-v0-6-2-control-plane-cleanup/evidence.json",
+      "notes": "PR #93 merged task-scoped release resolution, immutable identity binding, exact manual-acceptance sets, superseded document/evidence cleanup and compatibility caller-proof governance. Exact-head full CI and post-merge Harness verification passed; no runtime or deployment claim was made."
     },
     {
       "id": "equipment_simulator_phase0_20260710",
@@ -499,8 +499,8 @@
     },
     {
       "id": "harness_pr_release_packet_binding",
-      "status": "rule_local_verified_pending_pr",
-      "trigger": "PR CI validates the unique complete task-scoped requirement/evidence/manifest packet from the PR diff; manifest, immutable runtime candidate, clean verification HEAD, closure identity and exact accepted/not_run_user_waived/pending acceptance set are fail-closed without adding duplicate full profiles or runtime changes.",
+      "status": "active_rule_verified",
+      "trigger": "PR #93 merged the rule after exact-head full CI: PR CI validates the unique complete task-scoped requirement/evidence/manifest packet from the PR diff; manifest, immutable runtime candidate, clean verification HEAD, closure identity and exact accepted/not_run_user_waived/pending acceptance set are fail-closed without adding duplicate full profiles or runtime changes.",
       "evidence": "artifacts/releases/2026-07-19-harness-v0-6-2-control-plane-cleanup/evidence.json"
     }
   ]

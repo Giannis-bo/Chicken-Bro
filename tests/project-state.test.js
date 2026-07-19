@@ -78,15 +78,16 @@ test('project-state is the single machine-readable current truth entry', () => {
 
   const activeContractIds = new Set(state.activeContracts.map((entry) => entry.id))
   assert.ok(activeContractIds.has('repo_native_harness_v0_6_2'))
-  assert.ok(activeContractIds.has('harness_v0_6_2_control_plane_cleanup'))
+  assert.ok(!activeContractIds.has('harness_v0_6_2_control_plane_cleanup'))
   assert.ok(activeContractIds.has('taro_target_first_14_route_rebuild'))
   assert.ok(!activeContractIds.has('talent_link_lkg_sync_guard'))
   assert.ok(!activeContractIds.has('community_enhancement_editability'))
   assert.ok(!activeContractIds.has('equipment_simulator_capability_architecture'))
-  assert.equal(
-    state.activeContracts.find((entry) => entry.id === 'harness_v0_6_2_control_plane_cleanup').status,
-    'local_verified_pending_pr',
+  const harnessV062Closure = state.completedBaselines.find(
+    (entry) => entry.id === 'harness_v0_6_2_control_plane_cleanup_20260719',
   )
+  assert.equal(harnessV062Closure?.status, 'completed_local_verified_archived')
+  assert.equal(harnessV062Closure?.evidence, `${activeHarnessV062Release}/evidence.json`)
   assert.ok(!activeContractIds.has('equipment_simulator_phase5_async_stat_snapshot_plan'))
   assert.ok(!activeContractIds.has('equipment_simulator_phase3_resolve_profile_workbench_plan'))
   assert.ok(!activeContractIds.has('equipment_simulator_phase1_contracts_plan'))
