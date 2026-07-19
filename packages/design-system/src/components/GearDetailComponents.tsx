@@ -222,21 +222,24 @@ export function GearReadinessOverview({
       <View className={style('readinessContent')}>
         <View className={style('readinessHeading')}>
           <Text>装备就绪度</Text>
-          <Text data-role="gear-ready-count">{readyCount}/{requiredCount}</Text>
+          <Text data-role="gear-ready-count">{readyCount}/{requiredCount || '--'}</Text>
         </View>
         <View className={style('progress')} style={progressStyle} data-role="gear-readiness-progress" data-slot-id="asset_slot.gear-readiness-rail">
           <View className={style('progressTrack')} data-role="gear-readiness-track"><View className={style('progressFill')} /></View>
-          {checkpoints.map((checkpoint) => (
-            <View
-              key={checkpoint.value}
-              className={classes(style('progressNode'), readyCount >= checkpoint.value && style('progressNodeActive'))}
-              data-active={readyCount >= checkpoint.value ? 'true' : 'false'}
-              data-readiness-checkpoint={checkpoint.value}
-            >
-              <View className={style('progressSocket')} data-role="gear-readiness-socket" />
-              <Text>{checkpoint.label}</Text>
-            </View>
-          ))}
+          {checkpoints.map((checkpoint) => {
+            const active = requiredCount > 0 && readyCount >= checkpoint.value
+            return (
+              <View
+                key={checkpoint.label}
+                className={classes(style('progressNode'), active && style('progressNodeActive'))}
+                data-active={active ? 'true' : 'false'}
+                data-readiness-checkpoint={checkpoint.value}
+              >
+                <View className={style('progressSocket')} data-role="gear-readiness-socket" />
+                <Text>{checkpoint.label}</Text>
+              </View>
+            )
+          })}
         </View>
         <View className={style('readinessMeta')}>
           <Text data-role="gear-selected-count">{selectedCount ? `已配置 ${selectedCount} 件` : '尚未选择装备'}</Text>

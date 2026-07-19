@@ -39,13 +39,21 @@ test('immutable bounded files reject oversized payloads before writing', () => {
   }
 })
 
-test('bounded reads refuse symbolic links at file-open time', () => {
+test('bounded reads refuse symbolic links at file-open time', (t) => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'wow-bounded-link-'))
   const target = path.join(directory, 'target.json')
   const link = path.join(directory, 'evidence.json')
   try {
     fs.writeFileSync(target, 'evidence')
-    fs.symlinkSync(target, link)
+    try {
+      fs.symlinkSync(target, link)
+    } catch (error) {
+      if (error && error.code === 'EPERM') {
+        t.skip('symbolic-link creation is unavailable for this Windows account')
+        return
+      }
+      throw error
+    }
     assert.throws(() => readBoundedFile(link, 32, 'test evidence'), /refuses symbolic links/)
   } finally {
     fs.rmSync(directory, { recursive: true, force: true })

@@ -15,6 +15,7 @@ const {
 
 const root = path.resolve(__dirname, '..')
 const appRoot = path.join(root, 'apps/mini-taro')
+const taroCliEntry = path.join(root, 'node_modules', '@tarojs', 'cli', 'bin', 'taro')
 const auditRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'wow-mini-package-'))
 const defaultAssetRuntimeRoot = '/assets/ui-v2'
 const placeholderRemoteAssetRuntimeRoot = 'https://assets.example.invalid/wow-assets/releases/2026-07-18-ui-v2'
@@ -63,7 +64,7 @@ function countStringLiteral(source, value) {
 
 function build(name, assetRuntimeRoot = '') {
   const outputRoot = path.join(auditRoot, name)
-  const result = spawnSync(path.join(root, 'node_modules/.bin/taro'), ['build', '--type', 'weapp'], {
+  const result = spawnSync(process.execPath, [taroCliEntry, 'build', '--type', 'weapp'], {
     cwd: appRoot,
     encoding: 'utf8',
     env: {
@@ -76,7 +77,7 @@ function build(name, assetRuntimeRoot = '') {
     maxBuffer: 2 * 1024 * 1024,
   })
   if (result.status !== 0) {
-    const diagnostic = `${result.stderr || ''}\n${result.stdout || ''}`.trim().slice(-4000)
+    const diagnostic = `${result.error?.stack || result.error?.message || ''}\n${result.stderr || ''}\n${result.stdout || ''}`.trim().slice(-4000)
     throw new Error(`${name} production build failed\n${diagnostic}`)
   }
   const files = walk(outputRoot).filter((file) => !file.endsWith('.map'))
@@ -100,6 +101,8 @@ function build(name, assetRuntimeRoot = '') {
     assetFiles,
     configuredRootReferenceCount: countStringLiteral(packageText, assetRuntimeRoot || defaultAssetRuntimeRoot),
     defaultRootReferenceCount: countStringLiteral(packageText, defaultAssetRuntimeRoot),
+    backendOriginReferenceCount: backendApiBaseUrl ? countStringLiteral(packageText, backendApiBaseUrl) : 0,
+    runtimeBackendEnvReferenceCount: packageText.split('WOW_BACKEND_API_BASE_URL').length - 1,
     commonJsBytes: fs.statSync(path.join(outputRoot, 'common.js')).size,
     commonWxssBytes: fs.statSync(path.join(outputRoot, 'common.wxss')).size,
   }
@@ -126,7 +129,13 @@ try {
   if (unexpectedRemoteAssetFiles.length) failures.push(`remote build copied ${unexpectedRemoteAssetFiles.length} unexpected local asset files: ${unexpectedRemoteAssetFiles.slice(0, 5).join(', ')}`)
   if (local.configuredRootReferenceCount === 0) failures.push('local build does not contain the default asset runtime root')
   if (remote.configuredRootReferenceCount === 0) failures.push('remote build does not contain the configured HTTPS asset runtime root')
-  if (remote.defaultRootReferenceCount === 0) failures.push('remote build does not contain the local vector asset root')
+  if (remote.defaultRootReferenceCount > 1) failures.push(`remote build contains ${remote.defaultRootReferenceCount} default local asset root references; only the manifest fallback definition is allowed`)
+  if (local.runtimeBackendEnvReferenceCount || remote.runtimeBackendEnvReferenceCount) {
+    failures.push('weapp package still contains a runtime WOW_BACKEND_API_BASE_URL lookup')
+  }
+  if (backendApiBaseUrl && (!local.backendOriginReferenceCount || !remote.backendOriginReferenceCount)) {
+    failures.push('weapp package does not contain the configured backend API origin')
+  }
   if (remote.totalBytes > limits.remoteTotalBytes) failures.push(`remote build is ${remote.totalBytes} bytes`)
   if (remote.commonJsBytes > limits.commonJsBytes) failures.push(`common.js is ${remote.commonJsBytes} bytes`)
   if (remote.commonWxssBytes > limits.commonWxssBytes) failures.push(`common.wxss is ${remote.commonWxssBytes} bytes`)

@@ -213,22 +213,20 @@ export function buildCurrentSpecWorkbenchModel({
     !talentSimcReady || talentWarnings.length > 0,
   )
 
-  const slotReadiness = Object.values(payload?.gear.slotReadiness ?? {})
-  const readySlotCount = payload?.gear.readiness.simcReadyCount
-    ?? slotReadiness.filter((slot) => slot.simcReady).length
-  const requiredSlotCount = payload?.gear.readiness.requiredReadyCount ?? 0
-  const gearFullReady = payload?.gear.readiness.fullReady === true
-    && (payload?.gear.readiness.missingCoreSlots.length ?? 0) === 0
+  const gearCatalogAvailable = payload?.gear.catalogStatus === 'verified'
   const gearState = sourceState(
     routeState,
     payload?.sources.gear,
-    readySlotCount > 0,
-    !gearFullReady,
+    gearCatalogAvailable,
+    gearCatalogAvailable,
   )
   const gearBlockers = unique([
     ...(payload?.gear.catalogBlockers ?? []),
-    ...(payload?.gear.readiness.missingCoreSlots.map((slot) => `缺少必需装备槽：${slot}`) ?? []),
-    ...(payload?.gear.readiness.warnings ?? []),
+    ...(gearCatalogAvailable && routeState !== 'loading'
+      ? ['当前工作台没有后端校验过的装备草稿']
+      : !initialLoading
+        ? ['装备目录当前不可用']
+        : []),
   ])
 
   const templates = [...(payload?.talentTemplates ?? []), ...(payload?.gearTemplates ?? [])]
@@ -236,8 +234,8 @@ export function buildCurrentSpecWorkbenchModel({
     payload?.sources.talentTemplates,
     payload?.sources.gearTemplates,
   ])
-  const simcReady = Boolean(selection && talentSimcReady && gearFullReady)
-  const simcPartial = Boolean(selection && (talentSimcReady || readySlotCount > 0))
+  const simcReady = false
+  const simcPartial = Boolean(selection && (talentSimcReady || gearCatalogAvailable))
   const simcState = sourceState(
     routeState,
     payload?.sources.gear.fromFallback || payload?.sources.talents.fromFallback
@@ -267,8 +265,8 @@ export function buildCurrentSpecWorkbenchModel({
     {
       id: 'gear',
       title: '装备',
-      summary: initialLoading ? '读取装备槽位' : requiredSlotCount > 0 ? `${readySlotCount}/${requiredSlotCount} 必需槽可模拟` : '槽位不可用',
-      detail: gearFullReady ? '必需槽位已通过 SimC 字段检查' : '缺失槽位和字段在装备页继续处理',
+      summary: initialLoading ? '读取装备目录' : gearCatalogAvailable ? '当前装备待校验' : '装备目录不可用',
+      detail: gearCatalogAvailable ? '进入装备页选择真实装备并由后端校验' : '当前没有可用的 canonical 装备目录',
       state: gearState,
       stateLabel: stateLabel(gearState),
       actionLabel: '补齐装备',
@@ -299,7 +297,7 @@ export function buildCurrentSpecWorkbenchModel({
   const hardBlockers = unique([
     ...(!selection && !initialLoading ? ['没有可用的职业专精映射'] : []),
     ...(!talentSimcReady && !initialLoading ? talentWarnings.length ? talentWarnings : ['天赋输入尚未达到 SimC-ready'] : []),
-    ...(!gearFullReady && !initialLoading ? gearBlockers.length ? gearBlockers : ['装备输入尚未达到 SimC-ready'] : []),
+    ...(!initialLoading ? gearBlockers.length ? gearBlockers : ['装备输入尚未达到 SimC-ready'] : []),
   ])
   const talentSourceCount = payload?.sources.talents.fromFallback ? 0 : payload?.talents.sourceRefs?.length ?? 0
   const gearSourceCount = payload?.sources.gear.fromFallback ? 0 : payload?.gear.sourceRefs?.length ?? 0
@@ -315,7 +313,7 @@ export function buildCurrentSpecWorkbenchModel({
       actionLabel: '进入',
     },
     {
-      id: 'gear', label: '装备', value: initialLoading ? '读取中' : requiredSlotCount > 0 ? `${readySlotCount}/${requiredSlotCount} 必需槽` : '不可用',
+      id: 'gear', label: '装备', value: initialLoading ? '读取中' : gearCatalogAvailable ? '草稿待校验' : '不可用',
       detail: gearBlockers.length ? `${gearBlockers.length} 项缺口或警告` : '必需槽字段已校验',
       state: gearState, stateLabel: stateLabel(gearState),
       sourceCountLabel: sourceCountLabel(gearSourceCount, payload?.sources.gear.fromFallback ?? true),
@@ -377,9 +375,9 @@ export function buildCurrentSpecWorkbenchModel({
   const retryRequired = !selection && !initialLoading
   const primaryModule = simcReady
     ? modules[2]
-    : modules.find((module) => module.id !== 'assistant' && module.state === 'blocked')
-      ?? modules.find((module) => module.id !== 'assistant' && module.state === 'partial')
-      ?? modules[0]
+    : !talentSimcReady
+      ? modules[0]
+      : modules[1]
 
   return {
     initialLoading,

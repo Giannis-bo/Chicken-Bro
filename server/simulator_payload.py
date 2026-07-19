@@ -3052,7 +3052,7 @@ def simcraft_template_filled_slots(source, spec_info, scenario):
     }
 
 
-def simcraft_template_blocked_payload(source, request_data, errors, scenario, spec_info):
+def simcraft_template_blocked_payload(source, request_data, errors, scenario, spec_info, problems=None):
     error_text = "; ".join(errors or ["template validation failed"])
     simulation = {
         "ran": False,
@@ -3071,7 +3071,12 @@ def simcraft_template_blocked_payload(source, request_data, errors, scenario, sp
         "question": "",
         "quickReplies": [],
         "draftProfile": "",
-        "validation": {"passed": False, "errors": errors or [error_text], "warnings": []},
+        "validation": {
+            "passed": False,
+            "errors": errors or [error_text],
+            "warnings": [],
+            "problems": [problem for problem in (problems or []) if isinstance(problem, dict)],
+        },
         "canSubmitTask": False,
         "summaryCards": build_agent_summary_cards(request_data, simulation, scenario),
         "scenario": scenario,
@@ -3092,6 +3097,7 @@ def analyze_simcraft_template_request(payload, codex_runner=None):
     spec_info = spec_info_from_keys(talent_template.get("classKey"), talent_template.get("specKey")) or spec_info_from_build_context(build_context)
     validation_source = source.get("templateValidation") if isinstance(source.get("templateValidation"), dict) else {}
     validation_errors = [str(item) for item in validation_source.get("errors") or [] if str(item or "").strip()]
+    validation_problems = [problem for problem in (validation_source.get("problems") or []) if isinstance(problem, dict)]
     message = simc_agent_message(source) or "SimC 模板组合基准"
 
     request_data = {
@@ -3101,7 +3107,11 @@ def analyze_simcraft_template_request(payload, codex_runner=None):
         ),
         "prompt": message,
         "profile": "",
-        "profileSource": "template",
+        "profileSource": (
+            "canonical_selection_intent"
+            if source.get("inputContract") == "canonical_selection_intent_v1"
+            else "template"
+        ),
         "wclUrl": "",
         "question": message,
         "runSimulation": False,
@@ -3114,10 +3124,18 @@ def analyze_simcraft_template_request(payload, codex_runner=None):
         "temporaryBuffs": source.get("temporaryBuffs") if isinstance(source.get("temporaryBuffs"), dict) else {},
         "confirmOnly": bool(source.get("confirmOnly")),
         "saveTask": bool(source.get("saveTask")),
+        "inputContract": str(source.get("inputContract") or "legacy_template_v1"),
     }
 
     if validation_errors:
-        return simcraft_template_blocked_payload(source, request_data, validation_errors, scenario, spec_info)
+        return simcraft_template_blocked_payload(
+            source,
+            request_data,
+            validation_errors,
+            scenario,
+            spec_info,
+            problems=validation_problems,
+        )
     if not spec_info:
         return simcraft_template_blocked_payload(source, request_data, ["unknown template class/spec"], scenario, spec_info)
     if not build_context_has_talents(build_context):
@@ -3126,7 +3144,30 @@ def analyze_simcraft_template_request(payload, codex_runner=None):
     if not gear_items:
         return simcraft_template_blocked_payload(source, request_data, ["missing gear template SimC items"], scenario, spec_info)
 
-    base_profile = build_generated_simc_profile(spec_info, None, build_context, gear_items)
+    canonical_profile = (
+        str(source.get("canonicalProfile") or "").strip()
+        if source.get("inputContract") == "canonical_selection_intent_v1"
+        else ""
+    )
+    if source.get("inputContract") == "canonical_selection_intent_v1" and not canonical_profile:
+        problem = {
+            "kind": "ILLEGAL_SELECTION",
+            "code": "SIMC_CANONICAL_PROFILE_EMPTY",
+            "title": "Canonical profile resolver returned no executable profile.",
+            "detail": "",
+            "path": "canonicalProfile",
+            "retryable": False,
+            "meta": {},
+        }
+        return simcraft_template_blocked_payload(
+            source,
+            request_data,
+            [problem["title"]],
+            scenario,
+            spec_info,
+            problems=[problem],
+        )
+    base_profile = canonical_profile or build_generated_simc_profile(spec_info, None, build_context, gear_items)
     temporary_buffs = request_data.get("temporaryBuffs") if isinstance(request_data.get("temporaryBuffs"), dict) else {}
     preparation = simc_preparation_payload(spec_info.get("class"), spec_info.get("spec"), temporary_buffs=temporary_buffs)
     draft_profile = build_agent_simc_profile(base_profile, intent, scenario, "template", temporary_buffs=temporary_buffs)

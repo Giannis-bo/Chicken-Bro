@@ -10,6 +10,12 @@ const target = process.env['TARO_ENV'] === 'h5' ? 'h5' : 'weapp'
 const configuredOutputRoot = process.env['WOW_TARO_OUTPUT_ROOT']?.trim()
 const outputRoot = configuredOutputRoot || `dist/${target}`
 const isolatedBuild = process.env['WOW_TARO_ISOLATED_BUILD'] === '1'
+const productionBuild = process.env['NODE_ENV'] === 'production'
+const configuredBackendApiBaseUrl = (
+  process.env['WOW_BACKEND_API_BASE_URL']
+  ?? process.env['WOW_NEWS_API_BASE_URL']
+  ?? ''
+).trim()
 const configuredAssetRuntimeRoot = process.env['WOW_ASSET_RUNTIME_ROOT']?.trim() ?? ''
 if (configuredAssetRuntimeRoot && !isImmutableRemoteAssetRoot(configuredAssetRuntimeRoot)) {
   throw new Error('WOW_ASSET_RUNTIME_ROOT must be an immutable HTTPS path ending in /releases/<release-id>')
@@ -73,11 +79,11 @@ export default defineConfig<'webpack5'>({
     },
   },
   cache: {
-    enable: !isolatedBuild,
+    enable: !productionBuild && !isolatedBuild,
   },
   defineConstants: {
     __WOW_ASSET_RUNTIME_ROOT__: JSON.stringify(configuredAssetRuntimeRoot || '/assets/ui-v2'),
-    __WOW_RUNTIME_MEDIA_ROOT__: JSON.stringify(configuredRuntimeMediaRoot),
+    __WOW_BACKEND_API_BASE_URL__: JSON.stringify(configuredBackendApiBaseUrl),
   },
   csso: {
     config: {

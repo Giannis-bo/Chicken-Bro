@@ -4,6 +4,7 @@ import type { ChatMessage } from '@wow-mini/domain'
 
 import {
   boundedChickenbroMessage,
+  chickenbroBackendContext,
   chickenbroAnswerSource,
   chickenbroEvidenceRows,
   chickenbroLimitations,
@@ -12,6 +13,15 @@ import {
 } from './chickenbro-model'
 
 describe('chickenbro truth model', () => {
+  it('maps the route scenario into the backend-owned scenarioKey field', () => {
+    expect(chickenbroBackendContext({
+      from: 'workbench', classKey: 'mage', specKey: 'frost', spec: '法师-冰霜', scenario: 'aoe_5',
+    })).toEqual({
+      from: 'workbench', classKey: 'mage', specKey: 'frost', spec: '法师-冰霜', scenarioKey: 'aoe_5',
+    })
+    expect(chickenbroBackendContext({})).toEqual({})
+  })
+
   it('shows only the latest two real turns without inventing history', () => {
     const messages: ChatMessage[] = [
       { role: 'user', content: 'one' }, { role: 'assistant', content: 'answer one' },

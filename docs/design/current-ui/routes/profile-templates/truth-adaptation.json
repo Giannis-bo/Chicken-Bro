@@ -14,12 +14,20 @@
     "outgoing": ["talent_simulator", "gear_detail", "news_home", "specialization_home/builds_home", "simulator_home"],
     "localInteractions": ["profile_edit", "template_category_navigation", "show_all_templates", "template_delete_confirmation", "settings_actions", "tab_navigation"]
   },
+  "apiProbe": {
+    "probedAt": "2026-07-19T14:19:00+08:00",
+    "via": "http://124.223.51.33/api/me/build-templates",
+    "httpStatus": 401,
+    "response": {"error": "unauthorized"},
+    "meaning": "A signed-out route may show locally owned drafts only and must not claim an account template collection."
+  },
   "trustRules": [
     "The target nickname, signature, local-mode badge, dash counts, archive status, sample template names and just-saved timestamps are visual examples, not runtime facts.",
     "Profile identity comes only from AuthClient.profile(), which merges the authenticated account with the local profile draft. A nickname or avatar is never inferred from the target.",
     "The avatar slot renders a returned avatarUrl only when present; otherwise it retains a neutral silhouette. Image failure cannot promote the placeholder into a user identity claim.",
     "Profile edits are local-first through saveProfileDraft. Account synchronization is claimed only when the backend returns a non-fallback profile with an account identity.",
     "Template counts and recent rows come only from TemplateRepository.fetch()/list(). Remote templates are merged into local storage; transport fallback is explicitly local or stale rather than backend-verified.",
+    "Remote list and mutation payloads must carry schemaVersion 1 and complete typed remote templates; delete success must echo the requested id. Malformed or mismatched responses remain fallback/local and cannot trigger account-sync or remote-delete success copy.",
     "The two recent-save positions are stable. Missing positions say unavailable and cannot copy target sample names or timestamps.",
     "Template deletion always requires confirmation. The UI reports the repository result and reloads current data; it cannot claim remote deletion when the endpoint fell back to local deletion.",
     "Character/server and profession preference values use only explicit AuthUser fields. Missing fields remain 未设置 and the target does not authorize invented player identity.",

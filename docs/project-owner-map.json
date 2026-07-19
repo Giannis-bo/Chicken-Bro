@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-07-15",
+  "updatedAt": "2026-07-19",
   "status": "project_owner_map_active",
   "harnessVersion": "v0.6",
-  "activeMilestone": "project_harness_normalization",
+  "activeMilestone": "taro_target_first_14_route_rebuild",
   "unownedCriticalDomains": 0,
   "conflictingFactOwners": 0,
   "rules": {
@@ -12,7 +12,9 @@
     "healthAdminIsConsumerOrchestrator": true,
     "deployIsConsumerOrchestrator": true,
     "writeDomainsMustDeclareWriteOwner": true,
-    "backendOwnerMapRemainsSecondLevelDetail": true
+    "backendOwnerMapRemainsSecondLevelDetail": true,
+    "taroAndTypedPackagesOwnActiveFrontendContracts": true,
+    "legacyPagesRemainCompatibilityConsumers": true
   },
   "criticalDomains": [
     {
@@ -27,11 +29,12 @@
         "packages/design-system/src/components/AppShell.tsx",
         "packages/design-system/src/components/PageFrame.tsx",
         "apps/mini-taro/src/custom-tab-bar/index.tsx",
-        "app.json"
+        "app.json",
+        "pages"
       ],
       "publicContracts": [
         "apps/mini-taro/src/app.config.ts and the typed route contract define the active mini-program route shell.",
-        "The generated app.json compatibility surface must preserve the same 14 routes until legacy pages are retired."
+        "The root app.json and matching pages/ route clients are compatibility consumers that must preserve the same 14 routes until legacy pages are retired."
       ],
       "mustNotChange": [
         "Do not remove or rename Taro routes without updating the typed route contract and current UI evidence contract.",
@@ -84,10 +87,12 @@
       "id": "frontend_api_auth_transport",
       "status": "active",
       "ownerRole": "fact_owner",
-      "factOwner": "pages/common/api-client.js",
+      "factOwner": "packages/api-client/src",
       "writeBehavior": false,
       "writeOwner": null,
       "consumers": [
+        "apps/mini-taro/src/pages",
+        "pages/common/api-client.js",
         "pages/common/auth-client.js",
         "pages/common/analytics-client.js",
         "pages/builds/builds-api.js",
@@ -96,7 +101,8 @@
         "pages/news/news-api.js"
       ],
       "publicContracts": [
-        "Frontend transport preserves auth token boundaries and does not send Bearer tokens on insecure HTTP.",
+        "packages/api-client/src is the active typed frontend transport owner and preserves auth token boundaries without sending Bearer tokens on insecure HTTP.",
+        "pages/common/api-client.js and legacy route clients consume the active typed transport contract for compatibility only.",
         "API clients forward backend-owned facts instead of reclassifying source/status/verified state."
       ],
       "mustNotChange": [
@@ -109,6 +115,8 @@
         "tests/analytics-instrumentation.test.js"
       ],
       "runtimeSurfaces": [
+        "packages/api-client/src",
+        "apps/mini-taro/src/pages",
         "pages/common/api-client.js",
         "pages/common/auth-client.js",
         "pages/news/news-api.js",
@@ -128,6 +136,8 @@
       ],
       "releaseTrigger": "frontend_user_visible",
       "changedPathPatterns": [
+        "packages/api-client/src/**",
+        "apps/mini-taro/src/pages/**",
         "pages/common/api-client.js",
         "pages/common/auth-client.js",
         "pages/**/**/*-api.js",
@@ -137,7 +147,7 @@
       ],
       "criticalContract": {
         "status": "characterized",
-        "summary": "Existing frontend API, profile auth and analytics tests characterize base URL, bearer safety and empty/error transport behavior.",
+        "summary": "The typed API package is the active frontend transport owner; legacy API clients remain compatibility consumers, with existing tests characterizing base URL, bearer safety and empty/error transport behavior.",
         "coverage": [
           "tests/frontend-api-client.test.js",
           "tests/profile-auth.test.js",
@@ -155,6 +165,11 @@
       "writeBehavior": true,
       "writeOwner": "server/news_backend.py",
       "consumers": [
+        "packages/api-client/src/templates.ts",
+        "apps/mini-taro/src/pages/profile/profile.tsx",
+        "apps/mini-taro/src/pages/builds/detail.tsx",
+        "apps/mini-taro/src/pages/builds/talent-simulator.tsx",
+        "apps/mini-taro/src/pages/simulator/simc.tsx",
         "pages/common/build-template-storage.js",
         "pages/profile/profile.js",
         "pages/builds/detail.js",
@@ -162,13 +177,18 @@
       ],
       "publicContracts": [
         "Personal build templates are account-scoped assets.",
-        "List/detail/delete/write operations must preserve current owner isolation."
+        "List/detail/delete/write operations must preserve current owner isolation.",
+        "packages/api-client/src/templates.ts is the active typed repository; Taro profile, gear, talent and SimC routes consume its local/account trust boundary while legacy pages remain compatibility consumers."
       ],
       "mustNotChange": [
         "Do not let guest/local templates overwrite authenticated owner data.",
         "Do not move template save/list authorization to frontend-only checks."
       ],
       "characterization": [
+        "packages/api-client/src/templates.test.ts",
+        "apps/mini-taro/src/pages/profile/profile-templates-model.test.ts",
+        "apps/mini-taro/src/pages/builds/gear-request-fence.test.ts",
+        "apps/mini-taro/src/pages/simulator/simc-submit-model.test.ts",
         "tests/build-template-storage.test.js",
         "tests/profile-auth.test.js",
         "tests/builds-page.test.js",
@@ -176,6 +196,11 @@
       ],
       "runtimeSurfaces": [
         "server/news_backend.py",
+        "packages/api-client/src/templates.ts",
+        "apps/mini-taro/src/pages/profile/profile.tsx",
+        "apps/mini-taro/src/pages/builds/detail.tsx",
+        "apps/mini-taro/src/pages/builds/talent-simulator.tsx",
+        "apps/mini-taro/src/pages/simulator/simc.tsx",
         "pages/common/build-template-storage.js",
         "pages/profile/profile.js"
       ],
@@ -195,6 +220,11 @@
       "releaseTrigger": "backend_api",
       "changedPathPatterns": [
         "server/news_backend.py",
+        "packages/api-client/src/templates.*",
+        "apps/mini-taro/src/pages/profile/**",
+        "apps/mini-taro/src/pages/builds/detail.*",
+        "apps/mini-taro/src/pages/builds/talent-simulator.*",
+        "apps/mini-taro/src/pages/simulator/simc*",
         "pages/common/build-template-storage.js",
         "pages/profile/**",
         "pages/builds/detail.*",
@@ -204,6 +234,10 @@
         "status": "characterized",
         "summary": "Existing template storage, profile auth, builds page and backend tests characterize CRUD, owner isolation and local/account asset boundaries.",
         "coverage": [
+          "packages/api-client/src/templates.test.ts",
+          "apps/mini-taro/src/pages/profile/profile-templates-model.test.ts",
+          "apps/mini-taro/src/pages/builds/gear-request-fence.test.ts",
+          "apps/mini-taro/src/pages/simulator/simc-submit-model.test.ts",
           "tests/build-template-storage.test.js",
           "tests/profile-auth.test.js",
           "tests/builds-page.test.js",
@@ -400,9 +434,10 @@
           "server/news_backend.py canonical async route and bounded health/admin projection",
           "server/gear_stat_snapshot_worker.py one-child fenced execution loop",
           "pages/builds/detail.js legacy compatibility consumer",
-          "apps/mini-taro/src/pages/builds/detail.tsx active Taro consumer"
+          "apps/mini-taro/src/pages/builds/detail.tsx active Taro consumer",
+          "apps/mini-taro/src/pages/simulator/simc.tsx active Taro confirmation consumer"
         ],
-        "activationBoundary": "Canonical async snapshots are active. Both frontend surfaces must preserve signature fencing and explicit verified/fail-closed outcomes; Catalyst remains disabled."
+        "activationBoundary": "Canonical async snapshots are active. Frontend consumers must preserve signature fencing and explicit verified/fail-closed outcomes; Catalyst remains disabled."
       },
       "dormantAdapters": {
         "status": "contract_only_unconsumed",
@@ -451,7 +486,8 @@
         "pages/builds/websim-api.js",
         "packages/api-client/src/websim.ts",
         "packages/domain/src/gear-intent.ts",
-        "apps/mini-taro/src/pages/builds/detail.tsx"
+        "apps/mini-taro/src/pages/builds/detail.tsx",
+        "apps/mini-taro/src/pages/simulator/simc.tsx"
       ],
       "runbooks": [
         "docs/gear-simulation-full-chain-runbook.md",
@@ -705,10 +741,13 @@
         "server/simc_preparation.py",
         "server/codex_worker.py",
         "pages/simulator/simc.js",
-        "pages/simulator/simulator-api.js"
+        "pages/simulator/simulator-api.js",
+        "packages/api-client/src/simulator.ts",
+        "packages/domain/src/entities.ts",
+        "apps/mini-taro/src/pages/simulator/simc.tsx"
       ],
       "contractFoundations": {
-        "status": "contract_only_unconsumed",
+        "status": "active_canonical_profile_consumed",
         "modules": [
           "server/gear_contracts.py",
           "server/gear_result_envelope.py",
@@ -725,16 +764,22 @@
           "tests/gear_resolver_test.py",
           "tests/pg_gear_authority_loader_test.py"
         ],
-        "runtimeConsumers": []
+        "runtimeConsumers": [
+          "server/gear_runtime.py::resolve_selection_intent",
+          "server/news_backend.py::prepare_canonical_simcraft_template_request"
+        ]
       },
       "dormantAdapters": {
-        "status": "contract_only_unconsumed",
+        "status": "active_canonical_profile_consumed",
         "modules": [
           "server/postgres_cache_store.py::get_gear_authority_context",
           "server/websim_payload.py::gear_resolver_runtime_authority",
           "server/websim_payload.py::build_websim_profile_response_from_resolved_snapshot"
         ],
-        "runtimeConsumers": [],
+        "runtimeConsumers": [
+          "server/gear_runtime.py::build_profile_from_selection_intent",
+          "server/news_backend.py::prepare_canonical_simcraft_template_request"
+        ],
         "queryBudget": "three cold domain queries or one warm revision query; no slot-count growth",
         "cacheBoundary": "bounded entries and serialized bytes; incomplete contexts are not cached"
       },
@@ -743,11 +788,12 @@
         "Submitted gear enhancements require backend-attached catalog authority before serialization.",
         "Legacy gear stats preserve their response shape while stat_snapshot_v1 uses one iteration and process-global concurrency one.",
         "Task list/detail evidence does not expose raw internal diagnostics as user-facing truth.",
-        "Phase 2A emits deterministic structured serializer input and five evidence groups, but no current serializer, route, task or Worker imports the Resolver or Ledger.",
-        "Phase 2 adds a PostgreSQL-only Authority Context loader and resolved-snapshot serializer parity facade. Phase 3 activates them only through separately gated backend/API and frontend Slices; compatibility-pg-live-v1 remains transitional and is not the formal Phase 4 Active Season Manifest."
+        "Canonical simcraft_template requests re-resolve selectionIntent through the active backend authority and never fall back to legacy rawString/gearSnapshot parsing.",
+        "GET /api/simulator/simc/options exposes backend-owned races, scenarios and preparation override capability under simc-options-v1; the active Taro route submits selectionIntent plus profileContext and legacy templateContext remains compatibility-only when canonical context is absent."
       ],
       "mustNotChange": [
         "Do not assemble authoritative SimC profile strings client-side.",
+        "Do not classify or rewrite backend-accepted talent source encodings in the frontend.",
         "Do not accept client-supplied gem, enchant or embellishment options as server authority.",
         "Do not apply the stat_snapshot_v1 limiter or one-iteration flavor to normal profile or simulator execution.",
         "Do not promote queued task success to DPS correctness."
@@ -766,14 +812,24 @@
         "tests/gear_rule_matrix_test.py",
         "tests/gear_evidence_ledger_test.py",
         "tests/gear_resolver_test.py",
-        "tests/pg_gear_authority_loader_test.py"
+        "tests/pg_gear_authority_loader_test.py",
+        "tests/news_backend_test.py::NewsBackendTest.test_http_simc_options_exposes_only_backend_owned_supported_contract",
+        "tests/news_backend_test.py::NewsBackendTest.test_simcraft_template_canonical_context_re_resolves_for_confirm_and_final_without_legacy_fallback",
+        "tests/news_backend_test.py::NewsBackendTest.test_simcraft_template_partial_or_blocked_canonical_context_never_falls_back_to_legacy_templates",
+        "tests/news_backend_test.py::NewsBackendTest.test_simcraft_template_canonical_resolver_problem_is_structured_and_fail_closed",
+        "packages/api-client/src/simulator.test.ts",
+        "apps/mini-taro/src/pages/simulator/simc-submit-model.test.ts",
+        "apps/mini-taro/src/pages/simulator/simc-page-contract.test.ts"
       ],
       "runtimeSurfaces": [
         "server/websim_payload.py",
         "server/simc_profile_policy.py",
         "server/simc_preparation.py",
         "server/news_backend.py",
-        "pages/simulator/simc.js"
+        "pages/simulator/simc.js",
+        "packages/api-client/src/simulator.ts",
+        "packages/domain/src/entities.ts",
+        "apps/mini-taro/src/pages/simulator/simc.tsx"
       ],
       "runbooks": [
         "docs/simulator-simc-end-to-end.md",
@@ -802,6 +858,10 @@
         "server/postgres_cache_store.py",
         "server/codex_worker.py",
         "server/news_backend.py",
+        "packages/api-client/src/simulator.ts",
+        "packages/domain/src/{entities,route-contract}.ts",
+        "packages/design-system/src/components/SimcSubmitComponents.tsx",
+        "apps/mini-taro/src/pages/simulator/simc*.{ts,tsx}",
         "pages/simulator/simc.*",
         "pages/simulator/simulator-api.js",
         "tests/gear_contracts_test.py",
@@ -830,7 +890,10 @@
           "tests/gear_rule_matrix_test.py",
           "tests/gear_evidence_ledger_test.py",
           "tests/gear_resolver_test.py",
-          "tests/pg_gear_authority_loader_test.py"
+          "tests/pg_gear_authority_loader_test.py",
+          "packages/api-client/src/simulator.test.ts",
+          "apps/mini-taro/src/pages/simulator/simc-submit-model.test.ts",
+          "apps/mini-taro/src/pages/simulator/simc-page-contract.test.ts"
         ],
         "runtimeEvidence": [],
         "ownerMapRef": null
@@ -1448,6 +1511,30 @@
         "pages/simulator/task-detail",
         "pages/profile/profile"
       ],
+      "activeRouteOwners": [
+        { "route": "pages/news/news", "role": "active_taro_route_owner", "owner": "apps/mini-taro/src/pages/news/news.tsx", "legacyCompatibilityConsumer": "pages/news/news.js" },
+        { "route": "pages/news/list", "role": "active_taro_route_owner", "owner": "apps/mini-taro/src/pages/news/list.tsx", "legacyCompatibilityConsumer": "pages/news/list.js" },
+        { "route": "pages/news/detail", "role": "active_taro_route_owner", "owner": "apps/mini-taro/src/pages/news/detail.tsx", "legacyCompatibilityConsumer": "pages/news/detail.js" },
+        { "route": "pages/builds/builds", "role": "active_taro_route_owner", "owner": "apps/mini-taro/src/pages/builds/builds.tsx", "legacyCompatibilityConsumer": "pages/builds/builds.js" },
+        { "route": "pages/builds/workbench", "role": "active_taro_route_owner", "owner": "apps/mini-taro/src/pages/builds/workbench.tsx", "legacyCompatibilityConsumer": "pages/builds/workbench.js" },
+        { "route": "pages/builds/intel", "role": "active_taro_route_owner", "owner": "apps/mini-taro/src/pages/builds/intel.tsx", "legacyCompatibilityConsumer": "pages/builds/intel.js" },
+        { "route": "pages/builds/talent-simulator", "role": "active_taro_route_owner", "owner": "apps/mini-taro/src/pages/builds/talent-simulator.tsx", "legacyCompatibilityConsumer": "pages/builds/talent-simulator.js" },
+        { "route": "pages/builds/detail", "role": "active_taro_route_owner", "owner": "apps/mini-taro/src/pages/builds/detail.tsx", "legacyCompatibilityConsumer": "pages/builds/detail.js" },
+        { "route": "pages/simulator/simulator", "role": "active_taro_route_owner", "owner": "apps/mini-taro/src/pages/simulator/simulator.tsx", "legacyCompatibilityConsumer": "pages/simulator/simulator.js" },
+        { "route": "pages/simulator/simc", "role": "active_taro_route_owner", "owner": "apps/mini-taro/src/pages/simulator/simc.tsx", "legacyCompatibilityConsumer": "pages/simulator/simc.js" },
+        { "route": "pages/simulator/chickenbro", "role": "active_taro_route_owner", "owner": "apps/mini-taro/src/pages/simulator/chickenbro.tsx", "legacyCompatibilityConsumer": "pages/simulator/chickenbro.js" },
+        { "route": "pages/simulator/tasks", "role": "active_taro_route_owner", "owner": "apps/mini-taro/src/pages/simulator/tasks.tsx", "legacyCompatibilityConsumer": "pages/simulator/tasks.js" },
+        { "route": "pages/simulator/task-detail", "role": "active_taro_route_owner", "owner": "apps/mini-taro/src/pages/simulator/task-detail.tsx", "legacyCompatibilityConsumer": "pages/simulator/task-detail.js" },
+        { "route": "pages/profile/profile", "role": "active_taro_route_owner", "owner": "apps/mini-taro/src/pages/profile/profile.tsx", "legacyCompatibilityConsumer": "pages/profile/profile.js" }
+      ],
+      "legacyCompatibility": {
+        "appConfig": "app.json",
+        "appConfigRole": "root_route_compatibility_surface",
+        "pagesRoot": "pages",
+        "pagesRole": "legacy_route_compatibility_consumers",
+        "retirement": "retain_without_new_first_level_ownership",
+        "deletionRequirement": "prove_no_active_callers_before_individual_legacy_deletion"
+      },
       "criticalContract": {
         "status": "characterized",
         "summary": "The active Taro target registry, shared component owners and architecture/baseline checks characterize the 14-route proof matrix; pixel acceptance is still pending fresh real WeChat evidence.",

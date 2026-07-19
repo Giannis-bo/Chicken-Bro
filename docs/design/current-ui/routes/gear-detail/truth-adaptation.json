@@ -113,7 +113,7 @@
     "The catalog bootstrap omits mode=initial because that backend mode intentionally returns slot shells with empty item arrays; mode=slot is reserved for on-demand details.",
     "Candidate identity, item level, stats, compatibility, source and enhancement options render only when the backend returns those fields for that candidate.",
     "Only HTTPS item or enhancement media on the explicit trusted runtime allowlist may render as real WoW objects; generated or decorative art cannot impersonate an item.",
-    "Readiness progress is derived from the current editable equippedSet: unique SimC-ready required slots divided by 15. Candidate counts are never presented as equipped counts.",
+    "Readiness progress is backend-owned: an initial equippedSet may use websim.gear.readiness only when its selectedCount matches the editable selection; compact catalog aggregates are otherwise shown as unknown. Every edited draft uses gearResolve.profileReadiness readySlots/requiredSlots. Taro never counts item simcReady flags or hardcodes a 15-slot rule; candidate counts are never presented as equipped counts.",
     "Average item level is derived only from currently selected items with real ilevel or itemLevel values, or from a non-blocked gearStats response.",
     "Primary and secondary attributes remain 待校验 until gearStats returns non-blocked values for the current gear and a verified non-empty talent import code.",
     "Community gear may be imported only from a returned template containing real gearItems; the UI identifies it as a source template, not BiS or an official recommendation.",
@@ -138,7 +138,7 @@
     },
     {
       "region": "readiness_overview_panel",
-      "runtime": "selected item count, current selected-item average level, 15-slot SimC readiness and verified gearStats only"
+      "runtime": "selected draft count, current selected-item average level, backend-owned per-specialization profile readiness and verified gearStats only"
     },
     {
       "region": "enhancement_categories_bar",

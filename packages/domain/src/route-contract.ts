@@ -201,6 +201,8 @@ export const routeContracts = [
       "websim.bootstrap",
       "websim.talents",
       "websim.talentImport",
+      "talents.validate",
+      "talents.export",
       "templates.upsert"
     ],
     "storage": [
@@ -317,12 +319,14 @@ export const routeContracts = [
       "builds.home",
       "templates.list",
       "templates.upsert",
-      "websim.gearStats",
+      "websim.gearStatSnapshots",
+      "simulator.simcOptions",
       "simulator.tasks",
       "simulator.analyze"
     ],
     "storage": [
       "templates.local",
+      "simc.buildContext",
       "simulator.guestId"
     ],
     "outgoing": [],
@@ -531,6 +535,27 @@ export const endpointContracts = [
     "timeoutMs": 30000
   },
   {
+    "id": "talents.validate",
+    "method": "POST",
+    "path": "/api/talents/validate",
+    "auth": "none",
+    "fallback": "blocked"
+  },
+  {
+    "id": "talents.export",
+    "method": "POST",
+    "path": "/api/talents/export",
+    "auth": "none",
+    "fallback": "blocked"
+  },
+  {
+    "id": "talents.import",
+    "method": "POST",
+    "path": "/api/talents/import",
+    "auth": "none",
+    "fallback": "blocked"
+  },
+  {
     "id": "websim.gear",
     "method": "GET",
     "path": "/api/websim/gear?class=&spec=&compact=&mode=&slot=",
@@ -562,6 +587,13 @@ export const endpointContracts = [
     "id": "websim.gearStatSnapshots",
     "method": "POST",
     "path": "/api/websim/gear/stat-snapshots",
+    "auth": "none",
+    "timeoutMs": 30000
+  },
+  {
+    "id": "simulator.simcOptions",
+    "method": "GET",
+    "path": "/api/simulator/simc/options",
     "auth": "none",
     "timeoutMs": 30000
   },
@@ -695,7 +727,7 @@ export const storageContracts = [
   {
     "id": "simc.buildContext",
     "key": "wow_simc_build_context",
-    "compatibilityBehavior": "written_by_gear_detail_but_not_read_by_any_registered_route"
+    "compatibilityBehavior": "written_by_gear_detail_and_read_by_active_simc_submit"
   }
 ] as const
 

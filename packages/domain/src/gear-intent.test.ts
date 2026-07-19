@@ -1,11 +1,45 @@
 import { describe, expect, it } from 'vitest'
 
+import * as gearIntentExports from './gear-intent'
+
 import {
   gearEnhancementsFromResolvedSnapshot,
   serializeGearSelectionIntent,
 } from './gear-intent'
 
 describe('canonical gear selection intent', () => {
+  it('accepts only structurally canonical selection-intent-v1 storage for the current identity', () => {
+    const guard = (gearIntentExports as Readonly<Record<string, unknown>>)['canonicalGearSelectionIntent'] as
+      | ((value: unknown, classKey: string, specKey: string) => unknown)
+      | undefined
+    const valid = {
+      schemaRevision: 'selection-intent-v1',
+      authoredAgainst: { seasonRevision: 'season-17', gearCatalogRevision: 'gear-r17' },
+      eligibilityContext: { classKey: 'mage', specKey: 'frost', level: 90 },
+      slots: {
+        head: {
+          itemId: '250060', variantKey: 'variant-head', gemOptionIds: ['gem-haste'],
+          enchantOptionId: '', embellishmentOptionId: '', craftedOptionId: '', catalystOptionId: '',
+        },
+      },
+    }
+
+    expect(guard).toBeTypeOf('function')
+    if (!guard) return
+    expect(guard(valid, 'mage', 'frost')).toEqual(valid)
+    expect([
+      { ...valid, schemaRevision: 'selection-intent-v0' },
+      { ...valid, authoredAgainst: { manifestRevision: 'manifest-r1' } },
+      { ...valid, eligibilityContext: { ...valid.eligibilityContext, classKey: 'warrior' } },
+      { ...valid, eligibilityContext: { ...valid.eligibilityContext, level: 0 } },
+      { ...valid, eligibilityContext: { ...valid.eligibilityContext, level: 90.5 } },
+      { ...valid, slots: { helm: valid.slots.head } },
+      { ...valid, slots: { head: { ...valid.slots.head, itemId: '' } } },
+      { ...valid, slots: { head: { ...valid.slots.head, gemOptionIds: ['x'.repeat(257)] } } },
+      { ...valid, slots: { head: { ...valid.slots.head, legality: 'verified' } } },
+    ].every((value) => guard(value, 'mage', 'frost') === null)).toBe(true)
+  })
+
   it('serializes only client-owned identifiers from the server resolver context', () => {
     const intent = serializeGearSelectionIntent({
       resolverContext: {

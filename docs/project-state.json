@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-07-18",
+  "updatedAt": "2026-07-19",
   "activeMilestone": "taro_target_first_14_route_rebuild",
   "featureIteration": "allowed_under_harness",
   "activeReleaseArtifact": "artifacts/releases/2026-07-16-harness-superpowers-method-layer",
@@ -337,19 +337,44 @@
     },
     "uiRuntimeEvidence": {
       "status": "active_unverified",
+      "activeFrontendOwner": "apps/mini-taro",
+      "activeTypedTransportOwner": "packages/api-client/src",
+      "legacyCompatibilitySurface": "app.json and pages/ retain 14-route compatibility-consumer roles only",
+      "ownerMap": "docs/project-owner-map.json",
       "routeCount": 14,
       "contract": "docs/design/current-ui/runtime-review-contract.json",
       "statusLedger": "docs/design/current-ui/runtime-review-status.json",
       "targetRegistry": "docs/design/current-ui/target-registry.json",
       "visualAcceptance": "pending_fresh_real_wechat_evidence",
       "interactionAcceptance": "pending_real_wechat_core_interaction_matrix",
+      "manualAcceptanceException": {
+        "status": "user_authorized_merge_without_remaining_route_acceptance",
+        "authorizedAt": "2026-07-19",
+        "acceptedRouteCount": 5,
+        "notRunRouteCount": 9,
+        "notRunRoutes": [
+          "pages/builds/builds",
+          "pages/builds/workbench",
+          "pages/builds/intel",
+          "pages/builds/detail",
+          "pages/simulator/simc",
+          "pages/simulator/chickenbro",
+          "pages/simulator/tasks",
+          "pages/simulator/task-detail",
+          "pages/profile/profile"
+        ],
+        "releaseEffect": "merge and deployment authorized; 14-route manual acceptance remains unproven and must not be reported as complete"
+      },
       "productionRequestDomain": {
-        "status": "blocked_external_configuration",
+        "status": "candidate_release_gate_passed",
         "audit": "npm run audit:taro-domain",
-        "missing": [
-          "WOW_BACKEND_API_BASE_URL=https_named_origin",
-          "WOW_WECHAT_REQUEST_DOMAIN_APPROVED=yes"
-        ]
+        "candidateBackendOrigin": "https://api.chickenbro.cloud",
+        "candidateAssetRuntimeRoot": "https://api.chickenbro.cloud/wow-assets/releases/2026-07-19-taro-full-integration",
+        "approvedInWechatAdmin": true,
+        "approvalEvidence": "user-confirmed WeChat admin screenshots for request and downloadFile domains on 2026-07-19",
+        "productionReady": true,
+        "releaseReady": true,
+        "missing": []
       }
     },
     "pgReadModel": {

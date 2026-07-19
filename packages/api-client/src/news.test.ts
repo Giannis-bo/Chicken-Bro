@@ -10,7 +10,7 @@ vi.mock('@tarojs/taro', () => ({
 
 import { storageKey, type NewsArticle } from '@wow-mini/domain'
 
-import { createNewsClient, isReadyNewsHomePayload } from './news'
+import { createNewsClient, isNewsHomeVisuallyEmpty, isReadyNewsHomePayload } from './news'
 import { newsFallbackSnapshot } from './fallback-snapshots'
 import type { StorageAdapter } from './storage'
 import type { ApiTransport, RequestOptions } from './transport'
@@ -48,6 +48,22 @@ function liveArticle(id: string): NewsArticle {
 }
 
 describe('news client target contract', () => {
+  it('returns empty transport structures instead of packaged news facts when unavailable', async () => {
+    const client = createNewsClient(fallbackTransport(), new MemoryStorage())
+
+    const [home, list, article] = await Promise.all([
+      client.home(),
+      client.list({ type: 'metric', key: 'today' }),
+      client.article('missing-article'),
+    ])
+
+    expect(home).toMatchObject({ fromFallback: true, payload: {
+      heroNews: [], highlights: [], metrics: [], channels: [],
+    } })
+    expect(list).toMatchObject({ fromFallback: true, payload: { count: 0, articles: [] } })
+    expect(article).toMatchObject({ fromFallback: true, payload: null })
+  })
+
   it('rejects structurally incomplete home payloads before route rendering', () => {
     expect(isReadyNewsHomePayload(newsFallbackSnapshot)).toBe(true)
     expect(isReadyNewsHomePayload({ ...newsFallbackSnapshot, metrics: undefined })).toBe(false)
@@ -55,6 +71,28 @@ describe('news client target contract', () => {
     expect(isReadyNewsHomePayload({
       ...newsFallbackSnapshot,
       channels: [{ id: 'official', title: '', updateCount: 1 }],
+    })).toBe(false)
+  })
+
+  it('accepts a canonical zero-article home payload and classifies its visual emptiness separately', () => {
+    const canonicalEmpty = {
+      ...newsFallbackSnapshot,
+      heroNews: [],
+      highlights: [],
+    }
+    expect(isReadyNewsHomePayload(canonicalEmpty)).toBe(true)
+    expect(isNewsHomeVisuallyEmpty(canonicalEmpty)).toBe(true)
+    expect(isNewsHomeVisuallyEmpty({
+      ...canonicalEmpty,
+      heroNews: [liveArticle('visible')],
+    })).toBe(false)
+    expect(isReadyNewsHomePayload({
+      ...canonicalEmpty,
+      heroNews: [{ ...liveArticle('invalid-article'), title: '' }],
+    })).toBe(false)
+    expect(isReadyNewsHomePayload({
+      ...canonicalEmpty,
+      metrics: [{ key: 'today', label: '', value: '0' }],
     })).toBe(false)
   })
 
@@ -82,14 +120,14 @@ describe('news client target contract', () => {
     expect(client.setArticleSaved('article-a', true)).toEqual(['article-a'])
   })
 
-  it('keeps offline home metrics in parity with list filters', async () => {
+  it('keeps unavailable news lists empty instead of deriving metric facts', async () => {
     const client = createNewsClient(fallbackTransport(), new MemoryStorage())
     const home = await client.home()
-    const metrics = Object.fromEntries(home.payload.metrics.map((metric) => [metric.key, Number(metric.value)]))
+    expect(home.payload.metrics).toEqual([])
 
     for (const key of ['updates', 'events'] as const) {
       const list = await client.list({ type: 'metric', key })
-      expect(list.payload.count).toBe(metrics[key])
+      expect(list.payload).toMatchObject({ key, count: 0, articles: [] })
     }
   })
 

@@ -320,6 +320,20 @@ export interface TalentNode {
   sourceUrl?: string
 }
 
+export type TalentNodeAvailabilityState = 'selected' | 'available' | 'blocked'
+
+export interface TalentNodeAvailability {
+  state: TalentNodeAvailabilityState
+  reasonCode: string
+  reason: string
+}
+
+export interface TalentNodeAvailabilityPayload {
+  schemaRevision: string
+  source: string
+  nodes: Readonly<Record<string, TalentNodeAvailability>>
+}
+
 export interface TalentTreeSection {
   key: string
   title: string
@@ -376,6 +390,7 @@ export interface WebsimTalentsPayload extends WebsimSelection {
   talentSchemaRevision?: string
   talentReadiness?: TalentReadinessSummary
   talentAuthority?: Readonly<Record<string, unknown>>
+  nodeAvailability?: TalentNodeAvailabilityPayload
   blockers?: readonly string[]
   currentSeason?: SeasonSnapshot
   dataStatus?: string
@@ -388,6 +403,56 @@ export interface TalentImportPayload extends WebsimSelection {
   source: string
   status: string
   blockers: readonly string[]
+}
+
+export interface TalentSelectedNode {
+  id: string
+  rank: number
+}
+
+export interface TalentSelectionState {
+  selectedNodes: readonly TalentSelectedNode[]
+}
+
+export interface TalentEditRequest extends WebsimSelection {
+  talentState: TalentSelectionState
+}
+
+export interface TalentImportCodeRequest {
+  code: string
+  classKey?: string
+  specKey?: string
+  heroKey?: string
+}
+
+export interface TalentValidationPayload extends WebsimSelection {
+  status: string
+  source: string
+  schemaRevision: string
+  errors: readonly string[]
+  warnings: readonly string[]
+  lines: readonly string[]
+  selectedCounts: Readonly<Record<string, number>>
+  talentState: TalentSelectionState
+  nodeAvailability?: TalentNodeAvailabilityPayload
+  talentSchemaRevision?: string
+  talentAuthority?: Readonly<Record<string, unknown>> | null
+  talentReadiness?: TalentReadinessSummary | null
+  blockers: readonly string[]
+}
+
+export interface TalentApiExportPayload extends WebsimSelection {
+  talentState: TalentSelectionState
+  websimExportCode: string
+  validation: TalentValidationPayload
+  talentSchemaRevision: string
+}
+
+export interface TalentApiImportPayload extends WebsimSelection {
+  rawImportCode?: string
+  talentState: TalentSelectionState
+  validation: TalentValidationPayload
+  talentSchemaRevision: string
 }
 
 export interface GearSlotDefinition {
@@ -485,6 +550,23 @@ export interface GearStatsPayload extends WebsimSelection {
   checkedAt?: string
 }
 
+export type GearStatSignature = `stat-snapshot:sha256:${string}`
+
+export interface GearStatSnapshotPayload extends WebsimSelection {
+  schemaRevision: 'gear-stat-snapshot-v1'
+  statStatus: 'verified'
+  statSignature: GearStatSignature
+  blockers: readonly string[]
+  primary?: StatValue | null
+  stamina?: StatValue | null
+  secondary: readonly StatValue[]
+  armor?: StatValue | null
+  itemLevel?: StatValue
+  checkedAt?: string
+  verifiedAt?: string
+  [key: string]: unknown
+}
+
 export interface GearIntentSlot {
   itemId: string
   variantKey: string
@@ -524,6 +606,16 @@ export interface GearProblem {
   [key: string]: unknown
 }
 
+export interface GearProfileReadiness {
+  status: string
+  simcReady: boolean
+  requiredSlots: readonly string[]
+  readySlots: readonly string[]
+  serializerRevision?: string
+  simcRuntimeRevision?: string
+  problems?: readonly GearProblem[]
+}
+
 export interface GearResolvedSnapshot {
   contractRevision?: string
   status?: string
@@ -533,7 +625,7 @@ export interface GearResolvedSnapshot {
   staticAttributes?: Readonly<Record<string, unknown>>
   setState?: Readonly<Record<string, unknown>>
   constraints?: Readonly<Record<string, unknown>>
-  profileReadiness?: Readonly<Record<string, unknown>>
+  profileReadiness?: GearProfileReadiness
   statSnapshot?: GearStatsPayload
   statSignature?: string
   retryAfterMs?: number
@@ -548,6 +640,114 @@ export interface GearResultEnvelope<T = GearResolvedSnapshot> {
   releaseContext: Readonly<Record<string, unknown>>
   data: T
   problems: readonly GearProblem[]
+}
+
+export interface GearStatSnapshotData {
+  statSignature?: GearStatSignature
+  statSnapshot?: GearStatSnapshotPayload
+  retryAfterMs?: number
+  [key: string]: unknown
+}
+
+export type GearStatSnapshotEnvelope = GearResultEnvelope<GearStatSnapshotData>
+
+export interface SimcSupportedRaceOptions {
+  status: 'supported'
+  defaultKey: string
+  supportedKeys: readonly string[]
+  defaultByClass: Readonly<Record<string, string>>
+}
+
+export interface SimcBlockedRaceOptions {
+  status: 'blocked'
+  defaultKey: ''
+  supportedKeys: readonly []
+  defaultByClass: Readonly<Record<string, never>>
+}
+
+export type SimcRaceOptions = SimcSupportedRaceOptions | SimcBlockedRaceOptions
+
+export interface SimcScenarioOption {
+  key: string
+  label: string
+  fightStyle: string
+  targets: number
+  durationSeconds: number
+  status: 'supported'
+}
+
+export type SimcPreparationDefaultState = 'enabled' | 'disabled' | 'pending_evidence'
+export type SimcPreparationEvidenceState = 'verified' | 'partial'
+
+export interface SimcPreparationOption {
+  key: string
+  category: string
+  classKey?: string
+  specKey?: string
+  label: string
+  defaultState: SimcPreparationDefaultState
+  evidenceState: SimcPreparationEvidenceState
+  overrideSupported: boolean
+}
+
+export interface SimcReadyPreparationOptions {
+  schemaRevision: 'simc-preparation-v1'
+  status: 'ready'
+  rows: readonly SimcPreparationOption[]
+}
+
+export interface SimcBlockedPreparationOptions {
+  schemaRevision: 'simc-preparation-v1'
+  status: 'blocked'
+  rows: readonly []
+}
+
+export type SimcPreparationOptions = SimcReadyPreparationOptions | SimcBlockedPreparationOptions
+
+export interface SimcOptionsReadyPayload {
+  contractRevision: 'simc-options-v1'
+  status: 'ready'
+  races: SimcSupportedRaceOptions
+  scenarios: readonly SimcScenarioOption[]
+  preparation: SimcReadyPreparationOptions
+}
+
+export interface SimcOptionsBlockedPayload {
+  contractRevision: 'simc-options-v1'
+  status: 'blocked'
+  races: SimcBlockedRaceOptions
+  scenarios: readonly []
+  preparation: SimcBlockedPreparationOptions
+}
+
+export type SimcOptionsPayload = SimcOptionsReadyPayload | SimcOptionsBlockedPayload
+
+export interface SimcBuildContext {
+  specId?: string
+  className?: string
+  specName?: string
+  classKey: string
+  specKey: string
+  raceKey?: string
+  gearBySlot?: Readonly<Record<string, GearItemReference>>
+  enhancementBySlot?: Readonly<Record<string, GearEnhancementSelection>>
+  selectionIntent: GearSelectionIntent
+  resolvedGearSignature?: string
+  statSnapshot?: GearStatsPayload | GearStatSnapshotPayload
+  source?: string
+}
+
+export interface SimcProfileContext {
+  readonly [key: string]: unknown
+  classKey: string
+  specKey: string
+  race: string
+  scenarioKey: string
+  heroKey?: string
+  talents?: string
+  talentImport?: string
+  websimExportCode?: string
+  talentState?: Readonly<Record<string, unknown>>
 }
 
 export interface CommunityTemplateImportData {

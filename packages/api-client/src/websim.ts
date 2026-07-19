@@ -3,9 +3,17 @@ import type {
   GearSlotDefinition,
   GearResultEnvelope,
   GearSelectionIntent,
+  GearStatSignature,
+  GearStatSnapshotEnvelope,
   GearStatsPayload,
+  TalentApiExportPayload,
+  TalentApiImportPayload,
+  TalentEditRequest,
+  TalentImportCodeRequest,
   TalentImportPayload,
   TalentNode,
+  TalentNodeAvailabilityPayload,
+  TalentValidationPayload,
   WebsimBootstrapPayload,
   WebsimGearPayload,
   WebsimSelection,
@@ -103,12 +111,36 @@ export function normalizeTalentNode(value: unknown): TalentNode | null {
   }
 }
 
+export function normalizeTalentNodeAvailability(value: unknown): TalentNodeAvailabilityPayload | null {
+  if (!isRecord(value)) return null
+  const schemaRevision = cleanString(value['schemaRevision'])
+  const source = cleanString(value['source'])
+  const rawNodes = value['nodes']
+  if (!schemaRevision || !source || !isRecord(rawNodes)) return null
+
+  const entries: Array<[string, TalentNodeAvailabilityPayload['nodes'][string]]> = []
+  for (const [nodeId, rawState] of Object.entries(rawNodes)) {
+    if (!nodeId.trim() || !isRecord(rawState)) return null
+    const state = rawState['state']
+    const reasonCode = cleanString(rawState['reasonCode'])
+    const reason = cleanString(rawState['reason'])
+    if ((state !== 'selected' && state !== 'available' && state !== 'blocked') || !reasonCode || !reason) {
+      return null
+    }
+    entries.push([nodeId, { state, reasonCode, reason }])
+  }
+  return { schemaRevision, source, nodes: Object.fromEntries(entries) }
+}
+
 export function normalizeTalentsPayload(payload: WebsimTalentsPayload): WebsimTalentsPayload {
+  const { nodeAvailability: rawAvailability, ...rest } = payload
+  const nodeAvailability = normalizeTalentNodeAvailability(rawAvailability)
   return {
-    ...payload,
+    ...rest,
     nodes: payload.nodes
       .map((node) => normalizeTalentNode(node))
       .filter((node): node is TalentNode => node !== null),
+    ...(nodeAvailability ? { nodeAvailability } : {}),
   }
 }
 
@@ -120,6 +152,120 @@ function fallbackTalentImport(selection: WebsimSelection): TalentImportPayload {
     importCode: '', source: 'community_template', status: 'blocked',
     blockers: ['no SimC-ready community talent import'],
   }
+}
+
+function fallbackTalentValidation(request: TalentEditRequest): TalentValidationPayload {
+  return {
+    classKey: request.classKey,
+    specKey: request.specKey,
+    heroKey: request.heroKey ?? '',
+    status: 'failed',
+    source: 'transport_fallback',
+    schemaRevision: 'websim-talent-rules-v1',
+    errors: ['talent validation service unavailable'],
+    warnings: [],
+    lines: [],
+    selectedCounts: { class: 0, spec: 0, hero: 0 },
+    talentState: request.talentState,
+    talentSchemaRevision: 'websim-talent-rules-v1',
+    blockers: ['talent validation service unavailable'],
+  }
+}
+
+function fallbackTalentExport(request: TalentEditRequest): TalentApiExportPayload {
+  return {
+    classKey: request.classKey,
+    specKey: request.specKey,
+    heroKey: request.heroKey ?? '',
+    talentState: request.talentState,
+    websimExportCode: '',
+    validation: fallbackTalentValidation(request),
+    talentSchemaRevision: 'websim-talent-rules-v1',
+  }
+}
+
+function fallbackTalentCodeImport(request: TalentImportCodeRequest): TalentApiImportPayload {
+  const editRequest: TalentEditRequest = {
+    classKey: request.classKey ?? '',
+    specKey: request.specKey ?? '',
+    heroKey: request.heroKey ?? '',
+    talentState: { selectedNodes: [] },
+  }
+  return {
+    classKey: editRequest.classKey,
+    specKey: editRequest.specKey,
+    heroKey: editRequest.heroKey ?? '',
+    rawImportCode: request.code,
+    talentState: editRequest.talentState,
+    validation: fallbackTalentValidation(editRequest),
+    talentSchemaRevision: 'websim-talent-rules-v1',
+  }
+}
+
+function isStringArray(value: unknown): value is readonly string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === 'string')
+}
+
+function isTalentSelectionState(value: unknown): boolean {
+  return isRecord(value)
+    && Array.isArray(value['selectedNodes'])
+    && value['selectedNodes'].every((node) => isRecord(node)
+      && typeof node['id'] === 'string'
+      && node['id'].trim().length > 0
+      && typeof node['rank'] === 'number'
+      && Number.isInteger(node['rank'])
+      && node['rank'] >= 0)
+}
+
+function isTalentSelectedCounts(value: unknown): boolean {
+  return isRecord(value)
+    && ['class', 'spec', 'hero'].every((key) => typeof value[key] === 'number'
+      && Number.isInteger(value[key])
+      && (value[key] as number) >= 0)
+}
+
+function hasTalentSelectionKeys(value: Readonly<Record<string, unknown>>): boolean {
+  return typeof value['classKey'] === 'string'
+    && typeof value['specKey'] === 'string'
+    && typeof value['heroKey'] === 'string'
+}
+
+function hasSchemaRevision(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0
+}
+
+export function isTalentValidationPayload(value: unknown): value is TalentValidationPayload {
+  return isRecord(value)
+    && hasTalentSelectionKeys(value)
+    && hasSchemaRevision(value['status'])
+    && hasSchemaRevision(value['source'])
+    && hasSchemaRevision(value['schemaRevision'])
+    && isStringArray(value['errors'])
+    && isStringArray(value['warnings'])
+    && isStringArray(value['lines'])
+    && isStringArray(value['blockers'])
+    && isTalentSelectedCounts(value['selectedCounts'])
+    && isTalentSelectionState(value['talentState'])
+    && (value['talentSchemaRevision'] === undefined || hasSchemaRevision(value['talentSchemaRevision']))
+    && (value['nodeAvailability'] === undefined || normalizeTalentNodeAvailability(value['nodeAvailability']) !== null)
+}
+
+export function isTalentExportPayload(value: unknown): value is TalentApiExportPayload {
+  return isRecord(value)
+    && hasTalentSelectionKeys(value)
+    && typeof value['websimExportCode'] === 'string'
+    && hasSchemaRevision(value['talentSchemaRevision'])
+    && isTalentSelectionState(value['talentState'])
+    && isTalentValidationPayload(value['validation'])
+}
+
+export function isTalentImportPayload(value: unknown): value is TalentApiImportPayload {
+  return isRecord(value)
+    && hasTalentSelectionKeys(value)
+    && (value['rawImportCode'] === undefined || typeof value['rawImportCode'] === 'string')
+    && hasSchemaRevision(value['talentSchemaRevision'])
+    && isTalentSelectionState(value['talentState'])
+    && isTalentValidationPayload(value['validation'])
 }
 
 function fallbackStats(selection: WebsimSelection): GearStatsPayload {
@@ -174,11 +320,22 @@ export interface CommunityTemplateImportRequest extends WebsimSelection {
 
 export interface GearStatSnapshotRequest {
   selectionIntent: GearSelectionIntent
-  profileContext: RequestData
+  profileContext: Readonly<Record<string, unknown>>
   timeoutMs?: number
 }
 
 function fallbackGearEnvelope(): GearResultEnvelope {
+  return {
+    contractRevision: 'gear-result-envelope-v1',
+    requestId: 'transport-fallback',
+    status: 'unavailable',
+    releaseContext: {},
+    data: {},
+    problems: [{ kind: 'TRANSPORT_ERROR', code: 'GEAR_TRANSPORT_UNAVAILABLE', retryable: true }],
+  }
+}
+
+function fallbackGearStatSnapshotEnvelope(): GearStatSnapshotEnvelope {
   return {
     contractRevision: 'gear-result-envelope-v1',
     requestId: 'transport-fallback',
@@ -210,14 +367,98 @@ function isStructuredEnvelope(value: unknown, contractRevision: string): boolean
     && Array.isArray(value['problems'])
 }
 
+function isGearProfileReadiness(value: unknown): boolean {
+  return isRecord(value)
+    && typeof value['status'] === 'string'
+    && typeof value['simcReady'] === 'boolean'
+    && Array.isArray(value['requiredSlots'])
+    && value['requiredSlots'].every((slot) => typeof slot === 'string' && Boolean(slot))
+    && Array.isArray(value['readySlots'])
+    && value['readySlots'].every((slot) => typeof slot === 'string' && Boolean(slot))
+}
+
+function isGearResolveEnvelope(value: unknown): boolean {
+  if (!isStructuredEnvelope(value, 'gear-result-envelope-v1')
+    || !isRecord(value)
+    || !Array.isArray(value['problems'])
+    || !value['problems'].every(isRecord)) return false
+
+  const data = value['data']
+  if (!isRecord(data)) return false
+  if (Object.keys(data).length === 0) {
+    return (value['status'] === 'blocked' || value['status'] === 'unavailable') && value['problems'].length > 0
+  }
+  return data['contractRevision'] === 'gear-resolved-snapshot-v1'
+    && typeof data['status'] === 'string'
+    && isGearProfileReadiness(data['profileReadiness'])
+}
+
+const statSignaturePattern = /^stat-snapshot:sha256:[0-9a-f]{64}$/
+
+function isStatSignature(value: unknown): value is GearStatSignature {
+  return typeof value === 'string' && statSignaturePattern.test(value)
+}
+
+function isGearStatSnapshotEnvelope(
+  value: unknown,
+  request: GearStatSnapshotRequest,
+): value is GearStatSnapshotEnvelope {
+  if (!isRecord(value)
+    || value['contractRevision'] !== 'gear-result-envelope-v1'
+    || typeof value['requestId'] !== 'string'
+    || !value['requestId']
+    || !isRecord(value['releaseContext'])
+    || !isRecord(value['data'])
+    || !Array.isArray(value['problems'])
+    || !value['problems'].every(isRecord)) return false
+
+  const eligibility = request.selectionIntent.eligibilityContext
+  const expectedClassKey = eligibility?.classKey
+  const expectedSpecKey = eligibility?.specKey
+  const contextClassKey = request.profileContext['classKey']
+  const contextSpecKey = request.profileContext['specKey']
+  if (typeof expectedClassKey !== 'string'
+    || !expectedClassKey
+    || typeof expectedSpecKey !== 'string'
+    || !expectedSpecKey
+    || (contextClassKey !== undefined && contextClassKey !== expectedClassKey)
+    || (contextSpecKey !== undefined && contextSpecKey !== expectedSpecKey)) return false
+
+  const data = value['data']
+  if (value['status'] === 'pending') {
+    return isStatSignature(data['statSignature'])
+      && typeof data['retryAfterMs'] === 'number'
+      && Number.isInteger(data['retryAfterMs'])
+      && data['retryAfterMs'] > 0
+  }
+  if (value['status'] === 'resolved') {
+    const snapshot = data['statSnapshot']
+    return isStatSignature(data['statSignature'])
+      && isRecord(snapshot)
+      && snapshot['schemaRevision'] === 'gear-stat-snapshot-v1'
+      && snapshot['statStatus'] === 'verified'
+      && snapshot['statSignature'] === data['statSignature']
+      && snapshot['classKey'] === expectedClassKey
+      && snapshot['specKey'] === expectedSpecKey
+      && Array.isArray(snapshot['blockers'])
+      && snapshot['blockers'].every((item) => typeof item === 'string')
+      && Array.isArray(snapshot['secondary'])
+      && snapshot['secondary'].every(isRecord)
+  }
+  return value['status'] === 'blocked' || value['status'] === 'unavailable'
+}
+
 export interface WebsimClient {
   bootstrap(): Promise<ApiResult<WebsimBootstrapPayload>>
   talents(selection: WebsimSelection): Promise<ApiResult<WebsimTalentsPayload>>
   talentImport(selection: WebsimSelection): Promise<ApiResult<TalentImportPayload>>
+  talentValidate(request: TalentEditRequest): Promise<ApiResult<TalentValidationPayload>>
+  talentExport(request: TalentEditRequest): Promise<ApiResult<TalentApiExportPayload>>
+  talentImportCode(request: TalentImportCodeRequest): Promise<ApiResult<TalentApiImportPayload>>
   gear(request: GearRequest): Promise<ApiResult<WebsimGearPayload>>
   gearResolve(selectionIntent: GearSelectionIntent): Promise<ApiResult<GearResultEnvelope>>
   communityTemplateImport(request: CommunityTemplateImportRequest): Promise<ApiResult<CommunityTemplateImportEnvelope>>
-  gearStatSnapshot(request: GearStatSnapshotRequest): Promise<ApiResult<GearResultEnvelope>>
+  gearStatSnapshot(request: GearStatSnapshotRequest): Promise<ApiResult<GearStatSnapshotEnvelope>>
   gearStats(payload: RequestData & Partial<WebsimSelection>): Promise<ApiResult<GearStatsPayload>>
 }
 
@@ -244,6 +485,32 @@ export function createWebsimClient(transport: ApiTransport): WebsimClient {
         validate: (value) => isRecord(value) && typeof value['importCode'] === 'string' && typeof value['status'] === 'string',
       })
     },
+    talentValidate(request) {
+      return transport.requestEndpoint('talents.validate', '/api/talents/validate', {
+        data: { ...request },
+        fallback: () => fallbackTalentValidation(request),
+        validate: isTalentValidationPayload,
+      })
+    },
+    talentExport(request) {
+      return transport.requestEndpoint('talents.export', '/api/talents/export', {
+        data: { ...request },
+        fallback: () => fallbackTalentExport(request),
+        validate: isTalentExportPayload,
+      })
+    },
+    talentImportCode(request) {
+      return transport.requestEndpoint('talents.import', '/api/talents/import', {
+        data: {
+          code: request.code,
+          ...(request.classKey ? { classKey: request.classKey } : {}),
+          ...(request.specKey ? { specKey: request.specKey } : {}),
+          ...(request.heroKey ? { heroKey: request.heroKey } : {}),
+        },
+        fallback: () => fallbackTalentCodeImport(request),
+        validate: isTalentImportPayload,
+      })
+    },
     gear(request) {
       const query = encodeQuery({
         class: request.classKey, spec: request.specKey,
@@ -263,7 +530,7 @@ export function createWebsimClient(transport: ApiTransport): WebsimClient {
         data: { ...selectionIntent },
         responseMode: 'structured-problem',
         fallback: fallbackGearEnvelope,
-        validate: (value) => isStructuredEnvelope(value, 'gear-result-envelope-v1'),
+        validate: isGearResolveEnvelope,
       })
     },
     communityTemplateImport(request) {
@@ -287,8 +554,8 @@ export function createWebsimClient(transport: ApiTransport): WebsimClient {
         },
         timeoutMs: Math.min(30000, Math.max(1, request.timeoutMs ?? 30000)),
         responseMode: 'structured-problem',
-        fallback: fallbackGearEnvelope,
-        validate: (value) => isStructuredEnvelope(value, 'gear-result-envelope-v1'),
+        fallback: fallbackGearStatSnapshotEnvelope,
+        validate: (value) => isGearStatSnapshotEnvelope(value, request),
       })
     },
     gearStats(payload) {

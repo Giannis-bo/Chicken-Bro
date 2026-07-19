@@ -58,22 +58,54 @@ function payload(): WebsimGearPayload {
 
 describe('gear detail truth model', () => {
   it('ignores catalog-wide compact readiness when the editable equipped set is empty', () => {
-    const readiness = gearReadiness({}, undefined, 'ready')
+    const readiness = gearReadiness({}, undefined, 'ready', payload().readiness)
     expect(readiness.selectedCount).toBe(0)
     expect(readiness.readyCount).toBe(0)
-    expect(readiness.requiredCount).toBe(15)
+    expect(readiness.requiredCount).toBe(0)
     expect(readiness.itemLevel).toBe('--')
     expect(readiness.state).toBe('empty')
   })
 
-  it('derives slots and readiness only from the current equipped record', () => {
+  it('labels an unvalidated editable draft as unknown instead of zero required slots', () => {
+    const readiness = gearReadiness({ head: readyItem }, undefined, 'ready', payload().readiness)
+    const statuses = gearStatusDeck(payload(), readiness, undefined, 'ready', '')
+
+    expect(readiness).toMatchObject({ selectedCount: 1, readyCount: 0, requiredCount: 0, state: 'blocked' })
+    expect(statuses[1]).toMatchObject({ detail: '0/-- 槽可写入 SimC', state: 'blocked' })
+  })
+
+  it('derives slot presentation from the draft while readiness stays backend-owned', () => {
     const equipped = { head: readyItem, neck: partialItem }
     const slots = gearSlots(payload(), equipped, 'head')
-    const readiness = gearReadiness(equipped, undefined, 'ready')
+    const readiness = gearReadiness(equipped, undefined, 'ready', {
+      ...payload().readiness,
+      simcReadyCount: 1,
+      selectedCount: 2,
+    })
     expect(slots).toHaveLength(16)
     expect(slots[0]).toMatchObject({ selected: true, candidateCount: 2, state: 'ready', itemId: '250060' })
     expect(slots.map((slot) => slot.slot)).toContain('off_hand')
     expect(readiness).toMatchObject({ selectedCount: 2, readyCount: 1, itemLevel: '285', state: 'partial' })
+  })
+
+  it('uses backend resolver readiness instead of a fixed local slot rule', () => {
+    const readiness = gearReadiness({ head: readyItem }, undefined, 'ready', {
+      status: 'blocked',
+      simcReady: false,
+      readySlots: ['head'],
+      requiredSlots: [
+        'head', 'neck', 'shoulder', 'back', 'chest', 'wrist', 'hands', 'waist',
+        'legs', 'feet', 'finger1', 'finger2', 'trinket1', 'trinket2', 'main_hand', 'off_hand',
+      ],
+    })
+
+    expect(readiness).toMatchObject({
+      selectedCount: 1,
+      readyCount: 1,
+      requiredCount: 16,
+      percent: 6,
+      state: 'blocked',
+    })
   })
 
   it('preserves real candidate identity and evidence without inventing readiness', () => {
@@ -120,7 +152,7 @@ describe('gear detail truth model', () => {
       primary: { key: 'intellect', label: 'Intellect', value: '12,345' },
       secondary: [{ key: 'critical_strike_rating', label: 'Critical Strike Rating', value: 678 }],
     }
-    const readiness = gearReadiness({ head: readyItem }, stats, 'ready')
+    const readiness = gearReadiness({ head: readyItem }, stats, 'ready', undefined)
     expect(readiness.metrics[0]).toMatchObject({ label: '智力', value: '12,345', verified: true })
     expect(readiness.metrics[2]).toMatchObject({ label: '暴击', value: '678', verified: true })
   })
@@ -153,12 +185,22 @@ describe('gear detail truth model', () => {
   })
 
   it('keeps four stable status cards', () => {
-    const readiness = gearReadiness({}, undefined, 'ready')
+    const readiness = gearReadiness({}, undefined, 'ready', undefined)
     const statuses = gearStatusDeck(payload(), readiness, payload().statSnapshot, 'ready', '')
     expect(statuses.map((item) => item.id)).toEqual(['catalog', 'selection', 'validation', 'evidence'])
     expect(statuses[0]).toMatchObject({ detail: '2 个候选 · 2 个槽位' })
     expect(statuses[1]).toMatchObject({ label: '暂无装备数据', state: 'empty' })
     expect(statuses[2]).toMatchObject({ detail: '装备或天赋输入尚未完整' })
     expect(statuses[3]).toMatchObject({ detail: '后端检查 7月15日 00:00' })
+  })
+
+  it('keeps draft validation failures out of the verified catalog status', () => {
+    const readiness = gearReadiness({ head: readyItem }, undefined, 'ready', {
+      status: 'blocked', simcReady: false, readySlots: ['head'], requiredSlots: ['head', 'off_hand'],
+    })
+    const statuses = gearStatusDeck(payload(), readiness, undefined, 'ready', '', 'network down')
+
+    expect(statuses[0]).toMatchObject({ state: 'ready', detail: '2 个候选 · 2 个槽位' })
+    expect(statuses[2]).toMatchObject({ state: 'blocked', detail: '后端校验暂不可用' })
   })
 })

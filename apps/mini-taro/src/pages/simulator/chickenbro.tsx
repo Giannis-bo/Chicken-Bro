@@ -23,6 +23,7 @@ import type { ChatMessage } from '@wow-mini/domain'
 import { goBack, safeDecode } from '../_shared/route-runtime'
 import {
   boundedChickenbroMessage,
+  chickenbroBackendContext,
   chickenbroAnswerSource,
   chickenbroConfidence,
   chickenbroContextLabel,
@@ -77,7 +78,7 @@ export default function ChickenbroPage() {
         message,
         sessionId,
         mode: 'chickenbro',
-        context,
+        context: chickenbroBackendContext(context),
       })
       if (result.fromFallback) {
         setTransportError(result.error || '后端暂时不可用；没有生成本地替代回答。')

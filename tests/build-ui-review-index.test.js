@@ -5,6 +5,7 @@ const fs = require('node:fs')
 const os = require('node:os')
 const path = require('node:path')
 const test = require('node:test')
+const { pathToFileURL } = require('node:url')
 
 const { buildReviewIndex, escapeHtml, inspectTarget, writeIndexAtomic } = require('../scripts/build-ui-review-index')
 
@@ -17,8 +18,8 @@ test('review index escapes metadata and references local images without embeddin
     }],
   )
   assert.match(html, /route&lt;script&gt;/)
-  assert.match(html, /file:\/\/\/tmp\/runtime\.png/)
-  assert.match(html, /file:\/\/\/tmp\/target\.png/)
+  assert.ok(html.includes(pathToFileURL(path.resolve('/tmp/runtime.png')).href))
+  assert.ok(html.includes(pathToFileURL(path.resolve('/tmp/target.png')).href))
   assert.doesNotMatch(html, /data:image\//)
   assert.equal(escapeHtml('"<&'), '&quot;&lt;&amp;')
 })

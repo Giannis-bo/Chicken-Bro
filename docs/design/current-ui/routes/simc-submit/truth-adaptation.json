@@ -12,19 +12,20 @@
     "endpoints": [
       "builds.home",
       "templates.list",
-      "websim.gear-stats",
+      "websim.gearStatSnapshots",
+      "simulator.simcOptions",
       "simulator.tasks",
       "simulator.analyze"
     ],
     "storage": [
-      "buildTemplates",
+      "templates.local",
+      "simc.buildContext",
       "simulator.guestId"
     ],
     "localInteractions": [
       "specialization_select",
       "race_select",
       "scenario_select",
-      "duration_select",
       "talent_template_select",
       "gear_template_select",
       "confirmation_invalidation",
@@ -55,18 +56,27 @@
       "freshH5LocalTalentCount": 0,
       "freshH5LocalGearCount": 0,
       "rule": "Remote personal templates require an authenticated owner. Client fallback may expose locally owned templates but must not label them synced or remote."
+    },
+    "candidateDeploymentGate": {
+      "probedAt": "2026-07-19T00:00:00+08:00",
+      "cloudEndpoint": "http://124.223.51.33/api/simulator/simc/options",
+      "cloudHttpStatus": 404,
+      "cloudResponse": "not_found",
+      "branchContractTest": "tests.news_backend_test.NewsBackendTest.test_http_simc_options_exposes_only_backend_owned_supported_contract",
+      "branchContractStatus": "pass",
+      "rule": "The current cloud main runtime predates the branch endpoint. Candidate deployment must expose the exact typed simc-options-v1 response before this route can be called production-ready; the frontend must not replace a missing or malformed payload with local races, scenarios, durations or preparation rules."
     }
   },
   "trustRules": [
     "Target profession icons, race, template names, validation statuses, missing-item bullets, spinner state, task state and any result-like copy are placeholders and never runtime facts.",
     "The target defines ten stable first-level regions, six visible specialization selector positions, two template slots, three scenario positions, one duration control, four buff-rule rows, six summary rows, five blocker rows, two primary actions and one footer utility action.",
     "Profession or specialization choices come only from the verified builds.home class/spec mapping. Six positions are a visible viewport over the real collection and cannot imply only six supported specializations.",
-    "The supported race list is currently app-owned and incomplete; the selector must not claim to be a complete WoW race catalog.",
+    "Supported races, scenarios, scenario-owned durations and preparation rules come only from the typed simulator.simcOptions payload. A missing, fallback or malformed simc-options-v1 response blocks the route and must not be replaced by app-owned defaults.",
     "Remote personal templates require an authenticated owner. A local template remains explicitly local or stale and cannot be presented as synchronized source evidence.",
-    "Talent and gear empty states keep their target slots and block confirmation. The page must not select or synthesize a template that does not exist.",
+    "Talent and gear empty states keep their target slots and block confirmation. Gear selection may use the canonical equipment-detail handoff or a typed personal gear template only when its metadata contains a valid canonical selectionIntent; the page must not synthesize a template or gear fact from display fields or raw JSON alone.",
     "The target's four buff rows remain visible, but the current request contract does not accept user-managed buff overrides. They are read-only rule or unavailable rows until a typed backend contract exists.",
-    "Changing specialization, race, scenario, duration, talent template or gear template invalidates any prior confirmation.",
-    "Confirmation first requires a parseable gear snapshot, then a non-fallback websim.gear-stats result whose statStatus is not blocked, then simulator.analyze with confirmOnly=true and explicit agent.validation.passed=true.",
+    "Changing specialization, race, scenario (including its backend-owned duration), talent template or gear source invalidates any prior confirmation.",
+    "Confirmation first requires a parseable gear snapshot, then a non-fallback websim.gearStatSnapshots result whose statStatus is not blocked, then simulator.analyze with confirmOnly=true and explicit agent.validation.passed=true.",
     "confirmOnly validation does not execute SimC, save a task or authorize any DPS claim. No result preview, DPS, rank or completion state may be fabricated before a real task completes.",
     "Final submission re-reads simulator.tasks, blocks on an active task or transport fallback, sends confirmOnly=false and saveTask=true, and only succeeds when the backend returns a taskId.",
     "Loading, empty, stale, blocked and error states retain all ten target regions; state copy inhabits the owned region instead of mounting generic RouteStatePanel, WowPanel, TemplateLibrary or EvidenceLedger compositions."
@@ -90,11 +100,11 @@
     },
     {
       "region": "gear_template_panel",
-      "runtime": "selected real local or remote gear template, or a stable empty blocked slot"
+      "runtime": "selected canonical equipment-detail handoff or real local/remote gear template with valid selectionIntent metadata, or a stable empty blocked slot"
     },
     {
       "region": "combat_configuration_panel",
-      "runtime": "three real scenario options, one supported duration selector and four read-only buff-rule positions"
+      "runtime": "real scenario options, one scenario-owned read-only duration value and four read-only buff-rule positions"
     },
     {
       "region": "pre_submit_summary_panel",

@@ -306,8 +306,8 @@ interface TalentGraphNodeProps {
 
 function TalentGraphNode({ node, readonly, onNode }: TalentGraphNodeProps) {
   const nodeStyle = {
-    left: `${node.x}rpx`,
-    top: `${node.y}rpx`,
+    left: `${node.x}px`,
+    top: `${node.y}px`,
   } as CSSProperties
   return (
     <View
@@ -364,7 +364,12 @@ export interface TalentGraphViewportProps {
   onNode: (node: TalentGraphNodeItem) => void
 }
 
-const graphViewportHeight = 628
+const graphViewportWidth = 350
+const graphViewportHeight = 314
+const graphInset = 20
+const readyNodeSize = 36
+const loadingNodeSize = 30
+const targetNodeSize = 30
 
 export function TalentGraphViewport({
   nodes,
@@ -378,23 +383,35 @@ export function TalentGraphViewport({
   onNode,
 }: TalentGraphViewportProps) {
   const loading = nodes.every((node) => node.loading)
+  const nodeSize = loading ? loadingNodeSize : readyNodeSize
   const minNodeX = nodes.length ? Math.min(...nodes.map((node) => node.x)) : 0
   const minNodeY = nodes.length ? Math.min(...nodes.map((node) => node.y)) : 0
-  const maxNodeX = nodes.length ? Math.max(...nodes.map((node) => node.x)) : planeWidth
-  const maxNodeY = nodes.length ? Math.max(...nodes.map((node) => node.y)) : planeHeight
+  const maxNodeX = nodes.length ? Math.max(...nodes.map((node) => node.x + nodeSize)) : planeWidth
+  const maxNodeY = nodes.length ? Math.max(...nodes.map((node) => node.y + nodeSize)) : planeHeight
   const nodeBoundsWidth = Math.max(1, maxNodeX - minNodeX)
   const nodeBoundsHeight = Math.max(1, maxNodeY - minNodeY)
-  const stageWidth = planeWidth
-  const stageHeight = planeHeight
+  const targetContentWidth = graphViewportWidth - graphInset * 2
+  const graphScale = Math.min(
+    1,
+    Math.max(targetNodeSize / nodeSize, targetContentWidth / nodeBoundsWidth),
+  )
+  const renderedBoundsWidth = nodeBoundsWidth * graphScale
+  const renderedBoundsHeight = nodeBoundsHeight * graphScale
+  const stageWidth = Math.max(graphViewportWidth, renderedBoundsWidth + graphInset * 2)
+  const stageHeight = Math.max(graphViewportHeight, renderedBoundsHeight + graphInset * 2)
+  const planeLeft = (stageWidth - renderedBoundsWidth) / 2 - minNodeX * graphScale
+  const planeTop = graphInset - minNodeY * graphScale
   const stageStyle = {
-    width: `${stageWidth}rpx`,
-    height: `${stageHeight}rpx`,
+    width: `${stageWidth}px`,
+    height: `${stageHeight}px`,
   } as CSSProperties
   const planeStyle = {
-    width: `${planeWidth}rpx`,
-    height: `${planeHeight}rpx`,
-    left: '0rpx',
-    top: '0rpx',
+    width: `${planeWidth}px`,
+    height: `${planeHeight}px`,
+    left: `${planeLeft}px`,
+    top: `${planeTop}px`,
+    transform: `scale(${graphScale})`,
+    transformOrigin: 'top left',
   } as CSSProperties
   return (
     <View
@@ -423,7 +440,7 @@ export function TalentGraphViewport({
         className={componentStyle('graphScroll')}
         scrollLeft={0}
         scrollTop={0}
-        scrollX={false}
+        scrollX={stageWidth > graphViewportWidth}
         scrollY={stageHeight > graphViewportHeight}
         showScrollbar={false}
       >
@@ -438,9 +455,9 @@ export function TalentGraphViewport({
                 data-edge-id={edge.id}
                 data-state={edge.state}
                 style={{
-                  left: `${edge.x}rpx`,
-                  top: `${edge.y}rpx`,
-                  width: `${edge.width}rpx`,
+                  left: `${edge.x}px`,
+                  top: `${edge.y}px`,
+                  width: `${edge.width}px`,
                   transform: `rotate(${edge.angle}deg)`,
                 }}
               />

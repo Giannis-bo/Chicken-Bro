@@ -380,7 +380,7 @@ export function NewsDetailTerminalPanel({
   actionLabel,
   onAction,
 }: NewsDetailTerminalPanelProps) {
-  const showAction = Boolean(actionLabel && onAction && mode === 'error')
+  const showAction = Boolean(actionLabel && onAction && ['error', 'blocked', 'missing'].includes(mode))
 
   return (
     <ForgedPanel

@@ -56,4 +56,37 @@ describe('local-first template repository', () => {
     expect(result.payload.templates).toHaveLength(1)
     expect(result.payload.templates[0]?.remote).toBe(false)
   })
+
+  it('fails closed on malformed remote list, mutation, and mismatched delete responses', async () => {
+    const validRemote = {
+      id: 'remote-1', clientId: 'local-1', type: 'talent', title: '远端天赋',
+      rawString: 'talents=CAE', simcLines: [], status: 'encoded', statusLabel: '已编码',
+      source: 'WebSim', metadata: {}, schemaVersion: 1,
+      createdAt: '2026-07-19T00:00:00Z', updatedAt: '2026-07-19T00:00:00Z', remote: true,
+    }
+    const payloads: unknown[] = [
+      { schemaVersion: 1, templates: [{ ...validRemote, rawString: '' }] },
+      { schemaVersion: 1, template: { ...validRemote, id: 7 }, templates: [validRemote] },
+      { id: 'different-id', deleted: true },
+    ]
+    const requestEndpoint = vi.fn(async <T>(
+      _endpointId: EndpointId,
+      _path: string,
+      options: Omit<RequestOptions<T>, 'method'>,
+    ): Promise<ApiResult<T>> => {
+      const payload = payloads.shift()
+      return options.validate?.(payload)
+        ? { payload: payload as T, fromFallback: false, error: '' }
+        : { payload: options.fallback(), fromFallback: true, error: 'invalid payload' }
+    })
+    const repository = new TemplateRepository(
+      { requestEndpoint } as unknown as ApiTransport,
+      new MemoryStorage(),
+      { now: () => 1000, random: () => 0.5 },
+    )
+
+    expect((await repository.fetch()).fromFallback).toBe(true)
+    expect((await repository.upsert({ type: 'talent', rawString: 'talents=CAE' })).fromFallback).toBe(true)
+    expect((await repository.delete('local-id')).fromFallback).toBe(true)
+  })
 })

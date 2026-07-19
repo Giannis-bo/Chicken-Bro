@@ -39,7 +39,7 @@ export default function NewsDetailPage() {
     () => articleId
       ? wowApi.news.article(articleId)
       : Promise.resolve({ payload: null, fromFallback: false, error: '' }),
-    { fallbackPolicy: articleId ? 'stale' : 'blocked', isEmpty: (value) => value === null },
+    { fallbackPolicy: 'blocked', isEmpty: (value) => value === null },
   )
 
   usePullDownRefresh(() => {

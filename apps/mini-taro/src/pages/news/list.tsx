@@ -50,7 +50,7 @@ export default function NewsListPage() {
   const [visibleCount, setVisibleCount] = useState(6)
   const route = useAsyncRoute(
     () => wowApi.news.list(query),
-    { fallbackPolicy: 'stale', isEmpty: (value) => value.articles.length === 0 },
+    { fallbackPolicy: 'blocked', isEmpty: (value) => value.articles.length === 0 },
   )
 
   usePullDownRefresh(() => {

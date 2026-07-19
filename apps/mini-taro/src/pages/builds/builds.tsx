@@ -36,7 +36,7 @@ export default function BuildsHomePage() {
   const route = useAsyncRoute(
     () => wowApi.builds.home(),
     {
-      fallbackPolicy: 'stale',
+      fallbackPolicy: 'blocked',
       isEmpty: (payload) => !payload.classOptions.some((classItem) => classItem.specializations.length > 0),
     },
   )

@@ -1887,6 +1887,454 @@ class NewsBackendTest(unittest.TestCase):
         self.assertIn(analysis["stages"][2]["status"], {"completed", "skipped"})
         self.assertEqual(analysis["stages"][2]["executor"], "llm")
 
+    def test_http_simc_options_exposes_only_backend_owned_supported_contract(self):
+        from server import simulator_payload
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), self.backend.Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with urlopen(
+                f"http://127.0.0.1:{server.server_port}/api/simulator/simc/options",
+                timeout=5,
+            ) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+        finally:
+            server.shutdown()
+            thread.join(timeout=2)
+            server.server_close()
+
+        self.assertEqual(response.status, 200)
+        self.assertEqual(payload["contractRevision"], "simc-options-v1")
+        self.assertEqual(payload["status"], "ready")
+        self.assertEqual(
+            payload["races"]["supportedKeys"],
+            sorted(simulator_payload.SIMC_PROFILE_RACE_KEYS),
+        )
+        self.assertEqual(payload["races"]["defaultKey"], "troll")
+        self.assertEqual(
+            payload["races"]["defaultByClass"],
+            simulator_payload.SIMC_AGENT_DEFAULT_RACE_BY_CLASS,
+        )
+        scenarios = {row["key"]: row for row in payload["scenarios"]}
+        self.assertEqual(
+            scenarios["mythic_plus"],
+            {
+                "key": "mythic_plus",
+                "label": self.backend.SIMCRAFT_TEMPLATE_SCENARIOS["mythic_plus"]["label"],
+                "fightStyle": "DungeonSlice",
+                "targets": 5,
+                "durationSeconds": 360,
+                "status": "supported",
+            },
+        )
+        preparation_rows = {
+            (row.get("classKey", ""), row["key"]): row
+            for row in payload["preparation"]["rows"]
+        }
+        self.assertTrue(preparation_rows[("", "optimal_raid")]["overrideSupported"])
+        self.assertTrue(preparation_rows[("mage", "arcane_intellect")]["overrideSupported"])
+        self.assertFalse(preparation_rows[("", "temporary_combat_buffs")]["overrideSupported"])
+        self.assertFalse(preparation_rows[("shaman", "enhancement_weapon_imbues")]["overrideSupported"])
+
+    def test_simcraft_template_canonical_context_uses_server_owned_snapshot_for_confirm_and_final_without_legacy_fallback(self):
+        expected_signature = "stat-snapshot:sha256:" + "a" * 64
+        server_owned_snapshot = {
+            "schemaRevision": "gear-stat-snapshot-v1",
+            "statStatus": "verified",
+            "statSource": "simulationcraft_json",
+            "statSignature": expected_signature,
+            "classKey": "mage",
+            "specKey": "arcane",
+            "primary": {"key": "intellect", "label": "智力", "value": "2,624"},
+            "secondary": [{"key": "crit", "label": "暴击", "value": "8,100", "percent": "25%"}],
+            "blockers": [],
+        }
+        client_tampered_snapshot = {
+            **server_owned_snapshot,
+            "primary": {"key": "intellect", "label": "智力", "value": "999,999"},
+            "secondary": [{"key": "crit", "label": "暴击", "value": "999,999", "percent": "99%"}],
+        }
+        payload = self.simc_template_payload(talent_raw="legacy-talent-must-not-be-read", gear_raw="legacy-gear-must-not-be-read")
+        payload.update(
+            {
+                "selectionIntent": {
+                    "schemaRevision": "selection-intent-v1",
+                    "eligibilityContext": {"classKey": "mage", "specKey": "arcane", "level": 90},
+                },
+                "profileContext": {
+                    "race": "human",
+                    "scenarioKey": "single",
+                    "talents": "CAE_CANONICAL",
+                },
+                "statSnapshot": client_tampered_snapshot,
+            }
+        )
+        simc_items = list(self.simc_template_structured_gear_snapshot()["gearBySlot"].values())
+        canonical_profile = "\n".join(
+            [
+                'mage="CanonicalResolver"',
+                "spec=arcane",
+                "level=90",
+                "race=human",
+                "role=spell",
+                "position=back",
+                "talents=CAE_CANONICAL",
+                *self.simc_template_full_gear_raw().splitlines(),
+                "# canonical-resolver-profile",
+                "optimal_raid=0",
+                "override.arcane_intellect=1",
+                "iterations=1000",
+                "fight_style=Patchwerk",
+                "desired_targets=1",
+                "max_time=300",
+                "vary_combat_length=0.2",
+                "calculate_scale_factors=0",
+            ]
+        )
+        authority_snapshot = {
+            "contractRevision": "gear-resolved-snapshot-v1",
+            "status": "verified",
+            "resolvedGearSignature": "sha256:" + "b" * 64,
+        }
+        release_context = {
+            "manifestRevision": "season-manifest:r17",
+            "pointerGeneration": 9,
+            "gearCatalogRevision": "gear-release:r17",
+        }
+        calls = []
+
+        class FakeSnapshotStore:
+            def __init__(self):
+                self.calls = []
+
+            def lookup_snapshot(self, signature, *, record_request=False):
+                self.calls.append((signature, record_request))
+                return {
+                    "statSignature": signature,
+                    "snapshot": server_owned_snapshot,
+                }
+
+        snapshot_store = FakeSnapshotStore()
+
+        def fake_serializer(_snapshot, source_context=None, execution_flavor="standard_profile"):
+            return {
+                "status": "resolved",
+                "profile": canonical_profile,
+                "simcItems": simc_items,
+                "talentEncoding": {"status": "external", "lines": ["talents=CAE_CANONICAL"]},
+                "profileReadiness": {"status": "verified", "simcReady": True},
+                "resolvedGearSignature": authority_snapshot["resolvedGearSignature"],
+                "preparation": {"schemaRevision": "simc-preparation-v1"},
+                "sourceContext": source_context or {},
+                "executionFlavor": execution_flavor,
+                "problems": [],
+            }
+
+        def fake_profile(source, *, store, simc_runtime_revision, request_id, profile_builder):
+            calls.append({"source": source, "store": store, "runtime": simc_runtime_revision})
+            profile = profile_builder(authority_snapshot, source_context=source["profileContext"])
+            return 200, {
+                "contractRevision": "gear-result-envelope-v1",
+                "requestId": request_id,
+                "status": "resolved",
+                "releaseContext": release_context,
+                "data": profile,
+                "problems": [],
+            }
+
+        with patch.object(self.backend, "cache_data_store", return_value=object()), patch.object(
+            self.backend,
+            "current_gear_simc_runtime_revision",
+            return_value="simc-runtime-v1",
+        ), patch.object(
+            self.backend,
+            "build_profile_from_selection_intent",
+            side_effect=fake_profile,
+        ), patch.object(
+            self.backend,
+            "build_websim_profile_response_from_resolved_snapshot",
+            side_effect=fake_serializer,
+        ), patch.object(
+            self.backend,
+            "build_stat_signature",
+            return_value={"statSignature": expected_signature},
+        ), patch.object(
+            self.backend,
+            "gear_stat_snapshot_data_store",
+            return_value=snapshot_store,
+        ), patch.object(
+            self.backend,
+            "simcraft_template_talent_context",
+            side_effect=AssertionError("canonical context must not parse legacy talent rawString"),
+        ), patch.object(
+            self.backend,
+            "parse_simcraft_template_gear_raw",
+            side_effect=AssertionError("canonical context must not parse legacy gear rawString/gearSnapshot"),
+        ), patch.dict(os.environ, {"WOW_SIMC_TEMPLATE_TASK_AUTORUN": "0"}):
+            for confirm_only in (True, False):
+                with self.subTest(confirmOnly=confirm_only):
+                    payload["confirmOnly"] = confirm_only
+                    payload["saveTask"] = not confirm_only
+                    prepared = self.backend.prepare_simcraft_template_request(payload)
+                    self.assertTrue(prepared["templateValidation"]["passed"])
+                    self.assertEqual(prepared["inputContract"], "canonical_selection_intent_v1")
+                    self.assertEqual(prepared["canonicalProfile"], canonical_profile)
+                    self.assertEqual(prepared["gearSelection"]["items"], simc_items)
+                    self.assertEqual(prepared["statSnapshot"], server_owned_snapshot)
+                    self.assertEqual(
+                        prepared["templateContext"]["gear"]["metadata"]["statSnapshot"],
+                        server_owned_snapshot,
+                    )
+
+            payload["confirmOnly"] = True
+            payload["saveTask"] = False
+            analysis = self.backend.analyze_and_store_simulator_task(payload)
+
+            payload["confirmOnly"] = False
+            payload["saveTask"] = True
+            payload["guestId"] = "canonical-stat-authority-device"
+            queued = self.backend.analyze_and_store_simulator_task(payload)
+
+        self.assertEqual(len(calls), 4)
+        self.assertEqual(snapshot_store.calls, [(expected_signature, False)] * 4)
+        self.assertEqual(analysis["agent"]["status"], "template_ready")
+        self.assertEqual(analysis["simcReport"]["build"]["statSnapshot"]["primary"]["value"], "2,624")
+        self.assertEqual(queued["status"], "queued")
+        self.assertEqual(queued["simcReport"]["build"]["statSnapshot"]["primary"]["value"], "2,624")
+        self.assertIn("# canonical-resolver-profile", analysis["agent"]["draftProfile"])
+        self.assertIn("talents=CAE_CANONICAL", analysis["agent"]["draftProfile"])
+        self.assertNotIn("legacy-talent-must-not-be-read", analysis["agent"]["draftProfile"])
+
+    def test_simcraft_template_canonical_stat_snapshot_must_match_server_resolved_signature(self):
+        payload = self.simc_template_payload(
+            talent_raw="legacy-talent-must-not-be-read",
+            gear_raw="legacy-gear-must-not-be-read",
+        )
+        payload.update(
+            {
+                "selectionIntent": {
+                    "schemaRevision": "selection-intent-v1",
+                    "eligibilityContext": {"classKey": "mage", "specKey": "arcane", "level": 90},
+                },
+                "profileContext": {
+                    "race": "human",
+                    "scenarioKey": "single",
+                    "talents": "CAE_CANONICAL",
+                },
+            }
+        )
+        expected_signature = "stat-snapshot:sha256:" + "a" * 64
+        authority_snapshot = {
+            "contractRevision": "gear-resolved-snapshot-v1",
+            "status": "verified",
+            "resolvedGearSignature": "sha256:" + "b" * 64,
+            "dependencyVector": {
+                "seasonRevision": "season-r17",
+                "gearRuleRevision": "rules-v1",
+                "resolverContractRevision": "resolver-v1",
+                "serializerRevision": "websim-profile-compat-v1",
+                "simcRuntimeRevision": "simc-runtime-v1",
+                "statPolicyRevision": "stats-v1",
+                "selectionSchemaRevision": "selection-intent-v1",
+            },
+        }
+        release_context = {
+            "manifestRevision": "season-manifest:r17",
+            "pointerGeneration": 9,
+            "gearCatalogRevision": "gear-release:r17",
+        }
+        canonical_profile = "mage=canonical\nspec=arcane\ntalents=CAE_CANONICAL\nhead=id=1"
+        stat_profile = canonical_profile + "\niterations=1\ncalculate_scale_factors=0"
+        simc_items = [{"slot": "head", "itemId": "1", "simcOptions": {}}]
+
+        def fake_serializer(_snapshot, source_context=None, execution_flavor="standard_profile"):
+            return {
+                "status": "resolved",
+                "profile": stat_profile if execution_flavor == "stat_snapshot_v1" else canonical_profile,
+                "simcItems": simc_items,
+                "talentEncoding": {"status": "external", "lines": ["talents=CAE_CANONICAL"]},
+                "profileReadiness": {"status": "verified", "simcReady": True},
+                "resolvedGearSignature": authority_snapshot["resolvedGearSignature"],
+                "preparation": {"schemaRevision": "simc-preparation-v1"},
+                "sourceContext": source_context or {},
+                "problems": [],
+            }
+
+        def fake_profile(source, *, store, simc_runtime_revision, request_id, profile_builder):
+            del store, simc_runtime_revision
+            profile = profile_builder(authority_snapshot, source_context=source["profileContext"])
+            return 200, {
+                "contractRevision": "gear-result-envelope-v1",
+                "requestId": request_id,
+                "status": "resolved",
+                "releaseContext": release_context,
+                "data": profile,
+                "problems": [],
+            }
+
+        cases = (
+            ("missing", None, "SIMC_CANONICAL_STAT_SNAPSHOT_INVALID"),
+            (
+                "forged",
+                {
+                    "schemaRevision": "gear-stat-snapshot-v1",
+                    "statStatus": "verified",
+                    "statSignature": "stat-snapshot:sha256:" + "c" * 64,
+                },
+                "SIMC_CANONICAL_STAT_SIGNATURE_MISMATCH",
+            ),
+            (
+                "another-config",
+                {
+                    "schemaRevision": "gear-stat-snapshot-v1",
+                    "statStatus": "verified",
+                    "statSignature": "stat-snapshot:sha256:" + "d" * 64,
+                },
+                "SIMC_CANONICAL_STAT_SIGNATURE_MISMATCH",
+            ),
+            (
+                "malformed-signature",
+                {
+                    "schemaRevision": "gear-stat-snapshot-v1",
+                    "statStatus": "verified",
+                    "statSignature": "stat-snapshot:sha256:not-a-digest",
+                },
+                "SIMC_CANONICAL_STAT_SNAPSHOT_INVALID",
+            ),
+        )
+
+        with patch.object(self.backend, "cache_data_store", return_value=object()), patch.object(
+            self.backend,
+            "current_gear_simc_runtime_revision",
+            return_value="simc-runtime-v1",
+        ), patch.object(
+            self.backend,
+            "build_profile_from_selection_intent",
+            side_effect=fake_profile,
+        ), patch.object(
+            self.backend,
+            "build_websim_profile_response_from_resolved_snapshot",
+            side_effect=fake_serializer,
+        ), patch.object(
+            self.backend,
+            "build_stat_signature",
+            return_value={"statSignature": expected_signature},
+            create=True,
+        ) as signature_builder, patch.object(
+            self.backend,
+            "simcraft_template_talent_context",
+            side_effect=AssertionError("canonical context must not parse legacy talent rawString"),
+        ), patch.object(
+            self.backend,
+            "parse_simcraft_template_gear_raw",
+            side_effect=AssertionError("canonical context must not parse legacy gear rawString/gearSnapshot"),
+        ):
+            for confirm_only in (True, False):
+                for label, snapshot, expected_code in cases:
+                    with self.subTest(confirmOnly=confirm_only, case=label):
+                        payload["confirmOnly"] = confirm_only
+                        payload["saveTask"] = not confirm_only
+                        if snapshot is None:
+                            payload.pop("statSnapshot", None)
+                        else:
+                            payload["statSnapshot"] = snapshot
+                        prepared = self.backend.prepare_simcraft_template_request(payload)
+                        self.assertFalse(prepared["templateValidation"]["passed"])
+                        self.assertIn(
+                            expected_code,
+                            [problem["code"] for problem in prepared["templateValidation"]["problems"]],
+                        )
+
+        self.assertEqual(signature_builder.call_count, len(cases) * 2)
+        for call in signature_builder.call_args_list:
+            self.assertEqual(call.args, (authority_snapshot, stat_profile, release_context))
+
+    def test_simcraft_template_partial_or_blocked_canonical_context_never_falls_back_to_legacy_templates(self):
+        partial = self.simc_template_payload(talent_raw="talents=CAE_LEGACY", gear_raw=self.simc_template_full_gear_raw())
+        partial["selectionIntent"] = {"schemaRevision": "selection-intent-v1"}
+
+        with patch.object(
+            self.backend,
+            "build_profile_from_selection_intent",
+            side_effect=AssertionError("incomplete canonical context must fail before resolver"),
+        ), patch.object(
+            self.backend,
+            "simcraft_template_talent_context",
+            side_effect=AssertionError("incomplete canonical context must not use legacy talent"),
+        ), patch.object(
+            self.backend,
+            "parse_simcraft_template_gear_raw",
+            side_effect=AssertionError("incomplete canonical context must not use legacy gear"),
+        ):
+            analysis = self.backend.analyze_and_store_simulator_task(partial)
+
+        self.assertEqual(analysis["agent"]["status"], "template_blocked")
+        self.assertIn(
+            "SIMC_CANONICAL_PROFILE_CONTEXT_REQUIRED",
+            [problem["code"] for problem in analysis["agent"]["validation"]["problems"]],
+        )
+
+    def test_simcraft_template_canonical_resolver_problem_is_structured_and_fail_closed(self):
+        payload = self.simc_template_payload(talent_raw="talents=CAE_LEGACY", gear_raw=self.simc_template_full_gear_raw())
+        payload.update(
+            {
+                "selectionIntent": {"schemaRevision": "selection-intent-v1"},
+                "profileContext": {"race": "human", "scenarioKey": "single", "talents": "CAE_CANONICAL"},
+            }
+        )
+        problem = {
+            "kind": "REVISION_CONFLICT",
+            "code": "GEAR_RELEASE_REVISION_MISMATCH",
+            "title": "Gear release revision mismatch.",
+            "detail": "",
+            "path": "selectionIntent.authoredAgainst",
+            "retryable": False,
+            "meta": {},
+        }
+        with patch.object(self.backend, "cache_data_store", return_value=object()), patch.object(
+            self.backend,
+            "current_gear_simc_runtime_revision",
+            return_value="simc-runtime-v1",
+        ), patch.object(
+            self.backend,
+            "build_profile_from_selection_intent",
+            return_value=(409, {
+                "contractRevision": "gear-result-envelope-v1",
+                "status": "blocked",
+                "releaseContext": {},
+                "data": {},
+                "problems": [problem],
+            }),
+        ), patch.object(
+            self.backend,
+            "simcraft_template_talent_context",
+            side_effect=AssertionError("blocked canonical resolver must not use legacy talent"),
+        ), patch.object(
+            self.backend,
+            "parse_simcraft_template_gear_raw",
+            side_effect=AssertionError("blocked canonical resolver must not use legacy gear"),
+        ):
+            analysis = self.backend.analyze_and_store_simulator_task(payload)
+
+        self.assertEqual(analysis["agent"]["status"], "template_blocked")
+        self.assertEqual(analysis["agent"]["validation"]["problems"], [problem])
+        self.assertIn("Gear release revision mismatch.", analysis["simulation"]["error"])
+
+    def test_public_simcraft_template_request_strips_canonical_raw_profile(self):
+        public = self.backend.public_simcraft_template_request(
+            {
+                "mode": "simcraft_template",
+                "profile": "legacy raw profile",
+                "canonicalProfile": "canonical raw profile",
+                "inputContract": "canonical_selection_intent_v1",
+            }
+        )
+
+        self.assertNotIn("profile", public)
+        self.assertNotIn("canonicalProfile", public)
+        self.assertEqual(public["inputContract"], "canonical_selection_intent_v1")
+
     def test_simcraft_template_confirm_encodes_websim_talent_and_parses_complete_gear_without_llm(self):
         self.seed_simc_template_websim_nodes()
         simc_bin = Path(self.tmp.name) / "fake-simc-template-confirm"

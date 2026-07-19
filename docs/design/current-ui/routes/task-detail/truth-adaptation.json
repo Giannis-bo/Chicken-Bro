@@ -27,11 +27,19 @@
       "taskFields": ["taskId", "mode", "status", "question", "recommendations", "request", "analysis", "createdAt", "updatedAt"],
       "simcTemplateSanitization": ["raw profile removed", "guestId removed", "LLM/Codex internals removed", "allowedNumbers removed", "agent draftProfile removed"],
       "structuredSimcReport": ["state", "title", "summary", "statusText", "profileSource", "scenario", "preparation", "build", "result", "timing", "messages"]
+    },
+    "latestCloudProbe": {
+      "probedAt": "2026-07-19T14:19:00+08:00",
+      "via": "http://124.223.51.33/api/simulator/task?id=missing-audit&guest=1&guestId=audit-taro-full-20260719-final",
+      "httpStatus": 401,
+      "response": {"error": "unauthorized"},
+      "meaning": "The newly generated guest owner has no task identity, so the route must keep all detail regions blocked and neutral."
     }
   },
   "trustRules": [
     "The target's SimC 副本模拟任务 title, 运行中 status, 待开始/待处理 values, 智能分析 source, pending result, progress state, dash attributes, pending buffs and failure placeholder are visual examples and never runtime facts.",
     "Only a task returned by simulator.task for the current authenticated user or exact simulator.guestId may populate any region. Missing id, 401, 404 or transport fallback keeps all ten regions neutral and never reuses another owner's task.",
+    "The detail typed API uses the same complete task-record validator as the list and rejects malformed request, analysis, recommendations or report fields before the view can evaluate formal-result gates.",
     "Task title prefers a returned structured SimC report title, then a bounded returned question, then a deterministic mode label. It never infers a class, specialization, scenario, source or result.",
     "Status, timestamps and progress are deterministic mappings of returned task.status and report timing. Missing or invalid timestamps display 未返回 rather than target placeholders.",
     "DPS is visible only when a returned structured SimC report says result.ran=true and result.hasDps=true and supplies dpsDisplay. Preview, generated-profile, queued, running, failed, generic and missing-report tasks cannot display a DPS claim.",

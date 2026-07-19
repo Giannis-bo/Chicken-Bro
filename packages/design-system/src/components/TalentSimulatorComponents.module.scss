@@ -446,87 +446,84 @@
 .graphEdge {
   position: absolute;
   z-index: 1;
-  height: 5rpx;
-  border-radius: 999rpx;
+  height: 1px;
   transform-origin: 0 50%;
-  background: rgba(150, 150, 150, 0.48);
+  background: #45494d;
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.72);
   pointer-events: none;
 }
 
 .graphEdge[data-arrow='end']::after {
   content: '';
   position: absolute;
-  right: -2rpx;
+  right: -1px;
   top: 50%;
   width: 0;
   height: 0;
-  border-top: 8rpx solid transparent;
-  border-bottom: 8rpx solid transparent;
-  border-left: 12rpx solid rgba(150, 150, 150, 0.62);
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  border-left: 6px solid #45494d;
   transform: translateY(-50%);
 }
 
 .graphEdge[data-state='selected'],
 .graphEdge-selected {
-  background: #f8b700;
-  box-shadow: 0 0 10rpx rgba(248, 183, 0, 0.28);
+  background: #d09d43;
+  box-shadow: 0 0 3px rgba(217, 166, 70, 0.48);
 }
-.graphEdge[data-state='selected'][data-arrow='end']::after { border-left-color: #f8b700; }
+.graphEdge[data-state='selected'][data-arrow='end']::after { border-left-color: #d09d43; }
 
 .graphEdge[data-state='available'],
-.graphEdge-available {
-  background: #5b9ad0;
-  box-shadow: 0 0 8rpx rgba(91, 154, 208, 0.2);
-}
-.graphEdge[data-state='available'][data-arrow='end']::after { border-left-color: #5b9ad0; }
+.graphEdge-available { background: #607f9f; }
+.graphEdge[data-state='available'][data-arrow='end']::after { border-left-color: #607f9f; }
 .graphEdge[data-state='loading'],
 .graphEdge-loading { opacity: 0.45; }
 
 .graphNode {
   position: absolute;
   z-index: 2;
-  width: 64rpx;
-  min-width: 64rpx;
-  height: 64rpx;
-  min-height: 64rpx;
-  box-sizing: border-box;
-  margin-top: -32rpx;
-  margin-left: -32rpx;
-  padding: 0;
+  display: grid;
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  min-height: 36px;
+  place-items: center;
+  margin: 0;
+  padding: 2px;
   overflow: visible;
-  border: 5rpx solid rgba(255, 255, 255, 0.16);
+  border: 2px solid #5d6268;
   border-radius: 50%;
-  color: #b7ac99;
-  background: #1a1a1a;
-  box-shadow: 0 10rpx 22rpx rgba(0, 0, 0, 0.42);
+  color: #8d949a;
+  background: radial-gradient(circle, #252a30, #0c0f13 70%);
+  box-shadow: inset 0 0 0 2px #050608, 0 2px 6px rgba(0, 0, 0, 0.7);
 }
 
-.graphNode[data-shape='square'] { border-radius: 14rpx; }
-.graphNode[data-shape='apex'] { border-radius: 14rpx; }
+.graphNode[data-shape='square'] { border-radius: 8px; }
+.graphNode[data-shape='apex'] { border-radius: 8px; }
 .graphNode[data-shape='choice'],
 .graphNodeChoice {
   border: 0;
   border-radius: 0;
+  padding: 0;
   background: transparent;
 }
 .graphNode[data-state='selected'],
 .graphNode-selected {
-  border-color: #f8b700;
-  box-shadow: 0 0 0 5rpx rgba(248, 183, 0, 0.12), 0 12rpx 26rpx rgba(0, 0, 0, 0.5);
+  border-color: #d5a648;
+  box-shadow: inset 0 0 0 2px #161005, 0 0 8px rgba(226, 176, 73, 0.58);
 }
 .graphNode[data-state='available'],
 .graphNode-available {
   border-color: #5b9ad0;
-  box-shadow: 0 0 0 5rpx rgba(91, 154, 208, 0.14), 0 12rpx 24rpx rgba(0, 0, 0, 0.48);
+  box-shadow: inset 0 0 0 2px #07121c, 0 0 7px rgba(81, 154, 213, 0.46);
 }
 .graphNode[data-state='unselected'],
-.graphNode-unselected { border-color: rgba(255, 255, 255, 0.16); }
+.graphNode-unselected { border-color: #777a7c; }
 .graphNode[data-state='blocked'],
-.graphNode-blocked { opacity: 0.44; filter: grayscale(1); }
+.graphNode-blocked { opacity: 0.68; filter: grayscale(0.72); }
 .graphNode[data-granted='true'],
 .graphNodeGranted {
-  border-color: #f8b700;
-  box-shadow: 0 0 0 5rpx rgba(248, 183, 0, 0.12), 0 12rpx 26rpx rgba(0, 0, 0, 0.5);
+  border-style: double;
 }
 
 .graphNode[data-shape='choice'][data-state] {
@@ -536,21 +533,21 @@
 .choiceFrame {
   position: absolute;
   z-index: 1;
-  left: -3rpx;
-  top: -3rpx;
-  width: 70rpx;
-  height: 70rpx;
+  left: -2px;
+  top: -2px;
+  width: 40px;
+  height: 40px;
   background: rgba(150, 150, 150, 0.72);
   pointer-events: none;
   -webkit-clip-path: polygon(20% 0, 80% 0, 100% 20%, 100% 80%, 80% 100%, 20% 100%, 0 80%, 0 20%);
   clip-path: polygon(20% 0, 80% 0, 100% 20%, 100% 80%, 80% 100%, 20% 100%, 0 80%, 0 20%);
-  filter: drop-shadow(0 4rpx 5rpx rgba(0, 0, 0, 0.78));
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.78));
 }
 
 .choiceFrame::after {
   content: '';
   position: absolute;
-  inset: 5rpx;
+  inset: 3px;
   background: #1a1a1a;
   -webkit-clip-path: polygon(20% 0, 80% 0, 100% 20%, 100% 80%, 80% 100%, 20% 100%, 0 80%, 0 20%);
   clip-path: polygon(20% 0, 80% 0, 100% 20%, 100% 80%, 80% 100%, 20% 100%, 0 80%, 0 20%);
@@ -566,22 +563,22 @@
   top: 50%;
   width: 0;
   height: 0;
-  border-top: 13rpx solid transparent;
-  border-bottom: 13rpx solid transparent;
+  border-top: 7px solid transparent;
+  border-bottom: 7px solid transparent;
   transform: translateY(-50%);
-  filter: drop-shadow(0 3rpx 4rpx rgba(0, 0, 0, 0.7));
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.7));
 }
 
 .graphNode[data-shape='choice']::before,
 .graphNodeChoice::before {
-  left: -13rpx;
-  border-right: 10rpx solid rgba(150, 150, 150, 0.72);
+  left: -7px;
+  border-right: 7px solid rgba(150, 150, 150, 0.72);
 }
 
 .graphNode[data-shape='choice']::after,
 .graphNodeChoice::after {
-  right: -13rpx;
-  border-left: 10rpx solid rgba(150, 150, 150, 0.72);
+  right: -7px;
+  border-left: 7px solid rgba(150, 150, 150, 0.72);
 }
 
 .graphNode[data-shape='choice'][data-state='selected'] .choiceFrame { background: #f8b700; }
@@ -593,36 +590,32 @@
 
 .graphOwner[data-loading='true'] .graphNode,
 .graphOwnerLoading .graphNode {
-  width: 54rpx;
-  min-width: 54rpx;
-  height: 54rpx;
-  min-height: 54rpx;
-  margin-top: -27rpx;
-  margin-left: -27rpx;
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  min-height: 30px;
 }
 
 .nodeMedia {
-  position: relative;
-  z-index: 2;
-  width: 100%;
-  height: 100%;
-  border-radius: inherit;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
 }
 
 .graphOwner[data-loading='true'] .nodeMedia,
 .nodeMediaLoading {
-  width: 100%;
-  height: 100%;
+  width: 22px;
+  height: 22px;
 }
 
 .graphNode[data-shape='choice'] .nodeMedia,
 .graphNodeChoice .nodeMedia {
   position: absolute;
   z-index: 2;
-  left: 6rpx;
-  top: 6rpx;
-  width: 52rpx;
-  height: 52rpx;
+  left: 3px;
+  top: 3px;
+  width: 30px;
+  height: 30px;
   border-radius: 0;
   -webkit-clip-path: polygon(18% 0, 82% 0, 100% 18%, 100% 82%, 82% 100%, 18% 100%, 0 82%, 0 18%);
   clip-path: polygon(18% 0, 82% 0, 100% 18%, 100% 82%, 82% 100%, 18% 100%, 0 82%, 0 18%);
@@ -639,19 +632,19 @@
 .nodeRank {
   position: absolute;
   z-index: 5;
-  right: -8rpx;
-  bottom: -8rpx;
-  min-width: 42rpx;
-  height: 28rpx;
-  padding: 0 6rpx;
-  border: 1rpx solid rgba(0, 0, 0, 0.5);
-  border-radius: 999rpx;
-  color: #ffffff;
-  background: #050505;
-  font-size: 17rpx;
-  font-weight: 900;
-  line-height: 28rpx;
+  right: 50%;
+  bottom: -9px;
+  min-width: 24px;
+  padding: 0 2px;
+  border: 1px solid rgba(104, 89, 64, 0.76);
+  border-radius: 7px;
+  color: #d6c7ab;
+  background: #080a0c;
+  font-size: 8px;
+  font-weight: 720;
+  line-height: 11px;
   text-align: center;
+  transform: translateX(50%);
 }
 
 .nodeSkeleton {
