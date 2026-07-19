@@ -458,7 +458,7 @@ Expected: Harness parses the evidence packet and preserves the manual acceptance
 - Consumes: final PR head, passing local checks/CI, explicit user acceptance on the new candidate
 - Produces: merged PR #91, synchronized `main`, truthful evidence, and cleanup of this task's worktree/branch
 
-- [ ] **Step 1: Push the reconciled PR branch and verify GitHub CI**
+- [x] **Step 1: Push the reconciled PR branch and verify GitHub CI**
 
 ```powershell
 git push origin codex/cdn-api-publishing
@@ -467,7 +467,7 @@ gh pr checks 91 --repo boyuan19910222-ui/wow_mini_program --watch
 
 Expected: the remote branch advances without force and the latest Project Harness check passes.
 
-- [ ] **Step 2: Run one final candidate window when runtime files remain**
+- [x] **Step 2: Run one final candidate window when runtime files remain**
 
 Deploy only the final PR head through the existing candidate path, keep `WOW_DEPLOY_START_ASYNC_SYNCS=0`, record branch/commit, runtime file parity, `/health`, `/api/data/health`, affected API smoke, service/timer/log state, backup, and rollback. If the final diff is frontend-only, use the production weapp candidate and skip backend hot deploy.
 

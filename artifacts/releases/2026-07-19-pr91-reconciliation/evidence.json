@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "slug": "pr91-reconciliation",
   "requirementSlug": "pr91-reconciliation",
-  "status": "local_verified",
-  "highestEvidenceLevel": "local_verified",
+  "status": "deployable_pending_fresh_manual_acceptance",
+  "highestEvidenceLevel": "deployable",
   "branch": "codex/cdn-api-publishing",
   "commit": "afe5e9b24d5616e8e1953f2b529b026c6c12d56f",
   "scope": [
@@ -62,11 +62,26 @@
       "command": "git diff --check origin/main...HEAD",
       "status": "pass",
       "summary": "The reconciled whole-branch diff has no whitespace errors."
+    },
+    {
+      "command": "gh pr checks 91 --repo boyuan19910222-ui/wow_mini_program --watch",
+      "status": "pass",
+      "summary": "The Project Harness verify job passed for PR head 0696a1a446f99a8e5f258dc5c3816bf33f7cee72 in 3m28s."
     }
   ],
   "candidateDeployment": {
-    "status": "pending",
-    "reason": "Three runtime files remain changed and require one final candidate deployment with file parity, service, health, API, log, backup, and rollback evidence before manual acceptance."
+    "status": "pass",
+    "candidateId": "pr91-0696a1a-20260719-194856",
+    "deployedAt": "2026-07-19T19:48:56+08:00",
+    "remoteRoot": "/opt/wow-mini-program",
+    "backup": "/opt/wow-mini-program/.candidate-backups/pr91-0696a1a-20260719-194856",
+    "asyncSyncsStarted": false,
+    "service": "wow-backend active with no error journal entries in the candidate window",
+    "timer": "wow-data-health-followup.timer active and enabled",
+    "failedUnits": 0,
+    "dataHealthStatus": "partial",
+    "dataHealthBoundary": "The existing public data-health surface remains partial and is not promoted to verified by this candidate smoke.",
+    "rollback": "Restore the three files from the recorded backup with their preserved modes and restart wow-backend."
   },
   "candidate": {
     "branch": "codex/cdn-api-publishing",
@@ -75,12 +90,26 @@
     "productionBackendOrigin": "https://api.chickenbro.cloud",
     "productionAssetRuntimeRoot": "https://api.chickenbro.cloud/wow-assets/releases/2026-07-19-taro-full-integration",
     "runtimeMediaRoot": "not_configured",
+    "candidateId": "pr91-0696a1a-20260719-194856",
+    "candidateHead": "0696a1a446f99a8e5f258dc5c3816bf33f7cee72",
     "runtimeFiles": [
-      "server/builds/home-payload.js",
-      "server/news_backend.py",
-      "server/websim_payload.py"
+      {
+        "path": "server/builds/home-payload.js",
+        "sha256": "f714bff9155378c90b37f744513be4eaaea7eab72043d72423709b37f488a871",
+        "mode": "0644"
+      },
+      {
+        "path": "server/news_backend.py",
+        "sha256": "0a0b9b09578c39e894bcfb0e878f743e543883c6922f68b3743b6b8c94a7128d",
+        "mode": "0755"
+      },
+      {
+        "path": "server/websim_payload.py",
+        "sha256": "91dd9555517736913de9ebfad3179b1580b252b28d56a91083ba54e0ab9d9148",
+        "mode": "0755"
+      }
     ],
-    "deploymentStatus": "pending"
+    "deploymentStatus": "pass"
   },
   "runtimeEvidence": [
     {
@@ -90,10 +119,25 @@
       "totalBytes": 1649136,
       "vectorPngCount": 67,
       "releaseReady": true
+    },
+    {
+      "surface": "production_backend_candidate",
+      "status": "candidate_verified",
+      "candidateId": "pr91-0696a1a-20260719-194856",
+      "health": "pass",
+      "dataHealth": "partial_existing_truth_boundary",
+      "devourerIcon": "classicon_demonhunter_void",
+      "gearPayloadMode": "initial",
+      "gearInitialCandidateLimit": 4,
+      "replacementMaxItems": 0,
+      "catalogItemsCount": 0,
+      "candidateItemsCount": 0,
+      "slotGroupsPresent": false,
+      "gearPayloadBytes": 45634
     }
   ],
   "manualAcceptance": {
-    "status": "pending_fresh_post_candidate_evidence",
+    "status": "pending_fresh_real_wechat_acceptance",
     "routes": [
       {
         "path": "pages/news/news",
@@ -128,8 +172,8 @@
   "risks": [
     {
       "id": "candidate_runtime_not_yet_verified",
-      "status": "pending",
-      "detail": "Runtime file parity, service state, health/API smoke, logs, backup, and rollback are not yet recorded for the final PR head."
+      "status": "resolved",
+      "detail": "Runtime file parity, service/timer state, health/API smoke, error logs, backup, and rollback passed for candidate pr91-0696a1a-20260719-194856."
     },
     {
       "id": "fresh_manual_acceptance_not_yet_recorded",
@@ -169,5 +213,5 @@
     "artifacts/releases/2026-07-19-pr91-reconciliation/implementation-plan.md",
     "artifacts/releases/2026-07-19-pr91-reconciliation/commit-disposition.json"
   ],
-  "summary": "PR #91 is reconciled onto current main without history rewrite and is locally verified at afe5e9b. The unpublished alternate media root is not activated. Candidate deployment and fresh two-route real-WeChat acceptance remain mandatory before merge."
+  "summary": "PR #91 is reconciled onto current main without history rewrite, passes the full local profile and GitHub CI, and has a verified candidate deployment at runtime commit afe5e9b. The unpublished alternate media root is not activated. Fresh two-route real-WeChat acceptance remains mandatory before merge."
 }
