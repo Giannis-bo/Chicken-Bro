@@ -20,7 +20,7 @@
 
 .shell::before {
   position: absolute;
-  z-index: 0;
+  z-index: var(--z-sticky);
   top: 0;
   right: 0;
   left: 0;
@@ -42,6 +42,8 @@
   min-height: 100vh;
   overflow-x: hidden;
   overflow-y: auto;
+  /* AppShell owns the native top inset. Keeping it outside PageFrame means
+   * both root and pushed headers start on the same capsule-aligned rail. */
   padding-top: var(--safe-top);
   padding-bottom: calc(var(--safe-bottom) + var(--space-12));
   overscroll-behavior-y: contain;
@@ -96,17 +98,19 @@
 }
 
 @media (min-width: 480PX) {
-  :global(#app) .shell {
-    width: 390PX;
+  .shell {
+    width: 100%;
+    max-width: 390PX;
     margin-right: auto;
     margin-left: auto;
   }
 
-  :global(#app) .shellDock,
-  :global(#app) .inputDock {
+  .shellDock,
+  .inputDock {
     right: auto;
     left: 50%;
-    width: 390PX;
+    width: 100%;
+    max-width: 390PX;
     transform: translateX(-50%);
   }
 }
@@ -130,7 +134,7 @@
   box-sizing: border-box;
   margin-right: auto;
   margin-left: auto;
-  overflow: hidden;
+  overflow: visible;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -381,15 +385,8 @@
   width: 18px;
   height: 18px;
   flex: 0 0 auto;
-  background: currentColor;
-  mask-image: var(--system-glyph-url);
-  mask-position: center;
-  mask-repeat: no-repeat;
-  mask-size: contain;
-  -webkit-mask-image: var(--system-glyph-url);
-  -webkit-mask-position: center;
-  -webkit-mask-repeat: no-repeat;
-  -webkit-mask-size: contain;
+  background: transparent;
+  object-fit: contain;
 }
 
 .systemGlyph[data-asset-missing='true'] {
@@ -520,15 +517,8 @@
   width: 18px;
   height: 18px;
   flex: 0 0 auto;
-  background: currentColor;
-  mask-image: var(--icon-url);
-  mask-position: center;
-  mask-repeat: no-repeat;
-  mask-size: contain;
-  -webkit-mask-image: var(--icon-url);
-  -webkit-mask-position: center;
-  -webkit-mask-repeat: no-repeat;
-  -webkit-mask-size: contain;
+  display: block;
+  object-fit: contain;
 }
 
 .buttonIconBack { transform: rotate(180deg); }
@@ -572,7 +562,7 @@
 .feedNewsHome > [data-material-render='full-frame'] { opacity: 1; }
 .feedNewsHome .feedSectionHeader { position: relative; z-index: 4; box-sizing: border-box; height: 36px; min-height: 36px; padding: 0 22px 0 14px; overflow: visible; border-bottom: 0; background: #111415; box-shadow: none; }
 .feedNewsHome .feedSectionTitle { box-sizing: border-box; display: block; height: auto; min-height: 28px; padding: 0; overflow: visible; color: #d3a66b; font-family: var(--wow-font-body); font-size: 15px; font-weight: 500; line-height: 28px; white-space: nowrap; }
-.feedNewsHome .feedSectionChevron { width: 18px; height: 15px; color: #918b7e; mask-size: 127% 125%; transform: translate(2.25px, 1.25px); -webkit-mask-size: 127% 125%; }
+.feedNewsHome .feedSectionChevron { width: 18px; height: 15px; color: #918b7e; object-fit: contain; transform: translate(2.25px, 1.25px); }
 .feedNewsHome .feedRow { height: 54px; min-height: 54px; grid-template-columns: 62px minmax(0, 1fr) 26px; gap: 12px; padding: 5px 8px 4px 14px; border-bottom: 0; background: #0d1011; }
 .feedNewsHome .feedRow:last-child { padding-top: 6px; padding-bottom: 6px; }
 .feedNewsHome .feedSummary { display: none; }
@@ -765,7 +755,13 @@
 
 /* PageFrame owns all product chrome geometry. Route modules only compose the
  * content that follows this header. */
-.pageFrameOwner { display: contents; }
+.pageFrameOwner {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
 .pageFrameOwner > view,
 .pageFrameOwner > text { min-width: 0; max-width: 100%; justify-self: stretch; }
 
@@ -785,11 +781,11 @@
   border-bottom: 1px solid rgba(118, 91, 54, 0.48);
   background:
     repeating-linear-gradient(132deg, rgba(255, 255, 255, 0.01) 0 1px, transparent 1px 11px),
-    linear-gradient(180deg, rgba(18, 21, 25, 0.96), rgba(8, 11, 14, 0.98));
+    linear-gradient(180deg, #121519, #080b0e);
   box-shadow: inset 0 -1px rgba(3, 4, 6, 0.72);
 }
 
-.pageFrameHeaderSticky { position: sticky; top: 0; z-index: var(--z-sticky); }
+.pageFrameHeaderSticky { position: sticky; top: var(--safe-top); z-index: var(--z-sticky); }
 .pageFrame-root .pageFrameHeader { grid-template-columns: minmax(80px, 122px) minmax(0, 1fr) 36px; padding-left: 16px; }
 .pageFrame-pushed .pageFrameHeader { grid-template-columns: 40px minmax(0, 1fr) 40px; }
 .pageFrame-pushed-action .pageFrameHeader { grid-template-columns: 76px minmax(0, 1fr) 76px; }

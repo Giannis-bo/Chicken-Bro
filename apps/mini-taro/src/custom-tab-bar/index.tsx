@@ -1,22 +1,37 @@
-import Taro, { useDidShow } from '@tarojs/taro'
-import { useState } from 'react'
+import Taro from '@tarojs/taro'
+import { useEffect, useState } from 'react'
 
 import { TabBar } from '@wow-mini/design-system/components/TabBar'
 
-import { tabBarItems } from '../tab-bar-items'
+import {
+  resolveActiveTabRoute,
+  tabBarItems,
+} from '../tab-bar-items'
+import { activeTabRouteStore } from '../tab-bar-state'
 
 function activePath(): string {
-  return Taro.getCurrentInstance().router?.path ?? tabBarItems[0]?.pagePath ?? 'pages/news/news'
+  const pages = Taro.getCurrentPages()
+  return resolveActiveTabRoute([
+    pages.at(-1)?.route,
+    Taro.getCurrentInstance().router?.path,
+  ])
 }
 
 export default function CustomTabBar() {
-  const [currentPath, setCurrentPath] = useState(activePath)
+  const [currentPath, setCurrentPath] = useState(() => activeTabRouteStore.get() ?? activePath())
 
-  useDidShow(() => setCurrentPath(activePath()))
+  useEffect(() => {
+    return activeTabRouteStore.subscribe(setCurrentPath)
+  }, [])
 
   const handleSelect = (pagePath: string) => {
-    if (pagePath === currentPath.replace(/^\//, '')) return
-    void Taro.switchTab({ url: `/${pagePath}` })
+    if (pagePath === currentPath) return
+
+    const previousPath = currentPath
+    activeTabRouteStore.set(pagePath)
+    void Taro.switchTab({ url: `/${pagePath}` }).catch(() => {
+      activeTabRouteStore.set(resolveActiveTabRoute([activePath()], previousPath))
+    })
   }
 
   return (

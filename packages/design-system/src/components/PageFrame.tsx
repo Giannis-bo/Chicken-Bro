@@ -62,7 +62,7 @@ export function PageFrame({
   kicker,
   description,
   size = 'standard',
-  stickyHeader = false,
+  stickyHeader = true,
   onBack,
   backRegion,
   onRefresh,

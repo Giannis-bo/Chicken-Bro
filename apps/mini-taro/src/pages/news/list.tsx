@@ -6,6 +6,7 @@ import { AppShell } from '@wow-mini/design-system/components/AppShell'
 import {
   NewsListCategoryFilter,
   NewsListFeed,
+  NewsListResultsRegion,
   NewsListSummary,
   NewsListTerminalPanel,
   TrustDisclaimer,
@@ -65,10 +66,9 @@ export default function NewsListPage() {
     fallbackTitle: safeDecode(query.value) || '资讯列表',
     ...(currentRouteReason ? { routeReason: currentRouteReason } : {}),
   })
-  const listRowCount = model.initialLoading
+  const resultRowCount = model.initialLoading
     ? model.visibleRowSlotCount
     : Math.max(model.items.length, 1)
-  const listHeight = listRowCount * 70.64
 
   const selectCategory = (item: NewsListCategoryItem) => {
     setActiveCategory(item.id as NewsListCategoryId)
@@ -133,10 +133,9 @@ export default function NewsListPage() {
                 onSort={toggleSortDirection}
               />
             </RouteRegion>
-            <RouteRegion
+            <NewsListResultsRegion
               className={`${styles['region'] ?? ''} ${styles['results'] ?? ''}`}
-              data-region="news_results"
-              style={{ height: `${listHeight}px` }}
+              rowCount={resultRowCount}
             >
               <NewsListFeed
                 items={model.items}
@@ -144,7 +143,7 @@ export default function NewsListPage() {
                 loadingRows={model.visibleRowSlotCount}
                 onSelect={openArticle}
               />
-            </RouteRegion>
+            </NewsListResultsRegion>
             <RouteRegion
               className={`${styles['region'] ?? ''} ${styles['terminal'] ?? ''}`}
               data-region="list_terminal"

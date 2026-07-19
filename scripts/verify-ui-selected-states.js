@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict'
 
-const { connectMiniProgram, timeout } = require('./wechat-automator')
+const { connectMiniProgram, readSemanticValue, timeout, waitForRenderedPage, waitForSystemInfo } = require('./wechat-automator')
 const crypto = require('node:crypto')
 const { execFileSync } = require('node:child_process')
 const fs = require('node:fs')
@@ -29,6 +29,7 @@ async function settle(milliseconds = 650) {
 
 async function open(miniProgram, route) {
   const page = await timeout(miniProgram.reLaunch(route.path), operationTimeoutMs, `open ${route.route}`)
+  await waitForRenderedPage(page, `render ${route.route}`)
   await settle()
   return page
 }
@@ -78,12 +79,16 @@ async function inspectGroup(page, group) {
   const visualMaterialDistinct = controls.length < 2
     || Boolean(activeMaterialStyle && inactiveMaterialStyle && JSON.stringify(activeMaterialStyle) !== JSON.stringify(inactiveMaterialStyle))
   const [controlStates, controlMaterialOwners] = await Promise.all([
-    Promise.all(controls.map((element) => timeout(element.attribute(`data-${group.state}`), 1500, `read ${group.role} state`))),
-    Promise.all(controls.map((element) => timeout(element.attribute('data-material-owner'), 1500, `read ${group.role} material owner`))),
+    Promise.all(controls.map((element) => readSemanticValue(element, group.state, `${group.role} state`))),
+    Promise.all(controls.map((element) => readSemanticValue(element, 'material-owner', `${group.role} material owner`))),
   ])
   const materialOwnerMismatches = controlMaterialOwners.filter((owner) => owner !== contract.materialOwnership.controlMaterialOwner).length
   const leadingBoundaries = group.boundaryMode === 'contiguous'
-    ? await Promise.all(controls.map((element) => timeout(element.attribute(contract.materialOwnership.boundaryAttribute), 1500, `read ${group.role} leading boundary`)))
+    ? await Promise.all(controls.map((element) => readSemanticValue(
+        element,
+        contract.materialOwnership.boundaryAttribute.replace(/^data-/u, ''),
+        `${group.role} leading boundary`,
+      )))
     : []
   const expectedLeadingBoundaries = group.boundaryMode === 'contiguous'
     ? expectedBoundarySequence(controlStates)
@@ -134,7 +139,7 @@ async function main() {
   let system
   try {
     miniProgram = await connectMiniProgram()
-    system = await timeout(miniProgram.systemInfo(), 4000, 'read system info')
+    system = await waitForSystemInfo(miniProgram, 'read system info')
     for (const route of routes) {
       const page = await open(miniProgram, route)
       for (const group of groups.filter((group) => group.route === route.route)) results.push(await inspectGroup(page, group))

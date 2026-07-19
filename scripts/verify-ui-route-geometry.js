@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict'
 
-const { connectMiniProgram, timeout } = require('./wechat-automator')
+const { connectMiniProgram, timeout, waitForRenderedPage, waitForSystemInfo } = require('./wechat-automator')
 const crypto = require('node:crypto')
 const fs = require('node:fs')
 const path = require('node:path')
@@ -27,12 +27,14 @@ async function settle(milliseconds = 650) {
 async function open(miniProgram, route) {
   try {
     const page = await timeout(miniProgram.reLaunch(route.path), operationTimeoutMs, `open ${route.route}`)
+    await waitForRenderedPage(page, `render ${route.route}`)
     await settle()
     return page
   } catch (error) {
     const expectedPath = route.path.split('?')[0].replace(/^\//u, '')
     const current = await timeout(miniProgram.currentPage(), 2500, `recover ${route.route}`)
     if (current.path !== expectedPath) throw error
+    await waitForRenderedPage(current, `recover render ${route.route}`)
     await settle(200)
     return current
   }
@@ -53,6 +55,16 @@ async function unavailableState(page, states) {
   return null
 }
 
+function rectanglesOverlap(left, top, width, height, bounds, tolerance = 0) {
+  if (!bounds) return false
+  const right = left + width
+  const bottom = top + height
+  return bounds.right > left + tolerance
+    && bounds.left < right - tolerance
+    && bounds.bottom > top + tolerance
+    && bounds.top < bottom - tolerance
+}
+
 async function inspect(page, route, viewport) {
   const tolerance = contract.tolerancePx
   const allowedVertical = new Set(route.allowedVerticalOverflowRegions ?? [])
@@ -61,10 +73,17 @@ async function inspect(page, route, viewport) {
   const initialSafeAreaButtonRoles = route.initialSafeAreaButtonRoles ?? []
   const initialSafeAreaRegionIds = route.initialSafeAreaRegionIds ?? []
   const requiredFixedDockControlRoles = route.requiredFixedDockControlRoles ?? []
-  const [shell, shellBody, tabBar, queriedRegions, nativeButtons, roleButtons, queriedControlCells, nativeDockButtons, roleDockButtons, state] = await Promise.all([
+  const headerSlotsPromise = Promise.all([
+    '.wx-style-pageframeheaderleading',
+    '.wx-style-pageframeheadertitle',
+    '.wx-style-pageframerootcontext',
+    '.wx-style-pageframeheaderaction',
+  ].map((selector) => timeout(page.$$(selector), 2500, `query page header slot ${selector}`))).then((groups) => groups.flat())
+  const [shell, shellBody, tabBar, headerSlots, queriedRegions, nativeButtons, roleButtons, queriedControlCells, nativeDockButtons, roleDockButtons, state] = await Promise.all([
     timeout(page.$('.wx-style-shell'), 4000, 'query route shell'),
     timeout(page.$('.wx-style-shellbody'), 4000, 'query route shell body'),
     timeout(page.$('.wx-style-product-tab-bar'), 4000, 'query product tab bar'),
+    headerSlotsPromise,
     timeout(page.$$('.wx-style-routeregion'), 4000, 'query route regions'),
     timeout(page.$$('button'), 4000, 'query native buttons'),
     timeout(page.$$('[role="button"]'), 4000, 'query role buttons'),
@@ -85,11 +104,31 @@ async function inspect(page, route, viewport) {
   const buttons = queriedButtons.slice(0, queryCaps.buttons)
   const controlCells = queriedControlCells.slice(0, queryCaps.controlCells)
   const dockButtons = queriedDockButtons.slice(0, queryCaps.dockButtons)
+  const headerSlotBounds = await Promise.all(headerSlots.slice(0, 8).map(bounds))
+  const missingHeaderSlotBounds = headerSlotBounds.filter((slot) => !slot).length
+  const [capsuleLeft, capsuleTop, capsuleWidth, capsuleHeight] = viewport.capsuleBounds
+  const capsuleHeaderCollisions = headerSlotBounds.flatMap((slot, index) => (
+    rectanglesOverlap(capsuleLeft, capsuleTop, capsuleWidth, capsuleHeight, slot, tolerance)
+      ? [{ type: 'capsule-header-content-collision', index, capsuleBounds: viewport.capsuleBounds, slot }]
+      : []
+  ))
+  const statusBarHeaderCollisions = headerSlotBounds.flatMap((slot, index) => (
+    viewport.safeTop > 0 && rectanglesOverlap(0, 0, viewport.width, viewport.safeTop, slot, tolerance)
+      ? [{ type: 'status-bar-header-content-collision', index, safeTop: viewport.safeTop, slot }]
+      : []
+  ))
   if (regions.length === 0 && state) {
-    const summary = { route: route.route, status: 'unavailable', routeState: state, regionCount: 0, semanticRegionCount: 0, buttonCount: buttons.length }
+    const violations = [
+      ...(headerSlots.length === 0 ? [{ type: 'missing-header-content-slots' }] : []),
+      ...(headerSlots.length > 8 ? [{ type: 'header-slot-query-cap', actual: headerSlots.length, maximum: 8 }] : []),
+      ...(missingHeaderSlotBounds > 0 ? [{ type: 'unmeasurable-header-content-slots', count: missingHeaderSlotBounds }] : []),
+      ...capsuleHeaderCollisions,
+      ...statusBarHeaderCollisions,
+    ]
+    const summary = { route: route.route, status: violations.length === 0 ? 'unavailable' : 'fail', routeState: state, regionCount: 0, semanticRegionCount: 0, buttonCount: buttons.length, statusBarCollisionCount: statusBarHeaderCollisions.length, capsuleCollisionCount: capsuleHeaderCollisions.length, violationCount: violations.length, violations }
     return {
       summary,
-      detail: { route: route.route, path: route.path, viewport, summary, routeState: state, regions: [], buttons: [], fixedDockButtons: [] },
+      detail: { route: route.route, path: route.path, viewport, summary, routeState: state, headerSlots: headerSlotBounds, regions: [], buttons: [], fixedDockButtons: [] },
     }
   }
 
@@ -152,6 +191,12 @@ async function inspect(page, route, viewport) {
     return { ...geometry, roles: String(roles ?? '').split(',').map((role) => role.trim()).filter(Boolean) }
   }))
   const violations = [...queryCapViolations]
+  const capsuleCollisionCount = capsuleHeaderCollisions.length
+  if (headerSlots.length === 0) violations.push({ type: 'missing-header-content-slots' })
+  if (headerSlots.length > 8) violations.push({ type: 'header-slot-query-cap', actual: headerSlots.length, maximum: 8 })
+  if (missingHeaderSlotBounds > 0) violations.push({ type: 'unmeasurable-header-content-slots', count: missingHeaderSlotBounds })
+  violations.push(...capsuleHeaderCollisions)
+  violations.push(...statusBarHeaderCollisions)
   if (!shellBounds) violations.push({ type: 'missing-shell' })
   else if (shellBounds.left < -tolerance || shellBounds.right > viewport.width + tolerance) violations.push({ type: 'shell-horizontal', left: shellBounds.left, right: shellBounds.right })
   const minimumRegions = route.minimumRegions ?? 1
@@ -263,6 +308,8 @@ async function inspect(page, route, viewport) {
     maxBoundButtonBottom: Math.max(0, ...uniqueButtonBounds.filter((item) => !allowedVerticalButtonRoles.some((role) => item.role === role || item.className.includes(`wx-data-role-${role}`))).map((item) => item.bottom)),
     safeAreaBottom,
     safeBottomInset,
+    statusBarCollisionCount: statusBarHeaderCollisions.length,
+    capsuleCollisionCount,
     fixedDockButtonCount: uniqueDockButtonBounds.length,
     maxFixedDockButtonBottom: Math.max(0, ...uniqueDockButtonBounds.map((item) => item.bottom)),
     shellBodyScrollable: Boolean(shellBodyMetrics && shellBodyMetrics.scrollHeight > shellBodyMetrics.clientHeight + tolerance),
@@ -272,7 +319,7 @@ async function inspect(page, route, viewport) {
     violationCount: violations.length,
     violations: violations.slice(0, 10),
   }
-  return { summary, detail: { route: route.route, path: route.path, viewport, summary, shellBody: shellBodyMetrics, tabBar: tabBarBounds, regions: regionBounds, buttons: uniqueButtonBounds.map(({ className: _className, ...button }) => button), fixedDockButtons: uniqueDockButtonBounds.map(({ className: _className, ...button }) => button) } }
+  return { summary, detail: { route: route.route, path: route.path, viewport, summary, headerSlots: headerSlotBounds, shellBody: shellBodyMetrics, tabBar: tabBarBounds, regions: regionBounds, buttons: uniqueButtonBounds.map(({ className: _className, ...button }) => button), fixedDockButtons: uniqueDockButtonBounds.map(({ className: _className, ...button }) => button) } }
 }
 
 async function main() {
@@ -280,8 +327,12 @@ async function main() {
   let miniProgram
   try {
     miniProgram = await connectMiniProgram()
-    const system = await timeout(miniProgram.systemInfo(), 4000, 'read system info')
-    const menuButton = await timeout(miniProgram.callWxMethod('getMenuButtonBoundingClientRect'), 4000, 'read menu button bounds')
+    const system = await waitForSystemInfo(miniProgram, 'read system info')
+    const menuButton = await timeout(
+      miniProgram.evaluate(() => wx.getMenuButtonBoundingClientRect()),
+      4000,
+      'read menu button bounds',
+    )
     const viewport = normalizeSystemViewport(system, menuButton)
     const results = []
     const details = []
@@ -320,4 +371,4 @@ if (require.main === module) {
   })
 }
 
-module.exports = { selectedRoutes }
+module.exports = { rectanglesOverlap, selectedRoutes }

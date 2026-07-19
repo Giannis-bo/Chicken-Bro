@@ -20,7 +20,41 @@ const configuredAssetRuntimeRoot = process.env['WOW_ASSET_RUNTIME_ROOT']?.trim()
 if (configuredAssetRuntimeRoot && !isImmutableRemoteAssetRoot(configuredAssetRuntimeRoot)) {
   throw new Error('WOW_ASSET_RUNTIME_ROOT must be an immutable HTTPS path ending in /releases/<release-id>')
 }
+const configuredRuntimeMediaRoot = process.env['WOW_RUNTIME_MEDIA_ROOT']?.trim() ?? ''
+if (configuredRuntimeMediaRoot && !isImmutableRemoteAssetRoot(configuredRuntimeMediaRoot)) {
+  throw new Error('WOW_RUNTIME_MEDIA_ROOT must be an immutable HTTPS path ending in /releases/<release-id>')
+}
 const localAssetRuntime = !configuredAssetRuntimeRoot
+const vectorAssetPattern = {
+  from: path.join(repositoryRoot, 'packages/design-system/assets/vector-runtime'),
+  to: `${outputRoot}/assets/ui-v2/vector-runtime`,
+}
+const rasterAssetPatterns = [
+  {
+    from: path.join(repositoryRoot, 'packages/design-system/assets/raster/news-home-v1/runtime/2x'),
+    to: `${outputRoot}/assets/ui-v2/raster/news-home-v1/runtime/2x`,
+  },
+  {
+    from: path.join(repositoryRoot, 'packages/design-system/assets/raster/builds-home-v1/runtime/2x'),
+    to: `${outputRoot}/assets/ui-v2/raster/builds-home-v1/runtime/2x`,
+  },
+  {
+    from: path.join(repositoryRoot, 'packages/design-system/assets/raster/shared-chrome-v1/runtime/2x'),
+    to: `${outputRoot}/assets/ui-v2/raster/shared-chrome-v1/runtime/2x`,
+  },
+  {
+    from: path.join(repositoryRoot, 'packages/design-system/assets/raster/news-list-v1/runtime/2x'),
+    to: `${outputRoot}/assets/ui-v2/raster/news-list-v1/runtime/2x`,
+  },
+  {
+    from: path.join(repositoryRoot, 'packages/design-system/assets/raster/news-detail-v1/runtime/2x'),
+    to: `${outputRoot}/assets/ui-v2/raster/news-detail-v1/runtime/2x`,
+  },
+  {
+    from: path.join(repositoryRoot, 'packages/design-system/assets/raster/build-intel-v1/runtime/2x'),
+    to: `${outputRoot}/assets/ui-v2/raster/build-intel-v1/runtime/2x`,
+  },
+]
 const sharedCompileIncludes = [
   path.join(repositoryRoot, 'packages/design-system/src'),
   path.join(repositoryRoot, 'packages/domain/src'),
@@ -49,6 +83,7 @@ export default defineConfig<'webpack5'>({
   },
   defineConstants: {
     __WOW_ASSET_RUNTIME_ROOT__: JSON.stringify(configuredAssetRuntimeRoot || '/assets/ui-v2'),
+    __WOW_RUNTIME_MEDIA_ROOT__: JSON.stringify(configuredRuntimeMediaRoot),
     __WOW_BACKEND_API_BASE_URL__: JSON.stringify(configuredBackendApiBaseUrl),
   },
   csso: {
@@ -57,36 +92,10 @@ export default defineConfig<'webpack5'>({
     },
   },
   copy: {
-    patterns: localAssetRuntime ? [
-      {
-        from: path.join(repositoryRoot, 'packages/design-system/assets/vector'),
-        to: `${outputRoot}/assets/ui-v2/vector`,
-      },
-      {
-        from: path.join(repositoryRoot, 'packages/design-system/assets/raster/news-home-v1/runtime/2x'),
-        to: `${outputRoot}/assets/ui-v2/raster/news-home-v1/runtime/2x`,
-      },
-      {
-        from: path.join(repositoryRoot, 'packages/design-system/assets/raster/builds-home-v1/runtime/2x'),
-        to: `${outputRoot}/assets/ui-v2/raster/builds-home-v1/runtime/2x`,
-      },
-      {
-        from: path.join(repositoryRoot, 'packages/design-system/assets/raster/shared-chrome-v1/runtime/2x'),
-        to: `${outputRoot}/assets/ui-v2/raster/shared-chrome-v1/runtime/2x`,
-      },
-      {
-        from: path.join(repositoryRoot, 'packages/design-system/assets/raster/news-list-v1/runtime/2x'),
-        to: `${outputRoot}/assets/ui-v2/raster/news-list-v1/runtime/2x`,
-      },
-      {
-        from: path.join(repositoryRoot, 'packages/design-system/assets/raster/news-detail-v1/runtime/2x'),
-        to: `${outputRoot}/assets/ui-v2/raster/news-detail-v1/runtime/2x`,
-      },
-      {
-        from: path.join(repositoryRoot, 'packages/design-system/assets/raster/build-intel-v1/runtime/2x'),
-        to: `${outputRoot}/assets/ui-v2/raster/build-intel-v1/runtime/2x`,
-      },
-    ] : [],
+    // WeChat true devices do not reliably render SVG files or CSS masks. The
+    // deterministic PNG derivatives remain local; large raster art still
+    // moves to the immutable CDN release.
+    patterns: [vectorAssetPattern, ...(localAssetRuntime ? rasterAssetPatterns : [])],
     options: {},
   },
   alias: {

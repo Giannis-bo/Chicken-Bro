@@ -3,7 +3,12 @@
 const assert = require('node:assert/strict')
 const test = require('node:test')
 
-const { isProductionAssetRuntimeRoot, isProductionBackendOrigin, releaseDomainBlockers } = require('../scripts/release-domain-policy')
+const {
+  isProductionAssetRuntimeRoot,
+  isProductionBackendOrigin,
+  isProductionRuntimeMediaRoot,
+  releaseDomainBlockers,
+} = require('../scripts/release-domain-policy')
 
 test('backend release domain requires a credential-free named HTTPS origin', () => {
   assert.equal(isProductionBackendOrigin('https://api.example.com'), true)
@@ -23,15 +28,37 @@ test('asset release domain requires the authoritative immutable release path', (
   }
 })
 
-test('release blockers close asset, backend and WeChat approval independently', () => {
-  assert.deepEqual(releaseDomainBlockers({ assetRuntimeRoot: '', backendApiBaseUrl: '', wechatRequestDomainApproved: false }), [
+test('runtime media domain requires the authoritative immutable wow-media release path', () => {
+  assert.equal(isProductionRuntimeMediaRoot('https://static.example.com/wow-media/releases/release-v1'), true)
+  for (const value of [
+    '',
+    'https://static.example.com/wow-media',
+    'https://static.example.com/wow-assets/releases/release-v1',
+    'https://124.223.51.33/wow-media/releases/release-v1',
+    'https://static.example.invalid/wow-media/releases/release-v1',
+  ]) {
+    assert.equal(isProductionRuntimeMediaRoot(value), false, value)
+  }
+})
+
+test('release blockers require current assets, backend and WeChat approval while runtime media stays optional', () => {
+  assert.deepEqual(releaseDomainBlockers({ assetRuntimeRoot: '', runtimeMediaRoot: '', backendApiBaseUrl: '', wechatRequestDomainApproved: false }), [
     'WOW_ASSET_RUNTIME_ROOT must be an approved named HTTPS immutable /releases/<release-id> path',
     'WOW_BACKEND_API_BASE_URL must be an approved HTTPS named origin',
     'WOW_WECHAT_REQUEST_DOMAIN_APPROVED must be explicit yes',
   ])
   assert.deepEqual(releaseDomainBlockers({
     assetRuntimeRoot: 'https://assets.example.com/wow-assets/releases/release-v1',
+    runtimeMediaRoot: 'https://static.example.com/wow-media/releases/release-v1',
     backendApiBaseUrl: 'https://api.example.com',
     wechatRequestDomainApproved: true,
   }), [])
+  assert.deepEqual(releaseDomainBlockers({
+    assetRuntimeRoot: 'https://assets.example.com/wow-assets/releases/release-v1',
+    runtimeMediaRoot: 'https://static.example.com/wow-media/latest',
+    backendApiBaseUrl: 'https://api.example.com',
+    wechatRequestDomainApproved: true,
+  }), [
+    'WOW_RUNTIME_MEDIA_ROOT must be an approved named HTTPS immutable /wow-media/releases/<release-id> path',
+  ])
 })

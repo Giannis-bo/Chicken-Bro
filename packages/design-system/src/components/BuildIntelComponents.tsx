@@ -1,11 +1,11 @@
 import { Image, Text, View } from '@tarojs/components'
 
 import { ControlButton } from './ControlButton'
-import { useEffect, useState } from 'react'
 
 import type { ReadinessState } from '@wow-mini/domain'
 
-import { isTrustedRuntimeMediaUrl } from '../runtime-media'
+import { resolveRuntimeMediaUrl } from '../runtime-media'
+import { useTrustedMediaLoadState } from './useTrustedMediaLoadState'
 import { ProductionAssetImage } from './ProductionAsset'
 import { ProductionAssetGlyph } from './ProductionAssetGlyph'
 import { ForgedPanel } from './ReconstructionPrimitives'
@@ -209,16 +209,9 @@ export function BuildIntelCard({
   onPrimary,
   onSecondary,
 }: BuildIntelCardProps) {
-  const trustedIconUrl = isTrustedRuntimeMediaUrl(iconUrl) ? iconUrl ?? '' : ''
-  const [iconLoaded, setIconLoaded] = useState(false)
-  const [iconFailed, setIconFailed] = useState(false)
-
-  useEffect(() => {
-    setIconLoaded(false)
-    setIconFailed(false)
-  }, [trustedIconUrl])
-
-  const showTrustedIcon = Boolean(trustedIconUrl) && iconLoaded && !iconFailed && !loading
+  const trustedIconUrl = resolveRuntimeMediaUrl(iconUrl)
+  const iconLoadState = useTrustedMediaLoadState(trustedIconUrl)
+  const showTrustedIcon = iconLoadState.visible && !loading
 
   return (
     <ForgedPanel
@@ -248,11 +241,8 @@ export function BuildIntelCard({
                 data-slot-id="asset_slot.build-intel-specialization-object"
                 mode="aspectFill"
                 src={trustedIconUrl}
-                onError={() => {
-                  setIconFailed(true)
-                  setIconLoaded(false)
-                }}
-                onLoad={() => setIconLoaded(true)}
+                onError={iconLoadState.onError}
+                onLoad={iconLoadState.onLoad}
               />
             ) : null}
             <View className={componentClass(componentStyle('cardIconFallback'), showTrustedIcon && componentStyle('hiddenMedia'))}>

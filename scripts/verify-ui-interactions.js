@@ -4,7 +4,7 @@
 const { execFileSync } = require('node:child_process')
 const fs = require('node:fs')
 const path = require('node:path')
-const { connectMiniProgram, timeout } = require('./wechat-automator')
+const { connectMiniProgram, timeout, waitForRenderedPage, waitForSystemInfo } = require('./wechat-automator')
 const { requireOnlineRouteBatch } = require('./online-route-batch')
 const { writeBoundedJsonAtomic } = require('./bounded-json-detail')
 const coreInteractionContract = require('../docs/design/current-ui/core-interaction-contract.json')
@@ -135,6 +135,7 @@ async function open(miniProgram, path) {
       }
     }
   }
+  await waitForRenderedPage(page, `render ${path}`)
   await settle()
   return page
 }
@@ -331,7 +332,7 @@ async function main() {
     if (process.env.INTERACTION_DETAIL_PATH) {
       detailPath = path.resolve(process.env.INTERACTION_DETAIL_PATH)
       const commit = execFileSync('git', ['rev-parse', '--short=12', 'HEAD'], { cwd: path.resolve(__dirname, '..'), encoding: 'utf8' }).trim()
-      const system = await timeout(miniProgram.systemInfo(), 4000, 'read system info for interaction evidence')
+      const system = await waitForSystemInfo(miniProgram, 'read system info for interaction evidence')
       const viewport = { width: system.windowWidth, height: system.windowHeight, dpr: system.pixelRatio }
       const detail = {
         schemaVersion: 'wechat-core-interaction-detail-v1',

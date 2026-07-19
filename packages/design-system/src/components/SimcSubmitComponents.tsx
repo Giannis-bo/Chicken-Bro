@@ -1,11 +1,10 @@
 import { Image, Picker, ScrollView, Text, View } from '@tarojs/components'
 
 import { ControlButton } from './ControlButton'
-import { useState } from 'react'
-
-import { isTrustedRuntimeMediaUrl } from '../runtime-media'
+import { resolveRuntimeMediaUrl } from '../runtime-media'
 import { styleSelectorClass } from './selector-markers'
 import { SystemGlyph } from './SystemGlyph'
+import { useTrustedMediaLoadState } from './useTrustedMediaLoadState'
 
 import styles from './SimcSubmitComponents.module.scss'
 
@@ -46,9 +45,10 @@ export interface SimcIdentitySelectorsProps {
 }
 
 function TrustedSpecIcon({ iconUrl }: { iconUrl?: string | undefined }) {
-  const trusted = Boolean(iconUrl && isTrustedRuntimeMediaUrl(iconUrl))
-  const [state, setState] = useState<'loading' | 'loaded' | 'failed'>(trusted ? 'loading' : 'failed')
-  if (!trusted || state === 'failed') {
+  const trustedUrl = resolveRuntimeMediaUrl(iconUrl)
+  const mediaLoadState = useTrustedMediaLoadState(trustedUrl)
+  const state = !trustedUrl ? 'fallback' : mediaLoadState.failed ? 'failed' : mediaLoadState.loaded ? 'loaded' : 'loading'
+  if (!trustedUrl || mediaLoadState.failed) {
     return (
       <SystemGlyph
         assetId="utility-glyph-family.shield"
@@ -61,9 +61,9 @@ function TrustedSpecIcon({ iconUrl }: { iconUrl?: string | undefined }) {
       className={styles['specImage'] ?? ''}
       data-media-state={state}
       mode="aspectFit"
-      src={iconUrl ?? ''}
-      onError={() => setState('failed')}
-      onLoad={() => setState('loaded')}
+      src={trustedUrl}
+      onError={mediaLoadState.onError}
+      onLoad={mediaLoadState.onLoad}
     />
   )
 }

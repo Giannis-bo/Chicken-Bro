@@ -15,6 +15,7 @@ import {
 import type { AuthUser, BuildTemplate } from '@wow-mini/domain'
 
 import { navigateTo, useAsyncRoute } from '../_shared/route-runtime'
+import { useTabRootIdentity } from '../../use-tab-root-identity'
 import {
   buildProfileTemplatesView,
   type ProfileTemplatesRouteState,
@@ -47,6 +48,7 @@ function modelRouteState(state: string): ProfileTemplatesRouteState {
 }
 
 export default function ProfilePage() {
+  useTabRootIdentity('pages/profile/profile')
   const resumed = useRef(false)
   const [user, setUser] = useState<AuthUser>(() => wowApi.auth.profile())
   const [saving, setSaving] = useState(false)

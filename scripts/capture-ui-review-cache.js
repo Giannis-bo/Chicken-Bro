@@ -7,7 +7,7 @@ const os = require('node:os')
 const path = require('node:path')
 const { execFileSync } = require('node:child_process')
 
-const { connectMiniProgram, timeout } = require('./wechat-automator')
+const { connectMiniProgram, timeout, waitForRenderedPage, waitForSystemInfo } = require('./wechat-automator')
 const { readBoundedFile } = require('./bounded-file')
 const { readBoundedJson, writeBoundedJsonAtomic } = require('./bounded-json-detail')
 const { normalizeSystemViewport } = require('./wechat-viewport')
@@ -122,8 +122,12 @@ async function main() {
   let miniProgram
   try {
     miniProgram = await connectMiniProgram()
-    const system = await timeout(miniProgram.systemInfo(), 4000, 'read WeChat system info')
-    const menuButton = await timeout(miniProgram.callWxMethod('getMenuButtonBoundingClientRect'), 4000, 'read WeChat menu button bounds')
+    const system = await waitForSystemInfo(miniProgram)
+    const menuButton = await timeout(
+      miniProgram.evaluate(() => wx.getMenuButtonBoundingClientRect()),
+      4000,
+      'read WeChat menu button bounds',
+    )
     const viewport = normalizeSystemViewport(system, menuButton)
     const viewportKey = `${viewport.width}x${viewport.height}@${viewport.dpr}`
     const outputRoot = path.join(cacheRoot, commit, viewportKey)
@@ -156,6 +160,7 @@ async function main() {
       if (capturesByRoute.has(route.route)) continue
       try {
         const page = await timeout(miniProgram.reLaunch(route.path), operationTimeoutMs, `open ${route.route}`)
+        await waitForRenderedPage(page, `render ${route.route}`)
         await new Promise((resolve) => setTimeout(resolve, settleMs))
         const rendererEvidence = await inspectRenderer(page, route)
         const artifactPath = path.join(outputRoot, `${safeName(route.route)}.png`)

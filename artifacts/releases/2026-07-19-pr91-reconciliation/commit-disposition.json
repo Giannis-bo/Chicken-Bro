@@ -1,0 +1,242 @@
+{
+  "schemaVersion": 1,
+  "status": "live_verified_pending_merge",
+  "repository": "boyuan19910222-ui/wow_mini_program",
+  "pullRequest": 91,
+  "commonBase": "2f8222f6df96e3cd0936ed07386a0e06def32079",
+  "originalPullRequestHead": "600f09bc91dca8236627e6001bd1160dd75c4821",
+  "mergedMain": "65be719204d4e398cede2dd1a947821cbd00c3d4",
+  "reconciliationMerge": "d9410def8de630a6ab9ee402c57aea54761e39c0",
+  "productionAssetRoot": "https://api.chickenbro.cloud/wow-assets/releases/2026-07-19-taro-full-integration",
+  "excludedAssetRoot": "https://static.chickenbro.cloud/wow-media/releases/2026-07-19-wow-icons-v1",
+  "currentStage": {
+    "status": "live_verified_pending_merge",
+    "architectureAudit": "14 routes, 290 checks, 0 findings",
+    "releasePackage": "releaseReady=true with current production asset root and runtime media root not configured",
+    "fullProfile": "160 commands passed at afe5e9b24d5616e8e1953f2b529b026c6c12d56f",
+    "evidence": "artifacts/releases/2026-07-19-pr91-reconciliation/evidence.json",
+    "manualAcceptanceBoundary": "post-candidate news_home and gear_detail acceptance authorized merge; truthful aggregate is 6 accepted and 8 not_run_user_waived, not 14/14"
+  },
+  "commits": [
+    {
+      "commit": "59545084e43920f133b3cd85b38ec2b0bc89ecd9",
+      "subject": "add versioned CDN asset publishing",
+      "disposition": "retain_dormant_tooling_only",
+      "retainedBehaviors": [
+        "explicit release-id publishing command",
+        "host allowlist, byte-size and sha256 validation",
+        "local tests that do not access production"
+      ],
+      "excludedBehaviors": [
+        "automatic build, deploy or verification invocation",
+        "activation of the unpublished alternative CDN root",
+        "published or verified claims for the historical 404 release"
+      ],
+      "evidence": [
+        "node --test tests/publish-runtime-media.test.js",
+        "production build constants contain only the current api.chickenbro.cloud root"
+      ]
+    },
+    {
+      "commit": "e3592347b78564214441063be2b71d8cee2aa3b1",
+      "subject": "verify WeChat capsule content clearance",
+      "disposition": "adapt_to_current_geometry_gate",
+      "retainedBehaviors": [
+        "header controls remain left of the system capsule",
+        "geometry checks reject missing header controls"
+      ],
+      "excludedBehaviors": [
+        "historical geometry results",
+        "route-private capsule offsets"
+      ],
+      "evidence": [
+        "npm run audit:ui-architecture",
+        "node --test tests/wechat-viewport.test.js"
+      ]
+    },
+    {
+      "commit": "896db3343864768068823df8eaadd603e0450bb4",
+      "subject": "harden UI release verification",
+      "disposition": "adapt_to_current_release_gate",
+      "retainedBehaviors": [
+        "release package fails closed on origin, asset and package blockers"
+      ],
+      "excludedBehaviors": [
+        "obsolete package budgets or historical release status"
+      ],
+      "evidence": [
+        "npm run verify:ui-package:release",
+        "node --test tests/release-domain-policy.test.js"
+      ]
+    },
+    {
+      "commit": "e7ae3348425064772753ef98c8dd44819296cf6f",
+      "subject": "record verified API HTTPS release path",
+      "disposition": "superseded_by_current_production_origin",
+      "retainedBehaviors": [],
+      "excludedBehaviors": [
+        "older roadmap and verification wording",
+        "historical release evidence as current proof"
+      ],
+      "evidence": [
+        "docs/project-state.json productionRequestDomain",
+        "npm run audit:taro-domain"
+      ]
+    },
+    {
+      "commit": "2248be4c02aa2e2cb77ddd6dd75f559e54e34306",
+      "subject": "修复微信构建后空白与真实UI验证竞态",
+      "disposition": "retain_atomic_build_promotion",
+      "retainedBehaviors": [
+        "build outside the watched application tree",
+        "validate complete application and page entries before promotion",
+        "install dependencies and manifest before writing app.js last"
+      ],
+      "excludedBehaviors": [
+        "editing generated WXML or WXSS",
+        "touching the active package after a failed isolated build"
+      ],
+      "evidence": [
+        "node --test tests/build-weapp-safely.test.js tests/finalize-weapp-build.test.js",
+        "node --test tests/taro-production-build.test.js"
+      ]
+    },
+    {
+      "commit": "f8683ac771b34d25616ffa9a6895a07990b16f80",
+      "subject": "清理微信构建测试临时目录",
+      "disposition": "retain_build_cleanup_boundary",
+      "retainedBehaviors": [
+        "temporary build roots are outside the project tree",
+        "temporary roots are removed after success or failure"
+      ],
+      "excludedBehaviors": [
+        "cleanup of unrelated worktrees, caches or user files"
+      ],
+      "evidence": [
+        "tests/build-weapp-safely.test.js temporaryRoot lifecycle",
+        "scripts/build-weapp-safely.js bounded staging root"
+      ]
+    },
+    {
+      "commit": "074b7c258bdb8457e076308bbc5f2d47a924e883",
+      "subject": "接入微信 HTTPS API 合法域名",
+      "disposition": "superseded_by_current_domain_contract",
+      "retainedBehaviors": [],
+      "excludedBehaviors": [
+        "older environment-variable shape",
+        "any URL validation bypass"
+      ],
+      "evidence": [
+        "scripts/release-domain-policy.js current blockers",
+        "npm run audit:taro-domain"
+      ]
+    },
+    {
+      "commit": "c31e6020f1660ec7e97c5891c2626dfdea924718",
+      "subject": "收紧微信 UI 启动与组件审计",
+      "disposition": "adapt_startup_and_audit_guards",
+      "retainedBehaviors": [
+        "production application entry remains non-empty",
+        "shared component ownership remains auditable"
+      ],
+      "excludedBehaviors": [
+        "duplicate architecture owners",
+        "obsolete audit rules weaker than current main"
+      ],
+      "evidence": [
+        "node --test tests/taro-production-build.test.js",
+        "npm run audit:ui-architecture"
+      ]
+    },
+    {
+      "commit": "b6fef071701def26c5784ed07f1fae706ef7bcde",
+      "subject": "保护微信开发者工具登录会话",
+      "disposition": "retain_devtools_session_protection",
+      "retainedBehaviors": [
+        "reuse an existing Automator endpoint",
+        "never close, reload or replace the user's logged-in DevTools process"
+      ],
+      "excludedBehaviors": [
+        "automatic DevTools launch or restart",
+        "unbounded route batches"
+      ],
+      "evidence": [
+        "node --test tests/wechat-automator.test.js tests/capture-ui-review-cache.test.js",
+        "explicit route batch enforcement remains at two or fewer"
+      ]
+    },
+    {
+      "commit": "d2686018ba22ee1fcf0212d8e4df0a8cb868f2ae",
+      "subject": "修复微信真机包 CDN 发布构建",
+      "disposition": "adapt_remote_asset_build_without_root_switch",
+      "retainedBehaviors": [
+        "remote-asset build excludes local runtime assets",
+        "package verification checks immutable HTTPS roots and byte budgets"
+      ],
+      "excludedBehaviors": [
+        "alternative CDN production constant",
+        "implicit publisher execution"
+      ],
+      "evidence": [
+        "npm run verify:ui-package:release",
+        "npm run verify:ui-asset-integrity"
+      ]
+    },
+    {
+      "commit": "7ca75e1a340d11bc911aab3c47824e68b550f95f",
+      "subject": "修复微信真机启动与共享顶部栏",
+      "disposition": "retain_tab_identity_and_current_owner_header_fix",
+      "retainedBehaviors": [
+        "four Tab roots publish route identity during useDidShow",
+        "custom TabBar subscribes to one validated active-route store",
+        "shared header and scroll masks stay within AppShell and PageFrame owners",
+        "the known missing Devourer specialization icon uses the audited classicon_demonhunter_void fallback"
+      ],
+      "excludedBehaviors": [
+        "removal of current #92 page actions",
+        "fallback-policy or canonical empty-state changes",
+        "route-private shared chrome",
+        "unrelated deploy known_hosts changes"
+      ],
+      "evidence": [
+        "npx vitest run apps/mini-taro/src/tab-bar-items.test.ts apps/mini-taro/src/tab-bar-state.test.ts apps/mini-taro/src/pages/_shared/route-contract.test.ts",
+        "npm run audit:ui-architecture",
+        "node --test tests/publish-runtime-media.test.js"
+      ]
+    },
+    {
+      "commit": "f7d3721eae5d3ff09efcdd9fc404b9ea9a83e735",
+      "subject": "修正小程序首屏模式测试",
+      "disposition": "retain_initial_payload_contract_test",
+      "retainedBehaviors": [
+        "mini-program gear requests default to initial mode when mode is absent",
+        "explicit mode and non-mini-program callers remain unchanged"
+      ],
+      "excludedBehaviors": [
+        "changes to resolver ownership, source keys or fallback truth"
+      ],
+      "evidence": [
+        "python -m unittest tests.websim_payload_test.WebSimPayloadTest.test_http_websim_gear_miniprogram_header_uses_compact_payload",
+        "python -m unittest tests.websim_payload_test.WebSimPayloadTest.test_websim_gear_initial_mode_slims_candidate_details"
+      ]
+    },
+    {
+      "commit": "600f09bc91dca8236627e6001bd1160dd75c4821",
+      "subject": "修复顶部安全区与胶囊错层",
+      "disposition": "adapt_to_current_appshell_pageframe_owners",
+      "retainedBehaviors": [
+        "opaque top mask prevents scrolling content from entering the status area",
+        "pushed headers remain fixed below the safe-area top and left of the capsule"
+      ],
+      "excludedBehaviors": [
+        "duplicate safe-area padding",
+        "fixed-width route patches",
+        "historical visual evidence"
+      ],
+      "evidence": [
+        "npm run audit:ui-architecture",
+        "manual pages/builds/detail capsule and back-control acceptance"
+      ]
+    }
+  ]
+}

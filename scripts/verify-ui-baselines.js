@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict'
 
-const { connectMiniProgram, timeout } = require('./wechat-automator')
+const { connectMiniProgram, timeout, waitForRenderedPage, waitForSystemInfo } = require('./wechat-automator')
 const { requireOnlineRouteBatch } = require('./online-route-batch')
 
 const operationTimeoutMs = 8000
@@ -64,6 +64,7 @@ async function elementGeometries(page, selector) {
 async function measure(miniProgram, baseline) {
   const page = await timeout(miniProgram.reLaunch(baseline.url), operationTimeoutMs, `reLaunch ${baseline.id}`)
   if (!page) throw new Error(`reLaunch ${baseline.id} returned no page`)
+  await waitForRenderedPage(page, `render ${baseline.id}`)
   await new Promise((resolve) => setTimeout(resolve, 600))
   let carousel = null
   if (baseline.carouselAutoplay) {
@@ -143,7 +144,7 @@ async function main() {
   let miniProgram
   try {
     miniProgram = await connectMiniProgram()
-    const systemInfo = await timeout(miniProgram.systemInfo(), operationTimeoutMs, 'systemInfo')
+    const systemInfo = await waitForSystemInfo(miniProgram, 'systemInfo')
     const baselines = []
     for (const baseline of requestedBaselines) {
       baselines.push({ ...baseline, ...await measure(miniProgram, baseline) })

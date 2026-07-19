@@ -3,8 +3,9 @@ import type { CSSProperties } from 'react'
 
 import type { VerifiedWowObjectReference } from '@wow-mini/domain'
 
-import { isTrustedRuntimeMediaUrl } from '../runtime-media'
+import { resolveRuntimeMediaUrl } from '../runtime-media'
 import { ownerClass, ownerStyle } from './style'
+import { useTrustedMediaLoadState } from './useTrustedMediaLoadState'
 
 export interface GameObjectIconProps {
   object?: VerifiedWowObjectReference | null | undefined
@@ -23,7 +24,9 @@ export function GameObjectIcon({
   slotId,
   onClick,
 }: GameObjectIconProps) {
-  const canRender = Boolean(object?.verified && isTrustedRuntimeMediaUrl(object.iconUrl))
+  const trustedUrl = object?.verified ? resolveRuntimeMediaUrl(object.iconUrl) : ''
+  const mediaLoadState = useTrustedMediaLoadState(trustedUrl)
+  const canRender = mediaLoadState.visible
   const style = { '--object-size': `${size}px` } as CSSProperties
   return (
     <View
@@ -32,7 +35,15 @@ export function GameObjectIcon({
       {...(slotId ? { 'data-slot-id': slotId } : {})}
       {...(onClick ? { onClick } : {})}
     >
-      {canRender ? <Image className={ownerStyle('objectImage')} mode="aspectFill" src={object?.iconUrl ?? ''} /> : null}
+      {trustedUrl ? (
+        <Image
+          className={ownerStyle('objectImage')}
+          mode="aspectFill"
+          src={trustedUrl}
+          onError={mediaLoadState.onError}
+          onLoad={mediaLoadState.onLoad}
+        />
+      ) : null}
       {!canRender ? <Text className={ownerStyle('objectPlaceholder')}>{fallbackLabel.slice(0, 4)}</Text> : null}
       {canRender ? <View className={ownerStyle('objectSourceMarker')} /> : null}
     </View>

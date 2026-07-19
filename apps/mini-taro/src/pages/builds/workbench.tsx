@@ -54,7 +54,12 @@ export default function WorkbenchPage() {
     }
     const [talentResult, gearResult, talentTemplates, gearTemplates] = await Promise.all([
       wowApi.websim.talents({ classKey: selection.classKey, specKey: selection.specKey, heroKey: selection.heroKey }),
-      wowApi.websim.gear({ classKey: selection.classKey, specKey: selection.specKey, compact: true }),
+      wowApi.websim.gear({
+        classKey: selection.classKey,
+        specKey: selection.specKey,
+        compact: true,
+        mode: 'initial',
+      }),
       wowApi.templates.fetch('talent'),
       wowApi.templates.fetch('gear'),
     ])

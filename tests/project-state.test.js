@@ -559,6 +559,11 @@ test('route geometry verification covers all routes without launching DevTools',
   assert.deepEqual(tasks.initialSafeAreaButtonRoles, ['task-create-simc-action', 'task-open-workbench-action'])
   assert.match(verifier, /shellBodyPaddingBottom/)
   assert.match(verifier, /safeAreaBottom/)
+  assert.match(verifier, /capsule-header-content-collision/)
+  assert.match(verifier, /capsuleCollisionCount/)
+  assert.match(verifier, /status-bar-header-content-collision/)
+  assert.match(verifier, /statusBarCollisionCount/)
+  assert.match(verifier, /missing-header-content-slots/)
   assert.match(verifier, /violations\.slice\(0, 10\)/)
   assert.match(verifier, /queryCaps = Object\.freeze/)
   assert.match(verifier, /geometry-query-cap/)
@@ -715,6 +720,7 @@ test('raster runtime assets are byte and hash verified without image payloads', 
 
 test('UI package evidence cannot treat a placeholder remote asset origin as release-ready', () => {
   const verifier = fs.readFileSync('scripts/verify-ui-package.js', 'utf8')
+  const publisher = fs.readFileSync('scripts/publish-ui-cdn-assets.js', 'utf8')
   const taroConfig = fs.readFileSync('apps/mini-taro/config/index.ts', 'utf8')
   const transport = fs.readFileSync('packages/api-client/src/transport.ts', 'utf8')
   const domainPolicy = fs.readFileSync('scripts/release-domain-policy.js', 'utf8')
@@ -723,6 +729,7 @@ test('UI package evidence cannot treat a placeholder remote asset origin as rele
   assert.match(verifier, /releaseReady/)
   assert.match(domainPolicy, /hostname\.endsWith\('\.invalid'\)/)
   assert.match(domainPolicy, /WOW_ASSET_RUNTIME_ROOT must be an approved named HTTPS immutable \/releases\/<release-id> path/)
+  assert.match(domainPolicy, /WOW_RUNTIME_MEDIA_ROOT must be an approved named HTTPS immutable \/wow-media\/releases\/<release-id> path/)
   assert.match(domainPolicy, /WOW_BACKEND_API_BASE_URL must be an approved HTTPS named origin/)
   assert.match(domainPolicy, /WOW_WECHAT_REQUEST_DOMAIN_APPROVED must be explicit yes/)
   assert.match(verifier, /maximumWalkFiles = 4096/)
@@ -737,6 +744,14 @@ test('UI package evidence cannot treat a placeholder remote asset origin as rele
   assert.match(verifier, /@tarojs['"], 'cli', 'bin', 'taro'/)
   assert.match(verifier, /result\.error/)
   assert.equal(packageJson.scripts['verify:ui-package:release'], 'node scripts/verify-ui-package.js --require-production-ready')
+  assert.equal(packageJson.scripts['build:weapp:release'], undefined)
+  assert.doesNotMatch(JSON.stringify(packageJson.scripts), /static\.chickenbro\.cloud/u)
+  assert.match(publisher, /const verificationConcurrency = 8/)
+  assert.match(publisher, /const assetRequestTimeoutMs = 20_000/)
+  assert.match(publisher, /const maximumVerificationAttempts = 2/)
+  assert.match(publisher, /remote asset request \$\{record\.path\}/)
+  assert.match(publisher, /await Promise\.all\(Array\.from\(\{ length: workerCount \}/)
+  assert.match(publisher, /remote asset integrity mismatch/)
 })
 
 test('runtime review control plane separates current gaps from historical immutable evidence', () => {

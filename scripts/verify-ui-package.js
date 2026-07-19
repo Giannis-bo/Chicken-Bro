@@ -6,7 +6,12 @@ const fs = require('node:fs')
 const os = require('node:os')
 const path = require('node:path')
 const { readBoundedFile } = require('./bounded-file')
-const { isProductionAssetRuntimeRoot, isProductionBackendOrigin, releaseDomainBlockers } = require('./release-domain-policy')
+const {
+  isProductionAssetRuntimeRoot,
+  isProductionBackendOrigin,
+  isProductionRuntimeMediaRoot,
+  releaseDomainBlockers,
+} = require('./release-domain-policy')
 
 const root = path.resolve(__dirname, '..')
 const appRoot = path.join(root, 'apps/mini-taro')
@@ -15,6 +20,7 @@ const auditRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'wow-mini-package-'))
 const defaultAssetRuntimeRoot = '/assets/ui-v2'
 const placeholderRemoteAssetRuntimeRoot = 'https://assets.example.invalid/wow-assets/releases/2026-07-18-ui-v2'
 const remoteAssetRuntimeRoot = process.env.WOW_ASSET_RUNTIME_ROOT || placeholderRemoteAssetRuntimeRoot
+const runtimeMediaRoot = process.env.WOW_RUNTIME_MEDIA_ROOT || ''
 const backendApiBaseUrl = process.env.WOW_BACKEND_API_BASE_URL || ''
 const wechatRequestDomainApproved = process.env.WOW_WECHAT_REQUEST_DOMAIN_APPROVED === 'yes'
 const requireProductionReady = process.argv.includes('--require-production-ready')
@@ -27,7 +33,7 @@ const limits = {
   commonWxssBytes: 400 * 1024,
 }
 const localAssetSources = [
-  ['vector', 'packages/design-system/assets/vector'],
+  ['vector-runtime', 'packages/design-system/assets/vector-runtime'],
   ['raster/news-home-v1/runtime/2x', 'packages/design-system/assets/raster/news-home-v1/runtime/2x'],
   ['raster/builds-home-v1/runtime/2x', 'packages/design-system/assets/raster/builds-home-v1/runtime/2x'],
   ['raster/shared-chrome-v1/runtime/2x', 'packages/design-system/assets/raster/shared-chrome-v1/runtime/2x'],
@@ -114,9 +120,13 @@ try {
   }).sort()
   const missingLocalAssetFiles = expectedLocalAssetFiles.filter((file) => !local.assetFiles.includes(file))
   const unexpectedLocalAssetFiles = local.assetFiles.filter((file) => !expectedLocalAssetFiles.includes(file))
+  const expectedRemoteAssetFiles = expectedLocalAssetFiles.filter((file) => file.startsWith('vector-runtime/'))
+  const missingRemoteAssetFiles = expectedRemoteAssetFiles.filter((file) => !remote.assetFiles.includes(file))
+  const unexpectedRemoteAssetFiles = remote.assetFiles.filter((file) => !expectedRemoteAssetFiles.includes(file))
   if (missingLocalAssetFiles.length) failures.push(`local build is missing ${missingLocalAssetFiles.length} registered asset files: ${missingLocalAssetFiles.slice(0, 5).join(', ')}`)
   if (unexpectedLocalAssetFiles.length) failures.push(`local build has ${unexpectedLocalAssetFiles.length} unexpected asset files: ${unexpectedLocalAssetFiles.slice(0, 5).join(', ')}`)
-  if (remote.assetFileCount !== 0) failures.push(`remote build copied ${remote.assetFileCount} local asset files`)
+  if (missingRemoteAssetFiles.length) failures.push(`remote build is missing ${missingRemoteAssetFiles.length} local vector files: ${missingRemoteAssetFiles.slice(0, 5).join(', ')}`)
+  if (unexpectedRemoteAssetFiles.length) failures.push(`remote build copied ${unexpectedRemoteAssetFiles.length} unexpected local asset files: ${unexpectedRemoteAssetFiles.slice(0, 5).join(', ')}`)
   if (local.configuredRootReferenceCount === 0) failures.push('local build does not contain the default asset runtime root')
   if (remote.configuredRootReferenceCount === 0) failures.push('remote build does not contain the configured HTTPS asset runtime root')
   if (remote.defaultRootReferenceCount > 1) failures.push(`remote build contains ${remote.defaultRootReferenceCount} default local asset root references; only the manifest fallback definition is allowed`)
@@ -130,7 +140,12 @@ try {
   if (remote.commonJsBytes > limits.commonJsBytes) failures.push(`common.js is ${remote.commonJsBytes} bytes`)
   if (remote.commonWxssBytes > limits.commonWxssBytes) failures.push(`common.wxss is ${remote.commonWxssBytes} bytes`)
   const packageMechanicsPass = failures.length === 0
-  const releaseBlockers = releaseDomainBlockers({ assetRuntimeRoot: remoteAssetRuntimeRoot, backendApiBaseUrl, wechatRequestDomainApproved })
+  const releaseBlockers = releaseDomainBlockers({
+    assetRuntimeRoot: remoteAssetRuntimeRoot,
+    runtimeMediaRoot,
+    backendApiBaseUrl,
+    wechatRequestDomainApproved,
+  })
   const releaseReady = packageMechanicsPass && releaseBlockers.length === 0
   console.log(JSON.stringify({
     status: packageMechanicsPass ? (releaseReady ? 'pass' : 'partial') : 'fail',
@@ -138,6 +153,7 @@ try {
     packageMechanicsPass,
     releaseReady,
     remoteAssetOrigin: isProductionAssetRuntimeRoot(remoteAssetRuntimeRoot) ? new URL(remoteAssetRuntimeRoot).origin : 'not_configured',
+    runtimeMediaOrigin: isProductionRuntimeMediaRoot(runtimeMediaRoot) ? new URL(runtimeMediaRoot).origin : 'not_configured',
     backendApiOrigin: isProductionBackendOrigin(backendApiBaseUrl) ? new URL(backendApiBaseUrl).origin : 'not_configured',
     wechatRequestDomainApproved,
     releaseBlockers,
@@ -150,7 +166,14 @@ try {
       missingAssetFileCount: missingLocalAssetFiles.length,
       unexpectedAssetFileCount: unexpectedLocalAssetFiles.length,
     },
-    remote: { ...remote, outputRoot: '<temporary>', assetFiles: undefined },
+    remote: {
+      ...remote,
+      outputRoot: '<temporary>',
+      assetFiles: undefined,
+      expectedVectorAssetFileCount: expectedRemoteAssetFiles.length,
+      missingVectorAssetFileCount: missingRemoteAssetFiles.length,
+      unexpectedLocalAssetFileCount: unexpectedRemoteAssetFiles.length,
+    },
     failures,
   }, null, 2))
   if (!packageMechanicsPass || (requireProductionReady && !releaseReady)) process.exitCode = 1
