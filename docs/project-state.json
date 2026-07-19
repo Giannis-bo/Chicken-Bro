@@ -3,14 +3,22 @@
   "updatedAt": "2026-07-19",
   "activeMilestone": "taro_target_first_14_route_rebuild",
   "featureIteration": "allowed_under_harness",
-  "activeReleaseArtifact": "artifacts/releases/2026-07-16-harness-superpowers-method-layer",
+  "defaultLocalReleaseArtifact": "artifacts/releases/2026-07-19-harness-v0-6-2-control-plane-cleanup",
+  "releaseResolution": {
+    "ci": "task_scoped_pr_diff",
+    "local": "explicit_release_or_default_local_release_artifact",
+    "requiresCompletePacket": true,
+    "requiresCrossBoundManifest": true,
+    "requiresCleanVerificationHead": true,
+    "rejectsZeroOrMultipleTaskPackets": true
+  },
   "activeContracts": [
     {
-      "id": "repo_native_harness_v0_6",
+      "id": "repo_native_harness_v0_6_2",
       "path": "docs/harness.md",
       "status": "active",
       "lifecycle": "active",
-      "notes": "Current risk-layered delivery gate, single-candidate-window, evidence-promotion and Superpowers method-layer contract."
+      "notes": "Current risk-layered delivery gate with task-scoped PR packets, separate runtime/verification/closure identities, truthful manual-acceptance rollups, single-candidate-window, evidence promotion and Superpowers method-layer boundaries."
     },
     {
       "id": "backend_hotspot_owner_map",
@@ -39,6 +47,13 @@
       "status": "active",
       "lifecycle": "active",
       "notes": "Active Taro UI contract, including canonical gear API parity and fresh real WeChat acceptance."
+    },
+    {
+      "id": "harness_v0_6_2_control_plane_cleanup",
+      "path": "docs/plans/harness-v0-6-2-control-plane-cleanup.md",
+      "status": "local_verified_pending_pr",
+      "lifecycle": "active",
+      "notes": "Strict docs/tooling task locally verified on the task branch; PR/CI and merge closure remain pending. It implements task-scoped release resolution, immutable identity binding, exact manual-acceptance sets, superseded document/evidence cleanup and compatibility caller-proof governance."
     }
   ],
   "completedBaselines": [
@@ -481,6 +496,12 @@
       "id": "phase3a_public_origin_rtt",
       "status": "observed_client_path_latency",
       "trigger": "Phase 3A backend warm p95 passed at 112.334ms through on-host production Nginx, while the remote client path measured 367.412ms with about 180ms RTT. Do not claim sub-200ms public-client latency from the backend SLO."
+    },
+    {
+      "id": "harness_pr_release_packet_binding",
+      "status": "rule_local_verified_pending_pr",
+      "trigger": "PR CI validates the unique complete task-scoped requirement/evidence/manifest packet from the PR diff; manifest, immutable runtime candidate, clean verification HEAD, closure identity and exact accepted/not_run_user_waived/pending acceptance set are fail-closed without adding duplicate full profiles or runtime changes.",
+      "evidence": "artifacts/releases/2026-07-19-harness-v0-6-2-control-plane-cleanup/evidence.json"
     }
   ]
 }

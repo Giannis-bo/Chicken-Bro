@@ -13,6 +13,7 @@
     "userValue",
     "nonGoals",
     "engineeringHealth",
+    "manualAcceptanceContract",
     "releaseTrigger",
     "decisionLog"
   ],
@@ -182,6 +183,27 @@
       "items": {
         "type": "string",
         "minLength": 1
+      }
+    },
+    "manualAcceptanceContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required",
+        "requiredItemIds"
+      ],
+      "properties": {
+        "required": {
+          "type": "boolean"
+        },
+        "requiredItemIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
       }
     },
     "releaseTrigger": {

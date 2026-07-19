@@ -10,6 +10,7 @@ const executableHarnessRelease = 'artifacts/releases/2026-07-10-executable-proje
 const characterizationRelease = 'artifacts/releases/2026-07-10-critical-contract-characterization'
 const archivedPhase5Release = 'artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover'
 const activeHarnessSuperpowersRelease = 'artifacts/releases/2026-07-16-harness-superpowers-method-layer'
+const activeHarnessV062Release = 'artifacts/releases/2026-07-19-harness-v0-6-2-control-plane-cleanup'
 const archivedTalentLkgRelease = 'artifacts/releases/2026-07-13-talent-link-lkg-sync-guard'
 const archivedCommunityEnhancementRelease = 'artifacts/releases/2026-07-14-community-enhancement-editability'
 
@@ -40,7 +41,16 @@ test('project-state is the single machine-readable current truth entry', () => {
   assert.equal(state.updatedAt, '2026-07-19')
   assert.equal(state.activeMilestone, 'taro_target_first_14_route_rebuild')
   assert.equal(state.featureIteration, 'allowed_under_harness')
-  assert.equal(state.activeReleaseArtifact, activeHarnessSuperpowersRelease)
+  assert.equal(state.activeReleaseArtifact, undefined)
+  assert.equal(state.defaultLocalReleaseArtifact, activeHarnessV062Release)
+  assert.deepEqual(state.releaseResolution, {
+    ci: 'task_scoped_pr_diff',
+    local: 'explicit_release_or_default_local_release_artifact',
+    requiresCompletePacket: true,
+    requiresCrossBoundManifest: true,
+    requiresCleanVerificationHead: true,
+    rejectsZeroOrMultipleTaskPackets: true,
+  })
   const productionDomain = state.runtimeBaseline.uiRuntimeEvidence.productionRequestDomain
   assert.equal(productionDomain.status, 'candidate_release_gate_passed')
   assert.equal(productionDomain.candidateBackendOrigin, 'https://api.chickenbro.cloud')
@@ -67,11 +77,16 @@ test('project-state is the single machine-readable current truth entry', () => {
   assertUniqueById(state.historicalContracts, 'historicalContracts')
 
   const activeContractIds = new Set(state.activeContracts.map((entry) => entry.id))
-  assert.ok(activeContractIds.has('repo_native_harness_v0_6'))
+  assert.ok(activeContractIds.has('repo_native_harness_v0_6_2'))
+  assert.ok(activeContractIds.has('harness_v0_6_2_control_plane_cleanup'))
   assert.ok(activeContractIds.has('taro_target_first_14_route_rebuild'))
   assert.ok(!activeContractIds.has('talent_link_lkg_sync_guard'))
   assert.ok(!activeContractIds.has('community_enhancement_editability'))
   assert.ok(!activeContractIds.has('equipment_simulator_capability_architecture'))
+  assert.equal(
+    state.activeContracts.find((entry) => entry.id === 'harness_v0_6_2_control_plane_cleanup').status,
+    'local_verified_pending_pr',
+  )
   assert.ok(!activeContractIds.has('equipment_simulator_phase5_async_stat_snapshot_plan'))
   assert.ok(!activeContractIds.has('equipment_simulator_phase3_resolve_profile_workbench_plan'))
   assert.ok(!activeContractIds.has('equipment_simulator_phase1_contracts_plan'))
@@ -108,7 +123,7 @@ test('project-state is the single machine-readable current truth entry', () => {
     assert.ok(!activePaths.has(entry.path), `${entry.path} should not be both active and historical`)
   }
 
-  for (const releasePath of [activeHarnessSuperpowersRelease, archivedTalentLkgRelease, archivedCommunityEnhancementRelease, archivedPhase5Release, characterizationRelease, executableHarnessRelease, controlPlaneRelease]) {
+  for (const releasePath of [activeHarnessV062Release, activeHarnessSuperpowersRelease, archivedTalentLkgRelease, archivedCommunityEnhancementRelease, archivedPhase5Release, characterizationRelease, executableHarnessRelease, controlPlaneRelease]) {
     assertPathExists(path.join(releasePath, 'requirement.json'))
     assertPathExists(path.join(releasePath, 'evidence.json'))
     assertPathExists(path.join(releasePath, 'manifest.json'))
@@ -754,25 +769,31 @@ test('UI package evidence cannot treat a placeholder remote asset origin as rele
   assert.match(publisher, /remote asset integrity mismatch/)
 })
 
-test('runtime review control plane separates current gaps from historical immutable evidence', () => {
+test('runtime review control plane keeps superseded evidence in Git history only', () => {
   const status = readJson('docs/design/current-ui/runtime-review-status.json')
   const contract = readJson('docs/design/current-ui/runtime-review-contract.json')
   assert.equal(contract.schemaVersion, 'wechat-runtime-review-v3')
   assert.ok(contract.fieldContract.assetSemantics.includes('promotionStatus'))
   assert.deepEqual(contract.passCriteria.assetPromotionStatuses, ['production_promoted', 'not_applicable_code_native'])
-  assert.equal(status.historicalRouteGeometryReviews.at(-1).routeCount, 14)
-  assert.equal(status.historicalRouteGeometryReviews.at(-1).violationCount, 0)
-  assert.equal(status.historicalRouteGeometryReviews.at(-1).current, false)
+  assert.equal(status.historicalRouteGeometryReviews, undefined)
+  assert.equal(status.historicalCoreInteractionReviews, undefined)
+  assert.equal(status.historicalSelectedControlReviews, undefined)
+  assert.equal(status.historicalRegionComparisons, undefined)
+  assert.equal(status.historicalAssetSlotReviews, undefined)
+  assert.equal(status.historicalRuntimeArtifactReviews, undefined)
+  assert.deepEqual(status.supersededEvidence, {
+    retention: 'git_history_only',
+    workingTreeArtifactCount: 0,
+    currentEvidenceMayReferenceSupersededArtifacts: false,
+  })
   assert.equal(status.observedRouteGeometryReviews, undefined)
-  assert.equal(status.historicalCoreInteractionReviews.at(-1).failed, 0)
-  assert.equal(status.historicalCoreInteractionReviews.at(-1).current, false)
-  assert.equal(status.historicalSelectedControlReviews.at(-1).materialMismatches, 0)
-  assert.equal(status.historicalSelectedControlReviews.at(-1).current, false)
   assert.equal(status.observedSelectedControlReviews, undefined)
-  assert.equal(status.runtimeAvailability.status, 'empty_renderer')
-  assert.equal(status.runtimeAvailability.method, 'existing_devtools_read_only_probe')
-  assert.deepEqual(status.runtimeAvailability.mutations, [])
-  assert.match(status.runtimeAvailability.retryPolicy, /do_not_relaunch_reload_or_repeat_probe/)
+  assert.deepEqual(status.runtimeAvailability, {
+    status: 'not_collected_for_current_candidate',
+    candidateIdentity: 'unbound',
+    reason: 'No immutable current 14-route runtime artifact is retained in the working tree; the six accepted routes recorded in project-state do not prove the full route matrix.',
+    collectionPolicy: 'collect_again_for_a_new_candidate_without_reusing_superseded_runtime_artifacts',
+  })
   assert.ok(status.sharedMissingEvidence.includes('wechat_runtime_artifact'))
   assert.ok(status.sharedMissingEvidence.includes('real_wechat_route_geometry'))
   assert.ok(status.sharedMissingEvidence.includes('real_wechat_selected_controls'))
@@ -796,13 +817,25 @@ test('runtime review control plane separates current gaps from historical immuta
     { collection: 'shared-chrome-v1', pendingAssetCount: 5 },
     { collection: 'vector', pendingAssetCount: 66 },
   ])
-  assert.equal(status.historicalRegionComparisons.at(-1).current, false)
-  assert.equal(status.historicalAssetSlotReviews.at(-1).current, false)
   assert.ok(status.sharedMissingEvidence.includes('human_visual_confirmation'))
   assert.ok(status.routes.every((route) => route.status === 'UNVERIFIED'))
   assert.ok(status.routes.every((route) => route.observedRuntimeArtifact === undefined))
-  assert.equal(status.historicalRuntimeArtifactReviews.length, 4)
-  assert.ok(status.historicalRuntimeArtifactReviews.every((review) => review.current === false && review.supersededReason))
+  const runtimeFiles = fs.readdirSync('artifacts/ui-runtime-reviews', { recursive: true, withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name !== '.gitkeep')
+  assert.equal(runtimeFiles.length, 0)
+})
+
+test('superseded execution documents are absent from the active control plane', () => {
+  const supersededDocs = fs.existsSync('docs/superpowers')
+    ? fs.readdirSync('docs/superpowers', { recursive: true, withFileTypes: true }).filter((entry) => entry.isFile())
+    : []
+  assert.equal(supersededDocs.length, 0)
+  const gearRunbook = fs.readFileSync('docs/gear-simulation-full-chain-runbook.md', 'utf8')
+  const uiPlan = fs.readFileSync('docs/plans/ui-reconstruction.md', 'utf8')
+  assert.doesNotMatch(gearRunbook, /docs\/plans\/2026-07-11-equipment-simulator/)
+  assert.doesNotMatch(gearRunbook, /当前[^\n]*进入 5B|5C 前端切换未开始/)
+  assert.ok(uiPlan.split('\n').length <= 100, 'active UI plan should contain current execution truth, not a historical timeline')
+  assert.doesNotMatch(uiPlan, /historical commit|历史 commit|候选 `taro-|PR #91 协调收口/)
 })
 
 test('all used Taro native layout nodes inherit border-box geometry', () => {

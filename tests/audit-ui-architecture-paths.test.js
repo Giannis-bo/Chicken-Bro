@@ -1,14 +1,9 @@
 const assert = require('node:assert/strict')
-const crypto = require('node:crypto')
 const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
 
 const root = path.resolve(__dirname, '..')
-
-function sha256(buffer) {
-  return crypto.createHash('sha256').update(buffer).digest('hex')
-}
 
 function contentAddressedJsonFiles(directory) {
   return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -77,10 +72,17 @@ test('content-addressed runtime review JSON declares LF byte preservation', () =
   assert.match(attributes, /^artifacts\/ui-runtime-reviews\/\*\*\/\*\.json text eol=lf$/mu)
 })
 
-test('content-addressed runtime review JSON working bytes match their filenames', () => {
+test('superseded runtime review JSON does not remain in the working tree', () => {
   const files = contentAddressedJsonFiles(path.join(root, 'artifacts', 'ui-runtime-reviews'))
-  assert.ok(files.length >= 8, `expected content-addressed runtime JSON, found ${files.length}`)
-  for (const file of files) {
-    assert.equal(sha256(fs.readFileSync(file)), path.basename(file, '.json'), path.relative(root, file))
-  }
+  assert.deepEqual(files, [])
+})
+
+test('UI audit uses the plan whitelist without claiming authority over non-UI plans', () => {
+  const audit = fs.readFileSync(path.join(root, 'scripts', 'audit-ui-architecture.js'), 'utf8')
+  assert.match(audit, /current_plan_set_matches_plan_whitelist/u)
+  assert.match(audit, /ui_evidence_policy_plan_files_are_whitelisted/u)
+  assert.doesNotMatch(
+    audit,
+    /JSON\.stringify\(currentPlanFiles\) === JSON\.stringify\(sorted\(evidencePolicy\.allowedPlanFiles/u,
+  )
 })

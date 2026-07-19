@@ -1,7 +1,7 @@
 # Repo-native Harness
 
-> Harness version：v0.6.1。
-> 最后更新：2026-07-16。
+> Harness version：v0.6.2。
+> 最后更新：2026-07-19。
 > 适用范围：本仓库所有需求讨论、方案设计、实现、验证、部署和交付声明。
 
 本文定义项目内置的轻量交付 Harness。它不是外部平台替代品，也不替代现有 roadmap、runbook、测试或部署脚本。它的作用是把“能不能开始实现”和“能不能声明完成”变成明确的合同和证据状态。
@@ -23,6 +23,16 @@
 - 本仓库与已配置项目远端之间的常规同步是协作基础设施，不再作为下载/网络授权阻塞项；但它不能扩展为依赖安装、第三方下载、任意 clone、改 remote 或破坏性历史改写。
 - 用户批准计划、授权继续或要求直接推进后，agent 默认自动推进后续范围内步骤；只有明确阻塞、验证失败需权衡、范围变化、待决策点或越界高风险操作才回到用户确认。
 - 不确定时按更高风险处理。Agent 如果无法判断需求大小，默认进入大需求流程。
+
+## Task-scoped Release Packet Binding Gate
+
+Standard / Strict PR 的 requirement、evidence、manifest 必须属于当前任务，不能再由全局“活动 release”指针替代。GitHub CI 从 `origin/main...HEAD` diff 中解析唯一 `artifacts/releases/<task>/`；零个、多个或缺少三件套都 fail closed。`docs/project-state.json.defaultLocalReleaseArtifact` 只为本地未显式提供 `--release` 的命令提供默认值，不拥有 PR CI 证据选择权。
+
+- `requirement.json`、`evidence.json`、`manifest.json` 必须位于同一任务 release 目录；requirement/evidence slug、manifest release slug、当前 Harness 版本、manifest evidence path 与自身 write path 必须相互一致。旧 packet 只能作为历史 evidence。
+- evidence schema v2 分开登记 `runtime`、`verification`、`closure` identity。runtime 必须与候选部署中同类型的 immutable commit/tree/build identity 精确相等，branch 不能充当不可变身份；verification 在检查时绑定精确且工作树无差异的 Git `HEAD`；closure 只有归档证据才能绑定 merge commit。`pending` / `not_applicable` 必须写明原因。
+- 需要人工验收时，requirement 的 `manualAcceptanceContract.requiredItemIds` 必须先冻结完整必验集合；evidence 必须不多不少地逐项登记 `accepted`、`not_run_user_waived` 或 `pending`，rollup 与条目精确相等。`accepted` 需要证据，`not_run_user_waived` 需要用户明确授权，waiver 不能冒充 accepted。
+- 不涉及用户可见运行态的任务必须显式声明 `manualAcceptance.required=false`、空 items、全零 rollup 和不适用原因。
+- CI 仍只运行一个最终 `full` profile；该 gate 不增加重复 full、额外评审或候选部署。
 
 ## Superpowers 方法层门禁
 
@@ -492,6 +502,7 @@ Harness 复盘节奏：
 
 | Version | Date | Change |
 | --- | --- | --- |
+| v0.6.2 | 2026-07-19 | PR CI 改为从 diff 绑定唯一完整且交叉校验的任务 release packet；evidence schema v2 分离 runtime/verification/closure identity，runtime 只认同类型 immutable candidate，verification 只认 clean exact HEAD，并校验 requirement 冻结的完整 accepted/not_run_user_waived/pending 人工验收集合；全局 release 指针不再能满足 CI。 |
 | v0.6.1 | 2026-07-16 | 将 Superpowers 固定为按需方法层：Harness 优先决定分级、验证、候选、拓扑和收口；Light Fast Lane 不被设计/worktree/并行/收尾技能重新加重；禁止自动依赖安装与收尾菜单覆盖 Harness closure。 |
 | v0.6 | 2026-07-15 | 按运行面风险分层验证：开发期默认 targeted，普通 runtime 由最终 CI full 覆盖，高风险写路径才额外本地 full；CI 不再重复 harness + full；同一最终 runtime head 仅一次候选部署；候选窗口串行化；归档不再阻塞合入或重跑业务 full。 |
 | v0.5 | 2026-07-09 | 增加 Candidate Deployment Gate：backend/API、PG read model、公开 payload、health/admin、定时任务、部署脚本和用户可见运行链路默认在 PR 候选阶段先部署或预览 smoke，通过后再合入；无法预合入验证时必须记录例外并补 post-merge live smoke。 |
@@ -613,6 +624,7 @@ node scripts/project-harness.js --json --slug <slug> --evidence-file artifacts/r
 - data health。
 - deploy smoke。
 - risk matrix。
+- v0.6.2 task-scoped packet、identity 与人工验收汇总门禁。
 - v0.6.1 Superpowers 方法层优先级与 Light Fast Lane 保护规则。
 - v0.6 verification-efficiency、single-candidate-window 与 merge/archive separation 规则。
 

@@ -50,6 +50,10 @@ function baseRequirement(overrides = {}) {
       reason: 'Tooling-only fixture.'
     },
     acceptanceEvidence: ['node --test tests/project-harness.test.js'],
+    manualAcceptanceContract: {
+      required: false,
+      requiredItemIds: []
+    },
     releaseTrigger: 'docs_tooling_only',
     rollback: ['code_rollback'],
     decisionLog: [
@@ -64,13 +68,40 @@ function baseRequirement(overrides = {}) {
 
 function baseEvidence(overrides = {}) {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     slug: 'validator-fixture',
     requirementSlug: 'validator-fixture',
     status: 'local_verified',
     highestEvidenceLevel: 'local_verified',
     branch: 'codex/validator-fixture',
     commit: 'pending_pr_head',
+    identities: {
+      runtime: {
+        status: 'not_applicable',
+        reason: 'Docs/tooling-only fixture.'
+      },
+      verification: {
+        status: 'bound_at_check',
+        kind: 'git_ref',
+        value: 'HEAD'
+      },
+      closure: {
+        status: 'pending',
+        reason: 'No merge or archive closure has occurred.'
+      }
+    },
+    manualAcceptance: {
+      required: false,
+      status: 'not_applicable',
+      reason: 'No user-visible runtime behavior.',
+      items: [],
+      rollup: {
+        total: 0,
+        accepted: 0,
+        notRunUserWaived: 0,
+        pending: 0
+      }
+    },
     scope: ['harness'],
     verification: [
       {
@@ -94,7 +125,31 @@ function baseEvidence(overrides = {}) {
   }
 }
 
-function writeHarnessFixture(root, requirement = baseRequirement(), evidence = baseEvidence()) {
+function baseManifest(overrides = {}) {
+  return {
+    schemaVersion: 1,
+    status: 'project_harness_manifest_ready',
+    release: {
+      date: '2099-01-02',
+      slug: 'validator-fixture'
+    },
+    harness: {
+      version: 'v9.9',
+      source: 'docs/harness.md'
+    },
+    evidencePacket: {
+      status: 'ready',
+      path: 'artifacts/releases/fixture/evidence.json'
+    },
+    write: {
+      enabled: true,
+      path: 'artifacts/releases/fixture/manifest.json'
+    },
+    ...overrides
+  }
+}
+
+function writeHarnessFixture(root, requirement = baseRequirement(), evidence = baseEvidence(), manifest = baseManifest()) {
   writeFile(path.join(root, 'docs/harness.md'), [
     '# Repo-native Harness',
     '',
@@ -110,6 +165,16 @@ function writeHarnessFixture(root, requirement = baseRequirement(), evidence = b
   })
   writeJson(path.join(root, 'artifacts/releases/fixture/requirement.json'), requirement)
   writeJson(path.join(root, 'artifacts/releases/fixture/evidence.json'), evidence)
+  writeJson(path.join(root, 'artifacts/releases/fixture/manifest.json'), manifest)
+}
+
+function initializeGitFixture(root) {
+  spawnSync('git', ['init'], { cwd: root, encoding: 'utf8' })
+  spawnSync('git', ['config', 'user.email', 'codex@example.com'], { cwd: root, encoding: 'utf8' })
+  spawnSync('git', ['config', 'user.name', 'Codex'], { cwd: root, encoding: 'utf8' })
+  spawnSync('git', ['add', '.'], { cwd: root, encoding: 'utf8' })
+  spawnSync('git', ['commit', '-m', 'checked head'], { cwd: root, encoding: 'utf8' })
+  return spawnSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).stdout.trim()
 }
 
 function runHarnessCheck(root, extraArgs = []) {
@@ -122,6 +187,8 @@ function runHarnessCheck(root, extraArgs = []) {
     'artifacts/releases/fixture/requirement.json',
     '--evidence-file',
     'artifacts/releases/fixture/evidence.json',
+    '--manifest-file',
+    'artifacts/releases/fixture/manifest.json',
     ...extraArgs
   ])
 }
@@ -140,9 +207,9 @@ test('project harness emits the current repo-native harness manifest as read-onl
   const manifest = JSON.parse(result.stdout)
   assert.equal(manifest.status, 'project_harness_manifest_ready')
   assert.equal(manifest.schemaVersion, 1)
-  assert.equal(manifest.harness.version, 'v0.6.1')
+  assert.equal(manifest.harness.version, 'v0.6.2')
   assert.equal(manifest.harness.source, 'docs/harness.md')
-  assert.equal(manifest.harness.policyChangeCount, 7)
+  assert.equal(manifest.harness.policyChangeCount, 8)
   assert.equal(manifest.safety.noNetwork, true)
   assert.equal(manifest.safety.repositoryRemoteSyncPreapproved, true)
   assert.equal(manifest.safety.repositoryRemoteSyncScope, 'configured_project_remote_only')
@@ -170,6 +237,7 @@ test('project harness emits the current repo-native harness manifest as read-onl
     'releaseRollback',
     'requirementChallenge',
     'superpowersIntegration',
+    'taskScopedEvidenceBinding',
     'userAcceptanceClosure',
     'verificationEfficiency'
   ].sort())
@@ -243,6 +311,18 @@ test('project harness emits the current repo-native harness manifest as read-onl
   assert.equal(manifest.gates.candidateDeployment.maximumDeploymentsPerFinalRuntimeHead, 1)
   assert.equal(manifest.gates.candidateDeployment.candidateWindow.policy, 'one_runtime_candidate_window_per_repository')
   assert.equal(manifest.gates.evidencePromotion.mergeReadyDoesNotRequireArchived, true)
+  assert.deepEqual(manifest.gates.taskScopedEvidenceBinding, {
+    status: 'ready',
+    ciReleaseSelection: 'unique_complete_packet_from_pr_diff',
+    localReleaseSelection: 'explicit_release_or_default_local_release_artifact',
+    manifestBinding: 'task_slug_current_harness_evidence_path_and_self_path',
+    identityKinds: ['runtime', 'verification', 'closure'],
+    runtimeIdentity: 'matching_immutable_candidate_commit_tree_or_build',
+    verificationIdentity: 'clean_exact_git_head',
+    manualAcceptanceSet: 'exact_requirement_contract_item_ids',
+    manualAcceptanceRollup: ['accepted', 'not_run_user_waived', 'pending'],
+    staleGlobalPointerCanSatisfyCi: false,
+  })
   assert.equal(manifest.gates.verificationEfficiency.docsOnlyProfile, 'harness')
   assert.equal(manifest.gates.verificationEfficiency.normalRuntimeFullProfile, 'ci_exact_final_head')
   assert.equal(manifest.gates.verificationEfficiency.highRiskRuntimeFullProfile, 'local_once_and_ci_exact_final_head')
@@ -352,6 +432,8 @@ test('project harness loads a local evidence packet without executing it', () =>
   writeFile(path.join(root, 'docs/roadmap.md'), '# Roadmap\n')
   writeFile(path.join(root, 'docs/README.md'), '# Docs\n')
   writeFile(path.join(root, 'artifacts/releases/sample/evidence.json'), JSON.stringify({
+    identities: {},
+    manualAcceptance: {},
     status: 'local_verified',
     highestEvidenceLevel: 'local_verified',
     scope: ['harness'],
@@ -402,6 +484,7 @@ test('project harness refuses evidence packets outside the repository root', () 
 test('project harness check accepts a valid requirement and evidence packet', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wow-project-harness-check-valid-'))
   writeHarnessFixture(root)
+  const expected = initializeGitFixture(root)
 
   const result = runHarnessCheck(root)
 
@@ -409,6 +492,283 @@ test('project harness check accepts a valid requirement and evidence packet', ()
   const check = parseJsonOutput(result)
   assert.equal(check.status, 'project_harness_check_passed')
   assert.deepEqual(check.reasonCodes, [])
+  assert.equal(check.identities.verification.status, 'bound')
+  assert.equal(check.identities.verification.commit, expected)
+})
+
+test('project harness rejects a stale manifest from another task packet', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wow-project-harness-stale-manifest-'))
+  writeHarnessFixture(root, baseRequirement(), baseEvidence(), baseManifest({
+    release: {
+      date: '2099-01-02',
+      slug: 'another-task'
+    }
+  }))
+
+  const result = runHarnessCheck(root)
+
+  assert.notEqual(result.status, 0)
+  assert.ok(parseJsonOutput(result).reasonCodes.includes('manifest_packet_mismatch'))
+})
+
+test('project harness binds the manifest to the checked evidence path', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wow-project-harness-manifest-evidence-'))
+  writeHarnessFixture(root, baseRequirement(), baseEvidence(), baseManifest({
+    evidencePacket: {
+      status: 'ready',
+      path: 'artifacts/releases/another-task/evidence.json'
+    }
+  }))
+
+  const result = runHarnessCheck(root)
+
+  assert.notEqual(result.status, 0)
+  assert.ok(parseJsonOutput(result).reasonCodes.includes('manifest_evidence_mismatch'))
+})
+
+test('project harness requires separate runtime verification and closure identities', () => {
+  const cases = [
+    {
+      name: 'missing identities',
+      mutate: (evidence) => delete evidence.identities,
+      reasonCode: 'evidence_missing_identities'
+    },
+    {
+      name: 'bound runtime identity without a value',
+      mutate: (evidence) => {
+        evidence.identities.runtime = { status: 'bound', kind: 'git_commit', value: '' }
+      },
+      reasonCode: 'evidence_identity_invalid'
+    },
+    {
+      name: 'closure identity before archival closure',
+      mutate: (evidence) => {
+        evidence.identities.closure = { status: 'bound', kind: 'merge_commit', value: 'abc123' }
+      },
+      reasonCode: 'closure_identity_exceeds_evidence'
+    },
+    {
+      name: 'runtime identity differs from candidate deployment',
+      mutate: (evidence) => {
+        evidence.identities.runtime = { status: 'bound', kind: 'build_identity', value: 'runtime-a' }
+        evidence.candidateDeployment = { status: 'candidate_verified', buildIdentity: 'runtime-b' }
+      },
+      reasonCode: 'runtime_identity_mismatch'
+    }
+  ]
+
+  for (const testCase of cases) {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), `wow-project-harness-identity-${testCase.name.replace(/[^a-z0-9]+/gi, '-')}-`))
+    const evidence = baseEvidence()
+    testCase.mutate(evidence)
+    writeHarnessFixture(root, baseRequirement(), evidence)
+
+    const result = runHarnessCheck(root)
+
+    assert.notEqual(result.status, 0, testCase.name)
+    const check = parseJsonOutput(result)
+    assert.ok(check.reasonCodes.includes(testCase.reasonCode), `${testCase.name} should include ${testCase.reasonCode}`)
+  }
+})
+
+test('project harness rejects branch-only or mismatched runtime identity binding', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wow-project-harness-runtime-identity-'))
+  const requirement = baseRequirement({ releaseTrigger: 'backend_api' })
+  const evidence = baseEvidence({
+    status: 'live_verified',
+    highestEvidenceLevel: 'live_verified',
+    identities: {
+      ...baseEvidence().identities,
+      runtime: {
+        status: 'bound',
+        kind: 'git_commit',
+        value: 'immutable-runtime-commit'
+      }
+    },
+    candidateDeployment: {
+      status: 'candidate_verified',
+      branch: 'codex/mutable-candidate-branch',
+      smoke: { status: 'pass' },
+      timerBackflow: { status: 'not_applicable' }
+    },
+    runtimeEvidence: [
+      { type: 'smoke', status: 'pass' }
+    ]
+  })
+  writeHarnessFixture(root, requirement, evidence)
+
+  const result = runHarnessCheck(root)
+
+  assert.notEqual(result.status, 0)
+  const check = parseJsonOutput(result)
+  assert.ok(check.reasonCodes.includes('runtime_identity_mismatch'))
+  assert.ok(check.reasonCodes.includes('runtime_candidate_deployment_missing'))
+})
+
+test('project harness resolves the verification identity to the exact checked Git HEAD', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wow-project-harness-verification-head-'))
+  writeHarnessFixture(root)
+  const expected = initializeGitFixture(root)
+
+  const result = runHarnessCheck(root, ['--base', 'HEAD'])
+
+  assert.equal(result.status, 0, result.stdout)
+  const check = parseJsonOutput(result)
+  assert.equal(check.identities.verification.status, 'bound')
+  assert.equal(check.identities.verification.commit, expected)
+  assert.equal(check.identities.verification.ref, 'HEAD')
+})
+
+test('project harness rejects bound verification when checked bytes differ from HEAD', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wow-project-harness-verification-dirty-'))
+  writeHarnessFixture(root)
+  initializeGitFixture(root)
+  writeFile(path.join(root, 'uncommitted-change.txt'), 'dirty\n')
+
+  const result = runHarnessCheck(root)
+
+  assert.notEqual(result.status, 0)
+  const check = parseJsonOutput(result)
+  assert.ok(check.reasonCodes.includes('verification_worktree_dirty'))
+  assert.equal(check.identities.verification.status, 'dirty')
+})
+
+test('project harness rejects manual acceptance rollups that do not match their items', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wow-project-harness-manual-rollup-'))
+  const evidence = baseEvidence({
+    manualAcceptance: {
+      required: true,
+      status: 'pending',
+      items: [
+        { id: 'news_home', status: 'accepted', evidence: 'real WeChat acceptance' },
+        { id: 'gear_detail', status: 'pending' }
+      ],
+      rollup: {
+        total: 2,
+        accepted: 2,
+        notRunUserWaived: 0,
+        pending: 0
+      }
+    }
+  })
+  writeHarnessFixture(root, baseRequirement({
+    manualAcceptanceContract: {
+      required: true,
+      requiredItemIds: ['news_home', 'gear_detail']
+    }
+  }), evidence)
+
+  const result = runHarnessCheck(root)
+
+  assert.notEqual(result.status, 0)
+  assert.ok(parseJsonOutput(result).reasonCodes.includes('manual_acceptance_rollup_mismatch'))
+})
+
+test('project harness accepts a truthful manual acceptance matrix with explicit user waiver', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wow-project-harness-manual-waiver-'))
+  const evidence = baseEvidence({
+    manualAcceptance: {
+      required: true,
+      status: 'complete_with_user_waiver',
+      items: [
+        { id: 'news_home', status: 'accepted', evidence: 'real WeChat acceptance' },
+        { id: 'gear_detail', status: 'not_run_user_waived', authorization: 'User explicitly authorized merge without this route.' }
+      ],
+      rollup: {
+        total: 2,
+        accepted: 1,
+        notRunUserWaived: 1,
+        pending: 0
+      }
+    }
+  })
+  writeHarnessFixture(root, baseRequirement({
+    manualAcceptanceContract: {
+      required: true,
+      requiredItemIds: ['news_home', 'gear_detail']
+    }
+  }), evidence)
+  initializeGitFixture(root)
+
+  const result = runHarnessCheck(root)
+
+  assert.equal(result.status, 0, result.stdout)
+  assert.deepEqual(parseJsonOutput(result).reasonCodes, [])
+})
+
+test('project harness rejects an unproven manual acceptance or user waiver', () => {
+  const cases = [
+    {
+      name: 'accepted item without evidence',
+      item: { id: 'news_home', status: 'accepted' },
+      reasonCode: 'manual_acceptance_evidence_missing'
+    },
+    {
+      name: 'waived item without user authorization',
+      item: { id: 'gear_detail', status: 'not_run_user_waived' },
+      reasonCode: 'manual_acceptance_waiver_unproven'
+    }
+  ]
+
+  for (const testCase of cases) {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), `wow-project-harness-manual-proof-${testCase.name.replace(/[^a-z0-9]+/gi, '-')}-`))
+    const status = testCase.item.status === 'accepted' ? 'complete' : 'complete_with_user_waiver'
+    const evidence = baseEvidence({
+      manualAcceptance: {
+        required: true,
+        status,
+        items: [testCase.item],
+        rollup: {
+          total: 1,
+          accepted: testCase.item.status === 'accepted' ? 1 : 0,
+          notRunUserWaived: testCase.item.status === 'not_run_user_waived' ? 1 : 0,
+          pending: 0
+        }
+      }
+    })
+    writeHarnessFixture(root, baseRequirement({
+      manualAcceptanceContract: {
+        required: true,
+        requiredItemIds: [testCase.item.id]
+      }
+    }), evidence)
+
+    const result = runHarnessCheck(root)
+
+    assert.notEqual(result.status, 0, testCase.name)
+    assert.ok(parseJsonOutput(result).reasonCodes.includes(testCase.reasonCode))
+  }
+})
+
+test('project harness rejects a manual acceptance matrix that omits required items', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wow-project-harness-manual-set-'))
+  const requirement = baseRequirement({
+    manualAcceptanceContract: {
+      required: true,
+      requiredItemIds: ['news_home', 'gear_detail']
+    }
+  })
+  const evidence = baseEvidence({
+    manualAcceptance: {
+      required: true,
+      status: 'complete',
+      items: [
+        { id: 'news_home', status: 'accepted', evidence: 'real WeChat acceptance' }
+      ],
+      rollup: {
+        total: 1,
+        accepted: 1,
+        notRunUserWaived: 0,
+        pending: 0
+      }
+    }
+  })
+  writeHarnessFixture(root, requirement, evidence)
+
+  const result = runHarnessCheck(root)
+
+  assert.notEqual(result.status, 0)
+  assert.ok(parseJsonOutput(result).reasonCodes.includes('manual_acceptance_set_mismatch'))
 })
 
 test('project harness check returns stable reason codes for invalid packets', () => {
@@ -553,6 +913,7 @@ test('project harness check never executes commands listed in packets', () => {
       }
     ]
   }))
+  initializeGitFixture(root)
 
   const result = runHarnessCheck(root)
 

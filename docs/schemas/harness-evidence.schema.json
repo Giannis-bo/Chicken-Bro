@@ -12,6 +12,8 @@
     "highestEvidenceLevel",
     "branch",
     "commit",
+    "identities",
+    "manualAcceptance",
     "scope",
     "verification",
     "candidateDeployment",
@@ -25,7 +27,7 @@
   "properties": {
     "schemaVersion": {
       "type": "integer",
-      "const": 1
+      "const": 2
     },
     "slug": {
       "type": "string",
@@ -68,6 +70,29 @@
     "commit": {
       "type": "string",
       "minLength": 1
+    },
+    "identities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "runtime",
+        "verification",
+        "closure"
+      ],
+      "properties": {
+        "runtime": {
+          "$ref": "#/$defs/runtimeIdentity"
+        },
+        "verification": {
+          "$ref": "#/$defs/verificationIdentity"
+        },
+        "closure": {
+          "$ref": "#/$defs/closureIdentity"
+        }
+      }
+    },
+    "manualAcceptance": {
+      "$ref": "#/$defs/manualAcceptance"
     },
     "scope": {
       "type": "array",
@@ -165,6 +190,120 @@
     "summary": {
       "type": "string",
       "minLength": 1
+    }
+  },
+  "$defs": {
+    "runtimeIdentity": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": {
+          "enum": ["bound", "not_applicable", "pending"]
+        },
+        "kind": {
+          "enum": ["git_commit", "git_tree", "build_identity"]
+        },
+        "value": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": true
+    },
+    "verificationIdentity": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": {
+          "enum": ["bound_at_check", "pending"]
+        },
+        "kind": {
+          "const": "git_ref"
+        },
+        "value": {
+          "const": "HEAD"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": true
+    },
+    "closureIdentity": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": {
+          "enum": ["bound", "pending", "not_applicable"]
+        },
+        "kind": {
+          "const": "merge_commit"
+        },
+        "value": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": true
+    },
+    "manualAcceptance": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["required", "status", "items", "rollup"],
+      "properties": {
+        "required": {
+          "type": "boolean"
+        },
+        "status": {
+          "enum": ["not_applicable", "pending", "complete", "complete_with_user_waiver"]
+        },
+        "reason": {
+          "type": "string"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true,
+            "required": ["id", "status"],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "status": {
+                "enum": ["accepted", "not_run_user_waived", "pending"]
+              },
+              "evidence": {
+                "type": "string"
+              },
+              "authorization": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "rollup": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["total", "accepted", "notRunUserWaived", "pending"],
+          "properties": {
+            "total": {"type": "integer", "minimum": 0},
+            "accepted": {"type": "integer", "minimum": 0},
+            "notRunUserWaived": {"type": "integer", "minimum": 0},
+            "pending": {"type": "integer", "minimum": 0}
+          }
+        }
+      }
     }
   }
 }

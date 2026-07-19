@@ -3,7 +3,7 @@
 Active frontend ownership is explicit: `apps/mini-taro` owns the active 14-route runtime and `packages/api-client/src` owns typed transport. The root `app.json` and `pages/` tree remain compatibility consumers only, preserving the 14-route surface without receiving new first-level ownership. The machine-readable route matrix is `docs/project-owner-map.json`.
 
 状态：`active`
-更新时间：`2026-07-17`
+更新时间：`2026-07-19`
 
 ## 本文职责
 
@@ -38,6 +38,7 @@ Active frontend ownership is explicit: `apps/mini-taro` owns the active 14-route
 | P0 | 主干架构接合 | Taro 接入 resolver、community import、stat snapshot；Harness 把 Taro 定义为活动 UI owner，旧 `pages/` 只保留兼容职责 | [装备 runbook](gear-simulation-full-chain-runbook.md)、[owner map](project-owner-map.json)、[验证矩阵](verification-matrix.md) |
 | P0 | 14 路由 UI 系统重建 | 共享 chrome、控件和素材槽先在微信三基线成立，再按固定批次传播；14 路由各完成一次真实运行态复核和核心交互验证 | [DESIGN.md](../DESIGN.md)、[current-ui](design/current-ui/README.md)、[当前计划](plans/ui-reconstruction.md) |
 | P0 | 文档控制面收敛 | roadmap 无执行流水；plans 只有活动入口；Harness 状态、稳定合同和 release evidence 各有唯一 owner | 本文件、[plans/README.md](plans/README.md)、[project-state.json](project-state.json) |
+| P0 | Harness v0.6.2 证据绑定 | 在下一份 Standard / Strict runtime PR 前，让 CI 绑定任务自己的 requirement/evidence/manifest；区分 runtime、verification 与 closure identity；把人工验收和 `not_run_user_waived` 变成可校验矩阵，且不增加重复 full、额外评审或运行时改动 | [Harness](harness.md)、[验证矩阵](verification-matrix.md)、[requirement schema](schemas/harness-requirement.schema.json)、[evidence schema](schemas/harness-evidence.schema.json) |
 | P1 | 构筑到模拟闭环稳定 | 天赋/装备模板可确定性加载、转换、校验、提交和复盘；不可执行状态 fail closed | [builds-architecture.md](builds-architecture.md)、[simulator-simc-end-to-end.md](simulator-simc-end-to-end.md) |
 | P1 | 证据化报告 | 玩家可见数字来自 runner、日志或明确参考源；模型只负责解释 | `server/simulator_payload.py` |
 | P1 | 发布与可观测 | 核心 API、刷新任务、SimC 和数据健康有可重复 smoke、超时与故障定位 | [remote-debugging.md](remote-debugging.md)、[verification-matrix.md](verification-matrix.md) |

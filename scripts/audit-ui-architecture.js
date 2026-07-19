@@ -650,9 +650,16 @@ const expectedInteractionAcceptance = expectedInteractionStatus === 'verified'
     ? 'failed_real_wechat_core_interaction_matrix'
     : 'pending_real_wechat_core_interaction_matrix'
 record(
-  'empty_devtools_renderer_is_recorded_without_claiming_runtime_evidence',
-  runtimeReviewStatus.runtimeAvailability?.status !== 'empty_renderer'
-    || (
+  'runtime_availability_does_not_promote_stale_or_empty_evidence',
+  runtimeReviewStatus.runtimeAvailability?.status === 'not_collected_for_current_candidate'
+    ? (
+      runtimeReviewStatus.runtimeAvailability.candidateIdentity === 'unbound'
+      && /collect_again_for_a_new_candidate/u.test(runtimeReviewStatus.runtimeAvailability.collectionPolicy ?? '')
+      && runtimeReviewStatus.status === 'active_unverified'
+      && runtimeReviewStatus.sharedMissingEvidence?.includes('wechat_runtime_artifact')
+    )
+    : runtimeReviewStatus.runtimeAvailability?.status !== 'empty_renderer'
+      || (
       runtimeReviewStatus.runtimeAvailability.shellCount === 0
       && runtimeReviewStatus.runtimeAvailability.regionCount === 0
       && runtimeReviewStatus.runtimeAvailability.buttonCount === 0
@@ -661,7 +668,7 @@ record(
       && /do_not_relaunch_reload_or_repeat_probe/u.test(runtimeReviewStatus.runtimeAvailability.retryPolicy ?? '')
       && runtimeReviewStatus.status === 'active_unverified'
       && runtimeReviewStatus.sharedMissingEvidence?.includes('wechat_runtime_artifact')
-    ),
+      ),
   `runtime=${runtimeReviewStatus.runtimeAvailability?.status ?? 'not_recorded'}`,
 )
 record(
@@ -1021,10 +1028,23 @@ for (const review of reviewRoutes) {
 }
 
 const currentPlanFiles = sorted(fs.readdirSync(path.join(root, 'docs/plans')).filter((name) => fs.statSync(path.join(root, 'docs/plans', name)).isFile()))
+const planIndexSource = read('docs/plans/README.md')
+const whitelistedPlanFiles = sorted(new Set([
+  'README.md',
+  ...[...planIndexSource.matchAll(/\]\(([^)#?]+\.md)(?:#[^)]*)?\)/gu)].map((match) => path.basename(match[1])),
+]))
 record(
-  'current_plan_set_matches_evidence_policy',
-  JSON.stringify(currentPlanFiles) === JSON.stringify(sorted(evidencePolicy.allowedPlanFiles ?? [])),
+  'current_plan_set_matches_plan_whitelist',
+  JSON.stringify(currentPlanFiles) === JSON.stringify(whitelistedPlanFiles),
   `plans=${currentPlanFiles.join(',')}`,
+)
+const uiEvidencePlanFiles = sorted(evidencePolicy.allowedPlanFiles ?? [])
+const invalidUiEvidencePlanFiles = uiEvidencePlanFiles.filter((file) => !whitelistedPlanFiles.includes(file))
+record(
+  'ui_evidence_policy_plan_files_are_whitelisted',
+  invalidUiEvidencePlanFiles.length === 0
+    && uiEvidencePlanFiles.includes(path.basename(evidencePolicy.authority ?? '')),
+  invalidUiEvidencePlanFiles.join(',') || `uiPlans=${uiEvidencePlanFiles.join(',')}`,
 )
 const presentForbiddenPaths = (evidencePolicy.requiredAbsentPaths ?? []).filter((relativePath) => fs.existsSync(path.join(root, relativePath)))
 record(

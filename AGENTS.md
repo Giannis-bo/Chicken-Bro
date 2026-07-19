@@ -4,7 +4,7 @@ This repository maintains a project roadmap as shared context for all agents and
 
 ## Current State First
 
-- Read [docs/project-state.json](docs/project-state.json) before [docs/roadmap.md](docs/roadmap.md) for Standard / Strict work. `project-state.json` is the machine-readable current status index: active milestone, feature freeze, active release artifact, accepted baselines, and historical contracts.
+- Read [docs/project-state.json](docs/project-state.json) before [docs/roadmap.md](docs/roadmap.md) for Standard / Strict work. `project-state.json` is the machine-readable current status index: active milestone, feature freeze, task-scoped release resolution policy, local default release packet, accepted baselines, and historical contracts. PR CI selects the unique complete task packet from the branch diff; `defaultLocalReleaseArtifact` is only a local fallback and never owns CI evidence selection.
 - Read [docs/roadmap.md](docs/roadmap.md) after `project-state.json` before making product, UX, data, backend, simulator, WebSim, deployment, or prioritization decisions.
 - For frontend work, read [docs/plans/ui-reconstruction.md](docs/plans/ui-reconstruction.md), [DESIGN.md](DESIGN.md), and [docs/design/current-ui/README.md](docs/design/current-ui/README.md) after the roadmap. These are the only active UI execution authorities.
 - Do not scan `docs/plans/` by date or treat directory presence as authority. [docs/plans/README.md](docs/plans/README.md) is the explicit plan whitelist; a domain plan may be read only when a current architecture or runbook links to that exact file.

@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 2,
+  "slug": "harness-v0-6-2-control-plane-cleanup",
+  "requirementSlug": "harness-v0-6-2-control-plane-cleanup",
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
+  "branch": "codex/harness-v062-control-plane-cleanup",
+  "commit": "pending_pr_head",
+  "identities": {
+    "runtime": {
+      "status": "not_applicable",
+      "reason": "Docs and verification tooling only; no runtime identity exists."
+    },
+    "verification": {
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD"
+    },
+    "closure": {
+      "status": "pending",
+      "reason": "No merge or archive closure has occurred."
+    }
+  },
+  "manualAcceptance": {
+    "required": false,
+    "status": "not_applicable",
+    "reason": "No user-visible runtime behavior changes in this task.",
+    "items": [],
+    "rollup": {
+      "total": 0,
+      "accepted": 0,
+      "notRunUserWaived": 0,
+      "pending": 0
+    }
+  },
+  "scope": [
+    "docs_tooling_only",
+    "control_plane_cleanup",
+    "compatibility_caller_proof"
+  ],
+  "verification": [
+    {
+      "command": "node scripts/verify-project.js --profile harness --release artifacts/releases/2026-07-19-harness-v0-6-2-control-plane-cleanup --base origin/main",
+      "status": "pass",
+      "summary": "Six Harness commands passed, including 85 contract/state/owner/resolver tests, JSON and syntax checks, packet binding and diff whitespace checks."
+    },
+    {
+      "command": "node --test tests/verify-project.test.js tests/project-harness.test.js tests/project-state.test.js tests/project-owner-map.test.js tests/audit-ui-architecture-paths.test.js tests/pve-page.test.js tests/simulator-page.test.js",
+      "status": "pass",
+      "summary": "150 targeted tests passed with zero failures."
+    },
+    {
+      "command": "node scripts/audit-ui-architecture.js",
+      "status": "pass",
+      "summary": "14 routes, 14 contracts and 282 checks passed with zero findings."
+    },
+    {
+      "command": "PowerShell strict changed-file JSON parse and Markdown link audit",
+      "status": "pass",
+      "summary": "11 changed JSON files and 8 changed Markdown files passed with zero parse or local-link failures."
+    },
+    {
+      "command": "whole-diff local CR against base 414ef43 plus independent reviewer",
+      "status": "pass",
+      "summary": "Five actionable findings were fixed: immutable runtime matching, clean HEAD binding, exact manual-acceptance sets, stale UI runtime observation and stale AGENTS release wording."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "not_applicable",
+    "reason": "Docs and verification tooling only; no runtime surface changes."
+  },
+  "runtimeEvidence": [],
+  "risks": [
+    {
+      "id": "ci_release_resolution",
+      "status": "controlled_by_fail_closed_tests_and_cross_bound_manifest"
+    },
+    {
+      "id": "legacy_code_deletion",
+      "status": "out_of_scope_retain_pending_caller_proof"
+    }
+  ],
+  "rollback": [
+    "Revert the task commit to restore Harness v0.6.1 and the previous control-plane files."
+  ],
+  "cleanup": {
+    "required": true,
+    "status": "completed"
+  },
+  "archivedReferences": [
+    "docs/project-state.json",
+    "docs/roadmap.md",
+    "docs/plans/harness-v0-6-2-control-plane-cleanup.md"
+  ],
+  "summary": "Harness v0.6.2 and the control-plane cleanup are locally verified. Evidence is bounded to a clean exact Git HEAD at check time; no runtime, deployment or live claim is made."
+}

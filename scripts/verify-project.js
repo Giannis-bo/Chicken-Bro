@@ -27,6 +27,7 @@ function parseArgs(argv) {
     root: process.cwd(),
     profile: 'full',
     release: null,
+    releaseFromChanges: false,
     base: DEFAULT_BASE,
     dryRun: false,
     json: false
@@ -43,6 +44,8 @@ function parseArgs(argv) {
     } else if (arg === '--release' && argv[index + 1]) {
       options.release = argv[index + 1]
       index += 1
+    } else if (arg === '--release-from-changes') {
+      options.releaseFromChanges = true
     } else if (arg === '--base' && argv[index + 1]) {
       options.base = argv[index + 1]
       index += 1
@@ -75,14 +78,55 @@ function readJson(root, relativePath) {
   return JSON.parse(fs.readFileSync(pathInsideRoot(root, relativePath, 'JSON file'), 'utf8'))
 }
 
+function resolveTaskReleaseFromChanges(options) {
+  const result = spawnSync('git', ['diff', '--name-only', '--diff-filter=ACMR', `${options.base}...HEAD`], {
+    cwd: options.root,
+    encoding: 'utf8',
+    windowsHide: true
+  })
+  if (result.status !== 0) {
+    const detail = (result.stderr || result.stdout || '').trim()
+    throw new Error(`task_release_diff_failed: ${detail || `git diff failed with status ${result.status}`}`)
+  }
+
+  const releaseDirectories = new Set()
+  for (const changedPath of result.stdout.split(/\r?\n/).filter(Boolean)) {
+    const normalized = changedPath.split(path.sep).join('/')
+    const match = normalized.match(/^(artifacts\/releases\/[^/]+)\/(?:requirement|evidence|manifest)\.json$/)
+    if (match) releaseDirectories.add(match[1])
+  }
+
+  if (releaseDirectories.size === 0) {
+    throw new Error('task_release_missing: PR diff must include one task-scoped release packet.')
+  }
+  if (releaseDirectories.size > 1) {
+    throw new Error(`task_release_ambiguous: PR diff changes multiple release packets: ${[...releaseDirectories].sort().join(', ')}`)
+  }
+
+  const release = [...releaseDirectories][0]
+  const missingFiles = ['requirement.json', 'evidence.json', 'manifest.json'].filter((fileName) => {
+    return !fs.existsSync(pathInsideRoot(options.root, `${release}/${fileName}`, 'release file'))
+  })
+  if (missingFiles.length) {
+    throw new Error(`task_release_incomplete: ${release} is missing ${missingFiles.join(', ')}`)
+  }
+  return release
+}
+
 function resolveRelease(options) {
+  if (options.release && options.releaseFromChanges) {
+    throw new Error('Choose either --release or --release-from-changes, not both.')
+  }
+  if (options.releaseFromChanges) {
+    return resolveTaskReleaseFromChanges(options)
+  }
   let release = options.release
   if (!release) {
     const projectState = readJson(options.root, 'docs/project-state.json')
-    release = projectState.activeReleaseArtifact
+    release = projectState.defaultLocalReleaseArtifact
   }
   if (!release || typeof release !== 'string') {
-    throw new Error('Missing release directory. Provide --release or docs/project-state.json.activeReleaseArtifact.')
+    throw new Error('Missing release directory. Provide --release or docs/project-state.json.defaultLocalReleaseArtifact.')
   }
   release = relativePathInsideRoot(options.root, release, 'release directory')
   for (const fileName of ['requirement.json', 'evidence.json', 'manifest.json']) {
@@ -199,6 +243,8 @@ function harnessCheckCommand(release, base) {
     `${release}/requirement.json`,
     '--evidence-file',
     `${release}/evidence.json`,
+    '--manifest-file',
+    `${release}/manifest.json`,
     '--base',
     base
   ])
@@ -216,6 +262,7 @@ function harnessCommands(release, base) {
   return [
     commandSpec('harness contract tests', 'node', [
       '--test',
+      'tests/verify-project.test.js',
       'tests/project-harness.test.js',
       'tests/project-owner-map.test.js',
       'tests/project-state.test.js',

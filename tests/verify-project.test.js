@@ -26,7 +26,7 @@ function writeJson(filePath, value) {
 function writeReleaseFixture(root, release = 'artifacts/releases/fixture') {
   writeJson(path.join(root, 'docs/project-state.json'), {
     schemaVersion: 1,
-    activeReleaseArtifact: release
+    defaultLocalReleaseArtifact: release
   })
   writeJson(path.join(root, release, 'requirement.json'), {
     schemaVersion: 1,
@@ -48,7 +48,34 @@ function parseJson(result) {
   return JSON.parse(result.stdout)
 }
 
-test('verify-project dry-run resolves the active release and selects harness commands', () => {
+function git(root, args) {
+  const result = spawnSync('git', args, { cwd: root, encoding: 'utf8' })
+  assert.equal(result.status, 0, result.stderr || result.stdout)
+  return result.stdout.trim()
+}
+
+function createTaskReleaseRepo() {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wow-verify-task-release-'))
+  writeReleaseFixture(root, 'artifacts/releases/stale-global-release')
+  git(root, ['init'])
+  git(root, ['config', 'user.email', 'harness-test@example.invalid'])
+  git(root, ['config', 'user.name', 'Harness Test'])
+  git(root, ['add', '.'])
+  git(root, ['commit', '-m', 'base'])
+  return { root, base: git(root, ['rev-parse', 'HEAD']) }
+}
+
+function addTaskRelease(root, release, files = ['requirement.json', 'evidence.json', 'manifest.json']) {
+  for (const fileName of files) {
+    writeJson(path.join(root, release, fileName), {
+      schemaVersion: 1,
+      slug: path.basename(release),
+      requirementSlug: path.basename(release)
+    })
+  }
+}
+
+test('verify-project dry-run resolves the explicit local default release and selects harness commands', () => {
   const result = runVerify(['--json', '--dry-run', '--profile', 'harness'])
   const projectState = JSON.parse(fs.readFileSync('docs/project-state.json', 'utf8'))
 
@@ -56,12 +83,89 @@ test('verify-project dry-run resolves the active release and selects harness com
   const summary = parseJson(result)
   assert.equal(summary.status, 'project_verification_plan_ready')
   assert.equal(summary.profile, 'harness')
-  assert.equal(summary.release, projectState.activeReleaseArtifact)
+  assert.equal(summary.release, projectState.defaultLocalReleaseArtifact)
+  assert.ok(summary.commands.some((command) => command.command.includes('tests/verify-project.test.js')))
   assert.ok(summary.commands.some((command) => command.command.includes('tests/project-owner-map.test.js')))
   assert.ok(summary.commands.some((command) => command.command.includes('docs/project-owner-map.json')))
   assert.ok(summary.commands.some((command) => command.command.includes('scripts/project-harness.js --check')))
   assert.ok(summary.commands.some((command) => command.command === 'git diff --check'))
   assert.ok(!summary.commands.some((command) => /ssh|deploy_lighthouse|rsync|scp/.test(command.command)))
+})
+
+test('verify-project resolves the unique task release from the branch diff instead of the stale global pointer', () => {
+  const { root, base } = createTaskReleaseRepo()
+  const release = 'artifacts/releases/task-release'
+  addTaskRelease(root, release)
+  git(root, ['add', '.'])
+  git(root, ['commit', '-m', 'task packet'])
+
+  const result = runVerify([
+    '--root', root,
+    '--json',
+    '--dry-run',
+    '--profile', 'harness',
+    '--release-from-changes',
+    '--base', base
+  ])
+
+  assert.equal(result.status, 0, result.stderr)
+  assert.equal(parseJson(result).release, release)
+})
+
+test('verify-project fails closed when a branch has no task release packet', () => {
+  const { root, base } = createTaskReleaseRepo()
+  writeFile(path.join(root, 'docs/change.md'), 'changed\n')
+  git(root, ['add', '.'])
+  git(root, ['commit', '-m', 'change without packet'])
+
+  const result = runVerify([
+    '--root', root,
+    '--dry-run',
+    '--profile', 'harness',
+    '--release-from-changes',
+    '--base', base
+  ])
+
+  assert.notEqual(result.status, 0)
+  assert.match(result.stderr, /task_release_missing/)
+})
+
+test('verify-project fails closed when a branch changes multiple task release packets', () => {
+  const { root, base } = createTaskReleaseRepo()
+  addTaskRelease(root, 'artifacts/releases/task-one')
+  addTaskRelease(root, 'artifacts/releases/task-two')
+  git(root, ['add', '.'])
+  git(root, ['commit', '-m', 'ambiguous packets'])
+
+  const result = runVerify([
+    '--root', root,
+    '--dry-run',
+    '--profile', 'harness',
+    '--release-from-changes',
+    '--base', base
+  ])
+
+  assert.notEqual(result.status, 0)
+  assert.match(result.stderr, /task_release_ambiguous/)
+})
+
+test('verify-project fails closed when the task release packet is incomplete', () => {
+  const { root, base } = createTaskReleaseRepo()
+  addTaskRelease(root, 'artifacts/releases/incomplete-task', ['requirement.json', 'evidence.json'])
+  git(root, ['add', '.'])
+  git(root, ['commit', '-m', 'incomplete packet'])
+
+  const result = runVerify([
+    '--root', root,
+    '--dry-run',
+    '--profile', 'harness',
+    '--release-from-changes',
+    '--base', base
+  ])
+
+  assert.notEqual(result.status, 0)
+  assert.match(result.stderr, /task_release_incomplete/)
+  assert.match(result.stderr, /manifest\.json/)
 })
 
 test('verify-project launches Windows command shims through executable runtimes', () => {
@@ -104,7 +208,7 @@ test('verify-project dry-run exposes backend, frontend and full profile boundari
 test('GitHub CI installs dependencies and runs the full profile with UI release mechanics', () => {
   const workflow = fs.readFileSync('.github/workflows/project-harness.yml', 'utf8')
   const profileRuns = workflow.match(/node scripts\/verify-project\.js --profile/g) || []
-  const release = JSON.parse(fs.readFileSync('docs/project-state.json', 'utf8')).activeReleaseArtifact
+  const release = JSON.parse(fs.readFileSync('docs/project-state.json', 'utf8')).defaultLocalReleaseArtifact
   const harness = parseJson(runVerify(['--json', '--dry-run', '--profile', 'harness', '--release', release, '--base', 'origin/main']))
   const full = parseJson(runVerify(['--json', '--dry-run', '--profile', 'full', '--release', release, '--base', 'origin/main']))
   const harnessTests = harness.commands.find((command) => command.label === 'harness contract tests')
@@ -114,6 +218,9 @@ test('GitHub CI installs dependencies and runs the full profile with UI release 
   assert.match(workflow, /run: npm ci/)
   assert.match(workflow, /name: Full profile/)
   assert.match(workflow, /--profile full/)
+  assert.match(workflow, /--release-from-changes/)
+  assert.doesNotMatch(workflow, /activeReleaseArtifact/)
+  assert.doesNotMatch(workflow, /Resolve active release/)
   assert.doesNotMatch(workflow, /name: Harness profile/)
   assert.ok(harnessTests)
   assert.ok(fullTests)
@@ -137,7 +244,7 @@ test('verify-project rejects unknown profiles and missing releases', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wow-verify-missing-release-'))
   writeJson(path.join(root, 'docs/project-state.json'), {
     schemaVersion: 1,
-    activeReleaseArtifact: 'artifacts/releases/missing'
+    defaultLocalReleaseArtifact: 'artifacts/releases/missing'
   })
 
   const missing = runVerify(['--root', root, '--json', '--dry-run', '--profile', 'harness'])
