@@ -6,7 +6,7 @@ const os = require('node:os')
 const path = require('node:path')
 const test = require('node:test')
 
-const { promoteWeappBuild, resolveIsolatedOutputRoot, validateBuild } = require('../scripts/build-weapp-safely')
+const { promoteWeappBuild, resolveIsolatedOutputRoot, taroBuildCommand, validateBuild } = require('../scripts/build-weapp-safely')
 
 function temporaryRoot(t) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wow-weapp-promotion-'))
@@ -165,4 +165,11 @@ test('explicit isolated output cannot point back inside the watched app tree', (
   assert.throws(() => resolveIsolatedOutputRoot('dist/weapp'), /outside the watched app tree/u)
   assert.throws(() => resolveIsolatedOutputRoot('.staging/weapp'), /outside the watched app tree/u)
   assert.equal(resolveIsolatedOutputRoot(os.tmpdir()), path.resolve(os.tmpdir()))
+})
+
+test('safe build launches the Taro JavaScript entry with the current Node runtime', () => {
+  const command = taroBuildCommand()
+  assert.equal(command.executable, process.execPath)
+  assert.match(command.args[0], /node_modules[\\/]@tarojs[\\/]cli[\\/]bin[\\/]taro$/u)
+  assert.deepEqual(command.args.slice(1), ['build', '--type', 'weapp'])
 })

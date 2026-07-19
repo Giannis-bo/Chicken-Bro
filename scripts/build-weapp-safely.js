@@ -11,12 +11,20 @@ const { finalizeWeappBuild } = require('./finalize-weapp-build')
 const repositoryRoot = path.resolve(__dirname, '..')
 const appRoot = path.join(repositoryRoot, 'apps/mini-taro')
 const liveOutputRoot = path.join(appRoot, 'dist/weapp')
+const taroCliEntry = path.join(repositoryRoot, 'node_modules', '@tarojs', 'cli', 'bin', 'taro')
 const maximumBuildFiles = 4096
 const requiredEntries = ['app.json', 'app.js', 'app.wxss']
 const requiredPageExtensions = ['js', 'json', 'wxml', 'wxss']
 
 function relativeBuildPath(root, file) {
   return path.relative(root, file).split(path.sep).join('/')
+}
+
+function taroBuildCommand() {
+  return {
+    executable: process.execPath,
+    args: [taroCliEntry, 'build', '--type', 'weapp'],
+  }
 }
 
 function walkFiles(root) {
@@ -227,7 +235,8 @@ function run() {
   const explicitOutputRoot = process.env.WOW_TARO_OUTPUT_ROOT?.trim()
   if (explicitOutputRoot) {
     const isolatedOutputRoot = resolveIsolatedOutputRoot(explicitOutputRoot)
-    const result = spawnSync(path.join(repositoryRoot, 'node_modules/.bin/taro'), ['build', '--type', 'weapp'], {
+    const command = taroBuildCommand()
+    const result = spawnSync(command.executable, command.args, {
       cwd: appRoot,
       env: process.env,
       stdio: 'inherit',
@@ -243,7 +252,8 @@ function run() {
   // files even though the live package itself remains valid.
   const stagingRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'wow-weapp-build-'))
   try {
-    const result = spawnSync(path.join(repositoryRoot, 'node_modules/.bin/taro'), ['build', '--type', 'weapp'], {
+    const command = taroBuildCommand()
+    const result = spawnSync(command.executable, command.args, {
       cwd: appRoot,
       env: {
         ...process.env,
@@ -275,6 +285,7 @@ module.exports = {
   liveOutputRoot,
   promoteWeappBuild,
   resolveIsolatedOutputRoot,
+  taroBuildCommand,
   validateBuild,
   walkFiles,
 }
