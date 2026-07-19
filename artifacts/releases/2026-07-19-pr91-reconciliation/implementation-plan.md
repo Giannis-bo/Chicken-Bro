@@ -32,7 +32,7 @@
 - Consumes: `origin/main` at or beyond `65be719204d4e398cede2dd1a947821cbd00c3d4`
 - Produces: a two-parent merge commit on `codex/cdn-api-publishing`, with current-main content selected for overlapping hunks
 
-- [ ] **Step 1: Verify both worktrees are clean and refresh remote refs**
+- [x] **Step 1: Verify both worktrees are clean and refresh remote refs**
 
 ```powershell
 git -C G:\Codex\wow status --short --branch
@@ -43,7 +43,7 @@ git rev-parse origin/main
 
 Expected: both worktrees have no uncommitted files; `origin/main` is `65be719204d4e398cede2dd1a947821cbd00c3d4` or a verified fast-forward descendant.
 
-- [ ] **Step 2: Merge current main with main-side conflict preference**
+- [x] **Step 2: Merge current main with main-side conflict preference**
 
 ```powershell
 git merge --no-ff -X theirs --no-commit origin/main
@@ -54,7 +54,7 @@ git commit -m "merge: reconcile PR91 with current main"
 
 Expected: the unresolved-path command prints nothing and a normal merge commit is created without history rewrite. If unresolved paths remain, inspect each path and reconstruct it against the current owner; do not choose the #91 version merely to make the merge finish.
 
-- [ ] **Step 3: Verify current control-plane files match merged main**
+- [x] **Step 3: Verify current control-plane files match merged main**
 
 ```powershell
 git diff --exit-code origin/main -- docs/project-state.json docs/roadmap.md docs/plans/ui-reconstruction.md DESIGN.md docs/design/current-ui/README.md
@@ -73,7 +73,7 @@ Expected: no control-plane diff and no whitespace errors.
 - Consumes: commits `5954508`, `e359234`, `896db33`, `e7ae334`, `2248be4`, `f8683ac`, `074b7c2`, `c31e602`, `b6fef07`, `d268601`, `7ca75e1`, `f7d3721`, `600f09b`
 - Produces: schema version 1 JSON containing `commit`, `subject`, `disposition`, `retainedBehaviors`, `excludedBehaviors`, and `evidence`
 
-- [ ] **Step 1: Capture the post-merge net diff and commit history**
+- [x] **Step 1: Capture the post-merge net diff and commit history**
 
 ```powershell
 git log --reverse --format="%H%x09%s" 2f8222f6df96e3cd0936ed07386a0e06def32079..600f09bc91dca8236627e6001bd1160dd75c4821
@@ -83,7 +83,7 @@ git diff --stat origin/main...HEAD
 
 Expected: the 13 original commits are present and the final diff is measured against current main.
 
-- [ ] **Step 2: Write the disposition matrix**
+- [x] **Step 2: Write the disposition matrix**
 
 Use these exact dispositions as the starting contract and narrow retained behavior when current main already has a stronger equivalent:
 
@@ -107,7 +107,7 @@ Use these exact dispositions as the starting contract and narrow retained behavi
 
 Every entry must identify the final test or diff proving the decision. It must explicitly exclude alternate-CDN activation and old control-plane wording.
 
-- [ ] **Step 3: Validate JSON and commit the audit artifact**
+- [x] **Step 3: Validate JSON and commit the audit artifact**
 
 ```powershell
 node -e "JSON.parse(require('node:fs').readFileSync('artifacts/releases/2026-07-19-pr91-reconciliation/commit-disposition.json','utf8'))"
