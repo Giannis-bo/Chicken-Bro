@@ -2,8 +2,9 @@
   "schemaVersion": 1,
   "updatedAt": "2026-07-19",
   "status": "project_owner_map_active",
-  "harnessVersion": "v0.6",
+  "harnessVersion": "v0.6.2",
   "activeMilestone": "taro_target_first_14_route_rebuild",
+  "compatibilityRetirementContract": "docs/compatibility-retirement.json",
   "unownedCriticalDomains": 0,
   "conflictingFactOwners": 0,
   "rules": {
@@ -14,7 +15,8 @@
     "writeDomainsMustDeclareWriteOwner": true,
     "backendOwnerMapRemainsSecondLevelDetail": true,
     "taroAndTypedPackagesOwnActiveFrontendContracts": true,
-    "legacyPagesRemainCompatibilityConsumers": true
+    "legacyPagesRemainCompatibilityConsumers": true,
+    "compatibilityDeletionRequiresCallerProof": true
   },
   "criticalDomains": [
     {

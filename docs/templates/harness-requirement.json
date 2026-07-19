@@ -39,8 +39,12 @@
     "reason": "State why this work is safe or what is blocked."
   },
   "acceptanceEvidence": [
-    "node scripts/project-harness.js --check --requirement-file artifacts/releases/<release>/requirement.json --evidence-file artifacts/releases/<release>/evidence.json --base origin/main"
+    "node scripts/project-harness.js --check --requirement-file artifacts/releases/<release>/requirement.json --evidence-file artifacts/releases/<release>/evidence.json --manifest-file artifacts/releases/<release>/manifest.json --base origin/main"
   ],
+  "manualAcceptanceContract": {
+    "required": false,
+    "requiredItemIds": []
+  },
   "releaseTrigger": "docs_tooling_only",
   "rollback": [
     "code_rollback"

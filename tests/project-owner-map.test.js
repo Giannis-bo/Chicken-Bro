@@ -73,7 +73,7 @@ test('project owner map freezes the 16 critical domains with no unknown or block
   const ownerMap = readOwnerMap()
   assert.equal(ownerMap.schemaVersion, 1)
   assert.equal(ownerMap.status, 'project_owner_map_active')
-  assert.equal(ownerMap.harnessVersion, 'v0.6')
+  assert.equal(ownerMap.harnessVersion, 'v0.6.2')
   assert.equal(ownerMap.unownedCriticalDomains, 0)
   assert.equal(ownerMap.conflictingFactOwners, 0)
 
@@ -231,6 +231,46 @@ test('Taro and typed packages own the active frontend contract while root routes
   assert.ok(appShellDomain.consumers.includes('pages'))
   assertPathExists(uiDomain.legacyCompatibility.appConfig)
   assertPathExists(uiDomain.legacyCompatibility.pagesRoot)
+})
+
+test('compatibility retirement requires caller proof for legacy routes dormant products and backend seams', () => {
+  const ownerMap = readOwnerMap()
+  assert.equal(ownerMap.compatibilityRetirementContract, 'docs/compatibility-retirement.json')
+  const retirement = readJson(ownerMap.compatibilityRetirementContract)
+  assert.equal(retirement.status, 'active_fail_closed')
+  assert.equal(retirement.safeToDeleteGroupCount, 0)
+
+  const groups = new Map(retirement.groups.map((group) => [group.id, group]))
+  for (const id of [
+    'root_mini_program_route_clients',
+    'pve_dormant_product',
+    'wcl_dormant_product',
+    'legacy_gear_stats_endpoint',
+    'legacy_simc_template_context',
+    'legacy_transport_fallbacks',
+  ]) {
+    const group = groups.get(id)
+    assert.ok(group, `${id} should have a retirement contract`)
+    assert.ok(['retain_pending_caller_proof', 'dormant_product_decision'].includes(group.status))
+    assert.ok(group.owners.active.length > 0)
+    assert.ok(group.owners.compatibility.length > 0)
+    assert.ok(group.knownCallers.length > 0)
+    assert.ok(group.tests.length > 0)
+    assert.ok(group.deletionRequirements.length > 0)
+    assert.notEqual(group.retirementDecision, 'safe_to_delete')
+    assertPathListExists(group.owners.active, `${id}.owners.active`)
+    assertPathListExists(group.owners.compatibility, `${id}.owners.compatibility`)
+    assertPathListExists(group.knownCallers, `${id}.knownCallers`)
+    assertPathListExists(group.tests, `${id}.tests`)
+  }
+
+  const uiDomain = ownerMap.criticalDomains.find((domain) => domain.id === 'ui_runtime_evidence')
+  assert.deepEqual(
+    groups.get('root_mini_program_route_clients').owners.compatibility,
+    uiDomain.activeRouteOwners.map((entry) => entry.legacyCompatibilityConsumer),
+  )
+  assert.ok(groups.get('pve_dormant_product').knownCallers.includes('tests/pve-page.test.js'))
+  assert.ok(groups.get('wcl_dormant_product').knownCallers.includes('tests/simulator-page.test.js'))
 })
 
 test('project owner map and backend owner map do not conflict on backend hotspot fact owners', () => {

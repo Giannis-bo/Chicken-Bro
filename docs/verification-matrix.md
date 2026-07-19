@@ -6,12 +6,12 @@
 
 | Profile | 覆盖范围 | 当前自动化入口 |
 | --- | --- | --- |
-| `harness` | 状态、owner map、schema、release packet、diff | `node scripts/verify-project.js --profile harness` |
-| `backend` | Python 后端、PostgreSQL read model、API 和 worker | `node scripts/verify-project.js --profile backend` |
-| `frontend` | 旧兼容前端、Taro typed contract、架构审计、TypeScript 和 Vitest | `node scripts/verify-project.js --profile frontend` |
-| `full` | Harness、后端和适合 CI 的前端自动检查；不含 UI 架构审计 | `node scripts/verify-project.js --profile full` |
+| `harness` | 状态、owner map、schema、release packet、diff | `node scripts/verify-project.js --profile harness --release <task-release>` |
+| `backend` | Python 后端、PostgreSQL read model、API 和 worker | `node scripts/verify-project.js --profile backend --release <task-release>` |
+| `frontend` | 旧兼容前端、Taro typed contract、架构审计、TypeScript 和 Vitest | `node scripts/verify-project.js --profile frontend --release <task-release>` |
+| `full` | Harness、后端和适合 CI 的前端自动检查，包含 UI 架构与包体机械门禁 | `node scripts/verify-project.js --profile full --release <task-release>` |
 
-`--release` 缺省时读取 `docs/project-state.json.activeReleaseArtifact`。用 `--dry-run --json` 查看确切命令，不执行。
+本地可显式传 `--release`；缺省时只读取 `docs/project-state.json.defaultLocalReleaseArtifact`。PR CI 必须使用 `--release-from-changes --base origin/main`，从 diff 解析唯一完整任务 packet，不读取本地默认值。用 `--dry-run --json` 查看确切命令，不执行。
 
 ## 选择规则
 
@@ -87,4 +87,4 @@ npx vitest run packages/domain/src/gear-intent.test.ts packages/api-client/src/t
 
 ## CI
 
-`.github/workflows/project-harness.yml` 只运行一个 `full` profile。任何测试、JSON、owner map、Harness packet、TypeScript、架构审计、语法或 whitespace 失败都必须返回非零；CI 不部署、不 SSH、不安装依赖、不迁移、不触发同步。
+`.github/workflows/project-harness.yml` 只运行一个 `full` profile，并从 PR diff 绑定唯一任务 release packet。任何 packet 选择/交叉绑定、immutable runtime identity、clean verification HEAD、closure identity、人工验收完整集合与汇总、测试、JSON、owner map、TypeScript、架构审计、语法或 whitespace 失败都必须返回非零；CI 不部署、不 SSH、不迁移、不触发同步。

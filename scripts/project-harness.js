@@ -31,6 +31,8 @@ const ROLLBACK_STRATEGIES = [
 const EVIDENCE_PACKET_REQUIRED_FIELDS = [
   'status',
   'highestEvidenceLevel',
+  'identities',
+  'manualAcceptance',
   'scope',
   'verification',
   'risks',
@@ -86,6 +88,22 @@ const CANDIDATE_DEPLOYMENT_PASS_STATUSES = new Set([
   'live_verified',
   'verified'
 ])
+const IDENTITY_STATUSES = {
+  runtime: new Set(['bound', 'not_applicable', 'pending']),
+  verification: new Set(['bound_at_check', 'pending']),
+  closure: new Set(['bound', 'pending', 'not_applicable'])
+}
+const IDENTITY_KINDS = {
+  runtime: new Set(['git_commit', 'git_tree', 'build_identity']),
+  verification: new Set(['git_ref']),
+  closure: new Set(['merge_commit'])
+}
+const RUNTIME_IDENTITY_CANDIDATE_FIELDS = {
+  git_commit: 'commit',
+  git_tree: 'gitTree',
+  build_identity: 'buildIdentity'
+}
+const MANUAL_ACCEPTANCE_ITEM_STATUSES = new Set(['accepted', 'not_run_user_waived', 'pending'])
 
 function parseArgs(argv) {
   const options = {
@@ -96,6 +114,7 @@ function parseArgs(argv) {
     slug: 'harness',
     evidenceFile: null,
     requirementFile: null,
+    manifestFile: null,
     check: false,
     base: null
   }
@@ -123,6 +142,9 @@ function parseArgs(argv) {
     } else if (arg === '--evidence-file' && argv[index + 1]) {
       options.evidenceFile = argv[index + 1]
       index += 1
+    } else if (arg === '--manifest-file' && argv[index + 1]) {
+      options.manifestFile = argv[index + 1]
+      index += 1
     } else if (arg === '--base' && argv[index + 1]) {
       options.base = argv[index + 1]
       index += 1
@@ -137,6 +159,9 @@ function parseArgs(argv) {
   }
   if (options.evidenceFile) {
     options.evidenceFile = relativePathInsideRoot(options.root, options.evidenceFile, 'evidence file')
+  }
+  if (options.manifestFile) {
+    options.manifestFile = relativePathInsideRoot(options.root, options.manifestFile, 'manifest file')
   }
   return options
 }
@@ -347,6 +372,16 @@ function validateRequirementPacket(requirement, failures) {
   if (!requirement.engineeringHealth || typeof requirement.engineeringHealth !== 'object' || !hasString(requirement.engineeringHealth.status)) {
     addCheckFailure(failures, 'requirement_invalid_json', 'Requirement engineeringHealth.status is required.')
   }
+  const manualContract = requirement.manualAcceptanceContract
+  const requiredItemIds = manualContract && Array.isArray(manualContract.requiredItemIds) ? manualContract.requiredItemIds : []
+  if (!manualContract || typeof manualContract.required !== 'boolean'
+    || !Array.isArray(manualContract.requiredItemIds)
+    || requiredItemIds.some((id) => !hasString(id))
+    || new Set(requiredItemIds).size !== requiredItemIds.length
+    || (manualContract.required && requiredItemIds.length === 0)
+    || (!manualContract.required && requiredItemIds.length > 0)) {
+    addCheckFailure(failures, 'requirement_invalid_json', 'Requirement manualAcceptanceContract must declare a boolean required flag and the exact unique required item ids.')
+  }
 
   if (requirementNeedsStrictFields(requirement)) {
     if (!requirement.currentTruth || typeof requirement.currentTruth !== 'object' || !nonEmptyArray(requirement.currentTruth.sources)) {
@@ -368,8 +403,8 @@ function validateRequirementPacket(requirement, failures) {
 }
 
 function validateEvidencePacket(requirement, evidence, root, failures) {
-  if (!Number.isInteger(evidence.schemaVersion)) {
-    addCheckFailure(failures, 'evidence_invalid_json', 'Evidence schemaVersion must be an integer.')
+  if (evidence.schemaVersion !== 2) {
+    addCheckFailure(failures, 'evidence_invalid_json', 'Evidence schemaVersion must be 2 for Harness v0.6.2 identity binding.')
   }
   if (!hasString(evidence.slug) || !hasString(evidence.requirementSlug)) {
     addCheckFailure(failures, 'evidence_invalid_json', 'Evidence slug and requirementSlug are required.')
@@ -402,8 +437,157 @@ function validateEvidencePacket(requirement, evidence, root, failures) {
     }
   }
 
+  validateEvidenceIdentities(requirement, evidence, failures)
+  validateManualAcceptance(requirement, evidence, failures)
   validateEvidenceLevel(requirement, evidence, failures)
   validateArtifactReferences(root, evidence.archivedReferences, failures)
+}
+
+function validateManifestPacket(requirement, manifest, options, failures) {
+  if (manifest.schemaVersion !== 1 || manifest.status !== 'project_harness_manifest_ready') {
+    addCheckFailure(failures, 'manifest_invalid_json', 'Manifest must be a schema v1 project_harness_manifest_ready packet.')
+  }
+  if (!manifest.release || manifest.release.slug !== requirement.slug) {
+    addCheckFailure(failures, 'manifest_packet_mismatch', 'Manifest release slug must match the requirement and evidence task slug.')
+  }
+
+  const currentHarness = extractHarnessMetadata(readText(options.root, 'docs/harness.md'))
+  if (!manifest.harness || manifest.harness.version !== currentHarness.version || manifest.harness.source !== 'docs/harness.md') {
+    addCheckFailure(failures, 'manifest_harness_mismatch', 'Manifest must bind the current repository Harness version and source.')
+  }
+  if (!manifest.evidencePacket || manifest.evidencePacket.path !== options.evidenceFile) {
+    addCheckFailure(failures, 'manifest_evidence_mismatch', 'Manifest evidencePacket.path must match the evidence file checked in this task packet.')
+  }
+  if (!manifest.write || manifest.write.path !== options.manifestFile) {
+    addCheckFailure(failures, 'manifest_packet_mismatch', 'Manifest write.path must identify the manifest file checked in this task packet.')
+  }
+}
+
+function validateEvidenceIdentities(requirement, evidence, failures) {
+  const identities = evidence.identities
+  if (!identities || typeof identities !== 'object') {
+    addCheckFailure(failures, 'evidence_missing_identities', 'Evidence must declare separate runtime, verification and closure identities.')
+    return
+  }
+
+  for (const identityName of ['runtime', 'verification', 'closure']) {
+    const identity = identities[identityName]
+    if (!identity || typeof identity !== 'object' || !IDENTITY_STATUSES[identityName].has(identity.status)) {
+      addCheckFailure(failures, 'evidence_identity_invalid', `${identityName} identity has an invalid or missing status.`)
+      continue
+    }
+
+    const bindsValue = identity.status === 'bound' || identity.status === 'bound_at_check'
+    if (bindsValue) {
+      if (!IDENTITY_KINDS[identityName].has(identity.kind) || !hasString(identity.value)) {
+        addCheckFailure(failures, 'evidence_identity_invalid', `${identityName} identity must declare an allowed kind and non-empty value.`)
+      }
+      if (identityName === 'verification' && identity.value !== 'HEAD') {
+        addCheckFailure(failures, 'evidence_identity_invalid', 'Verification identity must bind the exact checked Git HEAD.')
+      }
+    } else if (!hasString(identity.reason)) {
+      addCheckFailure(failures, 'evidence_identity_invalid', `${identityName} identity ${identity.status} needs an explicit reason.`)
+    }
+  }
+
+  const verification = identities.verification || {}
+  const evidenceLevel = EVIDENCE_LEVELS.indexOf(evidence.highestEvidenceLevel)
+  const localVerifiedLevel = EVIDENCE_LEVELS.indexOf('local_verified')
+  if (evidenceLevel >= localVerifiedLevel && verification.status !== 'bound_at_check') {
+    addCheckFailure(failures, 'verification_identity_missing', 'local_verified or higher evidence must bind verification to the checked Git HEAD.')
+  }
+
+  const closure = identities.closure || {}
+  if (closure.status === 'bound' && evidence.highestEvidenceLevel !== 'archived') {
+    addCheckFailure(failures, 'closure_identity_exceeds_evidence', 'Closure identity can bind only when the evidence packet is archived.')
+  }
+
+  const runtime = identities.runtime || {}
+  if (RUNTIME_RELEASE_TRIGGERS.has(requirement.releaseTrigger) && evidence.highestEvidenceLevel === 'live_verified' && runtime.status !== 'bound') {
+    addCheckFailure(failures, 'runtime_identity_missing', 'Runtime live evidence must bind an immutable runtime identity.')
+  }
+  if (runtime.status === 'bound') {
+    const candidate = evidence.candidateDeployment || {}
+    const candidateField = RUNTIME_IDENTITY_CANDIDATE_FIELDS[runtime.kind]
+    const candidateValue = candidateField ? candidate[candidateField] : null
+    if (!hasString(candidateValue) || candidateValue !== runtime.value) {
+      addCheckFailure(failures, 'runtime_identity_mismatch', 'Runtime identity must match the corresponding immutable candidate commit, tree or build identity.')
+    }
+  }
+}
+
+function validateManualAcceptance(requirement, evidence, failures) {
+  const acceptance = evidence.manualAcceptance
+  if (!acceptance || typeof acceptance !== 'object' || typeof acceptance.required !== 'boolean') {
+    addCheckFailure(failures, 'evidence_missing_manual_acceptance', 'Evidence must declare whether manual acceptance is required.')
+    return
+  }
+
+  const items = Array.isArray(acceptance.items) ? acceptance.items : []
+  const rollup = acceptance.rollup && typeof acceptance.rollup === 'object' ? acceptance.rollup : {}
+  const actual = {
+    total: items.length,
+    accepted: 0,
+    notRunUserWaived: 0,
+    pending: 0
+  }
+  const ids = new Set()
+
+  for (const item of items) {
+    if (!item || typeof item !== 'object' || !hasString(item.id) || !MANUAL_ACCEPTANCE_ITEM_STATUSES.has(item.status) || ids.has(item.id)) {
+      addCheckFailure(failures, 'manual_acceptance_item_invalid', 'Manual acceptance items need unique ids and allowed statuses.')
+      continue
+    }
+    ids.add(item.id)
+    if (item.status === 'accepted') {
+      actual.accepted += 1
+      if (!hasString(item.evidence)) {
+        addCheckFailure(failures, 'manual_acceptance_evidence_missing', `Accepted item ${item.id} needs evidence.`)
+      }
+    } else if (item.status === 'not_run_user_waived') {
+      actual.notRunUserWaived += 1
+      if (!hasString(item.authorization)) {
+        addCheckFailure(failures, 'manual_acceptance_waiver_unproven', `Waived item ${item.id} needs explicit user authorization.`)
+      }
+    } else if (item.status === 'pending') {
+      actual.pending += 1
+    }
+  }
+
+  const rollupMatches = Object.entries(actual).every(([key, value]) => Number.isInteger(rollup[key]) && rollup[key] === value)
+  if (!rollupMatches) {
+    addCheckFailure(failures, 'manual_acceptance_rollup_mismatch', 'Manual acceptance rollup must exactly match its item matrix.')
+  }
+
+  if (!acceptance.required) {
+    if (acceptance.status !== 'not_applicable' || items.length !== 0 || !hasString(acceptance.reason)) {
+      addCheckFailure(failures, 'manual_acceptance_status_mismatch', 'Non-required manual acceptance must be empty, not_applicable and explain why.')
+    }
+    if (requirement.manualAcceptanceContract?.required !== false) {
+      addCheckFailure(failures, 'manual_acceptance_set_mismatch', 'Evidence manual acceptance requirement must match the requirement contract.')
+    }
+    return
+  }
+
+  const requiredItemIds = Array.isArray(requirement.manualAcceptanceContract?.requiredItemIds)
+    ? [...requirement.manualAcceptanceContract.requiredItemIds].sort()
+    : []
+  const suppliedItemIds = [...ids].sort()
+  if (requirement.manualAcceptanceContract?.required !== true
+    || JSON.stringify(suppliedItemIds) !== JSON.stringify(requiredItemIds)) {
+    addCheckFailure(failures, 'manual_acceptance_set_mismatch', 'Manual acceptance items must exactly match the requirement contract item ids.')
+  }
+  if (items.length === 0) {
+    addCheckFailure(failures, 'manual_acceptance_item_invalid', 'Required manual acceptance needs at least one item.')
+  }
+  const expectedStatus = actual.pending > 0
+    ? 'pending'
+    : actual.notRunUserWaived > 0
+      ? 'complete_with_user_waiver'
+      : 'complete'
+  if (acceptance.status !== expectedStatus) {
+    addCheckFailure(failures, 'manual_acceptance_status_mismatch', `Manual acceptance status must be ${expectedStatus} for the declared items.`)
+  }
 }
 
 function validateEvidenceLevel(requirement, evidence, failures) {
@@ -421,7 +605,7 @@ function validateEvidenceLevel(requirement, evidence, failures) {
   }
 
   if (RUNTIME_RELEASE_TRIGGERS.has(requirement.releaseTrigger)) {
-    const hasCandidateIdentity = hasString(candidateDeployment.branch) || hasString(candidateDeployment.commit) || hasString(candidateDeployment.buildIdentity)
+    const hasCandidateIdentity = hasString(candidateDeployment.commit) || hasString(candidateDeployment.gitTree) || hasString(candidateDeployment.buildIdentity)
     const hasSmoke = hasNestedPass(candidateDeployment, 'smoke') || runtimeEvidence.some((item) => item && item.type === 'smoke' && item.status === 'pass')
     const hasTimerBackflow = hasNestedPass(candidateDeployment, 'timerBackflow') || runtimeEvidence.some((item) => item && item.type === 'timer_backflow' && (item.status === 'pass' || item.status === 'not_applicable'))
     const hasRollback = nonEmptyArray(evidence.rollback)
@@ -581,6 +765,8 @@ function buildCheck(options) {
   const failures = []
   const requirementResult = loadJsonPacket(options.root, options.requirementFile, 'requirement')
   const evidenceResult = loadJsonPacket(options.root, options.evidenceFile, 'evidence')
+  const manifestResult = loadJsonPacket(options.root, options.manifestFile, 'manifest')
+  let resolvedIdentities = null
 
   if (requirementResult.status !== 'ready') {
     addCheckFailure(failures, requirementResult.reasonCode, requirementResult.error || `Requirement packet is ${requirementResult.status}.`)
@@ -588,11 +774,16 @@ function buildCheck(options) {
   if (evidenceResult.status !== 'ready') {
     addCheckFailure(failures, evidenceResult.reasonCode, evidenceResult.error || `Evidence packet is ${evidenceResult.status}.`)
   }
+  if (manifestResult.status !== 'ready') {
+    addCheckFailure(failures, manifestResult.reasonCode, manifestResult.error || `Manifest packet is ${manifestResult.status}.`)
+  }
 
-  if (requirementResult.status === 'ready' && evidenceResult.status === 'ready') {
+  if (requirementResult.status === 'ready' && evidenceResult.status === 'ready' && manifestResult.status === 'ready') {
     validateRequirementPacket(requirementResult.packet, failures)
     validateEvidencePacket(requirementResult.packet, evidenceResult.packet, options.root, failures)
+    validateManifestPacket(requirementResult.packet, manifestResult.packet, options, failures)
     validateCriticalChangedFiles(options.root, options.base, failures)
+    resolvedIdentities = resolveCheckIdentities(options, evidenceResult.packet, failures)
   }
 
   const reasonCodes = [...new Set(failures.map((failure) => failure.reasonCode))]
@@ -610,8 +801,64 @@ function buildCheck(options) {
       slug: evidenceResult.packet && evidenceResult.packet.slug ? evidenceResult.packet.slug : null,
       highestEvidenceLevel: evidenceResult.packet && evidenceResult.packet.highestEvidenceLevel ? evidenceResult.packet.highestEvidenceLevel : null
     },
+    manifest: {
+      path: options.manifestFile,
+      slug: manifestResult.packet && manifestResult.packet.release ? manifestResult.packet.release.slug || null : null,
+      harnessVersion: manifestResult.packet && manifestResult.packet.harness ? manifestResult.packet.harness.version || null : null
+    },
+    identities: resolvedIdentities,
     base: options.base
   }
+}
+
+function resolveCheckIdentities(options, evidence, failures) {
+  const declared = evidence.identities || {}
+  const verification = declared.verification || {}
+  const resolved = {
+    runtime: declared.runtime || null,
+    verification: verification.status === 'bound_at_check'
+      ? { status: 'declared', ref: verification.value || null, commit: null }
+      : verification,
+    closure: declared.closure || null
+  }
+
+  if (verification.status !== 'bound_at_check') {
+    return resolved
+  }
+
+  const result = spawnSync('git', ['rev-parse', verification.value], {
+    cwd: options.root,
+    encoding: 'utf8',
+    windowsHide: true
+  })
+  if (result.status !== 0 || !hasString(result.stdout)) {
+    addCheckFailure(failures, 'verification_identity_unresolved', `Unable to resolve verification identity ${verification.value}.`)
+    resolved.verification.status = 'unresolved'
+    return resolved
+  }
+
+  resolved.verification = {
+    status: 'bound',
+    ref: verification.value,
+    commit: result.stdout.trim()
+  }
+  const statusResult = spawnSync('git', ['status', '--porcelain', '--untracked-files=normal'], {
+    cwd: options.root,
+    encoding: 'utf8',
+    windowsHide: true
+  })
+  if (statusResult.status !== 0) {
+    addCheckFailure(failures, 'verification_identity_unresolved', 'Unable to determine whether checked bytes match Git HEAD.')
+    resolved.verification.status = 'unresolved'
+    return resolved
+  }
+  const changedPathCount = statusResult.stdout.split(/\r?\n/).filter(Boolean).length
+  if (changedPathCount > 0) {
+    addCheckFailure(failures, 'verification_worktree_dirty', 'bound_at_check requires a clean worktree so checked bytes exactly match Git HEAD.')
+    resolved.verification.status = 'dirty'
+    resolved.verification.changedPathCount = changedPathCount
+  }
+  return resolved
 }
 
 function lineCount(root, relativePath) {
@@ -859,6 +1106,18 @@ function buildManifest(options) {
         'scope_expansion',
         'operation_outside_existing_approval'
       ]
+    },
+    taskScopedEvidenceBinding: {
+      status: 'ready',
+      ciReleaseSelection: 'unique_complete_packet_from_pr_diff',
+      localReleaseSelection: 'explicit_release_or_default_local_release_artifact',
+      manifestBinding: 'task_slug_current_harness_evidence_path_and_self_path',
+      identityKinds: ['runtime', 'verification', 'closure'],
+      runtimeIdentity: 'matching_immutable_candidate_commit_tree_or_build',
+      verificationIdentity: 'clean_exact_git_head',
+      manualAcceptanceSet: 'exact_requirement_contract_item_ids',
+      manualAcceptanceRollup: ['accepted', 'not_run_user_waived', 'pending'],
+      staleGlobalPointerCanSatisfyCi: false
     },
     evidencePromotion: {
       status: 'template_required',
