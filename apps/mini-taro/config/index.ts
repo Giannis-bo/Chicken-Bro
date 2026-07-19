@@ -83,6 +83,7 @@ export default defineConfig<'webpack5'>({
   },
   defineConstants: {
     __WOW_ASSET_RUNTIME_ROOT__: JSON.stringify(configuredAssetRuntimeRoot || '/assets/ui-v2'),
+    __WOW_RUNTIME_MEDIA_ROOT__: JSON.stringify(configuredRuntimeMediaRoot),
     __WOW_BACKEND_API_BASE_URL__: JSON.stringify(configuredBackendApiBaseUrl),
   },
   csso: {
@@ -118,7 +119,7 @@ export default defineConfig<'webpack5'>({
       port: 10086,
       proxy: {
         '/wow-api': {
-          target: 'https://api.chickenbro.cloud',
+          target: 'http://124.223.51.33',
           changeOrigin: true,
           pathRewrite: { '^/wow-api': '' },
         },

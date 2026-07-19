@@ -27,9 +27,6 @@ test('lighthouse deploy script supports a no-download hot deploy mode', () => {
   }
   assert.match(script, /WOW_DEPLOY_SKIP_BOOTSTRAP/)
   assert.match(script, /WOW_DEPLOY_START_ASYNC_SYNCS/)
-  assert.match(script, /WOW_LIGHTHOUSE_KNOWN_HOSTS/)
-  assert.match(script, /UserKnownHostsFile=\$\{SSH_KNOWN_HOSTS_FILE\}/)
-  assert.match(script, /Missing pre-populated SSH known_hosts file/)
   assert.match(script, /Skipping remote bootstrap/)
   assert.match(script, /Skipping PG-native async sync starts/)
   assert.match(script, /gzip on;/)

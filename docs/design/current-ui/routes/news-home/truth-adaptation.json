@@ -5,7 +5,7 @@
   "authority": "docs/plans/ui-reconstruction.md",
   "targetInventory": "docs/design/current-ui/routes/news-home/target-inventory.json",
   "apiProbe": {
-    "endpoint": "https://api.chickenbro.cloud/api/news/home",
+    "endpoint": "http://124.223.51.33/api/news/home",
     "checkedOn": "2026-07-14",
     "lastRefreshedAt": "2026-07-13 08:00:01+08:00",
     "refreshMode": "scheduled",

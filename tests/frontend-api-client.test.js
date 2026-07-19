@@ -139,13 +139,13 @@ test('default request mode still falls back for a valid structured non-2xx body'
   })
 })
 
-test('shared api client uses the approved HTTPS Lighthouse domain in develop and no implicit URL in release', () => {
+test('shared api client uses the Lighthouse backend in develop and no implicit URL in release', () => {
   global.wx = {
     getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
     getStorageSync: () => ''
   }
   let client = resetModule('../pages/common/api-client')
-  assert.equal(client.apiUrl('/health'), 'https://api.chickenbro.cloud/health')
+  assert.equal(client.apiUrl('/health'), 'http://124.223.51.33/health')
 
   global.wx = {
     getAccountInfoSync: () => ({ miniProgram: { envVersion: 'release' } }),
@@ -170,7 +170,7 @@ test('app config publishes the backend API base for release websim reads', () =>
   require('../app.js')
 
   assert.ok(appConfig)
-  assert.equal(appConfig.globalData.backendApiBaseUrl, 'https://api.chickenbro.cloud')
+  assert.equal(appConfig.globalData.backendApiBaseUrl, 'http://124.223.51.33')
   delete global.App
   delete global.wx
 })

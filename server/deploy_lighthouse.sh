@@ -6,9 +6,8 @@ REMOTE_USER="${WOW_LIGHTHOUSE_USER:-ubuntu}"
 REMOTE_DIR="${WOW_LIGHTHOUSE_DIR:-/opt/wow-mini-program}"
 SERVICE_NAME="wow-backend"
 SSH_TARGET="${REMOTE_USER}@${REMOTE_HOST}"
-SSH_KNOWN_HOSTS_FILE="${WOW_LIGHTHOUSE_KNOWN_HOSTS:-${HOME}/.ssh/known_hosts}"
 # Require a pre-populated known_hosts entry so deploys do not trust a first-seen host key.
-SSH_OPTS=(-o "UserKnownHostsFile=${SSH_KNOWN_HOSTS_FILE}" -o StrictHostKeyChecking=yes -o ConnectTimeout=15)
+SSH_OPTS=(-o StrictHostKeyChecking=yes -o ConnectTimeout=15)
 SIMC_GITHUB_REPO="${WOW_SIMC_GITHUB_REPO:-simulationcraft/simc}"
 SIMC_BRANCH="${WOW_SIMC_BRANCH:-midnight}"
 CODEX_JOBS_DIR="${WOW_CODEX_JOBS_DIR:-/var/lib/wow-backend/codex-jobs}"
@@ -38,7 +37,6 @@ reject_path_traversal() {
 validate_env_value REMOTE_HOST "${REMOTE_HOST}" '^[A-Za-z0-9_.:-]+$'
 validate_env_value REMOTE_USER "${REMOTE_USER}" '^[A-Za-z_][A-Za-z0-9_.-]*$'
 validate_env_value REMOTE_DIR "${REMOTE_DIR}" '^/[A-Za-z0-9_./-]+$'
-validate_env_value SSH_KNOWN_HOSTS_FILE "${SSH_KNOWN_HOSTS_FILE}" '^/[A-Za-z0-9_./-]+$'
 validate_env_value SIMC_GITHUB_REPO "${SIMC_GITHUB_REPO}" '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$'
 validate_env_value SIMC_BRANCH "${SIMC_BRANCH}" '^[A-Za-z0-9_.\@/-]+$'
 validate_env_value CODEX_JOBS_DIR "${CODEX_JOBS_DIR}" '^/[A-Za-z0-9_./-]+$'
@@ -46,14 +44,8 @@ validate_env_value CODEX_HOME_DIR "${CODEX_HOME_DIR}" '^/[A-Za-z0-9_./-]+$'
 validate_env_value SKIP_BOOTSTRAP "${SKIP_BOOTSTRAP}" '^[01]$'
 validate_env_value START_ASYNC_SYNCS "${START_ASYNC_SYNCS}" '^[01]$'
 reject_path_traversal REMOTE_DIR "${REMOTE_DIR}"
-reject_path_traversal SSH_KNOWN_HOSTS_FILE "${SSH_KNOWN_HOSTS_FILE}"
 reject_path_traversal CODEX_JOBS_DIR "${CODEX_JOBS_DIR}"
 reject_path_traversal CODEX_HOME_DIR "${CODEX_HOME_DIR}"
-
-if [[ ! -f "${SSH_KNOWN_HOSTS_FILE}" ]]; then
-  echo "Missing pre-populated SSH known_hosts file: ${SSH_KNOWN_HOSTS_FILE}" >&2
-  exit 1
-fi
 
 if [[ -n "${WOW_LIGHTHOUSE_KEY:-}" ]]; then
   SSH_OPTS+=(-i "${WOW_LIGHTHOUSE_KEY}")

@@ -94,7 +94,7 @@ WOW_NEWS_PORT=8787 python3 server/news_backend.py
 
 账号写接口统一使用 Bearer token。小程序 API client 在明文 HTTP + auth 场景会拒绝发送 token 并回退到本地数据；个人模板会先写入本地 `wow_build_templates_v1`，只有 HTTPS/合法域名可用时才同步到 `/api/me/build-templates`。
 
-小程序默认通过已登记的 HTTPS 合法域名 `https://api.chickenbro.cloud` 访问轻量云后端。体验版/正式版仍可通过 `getApp().globalData.backendApiBaseUrl`、本地缓存 `wow_backend_api_base_url`，或构建环境变量 `WOW_BACKEND_API_BASE_URL` 显式覆盖；未配置可用地址时会使用本地 fallback payload，避免空屏。
+小程序默认在开发版访问 `http://124.223.51.33`。体验版/正式版需要通过 `getApp().globalData.backendApiBaseUrl`、本地缓存 `wow_backend_api_base_url`，或构建环境变量 `WOW_BACKEND_API_BASE_URL` 配置 HTTPS 合法域名；未配置时会使用本地 fallback payload，避免空屏。
 
 资讯详情公共 payload 只发布同时满足 `contentStatus=ready`、`licenseStatus=approved`、`verificationStatus=official_verified`、`translationStatus=llm`、`translationFidelity=source_translation`、`sourceTier=official` 的文章：中文标题为主，保留 `originalTitle` 作为原题副标题，正文仅使用 `bodyBlocksZh` 块级渲染，tag 使用 `tagItems` 中文 chip，`sourceBadges` 与来源信息一并保留，公共 API 不返回原文正文。自动采集首版优先覆盖 Blizzard 官方文章；Wowhead / Icy Veins 等第三方来源未确认授权前只做 reference-only 发现/佐证，不进入公共 payload；正文抓取、LLM 逐块直译、授权门禁、官方校验或质检失败时记录在 refresh run 中，不发布给前端。
 

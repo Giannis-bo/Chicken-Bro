@@ -1,4 +1,4 @@
-const DEV_API_BASE_URL = 'https://api.chickenbro.cloud'
+const DEV_API_BASE_URL = 'http://124.223.51.33'
 const API_BASE_STORAGE_KEY = 'wow_backend_api_base_url'
 const LEGACY_NEWS_API_BASE_STORAGE_KEY = 'wow_news_api_base_url'
 const AUTH_TOKEN_STORAGE_KEY = 'wow_backend_auth_token'
