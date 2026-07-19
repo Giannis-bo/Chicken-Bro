@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "slug": "pr91-reconciliation",
   "requirementSlug": "pr91-reconciliation",
-  "status": "deployable_pending_fresh_manual_acceptance",
-  "highestEvidenceLevel": "deployable",
+  "status": "live_verified_pending_merge",
+  "highestEvidenceLevel": "live_verified",
   "branch": "codex/cdn-api-publishing",
   "commit": "afe5e9b24d5616e8e1953f2b529b026c6c12d56f",
   "scope": [
@@ -137,18 +137,22 @@
     }
   ],
   "manualAcceptance": {
-    "status": "pending_fresh_real_wechat_acceptance",
+    "status": "accepted",
+    "acceptedAt": "2026-07-19",
+    "authorization": "The user explicitly replied 可以合入 after the bounded post-candidate WeChat acceptance handoff.",
     "routes": [
       {
         "path": "pages/news/news",
+        "status": "accepted_by_user",
         "acceptance": "Switch across all four Tab items; the active item follows the visible root and no tap is dead."
       },
       {
         "path": "pages/builds/detail",
+        "status": "accepted_by_user",
         "acceptance": "Scroll and use Back; title and Back stay below and left of the system capsule and do not scroll away incorrectly."
       }
     ],
-    "existingBoundary": "The prior five accepted routes remain historical evidence; nine routes remain not_run_user_waived and are not promoted to fourteen-of-fourteen."
+    "existingBoundary": "News home was already among the prior five accepted routes; the newly accepted gear detail route raises the truthful total to six accepted routes, while eight remain not_run_user_waived. This is not fourteen-of-fourteen acceptance."
   },
   "wholeBranchReview": {
     "status": "pass_with_findings_fixed",
@@ -177,8 +181,8 @@
     },
     {
       "id": "fresh_manual_acceptance_not_yet_recorded",
-      "status": "pending",
-      "detail": "The post-reconciliation production package still needs the two bounded real-WeChat checks before merge."
+      "status": "resolved",
+      "detail": "The user explicitly authorized merge after the two-route post-candidate WeChat acceptance handoff."
     },
     {
       "id": "alternate_runtime_media_root_dormant",
@@ -186,9 +190,9 @@
       "detail": "WOW_RUNTIME_MEDIA_ROOT remains unset; trusted upstream media and committed local PNG fallbacks continue to serve runtime behavior."
     },
     {
-      "id": "nine_routes_not_run_user_waived",
+      "id": "eight_routes_not_run_user_waived",
       "status": "accepted_with_truth_boundary",
-      "detail": "The existing waiver remains unchanged and cannot be represented as fourteen-of-fourteen manual acceptance."
+      "detail": "Gear detail is now accepted; the remaining eight-route waiver cannot be represented as fourteen-of-fourteen manual acceptance."
     }
   ],
   "rollback": [
@@ -213,5 +217,5 @@
     "artifacts/releases/2026-07-19-pr91-reconciliation/implementation-plan.md",
     "artifacts/releases/2026-07-19-pr91-reconciliation/commit-disposition.json"
   ],
-  "summary": "PR #91 is reconciled onto current main without history rewrite, passes the full local profile and GitHub CI, and has a verified candidate deployment at runtime commit afe5e9b. The unpublished alternate media root is not activated. Fresh two-route real-WeChat acceptance remains mandatory before merge."
+  "summary": "PR #91 is reconciled onto current main without history rewrite, passes the full local profile and GitHub CI, has a verified candidate deployment at runtime commit afe5e9b, and received explicit user acceptance for the bounded post-candidate WeChat checks. The unpublished alternate media root is not activated. Eight routes remain not_run_user_waived, so fourteen-of-fourteen manual acceptance is not claimed."
 }

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "status": "local_verified",
+  "status": "live_verified_pending_merge",
   "repository": "boyuan19910222-ui/wow_mini_program",
   "pullRequest": 91,
   "commonBase": "2f8222f6df96e3cd0936ed07386a0e06def32079",
@@ -10,12 +10,12 @@
   "productionAssetRoot": "https://api.chickenbro.cloud/wow-assets/releases/2026-07-19-taro-full-integration",
   "excludedAssetRoot": "https://static.chickenbro.cloud/wow-media/releases/2026-07-19-wow-icons-v1",
   "currentStage": {
-    "status": "local_verified_pending_candidate_and_fresh_manual_acceptance",
+    "status": "live_verified_pending_merge",
     "architectureAudit": "14 routes, 290 checks, 0 findings",
     "releasePackage": "releaseReady=true with current production asset root and runtime media root not configured",
     "fullProfile": "160 commands passed at afe5e9b24d5616e8e1953f2b529b026c6c12d56f",
     "evidence": "artifacts/releases/2026-07-19-pr91-reconciliation/evidence.json",
-    "manualAcceptanceBoundary": "preserve existing 5 accepted and 9 not_run_user_waived routes; require fresh news_home and gear_detail acceptance before merge"
+    "manualAcceptanceBoundary": "post-candidate news_home and gear_detail acceptance authorized merge; truthful aggregate is 6 accepted and 8 not_run_user_waived, not 14/14"
   },
   "commits": [
     {

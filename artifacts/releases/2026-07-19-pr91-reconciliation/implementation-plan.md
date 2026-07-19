@@ -471,7 +471,7 @@ Expected: the remote branch advances without force and the latest Project Harnes
 
 Deploy only the final PR head through the existing candidate path, keep `WOW_DEPLOY_START_ASYNC_SYNCS=0`, record branch/commit, runtime file parity, `/health`, `/api/data/health`, affected API smoke, service/timer/log state, backup, and rollback. If the final diff is frontend-only, use the production weapp candidate and skip backend hot deploy.
 
-- [ ] **Step 3: Request two-route manual WeChat acceptance**
+- [x] **Step 3: Request two-route manual WeChat acceptance**
 
 Ask the user to verify no more than these two routes in one batch:
 

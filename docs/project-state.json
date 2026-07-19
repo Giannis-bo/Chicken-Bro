@@ -347,24 +347,23 @@
       "targetRegistry": "docs/design/current-ui/target-registry.json",
       "activeReconciliation": {
         "pullRequest": 91,
-        "status": "local_verified_pending_candidate_and_fresh_manual_acceptance",
+        "status": "live_verified_pending_merge",
         "evidence": "artifacts/releases/2026-07-19-pr91-reconciliation/evidence.json",
         "productionAssetRuntimeRoot": "https://api.chickenbro.cloud/wow-assets/releases/2026-07-19-taro-full-integration",
         "runtimeMediaRoot": "not_configured",
-        "manualAcceptanceBoundary": "existing 5 accepted and 9 not_run_user_waived routes remain unchanged until fresh post-candidate evidence"
+        "manualAcceptanceBoundary": "post-candidate news_home and gear_detail accepted; truthful aggregate is 6 accepted and 8 not_run_user_waived, not 14/14"
       },
-      "visualAcceptance": "pending_fresh_real_wechat_evidence",
-      "interactionAcceptance": "pending_real_wechat_core_interaction_matrix",
+      "visualAcceptance": "partial_6_routes_accepted_8_not_run_user_waived",
+      "interactionAcceptance": "partial_6_routes_accepted_8_not_run_user_waived",
       "manualAcceptanceException": {
         "status": "user_authorized_merge_without_remaining_route_acceptance",
         "authorizedAt": "2026-07-19",
-        "acceptedRouteCount": 5,
-        "notRunRouteCount": 9,
+        "acceptedRouteCount": 6,
+        "notRunRouteCount": 8,
         "notRunRoutes": [
           "pages/builds/builds",
           "pages/builds/workbench",
           "pages/builds/intel",
-          "pages/builds/detail",
           "pages/simulator/simc",
           "pages/simulator/chickenbro",
           "pages/simulator/tasks",
