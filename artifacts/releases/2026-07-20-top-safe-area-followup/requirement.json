@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "slug": "top-safe-area-followup",
+  "classification": "Light",
+  "status": "implementation_allowed",
+  "goal": "Remove the duplicated WeChat safe-area offset from the shared sticky page header while preserving the existing AppShell inset, native capsule clearance and bottom TabBar geometry.",
+  "userValue": "Players see the page title bar directly below the native status area instead of one full safe area too low, without the header or bottom navigation covering content.",
+  "nonGoals": [
+    "Do not change route ownership, page content, API contracts, CDN roots or media availability.",
+    "Do not add route-private header offsets or page-specific visual patches.",
+    "Do not merge before the latest PR head receives the required real-device acceptance."
+  ],
+  "currentTruth": {
+    "sources": [
+      "docs/project-state.json",
+      "docs/roadmap.md",
+      "docs/plans/ui-reconstruction.md",
+      "DESIGN.md",
+      "docs/design/current-ui/README.md",
+      "docs/harness.md"
+    ],
+    "activeMilestone": "taro_target_first_14_route_rebuild",
+    "featureIteration": "allowed_under_harness"
+  },
+  "impactMap": {
+    "mustChange": [
+      "Shared PageFrame sticky offset in packages/design-system/src/components/owners.module.scss.",
+      "UI architecture audit contract for the shared safe-area owner."
+    ],
+    "mustNotChange": [
+      "Route-private layout rules, native capsule placement, bottom TabBar geometry, APIs and runtime asset configuration."
+    ],
+    "evidenceRequired": [
+      "Lint, typecheck, Taro tests, UI architecture audit, WeChat build and release package verification.",
+      "Fresh real-device confirmation for the news home and equipment detail header scenarios."
+    ]
+  },
+  "ownership": {
+    "factOwner": "packages/design-system/src/components/owners.module.scss",
+    "consumers": [
+      "The 14 active Taro routes using the shared AppShell and PageFrame owners.",
+      "scripts/audit-ui-architecture.js"
+    ]
+  },
+  "engineeringHealth": {
+    "status": "health_safe_shared_owner_fix",
+    "reason": "The fix removes one duplicated inset in the shared owner and adds a fail-closed architecture assertion; no route-private styles, API, data or deployment surfaces change."
+  },
+  "acceptanceEvidence": [
+    "npm run lint",
+    "npm run typecheck",
+    "npm run audit:ui-architecture",
+    "npm run test:taro",
+    "npm run build:weapp",
+    "npm run verify:ui-package:release with the approved production runtime roots",
+    "Fresh real-device verification of news_home_header_geometry and equipment_detail_header_geometry on the final PR head"
+  ],
+  "manualAcceptanceContract": {
+    "required": true,
+    "requiredItemIds": [
+      "news_home_header_geometry",
+      "equipment_detail_header_geometry"
+    ]
+  },
+  "releaseTrigger": "frontend_user_visible",
+  "rollback": [
+    "code_rollback"
+  ],
+  "decisionLog": [
+    {
+      "date": "2026-07-20",
+      "decision": "The user asked to inspect both top-bar failure scenarios, authorized continued fixes and requested that remaining problems be solved before submission."
+    }
+  ]
+}

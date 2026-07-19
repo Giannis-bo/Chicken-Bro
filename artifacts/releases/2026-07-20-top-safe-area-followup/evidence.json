@@ -1,0 +1,118 @@
+{
+  "schemaVersion": 2,
+  "slug": "top-safe-area-followup",
+  "requirementSlug": "top-safe-area-followup",
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
+  "branch": "codex/top-safe-area-followup",
+  "commit": "pending_task_packet_commit",
+  "identities": {
+    "runtime": {
+      "status": "pending",
+      "reason": "The final PR head still requires one fresh real-device run after CI passes."
+    },
+    "verification": {
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD"
+    },
+    "closure": {
+      "status": "pending",
+      "reason": "The draft PR is open and user acceptance has not completed."
+    }
+  },
+  "manualAcceptance": {
+    "required": true,
+    "status": "pending",
+    "items": [
+      {
+        "id": "news_home_header_geometry",
+        "status": "pending"
+      },
+      {
+        "id": "equipment_detail_header_geometry",
+        "status": "pending"
+      }
+    ],
+    "rollup": {
+      "total": 2,
+      "accepted": 0,
+      "notRunUserWaived": 0,
+      "pending": 2
+    }
+  },
+  "scope": [
+    "shared_frontend_chrome",
+    "wechat_safe_area",
+    "ui_architecture_guard"
+  ],
+  "verification": [
+    {
+      "command": "npm run lint",
+      "status": "pass",
+      "summary": "ESLint completed with zero warnings."
+    },
+    {
+      "command": "npm run typecheck",
+      "status": "pass",
+      "summary": "TypeScript completed without errors."
+    },
+    {
+      "command": "npm run audit:ui-architecture",
+      "status": "pass",
+      "summary": "All 14 routes and 282 architecture checks passed with zero findings."
+    },
+    {
+      "command": "npm run test:taro",
+      "status": "pass",
+      "summary": "41 test files and 254 tests passed."
+    },
+    {
+      "command": "npm run build:weapp",
+      "status": "pass",
+      "summary": "The WeChat package compiled and atomically promoted 213 output files."
+    },
+    {
+      "command": "npm run verify:ui-package:release with production runtime roots",
+      "status": "pass",
+      "summary": "releaseReady was true; the remote-asset package measured 1,649,208 bytes with no blockers."
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass",
+      "summary": "No whitespace errors were found."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "pending",
+    "reason": "The final PR head has not yet been opened in the user's real WeChat client."
+  },
+  "runtimeEvidence": [
+    {
+      "type": "equivalent_pre_rebase_wechat_webview_observation",
+      "status": "informational",
+      "summary": "The identical shared-owner change moved the 390x844 WebView header from y=94 to y=47 while retaining the bottom TabBar; this does not replace final-head manual acceptance."
+    }
+  ],
+  "risks": [
+    {
+      "id": "final_head_manual_acceptance",
+      "status": "pending",
+      "detail": "Both frozen top-bar scenarios must be checked once on the final PR head before merge."
+    }
+  ],
+  "rollback": [
+    "Revert the shared PageFrame sticky-offset commit to restore the previous positioning contract."
+  ],
+  "cleanup": {
+    "required": false
+  },
+  "archivedReferences": [
+    "docs/project-state.json",
+    "docs/roadmap.md",
+    "docs/plans/ui-reconstruction.md",
+    "DESIGN.md",
+    "docs/design/current-ui/README.md"
+  ],
+  "summary": "The shared safe-area correction is locally verified on the latest main baseline. CI and the two required final-head real-device acceptance items remain pending."
+}
