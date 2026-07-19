@@ -347,7 +347,9 @@
       "targetRegistry": "docs/design/current-ui/target-registry.json",
       "activeReconciliation": {
         "pullRequest": 91,
-        "status": "live_verified_pending_merge",
+        "status": "merged_live_verified",
+        "mergeCommit": "ea310087ca415500edf274c9b2cf780571b1f522",
+        "mergedAt": "2026-07-19T20:16:48+08:00",
         "evidence": "artifacts/releases/2026-07-19-pr91-reconciliation/evidence.json",
         "productionAssetRuntimeRoot": "https://api.chickenbro.cloud/wow-assets/releases/2026-07-19-taro-full-integration",
         "runtimeMediaRoot": "not_configured",

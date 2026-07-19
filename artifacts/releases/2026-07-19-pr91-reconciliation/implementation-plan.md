@@ -480,7 +480,7 @@ Ask the user to verify no more than these two routes in one batch:
 
 Expected: explicit post-test acceptance such as `我已测试通过，可以合入`.
 
-- [ ] **Step 4: Complete Harness closure after explicit acceptance**
+- [x] **Step 4: Complete Harness closure after explicit acceptance**
 
 Run final local CR, commit closure evidence, merge PR #91 without history rewrite, update local `main` by fast-forward, rerun scoped merge-result verification, and push `main`.
 
@@ -495,6 +495,6 @@ git ls-remote origin refs/heads/main
 
 Expected: the three main SHAs match the PR merge commit and scoped verification passes on the merge result.
 
-- [ ] **Step 5: Remove only this task's worktree and branches**
+- [x] **Step 5: Remove only this task's worktree and branches**
 
 After confirming the worktree is clean and PR #91 is merged, remove `G:\Codex\wow\.worktrees\cdn-api-publishing`, delete local `codex/cdn-api-publishing`, and delete the merged remote branch. Do not touch other branches or worktrees.

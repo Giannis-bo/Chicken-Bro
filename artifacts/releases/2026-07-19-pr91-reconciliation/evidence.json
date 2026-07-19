@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "slug": "pr91-reconciliation",
   "requirementSlug": "pr91-reconciliation",
-  "status": "live_verified_pending_merge",
+  "status": "merged_live_verified",
   "highestEvidenceLevel": "live_verified",
   "branch": "codex/cdn-api-publishing",
   "commit": "afe5e9b24d5616e8e1953f2b529b026c6c12d56f",
@@ -92,6 +92,8 @@
     "runtimeMediaRoot": "not_configured",
     "candidateId": "pr91-0696a1a-20260719-194856",
     "candidateHead": "0696a1a446f99a8e5f258dc5c3816bf33f7cee72",
+    "finalPullRequestHead": "0766eac20d16a9b09e06ff70eb764a2981674277",
+    "mergeCommit": "ea310087ca415500edf274c9b2cf780571b1f522",
     "runtimeFiles": [
       {
         "path": "server/builds/home-payload.js",
@@ -116,7 +118,7 @@
       "surface": "production_weapp_package",
       "status": "local_verified",
       "fileCount": 144,
-      "totalBytes": 1649136,
+      "totalBytes": 1649204,
       "vectorPngCount": 67,
       "releaseReady": true
     },
@@ -134,6 +136,19 @@
       "candidateItemsCount": 0,
       "slotGroupsPresent": false,
       "gearPayloadBytes": 45634
+    },
+    {
+      "surface": "post_merge_production_smoke",
+      "status": "live_verified",
+      "mergeCommit": "ea310087ca415500edf274c9b2cf780571b1f522",
+      "service": "wow-backend active",
+      "timer": "wow-data-health-followup.timer active and enabled",
+      "runtimeFileParity": "pass",
+      "health": "pass",
+      "dataHealth": "partial_existing_truth_boundary",
+      "gearPayloadMode": "initial",
+      "gearInitialCandidateLimit": 4,
+      "devourerIcon": "classicon_demonhunter_void"
     }
   ],
   "manualAcceptance": {
@@ -196,19 +211,32 @@
     }
   ],
   "rollback": [
-    "Before merge, reset only the PR branch through an ordinary follow-up revert of the reconciliation commits; do not rewrite history or force-push.",
+    "PR #91 is merged without history rewrite; use an ordinary revert of merge commit ea310087ca415500edf274c9b2cf780571b1f522 for a source rollback.",
     "Keep WOW_ASSET_RUNTIME_ROOT on https://api.chickenbro.cloud/wow-assets/releases/2026-07-19-taro-full-integration and leave WOW_RUNTIME_MEDIA_ROOT unset.",
     "For the candidate backend window, restore the three runtime files from the recorded remote backup and restart the existing wow-backend service.",
     "After merge, revert the PR merge commit if scoped merge-result verification or live smoke fails."
   ],
   "cleanup": {
     "required": true,
-    "status": "pending_after_merge",
+    "status": "completed",
     "targets": [
       "G:/Codex/wow/.worktrees/cdn-api-publishing",
       "local codex/cdn-api-publishing",
       "remote codex/cdn-api-publishing"
-    ]
+    ],
+    "devToolsConfigStash": "28af8ac12148d73b36c4223be7858bc2877770bc",
+    "devToolsConfigStashMessage": "pr91-manual-acceptance-devtools-project-config",
+    "recovery": "Windows junction cleanup removed tracked workspace files and ignored dependencies from the clean main worktree. All 563 tracked deletions were restored exactly from merge HEAD, npm ci restored locked dependencies with user approval, the production weapp package was rebuilt, and the complete scoped verification passed with a clean worktree."
+  },
+  "postMergeVerification": {
+    "mergeTreeEqualsFinalPullRequestTree": true,
+    "mainShaParity": "local main == origin/main == remote main at ea310087ca415500edf274c9b2cf780571b1f522 before this documentation-only closure commit",
+    "architecture": "14 routes, 290 checks, zero findings",
+    "taro": "41 files and 254 tests pass",
+    "nodeTargeted": "54 pass, zero fail, one Windows symbolic-link privilege skip",
+    "pythonTargeted": "2 pass",
+    "productionBuild": "144 files through staged atomic promotion with project.config.json unchanged",
+    "releasePackage": "releaseReady=true with zero blockers, current asset root, and runtimeMediaOrigin=not_configured"
   },
   "archivedReferences": [
     "docs/project-state.json",
@@ -217,5 +245,5 @@
     "artifacts/releases/2026-07-19-pr91-reconciliation/implementation-plan.md",
     "artifacts/releases/2026-07-19-pr91-reconciliation/commit-disposition.json"
   ],
-  "summary": "PR #91 is reconciled onto current main without history rewrite, passes the full local profile and GitHub CI, has a verified candidate deployment at runtime commit afe5e9b, and received explicit user acceptance for the bounded post-candidate WeChat checks. The unpublished alternate media root is not activated. Eight routes remain not_run_user_waived, so fourteen-of-fourteen manual acceptance is not claimed."
+  "summary": "PR #91 merged as ea31008 without history rewrite after full local verification, final-head GitHub CI, candidate deployment, bounded real-WeChat user acceptance, merge-tree parity, post-merge scoped verification, live runtime parity, and cleanup. The unpublished alternate media root is not activated. Eight routes remain not_run_user_waived, so fourteen-of-fourteen manual acceptance is not claimed."
 }
