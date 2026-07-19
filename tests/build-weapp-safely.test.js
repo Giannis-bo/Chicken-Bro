@@ -146,7 +146,15 @@ test('safe promotion rejects symbolic links in the live package before mutation'
   write(live, 'app.js', 'old app')
   write(live, 'app.wxss', 'old styles')
   fs.writeFileSync(outsideManifest, '{"version":"outside"}')
-  fs.symlinkSync(outsideManifest, path.join(live, 'app.json'))
+  try {
+    fs.symlinkSync(outsideManifest, path.join(live, 'app.json'))
+  } catch (error) {
+    if (process.platform === 'win32' && error?.code === 'EPERM') {
+      t.skip('Windows file symlink privilege is unavailable')
+      return
+    }
+    throw error
+  }
 
   assert.throws(() => promoteWeappBuild(staging, live), /cannot contain symbolic links/u)
   assert.equal(fs.readFileSync(outsideManifest, 'utf8'), '{"version":"outside"}')

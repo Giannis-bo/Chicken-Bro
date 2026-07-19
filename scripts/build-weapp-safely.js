@@ -15,6 +15,10 @@ const maximumBuildFiles = 4096
 const requiredEntries = ['app.json', 'app.js', 'app.wxss']
 const requiredPageExtensions = ['js', 'json', 'wxml', 'wxss']
 
+function relativeBuildPath(root, file) {
+  return path.relative(root, file).split(path.sep).join('/')
+}
+
 function walkFiles(root) {
   if (!fs.existsSync(root)) return []
   const rootStat = fs.lstatSync(root)
@@ -39,7 +43,7 @@ function walkFiles(root) {
 
 function validateBuild(root) {
   const files = walkFiles(root)
-  const relativeFiles = new Set(files.map((file) => path.relative(root, file)))
+  const relativeFiles = new Set(files.map((file) => relativeBuildPath(root, file)))
   for (const entry of requiredEntries) {
     if (!relativeFiles.has(entry)) throw new Error(`WeChat build is missing ${entry}: ${root}`)
   }
@@ -151,7 +155,7 @@ function resolveIsolatedOutputRoot(configuredRoot) {
 
 function promoteWeappBuild(stagingRoot, destinationRoot = liveOutputRoot, options = {}) {
   const stagingFiles = validateBuild(stagingRoot)
-  const relativeFiles = stagingFiles.map((file) => path.relative(stagingRoot, file))
+  const relativeFiles = stagingFiles.map((file) => relativeBuildPath(stagingRoot, file))
   const stagedSet = new Set(relativeFiles)
   const notify = typeof options.afterMutation === 'function' ? options.afterMutation : () => {}
 
@@ -185,7 +189,7 @@ function promoteWeappBuild(stagingRoot, destinationRoot = liveOutputRoot, option
   }
 
   const staleFiles = walkFiles(destinationRoot)
-    .map((file) => path.relative(destinationRoot, file))
+    .map((file) => relativeBuildPath(destinationRoot, file))
     .filter((file) => !stagedSet.has(file))
     .sort()
   for (const relative of staleFiles) {
