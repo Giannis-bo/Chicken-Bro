@@ -41,7 +41,7 @@ function isProductionBackendOrigin(value) {
 function releaseDomainBlockers({ assetRuntimeRoot, runtimeMediaRoot, backendApiBaseUrl, wechatRequestDomainApproved }) {
   const blockers = []
   if (!isProductionAssetRuntimeRoot(assetRuntimeRoot)) blockers.push('WOW_ASSET_RUNTIME_ROOT must be an approved named HTTPS immutable /releases/<release-id> path')
-  if (!isProductionRuntimeMediaRoot(runtimeMediaRoot)) blockers.push('WOW_RUNTIME_MEDIA_ROOT must be an approved named HTTPS immutable /wow-media/releases/<release-id> path')
+  if (runtimeMediaRoot && !isProductionRuntimeMediaRoot(runtimeMediaRoot)) blockers.push('WOW_RUNTIME_MEDIA_ROOT must be an approved named HTTPS immutable /wow-media/releases/<release-id> path')
   if (!isProductionBackendOrigin(backendApiBaseUrl)) blockers.push('WOW_BACKEND_API_BASE_URL must be an approved HTTPS named origin')
   if (!wechatRequestDomainApproved) blockers.push('WOW_WECHAT_REQUEST_DOMAIN_APPROVED must be explicit yes')
   return blockers

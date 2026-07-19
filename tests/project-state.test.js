@@ -720,6 +720,7 @@ test('raster runtime assets are byte and hash verified without image payloads', 
 
 test('UI package evidence cannot treat a placeholder remote asset origin as release-ready', () => {
   const verifier = fs.readFileSync('scripts/verify-ui-package.js', 'utf8')
+  const publisher = fs.readFileSync('scripts/publish-ui-cdn-assets.js', 'utf8')
   const taroConfig = fs.readFileSync('apps/mini-taro/config/index.ts', 'utf8')
   const transport = fs.readFileSync('packages/api-client/src/transport.ts', 'utf8')
   const domainPolicy = fs.readFileSync('scripts/release-domain-policy.js', 'utf8')
@@ -743,7 +744,8 @@ test('UI package evidence cannot treat a placeholder remote asset origin as rele
   assert.match(verifier, /@tarojs['"], 'cli', 'bin', 'taro'/)
   assert.match(verifier, /result\.error/)
   assert.equal(packageJson.scripts['verify:ui-package:release'], 'node scripts/verify-ui-package.js --require-production-ready')
-  assert.equal(packageJson.scripts['build:weapp:release'], 'NODE_ENV=production WOW_TARO_ISOLATED_BUILD=1 WOW_ASSET_RUNTIME_ROOT=https://static.chickenbro.cloud/wow-assets/releases/2026-07-18-ui-v2 WOW_RUNTIME_MEDIA_ROOT=https://static.chickenbro.cloud/wow-media/releases/2026-07-19-wow-icons-v1 WOW_BACKEND_API_BASE_URL=https://api.chickenbro.cloud WOW_WECHAT_REQUEST_DOMAIN_APPROVED=yes npm run build:weapp')
+  assert.equal(packageJson.scripts['build:weapp:release'], undefined)
+  assert.doesNotMatch(JSON.stringify(packageJson.scripts), /static\.chickenbro\.cloud/u)
   assert.match(publisher, /const verificationConcurrency = 8/)
   assert.match(publisher, /const assetRequestTimeoutMs = 20_000/)
   assert.match(publisher, /const maximumVerificationAttempts = 2/)

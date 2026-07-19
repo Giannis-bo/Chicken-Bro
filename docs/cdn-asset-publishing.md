@@ -2,9 +2,15 @@
 
 状态：`active`
 
-## 固定链路
+## 当前生产取值与备用发布链路
 
-小程序美术资源使用不可变版本目录发布：
+当前已验证并正在使用的生产美术资源根是：
+
+`https://api.chickenbro.cloud/wow-assets/releases/2026-07-19-taro-full-integration`
+
+小程序发布、候选构建和回滚都必须以这个值为默认基线。除非一个新目录已经完成上传、逐文件回读校验和候选包验收，否则不得替换该生产根。
+
+仓库同时保留以下备用 CDN 发布链路，但它们只是显式手工发布工具，不是当前生产配置：
 
 `packages/design-system/assets/raster -> COS zhajiduizhang-1257807175 (ap-shanghai) -> static.chickenbro.cloud -> WOW_ASSET_RUNTIME_ROOT`
 
@@ -14,9 +20,11 @@
 
 微信小程序发布包保留由 66 个注册 SVG 确定性生成的 `packages/design-system/assets/vector-runtime` PNG 派生物。真实微信端对 SVG 与 CSS mask 的渲染不稳定，组件必须通过原生 `<image>` 使用这些本地 PNG；大体积栅格美术仍由不可变 CDN 根提供。源 SVG 和许可证继续纳入仓库与 CDN 发布审计，但微信运行路径不得依赖 SVG 或 mask。
 
-生产根目录必须是 `https://static.chickenbro.cloud/wow-assets/releases/<release-id>`。已发布目录只读不覆盖；资源变化必须使用新的 `release-id`，以便小程序版本回滚时仍能访问原资源。
+`static.chickenbro.cloud/wow-assets` 和 `static.chickenbro.cloud/wow-media` 只有在对应不可变目录真实发布并通过本 Runbook 的完整回读校验后，才可进入候选验证；目录只读不覆盖，资源变化必须使用新的 `release-id`。当前不得把历史示例目录或尚未发布的 `wow-media` 根写入构建脚本、测试脚本或部署默认值。
 
-## 发布
+## 手工发布备用 CDN 目录
+
+以下命令仅供负责人显式执行。它们不挂接 `build`、`test`、`deploy` 或 CI 默认流程，也不改变当前生产配置。
 
 1. 先校验仓库中的源文件和清单：
 
@@ -46,25 +54,32 @@
    npm run verify:ui-cdn -- 2026-07-18-ui-v2
    ```
 
-5. 用该不可变根目录执行发布门禁：
+5. 在备用目录尚未完成发布验收时，继续用当前生产根执行发布门禁：
 
    ```bash
-   WOW_ASSET_RUNTIME_ROOT=https://static.chickenbro.cloud/wow-assets/releases/2026-07-18-ui-v2 \
-   WOW_RUNTIME_MEDIA_ROOT=https://static.chickenbro.cloud/wow-media/releases/2026-07-19-wow-icons-v1 \
+   WOW_ASSET_RUNTIME_ROOT=https://api.chickenbro.cloud/wow-assets/releases/2026-07-19-taro-full-integration \
    WOW_BACKEND_API_BASE_URL=https://api.chickenbro.cloud \
    WOW_WECHAT_REQUEST_DOMAIN_APPROVED=yes \
    npm run verify:ui-package:release
    ```
 
-6. 生成供微信开发者工具真机调试/上传的 CDN 版本构建：
+6. 生成供微信开发者工具真机调试/上传的隔离候选构建：
 
    ```bash
-   npm run build:weapp:release
+   NODE_ENV=production \
+   WOW_TARO_ISOLATED_BUILD=1 \
+   WOW_ASSET_RUNTIME_ROOT=https://api.chickenbro.cloud/wow-assets/releases/2026-07-19-taro-full-integration \
+   WOW_BACKEND_API_BASE_URL=https://api.chickenbro.cloud \
+   npm run build:weapp
    ```
 
-   `build:weapp` 默认保留本地素材，便于离线开发，因此会超过微信 2 MiB 主包限制；真机调试和发布必须使用 `build:weapp:release`。发布命令会禁用 Taro 构建缓存，避免上一次本地构建的素材根常量污染 CDN 包。切换 CDN `release-id` 时，同步更新该命令中的不可变根目录。
+   仓库不提供固化 URL 的 `build:weapp:release` 脚本，避免历史或未发布目录被静默带入候选包。发布负责人必须在当前会话显式传入已验证的不可变根；`WOW_TARO_ISOLATED_BUILD=1` 会禁用 Taro 构建缓存并使用隔离 staging，避免上一次本地构建的常量或文件污染候选包。
 
 ## 运行时图标发布
+
+这组工具同样保持休眠：只有手工上传和独立回读校验全部通过后，才允许在候选验证中显式设置 `WOW_RUNTIME_MEDIA_ROOT`；未设置时，应用继续使用现有本地 PNG/受信任资源回退，不构成发布阻断。
+
+历史示例 `https://static.chickenbro.cloud/wow-media/releases/2026-07-19-wow-icons-v1` 当前未发布，禁止配置到生产或候选构建中。
 
 1. 从当前 API 发现职业、专精、天赋和装备图标，下载到临时 staging，并生成带字节数与 SHA-256 的清单：
 

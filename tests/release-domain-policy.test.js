@@ -41,10 +41,9 @@ test('runtime media domain requires the authoritative immutable wow-media releas
   }
 })
 
-test('release blockers close assets, runtime media, backend and WeChat approval independently', () => {
+test('release blockers require current assets, backend and WeChat approval while runtime media stays optional', () => {
   assert.deepEqual(releaseDomainBlockers({ assetRuntimeRoot: '', runtimeMediaRoot: '', backendApiBaseUrl: '', wechatRequestDomainApproved: false }), [
     'WOW_ASSET_RUNTIME_ROOT must be an approved named HTTPS immutable /releases/<release-id> path',
-    'WOW_RUNTIME_MEDIA_ROOT must be an approved named HTTPS immutable /wow-media/releases/<release-id> path',
     'WOW_BACKEND_API_BASE_URL must be an approved HTTPS named origin',
     'WOW_WECHAT_REQUEST_DOMAIN_APPROVED must be explicit yes',
   ])
@@ -54,4 +53,12 @@ test('release blockers close assets, runtime media, backend and WeChat approval 
     backendApiBaseUrl: 'https://api.example.com',
     wechatRequestDomainApproved: true,
   }), [])
+  assert.deepEqual(releaseDomainBlockers({
+    assetRuntimeRoot: 'https://assets.example.com/wow-assets/releases/release-v1',
+    runtimeMediaRoot: 'https://static.example.com/wow-media/latest',
+    backendApiBaseUrl: 'https://api.example.com',
+    wechatRequestDomainApproved: true,
+  }), [
+    'WOW_RUNTIME_MEDIA_ROOT must be an approved named HTTPS immutable /wow-media/releases/<release-id> path',
+  ])
 })

@@ -136,7 +136,7 @@ Expected: JSON parses, diff check passes, and the audit commit contains only the
 - Produces: `resolveActiveTabRoute(candidates, fallback?)`, `createActiveTabRouteStore()`, `activeTabRouteStore`, and `useTabRootIdentity(pagePath)`
 - Preserves: current #92 page actions, canonical empty/blocked behavior, typed route models, and all shared owner contracts
 
-- [ ] **Step 1: Run the focused tests before implementation**
+- [x] **Step 1: Run the focused tests before implementation**
 
 ```powershell
 npx vitest run apps/mini-taro/src/tab-bar-items.test.ts apps/mini-taro/src/tab-bar-state.test.ts apps/mini-taro/src/pages/_shared/route-contract.test.ts
@@ -144,15 +144,15 @@ npx vitest run apps/mini-taro/src/tab-bar-items.test.ts apps/mini-taro/src/tab-b
 
 Expected before restoration: at least one test fails because current-main conflict resolution removed the #91 store/hook or root-page wiring.
 
-- [ ] **Step 2: Implement only the TabBar identity contract**
+- [x] **Step 2: Implement only the TabBar identity contract**
 
 `resolveActiveTabRoute` must normalize candidates, prefer the actual page stack route, accept only registered Tab roots, and use the news root as the final fallback. `activeTabRouteStore.set` must ignore non-Tab routes and notify subscribers only after a real state change. Each of the four root pages must call `useTabRootIdentity` without changing its existing route state, actions, or JSX.
 
-- [ ] **Step 3: Make `switchTab` failure recover from real route state**
+- [x] **Step 3: Make `switchTab` failure recover from real route state**
 
 `custom-tab-bar/index.tsx` must subscribe once with `useEffect`, optimistically publish the selected Tab, call `Taro.switchTab`, and on rejection resolve the actual page stack/router route before restoring the previous state.
 
-- [ ] **Step 4: Run focused and route-contract tests**
+- [x] **Step 4: Run focused and route-contract tests**
 
 ```powershell
 npx vitest run apps/mini-taro/src/tab-bar-items.test.ts apps/mini-taro/src/tab-bar-state.test.ts apps/mini-taro/src/pages/_shared/route-contract.test.ts
@@ -160,7 +160,7 @@ npx vitest run apps/mini-taro/src/tab-bar-items.test.ts apps/mini-taro/src/tab-b
 
 Expected: all selected files pass with zero failures.
 
-- [ ] **Step 5: Commit the TabBar behavior**
+- [x] **Step 5: Commit the TabBar behavior**
 
 ```powershell
 git add apps/mini-taro/src/tab-bar-items.ts apps/mini-taro/src/tab-bar-items.test.ts apps/mini-taro/src/tab-bar-state.ts apps/mini-taro/src/tab-bar-state.test.ts apps/mini-taro/src/use-tab-root-identity.ts apps/mini-taro/src/custom-tab-bar/index.tsx apps/mini-taro/src/pages/news/news.tsx apps/mini-taro/src/pages/builds/builds.tsx apps/mini-taro/src/pages/simulator/simulator.tsx apps/mini-taro/src/pages/profile/profile.tsx
@@ -187,7 +187,7 @@ Expected: the commit does not remove or rewrite unrelated page behavior.
 - Produces: `validateBuild(root)`, `promoteWeappBuild(stagingRoot, destinationRoot, options)`, `resolveIsolatedOutputRoot(root)`, and `finalizeWeappBuild(root)`
 - Preserves: current production cache disablement, one existing DevTools process, explicit route batches of at most two, and no automatic launch/reload
 
-- [ ] **Step 1: Run build-promotion and automator regression tests**
+- [x] **Step 1: Run build-promotion and automator regression tests**
 
 ```powershell
 node --test tests/build-weapp-safely.test.js tests/finalize-weapp-build.test.js tests/wechat-automator.test.js tests/taro-production-build.test.js
@@ -195,15 +195,15 @@ node --test tests/build-weapp-safely.test.js tests/finalize-weapp-build.test.js 
 
 Expected: retained #91 tests reveal any mainline-conflict regression; existing production-cache tests remain green.
 
-- [ ] **Step 2: Adapt the safe build wrapper to current config**
+- [x] **Step 2: Adapt the safe build wrapper to current config**
 
 The wrapper must build to an OS temp directory with `WOW_TARO_ISOLATED_BUILD=1` and `WOW_TARO_OUTPUT_ROOT=<temp>`, reject symlinks and invalid/missing page entries, copy dependencies before `app.json`, write `app.js` last as the commit marker, and leave the active output untouched on failure. `apps/mini-taro/config/index.ts` must retain `cache.enable = !productionBuild && !isolatedBuild`.
 
-- [ ] **Step 3: Preserve the current DevTools session boundary**
+- [x] **Step 3: Preserve the current DevTools session boundary**
 
 The automator/capture path may attach to an existing endpoint but must not close, reload, or replace the user's logged-in DevTools process. It must retain the current explicit route-batch limit and fail closed when no usable renderer exists.
 
-- [ ] **Step 4: Run focused build and automator tests**
+- [x] **Step 4: Run focused build and automator tests**
 
 ```powershell
 node --test tests/build-weapp-safely.test.js tests/finalize-weapp-build.test.js tests/wechat-automator.test.js tests/taro-production-build.test.js tests/capture-ui-review-cache.test.js
@@ -211,7 +211,7 @@ node --test tests/build-weapp-safely.test.js tests/finalize-weapp-build.test.js 
 
 Expected: all selected tests pass, including incomplete-tree, symlink, unchanged-package, app-entry-last, production-cache, and session-ownership cases.
 
-- [ ] **Step 5: Commit build/session safety**
+- [x] **Step 5: Commit build/session safety**
 
 ```powershell
 git add package.json apps/mini-taro/package.json apps/mini-taro/config/index.ts scripts/build-weapp-safely.js scripts/finalize-weapp-build.js scripts/wechat-automator.js scripts/capture-ui-review-cache.js tests/build-weapp-safely.test.js tests/finalize-weapp-build.test.js tests/wechat-automator.test.js
@@ -233,7 +233,7 @@ Expected: no generated `dist/weapp` files are staged.
 - Consumes: `X-Wow-Platform: miniprogram`, query `mode`, query `slot`
 - Produces: mini-program `/api/websim/gear` defaults to `mode=initial` only when the caller did not provide a mode; explicit modes and non-mini-program callers remain unchanged
 
-- [ ] **Step 1: Run the exact initial-mode regression test**
+- [x] **Step 1: Run the exact initial-mode regression test**
 
 ```powershell
 python -m unittest tests.websim_payload_test.WebSimPayloadTest.test_http_websim_gear_miniprogram_header_uses_compact_payload
@@ -241,7 +241,7 @@ python -m unittest tests.websim_payload_test.WebSimPayloadTest.test_http_websim_
 
 Expected before restoration: FAIL because `gearPayloadMode`/candidate limit do not reflect `initial`, or PASS if current main already has an equivalent contract.
 
-- [ ] **Step 2: Apply the minimal backend default when the test is red**
+- [x] **Step 2: Apply the minimal backend default when the test is red**
 
 Inside the `/api/websim/gear` handler, after reading the caller-supplied mode:
 
@@ -252,7 +252,7 @@ if platform == "miniprogram" and not str(mode or "").strip():
 
 Do not alter explicit `mode`, `slot`, compact semantics, resolver ownership, public source keys, or fallback truth.
 
-- [ ] **Step 3: Run focused API and transport tests**
+- [x] **Step 3: Run focused API and transport tests**
 
 ```powershell
 python -m unittest tests.websim_payload_test.WebSimPayloadTest.test_http_websim_gear_miniprogram_header_uses_compact_payload tests.websim_payload_test.WebSimPayloadTest.test_websim_gear_initial_mode_slims_candidate_details
@@ -261,7 +261,7 @@ node --test tests/frontend-api-client.test.js
 
 Expected: all selected tests pass; the initial response retains four candidates per slot and omits heavy per-item collections while explicit slot detail remains available.
 
-- [ ] **Step 4: Commit the payload contract only if it changes current main**
+- [x] **Step 4: Commit the payload contract only if it changes current main**
 
 ```powershell
 git add server/news_backend.py server/websim_payload.py packages/api-client/src/transport.ts tests/websim_payload_test.py tests/frontend-api-client.test.js
@@ -292,7 +292,7 @@ Expected: skipped if the post-merge main already satisfies the exact tests with 
 - Produces: deterministic local PNG runtime fallbacks, trusted-media state shared by media components, and an explicit dormant publisher
 - Preserves: `__WOW_ASSET_RUNTIME_ROOT__` current production value and current `api.chickenbro.cloud` immutable release
 
-- [ ] **Step 1: Run manifest/media regression tests**
+- [x] **Step 1: Run manifest/media regression tests**
 
 ```powershell
 npx vitest run packages/assets-manifest/src/current-manifest.test.ts packages/design-system/src/runtime-media.test.ts packages/design-system/src/components/useTrustedMediaLoadState.test.ts
@@ -301,15 +301,15 @@ node --test tests/publish-runtime-media.test.js
 
 Expected: any missing current-main adaptation is exposed before source changes.
 
-- [ ] **Step 2: Keep only registered PNG fallbacks and trusted URL behavior**
+- [x] **Step 2: Keep only registered PNG fallbacks and trusted URL behavior**
 
 Every retained PNG must have a unique manifest asset ID/slot, deterministic relative path, and test coverage. Shared media components must use one trusted-load-state owner; they may show a registered local fallback on missing/untrusted remote media but may not upgrade fallback content to verified.
 
-- [ ] **Step 3: Keep publisher tooling dormant**
+- [x] **Step 3: Keep publisher tooling dormant**
 
 The publisher must require an explicit release ID and output target, validate host allowlists, byte size, and SHA-256, and have no package script that runs during build, test, deploy, or release verification. Documentation must state that the historical `static.chickenbro.cloud/wow-media/releases/2026-07-19-wow-icons-v1` path is unpublished and must not be configured.
 
-- [ ] **Step 4: Run integrity, package, and focused media tests**
+- [x] **Step 4: Run integrity, package, and focused media tests**
 
 ```powershell
 npx vitest run packages/assets-manifest/src/current-manifest.test.ts packages/design-system/src/runtime-media.test.ts packages/design-system/src/components/useTrustedMediaLoadState.test.ts
@@ -320,7 +320,7 @@ npm run verify:ui-package
 
 Expected: zero hash/path mismatch; package mechanics pass; current root is unchanged; no alternative CDN root appears in production constants.
 
-- [ ] **Step 5: Commit media support**
+- [x] **Step 5: Commit media support**
 
 ```powershell
 git add packages/assets-manifest packages/design-system scripts/generate-weapp-vector-runtime.js scripts/publish-runtime-media.js tests/publish-runtime-media.test.js docs/cdn-asset-publishing.md
