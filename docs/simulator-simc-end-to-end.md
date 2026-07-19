@@ -65,12 +65,16 @@ Backend rules:
 
 ## Template Task Flow
 
-`mode=simcraft_template` is the current player-facing path for saved talent/gear templates. It has two different phases:
+`mode=simcraft_template` is the current player-facing path for saved talent/gear templates. New callers use the additive canonical contract: top-level `selectionIntent + profileContext`, where `profileContext` contains a supported `race`, a supported `scenarioKey`, and one complete talent source (`talents`, `talentImport`, `websimExportCode`, or `talentState`). Presence of either canonical key selects this branch; both objects are then required completely. The backend re-resolves the Intent through the same authority used by `POST /api/websim/profile`, preserves structured Resolver/release problems, and never falls back to template `rawString` or `metadata.gearSnapshot` on a canonical request. Top-level race/scenario values, when present, must match `profileContext`.
+
+The legacy `templateContext.talent + templateContext.gear` parsing path remains compatibility-only and is selected only when both canonical keys are absent. Confirm and final submit use the same preparation boundary:
 
 1. Confirmation uses `confirmOnly=true`. The backend parses the selected talent template, parses or replays the structured gear template, validates class/spec/race/scenario, builds a deterministic draft profile, and returns `simcReport.schemaRevision=simc-report-v2`. Confirmation must not run SimC, call LLM, or call Codex Worker.
 2. Final submit uses `confirmOnly=false` and `saveTask=true`. The backend repeats validation, creates or reuses a queued `simulator_tasks` row, stores `request_json`, `analysis_json`, and `summary_json`, returns `taskId`, and starts the background runner when `WOW_SIMC_TEMPLATE_TASK_AUTORUN` allows it.
 3. The runner owns the state transition `queued -> running -> completed/failed`. It pipes the stored normalized profile to `simc`, parses DPS only from SimC output, records `taskTiming`, updates `analysis_json`, regenerates `summary_json`, and never calls LLM/Codex.
 4. Duplicate active submits are deduped by `simcTaskFingerprint`, which includes user/template/class/spec/race/scenario/analysis-type inputs. If the same task is already `queued` or `running`, the API returns the active task lock instead of inserting another row.
+
+`GET /api/simulator/simc/options` is the additive backend-owned options read model. `contractRevision=simc-options-v1` and `status=ready` gate consumption. It exposes only the supported race whitelist and class defaults, the three server scenario rows with fight style/targets/duration, and preparation rows from `simc-preparation-v1` with explicit `overrideSupported`; pending or unsupported preparation stays visible as such and is not promoted to a frontend placeholder.
 
 The player-facing scenario contract is intentionally small:
 
@@ -112,7 +116,7 @@ Frontend display rules in `pages/simulator/tasks.*`:
 
 `GET /api/simulator/task?id=...` returns one task after owner/guest checks. For `simcraft_template` tasks, public detail must be stripped before it reaches the mini program:
 
-- Remove full `profile`, `draftProfile`, raw SimC stdout, `llm`, `codex`, `allowedNumbers`, and `guestId`.
+- Remove full `profile`, `canonicalProfile`, `draftProfile`, raw SimC stdout, `llm`, `codex`, `allowedNumbers`, and `guestId`.
 - Rebuild or normalize `simcReport` as `simc-report-v2`, then preserve any existing verified `simcReport.build.statSnapshot`.
 - Keep only player-facing result data: hero title, status, concise summary, DPS result if the final SimC run produced one, scenario display, and verified stat rows.
 - Do not render legacy AI report sections such as player question, build-context dump, report explanation, next actions, evidence lists, execution stages, generated SimC template, or raw SimC summary.

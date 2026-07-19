@@ -7,6 +7,7 @@ import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
 import { RouteStage } from '@wow-mini/design-system/components/RouteStage'
 import { RouteRegion } from '@wow-mini/design-system/components/RouteFlow'
 import {
+  SimulatorCaptainAction,
   SimulatorComposer,
   SimulatorEvidenceShelf,
   SimulatorGuidancePanel,
@@ -41,6 +42,14 @@ export default function SimulatorHomePage() {
 
   const context = useMemo(() => simulatorHomeContext(messages), [messages])
   const evidenceCards = useMemo(() => simulatorEvidenceCards(messages), [messages])
+
+  const resetTopic = () => {
+    setMessages(initialSimulatorHomeMessages())
+    setDraft('')
+    setSessionId('')
+    setInputState('ready')
+    setLastSubmitted('')
+  }
 
   const send = async (explicitMessage?: string) => {
     const message = (explicitMessage ?? draft).trim().slice(0, 2000)
@@ -124,6 +133,12 @@ export default function SimulatorHomePage() {
       >
         <PageFrame
           region="header_bar"
+          rightAction={(
+            <SimulatorCaptainAction
+              disabled={inputState === 'loading'}
+              onReset={resetTopic}
+            />
+          )}
           title="智能分析"
           variant="simulator-home"
         >

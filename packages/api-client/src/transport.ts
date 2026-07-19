@@ -9,6 +9,8 @@ import {
 import { AnalyticsIdentity } from './analytics'
 import { taroStorage, type StorageAdapter } from './storage'
 
+declare const __WOW_BACKEND_API_BASE_URL__: string
+
 export const DEV_API_BASE_URL = 'http://124.223.51.33'
 
 export interface ApiResult<T> {
@@ -65,20 +67,24 @@ function isWebRuntime(): boolean {
   return typeof window !== 'undefined' && typeof document !== 'undefined'
 }
 
-function miniProgramEnvVersion(): string {
+type MiniProgramEnvVersion = 'develop' | 'trial' | 'release' | 'unknown'
+
+function miniProgramEnvVersion(): MiniProgramEnvVersion {
   if (isWebRuntime()) return 'develop'
   try {
-    return Taro.getAccountInfoSync().miniProgram?.envVersion ?? 'develop'
+    const value = Taro.getAccountInfoSync().miniProgram?.envVersion
+    return value === 'develop' || value === 'trial' || value === 'release'
+      ? value
+      : 'unknown'
   } catch {
-    return 'develop'
+    return 'unknown'
   }
 }
 
 function buildTimeApiBaseUrl(): string {
-  if (typeof process === 'undefined' || !process.env) return ''
-  return process.env['WOW_BACKEND_API_BASE_URL']
-    ?? process.env['WOW_NEWS_API_BASE_URL']
-    ?? ''
+  return typeof __WOW_BACKEND_API_BASE_URL__ === 'string'
+    ? __WOW_BACKEND_API_BASE_URL__
+    : ''
 }
 
 function h5ApiBaseUrl(): string {
@@ -86,15 +92,39 @@ function h5ApiBaseUrl(): string {
   return `${window.location.origin}/wow-api`
 }
 
+function productionApiBaseUrl(value: string): string {
+  try {
+    const parsed = new URL(value)
+    const isIpv4 = /^(?:\d{1,3}\.){3}\d{1,3}$/.test(parsed.hostname)
+    const isIpv6 = parsed.hostname.includes(':')
+    const isNamedHost = parsed.hostname.includes('.') && !isIpv4 && !isIpv6
+    const isOriginOnly = parsed.pathname === '/' && !parsed.search && !parsed.hash
+      && !parsed.username && !parsed.password
+    return parsed.protocol === 'https:' && isNamedHost && isOriginOnly
+      ? parsed.origin
+      : ''
+  } catch {
+    return ''
+  }
+}
+
 export function configuredApiBaseUrl(storage: StorageAdapter = taroStorage): string {
+  if (isWebRuntime()) {
+    const stored = storage.get<string>(storageKey('api.base'))
+      ?? storage.get<string>(storageKey('api.newsBaseCompat'))
+    return stored || buildTimeApiBaseUrl() || h5ApiBaseUrl()
+  }
+  const envVersion = miniProgramEnvVersion()
+  if (envVersion === 'unknown') return ''
+  if (envVersion === 'release' || envVersion === 'trial') {
+    return productionApiBaseUrl(buildTimeApiBaseUrl())
+  }
   const stored = storage.get<string>(storageKey('api.base'))
     ?? storage.get<string>(storageKey('api.newsBaseCompat'))
   if (stored) return stored
   const envBase = buildTimeApiBaseUrl()
   if (envBase) return envBase
-  const h5Base = h5ApiBaseUrl()
-  if (h5Base) return h5Base
-  return miniProgramEnvVersion() === 'develop' ? DEV_API_BASE_URL : ''
+  return DEV_API_BASE_URL
 }
 
 function errorMessage(error: unknown): string {

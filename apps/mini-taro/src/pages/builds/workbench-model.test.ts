@@ -58,11 +58,19 @@ function payload(overrides: Partial<CurrentSpecWorkbenchPayload> = {}): CurrentS
 }
 
 describe('current spec workbench truth model', () => {
-  it('uses slot readiness instead of presenting candidate counts as equipped slots', () => {
+  it('does not present compact catalog aggregates as current equipped slots', () => {
     const model = buildCurrentSpecWorkbenchModel({ payload: payload(), routeState: 'ready', selectedSpecId: '法师-冰霜' })
     const gearModule = model.modules.find((module) => module.id === 'gear')
+    const gearEvidence = model.evidence.find((row) => row.id === 'gear')
 
-    expect(gearModule?.summary).toBe('14/15 必需槽可模拟')
+    expect(gearModule).toMatchObject({
+      summary: '当前装备待校验',
+      detail: '进入装备页选择真实装备并由后端校验',
+      state: 'partial',
+      disabled: false,
+    })
+    expect(gearEvidence).toMatchObject({ value: '草稿待校验', state: 'partial' })
+    expect(JSON.stringify(model)).not.toContain('14/15')
     expect(JSON.stringify(model)).not.toContain('361')
     expect(JSON.stringify(model)).not.toContain('257')
   })
@@ -89,12 +97,14 @@ describe('current spec workbench truth model', () => {
     })
   })
 
-  it('keeps talent description gaps separate from SimC encoding readiness', () => {
+  it('keeps talent description gaps separate but never lets compact gear readiness upgrade SimC', () => {
     const model = buildCurrentSpecWorkbenchModel({ payload: payload({ gear: gear(true) }), routeState: 'ready' })
 
     expect(model.modules.find((module) => module.id === 'talents')?.state).toBe('partial')
-    expect(model.modules.find((module) => module.id === 'simc')?.state).toBe('ready')
-    expect(model.overallState).toBe('ready')
+    expect(model.modules.find((module) => module.id === 'gear')?.state).toBe('partial')
+    expect(model.modules.find((module) => module.id === 'simc')?.state).toBe('partial')
+    expect(model.overallState).toBe('partial')
+    expect(model.primaryAction.moduleId).toBe('gear')
   })
 
   it('keeps authenticated template fallback in the hero context without replacing ledger rows', () => {

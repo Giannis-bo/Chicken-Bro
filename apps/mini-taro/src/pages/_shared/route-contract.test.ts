@@ -121,6 +121,46 @@ describe('Taro source route contract', () => {
     expect(source).not.toContain('<RouteStatePanel')
   })
 
+  it('blocks unavailable news and build facts while retaining local profile stale state', () => {
+    const businessRoutes = [
+      'apps/mini-taro/src/pages/news/news.tsx',
+      'apps/mini-taro/src/pages/news/list.tsx',
+      'apps/mini-taro/src/pages/news/detail.tsx',
+      'apps/mini-taro/src/pages/builds/builds.tsx',
+      'apps/mini-taro/src/pages/builds/workbench.tsx',
+      'apps/mini-taro/src/pages/builds/intel.tsx',
+      'apps/mini-taro/src/pages/builds/detail.tsx',
+    ]
+    for (const file of businessRoutes) {
+      const source = fs.readFileSync(path.join(process.cwd(), file), 'utf8')
+      expect(source).toContain("fallbackPolicy: 'blocked'")
+    }
+    const profile = fs.readFileSync(path.join(process.cwd(), 'apps/mini-taro/src/pages/profile/profile.tsx'), 'utf8')
+    expect(profile).toContain("fallbackPolicy: 'stale'")
+    const talentSimulator = fs.readFileSync(path.join(process.cwd(), 'apps/mini-taro/src/pages/builds/talent-simulator.tsx'), 'utf8')
+    expect(talentSimulator).toContain("fallbackPolicy: 'stale'")
+  })
+
+  it('classifies a canonical empty news home only after the transport fallback boundary', () => {
+    const newsHome = fs.readFileSync(
+      path.join(process.cwd(), 'apps/mini-taro/src/pages/news/news.tsx'),
+      'utf8',
+    )
+    expect(newsHome).toContain("import { isNewsHomeVisuallyEmpty, wowApi } from '@wow-mini/api-client'")
+    expect(newsHome).toContain("fallbackPolicy: 'blocked'")
+    expect(newsHome).toContain('isEmpty: isNewsHomeVisuallyEmpty')
+
+    const runtime = fs.readFileSync(
+      path.join(process.cwd(), 'apps/mini-taro/src/pages/_shared/route-runtime.tsx'),
+      'utf8',
+    )
+    const fallbackBoundary = runtime.indexOf('if (result.fromFallback)')
+    const emptyBoundary = runtime.indexOf('if (currentOptions.isEmpty?.(result.payload))')
+    expect(fallbackBoundary).toBeGreaterThan(-1)
+    expect(emptyBoundary).toBeGreaterThan(fallbackBoundary)
+    expect(runtime.slice(fallbackBoundary, emptyBoundary)).toContain("state: 'blocked'")
+  })
+
   it('uses redirect fallback for directly opened non-tab routes', () => {
     const source = fs.readFileSync(
       path.join(process.cwd(), 'apps/mini-taro/src/pages/_shared/route-runtime.tsx'),
@@ -136,6 +176,16 @@ describe('Taro source route contract', () => {
       'utf8',
     )
     expect(source).toContain('const invalidateConfirmation = () =>')
-    expect(source.match(/invalidateConfirmation\(\)/g)?.length ?? 0).toBeGreaterThanOrEqual(5)
+    // Race, scenario, and talent remain user-selectable. Duration follows the backend
+    // scenario and gear comes from the canonical handoff, so neither adds a local input.
+    expect(source.match(/invalidateConfirmation\(\)/g)?.length ?? 0).toBeGreaterThanOrEqual(3)
+  })
+
+  it('registers the active SimC route against options, canonical stat snapshots, and the gear handoff', () => {
+    const route = routeContracts.find((candidate) => candidate.routeKey === 'SimC_submit')
+    expect(route?.endpoints).toContain('simulator.simcOptions')
+    expect(route?.endpoints).toContain('websim.gearStatSnapshots')
+    expect(route?.endpoints).not.toContain('websim.gearStats')
+    expect(route?.storage).toContain('simc.buildContext')
   })
 })

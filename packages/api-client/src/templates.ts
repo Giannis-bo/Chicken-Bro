@@ -13,6 +13,38 @@ import type { ApiResult, ApiTransport } from './transport'
 const schemaVersion = 1 as const
 const validTypes = new Set<BuildTemplateType>(['talent', 'gear'])
 
+function isRemoteTemplatePayload(value: unknown): boolean {
+  if (!isRecord(value)) return false
+  const record = value
+  const textFields = [
+    'id', 'clientId', 'type', 'title', 'classKey', 'className', 'specKey', 'specName',
+    'heroKey', 'heroLabel', 'scenarioKey', 'scenarioTitle', 'rawString', 'status',
+    'statusLabel', 'source', 'createdAt', 'updatedAt',
+  ] as const
+  return cleanString(record['id']).length > 0
+    && validTypes.has(cleanString(record['type']) as BuildTemplateType)
+    && cleanString(record['rawString']).length > 0
+    && record['schemaVersion'] === schemaVersion
+    && record['remote'] === true
+    && textFields.every((field) => typeof record[field] === 'string')
+    && Array.isArray(record['simcLines'])
+    && record['simcLines'].every((line) => typeof line === 'string')
+    && isRecord(record['metadata'])
+}
+
+function isTemplateListPayload(value: unknown): boolean {
+  return isRecord(value)
+    && value['schemaVersion'] === schemaVersion
+    && Array.isArray(value['templates'])
+    && value['templates'].every(isRemoteTemplatePayload)
+}
+
+function isTemplateMutationPayload(value: unknown): boolean {
+  return isRecord(value)
+    && isTemplateListPayload(value)
+    && isRemoteTemplatePayload(value['template'])
+}
+
 export interface BuildTemplateInput {
   id?: string
   clientId?: string
@@ -192,7 +224,7 @@ export class TemplateRepository {
       : '/api/me/build-templates'
     const result = await this.transport.requestEndpoint<TemplateListPayload>('templates.list', path, {
       fallback: () => ({ schemaVersion, templates: this.list(type) }),
-      validate: (value) => isRecord(value) && Array.isArray(value['templates']),
+      validate: isTemplateListPayload,
     })
     if (result.fromFallback) return result
     const templates = this.mergeRemote(result.payload.templates)
@@ -211,7 +243,7 @@ export class TemplateRepository {
     const result = await this.transport.requestEndpoint<TemplateMutationPayload>('templates.upsert', '/api/me/build-templates', {
       data: { template: local },
       fallback: () => ({ schemaVersion, template: local, templates: this.list() }),
-      validate: (value) => isRecord(value) && isRecord(value['template']),
+      validate: isTemplateMutationPayload,
     })
     if (result.fromFallback) return result
     const remoteValues = [result.payload.template, ...result.payload.templates].filter(Boolean)
@@ -226,7 +258,7 @@ export class TemplateRepository {
     const deletedLocally = this.deleteLocal(id)
     return this.transport.requestEndpoint('templates.delete', `/api/me/build-templates?id=${encodeURIComponent(id)}`, {
       fallback: () => ({ id, deleted: deletedLocally }),
-      validate: (value) => isRecord(value) && value['deleted'] === true,
+      validate: (value) => isRecord(value) && value['id'] === id && value['deleted'] === true,
     })
   }
 }

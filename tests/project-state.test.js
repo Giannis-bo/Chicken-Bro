@@ -37,15 +37,25 @@ test('project-state is the single machine-readable current truth entry', () => {
   const state = readJson(projectStatePath)
 
   assert.equal(state.schemaVersion, 1)
-  assert.equal(state.updatedAt, '2026-07-18')
+  assert.equal(state.updatedAt, '2026-07-19')
   assert.equal(state.activeMilestone, 'taro_target_first_14_route_rebuild')
   assert.equal(state.featureIteration, 'allowed_under_harness')
   assert.equal(state.activeReleaseArtifact, activeHarnessSuperpowersRelease)
-  assert.equal(state.runtimeBaseline.uiRuntimeEvidence.productionRequestDomain.status, 'blocked_external_configuration')
-  assert.deepEqual(state.runtimeBaseline.uiRuntimeEvidence.productionRequestDomain.missing, [
-    'WOW_BACKEND_API_BASE_URL=https_named_origin',
-    'WOW_WECHAT_REQUEST_DOMAIN_APPROVED=yes',
-  ])
+  const productionDomain = state.runtimeBaseline.uiRuntimeEvidence.productionRequestDomain
+  assert.equal(productionDomain.status, 'candidate_release_gate_passed')
+  assert.equal(productionDomain.candidateBackendOrigin, 'https://api.chickenbro.cloud')
+  assert.equal(
+    productionDomain.candidateAssetRuntimeRoot,
+    'https://api.chickenbro.cloud/wow-assets/releases/2026-07-19-taro-full-integration',
+  )
+  assert.equal(productionDomain.approvedInWechatAdmin, true)
+  assert.equal(
+    productionDomain.approvalEvidence,
+    'user-confirmed WeChat admin screenshots for request and downloadFile domains on 2026-07-19',
+  )
+  assert.equal(productionDomain.productionReady, true)
+  assert.equal(productionDomain.releaseReady, true)
+  assert.deepEqual(productionDomain.missing, [])
 
   assert.ok(Array.isArray(state.activeContracts), 'activeContracts should be an array')
   assert.ok(Array.isArray(state.completedBaselines), 'completedBaselines should be an array')
@@ -492,7 +502,7 @@ test('raster integration metadata cannot drift from registry and source bindings
   assert.equal(newsHome.productionPromoted, true)
   assert.equal(newsHome.registeredInPackagesAssetsManifest, true)
   assert.equal(newsHome.wiredIntoRuntimeCode, false)
-  assert.equal(newsHome.runtimeBindingStatus, 'partial_27_of_33')
+  assert.equal(newsHome.runtimeBindingStatus, 'partial_29_of_33')
   assert.match(audit, /raster_collection_integration_metadata_matches_registry_and_runtime/)
   assert.match(audit, /staleRasterIntegrationMetadata/)
   assert.match(audit, /raster_production_promotion_matches_review_evidence/)
@@ -705,6 +715,8 @@ test('raster runtime assets are byte and hash verified without image payloads', 
 
 test('UI package evidence cannot treat a placeholder remote asset origin as release-ready', () => {
   const verifier = fs.readFileSync('scripts/verify-ui-package.js', 'utf8')
+  const taroConfig = fs.readFileSync('apps/mini-taro/config/index.ts', 'utf8')
+  const transport = fs.readFileSync('packages/api-client/src/transport.ts', 'utf8')
   const domainPolicy = fs.readFileSync('scripts/release-domain-policy.js', 'utf8')
   const packageJson = readJson('package.json')
   assert.match(verifier, /packageMechanicsPass/)
@@ -716,6 +728,14 @@ test('UI package evidence cannot treat a placeholder remote asset origin as rele
   assert.match(verifier, /maximumWalkFiles = 4096/)
   assert.match(verifier, /maximumPackageTextBytes = 4 \* 1024 \* 1024/)
   assert.match(verifier, /readBoundedFile\(file, maximumPackageTextFileBytes/)
+  assert.match(taroConfig, /__WOW_BACKEND_API_BASE_URL__/)
+  assert.match(transport, /__WOW_BACKEND_API_BASE_URL__/)
+  assert.doesNotMatch(transport, /process\.env\[['"]WOW_BACKEND_API_BASE_URL['"]\]/)
+  assert.match(verifier, /backendOriginReferenceCount/)
+  assert.match(verifier, /runtimeBackendEnvReferenceCount/)
+  assert.match(verifier, /process\.execPath/)
+  assert.match(verifier, /@tarojs['"], 'cli', 'bin', 'taro'/)
+  assert.match(verifier, /result\.error/)
   assert.equal(packageJson.scripts['verify:ui-package:release'], 'node scripts/verify-ui-package.js --require-production-ready')
 })
 

@@ -3,6 +3,9 @@ import type {
   GearEnhancementOption,
   GearEnhancementSelection,
   GearItemReference,
+  GearProfileReadiness,
+  GearReadiness,
+  GearStatSnapshotPayload,
   GearStatsPayload,
   ReadinessState,
   WebsimGearPayload,
@@ -74,11 +77,6 @@ export interface GearStatusView {
   actionLabel?: string
   state: GearViewState
 }
-
-const requiredSlots = [
-  'head', 'neck', 'shoulder', 'back', 'chest', 'wrist', 'hands', 'waist',
-  'legs', 'feet', 'finger1', 'finger2', 'trinket1', 'trinket2', 'main_hand',
-] as const
 
 const canonicalSlotDefinitions = [
   { slot: 'head', label: '头部' },
@@ -330,7 +328,9 @@ export function gearSlots(
   })
 }
 
-function verifiedMetrics(stats: GearStatsPayload | undefined): readonly GearMetricView[] {
+type GearDisplayStats = GearStatsPayload | GearStatSnapshotPayload
+
+function verifiedMetrics(stats: GearDisplayStats | undefined): readonly GearMetricView[] {
   const primaryKey = primaryStatKey(stats?.primary?.key || stats?.primary?.label)
   const fallbacks = metricFallbacks.map((item) => item.id === 'primary'
     ? { ...item, label: statLabels[primaryKey] ?? (text(stats?.primary?.label) || item.label) }
@@ -354,29 +354,47 @@ function verifiedMetrics(stats: GearStatsPayload | undefined): readonly GearMetr
 
 export function gearReadiness(
   equipped: Readonly<Record<string, GearItemReference>>,
-  stats: GearStatsPayload | undefined,
+  stats: GearDisplayStats | undefined,
   routeState: ReadinessState,
+  authority: GearProfileReadiness | GearReadiness | undefined,
 ): GearReadinessView {
   const selectedItems = Object.entries(equipped).filter(([, item]) => Boolean(gearItemId(item)))
-  const readyCount = requiredSlots.filter((slot) => gearItemState(equipped[slot]) === 'ready').length
   const levels = selectedItems.map(([, item]) => gearItemLevel(item)).filter((value): value is number => value !== null)
   const averageLevel = levels.length ? Math.round(levels.reduce((sum, value) => sum + value, 0) / levels.length) : null
   const selectedCount = selectedItems.length
-  const requiredCount = requiredSlots.length
+  const activeAuthority = authority && ('readySlots' in authority || authority.selectedCount === selectedCount)
+    ? authority
+    : undefined
+  const requiredCount = Math.max(0, Math.trunc(activeAuthority
+    ? 'requiredSlots' in activeAuthority
+      ? activeAuthority.requiredSlots.length
+      : activeAuthority.requiredReadyCount
+    : 0))
+  const readyCount = Math.min(requiredCount, Math.max(0, Math.trunc(activeAuthority
+    ? 'readySlots' in activeAuthority
+      ? activeAuthority.readySlots.length
+      : activeAuthority.simcReadyCount
+    : 0)))
+  const fullReady = Boolean(activeAuthority && ('simcReady' in activeAuthority ? activeAuthority.simcReady : activeAuthority.fullReady))
+  const authorityBlocked = Boolean(activeAuthority && 'status' in activeAuthority && activeAuthority.status === 'blocked')
   const state: GearViewState = routeState === 'loading'
     ? 'loading'
     : routeState === 'error' || routeState === 'blocked' || routeState === 'stale'
       ? routeState
       : selectedCount === 0
         ? 'empty'
-        : readyCount === requiredCount && stats?.statStatus !== 'blocked'
+        : !activeAuthority
+          ? 'blocked'
+          : fullReady && stats?.statStatus !== 'blocked'
           ? 'ready'
-          : 'partial'
+          : authorityBlocked
+            ? 'blocked'
+            : 'partial'
   return {
     selectedCount,
     readyCount,
     requiredCount,
-    percent: Math.round((readyCount / requiredCount) * 100),
+    percent: requiredCount ? Math.round((readyCount / requiredCount) * 100) : 0,
     itemLevel: averageLevel === null ? '--' : String(averageLevel),
     itemLevelDetail: averageLevel === null ? '待配置' : `${levels.length} 件有装等证据`,
     state,
@@ -481,9 +499,10 @@ function checkedAtLabel(checkedAt: string | undefined): string {
 export function gearStatusDeck(
   payload: WebsimGearPayload | undefined,
   readiness: GearReadinessView,
-  stats: GearStatsPayload | undefined,
+  stats: GearDisplayStats | undefined,
   routeState: ReadinessState,
   routeReason: string,
+  validationReason = '',
 ): readonly GearStatusView[] {
   const catalogState: GearViewState = routeState === 'loading'
     ? 'loading'
@@ -514,14 +533,14 @@ export function gearStatusDeck(
     {
       id: 'selection',
       label: readiness.selectedCount ? `已选 ${readiness.selectedCount} 件` : '暂无装备数据',
-      detail: readiness.selectedCount ? `${readiness.readyCount}/${readiness.requiredCount} 槽可写入 SimC` : '选择槽位后配置真实候选',
+      detail: readiness.selectedCount ? `${readiness.readyCount}/${readiness.requiredCount || '--'} 槽可写入 SimC` : '选择槽位后配置真实候选',
       actionLabel: readiness.selectedCount ? '继续配置' : '前往配置',
       state: readiness.selectedCount ? readiness.state : 'empty',
     },
     {
       id: 'validation',
       label: stats && stats.statStatus !== 'blocked' ? '属性已校验' : '属性校验受限',
-      detail: localizedGearReason(stats?.blockers[0], '需要完整装备与已验证天赋编码'),
+      detail: localizedGearReason(validationReason || stats?.blockers[0], '需要完整装备与已验证天赋编码'),
       actionLabel: '重新校验',
       state: stats && stats.statStatus !== 'blocked' ? 'ready' : 'blocked',
     },

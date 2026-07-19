@@ -144,6 +144,169 @@ class WebSimPayloadTest(unittest.TestCase):
         self.insert_websim_talent(conn, "simc-hero-3001-mage-arcane-spellslinger", "hero", 3001, 2, 1, "Hero Talent")
         conn.commit()
 
+    def test_talent_node_availability_reuses_backend_validation_rules(self):
+        nodes = [
+            {
+                "id": "root",
+                "treeType": "class",
+                "maxRank": 1,
+                "selectedRank": 1,
+                "grantedRank": 0,
+                "entryId": 1001,
+                "pointRequirement": 0,
+                "parentIds": [],
+                "parentMode": "any",
+            },
+            {
+                "id": "child",
+                "treeType": "class",
+                "maxRank": 1,
+                "selectedRank": 0,
+                "grantedRank": 0,
+                "entryId": 1002,
+                "pointRequirement": 0,
+                "parentIds": ["root"],
+                "parentMode": "all",
+            },
+            {
+                "id": "gated",
+                "treeType": "class",
+                "maxRank": 1,
+                "selectedRank": 0,
+                "grantedRank": 0,
+                "entryId": 1003,
+                "pointRequirement": 2,
+                "parentIds": ["root"],
+                "parentMode": "all",
+            },
+            {
+                "id": "locked",
+                "treeType": "class",
+                "maxRank": 1,
+                "selectedRank": 0,
+                "grantedRank": 0,
+                "entryId": 1004,
+                "pointRequirement": 0,
+                "parentIds": ["child"],
+                "parentMode": "all",
+            },
+        ]
+        availability = self.websim_payload.websim_talent_node_availability(
+            nodes,
+            [{"id": "root", "rank": 1}],
+            [{"key": "class", "pointCap": 34}],
+        )
+
+        self.assertEqual(availability["schemaRevision"], "websim-talent-node-availability-v1")
+        self.assertEqual(availability["source"], "backend_validation")
+        self.assertEqual(availability["nodes"]["root"]["state"], "selected")
+        self.assertEqual(availability["nodes"]["child"]["state"], "available")
+        self.assertEqual(availability["nodes"]["gated"]["state"], "blocked")
+        self.assertEqual(availability["nodes"]["gated"]["reasonCode"], "point_requirement")
+        self.assertEqual(availability["nodes"]["locked"]["state"], "blocked")
+        self.assertEqual(availability["nodes"]["locked"]["reasonCode"], "missing_parent")
+
+    def test_talent_child_requires_its_parent_to_reach_max_rank(self):
+        nodes = [
+            {
+                "id": "two-rank-parent",
+                "treeType": "class",
+                "maxRank": 2,
+                "selectedRank": 0,
+                "grantedRank": 0,
+                "entryId": 1101,
+                "pointRequirement": 0,
+                "parentIds": [],
+                "parentMode": "any",
+            },
+            {
+                "id": "child",
+                "treeType": "class",
+                "maxRank": 1,
+                "selectedRank": 0,
+                "grantedRank": 0,
+                "entryId": 1102,
+                "pointRequirement": 0,
+                "parentIds": ["two-rank-parent"],
+                "parentMode": "all",
+            },
+        ]
+        tree_sections = [{"key": "class", "pointCap": 34}]
+
+        partial = self.websim_payload.websim_talent_node_availability(
+            nodes,
+            [{"id": "two-rank-parent", "rank": 1}],
+            tree_sections,
+        )
+        full = self.websim_payload.websim_talent_node_availability(
+            nodes,
+            [{"id": "two-rank-parent", "rank": 2}],
+            tree_sections,
+        )
+
+        self.assertEqual(partial["nodes"]["child"]["state"], "blocked")
+        self.assertEqual(partial["nodes"]["child"]["reasonCode"], "missing_parent")
+        self.assertEqual(full["nodes"]["child"]["state"], "available")
+
+    def test_talent_parent_modes_require_full_rank_parents(self):
+        nodes = {
+            "partial-parent": {
+                "id": "partial-parent",
+                "treeType": "class",
+                "maxRank": 2,
+                "grantedRank": 0,
+                "entryId": 1201,
+                "pointRequirement": 0,
+                "parentIds": [],
+                "parentMode": "any",
+            },
+            "full-parent": {
+                "id": "full-parent",
+                "treeType": "class",
+                "maxRank": 1,
+                "grantedRank": 0,
+                "entryId": 1202,
+                "pointRequirement": 0,
+                "parentIds": [],
+                "parentMode": "any",
+            },
+            "any-child": {
+                "id": "any-child",
+                "treeType": "class",
+                "maxRank": 1,
+                "grantedRank": 0,
+                "entryId": 1203,
+                "pointRequirement": 0,
+                "parentIds": ["partial-parent", "full-parent"],
+                "parentMode": "any",
+            },
+            "all-child": {
+                "id": "all-child",
+                "treeType": "class",
+                "maxRank": 1,
+                "grantedRank": 0,
+                "entryId": 1204,
+                "pointRequirement": 0,
+                "parentIds": ["partial-parent", "full-parent"],
+                "parentMode": "all",
+            },
+        }
+        selected = [
+            {"id": "partial-parent", "rank": 1},
+            {"id": "full-parent", "rank": 1},
+            {"id": "any-child", "rank": 1},
+            {"id": "all-child", "rank": 1},
+        ]
+
+        _, _, errors, _ = self.websim_payload.validate_websim_talent_selection(
+            nodes,
+            selected,
+            [{"key": "class", "pointCap": 34}],
+        )
+
+        self.assertFalse(any("any-child" in error for error in errors))
+        self.assertTrue(any("all-child" in error and "partial-parent" in error for error in errors))
+
     def seed_websim_current_fixture_nodes(self, conn):
         self.websim_payload.ensure_websim_tables(conn)
         self.insert_websim_talent(
@@ -20539,6 +20702,8 @@ class WebSimPayloadTest(unittest.TestCase):
                 tree = json.loads(response.read().decode("utf-8"))
             self.assertEqual(tree["talentSchemaRevision"], self.websim_payload.TALENT_SCHEMA_REVISION)
             self.assertEqual(tree["talentAuthority"]["runtimeSource"], "simc")
+            self.assertEqual(tree["nodeAvailability"]["source"], "backend_validation")
+            self.assertEqual(set(tree["nodeAvailability"]["nodes"]), {node["id"] for node in tree["nodes"]})
 
             validate_request = Request(
                 f"{base}/api/talents/validate",
@@ -20561,6 +20726,11 @@ class WebSimPayloadTest(unittest.TestCase):
                 validation = json.loads(response.read().decode("utf-8"))
             self.assertEqual(validation["status"], "encoded")
             self.assertEqual(validation["selectedCounts"], {"class": 1, "spec": 1, "hero": 1})
+            self.assertEqual(validation["nodeAvailability"]["source"], "backend_validation")
+            self.assertEqual(
+                set(validation["nodeAvailability"]["nodes"]),
+                {node["id"] for node in tree["nodes"]},
+            )
 
             export_request = Request(
                 f"{base}/api/talents/export",

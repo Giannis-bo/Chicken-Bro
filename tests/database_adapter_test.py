@@ -1287,6 +1287,8 @@ class DatabaseAdapterTest(unittest.TestCase):
             backend.init_db = originals["init_db"]
 
         self.assertEqual(talents["nodes"][0]["id"], "talent-a")
+        self.assertEqual(talents["nodeAvailability"]["source"], "backend_validation")
+        self.assertEqual(talents["nodeAvailability"]["nodes"]["talent-a"]["state"], "blocked")
         self.assertEqual(fake.calls, [("mage", "frost", "spellslinger")])
 
     def test_news_backend_routes_public_content_reads_to_postgres_store(self):

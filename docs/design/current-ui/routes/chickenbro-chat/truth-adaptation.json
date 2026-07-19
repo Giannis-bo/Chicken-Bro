@@ -51,12 +51,28 @@
       "confidence": "blocked",
       "evidenceRefCount": 0,
       "limitations": ["non_wow_topic"]
+    },
+    "latestRuntimeProbe": {
+      "probedAt": "2026-07-19T00:00:00+08:00",
+      "via": "http://124.223.51.33/api/chickenbro/messages",
+      "guestId": "audit-taro-full-20260719-chickenbro",
+      "httpStatus": 200,
+      "jobStatus": "succeeded",
+      "answerSource": "deterministic_fallback",
+      "confidence": "low",
+      "answerLayer": "diagnostic",
+      "basisLabel": "需要证据确认",
+      "priorityActionCount": 3,
+      "evidenceRefCount": 0,
+      "limitationCount": 1,
+      "missingInputCount": 2,
+      "nextQuestionPresent": true
     }
   },
   "trustRules": [
     "The target's profession, specialization, scene, evidence status, timestamps, user portrait, conversation history, source references and source count are placeholders and never runtime facts.",
     "The target defines twelve stable first-level regions: page, header, workbench context, intro, two user-turn positions, two assistant-answer positions, evidence boundary, answer state, topic library and composer.",
-    "URL workbench context is bounded app context, not verified evidence. It may seed labels and the backend request but cannot authorize DPS, rank, BiS, official-source or player-identity claims.",
+    "URL workbench context is bounded app context, not verified evidence. The route maps scenario to the backend-owned scenarioKey field and may seed labels and the backend request, but it cannot authorize DPS, rank, BiS, official-source or player-identity claims.",
     "A fresh route begins with one app-authored evidence-boundary introduction and no fabricated user question, assistant answer, timestamp or prior conversation.",
     "Conversation slots show at most the latest two real user/assistant turns while retaining the bounded session id for subsequent backend messages. Empty slots remain visibly empty and never impersonate message history.",
     "Only a non-fallback chickenbro.messages response may append its assistantMessage. A transport fallback retains the real user turn, exposes retry in answer_failure_panel and must not append the API client's frontend fallback as an assistant answer.",
@@ -65,6 +81,7 @@
     "Priority actions, missing-input chips, limitation chips and next question come only from the latest backend payload. Known codes may receive a Chinese display label without changing their meaning.",
     "The route has no registered session-history, upload, URL-ingestion or external topic-library endpoint. The topic-library region is a local safe-prompt picker, not a claim that stored topics exist.",
     "Message input is trimmed and capped at 2000 characters, duplicate sends are disabled while waiting, and new topic clears local turns and session id without claiming server-side deletion.",
+    "The typed API rejects malformed session ids, message roles or content, action rows, evidence references and evidence-boundary arrays instead of rendering partial transport data as an assistant answer.",
     "Loading, empty, blocked and error states retain all twelve regions; state copy inhabits target-owned slots instead of mounting AssistantRoute, ChatShell, WowPanel, EvidenceLedger or RouteStatePanel."
   ],
   "mappings": [

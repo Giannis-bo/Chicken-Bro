@@ -43,6 +43,9 @@ try:
         sqlite_runtime_disabled,
     )
     from .simulator_payload import (
+        SIMC_AGENT_DEFAULT_RACE_BY_CLASS,
+        SIMC_PROFILE_RACE_KEYS,
+        SIMCRAFT_TEMPLATE_SCENARIOS,
         analyze_simulator_request,
         build_simulator_home_payload,
         clean_simc_gear_items,
@@ -51,7 +54,7 @@ try:
         simc_version_status,
         warcraftlogs_credentials_state,
     )
-    from .simc_preparation import simc_preparation_payload, simc_preparation_report
+    from .simc_preparation import simc_preparation_options_payload, simc_preparation_payload, simc_preparation_report
     try:
         from .codex_worker import run_codex_job
     except ImportError:
@@ -78,11 +81,13 @@ try:
     )
     from .gear_attribute_api import calculate_attributes_for_selection
     from .gear_attribute_preview_fixture import append_preview_template, preview_community_import, preview_enabled
+    from .gear_stat_snapshot import STAT_SNAPSHOT_SCHEMA_REVISION, build_stat_signature
     from .gear_stat_snapshot_api import get_or_start_stat_snapshot
     from .websim_payload import (
         COMMUNITY_TEMPLATE_SYNC_RUN_KEY,
         COMMUNITY_TALENT_SYNC_KEY,
         ARMOR_SLOTS,
+        append_websim_talent_node_availability,
         apply_gear_template_legality_gate,
         build_websim_profile,
         build_websim_gear_stats_response,
@@ -98,6 +103,7 @@ try:
         gear_resolver_runtime_authority,
         GAME_CLASS_ID_TO_KEY,
         GEAR_SLOT_LABELS,
+        WEBSIM_EXECUTION_FLAVOR_STAT_SNAPSHOT_V1,
         talent_catalog_health_payload,
         export_talent_api_payload,
         get_active_season_payload,
@@ -150,6 +156,9 @@ except ImportError:
         sqlite_runtime_disabled,
     )
     from simulator_payload import (
+        SIMC_AGENT_DEFAULT_RACE_BY_CLASS,
+        SIMC_PROFILE_RACE_KEYS,
+        SIMCRAFT_TEMPLATE_SCENARIOS,
         analyze_simulator_request,
         build_simulator_home_payload,
         clean_simc_gear_items,
@@ -158,7 +167,7 @@ except ImportError:
         simc_version_status,
         warcraftlogs_credentials_state,
     )
-    from simc_preparation import simc_preparation_payload, simc_preparation_report
+    from simc_preparation import simc_preparation_options_payload, simc_preparation_payload, simc_preparation_report
     try:
         from codex_worker import run_codex_job
     except ImportError:
@@ -185,11 +194,13 @@ except ImportError:
     )
     from gear_attribute_api import calculate_attributes_for_selection
     from gear_attribute_preview_fixture import append_preview_template, preview_community_import, preview_enabled
+    from gear_stat_snapshot import STAT_SNAPSHOT_SCHEMA_REVISION, build_stat_signature
     from gear_stat_snapshot_api import get_or_start_stat_snapshot
     from websim_payload import (
         COMMUNITY_TEMPLATE_SYNC_RUN_KEY,
         COMMUNITY_TALENT_SYNC_KEY,
         ARMOR_SLOTS,
+        append_websim_talent_node_availability,
         apply_gear_template_legality_gate,
         build_websim_profile,
         build_websim_gear_stats_response,
@@ -205,6 +216,7 @@ except ImportError:
         gear_resolver_runtime_authority,
         GAME_CLASS_ID_TO_KEY,
         GEAR_SLOT_LABELS,
+        WEBSIM_EXECUTION_FLAVOR_STAT_SNAPSHOT_V1,
         talent_catalog_health_payload,
         export_talent_api_payload,
         get_active_season_payload,
@@ -4206,15 +4218,158 @@ SIMCRAFT_TEMPLATE_REQUIRED_GEAR_SLOTS = [
     "off_hand",
 ]
 
-SIMCRAFT_TEMPLATE_SCENARIOS = {
-    "single": {"label": "单体基准", "fightStyle": "Patchwerk", "targets": 1, "durationSeconds": 300},
-    "aoe_5": {"label": "5目标AOE基准", "fightStyle": "Patchwerk", "targets": 5, "durationSeconds": 300},
-    "mythic_plus": {"label": "近似大秘境", "fightStyle": "DungeonSlice", "targets": 5, "durationSeconds": 360},
-}
-
 SIMCRAFT_TEMPLATE_ANALYSIS_TYPES = {"baseline", "stat_weights"}
 SIMCRAFT_TEMPLATE_READY_GEAR_STATUSES = {"complete", "complete_with_warnings"}
 SIMCRAFT_TEMPLATE_STAT_SNAPSHOT_REQUIRED_ERROR = "gear stat snapshot is not verified"
+SIMCRAFT_TEMPLATE_STAT_SIGNATURE_PATTERN = re.compile(r"^stat-snapshot:sha256:[0-9a-f]{64}$")
+SIMCRAFT_OPTIONS_CONTRACT_REVISION = "simc-options-v1"
+SIMCRAFT_TEMPLATE_CANONICAL_INPUT_CONTRACT = "canonical_selection_intent_v1"
+SIMCRAFT_TEMPLATE_LEGACY_INPUT_CONTRACT = "legacy_template_v1"
+
+
+def build_simc_options_payload():
+    return {
+        "contractRevision": SIMCRAFT_OPTIONS_CONTRACT_REVISION,
+        "status": "ready",
+        "races": {
+            "status": "supported",
+            "defaultKey": "troll",
+            "supportedKeys": sorted(SIMC_PROFILE_RACE_KEYS),
+            "defaultByClass": dict(sorted(SIMC_AGENT_DEFAULT_RACE_BY_CLASS.items())),
+        },
+        "scenarios": [
+            {
+                "key": key,
+                "label": scenario["label"],
+                "fightStyle": scenario["fightStyle"],
+                "targets": scenario["targets"],
+                "durationSeconds": scenario["durationSeconds"],
+                "status": "supported",
+            }
+            for key, scenario in SIMCRAFT_TEMPLATE_SCENARIOS.items()
+        ],
+        "preparation": simc_preparation_options_payload(),
+    }
+
+
+def simcraft_template_problem(code, title, *, kind="INVALID_INTENT", path="", retryable=False):
+    return {
+        "kind": kind,
+        "code": code,
+        "title": title,
+        "detail": "",
+        "path": path,
+        "retryable": bool(retryable),
+        "meta": {},
+    }
+
+
+def simcraft_template_canonical_context_present(source):
+    request = source if isinstance(source, dict) else {}
+    return "selectionIntent" in request or "profileContext" in request
+
+
+def simcraft_template_canonical_context_problems(source):
+    request = source if isinstance(source, dict) else {}
+    problems = []
+    intent = request.get("selectionIntent")
+    context = request.get("profileContext")
+    if not isinstance(intent, dict):
+        problems.append(
+            simcraft_template_problem(
+                "SIMC_CANONICAL_SELECTION_INTENT_REQUIRED",
+                "Canonical selectionIntent is required.",
+                path="selectionIntent",
+            )
+        )
+    if not isinstance(context, dict):
+        problems.append(
+            simcraft_template_problem(
+                "SIMC_CANONICAL_PROFILE_CONTEXT_REQUIRED",
+                "Canonical profileContext is required.",
+                path="profileContext",
+            )
+        )
+        return problems
+
+    context_race = str(context.get("race") or "").strip()
+    race_key = normalize_simc_race(context_race)
+    if not context_race:
+        problems.append(
+            simcraft_template_problem(
+                "SIMC_CANONICAL_RACE_REQUIRED",
+                "Canonical profileContext.race is required.",
+                path="profileContext.race",
+            )
+        )
+    elif not race_key:
+        problems.append(
+            simcraft_template_problem(
+                "SIMC_CANONICAL_RACE_UNSUPPORTED",
+                "Canonical profileContext.race is unsupported.",
+                path="profileContext.race",
+            )
+        )
+    source_race = str(request.get("raceKey") or request.get("race") or "").strip()
+    if source_race and normalize_simc_race(source_race) != race_key:
+        problems.append(
+            simcraft_template_problem(
+                "SIMC_CANONICAL_RACE_MISMATCH",
+                "Top-level race does not match canonical profileContext.race.",
+                path="raceKey",
+            )
+        )
+
+    context_scenario = str(context.get("scenarioKey") or "").strip()
+    if not context_scenario:
+        problems.append(
+            simcraft_template_problem(
+                "SIMC_CANONICAL_SCENARIO_REQUIRED",
+                "Canonical profileContext.scenarioKey is required.",
+                path="profileContext.scenarioKey",
+            )
+        )
+    elif context_scenario not in SIMCRAFT_TEMPLATE_SCENARIOS:
+        problems.append(
+            simcraft_template_problem(
+                "SIMC_CANONICAL_SCENARIO_UNSUPPORTED",
+                "Canonical profileContext.scenarioKey is unsupported.",
+                path="profileContext.scenarioKey",
+            )
+        )
+    source_scenario = str(request.get("scenarioKey") or "").strip()
+    if source_scenario and source_scenario != context_scenario:
+        problems.append(
+            simcraft_template_problem(
+                "SIMC_CANONICAL_SCENARIO_MISMATCH",
+                "Top-level scenarioKey does not match canonical profileContext.scenarioKey.",
+                path="scenarioKey",
+            )
+        )
+
+    talent_present = any(
+        str(context.get(key) or "").strip()
+        for key in ("talents", "talentImport", "websimExportCode")
+    ) or bool(context.get("talentState") if isinstance(context.get("talentState"), dict) else {})
+    if not talent_present:
+        problems.append(
+            simcraft_template_problem(
+                "SIMC_CANONICAL_TALENT_CONTEXT_REQUIRED",
+                "Canonical profileContext requires a complete talent source.",
+                path="profileContext",
+            )
+        )
+    return problems
+
+
+def simcraft_template_problem_messages(problems):
+    return simcraft_template_unique_messages(
+        [
+            str(problem.get("title") or problem.get("code") or "canonical profile validation failed")
+            for problem in (problems or [])
+            if isinstance(problem, dict)
+        ]
+    )
 
 
 def simcraft_template_record(source, template_type):
@@ -4261,6 +4416,55 @@ def simcraft_template_has_verified_stat_snapshot(source, gear_template):
         if isinstance(candidate, dict) and candidate.get("statStatus") == "verified":
             return True
     return False
+
+
+def simcraft_template_canonical_stat_snapshot_problem(source, expected_signature):
+    request = source if isinstance(source, dict) else {}
+    snapshot = request.get("statSnapshot") if isinstance(request.get("statSnapshot"), dict) else {}
+    signature = str(snapshot.get("statSignature") or "").strip()
+    if (
+        snapshot.get("schemaRevision") != STAT_SNAPSHOT_SCHEMA_REVISION
+        or snapshot.get("statStatus") != "verified"
+        or SIMCRAFT_TEMPLATE_STAT_SIGNATURE_PATTERN.fullmatch(signature) is None
+    ):
+        return simcraft_template_problem(
+            "SIMC_CANONICAL_STAT_SNAPSHOT_INVALID",
+            "Canonical Gear stat snapshot is missing or invalid.",
+            path="statSnapshot",
+        )
+    if signature != expected_signature:
+        return simcraft_template_problem(
+            "SIMC_CANONICAL_STAT_SIGNATURE_MISMATCH",
+            "Canonical Gear stat snapshot does not match the resolved selection.",
+            kind="REVISION_CONFLICT",
+            path="statSnapshot.statSignature",
+            retryable=True,
+        )
+    return None
+
+
+def simcraft_template_server_owned_stat_snapshot(expected_signature):
+    try:
+        store = gear_stat_snapshot_data_store()
+        stored = store.lookup_snapshot(expected_signature, record_request=False) if store is not None else {}
+    except Exception:
+        stored = {}
+    snapshot = stored.get("snapshot") if isinstance(stored, dict) and isinstance(stored.get("snapshot"), dict) else {}
+    if (
+        str(stored.get("statSignature") or "").strip() != expected_signature
+        or simcraft_template_canonical_stat_snapshot_problem(
+            {"statSnapshot": snapshot},
+            expected_signature,
+        )
+    ):
+        return {}, simcraft_template_problem(
+            "SIMC_CANONICAL_STAT_SNAPSHOT_UNAVAILABLE",
+            "Canonical Gear stat snapshot is not available from server authority.",
+            kind="AUTHORITY_UNAVAILABLE",
+            path="statSnapshot",
+            retryable=True,
+        )
+    return copy.deepcopy(snapshot), None
 
 
 def simcraft_template_gear_snapshot_raw(metadata):
@@ -4486,8 +4690,233 @@ def simcraft_template_talent_context(conn, talent_template):
     }, []
 
 
+def prepare_canonical_simcraft_template_request(request_payload):
+    source = request_payload if isinstance(request_payload, dict) else {}
+    profile_context = source.get("profileContext") if isinstance(source.get("profileContext"), dict) else {}
+    intent = source.get("selectionIntent") if isinstance(source.get("selectionIntent"), dict) else {}
+    eligibility = intent.get("eligibilityContext") if isinstance(intent.get("eligibilityContext"), dict) else {}
+    scenario_key = clean_text(profile_context.get("scenarioKey"), 64)
+    analysis_type = clean_text(source.get("analysisType"), 64) or "baseline"
+    race_key = normalize_simc_race(profile_context.get("race"))
+    source_validation = source.get("templateValidation") if isinstance(source.get("templateValidation"), dict) else {}
+    problems = simcraft_template_canonical_context_problems(source)
+    errors = [str(item) for item in source_validation.get("errors") or [] if str(item or "").strip()]
+    if analysis_type not in SIMCRAFT_TEMPLATE_ANALYSIS_TYPES:
+        errors.append(f"unsupported analysis type: {analysis_type}")
+
+    profile_envelope = {}
+    profile_data = {}
+    canonical_stat_context = {}
+    canonical_stat_snapshot = {}
+
+    def canonical_profile_builder(resolved_snapshot, *, source_context=None):
+        standard_profile = build_websim_profile_response_from_resolved_snapshot(
+            resolved_snapshot,
+            source_context=source_context,
+        )
+        stat_profile = build_websim_profile_response_from_resolved_snapshot(
+            resolved_snapshot,
+            source_context=source_context,
+            execution_flavor=WEBSIM_EXECUTION_FLAVOR_STAT_SNAPSHOT_V1,
+        )
+        canonical_stat_context["resolvedSnapshot"] = resolved_snapshot
+        canonical_stat_context["statProfile"] = stat_profile
+        return standard_profile
+
+    if not problems:
+        http_status, profile_envelope = build_profile_from_selection_intent(
+            source,
+            store=cache_data_store(),
+            simc_runtime_revision=current_gear_simc_runtime_revision(),
+            request_id=f"simc-template-profile-{uuid.uuid4().hex}",
+            profile_builder=canonical_profile_builder,
+        )
+        if http_status != 200 or profile_envelope.get("status") != "resolved":
+            resolver_problems = profile_envelope.get("problems")
+            if isinstance(resolver_problems, list) and resolver_problems:
+                problems.extend([problem for problem in resolver_problems if isinstance(problem, dict)])
+            else:
+                problems.append(
+                    simcraft_template_problem(
+                        "SIMC_CANONICAL_PROFILE_UNAVAILABLE",
+                        "Canonical profile could not be resolved.",
+                        kind="AUTHORITY_UNAVAILABLE" if http_status >= 500 else "ILLEGAL_SELECTION",
+                        retryable=http_status >= 500,
+                    )
+                )
+        else:
+            profile_data = profile_envelope.get("data") if isinstance(profile_envelope.get("data"), dict) else {}
+            if not str(profile_data.get("profile") or "").strip():
+                problems.append(
+                    simcraft_template_problem(
+                        "SIMC_CANONICAL_PROFILE_EMPTY",
+                        "Canonical profile resolver returned no executable profile.",
+                        kind="ILLEGAL_SELECTION",
+                    )
+                )
+            stat_profile_data = canonical_stat_context.get("statProfile")
+            stat_profile_data = stat_profile_data if isinstance(stat_profile_data, dict) else {}
+            stat_profile_readiness = (
+                stat_profile_data.get("profileReadiness")
+                if isinstance(stat_profile_data.get("profileReadiness"), dict)
+                else {}
+            )
+            stat_profile_text = str(stat_profile_data.get("profile") or "").strip()
+            if (
+                stat_profile_data.get("status") != "resolved"
+                or stat_profile_readiness.get("simcReady") is not True
+                or not stat_profile_text
+            ):
+                problems.append(
+                    simcraft_template_problem(
+                        "SIMC_CANONICAL_STAT_PROFILE_UNAVAILABLE",
+                        "Canonical Gear stat profile could not be prepared.",
+                        kind="AUTHORITY_UNAVAILABLE",
+                        retryable=True,
+                    )
+                )
+            else:
+                try:
+                    signature_data = build_stat_signature(
+                        canonical_stat_context.get("resolvedSnapshot"),
+                        stat_profile_text,
+                        profile_envelope.get("releaseContext"),
+                    )
+                    expected_signature = str(signature_data.get("statSignature") or "").strip()
+                    if SIMCRAFT_TEMPLATE_STAT_SIGNATURE_PATTERN.fullmatch(expected_signature) is None:
+                        raise ValueError("canonical stat signature is invalid")
+                except (TypeError, ValueError):
+                    problems.append(
+                        simcraft_template_problem(
+                            "SIMC_CANONICAL_STAT_SIGNATURE_UNAVAILABLE",
+                            "Canonical Gear stat signature could not be prepared.",
+                            kind="AUTHORITY_UNAVAILABLE",
+                            retryable=True,
+                        )
+                    )
+                else:
+                    snapshot_problem = simcraft_template_canonical_stat_snapshot_problem(
+                        source,
+                        expected_signature,
+                    )
+                    if snapshot_problem:
+                        problems.append(snapshot_problem)
+                    else:
+                        canonical_stat_snapshot, snapshot_problem = simcraft_template_server_owned_stat_snapshot(
+                            expected_signature,
+                        )
+                        if snapshot_problem:
+                            problems.append(snapshot_problem)
+
+    class_key = clean_text(eligibility.get("classKey"), 64)
+    spec_key = clean_text(eligibility.get("specKey"), 64)
+    talent_encoding = profile_data.get("talentEncoding") if isinstance(profile_data.get("talentEncoding"), dict) else {}
+    talent_lines = [str(line).strip() for line in (talent_encoding.get("lines") or []) if str(line or "").strip()]
+    import_code = ""
+    simc_lines = []
+    for line in talent_lines:
+        if line.startswith("talents=") and not import_code:
+            import_code = line.split("=", 1)[1].strip()
+        else:
+            simc_lines.append(line)
+    simc_items = profile_data.get("simcItems") if isinstance(profile_data.get("simcItems"), list) else []
+    compatibility_errors = []
+    if not problems:
+        compatibility_errors = simcraft_known_compatibility_blockers(
+            class_key,
+            spec_key,
+            profile_context.get("heroKey"),
+            scenario_key,
+        )
+        errors.extend(compatibility_errors)
+
+    errors.extend(simcraft_template_problem_messages(problems))
+    errors = simcraft_template_unique_messages(errors)
+    scenario = SIMCRAFT_TEMPLATE_SCENARIOS.get(scenario_key) or SIMCRAFT_TEMPLATE_SCENARIOS["single"]
+    stat_snapshot = canonical_stat_snapshot
+    resolved_signature = clean_text(profile_data.get("resolvedGearSignature"), 200)
+    talent_template = {
+        "id": "canonical-profile",
+        "type": "talent",
+        "classKey": class_key,
+        "specKey": spec_key,
+        "heroKey": clean_text(profile_context.get("heroKey"), 64),
+        "status": "resolved" if not problems else "blocked",
+        "source": "canonical_profile_context",
+    }
+    gear_template = {
+        "id": resolved_signature or "canonical-selection-intent",
+        "type": "gear",
+        "classKey": class_key,
+        "specKey": spec_key,
+        "status": "complete" if simc_items and not problems else "blocked",
+        "source": "canonical_selection_intent",
+        "metadata": {"statSnapshot": stat_snapshot} if stat_snapshot else {},
+    }
+    build_context = {
+        "specId": f"{class_key}-{spec_key}" if class_key and spec_key else "",
+        "className": class_key,
+        "specName": spec_key,
+        "raceKey": race_key,
+        "analysisWindow": scenario["label"],
+        "details": {
+            "talents": {
+                "importCode": import_code,
+                "simcLines": simc_lines,
+                "encodingStatus": clean_text(talent_encoding.get("status"), 64),
+            },
+            "gear": {"simcItems": simc_items},
+        },
+        "simulatorState": {
+            "profileOptions": {"raceKey": race_key},
+            "talent": {
+                "heroKey": clean_text(profile_context.get("heroKey"), 64),
+                "scenarioKey": scenario_key,
+                "encodingStatus": clean_text(talent_encoding.get("status"), 64),
+                "simcLines": simc_lines,
+                "importCode": import_code,
+            },
+            "gear": {"selectedItems": simc_items},
+        },
+    }
+    prepared = dict(source)
+    prepared.update(
+        {
+            "mode": "simcraft_template",
+            "inputContract": SIMCRAFT_TEMPLATE_CANONICAL_INPUT_CONTRACT,
+            "raceKey": race_key,
+            "scenarioKey": scenario_key or "single",
+            "analysisType": analysis_type,
+            "statSnapshot": copy.deepcopy(stat_snapshot),
+            "message": f"{spec_key}{class_key} · {scenario['label']} · {analysis_type}",
+            "prompt": f"{spec_key}{class_key} · {scenario['label']} · {analysis_type}",
+            "canonicalProfile": str(profile_data.get("profile") or "").strip(),
+            "canonicalContext": {
+                "contractRevision": profile_envelope.get("contractRevision") or "gear-result-envelope-v1",
+                "status": profile_envelope.get("status") or ("blocked" if problems else "resolved"),
+                "releaseContext": profile_envelope.get("releaseContext") if isinstance(profile_envelope.get("releaseContext"), dict) else {},
+                "resolvedGearSignature": resolved_signature,
+            },
+            "buildContext": build_context,
+            "gearSelection": {"items": simc_items},
+            "templateContext": {"talent": talent_template, "gear": gear_template},
+            "templateValidation": {
+                "passed": not errors,
+                "errors": errors,
+                "warnings": [],
+                "problems": problems,
+                "requiredGearSlots": SIMCRAFT_TEMPLATE_REQUIRED_GEAR_SLOTS,
+                "parsedGearSlots": [item.get("slot", "") for item in simc_items if isinstance(item, dict)],
+            },
+        }
+    )
+    return prepared
+
+
 def prepare_simcraft_template_request(request_payload):
     source = request_payload if isinstance(request_payload, dict) else {}
+    if simcraft_template_canonical_context_present(source):
+        return prepare_canonical_simcraft_template_request(source)
     template_context = source.get("templateContext") if isinstance(source.get("templateContext"), dict) else {}
     talent_template = simcraft_template_record(template_context.get("talent"), "talent")
     gear_template = simcraft_template_record(template_context.get("gear"), "gear")
@@ -4610,6 +5039,7 @@ def prepare_simcraft_template_request(request_payload):
     prepared = dict(source)
     prepared.update({
         "mode": "simcraft_template",
+        "inputContract": SIMCRAFT_TEMPLATE_LEGACY_INPUT_CONTRACT,
         "raceKey": race_key,
         "raceName": race_name,
         "scenarioKey": scenario_key,
@@ -5121,6 +5551,7 @@ def backfill_simulator_task_summaries(conn):
 def public_simcraft_template_request(request_payload):
     request = json_clone(request_payload if isinstance(request_payload, dict) else {})
     request.pop("profile", None)
+    request.pop("canonicalProfile", None)
     request.pop("guestId", None)
     request.pop("_executeSimcTask", None)
     template_context = request.get("templateContext") if isinstance(request.get("templateContext"), dict) else {}
@@ -8239,7 +8670,7 @@ def runtime_websim_talents_payload(class_key, spec_key, hero_key=""):
             payload = {}
         if postgres_only_runtime_enabled():
             if isinstance(payload, dict) and payload:
-                return payload
+                return append_websim_talent_node_availability(payload)
             return {
                 "schemaRevision": "websim-talents-v1",
                 "classKey": class_key,
@@ -8257,7 +8688,7 @@ def runtime_websim_talents_payload(class_key, spec_key, hero_key=""):
             and payload.get("dataStatus") == "verified"
             and websim_talent_payload_has_nodes(payload)
         ):
-            return payload
+            return append_websim_talent_node_availability(payload)
     if postgres_only_runtime_enabled():
         return {
             "schemaRevision": "websim-talents-v1",
@@ -8341,6 +8772,11 @@ def postgres_only_talent_validation_payload(payload):
         "specKey": request_payload.get("specKey") or "",
         "heroKey": request_payload.get("heroKey") or "",
         "talentState": {"selectedNodes": []},
+        "nodeAvailability": {
+            "schemaRevision": "websim-talent-node-availability-v1",
+            "source": "authority_unavailable",
+            "nodes": {},
+        },
         "talentAuthority": {"runtime": {"status": "blocked"}, "blockers": blockers},
         "talentReadiness": {"status": "blocked", "blockers": blockers},
         "blockers": blockers,
@@ -12608,6 +13044,9 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/pve/module":
             query = parse_qs(urlparse(self.path).query)
             json_response(self, 200, get_pve_module_payload(query.get("key", ["teamLadder"])[0]))
+            return
+        if path == "/api/simulator/simc/options":
+            json_response(self, 200, build_simc_options_payload())
             return
         if path == "/api/simulator/home":
             json_response(self, 200, build_simulator_home_payload())

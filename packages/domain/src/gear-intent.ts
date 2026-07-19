@@ -12,6 +12,14 @@ const canonicalSlots = [
   'legs', 'feet', 'finger1', 'finger2', 'trinket1', 'trinket2', 'main_hand', 'off_hand',
 ] as const
 
+const selectionIntentRootKeys = ['schemaRevision', 'authoredAgainst', 'eligibilityContext', 'slots'] as const
+const selectionIntentAuthoredKeys = ['seasonRevision', 'gearCatalogRevision'] as const
+const selectionIntentEligibilityKeys = ['classKey', 'specKey', 'level'] as const
+const selectionIntentSlotKeys = [
+  'itemId', 'variantKey', 'gemOptionIds', 'enchantOptionId',
+  'embellishmentOptionId', 'craftedOptionId', 'catalystOptionId',
+] as const
+
 function identifier(value: unknown): string {
   if (typeof value !== 'string' && typeof value !== 'number') return ''
   const text = String(value).trim()
@@ -24,6 +32,64 @@ function record(value: unknown): value is Readonly<Record<string, unknown>> {
 
 function hasOwn(value: Readonly<Record<string, unknown>>, key: string): boolean {
   return Object.prototype.hasOwnProperty.call(value, key)
+}
+
+function exactKeys(value: Readonly<Record<string, unknown>>, expected: readonly string[]): boolean {
+  const actual = Object.keys(value).sort()
+  const canonical = [...expected].sort()
+  return actual.length === canonical.length && actual.every((key, index) => key === canonical[index])
+}
+
+function boundedIntentString(value: unknown, allowEmpty = false): value is string {
+  return typeof value === 'string'
+    && value === value.trim()
+    && value.length <= 256
+    && (allowEmpty || value.length > 0)
+}
+
+/**
+ * Validate only the persisted canonical Selection Intent structure and current
+ * identity. Item legality and authority remain backend-owned.
+ */
+export function canonicalGearSelectionIntent(
+  value: unknown,
+  classKey: string,
+  specKey: string,
+): GearSelectionIntent | null {
+  if (!record(value)
+    || !exactKeys(value, selectionIntentRootKeys)
+    || value['schemaRevision'] !== 'selection-intent-v1'
+    || !record(value['authoredAgainst'])
+    || !record(value['eligibilityContext'])
+    || !record(value['slots'])) return null
+
+  const authored = value['authoredAgainst']
+  if (!exactKeys(authored, selectionIntentAuthoredKeys)
+    || !selectionIntentAuthoredKeys.every((key) => boundedIntentString(authored[key]))) return null
+
+  const eligibility = value['eligibilityContext']
+  if (!exactKeys(eligibility, selectionIntentEligibilityKeys)
+    || !boundedIntentString(eligibility['classKey'])
+    || !boundedIntentString(eligibility['specKey'])
+    || eligibility['classKey'] !== classKey
+    || eligibility['specKey'] !== specKey
+    || !Number.isInteger(eligibility['level'])
+    || Number(eligibility['level']) < 1
+    || Number(eligibility['level']) > 999) return null
+
+  for (const [slot, rawSelection] of Object.entries(value['slots'])) {
+    if (!canonicalSlots.includes(slot as typeof canonicalSlots[number])
+      || !record(rawSelection)
+      || !exactKeys(rawSelection, selectionIntentSlotKeys)
+      || !boundedIntentString(rawSelection['itemId'])
+      || !boundedIntentString(rawSelection['variantKey'], true)
+      || !Array.isArray(rawSelection['gemOptionIds'])
+      || !rawSelection['gemOptionIds'].every((item) => boundedIntentString(item))
+      || !selectionIntentSlotKeys.slice(3).every((key) => boundedIntentString(rawSelection[key], true))) {
+      return null
+    }
+  }
+  return value as unknown as GearSelectionIntent
 }
 
 /**

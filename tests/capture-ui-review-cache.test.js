@@ -52,14 +52,25 @@ test('capture manifest checkpoint replaces the previous file atomically', () => 
   fs.rmSync(directory, { recursive: true, force: true })
 })
 
-test('capture cache rejects symbolic links even when the filename matches the route', () => {
+test('capture cache rejects symbolic links even when the filename matches the route', (t) => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'wow-capture-link-test-'))
   const external = path.join(directory, 'external.png')
   const artifactPath = path.join(directory, 'news_detail.png')
-  fs.writeFileSync(external, pngHeader(390, 844))
-  fs.symlinkSync(external, artifactPath)
-  assert.equal(capturePathMatches({ route: 'news_detail', artifactPath }, directory), false)
-  fs.rmSync(directory, { recursive: true, force: true })
+  try {
+    fs.writeFileSync(external, pngHeader(390, 844))
+    try {
+      fs.symlinkSync(external, artifactPath)
+    } catch (error) {
+      if (error && error.code === 'EPERM') {
+        t.skip('symbolic-link creation is unavailable for this Windows account')
+        return
+      }
+      throw error
+    }
+    assert.equal(capturePathMatches({ route: 'news_detail', artifactPath }, directory), false)
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true })
+  }
 })
 
 test('online capture is restricted to resumable two-route batches', () => {

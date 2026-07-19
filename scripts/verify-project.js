@@ -103,6 +103,35 @@ function commandSpec(label, cmd, args) {
   }
 }
 
+function executableCommand(command) {
+  if (process.platform !== 'win32') return command
+  if (command.cmd === 'node') {
+    return { ...command, cmd: process.execPath }
+  }
+  if (command.cmd === 'python3') {
+    return { ...command, cmd: process.env.WOW_PYTHON3 || 'python' }
+  }
+  if (command.cmd === 'npm') {
+    const npmCli = path.join(path.dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js')
+    return { ...command, cmd: process.execPath, args: [npmCli, ...command.args] }
+  }
+  return command
+}
+
+function childProcessEnv() {
+  if (process.platform !== 'win32') return process.env
+  const env = { ...process.env }
+  const inheritedPath = Object.entries(env)
+    .find(([key]) => key.toLowerCase() === 'path')?.[1] || ''
+  for (const key of Object.keys(env)) {
+    if (key.toLowerCase() === 'path') delete env[key]
+  }
+  const nodeRuntimePath = [path.dirname(process.execPath), inheritedPath]
+    .filter(Boolean)
+    .join(path.delimiter)
+  return { ...env, Path: nodeRuntimePath }
+}
+
 function shellQuote(value) {
   if (/^[A-Za-z0-9_./:=@+-]+$/.test(value)) {
     return value
@@ -262,9 +291,11 @@ function runCommands(root, commands, jsonMode) {
       process.stdout.write(`> ${command.command}\n`)
     }
     const startedAt = Date.now()
-    const result = spawnSync(command.cmd, command.args, {
+    const executable = executableCommand(command)
+    const result = spawnSync(executable.cmd, executable.args, {
       cwd: root,
       encoding: 'utf8',
+      env: childProcessEnv(),
       maxBuffer: maxSpawnBufferBytes
     })
     const stdout = boundedCommandOutput(result.stdout, remainingOutputBytes)

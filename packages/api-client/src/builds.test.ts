@@ -76,6 +76,23 @@ function responseTransport(response: unknown): ApiTransport {
 }
 
 describe('builds home data contract', () => {
+  it('returns blocked empty transport structures instead of packaged build facts when unavailable', async () => {
+    const malformed = { unexpected: true }
+    const client = createBuildsClient(responseTransport(malformed))
+
+    const [home, intel, detail] = await Promise.all([
+      client.home(),
+      client.intel(),
+      client.detail('missing-spec'),
+    ])
+
+    expect(home).toMatchObject({ fromFallback: true, payload: {
+      dataStatus: 'blocked', classOptions: [], featuredSpecializations: [], quickActions: [], sourceRefs: [],
+    } })
+    expect(intel).toMatchObject({ fromFallback: true, payload: { count: 0, items: [], trustedSources: [], dataStatus: 'blocked' } })
+    expect(detail).toMatchObject({ fromFallback: true, payload: { id: 'missing-spec', details: {}, dataStatus: 'blocked' } })
+  })
+
   it('accepts a complete response while preserving remote action order and display metadata', async () => {
     const payload = liveHome()
     const talents = action(payload, 'talents')
@@ -189,8 +206,8 @@ describe('builds home data contract', () => {
       expect(isBuildsHomePayload(malformed)).toBe(false)
       const result = await createBuildsClient(responseTransport(malformed)).home()
       expect(result.fromFallback).toBe(true)
-      expect(result.payload.dataStatus).toBe('stale')
-      expect(result.payload.currentSeason.dataStatus).toBe('stale')
+      expect(result.payload.dataStatus).toBe('blocked')
+      expect(result.payload.currentSeason.dataStatus).toBe('blocked')
       expect(result.payload.raiderio.sourceStatus).toBe('blocked')
     }
   })
@@ -208,8 +225,7 @@ describe('builds home data contract', () => {
     const result = await createBuildsClient(responseTransport(remote)).home()
 
     expect(result.fromFallback).toBe(true)
-    expect(result.payload.quickActions.map((item) => item.key)).toEqual(['talents', 'gear', 'simc', 'tasks'])
-    expect(result.payload.quickActions[0]?.title).not.toBe('不应泄漏的远端标题')
+    expect(result.payload.quickActions).toEqual([])
   })
 
   it('normalizes a missing spec name only from that spec own specName or title', async () => {
