@@ -495,4 +495,3 @@ Expected: the three main SHAs match the PR merge commit and scoped verification 
 - [ ] **Step 5: Remove only this task's worktree and branches**
 
 After confirming the worktree is clean and PR #91 is merged, remove `G:\Codex\wow\.worktrees\cdn-api-publishing`, delete local `codex/cdn-api-publishing`, and delete the merged remote branch. Do not touch other branches or worktrees.
-
