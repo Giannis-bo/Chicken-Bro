@@ -55,6 +55,8 @@ export interface TalentGraphView {
   uniquePositionCount: number
 }
 
+type TalentGraphLayoutMode = 'source_lattice' | 'centered_rows'
+
 export interface TalentPointView {
   cap: number
   spent: number
@@ -78,6 +80,7 @@ const readyGraphContentHeight = readyGraphViewportHeight - readyGraphViewportIns
 const minReadyRowGap = 38
 const maxReadyRowGap = 52
 const maxExpandedHeroRowGap = 96
+const sourceLatticeMinimumRowGap = 60
 const choiceNodeHorizontalRadius = 25
 const choiceNodeVerticalRadius = 20
 const linkVisibleGap = 0
@@ -101,15 +104,27 @@ function finiteInteger(value: number | undefined, fallback: number): number {
   return Number.isFinite(value) ? Math.trunc(value ?? fallback) : fallback
 }
 
+function greatestCommonDivisor(left: number, right: number): number {
+  let dividend = Math.abs(left)
+  let divisor = Math.abs(right)
+  while (divisor > 0) {
+    const remainder = dividend % divisor
+    dividend = divisor
+    divisor = remainder
+  }
+  return dividend
+}
+
 function rowGapForExpandedViewport(
   maxRow: number,
   nodeBoundsWidth: number,
   maximumRowGap = maxReadyRowGap,
+  minimumRowGap = minReadyRowGap,
 ): number {
   if (maxRow <= 1) return readyRowGap
   const widthScale = Math.min(1, readyGraphContentWidth / nodeBoundsWidth)
   const idealRowGap = (readyGraphContentHeight / widthScale - readyNodeSize) / (maxRow - 1)
-  return Math.max(minReadyRowGap, Math.min(maximumRowGap, idealRowGap))
+  return Math.max(minimumRowGap, Math.min(maximumRowGap, idealRowGap))
 }
 
 function nodeMaxRank(node: TalentNode): number {
@@ -357,6 +372,7 @@ export function buildTalentGraph(input: {
   availability?: TalentNodeAvailabilityPayload
   routeState: ReadinessState
   loading?: boolean
+  layoutMode?: TalentGraphLayoutMode
 }): TalentGraphView {
   if (input.loading || input.nodes.length === 0) return buildLoadingGraph()
 
@@ -414,29 +430,89 @@ export function buildTalentGraph(input: {
   const widestRowNodeCount = Math.max(...[...nodesByRow.values()].map((row) => row.length))
   const isHeroTree = projectedNodes.length > 0 && projectedNodes.every((node) => nodeTreeKey(node) === 'hero')
   const expandsIntoMainViewport = isHeroTree || (maxRow >= 8 && widestRowNodeCount >= 5)
-  for (const row of nodesByRow.values()) {
-    row.sort((left, right) => (
-      left.column - right.column
-      || (projectedOrder.get(left.id) ?? 0) - (projectedOrder.get(right.id) ?? 0)
+  if (input.layoutMode === 'centered_rows') {
+    for (const row of nodesByRow.values()) {
+      row.sort((left, right) => (
+        left.column - right.column
+        || (projectedOrder.get(left.id) ?? 0) - (projectedOrder.get(right.id) ?? 0)
+      ))
+      const intervalCount = row.length - 1
+      const firstRadius = nodeLinkRadius(row[0]!, 1, 0)
+      const lastRadius = nodeLinkRadius(row[row.length - 1]!, 1, 0)
+      const maximumSeparation = expandsIntoMainViewport && row.length === widestRowNodeCount
+        ? isHeroTree
+          ? expandedHeroViewportNodeSeparation
+          : expandedViewportNodeSeparation
+        : readyNodeSeparation
+      const centerGap = intervalCount === 0
+        ? 0
+        : Math.max(0, Math.min(
+          maximumSeparation,
+          (readyGraphWidth - firstRadius * 2) / intervalCount,
+          (readyGraphWidth - lastRadius * 2) / intervalCount,
+        ))
+      for (const [index, node] of row.entries()) {
+        node.x = (readyGraphWidth - readyNodeSize) / 2
+          + (index - intervalCount / 2) * centerGap
+      }
+    }
+  } else {
+    const sourceColumns = [...new Set(nodes.map((node) => node.column))].sort((left, right) => left - right)
+    const sourceColumnStep = Math.max(1, Math.min(
+      2,
+      sourceColumns.slice(1).reduce(
+        (step, column, index) => greatestCommonDivisor(step, column - sourceColumns[index]!),
+        0,
+      ) || 1,
     ))
-    const intervalCount = row.length - 1
-    const firstRadius = nodeLinkRadius(row[0]!, 1, 0)
-    const lastRadius = nodeLinkRadius(row[row.length - 1]!, 1, 0)
-    const maximumSeparation = expandsIntoMainViewport && row.length === widestRowNodeCount
+    const sourceColumnStart = sourceColumns[0] ?? 1
+    const sourceColumnEnd = sourceColumns[sourceColumns.length - 1] ?? sourceColumnStart
+    const sourceColumnSpan = Math.max(0, (sourceColumnEnd - sourceColumnStart) / sourceColumnStep)
+    const maximumLaneGap = expandsIntoMainViewport
       ? isHeroTree
         ? expandedHeroViewportNodeSeparation
         : expandedViewportNodeSeparation
       : readyNodeSeparation
-    const centerGap = intervalCount === 0
-      ? 0
-      : Math.max(0, Math.min(
-        maximumSeparation,
-        (readyGraphWidth - firstRadius * 2) / intervalCount,
-        (readyGraphWidth - lastRadius * 2) / intervalCount,
+    const laneGap = sourceColumnSpan > 0
+      ? Math.max(0, Math.min(
+        maximumLaneGap,
+        (readyGraphWidth - readyNodeSize) / sourceColumnSpan,
       ))
-    for (const [index, node] of row.entries()) {
-      node.x = (readyGraphWidth - readyNodeSize) / 2
-        + (index - intervalCount / 2) * centerGap
+      : 0
+    const sourceColumnCenter = (sourceColumnStart + sourceColumnEnd) / 2
+    const nodesByPosition = new Map<string, TalentGraphNodeView[]>()
+    for (const node of nodes) {
+      const positionKey = `${node.row}:${node.column}`
+      const positionedNodes = nodesByPosition.get(positionKey) ?? []
+      positionedNodes.push(node)
+      nodesByPosition.set(positionKey, positionedNodes)
+    }
+    const nodeCenters = new Map<string, number>()
+    for (const positionedNodes of nodesByPosition.values()) {
+      positionedNodes.sort((left, right) => (
+        (projectedOrder.get(left.id) ?? 0) - (projectedOrder.get(right.id) ?? 0)
+      ))
+      const canonicalCenter = readyGraphWidth / 2
+        + ((positionedNodes[0]!.column - sourceColumnCenter) / sourceColumnStep) * laneGap
+      for (const [index, node] of positionedNodes.entries()) {
+        nodeCenters.set(
+          node.id,
+          canonicalCenter + (index - (positionedNodes.length - 1) / 2) * readyNodeSeparation,
+        )
+      }
+    }
+    const hasChoiceFrame = nodes.some((node) => node.shape === 'choice')
+    const horizontalInset = hasChoiceFrame ? 7 : 0
+    const minimumNodeCenter = Math.min(...nodeCenters.values())
+    const maximumNodeCenter = Math.max(...nodeCenters.values())
+    const centerSpan = maximumNodeCenter - minimumNodeCenter
+    const availableSpan = readyGraphWidth - readyNodeSize - horizontalInset * 2
+    const requiresNormalization = centerSpan > availableSpan
+    for (const node of nodes) {
+      const center = nodeCenters.get(node.id) ?? readyGraphWidth / 2
+      node.x = requiresNormalization
+        ? horizontalInset + (center - minimumNodeCenter) * availableSpan / centerSpan
+        : center - readyNodeSize / 2
     }
   }
   const minNodeX = Math.min(...nodes.map((node) => node.x))
@@ -445,7 +521,10 @@ export function buildTalentGraph(input: {
     ? rowGapForExpandedViewport(
       maxRow,
       maxNodeX - minNodeX,
-      isHeroTree ? maxExpandedHeroRowGap : maxReadyRowGap,
+      input.layoutMode === 'source_lattice' && !isHeroTree
+        ? sourceLatticeMinimumRowGap
+        : isHeroTree ? maxExpandedHeroRowGap : maxReadyRowGap,
+      input.layoutMode === 'source_lattice' ? sourceLatticeMinimumRowGap : minReadyRowGap,
     )
     : readyRowGap
   for (const node of nodes) {

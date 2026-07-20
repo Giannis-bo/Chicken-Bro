@@ -136,7 +136,7 @@
     {
       "region": "tree_canvas",
       "slot": "real_talent_graph",
-      "runtime": "all active-section nodes placed from normalized row/column and connected from normalized prerequisiteIds inside a bounded vertical ScrollView with 24px top and bottom reach; sparse hero trees use the viewport's full practical row spacing and width while each row remains centered; the outer route surface does not scroll",
+      "runtime": "all class, specialization and hero trees use one shared normalized row/column lattice and connect from normalized prerequisiteIds inside a bounded vertical ScrollView with 24px top and bottom reach; matching source columns align across rows, empty source lanes preserve branch spans, and repeated positions fan safely instead of overlapping; dense class and specialization trees retain a 60px minimum row rhythm and allow internal vertical reach instead of being vertically scaled back down, while sparse hero trees use the viewport's full practical row spacing and width without recentering each row independently; the outer route surface does not scroll",
       "fallback": "19 neutral loading or unavailable sockets without fabricated names or ranks"
     },
     {

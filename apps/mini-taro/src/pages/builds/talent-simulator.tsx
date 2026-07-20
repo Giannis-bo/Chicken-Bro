@@ -143,6 +143,7 @@ export default function TalentSimulatorPage() {
   }, [route.data])
 
   const data = route.data
+  const currentHeroKey = data?.talents.heroKey || selectedHeroKey || data?.selection.heroKey || ''
   const activeNodes = activeTalentNodes(data?.talents, activeTree)
   const activeSection = activeTalentSection(data?.talents, activeTree)
   const points = talentPoints(activeNodes, activeSection, ranks)
@@ -164,6 +165,7 @@ export default function TalentSimulatorPage() {
       ? 'blocked'
       : graphRouteState(route.state.state, data),
     loading: initialLoading || activeNodes.length === 0,
+    layoutMode: 'source_lattice',
   })
   const classOptions: readonly TalentSelectorOption[] = (data?.home.classOptions ?? []).map((classItem) => ({
     id: classItem.specializations[0]?.id ?? classItem.websimClassKey ?? classItem.name,
@@ -174,7 +176,6 @@ export default function TalentSimulatorPage() {
     label: spec.specName || spec.title || spec.name,
   })).filter((option) => option.id)
   const heroSection = data?.talents.treeSections.find((section) => section.key === 'hero')
-  const currentHeroKey = data?.talents.heroKey || selectedHeroKey || data?.selection.heroKey || ''
   const heroOptions: readonly TalentSelectorOption[] = heroTalentOptions(data?.bootstrap, data?.selection)
     .map((hero) => ({ id: hero.key, label: hero.label }))
   const currentHero = heroOptions.find((option) => option.id === currentHeroKey)
@@ -447,6 +448,7 @@ export default function TalentSimulatorPage() {
             <RouteRegion className={styles['graphRegion'] ?? ''} data-region="talent_graph">
               <TalentGraphViewport
                 key={activeTree}
+                allowVerticalOverflow
                 connectivityStatus={connectivityStatus}
                 edges={graph.edges}
                 nodeCount={graph.nodeCount}

@@ -54,8 +54,10 @@ describe('talent simulator legacy visual contract', () => {
     expect(componentSource).toContain(`const graphScale = Math.min(
     1,
     targetContentWidth / nodeBoundsWidth,
-    targetContentHeight / nodeBoundsHeight,
+    allowVerticalOverflow ? 1 : targetContentHeight / nodeBoundsHeight,
   )`)
+    expect(componentSource).toContain('allowVerticalOverflow?: boolean')
+    expect(componentSource).toContain('allowVerticalOverflow = false')
     expect(componentSource).toContain('const planeTop = (stageHeight - renderedBoundsHeight) / 2 - minNodeY * graphScale')
     expect(componentSource).toContain('const graphVerticalScrollPadding = 24')
     expect(componentSource).toContain('renderedBoundsHeight + graphVerticalScrollPadding * 2')

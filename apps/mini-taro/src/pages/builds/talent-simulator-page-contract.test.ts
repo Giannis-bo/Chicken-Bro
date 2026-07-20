@@ -107,6 +107,25 @@ describe('talent simulator authoritative edit contract', () => {
     expect(source).not.toContain("? [{ id: data?.talents.heroKey || 'hero', label: heroSection.title }]")
   })
 
+  it('uses the verified source-lattice layout for every class, specialization and hero tree', () => {
+    const source = readFileSync(resolve(
+      process.cwd(),
+      'apps/mini-taro/src/pages/builds/talent-simulator.tsx',
+    ), 'utf8')
+
+    expect(source).not.toContain('sourceLatticeSample')
+    expect(source).toContain("layoutMode: 'source_lattice'")
+  })
+
+  it('lets every source-lattice tree keep its roomier row spacing through vertical reach', () => {
+    const source = readFileSync(resolve(
+      process.cwd(),
+      'apps/mini-taro/src/pages/builds/talent-simulator.tsx',
+    ), 'utf8')
+
+    expect(source).toContain('allowVerticalOverflow')
+  })
+
   it('renders the active hero root talent icon in the hero selector crest', () => {
     const source = readFileSync(resolve(
       process.cwd(),

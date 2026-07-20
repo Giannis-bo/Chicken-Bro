@@ -364,6 +364,7 @@ export interface TalentGraphViewportProps {
   planeHeight: number
   nodeCount: number
   uniquePositionCount: number
+  allowVerticalOverflow?: boolean
   readonly?: boolean
   onNode: (node: TalentGraphNodeItem) => void
 }
@@ -383,6 +384,7 @@ export function TalentGraphViewport({
   planeHeight,
   nodeCount,
   uniquePositionCount,
+  allowVerticalOverflow = false,
   readonly = false,
   onNode,
 }: TalentGraphViewportProps) {
@@ -399,7 +401,7 @@ export function TalentGraphViewport({
   const graphScale = Math.min(
     1,
     targetContentWidth / nodeBoundsWidth,
-    targetContentHeight / nodeBoundsHeight,
+    allowVerticalOverflow ? 1 : targetContentHeight / nodeBoundsHeight,
   )
   const renderedBoundsWidth = nodeBoundsWidth * graphScale
   const renderedBoundsHeight = nodeBoundsHeight * graphScale
