@@ -23,6 +23,7 @@ try:
         compact_catalog_health_summary,
         compact_gear_candidates,
         compact_gear_mod_options,
+        community_template_freshness_state,
         community_talent_template_slot_summary,
         community_talent_templates_for_spec_slots,
         enrich_catalog_item,
@@ -72,6 +73,7 @@ except ImportError:
         compact_catalog_health_summary,
         compact_gear_candidates,
         compact_gear_mod_options,
+        community_template_freshness_state,
         community_talent_template_slot_summary,
         community_talent_templates_for_spec_slots,
         enrich_catalog_item,
@@ -288,8 +290,19 @@ def build_websim_community_talent_templates_read_model(rows, class_key, spec_key
         raiderio_payload = payload.get("raiderio") if isinstance(payload.get("raiderio"), dict) else {}
         rio_evidence = payload.get("rioEvidence") if isinstance(payload.get("rioEvidence"), dict) else {}
         freshness = payload.get("communityTemplateFreshness") if isinstance(payload.get("communityTemplateFreshness"), dict) else {}
+        freshness_state = community_template_freshness_state(
+            {
+                **freshness,
+                "lastSuccessfulSyncAt": (
+                    freshness.get("lastSuccessfulSyncAt")
+                    or freshness.get("checkedAt")
+                    or str(row[19] or "")
+                ),
+            },
+            now=utc_now(),
+        )
         player_id = str(payload.get("playerId") or raiderio_payload.get("characterName") or "").strip()
-        freshness_status = str(freshness.get("status") or "fresh").strip()
+        freshness_status = freshness_state["status"]
         templates.append(
             {
                 "id": str(row[0]),
@@ -321,7 +334,7 @@ def build_websim_community_talent_templates_read_model(rows, class_key, spec_key
                 "mplusScore": _float_value(rio_evidence.get("score")),
                 "mplusRank": _int_value(rio_evidence.get("rank")),
                 "freshnessStatus": freshness_status,
-                "isStale": freshness_status == "stale",
+                "isStale": freshness_state["isStale"],
                 "classLabel": payload.get("classLabel") or class_label(row[1]),
                 "specLabel": payload.get("specLabel") or spec_label(row[2]),
                 "heroLabel": payload.get("heroLabel") or hero_tree_label(row[3]),

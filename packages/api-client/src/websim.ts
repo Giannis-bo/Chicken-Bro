@@ -165,20 +165,17 @@ export function normalizeCommunityTemplateReference(
 ): CommunityTemplateReference {
   if (!isRecord(value)) return {}
   const selectedNodes = value['talentState']
-  const talentState = isRecord(selectedNodes) && Array.isArray(selectedNodes['selectedNodes'])
-    && selectedNodes['selectedNodes'].every((node) => (
-      isRecord(node)
-      && cleanString(node['id']).length > 0
-      && typeof node['rank'] === 'number'
-      && Number.isFinite(node['rank'])
-      && node['rank'] > 0
-    ))
-    ? {
-        selectedNodes: selectedNodes['selectedNodes'].map((node) => ({
-          id: cleanString((node as Record<string, unknown>)['id']),
-          rank: (node as Record<string, number>)['rank'],
-        })),
-      }
+  const rawSelectedNodes = isRecord(selectedNodes) && Array.isArray(selectedNodes['selectedNodes'])
+    ? selectedNodes['selectedNodes']
+    : []
+  const normalizedSelectedNodes = rawSelectedNodes.flatMap((node) => {
+    if (!isRecord(node)) return []
+    const id = cleanString(node['id'])
+    const rank = finiteNumber(node['rank'])
+    return id && rank !== undefined && rank > 0 ? [{ id, rank }] : []
+  })
+  const talentState = rawSelectedNodes.length > 0 && normalizedSelectedNodes.length === rawSelectedNodes.length
+    ? { selectedNodes: normalizedSelectedNodes }
     : undefined
   const score = value['mplusScore']
   const rank = value['mplusRank']

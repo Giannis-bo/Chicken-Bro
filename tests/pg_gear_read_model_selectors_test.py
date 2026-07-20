@@ -178,9 +178,9 @@ class PgGearReadModelSelectorsTest(unittest.TestCase):
                     },
                     "rioEvidence": {"score": 4123.4, "rank": 8},
                     "communityTemplateFreshness": {
-                        "status": "stale",
-                        "lastSuccessfulSyncAt": "2026-07-12T01:00:00+00:00",
-                        "consecutiveFailureCount": 7
+                        "status": "fresh",
+                        "lastSuccessfulSyncAt": "2020-07-12T01:00:00+00:00",
+                        "consecutiveFailureCount": 0
                     },
                     "classLabel": "Mage Label",
                     "specLabel": "Frost Label",

@@ -541,6 +541,10 @@ class PostgresCacheSyncTest(unittest.TestCase):
 
         with patch.object(
             postgres_cache_sync,
+            "sync_raiderio_cache_postgres",
+            return_value={"sourceStatus": "partial", "status": "partial"},
+        ), patch.object(
+            postgres_cache_sync,
             "load_community_talent_sources_postgres",
             return_value={
                 "raiderio": {
@@ -555,10 +559,7 @@ class PostgresCacheSyncTest(unittest.TestCase):
             },
             create=True,
         ):
-            payload = postgres_cache_sync.sync_community_template_cache_postgres(
-                store=store,
-                refresh_raiderio=False,
-            )
+            payload = postgres_cache_sync.sync_community_template_cache_postgres(store=store)
 
         self.assertEqual(recorded[0]["sourceKey"], "raiderio")
         self.assertEqual(recorded[0]["errors"], ["kr: upstream timeout"])
@@ -566,6 +567,86 @@ class PostgresCacheSyncTest(unittest.TestCase):
         self.assertEqual(successful[0]["regions"], ["us"])
         self.assertEqual(payload["talentFreshness"]["raiderio"]["status"], "failure_recorded")
         self.assertEqual(payload["talentFreshness"]["raiderio"]["regionCoverage"]["us"]["status"], "verified")
+
+    def test_community_talent_freshness_does_not_refresh_when_collection_was_skipped(self):
+        from server import postgres_cache_sync
+
+        store = FakePostgresSyncStore()
+        success_calls = []
+        failure_calls = []
+        store.record_community_talent_source_sync_success = lambda *args, **kwargs: success_calls.append((args, kwargs))
+        store.record_community_talent_source_sync_failure = lambda *args, **kwargs: failure_calls.append((args, kwargs))
+
+        freshness = postgres_cache_sync._community_talent_source_freshness_maintenance(
+            store,
+            {
+                "raiderio": {
+                    "status": "synced",
+                    "regionCoverage": {"kr": {"status": "synced"}},
+                }
+            },
+            "2026-07-20T00:00:00+00:00",
+            collection_attempted=False,
+        )
+
+        self.assertEqual(success_calls, [])
+        self.assertEqual(failure_calls, [])
+        self.assertEqual(freshness["raiderio"]["status"], "not_attempted")
+
+    def test_missing_slots_sync_does_not_refresh_freshness_when_every_slot_is_already_covered(self):
+        from server import postgres_cache_sync
+
+        store = FakePostgresSyncStore()
+        success_calls = []
+        failure_calls = []
+        store.record_community_talent_source_sync_success = lambda *args, **kwargs: success_calls.append((args, kwargs))
+        store.record_community_talent_source_sync_failure = lambda *args, **kwargs: failure_calls.append((args, kwargs))
+
+        with patch.object(postgres_cache_sync, "_community_talent_missing_slot_ids", return_value=[]), patch.object(
+            postgres_cache_sync,
+            "sync_raiderio_cache_postgres",
+            side_effect=AssertionError("complete coverage must skip Raider.IO collection"),
+        ), patch.object(
+            postgres_cache_sync,
+            "load_community_talent_sources_postgres",
+            return_value={"raiderio": {"status": "synced", "templates": [], "regionCoverage": {"kr": {"status": "synced"}}}},
+        ):
+            payload = postgres_cache_sync.sync_community_template_cache_postgres(store=store, mode="missing_slots")
+
+        self.assertEqual(success_calls, [])
+        self.assertEqual(failure_calls, [])
+        self.assertEqual(payload["talentFreshness"]["raiderio"]["status"], "not_attempted")
+
+    def test_failed_raiderio_collection_keeps_existing_winners_and_records_failure(self):
+        from server import postgres_cache_sync
+
+        store = FakePostgresSyncStore()
+        store.community_talent_templates = [{"id": "existing-winner"}]
+        failures = []
+        store.record_community_talent_source_sync_failure = lambda source_key, checked_at="", errors=None, regions=None: failures.append(
+            {"sourceKey": source_key, "errors": list(errors or []), "regions": list(regions or [])}
+        ) or {"updated": 1}
+
+        with patch.object(
+            postgres_cache_sync,
+            "sync_raiderio_cache_postgres",
+            return_value={"sourceStatus": "stale", "errors": ["all regions failed"]},
+        ), patch.object(
+            postgres_cache_sync,
+            "load_community_talent_sources_postgres",
+            return_value={
+                "raiderio": {
+                    "status": "synced",
+                    "templates": [{"id": "old-cache-template", "status": "verified"}],
+                    "regionCoverage": {"kr": {"status": "synced"}},
+                }
+            },
+        ):
+            payload = postgres_cache_sync.sync_community_template_cache_postgres(store=store)
+
+        self.assertEqual(store.community_talent_templates, [{"id": "existing-winner"}])
+        self.assertEqual(failures, [{"sourceKey": "raiderio", "errors": ["all regions failed"], "regions": []}])
+        self.assertEqual(payload["talentFreshness"]["raiderio"]["status"], "failure_recorded")
 
     def test_websim_postgres_sync_replaces_simc_generated_data(self):
         from server import postgres_cache_sync

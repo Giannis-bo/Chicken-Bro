@@ -166,4 +166,18 @@ describe('talent simulator authoritative edit contract', () => {
     expect(source).toContain('setNodeAvailability(result.payload.nodeAvailability)')
     expect(source).toContain('setNodeAvailability(result.payload.validation.nodeAvailability)')
   })
+
+  it('fences an import from its request start so an old response cannot overwrite a new specialization', () => {
+    const source = readFileSync(resolve(
+      process.cwd(),
+      'apps/mini-taro/src/pages/builds/talent-simulator.tsx',
+    ), 'utf8')
+
+    expect(source).toContain('const operationSequence = validationSequence.current + 1')
+    expect(source).toContain('validationSequence.current = operationSequence')
+    expect(source).toContain('operationSequence: number')
+    expect(source).toContain('if (validationSequence.current !== operationSequence) return false')
+    expect(source).toContain('applyImportedValidation(result.payload.validation, result.fromFallback, result.error, operationSequence)')
+    expect(source).toContain('applyImportedValidation(result.payload, result.fromFallback, result.error, operationSequence)')
+  })
 })

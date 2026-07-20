@@ -2827,13 +2827,29 @@ def _community_talent_coverage_rows(store, fallback_templates):
     return []
 
 
-def _community_talent_source_freshness_maintenance(store, sources, checked_at):
+def _community_talent_source_freshness_maintenance(
+    store,
+    sources,
+    checked_at,
+    *,
+    collection_attempted=True,
+    source_attempts=None,
+):
     results = {}
     successful_statuses = {"synced", "verified", "complete"}
+    source_attempts = source_attempts if isinstance(source_attempts, dict) else {}
     for source_key, source in (sources or {}).items():
         source = source if isinstance(source, dict) else {}
         status = str(source.get("status") or "blocked").strip()
         region_coverage = source.get("regionCoverage") if isinstance(source.get("regionCoverage"), dict) else {}
+        attempted = bool(source_attempts.get(source_key, collection_attempted))
+        if not attempted:
+            results[source_key] = {
+                "status": "not_attempted",
+                "sourceStatus": status,
+                "regionCoverage": region_coverage,
+            }
+            continue
         successful_regions = sorted(
             str(region).strip().lower()
             for region, detail in region_coverage.items()
@@ -2913,6 +2929,8 @@ def sync_community_template_cache_postgres(mode="scheduled", store=None, refresh
         if not target_slot_ids:
             refresh_raiderio = False
     source_started_at = time.monotonic()
+    raiderio_collection_attempted = bool(refresh_raiderio)
+    raiderio_refresh = {}
     if refresh_raiderio:
         raiderio_env = {}
         if gear_template_sync_mode:
@@ -2923,11 +2941,30 @@ def sync_community_template_cache_postgres(mode="scheduled", store=None, refresh
                 "WOW_RAIDERIO_SPEC_RANKING_ENABLED": "1",
                 "WOW_RAIDERIO_SPEC_RANKING_TARGET_SPECS": ",".join(target_spec_ids),
             }
-        _with_temporary_env(
-            raiderio_env,
-            lambda: sync_raiderio_cache_postgres(force=True, store=store, stage_callback=record_stage),
-        )
+        try:
+            raiderio_refresh = _with_temporary_env(
+                raiderio_env,
+                lambda: sync_raiderio_cache_postgres(force=True, store=store, stage_callback=record_stage),
+            ) or {}
+        except Exception:
+            raiderio_refresh = {
+                "sourceStatus": "failed",
+                "status": "failed",
+                "errors": ["Raider.IO collection failed"],
+            }
     source_results = load_community_talent_sources_postgres(store)
+    raiderio_refresh_status = str(
+        raiderio_refresh.get("sourceStatus") or raiderio_refresh.get("status") or ""
+    ).strip().lower()
+    if raiderio_collection_attempted and raiderio_refresh_status in {"failed", "blocked", "stale"}:
+        previous = source_results.get("raiderio") if isinstance(source_results.get("raiderio"), dict) else {}
+        source_results["raiderio"] = {
+            **previous,
+            "status": "failed",
+            "templates": [],
+            "errors": list(raiderio_refresh.get("errors") or ["Raider.IO collection failed"]),
+            "regionCoverage": {},
+        }
     stage_timings.append(
         _timing_stage(
             "source_collection",
@@ -3118,6 +3155,7 @@ def sync_community_template_cache_postgres(mode="scheduled", store=None, refresh
         store,
         talent_sources,
         checked_at,
+        source_attempts={"raiderio": raiderio_collection_attempted},
     )
     payload = {
         "scanRunId": scan_run_id,

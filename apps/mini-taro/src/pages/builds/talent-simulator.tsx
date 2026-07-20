@@ -437,12 +437,11 @@ export default function TalentSimulatorPage() {
     validation: Parameters<typeof applyTalentValidation>[1],
     fromFallback: boolean,
     error: string,
+    operationSequence: number,
   ): Promise<boolean> => {
-    const sequence = validationSequence.current + 1
-    validationSequence.current = sequence
-    setValidating(true)
+    if (validationSequence.current !== operationSequence) return false
     const decision = applyTalentValidation(ranks, validation, fromFallback, error)
-    if (validationSequence.current !== sequence) return false
+    if (validationSequence.current !== operationSequence) return false
     setValidating(false)
     if (!decision.accepted) {
       await Taro.showToast({ title: decision.error, icon: 'none' })
@@ -457,6 +456,9 @@ export default function TalentSimulatorPage() {
     if (!data || importingTemplate) return
     const template = savedTemplates.find((item) => item.id === templateId)
     if (!template?.rawString) return
+    const operationSequence = validationSequence.current + 1
+    validationSequence.current = operationSequence
+    setValidating(true)
     setImportingTemplate(true)
     try {
       const result = await wowApi.websim.talentImportCode({
@@ -465,17 +467,21 @@ export default function TalentSimulatorPage() {
         specKey: data.selection.specKey,
         heroKey: data.talents.heroKey || data.selection.heroKey,
       })
-      if (await applyImportedValidation(result.payload.validation, result.fromFallback, result.error)) {
+      if (await applyImportedValidation(result.payload.validation, result.fromFallback, result.error, operationSequence)) {
         setImportSheet('closed')
         await Taro.showToast({ title: '已导入保存模板', icon: 'none' })
       }
     } finally {
       setImportingTemplate(false)
+      if (validationSequence.current === operationSequence) setValidating(false)
     }
   }
 
   const importCommunityWinner = async () => {
     if (!data || !communityWinner?.talentState || importingTemplate) return
+    const operationSequence = validationSequence.current + 1
+    validationSequence.current = operationSequence
+    setValidating(true)
     setImportingTemplate(true)
     try {
       const result = await wowApi.websim.talentValidate({
@@ -484,12 +490,13 @@ export default function TalentSimulatorPage() {
         heroKey: data.talents.heroKey || data.selection.heroKey,
         talentState: communityWinner.talentState,
       })
-      if (await applyImportedValidation(result.payload, result.fromFallback, result.error)) {
+      if (await applyImportedValidation(result.payload, result.fromFallback, result.error, operationSequence)) {
         setImportSheet('closed')
         await Taro.showToast({ title: '已导入社区模板', icon: 'none' })
       }
     } finally {
       setImportingTemplate(false)
+      if (validationSequence.current === operationSequence) setValidating(false)
     }
   }
 

@@ -19584,6 +19584,41 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(aged["status"], "stale")
         self.assertTrue(aged["isStale"])
 
+    def test_community_talent_display_uses_wcl_evidence_only_to_break_equal_mplus_scores(self):
+        templates = self.websim_payload.community_talent_templates_for_spec_slots(
+            "mage",
+            "frost",
+            [
+                {
+                    "id": "exact-wcl",
+                    "classKey": "mage",
+                    "specKey": "frost",
+                    "heroKey": "spellslinger",
+                    "scenarioKey": "mythic_plus",
+                    "status": "verified",
+                    "sourceStatus": "synced",
+                    "canApplyVisual": True,
+                    "updatedAt": "2026-07-10T00:00:00+00:00",
+                    "payload": {"rioEvidence": {"score": 4123.4}, "wclEvidence": {"tier": "wcl_exact_template"}},
+                },
+                {
+                    "id": "supported-wcl",
+                    "classKey": "mage",
+                    "specKey": "frost",
+                    "heroKey": "spellslinger",
+                    "scenarioKey": "mythic_plus",
+                    "status": "verified",
+                    "sourceStatus": "synced",
+                    "canApplyVisual": True,
+                    "updatedAt": "2026-07-19T00:00:00+00:00",
+                    "payload": {"rioEvidence": {"score": 4123.4}, "wclEvidence": {"tier": "wcl_character_supported"}},
+                },
+            ],
+            "spellslinger",
+        )
+
+        self.assertEqual(templates[0]["id"], "exact-wcl")
+
     def test_community_gear_template_defaults_to_long_availability_with_short_freshness(self):
         checked_before = datetime.now(timezone.utc)
 

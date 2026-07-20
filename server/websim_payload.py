@@ -12825,6 +12825,19 @@ def community_talent_mplus_score(template):
         return 0.0
 
 
+COMMUNITY_TALENT_WCL_TIER_ORDER = {
+    "wcl_exact_template": 40,
+    "wcl_character_supported": 30,
+    "wcl_missing": 10,
+    "wcl_blocked": 0,
+    "wcl_conflict": 0,
+    "platinum": 4,
+    "gold": 3,
+    "silver": 2,
+    "bronze": 1,
+}
+
+
 def community_talent_wcl_tier(template):
     evidence = community_talent_payload(template).get("wclEvidence")
     if not isinstance(evidence, dict):
@@ -12832,12 +12845,7 @@ def community_talent_wcl_tier(template):
     value = evidence.get("tier")
     if isinstance(value, (int, float)):
         return int(value)
-    return {
-        "bronze": 1,
-        "silver": 2,
-        "gold": 3,
-        "platinum": 4,
-    }.get(str(value or "").strip().lower(), 0)
+    return COMMUNITY_TALENT_WCL_TIER_ORDER.get(str(value or "").strip().lower(), 0)
 
 
 def community_talent_template_sort_key(template):
