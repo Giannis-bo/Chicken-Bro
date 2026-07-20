@@ -46,8 +46,8 @@
     },
     {
       "command": "node scripts/verify-project.js --profile harness --release artifacts/releases/2026-07-20-harness-v0-6-4-wechat-preview-refresh --base origin/main",
-      "status": "not_run",
-      "summary": "Pending clean exact-HEAD Harness verification after the task packet commit."
+      "status": "pass",
+      "summary": "The clean committed task head passed all six Harness profile commands, including 91 control-plane tests and packet identity checks."
     }
   ],
   "candidateDeployment": {
