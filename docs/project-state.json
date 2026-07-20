@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-07-19",
+  "updatedAt": "2026-07-20",
   "activeMilestone": "taro_target_first_14_route_rebuild",
   "featureIteration": "allowed_under_harness",
-  "defaultLocalReleaseArtifact": "artifacts/releases/2026-07-19-harness-v0-6-2-control-plane-cleanup",
+  "defaultLocalReleaseArtifact": "artifacts/releases/2026-07-20-harness-v0-6-3-docs-dx",
   "releaseResolution": {
     "ci": "task_scoped_pr_diff",
     "local": "explicit_release_or_default_local_release_artifact",
@@ -14,11 +14,11 @@
   },
   "activeContracts": [
     {
-      "id": "repo_native_harness_v0_6_2",
+      "id": "repo_native_harness_v0_6_3",
       "path": "docs/harness.md",
       "status": "active",
       "lifecycle": "active",
-      "notes": "Current risk-layered delivery gate with task-scoped PR packets, separate runtime/verification/closure identities, truthful manual-acceptance rollups, single-candidate-window, evidence promotion and Superpowers method-layer boundaries."
+      "notes": "Current risk-layered delivery gate with one current-truth order, task-scoped PR packets, strict CLI arguments, local ignored-file resilience, separate runtime/verification/closure identities, truthful manual-acceptance rollups, single-candidate-window, evidence promotion and Superpowers method-layer boundaries."
     },
     {
       "id": "backend_hotspot_owner_map",
@@ -84,6 +84,13 @@
       "status": "completed_local_verified_archived",
       "evidence": "artifacts/releases/2026-07-19-harness-v0-6-2-control-plane-cleanup/evidence.json",
       "notes": "PR #93 merged task-scoped release resolution, immutable identity binding, exact manual-acceptance sets, superseded document/evidence cleanup and compatibility caller-proof governance. Exact-head full CI and post-merge Harness verification passed; no runtime or deployment claim was made."
+    },
+    {
+      "id": "harness_v0_6_3_docs_dx_20260720",
+      "domain": "harness_control_plane",
+      "status": "completed_local_verified",
+      "evidence": "artifacts/releases/2026-07-20-harness-v0-6-3-docs-dx/evidence.json",
+      "notes": "Current-truth order, Taro and DevTools onboarding, active-document reachability, ignored local metadata resilience, full evidence read-mode fields and fail-fast CLI behavior completed without runtime or deployment changes."
     },
     {
       "id": "equipment_simulator_phase0_20260710",

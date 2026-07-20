@@ -1,7 +1,7 @@
 # Repo-native Harness
 
-> Harness version：v0.6.2。
-> 最后更新：2026-07-19。
+> Harness version：v0.6.3。
+> 最后更新：2026-07-20。
 > 适用范围：本仓库所有需求讨论、方案设计、实现、验证、部署和交付声明。
 
 本文定义项目内置的轻量交付 Harness。它不是外部平台替代品，也不替代现有 roadmap、runbook、测试或部署脚本。它的作用是把“能不能开始实现”和“能不能声明完成”变成明确的合同和证据状态。
@@ -13,7 +13,7 @@
 - 没有证据就不能升级状态。`pass`、`verified`、`done`、`live` 必须有对应证据。
 - 覆盖率不是质量证明。类似 `40/40`、`80/80`、测试通过、接口 200 只能证明对应维度，不自动证明用户预期。
 - 公开入口优先保守。内部 evidence、prototype、legacy fallback、diagnostic 不能自动进入用户可见入口。
-- 当前事实优先。`docs/roadmap.md` 顶部、`docs/README.md`、当前 runbook 和 active contract 胜过旧计划、旧截图、旧 manifest。
+- 当前事实优先。`docs/project-state.json` 是 Standard / Strict 第一入口；roadmap、文档地图、active contract 和当前 runbook 胜过旧计划、旧截图、旧 manifest。
 - 证据只能声明它能证明的等级。静态检查、本地测试、真实运行、线上 smoke、用户验收不能互相冒充。
 - 事实判断必须有 owner。前端、health/admin、定时任务和脚本不能各自创造事实结论。
 - 需求不能按单点实现。Standard 以上需求必须先评估它属于哪条业务链路，以及会传播到哪些后端、前端、数据、定时任务和运维面。
@@ -186,11 +186,12 @@ Strict 只表示产品、可信边界或发布判断需要先对齐；它不自�
 
 当前事实读取顺序：
 
-1. `docs/roadmap.md` 顶部最新状态。
-2. `docs/README.md` 指向的当前文档入口。
-3. 相关领域 runbook / architecture doc。
-4. 当前 active contract、handoff、implementation permit 或 source-of-truth 文档。
-5. 历史 `docs/plans/`、`docs/design/` 和 artifacts，只能作为证据背景，除非被当前入口明确引用。
+1. `docs/project-state.json`：机器可读里程碑、活动合同、发布包和运行时基线。
+2. `docs/roadmap.md`：产品方向、当前主线和优先级。
+3. `docs/README.md`：当前文档地图与活动计划入口。
+4. 当前 active plan / contract / source-of-truth 文档。
+5. 相关领域 runbook / architecture doc。
+6. 历史计划、设计救援记录和 artifacts 只能作为证据背景，除非被当前入口明确引用。
 
 当前事实门禁必须回答：
 
@@ -502,6 +503,7 @@ Harness 复盘节奏：
 
 | Version | Date | Change |
 | --- | --- | --- |
+| v0.6.3 | 2026-07-20 | 统一 `project-state -> roadmap -> docs map -> active contract -> domain docs` 当前事实顺序；固化 Taro/DevTools 开发入口；让活动 runbook 全部可达；CLI 增加 help 与严格参数校验；本地控制面检查忽略未跟踪系统元数据，避免 CI 绿而本地假失败。 |
 | v0.6.2 | 2026-07-19 | PR CI 改为从 diff 绑定唯一完整且交叉校验的任务 release packet；evidence schema v2 分离 runtime/verification/closure identity，runtime 只认同类型 immutable candidate，verification 只认 clean exact HEAD，并校验 requirement 冻结的完整 accepted/not_run_user_waived/pending 人工验收集合；全局 release 指针不再能满足 CI。 |
 | v0.6.1 | 2026-07-16 | 将 Superpowers 固定为按需方法层：Harness 优先决定分级、验证、候选、拓扑和收口；Light Fast Lane 不被设计/worktree/并行/收尾技能重新加重；禁止自动依赖安装与收尾菜单覆盖 Harness closure。 |
 | v0.6 | 2026-07-15 | 按运行面风险分层验证：开发期默认 targeted，普通 runtime 由最终 CI full 覆盖，高风险写路径才额外本地 full；CI 不再重复 harness + full；同一最终 runtime head 仅一次候选部署；候选窗口串行化；归档不再阻塞合入或重跑业务 full。 |
@@ -592,18 +594,14 @@ idea
 node scripts/project-harness.js --json --slug <slug>
 node scripts/project-harness.js --json --write --date YYYY-MM-DD --slug <slug>
 node scripts/project-harness.js --json --slug <slug> --evidence-file artifacts/releases/<release>/evidence.json
+node scripts/project-harness.js --help
 ```
 
 带 `--write` 时会写入本地 `artifacts/releases/<date>-<slug>/manifest.json`。不带 `--write` 时只输出 JSON 到 stdout。
 
-带 `--evidence-file` 时只读取仓库内本地 JSON evidence packet，不执行其中的命令。Evidence packet 至少应包含：
+带 `--evidence-file` 时只读取仓库内本地 JSON evidence packet，不执行其中的命令。完整 Standard / Strict packet 以 [evidence 模板](templates/harness-evidence.json) 和 [schema v2](schemas/harness-evidence.schema.json) 为准，并必须通过 `project-harness.js --check`；正文不复制 required 字段清单，避免 prose、模板和校验器漂移。只读聚合结果中的字段摘要不等于完整 packet 已通过交付门禁。
 
-- `status`
-- `highestEvidenceLevel`
-- `scope`
-- `verification`
-- `risks`
-- `rollback`
+两个 Harness CLI 都支持 `--help`。未知参数或缺失参数值必须立即失败，不能静默退回默认 `full`、默认 release 或默认 manifest 行为。
 
 第一版聚合：
 
@@ -624,6 +622,7 @@ node scripts/project-harness.js --json --slug <slug> --evidence-file artifacts/r
 - data health。
 - deploy smoke。
 - risk matrix。
+- v0.6.3 current-truth、文档可达性、本地稳健性与 CLI fail-fast 规则。
 - v0.6.2 task-scoped packet、identity 与人工验收汇总门禁。
 - v0.6.1 Superpowers 方法层优先级与 Light Fast Lane 保护规则。
 - v0.6 verification-efficiency、single-candidate-window 与 merge/archive separation 规则。
