@@ -13,7 +13,7 @@ test('backend owner map defines the backend hotspot ownership contract', () => {
   const ownerMap = readOwnerMap()
 
   assert.equal(ownerMap.status, 'phase4_admin_gate_queue_summary_read_model_selector_extracted')
-  assert.equal(ownerMap.harnessVersion, 'v0.6')
+  assert.equal(ownerMap.harnessVersion, 'v0.6.4')
   assert.equal(ownerMap.defaultEvidenceLevel, 'local_verified')
   assert.ok(ownerMap.rules.mustHaveCharacterizationBeforeExtraction)
 

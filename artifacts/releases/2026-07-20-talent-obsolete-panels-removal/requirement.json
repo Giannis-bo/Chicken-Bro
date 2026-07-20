@@ -1,0 +1,142 @@
+{
+  "schemaVersion": 1,
+  "slug": "talent-obsolete-panels-removal",
+  "classification": "Standard",
+  "status": "implementation_allowed",
+  "goal": "Remove the obsolete WebSim status panel and community-template summary row from the active talent simulator while keeping the action bar anchored at the bottom, fitting the released talent-tree canvas to one screen without disrupting its alignment, making only the tree viewport vertically scrollable, enabling every legal hero-tree choice for the selected specialization, rendering each authoritative visual talent node exactly once, showing the selected hero tree's trusted root-talent icon in the selector, expanding sparse hero trees to the practical visual area, and preventing one specialization's Hero-tree variant or superseded spell from appearing as a second root in another specialization.",
+  "userValue": "Players see the complete talent tree with balanced spacing, can scroll just the tree to inspect its upper and lower edge nodes, switch between the two legal hero trees for their specialization, recognize the active hero tree from its real talent icon, and never see or pay points for a duplicated visual talent node—even when an old cache contains a different spell ID at the same visual slot.",
+  "nonGoals": [
+    "Do not change the legal hero-tree catalogue, talent choice semantics, community-template provenance or stored player data.",
+    "Do not change talent graph selection, backend validation, backend export, template save or reset behavior.",
+    "Do not rewrite the canonical target image, target inventory or target-only geometry as if the removed regions had never existed.",
+    "Do not merge before the final candidate is manually accepted in WeChat DevTools."
+  ],
+  "currentTruth": {
+    "sources": [
+      "docs/project-state.json",
+      "docs/roadmap.md",
+      "docs/harness.md",
+      "docs/plans/ui-reconstruction.md",
+      "DESIGN.md",
+      "docs/design/current-ui/README.md",
+      "docs/design/current-ui/routes/talent-simulator/target-inventory.json",
+      "docs/design/current-ui/routes/talent-simulator/component-contract.json",
+      "docs/design/current-ui/routes/talent-simulator/truth-adaptation.json"
+    ],
+    "activeMilestone": "taro_target_first_14_route_rebuild",
+    "featureIteration": "allowed_under_harness"
+  },
+  "impactMap": {
+    "mustChange": [
+      "The active Taro talent simulator must stop rendering the WebSim status panel and community-template row.",
+      "The page must stop issuing the talentImport request that existed only for the removed summary surface.",
+      "The bottom action bar must keep its original bottom position while the talent tree and legend consume the removed panels vertical space; complete dense trees must use the expanded canvas width and height without changing node shapes, row order, row centering or edge geometry.",
+      "Only the talent-tree viewport may scroll vertically, with safe reach for its first and final nodes; the surrounding talent page must remain fixed.",
+      "The hero selector must use the selected specialization's legal heroTrees supplied by websim.bootstrap, reload the active hero tree on selection, and reset to a specialization's default hero when the specialization changes.",
+      "The hero selector crest must use the active hero tree's first-row trusted talent icon, not an invented hero asset or a generic fallback when that icon is available.",
+      "Sparse hero trees must use the expanded tree viewport's practical horizontal and vertical space while preserving centered rows, node shapes, edge topology, tree-only scrolling and the fixed outer page.",
+      "The SimC Hero-tree parser must project a record to its declared specialization when that Hero tree has direct specialization coverage, retain shared-tree projection only for a selected specialization that has no direct Hero record, and honor a record's override spell before one visible node is selected for a non-choice coordinate.",
+      "The backend read model and API client must collapse non-choice records by tree, Hero tree and visual coordinate even when their spell IDs differ, while retaining choice alternatives and existing node-ID multi-rank merge behavior; cached records must be filtered to the selected specialization before availability and validation are calculated.",
+      "The active talent route geometry, component, truth-adaptation and asset contracts must record the product override without falsifying target observations.",
+      "A regression contract must prevent the removed surfaces, request and layout gap from returning."
+    ],
+    "mustNotChange": [
+      "The legal hero-tree catalogue, PostgreSQL source data, community-template provenance and scheduled synchronization.",
+      "Talent graph source truth, rank validation, export authority, template persistence and reset behavior.",
+      "Other routes, shared action components and the raw canonical target observation files.",
+      "The unrelated local apps/mini-taro/project.config.json edit."
+    ],
+    "riskUnknown": [
+      "Final vertical rhythm and absence of a visual gap remain pending until the exact candidate is viewed in WeChat DevTools.",
+      "The backend candidate must prove its de-duplicated talent payload and validation availability agree with the frontend's temporary client-side compatibility guard."
+    ],
+    "evidenceRequired": [
+      "Failing-then-passing route contract tests for removed rendering/request behavior and expanded talent-tree layout/region contracts.",
+      "TypeScript, ESLint, Taro tests, UI architecture audit and a staged WeChat build.",
+      "Manual confirmation in WeChat DevTools that the three selectors are visible and the hero selector switches between legal choices with the active hero root-talent icon, both obsolete surfaces are absent, no visual talent node is duplicated, the action bar remains at the bottom, complete dense and sparse hero trees fill the main visual area with balanced spacing and no overlap, and only the tree viewport vertically scrolls.",
+      "A full SimC source scan proving all expected Hero trees parse and contain no duplicate non-choice visual slots, plus a final branch-head backend candidate smoke proving the hero request is preserved and duplicate visual-slot records are absent before merge."
+    ]
+  },
+  "ownership": {
+    "factOwner": "server/websim_payload.py",
+    "consumers": [
+      "apps/mini-taro/src/pages/builds/talent-simulator.module.scss",
+      "apps/mini-taro/src/pages/builds/talent-simulator.tsx",
+      "packages/api-client/src/websim.ts",
+      "docs/design/current-ui/route-geometry-contract.json",
+      "docs/design/current-ui/routes/talent-simulator/component-contract.json",
+      "docs/design/current-ui/routes/talent-simulator/truth-adaptation.json",
+      "docs/design/current-ui/routes/talent-simulator/asset-contract.json"
+    ]
+  },
+  "engineeringHealth": {
+    "status": "health_safe_bounded_read_model_and_frontend_fix",
+    "reason": "The change preserves the existing backend owner while correcting its de-duplication boundary and adding a frontend compatibility guard; no source ingestion, write path, schema migration, schedule or legal-hero catalogue changes."
+  },
+  "acceptanceEvidence": [
+    "npx vitest run apps/mini-taro/src/pages/builds/talent-simulator-page-contract.test.ts apps/mini-taro/src/pages/builds/talent-simulator-visual-contract.test.ts apps/mini-taro/src/pages/builds/talent-simulator-model.test.ts",
+    "npx vitest run packages/api-client/src/websim.test.ts",
+    "python3 -m unittest tests.websim_payload_test.WebSimPayloadTest.test_talent_payload_dedupes_cached_non_choice_nodes_and_marks_apex tests.websim_payload_test.WebSimPayloadTest.test_talent_payload_dedupes_same_visual_spell_slot tests.websim_payload_test.WebSimPayloadTest.test_talent_payload_can_select_hero_tree tests.websim_payload_test.WebSimPayloadTest.test_talent_payload_default_hero_matches_spec_picker_order",
+    "npm run audit:ui-architecture",
+    "npm run typecheck",
+    "npm run test:taro",
+    "npx eslint apps/mini-taro/src/pages/builds/talent-simulator.tsx apps/mini-taro/src/pages/builds/talent-simulator-model.ts apps/mini-taro/src/pages/builds/talent-simulator-model.test.ts apps/mini-taro/src/pages/builds/talent-simulator-page-contract.test.ts apps/mini-taro/src/pages/builds/talent-simulator-visual-contract.test.ts packages/design-system/src/components/AppShell.tsx packages/design-system/src/components/TalentSimulatorComponents.tsx --max-warnings=0",
+    "npm run build:weapp",
+    "Fresh WeChat DevTools verification of talent_selectors_visible, talent_obsolete_blocks_removed and talent_action_bar_bottom_anchored_tree_expanded on the final candidate"
+  ],
+  "manualAcceptanceContract": {
+    "required": true,
+    "requiredItemIds": [
+      "talent_selectors_visible",
+      "talent_hero_selector_switches_and_tree_is_not_duplicated",
+      "talent_obsolete_blocks_removed",
+      "talent_action_bar_bottom_anchored_tree_expanded"
+    ]
+  },
+  "releaseTrigger": "frontend_user_visible",
+  "rollback": [
+    "code_rollback"
+  ],
+  "decisionLog": [
+    {
+      "date": "2026-07-20",
+      "decision": "The user explicitly marked the framed WebSim status and community-template surfaces as obsolete and asked to remove them from the active talent simulator."
+    },
+    {
+      "date": "2026-07-20",
+      "decision": "The source target observations remain immutable; the active component and truth contracts record a user-authorized exclusion, keep the retained action bar bottom-anchored, and expand the tree viewport into the vacated space."
+    },
+    {
+      "date": "2026-07-20",
+      "decision": "The user selected the one-screen tree option: preserve node ordering, row centering and edges, then uniformly fit and vertically center the complete tree in the expanded viewport."
+    },
+    {
+      "date": "2026-07-20",
+      "decision": "After seeing the uniformly fitted candidate, the user asked for the complete dense tree to use the main visual width and height. The final layout expands only dense complete trees while sparse trees retain legacy alignment."
+    },
+    {
+      "date": "2026-07-20",
+      "decision": "DevTools runtime inspection showed that a 20px inset still made the expanded tree look undersized. Complete trees with five or more nodes on their widest row now use an 8px safe inset and recalculated row spacing; selector and bottom-action geometry remain unchanged."
+    },
+    {
+      "date": "2026-07-20",
+      "decision": "The remaining visual gap came from mixing JSX inline px graph geometry with Taro-compiled rpx canvas CSS. All dynamic graph coordinates, bounds and edge lengths now use the same 750/390 rpx design unit as the canvas; this preserves node order, row centering and edge topology while making the entire tree use the intended visible region."
+    },
+    {
+      "date": "2026-07-20",
+      "decision": "The expanded candidate has the intended scale, but its edge nodes and rank labels need independent vertical reach. Keep the outer talent page fixed, then give only the internal graph ScrollView 24px of top and bottom reach with its visible scrollbar enabled."
+    },
+    {
+      "date": "2026-07-20",
+      "decision": "The selected specialization's legal hero choices come from websim.bootstrap. The active hero payload remains backend-owned; the client retains a compatibility de-duplication guard while the backend read model removes same-spell, same-coordinate non-choice duplicates before availability and validation are calculated."
+    },
+    {
+      "date": "2026-07-20",
+      "decision": "The active hero selector crest uses the existing first-row hero root-talent icon from the authoritative payload rather than a generic or invented hero asset. Sparse hero trees now expand only within the tree viewport to use its practical horizontal and vertical area, preserving row centering, node shapes and edge topology."
+    },
+    {
+      "date": "2026-07-20",
+      "decision": "A second-root audit found that Hero records with different spell IDs were being copied to every specialization that selected the same Hero tree. The parser now keeps declared specialization variants separate, falls back to shared records only where a selected specialization has no direct Hero coverage, and removes superseded override spells before the backend and client coordinate-level compatibility guards run."
+    }
+  ]
+}

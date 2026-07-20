@@ -9,8 +9,18 @@
   "compositionOwner": {
     "name": "TalentSimulatorPage",
     "location": "apps/mini-taro/src/pages/builds/talent-simulator.tsx",
-    "responsibility": "compose the ten target regions from one normalized real talent graph without replacement state panels"
+    "responsibility": "compose the eight retained route regions from one normalized real talent graph without replacement state panels"
   },
+  "productOverrides": [
+    {
+      "id": "remove_obsolete_talent_advisory_blocks_20260720",
+      "excludedTargetRegions": ["websim_panel", "community_template_row"],
+      "layoutRule": "tree_canvas consumes the excluded regions vertical space while bottom_action_bar keeps its original bottom position",
+      "treeViewportPolicy": "all class, specialization and hero trees preserve the backend row/column lattice: nodes that share a source column remain vertically aligned, sparse rows retain their empty-lane branch spans, and repeated source positions fan into safe non-overlapping sockets; dense class and specialization trees use a 60px minimum row rhythm and retain their horizontal fit while the internal ScrollView owns any extra vertical reach rather than shrinking the tree back down; sparse hero trees use the same shared-lattice rule while expanding their practical width and row gap into the viewport; all graph inline coordinates use the same 750/390 rpx design unit as the canvas; the tree ScrollView adds 24px of top and bottom reach for nodes and rank labels while the page surface remains fixed",
+      "preservedBehavior": ["backend_talent_validation", "backend_talent_export", "save_template", "reset"],
+      "targetObservationPolicy": "target-inventory.json and target-geometry.json remain unchanged records of the original target image"
+    }
+  ],
   "components": [
     {
       "owner": "PageFrame",
@@ -43,29 +53,21 @@
       "targetRegions": ["tree_canvas"],
       "location": "packages/design-system/src/components/TalentSimulatorComponents.tsx",
       "contract": {
+        "viewportHeight": 461,
+        "fitPolicy": "all_talent_trees_use_shared_source_lattice_to_preserve_branch_gaps_and_a_60px_minimum_dense_tree_row_rhythm_with_internal_vertical_reach",
+        "verticalScroll": true,
+        "verticalScrollPadding": 24,
         "coordinateInputs": ["row", "column"],
         "edgeInputs": ["prerequisiteIds", "parentMode"],
         "loadingSocketCount": 19,
         "retainsAllRealNodes": true,
-        "overflowOwner": "internal ScrollView"
+        "overflowOwner": "internal ScrollView; the route AppShell body is locked"
       }
     },
     {
       "owner": "TalentLegend",
       "decision": "new_owner",
       "targetRegions": ["legend_bar"],
-      "location": "packages/design-system/src/components/TalentSimulatorComponents.tsx"
-    },
-    {
-      "owner": "TalentImportStatus",
-      "decision": "new_owner",
-      "targetRegions": ["websim_panel"],
-      "location": "packages/design-system/src/components/TalentSimulatorComponents.tsx"
-    },
-    {
-      "owner": "TalentCommunityRow",
-      "decision": "new_owner",
-      "targetRegions": ["community_template_row"],
       "location": "packages/design-system/src/components/TalentSimulatorComponents.tsx"
     },
     {
@@ -82,15 +84,15 @@
     },
     {
       "owner": "EvidenceLedger",
-      "reason": "the target has a readiness/import composition, not a table or ledger"
+      "reason": "the active route needs a direct graph-to-actions flow, not a table or ledger"
     },
     {
       "owner": "WowPanel",
-      "reason": "generic titled cards cannot express the selector, graph, legend, status and action topology"
+      "reason": "generic titled cards cannot express the selector, graph, legend and action topology"
     },
     {
       "owner": "RouteStatePanel",
-      "reason": "replacement state panels delete the target's ten stable regions"
+      "reason": "replacement state panels delete the active route's eight stable regions"
     }
   ],
   "layoutContract": {
@@ -107,16 +109,14 @@
       "selector_panel": {"x": 7.85, "y": 56.71, "width": 374.3, "height": 66.74},
       "talent_tabs": {"x": 13.09, "y": 131.74, "width": 363.83, "height": 30.54},
       "points_summary_bar": {"x": 7.85, "y": 168.39, "width": 374.3, "height": 34.9},
-      "tree_canvas": {"x": 10.47, "y": 203.72, "width": 369.06, "height": 314.09},
-      "legend_bar": {"x": 14.83, "y": 522.18, "width": 360.34, "height": 31.41},
-      "websim_panel": {"x": 7.85, "y": 560.13, "width": 374.3, "height": 90.3},
-      "community_template_row": {"x": 7.85, "y": 656.54, "width": 374.3, "height": 41.88},
+      "tree_canvas": {"x": 10.47, "y": 203.72, "width": 369.06, "height": 461.09},
+      "legend_bar": {"x": 14.83, "y": 669.18, "width": 360.34, "height": 31.41},
       "bottom_action_bar": {"x": 13.09, "y": 706.28, "width": 363.83, "height": 45.37}
     },
     "nativeSafeArea": "AppShell owns native top and bottom insets; this pushed route has no Product TabBar"
   },
   "stateContract": {
-    "stableRegionCount": 10,
+    "stableRegionCount": 8,
     "loadingSocketCount": 19,
     "stableSelectorCount": 3,
     "stableActionCount": 3

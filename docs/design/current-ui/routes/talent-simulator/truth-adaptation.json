@@ -6,6 +6,14 @@
   "authority": "docs/plans/ui-reconstruction.md",
   "targetInventory": "docs/design/current-ui/routes/talent-simulator/target-inventory.json",
   "targetGeometry": "docs/design/current-ui/routes/talent-simulator/target-geometry.json",
+  "productOverrides": [
+    {
+      "id": "remove_obsolete_talent_advisory_blocks_20260720",
+      "excludedTargetRegions": ["websim_panel", "community_template_row"],
+      "reason": "the advisory status and community summary surfaces are no longer useful in the active talent journey",
+      "retainedFlow": "edit the graph, then save, copy the backend export, or reset from the bottom action bar"
+    }
+  ],
   "runtimeFacts": {
     "route": "pages/builds/talent-simulator",
     "navigation": "pushed",
@@ -13,19 +21,20 @@
       "builds.home",
       "websim.bootstrap",
       "websim.talents",
-      "websim.talentImport",
+      "websim.talentValidate",
+      "websim.talentExport",
       "templates.upsert"
     ],
     "outgoing": [],
     "localInteractions": [
       "class_selector",
       "specialization_selector",
+      "hero_selector",
       "tree_tab",
       "talent_rank_cycle",
       "tree_scroll",
-      "community_template_status",
-      "copy_verified_import",
-      "save_verified_import",
+      "copy_backend_export",
+      "save_validated_export",
       "reset"
     ]
   },
@@ -69,6 +78,7 @@
       "status": "blocked",
       "source": "community_template",
       "importCodeLength": 0,
+      "runtimeConsumerStatus": "removed_by_product_override_20260720",
       "blockers": [
         "no SimC-ready community talent import"
       ]
@@ -93,13 +103,13 @@
   },
   "trustRules": [
     "All target labels, point values, node identities, ranks, edges, lock states and service statuses are placeholders and never runtime facts.",
-    "The target defines the ten-region composition and baseline visual density; the API defines the real 111 nodes, section counts, ranks, coordinates, parent edges and point caps.",
-    "All real nodes remain reachable in an internal tree scroll surface; the route must not delete nodes to force the target placeholder count of 19.",
+    "The source target records ten observed regions, while the user-authorized product override excludes websim_panel and community_template_row from the active eight-region composition; the API defines the real 111 nodes, section counts, ranks, coordinates, parent edges and point caps.",
+    "All real nodes and rank labels remain reachable in a vertically scrollable internal tree surface with top and bottom reach; the route AppShell body stays fixed so tree gestures do not move the page, and the route must not delete nodes to force the target placeholder count of 19.",
     "Only backend node iconUrl values accepted by the trusted runtime media allowlist may represent real talents; generated art may only frame those icons.",
     "spellReady=false and 55 unresolved formulas require a partial evidence state; unresolved descriptions cannot be presented as complete spell text.",
-    "encodingReady=true does not make a blocked empty talentImport usable. Copy and save stay disabled until status is verified and importCode is non-empty.",
-    "Community templates are source references only until a verified import can be decoded or returned; the route must not fabricate selected ranks from template titles.",
-    "Loading, empty, blocked and error states retain all ten target regions and the target's 19-socket loading density."
+    "Copy and save always request a fresh backend validation/export and never manufacture a local talent code.",
+    "Community templates remain backend source references, but the active route no longer renders their obsolete summary row or fabricates selected ranks from template titles.",
+    "Loading, empty, blocked and error states retain all eight active regions and the target's 19-socket loading density."
   ],
   "mappings": [
     {
@@ -110,7 +120,7 @@
     {
       "region": "selector_panel",
       "slot": "class_spec_hero",
-      "runtime": "real builds.home class and specialization selectors plus the hero section returned by websim.talents",
+      "runtime": "real builds.home class and specialization selectors, spec-specific hero choices from websim.bootstrap, the trusted iconUrl on the active hero tree's first-row root talent as the hero crest, and the active hero section returned by websim.talents",
       "fallback": "retain three slots and show 未提供 when the backend has no hero selector catalog"
     },
     {
@@ -126,7 +136,7 @@
     {
       "region": "tree_canvas",
       "slot": "real_talent_graph",
-      "runtime": "all active-section nodes placed from normalized row/column and connected from normalized prerequisiteIds inside a bounded scroll viewport",
+      "runtime": "all class, specialization and hero trees use one shared normalized row/column lattice and connect from normalized prerequisiteIds inside a bounded vertical ScrollView with 24px top and bottom reach; matching source columns align across rows, empty source lanes preserve branch spans, and repeated positions fan safely instead of overlapping; dense class and specialization trees retain a 60px minimum row rhythm and allow internal vertical reach instead of being vertically scaled back down, while sparse hero trees use the viewport's full practical row spacing and width without recentering each row independently; the outer route surface does not scroll",
       "fallback": "19 neutral loading or unavailable sockets without fabricated names or ranks"
     },
     {
@@ -135,29 +145,19 @@
       "runtime": "selected, available, unselected and blocked states derived from ranks, prerequisites and requiredPoints"
     },
     {
-      "region": "websim_panel",
-      "slot": "readiness_and_import",
-      "runtime": "talentReadiness spell/encoding/simc flags and talentImport status/blockers"
-    },
-    {
-      "region": "community_template_row",
-      "slot": "community_references",
-      "runtime": "real presets/communityTemplates count and an honest unavailable-to-apply status when no verified code exists"
-    },
-    {
       "region": "bottom_action_bar",
       "slot": "save_import_reset",
-      "runtime": "save and import operate only on verified non-empty importCode; reset restores backend selected ranks"
+      "runtime": "save and import request a fresh verified backend export; reset restores backend selected ranks"
     }
   ],
   "stateContract": {
-    "loading": "mount ten regions, three selector skeletons, three tabs, counters, 19 neutral sockets, legend, readiness panel, community row and three actions",
-    "ready": "render all real nodes and edges in the active internal tree surface",
+    "loading": "mount eight regions, three selector skeletons, three tabs, counters, 19 neutral sockets, legend and three actions",
+    "ready": "render all real nodes and edges in the fixed route surface's active internal tree scroll viewport",
     "partial": "preserve graph interaction while clearly marking incomplete spell evidence",
     "stale": "preserve cached graph and expose stale state without upgrading readiness",
-    "blocked": "preserve all regions, graph slots and backend blockers; disable unsupported save/import actions",
-    "error": "preserve all regions and map the first action slot to deterministic retry",
-    "empty": "preserve all regions and 19 neutral sockets without invented talents"
+    "blocked": "preserve all eight active regions and graph slots; disable unsupported save/import actions",
+    "error": "preserve all eight active regions and map the first action slot to deterministic retry",
+    "empty": "preserve all eight active regions and 19 neutral sockets without invented talents"
   },
   "pendingTruthGaps": []
 }

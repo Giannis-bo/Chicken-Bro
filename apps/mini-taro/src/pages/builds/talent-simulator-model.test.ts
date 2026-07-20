@@ -1,9 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
-import type { TalentNode, TalentNodeAvailabilityPayload } from '@wow-mini/domain'
+import type {
+  TalentNode,
+  TalentNodeAvailabilityPayload,
+  WebsimBootstrapPayload,
+} from '@wow-mini/domain'
 
 import {
   buildTalentGraph,
+  heroTalentIcon,
+  heroTalentOptions,
   applyTalentValidation,
   initialTalentRanks,
   proposeTalentChoice,
@@ -188,23 +194,50 @@ describe('talent simulator target model', () => {
     })
   })
 
-  it('centers a sparse two-node row instead of preserving its distant canonical lanes', () => {
-    const crowdedRow: readonly TalentNode[] = [
-      { ...nodes[0]!, id: 'left-branch', name: '左分支', row: 1, column: 8, prerequisiteIds: [] },
-      { ...nodes[1]!, id: 'right-branch', name: '右分支', row: 1, column: 9, prerequisiteIds: [] },
+  it('preserves Wowhead Frost source lanes between the central root and its two branches', () => {
+    const frostTopRows: readonly TalentNode[] = [
+      { ...nodes[0]!, id: 'root', name: '冰法根节点', row: 1, column: 10, prerequisiteIds: [] },
+      { ...nodes[1]!, id: 'left-branch', name: '左分支', row: 2, column: 8, prerequisiteIds: ['root'] },
+      { ...nodes[1]!, id: 'right-branch', name: '右分支', row: 2, column: 12, prerequisiteIds: ['root'] },
+      { ...nodes[1]!, id: 'outer-left', name: '左外侧', row: 3, column: 6, prerequisiteIds: ['left-branch'] },
+      { ...nodes[1]!, id: 'inner-left', name: '左内侧', row: 3, column: 8, prerequisiteIds: ['left-branch'] },
+      { ...nodes[1]!, id: 'inner-right', name: '右内侧', row: 3, column: 12, prerequisiteIds: ['right-branch'] },
+      { ...nodes[1]!, id: 'outer-right', name: '右外侧', row: 3, column: 14, prerequisiteIds: ['right-branch'] },
     ]
     const graph = buildTalentGraph({
-      nodes: crowdedRow,
-      ranks: initialTalentRanks(crowdedRow),
+      nodes: frostTopRows,
+      ranks: initialTalentRanks(frostTopRows),
       routeState: 'ready',
     })
-    const sorted = [...graph.nodes].sort((left, right) => left.x - right.x)
+    const center = (id: string) => graph.nodes.find((node) => node.id === id)!.x + 18
 
-    expect(sorted[1]!.x - sorted[0]!.x).toBe(52)
-    expect((sorted[0]!.x + 18 + sorted[1]!.x + 18) / 2).toBe(175)
+    expect(center('root')).toBe(175)
+    expect(center('root') - center('left-branch')).toBe(52)
+    expect(center('right-branch') - center('root')).toBe(52)
+    expect(center('right-branch') - center('left-branch')).toBe(104)
+    expect(center('left-branch')).toBe(center('inner-left'))
+    expect(center('right-branch')).toBe(center('inner-right'))
   })
 
-  it('centers sparse and crowded rows independently with uniform adjacent gaps', () => {
+  it('keeps the centered-row fallback available for explicit compatibility callers', () => {
+    const frostTopRows: readonly TalentNode[] = [
+      { ...nodes[0]!, id: 'root', name: '冰法根节点', row: 1, column: 10, prerequisiteIds: [] },
+      { ...nodes[1]!, id: 'left-branch', name: '左分支', row: 2, column: 8, prerequisiteIds: ['root'] },
+      { ...nodes[1]!, id: 'right-branch', name: '右分支', row: 2, column: 12, prerequisiteIds: ['root'] },
+    ]
+    const graph = buildTalentGraph({
+      nodes: frostTopRows,
+      ranks: initialTalentRanks(frostTopRows),
+      routeState: 'ready',
+      layoutMode: 'centered_rows',
+    })
+    const center = (id: string) => graph.nodes.find((node) => node.id === id)!.x + 18
+
+    expect(center('root') - center('left-branch')).toBe(26)
+    expect(center('right-branch') - center('root')).toBe(26)
+  })
+
+  it('aligns sparse and crowded rows on their shared source lanes', () => {
     const alignedTree: readonly TalentNode[] = [
       ...[2, 3, 4, 5, 6, 7].map((column): TalentNode => ({
         ...nodes[1]!,
@@ -238,15 +271,120 @@ describe('talent simulator target model', () => {
       center - crowdedCenters[index]!
     ))
 
-    expect(crowdedColumnFour.x).not.toBe(sparseColumnFour.x)
-    expect(sparseColumnFour.x + 18).toBe(175)
+    expect(crowdedColumnFour.x).toBe(sparseColumnFour.x)
+    expect(sparseColumnFour.x + 18).toBe(149)
     expect(crowdedCenters.reduce((total, center) => total + center, 0) / crowdedCenters.length).toBe(175)
     expect(crowdedGaps.every((gap) => gap === crowdedGaps[0])).toBe(true)
     expect(Math.min(...graph.nodes.map((node) => node.x))).toBeGreaterThanOrEqual(0)
     expect(Math.max(...graph.nodes.map((node) => node.x + 36))).toBeLessThanOrEqual(graph.planeWidth)
   })
 
-  it('centers each row from one through nine nodes with exact symmetry and equal spacing', () => {
+  it('uses the complete tree viewport width and height without changing row centering', () => {
+    const fullCanvasNodes: readonly TalentNode[] = [
+      ...Array.from({ length: 10 }, (_, rowIndex): readonly TalentNode[] => {
+        const row = rowIndex + 1
+        if (row === 6) {
+          return Array.from({ length: 5 }, (_, columnIndex): TalentNode => ({
+            ...nodes[1]!,
+            id: `full-row-${row}-node-${columnIndex + 1}`,
+            name: `完整视图 ${row}-${columnIndex + 1}`,
+            row,
+            column: columnIndex + 1,
+            prerequisiteIds: [],
+          }))
+        }
+        return [{
+          ...nodes[1]!,
+          id: `full-row-${row}-node-1`,
+          name: `完整视图 ${row}-1`,
+          row,
+          column: 4,
+          prerequisiteIds: [],
+        }]
+      }).flat(),
+    ]
+    const graph = buildTalentGraph({
+      nodes: fullCanvasNodes,
+      ranks: initialTalentRanks(fullCanvasNodes),
+      routeState: 'ready',
+    })
+    const minX = Math.min(...graph.nodes.map((node) => node.x))
+    const maxX = Math.max(...graph.nodes.map((node) => node.x + 36))
+    const minY = Math.min(...graph.nodes.map((node) => node.y))
+    const maxY = Math.max(...graph.nodes.map((node) => node.y + 36))
+    const displayedScale = Math.min(1, 334 / (maxX - minX), 445 / (maxY - minY))
+    const widestRowCenters = graph.nodes
+      .filter((node) => node.row === 6)
+      .map((node) => node.x + 18)
+
+    expect(maxX - minX).toBeCloseTo(334)
+    expect(maxY - minY).toBeCloseTo(445)
+    expect((Math.min(...widestRowCenters) + Math.max(...widestRowCenters)) / 2).toBeCloseTo(175)
+    expect((maxX - minX) * displayedScale).toBeCloseTo(334)
+    expect((maxY - minY) * displayedScale).toBeCloseTo(445)
+  })
+
+  it('gives every dense source-lattice tree a roomier vertical row rhythm', () => {
+    const frostSampleRows: readonly TalentNode[] = Array.from({ length: 10 }, (_, rowIndex): readonly TalentNode[] => {
+      const row = rowIndex + 1
+      const columns = row === 6 ? [4, 6, 8, 10, 12, 14, 16] : [10]
+      return columns.map((column, columnIndex): TalentNode => ({
+        ...nodes[1]!,
+        id: `frost-sample-${row}-${columnIndex + 1}`,
+        name: `冰法样本 ${row}-${columnIndex + 1}`,
+        row,
+        column,
+        prerequisiteIds: [],
+      }))
+    }).flat()
+    const graph = buildTalentGraph({
+      nodes: frostSampleRows,
+      ranks: initialTalentRanks(frostSampleRows),
+      routeState: 'ready',
+      layoutMode: 'source_lattice',
+    })
+    const rowOne = graph.nodes.find((node) => node.row === 1)!
+    const rowTwo = graph.nodes.find((node) => node.row === 2)!
+
+    expect(rowTwo.y - rowOne.y).toBe(60)
+    expect(graph.planeHeight).toBe(612)
+  })
+
+  it('expands a sparse hero tree across the tree viewport without changing row centering', () => {
+    const sparseHeroNodes: readonly TalentNode[] = [
+      ...Array.from({ length: 5 }, (_, rowIndex): readonly TalentNode[] => {
+        const row = rowIndex + 1
+        const columns = row === 1 || row === 5 ? [3] : [1, 2, 3, 4]
+        return columns.map((column, columnIndex): TalentNode => ({
+          ...nodes[1]!,
+          id: `hero-${row}-${columnIndex + 1}`,
+          name: `英雄树 ${row}-${columnIndex + 1}`,
+          treeKey: 'hero',
+          row,
+          column,
+          prerequisiteIds: [],
+        }))
+      }).flat(),
+    ]
+    const graph = buildTalentGraph({
+      nodes: sparseHeroNodes,
+      ranks: initialTalentRanks(sparseHeroNodes),
+      routeState: 'ready',
+    })
+    const widestRow = graph.nodes.filter((node) => node.row === 2)
+    const minX = Math.min(...graph.nodes.map((node) => node.x))
+    const maxX = Math.max(...graph.nodes.map((node) => node.x + 36))
+    const minY = Math.min(...graph.nodes.map((node) => node.y))
+    const maxY = Math.max(...graph.nodes.map((node) => node.y + 36))
+
+    expect(maxX - minX).toBe(306)
+    expect(maxY - minY).toBe(420)
+    expect(graph.planeHeight).toBe(456)
+    expect(widestRow.map((node) => node.x + 18)).toEqual([40, 130, 220, 310])
+    expect(widestRow.reduce((total, node) => total + node.x + 18, 0) / widestRow.length).toBe(175)
+  })
+
+  it('keeps identical source columns aligned across rows with uniform lane gaps', () => {
     const symmetricRows: readonly TalentNode[] = Array.from({ length: 9 }, (_, rowIndex) => (
       Array.from({ length: rowIndex + 1 }, (_, nodeIndex): TalentNode => ({
         ...nodes[1]!,
@@ -271,10 +409,10 @@ describe('talent simulator target model', () => {
       const centers = row.map((node) => node.x + 18)
       const gaps = centers.slice(1).map((center, index) => center - centers[index]!)
 
-      expect(centers.reduce((total, center) => total + center, 0) / centers.length).toBeCloseTo(175)
       expect(gaps.every((gap) => Math.abs(gap - gaps[0]!) < 0.001)).toBe(true)
-      centers.forEach((center, index) => {
-        expect(350 - center).toBeCloseTo(centers[centers.length - 1 - index]!)
+      row.forEach((node) => {
+        const sameColumn = graph.nodes.find((candidate) => candidate.row === 9 && candidate.column === node.column)
+        if (sameColumn) expect(node.x).toBe(sameColumn.x)
       })
     }
 
@@ -286,7 +424,7 @@ describe('talent simulator target model', () => {
     )))).toBeLessThanOrEqual(graph.planeWidth)
   })
 
-  it('keeps dense rows independently centered and inside the compact canvas', () => {
+  it('keeps dense and staggered rows aligned inside the compact canvas', () => {
     const staggeredTree: readonly TalentNode[] = [
       ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map((column): TalentNode => ({
         ...nodes[1]!,
@@ -321,8 +459,8 @@ describe('talent simulator target model', () => {
     const denseCenters = denseRow.map((node) => node.x + 18)
     const staggeredCenters = staggeredRow.map((node) => node.x + 18)
 
-    expect(byId.get('dense-1')?.x).not.toBe(byId.get('staggered-1')?.x)
-    expect(byId.get('dense-9')?.x).not.toBe(byId.get('staggered-9')?.x)
+    expect(byId.get('dense-1')?.x).toBe(byId.get('staggered-1')?.x)
+    expect(byId.get('dense-9')?.x).toBe(byId.get('staggered-9')?.x)
     expect(denseCenters.reduce((total, center) => total + center, 0) / denseCenters.length).toBeCloseTo(175)
     expect(staggeredCenters.reduce((total, center) => total + center, 0) / staggeredCenters.length).toBeCloseTo(175)
     expect(denseRow.slice(1).every((node, index) => (
@@ -334,7 +472,7 @@ describe('talent simulator target model', () => {
     expect(Math.max(...graph.nodes.map((node) => node.x + 36))).toBeLessThanOrEqual(graph.planeWidth)
   })
 
-  it('centers single nodes regardless of their canonical column number', () => {
+  it('preserves separated canonical columns for nodes on sparse rows', () => {
     const wideTree: readonly TalentNode[] = [
       { ...nodes[0]!, id: 'far-left', row: 1, column: 1, prerequisiteIds: [] },
       { ...nodes[1]!, id: 'far-right', row: 2, column: 11, prerequisiteIds: [] },
@@ -345,7 +483,7 @@ describe('talent simulator target model', () => {
       routeState: 'ready',
     })
 
-    expect(graph.nodes.map((node) => node.x + 18)).toEqual([175, 175])
+    expect(graph.nodes.map((node) => node.x + 18)).toEqual([45, 305])
     expect(Math.min(...graph.nodes.map((node) => node.x))).toBeGreaterThanOrEqual(0)
     expect(Math.max(...graph.nodes.map((node) => node.x + 36))).toBeLessThanOrEqual(graph.planeWidth)
   })
@@ -634,5 +772,56 @@ describe('talent simulator target model', () => {
       spent: 1,
       remaining: 33,
     })
+  })
+
+  it('uses the selected specialization hero trees from the authoritative bootstrap payload', () => {
+    const bootstrap = {
+      navTitle: 'WebSim',
+      classes: [{
+        key: 'mage',
+        label: '法师',
+        heroTrees: [{ key: 'sunfury', label: '烈日之怒' }],
+        specs: [{
+          key: 'frost',
+          label: '冰霜',
+          heroTrees: [
+            { key: 'frostfire', label: '霜火' },
+            { key: 'spellslinger', label: '法术投射者' },
+          ],
+        }],
+      }],
+      scenarios: [],
+      gearSlots: [],
+      defaultSelection: { classKey: 'mage', specKey: 'frost', heroKey: 'frostfire' },
+      dataStatus: 'verified',
+    } as unknown as WebsimBootstrapPayload
+
+    expect(heroTalentOptions(bootstrap, { classKey: 'mage', specKey: 'frost' })).toEqual([
+      { key: 'frostfire', label: '霜火' },
+      { key: 'spellslinger', label: '法术投射者' },
+    ])
+  })
+
+  it('uses the active hero root talent icon for the selector crest', () => {
+    const heroNodes: readonly TalentNode[] = [
+      {
+        ...nodes[1]!,
+        id: 'hero-child',
+        treeKey: 'hero',
+        row: 2,
+        column: 2,
+        iconUrl: 'https://assets.example/hero-child.jpg',
+      },
+      {
+        ...nodes[0]!,
+        id: 'hero-root',
+        treeKey: 'hero',
+        row: 1,
+        column: 2,
+        iconUrl: 'https://assets.example/hero-root.jpg',
+      },
+    ]
+
+    expect(heroTalentIcon(heroNodes)).toBe('https://assets.example/hero-root.jpg')
   })
 })

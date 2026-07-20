@@ -1,5 +1,6 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
+const { spawnSync } = require('node:child_process')
 const fs = require('node:fs')
 const os = require('node:os')
 const path = require('node:path')
@@ -10,7 +11,9 @@ const executableHarnessRelease = 'artifacts/releases/2026-07-10-executable-proje
 const characterizationRelease = 'artifacts/releases/2026-07-10-critical-contract-characterization'
 const archivedPhase5Release = 'artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover'
 const activeHarnessSuperpowersRelease = 'artifacts/releases/2026-07-16-harness-superpowers-method-layer'
-const activeHarnessV062Release = 'artifacts/releases/2026-07-19-harness-v0-6-2-control-plane-cleanup'
+const archivedHarnessV062Release = 'artifacts/releases/2026-07-19-harness-v0-6-2-control-plane-cleanup'
+const completedHarnessV063Release = 'artifacts/releases/2026-07-20-harness-v0-6-3-docs-dx'
+const activeHarnessV064Release = 'artifacts/releases/2026-07-20-harness-v0-6-4-wechat-preview-refresh'
 const archivedTalentLkgRelease = 'artifacts/releases/2026-07-13-talent-link-lkg-sync-guard'
 const archivedCommunityEnhancementRelease = 'artifacts/releases/2026-07-14-community-enhancement-editability'
 
@@ -42,7 +45,7 @@ test('project-state is the single machine-readable current truth entry', () => {
   assert.equal(state.activeMilestone, 'taro_target_first_14_route_rebuild')
   assert.equal(state.featureIteration, 'allowed_under_harness')
   assert.equal(state.activeReleaseArtifact, undefined)
-  assert.equal(state.defaultLocalReleaseArtifact, activeHarnessV062Release)
+  assert.equal(state.defaultLocalReleaseArtifact, activeHarnessV064Release)
   assert.deepEqual(state.releaseResolution, {
     ci: 'task_scoped_pr_diff',
     local: 'explicit_release_or_default_local_release_artifact',
@@ -89,7 +92,7 @@ test('project-state is the single machine-readable current truth entry', () => {
   assertUniqueById(state.historicalContracts, 'historicalContracts')
 
   const activeContractIds = new Set(state.activeContracts.map((entry) => entry.id))
-  assert.ok(activeContractIds.has('repo_native_harness_v0_6_2'))
+  assert.ok(activeContractIds.has('repo_native_harness_v0_6_4'))
   assert.ok(!activeContractIds.has('harness_v0_6_2_control_plane_cleanup'))
   assert.ok(activeContractIds.has('taro_target_first_14_route_rebuild'))
   assert.ok(!activeContractIds.has('talent_link_lkg_sync_guard'))
@@ -99,7 +102,12 @@ test('project-state is the single machine-readable current truth entry', () => {
     (entry) => entry.id === 'harness_v0_6_2_control_plane_cleanup_20260719',
   )
   assert.equal(harnessV062Closure?.status, 'completed_local_verified_archived')
-  assert.equal(harnessV062Closure?.evidence, `${activeHarnessV062Release}/evidence.json`)
+  assert.equal(harnessV062Closure?.evidence, `${archivedHarnessV062Release}/evidence.json`)
+  const harnessV064Closure = state.completedBaselines.find(
+    (entry) => entry.id === 'harness_v0_6_4_wechat_preview_refresh_20260720',
+  )
+  assert.equal(harnessV064Closure?.status, 'completed_local_verified')
+  assert.equal(harnessV064Closure?.evidence, `${activeHarnessV064Release}/evidence.json`)
   assert.ok(!activeContractIds.has('equipment_simulator_phase5_async_stat_snapshot_plan'))
   assert.ok(!activeContractIds.has('equipment_simulator_phase3_resolve_profile_workbench_plan'))
   assert.ok(!activeContractIds.has('equipment_simulator_phase1_contracts_plan'))
@@ -136,7 +144,7 @@ test('project-state is the single machine-readable current truth entry', () => {
     assert.ok(!activePaths.has(entry.path), `${entry.path} should not be both active and historical`)
   }
 
-  for (const releasePath of [activeHarnessV062Release, activeHarnessSuperpowersRelease, archivedTalentLkgRelease, archivedCommunityEnhancementRelease, archivedPhase5Release, characterizationRelease, executableHarnessRelease, controlPlaneRelease]) {
+  for (const releasePath of [activeHarnessV064Release, completedHarnessV063Release, archivedHarnessV062Release, activeHarnessSuperpowersRelease, archivedTalentLkgRelease, archivedCommunityEnhancementRelease, archivedPhase5Release, characterizationRelease, executableHarnessRelease, controlPlaneRelease]) {
     assertPathExists(path.join(releasePath, 'requirement.json'))
     assertPathExists(path.join(releasePath, 'evidence.json'))
     assertPathExists(path.join(releasePath, 'manifest.json'))
@@ -749,6 +757,7 @@ test('raster runtime assets are byte and hash verified without image payloads', 
 test('UI package evidence cannot treat a placeholder remote asset origin as release-ready', () => {
   const verifier = fs.readFileSync('scripts/verify-ui-package.js', 'utf8')
   const publisher = fs.readFileSync('scripts/publish-ui-cdn-assets.js', 'utf8')
+  const deployScript = fs.readFileSync('server/deploy_lighthouse.sh', 'utf8')
   const taroConfig = fs.readFileSync('apps/mini-taro/config/index.ts', 'utf8')
   const transport = fs.readFileSync('packages/api-client/src/transport.ts', 'utf8')
   const domainPolicy = fs.readFileSync('scripts/release-domain-policy.js', 'utf8')
@@ -768,13 +777,17 @@ test('UI package evidence cannot treat a placeholder remote asset origin as rele
   assert.doesNotMatch(transport, /process\.env\[['"]WOW_BACKEND_API_BASE_URL['"]\]/)
   assert.match(verifier, /backendOriginReferenceCount/)
   assert.match(verifier, /runtimeBackendEnvReferenceCount/)
-  assert.match(verifier, /verifyRuntimeMediaReleaseRoot/)
-  assert.match(verifier, /release-manifest\.json/)
-  assert.match(verifier, /WOW_RUNTIME_MEDIA_ROOT is not a readable immutable release/)
   assert.match(verifier, /process\.execPath/)
   assert.match(verifier, /@tarojs['"], 'cli', 'bin', 'taro'/)
   assert.match(verifier, /result\.error/)
+  assert.match(verifier, /verifyRuntimeMediaReleaseRoot/)
+  assert.match(verifier, /release-manifest\.json/)
+  assert.match(verifier, /WOW_RUNTIME_MEDIA_ROOT is not a readable immutable release/)
+  assert.match(deployScript, /mkdir -p \/var\/www\/wow-media\/releases/)
+  assert.match(deployScript, /location \^~ \/wow-media\/releases\//)
+  assert.match(deployScript, /Cache-Control "public, max-age=31536000, immutable" always/)
   assert.equal(packageJson.scripts['verify:ui-package:release'], 'node scripts/verify-ui-package.js --require-production-ready')
+  assert.equal(packageJson.scripts['refresh:weapp'], 'node scripts/refresh-weapp-preview.js')
   assert.equal(packageJson.scripts['build:weapp:release'], undefined)
   assert.doesNotMatch(JSON.stringify(packageJson.scripts), /static\.chickenbro\.cloud/u)
   assert.match(publisher, /const verificationConcurrency = 8/)
@@ -785,11 +798,17 @@ test('UI package evidence cannot treat a placeholder remote asset origin as rele
   assert.match(publisher, /remote asset integrity mismatch/)
 })
 
-test('lighthouse deploy preserves immutable runtime media hosting across redeploys', () => {
-  const deploy = fs.readFileSync('server/deploy_lighthouse.sh', 'utf8')
-  assert.match(deploy, /mkdir -p \/var\/www\/wow-media\/releases/)
-  assert.match(deploy, /location \^~ \/wow-media\/releases\//)
-  assert.match(deploy, /Cache-Control "public, max-age=31536000, immutable" always/)
+test('post-merge WeChat preview refresh is repository-owned and cannot impersonate acceptance', () => {
+  const harness = fs.readFileSync('docs/harness.md', 'utf8')
+  const agents = fs.readFileSync('AGENTS.md', 'utf8')
+  const docsMap = fs.readFileSync('docs/README.md', 'utf8')
+
+  for (const source of [harness, agents, docsMap]) {
+    assert.match(source, /npm run refresh:weapp/)
+  }
+  assert.match(harness, /合入后的本地交付动作/)
+  assert.match(harness, /不能替代.*人工验收/)
+  assert.match(agents, /WECHAT_DEVTOOLS_CLI/)
 })
 
 test('runtime review control plane keeps superseded evidence in Git history only', () => {
@@ -848,10 +867,22 @@ test('runtime review control plane keeps superseded evidence in Git history only
   assert.equal(runtimeFiles.length, 0)
 })
 
-test('superseded execution documents are absent from the active control plane', () => {
-  const supersededDocs = fs.existsSync('docs/superpowers')
-    ? fs.readdirSync('docs/superpowers', { recursive: true, withFileTypes: true }).filter((entry) => entry.isFile())
-    : []
+test('superseded execution documents are absent from the active control plane', (t) => {
+  const ignoredMetadata = 'docs/superpowers/.DS_Store'
+  fs.mkdirSync('docs/superpowers', { recursive: true })
+  fs.writeFileSync(ignoredMetadata, 'ignored metadata')
+  t.after(() => {
+    fs.rmSync(ignoredMetadata, { force: true })
+    try {
+      fs.rmdirSync('docs/superpowers')
+    } catch (error) {
+      if (error.code !== 'ENOTEMPTY' && error.code !== 'ENOENT') throw error
+    }
+  })
+
+  const trackedResult = spawnSync('git', ['ls-files', '--', 'docs/superpowers'], { encoding: 'utf8' })
+  assert.equal(trackedResult.status, 0, trackedResult.stderr)
+  const supersededDocs = trackedResult.stdout.trim().split('\n').filter(Boolean)
   assert.equal(supersededDocs.length, 0)
   const gearRunbook = fs.readFileSync('docs/gear-simulation-full-chain-runbook.md', 'utf8')
   const uiPlan = fs.readFileSync('docs/plans/ui-reconstruction.md', 'utf8')
@@ -859,6 +890,29 @@ test('superseded execution documents are absent from the active control plane', 
   assert.doesNotMatch(gearRunbook, /当前[^\n]*进入 5B|5C 前端切换未开始/)
   assert.ok(uiPlan.split('\n').length <= 100, 'active UI plan should contain current execution truth, not a historical timeline')
   assert.doesNotMatch(uiPlan, /historical commit|历史 commit|候选 `taro-|PR #91 协调收口/)
+})
+
+test('current documentation follows the active Taro and Harness control plane', () => {
+  const readme = fs.readFileSync('README.md', 'utf8')
+  const docsMap = fs.readFileSync('docs/README.md', 'utf8')
+  const harness = fs.readFileSync('docs/harness.md', 'utf8')
+  const roadmap = fs.readFileSync('docs/roadmap.md', 'utf8')
+  const newsArchitecture = fs.readFileSync('docs/news-architecture.md', 'utf8')
+  const buildsArchitecture = fs.readFileSync('docs/builds-architecture.md', 'utf8')
+  const remoteDebugging = fs.readFileSync('docs/remote-debugging.md', 'utf8')
+
+  assert.match(readme, /npm run dev:weapp/)
+  assert.match(readme, /apps\/mini-taro/)
+  assert.match(readme, /apps\/mini-taro\/dist\/weapp/)
+  assert.match(docsMap, /cdn-asset-publishing\.md/)
+  assert.match(docsMap, /gear-attribute-rule-source-ledger\.md/)
+  assert.ok(harness.indexOf('docs/project-state.json') < harness.indexOf('docs/roadmap.md'))
+  assert.match(roadmap, /\| 已完成 \| 主干架构接合 \|/)
+  assert.match(newsArchitecture, /apps\/mini-taro/)
+  assert.doesNotMatch(newsArchitecture, /接入域名、HTTPS、微信合法域名配置/)
+  assert.match(buildsArchitecture, /apps\/mini-taro/)
+  assert.match(remoteDebugging, /Public base URL：`https:\/\/api\.chickenbro\.cloud`/)
+  assert.doesNotMatch(remoteDebugging, /Public base URL 当前是 HTTP/)
 })
 
 test('all used Taro native layout nodes inherit border-box geometry', () => {

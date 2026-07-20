@@ -12,6 +12,7 @@ import { ownerClass, ownerStyle } from './style'
 
 export interface AppShellProps {
   children: ReactNode
+  bodyScrollable?: boolean
   tabRoot?: boolean
   dock?: ReactNode | undefined
   dockVariant?: 'plain' | 'safeAction' | undefined
@@ -23,6 +24,7 @@ export interface AppShellProps {
 
 export function AppShell({
   children,
+  bodyScrollable = true,
   tabRoot = false,
   dock,
   dockVariant = 'plain',
@@ -69,7 +71,10 @@ export function AppShell({
       style={shellStyle}
     >
       <View
-        className={ownerStyle('shellBody')}
+        className={ownerClass(
+          ownerStyle('shellBody'),
+          !bodyScrollable && ownerStyle('shellBodyLocked'),
+        )}
       >
         {children}
       </View>

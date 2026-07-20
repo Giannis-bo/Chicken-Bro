@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 2,
+  "slug": "harness-v0-6-4-wechat-preview-refresh",
+  "requirementSlug": "harness-v0-6-4-wechat-preview-refresh",
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
+  "branch": "codex/wechat-preview-refresh",
+  "commit": "pending_pr_head",
+  "identities": {
+    "runtime": {
+      "status": "not_applicable",
+      "reason": "Repository workflow tooling only; no product runtime identity exists."
+    },
+    "verification": {
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD"
+    },
+    "closure": {
+      "status": "pending",
+      "reason": "Merge and archive closure have not occurred."
+    }
+  },
+  "manualAcceptance": {
+    "required": false,
+    "status": "not_applicable",
+    "reason": "This task changes local delivery tooling and explicitly cannot grant product UI acceptance.",
+    "items": [],
+    "rollup": {
+      "total": 0,
+      "accepted": 0,
+      "notRunUserWaived": 0,
+      "pending": 0
+    }
+  },
+  "scope": [
+    "docs_tooling_only",
+    "post_merge_wechat_preview_refresh",
+    "cross_machine_devtools_handoff"
+  ],
+  "verification": [
+    {
+      "command": "node --test tests/refresh-weapp-preview.test.js tests/project-harness.test.js tests/verify-project.test.js tests/project-state.test.js tests/project-owner-map.test.js tests/backend-owner-map.test.js",
+      "status": "pass",
+      "summary": "The refresh command completed two red-green cycles and the focused workflow/control-plane suite passed."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile harness --release artifacts/releases/2026-07-20-harness-v0-6-4-wechat-preview-refresh --base origin/main",
+      "status": "pass",
+      "summary": "The clean committed task head passed all six Harness profile commands, including 91 control-plane tests and packet identity checks."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "not_applicable",
+    "reason": "Repository workflow tooling only; the command itself is not product candidate evidence."
+  },
+  "runtimeEvidence": [],
+  "risks": [
+    {
+      "id": "preview_refresh_impersonates_acceptance",
+      "status": "controlled_by_harness_and_contract_tests"
+    },
+    {
+      "id": "cross_machine_cli_path_drift",
+      "status": "controlled_by_platform_detection_env_override_and_manual_handoff"
+    },
+    {
+      "id": "stale_weapp_dist_after_merge",
+      "status": "controlled_by_mandatory_build_before_open"
+    }
+  ],
+  "rollback": [
+    "Revert the task commit to remove refresh:weapp and restore the Harness v0.6.3 closure sequence."
+  ],
+  "cleanup": {
+    "required": false,
+    "status": "not_applicable"
+  },
+  "archivedReferences": [
+    "docs/project-state.json",
+    "docs/roadmap.md",
+    "docs/harness.md",
+    "docs/README.md",
+    "AGENTS.md"
+  ],
+  "summary": "Harness v0.6.4 makes the post-merge WeChat preview refresh repository-owned, testable and cross-machine without changing product runtime or claiming new manual acceptance."
+}

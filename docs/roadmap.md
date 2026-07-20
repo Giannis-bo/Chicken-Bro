@@ -24,21 +24,23 @@ Active frontend ownership is explicit: `apps/mini-taro` owns the active 14-route
 | 能力 | 当前判断 | 下一步边界 |
 | --- | --- | --- |
 | 资讯 | 已有首页、列表、中文详情、来源与发布状态 | 保持来源、翻译和内容状态可追踪 |
-| 职业构筑 | 后端已具备 canonical resolver、release train、社区模板原子导入和异步属性快照；旧前端已接入 | Taro 必须通过 typed API 接入同一权威链路，不能保留第二套本地装备事实 |
+| 职业构筑 | canonical resolver、release train、社区模板原子导入、异步属性快照和 Taro typed API 接合已完成 | 在真实微信候选中验证构筑主路径；不能引入第二套本地装备事实 |
 | SimC 与任务 | 已有确定性转换、执行、任务保存和结构化报告基础 | 输入可执行、数字有证据、失败可解释 |
 | 炸鸡队长 | 已有证据受限对话和确定性降级 | 通用建议与本地证据严格分层 |
 | 个人模板 | 已有微信账号、天赋/装备模板汇总与同步基础 | 数据保持 owner 隔离，再扩展收藏、角色和订阅 |
-| 数据与发布 | PostgreSQL-only、read-model selector、Harness、验证矩阵与发布证据已建立 | 新 Taro 与旧兼容前端需要明确 owner、CI 和淘汰边界 |
+| 数据与发布 | PostgreSQL-only、read-model selector、Harness、验证矩阵、Taro/兼容 owner、CI 与 caller-proof 淘汰合同已建立 | 按 compatibility retirement 合同逐项证明无调用方后再淘汰兼容面 |
 | PVE / WCL | 历史实现保留，当前不是首版主入口 | 授权数据、样本窗口、可信状态和恢复验收同时明确后再启用 |
 
 ## 当前优先级
 
 | 优先级 | 里程碑 | 完成标准 | 权威入口 |
 | --- | --- | --- | --- |
-| P0 | 主干架构接合 | Taro 接入 resolver、community import、stat snapshot；Harness 把 Taro 定义为活动 UI owner，旧 `pages/` 只保留兼容职责 | [装备 runbook](gear-simulation-full-chain-runbook.md)、[owner map](project-owner-map.json)、[验证矩阵](verification-matrix.md) |
+| 已完成 | 主干架构接合 | Taro 已接入 resolver、community import、stat snapshot；Harness 已把 Taro 定义为活动 UI owner，旧 `pages/` 只保留兼容职责 | [装备 runbook](gear-simulation-full-chain-runbook.md)、[owner map](project-owner-map.json)、[验证矩阵](verification-matrix.md) |
 | P0 | 14 路由 UI 系统重建 | 共享 chrome、控件和素材槽先在微信三基线成立，再按固定批次传播；14 路由各完成一次真实运行态复核和核心交互验证 | [DESIGN.md](../DESIGN.md)、[current-ui](design/current-ui/README.md)、[当前计划](plans/ui-reconstruction.md) |
-| P0 | 文档控制面收敛 | roadmap 无执行流水；plans 只有活动入口；Harness 状态、稳定合同和 release evidence 各有唯一 owner | 本文件、[plans/README.md](plans/README.md)、[project-state.json](project-state.json) |
+| 已完成 | 文档控制面收敛 | roadmap 无执行流水；plans 只有活动入口；Harness 状态、稳定合同和 release evidence 各有唯一 owner | 本文件、[plans/README.md](plans/README.md)、[project-state.json](project-state.json) |
 | 已完成 | Harness v0.6.2 证据绑定 | PR #93 已让 CI 绑定任务自己的 requirement/evidence/manifest；runtime、verification 与 closure identity 分离，人工验收和 `not_run_user_waived` 进入可校验矩阵，且没有增加重复 full、额外评审或运行时改动 | [Harness](harness.md)、[验证矩阵](verification-matrix.md)、[归档证据](../artifacts/releases/2026-07-19-harness-v0-6-2-control-plane-cleanup/evidence.json) |
+| 已完成 | Harness v0.6.3 当前事实与 DX 收口 | 当前事实顺序、Taro 开发入口、活动文档可达性、本地假失败和 CLI fail-fast 规则保持一致；不增加新流程或重复验证 | [Harness](harness.md)、[文档地图](README.md)、[release packet](../artifacts/releases/2026-07-20-harness-v0-6-3-docs-dx/evidence.json) |
+| 已完成 | Harness v0.6.4 微信预览刷新 | 微信前端验收合入后，在最新 `main` 上统一重建、校验并刷新 DevTools；跨电脑 CLI 缺失时明确人工接管，不把本地交付动作冒充验收 | [Harness](harness.md)、[文档地图](README.md)、[release packet](../artifacts/releases/2026-07-20-harness-v0-6-4-wechat-preview-refresh/evidence.json) |
 | P1 | 构筑到模拟闭环稳定 | 天赋/装备模板可确定性加载、转换、校验、提交和复盘；不可执行状态 fail closed | [builds-architecture.md](builds-architecture.md)、[simulator-simc-end-to-end.md](simulator-simc-end-to-end.md) |
 | P1 | 证据化报告 | 玩家可见数字来自 runner、日志或明确参考源；模型只负责解释 | `server/simulator_payload.py` |
 | P1 | 发布与可观测 | 核心 API、刷新任务、SimC 和数据健康有可重复 smoke、超时与故障定位 | [remote-debugging.md](remote-debugging.md)、[verification-matrix.md](verification-matrix.md) |

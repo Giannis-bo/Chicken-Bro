@@ -1,16 +1,16 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-20T05:14:51.594Z",
+  "generatedAt": "2026-07-20T11:55:02.578Z",
   "release": {
     "date": "2026-07-20",
-    "slug": "top-safe-area-followup"
+    "slug": "talent-obsolete-panels-removal"
   },
   "harness": {
-    "version": "v0.6.3",
+    "version": "v0.6.4",
     "lastUpdated": "2026-07-20",
     "source": "docs/harness.md",
-    "policyChangeCount": 9
+    "policyChangeCount": 10
   },
   "safety": {
     "noNetwork": true,
@@ -38,7 +38,7 @@
         {
           "path": "docs/project-state.json",
           "exists": true,
-          "sizeBytes": 31041
+          "sizeBytes": 31653
         },
         {
           "path": "docs/project-owner-map.json",
@@ -53,17 +53,17 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 6571
+          "sizeBytes": 6953
         },
         {
           "path": "docs/README.md",
           "exists": true,
-          "sizeBytes": 3496
+          "sizeBytes": 4110
         },
         {
           "path": "docs/harness.md",
           "exists": true,
-          "sizeBytes": 42015
+          "sizeBytes": 42960
         },
         {
           "path": "docs/backend-owner-map.json",
@@ -99,7 +99,7 @@
         {
           "path": "server/websim_payload.py",
           "exists": true,
-          "lineCount": 26633,
+          "lineCount": 26752,
           "hotspot": true
         },
         {
@@ -287,6 +287,7 @@
         "rerun_scoped_verification_on_merge_result",
         "push_main",
         "verify_local_and_origin_main_sha_match",
+        "refresh_wechat_preview_on_latest_main_when_frontend_changed",
         "remove_task_worktree_and_local_branch",
         "delete_published_task_branch_if_present"
       ],
@@ -346,8 +347,8 @@
   },
   "evidencePacket": {
     "status": "ready",
-    "path": "artifacts/releases/2026-07-20-top-safe-area-followup/evidence.json",
-    "sizeBytes": 5688,
+    "path": "artifacts/releases/2026-07-20-talent-obsolete-panels-removal/evidence.json",
+    "sizeBytes": 14074,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -389,9 +390,9 @@
       "summary"
     ],
     "missingFields": [],
-    "declaredStatus": "runtime_verified",
-    "highestEvidenceLevel": "runtime_verified",
-    "summary": "The shared safe-area correction is synchronized with Harness v0.6.3 main, full CI and the isolated WeChat build passed, and the user explicitly accepted both required header-geometry scenarios."
+    "declaredStatus": "archived",
+    "highestEvidenceLevel": "archived",
+    "summary": "The obsolete talent advisory surfaces and their dedicated request are removed, the action bar remains bottom-anchored, dense and sparse hero trees fill the practical canvas while preserving their alignment, the hero selector uses specialization-level backend choices and the active root-talent crest, and Hero-tree variants/overrides are isolated and de-duplicated by visual slot in the parser, cached read model and client. User acceptance and exact-candidate deployment passed, including a public 80-Hero-tree matrix with zero duplicate non-choice slots. The task was fast-forward merged and published on main at 42f7a4f59c67ebd227d5cfa495fce67bdfe9fa4f; post-merge verification and WeChat preview refresh passed."
   },
   "evidence": {
     "localTests": {
@@ -416,13 +417,13 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "3 changed files currently visible to git status."
+      "detail": "2 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
       "severity": "medium",
       "status": "watch",
-      "detail": "server/websim_payload.py:26633, server/news_backend.py:13576, server/postgres_cache_store.py:7228"
+      "detail": "server/websim_payload.py:26752, server/news_backend.py:13576, server/postgres_cache_store.py:7228"
     },
     {
       "id": "localTests_missing",
@@ -452,16 +453,15 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 3,
+      "changedFileCount": 2,
       "changedFiles": [
-        " M artifacts/releases/2026-07-20-top-safe-area-followup/evidence.json",
-        " M artifacts/releases/2026-07-20-top-safe-area-followup/manifest.json",
-        " M artifacts/releases/2026-07-20-top-safe-area-followup/requirement.json"
+        " M apps/mini-taro/project.config.json",
+        " M artifacts/releases/2026-07-20-talent-obsolete-panels-removal/evidence.json"
       ]
     }
   },
   "write": {
     "enabled": true,
-    "path": "artifacts/releases/2026-07-20-top-safe-area-followup/manifest.json"
+    "path": "artifacts/releases/2026-07-20-talent-obsolete-panels-removal/manifest.json"
   }
 }

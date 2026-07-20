@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "slug": "runtime-media-icons-followup",
+  "classification": "Standard",
+  "status": "implementation_allowed",
+  "goal": "Restore the real class, specialization, talent and equipment icons in the WeChat mini-program by publishing the prepared runtime-media release to a readable immutable project-owned origin, making candidate verification fail closed when that release manifest is unreadable, and preserving the publishing path for future art assets.",
+  "userValue": "Players can recognize professions, specializations, talents and equipment from their real artwork instead of generic placeholders, while future releases cannot be marked ready when the configured icon origin returns 404.",
+  "nonGoals": [
+    "Do not redesign the accepted page geometry, top bars, cards or navigation behavior.",
+    "Do not claim that static.chickenbro.cloud COS promotion is complete while Tencent Cloud MFA still blocks that promotion.",
+    "Do not trigger asynchronous data sync or backfill jobs.",
+    "Do not merge before the final WeChat candidate is manually checked for all three icon families."
+  ],
+  "currentTruth": {
+    "sources": [
+      "docs/project-state.json",
+      "docs/roadmap.md",
+      "docs/plans/ui-reconstruction.md",
+      "DESIGN.md",
+      "docs/design/current-ui/README.md",
+      "docs/cdn-asset-publishing.md",
+      "scripts/verify-ui-package.js",
+      "server/deploy_lighthouse.sh"
+    ],
+    "activeMilestone": "taro_target_first_14_route_rebuild",
+    "observedFailure": "The previously configured static.chickenbro.cloud runtime-media release manifest and Frost specialization icon both returned HTTP 404, so runtime-media URL rewriting converted trusted upstream icons into missing images."
+  },
+  "impactMap": {
+    "mustChange": [
+      "Publish the complete prepared runtime-media release under an immutable project-owned /wow-media/releases/<release-id> path.",
+      "Build the WeChat candidate with that readable immutable runtime-media root.",
+      "Make the release package verifier read the runtime-media release manifest and reject missing or unreadable roots.",
+      "Keep the Lighthouse deployment configuration capable of serving immutable runtime-media releases after future deploys.",
+      "Record the verified release identity, counts, public verification command and pending COS promotion boundary in current project state and the publishing runbook."
+    ],
+    "mustNotChange": [
+      "Previously accepted top-safe-area evidence and archived release packets.",
+      "Route layout geometry, navigation state, backend facts, database contents and scheduled synchronization behavior.",
+      "The existing immutable application asset release."
+    ],
+    "riskUnknown": [
+      "The public files and package gate can pass while a real WeChat client still exposes a route-specific rendering or domain-policy failure; manual verification remains required.",
+      "Promotion from the verified API origin to static.chickenbro.cloud remains pending Tencent Cloud MFA."
+    ],
+    "evidenceRequired": [
+      "Full public release-manifest verification of every declared runtime-media file and SHA-256 hash.",
+      "Release package verification against the exact backend, app-asset and runtime-media roots.",
+      "Targeted tests, typecheck, lint, Taro test suite and UI architecture audit on the final branch head.",
+      "Manual WeChat verification that class/spec, talent and equipment icons render as real artwork instead of placeholders."
+    ]
+  },
+  "ownership": {
+    "factOwner": "docs/cdn-asset-publishing.md",
+    "consumers": [
+      "apps/mini-taro/src/runtime-media.ts",
+      "scripts/verify-ui-package.js",
+      "server/deploy_lighthouse.sh",
+      "docs/project-state.json"
+    ]
+  },
+  "engineeringHealth": {
+    "status": "fail_closed_release_guard_and_immutable_owned_origin",
+    "reason": "The correction removes reliance on an unpublished root, verifies the whole immutable release, and makes future package readiness depend on a readable release manifest."
+  },
+  "acceptanceEvidence": [
+    "WOW_CDN_PUBLIC_ORIGIN=https://api.chickenbro.cloud npm run verify:runtime-media -- 2026-07-20-wow-icons-v1",
+    "npm run verify:ui-package:release with the verified API, asset and runtime-media roots",
+    "npm run audit:ui-architecture",
+    "npm run typecheck",
+    "npm run test:taro",
+    "npm run lint",
+    "Fresh WeChat candidate verification of builds_home_class_spec_icons, talent_simulator_talent_icons and gear_detail_equipment_icons"
+  ],
+  "manualAcceptanceContract": {
+    "required": true,
+    "requiredItemIds": [
+      "builds_home_class_spec_icons",
+      "talent_simulator_talent_icons",
+      "gear_detail_equipment_icons"
+    ]
+  },
+  "releaseTrigger": "user_visible_runtime",
+  "rollback": [
+    "code_rollback",
+    "config_disable"
+  ],
+  "decisionLog": [
+    {
+      "date": "2026-07-20",
+      "decision": "Public checks proved the configured static.chickenbro.cloud runtime-media manifest and Frost icon returned 404; the missing artwork was therefore a publication failure, not a card-layout defect."
+    },
+    {
+      "date": "2026-07-20",
+      "decision": "Reuse the already prepared and hash-verified 3,413-file release, publish it atomically to the known Lighthouse origin, and keep COS promotion explicitly pending until Tencent Cloud MFA is available."
+    },
+    {
+      "date": "2026-07-21",
+      "decision": "Keep this runtime-media correction in a new task-scoped packet because the earlier top-safe-area task and its acceptance evidence are already merged and archived."
+    }
+  ]
+}

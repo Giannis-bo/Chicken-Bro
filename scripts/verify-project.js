@@ -30,34 +30,64 @@ function parseArgs(argv) {
     releaseFromChanges: false,
     base: DEFAULT_BASE,
     dryRun: false,
-    json: false
+    json: false,
+    help: false
+  }
+
+  const optionValue = (arg, index) => {
+    const value = argv[index + 1]
+    if (!value || value.startsWith('--')) {
+      throw new Error(`Missing value for ${arg}`)
+    }
+    return value
   }
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index]
-    if (arg === '--root' && argv[index + 1]) {
-      options.root = argv[index + 1]
+    if (arg === '--help') {
+      options.help = true
+    } else if (arg === '--root') {
+      options.root = optionValue(arg, index)
       index += 1
-    } else if (arg === '--profile' && argv[index + 1]) {
-      options.profile = argv[index + 1]
+    } else if (arg === '--profile') {
+      options.profile = optionValue(arg, index)
       index += 1
-    } else if (arg === '--release' && argv[index + 1]) {
-      options.release = argv[index + 1]
+    } else if (arg === '--release') {
+      options.release = optionValue(arg, index)
       index += 1
     } else if (arg === '--release-from-changes') {
       options.releaseFromChanges = true
-    } else if (arg === '--base' && argv[index + 1]) {
-      options.base = argv[index + 1]
+    } else if (arg === '--base') {
+      options.base = optionValue(arg, index)
       index += 1
     } else if (arg === '--dry-run') {
       options.dryRun = true
     } else if (arg === '--json') {
       options.json = true
+    } else {
+      throw new Error(`Unknown option: ${arg}`)
     }
   }
 
   options.root = path.resolve(options.root)
   return options
+}
+
+function printHelp() {
+  process.stdout.write([
+    'Usage: node scripts/verify-project.js [options]',
+    '',
+    'Options:',
+    '  --profile <profile>        harness, backend, frontend or full (default: full).',
+    '  --release <path>           Explicit complete release packet directory.',
+    '  --release-from-changes     Resolve the single changed task packet.',
+    '  --base <git-ref>           Comparison base (default: origin/main).',
+    '  --root <path>              Repository root.',
+    '  --dry-run                  Print the verification plan without running it.',
+    '  --json                     Print JSON output.',
+    '  --help                     Show this help.',
+    ''
+  ].join('\n'))
 }
 
 function pathInsideRoot(root, relativePath, label) {
@@ -394,6 +424,10 @@ function printHuman(summary) {
 function main() {
   try {
     const options = parseArgs(process.argv.slice(2))
+    if (options.help) {
+      printHelp()
+      return
+    }
     if (!PROFILES.has(options.profile)) {
       throw new Error(`Unknown profile: ${options.profile}`)
     }

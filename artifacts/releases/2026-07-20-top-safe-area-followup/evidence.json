@@ -2,14 +2,14 @@
   "schemaVersion": 2,
   "slug": "top-safe-area-followup",
   "requirementSlug": "top-safe-area-followup",
-  "status": "local_verified",
-  "highestEvidenceLevel": "local_verified",
+  "status": "runtime_verified",
+  "highestEvidenceLevel": "runtime_verified",
   "branch": "codex/top-safe-area-followup",
-  "commit": "pending_task_packet_commit",
+  "commit": "82a1f703a8de90b23bd5f8c92d06011ecb8314c7",
   "identities": {
     "runtime": {
-      "status": "pending",
-      "reason": "The final PR head still requires one fresh real-device run after CI passes."
+      "status": "not_applicable",
+      "reason": "This frontend-only preview does not deploy a backend runtime; the WeChat build and user acceptance are recorded separately."
     },
     "verification": {
       "status": "bound_at_check",
@@ -18,123 +18,99 @@
     },
     "closure": {
       "status": "pending",
-      "reason": "The draft PR is open and user acceptance has not completed."
+      "reason": "User acceptance is complete, but the PR has not yet merged."
     }
   },
   "manualAcceptance": {
     "required": true,
-    "status": "pending",
+    "status": "complete",
     "items": [
       {
         "id": "news_home_header_geometry",
-        "status": "pending"
+        "status": "accepted",
+        "evidence": "On 2026-07-20 the user explicitly replied 我已测试通过 after opening PR #94 commit 82a1f703 in WeChat DevTools and checking the news home header geometry."
       },
       {
         "id": "equipment_detail_header_geometry",
-        "status": "pending"
-      },
-      {
-        "id": "builds_home_class_spec_icons",
-        "status": "pending"
-      },
-      {
-        "id": "talent_simulator_talent_icons",
-        "status": "pending"
-      },
-      {
-        "id": "gear_detail_equipment_icons",
-        "status": "pending"
+        "status": "accepted",
+        "evidence": "On 2026-07-20 the user explicitly replied 我已测试通过 after opening PR #94 commit 82a1f703 in WeChat DevTools and checking the equipment detail header geometry."
       }
     ],
     "rollup": {
-      "total": 5,
-      "accepted": 0,
+      "total": 2,
+      "accepted": 2,
       "notRunUserWaived": 0,
-      "pending": 5
+      "pending": 0
     }
   },
   "scope": [
     "shared_frontend_chrome",
     "wechat_safe_area",
-    "ui_architecture_guard",
-    "runtime_media_release",
-    "lighthouse_immutable_media_hosting",
-    "release_package_remote_root_guard"
+    "ui_architecture_guard"
   ],
   "verification": [
     {
       "command": "npm run lint",
       "status": "pass",
-      "summary": "ESLint completed with zero warnings."
+      "summary": "The main-synchronized PR head passed in the Project Harness full-profile CI run."
     },
     {
       "command": "npm run typecheck",
       "status": "pass",
-      "summary": "TypeScript completed without errors."
+      "summary": "The main-synchronized PR head passed in the Project Harness full-profile CI run."
     },
     {
       "command": "npm run audit:ui-architecture",
       "status": "pass",
-      "summary": "All 14 routes and 282 architecture checks passed with zero findings."
+      "summary": "The main-synchronized head passed all 14 routes and 282 architecture checks with zero findings."
     },
     {
       "command": "npm run test:taro",
       "status": "pass",
-      "summary": "41 test files and 254 tests passed."
+      "summary": "The main-synchronized PR head passed in the Project Harness full-profile CI run."
     },
     {
       "command": "npm run build:weapp",
       "status": "pass",
-      "summary": "The WeChat package compiled and atomically promoted 213 output files."
+      "summary": "The isolated worktree build completed through staged atomic promotion with 213 files before the accepted WeChat preview."
     },
     {
       "command": "npm run verify:ui-package:release with production runtime roots",
       "status": "pass",
-      "summary": "releaseReady was true; the remote-asset package measured 1,649,218 bytes, the configured runtime-media manifest was readable, and no blockers remained."
-    },
-    {
-      "command": "WOW_CDN_PUBLIC_ORIGIN=https://api.chickenbro.cloud npm run verify:runtime-media -- 2026-07-20-wow-icons-v1",
-      "status": "pass",
-      "summary": "The public immutable release passed full readback for 40 specializations, 3,413 files and 7,326,459 bytes with exact SHA-256 matches."
-    },
-    {
-      "command": "node --check scripts/verify-ui-package.js && bash -n server/deploy_lighthouse.sh && node --test tests/release-domain-policy.test.js tests/project-state.test.js",
-      "status": "pass",
-      "summary": "Both scripts parsed and all 43 focused control-plane/domain tests passed."
+      "summary": "The main-synchronized PR head passed release package verification in the Project Harness full-profile CI run."
     },
     {
       "command": "git diff --check",
       "status": "pass",
-      "summary": "No whitespace errors were found."
+      "summary": "The main-synchronized head has no whitespace errors."
+    },
+    {
+      "command": "node --test tests/project-harness.test.js tests/verify-project.test.js tests/project-state.test.js tests/project-owner-map.test.js tests/backend-owner-map.test.js",
+      "status": "pass",
+      "summary": "90 Harness, current-truth and owner-map tests passed on the main-synchronized head."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-20-top-safe-area-followup --base origin/main",
+      "status": "not_run",
+      "summary": "Pending clean exact-HEAD verification after committing the accepted closure packet."
     }
   ],
   "candidateDeployment": {
-    "status": "pending",
-    "reason": "The immutable media release and exact candidate package are ready, but the final PR head still needs one fresh real-WeChat run.",
-    "runtimeMediaRoot": "https://api.chickenbro.cloud/wow-media/releases/2026-07-20-wow-icons-v1",
-    "runtimeMediaRelease": {
-      "status": "pass",
-      "selectionCount": 40,
-      "fileCount": 3413,
-      "totalBytes": 7326459
-    },
-    "nginx": {
-      "status": "pass",
-      "configurationTest": "nginx -t",
-      "reload": "pass",
-      "backups": [
-        "/etc/nginx/sites-available/api.chickenbro.cloud.before-wow-media-20260720",
-        "/etc/nginx/sites-available/wow-backend.before-wow-media-20260720"
-      ]
-    },
+    "status": "preview_verified",
+    "candidateId": "pr94-82a1f703-wechat-devtools",
+    "commit": "82a1f703a8de90b23bd5f8c92d06011ecb8314c7",
+    "previewRoot": "apps/mini-taro",
+    "buildOutput": "apps/mini-taro/dist/weapp",
+    "fileCount": 213,
     "smoke": {
       "status": "pass",
-      "summary": "https://api.chickenbro.cloud/health returned the healthy wow-backend response and the public runtime-media manifest returned HTTP 200."
+      "summary": "The user accepted both frozen header-geometry scenarios in WeChat DevTools."
     },
     "timerBackflow": {
-      "status": "pass",
-      "summary": "The existing websim, stat-weight, community-template and data-health timers plus backend/stat-worker services remained active; the media publish did not trigger sync or backfill work."
-    }
+      "status": "not_applicable",
+      "reason": "Frontend-only WeChat preview; no service or scheduled-job change."
+    },
+    "rollback": "Revert the shared PageFrame sticky-offset commit."
   },
   "runtimeEvidence": [
     {
@@ -143,41 +119,21 @@
       "summary": "The identical shared-owner change moved the 390x844 WebView header from y=94 to y=47 while retaining the bottom TabBar; this does not replace final-head manual acceptance."
     },
     {
-      "type": "runtime_media_public_integrity",
+      "type": "wechat_devtools_manual_acceptance",
       "status": "pass",
-      "summary": "The configured API-hosted immutable release manifest and all 3,413 runtime icons passed public byte and SHA-256 verification; classicon_mage.jpg and spell_frost_frostbolt02.jpg both returned HTTP 200 image/jpeg with immutable caching."
-    },
-    {
-      "type": "candidate_package_constant_audit",
-      "status": "pass",
-      "summary": "The generated WeChat app binds https://api.chickenbro.cloud/wow-media/releases/2026-07-20-wow-icons-v1 and contains no reference to the prior 404 static runtime-media root."
-    },
-    {
-      "type": "smoke",
-      "status": "pass",
-      "summary": "The live backend health endpoint, immutable media manifest and representative class/spec icons returned healthy HTTP responses after an Nginx configuration test and reload."
-    },
-    {
-      "type": "timer_backflow",
-      "status": "pass",
-      "summary": "Four existing sync/health timers and both checked services remained active; no asynchronous sync or backfill was started by this publication."
+      "commit": "82a1f703a8de90b23bd5f8c92d06011ecb8314c7",
+      "summary": "The user explicitly accepted the news home and equipment detail header geometry after the isolated 213-file WeChat build was opened through the official DevTools CLI."
     }
   ],
   "risks": [
     {
       "id": "final_head_manual_acceptance",
-      "status": "pending",
-      "detail": "Both frozen top-bar scenarios and all three icon families must be checked once on the final PR head before merge."
-    },
-    {
-      "id": "cos_promotion_pending_mfa",
-      "status": "contained",
-      "detail": "Tencent CloudShell reported expired MFA, so the same release has not been copied to static.chickenbro.cloud. The candidate uses the fully verified, already-approved API HTTPS root and makes no CDN-completion claim."
+      "status": "resolved",
+      "detail": "The user explicitly accepted both frozen top-bar scenarios in WeChat DevTools on the runtime-equivalent final source tree."
     }
   ],
   "rollback": [
-    "Revert the shared PageFrame sticky-offset commit to restore the previous positioning contract.",
-    "Restore the dated Nginx backups, reload Nginx and rebuild without WOW_RUNTIME_MEDIA_ROOT to disable the runtime-media release without deleting it."
+    "Revert the shared PageFrame sticky-offset commit to restore the previous positioning contract."
   ],
   "cleanup": {
     "required": false
@@ -189,5 +145,5 @@
     "DESIGN.md",
     "docs/design/current-ui/README.md"
   ],
-  "summary": "The shared safe-area correction and the repaired immutable runtime-media path are locally/live-integrity verified. CI and five final-head real-device acceptance items remain pending; COS promotion is truthfully deferred behind Tencent Cloud MFA."
+  "summary": "The shared safe-area correction is synchronized with Harness v0.6.3 main, full CI and the isolated WeChat build passed, and the user explicitly accepted both required header-geometry scenarios."
 }

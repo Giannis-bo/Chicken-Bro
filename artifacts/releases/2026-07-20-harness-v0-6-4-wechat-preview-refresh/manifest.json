@@ -1,16 +1,16 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-20T05:14:51.594Z",
+  "generatedAt": "2026-07-20T06:17:23.188Z",
   "release": {
     "date": "2026-07-20",
-    "slug": "top-safe-area-followup"
+    "slug": "harness-v0-6-4-wechat-preview-refresh"
   },
   "harness": {
-    "version": "v0.6.3",
+    "version": "v0.6.4",
     "lastUpdated": "2026-07-20",
     "source": "docs/harness.md",
-    "policyChangeCount": 9
+    "policyChangeCount": 10
   },
   "safety": {
     "noNetwork": true,
@@ -38,7 +38,7 @@
         {
           "path": "docs/project-state.json",
           "exists": true,
-          "sizeBytes": 31041
+          "sizeBytes": 31653
         },
         {
           "path": "docs/project-owner-map.json",
@@ -53,17 +53,17 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 6571
+          "sizeBytes": 6953
         },
         {
           "path": "docs/README.md",
           "exists": true,
-          "sizeBytes": 3496
+          "sizeBytes": 4110
         },
         {
           "path": "docs/harness.md",
           "exists": true,
-          "sizeBytes": 42015
+          "sizeBytes": 42960
         },
         {
           "path": "docs/backend-owner-map.json",
@@ -287,6 +287,7 @@
         "rerun_scoped_verification_on_merge_result",
         "push_main",
         "verify_local_and_origin_main_sha_match",
+        "refresh_wechat_preview_on_latest_main_when_frontend_changed",
         "remove_task_worktree_and_local_branch",
         "delete_published_task_branch_if_present"
       ],
@@ -346,8 +347,8 @@
   },
   "evidencePacket": {
     "status": "ready",
-    "path": "artifacts/releases/2026-07-20-top-safe-area-followup/evidence.json",
-    "sizeBytes": 5688,
+    "path": "artifacts/releases/2026-07-20-harness-v0-6-4-wechat-preview-refresh/evidence.json",
+    "sizeBytes": 3001,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -389,9 +390,9 @@
       "summary"
     ],
     "missingFields": [],
-    "declaredStatus": "runtime_verified",
-    "highestEvidenceLevel": "runtime_verified",
-    "summary": "The shared safe-area correction is synchronized with Harness v0.6.3 main, full CI and the isolated WeChat build passed, and the user explicitly accepted both required header-geometry scenarios."
+    "declaredStatus": "local_verified",
+    "highestEvidenceLevel": "local_verified",
+    "summary": "Harness v0.6.4 makes the post-merge WeChat preview refresh repository-owned, testable and cross-machine without changing product runtime or claiming new manual acceptance."
   },
   "evidence": {
     "localTests": {
@@ -416,7 +417,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "3 changed files currently visible to git status."
+      "detail": "1 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -452,16 +453,14 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 3,
+      "changedFileCount": 1,
       "changedFiles": [
-        " M artifacts/releases/2026-07-20-top-safe-area-followup/evidence.json",
-        " M artifacts/releases/2026-07-20-top-safe-area-followup/manifest.json",
-        " M artifacts/releases/2026-07-20-top-safe-area-followup/requirement.json"
+        " M artifacts/releases/2026-07-20-harness-v0-6-4-wechat-preview-refresh/evidence.json"
       ]
     }
   },
   "write": {
     "enabled": true,
-    "path": "artifacts/releases/2026-07-20-top-safe-area-followup/manifest.json"
+    "path": "artifacts/releases/2026-07-20-harness-v0-6-4-wechat-preview-refresh/manifest.json"
   }
 }

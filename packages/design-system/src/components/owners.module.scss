@@ -49,6 +49,10 @@
   overscroll-behavior-y: contain;
 }
 
+.shellBodyLocked {
+  overflow-y: hidden;
+}
+
 .shellBuildWorkspaceMaterial {
   background:
     radial-gradient(circle at 50% 24%, rgba(55, 82, 108, 0.14), transparent 34%),

@@ -94,6 +94,8 @@ class WebSimPayloadTest(unittest.TestCase):
         spec_id=62,
         spell_id=None,
         point_requirement=0,
+        spec_ids=None,
+        override_spell_id=0,
     ):
         spell_id = spell_id or trait_id + 100000
         payload = {
@@ -113,8 +115,11 @@ class WebSimPayloadTest(unittest.TestCase):
             "choiceGroup": choice_group,
             "shape": "choice" if choice_group else "square",
             "pointRequirement": point_requirement,
+            "overrideSpellId": override_spell_id,
             "source": "simulationcraft",
         }
+        if spec_ids is not None:
+            payload["idSpecs"] = list(spec_ids)
         if tree_type == "hero":
             payload["heroKey"] = hero_key or "spellslinger"
             payload["heroLabel"] = "Spellslinger"
@@ -748,6 +753,75 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual({node["specKey"] for node in hero_nodes}, {"arcane", "frost"})
         self.assertTrue(all(node["payload"]["heroKey"] == "spellslinger" for node in hero_nodes))
         self.assertTrue(all(node["payload"]["source"] == "simulationcraft" for node in nodes))
+
+    def test_parse_simc_hero_nodes_keeps_spec_variants_in_their_own_tree(self):
+        sample = """
+        // Player trait definitions, wow build 12.0.5.67823
+        static constexpr std::array<trait_data_t, 4> __trait_data_data { {
+          { 3,  5, 136498, 110008, 1,  0, 141271,  447444,      0,      0,  1,  3, 100, "Entropic Rift", {  256,    0,    0,    0 }, {  256,    0,    0,    0 },  18, 0 },
+          { 3,  5, 117287,  94684, 1,  0, 122299,  263165,      0,      0,  1,  3, 100, "Void Torrent", {  258,    0,    0,    0 }, {  258,    0,    0,    0 },  18, 0 },
+          { 4,  5, 999001, 999001, 1,  0,      0,       0,      0,      0,  1,  1, 100, "0", {  256,    0,    0,    0 }, {    0,    0,    0,    0 },  18, 3 },
+          { 4,  5, 999002, 999002, 1,  0,      0,       0,      0,      0,  1,  1, 100, "0", {  258,    0,    0,    0 }, {    0,    0,    0,    0 },  18, 3 },
+        } };
+        static constexpr std::array<std::tuple<unsigned, std::string, unsigned>, 1> __trait_sub_tree_data { {
+          { 18, "Voidweaver", 5 },
+        } };
+        """
+
+        nodes = self.websim_payload.parse_trait_data_text(sample)
+        hero_names_by_spec = {
+            spec_key: [node["name"] for node in nodes if node["treeType"] == "hero" and node["specKey"] == spec_key]
+            for spec_key in {"discipline", "shadow"}
+        }
+
+        self.assertEqual(hero_names_by_spec, {
+            "discipline": ["Entropic Rift"],
+            "shadow": ["Void Torrent"],
+        })
+
+    def test_parse_simc_hero_nodes_discards_a_same_slot_spell_replaced_by_its_override(self):
+        sample = """
+        // Player trait definitions, wow build 12.0.5.67823
+        static constexpr std::array<trait_data_t, 3> __trait_data_data { {
+          { 3,  2, 117882,  95234, 1,  0, 122894,  432459,      0,      0,  1,  3, 100, "Legacy Armaments", {   65,    0,    0,    0 }, {   65,    0,    0,    0 },  49, 0 },
+          { 3,  2, 136795, 110257, 1,  0, 141558, 1289728,      0, 432459,  1,  3, 100, "Current Armaments", {   65,    0,    0,    0 }, {   65,    0,    0,    0 },  49, 0 },
+          { 4,  2, 999003, 999003, 1,  0,      0,       0,      0,      0,  1,  1, 100, "0", {   65,    0,    0,    0 }, {    0,    0,    0,    0 },  49, 3 },
+        } };
+        static constexpr std::array<std::tuple<unsigned, std::string, unsigned>, 1> __trait_sub_tree_data { {
+          { 49, "Lightsmith", 2 },
+        } };
+        """
+
+        nodes = self.websim_payload.parse_trait_data_text(sample)
+
+        self.assertEqual([
+            node["name"]
+            for node in nodes
+            if node["treeType"] == "hero" and node["specKey"] == "holy"
+        ], ["Current Armaments"])
+
+    def test_parse_simc_hero_nodes_reuses_a_shared_tree_only_for_a_spec_without_any_record(self):
+        sample = """
+        // Player trait definitions, wow build 12.0.5.67823
+        static constexpr std::array<trait_data_t, 5> __trait_data_data { {
+          { 3, 13, 117551, 94954, 1,  1, 122563, 431442,      0,      0,  1,  3, 100, "Chrono Flame", { 1468,    0,    0,    0 }, { 1468,    0,    0,    0 },  38, 0 },
+          { 3, 13, 117545, 94948, 1,  1, 122557, 429483,      0,      0,  2,  1, 100, "Warp", { 1468,    0,    0,    0 }, {    0,    0,    0,    0 },  38, 0 },
+          { 4, 13, 999004, 999004, 1,  0,      0,      0,      0,      0,  1,  1, 100, "0", { 1467,    0,    0,    0 }, {    0,    0,    0,    0 },  38, 3 },
+          { 4, 13, 999005, 999005, 1,  0,      0,      0,      0,      0,  1,  1, 100, "0", { 1468,    0,    0,    0 }, {    0,    0,    0,    0 },  38, 3 },
+          { 4, 13, 999006, 999006, 1,  0,      0,      0,      0,      0,  1,  1, 100, "0", { 1473,    0,    0,    0 }, {    0,    0,    0,    0 },  38, 3 },
+        } };
+        static constexpr std::array<std::tuple<unsigned, std::string, unsigned>, 1> __trait_sub_tree_data { {
+          { 38, "Chronowarden", 13 },
+        } };
+        """
+
+        nodes = self.websim_payload.parse_trait_data_text(sample)
+
+        self.assertEqual([
+            node["name"]
+            for node in nodes
+            if node["treeType"] == "hero" and node["specKey"] == "augmentation"
+        ], ["Chrono Flame", "Warp"])
 
     def test_parse_simc_spelltext_data_text(self):
         sample = r'''
@@ -1810,6 +1884,159 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(len(payload["nodes"]), 1)
         self.assertEqual(payload["nodes"][0]["shape"], "apex")
         self.assertEqual(payload["nodes"][0]["nodeId"], 90001)
+
+    def test_talent_payload_dedupes_same_visual_spell_slot(self):
+        nodes = [
+            {
+                "id": "simc-hero-a-mage-frost-frostfire",
+                "classKey": "mage",
+                "specKey": "frost",
+                "treeId": "hero:frostfire",
+                "treeType": "hero",
+                "heroKey": "frostfire",
+                "nodeId": 109956,
+                "spellId": 431044,
+                "row": 1,
+                "col": 3,
+                "choiceGroup": "",
+            },
+            {
+                "id": "simc-hero-b-mage-frost-frostfire",
+                "classKey": "mage",
+                "specKey": "frost",
+                "treeId": "hero:frostfire",
+                "treeType": "hero",
+                "heroKey": "frostfire",
+                "nodeId": 94636,
+                "spellId": 431044,
+                "row": 1,
+                "col": 3,
+                "choiceGroup": "",
+            },
+        ]
+
+        deduped = self.websim_payload.dedupe_real_talent_nodes(nodes)
+
+        self.assertEqual([node["id"] for node in deduped], ["simc-hero-a-mage-frost-frostfire"])
+
+    def test_talent_payload_filters_cached_hero_variants_to_the_selected_spec(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.insert_websim_talent(
+                conn,
+                "simc-hero-entropic-rift-priest-discipline-voidweaver",
+                "hero",
+                136498,
+                1,
+                3,
+                "Entropic Rift",
+                class_key="priest",
+                spec_key="discipline",
+                hero_key="voidweaver",
+                class_id=5,
+                spec_id=256,
+                spell_id=447444,
+                granted_rank=1,
+                spec_ids=[256],
+            )
+            self.insert_websim_talent(
+                conn,
+                "simc-hero-void-torrent-priest-discipline-voidweaver",
+                "hero",
+                117287,
+                1,
+                3,
+                "Void Torrent",
+                class_key="priest",
+                spec_key="discipline",
+                hero_key="voidweaver",
+                class_id=5,
+                spec_id=258,
+                spell_id=263165,
+                granted_rank=1,
+                spec_ids=[258],
+            )
+            conn.commit()
+            payload = self.websim_payload.get_websim_talents(conn, "priest", "discipline", "voidweaver")
+        finally:
+            conn.close()
+
+        self.assertEqual([
+            node["name"]
+            for node in payload["nodes"]
+            if node["treeType"] == "hero"
+        ], ["Entropic Rift"])
+
+    def test_talent_payload_prefers_overrides_and_keeps_choice_alternatives_at_a_shared_slot(self):
+        nodes = [
+            {
+                "id": "simc-hero-old-paladin-holy-lightsmith",
+                "classKey": "paladin",
+                "specKey": "holy",
+                "treeId": "hero:lightsmith",
+                "treeType": "hero",
+                "heroKey": "lightsmith",
+                "nodeId": 95234,
+                "spellId": 432459,
+                "row": 1,
+                "col": 3,
+                "choiceGroup": "",
+                "shape": "circle",
+                "overrideSpellId": 0,
+            },
+            {
+                "id": "simc-hero-current-paladin-holy-lightsmith",
+                "classKey": "paladin",
+                "specKey": "holy",
+                "treeId": "hero:lightsmith",
+                "treeType": "hero",
+                "heroKey": "lightsmith",
+                "nodeId": 110257,
+                "spellId": 1289728,
+                "row": 1,
+                "col": 3,
+                "choiceGroup": "",
+                "shape": "circle",
+                "overrideSpellId": 432459,
+            },
+            {
+                "id": "simc-choice-a-paladin-holy-lightsmith",
+                "classKey": "paladin",
+                "specKey": "holy",
+                "treeId": "hero:lightsmith",
+                "treeType": "hero",
+                "heroKey": "lightsmith",
+                "nodeId": 95235,
+                "spellId": 433106,
+                "row": 2,
+                "col": 4,
+                "choiceGroup": "simc-choice:hero:paladin:holy:lightsmith:95235",
+                "shape": "choice",
+            },
+            {
+                "id": "simc-choice-b-paladin-holy-lightsmith",
+                "classKey": "paladin",
+                "specKey": "holy",
+                "treeId": "hero:lightsmith",
+                "treeType": "hero",
+                "heroKey": "lightsmith",
+                "nodeId": 95235,
+                "spellId": 433583,
+                "row": 2,
+                "col": 4,
+                "choiceGroup": "simc-choice:hero:paladin:holy:lightsmith:95235",
+                "shape": "choice",
+            },
+        ]
+
+        deduped = self.websim_payload.dedupe_real_talent_nodes(nodes)
+
+        self.assertEqual([node["id"] for node in deduped], [
+            "simc-hero-current-paladin-holy-lightsmith",
+            "simc-choice-a-paladin-holy-lightsmith",
+            "simc-choice-b-paladin-holy-lightsmith",
+        ])
 
     def test_talent_payload_enriches_multi_rank_tooltip_entries(self):
         conn = sqlite3.connect(self.db_path)

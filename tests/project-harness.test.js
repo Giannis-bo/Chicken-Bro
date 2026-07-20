@@ -198,6 +198,25 @@ function parseJsonOutput(result) {
   return JSON.parse(result.stdout)
 }
 
+test('project harness exposes help without running a manifest', () => {
+  const result = runHarness(['--help'])
+
+  assert.equal(result.status, 0)
+  assert.equal(result.stderr, '')
+  assert.match(result.stdout, /Usage: node scripts\/project-harness\.js/)
+  assert.doesNotMatch(result.stdout, /project_harness_manifest_ready/)
+})
+
+test('project harness rejects unknown options and missing option values', () => {
+  const unknown = runHarness(['--dryrun'])
+  assert.notEqual(unknown.status, 0)
+  assert.match(unknown.stderr, /Unknown option: --dryrun/)
+
+  const missing = runHarness(['--slug'])
+  assert.notEqual(missing.status, 0)
+  assert.match(missing.stderr, /Missing value for --slug/)
+})
+
 test('project harness emits the current repo-native harness manifest as read-only JSON', () => {
   const result = runHarness(['--json', '--slug', 'harness-smoke', '--date', '2026-07-09'])
 
@@ -207,9 +226,9 @@ test('project harness emits the current repo-native harness manifest as read-onl
   const manifest = JSON.parse(result.stdout)
   assert.equal(manifest.status, 'project_harness_manifest_ready')
   assert.equal(manifest.schemaVersion, 1)
-  assert.equal(manifest.harness.version, 'v0.6.2')
+  assert.equal(manifest.harness.version, 'v0.6.4')
   assert.equal(manifest.harness.source, 'docs/harness.md')
-  assert.equal(manifest.harness.policyChangeCount, 8)
+  assert.equal(manifest.harness.policyChangeCount, 10)
   assert.equal(manifest.safety.noNetwork, true)
   assert.equal(manifest.safety.repositoryRemoteSyncPreapproved, true)
   assert.equal(manifest.safety.repositoryRemoteSyncScope, 'configured_project_remote_only')
@@ -293,6 +312,7 @@ test('project harness emits the current repo-native harness manifest as read-onl
       'rerun_scoped_verification_on_merge_result',
       'push_main',
       'verify_local_and_origin_main_sha_match',
+      'refresh_wechat_preview_on_latest_main_when_frontend_changed',
       'remove_task_worktree_and_local_branch',
       'delete_published_task_branch_if_present'
     ],
@@ -431,22 +451,9 @@ test('project harness loads a local evidence packet without executing it', () =>
   ].join('\n'))
   writeFile(path.join(root, 'docs/roadmap.md'), '# Roadmap\n')
   writeFile(path.join(root, 'docs/README.md'), '# Docs\n')
-  writeFile(path.join(root, 'artifacts/releases/sample/evidence.json'), JSON.stringify({
-    identities: {},
-    manualAcceptance: {},
-    status: 'local_verified',
-    highestEvidenceLevel: 'local_verified',
-    scope: ['harness'],
-    verification: [
-      {
-        command: 'node --test tests/project-harness.test.js',
-        status: 'pass'
-      }
-    ],
-    risks: [],
-    rollback: ['code_rollback'],
+  writeJson(path.join(root, 'artifacts/releases/sample/evidence.json'), baseEvidence({
     summary: 'Harness evidence packet fixture.'
-  }, null, 2))
+  }))
 
   const result = runHarness([
     '--root',
@@ -464,6 +471,26 @@ test('project harness loads a local evidence packet without executing it', () =>
   assert.equal(manifest.evidencePacket.path, 'artifacts/releases/sample/evidence.json')
   assert.equal(manifest.evidencePacket.declaredStatus, 'local_verified')
   assert.equal(manifest.evidencePacket.highestEvidenceLevel, 'local_verified')
+  assert.deepEqual(manifest.evidencePacket.requiredFields, [
+    'schemaVersion',
+    'slug',
+    'requirementSlug',
+    'status',
+    'highestEvidenceLevel',
+    'branch',
+    'commit',
+    'identities',
+    'manualAcceptance',
+    'scope',
+    'verification',
+    'candidateDeployment',
+    'runtimeEvidence',
+    'risks',
+    'rollback',
+    'cleanup',
+    'archivedReferences',
+    'summary'
+  ])
   assert.deepEqual(manifest.evidencePacket.missingFields, [])
 })
 

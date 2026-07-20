@@ -21,9 +21,13 @@ describe('talent simulator legacy visual contract', () => {
     expect(modelSource).not.toContain('spec: 1080')
     expect(componentSource).toContain('data-role="talent-choice-frame"')
     expect(componentSource).toContain('data-arrow="end"')
-    expect(componentSource).toContain('`${node.x}px`')
-    expect(componentSource).toContain('`${stageWidth}px`')
+    expect(componentSource).toContain('function talentGraphRpx(value: number): string')
+    expect(componentSource).toContain('return `${value * (750 / 390)}rpx`')
+    expect(componentSource).toContain('left: talentGraphRpx(node.x)')
+    expect(componentSource).toContain('width: talentGraphRpx(stageWidth)')
     expect(componentSource).toContain('const graphViewportWidth = 350')
+    expect(componentSource).toContain('const graphViewportHeight = 461')
+    expect(componentSource).toContain('const graphInset = 8')
     expect(componentSource).toContain('const graphScale =')
     expect(componentSource).toContain('const planeLeft = (stageWidth - renderedBoundsWidth) / 2 - minNodeX * graphScale')
     expect(componentSource).not.toContain("componentStyle('choiceBadge')")
@@ -41,5 +45,24 @@ describe('talent simulator legacy visual contract', () => {
     const styleSource = readFileSync(stylePath, 'utf8').replace(/\r\n/g, '\n')
 
     expect(styleSource).toContain(".graphNode[data-shape='choice'][data-state] {\n  box-shadow: none;\n}")
+  })
+
+  it('keeps the expanded tree inside a vertically scrollable viewport with safe top and bottom reach', () => {
+    const componentSource = readFileSync(componentPath, 'utf8')
+
+    expect(componentSource).toContain('const targetContentHeight = graphViewportHeight - graphInset * 2')
+    expect(componentSource).toContain(`const graphScale = Math.min(
+    1,
+    targetContentWidth / nodeBoundsWidth,
+    allowVerticalOverflow ? 1 : targetContentHeight / nodeBoundsHeight,
+  )`)
+    expect(componentSource).toContain('allowVerticalOverflow?: boolean')
+    expect(componentSource).toContain('allowVerticalOverflow = false')
+    expect(componentSource).toContain('const planeTop = (stageHeight - renderedBoundsHeight) / 2 - minNodeY * graphScale')
+    expect(componentSource).toContain('const graphVerticalScrollPadding = 24')
+    expect(componentSource).toContain('renderedBoundsHeight + graphVerticalScrollPadding * 2')
+    expect(componentSource).toContain('scrollY={stageHeight > graphViewportHeight}')
+    expect(componentSource).toContain('showScrollbar={stageHeight > graphViewportHeight}')
+    expect(componentSource).not.toContain('scrollY={false}')
   })
 })

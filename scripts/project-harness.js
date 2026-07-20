@@ -29,14 +29,24 @@ const ROLLBACK_STRATEGIES = [
 ]
 
 const EVIDENCE_PACKET_REQUIRED_FIELDS = [
+  'schemaVersion',
+  'slug',
+  'requirementSlug',
   'status',
   'highestEvidenceLevel',
+  'branch',
+  'commit',
   'identities',
   'manualAcceptance',
   'scope',
   'verification',
+  'candidateDeployment',
+  'runtimeEvidence',
   'risks',
-  'rollback'
+  'rollback',
+  'cleanup',
+  'archivedReferences',
+  'summary'
 ]
 
 const REQUIREMENT_CLASSIFICATIONS = ['Light', 'Standard', 'Strict']
@@ -116,38 +126,51 @@ function parseArgs(argv) {
     requirementFile: null,
     manifestFile: null,
     check: false,
-    base: null
+    base: null,
+    help: false
+  }
+
+  const optionValue = (arg, index) => {
+    const value = argv[index + 1]
+    if (!value || value.startsWith('--')) {
+      throw new Error(`Missing value for ${arg}`)
+    }
+    return value
   }
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index]
-    if (arg === '--json') {
+    if (arg === '--help') {
+      options.help = true
+    } else if (arg === '--json') {
       options.json = true
     } else if (arg === '--write') {
       options.write = true
     } else if (arg === '--check') {
       options.check = true
-    } else if (arg === '--root' && argv[index + 1]) {
-      options.root = argv[index + 1]
+    } else if (arg === '--root') {
+      options.root = optionValue(arg, index)
       index += 1
-    } else if (arg === '--date' && argv[index + 1]) {
-      options.date = argv[index + 1]
+    } else if (arg === '--date') {
+      options.date = optionValue(arg, index)
       index += 1
-    } else if (arg === '--slug' && argv[index + 1]) {
-      options.slug = argv[index + 1]
+    } else if (arg === '--slug') {
+      options.slug = optionValue(arg, index)
       index += 1
-    } else if (arg === '--requirement-file' && argv[index + 1]) {
-      options.requirementFile = argv[index + 1]
+    } else if (arg === '--requirement-file') {
+      options.requirementFile = optionValue(arg, index)
       index += 1
-    } else if (arg === '--evidence-file' && argv[index + 1]) {
-      options.evidenceFile = argv[index + 1]
+    } else if (arg === '--evidence-file') {
+      options.evidenceFile = optionValue(arg, index)
       index += 1
-    } else if (arg === '--manifest-file' && argv[index + 1]) {
-      options.manifestFile = argv[index + 1]
+    } else if (arg === '--manifest-file') {
+      options.manifestFile = optionValue(arg, index)
       index += 1
-    } else if (arg === '--base' && argv[index + 1]) {
-      options.base = argv[index + 1]
+    } else if (arg === '--base') {
+      options.base = optionValue(arg, index)
       index += 1
+    } else {
+      throw new Error(`Unknown option: ${arg}`)
     }
   }
 
@@ -164,6 +187,26 @@ function parseArgs(argv) {
     options.manifestFile = relativePathInsideRoot(options.root, options.manifestFile, 'manifest file')
   }
   return options
+}
+
+function printHelp() {
+  process.stdout.write([
+    'Usage: node scripts/project-harness.js [options]',
+    '',
+    'Options:',
+    '  --json                     Print JSON output.',
+    '  --write                    Write a local release manifest.',
+    '  --check                    Validate a complete requirement/evidence/manifest packet.',
+    '  --root <path>              Repository root.',
+    '  --date <YYYY-MM-DD>        Release date used with --write.',
+    '  --slug <slug>              Release slug.',
+    '  --requirement-file <path>  Requirement packet path.',
+    '  --evidence-file <path>     Evidence packet path.',
+    '  --manifest-file <path>     Manifest packet path.',
+    '  --base <git-ref>           Comparison base for --check.',
+    '  --help                     Show this help.',
+    ''
+  ].join('\n'))
 }
 
 function sanitizeSlug(value) {
@@ -404,7 +447,7 @@ function validateRequirementPacket(requirement, failures) {
 
 function validateEvidencePacket(requirement, evidence, root, failures) {
   if (evidence.schemaVersion !== 2) {
-    addCheckFailure(failures, 'evidence_invalid_json', 'Evidence schemaVersion must be 2 for Harness v0.6.2 identity binding.')
+    addCheckFailure(failures, 'evidence_invalid_json', 'Evidence schemaVersion must be 2 for Harness v0.6.4 identity binding.')
   }
   if (!hasString(evidence.slug) || !hasString(evidence.requirementSlug)) {
     addCheckFailure(failures, 'evidence_invalid_json', 'Evidence slug and requirementSlug are required.')
@@ -1097,6 +1140,7 @@ function buildManifest(options) {
         'rerun_scoped_verification_on_merge_result',
         'push_main',
         'verify_local_and_origin_main_sha_match',
+        'refresh_wechat_preview_on_latest_main_when_frontend_changed',
         'remove_task_worktree_and_local_branch',
         'delete_published_task_branch_if_present'
       ],
@@ -1290,6 +1334,11 @@ function printCheckHuman(check) {
 function main() {
   try {
     const options = parseArgs(process.argv.slice(2))
+
+    if (options.help) {
+      printHelp()
+      return
+    }
 
     if (options.check) {
       const check = buildCheck(options)

@@ -1,0 +1,235 @@
+{
+  "schemaVersion": 2,
+  "slug": "talent-obsolete-panels-removal",
+  "requirementSlug": "talent-obsolete-panels-removal",
+  "status": "archived",
+  "highestEvidenceLevel": "archived",
+  "branch": "codex/talent-obsolete-panels-removal",
+  "commit": "58416d185b53dc02c2ea2ed6b2c5ee3475b1cbb3",
+  "identities": {
+    "runtime": {
+      "status": "bound",
+      "kind": "git_commit",
+      "value": "58416d185b53dc02c2ea2ed6b2c5ee3475b1cbb3"
+    },
+    "verification": {
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD"
+    },
+    "closure": {
+      "status": "bound",
+      "kind": "merge_commit",
+      "value": "42f7a4f59c67ebd227d5cfa495fce67bdfe9fa4f"
+    }
+  },
+  "manualAcceptance": {
+    "required": true,
+    "status": "complete",
+    "items": [
+      {
+        "id": "talent_selectors_visible",
+        "status": "accepted",
+        "evidence": "User explicitly accepted the final DevTools candidate on 2026-07-20: \"这次OK了，没问题，可以收尾了。\""
+      },
+      {
+        "id": "talent_hero_selector_switches_and_tree_is_not_duplicated",
+        "status": "accepted",
+        "evidence": "User explicitly accepted the final DevTools candidate on 2026-07-20 after verifying the Discipline Voidweaver duplicate-root correction: \"这次OK了，没问题，可以收尾了。\""
+      },
+      {
+        "id": "talent_obsolete_blocks_removed",
+        "status": "accepted",
+        "evidence": "User explicitly accepted the final DevTools candidate on 2026-07-20: \"这次OK了，没问题，可以收尾了。\""
+      },
+      {
+        "id": "talent_action_bar_bottom_anchored_tree_expanded",
+        "status": "accepted",
+        "evidence": "User explicitly accepted the final DevTools candidate on 2026-07-20: \"这次OK了，没问题，可以收尾了。\""
+      }
+    ],
+    "rollup": {
+      "total": 4,
+      "accepted": 4,
+      "notRunUserWaived": 0,
+      "pending": 0
+    }
+  },
+  "scope": [
+    "active_taro_talent_simulator",
+    "route_local_frontend_contraction",
+    "wechat_candidate_preview",
+    "websim_bootstrap_hero_selection",
+    "websim_talent_read_model_deduplication"
+  ],
+  "verification": [
+    {
+      "command": "npx vitest run apps/mini-taro/src/pages/builds/talent-simulator-page-contract.test.ts apps/mini-taro/src/pages/builds/talent-simulator-visual-contract.test.ts apps/mini-taro/src/pages/builds/talent-simulator-model.test.ts",
+      "status": "pass",
+      "summary": "Red-green contract tests guard removal of both obsolete surfaces, the bottom-anchored action bar, dense-tree expansion for both five- and six-node widest rows while sparse-tree alignment remains stable, tree-only vertical scrolling and the locked outer route surface; all 30 targeted tests pass."
+    },
+    {
+      "command": "npx vitest run apps/mini-taro/src/pages/builds/talent-simulator-model.test.ts apps/mini-taro/src/pages/builds/talent-simulator-page-contract.test.ts",
+      "status": "pass",
+      "summary": "The new sparse-hero layout and selector-icon regressions pass: the active hero crest resolves the first-row trusted hero talent icon without mutating node order, and a four-node hero row expands to the practical canvas width and height while rows remain centered; all 32 targeted tests passed."
+    },
+    {
+      "command": "npx vitest run packages/api-client/src/websim.test.ts apps/mini-taro/src/pages/builds/talent-simulator-model.test.ts apps/mini-taro/src/pages/builds/talent-simulator-page-contract.test.ts",
+      "status": "pass",
+      "summary": "The targeted frontend regression suite passed all 42 tests: the selector derives the two Frost Mage hero choices from the selected specialization, preserves the active hero request, and collapses same-spell same-coordinate non-choice duplicates."
+    },
+    {
+      "command": "npx vitest run packages/api-client/src/websim.test.ts",
+      "status": "pass",
+      "summary": "All 13 API-client tests passed, including the compatibility regression where two different-spell Voidweaver roots share one non-choice visual coordinate; only the first visible node is rendered while the child remains."
+    },
+    {
+      "command": "python3 -m unittest tests.websim_payload_test",
+      "status": "pass",
+      "summary": "All 431 backend tests passed. New coverage proves Discipline receives Entropic Rift but not Shadow's Void Torrent, the cached read model filters the same bad pair for Discipline, override spells replace legacy same-slot spells, choice alternatives survive, and a Hero tree with no specialization-specific source record still receives its shared fallback."
+    },
+    {
+      "command": "Read raw SimulationCraft midnight trait_data.inc and parse every bootstrap-selected Hero tree with parse_trait_data_text",
+      "status": "pass",
+      "summary": "The all-specialization audit expected 80 Hero trees and parsed 80; no Hero selection was missing and duplicate non-choice visual-slot count was 0. The prior live-payload scan had identified 12 affected Hero trees across Hunter, Mage, Monk, Paladin and Priest."
+    },
+    {
+      "command": "python3 -m unittest tests.websim_payload_test.WebSimPayloadTest.test_talent_payload_dedupes_cached_non_choice_nodes_and_marks_apex tests.websim_payload_test.WebSimPayloadTest.test_talent_payload_dedupes_same_visual_spell_slot tests.websim_payload_test.WebSimPayloadTest.test_talent_payload_can_select_hero_tree tests.websim_payload_test.WebSimPayloadTest.test_talent_payload_default_hero_matches_spec_picker_order",
+      "status": "pass",
+      "summary": "All four backend payload tests passed, including preservation of existing multi-rank node-ID handling and de-duplication of same-spell visual slots before validation availability is generated."
+    },
+    {
+      "command": "npm run audit:ui-architecture",
+      "status": "pass",
+      "summary": "All 14 routes, 14 contracts and 282 UI architecture checks passed with zero findings."
+    },
+    {
+      "command": "npm run typecheck",
+      "status": "pass",
+      "summary": "The TypeScript workspace completed with no errors."
+    },
+    {
+      "command": "npm run test:taro",
+      "status": "pass",
+      "summary": "All 41 Taro test files and 265 tests passed."
+    },
+    {
+      "command": "npx eslint apps/mini-taro/src/pages/builds/talent-simulator.tsx apps/mini-taro/src/pages/builds/talent-simulator-model.ts apps/mini-taro/src/pages/builds/talent-simulator-model.test.ts apps/mini-taro/src/pages/builds/talent-simulator-page-contract.test.ts apps/mini-taro/src/pages/builds/talent-simulator-visual-contract.test.ts packages/design-system/src/components/TalentSimulatorComponents.tsx --max-warnings=0",
+      "status": "pass",
+      "summary": "The changed TypeScript source and contract test passed with zero warnings."
+    },
+    {
+      "command": "npm run build:weapp",
+      "status": "pass",
+      "summary": "Taro compiled successfully and staged an atomic 213-file WeChat package; only pre-existing asset-size recommendations were reported."
+    },
+    {
+      "command": "GEOMETRY_ROUTES=talent_simulator npm run verify:ui-route-geometry",
+      "status": "blocked",
+      "summary": "No reusable WeChat automation endpoint was available on ports 9420-9460; the script correctly refused to launch or relaunch DevTools."
+    },
+    {
+      "command": "Read-only inspection of the already-open WeChat DevTools preview",
+      "status": "pass",
+      "summary": "After a normal compile and route re-entry, the existing DevTools preview displayed the three selector controls, no obsolete WebSim/community panels, the bottom action bar and the rpx-consistent dense tree. The Frost Mage hero picker contained exactly 霜火 and 法术投射者; switching both ways loaded the corresponding tree. In 霜火 hero view, the count is 13 available / 1 spent / 12 remaining, which confirms that the duplicate granted root no longer consumes two points. A final fresh normal-compile smoke confirms the 霜火 selector crest uses the active root-talent icon and the sparse hero graph fills the practical canvas with centered rows and intact edges. Tree-only scroll behavior remains subject to explicit user acceptance."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "candidate_verified",
+    "candidateId": "58416d185b53dc02c2ea2ed6b2c5ee3475b1cbb3",
+    "commit": "58416d185b53dc02c2ea2ed6b2c5ee3475b1cbb3",
+    "gitTree": "de99c6f55e943c62df07c86116b40d6b6689ccff",
+    "previewRoot": "/opt/wow-mini-program",
+    "buildOutput": "apps/mini-taro/dist/weapp",
+    "fileCount": 213,
+    "smoke": {
+      "status": "pass",
+      "summary": "Hot-deployed exact candidate 58416d18 with WOW_DEPLOY_SKIP_BOOTSTRAP=1 and WOW_DEPLOY_START_ASYNC_SYNCS=0. Public health passed; Priest Discipline Voidweaver returns only Entropic Rift at its root; the public bootstrap-derived 80 Hero-tree API responses contain zero duplicate non-choice visual slots."
+    },
+    "timerBackflow": {
+      "status": "pass",
+      "summary": "Deployment output explicitly skipped PG-native async sync starts because WOW_DEPLOY_START_ASYNC_SYNCS=0; wow-websim-sync.timer remained active."
+    },
+    "rollback": "Revert the task commit to restore the two advisory surfaces and the previous action-bar position."
+  },
+  "runtimeEvidence": [
+    {
+      "type": "wechat_build",
+      "status": "pass",
+      "summary": "The staged atomic WeChat build completed with 213 files."
+    },
+    {
+      "type": "wechat_devtools_readonly_smoke",
+      "status": "pass",
+      "summary": "The existing DevTools preview was normal-compiled without relaunching; the re-entered talent route shows the selector panel, the expanded rpx-consistent tree and the retained bottom action bar without the two obsolete panels. Frost Mage exposes exactly 霜火 and 法术投射者 in the hero picker, and switching both ways succeeds."
+    },
+    {
+      "type": "wechat_devtools_frostfire_duplicate_smoke",
+      "status": "pass",
+      "summary": "On the latest local bundle, Frost Mage → 霜火 → 英雄天赋 reports 13 available / 1 spent / 12 remaining. This directly verifies that one granted root remains after the visual-slot compatibility de-duplication; the previous duplicate pair reported two spent points."
+    },
+    {
+      "type": "wechat_devtools_hero_icon_and_sparse_tree_smoke",
+      "status": "pass",
+      "summary": "After a fresh normal compile, Frost Mage → 霜火 → 英雄天赋 displayed the active hero root-talent artwork in the selector crest and a widened, vertically expanded sparse hero graph. Row centering, node shape, edge topology and the bottom action bar remained intact."
+    },
+    {
+      "type": "wechat_devtools_manual_acceptance",
+      "status": "pass",
+      "summary": "The user explicitly accepted the final DevTools candidate on 2026-07-20: \"这次OK了，没问题，可以收尾了。\""
+    },
+    {
+      "type": "candidate_runtime_file_parity",
+      "status": "pass",
+      "summary": "The SHA-256 of candidate server/websim_payload.py and /opt/wow-mini-program/server/websim_payload.py both equal 888f3e5944b5f2dcd19b5307ee0abe09d953e7e712b1158fe6cd6b35eaba865a."
+    },
+    {
+      "type": "candidate_health_and_talent_smoke",
+      "status": "pass",
+      "summary": "Public and loopback health returned ok; wow-backend and wow-websim-sync.timer were active after the hot deployment. Priest Discipline Voidweaver returned 17 Hero nodes and a single Entropic Rift root."
+    },
+    {
+      "type": "candidate_hero_tree_matrix",
+      "status": "pass",
+      "summary": "The public bootstrap enumerated 13 classes and 80 specialization-by-Hero-tree selections. All 80 talent responses succeeded and duplicate non-choice visual-slot tree count was 0."
+    }
+  ],
+  "risks": [
+    {
+      "id": "visual_gap_or_overlap_after_tree_expansion",
+      "status": "accepted_by_user_and_contracts",
+      "detail": "Static contracts and the user-accepted DevTools candidate keep the action bar bottom-anchored, preserve centered tree geometry and direct vertical gestures to the graph viewport."
+    },
+    {
+      "id": "retained_action_regression",
+      "status": "controlled_by_existing_and_new_contract_tests",
+      "detail": "Backend validation/export/save/reset paths remain in source and the authoritative edit contract stays green."
+    },
+    {
+      "id": "hero_selector_or_duplicate_talent_regression",
+      "status": "controlled_by_candidate_matrix_and_regressions",
+      "detail": "Parser, cached read model and frontend guards preserve choice alternatives while the exact candidate's public 80-tree matrix has zero duplicate non-choice visual slots."
+    },
+    {
+      "id": "target_observation_falsification",
+      "status": "controlled_by_product_override_contract",
+      "detail": "The raw target inventory and target geometry remain unchanged; current runtime contracts explicitly record the exclusion."
+    }
+  ],
+  "rollback": [
+    "Revert the task commit to restore the removed route-local surfaces, talentImport read and former action-bar layout."
+  ],
+  "cleanup": {
+    "required": true,
+    "status": "completed"
+  },
+  "archivedReferences": [
+    "docs/project-state.json",
+    "docs/roadmap.md",
+    "docs/harness.md",
+    "docs/plans/ui-reconstruction.md",
+    "DESIGN.md",
+    "docs/design/current-ui/README.md"
+  ],
+  "summary": "The obsolete talent advisory surfaces and their dedicated request are removed, the action bar remains bottom-anchored, dense and sparse hero trees fill the practical canvas while preserving their alignment, the hero selector uses specialization-level backend choices and the active root-talent crest, and Hero-tree variants/overrides are isolated and de-duplicated by visual slot in the parser, cached read model and client. User acceptance and exact-candidate deployment passed, including a public 80-Hero-tree matrix with zero duplicate non-choice slots. The task was fast-forward merged and published on main at 42f7a4f59c67ebd227d5cfa495fce67bdfe9fa4f; post-merge verification and WeChat preview refresh passed."
+}

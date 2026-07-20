@@ -1,16 +1,16 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-20T05:14:51.594Z",
+  "generatedAt": "2026-07-20T18:06:26.218Z",
   "release": {
-    "date": "2026-07-20",
-    "slug": "top-safe-area-followup"
+    "date": "2026-07-21",
+    "slug": "runtime-media-icons-followup"
   },
   "harness": {
-    "version": "v0.6.3",
+    "version": "v0.6.4",
     "lastUpdated": "2026-07-20",
     "source": "docs/harness.md",
-    "policyChangeCount": 9
+    "policyChangeCount": 10
   },
   "safety": {
     "noNetwork": true,
@@ -38,7 +38,7 @@
         {
           "path": "docs/project-state.json",
           "exists": true,
-          "sizeBytes": 31041
+          "sizeBytes": 32146
         },
         {
           "path": "docs/project-owner-map.json",
@@ -53,17 +53,17 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 6571
+          "sizeBytes": 6953
         },
         {
           "path": "docs/README.md",
           "exists": true,
-          "sizeBytes": 3496
+          "sizeBytes": 4110
         },
         {
           "path": "docs/harness.md",
           "exists": true,
-          "sizeBytes": 42015
+          "sizeBytes": 42960
         },
         {
           "path": "docs/backend-owner-map.json",
@@ -99,7 +99,7 @@
         {
           "path": "server/websim_payload.py",
           "exists": true,
-          "lineCount": 26633,
+          "lineCount": 26752,
           "hotspot": true
         },
         {
@@ -287,6 +287,7 @@
         "rerun_scoped_verification_on_merge_result",
         "push_main",
         "verify_local_and_origin_main_sha_match",
+        "refresh_wechat_preview_on_latest_main_when_frontend_changed",
         "remove_task_worktree_and_local_branch",
         "delete_published_task_branch_if_present"
       ],
@@ -346,8 +347,8 @@
   },
   "evidencePacket": {
     "status": "ready",
-    "path": "artifacts/releases/2026-07-20-top-safe-area-followup/evidence.json",
-    "sizeBytes": 5688,
+    "path": "artifacts/releases/2026-07-21-runtime-media-icons-followup/evidence.json",
+    "sizeBytes": 5420,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -389,9 +390,9 @@
       "summary"
     ],
     "missingFields": [],
-    "declaredStatus": "runtime_verified",
-    "highestEvidenceLevel": "runtime_verified",
-    "summary": "The shared safe-area correction is synchronized with Harness v0.6.3 main, full CI and the isolated WeChat build passed, and the user explicitly accepted both required header-geometry scenarios."
+    "declaredStatus": "local_verified",
+    "highestEvidenceLevel": "local_verified",
+    "summary": "The runtime-media 404 root has been replaced by a fully verified immutable API-origin release, the package gate now rejects unreadable media manifests, and the server deploy path preserves immutable media serving. Final WeChat acceptance of class/spec, talent and equipment icons is still pending; COS promotion is not claimed complete."
   },
   "evidence": {
     "localTests": {
@@ -416,13 +417,13 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "3 changed files currently visible to git status."
+      "detail": "55 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
       "severity": "medium",
       "status": "watch",
-      "detail": "server/websim_payload.py:26633, server/news_backend.py:13576, server/postgres_cache_store.py:7228"
+      "detail": "server/websim_payload.py:26752, server/news_backend.py:13576, server/postgres_cache_store.py:7228"
     },
     {
       "id": "localTests_missing",
@@ -452,16 +453,68 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 3,
+      "changedFileCount": 55,
       "changedFiles": [
-        " M artifacts/releases/2026-07-20-top-safe-area-followup/evidence.json",
-        " M artifacts/releases/2026-07-20-top-safe-area-followup/manifest.json",
-        " M artifacts/releases/2026-07-20-top-safe-area-followup/requirement.json"
+        "M  AGENTS.md",
+        "M  README.md",
+        "M  apps/mini-taro/src/pages/builds/talent-simulator-model.test.ts",
+        "M  apps/mini-taro/src/pages/builds/talent-simulator-model.ts",
+        "M  apps/mini-taro/src/pages/builds/talent-simulator-page-contract.test.ts",
+        "M  apps/mini-taro/src/pages/builds/talent-simulator-visual-contract.test.ts",
+        "M  apps/mini-taro/src/pages/builds/talent-simulator.module.scss",
+        "M  apps/mini-taro/src/pages/builds/talent-simulator.tsx",
+        "A  artifacts/releases/2026-07-20-harness-v0-6-3-docs-dx/evidence.json",
+        "A  artifacts/releases/2026-07-20-harness-v0-6-3-docs-dx/manifest.json",
+        "A  artifacts/releases/2026-07-20-harness-v0-6-3-docs-dx/requirement.json",
+        "A  artifacts/releases/2026-07-20-harness-v0-6-4-wechat-preview-refresh/evidence.json",
+        "A  artifacts/releases/2026-07-20-harness-v0-6-4-wechat-preview-refresh/manifest.json",
+        "A  artifacts/releases/2026-07-20-harness-v0-6-4-wechat-preview-refresh/requirement.json",
+        "A  artifacts/releases/2026-07-20-talent-obsolete-panels-removal/evidence.json",
+        "A  artifacts/releases/2026-07-20-talent-obsolete-panels-removal/manifest.json",
+        "A  artifacts/releases/2026-07-20-talent-obsolete-panels-removal/requirement.json",
+        "UU artifacts/releases/2026-07-20-top-safe-area-followup/evidence.json",
+        "MM artifacts/releases/2026-07-20-top-safe-area-followup/manifest.json",
+        "UU artifacts/releases/2026-07-20-top-safe-area-followup/requirement.json",
+        "M  docs/README.md",
+        "M  docs/backend-owner-map.json",
+        "M  docs/builds-architecture.md",
+        "M  docs/design/current-ui/route-geometry-contract.json",
+        "M  docs/design/current-ui/routes/talent-simulator/asset-contract.json",
+        "M  docs/design/current-ui/routes/talent-simulator/component-contract.json",
+        "M  docs/design/current-ui/routes/talent-simulator/truth-adaptation.json",
+        "M  docs/harness.md",
+        "M  docs/news-architecture.md",
+        "M  docs/project-owner-map.json",
+        "M  docs/project-state.json",
+        "M  docs/remote-debugging.md",
+        "M  docs/roadmap.md",
+        "M  package.json",
+        "M  packages/api-client/src/websim.test.ts",
+        "M  packages/api-client/src/websim.ts",
+        "M  packages/design-system/src/components/AppShell.tsx",
+        "M  packages/design-system/src/components/TalentSimulatorComponents.module.scss",
+        "M  packages/design-system/src/components/TalentSimulatorComponents.tsx",
+        "M  packages/design-system/src/components/owners.module.scss",
+        "M  packages/domain/src/entities.ts",
+        "M  packages/domain/src/index.ts",
+        "M  project.config.json",
+        "M  scripts/project-harness.js",
+        "A  scripts/refresh-weapp-preview.js",
+        "M  scripts/verify-project.js",
+        "M  server/websim_payload.py",
+        "M  tests/backend-owner-map.test.js",
+        "M  tests/project-harness.test.js",
+        "M  tests/project-owner-map.test.js",
+        "UU tests/project-state.test.js",
+        "A  tests/refresh-weapp-preview.test.js",
+        "M  tests/verify-project.test.js",
+        "M  tests/websim_payload_test.py",
+        "?? artifacts/releases/2026-07-21-runtime-media-icons-followup/"
       ]
     }
   },
   "write": {
     "enabled": true,
-    "path": "artifacts/releases/2026-07-20-top-safe-area-followup/manifest.json"
+    "path": "artifacts/releases/2026-07-21-runtime-media-icons-followup/manifest.json"
   }
 }

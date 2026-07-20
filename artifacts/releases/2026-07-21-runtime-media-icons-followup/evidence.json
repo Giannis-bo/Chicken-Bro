@@ -1,0 +1,135 @@
+{
+  "schemaVersion": 2,
+  "slug": "runtime-media-icons-followup",
+  "requirementSlug": "runtime-media-icons-followup",
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
+  "branch": "codex/top-safe-area-followup",
+  "commit": "pending_final_head",
+  "identities": {
+    "runtime": {
+      "status": "pending",
+      "reason": "The immutable media files are live, but the exact final WeChat candidate identity will be bound after the branch-head build and manual acceptance."
+    },
+    "verification": {
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD"
+    },
+    "closure": {
+      "status": "pending",
+      "reason": "Manual WeChat acceptance, merge and archive closure have not occurred."
+    }
+  },
+  "manualAcceptance": {
+    "required": true,
+    "status": "pending",
+    "items": [
+      {
+        "id": "builds_home_class_spec_icons",
+        "status": "pending"
+      },
+      {
+        "id": "talent_simulator_talent_icons",
+        "status": "pending"
+      },
+      {
+        "id": "gear_detail_equipment_icons",
+        "status": "pending"
+      }
+    ],
+    "rollup": {
+      "total": 3,
+      "accepted": 0,
+      "notRunUserWaived": 0,
+      "pending": 3
+    }
+  },
+  "scope": [
+    "taro_runtime_media_url_rewrite",
+    "immutable_runtime_media_publication",
+    "release_package_fail_closed_guard",
+    "lighthouse_static_media_serving",
+    "wechat_candidate_icons"
+  ],
+  "verification": [
+    {
+      "command": "WOW_CDN_PUBLIC_ORIGIN=https://api.chickenbro.cloud npm run verify:runtime-media -- 2026-07-20-wow-icons-v1",
+      "status": "pass",
+      "summary": "The public immutable release passed complete manifest and SHA-256 verification for 40 selections, 3,413 files and 7,326,459 bytes."
+    },
+    {
+      "command": "npm run verify:ui-package:release with the verified backend, application-asset and runtime-media roots",
+      "status": "pass",
+      "summary": "The WeChat package release gate passed with a 1,649,218-byte remote package and a readable runtime-media manifest."
+    },
+    {
+      "command": "npm run lint && npm run typecheck && npm run audit:ui-architecture && npm run test:taro",
+      "status": "pass",
+      "summary": "The pre-main-sync candidate passed lint, typecheck, the 14-route/282-check architecture audit and all 254 Taro tests; the exact merged branch head will be rechecked before push."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "verified",
+    "buildIdentity": "runtime-media:2026-07-20-wow-icons-v1",
+    "origin": "https://api.chickenbro.cloud/wow-media/releases/2026-07-20-wow-icons-v1",
+    "smoke": {
+      "status": "pass",
+      "summary": "The public release manifest, Frost specialization icon and Mage class icon returned HTTP 200 with immutable caching, CORS and nosniff headers."
+    },
+    "timerBackflow": {
+      "status": "pass",
+      "summary": "Existing health, stat and WebSim timers remained active; WOW_DEPLOY_START_ASYNC_SYNCS stayed disabled and no sync/backfill was triggered."
+    },
+    "rollback": "Restore the dated Nginx site backups, reload Nginx and rebuild the candidate with the prior media-root configuration."
+  },
+  "runtimeEvidence": [
+    {
+      "type": "public_runtime_media_integrity",
+      "status": "pass",
+      "summary": "Every file declared by the immutable public release manifest was downloaded and matched its declared size and SHA-256 hash."
+    },
+    {
+      "type": "smoke",
+      "status": "pass",
+      "summary": "The public manifest and representative class/spec icons returned usable JPEG payloads instead of 404."
+    },
+    {
+      "type": "timer_backflow",
+      "status": "pass",
+      "summary": "No asynchronous sync or backfill was started during publication or smoke verification."
+    }
+  ],
+  "risks": [
+    {
+      "id": "wechat_visual_acceptance_pending",
+      "status": "open",
+      "detail": "Public asset integrity does not prove that all three icon families render correctly in the final WeChat client."
+    },
+    {
+      "id": "cos_promotion_pending",
+      "status": "bounded",
+      "detail": "static.chickenbro.cloud promotion is pending Tencent Cloud MFA; the verified API origin is the current candidate root."
+    }
+  ],
+  "rollback": [
+    "Revert the task commits and rebuild the mini-program with the previous runtime-media configuration.",
+    "Restore /etc/nginx/sites-available/api.chickenbro.cloud.before-wow-media-20260720 and /etc/nginx/sites-available/wow-backend.before-wow-media-20260720, then test and reload Nginx."
+  ],
+  "cleanup": {
+    "required": true,
+    "status": "pending_manual_acceptance_and_closure",
+    "remaining": [
+      "Record explicit WeChat acceptance for the three required icon families.",
+      "Promote to static.chickenbro.cloud only after Tencent Cloud MFA is available and full readback passes again."
+    ]
+  },
+  "archivedReferences": [
+    "docs/project-state.json",
+    "docs/roadmap.md",
+    "docs/cdn-asset-publishing.md",
+    "scripts/verify-ui-package.js",
+    "server/deploy_lighthouse.sh"
+  ],
+  "summary": "The runtime-media 404 root has been replaced by a fully verified immutable API-origin release, the package gate now rejects unreadable media manifests, and the server deploy path preserves immutable media serving. Final WeChat acceptance of class/spec, talent and equipment icons is still pending; COS promotion is not claimed complete."
+}

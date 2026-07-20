@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-20T05:14:51.594Z",
+  "generatedAt": "2026-07-20T03:28:33.913Z",
   "release": {
     "date": "2026-07-20",
-    "slug": "top-safe-area-followup"
+    "slug": "harness-v0-6-3-docs-dx"
   },
   "harness": {
     "version": "v0.6.3",
@@ -346,8 +346,8 @@
   },
   "evidencePacket": {
     "status": "ready",
-    "path": "artifacts/releases/2026-07-20-top-safe-area-followup/evidence.json",
-    "sizeBytes": 5688,
+    "path": "artifacts/releases/2026-07-20-harness-v0-6-3-docs-dx/evidence.json",
+    "sizeBytes": 2660,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -389,9 +389,9 @@
       "summary"
     ],
     "missingFields": [],
-    "declaredStatus": "runtime_verified",
-    "highestEvidenceLevel": "runtime_verified",
-    "summary": "The shared safe-area correction is synchronized with Harness v0.6.3 main, full CI and the isolated WeChat build passed, and the user explicitly accepted both required header-geometry scenarios."
+    "declaredStatus": "local_verified",
+    "highestEvidenceLevel": "local_verified",
+    "summary": "Harness v0.6.3 documentation and CLI DX changes are locally verified on a clean exact branch HEAD. No runtime, deployment or live claim is made."
   },
   "evidence": {
     "localTests": {
@@ -416,7 +416,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "3 changed files currently visible to git status."
+      "detail": "1 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -452,16 +452,14 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 3,
+      "changedFileCount": 1,
       "changedFiles": [
-        " M artifacts/releases/2026-07-20-top-safe-area-followup/evidence.json",
-        " M artifacts/releases/2026-07-20-top-safe-area-followup/manifest.json",
-        " M artifacts/releases/2026-07-20-top-safe-area-followup/requirement.json"
+        " M artifacts/releases/2026-07-20-harness-v0-6-3-docs-dx/evidence.json"
       ]
     }
   },
   "write": {
     "enabled": true,
-    "path": "artifacts/releases/2026-07-20-top-safe-area-followup/manifest.json"
+    "path": "artifacts/releases/2026-07-20-harness-v0-6-3-docs-dx/manifest.json"
   }
 }
