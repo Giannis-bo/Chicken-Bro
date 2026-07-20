@@ -12,7 +12,8 @@ const characterizationRelease = 'artifacts/releases/2026-07-10-critical-contract
 const archivedPhase5Release = 'artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover'
 const activeHarnessSuperpowersRelease = 'artifacts/releases/2026-07-16-harness-superpowers-method-layer'
 const archivedHarnessV062Release = 'artifacts/releases/2026-07-19-harness-v0-6-2-control-plane-cleanup'
-const activeHarnessV063Release = 'artifacts/releases/2026-07-20-harness-v0-6-3-docs-dx'
+const completedHarnessV063Release = 'artifacts/releases/2026-07-20-harness-v0-6-3-docs-dx'
+const activeHarnessV064Release = 'artifacts/releases/2026-07-20-harness-v0-6-4-wechat-preview-refresh'
 const archivedTalentLkgRelease = 'artifacts/releases/2026-07-13-talent-link-lkg-sync-guard'
 const archivedCommunityEnhancementRelease = 'artifacts/releases/2026-07-14-community-enhancement-editability'
 
@@ -44,7 +45,7 @@ test('project-state is the single machine-readable current truth entry', () => {
   assert.equal(state.activeMilestone, 'taro_target_first_14_route_rebuild')
   assert.equal(state.featureIteration, 'allowed_under_harness')
   assert.equal(state.activeReleaseArtifact, undefined)
-  assert.equal(state.defaultLocalReleaseArtifact, activeHarnessV063Release)
+  assert.equal(state.defaultLocalReleaseArtifact, activeHarnessV064Release)
   assert.deepEqual(state.releaseResolution, {
     ci: 'task_scoped_pr_diff',
     local: 'explicit_release_or_default_local_release_artifact',
@@ -79,7 +80,7 @@ test('project-state is the single machine-readable current truth entry', () => {
   assertUniqueById(state.historicalContracts, 'historicalContracts')
 
   const activeContractIds = new Set(state.activeContracts.map((entry) => entry.id))
-  assert.ok(activeContractIds.has('repo_native_harness_v0_6_3'))
+  assert.ok(activeContractIds.has('repo_native_harness_v0_6_4'))
   assert.ok(!activeContractIds.has('harness_v0_6_2_control_plane_cleanup'))
   assert.ok(activeContractIds.has('taro_target_first_14_route_rebuild'))
   assert.ok(!activeContractIds.has('talent_link_lkg_sync_guard'))
@@ -90,11 +91,11 @@ test('project-state is the single machine-readable current truth entry', () => {
   )
   assert.equal(harnessV062Closure?.status, 'completed_local_verified_archived')
   assert.equal(harnessV062Closure?.evidence, `${archivedHarnessV062Release}/evidence.json`)
-  const harnessV063Closure = state.completedBaselines.find(
-    (entry) => entry.id === 'harness_v0_6_3_docs_dx_20260720',
+  const harnessV064Closure = state.completedBaselines.find(
+    (entry) => entry.id === 'harness_v0_6_4_wechat_preview_refresh_20260720',
   )
-  assert.equal(harnessV063Closure?.status, 'completed_local_verified')
-  assert.equal(harnessV063Closure?.evidence, `${activeHarnessV063Release}/evidence.json`)
+  assert.equal(harnessV064Closure?.status, 'completed_local_verified')
+  assert.equal(harnessV064Closure?.evidence, `${activeHarnessV064Release}/evidence.json`)
   assert.ok(!activeContractIds.has('equipment_simulator_phase5_async_stat_snapshot_plan'))
   assert.ok(!activeContractIds.has('equipment_simulator_phase3_resolve_profile_workbench_plan'))
   assert.ok(!activeContractIds.has('equipment_simulator_phase1_contracts_plan'))
@@ -131,7 +132,7 @@ test('project-state is the single machine-readable current truth entry', () => {
     assert.ok(!activePaths.has(entry.path), `${entry.path} should not be both active and historical`)
   }
 
-  for (const releasePath of [activeHarnessV063Release, archivedHarnessV062Release, activeHarnessSuperpowersRelease, archivedTalentLkgRelease, archivedCommunityEnhancementRelease, archivedPhase5Release, characterizationRelease, executableHarnessRelease, controlPlaneRelease]) {
+  for (const releasePath of [activeHarnessV064Release, completedHarnessV063Release, archivedHarnessV062Release, activeHarnessSuperpowersRelease, archivedTalentLkgRelease, archivedCommunityEnhancementRelease, archivedPhase5Release, characterizationRelease, executableHarnessRelease, controlPlaneRelease]) {
     assertPathExists(path.join(releasePath, 'requirement.json'))
     assertPathExists(path.join(releasePath, 'evidence.json'))
     assertPathExists(path.join(releasePath, 'manifest.json'))
@@ -767,6 +768,7 @@ test('UI package evidence cannot treat a placeholder remote asset origin as rele
   assert.match(verifier, /@tarojs['"], 'cli', 'bin', 'taro'/)
   assert.match(verifier, /result\.error/)
   assert.equal(packageJson.scripts['verify:ui-package:release'], 'node scripts/verify-ui-package.js --require-production-ready')
+  assert.equal(packageJson.scripts['refresh:weapp'], 'node scripts/refresh-weapp-preview.js')
   assert.equal(packageJson.scripts['build:weapp:release'], undefined)
   assert.doesNotMatch(JSON.stringify(packageJson.scripts), /static\.chickenbro\.cloud/u)
   assert.match(publisher, /const verificationConcurrency = 8/)
@@ -775,6 +777,19 @@ test('UI package evidence cannot treat a placeholder remote asset origin as rele
   assert.match(publisher, /remote asset request \$\{record\.path\}/)
   assert.match(publisher, /await Promise\.all\(Array\.from\(\{ length: workerCount \}/)
   assert.match(publisher, /remote asset integrity mismatch/)
+})
+
+test('post-merge WeChat preview refresh is repository-owned and cannot impersonate acceptance', () => {
+  const harness = fs.readFileSync('docs/harness.md', 'utf8')
+  const agents = fs.readFileSync('AGENTS.md', 'utf8')
+  const docsMap = fs.readFileSync('docs/README.md', 'utf8')
+
+  for (const source of [harness, agents, docsMap]) {
+    assert.match(source, /npm run refresh:weapp/)
+  }
+  assert.match(harness, /合入后的本地交付动作/)
+  assert.match(harness, /不能替代.*人工验收/)
+  assert.match(agents, /WECHAT_DEVTOOLS_CLI/)
 })
 
 test('runtime review control plane keeps superseded evidence in Git history only', () => {

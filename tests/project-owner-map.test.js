@@ -73,7 +73,7 @@ test('project owner map freezes the 16 critical domains with no unknown or block
   const ownerMap = readOwnerMap()
   assert.equal(ownerMap.schemaVersion, 1)
   assert.equal(ownerMap.status, 'project_owner_map_active')
-  assert.equal(ownerMap.harnessVersion, 'v0.6.3')
+  assert.equal(ownerMap.harnessVersion, 'v0.6.4')
   assert.equal(ownerMap.unownedCriticalDomains, 0)
   assert.equal(ownerMap.conflictingFactOwners, 0)
 

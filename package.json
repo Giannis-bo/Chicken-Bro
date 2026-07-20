@@ -18,6 +18,7 @@
     "audit:taro-domain:probe": "node scripts/audit-taro-request-domain.js --probe",
     "build:weapp": "npm --workspace @wow-mini/mini-taro run build:weapp",
     "dev:weapp": "npm --workspace @wow-mini/mini-taro run dev:weapp",
+    "refresh:weapp": "node scripts/refresh-weapp-preview.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint apps packages vitest.config.ts --max-warnings=0",
     "test:taro": "vitest run",

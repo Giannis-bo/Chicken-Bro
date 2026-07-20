@@ -226,9 +226,9 @@ test('project harness emits the current repo-native harness manifest as read-onl
   const manifest = JSON.parse(result.stdout)
   assert.equal(manifest.status, 'project_harness_manifest_ready')
   assert.equal(manifest.schemaVersion, 1)
-  assert.equal(manifest.harness.version, 'v0.6.3')
+  assert.equal(manifest.harness.version, 'v0.6.4')
   assert.equal(manifest.harness.source, 'docs/harness.md')
-  assert.equal(manifest.harness.policyChangeCount, 9)
+  assert.equal(manifest.harness.policyChangeCount, 10)
   assert.equal(manifest.safety.noNetwork, true)
   assert.equal(manifest.safety.repositoryRemoteSyncPreapproved, true)
   assert.equal(manifest.safety.repositoryRemoteSyncScope, 'configured_project_remote_only')
@@ -312,6 +312,7 @@ test('project harness emits the current repo-native harness manifest as read-onl
       'rerun_scoped_verification_on_merge_result',
       'push_main',
       'verify_local_and_origin_main_sha_match',
+      'refresh_wechat_preview_on_latest_main_when_frontend_changed',
       'remove_task_worktree_and_local_branch',
       'delete_published_task_branch_if_present'
     ],
