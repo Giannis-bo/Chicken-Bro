@@ -6,7 +6,8 @@
 
 - SSH alias：`wow-lighthouse`
 - SSH user/host：`ubuntu@124.223.51.33`
-- Public base URL：`http://124.223.51.33`
+- Public base URL：`https://api.chickenbro.cloud`
+- Direct IP diagnostic：`http://124.223.51.33`，仅限无凭据开发/故障探测
 - Project：`/opt/wow-mini-program`
 - Backend service：`wow-backend`
 - Environment：`/etc/wow-backend.env`
@@ -48,15 +49,15 @@ sudo awk -F= '/^WOW_DATABASE_RUNTIME=|^WOW_DATABASE_URL=|^WOW_CHICKENBRO_CODEX_E
 Public smoke：
 
 ```bash
-curl -fsS http://124.223.51.33/health
-curl -fsS http://124.223.51.33/api/data/health
-curl -fsS http://124.223.51.33/api/news/home
-curl -fsS http://124.223.51.33/api/websim/bootstrap
-curl -fsS 'http://124.223.51.33/api/websim/talents?class=mage&spec=frost'
-curl -fsS 'http://124.223.51.33/api/websim/gear?class=mage&spec=frost&compact=1'
+curl -fsS https://api.chickenbro.cloud/health
+curl -fsS https://api.chickenbro.cloud/api/data/health
+curl -fsS https://api.chickenbro.cloud/api/news/home
+curl -fsS https://api.chickenbro.cloud/api/websim/bootstrap
+curl -fsS 'https://api.chickenbro.cloud/api/websim/talents?class=mage&spec=frost'
+curl -fsS 'https://api.chickenbro.cloud/api/websim/gear?class=mage&spec=frost&compact=1'
 ```
 
-HTTP 200 只证明请求可达；还要检查 `status`、`blockers`、`checkedAt`、来源和关键 payload 字段。
+HTTP 200 只证明请求可达；还要检查 `status`、`blockers`、`checkedAt`、来源和关键 payload 字段。直接 IP 的 HTTP 探针不得携带 Bearer/admin token。
 
 ## 部署
 
@@ -134,4 +135,4 @@ SQLite 备份只能用于重新迁移或离线审计，不能恢复为 runtime f
 
 ## 安全风险
 
-Public base URL 当前是 HTTP。任何带 Bearer/admin token 的浏览器请求都不得发送到明文 HTTP；管理入口应在 HTTPS、访问控制和 token 轮换完成后使用。Token 只能保存在服务端环境或受信任的本地安全存储中。
+Public base URL 当前使用 `https://api.chickenbro.cloud`，其微信 request/downloadFile 域名批准与发布状态以 `docs/project-state.json` 为准。直接 IP 仍是明文 HTTP 诊断入口，任何 Bearer/admin token 都不得发送到该地址；管理入口还必须具备访问控制和 token 轮换。Token 只能保存在服务端环境或受信任的本地安全存储中。

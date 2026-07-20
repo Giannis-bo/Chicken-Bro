@@ -6,14 +6,15 @@
 
 ## 部署边界
 
-- 小程序前端：`pages/news/*`
+- 活动小程序前端：`apps/mini-taro/src/pages/news/*`，通过 `packages/api-client/src/news.ts` 消费统一契约
+- 兼容前端：根 `pages/news/*`，只保留 compatibility consumer 职责
 - 后端服务器：Tencent Lighthouse，生产主机见 [remote-debugging.md](remote-debugging.md)
 - 当前后端目录：`/opt/wow-mini-program`
 - systemd service：`wow-backend`
 - 进程监听：`127.0.0.1:8787`
-- 对外访问：Nginx 80 端口代理到本机 `8787`
+- 对外访问：`https://api.chickenbro.cloud` 代理到本机 `8787`；直接 IP 的 HTTP 80 只保留无凭据诊断用途
 
-> 实际主机和 API 地址不要写入仓库，放在不提交的环境配置或部署记录里。微信小程序正式环境需要 HTTPS 且域名加入 request 合法域名；开发版可临时使用 Lighthouse IP + HTTP 联调。
+> 生产候选使用 `https://api.chickenbro.cloud`，request/downloadFile 域名已经通过微信后台配置确认。开发版可使用 Lighthouse IP + HTTP 联调，但认证请求在明文 HTTP 下必须 fail closed；域名的当前发布状态以 `docs/project-state.json` 为准。
 
 ## 数据来源规则
 
@@ -179,15 +180,14 @@ WOW_NEWS_REFRESH_TIMEOUT=240
 
 ## 前端实现
 
-- `app.json`：第一个 tab 文案改为 `最新资讯`。
-- `pages/news/news-api.js`：请求后端 API，失败时回落到本地同结构 payload。
-- `pages/news/news.js`：页面加载时判断是否跨天，自动消费最新 ready payload；小程序端不再提供手动刷新入口。
-- `pages/news/news.wxml`：顶部 `swiper` 展示最重要 3 条新闻。
-- `pages/news/news.wxss`：整体改为 WoW 风格深色金边、羊皮纸底色和高对比信息卡。
-- `pages/news/detail.*`：详情页中文标题为主、原文标题作为副标题；顶部展示 `官方已核验` / `全文翻译` badge；正文只按 `bodyBlocksZh` 渲染中文翻译块；tag 使用中文 chip；来源缩小为底部复制链接按钮。
+- `apps/mini-taro/src/app.config.ts`：登记活动 14 路由和资讯 tab。
+- `apps/mini-taro/src/pages/news/news.tsx`：资讯首页，消费 ready payload、频道和重点内容。
+- `apps/mini-taro/src/pages/news/list.tsx`：按固定频道和筛选合同展示列表。
+- `apps/mini-taro/src/pages/news/detail.tsx`：中文标题和正文块为主，保留原题、来源、可信 badge 与复制链接交互。
+- `packages/api-client/src/news.ts`：活动 typed client、状态校验、缓存和空态边界；不可用时保持可解释空态，不把 packaged fallback 冒充当前资讯。
+- 根 `app.json` 与 `pages/news/*` 只保留兼容消费面，除非 compatibility retirement 合同证明无调用方，否则不删除；新的活动实现只进入 Taro。
 
 ## 后续演进
 
-1. 增加抓取 run 的错误记录和管理端查看能力。
-2. 接入域名、HTTPS、微信合法域名配置。
-3. 将端口从开发用 HTTP `80` 切换到正式域名后的 `443`。
+1. 继续完善抓取 run 的错误聚合和管理端定位体验。
+2. 用真实微信候选验证资讯首页、列表、详情的视觉和核心交互；域名/HTTPS 已是完成基线，不再列为待实现。

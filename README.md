@@ -15,7 +15,7 @@ PVE 专区、WCL 深度日志复盘、完整公共知识库和复杂后台管理
 
 ## 当前界面
 
-小程序目前采用 4 个底部 tab：
+活动运行时由 `apps/mini-taro` 中的 Taro 应用承载，使用 4 个底部 tab。根目录 `app.json` 和 `pages/` 只保留同一路由面的兼容职责，不再接收新的一级页面实现。
 
 | Tab | 页面 | 说明 |
 | --- | --- | --- |
@@ -28,48 +28,44 @@ PVE 专区、WCL 深度日志复盘、完整公共知识库和复杂后台管理
 
 ```text
 .
-├── app.js
-├── app.json
-├── app.wxss
-├── components/
-│   └── navigation-bar/
-├── pages/
-│   ├── builds/
-│   │   ├── builds.*             # 职业专精入口
-│   │   ├── detail.*             # 装备模拟和保留的职业详情容器
-│   │   ├── intel.*              # 职业情报页
-│   │   ├── talent-simulator.*   # 原生 WebSim 天赋模拟器
-│   │   └── websim-api.js
-│   ├── common/                  # API、鉴权、埋点、本地模板和游戏资产工具
-│   ├── news/
-│   ├── profile/
-│   ├── pve/                     # 已有页面，当前未注册为 tab，后续待规划恢复
-│   └── simulator/
-│       ├── simulator.*          # 智能分析入口，直接复用炸鸡队长聊天控制器
-│       ├── chickenbro-chat.js   # 炸鸡队长共享聊天状态/请求/降级逻辑
-│       ├── chickenbro.*         # 炸鸡队长独立页面，同一聊天体验
-│       ├── simc.*               # SimC 模板确认/任务提交，由职业专精入口进入
-│       ├── tasks.*              # SimC 任务列表
-│       ├── wcl.*                # WCL 日志入口，当前未注册到小程序 pages
-│       └── task-detail.*        # 已保存任务详情
-├── project.config.json
+├── apps/mini-taro/              # 当前活动微信小程序
+│   ├── src/pages/               # 14 路由 Taro 页面
+│   ├── project.config.json      # DevTools 公共项目配置
+│   └── dist/weapp/              # 构建产物，不提交
+├── packages/
+│   ├── api-client/src/          # 活动 typed transport/API client
+│   ├── design-system/           # 共享 UI、token 和素材合同
+│   └── domain/src/              # 跨端领域合同
+├── app.json / pages/            # 14 路由兼容 consumer，不接收新一级职责
 ├── server/
 │   ├── news_backend.py          # 统一 HTTP 后端
 │   ├── websim_payload.py        # Season Data Cache / WebSim / 装备和天赋契约
 │   ├── simulator_payload.py     # SimC/WCL/LLM 报告边界
 │   ├── analytics.py             # 事件采集与管理报表
 │   └── *.service / *.timer      # 生产 systemd jobs
-├── docs/
-└── sitemap.json
+├── docs/                        # 当前合同、架构、runbook 和活动计划
+└── artifacts/releases/          # Harness requirement/evidence/manifest
 ```
 
 文档入口见 [docs/README.md](docs/README.md)。当前长期方向以 [docs/roadmap.md](docs/roadmap.md) 为准；`docs/plans/README.md` 是当前计划白名单，未列入白名单的日期计划不拥有执行权，历史追溯使用 Git。
 
 ## 本地开发
 
-1. 使用微信开发者工具导入本目录。
-2. AppID 使用 `project.config.json` 中的当前配置，或按需要替换为自己的小程序 AppID。
-3. 在开发者工具中编译预览。
+首次准备依赖使用 `npm ci`。日常开发启动持续构建：
+
+```bash
+npm run dev:weapp
+```
+
+只构建一次则运行：
+
+```bash
+npm run build:weapp
+```
+
+微信开发者工具导入仓库内的 `apps/mini-taro`，不要导入仓库根目录。该目录的 `project.config.json` 已将小程序根指向 `apps/mini-taro/dist/weapp`；构建完成后可直接编译、预览和真机测试。
+
+AppID 使用 `apps/mini-taro/project.config.json` 中的公共配置。个人代理、界面和调试设置应留在不提交的 `project.private.config.json`；如果 DevTools 自动改写被跟踪的公共配置，提交前应先判断改动是团队默认值还是个人噪声。
 
 本仓库不提交 `project.private.config.json`，该文件属于本地开发者工具个人配置。
 
@@ -94,7 +90,7 @@ WOW_NEWS_PORT=8787 python3 server/news_backend.py
 
 账号写接口统一使用 Bearer token。小程序 API client 在明文 HTTP + auth 场景会拒绝发送 token 并回退到本地数据；个人模板会先写入本地 `wow_build_templates_v1`，只有 HTTPS/合法域名可用时才同步到 `/api/me/build-templates`。
 
-小程序默认在开发版访问 `http://124.223.51.33`。体验版/正式版需要通过 `getApp().globalData.backendApiBaseUrl`、本地缓存 `wow_backend_api_base_url`，或构建环境变量 `WOW_BACKEND_API_BASE_URL` 配置 HTTPS 合法域名；未配置时会使用本地 fallback payload，避免空屏。
+活动 Taro transport 的源码开发默认值仍是 `http://124.223.51.33`，仅用于开发联调；认证请求在明文 HTTP 下会 fail closed。体验版/正式候选必须通过构建变量 `WOW_BACKEND_API_BASE_URL=https://api.chickenbro.cloud` 使用微信后台已批准的 HTTPS 合法域名，不能把开发默认值当成生产配置。
 
 资讯详情公共 payload 只发布同时满足 `contentStatus=ready`、`licenseStatus=approved`、`verificationStatus=official_verified`、`translationStatus=llm`、`translationFidelity=source_translation`、`sourceTier=official` 的文章：中文标题为主，保留 `originalTitle` 作为原题副标题，正文仅使用 `bodyBlocksZh` 块级渲染，tag 使用 `tagItems` 中文 chip，`sourceBadges` 与来源信息一并保留，公共 API 不返回原文正文。自动采集首版优先覆盖 Blizzard 官方文章；Wowhead / Icy Veins 等第三方来源未确认授权前只做 reference-only 发现/佐证，不进入公共 payload；正文抓取、LLM 逐块直译、授权门禁、官方校验或质检失败时记录在 refresh run 中，不发布给前端。
 
