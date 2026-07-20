@@ -15,13 +15,15 @@
 
 ## 前端结构
 
-当前页面由这些小程序页面共同承载：
+活动页面由 `apps/mini-taro` 承载，typed API 位于 `packages/api-client/src`：
 
-- `pages/builds/builds`：tab 首页，请求 `/api/builds/home`，展示四个主入口和职业情报入口。
-- `pages/builds/intel`：职业情报页，请求 `/api/builds/intel`。
-- `pages/builds/talent-simulator`：原生 WebSim 天赋模拟器，请求 `/api/websim/bootstrap`、`/api/websim/talents`，并通过 `/api/talents/*` 完成校验、导入和导出。
-- `pages/builds/detail`：承载装备模拟和保留的职业详情容器。`query=talents` 会重定向到 `talent-simulator`；`query=simc` / `query=tasks` 已由首页入口直接导航到 simulator 相关页面。属性权重、输出循环等内容不得在缺证据时包装成当前强结论。
-- `pages/builds/websim-api.js`：WebSim/装备相关前端 API client 和 fallback。
+- `apps/mini-taro/src/pages/builds/builds.tsx`：tab 首页，展示四个主入口和职业情报入口。
+- `apps/mini-taro/src/pages/builds/workbench.tsx`：职业/专精选择后的构筑工作台。
+- `apps/mini-taro/src/pages/builds/intel.tsx`：职业情报页。
+- `apps/mini-taro/src/pages/builds/talent-simulator.tsx`：天赋模拟器，消费 canonical talent API 并保持不可执行状态 fail closed。
+- `apps/mini-taro/src/pages/builds/detail.tsx`：装备模拟详情，消费 canonical resolver、属性快照和 readiness。
+- `packages/api-client/src/builds.ts` 与 `packages/api-client/src/websim.ts`：活动 typed client 和可信状态适配。
+- 根 `pages/builds/*` 和 `pages/builds/websim-api.js` 只保留兼容 consumer 职责，不再作为活动实现 owner。
 
 `/api/builds/home` 仍返回当前 `WOW_CLASSES` 全职业 / 专精矩阵的 `classOptions`，前端同时保留本地 fallback，防止 API 不可用时空屏。远端 payload 可更新 `quickActions`、`trustedSources`、`analysisWindow`、当前赛季字段和来源状态，但不能让无来源结论进入页面。
 
@@ -46,7 +48,7 @@
 - `profileReadiness=ready` 只授权 canonical profile 进入属性 Worker，stat execution outcome 仍独立收敛为 verified snapshot 或 explicit fail-closed problem。
 - 旧 `POST /api/websim/gear/stats` 仅保留兼容调用，不再由活跃前端发起，也不作为职业专精页的普通属性快照来源。
 - 2026-07-17 新增的 `attribute_rule_audit` 不是玩家请求路径：它只在 Release 已封存新 observed winner 后写入 PG intent，并由 `wow-gear-release-refresh.service` 成功后的独立 worker 读取。它不会进入 `/api/websim/gear`、Resolver、页面 `setData` 或 SimC queue。
-- winner audit 只验证已发布 `verified` 属性规则；当前没有 source-ledger-backed 规则时记录 `not_applicable` 且不访问 Battle.net。官方角色换装、资料不可用或输入不完全只产生内部 `inconclusive` / `blocked`，不能让模板导入或手动换装等待。
+- winner audit 只验证已发布 `verified` 属性规则；允许进入生产计算的上下文以[属性规则来源账本](gear-attribute-rule-source-ledger.md)为准。当前没有 source-ledger-backed 规则时记录 `not_applicable` 且不访问 Battle.net。官方角色换装、资料不可用或输入不完全只产生内部 `inconclusive` / `blocked`，不能让模板导入或手动换装等待。
 - 审计 `confirmed_mismatch` 是后续 rule promotion 的内部阻断 finding，不会自动改写 winner、Release、Manifest 或已发布的玩家可见规则；health 只展示 revision/context/count，不展示角色身份或完整装备输入。
 
 每条前端可见构筑、装备、属性和循环数据都必须携带来源、时间窗口、状态或 blocker。缺来源字段的数据不得进入首页或详情页。

@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 2,
+  "slug": "harness-v0-6-3-docs-dx",
+  "requirementSlug": "harness-v0-6-3-docs-dx",
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
+  "branch": "codex/harness-v0-6-3-docs-dx",
+  "commit": "pending_pr_head",
+  "identities": {
+    "runtime": {
+      "status": "not_applicable",
+      "reason": "Docs and local verification tooling only; no runtime identity exists."
+    },
+    "verification": {
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD"
+    },
+    "closure": {
+      "status": "pending",
+      "reason": "Merge and archive closure have not occurred."
+    }
+  },
+  "manualAcceptance": {
+    "required": false,
+    "status": "not_applicable",
+    "reason": "No user-visible runtime behavior changes in this task.",
+    "items": [],
+    "rollup": {
+      "total": 0,
+      "accepted": 0,
+      "notRunUserWaived": 0,
+      "pending": 0
+    }
+  },
+  "scope": [
+    "docs_tooling_only",
+    "current_truth_alignment",
+    "harness_cli_dx"
+  ],
+  "verification": [
+    {
+      "command": "node --test tests/project-harness.test.js tests/verify-project.test.js tests/project-state.test.js tests/project-owner-map.test.js tests/backend-owner-map.test.js",
+      "status": "pass",
+      "summary": "90 focused Harness, current-truth, owner-map and CLI tests passed after the required red-green cycle."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile harness --release artifacts/releases/2026-07-20-harness-v0-6-3-docs-dx --base origin/main",
+      "status": "pass",
+      "summary": "The six-command Harness profile passed on a clean exact branch HEAD: 90 tests, JSON parsing, both CLI syntax checks, cross-bound packet validation and diff whitespace."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "not_applicable",
+    "reason": "Docs and local verification tooling only; no runtime surface changes."
+  },
+  "runtimeEvidence": [],
+  "risks": [
+    {
+      "id": "cli_default_behavior",
+      "status": "controlled_by_fail_fast_regression_tests"
+    },
+    {
+      "id": "documentation_truth_drift",
+      "status": "controlled_by_current_control_plane_assertions"
+    }
+  ],
+  "rollback": [
+    "Revert the task commit to restore Harness v0.6.2 and the previous documentation wording."
+  ],
+  "cleanup": {
+    "required": false,
+    "status": "not_applicable"
+  },
+  "archivedReferences": [
+    "docs/project-state.json",
+    "docs/roadmap.md",
+    "docs/harness.md",
+    "README.md"
+  ],
+  "summary": "Harness v0.6.3 documentation and CLI DX changes are locally verified on a clean exact branch HEAD. No runtime, deployment or live claim is made."
+}

@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-07-19",
+  "updatedAt": "2026-07-20",
   "status": "project_owner_map_active",
-  "harnessVersion": "v0.6.2",
+  "harnessVersion": "v0.6.3",
   "activeMilestone": "taro_target_first_14_route_rebuild",
   "compatibilityRetirementContract": "docs/compatibility-retirement.json",
   "unownedCriticalDomains": 0,

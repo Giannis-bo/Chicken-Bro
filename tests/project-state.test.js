@@ -1,5 +1,6 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
+const { spawnSync } = require('node:child_process')
 const fs = require('node:fs')
 const os = require('node:os')
 const path = require('node:path')
@@ -10,7 +11,8 @@ const executableHarnessRelease = 'artifacts/releases/2026-07-10-executable-proje
 const characterizationRelease = 'artifacts/releases/2026-07-10-critical-contract-characterization'
 const archivedPhase5Release = 'artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover'
 const activeHarnessSuperpowersRelease = 'artifacts/releases/2026-07-16-harness-superpowers-method-layer'
-const activeHarnessV062Release = 'artifacts/releases/2026-07-19-harness-v0-6-2-control-plane-cleanup'
+const archivedHarnessV062Release = 'artifacts/releases/2026-07-19-harness-v0-6-2-control-plane-cleanup'
+const activeHarnessV063Release = 'artifacts/releases/2026-07-20-harness-v0-6-3-docs-dx'
 const archivedTalentLkgRelease = 'artifacts/releases/2026-07-13-talent-link-lkg-sync-guard'
 const archivedCommunityEnhancementRelease = 'artifacts/releases/2026-07-14-community-enhancement-editability'
 
@@ -38,11 +40,11 @@ test('project-state is the single machine-readable current truth entry', () => {
   const state = readJson(projectStatePath)
 
   assert.equal(state.schemaVersion, 1)
-  assert.equal(state.updatedAt, '2026-07-19')
+  assert.equal(state.updatedAt, '2026-07-20')
   assert.equal(state.activeMilestone, 'taro_target_first_14_route_rebuild')
   assert.equal(state.featureIteration, 'allowed_under_harness')
   assert.equal(state.activeReleaseArtifact, undefined)
-  assert.equal(state.defaultLocalReleaseArtifact, activeHarnessV062Release)
+  assert.equal(state.defaultLocalReleaseArtifact, activeHarnessV063Release)
   assert.deepEqual(state.releaseResolution, {
     ci: 'task_scoped_pr_diff',
     local: 'explicit_release_or_default_local_release_artifact',
@@ -77,7 +79,7 @@ test('project-state is the single machine-readable current truth entry', () => {
   assertUniqueById(state.historicalContracts, 'historicalContracts')
 
   const activeContractIds = new Set(state.activeContracts.map((entry) => entry.id))
-  assert.ok(activeContractIds.has('repo_native_harness_v0_6_2'))
+  assert.ok(activeContractIds.has('repo_native_harness_v0_6_3'))
   assert.ok(!activeContractIds.has('harness_v0_6_2_control_plane_cleanup'))
   assert.ok(activeContractIds.has('taro_target_first_14_route_rebuild'))
   assert.ok(!activeContractIds.has('talent_link_lkg_sync_guard'))
@@ -87,7 +89,12 @@ test('project-state is the single machine-readable current truth entry', () => {
     (entry) => entry.id === 'harness_v0_6_2_control_plane_cleanup_20260719',
   )
   assert.equal(harnessV062Closure?.status, 'completed_local_verified_archived')
-  assert.equal(harnessV062Closure?.evidence, `${activeHarnessV062Release}/evidence.json`)
+  assert.equal(harnessV062Closure?.evidence, `${archivedHarnessV062Release}/evidence.json`)
+  const harnessV063Closure = state.completedBaselines.find(
+    (entry) => entry.id === 'harness_v0_6_3_docs_dx_20260720',
+  )
+  assert.equal(harnessV063Closure?.status, 'completed_local_verified')
+  assert.equal(harnessV063Closure?.evidence, `${activeHarnessV063Release}/evidence.json`)
   assert.ok(!activeContractIds.has('equipment_simulator_phase5_async_stat_snapshot_plan'))
   assert.ok(!activeContractIds.has('equipment_simulator_phase3_resolve_profile_workbench_plan'))
   assert.ok(!activeContractIds.has('equipment_simulator_phase1_contracts_plan'))
@@ -124,7 +131,7 @@ test('project-state is the single machine-readable current truth entry', () => {
     assert.ok(!activePaths.has(entry.path), `${entry.path} should not be both active and historical`)
   }
 
-  for (const releasePath of [activeHarnessV062Release, activeHarnessSuperpowersRelease, archivedTalentLkgRelease, archivedCommunityEnhancementRelease, archivedPhase5Release, characterizationRelease, executableHarnessRelease, controlPlaneRelease]) {
+  for (const releasePath of [activeHarnessV063Release, archivedHarnessV062Release, activeHarnessSuperpowersRelease, archivedTalentLkgRelease, archivedCommunityEnhancementRelease, archivedPhase5Release, characterizationRelease, executableHarnessRelease, controlPlaneRelease]) {
     assertPathExists(path.join(releasePath, 'requirement.json'))
     assertPathExists(path.join(releasePath, 'evidence.json'))
     assertPathExists(path.join(releasePath, 'manifest.json'))
@@ -826,10 +833,22 @@ test('runtime review control plane keeps superseded evidence in Git history only
   assert.equal(runtimeFiles.length, 0)
 })
 
-test('superseded execution documents are absent from the active control plane', () => {
-  const supersededDocs = fs.existsSync('docs/superpowers')
-    ? fs.readdirSync('docs/superpowers', { recursive: true, withFileTypes: true }).filter((entry) => entry.isFile())
-    : []
+test('superseded execution documents are absent from the active control plane', (t) => {
+  const ignoredMetadata = 'docs/superpowers/.DS_Store'
+  fs.mkdirSync('docs/superpowers', { recursive: true })
+  fs.writeFileSync(ignoredMetadata, 'ignored metadata')
+  t.after(() => {
+    fs.rmSync(ignoredMetadata, { force: true })
+    try {
+      fs.rmdirSync('docs/superpowers')
+    } catch (error) {
+      if (error.code !== 'ENOTEMPTY' && error.code !== 'ENOENT') throw error
+    }
+  })
+
+  const trackedResult = spawnSync('git', ['ls-files', '--', 'docs/superpowers'], { encoding: 'utf8' })
+  assert.equal(trackedResult.status, 0, trackedResult.stderr)
+  const supersededDocs = trackedResult.stdout.trim().split('\n').filter(Boolean)
   assert.equal(supersededDocs.length, 0)
   const gearRunbook = fs.readFileSync('docs/gear-simulation-full-chain-runbook.md', 'utf8')
   const uiPlan = fs.readFileSync('docs/plans/ui-reconstruction.md', 'utf8')
@@ -837,6 +856,29 @@ test('superseded execution documents are absent from the active control plane', 
   assert.doesNotMatch(gearRunbook, /当前[^\n]*进入 5B|5C 前端切换未开始/)
   assert.ok(uiPlan.split('\n').length <= 100, 'active UI plan should contain current execution truth, not a historical timeline')
   assert.doesNotMatch(uiPlan, /historical commit|历史 commit|候选 `taro-|PR #91 协调收口/)
+})
+
+test('current documentation follows the active Taro and Harness control plane', () => {
+  const readme = fs.readFileSync('README.md', 'utf8')
+  const docsMap = fs.readFileSync('docs/README.md', 'utf8')
+  const harness = fs.readFileSync('docs/harness.md', 'utf8')
+  const roadmap = fs.readFileSync('docs/roadmap.md', 'utf8')
+  const newsArchitecture = fs.readFileSync('docs/news-architecture.md', 'utf8')
+  const buildsArchitecture = fs.readFileSync('docs/builds-architecture.md', 'utf8')
+  const remoteDebugging = fs.readFileSync('docs/remote-debugging.md', 'utf8')
+
+  assert.match(readme, /npm run dev:weapp/)
+  assert.match(readme, /apps\/mini-taro/)
+  assert.match(readme, /apps\/mini-taro\/dist\/weapp/)
+  assert.match(docsMap, /cdn-asset-publishing\.md/)
+  assert.match(docsMap, /gear-attribute-rule-source-ledger\.md/)
+  assert.ok(harness.indexOf('docs/project-state.json') < harness.indexOf('docs/roadmap.md'))
+  assert.match(roadmap, /\| 已完成 \| 主干架构接合 \|/)
+  assert.match(newsArchitecture, /apps\/mini-taro/)
+  assert.doesNotMatch(newsArchitecture, /接入域名、HTTPS、微信合法域名配置/)
+  assert.match(buildsArchitecture, /apps\/mini-taro/)
+  assert.match(remoteDebugging, /Public base URL：`https:\/\/api\.chickenbro\.cloud`/)
+  assert.doesNotMatch(remoteDebugging, /Public base URL 当前是 HTTP/)
 })
 
 test('all used Taro native layout nodes inherit border-box geometry', () => {

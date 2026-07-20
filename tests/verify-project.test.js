@@ -75,6 +75,25 @@ function addTaskRelease(root, release, files = ['requirement.json', 'evidence.js
   }
 }
 
+test('verify-project exposes help without running verification', () => {
+  const result = runVerify(['--help'])
+
+  assert.equal(result.status, 0)
+  assert.equal(result.stderr, '')
+  assert.match(result.stdout, /Usage: node scripts\/verify-project\.js/)
+  assert.doesNotMatch(result.stdout, /project_verification_/)
+})
+
+test('verify-project rejects unknown options and missing option values', () => {
+  const unknown = runVerify(['--dryrun'])
+  assert.notEqual(unknown.status, 0)
+  assert.match(unknown.stderr, /Unknown option: --dryrun/)
+
+  const missing = runVerify(['--profile'])
+  assert.notEqual(missing.status, 0)
+  assert.match(missing.stderr, /Missing value for --profile/)
+})
+
 test('verify-project dry-run resolves the explicit local default release and selects harness commands', () => {
   const result = runVerify(['--json', '--dry-run', '--profile', 'harness'])
   const projectState = JSON.parse(fs.readFileSync('docs/project-state.json', 'utf8'))

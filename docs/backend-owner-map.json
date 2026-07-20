@@ -1,7 +1,7 @@
 {
   "version": "2026-07-10-phase4-v30",
   "status": "phase4_admin_gate_queue_summary_read_model_selector_extracted",
-  "harnessVersion": "v0.6",
+  "harnessVersion": "v0.6.3",
   "defaultEvidenceLevel": "local_verified",
   "rules": {
     "mustHaveCharacterizationBeforeExtraction": true,
