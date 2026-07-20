@@ -546,14 +546,18 @@ export function TalentActionBar({ items }: TalentActionBarProps) {
           )}
           data-action-id={item.id}
           data-disabled={item.disabled === true ? 'true' : 'false'}
-          data-role={item.id === 'import' ? 'talent-import-action' : 'talent-action-button'}
+          data-role="talent-action-button"
           data-tone={item.tone}
           role="button"
           onClick={() => {
             if (item.disabled !== true) item.onClick()
           }}
         >
-          <SystemGlyph assetId={actionGlyph[item.id]} slotId="asset_slot.utility-glyph-family" />
+          {item.id === 'import' ? (
+            <View data-role="talent-import-action">
+              <SystemGlyph assetId={actionGlyph[item.id]} slotId="asset_slot.utility-glyph-family" />
+            </View>
+          ) : <SystemGlyph assetId={actionGlyph[item.id]} slotId="asset_slot.utility-glyph-family" />}
           <Text>{item.label}</Text>
         </View>
       ))}

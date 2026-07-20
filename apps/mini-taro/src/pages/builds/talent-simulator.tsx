@@ -591,7 +591,7 @@ export default function TalentSimulatorPage() {
               />
             </RouteRegion>
             <RouteRegion className={styles['legendRegion'] ?? ''} data-region="talent_legend"><TalentLegend /></RouteRegion>
-            <RouteRegion className={styles['actionsRegion'] ?? ''} data-region="talent_actions" data-role="talent-import-action"><TalentActionBar items={actions} /></RouteRegion>
+            <RouteRegion className={styles['actionsRegion'] ?? ''} data-region="talent_actions"><TalentActionBar items={actions} /></RouteRegion>
             <TalentTemplateNameSheet
               visible={nameSheetOpen}
               value={templateTitle}
