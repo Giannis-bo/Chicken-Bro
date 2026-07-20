@@ -27,6 +27,7 @@ const requireProductionReady = process.argv.includes('--require-production-ready
 const maximumWalkFiles = 4096
 const maximumPackageTextFileBytes = 1024 * 1024
 const maximumPackageTextBytes = 4 * 1024 * 1024
+const maximumRuntimeMediaManifestBytes = 2 * 1024 * 1024
 const limits = {
   remoteTotalBytes: 2 * 1024 * 1024,
   commonJsBytes: 420 * 1024,
@@ -60,6 +61,44 @@ function walk(directory) {
 function countStringLiteral(source, value) {
   return source.split(JSON.stringify(value)).length - 1
     + source.split(`'${value}'`).length - 1
+}
+
+function verifyRuntimeMediaReleaseRoot(value) {
+  if (!value) return { status: 'not_configured' }
+  if (!isProductionRuntimeMediaRoot(value)) {
+    return { status: 'failed', reason: 'root is not an approved named HTTPS immutable release' }
+  }
+  const rootUrl = new URL(value)
+  const releaseId = rootUrl.pathname.replace(/\/+$/u, '').split('/').pop()
+  const manifestUrl = `${value.replace(/\/+$/u, '')}/release-manifest.json`
+  const response = spawnSync('curl', [
+    '--fail', '--silent', '--show-error', '--max-time', '20', manifestUrl,
+  ], {
+    encoding: 'utf8',
+    maxBuffer: maximumRuntimeMediaManifestBytes,
+  })
+  if (response.status !== 0) {
+    const reason = (response.error?.message || response.stderr || response.stdout || 'request failed').trim().slice(-500)
+    return { status: 'failed', releaseId, manifestUrl, reason }
+  }
+  let manifest
+  try {
+    manifest = JSON.parse(response.stdout)
+  } catch {
+    return { status: 'failed', releaseId, manifestUrl, reason: 'release manifest is not valid JSON' }
+  }
+  const files = Array.isArray(manifest?.files) ? manifest.files : []
+  const valid = manifest?.schemaVersion === 1
+    && manifest?.releaseId === releaseId
+    && manifest?.immutableRoot === value.replace(/\/+$/u, '')
+    && Number.isInteger(manifest?.fileCount)
+    && manifest.fileCount > 0
+    && files.length === manifest.fileCount
+    && Number.isInteger(manifest?.totalBytes)
+    && manifest.totalBytes > 0
+  return valid
+    ? { status: 'pass', releaseId, manifestUrl, fileCount: manifest.fileCount, totalBytes: manifest.totalBytes }
+    : { status: 'failed', releaseId, manifestUrl, reason: 'release manifest identity or file inventory is invalid' }
 }
 
 function build(name, assetRuntimeRoot = '') {
@@ -140,12 +179,16 @@ try {
   if (remote.commonJsBytes > limits.commonJsBytes) failures.push(`common.js is ${remote.commonJsBytes} bytes`)
   if (remote.commonWxssBytes > limits.commonWxssBytes) failures.push(`common.wxss is ${remote.commonWxssBytes} bytes`)
   const packageMechanicsPass = failures.length === 0
+  const runtimeMediaRelease = verifyRuntimeMediaReleaseRoot(runtimeMediaRoot)
   const releaseBlockers = releaseDomainBlockers({
     assetRuntimeRoot: remoteAssetRuntimeRoot,
     runtimeMediaRoot,
     backendApiBaseUrl,
     wechatRequestDomainApproved,
   })
+  if (runtimeMediaRelease.status === 'failed') {
+    releaseBlockers.push(`WOW_RUNTIME_MEDIA_ROOT is not a readable immutable release: ${runtimeMediaRelease.reason}`)
+  }
   const releaseReady = packageMechanicsPass && releaseBlockers.length === 0
   console.log(JSON.stringify({
     status: packageMechanicsPass ? (releaseReady ? 'pass' : 'partial') : 'fail',
@@ -154,6 +197,7 @@ try {
     releaseReady,
     remoteAssetOrigin: isProductionAssetRuntimeRoot(remoteAssetRuntimeRoot) ? new URL(remoteAssetRuntimeRoot).origin : 'not_configured',
     runtimeMediaOrigin: isProductionRuntimeMediaRoot(runtimeMediaRoot) ? new URL(runtimeMediaRoot).origin : 'not_configured',
+    runtimeMediaRelease,
     backendApiOrigin: isProductionBackendOrigin(backendApiBaseUrl) ? new URL(backendApiBaseUrl).origin : 'not_configured',
     wechatRequestDomainApproved,
     releaseBlockers,

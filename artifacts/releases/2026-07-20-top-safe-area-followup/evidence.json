@@ -32,19 +32,34 @@
       {
         "id": "equipment_detail_header_geometry",
         "status": "pending"
+      },
+      {
+        "id": "builds_home_class_spec_icons",
+        "status": "pending"
+      },
+      {
+        "id": "talent_simulator_talent_icons",
+        "status": "pending"
+      },
+      {
+        "id": "gear_detail_equipment_icons",
+        "status": "pending"
       }
     ],
     "rollup": {
-      "total": 2,
+      "total": 5,
       "accepted": 0,
       "notRunUserWaived": 0,
-      "pending": 2
+      "pending": 5
     }
   },
   "scope": [
     "shared_frontend_chrome",
     "wechat_safe_area",
-    "ui_architecture_guard"
+    "ui_architecture_guard",
+    "runtime_media_release",
+    "lighthouse_immutable_media_hosting",
+    "release_package_remote_root_guard"
   ],
   "verification": [
     {
@@ -75,7 +90,17 @@
     {
       "command": "npm run verify:ui-package:release with production runtime roots",
       "status": "pass",
-      "summary": "releaseReady was true; the remote-asset package measured 1,649,208 bytes with no blockers."
+      "summary": "releaseReady was true; the remote-asset package measured 1,649,218 bytes, the configured runtime-media manifest was readable, and no blockers remained."
+    },
+    {
+      "command": "WOW_CDN_PUBLIC_ORIGIN=https://api.chickenbro.cloud npm run verify:runtime-media -- 2026-07-20-wow-icons-v1",
+      "status": "pass",
+      "summary": "The public immutable release passed full readback for 40 specializations, 3,413 files and 7,326,459 bytes with exact SHA-256 matches."
+    },
+    {
+      "command": "node --check scripts/verify-ui-package.js && bash -n server/deploy_lighthouse.sh && node --test tests/release-domain-policy.test.js tests/project-state.test.js",
+      "status": "pass",
+      "summary": "Both scripts parsed and all 43 focused control-plane/domain tests passed."
     },
     {
       "command": "git diff --check",
@@ -85,24 +110,74 @@
   ],
   "candidateDeployment": {
     "status": "pending",
-    "reason": "The final PR head has not yet been opened in the user's real WeChat client."
+    "reason": "The immutable media release and exact candidate package are ready, but the final PR head still needs one fresh real-WeChat run.",
+    "runtimeMediaRoot": "https://api.chickenbro.cloud/wow-media/releases/2026-07-20-wow-icons-v1",
+    "runtimeMediaRelease": {
+      "status": "pass",
+      "selectionCount": 40,
+      "fileCount": 3413,
+      "totalBytes": 7326459
+    },
+    "nginx": {
+      "status": "pass",
+      "configurationTest": "nginx -t",
+      "reload": "pass",
+      "backups": [
+        "/etc/nginx/sites-available/api.chickenbro.cloud.before-wow-media-20260720",
+        "/etc/nginx/sites-available/wow-backend.before-wow-media-20260720"
+      ]
+    },
+    "smoke": {
+      "status": "pass",
+      "summary": "https://api.chickenbro.cloud/health returned the healthy wow-backend response and the public runtime-media manifest returned HTTP 200."
+    },
+    "timerBackflow": {
+      "status": "pass",
+      "summary": "The existing websim, stat-weight, community-template and data-health timers plus backend/stat-worker services remained active; the media publish did not trigger sync or backfill work."
+    }
   },
   "runtimeEvidence": [
     {
       "type": "equivalent_pre_rebase_wechat_webview_observation",
       "status": "informational",
       "summary": "The identical shared-owner change moved the 390x844 WebView header from y=94 to y=47 while retaining the bottom TabBar; this does not replace final-head manual acceptance."
+    },
+    {
+      "type": "runtime_media_public_integrity",
+      "status": "pass",
+      "summary": "The configured API-hosted immutable release manifest and all 3,413 runtime icons passed public byte and SHA-256 verification; classicon_mage.jpg and spell_frost_frostbolt02.jpg both returned HTTP 200 image/jpeg with immutable caching."
+    },
+    {
+      "type": "candidate_package_constant_audit",
+      "status": "pass",
+      "summary": "The generated WeChat app binds https://api.chickenbro.cloud/wow-media/releases/2026-07-20-wow-icons-v1 and contains no reference to the prior 404 static runtime-media root."
+    },
+    {
+      "type": "smoke",
+      "status": "pass",
+      "summary": "The live backend health endpoint, immutable media manifest and representative class/spec icons returned healthy HTTP responses after an Nginx configuration test and reload."
+    },
+    {
+      "type": "timer_backflow",
+      "status": "pass",
+      "summary": "Four existing sync/health timers and both checked services remained active; no asynchronous sync or backfill was started by this publication."
     }
   ],
   "risks": [
     {
       "id": "final_head_manual_acceptance",
       "status": "pending",
-      "detail": "Both frozen top-bar scenarios must be checked once on the final PR head before merge."
+      "detail": "Both frozen top-bar scenarios and all three icon families must be checked once on the final PR head before merge."
+    },
+    {
+      "id": "cos_promotion_pending_mfa",
+      "status": "contained",
+      "detail": "Tencent CloudShell reported expired MFA, so the same release has not been copied to static.chickenbro.cloud. The candidate uses the fully verified, already-approved API HTTPS root and makes no CDN-completion claim."
     }
   ],
   "rollback": [
-    "Revert the shared PageFrame sticky-offset commit to restore the previous positioning contract."
+    "Revert the shared PageFrame sticky-offset commit to restore the previous positioning contract.",
+    "Restore the dated Nginx backups, reload Nginx and rebuild without WOW_RUNTIME_MEDIA_ROOT to disable the runtime-media release without deleting it."
   ],
   "cleanup": {
     "required": false
@@ -114,5 +189,5 @@
     "DESIGN.md",
     "docs/design/current-ui/README.md"
   ],
-  "summary": "The shared safe-area correction is locally verified on the latest main baseline. CI and the two required final-head real-device acceptance items remain pending."
+  "summary": "The shared safe-area correction and the repaired immutable runtime-media path are locally/live-integrity verified. CI and five final-head real-device acceptance items remain pending; COS promotion is truthfully deferred behind Tencent Cloud MFA."
 }

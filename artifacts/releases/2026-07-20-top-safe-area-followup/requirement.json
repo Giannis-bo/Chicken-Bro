@@ -1,12 +1,13 @@
 {
   "schemaVersion": 1,
   "slug": "top-safe-area-followup",
-  "classification": "Light",
+  "classification": "Standard",
   "status": "implementation_allowed",
-  "goal": "Remove the duplicated WeChat safe-area offset from the shared sticky page header while preserving the existing AppShell inset, native capsule clearance and bottom TabBar geometry.",
-  "userValue": "Players see the page title bar directly below the native status area instead of one full safe area too low, without the header or bottom navigation covering content.",
+  "goal": "Remove the duplicated WeChat safe-area offset from the shared sticky page header and restore verified class, specialization, talent and equipment icons through a readable immutable runtime-media release.",
+  "userValue": "Players see the page title bar directly below the native status area and the actual WoW object icons instead of an extra blank band or placeholder medallions.",
   "nonGoals": [
-    "Do not change route ownership, page content, API contracts, CDN roots or media availability.",
+    "Do not change route ownership, page content or API contracts.",
+    "Do not claim COS/CDN promotion while Tencent Cloud MFA still blocks that independent copy step.",
     "Do not add route-private header offsets or page-specific visual patches.",
     "Do not merge before the latest PR head receives the required real-device acceptance."
   ],
@@ -25,26 +26,28 @@
   "impactMap": {
     "mustChange": [
       "Shared PageFrame sticky offset in packages/design-system/src/components/owners.module.scss.",
-      "UI architecture audit contract for the shared safe-area owner."
+      "UI architecture audit contract for the shared safe-area owner.",
+      "The immutable runtime-media publication root, Lighthouse static hosting contract and release-package readability gate."
     ],
     "mustNotChange": [
-      "Route-private layout rules, native capsule placement, bottom TabBar geometry, APIs and runtime asset configuration."
+      "Route-private layout rules, native capsule placement, bottom TabBar geometry and API/data facts."
     ],
     "evidenceRequired": [
       "Lint, typecheck, Taro tests, UI architecture audit, WeChat build and release package verification.",
-      "Fresh real-device confirmation for the news home and equipment detail header scenarios."
+      "Fresh real-device confirmation for both header scenarios and the class/spec, talent and equipment icon families."
     ]
   },
   "ownership": {
-    "factOwner": "packages/design-system/src/components/owners.module.scss",
+    "factOwner": "packages/design-system/src/components/owners.module.scss, packages/design-system/src/runtime-media.ts and the immutable runtime-media release manifest",
     "consumers": [
       "The 14 active Taro routes using the shared AppShell and PageFrame owners.",
-      "scripts/audit-ui-architecture.js"
+      "scripts/audit-ui-architecture.js",
+      "scripts/verify-ui-package.js and server/deploy_lighthouse.sh"
     ]
   },
   "engineeringHealth": {
-    "status": "health_safe_shared_owner_fix",
-    "reason": "The fix removes one duplicated inset in the shared owner and adds a fail-closed architecture assertion; no route-private styles, API, data or deployment surfaces change."
+    "status": "health_guarded_runtime_media_and_shared_owner_fix",
+    "reason": "The shared inset fix stays route-independent; runtime media is published under one immutable release, fully hash-verified, and future release checks fail closed when a configured media manifest is unreadable."
   },
   "acceptanceEvidence": [
     "npm run lint",
@@ -53,23 +56,33 @@
     "npm run test:taro",
     "npm run build:weapp",
     "npm run verify:ui-package:release with the approved production runtime roots",
-    "Fresh real-device verification of news_home_header_geometry and equipment_detail_header_geometry on the final PR head"
+    "WOW_CDN_PUBLIC_ORIGIN=https://api.chickenbro.cloud npm run verify:runtime-media -- 2026-07-20-wow-icons-v1",
+    "Fresh real-device verification of both header geometries and the class/spec, talent and equipment icon families on the final PR head"
   ],
   "manualAcceptanceContract": {
     "required": true,
     "requiredItemIds": [
       "news_home_header_geometry",
-      "equipment_detail_header_geometry"
+      "equipment_detail_header_geometry",
+      "builds_home_class_spec_icons",
+      "talent_simulator_talent_icons",
+      "gear_detail_equipment_icons"
     ]
   },
   "releaseTrigger": "frontend_user_visible",
   "rollback": [
-    "code_rollback"
+    "code_rollback",
+    "config_disable",
+    "restore the dated Nginx configuration backups and rebuild without WOW_RUNTIME_MEDIA_ROOT"
   ],
   "decisionLog": [
     {
       "date": "2026-07-20",
       "decision": "The user asked to inspect both top-bar failure scenarios, authorized continued fixes and requested that remaining problems be solved before submission."
+    },
+    {
+      "date": "2026-07-20",
+      "decision": "After the user reported that icons were still missing, investigation proved the configured static runtime-media release returned 404. The candidate now uses a new API-hosted immutable release with full public hash verification while COS promotion remains explicitly pending MFA."
     }
   ]
 }
