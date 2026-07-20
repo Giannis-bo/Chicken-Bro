@@ -3,8 +3,8 @@
   "slug": "runtime-media-icons-followup",
   "classification": "Standard",
   "status": "implementation_allowed",
-  "goal": "Restore the real class, specialization, talent and equipment icons in the WeChat mini-program by publishing the prepared runtime-media release to a readable immutable project-owned origin, making candidate verification fail closed when that release manifest is unreadable, and preserving the publishing path for future art assets.",
-  "userValue": "Players can recognize professions, specializations, talents and equipment from their real artwork instead of generic placeholders, while future releases cannot be marked ready when the configured icon origin returns 404.",
+  "goal": "Restore the real class, specialization, talent and equipment icons in the WeChat mini-program by publishing the prepared runtime-media release to a readable immutable project-owned origin, making candidate verification fail closed when that release manifest is unreadable, preserving the publishing path for future art assets, and keeping guest gear visits from issuing an unauthenticated protected-template request.",
+  "userValue": "Players can recognize professions, specializations, talents and equipment from their real artwork instead of generic placeholders, while guest gear visits remain usable without a console-level 401 and future releases cannot be marked ready when the configured icon origin returns 404.",
   "nonGoals": [
     "Do not redesign the accepted page geometry, top bars, cards or navigation behavior.",
     "Do not claim that static.chickenbro.cloud COS promotion is complete while Tencent Cloud MFA still blocks that promotion.",
@@ -31,6 +31,7 @@
       "Build the WeChat candidate with that readable immutable runtime-media root.",
       "Make the release package verifier read the runtime-media release manifest and reject missing or unreadable roots.",
       "Keep the Lighthouse deployment configuration capable of serving immutable runtime-media releases after future deploys.",
+      "Fail locally to stored templates when a required-HTTPS endpoint has no authentication token, without changing endpoints that explicitly allow guest requests.",
       "Record the verified release identity, counts, public verification command and pending COS promotion boundary in current project state and the publishing runbook."
     ],
     "mustNotChange": [
@@ -45,6 +46,7 @@
     "evidenceRequired": [
       "Full public release-manifest verification of every declared runtime-media file and SHA-256 hash.",
       "Release package verification against the exact backend, app-asset and runtime-media roots.",
+      "Transport tests proving required-HTTPS endpoints do not reach Taro.request without a token while guest-capable endpoints retain their existing behavior.",
       "Targeted tests, typecheck, lint, Taro test suite and UI architecture audit on the final branch head.",
       "Manual WeChat verification that class/spec, talent and equipment icons render as real artwork instead of placeholders."
     ]
@@ -96,6 +98,10 @@
     {
       "date": "2026-07-21",
       "decision": "Keep this runtime-media correction in a new task-scoped packet because the earlier top-safe-area task and its acceptance evidence are already merged and archived."
+    },
+    {
+      "date": "2026-07-21",
+      "decision": "Real WeChat inspection showed the gear route issued templates.list without a token and received HTTP 401. The transport now distinguishes required_https from guest-capable endpoint contracts and falls back locally only for the former."
     }
   ]
 }

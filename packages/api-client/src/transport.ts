@@ -31,6 +31,7 @@ export interface RequestOptions<T> {
   header?: Readonly<Record<string, string>>
   timeoutMs?: number
   auth?: boolean
+  requireAuthToken?: boolean
   allowInsecureGuestRequest?: boolean
   attachAnalyticsHeaders?: boolean
   responseMode?: 'default' | 'structured-problem'
@@ -158,14 +159,19 @@ export function createTaroTransport(config: TransportConfig = {}): ApiTransport 
     if (options.auth && isInsecureHttpUrl(url) && !options.allowInsecureGuestRequest) {
       return fallbackResult('insecure api base url for authenticated request')
     }
+    const authToken = options.auth
+      ? storage.get<string>(storageKey('auth.token'))
+      : undefined
+    if (options.requireAuthToken && !authToken) {
+      return fallbackResult('missing auth token')
+    }
 
     const header: Record<string, string> = {
       ...(options.attachAnalyticsHeaders === false ? {} : analytics.headers(platform)),
       ...options.header,
     }
     if (options.auth && !isInsecureHttpUrl(url)) {
-      const token = storage.get<string>(storageKey('auth.token'))
-      if (token) header['Authorization'] = `Bearer ${token}`
+      if (authToken) header['Authorization'] = `Bearer ${authToken}`
     }
 
     try {
@@ -218,6 +224,7 @@ export function createTaroTransport(config: TransportConfig = {}): ApiTransport 
         method: endpoint.method,
         ...(timeoutMs === undefined ? {} : { timeoutMs }),
         auth,
+        requireAuthToken: endpoint.auth === 'required_https',
         allowInsecureGuestRequest,
         attachAnalyticsHeaders: !(
           'transport' in endpoint

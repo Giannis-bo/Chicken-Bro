@@ -49,6 +49,7 @@
     "taro_runtime_media_url_rewrite",
     "immutable_runtime_media_publication",
     "release_package_fail_closed_guard",
+    "required_https_missing_token_local_fallback",
     "lighthouse_static_media_serving",
     "wechat_candidate_icons"
   ],
@@ -61,12 +62,17 @@
     {
       "command": "npm run verify:ui-package:release with the verified backend, application-asset and runtime-media roots",
       "status": "pass",
-      "summary": "The WeChat package release gate passed with a 1,649,218-byte remote package and a readable runtime-media manifest."
+      "summary": "The exact rebuilt WeChat package release gate passed with a 1,647,150-byte remote package, an approved request-domain assertion and a readable runtime-media manifest."
     },
     {
       "command": "npm run lint && npm run typecheck && npm run audit:ui-architecture && npm run test:taro",
       "status": "pass",
-      "summary": "The pre-main-sync candidate passed lint, typecheck, the 14-route/282-check architecture audit and all 254 Taro tests; the exact merged branch head will be rechecked before push."
+      "summary": "The rebuilt branch candidate passed lint, typecheck, the 14-route/282-check architecture audit and all 270 Taro tests."
+    },
+    {
+      "command": "npx vitest run packages/api-client/src/transport.test.ts packages/api-client/src/templates.test.ts",
+      "status": "pass",
+      "summary": "All 20 focused transport/template tests passed, including the new required-HTTPS missing-token fallback and the existing guest-capable simulator behavior."
     }
   ],
   "candidateDeployment": {
@@ -93,6 +99,16 @@
       "type": "smoke",
       "status": "pass",
       "summary": "The public manifest and representative class/spec icons returned usable JPEG payloads instead of 404."
+    },
+    {
+      "type": "wechat_devtools_wxml",
+      "status": "pass",
+      "summary": "The rebuilt builds page bound the Frost specialization image to the immutable project-owned media URL at 60 x 60, removed the hidden class from the real image, hid the neutral fallback layer and reported no application error."
+    },
+    {
+      "type": "wechat_devtools_network",
+      "status": "pass",
+      "summary": "The Frost specialization JPEG returned HTTP 200 in the WeChat network panel; the talent route requested 85 owned runtime-media objects during its real render."
     },
     {
       "type": "timer_backflow",

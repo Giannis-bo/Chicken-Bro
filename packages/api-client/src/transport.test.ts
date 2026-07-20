@@ -56,6 +56,24 @@ describe('Taro transport parity', () => {
     expect(taro.request).toHaveBeenCalledOnce()
   })
 
+  it('falls back locally when a required HTTPS endpoint has no auth token', async () => {
+    const transport = createTaroTransport({
+      storage: new MemoryStorage(),
+      resolveBaseUrl: () => 'https://example.test',
+    })
+    const result = await transport.requestEndpoint('templates.list', '/api/me/build-templates?type=gear', {
+      fallback: () => ({ schemaVersion: 1, templates: [] }),
+      validate: () => true,
+    })
+
+    expect(result).toMatchObject({
+      payload: { schemaVersion: 1, templates: [] },
+      fromFallback: true,
+      error: 'missing auth token',
+    })
+    expect(taro.request).not.toHaveBeenCalled()
+  })
+
   it('preserves the news transport omission of analytics headers', async () => {
     const transport = createTaroTransport({ storage: new MemoryStorage(), resolveBaseUrl: () => 'https://example.test' })
     await transport.requestEndpoint('news.home', '/api/news/home', {
