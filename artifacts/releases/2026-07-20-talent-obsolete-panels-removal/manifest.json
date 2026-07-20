@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-20T11:52:34.525Z",
+  "generatedAt": "2026-07-20T11:55:02.578Z",
   "release": {
     "date": "2026-07-20",
     "slug": "talent-obsolete-panels-removal"
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-20-talent-obsolete-panels-removal/evidence.json",
-    "sizeBytes": 14055,
+    "sizeBytes": 14074,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -390,9 +390,9 @@
       "summary"
     ],
     "missingFields": [],
-    "declaredStatus": "live_verified",
-    "highestEvidenceLevel": "live_verified",
-    "summary": "The obsolete talent advisory surfaces and their dedicated request are removed, the action bar remains bottom-anchored, dense and sparse hero trees fill the practical canvas while preserving their alignment, the hero selector uses specialization-level backend choices and the active root-talent crest, and Hero-tree variants/overrides are isolated and de-duplicated by visual slot in the parser, cached read model and client. User acceptance and exact-candidate deployment passed, including a public 80-Hero-tree matrix with zero duplicate non-choice slots; merge and archive closure remain in progress."
+    "declaredStatus": "archived",
+    "highestEvidenceLevel": "archived",
+    "summary": "The obsolete talent advisory surfaces and their dedicated request are removed, the action bar remains bottom-anchored, dense and sparse hero trees fill the practical canvas while preserving their alignment, the hero selector uses specialization-level backend choices and the active root-talent crest, and Hero-tree variants/overrides are isolated and de-duplicated by visual slot in the parser, cached read model and client. User acceptance and exact-candidate deployment passed, including a public 80-Hero-tree matrix with zero duplicate non-choice slots. The task was fast-forward merged and published on main at 42f7a4f59c67ebd227d5cfa495fce67bdfe9fa4f; post-merge verification and WeChat preview refresh passed."
   },
   "evidence": {
     "localTests": {
@@ -417,7 +417,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "3 changed files currently visible to git status."
+      "detail": "2 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -453,11 +453,10 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 3,
+      "changedFileCount": 2,
       "changedFiles": [
         " M apps/mini-taro/project.config.json",
-        " M artifacts/releases/2026-07-20-talent-obsolete-panels-removal/evidence.json",
-        " M artifacts/releases/2026-07-20-talent-obsolete-panels-removal/manifest.json"
+        " M artifacts/releases/2026-07-20-talent-obsolete-panels-removal/evidence.json"
       ]
     }
   },
