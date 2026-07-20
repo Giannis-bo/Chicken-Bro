@@ -75,6 +75,10 @@
     {
       "date": "2026-07-20",
       "decision": "After Harness v0.6.3 merged, the user approved syncing this draft PR with current main, regenerating its task packet, rerunning full verification and retaining the two final-head real-WeChat acceptance gates."
+    },
+    {
+      "date": "2026-07-20",
+      "decision": "The isolated PR #94 WeChat build was opened through the official DevTools CLI, and the user explicitly replied 我已测试通过 for both frozen header-geometry scenarios."
     }
   ]
 }

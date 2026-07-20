@@ -2,14 +2,14 @@
   "schemaVersion": 2,
   "slug": "top-safe-area-followup",
   "requirementSlug": "top-safe-area-followup",
-  "status": "local_verified",
-  "highestEvidenceLevel": "local_verified",
+  "status": "runtime_verified",
+  "highestEvidenceLevel": "runtime_verified",
   "branch": "codex/top-safe-area-followup",
-  "commit": "pending_task_packet_commit",
+  "commit": "82a1f703a8de90b23bd5f8c92d06011ecb8314c7",
   "identities": {
     "runtime": {
-      "status": "pending",
-      "reason": "The final PR head still requires one fresh real-device run after CI passes."
+      "status": "not_applicable",
+      "reason": "This frontend-only preview does not deploy a backend runtime; the WeChat build and user acceptance are recorded separately."
     },
     "verification": {
       "status": "bound_at_check",
@@ -18,27 +18,29 @@
     },
     "closure": {
       "status": "pending",
-      "reason": "The draft PR is open and user acceptance has not completed."
+      "reason": "User acceptance is complete, but the PR has not yet merged."
     }
   },
   "manualAcceptance": {
     "required": true,
-    "status": "pending",
+    "status": "complete",
     "items": [
       {
         "id": "news_home_header_geometry",
-        "status": "pending"
+        "status": "accepted",
+        "evidence": "On 2026-07-20 the user explicitly replied 我已测试通过 after opening PR #94 commit 82a1f703 in WeChat DevTools and checking the news home header geometry."
       },
       {
         "id": "equipment_detail_header_geometry",
-        "status": "pending"
+        "status": "accepted",
+        "evidence": "On 2026-07-20 the user explicitly replied 我已测试通过 after opening PR #94 commit 82a1f703 in WeChat DevTools and checking the equipment detail header geometry."
       }
     ],
     "rollup": {
       "total": 2,
-      "accepted": 0,
+      "accepted": 2,
       "notRunUserWaived": 0,
-      "pending": 2
+      "pending": 0
     }
   },
   "scope": [
@@ -49,13 +51,13 @@
   "verification": [
     {
       "command": "npm run lint",
-      "status": "not_run",
-      "summary": "The pre-sync PR head passed; the main-synchronized final head is pending rerun."
+      "status": "pass",
+      "summary": "The main-synchronized PR head passed in the Project Harness full-profile CI run."
     },
     {
       "command": "npm run typecheck",
-      "status": "not_run",
-      "summary": "The pre-sync PR head passed; the main-synchronized final head is pending rerun."
+      "status": "pass",
+      "summary": "The main-synchronized PR head passed in the Project Harness full-profile CI run."
     },
     {
       "command": "npm run audit:ui-architecture",
@@ -64,18 +66,18 @@
     },
     {
       "command": "npm run test:taro",
-      "status": "not_run",
-      "summary": "The pre-sync PR head passed; the main-synchronized final head is pending rerun."
+      "status": "pass",
+      "summary": "The main-synchronized PR head passed in the Project Harness full-profile CI run."
     },
     {
       "command": "npm run build:weapp",
-      "status": "not_run",
-      "summary": "The pre-sync PR head passed; the main-synchronized final head is pending rerun."
+      "status": "pass",
+      "summary": "The isolated worktree build completed through staged atomic promotion with 213 files before the accepted WeChat preview."
     },
     {
       "command": "npm run verify:ui-package:release with production runtime roots",
-      "status": "not_run",
-      "summary": "The pre-sync PR head passed; the main-synchronized final head is pending rerun."
+      "status": "pass",
+      "summary": "The main-synchronized PR head passed release package verification in the Project Harness full-profile CI run."
     },
     {
       "command": "git diff --check",
@@ -90,25 +92,44 @@
     {
       "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-20-top-safe-area-followup --base origin/main",
       "status": "not_run",
-      "summary": "Pending full local verification on the main-synchronized final head."
+      "summary": "Pending clean exact-HEAD verification after committing the accepted closure packet."
     }
   ],
   "candidateDeployment": {
-    "status": "pending",
-    "reason": "The final PR head has not yet been opened in the user's real WeChat client."
+    "status": "preview_verified",
+    "candidateId": "pr94-82a1f703-wechat-devtools",
+    "commit": "82a1f703a8de90b23bd5f8c92d06011ecb8314c7",
+    "previewRoot": "apps/mini-taro",
+    "buildOutput": "apps/mini-taro/dist/weapp",
+    "fileCount": 213,
+    "smoke": {
+      "status": "pass",
+      "summary": "The user accepted both frozen header-geometry scenarios in WeChat DevTools."
+    },
+    "timerBackflow": {
+      "status": "not_applicable",
+      "reason": "Frontend-only WeChat preview; no service or scheduled-job change."
+    },
+    "rollback": "Revert the shared PageFrame sticky-offset commit."
   },
   "runtimeEvidence": [
     {
       "type": "equivalent_pre_rebase_wechat_webview_observation",
       "status": "informational",
       "summary": "The identical shared-owner change moved the 390x844 WebView header from y=94 to y=47 while retaining the bottom TabBar; this does not replace final-head manual acceptance."
+    },
+    {
+      "type": "wechat_devtools_manual_acceptance",
+      "status": "pass",
+      "commit": "82a1f703a8de90b23bd5f8c92d06011ecb8314c7",
+      "summary": "The user explicitly accepted the news home and equipment detail header geometry after the isolated 213-file WeChat build was opened through the official DevTools CLI."
     }
   ],
   "risks": [
     {
       "id": "final_head_manual_acceptance",
-      "status": "pending",
-      "detail": "Both frozen top-bar scenarios must be checked once on the final PR head before merge."
+      "status": "resolved",
+      "detail": "The user explicitly accepted both frozen top-bar scenarios in WeChat DevTools on the runtime-equivalent final source tree."
     }
   ],
   "rollback": [
@@ -124,5 +145,5 @@
     "DESIGN.md",
     "docs/design/current-ui/README.md"
   ],
-  "summary": "The shared safe-area correction is synchronized with Harness v0.6.3 main and targeted local architecture/Harness checks pass. Dependency-backed full verification, CI and the two required real-WeChat acceptance items remain pending."
+  "summary": "The shared safe-area correction is synchronized with Harness v0.6.3 main, full CI and the isolated WeChat build passed, and the user explicitly accepted both required header-geometry scenarios."
 }

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-20T04:55:22.819Z",
+  "generatedAt": "2026-07-20T05:14:51.594Z",
   "release": {
     "date": "2026-07-20",
     "slug": "top-safe-area-followup"
@@ -347,7 +347,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-20-top-safe-area-followup/evidence.json",
-    "sizeBytes": 4338,
+    "sizeBytes": 5688,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -389,9 +389,9 @@
       "summary"
     ],
     "missingFields": [],
-    "declaredStatus": "local_verified",
-    "highestEvidenceLevel": "local_verified",
-    "summary": "The shared safe-area correction is synchronized with Harness v0.6.3 main and targeted local architecture/Harness checks pass. Dependency-backed full verification, CI and the two required real-WeChat acceptance items remain pending."
+    "declaredStatus": "runtime_verified",
+    "highestEvidenceLevel": "runtime_verified",
+    "summary": "The shared safe-area correction is synchronized with Harness v0.6.3 main, full CI and the isolated WeChat build passed, and the user explicitly accepted both required header-geometry scenarios."
   },
   "evidence": {
     "localTests": {
