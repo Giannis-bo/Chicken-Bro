@@ -49,38 +49,48 @@
   "verification": [
     {
       "command": "npm run lint",
-      "status": "pass",
-      "summary": "ESLint completed with zero warnings."
+      "status": "not_run",
+      "summary": "The pre-sync PR head passed; the main-synchronized final head is pending rerun."
     },
     {
       "command": "npm run typecheck",
-      "status": "pass",
-      "summary": "TypeScript completed without errors."
+      "status": "not_run",
+      "summary": "The pre-sync PR head passed; the main-synchronized final head is pending rerun."
     },
     {
       "command": "npm run audit:ui-architecture",
       "status": "pass",
-      "summary": "All 14 routes and 282 architecture checks passed with zero findings."
+      "summary": "The main-synchronized head passed all 14 routes and 282 architecture checks with zero findings."
     },
     {
       "command": "npm run test:taro",
-      "status": "pass",
-      "summary": "41 test files and 254 tests passed."
+      "status": "not_run",
+      "summary": "The pre-sync PR head passed; the main-synchronized final head is pending rerun."
     },
     {
       "command": "npm run build:weapp",
-      "status": "pass",
-      "summary": "The WeChat package compiled and atomically promoted 213 output files."
+      "status": "not_run",
+      "summary": "The pre-sync PR head passed; the main-synchronized final head is pending rerun."
     },
     {
       "command": "npm run verify:ui-package:release with production runtime roots",
-      "status": "pass",
-      "summary": "releaseReady was true; the remote-asset package measured 1,649,208 bytes with no blockers."
+      "status": "not_run",
+      "summary": "The pre-sync PR head passed; the main-synchronized final head is pending rerun."
     },
     {
       "command": "git diff --check",
       "status": "pass",
-      "summary": "No whitespace errors were found."
+      "summary": "The main-synchronized head has no whitespace errors."
+    },
+    {
+      "command": "node --test tests/project-harness.test.js tests/verify-project.test.js tests/project-state.test.js tests/project-owner-map.test.js tests/backend-owner-map.test.js",
+      "status": "pass",
+      "summary": "90 Harness, current-truth and owner-map tests passed on the main-synchronized head."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-20-top-safe-area-followup --base origin/main",
+      "status": "not_run",
+      "summary": "Pending full local verification on the main-synchronized final head."
     }
   ],
   "candidateDeployment": {
@@ -114,5 +124,5 @@
     "DESIGN.md",
     "docs/design/current-ui/README.md"
   ],
-  "summary": "The shared safe-area correction is locally verified on the latest main baseline. CI and the two required final-head real-device acceptance items remain pending."
+  "summary": "The shared safe-area correction is synchronized with Harness v0.6.3 main and targeted local architecture/Harness checks pass. Dependency-backed full verification, CI and the two required real-WeChat acceptance items remain pending."
 }

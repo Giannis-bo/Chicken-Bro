@@ -1,16 +1,16 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-19T18:39:07.917Z",
+  "generatedAt": "2026-07-20T04:55:22.819Z",
   "release": {
     "date": "2026-07-20",
     "slug": "top-safe-area-followup"
   },
   "harness": {
-    "version": "v0.6.2",
-    "lastUpdated": "2026-07-19",
+    "version": "v0.6.3",
+    "lastUpdated": "2026-07-20",
     "source": "docs/harness.md",
-    "policyChangeCount": 8
+    "policyChangeCount": 9
   },
   "safety": {
     "noNetwork": true,
@@ -38,7 +38,7 @@
         {
           "path": "docs/project-state.json",
           "exists": true,
-          "sizeBytes": 30504
+          "sizeBytes": 31041
         },
         {
           "path": "docs/project-owner-map.json",
@@ -53,22 +53,22 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 6153
+          "sizeBytes": 6571
         },
         {
           "path": "docs/README.md",
           "exists": true,
-          "sizeBytes": 3191
+          "sizeBytes": 3496
         },
         {
           "path": "docs/harness.md",
           "exists": true,
-          "sizeBytes": 41011
+          "sizeBytes": 42015
         },
         {
           "path": "docs/backend-owner-map.json",
           "exists": true,
-          "sizeBytes": 42293
+          "sizeBytes": 42295
         }
       ],
       "historicalDocsDefaultToEvidenceOnly": true
@@ -347,31 +347,51 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-20-top-safe-area-followup/evidence.json",
-    "sizeBytes": 3477,
+    "sizeBytes": 4338,
     "requiredFields": [
+      "schemaVersion",
+      "slug",
+      "requirementSlug",
       "status",
       "highestEvidenceLevel",
+      "branch",
+      "commit",
       "identities",
       "manualAcceptance",
       "scope",
       "verification",
+      "candidateDeployment",
+      "runtimeEvidence",
       "risks",
-      "rollback"
+      "rollback",
+      "cleanup",
+      "archivedReferences",
+      "summary"
     ],
     "fieldsPresent": [
+      "schemaVersion",
+      "slug",
+      "requirementSlug",
       "status",
       "highestEvidenceLevel",
+      "branch",
+      "commit",
       "identities",
       "manualAcceptance",
       "scope",
       "verification",
+      "candidateDeployment",
+      "runtimeEvidence",
       "risks",
-      "rollback"
+      "rollback",
+      "cleanup",
+      "archivedReferences",
+      "summary"
     ],
     "missingFields": [],
     "declaredStatus": "local_verified",
     "highestEvidenceLevel": "local_verified",
-    "summary": "The shared safe-area correction is locally verified on the latest main baseline. CI and the two required final-head real-device acceptance items remain pending."
+    "summary": "The shared safe-area correction is synchronized with Harness v0.6.3 main and targeted local architecture/Harness checks pass. Dependency-backed full verification, CI and the two required real-WeChat acceptance items remain pending."
   },
   "evidence": {
     "localTests": {
@@ -396,7 +416,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "1 changed files currently visible to git status."
+      "detail": "3 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -432,9 +452,11 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 1,
+      "changedFileCount": 3,
       "changedFiles": [
-        "?? artifacts/releases/2026-07-20-top-safe-area-followup/"
+        " M artifacts/releases/2026-07-20-top-safe-area-followup/evidence.json",
+        " M artifacts/releases/2026-07-20-top-safe-area-followup/manifest.json",
+        " M artifacts/releases/2026-07-20-top-safe-area-followup/requirement.json"
       ]
     }
   },
