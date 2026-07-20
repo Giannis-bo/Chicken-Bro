@@ -19425,7 +19425,7 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(sync["sources"]["warcraftlogs"]["status"], "missing_credentials")
 
         templates = payload["communityTemplates"]
-        self.assertEqual(len(templates), 2)
+        self.assertEqual(len(templates), 1)
         self.assertEqual(templates[0]["name"], "高层大秘 · 主流AOE")
         self.assertEqual(templates[0]["scenarioKey"], "mythic_plus")
         self.assertEqual(templates[0]["sourceStatus"], "partial")
@@ -19436,13 +19436,60 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertTrue(templates[0]["canUseInSimc"])
         self.assertEqual(templates[0]["talentState"]["selectedNodes"][0]["id"], "simc-class-1001-mage-arcane")
         self.assertTrue(templates[0]["websimExportCode"].startswith("websim:mage:arcane:spellslinger:"))
-        self.assertEqual(templates[1]["heroKey"], "sunfury")
-        self.assertEqual(templates[1]["status"], "pending_collection")
         self.assertEqual(payload["communityTemplateSync"]["sourceStatus"], "partial")
         self.assertEqual(payload["communityTemplateSync"]["sources"]["raiderio"]["status"], "missing_credentials")
         self.assertNotIn("websim_baseline", payload["communityTemplateSync"]["sources"])
-        self.assertEqual(len(other_payload["communityTemplates"]), 2)
+        self.assertEqual(len(other_payload["communityTemplates"]), 1)
         self.assertTrue(all(item["status"] == "pending_collection" for item in other_payload["communityTemplates"]))
+
+    def test_current_talent_page_uses_only_the_mplus_winner_for_the_selected_hero(self):
+        templates = [
+            {
+                "id": "raid-winner",
+                "classKey": "mage",
+                "specKey": "frost",
+                "heroKey": "frostfire",
+                "scenarioKey": "raid",
+                "name": "Raid winner",
+                "rawImportCode": "raid-code",
+                "status": "verified",
+                "sourceStatus": "synced",
+                "canApplyVisual": True,
+                "payload": {"rioEvidence": {"score": 9999}, "wclEvidence": {"tier": "gold"}},
+            },
+            {
+                "id": "lower-score",
+                "classKey": "mage",
+                "specKey": "frost",
+                "heroKey": "frostfire",
+                "scenarioKey": "mythic_plus",
+                "name": "Lower score",
+                "rawImportCode": "mplus-lower-code",
+                "status": "verified",
+                "sourceStatus": "synced",
+                "canApplyVisual": True,
+                "payload": {"rioEvidence": {"score": 4000}, "wclEvidence": {"tier": "gold"}},
+            },
+            {
+                "id": "mplus-winner",
+                "classKey": "mage",
+                "specKey": "frost",
+                "heroKey": "frostfire",
+                "scenarioKey": "mythic_plus",
+                "name": "M+ winner",
+                "rawImportCode": "mplus-winner-code",
+                "status": "verified",
+                "sourceStatus": "synced",
+                "canApplyVisual": True,
+                "payload": {"rioEvidence": {"score": 4123.4}, "wclEvidence": {"tier": "silver"}},
+            },
+        ]
+
+        winners = self.websim_payload.community_talent_templates_for_spec_slots(
+            "mage", "frost", templates, "frostfire",
+        )
+
+        self.assertEqual([winner["id"] for winner in winners], ["mplus-winner"])
 
     def test_community_talent_sync_excludes_manual_fixture_by_default(self):
         conn = sqlite3.connect(self.db_path)
@@ -19482,7 +19529,7 @@ class WebSimPayloadTest(unittest.TestCase):
 
         self.assertEqual(template["sourceKey"], "unknown")
 
-    def test_community_talent_template_defaults_to_long_availability_with_short_freshness(self):
+    def test_community_talent_template_defaults_to_long_availability_with_seven_day_freshness(self):
         checked_before = datetime.now(timezone.utc)
 
         template = self.websim_payload.normalize_community_talent_template(
@@ -19505,9 +19552,37 @@ class WebSimPayloadTest(unittest.TestCase):
         fresh_until = datetime.fromisoformat(freshness["freshUntil"])
 
         self.assertGreater((expires_at - checked_before).total_seconds(), 7 * 24 * 60 * 60)
-        self.assertLess((fresh_until - checked_before).total_seconds(), 36 * 60 * 60)
+        self.assertGreater((fresh_until - checked_before).total_seconds(), 6 * 24 * 60 * 60)
+        self.assertLess((fresh_until - checked_before).total_seconds(), 8 * 24 * 60 * 60)
         self.assertEqual(freshness["status"], "fresh")
+        self.assertEqual(freshness["consecutiveFailureCount"], 0)
+        self.assertEqual(freshness["lastSuccessfulSyncAt"], template["updatedAt"])
         self.assertEqual(freshness["availabilityPolicy"], "keep_available_until_replaced_or_hard_invalid")
+
+    def test_community_talent_freshness_turns_stale_only_after_seven_failures_or_more_than_seven_days(self):
+        state = self.websim_payload.community_template_freshness_state(
+            {
+                "lastSuccessfulSyncAt": "2026-07-19T00:00:00+00:00",
+                "consecutiveFailureCount": 6,
+            },
+            now="2026-07-20T00:00:00+00:00",
+        )
+        self.assertEqual(state["status"], "fresh")
+        self.assertFalse(state["isStale"])
+
+        failed = self.websim_payload.community_template_freshness_state(
+            {**state, "consecutiveFailureCount": 7},
+            now="2026-07-20T00:00:00+00:00",
+        )
+        self.assertEqual(failed["status"], "stale")
+        self.assertTrue(failed["isStale"])
+
+        aged = self.websim_payload.community_template_freshness_state(
+            {"lastSuccessfulSyncAt": "2026-07-12T23:59:59+00:00", "consecutiveFailureCount": 0},
+            now="2026-07-20T00:00:00+00:00",
+        )
+        self.assertEqual(aged["status"], "stale")
+        self.assertTrue(aged["isStale"])
 
     def test_community_gear_template_defaults_to_long_availability_with_short_freshness(self):
         checked_before = datetime.now(timezone.utc)
@@ -19636,10 +19711,9 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(sync["scanCoverage"]["coveredSpecCount"], 2)
         self.assertEqual(sync["scanCoverage"]["missingSpecs"], [])
         self.assertTrue(any(item["sourceKey"] == "websim_baseline" for item in arcane["communityTemplates"]))
-        self.assertEqual(len(fire["communityTemplates"]), 2)
+        self.assertEqual(len(fire["communityTemplates"]), 1)
         self.assertEqual(fire["communityTemplates"][0]["sourceKey"], "websim_baseline")
         self.assertTrue(fire["communityTemplates"][0]["canApplyVisual"])
-        self.assertEqual(fire["communityTemplates"][1]["status"], "pending_collection")
 
     def test_websim_talents_returns_current_spec_community_templates_only(self):
         conn = sqlite3.connect(self.db_path)
@@ -19790,12 +19864,13 @@ class WebSimPayloadTest(unittest.TestCase):
             conn.close()
 
         template_ids = [item["id"] for item in payload["communityTemplates"]]
-        self.assertEqual(template_ids, ["mage_arcane_duplicate_high", "mage_arcane_other_a"])
-        self.assertEqual(len(payload["communityTemplates"]), 2)
-        self.assertEqual([item["heroKey"] for item in payload["communityTemplates"]], ["spellslinger", "sunfury"])
+        self.assertEqual(template_ids, ["mage_arcane_duplicate_high"])
+        self.assertEqual(len(payload["communityTemplates"]), 1)
+        self.assertEqual([item["heroKey"] for item in payload["communityTemplates"]], ["spellslinger"])
         self.assertEqual({item["specKey"] for item in payload["communityTemplates"]}, {"arcane"})
         self.assertNotIn("mage_fire_template", template_ids)
         self.assertNotIn("mage_arcane_duplicate_low", template_ids)
+        self.assertNotIn("mage_arcane_other_a", template_ids)
         self.assertNotIn("mage_arcane_other_b", template_ids)
         self.assertNotIn("mage_arcane_over_limit", template_ids)
         self.assertEqual(payload["communityTemplates"][0]["classLabel"], self.websim_payload.CLASS_LABELS_ZH["mage"])
@@ -19829,8 +19904,8 @@ class WebSimPayloadTest(unittest.TestCase):
         finally:
             conn.close()
 
-        self.assertEqual(len(payload["communityTemplates"]), 2)
-        pending, real = payload["communityTemplates"]
+        self.assertEqual(len(payload["communityTemplates"]), 1)
+        pending = payload["communityTemplates"][0]
         self.assertEqual(pending["id"], "pending_community_talent_mage_frost_spellslinger")
         self.assertEqual(pending["heroKey"], "spellslinger")
         self.assertEqual(pending["status"], "pending_collection")
@@ -19838,9 +19913,6 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertFalse(pending["canApplyVisual"])
         self.assertFalse(pending["canUseInSimc"])
         self.assertIn("待采集", pending["name"])
-        self.assertEqual(real["id"], "mage_frost_frostfire")
-        self.assertEqual(real["heroKey"], "frostfire")
-        self.assertEqual(real["status"], "verified")
 
     def test_websim_talents_dedupes_same_template_signature_and_merges_sources(self):
         conn = sqlite3.connect(self.db_path)
@@ -19930,7 +20002,7 @@ class WebSimPayloadTest(unittest.TestCase):
         finally:
             conn.close()
 
-        self.assertEqual(len(payload["communityTemplates"]), 2)
+        self.assertEqual(len(payload["communityTemplates"]), 1)
         shared = payload["communityTemplates"][0]
         self.assertEqual(shared["id"], "raiderio_shared")
         self.assertTrue(shared["signature"].startswith("talent:mage:arcane:spellslinger:"))
@@ -19941,7 +20013,6 @@ class WebSimPayloadTest(unittest.TestCase):
         )
         self.assertEqual(payload["communityTemplateSync"]["dedupedCount"], 2)
         self.assertEqual(payload["communityTemplateSync"]["hiddenDuplicateCount"], 1)
-        self.assertEqual(payload["communityTemplates"][1]["status"], "pending_collection")
 
     def test_websim_talents_read_model_does_not_bootstrap_community_templates(self):
         conn = sqlite3.connect(self.db_path)
@@ -19968,7 +20039,7 @@ class WebSimPayloadTest(unittest.TestCase):
 
         self.assertEqual(sync_calls, [])
         self.assertEqual(payload["communityTemplateSync"]["sourceStatus"], "missing_credentials")
-        self.assertEqual(len(payload["communityTemplates"]), 2)
+        self.assertEqual(len(payload["communityTemplates"]), 1)
         self.assertTrue(all(item["status"] == "pending_collection" for item in payload["communityTemplates"]))
 
     def test_community_talent_template_stats_ignore_expired_verified_rows(self):

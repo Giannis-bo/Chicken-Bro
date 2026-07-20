@@ -2126,6 +2126,7 @@ def aggregate_runs(runs, profiles):
                 aggregate["talentLoadouts"].append({
                     **run_talent,
                     "characterName": character.get("name"),
+                    "realm": character.get("realm"),
                     "realmSlug": character.get("realmSlug"),
                     "region": character.get("region") or run.get("region") or "",
                     "profileUrl": character.get("profileUrl") or (
@@ -2134,6 +2135,7 @@ def aggregate_runs(runs, profiles):
                         else ""
                     ),
                     "maxKeyLevel": run.get("mythicLevel"),
+                    "rankingEvidence": character.get("rankingEvidence") or run_ranking_evidence(run, character),
                     **({"status": "blocked", "blockers": blockers, "errors": blockers} if blockers else {}),
                 })
             elif profile:
@@ -2145,10 +2147,12 @@ def aggregate_runs(runs, profiles):
                         **talent,
                         "source": talent.get("source") or "profile_current",
                         "characterName": profile.get("name"),
+                        "realm": profile.get("realm") or character.get("realm") or "",
                         "realmSlug": profile.get("realmSlug"),
                         "region": profile.get("region") or character.get("region") or run.get("region") or "",
                         "profileUrl": profile.get("profileUrl"),
                         "maxKeyLevel": run.get("mythicLevel"),
+                        "rankingEvidence": profile.get("rankingEvidence") or run_ranking_evidence(run, character),
                         **({"status": "blocked", "blockers": blockers, "errors": blockers} if blockers else {}),
                     })
                 if profile.get("gear"):
@@ -2270,11 +2274,25 @@ def build_community_templates(aggregates, checked_at):
             if blockers:
                 continue
             status = loadout.get("status") or "verified"
+            ranking_evidence = loadout.get("rankingEvidence") if isinstance(loadout.get("rankingEvidence"), dict) else {}
+            region = str(ranking_evidence.get("region") or loadout.get("region") or "").strip().lower()
+            region_label = region.upper() or "GLOBAL"
+            realm = str(loadout.get("realm") or loadout.get("realmName") or loadout.get("realmSlug") or "").strip()
+            rio_evidence = {
+                "source": ranking_evidence.get("source") or "raiderio_run_ranking",
+                "score": safe_float(ranking_evidence.get("score")),
+                "rank": safe_int(ranking_evidence.get("rank")),
+                "maxKeyLevel": safe_int(ranking_evidence.get("maxKeyLevel") or loadout.get("maxKeyLevel") or aggregate.get("maxKeyLevel")),
+                "region": region,
+                "profileUrl": loadout.get("profileUrl") or "",
+            }
+            rio_evidence = {key: value for key, value in rio_evidence.items() if value not in (None, "", 0, 0.0)}
             payload = {
                 "raiderio": {
                     "characterName": loadout.get("characterName") or "",
+                    "realm": realm,
                     "realmSlug": loadout.get("realmSlug") or "",
-                    "region": loadout.get("region") or "",
+                    "region": region,
                     "profileUrl": loadout.get("profileUrl") or "",
                     "loadoutSpecId": loadout.get("loadoutSpecId") or "",
                     "heroSubTreeId": loadout.get("heroSubTreeId") or "",
@@ -2282,7 +2300,8 @@ def build_community_templates(aggregates, checked_at):
                     "selector": loadout.get("selector") or {},
                     "source": loadout.get("source") or "profile_current",
                     "loadout": structured_loadout,
-                }
+                },
+                "rioEvidence": rio_evidence,
             }
             templates.append({
                 "id": f"raiderio-{aggregate.get('classKey')}-{aggregate.get('specKey')}-{player_slug}-{code_hash}",
@@ -2290,15 +2309,15 @@ def build_community_templates(aggregates, checked_at):
                 "specKey": aggregate.get("specKey"),
                 "heroKey": loadout.get("heroKey") or "",
                 "scenarioKey": "mythic_plus",
-                "name": f"Raider.IO CN +{loadout.get('maxKeyLevel') or aggregate.get('maxKeyLevel')} {spec_label}",
-                "flowLabel": "Raider.IO CN",
+                "name": f"Raider.IO {region_label} +{loadout.get('maxKeyLevel') or aggregate.get('maxKeyLevel')} {spec_label}",
+                "flowLabel": f"Raider.IO {region_label}",
                 "sourceName": RAIDERIO_SOURCE_NAME,
                 "sourceUrl": loadout.get("profileUrl") or "https://raider.io/mythic-plus-rankings",
                 "rawImportCode": raw_code,
                 "playerId": player_id,
                 "sampleCount": aggregate.get("sampleCount") or 0,
                 "maxKeyLevel": loadout.get("maxKeyLevel") or aggregate.get("maxKeyLevel") or 0,
-                "analysisWindow": f"{raiderio_region()} {raiderio_season_slug()} cached at {checked_at}",
+                "analysisWindow": f"{region or 'global'} {raiderio_season_slug()} cached at {checked_at}",
                 "sourceStatus": "synced",
                 "status": status,
                 "payload": payload,
@@ -2327,6 +2346,7 @@ def sync_raiderio_cache(conn, force=False, stage_callback=None):
     leaderboard_url = ""
     leaderboard_urls = {}
     region_summaries = {}
+    successful_regions = []
     pages = max(0, int_env("WOW_RAIDERIO_RUN_PAGES", 8))
     target_item_ids = raiderio_target_item_ids(conn)
     deadline_at = sync_deadline_at()
@@ -2340,16 +2360,21 @@ def sync_raiderio_cache(conn, force=False, stage_callback=None):
     for region in regions:
         region_rankings = []
         region_pages = 0
+        region_errors = []
         for page in range(pages):
             if sync_deadline_expired(deadline_at):
-                errors.append(RAIDERIO_DEADLINE_ERROR)
+                region_errors.append(RAIDERIO_DEADLINE_ERROR)
                 break
-            response = api_get("/mythic-plus/runs", {
-                "season": season_slug,
-                "region": region,
-                "dungeon": "all",
-                "page": page,
-            })
+            try:
+                response = api_get("/mythic-plus/runs", {
+                    "season": season_slug,
+                    "region": region,
+                    "dungeon": "all",
+                    "page": page,
+                })
+            except (RaiderIOError, TimeoutError, OSError) as error:
+                region_errors.append(redact_secret(str(error)))
+                break
             region_leaderboard_url = response.get("leaderboard_url") or leaderboard_url
             if region_leaderboard_url:
                 leaderboard_url = leaderboard_url or region_leaderboard_url
@@ -2386,13 +2411,21 @@ def sync_raiderio_cache(conn, force=False, stage_callback=None):
         ]
         region_runs = [run for run in region_runs if run.get("roster")]
         region_summaries[region] = {
+            "status": "failed" if region_errors else "synced",
             "pagesFetched": region_pages,
             "rankingCount": len(region_rankings),
             "runCount": len(region_runs),
             "specCoverage": spec_coverage_from_runs(region_runs),
+            "errors": region_errors[:4],
         }
+        errors.extend(f"{region}: {error}" for error in region_errors)
+        if not region_errors:
+            successful_regions.append(region)
         if sync_deadline_expired(deadline_at):
             break
+
+    if region_summaries and not successful_regions:
+        raise RaiderIOError(errors[0] if errors else "Raider.IO did not complete any configured region")
 
     runs = [
         simplify_run(item, leaderboard_urls.get(str(item.get("_rioRegion") or "")) or leaderboard_url, region=item.get("_rioRegion"))

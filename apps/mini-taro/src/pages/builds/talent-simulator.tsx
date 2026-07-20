@@ -13,14 +13,19 @@ import {
   TalentLegend,
   TalentPointSummary,
   TalentSelectorPanel,
+  TalentTemplateImportSheet,
+  TalentTemplateNameSheet,
   TalentTreeTabs,
   type TalentActionItem,
   type TalentGraphNodeItem,
   type TalentSelectorItem,
   type TalentSelectorOption,
+  type TalentTemplateCommunityWinner,
+  type TalentTemplateSavedImportItem,
   type TalentTreeTabItem,
 } from '@wow-mini/design-system/components/TalentSimulatorComponents'
 import type {
+  BuildTemplate,
   BuildsHomePayload,
   ReadinessState,
   TalentNodeAvailabilityPayload,
@@ -34,7 +39,6 @@ import {
   type SpecSelection,
 } from '../_shared/build-context'
 import {
-  copyText,
   goBack,
   safeDecode,
   useAsyncRoute,
@@ -44,6 +48,8 @@ import {
   activeTalentSection,
   applyTalentValidation,
   buildTalentGraph,
+  communityTalentWinnerForImport,
+  defaultTalentTemplateTitle,
   heroTalentIcon,
   heroTalentOptions,
   initialTalentRanks,
@@ -79,6 +85,14 @@ function graphRouteState(state: ReadinessState, data: TalentPagePayload | undefi
   return state
 }
 
+function templateUpdatedAt(value: string | undefined): string {
+  if (!value) return '未提供'
+  const date = new Date(value)
+  if (!Number.isFinite(date.getTime())) return value
+  const pad = (part: number) => String(part).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
 export default function TalentSimulatorPage() {
   const router = useRouter()
   const [selectedSpecId, setSelectedSpecId] = useState(safeDecode(router.params['spec']) || defaultSpecId)
@@ -88,6 +102,12 @@ export default function TalentSimulatorPage() {
   const [nodeAvailability, setNodeAvailability] = useState<TalentNodeAvailabilityPayload | undefined>()
   const [validating, setValidating] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [nameSheetOpen, setNameSheetOpen] = useState(false)
+  const [templateTitle, setTemplateTitle] = useState('')
+  const [importSheet, setImportSheet] = useState<'closed' | 'saved' | 'community'>('closed')
+  const [savedTemplates, setSavedTemplates] = useState<readonly BuildTemplate[]>([])
+  const [loadingSavedTemplates, setLoadingSavedTemplates] = useState(false)
+  const [importingTemplate, setImportingTemplate] = useState(false)
   const selectionChanged = useRef(false)
   const validationSequence = useRef(0)
   const route = useAsyncRoute<TalentPagePayload>(async () => {
@@ -140,6 +160,8 @@ export default function TalentSimulatorPage() {
     setActiveTree(route.data.talents.treeSections[0]?.key || 'class')
     setValidating(false)
     setSaving(false)
+    setNameSheetOpen(false)
+    setImportSheet('closed')
   }, [route.data])
 
   const data = route.data
@@ -180,6 +202,23 @@ export default function TalentSimulatorPage() {
     .map((hero) => ({ id: hero.key, label: hero.label }))
   const currentHero = heroOptions.find((option) => option.id === currentHeroKey)
   const heroIconUrl = heroTalentIcon(data?.talents.nodes ?? [])
+  const communityWinner = communityTalentWinnerForImport(data?.talents.communityTemplates ?? [])
+  const savedImportItems: readonly TalentTemplateSavedImportItem[] = savedTemplates.map((template) => ({
+    id: template.id,
+    title: template.title,
+    detail: `更新：${templateUpdatedAt(template.updatedAt)}`,
+  }))
+  const communityWinnerView: TalentTemplateCommunityWinner | undefined = communityWinner ? {
+    title: communityWinner.name || communityWinner.title || '社区天赋模板',
+    playerName: communityWinner.playerName || '未提供',
+    serverName: communityWinner.serverName || '未提供',
+    region: communityWinner.region || '未提供',
+    ...(communityWinner.mplusScore === undefined ? {} : { mplusScore: communityWinner.mplusScore }),
+    updatedAt: templateUpdatedAt(communityWinner.updatedAt),
+    sourceName: communityWinner.sourceName || communityWinner.source || '未提供',
+    isStale: communityWinner.isStale === true || communityWinner.freshnessStatus === 'stale',
+    importable: communityWinner.canApplyVisual === true,
+  } : undefined
 
   const selectors: readonly TalentSelectorItem[] = data ? [
     {
@@ -324,6 +363,11 @@ export default function TalentSimulatorPage() {
 
   const saveImportTemplate = async () => {
     if (!data) return
+    const title = templateTitle.trim()
+    if (!title) {
+      await Taro.showToast({ title: '请填写模板名称', icon: 'none' })
+      return
+    }
     const operationSequence = validationSequence.current + 1
     validationSequence.current = operationSequence
     setSaving(true)
@@ -333,7 +377,7 @@ export default function TalentSimulatorPage() {
         exportCurrent: () => exportCurrentTalent(operationSequence),
         persist: (exportDecision) => wowApi.templates.upsert({
           type: 'talent',
-          title: `${data.selection.label} · 天赋构筑`,
+          title,
           classKey: data.selection.classKey,
           className: data.selection.classItem.name,
           specKey: data.selection.specKey,
@@ -351,6 +395,7 @@ export default function TalentSimulatorPage() {
         }),
         complete: async (result) => {
           const template = result.payload.template
+          setSavedTemplates(result.payload.templates.filter((item) => item.type === 'talent'))
           const savedLocally = template?.trust.level === 'local_only' || result.fromFallback
           const title = !template
             ? '保存失败'
@@ -358,10 +403,93 @@ export default function TalentSimulatorPage() {
               ? '已保存到本地，远端未确认'
               : '模板已保存并由远端确认'
           await Taro.showToast({ title, icon: 'none' })
+          if (template) setNameSheetOpen(false)
         },
       })
     } finally {
       if (validationSequence.current === operationSequence) setSaving(false)
+    }
+  }
+
+  const openNameSheet = () => {
+    if (!data) return
+    setTemplateTitle(defaultTalentTemplateTitle({
+      classLabel: data.selection.classItem.name,
+      specLabel: data.selection.spec.specName || data.selection.spec.title || data.selection.spec.name,
+      heroLabel: currentHero?.label || heroSection?.title || '英雄天赋',
+    }))
+    setNameSheetOpen(true)
+  }
+
+  const openImportSheet = async () => {
+    if (!data) return
+    setImportSheet('saved')
+    setLoadingSavedTemplates(true)
+    const result = await wowApi.templates.fetch('talent')
+    setSavedTemplates(result.payload.templates.filter((item) => item.type === 'talent'))
+    setLoadingSavedTemplates(false)
+    if (result.error && result.payload.templates.length === 0) {
+      await Taro.showToast({ title: '已保存模板暂不可用', icon: 'none' })
+    }
+  }
+
+  const applyImportedValidation = async (
+    validation: Parameters<typeof applyTalentValidation>[1],
+    fromFallback: boolean,
+    error: string,
+  ): Promise<boolean> => {
+    const sequence = validationSequence.current + 1
+    validationSequence.current = sequence
+    setValidating(true)
+    const decision = applyTalentValidation(ranks, validation, fromFallback, error)
+    if (validationSequence.current !== sequence) return false
+    setValidating(false)
+    if (!decision.accepted) {
+      await Taro.showToast({ title: decision.error, icon: 'none' })
+      return false
+    }
+    setRanks(decision.ranks)
+    setNodeAvailability(validation.nodeAvailability)
+    return true
+  }
+
+  const importSavedTemplate = async (templateId: string) => {
+    if (!data || importingTemplate) return
+    const template = savedTemplates.find((item) => item.id === templateId)
+    if (!template?.rawString) return
+    setImportingTemplate(true)
+    try {
+      const result = await wowApi.websim.talentImportCode({
+        code: template.rawString,
+        classKey: data.selection.classKey,
+        specKey: data.selection.specKey,
+        heroKey: data.talents.heroKey || data.selection.heroKey,
+      })
+      if (await applyImportedValidation(result.payload.validation, result.fromFallback, result.error)) {
+        setImportSheet('closed')
+        await Taro.showToast({ title: '已导入保存模板', icon: 'none' })
+      }
+    } finally {
+      setImportingTemplate(false)
+    }
+  }
+
+  const importCommunityWinner = async () => {
+    if (!data || !communityWinner?.talentState || importingTemplate) return
+    setImportingTemplate(true)
+    try {
+      const result = await wowApi.websim.talentValidate({
+        classKey: data.selection.classKey,
+        specKey: data.selection.specKey,
+        heroKey: data.talents.heroKey || data.selection.heroKey,
+        talentState: communityWinner.talentState,
+      })
+      if (await applyImportedValidation(result.payload, result.fromFallback, result.error)) {
+        setImportSheet('closed')
+        await Taro.showToast({ title: '已导入社区模板', icon: 'none' })
+      }
+    } finally {
+      setImportingTemplate(false)
     }
   }
 
@@ -379,19 +507,14 @@ export default function TalentSimulatorPage() {
           label: saving ? '保存中' : '保存模板',
           tone: 'gold',
           disabled: !data || validating || saving,
-          onClick: () => void saveImportTemplate(),
+          onClick: openNameSheet,
         },
         {
           id: 'import',
           label: '导入',
           tone: 'blue',
           disabled: !data || validating || saving,
-          onClick: () => {
-            void exportCurrentTalent().then((decision) => {
-              if (decision) return copyText(decision.code, '已复制后端导出码')
-              return undefined
-            })
-          },
+          onClick: () => void openImportSheet(),
         },
         {
           id: 'reset',
@@ -461,7 +584,31 @@ export default function TalentSimulatorPage() {
               />
             </RouteRegion>
             <RouteRegion className={styles['legendRegion'] ?? ''} data-region="talent_legend"><TalentLegend /></RouteRegion>
-            <RouteRegion className={styles['actionsRegion'] ?? ''} data-region="talent_actions"><TalentActionBar items={actions} /></RouteRegion>
+            <RouteRegion className={styles['actionsRegion'] ?? ''} data-region="talent_actions" data-role="talent-import-action"><TalentActionBar items={actions} /></RouteRegion>
+            <TalentTemplateNameSheet
+              visible={nameSheetOpen}
+              value={templateTitle}
+              saving={saving}
+              onChange={setTemplateTitle}
+              onClose={() => {
+                if (!saving) setNameSheetOpen(false)
+              }}
+              onConfirm={() => void saveImportTemplate()}
+            />
+            <TalentTemplateImportSheet
+              visible={importSheet !== 'closed'}
+              activeTab={importSheet === 'community' ? 'community' : 'saved'}
+              savedItems={savedImportItems}
+              communityWinner={communityWinnerView}
+              loading={loadingSavedTemplates}
+              importing={importingTemplate}
+              onTabChange={setImportSheet}
+              onClose={() => {
+                if (!importingTemplate) setImportSheet('closed')
+              }}
+              onImportSaved={(templateId) => void importSavedTemplate(templateId)}
+              onImportCommunity={() => void importCommunityWinner()}
+            />
           </View>
         </PageFrame>
       </RouteStage>

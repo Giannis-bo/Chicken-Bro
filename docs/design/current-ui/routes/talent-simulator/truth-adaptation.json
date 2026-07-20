@@ -8,10 +8,10 @@
   "targetGeometry": "docs/design/current-ui/routes/talent-simulator/target-geometry.json",
   "productOverrides": [
     {
-      "id": "remove_obsolete_talent_advisory_blocks_20260720",
+      "id": "restore_talent_template_actions_20260720",
       "excludedTargetRegions": ["websim_panel", "community_template_row"],
-      "reason": "the advisory status and community summary surfaces are no longer useful in the active talent journey",
-      "retainedFlow": "edit the graph, then save, copy the backend export, or reset from the bottom action bar"
+      "reason": "the advisory status panel remains excluded, while template import is restored as an on-demand overlay from the existing bottom action bar rather than a permanent target region",
+      "retainedFlow": "edit the graph, open an editable default-name overlay and save a backend-validated export, open my saved templates or the one backend-selected community winner to import, then reset player-assigned ranks from the bottom action bar"
     }
   ],
   "runtimeFacts": {
@@ -23,6 +23,8 @@
       "websim.talents",
       "websim.talentValidate",
       "websim.talentExport",
+      "websim.talentImportCode",
+      "templates.fetch",
       "templates.upsert"
     ],
     "outgoing": [],
@@ -33,8 +35,10 @@
       "tree_tab",
       "talent_rank_cycle",
       "tree_scroll",
-      "copy_backend_export",
+      "edit_template_name",
       "save_validated_export",
+      "import_saved_template",
+      "import_community_winner",
       "reset"
     ]
   },
@@ -107,8 +111,8 @@
     "All real nodes and rank labels remain reachable in a vertically scrollable internal tree surface with top and bottom reach; the route AppShell body stays fixed so tree gestures do not move the page, and the route must not delete nodes to force the target placeholder count of 19.",
     "Only backend node iconUrl values accepted by the trusted runtime media allowlist may represent real talents; generated art may only frame those icons.",
     "spellReady=false and 55 unresolved formulas require a partial evidence state; unresolved descriptions cannot be presented as complete spell text.",
-    "Copy and save always request a fresh backend validation/export and never manufacture a local talent code.",
-    "Community templates remain backend source references, but the active route no longer renders their obsolete summary row or fabricates selected ranks from template titles.",
+    "Save always requests a fresh backend validation/export and never manufactures a local talent code; saved-template import is decoded and validated by the backend before ranks change.",
+    "Community templates remain backend source references. The active route opens no permanent community summary row; its on-demand import overlay consumes one backend-selected winner and displays only backend-owned player, server, actual region, M+ score, source, update and stale facts.",
     "Loading, empty, blocked and error states retain all eight active regions and the target's 19-socket loading density."
   ],
   "mappings": [
@@ -147,7 +151,7 @@
     {
       "region": "bottom_action_bar",
       "slot": "save_import_reset",
-      "runtime": "save and import request a fresh verified backend export; reset restores backend selected ranks"
+      "runtime": "save requests a fresh verified backend export and an editable default title; import opens saved/community tabs and applies only backend-validated state; reset clears player-assigned ranks while retaining granted ranks"
     }
   ],
   "stateContract": {

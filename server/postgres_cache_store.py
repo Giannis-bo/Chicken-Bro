@@ -803,9 +803,10 @@ def _community_talent_slot_key(template):
     spec_key = slugify(template.get("specKey"), "")
     raw_hero_key = slugify(template.get("heroKey"), "")
     hero_key = hero_tree_for(class_key, spec_key, raw_hero_key) if class_key and spec_key else raw_hero_key
-    if not class_key or not spec_key or not hero_key:
+    scenario_key = slugify(template.get("scenarioKey"), "mythic_plus")
+    if not class_key or not spec_key or not hero_key or not scenario_key:
         return None
-    return (class_key, spec_key, hero_key)
+    return (class_key, spec_key, hero_key, scenario_key)
 
 
 def _community_talent_slot_id(slot_key):
@@ -916,6 +917,10 @@ def _community_talent_rio_evidence(template):
     }
 
 
+def _community_talent_mplus_score(template):
+    return _float_value(_community_talent_rio_evidence(template).get("score"))
+
+
 def _community_talent_signature(template):
     signature = str(template.get("signature") or "").strip()
     if signature:
@@ -928,6 +933,7 @@ def _community_talent_candidate_weight(template, signature_support=1):
     return (
         1 if template.get("status") == "verified" else 0,
         1 if _community_talent_can_apply_visual(template) else 0,
+        _community_talent_mplus_score(template),
         _community_talent_evidence_tier_weight(template),
         _community_talent_quality_score(template),
         int(signature_support or 0),
@@ -981,7 +987,7 @@ def promote_community_talent_template_inventory(templates):
     for row in candidate_rows:
         slot_key = _community_talent_slot_key(row)
         if slot_key:
-            row["classKey"], row["specKey"], row["heroKey"] = slot_key
+            row["classKey"], row["specKey"], row["heroKey"], row["scenarioKey"] = slot_key
         groups.setdefault(slot_key, []).append(row)
 
     promoted_identities = set()
@@ -3412,11 +3418,13 @@ class PostgresCacheStore:
                 str(normalized.get("classKey") or "").strip(),
                 str(normalized.get("specKey") or "").strip(),
                 str(normalized.get("heroKey") or "").strip(),
+                str(normalized.get("scenarioKey") or "mythic_plus").strip(),
             ]
             if not all(slot_parts):
                 continue
             slot_id = ":".join(slot_parts)
-            if target_slot_id_set and slot_id not in target_slot_id_set:
+            hero_slot_id = ":".join(slot_parts[:3])
+            if target_slot_id_set and slot_id not in target_slot_id_set and hero_slot_id not in target_slot_id_set:
                 continue
             replacement_slot_ids.add(slot_id)
         replacement_slot_ids = sorted(replacement_slot_ids)
@@ -3501,7 +3509,7 @@ class PostgresCacheStore:
                                     SET expires_at = %s,
                                         updated_at = %s
                                     WHERE source_key = ANY(%s::text[])
-                                      AND CONCAT(class_key, ':', spec_key, ':', hero_key) = ANY(%s::text[])
+                                      AND CONCAT(class_key, ':', spec_key, ':', hero_key, ':', scenario_key) = ANY(%s::text[])
                                       AND NOT (id = ANY(%s::uuid[]))
                                       AND (expires_at IS NULL OR expires_at > %s)
                                     """,
@@ -3554,13 +3562,14 @@ class PostgresCacheStore:
                     WITH ranked AS (
                         SELECT id,
                                ROW_NUMBER() OVER (
-                                   PARTITION BY class_key, spec_key, hero_key
+                                   PARTITION BY class_key, spec_key, hero_key, scenario_key
                                    ORDER BY
                                        CASE status
                                            WHEN 'verified' THEN 0
                                            WHEN 'partial' THEN 1
                                            ELSE 2
                                        END,
+                                       COALESCE(NULLIF(payload_json->'rioEvidence'->>'score', '')::double precision, 0) DESC,
                                        CASE COALESCE(payload_json->>'evidenceTier', '')
                                            WHEN 'wcl_exact_template' THEN 0
                                            WHEN 'wcl_character_supported' THEN 1
@@ -3700,8 +3709,9 @@ class PostgresCacheStore:
                     WITH ranked AS (
                         SELECT id,
                                ROW_NUMBER() OVER (
-                                   PARTITION BY class_key, spec_key, hero_key
+                                   PARTITION BY class_key, spec_key, hero_key, scenario_key
                                    ORDER BY
+                                       COALESCE(NULLIF(payload_json->'rioEvidence'->>'score', '')::double precision, 0) DESC,
                                        CASE COALESCE(payload_json->>'evidenceTier', '')
                                            WHEN 'wcl_exact_template' THEN 0
                                            WHEN 'wcl_character_supported' THEN 1
@@ -3728,7 +3738,34 @@ class PostgresCacheStore:
                         payload_json = jsonb_set(
                             COALESCE(template.payload_json, '{}'::jsonb),
                             '{communityTemplateFreshness}',
-                            %s::jsonb,
+                            COALESCE(template.payload_json->'communityTemplateFreshness', '{}'::jsonb)
+                            || jsonb_build_object(
+                                'checkedAt', %s,
+                                'lastSuccessfulSyncAt', COALESCE(
+                                    NULLIF(template.payload_json->'communityTemplateFreshness'->>'lastSuccessfulSyncAt', ''),
+                                    NULLIF(template.payload_json->'communityTemplateFreshness'->>'checkedAt', ''),
+                                    template.updated_at::text
+                                ),
+                                'consecutiveFailureCount', COALESCE(
+                                    NULLIF(template.payload_json->'communityTemplateFreshness'->>'consecutiveFailureCount', '')::integer,
+                                    0
+                                ),
+                                'status', CASE
+                                    WHEN COALESCE(
+                                        NULLIF(template.payload_json->'communityTemplateFreshness'->>'consecutiveFailureCount', '')::integer,
+                                        0
+                                    ) >= 7
+                                    OR COALESCE(
+                                        NULLIF(template.payload_json->'communityTemplateFreshness'->>'lastSuccessfulSyncAt', ''),
+                                        NULLIF(template.payload_json->'communityTemplateFreshness'->>'checkedAt', ''),
+                                        template.updated_at::text
+                                    )::timestamptz < %s::timestamptz - INTERVAL '7 days'
+                                    THEN 'stale'
+                                    ELSE 'fresh'
+                                END,
+                                'availabilityPolicy', %s,
+                                'repairReason', 'availability_repair_after_ttl_split'
+                            ),
                             true
                         )
                     FROM ranked
@@ -3738,13 +3775,24 @@ class PostgresCacheStore:
                           template.expires_at IS NULL
                           OR template.expires_at <= %s
                           OR NOT (COALESCE(template.payload_json, '{}'::jsonb) ? 'communityTemplateFreshness')
+                          OR COALESCE(
+                              NULLIF(template.payload_json->'communityTemplateFreshness'->>'consecutiveFailureCount', '')::integer,
+                              0
+                          ) >= 7
+                          OR COALESCE(
+                              NULLIF(template.payload_json->'communityTemplateFreshness'->>'lastSuccessfulSyncAt', ''),
+                              NULLIF(template.payload_json->'communityTemplateFreshness'->>'checkedAt', ''),
+                              template.updated_at::text
+                          )::timestamptz < %s::timestamptz - INTERVAL '7 days'
                       )
                     """,
                     (
                         blocked_talent_sources,
                         availability_expires_at,
                         checked_at,
-                        json_param(freshness_payload),
+                        checked_at,
+                        COMMUNITY_TEMPLATE_AVAILABILITY_POLICY,
+                        checked_at,
                         checked_at,
                     ),
                 )
@@ -3806,6 +3854,137 @@ class PostgresCacheStore:
             "talentRestored": max(0, int(talent_restored or 0)),
             "gearRestored": max(0, int(gear_restored or 0)),
         }
+
+    def record_community_talent_source_sync_failure(self, source_key, checked_at="", errors=None, regions=None):
+        source_key = str(source_key or "").strip()
+        checked_at = checked_at or datetime.now(timezone.utc).isoformat()
+        errors = [str(error).strip() for error in (errors or []) if str(error or "").strip()]
+        regions = sorted({str(region or "").strip().lower() for region in (regions or []) if str(region or "").strip()})
+        if not source_key:
+            return {"updated": 0, "sourceKey": "", "checkedAt": checked_at}
+        failure_reason = errors[0] if errors else "community talent source sync failed"
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE cache.websim_community_talent_templates AS template
+                    SET updated_at = %s,
+                        payload_json = jsonb_set(
+                            COALESCE(template.payload_json, '{}'::jsonb),
+                            '{communityTemplateFreshness}',
+                            COALESCE(template.payload_json->'communityTemplateFreshness', '{}'::jsonb)
+                            || jsonb_build_object(
+                                'checkedAt', %s,
+                                'lastSuccessfulSyncAt', COALESCE(
+                                    NULLIF(template.payload_json->'communityTemplateFreshness'->>'lastSuccessfulSyncAt', ''),
+                                    NULLIF(template.payload_json->'communityTemplateFreshness'->>'checkedAt', ''),
+                                    template.updated_at::text
+                                ),
+                                'consecutiveFailureCount', COALESCE(
+                                    NULLIF(template.payload_json->'communityTemplateFreshness'->>'consecutiveFailureCount', '')::integer,
+                                    0
+                                ) + 1,
+                                'status', CASE
+                                    WHEN COALESCE(
+                                        NULLIF(template.payload_json->'communityTemplateFreshness'->>'consecutiveFailureCount', '')::integer,
+                                        0
+                                    ) + 1 >= 7
+                                    OR COALESCE(
+                                        NULLIF(template.payload_json->'communityTemplateFreshness'->>'lastSuccessfulSyncAt', ''),
+                                        NULLIF(template.payload_json->'communityTemplateFreshness'->>'checkedAt', ''),
+                                        template.updated_at::text
+                                    )::timestamptz < %s::timestamptz - INTERVAL '7 days'
+                                    THEN 'stale'
+                                    ELSE 'fresh'
+                                END,
+                                'lastFailureAt', %s,
+                                'lastFailureReason', %s,
+                                'availabilityPolicy', %s
+                            ),
+                            true
+                        )
+                    WHERE template.source_key = %s
+                      AND template.status = 'verified'
+                      AND (
+                          cardinality(%s::text[]) = 0
+                          OR lower(COALESCE(
+                              template.payload_json->'raiderio'->>'region',
+                              template.payload_json->>'region',
+                              ''
+                          )) = ANY(%s::text[])
+                      )
+                    """,
+                    (
+                        checked_at,
+                        checked_at,
+                        checked_at,
+                        checked_at,
+                        failure_reason,
+                        COMMUNITY_TEMPLATE_AVAILABILITY_POLICY,
+                        source_key,
+                        regions,
+                        regions,
+                    ),
+                )
+                return {
+                    "updated": cur.rowcount,
+                    "sourceKey": source_key,
+                    "checkedAt": checked_at,
+                    "regions": regions,
+                }
+
+    def record_community_talent_source_sync_success(self, source_key, checked_at="", regions=None):
+        source_key = str(source_key or "").strip()
+        checked_at = checked_at or datetime.now(timezone.utc).isoformat()
+        regions = sorted({str(region or "").strip().lower() for region in (regions or []) if str(region or "").strip()})
+        if not source_key:
+            return {"updated": 0, "sourceKey": "", "checkedAt": checked_at}
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE cache.websim_community_talent_templates AS template
+                    SET updated_at = %s,
+                        payload_json = jsonb_set(
+                            COALESCE(template.payload_json, '{}'::jsonb),
+                            '{communityTemplateFreshness}',
+                            COALESCE(template.payload_json->'communityTemplateFreshness', '{}'::jsonb)
+                            || jsonb_build_object(
+                                'checkedAt', %s,
+                                'lastSuccessfulSyncAt', %s,
+                                'consecutiveFailureCount', 0,
+                                'status', 'fresh',
+                                'availabilityPolicy', %s
+                            ),
+                            true
+                        )
+                    WHERE template.source_key = %s
+                      AND template.status = 'verified'
+                      AND (
+                          cardinality(%s::text[]) = 0
+                          OR lower(COALESCE(
+                              template.payload_json->'raiderio'->>'region',
+                              template.payload_json->>'region',
+                              ''
+                          )) = ANY(%s::text[])
+                      )
+                    """,
+                    (
+                        checked_at,
+                        checked_at,
+                        checked_at,
+                        COMMUNITY_TEMPLATE_AVAILABILITY_POLICY,
+                        source_key,
+                        regions,
+                        regions,
+                    ),
+                )
+                return {
+                    "updated": cur.rowcount,
+                    "sourceKey": source_key,
+                    "checkedAt": checked_at,
+                    "regions": regions,
+                }
 
     def _reconcile_community_gear_slot_coverage(self, cur, source_keys, scan_run_id=""):
         if not source_keys:
@@ -6205,10 +6384,21 @@ class PostgresCacheStore:
                     WHERE class_key = %s
                       AND spec_key = %s
                       AND hero_key = %s
+                      AND scenario_key = 'mythic_plus'
                       AND status = 'verified'
                       AND raw_import_code <> ''
                       AND (expires_at IS NULL OR expires_at > now())
-                    ORDER BY max_key_level DESC, sample_count DESC, name
+                    ORDER BY
+                        COALESCE(NULLIF(payload_json->'rioEvidence'->>'score', '')::double precision, 0) DESC,
+                        CASE COALESCE(payload_json->>'evidenceTier', '')
+                            WHEN 'wcl_exact_template' THEN 0
+                            WHEN 'wcl_character_supported' THEN 1
+                            WHEN 'wcl_missing' THEN 2
+                            WHEN 'wcl_conflict' THEN 3
+                            WHEN 'wcl_blocked' THEN 4
+                            ELSE 5
+                        END,
+                        max_key_level DESC, sample_count DESC, name
                     LIMIT 1
                     """,
                     (class_key, spec_key, hero_key),

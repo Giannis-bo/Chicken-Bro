@@ -1,4 +1,5 @@
 import type {
+  CommunityTemplateReference,
   CommunityTemplateImportEnvelope,
   GearSlotDefinition,
   GearResultEnvelope,
@@ -159,6 +160,45 @@ export function normalizeTalentNodeAvailability(value: unknown): TalentNodeAvail
   return { schemaRevision, source, nodes: Object.fromEntries(entries) }
 }
 
+export function normalizeCommunityTemplateReference(
+  value: CommunityTemplateReference,
+): CommunityTemplateReference {
+  if (!isRecord(value)) return {}
+  const selectedNodes = value['talentState']
+  const talentState = isRecord(selectedNodes) && Array.isArray(selectedNodes['selectedNodes'])
+    && selectedNodes['selectedNodes'].every((node) => (
+      isRecord(node)
+      && cleanString(node['id']).length > 0
+      && typeof node['rank'] === 'number'
+      && Number.isFinite(node['rank'])
+      && node['rank'] > 0
+    ))
+    ? {
+        selectedNodes: selectedNodes['selectedNodes'].map((node) => ({
+          id: cleanString((node as Record<string, unknown>)['id']),
+          rank: (node as Record<string, number>)['rank'],
+        })),
+      }
+    : undefined
+  const score = value['mplusScore']
+  const rank = value['mplusRank']
+  const strings = [
+    'id', 'title', 'name', 'classKey', 'specKey', 'heroKey', 'scenarioKey',
+    'rawImportCode', 'importCode', 'talentImport', 'sourceUrl', 'source', 'sourceKey',
+    'sourceName', 'status', 'sourceStatus', 'playerName', 'serverName', 'region',
+    'freshnessStatus', 'updatedAt', 'analysisWindow',
+  ] as const
+  return {
+    ...value,
+    ...Object.fromEntries(strings.map((field) => [field, cleanString(value[field])])),
+    ...(talentState ? { talentState } : {}),
+    ...(typeof value['canApplyVisual'] === 'boolean' ? { canApplyVisual: value['canApplyVisual'] } : {}),
+    ...(typeof value['isStale'] === 'boolean' ? { isStale: value['isStale'] } : {}),
+    ...(typeof score === 'number' && Number.isFinite(score) ? { mplusScore: score } : {}),
+    ...(typeof rank === 'number' && Number.isFinite(rank) ? { mplusRank: rank } : {}),
+  }
+}
+
 export function normalizeTalentsPayload(payload: WebsimTalentsPayload): WebsimTalentsPayload {
   const { nodeAvailability: rawAvailability, ...rest } = payload
   const nodeAvailability = normalizeTalentNodeAvailability(rawAvailability)
@@ -168,6 +208,8 @@ export function normalizeTalentsPayload(payload: WebsimTalentsPayload): WebsimTa
   return {
     ...rest,
     nodes: dedupeVisibleTalentNodes(nodes),
+    communityTemplates: (payload.communityTemplates ?? []).map(normalizeCommunityTemplateReference),
+    presets: (payload.presets ?? []).map(normalizeCommunityTemplateReference),
     ...(nodeAvailability ? { nodeAvailability } : {}),
   }
 }

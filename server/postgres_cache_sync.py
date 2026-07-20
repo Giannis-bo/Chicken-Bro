@@ -2827,6 +2827,57 @@ def _community_talent_coverage_rows(store, fallback_templates):
     return []
 
 
+def _community_talent_source_freshness_maintenance(store, sources, checked_at):
+    results = {}
+    successful_statuses = {"synced", "verified", "complete"}
+    for source_key, source in (sources or {}).items():
+        source = source if isinstance(source, dict) else {}
+        status = str(source.get("status") or "blocked").strip()
+        region_coverage = source.get("regionCoverage") if isinstance(source.get("regionCoverage"), dict) else {}
+        successful_regions = sorted(
+            str(region).strip().lower()
+            for region, detail in region_coverage.items()
+            if isinstance(detail, dict) and str(detail.get("status") or "").strip().lower() in successful_statuses
+        )
+        failed_regions = sorted(
+            str(region).strip().lower()
+            for region, detail in region_coverage.items()
+            if isinstance(detail, dict) and str(detail.get("status") or "").strip().lower() in {"blocked", "failed"}
+        )
+        result = {
+            "status": "success_observed" if status in successful_statuses else "not_recorded",
+            "sourceStatus": status,
+            "regionCoverage": region_coverage,
+        }
+        if (status in successful_statuses or successful_regions) and hasattr(store, "record_community_talent_source_sync_success"):
+            try:
+                recorded = store.record_community_talent_source_sync_success(
+                    source_key,
+                    checked_at=checked_at,
+                    regions=successful_regions,
+                )
+                result["successUpdated"] = int((recorded or {}).get("updated") or 0) if isinstance(recorded, dict) else 0
+            except Exception as error:
+                result["successStatus"] = "record_failed"
+                result["successError"] = str(error)
+        should_record_failure = status not in successful_statuses and (not successful_regions or failed_regions)
+        if should_record_failure and hasattr(store, "record_community_talent_source_sync_failure"):
+            try:
+                recorded = store.record_community_talent_source_sync_failure(
+                    source_key,
+                    checked_at=checked_at,
+                    errors=source.get("errors") or [],
+                    regions=failed_regions,
+                )
+                result["status"] = "failure_recorded"
+                result["updated"] = int((recorded or {}).get("updated") or 0) if isinstance(recorded, dict) else 0
+            except Exception as error:
+                result["status"] = "record_failed"
+                result["error"] = str(error)
+        results[source_key] = result
+    return results
+
+
 def sync_community_template_cache_postgres(mode="scheduled", store=None, refresh_raiderio=True):
     store = store or cache_store_from_env()
     checked_at = utc_now()
@@ -3063,6 +3114,11 @@ def sync_community_template_cache_postgres(mode="scheduled", store=None, refresh
     )
     if coverage_status != "verified" and talent_source_status == "verified":
         talent_source_status = "partial"
+    talent_freshness = _community_talent_source_freshness_maintenance(
+        store,
+        talent_sources,
+        checked_at,
+    )
     payload = {
         "scanRunId": scan_run_id,
         "runner": "postgres",
@@ -3073,6 +3129,7 @@ def sync_community_template_cache_postgres(mode="scheduled", store=None, refresh
         "finishedAt": checked_at,
         "scanCoverage": scan_coverage,
         "talents": {"templates": talent_counts},
+        "talentFreshness": talent_freshness,
         "gear": {
             "templates": gear_counts,
             "preflight": gear_preflight,
@@ -3115,6 +3172,7 @@ def sync_community_template_cache_postgres(mode="scheduled", store=None, refresh
         "scanRunId": payload["scanRunId"],
         "errors": talent_errors[:20],
         "stageTimings": payload["stageTimings"],
+        "freshness": talent_freshness,
     }
     sync_state_started_at = time.monotonic()
     store.save_sync_state(COMMUNITY_TEMPLATE_SYNC_RUN_KEY, payload, checked_at)

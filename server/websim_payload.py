@@ -97,9 +97,11 @@ GEAR_CATALOG_SHARED_CACHE_LOCK = threading.Lock()
 GEAR_CATALOG_SHARED_CACHE = {}
 WEBSIM_GEAR_STATS_SIMC_LIMITER = threading.BoundedSemaphore(1)
 SEASON_TTL_HOURS = int(os.environ.get("WOW_SEASON_TTL_HOURS", "24"))
-COMMUNITY_TEMPLATE_FRESHNESS_TTL_HOURS = int(os.environ.get("WOW_COMMUNITY_TEMPLATE_FRESHNESS_TTL_HOURS", "24"))
+COMMUNITY_TEMPLATE_FRESHNESS_TTL_HOURS = int(os.environ.get("WOW_COMMUNITY_TEMPLATE_FRESHNESS_TTL_HOURS", str(24 * 7)))
 COMMUNITY_TEMPLATE_AVAILABILITY_TTL_HOURS = int(os.environ.get("WOW_COMMUNITY_TEMPLATE_AVAILABILITY_TTL_HOURS", str(24 * 14)))
 COMMUNITY_TEMPLATE_AVAILABILITY_POLICY = "keep_available_until_replaced_or_hard_invalid"
+COMMUNITY_TEMPLATE_STALE_AFTER_DAYS = 7
+COMMUNITY_TEMPLATE_MAX_CONSECUTIVE_FAILURES = 7
 GEAR_ATTRIBUTE_CHARACTER_CONTEXT_REVISION = "gear-attribute-character-v1"
 MIDNIGHT_SEASON_ONE_DUNGEONS = [
     "Magisters' Terrace",
@@ -3104,7 +3106,45 @@ def community_template_availability_expires_at(hours=COMMUNITY_TEMPLATE_AVAILABI
     return season_expires_at(hours)
 
 
-def community_template_freshness_payload(source, now=""):
+def _community_template_datetime(value):
+    raw = str(value or "").strip()
+    if not raw:
+        return None
+    if raw.endswith("Z"):
+        raw = f"{raw[:-1]}+00:00"
+    try:
+        parsed = datetime.fromisoformat(raw)
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+
+
+def _community_template_failure_count(value):
+    try:
+        return max(0, int(value or 0))
+    except (TypeError, ValueError):
+        return 0
+
+
+def community_template_freshness_state(freshness, now=""):
+    freshness = freshness if isinstance(freshness, dict) else {}
+    checked_at = _community_template_datetime(now) or datetime.now(timezone.utc)
+    last_success_at = _community_template_datetime(
+        freshness.get("lastSuccessfulSyncAt") or freshness.get("checkedAt")
+    )
+    failure_count = _community_template_failure_count(freshness.get("consecutiveFailureCount"))
+    age_exceeded = bool(last_success_at and checked_at - last_success_at > timedelta(days=COMMUNITY_TEMPLATE_STALE_AFTER_DAYS))
+    stale = failure_count >= COMMUNITY_TEMPLATE_MAX_CONSECUTIVE_FAILURES or age_exceeded
+    return {
+        "status": "stale" if stale else "fresh",
+        "isStale": stale,
+        "lastSuccessfulSyncAt": last_success_at.isoformat() if last_success_at else "",
+        "consecutiveFailureCount": failure_count,
+        "ageExceeded": age_exceeded,
+    }
+
+
+def community_template_freshness_payload(source, now="", freshness_hours=None):
     source = source if isinstance(source, dict) else {}
     payload = source.get("payload") if isinstance(source.get("payload"), dict) else {}
     existing = payload.get("communityTemplateFreshness") if isinstance(payload.get("communityTemplateFreshness"), dict) else {}
@@ -3118,13 +3158,33 @@ def community_template_freshness_payload(source, now=""):
     fresh_until = str(
         existing.get("freshUntil")
         or source.get("freshUntil")
-        or community_template_fresh_until()
+        or community_template_fresh_until(
+            COMMUNITY_TEMPLATE_FRESHNESS_TTL_HOURS if freshness_hours is None else freshness_hours
+        )
     ).strip()
+    last_success_at = str(
+        source.get("lastSuccessfulSyncAt")
+        or existing.get("lastSuccessfulSyncAt")
+        or checked_at
+    ).strip()
+    failure_count = _community_template_failure_count(
+        source.get("consecutiveFailureCount", existing.get("consecutiveFailureCount", 0))
+    )
+    state = community_template_freshness_state(
+        {
+            **existing,
+            "lastSuccessfulSyncAt": last_success_at,
+            "consecutiveFailureCount": failure_count,
+        },
+        now=now or checked_at,
+    )
     return {
         **existing,
         "checkedAt": checked_at,
         "freshUntil": fresh_until,
-        "status": str(existing.get("status") or "fresh").strip(),
+        "lastSuccessfulSyncAt": state["lastSuccessfulSyncAt"] or last_success_at,
+        "consecutiveFailureCount": failure_count,
+        "status": state["status"],
         "availabilityPolicy": str(
             existing.get("availabilityPolicy")
             or COMMUNITY_TEMPLATE_AVAILABILITY_POLICY
@@ -12750,11 +12810,43 @@ def community_talent_source_ref(template):
     }
 
 
+def community_talent_payload(template):
+    payload = template.get("payload") if isinstance(template.get("payload"), dict) else {}
+    return payload
+
+
+def community_talent_mplus_score(template):
+    evidence = community_talent_payload(template).get("rioEvidence")
+    if not isinstance(evidence, dict):
+        return 0.0
+    try:
+        return float(evidence.get("score") or 0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def community_talent_wcl_tier(template):
+    evidence = community_talent_payload(template).get("wclEvidence")
+    if not isinstance(evidence, dict):
+        return 0
+    value = evidence.get("tier")
+    if isinstance(value, (int, float)):
+        return int(value)
+    return {
+        "bronze": 1,
+        "silver": 2,
+        "gold": 3,
+        "platinum": 4,
+    }.get(str(value or "").strip().lower(), 0)
+
+
 def community_talent_template_sort_key(template):
     return (
         1 if template.get("canApplyVisual") else 0,
         1 if template.get("status") == "verified" else 0,
         1 if template.get("sourceStatus") in {"synced", "verified"} else 0,
+        community_talent_mplus_score(template),
+        community_talent_wcl_tier(template),
         int(template.get("maxKeyLevel") or 0),
         int(template.get("sampleCount") or 0),
         str(template.get("updatedAt") or ""),
@@ -12876,20 +12968,26 @@ def pending_community_talent_template_slot(class_key, spec_key, hero_key):
     }
 
 
-def community_talent_templates_for_spec_slots(class_key, spec_key, templates, preferred_hero_key=""):
+def community_talent_templates_for_spec_slots(
+    class_key,
+    spec_key,
+    templates,
+    preferred_hero_key="",
+    scenario_key="mythic_plus",
+):
     class_key = slugify(class_key, "mage")
     spec_key = slugify(spec_key, "arcane")
     expected_heroes = hero_trees_for_spec(class_key, spec_key)[:COMMUNITY_TALENT_TEMPLATE_SLOTS_PER_SPEC]
     preferred_hero_key = slugify(preferred_hero_key, "")
     if preferred_hero_key in expected_heroes:
-        expected_heroes = [preferred_hero_key] + [hero for hero in expected_heroes if hero != preferred_hero_key]
+        expected_heroes = [preferred_hero_key]
     deduped = dedupe_community_talent_templates_for_display(templates)
     by_hero = {}
     for template in deduped:
         if not isinstance(template, dict):
             continue
         hero_key = slugify(template.get("heroKey"), "")
-        if hero_key not in expected_heroes:
+        if hero_key not in expected_heroes or slugify(template.get("scenarioKey"), "") != scenario_key:
             continue
         by_hero.setdefault(hero_key, []).append(template)
     slots = []
@@ -13931,9 +14029,20 @@ def get_websim_community_talent_templates(conn, class_key="mage", spec_key="arca
         FROM websim_community_talent_templates
         WHERE class_key = ?
           AND spec_key = ?
+          AND scenario_key = 'mythic_plus'
           AND status = 'verified'
           AND expires_at > ?
-        ORDER BY max_key_level DESC, sample_count DESC, hero_key, name
+        ORDER BY
+            COALESCE(CAST(json_extract(payload_json, '$.rioEvidence.score') AS REAL), 0) DESC,
+            CASE COALESCE(json_extract(payload_json, '$.evidenceTier'), '')
+                WHEN 'wcl_exact_template' THEN 0
+                WHEN 'wcl_character_supported' THEN 1
+                WHEN 'wcl_missing' THEN 2
+                WHEN 'wcl_conflict' THEN 3
+                WHEN 'wcl_blocked' THEN 4
+                ELSE 5
+            END,
+            max_key_level DESC, sample_count DESC, hero_key, name
         LIMIT 240
         """,
         (class_key, spec_key, utc_now()),
@@ -14041,10 +14150,21 @@ def get_websim_talent_import(conn, class_key="mage", spec_key="arcane", hero_key
         WHERE class_key = ?
           AND spec_key = ?
           AND hero_key = ?
+          AND scenario_key = 'mythic_plus'
           AND status = 'verified'
           AND raw_import_code <> ''
           AND expires_at > ?
-        ORDER BY max_key_level DESC, sample_count DESC, name
+        ORDER BY
+            COALESCE(CAST(json_extract(payload_json, '$.rioEvidence.score') AS REAL), 0) DESC,
+            CASE COALESCE(json_extract(payload_json, '$.evidenceTier'), '')
+                WHEN 'wcl_exact_template' THEN 0
+                WHEN 'wcl_character_supported' THEN 1
+                WHEN 'wcl_missing' THEN 2
+                WHEN 'wcl_conflict' THEN 3
+                WHEN 'wcl_blocked' THEN 4
+                ELSE 5
+            END,
+            max_key_level DESC, sample_count DESC, name
         LIMIT 1
         """,
         (class_key, spec_key, hero_key, utc_now()),
@@ -20416,7 +20536,7 @@ def normalize_community_gear_template(template, class_key="", spec_key="", prese
             payload["enhancementReadiness"] = enhancement_readiness
         if template_evidence:
             payload["templateEvidence"] = template_evidence
-    payload["communityTemplateFreshness"] = community_template_freshness_payload(source)
+    payload["communityTemplateFreshness"] = community_template_freshness_payload(source, freshness_hours=24)
     if sample_count:
         payload["sampleCount"] = sample_count
     if profile_hash:

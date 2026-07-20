@@ -170,6 +170,18 @@ class PgGearReadModelSelectorsTest(unittest.TestCase):
                 "verified",
                 {
                     "playerId": "player-a",
+                    "raiderio": {
+                        "characterName": "Player A",
+                        "realm": "Azshara",
+                        "realmSlug": "azshara",
+                        "region": "kr"
+                    },
+                    "rioEvidence": {"score": 4123.4, "rank": 8},
+                    "communityTemplateFreshness": {
+                        "status": "stale",
+                        "lastSuccessfulSyncAt": "2026-07-12T01:00:00+00:00",
+                        "consecutiveFailureCount": 7
+                    },
                     "classLabel": "Mage Label",
                     "specLabel": "Frost Label",
                     "heroLabel": "Spellslinger Label",
@@ -190,7 +202,7 @@ class PgGearReadModelSelectorsTest(unittest.TestCase):
             "spellslinger",
         )
 
-        self.assertEqual(len(templates), 2)
+        self.assertEqual(len(templates), 1)
         template = templates[0]
         self.assertEqual(template["id"], "template-a")
         self.assertEqual(template["heroKey"], "spellslinger")
@@ -198,6 +210,13 @@ class PgGearReadModelSelectorsTest(unittest.TestCase):
         self.assertEqual(template["sampleCount"], 12)
         self.assertEqual(template["maxKeyLevel"], 24)
         self.assertEqual(template["playerId"], "player-a")
+        self.assertEqual(template["playerName"], "Player A")
+        self.assertEqual(template["serverName"], "Azshara")
+        self.assertEqual(template["region"], "kr")
+        self.assertEqual(template["mplusScore"], 4123.4)
+        self.assertEqual(template["mplusRank"], 8)
+        self.assertEqual(template["freshnessStatus"], "stale")
+        self.assertTrue(template["isStale"])
         self.assertEqual(template["classLabel"], "Mage Label")
         self.assertEqual(template["specLabel"], "Frost Label")
         self.assertEqual(template["heroLabel"], "Spellslinger Label")
@@ -206,7 +225,6 @@ class PgGearReadModelSelectorsTest(unittest.TestCase):
         self.assertTrue(template["canApplyVisual"])
         self.assertTrue(template["canUseInSimc"])
         self.assertEqual(template["coverageStatus"], "covered")
-        self.assertEqual(templates[1]["status"], "pending_collection")
 
     def test_build_websim_talent_authority_read_model_preserves_runtime_and_official_state(self):
         from server.pg_gear_read_model_selectors import build_websim_talent_authority_read_model

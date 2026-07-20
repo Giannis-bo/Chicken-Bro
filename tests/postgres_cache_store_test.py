@@ -2456,11 +2456,11 @@ class PostgresCacheStoreTest(unittest.TestCase):
         expire_params = next(
             params
             for statement, params in zip(conn.cursor_instance.statements, conn.cursor_instance.params)
-            if "CONCAT(class_key, ':', spec_key, ':', hero_key) = ANY" in statement
+            if "CONCAT(class_key, ':', spec_key, ':', hero_key, ':', scenario_key) = ANY" in statement
             and "NOT (id = ANY" in statement
         )
-        self.assertEqual(expire_params[3], ["mage:frost:frostfire"])
-        self.assertNotIn("mage:frost:spellslinger", expire_params[3])
+        self.assertEqual(expire_params[3], ["mage:frost:frostfire:mythic_plus"])
+        self.assertNotIn("mage:frost:spellslinger:mythic_plus", expire_params[3])
 
     def test_promote_community_talent_inventory_can_represent_six_distinct_dk_hero_slots(self):
         from server.postgres_cache_store import promote_community_talent_template_inventory
@@ -2517,12 +2517,13 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertIn("unholy-rider-a", promoted_ids)
         self.assertNotIn("unholy-rider-c", promoted_ids)
 
-    def test_promote_community_talent_inventory_prefers_wcl_evidence_tier(self):
+    def test_promote_community_talent_inventory_prefers_mplus_score_then_wcl_tie_breaker(self):
         from server.postgres_cache_store import promote_community_talent_template_inventory
 
-        def row(template_id, tier, max_key_level, sample_count=1, quality_score=0):
+        def row(template_id, tier, score, max_key_level, sample_count=1, quality_score=0):
             payload = {
                 "rioEvidence": {
+                    "score": score,
                     "maxKeyLevel": max_key_level,
                     "sampleCount": sample_count,
                     "source": "run_detail",
@@ -2551,19 +2552,56 @@ class PostgresCacheStoreTest(unittest.TestCase):
 
         promoted = promote_community_talent_template_inventory(
             [
-                row("rio-only-higher-key", "wcl_missing", 25, sample_count=10, quality_score=62),
-                row("wcl-supported", "wcl_character_supported", 22, sample_count=4, quality_score=74),
-                row("wcl-exact-lower-key", "wcl_exact_template", 20, sample_count=2, quality_score=81),
+                row("rio-high-score", "wcl_missing", 4100.2, 25, sample_count=10, quality_score=62),
+                row("wcl-supported", "wcl_character_supported", 4050.0, 22, sample_count=4, quality_score=74),
+                row("wcl-exact-lower-score", "wcl_exact_template", 4000.8, 20, sample_count=2, quality_score=81),
             ]
         )
 
         winner = promoted["promotedTemplates"][0]
-        self.assertEqual(winner["id"], "wcl-exact-lower-key")
-        self.assertEqual(winner["payload"]["evidenceTier"], "wcl_exact_template")
-        self.assertEqual(winner["payload"]["wclEvidence"]["tier"], "wcl_exact_template")
-        self.assertEqual(winner["payload"]["qualityScore"], 81)
-        self.assertIn("WCL exact template", winner["payload"]["promotionReason"])
-        self.assertIn("WCL exact template", winner["payload"]["promotion"]["reason"])
+        self.assertEqual(winner["id"], "rio-high-score")
+        self.assertEqual(winner["payload"]["rioEvidence"]["score"], 4100.2)
+
+        tied = promote_community_talent_template_inventory(
+            [
+                row("tie-rio", "wcl_missing", 4100.2, 25, sample_count=10),
+                row("tie-wcl", "wcl_exact_template", 4100.2, 20, sample_count=2),
+            ]
+        )
+        self.assertEqual(tied["promotedTemplates"][0]["id"], "tie-wcl")
+        self.assertEqual(tied["promotedTemplates"][0]["payload"]["wclEvidence"]["tier"], "wcl_exact_template")
+
+    def test_promote_community_talent_inventory_keeps_one_winner_per_scenario(self):
+        from server.postgres_cache_store import promote_community_talent_template_inventory
+
+        def row(template_id, scenario_key, score):
+            return {
+                "id": template_id,
+                "classKey": "mage",
+                "specKey": "frost",
+                "heroKey": "frostfire",
+                "scenarioKey": scenario_key,
+                "sourceKey": "raiderio",
+                "sourceStatus": "synced",
+                "status": "verified",
+                "payload": {"rioEvidence": {"score": score}},
+                "signature": f"sig-{template_id}",
+                "talentState": {"selectedNodes": [{"id": f"node-{template_id}", "rank": 1}]},
+                "updatedAt": "2026-07-20T00:00:00+00:00",
+            }
+
+        promoted = promote_community_talent_template_inventory(
+            [
+                row("mplus-lower", "mythic_plus", 4000),
+                row("mplus-winner", "mythic_plus", 4100),
+                row("raid-winner", "raid", 1),
+            ]
+        )
+
+        self.assertEqual(
+            {(item["scenarioKey"], item["id"]) for item in promoted["promotedTemplates"]},
+            {("mythic_plus", "mplus-winner"), ("raid", "raid-winner")},
+        )
 
     def test_promoted_verified_talent_source_refs_do_not_inherit_blocked_status(self):
         from server.postgres_cache_store import promote_community_talent_template_inventory
@@ -2773,6 +2811,8 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertEqual(payload["source"], "community_template")
         self.assertEqual(payload["status"], "verified")
         self.assertIn("AND hero_key = %s", sql)
+        self.assertIn("AND scenario_key = 'mythic_plus'", sql)
+        self.assertIn("payload_json->'rioEvidence'->>'score'", sql)
         self.assertIn(("mage", "frost", "spellslinger"), conn.cursor_instance.params)
         self.assertNotIn("FROM cache.websim_talents", sql)
 
@@ -2850,11 +2890,10 @@ class PostgresCacheStoreTest(unittest.TestCase):
 
         payload = store.get_websim_talents("mage", "frost", "spellslinger")
 
-        self.assertEqual(len(payload["communityTemplates"]), 2)
-        self.assertEqual([item["heroKey"] for item in payload["communityTemplates"]], ["spellslinger", "frostfire"])
+        self.assertEqual(len(payload["communityTemplates"]), 1)
+        self.assertEqual(payload["communityTemplates"][0]["heroKey"], "spellslinger")
         self.assertEqual(payload["communityTemplates"][0]["status"], "pending_collection")
         self.assertEqual(payload["communityTemplates"][0]["sourceName"], "社区样本待采集")
-        self.assertEqual(payload["communityTemplates"][1]["status"], "verified")
         self.assertEqual(payload["communityTemplateSync"]["activeSpecSlots"]["pendingCollection"], 1)
 
     def test_admin_gate_records_read_cache_runtime_tables(self):
@@ -4631,23 +4670,58 @@ class PostgresCacheStoreTest(unittest.TestCase):
         sql = "\n".join(conn.cursor_instance.statements)
         self.assertEqual(result["talentRestored"], 1)
         self.assertEqual(result["gearRestored"], 1)
-        self.assertIn("PARTITION BY class_key, spec_key, hero_key", sql)
+        self.assertIn("PARTITION BY class_key, spec_key, hero_key, scenario_key", sql)
         self.assertIn("PARTITION BY class_key, spec_key", sql)
         self.assertIn("status = 'verified'", sql)
         self.assertIn("status = 'complete'", sql)
         self.assertIn("source_key <> ALL", sql)
         self.assertIn("communityTemplateFreshness", sql)
+        self.assertIn("lastSuccessfulSyncAt", sql)
+        self.assertIn("consecutiveFailureCount", sql)
         gear_blocked_sources = conn.cursor_instance.params[1][0]
         self.assertIn("source_reference", gear_blocked_sources)
         self.assertIn("manual_fixture", gear_blocked_sources)
         self.assertIn("fallback", gear_blocked_sources)
-        freshness_payloads = [
-            param
-            for params in conn.cursor_instance.params
-            for param in params
-            if isinstance(param, str) and "availability_repair_after_ttl_split" in param
-        ]
-        self.assertEqual(len(freshness_payloads), 2)
+
+    def test_record_community_talent_source_failure_keeps_existing_winner_and_counts_failures(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection()
+        store = PostgresCacheStore(lambda: conn)
+
+        result = store.record_community_talent_source_sync_failure(
+            "raiderio",
+            checked_at="2026-07-20T00:00:00+00:00",
+            errors=["kr: upstream timeout"],
+            regions=["kr"],
+        )
+
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertEqual(result["updated"], 1)
+        self.assertIn("lastSuccessfulSyncAt", sql)
+        self.assertIn("consecutiveFailureCount", sql)
+        self.assertIn(">= 7", sql)
+        self.assertIn("lastFailureReason", sql)
+        self.assertIn("= ANY", sql)
+        self.assertNotIn("DELETE FROM cache.websim_community_talent_templates", sql)
+
+    def test_record_community_talent_source_success_resets_only_healthy_region_failures(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection()
+        store = PostgresCacheStore(lambda: conn)
+
+        result = store.record_community_talent_source_sync_success(
+            "raiderio",
+            checked_at="2026-07-20T00:00:00+00:00",
+            regions=["us"],
+        )
+
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertEqual(result["updated"], 1)
+        self.assertIn("lastSuccessfulSyncAt", sql)
+        self.assertIn("consecutiveFailureCount', 0", sql)
+        self.assertIn("= ANY", sql)
 
     def test_community_gear_template_live_health_summary_reads_current_rows(self):
         from server.postgres_cache_store import PostgresCacheStore

@@ -77,6 +77,8 @@ export {
   TalentLegend,
   TalentPointSummary,
   TalentSelectorPanel,
+  TalentTemplateImportSheet,
+  TalentTemplateNameSheet,
   TalentTreeTabs,
 } from './components/TalentSimulatorComponents'
 export type {
@@ -92,6 +94,11 @@ export type {
   TalentSelectorItem,
   TalentSelectorOption,
   TalentSelectorPanelProps,
+  TalentTemplateCommunityWinner,
+  TalentTemplateImportSheetProps,
+  TalentTemplateImportTab,
+  TalentTemplateNameSheetProps,
+  TalentTemplateSavedImportItem,
   TalentTreeTabItem,
   TalentTreeTabsProps,
 } from './components/TalentSimulatorComponents'

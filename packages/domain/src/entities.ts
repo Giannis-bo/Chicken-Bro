@@ -369,12 +369,29 @@ export interface CommunityTemplateReference {
   id?: string
   title?: string
   name?: string
+  classKey?: string
+  specKey?: string
+  heroKey?: string
+  scenarioKey?: string
   rawImportCode?: string
   importCode?: string
   talentImport?: string
+  talentState?: TalentSelectionState
   sourceUrl?: string
   source?: string
+  sourceKey?: string
+  sourceName?: string
   status?: string
+  sourceStatus?: string
+  canApplyVisual?: boolean
+  playerName?: string
+  serverName?: string
+  region?: string
+  mplusScore?: number
+  mplusRank?: number
+  freshnessStatus?: string
+  isStale?: boolean
+  updatedAt?: string
   analysisWindow?: string
   gearItems?: readonly GearItemReference[]
 }

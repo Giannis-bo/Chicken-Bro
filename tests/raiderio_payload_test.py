@@ -612,6 +612,56 @@ class RaiderIOPayloadTest(unittest.TestCase):
         self.assertEqual(by_player["Euplayer"]["payload"]["raiderio"]["region"], "eu")
         self.assertEqual(payload["specCoverage"]["sampleCounts"]["mage:frost"], 2)
 
+    def test_sync_raiderio_cache_isolates_a_failed_region_and_keeps_other_regions(self):
+        os.environ["WOW_RAIDERIO_REGIONS"] = "cn,eu"
+        os.environ["WOW_RAIDERIO_RUN_DETAIL_LIMIT"] = "0"
+        fetched_regions = []
+
+        def fake_api_get(path, params=None, api_key=None):
+            if path == "/mythic-plus/runs":
+                region = params["region"]
+                fetched_regions.append(region)
+                if region == "cn":
+                    raise raiderio_payload.RaiderIOError("cn temporarily unavailable")
+                return {
+                    "leaderboard_url": "https://raider.io/mythic-plus-rankings/season-mn-1/all/eu/leaderboards",
+                    "rankings": [{
+                        "rank": 1,
+                        "score": 4127.57,
+                        "run": {
+                            "keystone_run_id": 2001,
+                            "dungeon": {"name": "Nexus-Point Xenas", "slug": "nexus-point-xenas"},
+                            "mythic_level": 24,
+                            "roster": [{"character": {
+                                "name": "Euplayer",
+                                "realm": {"name": "Isillien", "slug": "isillien"},
+                                "class": {"name": "Mage", "slug": "mage"},
+                                "spec": {"id": 64, "name": "Frost", "slug": "frost"},
+                            }}],
+                        },
+                    }],
+                }
+            if path == "/characters/profile":
+                profile = sample_profile_payload(params["name"])
+                profile["region"] = "eu"
+                return profile
+            if path == "/mythic-plus/static-data":
+                return {"dungeons": [{"name": "Nexus-Point Xenas", "slug": "nexus-point-xenas"}]}
+            if path == "/mythic-plus/affixes":
+                return {"affix_details": [{"name": "Fortified"}]}
+            if path == "/mythic-plus/season-cutoffs":
+                return {"cutoffs": {"all": {"p999": {"allMinValue": 4127.57}}}}
+            raise AssertionError(path)
+
+        with closing(self.connection()) as conn, patch.object(raiderio_payload, "api_get", fake_api_get):
+            payload = raiderio_payload.sync_raiderio_cache(conn)
+
+        self.assertEqual(fetched_regions, ["cn", "eu"])
+        self.assertEqual(payload["sourceStatus"], "partial")
+        self.assertEqual(payload["runCount"], 1)
+        self.assertEqual(payload["regionCoverage"]["cn"]["status"], "failed")
+        self.assertEqual(payload["regionCoverage"]["eu"]["status"], "synced")
+
     def test_get_raiderio_payload_returns_stale_cache_when_refresh_fails(self):
         stale_payload = {
             **raiderio_payload.missing_credentials_payload(),
@@ -1678,6 +1728,46 @@ class RaiderIOPayloadTest(unittest.TestCase):
         self.assertEqual(template["rawImportCode"], "")
         self.assertEqual(template["payload"]["raiderio"]["source"], "run_detail")
         self.assertEqual(template["payload"]["raiderio"]["loadout"][0]["traitId"], 91001)
+
+    def test_build_community_templates_preserves_actual_region_server_and_mplus_score(self):
+        templates = raiderio_payload.build_community_templates(
+            [
+                {
+                    "classKey": "mage",
+                    "specKey": "frost",
+                    "fullName": "Frost Mage",
+                    "sampleCount": 3,
+                    "maxKeyLevel": 27,
+                    "talentLoadouts": [
+                        {
+                            "characterName": "KoreanWinner",
+                            "realm": "Azshara",
+                            "realmSlug": "azshara",
+                            "region": "kr",
+                            "profileUrl": "https://raider.io/characters/kr/azshara/KoreanWinner",
+                            "rawImportCode": "CAEAAAAAAAAAAAAAAAAAAAAA",
+                            "maxKeyLevel": 27,
+                            "rankingEvidence": {
+                                "source": "raiderio_spec_ranking",
+                                "score": 4123.4,
+                                "rank": 8,
+                                "region": "kr",
+                            },
+                        }
+                    ],
+                }
+            ],
+            "2026-07-20T00:00:00+00:00",
+        )
+
+        template = templates[0]
+        self.assertEqual(template["flowLabel"], "Raider.IO KR")
+        self.assertNotIn("CN", template["name"])
+        self.assertEqual(template["payload"]["raiderio"]["characterName"], "KoreanWinner")
+        self.assertEqual(template["payload"]["raiderio"]["realm"], "Azshara")
+        self.assertEqual(template["payload"]["raiderio"]["region"], "kr")
+        self.assertEqual(template["payload"]["rioEvidence"]["score"], 4123.4)
+        self.assertEqual(template["payload"]["rioEvidence"]["rank"], 8)
 
     def test_spec_ranking_import_code_becomes_structured_loadout_for_hero_discovery(self):
         trait_path = Path(self.tmp.name) / "trait_data.inc"

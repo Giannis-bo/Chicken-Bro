@@ -14,6 +14,7 @@ import {
   isTalentImportPayload,
   isTalentValidationPayload,
   normalizeTalentNode,
+  normalizeCommunityTemplateReference,
   normalizeTalentsPayload,
 } from './websim'
 import type { ApiResult, ApiTransport, RequestOptions } from './transport'
@@ -82,6 +83,33 @@ function rawTalents(): WebsimTalentsPayload {
 }
 
 describe('websim talent normalization', () => {
+  it('retains backend-owned community winner identity and stale facts without inventing a region', () => {
+    const normalized = normalizeCommunityTemplateReference({
+      id: 'rio-kr-winner',
+      name: 'Raider.IO KR 霜火',
+      sourceName: 'Raider.IO',
+      status: 'verified',
+      canApplyVisual: true,
+      playerName: 'TopPlayer',
+      serverName: 'Azshara',
+      region: 'KR',
+      mplusScore: 4123.4,
+      updatedAt: '2026-07-12T00:00:00Z',
+      freshnessStatus: 'stale',
+      isStale: true,
+      talentState: { selectedNodes: [{ id: 'root', rank: 1 }] },
+    })
+
+    expect(normalized).toMatchObject({
+      playerName: 'TopPlayer',
+      serverName: 'Azshara',
+      region: 'KR',
+      mplusScore: 4123.4,
+      freshnessStatus: 'stale',
+      isStale: true,
+    })
+  })
+
   it('preserves the legacy choice and granted-rank semantics needed by the talent tree', () => {
     const normalized = normalizeTalentNode({
       id: 'choice-a',

@@ -4,7 +4,7 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 describe('talent simulator authoritative edit contract', () => {
-  it('does not render or request the obsolete WebSim status and community blocks', () => {
+  it('restores import as an on-demand saved/community overlay without restoring permanent status blocks', () => {
     const source = readFileSync(resolve(
       process.cwd(),
       'apps/mini-taro/src/pages/builds/talent-simulator.tsx',
@@ -12,7 +12,11 @@ describe('talent simulator authoritative edit contract', () => {
 
     expect(source).not.toContain('TalentImportStatus')
     expect(source).not.toContain('TalentCommunityRow')
-    expect(source).not.toContain('wowApi.websim.talentImport')
+    expect(source).toContain('TalentTemplateImportSheet')
+    expect(source).toContain('wowApi.templates.fetch')
+    expect(source).toContain('wowApi.websim.talentImportCode')
+    expect(source).toContain('data-role="talent-import-action"')
+    expect(source).not.toContain("copyText(decision.code, '已复制后端导出码')")
     expect(source).not.toContain('data-region="import_panel"')
     expect(source).not.toContain('data-region="community_builds"')
   })
@@ -147,6 +151,8 @@ describe('talent simulator authoritative edit contract', () => {
     expect(source).not.toContain('cycleTalentRank')
     expect(source).not.toContain('selectTalentChoice')
     expect(source).toContain('rawString: exportDecision.code')
+    expect(source).toContain('defaultTalentTemplateTitle')
+    expect(source).toContain('TalentTemplateNameSheet')
     expect(source).not.toContain('rawString: data.talentImport.importCode')
     expect(source).toContain("'已保存到本地，远端未确认'")
     expect(source).toContain("'模板已保存并由远端确认'")

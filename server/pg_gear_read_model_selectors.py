@@ -124,6 +124,13 @@ def _int_value(value, fallback=0):
         return fallback
 
 
+def _float_value(value, fallback=0.0):
+    try:
+        return float(value or 0)
+    except (TypeError, ValueError):
+        return fallback
+
+
 def _shadow_template_evidence(template):
     value = template if isinstance(template, dict) else {}
     payload = value.get("payload") if isinstance(value.get("payload"), dict) else {}
@@ -279,7 +286,10 @@ def build_websim_community_talent_templates_read_model(rows, class_key, spec_key
         selected_nodes = talent_state.get("selectedNodes") if isinstance(talent_state.get("selectedNodes"), list) else []
         can_apply_visual = bool(str(websim_export_code).startswith("websim:") and selected_nodes)
         raiderio_payload = payload.get("raiderio") if isinstance(payload.get("raiderio"), dict) else {}
+        rio_evidence = payload.get("rioEvidence") if isinstance(payload.get("rioEvidence"), dict) else {}
+        freshness = payload.get("communityTemplateFreshness") if isinstance(payload.get("communityTemplateFreshness"), dict) else {}
         player_id = str(payload.get("playerId") or raiderio_payload.get("characterName") or "").strip()
+        freshness_status = str(freshness.get("status") or "fresh").strip()
         templates.append(
             {
                 "id": str(row[0]),
@@ -305,6 +315,13 @@ def build_websim_community_talent_templates_read_model(rows, class_key, spec_key
                 "sourceRefs": normalize_source_refs(_json_value(row[22], []) or []),
                 "scanRunId": row[23] or "",
                 "playerId": player_id,
+                "playerName": str(raiderio_payload.get("characterName") or player_id).strip(),
+                "serverName": str(raiderio_payload.get("realm") or raiderio_payload.get("realmSlug") or "").strip(),
+                "region": str(raiderio_payload.get("region") or rio_evidence.get("region") or "").strip().lower(),
+                "mplusScore": _float_value(rio_evidence.get("score")),
+                "mplusRank": _int_value(rio_evidence.get("rank")),
+                "freshnessStatus": freshness_status,
+                "isStale": freshness_status == "stale",
                 "classLabel": payload.get("classLabel") or class_label(row[1]),
                 "specLabel": payload.get("specLabel") or spec_label(row[2]),
                 "heroLabel": payload.get("heroLabel") or hero_tree_label(row[3]),

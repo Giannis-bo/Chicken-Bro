@@ -1,4 +1,5 @@
 import type {
+  CommunityTemplateReference,
   HeroTalentTree,
   ReadinessState,
   TalentNode,
@@ -9,6 +10,35 @@ import type {
   WebsimSelection,
   WebsimTalentsPayload,
 } from '@wow-mini/domain'
+
+export function defaultTalentTemplateTitle(input: {
+  classLabel: string
+  specLabel: string
+  heroLabel: string
+  now?: Date
+}): string {
+  const now = input.now ?? new Date()
+  const date = [now.getFullYear(), now.getMonth() + 1, now.getDate()]
+    .map((value) => String(value).padStart(2, '0'))
+    .join('-')
+  const time = [now.getHours(), now.getMinutes()]
+    .map((value) => String(value).padStart(2, '0'))
+    .join(':')
+  return [input.classLabel, input.specLabel, input.heroLabel, `${date} ${time}`]
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .join('-')
+}
+
+export function communityTalentWinnerForImport(
+  templates: readonly CommunityTemplateReference[],
+): CommunityTemplateReference | undefined {
+  return templates.find((template) => (
+    template.status === 'verified'
+    && template.canApplyVisual === true
+    && (template.talentState?.selectedNodes.length ?? 0) > 0
+  ))
+}
 
 export type TalentGraphNodeState = 'selected' | 'available' | 'unselected' | 'blocked' | 'loading'
 

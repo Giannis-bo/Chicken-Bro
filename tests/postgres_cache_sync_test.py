@@ -526,6 +526,47 @@ class PostgresCacheSyncTest(unittest.TestCase):
         self.assertEqual(len(store.community_talent_templates), 1)
         self.assertEqual(store.community_talent_templates[0]["id"], "rio-fresh-rider")
 
+    def test_community_postgres_sync_records_raiderio_failure_without_replacing_winners(self):
+        from server import postgres_cache_sync
+
+        store = FakePostgresSyncStore()
+        recorded = []
+        store.record_community_talent_source_sync_failure = lambda source_key, checked_at="", errors=None, regions=None: recorded.append(
+            {"sourceKey": source_key, "checkedAt": checked_at, "errors": list(errors or []), "regions": list(regions or [])}
+        ) or {"updated": 1}
+        successful = []
+        store.record_community_talent_source_sync_success = lambda source_key, checked_at="", regions=None: successful.append(
+            {"sourceKey": source_key, "checkedAt": checked_at, "regions": list(regions or [])}
+        ) or {"updated": 1}
+
+        with patch.object(
+            postgres_cache_sync,
+            "load_community_talent_sources_postgres",
+            return_value={
+                "raiderio": {
+                    "status": "blocked",
+                    "sourceName": "Raider.IO",
+                    "templates": [],
+                    "errors": ["kr: upstream timeout"],
+                    "regions": ["kr", "us"],
+                    "regionCoverage": {"kr": {"status": "blocked"}, "us": {"status": "verified"}},
+                },
+                "warcraftlogs": {"status": "partial", "sourceName": "Warcraft Logs", "templates": [], "errors": []},
+            },
+            create=True,
+        ):
+            payload = postgres_cache_sync.sync_community_template_cache_postgres(
+                store=store,
+                refresh_raiderio=False,
+            )
+
+        self.assertEqual(recorded[0]["sourceKey"], "raiderio")
+        self.assertEqual(recorded[0]["errors"], ["kr: upstream timeout"])
+        self.assertEqual(recorded[0]["regions"], ["kr"])
+        self.assertEqual(successful[0]["regions"], ["us"])
+        self.assertEqual(payload["talentFreshness"]["raiderio"]["status"], "failure_recorded")
+        self.assertEqual(payload["talentFreshness"]["raiderio"]["regionCoverage"]["us"]["status"], "verified")
+
     def test_websim_postgres_sync_replaces_simc_generated_data(self):
         from server import postgres_cache_sync
 

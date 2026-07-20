@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type {
+  CommunityTemplateReference,
   TalentNode,
   TalentNodeAvailabilityPayload,
   WebsimBootstrapPayload,
@@ -11,6 +12,8 @@ import {
   heroTalentIcon,
   heroTalentOptions,
   applyTalentValidation,
+  communityTalentWinnerForImport,
+  defaultTalentTemplateTitle,
   initialTalentRanks,
   proposeTalentChoice,
   proposeTalentRank,
@@ -66,6 +69,36 @@ const availability: TalentNodeAvailabilityPayload = {
 }
 
 describe('talent simulator target model', () => {
+  it('uses an editable, meaningful default title for a saved talent configuration', () => {
+    expect(defaultTalentTemplateTitle({
+      classLabel: '法师',
+      specLabel: '冰霜',
+      heroLabel: '霜火',
+      now: new Date(2026, 6, 20, 9, 5),
+    })).toBe('法师-冰霜-霜火-2026-07-20 09:05')
+  })
+
+  it('keeps one stale, backend-selected community winner importable', () => {
+    const staleWinner: CommunityTemplateReference = {
+      id: 'rio-kr-winner',
+      name: 'Raider.IO KR 霜火',
+      status: 'verified',
+      canApplyVisual: true,
+      isStale: true,
+      freshnessStatus: 'stale',
+      talentState: { selectedNodes: [{ id: 'root', rank: 1 }] },
+      playerName: 'TopPlayer',
+      serverName: 'Azshara',
+      region: 'KR',
+      mplusScore: 4123.4,
+    }
+
+    expect(communityTalentWinnerForImport([
+      { id: 'pending', status: 'pending_collection', canApplyVisual: false },
+      staleWinner,
+    ])).toBe(staleWinner)
+  })
+
   it('retains real coordinates and prerequisite edges without presenting local legality as authoritative', () => {
     const ranks = initialTalentRanks(nodes)
     const graph = buildTalentGraph({ nodes, ranks, availability, routeState: 'ready' })

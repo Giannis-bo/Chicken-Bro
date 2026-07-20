@@ -1,4 +1,4 @@
-import { Image, Picker, ScrollView, Text, View } from '@tarojs/components'
+import { Image, Input, Picker, ScrollView, Text, View } from '@tarojs/components'
 
 import { ControlButton } from './ControlButton'
 import type { CSSProperties } from 'react'
@@ -664,7 +664,7 @@ export function TalentActionBar({ items }: TalentActionBarProps) {
           )}
           data-action-id={item.id}
           data-disabled={item.disabled === true ? 'true' : 'false'}
-          data-role="talent-action-button"
+          data-role={item.id === 'import' ? 'talent-import-action' : 'talent-action-button'}
           data-tone={item.tone}
           role="button"
           onClick={() => {
@@ -675,6 +675,169 @@ export function TalentActionBar({ items }: TalentActionBarProps) {
           <Text>{item.label}</Text>
         </View>
       ))}
+    </View>
+  )
+}
+
+export type TalentTemplateImportTab = 'saved' | 'community'
+
+export interface TalentTemplateSavedImportItem {
+  id: string
+  title: string
+  detail: string
+  disabled?: boolean | undefined
+}
+
+export interface TalentTemplateCommunityWinner {
+  title: string
+  playerName: string
+  serverName: string
+  region: string
+  mplusScore?: number | undefined
+  updatedAt: string
+  sourceName: string
+  isStale: boolean
+  importable: boolean
+}
+
+export interface TalentTemplateImportSheetProps {
+  visible: boolean
+  activeTab: TalentTemplateImportTab
+  savedItems: readonly TalentTemplateSavedImportItem[]
+  communityWinner?: TalentTemplateCommunityWinner | undefined
+  loading?: boolean | undefined
+  importing?: boolean | undefined
+  onTabChange: (tab: TalentTemplateImportTab) => void
+  onClose: () => void
+  onImportSaved: (id: string) => void
+  onImportCommunity: () => void
+}
+
+export function TalentTemplateImportSheet({
+  visible,
+  activeTab,
+  savedItems,
+  communityWinner,
+  loading = false,
+  importing = false,
+  onTabChange,
+  onClose,
+  onImportSaved,
+  onImportCommunity,
+}: TalentTemplateImportSheetProps) {
+  if (!visible) return null
+  const communityMeta = [
+    `玩家：${communityWinner?.playerName || '未提供'}`,
+    `服务器：${communityWinner?.serverName || '未提供'}`,
+    `区域：${communityWinner?.region || '未提供'}`,
+    communityWinner?.mplusScore === undefined ? '大秘境总分：未提供' : `大秘境总分：${communityWinner.mplusScore}`,
+    `更新：${communityWinner?.updatedAt || '未提供'}`,
+    `来源：${communityWinner?.sourceName || '未提供'}`,
+  ]
+  return (
+    <View className={componentStyle('templateSheetMask')} data-role="talent-template-import-sheet">
+      <View className={componentStyle('templateSheet')}>
+        <View className={componentStyle('templateSheetHeader')}>
+          <Text>导入天赋模板</Text>
+          <View className={componentStyle('templateSheetClose')} role="button" onClick={onClose}>关闭</View>
+        </View>
+        <View className={componentStyle('templateSheetTabs')}>
+          {([['saved', '我的保存'], ['community', '社区模板']] as const).map(([tab, label]) => (
+            <View
+              key={tab}
+              className={componentStyle('templateSheetTab')}
+              data-active={activeTab === tab ? 'true' : 'false'}
+              role="button"
+              onClick={() => onTabChange(tab)}
+            >
+              <Text>{label}</Text>
+            </View>
+          ))}
+        </View>
+        <ScrollView className={componentStyle('templateSheetContent')} scrollY>
+          {activeTab === 'saved' ? (
+            loading ? <Text className={componentStyle('templateSheetEmpty')}>正在读取已保存模板…</Text>
+              : savedItems.length === 0 ? <Text className={componentStyle('templateSheetEmpty')}>还没有已保存的天赋模板</Text>
+                : savedItems.map((item) => (
+                  <View key={item.id} className={componentStyle('templateSheetItem')} data-disabled={item.disabled ? 'true' : 'false'}>
+                    <View className={componentStyle('templateSheetItemCopy')}>
+                      <Text>{item.title}</Text>
+                      <Text>{item.detail}</Text>
+                    </View>
+                    <View
+                      className={componentStyle('templateSheetImport')}
+                      data-disabled={item.disabled || importing ? 'true' : 'false'}
+                      role="button"
+                      onClick={() => {
+                        if (!item.disabled && !importing) onImportSaved(item.id)
+                      }}
+                    >导入</View>
+                  </View>
+                ))
+          ) : communityWinner ? (
+            <View className={componentStyle('templateSheetCommunity')} data-stale={communityWinner.isStale ? 'true' : 'false'}>
+              <Text className={componentStyle('templateSheetCommunityTitle')}>{communityWinner.title}</Text>
+              {communityMeta.map((line) => <Text key={line} className={componentStyle('templateSheetCommunityMeta')}>{line}</Text>)}
+              {communityWinner.isStale ? <Text className={componentStyle('templateSheetStale')}>已过期</Text> : null}
+              <View
+                className={componentStyle('templateSheetCommunityImport')}
+                data-disabled={!communityWinner.importable || importing ? 'true' : 'false'}
+                role="button"
+                onClick={() => {
+                  if (communityWinner.importable && !importing) onImportCommunity()
+                }}
+              >{importing ? '导入中' : '导入此模板'}</View>
+            </View>
+          ) : (
+            <Text className={componentStyle('templateSheetEmpty')}>当前专精暂无可导入的社区模板</Text>
+          )}
+        </ScrollView>
+      </View>
+    </View>
+  )
+}
+
+export interface TalentTemplateNameSheetProps {
+  visible: boolean
+  value: string
+  saving?: boolean | undefined
+  onChange: (value: string) => void
+  onClose: () => void
+  onConfirm: () => void
+}
+
+export function TalentTemplateNameSheet({
+  visible,
+  value,
+  saving = false,
+  onChange,
+  onClose,
+  onConfirm,
+}: TalentTemplateNameSheetProps) {
+  if (!visible) return null
+  return (
+    <View className={componentStyle('templateSheetMask')} data-role="talent-template-name-sheet">
+      <View className={componentStyle('templateNameSheet')}>
+        <Text className={componentStyle('templateNameSheetTitle')}>保存天赋模板</Text>
+        <Text className={componentStyle('templateNameSheetHint')}>可修改默认名称</Text>
+        <Input
+          className={componentStyle('templateNameSheetInput')}
+          maxlength={60}
+          value={value}
+          onInput={(event) => onChange(event.detail.value)}
+        />
+        <View className={componentStyle('templateNameSheetActions')}>
+          <View className={componentStyle('templateNameSheetCancel')} role="button" onClick={onClose}>取消</View>
+          <View
+            className={componentStyle('templateNameSheetConfirm')}
+            data-disabled={saving ? 'true' : 'false'}
+            role="button"
+            onClick={() => {
+              if (!saving) onConfirm()
+            }}
+          >{saving ? '保存中' : '保存'}</View>
+        </View>
+      </View>
     </View>
   )
 }

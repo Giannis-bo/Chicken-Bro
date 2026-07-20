@@ -13,11 +13,11 @@
   },
   "productOverrides": [
     {
-      "id": "remove_obsolete_talent_advisory_blocks_20260720",
+      "id": "restore_talent_template_actions_20260720",
       "excludedTargetRegions": ["websim_panel", "community_template_row"],
       "layoutRule": "tree_canvas consumes the excluded regions vertical space while bottom_action_bar keeps its original bottom position",
       "treeViewportPolicy": "all class, specialization and hero trees preserve the backend row/column lattice: nodes that share a source column remain vertically aligned, sparse rows retain their empty-lane branch spans, and repeated source positions fan into safe non-overlapping sockets; dense class and specialization trees use a 60px minimum row rhythm and retain their horizontal fit while the internal ScrollView owns any extra vertical reach rather than shrinking the tree back down; sparse hero trees use the same shared-lattice rule while expanding their practical width and row gap into the viewport; all graph inline coordinates use the same 750/390 rpx design unit as the canvas; the tree ScrollView adds 24px of top and bottom reach for nodes and rank labels while the page surface remains fixed",
-      "preservedBehavior": ["backend_talent_validation", "backend_talent_export", "save_template", "reset"],
+      "preservedBehavior": ["backend_talent_validation", "backend_talent_export", "named_save_template", "saved_template_import", "community_winner_import", "reset"],
       "targetObservationPolicy": "target-inventory.json and target-geometry.json remain unchanged records of the original target image"
     }
   ],
@@ -75,6 +75,20 @@
       "decision": "new_owner",
       "targetRegions": ["bottom_action_bar"],
       "location": "packages/design-system/src/components/TalentSimulatorComponents.tsx"
+    },
+    {
+      "owner": "TalentTemplateImportSheet",
+      "decision": "new_owner",
+      "targetRegions": [],
+      "location": "packages/design-system/src/components/TalentSimulatorComponents.tsx",
+      "contract": "on-demand route overlay only; it does not add a stable target region or alter the fixed graph/action-bar geometry"
+    },
+    {
+      "owner": "TalentTemplateNameSheet",
+      "decision": "new_owner",
+      "targetRegions": [],
+      "location": "packages/design-system/src/components/TalentSimulatorComponents.tsx",
+      "contract": "on-demand editable save-name overlay only; it does not add a stable target region or alter the fixed graph/action-bar geometry"
     }
   ],
   "rejectedReuse": [
