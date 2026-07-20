@@ -29,6 +29,16 @@
 | CDN 与运行时素材发布 | [cdn-asset-publishing.md](cdn-asset-publishing.md) | 当前生产资源根、不可变发布与回滚。 |
 | 稳定设计合同 | [../DESIGN.md](../DESIGN.md) | 设计语言、组件和素材边界。 |
 
+## 微信开发者工具预览
+
+活动项目始终导入仓库内的 `apps/mini-taro`，不要直接导入生成目录。微信前端变更验收并合入后，在最新 `main` 上执行：
+
+```bash
+npm run refresh:weapp
+```
+
+该命令依次运行 WeChat 构建、校验 `dist/weapp` 的关键入口，再尝试通过官方 DevTools CLI 打开项目。macOS 和常见 Windows 安装路径会自动识别；其他安装位置通过 `WECHAT_DEVTOOLS_CLI` 指向官方 `cli` / `cli.bat`。CLI 不可用时构建仍保留，但必须按输出手工导入 `apps/mini-taro`，不能声称开发者工具已经刷新。
+
 ## 维护规则
 
 - 一次性实施、思考、审计和交接记录不进入长期文档。

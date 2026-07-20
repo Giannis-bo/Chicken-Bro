@@ -1,6 +1,6 @@
 # Repo-native Harness
 
-> Harness version：v0.6.3。
+> Harness version：v0.6.4。
 > 最后更新：2026-07-20。
 > 适用范围：本仓库所有需求讨论、方案设计、实现、验证、部署和交付声明。
 
@@ -99,10 +99,13 @@ Agent 可自审通过，但必须在动手前简短说明：
 5. 在合入结果上重跑本次定向验证。
 6. 推送 `main`。
 7. 核对本地 `main` 与 `origin/main` 的 SHA 一致。
-8. 清理本任务使用的 worktree 和本地分支。
-9. 若该任务分支曾发布到远端，再删除对应远端分支。
+8. 若任务改变活动微信前端，在最新 `main` 上执行 `npm run refresh:weapp`，重新构建、校验产物并尝试用官方 CLI 刷新 `apps/mini-taro`。
+9. 清理本任务使用的 worktree 和本地分支。
+10. 若该任务分支曾发布到远端，再删除对应远端分支。
 
 本序列遇到本地/远端冲突、验证失败、范围扩大或超出现有授权的操作时立即停止并说明原因；不把同步失败、强推、历史改写或破坏性操作包装为常规收尾。
+
+`refresh:weapp` 是合入后的本地交付动作，不能替代 CI、候选预览或用户人工验收。构建失败必须阻断“可预览”声明；CLI 缺失、服务端口关闭或打开失败时，必须保留已验证构建并明确提示手工导入 `apps/mini-taro`。新电脑可用 `WECHAT_DEVTOOLS_CLI` 指向官方 CLI；脚本不得自动安装开发者工具、开启权限或接受协议。
 
 ### Standard
 
@@ -503,6 +506,7 @@ Harness 复盘节奏：
 
 | Version | Date | Change |
 | --- | --- | --- |
+| v0.6.4 | 2026-07-20 | 将微信前端合入后的本地预览刷新纳入 User Acceptance Closure；新增跨平台 `npm run refresh:weapp`，统一构建、产物校验、官方 DevTools CLI 打开与明确人工降级，同时禁止把该动作冒充 CI、候选预览或人工验收。 |
 | v0.6.3 | 2026-07-20 | 统一 `project-state -> roadmap -> docs map -> active contract -> domain docs` 当前事实顺序；固化 Taro/DevTools 开发入口；让活动 runbook 全部可达；CLI 增加 help 与严格参数校验；本地控制面检查忽略未跟踪系统元数据，避免 CI 绿而本地假失败。 |
 | v0.6.2 | 2026-07-19 | PR CI 改为从 diff 绑定唯一完整且交叉校验的任务 release packet；evidence schema v2 分离 runtime/verification/closure identity，runtime 只认同类型 immutable candidate，verification 只认 clean exact HEAD，并校验 requirement 冻结的完整 accepted/not_run_user_waived/pending 人工验收集合；全局 release 指针不再能满足 CI。 |
 | v0.6.1 | 2026-07-16 | 将 Superpowers 固定为按需方法层：Harness 优先决定分级、验证、候选、拓扑和收口；Light Fast Lane 不被设计/worktree/并行/收尾技能重新加重；禁止自动依赖安装与收尾菜单覆盖 Harness closure。 |
@@ -622,6 +626,7 @@ node scripts/project-harness.js --help
 - data health。
 - deploy smoke。
 - risk matrix。
+- v0.6.4 post-merge 微信预览刷新与跨电脑 CLI 降级规则。
 - v0.6.3 current-truth、文档可达性、本地稳健性与 CLI fail-fast 规则。
 - v0.6.2 task-scoped packet、identity 与人工验收汇总门禁。
 - v0.6.1 Superpowers 方法层优先级与 Light Fast Lane 保护规则。

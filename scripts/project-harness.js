@@ -447,7 +447,7 @@ function validateRequirementPacket(requirement, failures) {
 
 function validateEvidencePacket(requirement, evidence, root, failures) {
   if (evidence.schemaVersion !== 2) {
-    addCheckFailure(failures, 'evidence_invalid_json', 'Evidence schemaVersion must be 2 for Harness v0.6.3 identity binding.')
+    addCheckFailure(failures, 'evidence_invalid_json', 'Evidence schemaVersion must be 2 for Harness v0.6.4 identity binding.')
   }
   if (!hasString(evidence.slug) || !hasString(evidence.requirementSlug)) {
     addCheckFailure(failures, 'evidence_invalid_json', 'Evidence slug and requirementSlug are required.')
@@ -1140,6 +1140,7 @@ function buildManifest(options) {
         'rerun_scoped_verification_on_merge_result',
         'push_main',
         'verify_local_and_origin_main_sha_match',
+        'refresh_wechat_preview_on_latest_main_when_frontend_changed',
         'remove_task_worktree_and_local_branch',
         'delete_published_task_branch_if_present'
       ],
