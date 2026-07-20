@@ -2,14 +2,15 @@
   "schemaVersion": 2,
   "slug": "talent-obsolete-panels-removal",
   "requirementSlug": "talent-obsolete-panels-removal",
-  "status": "local_verified",
-  "highestEvidenceLevel": "local_verified",
+  "status": "live_verified",
+  "highestEvidenceLevel": "live_verified",
   "branch": "codex/talent-obsolete-panels-removal",
-  "commit": "pending_pr_head",
+  "commit": "58416d185b53dc02c2ea2ed6b2c5ee3475b1cbb3",
   "identities": {
     "runtime": {
-      "status": "not_applicable",
-      "reason": "The final backend candidate has not been deployed; a local WeChat build can verify the client compatibility guard but cannot prove backend read-model parity."
+      "status": "bound",
+      "kind": "git_commit",
+      "value": "58416d185b53dc02c2ea2ed6b2c5ee3475b1cbb3"
     },
     "verification": {
       "status": "bound_at_check",
@@ -18,12 +19,12 @@
     },
     "closure": {
       "status": "pending",
-      "reason": "Manual acceptance, commit, merge and archive closure have not occurred."
+      "reason": "Manual acceptance and the exact runtime candidate are verified; merge, post-merge verification and archive closure remain in progress."
     }
   },
   "manualAcceptance": {
     "required": true,
-    "status": "accepted",
+    "status": "complete",
     "items": [
       {
         "id": "talent_selectors_visible",
@@ -133,19 +134,20 @@
     }
   ],
   "candidateDeployment": {
-    "status": "local_build_ready_backend_candidate_pending",
-    "candidateId": "local-uncommitted-talent-obsolete-panels-removal-weapp",
-    "commit": "pending_pr_head",
-    "previewRoot": "apps/mini-taro",
+    "status": "candidate_verified",
+    "candidateId": "58416d185b53dc02c2ea2ed6b2c5ee3475b1cbb3",
+    "commit": "58416d185b53dc02c2ea2ed6b2c5ee3475b1cbb3",
+    "gitTree": "de99c6f55e943c62df07c86116b40d6b6689ccff",
+    "previewRoot": "/opt/wow-mini-program",
     "buildOutput": "apps/mini-taro/dist/weapp",
     "fileCount": 213,
     "smoke": {
-      "status": "local_preview_pass_backend_candidate_pending",
-      "summary": "The latest local package compiles and the API-client compatibility regression ensures a stale remote payload cannot render a second same-slot root. Exact visual acceptance and backend payload/validation parity remain required before merge."
+      "status": "pass",
+      "summary": "Hot-deployed exact candidate 58416d18 with WOW_DEPLOY_SKIP_BOOTSTRAP=1 and WOW_DEPLOY_START_ASYNC_SYNCS=0. Public health passed; Priest Discipline Voidweaver returns only Entropic Rift at its root; the public bootstrap-derived 80 Hero-tree API responses contain zero duplicate non-choice visual slots."
     },
     "timerBackflow": {
-      "status": "not_applicable",
-      "reason": "Frontend-only route change; no service, timer, sync or database behavior changed."
+      "status": "pass",
+      "summary": "Deployment output explicitly skipped PG-native async sync starts because WOW_DEPLOY_START_ASYNC_SYNCS=0; wow-websim-sync.timer remained active."
     },
     "rollback": "Revert the task commit to restore the two advisory surfaces and the previous action-bar position."
   },
@@ -172,15 +174,30 @@
     },
     {
       "type": "wechat_devtools_manual_acceptance",
-      "status": "pending",
-      "summary": "No reusable automation endpoint was available; explicit user acceptance remains required and is not inferred from the build."
+      "status": "pass",
+      "summary": "The user explicitly accepted the final DevTools candidate on 2026-07-20: \"这次OK了，没问题，可以收尾了。\""
+    },
+    {
+      "type": "candidate_runtime_file_parity",
+      "status": "pass",
+      "summary": "The SHA-256 of candidate server/websim_payload.py and /opt/wow-mini-program/server/websim_payload.py both equal 888f3e5944b5f2dcd19b5307ee0abe09d953e7e712b1158fe6cd6b35eaba865a."
+    },
+    {
+      "type": "candidate_health_and_talent_smoke",
+      "status": "pass",
+      "summary": "Public and loopback health returned ok; wow-backend and wow-websim-sync.timer were active after the hot deployment. Priest Discipline Voidweaver returned 17 Hero nodes and a single Entropic Rift root."
+    },
+    {
+      "type": "candidate_hero_tree_matrix",
+      "status": "pass",
+      "summary": "The public bootstrap enumerated 13 classes and 80 specialization-by-Hero-tree selections. All 80 talent responses succeeded and duplicate non-choice visual-slot tree count was 0."
     }
   ],
   "risks": [
     {
       "id": "visual_gap_or_overlap_after_tree_expansion",
-      "status": "pending_manual_acceptance",
-      "detail": "Static contracts and the DevTools runtime candidate keep the action bar at its original bottom position, use rpx-consistent geometry to fill dense and sparse hero tree canvases while preserving their centered rows, and direct vertical gestures to the graph viewport, but the exact candidate still needs WeChat visual confirmation."
+      "status": "accepted_by_user_and_contracts",
+      "detail": "Static contracts and the user-accepted DevTools candidate keep the action bar bottom-anchored, preserve centered tree geometry and direct vertical gestures to the graph viewport."
     },
     {
       "id": "retained_action_regression",
@@ -189,8 +206,8 @@
     },
     {
       "id": "hero_selector_or_duplicate_talent_regression",
-      "status": "pending_candidate_and_manual_acceptance",
-      "detail": "The parser, cached read model and frontend each guard a non-choice visual coordinate while preserving choice alternatives; the backend candidate must prove the rebuilt authoritative payload feeds the same de-duplicated availability and validation."
+      "status": "controlled_by_candidate_matrix_and_regressions",
+      "detail": "Parser, cached read model and frontend guards preserve choice alternatives while the exact candidate's public 80-tree matrix has zero duplicate non-choice visual slots."
     },
     {
       "id": "target_observation_falsification",
@@ -202,8 +219,8 @@
     "Revert the task commit to restore the removed route-local surfaces, talentImport read and former action-bar layout."
   ],
   "cleanup": {
-    "required": false,
-    "status": "not_applicable_before_user_acceptance"
+    "required": true,
+    "status": "pending_post_merge_archive"
   },
   "archivedReferences": [
     "docs/project-state.json",
@@ -213,5 +230,5 @@
     "DESIGN.md",
     "docs/design/current-ui/README.md"
   ],
-  "summary": "The obsolete talent advisory surfaces and their dedicated request are removed, the action bar remains bottom-anchored, dense and sparse hero trees fill the practical canvas while preserving their alignment, the hero selector uses specialization-level backend choices and the active root-talent crest, and Hero-tree variants/overrides are isolated and de-duplicated by visual slot in the parser, cached read model and client. A full 80-Hero-tree source audit has no duplicate non-choice slot; final WeChat acceptance and backend candidate smoke are pending."
+  "summary": "The obsolete talent advisory surfaces and their dedicated request are removed, the action bar remains bottom-anchored, dense and sparse hero trees fill the practical canvas while preserving their alignment, the hero selector uses specialization-level backend choices and the active root-talent crest, and Hero-tree variants/overrides are isolated and de-duplicated by visual slot in the parser, cached read model and client. User acceptance and exact-candidate deployment passed, including a public 80-Hero-tree matrix with zero duplicate non-choice slots; merge and archive closure remain in progress."
 }
