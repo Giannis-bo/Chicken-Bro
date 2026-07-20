@@ -1274,7 +1274,6 @@ const dynamicStyleFamilies = [
   { file: 'packages/design-system/src/components/TalentSimulatorComponents.module.scss', pattern: /^graphEdge-(?:selected|available|loading)$/u, ownerMarker: 'graphEdge-${edge.state}' },
   { file: 'packages/design-system/src/components/TalentSimulatorComponents.module.scss', pattern: /^graphNode-(?:selected|available|unselected|blocked)$/u, ownerMarker: 'graphNode-${node.state}' },
   { file: 'packages/design-system/src/components/TalentSimulatorComponents.module.scss', pattern: /^legendItem-(?:selected|available|blocked)$/u, ownerMarker: 'legendItem-${item.id}' },
-  { file: 'packages/design-system/src/components/TalentSimulatorComponents.module.scss', pattern: /^importStatusRow-(?:ready|partial|blocked)$/u, ownerMarker: 'importStatusRow-${status.state}' },
   { file: 'packages/design-system/src/components/TalentSimulatorComponents.module.scss', pattern: /^actionButton-(?:gold|blue|metal)$/u, ownerMarker: 'actionButton-${item.tone}' },
   { file: 'packages/design-system/src/components/TaskDetailComponents.module.scss', pattern: /^summary-(?:completed|failed|blocked)$/u, ownerMarker: 'summary-${status}' },
   { file: 'packages/design-system/src/components/TaskDetailComponents.module.scss', pattern: /^result-(?:completed|failed|blocked)$/u, ownerMarker: 'result-${state}' },

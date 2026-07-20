@@ -3,8 +3,6 @@
 .pointsOwner,
 .graphOwner,
 .legendOwner,
-.importOwner,
-.communityOwner,
 .actionsOwner,
 .selectorOwner view,
 .selectorOwner text,
@@ -22,11 +20,6 @@
 .graphOwner button,
 .legendOwner view,
 .legendOwner text,
-.importOwner view,
-.importOwner text,
-.communityOwner view,
-.communityOwner text,
-.communityOwner button,
 .actionsOwner view,
 .actionsOwner text,
 .actionsOwner button {
@@ -36,9 +29,7 @@
 
 .selectorOwner,
 .pointsOwner,
-.graphOwner,
-.importOwner,
-.communityOwner {
+.graphOwner {
   width: 100%;
   height: 100%;
   overflow: hidden;
@@ -693,138 +684,6 @@
 .legendItem[data-state='blocked'] .legendSocket,
 .legendItem-blocked .legendSocket { opacity: 0.55; }
 .legendSocket > view { width: 8px; height: 8px; }
-
-.importOwner {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 92px;
-  padding: 6px 8px;
-  background:
-    radial-gradient(circle at 22% 48%, rgba(70, 98, 127, 0.12), transparent 34%),
-    linear-gradient(180deg, rgba(39, 37, 32, 0.98), rgba(8, 11, 14, 0.99));
-}
-
-.importMain {
-  min-width: 0;
-  padding-right: 7px;
-}
-
-.importTitle {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: #d8c398;
-  font-family: var(--wow-font-display);
-  font-size: 11px;
-  font-weight: 760;
-  line-height: 15px;
-}
-
-.importTitleMedallion {
-  display: grid;
-  width: 19px;
-  height: 19px;
-  flex: 0 0 19px;
-  place-items: center;
-  border: 1px solid rgba(194, 150, 76, 0.82);
-  border-radius: 50%;
-  background: radial-gradient(circle, #253340 0 34%, #11161b 38% 63%, #06080a 67%);
-  box-shadow: inset 0 0 0 2px rgba(7, 8, 9, 0.86), 0 1px 4px rgba(0, 0, 0, 0.62);
-}
-
-.importTitleGlyph { width: 11px; height: 11px; color: #d2ae68; }
-
-.importPrompt {
-  display: grid;
-  min-width: 0;
-  height: 50px;
-  grid-template-columns: 42px minmax(0, 1fr);
-  align-items: center;
-  gap: 6px;
-  margin-top: 5px;
-  padding: 4px 7px;
-  border: 1px solid rgba(135, 105, 62, 0.68);
-  border-radius: 0;
-  clip-path: polygon(4px 0, calc(100% - 4px) 0, 100% 4px, 100% calc(100% - 4px), calc(100% - 4px) 100%, 4px 100%, 0 calc(100% - 4px), 0 4px);
-  background:
-    radial-gradient(circle at 19px 50%, rgba(69, 96, 122, 0.18), transparent 23px),
-    linear-gradient(180deg, #202428, #090c10);
-  box-shadow:
-    inset 0 0 0 2px rgba(3, 5, 7, 0.78),
-    inset 0 0 0 3px rgba(114, 86, 48, 0.18),
-    inset 0 8px 16px rgba(151, 121, 69, 0.035);
-}
-
-.importUploadMedallion {
-  display: grid;
-  width: 32px;
-  height: 32px;
-  justify-self: center;
-  place-items: center;
-  border: 1px solid rgba(161, 126, 70, 0.78);
-  clip-path: polygon(4px 0, calc(100% - 4px) 0, 100% 4px, 100% calc(100% - 4px), calc(100% - 4px) 100%, 4px 100%, 0 calc(100% - 4px), 0 4px);
-  background: radial-gradient(circle, #2b3a47, #11161b 64%, #07090b 66%);
-  box-shadow: inset 0 0 0 2px #050709, inset 0 0 0 3px rgba(185, 142, 73, 0.28);
-}
-
-.importUploadGlyph { width: 19px; height: 19px; color: #c7a463; }
-.importPromptCopy { min-width: 0; }
-.importPromptCopy > text { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.importPromptCopy > text:first-child { color: #c8b99d; font-size: 9px; font-weight: 730; line-height: 13px; }
-.importPromptCopy > text:last-child { margin-top: 2px; color: #777c81; font-size: 7px; line-height: 10px; }
-
-.importStatuses {
-  display: grid;
-  align-content: stretch;
-  border-left: 1px solid rgba(149, 109, 52, 0.52);
-  background: rgba(5, 7, 9, 0.26);
-}
-
-.importStatusRow {
-  display: grid;
-  min-width: 0;
-  grid-template-columns: 7px minmax(0, 1fr) 11px;
-  align-items: center;
-  gap: 4px;
-  padding-left: 7px;
-  color: #9f988d;
-  font-size: 8px;
-  line-height: 11px;
-}
-.importStatusRow:nth-child(n + 2) { border-top: 1px solid rgba(97, 80, 56, 0.36); }
-.importStatusRow > text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.importStatusGlyph { width: 10px; height: 10px; color: #9b8d76; }
-.importStatusMarker { width: 6px; height: 6px; border-radius: 50%; background: #676b6d; }
-.importStatusRow[data-state='ready'] .importStatusMarker,
-.importStatusRow-ready .importStatusMarker { background: #62a374; box-shadow: 0 0 4px #62a374; }
-.importStatusRow[data-state='partial'] .importStatusMarker,
-.importStatusRow-partial .importStatusMarker { background: #c69b4f; box-shadow: 0 0 4px #c69b4f; }
-.importStatusRow[data-state='blocked'] .importStatusMarker,
-.importStatusRow-blocked .importStatusMarker { background: #6f7071; }
-
-.communityOwner {
-  display: grid;
-  width: 100%;
-  min-width: 0;
-  height: 100%;
-  min-height: 0;
-  grid-template-columns: 24px auto minmax(0, 1fr) 14px;
-  align-items: center;
-  gap: 7px;
-  margin: 0;
-  padding: 0 12px;
-  color: #bcb09c;
-  font-family: inherit;
-  background:
-    linear-gradient(90deg, rgba(110, 79, 36, 0.12), transparent 26%),
-    linear-gradient(180deg, #22211d, #0a0d10);
-}
-.communityOwner::after { display: none; }
-.communityGlyph { width: 20px; height: 20px; color: #c09b5e; }
-.communityOwner > view:last-child { width: 12px; height: 12px; color: #b59a68; }
-.communityTitle { color: #e0c79b; font-size: 11px; font-weight: 760; line-height: 15px; }
-.communityDetail { overflow: hidden; color: #a19a8e; font-size: 8px; line-height: 11px; text-overflow: ellipsis; white-space: nowrap; }
-.communityOwner[data-disabled='true'],
-.communityOwnerDisabled { opacity: 0.66; }
 
 .templateSheetMask,
 .templateSheetMask view,

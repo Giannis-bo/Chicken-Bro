@@ -71,9 +71,7 @@ export type {
 } from './components/BuildIntelComponents'
 export {
   TalentActionBar,
-  TalentCommunityRow,
   TalentGraphViewport,
-  TalentImportStatus,
   TalentLegend,
   TalentPointSummary,
   TalentSelectorPanel,
@@ -84,12 +82,9 @@ export {
 export type {
   TalentActionItem,
   TalentActionBarProps,
-  TalentCommunityRowProps,
   TalentGraphEdgeItem,
   TalentGraphNodeItem,
   TalentGraphViewportProps,
-  TalentImportStatusItem,
-  TalentImportStatusProps,
   TalentPointSummaryProps,
   TalentSelectorItem,
   TalentSelectorOption,
