@@ -14,6 +14,7 @@ import {
   isTalentImportPayload,
   isTalentValidationPayload,
   normalizeTalentNode,
+  normalizeTalentsPayload,
 } from './websim'
 import type { ApiResult, ApiTransport, RequestOptions } from './transport'
 
@@ -139,6 +140,31 @@ describe('websim talent normalization', () => {
     })
     expect(result.payload.nodes[1]?.prerequisiteIds).toEqual(['root'])
     expect(result.payload.nodeAvailability?.nodes['child']?.state).toBe('available')
+  })
+
+  it('collapses duplicated non-choice records that resolve to one visible talent slot', () => {
+    const normalized = normalizeTalentsPayload({
+      ...rawTalents(),
+      nodes: [
+        {
+          id: 'voidweaver-root-a', name: '熵能裂隙', treeType: 'hero', heroKey: 'voidweaver',
+          spellId: 447444, row: 1, col: 3, selectedRank: 1, grantedRank: 1, maxRank: 1,
+        },
+        {
+          id: 'voidweaver-root-b', name: '虚空洪流', treeType: 'hero', heroKey: 'voidweaver',
+          spellId: 263165, row: 1, col: 3, selectedRank: 1, grantedRank: 1, maxRank: 1,
+        },
+        {
+          id: 'frostfire-child', name: '消融', treeType: 'hero', heroKey: 'frostfire',
+          spellId: 117776, row: 2, col: 2, selectedRank: 0, maxRank: 1,
+        },
+      ],
+    } as unknown as WebsimTalentsPayload)
+
+    expect(normalized.nodes.map((node) => node.id)).toEqual([
+      'voidweaver-root-a',
+      'frostfire-child',
+    ])
   })
 
   it('drops malformed backend node availability instead of promoting it to UI truth', async () => {

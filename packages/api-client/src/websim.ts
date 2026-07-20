@@ -69,8 +69,10 @@ export function normalizeTalentNode(value: unknown): TalentNode | null {
 
   const treeType = cleanString(value['treeType'])
   const treeKey = cleanString(value['treeKey']) || treeType
+  const heroKey = cleanString(value['heroKey'])
   const row = finiteNumber(value['row'])
   const column = finiteNumber(value['column']) ?? finiteNumber(value['col'])
+  const spellId = finiteNumber(value['spellId'])
   const selectedRank = finiteNumber(value['ranks']) ?? finiteNumber(value['selectedRank']) ?? 0
   const maxRank = finiteNumber(value['maxRank']) ?? finiteNumber(value['rankCount']) ?? 1
   const requiredPoints = finiteNumber(value['requiredPoints']) ?? finiteNumber(value['pointRequirement'])
@@ -93,8 +95,10 @@ export function normalizeTalentNode(value: unknown): TalentNode | null {
     ...(cleanString(value['descriptionStatus']) ? { descriptionStatus: cleanString(value['descriptionStatus']) } : {}),
     ...(treeKey ? { treeKey } : {}),
     ...(treeType ? { treeType } : {}),
+    ...(heroKey ? { heroKey } : {}),
     ...(row !== undefined ? { row } : {}),
     ...(column !== undefined ? { column } : {}),
+    ...(spellId !== undefined ? { spellId: Math.trunc(spellId) } : {}),
     maxRank: Math.max(1, Math.trunc(maxRank)),
     ranks: Math.max(0, Math.trunc(selectedRank)),
     ...(grantedRank !== undefined ? { grantedRank: Math.max(0, Math.trunc(grantedRank)) } : {}),
@@ -109,6 +113,29 @@ export function normalizeTalentNode(value: unknown): TalentNode | null {
     ...(cleanString(value['iconUrl']) ? { iconUrl: cleanString(value['iconUrl']) } : {}),
     ...(cleanString(value['sourceUrl']) ? { sourceUrl: cleanString(value['sourceUrl']) } : {}),
   }
+}
+
+function visualTalentSlotKey(node: TalentNode): string {
+  if (
+    node.choiceGroup
+    || node.nodeType === 2
+    || node.shape === 'choice'
+    || !node.treeKey
+    || node.row === undefined
+    || node.column === undefined
+  ) return ''
+  return [node.treeKey, node.heroKey ?? '', node.row, node.column].join(':')
+}
+
+function dedupeVisibleTalentNodes(nodes: readonly TalentNode[]): readonly TalentNode[] {
+  const seen = new Set<string>()
+  return nodes.filter((node) => {
+    const slotKey = visualTalentSlotKey(node)
+    if (!slotKey) return true
+    if (seen.has(slotKey)) return false
+    seen.add(slotKey)
+    return true
+  })
 }
 
 export function normalizeTalentNodeAvailability(value: unknown): TalentNodeAvailabilityPayload | null {
@@ -135,11 +162,12 @@ export function normalizeTalentNodeAvailability(value: unknown): TalentNodeAvail
 export function normalizeTalentsPayload(payload: WebsimTalentsPayload): WebsimTalentsPayload {
   const { nodeAvailability: rawAvailability, ...rest } = payload
   const nodeAvailability = normalizeTalentNodeAvailability(rawAvailability)
+  const nodes = payload.nodes
+    .map((node) => normalizeTalentNode(node))
+    .filter((node): node is TalentNode => node !== null)
   return {
     ...rest,
-    nodes: payload.nodes
-      .map((node) => normalizeTalentNode(node))
-      .filter((node): node is TalentNode => node !== null),
+    nodes: dedupeVisibleTalentNodes(nodes),
     ...(nodeAvailability ? { nodeAvailability } : {}),
   }
 }

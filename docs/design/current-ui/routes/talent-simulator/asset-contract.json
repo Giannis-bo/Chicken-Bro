@@ -47,7 +47,7 @@
     {
       "slotId": "asset_slot.talent-selector-object",
       "owners": ["TalentSelectorPanel"],
-      "semanticRole": "backend class and specialization media",
+      "semanticRole": "backend class, specialization, and active hero-root talent media",
       "sourceClass": "verified_runtime_media",
       "factBearing": true,
       "fallback": "neutral utility glyph",
@@ -91,17 +91,8 @@
     },
     {
       "slotId": "asset_slot.talent-readiness-glyphs",
-      "owners": ["TalentPointSummary", "TalentImportStatus", "TalentLegend"],
+      "owners": ["TalentPointSummary", "TalentLegend"],
       "semanticRole": "utility status and information markers",
-      "sourceClass": "system_vector",
-      "factBearing": false,
-      "fallback": "registered utility glyphs",
-      "productionStatus": "candidate_reuse_pending_route_verification"
-    },
-    {
-      "slotId": "asset_slot.talent-community-row",
-      "owners": ["TalentCommunityRow"],
-      "semanticRole": "community reference row icon and chevron",
       "sourceClass": "system_vector",
       "factBearing": false,
       "fallback": "registered utility glyphs",

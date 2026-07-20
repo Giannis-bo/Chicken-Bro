@@ -285,9 +285,30 @@ export interface WebsimScenario {
   description?: string
 }
 
+export interface HeroTalentTree {
+  key: string
+  label: string
+  labelEn?: string
+}
+
+export interface WebsimBootstrapSpec {
+  key: string
+  label: string
+  labelEn?: string
+  heroTrees?: readonly HeroTalentTree[]
+}
+
+export interface WebsimBootstrapClass {
+  key: string
+  label: string
+  labelEn?: string
+  heroTrees?: readonly HeroTalentTree[]
+  specs?: readonly WebsimBootstrapSpec[]
+}
+
 export interface WebsimBootstrapPayload {
   navTitle: string
-  classes: readonly ClassOption[]
+  classes: readonly WebsimBootstrapClass[]
   scenarios: readonly WebsimScenario[]
   gearSlots: readonly GearSlotDefinition[]
   defaultSelection: WebsimSelection
@@ -303,8 +324,10 @@ export interface TalentNode {
   descriptionStatus?: string
   treeKey?: string
   treeType?: string
+  heroKey?: string
   row?: number
   column?: number
+  spellId?: number
   maxRank?: number
   ranks?: number
   grantedRank?: number

@@ -1,9 +1,12 @@
 import type {
+  HeroTalentTree,
   ReadinessState,
   TalentNode,
   TalentNodeAvailabilityPayload,
   TalentValidationPayload,
   TalentTreeSection,
+  WebsimBootstrapPayload,
+  WebsimSelection,
   WebsimTalentsPayload,
 } from '@wow-mini/domain'
 
@@ -66,6 +69,15 @@ const readyNodeSize = 36
 const readyGraphPad = 18
 const readyRowGap = 48
 const readyNodeSeparation = 52
+const expandedViewportNodeSeparation = 74.5
+const expandedHeroViewportNodeSeparation = 90
+const readyGraphViewportHeight = 461
+const readyGraphViewportInset = 8
+const readyGraphContentWidth = readyGraphWidth - readyGraphViewportInset * 2
+const readyGraphContentHeight = readyGraphViewportHeight - readyGraphViewportInset * 2
+const minReadyRowGap = 38
+const maxReadyRowGap = 52
+const maxExpandedHeroRowGap = 96
 const choiceNodeHorizontalRadius = 25
 const choiceNodeVerticalRadius = 20
 const linkVisibleGap = 0
@@ -89,6 +101,17 @@ function finiteInteger(value: number | undefined, fallback: number): number {
   return Number.isFinite(value) ? Math.trunc(value ?? fallback) : fallback
 }
 
+function rowGapForExpandedViewport(
+  maxRow: number,
+  nodeBoundsWidth: number,
+  maximumRowGap = maxReadyRowGap,
+): number {
+  if (maxRow <= 1) return readyRowGap
+  const widthScale = Math.min(1, readyGraphContentWidth / nodeBoundsWidth)
+  const idealRowGap = (readyGraphContentHeight / widthScale - readyNodeSize) / (maxRow - 1)
+  return Math.max(minReadyRowGap, Math.min(maximumRowGap, idealRowGap))
+}
+
 function nodeMaxRank(node: TalentNode): number {
   return Math.max(1, finiteInteger(node.maxRank, 1))
 }
@@ -104,6 +127,27 @@ function rankFor(node: TalentNode, ranks: Readonly<Record<string, number>>): num
 
 function nodeTreeKey(node: TalentNode): string {
   return node.treeKey || node.treeType || 'class'
+}
+
+export function heroTalentOptions(
+  bootstrap: WebsimBootstrapPayload | undefined,
+  selection: Pick<WebsimSelection, 'classKey' | 'specKey'> | undefined,
+): readonly HeroTalentTree[] {
+  if (!bootstrap || !selection) return []
+  const classMeta = bootstrap.classes.find((item) => item.key === selection.classKey)
+  const specMeta = classMeta?.specs?.find((item) => item.key === selection.specKey)
+  return specMeta?.heroTrees?.length
+    ? specMeta.heroTrees
+    : classMeta?.heroTrees ?? []
+}
+
+export function heroTalentIcon(nodes: readonly TalentNode[]): string | undefined {
+  return [...nodes]
+    .filter((node) => nodeTreeKey(node) === 'hero' && node.iconUrl)
+    .sort((left, right) => (
+      finiteInteger(left.row, Number.MAX_SAFE_INTEGER) - finiteInteger(right.row, Number.MAX_SAFE_INTEGER)
+      || finiteInteger(left.column, Number.MAX_SAFE_INTEGER) - finiteInteger(right.column, Number.MAX_SAFE_INTEGER)
+    ))[0]?.iconUrl
 }
 
 function nodeShape(node: TalentNode): string {
@@ -346,7 +390,7 @@ export function buildTalentGraph(input: {
       row,
       column,
       x: 0,
-      y: readyGraphPad + (row - 1) * readyRowGap,
+      y: 0,
       rank: rankFor(node, input.ranks),
       maxRank: nodeMaxRank(node),
       requiredPoints: Math.max(0, finiteInteger(node.requiredPoints, 0)),
@@ -367,6 +411,9 @@ export function buildTalentGraph(input: {
     row.push(node)
     nodesByRow.set(node.row, row)
   }
+  const widestRowNodeCount = Math.max(...[...nodesByRow.values()].map((row) => row.length))
+  const isHeroTree = projectedNodes.length > 0 && projectedNodes.every((node) => nodeTreeKey(node) === 'hero')
+  const expandsIntoMainViewport = isHeroTree || (maxRow >= 8 && widestRowNodeCount >= 5)
   for (const row of nodesByRow.values()) {
     row.sort((left, right) => (
       left.column - right.column
@@ -375,10 +422,15 @@ export function buildTalentGraph(input: {
     const intervalCount = row.length - 1
     const firstRadius = nodeLinkRadius(row[0]!, 1, 0)
     const lastRadius = nodeLinkRadius(row[row.length - 1]!, 1, 0)
+    const maximumSeparation = expandsIntoMainViewport && row.length === widestRowNodeCount
+      ? isHeroTree
+        ? expandedHeroViewportNodeSeparation
+        : expandedViewportNodeSeparation
+      : readyNodeSeparation
     const centerGap = intervalCount === 0
       ? 0
       : Math.max(0, Math.min(
-        readyNodeSeparation,
+        maximumSeparation,
         (readyGraphWidth - firstRadius * 2) / intervalCount,
         (readyGraphWidth - lastRadius * 2) / intervalCount,
       ))
@@ -386,6 +438,18 @@ export function buildTalentGraph(input: {
       node.x = (readyGraphWidth - readyNodeSize) / 2
         + (index - intervalCount / 2) * centerGap
     }
+  }
+  const minNodeX = Math.min(...nodes.map((node) => node.x))
+  const maxNodeX = Math.max(...nodes.map((node) => node.x + readyNodeSize))
+  const rowGap = expandsIntoMainViewport
+    ? rowGapForExpandedViewport(
+      maxRow,
+      maxNodeX - minNodeX,
+      isHeroTree ? maxExpandedHeroRowGap : maxReadyRowGap,
+    )
+    : readyRowGap
+  for (const node of nodes) {
+    node.y = readyGraphPad + (node.row - 1) * rowGap
   }
 
   const byId = new Map(nodes.map((node) => [node.id, node]))
@@ -420,7 +484,7 @@ export function buildTalentGraph(input: {
     planeWidth: readyGraphWidth,
     planeHeight: Math.max(
       314,
-      readyGraphPad * 2 + (maxRow - 1) * readyRowGap + readyNodeSize,
+      readyGraphPad * 2 + (maxRow - 1) * rowGap + readyNodeSize,
     ),
     columnCount,
     nodeCount: nodes.length,

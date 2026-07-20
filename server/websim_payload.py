@@ -7058,13 +7058,19 @@ def spec_ids_for_class(class_key):
     ]
 
 
-def target_spec_ids_for_record(record, selection_specs_by_hero):
+def target_spec_ids_for_record(record, selection_specs_by_hero, record_specs_by_hero):
     class_key = GAME_CLASS_ID_TO_KEY.get(record["classId"], "")
     if not class_key:
         return []
     if record["treeIndex"] == 3:
-        hero_specs = sorted(selection_specs_by_hero.get(record["heroId"]) or [])
-        spec_ids = hero_specs or record["specIds"] or spec_ids_for_class(class_key)
+        hero_specs = set(selection_specs_by_hero.get(record["heroId"]) or [])
+        record_specs = set(record["specIds"] or [])
+        if hero_specs:
+            covered_specs = set(record_specs_by_hero.get(record["heroId"]) or []) & hero_specs
+            missing_specs = hero_specs - covered_specs
+            spec_ids = sorted((hero_specs & record_specs) | missing_specs) if record_specs else sorted(hero_specs)
+        else:
+            spec_ids = sorted(record_specs) or spec_ids_for_class(class_key)
     elif record["specIds"]:
         spec_ids = record["specIds"]
     else:
@@ -7074,6 +7080,23 @@ def target_spec_ids_for_record(record, selection_specs_by_hero):
         for spec_id in spec_ids
         if SPEC_ID_TO_KEY.get(spec_id, ("", ""))[0] == class_key
     ]
+
+
+def cached_talent_payload_supports_spec(payload, class_key, spec_key):
+    if not isinstance(payload, dict) or payload.get("treeType") != "hero":
+        return True
+    record_spec_ids = {
+        int(spec_id)
+        for spec_id in payload.get("idSpecs") or []
+        if str(spec_id or "").isdigit()
+    }
+    if not record_spec_ids:
+        return True
+    return any(
+        mapped_class == class_key and mapped_spec == spec_key
+        for spec_id, (mapped_class, mapped_spec) in SPEC_ID_TO_KEY.items()
+        if spec_id in record_spec_ids
+    )
 
 
 def simc_shape_for(record):
@@ -7159,14 +7182,61 @@ def refresh_simc_rank_payload(talent):
     return talent
 
 
+def simc_talent_visual_slot_key(talent):
+    payload = talent.get("payload") or {}
+    if payload.get("choiceGroup") or payload.get("shape") == "choice":
+        return None
+    row = int(talent.get("row") or 0)
+    col = int(talent.get("col") or 0)
+    if row <= 0 or col <= 0:
+        return None
+    return (
+        talent.get("classKey"),
+        talent.get("specKey"),
+        talent.get("treeId"),
+        talent.get("treeType"),
+        payload.get("heroKey", ""),
+        row,
+        col,
+    )
+
+
+def dedupe_simc_visible_talents(talents):
+    overridden_spells_by_slot = {}
+    for talent in talents:
+        slot_key = simc_talent_visual_slot_key(talent)
+        payload = talent.get("payload") or {}
+        override_spell_id = int(payload.get("overrideSpellId") or 0)
+        if slot_key and override_spell_id > 0:
+            overridden_spells_by_slot.setdefault(slot_key, set()).add(override_spell_id)
+
+    deduped = []
+    seen_slots = set()
+    for talent in talents:
+        slot_key = simc_talent_visual_slot_key(talent)
+        spell_id = int(talent.get("spellId") or 0)
+        if slot_key and spell_id in overridden_spells_by_slot.get(slot_key, set()):
+            continue
+        if slot_key and slot_key in seen_slots:
+            continue
+        if slot_key:
+            seen_slots.add(slot_key)
+        deduped.append(talent)
+    return deduped
+
+
 def parse_trait_data_text(text, limit=20000):
     subtrees = parse_trait_sub_tree_data(text)
     records = list(iter_trait_data_records(text))
     selection_specs_by_hero = {}
+    record_specs_by_hero = {}
     for record in records:
-        if record["treeIndex"] != 4 or not record["heroId"]:
+        if not record["heroId"]:
             continue
-        selection_specs_by_hero.setdefault(record["heroId"], set()).update(record["specIds"])
+        if record["treeIndex"] == 4:
+            selection_specs_by_hero.setdefault(record["heroId"], set()).update(record["specIds"])
+        elif record["treeIndex"] == 3:
+            record_specs_by_hero.setdefault(record["heroId"], set()).update(record["specIds"])
 
     talents = []
     seen = set()
@@ -7181,7 +7251,11 @@ def parse_trait_data_text(text, limit=20000):
         hero = subtrees.get(record["heroId"], {})
         hero_key = hero.get("key", "")
         hero_label = hero.get("label", "")
-        for spec_id in target_spec_ids_for_record(record, selection_specs_by_hero):
+        for spec_id in target_spec_ids_for_record(
+            record,
+            selection_specs_by_hero,
+            record_specs_by_hero,
+        ):
             spec_info = SPEC_ID_TO_KEY.get(spec_id)
             if not spec_info:
                 continue
@@ -7269,8 +7343,8 @@ def parse_trait_data_text(text, limit=20000):
             if record["nodeType"] != 2:
                 grouped[node_key] = talent
             if len(talents) >= limit:
-                return talents
-    return talents
+                return dedupe_simc_visible_talents(talents)
+    return dedupe_simc_visible_talents(talents)
 
 
 def parse_trait_edge_data_text(text):
@@ -11932,32 +12006,75 @@ def decorate_real_talent_node(row, season):
         "traitId": payload.get("traitId"),
         "nodeId": payload.get("nodeId"),
         "selectionIndex": payload.get("selectionIndex"),
+        "_overrideSpellId": payload.get("overrideSpellId", 0),
         "heroKey": payload.get("heroKey", ""),
         "heroLabel": payload.get("heroLabel", ""),
         "sourceRefs": SIMC_TALENT_SOURCE_REFS + (season.get("sourceRefs") or []),
     }
 
 
+def real_talent_visual_slot_key(node):
+    if node.get("choiceGroup") or node.get("shape") == "choice":
+        return None
+    row = int(node.get("row") or 0)
+    col = int(node.get("col") or 0)
+    if row <= 0 or col <= 0:
+        return None
+    return (
+        node.get("classKey"),
+        node.get("specKey"),
+        node.get("treeId"),
+        node.get("treeType"),
+        node.get("heroKey", ""),
+        "visual-slot",
+        row,
+        col,
+    )
+
+
+def real_talent_override_spell_id(node):
+    try:
+        return int(node.get("_overrideSpellId", node.get("overrideSpellId", 0)) or 0)
+    except (AttributeError, TypeError, ValueError):
+        return 0
+
+
 def dedupe_real_talent_nodes(nodes):
+    overridden_spells_by_slot = {}
+    for node in nodes:
+        slot_key = real_talent_visual_slot_key(node)
+        override_spell_id = real_talent_override_spell_id(node)
+        if slot_key and override_spell_id > 0:
+            overridden_spells_by_slot.setdefault(slot_key, set()).add(override_spell_id)
+
     deduped = []
     seen = set()
     for node in nodes:
         choice_group = node.get("choiceGroup") or ""
         if choice_group or node.get("shape") == "choice":
-            key = ("choice", node.get("id"))
+            keys = [("choice", node.get("id"))]
         else:
-            key = (
+            node_id = node.get("nodeId") or node.get("id")
+            spell_id = int(node.get("spellId") or 0)
+            slot_key = real_talent_visual_slot_key(node)
+            if slot_key and spell_id in overridden_spells_by_slot.get(slot_key, set()):
+                continue
+            identity = (
                 node.get("classKey"),
                 node.get("specKey"),
                 node.get("treeId"),
                 node.get("treeType"),
                 node.get("heroKey", ""),
-                node.get("nodeId") or node.get("id"),
             )
-        if key in seen:
+            keys = [(*identity, "node", node_id)] if node_id else []
+            if slot_key:
+                keys.append(slot_key)
+            if not keys:
+                keys = [(*identity, "id", node.get("id"))]
+        if any(key in seen for key in keys):
             continue
-        seen.add(key)
-        deduped.append(node)
+        seen.update(keys)
+        deduped.append({key: value for key, value in node.items() if key != "_overrideSpellId"})
     return deduped
 
 
@@ -12259,6 +12376,8 @@ def get_websim_talents(conn, class_key="mage", spec_key="arcane", hero_key=""):
         payload = safe_json_loads(row[8], {})
         tree_type = payload.get("treeType") or ("class" if row[2] == "class" else "spec")
         if tree_type == "hero" and payload.get("heroKey") != hero_key:
+            continue
+        if not cached_talent_payload_supports_spec(payload, class_key, spec_key):
             continue
         filtered_rows.append(row)
     nodes = enrich_talent_rank_entries(

@@ -1,9 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
-import type { TalentNode, TalentNodeAvailabilityPayload } from '@wow-mini/domain'
+import type {
+  TalentNode,
+  TalentNodeAvailabilityPayload,
+  WebsimBootstrapPayload,
+} from '@wow-mini/domain'
 
 import {
   buildTalentGraph,
+  heroTalentIcon,
+  heroTalentOptions,
   applyTalentValidation,
   initialTalentRanks,
   proposeTalentChoice,
@@ -244,6 +250,85 @@ describe('talent simulator target model', () => {
     expect(crowdedGaps.every((gap) => gap === crowdedGaps[0])).toBe(true)
     expect(Math.min(...graph.nodes.map((node) => node.x))).toBeGreaterThanOrEqual(0)
     expect(Math.max(...graph.nodes.map((node) => node.x + 36))).toBeLessThanOrEqual(graph.planeWidth)
+  })
+
+  it('uses the complete tree viewport width and height without changing row centering', () => {
+    const fullCanvasNodes: readonly TalentNode[] = [
+      ...Array.from({ length: 10 }, (_, rowIndex): readonly TalentNode[] => {
+        const row = rowIndex + 1
+        if (row === 6) {
+          return Array.from({ length: 5 }, (_, columnIndex): TalentNode => ({
+            ...nodes[1]!,
+            id: `full-row-${row}-node-${columnIndex + 1}`,
+            name: `完整视图 ${row}-${columnIndex + 1}`,
+            row,
+            column: columnIndex + 1,
+            prerequisiteIds: [],
+          }))
+        }
+        return [{
+          ...nodes[1]!,
+          id: `full-row-${row}-node-1`,
+          name: `完整视图 ${row}-1`,
+          row,
+          column: 4,
+          prerequisiteIds: [],
+        }]
+      }).flat(),
+    ]
+    const graph = buildTalentGraph({
+      nodes: fullCanvasNodes,
+      ranks: initialTalentRanks(fullCanvasNodes),
+      routeState: 'ready',
+    })
+    const minX = Math.min(...graph.nodes.map((node) => node.x))
+    const maxX = Math.max(...graph.nodes.map((node) => node.x + 36))
+    const minY = Math.min(...graph.nodes.map((node) => node.y))
+    const maxY = Math.max(...graph.nodes.map((node) => node.y + 36))
+    const displayedScale = Math.min(1, 334 / (maxX - minX), 445 / (maxY - minY))
+    const widestRowCenters = graph.nodes
+      .filter((node) => node.row === 6)
+      .map((node) => node.x + 18)
+
+    expect(maxX - minX).toBeCloseTo(334)
+    expect(maxY - minY).toBeCloseTo(445)
+    expect((Math.min(...widestRowCenters) + Math.max(...widestRowCenters)) / 2).toBeCloseTo(175)
+    expect((maxX - minX) * displayedScale).toBeCloseTo(334)
+    expect((maxY - minY) * displayedScale).toBeCloseTo(445)
+  })
+
+  it('expands a sparse hero tree across the tree viewport without changing row centering', () => {
+    const sparseHeroNodes: readonly TalentNode[] = [
+      ...Array.from({ length: 5 }, (_, rowIndex): readonly TalentNode[] => {
+        const row = rowIndex + 1
+        const columns = row === 1 || row === 5 ? [3] : [1, 2, 3, 4]
+        return columns.map((column, columnIndex): TalentNode => ({
+          ...nodes[1]!,
+          id: `hero-${row}-${columnIndex + 1}`,
+          name: `英雄树 ${row}-${columnIndex + 1}`,
+          treeKey: 'hero',
+          row,
+          column,
+          prerequisiteIds: [],
+        }))
+      }).flat(),
+    ]
+    const graph = buildTalentGraph({
+      nodes: sparseHeroNodes,
+      ranks: initialTalentRanks(sparseHeroNodes),
+      routeState: 'ready',
+    })
+    const widestRow = graph.nodes.filter((node) => node.row === 2)
+    const minX = Math.min(...graph.nodes.map((node) => node.x))
+    const maxX = Math.max(...graph.nodes.map((node) => node.x + 36))
+    const minY = Math.min(...graph.nodes.map((node) => node.y))
+    const maxY = Math.max(...graph.nodes.map((node) => node.y + 36))
+
+    expect(maxX - minX).toBe(306)
+    expect(maxY - minY).toBe(420)
+    expect(graph.planeHeight).toBe(456)
+    expect(widestRow.map((node) => node.x + 18)).toEqual([40, 130, 220, 310])
+    expect(widestRow.reduce((total, node) => total + node.x + 18, 0) / widestRow.length).toBe(175)
   })
 
   it('centers each row from one through nine nodes with exact symmetry and equal spacing', () => {
@@ -634,5 +719,56 @@ describe('talent simulator target model', () => {
       spent: 1,
       remaining: 33,
     })
+  })
+
+  it('uses the selected specialization hero trees from the authoritative bootstrap payload', () => {
+    const bootstrap = {
+      navTitle: 'WebSim',
+      classes: [{
+        key: 'mage',
+        label: '法师',
+        heroTrees: [{ key: 'sunfury', label: '烈日之怒' }],
+        specs: [{
+          key: 'frost',
+          label: '冰霜',
+          heroTrees: [
+            { key: 'frostfire', label: '霜火' },
+            { key: 'spellslinger', label: '法术投射者' },
+          ],
+        }],
+      }],
+      scenarios: [],
+      gearSlots: [],
+      defaultSelection: { classKey: 'mage', specKey: 'frost', heroKey: 'frostfire' },
+      dataStatus: 'verified',
+    } as unknown as WebsimBootstrapPayload
+
+    expect(heroTalentOptions(bootstrap, { classKey: 'mage', specKey: 'frost' })).toEqual([
+      { key: 'frostfire', label: '霜火' },
+      { key: 'spellslinger', label: '法术投射者' },
+    ])
+  })
+
+  it('uses the active hero root talent icon for the selector crest', () => {
+    const heroNodes: readonly TalentNode[] = [
+      {
+        ...nodes[1]!,
+        id: 'hero-child',
+        treeKey: 'hero',
+        row: 2,
+        column: 2,
+        iconUrl: 'https://assets.example/hero-child.jpg',
+      },
+      {
+        ...nodes[0]!,
+        id: 'hero-root',
+        treeKey: 'hero',
+        row: 1,
+        column: 2,
+        iconUrl: 'https://assets.example/hero-root.jpg',
+      },
+    ]
+
+    expect(heroTalentIcon(heroNodes)).toBe('https://assets.example/hero-root.jpg')
   })
 })
