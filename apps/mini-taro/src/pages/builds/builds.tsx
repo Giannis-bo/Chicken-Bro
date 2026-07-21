@@ -124,6 +124,7 @@ export default function BuildsHomePage() {
       >
         <PageFrame
           region="page_header"
+          rightActionLayout="builds-class-selector"
           rightAction={ready ? (
             <RouteRegion className={styles['classSelectorRegion'] ?? ''} data-region="class_selector">
               <BuildClassSelector

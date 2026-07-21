@@ -793,7 +793,7 @@
  * offsets are relative to that padded scrollport, so adding the inset again
  * pushes every header down by exactly one extra safe area. */
 .pageFrameHeaderSticky { position: sticky; top: 0; z-index: var(--z-sticky); }
-.pageFrame-root .pageFrameHeader { grid-template-columns: minmax(80px, 122px) minmax(0, 1fr) 36px; padding-left: 16px; }
+.pageFrame-root .pageFrameHeader { grid-template-columns: minmax(80px, 122px) minmax(0, 1fr) var(--page-frame-right-action-width, 36px); padding-left: 16px; }
 .pageFrame-pushed .pageFrameHeader { grid-template-columns: 40px minmax(0, 1fr) 40px; }
 .pageFrame-pushed-action .pageFrameHeader { grid-template-columns: 76px minmax(0, 1fr) 76px; }
 .pageFrame-chat .pageFrameHeader { height: 48px; min-height: 48px; grid-template-columns: 40px minmax(0, 1fr) 1px; }

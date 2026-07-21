@@ -96,16 +96,20 @@ describe('builds home page composition contract', () => {
   })
 
   it('keeps route state outside ready cards and locks business scrolling above the shared tab bar', () => {
+    const classSelectorRule = styleSource.match(/\.classSelectorRegion \{(?<body>[^}]*)\}/u)?.groups?.['body'] ?? ''
+
     expect(pageSource).toContain('data-region="class_selector"')
     expect(pageSource).toContain('data-region="command_deck"')
     expect(pageSource).toContain('<RouteColumn')
     expect(pageSource).toContain('<RouteStatePanel')
     expect(pageSource).toContain('const ready = isBuildsHomeReadyComposition({')
+    expect(pageSource).toContain('rightActionLayout="builds-class-selector"')
     expect(pageSource).toMatch(/rightAction=\{ready \? \([\s\S]*?<RouteRegion[\s\S]*?data-region="class_selector"[\s\S]*?<BuildClassSelector/u)
     expect(pageSource).not.toMatch(/<RouteColumn[\s\S]*?data-region="class_selector"/u)
     expect(styleSource).toMatch(/\.surface \{[\s\S]*?min-height:\s*0;[\s\S]*?overflow:\s*hidden;/u)
     expect(styleSource).toMatch(/\.commandDeckRegion \{[\s\S]*?display:\s*flex;[\s\S]*?min-height:\s*0;[\s\S]*?overflow:\s*hidden;/u)
-    expect(styleSource).not.toMatch(/\.classSelectorRegion \{[\s\S]*?(?:position|z-index|margin):/u)
+    expect(classSelectorRule).not.toMatch(/(?:^|;)\s*(?:position|z-index|margin):/u)
+    expect(classSelectorRule).not.toMatch(/(?:^|;)\s*(?:width|overflow):/u)
     expect(styleSource).not.toMatch(/margin:\s*-/u)
     expect(styleSource).not.toContain('overflow-y: auto')
     expect(styleSource).not.toMatch(/position:\s*fixed/u)

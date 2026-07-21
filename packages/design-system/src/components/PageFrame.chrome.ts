@@ -16,6 +16,12 @@ export type PageFrameVariant =
   | 'profile'
 
 export type PageChromeMode = 'root' | 'pushed' | 'pushed-action' | 'chat'
+export type PageFrameRightActionLayout = 'default' | 'builds-class-selector'
+
+const PAGE_FRAME_RIGHT_ACTION_WIDTHS: Readonly<Record<PageFrameRightActionLayout, number>> = {
+  default: 36,
+  'builds-class-selector': 120,
+}
 
 const ROOT_PAGE_VARIANTS = new Set<PageFrameVariant>([
   'news-home',
@@ -34,4 +40,10 @@ export function resolvePageChromeMode(
   if (variant === 'build-intel' || variant === 'simc-submit') return 'pushed-action'
   if (variant === 'chickenbro-chat') return 'chat'
   return 'pushed'
+}
+
+export function resolvePageFrameRightActionWidth(
+  layout: PageFrameRightActionLayout = 'default',
+): number {
+  return PAGE_FRAME_RIGHT_ACTION_WIDTHS[layout]
 }
