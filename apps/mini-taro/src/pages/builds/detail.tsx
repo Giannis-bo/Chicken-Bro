@@ -2,27 +2,24 @@ import Taro, { useRouter } from '@tarojs/taro'
 import { View } from '@tarojs/components'
 import { useEffect, useRef, useState } from 'react'
 
-import { taroStorage, wowApi } from '@wow-mini/api-client'
+import { wowApi } from '@wow-mini/api-client'
 import { AppShell } from '@wow-mini/design-system/components/AppShell'
 import {
   GearActionRow,
   GearEnhancementBar,
+  GearLoadoutSummary,
   GearProfessionSelector,
-  GearReadinessOverview,
   GearSlotWorkbench,
   GearSpecializationSelector,
-  GearStatusDeck,
   type GearActionItem,
   type GearProfessionItem,
   type GearSpecializationItem,
-  type GearStatusItem,
 } from '@wow-mini/design-system/components/GearDetailComponents'
 import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
 import { RouteStage } from '@wow-mini/design-system/components/RouteStage'
 import { RouteRegion } from '@wow-mini/design-system/components/RouteFlow'
 import { StatusVisual } from '@wow-mini/design-system/components/StatusVisual'
 import {
-  storageKey,
   gearEnhancementsFromResolvedSnapshot,
   serializeGearSelectionIntent,
   type BuildTemplate,
@@ -34,7 +31,6 @@ import {
   type GearSelectionIntent,
   type GearStatSnapshotPayload,
   type GearStatsPayload,
-  type RouteDataState,
   type TalentImportPayload,
   type WebsimGearPayload,
 } from '@wow-mini/domain'
@@ -47,7 +43,6 @@ import {
 import { rememberBuildsHomeSpec } from '../_shared/build-context-storage'
 import {
   goBack,
-  navigateTo,
   safeDecode,
   useAsyncRoute,
 } from '../_shared/route-runtime'
@@ -57,7 +52,6 @@ import {
   gearEnhancementOptions,
   gearReadiness,
   gearSlots,
-  gearStatusDeck,
   templateGearItems,
 } from './gear-detail-model'
 import { GearRequestFence } from './gear-request-fence'
@@ -75,7 +69,6 @@ interface GearPagePayload {
 interface StatsState {
   loading: boolean
   payload?: GearStatsPayload | GearStatSnapshotPayload
-  error?: string
 }
 
 interface CanonicalGearState {
@@ -131,13 +124,6 @@ function importedGearBySlot(value: unknown): Readonly<Record<string, GearItemRef
 function envelopeMessage(problems: readonly Readonly<Record<string, unknown>>[], fallback: string): string {
   const first = problems[0]
   return String(first?.['title'] || first?.['detail'] || first?.['code'] || fallback)
-}
-
-function routeReason(state: RouteDataState<unknown>): string {
-  if (state.state === 'error') return state.error
-  if (state.state === 'blocked') return state.reason
-  if (state.state === 'stale') return state.staleReason
-  return ''
 }
 
 async function chooseActionSheetEntry<T>(
@@ -306,15 +292,6 @@ export default function GearDetailPage() {
   })
   const enhancementOptions = gearEnhancementOptions(selectedCandidate, enhancements, selectedSlot)
   const selectedSlotLabel = slotViews.find((slot) => slot.slot === selectedSlot)?.label ?? ''
-  const statusItems = gearStatusDeck(
-    data?.gear,
-    readiness,
-    stats.payload,
-    route.state.state,
-    routeReason(route.state),
-    canonical.error || stats.error || '',
-  )
-  const importReady = data?.talentImport.status === 'verified' && Boolean(data.talentImport.importCode)
   const statsReady = Boolean(
     canonical.snapshot?.status === 'verified'
     && canonical.intent
@@ -339,6 +316,7 @@ export default function GearDetailPage() {
     })
     if (!intent) {
       requestFence.current.beginResolve()
+      setWorkbenchNotice('后端未提供完整装备校验上下文')
       setCanonical({ loading: false, error: '后端未提供完整装备校验上下文' })
       return { status: 'failed' }
     }
@@ -351,6 +329,7 @@ export default function GearDetailPage() {
     if (completion.status === 'stale') return completion
     const result = completion.value
     if (result.fromFallback) {
+      setWorkbenchNotice(result.error || '装备校验服务不可用')
       setCanonical({ loading: false, intent, error: result.error || '装备校验服务不可用' })
       return { status: 'failed' }
     }
@@ -362,11 +341,13 @@ export default function GearDetailPage() {
     }
     const snapshot = result.payload.data
     if (result.httpStatus !== 200 || result.payload.status !== 'resolved' || snapshot.status !== 'verified') {
+      const error = envelopeMessage(result.payload.problems, '当前装备组合未通过后端校验')
+      setWorkbenchNotice(error)
       setCanonical({
         loading: false,
         intent,
         snapshot,
-        error: envelopeMessage(result.payload.problems, '当前装备组合未通过后端校验'),
+        error,
       })
       return { status: 'failed' }
     }
@@ -472,54 +453,6 @@ export default function GearDetailPage() {
     setCandidateOpen(false)
     const selected = await chooseActionSheetEntry(target.options, (option) => option.label)
     if (selected) await chooseEnhancement(selected, target.slot)
-  }
-
-  const validateStats = async () => {
-    if (!data || !readiness.selectedCount) return
-    if (!importReady) {
-      setStats({ loading: false, error: '缺少后端已验证的天赋导入码，属性校验保持受限。' })
-      return
-    }
-    setStats({ loading: true })
-    const resolved = await resolveSelection(equipped, enhancements)
-    if (resolved.status === 'stale') return
-    if (resolved.status === 'failed') {
-      setStats({ loading: false, error: '当前装备组合未通过后端校验' })
-      return
-    }
-    const requestToken = requestFence.current.beginStats()
-    const startedAt = Date.now()
-    for (let attempt = 0; attempt < 15 && Date.now() - startedAt < 45000; attempt += 1) {
-      if (!requestFence.current.isStatsCurrent(requestToken)) return
-      const result = await wowApi.websim.gearStatSnapshot({
-        selectionIntent: resolved.intent,
-        profileContext: {
-          talents: data.talentImport.importCode,
-          scenarioKey: 'single',
-        },
-        timeoutMs: Math.max(1, 45000 - (Date.now() - startedAt)),
-      })
-      if (!requestFence.current.isStatsCurrent(requestToken)) return
-      if (result.fromFallback) {
-        setStats({ loading: false, error: result.error || '属性快照服务不可用' })
-        return
-      }
-      const payload = result.payload.data.statSnapshot
-      if (result.httpStatus === 200 && result.payload.status === 'resolved' && payload?.statStatus === 'verified') {
-        setStats({ loading: false, payload })
-        setDirty(false)
-        return
-      }
-      if (result.httpStatus !== 202 || result.payload.status !== 'pending') {
-        setStats({ loading: false, error: envelopeMessage(result.payload.problems, '属性快照未通过后端校验') })
-        return
-      }
-      const delay = Math.min(5000, Math.max(250, Number(result.payload.data.retryAfterMs) || 1500))
-      await new Promise((resolve) => setTimeout(resolve, delay))
-    }
-    if (requestFence.current.isStatsCurrent(requestToken)) {
-      setStats({ loading: false, error: '属性快照等待超时' })
-    }
   }
 
   const saveTemplate = async () => {
@@ -638,40 +571,6 @@ export default function GearDetailPage() {
     setDirty(false)
   }
 
-  const handoffToSimc = () => {
-    if (!data || !statsReady || !canonical.intent || !canonical.snapshot) return
-    taroStorage.set(storageKey('simc.buildContext'), {
-      specId: data.selection.specId,
-      className: data.selection.classItem.name,
-      specName: data.selection.spec.specName || data.selection.spec.name,
-      classKey: data.selection.classKey,
-      specKey: data.selection.specKey,
-      gearBySlot: equipped,
-      enhancementBySlot: enhancements,
-      selectionIntent: canonical.intent,
-      resolvedGearSignature: canonical.snapshot.resolvedGearSignature,
-      statSnapshot: stats.payload,
-      source: 'taro_gear_detail',
-    })
-    navigateTo('/pages/simulator/simc', {
-      from: 'builds',
-      spec: data.selection.specId,
-      classKey: data.selection.classKey,
-      specKey: data.selection.specKey,
-    })
-  }
-
-  const primaryLabel = statsReady
-    ? '带入 SimC'
-    : !readiness.selectedCount
-      ? '选择装备后开始配置'
-      : !importReady
-        ? '天赋编码不可用'
-        : stats.loading || canonical.loading
-          ? '正在校验配置'
-          : '校验当前配置'
-  const primaryDisabled = !data || !readiness.selectedCount || !importReady || stats.loading || canonical.loading
-
   const actions: readonly GearActionItem[] = route.state.state === 'error' && !data
     ? [
         { id: 'save', label: '重试', tone: 'gold', onClick: () => void route.load() },
@@ -684,34 +583,17 @@ export default function GearDetailPage() {
         { id: 'reset', label: '重置', tone: 'metal', disabled: !data || (!dirty && !readiness.selectedCount), onClick: reset },
       ]
 
-  const handleStatusAction = (item: GearStatusItem) => {
-    if (item.id === 'catalog') {
-      void route.load()
-      return
-    }
-    if (item.id === 'selection') {
-      const first = slotViews[0]
-      if (first) void chooseSlot(first)
-      return
-    }
-    if (item.id === 'validation') {
-      if (importReady) void validateStats()
-      else navigateTo('/pages/builds/talent-simulator', { spec: selectedSpecId })
-      return
-    }
-    void Taro.showToast({ title: data?.gear.dataStatus === 'verified' ? '来源证据已由后端校验' : '来源证据尚不完整', icon: 'none' })
-  }
-
   if (queryMode !== 'gear') {
     return <AppShell><PageFrame title="正在跳转天赋模拟" variant="gear-detail"><StatusVisual state="loading" /></PageFrame></AppShell>
   }
 
   return (
     <AppShell
+      bodyScrollable={false}
       surfaceMaterialFamily="build-workspace"
       surfaceSlotId="asset_slot.gear-detail-surface"
     >
-      <RouteStage className={styles['pageFrame'] ?? ''} routeState={route.state.state} targetRegionCount={9} width="full">
+      <RouteStage className={styles['pageFrame'] ?? ''} routeState={route.state.state} targetRegionCount={8} width="full">
         <PageFrame
           backRegion="header_nav.back-control"
           region="header_nav"
@@ -747,8 +629,8 @@ export default function GearDetailPage() {
                 onSelect={(item) => setSelectedSpecId(item.id)}
               />
             </RouteRegion>
-            <RouteRegion className={styles['readinessRegion'] ?? ''} data-region="readiness_summary">
-              <GearReadinessOverview {...readiness} />
+            <RouteRegion className={styles['loadoutSummaryRegion'] ?? ''} data-region="loadout_summary">
+              <GearLoadoutSummary {...readiness} />
             </RouteRegion>
             <RouteRegion className={styles['enhancementRegion'] ?? ''} data-region="enhancement_summary">
               <GearEnhancementBar items={enhancementGroups} onSelect={(item) => void openEnhancementGroup(item)} />
@@ -760,8 +642,6 @@ export default function GearDetailPage() {
                 candidates={candidateViews}
                 enhancements={enhancementOptions}
                 notice={workbenchNotice}
-                primaryDisabled={primaryDisabled}
-                primaryLabel={primaryLabel}
                 selectedSlot={selectedSlot}
                 selectedSlotLabel={selectedSlotLabel}
                 slots={slotViews}
@@ -773,12 +653,10 @@ export default function GearDetailPage() {
                   setCandidateLoading(false)
                 }}
                 onEnhancement={chooseEnhancement}
-                onPrimary={statsReady ? handoffToSimc : () => void validateStats()}
                 onSlot={(item) => void chooseSlot(item)}
               />
             </RouteRegion>
             <RouteRegion className={styles['actionsRegion'] ?? ''} data-region="gear_actions"><GearActionRow items={actions} /></RouteRegion>
-            <RouteRegion className={styles['statusRegion'] ?? ''} data-region="gear_status"><GearStatusDeck items={statusItems} onAction={handleStatusAction} /></RouteRegion>
           </View>
         </PageFrame>
       </RouteStage>

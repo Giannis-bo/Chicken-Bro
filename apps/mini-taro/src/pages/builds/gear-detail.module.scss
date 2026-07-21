@@ -25,11 +25,10 @@
 
 .professionRegion,
 .specializationRegion,
-.readinessRegion,
+.loadoutSummaryRegion,
 .enhancementRegion,
 .workbenchRegion,
-.actionsRegion,
-.statusRegion {
+.actionsRegion {
   position: absolute;
 }
 
@@ -47,7 +46,7 @@
   height: 44px;
 }
 
-.readinessRegion {
+.loadoutSummaryRegion {
   top: 61px;
   left: 12px;
   width: calc(100% - 24px);
@@ -66,19 +65,12 @@
   top: 281px;
   left: 12px;
   width: calc(100% - 24px);
-  height: 319px;
+  height: 413px;
 }
 
 .actionsRegion {
-  top: 605px;
+  top: 700px;
   left: 12px;
   width: calc(100% - 24px);
   height: 40px;
-}
-
-.statusRegion {
-  top: 654px;
-  left: 12px;
-  width: calc(100% - 24px);
-  height: 93px;
 }

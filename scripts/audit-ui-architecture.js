@@ -2074,8 +2074,12 @@ record(
 record(
   'single_screen_route_terminals_reserve_wechat_viewport_space',
   /\.body\s*\{[^}]*height:\s*256\.6px;/su.test(viewportFitStyles.newsDetail)
-    && /\.workbenchRegion\s*\{[^}]*height:\s*319px;/su.test(viewportFitStyles.gearDetail)
-    && /\.statusRegion\s*\{[^}]*top:\s*654px;/su.test(viewportFitStyles.gearDetail)
+    && /\.loadoutSummaryRegion\s*\{[^}]*top:\s*61px;[^}]*height:\s*163px;/su.test(viewportFitStyles.gearDetail)
+    && /\.enhancementRegion\s*\{[^}]*top:\s*230px;[^}]*height:\s*44px;/su.test(viewportFitStyles.gearDetail)
+    && /\.workbenchRegion\s*\{[^}]*top:\s*281px;[^}]*height:\s*413px;/su.test(viewportFitStyles.gearDetail)
+    && /\.actionsRegion\s*\{[^}]*top:\s*700px;[^}]*height:\s*40px;/su.test(viewportFitStyles.gearDetail)
+    && !/\.statusRegion\s*\{/su.test(viewportFitStyles.gearDetail)
+    && !/\.readinessRegion\s*\{/su.test(viewportFitStyles.gearDetail)
     && /\.pageFrame\s*\{[^}]*height:\s*calc\(var\(--route-safe-viewport-height\) - var\(--space-12\)\);[^}]*min-height:\s*0;/su.test(viewportFitStyles.simcSubmit)
     && /\.footerRegion\s*\{[^}]*top:\s*88\.8753%;[^}]*height:\s*3\.6675%;/su.test(viewportFitStyles.simcSubmit)
     && /\.pageFrame\s*\{[^}]*height:\s*calc\(var\(--route-safe-viewport-height\) - var\(--space-12\)\);/su.test(viewportFitStyles.taskDetail)
@@ -2762,9 +2766,12 @@ const gearTruthContract = JSON.parse(read('docs/design/current-ui/routes/gear-de
 const gearCandidateSelection = /const chooseCandidate[\s\S]*?const chooseEnhancement/u.exec(gearDetailPage)?.[0] ?? ''
 record(
   'gear_detail_consumes_current_backend_contracts',
-  ['gearResolve(', 'communityTemplateImport(', 'gearStatSnapshot('].every((call) => gearDetailPage.includes(call))
-    && ['websim.gearResolve', 'websim.gearCommunityImport', 'websim.gearStatSnapshots'].every((endpoint) => gearTruthContract.runtimeFacts?.endpoints?.includes(endpoint)),
-  'Taro gear detail or truth contract is missing a resolver/import/snapshot consumer',
+  ['gearResolve(', 'communityTemplateImport('].every((call) => gearDetailPage.includes(call))
+    && ['websim.gearResolve', 'websim.gearCommunityImport'].every((endpoint) => gearTruthContract.runtimeFacts?.endpoints?.includes(endpoint))
+    && gearDetailComponents.includes('gear-loadout-summary')
+    && !gearDetailComponents.includes('gear-readiness-progress')
+    && !gearDetailComponents.includes('gear-primary-action'),
+  'Taro gear detail or truth contract is missing a resolver/import consumer, lost the item-level summary, restored readiness progress, or restored the removed workbench primary action',
 )
 record(
   'gear_detail_consumes_backend_owned_display_facts',

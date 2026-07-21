@@ -6,6 +6,15 @@
   "authority": "docs/plans/ui-reconstruction.md",
   "targetInventory": "docs/design/current-ui/routes/gear-detail/target-inventory.json",
   "targetGeometry": "docs/design/current-ui/routes/gear-detail/target-geometry.json",
+  "productOverrides": [
+    {
+      "id": "gear_detail_progress_cleanup_20260721",
+      "excludedTargetRegions": ["status_footer_cards"],
+      "excludedTargetElements": ["readiness_heading", "readiness_progress_rail"],
+      "reason": "the readiness heading and progress rail do not help a player configure a slot; the item-level and attribute summary remain necessary feedback",
+      "retainedFlow": "choose class and specialization, read the current item-level and attribute summary, configure or inspect a slot in the internal workbench, use save/import/reset as the fixed bottom actions, and use the existing retry action when the initial route load fails"
+    }
+  ],
   "runtimeFacts": {
     "route": "pages/builds/detail?query=gear",
     "navigation": "pushed",
@@ -15,7 +24,6 @@
       "websim.gear",
       "websim.gearResolve",
       "websim.gearCommunityImport",
-      "websim.gearStatSnapshots",
       "websim.talentImport",
       "templates.fetch",
       "templates.upsert"
@@ -28,9 +36,7 @@
       "enhancement_selector",
       "community_template_import",
       "save_template",
-      "reset",
-      "verified_stat_check",
-      "simc_handoff"
+      "reset"
     ]
   },
   "apiProbe": {
@@ -94,7 +100,6 @@
     "connected": [
       "resolver and revision-conflict recovery",
       "atomic community template import and enhancement recovery",
-      "asynchronous verified stat snapshots",
       "on-demand slot candidate detail",
       "weapon-aware slot labels",
       "specialization-aware primary and rating stat localization",
@@ -107,17 +112,16 @@
     ]
   },
   "trustRules": [
-    "All target item names, numbers, slot icons, attributes, statuses and class identities are placeholders; only the nine-region composition and visible density are authoritative.",
+    "All target item names, numbers, slot icons, attributes, statuses and class identities are placeholders; the eight retained regions and fixed-density workbench composition are authoritative.",
     "The editable loadout starts from equippedSet only. An empty equippedSet remains empty and must not be synthesized from slotReadiness, replacementCandidates or the first community template.",
     "The route uses compact mode only as a lightweight candidate catalog; compact readiness aggregates catalog candidates and is never editable-state truth.",
     "The catalog bootstrap omits mode=initial because that backend mode intentionally returns slot shells with empty item arrays; mode=slot is reserved for on-demand details.",
     "Candidate identity, item level, stats, compatibility, source and enhancement options render only when the backend returns those fields for that candidate.",
     "Only HTTPS item or enhancement media on the explicit trusted runtime allowlist may render as real WoW objects; generated or decorative art cannot impersonate an item.",
-    "Readiness progress is backend-owned: an initial equippedSet may use websim.gear.readiness only when its selectedCount matches the editable selection; compact catalog aggregates are otherwise shown as unknown. Every edited draft uses gearResolve.profileReadiness readySlots/requiredSlots. Taro never counts item simcReady flags or hardcodes a 15-slot rule; candidate counts are never presented as equipped counts.",
-    "Average item level is derived only from currently selected items with real ilevel or itemLevel values, or from a non-blocked gearStats response.",
-    "Primary and secondary attributes remain 待校验 until gearStats returns non-blocked values for the current gear and a verified non-empty talent import code.",
+    "Resolver readiness remains backend-owned for deterministic save metadata: an initial equippedSet may use websim.gear.readiness only when its selectedCount matches the editable selection; every edited draft uses gearResolve.profileReadiness. Taro never counts item simcReady flags or hardcodes a 15-slot rule; candidate counts are never presented as equipped counts.",
+    "The loadout summary exposes only the current item level and backend-derived attribute values. Its fixed visual order is primary/stamina first, haste/critical/mastery/versatility on the left, and leech/avoidance/speed on the right; every attribute row uses the left-column row height, so the unused lower-right cell remains empty. Missing backend fields retain their position as 未提供 or 待校验. It does not expose selected-count or readiness-state copy, readiness count, progress percentage or readiness checkpoints.",
     "Community gear may be imported only from a returned template containing real gearItems; the UI identifies it as a source template, not BiS or an official recommendation.",
-    "Loading, empty, blocked, stale and error states retain all nine target regions, sixteen slot rows, three action positions and four footer status positions."
+    "Loading, empty, blocked, stale and error states retain all eight regions, sixteen slot rows and three fixed action positions; the internal candidate surface remains the only scrollable area."
   ],
   "mappings": [
     {
@@ -137,8 +141,8 @@
       "runtime": "real specializations for the selected class"
     },
     {
-      "region": "readiness_overview_panel",
-      "runtime": "selected draft count, current selected-item average level, backend-owned per-specialization profile readiness and verified gearStats only"
+      "region": "loadout_summary_panel",
+      "runtime": "selected draft item level and backend-derived attribute values without selected-count/readiness-state copy or readiness progress"
     },
     {
       "region": "enhancement_categories_bar",
@@ -151,19 +155,15 @@
     {
       "region": "secondary_actions_row",
       "runtime": "save current selection, import a returned source template and reset local edits"
-    },
-    {
-      "region": "status_footer_cards",
-      "runtime": "catalog, editable selection, stat validation and evidence boundary states"
     }
   ],
   "stateContract": {
-    "loading": "mount all nine regions, six neutral class sockets, sixteen empty gear slots, three actions and four status cards",
+    "loading": "mount all eight regions, six neutral class sockets, sixteen empty gear slots and three actions",
     "ready": "render the editable equippedSet and real candidate catalog without auto-selecting candidates",
     "partial": "preserve editing while marking incompatible, non-SimC-ready or unverified candidate fields",
     "stale": "preserve cached editing state and mark catalog evidence stale",
-    "blocked": "preserve all target regions and disable stat or handoff actions that lack verified inputs",
-    "error": "preserve all target regions and expose deterministic retry in the status deck",
+    "blocked": "preserve all retained regions and disable unsupported save/import/reset actions",
+    "error": "preserve all retained regions and expose deterministic retry in the secondary action row",
     "empty": "preserve sixteen slots and the center empty state without invented items or attributes"
   },
   "pendingTruthGaps": []

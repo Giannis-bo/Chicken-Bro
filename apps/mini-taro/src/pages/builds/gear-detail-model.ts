@@ -70,14 +70,6 @@ export interface GearEnhancementOptionView {
   selected: boolean
 }
 
-export interface GearStatusView {
-  id: 'catalog' | 'selection' | 'validation' | 'evidence'
-  label: string
-  detail: string
-  actionLabel?: string
-  state: GearViewState
-}
-
 const canonicalSlotDefinitions = [
   { slot: 'head', label: '头部' },
   { slot: 'neck', label: '颈部' },
@@ -100,10 +92,13 @@ const canonicalSlotDefinitions = [
 const metricFallbacks = [
   { id: 'primary', label: '主属性' },
   { id: 'stamina', label: '耐力' },
-  { id: 'critical_strike', label: '暴击' },
   { id: 'haste', label: '急速' },
+  { id: 'critical_strike', label: '暴击' },
   { id: 'mastery', label: '精通' },
   { id: 'versatility', label: '全能' },
+  { id: 'leech', label: '吸血' },
+  { id: 'avoidance', label: '闪避' },
+  { id: 'speed', label: '加速' },
 ] as const
 
 const weaponTypeLabels: Readonly<Record<string, string>> = {
@@ -135,6 +130,9 @@ const statLabels: Readonly<Record<string, string>> = {
   haste: '急速',
   mastery: '精通',
   versatility: '全能',
+  leech: '吸血',
+  avoidance: '闪避',
+  speed: '加速',
   armor: '护甲',
 }
 
@@ -175,6 +173,9 @@ function canonicalStatKey(value: unknown, primaryKey: PrimaryStatKey | ''): stri
   if (key.includes('暴击') || key.includes('爆击') || key.includes('critical') || key.includes('crit')) return 'critical_strike'
   if (key.includes('精通') || key.includes('mastery')) return 'mastery'
   if (key.includes('全能') || key.includes('versatility') || key === 'vers') return 'versatility'
+  if (key.includes('吸血') || key.includes('leech') || key.includes('lifesteal')) return 'leech'
+  if (key.includes('闪避') || key.includes('avoidance')) return 'avoidance'
+  if (key.includes('加速') || key.includes('speed')) return 'speed'
   if (key.includes('主属性') || key.includes('primarystat')) return primaryKey
   if (key.includes('agiint') || key.includes('intagi') || key.includes('stragiint') || key.includes('strintagi')) return primaryKey
   if (key.includes('力量') || key.includes('strength') || key === 'str') return 'strength'
@@ -476,79 +477,4 @@ export function templateGearItems(template: CommunityTemplateReference | undefin
     if (slot && gearItemId(item)) equipped[slot] = item
   }
   return Object.keys(equipped).length ? equipped : null
-}
-
-function localizedGearReason(reason: string | undefined, fallback: string): string {
-  const value = text(reason)
-  if (!value) return fallback
-  if (/backend unavailable|service unavailable|fetch failed|network/iu.test(value)) return '后端校验暂不可用'
-  if (/incomplete|missing|required|empty/iu.test(value)) return '装备或天赋输入尚未完整'
-  if (/talent|encoding|simc/iu.test(value)) return '天赋编码或 SimC 输入待验证'
-  return fallback
-}
-
-function checkedAtLabel(checkedAt: string | undefined): string {
-  const value = text(checkedAt)
-  if (!value) return '尚无后端检查时间'
-  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/u.exec(value)
-  if (!match) return '后端检查时间已记录'
-  const [, , month, day, hour, minute] = match
-  return `后端检查 ${Number(month)}月${Number(day)}日 ${hour}:${minute}`
-}
-
-export function gearStatusDeck(
-  payload: WebsimGearPayload | undefined,
-  readiness: GearReadinessView,
-  stats: GearDisplayStats | undefined,
-  routeState: ReadinessState,
-  routeReason: string,
-  validationReason = '',
-): readonly GearStatusView[] {
-  const catalogState: GearViewState = routeState === 'loading'
-    ? 'loading'
-    : routeState === 'error'
-      ? 'error'
-      : payload?.catalogStatus === 'verified'
-        ? 'ready'
-        : payload?.catalogStatus === 'blocked'
-          ? 'blocked'
-          : 'partial'
-  const catalogCandidateCount = payload?.replacementCandidates.reduce((sum, group) => sum + group.items.length, 0) ?? 0
-  const catalogSlotCount = payload?.slots.length ?? 0
-  const catalogDetail = routeReason
-    ? localizedGearReason(routeReason, '装备目录暂不可用')
-    : payload?.catalogBlockers[0]
-      ? localizedGearReason(payload.catalogBlockers[0], '装备目录暂不可用')
-      : catalogState === 'ready'
-        ? `${catalogCandidateCount} 个候选 · ${catalogSlotCount} 个槽位`
-        : '等待装备目录'
-  return [
-    {
-      id: 'catalog',
-      label: catalogState === 'loading' ? '目录加载中' : catalogState === 'ready' ? '装备目录可用' : '装备目录受限',
-      detail: catalogDetail,
-      ...(catalogState === 'error' ? { actionLabel: '重试' } : {}),
-      state: catalogState,
-    },
-    {
-      id: 'selection',
-      label: readiness.selectedCount ? `已选 ${readiness.selectedCount} 件` : '暂无装备数据',
-      detail: readiness.selectedCount ? `${readiness.readyCount}/${readiness.requiredCount || '--'} 槽可写入 SimC` : '选择槽位后配置真实候选',
-      actionLabel: readiness.selectedCount ? '继续配置' : '前往配置',
-      state: readiness.selectedCount ? readiness.state : 'empty',
-    },
-    {
-      id: 'validation',
-      label: stats && stats.statStatus !== 'blocked' ? '属性已校验' : '属性校验受限',
-      detail: localizedGearReason(validationReason || stats?.blockers[0], '需要完整装备与已验证天赋编码'),
-      actionLabel: '重新校验',
-      state: stats && stats.statStatus !== 'blocked' ? 'ready' : 'blocked',
-    },
-    {
-      id: 'evidence',
-      label: payload?.dataStatus === 'verified' ? '来源证据可用' : '信息待补充',
-      detail: checkedAtLabel(payload?.checkedAt),
-      state: payload?.dataStatus === 'verified' ? 'ready' : 'partial',
-    },
-  ]
 }

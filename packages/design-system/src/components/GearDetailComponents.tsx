@@ -1,7 +1,6 @@
 import { Image, Picker, ScrollView, Text, View } from '@tarojs/components'
 
 import { ControlButton } from './ControlButton'
-import type { CSSProperties } from 'react'
 
 import type { ProductionAssetId } from '@wow-mini/assets-manifest'
 
@@ -175,39 +174,60 @@ export interface GearMetricItem {
   verified: boolean
 }
 
-export interface GearReadinessOverviewProps {
+export interface GearLoadoutSummaryProps {
   itemLevel: string
   itemLevelDetail: string
-  readyCount: number
-  requiredCount: number
-  percent: number
-  selectedCount: number
   state: string
   metrics: readonly GearMetricItem[]
 }
 
-export function GearReadinessOverview({
+const summaryMetricLabels = {
+  primary: '主属性',
+  stamina: '耐力',
+  haste: '急速',
+  critical_strike: '暴击',
+  mastery: '精通',
+  versatility: '全能',
+  leech: '吸血',
+  avoidance: '闪避',
+  speed: '加速',
+} as const
+
+const primaryMetricIds = ['primary', 'stamina'] as const
+const leftMetricIds = ['haste', 'critical_strike', 'mastery', 'versatility'] as const
+const rightMetricIds = ['leech', 'avoidance', 'speed'] as const
+
+export function GearLoadoutSummary({
   itemLevel,
   itemLevelDetail,
-  readyCount,
-  requiredCount,
-  percent,
-  selectedCount,
   state,
   metrics,
-}: GearReadinessOverviewProps) {
-  const checkpoints = [
-    { value: 0, label: '待配置' },
-    { value: Math.ceil(requiredCount / 3), label: '起步' },
-    { value: Math.ceil((requiredCount * 2) / 3), label: '接近' },
-    { value: requiredCount, label: '就绪' },
-  ]
-  const progressStyle = { '--gear-ready-progress': `${Math.max(0, Math.min(100, percent))}%` } as CSSProperties
+}: GearLoadoutSummaryProps) {
+  const metricsById = new Map(metrics.map((metric) => [metric.id, metric]))
+  const metricFor = (id: keyof typeof summaryMetricLabels): GearMetricItem => metricsById.get(id) ?? {
+    id,
+    label: summaryMetricLabels[id],
+    value: '待校验',
+    verified: false,
+  }
+  const renderMetric = (id: keyof typeof summaryMetricLabels, primary = false) => {
+    const metric = metricFor(id)
+    return (
+      <View
+        key={id}
+        className={classes(style('metric'), primary && style('primaryMetric'), metric.verified && style('metricVerified'))}
+        data-verified={metric.verified ? 'true' : 'false'}
+      >
+        <Text>{metric.label}</Text>
+        <Text>{metric.value}</Text>
+      </View>
+    )
+  }
   return (
     <View
-      className={style('readinessOwner')}
-      data-owner="gear-readiness-overview"
-      data-region="readiness_overview_panel"
+      className={style('loadoutSummaryOwner')}
+      data-owner="gear-loadout-summary"
+      data-region="loadout_summary_panel"
       data-state={state}
       data-slot-id="asset_slot.gear-readiness-emblem"
     >
@@ -219,44 +239,18 @@ export function GearReadinessOverview({
         <Text className={style('levelLabel')}>平均装等</Text>
         <Text className={style('levelDetail')}>{itemLevelDetail}</Text>
       </View>
-      <View className={style('readinessContent')}>
-        <View className={style('readinessHeading')}>
-          <Text>装备就绪度</Text>
-          <Text data-role="gear-ready-count">{readyCount}/{requiredCount || '--'}</Text>
-        </View>
-        <View className={style('progress')} style={progressStyle} data-role="gear-readiness-progress" data-slot-id="asset_slot.gear-readiness-rail">
-          <View className={style('progressTrack')} data-role="gear-readiness-track"><View className={style('progressFill')} /></View>
-          {checkpoints.map((checkpoint) => {
-            const active = requiredCount > 0 && readyCount >= checkpoint.value
-            return (
-              <View
-                key={checkpoint.label}
-                className={classes(style('progressNode'), active && style('progressNodeActive'))}
-                data-active={active ? 'true' : 'false'}
-                data-readiness-checkpoint={checkpoint.value}
-              >
-                <View className={style('progressSocket')} data-role="gear-readiness-socket" />
-                <Text>{checkpoint.label}</Text>
-              </View>
-            )
-          })}
-        </View>
-        <View className={style('readinessMeta')}>
-          <Text data-role="gear-selected-count">{selectedCount ? `已配置 ${selectedCount} 件` : '尚未选择装备'}</Text>
-          <Text>{state === 'ready' ? '可进入后续校验' : state === 'loading' ? '正在读取' : '部分证据'}</Text>
-        </View>
+      <View className={style('summaryContent')}>
         <Text className={style('metricsTitle')}>属性概览</Text>
-        <View className={style('metricsGrid')}>
-          {metrics.map((metric) => (
-            <View
-              key={metric.id}
-              className={classes(style('metric'), metric.verified && style('metricVerified'))}
-              data-verified={metric.verified ? 'true' : 'false'}
-            >
-              <Text>{metric.label}</Text>
-              <Text>{metric.value}</Text>
-            </View>
-          ))}
+        <View className={style('summaryPrimaryMetrics')}>
+          {primaryMetricIds.map((id) => renderMetric(id, true))}
+        </View>
+        <View className={style('summaryMetricColumns')}>
+          <View className={classes(style('summaryMetricColumn'), style('summaryMetricColumnLeft'))}>
+            {leftMetricIds.map((id) => renderMetric(id))}
+          </View>
+          <View className={classes(style('summaryMetricColumn'), style('summaryMetricColumnRight'))}>
+            {rightMetricIds.map((id) => renderMetric(id))}
+          </View>
         </View>
       </View>
     </View>
@@ -353,13 +347,10 @@ export interface GearSlotWorkbenchProps {
   enhancements: readonly GearWorkbenchEnhancementItem[]
   candidateLoading?: boolean
   notice?: string
-  primaryLabel: string
-  primaryDisabled?: boolean
   onSlot: (item: GearWorkbenchSlotItem) => void
   onCandidate: (item: GearWorkbenchCandidateItem) => void
   onClose: () => void
   onEnhancement: (item: GearWorkbenchEnhancementItem) => void
-  onPrimary: () => void
 }
 
 const slotFallbackGlyph: Readonly<Record<string, ProductionAssetId>> = {
@@ -432,13 +423,10 @@ export function GearSlotWorkbench({
   enhancements,
   candidateLoading = false,
   notice = '',
-  primaryLabel,
-  primaryDisabled = false,
   onSlot,
   onCandidate,
   onClose,
   onEnhancement,
-  onPrimary,
 }: GearSlotWorkbenchProps) {
   const bySlot = new Map(slots.map((item) => [item.slot, item]))
   const leftSlotOrder = ['head', 'neck', 'shoulder', 'back', 'chest', 'wrist', 'main_hand', 'off_hand'] as const
@@ -556,16 +544,6 @@ export function GearSlotWorkbench({
           </ScrollView>
         </View>
       ) : null}
-      <ControlButton
-        className={classes(style('primaryAction'), primaryDisabled && style('primaryActionDisabled'))}
-        data-disabled={primaryDisabled ? 'true' : 'false'}
-        data-role="gear-primary-action"
-        disabled={primaryDisabled}
-        onClick={onPrimary}
-      >
-        <SystemGlyph assetId="utility-glyph-family.runtime" slotId="asset_slot.gear-action-glyphs" />
-        <Text>{primaryLabel}</Text>
-      </ControlButton>
     </View>
   )
 }
@@ -606,54 +584,6 @@ export function GearActionRow({ items }: { items: readonly GearActionItem[] }) {
           <SystemGlyph assetId={actionGlyph[item.id]} slotId="asset_slot.gear-action-glyphs" />
           <Text>{item.loading ? '处理中' : item.label}</Text>
         </ControlButton>
-      ))}
-    </View>
-  )
-}
-
-export interface GearStatusItem {
-  id: 'catalog' | 'selection' | 'validation' | 'evidence'
-  label: string
-  detail: string
-  actionLabel?: string | undefined
-  state: string
-}
-
-const statusGlyph = {
-  catalog: 'utility-glyph-family.runtime',
-  selection: 'quick-action-gear-glyph.default',
-  validation: 'utility-glyph-family.warning',
-  evidence: 'utility-glyph-family.document',
-} as const
-
-export interface GearStatusDeckProps {
-  items: readonly GearStatusItem[]
-  onAction: (item: GearStatusItem) => void
-}
-
-export function GearStatusDeck({ items, onAction }: GearStatusDeckProps) {
-  return (
-    <View className={style('statusOwner')} data-owner="gear-status-deck" data-region="status_footer_cards">
-      {items.map((item) => (
-        <View
-          key={item.id}
-          className={classes(style('statusCard'), style(`statusCard-${item.state}`))}
-          data-role="gear-status-card"
-          data-state={item.state}
-          data-status-id={item.id}
-          {...(item.actionLabel ? {
-            'data-action-id': `status-${item.id}`,
-            role: 'button',
-            onClick: () => onAction(item),
-          } : {})}
-        >
-          <View className={style('statusContent')}>
-            <SystemGlyph assetId={statusGlyph[item.id]} className={style('statusGlyph')} slotId="asset_slot.gear-status-glyphs" />
-            <Text className={style('statusLabel')}>{item.label}</Text>
-            <Text className={style('statusDetail')}>{item.detail}</Text>
-          </View>
-          <Text className={style('statusAction')}>{item.actionLabel ?? '状态摘要'}</Text>
-        </View>
       ))}
     </View>
   )

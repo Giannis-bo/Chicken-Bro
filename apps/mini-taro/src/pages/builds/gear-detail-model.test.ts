@@ -7,7 +7,6 @@ import {
   gearEnhancementGroups,
   gearReadiness,
   gearSlots,
-  gearStatusDeck,
   templateGearItems,
 } from './gear-detail-model'
 
@@ -68,10 +67,8 @@ describe('gear detail truth model', () => {
 
   it('labels an unvalidated editable draft as unknown instead of zero required slots', () => {
     const readiness = gearReadiness({ head: readyItem }, undefined, 'ready', payload().readiness)
-    const statuses = gearStatusDeck(payload(), readiness, undefined, 'ready', '')
 
     expect(readiness).toMatchObject({ selectedCount: 1, readyCount: 0, requiredCount: 0, state: 'blocked' })
-    expect(statuses[1]).toMatchObject({ detail: '0/-- 槽可写入 SimC', state: 'blocked' })
   })
 
   it('derives slot presentation from the draft while readiness stays backend-owned', () => {
@@ -106,6 +103,32 @@ describe('gear detail truth model', () => {
       percent: 6,
       state: 'blocked',
     })
+  })
+
+  it('orders the summary metrics into primary, left secondary and right tertiary slots', () => {
+    const stats = {
+      ...payload().statSnapshot,
+      statStatus: 'verified' as const,
+      primary: { key: 'intellect', label: '智力', value: '2345' },
+      stamina: { key: 'stamina', label: '耐力', value: '5678' },
+      secondary: [
+        { key: 'haste', label: '急速', value: '100' },
+        { key: 'critical_strike', label: '暴击', value: '200' },
+        { key: 'mastery', label: '精通', value: '300' },
+        { key: 'versatility', label: '全能', value: '400' },
+        { key: 'leech', label: '吸血', value: '50' },
+        { key: 'avoidance', label: '闪避', value: '60' },
+        { key: 'speed', label: '加速', value: '70' },
+      ],
+    }
+    const readiness = gearReadiness({ head: readyItem }, stats, 'ready', {
+      status: 'verified', simcReady: true, readySlots: ['head'], requiredSlots: ['head'],
+    })
+
+    expect(readiness.metrics.map((metric) => metric.id)).toEqual([
+      'primary', 'stamina', 'haste', 'critical_strike', 'mastery', 'versatility', 'leech', 'avoidance', 'speed',
+    ])
+    expect(readiness.metrics.map((metric) => metric.value)).toContain('70')
   })
 
   it('preserves real candidate identity and evidence without inventing readiness', () => {
@@ -154,7 +177,11 @@ describe('gear detail truth model', () => {
     }
     const readiness = gearReadiness({ head: readyItem }, stats, 'ready', undefined)
     expect(readiness.metrics[0]).toMatchObject({ label: '智力', value: '12,345', verified: true })
-    expect(readiness.metrics[2]).toMatchObject({ label: '暴击', value: '678', verified: true })
+    expect(readiness.metrics.find((metric) => metric.id === 'critical_strike')).toMatchObject({
+      label: '暴击',
+      value: '678',
+      verified: true,
+    })
   })
 
   it('summarizes only returned enhancement options', () => {
@@ -184,23 +211,4 @@ describe('gear detail truth model', () => {
     expect(templateGearItems({ title: '来源模板', gearItems: [{ ...readyItem, slot: 'head' }] })).toEqual({ head: expect.objectContaining({ itemId: '250060' }) })
   })
 
-  it('keeps four stable status cards', () => {
-    const readiness = gearReadiness({}, undefined, 'ready', undefined)
-    const statuses = gearStatusDeck(payload(), readiness, payload().statSnapshot, 'ready', '')
-    expect(statuses.map((item) => item.id)).toEqual(['catalog', 'selection', 'validation', 'evidence'])
-    expect(statuses[0]).toMatchObject({ detail: '2 个候选 · 2 个槽位' })
-    expect(statuses[1]).toMatchObject({ label: '暂无装备数据', state: 'empty' })
-    expect(statuses[2]).toMatchObject({ detail: '装备或天赋输入尚未完整' })
-    expect(statuses[3]).toMatchObject({ detail: '后端检查 7月15日 00:00' })
-  })
-
-  it('keeps draft validation failures out of the verified catalog status', () => {
-    const readiness = gearReadiness({ head: readyItem }, undefined, 'ready', {
-      status: 'blocked', simcReady: false, readySlots: ['head'], requiredSlots: ['head', 'off_hand'],
-    })
-    const statuses = gearStatusDeck(payload(), readiness, undefined, 'ready', '', 'network down')
-
-    expect(statuses[0]).toMatchObject({ state: 'ready', detail: '2 个候选 · 2 个槽位' })
-    expect(statuses[2]).toMatchObject({ state: 'blocked', detail: '后端校验暂不可用' })
-  })
 })

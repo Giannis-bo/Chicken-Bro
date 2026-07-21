@@ -21,9 +21,9 @@
       "responsibility": "real specialization picker"
     },
     {
-      "owner": "GearReadinessOverview",
-      "regions": ["readiness_overview_panel"],
-      "responsibility": "truth-safe selected loadout readiness, item level and verified stats"
+      "owner": "GearLoadoutSummary",
+      "regions": ["loadout_summary_panel"],
+      "responsibility": "current loadout item level and a fixed attribute layout: emphasized primary/stamina row, haste/critical/mastery/versatility left column, and leech/avoidance/speed right column; every attribute row uses the left-column row height and the unused lower-right cell remains empty, without readiness state copy or a readiness rail"
     },
     {
       "owner": "GearEnhancementBar",
@@ -39,11 +39,6 @@
       "owner": "GearActionRow",
       "regions": ["secondary_actions_row"],
       "responsibility": "save, source-template import and reset"
-    },
-    {
-      "owner": "GearStatusDeck",
-      "regions": ["status_footer_cards"],
-      "responsibility": "four stable truth and failure status positions"
     },
     {
       "owner": "TrustedGearMedia",
@@ -65,33 +60,36 @@
       "reason": "saved templates are actions and source inputs here, not an additional route section"
     },
     {
-      "owner": "EvidenceLedger",
-      "reason": "the target uses four equal footer status cards, not a table or ledger"
-    },
-    {
       "owner": "WowPanel",
-      "reason": "generic titled cards cannot express the fixed nine-region target geometry"
+      "reason": "generic titled cards cannot express the fixed eight-region target geometry"
     },
     {
       "owner": "RouteStatePanel",
-      "reason": "route state must inhabit the existing nine regions instead of creating another card"
+      "reason": "route state must inhabit the existing eight regions instead of creating another card"
+    }
+  ],
+  "productOverrides": [
+    {
+      "id": "gear_detail_progress_cleanup_20260721",
+      "excludedTargetRegions": ["status_footer_cards"],
+      "excludedTargetElements": ["readiness_heading", "readiness_progress_rail"],
+      "layoutRule": "loadout_summary_panel preserves the item-level emblem and attribute grid; enhancement_categories_bar and equipment_slots_panel retain their original vertical order, while the in-workbench primary action footprint remains available to slot content",
+      "preservedBehavior": ["slot selection and candidate resolution remain backend-derived", "the secondary action row retains deterministic retry when the initial route load fails"]
     }
   ],
   "layoutContract": {
     "baselineCssViewport": {"width": 390, "height": 826, "dpr": 2},
-    "stableRegionCount": 9,
+    "stableRegionCount": 8,
     "stableSlotCount": 16,
     "visibleClassSocketCount": 6,
     "stableActionCount": 3,
-    "stableStatusCardCount": 4,
     "candidateSurface": "internal to equipment_slots_panel",
-    "pageScroll": "none at baseline; candidate details scroll internally"
+    "pageScroll": "outer page is locked; candidate details scroll internally"
   },
   "stateContract": {
-    "stableRegionCount": 9,
+    "stableRegionCount": 8,
     "stableGearSlotCount": 16,
     "stableSecondaryActionCount": 3,
-    "stableFooterStatusCount": 4,
     "loadingMustNotCollapse": true,
     "emptyMustNotCollapse": true,
     "errorMustNotCollapse": true

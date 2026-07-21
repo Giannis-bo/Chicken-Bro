@@ -113,12 +113,10 @@
         "asset_slot.pushed-back-medallion": "shared:asset_slot.pushed-back-medallion",
         "asset_slot.gear-class-medallion": "asset_slot.gear-class-medallion",
         "asset_slot.gear-readiness-emblem": "asset_slot.gear-readiness-emblem",
-        "asset_slot.gear-readiness-rail": "asset_slot.gear-readiness-rail",
         "asset_slot.gear-enhancement-medallions": "asset_slot.gear-enhancement-medallions",
         "asset_slot.gear-item-object": "asset_slot.gear-item-object",
         "asset_slot.gear-workbench-crest": "asset_slot.gear-workbench-crest",
         "asset_slot.gear-action-glyphs": "asset_slot.gear-action-glyphs",
-        "asset_slot.gear-status-glyphs": "asset_slot.gear-status-glyphs",
         "asset_slot.utility-glyph-family": "shared:asset_slot.utility-glyph-family"
       }
     },
