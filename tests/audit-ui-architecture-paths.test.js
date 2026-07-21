@@ -295,6 +295,142 @@ test('selected material helper bindings use only the final sequence return value
   }), true)
 })
 
+test('selected material helper bindings reject conditional fallthrough and support simple expression helpers', () => {
+  const helperPath = path.join(root, 'scripts', 'ui-architecture-ast.js')
+  const { styleModuleOwnsSelectedMaterial } = require(helperPath)
+  const fallthroughSource = `
+    import styles from './Local.module.scss'
+    function componentStyle(name: string, enabled: boolean): string | undefined {
+      if (enabled) return styles[name] ?? ''
+    }
+  `
+  assert.equal(styleModuleOwnsSelectedMaterial({
+    source: fallthroughSource,
+    classExpression: "componentStyle('option', false)",
+    stateAttribute: 'data-selected',
+    readStyleModule: () => ".option[data-selected='true'] { color: gold; }",
+  }), false)
+
+  const expressionArrowSource = `
+    import styles from './Local.module.scss'
+    const componentStyle = (name: string): string => styles[name] ?? ''
+  `
+  assert.equal(styleModuleOwnsSelectedMaterial({
+    source: expressionArrowSource,
+    classExpression: "componentStyle('option')",
+    stateAttribute: 'data-selected',
+    readStyleModule: () => ".option[data-selected='true'] { color: gold; }",
+  }), true)
+})
+
+test('selected material helper templates preserve the module class as a whitespace-delimited token', () => {
+  const helperPath = path.join(root, 'scripts', 'ui-architecture-ast.js')
+  const { styleModuleOwnsSelectedMaterial } = require(helperPath)
+  const unsafeTemplateSource = `
+    import styles from './Local.module.scss'
+    function componentStyle(name: string): string { return \`${'${styles[name]}'}Suffix\` }
+  `
+  assert.equal(styleModuleOwnsSelectedMaterial({
+    source: unsafeTemplateSource,
+    classExpression: "componentStyle('option')",
+    stateAttribute: 'data-selected',
+    readStyleModule: () => ".option[data-selected='true'] { color: gold; }",
+  }), false)
+
+  const safeTemplateSource = `
+    import styles from './Local.module.scss'
+    function componentStyle(name: string): string { return \`prefix ${'${styles[name]}'} suffix\` }
+  `
+  assert.equal(styleModuleOwnsSelectedMaterial({
+    source: safeTemplateSource,
+    classExpression: "componentStyle('option')",
+    stateAttribute: 'data-selected',
+    readStyleModule: () => ".option[data-selected='true'] { color: gold; }",
+  }), true)
+})
+
+test('selected material helper concatenation preserves the module class as a whitespace-delimited token', () => {
+  const helperPath = path.join(root, 'scripts', 'ui-architecture-ast.js')
+  const { styleModuleOwnsSelectedMaterial } = require(helperPath)
+  const unsafePlusSource = `
+    import styles from './Local.module.scss'
+    function componentStyle(name: string): string { return (styles[name] ?? '') + 'Suffix' }
+  `
+  assert.equal(styleModuleOwnsSelectedMaterial({
+    source: unsafePlusSource,
+    classExpression: "componentStyle('option')",
+    stateAttribute: 'data-selected',
+    readStyleModule: () => ".option[data-selected='true'] { color: gold; }",
+  }), false)
+
+  const safePlusSource = `
+    import styles from './Local.module.scss'
+    function componentStyle(name: string): string { return 'prefix ' + (styles[name] ?? '') + ' suffix' }
+  `
+  assert.equal(styleModuleOwnsSelectedMaterial({
+    source: safePlusSource,
+    classExpression: "componentStyle('option')",
+    stateAttribute: 'data-selected',
+    readStyleModule: () => ".option[data-selected='true'] { color: gold; }",
+  }), true)
+})
+
+test('selected material helper array joins require a literal non-empty whitespace separator', () => {
+  const helperPath = path.join(root, 'scripts', 'ui-architecture-ast.js')
+  const { styleModuleOwnsSelectedMaterial } = require(helperPath)
+  const sourceForJoin = (separator) => `
+    import styles from './Local.module.scss'
+    function componentStyle(name: string): string {
+      return [styles[name] ?? '', 'extra'].filter(Boolean).join(${separator})
+    }
+  `
+  for (const separator of [`''`, `'-'`, 'separator']) {
+    assert.equal(styleModuleOwnsSelectedMaterial({
+      source: sourceForJoin(separator),
+      classExpression: "componentStyle('option')",
+      stateAttribute: 'data-selected',
+      readStyleModule: () => ".option[data-selected='true'] { color: gold; }",
+    }), false)
+  }
+  const defaultJoinSource = sourceForJoin('')
+  assert.equal(styleModuleOwnsSelectedMaterial({
+    source: defaultJoinSource,
+    classExpression: "componentStyle('option')",
+    stateAttribute: 'data-selected',
+    readStyleModule: () => ".option[data-selected='true'] { color: gold; }",
+  }), false)
+  const directJoinSource = `
+    import styles from './Local.module.scss'
+    function componentStyle(name: string): string {
+      return [styles[name] ?? '', 'extra'].join(' ')
+    }
+  `
+  assert.equal(styleModuleOwnsSelectedMaterial({
+    source: directJoinSource,
+    classExpression: "componentStyle('option')",
+    stateAttribute: 'data-selected',
+    readStyleModule: () => ".option[data-selected='true'] { color: gold; }",
+  }), false)
+  const otherFilterSource = `
+    import styles from './Local.module.scss'
+    function componentStyle(name: string): string {
+      return [styles[name] ?? '', 'extra'].filter(() => true).join(' ')
+    }
+  `
+  assert.equal(styleModuleOwnsSelectedMaterial({
+    source: otherFilterSource,
+    classExpression: "componentStyle('option')",
+    stateAttribute: 'data-selected',
+    readStyleModule: () => ".option[data-selected='true'] { color: gold; }",
+  }), false)
+  assert.equal(styleModuleOwnsSelectedMaterial({
+    source: sourceForJoin(`' '`),
+    classExpression: "componentStyle('option')",
+    stateAttribute: 'data-selected',
+    readStyleModule: () => ".option[data-selected='true'] { color: gold; }",
+  }), true)
+})
+
 test('builds specialization fill contract is required only by the active source or current contracts', () => {
   const helperPath = path.join(root, 'scripts', 'ui-architecture-ast.js')
   const { buildsSpecializationFillAudit, buildsSpecializationFillContractRequired } = require(helperPath)

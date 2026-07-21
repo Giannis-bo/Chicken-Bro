@@ -170,7 +170,6 @@ function additiveStyleBinding(expressions, importedByLocalName, parameterName) {
 }
 
 function joinedArrayElements(node) {
-  if (node?.type === 'ArrayExpression') return node.elements
   if (
     node?.type === 'CallExpression'
     && node.callee.type === 'MemberExpression'
@@ -180,10 +179,47 @@ function joinedArrayElements(node) {
     && node.arguments.length === 1
     && node.arguments[0].type === 'Identifier'
     && node.arguments[0].name === 'Boolean'
+    && node.callee.object.type === 'ArrayExpression'
   ) {
-    return joinedArrayElements(node.callee.object)
+    return node.callee.object.elements
   }
   return null
+}
+
+function templateStyleBinding(node, importedByLocalName, parameterName) {
+  if (node.expressions.length !== 1 || node.quasis.length !== 2) return null
+  const binding = returnedStyleBinding(node.expressions[0], importedByLocalName, parameterName)
+  if (!binding) return null
+  const prefix = node.quasis[0].value.cooked ?? node.quasis[0].value.raw
+  const suffix = node.quasis[1].value.cooked ?? node.quasis[1].value.raw
+  const prefixKeepsTokenBoundary = prefix === '' || /\s$/u.test(prefix)
+  const suffixKeepsTokenBoundary = suffix === '' || /^\s/u.test(suffix)
+  return prefixKeepsTokenBoundary && suffixKeepsTokenBoundary ? binding : null
+}
+
+function flattenStringConcatenation(node) {
+  if (node.type !== 'BinaryExpression' || node.operator !== '+') return [node]
+  return [...flattenStringConcatenation(node.left), ...flattenStringConcatenation(node.right)]
+}
+
+function concatenatedStyleBinding(node, importedByLocalName, parameterName) {
+  const parts = flattenStringConcatenation(node)
+  const bindingParts = []
+  for (const [index, part] of parts.entries()) {
+    const binding = returnedStyleBinding(part, importedByLocalName, parameterName)
+    if (binding) {
+      bindingParts.push({ binding, index })
+      continue
+    }
+    if (part.type !== 'StringLiteral') return null
+  }
+  if (bindingParts.length !== 1) return null
+  const [{ binding, index }] = bindingParts
+  const prefix = parts.slice(0, index).map((part) => part.value).join('')
+  const suffix = parts.slice(index + 1).map((part) => part.value).join('')
+  const prefixKeepsTokenBoundary = prefix === '' || /\s$/u.test(prefix)
+  const suffixKeepsTokenBoundary = suffix === '' || /^\s/u.test(suffix)
+  return prefixKeepsTokenBoundary && suffixKeepsTokenBoundary ? binding : null
 }
 
 function returnedStyleBinding(node, importedByLocalName, parameterName) {
@@ -211,10 +247,10 @@ function returnedStyleBinding(node, importedByLocalName, parameterName) {
     return null
   }
   if (node.type === 'TemplateLiteral') {
-    return additiveStyleBinding(node.expressions, importedByLocalName, parameterName)
+    return templateStyleBinding(node, importedByLocalName, parameterName)
   }
   if (node.type === 'BinaryExpression' && node.operator === '+') {
-    return additiveStyleBinding([node.left, node.right], importedByLocalName, parameterName)
+    return concatenatedStyleBinding(node, importedByLocalName, parameterName)
   }
   if (
     node.type === 'CallExpression'
@@ -223,10 +259,29 @@ function returnedStyleBinding(node, importedByLocalName, parameterName) {
     && node.callee.property.type === 'Identifier'
     && node.callee.property.name === 'join'
   ) {
+    const separator = node.arguments[0]
+    if (node.arguments.length !== 1 || separator.type !== 'StringLiteral' || !/^\s+$/u.test(separator.value)) return null
     const elements = joinedArrayElements(node.callee.object)
     return elements ? additiveStyleBinding(elements, importedByLocalName, parameterName) : null
   }
   return null
+}
+
+function supportedHelperReturnExpression(functionNode) {
+  if (functionNode.type === 'ArrowFunctionExpression' && functionNode.body.type !== 'BlockStatement') {
+    return functionNode.body
+  }
+  if (functionNode.body?.type !== 'BlockStatement' || functionNode.body.body.length !== 1) return null
+  const [statement] = functionNode.body.body
+  return statement.type === 'ReturnStatement' ? statement.argument : null
+}
+
+function registerLocalStyleHelper(helpers, helperName, functionNode, importedByLocalName) {
+  const parameterName = functionNode.params[0]?.type === 'Identifier' ? functionNode.params[0].name : null
+  const returnExpression = supportedHelperReturnExpression(functionNode)
+  if (!helperName || !parameterName || !returnExpression) return
+  const styleImport = returnedStyleBinding(returnExpression, importedByLocalName, parameterName)
+  if (styleImport) helpers.set(helperName, styleImport)
 }
 
 function styleHelperBindings(source, styleImports) {
@@ -243,24 +298,17 @@ function styleHelperBindings(source, styleImports) {
     }
   }
 
-  traverse(ast, {
-    FunctionDeclaration(functionPath) {
-      const helperName = functionPath.node.id?.name
-      const parameterName = functionPath.node.params[0]?.type === 'Identifier' ? functionPath.node.params[0].name : null
-      if (!helperName || !parameterName) return
-      const returnedStyleImports = []
-      functionPath.traverse({
-        ReturnStatement(returnPath) {
-          if (returnPath.getFunctionParent()?.node !== functionPath.node) return
-          const styleImport = returnedStyleBinding(returnPath.node.argument, importedByLocalName, parameterName)
-          returnedStyleImports.push(styleImport ? [styleImport] : [])
-        },
-      })
-      if (returnedStyleImports.length === 0 || returnedStyleImports.some((imports) => imports.length !== 1)) return
-      const compatibleImports = new Map(returnedStyleImports.flat().map((styleImport) => [styleImport.localName, styleImport]))
-      if (compatibleImports.size === 1) helpers.set(helperName, [...compatibleImports.values()][0])
-    },
-  })
+  for (const statement of ast.program.body) {
+    if (statement.type === 'FunctionDeclaration') {
+      registerLocalStyleHelper(helpers, statement.id?.name, statement, importedByLocalName)
+      continue
+    }
+    if (statement.type !== 'VariableDeclaration') continue
+    for (const declaration of statement.declarations) {
+      if (declaration.id.type !== 'Identifier' || declaration.init?.type !== 'ArrowFunctionExpression') continue
+      registerLocalStyleHelper(helpers, declaration.id.name, declaration.init, importedByLocalName)
+    }
+  }
   return helpers
 }
 
