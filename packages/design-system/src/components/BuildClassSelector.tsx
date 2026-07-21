@@ -22,6 +22,12 @@ export interface BuildClassSelectorProps {
   onSelect: (id: string) => void
 }
 
+export interface ResolvedBuildClassSelection {
+  options: readonly BuildClassSelectorOption[]
+  selectedId?: string | undefined
+  selectedOption?: BuildClassSelectorOption | undefined
+}
+
 interface ClassIconProps {
   failedIconUrls: readonly string[]
   label: string
@@ -35,6 +41,38 @@ function componentStyle(name: string): string {
 
 function classInitial(label: string): string {
   return label.trim().slice(0, 1) || '?'
+}
+
+export function resolveBuildClassSelection(
+  options: readonly BuildClassSelectorOption[],
+  value: string,
+): ResolvedBuildClassSelection {
+  const valueIndex = options.findIndex((option) => option.id === value)
+  const selectedIndex = valueIndex >= 0
+    ? valueIndex
+    : options.findIndex((option) => option.selected)
+  const resolvedOptions = options.map((option, index) => ({
+    ...option,
+    selected: index === selectedIndex,
+  }))
+  const selectedOption = selectedIndex >= 0 ? resolvedOptions[selectedIndex] : undefined
+
+  return {
+    options: resolvedOptions,
+    ...(selectedOption ? { selectedId: selectedOption.id, selectedOption } : {}),
+  }
+}
+
+export function activateBuildClassOption(
+  option: BuildClassSelectorOption,
+  selectorDisabled: boolean,
+  onSelect: (id: string) => void,
+  onClose: () => void,
+): boolean {
+  if (selectorDisabled || option.disabled) return false
+  onSelect(option.id)
+  onClose()
+  return true
 }
 
 function ClassIcon({ failedIconUrls, label, iconUrl, onError }: ClassIconProps) {
@@ -64,10 +102,9 @@ export function BuildClassSelector({
 }: BuildClassSelectorProps): JSX.Element {
   const [open, setOpen] = useState(false)
   const [failedIconUrls, setFailedIconUrls] = useState<readonly string[]>([])
-  const selectedId = options.some((option) => option.id === value)
-    ? value
-    : options.find((option) => option.selected)?.id
-  const selectedOption = options.find((option) => option.id === selectedId)
+  const selection = resolveBuildClassSelection(options, value)
+  const selectedId = selection.selectedId
+  const selectedOption = selection.selectedOption
   const selectorDisabled = disabled || options.length === 0
   const selectedLabel = selectedOption?.label ?? '选择职业'
 
@@ -76,9 +113,7 @@ export function BuildClassSelector({
   }
 
   const selectOption = (option: BuildClassSelectorOption) => {
-    if (disabled || option.disabled) return
-    onSelect(option.id)
-    setOpen(false)
+    activateBuildClassOption(option, disabled, onSelect, () => setOpen(false))
   }
 
   return (
@@ -135,7 +170,7 @@ export function BuildClassSelector({
                   </ControlButton>
                 </View>
                 <View className={componentStyle('classSelectorGrid')}>
-                  {options.map((option) => {
+                  {selection.options.map((option) => {
                     const optionDisabled = disabled || option.disabled
                     const optionSelected = option.id === selectedId
                     return (

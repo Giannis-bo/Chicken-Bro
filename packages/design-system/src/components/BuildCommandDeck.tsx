@@ -1,6 +1,11 @@
 import { Text, View } from '@tarojs/components'
 
-import type { ProductionAssetId } from '@wow-mini/assets-manifest'
+import {
+  candidateAssets,
+  productionAssets,
+  type AssetSlotId,
+  type ProductionAssetId,
+} from '@wow-mini/assets-manifest'
 
 import { ControlButton } from './ControlButton'
 import { ProductionAssetGlyph } from './ProductionAssetGlyph'
@@ -18,8 +23,40 @@ export interface BuildCommandDeckItem {
   disabled: boolean
 }
 
+export interface BuildCommandDeckEntry {
+  item: BuildCommandDeckItem
+  interactionDisabled: boolean
+  fallbackGlyphSlotId: AssetSlotId
+}
+
 function componentStyle(name: string): string {
   return [styles[name] ?? '', styleSelectorClass(name)].filter(Boolean).join(' ')
+}
+
+function registeredAssetSlotId(assetId: ProductionAssetId): AssetSlotId {
+  return productionAssets.find((asset) => asset.assetId === assetId)?.slotId
+    ?? candidateAssets.find((asset) => asset.assetId === assetId)?.slotId
+    ?? 'asset_slot.unregistered-fallback'
+}
+
+export function buildCommandDeckEntries(
+  items: readonly BuildCommandDeckItem[],
+  loading = false,
+): readonly BuildCommandDeckEntry[] {
+  return items.map((item) => ({
+    item,
+    interactionDisabled: loading || item.disabled,
+    fallbackGlyphSlotId: registeredAssetSlotId(item.fallbackGlyphAssetId),
+  }))
+}
+
+export function activateBuildCommand(
+  entry: Pick<BuildCommandDeckEntry, 'item' | 'interactionDisabled'>,
+  onSelect: (id: BuildCommandDeckItem['id']) => void,
+): boolean {
+  if (entry.interactionDisabled) return false
+  onSelect(entry.item.id)
+  return true
 }
 
 export function BuildCommandDeck(props: {
@@ -31,8 +68,8 @@ export function BuildCommandDeck(props: {
 
   return (
     <View className={componentStyle('commandDeck')} data-owner="build-command-deck">
-      {items.map((item) => {
-        const interactionDisabled = loading || item.disabled
+      {buildCommandDeckEntries(items, loading).map((entry) => {
+        const { item, interactionDisabled, fallbackGlyphSlotId } = entry
         return (
           <ForgedPanel
             key={item.id}
@@ -53,7 +90,7 @@ export function BuildCommandDeck(props: {
               data-material-owner="css"
               data-role="build-command-card"
               disabled={interactionDisabled}
-              onClick={() => onSelect(item.id)}
+              onClick={() => activateBuildCommand(entry, onSelect)}
             >
               <View className={componentStyle('commandCardMedallion')}>
                 <ProductionAssetGlyph
@@ -61,7 +98,7 @@ export function BuildCommandDeck(props: {
                   className={componentStyle('commandCardGlyph')}
                   dataRole={'build-command-' + item.id + '-glyph'}
                   fallbackAssetId={item.fallbackGlyphAssetId}
-                  fallbackSlotId="asset_slot.utility-glyph-family"
+                  fallbackSlotId={fallbackGlyphSlotId}
                   slotId="asset_slot.builds-evidence-medallions"
                 />
               </View>
