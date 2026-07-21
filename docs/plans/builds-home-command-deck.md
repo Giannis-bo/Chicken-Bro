@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 将“专精”首页重构为职业选择器和四张平级命令卡，同时保持天赋、装备和 SimC 的既有 `spec` 启动协议。
+**Goal:** 将“专精”首页收敛为职业选择器、四张紧凑命令卡与最近三次 SimC 任务预览，同时保持天赋、装备和 SimC 的既有 `spec` 启动协议。
 
-**Architecture:** 首页只保存职业与每职业最近有效专精的轻量偏好。点击三个模拟入口时，shared pure resolver 用当前 canonical `builds.home` catalog 解析一个有效 `spec`，再沿用现有路由参数；任务不接收上下文。新的 `BuildClassSelector` 和 `BuildCommandDeck` 是该路由的组合组件，页面不再渲染旧概览、网格、工作台、重复列表或流程时间线。
+**Architecture:** 首页只保存职业与每职业最近有效专精的轻量偏好。点击三个模拟入口时，shared pure resolver 用当前 canonical `builds.home` catalog 解析一个有效 `spec`，再沿用现有路由参数；任务不接收上下文。`BuildClassSelector`、`BuildCommandDeck` 与 `BuildRecentSimcTasks` 组成页面：预览复用 owner-scoped `wowApi.simulator.tasks()`、只保留 `mode === 'simcraft_template'` 的最近三条，并沿用任务详情路由；不新增后端事实或状态。
 
 **Tech Stack:** Taro + React + TypeScript、Vitest、现有 `@wow-mini/design-system`、canonical `builds.home` payload、Current UI Control Plane、WeChat DevTools。
 
@@ -12,7 +12,9 @@
 
 - 只修改活动 Taro runtime `apps/mini-taro`、typed route/storage contract、current-ui route contract 和当前计划；根 `pages/` 保持兼容消费者。
 - 不新增后端 API、模板 owner、任务 owner、SimC 提交语义或本地装备事实。
-- 首页 ready 状态只展示职业胶囊和天赋/装备/SimC/任务四张卡；无编号、状态标签、模板准备信息、工作台横幅、重复入口或流程时间线。
+- 首页 ready 状态展示职业胶囊、天赋/装备/SimC/任务四张紧凑卡和最近三次 SimC 任务；无编号、模板准备信息、工作台横幅、重复入口或流程时间线。
+- 任务预览只取 `mode === 'simcraft_template'`、全职业、当前 owner 的最新三条；任务状态、时间、职业/专精与场景只能来自返回 payload，缺失值使用中性 copy。
+- `4 + 3` 布局必须铺满 header 下沿到 `ProductTabBar` 上沿的正文高度；不得引入正文纵向滚动、大块空白、裁切或 TabBar 覆盖。
 - SimC 始终可进入；模板缺失只能在 SimC 页面表达和处理。
 - `tasks_list` 不接收 `spec` 或职业参数；三个模拟入口继续只接收已解析的 `spec`。
 - canonical target 的几何必须在隔离 target-only context 中测量；不得从 runtime、旧 CSS、概念稿或旧 redline 推导。
@@ -29,7 +31,9 @@
 | `apps/mini-taro/src/pages/builds/builds-home-model.ts` | 生成职业胶囊、13 职业选项和四张静态命令卡的展示模型。 |
 | `packages/design-system/src/components/BuildClassSelector.tsx` | 职业胶囊和三列职业底部面板。 |
 | `packages/design-system/src/components/BuildCommandDeck.tsx` | 四张横向命令卡和统一点击语义。 |
+| `packages/design-system/src/components/BuildRecentSimcTasks.tsx` | 最近三条 SimC 任务的固定区域、状态表现和详情跳转。 |
 | `packages/design-system/src/components/BuildsHomeCommandDeck.module.scss` | 两个新 owner 的材质、布局、选中态和小屏几何。 |
+| `apps/mini-taro/src/pages/builds/builds-recent-simc-model.ts` | 纯 preview adapter：筛选、排序和投影当前 SimC 提交任务。 |
 | `apps/mini-taro/src/pages/builds/builds.tsx` | 首页 composition、职业持久化、启动专精解析和导航。 |
 | `apps/mini-taro/src/pages/builds/builds-home.module.scss` | 首页只保留卡组和 selector 的 route-level 视口布局。 |
 | `apps/mini-taro/src/pages/builds/talent-simulator.tsx`、`detail.tsx`、`simulator/simc.tsx` | 在工具内部确认专精后回写最近专精偏好。 |
@@ -538,4 +542,190 @@
 
 - [ ] **Step 5: 请求真实用户验收**
 
-  报告 commit、验证命令、DevTools 状态和以下人工检查：职业面板仅含职业；四张卡首屏可见且无纵向滑动；SimC 首页无模板状态；任务不继承职业；三个模拟工具能继承最近专精。等待用户明确“已测试通过”“可以收尾”或等价授权后，才执行 Harness 的合并、推送和 DevTools 刷新收口。
+  报告 commit、验证命令、DevTools 状态和以下人工检查：职业面板仅含职业；四张紧凑卡与三条最近任务首屏可见、铺满正文且无纵向滑动；SimC 首页无模板状态；最近任务跨职业且可打开详情；任务不继承职业；三个模拟工具能继承最近专精。等待用户明确“已测试通过”“可以收尾”或等价授权后，才执行 Harness 的合并、推送和 DevTools 刷新收口。
+
+## Task 8: 紧凑 `4 + 3` 首页与最近 SimC 预览
+
+**Files:**
+
+- Create: `apps/mini-taro/src/pages/builds/builds-recent-simc-model.ts`
+- Create: `apps/mini-taro/src/pages/builds/builds-recent-simc-model.test.ts`
+- Create: `packages/design-system/src/components/BuildRecentSimcTasks.tsx`
+- Create: `packages/design-system/src/components/BuildRecentSimcTasks.test.ts`
+- Modify: `packages/design-system/src/components/BuildsHomeCommandDeck.module.scss`
+- Modify: `packages/design-system/src/index.ts`
+- Modify: `apps/mini-taro/src/pages/builds/builds.tsx`
+- Modify: `apps/mini-taro/src/pages/builds/builds-home.module.scss`
+- Modify: `apps/mini-taro/src/pages/builds/builds-home-page-contract.test.ts`
+- Modify: `docs/design/current-ui/routes/builds-home/*.json` and the linked route/core geometry contracts
+
+**Consumes:** `wowApi.simulator.tasks()`, `SimulatorTaskRecord`, `filterAndSortTasks`, `taskRecordView`, `taskStatusGroup`, the Task 5 command deck, and the confirmed [builds_home design](../design/current-ui/routes/builds-home/product-design.md).
+
+**Produces:** A full-height ready composition that has four compact command rows above three owner-scoped SimC preview rows; the preview is independently loading/error/empty-safe and can open a real task detail.
+
+- [ ] **Step 1: Write the failing preview-model tests**
+
+  In `builds-recent-simc-model.test.ts`, lock the exact public helper before implementation:
+
+  ```ts
+  import { describe, expect, it } from 'vitest'
+  import { buildRecentSimcTaskPreviews } from './builds-recent-simc-model'
+
+  it('keeps only the three newest current SimC submissions across classes', () => {
+    const previews = buildRecentSimcTaskPreviews([
+      task('old-mage', 'simcraft_template', '2026-07-20T10:00:00Z'),
+      task('legacy-agent', 'simcraft_agent', '2026-07-21T12:00:00Z'),
+      task('latest-priest', 'simcraft_template', '2026-07-21T13:00:00Z'),
+      task('middle-warrior', 'simcraft_template', '2026-07-21T12:00:00Z'),
+      task('third-shaman', 'simcraft_template', '2026-07-21T11:00:00Z'),
+      task('fourth-druid', 'simcraft_template', '2026-07-21T09:00:00Z'),
+    ])
+    expect(previews.map((item) => item.id)).toEqual(['latest-priest', 'middle-warrior', 'third-shaman'])
+  })
+
+  it('uses neutral returned-field fallbacks and preserves the real task state', () => {
+    const [preview] = buildRecentSimcTaskPreviews([task('no-report', 'simcraft_template', 'invalid')])
+    expect(preview).toMatchObject({ id: 'no-report', state: 'unknown', timeLabel: '未返回时间' })
+    expect(preview.title).not.toMatch(/DPS|BiS|占位/u)
+  })
+  ```
+
+- [ ] **Step 2: Run the preview-model test to prove RED**
+
+  ```bash
+  npm run test:taro -- apps/mini-taro/src/pages/builds/builds-recent-simc-model.test.ts
+  ```
+
+  Expected: FAIL because `buildRecentSimcTaskPreviews` does not exist.
+
+- [ ] **Step 3: Implement the smallest pure preview adapter**
+
+  In `builds-recent-simc-model.ts`, export:
+
+  ```ts
+  export interface RecentSimcTaskPreview {
+    id: string
+    title: string
+    detail: string
+    state: TaskStatusGroup
+    stateLabel: string
+    timeLabel: string
+    navigable: boolean
+  }
+
+  export function buildRecentSimcTaskPreviews(
+    tasks: readonly SimulatorTaskRecord[],
+  ): readonly RecentSimcTaskPreview[]
+  ```
+
+  First apply `task.mode === 'simcraft_template'`, then use `filterAndSortTasks(filtered, 'all', 'newest').slice(0, 3)`. Convert each row with `taskRecordView`: use `view.tags[0]` as `title`, `view.tags[1]` as `detail`, and forward `id`, `state`, `stateLabel`, `timeLabel`, and `navigable`. Do not duplicate timestamp/status parsing or introduce task counts, DPS, readiness, local fixtures, or class filtering.
+
+- [ ] **Step 4: Run the preview-model tests to prove GREEN**
+
+  ```bash
+  npm run test:taro -- apps/mini-taro/src/pages/builds/builds-recent-simc-model.test.ts apps/mini-taro/src/pages/simulator/tasks-list-model.test.ts
+  ```
+
+  Expected: PASS; older agent-mode tasks never enter the three rows, newest ordering is deterministic, and invalid timestamps stay neutral.
+
+- [ ] **Step 5: Write the failing shared-component contract test**
+
+  In `BuildRecentSimcTasks.test.ts`, test the pure interaction boundary and source contracts:
+
+  ```ts
+  expect(read('BuildRecentSimcTasks.tsx')).toContain('data-owner="build-recent-simc-tasks"')
+  expect(read('BuildRecentSimcTasks.tsx')).toContain('data-role="build-recent-simc-row"')
+  expect(read('BuildRecentSimcTasks.tsx')).toContain('data-role="build-recent-simc-retry"')
+  expect(read('BuildRecentSimcTasks.tsx')).not.toMatch(/DPS|准备状态|模板状态/u)
+  ```
+
+- [ ] **Step 6: Run the component test to prove RED**
+
+  ```bash
+  npm run test:taro -- packages/design-system/src/components/BuildRecentSimcTasks.test.ts
+  ```
+
+  Expected: FAIL because the component and export do not exist.
+
+- [ ] **Step 7: Implement the compact task preview component and styles**
+
+  Export this single interface from `BuildRecentSimcTasks.tsx`:
+
+  ```ts
+  export interface BuildRecentSimcTasksProps {
+    items: readonly RecentSimcTaskPreview[]
+    state: 'loading' | 'ready' | 'empty' | 'error'
+    errorDetail?: string
+    onRetry: () => void
+    onSelect: (id: string) => void
+  }
+  ```
+
+  Render a `data-owner="build-recent-simc-tasks"` title row followed by one stable body. `ready` renders up to three `ControlButton` rows; each row has title, detail, real status label, time label, and a chevron only when `navigable`. `loading` renders three non-interactive skeleton rows. `empty` renders one neutral empty row. `error` renders one error row and the only retry button. Add a `recentSimc*` family to `BuildsHomeCommandDeck.module.scss`; rows must be compact, the recent region must have `min-height: 0`, and no child may acquire its own scrolling container. Export component and types from `packages/design-system/src/index.ts`.
+
+- [ ] **Step 8: Run the shared-component test to prove GREEN**
+
+  ```bash
+  npm run test:taro -- packages/design-system/src/components/BuildRecentSimcTasks.test.ts packages/design-system/src/components/BuildsHomeCommandDeck.test.ts
+  ```
+
+  Expected: PASS; stable selectors and no forbidden task facts are present, while the existing command deck contract remains unchanged.
+
+- [ ] **Step 9: Write the failing page composition test**
+
+  Add this to `builds-home-page-contract.test.ts`:
+
+  ```ts
+  expect(pageSource).toContain('wowApi.simulator.tasks()')
+  expect(pageSource).toContain('<BuildRecentSimcTasks')
+  expect(pageSource).toContain("data-region=\"recent_simc_tasks\"")
+  expect(pageSource).toContain("navigateTo('/pages/simulator/task-detail', { id })")
+  expect(pageSource).toContain('useDidShow')
+  ```
+
+  Add CSS source assertions for `grid-template-rows`, `commandDeckRegion`, `recentTasksRegion`, and absence of `overflow-y: auto`.
+
+- [ ] **Step 10: Run the page contract test to prove RED**
+
+  ```bash
+  npm run test:taro -- apps/mini-taro/src/pages/builds/builds-home-page-contract.test.ts
+  ```
+
+  Expected: FAIL because the page only owns the command deck.
+
+- [ ] **Step 11: Compose independent task loading and the full-height `4 + 3` grid**
+
+  In `builds.tsx`, add a second `useAsyncRoute(() => wowApi.simulator.tasks(), { fallbackPolicy: 'empty', isEmpty: (payload) => payload.tasks.length === 0 })`. Derive preview data only through `buildRecentSimcTaskPreviews(taskRoute.data?.tasks ?? [])`. Reload this route in `useDidShow` after initial mount, so returning from a task detail refreshes the three rows. Keep the existing pull-down refresh: call both `route.load()` and `taskRoute.load()`, then stop refresh after both settle.
+
+  Place `BuildCommandDeck` in `data-region="command_deck"` and `BuildRecentSimcTasks` in `data-region="recent_simc_tasks"`; use `navigateTo('/pages/simulator/task-detail', { id })` for preview selection. A task-route failure must pass only the preview state/error and retry callback; it must never turn the class catalog or four commands into blocked state.
+
+  In `builds-home.module.scss`, make `.surface` a two-row grid with `grid-template-rows: minmax(0, 4fr) minmax(0, 3fr)` and a design-token-sized gap. Make `.commandDeckRegion` and `.recentTasksRegion` fill their assigned rows. Reduce the command deck card padding, medallion, glyph, card gap, and copy line height in `BuildsHomeCommandDeck.module.scss` so every region fills assigned height without vertical scroll. Do not use a fixed pixel height, `overflow-y: auto`, a fake bottom spacer, or a route-private TabBar.
+
+- [ ] **Step 12: Run page, model, and existing task-model tests to prove GREEN**
+
+  ```bash
+  npm run test:taro -- apps/mini-taro/src/pages/builds/builds-recent-simc-model.test.ts apps/mini-taro/src/pages/builds/builds-home-page-contract.test.ts apps/mini-taro/src/pages/builds/builds-home-model.test.ts apps/mini-taro/src/pages/simulator/tasks-list-model.test.ts packages/design-system/src/components/BuildRecentSimcTasks.test.ts
+  ```
+
+  Expected: PASS; command navigation stays unchanged, the preview is owner-scoped/cross-class/current-SimC-only, and the page has independent task recovery.
+
+- [ ] **Step 13: Update current-ui contracts and run scoped validation**
+
+  Update builds-home `target-inventory.json`, `target-geometry.json`, `truth-adaptation.json`, `component-contract.json`, `asset-contract.json`, `core-interaction-contract.json`, `route-geometry-contract.json`, and `runtime-region-mapping-contract.json` to add `recent_simc_tasks` and the `4 + 3` full-height topology. The target measurement is performed only in the designated isolated context; this implementation plan and runtime CSS are not target geometry input.
+
+  ```bash
+  npm run typecheck
+  npm run audit:ui-architecture
+  npm run verify:ui-route-geometry
+  npm run verify:ui-selected-states
+  npm run build:weapp
+  ```
+
+  Expected: exit 0. Any unavailable WeChat screenshot/geometry automation stays `UNVERIFIED`; no static command proves visual acceptance.
+
+- [ ] **Step 14: Commit the compact preview candidate**
+
+  ```bash
+  git add apps/mini-taro/src/pages/builds/builds-recent-simc-model.ts apps/mini-taro/src/pages/builds/builds-recent-simc-model.test.ts apps/mini-taro/src/pages/builds/builds.tsx apps/mini-taro/src/pages/builds/builds-home.module.scss apps/mini-taro/src/pages/builds/builds-home-page-contract.test.ts packages/design-system/src/components/BuildRecentSimcTasks.tsx packages/design-system/src/components/BuildRecentSimcTasks.test.ts packages/design-system/src/components/BuildsHomeCommandDeck.module.scss packages/design-system/src/index.ts docs/design/current-ui
+  git commit -m "feat(builds): add compact recent simc preview"
+  ```
