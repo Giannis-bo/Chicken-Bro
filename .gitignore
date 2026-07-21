@@ -14,6 +14,9 @@ server/data/
 # Local parallel worktrees
 .worktrees/
 
+# Agent scratch artifacts
+.superpowers/
+
 # Taro workspace
 node_modules/
 coverage/
