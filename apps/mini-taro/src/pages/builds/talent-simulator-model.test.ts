@@ -13,6 +13,7 @@ import {
   heroTalentOptions,
   applyTalentValidation,
   communityTalentRegionLabel,
+  communityTalentTemplateHasPlayerChoices,
   communityTalentWinnerForImport,
   defaultTalentTemplateTitle,
   initialTalentRanks,
@@ -129,6 +130,38 @@ describe('talent simulator target model', () => {
       spellslingerWinner,
       frostfireWinner,
     ], 'frostfire')).toBe(frostfireWinner)
+  })
+
+  it('does not replace the winner a player selected while refreshing community import data', () => {
+    const selectedWinner: CommunityTemplateReference = {
+      id: 'winner-visible-when-sheet-opened',
+      heroKey: 'spellslinger',
+      status: 'verified',
+      canApplyVisual: true,
+      talentState: { selectedNodes: [{ id: 'root', rank: 1 }, { id: 'child', rank: 1 }] },
+    }
+    const replacementWinner: CommunityTemplateReference = {
+      id: 'newer-winner-arrived-during-refresh',
+      heroKey: 'spellslinger',
+      status: 'verified',
+      canApplyVisual: true,
+      talentState: { selectedNodes: [{ id: 'root', rank: 1 }, { id: 'new-child', rank: 1 }] },
+    }
+
+    expect(communityTalentWinnerForImport(
+      [replacementWinner],
+      'spellslinger',
+      selectedWinner.id,
+    )).toBeUndefined()
+  })
+
+  it('rejects a community template that only contains its system-granted root', () => {
+    expect(communityTalentTemplateHasPlayerChoices({
+      talentState: { selectedNodes: [{ id: 'root', rank: 1 }] },
+    })).toBe(false)
+    expect(communityTalentTemplateHasPlayerChoices({
+      talentState: { selectedNodes: [{ id: 'root', rank: 1 }, { id: 'choice', rank: 1 }] },
+    })).toBe(true)
   })
 
   it('retains real coordinates and prerequisite edges without presenting local legality as authoritative', () => {

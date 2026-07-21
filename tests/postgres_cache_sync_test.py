@@ -127,6 +127,8 @@ def simc_graph_baseline(candidate):
                 "dependencies": 0,
                 "graphEntries": [],
                 "contentEntries": [],
+                "visualSlots": {},
+                "foreignSpecNodeIds": [],
             },
         )
         parent_ids = [parent_id for parent_id in (payload.get("parentIds") or []) if parent_id]
@@ -187,10 +189,16 @@ def simc_graph_baseline(candidate):
                 payload,
             )
         )
+        if not payload.get("choiceGroup") and payload.get("shape") != "choice":
+            counts["visualSlots"].setdefault((int(talent.get("row") or 0), int(talent.get("col") or 0)), []).append(
+                str(talent.get("id") or "")
+            )
     rows = list(contexts.values())
     for row in rows:
         entries = sorted(row.pop("graphEntries"))
         content_entries = sorted(row.pop("contentEntries"))
+        visual_slots = row.pop("visualSlots")
+        foreign_spec_node_ids = row.pop("foreignSpecNodeIds")
         row["nodeIds"] = [entry[0] for entry in entries]
         row["structureSignature"] = hashlib.sha256(
             json.dumps(content_entries, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
@@ -199,6 +207,11 @@ def simc_graph_baseline(candidate):
         row["graphSignature"] = hashlib.sha256(
             json.dumps(entries, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
         ).hexdigest()
+        row["visualSlots"] = [
+            {"row": row_index, "col": col_index, "nodeIds": sorted(node_ids)}
+            for (row_index, col_index), node_ids in sorted(visual_slots.items())
+        ]
+        row["foreignSpecNodeIds"] = sorted(set(foreign_spec_node_ids))
     presets = [preset for preset in (candidate.get("presets") or []) if isinstance(preset, dict)]
     profile_specs = sorted(
         {
@@ -478,6 +491,34 @@ class PostgresCacheSyncTest(unittest.TestCase):
         self.assertEqual(payload["runner"], "postgres")
         self.assertEqual(store.saved_raiderio_payloads[-1]["checkedAt"], "fresh-cache")
         self.assertEqual(store.saved_raiderio_payloads[-1]["communityTemplates"][0]["id"], "fresh-template")
+
+    def test_raiderio_postgres_sync_keeps_last_success_when_collection_returns_blocked(self):
+        from server import postgres_cache_sync
+
+        store = FakePostgresSyncStore()
+        store.raiderio_payload = {
+            "sourceStatus": "synced",
+            "status": "synced",
+            "checkedAt": "last-success",
+            "communityTemplates": [{"id": "last-success-template"}],
+        }
+        blocked_payload = {
+            "sourceStatus": "blocked",
+            "status": "blocked",
+            "checkedAt": "failed-attempt",
+            "errors": ["Raider.IO TLS connection failed"],
+            "communityTemplates": [],
+        }
+
+        with patch.object(postgres_cache_sync, "sync_raiderio_cache", return_value=blocked_payload, create=True):
+            payload = postgres_cache_sync.sync_raiderio_cache_postgres(store=store)
+
+        self.assertEqual(payload["sourceStatus"], "stale")
+        self.assertEqual(payload["status"], "stale")
+        self.assertEqual(payload["checkedAt"], "last-success")
+        self.assertEqual(payload["communityTemplates"][0]["id"], "last-success-template")
+        self.assertIn("Raider.IO TLS connection failed", payload["errors"])
+        self.assertEqual(store.saved_raiderio_payloads, [])
 
     def test_community_postgres_sync_refreshes_raiderio_before_loading_sources(self):
         from server import postgres_cache_sync
@@ -1025,6 +1066,124 @@ class PostgresCacheSyncTest(unittest.TestCase):
                     {"graphBaseline": baseline},
                 )
 
+    def test_simc_candidate_validation_allows_cross_source_legacy_visual_slot_deduplication(self):
+        from server import postgres_cache_sync
+
+        simc_data = complete_simc_candidate()
+        baseline_candidate = json.loads(json.dumps(simc_data))
+        hero_nodes = [
+            talent
+            for talent in baseline_candidate["talents"]
+            if talent.get("treeType") == "hero"
+        ]
+        root = hero_nodes[0]
+        legacy_root = json.loads(json.dumps(root))
+        legacy_root["id"] = f"{root['id']}-legacy-duplicate"
+        legacy_root["spellId"] = 199001
+        legacy_root["name"] = "Legacy duplicate root"
+        legacy_payload = legacy_root["payload"]
+        legacy_payload.update({"nodeId": 99001, "traitId": 99101, "traitDefinitionId": 99201})
+        legacy_payload["rankEntries"] = [{
+            **legacy_payload["rankEntries"][0],
+            "traitId": 99101,
+            "traitDefinitionId": 99201,
+            "spellId": 199001,
+        }]
+        baseline_candidate["talents"].append(legacy_root)
+        for talent in hero_nodes[1:]:
+            talent["payload"]["parentIds"].append(legacy_root["id"])
+        baseline_candidate["dependencies"] = sum(
+            len((talent.get("payload") or {}).get("parentIds") or [])
+            for talent in baseline_candidate["talents"]
+        )
+        baseline = simc_graph_baseline(baseline_candidate)
+        baseline["dependencies"] = simc_data["dependencies"]
+        hero_context = next(
+            row for row in baseline["contexts"]
+            if row["treeType"] == "hero" and row["heroKey"] == "spellslinger"
+        )
+        hero_context["visualSlots"] = [{
+            "row": root["row"],
+            "col": root["col"],
+            "nodeIds": [root["id"], legacy_root["id"]],
+        }]
+        simc_data["source"] = "new-simc-source"
+
+        with patch.object(postgres_cache_sync, "expected_spec_pairs", return_value=["mage:frost"]), patch.object(
+            postgres_cache_sync,
+            "expected_hero_tree_triplets",
+            return_value=["mage:frost:spellslinger"],
+        ):
+            counts = postgres_cache_sync.validate_simc_generated_data_candidate(
+                simc_data,
+                {
+                    "simc": {"source": "old-simc-source"},
+                    "graphBaseline": baseline,
+                },
+            )
+
+        self.assertEqual(counts["dependencies"], simc_data["dependencies"])
+
+    def test_simc_candidate_validation_allows_legacy_foreign_hero_spec_cleanup(self):
+        from server import postgres_cache_sync
+
+        simc_data = complete_simc_candidate()
+        baseline_candidate = json.loads(json.dumps(simc_data))
+        hero_nodes = [
+            talent
+            for talent in baseline_candidate["talents"]
+            if talent.get("treeType") == "hero"
+        ]
+        root = hero_nodes[0]
+        foreign_root = json.loads(json.dumps(root))
+        foreign_root["id"] = f"{root['id']}-foreign-hero-variant"
+        foreign_root["spellId"] = 199101
+        foreign_root["name"] = "Foreign hero variant"
+        foreign_payload = foreign_root["payload"]
+        foreign_payload.update({
+            "nodeId": 99101,
+            "traitId": 99201,
+            "traitDefinitionId": 99301,
+            "choiceGroup": "legacy-foreign-variant",
+            "shape": "choice",
+        })
+        foreign_payload["rankEntries"] = [{
+            **foreign_payload["rankEntries"][0],
+            "traitId": 99201,
+            "traitDefinitionId": 99301,
+            "spellId": 199101,
+        }]
+        baseline_candidate["talents"].append(foreign_root)
+        for talent in hero_nodes[1:]:
+            talent["payload"]["parentIds"].append(foreign_root["id"])
+        baseline_candidate["dependencies"] = sum(
+            len((talent.get("payload") or {}).get("parentIds") or [])
+            for talent in baseline_candidate["talents"]
+        )
+        baseline = simc_graph_baseline(baseline_candidate)
+        baseline["dependencies"] = simc_data["dependencies"]
+        hero_context = next(
+            row for row in baseline["contexts"]
+            if row["treeType"] == "hero" and row["heroKey"] == "spellslinger"
+        )
+        hero_context["foreignSpecNodeIds"] = [foreign_root["id"]]
+        simc_data["source"] = "new-simc-source"
+
+        with patch.object(postgres_cache_sync, "expected_spec_pairs", return_value=["mage:frost"]), patch.object(
+            postgres_cache_sync,
+            "expected_hero_tree_triplets",
+            return_value=["mage:frost:spellslinger"],
+        ):
+            counts = postgres_cache_sync.validate_simc_generated_data_candidate(
+                simc_data,
+                {
+                    "simc": {"source": "old-simc-source"},
+                    "graphBaseline": baseline,
+                },
+            )
+
+        self.assertEqual(counts["dependencies"], simc_data["dependencies"])
+
     def test_simc_candidate_validation_rejects_tree_identity_mismatch(self):
         from server import postgres_cache_sync
 
@@ -1466,6 +1625,58 @@ class PostgresCacheSyncTest(unittest.TestCase):
                 simc_data,
                 {
                     "simc": {"source": simc_data["source"], "build": simc_data["build"]},
+                    "graphBaseline": baseline,
+                },
+            )
+
+        self.assertEqual(counts["dependencies"], simc_data["dependencies"])
+
+    def test_simc_candidate_validation_allows_same_source_self_override_node_recovery(self):
+        from server import postgres_cache_sync
+
+        simc_data = complete_simc_candidate()
+        baseline = simc_graph_baseline(simc_data)
+        hero_nodes = [
+            talent
+            for talent in simc_data["talents"]
+            if talent.get("treeType") == "hero"
+        ]
+        root = hero_nodes[0]
+        recovered = json.loads(json.dumps(root))
+        recovered["id"] = f"{root['id']}-self-override-recovery"
+        recovered["row"] = 6
+        recovered["spellId"] = 199201
+        recovered["name"] = "Recovered self override"
+        recovered_payload = recovered["payload"]
+        recovered_payload.update({
+            "nodeId": 99201,
+            "traitId": 99301,
+            "traitDefinitionId": 99401,
+            "overrideSpellId": 199201,
+            "parentIds": [root["id"]],
+        })
+        recovered_payload["rankEntries"] = [{
+            **recovered_payload["rankEntries"][0],
+            "traitId": 99301,
+            "traitDefinitionId": 99401,
+            "spellId": 199201,
+        }]
+        simc_data["talents"].append(recovered)
+        hero_nodes[-1]["payload"]["parentIds"].append(recovered["id"])
+        simc_data["dependencies"] = sum(
+            len((talent.get("payload") or {}).get("parentIds") or [])
+            for talent in simc_data["talents"]
+        )
+
+        with patch.object(postgres_cache_sync, "expected_spec_pairs", return_value=["mage:frost"]), patch.object(
+            postgres_cache_sync,
+            "expected_hero_tree_triplets",
+            return_value=["mage:frost:spellslinger"],
+        ):
+            counts = postgres_cache_sync.validate_simc_generated_data_candidate(
+                simc_data,
+                {
+                    "simc": {"source": simc_data["source"]},
                     "graphBaseline": baseline,
                 },
             )
@@ -2321,6 +2532,8 @@ class PostgresCacheSyncTest(unittest.TestCase):
         def fake_sync_raiderio_cache_postgres(**_kwargs):
             captured_env["targetSpecs"] = os.environ.get("WOW_RAIDERIO_SPEC_RANKING_TARGET_SPECS", "")
             captured_env["runPages"] = os.environ.get("WOW_RAIDERIO_RUN_PAGES", "")
+            captured_env["runDetailLimit"] = os.environ.get("WOW_RAIDERIO_RUN_DETAIL_LIMIT", "")
+            captured_env["runDetailLimitPerSpec"] = os.environ.get("WOW_RAIDERIO_RUN_DETAIL_LIMIT_PER_SPEC", "")
             return {"sourceStatus": "verified", "runCount": 1, "profileCount": 1}
 
         with patch.object(
@@ -2337,6 +2550,8 @@ class PostgresCacheSyncTest(unittest.TestCase):
 
         target_specs = set(filter(None, captured_env["targetSpecs"].split(",")))
         self.assertEqual(captured_env["runPages"], "0")
+        self.assertEqual(captured_env["runDetailLimit"], "240")
+        self.assertEqual(captured_env["runDetailLimitPerSpec"], "6")
         self.assertIn("mage:frost", target_specs)
         self.assertNotIn("mage:arcane", target_specs)
         self.assertIn("mage:frost:frostfire", set(store.talent_replace_target_slot_ids or []))
@@ -2433,6 +2648,130 @@ class PostgresCacheSyncTest(unittest.TestCase):
         by_slot = {row["slotId"]: row for row in state["coverageMatrix"]["rows"]}
         self.assertEqual(by_slot["mage:arcane:spellslinger"]["status"], "verified")
         self.assertEqual(by_slot["mage:arcane:sunfury"]["status"], "verified")
+
+    def test_community_postgres_targeted_slots_mode_replaces_only_requested_winner_slot(self):
+        from server import postgres_cache_sync
+        from server.websim_payload import COMMUNITY_TALENT_SYNC_KEY
+
+        store = FakePostgresSyncStore()
+        store.community_gear_template_counts = lambda: {"total": 0, "verified": 0, "partial": 0, "blocked": 0}
+        gear_build_calls = []
+        store.build_community_gear_templates = lambda **kwargs: gear_build_calls.append(kwargs) or [
+            {"id": "unrelated-gear-template", "status": "verified"}
+        ]
+        store.coverage_rows = [
+            {
+                "id": "existing-arcane-spellslinger",
+                "sourceKey": "raiderio",
+                "sourceName": "Raider.IO",
+                "classKey": "mage",
+                "specKey": "arcane",
+                "heroKey": "spellslinger",
+                "scenarioKey": "mythic_plus",
+                "status": "verified",
+            },
+            {
+                "id": "existing-arcane-sunfury-wcl",
+                "sourceKey": "warcraftlogs",
+                "sourceName": "Warcraft Logs",
+                "classKey": "mage",
+                "specKey": "arcane",
+                "heroKey": "sunfury",
+                "scenarioKey": "mythic_plus",
+                "status": "verified",
+            },
+        ]
+        captured_env = {}
+
+        def fake_sync_raiderio_cache_postgres(**_kwargs):
+            captured_env["targetSpecs"] = os.environ.get("WOW_RAIDERIO_SPEC_RANKING_TARGET_SPECS", "")
+            captured_env["runPages"] = os.environ.get("WOW_RAIDERIO_RUN_PAGES", "")
+            return {"sourceStatus": "verified", "runCount": 1, "profileCount": 1}
+
+        with patch.dict(
+            os.environ,
+            {"WOW_COMMUNITY_TEMPLATE_TARGET_SLOTS": "mage:arcane:sunfury,not:a:real-slot"},
+            clear=False,
+        ), patch.object(
+            postgres_cache_sync,
+            "sync_raiderio_cache_postgres",
+            side_effect=fake_sync_raiderio_cache_postgres,
+        ), patch.object(
+            postgres_cache_sync,
+            "load_community_talent_sources_postgres",
+            return_value={
+                "raiderio": {
+                    "status": "verified",
+                    "sourceName": "Raider.IO",
+                    "templates": [
+                        {
+                            "id": "rio-arcane-spellslinger-unrelated",
+                            "classKey": "mage",
+                            "specKey": "arcane",
+                            "heroKey": "spellslinger",
+                            "scenarioKey": "mythic_plus",
+                            "talentState": {"selectedNodes": [{"id": "node-unrelated", "rank": 1}]},
+                            "status": "verified",
+                        },
+                        {
+                            "id": "rio-arcane-sunfury-refresh",
+                            "classKey": "mage",
+                            "specKey": "arcane",
+                            "heroKey": "sunfury",
+                            "scenarioKey": "mythic_plus",
+                            "talentState": {"selectedNodes": [{"id": "node-refresh", "rank": 1}]},
+                            "status": "verified",
+                        },
+                    ],
+                    "errors": [],
+                }
+            },
+            create=True,
+        ):
+            postgres_cache_sync.sync_community_template_cache_postgres(store=store, mode="targeted_slots")
+
+        self.assertEqual(captured_env["targetSpecs"], "mage:arcane")
+        self.assertEqual(captured_env["runPages"], "0")
+        self.assertEqual(store.talent_replace_target_slot_ids, ["mage:arcane:sunfury"])
+        self.assertEqual([template["id"] for template in store.community_talent_templates], ["rio-arcane-sunfury-refresh"])
+        self.assertEqual(gear_build_calls, [])
+        self.assertEqual(store.community_gear_templates, [])
+
+        state = {key: value for key, value, _updated_at in store.saved_states}[COMMUNITY_TALENT_SYNC_KEY]
+        by_slot = {row["slotId"]: row for row in state["coverageMatrix"]["rows"]}
+        self.assertEqual(by_slot["mage:arcane:spellslinger"]["verifiedTemplateIds"], ["existing-arcane-spellslinger"])
+        self.assertEqual(by_slot["mage:arcane:sunfury"]["verifiedTemplateIds"], ["rio-arcane-sunfury-refresh"])
+
+    def test_community_postgres_targeted_slots_mode_fails_closed_without_valid_slot_ids(self):
+        from server import postgres_cache_sync
+
+        store = FakePostgresSyncStore()
+        store.community_talent_templates = [{"id": "existing-winner"}]
+        refresh_calls = []
+
+        with patch.dict(
+            os.environ,
+            {"WOW_COMMUNITY_TEMPLATE_TARGET_SLOTS": "not:a:real-slot"},
+            clear=False,
+        ), patch.object(
+            postgres_cache_sync,
+            "sync_raiderio_cache_postgres",
+            side_effect=lambda **_kwargs: refresh_calls.append(True),
+        ), patch.object(
+            postgres_cache_sync,
+            "load_community_talent_sources_postgres",
+            return_value={"raiderio": {"status": "verified", "sourceName": "Raider.IO", "templates": []}},
+            create=True,
+        ):
+            payload = postgres_cache_sync.sync_community_template_cache_postgres(store=store, mode="targeted_slots")
+
+        self.assertEqual(refresh_calls, [])
+        self.assertEqual(store.community_talent_templates, [{"id": "existing-winner"}])
+        source_stage = next(
+            stage for stage in payload["stageTimings"]["stages"] if stage.get("stage") == "source_collection"
+        )
+        self.assertEqual(source_stage["targetMode"], "targeted_slots")
+        self.assertEqual(source_stage["targetSlotCount"], 0)
 
     def test_community_postgres_sync_uses_promoted_templates_for_coverage(self):
         from server import postgres_cache_sync
@@ -2621,6 +2960,30 @@ class PostgresCacheSyncTest(unittest.TestCase):
         self.assertNotIn("websim_baseline", sources)
         self.assertEqual(set(sources), {"raiderio", "warcraftlogs"})
 
+    def test_community_postgres_source_loader_preserves_wcl_skip_warning(self):
+        from server import postgres_cache_sync
+
+        store = FakePostgresSyncStore()
+        store.raiderio_payload = {"sourceStatus": "verified", "communityTemplates": [], "errors": []}
+
+        with patch(
+            "server.community_talent_sources.warcraftlogs.load_templates",
+            return_value={
+                "status": "synced",
+                "sourceName": "Warcraft Logs",
+                "templates": [],
+                "warnings": ["Warcraft Logs ranking extraction skipped: no target slots for this sync run."],
+                "errors": [],
+            },
+        ):
+            sources = postgres_cache_sync.load_community_talent_sources_postgres(store)
+
+        self.assertEqual(sources["warcraftlogs"]["status"], "synced")
+        self.assertEqual(
+            sources["warcraftlogs"]["warnings"],
+            ["Warcraft Logs ranking extraction skipped: no target slots for this sync run."],
+        )
+
     def test_community_postgres_sync_expires_disabled_non_community_sources(self):
         from server import postgres_cache_sync
 
@@ -2771,6 +3134,24 @@ class PostgresCacheSyncTest(unittest.TestCase):
         self.assertEqual(by_id["wcl-supported"]["payload"]["wclEvidence"]["tier"], "wcl_character_supported")
         self.assertEqual(by_id["wcl-conflict"]["payload"]["wclEvidence"]["tier"], "wcl_conflict")
         self.assertEqual(by_id["wcl-conflict"]["status"], "blocked")
+
+    def test_warcraftlogs_no_target_slots_is_a_synced_skip(self):
+        from server.community_talent_sources import warcraftlogs
+
+        with patch.object(
+            warcraftlogs,
+            "warcraftlogs_credentials_state",
+            return_value={"configured": True, "api": "warcraftlogs-v2-graphql", "mode": "oauth"},
+        ), patch.object(warcraftlogs, "target_slots_for_run", return_value=[]):
+            result = warcraftlogs.load_templates()
+
+        self.assertEqual(result["status"], "synced")
+        self.assertEqual(result["templates"], [])
+        self.assertEqual(result["errors"], [])
+        self.assertEqual(
+            result["warnings"],
+            ["Warcraft Logs ranking extraction skipped: no target slots for this sync run."],
+        )
 
     def test_warcraftlogs_rankings_extract_wcl_exact_template_candidates(self):
         from server.community_talent_sources import warcraftlogs

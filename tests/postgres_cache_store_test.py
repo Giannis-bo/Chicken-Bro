@@ -8358,6 +8358,11 @@ class PostgresCacheStoreTest(unittest.TestCase):
                                 signature_entry("class-root", 1, 1, 101, 201, 301, []),
                             ]
                         ),
+                        "visualSlots": [
+                            {"row": 1, "col": 1, "nodeIds": ["class-root"]},
+                            {"row": 2, "col": 1, "nodeIds": ["class-child"]},
+                        ],
+                        "foreignSpecNodeIds": [],
                     },
                     {
                         "classKey": "mage",
@@ -8386,6 +8391,11 @@ class PostgresCacheStoreTest(unittest.TestCase):
                                 signature_entry("hero-root", 1, 2, 103, 203, 303, []),
                             ]
                         ),
+                        "visualSlots": [
+                            {"row": 1, "col": 2, "nodeIds": ["hero-root"]},
+                            {"row": 2, "col": 2, "nodeIds": ["hero-child"]},
+                        ],
+                        "foreignSpecNodeIds": [],
                     },
                     {
                         "classKey": "mage",
@@ -8414,6 +8424,11 @@ class PostgresCacheStoreTest(unittest.TestCase):
                                 signature_entry("spec-root", 1, 3, 105, 205, 305, []),
                             ]
                         ),
+                        "visualSlots": [
+                            {"row": 1, "col": 3, "nodeIds": ["spec-root"]},
+                            {"row": 2, "col": 3, "nodeIds": ["spec-child"]},
+                        ],
+                        "foreignSpecNodeIds": [],
                     },
                 ],
                 "talents": 6,

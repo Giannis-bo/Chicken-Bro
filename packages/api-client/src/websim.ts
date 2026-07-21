@@ -181,7 +181,7 @@ export function normalizeCommunityTemplateReference(
   const rank = value['mplusRank']
   const strings = [
     'id', 'title', 'name', 'classKey', 'specKey', 'heroKey', 'scenarioKey',
-    'rawImportCode', 'importCode', 'talentImport', 'sourceUrl', 'source', 'sourceKey',
+    'rawImportCode', 'importCode', 'websimExportCode', 'talentImport', 'sourceUrl', 'source', 'sourceKey',
     'sourceName', 'status', 'sourceStatus', 'playerName', 'serverName', 'region',
     'freshnessStatus', 'updatedAt', 'analysisWindow',
   ] as const

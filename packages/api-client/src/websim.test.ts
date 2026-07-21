@@ -98,6 +98,7 @@ describe('websim talent normalization', () => {
       freshnessStatus: 'stale',
       isStale: true,
       talentState: { selectedNodes: [{ id: 'root', rank: 1 }] },
+      websimExportCode: 7 as unknown as string,
     })
 
     expect(normalized).toMatchObject({
@@ -107,6 +108,7 @@ describe('websim talent normalization', () => {
       mplusScore: 4123.4,
       freshnessStatus: 'stale',
       isStale: true,
+      websimExportCode: '',
     })
   })
 

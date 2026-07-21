@@ -341,7 +341,7 @@ def ranking_template_target_filter(store, template):
 def load_ranking_templates(store=None):
     slots = target_slots_for_run(store)
     if not slots:
-        return [], [], ["Warcraft Logs ranking extraction has no target slots for this sync run."]
+        return [], ["Warcraft Logs ranking extraction skipped: no target slots for this sync run."], []
     encounters, partition, warnings = discover_default_ranking_targets()
     if not encounters:
         return [], warnings, ["Warcraft Logs ranking extraction has no encounter targets for this sync run."]
@@ -531,6 +531,16 @@ def load_templates(conn=None):
             "templates": templates,
             "warnings": warnings,
             "errors": ranking_errors,
+        }
+    if not ranking_errors and any("no target slots" in str(warning).lower() for warning in warnings):
+        return {
+            "status": "synced",
+            "sourceName": "Warcraft Logs",
+            "credentialMode": credentials["mode"],
+            "api": credentials["api"],
+            "templates": [],
+            "warnings": warnings,
+            "errors": [],
         }
     errors = ranking_errors or ["Warcraft Logs v2 credentials are configured, but no combatantinfo template seed/report extraction is available for this sync run."]
     return {

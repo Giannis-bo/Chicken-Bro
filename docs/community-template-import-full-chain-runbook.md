@@ -60,6 +60,10 @@ Profile-current 专精与目标 run 不一致时，该样本应计为 source war
 
 每个来源摘要至少包含 candidate、verified、blocked、skipped、warning、error 和 gap 数量；blocker 要指向采集、抽取、归属、authority 或 encoding 阶段。
 
+生产社区天赋矩阵以 `expected_hero_tree_triplets()` 的 80 个 `class/spec/hero` 槽位为准；每个槽位只保留一个 active、可导入的 winner。补洞采集必须先按目标职业和专精独立读取 Raider.IO 高分候选，再从 run-detail 识别英雄天赋并以 M+ 总分选出目标槽位 winner；不得用全局榜单、其他专精或系统 baseline 填洞。候选预算要先在目标专精间公平分配，剩余少量槽位时可以扩大该专精的深页窗口，但不降低 authority、归属或编码门槛。
+
+每个对外 winner 必须带真实玩家名、服务器、实际区域、Raider.IO M+ 总分、更新时间、来源和可导入编码；任一字段缺失时不得替换完整元数据的 active winner。过期模板仍可导入，但必须显式标记“已过期”；采集失败保持最近一次已校验 winner，不能清空为伪成功或冒充最新数据。
+
 ### 读取
 
 `GET /api/websim/talents` 必须：

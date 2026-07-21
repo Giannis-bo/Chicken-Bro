@@ -800,6 +800,22 @@ class WebSimPayloadTest(unittest.TestCase):
             if node["treeType"] == "hero" and node["specKey"] == "holy"
         ], ["Current Armaments"])
 
+    def test_parse_simc_nodes_keep_a_self_referential_override_spell(self):
+        sample = """
+        // Player trait definitions, wow build 12.0.7.68453
+        static constexpr std::array<trait_data_t, 1> __trait_data_data { {
+          { 2, 2, 102519, 81544, 1, 0, 107524, 31884, 0, 31884, 3, 5, 0, "Avenging Wrath", { 70, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 0 },
+        } };
+        """
+
+        nodes = self.websim_payload.parse_trait_data_text(sample)
+
+        self.assertEqual([
+            node["name"]
+            for node in nodes
+            if node["treeType"] == "spec" and node["specKey"] == "retribution"
+        ], ["Avenging Wrath"])
+
     def test_parse_simc_hero_nodes_reuses_a_shared_tree_only_for_a_spec_without_any_record(self):
         sample = """
         // Player trait definitions, wow build 12.0.5.67823
@@ -822,6 +838,35 @@ class WebSimPayloadTest(unittest.TestCase):
             for node in nodes
             if node["treeType"] == "hero" and node["specKey"] == "augmentation"
         ], ["Chrono Flame", "Warp"])
+
+    def test_parse_simc_hero_nodes_repairs_a_sparse_shared_spec_context(self):
+        sample = """
+        // Player trait definitions, wow build 12.0.7.68453
+        static constexpr std::array<trait_data_t, 7> __trait_data_data { {
+          { 3, 13, 122270, 94921, 1, 0, 130001, 438101, 0, 0, 1, 1, 100, "Scale One", { 1467, 0, 0, 0 }, { 1467, 0, 0, 0 }, 36, 0 },
+          { 3, 13, 122271, 94922, 1, 1, 130002, 438102, 0, 0, 2, 1, 100, "Scale Two", { 1467, 0, 0, 0 }, { 0, 0, 0, 0 }, 36, 0 },
+          { 3, 13, 122272, 94923, 1, 2, 130003, 438103, 0, 0, 3, 1, 100, "Scale Three", { 1467, 0, 0, 0 }, { 0, 0, 0, 0 }, 36, 0 },
+          { 3, 13, 122279, 98931, 1, 0, 130004, 438587, 0, 0, 1, 1, 100, "Mass Eruption", { 1473, 0, 0, 0 }, { 0, 0, 0, 0 }, 36, 0 },
+          { 4, 13, 999101, 999101, 1, 0, 0, 0, 0, 0, 1, 1, 100, "0", { 1467, 0, 0, 0 }, { 0, 0, 0, 0 }, 36, 3 },
+          { 4, 13, 999102, 999102, 1, 0, 0, 0, 0, 0, 1, 1, 100, "0", { 1473, 0, 0, 0 }, { 0, 0, 0, 0 }, 36, 3 },
+        } };
+        static constexpr std::array<std::tuple<unsigned, std::string, unsigned>, 1> __trait_sub_tree_data { {
+          { 36, "Scalecommander", 13 },
+        } };
+        """
+
+        nodes = self.websim_payload.parse_trait_data_text(sample)
+        augmentation_nodes = [
+            node for node in nodes
+            if node["treeType"] == "hero"
+            and node["specKey"] == "augmentation"
+            and node["payload"]["heroKey"] == "scalecommander"
+        ]
+
+        self.assertEqual([node["name"] for node in augmentation_nodes], [
+            "Scale Two", "Scale Three", "Mass Eruption",
+        ])
+        self.assertTrue(all(1473 in node["payload"]["idSpecs"] for node in augmentation_nodes))
 
     def test_parse_simc_spelltext_data_text(self):
         sample = r'''
@@ -1918,6 +1963,27 @@ class WebSimPayloadTest(unittest.TestCase):
         deduped = self.websim_payload.dedupe_real_talent_nodes(nodes)
 
         self.assertEqual([node["id"] for node in deduped], ["simc-hero-a-mage-frost-frostfire"])
+
+    def test_talent_payload_keeps_a_self_referential_override_node(self):
+        nodes = [
+            {
+                "id": "simc-spec-102519-paladin-retribution",
+                "classKey": "paladin",
+                "specKey": "retribution",
+                "treeId": "spec:paladin:retribution",
+                "treeType": "spec",
+                "nodeId": 81544,
+                "spellId": 31884,
+                "overrideSpellId": 31884,
+                "row": 3,
+                "col": 5,
+                "choiceGroup": "",
+            },
+        ]
+
+        deduped = self.websim_payload.dedupe_real_talent_nodes(nodes)
+
+        self.assertEqual([node["id"] for node in deduped], ["simc-spec-102519-paladin-retribution"])
 
     def test_talent_payload_filters_cached_hero_variants_to_the_selected_spec(self):
         conn = sqlite3.connect(self.db_path)

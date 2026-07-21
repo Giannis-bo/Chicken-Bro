@@ -394,6 +394,25 @@ class RaiderIOPayloadTest(unittest.TestCase):
         self.assertEqual(evidence["runId"], 9001)
         self.assertEqual(evidence["sourceUrl"], "https://raider.io/mythic-plus-spec-rankings/season-mn-1/world/shaman/elemental")
 
+    def test_ranking_evidence_uses_mplus_score_before_rank(self):
+        higher_score_lower_rank = {
+            "source": "raiderio_spec_ranking",
+            "score": 4342.87,
+            "rank": 10,
+            "maxKeyLevel": 24,
+        }
+        lower_score_higher_rank = {
+            "source": "raiderio_spec_ranking",
+            "score": 4300.11,
+            "rank": 1,
+            "maxKeyLevel": 25,
+        }
+
+        self.assertGreater(
+            raiderio_payload.ranking_evidence_sort_key(higher_score_lower_rank),
+            raiderio_payload.ranking_evidence_sort_key(lower_score_higher_rank),
+        )
+
     def test_api_get_injects_key_user_agent_and_redacts_errors(self):
         captured = {}
 
@@ -545,6 +564,38 @@ class RaiderIOPayloadTest(unittest.TestCase):
         self.assertEqual(raiderio_check["status"], "partial")
         self.assertIn("raiderio", [item["key"] for item in spec_module["sourceChecks"]])
         self.assertTrue(spec_module["archonTierSummary"]["dps"]["tiers"])
+
+    def test_sync_raiderio_cache_persists_templates_without_full_profiles_in_talent_compact_mode(self):
+        os.environ["WOW_RAIDERIO_TALENT_COMPACT"] = "1"
+        os.environ["WOW_RAIDERIO_PROFILE_BATCH_SIZE"] = "1"
+
+        def fake_api_get(path, params=None, api_key=None):
+            if path == "/mythic-plus/runs":
+                return sample_runs_payload()
+            if path == "/characters/profile":
+                self.assertEqual(params["fields"], "talents")
+                if params["name"] == "Tankone":
+                    return sample_profile_payload("Tankone", "warrior", "protection")
+                return sample_profile_payload()
+            if path == "/mythic-plus/static-data":
+                return {"dungeons": []}
+            if path == "/mythic-plus/affixes":
+                return {"affix_details": []}
+            if path == "/mythic-plus/season-cutoffs":
+                return {"cutoffs": {}}
+            raise AssertionError(path)
+
+        with closing(self.connection()) as conn, patch.object(raiderio_payload, "api_get", fake_api_get):
+            payload = raiderio_payload.sync_raiderio_cache(conn)
+            conn.commit()
+            cached = raiderio_payload.get_raiderio_payload(conn, allow_sync=False)
+
+        self.assertEqual(payload.get("profileCacheMode"), "talent_compact")
+        self.assertEqual(payload["profiles"], [])
+        self.assertEqual(cached["profiles"], [])
+        mage_template = next(item for item in cached["communityTemplates"] if item["classKey"] == "mage")
+        self.assertEqual(mage_template["playerId"], "Rioone")
+        self.assertTrue(mage_template["rawImportCode"].startswith("CAE"))
 
     def test_sync_raiderio_cache_scans_configured_regions_and_preserves_template_region(self):
         os.environ["WOW_RAIDERIO_REGIONS"] = "cn,eu"
@@ -825,6 +876,7 @@ class RaiderIOPayloadTest(unittest.TestCase):
         self.assertEqual(mage_template["payload"]["raiderio"]["source"], "run_detail")
         self.assertEqual(payload["runDetailCoverage"]["requestedRunCount"], 1)
         self.assertEqual(payload["runDetailCoverage"]["talentSnapshotCount"], 1)
+        self.assertTrue(payload["runDetailCoverage"]["spreadBySpec"])
 
     def test_run_detail_snapshots_are_keyed_by_region_and_run_id(self):
         os.environ["WOW_RAIDERIO_RUN_DETAIL_LIMIT"] = "2"
@@ -1197,6 +1249,47 @@ class RaiderIOPayloadTest(unittest.TestCase):
         self.assertEqual(len(profiles), 3)
         self.assertGreater(active["max"], 1)
 
+    def test_fetch_profiles_for_runs_compacts_talent_only_batches(self):
+        os.environ["WOW_RAIDERIO_PROFILE_LIMIT"] = "5"
+        os.environ["WOW_RAIDERIO_PROFILE_LIMIT_PER_SPEC"] = "5"
+        os.environ["WOW_RAIDERIO_TARGET_PROFILE_LIMIT"] = "0"
+        os.environ["WOW_RAIDERIO_TALENT_COMPACT"] = "1"
+        os.environ["WOW_RAIDERIO_PROFILE_BATCH_SIZE"] = "2"
+        roster = [
+            {
+                "name": f"Mage{index}",
+                "realmSlug": "isillien",
+                "region": "cn",
+                "classKey": "mage",
+                "specKey": "frost",
+            }
+            for index in range(5)
+        ]
+        batches = []
+
+        def fake_batch(characters, fields):
+            batches.append(([character["name"] for character in characters], fields))
+            return [
+                raiderio_payload.profile_summary(sample_profile_payload(character["name"]))
+                for character in characters
+            ], []
+
+        with patch.object(raiderio_payload, "fetch_profile_batch", fake_batch):
+            profiles, errors = raiderio_payload.fetch_profiles_for_runs([{"roster": roster}])
+
+        self.assertEqual(errors, [])
+        self.assertEqual(
+            batches,
+            [
+                (["Mage0", "Mage1"], "talents"),
+                (["Mage2", "Mage3"], "talents"),
+                (["Mage4"], "talents"),
+            ],
+        )
+        self.assertEqual(len(profiles), 5)
+        self.assertNotIn("gear", next(iter(profiles.values())))
+        self.assertIn("talentLoadout", next(iter(profiles.values())))
+
     def test_fetch_profiles_for_runs_records_profile_timeout_without_failing_batch(self):
         os.environ["WOW_RAIDERIO_PROFILE_LIMIT"] = "2"
         os.environ["WOW_RAIDERIO_PROFILE_LIMIT_PER_SPEC"] = "2"
@@ -1472,6 +1565,7 @@ class RaiderIOPayloadTest(unittest.TestCase):
         os.environ["WOW_RAIDERIO_SPEC_RANKING_REGIONS"] = "world"
         os.environ["WOW_RAIDERIO_SPEC_RANKING_PAGES"] = "1"
         os.environ["WOW_RAIDERIO_SPEC_RANKING_PAGE_SIZE"] = "1"
+        os.environ["WOW_RAIDERIO_SPEC_RANKING_START_PAGE"] = "3"
         os.environ["WOW_RAIDERIO_RUN_DETAIL_LIMIT"] = "0"
         spec_ranking_calls = []
 
@@ -1499,7 +1593,7 @@ class RaiderIOPayloadTest(unittest.TestCase):
         ):
             payload = raiderio_payload.sync_raiderio_cache(conn)
 
-        self.assertEqual(spec_ranking_calls, [("mage", "frost", 0)])
+        self.assertEqual(spec_ranking_calls, [("mage", "frost", 3)])
         self.assertEqual(payload["runCount"], 0)
         self.assertEqual(payload["specRankingCoverage"]["attemptedSpecCount"], 1)
 
@@ -1728,6 +1822,40 @@ class RaiderIOPayloadTest(unittest.TestCase):
         self.assertEqual(template["rawImportCode"], "")
         self.assertEqual(template["payload"]["raiderio"]["source"], "run_detail")
         self.assertEqual(template["payload"]["raiderio"]["loadout"][0]["traitId"], 91001)
+
+    def test_build_community_templates_round_robins_specs_before_the_global_candidate_limit(self):
+        os.environ["WOW_RAIDERIO_COMMUNITY_TEMPLATE_LIMIT"] = "3"
+        aggregates = []
+        for class_key, spec_key, hero_keys in [
+            ("mage", "fire", ["frostfire", "sunfury"]),
+            ("druid", "balance", ["elunes_chosen", "keeper_of_the_grove"]),
+            ("warrior", "arms", ["colossus", "slayer"]),
+        ]:
+            aggregates.append({
+                "classKey": class_key,
+                "specKey": spec_key,
+                "fullName": f"{spec_key} {class_key}",
+                "sampleCount": 2,
+                "maxKeyLevel": 22,
+                "talentLoadouts": [
+                    {
+                        "loadoutSpecId": 63,
+                        "heroKey": hero_key,
+                        "heroSubTreeId": index + 1,
+                        "loadout": [{"traitId": 91000 + index, "rank": 1}],
+                        "source": "run_detail",
+                        "characterName": f"{class_key}-{index}",
+                        "realmSlug": "test-realm",
+                        "region": "us",
+                        "maxKeyLevel": 22,
+                    }
+                    for index, hero_key in enumerate(hero_keys)
+                ],
+            })
+
+        templates = raiderio_payload.build_community_templates(aggregates, "2026-07-21T00:00:00+00:00")
+
+        self.assertEqual([template["classKey"] for template in templates], ["mage", "druid", "warrior"])
 
     def test_build_community_templates_preserves_actual_region_server_and_mplus_score(self):
         templates = raiderio_payload.build_community_templates(

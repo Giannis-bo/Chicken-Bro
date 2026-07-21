@@ -375,6 +375,7 @@ export interface CommunityTemplateReference {
   scenarioKey?: string
   rawImportCode?: string
   importCode?: string
+  websimExportCode?: string
   talentImport?: string
   talentState?: TalentSelectionState
   sourceUrl?: string

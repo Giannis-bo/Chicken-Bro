@@ -562,6 +562,7 @@ def refresh_websim_item_metadata_item_gaps_postgres(
 def sync_raiderio_cache_postgres(force=False, stage_callback=None, store=None):
     store = store or cache_store_from_env()
     _emit(stage_callback, "raiderio", "start", force=bool(force))
+    cached = dict(store.get_raiderio_payload() or {})
     try:
         conn = sqlite3.connect(":memory:")
         try:
@@ -569,7 +570,6 @@ def sync_raiderio_cache_postgres(force=False, stage_callback=None, store=None):
         finally:
             conn.close()
     except Exception as error:
-        cached = dict(store.get_raiderio_payload() or {})
         if not cached:
             raise
         cached_errors = list(cached.get("errors") or [])
@@ -583,7 +583,17 @@ def sync_raiderio_cache_postgres(force=False, stage_callback=None, store=None):
     payload.setdefault("sourceStatus", payload.get("status") or "blocked")
     payload.setdefault("status", payload.get("sourceStatus") or "blocked")
     payload.setdefault("checkedAt", utc_now())
-    if payload.get("sourceStatus") != "stale":
+    source_status = str(payload.get("sourceStatus") or payload.get("status") or "blocked").strip().lower()
+    if source_status in {"blocked", "failed", "stale"} and cached:
+        cached_errors = list(cached.get("errors") or [])
+        cached_errors.extend(payload.get("errors") or [])
+        cached["errors"] = unique_text_list(cached_errors)[:12]
+        cached["sourceStatus"] = "stale"
+        cached["status"] = "stale"
+        cached["runner"] = "postgres"
+        payload = cached
+        source_status = "stale"
+    if source_status not in {"blocked", "failed", "stale"}:
         store.save_raiderio_payload(payload)
     _emit(
         stage_callback,
@@ -668,6 +678,146 @@ def _canonical_simc_rank_entries(raw_entries):
     return tuple(canonical)
 
 
+def _legacy_visual_slot_deduplication_is_safe(previous_row, candidate_node_ids, candidate_visual_slots):
+    if not isinstance(previous_row, dict):
+        return False
+    raw_slots = previous_row.get("visualSlots")
+    if not isinstance(raw_slots, list):
+        return False
+    previous_node_ids = {
+        str(node_id or "").strip()
+        for node_id in (previous_row.get("nodeIds") or [])
+        if str(node_id or "").strip()
+    }
+    candidate_node_ids = {
+        str(node_id or "").strip()
+        for node_id in (candidate_node_ids or set())
+        if str(node_id or "").strip()
+    }
+    if not previous_node_ids or not candidate_node_ids:
+        return False
+    duplicate_node_ids = set()
+    for raw_slot in raw_slots:
+        if not isinstance(raw_slot, dict):
+            continue
+        try:
+            slot_key = (int(raw_slot.get("row") or 0), int(raw_slot.get("col") or 0))
+        except (TypeError, ValueError):
+            continue
+        if slot_key[0] <= 0 or slot_key[1] <= 0:
+            continue
+        baseline_slot_nodes = {
+            str(node_id or "").strip()
+            for node_id in (raw_slot.get("nodeIds") or [])
+            if str(node_id or "").strip()
+        }
+        if len(baseline_slot_nodes) < 2:
+            continue
+        retained_slot_nodes = baseline_slot_nodes & candidate_node_ids
+        if len(retained_slot_nodes) != 1:
+            return False
+        if set(candidate_visual_slots.get(slot_key) or set()) != retained_slot_nodes:
+            return False
+        duplicate_node_ids.update(baseline_slot_nodes)
+    removed_node_ids = previous_node_ids - candidate_node_ids
+    return bool(
+        removed_node_ids
+        and duplicate_node_ids
+        and removed_node_ids <= duplicate_node_ids
+        and candidate_node_ids == previous_node_ids - removed_node_ids
+    )
+
+
+def _legacy_foreign_hero_spec_cleanup_is_safe(previous_row, candidate_node_ids):
+    if not isinstance(previous_row, dict):
+        return False
+    previous_node_ids = {
+        str(node_id or "").strip()
+        for node_id in (previous_row.get("nodeIds") or [])
+        if str(node_id or "").strip()
+    }
+    candidate_node_ids = {
+        str(node_id or "").strip()
+        for node_id in (candidate_node_ids or set())
+        if str(node_id or "").strip()
+    }
+    foreign_spec_node_ids = {
+        str(node_id or "").strip()
+        for node_id in (previous_row.get("foreignSpecNodeIds") or [])
+        if str(node_id or "").strip()
+    }
+    removed_node_ids = previous_node_ids - candidate_node_ids
+    return bool(
+        foreign_spec_node_ids
+        and removed_node_ids
+        and removed_node_ids == foreign_spec_node_ids
+        and candidate_node_ids == previous_node_ids - removed_node_ids
+    )
+
+
+def _same_source_self_override_node_recovery_is_safe(
+    previous_row,
+    candidate_node_ids,
+    candidate_parent_map,
+    self_override_node_ids,
+):
+    if not isinstance(previous_row, dict):
+        return False
+    previous_node_ids = {
+        str(node_id or "").strip()
+        for node_id in (previous_row.get("nodeIds") or [])
+        if str(node_id or "").strip()
+    }
+    candidate_node_ids = {
+        str(node_id or "").strip()
+        for node_id in (candidate_node_ids or set())
+        if str(node_id or "").strip()
+    }
+    added_node_ids = candidate_node_ids - previous_node_ids
+    self_override_node_ids = {
+        str(node_id or "").strip()
+        for node_id in (self_override_node_ids or set())
+        if str(node_id or "").strip()
+    }
+    if not previous_node_ids or not added_node_ids or not previous_node_ids <= candidate_node_ids:
+        return False
+    if not added_node_ids <= self_override_node_ids:
+        return False
+    raw_parent_map = previous_row.get("parentIdsByNode") or []
+    if not isinstance(raw_parent_map, list):
+        return False
+    previous_parent_map = {}
+    for raw_entry in raw_parent_map:
+        if not isinstance(raw_entry, (list, tuple)) or len(raw_entry) != 2:
+            return False
+        node_id = str(raw_entry[0] or "").strip()
+        raw_parent_ids = raw_entry[1]
+        if not node_id or not isinstance(raw_parent_ids, list):
+            return False
+        previous_parent_map[node_id] = {
+            str(parent_id or "").strip()
+            for parent_id in raw_parent_ids
+            if str(parent_id or "").strip()
+        }
+    if set(previous_parent_map) != previous_node_ids:
+        return False
+    normalized_candidate_parent_map = {
+        str(node_id or "").strip(): {
+            str(parent_id or "").strip()
+            for parent_id in (parent_ids or [])
+            if str(parent_id or "").strip()
+        }
+        for node_id, parent_ids in (candidate_parent_map or {}).items()
+        if str(node_id or "").strip()
+    }
+    if set(normalized_candidate_parent_map) != candidate_node_ids:
+        return False
+    return all(
+        previous_parent_ids <= normalized_candidate_parent_map.get(node_id, set())
+        for node_id, previous_parent_ids in previous_parent_map.items()
+    )
+
+
 def validate_simc_generated_data_candidate(simc_data, previous_state=None):
     simc_data = simc_data if isinstance(simc_data, dict) else {}
     previous_state = previous_state if isinstance(previous_state, dict) else {}
@@ -706,6 +856,8 @@ def validate_simc_generated_data_candidate(simc_data, previous_state=None):
     parent_ids_by_talent_id = {}
     signature_identity_by_talent_id = {}
     content_identity_by_talent_id = {}
+    visual_slots_by_context = {}
+    self_override_node_ids_by_context = {}
     for talent in talents:
         payload = talent.get("payload") if isinstance(talent.get("payload"), dict) else {}
         raw_talent_id = talent.get("id")
@@ -919,6 +1071,16 @@ def validate_simc_generated_data_candidate(simc_data, previous_state=None):
         context = (class_key, spec_key, tree_type, hero_key)
         ids_by_context.setdefault(context, set()).add(talent_id)
         nodes_by_context[context] = nodes_by_context.get(context, 0) + 1
+        if not choice_group and shape != "choice":
+            visual_slots_by_context.setdefault(context, {}).setdefault(
+                (row_index, col_index), set()
+            ).add(talent_id)
+        try:
+            override_spell_id = int(payload.get("overrideSpellId") or 0)
+        except (TypeError, ValueError):
+            override_spell_id = 0
+        if override_spell_id > 0 and override_spell_id == spell_id:
+            self_override_node_ids_by_context.setdefault(context, set()).add(talent_id)
 
     try:
         declared_dependencies = int(simc_data.get("dependencies") or 0)
@@ -1255,6 +1417,18 @@ def validate_simc_generated_data_candidate(simc_data, previous_state=None):
             "dependencyNodes": int(parent_nodes_by_context.get(context) or 0),
             "dependencies": int(dependency_refs_by_context.get(context) or 0),
         }
+        legacy_visual_slot_deduplication = _legacy_visual_slot_deduplication_is_safe(
+            row,
+            ids_by_context.get(context) or set(),
+            visual_slots_by_context.get(context) or {},
+        )
+        legacy_foreign_hero_spec_cleanup = _legacy_foreign_hero_spec_cleanup_is_safe(
+            row,
+            ids_by_context.get(context) or set(),
+        )
+        safe_legacy_normalization = (
+            legacy_visual_slot_deduplication or legacy_foreign_hero_spec_cleanup
+        )
         for key, candidate_count in candidate_context_counts.items():
             try:
                 previous_count = int(row.get(key) or 0)
@@ -1264,12 +1438,16 @@ def validate_simc_generated_data_candidate(simc_data, previous_state=None):
                 continue
             context_label = ":".join(filter(None, context))
             if same_source and candidate_count < previous_count:
+                if safe_legacy_normalization:
+                    continue
                 raise RuntimeError(
                     "SimulationCraft tree context fell below the same-source baseline; "
                     f"{context_label} {key} declined from {previous_count} to {candidate_count}; "
                     "preserving the current PostgreSQL talent tree"
                 )
             if not same_source and candidate_count * 100 < previous_count * min_retention:
+                if safe_legacy_normalization:
+                    continue
                 raise RuntimeError(
                     "SimulationCraft tree context fell below the last-known-good baseline; "
                     f"{context_label} {key} retained {candidate_count}/{previous_count}, "
@@ -1292,6 +1470,14 @@ def validate_simc_generated_data_candidate(simc_data, previous_state=None):
             and candidate_node_ids == previous_node_ids
         )
         guarded_same_graph = same_source or source_unknown_same_node_set
+        self_override_node_recovery = _same_source_self_override_node_recovery_is_safe(
+            row,
+            candidate_node_ids,
+            candidate_graph.get("parentIdsByNode") or {},
+            self_override_node_ids_by_context.get(context) or set(),
+        )
+        if same_source and self_override_node_recovery:
+            continue
         previous_structure_signature = str(row.get("structureSignature") or "").strip()
         candidate_structure_signature = str(candidate_graph.get("structureSignature") or "").strip()
         if (
@@ -2488,6 +2674,7 @@ def load_community_talent_sources_postgres(store):
             "status": result.get("status") or "blocked",
             "sourceName": result.get("sourceName") or source_name,
             "templates": result.get("templates") or [],
+            "warnings": result.get("warnings") or [],
             "errors": result.get("errors") or [],
         }
     return sources
@@ -2566,6 +2753,27 @@ def _community_template_missing_slots_mode_enabled(mode):
         "pending_only",
         "pending-only",
     }
+
+
+def _community_template_targeted_slots_mode_enabled(mode):
+    configured = os.environ.get("WOW_COMMUNITY_TEMPLATE_SYNC_TARGET_MODE", "").strip().lower()
+    requested = str(mode or "").strip().lower()
+    enabled_modes = {"targeted_slots", "targeted-slots", "explicit_slots", "explicit-slots"}
+    return configured in enabled_modes or requested in enabled_modes
+
+
+def _community_template_explicit_target_slot_ids():
+    raw_values = os.environ.get("WOW_COMMUNITY_TEMPLATE_TARGET_SLOTS", "").split(",")
+    expected_slot_ids = {str(slot_id or "").strip() for slot_id in expected_hero_tree_triplets() if str(slot_id or "").strip()}
+    target_slot_ids = []
+    for raw_value in raw_values:
+        parts = [slugify(part, "") for part in str(raw_value or "").strip().split(":")]
+        if len(parts) != 3 or not all(parts):
+            continue
+        slot_id = ":".join(parts)
+        if slot_id in expected_slot_ids and slot_id not in target_slot_ids:
+            target_slot_ids.append(slot_id)
+    return target_slot_ids
 
 
 def _community_gear_template_sync_mode_enabled(mode):
@@ -2745,6 +2953,28 @@ def _community_talent_specs_for_slots(slot_ids):
     return specs
 
 
+def _community_talent_targeted_raiderio_env(target_spec_ids):
+    target_spec_ids = [str(spec_id or "").strip() for spec_id in target_spec_ids or [] if str(spec_id or "").strip()]
+    detail_limit = _int_env_value(
+        ["WOW_COMMUNITY_TEMPLATE_TARGETED_RUN_DETAIL_LIMIT"],
+        240,
+        minimum=1,
+    )
+    per_spec_default = max(1, min(24, detail_limit // max(1, len(target_spec_ids))))
+    detail_limit_per_spec = _int_env_value(
+        ["WOW_COMMUNITY_TEMPLATE_TARGETED_RUN_DETAIL_LIMIT_PER_SPEC"],
+        per_spec_default,
+        minimum=1,
+    )
+    return {
+        "WOW_RAIDERIO_RUN_PAGES": "0",
+        "WOW_RAIDERIO_SPEC_RANKING_ENABLED": "1",
+        "WOW_RAIDERIO_SPEC_RANKING_TARGET_SPECS": ",".join(target_spec_ids),
+        "WOW_RAIDERIO_RUN_DETAIL_LIMIT": str(detail_limit),
+        "WOW_RAIDERIO_RUN_DETAIL_LIMIT_PER_SPEC": str(detail_limit_per_spec),
+    }
+
+
 def _community_talent_templates_for_slots(templates, target_slot_ids):
     if target_slot_ids is None:
         return list(templates or [])
@@ -2918,11 +3148,17 @@ def sync_community_template_cache_postgres(mode="scheduled", store=None, refresh
             gear_seed_preflight,
             limit=gear_first_sync_budget.get("targetSpecLimit") or 0,
         )
+    targeted_slots_mode = _community_template_targeted_slots_mode_enabled(mode)
     missing_slots_mode = _community_template_missing_slots_mode_enabled(mode)
     existing_talent_rows = []
     target_slot_ids = None
     target_spec_ids = []
-    if missing_slots_mode:
+    if targeted_slots_mode:
+        target_slot_ids = _community_template_explicit_target_slot_ids()
+        target_spec_ids = _community_talent_specs_for_slots(target_slot_ids)
+        if not target_slot_ids:
+            refresh_raiderio = False
+    elif missing_slots_mode:
         existing_talent_rows = _community_talent_coverage_rows(store, [])
         target_slot_ids = _community_talent_missing_slot_ids(existing_talent_rows)
         target_spec_ids = _community_talent_specs_for_slots(target_slot_ids)
@@ -2935,12 +3171,8 @@ def sync_community_template_cache_postgres(mode="scheduled", store=None, refresh
         raiderio_env = {}
         if gear_template_sync_mode:
             raiderio_env = _community_gear_first_sync_raiderio_env(gear_target_spec_ids, gear_first_sync_budget)
-        elif missing_slots_mode:
-            raiderio_env = {
-                "WOW_RAIDERIO_RUN_PAGES": "0",
-                "WOW_RAIDERIO_SPEC_RANKING_ENABLED": "1",
-                "WOW_RAIDERIO_SPEC_RANKING_TARGET_SPECS": ",".join(target_spec_ids),
-            }
+        elif targeted_slots_mode or missing_slots_mode:
+            raiderio_env = _community_talent_targeted_raiderio_env(target_spec_ids)
         try:
             raiderio_refresh = _with_temporary_env(
                 raiderio_env,
@@ -2971,7 +3203,9 @@ def sync_community_template_cache_postgres(mode="scheduled", store=None, refresh
             source_started_at,
             refreshRaiderio=bool(refresh_raiderio),
             sourceCount=len(source_results),
-            targetMode="gear_template_first_sync" if gear_template_sync_mode else ("missing_slots" if missing_slots_mode else "all_slots"),
+            targetMode="gear_template_first_sync" if gear_template_sync_mode else (
+                "targeted_slots" if targeted_slots_mode else ("missing_slots" if missing_slots_mode else "all_slots")
+            ),
             targetSlotCount=len(target_slot_ids or []),
             targetSpecCount=len(target_spec_ids or []),
             gearTargetSpecCount=len(gear_target_spec_ids or []),
@@ -2995,7 +3229,7 @@ def sync_community_template_cache_postgres(mode="scheduled", store=None, refresh
         }
     else:
         talent_templates, talent_sources, talent_errors = _community_templates_from_sources(source_results, scan_run_id)
-        if missing_slots_mode:
+        if targeted_slots_mode or missing_slots_mode:
             talent_templates = _community_talent_templates_for_slots(talent_templates, target_slot_ids)
     stage_timings.append(
         _timing_stage(
@@ -3065,21 +3299,24 @@ def sync_community_template_cache_postgres(mode="scheduled", store=None, refresh
         )
     gear_templates = []
     gear_started_at = time.monotonic()
-    if hasattr(store, "build_community_gear_templates"):
+    if not targeted_slots_mode and hasattr(store, "build_community_gear_templates"):
         try:
             gear_templates = store.build_community_gear_templates(scan_run_id=scan_run_id)
         except Exception as error:
             gear_errors.append(f"community gear templates failed: {error}")
             gear_templates = []
-    if gear_templates:
+    if gear_templates and not targeted_slots_mode:
         gear_counts = store.replace_community_gear_templates(gear_templates, scan_run_id=scan_run_id)
     else:
         gear_counts = store.community_gear_template_counts()
-    real_player_cleanup = _cleanup_real_player_gear_template_pilot_residue(
-        store,
-        scan_run_id=scan_run_id,
-        checked_at=checked_at,
-    )
+    if targeted_slots_mode:
+        real_player_cleanup = {"status": "skipped", "reason": "targeted_talent_slots"}
+    else:
+        real_player_cleanup = _cleanup_real_player_gear_template_pilot_residue(
+            store,
+            scan_run_id=scan_run_id,
+            checked_at=checked_at,
+        )
     if real_player_cleanup.get("errors"):
         gear_errors.extend(real_player_cleanup.get("errors") or [])
     gear_preflight = build_community_gear_template_preflight(
@@ -3098,6 +3335,7 @@ def sync_community_template_cache_postgres(mode="scheduled", store=None, refresh
             communityBestCompleteSpecCount=(gear_preflight.get("communityBest") or {}).get("completeSpecCount") or 0,
             baselineAvailableSpecCount=(gear_preflight.get("baseline") or {}).get("availableSpecCount") or 0,
             missingSlotCount=(gear_preflight.get("canonicalSlotMatrix") or {}).get("missingSlotCount") or 0,
+            skipped=targeted_slots_mode,
         )
     )
     verified = talent_counts.get("verified", 0) + gear_counts.get("verified", 0)
@@ -3106,7 +3344,7 @@ def sync_community_template_cache_postgres(mode="scheduled", store=None, refresh
     coverage_started_at = time.monotonic()
     if gear_template_sync_mode:
         coverage_templates = _community_talent_coverage_rows(store, [])
-    elif missing_slots_mode:
+    elif targeted_slots_mode or missing_slots_mode:
         coverage_templates = _merge_community_talent_coverage_templates(
             _community_talent_coverage_rows(store, []),
             validated_talent_templates,

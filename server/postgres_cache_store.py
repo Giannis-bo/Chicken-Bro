@@ -2448,6 +2448,8 @@ class PostgresCacheStore:
                     "dependencies": 0,
                     "graphEntries": [],
                     "contentEntries": [],
+                    "visualSlots": {},
+                    "foreignSpecNodeIds": [],
                 },
             )
             talent_id = str(row[0] or "")
@@ -2467,6 +2469,9 @@ class PostgresCacheStore:
                 for parent_id in parent_ids
                 if str(parent_id or "").strip()
             )
+            payload = _json_value(row[12], {})
+            choice_group = str(payload.get("choiceGroup") or "").strip() if isinstance(payload, dict) else ""
+            shape = str(payload.get("shape") or "").strip().lower() if isinstance(payload, dict) else ""
             context["nodes"] += 1
             context["dependencyNodes"] += int(bool(parent_ids))
             context["dependencies"] += len(parent_ids)
@@ -2483,6 +2488,10 @@ class PostgresCacheStore:
                     row[12],
                 )
             )
+            if not choice_group and shape != "choice" and row_index > 0 and col_index > 0:
+                context["visualSlots"].setdefault((row_index, col_index), []).append(talent_id)
+            if context_key[2] == "hero" and not cached_talent_payload_supports_spec(payload, context_key[0], context_key[1]):
+                context["foreignSpecNodeIds"].append(talent_id)
             context["graphEntries"].append(
                 (
                     talent_id,
@@ -2501,6 +2510,8 @@ class PostgresCacheStore:
             context = contexts_by_key[context_key]
             graph_entries = sorted(context.pop("graphEntries"))
             content_entries = sorted(context.pop("contentEntries"))
+            visual_slots = context.pop("visualSlots")
+            foreign_spec_node_ids = context.pop("foreignSpecNodeIds")
             context["nodeIds"] = [entry[0] for entry in graph_entries]
             context["structureSignature"] = hashlib.sha256(
                 json.dumps(
@@ -2516,6 +2527,11 @@ class PostgresCacheStore:
             context["graphSignature"] = hashlib.sha256(
                 json.dumps(graph_entries, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
             ).hexdigest()
+            context["visualSlots"] = [
+                {"row": row_index, "col": col_index, "nodeIds": sorted(node_ids)}
+                for (row_index, col_index), node_ids in sorted(visual_slots.items())
+            ]
+            context["foreignSpecNodeIds"] = sorted(set(foreign_spec_node_ids))
             contexts.append(context)
 
         profile_specs = sorted(

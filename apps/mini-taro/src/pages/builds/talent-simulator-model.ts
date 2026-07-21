@@ -44,17 +44,27 @@ export function communityTalentRegionLabel(region: string | undefined): string {
   return communityTalentRegionLabels[normalized] ?? normalized.toUpperCase()
 }
 
+export function communityTalentTemplateHasPlayerChoices(
+  template: Pick<CommunityTemplateReference, 'talentState'>,
+): boolean {
+  return (template.talentState?.selectedNodes.filter((node) => node.rank > 0).length ?? 0) > 1
+}
+
 export function communityTalentWinnerForImport(
   templates: readonly CommunityTemplateReference[],
   heroKey = '',
+  preferredTemplateId = '',
 ): CommunityTemplateReference | undefined {
   const normalizedHeroKey = heroKey.trim()
-  return templates.find((template) => (
+  const candidates = templates.filter((template) => (
     template.status === 'verified'
     && template.canApplyVisual === true
     && (!normalizedHeroKey || template.heroKey === normalizedHeroKey)
     && (template.talentState?.selectedNodes.length ?? 0) > 0
   ))
+  const normalizedTemplateId = preferredTemplateId.trim()
+  if (normalizedTemplateId) return candidates.find((template) => template.id === normalizedTemplateId)
+  return candidates[0]
 }
 
 export type TalentGraphNodeState = 'selected' | 'available' | 'unselected' | 'blocked' | 'loading'

@@ -69,7 +69,7 @@ simc_archive="${SIMC_ROOT}/source-${latest_simc_commit}.tar.gz"
 if [[ ! -f "${simc_archive}" ]] || ! tar -tzf "${simc_archive}" >/dev/null 2>&1; then
   curl -fL --retry 5 --connect-timeout 30 --speed-time 120 --speed-limit 1024 \
     -o "${simc_archive}" \
-    "https://github.com/${repo}/archive/${latest_simc_commit}.tar.gz"
+    "https://codeload.github.com/${repo}/tar.gz/${latest_simc_commit}"
 fi
 
 rm -rf "${SIMC_SRC}" "${SIMC_BUILD}"

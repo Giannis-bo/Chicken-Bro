@@ -7118,7 +7118,13 @@ def spec_ids_for_class(class_key):
     ]
 
 
-def target_spec_ids_for_record(record, selection_specs_by_hero, record_specs_by_hero):
+def target_spec_ids_for_record(
+    record,
+    selection_specs_by_hero,
+    record_specs_by_hero,
+    record_nodes_by_hero,
+    record_slots_by_hero,
+):
     class_key = GAME_CLASS_ID_TO_KEY.get(record["classId"], "")
     if not class_key:
         return []
@@ -7128,7 +7134,19 @@ def target_spec_ids_for_record(record, selection_specs_by_hero, record_specs_by_
         if hero_specs:
             covered_specs = set(record_specs_by_hero.get(record["heroId"]) or []) & hero_specs
             missing_specs = hero_specs - covered_specs
-            spec_ids = sorted((hero_specs & record_specs) | missing_specs) if record_specs else sorted(hero_specs)
+            node_counts = {
+                spec_id: len((record_nodes_by_hero.get(record["heroId"], {}) or {}).get(spec_id) or ())
+                for spec_id in hero_specs
+            }
+            max_node_count = max(node_counts.values(), default=0)
+            occupied_slots_by_spec = record_slots_by_hero.get(record["heroId"], {}) or {}
+            sparse_specs = {
+                spec_id
+                for spec_id, node_count in node_counts.items()
+                if 0 < node_count < 3 and max_node_count >= 3
+                and (record["row"], record["col"]) not in (occupied_slots_by_spec.get(spec_id) or set())
+            }
+            spec_ids = sorted((hero_specs & record_specs) | missing_specs | sparse_specs) if record_specs else sorted(hero_specs)
         else:
             spec_ids = sorted(record_specs) or spec_ids_for_class(class_key)
     elif record["specIds"]:
@@ -7267,7 +7285,7 @@ def dedupe_simc_visible_talents(talents):
         slot_key = simc_talent_visual_slot_key(talent)
         payload = talent.get("payload") or {}
         override_spell_id = int(payload.get("overrideSpellId") or 0)
-        if slot_key and override_spell_id > 0:
+        if slot_key and override_spell_id > 0 and override_spell_id != int(talent.get("spellId") or 0):
             overridden_spells_by_slot.setdefault(slot_key, set()).add(override_spell_id)
 
     deduped = []
@@ -7290,6 +7308,8 @@ def parse_trait_data_text(text, limit=20000):
     records = list(iter_trait_data_records(text))
     selection_specs_by_hero = {}
     record_specs_by_hero = {}
+    record_nodes_by_hero = {}
+    record_slots_by_hero = {}
     for record in records:
         if not record["heroId"]:
             continue
@@ -7297,6 +7317,13 @@ def parse_trait_data_text(text, limit=20000):
             selection_specs_by_hero.setdefault(record["heroId"], set()).update(record["specIds"])
         elif record["treeIndex"] == 3:
             record_specs_by_hero.setdefault(record["heroId"], set()).update(record["specIds"])
+            for spec_id in record["specIds"]:
+                record_nodes_by_hero.setdefault(record["heroId"], {}).setdefault(spec_id, set()).add(
+                    record["nodeId"] or record["traitId"]
+                )
+                record_slots_by_hero.setdefault(record["heroId"], {}).setdefault(spec_id, set()).add(
+                    (record["row"], record["col"])
+                )
 
     talents = []
     seen = set()
@@ -7315,6 +7342,8 @@ def parse_trait_data_text(text, limit=20000):
             record,
             selection_specs_by_hero,
             record_specs_by_hero,
+            record_nodes_by_hero,
+            record_slots_by_hero,
         ):
             spec_info = SPEC_ID_TO_KEY.get(spec_id)
             if not spec_info:
@@ -7353,6 +7382,7 @@ def parse_trait_data_text(text, limit=20000):
             node_id_parts = ["simc", tree_type, str(record["traitId"]), class_key, spec_key]
             if hero_key:
                 node_id_parts.append(hero_key)
+            effective_spec_ids = sorted({*(record["specIds"] or []), spec_id})
             payload = {
                 "treeType": tree_type,
                 "treeIndex": record["treeIndex"],
@@ -7364,7 +7394,7 @@ def parse_trait_data_text(text, limit=20000):
                 "replaceSpellId": record["replaceSpellId"],
                 "overrideSpellId": record["overrideSpellId"],
                 "selectionIndex": record["selectionIndex"],
-                "idSpecs": record["specIds"],
+                "idSpecs": effective_spec_ids,
                 "starterSpecIds": record["starterSpecIds"],
                 "heroId": record["heroId"],
                 "heroKey": hero_key,
@@ -12104,7 +12134,7 @@ def dedupe_real_talent_nodes(nodes):
     for node in nodes:
         slot_key = real_talent_visual_slot_key(node)
         override_spell_id = real_talent_override_spell_id(node)
-        if slot_key and override_spell_id > 0:
+        if slot_key and override_spell_id > 0 and override_spell_id != int(node.get("spellId") or 0):
             overridden_spells_by_slot.setdefault(slot_key, set()).add(override_spell_id)
 
     deduped = []

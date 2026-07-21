@@ -182,6 +182,21 @@ describe('talent simulator authoritative edit contract', () => {
     expect(source).toContain('operationSequence: number')
     expect(source).toContain('if (validationSequence.current !== operationSequence) return false')
     expect(source).toContain('applyImportedValidation(result.payload.validation, result.fromFallback, result.error, operationSequence)')
-    expect(source).toContain('applyImportedValidation(result.payload, result.fromFallback, result.error, operationSequence)')
+    expect(source).not.toContain('applyImportedValidation(result.payload, result.fromFallback, result.error, operationSequence)')
+  })
+
+  it('refreshes the exact community winner before importing instead of trusting a stale page payload', () => {
+    const source = readFileSync(resolve(
+      process.cwd(),
+      'apps/mini-taro/src/pages/builds/talent-simulator.tsx',
+    ), 'utf8')
+
+    expect(source).toContain('const latest = await wowApi.websim.talents')
+    expect(source).toContain('communityWinner.id')
+    expect(source).toContain("const exportCode = (latestWinner.websimExportCode ?? '').trim()")
+    expect(source).toContain('wowApi.websim.talentImportCode({')
+    expect(source).toContain('code: exportCode')
+    expect(source).toContain("'社区模板刷新失败，请重试'")
+    expect(source).toContain("'社区模板数据不完整，已阻止导入'")
   })
 })

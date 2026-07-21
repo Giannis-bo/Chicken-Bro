@@ -477,6 +477,15 @@ def profile_fetch_workers():
     return max(1, int_env("WOW_RAIDERIO_PROFILE_WORKERS", 1))
 
 
+def talent_compact_profiles_enabled():
+    return str(os.environ.get("WOW_RAIDERIO_TALENT_COMPACT", "")).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def profile_batch_size():
+    default = 32 if talent_compact_profiles_enabled() else profile_total_limit()
+    return max(1, int_env("WOW_RAIDERIO_PROFILE_BATCH_SIZE", default))
+
+
 def run_detail_limit():
     return max(0, int_env("WOW_RAIDERIO_RUN_DETAIL_LIMIT", 160))
 
@@ -526,6 +535,10 @@ def spec_ranking_regions():
 
 def spec_ranking_pages():
     return max(1, int_env("WOW_RAIDERIO_SPEC_RANKING_PAGES", 1))
+
+
+def spec_ranking_start_page():
+    return max(0, int_env("WOW_RAIDERIO_SPEC_RANKING_START_PAGE", 0))
 
 
 def spec_ranking_page_size():
@@ -1203,9 +1216,9 @@ def ranking_evidence_sort_key(evidence):
     evidence = evidence if isinstance(evidence, dict) else {}
     rank = safe_int(evidence.get("rank"))
     return (
+        safe_float(evidence.get("score")),
         1 if evidence.get("source") == "raiderio_spec_ranking" else 0,
         -rank if rank > 0 else -999999,
-        safe_float(evidence.get("score")),
         safe_int(evidence.get("maxKeyLevel")),
     )
 
@@ -1577,6 +1590,27 @@ def profile_summary(profile):
     character["gear"] = extract_gear(profile)
     character["itemLevel"] = safe_float((profile.get("gear") or {}).get("item_level_equipped"))
     return character
+
+
+def compact_talent_profile_summary(profile):
+    profile = profile if isinstance(profile, dict) else {}
+    return {
+        key: profile.get(key)
+        for key in (
+            "name",
+            "realm",
+            "realmSlug",
+            "region",
+            "className",
+            "classKey",
+            "specName",
+            "specKey",
+            "role",
+            "profileUrl",
+            "talentLoadout",
+        )
+        if profile.get(key) not in (None, "")
+    }
 
 
 def fetch_profile_for_character(character, fields):
@@ -1976,31 +2010,47 @@ def fetch_profiles_for_runs(runs, target_item_ids=None, deadline_at=0, stage_cal
 
     profiles = {}
     errors = []
-    fields = "gear,talents,mythic_plus_recent_runs,mythic_plus_best_runs,mythic_plus_scores_by_season"
+    compact_talent_profiles = talent_compact_profiles_enabled()
+    fields = "talents" if compact_talent_profiles else "gear,talents,mythic_plus_recent_runs,mythic_plus_best_runs,mythic_plus_scores_by_season"
+    batch_size = profile_batch_size()
     if sync_deadline_expired(deadline_at):
         errors.append(RAIDERIO_DEADLINE_ERROR)
     else:
+        base_batch_errors = []
         base_stage_started = emit_sync_stage(
             stage_callback,
             "raiderio_base_profiles",
             "start",
-            details={"candidateCount": len(unique), "workers": min(profile_fetch_workers(), max(1, len(unique)))},
+            details={
+                "candidateCount": len(unique),
+                "workers": min(profile_fetch_workers(), max(1, len(unique))),
+                "batchSize": batch_size,
+                "compactTalentProfiles": compact_talent_profiles,
+            },
         )
-        summaries, batch_errors = fetch_profile_batch(unique, fields)
-        errors.extend(batch_errors)
-        for summary in summaries:
-            ranking_evidence = ranking_evidence_by_character.get(character_key(summary))
-            if ranking_evidence:
-                summary["rankingEvidence"] = ranking_evidence
-            profiles[character_key(summary)] = summary
+        for offset in range(0, len(unique), batch_size):
+            if sync_deadline_expired(deadline_at):
+                if RAIDERIO_DEADLINE_ERROR not in errors:
+                    errors.append(RAIDERIO_DEADLINE_ERROR)
+                break
+            summaries, batch_errors = fetch_profile_batch(unique[offset:offset + batch_size], fields)
+            errors.extend(batch_errors)
+            base_batch_errors.extend(batch_errors)
+            for summary in summaries:
+                if compact_talent_profiles:
+                    summary = compact_talent_profile_summary(summary)
+                ranking_evidence = ranking_evidence_by_character.get(character_key(summary))
+                if ranking_evidence:
+                    summary["rankingEvidence"] = ranking_evidence
+                profiles[character_key(summary)] = summary
         emit_sync_stage(
             stage_callback,
             "raiderio_base_profiles",
             "complete",
             base_stage_started,
-            {"profileCount": len(profiles), "errors": len(batch_errors)},
+            {"profileCount": len(profiles), "errors": len(base_batch_errors)},
         )
-    targets = [str(item_id) for item_id in target_item_ids or [] if str(item_id or "").strip()]
+    targets = [] if compact_talent_profiles else [str(item_id) for item_id in target_item_ids or [] if str(item_id or "").strip()]
     if targets and target_profile_limit():
         requested = {character_key(character) for character in unique}
         matched = set(target_item_coverage(profiles, targets)["matchedTargetItemIds"])
@@ -2257,72 +2307,90 @@ def select_talent_loadouts_for_spec(loadouts, limit):
     return [loadouts[index] for index in sorted(selected_indexes)]
 
 
+def community_template_loadout_round_robin(aggregates):
+    aggregate_loadouts = [
+        (aggregate, list(aggregate.get("talentLoadouts") or []))
+        for aggregate in aggregates or []
+        if isinstance(aggregate, dict) and aggregate.get("talentLoadouts")
+    ]
+    loadout_index = 0
+    while True:
+        emitted = False
+        for aggregate, loadouts in aggregate_loadouts:
+            if loadout_index >= len(loadouts):
+                continue
+            emitted = True
+            yield aggregate, loadout_index, loadouts[loadout_index]
+        if not emitted:
+            break
+        loadout_index += 1
+
+
 def build_community_templates(aggregates, checked_at):
     templates = []
-    for aggregate in aggregates:
-        for index, loadout in enumerate(aggregate.get("talentLoadouts") or []):
-            raw_code = loadout.get("rawImportCode") or ""
-            structured_loadout = loadout.get("loadout") if isinstance(loadout.get("loadout"), list) else []
-            if not raw_code and not structured_loadout:
-                continue
-            player_id = str(loadout.get("characterName") or f"player-{index + 1}").strip()
-            player_slug = slugify(player_id, f"player-{index + 1}")
-            signature_source = talent_loadout_signature_source(loadout)
-            code_hash = hashlib.sha1(signature_source.encode("utf-8")).hexdigest()[:8]
-            spec_label = aggregate.get("fullName") or f"{aggregate.get('specKey')} {aggregate.get('classKey')}"
-            blockers = [str(item) for item in (loadout.get("blockers") or loadout.get("errors") or []) if str(item or "").strip()]
-            if blockers:
-                continue
-            status = loadout.get("status") or "verified"
-            ranking_evidence = loadout.get("rankingEvidence") if isinstance(loadout.get("rankingEvidence"), dict) else {}
-            region = str(ranking_evidence.get("region") or loadout.get("region") or "").strip().lower()
-            region_label = region.upper() or "GLOBAL"
-            realm = str(loadout.get("realm") or loadout.get("realmName") or loadout.get("realmSlug") or "").strip()
-            rio_evidence = {
-                "source": ranking_evidence.get("source") or "raiderio_run_ranking",
-                "score": safe_float(ranking_evidence.get("score")),
-                "rank": safe_int(ranking_evidence.get("rank")),
-                "maxKeyLevel": safe_int(ranking_evidence.get("maxKeyLevel") or loadout.get("maxKeyLevel") or aggregate.get("maxKeyLevel")),
+    for aggregate, index, loadout in community_template_loadout_round_robin(aggregates):
+        raw_code = loadout.get("rawImportCode") or ""
+        structured_loadout = loadout.get("loadout") if isinstance(loadout.get("loadout"), list) else []
+        if not raw_code and not structured_loadout:
+            continue
+        player_id = str(loadout.get("characterName") or f"player-{index + 1}").strip()
+        player_slug = slugify(player_id, f"player-{index + 1}")
+        signature_source = talent_loadout_signature_source(loadout)
+        code_hash = hashlib.sha1(signature_source.encode("utf-8")).hexdigest()[:8]
+        spec_label = aggregate.get("fullName") or f"{aggregate.get('specKey')} {aggregate.get('classKey')}"
+        blockers = [str(item) for item in (loadout.get("blockers") or loadout.get("errors") or []) if str(item or "").strip()]
+        if blockers:
+            continue
+        status = loadout.get("status") or "verified"
+        ranking_evidence = loadout.get("rankingEvidence") if isinstance(loadout.get("rankingEvidence"), dict) else {}
+        region = str(ranking_evidence.get("region") or loadout.get("region") or "").strip().lower()
+        region_label = region.upper() or "GLOBAL"
+        realm = str(loadout.get("realm") or loadout.get("realmName") or loadout.get("realmSlug") or "").strip()
+        rio_evidence = {
+            "source": ranking_evidence.get("source") or "raiderio_run_ranking",
+            "score": safe_float(ranking_evidence.get("score")),
+            "rank": safe_int(ranking_evidence.get("rank")),
+            "maxKeyLevel": safe_int(ranking_evidence.get("maxKeyLevel") or loadout.get("maxKeyLevel") or aggregate.get("maxKeyLevel")),
+            "region": region,
+            "profileUrl": loadout.get("profileUrl") or "",
+        }
+        rio_evidence = {key: value for key, value in rio_evidence.items() if value not in (None, "", 0, 0.0)}
+        payload = {
+            "raiderio": {
+                "characterName": loadout.get("characterName") or "",
+                "realm": realm,
+                "realmSlug": loadout.get("realmSlug") or "",
                 "region": region,
                 "profileUrl": loadout.get("profileUrl") or "",
-            }
-            rio_evidence = {key: value for key, value in rio_evidence.items() if value not in (None, "", 0, 0.0)}
-            payload = {
-                "raiderio": {
-                    "characterName": loadout.get("characterName") or "",
-                    "realm": realm,
-                    "realmSlug": loadout.get("realmSlug") or "",
-                    "region": region,
-                    "profileUrl": loadout.get("profileUrl") or "",
-                    "loadoutSpecId": loadout.get("loadoutSpecId") or "",
-                    "heroSubTreeId": loadout.get("heroSubTreeId") or "",
-                    "heroKey": loadout.get("heroKey") or "",
-                    "selector": loadout.get("selector") or {},
-                    "source": loadout.get("source") or "profile_current",
-                    "loadout": structured_loadout,
-                },
-                "rioEvidence": rio_evidence,
-            }
-            templates.append({
-                "id": f"raiderio-{aggregate.get('classKey')}-{aggregate.get('specKey')}-{player_slug}-{code_hash}",
-                "classKey": aggregate.get("classKey"),
-                "specKey": aggregate.get("specKey"),
+                "loadoutSpecId": loadout.get("loadoutSpecId") or "",
+                "heroSubTreeId": loadout.get("heroSubTreeId") or "",
                 "heroKey": loadout.get("heroKey") or "",
-                "scenarioKey": "mythic_plus",
-                "name": f"Raider.IO {region_label} +{loadout.get('maxKeyLevel') or aggregate.get('maxKeyLevel')} {spec_label}",
-                "flowLabel": f"Raider.IO {region_label}",
-                "sourceName": RAIDERIO_SOURCE_NAME,
-                "sourceUrl": loadout.get("profileUrl") or "https://raider.io/mythic-plus-rankings",
-                "rawImportCode": raw_code,
-                "playerId": player_id,
-                "sampleCount": aggregate.get("sampleCount") or 0,
-                "maxKeyLevel": loadout.get("maxKeyLevel") or aggregate.get("maxKeyLevel") or 0,
-                "analysisWindow": f"{region or 'global'} {raiderio_season_slug()} cached at {checked_at}",
-                "sourceStatus": "synced",
-                "status": status,
-                "payload": payload,
-                "updatedAt": checked_at,
-            })
+                "selector": loadout.get("selector") or {},
+                "source": loadout.get("source") or "profile_current",
+                "loadout": structured_loadout,
+            },
+            "rioEvidence": rio_evidence,
+        }
+        templates.append({
+            "id": f"raiderio-{aggregate.get('classKey')}-{aggregate.get('specKey')}-{player_slug}-{code_hash}",
+            "classKey": aggregate.get("classKey"),
+            "specKey": aggregate.get("specKey"),
+            "heroKey": loadout.get("heroKey") or "",
+            "scenarioKey": "mythic_plus",
+            "name": f"Raider.IO {region_label} +{loadout.get('maxKeyLevel') or aggregate.get('maxKeyLevel')} {spec_label}",
+            "flowLabel": f"Raider.IO {region_label}",
+            "sourceName": RAIDERIO_SOURCE_NAME,
+            "sourceUrl": loadout.get("profileUrl") or "https://raider.io/mythic-plus-rankings",
+            "rawImportCode": raw_code,
+            "playerId": player_id,
+            "sampleCount": aggregate.get("sampleCount") or 0,
+            "maxKeyLevel": loadout.get("maxKeyLevel") or aggregate.get("maxKeyLevel") or 0,
+            "analysisWindow": f"{region or 'global'} {raiderio_season_slug()} cached at {checked_at}",
+            "sourceStatus": "synced",
+            "status": status,
+            "payload": payload,
+            "updatedAt": checked_at,
+        })
     return templates[:community_template_limit()]
 
 
@@ -2349,6 +2417,7 @@ def sync_raiderio_cache(conn, force=False, stage_callback=None):
     successful_regions = []
     pages = max(0, int_env("WOW_RAIDERIO_RUN_PAGES", 8))
     target_item_ids = raiderio_target_item_ids(conn)
+    compact_talent_profiles = talent_compact_profiles_enabled()
     deadline_at = sync_deadline_at()
     runs_stage_started = emit_sync_stage(
         stage_callback,
@@ -2447,11 +2516,13 @@ def sync_raiderio_cache(conn, force=False, stage_callback=None):
             "errors": len(errors),
         },
     )
+    spec_ranking_start = spec_ranking_start_page()
     spec_ranking_runs, spec_ranking_summary = fetch_spec_ranking_runs(
         expected_spec_pairs(),
         season_slug=season_slug,
         deadline_at=deadline_at,
         stage_callback=stage_callback,
+        start_page=spec_ranking_start,
     )
     errors.extend((spec_ranking_summary.get("errors") or [])[:8])
     runs = merge_runs_by_region_id([*runs, *spec_ranking_runs])
@@ -2460,6 +2531,7 @@ def sync_raiderio_cache(conn, force=False, stage_callback=None):
         season_slug=season_slug,
         deadline_at=deadline_at,
         stage_callback=stage_callback,
+        spread_by_spec=True,
     )
     errors.extend((run_detail_summary.get("errors") or [])[:8])
     gap_fill_specs = specs_needing_hero_gap_fill(runs, expected_spec_pairs())
@@ -2473,7 +2545,7 @@ def sync_raiderio_cache(conn, force=False, stage_callback=None):
             pages=spec_ranking_gap_fill_pages(),
             page_size=spec_ranking_gap_fill_page_size(),
             runs_per_character=spec_ranking_gap_fill_runs_per_character(),
-            start_page=spec_ranking_pages(),
+            start_page=spec_ranking_start + spec_ranking_pages(),
             stage_name="raiderio_spec_ranking_gap_fill",
         )
         gap_runs, gap_run_detail_summary = fetch_run_details_for_runs(
@@ -2604,6 +2676,7 @@ def sync_raiderio_cache(conn, force=False, stage_callback=None):
         "runCount": len(runs),
         "regionCoverage": region_summaries,
         "profileCount": len(profiles),
+        "profileCacheMode": "talent_compact" if compact_talent_profiles else "full",
         "profileLimitPerSpec": max(1, int_env("WOW_RAIDERIO_PROFILE_LIMIT_PER_SPEC", 5)),
         "specRankingCoverage": {key: value for key, value in spec_ranking_summary.items() if key != "errors"},
         "runDetailCoverage": {key: value for key, value in run_detail_summary.items() if key != "errors"},
@@ -2611,7 +2684,7 @@ def sync_raiderio_cache(conn, force=False, stage_callback=None):
         "targetMatrix": target_matrix,
         "specCoverage": spec_coverage,
         "runs": runs[:200],
-        "profiles": list(profiles.values())[:profile_payload_limit()],
+        "profiles": [] if compact_talent_profiles else list(profiles.values())[:profile_payload_limit()],
         "specAggregates": aggregates,
         "communityTemplates": community_templates,
         "staticData": static_data,

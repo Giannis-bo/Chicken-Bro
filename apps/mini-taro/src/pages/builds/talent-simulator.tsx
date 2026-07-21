@@ -49,6 +49,7 @@ import {
   applyTalentValidation,
   buildTalentGraph,
   communityTalentRegionLabel,
+  communityTalentTemplateHasPlayerChoices,
   communityTalentWinnerForImport,
   defaultTalentTemplateTitle,
   heroTalentIcon,
@@ -490,13 +491,41 @@ export default function TalentSimulatorPage() {
     setValidating(true)
     setImportingTemplate(true)
     try {
-      const result = await wowApi.websim.talentValidate({
+      const heroKey = data.talents.heroKey || data.selection.heroKey
+      const latest = await wowApi.websim.talents({
         classKey: data.selection.classKey,
         specKey: data.selection.specKey,
-        heroKey: data.talents.heroKey || data.selection.heroKey,
-        talentState: communityWinner.talentState,
+        ...(heroKey ? { heroKey } : {}),
       })
-      if (await applyImportedValidation(result.payload, result.fromFallback, result.error, operationSequence)) {
+      if (latest.fromFallback || latest.error) {
+        await Taro.showToast({ title: '社区模板刷新失败，请重试', icon: 'none' })
+        return
+      }
+      const latestWinner = communityTalentWinnerForImport(
+        latest.payload.communityTemplates,
+        heroKey,
+        communityWinner.id,
+      )
+      if (!latestWinner?.talentState) {
+        await Taro.showToast({ title: '社区模板已更新，请重新打开导入', icon: 'none' })
+        return
+      }
+      if (!communityTalentTemplateHasPlayerChoices(latestWinner)) {
+        await Taro.showToast({ title: '社区模板数据不完整，已阻止导入', icon: 'none' })
+        return
+      }
+      const exportCode = (latestWinner.websimExportCode ?? '').trim()
+      if (!exportCode.startsWith('websim:')) {
+        await Taro.showToast({ title: '社区模板导入码无效，请稍后重试', icon: 'none' })
+        return
+      }
+      const result = await wowApi.websim.talentImportCode({
+        code: exportCode,
+        classKey: data.selection.classKey,
+        specKey: data.selection.specKey,
+        heroKey,
+      })
+      if (await applyImportedValidation(result.payload.validation, result.fromFallback, result.error, operationSequence)) {
         setImportSheet('closed')
         await Taro.showToast({ title: '已导入社区模板', icon: 'none' })
       }
