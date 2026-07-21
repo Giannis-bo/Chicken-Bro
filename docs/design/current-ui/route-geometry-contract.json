@@ -9,7 +9,7 @@
   },
   "routes": [
     { "route": "news_home", "path": "/pages/news/news", "requiredRegionIds": ["daily_brief", "featured_carousel", "channel_dock", "ranked_feed"] },
-    { "route": "specialization_home/builds_home", "path": "/pages/builds/builds", "requiredRegionIds": ["page_header", "class_selector", "command_deck"] },
+    { "route": "specialization_home/builds_home", "path": "/pages/builds/builds", "requiredRegionIds": ["page_header", "class_selector", "command_deck", "recent_simc_tasks"] },
     { "route": "current_spec_workbench", "path": "/pages/builds/workbench", "requiredRegionIds": ["workbench_hero", "readiness_summary", "module_grid", "evidence_ledger"] },
     { "route": "news_list", "path": "/pages/news/list", "requiredRegionIds": ["list_summary", "category_filter_bar", "news_results", "list_terminal", "reference_disclaimer"] },
     { "route": "news_detail", "path": "/pages/news/detail?id=architecture-preflight", "requiredRegionIds": ["article_hero", "translation_status", "article_body", "source_reference", "evidence_details", "article_terminal"] },

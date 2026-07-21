@@ -114,6 +114,26 @@
       "productionStatus": "candidate_runtime_reuse_pending_implementation"
     },
     {
+      "slotId": "asset_slot.utility-glyph-family",
+      "owners": [
+        "BuildRecentSimcTasks"
+      ],
+      "semanticRole": "non-factual task-state and forward-navigation glyphs for the recent SimC preview",
+      "sourceClass": "system_vector",
+      "variants": [
+        "queued",
+        "running",
+        "failed",
+        "completed",
+        "unknown",
+        "chevron"
+      ],
+      "targetAspect": "1:1 contain inside a compact task row",
+      "factBearing": false,
+      "fallback": "neutral status dot and text label",
+      "productionStatus": "candidate_runtime_reuse_pending_implementation"
+    },
+    {
       "slotId": "asset_slot.product-tab-glyphs",
       "owners": [
         "TabBar"

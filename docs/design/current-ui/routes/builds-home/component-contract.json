@@ -2,19 +2,20 @@
   "schemaVersion": 1,
   "route": "specialization_home/builds_home",
   "status": "component_contract_complete",
-  "implementationStatus": "contract_updated_runtime_pending",
+  "implementationStatus": "runtime_updated_target_remeasurement_pending",
   "authority": "docs/plans/ui-reconstruction.md",
   "targetInventory": "docs/design/current-ui/routes/builds-home/target-inventory.json",
   "truthAdaptation": "docs/design/current-ui/routes/builds-home/truth-adaptation.json",
   "compositionOwner": {
     "name": "BuildsHomePage",
     "location": "apps/mini-taro/src/pages/builds/builds.tsx",
-    "responsibility": "compose exactly the page header, class selector, four-card command deck, and shared product tab bar; no overview, workspace, duplicate list, or workflow timeline"
+    "responsibility": "compose exactly the page header, class selector, four-card command deck, recent SimC preview, and shared product tab bar; no overview, workspace, duplicate list, or workflow timeline"
   },
   "stableRegionTopology": [
     "page_header",
     "class_selector",
     "command_deck",
+    "recent_simc_tasks",
     "product_tab_bar"
   ],
   "components": [
@@ -113,6 +114,42 @@
       }
     },
     {
+      "owner": "BuildRecentSimcTasks",
+      "decision": "new_owner",
+      "targetRegions": [
+        "recent_simc_tasks"
+      ],
+      "location": "packages/design-system/src/components/BuildRecentSimcTasks.tsx",
+      "contract": {
+        "topology": "one recent-simulation heading above three compact owner-scoped task rows",
+        "itemCount": 3,
+        "inputs": [
+          "items",
+          "state",
+          "onRetry",
+          "onSelect"
+        ],
+        "dataBoundary": "only current SimC submission tasks with mode simcraft_template, projected from the task-list truth model without class filtering",
+        "states": [
+          "loading",
+          "ready",
+          "empty",
+          "error"
+        ],
+        "forbiddenItemFields": [
+          "dps",
+          "ranking",
+          "readiness",
+          "templateContent",
+          "secondaryAction"
+        ],
+        "interaction": "an effective row opens its existing task detail; an error retry reloads only the preview request",
+        "assetSlots": [
+          "asset_slot.utility-glyph-family"
+        ]
+      }
+    },
+    {
       "owner": "TabBar",
       "decision": "reuse_verified_shared_owner",
       "targetRegions": [
@@ -179,25 +216,26 @@
       "product_tab_bar_target_scaled": 63.5,
       "product_tab_bar_shared": 63
     },
-    "rule": "The ready state fits the 390x830 first viewport with all four commands visible; no business-content vertical scroll and no tab-bar overlap are allowed.",
+    "rule": "The runtime uses a full-height 4 + 3 vertical composition. Its replacement canonical target and target-only bounds are pending fresh isolated measurement; no runtime geometry is promoted as target evidence.",
     "nativeSafeArea": "AppShell and the shared TabBar remain the only safe-area owners; route-private code cannot resize target cards or add a second bottom inset"
   },
   "stateContract": {
-    "stableRegionCount": 4,
+    "stableRegionCount": 5,
     "stableCommandItemCount": 4,
     "readyTargetRule": "the canonical bitmap represents only the closed-selector ready state",
     "loadingAndFailureRule": "RouteStage owns loading, error, and blocked states outside the ready target; command cards never become readiness panels",
-    "clippingRule": "title, selector, all four cards, and shared tab labels remain inside their measured owners at the 390 CSS px baseline"
+    "clippingRule": "title, selector, all four compact cards, three task rows, and shared tab labels remain inside their owners with no business-content vertical scroll or tab-bar overlap"
   },
   "componentCapabilityGaps": [
     "BuildClassSelector is not yet implemented",
-    "BuildToolCommandDeck is not yet implemented",
-    "the current BuildsHomePage still publishes the superseded multi-region topology"
+    "the replacement 4 + 3 canonical target and target-only geometry require a fresh isolated measurement",
+    "real WeChat review must confirm full-height spacing and task-row readability"
   ],
   "implementationOrder": [
     "shared selected-class preference and resolver",
     "BuildClassSelector closed pill and three-column bottom sheet",
     "BuildToolCommandDeck static four-item owner",
+    "BuildRecentSimcTasks owner and independent task request",
     "BuildsHomePage composition replacement",
     "target/runtime geometry and real WeChat interaction review"
   ]

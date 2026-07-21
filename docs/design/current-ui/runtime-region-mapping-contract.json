@@ -39,9 +39,9 @@
       "status": "contract_updated_runtime_pending",
       "targetGeometry": "docs/design/current-ui/routes/builds-home/target-geometry.json",
       "anchorTop": "page_header",
-      "anchorBottom": "command_deck",
-      "regions": { "page_header": "page_header", "class_selector": "class_selector", "command_deck": "command_deck", "product_tab_bar": "product_tab_bar" },
-      "activationRule": "move into routes only after runtime publishes the new page_header, class_selector, command_deck, and product_tab_bar semantic regions"
+      "anchorBottom": "recent_simc_tasks",
+      "regions": { "page_header": "page_header", "class_selector": "class_selector", "command_deck": "command_deck", "recent_simc_tasks": "recent_simc_tasks", "product_tab_bar": "product_tab_bar" },
+      "activationRule": "move into routes only after a replacement target is measured in an isolated target-only context and runtime publishes page_header, class_selector, command_deck, recent_simc_tasks, and product_tab_bar semantic regions"
     }
   ]
 }

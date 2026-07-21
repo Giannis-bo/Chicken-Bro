@@ -232,7 +232,7 @@
   min-width: 0;
   height: 100%;
   grid-template-rows: repeat(4, minmax(0, 1fr));
-  gap: 9px;
+  gap: 6px;
   color: var(--wow-fg);
   font-family: var(--wow-font-body);
 }
@@ -264,10 +264,10 @@
   width: 100%;
   height: 100%;
   min-height: 0;
-  grid-template-columns: 52px minmax(0, 1fr) 22px;
+  grid-template-columns: 44px minmax(0, 1fr) 18px;
   align-items: center;
-  gap: 11px;
-  padding: 6px 14px 6px 9px;
+  gap: 8px;
+  padding: 4px 11px 4px 7px;
   color: inherit;
   background: transparent;
 }
@@ -280,8 +280,8 @@
 .commandCardMedallion {
   display: grid;
   box-sizing: border-box;
-  width: 48px;
-  height: 48px;
+  width: 40px;
+  height: 40px;
   place-items: center;
   border: 1px solid rgba(169, 130, 66, 0.82);
   border-radius: 50%;
@@ -295,8 +295,8 @@
 }
 
 .commandCardGlyph {
-  width: 25px;
-  height: 25px;
+  width: 21px;
+  height: 21px;
   filter: drop-shadow(0 1px 1px #010203);
 }
 
@@ -304,16 +304,16 @@
   display: grid;
   min-width: 0;
   align-content: center;
-  gap: 3px;
+  gap: 1px;
   text-align: left;
 }
 
 .commandCardTitle {
   overflow: hidden;
   color: #eee3cf;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 760;
-  line-height: 21px;
+  line-height: 18px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -321,23 +321,188 @@
 .commandCardDetail {
   overflow: hidden;
   color: #9f9789;
-  font-size: 11px;
-  line-height: 16px;
+  font-size: 10px;
+  line-height: 14px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .commandCardChevron {
   display: grid;
-  width: 22px;
-  height: 34px;
+  width: 18px;
+  height: 28px;
   place-items: center;
   border-left: 1px solid rgba(128, 98, 52, 0.34);
   color: #cda755;
 }
 
 .commandCardChevronGlyph {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   filter: drop-shadow(0 1px 1px #010203);
+}
+
+.recentSimcTasks,
+.recentSimcTasks view,
+.recentSimcTasks text,
+.recentSimcTasks button {
+  box-sizing: border-box;
+}
+
+.recentSimcTasks {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  grid-template-rows: 24px minmax(0, 1fr);
+  gap: 4px;
+  color: var(--wow-fg);
+  font-family: var(--wow-font-body);
+}
+
+.recentSimcHeading {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  padding: 0 3px;
+  border-bottom: 1px solid rgba(134, 100, 51, 0.48);
+  color: #e4c273;
+}
+
+.recentSimcHeadingGlyph {
+  width: 14px;
+  height: 14px;
+  color: #cba45b;
+}
+
+.recentSimcHeading text {
+  font-size: 12px;
+  font-weight: 760;
+  line-height: 18px;
+}
+
+.recentSimcRows {
+  display: grid;
+  min-height: 0;
+  grid-auto-rows: minmax(0, 1fr);
+  gap: 4px;
+}
+
+.recentSimcRows[data-state='error'] {
+  grid-template-rows: minmax(0, 1fr) 22px;
+}
+
+.recentSimcRow {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  grid-template-columns: 27px minmax(0, 1fr) max-content 12px;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  padding: 5px 7px;
+  overflow: hidden;
+  border: 1px solid rgba(100, 80, 52, 0.74);
+  border-radius: 3px;
+  color: #c9bc9e;
+  background: linear-gradient(180deg, rgba(29, 32, 34, 0.98), rgba(8, 11, 14, 0.99));
+  box-shadow: inset 0 0 0 2px rgba(3, 4, 6, 0.7), inset 0 1px rgba(220, 193, 133, 0.05);
+  text-align: left;
+}
+
+.recentSimcRow::after,
+.recentSimcRetry::after {
+  display: none;
+}
+
+.recentSimcRow[data-disabled='true'] {
+  opacity: 0.72;
+}
+
+.recentSimcRowGlyph {
+  display: grid;
+  width: 25px;
+  height: 25px;
+  place-items: center;
+  border: 1px solid rgba(139, 104, 51, 0.76);
+  border-radius: 50%;
+  color: #bda060;
+  background: linear-gradient(180deg, #1d1f20, #090c0f);
+  box-shadow: inset 0 0 0 2px rgba(3, 4, 6, 0.72);
+}
+
+.recentSimcRowGlyph > view {
+  width: 13px;
+  height: 13px;
+}
+
+.recentSimcRow[data-state='running'] .recentSimcRowGlyph { color: #76a3cc; }
+.recentSimcRow[data-state='failed'] .recentSimcRowGlyph { color: #bd746a; }
+.recentSimcRow[data-state='completed'] .recentSimcRowGlyph { color: #93ae76; }
+
+.recentSimcRowCopy {
+  min-width: 0;
+}
+
+.recentSimcRowCopy text,
+.recentSimcRowMeta text {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recentSimcRowCopy text:first-child {
+  color: #dfd1af;
+  font-size: 10px;
+  font-weight: 730;
+  line-height: 13px;
+}
+
+.recentSimcRowCopy text:last-child {
+  color: #8f8779;
+  font-size: 8px;
+  line-height: 11px;
+}
+
+.recentSimcRowMeta {
+  max-width: 74px;
+  text-align: right;
+}
+
+.recentSimcRowMeta text:first-child {
+  color: #b9a888;
+  font-size: 8px;
+  line-height: 11px;
+}
+
+.recentSimcRowMeta text:last-child {
+  color: #7d776e;
+  font-size: 7px;
+  line-height: 10px;
+}
+
+.recentSimcChevron {
+  width: 11px;
+  height: 11px;
+  color: #c5a157;
+}
+
+.recentSimcRetry {
+  justify-self: end;
+  width: 58px;
+  min-height: 22px;
+  margin: 0 6px 0 0;
+  padding: 0;
+  border: 1px solid rgba(138, 98, 53, 0.82);
+  border-radius: 2px;
+  color: #c7aa6b;
+  background: #101316;
+}
+
+.recentSimcRetry text {
+  font-size: 8px;
+  line-height: 12px;
 }

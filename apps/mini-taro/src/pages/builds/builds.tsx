@@ -1,10 +1,11 @@
-import Taro, { usePullDownRefresh } from '@tarojs/taro'
-import { useMemo, useState } from 'react'
+import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro'
+import { useMemo, useRef, useState } from 'react'
 
 import { wowApi } from '@wow-mini/api-client'
 import { AppShell } from '@wow-mini/design-system/components/AppShell'
 import { BuildClassSelector } from '@wow-mini/design-system/components/BuildClassSelector'
 import { BuildCommandDeck } from '@wow-mini/design-system/components/BuildCommandDeck'
+import { BuildRecentSimcTasks } from '@wow-mini/design-system/components/BuildRecentSimcTasks'
 import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
 import { RouteColumn, RouteRegion } from '@wow-mini/design-system/components/RouteFlow'
 import { RouteStatePanel } from '@wow-mini/design-system/components/ReconstructionPrimitives'
@@ -14,6 +15,7 @@ import { readBuildsHomeContext, selectBuildsHomeClass } from '../_shared/build-c
 import { navigateTo, useAsyncRoute } from '../_shared/route-runtime'
 import { useTabRootIdentity } from '../../use-tab-root-identity'
 import { buildBuildsHomeModel, type BuildsHomeCommandId } from './builds-home-model'
+import { buildRecentSimcTaskPreviews } from './builds-recent-simc-model'
 import styles from './builds-home.module.scss'
 
 export interface BuildsHomeReadyCompositionInput {
@@ -38,6 +40,7 @@ export function isBuildsHomeReadyComposition({
 export default function BuildsHomePage() {
   useTabRootIdentity('pages/builds/builds')
   const [context, setContext] = useState(() => readBuildsHomeContext())
+  const didShow = useRef(false)
   const route = useAsyncRoute(
     () => wowApi.builds.home(),
     {
@@ -45,9 +48,23 @@ export default function BuildsHomePage() {
       isEmpty: (payload) => !payload.classOptions.some((classItem) => classItem.specializations.length > 0),
     },
   )
+  const taskRoute = useAsyncRoute(
+    () => wowApi.simulator.tasks(),
+    {
+      fallbackPolicy: 'blocked',
+      isEmpty: (payload) => payload.tasks.length === 0,
+    },
+  )
 
   usePullDownRefresh(() => {
-    void route.load().finally(() => Taro.stopPullDownRefresh())
+    void Promise.all([route.load(), taskRoute.load()]).finally(() => Taro.stopPullDownRefresh())
+  })
+  useDidShow(() => {
+    if (!didShow.current) {
+      didShow.current = true
+      return
+    }
+    void taskRoute.load()
   })
 
   const model = useMemo(() => buildBuildsHomeModel({
@@ -62,6 +79,22 @@ export default function BuildsHomePage() {
     ...option,
     id: classKey,
   })), [model.classOptions])
+  const recentSimcTasks = useMemo(
+    () => buildRecentSimcTaskPreviews(taskRoute.data?.tasks ?? []),
+    [taskRoute.data],
+  )
+  const recentSimcState = taskRoute.state.state === 'error' || taskRoute.state.state === 'blocked'
+    ? 'error'
+    : taskRoute.state.state === 'loading' && !taskRoute.data
+      ? 'loading'
+      : recentSimcTasks.length > 0
+        ? 'ready'
+        : 'empty'
+  const recentSimcError = taskRoute.state.state === 'error'
+    ? taskRoute.state.error
+    : taskRoute.state.state === 'blocked'
+      ? taskRoute.state.reason
+      : undefined
 
   const selectClass = (classKey: string) => {
     const nextContext = selectBuildsHomeClass(classKey)
@@ -119,7 +152,7 @@ export default function BuildsHomePage() {
       <RouteStage
         className={styles['page'] ?? ''}
         routeState={ready ? route.state.state : unavailableState}
-        targetRegionCount={4}
+        targetRegionCount={5}
         width="full"
       >
         <PageFrame
@@ -156,6 +189,19 @@ export default function BuildsHomePage() {
                 />
               )}
             </RouteRegion>
+            {ready ? (
+              <>
+                <RouteRegion className={styles['recentTasksRegion'] ?? ''} data-region="recent_simc_tasks">
+                  <BuildRecentSimcTasks
+                    items={recentSimcTasks}
+                    state={recentSimcState}
+                    {...(recentSimcError ? { errorDetail: recentSimcError } : {})}
+                    onRetry={taskRoute.load}
+                    onSelect={(id) => navigateTo('/pages/simulator/task-detail', { id })}
+                  />
+                </RouteRegion>
+              </>
+            ) : null}
           </RouteColumn>
         </PageFrame>
       </RouteStage>

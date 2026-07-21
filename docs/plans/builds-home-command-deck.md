@@ -709,7 +709,7 @@
 
   Place `BuildCommandDeck` in `data-region="command_deck"` and `BuildRecentSimcTasks` in `data-region="recent_simc_tasks"`; use `navigateTo('/pages/simulator/task-detail', { id })` for preview selection. A task-route failure must pass only the preview state/error and retry callback; it must never turn the class catalog or four commands into blocked state.
 
-  In `builds-home.module.scss`, make `.surface` a two-row grid with `grid-template-rows: minmax(0, 4fr) minmax(0, 3fr)` and a design-token-sized gap. Make `.commandDeckRegion` and `.recentTasksRegion` fill their assigned rows. Reduce the command deck card padding, medallion, glyph, card gap, and copy line height in `BuildsHomeCommandDeck.module.scss` so every region fills assigned height without vertical scroll. Do not use a fixed pixel height, `overflow-y: auto`, a fake bottom spacer, or a route-private TabBar.
+  In `builds-home.module.scss`, keep `RouteColumn` as the shared vertical owner: give `.commandDeckRegion` `flex: 4 1 0` and its design-sized bottom margin, and `.recentTasksRegion` `flex: 3 1 0`. Do not reimplement a route-private grid in `.surface`. Reduce the command deck card padding, medallion, glyph, card gap, and copy line height in `BuildsHomeCommandDeck.module.scss` so every region fills assigned height without vertical scroll. Do not use a fixed pixel height, `overflow-y: auto`, a fake bottom spacer, or a route-private TabBar.
 
 - [ ] **Step 12: Run page, model, and existing task-model tests to prove GREEN**
 

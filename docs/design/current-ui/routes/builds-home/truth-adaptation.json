@@ -9,6 +9,7 @@
     "classCatalog": "BuildsHomePayload.classOptions",
     "classSelectionPreference": "selectedClassKey",
     "recentSpecializationPreference": "lastSpecByClass",
+    "recentSimcTasks": "wowApi.simulator.tasks().tasks filtered to mode === simcraft_template",
     "toolActionKeys": [
       "talents",
       "gear",
@@ -20,7 +21,8 @@
     "the homepage selector lists canonical classes from BuildsHomePayload.classOptions and never synthesizes a class",
     "the homepage displays only a class selection; specialization and hero-talent choices remain inside downstream tools",
     "the four command cards are static peers in the fixed order talents, gear, simc, tasks and do not express a workflow",
-    "the homepage does not display or claim source status, template readiness, task state, task counts, SimC readiness, progress, recent records, or validation state",
+    "the four command cards do not display or claim source status, template readiness, task counts, SimC readiness, progress, recent records, or validation state",
+    "the separate recent-simulation region may display only owner-scoped returned task context, time, and mapped task state for the three latest current SimC submissions",
     "talents, gear, and simc resolve one valid specialization for the selected class only at navigation time",
     "tasks navigates directly to tasks_list without class or specialization context",
     "no DPS, ranking, tier, BiS, player identity, template content, task history, or simulation result is inferred"
@@ -83,6 +85,14 @@
       "navigationRule": "navigate directly without class, specialization, source, readiness, or from parameters"
     },
     {
+      "slot": "recent_simc_tasks",
+      "source": "wowApi.simulator.tasks().tasks where mode === simcraft_template",
+      "displayRule": "sort by updatedAt, fall back to createdAt, take three across all current-owner classes, and project only returned build/scenario context, mapped state, and time",
+      "navigation": "/pages/simulator/task-detail?id=<taskId>",
+      "emptyRule": "show a neutral owner-empty region without creating task facts",
+      "errorRule": "show a local retry without blocking the class catalog or command deck"
+    },
+    {
       "slot": "product_tab_bar.items",
       "source": "tabBarItems",
       "count": 4,
@@ -117,7 +127,7 @@
     {
       "state": "ready",
       "condition": "at least one canonical class has a valid specialization mapping",
-      "presentation": "show one selected class capsule and the four static command cards without status labels"
+      "presentation": "show one selected class capsule, four static command cards without status labels, and an independently loaded recent SimC region"
     },
     {
       "state": "blocked",
@@ -135,7 +145,7 @@
     "talent-template readiness",
     "gear-template readiness",
     "SimC readiness",
-    "task counts, task state, or task history",
+    "task counts, task state, or task history inside a command card",
     "progress, validation, or workflow stage",
     "recent records or quick actions"
   ],
@@ -159,8 +169,13 @@
       "id": "route_navigation",
       "owner": "apps/mini-taro/src/pages/builds/builds.tsx",
       "requirement": "resolve spec only for talents, gear, and simc; tasks navigates directly to tasks_list without context parameters"
+    },
+    {
+      "id": "recent_simc_preview",
+      "owner": "apps/mini-taro/src/pages/builds/builds-recent-simc-model.ts + packages/design-system/src/components/BuildRecentSimcTasks.tsx",
+      "requirement": "filter only simcraft_template tasks, reuse task-list ordering/state/time truth, show at most three across classes, and isolate preview request failure from the command deck"
     }
   ],
   "pendingTruthGaps": [],
-  "implementationStatus": "contract_updated_runtime_pending"
+  "implementationStatus": "runtime_updated_target_remeasurement_pending"
 }

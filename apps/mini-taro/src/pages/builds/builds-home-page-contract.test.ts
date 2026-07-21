@@ -34,10 +34,11 @@ function executePageModule(): Record<string, unknown> {
 }
 
 describe('builds home page composition contract', () => {
-  it('composes only the title, class selector, command deck, and shared shell chrome', () => {
+  it('composes the title, class selector, command deck, recent SimC tasks, and shared shell chrome', () => {
     expect(pageSource).toContain('title="职业专精"')
     expect(pageSource).toContain('<BuildClassSelector')
     expect(pageSource).toContain('<BuildCommandDeck')
+    expect(pageSource).toContain('<BuildRecentSimcTasks')
     expect(pageSource).toContain('<RouteStage')
     expect(pageSource).toContain('<AppShell bodyScrollable={false} tabRoot>')
     expect(pageSource).not.toContain('Picker')
@@ -95,11 +96,15 @@ describe('builds home page composition contract', () => {
     expect(pageSource).toContain("...(id === 'tasks' ? {} : { specId: item.specId })")
   })
 
-  it('keeps route state outside ready cards and locks business scrolling above the shared tab bar', () => {
+  it('keeps route state outside ready cards and locks the full-height 4 + 3 composition above the shared tab bar', () => {
     const classSelectorRule = styleSource.match(/\.classSelectorRegion \{(?<body>[^}]*)\}/u)?.groups?.['body'] ?? ''
 
     expect(pageSource).toContain('data-region="class_selector"')
     expect(pageSource).toContain('data-region="command_deck"')
+    expect(pageSource).toContain('data-region="recent_simc_tasks"')
+    expect(pageSource).toContain('wowApi.simulator.tasks()')
+    expect(pageSource).toContain('useDidShow')
+    expect(pageSource).toContain("navigateTo('/pages/simulator/task-detail', { id })")
     expect(pageSource).toContain('<RouteColumn')
     expect(pageSource).toContain('<RouteStatePanel')
     expect(pageSource).toContain('const ready = isBuildsHomeReadyComposition({')
@@ -108,6 +113,10 @@ describe('builds home page composition contract', () => {
     expect(pageSource).not.toMatch(/<RouteColumn[\s\S]*?data-region="class_selector"/u)
     expect(styleSource).toMatch(/\.surface \{[\s\S]*?min-height:\s*0;[\s\S]*?overflow:\s*hidden;/u)
     expect(styleSource).toMatch(/\.commandDeckRegion \{[\s\S]*?display:\s*flex;[\s\S]*?min-height:\s*0;[\s\S]*?overflow:\s*hidden;/u)
+    expect(styleSource).toMatch(/\.recentTasksRegion \{[\s\S]*?display:\s*flex;[\s\S]*?min-height:\s*0;[\s\S]*?overflow:\s*hidden;/u)
+    expect(styleSource).toMatch(/\.commandDeckRegion \{[\s\S]*?flex:\s*4 1 0;[\s\S]*?margin-bottom:\s*9px;/u)
+    expect(styleSource).toMatch(/\.recentTasksRegion \{[\s\S]*?flex:\s*3 1 0;/u)
+    expect(styleSource).not.toMatch(/\.surface \{[\s\S]*?display:\s*grid;/u)
     expect(classSelectorRule).not.toMatch(/(?:^|;)\s*(?:position|z-index|margin):/u)
     expect(classSelectorRule).not.toMatch(/(?:^|;)\s*(?:width|overflow):/u)
     expect(styleSource).not.toMatch(/margin:\s*-/u)
