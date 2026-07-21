@@ -28,7 +28,6 @@ export interface BuildsHomeCommandItem {
 }
 
 export interface BuildsHomeViewModel {
-  title: string
   classOptions: readonly BuildsHomeClassOption[]
   selectedClassKey?: string
   launchSpecId?: string
@@ -85,7 +84,6 @@ export function buildBuildsHomeModel({
   const launchSpecId = launch?.selection.specId
 
   return {
-    title: payload?.navTitle || '职业专精',
     classOptions: (payload?.classOptions ?? []).map((classItem) => ({
       classKey: classItem.websimClassKey,
       label: classItem.name,

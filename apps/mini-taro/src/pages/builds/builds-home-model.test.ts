@@ -97,6 +97,7 @@ describe('builds home command deck model', () => {
   it('does not retain overview, evidence, workspace, or workflow fields', () => {
     const model = buildBuildsHomeModel({ payload: payload(), routeState: 'ready', context: emptyBuildsHomeContext() })
 
+    expect(model).not.toHaveProperty('title')
     expect(model).not.toHaveProperty('selection')
     expect(model).not.toHaveProperty('specialization')
     expect(model).not.toHaveProperty('evidenceItems')
