@@ -1,0 +1,343 @@
+.classSelectorOwner {
+  position: relative;
+  display: inline-flex;
+  min-width: 0;
+  color: var(--wow-fg);
+  font-family: var(--wow-font-body);
+}
+
+.classSelectorTrigger {
+  display: grid;
+  box-sizing: border-box;
+  width: 116px;
+  height: 36px;
+  grid-template-columns: 26px minmax(0, 1fr) 9px;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 10px 4px 5px;
+  border: 1px solid rgba(173, 132, 64, 0.86);
+  border-radius: 999px;
+  color: #ead6a9;
+  background:
+    linear-gradient(180deg, rgba(50, 48, 42, 0.98), rgba(15, 17, 18, 0.99));
+  box-shadow:
+    inset 0 0 0 2px rgba(3, 4, 5, 0.72),
+    inset 0 1px rgba(255, 225, 163, 0.12),
+    0 2px 7px rgba(0, 0, 0, 0.34);
+}
+
+.classSelectorTrigger[data-disabled='true'] {
+  color: var(--wow-fg-dim);
+  border-color: rgba(104, 95, 79, 0.62);
+  opacity: 0.72;
+}
+
+.classSelectorTrigger::after,
+.classSelectorOption::after,
+.classSelectorCancel::after,
+.commandCard::after {
+  border: 0;
+}
+
+.classIcon {
+  position: relative;
+  display: grid;
+  box-sizing: border-box;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+  overflow: hidden;
+  place-items: center;
+  border: 1px solid rgba(190, 151, 80, 0.78);
+  border-radius: 50%;
+  color: #e8c879;
+  background:
+    radial-gradient(circle at 38% 30%, rgba(106, 100, 84, 0.8), rgba(31, 33, 32, 0.96) 48%, #0b0d0e 72%);
+  box-shadow:
+    inset 0 0 0 2px rgba(5, 6, 7, 0.72),
+    0 1px 4px rgba(0, 0, 0, 0.46);
+}
+
+.classIconFallback {
+  position: relative;
+  z-index: 1;
+  font-size: 12px;
+  font-weight: 780;
+  line-height: 18px;
+}
+
+.classIconImage {
+  position: absolute;
+  z-index: 2;
+  inset: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+}
+
+.classSelectorLabel {
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 720;
+  line-height: 18px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.classSelectorCaret {
+  width: 0;
+  height: 0;
+  border-top: 5px solid currentColor;
+  border-right: 4px solid transparent;
+  border-left: 4px solid transparent;
+}
+
+.classSelectorScrim {
+  position: fixed;
+  z-index: 80;
+  inset: 0;
+  background: rgba(2, 3, 4, 0.72);
+}
+
+.classSelectorSheet {
+  position: fixed;
+  z-index: 81;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  box-sizing: border-box;
+  padding: 12px 14px calc(14px + var(--safe-bottom, 0px));
+}
+
+.classSelectorPanel {
+  box-sizing: border-box;
+  width: 100%;
+  max-height: calc(100vh - 24px - var(--safe-bottom, 0px));
+  overflow: hidden;
+  border: 1px solid rgba(167, 124, 54, 0.9);
+  border-radius: 12px 12px 4px 4px;
+  background:
+    radial-gradient(circle at 50% 0, rgba(151, 111, 48, 0.11), transparent 42%),
+    linear-gradient(180deg, #202124, #0a0c0e 76%);
+  box-shadow:
+    inset 0 0 0 2px rgba(4, 5, 6, 0.92),
+    inset 0 1px rgba(240, 205, 135, 0.12),
+    0 -8px 28px rgba(0, 0, 0, 0.48);
+}
+
+.classSelectorPanelContent {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  box-sizing: border-box;
+  width: 100%;
+  max-height: calc(100vh - 24px - var(--safe-bottom, 0px));
+  grid-template-rows: 44px minmax(0, 1fr);
+  padding: 5px 8px 9px;
+}
+
+.classSelectorPanelHeader {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 52px;
+  align-items: center;
+  padding: 0 4px 0 10px;
+  border-bottom: 1px solid rgba(137, 105, 55, 0.5);
+}
+
+.classSelectorPanelTitle {
+  color: #f0dfba;
+  font-size: 16px;
+  font-weight: 760;
+  line-height: 24px;
+}
+
+.classSelectorCancel {
+  width: 52px;
+  height: 32px;
+  color: #c8b995;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.classSelectorGrid {
+  display: grid;
+  box-sizing: border-box;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  padding: 10px 2px 2px;
+  overflow-y: auto;
+}
+
+.classSelectorOption {
+  display: grid;
+  box-sizing: border-box;
+  width: 100%;
+  height: 72px;
+  grid-template-rows: 38px 18px;
+  place-items: center;
+  gap: 3px;
+  padding: 6px 4px 5px;
+  border: 1px solid rgba(82, 79, 72, 0.78);
+  border-radius: 5px;
+  color: #b7ad9c;
+  background: linear-gradient(180deg, rgba(42, 43, 43, 0.9), rgba(13, 15, 16, 0.97));
+  box-shadow:
+    inset 0 0 0 2px rgba(4, 5, 6, 0.66),
+    inset 0 1px rgba(223, 213, 191, 0.05),
+    0 0 8px rgba(203, 152, 57, 0);
+}
+
+.classSelectorOption .classIcon {
+  width: 36px;
+  height: 36px;
+}
+
+.classSelectorOption .classIconImage {
+  inset: 3px;
+  width: 28px;
+  height: 28px;
+}
+
+.classSelectorOption[data-selected='true'] {
+  border-color: rgba(218, 173, 80, 0.96);
+  color: #f2d48d;
+  background: linear-gradient(180deg, rgba(77, 62, 38, 0.94), rgba(19, 18, 16, 0.98));
+  box-shadow:
+    inset 0 0 0 2px rgba(4, 5, 6, 0.66),
+    inset 0 1px rgba(255, 224, 154, 0.13),
+    0 0 8px rgba(203, 152, 57, 0.12);
+}
+
+.classSelectorOption[data-disabled='true'] {
+  border-color: rgba(69, 68, 64, 0.62);
+  color: #625e56;
+  background: linear-gradient(180deg, rgba(31, 32, 32, 0.86), rgba(12, 14, 15, 0.95));
+  opacity: 0.62;
+}
+
+.classSelectorOptionLabel {
+  overflow: hidden;
+  max-width: 100%;
+  font-size: 11px;
+  font-weight: 680;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.commandDeck {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  grid-template-rows: repeat(4, minmax(0, 1fr));
+  gap: 9px;
+  color: var(--wow-fg);
+  font-family: var(--wow-font-body);
+}
+
+.commandCardFrame {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid rgba(118, 96, 61, 0.82);
+  border-radius: 5px;
+  background:
+    linear-gradient(150deg, rgba(126, 98, 52, 0.045), transparent 40%),
+    linear-gradient(180deg, #1b1e20, #0b0e10);
+  box-shadow:
+    inset 0 0 0 2px rgba(3, 5, 6, 0.88),
+    inset 0 1px rgba(226, 208, 170, 0.06),
+    0 4px 11px rgba(0, 0, 0, 0.26);
+}
+
+.commandCardFrame[data-frame-asset-ready='true'] {
+  border-color: transparent;
+}
+
+.commandCard {
+  display: grid;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  grid-template-columns: 52px minmax(0, 1fr) 22px;
+  align-items: center;
+  gap: 11px;
+  padding: 6px 14px 6px 9px;
+  color: inherit;
+  background: transparent;
+}
+
+.commandCard[data-disabled='true'] {
+  color: var(--wow-fg-dim);
+  opacity: 0.58;
+}
+
+.commandCardMedallion {
+  display: grid;
+  box-sizing: border-box;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border: 1px solid rgba(169, 130, 66, 0.82);
+  border-radius: 50%;
+  color: #d8b467;
+  background:
+    radial-gradient(circle at 42% 34%, rgba(80, 78, 69, 0.72), rgba(25, 28, 28, 0.96) 48%, #090b0c 74%);
+  box-shadow:
+    inset 0 0 0 3px rgba(4, 6, 7, 0.78),
+    inset 0 0 8px rgba(210, 160, 70, 0.1),
+    0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.commandCardGlyph {
+  width: 25px;
+  height: 25px;
+  filter: drop-shadow(0 1px 1px #010203);
+}
+
+.commandCardCopy {
+  display: grid;
+  min-width: 0;
+  align-content: center;
+  gap: 3px;
+  text-align: left;
+}
+
+.commandCardTitle {
+  overflow: hidden;
+  color: #eee3cf;
+  font-size: 15px;
+  font-weight: 760;
+  line-height: 21px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.commandCardDetail {
+  overflow: hidden;
+  color: #9f9789;
+  font-size: 11px;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.commandCardChevron {
+  display: grid;
+  width: 22px;
+  height: 34px;
+  place-items: center;
+  border-left: 1px solid rgba(128, 98, 52, 0.34);
+  color: #cda755;
+}
+
+.commandCardChevronGlyph {
+  width: 16px;
+  height: 16px;
+  filter: drop-shadow(0 1px 1px #010203);
+}
