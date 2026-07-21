@@ -16,6 +16,25 @@ import { useTabRootIdentity } from '../../use-tab-root-identity'
 import { buildBuildsHomeModel, type BuildsHomeCommandId } from './builds-home-model'
 import styles from './builds-home.module.scss'
 
+export interface BuildsHomeReadyCompositionInput {
+  routeState: string
+  hasCurrentData: boolean
+  selectedClassKey?: string
+  launchSpecId?: string
+}
+
+export function isBuildsHomeReadyComposition({
+  routeState,
+  hasCurrentData,
+  selectedClassKey,
+  launchSpecId,
+}: BuildsHomeReadyCompositionInput): boolean {
+  return routeState === 'ready'
+    && hasCurrentData
+    && Boolean(selectedClassKey)
+    && Boolean(launchSpecId)
+}
+
 export default function BuildsHomePage() {
   useTabRootIdentity('pages/builds/builds')
   const [context, setContext] = useState(() => readBuildsHomeContext())
@@ -76,7 +95,12 @@ export default function BuildsHomePage() {
     }
   }
 
-  const ready = Boolean(route.data && model.selectedClassKey && model.launchSpecId)
+  const ready = isBuildsHomeReadyComposition({
+    routeState: route.state.state,
+    hasCurrentData: Boolean(route.data),
+    ...(model.selectedClassKey ? { selectedClassKey: model.selectedClassKey } : {}),
+    ...(model.launchSpecId ? { launchSpecId: model.launchSpecId } : {}),
+  })
   const unavailableState = route.state.state === 'error'
     ? 'error'
     : route.state.state === 'loading'
@@ -100,6 +124,15 @@ export default function BuildsHomePage() {
       >
         <PageFrame
           region="page_header"
+          rightAction={ready ? (
+            <RouteRegion className={styles['classSelectorRegion'] ?? ''} data-region="class_selector">
+              <BuildClassSelector
+                options={classOptions}
+                value={model.selectedClassKey ?? ''}
+                onSelect={selectClass}
+              />
+            </RouteRegion>
+          ) : undefined}
           title="职业专精"
           variant="builds-home"
         >
@@ -107,15 +140,6 @@ export default function BuildsHomePage() {
             className={styles['surface'] ?? ''}
             routeState={ready ? route.state.state : unavailableState}
           >
-            {ready ? (
-              <RouteRegion className={styles['classSelectorRegion'] ?? ''} data-region="class_selector">
-                <BuildClassSelector
-                  options={classOptions}
-                  value={model.selectedClassKey ?? ''}
-                  onSelect={selectClass}
-                />
-              </RouteRegion>
-            ) : null}
             <RouteRegion className={styles['commandDeckRegion'] ?? ''} data-region="command_deck">
               {ready ? (
                 <BuildCommandDeck items={model.commandItems} onSelect={openCommand} />

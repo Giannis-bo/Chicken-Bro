@@ -9,23 +9,19 @@
 .surface {
   width: calc(100% - 31px);
   max-width: 359px;
-  height: 100%;
-  max-height: 663px;
+  height: calc(100% - 54px);
+  max-height: 609px;
   min-height: 0;
-  margin: -44px auto 0;
+  margin: 10px auto 0;
   overflow: hidden;
 }
 
 .classSelectorRegion {
-  position: relative;
-  z-index: calc(var(--z-sticky) + 1);
   display: flex;
   width: 100%;
   min-width: 0;
-  flex: 0 0 44px;
   align-items: center;
   justify-content: flex-end;
-  padding-right: 4px;
   overflow: hidden;
 }
 
@@ -35,6 +31,5 @@
   min-width: 0;
   min-height: 0;
   flex: 1 1 auto;
-  padding-top: 10px;
   overflow: hidden;
 }
