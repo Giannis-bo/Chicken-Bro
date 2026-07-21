@@ -14,11 +14,14 @@ const {
 } = require('./runtime-review-validation')
 const { repoRelativePath, repoPathDirname, repoPathJoin } = require('./repo-relative-path')
 const {
-  buildsSpecializationFillContractRequired,
-  literalStyleModuleImports,
+  buildsSpecializationFillAudit,
+  closedSemanticRegionIds,
   pageFrameLiteralVariants,
   publishedPageFrameRegionIds,
   publishedRouteRegionIds,
+  routeLayoutFamilyCoverageMatches,
+  styleModuleClassReferences,
+  styleModuleOwnsSelectedMaterial,
 } = require('./ui-architecture-ast')
 
 const root = path.resolve(__dirname, '..')
@@ -681,11 +684,10 @@ const invalidRequiredRegionContracts = (routeGeometryContract.routes ?? []).flat
     && read('packages/design-system/src/components/NewsListComponents.tsx').includes('data-region="news_results"')
     ? ['news_results']
     : []
-  const publishedPageFrameRegions = sourceExists
-    ? publishedPageFrameRegionIds(source).filter((regionId) => required.includes(regionId))
-    : []
+  const publishedRouteRegions = sourceExists ? publishedRouteRegionIds(source) : []
+  const publishedPageFrameRegions = sourceExists ? publishedPageFrameRegionIds(source) : []
   const published = sourceExists
-    ? [...publishedRouteRegionIds(source), ...publishedPageFrameRegions, ...sharedPublished]
+    ? closedSemanticRegionIds({ publishedRouteRegions, publishedPageFrameRegions, requiredRegionIds: required, sharedPublished })
     : []
   const missing = required.filter((regionId) => !published.includes(regionId))
   const unexpected = published.filter((regionId) => !required.includes(regionId))
@@ -1163,11 +1165,13 @@ record(
 )
 record(
   'shared_route_layout_owners_cover_current_layout_families',
-  routeStageConsumers.length === 9
-    && routeFlowConsumers.length === 3
-    && routeColumnConsumers.length === 5
-    && routeGridConsumers.length === 1
-    && routeRegionConsumers.length >= 14,
+  routeLayoutFamilyCoverageMatches({
+    stage: routeStageConsumers.length,
+    flow: routeFlowConsumers.length,
+    column: routeColumnConsumers.length,
+    grid: routeGridConsumers.length,
+    region: routeRegionConsumers.length,
+  }),
   `stage=${routeStageConsumers.length}; flow=${routeFlowConsumers.length}; column=${routeColumnConsumers.length}; grid=${routeGridConsumers.length}; region=${routeRegionConsumers.length}`,
 )
 
@@ -1475,11 +1479,7 @@ for (const file of componentTsxFiles) {
       const classExpression = classAttribute?.value?.type === 'JSXExpressionContainer'
         ? source.slice(classAttribute.value.expression.start, classAttribute.value.expression.end)
         : ''
-      const classNames = [...new Set([
-        ...[...classExpression.matchAll(/\bstyles\[['"]([^'"]+)['"]\]/gu)].map((match) => match[1]),
-        ...[...classExpression.matchAll(/\b(?:reconstructionStyle|componentStyle|style)\(['"]([^'"]+)['"]\)/gu)].map((match) => match[1]),
-      ])]
-      selectedMaterialPublishers.push({ file, role, stateAttributes: stateAttributes.map((attribute) => attribute.name.name), boundary, classNames })
+      selectedMaterialPublishers.push({ file, role, stateAttributes: stateAttributes.map((attribute) => attribute.name.name), boundary, classExpression })
     },
   })
 }
@@ -1509,23 +1509,22 @@ record(
   invalidSelectedMaterialPublishers.map((publisher) => `${publisher.file}:${publisher.role || 'missing-role'}`).join(', ')
     || `publishers=${selectedMaterialPublishers.length}; roles=${publishedSelectionRoles.size}`,
 )
-const reconstructionSelectionStyles = read('packages/design-system/src/components/reconstruction.module.scss')
 const selectedPublishersWithoutStyleOwners = selectedMaterialPublishers.flatMap((publisher) => {
   const stateAttribute = publisher.stateAttributes[0]
   if (!stateAttribute) return [`${publisher.file}:${publisher.role}:missing-state-attribute`]
-  const localStyleSources = literalStyleModuleImports(read(publisher.file))
-    .map((styleImport) => repoPathJoin(repoPathDirname(publisher.file), styleImport))
-    .filter((stylePath) => fs.existsSync(path.join(root, stylePath)))
-    .map(read)
-  const styleSources = [reconstructionSelectionStyles, ...localStyleSources]
-  const stateSelector = `\\[${stateAttribute}=['"]true['"]\\]`
-  const ownsDirectMaterial = publisher.classNames.some((className) => styleSources.some((styles) => (
-    new RegExp(`\\.${className}${stateSelector}`, 'u').test(styles)
-  )))
-  const ownsAncestorMaterial = publisher.classNames.length === 0 && localStyleSources.some((styles) => (
-    new RegExp(`[^{}]+${stateSelector}\\s*\\{`, 'u').test(styles)
-  ))
-  return ownsDirectMaterial || ownsAncestorMaterial ? [] : [`${publisher.file}:${publisher.role}:${publisher.classNames.join('|') || 'ancestor'}`]
+  const componentSource = read(publisher.file)
+  const styleReferences = styleModuleClassReferences(componentSource, publisher.classExpression)
+  const ownsMaterial = styleModuleOwnsSelectedMaterial({
+    source: componentSource,
+    classExpression: publisher.classExpression,
+    stateAttribute,
+    readStyleModule: (styleImport) => {
+      const stylePath = repoPathJoin(repoPathDirname(publisher.file), styleImport)
+      return fs.existsSync(path.join(root, stylePath)) ? read(stylePath) : ''
+    },
+  })
+  const detail = styleReferences.map((reference) => `${reference.localName}:${reference.className}`).join('|')
+  return ownsMaterial ? [] : [`${publisher.file}:${publisher.role}:${detail || 'ancestor'}`]
 })
 record(
   'selected_material_publishers_bind_active_style_owners',
@@ -2692,29 +2691,18 @@ record(
   `height=${sharedTabBarHeight}/${isolatedTabBarHeight}/${typedTabBarHeight}/${contractTabBarHeight}; target=${targetTabBarHeight}; icon=${sharedTabBarIcon}/${isolatedTabBarIcon}/${typedTabBarIcon}`,
 )
 
-const buildsOverview = read('packages/design-system/src/components/BuildSpecializationOverview.tsx')
-const buildsOverviewStyles = read('packages/design-system/src/components/BuildsHomeComponents.module.scss')
 const buildsAssetContract = JSON.parse(read('docs/design/current-ui/routes/builds-home/asset-contract.json'))
 const buildsHomeSource = read('apps/mini-taro/src/pages/builds/builds.tsx')
-const requiresBuildsSpecializationFill = buildsSpecializationFillContractRequired({
+const buildsSpecializationFillResult = buildsSpecializationFillAudit({
   source: buildsHomeSource,
   assetContract: buildsAssetContract,
   componentContract: buildsComponentContract,
+  readLegacyFile: read,
 })
-const specializationObjectSlot = buildsAssetContract.slots?.find((slot) => slot.slotId === 'asset_slot.builds-specialization-object')
-const specializationRuntimeCrop = specializationObjectSlot?.runtimeCrop
 record(
   'builds_specialization_icon_honors_fill_contract',
-  !requiresBuildsSpecializationFill || (
-    specializationObjectSlot?.targetAspect.includes('aspectFill')
-      && specializationRuntimeCrop?.fit === 'aspectFill'
-      && specializationRuntimeCrop?.scale >= 1
-      && buildsOverview.includes('mode="aspectFill"')
-      && /\.specializationImage\s*\{[^}]*object-fit:\s*cover;/s.test(buildsOverviewStyles)
-      && /\.specializationImage\s*\{[^}]*inset:\s*0;[^}]*display:\s*block;[^}]*width:\s*100%;[^}]*height:\s*100%;/s.test(buildsOverviewStyles)
-      && !/\.specializationImage\s*\{[^}]*(?:border-radius|overflow|transform):/s.test(buildsOverviewStyles)
-  ),
-  requiresBuildsSpecializationFill
+  buildsSpecializationFillResult.pass,
+  buildsSpecializationFillResult.required
     ? 'specialization object must fill the parent-owned circular viewport without a second native-image crop layer'
     : 'current builds-home source and contracts use the class selector plus command deck topology',
 )

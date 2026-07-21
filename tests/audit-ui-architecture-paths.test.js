@@ -67,6 +67,7 @@ test('PageFrame variant audit parses complete JSX opening elements', () => {
 test('semantic region audit includes an explicitly published PageFrame header region', () => {
   const helperPath = path.join(root, 'scripts', 'ui-architecture-ast.js')
   const {
+    closedSemanticRegionIds,
     publishedPageFrameRegionIds,
     publishedRouteRegionIds,
     publishedSemanticRegionIds,
@@ -85,23 +86,90 @@ test('semantic region audit includes an explicitly published PageFrame header re
   assert.deepEqual(publishedSemanticRegionIds(source), ['page_header', 'class_selector', 'command_deck'])
   assert.deepEqual(publishedPageFrameRegionIds(source), ['page_header'])
   assert.deepEqual(publishedRouteRegionIds(source), ['class_selector', 'command_deck'])
+  const publishedRouteRegions = publishedRouteRegionIds(source)
+  const publishedPageFrameRegions = publishedPageFrameRegionIds(source)
+  assert.deepEqual(closedSemanticRegionIds({
+    publishedRouteRegions,
+    publishedPageFrameRegions,
+    requiredRegionIds: ['page_header', 'class_selector', 'command_deck'],
+  }), ['class_selector', 'command_deck', 'page_header'])
+  assert.deepEqual(closedSemanticRegionIds({
+    publishedRouteRegions,
+    publishedPageFrameRegions,
+    requiredRegionIds: ['class_selector', 'command_deck'],
+  }), ['class_selector', 'command_deck'])
+
+  const pageFrame = fs.readFileSync(path.join(root, 'packages/design-system/src/components/PageFrame.tsx'), 'utf8')
+  assert.match(pageFrame, /data-region=\{region\}/u)
 })
 
 test('selected material audit resolves the style module imported by the component', () => {
   const helperPath = path.join(root, 'scripts', 'ui-architecture-ast.js')
-  const { literalStyleModuleImports } = require(helperPath)
+  const { literalStyleModuleImports, styleModuleOwnsSelectedMaterial } = require(helperPath)
   const source = `
     import styles from './BuildsHomeCommandDeck.module.scss'
     import { helper } from './helper'
     export const selector = styles.classSelectorOption
   `
 
-  assert.deepEqual(literalStyleModuleImports(source), ['./BuildsHomeCommandDeck.module.scss'])
+  assert.deepEqual(literalStyleModuleImports(source), [
+    { localName: 'styles', source: './BuildsHomeCommandDeck.module.scss' },
+  ])
+
+  const dualModuleSource = `
+    import stylesA from './A.module.scss'
+    import stylesB from './B.module.scss'
+    export const selector = stylesA['option']
+  `
+  const wrongOwner = new Map([
+    ['./A.module.scss', '.option { color: white; }'],
+    ['./B.module.scss', ".option[data-selected='true'] { color: gold; }"],
+  ])
+  assert.equal(styleModuleOwnsSelectedMaterial({
+    source: dualModuleSource,
+    classExpression: "stylesA['option']",
+    stateAttribute: 'data-selected',
+    readStyleModule: (stylePath) => wrongOwner.get(stylePath) ?? '',
+  }), false)
+  wrongOwner.set('./A.module.scss', ".option[data-selected='true'] { color: gold; }")
+  assert.equal(styleModuleOwnsSelectedMaterial({
+    source: dualModuleSource,
+    classExpression: "stylesA['option']",
+    stateAttribute: 'data-selected',
+    readStyleModule: (stylePath) => wrongOwner.get(stylePath) ?? '',
+  }), true)
+
+  const helperSource = `
+    import localStyles from './Local.module.scss'
+    function componentStyle(name: string): string { return localStyles[name] ?? '' }
+    export const selector = componentStyle('option')
+  `
+  assert.equal(styleModuleOwnsSelectedMaterial({
+    source: helperSource,
+    classExpression: "componentStyle('option')",
+    stateAttribute: 'data-selected',
+    readStyleModule: (stylePath) => stylePath === './Local.module.scss'
+      ? ".option[data-selected='true'] { color: gold; }"
+      : '',
+  }), true)
+
+  const reconstructionSource = `
+    import { reconstructionStyle as localReconstructionStyle } from './reconstruction-style'
+    export const selector = localReconstructionStyle('option')
+  `
+  assert.equal(styleModuleOwnsSelectedMaterial({
+    source: reconstructionSource,
+    classExpression: "localReconstructionStyle('option')",
+    stateAttribute: 'data-selected',
+    readStyleModule: (stylePath) => stylePath === './reconstruction.module.scss'
+      ? ".option[data-selected='true'] { color: gold; }"
+      : '',
+  }), true)
 })
 
 test('builds specialization fill contract is required only by the active source or current contracts', () => {
   const helperPath = path.join(root, 'scripts', 'ui-architecture-ast.js')
-  const { buildsSpecializationFillContractRequired } = require(helperPath)
+  const { buildsSpecializationFillAudit, buildsSpecializationFillContractRequired } = require(helperPath)
 
   assert.equal(buildsSpecializationFillContractRequired({
     source: '<BuildCommandDeck />',
@@ -118,17 +186,43 @@ test('builds specialization fill contract is required only by the active source 
     assetContract: { slots: [{ slotId: 'asset_slot.builds-specialization-object' }] },
     componentContract: { components: [] },
   }), true)
+
+  const inactive = buildsSpecializationFillAudit({
+    source: '<BuildCommandDeck />',
+    assetContract: { slots: [{ slotId: 'asset_slot.builds-class-icon' }] },
+    componentContract: { components: [{ owner: 'BuildToolCommandDeck' }] },
+    readLegacyFile: () => { throw new Error('legacy path does not exist') },
+  })
+  assert.deepEqual(inactive, { required: false, pass: true })
+
+  const activeMissing = buildsSpecializationFillAudit({
+    source: '<BuildCommandDeck />',
+    assetContract: {
+      slots: [{
+        slotId: 'asset_slot.builds-specialization-object',
+        targetAspect: 'aspectFill',
+        runtimeCrop: { fit: 'aspectFill', scale: 1 },
+      }],
+    },
+    componentContract: { components: [] },
+    readLegacyFile: () => { throw new Error('legacy path does not exist') },
+  })
+  assert.deepEqual(activeMissing, { required: true, pass: false })
 })
 
 test('UI audit registers the current builds-home layout and selected-control owners', () => {
+  const helperPath = path.join(root, 'scripts', 'ui-architecture-ast.js')
+  const { routeLayoutFamilyCoverageMatches } = require(helperPath)
   const audit = fs.readFileSync(path.join(root, 'scripts', 'audit-ui-architecture.js'), 'utf8')
 
-  assert.match(audit, /routeStageConsumers\.length === 9/u)
-  assert.match(audit, /routeColumnConsumers\.length === 5/u)
-  assert.match(audit, /routeGridConsumers\.length === 1/u)
+  assert.match(audit, /routeLayoutFamilyCoverageMatches\(\{/u)
+  assert.match(audit, /region: routeRegionConsumers\.length/u)
   assert.match(audit, /BuildClassSelector\.tsx', 'build-class-option'/u)
-  assert.match(audit, /literalStyleModuleImports/u)
-  assert.match(audit, /buildsSpecializationFillContractRequired/u)
+  assert.match(audit, /styleModuleOwnsSelectedMaterial/u)
+  assert.match(audit, /buildsSpecializationFillAudit/u)
+
+  assert.equal(routeLayoutFamilyCoverageMatches({ stage: 9, flow: 3, column: 5, grid: 1, region: 14 }), true)
+  assert.equal(routeLayoutFamilyCoverageMatches({ stage: 9, flow: 3, column: 5, grid: 1, region: 15 }), false)
 })
 
 test('content-addressed runtime review JSON declares LF byte preservation', () => {
