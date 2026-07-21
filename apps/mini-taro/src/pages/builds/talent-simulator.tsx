@@ -50,7 +50,9 @@ import {
   applyTalentValidation,
   buildTalentGraph,
   communityTalentRegionLabel,
+  communityTalentRankingLabel,
   communityTalentTemplateHasPlayerChoices,
+  communityTalentTemplateTitle,
   communityTalentWinnerForImport,
   defaultTalentTemplateTitle,
   heroTalentIcon,
@@ -216,13 +218,16 @@ export default function TalentSimulatorPage() {
     data?.talents.communityTemplates ?? [],
     data?.talents.heroKey || data?.selection.heroKey,
   )
+  const communityRankingLabel = communityWinner
+    ? communityTalentRankingLabel(communityWinner)
+    : undefined
   const savedImportItems: readonly TalentTemplateSavedImportItem[] = savedTemplates.map((template) => ({
     id: template.id,
     title: template.title,
     detail: `更新：${templateUpdatedAt(template.updatedAt)}`,
   }))
   const communityWinnerView: TalentTemplateCommunityWinner | undefined = communityWinner ? {
-    title: communityWinner.name || communityWinner.title || '社区天赋模板',
+    title: communityTalentTemplateTitle(communityWinner),
     playerName: communityWinner.playerName || '未提供',
     serverName: communityWinner.serverName || '未提供',
     region: communityTalentRegionLabel(communityWinner.region),
@@ -230,7 +235,7 @@ export default function TalentSimulatorPage() {
       ? { mplusScore: communityWinner.mplusScore }
       : {}),
     updatedAt: templateUpdatedAt(communityWinner.updatedAt),
-    sourceName: communityWinner.sourceName || communityWinner.source || '未提供',
+    ...(communityRankingLabel ? { rankingLabel: communityRankingLabel } : {}),
     isStale: communityWinner.isStale === true || communityWinner.freshnessStatus === 'stale',
     importable: communityWinner.canApplyVisual === true,
   } : undefined

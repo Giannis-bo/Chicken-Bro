@@ -25,6 +25,28 @@ describe('talent simulator authoritative edit contract', () => {
     expect(source).not.toContain('data-region="community_builds"')
   })
 
+  it('keeps the community import sheet compact and shows only the agreed Raider.IO ranking fact', () => {
+    const source = readFileSync(resolve(
+      process.cwd(),
+      'apps/mini-taro/src/pages/builds/talent-simulator.tsx',
+    ), 'utf8')
+    const components = readFileSync(resolve(
+      process.cwd(),
+      'packages/design-system/src/components/TalentSimulatorComponents.tsx',
+    ), 'utf8')
+    const style = readFileSync(resolve(
+      process.cwd(),
+      'packages/design-system/src/components/TalentSimulatorComponents.module.scss',
+    ), 'utf8')
+
+    expect(source).toContain('communityTalentTemplateTitle(communityWinner)')
+    expect(source).toContain('communityTalentRankingLabel(communityWinner)')
+    expect(components).toContain('rankingLabel?: string')
+    expect(components).not.toContain('`来源：${communityWinner?.sourceName')
+    expect(components).toContain('data-mode={activeTab}')
+    expect(style).toContain(".templateSheet[data-mode='community']")
+  })
+
   it('keeps the action bar at the bottom and gives the vacated space to the talent tree', () => {
     const source = readFileSync(resolve(
       process.cwd(),

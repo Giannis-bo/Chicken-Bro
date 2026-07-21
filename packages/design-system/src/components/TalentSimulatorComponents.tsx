@@ -581,7 +581,7 @@ export interface TalentTemplateCommunityWinner {
   region: string
   mplusScore?: number | undefined
   updatedAt: string
-  sourceName: string
+  rankingLabel?: string | undefined
   isStale: boolean
   importable: boolean
 }
@@ -618,11 +618,11 @@ export function TalentTemplateImportSheet({
     `区域：${communityWinner?.region || '未提供'}`,
     communityWinner?.mplusScore === undefined ? '大秘境总分：未提供' : `大秘境总分：${communityWinner.mplusScore}`,
     `更新：${communityWinner?.updatedAt || '未提供'}`,
-    `来源：${communityWinner?.sourceName || '未提供'}`,
+    ...(communityWinner?.rankingLabel ? [communityWinner.rankingLabel] : []),
   ]
   return (
     <View className={componentStyle('templateSheetMask')} data-role="talent-template-import-sheet">
-      <View className={componentStyle('templateSheet')}>
+      <View className={componentStyle('templateSheet')} data-mode={activeTab}>
         <View className={componentStyle('templateSheetHeader')}>
           <Text>导入天赋模板</Text>
           <View className={componentStyle('templateSheetClose')} role="button" onClick={onClose}>关闭</View>

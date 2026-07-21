@@ -716,6 +716,8 @@
 }
 
 .templateSheet { height: 390px; }
+.templateSheet[data-mode='community'] { height: auto; }
+.templateSheet[data-mode='community'] .templateSheetContent { height: auto; }
 .templateNameSheet { padding: 16px; }
 
 .templateSheetHeader {

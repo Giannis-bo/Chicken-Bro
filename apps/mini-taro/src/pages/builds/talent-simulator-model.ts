@@ -44,6 +44,30 @@ export function communityTalentRegionLabel(region: string | undefined): string {
   return communityTalentRegionLabels[normalized] ?? normalized.toUpperCase()
 }
 
+export function communityTalentTemplateTitle(
+  template: Pick<CommunityTemplateReference, 'playerName' | 'classLabel' | 'specLabel' | 'heroLabel' | 'name' | 'title'>,
+): string {
+  const displayParts = [
+    template.playerName,
+    template.classLabel,
+    template.specLabel,
+    template.heroLabel,
+  ].map((value) => value?.trim() ?? '')
+
+  return displayParts.every(Boolean)
+    ? displayParts.join('-')
+    : template.name?.trim() || template.title?.trim() || '社区天赋模板'
+}
+
+export function communityTalentRankingLabel(
+  template: Pick<CommunityTemplateReference, 'sourceKey' | 'sourceName' | 'mplusRank'>,
+): string | undefined {
+  const source = `${template.sourceKey ?? ''} ${template.sourceName ?? ''}`.toLowerCase()
+  const rank = template.mplusRank
+  if (!source.includes('raiderio') || !Number.isFinite(rank) || (rank ?? 0) <= 0) return undefined
+  return `Raider.IO 大秘境排名：#${Math.trunc(rank ?? 0)}`
+}
+
 export function communityTalentTemplateHasPlayerChoices(
   template: Pick<CommunityTemplateReference, 'talentState'>,
 ): boolean {

@@ -370,8 +370,11 @@ export interface CommunityTemplateReference {
   title?: string
   name?: string
   classKey?: string
+  classLabel?: string
   specKey?: string
+  specLabel?: string
   heroKey?: string
+  heroLabel?: string
   scenarioKey?: string
   rawImportCode?: string
   importCode?: string

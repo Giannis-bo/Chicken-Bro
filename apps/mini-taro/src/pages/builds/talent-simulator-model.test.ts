@@ -13,6 +13,8 @@ import {
   heroTalentOptions,
   applyTalentValidation,
   communityTalentRegionLabel,
+  communityTalentRankingLabel,
+  communityTalentTemplateTitle,
   communityTalentTemplateHasPlayerChoices,
   communityTalentWinnerForImport,
   defaultTalentTemplateTitle,
@@ -108,6 +110,24 @@ describe('talent simulator target model', () => {
     expect(communityTalentRegionLabel('kr')).toBe('韩服')
     expect(communityTalentRegionLabel('tw')).toBe('台服')
     expect(communityTalentRegionLabel('br')).toBe('BR')
+  })
+
+  it('uses player-facing community template titles and only exposes verified Raider.IO ranks', () => {
+    const raiderWinner: CommunityTemplateReference = {
+      playerName: 'Supermono',
+      classLabel: '法师',
+      specLabel: '奥术',
+      heroLabel: '法术投射者',
+      sourceKey: 'raiderio',
+      mplusRank: 1,
+    }
+
+    expect(communityTalentTemplateTitle(raiderWinner)).toBe('Supermono-法师-奥术-法术投射者')
+    expect(communityTalentRankingLabel(raiderWinner)).toBe('Raider.IO 大秘境排名：#1')
+    expect(communityTalentRankingLabel({
+      ...raiderWinner,
+      sourceKey: 'warcraftlogs',
+    })).toBeUndefined()
   })
 
   it('uses only the current hero tree community winner when an older API returns multiple heroes', () => {
