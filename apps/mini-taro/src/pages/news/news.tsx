@@ -94,7 +94,7 @@ export default function NewsHomePage() {
   }
 
   return (
-    <AppShell tabRoot>
+    <AppShell bodyScrollable={false} tabRoot>
       <PageFrame
         headerStatusLabel={model.headerStatusLabel}
         rightAction={<PageFrameFavoriteAction selected={model.homeFavorite} onClick={toggleHomeFavorite} />}
