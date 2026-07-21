@@ -5,89 +5,173 @@
   "authority": "docs/plans/ui-reconstruction.md",
   "source": {
     "path": "artifacts/ui-visual-targets/current/builds-home.png",
-    "sha256": "e418c45b1bf4fe62479f0a907706edadb9c46d2fd38220d6163284f727feee74",
-    "widthPx": 864,
-    "heightPx": 1821
+    "sha256": "b524eb27ebb4164f95c5430d3d908687d396d4eafabf634258ecd45021fa9ef6",
+    "widthPx": 780,
+    "heightPx": 1660,
+    "bytes": 1048090
   },
   "measurement": {
     "context": "disposable_isolated_target_only",
-    "measuredAt": "2026-07-14T22:30:00+08:00",
+    "measuredAt": "2026-07-21T14:57:28+08:00",
+    "method": "exact authored border-color detection against the new PNG; command cards measured as four independent connected vertical bands",
     "targetMeasuredBeforeRuntimeInspection": true,
     "runtimeInputsUsed": false,
-    "existingInventoryUsed": false,
+    "existingTargetPixelsUsed": false,
+    "existingInventoryGeometryUsed": false,
     "previousRedlineUsed": false,
-    "estimatedMajorRegionTolerancePx": 4
+    "estimatedMajorRegionTolerancePx": 1
   },
   "regions": [
     {
       "id": "page_header",
-      "boundsPx": { "xStart": 28, "yStart": 28, "xEnd": 836, "yEnd": 94, "width": 808, "height": 66 },
-      "boundsNormalized": { "xStart": 0.032407, "yStart": 0.015376, "xEnd": 0.967593, "yEnd": 0.05162, "width": 0.935185, "height": 0.036244 }
+      "boundsPx": {
+        "xStart": 39,
+        "yStart": 55,
+        "xEnd": 451,
+        "yEnd": 161,
+        "width": 412,
+        "height": 106
+      },
+      "boundsNormalized": {
+        "xStart": 0.05,
+        "yStart": 0.033133,
+        "xEnd": 0.578205,
+        "yEnd": 0.096988,
+        "width": 0.528205,
+        "height": 0.063855
+      }
     },
     {
-      "id": "specialization_overview",
-      "boundsPx": { "xStart": 28, "yStart": 114, "xEnd": 836, "yEnd": 408, "width": 808, "height": 294 },
-      "boundsNormalized": { "xStart": 0.032407, "yStart": 0.062603, "xEnd": 0.967593, "yEnd": 0.224053, "width": 0.935185, "height": 0.16145 }
+      "id": "class_selector",
+      "boundsPx": {
+        "xStart": 500,
+        "yStart": 59,
+        "xEnd": 740,
+        "yEnd": 149,
+        "width": 240,
+        "height": 90
+      },
+      "boundsNormalized": {
+        "xStart": 0.641026,
+        "yStart": 0.035542,
+        "xEnd": 0.948718,
+        "yEnd": 0.089759,
+        "width": 0.307692,
+        "height": 0.054217
+      }
     },
     {
-      "id": "evidence_category_grid",
-      "boundsPx": { "xStart": 28, "yStart": 428, "xEnd": 836, "yEnd": 758, "width": 808, "height": 330 },
-      "boundsNormalized": { "xStart": 0.032407, "yStart": 0.235036, "xEnd": 0.967593, "yEnd": 0.416255, "width": 0.935185, "height": 0.181219 },
-      "tileCount": 4,
-      "topology": "one_continuous_2x2_frame_with_cross_dividers"
-    },
-    {
-      "id": "active_specialization_workspace",
-      "boundsPx": { "xStart": 28, "yStart": 770, "xEnd": 836, "yEnd": 1012, "width": 808, "height": 242 },
-      "boundsNormalized": { "xStart": 0.032407, "yStart": 0.422845, "xEnd": 0.967593, "yEnd": 0.555739, "width": 0.935185, "height": 0.132894 }
-    },
-    {
-      "id": "evidence_category_list",
-      "boundsPx": { "xStart": 28, "yStart": 1024, "xEnd": 836, "yEnd": 1352, "width": 808, "height": 328 },
-      "boundsNormalized": { "xStart": 0.032407, "yStart": 0.562328, "xEnd": 0.967593, "yEnd": 0.742449, "width": 0.935185, "height": 0.180121 },
-      "rowCount": 4,
-      "topology": "one_continuous_list_frame_with_four_rows"
-    },
-    {
-      "id": "workflow_stage_list",
-      "boundsPx": { "xStart": 28, "yStart": 1364, "xEnd": 836, "yEnd": 1660, "width": 808, "height": 296 },
-      "boundsNormalized": { "xStart": 0.032407, "yStart": 0.749039, "xEnd": 0.967593, "yEnd": 0.911587, "width": 0.935185, "height": 0.162548 },
-      "rowCount": 3,
-      "topology": "one_continuous_workflow_frame_with_vertical_timeline"
+      "id": "command_deck",
+      "boundsPx": {
+        "xStart": 31,
+        "yStart": 203,
+        "xEnd": 749,
+        "yEnd": 1421,
+        "width": 718,
+        "height": 1218
+      },
+      "boundsNormalized": {
+        "xStart": 0.039744,
+        "yStart": 0.122289,
+        "xEnd": 0.960256,
+        "yEnd": 0.856024,
+        "width": 0.920513,
+        "height": 0.733735
+      }
     },
     {
       "id": "product_tab_bar",
-      "boundsPx": { "xStart": 0, "yStart": 1682, "xEnd": 864, "yEnd": 1821, "width": 864, "height": 139 },
-      "boundsNormalized": { "xStart": 0, "yStart": 0.923668, "xEnd": 1, "yEnd": 1, "width": 1, "height": 0.076332 },
-      "visibleColumnCount": 3,
-      "targetLabels": ["资讯", "专精", "我的"]
+      "boundsPx": {
+        "xStart": 0,
+        "yStart": 1533,
+        "xEnd": 780,
+        "yEnd": 1660,
+        "width": 780,
+        "height": 127
+      },
+      "boundsNormalized": {
+        "xStart": 0,
+        "yStart": 0.923494,
+        "xEnd": 1,
+        "yEnd": 1,
+        "width": 1,
+        "height": 0.076506
+      }
     }
   ],
-  "internalLandmarks": {
-    "specializationOverview": { "dividerXApprox": 343, "contentStartX": 372 },
-    "evidenceCategoryGrid": { "verticalDividerXApprox": 432, "tileCount": 4 },
-    "activeWorkspace": { "contentStartX": 244 },
-    "evidenceCategoryList": { "rowCount": 4, "rowHeightApproxPx": 79 },
-    "workflowStageList": { "timelineCenterX": 84, "iconCenterX": 169, "textStartX": 245, "statusStartX": 662, "chevronCenterX": 790 }
-  },
   "gapsPx": {
-    "headerToOverview": 20,
-    "overviewToEvidenceGrid": 20,
-    "evidenceGridToWorkspace": 12,
-    "workspaceToEvidenceList": 12,
-    "evidenceListToWorkflow": 12,
-    "workflowToProductTabBar": 22
+    "headerToCommandDeck": 42,
+    "classSelectorToCommandDeck": 54,
+    "commandCardGap": 22,
+    "commandDeckToProductTabBar": 112
+  },
+  "internalLandmarks": {
+    "commandDeck": {
+      "cardCount": 4,
+      "cardBoundsPx": [
+        {
+          "id": "talents",
+          "xStart": 31,
+          "yStart": 203,
+          "xEnd": 749,
+          "yEnd": 491,
+          "width": 718,
+          "height": 288
+        },
+        {
+          "id": "gear",
+          "xStart": 31,
+          "yStart": 513,
+          "xEnd": 749,
+          "yEnd": 801,
+          "width": 718,
+          "height": 288
+        },
+        {
+          "id": "simc",
+          "xStart": 31,
+          "yStart": 823,
+          "xEnd": 749,
+          "yEnd": 1111,
+          "width": 718,
+          "height": 288
+        },
+        {
+          "id": "tasks",
+          "xStart": 31,
+          "yStart": 1133,
+          "xEnd": 749,
+          "yEnd": 1421,
+          "width": 718,
+          "height": 288
+        }
+      ],
+      "iconCenterX": 150,
+      "textStartX": 274,
+      "chevronCenterX": 699
+    },
+    "productTabBar": {
+      "columnCount": 4,
+      "columnWidthPx": 195,
+      "activeIndex": 1
+    }
   },
   "viewportSemantics": {
+    "cssViewport": {
+      "width": 390,
+      "height": 830
+    },
+    "devicePixelRatio": 2,
     "completeAuthoredFirstViewport": true,
+    "readyStateOnly": true,
     "additionalScrollContentVisible": false,
+    "businessContentScrollRequired": false,
     "systemChromeIncluded": false,
     "productTabBarOcclusion": false,
-    "runtimeComparisonMappingStatus": "pending_after_truth_and_component_contract"
+    "runtimeComparisonMappingStatus": "contract_updated_runtime_pending"
   },
   "unresolved": [
-    "target pixels show three product-tab labels while the current product route contract contains four tab roots",
-    "exact font family and exact color samples are not measurable from the target bitmap",
-    "fine frame extents retain approximately 2-4px uncertainty"
+    "the target proves only the closed-selector ready state; the 13-class sheet requires runtime interaction review",
+    "system font rasterization may differ from the target and remains a platform visual-review fact"
   ]
 }

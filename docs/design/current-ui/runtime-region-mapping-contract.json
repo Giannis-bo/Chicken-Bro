@@ -32,5 +32,16 @@
       "anchorBottom": "error_state",
       "regions": { "task_summary": "task_summary", "refresh_notice": "refresh_notice", "simc_result": "simc_result", "run_context": "character_context", "scenario": "scenario_parameters", "attribute_snapshot": "attribute_snapshot", "combat_buffs": "combat_preparation", "error_state": "exception_state" }
     }
+  ],
+  "pendingRoutes": [
+    {
+      "route": "specialization_home/builds_home",
+      "status": "contract_updated_runtime_pending",
+      "targetGeometry": "docs/design/current-ui/routes/builds-home/target-geometry.json",
+      "anchorTop": "page_header",
+      "anchorBottom": "command_deck",
+      "regions": { "page_header": "page_header", "class_selector": "class_selector", "command_deck": "command_deck", "product_tab_bar": "product_tab_bar" },
+      "activationRule": "move into routes only after runtime publishes the new page_header, class_selector, command_deck, and product_tab_bar semantic regions"
+    }
   ]
 }
