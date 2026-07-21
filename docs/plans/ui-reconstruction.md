@@ -38,6 +38,12 @@
 3. builds：`builds_home`、`current_spec_workbench`、`build_intel`、`talent_simulator`、`gear_detail`。
 4. simulation/profile：`simulator_home`、`simc_submit`、`chickenbro_chat`、`tasks_list`、`task_detail`、`profile_templates`。
 
+## builds_home 已确认方向
+
+`builds_home` 收敛为“职业命令卡组”：首页只选择职业，首屏平级展示天赋、装备、SimC 和任务四个入口，不展示具体专精、英雄天赋、模板准备状态、进度或重复工作台。天赋、装备和 SimC 使用当前职业最近有效的专精作为启动上下文，任务保持独立。
+
+实施前必须先制作并登记新的 canonical target，以 target-only measurement 更新该路由的 inventory、geometry、truth adaptation、component/asset contract 和核心交互合同；讨论期概念稿、当前 runtime 或旧 CSS 都不能写入目标 bounds。完整设计与验收边界见 [Builds Home 职业命令卡组设计](../design/current-ui/routes/builds-home/product-design.md)。
+
 ## 共享 owner 边界
 
 | Owner | 职责 |
