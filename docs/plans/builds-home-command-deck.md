@@ -695,7 +695,7 @@
 
 - [ ] **Step 11: Compose independent task loading and the full-height `4 + 3` grid**
 
-  In `builds.tsx`, add a second `useAsyncRoute(() => wowApi.simulator.tasks(), { fallbackPolicy: 'empty', isEmpty: (payload) => payload.tasks.length === 0 })`. Derive preview data only through `buildRecentSimcTaskPreviews(taskRoute.data?.tasks ?? [])`. Reload this route in `useDidShow` after initial mount, so returning from a task detail refreshes the three rows. Keep the existing pull-down refresh: call both `route.load()` and `taskRoute.load()`, then stop refresh after both settle.
+  In `builds.tsx`, add a second `useAsyncRoute(() => wowApi.simulator.tasks(), { fallbackPolicy: 'blocked', isEmpty: (payload) => payload.tasks.length === 0 })`. Derive preview data only through `buildRecentSimcTaskPreviews(taskRoute.data?.tasks ?? [])`; map that route's `blocked` and `error` states to the preview component's `error` state. Reload this route in `useDidShow` after initial mount, so returning from a task detail refreshes the three rows. Keep the existing pull-down refresh: call both `route.load()` and `taskRoute.load()`, then stop refresh after both settle.
 
   Place `BuildCommandDeck` in `data-region="command_deck"` and `BuildRecentSimcTasks` in `data-region="recent_simc_tasks"`; use `navigateTo('/pages/simulator/task-detail', { id })` for preview selection. A task-route failure must pass only the preview state/error and retry callback; it must never turn the class catalog or four commands into blocked state.
 
