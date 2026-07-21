@@ -51,16 +51,18 @@ export function selectBuildsHomeClass(classKey: string, storage: StorageAdapter 
 
 export function rememberBuildsHomeSpec(
   selection: Pick<SpecSelection, 'classKey' | 'specId'>,
-  context: BuildsHomeContext = emptyBuildsHomeContext(),
+  context: BuildsHomeContext | undefined = undefined,
   storage: StorageAdapter = taroStorage,
 ): BuildsHomeContext {
+  const current = readBuildsHomeContext(storage)
+  if (!isNonEmptyString(selection.classKey) || !isNonEmptyString(selection.specId)) return current
+  const base = context ?? current
   const next: BuildsHomeContext = {
-    ...(isNonEmptyString(selection.classKey) ? { selectedClassKey: selection.classKey } : {}),
+    selectedClassKey: selection.classKey,
     lastSpecByClass: {
-      ...context.lastSpecByClass,
-      ...(isNonEmptyString(selection.classKey) && isNonEmptyString(selection.specId)
-        ? { [selection.classKey]: selection.specId }
-        : {}),
+      ...current.lastSpecByClass,
+      ...base.lastSpecByClass,
+      [selection.classKey]: selection.specId,
     },
   }
   return writeBuildsHomeContext(next, storage)

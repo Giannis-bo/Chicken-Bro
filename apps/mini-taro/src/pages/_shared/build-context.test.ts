@@ -22,12 +22,14 @@ import {
 
 class MemoryStorage implements StorageAdapter {
   private readonly values = new Map<string, unknown>()
+  writes = 0
 
   get<T>(key: string): T | undefined {
     return this.values.get(key) as T | undefined
   }
 
   set<T>(key: string, value: T): void {
+    this.writes += 1
     this.values.set(key, value)
   }
 
@@ -136,5 +138,30 @@ describe('builds home launch context', () => {
 
     expect(remembered).toEqual({ selectedClassKey: 'mage', lastSpecByClass: { mage: '法师-奥术' } })
     expect(readBuildsHomeContext(storage)).toEqual(remembered)
+  })
+
+  it('merges a writeback without explicit context into persisted specializations for other classes', () => {
+    const storage = new MemoryStorage()
+    rememberBuildsHomeSpec({ classKey: 'mage', specId: '法师-奥术' }, undefined, storage)
+    const remembered = rememberBuildsHomeSpec({ classKey: 'priest', specId: '牧师-暗影' }, undefined, storage)
+
+    expect(remembered).toEqual({
+      selectedClassKey: 'priest',
+      lastSpecByClass: { mage: '法师-奥术', priest: '牧师-暗影' },
+    })
+    expect(readBuildsHomeContext(storage)).toEqual(remembered)
+  })
+
+  it.each([
+    { classKey: '', specId: '法师-奥术' },
+    { classKey: 'mage', specId: '' },
+  ])('does not write or alter persisted context for invalid selection: %#', (selection) => {
+    const storage = new MemoryStorage()
+    const seeded = rememberBuildsHomeSpec({ classKey: 'mage', specId: '法师-奥术' }, undefined, storage)
+    const writesBefore = storage.writes
+
+    expect(rememberBuildsHomeSpec(selection, undefined, storage)).toEqual(seeded)
+    expect(storage.writes).toBe(writesBefore)
+    expect(readBuildsHomeContext(storage)).toEqual(seeded)
   })
 })

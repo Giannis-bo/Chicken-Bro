@@ -16,13 +16,19 @@ import { emptyBuildsHomeContext } from '../_shared/build-context'
 import { rememberBuildsHomeSpec } from '../_shared/build-context-storage'
 
 class MemoryStorage implements StorageAdapter {
-  get<T>(_key: string): T | undefined {
-    return undefined
+  private readonly values = new Map<string, unknown>()
+
+  get<T>(key: string): T | undefined {
+    return this.values.get(key) as T | undefined
   }
 
-  set<T>(_key: string, _value: T): void {}
+  set<T>(key: string, value: T): void {
+    this.values.set(key, value)
+  }
 
-  remove(_key: string): void {}
+  remove(key: string): void {
+    this.values.delete(key)
+  }
 }
 
 function memoryStorage(): StorageAdapter {
@@ -34,7 +40,7 @@ function read(path: string): string {
 }
 
 describe('build context specialization writeback', () => {
-  it('records the resolved specialization without sharing hero, template, draft, or submission state', () => {
+  it('records the resolved specialization without sharing tool state', () => {
     const context = rememberBuildsHomeSpec(
       { classKey: 'mage', specId: '法师-火焰' },
       emptyBuildsHomeContext(),
@@ -42,12 +48,20 @@ describe('build context specialization writeback', () => {
     )
 
     expect(context.lastSpecByClass).toEqual({ mage: '法师-火焰' })
-    expect(JSON.stringify(context)).not.toMatch(/hero|template|draft|submission/u)
+    expect(JSON.stringify(context)).not.toMatch(/hero|template|draft|submission|gear|buildContext|task/u)
   })
 
   it('uses the shared specialization writeback helper in every tool page', () => {
     expect(read('apps/mini-taro/src/pages/builds/talent-simulator.tsx')).toContain('rememberBuildsHomeSpec(data.selection)')
     expect(read('apps/mini-taro/src/pages/builds/detail.tsx')).toContain('rememberBuildsHomeSpec(data.selection)')
     expect(read('apps/mini-taro/src/pages/simulator/simc.tsx')).toContain('rememberBuildsHomeSpec(data.selection)')
+  })
+
+  it.each([
+    'apps/mini-taro/src/pages/builds/talent-simulator.tsx',
+    'apps/mini-taro/src/pages/builds/detail.tsx',
+    'apps/mini-taro/src/pages/simulator/simc.tsx',
+  ])('guards resolved class/spec identities before writeback in %s', (path) => {
+    expect(read(path)).toMatch(/const resolvedClassKey = data\?\.selection\.classKey\s+const resolvedSpecId = data\?\.selection\.specId\s+useEffect\(\(\) => \{\s+if \(!data\?\.selection \|\| !resolvedClassKey \|\| !resolvedSpecId\) return\s+rememberBuildsHomeSpec\(data\.selection\)\s+\}, \[resolvedClassKey, resolvedSpecId\]\)/u)
   })
 })

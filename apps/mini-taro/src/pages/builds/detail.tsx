@@ -254,7 +254,8 @@ export default function GearDetailPage() {
   const resolvedClassKey = data?.selection.classKey
   const resolvedSpecId = data?.selection.specId
   useEffect(() => {
-    if (data?.selection) rememberBuildsHomeSpec(data.selection)
+    if (!data?.selection || !resolvedClassKey || !resolvedSpecId) return
+    rememberBuildsHomeSpec(data.selection)
   }, [resolvedClassKey, resolvedSpecId])
 
   const initialLoading = route.state.state === 'loading' && !data

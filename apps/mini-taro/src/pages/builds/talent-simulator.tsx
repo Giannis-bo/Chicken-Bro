@@ -147,7 +147,8 @@ export default function TalentSimulatorPage() {
   const resolvedClassKey = data?.selection.classKey
   const resolvedSpecId = data?.selection.specId
   useEffect(() => {
-    if (data?.selection) rememberBuildsHomeSpec(data.selection)
+    if (!data?.selection || !resolvedClassKey || !resolvedSpecId) return
+    rememberBuildsHomeSpec(data.selection)
   }, [resolvedClassKey, resolvedSpecId])
 
   const currentHeroKey = data?.talents.heroKey || selectedHeroKey || data?.selection.heroKey || ''
