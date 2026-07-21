@@ -19011,6 +19011,85 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(blocked["status"], "blocked")
         self.assertIn("errors", blocked["payload"])
 
+    def test_raiderio_player_template_reconciles_preexisting_state_from_structured_loadout(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            self.insert_websim_talent(
+                conn,
+                "simc-class-91001-mage-frost",
+                "class",
+                91001,
+                1,
+                1,
+                "Frost Class",
+                spec_key="frost",
+            )
+            self.insert_websim_talent(
+                conn,
+                "simc-spec-91002-mage-frost",
+                "spec",
+                91002,
+                1,
+                2,
+                "Frost Spec",
+                spec_key="frost",
+            )
+            self.insert_websim_talent(
+                conn,
+                "simc-hero-136441-mage-frost-frostfire",
+                "hero",
+                136441,
+                1,
+                3,
+                "Frostfire Bolt",
+                spec_key="frost",
+                hero_key="frostfire",
+                spell_id=431044,
+            )
+            parsed = self.websim_payload.validate_community_talent_template(conn, {
+                "id": "raiderio-rioone-frostfire-stale-id",
+                "sourceKey": "raiderio",
+                "sourceStatus": "synced",
+                "classKey": "mage",
+                "specKey": "frost",
+                "heroKey": "frostfire",
+                "scenarioKey": "mythic_plus",
+                "sourceName": "Raider.IO",
+                "talentState": {"selectedNodes": [
+                    {"id": "simc-class-91001-mage-frost", "rank": 1},
+                    {"id": "simc-spec-91002-mage-frost", "rank": 1},
+                    {"id": "simc-hero-117239-mage-frost-frostfire", "rank": 1},
+                ]},
+                "payload": {
+                    "raiderio": {
+                        "characterName": "Rioone",
+                        "realmSlug": "isillien",
+                        "region": "eu",
+                        "loadoutSpecId": 64,
+                        "loadout": [
+                            {"traitId": 91001, "rank": 1},
+                            {"traitId": 91002, "rank": 1},
+                            {
+                                "entryIndex": 0,
+                                "rank": 1,
+                                "node": {"entries": [{
+                                    "id": 117239,
+                                    "spell": {"id": 431044, "name": "Frostfire Bolt"},
+                                }]},
+                            },
+                        ],
+                    }
+                },
+            })
+        finally:
+            conn.close()
+
+        self.assertEqual(parsed["status"], "verified")
+        selected_ids = [node["id"] for node in parsed["talentState"]["selectedNodes"]]
+        self.assertIn("simc-hero-136441-mage-frost-frostfire", selected_ids)
+        self.assertNotIn("simc-hero-117239-mage-frost-frostfire", selected_ids)
+
     def test_raiderio_player_template_blocks_loadout_spec_mismatch_before_parse(self):
         conn = sqlite3.connect(self.db_path)
         try:

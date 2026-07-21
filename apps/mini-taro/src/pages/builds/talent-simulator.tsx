@@ -202,7 +202,10 @@ export default function TalentSimulatorPage() {
     .map((hero) => ({ id: hero.key, label: hero.label }))
   const currentHero = heroOptions.find((option) => option.id === currentHeroKey)
   const heroIconUrl = heroTalentIcon(data?.talents.nodes ?? [])
-  const communityWinner = communityTalentWinnerForImport(data?.talents.communityTemplates ?? [])
+  const communityWinner = communityTalentWinnerForImport(
+    data?.talents.communityTemplates ?? [],
+    data?.talents.heroKey || data?.selection.heroKey,
+  )
   const savedImportItems: readonly TalentTemplateSavedImportItem[] = savedTemplates.map((template) => ({
     id: template.id,
     title: template.title,

@@ -275,7 +275,7 @@ def build_admin_talent_records_read_model(template_rows, tree_rows, now=None):
     }
 
 
-def build_websim_community_talent_templates_read_model(rows, class_key, spec_key, hero_key=""):
+def build_websim_community_talent_templates_read_model(rows, class_key, spec_key, hero_key="", return_records=False):
     templates = []
     for row in rows or []:
         talent_state = _json_value(row[12], {"selectedNodes": []})
@@ -345,6 +345,8 @@ def build_websim_community_talent_templates_read_model(rows, class_key, spec_key
                 "canUseInSimc": bool(can_apply_visual or raw_import_code),
             }
         )
+    if return_records:
+        return templates
     return community_talent_templates_for_spec_slots(class_key, spec_key, templates, hero_key)
 
 

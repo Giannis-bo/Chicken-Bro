@@ -2312,6 +2312,105 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertIn("simc-class-91001-mage-frost", insert_params[14])
         self.assertIn("UPDATE cache.websim_community_talent_templates", "\n".join(conn.cursor_instance.statements))
 
+    def test_talent_read_model_reconciles_existing_raiderio_state_against_current_nodes(self):
+        from server.postgres_cache_store import PostgresCacheStore
+        from server.websim_payload import talent_tree_sections
+
+        nodes = [
+            {
+                "id": "simc-class-91001-mage-frost",
+                "treeType": "class",
+                "traitId": 91001,
+                "spellId": 191001,
+                "entryId": 91001,
+                "maxRank": 1,
+                "grantedRank": 0,
+                "row": 1,
+                "col": 1,
+                "selectionIndex": 1,
+                "parentIds": [],
+            },
+            {
+                "id": "simc-spec-91002-mage-frost",
+                "treeType": "spec",
+                "traitId": 91002,
+                "spellId": 191002,
+                "entryId": 91002,
+                "maxRank": 1,
+                "grantedRank": 0,
+                "row": 1,
+                "col": 2,
+                "selectionIndex": 2,
+                "parentIds": [],
+            },
+            {
+                "id": "simc-hero-136441-mage-frost-frostfire",
+                "treeType": "hero",
+                "heroKey": "frostfire",
+                "traitId": 136441,
+                "spellId": 431044,
+                "entryId": 136441,
+                "maxRank": 1,
+                "grantedRank": 0,
+                "row": 1,
+                "col": 3,
+                "selectionIndex": 3,
+                "parentIds": [],
+            },
+        ]
+
+        class RuntimeStore(PostgresCacheStore):
+            def community_talent_authority_index(self, class_key, spec_key):
+                by_id = {}
+                for node in nodes:
+                    for value in (node["traitId"], node["spellId"]):
+                        by_id.setdefault(value, []).append(node)
+                return by_id
+
+        store = RuntimeStore(lambda: FakeConnection())
+        templates = store._reconcile_community_talent_templates_for_runtime(
+            "mage",
+            "frost",
+            "frostfire",
+            [{
+                "id": "rioone-frostfire",
+                "classKey": "mage",
+                "specKey": "frost",
+                "heroKey": "frostfire",
+                "scenarioKey": "mythic_plus",
+                "name": "Rioone Frostfire",
+                "sourceKey": "raiderio",
+                "sourceName": "Raider.IO",
+                "status": "verified",
+                "websimExportCode": "websim:mage:frost:frostfire:old",
+                "talentState": {"selectedNodes": [
+                    {"id": "simc-class-91001-mage-frost", "rank": 1},
+                    {"id": "simc-spec-91002-mage-frost", "rank": 1},
+                    {"id": "simc-hero-117239-mage-frost-frostfire", "rank": 1},
+                ]},
+                "payload": {"raiderio": {
+                    "loadoutSpecId": 64,
+                    "loadout": [
+                        {"traitId": 91001, "rank": 1},
+                        {"traitId": 91002, "rank": 1},
+                        {"entryIndex": 0, "rank": 1, "node": {"entries": [{
+                            "id": 117239,
+                            "spell": {"id": 431044, "name": "Frostfire Bolt"},
+                        }]}},
+                    ],
+                }},
+            }],
+            nodes,
+            talent_tree_sections("mage", "frost", "frostfire"),
+        )
+
+        self.assertEqual(len(templates), 1)
+        self.assertEqual(templates[0]["status"], "verified")
+        self.assertTrue(templates[0]["canApplyVisual"])
+        selected_ids = [item["id"] for item in templates[0]["talentState"]["selectedNodes"]]
+        self.assertIn("simc-hero-136441-mage-frost-frostfire", selected_ids)
+        self.assertNotIn("simc-hero-117239-mage-frost-frostfire", selected_ids)
+
     def test_promote_community_talent_inventory_keeps_one_active_template_per_hero_slot(self):
         from server import postgres_cache_store
         from server.postgres_cache_store import PostgresCacheStore

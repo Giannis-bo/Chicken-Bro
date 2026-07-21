@@ -32,10 +32,13 @@ export function defaultTalentTemplateTitle(input: {
 
 export function communityTalentWinnerForImport(
   templates: readonly CommunityTemplateReference[],
+  heroKey = '',
 ): CommunityTemplateReference | undefined {
+  const normalizedHeroKey = heroKey.trim()
   return templates.find((template) => (
     template.status === 'verified'
     && template.canApplyVisual === true
+    && (!normalizedHeroKey || template.heroKey === normalizedHeroKey)
     && (template.talentState?.selectedNodes.length ?? 0) > 0
   ))
 }

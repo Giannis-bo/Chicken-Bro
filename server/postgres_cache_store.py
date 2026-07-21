@@ -94,6 +94,8 @@ try:
         compact_gear_candidates,
         compact_gear_mod_options,
         community_talent_source_ref,
+        community_talent_structured_loadout,
+        community_talent_templates_for_spec_slots,
         community_template_availability_expires_at,
         community_gear_import_coverage_summary,
         dedupe_gear_community_templates,
@@ -145,7 +147,10 @@ try:
         simc_version_payload,
         slugify,
         talent_readiness_payload,
+        resolve_community_talent_structured_loadout,
+        validate_websim_talent_selection,
         websim_talent_import_response,
+        websim_selected_talent_nodes,
         talent_spell_display_description,
         talent_tree_sections,
         unique_text_list,
@@ -181,6 +186,8 @@ except ImportError:
         compact_gear_candidates,
         compact_gear_mod_options,
         community_talent_source_ref,
+        community_talent_structured_loadout,
+        community_talent_templates_for_spec_slots,
         community_template_availability_expires_at,
         community_gear_import_coverage_summary,
         dedupe_gear_community_templates,
@@ -232,7 +239,10 @@ except ImportError:
         simc_version_payload,
         slugify,
         talent_readiness_payload,
+        resolve_community_talent_structured_loadout,
+        validate_websim_talent_selection,
         websim_talent_import_response,
+        websim_selected_talent_nodes,
         talent_spell_display_description,
         talent_tree_sections,
         unique_text_list,
@@ -6269,6 +6279,92 @@ class PostgresCacheStore:
             class_key,
             spec_key,
             hero_key,
+            return_records=True,
+        )
+
+    def _reconcile_community_talent_templates_for_runtime(
+        self,
+        class_key,
+        spec_key,
+        hero_key,
+        templates,
+        nodes,
+        tree_sections,
+    ):
+        """Make cached community loadouts safe for the currently served talent graph.
+
+        Source trait IDs can move between SimulationCraft revisions while their
+        spell IDs remain stable.  The original structured loadout is therefore
+        the authority for remapping a retained template; an old cached
+        ``talentState`` is only a derivative and must not keep an invalid
+        template importable.
+        """
+
+        nodes_by_id = {
+            str(node.get("id") or ""): node
+            for node in (nodes or [])
+            if isinstance(node, dict) and str(node.get("id") or "")
+        }
+        reconciled = []
+        for raw_template in templates or []:
+            if not isinstance(raw_template, dict):
+                continue
+            template = copy.deepcopy(raw_template)
+            if template.get("status") != "verified":
+                reconciled.append(template)
+                continue
+
+            payload = dict(template.get("payload") or {})
+            errors = []
+            structured_entries = community_talent_structured_loadout(template)
+            source_key = slugify(template.get("sourceKey"), "")
+            if structured_entries:
+                parsed = resolve_community_talent_structured_loadout(self, template)
+                parse_errors = unique_text_list(parsed.get("errors") or [])
+                selected_nodes = parsed.get("selectedNodes") if isinstance(parsed.get("selectedNodes"), list) else []
+                parsed_hero_key = slugify(parsed.get("heroKey"), "")
+                if selected_nodes and parsed_hero_key and not parse_errors:
+                    template["heroKey"] = parsed_hero_key
+                    template["talentState"] = {"selectedNodes": selected_nodes}
+                    payload["talentLoadoutParse"] = {
+                        "status": "reconciled_at_read",
+                        "source": "structured_loadout",
+                        "nodeCount": len(selected_nodes),
+                        "heroKey": parsed_hero_key,
+                    }
+                else:
+                    errors = parse_errors or ["structured talent loadout did not resolve current WebSim nodes"]
+
+            selected_rows = websim_selected_talent_nodes(template)
+            requires_current_graph_validation = bool(structured_entries) or source_key == "raiderio"
+            if not errors and requires_current_graph_validation:
+                _encoded, _counts, validation_errors, _warnings = validate_websim_talent_selection(
+                    nodes_by_id,
+                    selected_rows,
+                    tree_sections,
+                )
+                errors = unique_text_list(validation_errors)
+
+            if errors:
+                payload["errors"] = unique_text_list([*(payload.get("errors") or []), *errors])
+                payload["blockers"] = unique_text_list([*(payload.get("blockers") or []), *errors])
+                payload["talentEncoding"] = {"status": "failed", "errors": errors}
+                template["status"] = "blocked"
+                template["canApplyVisual"] = False
+                template["canUseInSimc"] = False
+            else:
+                template["canApplyVisual"] = bool(
+                    str(template.get("websimExportCode") or "").startswith("websim:")
+                    and selected_rows
+                )
+                template["canUseInSimc"] = bool(template["canApplyVisual"] or template.get("rawImportCode"))
+            template["payload"] = payload
+            reconciled.append(template)
+        return community_talent_templates_for_spec_slots(
+            class_key,
+            spec_key,
+            reconciled,
+            hero_key,
         )
 
     def get_websim_talents(self, class_key="mage", spec_key="arcane", hero_key=""):
@@ -6334,6 +6430,14 @@ class PostgresCacheStore:
         )
         talent_status = "verified" if nodes and season.get("dataStatus") == "verified" and has_spell_details else "simc"
         tree_sections = talent_tree_sections(class_key, spec_key, hero_key)
+        community_templates = self._reconcile_community_talent_templates_for_runtime(
+            class_key,
+            spec_key,
+            hero_key,
+            community_templates,
+            nodes,
+            tree_sections,
+        )
         talent_authority = self._talent_authority_payload(talent_status, season, nodes, sync_state)
         talent_readiness = talent_readiness_payload(
             class_key,

@@ -99,6 +99,28 @@ describe('talent simulator target model', () => {
     ])).toBe(staleWinner)
   })
 
+  it('uses only the current hero tree community winner when an older API returns multiple heroes', () => {
+    const frostfireWinner: CommunityTemplateReference = {
+      id: 'rio-frostfire-winner',
+      heroKey: 'frostfire',
+      status: 'verified',
+      canApplyVisual: true,
+      talentState: { selectedNodes: [{ id: 'frostfire-root', rank: 1 }] },
+    }
+    const spellslingerWinner: CommunityTemplateReference = {
+      id: 'rio-spellslinger-winner',
+      heroKey: 'spellslinger',
+      status: 'verified',
+      canApplyVisual: true,
+      talentState: { selectedNodes: [{ id: 'spellslinger-root', rank: 1 }] },
+    }
+
+    expect(communityTalentWinnerForImport([
+      spellslingerWinner,
+      frostfireWinner,
+    ], 'frostfire')).toBe(frostfireWinner)
+  })
+
   it('retains real coordinates and prerequisite edges without presenting local legality as authoritative', () => {
     const ranks = initialTalentRanks(nodes)
     const graph = buildTalentGraph({ nodes, ranks, availability, routeState: 'ready' })

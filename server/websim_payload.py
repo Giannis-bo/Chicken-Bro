@@ -12994,6 +12994,8 @@ def community_talent_templates_for_spec_slots(
     for template in deduped:
         if not isinstance(template, dict):
             continue
+        if template.get("status") != "verified":
+            continue
         hero_key = slugify(template.get("heroKey"), "")
         if hero_key not in expected_heroes or slugify(template.get("scenarioKey"), "") != scenario_key:
             continue
@@ -13867,8 +13869,8 @@ def validate_community_talent_template(conn, template):
     ])
     if existing_blockers:
         return block_community_talent_template(normalized, existing_blockers)
-    if not community_talent_selected_nodes(normalized):
-        structured_entries = community_talent_structured_loadout(normalized)
+    structured_entries = community_talent_structured_loadout(normalized)
+    if structured_entries:
         parsed_loadout = resolve_community_talent_structured_loadout(conn, normalized)
         parse_errors = unique_text_list(parsed_loadout.get("errors") or [])
         skipped_entries = [
@@ -13906,12 +13908,12 @@ def validate_community_talent_template(conn, template):
             refresh_community_talent_identity(normalized)
         elif structured_entries and parse_errors:
             return block_community_talent_template(normalized, parse_errors)
-        elif normalized.get("rawImportCode"):
-            normalized.setdefault("payload", {})["talentLoadoutParse"] = {
-                "status": "blocked",
-                "source": "raw_import_code",
-                "errors": parse_errors or ["raw talent import code could not be parsed into WebSim nodes"],
-            }
+    elif not community_talent_selected_nodes(normalized) and normalized.get("rawImportCode"):
+        normalized.setdefault("payload", {})["talentLoadoutParse"] = {
+            "status": "blocked",
+            "source": "raw_import_code",
+            "errors": ["raw talent import code could not be parsed into WebSim nodes"],
+        }
     if community_talent_selected_nodes(normalized):
         encoding = encode_websim_talents(conn, {
             "classKey": normalized["classKey"],
