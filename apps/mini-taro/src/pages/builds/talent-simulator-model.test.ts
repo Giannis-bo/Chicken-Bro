@@ -12,6 +12,7 @@ import {
   heroTalentIcon,
   heroTalentOptions,
   applyTalentValidation,
+  communityTalentRegionLabel,
   communityTalentWinnerForImport,
   defaultTalentTemplateTitle,
   initialTalentRanks,
@@ -97,6 +98,15 @@ describe('talent simulator target model', () => {
       { id: 'pending', status: 'pending_collection', canApplyVisual: false },
       staleWinner,
     ])).toBe(staleWinner)
+  })
+
+  it('renders known game regions with player-facing labels and preserves unknown regions', () => {
+    expect(communityTalentRegionLabel('cn')).toBe('国服')
+    expect(communityTalentRegionLabel('EU')).toBe('欧服')
+    expect(communityTalentRegionLabel('us')).toBe('美服')
+    expect(communityTalentRegionLabel('kr')).toBe('韩服')
+    expect(communityTalentRegionLabel('tw')).toBe('台服')
+    expect(communityTalentRegionLabel('br')).toBe('BR')
   })
 
   it('uses only the current hero tree community winner when an older API returns multiple heroes', () => {

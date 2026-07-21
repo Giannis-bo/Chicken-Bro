@@ -48,6 +48,7 @@ import {
   activeTalentSection,
   applyTalentValidation,
   buildTalentGraph,
+  communityTalentRegionLabel,
   communityTalentWinnerForImport,
   defaultTalentTemplateTitle,
   heroTalentIcon,
@@ -215,8 +216,10 @@ export default function TalentSimulatorPage() {
     title: communityWinner.name || communityWinner.title || '社区天赋模板',
     playerName: communityWinner.playerName || '未提供',
     serverName: communityWinner.serverName || '未提供',
-    region: communityWinner.region || '未提供',
-    ...(communityWinner.mplusScore === undefined ? {} : { mplusScore: communityWinner.mplusScore }),
+    region: communityTalentRegionLabel(communityWinner.region),
+    ...(typeof communityWinner.mplusScore === 'number' && communityWinner.mplusScore > 0
+      ? { mplusScore: communityWinner.mplusScore }
+      : {}),
     updatedAt: templateUpdatedAt(communityWinner.updatedAt),
     sourceName: communityWinner.sourceName || communityWinner.source || '未提供',
     isStale: communityWinner.isStale === true || communityWinner.freshnessStatus === 'stale',

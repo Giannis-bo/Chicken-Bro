@@ -30,6 +30,20 @@ export function defaultTalentTemplateTitle(input: {
     .join('-')
 }
 
+const communityTalentRegionLabels: Readonly<Record<string, string>> = {
+  cn: '国服',
+  eu: '欧服',
+  us: '美服',
+  kr: '韩服',
+  tw: '台服',
+}
+
+export function communityTalentRegionLabel(region: string | undefined): string {
+  const normalized = region?.trim().toLowerCase() ?? ''
+  if (!normalized) return '未提供'
+  return communityTalentRegionLabels[normalized] ?? normalized.toUpperCase()
+}
+
 export function communityTalentWinnerForImport(
   templates: readonly CommunityTemplateReference[],
   heroKey = '',
