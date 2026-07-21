@@ -2214,6 +2214,69 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertIn("FROM cache.websim_community_talent_templates", sql)
         self.assertIn("expires_at IS NULL OR expires_at > now()", sql)
 
+    def test_talent_read_model_filters_hero_nodes_for_requested_spec_before_visual_dedupe(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        class SpecScopedStore(PostgresCacheStore):
+            def get_active_season_payload(self):
+                return {"dataStatus": "verified", "seasonRevision": "season-pg-1"}
+
+            def get_sync_state(self, _sync_key):
+                return {}
+
+            def _websim_presets(self, _cursor, _class_key, _spec_key):
+                return []
+
+            def _community_talent_templates(self, _cursor, _class_key, _spec_key, _hero_key):
+                return []
+
+        hero_payload = {
+            "treeType": "hero",
+            "heroKey": "frostfire",
+            "rankEntries": [{"spellId": 431044, "points": 1}],
+        }
+        conn = FakeConnection(
+            rowsets={
+                "FROM cache.websim_talents": [
+                    (
+                        "simc-hero-136441-mage-frost-frostfire",
+                        "mage",
+                        "frost",
+                        "hero:frostfire",
+                        1,
+                        3,
+                        431044,
+                        "Fire-only Frostfire Bolt",
+                        {**hero_payload, "idSpecs": [63]},
+                        "Deals fire damage.",
+                        "https://render.worldofwarcraft.com/fire-only.jpg",
+                        {},
+                    ),
+                    (
+                        "simc-hero-117239-mage-frost-frostfire",
+                        "mage",
+                        "frost",
+                        "hero:frostfire",
+                        1,
+                        3,
+                        431044,
+                        "Frost Frostfire Bolt",
+                        {**hero_payload, "idSpecs": [64]},
+                        "Deals frost damage.",
+                        "https://render.worldofwarcraft.com/frost.jpg",
+                        {},
+                    ),
+                ],
+            }
+        )
+        store = SpecScopedStore(lambda: conn)
+
+        payload = store.get_websim_talents("mage", "frost", "frostfire")
+
+        node_ids = [node["id"] for node in payload["nodes"]]
+        self.assertIn("simc-hero-117239-mage-frost-frostfire", node_ids)
+        self.assertNotIn("simc-hero-136441-mage-frost-frostfire", node_ids)
+
     def test_replace_community_talent_templates_validates_raiderio_structured_loadout(self):
         from server.postgres_cache_store import PostgresCacheStore
 

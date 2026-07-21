@@ -90,6 +90,7 @@ try:
         blocked_baseline_gear_template,
         blocked_stat_snapshot,
         candidate_legality_audit_payload,
+        cached_talent_payload_supports_spec,
         classes_payload,
         compact_gear_candidates,
         compact_gear_mod_options,
@@ -182,6 +183,7 @@ except ImportError:
         blocked_baseline_gear_template,
         blocked_stat_snapshot,
         candidate_legality_audit_payload,
+        cached_talent_payload_supports_spec,
         classes_payload,
         compact_gear_candidates,
         compact_gear_mod_options,
@@ -6406,6 +6408,8 @@ class PostgresCacheStore:
             tree_type = payload.get("treeType") if isinstance(payload, dict) else ""
             tree_type = tree_type or ("class" if row[2] == "class" else "spec")
             if tree_type == "hero" and payload.get("heroKey") != hero_key:
+                continue
+            if not cached_talent_payload_supports_spec(payload, class_key, spec_key):
                 continue
             filtered_rows.append(
                 (
