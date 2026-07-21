@@ -27,6 +27,16 @@ export interface SpecSelection {
   label: string
 }
 
+export interface BuildsHomeContext {
+  selectedClassKey?: string
+  lastSpecByClass: Readonly<Record<string, string>>
+}
+
+export interface BuildsHomeLaunch {
+  classKey: string
+  selection: SpecSelection
+}
+
 export function flattenSpecs(classOptions: readonly ClassOption[]): readonly Omit<SpecSelection, 'classKey' | 'specKey' | 'heroKey' | 'specId' | 'label'>[] {
   return classOptions.flatMap((classItem, classIndex) => classItem.specializations.map((spec, specIndex) => ({
     classItem,
@@ -42,6 +52,34 @@ export function findSpecSelection(home: BuildsHomePayload, wantedId?: string): S
     ? entries.find((entry) => entry.spec.id === wantedId || entry.spec.specId === wantedId)
     : entries.find((entry) => entry.spec.id === defaultSpecId) ?? entries[0]
   if (!selected) return null
+  return selectionFromEntry(selected)
+}
+
+export function emptyBuildsHomeContext(): BuildsHomeContext {
+  return { lastSpecByClass: {} }
+}
+
+export function resolveBuildsHomeLaunch(home: BuildsHomePayload, context: BuildsHomeContext): BuildsHomeLaunch | null {
+  const classes = home.classOptions.filter((classItem) => Boolean(classItem.websimClassKey))
+  const selectedClass = classes.find((classItem) => classItem.websimClassKey === context.selectedClassKey)
+  const defaultClass = classes.find((classItem) => classItem.specializations.some((spec) => (
+    spec.id === defaultSpecId || spec.specId === defaultSpecId
+  )))
+  const candidates = [selectedClass, defaultClass, ...classes]
+  for (const classItem of candidates) {
+    if (!classItem) continue
+    const entries = flattenSpecs([classItem])
+    const rememberedSpecId = context.lastSpecByClass[classItem.websimClassKey]
+    const selected = rememberedSpecId
+      ? entries.find((entry) => entry.spec.id === rememberedSpecId || entry.spec.specId === rememberedSpecId)
+      : undefined
+    const fallback = selected ?? entries[0]
+    if (fallback) return { classKey: classItem.websimClassKey, selection: selectionFromEntry(fallback) }
+  }
+  return null
+}
+
+function selectionFromEntry(selected: Omit<SpecSelection, 'classKey' | 'specKey' | 'heroKey' | 'specId' | 'label'>): SpecSelection {
   const classKey = selected.spec.websimClassKey || selected.spec.classKey || selected.classItem.websimClassKey || ''
   const specKey = selected.spec.websimSpecKey || selected.spec.specKey || ''
   const heroKey = selected.spec.heroKey || ''
