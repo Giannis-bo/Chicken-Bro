@@ -124,6 +124,111 @@ function literalStyleModuleImports(source) {
   })
 }
 
+function parameterizedStyleMemberImport(node, importedByLocalName, parameterName) {
+  if (node?.type !== 'MemberExpression' || !node.computed) return null
+  if (node.object.type !== 'Identifier' || node.property.type !== 'Identifier') return null
+  if (node.property.name !== parameterName) return null
+  return importedByLocalName.get(node.object.name) ?? null
+}
+
+function parameterizedStyleImportsInExpression(node, importedByLocalName, parameterName, found = new Map()) {
+  if (!node || typeof node !== 'object') return found
+  const directImport = parameterizedStyleMemberImport(node, importedByLocalName, parameterName)
+  if (directImport) found.set(directImport.localName, directImport)
+  for (const [key, value] of Object.entries(node)) {
+    if (['end', 'extra', 'loc', 'start'].includes(key)) continue
+    if (Array.isArray(value)) {
+      for (const item of value) parameterizedStyleImportsInExpression(item, importedByLocalName, parameterName, found)
+    } else if (value && typeof value === 'object') {
+      parameterizedStyleImportsInExpression(value, importedByLocalName, parameterName, found)
+    }
+  }
+  return found
+}
+
+function sameStyleImport(styleImports) {
+  const unique = new Map(styleImports.filter(Boolean).map((styleImport) => [styleImport.localName, styleImport]))
+  return unique.size === 1 ? [...unique.values()][0] : null
+}
+
+function isEmptyStyleFallback(node) {
+  return node?.type === 'StringLiteral' && node.value === ''
+}
+
+function additiveStyleBinding(expressions, importedByLocalName, parameterName) {
+  const bindings = []
+  for (const expression of expressions) {
+    if (!expression) continue
+    const binding = returnedStyleBinding(expression, importedByLocalName, parameterName)
+    if (binding) {
+      bindings.push(binding)
+      continue
+    }
+    if (parameterizedStyleImportsInExpression(expression, importedByLocalName, parameterName).size > 0) return null
+  }
+  return sameStyleImport(bindings)
+}
+
+function joinedArrayElements(node) {
+  if (node?.type === 'ArrayExpression') return node.elements
+  if (
+    node?.type === 'CallExpression'
+    && node.callee.type === 'MemberExpression'
+    && !node.callee.computed
+    && node.callee.property.type === 'Identifier'
+    && node.callee.property.name === 'filter'
+    && node.arguments.length === 1
+    && node.arguments[0].type === 'Identifier'
+    && node.arguments[0].name === 'Boolean'
+  ) {
+    return joinedArrayElements(node.callee.object)
+  }
+  return null
+}
+
+function returnedStyleBinding(node, importedByLocalName, parameterName) {
+  if (!node) return null
+  const directImport = parameterizedStyleMemberImport(node, importedByLocalName, parameterName)
+  if (directImport) return directImport
+  if (['TSAsExpression', 'TSNonNullExpression', 'TypeCastExpression'].includes(node.type)) {
+    return returnedStyleBinding(node.expression, importedByLocalName, parameterName)
+  }
+  if (node.type === 'SequenceExpression') {
+    return returnedStyleBinding(node.expressions.at(-1), importedByLocalName, parameterName)
+  }
+  if (node.type === 'ConditionalExpression') {
+    const consequent = returnedStyleBinding(node.consequent, importedByLocalName, parameterName)
+    const alternate = returnedStyleBinding(node.alternate, importedByLocalName, parameterName)
+    return consequent && alternate && consequent.localName === alternate.localName ? consequent : null
+  }
+  if (node.type === 'LogicalExpression') {
+    const left = returnedStyleBinding(node.left, importedByLocalName, parameterName)
+    const right = returnedStyleBinding(node.right, importedByLocalName, parameterName)
+    if (left && right && left.localName === right.localName) return left
+    // The exact class declaration is verified before this inferred binding can satisfy the audit,
+    // so the CSS-module lookup is non-empty for the literal class used by the caller.
+    if (['??', '||'].includes(node.operator) && left && isEmptyStyleFallback(node.right)) return left
+    return null
+  }
+  if (node.type === 'TemplateLiteral') {
+    return additiveStyleBinding(node.expressions, importedByLocalName, parameterName)
+  }
+  if (node.type === 'BinaryExpression' && node.operator === '+') {
+    return additiveStyleBinding([node.left, node.right], importedByLocalName, parameterName)
+  }
+  if (
+    node.type === 'CallExpression'
+    && node.callee.type === 'MemberExpression'
+    && !node.callee.computed
+    && node.callee.property.type === 'Identifier'
+    && node.callee.property.name === 'join'
+  ) {
+    const elements = joinedArrayElements(node.callee.object)
+    return elements ? additiveStyleBinding(elements, importedByLocalName, parameterName) : null
+  }
+  return null
+}
+
 function styleHelperBindings(source, styleImports) {
   const ast = babelParser.parse(source, { sourceType: 'module', plugins: ['jsx', 'typescript'] })
   const importedByLocalName = new Map(styleImports.map((styleImport) => [styleImport.localName, styleImport]))
@@ -147,17 +252,8 @@ function styleHelperBindings(source, styleImports) {
       functionPath.traverse({
         ReturnStatement(returnPath) {
           if (returnPath.getFunctionParent()?.node !== functionPath.node) return
-          const importsInReturn = new Map()
-          returnPath.traverse({
-            MemberExpression(memberPath) {
-              const member = memberPath.node
-              if (member.object.type !== 'Identifier' || !importedByLocalName.has(member.object.name)) return
-              if (!member.computed || member.property.type !== 'Identifier' || member.property.name !== parameterName) return
-              const styleImport = importedByLocalName.get(member.object.name)
-              importsInReturn.set(styleImport.localName, styleImport)
-            },
-          })
-          returnedStyleImports.push([...importsInReturn.values()])
+          const styleImport = returnedStyleBinding(returnPath.node.argument, importedByLocalName, parameterName)
+          returnedStyleImports.push(styleImport ? [styleImport] : [])
         },
       })
       if (returnedStyleImports.length === 0 || returnedStyleImports.some((imports) => imports.length !== 1)) return

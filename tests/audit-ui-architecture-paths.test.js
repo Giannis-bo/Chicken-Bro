@@ -235,6 +235,66 @@ test('selected material helper bindings follow compatible return values only', (
   }), true)
 })
 
+test('selected material helper bindings require every conditional return branch to carry the same module', () => {
+  const helperPath = path.join(root, 'scripts', 'ui-architecture-ast.js')
+  const { styleModuleOwnsSelectedMaterial } = require(helperPath)
+  const conditionalStaticSource = `
+    import styles from './Local.module.scss'
+    function componentStyle(name: string, enabled: boolean): string {
+      return enabled ? styles[name] ?? '' : 'static-class'
+    }
+  `
+  assert.equal(styleModuleOwnsSelectedMaterial({
+    source: conditionalStaticSource,
+    classExpression: "componentStyle('option', false)",
+    stateAttribute: 'data-selected',
+    readStyleModule: () => ".option[data-selected='true'] { color: gold; }",
+  }), false)
+
+  const conditionalBoundSource = `
+    import styles from './Local.module.scss'
+    function componentStyle(name: string, compact: boolean): string {
+      return compact ? styles[name] ?? '' : styles[name] ?? ''
+    }
+  `
+  assert.equal(styleModuleOwnsSelectedMaterial({
+    source: conditionalBoundSource,
+    classExpression: "componentStyle('option', false)",
+    stateAttribute: 'data-selected',
+    readStyleModule: () => ".option[data-selected='true'] { color: gold; }",
+  }), true)
+})
+
+test('selected material helper bindings use only the final sequence return value', () => {
+  const helperPath = path.join(root, 'scripts', 'ui-architecture-ast.js')
+  const { styleModuleOwnsSelectedMaterial } = require(helperPath)
+  const sequenceStaticSource = `
+    import styles from './Local.module.scss'
+    function componentStyle(name: string): string {
+      return (styles[name], 'static-class')
+    }
+  `
+  assert.equal(styleModuleOwnsSelectedMaterial({
+    source: sequenceStaticSource,
+    classExpression: "componentStyle('option')",
+    stateAttribute: 'data-selected',
+    readStyleModule: () => ".option[data-selected='true'] { color: gold; }",
+  }), false)
+
+  const sequenceBoundSource = `
+    import styles from './Local.module.scss'
+    function componentStyle(name: string): string {
+      return ('ignored', styles[name] ?? '')
+    }
+  `
+  assert.equal(styleModuleOwnsSelectedMaterial({
+    source: sequenceBoundSource,
+    classExpression: "componentStyle('option')",
+    stateAttribute: 'data-selected',
+    readStyleModule: () => ".option[data-selected='true'] { color: gold; }",
+  }), true)
+})
+
 test('builds specialization fill contract is required only by the active source or current contracts', () => {
   const helperPath = path.join(root, 'scripts', 'ui-architecture-ast.js')
   const { buildsSpecializationFillAudit, buildsSpecializationFillContractRequired } = require(helperPath)
