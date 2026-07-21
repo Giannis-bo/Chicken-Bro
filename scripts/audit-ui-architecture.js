@@ -13,7 +13,13 @@ const {
   sharedEvidenceMatchesStatus,
 } = require('./runtime-review-validation')
 const { repoRelativePath, repoPathDirname, repoPathJoin } = require('./repo-relative-path')
-const { pageFrameLiteralVariants } = require('./ui-architecture-ast')
+const {
+  buildsSpecializationFillContractRequired,
+  literalStyleModuleImports,
+  pageFrameLiteralVariants,
+  publishedPageFrameRegionIds,
+  publishedRouteRegionIds,
+} = require('./ui-architecture-ast')
 
 const root = path.resolve(__dirname, '..')
 const findings = []
@@ -82,40 +88,6 @@ function record(id, pass, detail) {
 
 function sorted(values) {
   return [...values].sort((a, b) => a.localeCompare(b))
-}
-
-function publishedRouteRegionIds(source) {
-  const ast = babelParser.parse(source, { sourceType: 'module', plugins: ['jsx', 'typescript'] })
-  const stringArrays = new Map()
-  const regionValues = []
-  traverse(ast, {
-    VariableDeclarator(variablePath) {
-      if (variablePath.node.id.type !== 'Identifier') return
-      let initializer = variablePath.node.init
-      while (initializer?.type === 'TSAsExpression' || initializer?.type === 'TSSatisfiesExpression') initializer = initializer.expression
-      if (initializer?.type !== 'ArrayExpression') return
-      const values = initializer.elements.map((element) => element?.type === 'StringLiteral' ? element.value : null)
-      if (values.length > 0 && values.every(Boolean)) stringArrays.set(variablePath.node.id.name, values)
-    },
-    JSXOpeningElement(elementPath) {
-      if (elementPath.node.name.type !== 'JSXIdentifier' || elementPath.node.name.name !== 'RouteRegion') return
-      const attribute = elementPath.node.attributes.find((candidate) => (
-        candidate.type === 'JSXAttribute'
-        && candidate.name.type === 'JSXIdentifier'
-        && candidate.name.name === 'data-region'
-      ))
-      if (attribute?.value?.type === 'StringLiteral') {
-        regionValues.push(attribute.value.value)
-        return
-      }
-      if (attribute?.value?.type !== 'JSXExpressionContainer') return
-      const expressionSource = source.slice(attribute.value.expression.start, attribute.value.expression.end)
-      for (const [name, values] of stringArrays) {
-        if (new RegExp(`\\b${name}\\b`, 'u').test(expressionSource)) regionValues.push(...values)
-      }
-    },
-  })
-  return regionValues
 }
 
 const routeSources = walk('apps/mini-taro/src/pages', ['.ts', '.tsx', '.scss'])
@@ -709,7 +681,12 @@ const invalidRequiredRegionContracts = (routeGeometryContract.routes ?? []).flat
     && read('packages/design-system/src/components/NewsListComponents.tsx').includes('data-region="news_results"')
     ? ['news_results']
     : []
-  const published = sourceExists ? [...publishedRouteRegionIds(source), ...sharedPublished] : []
+  const publishedPageFrameRegions = sourceExists
+    ? publishedPageFrameRegionIds(source).filter((regionId) => required.includes(regionId))
+    : []
+  const published = sourceExists
+    ? [...publishedRouteRegionIds(source), ...publishedPageFrameRegions, ...sharedPublished]
+    : []
   const missing = required.filter((regionId) => !published.includes(regionId))
   const unexpected = published.filter((regionId) => !required.includes(regionId))
   const duplicateCount = required.length - new Set(required).size + published.length - new Set(published).size
@@ -1186,7 +1163,11 @@ record(
 )
 record(
   'shared_route_layout_owners_cover_current_layout_families',
-  routeStageConsumers.length === 8 && routeFlowConsumers.length === 3 && routeColumnConsumers.length >= 4 && routeGridConsumers.length >= 2 && routeRegionConsumers.length >= 4,
+  routeStageConsumers.length === 9
+    && routeFlowConsumers.length === 3
+    && routeColumnConsumers.length === 5
+    && routeGridConsumers.length === 1
+    && routeRegionConsumers.length >= 14,
   `stage=${routeStageConsumers.length}; flow=${routeFlowConsumers.length}; column=${routeColumnConsumers.length}; grid=${routeGridConsumers.length}; region=${routeRegionConsumers.length}`,
 )
 
@@ -1398,6 +1379,7 @@ const selectedStateOwners = [
   ['packages/design-system/src/components/TaskListComponents.tsx', 'task-status-filter'],
   ['packages/design-system/src/components/SimcSubmitComponents.tsx', 'simc-specialization-option'],
   ['packages/design-system/src/components/SimcSubmitComponents.tsx', 'simc-scenario-option'],
+  ['packages/design-system/src/components/BuildClassSelector.tsx', 'build-class-option'],
 ]
 const selectedGroupKeys = selectedControlContract.groups?.map((group) => `${group.route}:${group.role}`) ?? []
 record(
@@ -1531,8 +1513,10 @@ const reconstructionSelectionStyles = read('packages/design-system/src/component
 const selectedPublishersWithoutStyleOwners = selectedMaterialPublishers.flatMap((publisher) => {
   const stateAttribute = publisher.stateAttributes[0]
   if (!stateAttribute) return [`${publisher.file}:${publisher.role}:missing-state-attribute`]
-  const localStylePath = publisher.file.replace(/\.tsx$/u, '.module.scss')
-  const localStyleSources = fs.existsSync(path.join(root, localStylePath)) ? [read(localStylePath)] : []
+  const localStyleSources = literalStyleModuleImports(read(publisher.file))
+    .map((styleImport) => repoPathJoin(repoPathDirname(publisher.file), styleImport))
+    .filter((stylePath) => fs.existsSync(path.join(root, stylePath)))
+    .map(read)
   const styleSources = [reconstructionSelectionStyles, ...localStyleSources]
   const stateSelector = `\\[${stateAttribute}=['"]true['"]\\]`
   const ownsDirectMaterial = publisher.classNames.some((className) => styleSources.some((styles) => (
@@ -2711,18 +2695,28 @@ record(
 const buildsOverview = read('packages/design-system/src/components/BuildSpecializationOverview.tsx')
 const buildsOverviewStyles = read('packages/design-system/src/components/BuildsHomeComponents.module.scss')
 const buildsAssetContract = JSON.parse(read('docs/design/current-ui/routes/builds-home/asset-contract.json'))
+const buildsHomeSource = read('apps/mini-taro/src/pages/builds/builds.tsx')
+const requiresBuildsSpecializationFill = buildsSpecializationFillContractRequired({
+  source: buildsHomeSource,
+  assetContract: buildsAssetContract,
+  componentContract: buildsComponentContract,
+})
 const specializationObjectSlot = buildsAssetContract.slots?.find((slot) => slot.slotId === 'asset_slot.builds-specialization-object')
 const specializationRuntimeCrop = specializationObjectSlot?.runtimeCrop
 record(
   'builds_specialization_icon_honors_fill_contract',
-  specializationObjectSlot?.targetAspect.includes('aspectFill')
-    && specializationRuntimeCrop?.fit === 'aspectFill'
-    && specializationRuntimeCrop?.scale >= 1
-    && buildsOverview.includes('mode="aspectFill"')
-    && /\.specializationImage\s*\{[^}]*object-fit:\s*cover;/s.test(buildsOverviewStyles)
-    && /\.specializationImage\s*\{[^}]*inset:\s*0;[^}]*display:\s*block;[^}]*width:\s*100%;[^}]*height:\s*100%;/s.test(buildsOverviewStyles)
-    && !/\.specializationImage\s*\{[^}]*(?:border-radius|overflow|transform):/s.test(buildsOverviewStyles),
-  'specialization object must fill the parent-owned circular viewport without a second native-image crop layer',
+  !requiresBuildsSpecializationFill || (
+    specializationObjectSlot?.targetAspect.includes('aspectFill')
+      && specializationRuntimeCrop?.fit === 'aspectFill'
+      && specializationRuntimeCrop?.scale >= 1
+      && buildsOverview.includes('mode="aspectFill"')
+      && /\.specializationImage\s*\{[^}]*object-fit:\s*cover;/s.test(buildsOverviewStyles)
+      && /\.specializationImage\s*\{[^}]*inset:\s*0;[^}]*display:\s*block;[^}]*width:\s*100%;[^}]*height:\s*100%;/s.test(buildsOverviewStyles)
+      && !/\.specializationImage\s*\{[^}]*(?:border-radius|overflow|transform):/s.test(buildsOverviewStyles)
+  ),
+  requiresBuildsSpecializationFill
+    ? 'specialization object must fill the parent-owned circular viewport without a second native-image crop layer'
+    : 'current builds-home source and contracts use the class selector plus command deck topology',
 )
 record(
   'build_intel_asset_registry_preserves_runtime_review_status',

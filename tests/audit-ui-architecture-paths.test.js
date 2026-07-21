@@ -64,6 +64,73 @@ test('PageFrame variant audit parses complete JSX opening elements', () => {
   assert.doesNotMatch(audit, /invocation\.slice\(0, 500\)/u)
 })
 
+test('semantic region audit includes an explicitly published PageFrame header region', () => {
+  const helperPath = path.join(root, 'scripts', 'ui-architecture-ast.js')
+  const {
+    publishedPageFrameRegionIds,
+    publishedRouteRegionIds,
+    publishedSemanticRegionIds,
+  } = require(helperPath)
+  const source = `
+    export function Route() {
+      return (
+        <PageFrame region="page_header">
+          <RouteRegion data-region="class_selector" />
+          <RouteRegion data-region="command_deck" />
+        </PageFrame>
+      )
+    }
+  `
+
+  assert.deepEqual(publishedSemanticRegionIds(source), ['page_header', 'class_selector', 'command_deck'])
+  assert.deepEqual(publishedPageFrameRegionIds(source), ['page_header'])
+  assert.deepEqual(publishedRouteRegionIds(source), ['class_selector', 'command_deck'])
+})
+
+test('selected material audit resolves the style module imported by the component', () => {
+  const helperPath = path.join(root, 'scripts', 'ui-architecture-ast.js')
+  const { literalStyleModuleImports } = require(helperPath)
+  const source = `
+    import styles from './BuildsHomeCommandDeck.module.scss'
+    import { helper } from './helper'
+    export const selector = styles.classSelectorOption
+  `
+
+  assert.deepEqual(literalStyleModuleImports(source), ['./BuildsHomeCommandDeck.module.scss'])
+})
+
+test('builds specialization fill contract is required only by the active source or current contracts', () => {
+  const helperPath = path.join(root, 'scripts', 'ui-architecture-ast.js')
+  const { buildsSpecializationFillContractRequired } = require(helperPath)
+
+  assert.equal(buildsSpecializationFillContractRequired({
+    source: '<BuildCommandDeck />',
+    assetContract: { slots: [{ slotId: 'asset_slot.builds-class-icon' }] },
+    componentContract: { components: [{ owner: 'BuildToolCommandDeck' }] },
+  }), false)
+  assert.equal(buildsSpecializationFillContractRequired({
+    source: '<BuildSpecializationOverview />',
+    assetContract: { slots: [] },
+    componentContract: { components: [] },
+  }), true)
+  assert.equal(buildsSpecializationFillContractRequired({
+    source: '<BuildCommandDeck />',
+    assetContract: { slots: [{ slotId: 'asset_slot.builds-specialization-object' }] },
+    componentContract: { components: [] },
+  }), true)
+})
+
+test('UI audit registers the current builds-home layout and selected-control owners', () => {
+  const audit = fs.readFileSync(path.join(root, 'scripts', 'audit-ui-architecture.js'), 'utf8')
+
+  assert.match(audit, /routeStageConsumers\.length === 9/u)
+  assert.match(audit, /routeColumnConsumers\.length === 5/u)
+  assert.match(audit, /routeGridConsumers\.length === 1/u)
+  assert.match(audit, /BuildClassSelector\.tsx', 'build-class-option'/u)
+  assert.match(audit, /literalStyleModuleImports/u)
+  assert.match(audit, /buildsSpecializationFillContractRequired/u)
+})
+
 test('content-addressed runtime review JSON declares LF byte preservation', () => {
   const attributesPath = path.join(root, '.gitattributes')
   assert.equal(fs.existsSync(attributesPath), true, 'missing runtime evidence byte policy')
