@@ -110,7 +110,9 @@ export const routeContracts = [
     "endpoints": [
       "builds.home"
     ],
-    "storage": [],
+    "storage": [
+      "builds.homeContext"
+    ],
     "outgoing": [
       "build_intel",
       "current_spec_workbench",
@@ -723,6 +725,10 @@ export const storageContracts = [
   {
     "id": "templates.local",
     "key": "wow_build_templates_v1"
+  },
+  {
+    "id": "builds.homeContext",
+    "key": "wow_builds_home_context_v1"
   },
   {
     "id": "simc.buildContext",

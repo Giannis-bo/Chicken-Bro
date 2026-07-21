@@ -20,10 +20,10 @@
     {
       "route": "specialization_home/builds_home",
       "path": "artifacts/ui-visual-targets/current/builds-home.png",
-      "width": 864,
-      "height": 1821,
-      "bytes": 2016696,
-      "sha256": "e418c45b1bf4fe62479f0a907706edadb9c46d2fd38220d6163284f727feee74"
+      "width": 780,
+      "height": 1660,
+      "bytes": 1048090,
+      "sha256": "b524eb27ebb4164f95c5430d3d908687d396d4eafabf634258ecd45021fa9ef6"
     },
     {
       "route": "current_spec_workbench",

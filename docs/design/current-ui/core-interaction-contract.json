@@ -5,7 +5,21 @@
   "selectorPolicy": "Use source-owned data-role or data-action-id markers; runtime selectors use the corresponding wx-data marker class.",
   "interactions": [
     { "route": "news_home", "path": "/pages/news/news", "source": "packages/design-system/src/components/NewsHomeBrief.tsx", "selectorAttribute": "data-role", "selectorValue": "news-home-metric", "name": "open an available news metric", "precondition": "at least one metric is available", "expected": "navigate to news_list with the selected category", "status": "UNVERIFIED" },
-    { "route": "specialization_home/builds_home", "path": "/pages/builds/builds", "source": "packages/design-system/src/components/BuildWorkspaceEntry.tsx", "selectorAttribute": "data-role", "selectorValue": "build-workspace-action", "name": "enter the current specialization workbench", "precondition": "workspace action is enabled", "expected": "navigate to current_spec_workbench", "status": "UNVERIFIED" },
+    {
+      "route": "specialization_home/builds_home",
+      "path": "/pages/builds/builds",
+      "source": "packages/design-system/src/components/BuildClassSelector.tsx",
+      "selectorAttribute": "data-role",
+      "selectorValue": "build-class-selector",
+      "name": "open the class selector and choose one canonical class",
+      "precondition": "the route has at least two enabled canonical classes and exactly one selected class",
+      "interactionSequence": [
+        "tap data-role=build-class-selector",
+        "tap one enabled class cell whose key differs from selectedClassKey"
+      ],
+      "expected": "the class sheet closes, the selector pill updates, and exactly one class cell owns selected material without changing any class-cell or selector-pill bounds",
+      "status": "UNVERIFIED"
+    },
     { "route": "current_spec_workbench", "path": "/pages/builds/workbench", "source": "packages/design-system/src/components/WorkbenchComponents.tsx", "selectorAttribute": "data-role", "selectorValue": "workbench-module-card", "name": "open the first enabled workbench module", "precondition": "at least one module is enabled", "expected": "navigate to the module route without changing the selected specialization", "status": "UNVERIFIED" },
     { "route": "news_list", "path": "/pages/news/list", "source": "packages/design-system/src/components/NewsListComponents.tsx", "selectorAttribute": "data-role", "selectorValue": "news-list-sort", "name": "toggle news ordering", "precondition": "news list has completed initial loading", "expected": "sort direction and visible feed order change while shared chrome remains fixed", "status": "UNVERIFIED" },
     { "route": "news_detail", "path": "/pages/news/detail?id=architecture-preflight", "source": "packages/design-system/src/components/NewsDetailComponents.tsx", "selectorAttribute": "data-role", "selectorValue": "news-detail-evidence-toggle", "name": "collapse and expand article evidence", "precondition": "article detail is rendered", "expected": "evidence body visibility toggles without moving the page header", "status": "UNVERIFIED" },

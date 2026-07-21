@@ -1,15 +1,24 @@
 import { Text, View } from '@tarojs/components'
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 
 import { ActionButton } from './ActionButton'
 import { ProductionAssetImage } from './ProductionAsset'
 import { ProductionAssetGlyph } from './ProductionAssetGlyph'
 import { SystemGlyph } from './SystemGlyph'
-import { resolvePageChromeMode, type PageFrameVariant } from './PageFrame.chrome'
+import {
+  resolvePageChromeMode,
+  resolvePageFrameRightActionWidth,
+  type PageFrameRightActionLayout,
+  type PageFrameVariant,
+} from './PageFrame.chrome'
 import { reconstructionStyle } from './reconstruction-style'
 import { ownerClass, ownerStyle } from './style'
 
-export type { PageChromeMode, PageFrameVariant } from './PageFrame.chrome'
+export type {
+  PageChromeMode,
+  PageFrameRightActionLayout,
+  PageFrameVariant,
+} from './PageFrame.chrome'
 
 export interface PageFrameProps {
   children: ReactNode
@@ -22,6 +31,7 @@ export interface PageFrameProps {
   backRegion?: string | undefined
   onRefresh?: (() => void) | undefined
   rightAction?: ReactNode | undefined
+  rightActionLayout?: PageFrameRightActionLayout | undefined
   sourceLabel?: string | undefined
   headerStatusLabel?: string | undefined
   variant?: PageFrameVariant | undefined
@@ -67,12 +77,17 @@ export function PageFrame({
   backRegion,
   onRefresh,
   rightAction,
+  rightActionLayout = 'default',
   sourceLabel,
   headerStatusLabel,
   variant = 'default',
   region = 'shared_page-frame',
 }: PageFrameProps) {
   const chromeMode = resolvePageChromeMode(variant, onBack)
+  const rightActionWidth = resolvePageFrameRightActionWidth(rightActionLayout)
+  const pageFrameStyle = {
+    '--page-frame-right-action-width': `${rightActionWidth}px`,
+  } as CSSProperties
   const pushed = chromeMode === 'pushed' || chromeMode === 'pushed-action' || chromeMode === 'chat'
   const labeledBack = variant === 'build-intel'
 
@@ -138,8 +153,10 @@ export function PageFrame({
       )}
       data-owner="page-frame"
       data-chrome-mode={chromeMode}
+      data-right-action-layout={rightActionLayout}
       data-size={size}
       data-variant={variant}
+      style={pageFrameStyle}
     >
       <View
         className={ownerClass(

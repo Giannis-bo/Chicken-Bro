@@ -44,6 +44,7 @@ import {
   findSpecSelection,
   type SpecSelection,
 } from '../_shared/build-context'
+import { rememberBuildsHomeSpec } from '../_shared/build-context-storage'
 import {
   goBack,
   navigateTo,
@@ -250,6 +251,13 @@ export default function GearDetailPage() {
   }, [workbenchNotice])
 
   const data = route.data
+  const resolvedClassKey = data?.selection.classKey
+  const resolvedSpecId = data?.selection.specId
+  useEffect(() => {
+    if (!data?.selection || !resolvedClassKey || !resolvedSpecId) return
+    rememberBuildsHomeSpec(data.selection)
+  }, [resolvedClassKey, resolvedSpecId])
+
   const initialLoading = route.state.state === 'loading' && !data
   const selectedClass = data?.selection.classItem
   const classItems: readonly GearProfessionItem[] = selectedClass ? [{

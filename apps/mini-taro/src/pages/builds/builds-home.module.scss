@@ -1,38 +1,43 @@
-.surface {
-  width: calc(100% - 26px);
-  max-width: 365px;
-  grid-template-rows: 133px 153px 109px 148px 134px;
-  gap: 5px;
-  margin-top: 9px;
-}
-
-.overviewRegion,
-.gridRegion,
-.workspaceRegion,
-.listRegion,
-.workflowRegion {
-  width: 100%;
-  min-width: 0;
+.page {
+  display: grid;
+  height: 100%;
+  min-height: 0;
+  grid-template-rows: minmax(0, 1fr);
   overflow: hidden;
 }
 
-.overviewRegion {
-  height: 133px;
+.surface {
+  width: calc(100% - 31px);
+  max-width: 359px;
+  height: calc(100% - 54px);
+  max-height: 609px;
+  min-height: 0;
+  margin: 10px auto 0;
+  overflow: hidden;
 }
 
-.gridRegion {
-  height: 149px;
-  align-self: end;
+.classSelectorRegion {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
 }
 
-.workspaceRegion {
-  height: 109px;
+.commandDeckRegion {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  flex: 4 1 0;
+  margin-bottom: 9px;
+  overflow: hidden;
 }
 
-.listRegion {
-  height: 148px;
-}
-
-.workflowRegion {
-  height: 134px;
+.recentTasksRegion {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  flex: 3 1 0;
+  overflow: hidden;
 }

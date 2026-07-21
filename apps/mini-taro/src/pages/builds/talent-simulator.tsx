@@ -38,6 +38,7 @@ import {
   findSpecSelection,
   type SpecSelection,
 } from '../_shared/build-context'
+import { rememberBuildsHomeSpec } from '../_shared/build-context-storage'
 import {
   goBack,
   safeDecode,
@@ -167,6 +168,13 @@ export default function TalentSimulatorPage() {
   }, [route.data])
 
   const data = route.data
+  const resolvedClassKey = data?.selection.classKey
+  const resolvedSpecId = data?.selection.specId
+  useEffect(() => {
+    if (!data?.selection || !resolvedClassKey || !resolvedSpecId) return
+    rememberBuildsHomeSpec(data.selection)
+  }, [resolvedClassKey, resolvedSpecId])
+
   const currentHeroKey = data?.talents.heroKey || selectedHeroKey || data?.selection.heroKey || ''
   const activeNodes = activeTalentNodes(data?.talents, activeTree)
   const activeSection = activeTalentSection(data?.talents, activeTree)

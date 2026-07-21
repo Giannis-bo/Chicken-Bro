@@ -1,38 +1,46 @@
-import { Picker } from '@tarojs/components'
-import Taro, { usePullDownRefresh } from '@tarojs/taro'
-import { useMemo, useState } from 'react'
+import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro'
+import { useMemo, useRef, useState } from 'react'
 
 import { wowApi } from '@wow-mini/api-client'
 import { AppShell } from '@wow-mini/design-system/components/AppShell'
-import {
-  BuildEvidenceNavigator,
-  type BuildEvidenceItem,
-} from '@wow-mini/design-system/components/BuildEvidenceNavigator'
-import { BuildSpecializationOverview } from '@wow-mini/design-system/components/BuildSpecializationOverview'
-import {
-  BuildWorkflowTimeline,
-  type BuildWorkflowStage,
-} from '@wow-mini/design-system/components/BuildWorkflowTimeline'
-import { BuildWorkspaceEntry } from '@wow-mini/design-system/components/BuildWorkspaceEntry'
+import { BuildClassSelector } from '@wow-mini/design-system/components/BuildClassSelector'
+import { BuildCommandDeck } from '@wow-mini/design-system/components/BuildCommandDeck'
+import { BuildRecentSimcTasks } from '@wow-mini/design-system/components/BuildRecentSimcTasks'
 import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
-import { RouteGrid, RouteRegion } from '@wow-mini/design-system/components/RouteFlow'
+import { RouteColumn, RouteRegion } from '@wow-mini/design-system/components/RouteFlow'
+import { RouteStatePanel } from '@wow-mini/design-system/components/ReconstructionPrimitives'
+import { RouteStage } from '@wow-mini/design-system/components/RouteStage'
 
-import { flattenSpecs } from '../_shared/build-context'
+import { readBuildsHomeContext, selectBuildsHomeClass } from '../_shared/build-context-storage'
 import { navigateTo, useAsyncRoute } from '../_shared/route-runtime'
 import { useTabRootIdentity } from '../../use-tab-root-identity'
-import { buildBuildsHomeModel, type BuildsHomeEvidenceId } from './builds-home-model'
+import { buildBuildsHomeModel, type BuildsHomeCommandId } from './builds-home-model'
+import { buildRecentSimcTaskPreviews } from './builds-recent-simc-model'
 import styles from './builds-home.module.scss'
 
-const evidenceRoutes: Readonly<Record<BuildsHomeEvidenceId, string>> = {
-  talents: '/pages/builds/talent-simulator',
-  gear: '/pages/builds/detail',
-  simc: '/pages/simulator/simc',
-  tasks: '/pages/simulator/tasks',
+export interface BuildsHomeReadyCompositionInput {
+  routeState: string
+  hasCurrentData: boolean
+  selectedClassKey?: string
+  launchSpecId?: string
+}
+
+export function isBuildsHomeReadyComposition({
+  routeState,
+  hasCurrentData,
+  selectedClassKey,
+  launchSpecId,
+}: BuildsHomeReadyCompositionInput): boolean {
+  return routeState === 'ready'
+    && hasCurrentData
+    && Boolean(selectedClassKey)
+    && Boolean(launchSpecId)
 }
 
 export default function BuildsHomePage() {
   useTabRootIdentity('pages/builds/builds')
-  const [selectedSpecId, setSelectedSpecId] = useState<string>()
+  const [context, setContext] = useState(() => readBuildsHomeContext())
+  const didShow = useRef(false)
   const route = useAsyncRoute(
     () => wowApi.builds.home(),
     {
@@ -40,136 +48,163 @@ export default function BuildsHomePage() {
       isEmpty: (payload) => !payload.classOptions.some((classItem) => classItem.specializations.length > 0),
     },
   )
+  const taskRoute = useAsyncRoute(
+    () => wowApi.simulator.tasks(),
+    {
+      fallbackPolicy: 'blocked',
+      isEmpty: (payload) => payload.tasks.length === 0,
+    },
+  )
 
   usePullDownRefresh(() => {
-    void route.load().finally(() => Taro.stopPullDownRefresh())
+    void Promise.all([route.load(), taskRoute.load()]).finally(() => Taro.stopPullDownRefresh())
+  })
+  useDidShow(() => {
+    if (!didShow.current) {
+      didShow.current = true
+      return
+    }
+    void taskRoute.load()
   })
 
   const model = useMemo(() => buildBuildsHomeModel({
     routeState: route.state.state,
+    context,
     ...(route.data ? { payload: route.data } : {}),
-    ...(selectedSpecId ? { selectedSpecId } : {}),
-  }), [route.data, route.state.state, selectedSpecId])
+  }), [context, route.data, route.state.state])
 
-  const specializationOptions = route.data ? flattenSpecs(route.data.classOptions) : []
-  const specializationLabels = specializationOptions.map(({ classItem, spec }) => (
-    spec.title || `${spec.specName || spec.name}${classItem.name}`
-  ))
-  const selectedIndex = Math.max(0, specializationOptions.findIndex(({ spec }) => (
-    spec.id === model.selection?.specId || spec.specId === model.selection?.specId
-  )))
+  // The page is the adapter boundary: Task 3 publishes classKey while the
+  // shared selector intentionally consumes the generic option id contract.
+  const classOptions = useMemo(() => model.classOptions.map(({ classKey, ...option }) => ({
+    ...option,
+    id: classKey,
+  })), [model.classOptions])
+  const recentSimcTasks = useMemo(
+    () => buildRecentSimcTaskPreviews(taskRoute.data?.tasks ?? []),
+    [taskRoute.data],
+  )
+  const recentSimcState = taskRoute.state.state === 'error' || taskRoute.state.state === 'blocked'
+    ? 'error'
+    : taskRoute.state.state === 'loading' && !taskRoute.data
+      ? 'loading'
+      : recentSimcTasks.length > 0
+        ? 'ready'
+        : 'empty'
+  const recentSimcError = taskRoute.state.state === 'error'
+    ? taskRoute.state.error
+    : taskRoute.state.state === 'blocked'
+      ? taskRoute.state.reason
+      : undefined
 
-  const openEvidence = (item: BuildEvidenceItem) => {
-    const id = item.id as BuildsHomeEvidenceId
-    const path = evidenceRoutes[id]
-    const spec = model.selection?.specId
+  const selectClass = (classKey: string) => {
+    const nextContext = selectBuildsHomeClass(classKey)
+    setContext(nextContext)
+  }
+
+  const openCommand = (id: BuildsHomeCommandId) => {
+    const item = model.commandItems.find((candidate) => candidate.id === id)
+    if (!item || item.disabled || (id !== 'tasks' && !item.specId)) return
+
+    const specializationParams = id === 'tasks' ? {} : { spec: item.specId }
     void wowApi.analytics.track('builds_query_open', {
       queryKey: id,
-      ...(spec ? { specId: spec } : {}),
+      ...(id === 'tasks' ? {} : { specId: item.specId }),
     }, 'pages/builds/builds')
-    navigateTo(path, {
-      ...(id === 'tasks' ? {} : { spec }),
-      ...(id === 'gear' ? { query: 'gear' } : {}),
-      ...(id === 'simc' || id === 'tasks' ? { from: 'builds' } : {}),
-    })
-  }
 
-  const openWorkflow = (stage: BuildWorkflowStage) => {
-    if (stage.id === 'input') {
-      const firstInput = model.evidenceItems.find((item) => item.id === 'talents' || item.id === 'gear')
-      if (firstInput) openEvidence(firstInput)
+    if (id === 'talents') {
+      navigateTo('/pages/builds/talent-simulator', specializationParams)
       return
     }
-    const evidence = model.evidenceItems.find((item) => item.id === (stage.id === 'validation' ? 'simc' : 'tasks'))
-    if (evidence) openEvidence(evidence)
-  }
-
-  const useWorkspaceAction = () => {
-    if (model.workspace.actionMode === 'retry') {
-      void route.load()
+    if (id === 'gear') {
+      navigateTo('/pages/builds/detail', { ...specializationParams, query: 'gear' })
       return
     }
-    navigateTo('/pages/builds/workbench', { spec: model.selection?.specId })
+    if (id === 'simc') {
+      navigateTo('/pages/simulator/simc', { ...specializationParams, from: 'builds' })
+      return
+    }
+    if (id === 'tasks') {
+      navigateTo('/pages/simulator/tasks', { from: 'builds' })
+    }
   }
+
+  const ready = isBuildsHomeReadyComposition({
+    routeState: route.state.state,
+    hasCurrentData: Boolean(route.data),
+    ...(model.selectedClassKey ? { selectedClassKey: model.selectedClassKey } : {}),
+    ...(model.launchSpecId ? { launchSpecId: model.launchSpecId } : {}),
+  })
+  const unavailableState = route.state.state === 'error'
+    ? 'error'
+    : route.state.state === 'loading'
+      ? 'loading'
+      : 'blocked'
+  const unavailableDetail = route.state.state === 'error'
+    ? route.state.error
+    : route.state.state === 'blocked'
+      ? route.state.reason
+      : route.state.state === 'loading'
+        ? '正在读取可用职业与专精映射'
+        : '没有可用的职业专精映射'
 
   return (
-    <AppShell
-      surfaceSlotId="asset_slot.builds-surface-texture"
-      tabRoot
-    >
-      <PageFrame
-        region="builds-home_target_region_page-header"
-        sourceLabel={model.headerSourceLabel}
-        title={model.title}
-        variant="builds-home"
+    <AppShell bodyScrollable={false} tabRoot>
+      <RouteStage
+        className={styles['page'] ?? ''}
+        routeState={ready ? route.state.state : unavailableState}
+        targetRegionCount={5}
+        width="full"
       >
-        <RouteGrid
-          className={styles['surface'] ?? ''}
-          data-owner="builds-home-surface"
-          data-refreshing={model.refreshing ? 'true' : 'false'}
-          data-state={model.healthState}
+        <PageFrame
+          region="page_header"
+          rightActionLayout="builds-class-selector"
+          rightAction={ready ? (
+            <RouteRegion className={styles['classSelectorRegion'] ?? ''} data-region="class_selector">
+              <BuildClassSelector
+                options={classOptions}
+                value={model.selectedClassKey ?? ''}
+                onSelect={selectClass}
+              />
+            </RouteRegion>
+          ) : undefined}
+          title="职业专精"
+          variant="builds-home"
         >
-          <Picker
-            className={styles['overviewRegion'] ?? ''}
-            disabled={specializationOptions.length === 0 || model.initialLoading}
-            mode="selector"
-            range={specializationLabels}
-            value={selectedIndex}
-            onChange={(event) => {
-              const selected = specializationOptions[Number(event.detail.value)]?.spec
-              const nextId = selected?.id || selected?.specId
-              if (nextId) setSelectedSpecId(nextId)
-            }}
+          <RouteColumn
+            className={styles['surface'] ?? ''}
+            routeState={ready ? route.state.state : unavailableState}
           >
-            <BuildSpecializationOverview
-              description={model.specialization.description}
-              identity={model.specialization.identity}
-              loading={model.initialLoading}
-              sourceLabel={model.specialization.sourceLabel}
-              state={model.specialization.state}
-              stateLabel={model.specialization.stateLabel}
-              title={model.specialization.title}
-              onSelect={() => undefined}
-            />
-          </Picker>
-          <RouteRegion className={styles['gridRegion'] ?? ''} data-region="specialization_grid">
-            <BuildEvidenceNavigator
-              items={model.evidenceItems}
-              loading={model.initialLoading}
-              variant="grid"
-              onSelect={openEvidence}
-            />
-          </RouteRegion>
-          <RouteRegion className={styles['workspaceRegion'] ?? ''} data-region="workspace_entry">
-            <BuildWorkspaceEntry
-              actionLabel={model.workspace.actionLabel}
-              detail={model.workspace.detail}
-              disabled={model.workspace.disabled}
-              loading={model.initialLoading}
-              state={model.workspace.state}
-              statusLabel={model.workspace.statusLabel}
-              summary={model.workspace.summary}
-              title={model.workspace.title}
-              onEnter={useWorkspaceAction}
-            />
-          </RouteRegion>
-          <RouteRegion className={styles['listRegion'] ?? ''} data-region="build_list">
-            <BuildEvidenceNavigator
-              items={model.evidenceItems}
-              loading={model.initialLoading}
-              variant="list"
-              onSelect={openEvidence}
-            />
-          </RouteRegion>
-          <RouteRegion className={styles['workflowRegion'] ?? ''} data-region="workflow_guidance">
-            <BuildWorkflowTimeline
-              loading={model.initialLoading}
-              stages={model.workflow}
-              onSelect={openWorkflow}
-            />
-          </RouteRegion>
-        </RouteGrid>
-      </PageFrame>
+            <RouteRegion className={styles['commandDeckRegion'] ?? ''} data-region="command_deck">
+              {ready ? (
+                <BuildCommandDeck items={model.commandItems} onSelect={openCommand} />
+              ) : (
+                <RouteStatePanel
+                  actionLabel={unavailableState === 'loading' ? undefined : '重试'}
+                  detail={unavailableDetail}
+                  region="builds_home_route_state"
+                  state={unavailableState}
+                  title={unavailableState === 'loading' ? '正在加载职业目录' : '职业目录暂不可用'}
+                  variant="page"
+                  onAction={unavailableState === 'loading' ? undefined : route.load}
+                />
+              )}
+            </RouteRegion>
+            {ready ? (
+              <>
+                <RouteRegion className={styles['recentTasksRegion'] ?? ''} data-region="recent_simc_tasks">
+                  <BuildRecentSimcTasks
+                    items={recentSimcTasks}
+                    state={recentSimcState}
+                    {...(recentSimcError ? { errorDetail: recentSimcError } : {})}
+                    onRetry={taskRoute.load}
+                    onSelect={(id) => navigateTo('/pages/simulator/task-detail', { id })}
+                  />
+                </RouteRegion>
+              </>
+            ) : null}
+          </RouteColumn>
+        </PageFrame>
+      </RouteStage>
     </AppShell>
   )
 }

@@ -42,6 +42,12 @@ export type {
   BuildEvidenceNavigatorProps,
   BuildEvidenceNavigatorVariant,
 } from './components/BuildEvidenceNavigator'
+export { BuildClassSelector } from './components/BuildClassSelector'
+export type { BuildClassSelectorOption, BuildClassSelectorProps } from './components/BuildClassSelector'
+export { BuildCommandDeck } from './components/BuildCommandDeck'
+export type { BuildCommandDeckItem } from './components/BuildCommandDeck'
+export { BuildRecentSimcTasks } from './components/BuildRecentSimcTasks'
+export type { BuildRecentSimcTaskItem, BuildRecentSimcTasksProps } from './components/BuildRecentSimcTasks'
 export { BuildSpecializationOverview } from './components/BuildSpecializationOverview'
 export type {
   BuildSpecializationIdentity,
