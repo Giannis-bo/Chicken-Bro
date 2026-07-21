@@ -7,5 +7,6 @@
 | 领域 | 状态 | 入口 |
 | --- | --- | --- |
 | 14 路由 Target-First 生产重建与主干能力接入 | 正在推进 | [ui-reconstruction.md](ui-reconstruction.md) |
+| builds_home 职业命令卡组 | 正在推进 | [builds-home-command-deck.md](builds-home-command-deck.md) |
 
 新的多步骤计划必须先在本页登记。计划完成或被替代后，从本页移除并删除文件；稳定结论进入 architecture、runbook、roadmap 或想法池。
