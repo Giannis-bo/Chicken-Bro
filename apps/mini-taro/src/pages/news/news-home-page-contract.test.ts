@@ -24,4 +24,19 @@ describe('news home favorite action contract', () => {
     expect(pageFrameSource).toContain("selected ? 'news-favorite-control.selected' : 'news-favorite-control.default'")
     expect(pageFrameSource).toContain('slotId="asset_slot.news-favorite-control"')
   })
+
+  it('locks the overall page scroll without removing pull-to-refresh', () => {
+    const pageSource = readFileSync(resolve(
+      process.cwd(),
+      'apps/mini-taro/src/pages/news/news.tsx',
+    ), 'utf8')
+    const pageConfigSource = readFileSync(resolve(
+      process.cwd(),
+      'apps/mini-taro/src/pages/news/news.config.ts',
+    ), 'utf8')
+
+    expect(pageConfigSource).toMatch(/disableScroll:\s*true/)
+    expect(pageConfigSource).toMatch(/enablePullDownRefresh:\s*true/)
+    expect(pageSource).toContain('<AppShell bodyScrollable={false} tabRoot>')
+  })
 })
