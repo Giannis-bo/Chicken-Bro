@@ -2377,8 +2377,6 @@ class PostgresCacheStoreTest(unittest.TestCase):
 
     def test_talent_read_model_reconciles_existing_raiderio_state_against_current_nodes(self):
         from server.postgres_cache_store import PostgresCacheStore
-        from server.websim_payload import talent_tree_sections
-
         nodes = [
             {
                 "id": "simc-class-91001-mage-frost",
@@ -2464,7 +2462,11 @@ class PostgresCacheStoreTest(unittest.TestCase):
                 }},
             }],
             nodes,
-            talent_tree_sections("mage", "frost", "frostfire"),
+            [
+                {"key": "class", "pointCap": 1},
+                {"key": "spec", "pointCap": 1},
+                {"key": "hero", "pointCap": 1},
+            ],
         )
 
         self.assertEqual(len(templates), 1)
@@ -2473,6 +2475,75 @@ class PostgresCacheStoreTest(unittest.TestCase):
         selected_ids = [item["id"] for item in templates[0]["talentState"]["selectedNodes"]]
         self.assertIn("simc-hero-136441-mage-frost-frostfire", selected_ids)
         self.assertNotIn("simc-hero-117239-mage-frost-frostfire", selected_ids)
+
+    def test_talent_read_model_hides_community_snapshot_that_cannot_fill_current_point_budget(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        nodes = [
+            {
+                "id": "class-root",
+                "treeType": "class",
+                "entryId": 1,
+                "maxRank": 1,
+                "grantedRank": 0,
+                "parentIds": [],
+                "pointRequirement": 0,
+            },
+            {
+                "id": "spec-root",
+                "treeType": "spec",
+                "entryId": 2,
+                "maxRank": 1,
+                "grantedRank": 0,
+                "parentIds": [],
+                "pointRequirement": 0,
+            },
+            {
+                "id": "hero-root",
+                "treeType": "hero",
+                "heroKey": "frostfire",
+                "entryId": 3,
+                "maxRank": 1,
+                "grantedRank": 0,
+                "parentIds": [],
+                "pointRequirement": 0,
+            },
+        ]
+        store = PostgresCacheStore(lambda: FakeConnection())
+
+        templates = store._reconcile_community_talent_templates_for_runtime(
+            "mage",
+            "frost",
+            "frostfire",
+            [{
+                "id": "rio-incomplete-frostfire",
+                "classKey": "mage",
+                "specKey": "frost",
+                "heroKey": "frostfire",
+                "scenarioKey": "mythic_plus",
+                "name": "Incomplete Frostfire",
+                "sourceKey": "raiderio",
+                "sourceName": "Raider.IO",
+                "status": "verified",
+                "websimExportCode": "websim:mage:frost:frostfire:incomplete",
+                "talentState": {"selectedNodes": [
+                    {"id": "class-root", "rank": 1},
+                    {"id": "spec-root", "rank": 1},
+                    {"id": "hero-root", "rank": 1},
+                ]},
+                "payload": {},
+            }],
+            nodes,
+            [
+                {"key": "class", "pointCap": 2},
+                {"key": "spec", "pointCap": 1},
+                {"key": "hero", "pointCap": 1},
+            ],
+        )
+
+        self.assertEqual(len(templates), 1)
+        self.assertEqual(templates[0]["status"], "pending_collection")
+        self.assertFalse(templates[0]["canApplyVisual"])
 
     def test_promote_community_talent_inventory_keeps_one_active_template_per_hero_slot(self):
         from server import postgres_cache_store

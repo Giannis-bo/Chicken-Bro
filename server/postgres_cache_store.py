@@ -6340,12 +6340,25 @@ class PostgresCacheStore:
             selected_rows = websim_selected_talent_nodes(template)
             requires_current_graph_validation = bool(structured_entries) or source_key == "raiderio"
             if not errors and requires_current_graph_validation:
-                _encoded, _counts, validation_errors, _warnings = validate_websim_talent_selection(
+                _encoded, selected_counts, validation_errors, _warnings = validate_websim_talent_selection(
                     nodes_by_id,
                     selected_rows,
                     tree_sections,
                 )
                 errors = unique_text_list(validation_errors)
+                if not errors:
+                    point_caps = {
+                        str(section.get("key") or ""): int(section.get("pointCap") or 0)
+                        for section in tree_sections or []
+                        if isinstance(section, dict) and int(section.get("pointCap") or 0) > 0
+                    }
+                    incomplete_trees = [
+                        f"{tree_type} talent points are incomplete for current point budget: "
+                        f"{int(selected_counts.get(tree_type) or 0)}/{point_cap}"
+                        for tree_type, point_cap in point_caps.items()
+                        if int(selected_counts.get(tree_type) or 0) < point_cap
+                    ]
+                    errors = unique_text_list(incomplete_trees)
 
             if errors:
                 payload["errors"] = unique_text_list([*(payload.get("errors") or []), *errors])

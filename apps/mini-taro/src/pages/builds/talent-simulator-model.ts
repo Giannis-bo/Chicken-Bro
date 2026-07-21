@@ -310,7 +310,10 @@ export function talentPoints(
   ranks: Readonly<Record<string, number>>,
 ): TalentPointView {
   const cap = Math.max(0, finiteInteger(section?.pointCap ?? section?.maxPoints, 0))
-  const spent = nodes.reduce((total, node) => total + rankFor(node, ranks), 0)
+  const spent = nodes.reduce(
+    (total, node) => total + Math.max(0, rankFor(node, ranks) - grantedRankFor(node)),
+    0,
+  )
   return { cap, spent, remaining: Math.max(0, cap - spent) }
 }
 

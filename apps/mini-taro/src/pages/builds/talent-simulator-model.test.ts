@@ -831,11 +831,11 @@ describe('talent simulator target model', () => {
     expect(completed).toEqual([])
   })
 
-  it('derives point counters from real selected ranks and section caps', () => {
+  it('excludes system-granted ranks from the player point counter', () => {
     expect(talentPoints(nodes, { key: 'class', title: '法师', pointCap: 34 }, initialTalentRanks(nodes))).toEqual({
       cap: 34,
-      spent: 1,
-      remaining: 33,
+      spent: 0,
+      remaining: 34,
     })
   })
 
