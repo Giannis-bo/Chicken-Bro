@@ -143,17 +143,46 @@ function styleHelperBindings(source, styleImports) {
       const helperName = functionPath.node.id?.name
       const parameterName = functionPath.node.params[0]?.type === 'Identifier' ? functionPath.node.params[0].name : null
       if (!helperName || !parameterName) return
+      const returnedStyleImports = []
       functionPath.traverse({
-        MemberExpression(memberPath) {
-          const member = memberPath.node
-          if (member.object.type !== 'Identifier' || !importedByLocalName.has(member.object.name)) return
-          if (!member.computed || member.property.type !== 'Identifier' || member.property.name !== parameterName) return
-          helpers.set(helperName, importedByLocalName.get(member.object.name))
+        ReturnStatement(returnPath) {
+          if (returnPath.getFunctionParent()?.node !== functionPath.node) return
+          const importsInReturn = new Map()
+          returnPath.traverse({
+            MemberExpression(memberPath) {
+              const member = memberPath.node
+              if (member.object.type !== 'Identifier' || !importedByLocalName.has(member.object.name)) return
+              if (!member.computed || member.property.type !== 'Identifier' || member.property.name !== parameterName) return
+              const styleImport = importedByLocalName.get(member.object.name)
+              importsInReturn.set(styleImport.localName, styleImport)
+            },
+          })
+          returnedStyleImports.push([...importsInReturn.values()])
         },
       })
+      if (returnedStyleImports.length === 0 || returnedStyleImports.some((imports) => imports.length !== 1)) return
+      const compatibleImports = new Map(returnedStyleImports.flat().map((styleImport) => [styleImport.localName, styleImport]))
+      if (compatibleImports.size === 1) helpers.set(helperName, [...compatibleImports.values()][0])
     },
   })
   return helpers
+}
+
+function validCssModuleClassToken(className) {
+  return /^[A-Za-z_][A-Za-z0-9_-]*$/u.test(className)
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')
+}
+
+function styleModuleDeclaresSelectedMaterial(styles, className, stateAttribute) {
+  if (!validCssModuleClassToken(className)) return false
+  const declaredClasses = new Set([...styles.matchAll(/\.([A-Za-z_][A-Za-z0-9_-]*)/gu)].map((match) => match[1]))
+  if (!declaredClasses.has(className)) return false
+  const escapedClassName = escapeRegExp(className)
+  const escapedStateAttribute = escapeRegExp(stateAttribute)
+  return new RegExp(`\\.${escapedClassName}(?![A-Za-z0-9_-])\\[${escapedStateAttribute}=['"]true['"]\\]`, 'u').test(styles)
 }
 
 function styleModuleClassReferences(source, classExpression) {
@@ -197,15 +226,16 @@ function styleModuleClassReferences(source, classExpression) {
 
 function styleModuleOwnsSelectedMaterial({ source, classExpression, stateAttribute, readStyleModule }) {
   const references = styleModuleClassReferences(source, classExpression)
-  const stateSelector = `\\[${stateAttribute}=['"]true['"]\\]`
   if (references.length > 0) {
     return references.some((reference) => (
-      new RegExp(`\\.${reference.className}${stateSelector}`, 'u').test(readStyleModule(reference.source))
+      styleModuleDeclaresSelectedMaterial(readStyleModule(reference.source), reference.className, stateAttribute)
     ))
   }
   const styleImports = literalStyleModuleImports(source)
+  const escapedStateAttribute = escapeRegExp(stateAttribute)
   return styleImports.length === 1
-    && new RegExp(`[^{}]+${stateSelector}\\s*\\{`, 'u').test(readStyleModule(styleImports[0].source))
+    && /\bstyleSelectorClass\s*\(/u.test(classExpression)
+    && new RegExp(`[^{}]+\\[${escapedStateAttribute}=['"]true['"]\\]\\s*\\{`, 'u').test(readStyleModule(styleImports[0].source))
 }
 
 function buildsSpecializationFillContractRequired({ source, assetContract, componentContract }) {

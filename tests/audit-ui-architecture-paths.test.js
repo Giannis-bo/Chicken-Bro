@@ -138,6 +138,43 @@ test('selected material audit resolves the style module imported by the componen
     stateAttribute: 'data-selected',
     readStyleModule: (stylePath) => wrongOwner.get(stylePath) ?? '',
   }), true)
+})
+
+test('selected material audit accepts only exact CSS module class tokens', () => {
+  const helperPath = path.join(root, 'scripts', 'ui-architecture-ast.js')
+  const { styleModuleOwnsSelectedMaterial } = require(helperPath)
+
+  const regexTokenSource = `
+    import styles from './Regex.module.scss'
+    export const selector = styles['.*']
+  `
+  assert.equal(styleModuleOwnsSelectedMaterial({
+    source: regexTokenSource,
+    classExpression: "styles['.*']",
+    stateAttribute: 'data-selected',
+    readStyleModule: () => ".unrelated[data-selected='true'] { color: gold; }",
+  }), false)
+
+  assert.equal(styleModuleOwnsSelectedMaterial({
+    source: `import styles from './Tokens.module.scss'`,
+    classExpression: "styles['selectedOption']",
+    stateAttribute: 'data-selected',
+    readStyleModule: () => ".selectedOptionExtra[data-selected='true'] { color: gold; }",
+  }), false)
+
+  for (const className of ['selected-option', 'selected_option', 'selectedOption']) {
+    assert.equal(styleModuleOwnsSelectedMaterial({
+      source: `import styles from './Tokens.module.scss'`,
+      classExpression: `styles['${className}']`,
+      stateAttribute: 'data-selected',
+      readStyleModule: () => `.${className}[data-selected='true'] { color: gold; }`,
+    }), true)
+  }
+})
+
+test('selected material helper bindings follow compatible return values only', () => {
+  const helperPath = path.join(root, 'scripts', 'ui-architecture-ast.js')
+  const { styleModuleOwnsSelectedMaterial } = require(helperPath)
 
   const helperSource = `
     import localStyles from './Local.module.scss'
@@ -152,6 +189,37 @@ test('selected material audit resolves the style module imported by the componen
       ? ".option[data-selected='true'] { color: gold; }"
       : '',
   }), true)
+
+  const decoyHelperSource = `
+    import localStyles from './Local.module.scss'
+    function componentStyle(name: string): string {
+      const unused = localStyles[name]
+      return 'static-class'
+    }
+    export const selector = componentStyle('option')
+  `
+  assert.equal(styleModuleOwnsSelectedMaterial({
+    source: decoyHelperSource,
+    classExpression: "componentStyle('option')",
+    stateAttribute: 'data-selected',
+    readStyleModule: () => ".option[data-selected='true'] { color: gold; }",
+  }), false)
+
+  const ambiguousHelperSource = `
+    import stylesA from './A.module.scss'
+    import stylesB from './B.module.scss'
+    function componentStyle(name: string, useA: boolean): string {
+      if (useA) return stylesA[name] ?? ''
+      return stylesB[name] ?? ''
+    }
+    export const selector = componentStyle('option', false)
+  `
+  assert.equal(styleModuleOwnsSelectedMaterial({
+    source: ambiguousHelperSource,
+    classExpression: "componentStyle('option', false)",
+    stateAttribute: 'data-selected',
+    readStyleModule: () => ".option[data-selected='true'] { color: gold; }",
+  }), false)
 
   const reconstructionSource = `
     import { reconstructionStyle as localReconstructionStyle } from './reconstruction-style'
