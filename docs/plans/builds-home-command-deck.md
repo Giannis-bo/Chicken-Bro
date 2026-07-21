@@ -652,8 +652,18 @@
   Export this single interface from `BuildRecentSimcTasks.tsx`:
 
   ```ts
+  export interface BuildRecentSimcTaskItem {
+    id: string
+    title: string
+    detail: string
+    state: 'queued' | 'running' | 'failed' | 'completed' | 'unknown'
+    stateLabel: string
+    timeLabel: string
+    navigable: boolean
+  }
+
   export interface BuildRecentSimcTasksProps {
-    items: readonly RecentSimcTaskPreview[]
+    items: readonly BuildRecentSimcTaskItem[]
     state: 'loading' | 'ready' | 'empty' | 'error'
     errorDetail?: string
     onRetry: () => void
