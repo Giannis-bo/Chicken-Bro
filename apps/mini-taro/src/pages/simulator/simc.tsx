@@ -36,6 +36,7 @@ import {
   flattenSpecs,
   type SpecSelection,
 } from '../_shared/build-context'
+import { rememberBuildsHomeSpec } from '../_shared/build-context-storage'
 import {
   goBack,
   navigateTo,
@@ -228,6 +229,12 @@ export default function SimcSubmitPage() {
   }, [route.data])
 
   const data = route.data
+  const resolvedClassKey = data?.selection.classKey
+  const resolvedSpecId = data?.selection.specId
+  useEffect(() => {
+    if (data?.selection) rememberBuildsHomeSpec(data.selection)
+  }, [resolvedClassKey, resolvedSpecId])
+
   const talentTemplates = compatibleTemplates(data?.talentTemplates ?? [], data?.selection)
   const talentTemplate = talentTemplates.find((template) => template.id === talentTemplateId)
   const gearSources = data ? simcGearSources({
