@@ -55,6 +55,33 @@ describe('builds home command deck model', () => {
     expect(JSON.stringify(model.commandItems)).not.toMatch(/stateLabel|statusLabel|准备|未校验/u)
   })
 
+  it('binds the four command cards to the reviewed Blizzard icon sources', () => {
+    const model = buildBuildsHomeModel({
+      payload: payload(),
+      routeState: 'ready',
+      context: emptyBuildsHomeContext(),
+    })
+
+    expect(model.commandItems.map(({ id, iconUrl }) => ({ id, iconUrl }))).toEqual([
+      {
+        id: 'talents',
+        iconUrl: 'https://render.worldofwarcraft.com/us/icons/56/spell_nature_natureblessing.jpg',
+      },
+      {
+        id: 'gear',
+        iconUrl: 'https://render.worldofwarcraft.com/us/icons/56/inv_misc_gear_01.jpg',
+      },
+      {
+        id: 'simc',
+        iconUrl: 'https://render.worldofwarcraft.com/us/icons/56/inv_misc_book_09.jpg',
+      },
+      {
+        id: 'tasks',
+        iconUrl: 'https://render.worldofwarcraft.com/us/icons/56/inv_scroll_11.jpg',
+      },
+    ])
+  })
+
   it('keeps tasks independent while simulators expose the resolved launch spec', () => {
     const model = buildBuildsHomeModel({
       payload: payload(),

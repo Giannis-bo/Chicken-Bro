@@ -19,6 +19,11 @@
       "treeViewportPolicy": "all class, specialization and hero trees preserve the backend row/column lattice: nodes that share a source column remain vertically aligned, sparse rows retain their empty-lane branch spans, and repeated source positions fan into safe non-overlapping sockets; dense class and specialization trees use a 60px minimum row rhythm and retain their horizontal fit while the internal ScrollView owns any extra vertical reach rather than shrinking the tree back down; sparse hero trees use the same shared-lattice rule while expanding their practical width and row gap into the viewport; all graph inline coordinates use the same 750/390 rpx design unit as the canvas; the tree ScrollView adds 24px of top and bottom reach for nodes and rank labels while the page surface remains fixed",
       "preservedBehavior": ["backend_talent_validation", "backend_talent_export", "named_save_template", "saved_template_import", "community_winner_import", "reset"],
       "targetObservationPolicy": "target-inventory.json and target-geometry.json remain unchanged records of the original target image"
+    },
+    {
+      "id": "common_talent_tab_label_20260722",
+      "copyRule": "runtime class-tree tab label is 通用天赋; backend tree key remains class",
+      "targetObservationPolicy": "target-inventory.json remains an unchanged record of the original 职业天赋 target text; this user-authorized copy override preserves its measured geometry"
     }
   ],
   "components": [

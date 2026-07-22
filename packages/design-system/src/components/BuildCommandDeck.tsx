@@ -1,4 +1,4 @@
-import { Text, View } from '@tarojs/components'
+import { Image, Text, View } from '@tarojs/components'
 
 import {
   candidateAssets,
@@ -12,12 +12,15 @@ import { ProductionAssetGlyph } from './ProductionAssetGlyph'
 import { ForgedPanel } from './ReconstructionPrimitives'
 import { styleSelectorClass } from './selector-markers'
 import { SystemGlyph } from './SystemGlyph'
+import { resolveRuntimeMediaUrl } from '../runtime-media'
+import { useTrustedMediaLoadState } from './useTrustedMediaLoadState'
 import styles from './BuildsHomeCommandDeck.module.scss'
 
 export interface BuildCommandDeckItem {
   id: 'talents' | 'gear' | 'simc' | 'tasks'
   title: string
   detail: string
+  iconUrl: string
   glyphAssetId: ProductionAssetId
   fallbackGlyphAssetId: ProductionAssetId
   disabled: boolean
@@ -37,6 +40,47 @@ function registeredAssetSlotId(assetId: ProductionAssetId): AssetSlotId {
   return productionAssets.find((asset) => asset.assetId === assetId)?.slotId
     ?? candidateAssets.find((asset) => asset.assetId === assetId)?.slotId
     ?? 'asset_slot.unregistered-fallback'
+}
+
+function CommandCardGlyph({
+  item,
+  fallbackGlyphSlotId,
+}: Pick<BuildCommandDeckEntry, 'item' | 'fallbackGlyphSlotId'>): JSX.Element {
+  const trustedUrl = resolveRuntimeMediaUrl(item.iconUrl)
+  const mediaLoadState = useTrustedMediaLoadState(trustedUrl)
+  const visible = mediaLoadState.visible
+
+  return (
+    <View
+      className={componentStyle('commandCardGlyphOwner')}
+      data-media-visible={visible ? 'true' : 'false'}
+      data-role={'build-command-' + item.id + '-glyph'}
+      data-slot-id="asset_slot.trusted-source-media"
+    >
+      <ProductionAssetGlyph
+        assetId={item.glyphAssetId}
+        className={componentStyle('commandCardGlyphFallback')}
+        dataRole={'build-command-' + item.id + '-glyph-fallback'}
+        fallbackAssetId={item.fallbackGlyphAssetId}
+        fallbackSlotId={fallbackGlyphSlotId}
+        slotId="asset_slot.builds-evidence-medallions"
+      />
+      {trustedUrl ? (
+        <Image
+          aria-label={item.title + '图标'}
+          className={[
+            componentStyle('commandCardGlyphMedia'),
+            visible && componentStyle('commandCardGlyphMediaVisible'),
+          ].filter(Boolean).join(' ')}
+          data-loaded={visible ? 'true' : 'false'}
+          mode="aspectFill"
+          src={trustedUrl}
+          onError={mediaLoadState.onError}
+          onLoad={mediaLoadState.onLoad}
+        />
+      ) : null}
+    </View>
+  )
 }
 
 export function buildCommandDeckEntries(
@@ -91,17 +135,10 @@ export function BuildCommandDeck(props: {
               data-role="build-command-card"
               disabled={interactionDisabled}
               onClick={() => activateBuildCommand(entry, onSelect)}
-            >
-              <View className={componentStyle('commandCardMedallion')}>
-                <ProductionAssetGlyph
-                  assetId={item.glyphAssetId}
-                  className={componentStyle('commandCardGlyph')}
-                  dataRole={'build-command-' + item.id + '-glyph'}
-                  fallbackAssetId={item.fallbackGlyphAssetId}
-                  fallbackSlotId={fallbackGlyphSlotId}
-                  slotId="asset_slot.builds-evidence-medallions"
-                />
-              </View>
+              >
+                <View className={componentStyle('commandCardMedallion')}>
+                  <CommandCardGlyph item={item} fallbackGlyphSlotId={fallbackGlyphSlotId} />
+                </View>
               <View className={componentStyle('commandCardCopy')}>
                 <Text className={componentStyle('commandCardTitle')}>{item.title}</Text>
                 <Text className={componentStyle('commandCardDetail')}>{item.detail}</Text>

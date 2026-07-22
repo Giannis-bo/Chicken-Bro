@@ -21,6 +21,7 @@ export interface BuildsHomeCommandItem {
   id: BuildsHomeCommandId
   title: '天赋模拟' | '装备模拟' | 'SimC 模拟' | '任务查看'
   detail: string
+  iconUrl: string
   glyphAssetId: ProductionAssetId
   fallbackGlyphAssetId: ProductionAssetId
   specId?: string
@@ -45,6 +46,7 @@ const commandDefinitions = [
     id: 'talents',
     title: '天赋模拟',
     detail: '设计、导入与保存天赋模板',
+    iconUrl: 'https://render.worldofwarcraft.com/us/icons/56/spell_nature_natureblessing.jpg',
     glyphAssetId: 'builds-evidence-medallion.talents',
     fallbackGlyphAssetId: 'quick-action-talents-glyph.default',
   },
@@ -52,6 +54,7 @@ const commandDefinitions = [
     id: 'gear',
     title: '装备模拟',
     detail: '搭配装备与增强方案',
+    iconUrl: 'https://render.worldofwarcraft.com/us/icons/56/inv_misc_gear_01.jpg',
     glyphAssetId: 'builds-evidence-medallion.gear',
     fallbackGlyphAssetId: 'quick-action-gear-glyph.default',
   },
@@ -59,6 +62,7 @@ const commandDefinitions = [
     id: 'simc',
     title: 'SimC 模拟',
     detail: '组合模板并发起模拟',
+    iconUrl: 'https://render.worldofwarcraft.com/us/icons/56/inv_misc_book_09.jpg',
     glyphAssetId: 'builds-evidence-medallion.simc',
     fallbackGlyphAssetId: 'quick-action-simc-glyph.default',
   },
@@ -66,6 +70,7 @@ const commandDefinitions = [
     id: 'tasks',
     title: '任务查看',
     detail: '查看模拟任务与结果',
+    iconUrl: 'https://render.worldofwarcraft.com/us/icons/56/inv_scroll_11.jpg',
     glyphAssetId: 'builds-evidence-medallion.tasks',
     fallbackGlyphAssetId: 'utility-glyph-family.records',
   },

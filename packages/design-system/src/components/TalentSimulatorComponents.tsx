@@ -83,6 +83,39 @@ function TrustedTalentMedia({
   )
 }
 
+interface TrustedTalentArtworkProps {
+  imageUrl?: string | undefined
+  crop?: 'class' | 'hero' | 'spec' | undefined
+}
+
+function TrustedTalentArtwork({ imageUrl, crop }: TrustedTalentArtworkProps) {
+  const trustedUrl = resolveRuntimeMediaUrl(imageUrl)
+  const mediaLoadState = useTrustedMediaLoadState(trustedUrl)
+  if (!trustedUrl || !crop) return null
+  return (
+    <View
+      className={componentStyle('graphArtworkBackdrop')}
+      data-crop={crop}
+      data-media-visible={mediaLoadState.visible ? 'true' : 'false'}
+      data-role="talent-tree-artwork"
+      data-slot-id="asset_slot.talent-tree-artwork"
+    >
+      <Image
+        aria-label="当前专精天赋树插画"
+        className={componentClass(
+          componentStyle('graphArtworkImage'),
+          mediaLoadState.visible && componentStyle('graphArtworkImageVisible'),
+        )}
+        data-loaded={mediaLoadState.visible ? 'true' : 'false'}
+        mode="aspectFill"
+        src={trustedUrl}
+        onError={mediaLoadState.onError}
+        onLoad={mediaLoadState.onLoad}
+      />
+    </View>
+  )
+}
+
 export interface TalentSelectorOption {
   id: string
   label: string
@@ -364,6 +397,8 @@ export interface TalentGraphViewportProps {
   planeHeight: number
   nodeCount: number
   uniquePositionCount: number
+  backgroundImageUrl?: string | undefined
+  backgroundCrop?: 'class' | 'hero' | 'spec' | undefined
   allowVerticalOverflow?: boolean
   readonly?: boolean
   onNode: (node: TalentGraphNodeItem) => void
@@ -384,6 +419,8 @@ export function TalentGraphViewport({
   planeHeight,
   nodeCount,
   uniquePositionCount,
+  backgroundImageUrl,
+  backgroundCrop,
   allowVerticalOverflow = false,
   readonly = false,
   onNode,
@@ -441,6 +478,7 @@ export function TalentGraphViewport({
       data-stage-width={stageWidth}
       data-unique-position-count={uniquePositionCount}
     >
+      <TrustedTalentArtwork imageUrl={backgroundImageUrl} crop={backgroundCrop} />
       {connectivityStatus === 'unavailable' ? (
         <View className={componentStyle('connectivityNotice')} data-role="talent-connectivity-notice">
           <SystemGlyph assetId="utility-glyph-family.warning" slotId="asset_slot.talent-readiness-glyphs" />

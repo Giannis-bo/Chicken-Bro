@@ -320,6 +320,42 @@
     inset 0 0 34px rgba(0, 0, 0, 0.68);
 }
 
+.graphArtworkBackdrop {
+  position: absolute;
+  z-index: 0;
+  inset: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.graphArtworkBackdrop[data-media-visible='true'] { opacity: 0.32; }
+
+.graphArtworkBackdrop::after {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  content: '';
+  background:
+    linear-gradient(90deg, rgba(6, 9, 12, 0.76), rgba(6, 9, 12, 0.26) 48%, rgba(6, 9, 12, 0.78)),
+    linear-gradient(180deg, rgba(5, 7, 9, 0.54), rgba(5, 7, 9, 0.08) 44%, rgba(5, 7, 9, 0.86));
+}
+
+.graphArtworkImage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  width: 300%;
+  max-width: none;
+  height: 100%;
+  opacity: 0;
+}
+
+.graphArtworkImageVisible { opacity: 1; }
+.graphArtworkBackdrop[data-crop='hero'] .graphArtworkImage { transform: translateX(-33.333333%); }
+.graphArtworkBackdrop[data-crop='spec'] .graphArtworkImage { transform: translateX(-66.666667%); }
+
 .graphOwner::before,
 .graphOwner::after {
   position: absolute;
@@ -389,6 +425,7 @@
 
 .graphEtching {
   position: absolute;
+  z-index: 1;
   inset: 8px;
   border: 0;
   border-radius: 0;

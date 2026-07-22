@@ -4,6 +4,58 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 describe('talent simulator authoritative edit contract', () => {
+  it('labels the shared class tree as a common talent tree in both runtime and target inventory', () => {
+    const source = readFileSync(resolve(
+      process.cwd(),
+      'apps/mini-taro/src/pages/builds/talent-simulator.tsx',
+    ), 'utf8')
+    const targetInventory = readFileSync(resolve(
+      process.cwd(),
+      'docs/design/current-ui/routes/talent-simulator/target-inventory.json',
+    ), 'utf8')
+    const componentContract = JSON.parse(readFileSync(resolve(
+      process.cwd(),
+      'docs/design/current-ui/routes/talent-simulator/component-contract.json',
+    ), 'utf8')) as {
+      productOverrides?: Array<{ id: string, copyRule?: string }>
+    }
+
+    expect(source).toContain("{ id: 'class', label: '通用天赋' }")
+    expect(source).toContain("? '通用天赋'")
+    expect(source).not.toContain("label: '职业天赋'")
+    expect(targetInventory).toContain('"text": "职业天赋"')
+    expect(componentContract.productOverrides).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: 'common_talent_tab_label_20260722',
+        copyRule: 'runtime class-tree tab label is 通用天赋; backend tree key remains class',
+      }),
+    ]))
+  })
+
+  it('uses the verified specialization artwork catalog as an ordered class, hero, and specialization backdrop', () => {
+    const source = readFileSync(resolve(
+      process.cwd(),
+      'apps/mini-taro/src/pages/builds/talent-simulator.tsx',
+    ), 'utf8')
+    const components = readFileSync(resolve(
+      process.cwd(),
+      'packages/design-system/src/components/TalentSimulatorComponents.tsx',
+    ), 'utf8')
+    const style = readFileSync(resolve(
+      process.cwd(),
+      'packages/design-system/src/components/TalentSimulatorComponents.module.scss',
+    ), 'utf8')
+
+    expect(source).toContain('talentTreeBackdrop({')
+    expect(source).toContain('heroTalentArtwork({')
+    expect(source).toContain('backgroundCrop={activeTreeBackdrop?.crop}')
+    expect(source).toContain('backgroundImageUrl={activeTreeBackdrop?.url}')
+    expect(components).toContain('data-role="talent-tree-artwork"')
+    expect(components).toContain('backgroundImageUrl?: string | undefined')
+    expect(style).toContain(".graphArtworkBackdrop[data-crop='hero'] .graphArtworkImage")
+    expect(style).toContain(".graphArtworkBackdrop[data-crop='spec'] .graphArtworkImage")
+  })
+
   it('restores import as an on-demand saved/community overlay without restoring permanent status blocks', () => {
     const source = readFileSync(resolve(
       process.cwd(),
@@ -156,14 +208,15 @@ describe('talent simulator authoritative edit contract', () => {
     expect(source).toContain('allowVerticalOverflow')
   })
 
-  it('renders the active hero root talent icon in the hero selector crest', () => {
+  it('prefers a verified hero talent artwork in the hero selector crest and retains the root icon as fallback', () => {
     const source = readFileSync(resolve(
       process.cwd(),
       'apps/mini-taro/src/pages/builds/talent-simulator.tsx',
     ), 'utf8')
 
     expect(source).toContain("heroTalentIcon(data?.talents.nodes ?? [])")
-    expect(source).toContain("...(heroIconUrl ? { iconUrl: heroIconUrl } : {})")
+    expect(source).toContain('heroTalentArtwork({')
+    expect(source).toContain("...(heroArtworkUrl || heroIconUrl ? { iconUrl: heroArtworkUrl || heroIconUrl } : {})")
   })
 
   it('validates proposals and exports the current validated state before saving', () => {

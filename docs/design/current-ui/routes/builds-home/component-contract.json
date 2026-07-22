@@ -83,9 +83,9 @@
       "targetRegions": [
         "command_deck"
       ],
-      "location": "packages/design-system/src/components/BuildToolCommandDeck.tsx",
+      "location": "packages/design-system/src/components/BuildCommandDeck.tsx",
       "contract": {
-        "topology": "four vertically stacked equal peer cards; each whole card contains one medallion, title, one-line fixed description, and forward chevron",
+        "topology": "four vertically stacked equal peer cards; each whole card has a left-anchored medallion plus title and one-line fixed description, with the forward chevron pinned to the right edge",
         "itemCount": 4,
         "itemIds": [
           "talents",
@@ -144,6 +144,7 @@
           "secondaryAction"
         ],
         "interaction": "an effective row opens its existing task detail; an error retry reloads only the preview request",
+        "slotFillRule": "the preview always mounts three equal-width rows: ready data preserves newest-first order up to three and pads any remainder with neutral empty slots; the empty state uses all three slots without inventing task records",
         "assetSlots": [
           "asset_slot.utility-glyph-family"
         ]

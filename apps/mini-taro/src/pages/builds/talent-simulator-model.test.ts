@@ -23,6 +23,8 @@ import {
   proposeTalentRank,
   runFencedTalentSave,
   talentPoints,
+  talentTreeBackdrop,
+  heroTalentArtwork,
 } from './talent-simulator-model'
 
 const nodes: readonly TalentNode[] = [
@@ -73,6 +75,60 @@ const availability: TalentNodeAvailabilityPayload = {
 }
 
 describe('talent simulator target model', () => {
+  it('covers every current specialization with a three-part talent backdrop and each verified hero tree with its own artwork', () => {
+    const expectedSpecArtwork = [
+      'deathknight:blood', 'deathknight:frost', 'deathknight:unholy',
+      'demonhunter:havoc', 'demonhunter:vengeance', 'demonhunter:devourer',
+      'druid:balance', 'druid:feral', 'druid:guardian', 'druid:restoration',
+      'evoker:devastation', 'evoker:preservation', 'evoker:augmentation',
+      'hunter:beast_mastery', 'hunter:marksmanship', 'hunter:survival',
+      'mage:arcane', 'mage:fire', 'mage:frost',
+      'monk:brewmaster', 'monk:mistweaver', 'monk:windwalker',
+      'paladin:holy', 'paladin:protection', 'paladin:retribution',
+      'priest:discipline', 'priest:holy', 'priest:shadow',
+      'rogue:assassination', 'rogue:outlaw', 'rogue:subtlety',
+      'shaman:elemental', 'shaman:enhancement', 'shaman:restoration',
+      'warlock:affliction', 'warlock:demonology', 'warlock:destruction',
+      'warrior:arms', 'warrior:fury', 'warrior:protection',
+    ] as const
+    const expectedHeroArtwork = [
+      'deathknight:deathbringer', 'deathknight:rider_of_the_apocalypse', 'deathknight:sanlayn',
+      'demonhunter:aldrachi_reaver', 'demonhunter:fel_scarred', 'demonhunter:annihilator',
+      'druid:keeper_of_the_grove', 'druid:wildstalker', 'druid:elunes_chosen', 'druid:druid_of_the_claw',
+      'evoker:flameshaper', 'evoker:scalecommander', 'evoker:chronowarden',
+      'hunter:dark_ranger', 'hunter:pack_leader', 'hunter:sentinel',
+      'mage:spellslinger', 'mage:sunfury', 'mage:frostfire',
+      'monk:conduit_of_the_celestials', 'monk:master_of_harmony', 'monk:shado_pan',
+      'paladin:herald_of_the_sun', 'paladin:lightsmith', 'paladin:templar',
+      'priest:oracle', 'priest:voidweaver', 'priest:archon',
+      'rogue:deathstalker', 'rogue:fatebound', 'rogue:trickster',
+      'shaman:farseer', 'shaman:stormbringer', 'shaman:totemic',
+      'warlock:hellcaller', 'warlock:soul_harvester', 'warlock:diabolist',
+      'warrior:colossus', 'warrior:mountain_thane', 'warrior:slayer',
+    ] as const
+
+    for (const expected of expectedSpecArtwork) {
+      const [classKey = '', specKey = ''] = expected.split(':')
+      const backdrop = talentTreeBackdrop({ classKey, specKey, treeKey: 'spec' })
+      expect(backdrop).toEqual({
+        url: expect.stringContaining(`talentbg-${classKey === 'deathknight' ? 'death-knight' : classKey === 'demonhunter' ? 'demon-hunter' : classKey}-${specKey.replace('_', '-')}.jpg`),
+        crop: 'spec',
+      })
+      expect(talentTreeBackdrop({ classKey, specKey, treeKey: 'class' })?.url).toBe(backdrop?.url)
+      expect(talentTreeBackdrop({ classKey, specKey, treeKey: 'hero' })?.url).toBe(backdrop?.url)
+    }
+
+    for (const expected of expectedHeroArtwork) {
+      const [classKey = '', heroKey = ''] = expected.split(':')
+      expect(heroTalentArtwork({ classKey, heroKey })).toBe(
+        `https://render.worldofwarcraft.com/us/icons/140/talents-heroclass-${classKey}-${heroKey.replaceAll('_', '')}.jpg`,
+      )
+    }
+
+    expect(heroTalentArtwork({ classKey: 'demonhunter', heroKey: 'void_scarred' })).toBeUndefined()
+    expect(talentTreeBackdrop({ classKey: 'unknown', specKey: 'unknown', treeKey: 'spec' })).toBeUndefined()
+  })
+
   it('uses an editable, meaningful default title for a saved talent configuration', () => {
     expect(defaultTalentTemplateTitle({
       classLabel: '法师',

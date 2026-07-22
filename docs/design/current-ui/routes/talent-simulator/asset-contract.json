@@ -47,7 +47,7 @@
     {
       "slotId": "asset_slot.talent-selector-object",
       "owners": ["TalentSelectorPanel"],
-      "semanticRole": "backend class, specialization, and active hero-root talent media",
+      "semanticRole": "backend class and specialization media; a verified hero-tree artwork mapping may supersede the active hero-root talent icon, with the root icon retained as fallback",
       "sourceClass": "verified_runtime_media",
       "factBearing": true,
       "fallback": "neutral utility glyph",
@@ -79,6 +79,15 @@
       "factBearing": true,
       "fallback": "neutral socket with abbreviated real name",
       "productionStatus": "runtime_allowlist_required"
+    },
+    {
+      "slotId": "asset_slot.talent-tree-artwork",
+      "owners": ["TalentGraphViewport"],
+      "semanticRole": "verified specialization talent-tree illustration, rendered as left/class, middle/hero, and right/specialization crops behind the active graph",
+      "sourceClass": "verified_runtime_media",
+      "factBearing": false,
+      "fallback": "existing dark etched graph canvas without artwork",
+      "productionStatus": "candidate_full_catalog_pending_route_verification"
     },
     {
       "slotId": "asset_slot.talent-tree-connections",

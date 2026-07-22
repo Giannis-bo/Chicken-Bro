@@ -13,6 +13,7 @@ export interface BuildRecentSimcTaskItem {
   stateLabel: string
   timeLabel: string
   navigable: boolean
+  placeholder?: boolean
 }
 
 export interface BuildRecentSimcTasksProps {
@@ -35,7 +36,12 @@ function stateGlyph(state: BuildRecentSimcTaskItem['state']): 'utility-glyph-fam
   return 'utility-glyph-family.topic'
 }
 
-function blankRow(state: BuildRecentSimcTasksProps['state']): BuildRecentSimcTaskItem {
+const recentTaskSlotCount = 3
+
+function blankRow(
+  state: BuildRecentSimcTasksProps['state'],
+  slotIndex = 0,
+): BuildRecentSimcTaskItem {
   if (state === 'loading') {
     return {
       id: '',
@@ -58,15 +64,42 @@ function blankRow(state: BuildRecentSimcTasksProps['state']): BuildRecentSimcTas
       navigable: false,
     }
   }
+
+  const slotNumber = slotIndex + 1
+  const leadingSlot = slotIndex === 0
   return {
-    id: '',
-    title: '暂无 SimC 任务',
-    detail: '提交模拟后会在这里显示最近记录',
+    id: `empty-slot-${slotNumber}`,
+    title: leadingSlot ? '暂无 SimC 任务' : '等待新的模拟任务',
+    detail: leadingSlot ? '提交模拟后会在这里显示最近记录' : '最近三条任务会按时间自动置顶',
     state: 'unknown',
-    stateLabel: '暂无记录',
-    timeLabel: '未返回时间',
+    stateLabel: leadingSlot ? '等待提交' : '空位',
+    timeLabel: `任务槽 ${slotNumber}`,
     navigable: false,
+    placeholder: true,
   }
+}
+
+export function resolveRecentSimcTaskRows(
+  items: readonly BuildRecentSimcTaskItem[],
+  state: BuildRecentSimcTasksProps['state'],
+): readonly BuildRecentSimcTaskItem[] {
+  if (state === 'error') return [blankRow('error')]
+
+  if (state === 'ready') {
+    const visibleItems = items.slice(0, recentTaskSlotCount)
+    return [
+      ...visibleItems,
+      ...Array.from(
+        { length: recentTaskSlotCount - visibleItems.length },
+        (_, index) => blankRow('empty', visibleItems.length + index),
+      ),
+    ]
+  }
+
+  return Array.from(
+    { length: recentTaskSlotCount },
+    (_, index) => blankRow(state, index),
+  )
 }
 
 export function BuildRecentSimcTasks({
@@ -76,11 +109,7 @@ export function BuildRecentSimcTasks({
   onRetry,
   onSelect,
 }: BuildRecentSimcTasksProps): JSX.Element {
-  const rows = state === 'ready'
-    ? items
-    : state === 'loading'
-      ? [blankRow('loading'), blankRow('loading'), blankRow('loading')]
-      : [blankRow(state)]
+  const rows = resolveRecentSimcTaskRows(items, state)
 
   return (
     <View className={componentStyle('recentSimcTasks')} data-owner="build-recent-simc-tasks" data-state={state}>
@@ -96,6 +125,7 @@ export function BuildRecentSimcTasks({
             key={item.id || `${state}-${index}`}
             className={componentStyle('recentSimcRow')}
             data-disabled={item.navigable ? 'false' : 'true'}
+            data-placeholder={item.placeholder === true ? 'true' : 'false'}
             data-role="build-recent-simc-row"
             data-state={item.state}
             disabled={!item.navigable}

@@ -36,6 +36,7 @@ const commandItems: readonly BuildCommandDeckItem[] = [
     id: 'tasks',
     title: '任务查看',
     detail: '查看任务',
+    iconUrl: 'https://render.worldofwarcraft.com/us/icons/56/inv_scroll_11.jpg',
     glyphAssetId: 'builds-evidence-medallion.tasks',
     fallbackGlyphAssetId: 'utility-glyph-family.records',
     disabled: false,
@@ -44,6 +45,7 @@ const commandItems: readonly BuildCommandDeckItem[] = [
     id: 'talents',
     title: '天赋模拟',
     detail: '设计天赋',
+    iconUrl: 'https://render.worldofwarcraft.com/us/icons/56/spell_nature_natureblessing.jpg',
     glyphAssetId: 'builds-evidence-medallion.talents',
     fallbackGlyphAssetId: 'quick-action-talents-glyph.default',
     disabled: true,
@@ -52,6 +54,7 @@ const commandItems: readonly BuildCommandDeckItem[] = [
     id: 'gear',
     title: '装备模拟',
     detail: '搭配装备',
+    iconUrl: 'https://render.worldofwarcraft.com/us/icons/56/inv_misc_gear_01.jpg',
     glyphAssetId: 'builds-evidence-medallion.gear',
     fallbackGlyphAssetId: 'quick-action-gear-glyph.default',
     disabled: false,
@@ -60,6 +63,7 @@ const commandItems: readonly BuildCommandDeckItem[] = [
     id: 'simc',
     title: 'SimC 模拟',
     detail: '发起模拟',
+    iconUrl: 'https://render.worldofwarcraft.com/us/icons/56/inv_misc_book_09.jpg',
     glyphAssetId: 'builds-evidence-medallion.simc',
     fallbackGlyphAssetId: 'quick-action-simc-glyph.default',
     disabled: false,
@@ -79,6 +83,19 @@ describe('builds home shared command components', () => {
 
     expect(source).toContain('data-role="build-command-card"')
     expect(source).not.toMatch(/stateLabel|statusLabel|准备状态/u)
+  })
+
+  it('keeps each whole card clickable while pinning command content to opposite edges', () => {
+    const source = read('BuildCommandDeck.tsx')
+    const styles = read('BuildsHomeCommandDeck.module.scss')
+    const ownerStyles = read('owners.module.scss')
+
+    expect(source).toContain('onClick={() => activateBuildCommand(entry, onSelect)}')
+    expect(source).toContain('data-role={\'build-command-\' + item.id + \'-glyph\'}')
+    expect(ownerStyles).toMatch(/\.nativeControl \{[\s\S]*?display:\s*inline-flex;[\s\S]*?width:\s*auto;/u)
+    expect(styles).toMatch(/button\.commandCard \{[\s\S]*?display:\s*grid;[\s\S]*?width:\s*100%;[\s\S]*?grid-template-columns:\s*52px minmax\(0, 1fr\) 18px;/u)
+    expect(styles).toMatch(/button\.commandCard \{[\s\S]*?padding:\s*8px 14px 8px 13px;[\s\S]*?text-align:\s*left;/u)
+    expect(styles).toMatch(/\.commandCardChevron \{[\s\S]*?justify-self:\s*end;/u)
   })
 
   it('exports both shared components and their contracts', () => {

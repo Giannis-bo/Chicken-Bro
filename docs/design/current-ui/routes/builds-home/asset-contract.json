@@ -83,10 +83,10 @@
     {
       "slotId": "asset_slot.builds-command-medallions",
       "owners": [
-        "BuildToolCommandDeck"
+        "BuildCommandDeck"
       ],
-      "semanticRole": "coordinated non-factual tool glyphs for talents, gear, SimC, and tasks",
-      "sourceClass": "system_vector",
+      "semanticRole": "reviewed Blizzard game icons for talents, gear, SimC templates, and simulation tasks",
+      "sourceClass": "verified_remote_runtime_media",
       "variants": [
         "talents",
         "gear",
@@ -95,8 +95,8 @@
       ],
       "targetAspect": "1:1 contain inside a shared circular medallion",
       "factBearing": false,
-      "fallback": "text initials in the same medallion bounds",
-      "productionStatus": "candidate_runtime_reuse_pending_implementation"
+      "fallback": "registered local tool glyph in the same medallion bounds when the trusted icon cannot load",
+      "productionStatus": "runtime_source_reference_only"
     },
     {
       "slotId": "asset_slot.builds-command-chevron",

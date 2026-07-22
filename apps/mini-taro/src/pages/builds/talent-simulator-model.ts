@@ -38,6 +38,124 @@ const communityTalentRegionLabels: Readonly<Record<string, string>> = {
   tw: '台服',
 }
 
+export type TalentTreeBackdropCrop = 'class' | 'hero' | 'spec'
+
+export interface TalentTreeBackdrop {
+  url: string
+  crop: TalentTreeBackdropCrop
+}
+
+const verifiedTalentTreeArtwork: Readonly<Record<string, string>> = {
+  'deathknight:blood': 'https://wow.zamimg.com/images/tools/dragonflight-talent-calc/blizzard/talentbg-death-knight-blood.jpg',
+  'deathknight:frost': 'https://wow.zamimg.com/images/tools/dragonflight-talent-calc/blizzard/talentbg-death-knight-frost.jpg',
+  'deathknight:unholy': 'https://wow.zamimg.com/images/tools/dragonflight-talent-calc/blizzard/talentbg-death-knight-unholy.jpg',
+  'demonhunter:havoc': 'https://wow.zamimg.com/images/tools/dragonflight-talent-calc/blizzard/talentbg-demon-hunter-havoc.jpg',
+  'demonhunter:vengeance': 'https://wow.zamimg.com/images/tools/dragonflight-talent-calc/blizzard/talentbg-demon-hunter-vengeance.jpg',
+  'demonhunter:devourer': 'https://wow.zamimg.com/images/tools/dragonflight-talent-calc/blizzard/talentbg-demon-hunter-devourer.jpg',
+  'druid:balance': 'https://wow.zamimg.com/images/tools/dragonflight-talent-calc/blizzard/talentbg-druid-balance.jpg',
+  'druid:feral': 'https://wow.zamimg.com/images/tools/dragonflight-talent-calc/blizzard/talentbg-druid-feral.jpg',
+  'druid:guardian': 'https://wow.zamimg.com/images/tools/dragonflight-talent-calc/blizzard/talentbg-druid-guardian.jpg',
+  'druid:restoration': 'https://wow.zamimg.com/images/tools/dragonflight-talent-calc/blizzard/talentbg-druid-restoration.jpg',
+  'evoker:devastation': 'https://wow.zamimg.com/images/tools/dragonflight-talent-calc/blizzard/talentbg-evoker-devastation.jpg',
+  'evoker:preservation': 'https://wow.zamimg.com/images/tools/dragonflight-talent-calc/blizzard/talentbg-evoker-preservation.jpg',
+  'evoker:augmentation': 'https://wow.zamimg.com/images/tools/dragonflight-talent-calc/blizzard/talentbg-evoker-augmentation.jpg',
+  'hunter:beast_mastery': 'https://wow.zamimg.com/images/tools/dragonflight-talent-calc/blizzard/talentbg-hunter-beast-mastery.jpg',
+  'hunter:marksmanship': 'https://wow.zamimg.com/images/tools/dragonflight-talent-calc/blizzard/talentbg-hunter-marksmanship.jpg',
+  'hunter:survival': 'https://wow.zamimg.com/images/tools/dragonflight-talent-calc/blizzard/talentbg-hunter-survival.jpg',
+  'mage:arcane': 'https://wow.zamimg.com/images/tools/dragonflight-talent-calc/blizzard/talentbg-mage-arcane.jpg',
+  'mage:fire': 'https://wow.zamimg.com/images/tools/dragonflight-talent-calc/blizzard/talentbg-mage-fire.jpg',
+  'mage:frost': 'https://wow.zamimg.com/images/tools/dragonflight-talent-calc/blizzard/talentbg-mage-frost.jpg',
+  'monk:brewmaster': 'https://wow.zamimg.com/images/tools/dragonflight-talent-calc/blizzard/talentbg-monk-brewmaster.jpg',
+  'monk:mistweaver': 'https://wow.zamimg.com/images/tools/dragonflight-talent-calc/blizzard/talentbg-monk-mistweaver.jpg',
+  'monk:windwalker': 'https://wow.zamimg.com/images/tools/dragonflight-talent-calc/blizzard/talentbg-monk-windwalker.jpg',
+  'paladin:holy': 'https://wow.zamimg.com/images/tools/dragonflight-talent-calc/blizzard/talentbg-paladin-holy.jpg',
+  'paladin:protection': 'https://wow.zamimg.com/images/tools/dragonflight-talent-calc/blizzard/talentbg-paladin-protection.jpg',
+  'paladin:retribution': 'https://wow.zamimg.com/images/tools/dragonflight-talent-calc/blizzard/talentbg-paladin-retribution.jpg',
+  'priest:discipline': 'https://wow.zamimg.com/images/tools/dragonflight-talent-calc/blizzard/talentbg-priest-discipline.jpg',
+  'priest:holy': 'https://wow.zamimg.com/images/tools/dragonflight-talent-calc/blizzard/talentbg-priest-holy.jpg',
+  'priest:shadow': 'https://wow.zamimg.com/images/tools/dragonflight-talent-calc/blizzard/talentbg-priest-shadow.jpg',
+  'rogue:assassination': 'https://wow.zamimg.com/images/tools/dragonflight-talent-calc/blizzard/talentbg-rogue-assassination.jpg',
+  'rogue:outlaw': 'https://wow.zamimg.com/images/tools/dragonflight-talent-calc/blizzard/talentbg-rogue-outlaw.jpg',
+  'rogue:subtlety': 'https://wow.zamimg.com/images/tools/dragonflight-talent-calc/blizzard/talentbg-rogue-subtlety.jpg',
+  'shaman:elemental': 'https://wow.zamimg.com/images/tools/dragonflight-talent-calc/blizzard/talentbg-shaman-elemental.jpg',
+  'shaman:enhancement': 'https://wow.zamimg.com/images/tools/dragonflight-talent-calc/blizzard/talentbg-shaman-enhancement.jpg',
+  'shaman:restoration': 'https://wow.zamimg.com/images/tools/dragonflight-talent-calc/blizzard/talentbg-shaman-restoration.jpg',
+  'warlock:affliction': 'https://wow.zamimg.com/images/tools/dragonflight-talent-calc/blizzard/talentbg-warlock-affliction.jpg',
+  'warlock:demonology': 'https://wow.zamimg.com/images/tools/dragonflight-talent-calc/blizzard/talentbg-warlock-demonology.jpg',
+  'warlock:destruction': 'https://wow.zamimg.com/images/tools/dragonflight-talent-calc/blizzard/talentbg-warlock-destruction.jpg',
+  'warrior:arms': 'https://wow.zamimg.com/images/tools/dragonflight-talent-calc/blizzard/talentbg-warrior-arms.jpg',
+  'warrior:fury': 'https://wow.zamimg.com/images/tools/dragonflight-talent-calc/blizzard/talentbg-warrior-fury.jpg',
+  'warrior:protection': 'https://wow.zamimg.com/images/tools/dragonflight-talent-calc/blizzard/talentbg-warrior-protection.jpg',
+}
+
+const verifiedHeroTalentArtwork: Readonly<Record<string, string>> = {
+  'deathknight:deathbringer': 'https://render.worldofwarcraft.com/us/icons/140/talents-heroclass-deathknight-deathbringer.jpg',
+  'deathknight:rider_of_the_apocalypse': 'https://render.worldofwarcraft.com/us/icons/140/talents-heroclass-deathknight-rideroftheapocalypse.jpg',
+  'deathknight:sanlayn': 'https://render.worldofwarcraft.com/us/icons/140/talents-heroclass-deathknight-sanlayn.jpg',
+  'demonhunter:aldrachi_reaver': 'https://render.worldofwarcraft.com/us/icons/140/talents-heroclass-demonhunter-aldrachireaver.jpg',
+  'demonhunter:fel_scarred': 'https://render.worldofwarcraft.com/us/icons/140/talents-heroclass-demonhunter-felscarred.jpg',
+  'demonhunter:annihilator': 'https://render.worldofwarcraft.com/us/icons/140/talents-heroclass-demonhunter-annihilator.jpg',
+  'druid:keeper_of_the_grove': 'https://render.worldofwarcraft.com/us/icons/140/talents-heroclass-druid-keeperofthegrove.jpg',
+  'druid:wildstalker': 'https://render.worldofwarcraft.com/us/icons/140/talents-heroclass-druid-wildstalker.jpg',
+  'druid:elunes_chosen': 'https://render.worldofwarcraft.com/us/icons/140/talents-heroclass-druid-eluneschosen.jpg',
+  'druid:druid_of_the_claw': 'https://render.worldofwarcraft.com/us/icons/140/talents-heroclass-druid-druidoftheclaw.jpg',
+  'evoker:flameshaper': 'https://render.worldofwarcraft.com/us/icons/140/talents-heroclass-evoker-flameshaper.jpg',
+  'evoker:scalecommander': 'https://render.worldofwarcraft.com/us/icons/140/talents-heroclass-evoker-scalecommander.jpg',
+  'evoker:chronowarden': 'https://render.worldofwarcraft.com/us/icons/140/talents-heroclass-evoker-chronowarden.jpg',
+  'hunter:dark_ranger': 'https://render.worldofwarcraft.com/us/icons/140/talents-heroclass-hunter-darkranger.jpg',
+  'hunter:pack_leader': 'https://render.worldofwarcraft.com/us/icons/140/talents-heroclass-hunter-packleader.jpg',
+  'hunter:sentinel': 'https://render.worldofwarcraft.com/us/icons/140/talents-heroclass-hunter-sentinel.jpg',
+  'mage:spellslinger': 'https://render.worldofwarcraft.com/us/icons/140/talents-heroclass-mage-spellslinger.jpg',
+  'mage:sunfury': 'https://render.worldofwarcraft.com/us/icons/140/talents-heroclass-mage-sunfury.jpg',
+  'mage:frostfire': 'https://render.worldofwarcraft.com/us/icons/140/talents-heroclass-mage-frostfire.jpg',
+  'monk:conduit_of_the_celestials': 'https://render.worldofwarcraft.com/us/icons/140/talents-heroclass-monk-conduitofthecelestials.jpg',
+  'monk:master_of_harmony': 'https://render.worldofwarcraft.com/us/icons/140/talents-heroclass-monk-masterofharmony.jpg',
+  'monk:shado_pan': 'https://render.worldofwarcraft.com/us/icons/140/talents-heroclass-monk-shadopan.jpg',
+  'paladin:herald_of_the_sun': 'https://render.worldofwarcraft.com/us/icons/140/talents-heroclass-paladin-heraldofthesun.jpg',
+  'paladin:lightsmith': 'https://render.worldofwarcraft.com/us/icons/140/talents-heroclass-paladin-lightsmith.jpg',
+  'paladin:templar': 'https://render.worldofwarcraft.com/us/icons/140/talents-heroclass-paladin-templar.jpg',
+  'priest:oracle': 'https://render.worldofwarcraft.com/us/icons/140/talents-heroclass-priest-oracle.jpg',
+  'priest:voidweaver': 'https://render.worldofwarcraft.com/us/icons/140/talents-heroclass-priest-voidweaver.jpg',
+  'priest:archon': 'https://render.worldofwarcraft.com/us/icons/140/talents-heroclass-priest-archon.jpg',
+  'rogue:deathstalker': 'https://render.worldofwarcraft.com/us/icons/140/talents-heroclass-rogue-deathstalker.jpg',
+  'rogue:fatebound': 'https://render.worldofwarcraft.com/us/icons/140/talents-heroclass-rogue-fatebound.jpg',
+  'rogue:trickster': 'https://render.worldofwarcraft.com/us/icons/140/talents-heroclass-rogue-trickster.jpg',
+  'shaman:farseer': 'https://render.worldofwarcraft.com/us/icons/140/talents-heroclass-shaman-farseer.jpg',
+  'shaman:stormbringer': 'https://render.worldofwarcraft.com/us/icons/140/talents-heroclass-shaman-stormbringer.jpg',
+  'shaman:totemic': 'https://render.worldofwarcraft.com/us/icons/140/talents-heroclass-shaman-totemic.jpg',
+  'warlock:hellcaller': 'https://render.worldofwarcraft.com/us/icons/140/talents-heroclass-warlock-hellcaller.jpg',
+  'warlock:soul_harvester': 'https://render.worldofwarcraft.com/us/icons/140/talents-heroclass-warlock-soulharvester.jpg',
+  'warlock:diabolist': 'https://render.worldofwarcraft.com/us/icons/140/talents-heroclass-warlock-diabolist.jpg',
+  'warrior:colossus': 'https://render.worldofwarcraft.com/us/icons/140/talents-heroclass-warrior-colossus.jpg',
+  'warrior:mountain_thane': 'https://render.worldofwarcraft.com/us/icons/140/talents-heroclass-warrior-mountainthane.jpg',
+  'warrior:slayer': 'https://render.worldofwarcraft.com/us/icons/140/talents-heroclass-warrior-slayer.jpg',
+}
+
+function talentArtworkKey(classKey: string | undefined, detailKey: string | undefined): string {
+  return [classKey, detailKey]
+    .map((value) => value?.trim().toLowerCase() ?? '')
+    .join(':')
+}
+
+export function talentTreeBackdrop(input: {
+  classKey: string | undefined
+  specKey: string | undefined
+  treeKey: string
+}): TalentTreeBackdrop | undefined {
+  const crop = input.treeKey === 'class' || input.treeKey === 'hero' || input.treeKey === 'spec'
+    ? input.treeKey
+    : undefined
+  const url = verifiedTalentTreeArtwork[talentArtworkKey(input.classKey, input.specKey)]
+  return url && crop ? { url, crop } : undefined
+}
+
+export function heroTalentArtwork(input: {
+  classKey: string | undefined
+  heroKey: string | undefined
+}): string | undefined {
+  return verifiedHeroTalentArtwork[talentArtworkKey(input.classKey, input.heroKey)]
+}
+
 export function communityTalentRegionLabel(region: string | undefined): string {
   const normalized = region?.trim().toLowerCase() ?? ''
   if (!normalized) return '未提供'

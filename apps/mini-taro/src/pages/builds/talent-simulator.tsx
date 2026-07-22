@@ -55,12 +55,14 @@ import {
   communityTalentTemplateTitle,
   communityTalentWinnerForImport,
   defaultTalentTemplateTitle,
+  heroTalentArtwork,
   heroTalentIcon,
   heroTalentOptions,
   initialTalentRanks,
   proposeTalentChoice,
   proposeTalentRank,
   runFencedTalentSave,
+  talentTreeBackdrop,
   talentPoints,
 } from './talent-simulator-model'
 import styles from './talent-simulator.module.scss'
@@ -79,7 +81,7 @@ const placeholderSelectors: readonly TalentSelectorItem[] = [
 ]
 
 const placeholderTabs: readonly TalentTreeTabItem[] = [
-  { id: 'class', label: '职业天赋' },
+  { id: 'class', label: '通用天赋' },
   { id: 'spec', label: '专精天赋' },
   { id: 'hero', label: '英雄天赋' },
 ]
@@ -214,6 +216,15 @@ export default function TalentSimulatorPage() {
     .map((hero) => ({ id: hero.key, label: hero.label }))
   const currentHero = heroOptions.find((option) => option.id === currentHeroKey)
   const heroIconUrl = heroTalentIcon(data?.talents.nodes ?? [])
+  const heroArtworkUrl = heroTalentArtwork({
+    classKey: data?.selection.classKey,
+    heroKey: currentHeroKey,
+  })
+  const activeTreeBackdrop = talentTreeBackdrop({
+    classKey: data?.selection.classKey,
+    specKey: data?.selection.specKey,
+    treeKey: activeTree,
+  })
   const communityWinner = communityTalentWinnerForImport(
     data?.talents.communityTemplates ?? [],
     data?.talents.heroKey || data?.selection.heroKey,
@@ -266,7 +277,7 @@ export default function TalentSimulatorPage() {
       options: heroOptions,
       selectedIndex: Math.max(0, heroOptions.findIndex((option) => option.id === currentHeroKey)),
       disabled: heroOptions.length < 2,
-      ...(heroIconUrl ? { iconUrl: heroIconUrl } : {}),
+      ...(heroArtworkUrl || heroIconUrl ? { iconUrl: heroArtworkUrl || heroIconUrl } : {}),
     },
   ] : placeholderSelectors
 
@@ -274,7 +285,7 @@ export default function TalentSimulatorPage() {
     ? data.talents.treeSections.map((section) => ({
         id: section.key,
         label: section.key === 'class'
-          ? '职业天赋'
+          ? '通用天赋'
           : section.key === 'spec'
             ? '专精天赋'
             : '英雄天赋',
@@ -627,6 +638,8 @@ export default function TalentSimulatorPage() {
               <TalentGraphViewport
                 key={activeTree}
                 allowVerticalOverflow
+                backgroundCrop={activeTreeBackdrop?.crop}
+                backgroundImageUrl={activeTreeBackdrop?.url}
                 connectivityStatus={connectivityStatus}
                 edges={graph.edges}
                 nodeCount={graph.nodeCount}
