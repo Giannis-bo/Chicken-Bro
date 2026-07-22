@@ -99,7 +99,7 @@ def test_projection_never_uses_baseline_or_a_different_hero_when_candidates_are_
 
 - [x] **Step 2: Run test to verify it fails**
 
-Run: python3 -m unittest tests.community_winner_projection_test -v  
+Run: python3 -m unittest tests.community_winner_projection_test -v
 Expected: import failure because community_winner_projection does not yet exist.
 
 - [x] **Step 3: Implement the minimal pure projection**
@@ -171,7 +171,7 @@ def test_v2_coverage_never_counts_baseline_as_a_missing_hero_replacement():
 
 - [x] **Step 2: Run test to verify it fails**
 
-Run: python3 -m unittest tests.gear_release_test tests.gear_release_store_test tests.gear_release_tool_test -v  
+Run: python3 -m unittest tests.gear_release_test tests.gear_release_store_test tests.gear_release_tool_test -v
 Expected: failures citing one-winner-per-spec invariant or missing heroKey.
 
 - [x] **Step 3: Change release row and summary schema**
@@ -253,7 +253,7 @@ def test_gear_coverage_is_partial_when_one_hero_slot_is_pending_even_if_baseline
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: python3 -m unittest tests.pg_gear_template_selectors_test tests.websim_payload_test tests.postgres_cache_sync_test tests.news_backend_test -v  
+Run: python3 -m unittest tests.pg_gear_template_selectors_test tests.websim_payload_test tests.postgres_cache_sync_test tests.news_backend_test -v
 Expected: failures because selection returns one winner and coverage still accepts fallback baseline.
 
 - [ ] **Step 3: Extend public projection fields**
@@ -309,7 +309,7 @@ it('labels both community options with hero and real-player provenance without p
 
 - [x] **Step 2: Run test to verify it fails**
 
-Run: npm run test -- apps/mini-taro/src/pages/builds/gear-template-import-model.test.ts packages/api-client/src/websim.test.ts  
+Run: npm run test -- apps/mini-taro/src/pages/builds/gear-template-import-model.test.ts packages/api-client/src/websim.test.ts
 Expected: module-not-found and missing typed field failures.
 
 - [x] **Step 3: Add versioned saved-draft contract**
@@ -363,7 +363,7 @@ it('saves the versioned gear/enhancement draft and clears rather than restores i
 
 - [x] **Step 2: Run test to verify it fails**
 
-Run: npm run test -- apps/mini-taro/src/pages/builds/gear-detail-page-contract.test.ts  
+Run: npm run test -- apps/mini-taro/src/pages/builds/gear-detail-page-contract.test.ts
 Expected: failures because current action imports the first item and reset restores equippedSet.
 
 - [x] **Step 3: Save complete current configuration**
