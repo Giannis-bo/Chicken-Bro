@@ -221,6 +221,173 @@ class RaiderIOPayloadTest(unittest.TestCase):
         self.assertEqual(diagnostics["failures"][0]["error"], "access_key=[redacted]")
         self.assertNotIn("rankone", json.dumps(diagnostics["failures"]))
 
+    def test_exact_profile_capture_skips_fresh_usable_cache(self):
+        identity = "raiderio:cn|isillien|rankone"
+        promoted = [{"payload": {"gearProjectionCandidates": [{"sourceIdentity": identity}]}}]
+        cached_profile = {
+            "sourceIdentity": identity,
+            "profileUrl": "https://raider.io/characters/cn/isillien/rankone",
+            "gear": [{"slot": "head", "itemId": 222001}],
+        }
+
+        with patch.object(
+            raiderio_payload,
+            "fetch_profile_for_character",
+            side_effect=AssertionError("fresh exact profile must not be fetched again"),
+        ) as fetch:
+            payload = raiderio_payload.capture_gear_projection_profiles(
+                promoted,
+                {
+                    "expiresAt": "2999-01-01T00:00:00+00:00",
+                    "profileCount": 1,
+                    "profiles": [cached_profile],
+                },
+                request_limit=1,
+                deadline_at=time.monotonic() + 5,
+            )
+
+        fetch.assert_not_called()
+        diagnostics = payload["gearProjectionProfileCapture"]
+        self.assertEqual(payload["profiles"], [cached_profile])
+        self.assertEqual(diagnostics["attemptedRequestCount"], 0)
+        self.assertEqual(diagnostics["freshCachedProfileCount"], 1)
+        self.assertEqual(diagnostics["reusedCachedProfileCount"], 1)
+
+    def test_exact_profile_capture_merges_fresh_gear_over_cached_evidence_by_identity(self):
+        identity = "raiderio:cn|isillien|rankone"
+        promoted = [{"payload": {"gearProjectionCandidates": [{"sourceIdentity": identity}]}}]
+        cached_profile = {
+            "sourceIdentity": identity,
+            "name": "OldName",
+            "gear": [{"slot": "head", "itemId": 111001}],
+            "rankingEvidence": {"rank": 1},
+            "talentLoadout": {"loadoutText": "cached-loadout"},
+            "provenance": {"rankingPage": 2},
+            "sourceRefs": [{"sourceKey": "raiderio", "rank": 1}],
+            "profileHash": "sha256:cached-profile",
+            "gearHash": "sha256:cached-gear",
+        }
+        fresh_profile = {
+            "name": "RankOne",
+            "region": "cn",
+            "realmSlug": "isillien",
+            "gear": [{"slot": "head", "itemId": 222001}],
+            "talentLoadout": {"rawImportCode": "", "loadout": [], "source": "profile_current"},
+            "profileHash": "",
+            "gearHash": "",
+        }
+
+        with patch.object(
+            raiderio_payload,
+            "fetch_profile_for_character",
+            return_value=fresh_profile,
+        ):
+            payload = raiderio_payload.capture_gear_projection_profiles(
+                promoted,
+                {"expiresAt": "2000-01-01T00:00:00+00:00", "profiles": [cached_profile]},
+                request_limit=1,
+                deadline_at=time.monotonic() + 5,
+            )
+
+        merged = payload["profiles"][0]
+        self.assertEqual(merged["name"], "RankOne")
+        self.assertEqual(merged["gear"], fresh_profile["gear"])
+        self.assertEqual(merged["rankingEvidence"], cached_profile["rankingEvidence"])
+        self.assertEqual(merged["talentLoadout"], cached_profile["talentLoadout"])
+        self.assertEqual(merged["provenance"], cached_profile["provenance"])
+        self.assertEqual(merged["sourceRefs"], cached_profile["sourceRefs"])
+        self.assertEqual(merged["profileHash"], cached_profile["profileHash"])
+        self.assertEqual(merged["gearHash"], cached_profile["gearHash"])
+
+    def test_exact_profile_capture_bounds_requests_and_reports_ordered_deferred_refs(self):
+        identities = [
+            "raiderio:cn|isillien|first",
+            "raiderio:cn|isillien|second",
+            "raiderio:cn|isillien|third",
+        ]
+        promoted = [{
+            "payload": {
+                "gearProjectionCandidates": [
+                    {"sourceIdentity": identity}
+                    for identity in identities
+                ]
+            }
+        }]
+
+        def fake_fetch(character, _fields):
+            return {
+                **character,
+                "gear": [{"slot": "head", "itemId": 222001}],
+            }
+
+        with patch.object(raiderio_payload, "fetch_profile_for_character", side_effect=fake_fetch) as fetch:
+            payload = raiderio_payload.capture_gear_projection_profiles(
+                promoted,
+                {"profiles": []},
+                request_limit=1,
+                deadline_at=time.monotonic() + 5,
+            )
+
+        diagnostics = payload["gearProjectionProfileCapture"]
+        self.assertEqual(fetch.call_count, 1)
+        self.assertEqual(diagnostics["attemptedRequestCount"], 1)
+        self.assertEqual(diagnostics["deferredIdentityCount"], 2)
+        self.assertEqual(
+            diagnostics["deferredIdentityRefs"],
+            [raiderio_payload._redacted_source_identity_ref(identity) for identity in identities[1:]],
+        )
+        self.assertTrue(diagnostics["requestBudgetExhausted"])
+
+        with patch.object(
+            raiderio_payload,
+            "fetch_profile_for_character",
+            side_effect=AssertionError("expired deadline must not schedule requests"),
+        ) as fetch:
+            expired = raiderio_payload.capture_gear_projection_profiles(
+                promoted,
+                {"profiles": []},
+                request_limit=3,
+                deadline_at=time.monotonic() - 1,
+            )
+
+        fetch.assert_not_called()
+        expired_diagnostics = expired["gearProjectionProfileCapture"]
+        self.assertTrue(expired_diagnostics["deadlineReached"])
+        self.assertEqual(expired_diagnostics["deferredIdentityCount"], 3)
+
+    def test_malformed_external_profile_is_redacted_per_identity_and_batch_continues(self):
+        identities = [
+            "raiderio:cn|isillien|malformed",
+            "raiderio:cn|isillien|good",
+        ]
+        promoted = [{
+            "payload": {
+                "gearProjectionCandidates": [
+                    {"sourceIdentity": identity}
+                    for identity in identities
+                ]
+            }
+        }]
+
+        with patch.dict(os.environ, {"WOW_RAIDERIO_PROFILE_WORKERS": "1"}), patch.object(
+            raiderio_payload,
+            "api_get",
+            side_effect=[[], sample_profile_payload(name="good")],
+        ):
+            payload = raiderio_payload.capture_gear_projection_profiles(
+                promoted,
+                {"profiles": []},
+                request_limit=2,
+                deadline_at=time.monotonic() + 5,
+            )
+
+        diagnostics = payload["gearProjectionProfileCapture"]
+        self.assertEqual(diagnostics["fetchFailureCount"], 1)
+        self.assertEqual(diagnostics["capturedProfileCount"], 1)
+        self.assertEqual(payload["profiles"][0]["sourceIdentity"], identities[1])
+        self.assertNotIn("isillien|malformed", json.dumps(diagnostics["failures"]))
+        self.assertEqual(diagnostics["failures"][0]["error"], "Raider.IO malformed profile payload")
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.db_path = Path(self.tmp.name) / "rio.sqlite3"

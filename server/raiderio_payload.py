@@ -15,6 +15,9 @@ RAIDERIO_WEB_API_BASE_URL = "https://raider.io/api"
 RAIDERIO_CACHE_KEY = "raiderio_payload_v1"
 RAIDERIO_SOURCE_NAME = "Raider.IO"
 RAIDERIO_DEADLINE_ERROR = "Raider.IO sync deadline exceeded"
+GEAR_PROJECTION_PROFILE_REQUEST_LIMIT = 80
+GEAR_PROJECTION_PROFILE_TIMEOUT_SECONDS = 300
+GEAR_PROJECTION_PROFILE_DIAGNOSTIC_LIMIT = 12
 DEFAULT_REGION = "cn"
 DEFAULT_LOCALE = "cn"
 DEFAULT_SEASON_SLUG = "season-mn-1"
@@ -501,7 +504,42 @@ def _profile_source_identity(profile):
     return character_source_identity(profile)
 
 
-def capture_gear_projection_profiles(promoted_templates, cached_payload, stage_callback=None):
+def _profile_has_usable_gear(profile):
+    profile = profile if isinstance(profile, dict) else {}
+    gear = profile.get("gear")
+    return isinstance(gear, list) and any(
+        isinstance(item, dict) and item.get("slot") and safe_int(item.get("itemId")) > 0
+        for item in gear
+    )
+
+
+def _merge_gear_only_profile(cached_profile, fetched_profile):
+    """Merge current base/gear fields without erasing ranking or Talent evidence."""
+
+    cached_profile = cached_profile if isinstance(cached_profile, dict) else {}
+    fetched_profile = fetched_profile if isinstance(fetched_profile, dict) else {}
+    merged = {**cached_profile, **fetched_profile}
+    for field in (
+        "rankingEvidence",
+        "talentLoadout",
+        "provenance",
+        "sourceRefs",
+        "profileHash",
+        "gearHash",
+    ):
+        if cached_profile.get(field) not in (None, "", [], {}):
+            merged[field] = cached_profile[field]
+    return merged
+
+
+def capture_gear_projection_profiles(
+    promoted_templates,
+    cached_payload,
+    stage_callback=None,
+    *,
+    request_limit=None,
+    deadline_at=None,
+):
     """Fetch exact elected identities and merge them ahead of generic quota profiles."""
 
     started_at = emit_sync_stage(
@@ -522,32 +560,79 @@ def capture_gear_projection_profiles(promoted_templates, cached_payload, stage_c
         if identity and identity not in cached_by_identity:
             cached_by_identity[identity] = profile
 
+    effective_request_limit = min(
+        GEAR_PROJECTION_PROFILE_REQUEST_LIMIT,
+        max(
+            0,
+            safe_int(
+                GEAR_PROJECTION_PROFILE_REQUEST_LIMIT
+                if request_limit is None
+                else request_limit
+            ),
+        ),
+    )
+    try:
+        effective_deadline_at = float(deadline_at)
+    except (TypeError, ValueError):
+        effective_deadline_at = 0.0
+    if effective_deadline_at <= 0:
+        effective_deadline_at = time.monotonic() + GEAR_PROJECTION_PROFILE_TIMEOUT_SECONDS
+
+    cache_is_fresh = payload_is_fresh(cached_payload)
+    fresh_cached_identities = {
+        identity
+        for identity in identities
+        if cache_is_fresh and _profile_has_usable_gear(cached_by_identity.get(identity))
+    }
     fetched_by_identity = {}
     failures = []
-    characters = [source_identity_character(identity) for identity in identities]
-    workers = min(profile_fetch_workers(), len(characters)) if characters else 0
-    if workers <= 1:
-        results = []
-        for character in characters:
+    fetch_characters = [
+        source_identity_character(identity)
+        for identity in identities
+        if identity not in fresh_cached_identities
+    ]
+    results = []
+    deferred_characters = []
+    attempted_request_count = 0
+    deadline_reached = False
+    request_budget_exhausted = False
+    cursor = 0
+    workers = min(profile_fetch_workers(), effective_request_limit) if effective_request_limit else 0
+    while cursor < len(fetch_characters):
+        if time.monotonic() >= effective_deadline_at:
+            deadline_reached = True
+            deferred_characters.extend(fetch_characters[cursor:])
+            break
+        remaining_budget = effective_request_limit - attempted_request_count
+        if remaining_budget <= 0:
+            request_budget_exhausted = True
+            deferred_characters.extend(fetch_characters[cursor:])
+            break
+        batch_size = min(max(1, workers), remaining_budget, len(fetch_characters) - cursor)
+        batch = fetch_characters[cursor : cursor + batch_size]
+        attempted_request_count += len(batch)
+        cursor += len(batch)
+        if len(batch) == 1:
+            character = batch[0]
             try:
                 results.append((character, fetch_profile_for_character(character, "gear"), None))
             except (RaiderIOError, TimeoutError, OSError) as error:
                 results.append((character, None, profile_fetch_error_message(error)))
-    else:
-        indexed_results = [None] * len(characters)
-        with ThreadPoolExecutor(max_workers=workers) as executor:
+            continue
+        indexed_results = [None] * len(batch)
+        with ThreadPoolExecutor(max_workers=len(batch)) as executor:
             future_indexes = {
                 executor.submit(fetch_profile_for_character, character, "gear"): index
-                for index, character in enumerate(characters)
+                for index, character in enumerate(batch)
             }
             for future in as_completed(future_indexes):
                 index = future_indexes[future]
-                character = characters[index]
+                character = batch[index]
                 try:
                     indexed_results[index] = (character, future.result(), None)
                 except (RaiderIOError, TimeoutError, OSError) as error:
                     indexed_results[index] = (character, None, profile_fetch_error_message(error))
-        results = [result for result in indexed_results if result is not None]
+        results.extend(result for result in indexed_results if result is not None)
 
     for character, profile, error in results:
         requested_identity = character["sourceIdentity"]
@@ -573,7 +658,13 @@ def capture_gear_projection_profiles(promoted_templates, cached_payload, stage_c
     exact_profiles = []
     missing_identity_refs = []
     for identity in identities:
-        profile = fetched_by_identity.get(identity) or cached_by_identity.get(identity)
+        cached_profile = cached_by_identity.get(identity)
+        fetched_profile = fetched_by_identity.get(identity)
+        profile = (
+            _merge_gear_only_profile(cached_profile, fetched_profile)
+            if cached_profile and fetched_profile
+            else fetched_profile or cached_profile
+        )
         if profile:
             exact_profiles.append(profile)
         else:
@@ -585,18 +676,31 @@ def capture_gear_projection_profiles(promoted_templates, cached_payload, stage_c
         if _profile_source_identity(profile) not in exact_identity_set:
             remaining_profiles.append(profile)
     merged_profiles = [*exact_profiles, *remaining_profiles]
+    diagnostic_limit = GEAR_PROJECTION_PROFILE_DIAGNOSTIC_LIMIT
+    deferred_identity_refs = [
+        _redacted_source_identity_ref(character.get("sourceIdentity"))
+        for character in deferred_characters
+    ]
     diagnostics = {
         "schemaRevision": "raiderio-gear-projection-profile-capture-v1",
         "requestedIdentityCount": len(identities),
+        "requestLimit": effective_request_limit,
+        "fetchCandidateCount": len(fetch_characters),
+        "attemptedRequestCount": attempted_request_count,
+        "freshCachedProfileCount": len(fresh_cached_identities),
         "capturedProfileCount": len(fetched_by_identity),
         "reusedCachedProfileCount": max(0, len(exact_profiles) - len(fetched_by_identity)),
         "availableProfileCount": len(exact_profiles),
         "mergedProfileCount": len(merged_profiles),
         "fetchFailureCount": len(failures),
+        "deferredIdentityCount": len(deferred_identity_refs),
+        "deferredIdentityRefs": deferred_identity_refs[:diagnostic_limit],
+        "deadlineReached": deadline_reached,
+        "requestBudgetExhausted": request_budget_exhausted,
         "missingCaptureCount": len(missing_identity_refs),
-        "failures": failures[:12],
-        "missingIdentityRefs": missing_identity_refs[:12],
-        "diagnosticLimit": 12,
+        "failures": failures[:diagnostic_limit],
+        "missingIdentityRefs": missing_identity_refs[:diagnostic_limit],
+        "diagnosticLimit": diagnostic_limit,
     }
     merged_payload = {
         **cached_payload,
@@ -1810,7 +1914,12 @@ def fetch_profile_for_character(character, fields):
         "name": character.get("name"),
         "fields": fields,
     })
-    summary = profile_summary(raw)
+    if not isinstance(raw, dict):
+        raise RaiderIOError("Raider.IO malformed profile payload")
+    try:
+        summary = profile_summary(raw)
+    except (AttributeError, KeyError, TypeError, ValueError):
+        raise RaiderIOError("Raider.IO malformed profile payload") from None
     for key in ("region", "realm", "realmSlug", "className", "classKey", "specName", "specKey", "role"):
         if not summary.get(key) and character.get(key):
             summary[key] = character.get(key)

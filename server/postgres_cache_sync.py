@@ -2845,6 +2845,33 @@ def _community_gear_first_sync_budget():
     }
 
 
+def _community_gear_projection_capture_budget():
+    """Return hard-bounded exact profile and observed-item budgets."""
+
+    return {
+        "requestLimit": min(
+            80,
+            _int_env_value(["WOW_COMMUNITY_GEAR_PROJECTION_PROFILE_REQUEST_LIMIT"], 80, minimum=0),
+        ),
+        "captureTimeoutSeconds": min(
+            300,
+            _int_env_value(["WOW_COMMUNITY_GEAR_PROJECTION_CAPTURE_TIMEOUT_SECONDS"], 300, minimum=1),
+        ),
+        "backfillProfileLimit": min(
+            80,
+            _int_env_value(["WOW_COMMUNITY_GEAR_PROJECTION_BACKFILL_PROFILE_LIMIT"], 80, minimum=0),
+        ),
+        "backfillItemLimit": min(
+            1280,
+            _int_env_value(["WOW_COMMUNITY_GEAR_PROJECTION_BACKFILL_ITEM_LIMIT"], 1280, minimum=0),
+        ),
+        "backfillTimeoutSeconds": min(
+            600,
+            _int_env_value(["WOW_COMMUNITY_GEAR_PROJECTION_BACKFILL_TIMEOUT_SECONDS"], 600, minimum=1),
+        ),
+    }
+
+
 def _gear_first_sync_target_specs(preflight, limit=0):
     specs = []
     for target in (preflight or {}).get("targetQueue") or []:
@@ -3137,6 +3164,7 @@ def sync_community_template_cache_postgres(mode="scheduled", store=None, refresh
     scan_run_id = f"pg-community-template-{checked_at.replace(':', '').replace('+', 'z')}"
     gear_template_sync_mode = _community_gear_template_sync_mode_enabled(mode)
     gear_first_sync_budget = _community_gear_first_sync_budget() if gear_template_sync_mode else {}
+    gear_projection_capture_budget = _community_gear_projection_capture_budget()
     gear_target_spec_ids = []
     if gear_template_sync_mode:
         gear_seed_preflight = build_community_gear_template_preflight(
@@ -3270,9 +3298,16 @@ def sync_community_template_cache_postgres(mode="scheduled", store=None, refresh
     gear_profile_capture = {
         "schemaRevision": "raiderio-gear-projection-profile-capture-v1",
         "requestedIdentityCount": 0,
+        "requestLimit": gear_projection_capture_budget["requestLimit"],
+        "attemptedRequestCount": 0,
+        "freshCachedProfileCount": 0,
         "capturedProfileCount": 0,
         "availableProfileCount": 0,
         "fetchFailureCount": 0,
+        "deferredIdentityCount": 0,
+        "deferredIdentityRefs": [],
+        "deadlineReached": False,
+        "requestBudgetExhausted": False,
         "missingCaptureCount": 0,
         "failures": [],
         "missingIdentityRefs": [],
@@ -3285,6 +3320,8 @@ def sync_community_template_cache_postgres(mode="scheduled", store=None, refresh
             persisted_talent_rows,
             store.get_raiderio_payload(),
             stage_callback=record_stage,
+            request_limit=gear_projection_capture_budget["requestLimit"],
+            deadline_at=time.monotonic() + gear_projection_capture_budget["captureTimeoutSeconds"],
         )
         gear_profile_capture = dict(merged_raiderio_payload.get("gearProjectionProfileCapture") or gear_profile_capture)
         if gear_profile_capture.get("requestedIdentityCount"):
@@ -3293,8 +3330,12 @@ def sync_community_template_cache_postgres(mode="scheduled", store=None, refresh
             gear_observed_backfill = run_gear_observed_backfill_postgres(
                 mode=mode,
                 store=store,
-                target_limit=int(gear_profile_capture["availableProfileCount"]) * len(CANONICAL_GEAR_SLOTS),
-                profile_limit=int(gear_profile_capture["availableProfileCount"]),
+                target_limit=gear_projection_capture_budget["backfillItemLimit"],
+                profile_limit=min(
+                    int(gear_profile_capture["availableProfileCount"]),
+                    gear_projection_capture_budget["backfillProfileLimit"],
+                ),
+                timeout_seconds=gear_projection_capture_budget["backfillTimeoutSeconds"],
                 enable_simc_stats=False,
                 full_profile_gear=True,
                 item_probe_limit=0,

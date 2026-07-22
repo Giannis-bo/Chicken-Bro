@@ -2983,6 +2983,76 @@ class GearReleaseToolTest(unittest.TestCase):
             "https://raider.io/characters/cn/realm/frost-top",
         )
         self.assertEqual(rank_one_rejection["problems"][0]["code"], "GEAR_CAPTURE_MISSING")
+        rank_one_gate_evidence = result["gate"]["rankOneRejections"][0]
+        self.assertEqual(
+            rank_one_gate_evidence,
+            {
+                "candidateId": "talent-frost-top",
+                "sourceIdentity": frost_top["sourceIdentity"],
+                "sourceUrl": "https://raider.io/characters/cn/realm/frost-top",
+                "problems": [{"code": "GEAR_CAPTURE_MISSING"}],
+            },
+        )
+        sealed = store.community_seals[0][2]
+        self.assertEqual(sealed["gate_result"]["rankOneRejections"], [rank_one_gate_evidence])
+        self.assertEqual(sealed["event"]["gate"]["rankOneRejections"], [rank_one_gate_evidence])
+
+    def test_build_legacy_all_cli_emits_rank_one_rejection_gate_evidence(self):
+        from server import gear_release_tool, simulator_payload
+
+        evidence = {
+            "candidateId": "talent-frost-top",
+            "sourceIdentity": "raiderio:cn|realm|frost-top",
+            "sourceUrl": "https://raider.io/characters/cn/realm/frost-top",
+            "problems": [{"code": "GEAR_CAPTURE_MISSING"}],
+        }
+        gear_result = {
+            "release": {"releaseId": "gear-release:test"},
+            "snapshot": {},
+            "gate": {"status": "validated"},
+            "seal": {"status": "inserted"},
+        }
+        community_result = {
+            "release": {"releaseId": "community-release:test"},
+            "gate": {
+                "status": "validated",
+                "rankOneRejectionCount": 1,
+                "rankOneRejections": [evidence],
+                "rankOneRejectionTruncatedCount": 0,
+            },
+            "seal": {"status": "inserted"},
+        }
+        output = io.StringIO()
+        with patch.object(gear_release_tool, "_store_from_environment", return_value=object()), patch.object(
+            gear_release_tool,
+            "runtime_dependency_revisions",
+            return_value=self.dependencies(),
+        ), patch.object(
+            simulator_payload,
+            "simc_binary",
+            return_value="/tmp/simc",
+        ), patch.object(
+            gear_release_tool,
+            "load_simc_socket_bonus_minimums",
+            return_value={},
+        ), patch.object(
+            gear_release_tool,
+            "build_legacy_gear_release",
+            return_value=gear_result,
+        ), patch.object(
+            gear_release_tool,
+            "build_legacy_community_release",
+            return_value=community_result,
+        ), redirect_stdout(output):
+            status = gear_release_tool.main([
+                "build-legacy-all",
+                "--season-revision", "season-17",
+                "--simc-runtime-revision", "simc-r1",
+            ])
+
+        self.assertEqual(status, 0)
+        rendered = json.loads(output.getvalue())
+        self.assertEqual(rendered["community"]["gate"]["rankOneRejections"], [evidence])
 
     def test_build_legacy_community_release_keeps_rejected_internal_and_degraded(self):
         from server.gear_release_store import gear_snapshot_summary

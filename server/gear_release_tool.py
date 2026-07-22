@@ -78,6 +78,8 @@ except ImportError:
 
 
 _SIMC_SOCKET_PROBE_TIMEOUT_SECONDS = 30
+_RANK_ONE_REJECTION_LIMIT = 80
+_RANK_ONE_REJECTION_PROBLEM_LIMIT = 12
 _SIMC_SOCKET_PROBE_MAX_CHARS = 4 * 1024 * 1024
 _SIMC_SOCKET_PROBE_FAILURE = "SimC socket probe failed"
 _GEM_SIMC_SEQUENCE_FIELDS = gear_enhancement_management.GEM_SIMC_SEQUENCE_FIELDS
@@ -1789,6 +1791,29 @@ def _talent_projection_candidates(
     return ordered
 
 
+def _rank_one_rejection_gate_evidence(rejected: Iterable[dict[str, Any]]) -> dict[str, Any]:
+    rank_one = [
+        row
+        for row in rejected or []
+        if isinstance(row, dict) and _int(row.get("talentCandidateRank")) == 1
+    ]
+    evidence = []
+    for row in rank_one[:_RANK_ONE_REJECTION_LIMIT]:
+        problems = row.get("problems") if isinstance(row.get("problems"), list) else []
+        evidence.append({
+            "candidateId": _text(row.get("candidateId")),
+            "sourceIdentity": _text(row.get("sourceIdentity")),
+            "sourceUrl": _text(row.get("sourceUrl")),
+            "problems": _canonical(problems[:_RANK_ONE_REJECTION_PROBLEM_LIMIT]),
+        })
+    return {
+        "rankOneRejectionCount": len(rank_one),
+        "rankOneRejections": evidence,
+        "rankOneRejectionLimit": _RANK_ONE_REJECTION_LIMIT,
+        "rankOneRejectionTruncatedCount": max(0, len(rank_one) - len(evidence)),
+    }
+
+
 def _projected_community_release_rows(
     *,
     staged_talents: Iterable[dict[str, Any]],
@@ -2033,6 +2058,7 @@ def prepare_staging_community_release(
             "winnerSpecCount": election["winnerSpecCount"],
             "rejectedCount": len(election.get("rejected") or []),
             "missingHeroSlots": election.get("missingHeroSlots") or [],
+            **_rank_one_rejection_gate_evidence(election.get("rejected") or []),
             **summary,
         }
         return {"release": release, "rows": rows, "election": election, "gate": gate}
