@@ -469,10 +469,11 @@ def profile_url_for_source_identity(value):
 
 
 def select_gear_projection_source_identities(promoted_templates):
-    """Return the exact persisted candidate identities in election-owned order."""
+    """Return persisted identities rank-major without changing any hero's order."""
 
     identities = []
     seen = set()
+    candidate_groups = []
     for template in promoted_templates or []:
         if not isinstance(template, dict):
             continue
@@ -480,7 +481,13 @@ def select_gear_projection_source_identities(promoted_templates):
         candidates = payload.get("gearProjectionCandidates")
         if not isinstance(candidates, list):
             continue
-        for candidate in candidates:
+        candidate_groups.append(candidates)
+    max_candidate_count = max((len(candidates) for candidates in candidate_groups), default=0)
+    for candidate_index in range(max_candidate_count):
+        for candidates in candidate_groups:
+            if candidate_index >= len(candidates):
+                continue
+            candidate = candidates[candidate_index]
             if not isinstance(candidate, dict):
                 continue
             identity = str(candidate.get("sourceIdentity") or "")

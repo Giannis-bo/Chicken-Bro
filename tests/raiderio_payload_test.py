@@ -355,6 +355,59 @@ class RaiderIOPayloadTest(unittest.TestCase):
         self.assertTrue(expired_diagnostics["deadlineReached"])
         self.assertEqual(expired_diagnostics["deferredIdentityCount"], 3)
 
+    def test_exact_profile_capture_attempts_every_hero_rank_one_before_rank_two(self):
+        rank_one_identities = [
+            f"raiderio:cn|realm-{index}|rank-one-{index}"
+            for index in range(80)
+        ]
+        rank_two_identities = [
+            f"raiderio:cn|realm-{index}|rank-two-{index}"
+            for index in range(80)
+        ]
+        promoted = [
+            {
+                "payload": {
+                    "gearProjectionCandidates": [
+                        {"talentCandidateRank": 1, "sourceIdentity": rank_one_identities[index]},
+                        {"talentCandidateRank": 2, "sourceIdentity": rank_two_identities[index]},
+                    ]
+                }
+            }
+            for index in range(80)
+        ]
+        attempted = []
+
+        def fake_fetch(character, _fields):
+            attempted.append(character["sourceIdentity"])
+            return {
+                **character,
+                "gear": [{"slot": "head", "itemId": 222001}],
+            }
+
+        with patch.dict(os.environ, {"WOW_RAIDERIO_PROFILE_WORKERS": "1"}), patch.object(
+            raiderio_payload,
+            "fetch_profile_for_character",
+            side_effect=fake_fetch,
+        ):
+            payload = raiderio_payload.capture_gear_projection_profiles(
+                promoted,
+                {"profiles": []},
+                request_limit=80,
+                deadline_at=time.monotonic() + 5,
+            )
+
+        diagnostics = payload["gearProjectionProfileCapture"]
+        self.assertEqual(attempted, rank_one_identities)
+        self.assertEqual(diagnostics["attemptedRequestCount"], 80)
+        self.assertEqual(diagnostics["deferredIdentityCount"], 80)
+        self.assertEqual(
+            diagnostics["deferredIdentityRefs"],
+            [
+                raiderio_payload._redacted_source_identity_ref(identity)
+                for identity in rank_two_identities[:diagnostics["diagnosticLimit"]]
+            ],
+        )
+
     def test_malformed_external_profile_is_redacted_per_identity_and_batch_continues(self):
         identities = [
             "raiderio:cn|isillien|malformed",
