@@ -1164,6 +1164,185 @@ class RaiderIOPayloadTest(unittest.TestCase):
         self.assertEqual(payload["runDetailCoverage"]["talentSnapshotCount"], 1)
         self.assertTrue(payload["runDetailCoverage"]["spreadBySpec"])
 
+    def test_run_detail_snapshot_keeps_winner_gear_instead_of_current_profile_gear(self):
+        run = raiderio_payload.simplify_spec_ranking_run(
+            {
+                "rank": 1,
+                "score": 4204.52,
+                "character": {
+                    "name": "Twinktopper",
+                    "realm": {"name": "Tichondrius", "slug": "tichondrius"},
+                    "region": {"slug": "us"},
+                    "class": {"name": "Rogue", "slug": "rogue"},
+                    "spec": {"id": 259, "name": "Assassination", "slug": "assassination"},
+                },
+            },
+            {"keystoneRunId": 40671025, "mythicLevel": 23, "score": 530.9},
+            "rogue",
+            "assassination",
+            "us",
+            "https://raider.io/mythic-plus-spec-rankings/season-mn-1/us/rogue/assassination",
+        )
+        run_detail = {
+            "keystone_run_id": 40671025,
+            "completed_at": "2026-07-21T15:47:54.000Z",
+            "roster": [
+                {
+                    "character": {
+                        "name": "Twinktopper",
+                        "realm": {"name": "Tichondrius", "slug": "tichondrius"},
+                        "region": {"slug": "us"},
+                        "class": {"name": "Rogue", "slug": "rogue"},
+                        "spec": {"id": 259, "name": "Assassination", "slug": "assassination"},
+                        "talentLoadout": {
+                            "specId": 259,
+                            "heroSubTreeId": 52,
+                            "loadout": [{"traitId": 91001, "rank": 1}],
+                        },
+                    },
+                    "items": {
+                        "updated_at": "2026-07-17T07:54:00.000Z",
+                        "item_level_equipped": 292.5,
+                        "items": {
+                            "mainhand": {
+                                "item_id": 49807,
+                                "item_level": 298,
+                                "name": "Krick's Beetle Stabber",
+                            },
+                            "offhand": {
+                                "item_id": 237837,
+                                "item_level": 295,
+                                "name": "Farstrider's Mercy",
+                            },
+                        },
+                    },
+                }
+            ],
+        }
+
+        with patch.object(raiderio_payload, "fetch_run_detail", return_value=run_detail):
+            enriched_runs, summary = raiderio_payload.fetch_run_details_for_runs(
+                [run],
+                limit=1,
+                per_spec_limit=1,
+            )
+
+        def current_profile_with_mace(character, fields):
+            self.assertEqual(fields, "gear,talents,mythic_plus_recent_runs,mythic_plus_best_runs,mythic_plus_scores_by_season")
+            profile = raiderio_payload.profile_summary({
+                "name": character["name"],
+                "realm": {"name": "Tichondrius", "slug": "tichondrius"},
+                "region": "us",
+                "class": {"name": "Rogue", "slug": "rogue"},
+                "spec": {"name": "Assassination", "slug": "assassination"},
+                "profile_url": "https://raider.io/characters/us/tichondrius/Twinktopper",
+                "gear": {
+                    "item_level_equipped": 291.875,
+                    "items": {
+                        "mainhand": {
+                            "item_id": 251207,
+                            "item_level": 298,
+                            "name": "Dreadflail Bludgeon",
+                        }
+                    },
+                },
+            })
+            return profile
+
+        with patch.object(raiderio_payload, "fetch_profile_for_character", current_profile_with_mace):
+            profiles, errors = raiderio_payload.fetch_profiles_for_runs(enriched_runs)
+
+        self.assertEqual(errors, [])
+        profile = profiles["us|tichondrius|twinktopper"]
+        self.assertEqual(summary["gearSnapshotCount"], 1)
+        self.assertEqual(
+            [(item["slot"], item["itemId"]) for item in profile["gear"]],
+            [("main_hand", 49807), ("off_hand", 237837)],
+        )
+        self.assertEqual(profile["rankingEvidence"]["runId"], 40671025)
+        self.assertEqual(profile["gearSnapshotEvidence"]["source"], "run_detail")
+        self.assertEqual(profile["gearSnapshotEvidence"]["runId"], 40671025)
+
+    def test_stale_run_detail_gear_falls_back_to_current_profile(self):
+        run = raiderio_payload.simplify_spec_ranking_run(
+            {
+                "rank": 1,
+                "score": 4432.77,
+                "character": {
+                    "name": "绿绿月光",
+                    "realm": {"name": "Isillien", "slug": "isillien"},
+                    "region": {"slug": "cn"},
+                    "class": {"name": "Monk", "slug": "monk"},
+                    "spec": {"id": 270, "name": "Mistweaver", "slug": "mistweaver"},
+                },
+            },
+            {"keystoneRunId": 40829333, "mythicLevel": 25, "score": 549.2},
+            "monk",
+            "mistweaver",
+            "cn",
+            "https://raider.io/mythic-plus-spec-rankings/season-mn-1/cn/monk/mistweaver",
+        )
+        stale_detail = {
+            "keystone_run_id": 40829333,
+            "completed_at": "2026-07-21T15:47:54.000Z",
+            "roster": [
+                {
+                    "character": {
+                        "name": "绿绿月光",
+                        "realm": {"name": "Isillien", "slug": "isillien"},
+                        "region": {"slug": "cn"},
+                        "class": {"name": "Monk", "slug": "monk"},
+                        "spec": {"id": 270, "name": "Mistweaver", "slug": "mistweaver"},
+                        "talentLoadout": {
+                            "specId": 270,
+                            "heroSubTreeId": 64,
+                            "loadout": [{"traitId": 92001, "rank": 1}],
+                        },
+                    },
+                    "items": {
+                        "updated_at": "2025-07-17T02:24:09.216Z",
+                        "item_level_equipped": 667,
+                        "items": {
+                            "mainhand": {"item_id": 231268, "item_level": 678, "name": "Blastfurious Machete"},
+                            "offhand": {"item_id": 222566, "item_level": 675, "name": "Vagabond's Torch"},
+                        },
+                    },
+                }
+            ],
+        }
+        with patch.object(raiderio_payload, "fetch_run_detail", return_value=stale_detail):
+            enriched_runs, summary = raiderio_payload.fetch_run_details_for_runs([run], limit=1, per_spec_limit=1)
+
+        def current_profile_with_fist_weapon(character, fields):
+            return raiderio_payload.profile_summary({
+                "name": character["name"],
+                "realm": {"name": "Isillien", "slug": "isillien"},
+                "region": "cn",
+                "class": {"name": "Monk", "slug": "monk"},
+                "spec": {"name": "Mistweaver", "slug": "mistweaver"},
+                "profile_url": "https://raider.io/characters/cn/isillien/绿绿月光",
+                "gear": {
+                    "item_level_equipped": 289,
+                    "items": {
+                        "mainhand": {
+                            "item_id": 258050,
+                            "item_level": 289,
+                            "name": "Arcanic of the High Sage",
+                        }
+                    },
+                },
+            })
+
+        with patch.object(raiderio_payload, "fetch_profile_for_character", current_profile_with_fist_weapon):
+            profiles, errors = raiderio_payload.fetch_profiles_for_runs(enriched_runs)
+
+        self.assertEqual(errors, [])
+        self.assertEqual(summary["gearSnapshotCount"], 0)
+        self.assertEqual(summary["staleGearSnapshotCount"], 1)
+        profile = profiles["cn|isillien|绿绿月光"]
+        self.assertEqual(profile["gear"][0]["itemId"], 258050)
+        self.assertNotEqual((profile.get("gearSnapshotEvidence") or {}).get("source"), "run_detail")
+
     def test_run_detail_snapshots_are_keyed_by_region_and_run_id(self):
         os.environ["WOW_RAIDERIO_RUN_DETAIL_LIMIT"] = "2"
         os.environ["WOW_RAIDERIO_RUN_DETAIL_LIMIT_PER_SPEC"] = "2"

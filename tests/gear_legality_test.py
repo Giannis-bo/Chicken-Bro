@@ -20,6 +20,17 @@ class GearLegalityTest(unittest.TestCase):
         self.assertEqual(result["status"], "legal")
         self.assertEqual(result["reasons"], [])
 
+    def test_mistweaver_monk_allows_fist_weapon_main_hand(self):
+        result = self.legality.gear_legality_for_item(
+            "monk",
+            "mistweaver",
+            "main_hand",
+            {"itemId": "258050", "name": "Arcanic of the High Sage", "weaponType": "Fist Weapon"},
+        )
+
+        self.assertEqual(result["status"], "legal")
+        self.assertEqual(result["reasons"], [])
+
     def test_enhancement_shaman_blocks_shield_offhand(self):
         result = self.legality.gear_legality_for_item(
             "shaman",
