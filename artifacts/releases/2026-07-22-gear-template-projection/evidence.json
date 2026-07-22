@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 2,
+  "slug": "gear-template-projection",
+  "requirementSlug": "gear-template-projection",
+  "status": "implementation_allowed",
+  "highestEvidenceLevel": "implementation_allowed",
+  "branch": "codex/gear-template-projection",
+  "commit": "pending-task-commit",
+  "identities": {
+    "runtime": {"status": "pending", "reason": "candidate deployment has not run"},
+    "verification": {"status": "pending", "reason": "the final task head has not been created and checked"},
+    "closure": {"status": "pending", "reason": "WeChat manual acceptance and merge closure remain pending"}
+  },
+  "manualAcceptance": {
+    "required": true,
+    "status": "pending",
+    "items": [
+      {"id": "wechat_gear_saved_template_round_trip", "status": "pending"},
+      {"id": "wechat_gear_explicit_saved_import", "status": "pending"},
+      {"id": "wechat_gear_community_hero_import", "status": "pending"},
+      {"id": "wechat_gear_reset_clears_all", "status": "pending"}
+    ],
+    "rollup": {"total": 4, "accepted": 0, "notRunUserWaived": 0, "pending": 4}
+  },
+  "scope": [
+    "Talent-winner candidate persistence and equipment-only same-Hero fallback",
+    "observed-player gear identity persistence and Community Release v2 projection",
+    "active Taro equipment save, explicit import and empty reset"
+  ],
+  "verification": [
+    {"command": "final Harness full profile", "status": "not_run"},
+    {"command": "candidate runtime and controlled source-sync smoke", "status": "not_run"}
+  ],
+  "candidateDeployment": {"status": "not_run", "reason": "candidate deployment is pending the clean task commit"},
+  "runtimeEvidence": [],
+  "risks": [
+    {"id": "community-source-refresh-pending", "status": "open", "detail": "Existing active Talent rows may need a controlled established-source refresh before they carry the ordered gearProjectionCandidates payload."},
+    {"id": "manual-acceptance-pending", "status": "open", "detail": "WeChat user-path acceptance is required before merge."}
+  ],
+  "rollback": ["code_rollback", "data_restore", "feature_hide", "resync_repair"],
+  "cleanup": {"required": false, "reason": "The existing candidate service and normal release path are reused; no temporary remote infrastructure is created."},
+  "archivedReferences": [],
+  "summary": "Strict equipment-template projection contract is approved. Local implementation exists; exact-head verification, candidate runtime/source-refresh evidence and real WeChat acceptance are pending.",
+  "updatedAt": "2026-07-22T05:15:00Z"
+}

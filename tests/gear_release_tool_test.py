@@ -11,9 +11,11 @@ from tests.gear_resolver_test import build_midnight_mage_resolver_fixture
 
 
 class FakeReleaseStore:
-    def __init__(self, gear_snapshot, templates=None):
+    def __init__(self, gear_snapshot, templates=None, talent_candidates=None):
         self.gear_snapshot = gear_snapshot
         self.templates = templates or []
+        self.talent_candidates = talent_candidates or []
+        self.community_hero_projection_enabled = talent_candidates is not None
         self.gear_seals = []
         self.community_seals = []
         self.requested_specs = []
@@ -24,6 +26,10 @@ class FakeReleaseStore:
     def snapshot_staging_community_templates(self, expected_specs):
         self.requested_specs = list(expected_specs)
         return copy.deepcopy(self.templates)
+
+    def snapshot_staging_community_talent_candidates(self, expected_specs):
+        self.requested_specs = list(expected_specs)
+        return copy.deepcopy(self.talent_candidates)
 
     def seal_gear_release(self, release, snapshot, **kwargs):
         self.gear_seals.append((copy.deepcopy(release), copy.deepcopy(snapshot), copy.deepcopy(kwargs)))
@@ -2918,6 +2924,55 @@ class GearReleaseToolTest(unittest.TestCase):
         self.assertEqual(result["rows"][0]["semanticGearSignature"].startswith("sha256:"), True)
         self.assertEqual(len(store.community_seals), 1)
         self.assertNotIn("pointer", result)
+
+    def test_community_release_projects_two_hero_slots_from_talent_candidates(self):
+        from server.gear_release_store import gear_snapshot_summary
+        from server.gear_release_tool import build_legacy_community_release
+
+        snapshot = self.snapshot()
+        gear = gear_release.build_release(
+            release_kind="gear",
+            season_revision="season-17",
+            schema_revision="gear-release-v1",
+            content=gear_snapshot_summary(snapshot),
+            dependency_revisions=self.dependencies(),
+            release_status="validated",
+            source={"sourceRevision": "hero-projection-test"},
+        )
+        frost_top = self.template("frost-top", "season_recommendation")
+        frost_top["sourceIdentity"] = "raiderio:cn|realm|frost-top"
+        frost_top["payload"]["sourceIdentity"] = frost_top["sourceIdentity"]
+        frost_fallback = self.template("frost-fallback")
+        frost_fallback["sourceIdentity"] = "raiderio:cn|realm|frost-fallback"
+        frost_fallback["payload"]["sourceIdentity"] = frost_fallback["sourceIdentity"]
+        spell = self.template("spellslinger")
+        spell["sourceIdentity"] = "raiderio:cn|realm|spellslinger"
+        spell["payload"]["sourceIdentity"] = spell["sourceIdentity"]
+        talent_candidates = [
+            {"id": "talent-frost-top", "classKey": "mage", "specKey": "arcane", "heroKey": "sunfury", "scenarioKey": "mythic_plus", "sourceKey": "raiderio", "sourceIdentity": frost_top["sourceIdentity"], "talentCandidateRank": 1},
+            {"id": "talent-frost-fallback", "classKey": "mage", "specKey": "arcane", "heroKey": "sunfury", "scenarioKey": "mythic_plus", "sourceKey": "raiderio", "sourceIdentity": frost_fallback["sourceIdentity"], "talentCandidateRank": 2},
+            {"id": "talent-spell", "classKey": "mage", "specKey": "arcane", "heroKey": "spellslinger", "scenarioKey": "mythic_plus", "sourceKey": "raiderio", "sourceIdentity": spell["sourceIdentity"], "talentCandidateRank": 1},
+        ]
+        store = FakeReleaseStore(snapshot, [frost_top, frost_fallback, spell], talent_candidates)
+
+        result = build_legacy_community_release(
+            store,
+            gear_release_descriptor=gear,
+            gear_snapshot=snapshot,
+            dependency_revisions=self.dependencies(),
+            expected_specs=[("mage", "arcane")],
+            now="2026-07-11T06:00:00+00:00",
+            resolver_for_spec=lambda *_args: self.verified_result(gear["releaseId"]),
+        )
+
+        winners = {row["payload"]["heroKey"]: row for row in result["rows"] if row["role"] == "winner"}
+        self.assertEqual(result["release"]["schemaRevision"], "community-release-v2")
+        self.assertEqual(set(winners), {"sunfury", "spellslinger"})
+        self.assertEqual(winners["sunfury"]["payload"]["talentWinnerId"], "talent-frost-top")
+        self.assertEqual(winners["sunfury"]["payload"]["gearProjectionMode"], "gear_fallback")
+        self.assertEqual(winners["sunfury"]["payload"]["gearSourceTemplateId"], "frost-fallback")
+        self.assertEqual(winners["spellslinger"]["payload"]["gearProjectionMode"], "talent_winner")
+        self.assertEqual(result["gate"]["winnerHeroSlotCount"], 2)
 
     def test_build_legacy_community_release_keeps_rejected_internal_and_degraded(self):
         from server.gear_release_store import gear_snapshot_summary

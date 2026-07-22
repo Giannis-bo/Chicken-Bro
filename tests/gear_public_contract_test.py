@@ -101,6 +101,65 @@ class GearPublicContractTest(unittest.TestCase):
 
         self.assertEqual([template["id"] for template in module_visible], [template["id"] for template in websim_visible])
 
+    def test_hero_projection_requires_observed_source_hero_and_legal_projection_status(self):
+        observed_projection = {
+            "id": "observed-profile-mage-frost-frostfire",
+            "classKey": "mage",
+            "specKey": "frost",
+            "heroKey": "frostfire",
+            "talentWinnerId": "talent-winner-mage-frost-frostfire",
+            "gearProjectionMode": "talent_winner",
+            "sourceKey": "raiderio_observed_profile",
+            "sourceStatus": "synced",
+            "status": "complete",
+            "sourceUrl": "https://raider.io/characters/cn/realm/Frostfireproof",
+            "sampleCount": 1,
+            "scanRunId": "scan-mage-frost-frostfire",
+            "readySlotCount": 16,
+            "missingSlots": [],
+            "gearItems": [{"slot": "head", "itemId": "540201", "simcReady": True}],
+            "payload": {
+                "profileHash": "profile:mage:frost:frostfire",
+                "gearHash": "gear:mage:frost:frostfire",
+                "character": {"name": "Frostfireproof", "region": "cn", "realmSlug": "realm"},
+            },
+        }
+
+        self.assertTrue(gear_public_contract.is_public_hero_gear_projection(observed_projection))
+        self.assertTrue(gear_public_contract.is_public_hero_gear_projection({
+            **observed_projection,
+            "id": "observed-profile-mage-frost-fallback",
+            "gearProjectionMode": "gear_fallback",
+        }))
+        self.assertFalse(gear_public_contract.is_public_hero_gear_projection({
+            **observed_projection,
+            "heroKey": "",
+        }))
+        self.assertFalse(gear_public_contract.is_public_hero_gear_projection({
+            **observed_projection,
+            "gearProjectionMode": "",
+        }))
+        self.assertFalse(gear_public_contract.is_public_hero_gear_projection({
+            **observed_projection,
+            "sourceKey": "recommended_bis",
+        }))
+        self.assertFalse(gear_public_contract.is_public_hero_gear_projection({
+            **observed_projection,
+            "status": "pending_collection",
+        }))
+
+        # Once a response claims to be a hero-slot projection, the ordinary
+        # observed-profile path must not accidentally publish it without the
+        # projection proof.  This keeps a hand-authored heroKey from bypassing
+        # the shared talent-winner source boundary.
+        self.assertEqual(
+            gear_public_contract.public_gear_templates_for_spec([
+                {**observed_projection, "gearProjectionMode": ""},
+                observed_projection,
+            ], "mage", "frost"),
+            [observed_projection],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

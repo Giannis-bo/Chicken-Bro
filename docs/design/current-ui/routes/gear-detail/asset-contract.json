@@ -16,11 +16,12 @@
     {"id": "asset_slot.gear-detail-surface", "role": "page texture and outer frame", "factBearing": false},
     {"id": "asset_slot.pushed-back-medallion", "role": "header back control", "factBearing": false},
     {"id": "asset_slot.gear-class-medallion", "role": "class selector shell around real class media", "factBearing": false},
+    {"id": "asset_slot.gear-spec-medallion", "role": "specialization selector shell around real specialization media", "factBearing": false},
     {"id": "asset_slot.gear-spec-selector-frame", "role": "specialization dropdown frame", "factBearing": false},
     {"id": "asset_slot.gear-readiness-emblem", "role": "item-level emblem", "factBearing": false},
     {"id": "asset_slot.gear-enhancement-medallions", "role": "gem, enchant and embellishment shells", "factBearing": false},
     {"id": "asset_slot.gear-item-object", "role": "allowlisted real item or enhancement media", "factBearing": true},
-    {"id": "asset_slot.gear-workbench-crest", "role": "center empty-state crest", "factBearing": false},
+    {"id": "asset_slot.gear-workbench-crest", "role": "candidate-list empty-state crest", "factBearing": false},
     {"id": "asset_slot.gear-slot-frame", "role": "repeated sixteen slot shells", "factBearing": false},
     {"id": "asset_slot.gear-action-glyphs", "role": "save, import and reset actions", "factBearing": false}
   ],

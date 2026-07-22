@@ -74,49 +74,50 @@ export interface GearProfessionItem {
 
 export interface GearProfessionSelectorProps {
   items: readonly GearProfessionItem[]
+  selectedIndex: number
+  value: string
   loading?: boolean
-  onSelect?: ((item: GearProfessionItem) => void) | undefined
+  onSelect: (item: GearProfessionItem) => void
 }
 
-export function GearProfessionSelector({ items, loading = false, onSelect }: GearProfessionSelectorProps) {
-  const sourceItems: readonly GearProfessionItem[] = loading && items.length === 0
-    ? [{ id: 'loading-current', label: '读取中', selected: false }]
-    : items
+export function GearProfessionSelector({
+  items,
+  selectedIndex,
+  value,
+  loading = false,
+  onSelect,
+}: GearProfessionSelectorProps) {
+  const selectedItem = items[selectedIndex]
   return (
     <View className={style('professionOwner')} data-owner="gear-profession-selector">
       <Text className={style('fieldLabel')}>职业</Text>
-      <ScrollView className={style('professionScroll')} enhanced scrollX showScrollbar={false}>
-        <View className={style('professionTrack')} data-role="gear-profession-track">
-          {sourceItems.map((item) => (
-            <ControlButton
-              key={item.id}
-              aria-label={`当前职业：${item.label}`}
-              className={classes(
-                style('professionButton'),
-                loading && style('professionButtonLoading'),
-              )}
-              data-active={item.selected ? 'true' : 'false'}
-              data-material-owner="css"
-              data-selection-material={item.selected ? 'active' : 'inactive'}
-              data-role="gear-profession-option"
-              data-loading={loading ? 'true' : 'false'}
-              data-profession-id={item.id}
-              disabled={loading}
-              onClick={() => onSelect?.(item)}
-            >
-              <TrustedGearMedia
-                className={style('professionMedia')}
-                dataRole="gear-class-medallion"
-                fallbackAssetId="utility-glyph-family.shield"
-                iconUrl={item.iconUrl}
-                label={item.label}
-                slotId="asset_slot.gear-class-medallion"
-              />
-              <Text className={style('professionName')}>{item.label}</Text>
-            </ControlButton>
-          ))}
+      <Picker
+        disabled={loading || items.length < 2}
+        mode="selector"
+        range={items.map((item) => item.label)}
+        value={selectedIndex}
+        onChange={(event) => {
+          const item = items[Number(event.detail.value)]
+          if (item) onSelect(item)
+        }}
+      >
+        <View
+          className={classes(style('professionField'), loading && style('professionFieldLoading'))}
+          data-loading={loading ? 'true' : 'false'}
+          data-role="gear-profession-field"
+        >
+          <TrustedGearMedia
+            className={style('professionPickerMedia')}
+            dataRole="gear-class-medallion"
+            fallbackAssetId="utility-glyph-family.shield"
+            iconUrl={selectedItem?.iconUrl}
+            label={selectedItem?.label || value || '待选择'}
+            slotId="asset_slot.gear-class-medallion"
+          />
+          <Text>{loading ? '读取中' : value || '待选择'}</Text>
+          <View className={style('chevron')} />
         </View>
-      </ScrollView>
+      </Picker>
     </View>
   )
 }
@@ -124,6 +125,7 @@ export function GearProfessionSelector({ items, loading = false, onSelect }: Gea
 export interface GearSpecializationItem {
   id: string
   label: string
+  iconUrl?: string | undefined
 }
 
 export interface GearSpecializationSelectorProps {
@@ -141,6 +143,7 @@ export function GearSpecializationSelector({
   loading = false,
   onSelect,
 }: GearSpecializationSelectorProps) {
+  const selectedItem = items[selectedIndex]
   return (
     <View className={style('specializationOwner')} data-owner="gear-specialization-selector">
       <Text className={style('fieldLabel')}>专精</Text>
@@ -159,6 +162,13 @@ export function GearSpecializationSelector({
           data-loading={loading ? 'true' : 'false'}
           data-role="gear-specialization-field"
         >
+          <TrustedGearMedia
+            className={style('specializationPickerMedia')}
+            fallbackAssetId="utility-glyph-family.shield"
+            iconUrl={selectedItem?.iconUrl}
+            label={selectedItem?.label || value || '待选择'}
+            slotId="asset_slot.gear-spec-medallion"
+          />
           <Text>{loading ? '读取中' : value || '待选择'}</Text>
           <View className={style('chevron')} />
         </View>
@@ -452,12 +462,6 @@ export function GearSlotWorkbench({
       ) : null}
       <View className={classes(style('slotColumn'), style('slotColumnLeft'))}>
         {left.map((item) => <GearSlotRow key={item.slot} item={item} side="left" onClick={() => onSlot(item)} />)}
-      </View>
-      <View className={style('workbenchCenter')}>
-        <View className={style('workbenchBackdrop')} data-role="gear-character-backdrop">
-          <SystemGlyph assetId="quick-action-gear-glyph.default" className={style('centerCrest')} slotId="asset_slot.gear-workbench-crest" />
-          <Text>{selectedSlot ? selectedSlotLabel : '点击左右槽位配置装备'}</Text>
-        </View>
       </View>
       <View className={classes(style('slotColumn'), style('slotColumnRight'))}>
         {right.map((item) => <GearSlotRow key={item.slot} item={item} side="right" onClick={() => onSlot(item)} />)}

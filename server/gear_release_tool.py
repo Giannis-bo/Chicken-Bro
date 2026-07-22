@@ -15,6 +15,7 @@ from urllib.parse import urlparse
 
 try:
     from . import (
+        community_winner_projection,
         gear_enhancement_management,
         gear_release,
         gear_release_shadow,
@@ -35,6 +36,7 @@ try:
         SIMC_GEAR_OPTION_KEYS,
         WOW_CLASSES,
         gear_resolver_runtime_authority,
+        hero_trees_for_spec,
         item_can_enchant_slot,
         normalize_option_value,
         normalize_slot,
@@ -44,6 +46,7 @@ try:
     from .postgres_cache_store import PostgresCacheStore
 except ImportError:
     import gear_enhancement_management
+    import community_winner_projection
     import gear_release
     import gear_release_shadow
     import gear_resolver
@@ -62,6 +65,7 @@ except ImportError:
         SIMC_GEAR_OPTION_KEYS,
         WOW_CLASSES,
         gear_resolver_runtime_authority,
+        hero_trees_for_spec,
         item_can_enchant_slot,
         normalize_option_value,
         normalize_slot,
@@ -1728,6 +1732,189 @@ def _release_rows_from_election(
     return sorted(rows, key=lambda row: (row["classKey"], row["specKey"], row["role"], row["electionRank"], row["templateId"]))
 
 
+def _observed_source_identity(template: Any) -> str:
+    """Read the one Raider.IO character identity carried by a staged row."""
+
+    if not isinstance(template, dict):
+        return ""
+    payload = template.get("payload") if isinstance(template.get("payload"), dict) else {}
+    raiderio = payload.get("raiderio") if isinstance(payload.get("raiderio"), dict) else {}
+    identity = _text(template.get("sourceIdentity") or payload.get("sourceIdentity") or raiderio.get("sourceIdentity"))
+    return identity if identity.startswith("raiderio:") else ""
+
+
+def _talent_projection_candidates(
+    staged_talents: Iterable[dict[str, Any]],
+    class_key: str,
+    spec_key: str,
+    hero_key: str,
+) -> list[dict[str, Any]]:
+    candidates = []
+    for talent in staged_talents:
+        if not isinstance(talent, dict):
+            continue
+        if (
+            _text(talent.get("classKey")) != class_key
+            or _text(talent.get("specKey")) != spec_key
+            or _text(talent.get("heroKey")) != hero_key
+            or _text(talent.get("scenarioKey")) != "mythic_plus"
+        ):
+            continue
+        candidate_id = _text(talent.get("id") or talent.get("templateId"))
+        source_identity = _observed_source_identity(talent)
+        if not candidate_id:
+            continue
+        candidates.append({
+            "candidateId": candidate_id,
+            "classKey": class_key,
+            "specKey": spec_key,
+            "heroKey": hero_key,
+            "scenarioKey": "mythic_plus",
+            "talentCandidateRank": _int(talent.get("talentCandidateRank")),
+            "sourceKey": _text(talent.get("sourceKey")),
+            "sourceIdentity": source_identity,
+        })
+    ordered = sorted(
+        candidates,
+        key=lambda row: (
+            _int(row.get("talentCandidateRank")) if _int(row.get("talentCandidateRank")) > 0 else 2 ** 31,
+            _text(row.get("candidateId")),
+        ),
+    )
+    for index, candidate in enumerate(ordered, start=1):
+        candidate["talentCandidateRank"] = index
+    return ordered
+
+
+def _projected_community_release_rows(
+    *,
+    staged_talents: Iterable[dict[str, Any]],
+    templates: Iterable[dict[str, Any]],
+    expected_specs: Iterable[tuple[str, str]],
+    candidate_for_template: Callable[[dict[str, Any]], dict[str, Any]],
+    resolve_candidate: Callable[[dict[str, Any]], dict[str, Any]],
+    gear_release_id: str,
+    now: str,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Project the fixed Talent ordering into one legal gear row per hero slot.
+
+    This is deliberately separate from the historical one-winner gear election:
+    its candidate order is the Talent election order, while the canonical Gear
+    resolver remains the authority for whether each selected player's equipment
+    can be imported.
+    """
+
+    gear_by_identity: dict[str, dict[str, Any]] = {}
+    for template in templates:
+        if not isinstance(template, dict):
+            continue
+        identity = _observed_source_identity(template)
+        if (
+            identity
+            and _text(template.get("sourceKey")) == community_winner_projection.PUBLIC_OBSERVED_SOURCE_KEY
+            and _text(template.get("status")) == "complete"
+        ):
+            current = gear_by_identity.get(identity)
+            if current is None or _text(template.get("updatedAt")) > _text(current.get("updatedAt")):
+                gear_by_identity[identity] = template
+
+    expected_slots = [
+        (class_key, spec_key, hero_key)
+        for class_key, spec_key in expected_specs
+        for hero_key in hero_trees_for_spec(class_key, spec_key)[:2]
+    ]
+    rows: list[dict[str, Any]] = []
+    rejected: list[dict[str, Any]] = []
+    missing_slots: list[dict[str, str]] = []
+    winner_count_by_spec: dict[tuple[str, str], int] = {}
+
+    for class_key, spec_key, hero_key in expected_slots:
+        ordered_talents = _talent_projection_candidates(
+            staged_talents, class_key, spec_key, hero_key,
+        )
+
+        def validate(_talent_candidate: dict[str, Any], template: Any) -> dict[str, Any]:
+            if not isinstance(template, dict):
+                return {"status": "blocked", "problems": [{"code": "GEAR_CAPTURE_MISSING"}]}
+            candidate = candidate_for_template(template)
+            election = gear_release.elect_community_candidates(
+                [candidate],
+                gear_release_id=gear_release_id,
+                resolver=resolve_candidate,
+                now=now,
+                expected_specs=[(class_key, spec_key)],
+            )
+            winners = election.get("winners") or []
+            if not winners:
+                problems = (election.get("rejected") or [{}])[0].get("problems") or []
+                return {"status": "blocked", "problems": problems}
+            return {"status": "verified", "template": {**_canonical(template), "_elected": _canonical(winners[0])}}
+
+        projection = community_winner_projection.project_hero_slot(
+            ordered_talents,
+            gear_by_identity,
+            validate,
+        )
+        winner = projection.get("winner")
+        if not isinstance(winner, dict):
+            missing_slots.append({"classKey": class_key, "specKey": spec_key, "heroKey": hero_key})
+            rejected.extend(projection.get("rejected") or [])
+            continue
+        elected = winner.get("_elected") if isinstance(winner.get("_elected"), dict) else {}
+        source_template_id = _text(winner.get("templateId"))
+        projection_id = f"community-gear:{class_key}:{spec_key}:{hero_key}:{source_template_id}"
+        release_payload = _canonical(winner)
+        release_payload.pop("_elected", None)
+        release_payload["id"] = projection_id
+        release_payload["templateId"] = projection_id
+        release_payload["gearSourceTemplateId"] = source_template_id
+        release_payload["heroKey"] = hero_key
+        release_payload["talentWinnerId"] = _text(winner.get("talentWinnerId"))
+        release_payload["gearProjectionMode"] = _text(winner.get("gearProjectionMode"))
+        release_payload["canApplyGear"] = True
+        payload = release_payload.get("payload") if isinstance(release_payload.get("payload"), dict) else {}
+        payload = _canonical(payload)
+        payload["sourceIdentity"] = _observed_source_identity(winner)
+        release_payload["payload"] = payload
+        key = (class_key, spec_key)
+        winner_count_by_spec[key] = winner_count_by_spec.get(key, 0) + 1
+        rows.append({
+            "templateId": projection_id,
+            "classKey": class_key,
+            "specKey": spec_key,
+            "role": "winner",
+            "electionRank": winner_count_by_spec[key],
+            "sourceKey": _text(elected.get("sourceKey")),
+            "sourceUrl": _text(elected.get("sourceUrl")),
+            "sourceStatus": _text(elected.get("sourceStatus")),
+            "sampleCount": _int(elected.get("sampleCount")),
+            "profileHash": _text(elected.get("profileHash")),
+            "gearHash": _text(elected.get("gearHash")),
+            "selectionIntent": _canonical(elected.get("selectionIntent") or {}),
+            "resolvedGearSignature": _text(elected.get("resolvedGearSignature")),
+            "semanticGearSignature": _text(elected.get("semanticGearSignature")),
+            "dependencyVector": _canonical(elected.get("dependencyVector") or {}),
+            "evidence": _canonical((winner.get("payload") or {}).get("templateEvidence") or {"sourceRefs": winner.get("sourceRefs") or []}),
+            "problems": [],
+            "payload": release_payload,
+            "updatedAt": _text(elected.get("updatedAt") or winner.get("updatedAt")),
+            "expiresAt": _text(elected.get("expiresAt") or winner.get("expiresAt")),
+        })
+        rejected.extend(projection.get("rejected") or [])
+
+    rows.sort(key=lambda row: (row["classKey"], row["specKey"], row["electionRank"], row["templateId"]))
+    election = {
+        "schemaRevision": "community-hero-gear-projection-v1",
+        "status": "validated" if not missing_slots else "degraded",
+        "expectedHeroSlotCount": len(expected_slots),
+        "winnerHeroSlotCount": len(rows),
+        "winnerSpecCount": len({(row["classKey"], row["specKey"]) for row in rows}),
+        "rejected": rejected,
+        "missingHeroSlots": missing_slots,
+    }
+    return rows, election
+
+
 def prepare_staging_community_release(
     store: GearReleaseStore,
     *,
@@ -1749,6 +1936,12 @@ def prepare_staging_community_release(
     if not expected:
         raise GearReleaseIntegrityError("expected_specs must contain at least one spec")
     templates = store.snapshot_staging_community_templates(expected)
+    projection_enabled = bool(getattr(store, "community_hero_projection_enabled", False))
+    talent_snapshot = (
+        store.snapshot_staging_community_talent_candidates(expected)
+        if projection_enabled
+        else []
+    )
     template_ids = [_text(row.get("templateId")) for row in templates]
     if any(not template_id for template_id in template_ids):
         raise GearReleaseIntegrityError("staging community templateId must be non-empty")
@@ -1764,8 +1957,8 @@ def prepare_staging_community_release(
         release_dependencies.get("capabilityRevision")
         or dependency_revisions.get("capabilityRevision")
     )
-    candidates = [
-        _template_candidate(
+    def candidate_for_template(template: dict[str, Any]) -> dict[str, Any]:
+        return _template_candidate(
             template,
             gear_release_id=gear_release_descriptor["releaseId"],
             season_revision=gear_release_descriptor["seasonRevision"],
@@ -1773,8 +1966,8 @@ def prepare_staging_community_release(
             gear_snapshot=gear_snapshot,
             capability_revision=capability_revision,
         )
-        for template in templates
-    ]
+
+    candidates = [candidate_for_template(template) for template in templates]
     prepared_authority = (
         CandidateGearAuthorityIndex(gear_snapshot, gear_release_descriptor)
         if resolver_for_spec is None
@@ -1801,6 +1994,45 @@ def prepare_staging_community_release(
             prepared_index=prepared_authority,
         )
         return gear_resolver.resolve(intent, authority)
+
+    if projection_enabled:
+        rows, election = _projected_community_release_rows(
+            staged_talents=talent_snapshot,
+            templates=templates,
+            expected_specs=expected,
+            candidate_for_template=candidate_for_template,
+            resolve_candidate=resolve_candidate,
+            gear_release_id=gear_release_descriptor["releaseId"],
+            now=now,
+        )
+        summary = community_rows_summary(rows)
+        release = gear_release.build_release(
+            release_kind="community",
+            season_revision=gear_release_descriptor["seasonRevision"],
+            schema_revision="community-release-v2",
+            content=summary,
+            dependency_revisions=dependency_revisions,
+            release_status=election["status"],
+            source={
+                "sourceRevision": source_revision,
+                "validatedAgainstGearReleaseId": gear_release_descriptor["releaseId"],
+                "stagingTemplateCount": len(templates),
+                "stagingTalentCandidateCount": len(talent_snapshot),
+                "projection": "talent-winner-hero-slots-v1",
+            },
+            parent_release_id=parent_release_id,
+            validated_against_release_id=gear_release_descriptor["releaseId"],
+        )
+        gate = {
+            "status": election["status"],
+            "expectedHeroSlotCount": election["expectedHeroSlotCount"],
+            "winnerHeroSlotCount": election["winnerHeroSlotCount"],
+            "winnerSpecCount": election["winnerSpecCount"],
+            "rejectedCount": len(election.get("rejected") or []),
+            "missingHeroSlots": election.get("missingHeroSlots") or [],
+            **summary,
+        }
+        return {"release": release, "rows": rows, "election": election, "gate": gate}
 
     election = gear_release.elect_community_candidates(
         candidates,

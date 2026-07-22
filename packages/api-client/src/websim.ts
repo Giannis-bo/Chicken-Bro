@@ -182,7 +182,7 @@ export function normalizeCommunityTemplateReference(
   const strings = [
     'id', 'title', 'name', 'classKey', 'specKey', 'heroKey', 'scenarioKey',
     'rawImportCode', 'importCode', 'websimExportCode', 'talentImport', 'sourceUrl', 'source', 'sourceKey',
-    'sourceName', 'status', 'sourceStatus', 'playerName', 'serverName', 'region',
+    'sourceName', 'status', 'sourceStatus', 'talentWinnerId', 'gearProjectionMode', 'playerName', 'serverName', 'region',
     'freshnessStatus', 'updatedAt', 'analysisWindow',
   ] as const
   return {
@@ -190,6 +190,7 @@ export function normalizeCommunityTemplateReference(
     ...Object.fromEntries(strings.map((field) => [field, cleanString(value[field])])),
     ...(talentState ? { talentState } : {}),
     ...(typeof value['canApplyVisual'] === 'boolean' ? { canApplyVisual: value['canApplyVisual'] } : {}),
+    ...(typeof value['canApplyGear'] === 'boolean' ? { canApplyGear: value['canApplyGear'] } : {}),
     ...(typeof value['isStale'] === 'boolean' ? { isStale: value['isStale'] } : {}),
     ...(typeof score === 'number' && Number.isFinite(score) ? { mplusScore: score } : {}),
     ...(typeof rank === 'number' && Number.isFinite(rank) ? { mplusRank: rank } : {}),

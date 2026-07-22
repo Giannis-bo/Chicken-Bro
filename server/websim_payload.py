@@ -43,8 +43,9 @@ except ImportError:
     from simc_preparation import apply_simc_preparation_lines, simc_preparation_payload, simc_preparation_report
 
 try:
-    from . import gear_public_contract, gear_socket_authority
+    from . import community_winner_projection, gear_public_contract, gear_socket_authority
 except ImportError:
+    import community_winner_projection
     import gear_public_contract
     import gear_socket_authority
 
@@ -269,6 +270,7 @@ SIMC_TALENT_SOURCE_REFS = [
 ]
 COMMUNITY_TALENT_SYNC_KEY = "community_talent_templates"
 COMMUNITY_TALENT_TEMPLATE_SLOTS_PER_SPEC = 2
+COMMUNITY_GEAR_TEMPLATE_SLOTS_PER_SPEC = gear_public_contract.COMMUNITY_GEAR_TEMPLATE_SLOTS_PER_SPEC
 COMMUNITY_TALENT_PENDING_STATUS = "pending_collection"
 COMMUNITY_TEMPLATE_SYNC_RUN_KEY = "community_template_sync_latest"
 COMMUNITY_TEMPLATE_REVISION = "community-template-v1"
@@ -2206,6 +2208,19 @@ def observed_profile_race_key(value):
     if not re.fullmatch(r"[a-z][a-z0-9_]{0,79}", key):
         return ""
     return key
+
+
+def observed_profile_source_identity(value):
+    source = value if isinstance(value, dict) else {}
+    existing = str(source.get("sourceIdentity") or "").strip()
+    if existing.startswith("raiderio:") and len(existing) <= 512:
+        return existing
+    region = str(source.get("region") or "").strip().lower()
+    realm_slug = str(source.get("realmSlug") or source.get("realm") or "").strip().lower()
+    character_name = str(source.get("characterName") or source.get("name") or "").strip().lower()
+    if not region or not realm_slug or not character_name:
+        return ""
+    return f"raiderio:{region}|{realm_slug}|{character_name}"
 
 
 def normalize_attribute_character_context(value):
@@ -9619,6 +9634,7 @@ def observed_gear_spec_entries(raiderio):
         gear = profile.get("gear") if isinstance(profile.get("gear"), list) else []
         if not class_key or not spec_key or not gear:
             return
+        source_identity = observed_profile_source_identity(profile)
         entries.append(
             (
                 class_key,
@@ -9628,6 +9644,7 @@ def observed_gear_spec_entries(raiderio):
                     "characterName": profile.get("characterName") or profile.get("name") or "",
                     "realmSlug": profile.get("realmSlug") or profile.get("realm") or "",
                     "profileUrl": profile.get("profileUrl") or profile.get("profile_url") or "",
+                    **({"sourceIdentity": source_identity} if source_identity else {}),
                 },
                 gear,
             )
@@ -10025,6 +10042,7 @@ def sync_observed_gear_variants(conn, raiderio=None, season=None, *, replace=Tru
                 blockers.append("Raider.IO observed gear source is not verified")
             metadata = ensure_observed_item_metadata(conn, item, slot)
             display_name = (metadata or {}).get("displayName") or item.get("name") or f"Item {item_id}"
+            source_identity = observed_profile_source_identity({**aggregate, **item})
             source_ref = {
                 "sourceName": item.get("sourceName") or (raiderio or {}).get("sourceName") or "Raider.IO CN profile gear",
                 "sourceStatus": source_status or "source_reference",
@@ -10035,10 +10053,15 @@ def sync_observed_gear_variants(conn, raiderio=None, season=None, *, replace=Tru
                 "itemId": item_id,
                 "itemLevel": item_level,
                 "characterName": item.get("characterName") or aggregate.get("characterName") or "",
+                "region": item.get("region") or aggregate.get("region") or "",
                 "realmSlug": item.get("realmSlug") or aggregate.get("realmSlug") or "",
                 "profileUrl": item.get("profileUrl") or aggregate.get("profileUrl") or "",
+                **({"sourceIdentity": source_identity} if source_identity else {}),
             }
-            source_id = f"observed-source-{class_key}-{spec_key}-{slot}-{item_id}"
+            identity_digest = hashlib.sha1(
+                (source_identity or f"legacy:{class_key}:{spec_key}:{item_id}:{slot}").encode("utf-8")
+            ).hexdigest()[:10]
+            source_id = f"observed-source-{class_key}-{spec_key}-{slot}-{item_id}-{identity_digest}"
             upsert_gear_source(
                 conn,
                 {
@@ -10057,7 +10080,10 @@ def sync_observed_gear_variants(conn, raiderio=None, season=None, *, replace=Tru
             is_new_source = source_id not in seen_source_ids
             seen_source_ids.add(source_id)
             variant_digest = hashlib.sha1(
-                json.dumps([class_key, spec_key, slot, item_id, item_level, simc_options], sort_keys=True).encode("utf-8")
+                json.dumps(
+                    [class_key, spec_key, source_identity, slot, item_id, item_level, simc_options],
+                    sort_keys=True,
+                ).encode("utf-8")
             ).hexdigest()[:10]
             variant_key = f"observed-{item_level or 'unknown'}-{variant_digest}"
             variant_id = f"observed-{class_key}-{spec_key}-{slot}-{item_id}-{variant_digest}"
@@ -12771,6 +12797,9 @@ def normalize_source_refs(refs):
             item["region"] = str(ref.get("region") or "").strip()
         if ref.get("realmSlug"):
             item["realmSlug"] = str(ref.get("realmSlug") or "").strip()
+        source_identity = str(ref.get("sourceIdentity") or "").strip()
+        if source_identity.startswith("raiderio:") and len(source_identity) <= 512:
+            item["sourceIdentity"] = source_identity
         race_key = observed_profile_race_key(ref.get("raceKey"))
         if race_key:
             item["raceKey"] = race_key
@@ -12826,7 +12855,7 @@ def community_talent_signature(template):
 
 def community_talent_source_ref(template):
     payload = template.get("payload") if isinstance(template.get("payload"), dict) else {}
-    return {
+    source_ref = {
         "id": str(template.get("id") or "").strip(),
         "sourceKey": str(template.get("sourceKey") or payload.get("sourceKey") or "").strip(),
         "sourceName": str(template.get("sourceName") or "").strip(),
@@ -12838,6 +12867,11 @@ def community_talent_source_ref(template):
         "updatedAt": str(template.get("updatedAt") or "").strip(),
         "analysisWindow": str(template.get("analysisWindow") or "").strip(),
     }
+    raiderio = payload.get("raiderio") if isinstance(payload.get("raiderio"), dict) else {}
+    source_identity = str(template.get("sourceIdentity") or payload.get("sourceIdentity") or raiderio.get("sourceIdentity") or "").strip()
+    if source_identity.startswith("raiderio:") and len(source_identity) <= 512:
+        source_ref["sourceIdentity"] = source_identity
+    return source_ref
 
 
 def community_talent_payload(template):
@@ -14055,7 +14089,7 @@ def upsert_community_talent_template(conn, template):
     return normalized
 
 
-def get_websim_community_talent_templates(conn, class_key="mage", spec_key="arcane", hero_key=""):
+def get_websim_community_talent_templates(conn, class_key="mage", spec_key="arcane", hero_key="", all_candidates=False):
     ensure_websim_tables(conn)
     class_key = slugify(class_key, "mage")
     spec_key = slugify(spec_key, "arcane")
@@ -14132,6 +14166,8 @@ def get_websim_community_talent_templates(conn, class_key="mage", spec_key="arca
             "canApplyVisual": can_apply_visual,
             "canUseInSimc": bool(can_apply_visual or raw_import_code),
         })
+    if all_candidates:
+        return sorted(templates, key=community_talent_template_sort_key, reverse=True)
     return community_talent_templates_for_spec_slots(class_key, spec_key, templates, hero_key)
 
 
@@ -18101,22 +18137,130 @@ def select_community_best_gear_templates(templates, class_key, spec_key, strict_
         for template in templates or []
         if candidate_allowed(template)
     ]
+    # A sealed Community Release v2 already elected one observed player for
+    # each hero slot.  Preserve those independently: deduping or taking a
+    # spec-wide maximum here would silently discard the second hero template.
+    projected_by_hero = {}
+    for template in candidates:
+        hero_key = slugify(template.get("heroKey"), "")
+        if not (
+            hero_key
+            and str(template.get("talentWinnerId") or "").strip()
+            and str(template.get("gearProjectionMode") or "").strip() in {"talent_winner", "gear_fallback"}
+        ):
+            continue
+        current = projected_by_hero.get(hero_key)
+        if current is None or community_gear_template_sort_key(template) > community_gear_template_sort_key(current):
+            projected_by_hero[hero_key] = template
+    if projected_by_hero:
+        return [projected_by_hero[hero_key] for hero_key in sorted(projected_by_hero)]
     candidates = dedupe_gear_community_templates(candidates)
     if candidates:
         return [max(candidates, key=community_gear_template_sort_key)]
     return [pending_community_gear_template(class_key, spec_key)]
 
 
+def community_gear_templates_for_hero_slots(talent_templates, gear_templates, class_key, spec_key):
+    """Project each hero winner onto the same real player's legal gear template."""
+
+    expected_heroes = hero_trees_for_spec(class_key, spec_key)[:COMMUNITY_GEAR_TEMPLATE_SLOTS_PER_SPEC]
+    gear_by_identity = {}
+    for template in gear_templates or []:
+        if not isinstance(template, dict):
+            continue
+        payload = template.get("payload") if isinstance(template.get("payload"), dict) else {}
+        source_identity = str(template.get("sourceIdentity") or payload.get("sourceIdentity") or "").strip()
+        if (
+            source_identity.startswith("raiderio:")
+            and template.get("sourceKey") == "raiderio_observed_profile"
+            and template.get("canApplyGear") is True
+        ):
+            current = gear_by_identity.get(source_identity)
+            if current is None or community_gear_template_sort_key(template) > community_gear_template_sort_key(current):
+                gear_by_identity[source_identity] = template
+
+    selected = []
+    for hero_key in expected_heroes:
+        ranked = []
+        for template in talent_templates or []:
+            if not isinstance(template, dict):
+                continue
+            payload = template.get("payload") if isinstance(template.get("payload"), dict) else {}
+            raiderio = payload.get("raiderio") if isinstance(payload.get("raiderio"), dict) else {}
+            source_identity = str(template.get("sourceIdentity") or payload.get("sourceIdentity") or raiderio.get("sourceIdentity") or "").strip()
+            if (
+                template.get("status") == "verified"
+                and slugify(template.get("classKey"), "") == class_key
+                and slugify(template.get("specKey"), "") == spec_key
+                and slugify(template.get("heroKey"), "") == hero_key
+                and slugify(template.get("scenarioKey"), "") == "mythic_plus"
+                and source_identity.startswith("raiderio:")
+            ):
+                ranked.append((community_talent_template_sort_key(template), {
+                    "candidateId": str(template.get("id") or "").strip(),
+                    "classKey": class_key,
+                    "specKey": spec_key,
+                    "heroKey": hero_key,
+                    "scenarioKey": "mythic_plus",
+                    "talentCandidateRank": 0,
+                    "sourceKey": str(template.get("sourceKey") or "").strip(),
+                    "sourceIdentity": source_identity,
+                }))
+        ordered = [candidate for _sort_key, candidate in sorted(ranked, key=lambda item: item[0], reverse=True)]
+        for index, candidate in enumerate(ordered, start=1):
+            candidate["talentCandidateRank"] = index
+
+        def validate(_candidate, gear_template):
+            if not isinstance(gear_template, dict):
+                return {"status": "blocked", "problems": [{"code": "GEAR_CAPTURE_MISSING"}]}
+            return {"status": "verified", "template": gear_template, "problems": []}
+
+        projection = community_winner_projection.project_hero_slot(ordered, gear_by_identity, validate)
+        winner = projection.get("winner")
+        if isinstance(winner, dict):
+            winner = dict(winner)
+            winner["heroKey"] = hero_key
+            winner["heroLabel"] = hero_tree_label(hero_key)
+            winner["coverageStatus"] = "covered"
+            winner["slotStatus"] = "verified"
+            selected.append(winner)
+    return selected
+
+
 def dedupe_gear_community_templates(templates):
     prepared = []
+    observed_by_identity = {}
     for template in templates or []:
         if not isinstance(template, dict):
             continue
         template = {**template}
         template["signature"] = template.get("signature") or gear_template_signature(template)
         template["sourceRefs"] = normalize_source_refs(template.get("sourceRefs") or [gear_template_source_ref(template)])
+        payload = template.get("payload") if isinstance(template.get("payload"), dict) else {}
+        source_identity = str(template.get("sourceIdentity") or payload.get("sourceIdentity") or "").strip()
+        if (
+            template.get("sourceKey") == "raiderio_observed_profile"
+            and source_identity.startswith("raiderio:")
+        ):
+            key = (
+                slugify(template.get("classKey"), ""),
+                slugify(template.get("specKey"), ""),
+                source_identity,
+            )
+            observed_by_identity.setdefault(key, []).append(template)
+            continue
         prepared.append(template)
-    return dedupe_templates_by_signature(prepared, gear_template_signature, community_gear_template_sort_key)
+
+    deduped = dedupe_templates_by_signature(prepared, gear_template_signature, community_gear_template_sort_key)
+    for grouped in observed_by_identity.values():
+        winner = sorted(grouped, key=community_gear_template_sort_key, reverse=True)[0]
+        merged_refs = []
+        for template in grouped:
+            merged_refs.extend(template.get("sourceRefs") or [])
+        winner = {**winner, "sourceRefs": normalize_source_refs(merged_refs)}
+        winner["dedupedCount"] = sum(max(1, int(template.get("dedupedCount") or 1)) for template in grouped)
+        deduped.append(winner)
+    return sorted(deduped, key=community_gear_template_sort_key, reverse=True)
 
 
 def sqlite_table_exists(conn, table_name):
@@ -19209,6 +19353,9 @@ def observed_profile_template_source_refs(items):
             for key in ("characterName", "region", "realmSlug"):
                 if ref.get(key):
                     source_ref[key] = ref.get(key)
+            source_identity = str(ref.get("sourceIdentity") or "").strip()
+            if source_identity:
+                source_ref["sourceIdentity"] = source_identity
             race_key = observed_profile_race_key(ref.get("raceKey"))
             if race_key:
                 source_ref["raceKey"] = race_key
@@ -19505,6 +19652,11 @@ def observed_profile_character_identity(source_refs):
 def gear_community_template_from_observed_items(items, class_key, spec_key, source_profile=None):
     source_refs = observed_profile_template_source_refs(items)
     source_urls = [ref.get("sourceUrl") for ref in source_refs if ref.get("sourceUrl")]
+    source_identities = sorted({
+        str(ref.get("sourceIdentity") or "").strip()
+        for ref in source_refs
+        if isinstance(ref, dict) and str(ref.get("sourceIdentity") or "").strip()
+    })
     ranking_evidence = {}
     if source_refs:
         ranking_evidence = community_observed_ranking_evidence({"sourceRefs": source_refs})
@@ -19580,6 +19732,9 @@ def gear_community_template_from_observed_items(items, class_key, spec_key, sour
         "rankingEvidence": ranking_evidence,
         "attributeCharacterContext": attribute_character_context,
     }
+    if len(source_identities) == 1:
+        template["sourceIdentity"] = source_identities[0]
+        template["payload"]["sourceIdentity"] = source_identities[0]
     stable_effect_context = derive_gear_attribute_stable_effect_context(
         source_profile,
         class_key,
@@ -19599,6 +19754,46 @@ def gear_community_template_from_observed_items(items, class_key, spec_key, sour
         }
     template["templateRevision"] = COMMUNITY_TEMPLATE_REVISION
     return template
+
+
+def observed_profile_gear_templates(items, class_key, spec_key):
+    """Build one observed template per stable Raider.IO character identity."""
+
+    by_identity = {}
+    for item in items or []:
+        if not isinstance(item, dict):
+            continue
+        refs = item.get("observedProfileRefs") if isinstance(item.get("observedProfileRefs"), list) else []
+        refs_by_identity = {}
+        for ref in refs:
+            if not isinstance(ref, dict):
+                continue
+            source_identity = str(ref.get("sourceIdentity") or "").strip()
+            if source_identity.startswith("raiderio:"):
+                refs_by_identity.setdefault(source_identity, []).append(ref)
+        for source_identity, identity_refs in refs_by_identity.items():
+            by_identity.setdefault(source_identity, []).append({
+                **item,
+                "observedProfileRefs": identity_refs,
+            })
+
+    templates = []
+    for source_identity, profile_items in sorted(by_identity.items()):
+        template = gear_community_template_from_observed_items(profile_items, class_key, spec_key)
+        if not template or template.get("sourceIdentity") != source_identity:
+            continue
+        character = template.get("payload", {}).get("character") if isinstance(template.get("payload"), dict) else {}
+        player_name = str(character.get("name") or "").strip() if isinstance(character, dict) else ""
+        realm_slug = str(character.get("realmSlug") or "").strip() if isinstance(character, dict) else ""
+        identity_hash = hashlib.sha1(source_identity.encode("utf-8")).hexdigest()[:12]
+        template["id"] = f"observed-profile-{class_key}-{spec_key}-{identity_hash}"
+        if player_name:
+            template["name"] = f"{player_name} · Raider.IO 真实玩家装备"
+            template["playerName"] = player_name
+        if realm_slug:
+            template["serverName"] = realm_slug
+        templates.append(template)
+    return templates
 
 
 def complete_baseline_with_candidate_slots(baseline_items, candidates_by_slot):
@@ -20768,6 +20963,14 @@ def get_persisted_community_gear_templates(conn, class_key, spec_key):
         gear_hash = str(payload.get("gearHash") or "").strip() if isinstance(payload, dict) else ""
         if gear_hash:
             template["gearHash"] = gear_hash
+        source_identity = str(payload.get("sourceIdentity") or "").strip() if isinstance(payload, dict) else ""
+        if source_identity.startswith("raiderio:"):
+            template["sourceIdentity"] = source_identity
+        character = payload.get("character") if isinstance(payload.get("character"), dict) else {}
+        if str(character.get("name") or "").strip():
+            template["playerName"] = str(character.get("name") or "").strip()
+        if str(character.get("realmSlug") or "").strip():
+            template["serverName"] = str(character.get("realmSlug") or "").strip()
         template["canApplyGear"] = community_gear_template_can_apply(template)
         templates.append(template)
     return dedupe_gear_community_templates(templates)
@@ -20815,13 +21018,17 @@ def sync_community_gear_templates(conn, scan_run_id=""):
             ]
             templates = websim_gear_community_templates(presets, class_key, spec_key)
             catalog_items = get_websim_gear_catalog_items(conn, class_key, spec_key, season)
-            observed_template = gear_community_template_from_observed_items(
-                observed_profile_baseline_items(catalog_items, class_key, spec_key),
-                class_key,
-                spec_key,
-            )
-            if observed_template:
-                templates.append(observed_template)
+            observed_templates = observed_profile_gear_templates(catalog_items, class_key, spec_key)
+            if observed_templates:
+                templates.extend(observed_templates)
+            else:
+                observed_template = gear_community_template_from_observed_items(
+                    observed_profile_baseline_items(catalog_items, class_key, spec_key),
+                    class_key,
+                    spec_key,
+                )
+                if observed_template:
+                    templates.append(observed_template)
             real_templates = [
                 template
                 for template in dedupe_gear_community_templates(templates)
@@ -20959,14 +21166,39 @@ def get_websim_gear(conn, class_key="mage", spec_key="arcane", compact=False):
     observed_baseline_set = observed_profile_baseline_items(catalog_items, class_key, spec_key)
     if not baseline_set and observed_baseline_set:
         baseline_set = observed_baseline_set
-    if observed_baseline_set:
+    observed_profile_templates = observed_profile_gear_templates(catalog_items, class_key, spec_key)
+    if observed_profile_templates:
+        community_template_candidates.extend(observed_profile_templates)
+    elif observed_baseline_set:
         observed_template = gear_community_template_from_observed_items(observed_baseline_set, class_key, spec_key)
         if observed_template:
             community_template_candidates.append(observed_template)
-    community_templates = select_community_best_gear_templates(community_template_candidates, class_key, spec_key)
-    community_templates = public_gear_templates_for_spec(community_templates, class_key, spec_key)
+    talent_candidates = get_websim_community_talent_templates(
+        conn,
+        class_key,
+        spec_key,
+        all_candidates=True,
+    )
+    community_templates = public_gear_templates_for_spec(
+        community_gear_templates_for_hero_slots(
+            talent_candidates,
+            community_template_candidates,
+            class_key,
+            spec_key,
+        ),
+        class_key,
+        spec_key,
+    )
     if not community_templates and not real_player_gear_template_public_import_spec(class_key, spec_key):
-        community_templates = [pending_community_gear_template(class_key, spec_key)]
+        community_templates = [
+            {
+                **pending_community_gear_template(class_key, spec_key),
+                "id": f"pending_community_gear_{class_key}_{spec_key}_{hero_key}",
+                "heroKey": hero_key,
+                "heroLabel": hero_tree_label(hero_key),
+            }
+            for hero_key in hero_trees_for_spec(class_key, spec_key)[:COMMUNITY_GEAR_TEMPLATE_SLOTS_PER_SPEC]
+        ]
     baseline_templates = public_gear_templates_for_spec(
         select_best_baseline_gear_templates(baseline_template_candidates),
         class_key,

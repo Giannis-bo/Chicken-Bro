@@ -47,6 +47,9 @@ REAL_PLAYER_GEAR_TEMPLATE_LEGACY_SOURCE_KEYS = {
     "baseline_blocked",
 }
 
+COMMUNITY_GEAR_TEMPLATE_SLOTS_PER_SPEC = 2
+PUBLIC_GEAR_PROJECTION_MODES = {"talent_winner", "gear_fallback"}
+
 
 def slugify(value, fallback="item"):
     text = re.sub(r"[^a-z0-9]+", "_", str(value or "").lower()).strip("_")
@@ -362,6 +365,23 @@ def is_active_community_observed_template(template, chain_record_factory=None):
     return True
 
 
+def is_public_hero_gear_projection(template, active_observed_predicate=None):
+    """Return whether a sealed hero-slot projection is safe for public import."""
+
+    if not isinstance(template, dict):
+        return False
+    if gear_template_source_key(template) != "raiderio_observed_profile":
+        return False
+    if slugify(template.get("heroKey"), "") == "":
+        return False
+    if not str(template.get("talentWinnerId") or "").strip():
+        return False
+    if str(template.get("gearProjectionMode") or "").strip() not in PUBLIC_GEAR_PROJECTION_MODES:
+        return False
+    predicate = active_observed_predicate or is_active_community_observed_template
+    return bool(predicate(template))
+
+
 def public_gear_template_visible_for_spec(template, class_key, spec_key, active_observed_predicate=None):
     if not isinstance(template, dict):
         return False
@@ -373,6 +393,15 @@ def public_gear_template_visible_for_spec(template, class_key, spec_key, active_
     if source_key in REAL_PLAYER_GEAR_TEMPLATE_LEGACY_SOURCE_KEYS:
         return False
     if source_key == "raiderio_observed_profile":
+        # Hero-slot rows carry an explicit claim that they were projected from
+        # a Talent winner.  Do not let that claim use the broader legacy
+        # observed-profile gate: it must also prove the winner identity and
+        # projection mode.
+        if any(key in template for key in ("heroKey", "talentWinnerId", "gearProjectionMode")):
+            return is_public_hero_gear_projection(
+                template,
+                active_observed_predicate=active_observed_predicate,
+            )
         predicate = active_observed_predicate or is_active_community_observed_template
         return predicate(template)
     return False

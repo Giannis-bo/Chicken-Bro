@@ -424,6 +424,18 @@ def character_key(character):
     ])
 
 
+def character_source_identity(character):
+    """Return the fail-closed identity shared by talent and observed gear data."""
+
+    source = character if isinstance(character, dict) else {}
+    region = str(source.get("region") or raiderio_region()).strip().lower()
+    realm_slug = str(source.get("realmSlug") or "").strip().lower()
+    name = str(source.get("name") or source.get("characterName") or "").strip().lower()
+    if not region or not realm_slug or not name:
+        return ""
+    return f"raiderio:{region}|{realm_slug}|{name}"
+
+
 def expected_spec_pairs():
     try:
         from .websim_payload import WOW_CLASSES
@@ -2138,6 +2150,7 @@ def aggregate_runs(runs, profiles):
             spec_key = character.get("specKey") or ""
             if not class_key or not spec_key:
                 continue
+            source_identity = character_source_identity(character)
             key = f"{class_key}:{spec_key}"
             aggregate = aggregates.setdefault(key, {
                 "classKey": class_key,
@@ -2186,6 +2199,7 @@ def aggregate_runs(runs, profiles):
                     ),
                     "maxKeyLevel": run.get("mythicLevel"),
                     "rankingEvidence": character.get("rankingEvidence") or run_ranking_evidence(run, character),
+                    **({"sourceIdentity": source_identity} if source_identity else {}),
                     **({"status": "blocked", "blockers": blockers, "errors": blockers} if blockers else {}),
                 })
             elif profile:
@@ -2203,9 +2217,11 @@ def aggregate_runs(runs, profiles):
                         "profileUrl": profile.get("profileUrl"),
                         "maxKeyLevel": run.get("mythicLevel"),
                         "rankingEvidence": profile.get("rankingEvidence") or run_ranking_evidence(run, character),
+                        **({"sourceIdentity": character_source_identity(profile) or source_identity} if (character_source_identity(profile) or source_identity) else {}),
                         **({"status": "blocked", "blockers": blockers, "errors": blockers} if blockers else {}),
                     })
                 if profile.get("gear"):
+                    profile_source_identity = character_source_identity(profile) or source_identity
                     observed_profile = {
                         "characterName": profile.get("name"),
                         "realmSlug": profile.get("realmSlug"),
@@ -2215,6 +2231,8 @@ def aggregate_runs(runs, profiles):
                         "rankingEvidence": profile.get("rankingEvidence") or run_ranking_evidence(run, character),
                         "gear": profile.get("gear"),
                     }
+                    if profile_source_identity:
+                        observed_profile["sourceIdentity"] = profile_source_identity
                     if profile.get("raceKey"):
                         observed_profile["raceKey"] = profile["raceKey"]
                     aggregate["observedGearProfiles"].append(observed_profile)
@@ -2346,6 +2364,11 @@ def build_community_templates(aggregates, checked_at):
         region = str(ranking_evidence.get("region") or loadout.get("region") or "").strip().lower()
         region_label = region.upper() or "GLOBAL"
         realm = str(loadout.get("realm") or loadout.get("realmName") or loadout.get("realmSlug") or "").strip()
+        source_identity = str(loadout.get("sourceIdentity") or "").strip() or character_source_identity({
+            "region": region,
+            "realmSlug": loadout.get("realmSlug") or realm,
+            "name": loadout.get("characterName") or player_id,
+        })
         rio_evidence = {
             "source": ranking_evidence.get("source") or "raiderio_run_ranking",
             "score": safe_float(ranking_evidence.get("score")),
@@ -2361,6 +2384,7 @@ def build_community_templates(aggregates, checked_at):
                 "realm": realm,
                 "realmSlug": loadout.get("realmSlug") or "",
                 "region": region,
+                **({"sourceIdentity": source_identity} if source_identity else {}),
                 "profileUrl": loadout.get("profileUrl") or "",
                 "loadoutSpecId": loadout.get("loadoutSpecId") or "",
                 "heroSubTreeId": loadout.get("heroSubTreeId") or "",

@@ -211,6 +211,93 @@ class GearReleaseStoreTest(unittest.TestCase):
         self.assertEqual(first["counts"], {"items": 1, "sources": 1, "variants": 1, "options": 1})
         self.assertNotEqual(first, gear_release_store.gear_snapshot_summary(changed))
 
+    def test_community_rows_summary_records_two_hero_winners_as_v2_content(self):
+        from server import gear_release_store
+
+        rows = [
+            {
+                "templateId": "community-gear:mage:arcane:sunfury:player-a",
+                "classKey": "mage",
+                "specKey": "arcane",
+                "role": "winner",
+                "electionRank": 1,
+                "payload": {
+                    "heroKey": "sunfury",
+                    "talentWinnerId": "talent-sunfury-a",
+                    "gearProjectionMode": "talent_winner",
+                },
+            },
+            {
+                "templateId": "community-gear:mage:arcane:spellslinger:player-b",
+                "classKey": "mage",
+                "specKey": "arcane",
+                "role": "winner",
+                "electionRank": 2,
+                "payload": {
+                    "heroKey": "spellslinger",
+                    "talentWinnerId": "talent-spellslinger-a",
+                    "gearProjectionMode": "gear_fallback",
+                },
+            },
+        ]
+
+        summary = gear_release_store.community_rows_summary(rows)
+
+        self.assertEqual(summary["schemaRevision"], "community-release-content-v2")
+        self.assertEqual(summary["winnerSpecs"], [{"classKey": "mage", "specKey": "arcane"}])
+        self.assertEqual(
+            summary["winnerHeroSlots"],
+            [
+                {"classKey": "mage", "specKey": "arcane", "heroKey": "spellslinger"},
+                {"classKey": "mage", "specKey": "arcane", "heroKey": "sunfury"},
+            ],
+        )
+
+    def test_seal_v2_community_release_rejects_duplicate_hero_projection_slots(self):
+        from server.gear_release_store import GearReleaseIntegrityError, GearReleaseStore, community_rows_summary
+
+        rows = []
+        for template_id, hero_key in (("hero-a", "sunfury"), ("hero-b", "spellslinger")):
+            rows.append({
+                "templateId": template_id,
+                "classKey": "mage",
+                "specKey": "arcane",
+                "role": "winner",
+                "electionRank": len(rows) + 1,
+                "payload": {
+                    "heroKey": hero_key,
+                    "talentWinnerId": f"talent-{hero_key}",
+                    "gearProjectionMode": "talent_winner",
+                },
+            })
+        release = gear_release.build_release(
+            release_kind="community",
+            season_revision="season-17",
+            schema_revision="community-release-v2",
+            content=community_rows_summary(rows),
+            dependency_revisions=self.dependencies(),
+            release_status="validated",
+            source={"sourceRevision": "hero-projection-test"},
+            validated_against_release_id="gear-release:sha256:test",
+        )
+        store = GearReleaseStore(lambda: FakeConnection(rowsets={"FROM cache.websim_release_registry": []}))
+        self.assertEqual(store.seal_community_release(release, rows)["status"], "inserted")
+
+        duplicated = copy.deepcopy(rows)
+        duplicated[1]["payload"]["heroKey"] = "sunfury"
+        bad_release = gear_release.build_release(
+            release_kind="community",
+            season_revision="season-17",
+            schema_revision="community-release-v2",
+            content=community_rows_summary(duplicated),
+            dependency_revisions=self.dependencies(),
+            release_status="validated",
+            source={"sourceRevision": "hero-projection-test"},
+            validated_against_release_id="gear-release:sha256:test",
+        )
+        with self.assertRaisesRegex(GearReleaseIntegrityError, "distinct projected hero winners"):
+            GearReleaseStore(lambda: FakeConnection()).seal_community_release(bad_release, duplicated)
+
     def test_snapshot_staging_gear_uses_one_repeatable_read_transaction(self):
         from server.gear_release_store import GearReleaseStore
 
@@ -347,7 +434,7 @@ class GearReleaseStoreTest(unittest.TestCase):
         self.assertIn("variant-a", first["variantsByKey"])
         self.assertEqual(first["missingFields"], [])
 
-    def test_snapshot_staging_community_templates_is_read_only_and_bounded(self):
+    def test_snapshot_staging_community_templates_keeps_all_observed_profiles_for_legal_fallback(self):
         from server.gear_release_store import GearReleaseStore
 
         conn = FakeConnection(rowsets={
@@ -371,13 +458,52 @@ class GearReleaseStoreTest(unittest.TestCase):
         self.assertIn("FROM cache.websim_community_gear_templates", sql)
         self.assertIn("unnest(%s::text[], %s::text[])", sql)
         self.assertIn("PARTITION BY template.class_key, template.spec_key", sql)
-        self.assertIn("candidate_rank <= 10", sql)
-        self.assertIn("LIMIT 400", sql)
+        self.assertNotIn("candidate_rank <= 10", sql)
+        self.assertNotIn("LIMIT 400", sql)
         self.assertEqual(conn.cursor_instance.params[-1][0], ["mage"])
         self.assertEqual(conn.cursor_instance.params[-1][1], ["arcane"])
         self.assertEqual(rows[0]["templateId"], "template-a")
         self.assertEqual(rows[0]["gearItems"][0]["variantKey"], "variant-a")
         self.assertEqual(rows[0]["payload"]["profileHash"], "profile:a")
+
+    def test_snapshot_staging_talent_candidates_reads_persisted_election_order_without_cap(self):
+        from server.gear_release_store import GearReleaseStore
+
+        conn = FakeConnection(rowsets={
+            "jsonb_array_elements": [
+                (
+                    "talent-fallback", "mage", "arcane", "sunfury", "mythic_plus",
+                    "raiderio", "synced", "verified", "raiderio:us|area-52|fallback",
+                    {"raiderio": {"sourceIdentity": "raiderio:us|area-52|fallback"}},
+                    "2026-07-22T00:00:00+00:00", "2099-01-01T00:00:00+00:00", 11,
+                )
+            ]
+        })
+
+        rows = GearReleaseStore(lambda: conn).snapshot_staging_community_talent_candidates(
+            [("mage", "arcane")]
+        )
+        sql = "\n".join(conn.cursor_instance.statements)
+
+        self.assertIn("jsonb_array_elements", sql)
+        self.assertIn("gearProjectionCandidates", sql)
+        self.assertNotIn("talent_candidate_rank <= 10", sql)
+        self.assertNotIn("LIMIT 800", sql)
+        self.assertEqual(rows, [{
+            "id": "talent-fallback",
+            "classKey": "mage",
+            "specKey": "arcane",
+            "heroKey": "sunfury",
+            "scenarioKey": "mythic_plus",
+            "sourceKey": "raiderio",
+            "sourceStatus": "synced",
+            "status": "verified",
+            "sourceIdentity": "raiderio:us|area-52|fallback",
+            "payload": {"raiderio": {"sourceIdentity": "raiderio:us|area-52|fallback"}},
+            "updatedAt": "2026-07-22T00:00:00+00:00",
+            "expiresAt": "2099-01-01T00:00:00+00:00",
+            "talentCandidateRank": 11,
+        }])
 
     def test_release_refresh_reads_only_identity_hashes_for_additive_classification(self):
         from server.gear_release_store import GearReleaseStore
@@ -700,6 +826,65 @@ class GearReleaseStoreTest(unittest.TestCase):
         self.assertIn("requested(item_id, variant_key)", sql)
         self.assertIn("item_id = ANY(%s::text[])", sql)
         self.assertIn("option_key = ANY(%s::text[])", sql)
+
+    def test_active_community_import_accepts_either_exact_v2_hero_projection_id(self):
+        from server.gear_release_store import GearReleaseStore, canonical_row_hash, community_rows_summary
+
+        binding, rows, _snapshot, rowsets = self.active_community_import_fixture()
+        row = rows[0]
+        template_id = "community-gear:mage:arcane:sunfury:player-a"
+        row["templateId"] = template_id
+        row["payload"].update({
+            "id": template_id,
+            "classKey": "mage",
+            "specKey": "arcane",
+            "heroKey": "sunfury",
+            "talentWinnerId": "talent-sunfury-winner",
+            "gearProjectionMode": "talent_winner",
+            "sourceKey": "raiderio_observed_profile",
+            "sourceStatus": "synced",
+            "status": "complete",
+            "sourceUrl": "https://raider.io/characters/cn/realm/PlayerA",
+            "sampleCount": 1,
+            "scanRunId": "scan-player-a",
+            "readySlotCount": 16,
+            "missingSlots": [],
+            "gearItems": [{"slot": "head", "itemId": "item-a", "simcReady": True}],
+            "payload": {
+                "profileHash": "profile:player-a",
+                "gearHash": "gear:player-a",
+                "character": {"name": "PlayerA", "region": "cn", "realmSlug": "realm"},
+            },
+        })
+        community = gear_release.build_release(
+            release_kind="community",
+            season_revision=binding["gearRelease"]["seasonRevision"],
+            schema_revision="community-release-v2",
+            content=community_rows_summary(rows),
+            dependency_revisions=self.dependencies(),
+            release_status="validated",
+            source={"sourceRevision": "hero-projection-test"},
+            validated_against_release_id=binding["gearRelease"]["releaseId"],
+        )
+        manifest = gear_release.build_manifest(
+            season_revision=binding["gearRelease"]["seasonRevision"],
+            gear_release=binding["gearRelease"],
+            community_release=community,
+            talent_catalog_revision="talent-r1",
+            dependency_revisions=self.dependencies(),
+        )
+        binding["communityRelease"] = community
+        binding["manifest"] = manifest
+        rowsets["FROM cache.websim_community_release_templates"] = [
+            self.community_db_row(row) + (canonical_row_hash(row),)
+        ]
+
+        result = GearReleaseStore(lambda: FakeConnection(rowsets=rowsets)).load_active_community_template_import(
+            binding, "mage", "arcane", template_id,
+        )
+
+        self.assertEqual(result["winner"]["templateId"], template_id)
+        self.assertEqual(result["winner"]["payload"]["heroKey"], "sunfury")
 
     def test_active_community_import_rejects_template_id_not_owned_by_requested_spec(self):
         from server.gear_release_store import GearReleaseIntegrityError, GearReleaseStore
@@ -1312,6 +1497,81 @@ class GearReleaseStoreTest(unittest.TestCase):
                 include_catalog=True,
                 catalog_slot="head",
             )
+
+    def test_active_public_gear_reads_exactly_two_verified_hero_projection_rows(self):
+        from server.gear_release_store import GearReleaseStore, canonical_row_hash, community_rows_summary
+
+        snapshot = self.snapshot()
+        gear = self.gear_release(snapshot)
+        rows = []
+        for rank, (hero_key, mode) in enumerate(
+            (("sunfury", "talent_winner"), ("spellslinger", "gear_fallback")),
+            start=1,
+        ):
+            template_id = f"community-gear:mage:arcane:{hero_key}:player-{rank}"
+            row = copy.deepcopy(self.community_rows()[0])
+            row.update({"templateId": template_id, "electionRank": rank})
+            row["payload"] = {
+                "id": template_id,
+                "name": f"{hero_key} player",
+                "classKey": "mage",
+                "specKey": "arcane",
+                "heroKey": hero_key,
+                "talentWinnerId": f"talent-{hero_key}-winner",
+                "gearProjectionMode": mode,
+                "sourceKey": "raiderio_observed_profile",
+                "sourceStatus": "synced",
+                "status": "complete",
+                "sourceUrl": f"https://raider.io/characters/cn/realm/player-{rank}",
+                "sampleCount": 1,
+                "scanRunId": f"scan-{rank}",
+                "readySlotCount": 16,
+                "missingSlots": [],
+                "gearItems": [{"slot": "head", "itemId": "item-a", "simcReady": True}],
+                "payload": {
+                    "profileHash": f"profile:{rank}",
+                    "gearHash": f"gear:{rank}",
+                    "character": {"name": f"Player{rank}", "region": "cn", "realmSlug": "realm"},
+                },
+            }
+            rows.append(row)
+        community = gear_release.build_release(
+            release_kind="community",
+            season_revision="season-17",
+            schema_revision="community-release-v2",
+            content=community_rows_summary(rows),
+            dependency_revisions=self.dependencies(),
+            release_status="validated",
+            source={"sourceRevision": "hero-projection-test"},
+            validated_against_release_id=gear["releaseId"],
+        )
+        manifest = gear_release.build_manifest(
+            season_revision="season-17",
+            gear_release=gear,
+            community_release=community,
+            talent_catalog_revision="talent-r1",
+            dependency_revisions=self.dependencies(),
+        )
+        binding = {
+            "pointerMode": "active", "generation": 3, "formalActiveManifest": True,
+            "manifest": manifest, "gearRelease": gear, "communityRelease": community,
+        }
+        conn = FakeConnection(rowsets={
+            "gear_release_public_counts": [(1, 1, 1, 1)],
+            "FROM cache.websim_community_release_templates": [
+                self.community_db_row(row) + (canonical_row_hash(row),)
+                for row in rows
+            ],
+        })
+
+        data = GearReleaseStore(lambda: conn).load_active_public_gear(
+            binding, "mage", "arcane", include_catalog=False,
+        )
+
+        self.assertEqual(
+            [(template["heroKey"], template["gearProjectionMode"]) for template in data["communityTemplates"]],
+            [("sunfury", "talent_winner"), ("spellslinger", "gear_fallback")],
+        )
 
     def test_active_resolver_context_is_manifest_bound_and_rejects_runtime_drift(self):
         from server.gear_release_store import GearReleaseIntegrityError, GearReleaseStore

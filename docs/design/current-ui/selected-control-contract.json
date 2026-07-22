@@ -28,7 +28,6 @@
     },
     { "route": "news_list", "path": "/pages/news/list", "role": "news-list-category", "state": "selected", "boundaryMode": "isolated", "minimumControls": 2, "minimumActive": 1, "maximumActive": 1 },
     { "route": "news_detail", "path": "/pages/news/detail?id=architecture-preflight", "role": "news-detail-translation-segment", "state": "selected", "boundaryMode": "contiguous", "minimumControls": 3, "minimumActive": 1, "maximumActive": 1 },
-    { "route": "gear_detail", "path": "/pages/builds/detail?query=gear", "role": "gear-profession-option", "state": "active", "boundaryMode": "isolated", "minimumControls": 1, "minimumActive": 1, "maximumActive": 1 },
     { "route": "gear_detail", "path": "/pages/builds/detail?query=gear", "role": "gear-slot-row", "state": "active", "boundaryMode": "isolated", "minimumControls": 1, "minimumActive": 0, "maximumActive": 1 },
     { "route": "gear_detail", "path": "/pages/builds/detail?query=gear", "role": "gear-enhancement-option", "state": "active", "boundaryMode": "isolated", "minimumControls": 0, "minimumActive": 0, "maximumActive": 1 },
     { "route": "talent_simulator", "path": "/pages/builds/talent-simulator", "role": "talent-tree-tab", "state": "active", "boundaryMode": "contiguous", "minimumControls": 2, "minimumActive": 1, "maximumActive": 1, "unavailableRouteStates": ["stale", "error"] },

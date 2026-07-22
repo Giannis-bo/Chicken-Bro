@@ -1896,6 +1896,10 @@ class RaiderIOPayloadTest(unittest.TestCase):
         self.assertEqual(template["payload"]["raiderio"]["region"], "kr")
         self.assertEqual(template["payload"]["rioEvidence"]["score"], 4123.4)
         self.assertEqual(template["payload"]["rioEvidence"]["rank"], 8)
+        self.assertEqual(
+            template["payload"]["raiderio"]["sourceIdentity"],
+            "raiderio:kr|azshara|koreanwinner",
+        )
 
     def test_spec_ranking_import_code_becomes_structured_loadout_for_hero_discovery(self):
         trait_path = Path(self.tmp.name) / "trait_data.inc"

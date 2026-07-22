@@ -5655,6 +5655,7 @@ class WebSimPayloadTest(unittest.TestCase):
                         "characterName": "Mandur",
                         "region": "cn",
                         "realmSlug": "realm",
+                        "sourceIdentity": "raiderio:cn|realm|mandur",
                         "raceKey": "night_elf",
                     }
                 ],
@@ -5670,6 +5671,8 @@ class WebSimPayloadTest(unittest.TestCase):
         compact = self.websim_payload.compact_community_gear_template(normalized)
 
         self.assertEqual(template["sourceRefs"][0]["raceKey"], "night_elf")
+        self.assertEqual(template["sourceRefs"][0]["sourceIdentity"], "raiderio:cn|realm|mandur")
+        self.assertEqual(template["payload"]["sourceIdentity"], "raiderio:cn|realm|mandur")
         self.assertEqual(template["payload"]["character"]["raceKey"], "night_elf")
         self.assertEqual(normalized["payload"]["character"]["raceKey"], "night_elf")
         self.assertEqual(compact["attributeCharacterContext"], {
@@ -5682,6 +5685,107 @@ class WebSimPayloadTest(unittest.TestCase):
             {"sourceUrl": "https://raider.io/characters/cn/realm/invalid", "raceKey": "night elf!"}
         ])
         self.assertNotIn("raceKey", invalid[0])
+
+    def test_observed_profile_templates_stay_separate_by_shared_source_identity(self):
+        items = [
+            {
+                "slot": "head", "simcSlot": "head", "itemId": "270001", "name": "head_one", "simcName": "head_one", "bonus_id": "6652", "simcReady": True,
+                "observedProfileRefs": [{
+                    "sourceKey": "raiderio_observed_profile", "profileUrl": "https://raider.io/characters/cn/realm/One",
+                    "characterName": "One", "region": "cn", "realmSlug": "realm",
+                    "sourceIdentity": "raiderio:cn|realm|one",
+                }],
+            },
+            {
+                "slot": "head", "simcSlot": "head", "itemId": "270002", "name": "head_two", "simcName": "head_two", "bonus_id": "6652", "simcReady": True,
+                "observedProfileRefs": [{
+                    "sourceKey": "raiderio_observed_profile", "profileUrl": "https://raider.io/characters/cn/realm/Two",
+                    "characterName": "Two", "region": "cn", "realmSlug": "realm",
+                    "sourceIdentity": "raiderio:cn|realm|two",
+                }],
+            },
+        ]
+
+        templates = self.websim_payload.observed_profile_gear_templates(items, "mage", "frost")
+
+        self.assertEqual(
+            [template["sourceIdentity"] for template in templates],
+            ["raiderio:cn|realm|one", "raiderio:cn|realm|two"],
+        )
+        self.assertEqual(len({template["id"] for template in templates}), 2)
+
+    def test_dedupe_keeps_distinct_observed_players_with_the_same_gear_signature(self):
+        shared_gear = [{"slot": "head", "itemId": "270001", "simcReady": True}]
+        templates = self.websim_payload.dedupe_gear_community_templates([
+            {
+                "id": "observed-one",
+                "classKey": "mage",
+                "specKey": "frost",
+                "sourceKey": "raiderio_observed_profile",
+                "sourceIdentity": "raiderio:cn|realm|one",
+                "status": "complete",
+                "gearItems": shared_gear,
+                "payload": {"sourceIdentity": "raiderio:cn|realm|one"},
+            },
+            {
+                "id": "observed-two",
+                "classKey": "mage",
+                "specKey": "frost",
+                "sourceKey": "raiderio_observed_profile",
+                "sourceIdentity": "raiderio:cn|realm|two",
+                "status": "complete",
+                "gearItems": shared_gear,
+                "payload": {"sourceIdentity": "raiderio:cn|realm|two"},
+            },
+        ])
+
+        self.assertEqual(
+            {template["sourceIdentity"] for template in templates},
+            {"raiderio:cn|realm|one", "raiderio:cn|realm|two"},
+        )
+
+    def test_community_gear_hero_slots_reuse_talent_winners_and_fallback_only_within_that_hero(self):
+        talent_templates = [
+            {
+                "id": "frostfire-first", "classKey": "mage", "specKey": "frost", "heroKey": "frostfire",
+                "scenarioKey": "mythic_plus", "sourceKey": "raiderio", "status": "verified", "sourceStatus": "synced", "canApplyVisual": True,
+                "payload": {"raiderio": {"sourceIdentity": "raiderio:cn|realm|first"}, "rioEvidence": {"score": 4200}},
+            },
+            {
+                "id": "frostfire-second", "classKey": "mage", "specKey": "frost", "heroKey": "frostfire",
+                "scenarioKey": "mythic_plus", "sourceKey": "raiderio", "status": "verified", "sourceStatus": "synced", "canApplyVisual": True,
+                "payload": {"raiderio": {"sourceIdentity": "raiderio:cn|realm|second"}, "rioEvidence": {"score": 4100}},
+            },
+            {
+                "id": "spellslinger-first", "classKey": "mage", "specKey": "frost", "heroKey": "spellslinger",
+                "scenarioKey": "mythic_plus", "sourceKey": "raiderio", "status": "verified", "sourceStatus": "synced", "canApplyVisual": True,
+                "payload": {"raiderio": {"sourceIdentity": "raiderio:cn|realm|third"}, "rioEvidence": {"score": 4150}},
+            },
+        ]
+        gear_templates = [
+            {
+                "id": "gear-second", "sourceKey": "raiderio_observed_profile", "sourceIdentity": "raiderio:cn|realm|second",
+                "canApplyGear": True, "status": "complete", "sourceStatus": "synced", "gearItems": [{"slot": "head", "itemId": "1"}],
+            },
+            {
+                "id": "gear-third", "sourceKey": "raiderio_observed_profile", "sourceIdentity": "raiderio:cn|realm|third",
+                "canApplyGear": True, "status": "complete", "sourceStatus": "synced", "gearItems": [{"slot": "head", "itemId": "2"}],
+            },
+        ]
+
+        templates = self.websim_payload.community_gear_templates_for_hero_slots(
+            talent_templates,
+            gear_templates,
+            "mage",
+            "frost",
+        )
+
+        self.assertEqual([template["heroKey"] for template in templates], ["frostfire", "spellslinger"])
+        self.assertEqual([template["id"] for template in templates], ["gear-second", "gear-third"])
+        self.assertEqual(templates[0]["talentWinnerId"], "frostfire-first")
+        self.assertEqual(templates[0]["gearProjectionMode"], "gear_fallback")
+        self.assertEqual(templates[1]["talentWinnerId"], "spellslinger-first")
+        self.assertEqual(templates[1]["gearProjectionMode"], "talent_winner")
 
     def test_template_chain_state_reports_public_readiness_after_legality_gate(self):
         gear_items = []
@@ -9253,6 +9357,44 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(variant_count, 1)
         self.assertEqual(source_count, 1)
 
+    def test_sync_observed_gear_variants_keeps_same_item_variant_for_each_player_identity(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.websim_payload.ensure_websim_tables(conn)
+            raiderio = {
+                "sourceStatus": "verified",
+                "profiles": [
+                    {
+                        "name": "First", "region": "us", "realmSlug": "area-52",
+                        "classKey": "mage", "specKey": "frost",
+                        "profileUrl": "https://raider.io/characters/us/area-52/First",
+                        "gear": [{"itemId": "251111", "slot": "head", "itemLevel": 707, "bonuses": [{"id": 1808}]}],
+                    },
+                    {
+                        "name": "Second", "region": "us", "realmSlug": "area-52",
+                        "classKey": "mage", "specKey": "frost",
+                        "profileUrl": "https://raider.io/characters/us/area-52/Second",
+                        "gear": [{"itemId": "251111", "slot": "head", "itemLevel": 707, "bonuses": [{"id": 1808}]}],
+                    },
+                ],
+            }
+
+            self.websim_payload.sync_observed_gear_variants(conn, raiderio, {"seasonRevision": "season-mn-1"})
+            rows = conn.execute(
+                "SELECT id, payload_json FROM websim_gear_variants WHERE source_type = 'observed_profile' ORDER BY id"
+            ).fetchall()
+        finally:
+            conn.close()
+
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(
+            {
+                json.loads(row[1])["observedProfileRefs"][0]["sourceIdentity"]
+                for row in rows
+            },
+            {"raiderio:us|area-52|first", "raiderio:us|area-52|second"},
+        )
+
     def test_sync_observed_gear_variants_imports_top_level_raiderio_profiles(self):
         conn = sqlite3.connect(self.db_path)
         try:
@@ -9316,6 +9458,10 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(json.loads(variant[4])["enchant_id"], "8039")
         self.assertEqual(json.loads(variant[5]), ["missing SimulationCraft item stats"])
         self.assertEqual(json.loads(variant[6])["observedProfileRefs"][0]["characterName"], "Selong")
+        self.assertEqual(
+            json.loads(variant[6])["observedProfileRefs"][0]["sourceIdentity"],
+            "raiderio:cn|isillien|selong",
+        )
 
     def test_sync_observed_gear_variants_preserves_verified_cache_when_raiderio_source_is_partial(self):
         conn = sqlite3.connect(self.db_path)

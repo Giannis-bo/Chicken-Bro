@@ -2804,6 +2804,59 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertEqual(tied["promotedTemplates"][0]["id"], "tie-wcl")
         self.assertEqual(tied["promotedTemplates"][0]["payload"]["wclEvidence"]["tier"], "wcl_exact_template")
 
+    def test_promote_community_talent_inventory_persists_full_ordered_raiderio_candidates_for_gear_projection(self):
+        from server.postgres_cache_store import promote_community_talent_template_inventory
+
+        def row(template_id, score, source_identity):
+            return {
+                "id": template_id,
+                "classKey": "mage",
+                "specKey": "frost",
+                "heroKey": "frostfire",
+                "scenarioKey": "mythic_plus",
+                "sourceKey": "raiderio",
+                "sourceStatus": "synced",
+                "status": "verified",
+                "payload": {
+                    "raiderio": {"sourceIdentity": source_identity},
+                    "rioEvidence": {"score": score},
+                },
+                "signature": f"sig-{template_id}",
+                "talentState": {"selectedNodes": [{"id": f"node-{template_id}", "rank": 1}]},
+                "updatedAt": "2026-07-22T00:00:00+00:00",
+            }
+
+        promoted = promote_community_talent_template_inventory([
+            row("winner", 4300, "raiderio:us|area-52|winner"),
+            row("fallback", 4200, "raiderio:us|area-52|fallback"),
+        ])
+
+        projection_candidates = promoted["promotedTemplates"][0]["payload"]["gearProjectionCandidates"]
+        self.assertEqual(projection_candidates, [
+            {
+                "candidateId": "winner",
+                "classKey": "mage",
+                "specKey": "frost",
+                "heroKey": "frostfire",
+                "scenarioKey": "mythic_plus",
+                "sourceKey": "raiderio",
+                "sourceStatus": "synced",
+                "sourceIdentity": "raiderio:us|area-52|winner",
+                "talentCandidateRank": 1,
+            },
+            {
+                "candidateId": "fallback",
+                "classKey": "mage",
+                "specKey": "frost",
+                "heroKey": "frostfire",
+                "scenarioKey": "mythic_plus",
+                "sourceKey": "raiderio",
+                "sourceStatus": "synced",
+                "sourceIdentity": "raiderio:us|area-52|fallback",
+                "talentCandidateRank": 2,
+            },
+        ])
+
     def test_promote_community_talent_inventory_keeps_one_winner_per_scenario(self):
         from server.postgres_cache_store import promote_community_talent_template_inventory
 
@@ -6214,7 +6267,7 @@ class PostgresCacheStoreTest(unittest.TestCase):
 
         self.assertEqual(templates, [])
 
-    def test_cleanup_real_player_gear_template_pilot_residue_deletes_elemental_legacy_rows(self):
+    def test_cleanup_real_player_gear_template_pilot_residue_keeps_distinct_observed_players(self):
         from server.postgres_cache_store import PostgresCacheStore
 
         conn = FakeConnection()
@@ -6228,13 +6281,10 @@ class PostgresCacheStoreTest(unittest.TestCase):
         sql = "\n".join(conn.cursor_instance.statements)
         params = conn.cursor_instance.params
         self.assertIn("DELETE FROM cache.websim_community_gear_templates", sql)
-        self.assertIn("DELETE FROM cache.websim_gear_variants", sql)
-        self.assertIn("UPDATE cache.websim_community_gear_templates SET name", sql)
+        self.assertNotIn("DELETE FROM cache.websim_gear_variants", sql)
+        self.assertNotIn("source_key = 'raiderio_observed_profile'\n                              AND id <> %s", sql)
         self.assertIn("jsonb_set", sql)
         self.assertTrue(any("shaman" in param_set and "elemental" in param_set for param_set in params))
-        self.assertTrue(
-            any("听凭风引（元素萨）· 真实高分玩家角色模板" in param_set for param_set in params)
-        )
         self.assertTrue(
             any("元素萨 · 系统评分推荐模板（待 SimC 验证）" in param_set for param_set in params)
         )
@@ -6245,7 +6295,9 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertIn("recommended_bis", result["publicHiddenSourceKeys"])
         self.assertIn("season_recommendation", result["publicHiddenSourceKeys"])
         self.assertEqual(result["destructiveCleanupScope"], ["shaman:elemental"])
-        self.assertGreaterEqual(result["renamedTemplateRows"], 2)
+        self.assertEqual(result["duplicateObservedTemplateRowsDeleted"], 0)
+        self.assertEqual(result["observedVariantRowsDeleted"], 0)
+        self.assertGreaterEqual(result["renamedTemplateRows"], 1)
 
     def test_cleanup_real_player_gear_template_backfills_missing_observed_variants_from_active_row(self):
         from server.postgres_cache_store import PostgresCacheStore
@@ -7825,7 +7877,7 @@ class PostgresCacheStoreTest(unittest.TestCase):
 
         self.assertEqual(templates, [])
 
-    def test_build_community_gear_templates_selects_single_profile_winner_for_all_specs(self):
+    def test_build_community_gear_templates_keeps_each_observed_profile_as_a_candidate(self):
         from server.postgres_cache_store import PostgresCacheStore
         from server.websim_payload import CANONICAL_GEAR_SLOTS
 
@@ -7897,21 +7949,26 @@ class PostgresCacheStoreTest(unittest.TestCase):
 
         templates = store.build_community_gear_templates(scan_run_id="scan-observed")
 
-        self.assertEqual(len(templates), 1)
-        template = templates[0]
-        self.assertEqual(template["sourceKey"], "raiderio_observed_profile")
-        self.assertEqual(template["classKey"], "mage")
-        self.assertEqual(template["specKey"], "frost")
-        self.assertEqual(template["sourceUrl"], profile_b)
-        self.assertEqual(template["sampleCount"], 1)
-        self.assertEqual(template["status"], "complete")
-        self.assertEqual(template["readySlotCount"], 16)
-        self.assertEqual(template["missingSlots"], [])
-        self.assertEqual(template["scanRunId"], "scan-observed")
-        self.assertTrue(template["profileHash"])
-        self.assertTrue(template["gearHash"])
-        self.assertTrue(all(item["itemId"].startswith("4200") for item in template["gearItems"]))
-        finger = next(item for item in template["gearItems"] if item["slot"] == "finger1")
+        self.assertEqual(len(templates), 2)
+        by_identity = {template["sourceIdentity"]: template for template in templates}
+        self.assertEqual(set(by_identity), {
+            "raiderio:us|stormrage|magealpha",
+            "raiderio:us|area-52|magewinner",
+        })
+        winner = by_identity["raiderio:us|area-52|magewinner"]
+        self.assertEqual(winner["sourceKey"], "raiderio_observed_profile")
+        self.assertEqual(winner["classKey"], "mage")
+        self.assertEqual(winner["specKey"], "frost")
+        self.assertEqual(winner["sourceUrl"], profile_b)
+        self.assertEqual(winner["sampleCount"], 1)
+        self.assertEqual(winner["status"], "complete")
+        self.assertEqual(winner["readySlotCount"], 16)
+        self.assertEqual(winner["missingSlots"], [])
+        self.assertEqual(winner["scanRunId"], "scan-observed")
+        self.assertTrue(winner["profileHash"])
+        self.assertTrue(winner["gearHash"])
+        self.assertTrue(all(item["itemId"].startswith("4200") for item in winner["gearItems"]))
+        finger = next(item for item in winner["gearItems"] if item["slot"] == "finger1")
         self.assertEqual(finger["gem_id"], "240983")
         self.assertEqual(finger["enchant_id"], "7340")
         self.assertEqual(finger["embellishment"], "222873")
@@ -8154,7 +8211,7 @@ class PostgresCacheStoreTest(unittest.TestCase):
 
         templates = store.build_community_gear_templates(scan_run_id="scan-raiderio-profile")
 
-        self.assertEqual(len(templates), 1)
+        self.assertEqual(len(templates), 2)
         template = templates[0]
         self.assertEqual(template["sourceUrl"], "https://raider.io/characters/us/area-52/Topdagger")
         self.assertEqual(template["sampleCount"], 1)
@@ -8162,6 +8219,13 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertEqual(template["readySlotCount"], 16)
         self.assertEqual(template["missingSlots"], [])
         self.assertEqual(template["sourceRefs"][0]["characterName"], "Topdagger")
+        self.assertEqual(
+            {template["sourceUrl"] for template in templates},
+            {
+                "https://raider.io/characters/us/area-52/Topdagger",
+                "https://raider.io/characters/us/area-52/Legalnext",
+            },
+        )
 
     def test_build_community_gear_templates_does_not_globally_truncate_observed_variants(self):
         from server.postgres_cache_store import PostgresCacheStore

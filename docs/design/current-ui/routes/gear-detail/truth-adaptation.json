@@ -13,6 +13,21 @@
       "excludedTargetElements": ["readiness_heading", "readiness_progress_rail"],
       "reason": "the readiness heading and progress rail do not help a player configure a slot; the item-level and attribute summary remain necessary feedback",
       "retainedFlow": "choose class and specialization, read the current item-level and attribute summary, configure or inspect a slot in the internal workbench, use save/import/reset as the fixed bottom actions, and use the existing retry action when the initial route load fails"
+    },
+    {
+      "id": "gear_detail_identity_picker_20260722",
+      "supersededTargetElements": [
+        "profession_selector circular icon row",
+        "selector labels above their fields"
+      ],
+      "reason": "user confirmed that class and specialization must each use an icon-bearing native dropdown, with their labels and fields aligned on one compact row",
+      "retainedFlow": "choose a class from the left picker, then choose one available specialization from the right picker; a class change restores its remembered specialization or its first valid specialization before reloading the equipment workbench"
+    },
+    {
+      "id": "gear_detail_full_width_slot_grid_20260722",
+      "supersededTargetElements": ["equipment_slots_panel center placeholder crest", "equipment_slots_panel center empty-state copy"],
+      "reason": "user confirmed that the center blank panel has no configuration value and that every equipment slot should use the available workbench width",
+      "retainedFlow": "show every returned canonical equipment slot in two equal-width columns; selecting a slot continues to open its internal candidate and enhancement detail surface"
     }
   ],
   "runtimeFacts": {
@@ -120,8 +135,9 @@
     "Only HTTPS item or enhancement media on the explicit trusted runtime allowlist may render as real WoW objects; generated or decorative art cannot impersonate an item.",
     "Resolver readiness remains backend-owned for deterministic save metadata: an initial equippedSet may use websim.gear.readiness only when its selectedCount matches the editable selection; every edited draft uses gearResolve.profileReadiness. Taro never counts item simcReady flags or hardcodes a 15-slot rule; candidate counts are never presented as equipped counts.",
     "The loadout summary exposes only the current item level and backend-derived attribute values. Its fixed visual order is primary/stamina first, haste/critical/mastery/versatility on the left, and leech/avoidance/speed on the right; every attribute row uses the left-column row height, so the unused lower-right cell remains empty. Missing backend fields retain their position as 未提供 or 待校验. It does not expose selected-count or readiness-state copy, readiness count, progress percentage or readiness checkpoints.",
-    "Community gear may be imported only from a returned template containing real gearItems; the UI identifies it as a source template, not BiS or an official recommendation.",
-    "Loading, empty, blocked, stale and error states retain all eight regions, sixteen slot rows and three fixed action positions; the internal candidate surface remains the only scrollable area."
+    "Community gear may be imported only from a returned template containing real gearItems and a verified hero-slot projection (heroKey, talentWinnerId and gearProjectionMode); it reuses the corresponding talent-source player and is identified as a source template, not BiS or an official recommendation. A gear-only fallback may use only the next legal candidate in the same class/spec/hero sequence and never changes the talent winner.",
+    "Save persists the complete current gearBySlot plus enhancementBySlot draft. Import always asks for one source group and then one exact template; reset clears all currently equipped slots, enhancements, candidate state and derived validation state instead of restoring equippedSet.",
+    "Loading, empty, blocked, stale and error states retain all eight regions, sixteen slot rows in two equal-width auto-fill columns and three fixed action positions; the internal candidate surface remains the only scrollable area."
   ],
   "mappings": [
     {
@@ -134,11 +150,11 @@
     },
     {
       "region": "profession_selector",
-      "runtime": "real builds.home classes in a horizontally reachable circular selector; six remain visible at baseline width"
+      "runtime": "real builds.home classes in the left icon-bearing native picker"
     },
     {
       "region": "specialization_selector",
-      "runtime": "real specializations for the selected class"
+      "runtime": "real specializations for the selected class in the right icon-bearing native picker"
     },
     {
       "region": "loadout_summary_panel",
@@ -150,21 +166,21 @@
     },
     {
       "region": "equipment_slots_panel",
-      "runtime": "sixteen canonical slots plus an internal candidate/detail surface sourced from replacementCandidates"
+      "runtime": "sixteen canonical slots in two equal-width auto-fill columns plus an internal candidate/detail surface sourced from replacementCandidates"
     },
     {
       "region": "secondary_actions_row",
-      "runtime": "save current selection, import a returned source template and reset local edits"
+      "runtime": "save a versioned complete personal draft; explicitly choose a saved draft or one returned hero-labeled community source template for import; reset clears the current draft and all local derived state"
     }
   ],
   "stateContract": {
-    "loading": "mount all eight regions, six neutral class sockets, sixteen empty gear slots and three actions",
+    "loading": "mount all eight regions, two neutral identity picker fields, sixteen empty gear slots and three actions",
     "ready": "render the editable equippedSet and real candidate catalog without auto-selecting candidates",
     "partial": "preserve editing while marking incompatible, non-SimC-ready or unverified candidate fields",
     "stale": "preserve cached editing state and mark catalog evidence stale",
     "blocked": "preserve all retained regions and disable unsupported save/import/reset actions",
     "error": "preserve all retained regions and expose deterministic retry in the secondary action row",
-    "empty": "preserve sixteen slots and the center empty state without invented items or attributes"
+    "empty": "preserve sixteen slots in the full-width two-column grid without invented items or attributes"
   },
   "pendingTruthGaps": []
 }

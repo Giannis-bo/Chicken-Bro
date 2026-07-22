@@ -365,6 +365,8 @@ def community_rows_summary(rows: Any) -> dict[str, Any]:
     canonical = _canonical_rows(rows)
     role_counts = {role: 0 for role in ("winner", "standby", "rejected")}
     winner_specs = []
+    winner_hero_slots = []
+    projected_winners = 0
     for row in canonical:
         role = _text(row.get("role"))
         if role in role_counts:
@@ -374,13 +376,36 @@ def community_rows_summary(rows: Any) -> dict[str, Any]:
                 "classKey": _text(row.get("classKey")),
                 "specKey": _text(row.get("specKey")),
             })
-    winner_specs.sort(key=lambda row: (row["classKey"], row["specKey"]))
-    return {
-        "schemaRevision": "community-release-content-v1",
+            payload = row.get("payload") if isinstance(row.get("payload"), dict) else {}
+            hero_key = _text(payload.get("heroKey"))
+            talent_winner_id = _text(payload.get("talentWinnerId"))
+            projection_mode = _text(payload.get("gearProjectionMode"))
+            if hero_key and talent_winner_id and projection_mode in {"talent_winner", "gear_fallback"}:
+                projected_winners += 1
+                winner_hero_slots.append({
+                    "classKey": _text(row.get("classKey")),
+                    "specKey": _text(row.get("specKey")),
+                    "heroKey": hero_key,
+                })
+    winner_specs = sorted(
+        {(_text(row["classKey"]), _text(row["specKey"])) for row in winner_specs},
+        key=lambda row: (row[0], row[1]),
+    )
+    winner_specs = [
+        {"classKey": class_key, "specKey": spec_key}
+        for class_key, spec_key in winner_specs
+    ]
+    winner_hero_slots.sort(key=lambda row: (row["classKey"], row["specKey"], row["heroKey"]))
+    projected = role_counts["winner"] > 0 and projected_winners == role_counts["winner"]
+    summary = {
+        "schemaRevision": "community-release-content-v2" if projected else "community-release-content-v1",
         "snapshotHash": _hash(canonical),
         "counts": {"total": len(canonical), **role_counts},
         "winnerSpecs": winner_specs,
     }
+    if projected:
+        summary["winnerHeroSlots"] = winner_hero_slots
+    return summary
 
 
 def _expected_manifest_revision(manifest: dict[str, Any]) -> str:
@@ -644,6 +669,10 @@ def _exact_release_descriptor(release: Any) -> dict[str, Any]:
 
 
 class GearReleaseStore:
+    # The mutable Talent snapshot is now part of the source contract for new
+    # Community Releases.  Kept as a capability flag so legacy test doubles
+    # and explicitly historical rebuilds remain v1-compatible.
+    community_hero_projection_enabled = True
     def __init__(self, connection_factory):
         self.connection_factory = connection_factory
 
@@ -811,9 +840,7 @@ class GearReleaseStore:
                            raw_string, ready_slot_count, missing_slots_json, analysis_window,
                            payload_json, updated_at, expires_at, scan_run_id
                     FROM ranked
-                    WHERE candidate_rank <= 10
                     ORDER BY class_key, spec_key, candidate_rank, id
-                    LIMIT 400
                     """,
                     (class_keys, spec_keys),
                 )
@@ -840,6 +867,88 @@ class GearReleaseStore:
                 "updatedAt": _text(row[17]),
                 "expiresAt": _text(row[18]),
                 "scanRunId": _text(row[19]),
+            }
+            for row in rows
+        ]
+
+    def snapshot_staging_community_talent_candidates(
+        self,
+        expected_specs: Iterable[tuple[str, str]],
+    ) -> list[dict[str, Any]]:
+        """Read the immutable ordering input for hero-slot gear projection.
+
+        These are not new gear candidates.  They are the same per-hero Talent
+        source rows that produced the 80/80 winner set, including the ordered
+        fallback candidates used only if the winner's captured equipment fails
+        canonical Gear validation.
+        """
+
+        specs = sorted({
+            (_text(class_key), _text(spec_key))
+            for class_key, spec_key in expected_specs
+            if _text(class_key) and _text(spec_key)
+        })
+        if not specs or len(specs) > 40:
+            raise GearReleaseIntegrityError("community talent snapshot requires 1 to 40 explicit specs")
+        class_keys = [class_key for class_key, _spec_key in specs]
+        spec_keys = [spec_key for _class_key, spec_key in specs]
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
+                cur.execute(
+                    """
+                    WITH expected(class_key, spec_key) AS (
+                        SELECT * FROM unnest(%s::text[], %s::text[])
+                    )
+                    SELECT candidate.value->>'candidateId',
+                           candidate.value->>'classKey',
+                           candidate.value->>'specKey',
+                           candidate.value->>'heroKey',
+                           candidate.value->>'scenarioKey',
+                           candidate.value->>'sourceKey',
+                           candidate.value->>'sourceStatus',
+                           template.status,
+                           candidate.value->>'sourceIdentity',
+                           jsonb_build_object(
+                               'raiderio',
+                               jsonb_build_object('sourceIdentity', COALESCE(candidate.value->>'sourceIdentity', ''))
+                           ),
+                           template.updated_at,
+                           template.expires_at,
+                           COALESCE(NULLIF(candidate.value->>'talentCandidateRank', '')::integer, 0)
+                    FROM cache.websim_community_talent_templates AS template
+                    INNER JOIN expected
+                      ON expected.class_key = template.class_key
+                     AND expected.spec_key = template.spec_key
+                    CROSS JOIN LATERAL jsonb_array_elements(
+                        COALESCE(template.payload_json->'gearProjectionCandidates', '[]'::jsonb)
+                    ) AS candidate(value)
+                    WHERE template.scenario_key = 'mythic_plus'
+                      AND template.status = 'verified'
+                      AND template.expires_at > NOW()
+                    ORDER BY candidate.value->>'classKey', candidate.value->>'specKey',
+                             candidate.value->>'heroKey',
+                             COALESCE(NULLIF(candidate.value->>'talentCandidateRank', '')::integer, 0),
+                             candidate.value->>'candidateId'
+                    """,
+                    (class_keys, spec_keys),
+                )
+                rows = cur.fetchall()
+        return [
+            {
+                "id": _text(row[0]),
+                "classKey": _text(row[1]),
+                "specKey": _text(row[2]),
+                "heroKey": _text(row[3]),
+                "scenarioKey": _text(row[4]),
+                "sourceKey": _text(row[5]),
+                "sourceStatus": _text(row[6]),
+                "status": _text(row[7]),
+                "sourceIdentity": _text(row[8]),
+                "payload": _canonical(row[9] if isinstance(row[9], dict) else {}),
+                "updatedAt": _text(row[10]),
+                "expiresAt": _text(row[11]),
+                "talentCandidateRank": _int(row[12]),
             }
             for row in rows
         ]
@@ -1297,9 +1406,18 @@ class GearReleaseStore:
                     )
                     winner_db_rows = cur.fetchall()
                     winner_rows = [self._community_row_from_db(row) for row in winner_db_rows]
-                    if len(winner_rows) != 1:
-                        raise GearReleaseIntegrityError("active Community Release must expose exactly one winner per spec")
-                    if canonical_row_hash(winner_rows[0]) != _text(winner_db_rows[0][20]):
+                    is_hero_projection = community.get("schemaRevision") == "community-release-v2"
+                    expected_winner_count = 2 if is_hero_projection else 1
+                    if len(winner_rows) != expected_winner_count:
+                        raise GearReleaseIntegrityError(
+                            "active Community Release must expose exactly two hero winners per spec"
+                            if is_hero_projection
+                            else "active Community Release must expose exactly one winner per spec"
+                        )
+                    if any(
+                        canonical_row_hash(row) != _text(db_row[20])
+                        for row, db_row in zip(winner_rows, winner_db_rows)
+                    ):
                         raise GearReleaseIntegrityError("active Community winner row integrity failed")
                     community_templates = []
                     for row in winner_rows:
@@ -1328,6 +1446,15 @@ class GearReleaseStore:
                         if enhancement_by_slot:
                             public_template["enhancementBySlot"] = enhancement_by_slot
                         community_templates.append(public_template)
+                    if is_hero_projection:
+                        from .gear_public_contract import is_public_hero_gear_projection
+
+                        hero_keys = [_text(template.get("heroKey")) for template in community_templates]
+                        if len(set(hero_keys)) != expected_winner_count or any(
+                            not is_public_hero_gear_projection(template)
+                            for template in community_templates
+                        ):
+                            raise GearReleaseIntegrityError("active Community hero winner projection integrity failed")
                 if include_catalog:
                     normalized_slot = _text(catalog_slot)
                     variant_slot_clause = " AND slot = %s" if normalized_slot else ""
@@ -1535,6 +1662,14 @@ class GearReleaseStore:
                     or canonical_row_hash(winner) != _text(winner_db_rows[0][20])
                 ):
                     raise GearReleaseIntegrityError("active Community import winner integrity failed")
+                if community.get("schemaRevision") == "community-release-v2":
+                    from .gear_public_contract import is_public_hero_gear_projection
+
+                    projection = _canonical(winner.get("payload") if isinstance(winner.get("payload"), dict) else {})
+                    projection["id"] = _text(projection.get("id") or winner.get("templateId"))
+                    projection["canApplyGear"] = True
+                    if not is_public_hero_gear_projection(projection):
+                        raise GearReleaseIntegrityError("active Community import hero projection integrity failed")
 
                 intent = winner.get("selectionIntent") if isinstance(winner.get("selectionIntent"), dict) else {}
                 slots = intent.get("slots") if isinstance(intent.get("slots"), dict) else {}
@@ -1979,8 +2114,22 @@ class GearReleaseStore:
             with conn.cursor() as cur:
                 if expected["releaseKind"] != "community":
                     raise GearReleaseIntegrityError("seal_community_release requires a Community Release")
-                if community_rows_summary(canonical_rows) != expected["content"]:
+                summary = community_rows_summary(canonical_rows)
+                if summary != expected["content"]:
                     raise GearReleaseIntegrityError("community rows do not match the release descriptor")
+                if expected.get("schemaRevision") == "community-release-v2":
+                    hero_slots = summary.get("winnerHeroSlots") if isinstance(summary, dict) else []
+                    winner_count = _int((summary.get("counts") or {}).get("winner")) if isinstance(summary, dict) else 0
+                    if (
+                        summary.get("schemaRevision") != "community-release-content-v2"
+                        or not isinstance(hero_slots, list)
+                        or len(hero_slots) != winner_count
+                        or len({
+                            (_text(slot.get("classKey")), _text(slot.get("specKey")), _text(slot.get("heroKey")))
+                            for slot in hero_slots if isinstance(slot, dict)
+                        }) != winner_count
+                    ):
+                        raise GearReleaseIntegrityError("v2 Community Release requires distinct projected hero winners")
                 if self._existing_or_insert(cur, expected, gate_result or {}):
                     return {"status": "reused", "releaseId": expected["releaseId"]}
                 if canonical_rows:

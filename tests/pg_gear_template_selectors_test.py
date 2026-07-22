@@ -535,6 +535,45 @@ class PgGearTemplateSelectorsTest(unittest.TestCase):
         self.assertEqual([template["id"] for template in selected["communityTemplates"]], ["observed-profile-mage-arcane"])
         self.assertEqual(selected["baselineTemplates"], [])
 
+    def test_select_public_gear_templates_keeps_two_distinct_hero_projection_winners(self):
+        from server.pg_gear_template_selectors import select_public_gear_templates_for_spec
+
+        def projection(hero_key, mode):
+            return {
+                "id": f"community-gear:mage:arcane:{hero_key}",
+                "classKey": "mage",
+                "specKey": "arcane",
+                "heroKey": hero_key,
+                "talentWinnerId": f"talent-{hero_key}",
+                "gearProjectionMode": mode,
+                "sourceKey": "raiderio_observed_profile",
+                "sourceStatus": "synced",
+                "status": "complete",
+                "sourceUrl": f"https://raider.io/characters/cn/realm/{hero_key}",
+                "sampleCount": 1,
+                "scanRunId": f"scan-{hero_key}",
+                "readySlotCount": 16,
+                "missingSlots": [],
+                "gearItems": [{"slot": "head", "itemId": "540101", "simcReady": True}],
+                "payload": {
+                    "profileHash": f"profile:{hero_key}",
+                    "gearHash": f"gear:{hero_key}",
+                    "character": {"name": hero_key, "region": "cn", "realmSlug": "realm"},
+                },
+            }
+
+        selected = select_public_gear_templates_for_spec(
+            [projection("sunfury", "talent_winner"), projection("spellslinger", "gear_fallback")],
+            "mage",
+            "arcane",
+            legality_gate=lambda template, _class_key, _spec_key: template,
+        )
+
+        self.assertEqual(
+            [(template["heroKey"], template["gearProjectionMode"]) for template in selected["communityTemplates"]],
+            [("spellslinger", "gear_fallback"), ("sunfury", "talent_winner")],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

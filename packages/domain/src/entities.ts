@@ -388,6 +388,9 @@ export interface CommunityTemplateReference {
   status?: string
   sourceStatus?: string
   canApplyVisual?: boolean
+  canApplyGear?: boolean
+  talentWinnerId?: string
+  gearProjectionMode?: 'talent_winner' | 'gear_fallback' | string
   playerName?: string
   serverName?: string
   region?: string

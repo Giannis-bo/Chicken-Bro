@@ -25,6 +25,7 @@ import {
   type BuildTemplate,
   type BuildsDetailPayload,
   type BuildsHomePayload,
+  type CommunityTemplateReference,
   type GearItemReference,
   type GearEnhancementSelection,
   type GearResolvedSnapshot,
@@ -38,9 +39,10 @@ import {
 import {
   defaultSpecId,
   findSpecSelection,
+  resolveBuildsHomeLaunch,
   type SpecSelection,
 } from '../_shared/build-context'
-import { rememberBuildsHomeSpec } from '../_shared/build-context-storage'
+import { rememberBuildsHomeSpec, selectBuildsHomeClass } from '../_shared/build-context-storage'
 import {
   goBack,
   safeDecode,
@@ -52,9 +54,14 @@ import {
   gearEnhancementOptions,
   gearReadiness,
   gearSlots,
-  templateGearItems,
 } from './gear-detail-model'
 import { GearRequestFence } from './gear-request-fence'
+import {
+  communityGearTemplateOptions,
+  savedGearTemplateOptions,
+  serializeGearTemplateDraft,
+  type GearTemplateDraft,
+} from './gear-template-import-model'
 import styles from './gear-detail.module.scss'
 
 interface GearPagePayload {
@@ -83,23 +90,17 @@ type ResolveSelectionResult =
   | { status: 'failed' }
   | { status: 'stale' }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
+type GearImportSelection =
+  | { kind: 'community'; template: CommunityTemplateReference; label: string }
+  | { kind: 'saved'; draft: GearTemplateDraft; label: string }
+
+interface GearImportSource {
+  label: string
+  options: readonly GearImportSelection[]
 }
 
-function parseSavedTemplate(template: BuildTemplate | undefined): Readonly<Record<string, GearItemReference>> | null {
-  if (!template) return null
-  try {
-    const parsed: unknown = JSON.parse(template.rawString)
-    if (!isRecord(parsed)) return null
-    const result: Record<string, GearItemReference> = {}
-    for (const [slot, item] of Object.entries(parsed)) {
-      if (isRecord(item) && (item['itemId'] || item['id'])) result[slot] = item as GearItemReference
-    }
-    return Object.keys(result).length ? result : null
-  } catch {
-    return null
-  }
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 function emptyEnhancementSelection(): GearEnhancementSelection {
@@ -160,6 +161,7 @@ export default function GearDetailPage() {
   const [stats, setStats] = useState<StatsState>({ loading: false })
   const [dirty, setDirty] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [savedTemplates, setSavedTemplates] = useState<readonly BuildTemplate[]>([])
   const [workbenchNotice, setWorkbenchNotice] = useState('')
   const selectionChanged = useRef(false)
   const candidateRequestId = useRef(0)
@@ -227,6 +229,7 @@ export default function GearDetailPage() {
     setEnhancements({})
     setCanonical({ loading: false })
     setStats({ loading: false, payload: route.data.gear.statSnapshot })
+    setSavedTemplates(route.data.templates.filter((template) => template.type === 'gear'))
     setDirty(false)
   }, [route.data])
 
@@ -245,16 +248,20 @@ export default function GearDetailPage() {
   }, [resolvedClassKey, resolvedSpecId])
 
   const initialLoading = route.state.state === 'loading' && !data
-  const selectedClass = data?.selection.classItem
-  const classItems: readonly GearProfessionItem[] = selectedClass ? [{
-    id: data?.selection.specId || selectedClass.websimClassKey || selectedClass.name,
-    label: selectedClass.name,
-    selected: true,
-    ...(selectedClass.iconUrl ? { iconUrl: selectedClass.iconUrl } : {}),
-  }] : []
+  const classItems: readonly GearProfessionItem[] = (data?.home.classOptions ?? [])
+    .filter((classItem) => Boolean(classItem.websimClassKey) && classItem.specializations.length > 0)
+    .map((classItem) => ({
+      id: classItem.websimClassKey,
+      label: classItem.name,
+      selected: classItem.websimClassKey === data?.selection.classKey,
+      ...(classItem.iconUrl ? { iconUrl: classItem.iconUrl } : {}),
+    }))
+  const selectedClassIndex = Math.max(0, classItems.findIndex((item) => item.selected))
+  const selectedClassLabel = classItems[selectedClassIndex]?.label ?? ''
   const specItems: readonly GearSpecializationItem[] = (data?.selection.classItem.specializations ?? []).map((spec) => ({
     id: spec.id || spec.specId || '',
     label: spec.specName || spec.title || spec.name,
+    ...(spec.specIconUrl || spec.iconUrl ? { iconUrl: spec.specIconUrl || spec.iconUrl } : {}),
   })).filter((item) => item.id)
   const selectedSpecIndex = Math.max(0, specItems.findIndex((item) => item.id === data?.selection.specId))
   const selectedSpecLabel = data?.selection.spec.specName || data?.selection.spec.title || data?.selection.spec.name || ''
@@ -298,9 +305,17 @@ export default function GearDetailPage() {
     && stats.payload?.statStatus === 'verified'
     && !dirty,
   )
-  const communityTemplate = data?.gear.communityTemplates.find((template) => Boolean(templateGearItems(template)))
-  const savedTemplate = data?.templates.find((template) => Boolean(parseSavedTemplate(template)))
-  const importAvailable = Boolean(communityTemplate || savedTemplate)
+  const communityTemplateOptions = communityGearTemplateOptions(data?.gear.communityTemplates ?? [])
+  const savedTemplateOptions = savedGearTemplateOptions(savedTemplates, data?.selection.classKey ?? '', data?.selection.specKey ?? '')
+  const importAvailable = Boolean(communityTemplateOptions.length || savedTemplateOptions.length)
+
+  const selectProfession = (item: GearProfessionItem) => {
+    if (!data || item.selected) return
+    const nextContext = selectBuildsHomeClass(item.id)
+    const launch = resolveBuildsHomeLaunch(data.home, nextContext)
+    if (!launch || launch.selection.specId === data.selection.specId) return
+    setSelectedSpecId(launch.selection.specId)
+  }
 
   const resolveSelection = async (
     nextEquipped: Readonly<Record<string, GearItemReference>>,
@@ -472,7 +487,7 @@ export default function GearDetailPage() {
         className: data.selection.classItem.name,
         specKey: data.selection.specKey,
         specName: data.selection.spec.specName || data.selection.spec.name,
-        rawString: JSON.stringify(equipped),
+        rawString: serializeGearTemplateDraft({ gearBySlot: equipped, enhancementBySlot: enhancements }),
         status: readiness.readyCount === readiness.requiredCount && statsReady ? 'complete' : 'partial',
         source: '装备工作台',
         metadata: {
@@ -483,6 +498,7 @@ export default function GearDetailPage() {
           statSnapshot: statsReady ? stats.payload ?? {} : {},
         },
       })
+      setSavedTemplates(result.payload.templates.filter((template) => template.type === 'gear'))
       await Taro.showToast({ title: result.payload.template ? '装备模板已保存' : '保存失败', icon: 'none' })
     } finally {
       setSaving(false)
@@ -490,16 +506,33 @@ export default function GearDetailPage() {
   }
 
   const importTemplate = async () => {
+    const importSources: readonly GearImportSource[] = [
+      ...(communityTemplateOptions.length ? [{
+        label: `社区高端玩家模板（${communityTemplateOptions.length}）`,
+        options: communityTemplateOptions.map((option) => ({ kind: 'community' as const, ...option })),
+      }] : []),
+      ...(savedTemplateOptions.length ? [{
+        label: `已保存模板（${savedTemplateOptions.length}）`,
+        options: savedTemplateOptions.map((option) => ({ kind: 'saved' as const, ...option })),
+      }] : []),
+    ]
+    const source = await chooseActionSheetEntry(importSources, (entry) => entry.label)
+    if (!source) return
+    const selected = await chooseActionSheetEntry(source.options, (entry) => entry.label)
+    if (!selected) return
+    const selection: GearImportSelection = selected
     const importToken = requestFence.current.beginImport()
     let imported: Readonly<Record<string, GearItemReference>> | null = null
     let importedSnapshot: GearResolvedSnapshot | undefined
     let importedIntent: GearSelectionIntent | undefined
     let importedEnhancements: Readonly<Record<string, GearEnhancementSelection>> = {}
-    if (communityTemplate?.id && data) {
+    if (selection.kind === 'community' && data) {
+      const templateId = selection.template.id
+      if (!templateId) return
       const result = await wowApi.websim.communityTemplateImport({
         classKey: data.selection.classKey,
         specKey: data.selection.specKey,
-        templateId: communityTemplate.id,
+        templateId,
         ...(data.gear.manifestRevision ? { expectedManifestRevision: data.gear.manifestRevision } : {}),
       })
       if (!requestFence.current.isImportCurrent(importToken)) return
@@ -527,7 +560,9 @@ export default function GearDetailPage() {
         return
       }
     } else {
-      imported = parseSavedTemplate(savedTemplate)
+      const draft = selection.kind === 'saved' ? selection.draft : null
+      imported = draft?.gearBySlot ?? null
+      importedEnhancements = draft?.enhancementBySlot ?? {}
     }
     if (!imported) {
       void Taro.showToast({ title: '没有可导入的真实装备模板', icon: 'none' })
@@ -552,23 +587,23 @@ export default function GearDetailPage() {
     } else {
       void resolveSelection(imported, importedEnhancements)
     }
-    setWorkbenchNotice(communityTemplate ? '已原子导入来源模板' : '已导入已保存模板并重新校验')
+    setWorkbenchNotice(selection.kind === 'community' ? '已原子导入来源模板' : '已导入已保存模板并重新校验')
   }
 
   const reset = () => {
-    const initial = data?.gear.equippedSet ?? {}
-    const firstSlot = data?.gear.slots[0]?.slot ?? ''
-    const group = data?.gear.replacementCandidates.find((item) => item.slot === firstSlot)
+    const hadSelection = readiness.selectedCount > 0
     requestFence.current.replaceDraft()
     candidateRequestId.current += 1
-    setEquipped(initial)
-    setSelectedSlot(firstSlot)
+    setEquipped({})
+    setSelectedSlot('')
     setCandidateOpen(false)
-    setCandidates(group?.items ?? [])
+    setCandidates([])
+    setCandidateLoading(false)
     setEnhancements({})
     setCanonical({ loading: false })
-    setStats(data ? { loading: false, payload: data.gear.statSnapshot } : { loading: false })
-    setDirty(false)
+    setStats({ loading: false })
+    setDirty(hadSelection)
+    setWorkbenchNotice(hadSelection ? '已清空当前全部装备配置' : '')
   }
 
   const actions: readonly GearActionItem[] = route.state.state === 'error' && !data
@@ -580,7 +615,7 @@ export default function GearDetailPage() {
     : [
         { id: 'save', label: '保存模板', tone: 'gold', disabled: !readiness.selectedCount, loading: saving, onClick: () => void saveTemplate() },
         { id: 'import', label: '导入', tone: 'blue', disabled: !importAvailable, onClick: () => void importTemplate() },
-        { id: 'reset', label: '重置', tone: 'metal', disabled: !data || (!dirty && !readiness.selectedCount), onClick: reset },
+        { id: 'reset', label: '重置', tone: 'metal', disabled: !data || !readiness.selectedCount, onClick: reset },
       ]
 
   if (queryMode !== 'gear') {
@@ -618,7 +653,13 @@ export default function GearDetailPage() {
               />
             ) : null}
             <RouteRegion className={styles['professionRegion'] ?? ''} data-region="profession_selector">
-              <GearProfessionSelector items={classItems} loading={initialLoading} />
+              <GearProfessionSelector
+                items={classItems}
+                loading={initialLoading}
+                selectedIndex={selectedClassIndex}
+                value={selectedClassLabel}
+                onSelect={selectProfession}
+              />
             </RouteRegion>
             <RouteRegion className={styles['specializationRegion'] ?? ''} data-region="specialization_selector">
               <GearSpecializationSelector

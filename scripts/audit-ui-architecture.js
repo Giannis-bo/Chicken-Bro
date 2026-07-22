@@ -1375,7 +1375,6 @@ const selectedStateOwners = [
   ['packages/design-system/src/components/ChannelDock.tsx', 'channel-segment'],
   ['packages/design-system/src/components/NewsDetailComponents.tsx', 'news-detail-translation-segment'],
   ['packages/design-system/src/components/NewsListComponents.tsx', 'news-list-category'],
-  ['packages/design-system/src/components/GearDetailComponents.tsx', 'gear-profession-option'],
   ['packages/design-system/src/components/GearDetailComponents.tsx', 'gear-slot-row'],
   ['packages/design-system/src/components/GearDetailComponents.tsx', 'gear-enhancement-option'],
   ['packages/design-system/src/components/TalentSimulatorComponents.tsx', 'talent-tree-tab'],
@@ -2074,9 +2073,9 @@ record(
 record(
   'single_screen_route_terminals_reserve_wechat_viewport_space',
   /\.body\s*\{[^}]*height:\s*256\.6px;/su.test(viewportFitStyles.newsDetail)
-    && /\.loadoutSummaryRegion\s*\{[^}]*top:\s*61px;[^}]*height:\s*163px;/su.test(viewportFitStyles.gearDetail)
-    && /\.enhancementRegion\s*\{[^}]*top:\s*230px;[^}]*height:\s*44px;/su.test(viewportFitStyles.gearDetail)
-    && /\.workbenchRegion\s*\{[^}]*top:\s*281px;[^}]*height:\s*413px;/su.test(viewportFitStyles.gearDetail)
+    && /\.loadoutSummaryRegion\s*\{[^}]*top:\s*47px;[^}]*height:\s*163px;/su.test(viewportFitStyles.gearDetail)
+    && /\.enhancementRegion\s*\{[^}]*top:\s*216px;[^}]*height:\s*44px;/su.test(viewportFitStyles.gearDetail)
+    && /\.workbenchRegion\s*\{[^}]*top:\s*267px;[^}]*height:\s*427px;/su.test(viewportFitStyles.gearDetail)
     && /\.actionsRegion\s*\{[^}]*top:\s*700px;[^}]*height:\s*40px;/su.test(viewportFitStyles.gearDetail)
     && !/\.statusRegion\s*\{/su.test(viewportFitStyles.gearDetail)
     && !/\.readinessRegion\s*\{/su.test(viewportFitStyles.gearDetail)

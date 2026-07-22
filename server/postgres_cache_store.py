@@ -130,7 +130,9 @@ try:
         normalize_community_gear_template,
         normalize_community_talent_template,
         observed_gear_simc_options,
+        observed_profile_gear_templates,
         observed_profile_race_key,
+        observed_profile_source_identity,
         observed_variant_stat_identity_key,
         observed_variant_stat_payload_fields,
         pending_community_gear_template,
@@ -223,7 +225,9 @@ except ImportError:
         normalize_community_gear_template,
         normalize_community_talent_template,
         observed_gear_simc_options,
+        observed_profile_gear_templates,
         observed_profile_race_key,
+        observed_profile_source_identity,
         observed_variant_stat_identity_key,
         observed_variant_stat_payload_fields,
         pending_community_gear_template,
@@ -956,6 +960,31 @@ def _community_talent_candidate_weight(template, signature_support=1):
     )
 
 
+def _community_talent_projection_candidate(template, talent_candidate_rank):
+    """Persist the source-order facts needed for gear-only fallback election."""
+
+    template = template if isinstance(template, dict) else {}
+    payload = _community_talent_payload(template)
+    raiderio = payload.get("raiderio") if isinstance(payload.get("raiderio"), dict) else {}
+    source_identity = str(
+        template.get("sourceIdentity")
+        or payload.get("sourceIdentity")
+        or raiderio.get("sourceIdentity")
+        or ""
+    ).strip()
+    return {
+        "candidateId": str(template.get("id") or "").strip(),
+        "classKey": str(template.get("classKey") or "").strip(),
+        "specKey": str(template.get("specKey") or "").strip(),
+        "heroKey": str(template.get("heroKey") or "").strip(),
+        "scenarioKey": str(template.get("scenarioKey") or "mythic_plus").strip(),
+        "sourceKey": str(template.get("sourceKey") or "").strip(),
+        "sourceStatus": str(template.get("sourceStatus") or "").strip(),
+        "sourceIdentity": source_identity,
+        "talentCandidateRank": int(talent_candidate_rank),
+    }
+
+
 def _with_community_talent_promotion_payload(template, role, promotion_status, slot_key, candidate_count, signature_support, reason, winner_id=""):
     promoted = copy.deepcopy(template)
     payload = dict(promoted.get("payload") or {})
@@ -1026,6 +1055,14 @@ def promote_community_talent_template_inventory(templates):
             key=lambda row: _community_talent_candidate_weight(row, signature_support.get(_community_talent_signature(row), 1)),
             reverse=True,
         )[0]
+        ordered_verified_candidates = sorted(
+            [row for row in active_pool if row.get("status") == "verified"],
+            key=lambda row: _community_talent_candidate_weight(
+                row,
+                signature_support.get(_community_talent_signature(row), 1),
+            ),
+            reverse=True,
+        )
         winner_signature = _community_talent_signature(winner)
         same_signature_rows = signature_rows.get(winner_signature) or [winner]
         merged_refs = []
@@ -1040,6 +1077,12 @@ def promote_community_talent_template_inventory(templates):
         else:
             winner["sourceRefs"] = normalize_source_refs(merged_refs or winner.get("sourceRefs") or [])
         winner["dedupedCount"] = sum(max(1, int(row.get("dedupedCount") or 1)) for row in same_signature_rows)
+        winner_payload = dict(winner.get("payload") or {})
+        winner_payload["gearProjectionCandidates"] = [
+            _community_talent_projection_candidate(candidate, index)
+            for index, candidate in enumerate(ordered_verified_candidates, start=1)
+        ]
+        winner["payload"] = winner_payload
         winner_id = str(winner.get("id") or "")
         promoted_identities.add((slot_key, winner_id))
         promoted_templates.append(
@@ -2919,8 +2962,6 @@ class PostgresCacheStore:
                 for class_key, spec_key in sorted(gear_public_contract.REAL_PLAYER_GEAR_TEMPLATE_PILOT_SPECS):
                     observed_template_id = gear_public_contract.real_player_gear_template_observed_template_id(class_key, spec_key)
                     observed_profile_url = gear_public_contract.real_player_gear_template_observed_profile_url(class_key, spec_key)
-                    observed_display_name = gear_public_contract.real_player_gear_template_observed_display_name(class_key, spec_key)
-                    observed_source_name = gear_public_contract.real_player_gear_template_observed_source_name(class_key, spec_key)
                     recommended_display_name = gear_public_contract.real_player_gear_template_recommended_display_name(class_key, spec_key)
                     recommended_source_name = gear_public_contract.real_player_gear_template_recommended_source_name(class_key, spec_key)
                     cur.execute(
@@ -2936,52 +2977,11 @@ class PostgresCacheStore:
                     counts["legacyTemplateRowsDeleted"] += deleted
                     counts["communityTemplateRowsDeleted"] += deleted
 
-                    if observed_template_id:
-                        cur.execute(
-                            """
-                            DELETE FROM cache.websim_community_gear_templates
-                            WHERE class_key = %s
-                              AND spec_key = %s
-                              AND source_key = 'raiderio_observed_profile'
-                              AND id <> %s
-                            """,
-                            (class_key, spec_key, observed_template_id),
-                        )
-                        deleted = max(0, int(cur.rowcount or 0))
-                        counts["duplicateObservedTemplateRowsDeleted"] += deleted
-                        counts["communityTemplateRowsDeleted"] += deleted
-                        if observed_display_name or observed_source_name:
-                            cur.execute(
-                                """
-                                UPDATE cache.websim_community_gear_templates
-                                SET name = COALESCE(NULLIF(%s, ''), name),
-                                    source_name = COALESCE(NULLIF(%s, ''), source_name),
-                                    updated_at = %s,
-                                    scan_run_id = %s
-                                WHERE class_key = %s
-                                  AND spec_key = %s
-                                  AND source_key = 'raiderio_observed_profile'
-                                  AND id = %s
-                                  AND (
-                                      (%s <> '' AND COALESCE(name, '') <> %s)
-                                      OR (%s <> '' AND COALESCE(source_name, '') <> %s)
-                                  )
-                                """,
-                                (
-                                    observed_display_name,
-                                    observed_source_name,
-                                    checked_at,
-                                    scan_run_id or checked_at,
-                                    class_key,
-                                    spec_key,
-                                    observed_template_id,
-                                    observed_display_name,
-                                    observed_display_name,
-                                    observed_source_name,
-                                    observed_source_name,
-                                ),
-                            )
-                            counts["renamedTemplateRows"] += max(0, int(cur.rowcount or 0))
+                    # The original elemental-shaman pilot owned a single
+                    # observed profile and deleted every other observed player
+                    # for that spec.  Community gear projection now reuses the
+                    # Talent winner candidate set, so those rows are distinct
+                    # legal fallback sources, not duplicate residue.
 
                     cur.execute(
                         """
@@ -3052,20 +3052,6 @@ class PostgresCacheStore:
                         )
                         counts["renamedTemplateRows"] += max(0, int(cur.rowcount or 0))
 
-                    cur.execute(
-                        """
-                        DELETE FROM cache.websim_gear_variants
-                        WHERE source_type = 'observed_profile'
-                          AND COALESCE(payload_json->>'classKey', '') = %s
-                          AND COALESCE(payload_json->>'specKey', '') = %s
-                          AND NOT (
-                              COALESCE(NULLIF(payload_json->>'profileUrl', ''), NULLIF(payload_json->>'sourceUrl', ''), '') = %s
-                              OR COALESCE(payload_json->>'characterName', '') = '听凭风引'
-                          )
-                        """,
-                        (class_key, spec_key, observed_profile_url),
-                    )
-                    counts["observedVariantRowsDeleted"] += max(0, int(cur.rowcount or 0))
                     counts["observedVariantRowsBackfilled"] += self._backfill_real_player_observed_variants_from_template(
                         cur,
                         class_key,
@@ -4358,6 +4344,7 @@ class PostgresCacheStore:
         if not class_key or not spec_key or not trusted_stats:
             return None
         ranking_evidence = variant_payload.get("rankingEvidence") if isinstance(variant_payload.get("rankingEvidence"), dict) else {}
+        source_identity = observed_profile_source_identity(variant_payload)
         item = {
             **(item_payload if isinstance(item_payload, dict) else {}),
             **(variant_payload if isinstance(variant_payload, dict) else {}),
@@ -4395,6 +4382,7 @@ class PostgresCacheStore:
                     "fetchedAt": variant_payload.get("fetchedAt") or "",
                     "scanRunId": variant_payload.get("scanRunId") or variant_payload.get("scan_run_id") or "",
                     **({"rankingEvidence": ranking_evidence} if ranking_evidence else {}),
+                    **({"sourceIdentity": source_identity} if source_identity else {}),
                     "updatedAt": str(updated_at or ""),
                 }
             ],
@@ -4497,6 +4485,42 @@ class PostgresCacheStore:
                 add_profile(profile, inherited)
         return candidates
 
+    @staticmethod
+    def _distinct_observed_community_templates(templates):
+        """Keep one current template per observed Raider.IO character, never per spec."""
+
+        selected = {}
+        for template in templates or []:
+            if not isinstance(template, dict):
+                continue
+            class_key = slugify(template.get("classKey"), "")
+            spec_key = slugify(template.get("specKey"), "")
+            source_identity = observed_profile_source_identity(template)
+            template_id = str(template.get("id") or "").strip()
+            if not class_key or not spec_key:
+                continue
+            key = (class_key, spec_key, source_identity or f"legacy:{template_id}")
+            current = selected.get(key)
+            if current is None or (
+                str(template.get("updatedAt") or ""),
+                int(template.get("readySlotCount") or 0),
+                template_id,
+            ) > (
+                str(current.get("updatedAt") or ""),
+                int(current.get("readySlotCount") or 0),
+                str(current.get("id") or ""),
+            ):
+                selected[key] = template
+        return sorted(
+            selected.values(),
+            key=lambda template: (
+                slugify(template.get("classKey"), ""),
+                slugify(template.get("specKey"), ""),
+                observed_profile_source_identity(template),
+                str(template.get("id") or ""),
+            ),
+        )
+
     def _raiderio_observed_profile_items(self, profile, fetched_at="", scan_run_id="", stat_payloads=None):
         if not isinstance(profile, dict):
             return []
@@ -4510,6 +4534,7 @@ class PostgresCacheStore:
         if not (class_key and spec_key and profile_url and character_name and region and realm_slug and gear):
             return []
         ranking_evidence = profile.get("rankingEvidence") if isinstance(profile.get("rankingEvidence"), dict) else {}
+        source_identity = observed_profile_source_identity(profile)
         source_ref = {
             "sourceType": "observed_profile",
             "sourceName": profile.get("sourceName") or "Raider.IO observed profile",
@@ -4525,6 +4550,8 @@ class PostgresCacheStore:
             "scanRunId": scan_run_id or profile.get("scanRunId") or "",
             "maxKeyLevel": profile.get("maxKeyLevel") or (ranking_evidence or {}).get("maxKeyLevel") or 0,
         }
+        if source_identity:
+            source_ref["sourceIdentity"] = source_identity
         race_key = observed_profile_race_key(profile.get("raceKey"))
         if race_key:
             source_ref["raceKey"] = race_key
@@ -4605,7 +4632,7 @@ class PostgresCacheStore:
             with self.connection() as conn:
                 with conn.cursor() as cur:
                     official_metadata_by_id = self._official_item_metadata_by_id(cur, all_items)
-        templates_by_spec = {}
+        templates = []
         for profile, items in profile_items:
             class_key = slugify(profile.get("classKey"), "")
             spec_key = slugify(profile.get("specKey"), "")
@@ -4621,30 +4648,13 @@ class PostgresCacheStore:
                     else item
                     for item in items
                 ]
-            template = gear_community_template_from_observed_items(
-                items,
-                class_key,
-                spec_key,
-                source_profile=profile,
-            )
-            if not template:
-                continue
-            gated_template = apply_gear_template_legality_gate(template, class_key, spec_key)
-            if scan_run_id:
-                gated_template = {**gated_template, "scanRunId": scan_run_id}
-            if not is_active_community_observed_template(gated_template):
-                continue
-            gated_template = {
-                **gated_template,
-                "id": f"observed_profile_{class_key}_{spec_key}",
-            }
-            templates_by_spec.setdefault((class_key, spec_key), []).append(gated_template)
-        templates = []
-        for (class_key, spec_key), candidates in templates_by_spec.items():
-            selected = select_community_best_gear_templates(candidates, class_key, spec_key)
-            if selected and is_active_community_observed_template(selected[0]):
-                templates.append(selected[0])
-        return templates
+            for template in observed_profile_gear_templates(items, class_key, spec_key):
+                gated_template = apply_gear_template_legality_gate(template, class_key, spec_key)
+                if scan_run_id:
+                    gated_template = {**gated_template, "scanRunId": scan_run_id}
+                if is_active_community_observed_template(gated_template):
+                    templates.append(gated_template)
+        return self._distinct_observed_community_templates(templates)
 
     def _build_observed_community_gear_templates(self, scan_run_id=""):
         with self.connection() as conn:
@@ -4699,30 +4709,26 @@ class PostgresCacheStore:
                 items_by_spec = hydrated_by_spec
         templates = []
         for (class_key, spec_key), items in items_by_spec.items():
-            profile_templates = []
-            items_by_profile = {}
-            for item in items:
-                profile_url = _observed_item_profile_url(item)
-                if profile_url:
-                    items_by_profile.setdefault(profile_url, []).append(item)
-            for profile_items in items_by_profile.values():
-                template = gear_community_template_from_observed_items(profile_items, class_key, spec_key)
+            profile_templates = observed_profile_gear_templates(items, class_key, spec_key)
+            if not profile_templates:
+                items_by_profile = {}
+                for item in items:
+                    profile_url = _observed_item_profile_url(item)
+                    if profile_url:
+                        items_by_profile.setdefault(profile_url, []).append(item)
+                profile_templates = [
+                    gear_community_template_from_observed_items(profile_items, class_key, spec_key)
+                    for profile_items in items_by_profile.values()
+                ]
+            for template in profile_templates:
                 if not template:
                     continue
                 gated_template = apply_gear_template_legality_gate(template, class_key, spec_key)
                 if scan_run_id:
                     gated_template = {**gated_template, "scanRunId": scan_run_id}
                 if is_active_community_observed_template(gated_template):
-                    gated_template = {
-                        **gated_template,
-                        "id": f"observed_profile_{class_key}_{spec_key}",
-                    }
-                    profile_templates.append(gated_template)
-            if profile_templates:
-                template = select_community_best_gear_templates(profile_templates, class_key, spec_key)[0]
-                if is_active_community_observed_template(template):
-                    templates.append({**template, "scanRunId": scan_run_id})
-        return templates
+                    templates.append(gated_template)
+        return self._distinct_observed_community_templates(templates)
 
     def build_community_gear_templates(self, scan_run_id=""):
         with self.connection() as conn:
@@ -4771,9 +4777,7 @@ class PostgresCacheStore:
             if class_key and spec_key:
                 observed_by_spec.setdefault((class_key, spec_key), []).append(template)
         for (class_key, spec_key), candidates in observed_by_spec.items():
-            selected = select_community_best_gear_templates(candidates, class_key, spec_key)
-            if selected and is_active_community_observed_template(selected[0]):
-                templates.append(selected[0])
+            templates.extend(self._distinct_observed_community_templates(candidates))
         return dedupe_gear_community_templates(templates)
 
     def _season_recommended_talent_anchor(self, class_key, spec_key):
@@ -5870,6 +5874,7 @@ class PostgresCacheStore:
                 break
             profile_count += 1
             profile_ref = profile.get("profileUrl") or profile.get("url") or profile.get("name") or ""
+            source_identity = observed_profile_source_identity(profile)
             ranking_evidence = profile.get("rankingEvidence") if isinstance(profile.get("rankingEvidence"), dict) else {}
             profile_simc_gear = simc_json_gear_stats_by_slot(profile)
             profile_simc_replay = simc_json_player_result_summary(profile)
@@ -5923,6 +5928,7 @@ class PostgresCacheStore:
                     "realmSlug": profile.get("realmSlug") or "",
                     "classKey": profile.get("classKey") or item.get("classKey") or "",
                     "specKey": profile.get("specKey") or item.get("specKey") or "",
+                    **({"sourceIdentity": source_identity} if source_identity else {}),
                 }
                 if ranking_evidence:
                     row["rankingEvidence"] = ranking_evidence

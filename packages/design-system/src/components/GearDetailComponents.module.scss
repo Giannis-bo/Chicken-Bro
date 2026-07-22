@@ -55,12 +55,14 @@
 .trustedImage[data-loaded='true'],
 .trustedImageVisible { opacity: 1; }
 
-.professionOwner {
+.professionOwner,
+.specializationOwner {
   display: grid;
   width: 100%;
   height: 100%;
-  grid-template-rows: 12px minmax(0, 1fr);
-  gap: 2px;
+  grid-template-columns: 22px minmax(0, 1fr);
+  align-items: center;
+  gap: 4px;
 }
 
 .fieldLabel {
@@ -71,73 +73,23 @@
   line-height: 11px;
 }
 
-.professionScroll { width: 100%; height: 32px; }
-.professionTrack { display: flex; width: max-content; min-width: 100%; height: 32px; align-items: center; justify-content: flex-start; gap: 4px; }
-.professionButton {
-  position: relative;
-  display: grid;
-  width: 174px;
-  min-width: 0;
-  height: 30px;
-  min-height: 30px;
-  grid-template-columns: 30px minmax(0, 1fr);
-  align-items: center;
-  justify-items: start;
-  gap: 7px;
-  margin: 0;
-  padding: 0;
-  overflow: visible;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-}
-.professionButton::after { display: none; }
-.professionMedia {
-  width: 30px;
-  height: 30px;
-  border: 2px solid #746246;
-  border-radius: 50%;
-  box-shadow: inset 0 0 0 2px #07090b, inset 0 0 0 4px rgba(100, 73, 39, 0.38), 0 2px 5px rgba(0, 0, 0, 0.56);
-}
-.professionName {
-  display: block;
-  max-width: 118px;
-  overflow: hidden;
-  color: #d5c19d;
-  font-size: 10px;
-  font-weight: 750;
-  line-height: 14px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.professionButton[data-active='true'] .professionMedia {
-  border-color: #dfb357;
-  box-shadow: inset 0 0 0 2px #171006, 0 0 7px rgba(230, 177, 72, 0.55);
-}
-.professionButton[data-loading='true'],
-.professionButtonLoading { opacity: 0.46; }
-.specializationOwner {
-  display: grid;
-  width: 100%;
-  height: 100%;
-  grid-template-rows: 12px minmax(0, 1fr);
-  gap: 2px;
-}
-
+.professionOwner > picker,
+.professionOwner > taro-picker-core,
 .specializationOwner > picker,
 .specializationOwner > taro-picker-core {
   width: 100%;
   min-width: 0;
 }
 
+.professionField,
 .specializationField {
   display: grid;
   width: 100%;
   height: 30px;
-  grid-template-columns: minmax(0, 1fr) 9px;
+  grid-template-columns: 22px minmax(0, 1fr) 9px;
   align-items: center;
   gap: 4px;
-  padding: 0 7px;
+  padding: 0 5px;
   border: 1px solid rgba(137, 105, 57, 0.82);
   border-radius: 0;
   clip-path: polygon(4px 0, calc(100% - 4px) 0, 100% 4px, 100% calc(100% - 4px), calc(100% - 4px) 100%, 4px 100%, 0 calc(100% - 4px), 0 4px);
@@ -147,7 +99,18 @@
   font-size: 9px;
   line-height: 12px;
 }
+.professionField > text,
 .specializationField > text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.professionPickerMedia,
+.specializationPickerMedia {
+  width: 22px;
+  height: 22px;
+  border: 1px solid #806944;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px #08090c;
+}
+.professionField[data-loading='true'],
+.professionFieldLoading,
 .specializationField[data-loading='true'],
 .specializationFieldLoading { color: #756f66; }
 .chevron { width: 0; height: 0; border-top: 5px solid #b99454; border-right: 4px solid transparent; border-left: 4px solid transparent; }
@@ -267,29 +230,27 @@
   z-index: 5;
   top: 8px;
   bottom: 7px;
-  display: flex;
-  width: 90px;
+  display: grid;
+  width: calc(50% - 9px);
   min-width: 0;
-  flex-direction: column;
-  gap: 3px;
+  grid-auto-rows: minmax(0, 1fr);
+  gap: 4px;
 }
 .slotColumnLeft { left: 6px; }
 .slotColumnRight { right: 6px; }
 .slotRow {
   position: relative;
   display: grid;
-  width: 90px;
-  max-width: 90px;
+  width: 100%;
   min-width: 0;
-  height: calc((100% - 21px) / 8);
+  height: auto;
   min-height: 0;
-  flex: 0 0 calc((100% - 21px) / 8);
-  grid-template-columns: 27px minmax(0, 1fr);
+  grid-template-columns: 36px minmax(0, 1fr);
   grid-template-areas: 'media copy';
   align-items: center;
-  gap: 3px;
+  gap: 5px;
   margin: 0;
-  padding: 2px 3px;
+  padding: 3px 5px;
   overflow: hidden;
   border: 1px solid rgba(102, 86, 62, 0.7);
   border-radius: 0;
@@ -303,36 +264,18 @@
 .slotRow[data-active='true'] { border-color: #d2a248; background: linear-gradient(180deg, #332816, #11100d); box-shadow: inset 0 0 0 1px #0c0904, 0 0 6px rgba(217, 164, 67, 0.24); }
 .slotRow[data-state='ready'],
 .slotRow-ready { color: #c8b58f; }
-.slotMedia { grid-area: media; width: 27px; height: 27px; border: 1px solid #806944; border-radius: 0; clip-path: polygon(3px 0, calc(100% - 3px) 0, 100% 3px, 100% calc(100% - 3px), calc(100% - 3px) 100%, 3px 100%, 0 calc(100% - 3px), 0 3px); }
+.slotMedia { grid-area: media; width: 36px; height: 36px; border: 1px solid #806944; border-radius: 0; clip-path: polygon(3px 0, calc(100% - 3px) 0, 100% 3px, 100% calc(100% - 3px), calc(100% - 3px) 100%, 3px 100%, 0 calc(100% - 3px), 0 3px); }
 .slotMedia .trustedFallback > view { width: 70%; height: 70%; color: #c5a86f; }
-.slotCopy { grid-area: copy; min-width: 0; padding-bottom: 5px; }
+.slotCopy { grid-area: copy; min-width: 0; padding-bottom: 7px; }
 .slotCopy > text { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.slotCopy > text:first-child { color: #c8b694; font-size: 8px; font-weight: 730; line-height: 10px; }
-.slotCopy > text:last-child { color: #85817a; font-size: 6px; line-height: 8px; }
+.slotCopy > text:first-child { color: #c8b694; font-size: 9px; font-weight: 730; line-height: 11px; }
+.slotCopy > text:last-child { color: #85817a; font-size: 7px; line-height: 9px; }
 .slotRow[data-state='ready'] .slotCopy > text:last-child,
 .slotRow-ready .slotCopy > text:last-child { color: #9b9386; }
-.slotLevel { position: absolute; right: 3px; bottom: 1px; max-width: 52px; overflow: hidden; color: #aa9062; font-size: 6px; line-height: 8px; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
-.slotRow[data-side='right'] { grid-template-columns: minmax(0, 1fr) 27px; grid-template-areas: 'copy media'; text-align: right; }
-.slotRow[data-side='right'] .slotLevel { right: auto; left: 3px; text-align: left; }
+.slotLevel { position: absolute; right: 5px; bottom: 2px; max-width: 94px; overflow: hidden; color: #aa9062; font-size: 7px; line-height: 9px; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
+.slotRow[data-side='right'] { grid-template-columns: minmax(0, 1fr) 36px; grid-template-areas: 'copy media'; text-align: right; }
+.slotRow[data-side='right'] .slotLevel { right: auto; left: 5px; text-align: left; }
 .slotRow[data-side='right'] .slotCopy { text-align: right; }
-
-.workbenchCenter {
-  position: absolute;
-  z-index: 4;
-  top: 8px;
-  right: 102px;
-  bottom: 7px;
-  left: 102px;
-  min-width: 0;
-  min-height: 0;
-  overflow: hidden;
-  border-right: 1px solid rgba(107, 86, 55, 0.24);
-  border-left: 1px solid rgba(107, 86, 55, 0.24);
-  background:
-    linear-gradient(90deg, rgba(10, 12, 15, 0.86), transparent 22% 78%, rgba(10, 12, 15, 0.86)),
-    radial-gradient(circle at 50% 42%, rgba(116, 92, 55, 0.2), transparent 54%);
-}
-.workbenchBackdrop { position: absolute; inset: 0; display: grid; align-content: center; justify-items: center; gap: 8px; color: #77756f; font-size: 7px; line-height: 10px; text-align: center; }
 .candidatePanel {
   position: absolute;
   z-index: 10;

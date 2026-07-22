@@ -13,12 +13,12 @@
     {
       "owner": "GearProfessionSelector",
       "regions": ["profession_selector"],
-      "responsibility": "real class selection with six visible circular sockets"
+      "responsibility": "left icon-bearing native class picker"
     },
     {
       "owner": "GearSpecializationSelector",
       "regions": ["specialization_selector"],
-      "responsibility": "real specialization picker"
+      "responsibility": "right icon-bearing native specialization picker limited to the selected class"
     },
     {
       "owner": "GearLoadoutSummary",
@@ -33,12 +33,12 @@
     {
       "owner": "GearSlotWorkbench",
       "regions": ["equipment_slots_panel"],
-      "responsibility": "sixteen slot rows and internal candidate/detail interaction"
+      "responsibility": "two equal-width auto-fill equipment slot columns and internal candidate/detail interaction"
     },
     {
       "owner": "GearActionRow",
       "regions": ["secondary_actions_row"],
-      "responsibility": "save, source-template import and reset"
+      "responsibility": "persist a complete versioned personal gear-and-enhancement draft; require an explicit saved/community source choice and an exact template choice for import; reset clears the current gear draft, enhancements and derived workbench state rather than restoring the initial loadout"
     },
     {
       "owner": "TrustedGearMedia",
@@ -49,7 +49,7 @@
   "rejectedReuse": [
     {
       "owner": "GearLoadout",
-      "reason": "the generic grid does not preserve the target left-center-right workbench composition"
+      "reason": "the generic grid does not preserve the fixed two-column equipment workbench composition"
     },
     {
       "owner": "RankedFeed",
@@ -75,13 +75,20 @@
       "excludedTargetElements": ["readiness_heading", "readiness_progress_rail"],
       "layoutRule": "loadout_summary_panel preserves the item-level emblem and attribute grid; enhancement_categories_bar and equipment_slots_panel retain their original vertical order, while the in-workbench primary action footprint remains available to slot content",
       "preservedBehavior": ["slot selection and candidate resolution remain backend-derived", "the secondary action row retains deterministic retry when the initial route load fails"]
+    },
+    {
+      "id": "gear_detail_full_width_slot_grid_20260722",
+      "supersededTargetElements": ["equipment_slots_panel centered empty-state illustration", "equipment_slots_panel center placeholder crest"],
+      "layoutRule": "equipment_slots_panel uses two equal-width auto-fill columns; every returned canonical slot occupies a full column row and no center placeholder is rendered",
+      "preservedBehavior": ["all canonical slot selection and candidate/detail interactions remain unchanged", "candidate detail continues to cover the same internal workbench surface"]
     }
   ],
   "layoutContract": {
     "baselineCssViewport": {"width": 390, "height": 826, "dpr": 2},
     "stableRegionCount": 8,
     "stableSlotCount": 16,
-    "visibleClassSocketCount": 6,
+    "slotGridLayout": "two equal-width auto-fill columns with no center placeholder; the returned slot count determines each column row height",
+    "identitySelectorLayout": "职业 + class picker + 专精 + specialization picker share one compact row; both picker fields include the selected real icon",
     "stableActionCount": 3,
     "candidateSurface": "internal to equipment_slots_panel",
     "pageScroll": "outer page is locked; candidate details scroll internally"
