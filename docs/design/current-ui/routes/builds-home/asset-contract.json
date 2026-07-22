@@ -99,6 +99,76 @@
       "productionStatus": "runtime_source_reference_only"
     },
     {
+      "slotId": "asset_slot.builds-evidence-medallions",
+      "owners": [
+        "BuildCommandDeck",
+        "BuildEvidenceNavigator"
+      ],
+      "semanticRole": "coordinated non-factual medallion family for talent, gear, simulation, and task evidence",
+      "sourceClass": "registered_raster",
+      "variants": [
+        "talents",
+        "gear",
+        "simc",
+        "tasks"
+      ],
+      "targetAspect": "1:1 contain inside the owner-owned circular medallion",
+      "factBearing": false,
+      "fallback": "registered utility glyph in the same medallion bounds when the raster cannot load",
+      "productionStatus": "generated_pending_isolated_review"
+    },
+    {
+      "slotId": "asset_slot.builds-workspace-medallion",
+      "owners": [
+        "BuildWorkspaceEntry"
+      ],
+      "semanticRole": "non-factual workspace readiness medallion",
+      "sourceClass": "registered_raster",
+      "variants": [
+        "default",
+        "blocked"
+      ],
+      "targetAspect": "1:1 contain inside the owner-owned circular medallion",
+      "factBearing": false,
+      "fallback": "registered utility glyph in the same medallion bounds when the raster cannot load",
+      "productionStatus": "generated_pending_isolated_review"
+    },
+    {
+      "slotId": "asset_slot.builds-workflow-medallions",
+      "owners": [
+        "BuildWorkflowTimeline"
+      ],
+      "semanticRole": "non-factual workflow phase medallion family",
+      "sourceClass": "registered_raster",
+      "variants": [
+        "input",
+        "validation",
+        "tracking"
+      ],
+      "targetAspect": "1:1 contain inside the owner-owned circular medallion",
+      "factBearing": false,
+      "fallback": "registered utility glyph in the same medallion bounds when the raster cannot load",
+      "productionStatus": "generated_pending_isolated_review"
+    },
+    {
+      "slotId": "asset_slot.builds-workflow-timeline",
+      "owners": [
+        "BuildWorkflowTimeline"
+      ],
+      "semanticRole": "non-factual workflow rail and state-node family",
+      "sourceClass": "registered_raster",
+      "variants": [
+        "rail",
+        "node-active",
+        "node-pending",
+        "node-inactive"
+      ],
+      "targetAspect": "owner bounds",
+      "factBearing": false,
+      "fallback": "CSS rail and registered utility glyphs",
+      "productionStatus": "generated_pending_isolated_review"
+    },
+    {
       "slotId": "asset_slot.builds-command-chevron",
       "owners": [
         "BuildToolCommandDeck"
