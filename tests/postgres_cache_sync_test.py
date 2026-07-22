@@ -567,6 +567,121 @@ class PostgresCacheSyncTest(unittest.TestCase):
         self.assertEqual(len(store.community_talent_templates), 1)
         self.assertEqual(store.community_talent_templates[0]["id"], "rio-fresh-rider")
 
+    def test_community_postgres_sync_captures_promoted_identity_outside_generic_profile_quota_before_gear_build(self):
+        from server import postgres_cache_sync, raiderio_payload
+
+        store = FakePostgresSyncStore()
+        store.raiderio_payload = {
+            "sourceStatus": "synced",
+            "status": "synced",
+            "checkedAt": "generic-profile-cache",
+            "profiles": [
+                {
+                    "name": "GenericQuotaWinner",
+                    "region": "cn",
+                    "realmSlug": "generic-realm",
+                    "classKey": "mage",
+                    "specKey": "frost",
+                    "gear": [{"slot": "head", "itemId": 1}],
+                }
+            ],
+            "profileCount": 1,
+        }
+        elected_identity = "raiderio:cn|isillien|electedwinner"
+        promoted = {
+            "id": "promoted-mage-frost-frostfire",
+            "sourceKey": "raiderio",
+            "sourceName": "Raider.IO",
+            "classKey": "mage",
+            "specKey": "frost",
+            "heroKey": "frostfire",
+            "scenarioKey": "mythic_plus",
+            "status": "verified",
+            "payload": {
+                "gearProjectionCandidates": [
+                    {
+                        "candidateId": "elected-mage-frost-frostfire",
+                        "classKey": "mage",
+                        "specKey": "frost",
+                        "heroKey": "frostfire",
+                        "scenarioKey": "mythic_plus",
+                        "sourceKey": "raiderio",
+                        "sourceIdentity": elected_identity,
+                        "talentCandidateRank": 1,
+                    }
+                ]
+            },
+        }
+        fetch_calls = []
+        build_observations = []
+
+        def fake_replace(_templates, scan_run_id="", include_details=False, target_slot_ids=None):
+            store.coverage_rows = [promoted]
+            return {
+                "total": 1,
+                "verified": 1,
+                "partial": 0,
+                "blocked": 0,
+                "promotedTemplates": [promoted],
+            }
+
+        def fake_fetch(character, fields):
+            fetch_calls.append((dict(character), fields))
+            return {
+                "name": "ElectedWinner",
+                "region": "cn",
+                "realmSlug": "isillien",
+                "classKey": "mage",
+                "specKey": "frost",
+                "profileUrl": "https://raider.io/characters/cn/isillien/electedwinner",
+                "gear": [{"slot": "head", "itemId": 222001}],
+            }
+
+        def fake_build_gear_templates(scan_run_id=""):
+            build_observations.append(
+                {
+                    "profiles": list(store.raiderio_payload.get("profiles") or []),
+                    "backfillCount": len(store.observed_backfills),
+                }
+            )
+            return []
+
+        store.replace_community_talent_templates = fake_replace
+        store.build_community_gear_templates = fake_build_gear_templates
+        source_results = {
+            "raiderio": {
+                "status": "verified",
+                "sourceName": "Raider.IO",
+                "templates": [promoted],
+                "errors": [],
+            },
+            "warcraftlogs": {"status": "partial", "sourceName": "Warcraft Logs", "templates": [], "errors": []},
+        }
+
+        with patch.object(
+            postgres_cache_sync,
+            "load_community_talent_sources_postgres",
+            return_value=source_results,
+        ), patch.object(
+            raiderio_payload,
+            "fetch_profile_for_character",
+            side_effect=fake_fetch,
+        ):
+            payload = postgres_cache_sync.sync_community_template_cache_postgres(
+                store=store,
+                refresh_raiderio=False,
+            )
+
+        self.assertEqual(fetch_calls[0][0]["sourceIdentity"], elected_identity)
+        self.assertEqual(fetch_calls[0][1], "gear")
+        self.assertEqual(store.raiderio_payload["profiles"][0]["name"], "ElectedWinner")
+        self.assertEqual(store.raiderio_payload["profileCount"], 2)
+        self.assertEqual(store.raiderio_payload["gearProjectionProfileCapture"]["requestedIdentityCount"], 1)
+        self.assertEqual(store.observed_backfills[0]["payload"]["profiles"][0]["name"], "ElectedWinner")
+        self.assertEqual(build_observations, [{"profiles": store.raiderio_payload["profiles"], "backfillCount": 1}])
+        self.assertEqual(payload["gearProfileCapture"]["capturedProfileCount"], 1)
+
+
     def test_community_postgres_sync_records_raiderio_failure_without_replacing_winners(self):
         from server import postgres_cache_sync
 

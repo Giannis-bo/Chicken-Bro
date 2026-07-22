@@ -6,7 +6,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
 
 
@@ -434,6 +434,184 @@ def character_source_identity(character):
     if not region or not realm_slug or not name:
         return ""
     return f"raiderio:{region}|{realm_slug}|{name}"
+
+
+def source_identity_character(value):
+    """Parse one canonical Raider.IO identity without accepting partial values."""
+
+    text = str(value or "")
+    matched = re.fullmatch(r"raiderio:([a-z]{2})\|([^|\s]+)\|([^|\s]+)", text)
+    if not matched:
+        return None
+    region, realm_slug, name = matched.groups()
+    if text != text.lower():
+        return None
+    return {
+        "region": region,
+        "realmSlug": realm_slug,
+        "name": name,
+        "sourceIdentity": text,
+    }
+
+
+def profile_url_for_source_identity(value):
+    character = source_identity_character(value)
+    if not character:
+        return ""
+    return "https://raider.io/characters/{}/{}/{}".format(
+        quote(character["region"], safe="-._~"),
+        quote(character["realmSlug"], safe="-._~"),
+        quote(character["name"], safe="-._~"),
+    )
+
+
+def select_gear_projection_source_identities(promoted_templates):
+    """Return the exact persisted candidate identities in election-owned order."""
+
+    identities = []
+    seen = set()
+    for template in promoted_templates or []:
+        if not isinstance(template, dict):
+            continue
+        payload = template.get("payload") if isinstance(template.get("payload"), dict) else {}
+        candidates = payload.get("gearProjectionCandidates")
+        if not isinstance(candidates, list):
+            continue
+        for candidate in candidates:
+            if not isinstance(candidate, dict):
+                continue
+            identity = str(candidate.get("sourceIdentity") or "")
+            if identity in seen or source_identity_character(identity) is None:
+                continue
+            seen.add(identity)
+            identities.append(identity)
+    return identities
+
+
+def _redacted_source_identity_ref(source_identity):
+    digest = hashlib.sha256(str(source_identity or "").encode("utf-8")).hexdigest()[:12]
+    return f"raiderio:sha256:{digest}"
+
+
+def _profile_source_identity(profile):
+    profile = profile if isinstance(profile, dict) else {}
+    explicit = str(profile.get("sourceIdentity") or "")
+    if source_identity_character(explicit):
+        return explicit
+    return character_source_identity(profile)
+
+
+def capture_gear_projection_profiles(promoted_templates, cached_payload, stage_callback=None):
+    """Fetch exact elected identities and merge them ahead of generic quota profiles."""
+
+    started_at = emit_sync_stage(
+        stage_callback,
+        "raiderio_gear_projection_profiles",
+        "start",
+    )
+    identities = select_gear_projection_source_identities(promoted_templates)
+    cached_payload = dict(cached_payload or {})
+    cached_profiles = [
+        dict(profile)
+        for profile in cached_payload.get("profiles") or []
+        if isinstance(profile, dict)
+    ]
+    cached_by_identity = {}
+    for profile in cached_profiles:
+        identity = _profile_source_identity(profile)
+        if identity and identity not in cached_by_identity:
+            cached_by_identity[identity] = profile
+
+    fetched_by_identity = {}
+    failures = []
+    characters = [source_identity_character(identity) for identity in identities]
+    workers = min(profile_fetch_workers(), len(characters)) if characters else 0
+    if workers <= 1:
+        results = []
+        for character in characters:
+            try:
+                results.append((character, fetch_profile_for_character(character, "gear"), None))
+            except (RaiderIOError, TimeoutError, OSError) as error:
+                results.append((character, None, profile_fetch_error_message(error)))
+    else:
+        indexed_results = [None] * len(characters)
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            future_indexes = {
+                executor.submit(fetch_profile_for_character, character, "gear"): index
+                for index, character in enumerate(characters)
+            }
+            for future in as_completed(future_indexes):
+                index = future_indexes[future]
+                character = characters[index]
+                try:
+                    indexed_results[index] = (character, future.result(), None)
+                except (RaiderIOError, TimeoutError, OSError) as error:
+                    indexed_results[index] = (character, None, profile_fetch_error_message(error))
+        results = [result for result in indexed_results if result is not None]
+
+    for character, profile, error in results:
+        requested_identity = character["sourceIdentity"]
+        if error:
+            failures.append({
+                "identityRef": _redacted_source_identity_ref(requested_identity),
+                "error": redact_secret(error),
+            })
+            continue
+        profile = dict(profile or {})
+        captured_identity = character_source_identity(profile)
+        if captured_identity != requested_identity:
+            failures.append({
+                "identityRef": _redacted_source_identity_ref(requested_identity),
+                "error": "Raider.IO exact profile identity mismatch",
+            })
+            continue
+        profile["sourceIdentity"] = requested_identity
+        if not profile.get("profileUrl"):
+            profile["profileUrl"] = profile_url_for_source_identity(requested_identity)
+        fetched_by_identity[requested_identity] = profile
+
+    exact_profiles = []
+    missing_identity_refs = []
+    for identity in identities:
+        profile = fetched_by_identity.get(identity) or cached_by_identity.get(identity)
+        if profile:
+            exact_profiles.append(profile)
+        else:
+            missing_identity_refs.append(_redacted_source_identity_ref(identity))
+
+    remaining_profiles = []
+    exact_identity_set = set(identities)
+    for profile in cached_profiles:
+        if _profile_source_identity(profile) not in exact_identity_set:
+            remaining_profiles.append(profile)
+    merged_profiles = [*exact_profiles, *remaining_profiles]
+    diagnostics = {
+        "schemaRevision": "raiderio-gear-projection-profile-capture-v1",
+        "requestedIdentityCount": len(identities),
+        "capturedProfileCount": len(fetched_by_identity),
+        "reusedCachedProfileCount": max(0, len(exact_profiles) - len(fetched_by_identity)),
+        "availableProfileCount": len(exact_profiles),
+        "mergedProfileCount": len(merged_profiles),
+        "fetchFailureCount": len(failures),
+        "missingCaptureCount": len(missing_identity_refs),
+        "failures": failures[:12],
+        "missingIdentityRefs": missing_identity_refs[:12],
+        "diagnosticLimit": 12,
+    }
+    merged_payload = {
+        **cached_payload,
+        "profiles": merged_profiles,
+        "profileCount": max(safe_int(cached_payload.get("profileCount")), len(merged_profiles)),
+        "gearProjectionProfileCapture": diagnostics,
+    }
+    emit_sync_stage(
+        stage_callback,
+        "raiderio_gear_projection_profiles",
+        "complete",
+        started_at,
+        diagnostics,
+    )
+    return merged_payload
 
 
 def expected_spec_pairs():

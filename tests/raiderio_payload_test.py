@@ -155,6 +155,72 @@ __trait_data = {
 
 
 class RaiderIOPayloadTest(unittest.TestCase):
+    def test_select_gear_projection_source_identities_uses_only_persisted_valid_candidates(self):
+        promoted = [
+            {
+                "id": "mage-frost-frostfire",
+                "payload": {
+                    "gearProjectionCandidates": [
+                        {"talentCandidateRank": 1, "sourceIdentity": "raiderio:cn|isillien|rankone"},
+                        {"talentCandidateRank": 2, "sourceIdentity": "raiderio:us|area-52|fallback"},
+                        {"talentCandidateRank": 3, "sourceIdentity": "raiderio:cn|isillien|rankone"},
+                        {"talentCandidateRank": 4, "sourceIdentity": "warcraftlogs:cn|isillien|not-rio"},
+                        {"talentCandidateRank": 5, "sourceIdentity": "raiderio:cn|missing-name|"},
+                    ]
+                },
+            },
+            {
+                "id": "not-a-promoted-payload",
+                "gearProjectionCandidates": [
+                    {"sourceIdentity": "raiderio:eu|draenor|must-not-be-read"},
+                ],
+            },
+        ]
+
+        self.assertEqual(
+            raiderio_payload.select_gear_projection_source_identities(promoted),
+            [
+                "raiderio:cn|isillien|rankone",
+                "raiderio:us|area-52|fallback",
+            ],
+        )
+
+    def test_profile_url_for_source_identity_is_exact_and_fail_closed(self):
+        self.assertEqual(
+            raiderio_payload.profile_url_for_source_identity("raiderio:kr|azshara|winner"),
+            "https://raider.io/characters/kr/azshara/winner",
+        )
+        self.assertEqual(raiderio_payload.profile_url_for_source_identity("raiderio:kr|azshara|"), "")
+        self.assertEqual(raiderio_payload.profile_url_for_source_identity("other:kr|azshara|winner"), "")
+
+    def test_exact_profile_capture_redacts_failure_and_reuses_cached_identity(self):
+        identity = "raiderio:cn|isillien|rankone"
+        promoted = [{"payload": {"gearProjectionCandidates": [{"sourceIdentity": identity}]}}]
+        cached_profile = {
+            "sourceIdentity": identity,
+            "profileUrl": "https://raider.io/characters/cn/isillien/rankone",
+            "gear": [{"slot": "head", "itemId": 222001}],
+        }
+
+        with patch.object(
+            raiderio_payload,
+            "fetch_profile_for_character",
+            side_effect=raiderio_payload.RaiderIOError("access_key=fake-api-key"),
+        ):
+            payload = raiderio_payload.capture_gear_projection_profiles(
+                promoted,
+                {"profileCount": 600, "profiles": [cached_profile], "sourceStatus": "synced"},
+            )
+
+        diagnostics = payload["gearProjectionProfileCapture"]
+        self.assertEqual(payload["profiles"], [cached_profile])
+        self.assertEqual(payload["profileCount"], 600)
+        self.assertEqual(diagnostics["reusedCachedProfileCount"], 1)
+        self.assertEqual(diagnostics["fetchFailureCount"], 1)
+        self.assertEqual(diagnostics["missingCaptureCount"], 0)
+        self.assertEqual(diagnostics["failures"][0]["error"], "access_key=[redacted]")
+        self.assertNotIn("rankone", json.dumps(diagnostics["failures"]))
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.db_path = Path(self.tmp.name) / "rio.sqlite3"

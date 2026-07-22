@@ -21,6 +21,7 @@ try:
         gear_release_shadow,
         gear_resolver,
         gear_socket_authority,
+        raiderio_payload,
     )
     from .db import connect_postgres, database_config_from_env, postgres_only_runtime_enabled
     from .gear_release_store import (
@@ -51,6 +52,7 @@ except ImportError:
     import gear_release_shadow
     import gear_resolver
     import gear_socket_authority
+    import raiderio_payload
     from db import connect_postgres, database_config_from_env, postgres_only_runtime_enabled
     from gear_release_store import (
         CandidateGearAuthorityIndex,
@@ -1773,6 +1775,7 @@ def _talent_projection_candidates(
             "talentCandidateRank": _int(talent.get("talentCandidateRank")),
             "sourceKey": _text(talent.get("sourceKey")),
             "sourceIdentity": source_identity,
+            "sourceUrl": raiderio_payload.profile_url_for_source_identity(source_identity),
         })
     ordered = sorted(
         candidates,

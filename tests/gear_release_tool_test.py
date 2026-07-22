@@ -2973,6 +2973,16 @@ class GearReleaseToolTest(unittest.TestCase):
         self.assertEqual(winners["sunfury"]["payload"]["gearSourceTemplateId"], "frost-fallback")
         self.assertEqual(winners["spellslinger"]["payload"]["gearProjectionMode"], "talent_winner")
         self.assertEqual(result["gate"]["winnerHeroSlotCount"], 2)
+        rank_one_rejection = next(
+            row for row in result["election"]["rejected"]
+            if row.get("candidateId") == "talent-frost-top"
+        )
+        self.assertEqual(rank_one_rejection["sourceIdentity"], frost_top["sourceIdentity"])
+        self.assertEqual(
+            rank_one_rejection["sourceUrl"],
+            "https://raider.io/characters/cn/realm/frost-top",
+        )
+        self.assertEqual(rank_one_rejection["problems"][0]["code"], "GEAR_CAPTURE_MISSING")
 
     def test_build_legacy_community_release_keeps_rejected_internal_and_degraded(self):
         from server.gear_release_store import gear_snapshot_summary
