@@ -48,6 +48,7 @@ import {
   safeDecode,
   useAsyncRoute,
 } from '../_shared/route-runtime'
+import { chooseActionSheetEntry } from './action-sheet'
 import {
   gearCandidates,
   gearEnhancementGroups,
@@ -94,11 +95,6 @@ type GearImportSelection =
   | { kind: 'community'; template: CommunityTemplateReference; label: string }
   | { kind: 'saved'; draft: GearTemplateDraft; label: string }
 
-interface GearImportSource {
-  label: string
-  options: readonly GearImportSelection[]
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
@@ -125,26 +121,6 @@ function importedGearBySlot(value: unknown): Readonly<Record<string, GearItemRef
 function envelopeMessage(problems: readonly Readonly<Record<string, unknown>>[], fallback: string): string {
   const first = problems[0]
   return String(first?.['title'] || first?.['detail'] || first?.['code'] || fallback)
-}
-
-async function chooseActionSheetEntry<T>(
-  items: readonly T[],
-  labelFor: (item: T) => string,
-): Promise<T | null> {
-  for (let offset = 0; offset < items.length; offset += 5) {
-    const pageItems = items.slice(offset, offset + 5)
-    const hasMore = offset + pageItems.length < items.length
-    try {
-      const choice = await Taro.showActionSheet({
-        itemList: [...pageItems.map(labelFor), ...(hasMore ? ['更多选项…'] : [])],
-      })
-      if (hasMore && choice.tapIndex === pageItems.length) continue
-      return pageItems[choice.tapIndex] ?? null
-    } catch {
-      return null
-    }
-  }
-  return null
 }
 
 export default function GearDetailPage() {
@@ -506,19 +482,11 @@ export default function GearDetailPage() {
   }
 
   const importTemplate = async () => {
-    const importSources: readonly GearImportSource[] = [
-      ...(communityTemplateOptions.length ? [{
-        label: `社区高端玩家模板（${communityTemplateOptions.length}）`,
-        options: communityTemplateOptions.map((option) => ({ kind: 'community' as const, ...option })),
-      }] : []),
-      ...(savedTemplateOptions.length ? [{
-        label: `已保存模板（${savedTemplateOptions.length}）`,
-        options: savedTemplateOptions.map((option) => ({ kind: 'saved' as const, ...option })),
-      }] : []),
+    const importOptions: readonly GearImportSelection[] = [
+      ...communityTemplateOptions.map((option) => ({ kind: 'community' as const, ...option })),
+      ...savedTemplateOptions.map((option) => ({ kind: 'saved' as const, ...option })),
     ]
-    const source = await chooseActionSheetEntry(importSources, (entry) => entry.label)
-    if (!source) return
-    const selected = await chooseActionSheetEntry(source.options, (entry) => entry.label)
+    const selected = await chooseActionSheetEntry(importOptions, (entry) => `${entry.kind === 'community' ? '社区 · ' : '已保存 · '}${entry.label}`)
     if (!selected) return
     const selection: GearImportSelection = selected
     const importToken = requestFence.current.beginImport()
