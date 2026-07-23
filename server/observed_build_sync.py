@@ -78,6 +78,7 @@ OBSERVED_BUILD_SYNC_SCHEMA_REVISION = "observed-build-registry-sync-v1"
 OBSERVED_BUILD_SYNC_STATE_KEY = "observed_build_registry_sync"
 _SCOPES = {"candidate", "retail"}
 _SAFE_TOKEN = re.compile(r"[^a-zA-Z0-9_.:-]+")
+_CANDIDATE_PLAYER_LIMIT_PER_SLOT = 8
 
 
 def _canonical(value: Any) -> Any:
@@ -272,6 +273,30 @@ def _active_snapshot_ids(active_set: dict[str, Any] | None) -> dict[str, str]:
         for entry in (active_set or {}).get("entries") or []
         if isinstance(entry, dict)
     }
+
+
+def _bounded_candidate_snapshots(
+    candidates_by_slot: dict[str, list[dict[str, Any]]],
+) -> dict[str, list[dict[str, Any]]]:
+    """Keep only the highest-ranked snapshot for each of eight distinct players."""
+
+    bounded: dict[str, list[dict[str, Any]]] = {}
+    for key in sorted(candidates_by_slot):
+        seen_identities: set[str] = set()
+        selected: list[dict[str, Any]] = []
+        for snapshot in candidates_by_slot.get(key) or []:
+            identity = _text(
+                (snapshot.get("source") or {}).get("sourceIdentity")
+            )
+            if not identity or identity in seen_identities:
+                continue
+            seen_identities.add(identity)
+            selected.append(snapshot)
+            if len(selected) >= _CANDIDATE_PLAYER_LIMIT_PER_SLOT:
+                break
+        if selected:
+            bounded[key] = selected
+    return bounded
 
 
 def _select_importable_winners(
@@ -538,6 +563,9 @@ def run_observed_build_sync(
         extracted.get("candidatesBySlot")
         if isinstance(extracted.get("candidatesBySlot"), dict)
         else {}
+    )
+    candidate_snapshots_by_slot = _bounded_candidate_snapshots(
+        candidate_snapshots_by_slot
     )
     problems_by_slot = extracted.get("problemsBySlot")
     problems_by_slot = (

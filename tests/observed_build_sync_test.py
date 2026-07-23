@@ -221,6 +221,35 @@ class ObservedBuildSyncTest(unittest.TestCase):
         self.assertEqual(second, "spellslinger")
         self.assertEqual(store.calls, [("mage", "frost")])
 
+    def test_candidate_window_keeps_one_snapshot_for_each_of_eight_players(self):
+        candidates = {
+            "mage:frost:frostfire:mythic_plus": [
+                {
+                    "snapshotId": f"snapshot-{index}",
+                    "source": {
+                        "sourceIdentity": (
+                            "raiderio:cn|realm-a|player-a"
+                            if index < 2
+                            else f"raiderio:cn|realm-a|player-{index}"
+                        )
+                    },
+                }
+                for index in range(12)
+            ]
+        }
+
+        bounded = observed_build_sync._bounded_candidate_snapshots(
+            candidates
+        )
+
+        selected = bounded["mage:frost:frostfire:mythic_plus"]
+        self.assertEqual(len(selected), 8)
+        self.assertEqual(selected[0]["snapshotId"], "snapshot-0")
+        self.assertNotIn(
+            "snapshot-1",
+            {snapshot["snapshotId"] for snapshot in selected},
+        )
+
     def dependencies(self):
         return build_dependency_vector(
             season_revision="season-midnight-1",
