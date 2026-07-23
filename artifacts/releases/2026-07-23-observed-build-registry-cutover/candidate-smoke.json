@@ -54,7 +54,11 @@
     "candidateRestored": true
   },
   "devtools": {
-    "status": "pending",
-    "apiBaseUrl": "http://127.0.0.1:18787"
+    "status": "opened",
+    "apiBaseUrl": "http://127.0.0.1:18787",
+    "projectRoot": "apps/mini-taro",
+    "outputRoot": "apps/mini-taro/dist/weapp",
+    "fileCount": 213,
+    "cli": "/Applications/wechatwebdevtools.app/Contents/MacOS/cli"
   }
 }

@@ -136,32 +136,33 @@
       },
       {
         "id": "wechat-devtools-refresh",
-      "status": "pending"
-    }
-  ],
-  "risks": [
+        "status": "pass",
+        "summary": "The candidate WeChat bundle was rebuilt with http://127.0.0.1:18787, atomically promoted with 213 files, and opened through the official DevTools CLI."
+      }
+    ],
+    "risks": [
       {
         "id": "source-coverage-pending",
         "status": "resolved",
         "detail": "The bounded real Raider.IO collection and local projection produced 80 verified Hero slots and 40 distinct importable gear pairs."
+      },
+      {
+        "id": "manual-acceptance-pending",
+        "status": "open",
+        "detail": "The five frozen WeChat checks are required before merge and retail activation."
+      }
+    ],
+    "rollback": [
+      "code_rollback",
+      "data_restore",
+      "config_disable",
+      "resync_repair"
+    ],
+    "cleanup": {
+      "required": true,
+      "reason": "Remove the temporary candidate runtime, SSH tunnel and task worktree after accepted closure; retain the PostgreSQL backup and rollback TemplateSet."
     },
-    {
-      "id": "manual-acceptance-pending",
-      "status": "open",
-      "detail": "The five frozen WeChat checks are required before merge and retail activation."
-    }
-  ],
-  "rollback": [
-    "code_rollback",
-    "data_restore",
-    "config_disable",
-    "resync_repair"
-  ],
-  "cleanup": {
-    "required": true,
-    "reason": "Remove the temporary candidate runtime, SSH tunnel and task worktree after accepted closure; retain the PostgreSQL backup and rollback TemplateSet."
-  },
-  "archivedReferences": [],
-    "summary": "The shared-player candidate is runtime-verified on exact commit 7c3a5061: 80 talent templates, 80 gear imports, shared snapshot provenance, rollback/restore and production isolation all pass. WeChat DevTools refresh and the five frozen manual checks remain pending before merge or retail activation.",
-    "updatedAt": "2026-07-24T00:21:00+08:00"
+    "archivedReferences": [],
+    "summary": "The shared-player candidate is runtime-verified on exact commit 7c3a5061: 80 talent templates, 80 gear imports, shared snapshot provenance, rollback/restore, production isolation and WeChat DevTools refresh all pass. The five frozen manual checks remain pending before merge or retail activation.",
+    "updatedAt": "2026-07-24T00:33:39+08:00"
 }
