@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 from datetime import datetime, timedelta, timezone
 import hashlib
+import itertools
 import json
 import os
 import re
@@ -273,6 +274,115 @@ def _active_snapshot_ids(active_set: dict[str, Any] | None) -> dict[str, str]:
     }
 
 
+def _select_importable_winners(
+    candidates_by_slot: dict[str, list[dict[str, Any]]],
+    eligible_snapshot_ids: set[str],
+    active_set: dict[str, Any] | None,
+    dependency_vector: dict[str, Any],
+) -> tuple[dict[str, dict[str, Any]], set[str]]:
+    """Prefer a fully new distinct pair, then use same-slot LKG per failed slot."""
+
+    winners = select_distinct_snapshot_winners(
+        candidates_by_slot,
+        eligible_snapshot_ids=eligible_snapshot_ids,
+    )
+    active_entries = {
+        _text(entry.get("slotKey")): entry
+        for entry in (active_set or {}).get("entries") or []
+        if isinstance(entry, dict)
+    }
+    allow_lkg = (
+        bool(active_set)
+        and active_set.get("dependencyVector") == dependency_vector
+    )
+    slots_by_spec: dict[str, list[str]] = {}
+    for slot in _expected_slots():
+        key = slot_key(slot)
+        parts = _text(key).split(":")
+        if len(parts) >= 2:
+            slots_by_spec.setdefault(":".join(parts[:2]), []).append(key)
+
+    lkg_slots: set[str] = set()
+    for spec_id in sorted(slots_by_spec):
+        slot_keys = sorted(set(slots_by_spec[spec_id]))
+        if len(slot_keys) != 2 or all(key in winners for key in slot_keys):
+            continue
+        for key in slot_keys:
+            winners.pop(key, None)
+        options_by_slot: list[list[dict[str, Any]]] = []
+        for key in slot_keys:
+            slot_candidates = candidates_by_slot.get(key) or []
+            options = [
+                {
+                    "kind": "candidate",
+                    "identity": _text(
+                        (snapshot.get("source") or {}).get(
+                            "sourceIdentity"
+                        )
+                    ),
+                    "snapshot": snapshot,
+                    "rank": index,
+                }
+                for index, snapshot in enumerate(slot_candidates)
+                if _text(snapshot.get("snapshotId"))
+                in eligible_snapshot_ids
+            ]
+            active_entry = active_entries.get(key)
+            if (
+                allow_lkg
+                and isinstance(active_entry, dict)
+                and active_entry.get("status")
+                in {"verified", "stale_lkg"}
+                and _text(active_entry.get("sourceIdentity"))
+            ):
+                options.append(
+                    {
+                        "kind": "lkg",
+                        "identity": _text(
+                            active_entry.get("sourceIdentity")
+                        ),
+                        "snapshot": None,
+                        "rank": len(slot_candidates),
+                    }
+                )
+            options_by_slot.append(options)
+        combinations = [
+            pair
+            for pair in itertools.product(*options_by_slot)
+            if pair[0]["identity"] != pair[1]["identity"]
+        ]
+        if not combinations:
+            used_identities: set[str] = set()
+            for key, options in zip(slot_keys, options_by_slot):
+                candidate = next(
+                    (
+                        option
+                        for option in options
+                        if option["kind"] == "candidate"
+                        and option["identity"] not in used_identities
+                    ),
+                    None,
+                )
+                if candidate:
+                    winners[key] = candidate["snapshot"]
+                    used_identities.add(candidate["identity"])
+            continue
+        selected = min(
+            combinations,
+            key=lambda pair: (
+                sum(option["kind"] == "lkg" for option in pair),
+                sum(int(option["rank"]) for option in pair),
+                tuple(option["identity"] for option in pair),
+            ),
+        )
+        for key, option in zip(slot_keys, selected):
+            if option["kind"] == "candidate":
+                winners[key] = option["snapshot"]
+            else:
+                lkg_slots.add(key)
+    return winners, lkg_slots
+
+
 def _gear_complete_specs(entries: list[dict[str, Any]]) -> int:
     by_spec: dict[str, list[dict[str, Any]]] = {}
     for entry in entries:
@@ -424,8 +534,10 @@ def run_observed_build_sync(
         payload,
         hero_resolver=hero_resolver,
     )
-    winners = select_distinct_snapshot_winners(
-        extracted.get("candidatesBySlot") or {}
+    candidate_snapshots_by_slot = (
+        extracted.get("candidatesBySlot")
+        if isinstance(extracted.get("candidatesBySlot"), dict)
+        else {}
     )
     problems_by_slot = extracted.get("problemsBySlot")
     problems_by_slot = (
@@ -446,8 +558,9 @@ def run_observed_build_sync(
     candidates: dict[str, dict[str, Any]] = {}
     problems: list[dict[str, Any]] = []
     template_set_problems: dict[str, dict[str, Any]] = {}
+    projections_by_snapshot_id: dict[str, dict[str, Any]] = {}
     snapshots_to_compile: dict[str, dict[str, Any]] = {}
-    for key, snapshot in winners.items():
+    for key, snapshots in candidate_snapshots_by_slot.items():
         active_record = active_records.get(key)
         active_projection = (
             active_record.get("projection")
@@ -455,37 +568,108 @@ def run_observed_build_sync(
             and isinstance(active_record.get("projection"), dict)
             else {}
         )
-        if (
-            active_snapshot_ids.get(key) == snapshot.get("snapshotId")
-            and active_projection.get("dependencyVector")
-            == dependency_vector
-            and active_projection.get("status") == "verified"
-            and active_projection.get("importable") is True
-        ):
-            candidates[key] = _canonical(active_projection)
-        else:
-            snapshots_to_compile[key] = snapshot
+        for snapshot in snapshots:
+            snapshot_id = _text(snapshot.get("snapshotId"))
+            if not snapshot_id:
+                continue
+            if (
+                active_snapshot_ids.get(key) == snapshot_id
+                and active_projection.get("dependencyVector")
+                == dependency_vector
+                and active_projection.get("status") == "verified"
+                and active_projection.get("importable") is True
+            ):
+                projections_by_snapshot_id[snapshot_id] = _canonical(
+                    active_projection
+                )
+            else:
+                snapshots_to_compile[snapshot_id] = snapshot
 
     prepare = getattr(compiler, "prepare", None)
     if callable(prepare):
         prepare(
             [
-                snapshots_to_compile[key]
-                for key in sorted(snapshots_to_compile)
+                snapshots_to_compile[snapshot_id]
+                for snapshot_id in sorted(snapshots_to_compile)
             ]
         )
+
+    for snapshot_id in sorted(snapshots_to_compile):
+        sealed_snapshot = store.seal_snapshot(
+            snapshots_to_compile[snapshot_id]
+        )
+        projection = compiler(sealed_snapshot)
+        projections_by_snapshot_id[snapshot_id] = (
+            store.seal_projection(projection)
+        )
+
+    eligible_snapshot_ids = {
+        snapshot_id
+        for snapshot_id, projection in projections_by_snapshot_id.items()
+        if projection.get("status") == "verified"
+        and projection.get("importable") is True
+    }
+    winners, lkg_slots = _select_importable_winners(
+        candidate_snapshots_by_slot,
+        eligible_snapshot_ids,
+        active_set or None,
+        dependency_vector,
+    )
 
     for slot in expected_slots:
         key = slot_key(slot)
         snapshot = winners.get(key)
         if snapshot is None:
+            blocked_projection = next(
+                (
+                    projections_by_snapshot_id.get(
+                        _text(candidate.get("snapshotId"))
+                    )
+                    for candidate in (
+                        candidate_snapshots_by_slot.get(key) or []
+                    )
+                    if isinstance(
+                        projections_by_snapshot_id.get(
+                            _text(candidate.get("snapshotId"))
+                        ),
+                        dict,
+                    )
+                    and projections_by_snapshot_id[
+                        _text(candidate.get("snapshotId"))
+                    ].get("status")
+                    != "verified"
+                ),
+                None,
+            )
             slot_problems = [
                 problem
                 for problem in problems_by_slot.get(key) or []
                 if isinstance(problem, dict)
             ]
+            blocked_problems = (
+                blocked_projection.get("problems")
+                if isinstance(blocked_projection, dict)
+                and isinstance(
+                    blocked_projection.get("problems"),
+                    list,
+                )
+                else []
+            )
             problem = _safe_problem(
-                slot_problems[0] if slot_problems else None,
+                (
+                    blocked_problems[0]
+                    if blocked_problems
+                    else slot_problems[0]
+                    if slot_problems
+                    else {
+                        "code": (
+                            "candidate_pair_not_importable"
+                            if key in lkg_slots
+                            else "snapshot_candidate_missing"
+                        ),
+                        "stage": "selection",
+                    }
+                ),
                 slot_key_value=key,
                 default_code="snapshot_candidate_missing",
             )
@@ -500,8 +684,10 @@ def run_observed_build_sync(
             )
             problems.append(problem)
             template_set_problems[key] = problem
+            if isinstance(blocked_projection, dict):
+                candidates[key] = blocked_projection
             continue
-        sealed_snapshot = store.seal_snapshot(snapshot)
+        sealed_snapshot = snapshot
         previous_snapshot_id = active_snapshot_ids.get(key)
         status = (
             "unchanged"
@@ -519,15 +705,9 @@ def run_observed_build_sync(
                 snapshot_id=sealed_snapshot["snapshotId"],
             )
         )
-        if key in snapshots_to_compile:
-            projection = compiler(sealed_snapshot)
-            sealed_projection = store.seal_projection(projection)
-            candidates[key] = sealed_projection
-            if sealed_projection.get("status") != "verified":
-                problems.extend(
-                    _safe_problem(problem, slot_key_value=key)
-                    for problem in sealed_projection.get("problems") or []
-                )
+        candidates[key] = projections_by_snapshot_id[
+            _text(sealed_snapshot.get("snapshotId"))
+        ]
 
     if not active_set:
         staging = store.load_latest_verified_projections(

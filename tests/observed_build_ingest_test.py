@@ -290,6 +290,59 @@ class ObservedBuildIngestTest(unittest.TestCase):
             "raiderio:cn|realm-a|player-a",
         )
 
+    def test_selects_next_distinct_pair_when_top_snapshot_is_ineligible(self):
+        payload = self.payload()
+        payload["communityTemplates"] = [
+            self.template(
+                player="player-a",
+                hero="frostfire",
+                score=4200,
+                rank=1,
+                raw_import_code="C4DA",
+            ),
+            self.template(
+                player="player-b",
+                hero="frostfire",
+                score=4100,
+                rank=2,
+                raw_import_code="C4DB",
+            ),
+            self.template(
+                player="player-c",
+                hero="spellslinger",
+                score=4190,
+                rank=1,
+                raw_import_code="C4DC",
+            ),
+        ]
+        payload["profiles"] = [
+            self.profile("player-a", item_id=230001),
+            self.profile("player-b", item_id=230002),
+            self.profile("player-c", item_id=230003),
+        ]
+        candidates = snapshot_candidates_from_raiderio(payload)["candidatesBySlot"]
+        eligible = {
+            snapshot["snapshotId"]
+            for values in candidates.values()
+            for snapshot in values
+            if snapshot["source"]["sourceIdentity"]
+            != "raiderio:cn|realm-a|player-a"
+        }
+
+        winners = select_distinct_snapshot_winners(
+            candidates,
+            eligible_snapshot_ids=eligible,
+        )
+
+        self.assertEqual(
+            winners["mage:frost:frostfire:mythic_plus"]["source"]["sourceIdentity"],
+            "raiderio:cn|realm-a|player-b",
+        )
+        self.assertEqual(
+            winners["mage:frost:spellslinger:mythic_plus"]["source"]["sourceIdentity"],
+            "raiderio:cn|realm-a|player-c",
+        )
+
     def test_selection_is_stable_when_template_and_profile_order_changes(self):
         payload = self.payload()
         first = snapshot_candidates_from_raiderio(payload)

@@ -316,11 +316,19 @@ class ObservedBuildSyncTest(unittest.TestCase):
             "profiles": profiles,
         }
 
-    def compiler(self, blocked_slot_key=""):
+    def compiler(
+        self,
+        blocked_slot_key="",
+        blocked_source_identity="",
+    ):
         dependencies = self.dependencies()
 
         def compile_snapshot(snapshot):
-            blocked = slot_key(snapshot["slot"]) == blocked_slot_key
+            blocked = (
+                slot_key(snapshot["slot"]) == blocked_slot_key
+                or snapshot["source"]["sourceIdentity"]
+                == blocked_source_identity
+            )
             return build_projection(
                 snapshot=snapshot,
                 dependency_vector=dependencies,
@@ -404,6 +412,79 @@ class ObservedBuildSyncTest(unittest.TestCase):
         self.assertEqual(result["pointerAfter"], {})
         self.assertEqual(len(store.template_sets), 1)
         self.assertEqual(store.sync_states[0][0], "observed_build_registry_sync")
+
+    def test_initial_run_uses_next_importable_player_in_the_same_slot(self):
+        payload = self.payload()
+        target_slot = self.slots()[0]
+        target_key = slot_key(target_slot)
+        top_identity = payload["profiles"][0]["sourceIdentity"]
+        alternative_player = self._player_for(target_slot, "alternative")
+        alternative_identity = (
+            f"raiderio:cn|realm-a|{alternative_player}"
+        )
+        alternative_url = (
+            "https://raider.io/characters/cn/realm-a/"
+            + alternative_player
+        )
+        alternative_template = copy.deepcopy(
+            payload["communityTemplates"][0]
+        )
+        alternative_template.update(
+            {
+                "id": "template-alternative",
+                "sourceUrl": alternative_url,
+                "playerId": alternative_player,
+                "rawImportCode": "IMPORT-ALTERNATIVE",
+            }
+        )
+        alternative_template["payload"]["raiderio"].update(
+            {
+                "sourceIdentity": alternative_identity,
+                "profileUrl": alternative_url,
+                "characterName": alternative_player,
+            }
+        )
+        alternative_template["payload"]["rioEvidence"].update(
+            {"score": 3000, "rank": 200}
+        )
+        alternative_profile = copy.deepcopy(payload["profiles"][0])
+        alternative_profile.update(
+            {
+                "sourceIdentity": alternative_identity,
+                "profileUrl": alternative_url,
+                "name": alternative_player,
+            }
+        )
+        alternative_profile["gear"][0]["itemId"] += 10000
+        payload["communityTemplates"].append(alternative_template)
+        payload["profiles"].append(alternative_profile)
+        store = MemoryObservedBuildStore()
+
+        result = run_observed_build_sync(
+            store,
+            scope="candidate",
+            refresh_source=False,
+            allow_promotion=True,
+            source_fetcher=lambda: payload,
+            compiler=self.compiler(
+                blocked_source_identity=top_identity,
+            ),
+            checked_at="2026-07-23T12:00:00Z",
+        )
+
+        self.assertEqual(result["coverage"]["verified"], 80)
+        self.assertEqual(result["coverage"]["pending_collection"], 0)
+        selected = next(
+            entry
+            for entry in store.template_sets[
+                result["candidateTemplateSetId"]
+            ]["entries"]
+            if entry["slotKey"] == target_key
+        )
+        self.assertEqual(
+            selected["sourceIdentity"],
+            alternative_identity,
+        )
 
     def test_existing_active_set_carries_one_lkg_and_updates_other_slots(self):
         blocked_slot = slot_key(self.slots()[0])

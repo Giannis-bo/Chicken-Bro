@@ -463,15 +463,26 @@ def _pair_sort_key(pair: tuple[dict[str, Any], dict[str, Any]]) -> tuple[Any, ..
 
 def select_distinct_snapshot_winners(
     candidates_by_slot: Mapping[str, list[dict[str, Any]]],
+    *,
+    eligible_snapshot_ids: set[str] | None = None,
 ) -> dict[str, dict[str, Any]]:
     """Choose the highest deterministic distinct-identity pair per spec."""
 
+    eligible = (
+        {_text(snapshot_id) for snapshot_id in eligible_snapshot_ids}
+        if eligible_snapshot_ids is not None
+        else None
+    )
     normalized: dict[str, list[dict[str, Any]]] = {}
     for raw_slot_key, raw_candidates in candidates_by_slot.items():
         candidates = [
             _canonical(candidate)
             for candidate in raw_candidates or []
             if isinstance(candidate, dict)
+            and (
+                eligible is None
+                or _text(candidate.get("snapshotId")) in eligible
+            )
         ]
         if candidates:
             normalized[_text(raw_slot_key)] = sorted(
