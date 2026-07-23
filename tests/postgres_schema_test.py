@@ -20,6 +20,7 @@ WEBSIM_POINTER_STATE = ROOT / "server" / "migrations" / "postgres" / "0014_websi
 WEBSIM_GEAR_STAT_SNAPSHOTS = ROOT / "server" / "migrations" / "postgres" / "0015_websim_gear_stat_snapshots.sql"
 WEBSIM_ATTRIBUTE_RULE_AUDITS = ROOT / "server" / "migrations" / "postgres" / "0016_websim_attribute_rule_audits.sql"
 WEBSIM_HERO_COMMUNITY_RELEASE = ROOT / "server" / "migrations" / "postgres" / "0017_websim_hero_community_release.sql"
+OBSERVED_BUILD_REGISTRY = ROOT / "server" / "migrations" / "postgres" / "0018_observed_build_registry.sql"
 
 
 class PostgresSchemaTest(unittest.TestCase):
@@ -391,3 +392,33 @@ class PostgresSchemaTest(unittest.TestCase):
         self.assertIn("result_json", normalized)
         self.assertIn("REVOKE DELETE ON ops.websim_attribute_rule_audits FROM wow_app", normalized)
         self.assertIn("0016_websim_attribute_rule_audits", normalized)
+
+    def test_observed_build_registry_migration_adds_immutable_core_and_cas_pointer(self):
+        self.assertTrue(OBSERVED_BUILD_REGISTRY.exists(), "missing observed build registry migration")
+        normalized = " ".join(OBSERVED_BUILD_REGISTRY.read_text(encoding="utf-8").split())
+        for table in (
+            "cache.observed_build_snapshots",
+            "ops.observed_build_snapshot_checks",
+            "cache.observed_build_projections",
+            "cache.observed_build_template_sets",
+            "cache.observed_build_template_set_slots",
+            "cache.observed_build_template_set_pointer",
+        ):
+            self.assertIn(f"CREATE TABLE IF NOT EXISTS {table}", normalized)
+        self.assertIn("CHECK (status IN ('captured', 'changed', 'unchanged', 'failed'))", normalized)
+        self.assertIn("CHECK (status IN ('verified', 'blocked'))", normalized)
+        self.assertIn("CHECK (status IN ('verified', 'stale_lkg', 'pending_collection'))", normalized)
+        self.assertIn("PRIMARY KEY (template_set_id, slot_key)", normalized)
+        self.assertIn("ON DELETE RESTRICT", normalized)
+        self.assertIn("BEFORE UPDATE OR DELETE ON cache.observed_build_snapshots", normalized)
+        self.assertIn("BEFORE UPDATE OR DELETE ON ops.observed_build_snapshot_checks", normalized)
+        self.assertIn("BEFORE UPDATE OR DELETE ON cache.observed_build_projections", normalized)
+        self.assertIn("BEFORE UPDATE OR DELETE ON cache.observed_build_template_sets", normalized)
+        self.assertIn("BEFORE UPDATE OR DELETE ON cache.observed_build_template_set_slots", normalized)
+        self.assertIn("REVOKE UPDATE, DELETE ON cache.observed_build_snapshots", normalized)
+        self.assertIn("REVOKE DELETE ON cache.observed_build_template_set_pointer FROM wow_app", normalized)
+        self.assertIn(
+            "GRANT SELECT, INSERT, UPDATE ON cache.observed_build_template_set_pointer TO wow_app",
+            normalized,
+        )
+        self.assertIn("0018_observed_build_registry", normalized)

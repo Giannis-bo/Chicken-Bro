@@ -1,0 +1,336 @@
+import copy
+import unittest
+
+from server.observed_build_projection import build_dependency_vector, build_projection
+from server.observed_build_registry import (
+    build_observed_snapshot,
+    snapshot_check,
+)
+from server.observed_build_store import (
+    ObservedBuildIntegrityError,
+    ObservedBuildPointerConflict,
+    ObservedBuildStore,
+)
+from server.observed_build_template_set import build_template_set
+from server.websim_payload import expected_hero_tree_triplets
+
+
+class FakeCursor:
+    def __init__(self, responder):
+        self.responder = responder
+        self.statements = []
+        self.params = []
+        self.current = None
+        self.rowcount = 0
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
+    def execute(self, statement, params=None):
+        normalized = " ".join(statement.split())
+        self.statements.append(normalized)
+        self.params.append(params)
+        self.current = self.responder(normalized, params)
+        if self.current is None:
+            self.rowcount = 0
+        elif isinstance(self.current, list):
+            self.rowcount = len(self.current)
+        else:
+            self.rowcount = 1
+
+    def fetchone(self):
+        if isinstance(self.current, list):
+            return self.current[0] if self.current else None
+        return self.current
+
+    def fetchall(self):
+        if self.current is None:
+            return []
+        return self.current if isinstance(self.current, list) else [self.current]
+
+
+class FakeConnection:
+    def __init__(self, responder):
+        self.cursor_instance = FakeCursor(responder)
+        self.committed = False
+        self.rolled_back = False
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        if exc_type:
+            self.rollback()
+        else:
+            self.commit()
+        return False
+
+    def cursor(self):
+        return self.cursor_instance
+
+    def commit(self):
+        self.committed = True
+
+    def rollback(self):
+        self.rolled_back = True
+
+
+class ObservedBuildStoreTest(unittest.TestCase):
+    def slots(self):
+        slots = []
+        for triplet in expected_hero_tree_triplets():
+            class_key, spec_key, hero_key = triplet.split(":")
+            slots.append(
+                {
+                    "classKey": class_key,
+                    "specKey": spec_key,
+                    "heroKey": hero_key,
+                    "scenarioKey": "mythic_plus",
+                }
+            )
+        return slots
+
+    def dependencies(self):
+        return build_dependency_vector(
+            season_revision="season-tww-3",
+            talent_catalog_revision="talent-catalog-v7",
+            gear_release_id="gear-release:sha256:" + "1" * 64,
+            gear_rule_revision="gear-rules-v5",
+            resolver_contract_revision="gear-resolver-v1",
+            serializer_revision="simc-serializer-v3",
+            simc_runtime_revision="simc-runtime-abc",
+            selection_schema_revision="selection-intent-v1",
+            projection_schema_revision="observed-build-projection-v1",
+        )
+
+    def snapshot(self, slot=None, player="player-a"):
+        slot = slot or self.slots()[0]
+        return build_observed_snapshot(
+            slot=slot,
+            source={
+                "sourceKey": "raiderio",
+                "sourceIdentity": f"raiderio:cn|realm|{player}",
+                "profileUrl": f"https://raider.io/characters/cn/realm/{player}",
+                "region": "cn",
+                "realm": "realm",
+                "character": player,
+            },
+            ranking_evidence={"rank": 1, "score": 3800},
+            talent_observation={"rawImportCode": player, "selectedNodes": [{"id": player, "rank": 1}]},
+            gear_observation={"gearBySlot": {"head": {"itemId": f"item-{player}"}}},
+            source_revision="raiderio-profile-v1",
+        )
+
+    def projection(self, slot=None, player="player-a"):
+        observed = self.snapshot(slot, player)
+        return build_projection(
+            snapshot=observed,
+            dependency_vector=self.dependencies(),
+            talent_projection={"status": "verified"},
+            gear_projection={"status": "verified", "selectionIntent": {"slots": {}}},
+            profile_readiness={"status": "ready", "simcReady": True},
+        )
+
+    def template_set(self):
+        candidates = {}
+        for index, slot in enumerate(self.slots()):
+            projection = self.projection(slot, f"player-{index}")
+            candidates[projection["slotKey"]] = projection
+        return build_template_set(
+            expected_slots=self.slots(),
+            candidates_by_slot=candidates,
+            active_set=None,
+            dependency_vector=self.dependencies(),
+            source_run_id="run-1",
+        )
+
+    def test_snapshot_seal_inserts_once_and_reuses_matching_row(self):
+        observed = self.snapshot()
+        state = {"inserted": False, "row": None}
+
+        def responder(sql, params):
+            if sql.startswith("INSERT INTO cache.observed_build_snapshots"):
+                if state["inserted"]:
+                    return None
+                state["inserted"] = True
+                state["row"] = (params[-2], params[-1])
+                return state["row"]
+            if sql.startswith("SELECT snapshot_json, row_hash"):
+                return state["row"]
+            return None
+
+        conn = FakeConnection(responder)
+        store = ObservedBuildStore(lambda: conn)
+
+        first = store.seal_snapshot(observed)
+        second = store.seal_snapshot(observed)
+
+        self.assertEqual(first, observed)
+        self.assertEqual(second, observed)
+        self.assertEqual(
+            sum(sql.startswith("INSERT INTO cache.observed_build_snapshots") for sql in conn.cursor_instance.statements),
+            2,
+        )
+        self.assertTrue(conn.committed)
+
+    def test_snapshot_seal_rejects_same_id_with_different_row_hash(self):
+        observed = self.snapshot()
+
+        def responder(sql, _params):
+            if sql.startswith("INSERT INTO cache.observed_build_snapshots"):
+                return None
+            if sql.startswith("SELECT snapshot_json, row_hash"):
+                return (copy.deepcopy(observed), "sha256:" + "f" * 64)
+            return None
+
+        conn = FakeConnection(responder)
+        with self.assertRaises(ObservedBuildIntegrityError):
+            ObservedBuildStore(lambda: conn).seal_snapshot(observed)
+        self.assertTrue(conn.rolled_back)
+
+    def test_records_append_only_snapshot_check(self):
+        observed = self.snapshot()
+        check = snapshot_check(
+            run_id="run-1",
+            slot=observed["slot"],
+            checked_at="2026-07-23T12:00:00+08:00",
+            status="captured",
+            snapshot_id=observed["snapshotId"],
+        )
+        conn = FakeConnection(
+            lambda sql, _params: (7,)
+            if sql.startswith("INSERT INTO ops.observed_build_snapshot_checks")
+            else None
+        )
+
+        result = ObservedBuildStore(lambda: conn).record_snapshot_check(check)
+
+        self.assertEqual(result["checkId"], 7)
+        self.assertEqual(result["snapshotId"], observed["snapshotId"])
+        self.assertTrue(conn.committed)
+
+    def test_projection_seal_validates_and_reuses_matching_row(self):
+        projection = self.projection()
+        state = {"row": None}
+
+        def responder(sql, params):
+            if sql.startswith("INSERT INTO cache.observed_build_projections"):
+                if state["row"] is None:
+                    state["row"] = (params[-2], params[-1])
+                    return state["row"]
+                return None
+            if sql.startswith("SELECT projection_json, row_hash"):
+                return state["row"]
+            return None
+
+        conn = FakeConnection(responder)
+        store = ObservedBuildStore(lambda: conn)
+
+        self.assertEqual(store.seal_projection(projection), projection)
+        self.assertEqual(store.seal_projection(projection), projection)
+
+    def test_template_set_seal_writes_header_and_exactly_eighty_entries(self):
+        template_set = self.template_set()
+
+        def responder(sql, params):
+            if sql.startswith("INSERT INTO cache.observed_build_template_sets"):
+                return (params[0],)
+            if sql.startswith("SELECT count(*) FROM cache.observed_build_template_set_slots"):
+                return (80,)
+            return None
+
+        conn = FakeConnection(responder)
+
+        result = ObservedBuildStore(lambda: conn).seal_template_set(template_set)
+
+        statements = conn.cursor_instance.statements
+        self.assertEqual(result, template_set)
+        self.assertEqual(
+            sum(sql.startswith("INSERT INTO cache.observed_build_template_set_slots") for sql in statements),
+            80,
+        )
+        self.assertIn(
+            "SELECT count(*) FROM cache.observed_build_template_set_slots WHERE template_set_id = %s",
+            statements,
+        )
+        self.assertTrue(conn.committed)
+
+    def test_pointer_cas_is_monotonic_and_rejects_stale_generation(self):
+        template_set = self.template_set()
+        pointer_rows = iter(
+            [
+                (
+                    "retail",
+                    1,
+                    template_set["templateSetId"],
+                    None,
+                    "tester",
+                    "2026-07-23T12:00:00+08:00",
+                ),
+                None,
+            ]
+        )
+        conn = FakeConnection(
+            lambda sql, _params: next(pointer_rows)
+            if (
+                sql.startswith("INSERT INTO cache.observed_build_template_set_pointer")
+                or sql.startswith("UPDATE cache.observed_build_template_set_pointer")
+            )
+            else None
+        )
+        store = ObservedBuildStore(lambda: conn)
+
+        first = store.compare_and_swap_pointer(
+            "retail",
+            0,
+            template_set["templateSetId"],
+            "tester",
+        )
+        self.assertEqual(first["generation"], 1)
+
+        with self.assertRaises(ObservedBuildPointerConflict):
+            store.compare_and_swap_pointer(
+                "retail",
+                1,
+                "template-set:sha256:" + "a" * 64,
+                "tester",
+            )
+
+    def test_rollback_swaps_active_and_previous_without_rewriting_immutable_rows(self):
+        active_id = "template-set:sha256:" + "a" * 64
+        rollback_id = "template-set:sha256:" + "b" * 64
+        conn = FakeConnection(
+            lambda sql, _params: (
+                "retail",
+                3,
+                rollback_id,
+                active_id,
+                "tester",
+                "2026-07-23T12:00:00+08:00",
+            )
+            if sql.startswith("UPDATE cache.observed_build_template_set_pointer")
+            else None
+        )
+
+        result = ObservedBuildStore(lambda: conn).rollback_pointer(
+            "retail",
+            2,
+            "tester",
+        )
+
+        self.assertEqual(result["generation"], 3)
+        self.assertEqual(result["activeTemplateSetId"], rollback_id)
+        immutable_updates = [
+            sql
+            for sql in conn.cursor_instance.statements
+            if sql.startswith("UPDATE cache.observed_build_")
+            and "template_set_pointer" not in sql
+        ]
+        self.assertEqual(immutable_updates, [])
+
+
+if __name__ == "__main__":
+    unittest.main()
