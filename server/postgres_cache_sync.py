@@ -559,6 +559,195 @@ def refresh_websim_item_metadata_item_gaps_postgres(
     return payload
 
 
+def _raiderio_target_spec_ids():
+    raw = str(
+        os.environ.get("WOW_RAIDERIO_SPEC_RANKING_TARGET_SPECS")
+        or ""
+    ).strip()
+    if not raw:
+        return []
+    expected = set(expected_spec_pairs())
+    targets = []
+    for token in (
+        raw.replace("/", ":")
+        .replace(";", " ")
+        .replace(",", " ")
+        .split()
+    ):
+        parts = token.split(":")
+        if len(parts) != 2:
+            continue
+        spec_id = (
+            f"{slugify(parts[0], '')}:{slugify(parts[1], '')}"
+        )
+        if spec_id in expected and spec_id not in targets:
+            targets.append(spec_id)
+    return targets
+
+
+def _raiderio_row_spec_id(row):
+    row = row if isinstance(row, dict) else {}
+    class_key = slugify(
+        row.get("classKey")
+        or row.get("classSlug"),
+        "",
+    )
+    spec_key = slugify(
+        row.get("specKey")
+        or row.get("specSlug"),
+        "",
+    )
+    return f"{class_key}:{spec_key}" if class_key and spec_key else ""
+
+
+def _raiderio_profile_merge_key(profile):
+    profile = profile if isinstance(profile, dict) else {}
+    identity = str(
+        profile.get("sourceIdentity") or ""
+    ).strip().lower()
+    if identity:
+        return f"identity:{identity}"
+    return "|".join(
+        [
+            str(profile.get("region") or "").strip().lower(),
+            str(
+                profile.get("realmSlug")
+                or profile.get("realm")
+                or ""
+            ).strip().lower(),
+            str(
+                profile.get("name")
+                or profile.get("characterName")
+                or ""
+            ).strip().lower(),
+            _raiderio_row_spec_id(profile),
+        ]
+    )
+
+
+def _merge_raiderio_rows(cached_rows, refreshed_rows, key_builder):
+    merged = {}
+    for row in [*(cached_rows or []), *(refreshed_rows or [])]:
+        if not isinstance(row, dict):
+            continue
+        key = str(key_builder(row) or "").strip()
+        if key:
+            merged[key] = row
+    return list(merged.values())
+
+
+def _merge_targeted_raiderio_payload(
+    cached,
+    refreshed,
+    target_specs,
+):
+    cached = dict(cached or {})
+    refreshed = dict(refreshed or {})
+    targets = [
+        str(spec_id or "").strip()
+        for spec_id in target_specs or []
+        if str(spec_id or "").strip()
+    ]
+    if (
+        not cached
+        or not targets
+        or str(cached.get("seasonSlug") or "").strip()
+        != str(refreshed.get("seasonSlug") or "").strip()
+    ):
+        return refreshed
+
+    profiles = _merge_raiderio_rows(
+        cached.get("profiles"),
+        refreshed.get("profiles"),
+        _raiderio_profile_merge_key,
+    )
+    templates = _merge_raiderio_rows(
+        cached.get("communityTemplates"),
+        refreshed.get("communityTemplates"),
+        lambda row: row.get("id"),
+    )
+    aggregates = _merge_raiderio_rows(
+        cached.get("specAggregates"),
+        refreshed.get("specAggregates"),
+        lambda row: (
+            f"{_raiderio_row_spec_id(row)}:"
+            f"{slugify(row.get('role'), '')}"
+        ),
+    )
+    runs = _merge_raiderio_rows(
+        cached.get("runs"),
+        refreshed.get("runs"),
+        lambda row: (
+            f"{str(row.get('region') or '').strip().lower()}:"
+            f"{row.get('runId') or row.get('id') or ''}"
+        ),
+    )
+    merged_status = (
+        "synced"
+        if str(
+            cached.get("sourceStatus")
+            or cached.get("status")
+        )
+        == "synced"
+        and str(
+            refreshed.get("sourceStatus")
+            or refreshed.get("status")
+        )
+        == "synced"
+        else "partial"
+    )
+    payload = {
+        **cached,
+        **refreshed,
+        "sourceStatus": merged_status,
+        "status": merged_status,
+        "errors": unique_text_list(
+            [
+                *(cached.get("errors") or []),
+                *(refreshed.get("errors") or []),
+            ]
+        )[:12],
+        "runCount": max(
+            int(cached.get("runCount") or 0),
+            int(refreshed.get("runCount") or 0),
+            len(runs),
+        ),
+        "profileCount": len(profiles),
+        "profiles": profiles,
+        "communityTemplates": templates,
+        "specAggregates": aggregates,
+        "runs": runs[:400],
+        "targetedMerge": {
+            "schemaRevision":
+                "raiderio-targeted-cache-merge-v1",
+            "targetSpecs": targets,
+            "cachedProfileCount": len(
+                cached.get("profiles") or []
+            ),
+            "refreshedProfileCount": len(
+                refreshed.get("profiles") or []
+            ),
+            "mergedProfileCount": len(profiles),
+            "cachedTemplateCount": len(
+                cached.get("communityTemplates") or []
+            ),
+            "refreshedTemplateCount": len(
+                refreshed.get("communityTemplates") or []
+            ),
+            "mergedTemplateCount": len(templates),
+        },
+    }
+    for key in (
+        "regionCoverage",
+        "specCoverage",
+        "targetItemCoverage",
+        "targetMatrix",
+    ):
+        if cached.get(key) not in (None, {}, []):
+            payload[key] = cached[key]
+    return payload
+
+
 def sync_raiderio_cache_postgres(force=False, stage_callback=None, store=None):
     store = store or cache_store_from_env()
     _emit(stage_callback, "raiderio", "start", force=bool(force))
@@ -594,6 +783,16 @@ def sync_raiderio_cache_postgres(force=False, stage_callback=None, store=None):
         payload = cached
         source_status = "stale"
     if source_status not in {"blocked", "failed", "stale"}:
+        payload = _merge_targeted_raiderio_payload(
+            cached,
+            payload,
+            _raiderio_target_spec_ids(),
+        )
+        source_status = str(
+            payload.get("sourceStatus")
+            or payload.get("status")
+            or source_status
+        ).strip().lower()
         store.save_raiderio_payload(payload)
     _emit(
         stage_callback,

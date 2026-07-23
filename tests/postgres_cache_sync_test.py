@@ -492,6 +492,143 @@ class PostgresCacheSyncTest(unittest.TestCase):
         self.assertEqual(store.saved_raiderio_payloads[-1]["checkedAt"], "fresh-cache")
         self.assertEqual(store.saved_raiderio_payloads[-1]["communityTemplates"][0]["id"], "fresh-template")
 
+    def test_raiderio_targeted_sync_merges_without_dropping_other_specs(self):
+        from server import postgres_cache_sync
+
+        store = FakePostgresSyncStore()
+        store.raiderio_payload = {
+            "sourceStatus": "synced",
+            "status": "synced",
+            "seasonSlug": "season-midnight-1",
+            "checkedAt": "full-cache",
+            "profiles": [
+                {
+                    "sourceIdentity": "raiderio:us|realm|arcane",
+                    "classKey": "mage",
+                    "specKey": "arcane",
+                    "itemLevel": 700,
+                },
+                {
+                    "sourceIdentity": "raiderio:us|realm|unholy-old",
+                    "classKey": "deathknight",
+                    "specKey": "unholy",
+                    "itemLevel": 700,
+                },
+            ],
+            "communityTemplates": [
+                {
+                    "id": "arcane-template",
+                    "classKey": "mage",
+                    "specKey": "arcane",
+                },
+                {
+                    "id": "unholy-old-template",
+                    "classKey": "deathknight",
+                    "specKey": "unholy",
+                },
+            ],
+            "specAggregates": [
+                {
+                    "classKey": "mage",
+                    "specKey": "arcane",
+                    "role": "dps",
+                },
+                {
+                    "classKey": "deathknight",
+                    "specKey": "unholy",
+                    "role": "dps",
+                    "sampleCount": 2,
+                },
+            ],
+        }
+        targeted_payload = {
+            "sourceStatus": "synced",
+            "status": "synced",
+            "seasonSlug": "season-midnight-1",
+            "checkedAt": "targeted-cache",
+            "profiles": [
+                {
+                    "sourceIdentity": "raiderio:us|realm|unholy-new",
+                    "classKey": "deathknight",
+                    "specKey": "unholy",
+                    "itemLevel": 710,
+                }
+            ],
+            "communityTemplates": [
+                {
+                    "id": "unholy-new-template",
+                    "classKey": "deathknight",
+                    "specKey": "unholy",
+                }
+            ],
+            "specAggregates": [
+                {
+                    "classKey": "deathknight",
+                    "specKey": "unholy",
+                    "role": "dps",
+                    "sampleCount": 8,
+                }
+            ],
+        }
+
+        with patch.object(
+            postgres_cache_sync,
+            "sync_raiderio_cache",
+            return_value=targeted_payload,
+            create=True,
+        ), patch.dict(
+            os.environ,
+            {
+                "WOW_RAIDERIO_SPEC_RANKING_TARGET_SPECS":
+                    "deathknight:unholy",
+            },
+            clear=False,
+        ):
+            payload = (
+                postgres_cache_sync.sync_raiderio_cache_postgres(
+                    store=store
+                )
+            )
+
+        self.assertEqual(
+            {
+                profile["sourceIdentity"]
+                for profile in payload["profiles"]
+            },
+            {
+                "raiderio:us|realm|arcane",
+                "raiderio:us|realm|unholy-old",
+                "raiderio:us|realm|unholy-new",
+            },
+        )
+        self.assertEqual(
+            {
+                template["id"]
+                for template in payload["communityTemplates"]
+            },
+            {
+                "arcane-template",
+                "unholy-old-template",
+                "unholy-new-template",
+            },
+        )
+        self.assertEqual(
+            next(
+                row
+                for row in payload["specAggregates"]
+                if row["specKey"] == "unholy"
+            )["sampleCount"],
+            8,
+        )
+        self.assertEqual(
+            payload["targetedMerge"]["targetSpecs"],
+            ["deathknight:unholy"],
+        )
+        self.assertEqual(
+            store.saved_raiderio_payloads[-1]["checkedAt"],
+            "targeted-cache",
+        )
+
     def test_raiderio_postgres_sync_keeps_last_success_when_collection_returns_blocked(self):
         from server import postgres_cache_sync
 
