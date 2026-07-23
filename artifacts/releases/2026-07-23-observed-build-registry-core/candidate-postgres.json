@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-23T17:12:24+08:00",
+  "scope": "Observed Build Registry dormant PostgreSQL candidate",
+  "branch": "codex/observed-build-registry-core",
+  "commit": "915a7c4f90af8b0368a7191d7e4aa62312fd1916",
+  "gitTree": "886622287d70fb44d2c167cd3f66b2526e742ef9",
+  "environment": {
+    "hostAlias": "wow-lighthouse",
+    "host": "VM-4-8-ubuntu",
+    "sourceDatabase": "wow_test",
+    "candidateDatabase": "wow_observed_registry_915a7c4",
+    "databaseRuntime": "postgres_only",
+    "asyncSyncStart": false,
+    "serviceRestart": false,
+    "publicReaderActivation": false,
+    "simcInvocation": false
+  },
+  "backup": {
+    "path": "/opt/wow-mini-program-candidate-backups/observed-build-registry-915a7c4-pre/wow_test-postgres.dump",
+    "sha256": "f141b4cba6be9578ccd22737e94d6957df098718d77de5906919e3a480608b49",
+    "bytes": 348656744,
+    "status": "pass"
+  },
+  "migration": {
+    "id": "0018_observed_build_registry",
+    "status": "pass",
+    "tableCount": 6,
+    "candidateFileParity": true,
+    "minimalWowAppGrants": true
+  },
+  "smoke": {
+    "status": "pass",
+    "scope": "candidate-shadow-915a7c4-proof",
+    "slotCount": 80,
+    "firstTemplateSetId": "template-set:sha256:aa1ebf7cd7d98aec76469f632913ef0788672250b642614b2088d81f1d505129",
+    "secondTemplateSetId": "template-set:sha256:21525b8a5065c06981cea808825739b3213267c1102b33a762a8565aee3ad8ed",
+    "firstCounts": {
+      "verified": 80,
+      "stale_lkg": 0,
+      "pending_collection": 0
+    },
+    "secondCounts": {
+      "verified": 79,
+      "stale_lkg": 1,
+      "pending_collection": 0
+    },
+    "sourceRunIdNoopReuse": "candidate-run-a",
+    "pointerGenerations": [
+      1,
+      2,
+      3
+    ],
+    "initialCasConflictRejected": true,
+    "staleCasConflictRejected": true,
+    "compositeForeignKeyRejected": true,
+    "appMutationPrivilegeRejected": true,
+    "immutableTriggerRejected": true,
+    "rowCounts": {
+      "snapshots": 81,
+      "checks": 1,
+      "projections": 81,
+      "templateSets": 2,
+      "templateSetSlots": 160,
+      "pointers": 2
+    }
+  },
+  "productionIsolation": {
+    "status": "pass",
+    "observedRegistryTableCount": 0,
+    "migration0018Count": 0,
+    "existingManifestPointerGenerationBefore": 22,
+    "existingManifestPointerGenerationAfter": 22,
+    "liveRuntimeObservedRegistryImportCount": 0,
+    "backend": "active",
+    "syncServices": [
+      "inactive",
+      "inactive",
+      "inactive"
+    ]
+  },
+  "cleanup": {
+    "status": "pass",
+    "candidateDatabaseRemaining": 0,
+    "candidateFilesRemaining": false,
+    "backupRetained": true
+  },
+  "rollback": {
+    "code": "Remove the dormant modules and migration before production activation.",
+    "data": "Restore the retained wow_test dump only if an explicitly selected future target is corrupted.",
+    "candidate": "The disposable database and candidate code directory were removed after smoke."
+  },
+  "conclusion": "The exact candidate commit proved immutable sealing, deterministic 80-slot publication, same-slot LKG, idempotent reuse, stale-writer rejection and generation rollback against real PostgreSQL without activating production readers, pointers, timers, collection or SimC."
+}
