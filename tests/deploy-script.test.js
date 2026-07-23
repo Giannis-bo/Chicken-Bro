@@ -302,6 +302,7 @@ test('community template sync has a daily incremental persistent systemd timer',
   const timer = fs.readFileSync('server/wow-community-template-sync.timer', 'utf8')
 
   assert.match(service, /Environment=WOW_DATABASE_RUNTIME=postgres_only/)
+  assert.match(service, /Environment=WOW_OBSERVED_BUILD_SCOPE=retail/)
   assert.match(service, /Environment=WOW_COMMUNITY_TEMPLATE_SYNC_MODE=daily_incremental/)
   assert.match(service, /Environment=WOW_COMMUNITY_DAILY_TIER=daily_targeted/)
   assert.match(service, /Environment=WOW_COMMUNITY_DAILY_TALENT_MODE=missing_slots/)
@@ -330,7 +331,8 @@ test('community template sync has a daily incremental persistent systemd timer',
   assert.doesNotMatch(service, /Environment=WOW_RAIDERIO_RUN_PAGES=8/)
   assert.doesNotMatch(service, /Environment=WOW_RAIDERIO_RUN_DETAIL_LIMIT=1400/)
   assert.doesNotMatch(service, /WOW_NEWS_DB/)
-  assert.match(service, /ExecStart=\/usr\/bin\/flock -w 7200 \/run\/lock\/wow-mini-program-sync\.lock \/usr\/bin\/python3 \/opt\/wow-mini-program\/server\/community_template_sync\.py/)
+  assert.match(service, /ExecStart=\/usr\/bin\/flock -w 7200 \/run\/lock\/wow-mini-program-sync\.lock \/usr\/bin\/python3 -m server\.observed_build_sync --scope retail --refresh-source --json/)
+  assert.doesNotMatch(service, /ExecStart=[^\n]*community_template_sync\.py/)
   assert.match(service, /TimeoutStartSec=180min/)
   assert.match(timer, /OnBootSec=12min/)
   assert.match(timer, /OnCalendar=\*-\*-\* 06:15:00/)

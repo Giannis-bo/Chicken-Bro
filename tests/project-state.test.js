@@ -14,6 +14,7 @@ const activeHarnessSuperpowersRelease = 'artifacts/releases/2026-07-16-harness-s
 const archivedHarnessV062Release = 'artifacts/releases/2026-07-19-harness-v0-6-2-control-plane-cleanup'
 const completedHarnessV063Release = 'artifacts/releases/2026-07-20-harness-v0-6-3-docs-dx'
 const activeHarnessV064Release = 'artifacts/releases/2026-07-20-harness-v0-6-4-wechat-preview-refresh'
+const observedBuildRegistryRelease = 'artifacts/releases/2026-07-23-observed-build-registry-cutover'
 const archivedTalentLkgRelease = 'artifacts/releases/2026-07-13-talent-link-lkg-sync-guard'
 const archivedCommunityEnhancementRelease = 'artifacts/releases/2026-07-14-community-enhancement-editability'
 
@@ -41,11 +42,11 @@ test('project-state is the single machine-readable current truth entry', () => {
   const state = readJson(projectStatePath)
 
   assert.equal(state.schemaVersion, 1)
-  assert.equal(state.updatedAt, '2026-07-20')
+  assert.equal(state.updatedAt, '2026-07-23')
   assert.equal(state.activeMilestone, 'taro_target_first_14_route_rebuild')
   assert.equal(state.featureIteration, 'allowed_under_harness')
   assert.equal(state.activeReleaseArtifact, undefined)
-  assert.equal(state.defaultLocalReleaseArtifact, activeHarnessV064Release)
+  assert.equal(state.defaultLocalReleaseArtifact, observedBuildRegistryRelease)
   assert.deepEqual(state.releaseResolution, {
     ci: 'task_scoped_pr_diff',
     local: 'explicit_release_or_default_local_release_artifact',
@@ -83,6 +84,7 @@ test('project-state is the single machine-readable current truth entry', () => {
   assert.ok(activeContractIds.has('repo_native_harness_v0_6_4'))
   assert.ok(!activeContractIds.has('harness_v0_6_2_control_plane_cleanup'))
   assert.ok(activeContractIds.has('taro_target_first_14_route_rebuild'))
+  assert.ok(activeContractIds.has('observed_build_registry_cutover'))
   assert.ok(!activeContractIds.has('talent_link_lkg_sync_guard'))
   assert.ok(!activeContractIds.has('community_enhancement_editability'))
   assert.ok(!activeContractIds.has('equipment_simulator_capability_architecture'))
@@ -132,7 +134,7 @@ test('project-state is the single machine-readable current truth entry', () => {
     assert.ok(!activePaths.has(entry.path), `${entry.path} should not be both active and historical`)
   }
 
-  for (const releasePath of [activeHarnessV064Release, completedHarnessV063Release, archivedHarnessV062Release, activeHarnessSuperpowersRelease, archivedTalentLkgRelease, archivedCommunityEnhancementRelease, archivedPhase5Release, characterizationRelease, executableHarnessRelease, controlPlaneRelease]) {
+  for (const releasePath of [observedBuildRegistryRelease, activeHarnessV064Release, completedHarnessV063Release, archivedHarnessV062Release, activeHarnessSuperpowersRelease, archivedTalentLkgRelease, archivedCommunityEnhancementRelease, archivedPhase5Release, characterizationRelease, executableHarnessRelease, controlPlaneRelease]) {
     assertPathExists(path.join(releasePath, 'requirement.json'))
     assertPathExists(path.join(releasePath, 'evidence.json'))
     assertPathExists(path.join(releasePath, 'manifest.json'))
