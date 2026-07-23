@@ -408,14 +408,32 @@ class PostgresSchemaTest(unittest.TestCase):
         self.assertIn("CHECK (status IN ('captured', 'changed', 'unchanged', 'failed'))", normalized)
         self.assertIn("CHECK (status IN ('verified', 'blocked'))", normalized)
         self.assertIn("CHECK (status IN ('verified', 'stale_lkg', 'pending_collection'))", normalized)
-        self.assertIn("PRIMARY KEY (template_set_id, slot_key)", normalized)
-        self.assertIn("ON DELETE RESTRICT", normalized)
+        self.assertIn("source_identity text NOT NULL", normalized)
+        self.assertIn("source_identity text", normalized)
         self.assertIn(
-            "FOREIGN KEY (snapshot_id, slot_key) REFERENCES cache.observed_build_snapshots(snapshot_id, slot_key)",
+            "status IN ('verified', 'stale_lkg') AND snapshot_id IS NOT NULL AND projection_id IS NOT NULL AND source_identity IS NOT NULL",
             normalized,
         )
         self.assertIn(
-            "FOREIGN KEY (projection_id, snapshot_id, slot_key) REFERENCES cache.observed_build_projections(projection_id, snapshot_id, slot_key)",
+            "status = 'pending_collection' AND snapshot_id IS NULL AND projection_id IS NULL AND source_identity IS NULL",
+            normalized,
+        )
+        self.assertIn("PRIMARY KEY (template_set_id, slot_key)", normalized)
+        self.assertIn("ON DELETE RESTRICT", normalized)
+        self.assertIn(
+            "UNIQUE (snapshot_id, slot_key, source_identity)",
+            normalized,
+        )
+        self.assertIn(
+            "FOREIGN KEY (snapshot_id, slot_key, source_identity) REFERENCES cache.observed_build_snapshots(snapshot_id, slot_key, source_identity)",
+            normalized,
+        )
+        self.assertIn(
+            "UNIQUE (projection_id, snapshot_id, slot_key, source_identity)",
+            normalized,
+        )
+        self.assertIn(
+            "FOREIGN KEY (projection_id, snapshot_id, slot_key, source_identity) REFERENCES cache.observed_build_projections(projection_id, snapshot_id, slot_key, source_identity)",
             normalized,
         )
         self.assertIn("BEFORE UPDATE OR DELETE ON cache.observed_build_snapshots", normalized)

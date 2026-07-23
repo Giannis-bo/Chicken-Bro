@@ -382,10 +382,12 @@ class ObservedBuildStore:
                     """
                     INSERT INTO cache.observed_build_projections (
                         projection_id, snapshot_id, schema_revision, slot_key,
+                        source_identity,
                         dependency_hash, dependency_vector_json,
                         status, importable, projection_json, row_hash
                     ) VALUES (
-                        %s, %s, %s, %s, %s, %s::jsonb,
+                        %s, %s, %s, %s, %s,
+                        %s, %s::jsonb,
                         %s, %s, %s::jsonb, %s
                     )
                     ON CONFLICT (projection_id) DO NOTHING
@@ -396,6 +398,7 @@ class ObservedBuildStore:
                         expected["snapshotId"],
                         expected["schemaRevision"],
                         expected["slotKey"],
+                        expected["sourceIdentity"],
                         expected["dependencyHash"],
                         _json(expected["dependencyVector"]),
                         expected["status"],
@@ -472,11 +475,11 @@ class ObservedBuildStore:
                             INSERT INTO cache.observed_build_template_set_slots (
                                 template_set_id, slot_key,
                                 class_key, spec_key, hero_key, scenario_key,
-                                status, snapshot_id, projection_id,
+                                status, source_identity, snapshot_id, projection_id,
                                 problem_json, slot_json, row_hash
                             ) VALUES (
                                 %s, %s, %s, %s, %s, %s,
-                                %s, %s, %s, %s::jsonb, %s::jsonb, %s
+                                %s, %s, %s, %s, %s::jsonb, %s::jsonb, %s
                             )
                             """,
                             (
@@ -487,6 +490,7 @@ class ObservedBuildStore:
                                 slot["heroKey"],
                                 slot["scenarioKey"],
                                 entry["status"],
+                                entry.get("sourceIdentity") or None,
                                 entry.get("snapshotId") or None,
                                 entry.get("projectionId") or None,
                                 _json(entry.get("problem") or {}),

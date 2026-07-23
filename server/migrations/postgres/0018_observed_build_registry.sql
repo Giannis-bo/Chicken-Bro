@@ -18,7 +18,8 @@ CREATE TABLE IF NOT EXISTS cache.observed_build_snapshots (
         CHECK (octet_length(snapshot_json::text) <= 1048576),
     row_hash text NOT NULL CHECK (row_hash ~ '^sha256:[0-9a-f]{64}$'),
     created_at timestamptz NOT NULL DEFAULT now(),
-    UNIQUE (snapshot_id, slot_key)
+    UNIQUE (snapshot_id, slot_key),
+    UNIQUE (snapshot_id, slot_key, source_identity)
 );
 
 CREATE INDEX IF NOT EXISTS idx_cache_observed_build_snapshots_slot
@@ -64,6 +65,7 @@ CREATE TABLE IF NOT EXISTS cache.observed_build_projections (
     snapshot_id text NOT NULL,
     schema_revision text NOT NULL,
     slot_key text NOT NULL,
+    source_identity text NOT NULL,
     dependency_hash text NOT NULL CHECK (dependency_hash ~ '^sha256:[0-9a-f]{64}$'),
     dependency_vector_json jsonb NOT NULL
         CHECK (octet_length(dependency_vector_json::text) <= 65536),
@@ -78,8 +80,9 @@ CREATE TABLE IF NOT EXISTS cache.observed_build_projections (
         OR (status = 'blocked' AND NOT importable)
     ),
     UNIQUE (projection_id, snapshot_id, slot_key),
-    FOREIGN KEY (snapshot_id, slot_key)
-        REFERENCES cache.observed_build_snapshots(snapshot_id, slot_key)
+    UNIQUE (projection_id, snapshot_id, slot_key, source_identity),
+    FOREIGN KEY (snapshot_id, slot_key, source_identity)
+        REFERENCES cache.observed_build_snapshots(snapshot_id, slot_key, source_identity)
         ON DELETE RESTRICT
 );
 
@@ -88,6 +91,9 @@ ON cache.observed_build_projections (snapshot_id, dependency_hash);
 
 CREATE INDEX IF NOT EXISTS idx_cache_observed_build_projections_slot
 ON cache.observed_build_projections (slot_key, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_cache_observed_build_projections_source
+ON cache.observed_build_projections (source_identity, created_at DESC);
 
 CREATE TABLE IF NOT EXISTS cache.observed_build_template_sets (
     template_set_id text PRIMARY KEY
@@ -119,6 +125,7 @@ CREATE TABLE IF NOT EXISTS cache.observed_build_template_set_slots (
     scenario_key text NOT NULL,
     status text NOT NULL
         CHECK (status IN ('verified', 'stale_lkg', 'pending_collection')),
+    source_identity text,
     snapshot_id text
         REFERENCES cache.observed_build_snapshots(snapshot_id) ON DELETE RESTRICT,
     projection_id text
@@ -134,20 +141,25 @@ CREATE TABLE IF NOT EXISTS cache.observed_build_template_set_slots (
             status IN ('verified', 'stale_lkg')
             AND snapshot_id IS NOT NULL
             AND projection_id IS NOT NULL
+            AND source_identity IS NOT NULL
         )
         OR (
             status = 'pending_collection'
             AND snapshot_id IS NULL
             AND projection_id IS NULL
+            AND source_identity IS NULL
         )
     ),
-    FOREIGN KEY (projection_id, snapshot_id, slot_key)
-        REFERENCES cache.observed_build_projections(projection_id, snapshot_id, slot_key)
+    FOREIGN KEY (projection_id, snapshot_id, slot_key, source_identity)
+        REFERENCES cache.observed_build_projections(projection_id, snapshot_id, slot_key, source_identity)
         ON DELETE RESTRICT
 );
 
 CREATE INDEX IF NOT EXISTS idx_cache_observed_build_template_set_slots_projection
 ON cache.observed_build_template_set_slots (projection_id);
+
+CREATE INDEX IF NOT EXISTS idx_cache_observed_build_template_set_slots_source
+ON cache.observed_build_template_set_slots (source_identity);
 
 CREATE TABLE IF NOT EXISTS cache.observed_build_template_set_pointer (
     scope text PRIMARY KEY CHECK (length(scope) BETWEEN 1 AND 80),

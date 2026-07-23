@@ -85,6 +85,14 @@ class ObservedBuildProjectionTest(unittest.TestCase):
         self.assertEqual(first["status"], "verified")
         self.assertTrue(first["importable"])
 
+    def test_projection_binds_snapshot_source_identity(self):
+        projection = self.verified_projection()
+
+        self.assertEqual(
+            projection["sourceIdentity"],
+            self.snapshot()["source"]["sourceIdentity"],
+        )
+
     def test_dependency_change_creates_a_new_projection(self):
         first = self.verified_projection()
         second = self.verified_projection(
@@ -138,6 +146,18 @@ class ObservedBuildProjectionTest(unittest.TestCase):
         projection = self.verified_projection()
         tampered = copy.deepcopy(projection)
         tampered["gearProjection"]["selectionIntent"]["slots"]["head"]["itemId"] = "forged"
+
+        issues = validate_projection(tampered)
+
+        self.assertEqual(
+            {issue["code"] for issue in issues},
+            {"PROJECTION_ID_MISMATCH"},
+        )
+
+    def test_validation_rejects_tampered_source_identity(self):
+        projection = self.verified_projection()
+        tampered = copy.deepcopy(projection)
+        tampered["sourceIdentity"] = "raiderio:cn|realm-a|player-b"
 
         issues = validate_projection(tampered)
 

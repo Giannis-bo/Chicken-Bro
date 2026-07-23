@@ -77,7 +77,7 @@
 - Consumes: draft PR `#98`, branch `codex/observed-build-registry-core`, dormant migration/core evidence.
 - Produces: merged dormant registry foundation on `origin/main`, with no active TemplateSet pointer and no public reader change.
 
-- [ ] **Step 1: Reproduce the only current full-profile blocker**
+- [x] **Step 1: Reproduce the only current full-profile blocker**
 
 Run:
 
@@ -87,7 +87,7 @@ node scripts/audit-ui-architecture.js
 
 Expected: FAIL only at `component_native_buttons_cannot_disable_shared_width_clamping`, naming `TalentSimulatorComponents.module.scss`.
 
-- [ ] **Step 2: Remove the unbounded component width exemption**
+- [x] **Step 2: Remove the unbounded component width exemption**
 
 Replace the only component `max-width: none` escape with the image's explicit three-panel geometry:
 
@@ -100,7 +100,7 @@ Replace the only component `max-width: none` escape with the image's explicit th
 
 This preserves the talent artwork's three-panel crop without allowing the broad `none` exemption. The shared `.nativeControl { max-width: 100%; }` button owner remains authoritative.
 
-- [ ] **Step 3: Verify the targeted audit and dormant core**
+- [x] **Step 3: Verify the targeted audit and dormant core**
 
 Run:
 
@@ -118,14 +118,14 @@ python3 -m unittest \
 
 Expected: both commands PASS; core tests report no network, legacy release, or active-reader dependency.
 
-- [ ] **Step 4: Commit the baseline audit correction**
+- [x] **Step 4: Commit the baseline audit correction**
 
 ```bash
 git add packages/design-system/src/components/TalentSimulatorComponents.module.scss
 git commit -m "fix(ui): retain native button width clamp"
 ```
 
-- [ ] **Step 5: Refresh exact-head Harness evidence**
+- [x] **Step 5: Refresh exact-head Harness evidence**
 
 Run the full profile against the one existing packet:
 
@@ -138,7 +138,7 @@ node scripts/verify-project.js \
 
 Expected: PASS. Record the exact verification commit/tree in `evidence.json`; keep the previously proven candidate runtime identity only if the runtime tree hash is unchanged, otherwise rerun the disposable PostgreSQL candidate smoke and bind the new exact runtime identity.
 
-- [ ] **Step 6: Commit evidence and merge PR #98**
+- [x] **Step 6: Commit evidence and merge PR #98**
 
 ```bash
 git add \
@@ -154,7 +154,7 @@ gh pr merge 98 --merge
 
 Expected: all required checks PASS and PR #98 merges without force push. Production tables and the `retail` pointer remain untouched.
 
-- [ ] **Step 7: Rebase execution state onto the merged foundation**
+- [x] **Step 7: Rebase execution state onto the merged foundation**
 
 After PR #98 is merged:
 
@@ -185,7 +185,7 @@ Expected: the same isolated worktree is now on `codex/observed-build-registry-cu
 - Consumes: `build_observed_snapshot(...) -> dict`, `build_projection(...) -> dict`, `build_template_set(...) -> dict`.
 - Produces: projection and entry field `sourceIdentity: str`; `promotion_decision(...)` blocks pending initial or later candidates; schema columns `source_identity`.
 
-- [ ] **Step 1: Write failing source-identity and activation tests**
+- [x] **Step 1: Write failing source-identity and activation tests**
 
 Add assertions equivalent to:
 
@@ -233,7 +233,7 @@ def test_same_spec_hero_slots_require_distinct_players(self):
         )
 ```
 
-- [ ] **Step 2: Run the tests and confirm the contract is absent**
+- [x] **Step 2: Run the tests and confirm the contract is absent**
 
 ```bash
 python3 -m unittest \
@@ -245,7 +245,7 @@ python3 -m unittest \
 
 Expected: FAIL because projections/entries do not expose `sourceIdentity`, duplicate same-spec identities are accepted, and incomplete first activation returns `controlled_cutover`.
 
-- [ ] **Step 3: Bind source identity into immutable projection content**
+- [x] **Step 3: Bind source identity into immutable projection content**
 
 Add `sourceIdentity` to `_identity_payload`, `build_projection`, and `validate_projection`:
 
@@ -274,7 +274,7 @@ projection = {
 }
 ```
 
-- [ ] **Step 4: Carry and validate identity in TemplateSet entries**
+- [x] **Step 4: Carry and validate identity in TemplateSet entries**
 
 Verified and LKG entries carry `sourceIdentity`; pending entries carry an empty string. Add a spec-pair check:
 
@@ -301,7 +301,7 @@ def _distinct_spec_player_issues(entries):
 
 `validate_template_set` appends these issues. `build_template_set` raises on them.
 
-- [ ] **Step 5: Block incomplete activation**
+- [x] **Step 5: Block incomplete activation**
 
 Implement the exact promotion rule:
 
@@ -325,11 +325,11 @@ if int(counts.get("pending_collection") or 0) > 0:
 
 An initial set must also have `verified == 80` and `stale_lkg == 0`; an existing active set may promote `verified + stale_lkg == 80`.
 
-- [ ] **Step 6: Persist source identity**
+- [x] **Step 6: Persist source identity**
 
 Add `source_identity text NOT NULL` to `cache.observed_build_projections` and nullable `source_identity text` to `cache.observed_build_template_set_slots`, with a check requiring it for `verified/stale_lkg` and forbidding it for pending rows. Update `seal_projection`, `seal_template_set`, fake SQL responders, and schema assertions to use these columns.
 
-- [ ] **Step 7: Run tests and commit**
+- [x] **Step 7: Run tests and commit**
 
 ```bash
 python3 -m unittest \

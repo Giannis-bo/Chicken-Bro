@@ -135,6 +135,7 @@ def _identity_payload(projection: dict[str, Any]) -> dict[str, Any]:
     return {
         "schemaRevision": projection.get("schemaRevision"),
         "snapshotId": projection.get("snapshotId"),
+        "sourceIdentity": projection.get("sourceIdentity"),
         "slot": projection.get("slot"),
         "dependencyVector": projection.get("dependencyVector"),
         "talentProjection": projection.get("talentProjection"),
@@ -193,10 +194,16 @@ def build_projection(
                 "message": "Talent, gear, and profile readiness must all be verified.",
             }
         ]
+    source_identity = _text(
+        (snapshot.get("source") or {}).get("sourceIdentity")
+    )
+    if not source_identity.startswith("raiderio:"):
+        raise ValueError("snapshot sourceIdentity must be a Raider.IO identity")
     projection = {
         "schemaRevision": OBSERVED_BUILD_PROJECTION_SCHEMA_REVISION,
         "projectionId": "",
         "snapshotId": snapshot["snapshotId"],
+        "sourceIdentity": source_identity,
         "slot": _canonical(snapshot["slot"]),
         "slotKey": slot_key(snapshot["slot"]),
         "dependencyHash": _sha256(normalized_dependencies),
@@ -236,6 +243,14 @@ def validate_projection(projection: Any) -> list[dict[str, str]]:
                 "PROJECTION_SNAPSHOT_ID_INVALID",
                 "projection.snapshotId",
                 "Projection snapshot ID is invalid.",
+            )
+        )
+    if not _text(projection.get("sourceIdentity")).startswith("raiderio:"):
+        issues.append(
+            _issue(
+                "PROJECTION_SOURCE_IDENTITY_INVALID",
+                "projection.sourceIdentity",
+                "Projection source identity must be a Raider.IO identity.",
             )
         )
     try:

@@ -231,6 +231,19 @@ class ObservedBuildStoreTest(unittest.TestCase):
 
         self.assertEqual(store.seal_projection(projection), projection)
         self.assertEqual(store.seal_projection(projection), projection)
+        insert_index = next(
+            index
+            for index, sql in enumerate(conn.cursor_instance.statements)
+            if sql.startswith("INSERT INTO cache.observed_build_projections")
+        )
+        self.assertIn(
+            "source_identity",
+            conn.cursor_instance.statements[insert_index],
+        )
+        self.assertIn(
+            projection["sourceIdentity"],
+            conn.cursor_instance.params[insert_index],
+        )
 
     def test_template_set_seal_writes_header_and_exactly_eighty_entries(self):
         template_set = self.template_set()
@@ -262,6 +275,12 @@ class ObservedBuildStoreTest(unittest.TestCase):
             "SELECT count(*) FROM cache.observed_build_template_set_slots WHERE template_set_id = %s",
             statements,
         )
+        slot_insert = next(
+            sql
+            for sql in statements
+            if sql.startswith("INSERT INTO cache.observed_build_template_set_slots")
+        )
+        self.assertIn("source_identity", slot_insert)
         self.assertTrue(conn.committed)
 
     def test_template_set_reuses_same_content_from_a_later_source_run(self):

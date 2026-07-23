@@ -121,6 +121,7 @@ def _pending_entry(slot: dict[str, str], problem: dict[str, Any] | None = None) 
         "status": "pending_collection",
         "snapshotId": "",
         "projectionId": "",
+        "sourceIdentity": "",
         "problem": _canonical(
             problem
             if isinstance(problem, dict)
@@ -140,6 +141,7 @@ def _verified_entry(slot: dict[str, str], projection: Mapping[str, Any]) -> dict
         "status": "verified",
         "snapshotId": _text(projection.get("snapshotId")),
         "projectionId": _text(projection.get("projectionId")),
+        "sourceIdentity": _text(projection.get("sourceIdentity")),
         "problem": {},
     }
 
@@ -155,6 +157,7 @@ def _lkg_entry(
         "status": "stale_lkg",
         "snapshotId": _text(active_entry.get("snapshotId")),
         "projectionId": _text(active_entry.get("projectionId")),
+        "sourceIdentity": _text(active_entry.get("sourceIdentity")),
         "problem": _entry_problem(blocked_projection),
     }
 
@@ -224,6 +227,30 @@ def _counts(entries: list[dict[str, Any]]) -> dict[str, int]:
         status: sum(entry.get("status") == status for entry in entries)
         for status in ("verified", "stale_lkg", "pending_collection")
     }
+
+
+def _distinct_spec_player_issues(
+    entries: list[dict[str, Any]],
+) -> list[dict[str, str]]:
+    identities_by_spec: dict[str, set[str]] = {}
+    issues: list[dict[str, str]] = []
+    for index, entry in enumerate(entries):
+        if entry.get("status") not in {"verified", "stale_lkg"}:
+            continue
+        slot = entry.get("slot") if isinstance(entry.get("slot"), dict) else {}
+        spec_key = f"{_text(slot.get('classKey'))}:{_text(slot.get('specKey'))}"
+        source_identity = _text(entry.get("sourceIdentity"))
+        prior = identities_by_spec.setdefault(spec_key, set())
+        if source_identity in prior:
+            issues.append(
+                _issue(
+                    "TEMPLATE_SET_SPEC_PLAYER_DUPLICATE",
+                    f"templateSet.entries[{index}].sourceIdentity",
+                    f"{spec_key} Hero slots require distinct sourceIdentity values.",
+                )
+            )
+        prior.add(source_identity)
+    return issues
 
 
 def build_template_set(
@@ -408,6 +435,7 @@ def validate_template_set(
             continue
         snapshot_id = _text(entry.get("snapshotId"))
         projection_id = _text(entry.get("projectionId"))
+        source_identity = _text(entry.get("sourceIdentity"))
         problem = entry.get("problem")
         problem = problem if isinstance(problem, dict) else {}
         if status in {"verified", "stale_lkg"}:
@@ -422,12 +450,20 @@ def validate_template_set(
                         "Verified and stale LKG entries require snapshot and projection IDs.",
                     )
                 )
-        elif snapshot_id or projection_id:
+            if not source_identity.startswith("raiderio:"):
+                issues.append(
+                    _issue(
+                        "TEMPLATE_SET_ENTRY_SOURCE_IDENTITY_INVALID",
+                        f"templateSet.entries[{index}].sourceIdentity",
+                        "Verified and stale LKG entries require a Raider.IO source identity.",
+                    )
+                )
+        elif snapshot_id or projection_id or source_identity:
             issues.append(
                 _issue(
                     "TEMPLATE_SET_PENDING_REFERENCE_INVALID",
                     f"templateSet.entries[{index}]",
-                    "Pending entries cannot reference a snapshot or projection.",
+                    "Pending entries cannot reference a snapshot, projection, or source identity.",
                 )
             )
         if status == "verified" and problem:
@@ -446,6 +482,11 @@ def validate_template_set(
                     "Stale and pending entries require a structured problem.",
                 )
             )
+    issues.extend(
+        _distinct_spec_player_issues(
+            [entry for entry in entries if isinstance(entry, dict)]
+        )
+    )
     for key in sorted(set(expected_keys).difference(actual_keys)):
         issues.append(
             _issue(
@@ -514,6 +555,40 @@ def promotion_decision(
     issues = validate_template_set(candidate_set, expected_slots)
     if issues:
         return {"action": "blocked", "problems": issues}
+    counts = candidate_set.get("counts") or {}
+    pending_count = int(counts.get("pending_collection") or 0)
+    if pending_count > 0:
+        return {
+            "action": "blocked",
+            "reason": (
+                "initial_coverage_incomplete"
+                if active_set is None
+                else "active_candidate_incomplete"
+            ),
+            "problems": [
+                {
+                    "code": "template_set_pending_collection",
+                    "stage": "promotion",
+                    "count": pending_count,
+                }
+            ],
+        }
+    if active_set is None and (
+        int(counts.get("verified") or 0) != EXPECTED_TEMPLATE_SLOT_COUNT
+        or int(counts.get("stale_lkg") or 0) != 0
+    ):
+        return {
+            "action": "blocked",
+            "reason": "initial_coverage_incomplete",
+            "problems": [
+                {
+                    "code": "template_set_initial_coverage_invalid",
+                    "stage": "promotion",
+                    "count": EXPECTED_TEMPLATE_SLOT_COUNT
+                    - int(counts.get("verified") or 0),
+                }
+            ],
+        }
     if active_set is None:
         return {"action": "controlled_cutover", "reason": "initial_activation"}
     if candidate_set.get("templateSetId") == active_set.get("templateSetId"):

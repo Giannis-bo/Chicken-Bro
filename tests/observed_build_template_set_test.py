@@ -127,6 +127,16 @@ class ObservedBuildTemplateSetTest(unittest.TestCase):
         self.assertNotEqual(candidate["templateSetId"], active["templateSetId"])
         self.assertEqual(promotion_decision(active_set=active, candidate_set=candidate)["action"], "auto_promote")
 
+    def test_verified_entry_carries_projection_source_identity(self):
+        active = self.active_with_a()
+        target = self.slot_a()
+        projection = self.verified_candidates(player_prefix="a")[slot_key(target)]
+
+        self.assertEqual(
+            self.entry(active, target)["sourceIdentity"],
+            projection["sourceIdentity"],
+        )
+
     def test_blocked_b_keeps_same_slot_a_as_stale_lkg(self):
         active = self.active_with_a()
         target = self.slot_a()
@@ -149,6 +159,25 @@ class ObservedBuildTemplateSetTest(unittest.TestCase):
         self.assertEqual(candidate["counts"]["verified"], 79)
         self.assertEqual(candidate["counts"]["stale_lkg"], 1)
 
+    def test_stale_lkg_keeps_the_previous_source_identity(self):
+        active = self.active_with_a()
+        target = self.slot_a()
+        active_entry = self.entry(active, target)
+        candidate = build_template_set(
+            expected_slots=self.slots(),
+            candidates_by_slot={
+                slot_key(target): self.projection(target, "player-b", status="blocked"),
+            },
+            active_set=active,
+            dependency_vector=self.dependencies(),
+            source_run_id="run-b",
+        )
+
+        self.assertEqual(
+            self.entry(candidate, target)["sourceIdentity"],
+            active_entry["sourceIdentity"],
+        )
+
     def test_no_lkg_marks_one_pending_and_keeps_other_seventy_nine_entries(self):
         target = self.slot_a()
         candidates = self.verified_candidates(player_prefix="first")
@@ -168,6 +197,46 @@ class ObservedBuildTemplateSetTest(unittest.TestCase):
         self.assertEqual(target_entry["projectionId"], "")
         self.assertEqual(candidate["counts"]["verified"], 79)
         self.assertEqual(candidate["counts"]["pending_collection"], 1)
+
+    def test_initial_activation_rejects_pending_slot(self):
+        target = self.slot_a()
+        candidates = self.verified_candidates(player_prefix="first")
+        candidates.pop(slot_key(target))
+        candidate = build_template_set(
+            expected_slots=self.slots(),
+            candidates_by_slot=candidates,
+            active_set=None,
+            dependency_vector=self.dependencies(),
+            source_run_id="run-first",
+        )
+
+        decision = promotion_decision(active_set=None, candidate_set=candidate)
+
+        self.assertEqual(decision["action"], "blocked")
+        self.assertEqual(decision["reason"], "initial_coverage_incomplete")
+        self.assertEqual(decision["problems"][0]["count"], 1)
+
+    def test_same_spec_hero_slots_require_distinct_players(self):
+        slots = self.slots()
+        first = slots[0]
+        second = next(
+            slot
+            for slot in slots[1:]
+            if slot["classKey"] == first["classKey"]
+            and slot["specKey"] == first["specKey"]
+        )
+        candidates = self.verified_candidates(player_prefix="unique")
+        candidates[slot_key(first)] = self.projection(first, "duplicate-player")
+        candidates[slot_key(second)] = self.projection(second, "duplicate-player")
+
+        with self.assertRaisesRegex(ValueError, "SPEC_PLAYER_DUPLICATE"):
+            build_template_set(
+                expected_slots=slots,
+                candidates_by_slot=candidates,
+                active_set=None,
+                dependency_vector=self.dependencies(),
+                source_run_id="run-duplicate",
+            )
 
     def test_missing_new_candidate_reuses_active_entry_without_marking_stale(self):
         active = self.active_with_a()
