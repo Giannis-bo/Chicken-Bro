@@ -124,6 +124,49 @@ class ObservedBuildIngestTest(unittest.TestCase):
         )
         self.assertEqual(snapshot["sourceRevision"], "raiderio:season-tww-3:observed-profile-v1")
 
+    def test_builds_snapshot_candidates_directly_from_self_contained_profiles(self):
+        payload = self.payload()
+        payload["communityTemplates"] = []
+        for profile, hero, raw_import_code in (
+            (payload["profiles"][0], "frostfire", "C4DA"),
+            (payload["profiles"][1], "spellslinger", "C4DB"),
+        ):
+            profile["rankingEvidence"] = {
+                "source": "raiderio_spec_ranking",
+                "score": 4200 if hero == "frostfire" else 4150,
+                "rank": 1 if hero == "frostfire" else 2,
+                "maxKeyLevel": 22,
+                "sourceUrl": profile["profileUrl"],
+            }
+            profile["talentLoadout"] = {
+                "rawImportCode": raw_import_code,
+                "loadoutSpecId": 64,
+                "heroSubTreeId": f"hero-{hero}",
+                "heroKey": hero,
+                "selector": {"heroKey": hero},
+                "source": "run_detail",
+                "loadout": [{"traitId": 91001, "rank": 1}],
+            }
+
+        result = snapshot_candidates_from_raiderio(payload)
+        winners = select_distinct_snapshot_winners(
+            result["candidatesBySlot"]
+        )
+
+        self.assertEqual(len(winners), 2)
+        self.assertEqual(
+            winners["mage:frost:frostfire:mythic_plus"][
+                "source"
+            ]["sourceIdentity"],
+            "raiderio:cn|realm-a|player-a",
+        )
+        self.assertEqual(
+            winners["mage:frost:spellslinger:mythic_plus"][
+                "talentObservation"
+            ]["rawImportCode"],
+            "C4DB",
+        )
+
     def test_selects_highest_combined_distinct_players_for_two_hero_slots(self):
         payload = self.payload()
         payload["communityTemplates"] = [

@@ -166,6 +166,79 @@ def _problem(code: str, *, stage: str, source_identity: str = "") -> dict[str, A
     return problem
 
 
+def _profile_candidate_template(
+    profile: Mapping[str, Any],
+) -> dict[str, Any] | None:
+    """Project one self-contained Raider.IO profile into the template adapter."""
+
+    talent = profile.get("talentLoadout")
+    talent = talent if isinstance(talent, dict) else {}
+    hero_key = _text(talent.get("heroKey"))
+    identity = _profile_identity(profile)
+    profile_url = _text(profile.get("profileUrl"))
+    if (
+        not hero_key
+        or not identity
+        or not profile_url.startswith("https://raider.io/")
+    ):
+        return None
+    ranking = profile.get("rankingEvidence")
+    ranking = ranking if isinstance(ranking, dict) else {}
+    return {
+        "id": f"observed-profile:{identity}:{hero_key}",
+        "classKey": _text(profile.get("classKey")),
+        "specKey": _text(profile.get("specKey")),
+        "heroKey": hero_key,
+        "scenarioKey": "mythic_plus",
+        "sourceKey": "raiderio",
+        "sourceUrl": profile_url,
+        "rawImportCode": _text(talent.get("rawImportCode")),
+        "playerId": _text(
+            profile.get("name")
+            or profile.get("characterName")
+        ),
+        "maxKeyLevel": _int(ranking.get("maxKeyLevel")),
+        "status": "verified",
+        "payload": {
+            "raiderio": {
+                "sourceIdentity": identity,
+                "profileUrl": profile_url,
+                "characterName": _text(
+                    profile.get("name")
+                    or profile.get("characterName")
+                ),
+                "realm": _text(
+                    profile.get("realm")
+                    or profile.get("realmSlug")
+                ),
+                "realmSlug": _text(
+                    profile.get("realmSlug")
+                    or profile.get("realm")
+                ),
+                "region": _text(profile.get("region")).lower(),
+                "heroKey": hero_key,
+                "heroSubTreeId": talent.get("heroSubTreeId") or "",
+                "loadoutSpecId": talent.get("loadoutSpecId") or "",
+                "selector": _canonical(
+                    talent.get("selector")
+                    if isinstance(talent.get("selector"), dict)
+                    else {}
+                ),
+                "source": _text(
+                    talent.get("source")
+                    or "profile_current"
+                ),
+                "loadout": _canonical(
+                    talent.get("loadout")
+                    if isinstance(talent.get("loadout"), list)
+                    else []
+                ),
+            },
+            "rioEvidence": _canonical(ranking),
+        },
+    }
+
+
 def _template_snapshot(
     template: Mapping[str, Any],
     *,
@@ -370,6 +443,32 @@ def snapshot_candidates_from_raiderio(payload: dict[str, Any]) -> dict[str, Any]
     candidates: dict[str, list[dict[str, Any]]] = defaultdict(list)
     problems: dict[str, list[dict[str, Any]]] = defaultdict(list)
     attempted_specs: set[str] = set()
+    for profile in profiles.values():
+        profile_template = _profile_candidate_template(profile)
+        if profile_template is None:
+            continue
+        slot = _template_slot(profile_template, expected)
+        if slot is None:
+            continue
+        key = slot_key(slot)
+        attempted_specs.add(f"{slot['classKey']}:{slot['specKey']}")
+        try:
+            candidates[key].append(
+                _template_snapshot(
+                    profile_template,
+                    slot=slot,
+                    profile=profile,
+                    season_slug=season_slug,
+                )
+            )
+        except ValueError as error:
+            problems[key].append(
+                _problem(
+                    _text(error) or "snapshot_extraction_failed",
+                    stage="collection",
+                    source_identity=_profile_identity(profile),
+                )
+            )
     for raw_template in payload.get("communityTemplates") or []:
         if not isinstance(raw_template, dict):
             continue
