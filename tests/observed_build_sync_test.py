@@ -221,7 +221,7 @@ class ObservedBuildSyncTest(unittest.TestCase):
         self.assertEqual(second, "spellslinger")
         self.assertEqual(store.calls, [("mage", "frost")])
 
-    def test_candidate_window_keeps_one_snapshot_for_each_of_eight_players(self):
+    def test_candidate_window_keeps_two_snapshots_for_each_of_eight_players(self):
         candidates = {
             "mage:frost:frostfire:mythic_plus": [
                 {
@@ -243,11 +243,20 @@ class ObservedBuildSyncTest(unittest.TestCase):
         )
 
         selected = bounded["mage:frost:frostfire:mythic_plus"]
-        self.assertEqual(len(selected), 8)
+        self.assertEqual(len(selected), 9)
         self.assertEqual(selected[0]["snapshotId"], "snapshot-0")
-        self.assertNotIn(
+        self.assertIn(
             "snapshot-1",
             {snapshot["snapshotId"] for snapshot in selected},
+        )
+        self.assertEqual(
+            len(
+                {
+                    snapshot["source"]["sourceIdentity"]
+                    for snapshot in selected
+                }
+            ),
+            8,
         )
 
     def dependencies(self):
@@ -584,6 +593,47 @@ class ObservedBuildSyncTest(unittest.TestCase):
         self.assertEqual(compiler.prepared, [])
         self.assertEqual(compiler.calls, [])
         self.assertEqual(store.projections, {})
+
+    def test_unchanged_snapshot_recompiles_when_runtime_reuse_gate_fails(self):
+        store = self.active_store()
+        target_key = slot_key(self.slots()[0])
+        test_case = self
+
+        class Compiler:
+            dependency_vector = test_case.dependencies()
+
+            def __init__(self):
+                self.prepared = []
+                self.calls = []
+
+            def can_reuse(self, snapshot, _projection):
+                return slot_key(snapshot["slot"]) != target_key
+
+            def prepare(self, snapshots):
+                self.prepared = list(snapshots)
+
+            def __call__(self, snapshot):
+                self.calls.append(snapshot)
+                return test_case.compiler()(snapshot)
+
+        compiler = Compiler()
+        result = run_observed_build_sync(
+            store,
+            scope="candidate",
+            refresh_source=False,
+            allow_promotion=True,
+            source_fetcher=lambda: self.payload("active"),
+            compiler=compiler,
+            checked_at="2026-07-23T13:00:00Z",
+        )
+
+        self.assertEqual(result["promotion"]["action"], "no_op")
+        self.assertEqual(len(compiler.prepared), 1)
+        self.assertEqual(len(compiler.calls), 1)
+        self.assertEqual(
+            slot_key(compiler.calls[0]["slot"]),
+            target_key,
+        )
 
     def test_source_payload_is_released_before_batch_gear_preparation(self):
         store = MemoryObservedBuildStore()

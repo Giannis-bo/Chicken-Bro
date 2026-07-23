@@ -16,6 +16,7 @@ try:
     from .observed_build_compiler import (
         compile_with_postgres,
         load_observed_gear_compile_context_with_postgres,
+        observed_talent_projection_runtime_ready_with_postgres,
         prepare_observed_gear_with_postgres,
     )
     from .observed_build_ingest import (
@@ -46,6 +47,7 @@ except ImportError:
     from observed_build_compiler import (
         compile_with_postgres,
         load_observed_gear_compile_context_with_postgres,
+        observed_talent_projection_runtime_ready_with_postgres,
         prepare_observed_gear_with_postgres,
     )
     from observed_build_ingest import (
@@ -79,6 +81,7 @@ OBSERVED_BUILD_SYNC_STATE_KEY = "observed_build_registry_sync"
 _SCOPES = {"candidate", "retail"}
 _SAFE_TOKEN = re.compile(r"[^a-zA-Z0-9_.:-]+")
 _CANDIDATE_PLAYER_LIMIT_PER_SLOT = 8
+_CANDIDATE_SNAPSHOT_LIMIT_PER_PLAYER = 2
 
 
 def _canonical(value: Any) -> Any:
@@ -278,22 +281,32 @@ def _active_snapshot_ids(active_set: dict[str, Any] | None) -> dict[str, str]:
 def _bounded_candidate_snapshots(
     candidates_by_slot: dict[str, list[dict[str, Any]]],
 ) -> dict[str, list[dict[str, Any]]]:
-    """Keep only the highest-ranked snapshot for each of eight distinct players."""
+    """Keep two exact snapshots for each of eight highest-ranked players."""
 
     bounded: dict[str, list[dict[str, Any]]] = {}
     for key in sorted(candidates_by_slot):
-        seen_identities: set[str] = set()
+        snapshot_counts_by_identity: dict[str, int] = {}
         selected: list[dict[str, Any]] = []
         for snapshot in candidates_by_slot.get(key) or []:
             identity = _text(
                 (snapshot.get("source") or {}).get("sourceIdentity")
             )
-            if not identity or identity in seen_identities:
+            if not identity:
                 continue
-            seen_identities.add(identity)
+            if identity not in snapshot_counts_by_identity:
+                if (
+                    len(snapshot_counts_by_identity)
+                    >= _CANDIDATE_PLAYER_LIMIT_PER_SLOT
+                ):
+                    continue
+                snapshot_counts_by_identity[identity] = 0
+            if (
+                snapshot_counts_by_identity[identity]
+                >= _CANDIDATE_SNAPSHOT_LIMIT_PER_PLAYER
+            ):
+                continue
             selected.append(snapshot)
-            if len(selected) >= _CANDIDATE_PLAYER_LIMIT_PER_SLOT:
-                break
+            snapshot_counts_by_identity[identity] += 1
         if selected:
             bounded[key] = selected
     return bounded
@@ -606,6 +619,13 @@ def run_observed_build_sync(
                 == dependency_vector
                 and active_projection.get("status") == "verified"
                 and active_projection.get("importable") is True
+                and (
+                    not callable(getattr(compiler, "can_reuse", None))
+                    or compiler.can_reuse(
+                        snapshot,
+                        active_projection,
+                    )
+                )
             ):
                 projections_by_snapshot_id[snapshot_id] = _canonical(
                     active_projection
@@ -829,6 +849,7 @@ class _PostgresCompiler:
         self.simc_runtime_revision = simc_runtime_revision
         self._prepared = False
         self._gear_release_context = None
+        self._talent_runtime_context_cache = {}
 
     def prepare(self, snapshots: list[dict[str, Any]]) -> None:
         prepare_observed_gear_with_postgres(
@@ -843,6 +864,18 @@ class _PostgresCompiler:
         )
         self._prepared = True
 
+    def can_reuse(
+        self,
+        snapshot: dict[str, Any],
+        projection: dict[str, Any],
+    ) -> bool:
+        return observed_talent_projection_runtime_ready_with_postgres(
+            self.cache_store,
+            snapshot,
+            projection,
+            self._talent_runtime_context_cache,
+        )
+
     def __call__(self, snapshot: dict[str, Any]) -> dict[str, Any]:
         return compile_with_postgres(
             self.cache_store,
@@ -851,6 +884,9 @@ class _PostgresCompiler:
             self.simc_runtime_revision,
             gear_prepared=self._prepared,
             gear_release_context=self._gear_release_context,
+            talent_runtime_context_cache=(
+                self._talent_runtime_context_cache
+            ),
         )
 
 

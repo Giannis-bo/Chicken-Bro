@@ -16,7 +16,9 @@ try:
         canonical_gear_slot,
         gear_resolver_runtime_authority,
         normalized_websim_level,
+        talent_tree_sections,
         validate_community_talent_template,
+        validate_websim_talent_selection,
     )
 except ImportError:
     import gear_resolver
@@ -27,7 +29,9 @@ except ImportError:
         canonical_gear_slot,
         gear_resolver_runtime_authority,
         normalized_websim_level,
+        talent_tree_sections,
         validate_community_talent_template,
+        validate_websim_talent_selection,
     )
 
 
@@ -250,6 +254,11 @@ def _talent_candidate(snapshot: dict[str, Any]) -> dict[str, Any]:
 def _compile_talent_with_postgres(
     store: Any,
     snapshot: dict[str, Any],
+    runtime_context_cache: dict[
+        tuple[str, str, str],
+        tuple[dict[str, dict[str, Any]], list[dict[str, Any]]],
+    ]
+    | None = None,
 ) -> dict[str, Any]:
     validated = validate_community_talent_template(
         store,
@@ -270,6 +279,12 @@ def _compile_talent_with_postgres(
         or not selected_nodes
         or not export_code.startswith("websim:")
         or _text(validated.get("heroKey")) != _text(slot.get("heroKey"))
+        or not _runtime_talent_selection_ready(
+            store,
+            slot,
+            selected_nodes,
+            runtime_context_cache,
+        )
     ):
         return {
             "status": "blocked",
@@ -296,6 +311,115 @@ def _compile_talent_with_postgres(
             "sourceRevision": snapshot.get("sourceRevision"),
         },
     }
+
+
+def _runtime_talent_selection_ready(
+    store: Any,
+    slot: dict[str, Any],
+    selected_nodes: list[dict[str, Any]],
+    runtime_context_cache: dict[
+        tuple[str, str, str],
+        tuple[dict[str, dict[str, Any]], list[dict[str, Any]]],
+    ]
+    | None = None,
+) -> bool:
+    class_key = _text(slot.get("classKey"))
+    spec_key = _text(slot.get("specKey"))
+    hero_key = _text(slot.get("heroKey"))
+    key = (class_key, spec_key, hero_key)
+    context = (
+        runtime_context_cache.get(key)
+        if isinstance(runtime_context_cache, dict)
+        else None
+    )
+    if context is None:
+        authority = store.community_talent_authority_index(
+            class_key,
+            spec_key,
+        )
+        authority = authority if isinstance(authority, dict) else {}
+        nodes_by_id: dict[str, dict[str, Any]] = {}
+        for candidates in authority.values():
+            for node in candidates or []:
+                if not isinstance(node, dict):
+                    continue
+                tree_type = _text(
+                    node.get("treeType") or node.get("tree")
+                )
+                if (
+                    tree_type == "hero"
+                    and _text(node.get("heroKey")) != hero_key
+                ):
+                    continue
+                node_id = _text(node.get("id"))
+                if node_id:
+                    nodes_by_id[node_id] = node
+        sections = talent_tree_sections(
+            class_key,
+            spec_key,
+            hero_key,
+        )
+        context = (nodes_by_id, sections)
+        if isinstance(runtime_context_cache, dict):
+            runtime_context_cache[key] = context
+    nodes_by_id, sections = context
+    _encoded, point_counts, errors, _warnings = (
+        validate_websim_talent_selection(
+            nodes_by_id,
+            selected_nodes,
+            sections,
+        )
+    )
+    if errors:
+        return False
+    for section in sections:
+        if not isinstance(section, dict):
+            continue
+        point_cap = int(section.get("pointCap") or 0)
+        if point_cap <= 0:
+            continue
+        if int(point_counts.get(_text(section.get("key"))) or 0) < point_cap:
+            return False
+    return True
+
+
+def observed_talent_projection_runtime_ready_with_postgres(
+    store: Any,
+    snapshot: dict[str, Any],
+    projection: dict[str, Any],
+    runtime_context_cache: dict[
+        tuple[str, str, str],
+        tuple[dict[str, dict[str, Any]], list[dict[str, Any]]],
+    ]
+    | None = None,
+) -> bool:
+    talent_projection = (
+        projection.get("talentProjection")
+        if isinstance(projection.get("talentProjection"), dict)
+        else {}
+    )
+    talent_state = (
+        talent_projection.get("talentState")
+        if isinstance(talent_projection.get("talentState"), dict)
+        else {}
+    )
+    selected_nodes = talent_state.get("selectedNodes")
+    slot = (
+        snapshot.get("slot")
+        if isinstance(snapshot.get("slot"), dict)
+        else {}
+    )
+    return (
+        talent_projection.get("status") == "verified"
+        and isinstance(selected_nodes, list)
+        and bool(selected_nodes)
+        and _runtime_talent_selection_ready(
+            store,
+            slot,
+            selected_nodes,
+            runtime_context_cache,
+        )
+    )
 
 
 def _active_gear_compile_context(
@@ -696,6 +820,11 @@ def compile_with_postgres(
     *,
     gear_prepared: bool = False,
     gear_release_context: dict[str, Any] | None = None,
+    talent_runtime_context_cache: dict[
+        tuple[str, str, str],
+        tuple[dict[str, dict[str, Any]], list[dict[str, Any]]],
+    ]
+    | None = None,
 ) -> dict[str, Any]:
     """Compile one shared player through current PG talent and gear authorities."""
 
@@ -705,6 +834,7 @@ def compile_with_postgres(
         talent_compiler=lambda value: _compile_talent_with_postgres(
             store,
             value,
+            talent_runtime_context_cache,
         ),
         gear_compiler=lambda value: _compile_gear_with_postgres(
             store,
@@ -721,5 +851,6 @@ __all__ = (
     "compile_observed_build",
     "compile_with_postgres",
     "load_observed_gear_compile_context_with_postgres",
+    "observed_talent_projection_runtime_ready_with_postgres",
     "prepare_observed_gear_with_postgres",
 )

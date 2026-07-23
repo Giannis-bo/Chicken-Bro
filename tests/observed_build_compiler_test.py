@@ -2,6 +2,7 @@ import unittest
 from unittest import mock
 
 from server.observed_build_compiler import (
+    _runtime_talent_selection_ready,
     compile_observed_build,
     compile_with_postgres,
     prepare_observed_gear_with_postgres,
@@ -240,6 +241,10 @@ class ObservedBuildCompilerTest(unittest.TestCase):
                 "server.observed_build_compiler.gear_resolver.resolve",
                 return_value=resolved,
             ) as resolver,
+            mock.patch(
+                "server.observed_build_compiler._runtime_talent_selection_ready",
+                return_value=True,
+            ),
         ):
             projection = compile_with_postgres(
                 store,
@@ -332,6 +337,10 @@ class ObservedBuildCompilerTest(unittest.TestCase):
                 "server.observed_build_compiler.gear_resolver.resolve",
                 return_value=resolved,
             ),
+            mock.patch(
+                "server.observed_build_compiler._runtime_talent_selection_ready",
+                return_value=True,
+            ),
         ):
             projection = compile_with_postgres(
                 store,
@@ -347,6 +356,46 @@ class ObservedBuildCompilerTest(unittest.TestCase):
         )
         selection_intent, _runtime = store.context_calls[0]
         self.assertEqual(list(selection_intent["slots"]), ["head"])
+
+    def test_runtime_talent_gate_rejects_an_incomplete_point_budget(self):
+        class Store:
+            def community_talent_authority_index(
+                self,
+                _class_key,
+                _spec_key,
+            ):
+                return {
+                    1: [
+                        {
+                            "id": "node-a",
+                            "treeType": "spec",
+                        }
+                    ]
+                }
+
+        slot = {
+            "classKey": "mage",
+            "specKey": "frost",
+            "heroKey": "frostfire",
+        }
+        with (
+            mock.patch(
+                "server.observed_build_compiler.talent_tree_sections",
+                return_value=[{"key": "spec", "pointCap": 34}],
+            ),
+            mock.patch(
+                "server.observed_build_compiler.validate_websim_talent_selection",
+                return_value=("", {"spec": 31}, [], []),
+            ),
+        ):
+            ready = _runtime_talent_selection_ready(
+                Store(),
+                slot,
+                [{"id": "node-a", "rank": 1}],
+                {},
+            )
+
+        self.assertFalse(ready)
 
     def test_postgres_adapter_blocks_dependency_or_runtime_drift_before_backfill(self):
         dependencies = self.dependencies()
