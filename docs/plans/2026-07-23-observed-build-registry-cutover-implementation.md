@@ -458,7 +458,7 @@ git commit -m "feat(builds): ingest observed Raider.IO snapshots"
 - Produces: `compile_observed_build(snapshot, dependency_vector, talent_compiler, gear_compiler) -> dict` returning one verified or blocked `build_projection`.
 - Produces: `compile_with_postgres(store, snapshot, dependency_vector, simc_runtime_revision) -> dict`.
 
-- [ ] **Step 1: Write failing combined-slot tests**
+- [x] **Step 1: Write failing combined-slot tests**
 
 ```python
 def test_both_authorities_must_pass_for_one_importable_projection(self):
@@ -492,7 +492,7 @@ def test_gear_failure_blocks_talent_switch_in_the_same_projection(self):
     self.assertEqual(projection["problems"][0]["code"], "gear_item_unmapped")
 ```
 
-- [ ] **Step 2: Run the new tests and verify they fail**
+- [x] **Step 2: Run the new tests and verify they fail**
 
 ```bash
 python3 -m unittest tests.observed_build_compiler_test
@@ -500,7 +500,7 @@ python3 -m unittest tests.observed_build_compiler_test
 
 Expected: FAIL because the compiler module does not exist.
 
-- [ ] **Step 3: Implement the pure combined compiler**
+- [x] **Step 3: Implement the pure combined compiler**
 
 ```python
 def compile_observed_build(
@@ -533,7 +533,7 @@ def compile_observed_build(
 
 If an adapter raises, convert the exception to one bounded structured problem with stage `talent_projection` or `gear_projection`; do not leak source payload or credentials.
 
-- [ ] **Step 4: Implement the PostgreSQL authority adapters**
+- [x] **Step 4: Implement the PostgreSQL authority adapters**
 
 Talent adapter:
 
@@ -553,7 +553,7 @@ Gear adapter:
 
 The adapter must not call the SimulationCraft binary.
 
-- [ ] **Step 5: Verify compilation and commit**
+- [x] **Step 5: Verify compilation and commit**
 
 ```bash
 python3 -m unittest \
