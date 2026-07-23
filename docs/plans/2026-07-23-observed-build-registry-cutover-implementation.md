@@ -363,7 +363,7 @@ Expected: PASS; commit contains no reader, collector, or SimC runtime change.
 - Consumes: Raider.IO payload keys `communityTemplates`, `profiles`, `checkedAt`, `seasonSlug`; existing `expected_hero_tree_triplets()`.
 - Produces: `snapshot_candidates_from_raiderio(payload) -> {"candidatesBySlot": dict[str, list[dict]], "problemsBySlot": dict[str, list[dict]]}` and `select_distinct_snapshot_winners(candidates_by_slot) -> dict[str, dict]`.
 
-- [ ] **Step 1: Write failing fixture tests**
+- [x] **Step 1: Write failing fixture tests**
 
 Use two Mage/Frost Hero candidates plus one exact profile each:
 
@@ -397,7 +397,7 @@ def test_missing_exact_gear_profile_is_a_problem_not_a_snapshot(self):
     )
 ```
 
-- [ ] **Step 2: Run the new test and verify it fails**
+- [x] **Step 2: Run the new test and verify it fails**
 
 ```bash
 python3 -m unittest tests.observed_build_ingest_test
@@ -405,7 +405,7 @@ python3 -m unittest tests.observed_build_ingest_test
 
 Expected: FAIL with `ModuleNotFoundError: server.observed_build_ingest`.
 
-- [ ] **Step 3: Implement bounded extraction**
+- [x] **Step 3: Implement bounded extraction**
 
 Create exact public functions:
 
@@ -430,7 +430,7 @@ Extraction rules:
 - emit `distinct_spec_player_missing` when no valid pair exists;
 - never reuse another Hero/spec profile.
 
-- [ ] **Step 4: Verify deterministic and fail-closed behavior**
+- [x] **Step 4: Verify deterministic and fail-closed behavior**
 
 ```bash
 python3 -m unittest tests.observed_build_ingest_test
@@ -438,7 +438,7 @@ python3 -m unittest tests.observed_build_ingest_test
 
 Expected: PASS for stable input ordering, duplicate identity avoidance, and missing-profile problems.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/observed_build_ingest.py tests/observed_build_ingest_test.py
