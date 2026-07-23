@@ -180,6 +180,47 @@ class ObservedBuildSyncTest(unittest.TestCase):
                 release_context,
             )
 
+    def test_canonical_hero_resolver_uses_selected_nodes_and_caches_authority(self):
+        class Store:
+            def __init__(self):
+                self.calls = []
+
+            def community_talent_authority_index(
+                self,
+                class_key,
+                spec_key,
+            ):
+                self.calls.append((class_key, spec_key))
+                return {
+                    91001: [
+                        {
+                            "id": "simc-hero-91001",
+                            "treeType": "hero",
+                            "heroKey": "spellslinger",
+                        }
+                    ]
+                }
+
+        store = Store()
+        resolver = observed_build_sync._canonical_hero_resolver(store)
+
+        first = resolver(
+            "mage",
+            "frost",
+            [{"traitId": 91001, "rank": 1}],
+            "frostfire",
+        )
+        second = resolver(
+            "mage",
+            "frost",
+            [{"traitId": 91001, "rank": 1}],
+            "frostfire",
+        )
+
+        self.assertEqual(first, "spellslinger")
+        self.assertEqual(second, "spellslinger")
+        self.assertEqual(store.calls, [("mage", "frost")])
+
     def dependencies(self):
         return build_dependency_vector(
             season_revision="season-midnight-1",

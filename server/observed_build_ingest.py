@@ -7,7 +7,7 @@ import itertools
 import json
 import re
 from collections import defaultdict
-from typing import Any, Mapping
+from typing import Any, Callable, Mapping
 
 try:
     from .observed_build_registry import build_observed_snapshot, slot_key
@@ -168,12 +168,25 @@ def _problem(code: str, *, stage: str, source_identity: str = "") -> dict[str, A
 
 def _profile_candidate_template(
     profile: Mapping[str, Any],
+    hero_resolver: Callable[
+        [str, str, list[dict[str, Any]], str],
+        str,
+    ]
+    | None = None,
 ) -> dict[str, Any] | None:
     """Project one self-contained Raider.IO profile into the template adapter."""
 
     talent = profile.get("talentLoadout")
     talent = talent if isinstance(talent, dict) else {}
-    hero_key = _text(talent.get("heroKey"))
+    class_key = _text(profile.get("classKey"))
+    spec_key = _text(profile.get("specKey"))
+    hero_key = _resolved_hero_key(
+        class_key,
+        spec_key,
+        talent.get("loadout"),
+        talent.get("heroKey"),
+        hero_resolver,
+    )
     identity = _profile_identity(profile)
     profile_url = _text(profile.get("profileUrl"))
     if (
@@ -186,8 +199,8 @@ def _profile_candidate_template(
     ranking = ranking if isinstance(ranking, dict) else {}
     return {
         "id": f"observed-profile:{identity}:{hero_key}",
-        "classKey": _text(profile.get("classKey")),
-        "specKey": _text(profile.get("specKey")),
+        "classKey": class_key,
+        "specKey": spec_key,
         "heroKey": hero_key,
         "scenarioKey": "mythic_plus",
         "sourceKey": "raiderio",
@@ -237,6 +250,68 @@ def _profile_candidate_template(
             "rioEvidence": _canonical(ranking),
         },
     }
+
+
+def _resolved_hero_key(
+    class_key: Any,
+    spec_key: Any,
+    loadout: Any,
+    declared_hero: Any,
+    hero_resolver: Callable[
+        [str, str, list[dict[str, Any]], str],
+        str,
+    ]
+    | None,
+) -> str:
+    declared = _text(declared_hero)
+    structured = [
+        _canonical(entry)
+        for entry in (loadout if isinstance(loadout, list) else [])
+        if isinstance(entry, dict)
+    ]
+    if not callable(hero_resolver) or not structured:
+        return declared
+    try:
+        resolved = _text(
+            hero_resolver(
+                _text(class_key),
+                _text(spec_key),
+                structured,
+                declared,
+            )
+        )
+    except Exception:
+        return declared
+    return resolved or declared
+
+
+def _template_with_resolved_hero(
+    template: Mapping[str, Any],
+    hero_resolver: Callable[
+        [str, str, list[dict[str, Any]], str],
+        str,
+    ]
+    | None,
+) -> dict[str, Any]:
+    normalized = _canonical(template)
+    payload = normalized.get("payload")
+    payload = payload if isinstance(payload, dict) else {}
+    rio = payload.get("raiderio")
+    rio = rio if isinstance(rio, dict) else {}
+    declared = _text(rio.get("heroKey") or normalized.get("heroKey"))
+    hero_key = _resolved_hero_key(
+        normalized.get("classKey"),
+        normalized.get("specKey"),
+        rio.get("loadout"),
+        declared,
+        hero_resolver,
+    )
+    if not hero_key or hero_key == declared:
+        return normalized
+    rio = {**rio, "heroKey": hero_key}
+    normalized["heroKey"] = hero_key
+    normalized["payload"] = {**payload, "raiderio": rio}
+    return normalized
 
 
 def _template_snapshot(
@@ -430,7 +505,15 @@ def select_distinct_snapshot_winners(
     return winners
 
 
-def snapshot_candidates_from_raiderio(payload: dict[str, Any]) -> dict[str, Any]:
+def snapshot_candidates_from_raiderio(
+    payload: dict[str, Any],
+    *,
+    hero_resolver: Callable[
+        [str, str, list[dict[str, Any]], str],
+        str,
+    ]
+    | None = None,
+) -> dict[str, Any]:
     """Build real snapshot candidates; never invent or cross-fill a slot."""
 
     if not isinstance(payload, dict):
@@ -444,7 +527,10 @@ def snapshot_candidates_from_raiderio(payload: dict[str, Any]) -> dict[str, Any]
     problems: dict[str, list[dict[str, Any]]] = defaultdict(list)
     attempted_specs: set[str] = set()
     for profile in profiles.values():
-        profile_template = _profile_candidate_template(profile)
+        profile_template = _profile_candidate_template(
+            profile,
+            hero_resolver,
+        )
         if profile_template is None:
             continue
         slot = _template_slot(profile_template, expected)
@@ -472,6 +558,10 @@ def snapshot_candidates_from_raiderio(payload: dict[str, Any]) -> dict[str, Any]
     for raw_template in payload.get("communityTemplates") or []:
         if not isinstance(raw_template, dict):
             continue
+        raw_template = _template_with_resolved_hero(
+            raw_template,
+            hero_resolver,
+        )
         source_key = _text(raw_template.get("sourceKey"))
         if source_key not in {"", "raiderio"}:
             continue

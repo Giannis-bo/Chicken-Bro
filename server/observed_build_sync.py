@@ -39,6 +39,7 @@ try:
     from .websim_payload import (
         expected_hero_tree_triplets,
         gear_resolver_runtime_authority,
+        resolve_community_talent_structured_loadout,
     )
 except ImportError:
     from observed_build_compiler import (
@@ -68,6 +69,7 @@ except ImportError:
     from websim_payload import (
         expected_hero_tree_triplets,
         gear_resolver_runtime_authority,
+        resolve_community_talent_structured_loadout,
     )
 
 
@@ -153,6 +155,58 @@ def _source_run_id(payload: dict[str, Any], checked_at: str) -> str:
         "observed-build-source:sha256:"
         + hashlib.sha256(_canonical_bytes(identity)).hexdigest()
     )
+
+
+def _canonical_hero_resolver(
+    cache_store: Any,
+) -> Callable[[str, str, list[dict[str, Any]], str], str]:
+    """Resolve the selected Hero nodes through one cached PG talent view."""
+
+    authority_cache: dict[tuple[str, str], dict[Any, Any]] = {}
+
+    class AuthorityView:
+        def community_talent_authority_index(
+            self,
+            class_key: str,
+            spec_key: str,
+        ) -> dict[Any, Any]:
+            key = (_text(class_key), _text(spec_key))
+            if key not in authority_cache:
+                authority = cache_store.community_talent_authority_index(
+                    *key
+                )
+                authority_cache[key] = (
+                    authority if isinstance(authority, dict) else {}
+                )
+            return authority_cache[key]
+
+    authority_view = AuthorityView()
+
+    def resolve(
+        class_key: str,
+        spec_key: str,
+        loadout: list[dict[str, Any]],
+        declared_hero: str,
+    ) -> str:
+        del declared_hero
+        resolved = resolve_community_talent_structured_loadout(
+            authority_view,
+            {
+                "classKey": class_key,
+                "specKey": spec_key,
+                "heroKey": "",
+                "loadout": loadout,
+            },
+        )
+        if (
+            not isinstance(resolved, dict)
+            or resolved.get("errors")
+            or not resolved.get("selectedNodes")
+        ):
+            return ""
+        return _text(resolved.get("heroKey"))
+
+    return resolve
 
 
 def _checked_since(checked_at: str) -> str:
@@ -320,6 +374,11 @@ def run_observed_build_sync(
     checked_at: str,
     audit: bool = False,
     allow_controlled_cutover: bool | None = None,
+    hero_resolver: Callable[
+        [str, str, list[dict[str, Any]], str],
+        str,
+    ]
+    | None = None,
 ) -> dict[str, Any]:
     """Run the fixed observed-build stage sequence and optionally move a pointer."""
 
@@ -361,7 +420,10 @@ def run_observed_build_sync(
         payload.get("sourceStatus") or payload.get("status") or "blocked"
     )
     source_run_id = _source_run_id(payload, checked_at)
-    extracted = snapshot_candidates_from_raiderio(payload)
+    extracted = snapshot_candidates_from_raiderio(
+        payload,
+        hero_resolver=hero_resolver,
+    )
     winners = select_distinct_snapshot_winners(
         extracted.get("candidatesBySlot") or {}
     )
@@ -729,6 +791,7 @@ def main(argv: list[str] | None = None) -> int:
             source_fetcher=source_fetcher,
             compiler=compiler,
             checked_at=checked_at,
+            hero_resolver=_canonical_hero_resolver(cache_store),
         )
     output = json.dumps(
         result,

@@ -167,6 +167,79 @@ class ObservedBuildIngestTest(unittest.TestCase):
             "C4DB",
         )
 
+    def test_canonical_hero_resolver_reclassifies_profile_and_template_slots(self):
+        payload = self.payload()
+        for profile, hero, raw_import_code in (
+            (payload["profiles"][0], "frostfire", "C4DA"),
+            (payload["profiles"][1], "spellslinger", "C4DB"),
+        ):
+            profile["talentLoadout"] = {
+                "rawImportCode": raw_import_code,
+                "loadoutSpecId": 64,
+                "heroSubTreeId": f"selector-{hero}",
+                "heroKey": (
+                    "spellslinger"
+                    if hero == "frostfire"
+                    else "frostfire"
+                ),
+                "selector": {
+                    "heroKey": (
+                        "spellslinger"
+                        if hero == "frostfire"
+                        else "frostfire"
+                    )
+                },
+                "source": "profile_current",
+                "loadout": [
+                    {
+                        "traitId": (
+                            91001 if hero == "frostfire" else 92001
+                        ),
+                        "rank": 1,
+                    }
+                ],
+            }
+        payload["communityTemplates"][0]["heroKey"] = "spellslinger"
+        payload["communityTemplates"][0]["payload"]["raiderio"][
+            "heroKey"
+        ] = "spellslinger"
+        payload["communityTemplates"][1]["heroKey"] = "frostfire"
+        payload["communityTemplates"][1]["payload"]["raiderio"][
+            "heroKey"
+        ] = "frostfire"
+
+        def canonical_hero(class_key, spec_key, loadout, declared_hero):
+            self.assertEqual((class_key, spec_key), ("mage", "frost"))
+            trait_id = loadout[0]["traitId"]
+            return {
+                91001: "frostfire",
+                91002: "frostfire",
+                91003: "spellslinger",
+                92001: "spellslinger",
+            }.get(trait_id, declared_hero)
+
+        result = snapshot_candidates_from_raiderio(
+            payload,
+            hero_resolver=canonical_hero,
+        )
+        winners = select_distinct_snapshot_winners(
+            result["candidatesBySlot"]
+        )
+
+        self.assertEqual(len(winners), 2)
+        self.assertEqual(
+            winners["mage:frost:frostfire:mythic_plus"][
+                "talentObservation"
+            ]["heroKey"],
+            "frostfire",
+        )
+        self.assertEqual(
+            winners["mage:frost:spellslinger:mythic_plus"][
+                "talentObservation"
+            ]["heroKey"],
+            "spellslinger",
+        )
+
     def test_selects_highest_combined_distinct_players_for_two_hero_slots(self):
         payload = self.payload()
         payload["communityTemplates"] = [
