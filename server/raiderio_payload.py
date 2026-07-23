@@ -935,9 +935,8 @@ def unique_profile_candidates_for_runs(runs):
 def select_profile_candidates_for_runs(runs):
     total_limit = profile_total_limit()
     per_spec_limit = max(1, int_env("WOW_RAIDERIO_PROFILE_LIMIT_PER_SPEC", 5))
-    unique = []
     seen_characters = set()
-    per_spec_counts = {}
+    candidates_by_spec = {}
     for run in runs:
         for character in run.get("roster") or []:
             if not is_profile_candidate(character):
@@ -946,15 +945,47 @@ def select_profile_candidates_for_runs(runs):
             if key in seen_characters:
                 continue
             spec_key = spec_pair_key(character)
-            if spec_key and per_spec_counts.get(spec_key, 0) >= per_spec_limit:
-                continue
             seen_characters.add(key)
-            unique.append(character)
-            if spec_key:
-                per_spec_counts[spec_key] = per_spec_counts.get(spec_key, 0) + 1
-            if len(unique) >= total_limit:
-                return unique
-    return unique
+            candidates_by_spec.setdefault(
+                spec_key or f"unknown:{key}",
+                [],
+            ).append(character)
+
+    ordered_by_spec = {}
+    for spec_key, candidates in candidates_by_spec.items():
+        hero_first = []
+        remaining = []
+        seen_hero_subtrees = set()
+        for character in candidates:
+            loadout = (
+                character.get("talentLoadout")
+                if isinstance(character.get("talentLoadout"), dict)
+                else {}
+            )
+            hero_subtree_id = str(
+                loadout.get("heroSubTreeId")
+                or loadout.get("hero_sub_tree_id")
+                or ""
+            ).strip()
+            if hero_subtree_id and hero_subtree_id not in seen_hero_subtrees:
+                seen_hero_subtrees.add(hero_subtree_id)
+                hero_first.append(character)
+            else:
+                remaining.append(character)
+        ordered_by_spec[spec_key] = [
+            *hero_first,
+            *remaining,
+        ][:per_spec_limit]
+
+    selected = []
+    for index in range(per_spec_limit):
+        for candidates in ordered_by_spec.values():
+            if index >= len(candidates):
+                continue
+            selected.append(candidates[index])
+            if len(selected) >= total_limit:
+                return selected
+    return selected
 
 
 def env_target_item_ids():

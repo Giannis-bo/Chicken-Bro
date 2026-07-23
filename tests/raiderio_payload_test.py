@@ -1566,8 +1566,57 @@ class RaiderIOPayloadTest(unittest.TestCase):
             key = f"{profile['classKey']}:{profile['specKey']}"
             spec_counts[key] = spec_counts.get(key, 0) + 1
         self.assertEqual(spec_counts, {"mage:frost": 2, "warrior:protection": 2})
-        self.assertEqual(fetched_names[:2], ["Mage1", "Mage2"])
-        self.assertIn("Tank1", fetched_names)
+        self.assertEqual(
+            fetched_names,
+            ["Mage1", "Tank1", "Mage2", "Tank2"],
+        )
+
+    def test_profile_selection_prioritizes_distinct_hero_subtrees_per_spec(self):
+        os.environ["WOW_RAIDERIO_PROFILE_LIMIT"] = "2"
+        os.environ["WOW_RAIDERIO_PROFILE_LIMIT_PER_SPEC"] = "2"
+        runs = [
+            {
+                "roster": [
+                    {
+                        "name": "Frostfireone",
+                        "realmSlug": "isillien",
+                        "region": "cn",
+                        "classKey": "mage",
+                        "specKey": "frost",
+                        "talentLoadout": {"heroSubTreeId": "41"},
+                    },
+                    {
+                        "name": "Frostfiretwo",
+                        "realmSlug": "isillien",
+                        "region": "cn",
+                        "classKey": "mage",
+                        "specKey": "frost",
+                        "talentLoadout": {"heroSubTreeId": "41"},
+                    },
+                ]
+            },
+            {
+                "roster": [
+                    {
+                        "name": "Spellslingerone",
+                        "realmSlug": "isillien",
+                        "region": "cn",
+                        "classKey": "mage",
+                        "specKey": "frost",
+                        "talentLoadout": {"heroSubTreeId": "42"},
+                    }
+                ]
+            },
+        ]
+
+        selected = raiderio_payload.select_profile_candidates_for_runs(
+            runs
+        )
+
+        self.assertEqual(
+            [character["name"] for character in selected],
+            ["Frostfireone", "Spellslingerone"],
+        )
 
     def test_target_profile_limit_defaults_to_operational_scan_budget(self):
         os.environ.pop("WOW_RAIDERIO_TARGET_PROFILE_LIMIT", None)
