@@ -20244,33 +20244,9 @@ def gear_template_scenario_results(template):
 
 
 def community_observed_evidence_blockers(template):
-    payload = gear_template_payload(template)
-    blockers = []
-    if not gear_template_source_url(template):
-        blockers.append("community_best_v2 requires sourceUrl for the observed character")
-    sample_count = int_or_zero((template or {}).get("sampleCount") or payload.get("sampleCount"))
-    if sample_count != 1:
-        blockers.append("community_best_v2 requires sampleCount=1 for a single observed character")
-    if not gear_template_observed_profile_hash(template):
-        blockers.append("community_best_v2 requires profileHash")
-    if not gear_template_observed_gear_hash(template):
-        blockers.append("community_best_v2 requires gearHash")
-    identity = community_observed_character_identity(template)
-    if not (identity.get("name") and identity.get("region") and identity.get("realmSlug")):
-        blockers.append("community_best_v2 requires region, realm, and character identity")
-    if not community_observed_fetched_or_scan_id(template):
-        blockers.append("community_best_v2 requires fetchedAt or scanRunId")
-    class_key = slugify((template or {}).get("classKey"), "")
-    raw_spec_key = slugify((template or {}).get("specKey"), "")
-    if (class_key, raw_spec_key) in STRICT_COMMUNITY_BEST_V2_ACTIVE_SEED_SPECS:
-        ranking_evidence = community_observed_ranking_evidence(template)
-        if str(ranking_evidence.get("source") or "") != "raiderio_spec_ranking":
-            blockers.append("community_best_v2 requires current Raider.IO spec ranking evidence for elemental shaman")
-        elif int_or_zero(ranking_evidence.get("rank")) <= 0 or not ranking_evidence.get("score"):
-            blockers.append("community_best_v2 requires rank and score for elemental shaman observed evidence")
-    if str((template or {}).get("status") or "") == "blocked" or str((template or {}).get("sourceStatus") or "") == "blocked":
-        blockers.append("observed template is blocked")
-    return blockers
+    return gear_public_contract.community_observed_evidence_blockers(
+        template
+    )
 
 
 def community_observed_chain_record(template):

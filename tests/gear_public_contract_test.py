@@ -220,6 +220,11 @@ class GearPublicContractTest(unittest.TestCase):
                 registry_projection
             )
         )
+        self.assertTrue(
+            websim_payload.is_active_community_observed_template(
+                registry_projection
+            )
+        )
 
 
 if __name__ == "__main__":
