@@ -554,7 +554,10 @@ python3 -m unittest \
   tests.gear_release_store_test \
   tests.community_template_import_test
 node scripts/project-harness.js --check \
-  --release artifacts/releases/2026-07-23-observed-build-registry-core
+  --requirement-file artifacts/releases/2026-07-23-observed-build-registry-core/requirement.json \
+  --evidence-file artifacts/releases/2026-07-23-observed-build-registry-core/evidence.json \
+  --manifest-file artifacts/releases/2026-07-23-observed-build-registry-core/manifest.json \
+  --base origin/main
 git diff --check
 ```
 

@@ -234,12 +234,18 @@ class ObservedBuildStoreTest(unittest.TestCase):
 
     def test_template_set_seal_writes_header_and_exactly_eighty_entries(self):
         template_set = self.template_set()
+        child_rows = []
 
         def responder(sql, params):
             if sql.startswith("INSERT INTO cache.observed_build_template_sets"):
                 return (params[0],)
+            if sql.startswith("INSERT INTO cache.observed_build_template_set_slots"):
+                child_rows.append((params[1], params[-2], params[-1]))
+                return None
             if sql.startswith("SELECT count(*) FROM cache.observed_build_template_set_slots"):
                 return (80,)
+            if sql.startswith("SELECT slot_key, slot_json, row_hash"):
+                return sorted(child_rows)
             return None
 
         conn = FakeConnection(responder)
@@ -257,6 +263,95 @@ class ObservedBuildStoreTest(unittest.TestCase):
             statements,
         )
         self.assertTrue(conn.committed)
+
+    def test_template_set_reuses_same_content_from_a_later_source_run(self):
+        first = self.template_set()
+        second = copy.deepcopy(first)
+        second["sourceRunId"] = "run-2"
+        state = {"header": None, "children": []}
+
+        def responder(sql, params):
+            if sql.startswith("INSERT INTO cache.observed_build_template_sets"):
+                if state["header"] is not None:
+                    return None
+                state["header"] = (params[-2], params[-1])
+                return (params[0],)
+            if sql.startswith("INSERT INTO cache.observed_build_template_set_slots"):
+                state["children"].append((params[1], params[-2], params[-1]))
+                return None
+            if sql.startswith("SELECT template_set_json, row_hash"):
+                return state["header"]
+            if sql.startswith("SELECT count(*) FROM cache.observed_build_template_set_slots"):
+                return (len(state["children"]),)
+            if sql.startswith("SELECT slot_key, slot_json, row_hash"):
+                return sorted(state["children"])
+            return None
+
+        store = ObservedBuildStore(lambda: FakeConnection(responder))
+
+        self.assertEqual(store.seal_template_set(first), first)
+        self.assertEqual(store.seal_template_set(second), first)
+
+    def test_template_set_reuse_rejects_one_corrupted_child_row(self):
+        template_set = self.template_set()
+        state = {"header": None, "children": []}
+
+        def responder(sql, params):
+            if sql.startswith("INSERT INTO cache.observed_build_template_sets"):
+                if state["header"] is not None:
+                    return None
+                state["header"] = (params[-2], params[-1])
+                return (params[0],)
+            if sql.startswith("INSERT INTO cache.observed_build_template_set_slots"):
+                state["children"].append((params[1], params[-2], params[-1]))
+                return None
+            if sql.startswith("SELECT template_set_json, row_hash"):
+                return state["header"]
+            if sql.startswith("SELECT count(*) FROM cache.observed_build_template_set_slots"):
+                return (len(state["children"]),)
+            if sql.startswith("SELECT slot_key, slot_json, row_hash"):
+                rows = sorted(state["children"])
+                return [
+                    (slot_key, slot_json, "sha256:" + "f" * 64)
+                    if index == 0
+                    else (slot_key, slot_json, row_hash)
+                    for index, (slot_key, slot_json, row_hash) in enumerate(rows)
+                ]
+            return None
+
+        store = ObservedBuildStore(lambda: FakeConnection(responder))
+        with self.assertRaisesRegex(
+            ObservedBuildIntegrityError,
+            "slot rows failed integrity",
+        ):
+            store.seal_template_set(template_set)
+
+    def test_template_set_load_revalidates_header_and_all_child_rows(self):
+        template_set = self.template_set()
+        state = {"header": None, "children": []}
+
+        def responder(sql, params):
+            if sql.startswith("INSERT INTO cache.observed_build_template_sets"):
+                state["header"] = (params[-2], params[-1])
+                return (params[0],)
+            if sql.startswith("INSERT INTO cache.observed_build_template_set_slots"):
+                state["children"].append((params[1], params[-2], params[-1]))
+                return None
+            if sql.startswith("SELECT template_set_json, row_hash"):
+                return state["header"]
+            if sql.startswith("SELECT count(*) FROM cache.observed_build_template_set_slots"):
+                return (len(state["children"]),)
+            if sql.startswith("SELECT slot_key, slot_json, row_hash"):
+                return sorted(state["children"])
+            return None
+
+        store = ObservedBuildStore(lambda: FakeConnection(responder))
+        store.seal_template_set(template_set)
+
+        self.assertEqual(
+            store.load_template_set(template_set["templateSetId"]),
+            template_set,
+        )
 
     def test_pointer_cas_is_monotonic_and_rejects_stale_generation(self):
         template_set = self.template_set()

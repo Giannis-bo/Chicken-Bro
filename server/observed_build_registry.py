@@ -212,6 +212,34 @@ def validate_observed_snapshot(snapshot: Any) -> list[dict[str, str]]:
                 "Snapshot schema revision is unsupported.",
             )
         )
+    if not isinstance(snapshot.get("rankingEvidence"), dict):
+        issues.append(
+            _issue(
+                "RANKING_EVIDENCE_INVALID",
+                "snapshot.rankingEvidence",
+                "Ranking evidence must be an object.",
+            )
+        )
+    if not isinstance(snapshot.get("talentObservation"), dict) or not snapshot.get(
+        "talentObservation"
+    ):
+        issues.append(
+            _issue(
+                "TALENT_OBSERVATION_INVALID",
+                "snapshot.talentObservation",
+                "Talent observation must be a non-empty object.",
+            )
+        )
+    if not isinstance(snapshot.get("gearObservation"), dict) or not snapshot.get(
+        "gearObservation"
+    ):
+        issues.append(
+            _issue(
+                "GEAR_OBSERVATION_INVALID",
+                "snapshot.gearObservation",
+                "Gear observation must be a non-empty object.",
+            )
+        )
     expected_talent_hash = _sha256(
         {"talentObservation": snapshot.get("talentObservation")}
     )

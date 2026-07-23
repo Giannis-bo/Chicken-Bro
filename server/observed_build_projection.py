@@ -95,6 +95,8 @@ def build_dependency_vector(
 def _dependency_vector(value: Any) -> dict[str, str]:
     if not isinstance(value, dict):
         raise ValueError("dependency_vector must be an object")
+    if set(value) != set(_DEPENDENCY_FIELDS):
+        raise ValueError("dependency_vector must contain exactly the authority fields")
     normalized: dict[str, str] = {}
     for field in _DEPENDENCY_FIELDS:
         normalized[field] = _required_text(value.get(field), field)
@@ -237,6 +239,25 @@ def validate_projection(projection: Any) -> list[dict[str, str]]:
             )
         )
     try:
+        actual_slot_key = slot_key(projection.get("slot"))
+    except ValueError as error:
+        actual_slot_key = ""
+        issues.append(
+            _issue(
+                "PROJECTION_SLOT_INVALID",
+                "projection.slot",
+                str(error),
+            )
+        )
+    if actual_slot_key != _text(projection.get("slotKey")):
+        issues.append(
+            _issue(
+                "PROJECTION_SLOT_MISMATCH",
+                "projection.slotKey",
+                "Projection slot key does not match its exact slot.",
+            )
+        )
+    try:
         dependencies = _dependency_vector(projection.get("dependencyVector"))
     except ValueError as error:
         dependencies = {}
@@ -260,19 +281,47 @@ def validate_projection(projection: Any) -> list[dict[str, str]]:
                     "Projection dependency vector does not match its hash.",
                 )
             )
+    projection_parts: dict[str, dict[str, Any]] = {}
+    for field in ("talentProjection", "gearProjection", "profileReadiness"):
+        value = projection.get(field)
+        if not isinstance(value, dict):
+            issues.append(
+                _issue(
+                    "PROJECTION_PART_INVALID",
+                    f"projection.{field}",
+                    f"{field} must be an object.",
+                )
+            )
+            projection_parts[field] = {}
+        else:
+            projection_parts[field] = value
+    raw_problems = projection.get("problems")
+    if not isinstance(raw_problems, list):
+        issues.append(
+            _issue(
+                "PROJECTION_PROBLEMS_INVALID",
+                "projection.problems",
+                "Projection problems must be a list.",
+            )
+        )
+        normalized_problems: list[dict[str, Any]] = []
+    else:
+        try:
+            normalized_problems = _problems(raw_problems)
+        except ValueError as error:
+            normalized_problems = []
+            issues.append(
+                _issue(
+                    "PROJECTION_PROBLEMS_INVALID",
+                    "projection.problems",
+                    str(error),
+                )
+            )
     ready = _projection_ready(
-        projection.get("talentProjection")
-        if isinstance(projection.get("talentProjection"), dict)
-        else {},
-        projection.get("gearProjection")
-        if isinstance(projection.get("gearProjection"), dict)
-        else {},
-        projection.get("profileReadiness")
-        if isinstance(projection.get("profileReadiness"), dict)
-        else {},
-        projection.get("problems")
-        if isinstance(projection.get("problems"), list)
-        else [],
+        projection_parts["talentProjection"],
+        projection_parts["gearProjection"],
+        projection_parts["profileReadiness"],
+        normalized_problems,
     )
     expected_status = "verified" if ready else "blocked"
     if (

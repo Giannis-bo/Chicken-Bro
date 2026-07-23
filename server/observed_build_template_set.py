@@ -321,6 +321,29 @@ def validate_template_set(
                 "TemplateSet schema revision is unsupported.",
             )
         )
+    try:
+        publication_change_kind(
+            template_set.get("dependencyVector"),
+            template_set.get("dependencyVector"),
+        )
+    except ValueError as error:
+        issues.append(
+            _issue(
+                "TEMPLATE_SET_DEPENDENCIES_INVALID",
+                "templateSet.dependencyVector",
+                str(error),
+            )
+        )
+    try:
+        _required_text(template_set.get("sourceRunId"), "sourceRunId")
+    except ValueError as error:
+        issues.append(
+            _issue(
+                "TEMPLATE_SET_SOURCE_RUN_INVALID",
+                "templateSet.sourceRunId",
+                str(error),
+            )
+        )
     if template_set.get("expectedSlotKeys") != expected_keys:
         issues.append(
             _issue(

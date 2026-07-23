@@ -155,6 +155,17 @@ class ObservedBuildRegistryTest(unittest.TestCase):
             {"PROFILE_HASH_MISMATCH", "GEAR_HASH_MISMATCH", "SNAPSHOT_ID_MISMATCH"},
         )
 
+    def test_validation_rejects_structurally_empty_observations(self):
+        observed = self.snapshot()
+        observed["talentObservation"] = {}
+        observed["gearObservation"] = {}
+
+        issues = validate_observed_snapshot(observed)
+
+        codes = {issue["code"] for issue in issues}
+        self.assertIn("TALENT_OBSERVATION_INVALID", codes)
+        self.assertIn("GEAR_OBSERVATION_INVALID", codes)
+
 
 if __name__ == "__main__":
     unittest.main()

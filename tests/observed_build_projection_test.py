@@ -146,6 +146,17 @@ class ObservedBuildProjectionTest(unittest.TestCase):
             {"PROJECTION_ID_MISMATCH"},
         )
 
+    def test_validation_rejects_slot_key_or_problem_shape_drift(self):
+        projection = self.verified_projection()
+        projection["slotKey"] = "mage:frost:spellslinger:mythic_plus"
+        projection["problems"] = {}
+
+        issues = validate_projection(projection)
+
+        codes = {issue["code"] for issue in issues}
+        self.assertIn("PROJECTION_SLOT_MISMATCH", codes)
+        self.assertIn("PROJECTION_PROBLEMS_INVALID", codes)
+
 
 if __name__ == "__main__":
     unittest.main()

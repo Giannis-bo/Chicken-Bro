@@ -131,6 +131,97 @@ def _expected_slots_from_set(template_set: dict[str, Any]) -> list[dict[str, Any
     ]
 
 
+def _template_set_identity(template_set: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "schemaRevision": template_set.get("schemaRevision"),
+        "expectedSlotKeys": template_set.get("expectedSlotKeys"),
+        "dependencyVector": template_set.get("dependencyVector"),
+        "entries": template_set.get("entries"),
+    }
+
+
+def _validated_stored_template_set(
+    row: Any,
+    *,
+    expected_id: str,
+) -> dict[str, Any]:
+    if not row or len(row) < 2:
+        raise ObservedBuildIntegrityError("stored TemplateSet row is missing")
+    stored = _canonical(_json_value(row[0]))
+    if (
+        not isinstance(stored, dict)
+        or _row_hash(stored) != _text(row[1])
+        or stored.get("templateSetId") != expected_id
+    ):
+        raise ObservedBuildIntegrityError(
+            "stored TemplateSet row failed integrity validation"
+        )
+    issues = validate_template_set(stored, _expected_slots_from_set(stored))
+    if issues:
+        raise ObservedBuildIntegrityError(
+            "stored TemplateSet failed structural validation"
+        )
+    return stored
+
+
+def _validate_template_set_slot_rows(cur: Any, template_set: dict[str, Any]) -> None:
+    template_set_id = template_set["templateSetId"]
+    cur.execute(
+        """
+        SELECT count(*)
+        FROM cache.observed_build_template_set_slots
+        WHERE template_set_id = %s
+        """,
+        (template_set_id,),
+    )
+    count_row = cur.fetchone()
+    if count_row is None or int(count_row[0]) != EXPECTED_TEMPLATE_SLOT_COUNT:
+        raise ObservedBuildIntegrityError(
+            "sealed TemplateSet must contain exactly 80 slot rows"
+        )
+    cur.execute(
+        """
+        SELECT slot_key, slot_json, row_hash
+        FROM cache.observed_build_template_set_slots
+        WHERE template_set_id = %s
+        ORDER BY slot_key
+        """,
+        (template_set_id,),
+    )
+    rows = cur.fetchall()
+    expected_by_key = {
+        entry["slotKey"]: entry
+        for entry in template_set["entries"]
+        if isinstance(entry, dict)
+    }
+    if len(rows) != EXPECTED_TEMPLATE_SLOT_COUNT:
+        raise ObservedBuildIntegrityError(
+            "sealed TemplateSet slot rows failed integrity validation"
+        )
+    seen: set[str] = set()
+    for row in rows:
+        if not row or len(row) < 3:
+            raise ObservedBuildIntegrityError(
+                "sealed TemplateSet slot rows failed integrity validation"
+            )
+        key = _text(row[0])
+        expected = expected_by_key.get(key)
+        if (
+            expected is None
+            or key in seen
+            or _canonical(_json_value(row[1])) != expected
+            or _text(row[2]) != _row_hash(expected)
+        ):
+            raise ObservedBuildIntegrityError(
+                "sealed TemplateSet slot rows failed integrity validation"
+            )
+        seen.add(key)
+    if seen != set(expected_by_key):
+        raise ObservedBuildIntegrityError(
+            "sealed TemplateSet slot rows failed integrity validation"
+        )
+
+
 class ObservedBuildStore:
     """Own the additive PG write/read boundary for observed-build artifacts."""
 
@@ -343,7 +434,7 @@ class ObservedBuildStore:
             )
         row_hash = _row_hash(expected)
         dependency_hash = _row_hash(expected["dependencyVector"])
-        inserted = False
+        sealed = expected
         with self.connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
@@ -413,29 +504,18 @@ class ObservedBuildStore:
                         (expected["templateSetId"],),
                     )
                     existing = cur.fetchone()
-                    if existing is None or not _sealed_row_matches(
-                        existing[0], existing[1], expected, row_hash
+                    sealed = _validated_stored_template_set(
+                        existing,
+                        expected_id=expected["templateSetId"],
+                    )
+                    if _template_set_identity(sealed) != _template_set_identity(
+                        expected
                     ):
                         raise ObservedBuildIntegrityError(
                             "existing TemplateSet ID has different sealed content"
                         )
-                cur.execute(
-                    """
-                    SELECT count(*)
-                    FROM cache.observed_build_template_set_slots
-                    WHERE template_set_id = %s
-                    """,
-                    (expected["templateSetId"],),
-                )
-                count_row = cur.fetchone()
-                if (
-                    count_row is None
-                    or int(count_row[0]) != EXPECTED_TEMPLATE_SLOT_COUNT
-                ):
-                    raise ObservedBuildIntegrityError(
-                        "sealed TemplateSet must contain exactly 80 slot rows"
-                    )
-        return expected
+                _validate_template_set_slot_rows(cur, sealed)
+        return sealed
 
     def load_template_set(self, template_set_id: str) -> dict[str, Any]:
         normalized_id = _text(template_set_id)
@@ -455,38 +535,11 @@ class ObservedBuildStore:
                 row = cur.fetchone()
                 if row is None:
                     return {}
-                template_set = _canonical(_json_value(row[0]))
-                if (
-                    _row_hash(template_set) != _text(row[1])
-                    or template_set.get("templateSetId") != normalized_id
-                ):
-                    raise ObservedBuildIntegrityError(
-                        "stored TemplateSet row failed integrity validation"
-                    )
-                cur.execute(
-                    """
-                    SELECT count(*)
-                    FROM cache.observed_build_template_set_slots
-                    WHERE template_set_id = %s
-                    """,
-                    (normalized_id,),
+                template_set = _validated_stored_template_set(
+                    row,
+                    expected_id=normalized_id,
                 )
-                count_row = cur.fetchone()
-                if (
-                    count_row is None
-                    or int(count_row[0]) != EXPECTED_TEMPLATE_SLOT_COUNT
-                ):
-                    raise ObservedBuildIntegrityError(
-                        "stored TemplateSet does not have exactly 80 slot rows"
-                    )
-                issues = validate_template_set(
-                    template_set,
-                    _expected_slots_from_set(template_set),
-                )
-                if issues:
-                    raise ObservedBuildIntegrityError(
-                        "stored TemplateSet failed structural validation"
-                    )
+                _validate_template_set_slot_rows(cur, template_set)
                 return template_set
 
     def compare_and_swap_pointer(

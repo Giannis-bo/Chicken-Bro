@@ -410,6 +410,14 @@ class PostgresSchemaTest(unittest.TestCase):
         self.assertIn("CHECK (status IN ('verified', 'stale_lkg', 'pending_collection'))", normalized)
         self.assertIn("PRIMARY KEY (template_set_id, slot_key)", normalized)
         self.assertIn("ON DELETE RESTRICT", normalized)
+        self.assertIn(
+            "FOREIGN KEY (snapshot_id, slot_key) REFERENCES cache.observed_build_snapshots(snapshot_id, slot_key)",
+            normalized,
+        )
+        self.assertIn(
+            "FOREIGN KEY (projection_id, snapshot_id, slot_key) REFERENCES cache.observed_build_projections(projection_id, snapshot_id, slot_key)",
+            normalized,
+        )
         self.assertIn("BEFORE UPDATE OR DELETE ON cache.observed_build_snapshots", normalized)
         self.assertIn("BEFORE UPDATE OR DELETE ON ops.observed_build_snapshot_checks", normalized)
         self.assertIn("BEFORE UPDATE OR DELETE ON cache.observed_build_projections", normalized)

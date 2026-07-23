@@ -65,7 +65,9 @@ class ShadowRegistry:
         if sql.startswith(
             "INSERT INTO cache.observed_build_template_set_slots"
         ):
-            self.template_set_slots[params[0]].append(_json_value(params[-2]))
+            self.template_set_slots[params[0]].append(
+                (params[1], _json_value(params[-2]), params[-1])
+            )
             return None
         if sql.startswith(
             "SELECT count(*) FROM cache.observed_build_template_set_slots"
@@ -73,6 +75,8 @@ class ShadowRegistry:
             return (len(self.template_set_slots.get(params[0], [])),)
         if sql.startswith("SELECT template_set_json, row_hash"):
             return self.template_sets.get(params[0])
+        if sql.startswith("SELECT slot_key, slot_json, row_hash"):
+            return sorted(self.template_set_slots.get(params[0], []))
         if sql.startswith(
             "INSERT INTO cache.observed_build_template_set_pointer"
         ):
@@ -159,6 +163,11 @@ class ShadowConnection:
 
     def fetchone(self):
         return self.current
+
+    def fetchall(self):
+        if self.current is None:
+            return []
+        return self.current if isinstance(self.current, list) else [self.current]
 
 
 class ObservedBuildCorePathTest(unittest.TestCase):

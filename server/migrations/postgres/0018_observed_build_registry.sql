@@ -17,7 +17,8 @@ CREATE TABLE IF NOT EXISTS cache.observed_build_snapshots (
     snapshot_json jsonb NOT NULL
         CHECK (octet_length(snapshot_json::text) <= 1048576),
     row_hash text NOT NULL CHECK (row_hash ~ '^sha256:[0-9a-f]{64}$'),
-    created_at timestamptz NOT NULL DEFAULT now()
+    created_at timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (snapshot_id, slot_key)
 );
 
 CREATE INDEX IF NOT EXISTS idx_cache_observed_build_snapshots_slot
@@ -32,8 +33,7 @@ CREATE TABLE IF NOT EXISTS ops.observed_build_snapshot_checks (
     spec_key text NOT NULL,
     hero_key text NOT NULL,
     scenario_key text NOT NULL,
-    snapshot_id text
-        REFERENCES cache.observed_build_snapshots(snapshot_id) ON DELETE RESTRICT,
+    snapshot_id text,
     status text NOT NULL
         CHECK (status IN ('captured', 'changed', 'unchanged', 'failed')),
     checked_at timestamptz NOT NULL,
@@ -46,7 +46,10 @@ CREATE TABLE IF NOT EXISTS ops.observed_build_snapshot_checks (
     CHECK (
         (status = 'failed' AND snapshot_id IS NULL AND problem_json <> '{}'::jsonb)
         OR (status <> 'failed' AND snapshot_id IS NOT NULL AND problem_json = '{}'::jsonb)
-    )
+    ),
+    FOREIGN KEY (snapshot_id, slot_key)
+        REFERENCES cache.observed_build_snapshots(snapshot_id, slot_key)
+        ON DELETE RESTRICT
 );
 
 CREATE INDEX IF NOT EXISTS idx_ops_observed_build_snapshot_checks_run
@@ -58,8 +61,7 @@ ON ops.observed_build_snapshot_checks (slot_key, checked_at DESC);
 CREATE TABLE IF NOT EXISTS cache.observed_build_projections (
     projection_id text PRIMARY KEY
         CHECK (projection_id ~ '^build-projection:sha256:[0-9a-f]{64}$'),
-    snapshot_id text NOT NULL
-        REFERENCES cache.observed_build_snapshots(snapshot_id) ON DELETE RESTRICT,
+    snapshot_id text NOT NULL,
     schema_revision text NOT NULL,
     slot_key text NOT NULL,
     dependency_hash text NOT NULL CHECK (dependency_hash ~ '^sha256:[0-9a-f]{64}$'),
@@ -74,7 +76,11 @@ CREATE TABLE IF NOT EXISTS cache.observed_build_projections (
     CHECK (
         (status = 'verified' AND importable)
         OR (status = 'blocked' AND NOT importable)
-    )
+    ),
+    UNIQUE (projection_id, snapshot_id, slot_key),
+    FOREIGN KEY (snapshot_id, slot_key)
+        REFERENCES cache.observed_build_snapshots(snapshot_id, slot_key)
+        ON DELETE RESTRICT
 );
 
 CREATE INDEX IF NOT EXISTS idx_cache_observed_build_projections_snapshot
@@ -134,7 +140,10 @@ CREATE TABLE IF NOT EXISTS cache.observed_build_template_set_slots (
             AND snapshot_id IS NULL
             AND projection_id IS NULL
         )
-    )
+    ),
+    FOREIGN KEY (projection_id, snapshot_id, slot_key)
+        REFERENCES cache.observed_build_projections(projection_id, snapshot_id, slot_key)
+        ON DELETE RESTRICT
 );
 
 CREATE INDEX IF NOT EXISTS idx_cache_observed_build_template_set_slots_projection
@@ -142,7 +151,7 @@ ON cache.observed_build_template_set_slots (projection_id);
 
 CREATE TABLE IF NOT EXISTS cache.observed_build_template_set_pointer (
     scope text PRIMARY KEY CHECK (length(scope) BETWEEN 1 AND 80),
-    generation bigint NOT NULL CHECK (generation >= 1),
+    generation bigint NOT NULL CHECK (generation >= 0),
     active_template_set_id text NOT NULL
         REFERENCES cache.observed_build_template_sets(template_set_id) ON DELETE RESTRICT,
     rollback_template_set_id text

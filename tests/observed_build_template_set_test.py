@@ -245,6 +245,17 @@ class ObservedBuildTemplateSetTest(unittest.TestCase):
         self.assertIn("TEMPLATE_SET_SLOT_DUPLICATE", {item["code"] for item in issues})
         self.assertIn("TEMPLATE_SET_SLOT_MISSING", {item["code"] for item in issues})
 
+    def test_validation_rejects_incomplete_dependencies_and_empty_source_run(self):
+        malformed = self.active_with_a()
+        malformed["dependencyVector"].pop("serializerRevision")
+        malformed["sourceRunId"] = ""
+
+        issues = validate_template_set(malformed, self.slots())
+
+        codes = {issue["code"] for issue in issues}
+        self.assertIn("TEMPLATE_SET_DEPENDENCIES_INVALID", codes)
+        self.assertIn("TEMPLATE_SET_SOURCE_RUN_INVALID", codes)
+
 
 if __name__ == "__main__":
     unittest.main()
