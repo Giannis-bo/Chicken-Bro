@@ -117,7 +117,7 @@ class ObservedBuildStoreTest(unittest.TestCase):
             serializer_revision="simc-serializer-v3",
             simc_runtime_revision="simc-runtime-abc",
             selection_schema_revision="selection-intent-v1",
-            projection_schema_revision="observed-build-projection-v1",
+            projection_schema_revision="observed-build-projection-v2",
         )
 
     def snapshot(self, slot=None, player="player-a"):
@@ -145,7 +145,7 @@ class ObservedBuildStoreTest(unittest.TestCase):
             dependency_vector=self.dependencies(),
             talent_projection={"status": "verified"},
             gear_projection={"status": "verified", "selectionIntent": {"slots": {}}},
-            profile_readiness={"status": "ready", "simcReady": True},
+            profile_readiness={"status": "verified", "simcReady": True},
         )
 
     def template_set(self):

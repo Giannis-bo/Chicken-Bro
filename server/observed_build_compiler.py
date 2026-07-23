@@ -171,7 +171,7 @@ def compile_observed_build(
         and not problems
     )
     profile_readiness = {
-        "status": "ready" if ready else "blocked",
+        "status": "verified" if ready else "blocked",
         "simcReady": ready,
     }
     if ready:
@@ -642,7 +642,7 @@ def _compile_gear_with_postgres(
     if (
         resolved.get("status") != "verified"
         or resolved.get("problems")
-        or readiness.get("status") != "ready"
+        or readiness.get("status") != "verified"
         or readiness.get("simcReady") is not True
         or not _text(resolved.get("resolvedGearSignature"))
         or not resolved_slots

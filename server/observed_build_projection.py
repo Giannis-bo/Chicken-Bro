@@ -14,7 +14,7 @@ except ImportError:
     from observed_build_registry import slot_key, validate_observed_snapshot
 
 
-OBSERVED_BUILD_PROJECTION_SCHEMA_REVISION = "observed-build-projection-v1"
+OBSERVED_BUILD_PROJECTION_SCHEMA_REVISION = "observed-build-projection-v2"
 OBSERVED_BUILD_PROJECTION_ID_PREFIX = "build-projection:sha256:"
 
 _DEPENDENCY_INPUT_FIELDS = (
@@ -125,7 +125,7 @@ def _projection_ready(
     return (
         talent_projection.get("status") == "verified"
         and gear_projection.get("status") == "verified"
-        and profile_readiness.get("status") == "ready"
+        and profile_readiness.get("status") == "verified"
         and profile_readiness.get("simcReady") is True
         and not problems
     )

@@ -43,7 +43,7 @@ class ObservedBuildProjectionTest(unittest.TestCase):
             "serializer_revision": "simc-serializer-v3",
             "simc_runtime_revision": "simc-runtime-abc",
             "selection_schema_revision": "selection-intent-v1",
-            "projection_schema_revision": "observed-build-projection-v1",
+            "projection_schema_revision": "observed-build-projection-v2",
         }
         values.update(overrides)
         return build_dependency_vector(**values)
@@ -68,7 +68,7 @@ class ObservedBuildProjectionTest(unittest.TestCase):
                 "resolvedGearSignature": "sha256:" + "2" * 64,
             },
             "profile_readiness": {
-                "status": "ready",
+                "status": "verified",
                 "simcReady": True,
                 "profileSignature": "sha256:" + "3" * 64,
             },

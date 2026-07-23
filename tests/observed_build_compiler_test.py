@@ -63,7 +63,7 @@ class ObservedBuildCompilerTest(unittest.TestCase):
             "serializer_revision": "websim-profile-compat-v1",
             "simc_runtime_revision": "simc-runtime-abc",
             "selection_schema_revision": "selection-intent-v1",
-            "projection_schema_revision": "observed-build-projection-v1",
+            "projection_schema_revision": "observed-build-projection-v2",
         }
         values.update(overrides)
         return build_dependency_vector(**values)
@@ -87,7 +87,7 @@ class ObservedBuildCompilerTest(unittest.TestCase):
                 "slots": {"head": {"itemId": "230001", "variantKey": "variant-a"}},
             },
             "gearItems": [{"slot": "head", "itemId": "230001"}],
-            "profileReadiness": {"status": "ready", "simcReady": True},
+            "profileReadiness": {"status": "verified", "simcReady": True},
             "resolvedGearSignature": "sha256:" + "2" * 64,
         }
 
@@ -194,7 +194,7 @@ class ObservedBuildCompilerTest(unittest.TestCase):
                 ]
             },
             "profileReadiness": {
-                "status": "ready",
+                "status": "verified",
                 "simcReady": True,
                 "requiredSlots": ["head"],
                 "readySlots": ["head"],
@@ -298,7 +298,7 @@ class ObservedBuildCompilerTest(unittest.TestCase):
                 ]
             },
             "profileReadiness": {
-                "status": "ready",
+                "status": "verified",
                 "simcReady": True,
             },
             "problems": [],

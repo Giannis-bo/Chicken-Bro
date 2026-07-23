@@ -24,7 +24,7 @@ class ObservedBuildReadModelTest(unittest.TestCase):
             serializer_revision="websim-profile-compat-v1",
             simc_runtime_revision="simc-runtime-abc",
             selection_schema_revision="selection-intent-v1",
-            projection_schema_revision="observed-build-projection-v1",
+            projection_schema_revision="observed-build-projection-v2",
         )
 
     def active_record(
@@ -126,7 +126,7 @@ class ObservedBuildReadModelTest(unittest.TestCase):
                 "resolvedGearSignature": "sha256:" + "2" * 64,
             },
             profile_readiness={
-                "status": "ready",
+                "status": "verified",
                 "simcReady": True,
                 "profileSignature": "sha256:" + "3" * 64,
             },

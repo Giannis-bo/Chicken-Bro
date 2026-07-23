@@ -190,7 +190,7 @@ class ObservedBuildSyncTest(unittest.TestCase):
             serializer_revision="websim-profile-compat-v1",
             simc_runtime_revision="simc-runtime-v1",
             selection_schema_revision="selection-intent-v1",
-            projection_schema_revision="observed-build-projection-v1",
+            projection_schema_revision="observed-build-projection-v2",
         )
 
     @staticmethod
@@ -291,7 +291,7 @@ class ObservedBuildSyncTest(unittest.TestCase):
                     "selectionIntent": {"slots": {}},
                 },
                 profile_readiness={
-                    "status": "blocked" if blocked else "ready",
+                    "status": "blocked" if blocked else "verified",
                     "simcReady": not blocked,
                 },
                 problems=(
