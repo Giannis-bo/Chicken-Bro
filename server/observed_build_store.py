@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 import hashlib
 import json
 import re
@@ -302,8 +303,17 @@ class ObservedBuildStore:
     def __init__(self, connection_factory):
         self._connection_factory = connection_factory
 
+    @contextmanager
     def connection(self):
-        return self._connection_factory()
+        conn = self._connection_factory()
+        try:
+            yield conn
+            if hasattr(conn, "commit"):
+                conn.commit()
+        except Exception:
+            if hasattr(conn, "rollback"):
+                conn.rollback()
+            raise
 
     def seal_snapshot(self, snapshot: dict[str, Any]) -> dict[str, Any]:
         expected = _canonical(snapshot)

@@ -680,7 +680,7 @@ Expected: PASS and fake SQL history contains no update, insert, network, or SimC
 - Produces: `gear_templates_from_active_records(records) -> list[dict]`.
 - Produces: exact active gear import context keyed by `projectionId`.
 
-- [ ] **Step 1: Write failing public-shape tests**
+- [x] **Step 1: Write failing public-shape tests**
 
 ```python
 def test_one_active_record_projects_to_matching_talent_and_gear_identity(self):
@@ -699,7 +699,7 @@ def test_one_spec_projects_exactly_two_distinct_gear_templates(self):
     self.assertEqual(len({item["heroKey"] for item in templates}), 2)
 ```
 
-- [ ] **Step 2: Run tests and verify the module is missing**
+- [x] **Step 2: Run tests and verify the module is missing**
 
 ```bash
 python3 -m unittest tests.observed_build_read_model_test
@@ -707,7 +707,7 @@ python3 -m unittest tests.observed_build_read_model_test
 
 Expected: FAIL with `ModuleNotFoundError`.
 
-- [ ] **Step 3: Implement talent and gear read models**
+- [x] **Step 3: Implement talent and gear read models**
 
 Both read models use `projectionId` as stable `id` and include:
 
@@ -739,7 +739,7 @@ common = {
 
 Talent adds canonical `talentState`, `rawImportCode`, `websimExportCode`, and `canApplyVisual=True`. Gear adds canonical `gearItems`, `selectionIntent`, `enhancementBySlot`, `canApplyGear=True`, and Hero labels.
 
-- [ ] **Step 4: Delegate PostgresCacheStore reads**
+- [x] **Step 4: Delegate PostgresCacheStore reads**
 
 Add one internal helper that loads `WOW_OBSERVED_BUILD_SCOPE`, defaulting to `retail`. If that scope has an active pointer:
 
@@ -751,7 +751,7 @@ Add one internal helper that loads `WOW_OBSERVED_BUILD_SCOPE`, defaulting to `re
 
 If no pointer exists, preserve the current legacy reader unchanged. If a pointer exists but its data fails integrity, fail closed with empty community templates; never silently fall back to legacy public winners.
 
-- [ ] **Step 5: Verify exact import and commit**
+- [x] **Step 5: Verify exact import and commit**
 
 ```bash
 python3 -m unittest \

@@ -60,6 +60,27 @@ except ImportError:
     from gear_release_store import GearReleaseStore
 
 try:
+    from .observed_build_read_model import (
+        gear_import_source_from_active_record,
+        gear_templates_from_active_records,
+        talent_templates_from_active_records,
+    )
+    from .observed_build_store import (
+        ObservedBuildIntegrityError,
+        ObservedBuildStore,
+    )
+except ImportError:
+    from observed_build_read_model import (
+        gear_import_source_from_active_record,
+        gear_templates_from_active_records,
+        talent_templates_from_active_records,
+    )
+    from observed_build_store import (
+        ObservedBuildIntegrityError,
+        ObservedBuildStore,
+    )
+
+try:
     from .community_template_import import (
         COMMUNITY_TEMPLATE_IMPORT_CONTRACT_REVISION,
         build_community_template_import_source,
@@ -661,6 +682,12 @@ def _community_template_import_cache_fingerprint(
         "classKey": str(class_key or "").strip(),
         "specKey": str(spec_key or "").strip(),
         "templateId": str(template_id or "").strip(),
+        "observedTemplateSetId": str(
+            context.get("observedTemplateSetId") or ""
+        ).strip(),
+        "observedPointerGeneration": _int_value(
+            context.get("observedPointerGeneration")
+        ),
     }
     return json.dumps(identity, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
@@ -1161,6 +1188,7 @@ class PostgresCacheStore:
         connection_factory,
         gear_authority_context_cache=None,
         gear_release_store=None,
+        observed_build_store=None,
     ):
         self.connection_factory = connection_factory
         self._gear_authority_context_cache = (
@@ -1172,6 +1200,11 @@ class PostgresCacheStore:
             gear_release_store
             if gear_release_store is not None
             else GearReleaseStore(connection_factory)
+        )
+        self._observed_build_store = (
+            observed_build_store
+            if observed_build_store is not None
+            else ObservedBuildStore(connection_factory)
         )
 
     @contextmanager
@@ -1185,6 +1218,85 @@ class PostgresCacheStore:
             if hasattr(conn, "rollback"):
                 conn.rollback()
             raise
+
+    @staticmethod
+    def _observed_build_scope():
+        scope = str(
+            os.environ.get("WOW_OBSERVED_BUILD_SCOPE") or "retail"
+        ).strip()
+        return scope if scope in {"candidate", "retail"} else "retail"
+
+    def _active_observed_build_records(
+        self,
+        class_key,
+        spec_key,
+        hero_key="",
+    ):
+        """Return active observed records or an explicit inactive/blocked state."""
+
+        scope = self._observed_build_scope()
+        try:
+            bundle = self._observed_build_store.load_active_records(
+                scope,
+                class_key=str(class_key or "").strip(),
+                spec_key=str(spec_key or "").strip(),
+                hero_key=str(hero_key or "").strip(),
+            )
+        except ObservedBuildIntegrityError:
+            return {
+                "state": "blocked",
+                "scope": scope,
+                "active": {},
+                "records": [],
+            }
+        bundle = bundle if isinstance(bundle, dict) else {}
+        pointer = (
+            bundle.get("pointer")
+            if isinstance(bundle.get("pointer"), dict)
+            else {}
+        )
+        if not pointer:
+            return {
+                "state": "inactive",
+                "scope": scope,
+                "active": {},
+                "records": [],
+            }
+        template_set = (
+            bundle.get("templateSet")
+            if isinstance(bundle.get("templateSet"), dict)
+            else {}
+        )
+        active = {
+            "scope": scope,
+            "templateSetId": str(
+                template_set.get("templateSetId")
+                or pointer.get("activeTemplateSetId")
+                or ""
+            ).strip(),
+            "generation": _int_value(pointer.get("generation")),
+        }
+        records = [
+            {**copy.deepcopy(record), "active": active}
+            for record in bundle.get("records") or []
+            if isinstance(record, dict)
+        ]
+        return {
+            "state": "active",
+            "scope": scope,
+            "active": active,
+            "records": records,
+        }
+
+    @staticmethod
+    def _observed_build_cache_identity(observed):
+        value = observed if isinstance(observed, dict) else {}
+        active = value.get("active") if isinstance(value.get("active"), dict) else {}
+        return (
+            str(value.get("state") or "inactive"),
+            str(active.get("templateSetId") or ""),
+            _int_value(active.get("generation")),
+        )
 
     def save_sync_state(self, key, value, updated_at=""):
         normalized_key = str(key or "").strip()
@@ -1281,8 +1393,29 @@ class PostgresCacheStore:
         normalized_class = str(class_key or "").strip()
         normalized_spec = str(spec_key or "").strip()
         normalized_template = str(template_id or "").strip()
+        observed = self._active_observed_build_records(
+            normalized_class,
+            normalized_spec,
+        )
+        if observed["state"] == "blocked":
+            raise CommunityTemplateImportError(
+                "template_import_unavailable",
+                "The active observed template registry is temporarily unavailable.",
+                release_context=release_context,
+                unavailable=True,
+            )
+        observed_active = observed.get("active") if observed["state"] == "active" else {}
+        cache_release_context = {
+            **release_context,
+            "observedTemplateSetId": str(
+                observed_active.get("templateSetId") or ""
+            ),
+            "observedPointerGeneration": _int_value(
+                observed_active.get("generation")
+            ),
+        }
         cache_identity = _community_template_import_cache_fingerprint(
-            release_context,
+            cache_release_context,
             normalized_class,
             normalized_spec,
             normalized_template,
@@ -1294,6 +1427,90 @@ class PostgresCacheStore:
                 "cachedPayload": cached,
                 "releaseReadMs": (time.perf_counter() - started) * 1000,
                 "reconcileMs": 0.0,
+                "cacheIdentity": cache_identity,
+            }
+
+        if observed["state"] == "active":
+            source_started = time.perf_counter()
+            try:
+                record = self._observed_build_store.load_active_projection(
+                    observed["scope"],
+                    normalized_template,
+                    normalized_class,
+                    normalized_spec,
+                )
+            except ObservedBuildIntegrityError as error:
+                raise CommunityTemplateImportError(
+                    "template_not_active",
+                    "The requested observed template is not active.",
+                    release_context=release_context,
+                ) from error
+            if not isinstance(record, dict) or not record:
+                raise CommunityTemplateImportError(
+                    "template_not_active",
+                    "The requested observed template is not active.",
+                    release_context=release_context,
+                )
+            record = {
+                **copy.deepcopy(record),
+                "active": copy.deepcopy(observed_active),
+            }
+            try:
+                source = gear_import_source_from_active_record(record)
+            except ValueError as error:
+                raise CommunityTemplateImportError(
+                    "template_import_blocked",
+                    "The requested template cannot be imported safely.",
+                    release_context=release_context,
+                ) from error
+            selection_intent = (
+                source.get("selectionIntent")
+                if isinstance(source.get("selectionIntent"), dict)
+                else None
+            )
+            reconcile_ms = (
+                time.perf_counter() - source_started
+            ) * 1000
+            if selection_intent is None:
+                return {
+                    "cache": {"hit": False},
+                    "source": source,
+                    "authorityContext": {},
+                    "releaseReadMs": (
+                        time.perf_counter() - started
+                    )
+                    * 1000,
+                    "reconcileMs": reconcile_ms,
+                    "cacheIdentity": cache_identity,
+                }
+            try:
+                authority_context = (
+                    self._gear_release_store.load_active_authority_context(
+                        selection_intent,
+                        runtime_authority,
+                        binding,
+                    )
+                )
+            except Exception as error:
+                raise CommunityTemplateImportError(
+                    "template_import_unavailable",
+                    "Current gear authority is temporarily unavailable.",
+                    release_context=release_context,
+                    unavailable=True,
+                ) from error
+            return {
+                "cache": {"hit": False},
+                "source": source,
+                "authorityContext": (
+                    authority_context
+                    if isinstance(authority_context, dict)
+                    else {}
+                ),
+                "releaseReadMs": (
+                    time.perf_counter() - started
+                )
+                * 1000,
+                "reconcileMs": reconcile_ms,
                 "cacheIdentity": cache_identity,
             }
 
@@ -6376,6 +6593,18 @@ class PostgresCacheStore:
         return pg_gear_read_model_selectors.build_websim_profile_presets_read_model(rows)
 
     def _community_talent_templates(self, cur, class_key, spec_key, hero_key=""):
+        observed = self._active_observed_build_records(
+            class_key,
+            spec_key,
+            hero_key,
+        )
+        if observed["state"] == "active":
+            return talent_templates_from_active_records(
+                observed["records"],
+                hero_key=hero_key,
+            )
+        if observed["state"] == "blocked":
+            return []
         cur.execute(
             """
             SELECT id, class_key, spec_key, hero_key, scenario_key, name, flow_label,
@@ -6611,6 +6840,35 @@ class PostgresCacheStore:
                 hero_key,
                 blockers=season.get("errors") or ["active season is not verified"],
             )
+        observed = self._active_observed_build_records(
+            class_key,
+            spec_key,
+            hero_key,
+        )
+        if observed["state"] != "inactive":
+            templates = (
+                talent_templates_from_active_records(
+                    observed["records"],
+                    hero_key=hero_key,
+                )
+                if observed["state"] == "active"
+                else []
+            )
+            if len(templates) == 1:
+                return websim_talent_import_response(
+                    class_key,
+                    spec_key,
+                    hero_key,
+                    template=templates[0],
+                )
+            return websim_talent_import_response(
+                class_key,
+                spec_key,
+                hero_key,
+                blockers=[
+                    "active observed talent template is unavailable"
+                ],
+            )
         with self.connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
@@ -6677,6 +6935,9 @@ class PostgresCacheStore:
             (str(row[0] or ""), _int_value(row[1]), str(row[2] or ""))
             for row in cur.fetchall()
         )
+        observed_identity = self._observed_build_cache_identity(
+            self._active_observed_build_records(class_key, spec_key)
+        )
         return (
             "pg-websim-gear-v4",
             class_key,
@@ -6694,6 +6955,7 @@ class PostgresCacheStore:
             season.get("expiresAt") or "",
             tuple(str(item) for item in (season.get("errors") or [])),
             table_rows,
+            observed_identity,
         )
 
     def _websim_gear_initial_payload(
@@ -7038,6 +7300,16 @@ class PostgresCacheStore:
         )
 
     def _gear_community_templates(self, cur, class_key, spec_key):
+        observed = self._active_observed_build_records(
+            class_key,
+            spec_key,
+        )
+        if observed["state"] == "active":
+            return gear_templates_from_active_records(
+                observed["records"]
+            )
+        if observed["state"] == "blocked":
+            return []
         cur.execute(
             """
             SELECT id, class_key, spec_key, name, source_key, source_name, source_url,
@@ -7084,7 +7356,16 @@ class PostgresCacheStore:
             "talentCatalogRevision": str(manifest.get("talentCatalogRevision") or ""),
         }
 
-    def _active_websim_gear_payload(self, binding, class_key, spec_key, compact, mode, slot):
+    def _active_websim_gear_payload(
+        self,
+        binding,
+        class_key,
+        spec_key,
+        compact,
+        mode,
+        slot,
+        observed=None,
+    ):
         include_catalog = mode != "initial"
         data = self._gear_release_store.load_active_public_gear(
             binding,
@@ -7116,6 +7397,17 @@ class PostgresCacheStore:
             for template in data.get("communityTemplates") or []
             if isinstance(template, dict)
         ]
+        observed = (
+            observed
+            if isinstance(observed, dict)
+            else self._active_observed_build_records(class_key, spec_key)
+        )
+        if observed.get("state") == "active":
+            persisted_templates = gear_templates_from_active_records(
+                observed.get("records") or []
+            )
+        elif observed.get("state") == "blocked":
+            persisted_templates = []
         if mode == "initial":
             payload = self._websim_gear_initial_payload(
                 class_key,
@@ -7223,6 +7515,10 @@ class PostgresCacheStore:
         slot = normalize_slot(slot) if mode == "slot" else str(slot or "").strip().lower()
         binding = self._active_manifest_binding_for_authority()
         if _release_binding_is_readable(binding):
+            observed = self._active_observed_build_records(
+                class_key,
+                spec_key,
+            )
             active_fingerprint = (
                 "pg-websim-gear-release-v1",
                 str(binding.get("manifestRevision") or ""),
@@ -7232,11 +7528,20 @@ class PostgresCacheStore:
                 compact,
                 mode,
                 slot,
+                self._observed_build_cache_identity(observed),
             )
             cached_payload = _pg_gear_payload_cache_get(active_fingerprint)
             if cached_payload is not None:
                 return {**cached_payload, "_activeManifestBinding": binding}
-            payload = self._active_websim_gear_payload(binding, class_key, spec_key, compact, mode, slot)
+            payload = self._active_websim_gear_payload(
+                binding,
+                class_key,
+                spec_key,
+                compact,
+                mode,
+                slot,
+                observed=observed,
+            )
             _pg_gear_payload_cache_put(active_fingerprint, payload)
             return {**payload, "_activeManifestBinding": binding}
         season = self.get_active_season_payload()

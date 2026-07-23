@@ -1,3 +1,4 @@
+import copy
 import hashlib
 import json
 import os
@@ -38,6 +39,11 @@ class FakeCursor:
         if (
             self.current_rows is None
             and "FROM cache.websim_active_manifest_pointer pointer" in normalized_sql
+        ):
+            self.current_rows = []
+        if (
+            self.current_rows is None
+            and "FROM cache.observed_build_template_set_pointer" in normalized_sql
         ):
             self.current_rows = []
 
@@ -85,7 +91,484 @@ class PreCutoverReleaseStore:
         }
 
 
+def observed_active_record(
+    *,
+    hero="frostfire",
+    player="player-a",
+    item_id="item-a",
+    projection_digit="a",
+):
+    slot = {
+        "classKey": "mage",
+        "specKey": "frost",
+        "heroKey": hero,
+        "scenarioKey": "mythic_plus",
+    }
+    slot_key = f"mage:frost:{hero}:mythic_plus"
+    snapshot_id = "observed-build:sha256:" + projection_digit * 64
+    projection_id = "build-projection:sha256:" + projection_digit * 64
+    source_identity = f"raiderio:cn|realm-a|{player}"
+    profile_url = (
+        f"https://raider.io/characters/cn/realm-a/{player}"
+    )
+    intent = {
+        "schemaRevision": "selection-intent-v1",
+        "authoredAgainst": {
+            "seasonRevision": "season-17",
+            "gearCatalogRevision": "gear-release-a",
+        },
+        "eligibilityContext": {
+            "classKey": "mage",
+            "specKey": "frost",
+            "level": 90,
+        },
+        "slots": {
+            "head": {
+                "itemId": item_id,
+                "variantKey": f"variant-{player}",
+                "gemOptionIds": [],
+                "enchantOptionId": "",
+                "embellishmentOptionId": "",
+                "craftedOptionId": "",
+                "catalystOptionId": "",
+            }
+        },
+    }
+    return {
+        "entry": {
+            "slot": slot,
+            "slotKey": slot_key,
+            "status": "verified",
+            "snapshotId": snapshot_id,
+            "projectionId": projection_id,
+            "sourceIdentity": source_identity,
+            "problem": {},
+        },
+        "snapshot": {
+            "snapshotId": snapshot_id,
+            "slot": slot,
+            "source": {
+                "sourceIdentity": source_identity,
+                "profileUrl": profile_url,
+                "character": player,
+                "realm": "realm-a",
+                "region": "cn",
+            },
+            "rankingEvidence": {
+                "score": 4200,
+                "rank": 1,
+                "maxKeyLevel": 22,
+            },
+            "talentObservation": {
+                "rawImportCode": f"RAW-{player}",
+                "loadout": [{"traitId": 91001, "rank": 1}],
+            },
+            "gearObservation": {
+                "gearItems": [
+                    {
+                        "slot": "head",
+                        "itemId": item_id,
+                        "itemLevel": 710,
+                        "name": f"Observed Helm {player}",
+                    }
+                ]
+            },
+            "profileHash": "sha256:" + "1" * 64,
+            "gearHash": "sha256:" + "2" * 64,
+            "sourceRevision": "raiderio-profile-v1",
+        },
+        "projection": {
+            "projectionId": projection_id,
+            "snapshotId": snapshot_id,
+            "sourceIdentity": source_identity,
+            "slot": slot,
+            "slotKey": slot_key,
+            "status": "verified",
+            "importable": True,
+            "talentProjection": {
+                "status": "verified",
+                "heroKey": hero,
+                "talentState": {
+                    "selectedNodes": [{"id": "node-a", "rank": 1}]
+                },
+                "rawImportCode": f"RAW-{player}",
+                "websimExportCode": (
+                    f"websim:mage:frost:{hero}:encoded"
+                ),
+                "signature": f"talent-{player}",
+            },
+            "gearProjection": {
+                "status": "verified",
+                "selectionIntent": intent,
+                "gearItems": [
+                    {
+                        "slot": "head",
+                        "itemId": item_id,
+                        "variantKey": f"variant-{player}",
+                        "simcOptions": {"ilevel": "710"},
+                    }
+                ],
+                "enhancementBySlot": {},
+                "resolvedGearSignature": "sha256:" + "3" * 64,
+            },
+        },
+    }
+
+
+class FakeObservedBuildStore:
+    def __init__(self, records=None, *, active=True, error=None):
+        self.records = list(records or [])
+        self.active = active
+        self.error = error
+        self.calls = []
+        self.template_set_id = "template-set:sha256:" + "4" * 64
+
+    def load_active_records(
+        self,
+        scope,
+        class_key="",
+        spec_key="",
+        hero_key="",
+    ):
+        self.calls.append(
+            ("records", scope, class_key, spec_key, hero_key)
+        )
+        if self.error is not None:
+            raise self.error
+        if not self.active:
+            return {"pointer": {}, "templateSet": {}, "records": []}
+        records = [
+            record
+            for record in self.records
+            if (
+                (not class_key or record["snapshot"]["slot"]["classKey"] == class_key)
+                and (not spec_key or record["snapshot"]["slot"]["specKey"] == spec_key)
+                and (not hero_key or record["snapshot"]["slot"]["heroKey"] == hero_key)
+            )
+        ]
+        return {
+            "pointer": {
+                "scope": scope,
+                "generation": 7,
+                "activeTemplateSetId": self.template_set_id,
+            },
+            "templateSet": {"templateSetId": self.template_set_id},
+            "records": copy.deepcopy(records),
+        }
+
+    def load_active_projection(
+        self,
+        scope,
+        projection_id,
+        class_key,
+        spec_key,
+    ):
+        self.calls.append(
+            ("projection", scope, projection_id, class_key, spec_key)
+        )
+        if self.error is not None:
+            raise self.error
+        matches = [
+            record
+            for record in self.records
+            if (
+                record["projection"]["projectionId"] == projection_id
+                and record["snapshot"]["slot"]["classKey"] == class_key
+                and record["snapshot"]["slot"]["specKey"] == spec_key
+            )
+        ]
+        if len(matches) != 1:
+            from server.observed_build_store import (
+                ObservedBuildIntegrityError,
+            )
+
+            raise ObservedBuildIntegrityError(
+                "projection is not active"
+            )
+        return copy.deepcopy(matches[0])
+
+
 class PostgresCacheStoreTest(unittest.TestCase):
+    def test_active_observed_records_replace_legacy_talent_and_gear_templates(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        observed_store = FakeObservedBuildStore(
+            [
+                observed_active_record(),
+                observed_active_record(
+                    hero="spellslinger",
+                    player="player-b",
+                    item_id="item-b",
+                    projection_digit="b",
+                ),
+            ]
+        )
+        conn = FakeConnection()
+        store = PostgresCacheStore(
+            lambda: conn,
+            gear_release_store=PreCutoverReleaseStore(),
+            observed_build_store=observed_store,
+        )
+
+        talents = store._community_talent_templates(
+            conn.cursor_instance,
+            "mage",
+            "frost",
+            "frostfire",
+        )
+        gear = store._gear_community_templates(
+            conn.cursor_instance,
+            "mage",
+            "frost",
+        )
+
+        self.assertEqual(len(talents), 1)
+        self.assertEqual(len(gear), 2)
+        self.assertEqual(
+            talents[0]["sourceIdentity"],
+            gear[0]["sourceIdentity"],
+        )
+        self.assertEqual(
+            {template["heroKey"] for template in gear},
+            {"frostfire", "spellslinger"},
+        )
+        self.assertEqual(conn.cursor_instance.statements, [])
+
+    def test_broken_active_observed_registry_fails_closed_without_legacy_rows(self):
+        from server.observed_build_store import ObservedBuildIntegrityError
+        from server.postgres_cache_store import PostgresCacheStore
+
+        observed_store = FakeObservedBuildStore(
+            error=ObservedBuildIntegrityError("corrupt")
+        )
+        conn = FakeConnection()
+        store = PostgresCacheStore(
+            lambda: conn,
+            gear_release_store=PreCutoverReleaseStore(),
+            observed_build_store=observed_store,
+        )
+
+        talents = store._community_talent_templates(
+            conn.cursor_instance,
+            "mage",
+            "frost",
+            "frostfire",
+        )
+        gear = store._gear_community_templates(
+            conn.cursor_instance,
+            "mage",
+            "frost",
+        )
+
+        self.assertEqual(talents, [])
+        self.assertEqual(gear, [])
+        self.assertEqual(conn.cursor_instance.statements, [])
+
+    def test_talent_import_uses_exact_active_observed_hero(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        observed_store = FakeObservedBuildStore(
+            [observed_active_record()]
+        )
+        store = PostgresCacheStore(
+            lambda: self.fail("observed talent import must not query legacy"),
+            gear_release_store=PreCutoverReleaseStore(),
+            observed_build_store=observed_store,
+        )
+
+        with patch.object(
+            store,
+            "get_active_season_payload",
+            return_value={"dataStatus": "verified"},
+        ):
+            result = store.get_websim_talent_import(
+                "mage",
+                "frost",
+                "frostfire",
+            )
+
+        self.assertEqual(result["status"], "verified")
+        self.assertEqual(result["importCode"], "RAW-player-a")
+        self.assertEqual(
+            result["templateId"],
+            "build-projection:sha256:" + "a" * 64,
+        )
+
+    def test_active_manifest_gear_payload_replaces_release_winners_with_observed_set(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        class ReleaseStore:
+            def load_active_public_gear(
+                self,
+                _binding,
+                _class_key,
+                _spec_key,
+                *,
+                include_catalog,
+                catalog_slot="",
+            ):
+                self.include_catalog = include_catalog
+                self.catalog_slot = catalog_slot
+                return {
+                    "gearRelease": {
+                        "releaseId": "gear-release-a",
+                        "releaseStatus": "validated",
+                    },
+                    "communityRelease": {
+                        "releaseId": "community-release-a"
+                    },
+                    "communityTemplates": [{"id": "legacy-winner"}],
+                    "gearSnapshot": None,
+                }
+
+        observed_store = FakeObservedBuildStore(
+            [
+                observed_active_record(),
+                observed_active_record(
+                    hero="spellslinger",
+                    player="player-b",
+                    item_id="item-b",
+                    projection_digit="b",
+                ),
+            ]
+        )
+        release_store = ReleaseStore()
+        store = PostgresCacheStore(
+            lambda: self.fail("active release read uses repositories"),
+            gear_release_store=release_store,
+            observed_build_store=observed_store,
+        )
+        binding = {
+            "generation": 9,
+            "formalActiveManifest": True,
+            "manifest": {
+                "manifestRevision": "manifest-a",
+                "seasonRevision": "season-17",
+                "gearCatalogReleaseId": "gear-release-a",
+                "communityTemplateReleaseId": "community-release-a",
+            },
+        }
+        observed = store._active_observed_build_records(
+            "mage",
+            "frost",
+        )
+
+        with patch.object(
+            store,
+            "_websim_gear_initial_payload",
+            return_value={"ok": True},
+        ) as initial:
+            result = store._active_websim_gear_payload(
+                binding,
+                "mage",
+                "frost",
+                False,
+                "initial",
+                "",
+                observed=observed,
+            )
+
+        self.assertEqual(result["gearCatalogReleaseId"], "gear-release-a")
+        persisted_templates = initial.call_args.args[-1]
+        self.assertEqual(len(persisted_templates), 2)
+        self.assertNotIn(
+            "legacy-winner",
+            {template["id"] for template in persisted_templates},
+        )
+
+    def test_exact_gear_import_uses_active_observed_projection(self):
+        from server import postgres_cache_store
+        from server.postgres_cache_store import (
+            CommunityTemplateImportError,
+        )
+
+        postgres_cache_store.PG_COMMUNITY_TEMPLATE_IMPORT_CACHE.clear()
+        record = observed_active_record()
+        observed_store = FakeObservedBuildStore([record])
+
+        class ReleaseStore:
+            def __init__(self):
+                self.authority_calls = []
+                self.legacy_import_calls = 0
+
+            def load_active_manifest_binding(self):
+                return {
+                    "pointerMode": "active",
+                    "generation": 9,
+                    "formalActiveManifest": True,
+                    "manifest": {
+                        "manifestRevision": "manifest-a",
+                        "seasonRevision": "season-17",
+                        "gearCatalogReleaseId": "gear-release-a",
+                        "communityTemplateReleaseId": "community-release-a",
+                    },
+                }
+
+            def load_active_authority_context(
+                self,
+                intent,
+                runtime_authority,
+                binding,
+            ):
+                self.authority_calls.append(
+                    (intent, runtime_authority, binding)
+                )
+                return {"sealed": True}
+
+            def load_active_community_template_import(self, *_args):
+                self.legacy_import_calls += 1
+                raise AssertionError(
+                    "active observed import must not use legacy release winner"
+                )
+
+        release_store = ReleaseStore()
+        store = postgres_cache_store.PostgresCacheStore(
+            lambda: self.fail("observed import uses sealed repositories"),
+            gear_release_store=release_store,
+            observed_build_store=observed_store,
+        )
+
+        result = store.get_community_template_import_context(
+            class_key="mage",
+            spec_key="frost",
+            template_id=record["projection"]["projectionId"],
+            runtime_authority={
+                "dependencyRevisions": {
+                    "simcRuntimeRevision": "simc-r1"
+                }
+            },
+            expected_manifest_revision="manifest-a",
+        )
+
+        self.assertEqual(result["source"]["status"], "verified")
+        self.assertEqual(
+            result["source"]["selectionIntent"],
+            record["projection"]["gearProjection"]["selectionIntent"],
+        )
+        self.assertEqual(result["authorityContext"], {"sealed": True})
+        self.assertEqual(release_store.legacy_import_calls, 0)
+        self.assertEqual(len(release_store.authority_calls), 1)
+        self.assertIn(
+            observed_store.template_set_id,
+            result["cacheIdentity"],
+        )
+        with self.assertRaises(CommunityTemplateImportError) as raised:
+            store.get_community_template_import_context(
+                class_key="mage",
+                spec_key="frost",
+                template_id=(
+                    "build-projection:sha256:" + "f" * 64
+                ),
+                runtime_authority={
+                    "dependencyRevisions": {
+                        "simcRuntimeRevision": "simc-r1"
+                    }
+                },
+                expected_manifest_revision="manifest-a",
+            )
+        self.assertEqual(raised.exception.code, "template_not_active")
+        self.assertEqual(release_store.legacy_import_calls, 0)
+
     def test_sync_state_round_trip_uses_cache_schema_jsonb(self):
         from server.postgres_cache_store import PostgresCacheStore
 
@@ -9105,6 +9588,7 @@ class PostgresCacheStoreTest(unittest.TestCase):
         store = postgres_cache_store.PostgresCacheStore(
             lambda: self.fail("formal readers must not query mutable staging"),
             gear_release_store=release_store,
+            observed_build_store=FakeObservedBuildStore(active=False),
         )
         intent = {"schemaRevision": "selection-intent-v1"}
         runtime = {"dependencyRevisions": {"simcRuntimeRevision": "simc-r1"}}
@@ -9228,6 +9712,7 @@ class PostgresCacheStoreTest(unittest.TestCase):
         store = postgres_cache_store.PostgresCacheStore(
             lambda: self.fail("candidate preview must not query mutable staging"),
             gear_release_store=release_store,
+            observed_build_store=FakeObservedBuildStore(active=False),
         )
 
         with patch.dict(os.environ, {"WOW_COMMUNITY_GEAR_PREVIEW_RELEASE_ID": preview_release["releaseId"]}, clear=False):
@@ -9322,6 +9807,7 @@ class PostgresCacheStoreTest(unittest.TestCase):
         store = postgres_cache_store.PostgresCacheStore(
             lambda: self.fail("candidate preview must not query mutable staging"),
             gear_release_store=release_store,
+            observed_build_store=FakeObservedBuildStore(active=False),
         )
 
         with patch.dict(os.environ, {
@@ -9629,6 +10115,7 @@ class PostgresCacheStoreTest(unittest.TestCase):
         store = postgres_cache_store.PostgresCacheStore(
             lambda: self.fail("formal import must stay in the release repository"),
             gear_release_store=release_store,
+            observed_build_store=FakeObservedBuildStore(active=False),
         )
         snapshot = {"status": "verified", "problems": [], "resolvedGearSignature": "sha256:import"}
         request = {"classKey": "mage", "specKey": "frost", "templateId": "template-a"}

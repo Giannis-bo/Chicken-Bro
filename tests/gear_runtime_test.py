@@ -463,6 +463,47 @@ class GearRuntimeTest(unittest.TestCase):
         self.assertEqual(envelope["problems"][0]["code"], "GEAR_RELEASE_ID_UNAVAILABLE")
         self.assertEqual(store.calls, [])
 
+    def test_observed_projection_outside_active_scope_is_rejected_before_resolver(self):
+        from server.postgres_cache_store import (
+            CommunityTemplateImportError,
+        )
+
+        class ActiveObservedStore:
+            def get_community_template_import_context(self, **_kwargs):
+                raise CommunityTemplateImportError(
+                    "template_not_active",
+                    "The requested observed template is not active.",
+                )
+
+        with patch.object(
+            gear_runtime.gear_resolver,
+            "resolve",
+            side_effect=AssertionError(
+                "inactive projection must not reach Resolver"
+            ),
+        ):
+            status, envelope, _timings = (
+                gear_runtime.import_community_template(
+                    {
+                        "classKey": "mage",
+                        "specKey": "frost",
+                        "templateId": (
+                            "build-projection:sha256:" + "f" * 64
+                        ),
+                    },
+                    store=ActiveObservedStore(),
+                    simc_runtime_revision="simc-v1",
+                    request_id="inactive-observed",
+                )
+            )
+
+        self.assertEqual(status, 200)
+        self.assertEqual(envelope["status"], "blocked")
+        self.assertEqual(
+            envelope["problems"][0]["code"],
+            "template_not_active",
+        )
+
     def test_legacy_profile_request_is_not_claimed_by_canonical_mode(self):
         self.assertFalse(gear_runtime.is_canonical_profile_request({"classKey": "mage"}))
         self.assertFalse(gear_runtime.is_canonical_profile_request(None))
