@@ -1,5 +1,5 @@
 {
-  "version": "2026-07-10-phase4-v30",
+  "version": "2026-07-23-observed-build-registry-core-v1",
   "status": "phase4_admin_gate_queue_summary_read_model_selector_extracted",
   "harnessVersion": "v0.6.4",
   "defaultEvidenceLevel": "local_verified",
@@ -311,6 +311,46 @@
       "healthStatus": "health_watch",
       "summary": "Owns PostgreSQL cache selectors, write intents, gear/community template rows, recommended evidence overlays, sync-state storage, and cleanup residue rules.",
       "owners": [
+        {
+          "id": "observed_build_registry",
+          "status": "dormant_shadow_core",
+          "factOwner": "server/observed_build_registry.py",
+          "projectionOwner": "server/observed_build_projection.py",
+          "templateSetOwner": "server/observed_build_template_set.py",
+          "writeOwner": "server/observed_build_store.py",
+          "migration": "server/migrations/postgres/0018_observed_build_registry.sql",
+          "extractedModules": [
+            "server/observed_build_registry.py",
+            "server/observed_build_projection.py",
+            "server/observed_build_template_set.py",
+            "server/observed_build_store.py"
+          ],
+          "owns": [
+            "content-addressed immutable real-player snapshots",
+            "deterministic dependency-bound talent and gear projections",
+            "exact 80-slot TemplateSet construction with same-slot LKG and pending states",
+            "append-only source checks separate from immutable snapshot identity",
+            "insert-only PG artifact sealing and row-hash reuse validation",
+            "monotonic TemplateSet pointer compare-and-swap and rollback"
+          ],
+          "runtimeConsumers": [],
+          "mustNotChange": [
+            "The repository SQL remains in server/observed_build_store.py and must not be folded into postgres_cache_store.py.",
+            "A failed replacement may reuse only the previous verified projection for the exact same slot.",
+            "The dormant registry must not call Raider.IO, SimC, public readers, old Release/Manifest tables, timers or sync orchestration.",
+            "No production or public TemplateSet pointer is activated in this slice."
+          ],
+          "characterization": [
+            "tests/observed_build_characterization_test.py",
+            "tests/observed_build_registry_test.py",
+            "tests/observed_build_projection_test.py",
+            "tests/observed_build_template_set_test.py",
+            "tests/observed_build_store_test.py",
+            "tests/observed_build_core_path_test.py",
+            "tests/postgres_schema_test.py"
+          ],
+          "futureExtractionDirection": "Add a network-free backfill adapter and shadow reader only in a separate approved slice; preserve the dormant public boundary until controlled cutover evidence is complete."
+        },
         {
           "id": "gear_template_selectors",
           "status": "read_model_adapter_extracted",

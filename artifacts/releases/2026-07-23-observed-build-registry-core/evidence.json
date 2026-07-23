@@ -1,0 +1,146 @@
+{
+  "schemaVersion": 2,
+  "slug": "observed-build-registry-core",
+  "requirementSlug": "observed-build-registry-core",
+  "status": "runtime_verified",
+  "highestEvidenceLevel": "runtime_verified",
+  "branch": "codex/observed-build-registry-core",
+  "commit": "915a7c4f90af8b0368a7191d7e4aa62312fd1916",
+  "identities": {
+    "runtime": {
+      "status": "bound",
+      "kind": "git_commit",
+      "value": "915a7c4f90af8b0368a7191d7e4aa62312fd1916"
+    },
+    "verification": {
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD"
+    },
+    "closure": {
+      "status": "pending",
+      "reason": "Branch publication, CI and merge closure remain pending."
+    }
+  },
+  "manualAcceptance": {
+    "required": false,
+    "status": "not_applicable",
+    "reason": "This slice has no user-visible runtime, public reader, frontend or active production pointer change.",
+    "items": [],
+    "rollup": {
+      "total": 0,
+      "accepted": 0,
+      "notRunUserWaived": 0,
+      "pending": 0
+    }
+  },
+  "scope": [
+    "Immutable observed-player snapshot and append-only source-check contracts",
+    "Dependency-bound deterministic Talent and Gear projection",
+    "Exact 80-slot TemplateSet with same-slot LKG and pending state",
+    "Additive PostgreSQL registry with row-hash sealing and isolated CAS pointer"
+  ],
+  "verification": [
+    {
+      "command": "python3 -m unittest tests.observed_build_registry_test tests.observed_build_projection_test tests.observed_build_template_set_test tests.observed_build_store_test tests.observed_build_core_path_test tests.postgres_schema_test",
+      "status": "pass",
+      "summary": "65 final focused tests pass, including detached integrity, immutable Store behavior, exact 80-slot shadow flow, same-slot foreign keys and generation constraints."
+    },
+    {
+      "command": "python3 -m unittest tests.gear_public_contract_test tests.gear_release_test tests.community_template_import_test",
+      "status": "pass",
+      "summary": "57 existing observed-only public, release-policy and exact community-import tests remain unchanged."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-23-observed-build-registry-core --base origin/main",
+      "status": "pass",
+      "summary": "The exact verification HEAD passed all 162 Harness commands: 677 Node tests, 1834 Python tests with one skip, 334 Taro/Vitest tests, compile, typecheck, lint, 282-check UI architecture audit, asset integrity, isolated production package mechanics, packet validation and diff checks."
+    },
+    {
+      "command": "git diff --quiet 915a7c4f90af8b0368a7191d7e4aa62312fd1916..HEAD -- server",
+      "status": "pass",
+      "summary": "All server and migration bytes remain identical to the exact PostgreSQL candidate commit; later changes are documentation, evidence and a bounded equivalent talent-artwork width rule."
+    },
+    {
+      "command": "whole-branch local CR plus read-only reviewer follow-up",
+      "status": "pass",
+      "summary": "The review closed same-slot referential integrity, detached validator parity, source-run no-op reuse, child-row integrity, sourceRevision validation and generation-zero inconsistencies. No unresolved finding remains in the approved core scope."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "candidate_verified",
+    "requiredBeforeMerge": true,
+    "branch": "codex/observed-build-registry-core",
+    "commit": "915a7c4f90af8b0368a7191d7e4aa62312fd1916",
+    "gitTree": "886622287d70fb44d2c167cd3f66b2526e742ef9",
+    "host": "wow-lighthouse",
+    "database": "wow_observed_registry_915a7c4 (disposable; removed after smoke)",
+    "migration": "0018_observed_build_registry.sql",
+    "backup": "/opt/wow-mini-program-candidate-backups/observed-build-registry-915a7c4-pre/wow_test-postgres.dump",
+    "asyncSyncStart": false,
+    "publicPointerChange": false,
+    "smoke": {
+      "status": "pass",
+      "summary": "Real PostgreSQL sealed 81 snapshots and projections, two exact 80-slot TemplateSets, retained one same-slot LKG, reused unchanged content, rejected stale writers and rolled the isolated pointer through generations 1, 2 and 3."
+    },
+    "timerBackflow": {
+      "status": "pass",
+      "summary": "No service deployment or restart occurred; WebSim, community-template and gear-release sync services remained inactive, and production migration/table/pointer state stayed unchanged."
+    },
+    "reason": "The exact candidate commit passed additive migration, minimal grants, immutable-trigger, composite-FK, sealing, idempotency, CAS-conflict, rollback and cleanup proof in a disposable PostgreSQL database."
+  },
+  "runtimeEvidence": [
+    {
+      "kind": "postgres_candidate",
+      "status": "pass",
+      "summary": "Migration 0018 created six candidate tables; wow_app had only the required append-only and pointer privileges; cross-slot projection insertion, app mutation and administrator mutation were all rejected at the intended layers."
+    },
+    {
+      "kind": "template_set_shadow",
+      "status": "pass",
+      "summary": "The first set contained 80 verified slots. Rank1 B failing mapping produced 79 verified plus one stale_lkg entry referencing A, while CAS conflict and rollback semantics remained monotonic."
+    },
+    {
+      "kind": "production_non_activation",
+      "status": "pass",
+      "summary": "Production wow_test still has zero observed-registry tables and no 0018 migration; the existing Manifest pointer remained generation 22 and live runtime imports remained zero."
+    },
+    {
+      "kind": "candidate_cleanup",
+      "status": "pass",
+      "summary": "The disposable candidate database and candidate code directory were removed after proof; the pre-smoke PostgreSQL backup and SHA-256 remain available."
+    }
+  ],
+  "risks": [
+    {
+      "id": "candidate-migration",
+      "status": "resolved",
+      "detail": "Migration 0018, minimal grants, immutable triggers, exact child rows, composite foreign keys and rollback were verified against the exact candidate commit."
+    },
+    {
+      "id": "live-reader-activation-forbidden",
+      "status": "closed",
+      "detail": "The candidate used a disposable database and separate code directory. Production contains no new tables, migration, imports or pointer changes."
+    },
+    {
+      "id": "full-profile-ui-baseline",
+      "status": "resolved",
+      "detail": "The unbounded component image-width exemption was replaced by the same explicit 300% three-panel geometry. The 282-check UI audit and the full Harness profile now pass without weakening the shared button clamp."
+    }
+  ],
+  "rollback": [
+    "code_rollback",
+    "data_restore"
+  ],
+  "cleanup": {
+    "required": false,
+    "reason": "The disposable PostgreSQL database and candidate code directory were removed after smoke. Only the intentional pre-smoke backup remains."
+  },
+  "archivedReferences": [
+    "docs/plans/2026-07-23-observed-build-registry-design.md",
+    "docs/plans/2026-07-23-observed-build-registry-core-implementation.md",
+    "artifacts/releases/2026-07-23-observed-build-registry-core/candidate-postgres.json"
+  ],
+  "summary": "The approved dormant core is runtime-verified on the exact candidate commit: immutable observations, deterministic projections, complete 80-slot TemplateSets, same-slot LKG, append-only PostgreSQL persistence and monotonic CAS rollback all passed without production activation. The exact verification HEAD also passes the complete Harness profile; branch CI and merge closure remain pending.",
+  "updatedAt": "2026-07-23T18:15:00+08:00"
+}
