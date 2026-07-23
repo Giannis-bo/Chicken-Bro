@@ -353,6 +353,46 @@ def canonical_row_hash(row: dict[str, Any]) -> str:
     return _hash(_canonical(row))
 
 
+def _observed_compile_scope(
+    gear_items: Any,
+) -> tuple[list[str], list[str], list[str], list[str]]:
+    """Reduce observed player gear to exact immutable release lookup keys."""
+
+    try:
+        from .websim_payload import observed_gear_simc_options
+    except ImportError:
+        from websim_payload import observed_gear_simc_options
+
+    item_ids: set[str] = set()
+    gem_ids: set[str] = set()
+    enchant_ids: set[str] = set()
+    embellishments: set[str] = set()
+    for item in gear_items if isinstance(gear_items, list) else []:
+        if not isinstance(item, dict):
+            continue
+        item_id = _text(item.get("itemId") or item.get("id"))
+        if item_id:
+            item_ids.add(item_id)
+        options = observed_gear_simc_options(item)
+        gem_ids.update(
+            token.strip()
+            for token in _text(options.get("gem_id")).split("/")
+            if token.strip()
+        )
+        enchant_id = _text(options.get("enchant_id"))
+        if enchant_id:
+            enchant_ids.add(enchant_id)
+        embellishment = _text(options.get("embellishment"))
+        if embellishment:
+            embellishments.add(embellishment)
+    return (
+        sorted(item_ids),
+        sorted(gem_ids),
+        sorted(enchant_ids),
+        sorted(embellishments),
+    )
+
+
 def gear_snapshot_summary(snapshot: Any) -> dict[str, Any]:
     value = snapshot if isinstance(snapshot, dict) else {}
     canonical = {
@@ -1606,6 +1646,221 @@ class GearReleaseStore:
             "communityRelease": community,
             "communityTemplates": community_templates,
             "gearSnapshot": snapshot if include_catalog else None,
+        }
+
+    def load_active_observed_compile_context(
+        self,
+        binding: dict[str, Any],
+        gear_items: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        """Read only the sealed Gear Release rows used by one observed batch."""
+
+        if not _readable_release_binding(binding):
+            raise GearReleaseIntegrityError(
+                "formal active or candidate preview Manifest binding is required"
+            )
+        manifest = (
+            binding.get("manifest")
+            if isinstance(binding.get("manifest"), dict)
+            else {}
+        )
+        gear = _exact_release_descriptor(binding.get("gearRelease"))
+        gear_id = _text(manifest.get("gearCatalogReleaseId"))
+        if gear_id != gear["releaseId"]:
+            raise GearReleaseIntegrityError(
+                "active observed compile Gear Release does not match the Manifest"
+            )
+        item_ids, gem_ids, enchant_ids, embellishments = _observed_compile_scope(
+            gear_items
+        )
+        if not item_ids:
+            raise GearReleaseIntegrityError(
+                "observed compile requires at least one gear item"
+            )
+
+        snapshot = {"items": [], "sources": [], "variants": [], "options": []}
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"
+                )
+                cur.execute(
+                    """
+                    /* gear_release_observed_compile_counts */
+                    SELECT
+                        (SELECT COUNT(*) FROM cache.websim_gear_release_items WHERE release_id = %s),
+                        (SELECT COUNT(*) FROM cache.websim_gear_release_sources WHERE release_id = %s),
+                        (SELECT COUNT(*) FROM cache.websim_gear_release_variants WHERE release_id = %s),
+                        (SELECT COUNT(*) FROM cache.websim_gear_release_mod_options WHERE release_id = %s)
+                    """,
+                    (gear_id, gear_id, gear_id, gear_id),
+                )
+                count_row = tuple(cur.fetchone() or ())
+                expected_counts = (
+                    gear.get("content", {}).get("counts")
+                    if isinstance(gear.get("content"), dict)
+                    else {}
+                )
+                actual_counts = {
+                    "items": _int(count_row[0] if len(count_row) > 0 else -1),
+                    "sources": _int(count_row[1] if len(count_row) > 1 else -1),
+                    "variants": _int(count_row[2] if len(count_row) > 2 else -1),
+                    "options": _int(count_row[3] if len(count_row) > 3 else -1),
+                }
+                if actual_counts != {
+                    key: _int((expected_counts or {}).get(key))
+                    for key in actual_counts
+                }:
+                    raise GearReleaseIntegrityError(
+                        "active Gear Release row counts do not match sealed content"
+                    )
+
+                cur.execute(
+                    """
+                    /* gear_release_observed_compile_items */
+                    SELECT item_id, name, slot, item_level, source_status,
+                           payload_json, source_updated_at, row_hash
+                    FROM cache.websim_gear_release_items
+                    WHERE release_id = %s
+                      AND item_id = ANY(%s::text[])
+                    ORDER BY item_id
+                    """,
+                    (gear_id, item_ids),
+                )
+                item_db_rows = cur.fetchall()
+                snapshot["items"] = [
+                    {
+                        "itemId": _text(row[0]),
+                        "name": _text(row[1]),
+                        "slot": _text(row[2]),
+                        "itemLevel": None if row[3] is None else _int(row[3]),
+                        "sourceStatus": _text(row[4]),
+                        "payload": _canonical(
+                            row[5] if isinstance(row[5], dict) else {}
+                        ),
+                        "updatedAt": _text(row[6]),
+                    }
+                    for row in item_db_rows
+                ]
+                if any(
+                    canonical_row_hash(record) != _text(row[7])
+                    for record, row in zip(snapshot["items"], item_db_rows)
+                ):
+                    raise GearReleaseIntegrityError(
+                        "active Gear Release item row integrity failed"
+                    )
+                loaded_item_ids = {
+                    _text(record.get("itemId"))
+                    for record in snapshot["items"]
+                }
+                if loaded_item_ids != set(item_ids):
+                    raise GearReleaseIntegrityError(
+                        "active Gear Release is missing observed compile items"
+                    )
+
+                cur.execute(
+                    """
+                    /* gear_release_observed_compile_variants */
+                    SELECT variant_id, item_id, variant_key, slot, label,
+                           source_type, difficulty_key, item_level,
+                           simc_options_json, status, blockers_json,
+                           payload_json, source_updated_at, row_hash
+                    FROM cache.websim_gear_release_variants
+                    WHERE release_id = %s
+                      AND item_id = ANY(%s::text[])
+                    ORDER BY variant_id
+                    """,
+                    (gear_id, item_ids),
+                )
+                variant_db_rows = cur.fetchall()
+                snapshot["variants"] = [
+                    {
+                        "variantId": _text(row[0]),
+                        "itemId": _text(row[1]),
+                        "variantKey": _text(row[2]),
+                        "slot": _text(row[3]),
+                        "label": _text(row[4]),
+                        "sourceType": _text(row[5]),
+                        "difficultyKey": _text(row[6]),
+                        "itemLevel": _int(row[7]),
+                        "simcOptions": _canonical(
+                            row[8] if isinstance(row[8], dict) else {}
+                        ),
+                        "status": _text(row[9]),
+                        "blockers": _canonical(
+                            row[10] if isinstance(row[10], list) else []
+                        ),
+                        "payload": _canonical(
+                            row[11] if isinstance(row[11], dict) else {}
+                        ),
+                        "updatedAt": _text(row[12]),
+                    }
+                    for row in variant_db_rows
+                ]
+                if any(
+                    canonical_row_hash(record) != _text(row[13])
+                    for record, row in zip(
+                        snapshot["variants"],
+                        variant_db_rows,
+                    )
+                ):
+                    raise GearReleaseIntegrityError(
+                        "active Gear Release variant row integrity failed"
+                    )
+
+                cur.execute(
+                    """
+                    /* gear_release_observed_compile_options */
+                    SELECT option_id, variant_id, option_key, option_type, name,
+                           applicable_slots_json, simc_options_json, status,
+                           is_visible, payload_json, source_updated_at, row_hash
+                    FROM cache.websim_gear_release_mod_options
+                    WHERE release_id = %s
+                      AND (
+                          simc_options_json->>'gem_id' = ANY(%s::text[])
+                          OR simc_options_json->>'enchant_id' = ANY(%s::text[])
+                          OR simc_options_json->>'embellishment' = ANY(%s::text[])
+                      )
+                    ORDER BY option_id
+                    """,
+                    (gear_id, gem_ids, enchant_ids, embellishments),
+                )
+                option_db_rows = cur.fetchall()
+                snapshot["options"] = [
+                    {
+                        "optionId": _text(row[0]),
+                        "variantId": _text(row[1]),
+                        "optionKey": _text(row[2]),
+                        "optionType": _text(row[3]),
+                        "name": _text(row[4]),
+                        "applicableSlots": _canonical(
+                            row[5] if isinstance(row[5], list) else []
+                        ),
+                        "simcOptions": _canonical(
+                            row[6] if isinstance(row[6], dict) else {}
+                        ),
+                        "status": _text(row[7]),
+                        "isVisible": row[8] is True,
+                        "payload": _canonical(
+                            row[9] if isinstance(row[9], dict) else {}
+                        ),
+                        "updatedAt": _text(row[10]),
+                    }
+                    for row in option_db_rows
+                ]
+                if any(
+                    canonical_row_hash(record) != _text(row[11])
+                    for record, row in zip(
+                        snapshot["options"],
+                        option_db_rows,
+                    )
+                ):
+                    raise GearReleaseIntegrityError(
+                        "active Gear Release option row integrity failed"
+                    )
+        return {
+            "gearRelease": gear,
+            "gearSnapshot": snapshot,
         }
 
     def load_active_community_template_import(

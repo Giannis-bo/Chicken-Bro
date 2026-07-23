@@ -125,6 +125,61 @@ class ObservedBuildSyncTest(unittest.TestCase):
             )
         ]
 
+    def test_postgres_compiler_prepares_one_shared_release_context_for_the_batch(self):
+        dependencies = {
+            "seasonRevision": "season-tww-3",
+            "gearReleaseId": "gear-release-a",
+        }
+        snapshots = [
+            {
+                "snapshotId": "snapshot-a",
+                "gearObservation": {
+                    "gearItems": [{"itemId": 1, "slot": "head"}],
+                },
+            },
+            {
+                "snapshotId": "snapshot-b",
+                "gearObservation": {
+                    "gearItems": [{"itemId": 2, "slot": "neck"}],
+                },
+            },
+        ]
+        release_context = {"gearRelease": {"releaseId": "gear-release-a"}}
+        compiler = observed_build_sync._PostgresCompiler(
+            object(),
+            dependencies,
+            "simc-runtime-a",
+        )
+
+        with (
+            mock.patch.object(
+                observed_build_sync,
+                "prepare_observed_gear_with_postgres",
+            ) as backfill,
+            mock.patch.object(
+                observed_build_sync,
+                "load_observed_gear_compile_context_with_postgres",
+                return_value=release_context,
+            ) as load_context,
+            mock.patch.object(
+                observed_build_sync,
+                "compile_with_postgres",
+                return_value={"status": "verified"},
+            ) as compile_projection,
+        ):
+            compiler.prepare(snapshots)
+            compiler(snapshots[0])
+            compiler(snapshots[1])
+
+        backfill.assert_called_once_with(compiler.cache_store, snapshots)
+        load_context.assert_called_once_with(compiler.cache_store, snapshots)
+        self.assertEqual(compile_projection.call_count, 2)
+        for call in compile_projection.call_args_list:
+            self.assertIs(
+                call.kwargs["gear_release_context"],
+                release_context,
+            )
+
     def dependencies(self):
         return build_dependency_vector(
             season_revision="season-midnight-1",

@@ -14,6 +14,7 @@ from typing import Any, Callable
 try:
     from .observed_build_compiler import (
         compile_with_postgres,
+        load_observed_gear_compile_context_with_postgres,
         prepare_observed_gear_with_postgres,
     )
     from .observed_build_ingest import (
@@ -42,6 +43,7 @@ try:
 except ImportError:
     from observed_build_compiler import (
         compile_with_postgres,
+        load_observed_gear_compile_context_with_postgres,
         prepare_observed_gear_with_postgres,
     )
     from observed_build_ingest import (
@@ -556,11 +558,18 @@ class _PostgresCompiler:
         self.dependency_vector = _canonical(dependency_vector)
         self.simc_runtime_revision = simc_runtime_revision
         self._prepared = False
+        self._gear_release_context = None
 
     def prepare(self, snapshots: list[dict[str, Any]]) -> None:
         prepare_observed_gear_with_postgres(
             self.cache_store,
             snapshots,
+        )
+        self._gear_release_context = (
+            load_observed_gear_compile_context_with_postgres(
+                self.cache_store,
+                snapshots,
+            )
         )
         self._prepared = True
 
@@ -571,6 +580,7 @@ class _PostgresCompiler:
             self.dependency_vector,
             self.simc_runtime_revision,
             gear_prepared=self._prepared,
+            gear_release_context=self._gear_release_context,
         )
 
 

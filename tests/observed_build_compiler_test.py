@@ -283,7 +283,8 @@ class _FakeCompilerStore:
         )
         return {"status": "verified"}
 
-    def get_observed_build_gear_compile_context(self, class_key, spec_key):
+    def get_observed_build_gear_compile_context(self, gear_items):
+        self.compile_context_gear_items = gear_items
         profile_url = "https://raider.io/characters/cn/realm-a/player-a"
         return {
             "manifest": {

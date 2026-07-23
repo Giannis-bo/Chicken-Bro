@@ -1589,6 +1589,120 @@ class GearReleaseStoreTest(unittest.TestCase):
             [("sunfury", "talent_winner"), ("spellslinger", "gear_fallback")],
         )
 
+    def test_active_observed_compile_context_reads_only_actual_player_dependencies(self):
+        from server import gear_release_store
+        from server.gear_release_store import GearReleaseStore, canonical_row_hash
+
+        snapshot = self.snapshot()
+        gear = self.gear_release(snapshot)
+        manifest = gear_release.build_manifest(
+            season_revision="season-17",
+            gear_release=gear,
+            community_release=None,
+            talent_catalog_revision="talent-r1",
+            dependency_revisions=self.dependencies(),
+        )
+        binding = {
+            "pointerMode": "candidate",
+            "generation": 4,
+            "formalActiveManifest": False,
+            "candidatePreview": True,
+            "manifest": manifest,
+            "gearRelease": gear,
+            "communityRelease": None,
+        }
+        conn = FakeConnection(rowsets={
+            "gear_release_observed_compile_counts": [(1, 1, 1, 1)],
+            "gear_release_observed_compile_items": [
+                (
+                    "item-a",
+                    "Item A",
+                    "head",
+                    289,
+                    "verified",
+                    {"itemStats": [{"key": "intellect", "value": 100}]},
+                    "2026-07-11T05:00:00+00:00",
+                    canonical_row_hash(snapshot["items"][0]),
+                ),
+            ],
+            "gear_release_observed_compile_variants": [
+                (
+                    "variant-a-id",
+                    "item-a",
+                    "variant-a",
+                    "head",
+                    "289",
+                    "observed_profile",
+                    "mythic",
+                    289,
+                    {"ilevel": "289"},
+                    "verified",
+                    [],
+                    {"resolvedStats": {"intellect": 100}},
+                    "2026-07-11T05:00:00+00:00",
+                    canonical_row_hash(snapshot["variants"][0]),
+                ),
+            ],
+            "gear_release_observed_compile_options": [
+                (
+                    "option-a-id",
+                    "variant-a-id",
+                    "gem-a",
+                    "gem",
+                    "Gem A",
+                    ["head"],
+                    {"gem_id": "1"},
+                    "verified",
+                    True,
+                    {"itemStats": [{"key": "haste", "value": 10}]},
+                    "2026-07-11T05:00:00+00:00",
+                    canonical_row_hash(snapshot["options"][0]),
+                ),
+            ],
+        })
+
+        data = GearReleaseStore(lambda: conn).load_active_observed_compile_context(
+            binding,
+            [
+                {
+                    "itemId": "item-a",
+                    "slot": "head",
+                    "gems": [{"itemId": 1}],
+                },
+            ],
+        )
+
+        self.assertEqual(data["gearRelease"]["releaseId"], gear["releaseId"])
+        self.assertEqual(data["gearSnapshot"]["items"], snapshot["items"])
+        self.assertEqual(data["gearSnapshot"]["variants"], snapshot["variants"])
+        self.assertEqual(data["gearSnapshot"]["options"], snapshot["options"])
+        self.assertEqual(data["gearSnapshot"]["sources"], [])
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertIn("gear_release_observed_compile_counts", sql)
+        self.assertIn("item_id = ANY(%s::text[])", sql)
+        self.assertIn("simc_options_json->>'gem_id' = ANY(%s::text[])", sql)
+        self.assertNotIn("FROM cache.websim_community_release_templates", sql)
+        self.assertNotIn("SELECT source_id, item_id", sql)
+        self.assertEqual(
+            conn.cursor_instance.params[-1],
+            (gear["releaseId"], ["1"], [], []),
+        )
+
+        tampered = copy.deepcopy(conn.cursor_instance.rowsets)
+        unrelated_option = list(tampered["gear_release_observed_compile_options"][0])
+        unrelated_option[-1] = "sha256:tampered"
+        tampered["gear_release_observed_compile_options"] = [tuple(unrelated_option)]
+        with self.assertRaisesRegex(
+            gear_release_store.GearReleaseIntegrityError,
+            "option row integrity",
+        ):
+            GearReleaseStore(
+                lambda: FakeConnection(rowsets=tampered)
+            ).load_active_observed_compile_context(
+                binding,
+                [{"itemId": "item-a", "slot": "head", "gem_id": "1"}],
+            )
+
     def test_active_resolver_context_is_manifest_bound_and_rejects_runtime_drift(self):
         from server.gear_release_store import GearReleaseIntegrityError, GearReleaseStore
 

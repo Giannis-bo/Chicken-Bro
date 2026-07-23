@@ -298,10 +298,9 @@ def _compile_talent_with_postgres(
 
 def _active_gear_compile_context(
     store: Any,
-    class_key: str,
-    spec_key: str,
+    gear_items: list[dict[str, Any]],
 ) -> dict[str, Any]:
-    """Read the current sealed Gear Release through one narrow adapter seam."""
+    """Read only this observed batch's rows from the current sealed Gear Release."""
 
     public_loader = getattr(
         store,
@@ -309,23 +308,25 @@ def _active_gear_compile_context(
         None,
     )
     if callable(public_loader):
-        context = public_loader(class_key, spec_key)
+        context = public_loader(gear_items)
         if isinstance(context, dict):
             return context
         raise ValueError("current Gear Release context is invalid")
 
     binding_loader = getattr(store, "_active_manifest_binding_for_authority", None)
     release_store = getattr(store, "_gear_release_store", None)
-    catalog_loader = getattr(release_store, "load_active_public_gear", None)
+    catalog_loader = getattr(
+        release_store,
+        "load_active_observed_compile_context",
+        None,
+    )
     if not callable(binding_loader) or not callable(catalog_loader):
         raise ValueError("current Gear Release context is unavailable")
     binding = binding_loader()
     binding = binding if isinstance(binding, dict) else {}
     data = catalog_loader(
         binding,
-        class_key,
-        spec_key,
-        include_catalog=True,
+        gear_items,
     )
     data = data if isinstance(data, dict) else {}
     return {
@@ -443,6 +444,28 @@ def prepare_observed_gear_with_postgres(
     return _canonical(result)
 
 
+def load_observed_gear_compile_context_with_postgres(
+    store: Any,
+    snapshots: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Load one immutable Gear Release view shared by an observed-build batch."""
+
+    gear_items = []
+    for snapshot in snapshots:
+        observation = (
+            snapshot.get("gearObservation")
+            if isinstance(snapshot, dict)
+            and isinstance(snapshot.get("gearObservation"), dict)
+            else {}
+        )
+        gear_items.extend(
+            _canonical(item)
+            for item in observation.get("gearItems") or []
+            if isinstance(item, dict)
+        )
+    return _active_gear_compile_context(store, gear_items)
+
+
 def _gear_template(snapshot: dict[str, Any]) -> dict[str, Any]:
     source = snapshot.get("source") if isinstance(snapshot.get("source"), dict) else {}
     slot = snapshot.get("slot") if isinstance(snapshot.get("slot"), dict) else {}
@@ -518,6 +541,7 @@ def _compile_gear_with_postgres(
     simc_runtime_revision: str,
     *,
     gear_prepared: bool = False,
+    gear_release_context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     slot = snapshot.get("slot") if isinstance(snapshot.get("slot"), dict) else {}
     class_key = _text(slot.get("classKey"))
@@ -527,10 +551,22 @@ def _compile_gear_with_postgres(
         spec_key,
         simc_runtime_revision=simc_runtime_revision,
     )
-    release_context = _active_gear_compile_context(
-        store,
-        class_key,
-        spec_key,
+    observation = (
+        snapshot.get("gearObservation")
+        if isinstance(snapshot.get("gearObservation"), dict)
+        else {}
+    )
+    release_context = (
+        gear_release_context
+        if isinstance(gear_release_context, dict)
+        else _active_gear_compile_context(
+            store,
+            [
+                _canonical(item)
+                for item in observation.get("gearItems") or []
+                if isinstance(item, dict)
+            ],
+        )
     )
     _require_current_dependencies(
         dependency_vector,
@@ -645,6 +681,7 @@ def compile_with_postgres(
     simc_runtime_revision: str,
     *,
     gear_prepared: bool = False,
+    gear_release_context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Compile one shared player through current PG talent and gear authorities."""
 
@@ -661,6 +698,7 @@ def compile_with_postgres(
             dependency_vector,
             simc_runtime_revision,
             gear_prepared=gear_prepared,
+            gear_release_context=gear_release_context,
         ),
     )
 
@@ -668,5 +706,6 @@ def compile_with_postgres(
 __all__ = (
     "compile_observed_build",
     "compile_with_postgres",
+    "load_observed_gear_compile_context_with_postgres",
     "prepare_observed_gear_with_postgres",
 )

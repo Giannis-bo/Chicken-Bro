@@ -7356,6 +7356,34 @@ class PostgresCacheStore:
             "talentCatalogRevision": str(manifest.get("talentCatalogRevision") or ""),
         }
 
+    def get_observed_build_gear_compile_context(self, gear_items):
+        """Load one batch-scoped immutable Gear Release view for observed builds."""
+
+        binding = self._active_manifest_binding_for_authority()
+        binding = binding if isinstance(binding, dict) else {}
+        data = self._gear_release_store.load_active_observed_compile_context(
+            binding,
+            gear_items if isinstance(gear_items, list) else [],
+        )
+        data = data if isinstance(data, dict) else {}
+        return {
+            "manifest": _canonical_json(
+                binding.get("manifest")
+                if isinstance(binding.get("manifest"), dict)
+                else {}
+            ),
+            "gearRelease": _canonical_json(
+                data.get("gearRelease")
+                if isinstance(data.get("gearRelease"), dict)
+                else {}
+            ),
+            "gearSnapshot": _canonical_json(
+                data.get("gearSnapshot")
+                if isinstance(data.get("gearSnapshot"), dict)
+                else {}
+            ),
+        }
+
     def _active_websim_gear_payload(
         self,
         binding,
