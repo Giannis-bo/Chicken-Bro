@@ -9833,6 +9833,87 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertLessEqual(len(release_store.binding["manifest"]["manifestRevision"]), 240)
         self.assertEqual(payload["gearCatalogReleaseId"], candidate_gear["releaseId"])
 
+    def test_candidate_observed_build_can_bind_a_sealed_gear_only_preview(self):
+        from server import postgres_cache_store
+
+        manifest = {
+            "manifestRevision": "season-manifest:sha256:active",
+            "seasonRevision": "season-r1",
+            "gearCatalogReleaseId": "gear-release:active",
+            "communityTemplateReleaseId": "community-release:active",
+            "talentCatalogRevision": "talent-r1",
+        }
+        binding = {
+            "pointerMode": "active",
+            "generation": 3,
+            "manifestRevision": manifest["manifestRevision"],
+            "formalActiveManifest": True,
+            "manifest": manifest,
+            "gearRelease": {
+                "releaseId": "gear-release:active",
+                "releaseKind": "gear",
+                "releaseStatus": "validated",
+                "seasonRevision": "season-r1",
+                "schemaRevision": "gear-release-v1",
+            },
+            "communityRelease": {
+                "releaseId": "community-release:active",
+            },
+        }
+        candidate_gear = {
+            "releaseId": "gear-release:observed-preview",
+            "releaseKind": "gear",
+            "releaseStatus": "validated",
+            "schemaRevision": "gear-release-v1",
+            "seasonRevision": "season-r1",
+            "dependencyRevisions": {"simcRuntimeRevision": "simc-preview"},
+        }
+
+        class PreviewReleaseStore:
+            def get_active_pointer(self):
+                return {
+                    "pointerMode": "active",
+                    "generation": 3,
+                    "manifestRevision": manifest["manifestRevision"],
+                }
+
+            def load_active_manifest_binding(self):
+                return binding
+
+            def get_release(self, release_id):
+                if release_id == candidate_gear["releaseId"]:
+                    return candidate_gear
+                return None
+
+        store = postgres_cache_store.PostgresCacheStore(
+            lambda: self.fail("candidate preview must not query mutable staging"),
+            gear_release_store=PreviewReleaseStore(),
+        )
+
+        with patch.dict(os.environ, {
+            "WOW_OBSERVED_BUILD_SCOPE": "candidate",
+            "WOW_COMMUNITY_GEAR_PREVIEW_RELEASE_ID": "",
+            "WOW_GEAR_PREVIEW_RELEASE_ID": candidate_gear["releaseId"],
+        }, clear=False):
+            preview_binding = store._active_manifest_binding_for_authority()
+
+        self.assertTrue(preview_binding["candidatePreview"])
+        self.assertFalse(preview_binding["formalActiveManifest"])
+        self.assertEqual(preview_binding["gearRelease"], candidate_gear)
+        self.assertIsNone(preview_binding["communityRelease"])
+        self.assertEqual(
+            preview_binding["manifest"]["gearCatalogReleaseId"],
+            candidate_gear["releaseId"],
+        )
+        self.assertEqual(
+            preview_binding["manifest"]["communityTemplateReleaseId"],
+            "",
+        )
+        self.assertEqual(
+            preview_binding["manifest"]["dependencyRevisions"],
+            candidate_gear["dependencyRevisions"],
+        )
+
     def test_transitional_manifest_binding_keeps_staging_authority_explicit(self):
         from server import postgres_cache_store
 

@@ -1585,15 +1585,31 @@ class PostgresCacheStore:
         """Bind only the candidate service to sealed Gear/Community releases without moving the pointer."""
 
         community_release_id = str(os.environ.get(COMMUNITY_GEAR_PREVIEW_RELEASE_ENV) or "").strip()
-        if not community_release_id:
+        requested_gear_release_id = str(
+            os.environ.get(GEAR_PREVIEW_RELEASE_ENV) or ""
+        ).strip()
+        if not community_release_id and not requested_gear_release_id:
             return binding
         active = binding if isinstance(binding, dict) else {}
         if active.get("formalActiveManifest") is not True:
-            raise RuntimeError("candidate Community preview requires a formal active Gear Release")
+            raise RuntimeError(
+                "candidate preview requires a formal active Gear Release"
+            )
         manifest = active.get("manifest") if isinstance(active.get("manifest"), dict) else {}
         active_gear = active.get("gearRelease") if isinstance(active.get("gearRelease"), dict) else {}
         active_gear_release_id = str(manifest.get("gearCatalogReleaseId") or "").strip()
-        gear_release_id = str(os.environ.get(GEAR_PREVIEW_RELEASE_ENV) or active_gear_release_id).strip()
+        gear_release_id = requested_gear_release_id or active_gear_release_id
+        gear_only_preview = bool(
+            requested_gear_release_id
+            and not community_release_id
+        )
+        if (
+            gear_only_preview
+            and self._observed_build_scope() != "candidate"
+        ):
+            raise RuntimeError(
+                "gear-only preview is reserved for candidate observed builds"
+            )
         uses_formal_gear = gear_release_id == active_gear_release_id
         preview_reader = getattr(self._gear_release_store, "get_release", None)
         candidate_gear = (
@@ -1602,7 +1618,11 @@ class PostgresCacheStore:
             else preview_reader(gear_release_id) if callable(preview_reader) else None
         )
         candidate_gear = candidate_gear if isinstance(candidate_gear, dict) else {}
-        preview = preview_reader(community_release_id) if callable(preview_reader) else None
+        preview = (
+            preview_reader(community_release_id)
+            if community_release_id and callable(preview_reader)
+            else None
+        )
         preview = preview if isinstance(preview, dict) else {}
         candidate_gear_is_valid = (
             str(candidate_gear.get("releaseId") or "").strip() == gear_release_id
@@ -1615,11 +1635,16 @@ class PostgresCacheStore:
             not gear_release_id
             or (not uses_formal_gear and not candidate_gear_is_valid)
             or (uses_formal_gear and str(candidate_gear.get("releaseId") or "").strip() != gear_release_id)
-            or str(preview.get("releaseKind") or "").strip() != "community"
-            or str(preview.get("releaseStatus") or "").strip() != "validated"
-            or str(preview.get("schemaRevision") or "").strip() != "community-release-v2"
-            or str(preview.get("validatedAgainstReleaseId") or "").strip() != gear_release_id
-            or str(preview.get("seasonRevision") or "").strip() != str(manifest.get("seasonRevision") or "").strip()
+            or (
+                not gear_only_preview
+                and (
+                    str(preview.get("releaseKind") or "").strip() != "community"
+                    or str(preview.get("releaseStatus") or "").strip() != "validated"
+                    or str(preview.get("schemaRevision") or "").strip() != "community-release-v2"
+                    or str(preview.get("validatedAgainstReleaseId") or "").strip() != gear_release_id
+                    or str(preview.get("seasonRevision") or "").strip() != str(manifest.get("seasonRevision") or "").strip()
+                )
+            )
         ):
             raise RuntimeError("candidate Community preview release is not a validated Gear/Community pair")
         preview_manifest = copy.deepcopy(manifest)
@@ -1644,7 +1669,11 @@ class PostgresCacheStore:
             "manifestType": "candidate_preview",
             "formalActiveManifest": False,
             "gearCatalogReleaseId": gear_release_id,
-            "communityTemplateReleaseId": community_release_id,
+            "communityTemplateReleaseId": (
+                ""
+                if gear_only_preview
+                else community_release_id
+            ),
         })
         if candidate_dependencies:
             # The manifest is the resolver contract. A candidate Gear Release
@@ -1660,7 +1689,11 @@ class PostgresCacheStore:
             "candidatePreview": True,
             "manifest": preview_manifest,
             "gearRelease": copy.deepcopy(candidate_gear),
-            "communityRelease": copy.deepcopy(preview),
+            "communityRelease": (
+                None
+                if gear_only_preview
+                else copy.deepcopy(preview)
+            ),
         }
 
     def _active_manifest_binding_for_authority(self):
