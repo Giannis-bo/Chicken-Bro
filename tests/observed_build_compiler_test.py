@@ -251,6 +251,84 @@ class ObservedBuildCompilerTest(unittest.TestCase):
             resolved["resolvedGearSignature"],
         )
 
+    def test_postgres_adapter_ignores_non_simulated_cosmetic_slots(self):
+        dependencies = self.dependencies()
+        store = _FakeCompilerStore(dependencies)
+        base_snapshot = self.snapshot()
+        gear_observation = {
+            **base_snapshot["gearObservation"],
+            "gearItems": [
+                *base_snapshot["gearObservation"]["gearItems"],
+                {
+                    "slot": "shirt",
+                    "itemId": 3427,
+                    "itemLevel": 1,
+                },
+            ],
+        }
+        snapshot = build_observed_snapshot(
+            slot=base_snapshot["slot"],
+            source=base_snapshot["source"],
+            ranking_evidence=base_snapshot["rankingEvidence"],
+            talent_observation=base_snapshot["talentObservation"],
+            gear_observation=gear_observation,
+            source_revision=base_snapshot["sourceRevision"],
+        )
+        resolved = {
+            "status": "verified",
+            "resolvedGearSignature": "sha256:" + "2" * 64,
+            "dependencyVector": dependencies,
+            "resolvedSlots": {
+                "head": {
+                    "itemId": "230001",
+                    "variantKey": "variant-observed",
+                }
+            },
+            "serializerInput": {
+                "gearItems": [
+                    {
+                        "slot": "head",
+                        "itemId": "230001",
+                        "variantKey": "variant-observed",
+                        "simcOptions": {
+                            "ilevel": "710",
+                            "bonus_id": "10355",
+                        },
+                    }
+                ]
+            },
+            "profileReadiness": {
+                "status": "ready",
+                "simcReady": True,
+            },
+            "problems": [],
+        }
+
+        with (
+            mock.patch(
+                "server.observed_build_compiler.validate_community_talent_template",
+                return_value=self.verified_talent(),
+            ),
+            mock.patch(
+                "server.observed_build_compiler.gear_resolver.resolve",
+                return_value=resolved,
+            ),
+        ):
+            projection = compile_with_postgres(
+                store,
+                snapshot,
+                dependencies,
+                "simc-runtime-abc",
+            )
+
+        self.assertTrue(projection["importable"])
+        self.assertEqual(
+            [item["itemId"] for item in store.compile_context_gear_items],
+            [230001],
+        )
+        selection_intent, _runtime = store.context_calls[0]
+        self.assertEqual(list(selection_intent["slots"]), ["head"])
+
     def test_postgres_adapter_blocks_dependency_or_runtime_drift_before_backfill(self):
         dependencies = self.dependencies()
         store = _FakeCompilerStore(dependencies)

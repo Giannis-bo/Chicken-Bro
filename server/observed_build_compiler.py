@@ -13,6 +13,7 @@ try:
     from .gear_release_tool import selection_intent_from_template
     from .observed_build_projection import build_projection
     from .websim_payload import (
+        canonical_gear_slot,
         gear_resolver_runtime_authority,
         normalized_websim_level,
         validate_community_talent_template,
@@ -23,6 +24,7 @@ except ImportError:
     from gear_release_tool import selection_intent_from_template
     from observed_build_projection import build_projection
     from websim_payload import (
+        canonical_gear_slot,
         gear_resolver_runtime_authority,
         normalized_websim_level,
         validate_community_talent_template,
@@ -414,6 +416,30 @@ def _profile_from_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _canonical_observed_gear_items(
+    snapshot: dict[str, Any],
+) -> list[dict[str, Any]]:
+    observation = (
+        snapshot.get("gearObservation")
+        if isinstance(snapshot, dict)
+        and isinstance(snapshot.get("gearObservation"), dict)
+        else {}
+    )
+    items = []
+    for raw_item in observation.get("gearItems") or []:
+        if not isinstance(raw_item, dict):
+            continue
+        slot = canonical_gear_slot(
+            raw_item.get("slot") or raw_item.get("simcSlot")
+        )
+        if not slot:
+            continue
+        item = _canonical(raw_item)
+        item["slot"] = slot
+        items.append(item)
+    return items
+
+
 def prepare_observed_gear_with_postgres(
     store: Any,
     snapshots: list[dict[str, Any]],
@@ -450,35 +476,20 @@ def load_observed_gear_compile_context_with_postgres(
 ) -> dict[str, Any]:
     """Load one immutable Gear Release view shared by an observed-build batch."""
 
-    gear_items = []
-    for snapshot in snapshots:
-        observation = (
-            snapshot.get("gearObservation")
-            if isinstance(snapshot, dict)
-            and isinstance(snapshot.get("gearObservation"), dict)
-            else {}
-        )
-        gear_items.extend(
-            _canonical(item)
-            for item in observation.get("gearItems") or []
-            if isinstance(item, dict)
-        )
+    gear_items = [
+        item
+        for snapshot in snapshots
+        for item in _canonical_observed_gear_items(snapshot)
+    ]
     return _active_gear_compile_context(store, gear_items)
 
 
 def _gear_template(snapshot: dict[str, Any]) -> dict[str, Any]:
     source = snapshot.get("source") if isinstance(snapshot.get("source"), dict) else {}
     slot = snapshot.get("slot") if isinstance(snapshot.get("slot"), dict) else {}
-    observation = (
-        snapshot.get("gearObservation")
-        if isinstance(snapshot.get("gearObservation"), dict)
-        else {}
-    )
     profile_url = _text(source.get("profileUrl"))
     gear_items = []
-    for raw_item in observation.get("gearItems") or []:
-        if not isinstance(raw_item, dict):
-            continue
+    for raw_item in _canonical_observed_gear_items(snapshot):
         item = _canonical(raw_item)
         refs = [
             ref
@@ -561,11 +572,7 @@ def _compile_gear_with_postgres(
         if isinstance(gear_release_context, dict)
         else _active_gear_compile_context(
             store,
-            [
-                _canonical(item)
-                for item in observation.get("gearItems") or []
-                if isinstance(item, dict)
-            ],
+            _canonical_observed_gear_items(snapshot),
         )
     )
     _require_current_dependencies(
