@@ -4,6 +4,7 @@ from unittest import mock
 from server.observed_build_compiler import (
     compile_observed_build,
     compile_with_postgres,
+    prepare_observed_gear_with_postgres,
 )
 from server.observed_build_projection import build_dependency_vector
 from server.observed_build_registry import build_observed_snapshot
@@ -106,6 +107,24 @@ class ObservedBuildCompilerTest(unittest.TestCase):
             projection["profileReadiness"]["profileSignature"],
             r"^sha256:[0-9a-f]{64}$",
         )
+
+    def test_prepare_deduplicates_the_same_player_across_candidate_snapshots(self):
+        store = _FakeCompilerStore(self.dependencies())
+        snapshot = self.snapshot()
+
+        result = prepare_observed_gear_with_postgres(
+            store,
+            [snapshot, snapshot],
+        )
+
+        self.assertEqual(result["status"], "verified")
+        self.assertEqual(len(store.backfill_calls), 1)
+        call = store.backfill_calls[0]
+        self.assertEqual(
+            len(call["raiderio_payload"]["profiles"]),
+            1,
+        )
+        self.assertEqual(call["profile_limit"], 1)
 
     def test_gear_failure_blocks_talent_switch_in_the_same_projection(self):
         projection = compile_observed_build(

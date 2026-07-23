@@ -446,11 +446,18 @@ def prepare_observed_gear_with_postgres(
 ) -> dict[str, Any]:
     """Backfill only the exact profiles selected for this observed-build run."""
 
-    profiles = [
-        _profile_from_snapshot(snapshot)
-        for snapshot in snapshots
-        if isinstance(snapshot, dict)
-    ]
+    profiles_by_identity: dict[str, dict[str, Any]] = {}
+    for snapshot in snapshots:
+        if not isinstance(snapshot, dict):
+            continue
+        profile = _profile_from_snapshot(snapshot)
+        identity = _text(
+            profile.get("sourceIdentity")
+            or profile.get("profileUrl")
+        )
+        if identity and identity not in profiles_by_identity:
+            profiles_by_identity[identity] = profile
+    profiles = list(profiles_by_identity.values())
     if not profiles:
         return {
             "status": "verified",
