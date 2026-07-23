@@ -115,4 +115,37 @@ describe('gear template import model', () => {
       }),
     ])
   })
+
+  it('keeps both distinct observed Hero players as import options', () => {
+    const templates: CommunityTemplateReference[] = [
+      {
+        id: 'projection-frostfire',
+        heroKey: 'frostfire',
+        heroLabel: '霜火',
+        playerName: '玩家甲',
+        sourceIdentity: 'raiderio:cn|realm-a|player-a',
+        canApplyGear: true,
+        gearItems: [{ slot: 'head', itemId: 1 }],
+      },
+      {
+        id: 'projection-spellslinger',
+        heroKey: 'spellslinger',
+        heroLabel: '法术投射者',
+        playerName: '玩家乙',
+        sourceIdentity: 'raiderio:cn|realm-b|player-b',
+        canApplyGear: true,
+        gearItems: [{ slot: 'head', itemId: 2 }],
+      },
+    ]
+
+    const options = communityGearTemplateOptions(templates)
+
+    expect(options.map((option) => option.template.id)).toEqual([
+      'projection-frostfire',
+      'projection-spellslinger',
+    ])
+    expect(new Set(
+      options.map((option) => option.template.sourceIdentity),
+    ).size).toBe(2)
+  })
 })

@@ -387,6 +387,11 @@ export interface CommunityTemplateReference {
   sourceName?: string
   status?: string
   sourceStatus?: string
+  templateSetId?: string
+  snapshotId?: string
+  sourceIdentity?: string
+  pointerGeneration?: number
+  slotStatus?: 'verified' | 'stale_lkg' | 'pending_collection' | string
   canApplyVisual?: boolean
   canApplyGear?: boolean
   talentWinnerId?: string

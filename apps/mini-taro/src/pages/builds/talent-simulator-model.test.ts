@@ -208,6 +208,38 @@ describe('talent simulator target model', () => {
     ], 'frostfire')).toBe(frostfireWinner)
   })
 
+  it('selects exactly the observed projection bound to each Hero slot', () => {
+    const templates: CommunityTemplateReference[] = [
+      {
+        id: 'projection-frostfire',
+        heroKey: 'frostfire',
+        sourceIdentity: 'raiderio:cn|realm-a|player-a',
+        status: 'verified',
+        canApplyVisual: true,
+        talentState: {
+          selectedNodes: [{ id: 'frostfire-root', rank: 1 }],
+        },
+      },
+      {
+        id: 'projection-spellslinger',
+        heroKey: 'spellslinger',
+        sourceIdentity: 'raiderio:cn|realm-b|player-b',
+        status: 'verified',
+        canApplyVisual: true,
+        talentState: {
+          selectedNodes: [{ id: 'spellslinger-root', rank: 1 }],
+        },
+      },
+    ]
+
+    expect(
+      communityTalentWinnerForImport(templates, 'frostfire')?.id,
+    ).toBe('projection-frostfire')
+    expect(
+      communityTalentWinnerForImport(templates, 'spellslinger')?.id,
+    ).toBe('projection-spellslinger')
+  })
+
   it('does not replace the winner a player selected while refreshing community import data', () => {
     const selectedWinner: CommunityTemplateReference = {
       id: 'winner-visible-when-sheet-opened',

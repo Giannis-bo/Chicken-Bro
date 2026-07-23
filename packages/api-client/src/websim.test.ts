@@ -112,6 +112,31 @@ describe('websim talent normalization', () => {
     })
   })
 
+  it('retains observed TemplateSet provenance and rejects invalid pointer generations', () => {
+    const normalized = normalizeCommunityTemplateReference({
+      id: 'build-projection:sha256:abc',
+      templateSetId: 'template-set:sha256:def',
+      snapshotId: 'observed-build:sha256:ghi',
+      sourceIdentity: 'raiderio:cn|realm|player',
+      pointerGeneration: 3,
+      slotStatus: 'stale_lkg',
+    })
+
+    expect(normalized).toMatchObject({
+      templateSetId: 'template-set:sha256:def',
+      snapshotId: 'observed-build:sha256:ghi',
+      sourceIdentity: 'raiderio:cn|realm|player',
+      pointerGeneration: 3,
+      slotStatus: 'stale_lkg',
+    })
+    expect(normalizeCommunityTemplateReference({
+      pointerGeneration: Number.NaN,
+    }).pointerGeneration).toBeUndefined()
+    expect(normalizeCommunityTemplateReference({
+      pointerGeneration: '3' as unknown as number,
+    }).pointerGeneration).toBeUndefined()
+  })
+
   it('preserves the legacy choice and granted-rank semantics needed by the talent tree', () => {
     const normalized = normalizeTalentNode({
       id: 'choice-a',

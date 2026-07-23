@@ -179,14 +179,20 @@ export function normalizeCommunityTemplateReference(
     : undefined
   const score = value['mplusScore']
   const rank = value['mplusRank']
+  const pointerGeneration = typeof value['pointerGeneration'] === 'number'
+    && Number.isFinite(value['pointerGeneration'])
+    ? value['pointerGeneration']
+    : undefined
+  const base = { ...value }
+  delete base['pointerGeneration']
   const strings = [
     'id', 'title', 'name', 'classKey', 'specKey', 'heroKey', 'scenarioKey',
     'rawImportCode', 'importCode', 'websimExportCode', 'talentImport', 'sourceUrl', 'source', 'sourceKey',
     'sourceName', 'status', 'sourceStatus', 'talentWinnerId', 'gearProjectionMode', 'playerName', 'serverName', 'region',
-    'freshnessStatus', 'updatedAt', 'analysisWindow',
+    'freshnessStatus', 'updatedAt', 'analysisWindow', 'templateSetId', 'snapshotId', 'sourceIdentity', 'slotStatus',
   ] as const
   return {
-    ...value,
+    ...base,
     ...Object.fromEntries(strings.map((field) => [field, cleanString(value[field])])),
     ...(talentState ? { talentState } : {}),
     ...(typeof value['canApplyVisual'] === 'boolean' ? { canApplyVisual: value['canApplyVisual'] } : {}),
@@ -194,6 +200,7 @@ export function normalizeCommunityTemplateReference(
     ...(typeof value['isStale'] === 'boolean' ? { isStale: value['isStale'] } : {}),
     ...(typeof score === 'number' && Number.isFinite(score) ? { mplusScore: score } : {}),
     ...(typeof rank === 'number' && Number.isFinite(rank) ? { mplusRank: rank } : {}),
+    ...(pointerGeneration !== undefined && pointerGeneration >= 0 ? { pointerGeneration } : {}),
   }
 }
 

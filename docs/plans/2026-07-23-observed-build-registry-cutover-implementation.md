@@ -923,7 +923,7 @@ Expected: PASS; read-only audit performs zero writes and initial retail activati
 - Produces optional fields `templateSetId`, `snapshotId`, `sourceIdentity`, `pointerGeneration`, `slotStatus`.
 - Produces exhaustive HTTP audit with nonzero exit status on any missing/mismatched/import-blocked slot.
 
-- [ ] **Step 1: Write failing API normalization tests**
+- [x] **Step 1: Write failing API normalization tests**
 
 ```typescript
 expect(normalizeCommunityTemplateReference({
@@ -944,7 +944,7 @@ expect(normalizeCommunityTemplateReference({
 
 Add a gear model fixture containing two Hero templates and assert both remain import options with distinct player labels. Add a talent model fixture for each Hero and assert the selected Hero receives exactly its own projection ID.
 
-- [ ] **Step 2: Run the client tests and verify failure**
+- [x] **Step 2: Run the client tests and verify failure**
 
 ```bash
 npx vitest run \
@@ -955,7 +955,7 @@ npx vitest run \
 
 Expected: FAIL because the new provenance fields are not typed/normalized.
 
-- [ ] **Step 3: Extend type and normalizer without changing mounted interaction**
+- [x] **Step 3: Extend type and normalizer without changing mounted interaction**
 
 Add:
 
@@ -969,7 +969,7 @@ slotStatus?: 'verified' | 'stale_lkg' | 'pending_collection' | string
 
 Normalize the four strings with the existing `cleanString` path and accept `pointerGeneration` only when it is a finite non-negative number. Do not add client-side winner election, LKG, pairing, or fallback.
 
-- [ ] **Step 4: Implement exhaustive cutover audit**
+- [x] **Step 4: Implement exhaustive cutover audit**
 
 The script obtains the 80 expected triplets from the repository contract and, for a required `--base-url`:
 
@@ -981,7 +981,7 @@ The script obtains the 80 expected triplets from the repository contract and, fo
 - POSTs the existing talent import-code endpoint for all 80 export codes and requires accepted validation;
 - outputs counts and at most 12 failures, with no raw profile payload.
 
-- [ ] **Step 5: Verify frontend contracts and commit**
+- [x] **Step 5: Verify frontend contracts and commit**
 
 ```bash
 npx vitest run \
