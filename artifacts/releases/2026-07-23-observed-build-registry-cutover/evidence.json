@@ -1,0 +1,135 @@
+{
+  "schemaVersion": 2,
+  "slug": "observed-build-registry-cutover",
+  "requirementSlug": "observed-build-registry-cutover",
+  "status": "implementation_allowed",
+  "highestEvidenceLevel": "implementation_allowed",
+  "branch": "codex/observed-build-registry-cutover",
+  "commit": "pending-task-commit",
+  "identities": {
+    "runtime": {
+      "status": "pending",
+      "reason": "The isolated candidate has not been deployed."
+    },
+    "verification": {
+      "status": "pending",
+      "reason": "The release packet has not yet passed the full profile at a clean task head."
+    },
+    "closure": {
+      "status": "pending",
+      "reason": "Real WeChat acceptance and merge closure remain pending."
+    }
+  },
+  "manualAcceptance": {
+    "required": true,
+    "status": "pending",
+    "items": [
+      {
+        "id": "gear-two-real-templates-visible",
+        "status": "pending"
+      },
+      {
+        "id": "gear-both-templates-importable",
+        "status": "pending"
+      },
+      {
+        "id": "talent-one-real-template-per-hero-visible",
+        "status": "pending"
+      },
+      {
+        "id": "talent-template-importable",
+        "status": "pending"
+      },
+      {
+        "id": "shared-player-provenance-visible",
+        "status": "pending"
+      }
+    ],
+    "rollup": {
+      "total": 5,
+      "accepted": 0,
+      "notRunUserWaived": 0,
+      "pending": 5
+    }
+  },
+  "scope": [
+    "Shared 80-slot Raider.IO observation and deterministic local projection",
+    "Same-slot talent and gear LKG plus candidate/retail CAS pointer policy",
+    "Existing talent, equipment and exact-import public contracts",
+    "Bounded health, scheduled Registry sync and WeChat provenance"
+  ],
+  "verification": [
+    {
+      "command": "observed-build targeted backend and frontend suites",
+      "status": "not_run"
+    },
+    {
+      "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-23-observed-build-registry-cutover --base origin/main",
+      "status": "not_run"
+    },
+    {
+      "command": "python3 scripts/audit-observed-build-cutover.py --base-url http://127.0.0.1:18787",
+      "status": "not_run"
+    }
+  ],
+  "candidateDeployment": {
+    "status": "not_run",
+    "requiredBeforeMerge": true,
+    "reason": "Candidate deployment, source collection and pointer activation are pending."
+  },
+  "runtimeEvidence": [
+    {
+      "id": "candidate-migration-backup",
+      "status": "pending"
+    },
+    {
+      "id": "candidate-80-slot-collection",
+      "status": "pending"
+    },
+    {
+      "id": "candidate-40-distinct-gear-pairs",
+      "status": "pending"
+    },
+    {
+      "id": "candidate-160-exact-imports",
+      "status": "pending"
+    },
+    {
+      "id": "candidate-pointer-rollback-restore",
+      "status": "pending"
+    },
+    {
+      "id": "candidate-health-timer-isolation",
+      "status": "pending"
+    },
+    {
+      "id": "wechat-devtools-refresh",
+      "status": "pending"
+    }
+  ],
+  "risks": [
+    {
+      "id": "source-coverage-pending",
+      "status": "open",
+      "detail": "The bounded real Raider.IO collection has not yet proven two distinct mappable Hero players for all 40 specializations."
+    },
+    {
+      "id": "manual-acceptance-pending",
+      "status": "open",
+      "detail": "The five frozen WeChat checks are required before merge and retail activation."
+    }
+  ],
+  "rollback": [
+    "code_rollback",
+    "data_restore",
+    "config_disable",
+    "resync_repair"
+  ],
+  "cleanup": {
+    "required": true,
+    "reason": "Remove the temporary candidate runtime, SSH tunnel and task worktree after accepted closure; retain the PostgreSQL backup and rollback TemplateSet."
+  },
+  "archivedReferences": [],
+  "summary": "The shared-player cutover implementation is locally committed. Exact-head full verification, isolated candidate collection/import audit, rollback proof and real WeChat acceptance are pending.",
+  "updatedAt": "2026-07-23T11:17:17Z"
+}

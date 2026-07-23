@@ -1,0 +1,49 @@
+{
+  "schemaRevision": "observed-build-registry-candidate-smoke-v1",
+  "status": "pending",
+  "scope": "candidate",
+  "runtime": {
+    "commit": "",
+    "gitTree": "",
+    "host": "wow-lighthouse",
+    "path": "",
+    "port": 18787
+  },
+  "database": {
+    "migration": "0018_observed_build_registry.sql",
+    "backupPath": "",
+    "backupSha256": "",
+    "status": "pending"
+  },
+  "collection": {
+    "status": "pending",
+    "templateSetId": "",
+    "pointerGeneration": 0,
+    "coverage": {
+      "total": 80,
+      "verified": 0,
+      "stale_lkg": 0,
+      "pending_collection": 80,
+      "gearCompleteSpecs": 0
+    }
+  },
+  "audit": {
+    "status": "pending",
+    "counts": {},
+    "failures": []
+  },
+  "isolation": {
+    "retailPointerUnchanged": false,
+    "productionServiceUnchanged": false,
+    "publicRouteUnchanged": false
+  },
+  "rollback": {
+    "status": "pending",
+    "previousGenerationServed": false,
+    "candidateRestored": false
+  },
+  "devtools": {
+    "status": "pending",
+    "apiBaseUrl": "http://127.0.0.1:18787"
+  }
+}

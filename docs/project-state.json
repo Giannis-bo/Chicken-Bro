@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-07-20",
+  "updatedAt": "2026-07-23",
   "activeMilestone": "taro_target_first_14_route_rebuild",
   "featureIteration": "allowed_under_harness",
-  "defaultLocalReleaseArtifact": "artifacts/releases/2026-07-20-harness-v0-6-4-wechat-preview-refresh",
+  "defaultLocalReleaseArtifact": "artifacts/releases/2026-07-23-observed-build-registry-cutover",
   "releaseResolution": {
     "ci": "task_scoped_pr_diff",
     "local": "explicit_release_or_default_local_release_artifact",
@@ -47,6 +47,13 @@
       "status": "active",
       "lifecycle": "active",
       "notes": "Active Taro UI contract, including canonical gear API parity and fresh real WeChat acceptance."
+    },
+    {
+      "id": "observed_build_registry_cutover",
+      "path": "docs/plans/2026-07-23-observed-build-registry-cutover-implementation.md",
+      "status": "candidate_verification_pending",
+      "lifecycle": "active",
+      "notes": "Shared 80-slot real-player TemplateSet for talent and equipment simulation. Candidate-only source collection, exhaustive imports, rollback and five-item real WeChat acceptance are required before retail activation."
     }
   ],
   "completedBaselines": [

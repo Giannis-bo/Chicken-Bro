@@ -3,7 +3,7 @@
 Active frontend ownership is explicit: `apps/mini-taro` owns the active 14-route runtime and `packages/api-client/src` owns typed transport. The root `app.json` and `pages/` tree remain compatibility consumers only, preserving the 14-route surface without receiving new first-level ownership. The machine-readable route matrix is `docs/project-owner-map.json`.
 
 状态：`active`
-更新时间：`2026-07-19`
+更新时间：`2026-07-23`
 
 ## 本文职责
 
@@ -41,7 +41,7 @@ Active frontend ownership is explicit: `apps/mini-taro` owns the active 14-route
 | 已完成 | Harness v0.6.2 证据绑定 | PR #93 已让 CI 绑定任务自己的 requirement/evidence/manifest；runtime、verification 与 closure identity 分离，人工验收和 `not_run_user_waived` 进入可校验矩阵，且没有增加重复 full、额外评审或运行时改动 | [Harness](harness.md)、[验证矩阵](verification-matrix.md)、[归档证据](../artifacts/releases/2026-07-19-harness-v0-6-2-control-plane-cleanup/evidence.json) |
 | 已完成 | Harness v0.6.3 当前事实与 DX 收口 | 当前事实顺序、Taro 开发入口、活动文档可达性、本地假失败和 CLI fail-fast 规则保持一致；不增加新流程或重复验证 | [Harness](harness.md)、[文档地图](README.md)、[release packet](../artifacts/releases/2026-07-20-harness-v0-6-3-docs-dx/evidence.json) |
 | 已完成 | Harness v0.6.4 微信预览刷新 | 微信前端验收合入后，在最新 `main` 上统一重建、校验并刷新 DevTools；跨电脑 CLI 缺失时明确人工接管，不把本地交付动作冒充验收 | [Harness](harness.md)、[文档地图](README.md)、[release packet](../artifacts/releases/2026-07-20-harness-v0-6-4-wechat-preview-refresh/evidence.json) |
-| P1 | 构筑到模拟闭环稳定 | 天赋/装备模板可确定性保存、加载、转换、校验、提交和复盘；真实玩家先沉淀为可重放 snapshot，再按当前 authority 编译天赋/装备 projection；每日 80 槽 TemplateSet 对成功槽更新、失败槽保留同槽 LKG 并标记过期，完整校验后原子切换；完整 SimC 只在玩家请求时运行；不可执行状态 fail closed | [Observed Build Registry 设计](plans/2026-07-23-observed-build-registry-design.md)、[装备模板投影计划](plans/2026-07-22-gear-template-projection.md)、[builds-architecture.md](builds-architecture.md)、[simulator-simc-end-to-end.md](simulator-simc-end-to-end.md) |
+| P1 | 构筑到模拟闭环稳定 | 天赋/装备模板可确定性保存、加载、转换、校验、提交和复盘；真实玩家先沉淀为可重放 snapshot，再按当前 authority 编译天赋/装备 projection；每日 80 槽 TemplateSet 对成功槽更新、失败槽保留同槽 LKG 并标记过期，完整校验后原子切换；任意专精展示两个可导入装备模板，任意 Hero 展示一个同玩家可导入天赋模板；完整 SimC 只在玩家请求时运行；不可执行状态 fail closed | [Observed Build Registry 设计](plans/2026-07-23-observed-build-registry-design.md)、[共享玩家切换计划](plans/2026-07-23-observed-build-registry-cutover-implementation.md)、[社区模板 Runbook](community-template-import-full-chain-runbook.md)、[simulator-simc-end-to-end.md](simulator-simc-end-to-end.md) |
 | P1 | 证据化报告 | 玩家可见数字来自 runner、日志或明确参考源；模型只负责解释 | `server/simulator_payload.py` |
 | P1 | 发布与可观测 | 核心 API、刷新任务、SimC 和数据健康有可重复 smoke、超时与故障定位 | [remote-debugging.md](remote-debugging.md)、[verification-matrix.md](verification-matrix.md) |
 | P2 | 个人化工作台 | 角色、收藏、模板和任务历史围绕微信账号 owner 组织 | `apps/mini-taro/src/pages/profile/`、`server/news_backend.py` |

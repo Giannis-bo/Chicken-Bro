@@ -1,0 +1,111 @@
+{
+  "schemaVersion": 1,
+  "slug": "observed-build-registry-cutover",
+  "classification": "Strict",
+  "status": "implementation_allowed",
+  "goal": "Activate one shared, immutable 80-slot Raider.IO player set behind the existing talent and equipment simulator contracts, with one importable talent template per class/spec/Hero and two distinct importable equipment templates per class/spec.",
+  "userValue": "A player can choose any specialization, import the two real Hero-player equipment templates, switch to either Hero tree and import the matching real-player talent template, while talent and gear remain visibly attributable to the same snapshot.",
+  "nonGoals": [
+    "No BiS optimizer, recommendation scoring, DPS ranking or scheduled combat SimulationCraft.",
+    "No WCL election, anonymous fallback, baseline substitution, cross-Hero fill or cross-specialization fill.",
+    "No frontend winner election, LKG policy, pairing logic or read-time source synchronization.",
+    "No retail pointer activation or production timer cutover before candidate proof and explicit WeChat acceptance."
+  ],
+  "currentTruth": {
+    "sources": [
+      "docs/project-state.json",
+      "docs/roadmap.md",
+      "docs/harness.md",
+      "docs/verification-matrix.md",
+      "docs/plans/2026-07-23-observed-build-registry-design.md",
+      "docs/plans/2026-07-23-observed-build-registry-cutover-implementation.md",
+      "docs/community-template-import-full-chain-runbook.md",
+      "server/observed_build_registry.py",
+      "server/observed_build_projection.py",
+      "server/observed_build_template_set.py",
+      "server/observed_build_store.py",
+      "server/postgres_cache_store.py"
+    ],
+    "databaseRuntime": "postgres_only",
+    "candidateDeploymentRequiredBeforeMerge": true,
+    "candidateScope": "candidate",
+    "retailScope": "inactive_until_user_acceptance"
+  },
+  "impactMap": {
+    "mustChange": [
+      "Collect and seal exactly 80 class/spec/Hero/scenario slots from the established Raider.IO source, with two distinct identities per specialization.",
+      "Compile talent and gear atomically against current local authorities and reuse unchanged projections rather than rebuilding the whole release chain.",
+      "Retain the same slot's last-known-good talent and gear together when a new player cannot map, while allowing other slots to update.",
+      "Serve the active TemplateSet through the existing talent, gear and exact import APIs with shared projection, snapshot and source identity provenance.",
+      "Run one bounded scheduled Registry sync and expose read-only 80-slot health without changing retail before acceptance."
+    ],
+    "mustNotChange": [
+      "Canonical Talent Catalog, Gear Release, Resolver and serializer remain the mapping and legality authorities.",
+      "The active Taro pages retain their current import controls and do not acquire data-election responsibilities.",
+      "The existing retail Manifest, retail observed-build pointer and public production route remain unchanged during candidate verification."
+    ],
+    "riskUnknown": [
+      "Raider.IO may not currently yield two distinct fully mappable Hero players for every specialization within the bounded collector budget.",
+      "A dependency revision drift during collection requires controlled cutover and must not auto-promote.",
+      "An exact observed profile may expose an item variant that the current Gear Release cannot resolve, requiring same-slot LKG or explicit pending state."
+    ],
+    "evidenceRequired": [
+      "Local observed-build, store, read-model, import, frontend and full Harness verification at a clean task head.",
+      "PostgreSQL backup, additive migration, exact candidate commit/tree and isolated backend on 127.0.0.1:18787.",
+      "Candidate-only real Raider.IO collection with 80 verified slots, 40 distinct player pairs and an unchanged retail pointer.",
+      "Exhaustive 80 talent reads/imports, 40 gear reads, 80 gear imports and 80 talent/gear identity matches.",
+      "Candidate pointer rollback and restore, timer/backflow state, bounded health and real WeChat DevTools acceptance."
+    ]
+  },
+  "ownership": {
+    "factOwner": "ObservedBuildSnapshot owns captured player facts; Projection Compiler owns current local mapping; TemplateSet owns 80-slot LKG and publication; PostgreSQL pointer owns atomic candidate or retail activation.",
+    "consumers": [
+      "server/postgres_cache_store.py",
+      "server/news_backend.py",
+      "packages/api-client/src/websim.ts",
+      "apps/mini-taro/src/pages/builds/detail.tsx",
+      "apps/mini-taro/src/pages/builds/talent-simulator.tsx"
+    ]
+  },
+  "engineeringHealth": {
+    "status": "strict_candidate_cutover_required",
+    "reason": "This changes PG-backed public readers, exact imports, health, scheduled synchronization and two active WeChat user paths. Candidate migration, controlled source collection, exhaustive imports, rollback and manual acceptance are required."
+  },
+  "manualAcceptanceContract": {
+    "required": true,
+    "requiredItemIds": [
+      "gear-two-real-templates-visible",
+      "gear-both-templates-importable",
+      "talent-one-real-template-per-hero-visible",
+      "talent-template-importable",
+      "shared-player-provenance-visible"
+    ]
+  },
+  "acceptanceEvidence": [
+    "Strict Harness full profile at a clean exact task head.",
+    "Candidate-only PostgreSQL migration, real source collection, 80-slot API/import audit and pointer rollback proof.",
+    "Official WeChat DevTools opened against the isolated candidate backend through a local SSH tunnel.",
+    "Explicit user acceptance of every frozen manual item before merge or retail activation."
+  ],
+  "releaseTrigger": "user_visible_runtime",
+  "rollback": [
+    "code_rollback",
+    "data_restore",
+    "config_disable",
+    "resync_repair"
+  ],
+  "decisionLog": [
+    {
+      "date": "2026-07-23",
+      "decision": "Talent and equipment simulation share the same 80 real Raider.IO player slots: 40 specializations times two Hero trees."
+    },
+    {
+      "date": "2026-07-23",
+      "decision": "A verified new player may switch automatically when dependencies are unchanged; an unmappable replacement keeps the exact slot's previous talent and gear together as stale LKG."
+    },
+    {
+      "date": "2026-07-23",
+      "decision": "The user approved one controlled Raider.IO collection and asked to continue through a WeChat DevTools-verifiable candidate without expanding beyond the core path."
+    }
+  ]
+}

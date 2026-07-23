@@ -19,17 +19,25 @@
 ## 数据链路
 
 ```text
-Raider.IO / WCL / explicitly enabled diagnostic source
-  -> candidate discovery and source snapshot
-  -> class/spec/hero/scenario ownership
-  -> talent authority or gear snapshot validation
-  -> signature dedupe and evidence ranking
-  -> PostgreSQL community template store
-  -> /api/websim/talents or /api/websim/gear
+Raider.IO established collector
+  -> 80 class/spec/hero/scenario candidate slots
+  -> immutable ObservedBuildSnapshot
+  -> current Talent Catalog + Gear Release projection
+  -> complete TemplateSet with same-slot LKG
+  -> candidate or retail PostgreSQL pointer
+  -> /api/websim/talents and /api/websim/gear
   -> Taro import
   -> personal template
   -> /api/websim/profile final readiness
 ```
+
+## Observed Build Registry
+
+对外真实玩家模板以同一份 80 槽 `TemplateSet` 为唯一 owner：40 个专精各有两个 Hero 槽。每个槽的天赋与装备必须共享 `projectionId`、`snapshotId` 和 Raider.IO `sourceIdentity`；同一专精的两个 Hero 槽必须是不同角色。
+
+每日同步只对新建或变化的快照执行精确装备回填与本地 projection 编译。快照和 dependency vector 均未变化时复用现有 projection，不重跑完整发布链，也不运行战斗 SimC。新角色完整通过时可自动切换；采集或映射失败时，已激活槽共同保留上一次天赋与装备并标记 `stale_lkg`，其他槽继续更新。首次激活必须 80/80 verified，任何 `pending_collection` 都阻断指针。
+
+`candidate` 与 `retail` 指针隔离。候选部署必须先完成 80 个天赋读取/导入、40 个装备双模板读取、80 个装备精确导入、80 个同玩家身份匹配和一次指针回滚恢复；用户在微信开发者工具确认前不得激活 `retail`。
 
 ## 来源边界
 
