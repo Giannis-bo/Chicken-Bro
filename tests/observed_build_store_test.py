@@ -1,5 +1,8 @@
 import copy
+import hashlib
+import json
 import unittest
+from unittest import mock
 
 from server.observed_build_projection import build_dependency_vector, build_projection
 from server.observed_build_registry import (
@@ -79,6 +82,17 @@ class FakeConnection:
 
 
 class ObservedBuildStoreTest(unittest.TestCase):
+    @staticmethod
+    def row_hash(value):
+        encoded = json.dumps(
+            value,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            default=str,
+        ).encode("utf-8")
+        return "sha256:" + hashlib.sha256(encoded).hexdigest()
+
     def slots(self):
         slots = []
         for triplet in expected_hero_tree_triplets():
@@ -146,6 +160,82 @@ class ObservedBuildStoreTest(unittest.TestCase):
             dependency_vector=self.dependencies(),
             source_run_id="run-1",
         )
+
+    def active_store(self, scope="candidate"):
+        template_set = self.template_set()
+        artifacts = {}
+        for index, slot in enumerate(self.slots()):
+            projection = self.projection(slot, f"player-{index}")
+            artifacts[projection["slotKey"]] = {
+                "snapshot": self.snapshot(slot, f"player-{index}"),
+                "projection": projection,
+            }
+        child_rows = [
+            (
+                entry["slotKey"],
+                entry,
+                self.row_hash(entry),
+            )
+            for entry in template_set["entries"]
+        ]
+        pointer = (
+            scope,
+            3,
+            template_set["templateSetId"],
+            "template-set:sha256:" + "f" * 64,
+            "sync-worker",
+            "2026-07-23T12:00:00+00:00",
+        )
+
+        def responder(sql, params):
+            if sql.startswith("SELECT scope, generation, active_template_set_id"):
+                return pointer
+            if sql.startswith("SELECT template_set_json, row_hash"):
+                return (template_set, self.row_hash(template_set))
+            if sql.startswith(
+                "SELECT count(*) FROM cache.observed_build_template_set_slots"
+            ):
+                return (80,)
+            if sql.startswith("SELECT slot_key, slot_json, row_hash"):
+                return child_rows
+            if "observed_build_active_records" in sql:
+                rows = []
+                for entry in template_set["entries"]:
+                    slot = entry["slot"]
+                    if "slot.class_key = %s" in sql and slot["classKey"] != params[1]:
+                        continue
+                    spec_index = 2 if "slot.class_key = %s" in sql else 1
+                    if (
+                        "slot.spec_key = %s" in sql
+                        and slot["specKey"] != params[spec_index]
+                    ):
+                        continue
+                    hero_index = (
+                        1
+                        + int("slot.class_key = %s" in sql)
+                        + int("slot.spec_key = %s" in sql)
+                    )
+                    if (
+                        "slot.hero_key = %s" in sql
+                        and slot["heroKey"] != params[hero_index]
+                    ):
+                        continue
+                    artifact = artifacts[entry["slotKey"]]
+                    rows.append(
+                        (
+                            entry,
+                            self.row_hash(entry),
+                            artifact["snapshot"],
+                            self.row_hash(artifact["snapshot"]),
+                            artifact["projection"],
+                            self.row_hash(artifact["projection"]),
+                        )
+                    )
+                return rows
+            return None
+
+        connection = FakeConnection(responder)
+        return ObservedBuildStore(lambda: connection), connection, template_set
 
     def test_snapshot_seal_inserts_once_and_reuses_matching_row(self):
         observed = self.snapshot()
@@ -371,6 +461,141 @@ class ObservedBuildStoreTest(unittest.TestCase):
             store.load_template_set(template_set["templateSetId"]),
             template_set,
         )
+
+    def test_load_pointer_returns_bounded_scope_identity(self):
+        store, connection, template_set = self.active_store()
+
+        pointer = store.load_pointer("candidate")
+
+        self.assertEqual(pointer["scope"], "candidate")
+        self.assertEqual(pointer["generation"], 3)
+        self.assertEqual(
+            pointer["activeTemplateSetId"],
+            template_set["templateSetId"],
+        )
+        self.assertEqual(
+            connection.cursor_instance.statements[0],
+            "SET TRANSACTION READ ONLY",
+        )
+
+    def test_active_records_join_pointer_set_slot_snapshot_and_projection(self):
+        store, connection, _template_set = self.active_store()
+
+        result = store.load_active_records(
+            "candidate",
+            class_key="mage",
+            spec_key="frost",
+        )
+
+        self.assertEqual(result["pointer"]["scope"], "candidate")
+        self.assertEqual(len(result["records"]), 2)
+        self.assertEqual(
+            result["records"][0]["snapshot"]["source"]["sourceIdentity"],
+            result["records"][0]["projection"]["sourceIdentity"],
+        )
+        self.assertEqual(
+            connection.cursor_instance.statements[0],
+            "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY",
+        )
+        self.assertFalse(
+            any(
+                statement.startswith(("INSERT ", "UPDATE ", "DELETE "))
+                for statement in connection.cursor_instance.statements
+            )
+        )
+
+    def test_exact_projection_must_belong_to_active_scope_and_spec(self):
+        store, _connection, _template_set = self.active_store()
+
+        with self.assertRaisesRegex(ObservedBuildIntegrityError, "not active"):
+            store.load_active_projection(
+                "candidate",
+                "build-projection:sha256:" + "f" * 64,
+                "mage",
+                "frost",
+            )
+
+    def test_exact_projection_returns_active_shared_player_record(self):
+        store, _connection, _template_set = self.active_store()
+        active = store.load_active_records(
+            "candidate",
+            class_key="mage",
+            spec_key="frost",
+        )
+        expected = active["records"][0]
+
+        result = store.load_active_projection(
+            "candidate",
+            expected["projection"]["projectionId"],
+            "mage",
+            "frost",
+        )
+
+        self.assertEqual(result, expected)
+
+    def test_latest_verified_projection_read_is_dependency_and_time_bounded(self):
+        projection = self.projection()
+        dependency_hash = projection["dependencyHash"]
+        conn = FakeConnection(
+            lambda sql, _params: [
+                (
+                    projection["slotKey"],
+                    projection,
+                    self.row_hash(projection),
+                )
+            ]
+            if "observed_build_latest_verified_projections" in sql
+            else None
+        )
+
+        result = ObservedBuildStore(
+            lambda: conn
+        ).load_latest_verified_projections(
+            dependency_hash,
+            "2026-07-23T00:00:00+00:00",
+        )
+
+        self.assertEqual(result, {projection["slotKey"]: projection})
+        statement = conn.cursor_instance.statements[1]
+        self.assertIn("projection.status = 'verified'", statement)
+        self.assertIn("projection.importable IS TRUE", statement)
+        self.assertIn("check.checked_at >= %s::timestamptz", statement)
+
+    def test_health_summary_reports_lkg_without_disabling_active_records(self):
+        store, _connection, template_set = self.active_store()
+        template_set["counts"] = {
+            "verified": 78,
+            "stale_lkg": 2,
+            "pending_collection": 0,
+        }
+
+        with mock.patch.object(
+            store,
+            "load_active_records",
+            return_value={
+                "pointer": {
+                    "scope": "candidate",
+                    "generation": 3,
+                    "activeTemplateSetId": template_set["templateSetId"],
+                    "updatedAt": "2026-07-23T12:00:00+00:00",
+                },
+                "templateSet": template_set,
+                "records": [
+                    {
+                        "projection": {
+                            "sourceIdentity": f"raiderio:cn|realm|player-{index}"
+                        }
+                    }
+                    for index in range(80)
+                ],
+            },
+        ):
+            summary = store.health_summary("candidate")
+
+        self.assertEqual(summary["status"], "partial")
+        self.assertTrue(summary["active"])
+        self.assertEqual(summary["counts"]["stale_lkg"], 2)
+        self.assertEqual(summary["recordCount"], 80)
 
     def test_pointer_cas_is_monotonic_and_rejects_stale_generation(self):
         template_set = self.template_set()

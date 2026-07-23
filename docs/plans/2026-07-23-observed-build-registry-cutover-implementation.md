@@ -582,7 +582,7 @@ Expected: PASS; one failed projection blocks the entire player slot.
 - Produces: `load_latest_verified_projections(dependency_hash, checked_since) -> dict[str, dict]`.
 - Produces: `health_summary(scope) -> dict`.
 
-- [ ] **Step 1: Write failing repeatable-read tests**
+- [x] **Step 1: Write failing repeatable-read tests**
 
 ```python
 def test_active_records_join_pointer_set_slot_snapshot_and_projection(self):
@@ -608,7 +608,7 @@ def test_exact_projection_must_belong_to_active_scope_and_spec(self):
         )
 ```
 
-- [ ] **Step 2: Run the store tests and verify failure**
+- [x] **Step 2: Run the store tests and verify failure**
 
 ```bash
 python3 -m unittest tests.observed_build_store_test
@@ -616,7 +616,7 @@ python3 -m unittest tests.observed_build_store_test
 
 Expected: FAIL because the read methods are absent.
 
-- [ ] **Step 3: Implement one repeatable-read active query**
+- [x] **Step 3: Implement one repeatable-read active query**
 
 The query must:
 
@@ -650,11 +650,11 @@ Return:
 }
 ```
 
-- [ ] **Step 4: Implement bounded staging and health reads**
+- [x] **Step 4: Implement bounded staging and health reads**
 
 `load_latest_verified_projections` selects at most one verified/importable projection per expected slot for an exact dependency hash, ordered by latest successful source check then projection creation time. `health_summary` returns only counts, pointer identity, generation, stale/pending counts, and at most 12 structured problems; it returns no raw gear or talent payload.
 
-- [ ] **Step 5: Verify read-only SQL and commit**
+- [x] **Step 5: Verify read-only SQL and commit**
 
 ```bash
 python3 -m unittest tests.observed_build_store_test

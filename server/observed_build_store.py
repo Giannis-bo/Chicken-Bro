@@ -35,6 +35,8 @@ except ImportError:
 _SNAPSHOT_ID = re.compile(r"observed-build:sha256:[0-9a-f]{64}")
 _PROJECTION_ID = re.compile(r"build-projection:sha256:[0-9a-f]{64}")
 _TEMPLATE_SET_ID = re.compile(r"template-set:sha256:[0-9a-f]{64}")
+_SHA256 = re.compile(r"sha256:[0-9a-f]{64}")
+_SLUG = re.compile(r"[a-z][a-z0-9_]{0,79}")
 _CHECK_STATUSES = {"captured", "changed", "unchanged", "failed"}
 
 
@@ -111,11 +113,51 @@ def _pointer_row(row: Any) -> dict[str, Any]:
     }
 
 
+def _validated_pointer_row(row: Any, *, expected_scope: str) -> dict[str, Any]:
+    try:
+        pointer = _pointer_row(row)
+    except (TypeError, ValueError, OverflowError) as error:
+        raise ObservedBuildIntegrityError(
+            "stored observed-build pointer failed integrity validation"
+        ) from error
+    if not pointer:
+        return {}
+    rollback_id = pointer.get("rollbackTemplateSetId")
+    if (
+        pointer.get("scope") != expected_scope
+        or pointer.get("generation", 0) < 1
+        or not _TEMPLATE_SET_ID.fullmatch(
+            _text(pointer.get("activeTemplateSetId"))
+        )
+        or (
+            rollback_id
+            and not _TEMPLATE_SET_ID.fullmatch(_text(rollback_id))
+        )
+        or (
+            rollback_id
+            and rollback_id == pointer.get("activeTemplateSetId")
+        )
+    ):
+        raise ObservedBuildIntegrityError(
+            "stored observed-build pointer failed integrity validation"
+        )
+    return pointer
+
+
 def _required_text(value: Any, name: str, *, limit: int = 512) -> str:
     normalized = _text(value)
     if not normalized or len(normalized) > limit:
         raise ObservedBuildIntegrityError(
             f"{name} must be a bounded non-empty string"
+        )
+    return normalized
+
+
+def _optional_slug(value: Any, name: str) -> str:
+    normalized = _text(value)
+    if normalized and not _SLUG.fullmatch(normalized):
+        raise ObservedBuildIntegrityError(
+            f"{name} must be empty or a canonical slug"
         )
     return normalized
 
@@ -162,6 +204,38 @@ def _validated_stored_template_set(
             "stored TemplateSet failed structural validation"
         )
     return stored
+
+
+def _validated_snapshot_row(
+    stored_json: Any,
+    stored_hash: Any,
+) -> dict[str, Any]:
+    snapshot = _canonical(_json_value(stored_json))
+    if (
+        not isinstance(snapshot, dict)
+        or _text(stored_hash) != _row_hash(snapshot)
+        or validate_observed_snapshot(snapshot)
+    ):
+        raise ObservedBuildIntegrityError(
+            "stored observed-build snapshot failed integrity validation"
+        )
+    return snapshot
+
+
+def _validated_projection_row(
+    stored_json: Any,
+    stored_hash: Any,
+) -> dict[str, Any]:
+    projection = _canonical(_json_value(stored_json))
+    if (
+        not isinstance(projection, dict)
+        or _text(stored_hash) != _row_hash(projection)
+        or validate_projection(projection)
+    ):
+        raise ObservedBuildIntegrityError(
+            "stored observed-build projection failed integrity validation"
+        )
+    return projection
 
 
 def _validate_template_set_slot_rows(cur: Any, template_set: dict[str, Any]) -> None:
@@ -545,6 +619,434 @@ class ObservedBuildStore:
                 )
                 _validate_template_set_slot_rows(cur, template_set)
                 return template_set
+
+    @staticmethod
+    def _load_pointer_with_cursor(
+        cur: Any,
+        scope: str,
+    ) -> dict[str, Any]:
+        cur.execute(
+            """
+            SELECT scope, generation, active_template_set_id,
+                   rollback_template_set_id, updated_by, updated_at
+            FROM cache.observed_build_template_set_pointer
+            WHERE scope = %s
+            """,
+            (scope,),
+        )
+        return _validated_pointer_row(
+            cur.fetchone(),
+            expected_scope=scope,
+        )
+
+    @staticmethod
+    def _load_template_set_with_cursor(
+        cur: Any,
+        template_set_id: str,
+    ) -> dict[str, Any]:
+        cur.execute(
+            """
+            SELECT template_set_json, row_hash
+            FROM cache.observed_build_template_sets
+            WHERE template_set_id = %s
+            """,
+            (template_set_id,),
+        )
+        row = cur.fetchone()
+        template_set = _validated_stored_template_set(
+            row,
+            expected_id=template_set_id,
+        )
+        _validate_template_set_slot_rows(cur, template_set)
+        return template_set
+
+    def load_pointer(self, scope: str) -> dict[str, Any]:
+        """Read one bounded pointer without following its immutable records."""
+
+        normalized_scope = _required_text(scope, "scope", limit=80)
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SET TRANSACTION READ ONLY")
+                return self._load_pointer_with_cursor(
+                    cur,
+                    normalized_scope,
+                )
+
+    @staticmethod
+    def _entry_matches(
+        entry: dict[str, Any],
+        class_key: str,
+        spec_key: str,
+        hero_key: str,
+    ) -> bool:
+        slot = entry.get("slot") if isinstance(entry.get("slot"), dict) else {}
+        return (
+            (not class_key or slot.get("classKey") == class_key)
+            and (not spec_key or slot.get("specKey") == spec_key)
+            and (not hero_key or slot.get("heroKey") == hero_key)
+        )
+
+    @staticmethod
+    def _validated_active_record(
+        row: Any,
+        expected_entry: dict[str, Any],
+        expected_dependencies: dict[str, Any],
+    ) -> dict[str, Any]:
+        if not row or len(row) < 6:
+            raise ObservedBuildIntegrityError(
+                "active observed-build record is incomplete"
+            )
+        entry = _canonical(_json_value(row[0]))
+        if (
+            not isinstance(entry, dict)
+            or entry != expected_entry
+            or _text(row[1]) != _row_hash(entry)
+            or entry.get("status") not in {"verified", "stale_lkg"}
+        ):
+            raise ObservedBuildIntegrityError(
+                "active TemplateSet slot failed integrity validation"
+            )
+        snapshot = _validated_snapshot_row(row[2], row[3])
+        projection = _validated_projection_row(row[4], row[5])
+        source_identity = _text(entry.get("sourceIdentity"))
+        if (
+            entry.get("snapshotId") != snapshot.get("snapshotId")
+            or entry.get("projectionId") != projection.get("projectionId")
+            or entry.get("slotKey") != slot_key(snapshot.get("slot"))
+            or entry.get("slotKey") != projection.get("slotKey")
+            or projection.get("snapshotId") != snapshot.get("snapshotId")
+            or projection.get("sourceIdentity") != source_identity
+            or projection.get("dependencyVector") != expected_dependencies
+            or _text(
+                (snapshot.get("source") or {}).get("sourceIdentity")
+            )
+            != source_identity
+            or projection.get("status") != "verified"
+            or projection.get("importable") is not True
+        ):
+            raise ObservedBuildIntegrityError(
+                "active observed-build record references do not match"
+            )
+        return {
+            "entry": entry,
+            "snapshot": snapshot,
+            "projection": projection,
+        }
+
+    def load_active_records(
+        self,
+        scope: str,
+        class_key: str = "",
+        spec_key: str = "",
+        hero_key: str = "",
+    ) -> dict[str, Any]:
+        """Read one active TemplateSet and matching records in one snapshot."""
+
+        normalized_scope = _required_text(scope, "scope", limit=80)
+        normalized_class = _optional_slug(class_key, "class_key")
+        normalized_spec = _optional_slug(spec_key, "spec_key")
+        normalized_hero = _optional_slug(hero_key, "hero_key")
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"
+                )
+                pointer = self._load_pointer_with_cursor(
+                    cur,
+                    normalized_scope,
+                )
+                if not pointer:
+                    return {
+                        "pointer": {},
+                        "templateSet": {},
+                        "records": [],
+                    }
+                template_set = self._load_template_set_with_cursor(
+                    cur,
+                    pointer["activeTemplateSetId"],
+                )
+                if int(
+                    (template_set.get("counts") or {}).get(
+                        "pending_collection"
+                    )
+                    or 0
+                ):
+                    raise ObservedBuildIntegrityError(
+                        "active TemplateSet cannot contain pending collection slots"
+                    )
+                expected_entries = [
+                    entry
+                    for entry in template_set.get("entries") or []
+                    if isinstance(entry, dict)
+                    and self._entry_matches(
+                        entry,
+                        normalized_class,
+                        normalized_spec,
+                        normalized_hero,
+                    )
+                ]
+                clauses = ["slot.template_set_id = %s"]
+                params: list[Any] = [pointer["activeTemplateSetId"]]
+                for column, value in (
+                    ("class_key", normalized_class),
+                    ("spec_key", normalized_spec),
+                    ("hero_key", normalized_hero),
+                ):
+                    if value:
+                        clauses.append(f"slot.{column} = %s")
+                        params.append(value)
+                cur.execute(
+                    f"""
+                    /* observed_build_active_records */
+                    SELECT slot.slot_json, slot.row_hash,
+                           snapshot.snapshot_json, snapshot.row_hash,
+                           projection.projection_json, projection.row_hash
+                    FROM cache.observed_build_template_set_slots slot
+                    JOIN cache.observed_build_snapshots snapshot
+                      ON snapshot.snapshot_id = slot.snapshot_id
+                     AND snapshot.slot_key = slot.slot_key
+                     AND snapshot.source_identity = slot.source_identity
+                    JOIN cache.observed_build_projections projection
+                      ON projection.projection_id = slot.projection_id
+                     AND projection.snapshot_id = slot.snapshot_id
+                     AND projection.slot_key = slot.slot_key
+                     AND projection.source_identity = slot.source_identity
+                    WHERE {" AND ".join(clauses)}
+                      AND slot.status IN ('verified', 'stale_lkg')
+                    ORDER BY slot.slot_key
+                    """,
+                    tuple(params),
+                )
+                rows = cur.fetchall()
+                expected_by_key = {
+                    entry["slotKey"]: entry
+                    for entry in expected_entries
+                }
+                records = []
+                seen = set()
+                for row in rows:
+                    raw_entry = _json_value(row[0]) if row else {}
+                    key = _text(
+                        raw_entry.get("slotKey")
+                        if isinstance(raw_entry, dict)
+                        else ""
+                    )
+                    expected = expected_by_key.get(key)
+                    if expected is None or key in seen:
+                        raise ObservedBuildIntegrityError(
+                            "active observed-build record is not in its TemplateSet"
+                        )
+                    records.append(
+                        self._validated_active_record(
+                            row,
+                            expected,
+                            template_set.get("dependencyVector") or {},
+                        )
+                    )
+                    seen.add(key)
+                if seen != set(expected_by_key):
+                    raise ObservedBuildIntegrityError(
+                        "active observed-build records are incomplete"
+                    )
+                return {
+                    "pointer": pointer,
+                    "templateSet": template_set,
+                    "records": records,
+                }
+
+    def load_active_projection(
+        self,
+        scope: str,
+        projection_id: str,
+        class_key: str,
+        spec_key: str,
+    ) -> dict[str, Any]:
+        """Return one exact projection only when it is active for the spec."""
+
+        normalized_id = _text(projection_id)
+        if not _PROJECTION_ID.fullmatch(normalized_id):
+            raise ObservedBuildIntegrityError(
+                "valid projection ID is required"
+            )
+        records = self.load_active_records(
+            scope,
+            class_key=class_key,
+            spec_key=spec_key,
+        )
+        if not records["pointer"]:
+            return {}
+        matches = [
+            record
+            for record in records["records"]
+            if record["projection"].get("projectionId") == normalized_id
+        ]
+        if len(matches) != 1:
+            raise ObservedBuildIntegrityError(
+                "observed-build projection is not active for this scope and spec"
+            )
+        return matches[0]
+
+    def load_latest_verified_projections(
+        self,
+        dependency_hash: str,
+        checked_since: str,
+    ) -> dict[str, dict[str, Any]]:
+        """Read the newest verified candidate per slot after a source check."""
+
+        normalized_hash = _text(dependency_hash)
+        if not _SHA256.fullmatch(normalized_hash):
+            raise ObservedBuildIntegrityError(
+                "valid dependency hash is required"
+            )
+        normalized_since = _required_text(
+            checked_since,
+            "checked_since",
+            limit=80,
+        )
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"
+                )
+                cur.execute(
+                    """
+                    /* observed_build_latest_verified_projections */
+                    SELECT DISTINCT ON (projection.slot_key)
+                           projection.slot_key,
+                           projection.projection_json,
+                           projection.row_hash
+                    FROM cache.observed_build_projections projection
+                    JOIN ops.observed_build_snapshot_checks check
+                      ON check.snapshot_id = projection.snapshot_id
+                     AND check.slot_key = projection.slot_key
+                    WHERE projection.dependency_hash = %s
+                      AND projection.status = 'verified'
+                      AND projection.importable IS TRUE
+                      AND check.status IN ('captured', 'changed', 'unchanged')
+                      AND check.checked_at >= %s::timestamptz
+                    ORDER BY projection.slot_key,
+                             check.checked_at DESC,
+                             projection.created_at DESC,
+                             projection.projection_id
+                    """,
+                    (normalized_hash, normalized_since),
+                )
+                output: dict[str, dict[str, Any]] = {}
+                for row in cur.fetchall():
+                    if not row or len(row) < 3:
+                        raise ObservedBuildIntegrityError(
+                            "latest verified projection row is incomplete"
+                        )
+                    key = _text(row[0])
+                    projection = _validated_projection_row(
+                        row[1],
+                        row[2],
+                    )
+                    if (
+                        not key
+                        or key in output
+                        or projection.get("slotKey") != key
+                        or projection.get("dependencyHash")
+                        != normalized_hash
+                        or projection.get("status") != "verified"
+                        or projection.get("importable") is not True
+                    ):
+                        raise ObservedBuildIntegrityError(
+                            "latest verified projection row does not match its query"
+                        )
+                    output[key] = projection
+                return output
+
+    def health_summary(self, scope: str) -> dict[str, Any]:
+        """Expose bounded active-set health without returning player payloads."""
+
+        normalized_scope = _required_text(scope, "scope", limit=80)
+        try:
+            active = self.load_active_records(normalized_scope)
+        except ObservedBuildIntegrityError:
+            return {
+                "status": "blocked",
+                "scope": normalized_scope,
+                "active": False,
+                "generation": 0,
+                "activeTemplateSetId": "",
+                "recordCount": 0,
+                "sourceIdentityCount": 0,
+                "counts": {
+                    "verified": 0,
+                    "stale_lkg": 0,
+                    "pending_collection": 0,
+                },
+                "blockers": [
+                    "active observed-build registry failed integrity validation"
+                ],
+            }
+        pointer = active["pointer"]
+        if not pointer:
+            return {
+                "status": "partial",
+                "scope": normalized_scope,
+                "active": False,
+                "generation": 0,
+                "activeTemplateSetId": "",
+                "recordCount": 0,
+                "sourceIdentityCount": 0,
+                "counts": {
+                    "verified": 0,
+                    "stale_lkg": 0,
+                    "pending_collection": 0,
+                },
+                "blockers": [
+                    "observed-build TemplateSet pointer is inactive"
+                ],
+            }
+        template_set = active["templateSet"]
+        records = active["records"]
+        counts = _canonical(template_set.get("counts") or {})
+        stale_count = int(counts.get("stale_lkg") or 0)
+        record_count = len(records)
+        complete = record_count == EXPECTED_TEMPLATE_SLOT_COUNT
+        status = (
+            "blocked"
+            if not complete
+            else "partial"
+            if stale_count
+            else "verified"
+        )
+        blockers = []
+        if not complete:
+            blockers.append(
+                "active observed-build TemplateSet does not expose 80 records"
+            )
+        if stale_count:
+            blockers.append(
+                f"{stale_count} observed-build slots are serving last-known-good records"
+            )
+        return {
+            "status": status,
+            "scope": normalized_scope,
+            "active": complete,
+            "generation": pointer.get("generation"),
+            "activeTemplateSetId": pointer.get("activeTemplateSetId"),
+            "dependencyHash": _row_hash(
+                template_set.get("dependencyVector") or {}
+            ),
+            "recordCount": record_count,
+            "sourceIdentityCount": len(
+                {
+                    _text(
+                        record["projection"].get("sourceIdentity")
+                    )
+                    for record in records
+                    if _text(
+                        record["projection"].get("sourceIdentity")
+                    )
+                }
+            ),
+            "counts": counts,
+            "updatedAt": pointer.get("updatedAt"),
+            "blockers": blockers,
+        }
 
     def compare_and_swap_pointer(
         self,
