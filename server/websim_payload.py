@@ -1861,7 +1861,7 @@ SPEC_WEAPON_EQUIPMENT_RULES = {
     },
     ("monk", "mistweaver"): {
         "mode": "healer_1h_or_staff",
-        "mainHandTypes": {"Staff", "One-Handed Mace", "One-Handed Sword"},
+        "mainHandTypes": {"Staff", "Fist Weapon", "One-Handed Mace", "One-Handed Sword"},
         "offHandTypes": {"Held In Off-hand"},
     },
     ("monk", "windwalker"): {

@@ -155,6 +155,292 @@ __trait_data = {
 
 
 class RaiderIOPayloadTest(unittest.TestCase):
+    def test_select_gear_projection_source_identities_uses_only_persisted_valid_candidates(self):
+        promoted = [
+            {
+                "id": "mage-frost-frostfire",
+                "payload": {
+                    "gearProjectionCandidates": [
+                        {"talentCandidateRank": 1, "sourceIdentity": "raiderio:cn|isillien|rankone"},
+                        {"talentCandidateRank": 2, "sourceIdentity": "raiderio:us|area-52|fallback"},
+                        {"talentCandidateRank": 3, "sourceIdentity": "raiderio:cn|isillien|rankone"},
+                        {"talentCandidateRank": 4, "sourceIdentity": "warcraftlogs:cn|isillien|not-rio"},
+                        {"talentCandidateRank": 5, "sourceIdentity": "raiderio:cn|missing-name|"},
+                    ]
+                },
+            },
+            {
+                "id": "not-a-promoted-payload",
+                "gearProjectionCandidates": [
+                    {"sourceIdentity": "raiderio:eu|draenor|must-not-be-read"},
+                ],
+            },
+        ]
+
+        self.assertEqual(
+            raiderio_payload.select_gear_projection_source_identities(promoted),
+            [
+                "raiderio:cn|isillien|rankone",
+                "raiderio:us|area-52|fallback",
+            ],
+        )
+
+    def test_profile_url_for_source_identity_is_exact_and_fail_closed(self):
+        self.assertEqual(
+            raiderio_payload.profile_url_for_source_identity("raiderio:kr|azshara|winner"),
+            "https://raider.io/characters/kr/azshara/winner",
+        )
+        self.assertEqual(raiderio_payload.profile_url_for_source_identity("raiderio:kr|azshara|"), "")
+        self.assertEqual(raiderio_payload.profile_url_for_source_identity("other:kr|azshara|winner"), "")
+
+    def test_exact_profile_capture_redacts_failure_and_reuses_cached_identity(self):
+        identity = "raiderio:cn|isillien|rankone"
+        promoted = [{"payload": {"gearProjectionCandidates": [{"sourceIdentity": identity}]}}]
+        cached_profile = {
+            "sourceIdentity": identity,
+            "profileUrl": "https://raider.io/characters/cn/isillien/rankone",
+            "gear": [{"slot": "head", "itemId": 222001}],
+        }
+
+        with patch.object(
+            raiderio_payload,
+            "fetch_profile_for_character",
+            side_effect=raiderio_payload.RaiderIOError("access_key=fake-api-key"),
+        ):
+            payload = raiderio_payload.capture_gear_projection_profiles(
+                promoted,
+                {"profileCount": 600, "profiles": [cached_profile], "sourceStatus": "synced"},
+            )
+
+        diagnostics = payload["gearProjectionProfileCapture"]
+        self.assertEqual(payload["profiles"], [cached_profile])
+        self.assertEqual(payload["profileCount"], 600)
+        self.assertEqual(diagnostics["reusedCachedProfileCount"], 1)
+        self.assertEqual(diagnostics["fetchFailureCount"], 1)
+        self.assertEqual(diagnostics["missingCaptureCount"], 0)
+        self.assertEqual(diagnostics["failures"][0]["error"], "access_key=[redacted]")
+        self.assertNotIn("rankone", json.dumps(diagnostics["failures"]))
+
+    def test_exact_profile_capture_skips_fresh_usable_cache(self):
+        identity = "raiderio:cn|isillien|rankone"
+        promoted = [{"payload": {"gearProjectionCandidates": [{"sourceIdentity": identity}]}}]
+        cached_profile = {
+            "sourceIdentity": identity,
+            "profileUrl": "https://raider.io/characters/cn/isillien/rankone",
+            "gear": [{"slot": "head", "itemId": 222001}],
+        }
+
+        with patch.object(
+            raiderio_payload,
+            "fetch_profile_for_character",
+            side_effect=AssertionError("fresh exact profile must not be fetched again"),
+        ) as fetch:
+            payload = raiderio_payload.capture_gear_projection_profiles(
+                promoted,
+                {
+                    "expiresAt": "2999-01-01T00:00:00+00:00",
+                    "profileCount": 1,
+                    "profiles": [cached_profile],
+                },
+                request_limit=1,
+                deadline_at=time.monotonic() + 5,
+            )
+
+        fetch.assert_not_called()
+        diagnostics = payload["gearProjectionProfileCapture"]
+        self.assertEqual(payload["profiles"], [cached_profile])
+        self.assertEqual(diagnostics["attemptedRequestCount"], 0)
+        self.assertEqual(diagnostics["freshCachedProfileCount"], 1)
+        self.assertEqual(diagnostics["reusedCachedProfileCount"], 1)
+
+    def test_exact_profile_capture_merges_fresh_gear_over_cached_evidence_by_identity(self):
+        identity = "raiderio:cn|isillien|rankone"
+        promoted = [{"payload": {"gearProjectionCandidates": [{"sourceIdentity": identity}]}}]
+        cached_profile = {
+            "sourceIdentity": identity,
+            "name": "OldName",
+            "gear": [{"slot": "head", "itemId": 111001}],
+            "rankingEvidence": {"rank": 1},
+            "talentLoadout": {"loadoutText": "cached-loadout"},
+            "provenance": {"rankingPage": 2},
+            "sourceRefs": [{"sourceKey": "raiderio", "rank": 1}],
+            "profileHash": "sha256:cached-profile",
+            "gearHash": "sha256:cached-gear",
+        }
+        fresh_profile = {
+            "name": "RankOne",
+            "region": "cn",
+            "realmSlug": "isillien",
+            "gear": [{"slot": "head", "itemId": 222001}],
+            "talentLoadout": {"rawImportCode": "", "loadout": [], "source": "profile_current"},
+            "profileHash": "",
+            "gearHash": "",
+        }
+
+        with patch.object(
+            raiderio_payload,
+            "fetch_profile_for_character",
+            return_value=fresh_profile,
+        ):
+            payload = raiderio_payload.capture_gear_projection_profiles(
+                promoted,
+                {"expiresAt": "2000-01-01T00:00:00+00:00", "profiles": [cached_profile]},
+                request_limit=1,
+                deadline_at=time.monotonic() + 5,
+            )
+
+        merged = payload["profiles"][0]
+        self.assertEqual(merged["name"], "RankOne")
+        self.assertEqual(merged["gear"], fresh_profile["gear"])
+        self.assertEqual(merged["rankingEvidence"], cached_profile["rankingEvidence"])
+        self.assertEqual(merged["talentLoadout"], cached_profile["talentLoadout"])
+        self.assertEqual(merged["provenance"], cached_profile["provenance"])
+        self.assertEqual(merged["sourceRefs"], cached_profile["sourceRefs"])
+        self.assertEqual(merged["profileHash"], cached_profile["profileHash"])
+        self.assertEqual(merged["gearHash"], cached_profile["gearHash"])
+
+    def test_exact_profile_capture_bounds_requests_and_reports_ordered_deferred_refs(self):
+        identities = [
+            "raiderio:cn|isillien|first",
+            "raiderio:cn|isillien|second",
+            "raiderio:cn|isillien|third",
+        ]
+        promoted = [{
+            "payload": {
+                "gearProjectionCandidates": [
+                    {"sourceIdentity": identity}
+                    for identity in identities
+                ]
+            }
+        }]
+
+        def fake_fetch(character, _fields):
+            return {
+                **character,
+                "gear": [{"slot": "head", "itemId": 222001}],
+            }
+
+        with patch.object(raiderio_payload, "fetch_profile_for_character", side_effect=fake_fetch) as fetch:
+            payload = raiderio_payload.capture_gear_projection_profiles(
+                promoted,
+                {"profiles": []},
+                request_limit=1,
+                deadline_at=time.monotonic() + 5,
+            )
+
+        diagnostics = payload["gearProjectionProfileCapture"]
+        self.assertEqual(fetch.call_count, 1)
+        self.assertEqual(diagnostics["attemptedRequestCount"], 1)
+        self.assertEqual(diagnostics["deferredIdentityCount"], 2)
+        self.assertEqual(
+            diagnostics["deferredIdentityRefs"],
+            [raiderio_payload._redacted_source_identity_ref(identity) for identity in identities[1:]],
+        )
+        self.assertTrue(diagnostics["requestBudgetExhausted"])
+
+        with patch.object(
+            raiderio_payload,
+            "fetch_profile_for_character",
+            side_effect=AssertionError("expired deadline must not schedule requests"),
+        ) as fetch:
+            expired = raiderio_payload.capture_gear_projection_profiles(
+                promoted,
+                {"profiles": []},
+                request_limit=3,
+                deadline_at=time.monotonic() - 1,
+            )
+
+        fetch.assert_not_called()
+        expired_diagnostics = expired["gearProjectionProfileCapture"]
+        self.assertTrue(expired_diagnostics["deadlineReached"])
+        self.assertEqual(expired_diagnostics["deferredIdentityCount"], 3)
+
+    def test_exact_profile_capture_attempts_every_hero_rank_one_before_rank_two(self):
+        rank_one_identities = [
+            f"raiderio:cn|realm-{index}|rank-one-{index}"
+            for index in range(80)
+        ]
+        rank_two_identities = [
+            f"raiderio:cn|realm-{index}|rank-two-{index}"
+            for index in range(80)
+        ]
+        promoted = [
+            {
+                "payload": {
+                    "gearProjectionCandidates": [
+                        {"talentCandidateRank": 1, "sourceIdentity": rank_one_identities[index]},
+                        {"talentCandidateRank": 2, "sourceIdentity": rank_two_identities[index]},
+                    ]
+                }
+            }
+            for index in range(80)
+        ]
+        attempted = []
+
+        def fake_fetch(character, _fields):
+            attempted.append(character["sourceIdentity"])
+            return {
+                **character,
+                "gear": [{"slot": "head", "itemId": 222001}],
+            }
+
+        with patch.dict(os.environ, {"WOW_RAIDERIO_PROFILE_WORKERS": "1"}), patch.object(
+            raiderio_payload,
+            "fetch_profile_for_character",
+            side_effect=fake_fetch,
+        ):
+            payload = raiderio_payload.capture_gear_projection_profiles(
+                promoted,
+                {"profiles": []},
+                request_limit=80,
+                deadline_at=time.monotonic() + 5,
+            )
+
+        diagnostics = payload["gearProjectionProfileCapture"]
+        self.assertEqual(attempted, rank_one_identities)
+        self.assertEqual(diagnostics["attemptedRequestCount"], 80)
+        self.assertEqual(diagnostics["deferredIdentityCount"], 80)
+        self.assertEqual(
+            diagnostics["deferredIdentityRefs"],
+            [
+                raiderio_payload._redacted_source_identity_ref(identity)
+                for identity in rank_two_identities[:diagnostics["diagnosticLimit"]]
+            ],
+        )
+
+    def test_malformed_external_profile_is_redacted_per_identity_and_batch_continues(self):
+        identities = [
+            "raiderio:cn|isillien|malformed",
+            "raiderio:cn|isillien|good",
+        ]
+        promoted = [{
+            "payload": {
+                "gearProjectionCandidates": [
+                    {"sourceIdentity": identity}
+                    for identity in identities
+                ]
+            }
+        }]
+
+        with patch.dict(os.environ, {"WOW_RAIDERIO_PROFILE_WORKERS": "1"}), patch.object(
+            raiderio_payload,
+            "api_get",
+            side_effect=[[], sample_profile_payload(name="good")],
+        ):
+            payload = raiderio_payload.capture_gear_projection_profiles(
+                promoted,
+                {"profiles": []},
+                request_limit=2,
+                deadline_at=time.monotonic() + 5,
+            )
+
+        diagnostics = payload["gearProjectionProfileCapture"]
+        self.assertEqual(diagnostics["fetchFailureCount"], 1)
+        self.assertEqual(diagnostics["capturedProfileCount"], 1)
+        self.assertEqual(payload["profiles"][0]["sourceIdentity"], identities[1])
+        self.assertNotIn("isillien|malformed", json.dumps(diagnostics["failures"]))
+        self.assertEqual(diagnostics["failures"][0]["error"], "Raider.IO malformed profile payload")
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.db_path = Path(self.tmp.name) / "rio.sqlite3"
@@ -877,6 +1163,185 @@ class RaiderIOPayloadTest(unittest.TestCase):
         self.assertEqual(payload["runDetailCoverage"]["requestedRunCount"], 1)
         self.assertEqual(payload["runDetailCoverage"]["talentSnapshotCount"], 1)
         self.assertTrue(payload["runDetailCoverage"]["spreadBySpec"])
+
+    def test_run_detail_snapshot_keeps_winner_gear_instead_of_current_profile_gear(self):
+        run = raiderio_payload.simplify_spec_ranking_run(
+            {
+                "rank": 1,
+                "score": 4204.52,
+                "character": {
+                    "name": "Twinktopper",
+                    "realm": {"name": "Tichondrius", "slug": "tichondrius"},
+                    "region": {"slug": "us"},
+                    "class": {"name": "Rogue", "slug": "rogue"},
+                    "spec": {"id": 259, "name": "Assassination", "slug": "assassination"},
+                },
+            },
+            {"keystoneRunId": 40671025, "mythicLevel": 23, "score": 530.9},
+            "rogue",
+            "assassination",
+            "us",
+            "https://raider.io/mythic-plus-spec-rankings/season-mn-1/us/rogue/assassination",
+        )
+        run_detail = {
+            "keystone_run_id": 40671025,
+            "completed_at": "2026-07-21T15:47:54.000Z",
+            "roster": [
+                {
+                    "character": {
+                        "name": "Twinktopper",
+                        "realm": {"name": "Tichondrius", "slug": "tichondrius"},
+                        "region": {"slug": "us"},
+                        "class": {"name": "Rogue", "slug": "rogue"},
+                        "spec": {"id": 259, "name": "Assassination", "slug": "assassination"},
+                        "talentLoadout": {
+                            "specId": 259,
+                            "heroSubTreeId": 52,
+                            "loadout": [{"traitId": 91001, "rank": 1}],
+                        },
+                    },
+                    "items": {
+                        "updated_at": "2026-07-17T07:54:00.000Z",
+                        "item_level_equipped": 292.5,
+                        "items": {
+                            "mainhand": {
+                                "item_id": 49807,
+                                "item_level": 298,
+                                "name": "Krick's Beetle Stabber",
+                            },
+                            "offhand": {
+                                "item_id": 237837,
+                                "item_level": 295,
+                                "name": "Farstrider's Mercy",
+                            },
+                        },
+                    },
+                }
+            ],
+        }
+
+        with patch.object(raiderio_payload, "fetch_run_detail", return_value=run_detail):
+            enriched_runs, summary = raiderio_payload.fetch_run_details_for_runs(
+                [run],
+                limit=1,
+                per_spec_limit=1,
+            )
+
+        def current_profile_with_mace(character, fields):
+            self.assertEqual(fields, "gear,talents,mythic_plus_recent_runs,mythic_plus_best_runs,mythic_plus_scores_by_season")
+            profile = raiderio_payload.profile_summary({
+                "name": character["name"],
+                "realm": {"name": "Tichondrius", "slug": "tichondrius"},
+                "region": "us",
+                "class": {"name": "Rogue", "slug": "rogue"},
+                "spec": {"name": "Assassination", "slug": "assassination"},
+                "profile_url": "https://raider.io/characters/us/tichondrius/Twinktopper",
+                "gear": {
+                    "item_level_equipped": 291.875,
+                    "items": {
+                        "mainhand": {
+                            "item_id": 251207,
+                            "item_level": 298,
+                            "name": "Dreadflail Bludgeon",
+                        }
+                    },
+                },
+            })
+            return profile
+
+        with patch.object(raiderio_payload, "fetch_profile_for_character", current_profile_with_mace):
+            profiles, errors = raiderio_payload.fetch_profiles_for_runs(enriched_runs)
+
+        self.assertEqual(errors, [])
+        profile = profiles["us|tichondrius|twinktopper"]
+        self.assertEqual(summary["gearSnapshotCount"], 1)
+        self.assertEqual(
+            [(item["slot"], item["itemId"]) for item in profile["gear"]],
+            [("main_hand", 49807), ("off_hand", 237837)],
+        )
+        self.assertEqual(profile["rankingEvidence"]["runId"], 40671025)
+        self.assertEqual(profile["gearSnapshotEvidence"]["source"], "run_detail")
+        self.assertEqual(profile["gearSnapshotEvidence"]["runId"], 40671025)
+
+    def test_stale_run_detail_gear_falls_back_to_current_profile(self):
+        run = raiderio_payload.simplify_spec_ranking_run(
+            {
+                "rank": 1,
+                "score": 4432.77,
+                "character": {
+                    "name": "绿绿月光",
+                    "realm": {"name": "Isillien", "slug": "isillien"},
+                    "region": {"slug": "cn"},
+                    "class": {"name": "Monk", "slug": "monk"},
+                    "spec": {"id": 270, "name": "Mistweaver", "slug": "mistweaver"},
+                },
+            },
+            {"keystoneRunId": 40829333, "mythicLevel": 25, "score": 549.2},
+            "monk",
+            "mistweaver",
+            "cn",
+            "https://raider.io/mythic-plus-spec-rankings/season-mn-1/cn/monk/mistweaver",
+        )
+        stale_detail = {
+            "keystone_run_id": 40829333,
+            "completed_at": "2026-07-21T15:47:54.000Z",
+            "roster": [
+                {
+                    "character": {
+                        "name": "绿绿月光",
+                        "realm": {"name": "Isillien", "slug": "isillien"},
+                        "region": {"slug": "cn"},
+                        "class": {"name": "Monk", "slug": "monk"},
+                        "spec": {"id": 270, "name": "Mistweaver", "slug": "mistweaver"},
+                        "talentLoadout": {
+                            "specId": 270,
+                            "heroSubTreeId": 64,
+                            "loadout": [{"traitId": 92001, "rank": 1}],
+                        },
+                    },
+                    "items": {
+                        "updated_at": "2025-07-17T02:24:09.216Z",
+                        "item_level_equipped": 667,
+                        "items": {
+                            "mainhand": {"item_id": 231268, "item_level": 678, "name": "Blastfurious Machete"},
+                            "offhand": {"item_id": 222566, "item_level": 675, "name": "Vagabond's Torch"},
+                        },
+                    },
+                }
+            ],
+        }
+        with patch.object(raiderio_payload, "fetch_run_detail", return_value=stale_detail):
+            enriched_runs, summary = raiderio_payload.fetch_run_details_for_runs([run], limit=1, per_spec_limit=1)
+
+        def current_profile_with_fist_weapon(character, fields):
+            return raiderio_payload.profile_summary({
+                "name": character["name"],
+                "realm": {"name": "Isillien", "slug": "isillien"},
+                "region": "cn",
+                "class": {"name": "Monk", "slug": "monk"},
+                "spec": {"name": "Mistweaver", "slug": "mistweaver"},
+                "profile_url": "https://raider.io/characters/cn/isillien/绿绿月光",
+                "gear": {
+                    "item_level_equipped": 289,
+                    "items": {
+                        "mainhand": {
+                            "item_id": 258050,
+                            "item_level": 289,
+                            "name": "Arcanic of the High Sage",
+                        }
+                    },
+                },
+            })
+
+        with patch.object(raiderio_payload, "fetch_profile_for_character", current_profile_with_fist_weapon):
+            profiles, errors = raiderio_payload.fetch_profiles_for_runs(enriched_runs)
+
+        self.assertEqual(errors, [])
+        self.assertEqual(summary["gearSnapshotCount"], 0)
+        self.assertEqual(summary["staleGearSnapshotCount"], 1)
+        profile = profiles["cn|isillien|绿绿月光"]
+        self.assertEqual(profile["gear"][0]["itemId"], 258050)
+        self.assertNotEqual((profile.get("gearSnapshotEvidence") or {}).get("source"), "run_detail")
 
     def test_run_detail_snapshots_are_keyed_by_region_and_run_id(self):
         os.environ["WOW_RAIDERIO_RUN_DETAIL_LIMIT"] = "2"

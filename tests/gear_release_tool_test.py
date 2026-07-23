@@ -2972,7 +2972,180 @@ class GearReleaseToolTest(unittest.TestCase):
         self.assertEqual(winners["sunfury"]["payload"]["gearProjectionMode"], "gear_fallback")
         self.assertEqual(winners["sunfury"]["payload"]["gearSourceTemplateId"], "frost-fallback")
         self.assertEqual(winners["spellslinger"]["payload"]["gearProjectionMode"], "talent_winner")
+        self.assertEqual(
+            winners["spellslinger"]["payload"]["importEvidence"]["schemaRevision"],
+            "community-template-import-evidence-v3",
+        )
         self.assertEqual(result["gate"]["winnerHeroSlotCount"], 2)
+        rank_one_rejection = next(
+            row for row in result["election"]["rejected"]
+            if row.get("candidateId") == "talent-frost-top"
+        )
+        self.assertEqual(rank_one_rejection["sourceIdentity"], frost_top["sourceIdentity"])
+        self.assertEqual(
+            rank_one_rejection["sourceUrl"],
+            "https://raider.io/characters/cn/realm/frost-top",
+        )
+        self.assertEqual(rank_one_rejection["problems"][0]["code"], "GEAR_CAPTURE_MISSING")
+        rank_one_gate_evidence = result["gate"]["rankOneRejections"][0]
+        self.assertEqual(
+            rank_one_gate_evidence,
+            {
+                "candidateId": "talent-frost-top",
+                "sourceIdentity": frost_top["sourceIdentity"],
+                "sourceUrl": "https://raider.io/characters/cn/realm/frost-top",
+                "problems": [{"code": "GEAR_CAPTURE_MISSING"}],
+            },
+        )
+        sealed = store.community_seals[0][2]
+        self.assertEqual(sealed["gate_result"]["rankOneRejections"], [rank_one_gate_evidence])
+        self.assertEqual(sealed["event"]["gate"]["rankOneRejections"], [rank_one_gate_evidence])
+
+    def test_community_hero_projection_uses_the_matching_spec_when_one_player_has_multiple_templates(self):
+        from server.gear_release_store import gear_snapshot_summary
+        from server.gear_release_tool import build_legacy_community_release
+
+        snapshot = self.snapshot()
+        gear = gear_release.build_release(
+            release_kind="gear",
+            season_revision="season-17",
+            schema_revision="gear-release-v1",
+            content=gear_snapshot_summary(snapshot),
+            dependency_revisions=self.dependencies(),
+            release_status="validated",
+            source={"sourceRevision": "hero-projection-spec-match-test"},
+        )
+        identity = "raiderio:cn|realm|multi-spec-player"
+        arcane = self.template("arcane-template")
+        arcane["sourceIdentity"] = identity
+        arcane["payload"]["sourceIdentity"] = identity
+        frost = self.template("frost-template")
+        frost["classKey"] = "mage"
+        frost["specKey"] = "frost"
+        frost["sourceIdentity"] = identity
+        frost["payload"]["sourceIdentity"] = identity
+        frost["updatedAt"] = "2026-07-12T00:00:00+00:00"
+        spellslinger = self.template("spellslinger-template")
+        spellslinger["sourceIdentity"] = "raiderio:cn|realm|spellslinger-player"
+        spellslinger["payload"]["sourceIdentity"] = spellslinger["sourceIdentity"]
+        talents = [
+            {"id": "talent-sunfury", "classKey": "mage", "specKey": "arcane", "heroKey": "sunfury", "scenarioKey": "mythic_plus", "sourceKey": "raiderio", "sourceIdentity": identity, "talentCandidateRank": 1},
+            {"id": "talent-spellslinger", "classKey": "mage", "specKey": "arcane", "heroKey": "spellslinger", "scenarioKey": "mythic_plus", "sourceKey": "raiderio", "sourceIdentity": spellslinger["sourceIdentity"], "talentCandidateRank": 1},
+        ]
+        store = FakeReleaseStore(snapshot, [frost, arcane, spellslinger], talents)
+
+        result = build_legacy_community_release(
+            store,
+            gear_release_descriptor=gear,
+            gear_snapshot=snapshot,
+            dependency_revisions=self.dependencies(),
+            expected_specs=[("mage", "arcane")],
+            now="2026-07-11T06:00:00+00:00",
+            resolver_for_spec=lambda *_args: self.verified_result(gear["releaseId"]),
+        )
+
+        winners = {row["payload"]["heroKey"]: row for row in result["rows"] if row["role"] == "winner"}
+        self.assertEqual(winners["sunfury"]["payload"]["gearSourceTemplateId"], "arcane-template")
+
+    def test_community_hero_projection_re_elects_a_real_player_within_the_same_spec_when_hero_source_is_not_importable(self):
+        from server.gear_release_store import gear_snapshot_summary
+        from server.gear_release_tool import build_legacy_community_release
+
+        snapshot = self.snapshot()
+        gear = gear_release.build_release(
+            release_kind="gear",
+            season_revision="season-17",
+            schema_revision="gear-release-v1",
+            content=gear_snapshot_summary(snapshot),
+            dependency_revisions=self.dependencies(),
+            release_status="validated",
+            source={"sourceRevision": "hero-projection-spec-re-election-test"},
+        )
+        fallback = self.template("arcane-spec-fallback")
+        fallback["sourceIdentity"] = "raiderio:cn|realm|arcane-fallback"
+        fallback["payload"]["sourceIdentity"] = fallback["sourceIdentity"]
+        spellslinger = self.template("spellslinger-template")
+        spellslinger["sourceIdentity"] = "raiderio:cn|realm|spellslinger-player"
+        spellslinger["payload"]["sourceIdentity"] = spellslinger["sourceIdentity"]
+        talents = [
+            {"id": "wcl-sunfury", "classKey": "mage", "specKey": "arcane", "heroKey": "sunfury", "scenarioKey": "mythic_plus", "sourceKey": "warcraftlogs", "sourceIdentity": "", "talentCandidateRank": 1},
+            {"id": "rio-spellslinger", "classKey": "mage", "specKey": "arcane", "heroKey": "spellslinger", "scenarioKey": "mythic_plus", "sourceKey": "raiderio", "sourceIdentity": spellslinger["sourceIdentity"], "talentCandidateRank": 1},
+        ]
+        store = FakeReleaseStore(snapshot, [fallback, spellslinger], talents)
+
+        result = build_legacy_community_release(
+            store,
+            gear_release_descriptor=gear,
+            gear_snapshot=snapshot,
+            dependency_revisions=self.dependencies(),
+            expected_specs=[("mage", "arcane")],
+            now="2026-07-11T06:00:00+00:00",
+            resolver_for_spec=lambda *_args: self.verified_result(gear["releaseId"]),
+        )
+
+        winners = {row["payload"]["heroKey"]: row for row in result["rows"] if row["role"] == "winner"}
+        sunfury = winners["sunfury"]["payload"]
+        self.assertEqual(sunfury["gearSourceTemplateId"], "arcane-spec-fallback")
+        self.assertEqual(sunfury["talentWinnerId"], "wcl-sunfury")
+        self.assertEqual(sunfury["gearProjectionMode"], "gear_fallback")
+        self.assertEqual(sunfury["gearProjectionFallbackScope"], "class_spec")
+
+    def test_build_legacy_all_cli_emits_rank_one_rejection_gate_evidence(self):
+        from server import gear_release_tool, simulator_payload
+
+        evidence = {
+            "candidateId": "talent-frost-top",
+            "sourceIdentity": "raiderio:cn|realm|frost-top",
+            "sourceUrl": "https://raider.io/characters/cn/realm/frost-top",
+            "problems": [{"code": "GEAR_CAPTURE_MISSING"}],
+        }
+        gear_result = {
+            "release": {"releaseId": "gear-release:test"},
+            "snapshot": {},
+            "gate": {"status": "validated"},
+            "seal": {"status": "inserted"},
+        }
+        community_result = {
+            "release": {"releaseId": "community-release:test"},
+            "gate": {
+                "status": "validated",
+                "rankOneRejectionCount": 1,
+                "rankOneRejections": [evidence],
+                "rankOneRejectionTruncatedCount": 0,
+            },
+            "seal": {"status": "inserted"},
+        }
+        output = io.StringIO()
+        with patch.object(gear_release_tool, "_store_from_environment", return_value=object()), patch.object(
+            gear_release_tool,
+            "runtime_dependency_revisions",
+            return_value=self.dependencies(),
+        ), patch.object(
+            simulator_payload,
+            "simc_binary",
+            return_value="/tmp/simc",
+        ), patch.object(
+            gear_release_tool,
+            "load_simc_socket_bonus_minimums",
+            return_value={},
+        ), patch.object(
+            gear_release_tool,
+            "build_legacy_gear_release",
+            return_value=gear_result,
+        ), patch.object(
+            gear_release_tool,
+            "build_legacy_community_release",
+            return_value=community_result,
+        ), redirect_stdout(output):
+            status = gear_release_tool.main([
+                "build-legacy-all",
+                "--season-revision", "season-17",
+                "--simc-runtime-revision", "simc-r1",
+            ])
+
+        self.assertEqual(status, 0)
+        rendered = json.loads(output.getvalue())
+        self.assertEqual(rendered["community"]["gate"]["rankOneRejections"], [evidence])
 
     def test_build_legacy_community_release_keeps_rejected_internal_and_degraded(self):
         from server.gear_release_store import gear_snapshot_summary

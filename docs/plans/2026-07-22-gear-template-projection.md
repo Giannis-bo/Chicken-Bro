@@ -16,7 +16,7 @@
 - 每个 (classKey, specKey, heroKey) 有一个合法 gear projection winner；每个 (classKey, specKey) 在社区导入页按两个 hero slot 展示两个可导入真人模板。候选耗尽时公开 pending_collection，不能伪造第二张卡。
 - POST /api/websim/gear/community-import 继续是社区导入唯一 authority；前端不得本地拼接 canonical import。
 - 保存模板必须持久化 gearBySlot 与 enhancementBySlot；重置是清空当前 draft，不是恢复 initial server loadout。
-- 不增加运行时同步、数据下载或自动 backfill；候选发布前保持 WOW_DEPLOY_START_ASYNC_SYNCS=0。
+- 只允许在天赋选举后按其已有 Raider.IO 候选身份定向补抓角色装备；不增加独立装备排名、新数据源或读时同步，候选发布前保持 WOW_DEPLOY_START_ASYNC_SYNCS=0。
 - 现有用户工作树中职业选择、装备槽布局相关的未提交修改不属于本任务，不得回退或覆盖。
 
 ## Requirement Contract
@@ -457,9 +457,43 @@ Record final commit/tree identity, keep WOW_DEPLOY_START_ASYNC_SYNCS=0, and insp
 
 Record each result as accepted, pending, or explicit user waiver. Tests, HTTP 200, coverage 80/80, or a screenshot alone do not grant user acceptance.
 
+### Task 7: Close the elected-identity gear capture gap
+
+**Files:**
+- Modify: server/raiderio_payload.py
+- Modify: server/postgres_cache_sync.py
+- Test: tests/raiderio_payload_test.py
+- Test: tests/postgres_cache_sync_test.py
+- Modify: artifacts/releases/2026-07-22-gear-template-projection/requirement.json
+
+**Consumes:** the promoted Talent rows and their ordered `gearProjectionCandidates`; the existing Raider.IO character-profile endpoint and observed-gear template builder.
+
+**Produces:** an election-owned, exact-identity profile capture pass whose result is merged into the cached Raider.IO profiles before observed gear templates are built; it reports every missing capture and every rank-one legality rejection without changing the Talent winner.
+
+- [ ] **Step 1: Write failing exact-identity capture tests**
+
+The pure identity selector must extract and deduplicate only valid `raiderio:<region>|<realm>|<name>` identities from the promoted hero-slot candidate order.  A sync characterization test must prove that an elected rank-one identity outside the generic per-spec profile quota is still fetched and merged before the gear-template build.
+
+- [ ] **Step 2: Run tests to verify the expected failure**
+
+Run: `python3 -m unittest tests.raiderio_payload_test tests.postgres_cache_sync_test -v`
+Expected: failures because no election-owned exact-profile capture stage exists.
+
+- [ ] **Step 3: Fetch and merge the exact candidate identities after Talent promotion**
+
+Use the existing Raider.IO profile API and `gear` field.  Do not discover or rank any new character.  Preserve the current cached payload, merge by immutable Raider.IO identity, and make the merged profiles available to the existing observed-template builder in the same sync run.  Record bounded counts and redacted per-identity fetch failures.
+
+- [ ] **Step 4: Preserve rank-one rejection evidence**
+
+The subsequent hero-slot projection must retain rank-one rejection codes, source identity and profile URL.  A rank-one failure may allow the same-hero fallback to be evaluated, but candidate preparation must surface the failure for user review before release promotion.
+
+- [ ] **Step 5: Verify locally and in the isolated candidate**
+
+Run the scoped Raider.IO/sync/store/projection/release tests, full Harness at a clean task head, then deploy only the candidate service.  Execute one controlled established-source sync and stage a non-active v2 release.  If any rank-one gear legality check fails, stop before promotion and report its character link, failure code and relevant captured fields to the user.
+
 ## Self-Review
 
-- **Spec coverage:** Tasks 4–5 implement save/import/clear; Tasks 1–3 turn shared 80 talent source identities into two legal equipment templates per class-spec; Task 6 covers current data truth, candidate release and real WeChat acceptance.
+- **Spec coverage:** Tasks 4–5 implement save/import/clear; Tasks 1–3 turn shared 80 talent source identities into two legal equipment templates per class-spec; Task 7 closes the exact winner-profile capture gap; Task 6 covers current data truth, candidate release and real WeChat acceptance.
 - **Trust coverage:** every public community branch is observed-only, resolver-verified, exact-ID imported and hero-scoped; fallback cannot alter talent truth or use baseline.
 - **Compatibility coverage:** Task 2 makes the new reader understand active v1 release during code rollout, while v2 promotion is blocked until all required hero slots are valid.
 - **Type consistency:** heroKey, talentWinnerId, gearProjectionMode, gearBySlot, and enhancementBySlot use the same spelling in source, release, API, model and page tasks.

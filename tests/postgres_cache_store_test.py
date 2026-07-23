@@ -1,5 +1,6 @@
 import hashlib
 import json
+import os
 import unittest
 import uuid
 from pathlib import Path
@@ -4964,6 +4965,12 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertIn("communityTemplateFreshness", sql)
         self.assertIn("lastSuccessfulSyncAt", sql)
         self.assertIn("consecutiveFailureCount", sql)
+        self.assertIn("'checkedAt', %s::text", sql)
+        self.assertIn("'availabilityPolicy', %s::text", sql)
+        talent_restore_params = conn.cursor_instance.params[0]
+        self.assertEqual(len(talent_restore_params), 8)
+        self.assertEqual(talent_restore_params[4], "2026-07-06T00:00:00+00:00")
+        self.assertEqual(talent_restore_params[5], "keep_available_until_replaced_or_hard_invalid")
         gear_blocked_sources = conn.cursor_instance.params[1][0]
         self.assertIn("source_reference", gear_blocked_sources)
         self.assertIn("manual_fixture", gear_blocked_sources)
@@ -9139,6 +9146,206 @@ class PostgresCacheStoreTest(unittest.TestCase):
             ("binding",),
             ("community", "gear-release:active", "community-release:active"),
         ])
+
+    def test_candidate_preview_release_binds_public_gear_to_sealed_community_pair(self):
+        from server import postgres_cache_store
+
+        manifest = {
+            "manifestRevision": "season-manifest:sha256:active",
+            "seasonRevision": "season-r1",
+            "gearCatalogReleaseId": "gear-release:active",
+            "communityTemplateReleaseId": "community-release:active",
+            "talentCatalogRevision": "talent-r1",
+        }
+        binding = {
+            "pointerMode": "active",
+            "generation": 3,
+            "manifestRevision": manifest["manifestRevision"],
+            "formalActiveManifest": True,
+            "manifest": manifest,
+            "gearRelease": {
+                "releaseId": "gear-release:active",
+                "releaseKind": "gear",
+                "releaseStatus": "validated",
+            },
+            "communityRelease": {
+                "releaseId": "community-release:active",
+                "releaseKind": "community",
+                "releaseStatus": "validated",
+                "schemaRevision": "community-release-v1",
+                "validatedAgainstReleaseId": "gear-release:active",
+            },
+        }
+        preview_release = {
+            "releaseId": "community-release:preview",
+            "releaseKind": "community",
+            "releaseStatus": "validated",
+            "schemaRevision": "community-release-v2",
+            "seasonRevision": "season-r1",
+            "validatedAgainstReleaseId": "gear-release:active",
+        }
+
+        class PreviewReleaseStore:
+            def __init__(self):
+                self.browse_bindings = []
+
+            def get_active_pointer(self):
+                return {
+                    "pointerMode": "active",
+                    "generation": 3,
+                    "manifestRevision": manifest["manifestRevision"],
+                }
+
+            def load_active_manifest_binding(self):
+                return binding
+
+            def get_release(self, release_id):
+                return preview_release if release_id == preview_release["releaseId"] else None
+
+            def load_active_public_gear(self, exact_binding, class_key, spec_key, *, include_catalog, catalog_slot=""):
+                self.browse_bindings.append(exact_binding)
+                return {
+                    "gearRelease": {
+                        "releaseId": "gear-release:active",
+                        "releaseStatus": "validated",
+                    },
+                    "communityRelease": exact_binding["communityRelease"],
+                    "communityTemplates": [{
+                        "id": "preview-winner",
+                        "classKey": class_key,
+                        "specKey": spec_key,
+                        "heroKey": "sunfury",
+                        "talentWinnerId": "talent-preview",
+                        "gearProjectionMode": "talent_winner",
+                        "status": "complete",
+                        "sourceStatus": "synced",
+                        "gearItems": [],
+                    }],
+                    "gearSnapshot": None,
+                }
+
+        release_store = PreviewReleaseStore()
+        store = postgres_cache_store.PostgresCacheStore(
+            lambda: self.fail("candidate preview must not query mutable staging"),
+            gear_release_store=release_store,
+        )
+
+        with patch.dict(os.environ, {"WOW_COMMUNITY_GEAR_PREVIEW_RELEASE_ID": preview_release["releaseId"]}, clear=False):
+            payload = store.get_websim_gear("mage", "arcane", compact=True, mode="initial")
+
+        preview_binding = release_store.browse_bindings[0]
+        self.assertTrue(preview_binding["candidatePreview"])
+        self.assertFalse(preview_binding["formalActiveManifest"])
+        self.assertEqual(
+            preview_binding["manifest"]["communityTemplateReleaseId"],
+            preview_release["releaseId"],
+        )
+        self.assertEqual(preview_binding["communityRelease"], preview_release)
+        self.assertTrue(payload["candidatePreview"])
+        self.assertFalse(payload["formalActiveManifest"])
+        self.assertEqual(payload["communityTemplateReleaseId"], preview_release["releaseId"])
+
+    def test_candidate_preview_can_bind_a_sealed_candidate_gear_and_community_pair(self):
+        from server import postgres_cache_store
+
+        manifest = {
+            "manifestRevision": "season-manifest:sha256:active",
+            "seasonRevision": "season-r1",
+            "gearCatalogReleaseId": "gear-release:active",
+            "communityTemplateReleaseId": "community-release:active",
+        }
+        binding = {
+            "pointerMode": "active",
+            "generation": 3,
+            "manifestRevision": manifest["manifestRevision"],
+            "formalActiveManifest": True,
+            "manifest": manifest,
+            "gearRelease": {
+                "releaseId": "gear-release:active",
+                "releaseKind": "gear",
+                "releaseStatus": "validated",
+                "seasonRevision": "season-r1",
+                "schemaRevision": "gear-release-v1",
+            },
+            "communityRelease": {
+                "releaseId": "community-release:active",
+                "releaseKind": "community",
+                "releaseStatus": "validated",
+                "schemaRevision": "community-release-v1",
+                "validatedAgainstReleaseId": "gear-release:active",
+            },
+        }
+        candidate_gear = {
+            "releaseId": "gear-release:preview",
+            "releaseKind": "gear",
+            "releaseStatus": "validated",
+            "schemaRevision": "gear-release-v1",
+            "seasonRevision": "season-r1",
+            "dependencyRevisions": {"simcRuntimeRevision": "simc-preview"},
+        }
+        candidate_community = {
+            "releaseId": "community-release:preview",
+            "releaseKind": "community",
+            "releaseStatus": "validated",
+            "schemaRevision": "community-release-v2",
+            "seasonRevision": "season-r1",
+            "validatedAgainstReleaseId": candidate_gear["releaseId"],
+        }
+
+        class PreviewReleaseStore:
+            def get_active_pointer(self):
+                return {
+                    "pointerMode": "active",
+                    "generation": 3,
+                    "manifestRevision": manifest["manifestRevision"],
+                }
+
+            def load_active_manifest_binding(self):
+                return binding
+
+            def get_release(self, release_id):
+                return {
+                    candidate_gear["releaseId"]: candidate_gear,
+                    candidate_community["releaseId"]: candidate_community,
+                }.get(release_id)
+
+            def load_active_public_gear(self, exact_binding, class_key, spec_key, *, include_catalog, catalog_slot=""):
+                self.binding = exact_binding
+                return {
+                    "gearRelease": exact_binding["gearRelease"],
+                    "communityRelease": exact_binding["communityRelease"],
+                    "communityTemplates": [],
+                    "gearSnapshot": None,
+                }
+
+        release_store = PreviewReleaseStore()
+        store = postgres_cache_store.PostgresCacheStore(
+            lambda: self.fail("candidate preview must not query mutable staging"),
+            gear_release_store=release_store,
+        )
+
+        with patch.dict(os.environ, {
+            "WOW_COMMUNITY_GEAR_PREVIEW_RELEASE_ID": candidate_community["releaseId"],
+            "WOW_GEAR_PREVIEW_RELEASE_ID": candidate_gear["releaseId"],
+        }, clear=False):
+            payload = store.get_websim_gear("mage", "arcane", compact=True, mode="initial")
+
+        self.assertTrue(release_store.binding["candidatePreview"])
+        self.assertEqual(release_store.binding["gearRelease"], candidate_gear)
+        self.assertEqual(
+            release_store.binding["manifest"]["gearCatalogReleaseId"],
+            candidate_gear["releaseId"],
+        )
+        self.assertEqual(
+            release_store.binding["manifest"]["dependencyRevisions"],
+            candidate_gear["dependencyRevisions"],
+        )
+        self.assertEqual(
+            release_store.binding["manifest"]["manifestRevision"],
+            "candidate-preview:sha256:2e5d2a554e295ed422199c4054c34996dd348193688d04d22c965bdf70c9fbdb",
+        )
+        self.assertLessEqual(len(release_store.binding["manifest"]["manifestRevision"]), 240)
+        self.assertEqual(payload["gearCatalogReleaseId"], candidate_gear["releaseId"])
 
     def test_transitional_manifest_binding_keeps_staging_authority_explicit(self):
         from server import postgres_cache_store

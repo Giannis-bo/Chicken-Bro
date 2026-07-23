@@ -12,6 +12,11 @@ import hashlib
 import json
 from typing import Any, Iterable
 
+try:
+    from .gear_public_contract import is_public_hero_gear_projection
+except ImportError:  # news_backend.py also supports direct script execution.
+    from gear_public_contract import is_public_hero_gear_projection
+
 
 RELEASE_SELECTED_ITEM_VARIANT_SQL = """
 /* gear_release_authority_items_variants */
@@ -668,6 +673,11 @@ def _exact_release_descriptor(release: Any) -> dict[str, Any]:
     return descriptor
 
 
+def _readable_release_binding(binding: Any) -> bool:
+    value = binding if isinstance(binding, dict) else {}
+    return value.get("formalActiveManifest") is True or value.get("candidatePreview") is True
+
+
 class GearReleaseStore:
     # The mutable Talent snapshot is now part of the source contract for new
     # Community Releases.  Kept as a capability flag so legacy test doubles
@@ -1257,13 +1267,14 @@ class GearReleaseStore:
         binding: dict[str, Any],
         runtime_authority: dict[str, Any],
     ) -> dict[str, Any]:
-        if not isinstance(binding, dict) or binding.get("formalActiveManifest") is not True:
-            raise GearReleaseIntegrityError("formal active Manifest binding is required")
+        if not _readable_release_binding(binding):
+            raise GearReleaseIntegrityError("formal active or candidate preview Manifest binding is required")
         manifest = binding.get("manifest") if isinstance(binding.get("manifest"), dict) else {}
         dependencies = self._active_runtime_dependencies(binding, runtime_authority)
         return _canonical({
             "contractRevision": "gear-resolver-context-v1",
-            "formalActiveManifest": True,
+            "formalActiveManifest": binding.get("formalActiveManifest") is True,
+            "candidatePreview": binding.get("candidatePreview") is True,
             "manifestRevision": _text(manifest.get("manifestRevision")),
             "pointerGeneration": _int(binding.get("generation")),
             "selectionSchemaRevision": _text(dependencies.get("selectionSchemaRevision")),
@@ -1291,8 +1302,8 @@ class GearReleaseStore:
         runtime_authority: dict[str, Any],
         binding: dict[str, Any],
     ) -> dict[str, Any]:
-        if not isinstance(binding, dict) or binding.get("formalActiveManifest") is not True:
-            raise GearReleaseIntegrityError("formal active Manifest binding is required")
+        if not _readable_release_binding(binding):
+            raise GearReleaseIntegrityError("formal active or candidate preview Manifest binding is required")
         manifest = binding.get("manifest") if isinstance(binding.get("manifest"), dict) else {}
         gear_release_id = _text(manifest.get("gearCatalogReleaseId"))
         dependencies = self._active_runtime_dependencies(binding, runtime_authority)
@@ -1316,9 +1327,10 @@ class GearReleaseStore:
         gear_release = binding.get("gearRelease") if isinstance(binding.get("gearRelease"), dict) else {}
         context["manifest"] = {
             "contractRevision": "active-season-manifest-v1",
-            "manifestType": "retail",
+            "manifestType": "candidate_preview" if binding.get("candidatePreview") is True else "retail",
             "manifestRevision": _text(manifest.get("manifestRevision")),
-            "formalActiveManifest": True,
+            "formalActiveManifest": binding.get("formalActiveManifest") is True,
+            "candidatePreview": binding.get("candidatePreview") is True,
             "pointerGeneration": _int(binding.get("generation")),
             "seasonRevision": _text(manifest.get("seasonRevision")),
             "gearCatalogReleaseId": gear_release_id,
@@ -1347,8 +1359,8 @@ class GearReleaseStore:
     ) -> dict[str, Any]:
         """Read public gear facts only from the immutable Releases in one active binding."""
 
-        if not isinstance(binding, dict) or binding.get("formalActiveManifest") is not True:
-            raise GearReleaseIntegrityError("formal active Manifest binding is required")
+        if not _readable_release_binding(binding):
+            raise GearReleaseIntegrityError("formal active or candidate preview Manifest binding is required")
         manifest = binding.get("manifest") if isinstance(binding.get("manifest"), dict) else {}
         gear = _exact_release_descriptor(binding.get("gearRelease"))
         gear_id = _text(manifest.get("gearCatalogReleaseId"))
@@ -1447,8 +1459,6 @@ class GearReleaseStore:
                             public_template["enhancementBySlot"] = enhancement_by_slot
                         community_templates.append(public_template)
                     if is_hero_projection:
-                        from .gear_public_contract import is_public_hero_gear_projection
-
                         hero_keys = [_text(template.get("heroKey")) for template in community_templates]
                         if len(set(hero_keys)) != expected_winner_count or any(
                             not is_public_hero_gear_projection(template)
@@ -1607,8 +1617,8 @@ class GearReleaseStore:
     ) -> dict[str, Any]:
         """Read one observed winner and only its import authority from one active binding."""
 
-        if not isinstance(binding, dict) or binding.get("formalActiveManifest") is not True:
-            raise GearReleaseIntegrityError("formal active Manifest binding is required")
+        if not _readable_release_binding(binding):
+            raise GearReleaseIntegrityError("formal active or candidate preview Manifest binding is required")
         manifest = binding.get("manifest") if isinstance(binding.get("manifest"), dict) else {}
         gear = _exact_release_descriptor(binding.get("gearRelease"))
         gear_id = _text(manifest.get("gearCatalogReleaseId"))
@@ -1663,8 +1673,6 @@ class GearReleaseStore:
                 ):
                     raise GearReleaseIntegrityError("active Community import winner integrity failed")
                 if community.get("schemaRevision") == "community-release-v2":
-                    from .gear_public_contract import is_public_hero_gear_projection
-
                     projection = _canonical(winner.get("payload") if isinstance(winner.get("payload"), dict) else {})
                     projection["id"] = _text(projection.get("id") or winner.get("templateId"))
                     projection["canApplyGear"] = True

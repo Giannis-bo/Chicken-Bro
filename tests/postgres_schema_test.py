@@ -19,6 +19,7 @@ WEBSIM_RELEASE_TRAIN = ROOT / "server" / "migrations" / "postgres" / "0013_websi
 WEBSIM_POINTER_STATE = ROOT / "server" / "migrations" / "postgres" / "0014_websim_active_manifest_pointer_state.sql"
 WEBSIM_GEAR_STAT_SNAPSHOTS = ROOT / "server" / "migrations" / "postgres" / "0015_websim_gear_stat_snapshots.sql"
 WEBSIM_ATTRIBUTE_RULE_AUDITS = ROOT / "server" / "migrations" / "postgres" / "0016_websim_attribute_rule_audits.sql"
+WEBSIM_HERO_COMMUNITY_RELEASE = ROOT / "server" / "migrations" / "postgres" / "0017_websim_hero_community_release.sql"
 
 
 class PostgresSchemaTest(unittest.TestCase):
@@ -340,6 +341,16 @@ class PostgresSchemaTest(unittest.TestCase):
         self.assertIn("cache.websim_release_events TO wow_app", normalized)
         self.assertIn("GRANT SELECT, INSERT, UPDATE ON cache.websim_active_manifest_pointer TO wow_app", normalized)
         self.assertIn("0013_websim_release_train", normalized)
+
+    def test_hero_community_release_migration_allows_two_ranked_winners_per_spec(self):
+        self.assertTrue(WEBSIM_HERO_COMMUNITY_RELEASE.exists(), "missing hero community release migration")
+        normalized = " ".join(WEBSIM_HERO_COMMUNITY_RELEASE.read_text(encoding="utf-8").split())
+        self.assertIn("DROP INDEX IF EXISTS cache.idx_cache_websim_community_release_one_winner", normalized)
+        self.assertIn(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_cache_websim_community_release_winner_rank ON cache.websim_community_release_templates (release_id, class_key, spec_key, election_rank) WHERE role = 'winner'",
+            normalized,
+        )
+        self.assertIn("0017_websim_hero_community_release", normalized)
 
     def test_websim_pointer_state_migration_supports_monotonic_transitional_rollback(self):
         self.assertTrue(WEBSIM_POINTER_STATE.exists(), "missing active Manifest pointer state migration")

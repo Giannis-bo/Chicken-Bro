@@ -6,7 +6,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
 
 
@@ -15,6 +15,10 @@ RAIDERIO_WEB_API_BASE_URL = "https://raider.io/api"
 RAIDERIO_CACHE_KEY = "raiderio_payload_v1"
 RAIDERIO_SOURCE_NAME = "Raider.IO"
 RAIDERIO_DEADLINE_ERROR = "Raider.IO sync deadline exceeded"
+GEAR_PROJECTION_PROFILE_REQUEST_LIMIT = 80
+GEAR_PROJECTION_PROFILE_TIMEOUT_SECONDS = 300
+GEAR_PROJECTION_PROFILE_DIAGNOSTIC_LIMIT = 12
+RUN_DETAIL_GEAR_MAX_AGE_DAYS = 30
 DEFAULT_REGION = "cn"
 DEFAULT_LOCALE = "cn"
 DEFAULT_SEASON_SLUG = "season-mn-1"
@@ -434,6 +438,292 @@ def character_source_identity(character):
     if not region or not realm_slug or not name:
         return ""
     return f"raiderio:{region}|{realm_slug}|{name}"
+
+
+def source_identity_character(value):
+    """Parse one canonical Raider.IO identity without accepting partial values."""
+
+    text = str(value or "")
+    matched = re.fullmatch(r"raiderio:([a-z]{2})\|([^|\s]+)\|([^|\s]+)", text)
+    if not matched:
+        return None
+    region, realm_slug, name = matched.groups()
+    if text != text.lower():
+        return None
+    return {
+        "region": region,
+        "realmSlug": realm_slug,
+        "name": name,
+        "sourceIdentity": text,
+    }
+
+
+def profile_url_for_source_identity(value):
+    character = source_identity_character(value)
+    if not character:
+        return ""
+    return "https://raider.io/characters/{}/{}/{}".format(
+        quote(character["region"], safe="-._~"),
+        quote(character["realmSlug"], safe="-._~"),
+        quote(character["name"], safe="-._~"),
+    )
+
+
+def select_gear_projection_source_identities(promoted_templates):
+    """Return persisted identities rank-major without changing any hero's order."""
+
+    identities = []
+    seen = set()
+    candidate_groups = []
+    for template in promoted_templates or []:
+        if not isinstance(template, dict):
+            continue
+        payload = template.get("payload") if isinstance(template.get("payload"), dict) else {}
+        candidates = payload.get("gearProjectionCandidates")
+        if not isinstance(candidates, list):
+            continue
+        candidate_groups.append(candidates)
+    max_candidate_count = max((len(candidates) for candidates in candidate_groups), default=0)
+    for candidate_index in range(max_candidate_count):
+        for candidates in candidate_groups:
+            if candidate_index >= len(candidates):
+                continue
+            candidate = candidates[candidate_index]
+            if not isinstance(candidate, dict):
+                continue
+            identity = str(candidate.get("sourceIdentity") or "")
+            if identity in seen or source_identity_character(identity) is None:
+                continue
+            seen.add(identity)
+            identities.append(identity)
+    return identities
+
+
+def _redacted_source_identity_ref(source_identity):
+    digest = hashlib.sha256(str(source_identity or "").encode("utf-8")).hexdigest()[:12]
+    return f"raiderio:sha256:{digest}"
+
+
+def _profile_source_identity(profile):
+    profile = profile if isinstance(profile, dict) else {}
+    explicit = str(profile.get("sourceIdentity") or "")
+    if source_identity_character(explicit):
+        return explicit
+    return character_source_identity(profile)
+
+
+def _profile_has_usable_gear(profile):
+    profile = profile if isinstance(profile, dict) else {}
+    gear = profile.get("gear")
+    return isinstance(gear, list) and any(
+        isinstance(item, dict) and item.get("slot") and safe_int(item.get("itemId")) > 0
+        for item in gear
+    )
+
+
+def _merge_gear_only_profile(cached_profile, fetched_profile):
+    """Merge current base/gear fields without erasing ranking or Talent evidence."""
+
+    cached_profile = cached_profile if isinstance(cached_profile, dict) else {}
+    fetched_profile = fetched_profile if isinstance(fetched_profile, dict) else {}
+    merged = {**cached_profile, **fetched_profile}
+    for field in (
+        "rankingEvidence",
+        "talentLoadout",
+        "provenance",
+        "sourceRefs",
+        "profileHash",
+        "gearHash",
+    ):
+        if cached_profile.get(field) not in (None, "", [], {}):
+            merged[field] = cached_profile[field]
+    return merged
+
+
+def capture_gear_projection_profiles(
+    promoted_templates,
+    cached_payload,
+    stage_callback=None,
+    *,
+    request_limit=None,
+    deadline_at=None,
+):
+    """Fetch exact elected identities and merge them ahead of generic quota profiles."""
+
+    started_at = emit_sync_stage(
+        stage_callback,
+        "raiderio_gear_projection_profiles",
+        "start",
+    )
+    identities = select_gear_projection_source_identities(promoted_templates)
+    cached_payload = dict(cached_payload or {})
+    cached_profiles = [
+        dict(profile)
+        for profile in cached_payload.get("profiles") or []
+        if isinstance(profile, dict)
+    ]
+    cached_by_identity = {}
+    for profile in cached_profiles:
+        identity = _profile_source_identity(profile)
+        if identity and identity not in cached_by_identity:
+            cached_by_identity[identity] = profile
+
+    effective_request_limit = min(
+        GEAR_PROJECTION_PROFILE_REQUEST_LIMIT,
+        max(
+            0,
+            safe_int(
+                GEAR_PROJECTION_PROFILE_REQUEST_LIMIT
+                if request_limit is None
+                else request_limit
+            ),
+        ),
+    )
+    try:
+        effective_deadline_at = float(deadline_at)
+    except (TypeError, ValueError):
+        effective_deadline_at = 0.0
+    if effective_deadline_at <= 0:
+        effective_deadline_at = time.monotonic() + GEAR_PROJECTION_PROFILE_TIMEOUT_SECONDS
+
+    cache_is_fresh = payload_is_fresh(cached_payload)
+    fresh_cached_identities = {
+        identity
+        for identity in identities
+        if cache_is_fresh and _profile_has_usable_gear(cached_by_identity.get(identity))
+    }
+    fetched_by_identity = {}
+    failures = []
+    fetch_characters = [
+        source_identity_character(identity)
+        for identity in identities
+        if identity not in fresh_cached_identities
+    ]
+    results = []
+    deferred_characters = []
+    attempted_request_count = 0
+    deadline_reached = False
+    request_budget_exhausted = False
+    cursor = 0
+    workers = min(profile_fetch_workers(), effective_request_limit) if effective_request_limit else 0
+    while cursor < len(fetch_characters):
+        if time.monotonic() >= effective_deadline_at:
+            deadline_reached = True
+            deferred_characters.extend(fetch_characters[cursor:])
+            break
+        remaining_budget = effective_request_limit - attempted_request_count
+        if remaining_budget <= 0:
+            request_budget_exhausted = True
+            deferred_characters.extend(fetch_characters[cursor:])
+            break
+        batch_size = min(max(1, workers), remaining_budget, len(fetch_characters) - cursor)
+        batch = fetch_characters[cursor : cursor + batch_size]
+        attempted_request_count += len(batch)
+        cursor += len(batch)
+        if len(batch) == 1:
+            character = batch[0]
+            try:
+                results.append((character, fetch_profile_for_character(character, "gear"), None))
+            except (RaiderIOError, TimeoutError, OSError) as error:
+                results.append((character, None, profile_fetch_error_message(error)))
+            continue
+        indexed_results = [None] * len(batch)
+        with ThreadPoolExecutor(max_workers=len(batch)) as executor:
+            future_indexes = {
+                executor.submit(fetch_profile_for_character, character, "gear"): index
+                for index, character in enumerate(batch)
+            }
+            for future in as_completed(future_indexes):
+                index = future_indexes[future]
+                character = batch[index]
+                try:
+                    indexed_results[index] = (character, future.result(), None)
+                except (RaiderIOError, TimeoutError, OSError) as error:
+                    indexed_results[index] = (character, None, profile_fetch_error_message(error))
+        results.extend(result for result in indexed_results if result is not None)
+
+    for character, profile, error in results:
+        requested_identity = character["sourceIdentity"]
+        if error:
+            failures.append({
+                "identityRef": _redacted_source_identity_ref(requested_identity),
+                "error": redact_secret(error),
+            })
+            continue
+        profile = dict(profile or {})
+        captured_identity = character_source_identity(profile)
+        if captured_identity != requested_identity:
+            failures.append({
+                "identityRef": _redacted_source_identity_ref(requested_identity),
+                "error": "Raider.IO exact profile identity mismatch",
+            })
+            continue
+        profile["sourceIdentity"] = requested_identity
+        if not profile.get("profileUrl"):
+            profile["profileUrl"] = profile_url_for_source_identity(requested_identity)
+        fetched_by_identity[requested_identity] = profile
+
+    exact_profiles = []
+    missing_identity_refs = []
+    for identity in identities:
+        cached_profile = cached_by_identity.get(identity)
+        fetched_profile = fetched_by_identity.get(identity)
+        profile = (
+            _merge_gear_only_profile(cached_profile, fetched_profile)
+            if cached_profile and fetched_profile
+            else fetched_profile or cached_profile
+        )
+        if profile:
+            exact_profiles.append(profile)
+        else:
+            missing_identity_refs.append(_redacted_source_identity_ref(identity))
+
+    remaining_profiles = []
+    exact_identity_set = set(identities)
+    for profile in cached_profiles:
+        if _profile_source_identity(profile) not in exact_identity_set:
+            remaining_profiles.append(profile)
+    merged_profiles = [*exact_profiles, *remaining_profiles]
+    diagnostic_limit = GEAR_PROJECTION_PROFILE_DIAGNOSTIC_LIMIT
+    deferred_identity_refs = [
+        _redacted_source_identity_ref(character.get("sourceIdentity"))
+        for character in deferred_characters
+    ]
+    diagnostics = {
+        "schemaRevision": "raiderio-gear-projection-profile-capture-v1",
+        "requestedIdentityCount": len(identities),
+        "requestLimit": effective_request_limit,
+        "fetchCandidateCount": len(fetch_characters),
+        "attemptedRequestCount": attempted_request_count,
+        "freshCachedProfileCount": len(fresh_cached_identities),
+        "capturedProfileCount": len(fetched_by_identity),
+        "reusedCachedProfileCount": max(0, len(exact_profiles) - len(fetched_by_identity)),
+        "availableProfileCount": len(exact_profiles),
+        "mergedProfileCount": len(merged_profiles),
+        "fetchFailureCount": len(failures),
+        "deferredIdentityCount": len(deferred_identity_refs),
+        "deferredIdentityRefs": deferred_identity_refs[:diagnostic_limit],
+        "deadlineReached": deadline_reached,
+        "requestBudgetExhausted": request_budget_exhausted,
+        "missingCaptureCount": len(missing_identity_refs),
+        "failures": failures[:diagnostic_limit],
+        "missingIdentityRefs": missing_identity_refs[:diagnostic_limit],
+        "diagnosticLimit": diagnostic_limit,
+    }
+    merged_payload = {
+        **cached_payload,
+        "profiles": merged_profiles,
+        "profileCount": max(safe_int(cached_payload.get("profileCount")), len(merged_profiles)),
+        "gearProjectionProfileCapture": diagnostics,
+    }
+    emit_sync_stage(
+        stage_callback,
+        "raiderio_gear_projection_profiles",
+        "complete",
+        started_at,
+        diagnostics,
+    )
+    return merged_payload
 
 
 def expected_spec_pairs():
@@ -1464,6 +1754,8 @@ def combine_run_detail_summaries(base_summary, gap_summary=None):
         **base,
         "requestedRunCount": safe_int(base.get("requestedRunCount")) + safe_int(gap.get("requestedRunCount")),
         "talentSnapshotCount": safe_int(base.get("talentSnapshotCount")) + safe_int(gap.get("talentSnapshotCount")),
+        "gearSnapshotCount": safe_int(base.get("gearSnapshotCount")) + safe_int(gap.get("gearSnapshotCount")),
+        "staleGearSnapshotCount": safe_int(base.get("staleGearSnapshotCount")) + safe_int(gap.get("staleGearSnapshotCount")),
         "errors": [*(base.get("errors") or []), *(gap.get("errors") or [])],
         "gapFill": gap,
     }
@@ -1632,7 +1924,12 @@ def fetch_profile_for_character(character, fields):
         "name": character.get("name"),
         "fields": fields,
     })
-    summary = profile_summary(raw)
+    if not isinstance(raw, dict):
+        raise RaiderIOError("Raider.IO malformed profile payload")
+    try:
+        summary = profile_summary(raw)
+    except (AttributeError, KeyError, TypeError, ValueError):
+        raise RaiderIOError("Raider.IO malformed profile payload") from None
     for key in ("region", "realm", "realmSlug", "className", "classKey", "specName", "specKey", "role"):
         if not summary.get(key) and character.get(key):
             summary[key] = character.get(key)
@@ -1880,8 +2177,19 @@ def fetch_run_detail(run, season_slug):
     return api_get("/mythic-plus/run-details", {"season": season_slug, "id": run_id})
 
 
+def run_detail_gear_snapshot_is_fresh(detail, items_payload):
+    completed_at = parse_iso((detail or {}).get("completed_at") or (detail or {}).get("completedAt"))
+    items_updated_at = parse_iso(
+        (items_payload or {}).get("updated_at") or (items_payload or {}).get("updatedAt")
+    )
+    if not completed_at or not items_updated_at:
+        return True
+    return items_updated_at >= completed_at - timedelta(days=RUN_DETAIL_GEAR_MAX_AGE_DAYS)
+
+
 def run_detail_talent_snapshots(detail):
     snapshots = {}
+    run_id = safe_int((detail or {}).get("keystone_run_id") or (detail or {}).get("keystoneRunId"))
     for member in (detail or {}).get("roster") or []:
         if not isinstance(member, dict):
             continue
@@ -1891,17 +2199,39 @@ def run_detail_talent_snapshots(detail):
             continue
         character_payload = member.get("character") if isinstance(member.get("character"), dict) else {}
         talent = character_payload.get("talentLoadout") or member.get("talentLoadout") or {}
-        if not isinstance(talent, dict):
+        loadout = talent.get("loadout") if isinstance(talent, dict) and isinstance(talent.get("loadout"), list) else []
+        items_payload = member.get("items") if isinstance(member.get("items"), dict) else {}
+        gear = extract_gear({"gear": items_payload}) if items_payload else []
+        if not loadout and not gear:
             continue
-        loadout = talent.get("loadout") if isinstance(talent.get("loadout"), list) else []
-        if not loadout:
-            continue
-        snapshots[key] = {
-            "loadoutSpecId": talent.get("specId") or talent.get("loadoutSpecId") or talent.get("loadout_spec_id") or "",
-            "heroSubTreeId": talent.get("heroSubTreeId") or talent.get("hero_sub_tree_id") or "",
-            "loadout": loadout,
-            "source": "run_detail",
-        }
+        snapshot = {}
+        if loadout:
+            snapshot["talentLoadout"] = {
+                "loadoutSpecId": talent.get("specId") or talent.get("loadoutSpecId") or talent.get("loadout_spec_id") or "",
+                "heroSubTreeId": talent.get("heroSubTreeId") or talent.get("hero_sub_tree_id") or "",
+                "loadout": loadout,
+                "source": "run_detail",
+            }
+        if gear:
+            item_level = safe_float(items_payload.get("item_level_equipped") or items_payload.get("itemLevelEquipped"))
+            gear_is_fresh = run_detail_gear_snapshot_is_fresh(detail, items_payload)
+            snapshot["gearSnapshotEvidence"] = {
+                "source": "run_detail",
+                "status": "verified" if gear_is_fresh else "stale",
+                "runId": run_id,
+                "runCompletedAt": (detail or {}).get("completed_at") or (detail or {}).get("completedAt") or "",
+                "itemsUpdatedAt": items_payload.get("updated_at") or items_payload.get("updatedAt") or "",
+                "itemLevel": item_level,
+            }
+            snapshot["gearSnapshotEvidence"] = {
+                field: value
+                for field, value in snapshot["gearSnapshotEvidence"].items()
+                if value not in (None, "", 0, 0.0)
+            }
+            if gear_is_fresh:
+                snapshot["gear"] = gear
+                snapshot["itemLevel"] = item_level
+        snapshots[key] = snapshot
     return snapshots
 
 
@@ -1916,13 +2246,19 @@ def merge_run_detail_talents(runs, detail_snapshots):
             character_copy = dict(character)
             snapshot = detail_snapshots.get(run_detail_key(run), {}).get(character_key(character_copy))
             if snapshot:
-                existing = character_copy.get("talentLoadout") if isinstance(character_copy.get("talentLoadout"), dict) else {}
-                character_copy["talentLoadout"] = {
-                    **existing,
-                    **snapshot,
-                    "rawImportCode": existing.get("rawImportCode") or snapshot.get("rawImportCode") or "",
-                    "source": "run_detail",
-                }
+                talent_snapshot = snapshot.get("talentLoadout") if isinstance(snapshot.get("talentLoadout"), dict) else {}
+                if talent_snapshot:
+                    existing = character_copy.get("talentLoadout") if isinstance(character_copy.get("talentLoadout"), dict) else {}
+                    character_copy["talentLoadout"] = {
+                        **existing,
+                        **talent_snapshot,
+                        "rawImportCode": existing.get("rawImportCode") or talent_snapshot.get("rawImportCode") or "",
+                        "source": "run_detail",
+                    }
+                if isinstance(snapshot.get("gear"), list) and snapshot.get("gear"):
+                    character_copy["gear"] = list(snapshot["gear"])
+                    character_copy["itemLevel"] = snapshot.get("itemLevel") or character_copy.get("itemLevel") or 0
+                    character_copy["gearSnapshotEvidence"] = dict(snapshot.get("gearSnapshotEvidence") or {})
             roster.append(character_copy)
         run_copy["roster"] = roster
         enriched.append(run_copy)
@@ -1953,6 +2289,8 @@ def fetch_run_details_for_runs(
     summary = {
         "requestedRunCount": len(candidates),
         "talentSnapshotCount": 0,
+        "gearSnapshotCount": 0,
+        "staleGearSnapshotCount": 0,
         "errors": [],
         "limit": candidate_limit,
         "limitPerSpec": candidate_per_spec_limit,
@@ -2000,7 +2338,26 @@ def fetch_run_details_for_runs(
                 except (RaiderIOError, TimeoutError, OSError) as error:
                     errors.append(run_detail_error_message(error))
     summary["errors"] = errors
-    summary["talentSnapshotCount"] = sum(len(snapshots or {}) for snapshots in details_by_run.values())
+    summary["talentSnapshotCount"] = sum(
+        1
+        for snapshots in details_by_run.values()
+        for snapshot in (snapshots or {}).values()
+        if isinstance(snapshot, dict) and isinstance(snapshot.get("talentLoadout"), dict)
+    )
+    summary["gearSnapshotCount"] = sum(
+        1
+        for snapshots in details_by_run.values()
+        for snapshot in (snapshots or {}).values()
+        if isinstance(snapshot, dict) and isinstance(snapshot.get("gear"), list) and snapshot.get("gear")
+    )
+    summary["staleGearSnapshotCount"] = sum(
+        1
+        for snapshots in details_by_run.values()
+        for snapshot in (snapshots or {}).values()
+        if isinstance(snapshot, dict)
+        and isinstance(snapshot.get("gearSnapshotEvidence"), dict)
+        and snapshot["gearSnapshotEvidence"].get("status") == "stale"
+    )
     enriched_runs = merge_run_detail_talents(runs, details_by_run)
     emit_sync_stage(
         stage_callback,
@@ -2010,10 +2367,77 @@ def fetch_run_details_for_runs(
         {
             "requestedRunCount": summary["requestedRunCount"],
             "talentSnapshotCount": summary["talentSnapshotCount"],
+            "gearSnapshotCount": summary["gearSnapshotCount"],
+            "staleGearSnapshotCount": summary["staleGearSnapshotCount"],
             "errors": len(errors),
         },
     )
     return enriched_runs, summary
+
+
+def merge_run_detail_gear_profiles(runs, profiles):
+    """Prefer the elected run's equipment snapshot over a later character profile."""
+
+    merged_profiles = dict(profiles or {})
+    for run in runs or []:
+        ranking_evidence = run_ranking_evidence(run)
+        for character in run.get("roster") or []:
+            gear = character.get("gear") if isinstance(character.get("gear"), list) else []
+            snapshot_evidence = (
+                character.get("gearSnapshotEvidence")
+                if isinstance(character.get("gearSnapshotEvidence"), dict)
+                else {}
+            )
+            if not gear or snapshot_evidence.get("source") != "run_detail":
+                continue
+            key = character_key(character)
+            if not key:
+                continue
+            existing = merged_profiles.get(key) if isinstance(merged_profiles.get(key), dict) else {}
+            existing_snapshot = (
+                existing.get("gearSnapshotEvidence")
+                if isinstance(existing.get("gearSnapshotEvidence"), dict)
+                else {}
+            )
+            existing_ranking = existing.get("rankingEvidence") if isinstance(existing.get("rankingEvidence"), dict) else {}
+            if (
+                existing_snapshot.get("source") == "run_detail"
+                and ranking_evidence_sort_key(existing_ranking) > ranking_evidence_sort_key(ranking_evidence)
+            ):
+                continue
+            source_identity = character_source_identity(character)
+            run_profile = {
+                **existing,
+                **{
+                    field: character.get(field)
+                    for field in (
+                        "name",
+                        "realm",
+                        "realmSlug",
+                        "realmAltName",
+                        "region",
+                        "className",
+                        "classSlug",
+                        "classKey",
+                        "specName",
+                        "specSlug",
+                        "specKey",
+                        "role",
+                        "profileUrl",
+                        "raceKey",
+                        "talentLoadout",
+                    )
+                    if character.get(field) not in (None, "", [], {})
+                },
+                "gear": list(gear),
+                "itemLevel": character.get("itemLevel") or existing.get("itemLevel") or 0,
+                "rankingEvidence": ranking_evidence,
+                "gearSnapshotEvidence": dict(snapshot_evidence),
+            }
+            if source_identity:
+                run_profile["sourceIdentity"] = source_identity
+            merged_profiles[key] = run_profile
+    return merged_profiles
 
 
 def fetch_profiles_for_runs(runs, target_item_ids=None, deadline_at=0, stage_callback=None):
@@ -2062,6 +2486,7 @@ def fetch_profiles_for_runs(runs, target_item_ids=None, deadline_at=0, stage_cal
             base_stage_started,
             {"profileCount": len(profiles), "errors": len(base_batch_errors)},
         )
+    profiles = merge_run_detail_gear_profiles(runs, profiles)
     targets = [] if compact_talent_profiles else [str(item_id) for item_id in target_item_ids or [] if str(item_id or "").strip()]
     if targets and target_profile_limit():
         requested = {character_key(character) for character in unique}
@@ -2374,6 +2799,8 @@ def build_community_templates(aggregates, checked_at):
             "score": safe_float(ranking_evidence.get("score")),
             "rank": safe_int(ranking_evidence.get("rank")),
             "maxKeyLevel": safe_int(ranking_evidence.get("maxKeyLevel") or loadout.get("maxKeyLevel") or aggregate.get("maxKeyLevel")),
+            "runId": safe_int(ranking_evidence.get("runId")),
+            "sourceUrl": ranking_evidence.get("sourceUrl") or "",
             "region": region,
             "profileUrl": loadout.get("profileUrl") or "",
         }

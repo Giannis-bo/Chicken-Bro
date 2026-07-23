@@ -30,6 +30,7 @@
   "impactMap": {
     "mustChange": [
       "Persist the Talent election's full ordered Raider.IO candidate sequence on each elected Talent row.",
+      "After Talent promotion, fetch the exact persisted gearProjectionCandidates identities and merge their gear profiles ahead of the generic profile quota before observed-template projection.",
       "Keep observed gear by stable player identity and project one legal gear winner per Hero slot without a second ranking.",
       "Publish/import exactly the two sealed Hero-slot rows and preserve explicit save/import/reset actions in the active Taro equipment route."
     ],
@@ -44,6 +45,7 @@
     ],
     "evidenceRequired": [
       "Exact candidate code/build identity, health/API/PG/timer smoke and rollback target.",
+      "Bounded exact-profile capture diagnostics and rank-one rejection evidence retaining source identity, character URL and legality code.",
       "A controlled existing-source community-template sync and a v2 candidate release showing no public baseline and honest pending slots.",
       "Real WeChat acceptance of save, saved import, two Hero-labelled community choices when available, and full reset."
     ]
@@ -98,6 +100,10 @@
     {
       "date": "2026-07-22",
       "decision": "The user authorized candidate verification and the controlled existing-source data refresh required to prepare manual testing."
+    },
+    {
+      "date": "2026-07-22",
+      "decision": "After confirming that Talent winners and generic profile quotas were different identity sets, the user approved an exact post-election Raider.IO gear-profile capture pass and requested that every rank-one gear-legality failure be reported with its character link and reason before release promotion."
     }
   ]
 }

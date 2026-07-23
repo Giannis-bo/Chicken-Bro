@@ -827,6 +827,22 @@ class GearReleaseStoreTest(unittest.TestCase):
         self.assertIn("item_id = ANY(%s::text[])", sql)
         self.assertIn("option_key = ANY(%s::text[])", sql)
 
+    def test_candidate_preview_import_uses_the_same_sealed_release_reader(self):
+        from server.gear_release_store import GearReleaseStore
+
+        binding, _rows, _snapshot, rowsets = self.active_community_import_fixture()
+        binding["formalActiveManifest"] = False
+        binding["candidatePreview"] = True
+        binding["pointerMode"] = "candidate_preview"
+
+        result = GearReleaseStore(lambda: FakeConnection(rowsets=rowsets)).load_active_community_template_import(
+            binding, "mage", "arcane", "template-a"
+        )
+
+        self.assertEqual(result["winner"]["templateId"], "template-a")
+        self.assertTrue(result["binding"]["candidatePreview"])
+        self.assertFalse(result["binding"]["formalActiveManifest"])
+
     def test_active_community_import_accepts_either_exact_v2_hero_projection_id(self):
         from server.gear_release_store import GearReleaseStore, canonical_row_hash, community_rows_summary
 
