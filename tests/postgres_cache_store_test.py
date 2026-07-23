@@ -9914,6 +9914,52 @@ class PostgresCacheStoreTest(unittest.TestCase):
             candidate_gear["dependencyRevisions"],
         )
 
+    def test_observed_build_compile_context_delegates_to_release_repository(self):
+        from server import postgres_cache_store
+
+        binding = {
+            "formalActiveManifest": True,
+            "manifest": {
+                "gearCatalogReleaseId": "gear-release:active",
+            },
+        }
+        release_data = {
+            "gearRelease": {"releaseId": "gear-release:active"},
+            "gearSnapshot": {
+                "items": [{"itemId": "1"}],
+                "sources": [],
+                "variants": [],
+                "options": [],
+            },
+        }
+
+        class ReleaseStore:
+            def load_active_manifest_binding(self):
+                return binding
+
+            def load_active_observed_compile_context(
+                self,
+                exact_binding,
+                gear_items,
+            ):
+                self.call = (exact_binding, gear_items)
+                return release_data
+
+        release_store = ReleaseStore()
+        store = postgres_cache_store.PostgresCacheStore(
+            lambda: self.fail("compile context must use the release repository"),
+            gear_release_store=release_store,
+        )
+        gear_items = [{"itemId": 1, "slot": "head"}]
+
+        context = store.get_observed_build_gear_compile_context(gear_items)
+
+        self.assertEqual(release_store.call, (binding, gear_items))
+        self.assertEqual(context["manifest"], binding["manifest"])
+        self.assertEqual(context["gearRelease"], release_data["gearRelease"])
+        self.assertEqual(context["gearSnapshot"], release_data["gearSnapshot"])
+        self.assertIsNot(context["gearSnapshot"], release_data["gearSnapshot"])
+
     def test_transitional_manifest_binding_keeps_staging_authority_explicit(self):
         from server import postgres_cache_store
 

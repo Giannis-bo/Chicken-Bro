@@ -7400,17 +7400,17 @@ class PostgresCacheStore:
         )
         data = data if isinstance(data, dict) else {}
         return {
-            "manifest": _canonical_json(
+            "manifest": copy.deepcopy(
                 binding.get("manifest")
                 if isinstance(binding.get("manifest"), dict)
                 else {}
             ),
-            "gearRelease": _canonical_json(
+            "gearRelease": copy.deepcopy(
                 data.get("gearRelease")
                 if isinstance(data.get("gearRelease"), dict)
                 else {}
             ),
-            "gearSnapshot": _canonical_json(
+            "gearSnapshot": copy.deepcopy(
                 data.get("gearSnapshot")
                 if isinstance(data.get("gearSnapshot"), dict)
                 else {}
