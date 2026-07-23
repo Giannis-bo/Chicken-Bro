@@ -3,6 +3,7 @@
 状态：正在推进
 分类：Strict
 确认日期：2026-07-23
+共享玩家合同确认：2026-07-23
 
 当前实施入口：[Observed Build Registry Core Implementation Plan](2026-07-23-observed-build-registry-core-implementation.md)
 
@@ -12,15 +13,20 @@
 
 Raider.IO 玩家数据不再直接推动天赋、装备、Community Release、Manifest 和 SimC 的整条发布链。系统先把真实玩家观测事实保存为不可变、可追溯、可重放的 `ObservedBuildSnapshot`，再由一个后端 `Projection Compiler` 对当前 Talent Catalog、Gear Release、规则和 serializer dependency vector 编译出天赋与装备 canonical projection。公开模板只引用已验证 projection；每日发布物是一份包含 80 个 class/spec/hero/scenario 槽位引用的 `TemplateSet`，通过单一活动指针原子切换。
 
+这 80 个槽位同时是唯一玩家事实集：40 个职业专精各有两个 Hero 槽，每槽绑定一位真实玩家，同一专精的两个槽必须具有不同的 `sourceIdentity`。天赋模拟按 Hero 槽读取一份天赋 projection；装备模拟把同一专精的两个 Hero 槽投影为两份装备模板。天赋和装备不得分别选人，也不得在装备映射失败时改用另一位玩家。
+
 现有 canonical resolver、talent authority、PG-only runtime、observed-only public policy、exact-ID community import、async stat snapshot 和 SimC task runner继续保留。设计不引入微服务、event sourcing、通用 DSL、通用 Claim DAG 或运行时读接口同步。
 
 ## 用户结果与可信承诺
 
 玩家在天赋模拟和装备模拟中看到的是同一批真实高端玩家来源经过当前本地 authority 映射后的模板：
 
+- 任意职业专精的装备模拟固定展示两个真实角色模板，严格对应这个专精两个 Hero 槽的两位玩家。
+- 任意职业、专精、Hero 组合的天赋模拟固定展示一个真实角色模板。
+- 同一 Hero 槽的天赋与装备必须绑定同一个 `snapshotId/sourceIdentity`，并且都可通过现有 exact import 合同导入。
 - 模板明确展示玩家、服务器、区域、Hero、场景、来源时间和新鲜度。
 - Rank 1 玩家从 A 变为 B，且 B 通过来源、映射、合法性和完整性门禁后，系统可以自动发布 B。
-- 新快照无法映射或校验时，不清空旧模板；同一槽位继续使用最近一次已验证模板并标记为过期或“新 winner 待验证”。
+- 新快照的天赋或装备任一 projection 无法映射或校验时，不做半槽切换；同一槽位的天赋和装备共同继续使用最近一次已验证模板，并标记为过期或“新 winner 待验证”。
 - 没有历史可用模板时显示 `pending_collection`，不使用 baseline、其他 Hero、其他专精或匿名数据补位。
 - 模板可导入、可生成合法 SimC profile，不等于已完成战斗模拟、DPS 验证或 BiS 证明。
 - 完整战斗 SimC 只在玩家发起任务时运行；每日模板刷新不批量运行 80 份战斗模拟。
@@ -103,11 +109,11 @@ Raider.IO discovery/profile
 
 内容 hash 未变化时复用已有 snapshot，只记录本次来源检查结果，不创建新 projection 或 TemplateSet。任何被活动或 rollback TemplateSet 引用的 snapshot 必须保留；未引用历史的清理周期不是首版切换条件。
 
-### Winner Election
+### Winner Election 与共享槽位
 
-天赋 election 继续拥有 `(classKey, specKey, heroKey, scenarioKey)` 的候选顺序和 winner 身份。装备合法性不得回写或重新排序天赋 winner；如果 rank-one 装备无法投影，装备侧只能使用同 Hero 候选序列递补，或保留该槽 LKG。
+election 继续拥有 `(classKey, specKey, heroKey, scenarioKey)` 的候选顺序和 winner 身份。一个槽位的发布单元不是独立天赋或独立装备，而是同一个玩家 snapshot 的 `TalentProjection + GearProjection` 组合。装备合法性不得回写或重新排序 winner；如果新 winner 的装备无法投影，不允许装备侧改选其他玩家，也不允许只发布新天赋。
 
-Rank 1 从 A 变为 B 属于 `winnerChanged`。当 dependency vector 未变化且 B 的新 projection 全部门禁通过时，它是低风险 observed-only 更新，允许自动进入新 TemplateSet。B 未通过时记录结构化 problem，并继续引用 A 的同槽 LKG。
+Rank 1 从 A 变为 B 属于 `winnerChanged`。当 dependency vector 未变化且 B 的天赋、装备 projection 全部门禁通过时，它是低风险 observed-only 更新，允许自动进入新 TemplateSet。任一 projection 未通过时记录结构化 problem，并让天赋和装备共同继续引用 A 的同槽 LKG。
 
 ### Projection Compiler
 
@@ -132,14 +138,20 @@ Projection Compiler 只做确定性映射、合法性和 serializer/profile read
 
 每天扫描完成后构建一个完整的 80 槽候选集合：
 
-1. 新 winner/new snapshot 的 projection verified：引用新 projection。
-2. 新 projection blocked 且同槽存在 LKG：引用 LKG，槽状态为 `stale_lkg`，保存新 problem 摘要。
-3. 新 projection blocked 且没有 LKG：槽状态为 `pending_collection`，不提供可导入模板。
+1. 新 winner/new snapshot 的 talent 和 gear projection 都 verified：同槽共同引用新 snapshot 与两份新 projection。
+2. 任一新 projection blocked 且同槽存在 LKG：天赋和装备共同引用 LKG，槽状态为 `stale_lkg`，保存新 problem 摘要。
+3. 任一新 projection blocked 且没有 LKG：槽状态为 `pending_collection`，天赋和装备都不提供可导入模板。
 4. 只有 `checkedAt` 变化：复用现有 projection；若 80 个槽的引用、状态和 dependency vector 都未变化，不创建新 TemplateSet。
 
 TemplateSet 保存内容 hash、generation、80 槽引用、每槽状态、dependency vector、source run 和 rollback set。它不复制完整 gear catalog、talent graph 或原始玩家 payload。
 
-“80 槽完整性”要求每个预期槽都有唯一、结构合法的 entry，不要求 80 个槽都可导入。`stale_lkg` 和 `pending_collection` 都是合法且必须诚实保留的槽状态；缺少 entry、重复槽、跨槽 LKG 或无效 projection 引用才是阻断整份 TemplateSet 切换的完整性错误。
+内部候选的“80 槽结构完整性”要求每个预期槽都有唯一、结构合法的 entry；`stale_lkg` 和 `pending_collection` 都必须诚实保留，不能用假模板补位。首次公开切换还必须满足更严格的 `80/80 ready`：80 个槽全部具有可导入的 talent 与 gear projection。首次切换后，新的活动 TemplateSet 可以用同槽 `stale_lkg` 承接失败槽并更新其他 79 槽，但任何 `pending_collection`、缺少 entry、重复槽、跨槽 LKG 或无效 projection 引用都会阻断活动指针切换。
+
+公开 read model 由同一份 active TemplateSet 确定性派生：
+
+- 天赋 read model：80 个 Hero 槽各输出一个真实玩家模板。
+- 装备 read model：按 class/spec 分组同一份 80 槽，每个专精恰好输出两个带 Hero 身份且 `sourceIdentity` 不同的真实玩家模板。
+- 两个 read model 都携带相同的 `templateSetId`、`snapshotId`、`sourceIdentity`、玩家来源与 freshness；前端不参与选人、配对或 LKG 判断。
 
 ### Publication Policy
 
@@ -147,7 +159,8 @@ TemplateSet 保存内容 hash、generation、80 槽引用、每槽状态、depen
 
 | 类型 | 条件 | 发布方式 |
 | --- | --- | --- |
-| observed-only 自动刷新 | 只有玩家 snapshot/winner 变化；Catalog、规则、schema、serializer、SimC revision 均未变化；80 槽 set 完整性通过 | 自动 CAS 切换 active TemplateSet pointer |
+| 首次公开切换 | 80/80 槽都具有同玩家绑定的可导入 talent 与 gear projection；Catalog、规则、schema、serializer dependency 已冻结；候选和微信 smoke 通过 | 人工批准后 CAS 切换 active TemplateSet pointer |
+| observed-only 自动刷新 | 只有玩家 snapshot/winner 变化；Catalog、规则、schema、serializer、SimC revision 均未变化；80 槽全部可导入，失败槽使用同槽 LKG 且没有 pending | 自动 CAS 切换 active TemplateSet pointer |
 | dependency cutover | Gear/Talent Catalog、规则、schema、serializer、SimC runtime 任一 revision 变化 | 受控 candidate、shadow compare、人工批准后切换 |
 
 TemplateSet 构建、内容 hash、槽位唯一性、dependency binding 或 rollback target 任一失败时，不切换指针。回滚只切回上一个 TemplateSet，不重写 snapshot、projection 或 catalog。
@@ -215,9 +228,11 @@ Read API 和 health 都只读，不触发采集、projection、SimC 或 pointer 
 2. **Additive registry**：增加 snapshot、projection、TemplateSet 和 pointer 表；不改公开 reader。
 3. **Backfill without network**：从现有 PG Raider.IO cache、talent winner 和 observed gear rows 回灌 snapshot。
 4. **Shadow compile**：先 Mage/Elemental，再扩到 80 槽；逐项比较 source identity、talent state、Selection Intent、enhancements、signatures、readiness 和 problems。
-5. **Candidate reader**：候选环境读取 TemplateSet；正式 active Community Release 仍是 LKG。
-6. **Controlled first cutover**：通过完整 Harness evidence、候选 smoke、真实微信导入和 rollback drill 后切 TemplateSet pointer。
-7. **Compatibility retirement**：证明没有 caller 后，再移除 `gearProjectionCandidates` 跨域承载、重复 observed template 物化和旧 Community Release public reader。
+5. **Candidate reader**：候选环境读取 TemplateSet；现有天赋与装备 API 合同保持不变，正式 active Community Release 仍是 LKG。
+6. **Controlled 80-slot collection**：使用已获批准的云端项目采集器访问 Raider.IO，把 40 个专精的两个 Hero 槽收敛为 80 个共享玩家 snapshot；只保存真实来源事实，不用 baseline 或跨槽数据填洞。
+7. **Controlled first cutover**：只有 80/80 槽同时具备可导入 talent 与 gear projection，并通过完整 Harness evidence、候选 API/import smoke、rollback drill 后，才切 TemplateSet pointer。
+8. **WeChat handoff**：从最新主干执行 `npm run refresh:weapp`，确认构建和微信开发者工具实际打开后，交给用户逐页验证。
+9. **Compatibility retirement**：证明没有 caller 后，再移除 `gearProjectionCandidates` 跨域承载、重复 observed template 物化和旧 Community Release public reader。
 
 现有装备投影 WIP 可以作为 characterization 和 backfill 输入，但不继续扩大 `sync_community_template_cache_postgres()` 的领域职责。
 
@@ -231,7 +246,11 @@ Read API 和 health 都只读，不触发采集、projection、SimC 或 pointer 
 - Rank 1 A -> B 自动切换；
 - B capture/mapping/legality 失败时 A LKG 保留；
 - 无 LKG 时单槽 pending、其他 79 槽正常更新；
+- 同槽 talent/gear 必须共享 `snapshotId/sourceIdentity`，任何半槽更新都被拒绝；
+- 同一专精两个 Hero 槽的 `sourceIdentity` 必须不同；
 - 80 槽唯一性、完整引用、content hash 和 CAS 原子性；
+- 首次切换必须 `80/80 ready`，后续失败槽只能使用同槽 LKG；
+- 天赋 read model 为 80 个槽各一个模板，装备 read model 为 40 个专精各两个模板；
 - dependency drift 禁止自动 promotion；
 - catalog 补齐后不访问 Raider.IO 即可重放 blocked snapshot；
 - exact talent/gear import、canonical profile 和现有 public contract parity；
@@ -239,11 +258,13 @@ Read API 和 health 都只读，不触发采集、projection、SimC 或 pointer 
 - read API/health 零写入、零外部访问、零 SimC；
 - 每日扫描不运行完整战斗 SimC。
 
-候选证据至少包含 exact commit/tree、migration/backup、snapshot/projection/TemplateSet counts、80 槽状态矩阵、old/new shadow diff、两个 exact gear import、两个 talent import、canonical profile、timer/backflow、health/admin、pointer rollback 和真实微信关键路径。
+候选证据至少包含 exact commit/tree、migration/backup、snapshot/projection/TemplateSet counts、80 槽状态矩阵、40 专精装备双模板矩阵、同玩家关联审计、old/new shadow diff、80 个 talent import contract、80 个 gear import contract、代表性 canonical profile、timer/backflow、health/admin、pointer rollback 和真实微信关键路径。
 
 用户侧完成标准：
 
-- 两个社区模板来源和 Hero 身份清楚；
+- 任意专精的装备页都显示两个社区模板，来源、玩家和 Hero 身份清楚，且两个模板都可导入；
+- 任意职业、专精、Hero 的天赋页都显示一个对应玩家模板，且可导入；
+- 同一个 Hero 槽的天赋与装备可以核对为同一个玩家快照；
 - 新 winner 自动更新后可导入；
 - 新 winner 失败时旧模板仍可用并显示过期/待验证；
 - pending 槽不出现假模板；
