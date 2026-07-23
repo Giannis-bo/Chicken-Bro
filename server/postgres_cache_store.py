@@ -4,6 +4,7 @@ import copy
 import hashlib
 import json
 import math
+import os
 import subprocess
 import tempfile
 import time
@@ -622,6 +623,15 @@ class CommunityTemplateImportError(RuntimeError):
         self.unavailable = bool(unavailable)
 
 
+COMMUNITY_GEAR_PREVIEW_RELEASE_ENV = "WOW_COMMUNITY_GEAR_PREVIEW_RELEASE_ID"
+GEAR_PREVIEW_RELEASE_ENV = "WOW_GEAR_PREVIEW_RELEASE_ID"
+
+
+def _release_binding_is_readable(binding):
+    value = binding if isinstance(binding, dict) else {}
+    return value.get("formalActiveManifest") is True or value.get("candidatePreview") is True
+
+
 def _community_template_import_release_context(binding):
     value = binding if isinstance(binding, dict) else {}
     manifest = value.get("manifest") if isinstance(value.get("manifest"), dict) else {}
@@ -633,6 +643,7 @@ def _community_template_import_release_context(binding):
         "gearCatalogRevision": str(manifest.get("gearCatalogReleaseId") or "").strip(),
         "communityTemplateRevision": str(manifest.get("communityTemplateReleaseId") or "").strip(),
         "formalActiveManifest": value.get("formalActiveManifest") is True,
+        "candidatePreview": value.get("candidatePreview") is True,
     }
 
 
@@ -1221,7 +1232,7 @@ class PostgresCacheStore:
 
         binding = self._active_manifest_binding_for_authority()
         binding = binding if isinstance(binding, dict) else {}
-        if binding.get("formalActiveManifest") is True:
+        if _release_binding_is_readable(binding):
             return self._cached_active_authority_context(
                 selection_intent,
                 runtime_authority,
@@ -1251,7 +1262,7 @@ class PostgresCacheStore:
         started = time.perf_counter()
         binding = self._active_manifest_binding_for_authority()
         release_context = _community_template_import_release_context(binding)
-        if binding.get("formalActiveManifest") is not True:
+        if not _release_binding_is_readable(binding):
             raise CommunityTemplateImportError(
                 "template_import_unavailable",
                 "The active Season Manifest is temporarily unavailable.",
@@ -1353,12 +1364,94 @@ class PostgresCacheStore:
 
         _pg_community_template_import_cache_put(cache_identity, payload)
 
+    def _candidate_preview_binding(self, binding):
+        """Bind only the candidate service to sealed Gear/Community releases without moving the pointer."""
+
+        community_release_id = str(os.environ.get(COMMUNITY_GEAR_PREVIEW_RELEASE_ENV) or "").strip()
+        if not community_release_id:
+            return binding
+        active = binding if isinstance(binding, dict) else {}
+        if active.get("formalActiveManifest") is not True:
+            raise RuntimeError("candidate Community preview requires a formal active Gear Release")
+        manifest = active.get("manifest") if isinstance(active.get("manifest"), dict) else {}
+        active_gear = active.get("gearRelease") if isinstance(active.get("gearRelease"), dict) else {}
+        active_gear_release_id = str(manifest.get("gearCatalogReleaseId") or "").strip()
+        gear_release_id = str(os.environ.get(GEAR_PREVIEW_RELEASE_ENV) or active_gear_release_id).strip()
+        uses_formal_gear = gear_release_id == active_gear_release_id
+        preview_reader = getattr(self._gear_release_store, "get_release", None)
+        candidate_gear = (
+            copy.deepcopy(active_gear)
+            if gear_release_id == active_gear_release_id
+            else preview_reader(gear_release_id) if callable(preview_reader) else None
+        )
+        candidate_gear = candidate_gear if isinstance(candidate_gear, dict) else {}
+        preview = preview_reader(community_release_id) if callable(preview_reader) else None
+        preview = preview if isinstance(preview, dict) else {}
+        candidate_gear_is_valid = (
+            str(candidate_gear.get("releaseId") or "").strip() == gear_release_id
+            and str(candidate_gear.get("releaseKind") or "").strip() == "gear"
+            and str(candidate_gear.get("releaseStatus") or "").strip() == "validated"
+            and str(candidate_gear.get("schemaRevision") or "").strip() == "gear-release-v1"
+            and str(candidate_gear.get("seasonRevision") or "").strip() == str(manifest.get("seasonRevision") or "").strip()
+        )
+        if (
+            not gear_release_id
+            or (not uses_formal_gear and not candidate_gear_is_valid)
+            or (uses_formal_gear and str(candidate_gear.get("releaseId") or "").strip() != gear_release_id)
+            or str(preview.get("releaseKind") or "").strip() != "community"
+            or str(preview.get("releaseStatus") or "").strip() != "validated"
+            or str(preview.get("schemaRevision") or "").strip() != "community-release-v2"
+            or str(preview.get("validatedAgainstReleaseId") or "").strip() != gear_release_id
+            or str(preview.get("seasonRevision") or "").strip() != str(manifest.get("seasonRevision") or "").strip()
+        ):
+            raise RuntimeError("candidate Community preview release is not a validated Gear/Community pair")
+        preview_manifest = copy.deepcopy(manifest)
+        active_revision = str(manifest.get("manifestRevision") or active.get("manifestRevision") or "").strip()
+        candidate_dependencies = candidate_gear.get("dependencyRevisions") if isinstance(
+            candidate_gear.get("dependencyRevisions"), dict
+        ) else {}
+        # expectedManifestRevision is sent back verbatim by the mini-program's
+        # import request and is deliberately length-bounded.  Release IDs are
+        # content hashes themselves, so keep the preview identity opaque and
+        # short while still binding all three immutable identities together.
+        preview_identity = json.dumps({
+            "activeManifestRevision": active_revision,
+            "communityReleaseId": community_release_id,
+            "gearReleaseId": gear_release_id,
+        }, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        preview_revision = "candidate-preview:sha256:" + hashlib.sha256(
+            preview_identity.encode("utf-8")
+        ).hexdigest()
+        preview_manifest.update({
+            "manifestRevision": preview_revision,
+            "manifestType": "candidate_preview",
+            "formalActiveManifest": False,
+            "gearCatalogReleaseId": gear_release_id,
+            "communityTemplateReleaseId": community_release_id,
+        })
+        if candidate_dependencies:
+            # The manifest is the resolver contract. A candidate Gear Release
+            # may be built with a newer runtime than the formal pointer, so
+            # retaining formal dependencies here makes a valid candidate pair
+            # fail closed at import time.
+            preview_manifest["dependencyRevisions"] = copy.deepcopy(candidate_dependencies)
+        return {
+            **active,
+            "pointerMode": "candidate_preview",
+            "manifestRevision": preview_manifest["manifestRevision"],
+            "formalActiveManifest": False,
+            "candidatePreview": True,
+            "manifest": preview_manifest,
+            "gearRelease": copy.deepcopy(candidate_gear),
+            "communityRelease": copy.deepcopy(preview),
+        }
+
     def _active_manifest_binding_for_authority(self):
         """Reuse a validated binding behind one cheap pointer identity read."""
 
         pointer_reader = getattr(self._gear_release_store, "get_active_pointer", None)
         if not callable(pointer_reader):
-            return self._gear_release_store.load_active_manifest_binding()
+            return self._candidate_preview_binding(self._gear_release_store.load_active_manifest_binding())
         pointer = pointer_reader()
         pointer = pointer if isinstance(pointer, dict) else {}
         pointer_mode = str(pointer.get("pointerMode") or "").strip()
@@ -1373,7 +1466,7 @@ class PostgresCacheStore:
                 and _int_value(cached.get("generation")) == generation
                 and str(cached.get("manifestRevision") or "").strip() == manifest_revision
             ):
-                return cached
+                return self._candidate_preview_binding(cached)
             binding = self._gear_release_store.load_active_manifest_binding()
             if (
                 isinstance(binding, dict)
@@ -1382,8 +1475,8 @@ class PostgresCacheStore:
                 and str(binding.get("manifestRevision") or "").strip() == manifest_revision
             ):
                 self._gear_authority_context_cache.put(cache_key, binding)
-            return binding
-        return self._gear_release_store.load_active_manifest_binding()
+            return self._candidate_preview_binding(binding)
+        return self._candidate_preview_binding(self._gear_release_store.load_active_manifest_binding())
 
     def _cached_active_authority_context(
         self,
@@ -1403,6 +1496,8 @@ class PostgresCacheStore:
             ),
             "gearReleaseId": gear_release_id,
             "pointerGeneration": _int_value(binding.get("generation")),
+            "manifestRevision": str(manifest.get("manifestRevision") or "").strip(),
+            "candidatePreview": binding.get("candidatePreview") is True,
         }
         digest = hashlib.sha256(
             json.dumps(identity, ensure_ascii=False, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
@@ -1613,8 +1708,8 @@ class PostgresCacheStore:
     def get_gear_resolver_context(self, runtime_authority, binding=None):
         """Load the current Selection Intent authoring revisions without selected facts."""
 
-        binding = binding if isinstance(binding, dict) else self._gear_release_store.load_active_manifest_binding()
-        if binding.get("formalActiveManifest") is True:
+        binding = binding if isinstance(binding, dict) else self._active_manifest_binding_for_authority()
+        if _release_binding_is_readable(binding):
             return self._gear_release_store.active_resolver_context(binding, runtime_authority)
         with self.connection() as conn:
             with conn.cursor() as cur:
@@ -3754,7 +3849,7 @@ class PostgresCacheStore:
                             '{communityTemplateFreshness}',
                             COALESCE(template.payload_json->'communityTemplateFreshness', '{}'::jsonb)
                             || jsonb_build_object(
-                                'checkedAt', %s,
+                                'checkedAt', %s::text,
                                 'lastSuccessfulSyncAt', COALESCE(
                                     NULLIF(template.payload_json->'communityTemplateFreshness'->>'lastSuccessfulSyncAt', ''),
                                     NULLIF(template.payload_json->'communityTemplateFreshness'->>'checkedAt', ''),
@@ -3777,7 +3872,7 @@ class PostgresCacheStore:
                                     THEN 'stale'
                                     ELSE 'fresh'
                                 END,
-                                'availabilityPolicy', %s,
+                                'availabilityPolicy', %s::text,
                                 'repairReason', 'availability_repair_after_ttl_split'
                             ),
                             true
@@ -3803,6 +3898,7 @@ class PostgresCacheStore:
                     (
                         blocked_talent_sources,
                         availability_expires_at,
+                        checked_at,
                         checked_at,
                         checked_at,
                         COMMUNITY_TEMPLATE_AVAILABILITY_POLICY,
@@ -6977,7 +7073,8 @@ class PostgresCacheStore:
         gear = data.get("gearRelease") if isinstance(data.get("gearRelease"), dict) else {}
         community = data.get("communityRelease") if isinstance(data.get("communityRelease"), dict) else {}
         return {
-            "formalActiveManifest": True,
+            "formalActiveManifest": binding.get("formalActiveManifest") is True,
+            "candidatePreview": binding.get("candidatePreview") is True,
             "manifestRevision": str(manifest.get("manifestRevision") or ""),
             "pointerGeneration": _int_value(binding.get("generation")),
             "seasonRevision": str(manifest.get("seasonRevision") or ""),
@@ -7124,8 +7221,8 @@ class PostgresCacheStore:
         compact = bool(compact)
         mode = str(mode or "").strip().lower()
         slot = normalize_slot(slot) if mode == "slot" else str(slot or "").strip().lower()
-        binding = self._gear_release_store.load_active_manifest_binding()
-        if binding.get("formalActiveManifest") is True:
+        binding = self._active_manifest_binding_for_authority()
+        if _release_binding_is_readable(binding):
             active_fingerprint = (
                 "pg-websim-gear-release-v1",
                 str(binding.get("manifestRevision") or ""),

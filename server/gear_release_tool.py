@@ -1832,19 +1832,43 @@ def _projected_community_release_rows(
     can be imported.
     """
 
-    gear_by_identity: dict[str, dict[str, Any]] = {}
+    gear_by_identity: dict[tuple[str, str, str], dict[str, Any]] = {}
+    observed_by_spec: dict[tuple[str, str], list[dict[str, Any]]] = {}
     for template in templates:
         if not isinstance(template, dict):
             continue
         identity = _observed_source_identity(template)
+        template_class_key = _text(template.get("classKey"))
+        template_spec_key = _text(template.get("specKey"))
         if (
             identity
+            and template_class_key
+            and template_spec_key
             and _text(template.get("sourceKey")) == community_winner_projection.PUBLIC_OBSERVED_SOURCE_KEY
             and _text(template.get("status")) == "complete"
         ):
-            current = gear_by_identity.get(identity)
+            # One player can have several observed profiles. A talent source
+            # must only project to equipment observed for the same class/spec.
+            key = (identity, template_class_key, template_spec_key)
+            current = gear_by_identity.get(key)
             if current is None or _text(template.get("updatedAt")) > _text(current.get("updatedAt")):
-                gear_by_identity[identity] = template
+                gear_by_identity[key] = template
+            observed_by_spec.setdefault((template_class_key, template_spec_key), []).append(template)
+
+    def observed_template_weight(template: dict[str, Any]) -> tuple[int, int, str, str]:
+        payload = template.get("payload") if isinstance(template.get("payload"), dict) else {}
+        refs = [row for row in template.get("sourceRefs") or [] if isinstance(row, dict)]
+        ref = refs[0] if refs else {}
+        ranking = payload.get("rankingEvidence") if isinstance(payload.get("rankingEvidence"), dict) else {}
+        return (
+            _int(ranking.get("score") or ref.get("score") or 0),
+            _int(ranking.get("maxKeyLevel") or ref.get("maxKeyLevel") or 0),
+            _text(template.get("updatedAt")),
+            _text(template.get("templateId")),
+        )
+
+    for key, candidates in observed_by_spec.items():
+        observed_by_spec[key] = sorted(candidates, key=observed_template_weight, reverse=True)
 
     expected_slots = [
         (class_key, spec_key, hero_key)
@@ -1855,8 +1879,13 @@ def _projected_community_release_rows(
     rejected: list[dict[str, Any]] = []
     missing_slots: list[dict[str, str]] = []
     winner_count_by_spec: dict[tuple[str, str], int] = {}
+    used_template_ids_by_spec: dict[tuple[str, str], set[str]] = {}
+    used_source_identities_by_spec: dict[tuple[str, str], set[str]] = {}
 
     for class_key, spec_key, hero_key in expected_slots:
+        spec_key_pair = (class_key, spec_key)
+        used_template_ids = used_template_ids_by_spec.setdefault(spec_key_pair, set())
+        used_source_identities = used_source_identities_by_spec.setdefault(spec_key_pair, set())
         ordered_talents = _talent_projection_candidates(
             staged_talents, class_key, spec_key, hero_key,
         )
@@ -1880,16 +1909,55 @@ def _projected_community_release_rows(
 
         projection = community_winner_projection.project_hero_slot(
             ordered_talents,
-            gear_by_identity,
+            {
+                identity: template
+                for (identity, template_class_key, template_spec_key), template in gear_by_identity.items()
+                if template_class_key == class_key and template_spec_key == spec_key
+                and _text(template.get("templateId")) not in used_template_ids
+                and identity not in used_source_identities
+            },
             validate,
         )
         winner = projection.get("winner")
         if not isinstance(winner, dict):
-            missing_slots.append({"classKey": class_key, "specKey": spec_key, "heroKey": hero_key})
             rejected.extend(projection.get("rejected") or [])
+            talent_winner_id = _text(ordered_talents[0].get("candidateId")) if ordered_talents else ""
+            for template in observed_by_spec.get(spec_key_pair, []):
+                template_id = _text(template.get("templateId"))
+                source_identity = _observed_source_identity(template)
+                if not template_id or template_id in used_template_ids or source_identity in used_source_identities:
+                    continue
+                fallback_candidate = {
+                    "candidateId": talent_winner_id or f"spec-re-election:{template_id}",
+                    "classKey": class_key,
+                    "specKey": spec_key,
+                    "heroKey": hero_key,
+                    "scenarioKey": "mythic_plus",
+                    "sourceKey": community_winner_projection.PUBLIC_TALENT_SOURCE_KEY,
+                    "sourceIdentity": source_identity,
+                    "talentCandidateRank": 1,
+                }
+                verdict = validate(fallback_candidate, template)
+                if _text(verdict.get("status")) != "verified" or not isinstance(verdict.get("template"), dict):
+                    continue
+                winner = {
+                    **_canonical(verdict["template"]),
+                    "talentWinnerId": talent_winner_id or fallback_candidate["candidateId"],
+                    "gearProjectionMode": "gear_fallback",
+                    "gearProjectionFallbackScope": "class_spec",
+                    "gearProjectionFallbackReason": "no_importable_same_hero_raiderio_candidate",
+                }
+                break
+        if not isinstance(winner, dict):
+            missing_slots.append({"classKey": class_key, "specKey": spec_key, "heroKey": hero_key})
             continue
         elected = winner.get("_elected") if isinstance(winner.get("_elected"), dict) else {}
         source_template_id = _text(winner.get("templateId"))
+        source_identity = _observed_source_identity(winner)
+        if source_template_id:
+            used_template_ids.add(source_template_id)
+        if source_identity:
+            used_source_identities.add(source_identity)
         projection_id = f"community-gear:{class_key}:{spec_key}:{hero_key}:{source_template_id}"
         release_payload = _canonical(winner)
         release_payload.pop("_elected", None)
@@ -1900,18 +1968,22 @@ def _projected_community_release_rows(
         release_payload["talentWinnerId"] = _text(winner.get("talentWinnerId"))
         release_payload["gearProjectionMode"] = _text(winner.get("gearProjectionMode"))
         release_payload["canApplyGear"] = True
+        # The projection changes the public template identity from the staged
+        # character template to one hero-slot row. Preserve the elected
+        # character's sealed import evidence on that new row, otherwise it is
+        # browseable but fails closed when the user actually imports it.
+        release_payload["importEvidence"] = _canonical(elected.get("importEvidence") or {})
         payload = release_payload.get("payload") if isinstance(release_payload.get("payload"), dict) else {}
         payload = _canonical(payload)
         payload["sourceIdentity"] = _observed_source_identity(winner)
         release_payload["payload"] = payload
-        key = (class_key, spec_key)
-        winner_count_by_spec[key] = winner_count_by_spec.get(key, 0) + 1
+        winner_count_by_spec[spec_key_pair] = winner_count_by_spec.get(spec_key_pair, 0) + 1
         rows.append({
             "templateId": projection_id,
             "classKey": class_key,
             "specKey": spec_key,
             "role": "winner",
-            "electionRank": winner_count_by_spec[key],
+            "electionRank": winner_count_by_spec[spec_key_pair],
             "sourceKey": _text(elected.get("sourceKey")),
             "sourceUrl": _text(elected.get("sourceUrl")),
             "sourceStatus": _text(elected.get("sourceStatus")),
