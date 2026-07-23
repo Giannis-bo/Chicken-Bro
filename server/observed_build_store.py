@@ -926,16 +926,16 @@ class ObservedBuildStore:
                            projection.projection_json,
                            projection.row_hash
                     FROM cache.observed_build_projections projection
-                    JOIN ops.observed_build_snapshot_checks check
-                      ON check.snapshot_id = projection.snapshot_id
-                     AND check.slot_key = projection.slot_key
+                    JOIN ops.observed_build_snapshot_checks snapshot_check
+                      ON snapshot_check.snapshot_id = projection.snapshot_id
+                     AND snapshot_check.slot_key = projection.slot_key
                     WHERE projection.dependency_hash = %s
                       AND projection.status = 'verified'
                       AND projection.importable IS TRUE
-                      AND check.status IN ('captured', 'changed', 'unchanged')
-                      AND check.checked_at >= %s::timestamptz
+                      AND snapshot_check.status IN ('captured', 'changed', 'unchanged')
+                      AND snapshot_check.checked_at >= %s::timestamptz
                     ORDER BY projection.slot_key,
-                             check.checked_at DESC,
+                             snapshot_check.checked_at DESC,
                              projection.created_at DESC,
                              projection.projection_id
                     """,

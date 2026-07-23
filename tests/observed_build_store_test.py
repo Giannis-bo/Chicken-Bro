@@ -559,7 +559,18 @@ class ObservedBuildStoreTest(unittest.TestCase):
         statement = conn.cursor_instance.statements[1]
         self.assertIn("projection.status = 'verified'", statement)
         self.assertIn("projection.importable IS TRUE", statement)
-        self.assertIn("check.checked_at >= %s::timestamptz", statement)
+        self.assertIn(
+            "JOIN ops.observed_build_snapshot_checks snapshot_check",
+            statement,
+        )
+        self.assertIn(
+            "snapshot_check.checked_at >= %s::timestamptz",
+            statement,
+        )
+        self.assertNotIn(
+            "JOIN ops.observed_build_snapshot_checks check",
+            statement,
+        )
 
     def test_health_summary_reports_lkg_without_disabling_active_records(self):
         store, _connection, template_set = self.active_store()
