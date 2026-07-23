@@ -363,6 +363,12 @@ def run_observed_build_sync(
     winners = select_distinct_snapshot_winners(
         extracted.get("candidatesBySlot") or {}
     )
+    problems_by_slot = extracted.get("problemsBySlot")
+    problems_by_slot = (
+        problems_by_slot if isinstance(problems_by_slot, dict) else {}
+    )
+    del extracted
+    del payload
     expected_slots = _expected_slots()
     if len(expected_slots) != EXPECTED_TEMPLATE_SLOT_COUNT:
         raise ValueError("observed-build slot contract must contain 80 slots")
@@ -376,10 +382,6 @@ def run_observed_build_sync(
     candidates: dict[str, dict[str, Any]] = {}
     problems: list[dict[str, Any]] = []
     template_set_problems: dict[str, dict[str, Any]] = {}
-    problems_by_slot = extracted.get("problemsBySlot")
-    problems_by_slot = (
-        problems_by_slot if isinstance(problems_by_slot, dict) else {}
-    )
     snapshots_to_compile: dict[str, dict[str, Any]] = {}
     for key, snapshot in winners.items():
         active_record = active_records.get(key)

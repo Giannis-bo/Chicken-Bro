@@ -2,6 +2,7 @@ import copy
 import io
 import os
 import unittest
+import weakref
 from contextlib import redirect_stdout
 from unittest import mock
 
@@ -377,6 +378,40 @@ class ObservedBuildSyncTest(unittest.TestCase):
         self.assertEqual(compiler.prepared, [])
         self.assertEqual(compiler.calls, [])
         self.assertEqual(store.projections, {})
+
+    def test_source_payload_is_released_before_batch_gear_preparation(self):
+        store = MemoryObservedBuildStore()
+        payload_refs = []
+        test_case = self
+
+        class TrackedPayload(dict):
+            pass
+
+        class Compiler:
+            dependency_vector = test_case.dependencies()
+
+            def prepare(self, _snapshots):
+                test_case.assertIsNone(payload_refs[0]())
+
+            def __call__(self, snapshot):
+                return test_case.compiler()(snapshot)
+
+        def source_fetcher():
+            payload = TrackedPayload(self.payload())
+            payload_refs.append(weakref.ref(payload))
+            return payload
+
+        result = run_observed_build_sync(
+            store,
+            scope="candidate",
+            refresh_source=False,
+            allow_promotion=False,
+            source_fetcher=source_fetcher,
+            compiler=Compiler(),
+            checked_at="2026-07-23T13:00:00Z",
+        )
+
+        self.assertEqual(result["coverage"]["verified"], 80)
 
     def test_audit_mode_performs_no_writes(self):
         store = self.active_store()
