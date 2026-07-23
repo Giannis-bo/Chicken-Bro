@@ -53,8 +53,13 @@
     },
     {
       "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-23-observed-build-registry-core --base origin/main",
-      "status": "blocked",
-      "summary": "Node discovery passed 677 tests, Python discovery passed 1834 tests with one skip, and Taro passed 334 tests. The command stopped only at the pre-existing component_native_buttons_cannot_disable_shared_width_clamping UI architecture finding in TalentSimulatorComponents.module.scss; this branch has no diff for that file."
+      "status": "pass",
+      "summary": "The exact verification HEAD passed all 162 Harness commands: 677 Node tests, 1834 Python tests with one skip, 334 Taro/Vitest tests, compile, typecheck, lint, 282-check UI architecture audit, asset integrity, isolated production package mechanics, packet validation and diff checks."
+    },
+    {
+      "command": "git diff --quiet 915a7c4f90af8b0368a7191d7e4aa62312fd1916..HEAD -- server",
+      "status": "pass",
+      "summary": "All server and migration bytes remain identical to the exact PostgreSQL candidate commit; later changes are documentation, evidence and a bounded equivalent talent-artwork width rule."
     },
     {
       "command": "whole-branch local CR plus read-only reviewer follow-up",
@@ -119,8 +124,8 @@
     },
     {
       "id": "full-profile-ui-baseline",
-      "status": "external_blocker",
-      "detail": "The final full profile is blocked by one pre-existing UI architecture finding in an unchanged SCSS file. Core Node, Python, Taro and targeted suites passed; this task does not widen scope to repair unrelated frontend architecture."
+      "status": "resolved",
+      "detail": "The unbounded component image-width exemption was replaced by the same explicit 300% three-panel geometry. The 282-check UI audit and the full Harness profile now pass without weakening the shared button clamp."
     }
   ],
   "rollback": [
@@ -136,6 +141,6 @@
     "docs/plans/2026-07-23-observed-build-registry-core-implementation.md",
     "artifacts/releases/2026-07-23-observed-build-registry-core/candidate-postgres.json"
   ],
-  "summary": "The approved dormant core is runtime-verified on the exact candidate commit: immutable observations, deterministic projections, complete 80-slot TemplateSets, same-slot LKG, append-only PostgreSQL persistence and monotonic CAS rollback all passed without production activation. Branch CI and merge closure remain pending; the only local full-profile blocker is an unchanged pre-existing UI architecture finding.",
-  "updatedAt": "2026-07-23T17:12:24+08:00"
+  "summary": "The approved dormant core is runtime-verified on the exact candidate commit: immutable observations, deterministic projections, complete 80-slot TemplateSets, same-slot LKG, append-only PostgreSQL persistence and monotonic CAS rollback all passed without production activation. The exact verification HEAD also passes the complete Harness profile; branch CI and merge closure remain pending.",
+  "updatedAt": "2026-07-23T18:15:00+08:00"
 }
