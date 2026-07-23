@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 2,
+  "slug": "observed-build-registry-core",
+  "requirementSlug": "observed-build-registry-core",
+  "status": "implementation_allowed",
+  "highestEvidenceLevel": "implementation_allowed",
+  "branch": "codex/observed-build-registry-core",
+  "commit": "pending-final-candidate-commit",
+  "identities": {
+    "runtime": {
+      "status": "pending",
+      "reason": "The final candidate commit and isolated candidate database smoke have not run."
+    },
+    "verification": {
+      "status": "pending",
+      "reason": "The final task head has not yet completed the full Harness profile."
+    },
+    "closure": {
+      "status": "pending",
+      "reason": "Candidate proof, merge and clean-main closure remain pending."
+    }
+  },
+  "manualAcceptance": {
+    "required": false,
+    "status": "not_applicable",
+    "reason": "This slice has no user-visible runtime, public reader, frontend or active production pointer change.",
+    "items": [],
+    "rollup": {
+      "total": 0,
+      "accepted": 0,
+      "notRunUserWaived": 0,
+      "pending": 0
+    }
+  },
+  "scope": [
+    "Immutable observed-player snapshot and append-only source-check contracts",
+    "Dependency-bound deterministic Talent and Gear projection",
+    "Exact 80-slot TemplateSet with same-slot LKG and pending state",
+    "Additive PostgreSQL registry with row-hash sealing and isolated CAS pointer"
+  ],
+  "verification": [
+    {
+      "command": "python3 -m unittest tests.observed_build_registry_test tests.observed_build_projection_test tests.observed_build_template_set_test tests.observed_build_store_test tests.observed_build_core_path_test tests.postgres_schema_test",
+      "status": "pass",
+      "summary": "Pure contracts, immutable Store behavior, 80-slot shadow path and schema characterization pass locally."
+    },
+    {
+      "command": "python3 -m unittest tests.gear_public_contract_test tests.gear_release_test tests.community_template_import_test",
+      "status": "pass",
+      "summary": "57 existing observed-only public, release-policy and exact community-import tests remain unchanged."
+    },
+    {
+      "command": "final Strict Harness full profile and whole-branch local CR",
+      "status": "not_run",
+      "summary": "Pending the final candidate commit and completed release packet."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "not_run",
+    "requiredBeforeMerge": true,
+    "reason": "Pending exact final candidate commit, database backup and isolated-scope migration/seal/CAS/rollback smoke."
+  },
+  "runtimeEvidence": [],
+  "risks": [
+    {
+      "id": "candidate-migration-pending",
+      "status": "open",
+      "detail": "Migration 0018 and minimal grants still require candidate PostgreSQL proof on the final commit."
+    },
+    {
+      "id": "live-reader-activation-forbidden",
+      "status": "guarded",
+      "detail": "New production modules have no network, public reader, old Release/Manifest or SimC dependency; the candidate must retain this dormant boundary."
+    }
+  ],
+  "rollback": [
+    "code_rollback",
+    "data_restore"
+  ],
+  "cleanup": {
+    "required": true,
+    "reason": "The isolated candidate pointer scope and its test artifacts must be removed by migration-owner SQL after smoke; wow_app retains no DELETE grant."
+  },
+  "archivedReferences": [
+    "docs/plans/2026-07-23-observed-build-registry-design.md",
+    "docs/plans/2026-07-23-observed-build-registry-core-implementation.md"
+  ],
+  "summary": "The approved dormant core is implemented locally. Exact-head full verification, candidate backup/migration, isolated CAS/rollback proof and final closure are pending.",
+  "updatedAt": "2026-07-23T12:00:00+08:00"
+}

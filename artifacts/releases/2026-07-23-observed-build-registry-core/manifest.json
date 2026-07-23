@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "status": "project_harness_manifest_ready",
+  "generatedAt": "2026-07-23T12:00:00+08:00",
+  "release": {
+    "date": "2026-07-23",
+    "slug": "observed-build-registry-core"
+  },
+  "harness": {
+    "version": "v0.6.4",
+    "lastUpdated": "2026-07-20",
+    "source": "docs/harness.md"
+  },
+  "evidencePacket": {
+    "path": "artifacts/releases/2026-07-23-observed-build-registry-core/evidence.json"
+  },
+  "write": {
+    "path": "artifacts/releases/2026-07-23-observed-build-registry-core/manifest.json"
+  }
+}

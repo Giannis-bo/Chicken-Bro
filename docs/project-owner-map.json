@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-07-20",
+  "updatedAt": "2026-07-23",
   "status": "project_owner_map_active",
   "harnessVersion": "v0.6.4",
   "activeMilestone": "taro_target_first_14_route_rebuild",
@@ -412,6 +412,31 @@
         ],
         "activationBoundary": "Phase 4D is merged and live-verified with one formal active Manifest at generation 9. Phase 4E may consume staging into inactive candidates and auto-promote only same-Gear Community or fully compatible additive Gear changes; deploy-triggered refresh, Phase 5 and Catalyst remain forbidden."
       },
+      "observedBuildRegistryFoundations": {
+        "status": "dormant_shadow_core",
+        "factOwner": "server/observed_build_registry.py",
+        "projectionOwner": "server/observed_build_projection.py",
+        "templateSetOwner": "server/observed_build_template_set.py",
+        "writeOwner": "server/observed_build_store.py",
+        "modules": [
+          "server/observed_build_registry.py",
+          "server/observed_build_projection.py",
+          "server/observed_build_template_set.py",
+          "server/observed_build_store.py",
+          "server/migrations/postgres/0018_observed_build_registry.sql"
+        ],
+        "tests": [
+          "tests/observed_build_characterization_test.py",
+          "tests/observed_build_registry_test.py",
+          "tests/observed_build_projection_test.py",
+          "tests/observed_build_template_set_test.py",
+          "tests/observed_build_store_test.py",
+          "tests/observed_build_core_path_test.py",
+          "tests/postgres_schema_test.py"
+        ],
+        "runtimeConsumers": [],
+        "activationBoundary": "This slice only seals immutable snapshots, deterministic projections and complete 80-slot TemplateSets in an additive registry. It does not collect from the network, replace the public reader, activate a production pointer, submit SimC, or mutate the existing Release/Manifest train."
+      },
       "statSnapshotFoundations": {
         "status": "phase5_complete_active_async_snapshot",
         "factOwner": "server/gear_stat_snapshot_api.py",
@@ -454,11 +479,13 @@
       "publicContracts": [
         "communityTemplates public entry allows active raiderio_observed_profile only.",
         "baselineTemplates public default remains empty.",
-        "Phase 2 bounded Authority Context loader and dormant adapters do not replace the current public read model; Phase 3A may add backend resolverContext and Resolve/Profile routes while public observed-only selection remains unchanged."
+        "Phase 2 bounded Authority Context loader and dormant adapters do not replace the current public read model; Phase 3A may add backend resolverContext and Resolve/Profile routes while public observed-only selection remains unchanged.",
+        "The dormant observed-build registry has no public runtime consumer and cannot change the active observed-only gear or talent payload in this slice."
       ],
       "mustNotChange": [
         "Do not reintroduce recommended_bis, season_recommendation, default_template, simc_preset or baseline_blocked into public gear entry.",
-        "Do not move public source-quality decisions to frontend code."
+        "Do not move public source-quality decisions to frontend code.",
+        "Do not connect the observed-build TemplateSet pointer to public readers until a separate controlled-cutover task proves parity and rollback."
       ],
       "characterization": [
         "tests/gear_public_contract_test.py",
@@ -478,7 +505,13 @@
         "tests/gear_release_shadow_test.py",
         "tests/gear_release_refresh_test.py",
         "tests/gear_socket_authority_test.py",
-        "tests/community_template_import_test.py"
+        "tests/community_template_import_test.py",
+        "tests/observed_build_characterization_test.py",
+        "tests/observed_build_registry_test.py",
+        "tests/observed_build_projection_test.py",
+        "tests/observed_build_template_set_test.py",
+        "tests/observed_build_store_test.py",
+        "tests/observed_build_core_path_test.py"
       ],
       "runtimeSurfaces": [
         "server/gear_public_contract.py",
@@ -525,6 +558,11 @@
         "server/gear_stat_snapshot.py",
         "server/gear_stat_snapshot_store.py",
         "server/migrations/postgres/0015_websim_gear_stat_snapshots.sql",
+        "server/observed_build_registry.py",
+        "server/observed_build_projection.py",
+        "server/observed_build_template_set.py",
+        "server/observed_build_store.py",
+        "server/migrations/postgres/0018_observed_build_registry.sql",
         "server/wow-gear-release-refresh.service",
         "server/wow-gear-release-refresh.timer",
         "server/pg_gear_authority_loader.py",
@@ -549,7 +587,13 @@
         "tests/gear_stat_snapshot_test.py",
         "tests/gear_stat_snapshot_store_test.py",
         "tests/pg_gear_authority_loader_test.py",
-        "tests/community_template_import_test.py"
+        "tests/community_template_import_test.py",
+        "tests/observed_build_characterization_test.py",
+        "tests/observed_build_registry_test.py",
+        "tests/observed_build_projection_test.py",
+        "tests/observed_build_template_set_test.py",
+        "tests/observed_build_store_test.py",
+        "tests/observed_build_core_path_test.py"
       ],
       "backendOwnerMapRef": {
         "hotspotFile": "server/websim_payload.py",
@@ -576,7 +620,13 @@
           "tests/gear_release_tool_test.py",
           "tests/gear_release_shadow_test.py",
           "tests/gear_socket_authority_test.py",
-          "tests/community_template_import_test.py"
+          "tests/community_template_import_test.py",
+          "tests/observed_build_characterization_test.py",
+          "tests/observed_build_registry_test.py",
+          "tests/observed_build_projection_test.py",
+          "tests/observed_build_template_set_test.py",
+          "tests/observed_build_store_test.py",
+          "tests/observed_build_core_path_test.py"
         ],
         "runtimeEvidence": [],
         "ownerMapRef": {
@@ -1056,7 +1106,8 @@
         "server/postgres_ops_store.py",
         "server/gear_release_store.py",
         "server/gear_release_tool.py",
-        "server/gear_release_shadow.py"
+        "server/gear_release_shadow.py",
+        "server/observed_build_store.py"
       ],
       "publicContracts": [
         "PG-only runtime boundaries must fail closed without silent SQLite fallback.",
@@ -1073,7 +1124,9 @@
         "tests/database_adapter_test.py",
         "tests/gear_release_store_test.py",
         "tests/gear_release_tool_test.py",
-        "tests/gear_release_shadow_test.py"
+        "tests/gear_release_shadow_test.py",
+        "tests/observed_build_store_test.py",
+        "tests/observed_build_core_path_test.py"
       ],
       "runtimeSurfaces": [
         "server/postgres_cache_store.py",
@@ -1081,7 +1134,8 @@
         "server/migrations/postgres",
         "server/gear_release_store.py",
         "server/gear_release_tool.py",
-        "server/gear_release_shadow.py"
+        "server/gear_release_shadow.py",
+        "server/observed_build_store.py"
       ],
       "runbooks": [
         "docs/database-architecture.md",
@@ -1101,6 +1155,10 @@
         "server/gear_release_store.py",
         "server/gear_release_tool.py",
         "server/gear_release_shadow.py",
+        "server/observed_build_store.py",
+        "server/observed_build_registry.py",
+        "server/observed_build_projection.py",
+        "server/observed_build_template_set.py",
         "server/migrations/postgres/**",
         "server/db.py"
       ],
@@ -1119,7 +1177,9 @@
           "tests/database_adapter_test.py",
           "tests/gear_release_store_test.py",
           "tests/gear_release_tool_test.py",
-          "tests/gear_release_shadow_test.py"
+          "tests/gear_release_shadow_test.py",
+          "tests/observed_build_store_test.py",
+          "tests/observed_build_core_path_test.py"
         ],
         "runtimeEvidence": [],
         "ownerMapRef": {
