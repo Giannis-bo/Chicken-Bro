@@ -160,6 +160,67 @@ class GearPublicContractTest(unittest.TestCase):
             [observed_projection],
         )
 
+    def test_sealed_registry_projection_bypasses_only_the_legacy_elemental_seed_gate(self):
+        legacy_projection = {
+            "id": "observed-profile-shaman-elemental-farseer",
+            "classKey": "shaman",
+            "specKey": "elemental",
+            "heroKey": "farseer",
+            "talentWinnerId": "talent-winner-shaman-elemental-farseer",
+            "gearProjectionMode": "talent_winner",
+            "sourceKey": "raiderio_observed_profile",
+            "sourceStatus": "synced",
+            "status": "complete",
+            "sourceUrl": "https://raider.io/characters/tw/realm/Elementalproof",
+            "sampleCount": 1,
+            "scanRunId": "scan-shaman-elemental-farseer",
+            "readySlotCount": 16,
+            "missingSlots": [],
+            "gearItems": [
+                {"slot": "head", "itemId": "540301", "simcReady": True}
+            ],
+            "payload": {
+                "profileHash": "profile:shaman:elemental:farseer",
+                "gearHash": "gear:shaman:elemental:farseer",
+                "character": {
+                    "name": "Elementalproof",
+                    "region": "tw",
+                    "realmSlug": "realm",
+                },
+            },
+        }
+        self.assertFalse(
+            gear_public_contract.is_public_hero_gear_projection(
+                legacy_projection
+            )
+        )
+
+        template_set_id = "template-set:sha256:" + "1" * 64
+        snapshot_id = "observed-build:sha256:" + "2" * 64
+        registry_projection = {
+            **legacy_projection,
+            "id": "build-projection:sha256:" + "3" * 64,
+            "templateSetId": template_set_id,
+            "pointerGeneration": 2,
+            "snapshotId": snapshot_id,
+            "slotStatus": "verified",
+            "payload": {
+                **legacy_projection["payload"],
+                "observedBuild": {
+                    "templateSetId": template_set_id,
+                    "pointerGeneration": 2,
+                    "snapshotId": snapshot_id,
+                    "slotStatus": "verified",
+                },
+            },
+        }
+
+        self.assertTrue(
+            gear_public_contract.is_public_hero_gear_projection(
+                registry_projection
+            )
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

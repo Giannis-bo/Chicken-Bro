@@ -293,6 +293,35 @@ def community_observed_ranking_evidence(template):
     return {}
 
 
+def _sealed_observed_build_registry_projection(template):
+    payload = gear_template_payload(template)
+    observed = (
+        payload.get("observedBuild")
+        if isinstance(payload.get("observedBuild"), dict)
+        else {}
+    )
+    template_set_id = str((template or {}).get("templateSetId") or "").strip()
+    snapshot_id = str((template or {}).get("snapshotId") or "").strip()
+    projection_id = str((template or {}).get("id") or "").strip()
+    pointer_generation = (template or {}).get("pointerGeneration")
+    return bool(
+        projection_id.startswith("build-projection:sha256:")
+        and template_set_id.startswith("template-set:sha256:")
+        and snapshot_id.startswith("observed-build:sha256:")
+        and isinstance(pointer_generation, int)
+        and not isinstance(pointer_generation, bool)
+        and pointer_generation >= 1
+        and str(observed.get("templateSetId") or "").strip()
+        == template_set_id
+        and str(observed.get("snapshotId") or "").strip() == snapshot_id
+        and observed.get("pointerGeneration") == pointer_generation
+        and str(observed.get("slotStatus") or "").strip()
+        in {"verified", "stale_lkg"}
+        and str((template or {}).get("slotStatus") or "").strip()
+        == str(observed.get("slotStatus") or "").strip()
+    )
+
+
 def community_observed_evidence_blockers(template):
     payload = gear_template_payload(template)
     blockers = []
@@ -312,7 +341,11 @@ def community_observed_evidence_blockers(template):
         blockers.append("community_best_v2 requires fetchedAt or scanRunId")
     class_key = slugify((template or {}).get("classKey"), "")
     spec_key = slugify((template or {}).get("specKey"), "")
-    if (class_key, spec_key) in STRICT_COMMUNITY_BEST_V2_ACTIVE_SEED_SPECS:
+    if (
+        (class_key, spec_key)
+        in STRICT_COMMUNITY_BEST_V2_ACTIVE_SEED_SPECS
+        and not _sealed_observed_build_registry_projection(template)
+    ):
         ranking_evidence = community_observed_ranking_evidence(template)
         if str(ranking_evidence.get("source") or "") != "raiderio_spec_ranking":
             blockers.append("community_best_v2 requires current Raider.IO spec ranking evidence for elemental shaman")
