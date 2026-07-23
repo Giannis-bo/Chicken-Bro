@@ -424,6 +424,7 @@ class PostgresSchemaTest(unittest.TestCase):
         self.assertIn("BEFORE UPDATE OR DELETE ON cache.observed_build_template_sets", normalized)
         self.assertIn("BEFORE UPDATE OR DELETE ON cache.observed_build_template_set_slots", normalized)
         self.assertIn("REVOKE UPDATE, DELETE ON cache.observed_build_snapshots", normalized)
+        self.assertIn("generation bigint NOT NULL CHECK (generation >= 1)", normalized)
         self.assertIn("REVOKE DELETE ON cache.observed_build_template_set_pointer FROM wow_app", normalized)
         self.assertIn(
             "GRANT SELECT, INSERT, UPDATE ON cache.observed_build_template_set_pointer TO wow_app",

@@ -212,6 +212,16 @@ def validate_observed_snapshot(snapshot: Any) -> list[dict[str, str]]:
                 "Snapshot schema revision is unsupported.",
             )
         )
+    try:
+        _required_text(snapshot.get("sourceRevision"), "sourceRevision")
+    except ValueError as error:
+        issues.append(
+            _issue(
+                "SOURCE_REVISION_INVALID",
+                "snapshot.sourceRevision",
+                str(error),
+            )
+        )
     if not isinstance(snapshot.get("rankingEvidence"), dict):
         issues.append(
             _issue(

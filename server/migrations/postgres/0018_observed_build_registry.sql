@@ -151,7 +151,7 @@ ON cache.observed_build_template_set_slots (projection_id);
 
 CREATE TABLE IF NOT EXISTS cache.observed_build_template_set_pointer (
     scope text PRIMARY KEY CHECK (length(scope) BETWEEN 1 AND 80),
-    generation bigint NOT NULL CHECK (generation >= 0),
+    generation bigint NOT NULL CHECK (generation >= 1),
     active_template_set_id text NOT NULL
         REFERENCES cache.observed_build_template_sets(template_set_id) ON DELETE RESTRICT,
     rollback_template_set_id text

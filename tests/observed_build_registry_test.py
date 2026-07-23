@@ -1,6 +1,7 @@
 import copy
 import unittest
 
+import server.observed_build_registry as observed_build_registry
 from server.observed_build_registry import (
     build_observed_snapshot,
     slot_key,
@@ -165,6 +166,21 @@ class ObservedBuildRegistryTest(unittest.TestCase):
         codes = {issue["code"] for issue in issues}
         self.assertIn("TALENT_OBSERVATION_INVALID", codes)
         self.assertIn("GEAR_OBSERVATION_INVALID", codes)
+
+    def test_validation_rejects_rehashed_empty_source_revision(self):
+        observed = self.snapshot()
+        observed["sourceRevision"] = ""
+        observed["profileHash"] = observed_build_registry._sha256(
+            observed_build_registry._snapshot_profile_payload(observed)
+        )
+        observed["snapshotId"] = observed_build_registry._expected_snapshot_id(observed)
+
+        issues = validate_observed_snapshot(observed)
+
+        self.assertEqual(
+            {issue["code"] for issue in issues},
+            {"SOURCE_REVISION_INVALID"},
+        )
 
 
 if __name__ == "__main__":
