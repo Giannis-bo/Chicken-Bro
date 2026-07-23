@@ -1,8 +1,10 @@
 # Observed Build Registry 与 TemplateSet 架构设计
 
-状态：下一步
+状态：正在推进
 分类：Strict
 确认日期：2026-07-23
+
+当前实施入口：[Observed Build Registry Core Implementation Plan](2026-07-23-observed-build-registry-core-implementation.md)
 
 当前事实：[project-state.json](../project-state.json)、[roadmap.md](../roadmap.md)、[Harness](../harness.md)、[职业构筑架构](../builds-architecture.md)、[社区模板 Runbook](../community-template-import-full-chain-runbook.md)、[装备模拟 Runbook](../gear-simulation-full-chain-runbook.md)、[天赋模拟 Runbook](../talent-simulation-full-chain-runbook.md)、[SimC 全链路](../simulator-simc-end-to-end.md)
 
