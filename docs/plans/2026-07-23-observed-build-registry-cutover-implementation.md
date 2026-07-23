@@ -785,7 +785,7 @@ Expected: PASS; exact imports reject IDs outside the active candidate scope.
 - CLI: `python3 -m server.observed_build_sync --scope candidate|retail [--refresh-source] [--promote] [--audit] --json`.
 - Sync state key: `observed_build_registry_sync`.
 
-- [ ] **Step 1: Write failing orchestration tests**
+- [x] **Step 1: Write failing orchestration tests**
 
 ```python
 def test_partial_initial_run_seals_candidate_but_does_not_move_pointer(self):
@@ -817,7 +817,7 @@ def test_existing_active_set_carries_one_lkg_and_updates_other_slots(self):
     self.assertEqual(result["promotion"]["action"], "auto_promote")
 ```
 
-- [ ] **Step 2: Run tests and verify failure**
+- [x] **Step 2: Run tests and verify failure**
 
 ```bash
 python3 -m unittest tests.observed_build_sync_test
@@ -825,7 +825,7 @@ python3 -m unittest tests.observed_build_sync_test
 
 Expected: FAIL because the orchestration module does not exist.
 
-- [ ] **Step 3: Implement the bounded stage sequence**
+- [x] **Step 3: Implement the bounded stage sequence**
 
 The runner executes exactly:
 
@@ -863,7 +863,7 @@ The runner never catches a source or compile failure and reports success. It ret
 }
 ```
 
-- [ ] **Step 4: Add safe CLI modes**
+- [x] **Step 4: Add safe CLI modes**
 
 CLI rules:
 
@@ -873,7 +873,7 @@ CLI rules:
 - scheduled execution without `--promote` auto-promotes only when the scope already has an active pointer and the change is `observed_only`;
 - initial activation is always explicit.
 
-- [ ] **Step 5: Switch the scheduled service with rollback retained**
+- [x] **Step 5: Switch the scheduled service with rollback retained**
 
 Set:
 
@@ -884,11 +884,11 @@ ExecStart=/usr/bin/flock -w 7200 /run/lock/wow-mini-program-sync.lock /usr/bin/p
 
 Keep `server/community_template_sync.py` in the repository and record that restoring the previous unit file plus `systemctl daemon-reload` is the code rollback.
 
-- [ ] **Step 6: Expose bounded health**
+- [x] **Step 6: Expose bounded health**
 
 `build_postgres_only_data_health_payload` adds `observedBuildRegistry` from `ObservedBuildStore.health_summary("retail")`. Before retail activation its status is `pre_cutover`; after activation it reports exact generation, 80 total, verified/stale/pending counts, 40 gear-complete specs, and at most 12 problem codes.
 
-- [ ] **Step 7: Verify and commit**
+- [x] **Step 7: Verify and commit**
 
 ```bash
 python3 -m unittest \

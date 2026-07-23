@@ -413,6 +413,36 @@ def _profile_from_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def prepare_observed_gear_with_postgres(
+    store: Any,
+    snapshots: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Backfill only the exact profiles selected for this observed-build run."""
+
+    profiles = [
+        _profile_from_snapshot(snapshot)
+        for snapshot in snapshots
+        if isinstance(snapshot, dict)
+    ]
+    if not profiles:
+        return {
+            "status": "verified",
+            "sourceStatus": "verified",
+            "profileCount": 0,
+        }
+    result = store.backfill_observed_gear_from_raiderio(
+        {"profiles": profiles},
+        mode="observed_build_compile",
+        profile_limit=len(profiles),
+        enable_simc_stats=False,
+    )
+    result = result if isinstance(result, dict) else {}
+    status = _text(result.get("status") or result.get("sourceStatus"))
+    if status in {"blocked", "failed"}:
+        raise ValueError("observed gear authority backfill failed")
+    return _canonical(result)
+
+
 def _gear_template(snapshot: dict[str, Any]) -> dict[str, Any]:
     source = snapshot.get("source") if isinstance(snapshot.get("source"), dict) else {}
     slot = snapshot.get("slot") if isinstance(snapshot.get("slot"), dict) else {}
@@ -486,6 +516,8 @@ def _compile_gear_with_postgres(
     snapshot: dict[str, Any],
     dependency_vector: dict[str, Any],
     simc_runtime_revision: str,
+    *,
+    gear_prepared: bool = False,
 ) -> dict[str, Any]:
     slot = snapshot.get("slot") if isinstance(snapshot.get("slot"), dict) else {}
     class_key = _text(slot.get("classKey"))
@@ -506,13 +538,8 @@ def _compile_gear_with_postgres(
         release_context,
         runtime_authority,
     )
-    profile = _profile_from_snapshot(snapshot)
-    store.backfill_observed_gear_from_raiderio(
-        {"profiles": [profile]},
-        mode="observed_build_compile",
-        profile_limit=1,
-        enable_simc_stats=False,
-    )
+    if not gear_prepared:
+        prepare_observed_gear_with_postgres(store, [snapshot])
     release = release_context["gearRelease"]
     release_dependencies = (
         release.get("dependencyRevisions")
@@ -616,6 +643,8 @@ def compile_with_postgres(
     snapshot: dict[str, Any],
     dependency_vector: dict[str, Any],
     simc_runtime_revision: str,
+    *,
+    gear_prepared: bool = False,
 ) -> dict[str, Any]:
     """Compile one shared player through current PG talent and gear authorities."""
 
@@ -631,6 +660,7 @@ def compile_with_postgres(
             value,
             dependency_vector,
             simc_runtime_revision,
+            gear_prepared=gear_prepared,
         ),
     )
 
@@ -638,4 +668,5 @@ def compile_with_postgres(
 __all__ = (
     "compile_observed_build",
     "compile_with_postgres",
+    "prepare_observed_gear_with_postgres",
 )

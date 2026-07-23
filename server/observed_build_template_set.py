@@ -260,6 +260,7 @@ def build_template_set(
     active_set: dict[str, Any] | None,
     dependency_vector: dict[str, Any],
     source_run_id: str,
+    problems_by_slot: Mapping[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Build a complete candidate set while carrying only same-slot LKG."""
 
@@ -275,11 +276,27 @@ def build_template_set(
     )
     active_entries, active_dependencies = _active_entries(active_set, expected_keys)
     same_dependencies = not active_set or active_dependencies == normalized_dependencies
+    slot_problems = (
+        problems_by_slot
+        if isinstance(problems_by_slot, Mapping)
+        else {}
+    )
+    unexpected_problem_keys = set(slot_problems).difference(expected_keys)
+    if unexpected_problem_keys:
+        raise ValueError(
+            "problem slot is not expected: "
+            + sorted(str(key) for key in unexpected_problem_keys)[0]
+        )
     entries: list[dict[str, Any]] = []
     for slot in ordered_slots:
         key = slot_key(slot)
         candidate = candidates.get(key)
         active_entry = active_entries.get(key)
+        slot_problem = (
+            slot_problems.get(key)
+            if isinstance(slot_problems.get(key), dict)
+            else None
+        )
         if candidate and candidate.get("status") == "verified":
             entries.append(_verified_entry(slot, candidate))
             continue
@@ -296,9 +313,18 @@ def build_template_set(
                 entries.append(_pending_entry(slot, _entry_problem(candidate)))
             continue
         if same_dependencies and active_entry:
-            entries.append(copy.deepcopy(active_entry))
+            if slot_problem:
+                entries.append(
+                    _lkg_entry(
+                        slot,
+                        active_entry,
+                        {"problems": [slot_problem]},
+                    )
+                )
+            else:
+                entries.append(copy.deepcopy(active_entry))
         else:
-            entries.append(_pending_entry(slot))
+            entries.append(_pending_entry(slot, slot_problem))
 
     template_set = {
         "schemaRevision": OBSERVED_BUILD_TEMPLATE_SET_SCHEMA_REVISION,

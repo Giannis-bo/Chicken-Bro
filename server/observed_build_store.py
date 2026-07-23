@@ -971,6 +971,11 @@ class ObservedBuildStore:
         """Expose bounded active-set health without returning player payloads."""
 
         normalized_scope = _required_text(scope, "scope", limit=80)
+        empty_counts = {
+            "verified": 0,
+            "stale_lkg": 0,
+            "pending_collection": 0,
+        }
         try:
             active = self.load_active_records(normalized_scope)
         except ObservedBuildIntegrityError:
@@ -982,11 +987,10 @@ class ObservedBuildStore:
                 "activeTemplateSetId": "",
                 "recordCount": 0,
                 "sourceIdentityCount": 0,
-                "counts": {
-                    "verified": 0,
-                    "stale_lkg": 0,
-                    "pending_collection": 0,
-                },
+                "total": EXPECTED_TEMPLATE_SLOT_COUNT,
+                "gearCompleteSpecs": 0,
+                "counts": empty_counts,
+                "problemCodes": ["registry_integrity_failed"],
                 "blockers": [
                     "active observed-build registry failed integrity validation"
                 ],
@@ -994,28 +998,65 @@ class ObservedBuildStore:
         pointer = active["pointer"]
         if not pointer:
             return {
-                "status": "partial",
+                "status": "pre_cutover",
                 "scope": normalized_scope,
                 "active": False,
                 "generation": 0,
                 "activeTemplateSetId": "",
                 "recordCount": 0,
                 "sourceIdentityCount": 0,
-                "counts": {
-                    "verified": 0,
-                    "stale_lkg": 0,
-                    "pending_collection": 0,
-                },
+                "total": EXPECTED_TEMPLATE_SLOT_COUNT,
+                "gearCompleteSpecs": 0,
+                "counts": empty_counts,
+                "problemCodes": [],
                 "blockers": [
                     "observed-build TemplateSet pointer is inactive"
                 ],
             }
         template_set = active["templateSet"]
         records = active["records"]
+        entries = [
+            entry
+            for entry in template_set.get("entries") or []
+            if isinstance(entry, dict)
+        ]
         counts = _canonical(template_set.get("counts") or {})
         stale_count = int(counts.get("stale_lkg") or 0)
         record_count = len(records)
         complete = record_count == EXPECTED_TEMPLATE_SLOT_COUNT
+        entries_by_spec: dict[str, list[dict[str, Any]]] = {}
+        for entry in entries:
+            slot = (
+                entry.get("slot")
+                if isinstance(entry.get("slot"), dict)
+                else {}
+            )
+            spec_id = (
+                f"{_text(slot.get('classKey'))}:"
+                f"{_text(slot.get('specKey'))}"
+            )
+            entries_by_spec.setdefault(spec_id, []).append(entry)
+        gear_complete_specs = sum(
+            len(spec_entries) == 2
+            and all(
+                entry.get("status") in {"verified", "stale_lkg"}
+                and _text(entry.get("projectionId"))
+                for entry in spec_entries
+            )
+            for spec_entries in entries_by_spec.values()
+        )
+        problem_codes: list[str] = []
+        for entry in entries:
+            problem = (
+                entry.get("problem")
+                if isinstance(entry.get("problem"), dict)
+                else {}
+            )
+            code = _text(problem.get("code"))
+            if code and code not in problem_codes:
+                problem_codes.append(code[:120])
+            if len(problem_codes) >= 12:
+                break
         status = (
             "blocked"
             if not complete
@@ -1041,6 +1082,8 @@ class ObservedBuildStore:
             "dependencyHash": _row_hash(
                 template_set.get("dependencyVector") or {}
             ),
+            "total": EXPECTED_TEMPLATE_SLOT_COUNT,
+            "gearCompleteSpecs": gear_complete_specs,
             "recordCount": record_count,
             "sourceIdentityCount": len(
                 {
@@ -1054,6 +1097,7 @@ class ObservedBuildStore:
                 }
             ),
             "counts": counts,
+            "problemCodes": problem_codes,
             "updatedAt": pointer.get("updatedAt"),
             "blockers": blockers,
         }

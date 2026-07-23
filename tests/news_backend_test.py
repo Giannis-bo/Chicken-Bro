@@ -6547,6 +6547,50 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(community_details["gearTemplatePreflight"]["canonicalSlotMatrix"]["missingSlotCount"], 90)
         self.assertEqual(community_details["changeReport"]["summary"]["unchanged"], 120)
         self.assertEqual(community_details["lastSyncRun"], "live-health-summary")
+        self.assertEqual(
+            payload["observedBuildRegistry"]["status"],
+            "pre_cutover",
+        )
+        self.assertEqual(payload["observedBuildRegistry"]["total"], 80)
+
+    def test_observed_build_registry_health_is_bounded_and_read_only(self):
+        class Registry:
+            def health_summary(self, scope):
+                self.scope = scope
+                return {
+                    "status": "partial",
+                    "scope": scope,
+                    "active": True,
+                    "generation": 7,
+                    "activeTemplateSetId": "template-set:sha256:" + "a" * 64,
+                    "dependencyHash": "sha256:" + "b" * 64,
+                    "total": 80,
+                    "recordCount": 80,
+                    "sourceIdentityCount": 80,
+                    "gearCompleteSpecs": 40,
+                    "counts": {
+                        "verified": 79,
+                        "stale_lkg": 1,
+                        "pending_collection": 0,
+                    },
+                    "problemCodes": [f"problem_{index}" for index in range(20)],
+                    "blockers": ["one slot is serving LKG"],
+                    "updatedAt": "2026-07-23T13:00:00Z",
+                }
+
+        class CacheStore:
+            _observed_build_store = Registry()
+
+        health = self.backend.observed_build_registry_health_payload(
+            CacheStore()
+        )
+
+        self.assertEqual(CacheStore._observed_build_store.scope, "retail")
+        self.assertEqual(health["generation"], 7)
+        self.assertEqual(health["recordCount"], 80)
+        self.assertEqual(health["gearCompleteSpecs"], 40)
+        self.assertEqual(health["counts"]["stale_lkg"], 1)
+        self.assertEqual(len(health["problemCodes"]), 12)
 
     def test_data_health_accepts_warcraftlogs_v1_api_key_without_exposing_secret(self):
         os.environ["WOW_WARCRAFTLOGS_API_KEY"] = "fake-wcl-v1-key"

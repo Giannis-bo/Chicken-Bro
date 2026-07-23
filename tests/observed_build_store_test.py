@@ -596,6 +596,20 @@ class ObservedBuildStoreTest(unittest.TestCase):
         self.assertTrue(summary["active"])
         self.assertEqual(summary["counts"]["stale_lkg"], 2)
         self.assertEqual(summary["recordCount"], 80)
+        self.assertEqual(summary["total"], 80)
+        self.assertEqual(summary["gearCompleteSpecs"], 40)
+        self.assertLessEqual(len(summary["problemCodes"]), 12)
+
+    def test_health_summary_reports_pre_cutover_before_pointer_activation(self):
+        store = ObservedBuildStore(lambda: FakeConnection(lambda _sql, _params: None))
+
+        summary = store.health_summary("retail")
+
+        self.assertEqual(summary["status"], "pre_cutover")
+        self.assertFalse(summary["active"])
+        self.assertEqual(summary["total"], 80)
+        self.assertEqual(summary["gearCompleteSpecs"], 0)
+        self.assertEqual(summary["problemCodes"], [])
 
     def test_pointer_cas_is_monotonic_and_rejects_stale_generation(self):
         template_set = self.template_set()

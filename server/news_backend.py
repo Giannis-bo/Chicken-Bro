@@ -3255,6 +3255,100 @@ def release_refresh_health_component(cache_store):
     )
 
 
+def observed_build_registry_health_payload(cache_store):
+    """Read bounded retail Registry health without compiling or refreshing."""
+
+    registry = getattr(cache_store, "_observed_build_store", None)
+    reader = getattr(registry, "health_summary", None)
+    if not callable(reader):
+        return {
+            "status": "pre_cutover",
+            "scope": "retail",
+            "active": False,
+            "generation": 0,
+            "activeTemplateSetId": "",
+            "total": 80,
+            "recordCount": 0,
+            "sourceIdentityCount": 0,
+            "gearCompleteSpecs": 0,
+            "counts": {
+                "verified": 0,
+                "stale_lkg": 0,
+                "pending_collection": 0,
+            },
+            "problemCodes": [],
+            "blockers": [
+                "observed-build TemplateSet pointer is inactive"
+            ],
+        }
+    try:
+        summary = reader("retail")
+    except Exception:
+        return {
+            "status": "blocked",
+            "scope": "retail",
+            "active": False,
+            "generation": 0,
+            "activeTemplateSetId": "",
+            "total": 80,
+            "recordCount": 0,
+            "sourceIdentityCount": 0,
+            "gearCompleteSpecs": 0,
+            "counts": {
+                "verified": 0,
+                "stale_lkg": 0,
+                "pending_collection": 0,
+            },
+            "problemCodes": ["registry_health_read_failed"],
+            "blockers": [
+                "observed-build Registry health is unavailable"
+            ],
+        }
+    summary = summary if isinstance(summary, dict) else {}
+    output = {
+        "status": str(summary.get("status") or "blocked"),
+        "scope": "retail",
+        "active": summary.get("active") is True,
+        "generation": int(summary.get("generation") or 0),
+        "activeTemplateSetId": str(
+            summary.get("activeTemplateSetId") or ""
+        )[:120],
+        "total": 80,
+        "recordCount": int(summary.get("recordCount") or 0),
+        "sourceIdentityCount": int(
+            summary.get("sourceIdentityCount") or 0
+        ),
+        "gearCompleteSpecs": int(
+            summary.get("gearCompleteSpecs") or 0
+        ),
+        "counts": {
+            key: int((summary.get("counts") or {}).get(key) or 0)
+            for key in (
+                "verified",
+                "stale_lkg",
+                "pending_collection",
+            )
+        },
+        "problemCodes": [
+            str(code or "")[:120]
+            for code in summary.get("problemCodes") or []
+            if str(code or "").strip()
+        ][:12],
+        "blockers": [
+            str(blocker or "")[:240]
+            for blocker in summary.get("blockers") or []
+            if str(blocker or "").strip()
+        ][:12],
+    }
+    if summary.get("dependencyHash"):
+        output["dependencyHash"] = str(
+            summary.get("dependencyHash") or ""
+        )[:80]
+    if summary.get("updatedAt"):
+        output["updatedAt"] = str(summary.get("updatedAt") or "")[:80]
+    return output
+
+
 def build_postgres_only_data_health_payload(*, include_template_evidence_audit=True):
     content_store = content_data_store()
     cache_store = cache_data_store()
@@ -3494,6 +3588,9 @@ def build_postgres_only_data_health_payload(*, include_template_evidence_audit=T
         "allowedStatuses": DATA_HEALTH_STATUSES,
         "overallStatus": data_health_overall_status(components),
         "components": components,
+        "observedBuildRegistry": observed_build_registry_health_payload(
+            cache_store
+        ),
     }
 
 
