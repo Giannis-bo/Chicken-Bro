@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-24T10:06:13.669Z",
+  "generatedAt": "2026-07-24T10:07:47.020Z",
   "release": {
     "date": "2026-07-24",
     "slug": "taro-gear-editor-recovery"
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-24-taro-gear-editor-recovery/evidence.json",
-    "sizeBytes": 5720,
+    "sizeBytes": 6083,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -390,9 +390,9 @@
       "summary"
     ],
     "missingFields": [],
-    "declaredStatus": "runtime_verified",
-    "highestEvidenceLevel": "runtime_verified",
-    "summary": "The active Taro gear editor is runtime-verified on candidate a7d572d9: the user explicitly accepted both frozen real-WeChat scenarios, and the canonical intent, resolver-eligibility and unsupported-enhancement safeguards remain locally verified. Mainline merge and archive closure remain pending."
+    "declaredStatus": "archived",
+    "highestEvidenceLevel": "archived",
+    "summary": "The active Taro gear editor is archived on main merge 9c53b0c3. Candidate a7d572d9 passed real-WeChat user acceptance for tier application and enhancement confirmation; the merged mainline tree passed the scoped UI contract, type, Taro test and 213-file WeChat build checks before closure."
   },
   "evidence": {
     "localTests": {
