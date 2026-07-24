@@ -179,6 +179,20 @@ describe('gear detail truth model', () => {
     })?.slots['finger1']?.enchantOptionId).toBe('quick-ruby')
   })
 
+  it('accepts the compact PG option_key alias as the resolver-owned identity', () => {
+    const [option] = gearEnhancementOptions({
+      itemId: 'compact-ring',
+      enchantOptions: [{
+        id: '301',
+        option_key: 'quick-ruby-alias',
+        status: 'verified',
+        label: '迅捷红玉',
+      }],
+    }, {}, 'finger1')
+
+    expect(option?.id).toBe('quick-ruby-alias')
+  })
+
   it('exposes only explicitly verified enhancement options', () => {
     const item: GearItemReference = {
       itemId: 'strict-ring',
@@ -241,17 +255,19 @@ describe('gear detail truth model', () => {
         { itemId: 'shield', weaponType: 'shield', modCapabilities: { canEnchant: true } },
         { itemId: 'held', weaponType: 'held in off-hand', modCapabilities: { canEnchant: true } },
         { itemId: 'weapon', weaponType: 'one-handed sword', modCapabilities: { canEnchant: true } },
+        { itemId: 'wand', weaponType: 'wand', modCapabilities: { canEnchant: true } },
       ],
       enchantOptions,
     } as WebsimGearPayload['replacementCandidates'][number] & {
       enchantOptions: NonNullable<GearItemReference['enchantOptions']>
     }
 
-    const [shield, held, weapon] = hydrateCompactSlotGroup(group)
+    const [shield, held, weapon, wand] = hydrateCompactSlotGroup(group)
 
     expect(shield?.enchantOptions?.map((option) => option.optionKey)).toEqual(['shield-enchant'])
     expect(held?.enchantOptions?.map((option) => option.optionKey)).toEqual(['held-enchant'])
     expect(weapon?.enchantOptions?.map((option) => option.optionKey)).toEqual(['weapon-enchant'])
+    expect(wand?.enchantOptions).toEqual([])
   })
 
   it('uses the compact group slot to separate jewelry and armor embellishments', () => {
@@ -274,6 +290,50 @@ describe('gear detail truth model', () => {
     expect(ring).not.toHaveProperty('slot')
     expect(ring?.embellishmentOptions?.map((option) => option.optionKey)).toEqual(['jewelry-only'])
     expect(wrist?.embellishmentOptions?.map((option) => option.optionKey)).toEqual(['armor-only'])
+  })
+
+  it('blocks embellishment choices for items with a built-in embellishment', () => {
+    const embellishmentOptions = [
+      { optionKey: 'armor-only', status: 'verified', slotGroup: 'armor' },
+    ]
+    const builtInItems: GearItemReference[] = [
+      { itemId: 'flag', hasBuiltInEmbellishment: true },
+      { itemId: 'built-in-value', builtInEmbellishment: '自带美化' },
+      { itemId: 'intrinsic-value', intrinsicEmbellishment: '自带美化' },
+      { itemId: 'inherent-value', inherentEmbellishment: '自带美化' },
+      { itemId: 'source-built-in', embellishmentSource: 'built_in' },
+      { itemId: 'source-builtin', embellishmentSource: 'builtin' },
+      { itemId: 'source-intrinsic', embellishmentSource: 'intrinsic' },
+      { itemId: 'source-item', embellishmentSource: 'item' },
+    ].map((item) => ({
+      ...item,
+      armorType: 'cloth',
+      modCapabilities: { canEmbellish: true },
+    }))
+    const group = {
+      slot: 'wrist',
+      label: '腕部',
+      items: [
+        ...builtInItems,
+        {
+          itemId: 'ordinary-armor',
+          armorType: 'cloth',
+          modCapabilities: { canEmbellish: true },
+        },
+      ],
+      embellishmentOptions,
+    } as WebsimGearPayload['replacementCandidates'][number] & {
+      embellishmentOptions: NonNullable<GearItemReference['embellishmentOptions']>
+    }
+
+    const hydrated = hydrateCompactSlotGroup(group)
+
+    expect(hydrated.slice(0, builtInItems.length).every((item) => (
+      item.embellishmentOptions?.length === 0
+    ))).toBe(true)
+    expect(hydrated.at(-1)?.embellishmentOptions?.map((option) => option.optionKey)).toEqual([
+      'armor-only',
+    ])
   })
 
   it('ignores catalog-wide compact readiness when the editable equipped set is empty', () => {

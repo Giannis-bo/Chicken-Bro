@@ -100,7 +100,6 @@ const offhandWeaponEnchantTypes = new Set([
   'one_handed_mace',
   'one_handed_sword',
   'warglaive',
-  'wand',
 ])
 
 const gearEmbellishmentArmorSlots = new Set([
@@ -116,6 +115,8 @@ const gearEmbellishmentArmorSlots = new Set([
 ])
 
 const gearEmbellishmentJewelrySlots = new Set(['neck', 'finger1', 'finger2'])
+
+const gearBuiltInEmbellishmentSources = new Set(['built_in', 'builtin', 'intrinsic', 'item'])
 
 function optionPayload(option: GearEnhancementOption): Readonly<Record<string, unknown>> {
   const payload = option['payload']
@@ -212,6 +213,18 @@ function embellishmentOptionAppliesToItem(
   return false
 }
 
+function itemHasBuiltInEmbellishment(item: GearItemReference): boolean {
+  if (item['hasBuiltInEmbellishment'] === true) return true
+  if ([
+    item['builtInEmbellishment'],
+    item['intrinsicEmbellishment'],
+    item['inherentEmbellishment'],
+  ].some((value) => Boolean(text(value)))) return true
+  return gearBuiltInEmbellishmentSources.has(
+    normalizedConfigKey(item['embellishmentSource']),
+  )
+}
+
 function enhancementOptionAppliesToItem(
   option: GearEnhancementOption,
   item: GearItemReference,
@@ -220,7 +233,10 @@ function enhancementOptionAppliesToItem(
 ): boolean {
   if (!verifiedEnhancementOption(option)) return false
   if (key === 'enchantOptions') return enchantOptionAppliesToItem(option, item, slot)
-  if (key === 'embellishmentOptions') return embellishmentOptionAppliesToItem(option, item, slot)
+  if (key === 'embellishmentOptions') {
+    return !itemHasBuiltInEmbellishment(item)
+      && embellishmentOptionAppliesToItem(option, item, slot)
+  }
   return true
 }
 
