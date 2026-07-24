@@ -26,6 +26,8 @@
 | --- | --- |
 | `apps/mini-taro/src/pages/builds/gear-detail-editor-model.ts` | 安全解析候选轨道、候选草稿/应用投影、逐 socket 和单值增强草稿变更；不发请求。 |
 | `apps/mini-taro/src/pages/builds/gear-detail-editor-model.test.ts` | 轨道、候选确认、强化草稿和失败不提交的纯函数回归。 |
+| `apps/mini-taro/src/pages/builds/gear-detail-editor-commit-model.ts` | Resolve 成功、失败、409 与 stale completion 对已确认装备/强化和编辑草稿的纯状态转换。 |
+| `apps/mini-taro/src/pages/builds/gear-detail-editor-commit-model.test.ts` | 草稿不提前提交、同槽强化清除、跨槽保留、失败/409/stale 不污染已确认状态的行为回归。 |
 | `packages/design-system/src/components/GearEditorSheets.tsx` | 候选详情/轨道与强化编辑的 Taro 操作表面和 source-owned selector。 |
 | `packages/design-system/src/components/GearEditorSheets.module.scss` | 编辑面板仅在工作台内部覆盖和滚动的视觉规则。 |
 | `apps/mini-taro/src/pages/builds/detail.tsx` | 草稿生命周期、slot hydration、fence、Resolve 成功提交和错误反馈。 |
@@ -260,6 +262,8 @@ Expected: route owner 仍是 Taro / design-system，候选表面仍在 `equipmen
 - Modify: `packages/design-system/src/components/GearDetailComponents.tsx`
 - Modify: `scripts/verify-ui-interactions.js`
 - Modify: `tests/taro-gear-editor-contracts.test.js`
+- Create: `apps/mini-taro/src/pages/builds/gear-detail-editor-commit-model.ts`
+- Create: `apps/mini-taro/src/pages/builds/gear-detail-editor-commit-model.test.ts`
 
 **Interfaces:**
 
@@ -278,6 +282,8 @@ expect(pageSource).not.toMatch(/const chooseCandidate = async[\s\S]*?await resol
 ```
 
 增加断言：`chooseEnhancement` 不能直接 Resolve；409 通过 `route.load()` 丢弃两个草稿；关闭/重置/导入递增 candidate request identity 并清空两类草稿。
+
+写失败的纯行为测试并要求页面消费该 helper：未 Resolve、network/503 或 stale completion 时 candidate/enhancement draft 与已确认 `equipped` / `enhancements` 都保持；409 只清两个草稿并要求 reload；verified candidate completion 只替换目标 slot 并清空该 slot 强化；verified enhancement completion 只替换目标 slot 强化并保留其他 slot。无 `variants` 的后端合法候选仍产生 base materialization 并保留显式 Apply；交互 verifier 只在返回 variants 时选择轨道。
 
 再为真实微信 smoke 写失败断言：每个 `gear-slot-row` 必须发布 `data-committed-item-id`，候选 row 发布 `data-candidate-item-id`，并且工作台发布 `data-gear-resolve-state`。`verify-ui-interactions.js` 的 `gear_detail` 分支在选候选/轨道后读取主手的 committed id，必须仍等于 apply 前值；点击 apply 后必须等待 `data-gear-resolve-state="verified"` 且 committed id 等于该候选 id。任何 Resolve 拒绝、409 或 stale completion 都不能把草稿 item id 发布为 committed id。
 
@@ -303,6 +309,8 @@ const applyCandidateDraft = async () => {
 候选 row、轨道和强化 option 只调用 `set*Draft`。`confirmEnhancementDraft` 以同样模式执行一次 Resolve，成功后才 `setEnhancements(next)`. 503/network 仅保留草稿和已确认 state；409 清草稿并 reload；stale completion 不更新任何 state。
 
 `GearSlotWorkbench` 从已确认 `equipped` 接收并发布 `data-committed-item-id`，不得从 candidate draft 读取。页面把 canonical snapshot 的 verified / loading / error 状态映射为 `data-gear-resolve-state`；candidate sheet 关闭只能发生在 verified completion 后。更新微信交互执行器，按上一步的 stable markers 断言 draft 不提前提交、verified completion 后才提交，不能再只用“应用按钮消失”作为成功证据。
+
+`data-gear-resolve-state` 在加载期间必须为 `resolving`，不能复用旧 snapshot 的 `verified`；额外发布 current resolved slot item ID。交互执行器在 apply 前记录 committed ID 与 resolved slot ID，apply 后要求新 `verified` completion 的 resolved slot item ID 与 candidate item ID 一致、且 committed ID 同时变为该值。这样旧 verified snapshot 或乐观提交不能伪造本次成功。
 
 - [ ] **Step 3: 回归页面、模型和类型测试**
 
