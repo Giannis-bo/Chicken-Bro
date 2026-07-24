@@ -116,10 +116,26 @@ describe('gear detail fixed workbench contract', () => {
     expect(editorComponentSource).toContain('data-role="gear-candidate-row"')
     expect(editorComponentSource).toContain('data-role="gear-candidate-variant"')
     expect(editorComponentSource).toContain('data-action-id="gear-candidate-apply"')
+    expect(editorComponentSource).toContain('disabled={!canApply || loading}')
     expect(editorComponentSource).toContain('data-role="gear-enhancement-socket"')
     expect(editorComponentSource).toContain('data-action-id="gear-enhancement-confirm"')
     expect(editorComponentSource).not.toContain('resolveSelection')
     expect(editorComponentSource).not.toContain('gearResolve')
+  })
+
+  it('keeps crafted stats display-only and maps editor actions to draft callbacks', () => {
+    const craftedStatSource = editorComponentSource.match(/draft\.craftedStatOptions\.map\(\(item\) => \([\s\S]*?\)\)\}/u)?.[0] ?? ''
+    expect(craftedStatSource).toContain('data-role="gear-crafted-stat-display"')
+    expect(craftedStatSource).toContain('<View')
+    expect(craftedStatSource).not.toContain('<ControlButton')
+    expect(craftedStatSource).not.toContain('onClick=')
+    expect(craftedStatSource).not.toContain('data-active=')
+    expect(editorComponentSource).toContain("onClick={() => onSetGem(socketIndex, '')}")
+    expect(editorComponentSource).toContain('onClick={() => onSetGem(socketIndex, item.id)}')
+    expect(editorComponentSource.match(/data-socket-index=\{socketIndex\}/gu)).toHaveLength(3)
+    expect(editorComponentSource).toMatch(/data-action-id="gear-enhancement-cancel"[^>]*onClick=\{onClose\}/u)
+    expect(editorComponentSource).toMatch(/data-action-id="gear-enhancement-confirm"[\s\S]*?onClick=\{onConfirm\}/u)
+    expect(editorComponentSource.match(/data-action-id="gear-enhancement-confirm"/gu)).toHaveLength(1)
   })
 
   it('wires every canonical profession to a class launch before reloading the gear workbench', () => {

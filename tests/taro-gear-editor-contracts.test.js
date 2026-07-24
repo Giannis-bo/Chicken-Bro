@@ -60,15 +60,17 @@ test('the core interaction contract has one executable candidate apply flow per 
   assert.match(executor, /waitForElementMissing/u)
 })
 
-test('selected-state partitioning validates independent socket selections separately', () => {
+test('selected-state partitioning validates independent gear enhancement selections', () => {
   const {
     summarizeSelectionPartitions,
   } = require('../scripts/verify-ui-selected-states.js')
   const contract = require('../docs/design/current-ui/selected-control-contract.json')
   const socketGroup = contract.groups.find((group) => group.route === 'gear_detail' && group.role === 'gear-enhancement-socket')
+  const enhancementGroup = contract.groups.find((group) => group.route === 'gear_detail' && group.role === 'gear-enhancement-option')
   const audit = fs.readFileSync(path.join(root, 'scripts/audit-ui-architecture.js'), 'utf8')
 
   assert.equal(socketGroup.groupByAttribute, 'data-socket-index')
+  assert.equal(enhancementGroup.groupByAttribute, 'data-enhancement-kind')
   assert.match(audit, /GearEditorSheets\.tsx', 'gear-enhancement-socket'/u)
   assert.match(audit, /grouped_selected_controls_publish_group_attributes/u)
   assert.deepEqual(
@@ -101,18 +103,30 @@ test('selected-state partitioning validates independent socket selections separa
     )[0].pass,
     false,
   )
+  assert.deepEqual(
+    summarizeSelectionPartitions(
+      ['true', 'false', 'true', 'false'],
+      ['enchant', 'enchant', 'embellishment', 'embellishment'],
+      enhancementGroup.minimumActive,
+      enhancementGroup.maximumActive,
+    ),
+    [
+      { key: 'enchant', controls: 2, active: 1, pass: true },
+      { key: 'embellishment', controls: 2, active: 1, pass: true },
+    ],
+  )
 })
 
-test('the UI architecture dry run reports pending source markers without crashing', () => {
+test('the UI architecture dry run accepts the Task 3 editor source markers', () => {
   const result = spawnSync(process.execPath, ['scripts/audit-ui-architecture.js'], {
     cwd: root,
     encoding: 'utf8',
   })
 
-  assert.equal(result.status, 1)
+  assert.equal(result.status, 0, result.stderr || result.stdout)
   assert.equal(result.stderr, '')
   const output = JSON.parse(result.stdout)
-  assert.equal(output.status, 'fail')
-  assert.ok(output.findings.some((finding) => finding.includes('GearEditorSheets.tsx')))
-  assert.ok(output.findings.some((finding) => finding.includes('data-socket-index')))
+  assert.equal(output.status, 'pass')
+  assert.equal(output.findingCount, 0)
+  assert.deepEqual(output.findings, [])
 })

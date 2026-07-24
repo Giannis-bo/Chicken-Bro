@@ -528,6 +528,7 @@ export function GearSlotWorkbench({
                       key={`${item.kind}-${item.id}`}
                       className={style('enhancementOption')}
                       data-active={item.selected ? 'true' : 'false'}
+                      data-enhancement-kind={item.kind}
                       data-material-owner="css"
                       data-selection-material={item.selected ? 'active' : 'inactive'}
                       data-role="gear-enhancement-option"
