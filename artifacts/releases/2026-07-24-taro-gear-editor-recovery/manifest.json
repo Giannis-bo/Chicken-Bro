@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-24T10:05:55.231Z",
+  "generatedAt": "2026-07-24T10:06:13.669Z",
   "release": {
     "date": "2026-07-24",
     "slug": "taro-gear-editor-recovery"
@@ -414,12 +414,6 @@
   },
   "riskMatrix": [
     {
-      "id": "dirty_worktree",
-      "severity": "medium",
-      "status": "watch",
-      "detail": "1 changed files currently visible to git status."
-    },
-    {
       "id": "hotspot_files_present",
       "severity": "medium",
       "status": "watch",
@@ -452,11 +446,9 @@
   ],
   "repo": {
     "git": {
-      "status": "dirty",
-      "changedFileCount": 1,
-      "changedFiles": [
-        " M artifacts/releases/2026-07-24-taro-gear-editor-recovery/manifest.json"
-      ]
+      "status": "clean",
+      "changedFileCount": 0,
+      "changedFiles": []
     }
   },
   "write": {
