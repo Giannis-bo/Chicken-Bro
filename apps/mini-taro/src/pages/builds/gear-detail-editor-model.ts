@@ -56,6 +56,7 @@ function variantState(value: RecordValue, blockers: readonly string[]): GearCand
   const status = firstText(value['state'], value['status']).toLowerCase()
   if (status === 'blocked' || blockers.length) return 'blocked'
   if (status === 'ready' || status === 'verified') return 'ready'
+  if (status === 'partial') return 'partial'
   return 'blocked'
 }
 
@@ -108,11 +109,11 @@ export function selectCandidateVariant(draft: GearCandidateDraft, variantKey: st
 }
 
 export function candidateDraftCanApply(draft: GearCandidateDraft): boolean {
-  return Boolean(draft.selectedVariantKey && draft.variants.some((item) => item.key === draft.selectedVariantKey && item.state === 'ready'))
+  return Boolean(draft.selectedVariantKey && draft.variants.some((item) => item.key === draft.selectedVariantKey && item.state !== 'blocked'))
 }
 
 export function materializeCandidateDraft(draft: GearCandidateDraft): GearItemReference | null {
-  const variant = draft.variants.find((item) => item.key === draft.selectedVariantKey && item.state === 'ready')
+  const variant = draft.variants.find((item) => item.key === draft.selectedVariantKey && item.state !== 'blocked')
   if (!variant) return null
   const candidate = draft.candidate
   return {

@@ -64,6 +64,20 @@ describe('gear detail editor model', () => {
     expect(candidateDraftCanApply(selectCandidateVariant(draft, 'unknown-status'))).toBe(false)
   })
 
+  it('keeps an explicit partial variant resolver-eligible', () => {
+    const draft = createCandidateDraft('main_hand', {
+      itemId: 'partial-weapon',
+      variants: [{ key: 'partial-285', status: 'partial', difficultyLabel: '英雄', ilevel: 285 }],
+    })
+    const selected = selectCandidateVariant(draft, 'partial-285')
+
+    expect(selected.variants).toEqual([expect.objectContaining({ key: 'partial-285', state: 'partial' })])
+    expect(candidateDraftCanApply(selected)).toBe(true)
+    expect(materializeCandidateDraft(selected)).toMatchObject({
+      itemId: 'partial-weapon', variantKey: 'partial-285', ilevel: 285, difficultyLabel: '英雄',
+    })
+  })
+
   it('does not turn display-only craftedStatOptions into a resolver selection', () => {
     const draft = selectCandidateVariant(createCandidateDraft('main_hand', craftedWeapon), 'crafted-myth-285')
 
