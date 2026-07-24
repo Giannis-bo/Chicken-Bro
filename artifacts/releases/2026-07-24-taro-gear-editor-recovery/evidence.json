@@ -1,0 +1,116 @@
+{
+  "schemaVersion": 2,
+  "slug": "taro-gear-editor-recovery",
+  "requirementSlug": "taro-gear-editor-recovery",
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
+  "branch": "codex/taro-gear-editor-recovery",
+  "commit": "pending_candidate_head",
+  "identities": {
+    "runtime": {
+      "status": "pending",
+      "reason": "Exact candidate-head WeChat smoke has not run."
+    },
+    "verification": {
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD"
+    },
+    "closure": {
+      "status": "pending",
+      "reason": "Exact candidate-head WeChat acceptance, merge and closure remain pending."
+    }
+  },
+  "manualAcceptance": {
+    "required": true,
+    "status": "pending",
+    "items": [
+      {
+        "id": "gear_candidate_variant_apply",
+        "status": "pending"
+      },
+      {
+        "id": "gear_enhancement_confirm",
+        "status": "pending"
+      }
+    ],
+    "rollup": {
+      "total": 2,
+      "accepted": 0,
+      "notRunUserWaived": 0,
+      "pending": 2
+    }
+  },
+  "scope": [
+    "Active Taro gear-detail candidate, variant and enhancement draft state machine",
+    "Design-system gear candidate and enhancement workbench sheets",
+    "Current UI gear-detail interaction, selected-control, truth-adaptation and component contracts",
+    "Task-scoped Standard Harness requirement, evidence and manifest"
+  ],
+  "verification": [
+    {
+      "command": "git diff --check",
+      "status": "pass",
+      "summary": "The task source and packet have no whitespace errors."
+    },
+    {
+      "command": "npm run audit:ui-architecture",
+      "status": "pass",
+      "summary": "All 14 current routes and contracts passed 283 architecture checks with zero findings."
+    },
+    {
+      "command": "npm run typecheck",
+      "status": "pass",
+      "summary": "The workspace TypeScript check completed without errors."
+    },
+    {
+      "command": "npm run test:taro",
+      "status": "pass",
+      "summary": "All 52 Vitest files and 362 tests passed."
+    },
+    {
+      "command": "npm run build:weapp",
+      "status": "pass",
+      "summary": "The production WeChat build completed through staged atomic promotion with 213 files using the existing local dependency tree."
+    },
+    {
+      "command": "node scripts/project-harness.js --check --requirement-file artifacts/releases/2026-07-24-taro-gear-editor-recovery/requirement.json --evidence-file artifacts/releases/2026-07-24-taro-gear-editor-recovery/evidence.json --manifest-file artifacts/releases/2026-07-24-taro-gear-editor-recovery/manifest.json --base origin/main",
+      "status": "pass",
+      "summary": "The complete Standard packet is bound to a clean exact HEAD; runtime and manual acceptance remain pending."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "not_run",
+    "requiredBeforeMerge": true,
+    "commit": "pending_candidate_head",
+    "reason": "Exact candidate-head WeChat smoke has not run, so candidate preview identity and runtime evidence remain pending."
+  },
+  "runtimeEvidence": [],
+  "risks": [
+    {
+      "id": "exact_head_wechat_smoke_pending",
+      "status": "open",
+      "detail": "A real WeChat preview must still verify a multi-variant candidate, a no-variant candidate, multi-socket gems, enchantment, embellishment, cancellation and resolver rejection against the exact candidate head."
+    },
+    {
+      "id": "crafted_stat_identifier_absent",
+      "status": "guarded",
+      "detail": "craftedStatOptions remain display-only because the resolver contract exposes no canonical selectable identifier."
+    }
+  ],
+  "rollback": [
+    "code_rollback"
+  ],
+  "cleanup": {
+    "required": false,
+    "reason": "No temporary remote runtime, deployment or external service was created."
+  },
+  "archivedReferences": [
+    "docs/plans/2026-07-24-taro-gear-editor-recovery-design.md",
+    "docs/plans/2026-07-24-taro-gear-editor-recovery-implementation.md",
+    "docs/design/current-ui/core-interaction-contract.json",
+    "docs/design/current-ui/selected-control-contract.json"
+  ],
+  "summary": "The active Taro gear editor is locally verified on a clean exact HEAD. Real WeChat candidate-head smoke and both required user acceptance items remain pending.",
+  "updatedAt": "2026-07-24T16:18:00+08:00"
+}

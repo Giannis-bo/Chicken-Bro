@@ -1,6 +1,6 @@
 # Taro 装备编辑器恢复设计
 
-状态：`已确认，实施计划已固化`
+状态：`本地验证完成，等待精确候选 HEAD 的微信人工验收`
 
 ## 用户目标
 
@@ -64,3 +64,8 @@
 - 最终由 CI 跑一次 `full`，对精确 PR head 做一次真实微信候选 smoke，并等待用户手工验收。
 - 不需要候选后端部署；若 API 或 Resolver 必须改变，停止并升级为 Strict。
 - 回滚为前端代码回滚；没有数据迁移、release pointer 或同步回流风险。
+
+本地验证证据已记录在
+`artifacts/releases/2026-07-24-taro-gear-editor-recovery/evidence.json`；其中
+`gear_candidate_variant_apply` 与 `gear_enhancement_confirm` 均保持
+`pending`，不得据此宣称真实微信验收、合入或发布完成。
