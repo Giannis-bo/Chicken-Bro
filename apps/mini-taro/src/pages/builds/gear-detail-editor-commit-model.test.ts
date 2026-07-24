@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import type { GearEnhancementSelection, GearItemReference } from '@wow-mini/domain'
+import type {
+  GearEnhancementSelection,
+  GearItemReference,
+  GearSelectionIntent,
+} from '@wow-mini/domain'
 
 import { createCandidateDraft } from './gear-detail-editor-model'
 import {
@@ -47,6 +51,31 @@ function state(): GearEditorCommitState {
     enhancements: { main_hand: mainHandEnhancement, head: headEnhancement },
     candidateDraft: createCandidateDraft('main_hand', candidate),
     enhancementDraft: enhancementDraft(),
+  }
+}
+
+function resolvedIntent(
+  selection: GearEnhancementSelection,
+  slot = 'main_hand',
+): GearSelectionIntent {
+  return {
+    schemaRevision: 'selection-intent-v1',
+    authoredAgainst: {
+      seasonRevision: 'season-1',
+      gearCatalogRevision: 'catalog-1',
+    },
+    eligibilityContext: {
+      classKey: 'mage',
+      specKey: 'frost',
+      level: 90,
+    },
+    slots: {
+      [slot]: {
+        itemId: 'old-main-hand',
+        variantKey: 'old-track',
+        ...selection,
+      },
+    },
   }
 }
 
@@ -101,24 +130,45 @@ describe('gear detail editor commit model', () => {
     expect(transition.state.enhancementDraft).toBe(before.enhancementDraft)
   })
 
-  it('commits a verified enhancement only to its target slot and preserves other slots', () => {
+  it('commits the verified resolved enhancement rather than the unverified draft', () => {
     const before = state()
+    const verifiedSelection = {
+      ...nextMainHandEnhancement,
+      gemOptionIds: ['', 'verified-gem'],
+      enchantOptionId: 'verified-enchant',
+    }
     const transition = transitionGearEditorCommit(before, {
       status: 'resolved',
       kind: 'enhancement',
       slot: 'main_hand',
-      selection: nextMainHandEnhancement,
+      resolvedIntent: resolvedIntent(verifiedSelection),
     })
 
     expect(transition.committed).toBe(true)
     expect(transition.reload).toBe(false)
     expect(transition.state.equipped).toBe(before.equipped)
     expect(transition.state.enhancements).toEqual({
-      main_hand: nextMainHandEnhancement,
+      main_hand: {
+        ...verifiedSelection,
+        gemOptionIds: ['verified-gem'],
+      },
       head: headEnhancement,
     })
     expect(transition.state.candidateDraft).toBe(before.candidateDraft)
     expect(transition.state.enhancementDraft).toBeNull()
+  })
+
+  it('fails closed and preserves the draft when the verified intent lacks the target slot', () => {
+    const before = state()
+    const transition = transitionGearEditorCommit(before, {
+      status: 'resolved',
+      kind: 'enhancement',
+      slot: 'main_hand',
+      resolvedIntent: resolvedIntent(nextMainHandEnhancement, 'head'),
+    })
+
+    expect(transition.committed).toBe(false)
+    expect(transition.state).toBe(before)
   })
 
   it('clears both drafts and requests reload on a 409 without changing committed state', () => {

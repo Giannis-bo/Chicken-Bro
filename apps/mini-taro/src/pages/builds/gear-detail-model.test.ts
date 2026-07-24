@@ -9,6 +9,7 @@ import {
   gearSlots,
   templateGearItems,
 } from './gear-detail-model'
+import { candidateDraftCanApply, createCandidateDraft } from './gear-detail-editor-model'
 
 const readyItem: GearItemReference = {
   itemId: '250060',
@@ -136,6 +137,27 @@ describe('gear detail truth model', () => {
       expect.objectContaining({ id: '250060-0', label: '虚空粉碎者的面纱', levelLabel: '装等 289', state: 'ready' }),
       expect.objectContaining({ id: 'candidate-2-1', label: '待补字段候选', levelLabel: '装等 281', state: 'partial' }),
     ])
+  })
+
+  it('uses the same backend eligibility projection for candidate rows and editor drafts', () => {
+    const blockedCandidates: GearItemReference[] = [
+      { itemId: 'status-blocked', status: 'blocked', compatibility: 'compatible' },
+      { itemId: 'state-blocked', status: 'partial', state: 'blocked', compatibility: 'compatible' },
+      { itemId: 'metadata-blocked', metadataStatus: 'blocked', compatibility: 'compatible' },
+      { itemId: 'blocker-blocked', blockers: ['规则拒绝'], compatibility: 'compatible' },
+      { name: 'missing identity', compatibility: 'compatible' },
+    ]
+
+    expect(gearCandidates(blockedCandidates).map((candidate) => candidate.state)).toEqual([
+      'blocked',
+      'blocked',
+      'blocked',
+      'blocked',
+      'blocked',
+    ])
+    expect(blockedCandidates.map((candidate) => (
+      candidateDraftCanApply(createCandidateDraft('main_hand', candidate))
+    ))).toEqual([false, false, false, false, false])
   })
 
   it('localizes backend-owned primary stats and equipment badges', () => {

@@ -147,9 +147,11 @@ describe('gear detail fixed workbench contract', () => {
     expect(pageSource).toMatch(/const chooseEnhancement = \([\s\S]*?setEnhancementDraft/u)
     expect(pageSource).not.toMatch(/const chooseEnhancement = async[\s\S]*?await resolveSelection/u)
     expect(pageSource).toMatch(/const applyCandidateDraft = async \(\)[\s\S]*?await resolveSelection\([\s\S]*?transitionGearEditorCommit\([\s\S]*?if \(!transition\.committed\) return[\s\S]*?setEquipped\(transition\.state\.equipped\)/u)
-    expect(pageSource).toMatch(/const confirmEnhancementDraft = async \(\)[\s\S]*?await resolveSelection\([\s\S]*?transitionGearEditorCommit\([\s\S]*?if \(!transition\.committed\) return[\s\S]*?setEnhancements\(transition\.state\.enhancements\)/u)
+    expect(pageSource).toMatch(/const confirmEnhancementDraft = async \(\)[\s\S]*?await resolveSelection\([\s\S]*?transitionGearEditorCommit\([\s\S]*?if \(!transition\.committed\) \{[\s\S]*?return[\s\S]*?setEnhancements\(transition\.state\.enhancements\)/u)
     expect(commitModelSource).toContain("if (event.status !== 'resolved')")
     expect(commitModelSource).toContain('return { state, committed: false, reload: false }')
+    expect(pageSource).toContain('resolved.snapshot.selectionIntent ?? resolved.intent')
+    expect(pageSource).not.toContain('selection: draft.selection')
   })
 
   it('discards both editor drafts on conflict and invalidates hydration on every editor boundary', () => {
@@ -200,6 +202,8 @@ describe('gear detail fixed workbench contract', () => {
     expect(editorComponentSource).toMatch(/data-action-id="gear-enhancement-cancel"[^>]*onClick=\{onClose\}/u)
     expect(editorComponentSource).toMatch(/data-action-id="gear-enhancement-confirm"[\s\S]*?onClick=\{onConfirm\}/u)
     expect(editorComponentSource.match(/data-action-id="gear-enhancement-confirm"/gu)).toHaveLength(1)
+    expect(pageSource).toContain('socketCount={enhancementSocketCount}')
+    expect(editorComponentSource).toContain('按顺序配置')
   })
 
   it('wires every canonical profession to a class launch before reloading the gear workbench', () => {

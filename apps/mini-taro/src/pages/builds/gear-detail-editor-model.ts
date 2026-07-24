@@ -59,20 +59,22 @@ function identifier(value: unknown): string {
   return String(value).trim()
 }
 
-function candidateState(candidate: GearItemReference): GearCandidateDraft['state'] {
+export function gearCandidateEligibilityState(candidate: GearItemReference): GearCandidateDraft['state'] {
   const compatibility = typeof candidate.compatibility === 'string'
     ? text(candidate.compatibility)
     : text(record(candidate.compatibility)?.['status'])
-  const status = firstText(candidate.status, candidate['state']).toLowerCase()
+  const statuses = [candidate.status, candidate['state']]
+    .map((value) => text(value).toLowerCase())
+    .filter(Boolean)
   const blockers = strings(candidate['blockers'])
   if (
     !identifier(candidate.itemId ?? candidate.id)
     || compatibility.toLowerCase() === 'incompatible'
-    || status === 'blocked'
+    || statuses.includes('blocked')
     || text(candidate.metadataStatus).toLowerCase() === 'blocked'
     || blockers.length
   ) return 'blocked'
-  if (candidate.simcReady === true || status === 'ready' || status === 'verified') return 'ready'
+  if (candidate.simcReady === true || statuses.some((status) => status === 'ready' || status === 'verified')) return 'ready'
   return 'partial'
 }
 
@@ -123,7 +125,7 @@ export function createCandidateDraft(slot: string, candidate: GearItemReference)
   return {
     slot: text(slot),
     candidate,
-    state: candidateState(candidate),
+    state: gearCandidateEligibilityState(candidate),
     requiresVariantSelection: rawVariants.length > 0,
     selectedVariantKey: '',
     variants: candidateVariants(candidate),
@@ -188,16 +190,38 @@ export function emptyEnhancementSelection(): GearEnhancementSelection {
   }
 }
 
+export function packedEnhancementSelection(
+  selection: GearEnhancementSelection,
+): GearEnhancementSelection {
+  return {
+    gemOptionIds: selection.gemOptionIds.map(text).filter(Boolean),
+    enchantOptionId: text(selection.enchantOptionId),
+    embellishmentOptionId: text(selection.embellishmentOptionId),
+    craftedOptionId: text(selection.craftedOptionId),
+    catalystOptionId: text(selection.catalystOptionId),
+  }
+}
+
+export function isEnhancementKindConfigured(
+  selection: GearEnhancementSelection,
+  kind: 'socket' | 'enchant' | 'embellishment',
+): boolean {
+  if (kind === 'socket') return selection.gemOptionIds.some((id) => Boolean(text(id)))
+  if (kind === 'enchant') return Boolean(text(selection.enchantOptionId))
+  return Boolean(text(selection.embellishmentOptionId))
+}
+
 export function setGemAtSocket(selection: GearEnhancementSelection, socketIndex: number, gemOptionId: string): GearEnhancementSelection {
-  if (!Number.isInteger(socketIndex) || socketIndex < 0) return selection
-  const gems = [...selection.gemOptionIds]
+  const packed = packedEnhancementSelection(selection)
+  if (!Number.isInteger(socketIndex) || socketIndex < 0) return packed
+  const gems = [...packed.gemOptionIds]
   const nextGemId = text(gemOptionId)
   if (!nextGemId) {
-    if (socketIndex < gems.length) gems[socketIndex] = ''
+    if (socketIndex < gems.length) gems.splice(socketIndex, 1)
   } else if (socketIndex <= gems.length) {
     gems[socketIndex] = nextGemId
   }
-  return { ...selection, gemOptionIds: gems }
+  return { ...packed, gemOptionIds: gems }
 }
 
 export function setSingleEnhancement(
@@ -205,7 +229,8 @@ export function setSingleEnhancement(
   kind: 'enchant' | 'embellishment',
   optionId: string,
 ): GearEnhancementSelection {
+  const packed = packedEnhancementSelection(selection)
   return kind === 'enchant'
-    ? { ...selection, enchantOptionId: text(optionId) }
-    : { ...selection, embellishmentOptionId: text(optionId) }
+    ? { ...packed, enchantOptionId: text(optionId) }
+    : { ...packed, embellishmentOptionId: text(optionId) }
 }

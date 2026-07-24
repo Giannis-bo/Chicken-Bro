@@ -1,6 +1,13 @@
-import type { GearEnhancementSelection, GearItemReference } from '@wow-mini/domain'
+import type {
+  GearEnhancementSelection,
+  GearItemReference,
+  GearSelectionIntent,
+} from '@wow-mini/domain'
 
-import type { GearCandidateDraft } from './gear-detail-editor-model'
+import {
+  packedEnhancementSelection,
+  type GearCandidateDraft,
+} from './gear-detail-editor-model'
 
 export type GearEnhancementKind = 'socket' | 'enchant' | 'embellishment'
 
@@ -29,10 +36,15 @@ export type GearEditorCommitEvent =
       readonly item: GearItemReference
     }
   | {
-      readonly status: IncompleteCommitStatus | 'resolved'
+      readonly status: IncompleteCommitStatus
       readonly kind: 'enhancement'
       readonly slot: string
-      readonly selection: GearEnhancementSelection
+    }
+  | {
+      readonly status: 'resolved'
+      readonly kind: 'enhancement'
+      readonly slot: string
+      readonly resolvedIntent: GearSelectionIntent
     }
   | { readonly status: 'conflict' }
 
@@ -47,6 +59,21 @@ function withoutSlot<T>(
   slot: string,
 ): Readonly<Record<string, T>> {
   return Object.fromEntries(Object.entries(values).filter(([key]) => key !== slot))
+}
+
+export function resolvedEnhancementSelection(
+  intent: GearSelectionIntent,
+  slot: string,
+): GearEnhancementSelection | null {
+  const resolvedSlot = intent.slots[slot]
+  if (!resolvedSlot) return null
+  return packedEnhancementSelection({
+    gemOptionIds: resolvedSlot.gemOptionIds,
+    enchantOptionId: resolvedSlot.enchantOptionId,
+    embellishmentOptionId: resolvedSlot.embellishmentOptionId,
+    craftedOptionId: resolvedSlot.craftedOptionId,
+    catalystOptionId: resolvedSlot.catalystOptionId,
+  })
 }
 
 export function transitionGearEditorCommit(
@@ -79,10 +106,12 @@ export function transitionGearEditorCommit(
       reload: false,
     }
   }
+  const selection = resolvedEnhancementSelection(event.resolvedIntent, event.slot)
+  if (!selection) return { state, committed: false, reload: false }
   return {
     state: {
       ...state,
-      enhancements: { ...state.enhancements, [event.slot]: event.selection },
+      enhancements: { ...state.enhancements, [event.slot]: selection },
       enhancementDraft: null,
     },
     committed: true,

@@ -43,9 +43,18 @@ export interface GearCandidateEditorCraftedStat {
 export interface GearCandidateEditorDraft {
   readonly slot: string
   readonly candidate: GearItemReference
+  readonly requiresVariantSelection: boolean
   readonly selectedVariantKey: string
   readonly variants: readonly GearCandidateEditorVariant[]
   readonly craftedStatOptions: readonly GearCandidateEditorCraftedStat[]
+}
+
+export function candidateVariantEmptyCopy(
+  draft: Pick<GearCandidateEditorDraft, 'requiresVariantSelection' | 'variants'>,
+): string {
+  return draft.requiresVariantSelection
+    ? '后端未返回可校验等级轨道'
+    : '此候选无需选择等级轨道'
 }
 
 export interface GearCandidateEditorItem {
@@ -138,7 +147,7 @@ function CandidateDetails({
             })}
           </View>
         ) : (
-          <Text className={style('sectionEmpty')}>后端未返回可校验等级轨道</Text>
+          <Text className={style('sectionEmpty')}>{candidateVariantEmptyCopy(draft)}</Text>
         )}
       </View>
 
@@ -260,6 +269,7 @@ export interface GearEnhancementEditorOption {
 export interface GearEnhancementEditorSheetProps {
   slotLabel: string
   draft: GearEnhancementSelection
+  socketCount: number
   options: readonly GearEnhancementEditorOption[]
   canConfirm?: boolean | undefined
   loading?: boolean | undefined
@@ -268,6 +278,25 @@ export interface GearEnhancementEditorSheetProps {
   onSetSingle: (kind: 'enchant' | 'embellishment', optionId: string) => void
   onConfirm: () => void
   onClose: () => void
+}
+
+export interface GearEnhancementSocketRow {
+  readonly socketIndex: number
+  readonly selectedId: string
+  readonly selectable: boolean
+}
+
+export function resolveEnhancementSocketRows(
+  draft: GearEnhancementSelection,
+  socketCount: number,
+): readonly GearEnhancementSocketRow[] {
+  const capacity = Number.isInteger(socketCount) && socketCount > 0 ? socketCount : 0
+  const selectedIds = draft.gemOptionIds.map(displayText).filter(Boolean).slice(0, capacity)
+  return Array.from({ length: capacity }, (_, socketIndex) => ({
+    socketIndex,
+    selectedId: selectedIds[socketIndex] ?? '',
+    selectable: socketIndex <= selectedIds.length,
+  }))
 }
 
 function SingleEnhancementSection({
@@ -330,6 +359,7 @@ function SingleEnhancementSection({
 export function GearEnhancementEditorSheet({
   slotLabel,
   draft,
+  socketCount,
   options,
   canConfirm = true,
   loading = false,
@@ -340,6 +370,7 @@ export function GearEnhancementEditorSheet({
   onClose,
 }: GearEnhancementEditorSheetProps) {
   const gemOptions = options.filter((item) => item.kind === 'socket')
+  const socketRows = resolveEnhancementSocketRows(draft, socketCount)
   return (
     <View className={style('workbenchSheet')} data-owner="gear-enhancement-editor-sheet">
       <View className={style('sheetHeader')}>
@@ -360,7 +391,11 @@ export function GearEnhancementEditorSheet({
             </View>
           ) : null}
 
-          {draft.gemOptionIds.map((selectedId, socketIndex) => (
+          {socketRows.length ? (
+            <Text className={style('detailMeta')}>宝石按顺序配置；移除前位后，后续宝石会自动前移</Text>
+          ) : null}
+
+          {socketRows.map(({ socketIndex, selectedId, selectable }) => (
             <View key={socketIndex} className={style('section')} data-socket-index={socketIndex}>
               <Text className={style('sectionTitle')}>宝石插槽 {socketIndex + 1}</Text>
               <View className={style('optionGrid')}>
@@ -371,7 +406,7 @@ export function GearEnhancementEditorSheet({
                   data-role="gear-enhancement-socket"
                   data-selection-material={!selectedId ? 'active' : 'inactive'}
                   data-socket-index={socketIndex}
-                  disabled={loading}
+                  disabled={loading || !selectable}
                   onClick={() => onSetGem(socketIndex, '')}
                 >
                   不镶嵌
@@ -386,7 +421,7 @@ export function GearEnhancementEditorSheet({
                     data-role="gear-enhancement-socket"
                     data-selection-material={selectedId === item.id ? 'active' : 'inactive'}
                     data-socket-index={socketIndex}
-                    disabled={loading}
+                    disabled={loading || !selectable}
                     onClick={() => onSetGem(socketIndex, item.id)}
                   >
                     {item.label}
@@ -396,7 +431,7 @@ export function GearEnhancementEditorSheet({
             </View>
           ))}
 
-          {!draft.gemOptionIds.length ? (
+          {!socketRows.length ? (
             <Text className={style('sectionEmpty')} data-role="gear-enhancement-no-sockets">当前装备没有宝石插槽</Text>
           ) : null}
 

@@ -6,6 +6,7 @@ import {
   candidateDraftCanApply,
   createCandidateDraft,
   emptyEnhancementSelection,
+  isEnhancementKindConfigured,
   materializeCandidateDraft,
   selectCandidateVariant,
   setGemAtSocket,
@@ -124,17 +125,34 @@ describe('gear detail editor model', () => {
     expect(materializeCandidateDraft(draft)).not.toHaveProperty('craftedOptionId')
   })
 
-  it('replaces and removes gems independently at each socket', () => {
+  it('replaces a gem in place and keeps removals as a packed ordered sequence', () => {
     const selection = { ...emptyEnhancementSelection(), gemOptionIds: ['gem-a', 'gem-old'] }
 
     expect(setGemAtSocket(selection, 1, 'gem-b').gemOptionIds).toEqual(['gem-a', 'gem-b'])
-    expect(setGemAtSocket(selection, 1, '').gemOptionIds).toEqual(['gem-a', ''])
+    expect(setGemAtSocket(selection, 1, '').gemOptionIds).toEqual(['gem-a'])
   })
 
-  it('preserves later socket positions when an earlier gem is removed', () => {
+  it('shifts later gems forward when an earlier gem is removed', () => {
     const selection = { ...emptyEnhancementSelection(), gemOptionIds: ['gem-a', 'gem-b'] }
 
-    expect(setGemAtSocket(selection, 0, '').gemOptionIds).toEqual(['', 'gem-b'])
+    expect(setGemAtSocket(selection, 0, '').gemOptionIds).toEqual(['gem-b'])
+  })
+
+  it('packs historical empty gem values before applying an edit', () => {
+    const selection = { ...emptyEnhancementSelection(), gemOptionIds: ['', 'gem-b'] }
+
+    expect(setGemAtSocket(selection, 1, 'gem-c').gemOptionIds).toEqual(['gem-b', 'gem-c'])
+  })
+
+  it('does not report an all-cleared socket sequence as configured', () => {
+    expect(isEnhancementKindConfigured(
+      { ...emptyEnhancementSelection(), gemOptionIds: ['', ''] },
+      'socket',
+    )).toBe(false)
+    expect(isEnhancementKindConfigured(
+      { ...emptyEnhancementSelection(), gemOptionIds: ['gem-a'] },
+      'socket',
+    )).toBe(true)
   })
 
   it('changes enchantment or 美化 without affecting socket gems', () => {
@@ -146,5 +164,11 @@ describe('gear detail editor model', () => {
     expect(setSingleEnhancement(selection, 'embellishment', 'embellishment-a')).toMatchObject({
       gemOptionIds: ['gem-a', 'gem-b'], enchantOptionId: '', embellishmentOptionId: 'embellishment-a',
     })
+  })
+
+  it('keeps the gem sequence packed while editing a single-value enhancement', () => {
+    const selection = { ...emptyEnhancementSelection(), gemOptionIds: ['', 'gem-b'] }
+
+    expect(setSingleEnhancement(selection, 'enchant', 'enchant-a').gemOptionIds).toEqual(['gem-b'])
   })
 })

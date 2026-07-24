@@ -62,7 +62,9 @@ import {
   candidateDraftCanApply,
   createCandidateDraft,
   emptyEnhancementSelection,
+  isEnhancementKindConfigured,
   materializeCandidateDraft,
+  packedEnhancementSelection,
   selectCandidateVariant,
   setGemAtSocket,
   setSingleEnhancement,
@@ -173,9 +175,10 @@ function selectionForHydratedItem(
 ): GearEnhancementSelection | null {
   const socketCount = backendSocketCount(item)
   if (socketCount === null) return null
+  const packed = packedEnhancementSelection(confirmed)
   return {
-    ...confirmed,
-    gemOptionIds: Array.from({ length: socketCount }, (_, index) => confirmed.gemOptionIds[index] ?? ''),
+    ...packed,
+    gemOptionIds: packed.gemOptionIds.slice(0, socketCount),
   }
 }
 
@@ -360,11 +363,9 @@ export default function GearDetailPage() {
   const enhancementGroups = gearEnhancementGroups(selectedCandidate, enhancements, selectedSlot).map((group) => {
     const compatibleSlotCount = slotViews.filter((slot) => gearEnhancementOptions(equipped[slot.slot], enhancements, slot.slot)
       .some((option) => option.kind === group.id)).length
-    const configuredCount = Object.values(enhancements).filter((selection) => {
-      if (group.id === 'socket') return selection.gemOptionIds.length > 0
-      if (group.id === 'enchant') return Boolean(selection.enchantOptionId)
-      return Boolean(selection.embellishmentOptionId)
-    }).length
+    const configuredCount = Object.values(enhancements).filter((selection) => (
+      isEnhancementKindConfigured(selection, group.id)
+    )).length
     return {
       ...group,
       optionCount: compatibleSlotCount,
@@ -384,6 +385,9 @@ export default function GearDetailPage() {
         enhancementDraft.slot,
       )
     : []
+  const enhancementSocketCount = enhancementDraft?.item
+    ? backendSocketCount(enhancementDraft.item) ?? 0
+    : 0
   const selectedSlotLabel = slotViews.find((slot) => slot.slot === selectedSlot)?.label ?? ''
   const gearResolveState = canonical.loading
     ? 'resolving' as const
@@ -666,16 +670,23 @@ export default function GearDetailPage() {
       candidateDraft,
       enhancementDraft,
     }
-    const nextEnhancements = { ...enhancements, [draft.slot]: draft.selection }
+    const nextEnhancements = {
+      ...enhancements,
+      [draft.slot]: packedEnhancementSelection(draft.selection),
+    }
     const resolved = await resolveSelection(equipped, nextEnhancements)
     if (resolved.status === 'conflict') return
+    if (resolved.status !== 'resolved') return
     const transition = transitionGearEditorCommit(commitState, {
-      status: resolved.status,
+      status: 'resolved',
       kind: 'enhancement',
       slot: draft.slot,
-      selection: draft.selection,
+      resolvedIntent: resolved.snapshot.selectionIntent ?? resolved.intent,
     })
-    if (!transition.committed) return
+    if (!transition.committed) {
+      setWorkbenchNotice('后端校验结果缺少当前槽位强化，草稿已保留')
+      return
+    }
     setEquipped(transition.state.equipped)
     setEnhancements(transition.state.enhancements)
     setStats({ loading: false })
@@ -719,7 +730,7 @@ export default function GearDetailPage() {
     setEnhancementDraft({
       slot: target.slot,
       requestedKind: item.id,
-      selection: { ...confirmed, gemOptionIds: [...confirmed.gemOptionIds] },
+      selection: packedEnhancementSelection(confirmed),
       blockers: [],
     })
     setEnhancementLoading(true)
@@ -946,6 +957,7 @@ export default function GearDetailPage() {
             draft={enhancementDraft.selection}
             loading={enhancementLoading || canonical.loading}
             options={enhancementDraftOptions}
+            socketCount={enhancementSocketCount}
             slotLabel={selectedSlotLabel}
             onClose={closeCandidateEditor}
             onConfirm={() => void confirmEnhancementDraft()}

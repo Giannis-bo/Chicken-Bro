@@ -11,6 +11,8 @@ import type {
   WebsimGearPayload,
 } from '@wow-mini/domain'
 
+import { gearCandidateEligibilityState } from './gear-detail-editor-model'
+
 export type GearViewState = 'ready' | 'partial' | 'blocked' | 'empty' | 'loading' | 'stale' | 'error'
 
 export interface GearCandidateView {
@@ -147,11 +149,6 @@ function finiteNumber(value: unknown): number | null {
   return Number.isFinite(number) && number > 0 ? number : null
 }
 
-function compatibilityStatus(item: GearItemReference): string {
-  if (typeof item.compatibility === 'string') return item.compatibility
-  return text(item.compatibility?.['status'])
-}
-
 function normalizedKey(value: unknown): string {
   return text(value).toLowerCase().replace(/[\s/_-]+/gu, '')
 }
@@ -278,10 +275,7 @@ export function gearItemIconUrl(item: GearItemReference | undefined): string | u
 }
 
 function gearItemState(item: GearItemReference | undefined): 'ready' | 'partial' | 'blocked' {
-  if (!item) return 'blocked'
-  if (compatibilityStatus(item) === 'incompatible') return 'blocked'
-  if (item.simcReady === true && item.metadataStatus !== 'blocked') return 'ready'
-  return 'partial'
+  return item ? gearCandidateEligibilityState(item) : 'blocked'
 }
 
 export function gearCandidates(items: readonly GearItemReference[]): readonly GearCandidateView[] {

@@ -60,7 +60,7 @@ describe('canonical gear selection intent', () => {
       },
       enhancementBySlot: {
         head: {
-          gemOptionIds: ['gem-haste', 'gem-haste'],
+          gemOptionIds: ['gem-haste', '', 'gem-crit'],
           enchantOptionId: 'enchant-head',
         },
       },
@@ -74,7 +74,7 @@ describe('canonical gear selection intent', () => {
         head: {
           itemId: '250060',
           variantKey: 'variant-head',
-          gemOptionIds: ['gem-haste', 'gem-haste'],
+          gemOptionIds: ['gem-haste', 'gem-crit'],
           enchantOptionId: 'enchant-head',
           embellishmentOptionId: '',
           craftedOptionId: '',

@@ -32,7 +32,7 @@
 | 单元 | 责任 | 不拥有 |
 | --- | --- | --- |
 | `apps/mini-taro/src/pages/builds/detail.tsx` | 协调路由、草稿、`websim.gear(mode=slot)`、`gearResolve` 和成功后的提交 | 装备合法性与来源判断 |
-| `apps/mini-taro/src/pages/builds/gear-detail-editor-model.ts` | 候选/变体选择、逐 socket 宝石替换或移除、附魔/美化切换、草稿差异的纯函数 | 请求和 React state |
+| `apps/mini-taro/src/pages/builds/gear-detail-editor-model.ts` | 候选/变体选择、packed-order 宝石序列替换或移除、附魔/美化切换、草稿差异的纯函数 | 请求和 React state |
 | `packages/design-system/src/components/GearEditorSheets.tsx` | 候选详情与强化编辑的 Taro 控件、选择态、加载态、阻断提示、应用/确认/取消 | API 与装备事实 |
 | `apps/mini-taro/src/pages/builds/gear-detail-model.ts` | 后端候选和增强选项的显示投影；完整保留多个 `gemOptionIds` | 缺失信息补全 |
 | `apps/mini-taro/src/pages/builds/gear-request-fence.ts` | 防止旧槽位详情、Resolve、导入响应覆盖当前编辑上下文 | 业务事实 |
@@ -45,14 +45,14 @@
 2. 打开槽位创建候选草稿并按需请求 `mode=slot`。加载中显示骨架；关闭、切专精、导入或重置后，旧响应不能回写。
 3. 选择候选或后端返回的等级轨道只更新草稿。没有可校验 ID 的制造属性只展示，不能变成草稿或启用“应用”；“应用”始终需玩家显式点击。
 4. 点击应用时，页面构造 identifier intent 并调用 `gearResolve`。只有 verified 且仍是当前请求时，才替换该部位；只清除变化部位的旧强化，其他部位保持。
-5. 打开强化时，先按需补齐已装备物品详情，再从已确认强化复制草稿。宝石按 socket 分别选择或移除，附魔和美化各保留一个选择；取消丢弃草稿。
-6. 点击确认时一次 Resolve。成功后整体提交强化；失败保留已确认强化与编辑面板，并显示后端 blocker。
+5. 打开强化时，先按需补齐已装备物品详情，再从已确认强化复制草稿。Resolver 的 `gemOptionIds` 是无空位的有序选择序列，后端 `socketCount` 独立决定可显示容量；宝石只能按顺序配置，移除前位后后续宝石自动前移，不能用空字符串伪造物理 socket。附魔和美化各保留一个选择；取消丢弃草稿。
+6. 点击确认时一次 Resolve。成功后只从 verified `snapshot.selectionIntent ?? intent` 的目标槽位提交强化；缺少该槽位时保留草稿并 fail closed。失败保留已确认强化与编辑面板，并显示后端 blocker。
 7. 409 revision conflict 重新加载并丢弃草稿；网络或 503 保留已确认状态与草稿，不写入未验证值。
 
 ## 合同、测试与验收
 
 - 更新 `truth-adaptation.json`、`component-contract.json`、`core-interaction-contract.json` 和 `selected-control-contract.json`：候选应用与强化确认替代目前只验证职业切换的装备页核心交互；每个 socket 是独立选择边界，允许多个 socket 同时各有一个已选宝石。
-- 单元/组件测试覆盖：候选不能直接应用、轨道选择后才可应用、同槽强化清除、跨槽强化保留、多 socket 编辑、取消丢弃草稿、限制阻断、Resolve 失败保留旧状态、409 重载和旧响应 fencing。
+- 单元/组件测试覆盖：候选不能直接应用、轨道选择后才可应用、候选 row 与 Apply 共用 eligibility、同槽强化清除、跨槽强化保留、packed-order 多 socket 编辑、独立容量显示、verified intent 提交、取消丢弃草稿、限制阻断、Resolve 失败保留旧状态、409 重载和旧响应 fencing。
 - 真实微信候选验证一件多轨道武器、一件无变体装备、一个多 socket 部位、一个附魔和一个美化；分别覆盖取消、失败提示和成功提交。
 
 ## Harness 边界
