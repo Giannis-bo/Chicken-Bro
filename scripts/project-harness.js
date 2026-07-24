@@ -126,6 +126,7 @@ function parseArgs(argv) {
     requirementFile: null,
     manifestFile: null,
     check: false,
+    checkRequirement: false,
     base: null,
     help: false
   }
@@ -148,6 +149,8 @@ function parseArgs(argv) {
       options.write = true
     } else if (arg === '--check') {
       options.check = true
+    } else if (arg === '--check-requirement') {
+      options.checkRequirement = true
     } else if (arg === '--root') {
       options.root = optionValue(arg, index)
       index += 1
@@ -197,6 +200,7 @@ function printHelp() {
     '  --json                     Print JSON output.',
     '  --write                    Write a local release manifest.',
     '  --check                    Validate a complete requirement/evidence/manifest packet.',
+    '  --check-requirement        Validate one requirement packet without downstream evidence.',
     '  --root <path>              Repository root.',
     '  --date <YYYY-MM-DD>        Release date used with --write.',
     '  --slug <slug>              Release slug.',
@@ -854,6 +858,28 @@ function buildCheck(options) {
   }
 }
 
+function buildRequirementCheck(options) {
+  const failures = []
+  const requirementResult = loadJsonPacket(options.root, options.requirementFile, 'requirement')
+
+  if (requirementResult.status !== 'ready') {
+    addCheckFailure(failures, requirementResult.reasonCode, requirementResult.error || `Requirement packet is ${requirementResult.status}.`)
+  } else {
+    validateRequirementPacket(requirementResult.packet, failures)
+  }
+
+  return {
+    schemaVersion: 1,
+    status: failures.length ? 'project_harness_requirement_check_failed' : 'project_harness_requirement_check_passed',
+    reasonCodes: [...new Set(failures.map((failure) => failure.reasonCode))],
+    failures,
+    requirement: {
+      path: options.requirementFile,
+      slug: requirementResult.packet && requirementResult.packet.slug ? requirementResult.packet.slug : null
+    }
+  }
+}
+
 function resolveCheckIdentities(options, evidence, failures) {
   const declared = evidence.identities || {}
   const verification = declared.verification || {}
@@ -1348,6 +1374,17 @@ function main() {
         printCheckHuman(check)
       }
       process.exitCode = check.status === 'project_harness_check_passed' ? 0 : 1
+      return
+    }
+
+    if (options.checkRequirement) {
+      const check = buildRequirementCheck(options)
+      if (options.json) {
+        process.stdout.write(`${JSON.stringify(check, null, 2)}\n`)
+      } else {
+        printCheckHuman(check)
+      }
+      process.exitCode = check.status === 'project_harness_requirement_check_passed' ? 0 : 1
       return
     }
 

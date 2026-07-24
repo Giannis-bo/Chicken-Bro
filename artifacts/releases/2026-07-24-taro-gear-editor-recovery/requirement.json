@@ -50,6 +50,20 @@
       "Manual acceptance item gear_enhancement_confirm."
     ]
   },
+  "ownership": {
+    "factOwner": "The canonical Resolver owns legal candidate and enhancement validation; the active Taro route owns local edit drafts and renders only current verified snapshots.",
+    "consumers": [
+      "apps/mini-taro/src/pages/builds/detail.tsx",
+      "apps/mini-taro/src/pages/builds/gear-detail-editor-model.ts",
+      "packages/design-system/src/components/GearEditorSheets.tsx",
+      "docs/design/current-ui/core-interaction-contract.json",
+      "docs/design/current-ui/selected-control-contract.json"
+    ]
+  },
+  "engineeringHealth": {
+    "status": "health_watch_guarded",
+    "reason": "The change is limited to the active Taro gear editor and its current UI contracts, with draft-only mutations, canonical Resolve as the commit boundary, targeted Vitest, the UI architecture audit, exact candidate-head WeChat smoke and code rollback."
+  },
   "manualAcceptanceContract": {
     "required": true,
     "requiredItemIds": [
@@ -57,6 +71,26 @@
       "gear_enhancement_confirm"
     ]
   },
+  "acceptanceEvidence": [
+    "Targeted Vitest proves candidate selection remains a local draft until explicit apply and enhancement edits remain a local draft until explicit confirmation.",
+    "The UI architecture audit proves the active Taro and design-system owners publish one canonical gear-detail interaction and executable selected-state grouping.",
+    "Exact candidate-head WeChat smoke exercises a multi-variant item, a no-variant item and multi-socket enhancement editing without changing target geometry.",
+    "The user explicitly accepts gear_candidate_variant_apply and gear_enhancement_confirm before merge."
+  ],
   "releaseTrigger": "frontend_user_visible",
-  "rollback": ["code_rollback"]
+  "rollback": ["code_rollback"],
+  "decisionLog": [
+    {
+      "date": "2026-07-24",
+      "decision": "The confirmed design requires candidate and returned-variant choices to remain local drafts until explicit apply resolves through the canonical Resolver."
+    },
+    {
+      "date": "2026-07-24",
+      "decision": "The confirmed design requires gem, enchant and embellishment edits to remain cancellable local drafts until explicit confirmation resolves through the canonical Resolver."
+    },
+    {
+      "date": "2026-07-24",
+      "decision": "craftedStatOptions without a resolver-owned identifier remain display-only and cannot become a selectable or submitted intent."
+    }
+  ]
 }

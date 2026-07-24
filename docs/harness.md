@@ -598,12 +598,13 @@ idea
 node scripts/project-harness.js --json --slug <slug>
 node scripts/project-harness.js --json --write --date YYYY-MM-DD --slug <slug>
 node scripts/project-harness.js --json --slug <slug> --evidence-file artifacts/releases/<release>/evidence.json
+node scripts/project-harness.js --json --check-requirement --requirement-file artifacts/releases/<release>/requirement.json
 node scripts/project-harness.js --help
 ```
 
 带 `--write` 时会写入本地 `artifacts/releases/<date>-<slug>/manifest.json`。不带 `--write` 时只输出 JSON 到 stdout。
 
-带 `--evidence-file` 时只读取仓库内本地 JSON evidence packet，不执行其中的命令。完整 Standard / Strict packet 以 [evidence 模板](templates/harness-evidence.json) 和 [schema v2](schemas/harness-evidence.schema.json) 为准，并必须通过 `project-harness.js --check`；正文不复制 required 字段清单，避免 prose、模板和校验器漂移。只读聚合结果中的字段摘要不等于完整 packet 已通过交付门禁。
+带 `--evidence-file` 时只读取仓库内本地 JSON evidence packet，不执行其中的命令。`--check-requirement` 复用完整 Harness check 的 requirement validator，供 evidence/manifest 尚未生成的合同冻结阶段 fail closed；它不授予完整 packet、验证或交付通过。完整 Standard / Strict packet 以 [evidence 模板](templates/harness-evidence.json) 和 [schema v2](schemas/harness-evidence.schema.json) 为准，并必须通过 `project-harness.js --check`；正文不复制 required 字段清单，避免 prose、模板和校验器漂移。只读聚合结果中的字段摘要不等于完整 packet 已通过交付门禁。
 
 两个 Harness CLI 都支持 `--help`。未知参数或缺失参数值必须立即失败，不能静默退回默认 `full`、默认 release 或默认 manifest 行为。
 

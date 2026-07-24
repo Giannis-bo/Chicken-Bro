@@ -23,6 +23,28 @@ function expectedBoundarySequence(controlStates) {
   return controlStates.map((value, index) => value === 'true' ? 'active' : controlStates[index - 1] === 'true' ? 'suppressed' : 'inactive')
 }
 
+function summarizeSelectionPartitions(controlStates, groupKeys, minimumActive, maximumActive) {
+  if (controlStates.length !== groupKeys.length) {
+    return [{ key: 'invalid', controls: controlStates.length, active: controlStates.filter((value) => value === 'true').length, pass: false }]
+  }
+  const partitions = new Map()
+  controlStates.forEach((value, index) => {
+    const key = groupKeys[index]
+    if (key === null || key === undefined || key === '') {
+      partitions.set(`missing:${index}`, { key: null, controls: 1, active: value === 'true' ? 1 : 0, pass: false })
+      return
+    }
+    const partition = partitions.get(key) ?? { key, controls: 0, active: 0, pass: true }
+    partition.controls += 1
+    if (value === 'true') partition.active += 1
+    partitions.set(key, partition)
+  })
+  return [...partitions.values()].map((partition) => ({
+    ...partition,
+    pass: partition.pass && partition.active >= minimumActive && partition.active <= maximumActive,
+  }))
+}
+
 async function settle(milliseconds = 650) {
   await new Promise((resolve) => setTimeout(resolve, milliseconds))
 }
@@ -78,10 +100,19 @@ async function inspectGroup(page, group) {
   ])
   const visualMaterialDistinct = controls.length < 2
     || Boolean(activeMaterialStyle && inactiveMaterialStyle && JSON.stringify(activeMaterialStyle) !== JSON.stringify(inactiveMaterialStyle))
-  const [controlStates, controlMaterialOwners] = await Promise.all([
+  const [controlStates, controlMaterialOwners, controlGroupKeys] = await Promise.all([
     Promise.all(controls.map((element) => readSemanticValue(element, group.state, `${group.role} state`))),
     Promise.all(controls.map((element) => readSemanticValue(element, 'material-owner', `${group.role} material owner`))),
+    group.groupByAttribute
+      ? Promise.all(controls.map((element) => readSemanticValue(element, group.groupByAttribute, `${group.role} group`)))
+      : Promise.resolve(controls.map(() => 'all')),
   ])
+  const selectionPartitions = summarizeSelectionPartitions(
+    controlStates,
+    controlGroupKeys,
+    group.minimumActive,
+    group.maximumActive,
+  )
   const materialOwnerMismatches = controlMaterialOwners.filter((owner) => owner !== contract.materialOwnership.controlMaterialOwner).length
   const leadingBoundaries = group.boundaryMode === 'contiguous'
     ? await Promise.all(controls.map((element) => readSemanticValue(
@@ -96,8 +127,7 @@ async function inspectGroup(page, group) {
   const boundaryMismatches = leadingBoundaries.filter((value, index) => value !== expectedLeadingBoundaries[index]).length
   const pass = queriedControls.length <= maximumControlsPerGroup
     && controls.length >= group.minimumControls
-    && active.length >= group.minimumActive
-    && active.length <= group.maximumActive
+    && selectionPartitions.every((partition) => partition.pass)
     && materialActive.length === active.length
     && materialInactive.length === inactive.length
     && active.length + inactive.length === controls.length
@@ -120,6 +150,8 @@ async function inspectGroup(page, group) {
     materialMismatches: activeWithInactiveMaterial.length + inactiveWithActiveMaterial.length,
     controlMaterialOwners,
     materialOwnerMismatches,
+    groupByAttribute: group.groupByAttribute ?? null,
+    selectionPartitions,
     nestedMaterialRenderCount: nestedMaterialRenders.length,
     visualMaterialDistinct,
     boundaryMode: group.boundaryMode,
@@ -183,4 +215,4 @@ if (require.main === module) {
   })
 }
 
-module.exports = { expectedBoundarySequence, selectedGroups }
+module.exports = { expectedBoundarySequence, selectedGroups, summarizeSelectionPartitions }

@@ -1377,6 +1377,7 @@ const selectedStateOwners = [
   ['packages/design-system/src/components/NewsListComponents.tsx', 'news-list-category'],
   ['packages/design-system/src/components/GearDetailComponents.tsx', 'gear-slot-row'],
   ['packages/design-system/src/components/GearDetailComponents.tsx', 'gear-enhancement-option'],
+  ['packages/design-system/src/components/GearEditorSheets.tsx', 'gear-enhancement-socket'],
   ['packages/design-system/src/components/TalentSimulatorComponents.tsx', 'talent-tree-tab'],
   ['packages/design-system/src/components/TaskListComponents.tsx', 'task-status-filter'],
   ['packages/design-system/src/components/SimcSubmitComponents.tsx', 'simc-specialization-option'],
@@ -1400,6 +1401,7 @@ record(
       && Number.isInteger(group.minimumActive) && group.minimumActive >= 0
       && Number.isInteger(group.maximumActive) && group.maximumActive === 1
       && group.minimumActive <= group.maximumActive
+      && (group.groupByAttribute === undefined || /^data-[a-z][a-z\d-]*$/u.test(group.groupByAttribute))
       && interactionContract.interactions.some((interaction) => interaction.route === group.route && interaction.path === group.path)
     )),
   `groups=${selectedGroupKeys.length}`,
@@ -1425,9 +1427,33 @@ record(
 )
 record(
   'selected_controls_have_stable_group_roles',
-  selectedStateOwners.every(([file, role]) => read(file).includes(`data-role="${role}"`))
+  selectedStateOwners.every(([file, role]) => (
+    fs.existsSync(path.join(root, file))
+    && read(file).includes(`data-role="${role}"`)
+  ))
     && selectedControlContract.groups.every((group) => selectedStateOwners.some(([, role]) => role === group.role)),
   'selected-state runtime review must group controls by stable role rather than generated CSS classes',
+)
+function rolePublishesGroupAttribute(file, role, groupByAttribute) {
+  if (!fs.existsSync(path.join(root, file))) return false
+  const source = read(file)
+  const roleMarker = `data-role="${role}"`
+  const groupMarker = `${groupByAttribute}=`
+  let offset = source.indexOf(roleMarker)
+  while (offset >= 0) {
+    if (source.slice(Math.max(0, offset - 1000), offset + roleMarker.length + 1000).includes(groupMarker)) return true
+    offset = source.indexOf(roleMarker, offset + roleMarker.length)
+  }
+  return false
+}
+const groupedSelectedControls = selectedControlContract.groups.filter((group) => group.groupByAttribute)
+record(
+  'grouped_selected_controls_publish_group_attributes',
+  groupedSelectedControls.length > 0
+    && groupedSelectedControls.every((group) => selectedStateOwners
+      .filter(([, role]) => role === group.role)
+      .some(([file, role]) => rolePublishesGroupAttribute(file, role, group.groupByAttribute))),
+  groupedSelectedControls.map((group) => `${group.route}:${group.role}:${group.groupByAttribute}`).join(', '),
 )
 const contractedSelectionRoles = new Set(selectedControlContract.groups.map((group) => group.role))
 const selectedMaterialPublishers = []
@@ -1542,6 +1568,7 @@ const deprecatedSelectionStateClasses = [
   'simcScenarioSelected',
 ]
 const selectionOwnerSources = [...new Set([...selectedStateOwners.map(([file]) => file), ...componentStyleFiles])]
+  .filter((file) => fs.existsSync(path.join(root, file)))
 const duplicatedSelectionStateOwners = selectionOwnerSources.flatMap((file) => deprecatedSelectionStateClasses
   .filter((className) => read(file).includes(className))
   .map((className) => `${file}:${className}`))

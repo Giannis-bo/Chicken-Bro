@@ -106,6 +106,16 @@ async function waitForTextChange(page, selector, before) {
   throw new Error(`${selector} text did not change; actual=${actual}`)
 }
 
+async function waitForElementMissing(page, selector) {
+  const deadline = Date.now() + operationTimeoutMs
+  while (Date.now() < deadline) {
+    const element = await timeout(page.$(selector), 2000, `query removed ${selector}`)
+    if (!element) return
+    await settle(200)
+  }
+  throw new Error(`interaction element remained after confirmed action: ${selector}`)
+}
+
 async function currentPath(miniProgram) {
   return (await timeout(miniProgram.currentPage(), operationTimeoutMs, 'read current page')).path
 }
@@ -179,6 +189,23 @@ async function runCase(results, definition, action) {
     })
   }
   process.stderr.write(`[interaction:end] ${route} ${results.at(-1)?.status ?? 'FAIL'}\n`)
+}
+
+async function runGearDetailCandidateApplyFlow(miniProgram) {
+  const page = await open(miniProgram, contractPath('gear_detail'))
+  const slots = await requiredElements(page, '.wx-data-role-gear-slot-row', 1)
+  await timeout(slots[0].tap(), 2000, 'open gear candidate editor')
+  const candidates = await requiredElements(page, '.wx-data-role-gear-candidate-row', 1)
+  await timeout(candidates[0].tap(), 2000, 'choose gear candidate draft')
+  const variants = await timeout(page.$$('.wx-data-role-gear-candidate-variant'), 3000, 'query returned gear candidate variants')
+  if (variants.length > maximumInteractionElements) {
+    throw new Error(`interaction query cap exceeded: gear candidate variants ${variants.length}/${maximumInteractionElements}`)
+  }
+  if (variants.length > 0) await timeout(variants[0].tap(), 2000, 'choose returned gear candidate variant')
+  const applySelector = contractSelector('gear_detail')
+  await timeout((await requiredElement(page, applySelector)).tap(), operationTimeoutMs, 'apply gear candidate draft')
+  await waitForElementMissing(page, applySelector)
+  return 'candidate_applied'
 }
 
 async function main() {
@@ -262,13 +289,8 @@ async function main() {
     })
 
     await runCase(results, contractDefinition('gear_detail',
-      (actual) => typeof actual === 'string' && actual.length > 0,
-    ), async () => {
-      const page = await open(miniProgram, contractPath('gear_detail'))
-      await (await requiredElement(page, contractSelector('gear_detail'))).tap()
-      await settle()
-      return (await requiredElement(page, '.wx-data-role-gear-candidate-count')).text()
-    })
+      (actual) => actual === 'candidate_applied',
+    ), async () => runGearDetailCandidateApplyFlow(miniProgram))
 
     await runCase(results, contractDefinition('simulator_home',
       (actual) => typeof actual === 'string' && actual.includes('证据'),
