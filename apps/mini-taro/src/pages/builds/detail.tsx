@@ -69,6 +69,12 @@ import {
   type GearCandidateDraft,
 } from './gear-detail-editor-model'
 import {
+  transitionGearEditorCommit,
+  type GearEditorCommitState,
+  type GearEnhancementDraft,
+  type GearEnhancementKind,
+} from './gear-detail-editor-commit-model'
+import {
   gearCandidates,
   gearEnhancementGroups,
   gearEnhancementOptions,
@@ -110,21 +116,12 @@ interface CanonicalGearState {
 type ResolveSelectionResult =
   | { status: 'resolved'; intent: GearSelectionIntent; snapshot: GearResolvedSnapshot }
   | { status: 'failed' }
+  | { status: 'conflict' }
   | { status: 'stale' }
 
 type GearImportSelection =
   | { kind: 'community'; template: CommunityTemplateReference; label: string }
   | { kind: 'saved'; draft: GearTemplateDraft; label: string }
-
-type GearEnhancementKind = 'socket' | 'enchant' | 'embellishment'
-
-interface GearEnhancementDraft {
-  readonly slot: string
-  readonly requestedKind: GearEnhancementKind
-  readonly selection: GearEnhancementSelection
-  readonly item?: GearItemReference
-  readonly blockers: readonly string[]
-}
 
 type SlotHydrationResult =
   | { readonly status: 'current'; readonly items: readonly GearItemReference[] }
@@ -143,8 +140,13 @@ function exactHydratedItem(
   for (const item of items) {
     if (gearItemId(item) !== committedItemId) continue
     if (!committedVariantKey) return item
+    const draft = createCandidateDraft('', item)
+    if (!draft.requiresVariantSelection) {
+      if (String(item.variantKey ?? '').trim() === committedVariantKey) return item
+      continue
+    }
     const exactVariant = materializeCandidateDraft(
-      selectCandidateVariant(createCandidateDraft('', item), committedVariantKey),
+      selectCandidateVariant(draft, committedVariantKey),
     )
     if (exactVariant) return { ...item, ...exactVariant }
   }
@@ -177,13 +179,6 @@ function selectionForHydratedItem(
   }
 }
 
-function removeSlotEnhancements(
-  enhancements: Readonly<Record<string, GearEnhancementSelection>>,
-  slot: string,
-): Readonly<Record<string, GearEnhancementSelection>> {
-  return Object.fromEntries(Object.entries(enhancements).filter(([key]) => key !== slot))
-}
-
 function importedGearBySlot(value: unknown): Readonly<Record<string, GearItemReference>> | null {
   if (!isRecord(value)) return null
   const result: Record<string, GearItemReference> = {}
@@ -196,6 +191,15 @@ function importedGearBySlot(value: unknown): Readonly<Record<string, GearItemRef
 function envelopeMessage(problems: readonly Readonly<Record<string, unknown>>[], fallback: string): string {
   const first = problems[0]
   return String(first?.['title'] || first?.['detail'] || first?.['code'] || fallback)
+}
+
+function currentResolvedSlotItemId(
+  canonical: CanonicalGearState,
+  slot: string,
+): string {
+  if (!slot || canonical.snapshot?.status !== 'verified') return ''
+  const intent = canonical.snapshot.selectionIntent ?? canonical.intent
+  return String(intent?.slots[slot]?.itemId ?? '').trim()
 }
 
 export default function GearDetailPage() {
@@ -382,12 +386,13 @@ export default function GearDetailPage() {
     : []
   const selectedSlotLabel = slotViews.find((slot) => slot.slot === selectedSlot)?.label ?? ''
   const gearResolveState = canonical.loading
-    ? 'loading' as const
+    ? 'resolving' as const
     : canonical.error
       ? 'error' as const
       : canonical.snapshot?.status === 'verified'
         ? 'verified' as const
         : 'idle' as const
+  const resolvedSlotItemId = currentResolvedSlotItemId(canonical, selectedSlot)
   const statsReady = Boolean(
     canonical.snapshot?.status === 'verified'
     && canonical.intent
@@ -470,9 +475,15 @@ export default function GearDetailPage() {
       return { status: 'failed' }
     }
     if (result.httpStatus === 409) {
+      const transition = transitionGearEditorCommit({
+        equipped,
+        enhancements,
+        candidateDraft,
+        enhancementDraft,
+      }, { status: 'conflict' })
       candidateRequestId.current += 1
-      setCandidateDraft(null)
-      setEnhancementDraft(null)
+      setCandidateDraft(transition.state.candidateDraft)
+      setEnhancementDraft(transition.state.enhancementDraft)
       setCandidateOpen(false)
       setCandidates([])
       setCandidateLoading(false)
@@ -481,7 +492,7 @@ export default function GearDetailPage() {
       setCanonical({ loading: false, intent, error: '装备数据版本已更新，正在重新加载' })
       setWorkbenchNotice('装备数据已更新，请重新选择')
       void route.load()
-      return { status: 'failed' }
+      return { status: 'conflict' }
     }
     const snapshot = result.payload.data
     if (result.httpStatus !== 200 || result.payload.status !== 'resolved' || snapshot.status !== 'verified') {
@@ -601,16 +612,32 @@ export default function GearDetailPage() {
     const draft = candidateDraft
     const item = draft && materializeCandidateDraft(draft)
     if (!draft || !item) return
+    const commitState: GearEditorCommitState = {
+      equipped,
+      enhancements,
+      candidateDraft,
+      enhancementDraft,
+    }
     const nextEquipped = { ...equipped, [draft.slot]: item }
-    const nextEnhancements = removeSlotEnhancements(enhancements, draft.slot)
+    const nextEnhancements = Object.fromEntries(
+      Object.entries(enhancements).filter(([slot]) => slot !== draft.slot),
+    )
     const resolved = await resolveSelection(nextEquipped, nextEnhancements)
-    if (resolved.status !== 'resolved') return
-    setEquipped(nextEquipped)
-    setEnhancements(nextEnhancements)
+    if (resolved.status === 'conflict') return
+    const transition = transitionGearEditorCommit(commitState, {
+      status: resolved.status,
+      kind: 'candidate',
+      slot: draft.slot,
+      item,
+    })
+    if (!transition.committed) return
+    setEquipped(transition.state.equipped)
+    setEnhancements(transition.state.enhancements)
     setStats({ loading: false })
     setDirty(true)
     candidateRequestId.current += 1
-    setCandidateDraft(null)
+    setCandidateDraft(transition.state.candidateDraft)
+    setEnhancementDraft(transition.state.enhancementDraft)
     setCandidateOpen(false)
     setCandidates([])
     setCandidateLoading(false)
@@ -625,14 +652,29 @@ export default function GearDetailPage() {
   const confirmEnhancementDraft = async () => {
     const draft = enhancementDraft
     if (!draft || !draft.item || draft.blockers.length) return
+    const commitState: GearEditorCommitState = {
+      equipped,
+      enhancements,
+      candidateDraft,
+      enhancementDraft,
+    }
     const nextEnhancements = { ...enhancements, [draft.slot]: draft.selection }
     const resolved = await resolveSelection(equipped, nextEnhancements)
-    if (resolved.status !== 'resolved') return
-    setEnhancements(nextEnhancements)
+    if (resolved.status === 'conflict') return
+    const transition = transitionGearEditorCommit(commitState, {
+      status: resolved.status,
+      kind: 'enhancement',
+      slot: draft.slot,
+      selection: draft.selection,
+    })
+    if (!transition.committed) return
+    setEquipped(transition.state.equipped)
+    setEnhancements(transition.state.enhancements)
     setStats({ loading: false })
     setDirty(true)
     candidateRequestId.current += 1
-    setEnhancementDraft(null)
+    setCandidateDraft(transition.state.candidateDraft)
+    setEnhancementDraft(transition.state.enhancementDraft)
     setEnhancementLoading(false)
   }
 
@@ -720,7 +762,7 @@ export default function GearDetailPage() {
     try {
       const resolved = await resolveSelection(equipped, enhancements)
       if (resolved.status === 'stale') return
-      if (resolved.status === 'failed') {
+      if (resolved.status !== 'resolved') {
         await Taro.showToast({ title: '装备未通过后端校验，暂不能保存', icon: 'none' })
         return
       }
@@ -972,6 +1014,7 @@ export default function GearDetailPage() {
                 editor={workbenchEditor}
                 enhancements={enhancementOptions}
                 notice={workbenchNotice}
+                resolvedSlotItemId={resolvedSlotItemId}
                 resolveState={gearResolveState}
                 selectedSlot={selectedSlot}
                 selectedSlotLabel={selectedSlotLabel}

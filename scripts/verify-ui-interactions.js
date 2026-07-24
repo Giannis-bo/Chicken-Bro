@@ -5,6 +5,7 @@ const { execFileSync } = require('node:child_process')
 const fs = require('node:fs')
 const path = require('node:path')
 const { connectMiniProgram, timeout, waitForRenderedPage, waitForSystemInfo } = require('./wechat-automator')
+const { gearApplyEvidenceMatches } = require('./gear-apply-evidence')
 const { requireOnlineRouteBatch } = require('./online-route-batch')
 const { writeBoundedJsonAtomic } = require('./bounded-json-detail')
 const coreInteractionContract = require('../docs/design/current-ui/core-interaction-contract.json')
@@ -184,6 +185,7 @@ async function runCase(results, definition, action) {
 async function runGearDetailCandidateApplyFlow(miniProgram) {
   const page = await open(miniProgram, contractPath('gear_detail'))
   const mainHandSelector = '.wx-data-role-gear-slot-row.wx-data-slot-key-main_hand'
+  const workbenchSelector = '.wx-data-owner-gear-slot-workbench'
   const mainHand = await requiredElement(page, mainHandSelector)
   const committedBefore = String(await timeout(
     mainHand.attribute('data-committed-item-id'),
@@ -191,14 +193,26 @@ async function runGearDetailCandidateApplyFlow(miniProgram) {
     'read committed main hand item id',
   ) ?? '')
   await timeout(mainHand.tap(), 2000, 'open main hand gear candidate editor')
+  const resolvedBefore = String(await timeout(
+    (await requiredElement(page, workbenchSelector)).attribute('data-resolved-slot-item-id'),
+    2000,
+    'read resolved main hand item id before apply',
+  ) ?? '')
   const candidates = await requiredElements(page, '.wx-data-role-gear-candidate-row', 1)
   const candidateRows = await Promise.all(candidates.map(async (element) => ({
     element,
     itemId: String(await element.attribute('data-candidate-item-id') ?? ''),
     state: String(await element.attribute('data-state') ?? ''),
   })))
-  const candidate = candidateRows.find((item) => item.itemId && item.itemId !== committedBefore && item.state !== 'blocked')
-  if (!candidate) throw new Error(`no different resolver-eligible main hand candidate; committed=${committedBefore}`)
+  const candidate = candidateRows.find((item) => (
+    item.itemId
+    && item.itemId !== committedBefore
+    && item.itemId !== resolvedBefore
+    && item.state !== 'blocked'
+  ))
+  if (!candidate) {
+    throw new Error(`no different resolver-eligible main hand candidate; committed=${committedBefore} resolved=${resolvedBefore}`)
+  }
   await timeout(candidate.element.tap(), 2000, 'choose gear candidate draft')
   await settle(200)
   const committedAfterCandidate = String(await (await requiredElement(page, mainHandSelector)).attribute('data-committed-item-id') ?? '')
@@ -209,29 +223,49 @@ async function runGearDetailCandidateApplyFlow(miniProgram) {
   if (variants.length > maximumInteractionElements) {
     throw new Error(`interaction query cap exceeded: gear candidate variants ${variants.length}/${maximumInteractionElements}`)
   }
-  const variantRows = await Promise.all(variants.map(async (element) => ({
-    element,
-    state: String(await element.attribute('data-state') ?? ''),
-  })))
-  const variant = variantRows.find((item) => item.state === 'ready' || item.state === 'partial')
-  if (!variant) throw new Error('no resolver-eligible returned gear candidate variant')
-  await timeout(variant.element.tap(), 2000, 'choose returned gear candidate variant')
-  await settle(200)
-  const committedAfterVariant = String(await (await requiredElement(page, mainHandSelector)).attribute('data-committed-item-id') ?? '')
-  if (committedAfterVariant !== committedBefore) {
-    throw new Error(`committed id changed before apply: before=${committedBefore} afterVariant=${committedAfterVariant}`)
+  if (variants.length > 0) {
+    const variantRows = await Promise.all(variants.map(async (element) => ({
+      element,
+      state: String(await element.attribute('data-state') ?? ''),
+    })))
+    const variant = variantRows.find((item) => item.state === 'ready' || item.state === 'partial')
+    if (!variant) throw new Error('no resolver-eligible returned gear candidate variant')
+    await timeout(variant.element.tap(), 2000, 'choose returned gear candidate variant')
+    await settle(200)
+    const committedAfterVariant = String(await (await requiredElement(page, mainHandSelector)).attribute('data-committed-item-id') ?? '')
+    if (committedAfterVariant !== committedBefore) {
+      throw new Error(`committed id changed before apply: before=${committedBefore} afterVariant=${committedAfterVariant}`)
+    }
   }
   const applySelector = contractSelector('gear_detail')
   await timeout((await requiredElement(page, applySelector)).tap(), operationTimeoutMs, 'apply gear candidate draft')
+  await requiredElement(page, '.wx-data-gear-resolve-state-resolving')
+  const sawResolving = true
   const deadline = Date.now() + operationTimeoutMs
   let committedAfterApply = committedBefore
+  let resolvedAfterApply = resolvedBefore
+  let resolveState = 'resolving'
   while (Date.now() < deadline) {
     committedAfterApply = String(await (await requiredElement(page, mainHandSelector)).attribute('data-committed-item-id') ?? '')
-    const verified = await timeout(page.$('.wx-data-gear-resolve-state-verified'), 2000, 'query verified gear resolve state')
-    if (verified && committedAfterApply === candidate.itemId) return 'candidate_applied_after_verified'
+    const workbench = await requiredElement(page, workbenchSelector)
+    resolveState = String(await workbench.attribute('data-gear-resolve-state') ?? '')
+    resolvedAfterApply = String(await workbench.attribute('data-resolved-slot-item-id') ?? '')
+    if (gearApplyEvidenceMatches({
+      candidateItemId: candidate.itemId,
+      committedBefore,
+      resolvedBefore,
+      committedAfter: committedAfterApply,
+      resolvedAfter: resolvedAfterApply,
+      resolveState,
+      sawResolving,
+    })) return 'candidate_applied_after_verified'
     await settle(200)
   }
-  throw new Error(`verified resolve did not commit selected candidate: expected=${candidate.itemId} actual=${committedAfterApply}`)
+  throw new Error(
+    `verified resolve did not commit selected candidate: expected=${candidate.itemId}`
+    + ` committedBefore=${committedBefore} resolvedBefore=${resolvedBefore}`
+    + ` committedAfter=${committedAfterApply} resolvedAfter=${resolvedAfterApply} resolveState=${resolveState}`,
+  )
 }
 
 async function main() {

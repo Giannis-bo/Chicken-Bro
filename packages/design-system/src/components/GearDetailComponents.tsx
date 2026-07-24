@@ -360,7 +360,8 @@ export interface GearSlotWorkbenchProps {
   candidateLoading?: boolean
   notice?: string
   editor?: ReactNode
-  resolveState?: 'idle' | 'loading' | 'verified' | 'error'
+  resolveState?: 'idle' | 'resolving' | 'verified' | 'error'
+  resolvedSlotItemId?: string
   onSlot: (item: GearWorkbenchSlotItem) => void
   onCandidate: (item: GearWorkbenchCandidateItem) => void
   onClose: () => void
@@ -440,6 +441,7 @@ export function GearSlotWorkbench({
   notice = '',
   editor,
   resolveState = 'idle',
+  resolvedSlotItemId = '',
   onSlot,
   onCandidate,
   onClose,
@@ -460,6 +462,7 @@ export function GearSlotWorkbench({
     <View
       className={style('workbenchOwner')}
       data-gear-resolve-state={resolveState}
+      data-resolved-slot-item-id={resolvedSlotItemId}
       data-owner="gear-slot-workbench"
       data-region="equipment_slots_panel"
     >

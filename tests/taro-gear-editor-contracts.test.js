@@ -57,23 +57,49 @@ test('the core interaction contract has one executable candidate apply flow per 
   assert.match(executor, /runGearDetailCandidateApplyFlow/u)
   assert.match(executor, /gear-candidate-row/u)
   assert.match(executor, /gear-candidate-variant/u)
+  assert.match(executor, /if \(variants\.length > 0\)/u)
   assert.match(executor, /data-committed-item-id/u)
   assert.match(executor, /data-candidate-item-id/u)
-  assert.match(executor, /gear-resolve-state-verified/u)
+  assert.match(executor, /data-resolved-slot-item-id/u)
+  assert.match(executor, /gear-resolve-state-resolving/u)
+  assert.match(executor, /gearApplyEvidenceMatches/u)
   assert.match(executor, /committed id changed before apply/u)
   assert.match(executor, /verified resolve did not commit selected candidate/u)
   assert.doesNotMatch(executor, /waitForElementMissing\(page, applySelector\)/u)
 })
 
+test('gear apply evidence rejects a stale verified snapshot and accepts this resolving completion', () => {
+  const { gearApplyEvidenceMatches } = require('../scripts/gear-apply-evidence.js')
+  const evidence = {
+    candidateItemId: 'candidate-main-hand',
+    committedBefore: 'old-main-hand',
+    resolvedBefore: 'old-main-hand',
+    committedAfter: 'candidate-main-hand',
+    resolvedAfter: 'candidate-main-hand',
+    resolveState: 'verified',
+  }
+
+  assert.equal(gearApplyEvidenceMatches({ ...evidence, sawResolving: false }), false)
+  assert.equal(gearApplyEvidenceMatches({ ...evidence, sawResolving: true }), true)
+  assert.equal(gearApplyEvidenceMatches({
+    ...evidence,
+    sawResolving: true,
+    resolvedAfter: 'old-main-hand',
+  }), false)
+})
+
 test('the active page keeps draft item ids out of committed slot markers', () => {
   const page = fs.readFileSync(path.join(root, 'apps/mini-taro/src/pages/builds/detail.tsx'), 'utf8')
+  const commitModel = fs.readFileSync(path.join(root, 'apps/mini-taro/src/pages/builds/gear-detail-editor-commit-model.ts'), 'utf8')
   const workbench = fs.readFileSync(path.join(root, 'packages/design-system/src/components/GearDetailComponents.tsx'), 'utf8')
   const editor = fs.readFileSync(path.join(root, 'packages/design-system/src/components/GearEditorSheets.tsx'), 'utf8')
 
   assert.match(page, /const applyCandidateDraft = async \(\)/u)
-  assert.match(page, /if \(resolved\.status !== 'resolved'\) return[\s\S]*setEquipped\(nextEquipped\)/u)
+  assert.match(page, /transitionGearEditorCommit\(commitState[\s\S]*if \(!transition\.committed\) return[\s\S]*setEquipped\(transition\.state\.equipped\)/u)
+  assert.match(commitModel, /if \(event\.status !== 'resolved'\)[\s\S]*return \{ state, committed: false, reload: false \}/u)
   assert.match(workbench, /data-committed-item-id=\{item\.itemId\}/u)
   assert.match(workbench, /data-gear-resolve-state=\{resolveState\}/u)
+  assert.match(workbench, /data-resolved-slot-item-id=\{resolvedSlotItemId\}/u)
   assert.match(editor, /data-candidate-item-id=\{item\.itemId\}/u)
 })
 

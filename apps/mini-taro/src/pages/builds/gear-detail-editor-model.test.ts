@@ -78,6 +78,45 @@ describe('gear detail editor model', () => {
     })
   })
 
+  it('materializes a resolver-eligible backend base candidate when no variants are returned', () => {
+    const candidate: GearItemReference = {
+      itemId: 'base-weapon',
+      name: '后端基础武器',
+      variantKey: 'backend-base',
+      status: 'partial',
+      ilevel: 281,
+      compatibility: 'compatible',
+      socketOptions: [{ id: 'gem-a', label: '+15 急速' }],
+    }
+    const draft = createCandidateDraft('main_hand', candidate)
+
+    expect(draft.variants).toEqual([])
+    expect(candidateDraftCanApply(draft)).toBe(true)
+    expect(materializeCandidateDraft(draft)).toMatchObject({
+      itemId: 'base-weapon',
+      name: '后端基础武器',
+      variantKey: 'backend-base',
+      ilevel: 281,
+      compatibility: 'compatible',
+    })
+  })
+
+  it('never fabricates base identity and keeps a blocked base candidate disabled', () => {
+    const missingIdentity = createCandidateDraft('main_hand', {
+      name: '缺少后端物品 ID',
+      compatibility: 'compatible',
+    })
+    const incompatible = createCandidateDraft('main_hand', {
+      itemId: 'blocked-weapon',
+      compatibility: 'incompatible',
+    })
+
+    expect(candidateDraftCanApply(missingIdentity)).toBe(false)
+    expect(materializeCandidateDraft(missingIdentity)).toBeNull()
+    expect(candidateDraftCanApply(incompatible)).toBe(false)
+    expect(materializeCandidateDraft(incompatible)).toBeNull()
+  })
+
   it('does not turn display-only craftedStatOptions into a resolver selection', () => {
     const draft = selectCandidateVariant(createCandidateDraft('main_hand', craftedWeapon), 'crafted-myth-285')
 

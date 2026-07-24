@@ -18,6 +18,8 @@ export interface GearCraftedStatView {
 export interface GearCandidateDraft {
   readonly slot: string
   readonly candidate: GearItemReference
+  readonly state: 'ready' | 'partial' | 'blocked'
+  readonly requiresVariantSelection: boolean
   readonly selectedVariantKey: string
   readonly variants: readonly GearCandidateVariantView[]
   readonly craftedStatOptions: readonly GearCraftedStatView[]
@@ -50,6 +52,28 @@ function finiteLevel(...values: readonly unknown[]): number | null {
 
 function strings(value: unknown): readonly string[] {
   return Array.isArray(value) ? value.map(text).filter(Boolean) : []
+}
+
+function identifier(value: unknown): string {
+  if (typeof value !== 'string' && typeof value !== 'number') return ''
+  return String(value).trim()
+}
+
+function candidateState(candidate: GearItemReference): GearCandidateDraft['state'] {
+  const compatibility = typeof candidate.compatibility === 'string'
+    ? text(candidate.compatibility)
+    : text(record(candidate.compatibility)?.['status'])
+  const status = firstText(candidate.status, candidate['state']).toLowerCase()
+  const blockers = strings(candidate['blockers'])
+  if (
+    !identifier(candidate.itemId ?? candidate.id)
+    || compatibility.toLowerCase() === 'incompatible'
+    || status === 'blocked'
+    || text(candidate.metadataStatus).toLowerCase() === 'blocked'
+    || blockers.length
+  ) return 'blocked'
+  if (candidate.simcReady === true || status === 'ready' || status === 'verified') return 'ready'
+  return 'partial'
 }
 
 function variantState(value: RecordValue, blockers: readonly string[]): GearCandidateVariantView['state'] {
@@ -95,9 +119,12 @@ function craftedStatViews(candidate: GearItemReference): readonly GearCraftedSta
 }
 
 export function createCandidateDraft(slot: string, candidate: GearItemReference): GearCandidateDraft {
+  const rawVariants = Array.isArray(candidate['variants']) ? candidate['variants'] : []
   return {
     slot: text(slot),
     candidate,
+    state: candidateState(candidate),
+    requiresVariantSelection: rawVariants.length > 0,
     selectedVariantKey: '',
     variants: candidateVariants(candidate),
     craftedStatOptions: craftedStatViews(candidate),
@@ -109,13 +136,24 @@ export function selectCandidateVariant(draft: GearCandidateDraft, variantKey: st
 }
 
 export function candidateDraftCanApply(draft: GearCandidateDraft): boolean {
+  if (draft.state === 'blocked') return false
+  if (!draft.requiresVariantSelection) return true
   return Boolean(draft.selectedVariantKey && draft.variants.some((item) => item.key === draft.selectedVariantKey && item.state !== 'blocked'))
 }
 
 export function materializeCandidateDraft(draft: GearCandidateDraft): GearItemReference | null {
-  const variant = draft.variants.find((item) => item.key === draft.selectedVariantKey && item.state !== 'blocked')
-  if (!variant) return null
+  if (draft.state === 'blocked') return null
+  const variant = draft.requiresVariantSelection
+    ? draft.variants.find((item) => item.key === draft.selectedVariantKey && item.state !== 'blocked')
+    : undefined
+  if (draft.requiresVariantSelection && !variant) return null
   const candidate = draft.candidate
+  const baseVariantKey = text(candidate.variantKey)
+  const level = variant?.ilevel ?? finiteLevel(candidate.itemLevel, candidate.ilevel)
+  const difficultyLabel = variant?.difficultyLabel ?? firstText(
+    candidate['difficultyLabel'],
+    candidate['trackLabel'],
+  )
   return {
     ...(text(candidate.id) ? { id: text(candidate.id) } : {}),
     ...(candidate.itemId !== undefined ? { itemId: candidate.itemId } : {}),
@@ -130,12 +168,13 @@ export function materializeCandidateDraft(draft: GearCandidateDraft): GearItemRe
     ...(candidate.simcReady === true ? { simcReady: true } : {}),
     ...(text(candidate.metadataStatus) ? { metadataStatus: text(candidate.metadataStatus) } : {}),
     ...(text(candidate.compatibility) ? { compatibility: text(candidate.compatibility) } : {}),
-    variantKey: variant.key,
-    difficultyLabel: variant.difficultyLabel,
-    ...(variant.ilevel !== null ? { ilevel: variant.ilevel, itemLevel: variant.ilevel } : {}),
+    ...(variant ? { variantKey: variant.key } : baseVariantKey ? { variantKey: baseVariantKey } : {}),
+    ...(difficultyLabel ? { difficultyLabel } : {}),
+    ...(level !== null ? { ilevel: level, itemLevel: level } : {}),
     ...(Array.isArray(candidate.socketOptions) ? { socketOptions: candidate.socketOptions } : {}),
     ...(Array.isArray(candidate.enchantOptions) ? { enchantOptions: candidate.enchantOptions } : {}),
     ...(Array.isArray(candidate.embellishmentOptions) ? { embellishmentOptions: candidate.embellishmentOptions } : {}),
+    ...(record(candidate.modCapabilities) ? { modCapabilities: candidate.modCapabilities } : {}),
   }
 }
 

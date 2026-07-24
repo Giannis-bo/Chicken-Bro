@@ -43,6 +43,11 @@ const modelSource = readFileSync(resolve(
   'apps/mini-taro/src/pages/builds/gear-detail-model.ts',
 ), 'utf8')
 
+const commitModelSource = readFileSync(resolve(
+  process.cwd(),
+  'apps/mini-taro/src/pages/builds/gear-detail-editor-commit-model.ts',
+), 'utf8')
+
 describe('gear detail fixed workbench contract', () => {
   it('keeps the item-level and attribute summary while removing only the readiness progress rail', () => {
     expect(pageSource).toContain('targetRegionCount={8}')
@@ -132,19 +137,22 @@ describe('gear detail fixed workbench contract', () => {
     expect(pageSource).not.toMatch(/const chooseCandidate = async[\s\S]*?await resolveSelection/u)
     expect(pageSource).toMatch(/const chooseEnhancement = \([\s\S]*?setEnhancementDraft/u)
     expect(pageSource).not.toMatch(/const chooseEnhancement = async[\s\S]*?await resolveSelection/u)
-    expect(pageSource).toMatch(/const applyCandidateDraft = async \(\)[\s\S]*?if \(resolved\.status !== 'resolved'\) return[\s\S]*?setEquipped\(nextEquipped\)/u)
-    expect(pageSource).toMatch(/const confirmEnhancementDraft = async \(\)[\s\S]*?if \(resolved\.status !== 'resolved'\) return[\s\S]*?setEnhancements\(nextEnhancements\)/u)
+    expect(pageSource).toMatch(/const applyCandidateDraft = async \(\)[\s\S]*?await resolveSelection\([\s\S]*?transitionGearEditorCommit\([\s\S]*?if \(!transition\.committed\) return[\s\S]*?setEquipped\(transition\.state\.equipped\)/u)
+    expect(pageSource).toMatch(/const confirmEnhancementDraft = async \(\)[\s\S]*?await resolveSelection\([\s\S]*?transitionGearEditorCommit\([\s\S]*?if \(!transition\.committed\) return[\s\S]*?setEnhancements\(transition\.state\.enhancements\)/u)
+    expect(commitModelSource).toContain("if (event.status !== 'resolved')")
+    expect(commitModelSource).toContain('return { state, committed: false, reload: false }')
   })
 
   it('discards both editor drafts on conflict and invalidates hydration on every editor boundary', () => {
-    expect(pageSource).toMatch(/if \(result\.httpStatus === 409\) \{[\s\S]*?setCandidateDraft\(null\)[\s\S]*?setEnhancementDraft\(null\)[\s\S]*?void route\.load\(\)/u)
+    expect(pageSource).toMatch(/if \(result\.httpStatus === 409\) \{[\s\S]*?transitionGearEditorCommit\([\s\S]*?status: 'conflict'[\s\S]*?setCandidateDraft\(transition\.state\.candidateDraft\)[\s\S]*?setEnhancementDraft\(transition\.state\.enhancementDraft\)[\s\S]*?void route\.load\(\)/u)
+    expect(commitModelSource).toMatch(/if \(event\.status === 'conflict'\) \{[\s\S]*?candidateDraft: null[\s\S]*?enhancementDraft: null[\s\S]*?reload: true/u)
     expect(pageSource).toMatch(/const closeCandidateEditor = \(\) => \{[\s\S]*?candidateRequestId\.current \+= 1[\s\S]*?setCandidateDraft\(null\)[\s\S]*?setEnhancementDraft\(null\)/u)
     expect(pageSource).toMatch(/const reset = \(\) => \{[\s\S]*?candidateRequestId\.current \+= 1[\s\S]*?setCandidateDraft\(null\)[\s\S]*?setEnhancementDraft\(null\)/u)
     expect(pageSource).toMatch(/const importTemplate = async[\s\S]*?candidateRequestId\.current \+= 1[\s\S]*?setCandidateDraft\(null\)[\s\S]*?setEnhancementDraft\(null\)/u)
   })
 
   it('invalidates an in-flight Resolve before opening another editor or importing', () => {
-    const selectionEffect = pageSource.match(/useEffect\(\(\) => \{\n    if \(!selectionChanged\.current\)[\s\S]*?\}, \[selectedSpecId, route\.load\]\)/u)?.[0] ?? ''
+    const selectionEffect = pageSource.match(/useEffect\(\(\) => \{\n {4}if \(!selectionChanged\.current\)[\s\S]*?\}, \[selectedSpecId, route\.load\]\)/u)?.[0] ?? ''
     expect(selectionEffect).toContain('requestFence.current.replaceDraft()')
     expect(selectionEffect).toContain('setCanonical({ loading: false })')
     expect(pageSource).toMatch(/const openEnhancementGroup = async[\s\S]*?requestFence\.current\.replaceDraft\(\)[\s\S]*?await hydrateSlot/u)
@@ -154,14 +162,18 @@ describe('gear detail fixed workbench contract', () => {
   it('publishes committed and draft identities separately with a canonical resolve marker', () => {
     expect(componentSource).toContain('data-committed-item-id={item.itemId}')
     expect(componentSource).toContain('data-gear-resolve-state={resolveState}')
+    expect(componentSource).toContain('data-resolved-slot-item-id={resolvedSlotItemId}')
     expect(editorComponentSource).toContain('data-candidate-item-id={item.itemId}')
+    expect(pageSource).toContain("? 'resolving' as const")
+    expect(pageSource).toContain('resolvedSlotItemId={resolvedSlotItemId}')
     expect(pageSource).toContain('resolveState={gearResolveState}')
     expect(pageSource).toContain('editor={workbenchEditor}')
   })
 
   it('rehydrates the committed exact variant through the canonical editor model', () => {
     const exactItemSource = pageSource.match(/function exactHydratedItem\([\s\S]*?\n\}/u)?.[0] ?? ''
-    expect(exactItemSource).toContain("selectCandidateVariant(createCandidateDraft('', item), committedVariantKey)")
+    expect(exactItemSource).toContain("const draft = createCandidateDraft('', item)")
+    expect(exactItemSource).toContain('selectCandidateVariant(draft, committedVariantKey)')
     expect(exactItemSource).toContain('materializeCandidateDraft')
     expect(exactItemSource).not.toContain("item['variants']")
   })
