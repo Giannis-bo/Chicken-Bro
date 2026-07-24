@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 1,
+  "slug": "taro-gear-editor-recovery",
+  "classification": "Standard",
+  "status": "implementation_allowed",
+  "goal": "Restore explicit candidate variant application and draft-confirmed gear enhancements in the active Taro gear detail route.",
+  "userValue": "Players can inspect a returned candidate and its legal variant before explicitly applying it, then edit gear enhancements as a cancellable local draft that changes committed gear only after confirmation.",
+  "nonGoals": [
+    "Do not add a Resolver-selectable action for craftedStatOptions without a resolver-owned identifier.",
+    "Do not change target-only geometry, the eight outer regions, sixteen slots, or the locked outer-page scroll contract.",
+    "Do not change backend, PostgreSQL, public payload, resolver ownership, legacy page behavior, or the user's unrelated project config."
+  ],
+  "currentTruth": {
+    "sources": [
+      "docs/project-state.json",
+      "docs/roadmap.md",
+      "docs/plans/ui-reconstruction.md",
+      "docs/plans/2026-07-24-taro-gear-editor-recovery-design.md",
+      "docs/design/current-ui/core-interaction-contract.json",
+      "docs/design/current-ui/selected-control-contract.json",
+      "docs/design/current-ui/routes/gear-detail/truth-adaptation.json",
+      "docs/design/current-ui/routes/gear-detail/component-contract.json"
+    ],
+    "activeRoute": "apps/mini-taro/src/pages/builds/detail.tsx",
+    "factOwner": "The canonical Resolver owns legal candidate and enhancement validation; Taro owns only local drafts and rendering of verified snapshots."
+  },
+  "impactMap": {
+    "mustChange": [
+      "The active Taro gear-detail route restores candidate variant drafts that require an explicit apply action before an equipped slot changes.",
+      "The active Taro gear-detail route restores cancellable enhancement drafts that require an explicit confirm action before committed enhancements change.",
+      "The current UI interaction, selected-control, truth-adaptation, and component contracts freeze those behaviors and their fail-closed boundaries."
+    ],
+    "mustNotChange": [
+      "server/ remains unchanged.",
+      "PG remains unchanged.",
+      "The public payload remains unchanged.",
+      "The resolver owner remains unchanged.",
+      "The legacy page pages/builds/detail.js remains unchanged.",
+      "The user's unrelated apps/mini-taro/project.config.json remains unchanged."
+    ],
+    "riskUnknown": [
+      "A crafted-stat field without a resolver-owned identifier must remain display-only and fail closed rather than becoming a selectable action.",
+      "A Resolve failure, stale response, or revision conflict must not make an unverified draft appear committed."
+    ],
+    "evidenceRequired": [
+      "Targeted Vitest coverage for candidate application and enhancement confirmation behavior.",
+      "UI architecture audit for the active Taro owner contracts.",
+      "Exact candidate-head WeChat smoke for the active gear detail route.",
+      "Manual acceptance item gear_candidate_variant_apply.",
+      "Manual acceptance item gear_enhancement_confirm."
+    ]
+  },
+  "ownership": {
+    "factOwner": "The canonical Resolver owns legal candidate and enhancement validation; the active Taro route owns local edit drafts and renders only current verified snapshots.",
+    "consumers": [
+      "apps/mini-taro/src/pages/builds/detail.tsx",
+      "apps/mini-taro/src/pages/builds/gear-detail-editor-model.ts",
+      "packages/design-system/src/components/GearEditorSheets.tsx",
+      "docs/design/current-ui/core-interaction-contract.json",
+      "docs/design/current-ui/selected-control-contract.json"
+    ]
+  },
+  "engineeringHealth": {
+    "status": "health_watch_guarded",
+    "reason": "The change is limited to the active Taro gear editor and its current UI contracts, with draft-only mutations, canonical Resolve as the commit boundary, targeted Vitest, the UI architecture audit, exact candidate-head WeChat smoke and code rollback."
+  },
+  "manualAcceptanceContract": {
+    "required": true,
+    "requiredItemIds": [
+      "gear_candidate_variant_apply",
+      "gear_enhancement_confirm"
+    ]
+  },
+  "acceptanceEvidence": [
+    "Targeted Vitest proves candidate selection remains a local draft until explicit apply and enhancement edits remain a local draft until explicit confirmation.",
+    "The UI architecture audit proves the active Taro and design-system owners publish one canonical gear-detail interaction and executable selected-state grouping.",
+    "Exact candidate-head WeChat smoke exercises a multi-variant item, a no-variant item and multi-socket enhancement editing without changing target geometry.",
+    "The user explicitly accepts gear_candidate_variant_apply and gear_enhancement_confirm before merge."
+  ],
+  "releaseTrigger": "frontend_user_visible",
+  "rollback": ["code_rollback"],
+  "decisionLog": [
+    {
+      "date": "2026-07-24",
+      "decision": "The confirmed design requires candidate and returned-variant choices to remain local drafts until explicit apply resolves through the canonical Resolver."
+    },
+    {
+      "date": "2026-07-24",
+      "decision": "The confirmed design requires gem, enchant and embellishment edits to remain cancellable local drafts until explicit confirmation resolves through the canonical Resolver."
+    },
+    {
+      "date": "2026-07-24",
+      "decision": "craftedStatOptions without a resolver-owned identifier remain display-only and cannot become a selectable or submitted intent."
+    }
+  ]
+}

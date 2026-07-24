@@ -1377,6 +1377,7 @@ const selectedStateOwners = [
   ['packages/design-system/src/components/NewsListComponents.tsx', 'news-list-category'],
   ['packages/design-system/src/components/GearDetailComponents.tsx', 'gear-slot-row'],
   ['packages/design-system/src/components/GearDetailComponents.tsx', 'gear-enhancement-option'],
+  ['packages/design-system/src/components/GearEditorSheets.tsx', 'gear-enhancement-socket'],
   ['packages/design-system/src/components/TalentSimulatorComponents.tsx', 'talent-tree-tab'],
   ['packages/design-system/src/components/TaskListComponents.tsx', 'task-status-filter'],
   ['packages/design-system/src/components/SimcSubmitComponents.tsx', 'simc-specialization-option'],
@@ -1400,6 +1401,7 @@ record(
       && Number.isInteger(group.minimumActive) && group.minimumActive >= 0
       && Number.isInteger(group.maximumActive) && group.maximumActive === 1
       && group.minimumActive <= group.maximumActive
+      && (group.groupByAttribute === undefined || /^data-[a-z][a-z\d-]*$/u.test(group.groupByAttribute))
       && interactionContract.interactions.some((interaction) => interaction.route === group.route && interaction.path === group.path)
     )),
   `groups=${selectedGroupKeys.length}`,
@@ -1425,9 +1427,33 @@ record(
 )
 record(
   'selected_controls_have_stable_group_roles',
-  selectedStateOwners.every(([file, role]) => read(file).includes(`data-role="${role}"`))
+  selectedStateOwners.every(([file, role]) => (
+    fs.existsSync(path.join(root, file))
+    && read(file).includes(`data-role="${role}"`)
+  ))
     && selectedControlContract.groups.every((group) => selectedStateOwners.some(([, role]) => role === group.role)),
   'selected-state runtime review must group controls by stable role rather than generated CSS classes',
+)
+function rolePublishesGroupAttribute(file, role, groupByAttribute) {
+  if (!fs.existsSync(path.join(root, file))) return false
+  const source = read(file)
+  const roleMarker = `data-role="${role}"`
+  const groupMarker = `${groupByAttribute}=`
+  let offset = source.indexOf(roleMarker)
+  while (offset >= 0) {
+    if (source.slice(Math.max(0, offset - 1000), offset + roleMarker.length + 1000).includes(groupMarker)) return true
+    offset = source.indexOf(roleMarker, offset + roleMarker.length)
+  }
+  return false
+}
+const groupedSelectedControls = selectedControlContract.groups.filter((group) => group.groupByAttribute)
+record(
+  'grouped_selected_controls_publish_group_attributes',
+  groupedSelectedControls.length > 0
+    && groupedSelectedControls.every((group) => selectedStateOwners
+      .filter(([, role]) => role === group.role)
+      .some(([file, role]) => rolePublishesGroupAttribute(file, role, group.groupByAttribute))),
+  groupedSelectedControls.map((group) => `${group.route}:${group.role}:${group.groupByAttribute}`).join(', '),
 )
 const contractedSelectionRoles = new Set(selectedControlContract.groups.map((group) => group.role))
 const selectedMaterialPublishers = []
@@ -1542,6 +1568,7 @@ const deprecatedSelectionStateClasses = [
   'simcScenarioSelected',
 ]
 const selectionOwnerSources = [...new Set([...selectedStateOwners.map(([file]) => file), ...componentStyleFiles])]
+  .filter((file) => fs.existsSync(path.join(root, file)))
 const duplicatedSelectionStateOwners = selectionOwnerSources.flatMap((file) => deprecatedSelectionStateClasses
   .filter((className) => read(file).includes(className))
   .map((className) => `${file}:${className}`))
@@ -2760,9 +2787,14 @@ record(
 
 const gearDetailPage = read('apps/mini-taro/src/pages/builds/detail.tsx')
 const gearDetailModel = read('apps/mini-taro/src/pages/builds/gear-detail-model.ts')
+const gearEditorCommitModel = read('apps/mini-taro/src/pages/builds/gear-detail-editor-commit-model.ts')
 const gearDetailComponents = read('packages/design-system/src/components/GearDetailComponents.tsx')
+const gearEditorSheets = read('packages/design-system/src/components/GearEditorSheets.tsx')
 const gearTruthContract = JSON.parse(read('docs/design/current-ui/routes/gear-detail/truth-adaptation.json'))
-const gearCandidateSelection = /const chooseCandidate[\s\S]*?const chooseEnhancement/u.exec(gearDetailPage)?.[0] ?? ''
+const gearCandidateSelection = /const chooseCandidate[\s\S]*?const applyCandidateDraft/u.exec(gearDetailPage)?.[0] ?? ''
+const gearCandidateApply = /const applyCandidateDraft[\s\S]*?const chooseEnhancement/u.exec(gearDetailPage)?.[0] ?? ''
+const gearEnhancementSelection = /const chooseEnhancement[\s\S]*?const confirmEnhancementDraft/u.exec(gearDetailPage)?.[0] ?? ''
+const gearEnhancementConfirm = /const confirmEnhancementDraft[\s\S]*?const openEnhancementGroup/u.exec(gearDetailPage)?.[0] ?? ''
 record(
   'gear_detail_consumes_current_backend_contracts',
   ['gearResolve(', 'communityTemplateImport('].every((call) => gearDetailPage.includes(call))
@@ -2784,13 +2816,32 @@ record(
   'Taro must localize backend display facts without recreating specialization or equipment rules',
 )
 record(
-  'gear_candidate_selection_closes_before_resolution',
-  gearCandidateSelection.includes('setCandidateOpen(false)')
-    && gearCandidateSelection.includes('setEquipped(nextEquipped)')
-    && gearCandidateSelection.includes('await resolveSelection(nextEquipped, nextEnhancements)')
-    && gearCandidateSelection.indexOf('setCandidateOpen(false)') < gearCandidateSelection.indexOf('await resolveSelection(nextEquipped, nextEnhancements)')
-    && gearCandidateSelection.indexOf('setEquipped(nextEquipped)') < gearCandidateSelection.indexOf('await resolveSelection(nextEquipped, nextEnhancements)'),
-  'candidate clicks must close the panel and persist the local draft before asynchronous backend verification',
+  'gear_editor_commits_only_after_verified_resolution',
+  gearCandidateSelection.includes('setCandidateDraft(createCandidateDraft(slot, item))')
+    && !gearCandidateSelection.includes('resolveSelection(')
+    && !gearCandidateSelection.includes('setEquipped(')
+    && gearCandidateApply.includes('await resolveSelection(nextEquipped, nextEnhancements)')
+    && gearCandidateApply.includes('transitionGearEditorCommit(commitState')
+    && gearCandidateApply.includes('if (!transition.committed) return')
+    && gearCandidateApply.indexOf('await resolveSelection(nextEquipped, nextEnhancements)') < gearCandidateApply.indexOf('setEquipped(transition.state.equipped)')
+    && gearEnhancementSelection.includes('setEnhancementDraft(')
+    && !gearEnhancementSelection.includes('resolveSelection(')
+    && gearEnhancementConfirm.includes('await resolveSelection(equipped, nextEnhancements)')
+    && gearEnhancementConfirm.includes('transitionGearEditorCommit(commitState')
+    && gearEnhancementConfirm.indexOf('await resolveSelection(equipped, nextEnhancements)') < gearEnhancementConfirm.indexOf('setEnhancements(transition.state.enhancements)')
+    && gearEditorCommitModel.includes("if (event.status !== 'resolved')")
+    && gearEditorCommitModel.includes('return { state, committed: false, reload: false }')
+    && gearEditorCommitModel.includes('gearEnhancementsFromResolvedSnapshot(')
+    && gearDetailPage.includes('hydrateCompactSlotGroup(group)')
+    && gearDetailPage.includes('snapshot: resolved.snapshot')
+    && !gearDetailPage.includes('resolved.snapshot.selectionIntent ?? resolved.intent')
+    && gearDetailComponents.includes('data-committed-item-id={item.itemId}')
+    && gearDetailComponents.includes('data-committed-slot-variant-key={committedSlotVariantKey}')
+    && gearDetailComponents.includes('data-gear-resolve-state={resolveState}')
+    && gearDetailComponents.includes('data-resolved-slot-item-id={resolvedSlotItemId}')
+    && gearDetailComponents.includes('data-resolved-slot-variant-key={resolvedSlotVariantKey}')
+    && gearEditorSheets.includes('data-candidate-item-id={item.itemId}'),
+  'candidate and enhancement controls must remain draft-only until a verified canonical Resolve precedes committed UI updates',
 )
 
 const babelConfig = read('apps/mini-taro/babel.config.cjs')

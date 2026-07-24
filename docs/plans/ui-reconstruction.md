@@ -20,6 +20,8 @@
 | 当前运行证据 | 当前合同仍为 `active_unverified`；旧 commit 的截图、几何和交互 artifact 已从工作树删除，只保留在 Git 历史 | `docs/design/current-ui/runtime-review-status.json` |
 | 产品命名 | 活动 Taro 导航使用“资讯 / 专精 / 队长 / 我的”；对外产品定位和首页权重仍待 roadmap 决策 | `docs/roadmap/ideas.md` |
 
+当前 `gear_detail` 的候选装备与强化编辑恢复遵循 [Taro 装备编辑器恢复设计](2026-07-24-taro-gear-editor-recovery-design.md)：候选选择、合法等级/变体配置和显式应用分离；宝石、附魔、美化使用可取消的本地草稿，只有确认后才提交 canonical Resolve。
+
 ## 权威输入
 
 1. `docs/design/current-ui/target-registry.json` 和对应 route contract。

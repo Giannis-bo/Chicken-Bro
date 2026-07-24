@@ -11,10 +11,19 @@ import type {
   WebsimGearPayload,
 } from '@wow-mini/domain'
 
+import {
+  createCandidateDraft,
+  gearCandidateEligibilityState,
+  materializeCandidateDraft,
+  packedEnhancementSelection,
+  selectCandidateVariant,
+} from './gear-detail-editor-model'
+
 export type GearViewState = 'ready' | 'partial' | 'blocked' | 'empty' | 'loading' | 'stale' | 'error'
 
 export interface GearCandidateView {
   id: string
+  itemId: string
   label: string
   levelLabel: string
   sourceLabel: string
@@ -58,6 +67,7 @@ export interface GearEnhancementGroupView {
   id: 'socket' | 'enchant' | 'embellishment'
   label: string
   optionCount: number
+  selectedCount: number
   value: string
   state: 'ready' | 'empty' | 'blocked'
 }
@@ -68,6 +78,275 @@ export interface GearEnhancementOptionView {
   label: string
   iconUrl?: string
   selected: boolean
+}
+
+export type GearReplacementCandidateGroup =
+  WebsimGearPayload['replacementCandidates'][number]
+
+type GearEnhancementOptionKey = 'socketOptions' | 'enchantOptions' | 'embellishmentOptions'
+
+const gearConfigEnchantExcludedCategories = new Set([
+  'class_only_precombat',
+  'class_only_weapon_enchant',
+  'combat_preparation',
+  'runeforge',
+  'temporary_enchant',
+])
+
+const offhandWeaponEnchantTypes = new Set([
+  'dagger',
+  'fist_weapon',
+  'one_handed_axe',
+  'one_handed_mace',
+  'one_handed_sword',
+  'warglaive',
+])
+
+const gearEmbellishmentArmorSlots = new Set([
+  'head',
+  'shoulder',
+  'back',
+  'chest',
+  'wrist',
+  'hands',
+  'waist',
+  'legs',
+  'feet',
+])
+
+const gearEmbellishmentJewelrySlots = new Set(['neck', 'finger1', 'finger2'])
+
+const gearBuiltInEmbellishmentSources = new Set(['built_in', 'builtin', 'intrinsic', 'item'])
+
+function optionPayload(option: GearEnhancementOption): Readonly<Record<string, unknown>> {
+  const payload = option['payload']
+  return payload && typeof payload === 'object' && !Array.isArray(payload)
+    ? payload as Readonly<Record<string, unknown>>
+    : {}
+}
+
+function normalizedConfigKey(value: unknown): string {
+  return text(value).toLowerCase().replace(/[^a-z0-9_]+/gu, '_').replace(/^_+|_+$/gu, '')
+}
+
+function optionValue(
+  option: GearEnhancementOption,
+  aliases: readonly string[],
+): unknown {
+  const payload = optionPayload(option)
+  for (const alias of aliases) {
+    const value = option[alias]
+    if (value !== undefined && value !== null && value !== '') return value
+  }
+  for (const alias of aliases) {
+    const value = payload[alias]
+    if (value !== undefined && value !== null && value !== '') return value
+  }
+  return undefined
+}
+
+function optionIdentity(option: GearEnhancementOption): string {
+  return text(option.optionKey) || text(option['option_key']) || text(option.id)
+}
+
+function verifiedEnhancementOption(option: GearEnhancementOption): boolean {
+  return text(option.status) === 'verified' && Boolean(optionIdentity(option))
+}
+
+function enchantOptionExcludedFromGearConfig(option: GearEnhancementOption): boolean {
+  const category = normalizedConfigKey(optionValue(option, [
+    'configCategory',
+    'config_category',
+    'enchantCategory',
+    'enchant_category',
+    'category',
+  ]))
+  return gearConfigEnchantExcludedCategories.has(category)
+    || optionValue(option, ['excludeFromGearConfig', 'exclude_from_gear_config', 'blocked']) === true
+}
+
+function enchantOptionAppliesToItem(
+  option: GearEnhancementOption,
+  item: GearItemReference,
+  slot: string,
+): boolean {
+  if (enchantOptionExcludedFromGearConfig(option)) return false
+  if (slot !== 'off_hand') return true
+  const armorType = normalizedConfigKey(item['armorType'])
+  const weaponType = normalizedConfigKey(item['weaponType'])
+  const isShield = weaponType === 'shield' || armorType === 'shield'
+  const isHeldOffhand = weaponType === 'held_in_off_hand' || weaponType === 'held_off_hand'
+  const rule = normalizedConfigKey(optionValue(option, ['itemTypeRule', 'item_type_rule']))
+  if (['any', 'any_equipment', 'equipment', 'gear', 'gear_slot'].includes(rule)) return true
+  if (['shield', 'offhand_shield', 'off_hand_shield'].includes(rule)) return isShield
+  if (['held_offhand', 'held_off_hand', 'holdable', 'invtype_holdable'].includes(rule)) return isHeldOffhand
+  return offhandWeaponEnchantTypes.has(weaponType)
+}
+
+function embellishmentOptionAppliesToItem(
+  option: GearEnhancementOption,
+  item: GearItemReference,
+  slot: string,
+): boolean {
+  const group = text(optionValue(option, ['slotGroup', 'slot_group'])).toLowerCase()
+  if (!group) return true
+  const armorType = normalizedConfigKey(item['armorType'])
+  const weaponType = normalizedConfigKey(item['weaponType'])
+  const isShield = slot === 'off_hand' && (weaponType === 'shield' || armorType === 'shield')
+  const isHeldOffhand = slot === 'off_hand'
+    && (weaponType === 'held_in_off_hand' || weaponType === 'held_off_hand')
+  if (group === 'equipment') {
+    return gearEmbellishmentArmorSlots.has(slot)
+      || gearEmbellishmentJewelrySlots.has(slot)
+      || slot === 'main_hand'
+      || slot === 'off_hand'
+  }
+  if (group === 'jewelry') return gearEmbellishmentJewelrySlots.has(slot)
+  if (group === 'armor') return gearEmbellishmentArmorSlots.has(slot) || isShield
+  if (group === 'weapon' || group === 'weapon_offhand') return slot === 'main_hand' || isHeldOffhand
+  if (group === 'weapon_armor') {
+    return gearEmbellishmentArmorSlots.has(slot)
+      || slot === 'main_hand'
+      || isShield
+      || isHeldOffhand
+  }
+  return false
+}
+
+function itemHasBuiltInEmbellishment(item: GearItemReference): boolean {
+  if (item['hasBuiltInEmbellishment'] === true) return true
+  if ([
+    item['builtInEmbellishment'],
+    item['intrinsicEmbellishment'],
+    item['inherentEmbellishment'],
+  ].some((value) => Boolean(text(value)))) return true
+  return gearBuiltInEmbellishmentSources.has(
+    normalizedConfigKey(item['embellishmentSource']),
+  )
+}
+
+function enhancementOptionAppliesToItem(
+  option: GearEnhancementOption,
+  item: GearItemReference,
+  slot: string,
+  key: GearEnhancementOptionKey,
+): boolean {
+  if (!verifiedEnhancementOption(option)) return false
+  if (key === 'enchantOptions') return enchantOptionAppliesToItem(option, item, slot)
+  if (key === 'embellishmentOptions') {
+    return !itemHasBuiltInEmbellishment(item)
+      && embellishmentOptionAppliesToItem(option, item, slot)
+  }
+  return true
+}
+
+function compactGroupOptions(
+  group: GearReplacementCandidateGroup,
+  key: GearEnhancementOptionKey,
+): readonly GearEnhancementOption[] {
+  const value = (group as unknown as Readonly<Record<string, unknown>>)[key]
+  return Array.isArray(value)
+    ? value.filter((option): option is GearEnhancementOption => (
+        Boolean(option) && typeof option === 'object' && !Array.isArray(option)
+      ))
+    : []
+}
+
+export function hydrateCompactSlotGroup(
+  group: GearReplacementCandidateGroup | undefined,
+): readonly GearItemReference[] {
+  if (!group || !Array.isArray(group.items)) return []
+  const socketOptions = compactGroupOptions(group, 'socketOptions')
+  const enchantOptions = compactGroupOptions(group, 'enchantOptions')
+  const embellishmentOptions = compactGroupOptions(group, 'embellishmentOptions')
+  return group.items.map((item) => ({
+    ...item,
+    socketOptions: gearEnhancementSocketCount(item) !== null && gearEnhancementSocketCount(item)! > 0
+      ? socketOptions.filter((option) => verifiedEnhancementOption(option))
+      : [],
+    enchantOptions: item.modCapabilities?.['canEnchant'] === true
+      ? enchantOptions.filter((option) => enhancementOptionAppliesToItem(option, item, group.slot, 'enchantOptions'))
+      : [],
+    embellishmentOptions: item.modCapabilities?.['canEmbellish'] === true
+      ? embellishmentOptions.filter((option) => enhancementOptionAppliesToItem(option, item, group.slot, 'embellishmentOptions'))
+      : [],
+  }))
+}
+
+export interface HydratedEnhancementDraftInput {
+  readonly item: GearItemReference
+  readonly selection: GearEnhancementSelection
+}
+
+function exactHydratedItem(
+  items: readonly GearItemReference[],
+  committed: GearItemReference,
+): GearItemReference | undefined {
+  const committedItemId = gearItemId(committed)
+  const committedVariantKey = text(committed.variantKey)
+  for (const item of items) {
+    if (gearItemId(item) !== committedItemId) continue
+    if (!committedVariantKey) return item
+    const draft = createCandidateDraft('', item)
+    if (!draft.requiresVariantSelection) {
+      if (text(item.variantKey) === committedVariantKey) return item
+      continue
+    }
+    const exactVariant = materializeCandidateDraft(
+      selectCandidateVariant(draft, committedVariantKey),
+    )
+    if (exactVariant) return { ...item, ...exactVariant }
+  }
+  return undefined
+}
+
+export function gearEnhancementSocketCount(item: GearItemReference): number | null {
+  const capabilities = item.modCapabilities
+  if (!capabilities || typeof capabilities !== 'object' || Array.isArray(capabilities)) return null
+  if (capabilities['hasSocket'] === false) return 0
+  const count = capabilities['socketCount']
+  return Number.isInteger(count) && Number(count) > 0 ? Number(count) : null
+}
+
+export function prepareHydratedEnhancementDraft(
+  items: readonly GearItemReference[],
+  committed: GearItemReference,
+  confirmed: GearEnhancementSelection,
+): HydratedEnhancementDraftInput | null {
+  const item = exactHydratedItem(items, committed)
+  if (
+    !item
+    || !Array.isArray(item.socketOptions)
+    || !Array.isArray(item.enchantOptions)
+    || !Array.isArray(item.embellishmentOptions)
+  ) return null
+  const socketCount = gearEnhancementSocketCount(item)
+  if (socketCount === null) return null
+  const selection = packedEnhancementSelection(confirmed)
+  const socketOptionIds = new Set(item.socketOptions
+    .filter(verifiedEnhancementOption)
+    .map(optionIdentity))
+  const enchantOptionIds = new Set(item.enchantOptions
+    .filter(verifiedEnhancementOption)
+    .map(optionIdentity))
+  const embellishmentOptionIds = new Set(item.embellishmentOptions
+    .filter(verifiedEnhancementOption)
+    .map(optionIdentity))
+  return {
+    item,
+    selection: {
+      ...selection,
+      gemOptionIds: selection.gemOptionIds
+        .filter((id) => socketOptionIds.has(id))
+        .slice(0, socketCount),
+      enchantOptionId: enchantOptionIds.has(selection.enchantOptionId)
+        ? selection.enchantOptionId
+        : '',
+      embellishmentOptionId: embellishmentOptionIds.has(selection.embellishmentOptionId)
+        ? selection.embellishmentOptionId
+        : '',
+    },
+  }
 }
 
 const canonicalSlotDefinitions = [
@@ -143,11 +422,6 @@ function text(value: unknown): string {
 function finiteNumber(value: unknown): number | null {
   const number = typeof value === 'number' ? value : Number.parseFloat(text(value))
   return Number.isFinite(number) && number > 0 ? number : null
-}
-
-function compatibilityStatus(item: GearItemReference): string {
-  if (typeof item.compatibility === 'string') return item.compatibility
-  return text(item.compatibility?.['status'])
 }
 
 function normalizedKey(value: unknown): string {
@@ -276,10 +550,7 @@ export function gearItemIconUrl(item: GearItemReference | undefined): string | u
 }
 
 function gearItemState(item: GearItemReference | undefined): 'ready' | 'partial' | 'blocked' {
-  if (!item) return 'blocked'
-  if (compatibilityStatus(item) === 'incompatible') return 'blocked'
-  if (item.simcReady === true && item.metadataStatus !== 'blocked') return 'ready'
-  return 'partial'
+  return item ? gearCandidateEligibilityState(item) : 'blocked'
 }
 
 export function gearCandidates(items: readonly GearItemReference[]): readonly GearCandidateView[] {
@@ -288,6 +559,7 @@ export function gearCandidates(items: readonly GearItemReference[]): readonly Ge
     const iconUrl = gearItemIconUrl(item)
     return {
       id: text(item.variantKey) || `${gearItemId(item) || 'candidate'}-${index}`,
+      itemId: gearItemId(item),
       label: gearItemName(item),
       levelLabel: level ? `装等 ${Math.round(level)}` : '装等待核验',
       sourceLabel: text(item.source) || '来源待补充',
@@ -406,12 +678,8 @@ export function gearReadiness(
 const enhancementDefinitions = [
   { id: 'socket', label: '宝石', key: 'socketOptions' },
   { id: 'enchant', label: '附魔', key: 'enchantOptions' },
-  { id: 'embellishment', label: '装饰', key: 'embellishmentOptions' },
+  { id: 'embellishment', label: '美化', key: 'embellishmentOptions' },
 ] as const
-
-function optionIdentity(option: GearEnhancementOption, index: number): string {
-  return text(option.id) || text(option.optionKey) || `option-${index}`
-}
 
 function optionLabel(option: GearEnhancementOption): string {
   return text(option.displayLabel) || text(option.label) || text(option.displayName) || text(option.name) || '未命名增强项'
@@ -424,16 +692,19 @@ export function gearEnhancementOptions(
 ): readonly GearEnhancementOptionView[] {
   return enhancementDefinitions.flatMap((definition) => {
     const options = item?.[definition.key] ?? []
-    return options.map((option, index) => {
-      const id = optionIdentity(option, index)
+    return options.flatMap((option) => {
+      if (!item || !enhancementOptionAppliesToItem(option, item, slot, definition.key)) return []
+      const id = optionIdentity(option)
       const iconUrl = text(option.iconUrl)
-      return {
+      return [{
         id,
         kind: definition.id,
         label: optionLabel(option),
         ...(iconUrl ? { iconUrl } : {}),
-        selected: selectedGearEnhancementId(enhancements, slot, definition.id) === id,
-      }
+        selected: definition.id === 'socket'
+          ? selectedGearEnhancementIds(enhancements, slot, definition.id).includes(id)
+          : selectedGearEnhancementId(enhancements, slot, definition.id) === id,
+      }]
     })
   })
 }
@@ -444,15 +715,20 @@ export function gearEnhancementGroups(
   slot: string,
 ): readonly GearEnhancementGroupView[] {
   return enhancementDefinitions.map((definition) => {
-    const options = item?.[definition.key] ?? []
-    const selected = selectedGearEnhancementId(enhancements, slot, definition.id)
-    const selectedOption = options.find((option, index) => optionIdentity(option, index) === selected)
+    const options = item
+      ? (item[definition.key] ?? []).filter((option) => (
+          enhancementOptionAppliesToItem(option, item, slot, definition.key)
+        ))
+      : []
+    const selectedIds = selectedGearEnhancementIds(enhancements, slot, definition.id)
+    const selectedOptions = options.filter((option) => selectedIds.includes(optionIdentity(option)))
     return {
       id: definition.id,
       label: definition.label,
       optionCount: options.length,
-      value: selectedOption ? optionLabel(selectedOption) : options.length ? `${options.length} 项可选` : '待配置',
-      state: selectedOption ? 'ready' : options.length ? 'empty' : 'blocked',
+      selectedCount: selectedOptions.length,
+      value: selectedOptions.length ? selectedOptions.map(optionLabel).join('；') : options.length ? `${options.length} 项可选` : '待配置',
+      state: selectedOptions.length ? 'ready' : options.length ? 'empty' : 'blocked',
     }
   })
 }
@@ -467,6 +743,18 @@ export function selectedGearEnhancementId(
   if (kind === 'socket') return selected.gemOptionIds[0] ?? ''
   if (kind === 'enchant') return selected.enchantOptionId
   return selected.embellishmentOptionId
+}
+
+export function selectedGearEnhancementIds(
+  enhancements: Readonly<Record<string, GearEnhancementSelection>>,
+  slot: string,
+  kind: GearEnhancementGroupView['id'],
+): readonly string[] {
+  const selected = enhancements[slot]
+  if (!selected) return []
+  if (kind === 'socket') return selected.gemOptionIds.filter(Boolean)
+  const optionId = kind === 'enchant' ? selected.enchantOptionId : selected.embellishmentOptionId
+  return optionId ? [optionId] : []
 }
 
 export function templateGearItems(template: CommunityTemplateReference | undefined): Readonly<Record<string, GearItemReference>> | null {

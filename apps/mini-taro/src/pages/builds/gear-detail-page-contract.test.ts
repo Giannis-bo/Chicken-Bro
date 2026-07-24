@@ -28,9 +28,24 @@ const componentStyleSource = readFileSync(resolve(
   'packages/design-system/src/components/GearDetailComponents.module.scss',
 ), 'utf8')
 
+const editorComponentSource = readFileSync(resolve(
+  process.cwd(),
+  'packages/design-system/src/components/GearEditorSheets.tsx',
+), 'utf8')
+
+const editorStyleSource = readFileSync(resolve(
+  process.cwd(),
+  'packages/design-system/src/components/GearEditorSheets.module.scss',
+), 'utf8')
+
 const modelSource = readFileSync(resolve(
   process.cwd(),
   'apps/mini-taro/src/pages/builds/gear-detail-model.ts',
+), 'utf8')
+
+const commitModelSource = readFileSync(resolve(
+  process.cwd(),
+  'apps/mini-taro/src/pages/builds/gear-detail-editor-commit-model.ts',
 ), 'utf8')
 
 describe('gear detail fixed workbench contract', () => {
@@ -77,6 +92,11 @@ describe('gear detail fixed workbench contract', () => {
     expect(pageSource).toContain('bodyScrollable={false}')
     expect(componentSource).toContain('data-role="gear-candidate-scroll"')
     expect(componentSource).toMatch(/<ScrollView[^>]*data-role="gear-candidate-scroll"[^>]*scrollY/u)
+    expect(editorComponentSource).toContain('data-role="gear-editor-scroll"')
+    expect(editorComponentSource).toMatch(/<ScrollView[^>]*data-role="gear-editor-scroll"[^>]*scrollY/u)
+    expect(editorStyleSource).toMatch(/\.workbenchSheet \{[\s\S]*?position:\s*absolute;[\s\S]*?inset:\s*0;[\s\S]*?overflow:\s*hidden;/u)
+    expect(editorStyleSource).not.toMatch(/position:\s*fixed;/u)
+    expect(editorStyleSource).not.toMatch(/\b100vh\b/u)
     expect(componentSource).not.toContain('GearReadinessOverview')
     expect(componentSource).not.toContain('data-role="gear-primary-action"')
     expect(componentSource).not.toContain('primaryLabel')
@@ -95,6 +115,110 @@ describe('gear detail fixed workbench contract', () => {
     expect(componentStyleSource).toMatch(/\.slotRow \{[\s\S]*?width:\s*100%;[\s\S]*?grid-template-columns:\s*36px minmax\(0, 1fr\);/u)
     expect(componentStyleSource).not.toContain('max-width: none')
     expect(componentStyleSource).toMatch(/\.slotMedia \{[\s\S]*?width:\s*36px;[\s\S]*?height:\s*36px;/u)
+  })
+
+  it('keeps candidate and enhancement choices source-owned until explicit apply or confirm', () => {
+    expect(editorComponentSource).toContain('data-role="gear-candidate-row"')
+    expect(editorComponentSource).toContain('data-role="gear-candidate-variant"')
+    expect(editorComponentSource).toContain('data-action-id="gear-candidate-apply"')
+    expect(editorComponentSource).toContain('disabled={!canApply || loading}')
+    expect(editorComponentSource).toContain('data-role="gear-enhancement-socket"')
+    expect(editorComponentSource).toContain('data-action-id="gear-enhancement-confirm"')
+    expect(editorComponentSource).not.toContain('resolveSelection')
+    expect(editorComponentSource).not.toContain('gearResolve')
+  })
+
+  it('locks candidate identity and variant controls while the current Resolve is pending', () => {
+    expect(editorComponentSource).toMatch(/function CandidateDetails\(\{[\s\S]*?loading,[\s\S]*?disabled=\{loading \|\| variant\.state === 'blocked'\}/u)
+    expect(editorComponentSource).toMatch(/data-role="gear-candidate-row"[\s\S]*?disabled=\{loading\}/u)
+    expect(editorComponentSource).toMatch(/<CandidateDetails[\s\S]*?loading=\{loading\}/u)
+    expect(pageSource).toMatch(/const chooseCandidate = \(id: string\) => \{[\s\S]*?if \(canonical\.loading\) return[\s\S]*?setCandidateDraft/u)
+    expect(pageSource).toMatch(/const chooseCandidateVariant = \(variantKey: string\) => \{[\s\S]*?if \(canonical\.loading\) return[\s\S]*?selectCandidateVariant/u)
+    expect(pageSource).toContain('onSelectVariant={chooseCandidateVariant}')
+  })
+
+  it('keeps editor choices as drafts until one verified Resolve commits them', () => {
+    expect(pageSource).toContain('setCandidateDraft')
+    expect(pageSource).toContain('setEnhancementDraft')
+    expect(pageSource).toMatch(/const applyCandidateDraft = async \(\)[\s\S]*?await resolveSelection\(/u)
+    expect(pageSource).toMatch(/const confirmEnhancementDraft = async \(\)[\s\S]*?await resolveSelection\(/u)
+    expect(pageSource).toMatch(/const chooseCandidate = \(id: string\)[\s\S]*?setCandidateDraft/u)
+    expect(pageSource).not.toMatch(/const chooseCandidate = async[\s\S]*?await resolveSelection/u)
+    expect(pageSource).toMatch(/const chooseEnhancement = \([\s\S]*?setEnhancementDraft/u)
+    expect(pageSource).not.toMatch(/const chooseEnhancement = async[\s\S]*?await resolveSelection/u)
+    expect(pageSource).toMatch(/const applyCandidateDraft = async \(\)[\s\S]*?await resolveSelection\([\s\S]*?transitionGearEditorCommit\([\s\S]*?if \(!transition\.committed\) return[\s\S]*?setEquipped\(transition\.state\.equipped\)/u)
+    expect(pageSource).toMatch(/const confirmEnhancementDraft = async \(\)[\s\S]*?await resolveSelection\([\s\S]*?transitionGearEditorCommit\([\s\S]*?if \(!transition\.committed\) \{[\s\S]*?return[\s\S]*?setEnhancements\(transition\.state\.enhancements\)/u)
+    expect(commitModelSource).toContain("if (event.status !== 'resolved')")
+    expect(commitModelSource).toContain('return { state, committed: false, reload: false }')
+    expect(pageSource.match(/snapshot: resolved\.snapshot/gu)).toHaveLength(2)
+    expect(pageSource).not.toContain('resolved.snapshot.selectionIntent ?? resolved.intent')
+    expect(pageSource).not.toContain('selection: draft.selection')
+  })
+
+  it('discards both editor drafts on conflict and invalidates hydration on every editor boundary', () => {
+    expect(pageSource).toMatch(/if \(result\.httpStatus === 409\) \{[\s\S]*?transitionGearEditorCommit\([\s\S]*?status: 'conflict'[\s\S]*?setCandidateDraft\(transition\.state\.candidateDraft\)[\s\S]*?setEnhancementDraft\(transition\.state\.enhancementDraft\)[\s\S]*?void route\.load\(\)/u)
+    expect(commitModelSource).toMatch(/if \(event\.status === 'conflict'\) \{[\s\S]*?candidateDraft: null[\s\S]*?enhancementDraft: null[\s\S]*?reload: true/u)
+    expect(pageSource).toMatch(/const closeCandidateEditor = \(\) => \{[\s\S]*?candidateRequestId\.current \+= 1[\s\S]*?setCandidateDraft\(null\)[\s\S]*?setEnhancementDraft\(null\)/u)
+    expect(pageSource).toMatch(/const reset = \(\) => \{[\s\S]*?candidateRequestId\.current \+= 1[\s\S]*?setCandidateDraft\(null\)[\s\S]*?setEnhancementDraft\(null\)/u)
+    expect(pageSource).toMatch(/const importTemplate = async[\s\S]*?candidateRequestId\.current \+= 1[\s\S]*?setCandidateDraft\(null\)[\s\S]*?setEnhancementDraft\(null\)/u)
+  })
+
+  it('invalidates an in-flight Resolve before opening another editor or importing', () => {
+    const selectionEffect = pageSource.match(/useEffect\(\(\) => \{\n {4}if \(!selectionChanged\.current\)[\s\S]*?\}, \[selectedSpecId, route\.load\]\)/u)?.[0] ?? ''
+    expect(selectionEffect).toContain('requestFence.current.replaceDraft()')
+    expect(selectionEffect).toContain('setCanonical({ loading: false })')
+    expect(pageSource).toMatch(/const openEnhancementGroup = async[\s\S]*?requestFence\.current\.replaceDraft\(\)[\s\S]*?await hydrateSlot/u)
+    expect(pageSource).toMatch(/const importTemplate = async[\s\S]*?requestFence\.current\.beginImport\(\)[\s\S]*?setCanonical\(\(current\) => current\.loading/u)
+  })
+
+  it('publishes committed and draft identities separately with a canonical resolve marker', () => {
+    expect(componentSource).toContain('data-committed-item-id={item.itemId}')
+    expect(componentSource).toContain('data-gear-resolve-state={resolveState}')
+    expect(componentSource).toContain('data-resolved-slot-item-id={resolvedSlotItemId}')
+    expect(componentSource).toContain('data-resolved-slot-variant-key={resolvedSlotVariantKey}')
+    expect(componentSource).toContain('data-committed-slot-variant-key={committedSlotVariantKey}')
+    expect(editorComponentSource).toContain('data-candidate-item-id={item.itemId}')
+    expect(pageSource).toContain("? 'resolving' as const")
+    expect(pageSource).toContain('resolvedSlotItemId={resolvedSlotItemId}')
+    expect(pageSource).toContain('resolvedSlotVariantKey={resolvedSlotVariantKey}')
+    expect(pageSource).toContain('committedSlotVariantKey={committedSlotVariantKey}')
+    expect(pageSource).toContain('resolvedSlotIdentity(canonical.snapshot, selectedSlot)')
+    expect(pageSource).not.toContain('canonical.snapshot.selectionIntent ?? canonical.intent')
+    expect(pageSource).toContain('resolveState={gearResolveState}')
+    expect(pageSource).toContain('editor={workbenchEditor}')
+  })
+
+  it('hydrates slot editor items from compact group-level enhancement options', () => {
+    expect(pageSource).toContain('hydrateCompactSlotGroup(group)')
+    expect(pageSource).not.toContain('compact: false')
+    expect(pageSource).toMatch(/const hydrateSlot = async[\s\S]*?const group = result\.payload\.replacementCandidates\.find[\s\S]*?hydrateCompactSlotGroup\(group\)[\s\S]*?slotDetailCache\.current\.set\(slot, items\)/u)
+  })
+
+  it('rehydrates the committed exact variant through the canonical editor model', () => {
+    const exactItemSource = modelSource.match(/function exactHydratedItem\([\s\S]*?\n\}/u)?.[0] ?? ''
+    expect(exactItemSource).toContain("const draft = createCandidateDraft('', item)")
+    expect(exactItemSource).toContain('selectCandidateVariant(draft, committedVariantKey)')
+    expect(exactItemSource).toContain('materializeCandidateDraft')
+    expect(exactItemSource).not.toContain("item['variants']")
+    expect(modelSource).toMatch(/export function prepareHydratedEnhancementDraft\([\s\S]*?exactHydratedItem\(items, committed\)[\s\S]*?packedEnhancementSelection\(confirmed\)/u)
+    expect(pageSource).toContain('prepareHydratedEnhancementDraft(hydrated.items, committedItem, confirmed)')
+  })
+
+  it('keeps crafted stats display-only and maps editor actions to draft callbacks', () => {
+    const craftedStatSource = editorComponentSource.match(/draft\.craftedStatOptions\.map\(\(item\) => \([\s\S]*?\)\)\}/u)?.[0] ?? ''
+    expect(craftedStatSource).toContain('data-role="gear-crafted-stat-display"')
+    expect(craftedStatSource).toContain('<View')
+    expect(craftedStatSource).not.toContain('<ControlButton')
+    expect(craftedStatSource).not.toContain('onClick=')
+    expect(craftedStatSource).not.toContain('data-active=')
+    expect(editorComponentSource).toContain("onClick={() => onSetGem(socketIndex, '')}")
+    expect(editorComponentSource).toContain('onClick={() => onSetGem(socketIndex, item.id)}')
+    expect(editorComponentSource.match(/data-socket-index=\{socketIndex\}/gu)).toHaveLength(3)
+    expect(editorComponentSource).toMatch(/data-action-id="gear-enhancement-cancel"[^>]*onClick=\{onClose\}/u)
+    expect(editorComponentSource).toMatch(/data-action-id="gear-enhancement-confirm"[\s\S]*?onClick=\{onConfirm\}/u)
+    expect(editorComponentSource.match(/data-action-id="gear-enhancement-confirm"/gu)).toHaveLength(1)
+    expect(pageSource).toContain('socketCount={enhancementSocketCount}')
+    expect(editorComponentSource).toContain('按顺序配置')
   })
 
   it('wires every canonical profession to a class launch before reloading the gear workbench', () => {

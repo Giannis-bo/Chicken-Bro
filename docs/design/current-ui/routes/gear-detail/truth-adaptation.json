@@ -49,6 +49,8 @@
       "slot_selector",
       "candidate_selector",
       "enhancement_selector",
+      "candidate_apply",
+      "enhancement_confirm",
       "community_template_import",
       "save_template",
       "reset"
@@ -80,7 +82,7 @@
     "officialItemMediaHost": "render.worldofwarcraft.com",
     "slotDetailEvidence": {
       "slot": "neck",
-      "detailMode": "complete",
+      "detailMode": "compact slot group",
       "candidateCount": 44,
       "verifiedCandidateFields": [
         "itemId",
@@ -96,18 +98,19 @@
         "variantKey"
       ],
       "verifiedEnhancementKinds": [
-        "socketOptions",
-        "enchantOptions",
-        "embellishmentOptions"
-      ]
+        "group.socketOptions",
+        "group.enchantOptions",
+        "group.embellishmentOptions"
+      ],
+      "hydrationRule": "project the group-level option arrays onto every exact item while preserving item.modCapabilities; an omitted group option array is an explicitly empty selectable set"
     }
   },
   "compactPayloadCaveat": {
     "observed": true,
     "compactSelectedCount": 361,
     "compactItemLevelSelectedCount": 356,
-    "reason": "compact mode aggregates catalog candidates through gear_readiness and does not describe the editable equippedSet",
-    "rule": "compact mode may supply the lightweight candidate catalog, but the route must ignore compact readiness for editable state and derive all selected/readiness/item-level values from equippedSet"
+    "reason": "miniprogram transport always receives compact gear payloads; compact mode aggregates catalog candidates through gear_readiness and moves enhancement options to each replacementCandidates slot group",
+    "rule": "compact mode supplies the candidate catalog and group-level enhancement option sets, but the route must ignore compact readiness for editable state, hydrate only a returned exact group, and derive all selected/readiness/item-level values from equippedSet"
   },
   "mainSyncContractAudit": {
     "auditedAgainst": "origin/main@752828b",
@@ -131,7 +134,10 @@
     "The editable loadout starts from equippedSet only. An empty equippedSet remains empty and must not be synthesized from slotReadiness, replacementCandidates or the first community template.",
     "The route uses compact mode only as a lightweight candidate catalog; compact readiness aggregates catalog candidates and is never editable-state truth.",
     "The catalog bootstrap omits mode=initial because that backend mode intentionally returns slot shells with empty item arrays; mode=slot is reserved for on-demand details.",
-    "Candidate identity, item level, stats, compatibility, source and enhancement options render only when the backend returns those fields for that candidate.",
+    "Candidate identity, item level, stats, compatibility and source render only when returned for that candidate. In compact slot mode, socketOptions, enchantOptions and embellishmentOptions are group-owned sets projected onto each exact item while item.modCapabilities remains item-owned.",
+    "Only enhancement options with a backend id or optionKey are selectable. Missing canonical identity is filtered and leaves the requested enhancement group blocked; Taro never fabricates option-N identifiers.",
+    "Candidate click -> local draft only; apply / confirm -> gearResolve -> verified resolvedSlots proof -> committed UI. Candidate apply requires exact resolved itemId + variantKey identity and both candidate/enhancement commits materialize confirmed selectedOptions through the domain snapshot helper. Request intent, local draft and snapshot.selectionIntent are never success proof.",
+    "Variant-scoped craftedStatOptions without a resolver-owned identifier are display only after that variant is selected; object simcOptions expose only safely formatted scalar display values and no selectable action or craftedOptionId.",
     "Only HTTPS item or enhancement media on the explicit trusted runtime allowlist may render as real WoW objects; generated or decorative art cannot impersonate an item.",
     "Resolver readiness remains backend-owned for deterministic save metadata: an initial equippedSet may use websim.gear.readiness only when its selectedCount matches the editable selection; every edited draft uses gearResolve.profileReadiness. Taro never counts item simcReady flags or hardcodes a 15-slot rule; candidate counts are never presented as equipped counts.",
     "The loadout summary exposes only the current item level and backend-derived attribute values. Its fixed visual order is primary/stamina first, haste/critical/mastery/versatility on the left, and leech/avoidance/speed on the right; every attribute row uses the left-column row height, so the unused lower-right cell remains empty. Missing backend fields retain their position as 未提供 or 待校验. It does not expose selected-count or readiness-state copy, readiness count, progress percentage or readiness checkpoints.",
@@ -162,11 +168,11 @@
     },
     {
       "region": "enhancement_categories_bar",
-      "runtime": "real socket, enchant and embellishment options for the active selected item"
+      "runtime": "canonical-id socket, enchant and embellishment summaries from the active compact slot group's option sets"
     },
     {
       "region": "equipment_slots_panel",
-      "runtime": "sixteen canonical slots in two equal-width auto-fill columns plus an internal candidate/detail surface sourced from replacementCandidates"
+      "runtime": "sixteen canonical slots in two equal-width auto-fill columns plus an internal candidate/detail surface hydrated from one exact compact replacementCandidates group"
     },
     {
       "region": "secondary_actions_row",

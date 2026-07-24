@@ -1,14 +1,23 @@
 import { describe, expect, it } from 'vitest'
 
-import type { GearItemReference, WebsimGearPayload } from '@wow-mini/domain'
+import {
+  serializeGearSelectionIntent,
+  type GearItemReference,
+  type WebsimGearPayload,
+} from '@wow-mini/domain'
+import * as gearDetailModel from './gear-detail-model'
 
 import {
   gearCandidates,
+  hydrateCompactSlotGroup,
+  prepareHydratedEnhancementDraft,
   gearEnhancementGroups,
+  gearEnhancementOptions,
   gearReadiness,
   gearSlots,
   templateGearItems,
 } from './gear-detail-model'
+import { candidateDraftCanApply, createCandidateDraft } from './gear-detail-editor-model'
 
 const readyItem: GearItemReference = {
   itemId: '250060',
@@ -56,6 +65,277 @@ function payload(): WebsimGearPayload {
 }
 
 describe('gear detail truth model', () => {
+  it('exposes a compact slot-group hydration boundary', () => {
+    expect(gearDetailModel).toHaveProperty('hydrateCompactSlotGroup')
+    expect(gearDetailModel).toHaveProperty('prepareHydratedEnhancementDraft')
+  })
+
+  it('hydrates exact compact items with group-level enhancement option sets', () => {
+    const group = {
+      slot: 'finger1',
+      label: '戒指 1',
+      items: [{
+        itemId: 'compact-ring',
+        variantKey: 'myth-289',
+        modCapabilities: { hasSocket: true, socketCount: 1, canEnchant: true },
+      }],
+      socketOptions: [{ id: 'gem-haste', status: 'verified', label: '+147 急速' }],
+      enchantOptions: [{ optionKey: 'ring-enchant', status: 'verified', label: '+90 急速' }],
+    } as WebsimGearPayload['replacementCandidates'][number] & {
+      socketOptions: NonNullable<GearItemReference['socketOptions']>
+      enchantOptions: NonNullable<GearItemReference['enchantOptions']>
+    }
+
+    const [item] = hydrateCompactSlotGroup(group)
+
+    expect(item).toMatchObject({
+      itemId: 'compact-ring',
+      variantKey: 'myth-289',
+      modCapabilities: { hasSocket: true, socketCount: 1, canEnchant: true },
+      socketOptions: [{ id: 'gem-haste' }],
+      enchantOptions: [{ optionKey: 'ring-enchant' }],
+      embellishmentOptions: [],
+    })
+    expect(gearEnhancementOptions(item, {}, 'finger1').map((option) => option.id)).toEqual([
+      'gem-haste',
+      'ring-enchant',
+    ])
+    expect(prepareHydratedEnhancementDraft(
+      hydrateCompactSlotGroup(group),
+      { itemId: 'compact-ring', variantKey: 'myth-289' },
+      {
+        gemOptionIds: ['gem-haste'],
+        enchantOptionId: 'ring-enchant',
+        embellishmentOptionId: '',
+        craftedOptionId: '',
+        catalystOptionId: '',
+      },
+    )).toEqual({
+      item,
+      selection: {
+        gemOptionIds: ['gem-haste'],
+        enchantOptionId: 'ring-enchant',
+        embellishmentOptionId: '',
+        craftedOptionId: '',
+        catalystOptionId: '',
+      },
+    })
+  })
+
+  it('filters enhancement options without a resolver-owned identity', () => {
+    const item: GearItemReference = {
+      itemId: 'unsafe-ring',
+      socketOptions: [
+        { status: 'verified', label: '缺少 canonical id' },
+        { id: 'gem-safe', status: 'verified', label: '+147 急速' },
+      ],
+      enchantOptions: [{ optionKey: 'enchant-safe', status: 'verified', label: '+90 急速' }],
+      embellishmentOptions: [],
+    }
+
+    expect(gearEnhancementOptions(item, {}, 'finger1').map((option) => option.id)).toEqual([
+      'gem-safe',
+      'enchant-safe',
+    ])
+    expect(gearEnhancementGroups({
+      ...item,
+      socketOptions: [{ status: 'verified', label: '仍然缺少 canonical id' }],
+      enchantOptions: [],
+    }, {}, 'finger1').find((group) => group.id === 'socket')).toMatchObject({
+      optionCount: 0,
+      state: 'blocked',
+    })
+  })
+
+  it('serializes the resolver-owned option key selected from a compact PG option', () => {
+    const [option] = gearEnhancementOptions({
+      itemId: 'compact-ring',
+      enchantOptions: [{
+        id: '301',
+        optionKey: 'quick-ruby',
+        status: 'verified',
+        label: '迅捷红玉',
+      }],
+    }, {}, 'finger1')
+
+    expect(option?.id).toBe('quick-ruby')
+    expect(serializeGearSelectionIntent({
+      resolverContext: {
+        contractRevision: 'gear-resolver-context-v1',
+        selectionSchemaRevision: 'selection-intent-v1',
+        authoredAgainst: {
+          seasonRevision: 'season-17',
+          gearCatalogRevision: 'gear-r17',
+        },
+      },
+      selection: { classKey: 'mage', specKey: 'frost' },
+      gearBySlot: { finger1: { itemId: 'compact-ring' } },
+      enhancementBySlot: {
+        finger1: {
+          gemOptionIds: [],
+          enchantOptionId: option?.id ?? '',
+        },
+      },
+    })?.slots['finger1']?.enchantOptionId).toBe('quick-ruby')
+  })
+
+  it('accepts the compact PG option_key alias as the resolver-owned identity', () => {
+    const [option] = gearEnhancementOptions({
+      itemId: 'compact-ring',
+      enchantOptions: [{
+        id: '301',
+        option_key: 'quick-ruby-alias',
+        status: 'verified',
+        label: '迅捷红玉',
+      }],
+    }, {}, 'finger1')
+
+    expect(option?.id).toBe('quick-ruby-alias')
+  })
+
+  it('exposes only explicitly verified enhancement options', () => {
+    const item: GearItemReference = {
+      itemId: 'strict-ring',
+      enchantOptions: [
+        { optionKey: 'verified', status: 'verified', label: '已验证附魔' },
+        { optionKey: 'uppercase-is-not-canonical', status: 'VERIFIED', label: '非规范状态附魔' },
+        { optionKey: 'partial', status: 'partial', label: '部分证据附魔' },
+        { optionKey: 'blocked', status: 'blocked', label: '阻断附魔' },
+        {
+          optionKey: 'metadata-cannot-bypass-status',
+          status: 'partial',
+          metadataStatus: 'verified',
+          label: '物品元数据不能替代增强项验证',
+        },
+      ],
+    }
+
+    expect(gearEnhancementOptions(item, {}, 'finger1').map((option) => option.id)).toEqual([
+      'verified',
+    ])
+    expect(gearEnhancementGroups(item, {}, 'finger1').find((group) => group.id === 'enchant')).toMatchObject({
+      optionCount: 1,
+    })
+
+    const [hydrated] = hydrateCompactSlotGroup({
+      slot: 'finger1',
+      label: '戒指 1',
+      items: [{
+        itemId: 'strict-ring',
+        modCapabilities: { hasSocket: false, canEnchant: true, canEmbellish: false },
+      }],
+      enchantOptions: item.enchantOptions,
+    } as WebsimGearPayload['replacementCandidates'][number] & {
+      enchantOptions: NonNullable<GearItemReference['enchantOptions']>
+    })
+    expect(prepareHydratedEnhancementDraft(
+      hydrated ? [hydrated] : [],
+      { itemId: 'strict-ring' },
+      {
+        gemOptionIds: [],
+        enchantOptionId: 'partial',
+        embellishmentOptionId: '',
+        craftedOptionId: '',
+        catalystOptionId: '',
+      },
+    )?.selection.enchantOptionId).toBe('')
+  })
+
+  it('hydrates off-hand compact enchants only onto the applicable item type', () => {
+    const enchantOptions = [
+      { optionKey: 'shield-enchant', status: 'verified', itemTypeRule: 'shield' },
+      { optionKey: 'held-enchant', status: 'verified', itemTypeRule: 'held_offhand' },
+      { optionKey: 'weapon-enchant', status: 'verified', itemTypeRule: 'weapon' },
+      { optionKey: 'blocked-enchant', status: 'verified', configCategory: 'runeforge' },
+    ]
+    const group = {
+      slot: 'off_hand',
+      label: '副手',
+      items: [
+        { itemId: 'shield', weaponType: 'shield', modCapabilities: { canEnchant: true } },
+        { itemId: 'held', weaponType: 'held in off-hand', modCapabilities: { canEnchant: true } },
+        { itemId: 'weapon', weaponType: 'one-handed sword', modCapabilities: { canEnchant: true } },
+        { itemId: 'wand', weaponType: 'wand', modCapabilities: { canEnchant: true } },
+      ],
+      enchantOptions,
+    } as WebsimGearPayload['replacementCandidates'][number] & {
+      enchantOptions: NonNullable<GearItemReference['enchantOptions']>
+    }
+
+    const [shield, held, weapon, wand] = hydrateCompactSlotGroup(group)
+
+    expect(shield?.enchantOptions?.map((option) => option.optionKey)).toEqual(['shield-enchant'])
+    expect(held?.enchantOptions?.map((option) => option.optionKey)).toEqual(['held-enchant'])
+    expect(weapon?.enchantOptions?.map((option) => option.optionKey)).toEqual(['weapon-enchant'])
+    expect(wand?.enchantOptions).toEqual([])
+  })
+
+  it('uses the compact group slot to separate jewelry and armor embellishments', () => {
+    const embellishmentOptions = [
+      { optionKey: 'jewelry-only', status: 'verified', slotGroup: 'jewelry' },
+      { optionKey: 'armor-only', status: 'verified', slotGroup: 'armor' },
+    ]
+    const group = (slot: string, itemId: string) => ({
+      slot,
+      label: slot,
+      items: [{ itemId, armorType: 'cloth', modCapabilities: { canEmbellish: true } }],
+      embellishmentOptions,
+    }) as WebsimGearPayload['replacementCandidates'][number] & {
+      embellishmentOptions: NonNullable<GearItemReference['embellishmentOptions']>
+    }
+
+    const [ring] = hydrateCompactSlotGroup(group('finger1', 'ring'))
+    const [wrist] = hydrateCompactSlotGroup(group('wrist', 'wrist'))
+
+    expect(ring).not.toHaveProperty('slot')
+    expect(ring?.embellishmentOptions?.map((option) => option.optionKey)).toEqual(['jewelry-only'])
+    expect(wrist?.embellishmentOptions?.map((option) => option.optionKey)).toEqual(['armor-only'])
+  })
+
+  it('blocks embellishment choices for items with a built-in embellishment', () => {
+    const embellishmentOptions = [
+      { optionKey: 'armor-only', status: 'verified', slotGroup: 'armor' },
+    ]
+    const builtInItems: GearItemReference[] = [
+      { itemId: 'flag', hasBuiltInEmbellishment: true },
+      { itemId: 'built-in-value', builtInEmbellishment: '自带美化' },
+      { itemId: 'intrinsic-value', intrinsicEmbellishment: '自带美化' },
+      { itemId: 'inherent-value', inherentEmbellishment: '自带美化' },
+      { itemId: 'source-built-in', embellishmentSource: 'built_in' },
+      { itemId: 'source-builtin', embellishmentSource: 'builtin' },
+      { itemId: 'source-intrinsic', embellishmentSource: 'intrinsic' },
+      { itemId: 'source-item', embellishmentSource: 'item' },
+    ].map((item) => ({
+      ...item,
+      armorType: 'cloth',
+      modCapabilities: { canEmbellish: true },
+    }))
+    const group = {
+      slot: 'wrist',
+      label: '腕部',
+      items: [
+        ...builtInItems,
+        {
+          itemId: 'ordinary-armor',
+          armorType: 'cloth',
+          modCapabilities: { canEmbellish: true },
+        },
+      ],
+      embellishmentOptions,
+    } as WebsimGearPayload['replacementCandidates'][number] & {
+      embellishmentOptions: NonNullable<GearItemReference['embellishmentOptions']>
+    }
+
+    const hydrated = hydrateCompactSlotGroup(group)
+
+    expect(hydrated.slice(0, builtInItems.length).every((item) => (
+      item.embellishmentOptions?.length === 0
+    ))).toBe(true)
+    expect(hydrated.at(-1)?.embellishmentOptions?.map((option) => option.optionKey)).toEqual([
+      'armor-only',
+    ])
+  })
+
   it('ignores catalog-wide compact readiness when the editable equipped set is empty', () => {
     const readiness = gearReadiness({}, undefined, 'ready', payload().readiness)
     expect(readiness.selectedCount).toBe(0)
@@ -138,6 +418,27 @@ describe('gear detail truth model', () => {
     ])
   })
 
+  it('uses the same backend eligibility projection for candidate rows and editor drafts', () => {
+    const blockedCandidates: GearItemReference[] = [
+      { itemId: 'status-blocked', status: 'blocked', compatibility: 'compatible' },
+      { itemId: 'state-blocked', status: 'partial', state: 'blocked', compatibility: 'compatible' },
+      { itemId: 'metadata-blocked', metadataStatus: 'blocked', compatibility: 'compatible' },
+      { itemId: 'blocker-blocked', blockers: ['规则拒绝'], compatibility: 'compatible' },
+      { name: 'missing identity', compatibility: 'compatible' },
+    ]
+
+    expect(gearCandidates(blockedCandidates).map((candidate) => candidate.state)).toEqual([
+      'blocked',
+      'blocked',
+      'blocked',
+      'blocked',
+      'blocked',
+    ])
+    expect(blockedCandidates.map((candidate) => (
+      candidateDraftCanApply(createCandidateDraft('main_hand', candidate))
+    ))).toEqual([false, false, false, false, false])
+  })
+
   it('localizes backend-owned primary stats and equipment badges', () => {
     const candidate: GearItemReference = {
       ...readyItem,
@@ -187,7 +488,7 @@ describe('gear detail truth model', () => {
   it('summarizes only returned enhancement options', () => {
     const item: GearItemReference = {
       ...readyItem,
-      socketOptions: [{ id: 'gem-1', label: '+15 急速' }],
+      socketOptions: [{ id: 'gem-1', status: 'verified', label: '+15 急速' }],
       enchantOptions: [],
       embellishmentOptions: [],
     }
@@ -203,6 +504,32 @@ describe('gear detail truth model', () => {
       expect.objectContaining({ id: 'socket', optionCount: 1, value: '+15 急速', state: 'ready' }),
       expect.objectContaining({ id: 'enchant', optionCount: 0, value: '待配置', state: 'blocked' }),
       expect.objectContaining({ id: 'embellishment', optionCount: 0, value: '待配置', state: 'blocked' }),
+    ])
+  })
+
+  it('shows every selected socket gem and uses the player-facing 美化 label', () => {
+    const item: GearItemReference = {
+      ...readyItem,
+      socketOptions: [
+        { id: 'gem-1', status: 'verified', label: '+15 急速' },
+        { id: 'gem-2', status: 'verified', label: '+15 暴击' },
+      ],
+      enchantOptions: [],
+      embellishmentOptions: [{ id: 'embellishment-1', status: 'verified', label: '加固护腕' }],
+    }
+
+    expect(gearEnhancementGroups(item, {
+      head: {
+        gemOptionIds: ['gem-1', 'gem-2'],
+        enchantOptionId: '',
+        embellishmentOptionId: 'embellishment-1',
+        craftedOptionId: '',
+        catalystOptionId: '',
+      },
+    }, 'head')).toEqual([
+      expect.objectContaining({ id: 'socket', selectedCount: 2, value: '+15 急速；+15 暴击', state: 'ready' }),
+      expect.objectContaining({ id: 'enchant', value: '待配置', state: 'blocked' }),
+      expect.objectContaining({ id: 'embellishment', label: '美化', value: '加固护腕', state: 'ready' }),
     ])
   })
 
