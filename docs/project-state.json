@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-07-23",
+  "updatedAt": "2026-07-24",
   "activeMilestone": "taro_target_first_14_route_rebuild",
   "featureIteration": "allowed_under_harness",
   "defaultLocalReleaseArtifact": "artifacts/releases/2026-07-23-observed-build-registry-cutover",
@@ -415,6 +415,15 @@
         "audit": "npm run audit:taro-domain",
         "candidateBackendOrigin": "https://api.chickenbro.cloud",
         "candidateAssetRuntimeRoot": "https://api.chickenbro.cloud/wow-assets/releases/2026-07-19-taro-full-integration",
+        "candidateRuntimeMediaRoot": "https://api.chickenbro.cloud/wow-media/releases/2026-07-20-wow-icons-v1",
+        "runtimeMediaRelease": {
+          "status": "candidate_integrity_verified",
+          "releaseId": "2026-07-20-wow-icons-v1",
+          "manifest": "https://api.chickenbro.cloud/wow-media/releases/2026-07-20-wow-icons-v1/release-manifest.json",
+          "fileCount": 3413,
+          "totalBytes": 7326459,
+          "staticOriginStatus": "unpublished_do_not_use"
+        },
         "approvedInWechatAdmin": true,
         "approvalEvidence": "user-confirmed WeChat admin screenshots for request and downloadFile domains on 2026-07-19",
         "productionReady": true,

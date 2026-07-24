@@ -18,6 +18,11 @@ const componentSource = readFileSync(resolve(
   'packages/design-system/src/components/GearDetailComponents.tsx',
 ), 'utf8')
 
+const templateComponentSource = readFileSync(resolve(
+  process.cwd(),
+  'packages/design-system/src/components/TalentSimulatorComponents.tsx',
+), 'utf8')
+
 const componentStyleSource = readFileSync(resolve(
   process.cwd(),
   'packages/design-system/src/components/GearDetailComponents.module.scss',
@@ -114,7 +119,7 @@ describe('gear detail fixed workbench contract', () => {
     expect(styleSource).toMatch(/\.workbenchRegion \{[\s\S]*?top:\s*267px;[\s\S]*?height:\s*427px;/u)
   })
 
-  it('saves complete gear drafts, asks before importing, and clears every equipped slot on reset', () => {
+  it('saves complete gear drafts, uses the talent-style import sheet, and clears every equipped slot on reset', () => {
     expect(pageSource).toMatch(/import \{[\s\S]*?communityGearTemplateOptions,[\s\S]*?savedGearTemplateOptions,[\s\S]*?serializeGearTemplateDraft,[\s\S]*?\} from '\.\/gear-template-import-model'/u)
     expect(pageSource).toContain('const communityTemplateOptions = communityGearTemplateOptions(data?.gear.communityTemplates ?? [])')
     expect(pageSource).not.toContain('const communityTemplate = data?.gear.communityTemplates.find')
@@ -123,8 +128,13 @@ describe('gear detail fixed workbench contract', () => {
     expect(pageSource).toContain("const [savedTemplates, setSavedTemplates] = useState<readonly BuildTemplate[]>([])")
     expect(pageSource).toContain("setSavedTemplates(result.payload.templates.filter((template) => template.type === 'gear'))")
     expect(pageSource).toContain("const savedTemplateOptions = savedGearTemplateOptions(savedTemplates, data?.selection.classKey ?? '', data?.selection.specKey ?? '')")
-    expect(pageSource).toContain('const importOptions: readonly GearImportSelection[]')
-    expect(pageSource).toContain("const selected = await chooseActionSheetEntry(importOptions, (entry) => `${entry.kind === 'community' ? '社区 · ' : '已保存 · '}${entry.label}`)")
+    expect(pageSource).toContain('GearTemplateImportSheet')
+    expect(pageSource).toContain('const communityImportItems')
+    expect(pageSource).toContain('const savedImportItems')
+    expect(pageSource).not.toContain('const importOptions: readonly GearImportSelection[]')
+    expect(pageSource).not.toContain('const selected = await chooseActionSheetEntry(importOptions')
+    expect(templateComponentSource).toContain('导入装备模板')
+    expect(templateComponentSource).toContain('导入此模板')
     expect(pageSource).toContain("setWorkbenchNotice(selection.kind === 'community' ? '已原子导入来源模板' : '已导入已保存模板并重新校验')")
     expect(pageSource).toContain('setEquipped({})')
     expect(pageSource).toContain("setSelectedSlot('')")

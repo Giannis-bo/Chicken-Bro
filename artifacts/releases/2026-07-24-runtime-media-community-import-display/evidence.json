@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 2,
+  "slug": "runtime-media-community-import-display",
+  "requirementSlug": "runtime-media-community-import-display",
+  "status": "implementation_allowed",
+  "highestEvidenceLevel": "implementation_allowed",
+  "branch": "codex/fix-community-import-display",
+  "commit": "pending-clean-task-head",
+  "identities": {
+    "runtime": {
+      "status": "pending",
+      "reason": "The final isolated candidate has not yet been deployed."
+    },
+    "verification": {
+      "status": "pending",
+      "reason": "The final task head has not yet been committed and checked."
+    },
+    "closure": {
+      "status": "pending",
+      "reason": "Real-WeChat acceptance and merge closure remain pending."
+    }
+  },
+  "manualAcceptance": {
+    "required": true,
+    "status": "pending",
+    "items": [
+      {"id": "wechat_gear_talent_style_import_sheet", "status": "pending"},
+      {"id": "wechat_community_import_names_and_icons", "status": "pending"},
+      {"id": "wechat_community_import_round_trip", "status": "pending"}
+    ],
+    "rollup": {"total": 3, "accepted": 0, "notRunUserWaived": 0, "pending": 3}
+  },
+  "scope": [
+    "Talent-style equipment template import sheet and normalized saved-template timestamps",
+    "Immutable runtime-media release manifest gate and package root compilation proof",
+    "Persistent immutable media hosting on the deployment path",
+    "Candidate-only community import completeness and real-WeChat handoff"
+  ],
+  "verification": [
+    {"command": "targeted frontend/backend/project-state suites", "status": "pass", "summary": "37 Taro/Vitest tests, 245 Python tests and 41 project-state tests pass before the final task commit."},
+    {"command": "release package gate", "status": "blocked", "summary": "The isolated local worktree has no local @tarojs/cli installation; the exact package gate is deferred to the existing remote candidate runtime without installing dependencies."}
+  ],
+  "candidateDeployment": {
+    "status": "not_run",
+    "reason": "Pending the clean exact task commit and one isolated candidate window."
+  },
+  "runtimeEvidence": [],
+  "risks": [
+    {"id": "candidate-community-release-incomplete", "status": "open", "detail": "Candidate import must prove every imported row carries sealed name/displayName/iconUrl facts; otherwise release stays blocked."},
+    {"id": "real-wechat-image-behavior-pending", "status": "open", "detail": "The user must verify the candidate package on a real WeChat device before merge."}
+  ],
+  "rollback": [
+    "code_rollback",
+    "config_disable",
+    "feature_hide",
+    "resync_repair"
+  ],
+  "cleanup": {
+    "required": true,
+    "reason": "A dedicated isolated candidate service and SSH tunnel will be removed after the user accepts or rejects the manual test."
+  },
+  "archivedReferences": [],
+  "summary": "Implementation and targeted local regression are complete. Candidate runtime, package evidence and explicit real-WeChat acceptance remain pending.",
+  "updatedAt": "2026-07-24T03:40:00Z"
+}

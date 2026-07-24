@@ -22,6 +22,17 @@ export interface CommunityGearTemplateOption {
   label: string
 }
 
+export function formatGearTemplateUpdatedAt(value: string | undefined): string {
+  if (!value) return '未提供'
+  const normalized = value.includes(' ') && !value.includes('T')
+    ? value.replace(' ', 'T')
+    : value
+  const date = new Date(normalized)
+  if (!Number.isFinite(date.getTime())) return value
+  const pad = (part: number) => String(part).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
