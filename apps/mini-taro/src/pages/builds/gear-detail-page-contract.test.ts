@@ -28,6 +28,16 @@ const componentStyleSource = readFileSync(resolve(
   'packages/design-system/src/components/GearDetailComponents.module.scss',
 ), 'utf8')
 
+const editorComponentSource = readFileSync(resolve(
+  process.cwd(),
+  'packages/design-system/src/components/GearEditorSheets.tsx',
+), 'utf8')
+
+const editorStyleSource = readFileSync(resolve(
+  process.cwd(),
+  'packages/design-system/src/components/GearEditorSheets.module.scss',
+), 'utf8')
+
 const modelSource = readFileSync(resolve(
   process.cwd(),
   'apps/mini-taro/src/pages/builds/gear-detail-model.ts',
@@ -77,6 +87,11 @@ describe('gear detail fixed workbench contract', () => {
     expect(pageSource).toContain('bodyScrollable={false}')
     expect(componentSource).toContain('data-role="gear-candidate-scroll"')
     expect(componentSource).toMatch(/<ScrollView[^>]*data-role="gear-candidate-scroll"[^>]*scrollY/u)
+    expect(editorComponentSource).toContain('data-role="gear-editor-scroll"')
+    expect(editorComponentSource).toMatch(/<ScrollView[^>]*data-role="gear-editor-scroll"[^>]*scrollY/u)
+    expect(editorStyleSource).toMatch(/\.workbenchSheet \{[\s\S]*?position:\s*absolute;[\s\S]*?inset:\s*0;[\s\S]*?overflow:\s*hidden;/u)
+    expect(editorStyleSource).not.toMatch(/position:\s*fixed;/u)
+    expect(editorStyleSource).not.toMatch(/\b100vh\b/u)
     expect(componentSource).not.toContain('GearReadinessOverview')
     expect(componentSource).not.toContain('data-role="gear-primary-action"')
     expect(componentSource).not.toContain('primaryLabel')
@@ -95,6 +110,16 @@ describe('gear detail fixed workbench contract', () => {
     expect(componentStyleSource).toMatch(/\.slotRow \{[\s\S]*?width:\s*100%;[\s\S]*?grid-template-columns:\s*36px minmax\(0, 1fr\);/u)
     expect(componentStyleSource).not.toContain('max-width: none')
     expect(componentStyleSource).toMatch(/\.slotMedia \{[\s\S]*?width:\s*36px;[\s\S]*?height:\s*36px;/u)
+  })
+
+  it('keeps candidate and enhancement choices source-owned until explicit apply or confirm', () => {
+    expect(editorComponentSource).toContain('data-role="gear-candidate-row"')
+    expect(editorComponentSource).toContain('data-role="gear-candidate-variant"')
+    expect(editorComponentSource).toContain('data-action-id="gear-candidate-apply"')
+    expect(editorComponentSource).toContain('data-role="gear-enhancement-socket"')
+    expect(editorComponentSource).toContain('data-action-id="gear-enhancement-confirm"')
+    expect(editorComponentSource).not.toContain('resolveSelection')
+    expect(editorComponentSource).not.toContain('gearResolve')
   })
 
   it('wires every canonical profession to a class launch before reloading the gear workbench', () => {
