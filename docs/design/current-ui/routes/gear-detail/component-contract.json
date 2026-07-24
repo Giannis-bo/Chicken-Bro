@@ -36,6 +36,11 @@
       "responsibility": "two equal-width auto-fill equipment slot columns and internal candidate/detail interaction"
     },
     {
+      "owner": "GearEditorSheets",
+      "regions": ["equipment_slots_panel"],
+      "responsibility": "workbench-internal candidate detail and enhancement drafts: candidate click and returned variant selection update local draft only; explicit apply or confirm calls gearResolve and commits only the resulting verified snapshot; craftedStatOptions without a resolver-owned identifier are display only and expose no selectable action"
+    },
+    {
       "owner": "GearActionRow",
       "regions": ["secondary_actions_row"],
       "responsibility": "persist a complete versioned personal gear-and-enhancement draft; require an explicit saved/community source choice and an exact template choice for import; reset clears the current gear draft, enhancements and derived workbench state rather than restoring the initial loadout"
