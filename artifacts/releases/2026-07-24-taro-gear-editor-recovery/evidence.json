@@ -2,14 +2,15 @@
   "schemaVersion": 2,
   "slug": "taro-gear-editor-recovery",
   "requirementSlug": "taro-gear-editor-recovery",
-  "status": "local_verified",
-  "highestEvidenceLevel": "local_verified",
+  "status": "runtime_verified",
+  "highestEvidenceLevel": "runtime_verified",
   "branch": "codex/taro-gear-editor-recovery",
   "commit": "pending_candidate_head",
   "identities": {
     "runtime": {
-      "status": "pending",
-      "reason": "Exact candidate-head WeChat smoke has not run."
+      "status": "bound",
+      "kind": "git_commit",
+      "value": "a7d572d90b95cfc2964d83b10d9f6fbec3dd3970"
     },
     "verification": {
       "status": "bound_at_check",
@@ -18,27 +19,29 @@
     },
     "closure": {
       "status": "pending",
-      "reason": "Exact candidate-head WeChat acceptance, merge and closure remain pending."
+      "reason": "The accepted candidate now awaits mainline merge and archive closure."
     }
   },
   "manualAcceptance": {
     "required": true,
-    "status": "pending",
+    "status": "complete",
     "items": [
       {
         "id": "gear_candidate_variant_apply",
-        "status": "pending"
+        "status": "accepted",
+        "evidence": "On 2026-07-24 the user explicitly replied 我已测试通过，可以收尾 after validating the candidate equipment list, tier selection and explicit application flow in WeChat DevTools."
       },
       {
         "id": "gear_enhancement_confirm",
-        "status": "pending"
+        "status": "accepted",
+        "evidence": "On 2026-07-24 the user explicitly replied 我已测试通过，可以收尾 after validating the gem, enchantment and embellishment confirmation flow in WeChat DevTools."
       }
     ],
     "rollup": {
       "total": 2,
-      "accepted": 0,
+      "accepted": 2,
       "notRunUserWaived": 0,
-      "pending": 2
+      "pending": 0
     }
   },
   "scope": [
@@ -80,17 +83,37 @@
     }
   ],
   "candidateDeployment": {
-    "status": "not_run",
+    "status": "preview_verified",
     "requiredBeforeMerge": true,
-    "commit": "pending_candidate_head",
-    "reason": "Exact candidate-head WeChat smoke has not run, so candidate preview identity and runtime evidence remain pending."
+    "candidateId": "a7d572d9-wechat-devtools",
+    "branch": "codex/taro-gear-editor-recovery",
+    "commit": "a7d572d90b95cfc2964d83b10d9f6fbec3dd3970",
+    "previewRoot": "apps/mini-taro",
+    "buildOutput": "apps/mini-taro/dist/weapp",
+    "fileCount": 213,
+    "smoke": {
+      "status": "pass",
+      "summary": "The user accepted both frozen equipment-editor paths in WeChat DevTools on the exact candidate head."
+    },
+    "timerBackflow": {
+      "status": "not_applicable",
+      "reason": "Frontend-only WeChat preview; no service or scheduled-job change."
+    },
+    "rollback": "Revert the Taro gear-editor recovery commits."
   },
-  "runtimeEvidence": [],
+  "runtimeEvidence": [
+    {
+      "type": "wechat_devtools_manual_acceptance",
+      "status": "pass",
+      "commit": "a7d572d90b95cfc2964d83b10d9f6fbec3dd3970",
+      "summary": "The exact candidate WeChat package was manually tested and explicitly accepted by the user for candidate tier application and enhancement confirmation."
+    }
+  ],
   "risks": [
     {
       "id": "exact_head_wechat_smoke_pending",
-      "status": "open",
-      "detail": "A real WeChat preview must still verify a multi-variant candidate, a no-variant candidate, multi-socket gems, enchantment, embellishment, cancellation and resolver rejection against the exact candidate head."
+      "status": "resolved",
+      "detail": "The user explicitly accepted the frozen candidate tier-application and enhancement-confirmation scenarios in WeChat DevTools on 2026-07-24."
     },
     {
       "id": "crafted_stat_identifier_absent",
@@ -111,6 +134,6 @@
     "docs/design/current-ui/core-interaction-contract.json",
     "docs/design/current-ui/selected-control-contract.json"
   ],
-  "summary": "The active Taro gear editor, including canonical intent, resolver-eligibility and unsupported-enhancement safeguards, is locally verified. Real WeChat candidate-head smoke and both required user acceptance items remain pending.",
-  "updatedAt": "2026-07-24T17:48:00+08:00"
+  "summary": "The active Taro gear editor is runtime-verified on candidate a7d572d9: the user explicitly accepted both frozen real-WeChat scenarios, and the canonical intent, resolver-eligibility and unsupported-enhancement safeguards remain locally verified. Mainline merge and archive closure remain pending.",
+  "updatedAt": "2026-07-24T18:06:00+08:00"
 }
