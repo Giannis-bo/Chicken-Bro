@@ -258,6 +258,9 @@ Expected: route owner 仍是 Taro / design-system，候选表面仍在 `equipmen
 - Modify: `apps/mini-taro/src/pages/builds/detail.tsx`
 - Modify: `apps/mini-taro/src/pages/builds/gear-detail-page-contract.test.ts`
 - Modify: `apps/mini-taro/src/pages/builds/gear-request-fence.ts`（仅当现有 fence 无法区分 slot hydrate / resolve 时）
+- Modify: `packages/design-system/src/components/GearDetailComponents.tsx`
+- Modify: `scripts/verify-ui-interactions.js`
+- Modify: `tests/taro-gear-editor-contracts.test.js`
 
 **Interfaces:**
 
@@ -276,6 +279,8 @@ expect(pageSource).not.toMatch(/const chooseCandidate = async[\s\S]*?await resol
 ```
 
 增加断言：`chooseEnhancement` 不能直接 Resolve；409 通过 `route.load()` 丢弃两个草稿；关闭/重置/导入递增 candidate request identity 并清空两类草稿。
+
+再为真实微信 smoke 写失败断言：每个 `gear-slot-row` 必须发布 `data-committed-item-id`，候选 row 发布 `data-candidate-item-id`，并且工作台发布 `data-gear-resolve-state`。`verify-ui-interactions.js` 的 `gear_detail` 分支在选候选/轨道后读取主手的 committed id，必须仍等于 apply 前值；点击 apply 后必须等待 `data-gear-resolve-state="verified"` 且 committed id 等于该候选 id。任何 Resolve 拒绝、409 或 stale completion 都不能把草稿 item id 发布为 committed id。
 
 - [ ] **Step 2: 用 slot hydration 生成编辑输入**
 
@@ -297,6 +302,8 @@ const applyCandidateDraft = async () => {
 ```
 
 候选 row、轨道和强化 option 只调用 `set*Draft`。`confirmEnhancementDraft` 以同样模式执行一次 Resolve，成功后才 `setEnhancements(next)`. 503/network 仅保留草稿和已确认 state；409 清草稿并 reload；stale completion 不更新任何 state。
+
+`GearSlotWorkbench` 从已确认 `equipped` 接收并发布 `data-committed-item-id`，不得从 candidate draft 读取。页面把 canonical snapshot 的 verified / loading / error 状态映射为 `data-gear-resolve-state`；candidate sheet 关闭只能发生在 verified completion 后。更新微信交互执行器，按上一步的 stable markers 断言 draft 不提前提交、verified completion 后才提交，不能再只用“应用按钮消失”作为成功证据。
 
 - [ ] **Step 3: 回归页面、模型和类型测试**
 
