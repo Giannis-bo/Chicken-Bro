@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-24T09:47:43.086Z",
+  "generatedAt": "2026-07-24T10:05:55.231Z",
   "release": {
     "date": "2026-07-24",
     "slug": "taro-gear-editor-recovery"
@@ -53,7 +53,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 7879
+          "sizeBytes": 8360
         },
         {
           "path": "docs/README.md",
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-24-taro-gear-editor-recovery/evidence.json",
-    "sizeBytes": 4490,
+    "sizeBytes": 5720,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -390,9 +390,9 @@
       "summary"
     ],
     "missingFields": [],
-    "declaredStatus": "local_verified",
-    "highestEvidenceLevel": "local_verified",
-    "summary": "The active Taro gear editor, including canonical intent, resolver-eligibility and unsupported-enhancement safeguards, is locally verified. Real WeChat candidate-head smoke and both required user acceptance items remain pending."
+    "declaredStatus": "runtime_verified",
+    "highestEvidenceLevel": "runtime_verified",
+    "summary": "The active Taro gear editor is runtime-verified on candidate a7d572d9: the user explicitly accepted both frozen real-WeChat scenarios, and the canonical intent, resolver-eligibility and unsupported-enhancement safeguards remain locally verified. Mainline merge and archive closure remain pending."
   },
   "evidence": {
     "localTests": {
@@ -413,6 +413,12 @@
     }
   },
   "riskMatrix": [
+    {
+      "id": "dirty_worktree",
+      "severity": "medium",
+      "status": "watch",
+      "detail": "1 changed files currently visible to git status."
+    },
     {
       "id": "hotspot_files_present",
       "severity": "medium",
@@ -446,9 +452,11 @@
   ],
   "repo": {
     "git": {
-      "status": "clean",
-      "changedFileCount": 0,
-      "changedFiles": []
+      "status": "dirty",
+      "changedFileCount": 1,
+      "changedFiles": [
+        " M artifacts/releases/2026-07-24-taro-gear-editor-recovery/manifest.json"
+      ]
     }
   },
   "write": {
