@@ -2,10 +2,10 @@
   "schemaVersion": 2,
   "slug": "taro-gear-editor-recovery",
   "requirementSlug": "taro-gear-editor-recovery",
-  "status": "runtime_verified",
-  "highestEvidenceLevel": "runtime_verified",
-  "branch": "codex/taro-gear-editor-recovery",
-  "commit": "pending_candidate_head",
+  "status": "archived",
+  "highestEvidenceLevel": "archived",
+  "branch": "main",
+  "commit": "9c53b0c38c6eeaecaed1fa28358e37ec5b172f37",
   "identities": {
     "runtime": {
       "status": "bound",
@@ -15,11 +15,13 @@
     "verification": {
       "status": "bound_at_check",
       "kind": "git_ref",
-      "value": "HEAD"
+      "value": "HEAD",
+      "reason": "The scoped UI contract, type, Taro test and WeChat build checks passed on the merged mainline tree."
     },
     "closure": {
-      "status": "pending",
-      "reason": "The accepted candidate now awaits mainline merge and archive closure."
+      "status": "bound",
+      "kind": "merge_commit",
+      "value": "9c53b0c38c6eeaecaed1fa28358e37ec5b172f37"
     }
   },
   "manualAcceptance": {
@@ -107,6 +109,12 @@
       "status": "pass",
       "commit": "a7d572d90b95cfc2964d83b10d9f6fbec3dd3970",
       "summary": "The exact candidate WeChat package was manually tested and explicitly accepted by the user for candidate tier application and enhancement confirmation."
+    },
+    {
+      "type": "post_merge_wechat_build",
+      "status": "pass",
+      "commit": "9c53b0c38c6eeaecaed1fa28358e37ec5b172f37",
+      "summary": "The merged mainline package compiled successfully through staged atomic promotion with 213 files before archive closure."
     }
   ],
   "risks": [
@@ -134,6 +142,6 @@
     "docs/design/current-ui/core-interaction-contract.json",
     "docs/design/current-ui/selected-control-contract.json"
   ],
-  "summary": "The active Taro gear editor is runtime-verified on candidate a7d572d9: the user explicitly accepted both frozen real-WeChat scenarios, and the canonical intent, resolver-eligibility and unsupported-enhancement safeguards remain locally verified. Mainline merge and archive closure remain pending.",
-  "updatedAt": "2026-07-24T18:06:00+08:00"
+  "summary": "The active Taro gear editor is archived on main merge 9c53b0c3. Candidate a7d572d9 passed real-WeChat user acceptance for tier application and enhancement confirmation; the merged mainline tree passed the scoped UI contract, type, Taro test and 213-file WeChat build checks before closure.",
+  "updatedAt": "2026-07-24T18:09:00+08:00"
 }
