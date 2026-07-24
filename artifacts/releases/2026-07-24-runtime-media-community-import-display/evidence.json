@@ -2,8 +2,8 @@
   "schemaVersion": 2,
   "slug": "runtime-media-community-import-display",
   "requirementSlug": "runtime-media-community-import-display",
-  "status": "runtime_verified",
-  "highestEvidenceLevel": "runtime_verified",
+  "status": "archived",
+  "highestEvidenceLevel": "archived",
   "branch": "codex/fix-community-import-display",
   "commit": "bce974b2d7c6d71b8757b5a46f049e06ecc6c0e1",
   "identities": {
@@ -19,8 +19,9 @@
       "reason": "Focused regression and package checks ran on the clean candidate runtime head; final packet-only review remains pending user acceptance."
     },
     "closure": {
-      "status": "pending",
-      "reason": "The user accepted all frozen real-WeChat checks; merge closure remains pending."
+      "status": "bound",
+      "kind": "merge_commit",
+      "value": "473faabb46255d01c57dd0eafd4f98b3c4c1e2bb"
     }
   },
   "manualAcceptance": {
@@ -135,6 +136,6 @@
     "reason": "The dedicated read-only candidate service, HTTPS route and local candidate worktree will be removed after the user accepts or rejects the manual test."
   },
   "archivedReferences": [],
-  "summary": "The exact candidate runtime is verified and the user accepted all three frozen real-WeChat checks: the in-app equipment import sheet uses the candidate endpoint, real community import returns a complete trusted 15-slot display payload, and the immutable media root is package-gated. Merge closure remains pending.",
-  "updatedAt": "2026-07-24T04:48:00Z"
+  "summary": "The exact candidate runtime was verified and the user accepted all three frozen real-WeChat checks. Merge commit 473faabb46255d01c57dd0eafd4f98b3c4c1e2bb is on origin/main; the in-app equipment import sheet, complete trusted community display payload and immutable media-root gate are archived as release evidence.",
+  "updatedAt": "2026-07-24T05:02:00Z"
 }

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-24T04:18:01.772Z",
+  "generatedAt": "2026-07-24T04:21:20.837Z",
   "release": {
     "date": "2026-07-24",
     "slug": "runtime-media-community-import-display"
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-24-runtime-media-community-import-display/evidence.json",
-    "sizeBytes": 7414,
+    "sizeBytes": 7387,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -390,9 +390,9 @@
       "summary"
     ],
     "missingFields": [],
-    "declaredStatus": "runtime_verified",
-    "highestEvidenceLevel": "runtime_verified",
-    "summary": "The exact candidate runtime is verified and the user accepted all three frozen real-WeChat checks: the in-app equipment import sheet uses the candidate endpoint, real community import returns a complete trusted 15-slot display payload, and the immutable media root is package-gated. Merge closure remains pending."
+    "declaredStatus": "archived",
+    "highestEvidenceLevel": "archived",
+    "summary": "The exact candidate runtime was verified and the user accepted all three frozen real-WeChat checks. Merge commit 473faabb46255d01c57dd0eafd4f98b3c4c1e2bb is on origin/main; the in-app equipment import sheet, complete trusted community display payload and immutable media-root gate are archived as release evidence."
   },
   "evidence": {
     "localTests": {
