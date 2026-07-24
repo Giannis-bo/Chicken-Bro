@@ -772,6 +772,34 @@ def _valid_socket_evidence_text(value: Any) -> bool:
     )
 
 
+def _verified_item_media(payload: dict[str, Any]) -> dict[str, Any] | None:
+    """Project the catalog's exact verified icon fact for import display only."""
+
+    metadata = _json_value(payload.get("_metadata"), {})
+    metadata = metadata if isinstance(metadata, dict) else {}
+    icon_url = _text(metadata.get("iconUrl"))
+    game_asset = metadata.get("gameAsset")
+    game_asset = game_asset if isinstance(game_asset, dict) else {}
+    if (
+        not icon_url
+        or _text(game_asset.get("status")) != "verified"
+        or (
+            _text(game_asset.get("iconUrl"))
+            and _text(game_asset.get("iconUrl")) != icon_url
+        )
+        or not _text(game_asset.get("source"))
+    ):
+        return None
+    return {
+        "iconUrl": icon_url,
+        "gameAsset": {
+            "status": "verified",
+            "source": _text(game_asset.get("source")),
+            "iconUrl": icon_url,
+        },
+    }
+
+
 def _project_item(
     requested_item_id: str,
     record: Any,
@@ -883,6 +911,8 @@ def _project_item(
         )
     ):
         projected["radiantJewelbinderSocketEligibility"] = True
+    if media := _verified_item_media(payload):
+        projected.update(media)
     return projected
 
 

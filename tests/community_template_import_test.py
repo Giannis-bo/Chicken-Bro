@@ -308,6 +308,128 @@ class CommunityTemplateImportTest(unittest.TestCase):
         self.assertNotIn("selectedGearBySlot", public)
         self.assertNotIn("unresolvedBySlot", public)
 
+    def test_public_import_hydrates_missing_observed_display_from_exact_authority(self):
+        from server.community_template_import import community_template_import_public_data
+
+        source = {
+            "contractRevision": "websim-community-template-import-v2",
+            "status": "verified",
+            "template": {"id": "active-observed-a"},
+            "importedGearBySlot": {
+                "finger1": {
+                    "slot": "finger1",
+                    "itemId": "ring-a",
+                    "variantKey": "observed-ring-a",
+                    "itemLevel": 289,
+                },
+                "trinket1": {
+                    "slot": "trinket1",
+                    "itemId": "trinket-a",
+                    "variantKey": "observed-trinket-a",
+                    "itemLevel": 298,
+                },
+            },
+        }
+        icon_root = "https://render.worldofwarcraft.com/us/icons/56/"
+        authority = {
+            "itemsById": {
+                "ring-a": {
+                    "displayName": "权威戒指",
+                    "iconUrl": f"{icon_root}inv_jewelry_ring_01.jpg",
+                    "gameAsset": {
+                        "status": "verified",
+                        "source": "blizzard",
+                        "iconUrl": f"{icon_root}inv_jewelry_ring_01.jpg",
+                    },
+                },
+                "trinket-a": {
+                    "displayName": "权威饰品",
+                    "iconUrl": f"{icon_root}inv_misc_orb_01.jpg",
+                    "gameAsset": {
+                        "status": "verified",
+                        "source": "blizzard",
+                        "iconUrl": f"{icon_root}inv_misc_orb_01.jpg",
+                    },
+                },
+            }
+        }
+        snapshot = {
+            "status": "verified",
+            "resolvedSlots": {
+                "finger1": {
+                    "slot": "finger1",
+                    "itemId": "ring-a",
+                    "variantKey": "observed-ring-a",
+                    "displayName": "权威戒指",
+                },
+                "trinket1": {
+                    "slot": "trinket1",
+                    "itemId": "trinket-a",
+                    "variantKey": "observed-trinket-a",
+                    "displayName": "权威饰品",
+                },
+            },
+        }
+
+        public = community_template_import_public_data(
+            source,
+            snapshot,
+            {"manifestRevision": "manifest-a", "pointerGeneration": 7},
+            authority_context=authority,
+        )
+
+        self.assertEqual(public["importedGearBySlot"]["finger1"], {
+            "slot": "finger1",
+            "itemId": "ring-a",
+            "variantKey": "observed-ring-a",
+            "itemLevel": 289,
+            "name": "权威戒指",
+            "displayName": "权威戒指",
+            "iconUrl": f"{icon_root}inv_jewelry_ring_01.jpg",
+            "gameAsset": {
+                "status": "verified",
+                "source": "blizzard",
+                "iconUrl": f"{icon_root}inv_jewelry_ring_01.jpg",
+            },
+        })
+        self.assertEqual(
+            public["importedGearBySlot"]["trinket1"]["name"],
+            "权威饰品",
+        )
+
+    def test_public_import_blocks_an_incomplete_observed_display_projection(self):
+        from server.community_template_import import community_template_import_public_data
+
+        public = community_template_import_public_data(
+            {
+                "contractRevision": "websim-community-template-import-v2",
+                "status": "verified",
+                "template": {"id": "active-observed-a"},
+                "importedGearBySlot": {
+                    "finger1": {
+                        "slot": "finger1",
+                        "itemId": "ring-a",
+                        "variantKey": "observed-ring-a",
+                    }
+                },
+            },
+            {
+                "status": "verified",
+                "resolvedSlots": {
+                    "finger1": {
+                        "slot": "finger1",
+                        "itemId": "ring-a",
+                        "variantKey": "observed-ring-a",
+                        "displayName": "权威戒指",
+                    }
+                },
+            },
+            {"manifestRevision": "manifest-a", "pointerGeneration": 7},
+            authority_context={"itemsById": {"ring-a": {"displayName": "权威戒指"}}},
+        )
+
+        self.assertIsNone(public)
+
     def test_verified_projection_uses_sealed_observed_icon_when_catalog_image_is_missing(self):
         items = [{
             "itemId": "item-head",

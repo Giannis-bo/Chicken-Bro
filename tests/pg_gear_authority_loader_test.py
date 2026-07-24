@@ -2215,6 +2215,35 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
         self.assertIn("evidence:pg:variant:variant-row-head", context["evidenceRecordsById"])
         self.assertIn("evidence:pg:option:gem-haste", context["evidenceRecordsById"])
 
+    def test_loader_exposes_only_verified_item_media_for_import_projection(self):
+        item = self.item_row(item={
+            "payload": {
+                "inventoryType": "head",
+                "armorType": "plate",
+                "baseStats": {"strength": 80, "stamina": 120},
+                "itemSetId": "set:authority",
+                "socketCount": 1,
+                "canEnchant": False,
+                "_metadata": {
+                    "iconUrl": "https://render.worldofwarcraft.com/us/icons/56/inv_helm.jpg",
+                    "gameAsset": {
+                        "status": "verified",
+                        "source": "blizzard",
+                        "iconUrl": "https://render.worldofwarcraft.com/us/icons/56/inv_helm.jpg",
+                    },
+                },
+            },
+        })
+
+        _cursor, context = self.load(cursor=self.cursor(item_rows=[item]))
+
+        self.assertEqual(context["itemsById"]["item-head"]["iconUrl"], "https://render.worldofwarcraft.com/us/icons/56/inv_helm.jpg")
+        self.assertEqual(context["itemsById"]["item-head"]["gameAsset"], {
+            "status": "verified",
+            "source": "blizzard",
+            "iconUrl": "https://render.worldofwarcraft.com/us/icons/56/inv_helm.jpg",
+        })
+
     def test_loader_marks_manifest_as_compatibility_not_formal_active(self):
         _cursor, context = self.load()
         manifest = context["manifest"]
