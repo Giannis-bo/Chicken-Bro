@@ -3,7 +3,7 @@
 Active frontend ownership is explicit: `apps/mini-taro` owns the active 14-route runtime and `packages/api-client/src` owns typed transport. The root `app.json` and `pages/` tree remain compatibility consumers only, preserving the 14-route surface without receiving new first-level ownership. The machine-readable route matrix is `docs/project-owner-map.json`.
 
 状态：`active`
-更新时间：`2026-07-23`
+更新时间：`2026-07-24`
 
 ## 本文职责
 
@@ -26,7 +26,7 @@ Active frontend ownership is explicit: `apps/mini-taro` owns the active 14-route
 | 资讯 | 已有首页、列表、中文详情、来源与发布状态 | 保持来源、翻译和内容状态可追踪 |
 | 职业构筑 | canonical resolver、release train、社区模板原子导入、异步属性快照和 Taro typed API 接合已完成 | 在真实微信候选中验证构筑主路径；不能引入第二套本地装备事实 |
 | SimC 与任务 | 已有确定性转换、执行、任务保存和结构化报告基础 | 输入可执行、数字有证据、失败可解释 |
-| 炸鸡队长 | 已有证据受限对话和确定性降级 | 通用建议与本地证据严格分层 |
+| 炸鸡队长 | 已有证据受限对话、数字白名单和确定性降级 | 统一为单一 ChatBot，以受控 Tool 查询个人模板、SimC 任务和允许的外部来源，重分析进入通用 Worker |
 | 个人模板 | 已有微信账号、天赋/装备模板汇总与同步基础 | 数据保持 owner 隔离，再扩展收藏、角色和订阅 |
 | 数据与发布 | PostgreSQL-only、read-model selector、Harness、验证矩阵、Taro/兼容 owner、CI 与 caller-proof 淘汰合同已建立 | 按 compatibility retirement 合同逐项证明无调用方后再淘汰兼容面 |
 | PVE / WCL | 历史实现保留，当前不是首版主入口 | 授权数据、样本窗口、可信状态和恢复验收同时明确后再启用 |
@@ -44,6 +44,7 @@ Active frontend ownership is explicit: `apps/mini-taro` owns the active 14-route
 | P1 | 构筑到模拟闭环稳定 | 天赋/装备模板可确定性保存、加载、转换、校验、提交和复盘；真实玩家先沉淀为可重放 snapshot，再按当前 authority 编译天赋/装备 projection；每日 80 槽 TemplateSet 对成功槽更新、失败槽保留同槽 LKG 并标记过期，完整校验后原子切换；任意专精展示两个可导入装备模板，任意 Hero 展示一个同玩家可导入天赋模板；完整 SimC 只在玩家请求时运行；不可执行状态 fail closed | [Observed Build Registry 设计](plans/2026-07-23-observed-build-registry-design.md)、[共享玩家切换计划](plans/2026-07-23-observed-build-registry-cutover-implementation.md)、[社区模板 Runbook](community-template-import-full-chain-runbook.md)、[simulator-simc-end-to-end.md](simulator-simc-end-to-end.md) |
 | P1 | 证据化报告 | 玩家可见数字来自 runner、日志或明确参考源；模型只负责解释 | `server/simulator_payload.py` |
 | P1 | 发布与可观测 | 核心 API、刷新任务、SimC 和数据健康有可重复 smoke、超时与故障定位 | [remote-debugging.md](remote-debugging.md)、[verification-matrix.md](verification-matrix.md) |
+| 下一步 | 炸鸡队长统一 ChatBot | 对外保持单一聊天入口；普通版本问答、个人模板与任务查询、允许来源查询走轻量 Tool；SimC 对比和 WCL 深度分析走 PostgreSQL 任务与一个通用 Worker；owner、版本、证据、新鲜度和失败降级可验证 | [统一 ChatBot 设计](plans/2026-07-24-chickenbro-chatbot-design.md) |
 | P2 | 个人化工作台 | 角色、收藏、模板和任务历史围绕微信账号 owner 组织 | `apps/mini-taro/src/pages/profile/`、`server/news_backend.py` |
 | P2 | PVE / WCL 恢复决策 | 明确数据授权、样本窗口、入口价值和失败边界 | `pages/pve/`、`pages/simulator/wcl.*` |
 | 待决策 | 产品命名与首页权重 | 确定一句对外定位和第一主线，并同步 README 与导航文案 | [ideas.md](roadmap/ideas.md) |
