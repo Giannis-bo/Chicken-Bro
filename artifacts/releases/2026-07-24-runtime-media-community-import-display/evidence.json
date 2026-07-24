@@ -50,7 +50,7 @@
     "Talent-style equipment template import sheet and normalized saved-template timestamps",
     "Immutable runtime-media release manifest gate and package root compilation proof",
     "Candidate-only complete community-import display facts from sealed release/resolver authority and verified Blizzard registry media",
-    "Real-WeChat acceptance handoff without changing production service, public pointers or sync timers"
+    "Real-WeChat acceptance handoff and post-merge production remediation without changing public release pointers or starting asynchronous sync services"
   ],
   "verification": [
     {
@@ -72,6 +72,11 @@
       "command": "public candidate community import smoke",
       "status": "pass",
       "summary": "POST through the public candidate HTTPS path imported live hunter/marksmanship template build-projection:sha256:a15ba0f98d5e74a60baf8570a635fa5c57f37dd98465f42df8bfa55f26e4387f as verified: 15/15 slots have name or displayName and iconUrl; finger1, finger2, trinket1 and trinket2 each have complete trusted display facts."
+    },
+    {
+      "command": "post-merge production remediation",
+      "status": "pass",
+      "summary": "Clean origin/main source 53c4fad3 was deployed with WOW_DEPLOY_SKIP_BOOTSTRAP=1 and WOW_DEPLOY_START_ASYNC_SYNCS=0. The focused 283-test backend suite passed before deployment; the deployed postgres_cache_store.py SHA-256 is 3e095dd160ffee9e8b8d258cf74dbea6c2c254b9890e55cfd49b2bd126a58581; public HTTPS community import returned verified with 15/15 names and iconUrl values; and the refreshed 144-file DevTools package compiled the verified api.chickenbro.cloud API and runtime-media roots."
     }
   ],
   "candidateDeployment": {
@@ -95,6 +100,64 @@
       "summary": "The candidate used PGOPTIONS default_transaction_read_only=on and WOW_NEWS_ENABLE_COLLECTORS=0. Production port 8787, public release pointers and sync/backfill timers were not restarted or changed."
     },
     "rollback": "Stop and remove wow-backend-runtime-media-community-import-display.service, delete its isolated candidate directory, and remove only the temporary nginx candidate location; production has not been modified."
+  },
+  "postMergeProductionRemediation": {
+    "status": "live_verified",
+    "deployedAt": "2026-07-24T05:52:07Z",
+    "runtimeSource": {
+      "commit": "53c4fad3069a0a9448e66b1558b00735f48e08a7",
+      "candidateRuntimeCommit": "bce974b2d7c6d71b8757b5a46f049e06ecc6c0e1",
+      "postgresCacheStoreSha256": "3e095dd160ffee9e8b8d258cf74dbea6c2c254b9890e55cfd49b2bd126a58581",
+      "parity": "The deployed runtime file matched origin/main and that runtime file was unchanged from the accepted candidate."
+    },
+    "deployment": {
+      "command": "WOW_DEPLOY_SKIP_BOOTSTRAP=1 WOW_DEPLOY_START_ASYNC_SYNCS=0 ./server/deploy_lighthouse.sh",
+      "service": "wow-backend",
+      "serviceState": "active",
+      "publicPointerChange": false,
+      "asyncSyncStart": false
+    },
+    "verification": {
+      "focusedBackendTests": {
+        "status": "pass",
+        "count": 283,
+        "suites": [
+          "tests.postgres_cache_store_test",
+          "tests.community_template_import_test",
+          "tests.gear_runtime_test",
+          "tests.pg_gear_authority_loader_test",
+          "tests.gear_release_store_test"
+        ]
+      },
+      "publicCommunityImport": {
+        "status": "pass",
+        "templateId": "build-projection:sha256:a15ba0f98d5e74a60baf8570a635fa5c57f37dd98465f42df8bfa55f26e4387f",
+        "importStatus": "verified",
+        "slotCount": 15,
+        "nameCount": 15,
+        "iconUrlCount": 15,
+        "iconHosts": [
+          "render.worldofwarcraft.com"
+        ]
+      },
+      "wechatPreview": {
+        "status": "pass",
+        "buildFileCount": 144,
+        "apiRoot": "https://api.chickenbro.cloud",
+        "runtimeMediaRoot": "https://api.chickenbro.cloud/wow-media/releases/2026-07-20-wow-icons-v1",
+        "manualAcceptance": "On 2026-07-24 the user said OK，这次没问题了 after retesting imported equipment icons in the refreshed DevTools preview."
+      },
+      "timerBackflow": {
+        "status": "pass",
+        "services": {
+          "wow-community-template-sync.service": "inactive",
+          "wow-gear-observed-backfill.service": "inactive",
+          "wow-gear-release-refresh.service": "inactive"
+        },
+        "backendWarningsSinceDeploy": 0
+      }
+    },
+    "rollback": "Run a normal source revert for the merged runtime commit and redeploy with WOW_DEPLOY_START_ASYNC_SYNCS=0; no public pointer or asynchronous sync start occurred in this remediation."
   },
   "runtimeEvidence": [
     {
@@ -121,8 +184,8 @@
     },
     {
       "id": "real-wechat-image-behavior-pending",
-      "status": "open",
-      "detail": "The user must still verify the candidate package on a real WeChat device before merge; package compilation and API smoke cannot substitute for that interaction."
+      "status": "resolved",
+      "detail": "After production deployment and a refreshed DevTools package, the user explicitly confirmed that imported equipment icons display correctly."
     }
   ],
   "rollback": [
@@ -136,6 +199,6 @@
     "reason": "The dedicated read-only candidate service, HTTPS route and local candidate worktree will be removed after the user accepts or rejects the manual test."
   },
   "archivedReferences": [],
-  "summary": "The exact candidate runtime was verified and the user accepted all three frozen real-WeChat checks. Merge commit 473faabb46255d01c57dd0eafd4f98b3c4c1e2bb is on origin/main; the in-app equipment import sheet, complete trusted community display payload and immutable media-root gate are archived as release evidence.",
-  "updatedAt": "2026-07-24T05:02:00Z"
+  "summary": "The exact candidate runtime was verified and the user accepted all three frozen real-WeChat checks. Merge commit 473faabb46255d01c57dd0eafd4f98b3c4c1e2bb is on origin/main; the in-app equipment import sheet, complete trusted community display payload and immutable media-root gate are archived as release evidence. A post-merge production remediation then deployed the same accepted runtime from origin/main, proved public 15/15 display facts and compiled the verified media root into the refreshed DevTools package; the user accepted that production-backed preview.",
+  "updatedAt": "2026-07-24T05:52:07Z"
 }
