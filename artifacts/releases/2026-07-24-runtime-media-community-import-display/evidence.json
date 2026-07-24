@@ -20,18 +20,30 @@
     },
     "closure": {
       "status": "pending",
-      "reason": "The three frozen real-WeChat acceptance items and merge closure remain pending."
+      "reason": "The user accepted all frozen real-WeChat checks; merge closure remains pending."
     }
   },
   "manualAcceptance": {
     "required": true,
-    "status": "pending",
+    "status": "complete",
     "items": [
-      {"id": "wechat_gear_talent_style_import_sheet", "status": "pending"},
-      {"id": "wechat_community_import_names_and_icons", "status": "pending"},
-      {"id": "wechat_community_import_round_trip", "status": "pending"}
+      {
+        "id": "wechat_gear_talent_style_import_sheet",
+        "status": "accepted",
+        "evidence": "On 2026-07-24 the user explicitly said ok，符合预期。可以收尾 after validating the candidate in WeChat DevTools."
+      },
+      {
+        "id": "wechat_community_import_names_and_icons",
+        "status": "accepted",
+        "evidence": "On 2026-07-24 the user explicitly said ok，符合预期。可以收尾 after validating the imported community equipment names and icons in WeChat DevTools."
+      },
+      {
+        "id": "wechat_community_import_round_trip",
+        "status": "accepted",
+        "evidence": "On 2026-07-24 the user explicitly said ok，符合预期。可以收尾 after validating the candidate import flow in WeChat DevTools."
+      }
     ],
-    "rollup": {"total": 3, "accepted": 0, "notRunUserWaived": 0, "pending": 3}
+    "rollup": {"total": 3, "accepted": 3, "notRunUserWaived": 0, "pending": 0}
   },
   "scope": [
     "Talent-style equipment template import sheet and normalized saved-template timestamps",
@@ -123,6 +135,6 @@
     "reason": "The dedicated read-only candidate service, HTTPS route and local candidate worktree will be removed after the user accepts or rejects the manual test."
   },
   "archivedReferences": [],
-  "summary": "The exact candidate runtime is verified: the in-app equipment import sheet is compiled with the candidate endpoint, real community import returns a complete trusted 15-slot display payload, and the immutable media root is package-gated. Explicit real-WeChat acceptance and merge closure remain pending.",
-  "updatedAt": "2026-07-24T04:34:00Z"
+  "summary": "The exact candidate runtime is verified and the user accepted all three frozen real-WeChat checks: the in-app equipment import sheet uses the candidate endpoint, real community import returns a complete trusted 15-slot display payload, and the immutable media root is package-gated. Merge closure remains pending.",
+  "updatedAt": "2026-07-24T04:48:00Z"
 }
