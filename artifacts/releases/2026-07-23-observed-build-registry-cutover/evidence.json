@@ -2,15 +2,15 @@
   "schemaVersion": 2,
   "slug": "observed-build-registry-cutover",
   "requirementSlug": "observed-build-registry-cutover",
-  "status": "runtime_verified",
-  "highestEvidenceLevel": "runtime_verified",
+  "status": "archived",
+  "highestEvidenceLevel": "archived",
   "branch": "codex/observed-build-registry-cutover",
-  "commit": "7c3a506145a45fc329cd77d0a369bdc2ade49ff1",
+  "commit": "8d3ca86fc428b156803b89a1bbff786e1781aaee",
   "identities": {
     "runtime": {
       "status": "bound",
-      "kind": "git_commit",
-      "value": "7c3a506145a45fc329cd77d0a369bdc2ade49ff1"
+      "kind": "build_identity",
+      "value": "observed-build-runtime-v1:sha256:9b075f21b6e31457ff8c42faf347c43441a2fcfb58f62485fe2beab40f7e9b10"
     },
     "verification": {
       "status": "bound_at_check",
@@ -18,8 +18,9 @@
       "value": "HEAD"
     },
     "closure": {
-      "status": "pending",
-      "reason": "Real WeChat acceptance is complete; merge and live closure remain pending."
+      "status": "bound",
+      "kind": "merge_commit",
+      "value": "8d3ca86fc428b156803b89a1bbff786e1781aaee"
     }
   },
   "manualAcceptance": {
@@ -66,108 +67,158 @@
     "Bounded health, scheduled Registry sync and WeChat provenance"
   ],
   "verification": [
-      {
-        "command": "observed-build targeted backend and frontend suites",
-        "status": "pass",
-        "summary": "1900 Python tests passed with one expected skip, 337 Taro/Vitest tests passed, and the 14-route UI architecture audit passed 282 checks."
-      },
-      {
-        "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-23-observed-build-registry-cutover --base origin/main",
-        "status": "pass",
-        "summary": "The final candidate packet and exact runtime commit passed the Strict Harness full profile before WeChat handoff."
-      },
-      {
-        "command": "python3 scripts/audit-observed-build-cutover.py --base-url http://127.0.0.1:18787",
-        "status": "pass",
-        "summary": "The restored candidate passed all 80 talent reads/imports, 40 gear reads, 80 gear imports, and all 80 shared snapshot identity matches with zero failures."
-      }
-    ],
-    "candidateDeployment": {
-      "status": "candidate_verified",
-      "requiredBeforeMerge": true,
-      "branch": "codex/observed-build-registry-cutover",
-      "commit": "7c3a506145a45fc329cd77d0a369bdc2ade49ff1",
-      "gitTree": "ca61d9357c40fd531db70f00437592331e6c6d4b",
-      "host": "wow-lighthouse",
-      "path": "/opt/wow-mini-program-candidate/observed-build-registry-7c3a5061",
-      "gearReleaseId": "gear-release:sha256:3b517bd87277038329ff0c89a9b8b95ece55694ceb73f247509b46dc0b159027",
-      "templateSetId": "template-set:sha256:9e1b4fc9605139391ce0296e82290f98b4d2d67cfe6970072adeb25bfb75518f",
-      "pointerGeneration": 6,
-      "asyncSyncStart": false,
-      "publicPointerChange": false,
-      "smoke": {
-        "status": "pass",
-        "summary": "The isolated candidate on 127.0.0.1:18787 serves 80 verified slots, 40 distinct gear pairs, 160 exact imports, and 80 matching talent/gear identities."
-      },
-      "timerBackflow": {
-        "status": "pass",
-        "summary": "No Registry timer was installed or enabled, the existing community-template timer was unchanged, and the production backend remained on /opt/wow-mini-program."
-      },
-      "reason": "The exact runtime commit and sealed Gear Release passed exhaustive candidate API smoke, pointer rollback/restore and production isolation proof."
+    {
+      "command": "observed-build targeted backend and frontend suites",
+      "status": "pass",
+      "summary": "1900 Python tests passed with one expected skip, 337 Taro/Vitest tests passed, and the 14-route UI architecture audit passed 282 checks."
     },
-    "runtimeEvidence": [
-      {
-        "id": "candidate-migration-backup",
-        "type": "postgres_candidate",
-        "status": "pass",
-        "summary": "Migration 0018 is recorded with all six observed-build tables; the retained pre-migration dump is 359518148 bytes with SHA-256 ed3963a6293f154c58fc293f3df96f71bd39540b3515c10c05da7eff9b0e05be."
-      },
-      {
-        "id": "candidate-80-slot-collection",
-        "type": "smoke",
-        "status": "pass",
-        "summary": "TemplateSet 9e1b4f contains 80 verified slots with zero stale LKG and zero pending collection."
-      },
-      {
-        "id": "candidate-40-distinct-gear-pairs",
-        "status": "pass",
-        "summary": "All 40 specializations expose two complete Hero-bound equipment templates from distinct Raider.IO identities."
-      },
-      {
-        "id": "candidate-160-exact-imports",
-        "status": "pass",
-        "summary": "All 80 talent templates and all 80 equipment templates import successfully through the public API contracts."
-      },
-      {
-        "id": "candidate-pointer-rollback-restore",
-        "status": "pass",
-        "summary": "The previous TemplateSet was served at generation 5, then the verified TemplateSet was restored at generation 6."
-      },
-      {
-        "id": "candidate-health-timer-isolation",
-        "type": "timer_backflow",
-        "status": "pass",
-        "summary": "Retail observed pointer remains inactive, production PID/path and public route are unchanged, and no Registry timer or async backflow was enabled."
-      },
-      {
-        "id": "wechat-devtools-refresh",
-        "status": "pass",
-        "summary": "The candidate WeChat bundle was rebuilt with http://127.0.0.1:18787, atomically promoted with 213 files, and opened through the official DevTools CLI."
-      }
-    ],
-    "risks": [
-      {
-        "id": "source-coverage-pending",
-        "status": "resolved",
-        "detail": "The bounded real Raider.IO collection and local projection produced 80 verified Hero slots and 40 distinct importable gear pairs."
-      },
-      {
-        "id": "manual-acceptance-pending",
-        "status": "resolved",
-        "detail": "The user explicitly accepted all five frozen WeChat checks on 2026-07-24."
-      }
-    ],
-    "rollback": [
-      "code_rollback",
-      "data_restore",
-      "config_disable",
-      "resync_repair"
-    ],
-    "cleanup": {
-      "required": true,
-      "reason": "Remove the temporary candidate runtime, SSH tunnel and task worktree after accepted closure; retain the PostgreSQL backup and rollback TemplateSet."
+    {
+      "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-23-observed-build-registry-cutover --base origin/main",
+      "status": "pass",
+      "summary": "The final candidate packet and exact runtime commit passed the Strict Harness full profile before WeChat handoff."
     },
-    "archivedReferences": [],
-    "summary": "The shared-player candidate is runtime-verified on exact commit 7c3a5061: 80 talent templates, 80 gear imports, shared snapshot provenance, rollback/restore, production isolation and WeChat DevTools refresh all pass. The user explicitly accepted all five frozen WeChat checks.",
-    "updatedAt": "2026-07-24T10:04:44+08:00"
+    {
+      "command": "python3 scripts/audit-observed-build-cutover.py --base-url http://127.0.0.1:18787",
+      "status": "pass",
+      "summary": "The restored candidate passed all 80 talent reads/imports, 40 gear reads, 80 gear imports, and all 80 shared snapshot identity matches with zero failures."
+    },
+    {
+      "command": "python3 scripts/audit-observed-build-cutover.py --base-url https://api.chickenbro.cloud --timeout 30",
+      "status": "pass",
+      "summary": "The live retail API passed 40/40 specialization reads, 80/80 gear imports, 80/80 talent imports, 80/80 shared identity matches and zero failures."
+    },
+    {
+      "command": "WOW_BACKEND_API_BASE_URL=https://api.chickenbro.cloud npm run refresh:weapp",
+      "status": "pass",
+      "summary": "The production-bound WeChat bundle rebuilt 213 files and the official DevTools CLI reopened apps/mini-taro."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "candidate_verified",
+    "requiredBeforeMerge": true,
+    "branch": "codex/observed-build-registry-cutover",
+    "commit": "7c3a506145a45fc329cd77d0a369bdc2ade49ff1",
+    "gitTree": "ca61d9357c40fd531db70f00437592331e6c6d4b",
+    "buildIdentity": "observed-build-runtime-v1:sha256:9b075f21b6e31457ff8c42faf347c43441a2fcfb58f62485fe2beab40f7e9b10",
+    "host": "wow-lighthouse",
+    "path": "/opt/wow-mini-program-candidate/observed-build-registry-7c3a5061",
+    "gearReleaseId": "gear-release:sha256:3b517bd87277038329ff0c89a9b8b95ece55694ceb73f247509b46dc0b159027",
+    "templateSetId": "template-set:sha256:9e1b4fc9605139391ce0296e82290f98b4d2d67cfe6970072adeb25bfb75518f",
+    "pointerGeneration": 6,
+    "asyncSyncStart": false,
+    "publicPointerChange": false,
+    "smoke": {
+      "status": "pass",
+      "summary": "The isolated candidate on 127.0.0.1:18787 serves 80 verified slots, 40 distinct gear pairs, 160 exact imports, and 80 matching talent/gear identities."
+    },
+    "timerBackflow": {
+      "status": "pass",
+      "summary": "No Registry timer was installed or enabled, the existing community-template timer was unchanged, and the production backend remained on /opt/wow-mini-program."
+    },
+    "reason": "The exact runtime commit and sealed Gear Release passed exhaustive candidate API smoke, pointer rollback/restore and production isolation proof."
+  },
+  "runtimeEvidence": [
+    {
+      "id": "candidate-migration-backup",
+      "type": "postgres_candidate",
+      "status": "pass",
+      "summary": "Migration 0018 is recorded with all six observed-build tables; the retained pre-migration dump is 359518148 bytes with SHA-256 ed3963a6293f154c58fc293f3df96f71bd39540b3515c10c05da7eff9b0e05be."
+    },
+    {
+      "id": "candidate-80-slot-collection",
+      "type": "smoke",
+      "status": "pass",
+      "summary": "TemplateSet 9e1b4f contains 80 verified slots with zero stale LKG and zero pending collection."
+    },
+    {
+      "id": "candidate-40-distinct-gear-pairs",
+      "status": "pass",
+      "summary": "All 40 specializations expose two complete Hero-bound equipment templates from distinct Raider.IO identities."
+    },
+    {
+      "id": "candidate-160-exact-imports",
+      "status": "pass",
+      "summary": "All 80 talent templates and all 80 equipment templates import successfully through the public API contracts."
+    },
+    {
+      "id": "candidate-pointer-rollback-restore",
+      "status": "pass",
+      "summary": "The previous TemplateSet was served at generation 5, then the verified TemplateSet was restored at generation 6."
+    },
+    {
+      "id": "candidate-health-timer-isolation",
+      "type": "timer_backflow",
+      "status": "pass",
+      "summary": "Retail observed pointer remains inactive, production PID/path and public route are unchanged, and no Registry timer or async backflow was enabled."
+    },
+    {
+      "id": "wechat-devtools-refresh",
+      "status": "pass",
+      "summary": "The candidate WeChat bundle was rebuilt with http://127.0.0.1:18787, atomically promoted with 213 files, and opened through the official DevTools CLI."
+    },
+    {
+      "id": "live-runtime-identity",
+      "type": "deployment_identity",
+      "status": "pass",
+      "summary": "Production runs main@8d3ca86f from /opt/wow-mini-program with exact local/remote SHA-256 parity for the Registry, Gear Release, API, migration, timer and audit owners; wow-backend is active with PID 1725784 and NRestarts=0."
+    },
+    {
+      "id": "live-atomic-authority-cutover",
+      "type": "postgres_pointer",
+      "status": "pass",
+      "summary": "Retail TemplateSet generation 1 points to the accepted 9e1b4f set. Gear Manifest generation 23 points to Gear Release 3b517b and retains generation 22 Manifest cccf80 as its rollback target."
+    },
+    {
+      "id": "live-public-exhaustive-audit",
+      "type": "public_contract",
+      "status": "pass",
+      "summary": "The public production API verified 40 specs, 80 gear templates/imports, 80 talent templates/imports and 80 shared talent/gear identities with failureCount=0."
+    },
+    {
+      "id": "live-health-timer-and-cleanup",
+      "type": "operational_state",
+      "status": "pass",
+      "summary": "Public /health is OK; /api/data/health truthfully remains overall partial while observedBuildRegistry is verified with 80 records and no blockers. The daily timer is enabled/active without a deploy-triggered sync, backend logs have zero error matches, candidate resources and branches are removed, and the database backup is retained."
+    },
+    {
+      "id": "live-wechat-devtools-refresh",
+      "type": "frontend_handoff",
+      "status": "pass",
+      "summary": "The latest main WeChat bundle was rebuilt against https://api.chickenbro.cloud, verified with 213 files and opened through the official DevTools CLI."
+    }
+  ],
+  "risks": [
+    {
+      "id": "source-coverage-pending",
+      "status": "resolved",
+      "detail": "The bounded real Raider.IO collection and local projection produced 80 verified Hero slots and 40 distinct importable gear pairs."
+    },
+    {
+      "id": "manual-acceptance-pending",
+      "status": "resolved",
+      "detail": "The user explicitly accepted all five frozen WeChat checks on 2026-07-24."
+    },
+    {
+      "id": "retail-authority-pair-cutover",
+      "status": "resolved",
+      "detail": "The first live audit correctly blocked when only the TemplateSet pointer had moved. The matching candidate Gear Release was then promoted through the formal Manifest CAS with the previous Manifest retained for rollback; the repeated exhaustive audit passed with zero failures."
+    }
+  ],
+  "rollback": [
+    "code_rollback",
+    "data_restore",
+    "config_disable",
+    "resync_repair"
+  ],
+  "cleanup": {
+    "required": false,
+    "status": "complete",
+    "reason": "The temporary candidate runtime/service, SSH tunnel, task worktree and task branches were removed. The PostgreSQL backup and rollback TemplateSet remain retained."
+  },
+  "archivedReferences": [
+    "artifacts/releases/2026-07-23-observed-build-registry-cutover/candidate-smoke.json",
+    "artifacts/releases/2026-07-23-observed-build-registry-cutover/live-smoke.json"
+  ],
+  "summary": "The shared-player Registry is merged, live-verified and archived on main@8d3ca86f. Retail serves the accepted immutable 80-slot TemplateSet and matching Gear Release: all 40 specializations expose two distinct importable equipment templates, all 80 Hero slots expose one importable talent template, every talent/gear pair shares the same observed player identity, and the exhaustive production audit reports zero failures. The user accepted the WeChat experience, the production-bound bundle was refreshed in DevTools, candidate resources were removed, and rollback data was retained.",
+  "updatedAt": "2026-07-24T10:36:14+08:00"
 }
