@@ -19,39 +19,44 @@
     },
     "closure": {
       "status": "pending",
-      "reason": "Real WeChat acceptance and merge closure remain pending."
+      "reason": "Real WeChat acceptance is complete; merge and live closure remain pending."
     }
   },
   "manualAcceptance": {
     "required": true,
-    "status": "pending",
+    "status": "complete",
     "items": [
       {
         "id": "gear-two-real-templates-visible",
-        "status": "pending"
+        "status": "accepted",
+        "evidence": "On 2026-07-24 the user explicitly said 没问题，都验证过了，可以收尾 after validating the candidate in WeChat DevTools."
       },
       {
         "id": "gear-both-templates-importable",
-        "status": "pending"
+        "status": "accepted",
+        "evidence": "On 2026-07-24 the user explicitly said 没问题，都验证过了，可以收尾 after validating the candidate in WeChat DevTools."
       },
       {
         "id": "talent-one-real-template-per-hero-visible",
-        "status": "pending"
+        "status": "accepted",
+        "evidence": "On 2026-07-24 the user explicitly said 没问题，都验证过了，可以收尾 after validating the candidate in WeChat DevTools."
       },
       {
         "id": "talent-template-importable",
-        "status": "pending"
+        "status": "accepted",
+        "evidence": "On 2026-07-24 the user explicitly said 没问题，都验证过了，可以收尾 after validating the candidate in WeChat DevTools."
       },
       {
         "id": "shared-player-provenance-visible",
-        "status": "pending"
+        "status": "accepted",
+        "evidence": "On 2026-07-24 the user explicitly said 没问题，都验证过了，可以收尾 after validating the candidate in WeChat DevTools."
       }
     ],
     "rollup": {
       "total": 5,
-      "accepted": 0,
+      "accepted": 5,
       "notRunUserWaived": 0,
-      "pending": 5
+      "pending": 0
     }
   },
   "scope": [
@@ -148,8 +153,8 @@
       },
       {
         "id": "manual-acceptance-pending",
-        "status": "open",
-        "detail": "The five frozen WeChat checks are required before merge and retail activation."
+        "status": "resolved",
+        "detail": "The user explicitly accepted all five frozen WeChat checks on 2026-07-24."
       }
     ],
     "rollback": [
@@ -163,6 +168,6 @@
       "reason": "Remove the temporary candidate runtime, SSH tunnel and task worktree after accepted closure; retain the PostgreSQL backup and rollback TemplateSet."
     },
     "archivedReferences": [],
-    "summary": "The shared-player candidate is runtime-verified on exact commit 7c3a5061: 80 talent templates, 80 gear imports, shared snapshot provenance, rollback/restore, production isolation and WeChat DevTools refresh all pass. The five frozen manual checks remain pending before merge or retail activation.",
-    "updatedAt": "2026-07-24T00:33:39+08:00"
+    "summary": "The shared-player candidate is runtime-verified on exact commit 7c3a5061: 80 talent templates, 80 gear imports, shared snapshot provenance, rollback/restore, production isolation and WeChat DevTools refresh all pass. The user explicitly accepted all five frozen WeChat checks.",
+    "updatedAt": "2026-07-24T10:04:44+08:00"
 }
