@@ -66,7 +66,7 @@
     {
       "command": "npm run test:taro",
       "status": "pass",
-      "summary": "All 52 Vitest files and 362 tests passed."
+      "summary": "The refreshed canonical-intent candidate head passed all 53 Vitest files and 369 tests, including the corrected candidate and enhancement intent coverage."
     },
     {
       "command": "npm run build:weapp",
@@ -111,6 +111,6 @@
     "docs/design/current-ui/core-interaction-contract.json",
     "docs/design/current-ui/selected-control-contract.json"
   ],
-  "summary": "The active Taro gear editor is locally verified on a clean exact HEAD. Real WeChat candidate-head smoke and both required user acceptance items remain pending.",
-  "updatedAt": "2026-07-24T16:18:00+08:00"
+  "summary": "The active Taro gear editor, including the canonical intent correction, is locally verified. Real WeChat candidate-head smoke and both required user acceptance items remain pending.",
+  "updatedAt": "2026-07-24T16:48:00+08:00"
 }
