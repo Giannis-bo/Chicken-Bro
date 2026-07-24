@@ -731,6 +731,72 @@ def _int_value(value, fallback=0):
         return fallback
 
 
+def _verified_registry_item_media(rows):
+    """Return one unambiguous Blizzard media fact per catalog item.
+
+    Asset-registry rows are display evidence only.  They may fill a missing
+    Release display field, but disagreement between verified rows is never
+    resolved by preference or recency.
+    """
+
+    candidates = {}
+    for raw in rows or []:
+        row = tuple(raw or ())
+        item_id = str(row[0] if len(row) > 0 else "").strip()
+        icon_url = str(row[2] if len(row) > 2 else "").strip()
+        source = str(row[3] if len(row) > 3 else "").strip()
+        status = str(row[4] if len(row) > 4 else "").strip()
+        if not item_id or not icon_url or source != "blizzard" or status != "verified":
+            continue
+        candidates.setdefault(item_id, set()).add(icon_url)
+    return {
+        item_id: {
+            "iconUrl": next(iter(icon_urls)),
+            "gameAsset": {
+                "status": "verified",
+                "source": "blizzard",
+                "iconUrl": next(iter(icon_urls)),
+            },
+        }
+        for item_id, icon_urls in candidates.items()
+        if len(icon_urls) == 1
+    }
+
+
+def _attach_verified_registry_item_media(authority_context, registry_media):
+    """Fill only absent media facts; sealed Release facts always win."""
+
+    context = copy.deepcopy(authority_context) if isinstance(authority_context, dict) else {}
+    items_by_id = context.get("itemsById")
+    items_by_id = items_by_id if isinstance(items_by_id, dict) else {}
+    media_by_id = registry_media if isinstance(registry_media, dict) else {}
+    for item_id, item in items_by_id.items():
+        if not isinstance(item, dict) or str(item.get("iconUrl") or "").strip():
+            continue
+        media = media_by_id.get(str(item_id or "").strip())
+        if not isinstance(media, dict):
+            continue
+        icon_url = str(media.get("iconUrl") or "").strip()
+        game_asset = media.get("gameAsset") if isinstance(media.get("gameAsset"), dict) else {}
+        if (
+            not icon_url
+            or str(game_asset.get("status") or "").strip() != "verified"
+            or str(game_asset.get("source") or "").strip() != "blizzard"
+            or str(game_asset.get("iconUrl") or "").strip() != icon_url
+        ):
+            continue
+        item.update({
+            "iconUrl": icon_url,
+            "gameAsset": {
+                "status": "verified",
+                "source": "blizzard",
+                "iconUrl": icon_url,
+            },
+        })
+    context["itemsById"] = items_by_id
+    return context
+
+
 def _simc_talent_signature_payload(value):
     payload = _json_value(value, {})
     payload = payload if isinstance(payload, dict) else {}
@@ -1298,6 +1364,34 @@ class PostgresCacheStore:
             _int_value(active.get("generation")),
         )
 
+    def _verified_registry_item_media(self, item_ids):
+        normalized_ids = sorted({
+            str(item_id or "").strip()
+            for item_id in item_ids or []
+            if str(item_id or "").strip()
+        })
+        if not normalized_ids:
+            return {}
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SET TRANSACTION READ ONLY")
+                cur.execute(
+                    """
+                    /* observed_import_verified_registry_item_media */
+                    SELECT entity_id, context_key, icon_url, source, status
+                    FROM cache.websim_asset_registry
+                    WHERE entity_type = 'item'
+                      AND entity_id = ANY(%s::text[])
+                      AND source = 'blizzard'
+                      AND status = 'verified'
+                      AND icon_url <> ''
+                    ORDER BY entity_id, context_key
+                    """,
+                    (normalized_ids,),
+                )
+                rows = cur.fetchall()
+        return _verified_registry_item_media(rows)
+
     def save_sync_state(self, key, value, updated_at=""):
         normalized_key = str(key or "").strip()
         if not normalized_key:
@@ -1420,7 +1514,14 @@ class PostgresCacheStore:
             normalized_spec,
             normalized_template,
         )
-        cached = _pg_community_template_import_cache_get(cache_identity)
+        # Active Observed Build imports may supplement absent Release display
+        # facts from the verified asset registry.  Do not reuse a response
+        # whose cache identity predates that independent display evidence.
+        cached = (
+            None
+            if observed["state"] == "active"
+            else _pg_community_template_import_cache_get(cache_identity)
+        )
         if cached is not None:
             return {
                 "cache": {"hit": True},
@@ -1498,8 +1599,43 @@ class PostgresCacheStore:
                     release_context=release_context,
                     unavailable=True,
                 ) from error
+            selection_slots = (
+                selection_intent.get("slots")
+                if isinstance(selection_intent.get("slots"), dict)
+                else {}
+            )
+            authority_items = (
+                authority_context.get("itemsById")
+                if isinstance(authority_context, dict)
+                and isinstance(authority_context.get("itemsById"), dict)
+                else {}
+            )
+            missing_media_item_ids = [
+                str(selection.get("itemId") or "").strip()
+                for selection in selection_slots.values()
+                if isinstance(selection, dict)
+                and str(selection.get("itemId") or "").strip() in authority_items
+                and not str(
+                    (authority_items
+                    .get(str(selection.get("itemId") or "").strip(), {})
+                    .get("iconUrl") or "")
+                ).strip()
+            ]
+            if missing_media_item_ids:
+                try:
+                    authority_context = _attach_verified_registry_item_media(
+                        authority_context,
+                        self._verified_registry_item_media(missing_media_item_ids),
+                    )
+                except Exception as error:
+                    raise CommunityTemplateImportError(
+                        "template_import_unavailable",
+                        "Verified item display media is temporarily unavailable.",
+                        release_context=release_context,
+                        unavailable=True,
+                    ) from error
             return {
-                "cache": {"hit": False},
+                "cache": {"hit": False, "write": False},
                 "source": source,
                 "authorityContext": (
                     authority_context

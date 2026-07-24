@@ -8,7 +8,13 @@
 
 `https://api.chickenbro.cloud/wow-assets/releases/2026-07-19-taro-full-integration`
 
-小程序发布、候选构建和回滚都必须以这个值为默认基线。除非一个新目录已经完成上传、逐文件回读校验和候选包验收，否则不得替换该生产根。
+当前可用于真机候选、用于职业、专精、天赋和装备事实图标的运行时媒体根是：
+
+`https://api.chickenbro.cloud/wow-media/releases/2026-07-20-wow-icons-v1`
+
+该版本包含 40 个专精所需的 3413 个文件，共 7,326,459 字节；候选包门禁必须回读同目录的 `release-manifest.json`，并确认根、发布号和文件清单完全一致。`static.chickenbro.cloud` 的运行时媒体目录仍未发布，不能配置到候选或生产包。
+
+小程序候选构建和回滚必须以上述两个已验证根为默认基线。除非一个新目录已经完成上传、逐文件回读校验和候选包验收，否则不得替换对应根。
 
 仓库同时保留以下备用 CDN 发布链路，但它们只是显式手工发布工具，不是当前生产配置：
 
@@ -58,6 +64,7 @@
 
    ```bash
    WOW_ASSET_RUNTIME_ROOT=https://api.chickenbro.cloud/wow-assets/releases/2026-07-19-taro-full-integration \
+   WOW_RUNTIME_MEDIA_ROOT=https://api.chickenbro.cloud/wow-media/releases/2026-07-20-wow-icons-v1 \
    WOW_BACKEND_API_BASE_URL=https://api.chickenbro.cloud \
    WOW_WECHAT_REQUEST_DOMAIN_APPROVED=yes \
    npm run verify:ui-package:release
@@ -69,6 +76,7 @@
    NODE_ENV=production \
    WOW_TARO_ISOLATED_BUILD=1 \
    WOW_ASSET_RUNTIME_ROOT=https://api.chickenbro.cloud/wow-assets/releases/2026-07-19-taro-full-integration \
+   WOW_RUNTIME_MEDIA_ROOT=https://api.chickenbro.cloud/wow-media/releases/2026-07-20-wow-icons-v1 \
    WOW_BACKEND_API_BASE_URL=https://api.chickenbro.cloud \
    npm run build:weapp
    ```
@@ -77,7 +85,7 @@
 
 ## 运行时图标发布
 
-这组工具同样保持休眠：只有手工上传和独立回读校验全部通过后，才允许在候选验证中显式设置 `WOW_RUNTIME_MEDIA_ROOT`；未设置时，应用继续使用现有本地 PNG/受信任资源回退，不构成发布阻断。
+这组工具只在显式发布时运行。候选验证仅允许使用已经完成清单与逐文件回读的不可变根；未设置时，应用继续使用现有本地 PNG/受信任资源回退，不构成发布阻断。
 
 历史示例 `https://static.chickenbro.cloud/wow-media/releases/2026-07-19-wow-icons-v1` 当前未发布，禁止配置到生产或候选构建中。
 

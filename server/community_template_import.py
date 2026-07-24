@@ -415,16 +415,119 @@ def build_community_template_selection_intent(source: Any) -> dict[str, Any] | N
     return _copy(intent) if isinstance(intent, dict) else None
 
 
+def _verified_game_asset(value: Any, icon_url: str) -> dict[str, str] | None:
+    asset = value if isinstance(value, dict) else {}
+    if (
+        not icon_url
+        or _text(asset.get("status")) != "verified"
+        or (
+            _text(asset.get("iconUrl"))
+            and _text(asset.get("iconUrl")) != icon_url
+        )
+    ):
+        return None
+    source = _text(asset.get("source"))
+    if not source:
+        return None
+    return {
+        "status": "verified",
+        "source": source,
+        "iconUrl": icon_url,
+    }
+
+
+def _complete_imported_gear_display(
+    source: dict[str, Any],
+    resolved_snapshot: Any,
+    authority_context: Any,
+) -> dict[str, dict[str, Any]] | None:
+    """Bind any thin observed rows to the exact Resolver display authority.
+
+    Observed Build projections intentionally retain only player selection facts.
+    They must not become a second, lossy source for names or media.  A row that
+    is already sealed remains intact; a thin row is populated only when the
+    just-verified Resolver snapshot and its exact Authority Context agree.
+    """
+
+    imported = source.get("importedGearBySlot")
+    if not isinstance(imported, dict) or not imported:
+        return None
+    snapshot = resolved_snapshot if isinstance(resolved_snapshot, dict) else {}
+    resolved_slots = snapshot.get("resolvedSlots")
+    resolved_slots = resolved_slots if isinstance(resolved_slots, dict) else {}
+    authority = authority_context if isinstance(authority_context, dict) else {}
+    items_by_id = authority.get("itemsById")
+    items_by_id = items_by_id if isinstance(items_by_id, dict) else {}
+    completed: dict[str, dict[str, Any]] = {}
+
+    for slot in sorted(imported):
+        row = imported.get(slot)
+        if not isinstance(row, dict) or _text(row.get("slot")) not in {"", slot}:
+            return None
+        item_id = _text(row.get("itemId"))
+        variant_key = _text(row.get("variantKey"))
+        if not item_id or not variant_key:
+            return None
+        existing_icon_url = _text(row.get("iconUrl"))
+        existing_asset = _verified_game_asset(row.get("gameAsset"), existing_icon_url)
+        existing_name = _text(row.get("displayName")) or _text(row.get("name"))
+        if existing_name and existing_asset is not None:
+            completed[slot] = _copy({
+                **row,
+                "slot": slot,
+                "name": existing_name,
+                "displayName": existing_name,
+                "iconUrl": existing_icon_url,
+                "gameAsset": existing_asset,
+            })
+            continue
+
+        resolved = resolved_slots.get(slot)
+        item = items_by_id.get(item_id)
+        if not isinstance(resolved, dict) or not isinstance(item, dict):
+            return None
+        resolved_name = _text(resolved.get("displayName"))
+        authority_name = _text(item.get("displayName"))
+        icon_url = _text(item.get("iconUrl"))
+        game_asset = _verified_game_asset(item.get("gameAsset"), icon_url)
+        if (
+            not resolved_name
+            or resolved_name != authority_name
+            or _text(resolved.get("itemId")) != item_id
+            or _text(resolved.get("variantKey")) != variant_key
+            or game_asset is None
+        ):
+            return None
+        completed[slot] = _copy({
+            **row,
+            "slot": slot,
+            "name": resolved_name,
+            "displayName": resolved_name,
+            "iconUrl": icon_url,
+            "gameAsset": game_asset,
+        })
+    return completed
+
+
 def community_template_import_public_data(
     source: Any,
     resolved_snapshot: Any,
     release_context: Any,
-) -> dict[str, Any]:
+    *,
+    authority_context: Any = None,
+) -> dict[str, Any] | None:
     """Expose bounded import facts; never serialize the sealed source Intent or rows."""
 
     value = source if isinstance(source, dict) else {}
     status = "verified" if value.get("status") == "verified" else "blocked"
     context = release_context if isinstance(release_context, dict) else {}
+    imported = (
+        _complete_imported_gear_display(value, resolved_snapshot, authority_context)
+        if status == "verified"
+        else {}
+    )
+    if status == "verified" and imported is None:
+        return None
     return _copy({
         "contractRevision": COMMUNITY_TEMPLATE_IMPORT_CONTRACT_REVISION,
         "status": status,
@@ -433,7 +536,7 @@ def community_template_import_public_data(
             "manifestRevision": _text(context.get("manifestRevision")),
             "pointerGeneration": context.get("pointerGeneration") if isinstance(context.get("pointerGeneration"), int) else 0,
         },
-        "importedGearBySlot": value.get("importedGearBySlot") if status == "verified" and isinstance(value.get("importedGearBySlot"), dict) else {},
+        "importedGearBySlot": imported if status == "verified" else {},
         "resolvedSnapshot": resolved_snapshot if status == "verified" and isinstance(resolved_snapshot, dict) else {},
     })
 

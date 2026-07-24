@@ -504,6 +504,79 @@ class GearRuntimeTest(unittest.TestCase):
             "template_not_active",
         )
 
+    def test_community_import_emits_complete_authoritative_display_for_thin_observed_rows(self):
+        class ActiveObservedStore:
+            def get_community_template_import_context(self, **_kwargs):
+                icon_url = "https://render.worldofwarcraft.com/us/icons/56/inv_jewelry_ring_01.jpg"
+                return {
+                    "cache": {"hit": False},
+                    "source": {
+                        "contractRevision": "websim-community-template-import-v2",
+                        "status": "verified",
+                        "template": {"id": "build-projection:sha256:" + "a" * 64},
+                        "importedGearBySlot": {
+                            "finger1": {
+                                "slot": "finger1",
+                                "itemId": "ring-a",
+                                "variantKey": "observed-ring-a",
+                            }
+                        },
+                        "selectionIntent": {
+                            "schemaRevision": "selection-intent-v1",
+                            "slots": {"finger1": {"itemId": "ring-a", "variantKey": "observed-ring-a"}},
+                        },
+                    },
+                    "authorityContext": {
+                        "manifest": {"manifestRevision": "manifest-a", "formalActiveManifest": True},
+                        "itemsById": {
+                            "ring-a": {
+                                "displayName": "权威戒指",
+                                "iconUrl": icon_url,
+                                "gameAsset": {
+                                    "status": "verified",
+                                    "source": "blizzard",
+                                    "iconUrl": icon_url,
+                                },
+                            }
+                        },
+                    },
+                    "releaseReadMs": 1,
+                    "reconcileMs": 1,
+                    "cacheIdentity": "active-observed-ring",
+                }
+
+        resolved = {
+            "status": "verified",
+            "problems": [],
+            "resolvedSlots": {
+                "finger1": {
+                    "slot": "finger1",
+                    "itemId": "ring-a",
+                    "variantKey": "observed-ring-a",
+                    "displayName": "权威戒指",
+                }
+            },
+        }
+        with patch.object(gear_runtime.gear_resolver, "resolve", return_value=resolved):
+            status, envelope, _timings = gear_runtime.import_community_template(
+                {
+                    "classKey": "mage",
+                    "specKey": "frost",
+                    "templateId": "build-projection:sha256:" + "a" * 64,
+                },
+                store=ActiveObservedStore(),
+                simc_runtime_revision="simc-v1",
+                request_id="active-observed-display",
+            )
+
+        self.assertEqual(status, 200)
+        self.assertEqual(envelope["status"], "verified")
+        item = envelope["data"]["importedGearBySlot"]["finger1"]
+        self.assertEqual(item["name"], "权威戒指")
+        self.assertEqual(item["displayName"], "权威戒指")
+        self.assertEqual(item["iconUrl"], "https://render.worldofwarcraft.com/us/icons/56/inv_jewelry_ring_01.jpg")
+        self.assertEqual(item["gameAsset"]["status"], "verified")
+
     def test_legacy_profile_request_is_not_claimed_by_canonical_mode(self):
         self.assertFalse(gear_runtime.is_canonical_profile_request({"classKey": "mage"}))
         self.assertFalse(gear_runtime.is_canonical_profile_request(None))

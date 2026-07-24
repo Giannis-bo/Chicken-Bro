@@ -401,14 +401,34 @@ def import_community_template(
 
     serialize_started = clock()
     if source_status == "verified" and snapshot.get("status") == "verified" and not snapshot.get("problems"):
-        data = community_template_import_public_data(source, snapshot, release_context)
+        data = community_template_import_public_data(
+            source,
+            snapshot,
+            release_context,
+            authority_context=authority_context,
+        )
+        if data is None:
+            problem = _import_problem(
+                "template_import_evidence_incomplete",
+                "The requested template does not have complete verified display evidence.",
+            )
+            envelope = _import_envelope("blocked", request_id, release_context, problems=[problem])
+            return 200, envelope, _import_timings(
+                release_read_ms=release_read_ms,
+                reconcile_ms=reconcile_ms,
+                resolve_ms=resolve_ms,
+                serialize_ms=(clock() - serialize_started) * 1000,
+            )
         payload = {
             "status": "verified",
             "releaseContext": release_context,
             "data": data,
         }
         cache_writer = getattr(store, "cache_community_template_import_verified", None)
-        if callable(cache_writer):
+        if callable(cache_writer) and (
+            not isinstance(cache_state, dict)
+            or cache_state.get("write") is not False
+        ):
             try:
                 cache_writer(context.get("cacheIdentity", ""), payload)
             except Exception:

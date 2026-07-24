@@ -4,6 +4,7 @@ import type { BuildTemplate, CommunityTemplateReference } from '@wow-mini/domain
 
 import {
   communityGearTemplateOptions,
+  formatGearTemplateUpdatedAt,
   parseGearTemplateDraft,
   savedGearTemplateOptions,
   serializeGearTemplateDraft,
@@ -37,6 +38,10 @@ const savedTemplate = (overrides: Partial<BuildTemplate> = {}): BuildTemplate =>
 })
 
 describe('gear template import model', () => {
+  it('normalizes PostgreSQL timestamps before formatting them for iOS', () => {
+    expect(formatGearTemplateUpdatedAt('2026-07-16 06:42:12+08:00')).toBe('2026-07-16 06:42')
+  })
+
   it('round-trips a versioned saved draft including enhancements', () => {
     const rawString = serializeGearTemplateDraft({
       gearBySlot: { head: { itemId: 123, name: '头盔' } },

@@ -42,7 +42,7 @@ test('project-state is the single machine-readable current truth entry', () => {
   const state = readJson(projectStatePath)
 
   assert.equal(state.schemaVersion, 1)
-  assert.equal(state.updatedAt, '2026-07-23')
+  assert.equal(state.updatedAt, '2026-07-24')
   assert.equal(state.activeMilestone, 'taro_target_first_14_route_rebuild')
   assert.equal(state.featureIteration, 'allowed_under_harness')
   assert.equal(state.activeReleaseArtifact, undefined)
@@ -62,6 +62,18 @@ test('project-state is the single machine-readable current truth entry', () => {
     productionDomain.candidateAssetRuntimeRoot,
     'https://api.chickenbro.cloud/wow-assets/releases/2026-07-19-taro-full-integration',
   )
+  assert.equal(
+    productionDomain.candidateRuntimeMediaRoot,
+    'https://api.chickenbro.cloud/wow-media/releases/2026-07-20-wow-icons-v1',
+  )
+  assert.deepEqual(productionDomain.runtimeMediaRelease, {
+    status: 'candidate_integrity_verified',
+    releaseId: '2026-07-20-wow-icons-v1',
+    manifest: 'https://api.chickenbro.cloud/wow-media/releases/2026-07-20-wow-icons-v1/release-manifest.json',
+    fileCount: 3413,
+    totalBytes: 7326459,
+    staticOriginStatus: 'unpublished_do_not_use',
+  })
   assert.equal(productionDomain.approvedInWechatAdmin, true)
   assert.equal(
     productionDomain.approvalEvidence,
@@ -753,6 +765,9 @@ test('UI package evidence cannot treat a placeholder remote asset origin as rele
   const packageJson = readJson('package.json')
   assert.match(verifier, /packageMechanicsPass/)
   assert.match(verifier, /releaseReady/)
+  assert.match(verifier, /verifyRuntimeMediaReleaseRoot/)
+  assert.match(verifier, /release-manifest\.json/)
+  assert.match(verifier, /WOW_RUNTIME_MEDIA_ROOT is not a readable immutable release/)
   assert.match(domainPolicy, /hostname\.endsWith\('\.invalid'\)/)
   assert.match(domainPolicy, /WOW_ASSET_RUNTIME_ROOT must be an approved named HTTPS immutable \/releases\/<release-id> path/)
   assert.match(domainPolicy, /WOW_RUNTIME_MEDIA_ROOT must be an approved named HTTPS immutable \/wow-media\/releases\/<release-id> path/)
@@ -766,6 +781,8 @@ test('UI package evidence cannot treat a placeholder remote asset origin as rele
   assert.doesNotMatch(transport, /process\.env\[['"]WOW_BACKEND_API_BASE_URL['"]\]/)
   assert.match(verifier, /backendOriginReferenceCount/)
   assert.match(verifier, /runtimeBackendEnvReferenceCount/)
+  assert.match(verifier, /runtimeMediaRootReferenceCount/)
+  assert.match(verifier, /configured runtime media root/)
   assert.match(verifier, /process\.execPath/)
   assert.match(verifier, /@tarojs['"], 'cli', 'bin', 'taro'/)
   assert.match(verifier, /result\.error/)
@@ -779,6 +796,13 @@ test('UI package evidence cannot treat a placeholder remote asset origin as rele
   assert.match(publisher, /remote asset request \$\{record\.path\}/)
   assert.match(publisher, /await Promise\.all\(Array\.from\(\{ length: workerCount \}/)
   assert.match(publisher, /remote asset integrity mismatch/)
+})
+
+test('lighthouse deploy preserves immutable runtime media hosting across redeploys', () => {
+  const deploy = fs.readFileSync('server/deploy_lighthouse.sh', 'utf8')
+  assert.match(deploy, /mkdir -p \/var\/www\/wow-media\/releases/)
+  assert.match(deploy, /location \^~ \/wow-media\/releases\//)
+  assert.match(deploy, /Cache-Control "public, max-age=31536000, immutable" always/)
 })
 
 test('post-merge WeChat preview refresh is repository-owned and cannot impersonate acceptance', () => {

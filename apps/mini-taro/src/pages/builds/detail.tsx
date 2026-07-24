@@ -15,6 +15,11 @@ import {
   type GearProfessionItem,
   type GearSpecializationItem,
 } from '@wow-mini/design-system/components/GearDetailComponents'
+import {
+  GearTemplateImportSheet,
+  type GearTemplateCommunityImportItem,
+  type TalentTemplateSavedImportItem,
+} from '@wow-mini/design-system/components/TalentSimulatorComponents'
 import { PageFrame } from '@wow-mini/design-system/components/PageFrame'
 import { RouteStage } from '@wow-mini/design-system/components/RouteStage'
 import { RouteRegion } from '@wow-mini/design-system/components/RouteFlow'
@@ -59,6 +64,7 @@ import {
 import { GearRequestFence } from './gear-request-fence'
 import {
   communityGearTemplateOptions,
+  formatGearTemplateUpdatedAt,
   savedGearTemplateOptions,
   serializeGearTemplateDraft,
   type GearTemplateDraft,
@@ -138,6 +144,8 @@ export default function GearDetailPage() {
   const [dirty, setDirty] = useState(false)
   const [saving, setSaving] = useState(false)
   const [savedTemplates, setSavedTemplates] = useState<readonly BuildTemplate[]>([])
+  const [importSheet, setImportSheet] = useState<'closed' | 'saved' | 'community'>('closed')
+  const [importingTemplate, setImportingTemplate] = useState(false)
   const [workbenchNotice, setWorkbenchNotice] = useState('')
   const selectionChanged = useRef(false)
   const candidateRequestId = useRef(0)
@@ -206,6 +214,8 @@ export default function GearDetailPage() {
     setCanonical({ loading: false })
     setStats({ loading: false, payload: route.data.gear.statSnapshot })
     setSavedTemplates(route.data.templates.filter((template) => template.type === 'gear'))
+    setImportSheet('closed')
+    setImportingTemplate(false)
     setDirty(false)
   }, [route.data])
 
@@ -284,6 +294,30 @@ export default function GearDetailPage() {
   const communityTemplateOptions = communityGearTemplateOptions(data?.gear.communityTemplates ?? [])
   const savedTemplateOptions = savedGearTemplateOptions(savedTemplates, data?.selection.classKey ?? '', data?.selection.specKey ?? '')
   const importAvailable = Boolean(communityTemplateOptions.length || savedTemplateOptions.length)
+  const savedImportItems: readonly TalentTemplateSavedImportItem[] = savedTemplateOptions.map((option) => ({
+    id: option.template.id,
+    title: option.label,
+    detail: `更新：${formatGearTemplateUpdatedAt(option.template.updatedAt)}`,
+  }))
+  const communityImportItems: readonly GearTemplateCommunityImportItem[] = communityTemplateOptions.map((option) => {
+    const template = option.template
+    const player = template.playerName || template.name || template.title || '未提供'
+    return {
+      id: template.id || option.label,
+      title: option.label,
+      meta: [
+        `玩家：${player}`,
+        `服务器：${template.serverName || '未提供'}`,
+        `区域：${template.region || '未提供'}`,
+        typeof template.mplusScore === 'number' && template.mplusScore > 0
+          ? `大秘境总分：${template.mplusScore}`
+          : '大秘境总分：未提供',
+        `更新：${formatGearTemplateUpdatedAt(template.updatedAt)}`,
+      ],
+      isStale: template.isStale === true || template.freshnessStatus === 'stale',
+      importable: template.canApplyGear !== false,
+    }
+  })
 
   const selectProfession = (item: GearProfessionItem) => {
     if (!data || item.selected) return
@@ -481,81 +515,90 @@ export default function GearDetailPage() {
     }
   }
 
-  const importTemplate = async () => {
-    const importOptions: readonly GearImportSelection[] = [
-      ...communityTemplateOptions.map((option) => ({ kind: 'community' as const, ...option })),
-      ...savedTemplateOptions.map((option) => ({ kind: 'saved' as const, ...option })),
-    ]
-    const selected = await chooseActionSheetEntry(importOptions, (entry) => `${entry.kind === 'community' ? '社区 · ' : '已保存 · '}${entry.label}`)
-    if (!selected) return
-    const selection: GearImportSelection = selected
+  const importTemplate = async (selection: GearImportSelection) => {
+    setImportingTemplate(true)
     const importToken = requestFence.current.beginImport()
-    let imported: Readonly<Record<string, GearItemReference>> | null = null
-    let importedSnapshot: GearResolvedSnapshot | undefined
-    let importedIntent: GearSelectionIntent | undefined
-    let importedEnhancements: Readonly<Record<string, GearEnhancementSelection>> = {}
-    if (selection.kind === 'community' && data) {
-      const templateId = selection.template.id
-      if (!templateId) return
-      const result = await wowApi.websim.communityTemplateImport({
-        classKey: data.selection.classKey,
-        specKey: data.selection.specKey,
-        templateId,
-        ...(data.gear.manifestRevision ? { expectedManifestRevision: data.gear.manifestRevision } : {}),
-      })
-      if (!requestFence.current.isImportCurrent(importToken)) return
-      if (!result.fromFallback && result.httpStatus === 200 && result.payload.status === 'verified') {
-        imported = importedGearBySlot(result.payload.data['importedGearBySlot'])
-        importedSnapshot = result.payload.data.resolvedSnapshot
-        if (imported && importedSnapshot) {
-          importedEnhancements = gearEnhancementsFromResolvedSnapshot(importedSnapshot, imported) ?? {}
-          importedIntent = serializeGearSelectionIntent({
-            ...(data.gear.resolverContext ? { resolverContext: data.gear.resolverContext } : {}),
-            selection: data.selection,
-            ...(data.gear.maxLevel ? { level: data.gear.maxLevel } : {}),
-            gearBySlot: imported,
-            enhancementBySlot: importedEnhancements,
-          }) ?? undefined
-        }
-        if (!imported || !importedSnapshot || !Object.keys(importedEnhancements).length || !importedIntent) {
-          setWorkbenchNotice('社区模板返回的装备与校验快照不完整')
+    try {
+      let imported: Readonly<Record<string, GearItemReference>> | null = null
+      let importedSnapshot: GearResolvedSnapshot | undefined
+      let importedIntent: GearSelectionIntent | undefined
+      let importedEnhancements: Readonly<Record<string, GearEnhancementSelection>> = {}
+      if (selection.kind === 'community' && data) {
+        const templateId = selection.template.id
+        if (!templateId) return
+        const result = await wowApi.websim.communityTemplateImport({
+          classKey: data.selection.classKey,
+          specKey: data.selection.specKey,
+          templateId,
+          ...(data.gear.manifestRevision ? { expectedManifestRevision: data.gear.manifestRevision } : {}),
+        })
+        if (!requestFence.current.isImportCurrent(importToken)) return
+        if (!result.fromFallback && result.httpStatus === 200 && result.payload.status === 'verified') {
+          imported = importedGearBySlot(result.payload.data['importedGearBySlot'])
+          importedSnapshot = result.payload.data.resolvedSnapshot
+          if (imported && importedSnapshot) {
+            importedEnhancements = gearEnhancementsFromResolvedSnapshot(importedSnapshot, imported) ?? {}
+            importedIntent = serializeGearSelectionIntent({
+              ...(data.gear.resolverContext ? { resolverContext: data.gear.resolverContext } : {}),
+              selection: data.selection,
+              ...(data.gear.maxLevel ? { level: data.gear.maxLevel } : {}),
+              gearBySlot: imported,
+              enhancementBySlot: importedEnhancements,
+            }) ?? undefined
+          }
+          if (!imported || !importedSnapshot || !importedIntent) {
+            setWorkbenchNotice('社区模板返回的装备与校验快照不完整')
+            return
+          }
+        } else {
+          setWorkbenchNotice(result.fromFallback
+            ? '社区模板导入服务不可用'
+            : envelopeMessage(result.payload.problems, '社区模板未通过完整性校验'))
           return
         }
       } else {
-        setWorkbenchNotice(result.fromFallback
-          ? '社区模板导入服务不可用'
-          : envelopeMessage(result.payload.problems, '社区模板未通过完整性校验'))
+        const draft = selection.kind === 'saved' ? selection.draft : null
+        imported = draft?.gearBySlot ?? null
+        importedEnhancements = draft?.enhancementBySlot ?? {}
+      }
+      if (!imported) {
+        void Taro.showToast({ title: '没有可导入的真实装备模板', icon: 'none' })
         return
       }
-    } else {
-      const draft = selection.kind === 'saved' ? selection.draft : null
-      imported = draft?.gearBySlot ?? null
-      importedEnhancements = draft?.enhancementBySlot ?? {}
+      if (!requestFence.current.isImportCurrent(importToken)) return
+      const firstSlot = data?.gear.slots.find((slot) => imported[slot.slot])?.slot
+        ?? Object.keys(imported)[0]
+        ?? ''
+      const group = data?.gear.replacementCandidates.find((item) => item.slot === firstSlot)
+      requestFence.current.replaceDraft()
+      candidateRequestId.current += 1
+      setEquipped(imported)
+      setSelectedSlot(firstSlot)
+      setCandidateOpen(false)
+      setCandidates(group?.items ?? [])
+      setEnhancements(importedEnhancements)
+      setStats({ loading: false })
+      setDirty(true)
+      if (importedSnapshot?.status === 'verified' && importedIntent) {
+        setCanonical({ loading: false, intent: importedIntent, snapshot: importedSnapshot })
+      } else {
+        void resolveSelection(imported, importedEnhancements)
+      }
+      setImportSheet('closed')
+      setWorkbenchNotice(selection.kind === 'community' ? '已原子导入来源模板' : '已导入已保存模板并重新校验')
+    } finally {
+      setImportingTemplate(false)
     }
-    if (!imported) {
-      void Taro.showToast({ title: '没有可导入的真实装备模板', icon: 'none' })
-      return
-    }
-    if (!requestFence.current.isImportCurrent(importToken)) return
-    const firstSlot = data?.gear.slots.find((slot) => imported[slot.slot])?.slot
-      ?? Object.keys(imported)[0]
-      ?? ''
-    const group = data?.gear.replacementCandidates.find((item) => item.slot === firstSlot)
-    requestFence.current.replaceDraft()
-    candidateRequestId.current += 1
-    setEquipped(imported)
-    setSelectedSlot(firstSlot)
-    setCandidateOpen(false)
-    setCandidates(group?.items ?? [])
-    setEnhancements(importedEnhancements)
-    setStats({ loading: false })
-    setDirty(true)
-    if (importedSnapshot?.status === 'verified' && importedIntent) {
-      setCanonical({ loading: false, intent: importedIntent, snapshot: importedSnapshot })
-    } else {
-      void resolveSelection(imported, importedEnhancements)
-    }
-    setWorkbenchNotice(selection.kind === 'community' ? '已原子导入来源模板' : '已导入已保存模板并重新校验')
+  }
+
+  const importSavedTemplate = (templateId: string) => {
+    const option = savedTemplateOptions.find((item) => item.template.id === templateId)
+    if (option) void importTemplate({ kind: 'saved', ...option })
+  }
+
+  const importCommunityTemplate = (templateId: string) => {
+    const option = communityTemplateOptions.find((item) => item.template.id === templateId)
+    if (option) void importTemplate({ kind: 'community', ...option })
   }
 
   const reset = () => {
@@ -582,7 +625,7 @@ export default function GearDetailPage() {
       ]
     : [
         { id: 'save', label: '保存模板', tone: 'gold', disabled: !readiness.selectedCount, loading: saving, onClick: () => void saveTemplate() },
-        { id: 'import', label: '导入', tone: 'blue', disabled: !importAvailable, onClick: () => void importTemplate() },
+        { id: 'import', label: '导入', tone: 'blue', disabled: !importAvailable, onClick: () => setImportSheet('saved') },
         { id: 'reset', label: '重置', tone: 'metal', disabled: !data || !readiness.selectedCount, onClick: reset },
       ]
 
@@ -667,6 +710,19 @@ export default function GearDetailPage() {
             </RouteRegion>
             <RouteRegion className={styles['actionsRegion'] ?? ''} data-region="gear_actions"><GearActionRow items={actions} /></RouteRegion>
           </View>
+          <GearTemplateImportSheet
+            visible={importSheet !== 'closed'}
+            activeTab={importSheet === 'community' ? 'community' : 'saved'}
+            savedItems={savedImportItems}
+            communityItems={communityImportItems}
+            importing={importingTemplate}
+            onTabChange={setImportSheet}
+            onClose={() => {
+              if (!importingTemplate) setImportSheet('closed')
+            }}
+            onImportSaved={importSavedTemplate}
+            onImportCommunity={importCommunityTemplate}
+          />
         </PageFrame>
       </RouteStage>
     </AppShell>

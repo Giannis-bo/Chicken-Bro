@@ -612,6 +612,27 @@ export interface TalentTemplateSavedImportItem {
   disabled?: boolean | undefined
 }
 
+export interface GearTemplateCommunityImportItem {
+  id: string
+  title: string
+  meta: readonly string[]
+  isStale?: boolean | undefined
+  importable?: boolean | undefined
+}
+
+export interface GearTemplateImportSheetProps {
+  visible: boolean
+  activeTab: TalentTemplateImportTab
+  savedItems: readonly TalentTemplateSavedImportItem[]
+  communityItems: readonly GearTemplateCommunityImportItem[]
+  loading?: boolean | undefined
+  importing?: boolean | undefined
+  onTabChange: (tab: TalentTemplateImportTab) => void
+  onClose: () => void
+  onImportSaved: (id: string) => void
+  onImportCommunity: (id: string) => void
+}
+
 export interface TalentTemplateCommunityWinner {
   title: string
   playerName: string
@@ -714,6 +735,84 @@ export function TalentTemplateImportSheet({
             </View>
           ) : (
             <Text className={componentStyle('templateSheetEmpty')}>当前专精暂无可导入的社区模板</Text>
+          )}
+        </ScrollView>
+      </View>
+    </View>
+  )
+}
+
+export function GearTemplateImportSheet({
+  visible,
+  activeTab,
+  savedItems,
+  communityItems,
+  loading = false,
+  importing = false,
+  onTabChange,
+  onClose,
+  onImportSaved,
+  onImportCommunity,
+}: GearTemplateImportSheetProps) {
+  if (!visible) return null
+  return (
+    <View className={componentStyle('templateSheetMask')} data-role="gear-template-import-sheet">
+      <View className={componentStyle('templateSheet')} data-mode={activeTab}>
+        <View className={componentStyle('templateSheetHeader')}>
+          <Text>导入装备模板</Text>
+          <View className={componentStyle('templateSheetClose')} role="button" onClick={onClose}>关闭</View>
+        </View>
+        <View className={componentStyle('templateSheetTabs')}>
+          {([['saved', '我的保存'], ['community', '社区模板']] as const).map(([tab, label]) => (
+            <View
+              key={tab}
+              className={componentStyle('templateSheetTab')}
+              data-active={activeTab === tab ? 'true' : 'false'}
+              role="button"
+              onClick={() => onTabChange(tab)}
+            >
+              <Text>{label}</Text>
+            </View>
+          ))}
+        </View>
+        <ScrollView className={componentStyle('templateSheetContent')} scrollY>
+          {activeTab === 'saved' ? (
+            loading ? <Text className={componentStyle('templateSheetEmpty')}>正在读取已保存模板…</Text>
+              : savedItems.length === 0 ? <Text className={componentStyle('templateSheetEmpty')}>还没有已保存的装备模板</Text>
+                : savedItems.map((item) => (
+                  <View key={item.id} className={componentStyle('templateSheetItem')} data-disabled={item.disabled ? 'true' : 'false'}>
+                    <View className={componentStyle('templateSheetItemCopy')}>
+                      <Text>{item.title}</Text>
+                      <Text>{item.detail}</Text>
+                    </View>
+                    <View
+                      className={componentStyle('templateSheetImport')}
+                      data-disabled={item.disabled || importing ? 'true' : 'false'}
+                      role="button"
+                      onClick={() => {
+                        if (!item.disabled && !importing) onImportSaved(item.id)
+                      }}
+                    >导入</View>
+                  </View>
+                ))
+          ) : communityItems.length ? (
+            communityItems.map((item) => (
+              <View key={item.id} className={componentStyle('templateSheetCommunity')} data-stale={item.isStale ? 'true' : 'false'}>
+                <Text className={componentStyle('templateSheetCommunityTitle')}>{item.title}</Text>
+                {item.meta.map((line) => <Text key={line} className={componentStyle('templateSheetCommunityMeta')}>{line}</Text>)}
+                {item.isStale ? <Text className={componentStyle('templateSheetStale')}>已过期</Text> : null}
+                <View
+                  className={componentStyle('templateSheetCommunityImport')}
+                  data-disabled={item.importable === false || importing ? 'true' : 'false'}
+                  role="button"
+                  onClick={() => {
+                    if (item.importable !== false && !importing) onImportCommunity(item.id)
+                  }}
+                >{importing ? '导入中' : '导入此模板'}</View>
+              </View>
+            ))
+          ) : (
+            <Text className={componentStyle('templateSheetEmpty')}>当前专精暂无可导入的社区装备模板</Text>
           )}
         </ScrollView>
       </View>
