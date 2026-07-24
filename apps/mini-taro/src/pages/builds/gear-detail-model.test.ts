@@ -206,6 +206,32 @@ describe('gear detail truth model', () => {
     ])
   })
 
+  it('shows every selected socket gem and uses the player-facing 美化 label', () => {
+    const item: GearItemReference = {
+      ...readyItem,
+      socketOptions: [
+        { id: 'gem-1', label: '+15 急速' },
+        { id: 'gem-2', label: '+15 暴击' },
+      ],
+      enchantOptions: [],
+      embellishmentOptions: [{ id: 'embellishment-1', label: '加固护腕' }],
+    }
+
+    expect(gearEnhancementGroups(item, {
+      head: {
+        gemOptionIds: ['gem-1', 'gem-2'],
+        enchantOptionId: '',
+        embellishmentOptionId: 'embellishment-1',
+        craftedOptionId: '',
+        catalystOptionId: '',
+      },
+    }, 'head')).toEqual([
+      expect.objectContaining({ id: 'socket', selectedCount: 2, value: '+15 急速；+15 暴击', state: 'ready' }),
+      expect.objectContaining({ id: 'enchant', value: '待配置', state: 'blocked' }),
+      expect.objectContaining({ id: 'embellishment', label: '美化', value: '加固护腕', state: 'ready' }),
+    ])
+  })
+
   it('imports only explicit returned template gear items', () => {
     expect(templateGearItems({ title: '无装备体' })).toBeNull()
     expect(templateGearItems({ title: '来源模板', gearItems: [{ ...readyItem, slot: 'head' }] })).toEqual({ head: expect.objectContaining({ itemId: '250060' }) })

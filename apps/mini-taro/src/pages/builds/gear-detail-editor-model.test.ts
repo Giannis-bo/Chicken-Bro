@@ -1,0 +1,73 @@
+import { describe, expect, it } from 'vitest'
+
+import type { GearItemReference } from '@wow-mini/domain'
+
+import {
+  candidateDraftCanApply,
+  createCandidateDraft,
+  emptyEnhancementSelection,
+  materializeCandidateDraft,
+  selectCandidateVariant,
+  setGemAtSocket,
+  setSingleEnhancement,
+} from './gear-detail-editor-model'
+
+const weaponWithHeroAndMythTracks: GearItemReference = {
+  itemId: 'weapon-1',
+  name: '星界短杖',
+  ilevel: 272,
+  variants: [
+    { key: 'hero-285', difficultyLabel: '英雄', itemLevel: 285, status: 'ready' },
+    { variantKey: 'myth-289', difficultyLabel: '神话', ilevel: 289, status: 'ready' },
+    { key: 'needs-variant', difficultyLabel: '待选择', status: 'blocked' },
+  ],
+  socketOptions: [{ id: 'gem-a', label: '+15 急速' }, { id: 'gem-b', label: '+15 暴击' }],
+}
+
+const craftedWeapon: GearItemReference = {
+  itemId: 'crafted-weapon-1',
+  name: '制造的星界短杖',
+  variants: [{ key: 'crafted-myth-285', difficultyLabel: '神话', ilevel: 285, status: 'ready' }],
+  craftedStatOptions: [
+    { key: 'haste_mastery', label: '急速 / 精通', simcOptions: ['haste', 'mastery'] },
+    { key: 'crit_vers', label: '暴击 / 全能', simcOptions: ['crit', 'vers'] },
+  ],
+}
+
+describe('gear detail editor model', () => {
+  it('keeps a candidate local until an explicit variant-backed apply', () => {
+    const draft = createCandidateDraft('main_hand', weaponWithHeroAndMythTracks)
+    expect(candidateDraftCanApply(draft)).toBe(false)
+
+    const selected = selectCandidateVariant(draft, 'myth-289')
+    expect(candidateDraftCanApply(selected)).toBe(true)
+    expect(materializeCandidateDraft(selected)).toMatchObject({
+      itemId: 'weapon-1', variantKey: 'myth-289', ilevel: 289,
+    })
+  })
+
+  it('does not turn display-only craftedStatOptions into a resolver selection', () => {
+    const draft = selectCandidateVariant(createCandidateDraft('main_hand', craftedWeapon), 'crafted-myth-285')
+
+    expect(draft.craftedStatOptions).toHaveLength(2)
+    expect(materializeCandidateDraft(draft)).not.toHaveProperty('craftedOptionId')
+  })
+
+  it('replaces and removes gems independently at each socket', () => {
+    const selection = { ...emptyEnhancementSelection(), gemOptionIds: ['gem-a', 'gem-old'] }
+
+    expect(setGemAtSocket(selection, 1, 'gem-b').gemOptionIds).toEqual(['gem-a', 'gem-b'])
+    expect(setGemAtSocket(selection, 1, '').gemOptionIds).toEqual(['gem-a'])
+  })
+
+  it('changes enchantment or 美化 without affecting socket gems', () => {
+    const selection = { ...emptyEnhancementSelection(), gemOptionIds: ['gem-a', 'gem-b'] }
+
+    expect(setSingleEnhancement(selection, 'enchant', 'enchant-a')).toMatchObject({
+      gemOptionIds: ['gem-a', 'gem-b'], enchantOptionId: 'enchant-a', embellishmentOptionId: '',
+    })
+    expect(setSingleEnhancement(selection, 'embellishment', 'embellishment-a')).toMatchObject({
+      gemOptionIds: ['gem-a', 'gem-b'], enchantOptionId: '', embellishmentOptionId: 'embellishment-a',
+    })
+  })
+})

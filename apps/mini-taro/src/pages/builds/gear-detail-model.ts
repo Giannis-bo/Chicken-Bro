@@ -58,6 +58,7 @@ export interface GearEnhancementGroupView {
   id: 'socket' | 'enchant' | 'embellishment'
   label: string
   optionCount: number
+  selectedCount: number
   value: string
   state: 'ready' | 'empty' | 'blocked'
 }
@@ -406,7 +407,7 @@ export function gearReadiness(
 const enhancementDefinitions = [
   { id: 'socket', label: '宝石', key: 'socketOptions' },
   { id: 'enchant', label: '附魔', key: 'enchantOptions' },
-  { id: 'embellishment', label: '装饰', key: 'embellishmentOptions' },
+  { id: 'embellishment', label: '美化', key: 'embellishmentOptions' },
 ] as const
 
 function optionIdentity(option: GearEnhancementOption, index: number): string {
@@ -432,7 +433,9 @@ export function gearEnhancementOptions(
         kind: definition.id,
         label: optionLabel(option),
         ...(iconUrl ? { iconUrl } : {}),
-        selected: selectedGearEnhancementId(enhancements, slot, definition.id) === id,
+        selected: definition.id === 'socket'
+          ? selectedGearEnhancementIds(enhancements, slot, definition.id).includes(id)
+          : selectedGearEnhancementId(enhancements, slot, definition.id) === id,
       }
     })
   })
@@ -445,14 +448,15 @@ export function gearEnhancementGroups(
 ): readonly GearEnhancementGroupView[] {
   return enhancementDefinitions.map((definition) => {
     const options = item?.[definition.key] ?? []
-    const selected = selectedGearEnhancementId(enhancements, slot, definition.id)
-    const selectedOption = options.find((option, index) => optionIdentity(option, index) === selected)
+    const selectedIds = selectedGearEnhancementIds(enhancements, slot, definition.id)
+    const selectedOptions = options.filter((option, index) => selectedIds.includes(optionIdentity(option, index)))
     return {
       id: definition.id,
       label: definition.label,
       optionCount: options.length,
-      value: selectedOption ? optionLabel(selectedOption) : options.length ? `${options.length} 项可选` : '待配置',
-      state: selectedOption ? 'ready' : options.length ? 'empty' : 'blocked',
+      selectedCount: selectedOptions.length,
+      value: selectedOptions.length ? selectedOptions.map(optionLabel).join('；') : options.length ? `${options.length} 项可选` : '待配置',
+      state: selectedOptions.length ? 'ready' : options.length ? 'empty' : 'blocked',
     }
   })
 }
@@ -467,6 +471,18 @@ export function selectedGearEnhancementId(
   if (kind === 'socket') return selected.gemOptionIds[0] ?? ''
   if (kind === 'enchant') return selected.enchantOptionId
   return selected.embellishmentOptionId
+}
+
+export function selectedGearEnhancementIds(
+  enhancements: Readonly<Record<string, GearEnhancementSelection>>,
+  slot: string,
+  kind: GearEnhancementGroupView['id'],
+): readonly string[] {
+  const selected = enhancements[slot]
+  if (!selected) return []
+  if (kind === 'socket') return selected.gemOptionIds.filter(Boolean)
+  const optionId = kind === 'enchant' ? selected.enchantOptionId : selected.embellishmentOptionId
+  return optionId ? [optionId] : []
 }
 
 export function templateGearItems(template: CommunityTemplateReference | undefined): Readonly<Record<string, GearItemReference>> | null {
