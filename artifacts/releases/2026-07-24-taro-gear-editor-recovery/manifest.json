@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-24T08:48:11.039Z",
+  "generatedAt": "2026-07-24T09:47:43.086Z",
   "release": {
     "date": "2026-07-24",
     "slug": "taro-gear-editor-recovery"
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-24-taro-gear-editor-recovery/evidence.json",
-    "sizeBytes": 4420,
+    "sizeBytes": 4490,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -392,7 +392,7 @@
     "missingFields": [],
     "declaredStatus": "local_verified",
     "highestEvidenceLevel": "local_verified",
-    "summary": "The active Taro gear editor, including the canonical intent correction, is locally verified. Real WeChat candidate-head smoke and both required user acceptance items remain pending."
+    "summary": "The active Taro gear editor, including canonical intent, resolver-eligibility and unsupported-enhancement safeguards, is locally verified. Real WeChat candidate-head smoke and both required user acceptance items remain pending."
   },
   "evidence": {
     "localTests": {
