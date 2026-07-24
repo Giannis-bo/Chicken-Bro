@@ -601,11 +601,19 @@ export default function GearDetailPage() {
   }
 
   const chooseCandidate = (id: string) => {
+    if (canonical.loading) return
     const index = candidateViews.findIndex((candidate) => candidate.id === id)
     const item = candidates[index]
     const slot = selectedSlot
     if (!item || !slot) return
     setCandidateDraft(createCandidateDraft(slot, item))
+  }
+
+  const chooseCandidateVariant = (variantKey: string) => {
+    if (canonical.loading) return
+    setCandidateDraft((current) => current
+      ? selectCandidateVariant(current, variantKey)
+      : current)
   }
 
   const applyCandidateDraft = async () => {
@@ -927,9 +935,7 @@ export default function GearDetailPage() {
           onApply={() => void applyCandidateDraft()}
           onClose={closeCandidateEditor}
           onSelectCandidate={chooseCandidate}
-          onSelectVariant={(variantKey) => setCandidateDraft((current) => current
-            ? selectCandidateVariant(current, variantKey)
-            : current)}
+          onSelectVariant={chooseCandidateVariant}
         />
       )
     : enhancementDraft

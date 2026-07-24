@@ -128,6 +128,15 @@ describe('gear detail fixed workbench contract', () => {
     expect(editorComponentSource).not.toContain('gearResolve')
   })
 
+  it('locks candidate identity and variant controls while the current Resolve is pending', () => {
+    expect(editorComponentSource).toMatch(/function CandidateDetails\(\{[\s\S]*?loading,[\s\S]*?disabled=\{loading \|\| variant\.state === 'blocked'\}/u)
+    expect(editorComponentSource).toMatch(/data-role="gear-candidate-row"[\s\S]*?disabled=\{loading\}/u)
+    expect(editorComponentSource).toMatch(/<CandidateDetails[\s\S]*?loading=\{loading\}/u)
+    expect(pageSource).toMatch(/const chooseCandidate = \(id: string\) => \{[\s\S]*?if \(canonical\.loading\) return[\s\S]*?setCandidateDraft/u)
+    expect(pageSource).toMatch(/const chooseCandidateVariant = \(variantKey: string\) => \{[\s\S]*?if \(canonical\.loading\) return[\s\S]*?selectCandidateVariant/u)
+    expect(pageSource).toContain('onSelectVariant={chooseCandidateVariant}')
+  })
+
   it('keeps editor choices as drafts until one verified Resolve commits them', () => {
     expect(pageSource).toContain('setCandidateDraft')
     expect(pageSource).toContain('setEnhancementDraft')

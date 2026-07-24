@@ -77,10 +77,12 @@ export interface GearCandidateEditorSheetProps {
 function CandidateDetails({
   draft,
   selectedCandidate,
+  loading,
   onSelectVariant,
 }: {
   draft: GearCandidateEditorDraft | null
   selectedCandidate: GearCandidateEditorItem | undefined
+  loading: boolean
   onSelectVariant: (variantKey: string) => void
 }) {
   if (!draft || !selectedCandidate) {
@@ -125,7 +127,7 @@ function CandidateDetails({
                   data-role="gear-candidate-variant"
                   data-state={variant.state}
                   data-variant-key={variant.key}
-                  disabled={variant.state === 'blocked'}
+                  disabled={loading || variant.state === 'blocked'}
                   onClick={() => onSelectVariant(variant.key)}
                 >
                   <Text>{variant.difficultyLabel || variant.label}</Text>
@@ -203,6 +205,7 @@ export function GearCandidateEditorSheet({
                     data-candidate-item-id={item.itemId}
                     data-role="gear-candidate-row"
                     data-state={item.state}
+                    disabled={loading}
                     onClick={() => onSelectCandidate(item.id)}
                   >
                     <View className={style('candidateCopy')}>
@@ -224,6 +227,7 @@ export function GearCandidateEditorSheet({
           )}
           <CandidateDetails
             draft={draft}
+            loading={loading}
             selectedCandidate={selectedCandidate}
             onSelectVariant={onSelectVariant}
           />
