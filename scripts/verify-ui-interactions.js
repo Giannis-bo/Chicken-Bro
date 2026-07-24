@@ -106,16 +106,6 @@ async function waitForTextChange(page, selector, before) {
   throw new Error(`${selector} text did not change; actual=${actual}`)
 }
 
-async function waitForElementMissing(page, selector) {
-  const deadline = Date.now() + operationTimeoutMs
-  while (Date.now() < deadline) {
-    const element = await timeout(page.$(selector), 2000, `query removed ${selector}`)
-    if (!element) return
-    await settle(200)
-  }
-  throw new Error(`interaction element remained after confirmed action: ${selector}`)
-}
-
 async function currentPath(miniProgram) {
   return (await timeout(miniProgram.currentPage(), operationTimeoutMs, 'read current page')).path
 }
@@ -193,19 +183,55 @@ async function runCase(results, definition, action) {
 
 async function runGearDetailCandidateApplyFlow(miniProgram) {
   const page = await open(miniProgram, contractPath('gear_detail'))
-  const slots = await requiredElements(page, '.wx-data-role-gear-slot-row', 1)
-  await timeout(slots[0].tap(), 2000, 'open gear candidate editor')
+  const mainHandSelector = '.wx-data-role-gear-slot-row.wx-data-slot-key-main_hand'
+  const mainHand = await requiredElement(page, mainHandSelector)
+  const committedBefore = String(await timeout(
+    mainHand.attribute('data-committed-item-id'),
+    2000,
+    'read committed main hand item id',
+  ) ?? '')
+  await timeout(mainHand.tap(), 2000, 'open main hand gear candidate editor')
   const candidates = await requiredElements(page, '.wx-data-role-gear-candidate-row', 1)
-  await timeout(candidates[0].tap(), 2000, 'choose gear candidate draft')
+  const candidateRows = await Promise.all(candidates.map(async (element) => ({
+    element,
+    itemId: String(await element.attribute('data-candidate-item-id') ?? ''),
+    state: String(await element.attribute('data-state') ?? ''),
+  })))
+  const candidate = candidateRows.find((item) => item.itemId && item.itemId !== committedBefore && item.state !== 'blocked')
+  if (!candidate) throw new Error(`no different resolver-eligible main hand candidate; committed=${committedBefore}`)
+  await timeout(candidate.element.tap(), 2000, 'choose gear candidate draft')
+  await settle(200)
+  const committedAfterCandidate = String(await (await requiredElement(page, mainHandSelector)).attribute('data-committed-item-id') ?? '')
+  if (committedAfterCandidate !== committedBefore) {
+    throw new Error(`committed id changed before apply: before=${committedBefore} afterCandidate=${committedAfterCandidate}`)
+  }
   const variants = await timeout(page.$$('.wx-data-role-gear-candidate-variant'), 3000, 'query returned gear candidate variants')
   if (variants.length > maximumInteractionElements) {
     throw new Error(`interaction query cap exceeded: gear candidate variants ${variants.length}/${maximumInteractionElements}`)
   }
-  if (variants.length > 0) await timeout(variants[0].tap(), 2000, 'choose returned gear candidate variant')
+  const variantRows = await Promise.all(variants.map(async (element) => ({
+    element,
+    state: String(await element.attribute('data-state') ?? ''),
+  })))
+  const variant = variantRows.find((item) => item.state === 'ready' || item.state === 'partial')
+  if (!variant) throw new Error('no resolver-eligible returned gear candidate variant')
+  await timeout(variant.element.tap(), 2000, 'choose returned gear candidate variant')
+  await settle(200)
+  const committedAfterVariant = String(await (await requiredElement(page, mainHandSelector)).attribute('data-committed-item-id') ?? '')
+  if (committedAfterVariant !== committedBefore) {
+    throw new Error(`committed id changed before apply: before=${committedBefore} afterVariant=${committedAfterVariant}`)
+  }
   const applySelector = contractSelector('gear_detail')
   await timeout((await requiredElement(page, applySelector)).tap(), operationTimeoutMs, 'apply gear candidate draft')
-  await waitForElementMissing(page, applySelector)
-  return 'candidate_applied'
+  const deadline = Date.now() + operationTimeoutMs
+  let committedAfterApply = committedBefore
+  while (Date.now() < deadline) {
+    committedAfterApply = String(await (await requiredElement(page, mainHandSelector)).attribute('data-committed-item-id') ?? '')
+    const verified = await timeout(page.$('.wx-data-gear-resolve-state-verified'), 2000, 'query verified gear resolve state')
+    if (verified && committedAfterApply === candidate.itemId) return 'candidate_applied_after_verified'
+    await settle(200)
+  }
+  throw new Error(`verified resolve did not commit selected candidate: expected=${candidate.itemId} actual=${committedAfterApply}`)
 }
 
 async function main() {
@@ -289,7 +315,7 @@ async function main() {
     })
 
     await runCase(results, contractDefinition('gear_detail',
-      (actual) => actual === 'candidate_applied',
+      (actual) => actual === 'candidate_applied_after_verified',
     ), async () => runGearDetailCandidateApplyFlow(miniProgram))
 
     await runCase(results, contractDefinition('simulator_home',

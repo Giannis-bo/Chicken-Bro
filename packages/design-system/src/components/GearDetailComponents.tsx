@@ -1,4 +1,5 @@
 import { Image, Picker, ScrollView, Text, View } from '@tarojs/components'
+import type { ReactNode } from 'react'
 
 import { ControlButton } from './ControlButton'
 
@@ -331,6 +332,7 @@ export interface GearWorkbenchSlotItem {
 
 export interface GearWorkbenchCandidateItem {
   id: string
+  itemId: string
   label: string
   levelLabel: string
   sourceLabel: string
@@ -357,6 +359,8 @@ export interface GearSlotWorkbenchProps {
   enhancements: readonly GearWorkbenchEnhancementItem[]
   candidateLoading?: boolean
   notice?: string
+  editor?: ReactNode
+  resolveState?: 'idle' | 'loading' | 'verified' | 'error'
   onSlot: (item: GearWorkbenchSlotItem) => void
   onCandidate: (item: GearWorkbenchCandidateItem) => void
   onClose: () => void
@@ -399,6 +403,7 @@ function GearSlotRow({
         style(`slotRow-${item.state}`),
       )}
       data-active={item.selected ? 'true' : 'false'}
+      data-committed-item-id={item.itemId}
       data-material-owner="css"
       data-selection-material={item.selected ? 'active' : 'inactive'}
       data-side={side}
@@ -433,6 +438,8 @@ export function GearSlotWorkbench({
   enhancements,
   candidateLoading = false,
   notice = '',
+  editor,
+  resolveState = 'idle',
   onSlot,
   onCandidate,
   onClose,
@@ -450,8 +457,13 @@ export function GearSlotWorkbench({
     return item ? [item] : []
   })
   return (
-    <View className={style('workbenchOwner')} data-owner="gear-slot-workbench" data-region="equipment_slots_panel">
-      {candidateOpen ? (
+    <View
+      className={style('workbenchOwner')}
+      data-gear-resolve-state={resolveState}
+      data-owner="gear-slot-workbench"
+      data-region="equipment_slots_panel"
+    >
+      {candidateOpen && !editor ? (
         <View
           aria-label="关闭装备候选"
           className={style('candidateDismissLayer')}
@@ -466,7 +478,7 @@ export function GearSlotWorkbench({
       <View className={classes(style('slotColumn'), style('slotColumnRight'))}>
         {right.map((item) => <GearSlotRow key={item.slot} item={item} side="right" onClick={() => onSlot(item)} />)}
       </View>
-      {candidateOpen && selectedSlot ? (
+      {candidateOpen && selectedSlot && !editor ? (
         <View className={style('candidatePanel')} data-slot-key={selectedSlot}>
           <View className={style('candidateHeading')}>
             <Text>{selectedSlotLabel}</Text>
@@ -495,6 +507,7 @@ export function GearSlotWorkbench({
                   key={item.id}
                   className={classes(style('candidateRow'), style(`candidateRow-${item.state}`))}
                   data-candidate-id={item.id}
+                  data-candidate-item-id={item.itemId}
                   data-role="gear-candidate-row"
                   data-state={item.state}
                   disabled={item.state === 'blocked'}
@@ -549,6 +562,7 @@ export function GearSlotWorkbench({
           </ScrollView>
         </View>
       ) : null}
+      {editor}
     </View>
   )
 }

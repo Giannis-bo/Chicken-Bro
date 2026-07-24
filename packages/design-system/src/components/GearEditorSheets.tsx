@@ -50,6 +50,7 @@ export interface GearCandidateEditorDraft {
 
 export interface GearCandidateEditorItem {
   readonly id: string
+  readonly itemId: string
   readonly label: string
   readonly levelLabel: string
   readonly sourceLabel: string
@@ -199,6 +200,7 @@ export function GearCandidateEditorSheet({
                     className={classes(style('candidateRow'), item.state === 'blocked' && style('candidateRowBlocked'))}
                     data-active={selected ? 'true' : 'false'}
                     data-candidate-id={item.id}
+                    data-candidate-item-id={item.itemId}
                     data-role="gear-candidate-row"
                     data-state={item.state}
                     onClick={() => onSelectCandidate(item.id)}

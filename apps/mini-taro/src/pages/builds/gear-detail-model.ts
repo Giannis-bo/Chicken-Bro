@@ -15,6 +15,7 @@ export type GearViewState = 'ready' | 'partial' | 'blocked' | 'empty' | 'loading
 
 export interface GearCandidateView {
   id: string
+  itemId: string
   label: string
   levelLabel: string
   sourceLabel: string
@@ -289,6 +290,7 @@ export function gearCandidates(items: readonly GearItemReference[]): readonly Ge
     const iconUrl = gearItemIconUrl(item)
     return {
       id: text(item.variantKey) || `${gearItemId(item) || 'candidate'}-${index}`,
+      itemId: gearItemId(item),
       label: gearItemName(item),
       levelLabel: level ? `装等 ${Math.round(level)}` : '装等待核验',
       sourceLabel: text(item.source) || '来源待补充',

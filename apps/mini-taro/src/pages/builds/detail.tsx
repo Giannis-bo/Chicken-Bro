@@ -16,6 +16,10 @@ import {
   type GearSpecializationItem,
 } from '@wow-mini/design-system/components/GearDetailComponents'
 import {
+  GearCandidateEditorSheet,
+  GearEnhancementEditorSheet,
+} from '@wow-mini/design-system/components/GearEditorSheets'
+import {
   GearTemplateImportSheet,
   type GearTemplateCommunityImportItem,
   type TalentTemplateSavedImportItem,
@@ -55,9 +59,20 @@ import {
 } from '../_shared/route-runtime'
 import { chooseActionSheetEntry } from './action-sheet'
 import {
+  candidateDraftCanApply,
+  createCandidateDraft,
+  emptyEnhancementSelection,
+  materializeCandidateDraft,
+  selectCandidateVariant,
+  setGemAtSocket,
+  setSingleEnhancement,
+  type GearCandidateDraft,
+} from './gear-detail-editor-model'
+import {
   gearCandidates,
   gearEnhancementGroups,
   gearEnhancementOptions,
+  gearItemId,
   gearReadiness,
   gearSlots,
 } from './gear-detail-model'
@@ -101,18 +116,72 @@ type GearImportSelection =
   | { kind: 'community'; template: CommunityTemplateReference; label: string }
   | { kind: 'saved'; draft: GearTemplateDraft; label: string }
 
+type GearEnhancementKind = 'socket' | 'enchant' | 'embellishment'
+
+interface GearEnhancementDraft {
+  readonly slot: string
+  readonly requestedKind: GearEnhancementKind
+  readonly selection: GearEnhancementSelection
+  readonly item?: GearItemReference
+  readonly blockers: readonly string[]
+}
+
+type SlotHydrationResult =
+  | { readonly status: 'current'; readonly items: readonly GearItemReference[] }
+  | { readonly status: 'failed' | 'stale' }
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-function emptyEnhancementSelection(): GearEnhancementSelection {
-  return {
-    gemOptionIds: [],
-    enchantOptionId: '',
-    embellishmentOptionId: '',
-    craftedOptionId: '',
-    catalystOptionId: '',
+function exactHydratedItem(
+  items: readonly GearItemReference[],
+  committed: GearItemReference,
+): GearItemReference | undefined {
+  const committedItemId = gearItemId(committed)
+  const committedVariantKey = String(committed.variantKey ?? '').trim()
+  for (const item of items) {
+    if (gearItemId(item) !== committedItemId) continue
+    if (!committedVariantKey) return item
+    const exactVariant = materializeCandidateDraft(
+      selectCandidateVariant(createCandidateDraft('', item), committedVariantKey),
+    )
+    if (exactVariant) return { ...item, ...exactVariant }
   }
+  return undefined
+}
+
+function completeEnhancementItem(item: GearItemReference): boolean {
+  return isRecord(item.modCapabilities)
+    && Array.isArray(item.socketOptions)
+    && Array.isArray(item.enchantOptions)
+    && Array.isArray(item.embellishmentOptions)
+}
+
+function backendSocketCount(item: GearItemReference): number | null {
+  if (!isRecord(item.modCapabilities)) return null
+  if (item.modCapabilities['hasSocket'] === false) return 0
+  const count = item.modCapabilities['socketCount']
+  return Number.isInteger(count) && Number(count) > 0 ? Number(count) : null
+}
+
+function selectionForHydratedItem(
+  confirmed: GearEnhancementSelection,
+  item: GearItemReference,
+): GearEnhancementSelection | null {
+  const socketCount = backendSocketCount(item)
+  if (socketCount === null) return null
+  return {
+    ...confirmed,
+    gemOptionIds: Array.from({ length: socketCount }, (_, index) => confirmed.gemOptionIds[index] ?? ''),
+  }
+}
+
+function removeSlotEnhancements(
+  enhancements: Readonly<Record<string, GearEnhancementSelection>>,
+  slot: string,
+): Readonly<Record<string, GearEnhancementSelection>> {
+  return Object.fromEntries(Object.entries(enhancements).filter(([key]) => key !== slot))
 }
 
 function importedGearBySlot(value: unknown): Readonly<Record<string, GearItemReference>> | null {
@@ -138,7 +207,10 @@ export default function GearDetailPage() {
   const [candidateOpen, setCandidateOpen] = useState(false)
   const [candidates, setCandidates] = useState<readonly GearItemReference[]>([])
   const [candidateLoading, setCandidateLoading] = useState(false)
+  const [candidateDraft, setCandidateDraft] = useState<GearCandidateDraft | null>(null)
   const [enhancements, setEnhancements] = useState<Readonly<Record<string, GearEnhancementSelection>>>({})
+  const [enhancementDraft, setEnhancementDraft] = useState<GearEnhancementDraft | null>(null)
+  const [enhancementLoading, setEnhancementLoading] = useState(false)
   const [canonical, setCanonical] = useState<CanonicalGearState>({ loading: false })
   const [stats, setStats] = useState<StatsState>({ loading: false })
   const [dirty, setDirty] = useState(false)
@@ -149,6 +221,7 @@ export default function GearDetailPage() {
   const [workbenchNotice, setWorkbenchNotice] = useState('')
   const selectionChanged = useRef(false)
   const candidateRequestId = useRef(0)
+  const slotDetailCache = useRef(new Map<string, readonly GearItemReference[]>())
   const requestFence = useRef(new GearRequestFence())
 
   useEffect(() => {
@@ -198,6 +271,15 @@ export default function GearDetailPage() {
       return
     }
     requestFence.current.replaceDraft()
+    candidateRequestId.current += 1
+    setCandidateDraft(null)
+    setEnhancementDraft(null)
+    setCandidateOpen(false)
+    setCandidates([])
+    setCandidateLoading(false)
+    setEnhancementLoading(false)
+    slotDetailCache.current.clear()
+    setCanonical({ loading: false })
     void route.load()
   }, [selectedSpecId, route.load])
 
@@ -210,6 +292,11 @@ export default function GearDetailPage() {
     setSelectedSlot('')
     setCandidateOpen(false)
     setCandidates([])
+    setCandidateLoading(false)
+    setCandidateDraft(null)
+    setEnhancementDraft(null)
+    setEnhancementLoading(false)
+    slotDetailCache.current.clear()
     setEnhancements({})
     setCanonical({ loading: false })
     setStats({ loading: false, payload: route.data.gear.statSnapshot })
@@ -254,6 +341,8 @@ export default function GearDetailPage() {
 
   const slotViews = gearSlots(data?.gear, equipped, selectedSlot)
   const candidateViews = gearCandidates(candidates)
+  const selectedCandidateIndex = candidateDraft ? candidates.indexOf(candidateDraft.candidate) : -1
+  const selectedCandidateId = selectedCandidateIndex >= 0 ? candidateViews[selectedCandidateIndex]?.id ?? '' : ''
   const selectedCandidate = equipped[selectedSlot]
   const readinessAuthority = canonical.loading
     ? undefined
@@ -284,7 +373,21 @@ export default function GearDetailPage() {
     }
   })
   const enhancementOptions = gearEnhancementOptions(selectedCandidate, enhancements, selectedSlot)
+  const enhancementDraftOptions = enhancementDraft?.item
+    ? gearEnhancementOptions(
+        enhancementDraft.item,
+        { [enhancementDraft.slot]: enhancementDraft.selection },
+        enhancementDraft.slot,
+      )
+    : []
   const selectedSlotLabel = slotViews.find((slot) => slot.slot === selectedSlot)?.label ?? ''
+  const gearResolveState = canonical.loading
+    ? 'loading' as const
+    : canonical.error
+      ? 'error' as const
+      : canonical.snapshot?.status === 'verified'
+        ? 'verified' as const
+        : 'idle' as const
   const statsReady = Boolean(
     canonical.snapshot?.status === 'verified'
     && canonical.intent
@@ -350,15 +453,31 @@ export default function GearDetailPage() {
       ...(current.intent ? { intent: current.intent } : {}),
       ...(current.snapshot ? { snapshot: current.snapshot } : {}),
     }))
-    const completion = await requestFence.current.runResolve(() => wowApi.websim.gearResolve(intent))
-    if (completion.status === 'stale') return completion
-    const result = completion.value
+    const resolveToken = requestFence.current.beginResolve()
+    let result
+    try {
+      result = await wowApi.websim.gearResolve(intent)
+    } catch {
+      if (!requestFence.current.isResolveCurrent(resolveToken)) return { status: 'stale' }
+      setWorkbenchNotice('装备校验网络不可用，草稿已保留')
+      setCanonical({ loading: false, intent, error: '装备校验网络不可用' })
+      return { status: 'failed' }
+    }
+    if (!requestFence.current.isResolveCurrent(resolveToken)) return { status: 'stale' }
     if (result.fromFallback) {
       setWorkbenchNotice(result.error || '装备校验服务不可用')
       setCanonical({ loading: false, intent, error: result.error || '装备校验服务不可用' })
       return { status: 'failed' }
     }
     if (result.httpStatus === 409) {
+      candidateRequestId.current += 1
+      setCandidateDraft(null)
+      setEnhancementDraft(null)
+      setCandidateOpen(false)
+      setCandidates([])
+      setCandidateLoading(false)
+      setEnhancementLoading(false)
+      slotDetailCache.current.clear()
       setCanonical({ loading: false, intent, error: '装备数据版本已更新，正在重新加载' })
       setWorkbenchNotice('装备数据已更新，请重新选择')
       void route.load()
@@ -380,104 +499,219 @@ export default function GearDetailPage() {
     return { status: 'resolved', intent, snapshot }
   }
 
-  const chooseSlot = async (slot: { slot: string }) => {
-    if (selectedSlot === slot.slot && candidateOpen) {
-      candidateRequestId.current += 1
-      setCandidateOpen(false)
-      setCandidates([])
-      setCandidateLoading(false)
-      return
-    }
-    const requestId = candidateRequestId.current + 1
-    candidateRequestId.current = requestId
-    setSelectedSlot(slot.slot)
-    setCandidateOpen(true)
-    const local = data?.gear.replacementCandidates.find((group) => group.slot === slot.slot)
+  const closeCandidateEditor = () => {
+    candidateRequestId.current += 1
+    requestFence.current.replaceDraft()
+    setCandidateDraft(null)
+    setEnhancementDraft(null)
+    setCandidateOpen(false)
     setCandidates([])
-    if (!data || route.state.state !== 'ready') {
-      setCandidates(local?.items ?? [])
-      setCandidateLoading(false)
-      return
+    setCandidateLoading(false)
+    setEnhancementLoading(false)
+    setCanonical((current) => current.loading
+      ? {
+          loading: false,
+          ...(current.intent ? { intent: current.intent } : {}),
+          ...(current.snapshot ? { snapshot: current.snapshot } : {}),
+        }
+      : current)
+  }
+
+  const hydrateSlot = async (
+    slot: string,
+    requestId: number,
+    publishCandidates: boolean,
+  ): Promise<SlotHydrationResult> => {
+    const cached = slotDetailCache.current.get(slot)
+    if (cached) {
+      if (candidateRequestId.current !== requestId) return { status: 'stale' }
+      if (publishCandidates) setCandidates(cached)
+      return { status: 'current', items: cached }
     }
-    setCandidateLoading(true)
+    if (!data || route.state.state !== 'ready') {
+      if (candidateRequestId.current === requestId) {
+        setWorkbenchNotice('后端槽位详情尚未就绪')
+      }
+      return { status: 'failed' }
+    }
     try {
       const result = await wowApi.websim.gear({
         classKey: data.selection.classKey,
         specKey: data.selection.specKey,
         compact: false,
         mode: 'slot',
-        slot: slot.slot,
+        slot,
       })
-      if (candidateRequestId.current !== requestId) return
-      const group = result.fromFallback
-        ? local
-        : result.payload.replacementCandidates.find((item) => item.slot === slot.slot)
-      setCandidates(group?.items ?? [])
-      if (result.fromFallback) setWorkbenchNotice('网络暂不可用，保留上次从后端加载的候选')
+      if (candidateRequestId.current !== requestId) return { status: 'stale' }
+      if (result.fromFallback) {
+        setWorkbenchNotice(result.error || '槽位详情服务不可用，未使用精简目录')
+        return { status: 'failed' }
+      }
+      const items = result.payload.replacementCandidates.find((item) => item.slot === slot)?.items ?? []
+      slotDetailCache.current.set(slot, items)
+      if (publishCandidates) setCandidates(items)
+      return { status: 'current', items }
     } catch {
-      if (candidateRequestId.current !== requestId) return
-      setCandidates(local?.items ?? [])
-      setWorkbenchNotice('候选加载失败，保留上次从后端加载的候选')
-    } finally {
-      if (candidateRequestId.current === requestId) setCandidateLoading(false)
+      if (candidateRequestId.current !== requestId) return { status: 'stale' }
+      setWorkbenchNotice('槽位详情加载失败，已确认装备保持不变')
+      return { status: 'failed' }
     }
   }
 
-  const chooseCandidate = async (id: string) => {
+  const chooseSlot = async (slot: { slot: string }) => {
+    if (selectedSlot === slot.slot && candidateOpen) {
+      closeCandidateEditor()
+      return
+    }
+    requestFence.current.replaceDraft()
+    setCanonical((current) => current.loading
+      ? {
+          loading: false,
+          ...(current.intent ? { intent: current.intent } : {}),
+          ...(current.snapshot ? { snapshot: current.snapshot } : {}),
+        }
+      : current)
+    const requestId = candidateRequestId.current + 1
+    candidateRequestId.current = requestId
+    setSelectedSlot(slot.slot)
+    setCandidateOpen(true)
+    setCandidateDraft(null)
+    setEnhancementDraft(null)
+    setEnhancementLoading(false)
+    setCandidates([])
+    setCandidateLoading(true)
+    const hydrated = await hydrateSlot(slot.slot, requestId, true)
+    if (candidateRequestId.current === requestId) {
+      setCandidateLoading(false)
+      if (hydrated.status === 'current' && !hydrated.items.length) {
+        setWorkbenchNotice('当前槽位没有后端可校验候选')
+      }
+    }
+  }
+
+  const chooseCandidate = (id: string) => {
     const index = candidateViews.findIndex((candidate) => candidate.id === id)
     const item = candidates[index]
     const slot = selectedSlot
     if (!item || !slot) return
-    const nextEquipped = { ...equipped, [slot]: item }
-    const nextEnhancements = Object.fromEntries(Object.entries(enhancements).filter(([key]) => key !== slot))
+    setCandidateDraft(createCandidateDraft(slot, item))
+  }
 
-    candidateRequestId.current += 1
-    requestFence.current.replaceDraft()
-    setCandidateOpen(false)
-    setCandidates([])
-    setCandidateLoading(false)
+  const applyCandidateDraft = async () => {
+    const draft = candidateDraft
+    const item = draft && materializeCandidateDraft(draft)
+    if (!draft || !item) return
+    const nextEquipped = { ...equipped, [draft.slot]: item }
+    const nextEnhancements = removeSlotEnhancements(enhancements, draft.slot)
+    const resolved = await resolveSelection(nextEquipped, nextEnhancements)
+    if (resolved.status !== 'resolved') return
     setEquipped(nextEquipped)
     setEnhancements(nextEnhancements)
     setStats({ loading: false })
     setDirty(true)
-    await resolveSelection(nextEquipped, nextEnhancements)
+    candidateRequestId.current += 1
+    setCandidateDraft(null)
+    setCandidateOpen(false)
+    setCandidates([])
+    setCandidateLoading(false)
   }
 
-  const chooseEnhancement = async (item: { id: string; kind: string }, slot = selectedSlot) => {
-    if (!slot) return
-    const current = enhancements[slot] ?? emptyEnhancementSelection()
-    const nextSelection: GearEnhancementSelection = item.kind === 'socket'
-      ? { ...current, gemOptionIds: [item.id] }
-      : item.kind === 'enchant'
-        ? { ...current, enchantOptionId: item.id }
-        : { ...current, embellishmentOptionId: item.id }
-    const nextEnhancements = { ...enhancements, [slot]: nextSelection }
+  const chooseEnhancement = (kind: 'enchant' | 'embellishment', optionId: string) => {
+    setEnhancementDraft((current) => current
+      ? { ...current, selection: setSingleEnhancement(current.selection, kind, optionId) }
+      : current)
+  }
+
+  const confirmEnhancementDraft = async () => {
+    const draft = enhancementDraft
+    if (!draft || !draft.item || draft.blockers.length) return
+    const nextEnhancements = { ...enhancements, [draft.slot]: draft.selection }
     const resolved = await resolveSelection(equipped, nextEnhancements)
     if (resolved.status !== 'resolved') return
     setEnhancements(nextEnhancements)
     setStats({ loading: false })
     setDirty(true)
+    candidateRequestId.current += 1
+    setEnhancementDraft(null)
+    setEnhancementLoading(false)
   }
 
-  const openEnhancementGroup = async (item: { id: 'socket' | 'enchant' | 'embellishment'; label: string }) => {
-    const compatibleSlots = slotViews.flatMap((slot) => {
-      const options = gearEnhancementOptions(equipped[slot.slot], enhancements, slot.slot)
-        .filter((option) => option.kind === item.id)
-      return options.length ? [{ slot: slot.slot, label: slot.label, options }] : []
-    })
-    if (!compatibleSlots.length) {
-      await Taro.showToast({ title: `已选装备中没有可用${item.label}`, icon: 'none' })
+  const openEnhancementGroup = async (item: { id: GearEnhancementKind; label: string }) => {
+    const equippedSlots = slotViews.filter((slot) => Boolean(equipped[slot.slot]))
+    if (!equippedSlots.length) {
+      await Taro.showToast({ title: '请先选择装备', icon: 'none' })
       return
     }
-    const activeTarget = compatibleSlots.find((entry) => entry.slot === selectedSlot)
-    const target = activeTarget ?? (compatibleSlots.length === 1
-      ? compatibleSlots[0]
-      : await chooseActionSheetEntry(compatibleSlots, (entry) => `${entry.label}（${entry.options.length} 项）`))
+    requestFence.current.replaceDraft()
+    setCanonical((current) => current.loading
+      ? {
+          loading: false,
+          ...(current.intent ? { intent: current.intent } : {}),
+          ...(current.snapshot ? { snapshot: current.snapshot } : {}),
+        }
+      : current)
+    const activeTarget = equippedSlots.find((entry) => entry.slot === selectedSlot)
+    const target = activeTarget ?? (equippedSlots.length === 1
+      ? equippedSlots[0]
+      : await chooseActionSheetEntry(equippedSlots, (entry) => entry.label))
     if (!target) return
+    const committedItem = equipped[target.slot]
+    if (!committedItem) return
+
+    const confirmed = enhancements[target.slot] ?? emptyEnhancementSelection()
+    const requestId = candidateRequestId.current + 1
+    candidateRequestId.current = requestId
     setSelectedSlot(target.slot)
     setCandidateOpen(false)
-    const selected = await chooseActionSheetEntry(target.options, (option) => option.label)
-    if (selected) await chooseEnhancement(selected, target.slot)
+    setCandidateDraft(null)
+    setCandidates([])
+    setCandidateLoading(false)
+    setEnhancementDraft({
+      slot: target.slot,
+      requestedKind: item.id,
+      selection: { ...confirmed, gemOptionIds: [...confirmed.gemOptionIds] },
+      blockers: [],
+    })
+    setEnhancementLoading(true)
+
+    const hydrated = await hydrateSlot(target.slot, requestId, false)
+    if (hydrated.status !== 'current') {
+      if (candidateRequestId.current === requestId) {
+        setEnhancementDraft((current) => current && current.slot === target.slot
+          ? { ...current, blockers: ['后端槽位详情不足，无法确认强化'] }
+          : current)
+        setEnhancementLoading(false)
+      }
+      return
+    }
+    const exact = exactHydratedItem(hydrated.items, committedItem)
+    if (!exact || !completeEnhancementItem(exact)) {
+      setEnhancementDraft((current) => current && current.slot === target.slot
+        ? { ...current, blockers: ['未找到已确认物品的完整后端详情'] }
+        : current)
+      setEnhancementLoading(false)
+      return
+    }
+    const selection = selectionForHydratedItem(confirmed, exact)
+    if (!selection) {
+      setEnhancementDraft((current) => current && current.slot === target.slot
+        ? { ...current, item: exact, blockers: ['后端未提供可校验的插槽能力'] }
+        : current)
+      setEnhancementLoading(false)
+      return
+    }
+    const options = gearEnhancementOptions(exact, { [target.slot]: selection }, target.slot)
+    const blockers = options.some((option) => option.kind === item.id)
+      ? []
+      : [`当前装备没有可用${item.label}`]
+    setEnhancementDraft({
+      slot: target.slot,
+      requestedKind: item.id,
+      selection,
+      item: exact,
+      blockers,
+    })
+    setEnhancementLoading(false)
   }
 
   const saveTemplate = async () => {
@@ -517,7 +751,21 @@ export default function GearDetailPage() {
 
   const importTemplate = async (selection: GearImportSelection) => {
     setImportingTemplate(true)
+    candidateRequestId.current += 1
+    setCandidateDraft(null)
+    setEnhancementDraft(null)
+    setCandidateOpen(false)
+    setCandidates([])
+    setCandidateLoading(false)
+    setEnhancementLoading(false)
     const importToken = requestFence.current.beginImport()
+    setCanonical((current) => current.loading
+      ? {
+          loading: false,
+          ...(current.intent ? { intent: current.intent } : {}),
+          ...(current.snapshot ? { snapshot: current.snapshot } : {}),
+        }
+      : current)
     try {
       let imported: Readonly<Record<string, GearItemReference>> | null = null
       let importedSnapshot: GearResolvedSnapshot | undefined
@@ -569,13 +817,16 @@ export default function GearDetailPage() {
       const firstSlot = data?.gear.slots.find((slot) => imported[slot.slot])?.slot
         ?? Object.keys(imported)[0]
         ?? ''
-      const group = data?.gear.replacementCandidates.find((item) => item.slot === firstSlot)
       requestFence.current.replaceDraft()
       candidateRequestId.current += 1
+      slotDetailCache.current.clear()
       setEquipped(imported)
       setSelectedSlot(firstSlot)
       setCandidateOpen(false)
-      setCandidates(group?.items ?? [])
+      setCandidates([])
+      setCandidateDraft(null)
+      setEnhancementDraft(null)
+      setEnhancementLoading(false)
       setEnhancements(importedEnhancements)
       setStats({ loading: false })
       setDirty(true)
@@ -605,6 +856,10 @@ export default function GearDetailPage() {
     const hadSelection = readiness.selectedCount > 0
     requestFence.current.replaceDraft()
     candidateRequestId.current += 1
+    setCandidateDraft(null)
+    setEnhancementDraft(null)
+    setEnhancementLoading(false)
+    slotDetailCache.current.clear()
     setEquipped({})
     setSelectedSlot('')
     setCandidateOpen(false)
@@ -616,6 +871,43 @@ export default function GearDetailPage() {
     setDirty(hadSelection)
     setWorkbenchNotice(hadSelection ? '已清空当前全部装备配置' : '')
   }
+
+  const workbenchEditor = candidateOpen
+    ? (
+        <GearCandidateEditorSheet
+          canApply={Boolean(candidateDraft && candidateDraftCanApply(candidateDraft))}
+          candidates={candidateViews}
+          draft={candidateDraft}
+          loading={candidateLoading || canonical.loading}
+          notice={workbenchNotice}
+          selectedCandidateId={selectedCandidateId}
+          slotLabel={selectedSlotLabel}
+          onApply={() => void applyCandidateDraft()}
+          onClose={closeCandidateEditor}
+          onSelectCandidate={chooseCandidate}
+          onSelectVariant={(variantKey) => setCandidateDraft((current) => current
+            ? selectCandidateVariant(current, variantKey)
+            : current)}
+        />
+      )
+    : enhancementDraft
+      ? (
+          <GearEnhancementEditorSheet
+            blockers={enhancementDraft.blockers}
+            canConfirm={Boolean(enhancementDraft.item && !enhancementDraft.blockers.length)}
+            draft={enhancementDraft.selection}
+            loading={enhancementLoading || canonical.loading}
+            options={enhancementDraftOptions}
+            slotLabel={selectedSlotLabel}
+            onClose={closeCandidateEditor}
+            onConfirm={() => void confirmEnhancementDraft()}
+            onSetGem={(socketIndex, optionId) => setEnhancementDraft((current) => current
+              ? { ...current, selection: setGemAtSocket(current.selection, socketIndex, optionId) }
+              : current)}
+            onSetSingle={chooseEnhancement}
+          />
+        )
+      : null
 
   const actions: readonly GearActionItem[] = route.state.state === 'error' && !data
     ? [
@@ -648,21 +940,6 @@ export default function GearDetailPage() {
           onBack={() => goBack('/pages/builds/builds')}
         >
           <View className={styles['surface'] ?? ''} data-region="page_frame">
-            {candidateOpen ? (
-              <View
-                aria-label="关闭装备候选"
-                className={styles['candidateDismissLayer'] ?? ''}
-                data-action-id="dismiss-candidates"
-                data-owner="gear-candidate-page-dismiss"
-                role="button"
-                onClick={() => {
-                  candidateRequestId.current += 1
-                  setCandidateOpen(false)
-                  setCandidates([])
-                  setCandidateLoading(false)
-                }}
-              />
-            ) : null}
             <RouteRegion className={styles['professionRegion'] ?? ''} data-region="profession_selector">
               <GearProfessionSelector
                 items={classItems}
@@ -692,19 +969,18 @@ export default function GearDetailPage() {
                 candidateOpen={candidateOpen}
                 candidateLoading={candidateLoading}
                 candidates={candidateViews}
+                editor={workbenchEditor}
                 enhancements={enhancementOptions}
                 notice={workbenchNotice}
+                resolveState={gearResolveState}
                 selectedSlot={selectedSlot}
                 selectedSlotLabel={selectedSlotLabel}
                 slots={slotViews}
                 onCandidate={(item) => chooseCandidate(item.id)}
-                onClose={() => {
-                  candidateRequestId.current += 1
-                  setCandidateOpen(false)
-                  setCandidates([])
-                  setCandidateLoading(false)
+                onClose={closeCandidateEditor}
+                onEnhancement={(item) => {
+                  if (item.kind !== 'socket') chooseEnhancement(item.kind, item.id)
                 }}
-                onEnhancement={chooseEnhancement}
                 onSlot={(item) => void chooseSlot(item)}
               />
             </RouteRegion>

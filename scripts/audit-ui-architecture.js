@@ -2788,8 +2788,12 @@ record(
 const gearDetailPage = read('apps/mini-taro/src/pages/builds/detail.tsx')
 const gearDetailModel = read('apps/mini-taro/src/pages/builds/gear-detail-model.ts')
 const gearDetailComponents = read('packages/design-system/src/components/GearDetailComponents.tsx')
+const gearEditorSheets = read('packages/design-system/src/components/GearEditorSheets.tsx')
 const gearTruthContract = JSON.parse(read('docs/design/current-ui/routes/gear-detail/truth-adaptation.json'))
-const gearCandidateSelection = /const chooseCandidate[\s\S]*?const chooseEnhancement/u.exec(gearDetailPage)?.[0] ?? ''
+const gearCandidateSelection = /const chooseCandidate[\s\S]*?const applyCandidateDraft/u.exec(gearDetailPage)?.[0] ?? ''
+const gearCandidateApply = /const applyCandidateDraft[\s\S]*?const chooseEnhancement/u.exec(gearDetailPage)?.[0] ?? ''
+const gearEnhancementSelection = /const chooseEnhancement[\s\S]*?const confirmEnhancementDraft/u.exec(gearDetailPage)?.[0] ?? ''
+const gearEnhancementConfirm = /const confirmEnhancementDraft[\s\S]*?const openEnhancementGroup/u.exec(gearDetailPage)?.[0] ?? ''
 record(
   'gear_detail_consumes_current_backend_contracts',
   ['gearResolve(', 'communityTemplateImport('].every((call) => gearDetailPage.includes(call))
@@ -2811,13 +2815,21 @@ record(
   'Taro must localize backend display facts without recreating specialization or equipment rules',
 )
 record(
-  'gear_candidate_selection_closes_before_resolution',
-  gearCandidateSelection.includes('setCandidateOpen(false)')
-    && gearCandidateSelection.includes('setEquipped(nextEquipped)')
-    && gearCandidateSelection.includes('await resolveSelection(nextEquipped, nextEnhancements)')
-    && gearCandidateSelection.indexOf('setCandidateOpen(false)') < gearCandidateSelection.indexOf('await resolveSelection(nextEquipped, nextEnhancements)')
-    && gearCandidateSelection.indexOf('setEquipped(nextEquipped)') < gearCandidateSelection.indexOf('await resolveSelection(nextEquipped, nextEnhancements)'),
-  'candidate clicks must close the panel and persist the local draft before asynchronous backend verification',
+  'gear_editor_commits_only_after_verified_resolution',
+  gearCandidateSelection.includes('setCandidateDraft(createCandidateDraft(slot, item))')
+    && !gearCandidateSelection.includes('resolveSelection(')
+    && !gearCandidateSelection.includes('setEquipped(')
+    && gearCandidateApply.includes('await resolveSelection(nextEquipped, nextEnhancements)')
+    && gearCandidateApply.includes("if (resolved.status !== 'resolved') return")
+    && gearCandidateApply.indexOf("if (resolved.status !== 'resolved') return") < gearCandidateApply.indexOf('setEquipped(nextEquipped)')
+    && gearEnhancementSelection.includes('setEnhancementDraft(')
+    && !gearEnhancementSelection.includes('resolveSelection(')
+    && gearEnhancementConfirm.includes('await resolveSelection(equipped, nextEnhancements)')
+    && gearEnhancementConfirm.indexOf("if (resolved.status !== 'resolved') return") < gearEnhancementConfirm.indexOf('setEnhancements(nextEnhancements)')
+    && gearDetailComponents.includes('data-committed-item-id={item.itemId}')
+    && gearDetailComponents.includes('data-gear-resolve-state={resolveState}')
+    && gearEditorSheets.includes('data-candidate-item-id={item.itemId}'),
+  'candidate and enhancement controls must remain draft-only until a verified canonical Resolve precedes committed UI updates',
 )
 
 const babelConfig = read('apps/mini-taro/babel.config.cjs')

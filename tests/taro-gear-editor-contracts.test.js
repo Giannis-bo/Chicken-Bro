@@ -57,7 +57,24 @@ test('the core interaction contract has one executable candidate apply flow per 
   assert.match(executor, /runGearDetailCandidateApplyFlow/u)
   assert.match(executor, /gear-candidate-row/u)
   assert.match(executor, /gear-candidate-variant/u)
-  assert.match(executor, /waitForElementMissing/u)
+  assert.match(executor, /data-committed-item-id/u)
+  assert.match(executor, /data-candidate-item-id/u)
+  assert.match(executor, /gear-resolve-state-verified/u)
+  assert.match(executor, /committed id changed before apply/u)
+  assert.match(executor, /verified resolve did not commit selected candidate/u)
+  assert.doesNotMatch(executor, /waitForElementMissing\(page, applySelector\)/u)
+})
+
+test('the active page keeps draft item ids out of committed slot markers', () => {
+  const page = fs.readFileSync(path.join(root, 'apps/mini-taro/src/pages/builds/detail.tsx'), 'utf8')
+  const workbench = fs.readFileSync(path.join(root, 'packages/design-system/src/components/GearDetailComponents.tsx'), 'utf8')
+  const editor = fs.readFileSync(path.join(root, 'packages/design-system/src/components/GearEditorSheets.tsx'), 'utf8')
+
+  assert.match(page, /const applyCandidateDraft = async \(\)/u)
+  assert.match(page, /if \(resolved\.status !== 'resolved'\) return[\s\S]*setEquipped\(nextEquipped\)/u)
+  assert.match(workbench, /data-committed-item-id=\{item\.itemId\}/u)
+  assert.match(workbench, /data-gear-resolve-state=\{resolveState\}/u)
+  assert.match(editor, /data-candidate-item-id=\{item\.itemId\}/u)
 })
 
 test('selected-state partitioning validates independent gear enhancement selections', () => {
