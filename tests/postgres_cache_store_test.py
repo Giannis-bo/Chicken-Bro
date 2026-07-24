@@ -10334,5 +10334,45 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertEqual(release_store.import_calls, 0)
 
 
+class ActiveObservedImportMediaTest(unittest.TestCase):
+    def test_verified_registry_media_only_fills_missing_release_display_facts(self):
+        from server import postgres_cache_store
+
+        authority = {
+            "itemsById": {
+                "item-existing": {
+                    "displayName": "已有图标",
+                    "iconUrl": "https://render.worldofwarcraft.com/us/icons/56/existing.jpg",
+                    "gameAsset": {
+                        "status": "verified",
+                        "source": "blizzard",
+                        "iconUrl": "https://render.worldofwarcraft.com/us/icons/56/existing.jpg",
+                    },
+                },
+                "item-missing": {"displayName": "待补图标"},
+                "item-conflict": {"displayName": "冲突图标"},
+            }
+        }
+        registry_rows = [
+            ("item-missing", "websim-item-metadata", "https://render.worldofwarcraft.com/us/icons/56/missing.jpg", "blizzard", "verified"),
+            ("item-missing", "websim-loot", "https://render.worldofwarcraft.com/us/icons/56/missing.jpg", "blizzard", "verified"),
+            ("item-conflict", "websim-item-metadata", "https://render.worldofwarcraft.com/us/icons/56/first.jpg", "blizzard", "verified"),
+            ("item-conflict", "websim-loot", "https://render.worldofwarcraft.com/us/icons/56/second.jpg", "blizzard", "verified"),
+        ]
+
+        hydrated = postgres_cache_store._attach_verified_registry_item_media(
+            authority,
+            postgres_cache_store._verified_registry_item_media(registry_rows),
+        )
+
+        self.assertEqual(hydrated["itemsById"]["item-existing"]["iconUrl"], "https://render.worldofwarcraft.com/us/icons/56/existing.jpg")
+        self.assertEqual(hydrated["itemsById"]["item-missing"]["gameAsset"], {
+            "status": "verified",
+            "source": "blizzard",
+            "iconUrl": "https://render.worldofwarcraft.com/us/icons/56/missing.jpg",
+        })
+        self.assertNotIn("iconUrl", hydrated["itemsById"]["item-conflict"])
+
+
 if __name__ == "__main__":
     unittest.main()

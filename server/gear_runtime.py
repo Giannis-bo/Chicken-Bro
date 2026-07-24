@@ -425,7 +425,10 @@ def import_community_template(
             "data": data,
         }
         cache_writer = getattr(store, "cache_community_template_import_verified", None)
-        if callable(cache_writer):
+        if callable(cache_writer) and (
+            not isinstance(cache_state, dict)
+            or cache_state.get("write") is not False
+        ):
             try:
                 cache_writer(context.get("cacheIdentity", ""), payload)
             except Exception:
