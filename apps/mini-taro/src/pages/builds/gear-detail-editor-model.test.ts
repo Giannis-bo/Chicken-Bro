@@ -42,8 +42,26 @@ describe('gear detail editor model', () => {
     const selected = selectCandidateVariant(draft, 'myth-289')
     expect(candidateDraftCanApply(selected)).toBe(true)
     expect(materializeCandidateDraft(selected)).toMatchObject({
-      itemId: 'weapon-1', variantKey: 'myth-289', ilevel: 289,
+      itemId: 'weapon-1', variantKey: 'myth-289', ilevel: 289, difficultyLabel: '神话',
     })
+  })
+
+  it('uses valid fallback aliases and keeps unknown variant status blocked', () => {
+    const candidate: GearItemReference = {
+      itemId: 'alias-weapon',
+      variants: [
+        { key: '', variantKey: 'fallback-variant', state: '', status: 'ready', itemLevel: '289oops', ilevel: '288' },
+        { key: 'unknown-status', status: 'unrecognized', ilevel: 289 },
+      ],
+    }
+    const draft = createCandidateDraft('main_hand', candidate)
+
+    expect(draft.variants).toEqual([
+      expect.objectContaining({ key: 'fallback-variant', state: 'ready', ilevel: 288 }),
+      expect.objectContaining({ key: 'unknown-status', state: 'blocked', ilevel: 289 }),
+    ])
+    expect(candidateDraftCanApply(selectCandidateVariant(draft, 'fallback-variant'))).toBe(true)
+    expect(candidateDraftCanApply(selectCandidateVariant(draft, 'unknown-status'))).toBe(false)
   })
 
   it('does not turn display-only craftedStatOptions into a resolver selection', () => {
@@ -57,7 +75,13 @@ describe('gear detail editor model', () => {
     const selection = { ...emptyEnhancementSelection(), gemOptionIds: ['gem-a', 'gem-old'] }
 
     expect(setGemAtSocket(selection, 1, 'gem-b').gemOptionIds).toEqual(['gem-a', 'gem-b'])
-    expect(setGemAtSocket(selection, 1, '').gemOptionIds).toEqual(['gem-a'])
+    expect(setGemAtSocket(selection, 1, '').gemOptionIds).toEqual(['gem-a', ''])
+  })
+
+  it('preserves later socket positions when an earlier gem is removed', () => {
+    const selection = { ...emptyEnhancementSelection(), gemOptionIds: ['gem-a', 'gem-b'] }
+
+    expect(setGemAtSocket(selection, 0, '').gemOptionIds).toEqual(['', 'gem-b'])
   })
 
   it('changes enchantment or 美化 without affecting socket gems', () => {

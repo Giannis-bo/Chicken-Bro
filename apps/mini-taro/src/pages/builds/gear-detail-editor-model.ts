@@ -3,6 +3,7 @@ import type { GearEnhancementSelection, GearItemReference } from '@wow-mini/doma
 export interface GearCandidateVariantView {
   readonly key: string
   readonly label: string
+  readonly difficultyLabel: string
   readonly ilevel: number | null
   readonly state: 'ready' | 'partial' | 'blocked'
   readonly blockers: readonly string[]
@@ -32,9 +33,19 @@ function text(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
 }
 
-function finiteLevel(value: unknown): number | null {
-  const parsed = typeof value === 'number' ? value : Number.parseFloat(text(value))
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null
+function firstText(...values: readonly unknown[]): string {
+  return values.map(text).find(Boolean) ?? ''
+}
+
+function finiteLevel(...values: readonly unknown[]): number | null {
+  for (const value of values) {
+    if (typeof value === 'number' && Number.isFinite(value) && value > 0) return value
+    const raw = text(value)
+    if (!/^(?:\d+|\d+\.\d+)$/u.test(raw)) continue
+    const parsed = Number(raw)
+    if (Number.isFinite(parsed) && parsed > 0) return parsed
+  }
+  return null
 }
 
 function strings(value: unknown): readonly string[] {
@@ -42,10 +53,10 @@ function strings(value: unknown): readonly string[] {
 }
 
 function variantState(value: RecordValue, blockers: readonly string[]): GearCandidateVariantView['state'] {
-  const status = text(value['state'] ?? value['status']).toLowerCase()
+  const status = firstText(value['state'], value['status']).toLowerCase()
   if (status === 'blocked' || blockers.length) return 'blocked'
   if (status === 'ready' || status === 'verified') return 'ready'
-  return 'partial'
+  return 'blocked'
 }
 
 function candidateVariants(candidate: GearItemReference): readonly GearCandidateVariantView[] {
@@ -54,14 +65,16 @@ function candidateVariants(candidate: GearItemReference): readonly GearCandidate
   return variants.flatMap((value) => {
     const item = record(value)
     if (!item) return []
-    const key = text(item['key'] ?? item['variantKey'])
+    const key = firstText(item['key'], item['variantKey'])
     if (!key || key === 'needs-variant' || seen.has(key)) return []
     seen.add(key)
     const blockers = strings(item['blockers'])
+    const difficultyLabel = firstText(item['difficultyLabel'], item['trackLabel'], item['displayLabel'], item['label'], item['name'])
     return [{
       key,
-      label: text(item['difficultyLabel'] ?? item['displayLabel'] ?? item['label'] ?? item['name']) || key,
-      ilevel: finiteLevel(item['itemLevel'] ?? item['ilevel']),
+      label: difficultyLabel || key,
+      difficultyLabel: difficultyLabel || key,
+      ilevel: finiteLevel(item['itemLevel'], item['ilevel']),
       state: variantState(item, blockers),
       blockers,
     }]
@@ -95,11 +108,11 @@ export function selectCandidateVariant(draft: GearCandidateDraft, variantKey: st
 }
 
 export function candidateDraftCanApply(draft: GearCandidateDraft): boolean {
-  return Boolean(draft.selectedVariantKey && draft.variants.some((item) => item.key === draft.selectedVariantKey && item.state !== 'blocked'))
+  return Boolean(draft.selectedVariantKey && draft.variants.some((item) => item.key === draft.selectedVariantKey && item.state === 'ready'))
 }
 
 export function materializeCandidateDraft(draft: GearCandidateDraft): GearItemReference | null {
-  const variant = draft.variants.find((item) => item.key === draft.selectedVariantKey && item.state !== 'blocked')
+  const variant = draft.variants.find((item) => item.key === draft.selectedVariantKey && item.state === 'ready')
   if (!variant) return null
   const candidate = draft.candidate
   return {
@@ -117,6 +130,7 @@ export function materializeCandidateDraft(draft: GearCandidateDraft): GearItemRe
     ...(text(candidate.metadataStatus) ? { metadataStatus: text(candidate.metadataStatus) } : {}),
     ...(text(candidate.compatibility) ? { compatibility: text(candidate.compatibility) } : {}),
     variantKey: variant.key,
+    difficultyLabel: variant.difficultyLabel,
     ...(variant.ilevel !== null ? { ilevel: variant.ilevel, itemLevel: variant.ilevel } : {}),
     ...(Array.isArray(candidate.socketOptions) ? { socketOptions: candidate.socketOptions } : {}),
     ...(Array.isArray(candidate.enchantOptions) ? { enchantOptions: candidate.enchantOptions } : {}),
@@ -139,7 +153,7 @@ export function setGemAtSocket(selection: GearEnhancementSelection, socketIndex:
   const gems = [...selection.gemOptionIds]
   const nextGemId = text(gemOptionId)
   if (!nextGemId) {
-    if (socketIndex < gems.length) gems.splice(socketIndex, 1)
+    if (socketIndex < gems.length) gems[socketIndex] = ''
   } else if (socketIndex <= gems.length) {
     gems[socketIndex] = nextGemId
   }
