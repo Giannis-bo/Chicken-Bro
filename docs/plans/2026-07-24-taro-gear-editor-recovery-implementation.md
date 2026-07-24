@@ -212,10 +212,9 @@ expect(editorComponentSource).toContain('data-role="gear-candidate-variant"')
 expect(editorComponentSource).toContain('data-action-id="gear-candidate-apply"')
 expect(editorComponentSource).toContain('data-role="gear-enhancement-socket"')
 expect(editorComponentSource).toContain('data-action-id="gear-enhancement-confirm"')
-expect(pageSource).not.toContain('await resolveSelection(nextEquipped, nextEnhancements)')
 ```
 
-最后一条要改为断言候选 click 只更新 draft，而 `onApply` / `onConfirm` 才调用 `resolveSelection`。运行：
+本任务只验证新组件的 source-owned controls 与工作台内滚动结构；候选 click 只更新 draft、而 `onApply` / `onConfirm` 才调用 `resolveSelection` 的页面断言留到 Task 4。运行：
 
 ```bash
 npx vitest run apps/mini-taro/src/pages/builds/gear-detail-page-contract.test.ts
