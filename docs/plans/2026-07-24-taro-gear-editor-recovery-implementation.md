@@ -12,10 +12,14 @@
 
 - 只修改活动 owner `apps/mini-taro`、其 design-system 编辑表面、当前 UI 合同与本任务 release packet；`pages/builds/detail.js` 仅作语义参考，不能成为实现 owner。
 - 初始编辑状态只读 `equippedSet`；`compact` catalog、候选数量和 item `simcReady` 不能被当作已装备、合法或就绪事实。
-- 页面不得推断等级轨道、socket 数、唯一宝石、美化上限、来源质量或最终属性；只消费 `mode=slot` 返回的候选、`variants` 和 option fields。
-- 每次候选/强化确认均调用 canonical `gearResolve`；只有 `status=resolved` 且 snapshot `verified` 才能提交本地已确认状态。
+- 小程序 transport 对 `/api/websim/gear` 始终消费 compact payload；不得用
+  `compact:false` 假设可取得 item-level 完整详情。slot hydration 必须从真实
+  `replacementCandidates[]` group 读取三类 option arrays 并安全投影到 exact
+  items；没有 group 时 fail closed。
+- 页面不得推断等级轨道、socket 数、唯一宝石、美化上限、来源质量或最终属性；只消费 `mode=slot` 返回的候选、`variants` 和具有 canonical `id/optionKey` 的 option fields。
+- 每次候选/强化确认均调用 canonical `gearResolve`；只有 `status=resolved`、snapshot `verified`、`resolvedSlots` identity 完整匹配且 domain snapshot helper 可物化确认强化时才能提交本地已确认状态。
 - `gemOptionIds` 遵循现有 Resolver packed-order contract：前端草稿、intent 与已确认强化都不得保存空位；`socketCount` 单独作为显示容量，移除前位时后续宝石前移。
-- 当前 `craftedStatOptions` 没有 Resolver 可校验的 ID，必须只读展示，不能映射为 `craftedOptionId` 或自造 `variantKey`。若此约束必须改变，停止本计划并按 Strict 开立后端 contract 任务。
+- compact `craftedStatOptions` 位于 `variants[]`，`simcOptions` 为对象且没有 Resolver 可校验的 ID；只能跟随当前所选 variant 做安全只读展示，不能映射为 `craftedOptionId` 或自造 `variantKey`。若此约束必须改变，停止本计划并按 Strict 开立后端 contract 任务。
 - 外层页面继续锁定滚动；候选、详情和强化的滚动只能落在 `equipment_slots_panel` 内。
 - 保留用户已有的 `apps/mini-taro/project.config.json` 本地修改，不得 stage、格式化或覆盖。
 
@@ -25,16 +29,16 @@
 
 | 文件 | 责任 |
 | --- | --- |
-| `apps/mini-taro/src/pages/builds/gear-detail-editor-model.ts` | 安全解析候选轨道、共享 eligibility、候选草稿/应用投影、packed-order 宝石和单值增强草稿变更；不发请求。 |
+| `apps/mini-taro/src/pages/builds/gear-detail-editor-model.ts` | 安全解析候选轨道与 variant-scoped display-only 制造属性、共享 eligibility、候选草稿/应用投影、packed-order 宝石和单值增强草稿变更；不发请求。 |
 | `apps/mini-taro/src/pages/builds/gear-detail-editor-model.test.ts` | 轨道、候选确认、强化草稿和失败不提交的纯函数回归。 |
-| `apps/mini-taro/src/pages/builds/gear-detail-editor-commit-model.ts` | Resolve 成功、失败、409 与 stale completion 对已确认装备/强化和编辑草稿的纯状态转换。 |
-| `apps/mini-taro/src/pages/builds/gear-detail-editor-commit-model.test.ts` | 草稿不提前提交、verified intent 目标槽位提交、跨槽保留、失败/409/stale 不污染已确认状态的行为回归。 |
+| `apps/mini-taro/src/pages/builds/gear-detail-editor-commit-model.ts` | 从 verified `resolvedSlots` 校验最终 identity、调用 domain snapshot helper 物化 confirmed enhancements，并处理失败、409 与 stale completion。 |
+| `apps/mini-taro/src/pages/builds/gear-detail-editor-commit-model.test.ts` | 草稿不提前提交、missing/mismatch/partial snapshot fail closed、resolved item/variant/selectedOptions 提交、失败/409/stale 不污染已确认状态的行为回归。 |
 | `packages/design-system/src/components/GearEditorSheets.tsx` | 候选详情/轨道与强化编辑的 Taro 操作表面、独立 socket 容量和 source-owned selector。 |
 | `packages/design-system/src/components/GearEditorSheets.test.ts` | 独立 socket 容量、顺序选择约束和无轨道候选文案的纯行为回归。 |
 | `packages/design-system/src/components/GearEditorSheets.module.scss` | 编辑面板仅在工作台内部覆盖和滚动的视觉规则。 |
 | `apps/mini-taro/src/pages/builds/detail.tsx` | 草稿生命周期、slot hydration、fence、Resolve 成功提交和错误反馈。 |
-| `apps/mini-taro/src/pages/builds/gear-detail-model.ts` | 完整多 socket 已选态投影，玩家文案“美化”。 |
-| `apps/mini-taro/src/pages/builds/gear-detail-model.test.ts` | 多 socket 选择态与“美化”摘要的显示合同。 |
+| `apps/mini-taro/src/pages/builds/gear-detail-model.ts` | compact slot group hydration、canonical enhancement option 过滤、完整多 socket 已选态投影和玩家文案“美化”。 |
+| `apps/mini-taro/src/pages/builds/gear-detail-model.test.ts` | 真实 compact group fixture、unsafe option blocker、多 socket 选择态与“美化”摘要的显示合同。 |
 | `apps/mini-taro/src/pages/builds/gear-detail-page-contract.test.ts` | 活动 owner、显式 apply/confirm、编辑面板与无 legacy 回流的结构合同。 |
 | `docs/design/current-ui/{core-interaction-contract,selected-control-contract}.json` | 装备页真实微信核心交互和多 socket selected boundary。 |
 | `docs/design/current-ui/routes/gear-detail/{truth-adaptation,component-contract}.json` | 编辑草稿、Resolver owner 与 workbench 内滚动的当前事实。 |
@@ -132,7 +136,7 @@ Expected: exit `0`; requirement 的两个 item id 不重复且后续 evidence �
 
 **Interfaces:**
 
-- Consumes: `GearItemReference`、`GearEnhancementSelection` 和后端字段 `variants[]` / `craftedStatOptions[]`。
+- Consumes: `GearItemReference`、`GearEnhancementSelection` 和后端字段 `variants[].craftedStatOptions[]`（兼容 candidate 顶层旧展示字段）。
 - Produces: `gearCandidateEligibilityState`, `createCandidateDraft`, `selectCandidateVariant`, `candidateDraftCanApply`, `materializeCandidateDraft`, `packedEnhancementSelection`, `setGemAtSocket`, `setSingleEnhancement`, `emptyEnhancementSelection`。
 
 - [ ] **Step 1: 写失败的轨道/草稿测试**
@@ -180,7 +184,7 @@ export function candidateDraftCanApply(draft: GearCandidateDraft): boolean {
 }
 ```
 
-解析 `variants` 时只读取 array/object/string/number 的安全值，过滤 `needs-variant` 占位符，保留后端 `key|variantKey`、`difficultyLabel`、`itemLevel|ilevel`、状态和 blockers。`materializeCandidateDraft` 必须合并所选轨道的 item level、variant key、verified display fields 和 candidate 的 option arrays；不能把 `craftedStatOptions[].key`、`simcOptions` 或任意未知字段转换为 `craftedOptionId`。
+解析 `variants` 时只读取 array/object/string/number 的安全值，过滤 `needs-variant` 占位符，保留后端 `key|variantKey`、`difficultyLabel`、`itemLevel|ilevel`、状态和 blockers。选择轨道后只投影该 variant 的 `craftedStatOptions`；对象型 `simcOptions` 仅把安全标量格式化为稳定字符串。`materializeCandidateDraft` 必须合并所选轨道的 item level、variant key、verified display fields 和 candidate 的 option arrays；不能把 `craftedStatOptions[].key`、`simcOptions` 或任意未知字段转换为 `craftedOptionId`。
 
 `gear-detail-model.ts` 中将 `embellishment` 的用户标签改为 `美化`，并为 socket 摘要返回 packed `gemOptionIds` 的完整选中数量/标签，不再仅用第一个 gem 隐藏多插槽状态。候选 row 状态必须消费 editor draft 的同一 eligibility 函数，不能出现 row 非 blocked 但 Apply 永远不可用。
 
@@ -269,7 +273,10 @@ Expected: route owner 仍是 Taro / design-system，候选表面仍在 `equipmen
 
 **Interfaces:**
 
-- Consumes: Task 2 model、Task 3 sheets、`wowApi.websim.gear({ compact:false, mode:'slot', slot })`、`GearRequestFence`、`gearResolve`。
+- Consumes: Task 2 model、Task 3 sheets、真实 compact
+  `wowApi.websim.gear({ compact:true, mode:'slot', slot })` group、
+  `GearRequestFence`、`gearResolve` 和 domain
+  `gearEnhancementsFromResolvedSnapshot`。
 - Produces: 已确认 `equipped` / `enhancements` 与可取消 `candidateDraft` / `enhancementDraft`；Resolve 仅在 apply/confirm 生效。
 
 - [ ] **Step 1: 写失败的流程合同测试**
@@ -285,13 +292,13 @@ expect(pageSource).not.toMatch(/const chooseCandidate = async[\s\S]*?await resol
 
 增加断言：`chooseEnhancement` 不能直接 Resolve；409 通过 `route.load()` 丢弃两个草稿；关闭/重置/导入递增 candidate request identity 并清空两类草稿。
 
-写失败的纯行为测试并要求页面消费该 helper：未 Resolve、network/503 或 stale completion 时 candidate/enhancement draft 与已确认 `equipped` / `enhancements` 都保持；409 只清两个草稿并要求 reload；verified candidate completion 只替换目标 slot 并清空该 slot 强化；verified enhancement completion 只从 `snapshot.selectionIntent ?? intent` 的目标 slot 读取 packed enhancement 并保留其他 slot，缺少目标 slot 时 fail closed。无 `variants` 的后端合法候选仍产生 base materialization、显示“此候选无需选择等级轨道”并保留显式 Apply；只有 backend 表示需要轨道但未返回可选 variant 时才显示 warning。交互 verifier 只在返回 variants 时选择轨道。
+写失败的纯行为测试并要求页面消费该 helper：未 Resolve、network/503 或 stale completion 时 candidate/enhancement draft 与已确认 `equipped` / `enhancements` 都保持；409 只清两个草稿并要求 reload；verified candidate completion 必须从 `resolvedSlots` 校验目标 `itemId + variantKey`，并由 domain helper 从同一 snapshot 物化 confirmed enhancements；verified enhancement completion 同样只提交 `resolvedSlots[].selectedOptions`。missing/mismatch/partial snapshot 全部 fail closed。无 `variants` 的后端合法候选仍产生 base materialization、显示“此候选无需选择等级轨道”并保留显式 Apply；交互 verifier 只在返回 variants 时选择轨道。
 
-再为真实微信 smoke 写失败断言：每个 `gear-slot-row` 必须发布 `data-committed-item-id`，候选 row 发布 `data-candidate-item-id`，并且工作台发布 `data-gear-resolve-state`。`verify-ui-interactions.js` 的 `gear_detail` 分支在选候选/轨道后读取主手的 committed id，必须仍等于 apply 前值；点击 apply 后必须等待 `data-gear-resolve-state="verified"` 且 committed id 等于该候选 id。任何 Resolve 拒绝、409 或 stale completion 都不能把草稿 item id 发布为 committed id。
+再为真实微信 smoke 写失败断言：每个 `gear-slot-row` 必须发布 `data-committed-item-id`，候选详情发布 selected returned variant key，工作台发布 `data-gear-resolve-state`、resolved item/variant 和 committed variant markers。`verify-ui-interactions.js` 在 apply 前确认 item 未提交；点击 apply 后必须等待本次 resolving → verified，并要求 committed/resolved 的 itemId 与 selected candidate 相同、committed/resolved 的 variantKey 与真正点击的 returned variant 相同。
 
 - [ ] **Step 2: 用 slot hydration 生成编辑输入**
 
-将 `chooseSlot` 抽为“打开候选 sheet + 请求/缓存该 slot detail”；候选 request 返回后仅更新该 slot 的 editor data。打开强化条时，如果当前已装备物品没有完整 option arrays，先复用相同的 slot hydration，在响应中按 itemId 和已确认 variantKey 找精确候选；找不到时展示后端数据不足提示并禁用确认。
+将 `chooseSlot` 抽为“打开候选 sheet + 请求/缓存该 slot detail”；只有返回真实 slot group 才把 group-level `socketOptions/enchantOptions/embellishmentOptions`（未提供视为后端声明的空可选集）投影到每个 exact item 并缓存。打开强化条时复用相同 hydration，按 itemId 和已确认 variantKey 找精确候选；没有 group/exact item 或请求分组没有 canonical option identity 时展示 blocker 并禁用确认。
 
 ```ts
 const applyCandidateDraft = async () => {
@@ -308,11 +315,11 @@ const applyCandidateDraft = async () => {
 }
 ```
 
-候选 row、轨道和强化 option 只调用 `set*Draft`。`confirmEnhancementDraft` 以 packed 草稿执行一次 Resolve，成功后必须从 verified `snapshot.selectionIntent ?? intent` 的目标 slot 读取并提交强化，不能提交原始 draft。503/network 或缺失 verified slot 仅保留草稿和已确认 state；409 清草稿并 reload；stale completion 不更新任何 state。
+候选 row、轨道和强化 option 只调用 `set*Draft`。`confirmEnhancementDraft` 以 packed 草稿执行一次 Resolve，成功后必须由 domain helper 从 verified `snapshot.resolvedSlots` 读取并提交强化，不能提交原始 draft、请求 intent 或 `snapshot.selectionIntent`。503/network 或缺失 verified slot 仅保留草稿和已确认 state；409 清草稿并 reload；stale completion 不更新任何 state。
 
 `GearSlotWorkbench` 从已确认 `equipped` 接收并发布 `data-committed-item-id`，不得从 candidate draft 读取。页面把 canonical snapshot 的 verified / loading / error 状态映射为 `data-gear-resolve-state`；candidate sheet 关闭只能发生在 verified completion 后。更新微信交互执行器，按上一步的 stable markers 断言 draft 不提前提交、verified completion 后才提交，不能再只用“应用按钮消失”作为成功证据。
 
-`data-gear-resolve-state` 在加载期间必须为 `resolving`，不能复用旧 snapshot 的 `verified`；额外发布 current resolved slot item ID。交互执行器在 apply 前记录 committed ID 与 resolved slot ID，apply 后要求新 `verified` completion 的 resolved slot item ID 与 candidate item ID 一致、且 committed ID 同时变为该值。这样旧 verified snapshot 或乐观提交不能伪造本次成功。
+`data-gear-resolve-state` 在加载期间必须为 `resolving`，不能复用旧 snapshot 的 `verified`；额外发布只来自 `resolvedSlots` 的 current resolved item ID / variant key，以及当前 committed variant key。交互执行器按 selected returned variant 同时核验 resolved/committed item 和 variant，旧 verified snapshot、请求 intent 或乐观提交都不能伪造本次成功。
 
 - [ ] **Step 3: 回归页面、模型和类型测试**
 
@@ -382,7 +389,7 @@ Expected: format, architecture, type, unit and production WeChat build pass; man
 
 ## Plan Self-Review
 
-- Spec coverage: Task 2 覆盖候选轨道、共享 eligibility、packed-order 多 gem 与“美化”显示；Task 3 覆盖独立 socket 容量和当前 UI 内编辑控件；Task 4 覆盖 verified intent 提交、Resolver 成功/失败/409/fence；Task 1/5 覆盖合同、release、验证与人工验收。
+- Spec coverage: Task 2 覆盖 compact group hydration、候选轨道、variant-scoped 制造属性、canonical option filtering、packed-order 多 gem 与“美化”显示；Task 3 覆盖独立 socket 容量和当前 UI 内编辑控件；Task 4 覆盖 `resolvedSlots` identity/enhancement proof、Resolver 成功/失败/409/fence；Task 1/5 覆盖合同、release、验证与人工验收。
 - Intentional exclusion: 当前制造属性没有 canonical Resolver ID，因此不创建前端映射、不会把展示 `key` 写入 `craftedOptionId`；这保持 fail-closed，并避免隐性后端 scope expansion。
 - Type consistency: `GearCandidateDraft` 在 Task 2 定义，Task 3 只消费，Task 4 只在 `materializeCandidateDraft` 成功后调用 Resolve；增强草稿始终是 `GearEnhancementSelection`。
 - 占位标记扫描：未发现需要补充的占位步骤；每个代码任务都给出了接口、测试、命令和预期结果。

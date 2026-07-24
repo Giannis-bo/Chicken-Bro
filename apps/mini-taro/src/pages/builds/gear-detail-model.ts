@@ -11,7 +11,13 @@ import type {
   WebsimGearPayload,
 } from '@wow-mini/domain'
 
-import { gearCandidateEligibilityState } from './gear-detail-editor-model'
+import {
+  createCandidateDraft,
+  gearCandidateEligibilityState,
+  materializeCandidateDraft,
+  packedEnhancementSelection,
+  selectCandidateVariant,
+} from './gear-detail-editor-model'
 
 export type GearViewState = 'ready' | 'partial' | 'blocked' | 'empty' | 'loading' | 'stale' | 'error'
 
@@ -72,6 +78,95 @@ export interface GearEnhancementOptionView {
   label: string
   iconUrl?: string
   selected: boolean
+}
+
+export type GearReplacementCandidateGroup =
+  WebsimGearPayload['replacementCandidates'][number]
+
+function compactGroupOptions(
+  group: GearReplacementCandidateGroup,
+  key: 'socketOptions' | 'enchantOptions' | 'embellishmentOptions',
+): readonly GearEnhancementOption[] {
+  const value = (group as unknown as Readonly<Record<string, unknown>>)[key]
+  return Array.isArray(value)
+    ? value.filter((option): option is GearEnhancementOption => (
+        Boolean(option) && typeof option === 'object' && !Array.isArray(option)
+      ))
+    : []
+}
+
+export function hydrateCompactSlotGroup(
+  group: GearReplacementCandidateGroup | undefined,
+): readonly GearItemReference[] {
+  if (!group || !Array.isArray(group.items)) return []
+  const socketOptions = compactGroupOptions(group, 'socketOptions')
+  const enchantOptions = compactGroupOptions(group, 'enchantOptions')
+  const embellishmentOptions = compactGroupOptions(group, 'embellishmentOptions')
+  return group.items.map((item) => ({
+    ...item,
+    socketOptions,
+    enchantOptions,
+    embellishmentOptions,
+  }))
+}
+
+export interface HydratedEnhancementDraftInput {
+  readonly item: GearItemReference
+  readonly selection: GearEnhancementSelection
+}
+
+function exactHydratedItem(
+  items: readonly GearItemReference[],
+  committed: GearItemReference,
+): GearItemReference | undefined {
+  const committedItemId = gearItemId(committed)
+  const committedVariantKey = text(committed.variantKey)
+  for (const item of items) {
+    if (gearItemId(item) !== committedItemId) continue
+    if (!committedVariantKey) return item
+    const draft = createCandidateDraft('', item)
+    if (!draft.requiresVariantSelection) {
+      if (text(item.variantKey) === committedVariantKey) return item
+      continue
+    }
+    const exactVariant = materializeCandidateDraft(
+      selectCandidateVariant(draft, committedVariantKey),
+    )
+    if (exactVariant) return { ...item, ...exactVariant }
+  }
+  return undefined
+}
+
+export function gearEnhancementSocketCount(item: GearItemReference): number | null {
+  const capabilities = item.modCapabilities
+  if (!capabilities || typeof capabilities !== 'object' || Array.isArray(capabilities)) return null
+  if (capabilities['hasSocket'] === false) return 0
+  const count = capabilities['socketCount']
+  return Number.isInteger(count) && Number(count) > 0 ? Number(count) : null
+}
+
+export function prepareHydratedEnhancementDraft(
+  items: readonly GearItemReference[],
+  committed: GearItemReference,
+  confirmed: GearEnhancementSelection,
+): HydratedEnhancementDraftInput | null {
+  const item = exactHydratedItem(items, committed)
+  if (
+    !item
+    || !Array.isArray(item.socketOptions)
+    || !Array.isArray(item.enchantOptions)
+    || !Array.isArray(item.embellishmentOptions)
+  ) return null
+  const socketCount = gearEnhancementSocketCount(item)
+  if (socketCount === null) return null
+  const selection = packedEnhancementSelection(confirmed)
+  return {
+    item,
+    selection: {
+      ...selection,
+      gemOptionIds: selection.gemOptionIds.slice(0, socketCount),
+    },
+  }
 }
 
 const canonicalSlotDefinitions = [
@@ -406,8 +501,8 @@ const enhancementDefinitions = [
   { id: 'embellishment', label: '美化', key: 'embellishmentOptions' },
 ] as const
 
-function optionIdentity(option: GearEnhancementOption, index: number): string {
-  return text(option.id) || text(option.optionKey) || `option-${index}`
+function optionIdentity(option: GearEnhancementOption): string {
+  return text(option.id) || text(option.optionKey)
 }
 
 function optionLabel(option: GearEnhancementOption): string {
@@ -421,10 +516,11 @@ export function gearEnhancementOptions(
 ): readonly GearEnhancementOptionView[] {
   return enhancementDefinitions.flatMap((definition) => {
     const options = item?.[definition.key] ?? []
-    return options.map((option, index) => {
-      const id = optionIdentity(option, index)
+    return options.flatMap((option) => {
+      const id = optionIdentity(option)
+      if (!id) return []
       const iconUrl = text(option.iconUrl)
-      return {
+      return [{
         id,
         kind: definition.id,
         label: optionLabel(option),
@@ -432,7 +528,7 @@ export function gearEnhancementOptions(
         selected: definition.id === 'socket'
           ? selectedGearEnhancementIds(enhancements, slot, definition.id).includes(id)
           : selectedGearEnhancementId(enhancements, slot, definition.id) === id,
-      }
+      }]
     })
   })
 }
@@ -443,9 +539,9 @@ export function gearEnhancementGroups(
   slot: string,
 ): readonly GearEnhancementGroupView[] {
   return enhancementDefinitions.map((definition) => {
-    const options = item?.[definition.key] ?? []
+    const options = (item?.[definition.key] ?? []).filter((option) => Boolean(optionIdentity(option)))
     const selectedIds = selectedGearEnhancementIds(enhancements, slot, definition.id)
-    const selectedOptions = options.filter((option, index) => selectedIds.includes(optionIdentity(option, index)))
+    const selectedOptions = options.filter((option) => selectedIds.includes(optionIdentity(option)))
     return {
       id: definition.id,
       label: definition.label,

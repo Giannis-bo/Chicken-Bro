@@ -1,11 +1,11 @@
 import type {
   GearEnhancementSelection,
   GearItemReference,
-  GearSelectionIntent,
+  GearResolvedSnapshot,
 } from '@wow-mini/domain'
+import { gearEnhancementsFromResolvedSnapshot } from '@wow-mini/domain'
 
 import {
-  packedEnhancementSelection,
   type GearCandidateDraft,
 } from './gear-detail-editor-model'
 
@@ -34,6 +34,7 @@ export type GearEditorCommitEvent =
       readonly kind: 'candidate'
       readonly slot: string
       readonly item: GearItemReference
+      readonly snapshot?: GearResolvedSnapshot
     }
   | {
       readonly status: IncompleteCommitStatus
@@ -44,7 +45,7 @@ export type GearEditorCommitEvent =
       readonly status: 'resolved'
       readonly kind: 'enhancement'
       readonly slot: string
-      readonly resolvedIntent: GearSelectionIntent
+      readonly snapshot?: GearResolvedSnapshot
     }
   | { readonly status: 'conflict' }
 
@@ -54,26 +55,59 @@ export interface GearEditorCommitTransition {
   readonly reload: boolean
 }
 
-function withoutSlot<T>(
-  values: Readonly<Record<string, T>>,
-  slot: string,
-): Readonly<Record<string, T>> {
-  return Object.fromEntries(Object.entries(values).filter(([key]) => key !== slot))
+export interface ResolvedSlotIdentity {
+  readonly itemId: string
+  readonly variantKey: string
 }
 
-export function resolvedEnhancementSelection(
-  intent: GearSelectionIntent,
+function record(value: unknown): value is Readonly<Record<string, unknown>> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+}
+
+function identifier(value: unknown): string {
+  return typeof value === 'string' || typeof value === 'number'
+    ? String(value).trim()
+    : ''
+}
+
+export function resolvedSlotIdentity(
+  snapshot: GearResolvedSnapshot | undefined,
   slot: string,
-): GearEnhancementSelection | null {
-  const resolvedSlot = intent.slots[slot]
-  if (!resolvedSlot) return null
-  return packedEnhancementSelection({
-    gemOptionIds: resolvedSlot.gemOptionIds,
-    enchantOptionId: resolvedSlot.enchantOptionId,
-    embellishmentOptionId: resolvedSlot.embellishmentOptionId,
-    craftedOptionId: resolvedSlot.craftedOptionId,
-    catalystOptionId: resolvedSlot.catalystOptionId,
-  })
+): ResolvedSlotIdentity | null {
+  if (
+    snapshot?.contractRevision !== 'gear-resolved-snapshot-v1'
+    || snapshot.status !== 'verified'
+    || !identifier(snapshot.resolvedGearSignature)
+    || !record(snapshot.resolvedSlots)
+  ) return null
+  const resolved = snapshot.resolvedSlots[slot]
+  if (!record(resolved)) return null
+  const itemId = identifier(resolved['itemId'])
+  if (!itemId) return null
+  const selectedOptions = resolved['selectedOptions']
+  const fields = [
+    'gemOptionIds',
+    'enchantOptionId',
+    'embellishmentOptionId',
+    'craftedOptionId',
+    'catalystOptionId',
+  ] as const
+  if (
+    !record(selectedOptions)
+    || fields.some((field) => !Object.prototype.hasOwnProperty.call(selectedOptions, field))
+    || !Array.isArray(selectedOptions['gemOptionIds'])
+  ) return null
+  if (
+    selectedOptions['gemOptionIds'].some((value) => !identifier(value))
+    || fields.slice(1).some((field) => {
+      const value = selectedOptions[field]
+      return typeof value !== 'string' || identifier(value) !== value.trim()
+    })
+  ) return null
+  return {
+    itemId,
+    variantKey: identifier(resolved['variantKey']),
+  }
 }
 
 export function transitionGearEditorCommit(
@@ -95,23 +129,32 @@ export function transitionGearEditorCommit(
     return { state, committed: false, reload: false }
   }
   if (event.kind === 'candidate') {
+    const nextEquipped = { ...state.equipped, [event.slot]: event.item }
+    const resolvedEnhancements = gearEnhancementsFromResolvedSnapshot(
+      event.snapshot,
+      nextEquipped,
+    )
+    if (!resolvedEnhancements) return { state, committed: false, reload: false }
     return {
       state: {
         ...state,
-        equipped: { ...state.equipped, [event.slot]: event.item },
-        enhancements: withoutSlot(state.enhancements, event.slot),
+        equipped: nextEquipped,
+        enhancements: resolvedEnhancements,
         candidateDraft: null,
       },
       committed: true,
       reload: false,
     }
   }
-  const selection = resolvedEnhancementSelection(event.resolvedIntent, event.slot)
-  if (!selection) return { state, committed: false, reload: false }
+  const resolvedEnhancements = gearEnhancementsFromResolvedSnapshot(
+    event.snapshot,
+    state.equipped,
+  )
+  if (!resolvedEnhancements?.[event.slot]) return { state, committed: false, reload: false }
   return {
     state: {
       ...state,
-      enhancements: { ...state.enhancements, [event.slot]: selection },
+      enhancements: resolvedEnhancements,
       enhancementDraft: null,
     },
     committed: true,

@@ -23,7 +23,11 @@
 
 必须恢复当前 `gear_detail` 内部的候选详情面板和强化编辑面板：按槽位懒加载、候选详情、等级轨道选择、显式应用；逐 socket 宝石编辑、附魔/美化选择、限制提示、取消与原子确认。页面外层仍锁定滚动，编辑内容只在既有装备工作台区域滚动。
 
-当前接口的制造属性行仅返回展示用 `key/simcOptions`，没有可提交给 Resolver 的 canonical option ID；本任务不得猜测、改写或直传这些字段。因此制造属性仅可作为候选详情中的只读信息，不开放成可应用选择。若需要开放，必须先用后端契约将其绑定到可校验的 `variantKey` 或 `craftedOptionId`，并按 Strict 重新立项。
+当前 compact 接口把制造属性行放在 `variants[].craftedStatOptions`；其中
+`simcOptions` 是只读对象，仍没有可提交给 Resolver 的 canonical option
+ID。本任务只在玩家选中对应 variant 后安全投影这些展示值，不得猜测、改写或
+直传为 `craftedOptionId`。若需要开放选择，必须先用后端契约将其绑定到可校验
+的 `variantKey` 或 `craftedOptionId`，并按 Strict 重新立项。
 
 不修改 `server/`、PG、公开装备来源政策、Release/Manifest、SimC 或社区模板选举；不让前端判断合法性、插槽数、唯一宝石、美化上限、来源质量或最终属性；不迁移或扩张 `pages/builds/detail.js`；不新增候选筛选、推荐排序、物品目录或新的视觉 target。
 
@@ -33,8 +37,9 @@
 | --- | --- | --- |
 | `apps/mini-taro/src/pages/builds/detail.tsx` | 协调路由、草稿、`websim.gear(mode=slot)`、`gearResolve` 和成功后的提交 | 装备合法性与来源判断 |
 | `apps/mini-taro/src/pages/builds/gear-detail-editor-model.ts` | 候选/变体选择、packed-order 宝石序列替换或移除、附魔/美化切换、草稿差异的纯函数 | 请求和 React state |
+| `apps/mini-taro/src/pages/builds/gear-detail-editor-commit-model.ts` | 只以 verified `resolvedSlots` 校验最终 item/variant identity，并从 resolved snapshot 物化已确认强化 | 请求 intent 或本地草稿作为成功证据 |
 | `packages/design-system/src/components/GearEditorSheets.tsx` | 候选详情与强化编辑的 Taro 控件、选择态、加载态、阻断提示、应用/确认/取消 | API 与装备事实 |
-| `apps/mini-taro/src/pages/builds/gear-detail-model.ts` | 后端候选和增强选项的显示投影；完整保留多个 `gemOptionIds` | 缺失信息补全 |
+| `apps/mini-taro/src/pages/builds/gear-detail-model.ts` | 把真实 compact slot group 的三类 option arrays 安全投影到 exact items；过滤无 `id/optionKey` 的不可提交项；完整保留多个 `gemOptionIds` | 缺失 canonical identity 的补全 |
 | `apps/mini-taro/src/pages/builds/gear-request-fence.ts` | 防止旧槽位详情、Resolve、导入响应覆盖当前编辑上下文 | 业务事实 |
 
 现有 `GearDetailComponents.tsx` 继续拥有摘要、强化摘要条、槽位网格和底部动作；新编辑面板独立，避免继续放大共享组件文件。
@@ -42,17 +47,34 @@
 ## 行为和异常
 
 1. 初始页只从 `equippedSet` 读取当前可编辑装备；compact catalog 绝不升级为已装备或就绪事实。
-2. 打开槽位创建候选草稿并按需请求 `mode=slot`。加载中显示骨架；关闭、切专精、导入或重置后，旧响应不能回写。
-3. 选择候选或后端返回的等级轨道只更新草稿。没有可校验 ID 的制造属性只展示，不能变成草稿或启用“应用”；“应用”始终需玩家显式点击。
-4. 点击应用时，页面构造 identifier intent 并调用 `gearResolve`。只有 verified 且仍是当前请求时，才替换该部位；只清除变化部位的旧强化，其他部位保持。
-5. 打开强化时，先按需补齐已装备物品详情，再从已确认强化复制草稿。Resolver 的 `gemOptionIds` 是无空位的有序选择序列，后端 `socketCount` 独立决定可显示容量；宝石只能按顺序配置，移除前位后后续宝石自动前移，不能用空字符串伪造物理 socket。附魔和美化各保留一个选择；取消丢弃草稿。
-6. 点击确认时一次 Resolve。成功后只从 verified `snapshot.selectionIntent ?? intent` 的目标槽位提交强化；缺少该槽位时保留草稿并 fail closed。失败保留已确认强化与编辑面板，并显示后端 blocker。
+2. 打开槽位创建候选草稿并按需请求 compact `mode=slot`。小程序 transport
+   始终得到 compact payload；三类强化 options 位于
+   `replacementCandidates[]` group 层，页面必须先把该 group 安全投影到每个
+   exact item 再缓存。没有真实 group 时 fail closed。加载中显示骨架；关闭、
+   切专精、导入或重置后，旧响应不能回写。
+3. 选择候选或后端返回的等级轨道只更新草稿。制造属性只从当前所选 variant
+   的 `craftedStatOptions` 展示；对象型 `simcOptions` 只格式化安全标量，不能
+   变成 control、草稿或 `craftedOptionId`；“应用”始终需玩家显式点击。
+4. 点击应用时，页面构造 identifier intent 并调用 `gearResolve`。只有当前
+   verified snapshot 的 `resolvedSlots` 完整匹配目标 `itemId + variantKey`，
+   且 domain helper 可从同一 snapshot 物化全部 confirmed enhancements 时才
+   提交；任何 missing/mismatch/partial snapshot 都保留草稿并 fail closed。
+5. 打开强化时，从已缓存/新返回的 compact group 找到已装备 exact item，再从
+   已确认强化复制草稿。只有 `id` 或 `optionKey` 是可提交 identity；缺少二者
+   的 option 必须过滤，所请求分组没有有效 canonical option 时保持 blocker，
+   绝不能生成 `option-N`。Resolver 的 `gemOptionIds` 是无空位的有序选择序列，
+   后端 `socketCount` 独立决定可显示容量；宝石只能按顺序配置，移除前位后后续
+   宝石自动前移。附魔和美化各保留一个选择；取消丢弃草稿。
+6. 点击确认时一次 Resolve。成功后只使用 verified snapshot
+   `resolvedSlots[].selectedOptions`，并通过 domain helper 物化已确认强化；
+   请求前 intent、本地草稿、`snapshot.selectionIntent` 都不是提交证据。缺少
+   或不匹配目标槽位时保留草稿并 fail closed。
 7. 409 revision conflict 重新加载并丢弃草稿；网络或 503 保留已确认状态与草稿，不写入未验证值。
 
 ## 合同、测试与验收
 
 - 更新 `truth-adaptation.json`、`component-contract.json`、`core-interaction-contract.json` 和 `selected-control-contract.json`：候选应用与强化确认替代目前只验证职业切换的装备页核心交互；每个 socket 是独立选择边界，允许多个 socket 同时各有一个已选宝石。
-- 单元/组件测试覆盖：候选不能直接应用、轨道选择后才可应用、候选 row 与 Apply 共用 eligibility、同槽强化清除、跨槽强化保留、packed-order 多 socket 编辑、独立容量显示、verified intent 提交、取消丢弃草稿、限制阻断、Resolve 失败保留旧状态、409 重载和旧响应 fencing。
+- 单元/组件测试覆盖：真实 compact group options hydration、候选不能直接应用、轨道选择后才可应用、variant-scoped 制造属性只读展示、无 canonical option 过滤、packed-order 多 socket 编辑、`resolvedSlots` identity/enhancement proof、取消丢弃草稿、Resolve 失败保留旧状态、409 重载和旧响应 fencing。
 - 真实微信候选验证一件多轨道武器、一件无变体装备、一个多 socket 部位、一个附魔和一个美化；分别覆盖取消、失败提示和成功提交。
 
 ## Harness 边界

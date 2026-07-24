@@ -362,6 +362,8 @@ export interface GearSlotWorkbenchProps {
   editor?: ReactNode
   resolveState?: 'idle' | 'resolving' | 'verified' | 'error'
   resolvedSlotItemId?: string
+  resolvedSlotVariantKey?: string
+  committedSlotVariantKey?: string
   onSlot: (item: GearWorkbenchSlotItem) => void
   onCandidate: (item: GearWorkbenchCandidateItem) => void
   onClose: () => void
@@ -442,6 +444,8 @@ export function GearSlotWorkbench({
   editor,
   resolveState = 'idle',
   resolvedSlotItemId = '',
+  resolvedSlotVariantKey = '',
+  committedSlotVariantKey = '',
   onSlot,
   onCandidate,
   onClose,
@@ -461,8 +465,10 @@ export function GearSlotWorkbench({
   return (
     <View
       className={style('workbenchOwner')}
+      data-committed-slot-variant-key={committedSlotVariantKey}
       data-gear-resolve-state={resolveState}
       data-resolved-slot-item-id={resolvedSlotItemId}
+      data-resolved-slot-variant-key={resolvedSlotVariantKey}
       data-owner="gear-slot-workbench"
       data-region="equipment_slots_panel"
     >

@@ -60,7 +60,10 @@ test('the core interaction contract has one executable candidate apply flow per 
   assert.match(executor, /if \(variants\.length > 0\)/u)
   assert.match(executor, /data-committed-item-id/u)
   assert.match(executor, /data-candidate-item-id/u)
+  assert.match(executor, /data-candidate-draft-variant-key/u)
   assert.match(executor, /data-resolved-slot-item-id/u)
+  assert.match(executor, /data-resolved-slot-variant-key/u)
+  assert.match(executor, /data-committed-slot-variant-key/u)
   assert.match(executor, /gear-resolve-state-resolving/u)
   assert.match(executor, /gearApplyEvidenceMatches/u)
   assert.match(executor, /committed id changed before apply/u)
@@ -72,10 +75,15 @@ test('gear apply evidence rejects a stale verified snapshot and accepts this res
   const { gearApplyEvidenceMatches } = require('../scripts/gear-apply-evidence.js')
   const evidence = {
     candidateItemId: 'candidate-main-hand',
+    candidateVariantKey: 'candidate-myth-289',
     committedBefore: 'old-main-hand',
+    committedVariantBefore: 'old-hero-285',
     resolvedBefore: 'old-main-hand',
+    resolvedVariantBefore: 'old-hero-285',
     committedAfter: 'candidate-main-hand',
+    committedVariantAfter: 'candidate-myth-289',
     resolvedAfter: 'candidate-main-hand',
+    resolvedVariantAfter: 'candidate-myth-289',
     resolveState: 'verified',
   }
 
@@ -85,6 +93,11 @@ test('gear apply evidence rejects a stale verified snapshot and accepts this res
     ...evidence,
     sawResolving: true,
     resolvedAfter: 'old-main-hand',
+  }), false)
+  assert.equal(gearApplyEvidenceMatches({
+    ...evidence,
+    sawResolving: true,
+    resolvedVariantAfter: 'candidate-hero-285',
   }), false)
 })
 
@@ -96,11 +109,18 @@ test('the active page keeps draft item ids out of committed slot markers', () =>
 
   assert.match(page, /const applyCandidateDraft = async \(\)/u)
   assert.match(page, /transitionGearEditorCommit\(commitState[\s\S]*if \(!transition\.committed\) return[\s\S]*setEquipped\(transition\.state\.equipped\)/u)
+  assert.match(page, /hydrateCompactSlotGroup\(group\)/u)
+  assert.match(page, /snapshot: resolved\.snapshot/u)
+  assert.doesNotMatch(page, /resolved\.snapshot\.selectionIntent \?\? resolved\.intent/u)
   assert.match(commitModel, /if \(event\.status !== 'resolved'\)[\s\S]*return \{ state, committed: false, reload: false \}/u)
+  assert.match(commitModel, /gearEnhancementsFromResolvedSnapshot/u)
   assert.match(workbench, /data-committed-item-id=\{item\.itemId\}/u)
+  assert.match(workbench, /data-committed-slot-variant-key=\{committedSlotVariantKey\}/u)
   assert.match(workbench, /data-gear-resolve-state=\{resolveState\}/u)
   assert.match(workbench, /data-resolved-slot-item-id=\{resolvedSlotItemId\}/u)
+  assert.match(workbench, /data-resolved-slot-variant-key=\{resolvedSlotVariantKey\}/u)
   assert.match(editor, /data-candidate-item-id=\{item\.itemId\}/u)
+  assert.match(editor, /data-candidate-draft-variant-key/u)
 })
 
 test('selected-state partitioning validates independent gear enhancement selections', () => {

@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
 import type { GearItemReference, WebsimGearPayload } from '@wow-mini/domain'
+import * as gearDetailModel from './gear-detail-model'
 
 import {
   gearCandidates,
+  hydrateCompactSlotGroup,
+  prepareHydratedEnhancementDraft,
   gearEnhancementGroups,
+  gearEnhancementOptions,
   gearReadiness,
   gearSlots,
   templateGearItems,
@@ -57,6 +61,88 @@ function payload(): WebsimGearPayload {
 }
 
 describe('gear detail truth model', () => {
+  it('exposes a compact slot-group hydration boundary', () => {
+    expect(gearDetailModel).toHaveProperty('hydrateCompactSlotGroup')
+    expect(gearDetailModel).toHaveProperty('prepareHydratedEnhancementDraft')
+  })
+
+  it('hydrates exact compact items with group-level enhancement option sets', () => {
+    const group = {
+      slot: 'finger1',
+      label: '戒指 1',
+      items: [{
+        itemId: 'compact-ring',
+        variantKey: 'myth-289',
+        modCapabilities: { hasSocket: true, socketCount: 1, canEnchant: true },
+      }],
+      socketOptions: [{ id: 'gem-haste', label: '+147 急速' }],
+      enchantOptions: [{ optionKey: 'ring-enchant', label: '+90 急速' }],
+    } as WebsimGearPayload['replacementCandidates'][number] & {
+      socketOptions: NonNullable<GearItemReference['socketOptions']>
+      enchantOptions: NonNullable<GearItemReference['enchantOptions']>
+    }
+
+    const [item] = hydrateCompactSlotGroup(group)
+
+    expect(item).toMatchObject({
+      itemId: 'compact-ring',
+      variantKey: 'myth-289',
+      modCapabilities: { hasSocket: true, socketCount: 1, canEnchant: true },
+      socketOptions: [{ id: 'gem-haste' }],
+      enchantOptions: [{ optionKey: 'ring-enchant' }],
+      embellishmentOptions: [],
+    })
+    expect(gearEnhancementOptions(item, {}, 'finger1').map((option) => option.id)).toEqual([
+      'gem-haste',
+      'ring-enchant',
+    ])
+    expect(prepareHydratedEnhancementDraft(
+      hydrateCompactSlotGroup(group),
+      { itemId: 'compact-ring', variantKey: 'myth-289' },
+      {
+        gemOptionIds: ['gem-haste'],
+        enchantOptionId: 'ring-enchant',
+        embellishmentOptionId: '',
+        craftedOptionId: '',
+        catalystOptionId: '',
+      },
+    )).toEqual({
+      item,
+      selection: {
+        gemOptionIds: ['gem-haste'],
+        enchantOptionId: 'ring-enchant',
+        embellishmentOptionId: '',
+        craftedOptionId: '',
+        catalystOptionId: '',
+      },
+    })
+  })
+
+  it('filters enhancement options without a resolver-owned identity', () => {
+    const item: GearItemReference = {
+      itemId: 'unsafe-ring',
+      socketOptions: [
+        { label: '缺少 canonical id' },
+        { id: 'gem-safe', label: '+147 急速' },
+      ],
+      enchantOptions: [{ optionKey: 'enchant-safe', label: '+90 急速' }],
+      embellishmentOptions: [],
+    }
+
+    expect(gearEnhancementOptions(item, {}, 'finger1').map((option) => option.id)).toEqual([
+      'gem-safe',
+      'enchant-safe',
+    ])
+    expect(gearEnhancementGroups({
+      ...item,
+      socketOptions: [{ label: '仍然缺少 canonical id' }],
+      enchantOptions: [],
+    }, {}, 'finger1').find((group) => group.id === 'socket')).toMatchObject({
+      optionCount: 0,
+      state: 'blocked',
+    })
+  })
+
   it('ignores catalog-wide compact readiness when the editable equipped set is empty', () => {
     const readiness = gearReadiness({}, undefined, 'ready', payload().readiness)
     expect(readiness.selectedCount).toBe(0)

@@ -54,6 +54,27 @@ function strings(value: unknown): readonly string[] {
   return Array.isArray(value) ? value.map(text).filter(Boolean) : []
 }
 
+function displayStrings(value: unknown): readonly string[] {
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => {
+      if (typeof item === 'string') return text(item) ? [text(item)] : []
+      if (typeof item === 'number' && Number.isFinite(item)) return [String(item)]
+      if (typeof item === 'boolean') return [String(item)]
+      return []
+    })
+  }
+  const values = record(value)
+  if (!values) return []
+  return Object.entries(values)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .flatMap(([key, item]) => {
+      if (typeof item === 'string') return text(item) ? [`${key}=${text(item)}`] : []
+      if (typeof item === 'number' && Number.isFinite(item)) return [`${key}=${String(item)}`]
+      if (typeof item === 'boolean') return [`${key}=${String(item)}`]
+      return []
+    })
+}
+
 function identifier(value: unknown): string {
   if (typeof value !== 'string' && typeof value !== 'number') return ''
   return String(value).trim()
@@ -108,7 +129,7 @@ function candidateVariants(candidate: GearItemReference): readonly GearCandidate
   })
 }
 
-function craftedStatViews(candidate: GearItemReference): readonly GearCraftedStatView[] {
+function craftedStatViews(candidate: RecordValue): readonly GearCraftedStatView[] {
   const options = Array.isArray(candidate['craftedStatOptions']) ? candidate['craftedStatOptions'] : []
   return options.flatMap((value) => {
     const option = record(value)
@@ -116,8 +137,21 @@ function craftedStatViews(candidate: GearItemReference): readonly GearCraftedSta
     const key = text(option['key'])
     const label = text(option['displayLabel'] ?? option['label'] ?? option['name'])
     if (!key && !label) return []
-    return [{ key, label: label || key, simcOptions: strings(option['simcOptions']) }]
+    return [{ key, label: label || key, simcOptions: displayStrings(option['simcOptions']) }]
   })
+}
+
+function selectedVariantCraftedStatViews(
+  candidate: GearItemReference,
+  variantKey: string,
+): readonly GearCraftedStatView[] {
+  const variants = Array.isArray(candidate['variants']) ? candidate['variants'] : []
+  const variantRecords = variants.map(record).filter((variant): variant is RecordValue => Boolean(variant))
+  const selected = variantRecords
+    .find((variant) => variant && firstText(variant['key'], variant['variantKey']) === variantKey)
+  if (selected && Array.isArray(selected['craftedStatOptions'])) return craftedStatViews(selected)
+  if (variantRecords.some((variant) => Array.isArray(variant['craftedStatOptions']))) return []
+  return craftedStatViews(candidate)
 }
 
 export function createCandidateDraft(slot: string, candidate: GearItemReference): GearCandidateDraft {
@@ -134,7 +168,12 @@ export function createCandidateDraft(slot: string, candidate: GearItemReference)
 }
 
 export function selectCandidateVariant(draft: GearCandidateDraft, variantKey: string): GearCandidateDraft {
-  return { ...draft, selectedVariantKey: text(variantKey) }
+  const selectedVariantKey = text(variantKey)
+  return {
+    ...draft,
+    selectedVariantKey,
+    craftedStatOptions: selectedVariantCraftedStatViews(draft.candidate, selectedVariantKey),
+  }
 }
 
 export function candidateDraftCanApply(draft: GearCandidateDraft): boolean {

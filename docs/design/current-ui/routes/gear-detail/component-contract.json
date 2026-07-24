@@ -33,12 +33,12 @@
     {
       "owner": "GearSlotWorkbench",
       "regions": ["equipment_slots_panel"],
-      "responsibility": "two equal-width auto-fill equipment slot columns and internal candidate/detail interaction"
+      "responsibility": "two equal-width auto-fill equipment slot columns and internal candidate/detail interaction; publishes committed variant and resolvedSlots-only item/variant markers separately"
     },
     {
       "owner": "GearEditorSheets",
       "regions": ["equipment_slots_panel"],
-      "responsibility": "workbench-internal candidate detail and enhancement drafts: candidate click and returned variant selection update local draft only; explicit apply or confirm calls gearResolve and commits only the resulting verified snapshot; craftedStatOptions without a resolver-owned identifier are display only and expose no selectable action"
+      "responsibility": "workbench-internal candidate detail and enhancement drafts: candidate click and returned variant selection update local draft only; explicit apply or confirm calls gearResolve and commits only exact verified resolvedSlots identity plus selectedOptions; selected variant craftedStatOptions are safely display-only; enhancement options without backend id/optionKey are filtered and never receive a fabricated identity"
     },
     {
       "owner": "GearActionRow",

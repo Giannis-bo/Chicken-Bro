@@ -104,7 +104,11 @@ function CandidateDetails({
 
   const candidateBlockers = displayStrings(draft.candidate['blockers'])
   return (
-    <View className={style('candidateDetails')} data-role="gear-candidate-detail">
+    <View
+      className={style('candidateDetails')}
+      data-candidate-draft-variant-key={draft.selectedVariantKey || String(draft.candidate.variantKey ?? '').trim()}
+      data-role="gear-candidate-detail"
+    >
       <View className={style('detailHeading')}>
         <Text>{selectedCandidate.label}</Text>
         <Text>{selectedCandidate.levelLabel}</Text>

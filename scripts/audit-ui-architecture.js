@@ -2831,9 +2831,15 @@ record(
     && gearEnhancementConfirm.indexOf('await resolveSelection(equipped, nextEnhancements)') < gearEnhancementConfirm.indexOf('setEnhancements(transition.state.enhancements)')
     && gearEditorCommitModel.includes("if (event.status !== 'resolved')")
     && gearEditorCommitModel.includes('return { state, committed: false, reload: false }')
+    && gearEditorCommitModel.includes('gearEnhancementsFromResolvedSnapshot(')
+    && gearDetailPage.includes('hydrateCompactSlotGroup(group)')
+    && gearDetailPage.includes('snapshot: resolved.snapshot')
+    && !gearDetailPage.includes('resolved.snapshot.selectionIntent ?? resolved.intent')
     && gearDetailComponents.includes('data-committed-item-id={item.itemId}')
+    && gearDetailComponents.includes('data-committed-slot-variant-key={committedSlotVariantKey}')
     && gearDetailComponents.includes('data-gear-resolve-state={resolveState}')
     && gearDetailComponents.includes('data-resolved-slot-item-id={resolvedSlotItemId}')
+    && gearDetailComponents.includes('data-resolved-slot-variant-key={resolvedSlotVariantKey}')
     && gearEditorSheets.includes('data-candidate-item-id={item.itemId}'),
   'candidate and enhancement controls must remain draft-only until a verified canonical Resolve precedes committed UI updates',
 )

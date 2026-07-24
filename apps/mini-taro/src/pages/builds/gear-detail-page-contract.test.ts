@@ -150,7 +150,8 @@ describe('gear detail fixed workbench contract', () => {
     expect(pageSource).toMatch(/const confirmEnhancementDraft = async \(\)[\s\S]*?await resolveSelection\([\s\S]*?transitionGearEditorCommit\([\s\S]*?if \(!transition\.committed\) \{[\s\S]*?return[\s\S]*?setEnhancements\(transition\.state\.enhancements\)/u)
     expect(commitModelSource).toContain("if (event.status !== 'resolved')")
     expect(commitModelSource).toContain('return { state, committed: false, reload: false }')
-    expect(pageSource).toContain('resolved.snapshot.selectionIntent ?? resolved.intent')
+    expect(pageSource.match(/snapshot: resolved\.snapshot/gu)).toHaveLength(2)
+    expect(pageSource).not.toContain('resolved.snapshot.selectionIntent ?? resolved.intent')
     expect(pageSource).not.toContain('selection: draft.selection')
   })
 
@@ -174,19 +175,33 @@ describe('gear detail fixed workbench contract', () => {
     expect(componentSource).toContain('data-committed-item-id={item.itemId}')
     expect(componentSource).toContain('data-gear-resolve-state={resolveState}')
     expect(componentSource).toContain('data-resolved-slot-item-id={resolvedSlotItemId}')
+    expect(componentSource).toContain('data-resolved-slot-variant-key={resolvedSlotVariantKey}')
+    expect(componentSource).toContain('data-committed-slot-variant-key={committedSlotVariantKey}')
     expect(editorComponentSource).toContain('data-candidate-item-id={item.itemId}')
     expect(pageSource).toContain("? 'resolving' as const")
     expect(pageSource).toContain('resolvedSlotItemId={resolvedSlotItemId}')
+    expect(pageSource).toContain('resolvedSlotVariantKey={resolvedSlotVariantKey}')
+    expect(pageSource).toContain('committedSlotVariantKey={committedSlotVariantKey}')
+    expect(pageSource).toContain('resolvedSlotIdentity(canonical.snapshot, selectedSlot)')
+    expect(pageSource).not.toContain('canonical.snapshot.selectionIntent ?? canonical.intent')
     expect(pageSource).toContain('resolveState={gearResolveState}')
     expect(pageSource).toContain('editor={workbenchEditor}')
   })
 
+  it('hydrates slot editor items from compact group-level enhancement options', () => {
+    expect(pageSource).toContain('hydrateCompactSlotGroup(group)')
+    expect(pageSource).not.toContain('compact: false')
+    expect(pageSource).toMatch(/const hydrateSlot = async[\s\S]*?const group = result\.payload\.replacementCandidates\.find[\s\S]*?hydrateCompactSlotGroup\(group\)[\s\S]*?slotDetailCache\.current\.set\(slot, items\)/u)
+  })
+
   it('rehydrates the committed exact variant through the canonical editor model', () => {
-    const exactItemSource = pageSource.match(/function exactHydratedItem\([\s\S]*?\n\}/u)?.[0] ?? ''
+    const exactItemSource = modelSource.match(/function exactHydratedItem\([\s\S]*?\n\}/u)?.[0] ?? ''
     expect(exactItemSource).toContain("const draft = createCandidateDraft('', item)")
     expect(exactItemSource).toContain('selectCandidateVariant(draft, committedVariantKey)')
     expect(exactItemSource).toContain('materializeCandidateDraft')
     expect(exactItemSource).not.toContain("item['variants']")
+    expect(modelSource).toMatch(/export function prepareHydratedEnhancementDraft\([\s\S]*?exactHydratedItem\(items, committed\)[\s\S]*?packedEnhancementSelection\(confirmed\)/u)
+    expect(pageSource).toContain('prepareHydratedEnhancementDraft(hydrated.items, committedItem, confirmed)')
   })
 
   it('keeps crafted stats display-only and maps editor actions to draft callbacks', () => {

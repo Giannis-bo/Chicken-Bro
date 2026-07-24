@@ -125,6 +125,64 @@ describe('gear detail editor model', () => {
     expect(materializeCandidateDraft(draft)).not.toHaveProperty('craftedOptionId')
   })
 
+  it('projects display-only crafted stats from the selected compact variant', () => {
+    const compactCrafted: GearItemReference = {
+      itemId: 'compact-crafted',
+      variants: [{
+        key: 'crafted-myth-289',
+        difficultyLabel: '神话',
+        itemLevel: 289,
+        status: 'ready',
+        craftedStatOptions: [{
+          key: 'haste_mastery',
+          displayLabel: '急速 / 精通',
+          simcOptions: { crafted_stats: '32/49', ilevel: 289 },
+        }],
+      }],
+    }
+
+    const initial = createCandidateDraft('main_hand', compactCrafted)
+    const selected = selectCandidateVariant(initial, 'crafted-myth-289')
+
+    expect(initial.craftedStatOptions).toEqual([])
+    expect(selected.craftedStatOptions).toEqual([{
+      key: 'haste_mastery',
+      label: '急速 / 精通',
+      simcOptions: ['crafted_stats=32/49', 'ilevel=289'],
+    }])
+    expect(materializeCandidateDraft(selected)).not.toHaveProperty('craftedOptionId')
+  })
+
+  it('does not leak candidate-level crafted display into another compact variant', () => {
+    const candidate: GearItemReference = {
+      itemId: 'compact-crafted-multi',
+      craftedStatOptions: [{
+        key: 'legacy',
+        displayLabel: '旧候选展示',
+        simcOptions: ['legacy'],
+      }],
+      variants: [
+        {
+          key: 'crafted-hero',
+          status: 'ready',
+          craftedStatOptions: [{
+            key: 'hero-stats',
+            displayLabel: '英雄属性',
+            simcOptions: { crafted_stats: '32/49' },
+          }],
+        },
+        { key: 'crafted-myth', status: 'ready' },
+      ],
+    }
+
+    const selected = selectCandidateVariant(
+      createCandidateDraft('main_hand', candidate),
+      'crafted-myth',
+    )
+
+    expect(selected.craftedStatOptions).toEqual([])
+  })
+
   it('replaces a gem in place and keeps removals as a packed ordered sequence', () => {
     const selection = { ...emptyEnhancementSelection(), gemOptionIds: ['gem-a', 'gem-old'] }
 

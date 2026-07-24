@@ -71,6 +71,7 @@ import {
   type GearCandidateDraft,
 } from './gear-detail-editor-model'
 import {
+  resolvedSlotIdentity,
   transitionGearEditorCommit,
   type GearEditorCommitState,
   type GearEnhancementDraft,
@@ -80,9 +81,11 @@ import {
   gearCandidates,
   gearEnhancementGroups,
   gearEnhancementOptions,
-  gearItemId,
+  gearEnhancementSocketCount,
+  hydrateCompactSlotGroup,
   gearReadiness,
   gearSlots,
+  prepareHydratedEnhancementDraft,
 } from './gear-detail-model'
 import { GearRequestFence } from './gear-request-fence'
 import {
@@ -133,55 +136,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-function exactHydratedItem(
-  items: readonly GearItemReference[],
-  committed: GearItemReference,
-): GearItemReference | undefined {
-  const committedItemId = gearItemId(committed)
-  const committedVariantKey = String(committed.variantKey ?? '').trim()
-  for (const item of items) {
-    if (gearItemId(item) !== committedItemId) continue
-    if (!committedVariantKey) return item
-    const draft = createCandidateDraft('', item)
-    if (!draft.requiresVariantSelection) {
-      if (String(item.variantKey ?? '').trim() === committedVariantKey) return item
-      continue
-    }
-    const exactVariant = materializeCandidateDraft(
-      selectCandidateVariant(draft, committedVariantKey),
-    )
-    if (exactVariant) return { ...item, ...exactVariant }
-  }
-  return undefined
-}
-
-function completeEnhancementItem(item: GearItemReference): boolean {
-  return isRecord(item.modCapabilities)
-    && Array.isArray(item.socketOptions)
-    && Array.isArray(item.enchantOptions)
-    && Array.isArray(item.embellishmentOptions)
-}
-
-function backendSocketCount(item: GearItemReference): number | null {
-  if (!isRecord(item.modCapabilities)) return null
-  if (item.modCapabilities['hasSocket'] === false) return 0
-  const count = item.modCapabilities['socketCount']
-  return Number.isInteger(count) && Number(count) > 0 ? Number(count) : null
-}
-
-function selectionForHydratedItem(
-  confirmed: GearEnhancementSelection,
-  item: GearItemReference,
-): GearEnhancementSelection | null {
-  const socketCount = backendSocketCount(item)
-  if (socketCount === null) return null
-  const packed = packedEnhancementSelection(confirmed)
-  return {
-    ...packed,
-    gemOptionIds: packed.gemOptionIds.slice(0, socketCount),
-  }
-}
-
 function importedGearBySlot(value: unknown): Readonly<Record<string, GearItemReference>> | null {
   if (!isRecord(value)) return null
   const result: Record<string, GearItemReference> = {}
@@ -194,15 +148,6 @@ function importedGearBySlot(value: unknown): Readonly<Record<string, GearItemRef
 function envelopeMessage(problems: readonly Readonly<Record<string, unknown>>[], fallback: string): string {
   const first = problems[0]
   return String(first?.['title'] || first?.['detail'] || first?.['code'] || fallback)
-}
-
-function currentResolvedSlotItemId(
-  canonical: CanonicalGearState,
-  slot: string,
-): string {
-  if (!slot || canonical.snapshot?.status !== 'verified') return ''
-  const intent = canonical.snapshot.selectionIntent ?? canonical.intent
-  return String(intent?.slots[slot]?.itemId ?? '').trim()
 }
 
 export default function GearDetailPage() {
@@ -386,7 +331,7 @@ export default function GearDetailPage() {
       )
     : []
   const enhancementSocketCount = enhancementDraft?.item
-    ? backendSocketCount(enhancementDraft.item) ?? 0
+    ? gearEnhancementSocketCount(enhancementDraft.item) ?? 0
     : 0
   const selectedSlotLabel = slotViews.find((slot) => slot.slot === selectedSlot)?.label ?? ''
   const gearResolveState = canonical.loading
@@ -396,7 +341,10 @@ export default function GearDetailPage() {
       : canonical.snapshot?.status === 'verified'
         ? 'verified' as const
         : 'idle' as const
-  const resolvedSlotItemId = currentResolvedSlotItemId(canonical, selectedSlot)
+  const resolvedIdentity = resolvedSlotIdentity(canonical.snapshot, selectedSlot)
+  const resolvedSlotItemId = resolvedIdentity?.itemId ?? ''
+  const resolvedSlotVariantKey = resolvedIdentity?.variantKey ?? ''
+  const committedSlotVariantKey = String(equipped[selectedSlot]?.variantKey ?? '').trim()
   const statsReady = Boolean(
     canonical.snapshot?.status === 'verified'
     && canonical.intent
@@ -553,7 +501,7 @@ export default function GearDetailPage() {
       const result = await wowApi.websim.gear({
         classKey: data.selection.classKey,
         specKey: data.selection.specKey,
-        compact: false,
+        compact: true,
         mode: 'slot',
         slot,
       })
@@ -562,7 +510,12 @@ export default function GearDetailPage() {
         setWorkbenchNotice(result.error || '槽位详情服务不可用，未使用精简目录')
         return { status: 'failed' }
       }
-      const items = result.payload.replacementCandidates.find((item) => item.slot === slot)?.items ?? []
+      const group = result.payload.replacementCandidates.find((item) => item.slot === slot)
+      if (!group) {
+        setWorkbenchNotice('后端未返回当前槽位候选组')
+        return { status: 'failed' }
+      }
+      const items = hydrateCompactSlotGroup(group)
       slotDetailCache.current.set(slot, items)
       if (publishCandidates) setCandidates(items)
       return { status: 'current', items }
@@ -636,11 +589,13 @@ export default function GearDetailPage() {
     )
     const resolved = await resolveSelection(nextEquipped, nextEnhancements)
     if (resolved.status === 'conflict') return
+    if (resolved.status !== 'resolved') return
     const transition = transitionGearEditorCommit(commitState, {
-      status: resolved.status,
+      status: 'resolved',
       kind: 'candidate',
       slot: draft.slot,
       item,
+      snapshot: resolved.snapshot,
     })
     if (!transition.committed) return
     setEquipped(transition.state.equipped)
@@ -681,7 +636,7 @@ export default function GearDetailPage() {
       status: 'resolved',
       kind: 'enhancement',
       slot: draft.slot,
-      resolvedIntent: resolved.snapshot.selectionIntent ?? resolved.intent,
+      snapshot: resolved.snapshot,
     })
     if (!transition.committed) {
       setWorkbenchNotice('后端校验结果缺少当前槽位强化，草稿已保留')
@@ -745,22 +700,15 @@ export default function GearDetailPage() {
       }
       return
     }
-    const exact = exactHydratedItem(hydrated.items, committedItem)
-    if (!exact || !completeEnhancementItem(exact)) {
+    const prepared = prepareHydratedEnhancementDraft(hydrated.items, committedItem, confirmed)
+    if (!prepared) {
       setEnhancementDraft((current) => current && current.slot === target.slot
         ? { ...current, blockers: ['未找到已确认物品的完整后端详情'] }
         : current)
       setEnhancementLoading(false)
       return
     }
-    const selection = selectionForHydratedItem(confirmed, exact)
-    if (!selection) {
-      setEnhancementDraft((current) => current && current.slot === target.slot
-        ? { ...current, item: exact, blockers: ['后端未提供可校验的插槽能力'] }
-        : current)
-      setEnhancementLoading(false)
-      return
-    }
+    const { item: exact, selection } = prepared
     const options = gearEnhancementOptions(exact, { [target.slot]: selection }, target.slot)
     const blockers = options.some((option) => option.kind === item.id)
       ? []
@@ -1032,7 +980,9 @@ export default function GearDetailPage() {
                 editor={workbenchEditor}
                 enhancements={enhancementOptions}
                 notice={workbenchNotice}
+                committedSlotVariantKey={committedSlotVariantKey}
                 resolvedSlotItemId={resolvedSlotItemId}
+                resolvedSlotVariantKey={resolvedSlotVariantKey}
                 resolveState={gearResolveState}
                 selectedSlot={selectedSlot}
                 selectedSlotLabel={selectedSlotLabel}
