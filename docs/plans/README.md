@@ -12,5 +12,6 @@
 | Taro 装备候选与强化编辑恢复 | 正在推进 | [设计](2026-07-24-taro-gear-editor-recovery-design.md) · [实施计划](2026-07-24-taro-gear-editor-recovery-implementation.md) |
 | Observed Build Registry 与 80 槽 TemplateSet 重构 | 正在推进 | [设计](2026-07-23-observed-build-registry-design.md) · [核心切片实施计划](2026-07-23-observed-build-registry-core-implementation.md) · [共享玩家切换计划](2026-07-23-observed-build-registry-cutover-implementation.md) |
 | builds_home 职业命令卡组 | 正在推进 | [builds-home-command-deck.md](builds-home-command-deck.md) |
+| 炸鸡队长统一 ChatBot 与受控分析工具 | 下一步 | [2026-07-24-chickenbro-chatbot-design.md](2026-07-24-chickenbro-chatbot-design.md) |
 
 新的多步骤计划必须先在本页登记。计划完成或被替代后，从本页移除并删除文件；稳定结论进入 architecture、runbook、roadmap 或想法池。
