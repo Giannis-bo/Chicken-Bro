@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-24T03:39:08.728Z",
+  "generatedAt": "2026-07-24T04:10:08.406Z",
   "release": {
     "date": "2026-07-24",
     "slug": "runtime-media-community-import-display"
@@ -111,7 +111,7 @@
         {
           "path": "server/postgres_cache_store.py",
           "exists": true,
-          "lineCount": 8024,
+          "lineCount": 8160,
           "hotspot": true
         }
       ],
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-24-runtime-media-community-import-display/evidence.json",
-    "sizeBytes": 3017,
+    "sizeBytes": 6842,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -390,9 +390,9 @@
       "summary"
     ],
     "missingFields": [],
-    "declaredStatus": "implementation_allowed",
-    "highestEvidenceLevel": "implementation_allowed",
-    "summary": "Implementation and targeted local regression are complete. Candidate runtime, package evidence and explicit real-WeChat acceptance remain pending."
+    "declaredStatus": "runtime_verified",
+    "highestEvidenceLevel": "runtime_verified",
+    "summary": "The exact candidate runtime is verified: the in-app equipment import sheet is compiled with the candidate endpoint, real community import returns a complete trusted 15-slot display payload, and the immutable media root is package-gated. Explicit real-WeChat acceptance and merge closure remain pending."
   },
   "evidence": {
     "localTests": {
@@ -417,13 +417,13 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "12 changed files currently visible to git status."
+      "detail": "1 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
       "severity": "medium",
       "status": "watch",
-      "detail": "server/websim_payload.py:27120, server/news_backend.py:13673, server/postgres_cache_store.py:8024"
+      "detail": "server/websim_payload.py:27120, server/news_backend.py:13673, server/postgres_cache_store.py:8160"
     },
     {
       "id": "localTests_missing",
@@ -453,20 +453,9 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 12,
+      "changedFileCount": 1,
       "changedFiles": [
-        " M apps/mini-taro/src/pages/builds/detail.tsx",
-        " M apps/mini-taro/src/pages/builds/gear-detail-page-contract.test.ts",
-        " M apps/mini-taro/src/pages/builds/gear-template-import-model.test.ts",
-        " M apps/mini-taro/src/pages/builds/gear-template-import-model.ts",
-        " M docs/cdn-asset-publishing.md",
-        " M docs/project-state.json",
-        " M packages/design-system/src/components/TalentSimulatorComponents.tsx",
-        " M packages/design-system/src/index.ts",
-        " M scripts/verify-ui-package.js",
-        " M server/deploy_lighthouse.sh",
-        " M tests/project-state.test.js",
-        "?? artifacts/releases/2026-07-24-runtime-media-community-import-display/"
+        " M artifacts/releases/2026-07-24-runtime-media-community-import-display/evidence.json"
       ]
     }
   },
