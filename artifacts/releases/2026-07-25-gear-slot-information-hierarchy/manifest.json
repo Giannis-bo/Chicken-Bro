@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-25T11:23:16.611Z",
+  "generatedAt": "2026-07-25T11:29:21.538Z",
   "release": {
     "date": "2026-07-25",
     "slug": "gear-slot-information-hierarchy"
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-25-gear-slot-information-hierarchy/evidence.json",
-    "sizeBytes": 8193,
+    "sizeBytes": 9101,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -392,7 +392,7 @@
     "missingFields": [],
     "declaredStatus": "runtime_verified",
     "highestEvidenceLevel": "runtime_verified",
-    "summary": "The exact c5ec24a candidate is deployed with Resolver file parity, public import smoke and user-accepted WeChat presentation. Evidence remains runtime_verified rather than live_verified because the final exact-head full verification is blocked by an existing unrelated @babel/core declaration gap; merging is therefore not yet permitted."
+    "summary": "The exact c5ec24a candidate is deployed with Resolver file parity, public import smoke and user-accepted WeChat presentation. Evidence remains runtime_verified rather than live_verified because the final exact-head full verification is blocked by existing unrelated @babel/core declaration and talent-simulator visual-contract failures; merging is therefore not yet permitted."
   },
   "evidence": {
     "localTests": {
@@ -455,7 +455,7 @@
       "status": "dirty",
       "changedFileCount": 1,
       "changedFiles": [
-        "?? artifacts/releases/2026-07-25-gear-slot-information-hierarchy/evidence.json"
+        " M artifacts/releases/2026-07-25-gear-slot-information-hierarchy/evidence.json"
       ]
     }
   },

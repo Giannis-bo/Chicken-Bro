@@ -88,6 +88,11 @@
       "summary": "Existing unrelated TS7016 prevents the full typecheck: apps/mini-taro/src/config/babel-data-selector-markers.test.ts lacks a declaration for @babel/core. No dependency installation or unrelated declaration change was authorized."
     },
     {
+      "command": "node scripts/verify-project.js --profile full --release artifacts/releases/2026-07-25-gear-slot-information-hierarchy --base origin/main",
+      "status": "fail",
+      "summary": "The exact-head full profile was rerun with the project Node runtime and failed in the unchanged apps/mini-taro/src/pages/builds/talent-simulator-visual-contract.test.ts assertion for graphScale. This predates and is outside the gear-slot diff, but it blocks the required full gate."
+    },
+    {
       "command": "git diff --check && local CR",
       "status": "pass",
       "summary": "No whitespace defects. Whole-branch review found the Resolver remains the sole owner of the pre-enhancement versus final-stat boundary; the frontend only consumes an exact identity-bound verified snapshot."
@@ -145,6 +150,11 @@
       "detail": "The required exact-head full verification cannot be promoted until the pre-existing @babel/core type declaration gap is resolved under separately authorized scope."
     },
     {
+      "id": "full_profile_blocked_by_unchanged_talent_visual_contract",
+      "status": "open_blocker",
+      "detail": "The final full profile fails the unchanged talent-simulator graphScale visual-contract assertion; the exact test was reproduced independently and neither that test nor TalentSimulatorComponents.tsx differs from origin/main in this branch."
+    },
+    {
       "id": "predeploy_remote_file_backup_missing",
       "status": "open_operational_limitation",
       "detail": "The first backup command failed before creating an exact copy of the pre-deploy remote resolver file. The deployed candidate is healthy, but an exact remote-file rollback artifact is unavailable."
@@ -171,5 +181,5 @@
     "docs/design/current-ui/routes/gear-detail/truth-adaptation.json",
     "docs/design/current-ui/routes/gear-detail/component-contract.json"
   ],
-  "summary": "The exact c5ec24a candidate is deployed with Resolver file parity, public import smoke and user-accepted WeChat presentation. Evidence remains runtime_verified rather than live_verified because the final exact-head full verification is blocked by an existing unrelated @babel/core declaration gap; merging is therefore not yet permitted."
+  "summary": "The exact c5ec24a candidate is deployed with Resolver file parity, public import smoke and user-accepted WeChat presentation. Evidence remains runtime_verified rather than live_verified because the final exact-head full verification is blocked by existing unrelated @babel/core declaration and talent-simulator visual-contract failures; merging is therefore not yet permitted."
 }
