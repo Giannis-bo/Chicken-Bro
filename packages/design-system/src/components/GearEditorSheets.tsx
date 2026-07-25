@@ -1,8 +1,12 @@
-import { ScrollView, Text, View } from '@tarojs/components'
+import { Image, ScrollView, Text, View } from '@tarojs/components'
 
 import type { GearEnhancementSelection, GearItemReference } from '@wow-mini/domain'
+import type { ProductionAssetId } from '@wow-mini/assets-manifest'
 
+import { resolveRuntimeMediaUrl } from '../runtime-media'
 import { ControlButton } from './ControlButton'
+import { SystemGlyph } from './SystemGlyph'
+import { useTrustedMediaLoadState } from './useTrustedMediaLoadState'
 import styles from './GearEditorSheets.module.scss'
 
 function style(name: string): string {
@@ -19,6 +23,58 @@ function displayText(value: unknown): string {
 
 function displayStrings(value: unknown): readonly string[] {
   return Array.isArray(value) ? value.map(displayText).filter(Boolean) : []
+}
+
+function pairItems<T>(items: readonly T[]): readonly (readonly T[])[] {
+  return Array.from(
+    { length: Math.ceil(items.length / 2) },
+    (_, index) => items.slice(index * 2, index * 2 + 2),
+  )
+}
+
+function GearEditorMedia({
+  iconUrl,
+  label,
+  className,
+  dataRole,
+  fallbackAssetId,
+  slotId = 'asset_slot.gear-item-object',
+}: {
+  iconUrl?: string | undefined
+  label: string
+  className?: string | undefined
+  dataRole: string
+  fallbackAssetId: ProductionAssetId
+  slotId?: string | undefined
+}) {
+  const trustedUrl = resolveRuntimeMediaUrl(iconUrl)
+  const mediaLoadState = useTrustedMediaLoadState(trustedUrl)
+  const visible = mediaLoadState.visible
+  const mediaState = !trustedUrl ? 'fallback' : mediaLoadState.failed ? 'failed' : mediaLoadState.loaded ? 'loaded' : 'loading'
+  return (
+    <View
+      className={classes(style('editorMedia'), className)}
+      data-media-state={mediaState}
+      data-media-visible={visible ? 'true' : 'false'}
+      data-role={dataRole}
+      data-slot-id={slotId}
+    >
+      <View className={style('editorMediaFallback')}>
+        <SystemGlyph assetId={fallbackAssetId} slotId={slotId} />
+      </View>
+      {trustedUrl ? (
+        <Image
+          aria-label={label}
+          className={classes(style('editorMediaImage'), visible && style('editorMediaImageVisible'))}
+          data-loaded={visible ? 'true' : 'false'}
+          mode="aspectFill"
+          src={trustedUrl}
+          onError={mediaLoadState.onError}
+          onLoad={mediaLoadState.onLoad}
+        />
+      ) : null}
+    </View>
+  )
 }
 
 export interface GearCandidateEditorVariant {
@@ -186,6 +242,7 @@ export function GearCandidateEditorSheet({
   onClose,
 }: GearCandidateEditorSheetProps) {
   const selectedCandidate = candidates.find((item) => item.id === selectedCandidateId)
+  const candidatePairs = pairItems(candidates)
   return (
     <View className={style('workbenchSheet')} data-owner="gear-candidate-editor-sheet" data-slot-key={draft?.slot ?? ''}>
       <View className={style('sheetHeader')}>
@@ -207,29 +264,51 @@ export function GearCandidateEditorSheet({
             </View>
           ) : candidates.length ? (
             <View className={style('candidateList')}>
-              {candidates.map((item) => {
-                const selected = item.id === selectedCandidateId
+              {candidatePairs.map((pair) => {
+                const selectedPair = pair.some((item) => item.id === selectedCandidateId)
                 return (
-                  <ControlButton
-                    key={item.id}
-                    className={classes(style('candidateRow'), item.state === 'blocked' && style('candidateRowBlocked'))}
-                    data-active={selected ? 'true' : 'false'}
-                    data-candidate-id={item.id}
-                    data-candidate-item-id={item.itemId}
-                    data-role="gear-candidate-row"
-                    data-state={item.state}
-                    disabled={loading}
-                    onClick={() => onSelectCandidate(item.id)}
-                  >
-                    <View className={style('candidateCopy')}>
-                      <View>
-                        <Text>{item.label}</Text>
-                        <Text>{item.levelLabel}</Text>
-                      </View>
-                      <Text>{item.statSummary}</Text>
-                      <Text>{item.sourceLabel}</Text>
-                    </View>
-                  </ControlButton>
+                  <View key={pair.map((item) => item.id).join('|')} className={style('candidatePair')} data-role="gear-candidate-pair">
+                    {pair.map((item) => {
+                      const selected = item.id === selectedCandidateId
+                      return (
+                        <ControlButton
+                          key={item.id}
+                          className={classes(style('candidateRow'), item.state === 'blocked' && style('candidateRowBlocked'))}
+                          data-active={selected ? 'true' : 'false'}
+                          data-candidate-id={item.id}
+                          data-candidate-item-id={item.itemId}
+                          data-role="gear-candidate-row"
+                          data-state={item.state}
+                          disabled={loading}
+                          onClick={() => onSelectCandidate(item.id)}
+                        >
+                          <GearEditorMedia
+                            className={style('candidateMedia')}
+                            dataRole="gear-candidate-media"
+                            fallbackAssetId="quick-action-gear-glyph.default"
+                            iconUrl={item.iconUrl}
+                            label={item.label}
+                          />
+                          <View className={style('candidateCopy')}>
+                            <View>
+                              <Text>{item.label}</Text>
+                              <Text>{item.levelLabel}</Text>
+                            </View>
+                            <Text>{item.statSummary}</Text>
+                            <Text>{item.sourceLabel}</Text>
+                          </View>
+                        </ControlButton>
+                      )
+                    })}
+                    {selectedPair ? (
+                      <CandidateDetails
+                        draft={draft}
+                        loading={loading}
+                        selectedCandidate={selectedCandidate}
+                        onSelectVariant={onSelectVariant}
+                      />
+                    ) : null}
+                  </View>
                 )
               })}
             </View>
@@ -238,12 +317,14 @@ export function GearCandidateEditorSheet({
               <Text>当前槽位没有可用候选</Text>
             </View>
           )}
-          <CandidateDetails
-            draft={draft}
-            loading={loading}
-            selectedCandidate={selectedCandidate}
-            onSelectVariant={onSelectVariant}
-          />
+          {!loading && candidates.length && !selectedCandidate ? (
+            <CandidateDetails
+              draft={draft}
+              loading={loading}
+              selectedCandidate={selectedCandidate}
+              onSelectVariant={onSelectVariant}
+            />
+          ) : null}
         </View>
       </ScrollView>
 
@@ -270,18 +351,50 @@ export interface GearEnhancementEditorOption {
   readonly selected: boolean
 }
 
+export interface GearEnhancementEditorItem {
+  readonly label: string
+  readonly levelLabel: string
+  readonly iconUrl?: string | undefined
+}
+
+export interface GearEnhancementEditorCompatibleSlot {
+  readonly slot: string
+  readonly label: string
+  readonly item: GearEnhancementEditorItem
+  readonly summary: string
+  readonly selected: boolean
+  readonly disabled?: boolean | undefined
+}
+
 export interface GearEnhancementEditorSheetProps {
   slotLabel: string
+  item?: GearEnhancementEditorItem | undefined
   draft: GearEnhancementSelection
   socketCount: number
   options: readonly GearEnhancementEditorOption[]
+  requestedKind?: GearEnhancementEditorOption['kind'] | undefined
+  activeSlot?: string | undefined
+  compatibleSlots?: readonly GearEnhancementEditorCompatibleSlot[] | undefined
   canConfirm?: boolean | undefined
   loading?: boolean | undefined
   blockers?: readonly string[] | undefined
+  onSelectSlot?: (slot: string) => void
   onSetGem: (socketIndex: number, optionId: string) => void
   onSetSingle: (kind: 'enchant' | 'embellishment', optionId: string) => void
   onConfirm: () => void
   onClose: () => void
+}
+
+function enhancementFallbackAssetId(kind: GearEnhancementEditorOption['kind']): ProductionAssetId {
+  if (kind === 'socket') return 'gear-enhancement-glyph.gem'
+  if (kind === 'enchant') return 'gear-enhancement-glyph.enchant-scroll'
+  return 'gear-enhancement-glyph.ornament'
+}
+
+function enhancementKindLabel(kind: GearEnhancementEditorOption['kind']): string {
+  if (kind === 'socket') return '宝石'
+  if (kind === 'enchant') return '附魔'
+  return '美化'
 }
 
 export interface GearEnhancementSocketRow {
@@ -325,7 +438,7 @@ function SingleEnhancementSection({
       {matching.length ? (
         <View className={style('optionGrid')}>
           <ControlButton
-            className={style('optionControl')}
+            className={classes(style('optionControl'), style('optionControlEmpty'))}
             data-active={!selectedId ? 'true' : 'false'}
             data-enhancement-kind={kind}
             data-material-owner="css"
@@ -339,7 +452,7 @@ function SingleEnhancementSection({
           {matching.map((item) => (
             <ControlButton
               key={item.id}
-              className={style('optionControl')}
+              className={classes(style('optionControl'), style('optionControlWithMedia'))}
               data-active={selectedId === item.id ? 'true' : 'false'}
               data-enhancement-kind={kind}
               data-material-owner="css"
@@ -349,7 +462,18 @@ function SingleEnhancementSection({
               disabled={loading}
               onClick={() => onSetSingle(kind, item.id)}
             >
-              {item.label}
+              <GearEditorMedia
+                className={style('enhancementOptionMedia')}
+                dataRole="gear-enhancement-option-media"
+                fallbackAssetId={enhancementFallbackAssetId(kind)}
+                iconUrl={item.iconUrl}
+                label={item.label}
+                slotId="asset_slot.gear-enhancement-medallions"
+              />
+              <View className={style('enhancementOptionCopy')}>
+                <Text>{item.label}</Text>
+                <Text>{selectedId === item.id ? '已选择' : '可选择'}</Text>
+              </View>
             </ControlButton>
           ))}
         </View>
@@ -362,12 +486,17 @@ function SingleEnhancementSection({
 
 export function GearEnhancementEditorSheet({
   slotLabel,
+  item,
   draft,
   socketCount,
   options,
+  requestedKind,
+  activeSlot = '',
+  compatibleSlots = [],
   canConfirm = true,
   loading = false,
   blockers = [],
+  onSelectSlot,
   onSetGem,
   onSetSingle,
   onConfirm,
@@ -375,11 +504,15 @@ export function GearEnhancementEditorSheet({
 }: GearEnhancementEditorSheetProps) {
   const gemOptions = options.filter((item) => item.kind === 'socket')
   const socketRows = resolveEnhancementSocketRows(draft, socketCount)
+  const showSocket = !requestedKind || requestedKind === 'socket'
+  const showEnchant = !requestedKind || requestedKind === 'enchant'
+  const showEmbellishment = !requestedKind || requestedKind === 'embellishment'
+  const kindLabel = requestedKind ? enhancementKindLabel(requestedKind) : '强化'
   return (
     <View className={style('workbenchSheet')} data-owner="gear-enhancement-editor-sheet">
       <View className={style('sheetHeader')}>
         <View>
-          <Text>编辑{slotLabel || '装备'}强化</Text>
+          <Text>编辑{slotLabel || '装备'}{kindLabel}</Text>
           <Text>取消不会改变已确认装备</Text>
         </View>
         <ControlButton className={style('closeControl')} data-action-id="gear-enhancement-cancel" onClick={onClose}>
@@ -395,66 +528,132 @@ export function GearEnhancementEditorSheet({
             </View>
           ) : null}
 
-          {socketRows.length ? (
-            <Text className={style('detailMeta')}>宝石按顺序配置；移除前位后，后续宝石会自动前移</Text>
-          ) : null}
-
-          {socketRows.map(({ socketIndex, selectedId, selectable }) => (
-            <View key={socketIndex} className={style('section')} data-socket-index={socketIndex}>
-              <Text className={style('sectionTitle')}>宝石插槽 {socketIndex + 1}</Text>
-              <View className={style('optionGrid')}>
-                <ControlButton
-                  className={style('optionControl')}
-                  data-active={!selectedId ? 'true' : 'false'}
-                  data-material-owner="css"
-                  data-role="gear-enhancement-socket"
-                  data-selection-material={!selectedId ? 'active' : 'inactive'}
-                  data-socket-index={socketIndex}
-                  disabled={loading || !selectable}
-                  onClick={() => onSetGem(socketIndex, '')}
-                >
-                  不镶嵌
-                </ControlButton>
-                {gemOptions.map((item) => (
+          {compatibleSlots.length ? (
+            <View className={style('compatibleSlotSection')} data-role="gear-enhancement-compatible-slots">
+              <Text className={style('sectionTitle')}>可配置装备</Text>
+              <View className={style('compatibleSlotList')}>
+                {compatibleSlots.map((slot) => (
                   <ControlButton
-                    key={`${socketIndex}-${item.id}`}
-                    className={style('optionControl')}
-                    data-active={selectedId === item.id ? 'true' : 'false'}
-                    data-material-owner="css"
-                    data-option-id={item.id}
-                    data-role="gear-enhancement-socket"
-                    data-selection-material={selectedId === item.id ? 'active' : 'inactive'}
-                    data-socket-index={socketIndex}
-                    disabled={loading || !selectable}
-                    onClick={() => onSetGem(socketIndex, item.id)}
+                    key={slot.slot}
+                    className={style('compatibleSlot')}
+                    data-active={slot.selected || slot.slot === activeSlot ? 'true' : 'false'}
+                    data-role="gear-enhancement-compatible-slot"
+                    data-slot-key={slot.slot}
+                    disabled={loading || slot.disabled || !onSelectSlot}
+                    onClick={() => onSelectSlot?.(slot.slot)}
                   >
-                    {item.label}
+                    <GearEditorMedia
+                      className={style('compatibleSlotMedia')}
+                      dataRole="gear-enhancement-compatible-slot-media"
+                      fallbackAssetId="quick-action-gear-glyph.default"
+                      iconUrl={slot.item.iconUrl}
+                      label={slot.item.label}
+                    />
+                    <View className={style('compatibleSlotCopy')}>
+                      <Text>{slot.label} · {slot.item.label}</Text>
+                      <Text>{slot.summary || slot.item.levelLabel}</Text>
+                    </View>
                   </ControlButton>
                 ))}
               </View>
             </View>
-          ))}
-
-          {!socketRows.length ? (
-            <Text className={style('sectionEmpty')} data-role="gear-enhancement-no-sockets">当前装备没有宝石插槽</Text>
           ) : null}
 
-          <SingleEnhancementSection
-            kind="enchant"
-            label="附魔"
-            loading={loading}
-            options={options}
-            selectedId={draft.enchantOptionId}
-            onSetSingle={onSetSingle}
-          />
-          <SingleEnhancementSection
-            kind="embellishment"
-            label="美化"
-            loading={loading}
-            options={options}
-            selectedId={draft.embellishmentOptionId}
-            onSetSingle={onSetSingle}
-          />
+          {item ? (
+            <View className={style('enhancementItem')} data-role="gear-enhancement-item">
+              <GearEditorMedia
+                className={style('enhancementItemMedia')}
+                dataRole="gear-enhancement-item-media"
+                fallbackAssetId="quick-action-gear-glyph.default"
+                iconUrl={item.iconUrl}
+                label={item.label}
+              />
+              <View className={style('enhancementItemCopy')}>
+                <Text>{item.label}</Text>
+                <Text>{item.levelLabel}</Text>
+              </View>
+            </View>
+          ) : null}
+
+          {showSocket ? (
+            <>
+              {socketRows.length ? (
+                <Text className={style('detailMeta')}>宝石按顺序配置；移除前位后，后续宝石会自动前移</Text>
+              ) : null}
+
+              {socketRows.map(({ socketIndex, selectedId, selectable }) => (
+                <View key={socketIndex} className={style('section')} data-enhancement-kind="socket" data-socket-index={socketIndex}>
+                  <Text className={style('sectionTitle')}>宝石插槽 {socketIndex + 1}</Text>
+                  <View className={style('optionGrid')}>
+                    <ControlButton
+                      className={classes(style('optionControl'), style('optionControlEmpty'))}
+                      data-active={!selectedId ? 'true' : 'false'}
+                      data-material-owner="css"
+                      data-role="gear-enhancement-socket"
+                      data-selection-material={!selectedId ? 'active' : 'inactive'}
+                      data-socket-index={socketIndex}
+                      disabled={loading || !selectable}
+                      onClick={() => onSetGem(socketIndex, '')}
+                    >
+                      不镶嵌
+                    </ControlButton>
+                    {gemOptions.map((item) => (
+                      <ControlButton
+                        key={`${socketIndex}-${item.id}`}
+                        className={classes(style('optionControl'), style('optionControlWithMedia'))}
+                        data-active={selectedId === item.id ? 'true' : 'false'}
+                        data-material-owner="css"
+                        data-option-id={item.id}
+                        data-role="gear-enhancement-socket"
+                        data-selection-material={selectedId === item.id ? 'active' : 'inactive'}
+                        data-socket-index={socketIndex}
+                        disabled={loading || !selectable}
+                        onClick={() => onSetGem(socketIndex, item.id)}
+                      >
+                        <GearEditorMedia
+                          className={style('enhancementOptionMedia')}
+                          dataRole="gear-enhancement-option-media"
+                          fallbackAssetId={enhancementFallbackAssetId('socket')}
+                          iconUrl={item.iconUrl}
+                          label={item.label}
+                          slotId="asset_slot.gear-enhancement-medallions"
+                        />
+                        <View className={style('enhancementOptionCopy')}>
+                          <Text>{item.label}</Text>
+                          <Text>{selectedId === item.id ? '已镶嵌' : '可镶嵌'}</Text>
+                        </View>
+                      </ControlButton>
+                    ))}
+                  </View>
+                </View>
+              ))}
+
+              {!socketRows.length ? (
+                <Text className={style('sectionEmpty')} data-role="gear-enhancement-no-sockets">当前装备没有宝石插槽</Text>
+              ) : null}
+            </>
+          ) : null}
+
+          {showEnchant ? (
+            <SingleEnhancementSection
+              kind="enchant"
+              label="附魔"
+              loading={loading}
+              options={options}
+              selectedId={draft.enchantOptionId}
+              onSetSingle={onSetSingle}
+            />
+          ) : null}
+          {showEmbellishment ? (
+            <SingleEnhancementSection
+              kind="embellishment"
+              label="美化"
+              loading={loading}
+              options={options}
+              selectedId={draft.embellishmentOptionId}
+              onSetSingle={onSetSingle}
+            />
+          ) : null}
         </View>
       </ScrollView>
 

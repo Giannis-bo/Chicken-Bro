@@ -462,6 +462,22 @@ describe('gear detail truth model', () => {
     ])
   })
 
+  it('gives each candidate a distinct selection identity when backend variant keys repeat', () => {
+    const views = gearCandidates([
+      { itemId: 'head-a', variantKey: 'mythic', name: '头部候选 A' },
+      { itemId: 'head-b', variantKey: 'mythic', name: '头部候选 B' },
+      { itemId: 'head-c', variantKey: 'mythic', name: '头部候选 C' },
+      { itemId: 'head-d', variantKey: 'mythic', name: '头部候选 D' },
+    ])
+
+    expect(views.map((candidate) => candidate.id)).toEqual([
+      'head-a-0',
+      'head-b-1',
+      'head-c-2',
+      'head-d-3',
+    ])
+  })
+
   it('uses the same backend eligibility projection for candidate rows and editor drafts', () => {
     const blockedCandidates: GearItemReference[] = [
       { itemId: 'status-blocked', status: 'blocked', compatibility: 'compatible' },

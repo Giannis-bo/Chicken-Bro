@@ -91,6 +91,39 @@ describe('gear detail editor commit model', () => {
     expect(gearCommitModel).toHaveProperty('resolvedSlotIdentity')
   })
 
+  it('keeps unconfirmed enhancements from multiple slots in one workbench draft', () => {
+    expect(gearCommitModel).toHaveProperty('updateEnhancementDraftSelection')
+    expect(gearCommitModel).toHaveProperty('selectEnhancementDraftSlot')
+
+    const updateSelection = gearCommitModel.updateEnhancementDraftSelection as unknown as (
+      draft: GearEnhancementDraft,
+      selection: GearEnhancementSelection,
+    ) => GearEnhancementDraft
+    const selectSlot = gearCommitModel.selectEnhancementDraftSlot as unknown as (
+      draft: GearEnhancementDraft,
+      slot: string,
+      selection: GearEnhancementSelection,
+    ) => GearEnhancementDraft
+    const initial: GearEnhancementDraft = {
+      ...enhancementDraft(mainHandEnhancement),
+      selectionBySlot: { main_hand: mainHandEnhancement },
+    }
+
+    const afterHead = updateSelection(selectSlot(initial, 'head', headEnhancement), {
+      ...headEnhancement,
+      embellishmentOptionId: 'head-embellishment',
+    })
+
+    expect(afterHead).toMatchObject({
+      slot: 'head',
+      selection: { embellishmentOptionId: 'head-embellishment' },
+      selectionBySlot: {
+        main_hand: mainHandEnhancement,
+        head: { ...headEnhancement, embellishmentOptionId: 'head-embellishment' },
+      },
+    })
+  })
+
   it('reads item and variant identity only from a complete verified resolved slot', () => {
     const snapshot = resolvedSnapshot(candidate, emptySelection)
 
@@ -178,6 +211,51 @@ describe('gear detail editor commit model', () => {
     })
     expect(transition.state.candidateDraft).toBeNull()
     expect(transition.state.enhancementDraft).toBe(before.enhancementDraft)
+  })
+
+  it('keeps a per-slot verified candidate when only the rest of the profile is incomplete', () => {
+    const before = state()
+    const partialSnapshot: GearResolvedSnapshot = {
+      contractRevision: 'gear-resolved-snapshot-v1',
+      status: 'blocked',
+      resolvedGearSignature: 'sha256:head-only',
+      aggregateLegality: { status: 'verified', problemCodes: [] },
+      profileReadiness: {
+        status: 'blocked',
+        simcReady: false,
+        requiredSlots: ['head', 'main_hand', 'neck'],
+        readySlots: ['head', 'main_hand'],
+        problems: [{ code: 'GEAR_REQUIRED_SLOTS_INCOMPLETE' }],
+      },
+      problems: [{ code: 'GEAR_REQUIRED_SLOTS_INCOMPLETE' }],
+      resolvedSlots: {
+        main_hand: {
+          itemId: candidate.itemId,
+          variantKey: candidate.variantKey,
+          legality: { status: 'verified' },
+          selectedOptions: emptySelection,
+        },
+        head: {
+          itemId: oldHead.itemId,
+          variantKey: oldHead.variantKey,
+          legality: { status: 'verified' },
+          selectedOptions: headEnhancement,
+        },
+      },
+    }
+
+    const transition = transitionGearEditorCommit(before, {
+      status: 'slot_resolved',
+      kind: 'candidate',
+      slot: 'main_hand',
+      item: candidate,
+      snapshot: partialSnapshot,
+    })
+
+    expect(transition.committed).toBe(true)
+    expect(transition.state.equipped).toEqual({ main_hand: candidate, head: oldHead })
+    expect(transition.state.enhancements).toEqual({ head: headEnhancement })
+    expect(transition.state.candidateDraft).toBeNull()
   })
 
   it.each([

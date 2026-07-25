@@ -2829,10 +2829,15 @@ record(
     && gearEnhancementConfirm.includes('await resolveSelection(equipped, nextEnhancements)')
     && gearEnhancementConfirm.includes('transitionGearEditorCommit(commitState')
     && gearEnhancementConfirm.indexOf('await resolveSelection(equipped, nextEnhancements)') < gearEnhancementConfirm.indexOf('setEnhancements(transition.state.enhancements)')
-    && gearEditorCommitModel.includes("if (event.status !== 'resolved')")
+    && gearCandidateApply.includes("resolved.status !== 'resolved' && resolved.status !== 'slot_resolved'")
+    && gearEnhancementConfirm.includes("if (resolved.status !== 'resolved') return")
+    && gearEditorCommitModel.includes("if (event.status !== 'resolved' && event.status !== 'slot_resolved')")
     && gearEditorCommitModel.includes('return { state, committed: false, reload: false }')
     && gearEditorCommitModel.includes('gearEnhancementsFromResolvedSnapshot(')
+    && gearEditorCommitModel.includes('isProfileIncompleteOnlySnapshot(')
+    && gearEditorCommitModel.includes('resolvedSlotIdentityForIncompleteProfile(')
     && gearDetailPage.includes('hydrateCompactSlotGroup(group)')
+    && gearDetailPage.includes("result.payload.status === 'blocked'")
     && gearDetailPage.includes('snapshot: resolved.snapshot')
     && !gearDetailPage.includes('resolved.snapshot.selectionIntent ?? resolved.intent')
     && gearDetailComponents.includes('data-committed-item-id={item.itemId}')
@@ -2841,7 +2846,7 @@ record(
     && gearDetailComponents.includes('data-resolved-slot-item-id={resolvedSlotItemId}')
     && gearDetailComponents.includes('data-resolved-slot-variant-key={resolvedSlotVariantKey}')
     && gearEditorSheets.includes('data-candidate-item-id={item.itemId}'),
-  'candidate and enhancement controls must remain draft-only until a verified canonical Resolve precedes committed UI updates',
+  'candidate and enhancement controls must remain draft-only until canonical Resolve proves them; only a target slot verified by a profile-incomplete-only snapshot may enter the local loadout, while enhancement confirmation still requires a complete verified snapshot',
 )
 
 const babelConfig = read('apps/mini-taro/babel.config.cjs')

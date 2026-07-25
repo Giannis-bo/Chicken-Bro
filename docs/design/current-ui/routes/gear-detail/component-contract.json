@@ -38,7 +38,7 @@
     {
       "owner": "GearEditorSheets",
       "regions": ["equipment_slots_panel"],
-      "responsibility": "workbench-internal candidate detail and enhancement drafts: candidate click and returned variant selection update local draft only; explicit apply or confirm calls gearResolve and commits only exact verified resolvedSlots identity plus selectedOptions; selected variant craftedStatOptions are safely display-only; enhancement options without backend id/optionKey are filtered and never receive a fabricated identity"
+      "responsibility": "workbench-internal candidate detail and enhancement drafts: candidate click and returned variant selection update local draft only; candidate apply commits only an exact Resolver-proven target identity, including the narrow profile-incomplete case where the only blocker is missing remaining required slots and the target slot itself is verified; this never makes the profile executable or a substitute for full Resolve. An enhancement category first focuses its compatible selected-equipment list, preserves a multi-slot local draft while the player switches items, and hydrates only the active item for exact canonical options; one enhancement confirm requires a complete verified resolvedSlots selectedOptions projection; selected variant craftedStatOptions are safely display-only; enhancement options without backend id/optionKey are filtered and never receive a fabricated identity"
     },
     {
       "owner": "GearActionRow",

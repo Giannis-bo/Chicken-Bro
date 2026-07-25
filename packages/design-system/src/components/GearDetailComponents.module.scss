@@ -276,13 +276,16 @@
 .slotSecondaryStats > text { overflow: hidden; text-overflow: ellipsis; }
 .slotSecondaryStatsNone { color: #8c887d; }
 .slotSecondaryStatsUnavailable { color: #b8a77d; }
-.slotEnhancementStates { position: absolute; top: 3px; right: 5px; display: flex; align-items: center; gap: 2px; pointer-events: none; }
-.slotEnhancementState { display: flex; width: 9px; height: 9px; align-items: center; justify-content: center; color: #4b5255; opacity: 0.76; }
-.slotEnhancementStateSelected { color: #d8b35a; opacity: 1; text-shadow: 0 0 4px rgba(216, 179, 90, 0.42); }
+.slotEnhancementStates { position: absolute; top: 3px; right: 5px; display: flex; align-items: center; gap: 3px; pointer-events: none; }
+.slotEnhancementState { display: flex; width: 12px; height: 12px; align-items: center; justify-content: center; border: 1px solid rgba(126, 105, 69, 0.72); color: #655d50; background: rgba(8, 10, 13, 0.94); box-shadow: inset 0 0 0 1px rgba(2, 3, 4, 0.82); opacity: 0.82; }
+.slotEnhancementStateSelected { border-color: #d8b35a; color: #e2c675; background: linear-gradient(180deg, #302615, #11100d); box-shadow: inset 0 0 0 1px #080704, 0 0 5px rgba(216, 179, 90, 0.38); opacity: 1; text-shadow: 0 0 4px rgba(216, 179, 90, 0.42); }
+.slotEnhancementState[data-enhancement-kind='socket'] { clip-path: polygon(50% 0, 94% 24%, 84% 76%, 50% 100%, 16% 76%, 6% 24%); }
+.slotEnhancementState[data-enhancement-kind='enchant'] { border-radius: 2px 2px 5px 5px; }
+.slotEnhancementState[data-enhancement-kind='embellishment'] { clip-path: polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%); }
 .slotEnhancementGlyph { width: 8px; height: 8px; }
 .slotLevel { position: absolute; right: 5px; bottom: 2px; max-width: 94px; overflow: hidden; color: #aa9062; font-size: 7px; line-height: 9px; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
 .slotRow[data-side='right'] { grid-template-columns: minmax(0, 1fr) 36px; grid-template-areas: 'copy media'; text-align: right; }
-.slotRow[data-side='right'] .slotLevel { right: auto; left: 5px; text-align: left; }
+.slotRow[data-side='right'] .slotLevel { right: 42px; left: auto; text-align: right; }
 .slotRow[data-side='right'] .slotCopy { padding: 9px 34px 8px 0; text-align: left; }
 .slotRow[data-side='right'] .slotEnhancementStates { right: 42px; }
 .candidatePanel {

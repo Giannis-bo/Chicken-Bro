@@ -626,7 +626,7 @@ export function gearCandidates(items: readonly GearItemReference[]): readonly Ge
     const level = gearItemLevel(item)
     const iconUrl = gearItemIconUrl(item)
     return {
-      id: text(item.variantKey) || `${gearItemId(item) || 'candidate'}-${index}`,
+      id: `${gearItemId(item) || 'candidate'}-${index}`,
       itemId: gearItemId(item),
       label: gearItemName(item),
       levelLabel: level ? `装等 ${Math.round(level)}` : '装等待核验',

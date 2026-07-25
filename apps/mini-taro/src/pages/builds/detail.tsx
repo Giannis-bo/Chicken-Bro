@@ -58,7 +58,6 @@ import {
   safeDecode,
   useAsyncRoute,
 } from '../_shared/route-runtime'
-import { chooseActionSheetEntry } from './action-sheet'
 import {
   candidateDraftCanApply,
   createCandidateDraft,
@@ -72,8 +71,12 @@ import {
   type GearCandidateDraft,
 } from './gear-detail-editor-model'
 import {
+  enhancementDraftSelections,
+  isProfileIncompleteOnlySnapshot,
   resolvedSlotIdentity,
+  selectEnhancementDraftSlot as selectEnhancementDraftSlotModel,
   transitionGearEditorCommit,
+  updateEnhancementDraftSelection,
   type GearEditorCommitState,
   type GearEnhancementDraft,
   type GearEnhancementKind,
@@ -83,6 +86,9 @@ import {
   gearEnhancementGroups,
   gearEnhancementOptions,
   gearEnhancementSocketCount,
+  gearItemIconUrl,
+  gearItemLevel,
+  gearItemName,
   hydrateCompactSlotGroup,
   gearReadiness,
   gearSlots,
@@ -121,6 +127,7 @@ interface CanonicalGearState {
 
 type ResolveSelectionResult =
   | { status: 'resolved'; intent: GearSelectionIntent; snapshot: GearResolvedSnapshot }
+  | { status: 'slot_resolved'; intent: GearSelectionIntent; snapshot: GearResolvedSnapshot }
   | { status: 'failed' }
   | { status: 'conflict' }
   | { status: 'stale' }
@@ -325,6 +332,9 @@ export default function GearDetailPage() {
     }
   })
   const enhancementOptions = gearEnhancementOptions(selectedCandidate, enhancements, selectedSlot)
+  const enhancementSelections = enhancementDraft
+    ? enhancementDraftSelections(enhancementDraft)
+    : enhancements
   const enhancementDraftOptions = enhancementDraft?.item
     ? gearEnhancementOptions(
         enhancementDraft.item,
@@ -335,6 +345,50 @@ export default function GearDetailPage() {
   const enhancementSocketCount = enhancementDraft?.item
     ? gearEnhancementSocketCount(enhancementDraft.item) ?? 0
     : 0
+  const enhancementDraftItem = enhancementDraft?.item
+  const enhancementDraftItemLevel = gearItemLevel(enhancementDraftItem)
+  const enhancementDraftItemIconUrl = gearItemIconUrl(enhancementDraftItem)
+  const enhancementEditorItem = enhancementDraftItem
+    ? {
+        label: gearItemName(enhancementDraftItem),
+        levelLabel: enhancementDraftItemLevel === null ? '装等待校验' : `装等 ${Math.round(enhancementDraftItemLevel)}`,
+        ...(enhancementDraftItemIconUrl ? { iconUrl: enhancementDraftItemIconUrl } : {}),
+      }
+    : undefined
+  const enhancementCompatibleSlots = enhancementDraft
+    ? slotViews.flatMap((slot) => {
+        const item = equipped[slot.slot]
+        const kind = enhancementDraft.requestedKind
+        if (!item) return []
+        const potentiallyCompatible = kind === 'socket'
+          ? gearEnhancementSocketCount(item) !== 0
+          : kind === 'enchant'
+            ? item.modCapabilities?.['canEnchant'] !== false
+            : item.modCapabilities?.['canEmbellish'] !== false
+        if (!potentiallyCompatible) return []
+        const selection = enhancementSelections[slot.slot] ?? emptyEnhancementSelection()
+        const knownOptions = gearEnhancementOptions(item, { [slot.slot]: selection }, slot.slot)
+          .filter((option) => option.kind === kind)
+        const configured = isEnhancementKindConfigured(selection, kind)
+        const itemLevel = gearItemLevel(item)
+        const iconUrl = gearItemIconUrl(item)
+        return [{
+          slot: slot.slot,
+          label: slot.label,
+          item: {
+            label: gearItemName(item),
+            levelLabel: itemLevel === null ? '装等待校验' : `装等 ${Math.round(itemLevel)}`,
+            ...(iconUrl ? { iconUrl } : {}),
+          },
+          summary: configured
+            ? '草稿已配置'
+            : knownOptions.length
+              ? `${knownOptions.length} 项可选`
+              : '选择后核验',
+          selected: enhancementDraft.slot === slot.slot,
+        }]
+      })
+    : []
   const selectedSlotLabel = slotViews.find((slot) => slot.slot === selectedSlot)?.label ?? ''
   const gearResolveState = canonical.loading
     ? 'resolving' as const
@@ -449,6 +503,14 @@ export default function GearDetailPage() {
       return { status: 'conflict' }
     }
     const snapshot = result.payload.data
+    if (
+      result.httpStatus === 200
+      && result.payload.status === 'blocked'
+      && isProfileIncompleteOnlySnapshot(snapshot)
+    ) {
+      setCanonical({ loading: false, intent, snapshot })
+      return { status: 'slot_resolved', intent, snapshot }
+    }
     if (result.httpStatus !== 200 || result.payload.status !== 'resolved' || snapshot.status !== 'verified') {
       const error = envelopeMessage(result.payload.problems, '当前装备组合未通过后端校验')
       setWorkbenchNotice(error)
@@ -544,6 +606,7 @@ export default function GearDetailPage() {
     const requestId = candidateRequestId.current + 1
     candidateRequestId.current = requestId
     setSelectedSlot(slot.slot)
+    setWorkbenchNotice('')
     setCandidateOpen(true)
     setCandidateDraft(null)
     setEnhancementDraft(null)
@@ -591,9 +654,9 @@ export default function GearDetailPage() {
     )
     const resolved = await resolveSelection(nextEquipped, nextEnhancements)
     if (resolved.status === 'conflict') return
-    if (resolved.status !== 'resolved') return
+    if (resolved.status !== 'resolved' && resolved.status !== 'slot_resolved') return
     const transition = transitionGearEditorCommit(commitState, {
-      status: 'resolved',
+      status: resolved.status,
       kind: 'candidate',
       slot: draft.slot,
       item,
@@ -614,7 +677,7 @@ export default function GearDetailPage() {
 
   const chooseEnhancement = (kind: 'enchant' | 'embellishment', optionId: string) => {
     setEnhancementDraft((current) => current
-      ? { ...current, selection: setSingleEnhancement(current.selection, kind, optionId) }
+      ? updateEnhancementDraftSelection(current, setSingleEnhancement(current.selection, kind, optionId))
       : current)
   }
 
@@ -627,10 +690,7 @@ export default function GearDetailPage() {
       candidateDraft,
       enhancementDraft,
     }
-    const nextEnhancements = {
-      ...enhancements,
-      [draft.slot]: packedEnhancementSelection(draft.selection),
-    }
+    const nextEnhancements = enhancementDraftSelections(draft)
     const resolved = await resolveSelection(equipped, nextEnhancements)
     if (resolved.status === 'conflict') return
     if (resolved.status !== 'resolved') return
@@ -654,6 +714,62 @@ export default function GearDetailPage() {
     setEnhancementLoading(false)
   }
 
+  const selectEnhancementDraftSlot = async (
+    slot: string,
+    initialDraft: GearEnhancementDraft | null = enhancementDraft,
+  ) => {
+    const committedItem = equipped[slot]
+    if (!initialDraft || !committedItem) return
+    const selectionBySlot = enhancementDraftSelections(initialDraft)
+    const confirmed = selectionBySlot[slot] ?? emptyEnhancementSelection()
+    const requestId = candidateRequestId.current + 1
+    candidateRequestId.current = requestId
+    setSelectedSlot(slot)
+    const preparingDraft: GearEnhancementDraft = {
+      slot: initialDraft.slot,
+      requestedKind: initialDraft.requestedKind,
+      selection: initialDraft.selection,
+      ...(initialDraft.selectionBySlot ? { selectionBySlot: initialDraft.selectionBySlot } : {}),
+      blockers: [],
+    }
+    setEnhancementDraft(selectEnhancementDraftSlotModel(preparingDraft, slot, confirmed))
+    setEnhancementLoading(true)
+
+    const hydrated = await hydrateSlot(slot, requestId, false)
+    if (hydrated.status !== 'current') {
+      if (candidateRequestId.current === requestId) {
+        setEnhancementDraft((current) => current && current.slot === slot
+          ? { ...current, blockers: ['后端槽位详情不足，无法确认强化'] }
+          : current)
+        setEnhancementLoading(false)
+      }
+      return
+    }
+    const prepared = prepareHydratedEnhancementDraft(hydrated.items, committedItem, confirmed)
+    if (!prepared) {
+      setEnhancementDraft((current) => current && current.slot === slot
+        ? { ...current, blockers: ['未找到已确认物品的完整后端详情'] }
+        : current)
+      setEnhancementLoading(false)
+      return
+    }
+    const { item: exact, selection } = prepared
+    const options = gearEnhancementOptions(exact, { [slot]: selection }, slot)
+    const blockers = options.some((option) => option.kind === initialDraft.requestedKind)
+      ? []
+      : [`当前装备没有可用${initialDraft.requestedKind === 'socket' ? '宝石' : initialDraft.requestedKind === 'enchant' ? '附魔' : '美化'}`]
+    if (candidateRequestId.current !== requestId) return
+    setEnhancementDraft((current) => {
+      if (!current || current.slot !== slot || current.requestedKind !== initialDraft.requestedKind) return current
+      return {
+        ...selectEnhancementDraftSlotModel(current, slot, selection),
+        item: exact,
+        blockers,
+      }
+    })
+    setEnhancementLoading(false)
+  }
+
   const openEnhancementGroup = async (item: { id: GearEnhancementKind; label: string }) => {
     const equippedSlots = slotViews.filter((slot) => Boolean(equipped[slot.slot]))
     if (!equippedSlots.length) {
@@ -668,61 +784,21 @@ export default function GearDetailPage() {
           ...(current.snapshot ? { snapshot: current.snapshot } : {}),
         }
       : current)
-    const activeTarget = equippedSlots.find((entry) => entry.slot === selectedSlot)
-    const target = activeTarget ?? (equippedSlots.length === 1
-      ? equippedSlots[0]
-      : await chooseActionSheetEntry(equippedSlots, (entry) => entry.label))
+    const target = equippedSlots.find((entry) => entry.slot === selectedSlot) ?? equippedSlots[0]
     if (!target) return
-    const committedItem = equipped[target.slot]
-    if (!committedItem) return
-
     const confirmed = enhancements[target.slot] ?? emptyEnhancementSelection()
-    const requestId = candidateRequestId.current + 1
-    candidateRequestId.current = requestId
-    setSelectedSlot(target.slot)
+    const initialDraft: GearEnhancementDraft = {
+      slot: target.slot,
+      requestedKind: item.id,
+      selection: packedEnhancementSelection(confirmed),
+      selectionBySlot: enhancements,
+      blockers: [],
+    }
     setCandidateOpen(false)
     setCandidateDraft(null)
     setCandidates([])
     setCandidateLoading(false)
-    setEnhancementDraft({
-      slot: target.slot,
-      requestedKind: item.id,
-      selection: packedEnhancementSelection(confirmed),
-      blockers: [],
-    })
-    setEnhancementLoading(true)
-
-    const hydrated = await hydrateSlot(target.slot, requestId, false)
-    if (hydrated.status !== 'current') {
-      if (candidateRequestId.current === requestId) {
-        setEnhancementDraft((current) => current && current.slot === target.slot
-          ? { ...current, blockers: ['后端槽位详情不足，无法确认强化'] }
-          : current)
-        setEnhancementLoading(false)
-      }
-      return
-    }
-    const prepared = prepareHydratedEnhancementDraft(hydrated.items, committedItem, confirmed)
-    if (!prepared) {
-      setEnhancementDraft((current) => current && current.slot === target.slot
-        ? { ...current, blockers: ['未找到已确认物品的完整后端详情'] }
-        : current)
-      setEnhancementLoading(false)
-      return
-    }
-    const { item: exact, selection } = prepared
-    const options = gearEnhancementOptions(exact, { [target.slot]: selection }, target.slot)
-    const blockers = options.some((option) => option.kind === item.id)
-      ? []
-      : [`当前装备没有可用${item.label}`]
-    setEnhancementDraft({
-      slot: target.slot,
-      requestedKind: item.id,
-      selection,
-      item: exact,
-      blockers,
-    })
-    setEnhancementLoading(false)
+    await selectEnhancementDraftSlot(target.slot, initialDraft)
   }
 
   const saveTemplate = async () => {
@@ -902,17 +978,22 @@ export default function GearDetailPage() {
     : enhancementDraft
       ? (
           <GearEnhancementEditorSheet
+            activeSlot={enhancementDraft.slot}
             blockers={enhancementDraft.blockers}
             canConfirm={Boolean(enhancementDraft.item && !enhancementDraft.blockers.length)}
+            compatibleSlots={enhancementCompatibleSlots}
             draft={enhancementDraft.selection}
+            item={enhancementEditorItem}
             loading={enhancementLoading || canonical.loading}
             options={enhancementDraftOptions}
+            requestedKind={enhancementDraft.requestedKind}
             socketCount={enhancementSocketCount}
             slotLabel={selectedSlotLabel}
             onClose={closeCandidateEditor}
             onConfirm={() => void confirmEnhancementDraft()}
+            onSelectSlot={(slot) => void selectEnhancementDraftSlot(slot)}
             onSetGem={(socketIndex, optionId) => setEnhancementDraft((current) => current
-              ? { ...current, selection: setGemAtSocket(current.selection, socketIndex, optionId) }
+              ? updateEnhancementDraftSelection(current, setGemAtSocket(current.selection, socketIndex, optionId))
               : current)}
             onSetSingle={chooseEnhancement}
           />

@@ -130,6 +130,11 @@ describe('gear detail fixed workbench contract', () => {
     expect(componentStyleSource).toMatch(/\.slotCopy > text:first-child \{[\s\S]*?font-size:\s*7px;/u)
     expect(componentStyleSource).toMatch(/\.slotCopy > text:nth-child\(2\) \{[\s\S]*?font-size:\s*10px;/u)
     expect(componentStyleSource).toMatch(/\.slotEnhancementStates \{[\s\S]*?position:\s*absolute;[\s\S]*?top:\s*3px;/u)
+    expect(componentStyleSource).toMatch(/\.slotEnhancementState \{[\s\S]*?width:\s*12px;[\s\S]*?height:\s*12px;[\s\S]*?border:\s*1px solid/u)
+    expect(componentStyleSource).toContain(".slotEnhancementState[data-enhancement-kind='socket']")
+    expect(componentStyleSource).toContain(".slotEnhancementState[data-enhancement-kind='enchant']")
+    expect(componentStyleSource).toContain(".slotEnhancementState[data-enhancement-kind='embellishment']")
+    expect(componentStyleSource).toMatch(/\.slotRow\[data-side='right'\] \.slotLevel \{[\s\S]*?right:\s*42px;[\s\S]*?left:\s*auto;/u)
   })
 
   it('keeps candidate and enhancement choices source-owned until explicit apply or confirm', () => {
@@ -152,7 +157,7 @@ describe('gear detail fixed workbench contract', () => {
     expect(pageSource).toContain('onSelectVariant={chooseCandidateVariant}')
   })
 
-  it('keeps editor choices as drafts until one verified Resolve commits them', () => {
+  it('keeps editor choices as drafts until Resolve proves their exact acceptance boundary', () => {
     expect(pageSource).toContain('setCandidateDraft')
     expect(pageSource).toContain('setEnhancementDraft')
     expect(pageSource).toMatch(/const applyCandidateDraft = async \(\)[\s\S]*?await resolveSelection\(/u)
@@ -161,9 +166,11 @@ describe('gear detail fixed workbench contract', () => {
     expect(pageSource).not.toMatch(/const chooseCandidate = async[\s\S]*?await resolveSelection/u)
     expect(pageSource).toMatch(/const chooseEnhancement = \([\s\S]*?setEnhancementDraft/u)
     expect(pageSource).not.toMatch(/const chooseEnhancement = async[\s\S]*?await resolveSelection/u)
-    expect(pageSource).toMatch(/const applyCandidateDraft = async \(\)[\s\S]*?await resolveSelection\([\s\S]*?transitionGearEditorCommit\([\s\S]*?if \(!transition\.committed\) return[\s\S]*?setEquipped\(transition\.state\.equipped\)/u)
+    expect(pageSource).toContain('isProfileIncompleteOnlySnapshot')
+    expect(pageSource).toMatch(/result\.payload\.status === 'blocked'\s*&&\s*isProfileIncompleteOnlySnapshot\(snapshot\)[\s\S]*?return \{ status: 'slot_resolved', intent, snapshot \}/u)
+    expect(pageSource).toMatch(/const applyCandidateDraft = async \(\)[\s\S]*?await resolveSelection\([\s\S]*?resolved\.status !== 'resolved' && resolved\.status !== 'slot_resolved'[\s\S]*?transitionGearEditorCommit\([\s\S]*?if \(!transition\.committed\) return[\s\S]*?setEquipped\(transition\.state\.equipped\)/u)
     expect(pageSource).toMatch(/const confirmEnhancementDraft = async \(\)[\s\S]*?await resolveSelection\([\s\S]*?transitionGearEditorCommit\([\s\S]*?if \(!transition\.committed\) \{[\s\S]*?return[\s\S]*?setEnhancements\(transition\.state\.enhancements\)/u)
-    expect(commitModelSource).toContain("if (event.status !== 'resolved')")
+    expect(commitModelSource).toContain("if (event.status !== 'resolved' && event.status !== 'slot_resolved')")
     expect(commitModelSource).toContain('return { state, committed: false, reload: false }')
     expect(pageSource.match(/snapshot: resolved\.snapshot/gu)).toHaveLength(2)
     expect(pageSource).not.toContain('resolved.snapshot.selectionIntent ?? resolved.intent')
@@ -182,7 +189,8 @@ describe('gear detail fixed workbench contract', () => {
     const selectionEffect = pageSource.match(/useEffect\(\(\) => \{\r?\n {4}if \(!selectionChanged\.current\)[\s\S]*?\}, \[selectedSpecId, route\.load\]\)/u)?.[0] ?? ''
     expect(selectionEffect).toContain('requestFence.current.replaceDraft()')
     expect(selectionEffect).toContain('setCanonical({ loading: false })')
-    expect(pageSource).toMatch(/const openEnhancementGroup = async[\s\S]*?requestFence\.current\.replaceDraft\(\)[\s\S]*?await hydrateSlot/u)
+    expect(pageSource).toMatch(/const openEnhancementGroup = async[\s\S]*?requestFence\.current\.replaceDraft\(\)[\s\S]*?await selectEnhancementDraftSlot/u)
+    expect(pageSource).toMatch(/const selectEnhancementDraftSlot = async[\s\S]*?await hydrateSlot/u)
     expect(pageSource).toMatch(/const importTemplate = async[\s\S]*?requestFence\.current\.beginImport\(\)[\s\S]*?setCanonical\(\(current\) => current\.loading/u)
   })
 
