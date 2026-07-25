@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-25T11:29:21.538Z",
+  "generatedAt": "2026-07-25T11:35:57.503Z",
   "release": {
     "date": "2026-07-25",
     "slug": "gear-slot-information-hierarchy"
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-25-gear-slot-information-hierarchy/evidence.json",
-    "sizeBytes": 9101,
+    "sizeBytes": 8804,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -390,9 +390,9 @@
       "summary"
     ],
     "missingFields": [],
-    "declaredStatus": "runtime_verified",
-    "highestEvidenceLevel": "runtime_verified",
-    "summary": "The exact c5ec24a candidate is deployed with Resolver file parity, public import smoke and user-accepted WeChat presentation. Evidence remains runtime_verified rather than live_verified because the final exact-head full verification is blocked by existing unrelated @babel/core declaration and talent-simulator visual-contract failures; merging is therefore not yet permitted."
+    "declaredStatus": "live_verified",
+    "highestEvidenceLevel": "live_verified",
+    "summary": "The exact c5ec24a candidate is deployed with Resolver file parity, public import smoke and user-accepted WeChat presentation. The clean exact-head full verification passes after two non-runtime gate repairs, so this release is live_verified and ready for the Harness merge sequence."
   },
   "evidence": {
     "localTests": {
@@ -417,7 +417,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "1 changed files currently visible to git status."
+      "detail": "3 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -453,8 +453,10 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 1,
+      "changedFileCount": 3,
       "changedFiles": [
+        " M apps/mini-taro/src/pages/builds/talent-simulator-visual-contract.test.ts",
+        " M apps/mini-taro/tsconfig.json",
         " M artifacts/releases/2026-07-25-gear-slot-information-hierarchy/evidence.json"
       ]
     }
