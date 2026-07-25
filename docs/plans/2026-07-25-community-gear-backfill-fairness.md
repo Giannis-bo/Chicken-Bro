@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (- [ ]) syntax for tracking.
 
-**Goal:** Ensure every retained Raider.IO candidate eventually receives bounded exact-gear SimC enrichment, and make an incomplete exact variant ineligible for public community-template import.
+**Goal:** Ensure every retained Raider.IO candidate, including a player still referenced by the active observed TemplateSet after leaving the latest ranking payload, eventually receives bounded exact-gear SimC enrichment; make an incomplete exact variant ineligible for public community-template import.
 
-**Architecture:** The scheduled PostgreSQL backfill owns bounded SimC work; observed-build compilation only consumes already verified evidence. Add a deterministic persisted profile cursor to the scheduled worker, then require every projected observed slot to resolve to a non-empty verified exact variant before the compiler or public read model calls it importable.
+**Architecture:** The scheduled PostgreSQL backfill owns bounded SimC work; observed-build compilation only consumes already verified evidence. Its candidate pool merges current cached Raider.IO profiles with immutable profiles still referenced by the active observed TemplateSet, deduplicated by profile identity and rotated through one persisted cursor. Every projected observed slot must resolve to a non-empty verified exact variant before the compiler or public read model calls it importable.
 
 **Tech Stack:** Python 3, PostgreSQL cache/sync state, SimulationCraft worker, unittest, existing Harness release packet.
 
@@ -14,6 +14,7 @@
 - Do not execute combat SimulationCraft from server/observed_build_compiler.py.
 - Do not synthesize or accept a blank/default observed variantKey.
 - Selection still prefers the highest-ranked verified candidate per slot; rotation controls only the background evidence queue.
+- An active observed snapshot remains eligible for background repair even if the newest cached ranking payload no longer contains that player; this does not add it to public ranking or change winner election.
 - Preserve same-slot LKG. If no verified LKG exists, omit the incomplete candidate from the importable public list.
 - The existing target_limit and profile_limit remain resource limits; a cursor moves only after a whole profile is handled.
 - Do not commit, merge, push or promote retail until the frozen candidate smoke and manual acceptance contract are complete.
@@ -73,7 +74,7 @@ Expected: only this task's requirement, active-plan registration, and active P1 
 - Modify: tests/postgres_cache_sync_test.py
 
 **Interfaces:**
-- Consumes: cached Raider.IO candidate profiles and prior gear_observed_backfill sync-state payload.
+- Consumes: cached Raider.IO candidate profiles, immutable active observed-snapshot profiles, and prior gear_observed_backfill sync-state payload.
 - Produces: build_observed_profile_window(profiles, after_profile_identity, profile_limit) and results containing profileCursor, profileWindowWrapped, and candidateProfileCount.
 
 - [ ] **Step 1: Write the failing pure-window regression**
@@ -155,7 +156,7 @@ Expected: FAIL because the store and wrapper do not accept profile_cursor.
 
 Change run_gear_observed_backfill_postgres to read store.get_sync_state(GEAR_OBSERVED_BACKFILL_SYNC_KEY), pass profileCursor as profile_cursor, and persist the returned cursor with current-run facts.
 
-Change PostgresCacheStore.backfill_observed_gear_from_raiderio to accept profile_cursor=None. For mode == scheduled, use the window helper. For mode == observed_build_compile, retain caller-provided exact profiles and never consume scheduled cursor state.
+Change PostgresCacheStore.backfill_observed_gear_from_raiderio to accept profile_cursor=None. For a scheduled window, merge the current Raider.IO profile candidates with valid active TemplateSet snapshots, dedupe by the same stable profile identity, then use the window helper. For mode == observed_build_compile, retain caller-provided exact profiles and never consume scheduled cursor state.
 
 Before running SimC for a scheduled profile, do not start a new profile if its complete gear set would exceed remaining target_limit after a prior profile was accepted. Advance profileCursor only after the profile's accepted rows are built. Return:
 

@@ -5675,13 +5675,23 @@ class PostgresCacheStoreTest(unittest.TestCase):
         from server.postgres_cache_store import PostgresCacheStore
 
         conn = FakeConnection()
-        store = PostgresCacheStore(lambda: conn)
+        store = PostgresCacheStore(
+            lambda: conn,
+            observed_build_store=FakeObservedBuildStore([
+                observed_active_record(
+                    hero="spellslinger",
+                    player="charlie",
+                    item_id="258503",
+                    projection_digit="c",
+                )
+            ]),
+        )
         profiles = [
             {
                 "name": name,
-                "profileUrl": f"https://raider.io/characters/cn/realm/{name}",
+                "profileUrl": f"https://raider.io/characters/cn/realm-a/{name}",
                 "region": "cn",
-                "realmSlug": "realm",
+                "realmSlug": "realm-a",
                 "classKey": "mage",
                 "specKey": "arcane",
                 "gear": [
@@ -5694,7 +5704,7 @@ class PostgresCacheStoreTest(unittest.TestCase):
                     }
                 ],
             }
-            for name, item_id in (("alpha", "258501"), ("bravo", "258502"), ("charlie", "258503"))
+            for name, item_id in (("alpha", "258501"), ("bravo", "258502"))
         ]
 
         result = store.backfill_observed_gear_from_raiderio(
@@ -5702,13 +5712,13 @@ class PostgresCacheStoreTest(unittest.TestCase):
             mode="gear_template_first_sync",
             target_limit=2,
             profile_limit=2,
-            profile_cursor={"afterProfileIdentity": "raiderio:cn|realm|bravo"},
+            profile_cursor={"afterProfileIdentity": "raiderio:cn|realm-a|bravo"},
         )
 
         self.assertEqual(result["processedProfileCount"], 2)
         self.assertEqual(
             result.get("profileCursor"),
-            {"afterProfileIdentity": "raiderio:cn|realm|alpha"},
+            {"afterProfileIdentity": "raiderio:cn|realm-a|alpha"},
         )
         self.assertTrue(result.get("profileWindowWrapped"))
         self.assertEqual(result.get("candidateProfileCount"), 3)

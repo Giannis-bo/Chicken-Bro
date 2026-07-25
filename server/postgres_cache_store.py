@@ -4978,6 +4978,81 @@ class PostgresCacheStore:
                 add_profile(profile, inherited)
         return candidates
 
+    def _active_observed_snapshot_backfill_candidates(self):
+        """Keep active observed snapshots eligible for a later exact SimC repair.
+
+        A cached Raider.IO ranking window can shrink or reorder between runs.  Its
+        active TemplateSet still refers to immutable, user-visible snapshots, so
+        those exact profiles must remain in the independent backfill candidate
+        pool until their observed variants have completed.  This affects worker
+        scheduling only; it never participates in public template ranking.
+        """
+
+        try:
+            bundle = self._observed_build_store.load_active_records(
+                self._observed_build_scope(),
+            )
+        except ObservedBuildIntegrityError:
+            return []
+        records = bundle.get("records") if isinstance(bundle, dict) else []
+        candidates = []
+        for record in records or []:
+            if not isinstance(record, dict):
+                continue
+            snapshot = record.get("snapshot") if isinstance(record.get("snapshot"), dict) else {}
+            slot = snapshot.get("slot") if isinstance(snapshot.get("slot"), dict) else {}
+            source = snapshot.get("source") if isinstance(snapshot.get("source"), dict) else {}
+            observation = (
+                snapshot.get("gearObservation")
+                if isinstance(snapshot.get("gearObservation"), dict)
+                else {}
+            )
+            gear = observation.get("gearItems") if isinstance(observation.get("gearItems"), list) else []
+            profile_url = str(source.get("profileUrl") or "").strip()
+            character_name = str(source.get("character") or "").strip()
+            region = str(source.get("region") or "").strip().lower()
+            realm_slug = str(source.get("realm") or "").strip()
+            class_key = slugify(slot.get("classKey"), "")
+            spec_key = slugify(slot.get("specKey"), "")
+            if not (
+                profile_url
+                and character_name
+                and region
+                and realm_slug
+                and class_key
+                and spec_key
+                and gear
+            ):
+                continue
+            ranking_evidence = (
+                snapshot.get("rankingEvidence")
+                if isinstance(snapshot.get("rankingEvidence"), dict)
+                else {}
+            )
+            candidates.append(
+                {
+                    "classKey": class_key,
+                    "specKey": spec_key,
+                    "profileUrl": profile_url,
+                    "characterName": character_name,
+                    "name": character_name,
+                    "region": region,
+                    "realmSlug": realm_slug,
+                    "gear": _json_value(gear, []),
+                    "rankingEvidence": _json_value(ranking_evidence, {}),
+                    "sourceName": "Raider.IO active observed snapshot",
+                    "sourceStatus": "synced",
+                    "sourceIdentity": str(source.get("sourceIdentity") or "").strip(),
+                }
+            )
+        return candidates
+
+    def _observed_backfill_profile_candidates(self, raiderio):
+        return [
+            *self._raiderio_observed_profile_candidates(raiderio),
+            *self._active_observed_snapshot_backfill_candidates(),
+        ]
+
     @staticmethod
     def _distinct_observed_community_templates(templates):
         """Keep one current template per observed Raider.IO character, never per spec."""
@@ -6358,7 +6433,7 @@ class PostgresCacheStore:
         }
         if uses_profile_rotation:
             profile_window = build_observed_profile_window(
-                self._raiderio_observed_profile_candidates(raiderio_payload),
+                self._observed_backfill_profile_candidates(raiderio_payload),
                 after_profile_identity=str(cursor.get("afterProfileIdentity") or ""),
                 profile_limit=profile_limit_value,
             )
