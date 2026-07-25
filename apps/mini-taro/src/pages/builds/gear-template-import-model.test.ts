@@ -38,7 +38,7 @@ const savedTemplate = (overrides: Partial<BuildTemplate> = {}): BuildTemplate =>
 })
 
 describe('gear template import model', () => {
-  it('normalizes PostgreSQL timestamps before formatting them for iOS', () => {
+  it('keeps an explicit PostgreSQL timestamp offset stable across device timezones', () => {
     expect(formatGearTemplateUpdatedAt('2026-07-16 06:42:12+08:00')).toBe('2026-07-16 06:42')
   })
 

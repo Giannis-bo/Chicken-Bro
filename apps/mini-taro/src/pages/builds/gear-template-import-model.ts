@@ -29,7 +29,14 @@ export function formatGearTemplateUpdatedAt(value: string | undefined): string {
     : value
   const date = new Date(normalized)
   if (!Number.isFinite(date.getTime())) return value
+  const offsetMatch = normalized.match(/([+-])(\d{2}):?(\d{2})$/)
   const pad = (part: number) => String(part).padStart(2, '0')
+  if (offsetMatch) {
+    const offsetMinutes = (Number(offsetMatch[2]) * 60 + Number(offsetMatch[3]))
+      * (offsetMatch[1] === '+' ? 1 : -1)
+    const sourceTime = new Date(date.getTime() + offsetMinutes * 60_000)
+    return `${sourceTime.getUTCFullYear()}-${pad(sourceTime.getUTCMonth() + 1)}-${pad(sourceTime.getUTCDate())} ${pad(sourceTime.getUTCHours())}:${pad(sourceTime.getUTCMinutes())}`
+  }
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
 
