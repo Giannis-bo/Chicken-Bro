@@ -764,6 +764,7 @@ class GearResolverTest(unittest.TestCase):
         head = result["resolvedSlots"]["head"]
 
         self.assertEqual(head["resolutionStages"], ["base", "variant", "overlay", "capabilities", "enhancements"])
+        self.assertEqual(head["itemStaticStats"], {"haste": 25, "stamina": 130, "strength": 90})
         self.assertEqual(head["resolvedStats"], {"haste": 35, "stamina": 130, "strength": 90})
         self.assertEqual(head["effectiveCapabilities"]["socketCount"], 1)
         self.assertEqual(head["selectedOptions"]["gemOptionIds"], ["gem-haste"])
@@ -1690,6 +1691,7 @@ class GearResolverTest(unittest.TestCase):
             "itemLevel",
             "itemSetId",
             "overlayId",
+            "itemStaticStats",
             "resolvedStats",
             "statDeltas",
             "effectiveCapabilities",

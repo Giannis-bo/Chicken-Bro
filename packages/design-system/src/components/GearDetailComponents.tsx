@@ -325,9 +325,19 @@ export interface GearWorkbenchSlotItem {
   candidateCount: number
   itemId: string
   itemLabel: string
+  secondaryStatLabels: readonly string[]
+  secondaryStatState: 'verified' | 'none' | 'unavailable'
+  enhancementStates: readonly GearWorkbenchSlotEnhancementState[]
   levelLabel: string
   iconUrl?: string | undefined
   state: 'ready' | 'partial' | 'empty'
+}
+
+export interface GearWorkbenchSlotEnhancementState {
+  id: 'socket' | 'enchant' | 'embellishment'
+  label: string
+  selected: boolean
+  count: number
 }
 
 export interface GearWorkbenchCandidateItem {
@@ -424,8 +434,34 @@ function GearSlotRow({
         slotId="asset_slot.gear-item-object"
       />
       <View className={style('slotCopy')}>
-        <Text>{item.label}</Text>
-        <Text>{item.itemLabel}</Text>
+        <Text data-role="gear-slot-label">{item.label}</Text>
+        <Text data-role="gear-slot-item-name">{item.itemLabel}</Text>
+        {item.secondaryStatLabels.length ? (
+          <View
+            className={classes(
+              style('slotSecondaryStats'),
+              item.secondaryStatState === 'none' && style('slotSecondaryStatsNone'),
+              item.secondaryStatState === 'unavailable' && style('slotSecondaryStatsUnavailable'),
+            )}
+            data-role="gear-slot-secondary-stats"
+            data-static-facts={item.secondaryStatState}
+          >
+            <Text>{item.secondaryStatLabels.join(' · ')}</Text>
+          </View>
+        ) : null}
+      </View>
+      <View className={style('slotEnhancementStates')} data-role="gear-slot-enhancement-states">
+        {item.enhancementStates.map((state) => (
+          <View
+            key={state.id}
+            aria-label={`${state.label}${state.selected ? `：已确认${state.count || ''}` : '：未确认'}`}
+            className={classes(style('slotEnhancementState'), state.selected && style('slotEnhancementStateSelected'))}
+            data-enhancement-kind={state.id}
+            data-state={state.selected ? 'confirmed' : 'unconfirmed'}
+          >
+            <SystemGlyph assetId={enhancementGlyph[state.id]} className={style('slotEnhancementGlyph')} slotId="asset_slot.gear-enhancement-medallions" />
+          </View>
+        ))}
       </View>
       <Text className={style('slotLevel')}>{item.levelLabel || item.candidateCount}</Text>
     </ControlButton>

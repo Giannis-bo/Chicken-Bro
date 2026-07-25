@@ -4,5 +4,5 @@
     "noEmit": true,
     "types": ["@tarojs/taro", "@types/webpack-env"]
   },
-  "include": ["config/**/*.ts", "src/**/*.ts", "src/**/*.tsx"]
+  "include": ["../../packages/types/**/*.d.ts", "config/**/*.ts", "src/**/*.ts", "src/**/*.tsx"]
 }

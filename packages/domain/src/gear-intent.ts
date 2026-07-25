@@ -12,6 +12,8 @@ const canonicalSlots = [
   'legs', 'feet', 'finger1', 'finger2', 'trinket1', 'trinket2', 'main_hand', 'off_hand',
 ] as const
 
+export type GearItemStaticStatsBySlot = Readonly<Record<string, Readonly<Record<string, number>>>>
+
 const selectionIntentRootKeys = ['schemaRevision', 'authoredAgainst', 'eligibilityContext', 'slots'] as const
 const selectionIntentAuthoredKeys = ['seasonRevision', 'gearCatalogRevision'] as const
 const selectionIntentEligibilityKeys = ['classKey', 'specKey', 'level'] as const
@@ -24,6 +26,46 @@ function identifier(value: unknown): string {
   if (typeof value !== 'string' && typeof value !== 'number') return ''
   const text = String(value).trim()
   return text.length <= 256 ? text : ''
+}
+
+function finiteStaticStats(value: unknown): Readonly<Record<string, number>> | null {
+  if (!record(value)) return null
+  const entries = Object.entries(value)
+  if (entries.some(([, stat]) => typeof stat !== 'number' || !Number.isFinite(stat) || stat < 0)) return null
+  return Object.fromEntries(entries) as Readonly<Record<string, number>>
+}
+
+function exactBoundResolvedSlots(
+  snapshot: GearResolvedSnapshot | undefined,
+  gearBySlot: Readonly<Record<string, GearItemReference>>,
+): Readonly<Record<string, Readonly<Record<string, unknown>>>> | null {
+  if (
+    snapshot?.contractRevision !== 'gear-resolved-snapshot-v1'
+    || snapshot.status !== 'verified'
+    || !identifier(snapshot.resolvedGearSignature)
+    || !record(snapshot.resolvedSlots)
+  ) return null
+
+  const selectedSlots = Object.keys(gearBySlot).sort()
+  const resolvedSlots = Object.keys(snapshot.resolvedSlots).sort()
+  if (
+    selectedSlots.length === 0
+    || selectedSlots.length !== resolvedSlots.length
+    || selectedSlots.some((slot, index) => slot !== resolvedSlots[index] || !canonicalSlots.includes(slot as typeof canonicalSlots[number]))
+  ) return null
+
+  const result: Record<string, Readonly<Record<string, unknown>>> = {}
+  for (const slot of selectedSlots) {
+    const item = gearBySlot[slot]
+    const resolved = snapshot.resolvedSlots[slot]
+    if (!item || !record(resolved)) return null
+    if (
+      identifier(item.itemId ?? item.id) !== identifier(resolved['itemId'])
+      || identifier(item.variantKey) !== identifier(resolved['variantKey'])
+    ) return null
+    result[slot] = resolved
+  }
+  return result
 }
 
 function record(value: unknown): value is Readonly<Record<string, unknown>> {
@@ -101,31 +143,13 @@ export function gearEnhancementsFromResolvedSnapshot(
   snapshot: GearResolvedSnapshot | undefined,
   gearBySlot: Readonly<Record<string, GearItemReference>>,
 ): Readonly<Record<string, GearEnhancementSelection>> | null {
-  if (
-    snapshot?.contractRevision !== 'gear-resolved-snapshot-v1'
-    || snapshot.status !== 'verified'
-    || !identifier(snapshot.resolvedGearSignature)
-    || !record(snapshot.resolvedSlots)
-  ) return null
-
-  const selectedSlots = Object.keys(gearBySlot).sort()
-  const resolvedSlots = Object.keys(snapshot.resolvedSlots).sort()
-  if (
-    selectedSlots.length === 0
-    || selectedSlots.length !== resolvedSlots.length
-    || selectedSlots.some((slot, index) => slot !== resolvedSlots[index] || !canonicalSlots.includes(slot as typeof canonicalSlots[number]))
-  ) return null
+  const resolvedSlots = exactBoundResolvedSlots(snapshot, gearBySlot)
+  if (!resolvedSlots) return null
 
   const result: Record<string, GearEnhancementSelection> = {}
-  for (const slot of selectedSlots) {
-    const item = gearBySlot[slot]
-    const resolved = snapshot.resolvedSlots[slot]
-    if (!item || !record(resolved)) return null
-    if (
-      identifier(item.itemId ?? item.id) !== identifier(resolved['itemId'])
-      || identifier(item.variantKey) !== identifier(resolved['variantKey'])
-    ) return null
-
+  for (const slot of Object.keys(resolvedSlots)) {
+    const resolved = resolvedSlots[slot]
+    if (!resolved) return null
     const selectedOptions = resolved['selectedOptions']
     if (!record(selectedOptions)) return null
     const requiredFields = [
@@ -150,6 +174,28 @@ export function gearEnhancementsFromResolvedSnapshot(
       craftedOptionId: identifier(selectedOptions['craftedOptionId']),
       catalystOptionId: identifier(selectedOptions['catalystOptionId']),
     }
+  }
+  return result
+}
+
+/**
+ * Read only the intrinsic, pre-enhancement static attributes from an exact
+ * Resolver snapshot.  The caller must not reconstruct them from final totals
+ * or from candidate data: selected gems, enchants and embellishments belong to
+ * resolvedStats and the attribute-calculation boundary instead.
+ */
+export function gearItemStaticStatsFromResolvedSnapshot(
+  snapshot: GearResolvedSnapshot | undefined,
+  gearBySlot: Readonly<Record<string, GearItemReference>>,
+): GearItemStaticStatsBySlot | null {
+  const resolvedSlots = exactBoundResolvedSlots(snapshot, gearBySlot)
+  if (!resolvedSlots) return null
+  const result: Record<string, Readonly<Record<string, number>>> = {}
+  for (const [slot, resolved] of Object.entries(resolvedSlots)) {
+    if (!resolved) return null
+    const stats = finiteStaticStats(resolved['itemStaticStats'])
+    if (!stats) return null
+    result[slot] = stats
   }
   return result
 }

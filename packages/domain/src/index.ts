@@ -6,9 +6,10 @@ export {
   canonicalGearSelectionIntent,
   completeGearResolverContext,
   gearEnhancementsFromResolvedSnapshot,
+  gearItemStaticStatsFromResolvedSnapshot,
   serializeGearSelectionIntent,
 } from './gear-intent'
-export type { SerializeGearIntentOptions } from './gear-intent'
+export type { GearItemStaticStatsBySlot, SerializeGearIntentOptions } from './gear-intent'
 export type {
   ApiResultLike,
   BuildParams,

@@ -4,6 +4,7 @@ import * as gearIntentExports from './gear-intent'
 
 import {
   gearEnhancementsFromResolvedSnapshot,
+  gearItemStaticStatsFromResolvedSnapshot,
   serializeGearSelectionIntent,
 } from './gear-intent'
 
@@ -134,6 +135,36 @@ describe('canonical gear selection intent', () => {
       gearBySlot,
       enhancementBySlot: enhancements ?? {},
     })?.slots['head']?.gemOptionIds).toEqual(['gem-haste', 'gem-haste'])
+  })
+
+  it('recovers only intrinsic pre-enhancement stats from a bound verified snapshot', () => {
+    const snapshot = {
+      contractRevision: 'gear-resolved-snapshot-v1',
+      status: 'verified',
+      resolvedGearSignature: 'sha256:resolved',
+      resolvedSlots: {
+        head: {
+          itemId: '250060',
+          variantKey: 'variant-head',
+          itemStaticStats: { critical_strike: 301, mastery: 227 },
+          resolvedStats: { critical_strike: 301, mastery: 227, haste: 147 },
+        },
+      },
+    }
+    const gearBySlot = { head: { itemId: '250060', variantKey: 'variant-head' } }
+
+    expect(gearItemStaticStatsFromResolvedSnapshot(snapshot, gearBySlot)).toEqual({
+      head: { critical_strike: 301, mastery: 227 },
+    })
+    expect(gearItemStaticStatsFromResolvedSnapshot({
+      ...snapshot,
+      resolvedSlots: {
+        head: { ...snapshot.resolvedSlots.head, itemStaticStats: { haste: -1 } },
+      },
+    }, gearBySlot)).toBeNull()
+    expect(gearItemStaticStatsFromResolvedSnapshot(snapshot, {
+      head: { itemId: 'different-item', variantKey: 'variant-head' },
+    })).toBeNull()
   })
 
   it('rejects a partial or identity-mismatched verified snapshot', () => {

@@ -361,6 +361,8 @@ class CommunityTemplateImportTest(unittest.TestCase):
                     "itemId": "ring-a",
                     "variantKey": "observed-ring-a",
                     "displayName": "权威戒指",
+                    "itemStaticStats": {"haste": 345, "mastery": 287},
+                    "resolvedStats": {"haste": 492, "mastery": 287},
                 },
                 "trinket1": {
                     "slot": "trinket1",
@@ -395,6 +397,14 @@ class CommunityTemplateImportTest(unittest.TestCase):
         self.assertEqual(
             public["importedGearBySlot"]["trinket1"]["name"],
             "权威饰品",
+        )
+        self.assertEqual(
+            public["resolvedSnapshot"]["resolvedSlots"]["finger1"]["itemStaticStats"],
+            {"haste": 345, "mastery": 287},
+        )
+        self.assertEqual(
+            public["resolvedSnapshot"]["resolvedSlots"]["finger1"]["resolvedStats"],
+            {"haste": 492, "mastery": 287},
         )
 
     def test_public_import_blocks_an_incomplete_observed_display_projection(self):

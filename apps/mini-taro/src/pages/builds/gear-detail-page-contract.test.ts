@@ -117,6 +117,21 @@ describe('gear detail fixed workbench contract', () => {
     expect(componentStyleSource).toMatch(/\.slotMedia \{[\s\S]*?width:\s*36px;[\s\S]*?height:\s*36px;/u)
   })
 
+  it('keeps slot facts readable as a small slot label, item name, secondary-stat labels, and confirmed enhancement markers', () => {
+    expect(modelSource).toContain('gearItemSecondaryStatLabels')
+    expect(modelSource).toContain('itemStaticStats')
+    expect(pageSource).toContain('gearItemStaticStatsFromResolvedSnapshot')
+    expect(modelSource).toContain('enhancementStates')
+    expect(componentSource).toContain('data-role="gear-slot-label"')
+    expect(componentSource).toContain('data-role="gear-slot-item-name"')
+    expect(componentSource).toContain('data-role="gear-slot-secondary-stats"')
+    expect(componentSource).toContain('data-role="gear-slot-enhancement-states"')
+    expect(componentSource).toContain('data-static-facts={item.secondaryStatState}')
+    expect(componentStyleSource).toMatch(/\.slotCopy > text:first-child \{[\s\S]*?font-size:\s*7px;/u)
+    expect(componentStyleSource).toMatch(/\.slotCopy > text:nth-child\(2\) \{[\s\S]*?font-size:\s*10px;/u)
+    expect(componentStyleSource).toMatch(/\.slotEnhancementStates \{[\s\S]*?position:\s*absolute;[\s\S]*?top:\s*3px;/u)
+  })
+
   it('keeps candidate and enhancement choices source-owned until explicit apply or confirm', () => {
     expect(editorComponentSource).toContain('data-role="gear-candidate-row"')
     expect(editorComponentSource).toContain('data-role="gear-candidate-variant"')
@@ -164,7 +179,7 @@ describe('gear detail fixed workbench contract', () => {
   })
 
   it('invalidates an in-flight Resolve before opening another editor or importing', () => {
-    const selectionEffect = pageSource.match(/useEffect\(\(\) => \{\n {4}if \(!selectionChanged\.current\)[\s\S]*?\}, \[selectedSpecId, route\.load\]\)/u)?.[0] ?? ''
+    const selectionEffect = pageSource.match(/useEffect\(\(\) => \{\r?\n {4}if \(!selectionChanged\.current\)[\s\S]*?\}, \[selectedSpecId, route\.load\]\)/u)?.[0] ?? ''
     expect(selectionEffect).toContain('requestFence.current.replaceDraft()')
     expect(selectionEffect).toContain('setCanonical({ loading: false })')
     expect(pageSource).toMatch(/const openEnhancementGroup = async[\s\S]*?requestFence\.current\.replaceDraft\(\)[\s\S]*?await hydrateSlot/u)
@@ -236,7 +251,7 @@ describe('gear detail fixed workbench contract', () => {
     expect(componentSource).toMatch(/export function GearProfessionSelector[\s\S]*?<Picker[\s\S]*?data-role="gear-profession-field"/u)
     expect(componentSource).toContain('data-role="gear-specialization-field"')
     expect(componentSource).not.toContain('data-role="gear-profession-track"')
-    expect(componentStyleSource).toMatch(/\.professionOwner,\n\.specializationOwner \{[\s\S]*?grid-template-columns:\s*22px minmax\(0, 1fr\);/u)
+    expect(componentStyleSource).toMatch(/\.professionOwner,\r?\n\.specializationOwner \{[\s\S]*?grid-template-columns:\s*22px minmax\(0, 1fr\);/u)
     expect(styleSource).toMatch(/\.professionRegion \{[\s\S]*?height:\s*30px;/u)
     expect(styleSource).toMatch(/\.specializationRegion \{[\s\S]*?height:\s*30px;/u)
     expect(styleSource).toMatch(/\.loadoutSummaryRegion \{[\s\S]*?top:\s*47px;/u)

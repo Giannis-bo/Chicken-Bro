@@ -9,7 +9,7 @@ const modelPath = resolve(process.cwd(), 'apps/mini-taro/src/pages/builds/talent
 
 describe('talent simulator legacy visual contract', () => {
   it('uses the real legacy pixel canvas, centered bounds renderer, and directed nodes', () => {
-    const componentSource = readFileSync(componentPath, 'utf8')
+    const componentSource = readFileSync(componentPath, 'utf8').replace(/\r\n/g, '\n')
     const styleSource = readFileSync(stylePath, 'utf8')
     const modelSource = readFileSync(modelPath, 'utf8')
 
@@ -48,7 +48,7 @@ describe('talent simulator legacy visual contract', () => {
   })
 
   it('keeps the expanded tree inside a vertically scrollable viewport with safe top and bottom reach', () => {
-    const componentSource = readFileSync(componentPath, 'utf8')
+    const componentSource = readFileSync(componentPath, 'utf8').replace(/\r\n/g, '\n')
 
     expect(componentSource).toContain('const targetContentHeight = graphViewportHeight - graphInset * 2')
     expect(componentSource).toContain(`const graphScale = Math.min(
