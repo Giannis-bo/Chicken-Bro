@@ -357,6 +357,8 @@ def _select_importable_winners(
     eligible_snapshot_ids: set[str],
     active_set: dict[str, Any] | None,
     dependency_vector: dict[str, Any],
+    *,
+    allow_dependency_recomposition: bool = False,
 ) -> tuple[dict[str, dict[str, Any]], set[str]]:
     """Prefer a fully new distinct pair, then use same-slot LKG per failed slot."""
 
@@ -371,7 +373,10 @@ def _select_importable_winners(
     }
     allow_lkg = (
         bool(active_set)
-        and active_set.get("dependencyVector") == dependency_vector
+        and (
+            active_set.get("dependencyVector") == dependency_vector
+            or allow_dependency_recomposition
+        )
     )
     slots_by_spec: dict[str, list[str]] = {}
     for slot in _expected_slots():
@@ -708,6 +713,10 @@ def run_observed_build_sync(
         eligible_snapshot_ids,
         active_set or None,
         dependency_vector,
+        allow_dependency_recomposition=(
+            normalized_scope == "candidate"
+            and bool(allow_controlled_cutover)
+        ),
     )
     recomposition_by_slot = _active_lkg_recomposition_snapshots(
         active_records,

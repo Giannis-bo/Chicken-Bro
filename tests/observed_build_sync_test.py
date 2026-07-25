@@ -637,6 +637,110 @@ class ObservedBuildSyncTest(unittest.TestCase):
             compiled_snapshot_ids,
         )
 
+    def test_candidate_dependency_cutover_recomposes_selected_lkg_only(self):
+        target_slot = self.slots()[0]
+        target_key = slot_key(target_slot)
+        store = self.active_store()
+        payload = self.payload()
+        target_identity = next(
+            template["payload"]["raiderio"]["sourceIdentity"]
+            for template in payload["communityTemplates"]
+            if (
+                template["classKey"],
+                template["specKey"],
+                template["heroKey"],
+            )
+            == (
+                target_slot["classKey"],
+                target_slot["specKey"],
+                target_slot["heroKey"],
+            )
+        )
+        payload["communityTemplates"] = [
+            template
+            for template in payload["communityTemplates"]
+            if template["payload"]["raiderio"]["sourceIdentity"]
+            != target_identity
+        ]
+        payload["profiles"] = [
+            profile
+            for profile in payload["profiles"]
+            if profile["sourceIdentity"] != target_identity
+        ]
+        dependencies = {
+            **self.dependencies(),
+            "gearReleaseId": "gear-release:sha256:" + "2" * 64,
+        }
+        compiled_snapshot_ids = []
+
+        def compiler(snapshot):
+            compiled_snapshot_ids.append(snapshot["snapshotId"])
+            return build_projection(
+                snapshot=snapshot,
+                dependency_vector=dependencies,
+                talent_projection={"status": "verified"},
+                gear_projection={
+                    "status": "verified",
+                    "selectionIntent": {"slots": {}},
+                },
+                profile_readiness={
+                    "status": "verified",
+                    "simcReady": True,
+                },
+            )
+
+        compiler.dependency_vector = dependencies
+        unapproved_store = self.active_store()
+        unapproved = run_observed_build_sync(
+            unapproved_store,
+            scope="candidate",
+            refresh_source=False,
+            allow_promotion=True,
+            allow_controlled_cutover=False,
+            source_fetcher=lambda: payload,
+            compiler=compiler,
+            checked_at="2026-07-23T13:00:00Z",
+        )
+        self.assertEqual(unapproved["coverage"]["pending_collection"], 1)
+        self.assertEqual(
+            unapproved["pointerAfter"]["generation"],
+            3,
+        )
+        result = run_observed_build_sync(
+            store,
+            scope="candidate",
+            refresh_source=False,
+            allow_promotion=True,
+            allow_controlled_cutover=True,
+            source_fetcher=lambda: payload,
+            compiler=compiler,
+            checked_at="2026-07-23T13:00:00Z",
+        )
+
+        selected = next(
+            entry
+            for entry in store.template_sets[
+                result["candidateTemplateSetId"]
+            ]["entries"]
+            if entry["slotKey"] == target_key
+        )
+        active_target = store.active_artifacts[target_key]
+        self.assertEqual(result["coverage"]["verified"], 80)
+        self.assertEqual(result["coverage"]["pending_collection"], 0)
+        self.assertEqual(
+            result["promotion"]["action"],
+            "controlled_cutover",
+        )
+        self.assertEqual(selected["status"], "verified")
+        self.assertEqual(
+            selected["sourceIdentity"],
+            active_target["snapshot"]["source"]["sourceIdentity"],
+        )
+        self.assertIn(
+            active_target["snapshot"]["snapshotId"],
+            compiled_snapshot_ids,
+        )
+
     def test_unchanged_snapshots_reuse_active_projections_without_compiling(self):
         store = self.active_store()
 
