@@ -1,0 +1,175 @@
+{
+  "schemaVersion": 2,
+  "slug": "gear-slot-information-hierarchy",
+  "requirementSlug": "gear-slot-information-hierarchy",
+  "status": "runtime_verified",
+  "highestEvidenceLevel": "runtime_verified",
+  "branch": "codex/gear-slot-information-hierarchy",
+  "commit": "c5ec24a4a683220ffa7c2cfe71721a321cb79252",
+  "identities": {
+    "runtime": {
+      "status": "bound",
+      "kind": "git_commit",
+      "value": "c5ec24a4a683220ffa7c2cfe71721a321cb79252"
+    },
+    "verification": {
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD"
+    },
+    "closure": {
+      "status": "pending",
+      "reason": "The task remains unmerged until the exact-head full verification gate passes."
+    }
+  },
+  "manualAcceptance": {
+    "required": true,
+    "status": "complete",
+    "items": [
+      {
+        "id": "gear_slot_information_hierarchy",
+        "status": "accepted",
+        "evidence": "2026-07-25 user confirmation after the requested WeChat candidate verification: 验证过了，符合预期，没问题。"
+      },
+      {
+        "id": "gear_slot_enhancement_state",
+        "status": "accepted",
+        "evidence": "2026-07-25 user confirmation after the requested WeChat candidate verification: 验证过了，符合预期，没问题。"
+      },
+      {
+        "id": "gear_slot_intrinsic_secondary_stats",
+        "status": "accepted",
+        "evidence": "2026-07-25 user confirmation after the requested WeChat candidate verification: 验证过了，符合预期，没问题。"
+      },
+      {
+        "id": "gear_static_calculation_boundary",
+        "status": "accepted",
+        "evidence": "2026-07-25 user confirmation after the requested WeChat candidate verification: 验证过了，符合预期，没问题。"
+      }
+    ],
+    "rollup": {
+      "total": 4,
+      "accepted": 4,
+      "notRunUserWaived": 0,
+      "pending": 0
+    }
+  },
+  "scope": [
+    "server/gear_resolver.py intrinsic itemStaticStats projection",
+    "community import public resolved snapshot transport",
+    "packages/domain exact identity-bound itemStaticStats consumption",
+    "active Taro gear-detail information hierarchy and enhancement state",
+    "gear-detail design contracts and release packet"
+  ],
+  "verification": [
+    {
+      "command": "python -m unittest tests.gear_resolver_test tests.community_template_import_test",
+      "status": "pass",
+      "summary": "77 Resolver and public community-import tests passed; they prove itemStaticStats is captured before enhancements and preserved in the public resolved snapshot."
+    },
+    {
+      "command": "npx vitest run packages/domain/src/gear-intent.test.ts apps/mini-taro/src/pages/builds/gear-detail-model.test.ts apps/mini-taro/src/pages/builds/gear-detail-page-contract.test.ts",
+      "status": "pass",
+      "summary": "46 typed-domain, view-model and route-contract tests passed, including exact snapshot binding and verified/none/unavailable presentation."
+    },
+    {
+      "command": "node scripts/audit-ui-architecture.js",
+      "status": "pass",
+      "summary": "UI architecture audit passed across 14 routes, 14 contracts and 283 checks."
+    },
+    {
+      "command": "npm --workspace @wow-mini/mini-taro run build:weapp",
+      "status": "pass",
+      "summary": "The c5ec24a candidate WeChat package built successfully; only pre-existing CSS-order and bundle-size warnings were emitted."
+    },
+    {
+      "command": "node node_modules/typescript/bin/tsc --noEmit -p apps/mini-taro/tsconfig.json",
+      "status": "blocked",
+      "summary": "Existing unrelated TS7016 prevents the full typecheck: apps/mini-taro/src/config/babel-data-selector-markers.test.ts lacks a declaration for @babel/core. No dependency installation or unrelated declaration change was authorized."
+    },
+    {
+      "command": "git diff --check && local CR",
+      "status": "pass",
+      "summary": "No whitespace defects. Whole-branch review found the Resolver remains the sole owner of the pre-enhancement versus final-stat boundary; the frontend only consumes an exact identity-bound verified snapshot."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "candidate_verified",
+    "branch": "codex/gear-slot-information-hierarchy",
+    "commit": "c5ec24a4a683220ffa7c2cfe71721a321cb79252",
+    "target": "wow-lighthouse:/opt/wow-mini-program (wow-backend)",
+    "deployment": "Copied only server/gear_resolver.py from the candidate and restarted wow-backend; async sync remained off.",
+    "smoke": {
+      "status": "pass",
+      "health": "https://api.chickenbro.cloud/health returned ok=true after restart.",
+      "communityImport": "Public POST /api/websim/gear/community-import for the verified Mage/Frost template returned verified status, 16 slots and no problems; chest itemStaticStats contained crit_rating=117 and haste_rating=55, distinct from the final-stat contract boundary.",
+      "dataHealth": "Backend component remained verified while the pre-existing overall data-health state was partial."
+    },
+    "timerBackflow": {
+      "status": "pass",
+      "summary": "wow-websim-sync and wow-community-template-sync remained inactive; no async sync/backfill was started."
+    },
+    "runtimeFileParity": {
+      "status": "pass",
+      "path": "server/gear_resolver.py",
+      "sha256": "d3a4b9761e3a4ad3313110c182f63babf3b580c3a0968ab40a724f10aad53b57",
+      "summary": "Remote deployed file SHA-256 exactly matched the candidate source file."
+    }
+  },
+  "runtimeEvidence": [
+    {
+      "type": "runtime_file_parity",
+      "status": "pass",
+      "summary": "Candidate server/gear_resolver.py parity is proven by SHA-256 d3a4b9761e3a4ad3313110c182f63babf3b580c3a0968ab40a724f10aad53b57."
+    },
+    {
+      "type": "smoke",
+      "status": "pass",
+      "summary": "Public verified community import and health smoke passed on the candidate runtime."
+    },
+    {
+      "type": "timer_backflow",
+      "status": "pass",
+      "summary": "No async sync or backfill service was started by this candidate deployment."
+    },
+    {
+      "type": "manual_wechat_acceptance",
+      "status": "pass",
+      "summary": "User accepted all four frozen gear-detail manual-acceptance items on 2026-07-25."
+    }
+  ],
+  "risks": [
+    {
+      "id": "full_typecheck_blocked_by_existing_declaration_gap",
+      "status": "open_blocker",
+      "detail": "The required exact-head full verification cannot be promoted until the pre-existing @babel/core type declaration gap is resolved under separately authorized scope."
+    },
+    {
+      "id": "predeploy_remote_file_backup_missing",
+      "status": "open_operational_limitation",
+      "detail": "The first backup command failed before creating an exact copy of the pre-deploy remote resolver file. The deployed candidate is healthy, but an exact remote-file rollback artifact is unavailable."
+    },
+    {
+      "id": "heavy_gear_browse_endpoint",
+      "status": "out_of_scope_existing_issue",
+      "detail": "A broad compact gear browse request produced an unexpectedly large response and transient RSS spike; it was not retried and is unrelated to this Resolver projection change."
+    }
+  ],
+  "rollback": [
+    "code_rollback: revert the c5ec24a Resolver and consumer changes, rebuild the mini-program, and deploy the approved replacement after taking a verified backup.",
+    "Operational limitation: no exact pre-deploy remote resolver-file backup exists for this candidate window."
+  ],
+  "cleanup": {
+    "required": true,
+    "status": "pending_exact_head_full_verification"
+  },
+  "archivedReferences": [
+    "docs/project-state.json",
+    "docs/roadmap.md",
+    "docs/harness.md",
+    "docs/verification-matrix.md",
+    "docs/design/current-ui/routes/gear-detail/truth-adaptation.json",
+    "docs/design/current-ui/routes/gear-detail/component-contract.json"
+  ],
+  "summary": "The exact c5ec24a candidate is deployed with Resolver file parity, public import smoke and user-accepted WeChat presentation. Evidence remains runtime_verified rather than live_verified because the final exact-head full verification is blocked by an existing unrelated @babel/core declaration gap; merging is therefore not yet permitted."
+}

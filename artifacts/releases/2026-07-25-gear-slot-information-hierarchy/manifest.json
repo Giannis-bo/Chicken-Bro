@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-25T10:58:55.281Z",
+  "generatedAt": "2026-07-25T11:23:16.611Z",
   "release": {
     "date": "2026-07-25",
     "slug": "gear-slot-information-hierarchy"
@@ -346,7 +346,9 @@
     }
   },
   "evidencePacket": {
-    "status": "not_attached",
+    "status": "ready",
+    "path": "artifacts/releases/2026-07-25-gear-slot-information-hierarchy/evidence.json",
+    "sizeBytes": 8193,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -367,7 +369,30 @@
       "archivedReferences",
       "summary"
     ],
-    "note": "Attach a local evidence packet with --evidence-file when promoting a Standard or Strict requirement."
+    "fieldsPresent": [
+      "schemaVersion",
+      "slug",
+      "requirementSlug",
+      "status",
+      "highestEvidenceLevel",
+      "branch",
+      "commit",
+      "identities",
+      "manualAcceptance",
+      "scope",
+      "verification",
+      "candidateDeployment",
+      "runtimeEvidence",
+      "risks",
+      "rollback",
+      "cleanup",
+      "archivedReferences",
+      "summary"
+    ],
+    "missingFields": [],
+    "declaredStatus": "runtime_verified",
+    "highestEvidenceLevel": "runtime_verified",
+    "summary": "The exact c5ec24a candidate is deployed with Resolver file parity, public import smoke and user-accepted WeChat presentation. Evidence remains runtime_verified rather than live_verified because the final exact-head full verification is blocked by an existing unrelated @babel/core declaration gap; merging is therefore not yet permitted."
   },
   "evidence": {
     "localTests": {
@@ -392,7 +417,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "17 changed files currently visible to git status."
+      "detail": "1 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
@@ -428,25 +453,9 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 17,
+      "changedFileCount": 1,
       "changedFiles": [
-        " M apps/mini-taro/src/pages/builds/detail.tsx",
-        " M apps/mini-taro/src/pages/builds/gear-detail-model.test.ts",
-        " M apps/mini-taro/src/pages/builds/gear-detail-model.ts",
-        " M apps/mini-taro/src/pages/builds/gear-detail-page-contract.test.ts",
-        " M artifacts/releases/2026-07-25-gear-slot-information-hierarchy/requirement.json",
-        " M docs/design/current-ui/routes/gear-detail/component-contract.json",
-        " M docs/design/current-ui/routes/gear-detail/truth-adaptation.json",
-        " M docs/roadmap/ideas.md",
-        " M packages/design-system/src/components/GearDetailComponents.module.scss",
-        " M packages/design-system/src/components/GearDetailComponents.tsx",
-        " M packages/domain/src/gear-intent.test.ts",
-        " M packages/domain/src/gear-intent.ts",
-        " M packages/domain/src/index.ts",
-        " M server/gear_resolver.py",
-        " M tests/community_template_import_test.py",
-        " M tests/gear_resolver_test.py",
-        "?? artifacts/releases/2026-07-25-gear-slot-information-hierarchy/manifest.json"
+        "?? artifacts/releases/2026-07-25-gear-slot-information-hierarchy/evidence.json"
       ]
     }
   },
