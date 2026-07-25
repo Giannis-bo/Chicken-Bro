@@ -266,16 +266,23 @@
 .slotRow-ready { color: #c8b58f; }
 .slotMedia { grid-area: media; width: 36px; height: 36px; border: 1px solid #806944; border-radius: 0; clip-path: polygon(3px 0, calc(100% - 3px) 0, 100% 3px, 100% calc(100% - 3px), calc(100% - 3px) 100%, 3px 100%, 0 calc(100% - 3px), 0 3px); }
 .slotMedia .trustedFallback > view { width: 70%; height: 70%; color: #c5a86f; }
-.slotCopy { grid-area: copy; min-width: 0; padding-bottom: 7px; }
+.slotCopy { grid-area: copy; min-width: 0; padding: 9px 34px 8px 0; }
 .slotCopy > text { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.slotCopy > text:first-child { color: #c8b694; font-size: 9px; font-weight: 730; line-height: 11px; }
-.slotCopy > text:last-child { color: #85817a; font-size: 7px; line-height: 9px; }
-.slotRow[data-state='ready'] .slotCopy > text:last-child,
-.slotRow-ready .slotCopy > text:last-child { color: #9b9386; }
+.slotCopy > text:first-child { color: #a69a86; font-size: 7px; font-weight: 680; line-height: 8px; }
+.slotCopy > text:nth-child(2) { color: #d8c398; font-size: 10px; font-weight: 760; line-height: 12px; }
+.slotRow[data-state='ready'] .slotCopy > text:nth-child(2),
+.slotRow-ready .slotCopy > text:nth-child(2) { color: #e0c67f; }
+.slotSecondaryStats { display: flex; min-width: 0; gap: 4px; overflow: hidden; color: #78ba7a; font-size: 7px; line-height: 9px; white-space: nowrap; }
+.slotSecondaryStats > text { overflow: hidden; text-overflow: ellipsis; }
+.slotEnhancementStates { position: absolute; top: 3px; right: 5px; display: flex; align-items: center; gap: 2px; pointer-events: none; }
+.slotEnhancementState { display: flex; width: 9px; height: 9px; align-items: center; justify-content: center; color: #4b5255; opacity: 0.76; }
+.slotEnhancementStateSelected { color: #d8b35a; opacity: 1; text-shadow: 0 0 4px rgba(216, 179, 90, 0.42); }
+.slotEnhancementGlyph { width: 8px; height: 8px; }
 .slotLevel { position: absolute; right: 5px; bottom: 2px; max-width: 94px; overflow: hidden; color: #aa9062; font-size: 7px; line-height: 9px; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
 .slotRow[data-side='right'] { grid-template-columns: minmax(0, 1fr) 36px; grid-template-areas: 'copy media'; text-align: right; }
 .slotRow[data-side='right'] .slotLevel { right: auto; left: 5px; text-align: left; }
-.slotRow[data-side='right'] .slotCopy { text-align: right; }
+.slotRow[data-side='right'] .slotCopy { padding: 9px 34px 8px 0; text-align: left; }
+.slotRow[data-side='right'] .slotEnhancementStates { right: 42px; }
 .candidatePanel {
   position: absolute;
   z-index: 10;

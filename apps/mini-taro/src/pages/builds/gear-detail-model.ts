@@ -40,9 +40,18 @@ export interface GearSlotView {
   candidateCount: number
   itemId: string
   itemLabel: string
+  secondaryStatLabels: readonly string[]
+  enhancementStates: readonly GearSlotEnhancementState[]
   levelLabel: string
   iconUrl?: string
   state: 'ready' | 'partial' | 'empty'
+}
+
+export interface GearSlotEnhancementState {
+  id: 'socket' | 'enchant' | 'embellishment'
+  label: string
+  selected: boolean
+  count: number
 }
 
 export interface GearMetricView {
@@ -415,6 +424,16 @@ const statLabels: Readonly<Record<string, string>> = {
   armor: '护甲',
 }
 
+const secondaryStatKeys = new Set([
+  'critical_strike',
+  'haste',
+  'mastery',
+  'versatility',
+  'leech',
+  'avoidance',
+  'speed',
+])
+
 function text(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
 }
@@ -512,6 +531,30 @@ function localizedStatSummary(item: GearItemReference): string {
   return entries.map((entry) => `${statLabels[entry.key] ?? entry.key} ${entry.value}`).join('；')
 }
 
+export function gearItemSecondaryStatLabels(item: GearItemReference | undefined): readonly string[] {
+  if (!item) return []
+  const primaryKey = itemPrimaryStatKey(item)
+  const labels = statEntries(item, primaryKey)
+    .map((entry) => entry.key)
+    .filter((key) => secondaryStatKeys.has(key))
+    .map((key) => statLabels[key] ?? key)
+  const unique = [...new Set(labels)]
+  return unique.length ? unique : ['属性待核验']
+}
+
+function gearSlotEnhancementStates(
+  enhancements: Readonly<Record<string, GearEnhancementSelection>>,
+  slot: string,
+): readonly GearSlotEnhancementState[] {
+  const confirmed = enhancements[slot]
+  const selection = confirmed ? packedEnhancementSelection(confirmed) : null
+  return [
+    { id: 'socket', label: '宝石', selected: Boolean(selection?.gemOptionIds.length), count: selection?.gemOptionIds.length ?? 0 },
+    { id: 'enchant', label: '附魔', selected: Boolean(selection?.enchantOptionId), count: selection?.enchantOptionId ? 1 : 0 },
+    { id: 'embellishment', label: '美化', selected: Boolean(selection?.embellishmentOptionId), count: selection?.embellishmentOptionId ? 1 : 0 },
+  ]
+}
+
 function candidateBadgeLabels(item: GearItemReference): readonly string[] {
   const labels: string[] = []
   const add = (value: unknown) => {
@@ -575,6 +618,7 @@ export function gearSlots(
   payload: WebsimGearPayload | undefined,
   equipped: Readonly<Record<string, GearItemReference>>,
   selectedSlot: string,
+  enhancements: Readonly<Record<string, GearEnhancementSelection>> = {},
 ): readonly GearSlotView[] {
   const payloadSlots = new Map((payload?.slots ?? []).map((slot) => [slot.slot, slot]))
   return canonicalSlotDefinitions.map((fallback) => {
@@ -594,6 +638,8 @@ export function gearSlots(
       candidateCount: candidateGroup?.items.length ?? 0,
       itemId: gearItemId(item),
       itemLabel: item ? gearItemName(item) : '槽位',
+      secondaryStatLabels: gearItemSecondaryStatLabels(item),
+      enhancementStates: gearSlotEnhancementStates(enhancements, slot.slot),
       levelLabel: level ? `${Math.round(level)}` : '',
       ...(iconUrl ? { iconUrl } : {}),
       state: item ? (gearItemState(item) === 'ready' ? 'ready' : 'partial') : 'empty',

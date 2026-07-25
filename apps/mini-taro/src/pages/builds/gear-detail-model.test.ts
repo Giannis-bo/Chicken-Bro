@@ -13,6 +13,7 @@ import {
   prepareHydratedEnhancementDraft,
   gearEnhancementGroups,
   gearEnhancementOptions,
+  gearItemSecondaryStatLabels,
   gearReadiness,
   gearSlots,
   templateGearItems,
@@ -363,6 +364,38 @@ describe('gear detail truth model', () => {
     expect(slots[0]).toMatchObject({ selected: true, candidateCount: 2, state: 'ready', itemId: '250060' })
     expect(slots.map((slot) => slot.slot)).toContain('off_hand')
     expect(readiness).toMatchObject({ selectedCount: 2, readyCount: 1, itemLevel: '285', state: 'partial' })
+  })
+
+  it('projects only backend-derived secondary labels and confirmed enhancement state into a slot row', () => {
+    const item: GearItemReference = {
+      ...readyItem,
+      itemStats: [
+        { key: 'intellect', value: 124 },
+        { key: 'stamina', value: 1768 },
+        { key: 'haste_rating', value: 411 },
+        { key: 'mastery_rating', value: 287 },
+      ],
+    }
+    const enhancements = {
+      head: {
+        gemOptionIds: ['gem-haste'],
+        enchantOptionId: '',
+        embellishmentOptionId: 'embellishment-thread',
+        craftedOptionId: '',
+        catalystOptionId: '',
+      },
+    }
+
+    expect(gearItemSecondaryStatLabels(item)).toEqual(['急速', '精通'])
+    expect(gearItemSecondaryStatLabels({ ...readyItem, statSummary: '智力 124；耐力 1768' })).toEqual(['属性待核验'])
+    expect(gearSlots(payload(), { head: item }, '', enhancements)[0]).toMatchObject({
+      secondaryStatLabels: ['急速', '精通'],
+      enhancementStates: [
+        { id: 'socket', selected: true, count: 1 },
+        { id: 'enchant', selected: false, count: 0 },
+        { id: 'embellishment', selected: true, count: 1 },
+      ],
+    })
   })
 
   it('uses backend resolver readiness instead of a fixed local slot rule', () => {

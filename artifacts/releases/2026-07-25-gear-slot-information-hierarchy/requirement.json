@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "slug": "gear-slot-information-hierarchy",
+  "classification": "Standard",
+  "status": "implementation_allowed",
+  "goal": "Improve the active Taro gear-slot hierarchy with a smaller slot label, a larger item name, backend-derived secondary-stat labels, and top-right confirmed enhancement-state markers.",
+  "userValue": "Players can scan each equipped item and understand its slot, identity, secondary attributes, and confirmed gem/enchant/embellishment state without opening the editor.",
+  "nonGoals": [
+    "Do not change target-only outer geometry, the eight route regions, the sixteen-slot grid, or the locked outer-page scroll contract.",
+    "Do not change server, PostgreSQL, public payloads, typed API, Resolver ownership, enhancement legality, or candidate application semantics.",
+    "Do not infer secondary stats, eligibility, or configured enhancements from candidates, craftedStatOptions, modCapabilities, or local drafts."
+  ],
+  "currentTruth": {
+    "sources": [
+      "docs/project-state.json",
+      "docs/roadmap.md",
+      "docs/harness.md",
+      "docs/plans/ui-reconstruction.md",
+      "docs/design/current-ui/routes/gear-detail/truth-adaptation.json",
+      "docs/design/current-ui/routes/gear-detail/component-contract.json"
+    ],
+    "activeMilestone": "taro_target_first_14_route_rebuild",
+    "featureIteration": "allowed_under_harness",
+    "activeRoute": "apps/mini-taro/src/pages/builds/detail.tsx",
+    "factOwner": "The backend gear read model owns item attributes and the canonical Resolver owns confirmed selectedOptions; Taro derives display-only labels from those returned facts."
+  },
+  "impactMap": {
+    "mustChange": [
+      "The gear-detail presentation model must expose backend-derived secondary-stat labels and confirmed enhancement state per equipped slot.",
+      "GearSlotWorkbench and its styles must render the requested information hierarchy without changing interaction ownership.",
+      "The current gear-detail truth and component contracts must record the display boundary."
+    ],
+    "mustNotChange": [
+      "server/, PostgreSQL, public payloads, typed API and canonical Resolver remain unchanged.",
+      "Candidate/variant application and enhancement confirmation remain explicit draft-to-Resolve flows.",
+      "The legacy pages/builds/detail.js and unrelated project configuration remain unchanged."
+    ],
+    "riskUnknown": [
+      "A long item name and multiple labels may compete with the fixed row height and the top-right state markers.",
+      "Initial read-model rows may not carry enough data to assert enhancement eligibility; neutral markers must not claim an applicable slot."
+    ],
+    "evidenceRequired": [
+      "Targeted model and page-contract Vitest coverage for secondary-stat and confirmed-enhancement presentation.",
+      "UI architecture audit, typecheck and WeChat build on the final candidate head.",
+      "Exact candidate-head WeChat smoke and user acceptance for gear_slot_information_hierarchy and gear_slot_enhancement_state."
+    ]
+  },
+  "ownership": {
+    "factOwner": "Backend item facts and Resolver selectedOptions remain authoritative; the active Taro route and GearSlotWorkbench only render their confirmed display projection.",
+    "consumers": [
+      "apps/mini-taro/src/pages/builds/gear-detail-model.ts",
+      "apps/mini-taro/src/pages/builds/detail.tsx",
+      "packages/design-system/src/components/GearDetailComponents.tsx"
+    ]
+  },
+  "engineeringHealth": {
+    "status": "health_safe",
+    "reason": "The change stays in existing frontend presentation owners, adds no request, write path or new fact source, and uses code rollback."
+  },
+  "acceptanceEvidence": [
+    "Targeted Vitest proves that slot labels contain only backend-derived secondary attributes and that enhancement markers use confirmed selections only.",
+    "The UI architecture audit, typecheck and WeChat build verify the active Taro owners and final candidate package.",
+    "The user verifies the exact candidate build in WeChat DevTools for information hierarchy and confirmed enhancement-state markers."
+  ],
+  "manualAcceptanceContract": {
+    "required": true,
+    "requiredItemIds": [
+      "gear_slot_information_hierarchy",
+      "gear_slot_enhancement_state"
+    ]
+  },
+  "releaseTrigger": "frontend_user_visible",
+  "rollback": ["code_rollback"],
+  "decisionLog": [
+    {
+      "date": "2026-07-25",
+      "decision": "The user confirmed that equipped slot rows should prioritize a smaller slot label, larger item name, real secondary attributes and top-right confirmed enhancement state without changing canonical gear behavior."
+    }
+  ]
+}

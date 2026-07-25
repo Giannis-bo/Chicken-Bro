@@ -33,7 +33,7 @@
     {
       "owner": "GearSlotWorkbench",
       "regions": ["equipment_slots_panel"],
-      "responsibility": "two equal-width auto-fill equipment slot columns and internal candidate/detail interaction; publishes committed variant and resolvedSlots-only item/variant markers separately"
+      "responsibility": "two equal-width auto-fill equipment slot columns and internal candidate/detail interaction; each committed slot row renders a small slot label, larger item name, backend-derived secondary-stat labels and top-right confirmed enhancement-state markers; publishes committed variant and resolvedSlots-only item/variant markers separately"
     },
     {
       "owner": "GearEditorSheets",
@@ -86,6 +86,12 @@
       "supersededTargetElements": ["equipment_slots_panel centered empty-state illustration", "equipment_slots_panel center placeholder crest"],
       "layoutRule": "equipment_slots_panel uses two equal-width auto-fill columns; every returned canonical slot occupies a full column row and no center placeholder is rendered",
       "preservedBehavior": ["all canonical slot selection and candidate/detail interactions remain unchanged", "candidate detail continues to cover the same internal workbench surface"]
+    },
+    {
+      "id": "gear_detail_slot_information_hierarchy_20260725",
+      "supersededTargetElements": ["slot-row equal-weight label and item-name typography"],
+      "layoutRule": "within every existing slot row, render the slot label at the smaller hierarchy, the item name at the larger hierarchy, left-aligned backend-derived secondary-stat labels below the name, and compact top-right markers for confirmed gem, enchant and embellishment selections; do not alter outer route geometry, slot count or workbench ownership",
+      "preservedBehavior": ["secondary labels never use candidate or craftedStatOptions data", "neutral enhancement markers do not claim eligibility and selected markers only reflect confirmed selectedOptions"]
     }
   ],
   "layoutContract": {
