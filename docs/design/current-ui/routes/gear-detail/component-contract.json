@@ -33,7 +33,7 @@
     {
       "owner": "GearSlotWorkbench",
       "regions": ["equipment_slots_panel"],
-      "responsibility": "two equal-width auto-fill equipment slot columns and internal candidate/detail interaction; each committed slot row renders a small slot label, larger item name, backend-derived secondary-stat labels and top-right confirmed enhancement-state markers; publishes committed variant and resolvedSlots-only item/variant markers separately"
+      "responsibility": "two equal-width auto-fill equipment slot columns and internal candidate/detail interaction; each committed slot row renders a small slot label, larger item name, Resolver itemStaticStats-derived intrinsic secondary-stat labels and top-right confirmed enhancement-state markers; resolvedStats remains separate as the enhancement-inclusive calculation fact and the component publishes committed variant and resolvedSlots-only item/variant markers separately"
     },
     {
       "owner": "GearEditorSheets",
@@ -90,8 +90,8 @@
     {
       "id": "gear_detail_slot_information_hierarchy_20260725",
       "supersededTargetElements": ["slot-row equal-weight label and item-name typography"],
-      "layoutRule": "within every existing slot row, render the slot label at the smaller hierarchy, the item name at the larger hierarchy, left-aligned backend-derived secondary-stat labels below the name, and compact top-right markers for confirmed gem, enchant and embellishment selections; do not alter outer route geometry, slot count or workbench ownership",
-      "preservedBehavior": ["secondary labels never use candidate or craftedStatOptions data", "neutral enhancement markers do not claim eligibility and selected markers only reflect confirmed selectedOptions"]
+      "layoutRule": "within every existing slot row, render the slot label at the smaller hierarchy, the item name at the larger hierarchy, left-aligned Resolver itemStaticStats-derived intrinsic secondary-stat labels below the name, and compact top-right markers for confirmed gem, enchant and embellishment selections; do not alter outer route geometry, slot count or workbench ownership",
+      "preservedBehavior": ["secondary labels require exact itemId plus variantKey snapshot binding, never use candidate, aggregate resolvedStats or craftedStatOptions data", "a verified item without intrinsic secondary stats is explicit while missing facts remain 待核验", "neutral enhancement markers do not claim eligibility and selected markers only reflect confirmed selectedOptions"]
     }
   ],
   "layoutContract": {

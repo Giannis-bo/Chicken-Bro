@@ -1,14 +1,15 @@
 {
   "schemaVersion": 1,
   "slug": "gear-slot-information-hierarchy",
-  "classification": "Standard",
+  "classification": "Strict",
   "status": "implementation_allowed",
-  "goal": "Improve the active Taro gear-slot hierarchy with a smaller slot label, a larger item name, backend-derived secondary-stat labels, and top-right confirmed enhancement-state markers.",
-  "userValue": "Players can scan each equipped item and understand its slot, identity, secondary attributes, and confirmed gem/enchant/embellishment state without opening the editor.",
+  "goal": "Improve the active Taro gear-slot hierarchy with a smaller slot label, a larger item name, Resolver-owned intrinsic secondary-stat labels, and top-right confirmed enhancement-state markers, while preserving an explicit distinction between item facts and final calculated static attributes.",
+  "userValue": "Players can scan each equipped item and understand its slot, identity, intrinsic secondary attributes, and confirmed gem/enchant/embellishment state without opening the editor; future attribute calculations remain traceable to the same exact Resolver slot facts.",
   "nonGoals": [
     "Do not change target-only outer geometry, the eight route regions, the sixteen-slot grid, or the locked outer-page scroll contract.",
-    "Do not change server, PostgreSQL, public payloads, typed API, Resolver ownership, enhancement legality, or candidate application semantics.",
-    "Do not infer secondary stats, eligibility, or configured enhancements from candidates, craftedStatOptions, modCapabilities, or local drafts."
+    "Do not change PostgreSQL schema, source ingestion, recommendation semantics, SimC execution, scheduled sync, health/admin judgment, or candidate application semantics.",
+    "Do not infer secondary stats, eligibility, configured enhancements, or calculation values from candidates, aggregate totals, craftedStatOptions, modCapabilities, or local drafts.",
+    "Do not present final calculated totals as verified when the Resolver reports unavailable static facts for selected enhancements."
   ],
   "currentTruth": {
     "sources": [
@@ -17,64 +18,78 @@
       "docs/harness.md",
       "docs/plans/ui-reconstruction.md",
       "docs/design/current-ui/routes/gear-detail/truth-adaptation.json",
-      "docs/design/current-ui/routes/gear-detail/component-contract.json"
+      "docs/design/current-ui/routes/gear-detail/component-contract.json",
+      "server/gear_resolver.py",
+      "packages/domain/src/gear-intent.ts"
     ],
     "activeMilestone": "taro_target_first_14_route_rebuild",
     "featureIteration": "allowed_under_harness",
     "activeRoute": "apps/mini-taro/src/pages/builds/detail.tsx",
-    "factOwner": "The backend gear read model owns item attributes and the canonical Resolver owns confirmed selectedOptions; Taro derives display-only labels from those returned facts."
+    "factOwner": "The canonical Resolver owns per-slot intrinsic item static attributes, final resolved static attributes and confirmed selectedOptions; Taro only binds an exact returned snapshot to the displayed imported rows."
   },
   "impactMap": {
     "mustChange": [
-      "The gear-detail presentation model must expose backend-derived secondary-stat labels and confirmed enhancement state per equipped slot.",
+      "The canonical Resolver must expose per-slot itemStaticStats after verified base/variant/overlay resolution and before selected enhancements, alongside the existing final resolvedStats.",
+      "The typed domain binding and gear-detail presentation model must expose only identity-bound Resolver itemStaticStats as intrinsic secondary-stat labels and confirmed enhancement state per equipped slot.",
       "GearSlotWorkbench and its styles must render the requested information hierarchy without changing interaction ownership.",
       "The current gear-detail truth and component contracts must record the display boundary."
     ],
     "mustNotChange": [
-      "server/, PostgreSQL, public payloads, typed API and canonical Resolver remain unchanged.",
+      "PostgreSQL, source ingestion, recommendation, SimC, scheduled sync, health/admin and deployment behavior remain unchanged.",
       "Candidate/variant application and enhancement confirmation remain explicit draft-to-Resolve flows.",
       "The legacy pages/builds/detail.js and unrelated project configuration remain unchanged."
     ],
     "riskUnknown": [
       "A long item name and multiple labels may compete with the fixed row height and the top-right state markers.",
-      "Initial read-model rows may not carry enough data to assert enhancement eligibility; neutral markers must not claim an applicable slot."
+      "Initial read-model rows may not carry enough data to assert enhancement eligibility; neutral markers must not claim an applicable slot.",
+      "Some verified items may have no intrinsic secondary stats; the UI must distinguish that case from unavailable facts."
     ],
     "evidenceRequired": [
-      "Targeted model and page-contract Vitest coverage for secondary-stat and confirmed-enhancement presentation.",
-      "UI architecture audit, typecheck and WeChat build on the final candidate head.",
-      "Exact candidate-head WeChat smoke and user acceptance for gear_slot_information_hierarchy and gear_slot_enhancement_state."
+      "Targeted Resolver, community import and typed-domain coverage for exact slot identity binding and the itemStaticStats versus resolvedStats boundary.",
+      "Targeted model and page-contract Vitest coverage for secondary-stat, unavailable/no-secondary and confirmed-enhancement presentation.",
+      "UI architecture audit, typecheck and WeChat build on the final candidate head; CI full profile on that exact head.",
+      "Exact candidate-head API smoke and real WeChat acceptance for gear_slot_information_hierarchy, gear_slot_enhancement_state, gear_slot_intrinsic_secondary_stats and gear_static_calculation_boundary."
     ]
   },
   "ownership": {
-    "factOwner": "Backend item facts and Resolver selectedOptions remain authoritative; the active Taro route and GearSlotWorkbench only render their confirmed display projection.",
+    "factOwner": "The canonical Resolver owns the itemStaticStats / resolvedStats split and selectedOptions; the active Taro route, typed domain helper and GearSlotWorkbench only consume an exact identity-bound snapshot.",
     "consumers": [
+      "server/gear_resolver.py",
+      "packages/domain/src/gear-intent.ts",
       "apps/mini-taro/src/pages/builds/gear-detail-model.ts",
       "apps/mini-taro/src/pages/builds/detail.tsx",
       "packages/design-system/src/components/GearDetailComponents.tsx"
     ]
   },
   "engineeringHealth": {
-    "status": "health_safe",
-    "reason": "The change stays in existing frontend presentation owners, adds no request, write path or new fact source, and uses code rollback."
+    "status": "health_watch_guarded",
+    "reason": "The change extends an existing read-only Resolver snapshot in its fact owner and existing typed/frontend consumers. It adds no request, write path, source ingestion or calculation authority, and uses code rollback plus fail-closed UI fallback."
   },
   "acceptanceEvidence": [
-    "Targeted Vitest proves that slot labels contain only backend-derived secondary attributes and that enhancement markers use confirmed selections only.",
-    "The UI architecture audit, typecheck and WeChat build verify the active Taro owners and final candidate package.",
-    "The user verifies the exact candidate build in WeChat DevTools for information hierarchy and confirmed enhancement-state markers."
+    "Targeted Resolver and typed-domain tests prove itemStaticStats is captured before selected enhancements and is never bound on partial, mismatched or unavailable snapshots.",
+    "Targeted Vitest proves that slots distinguish intrinsic secondary stats, no intrinsic secondary stats and unavailable facts, while enhancement markers use confirmed selections only.",
+    "The UI architecture audit, typecheck, WeChat build, CI full profile and final candidate API smoke verify the exact final runtime head.",
+    "The user verifies the exact candidate build in WeChat DevTools for information hierarchy, intrinsic-secondary attribution, enhancement-state markers and no false verified calculation state."
   ],
   "manualAcceptanceContract": {
     "required": true,
     "requiredItemIds": [
       "gear_slot_information_hierarchy",
-      "gear_slot_enhancement_state"
+      "gear_slot_enhancement_state",
+      "gear_slot_intrinsic_secondary_stats",
+      "gear_static_calculation_boundary"
     ]
   },
-  "releaseTrigger": "frontend_user_visible",
+  "releaseTrigger": "backend_api",
   "rollback": ["code_rollback"],
   "decisionLog": [
     {
       "date": "2026-07-25",
       "decision": "The user confirmed that equipped slot rows should prioritize a smaller slot label, larger item name, real secondary attributes and top-right confirmed enhancement state without changing canonical gear behavior."
+    },
+    {
+      "date": "2026-07-25",
+      "decision": "The user approved a Resolver-owned split between intrinsic item static attributes and final enhancement-inclusive resolved static attributes. The frontend may consume only an exact itemId plus variantKey bound snapshot; unavailable facts remain explicit and cannot be inferred."
     }
   ]
 }

@@ -30,6 +30,7 @@ import { RouteRegion } from '@wow-mini/design-system/components/RouteFlow'
 import { StatusVisual } from '@wow-mini/design-system/components/StatusVisual'
 import {
   gearEnhancementsFromResolvedSnapshot,
+  gearItemStaticStatsFromResolvedSnapshot,
   serializeGearSelectionIntent,
   type BuildTemplate,
   type BuildsDetailPayload,
@@ -291,7 +292,8 @@ export default function GearDetailPage() {
   const selectedSpecIndex = Math.max(0, specItems.findIndex((item) => item.id === data?.selection.specId))
   const selectedSpecLabel = data?.selection.spec.specName || data?.selection.spec.title || data?.selection.spec.name || ''
 
-  const slotViews = gearSlots(data?.gear, equipped, selectedSlot, enhancements)
+  const itemStaticStats = gearItemStaticStatsFromResolvedSnapshot(canonical.snapshot, equipped) ?? undefined
+  const slotViews = gearSlots(data?.gear, equipped, selectedSlot, enhancements, itemStaticStats)
   const candidateViews = gearCandidates(candidates)
   const selectedCandidateIndex = candidateDraft ? candidates.indexOf(candidateDraft.candidate) : -1
   const selectedCandidateId = selectedCandidateIndex >= 0 ? candidateViews[selectedCandidateIndex]?.id ?? '' : ''

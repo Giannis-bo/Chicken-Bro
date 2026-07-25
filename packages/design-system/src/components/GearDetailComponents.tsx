@@ -326,6 +326,7 @@ export interface GearWorkbenchSlotItem {
   itemId: string
   itemLabel: string
   secondaryStatLabels: readonly string[]
+  secondaryStatState: 'verified' | 'none' | 'unavailable'
   enhancementStates: readonly GearWorkbenchSlotEnhancementState[]
   levelLabel: string
   iconUrl?: string | undefined
@@ -436,7 +437,15 @@ function GearSlotRow({
         <Text data-role="gear-slot-label">{item.label}</Text>
         <Text data-role="gear-slot-item-name">{item.itemLabel}</Text>
         {item.secondaryStatLabels.length ? (
-          <View className={style('slotSecondaryStats')} data-role="gear-slot-secondary-stats">
+          <View
+            className={classes(
+              style('slotSecondaryStats'),
+              item.secondaryStatState === 'none' && style('slotSecondaryStatsNone'),
+              item.secondaryStatState === 'unavailable' && style('slotSecondaryStatsUnavailable'),
+            )}
+            data-role="gear-slot-secondary-stats"
+            data-static-facts={item.secondaryStatState}
+          >
             <Text>{item.secondaryStatLabels.join(' · ')}</Text>
           </View>
         ) : null}

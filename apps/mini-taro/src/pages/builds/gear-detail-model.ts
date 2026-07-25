@@ -3,6 +3,7 @@ import type {
   GearEnhancementOption,
   GearEnhancementSelection,
   GearItemReference,
+  GearItemStaticStatsBySlot,
   GearProfileReadiness,
   GearReadiness,
   GearStatSnapshotPayload,
@@ -41,6 +42,7 @@ export interface GearSlotView {
   itemId: string
   itemLabel: string
   secondaryStatLabels: readonly string[]
+  secondaryStatState: 'verified' | 'none' | 'unavailable'
   enhancementStates: readonly GearSlotEnhancementState[]
   levelLabel: string
   iconUrl?: string
@@ -542,6 +544,29 @@ export function gearItemSecondaryStatLabels(item: GearItemReference | undefined)
   return unique.length ? unique : ['属性待核验']
 }
 
+function staticSecondaryStatLabels(stats: Readonly<Record<string, number>>): readonly string[] {
+  return [...new Set(
+    Object.keys(stats)
+      .map((key) => canonicalStatKey(key, ''))
+      .filter((key) => secondaryStatKeys.has(key))
+      .map((key) => statLabels[key] ?? key),
+  )]
+}
+
+function gearSlotSecondaryStatPresentation(
+  item: GearItemReference | undefined,
+  slot: string,
+  itemStaticStats: GearItemStaticStatsBySlot | undefined,
+): Pick<GearSlotView, 'secondaryStatLabels' | 'secondaryStatState'> {
+  if (!item) return { secondaryStatLabels: [], secondaryStatState: 'unavailable' }
+  const stats = itemStaticStats?.[slot]
+  if (!stats) return { secondaryStatLabels: ['属性待核验'], secondaryStatState: 'unavailable' }
+  const labels = staticSecondaryStatLabels(stats)
+  return labels.length
+    ? { secondaryStatLabels: labels, secondaryStatState: 'verified' }
+    : { secondaryStatLabels: ['无固定副属性'], secondaryStatState: 'none' }
+}
+
 function gearSlotEnhancementStates(
   enhancements: Readonly<Record<string, GearEnhancementSelection>>,
   slot: string,
@@ -619,6 +644,7 @@ export function gearSlots(
   equipped: Readonly<Record<string, GearItemReference>>,
   selectedSlot: string,
   enhancements: Readonly<Record<string, GearEnhancementSelection>> = {},
+  itemStaticStats: GearItemStaticStatsBySlot | undefined = undefined,
 ): readonly GearSlotView[] {
   const payloadSlots = new Map((payload?.slots ?? []).map((slot) => [slot.slot, slot]))
   return canonicalSlotDefinitions.map((fallback) => {
@@ -629,6 +655,7 @@ export function gearSlots(
     const iconUrl = gearItemIconUrl(item)
     const weaponType = text(item?.['weaponType']).toLowerCase()
     const weaponLabel = weaponTypeLabels[weaponType]
+    const secondaryStats = gearSlotSecondaryStatPresentation(item, slot.slot, itemStaticStats)
     return {
       slot: slot.slot,
       label: (slot.slot === 'main_hand' || slot.slot === 'off_hand') && item
@@ -638,7 +665,7 @@ export function gearSlots(
       candidateCount: candidateGroup?.items.length ?? 0,
       itemId: gearItemId(item),
       itemLabel: item ? gearItemName(item) : '槽位',
-      secondaryStatLabels: gearItemSecondaryStatLabels(item),
+      ...secondaryStats,
       enhancementStates: gearSlotEnhancementStates(enhancements, slot.slot),
       levelLabel: level ? `${Math.round(level)}` : '',
       ...(iconUrl ? { iconUrl } : {}),

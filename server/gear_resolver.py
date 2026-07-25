@@ -537,6 +537,7 @@ def resolve_slot(
     state = resolve_variant(slot, selection, state, authority_context)
     state = apply_verified_overlay(slot, selection, state)
     state = derive_effective_capabilities(selection, state)
+    item_static_stats = _canonical(state["stats"])
     state = apply_selected_enhancements(slot, selection, state, authority_context)
     item = state.get("item", {})
     variant = state.get("variant", {})
@@ -557,6 +558,7 @@ def resolve_slot(
         "itemSetId": item_set_id,
         "overlayId": overlay.get("overlayId", ""),
         "resolutionStages": ["base", "variant", "overlay", "capabilities", "enhancements"],
+        "itemStaticStats": item_static_stats,
         "resolvedStats": _canonical(state["stats"]),
         "statDeltas": {
             "variant": _canonical(variant.get("statDeltas", {})),

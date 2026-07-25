@@ -274,6 +274,8 @@
 .slotRow-ready .slotCopy > text:nth-child(2) { color: #e0c67f; }
 .slotSecondaryStats { display: flex; min-width: 0; gap: 4px; overflow: hidden; color: #78ba7a; font-size: 7px; line-height: 9px; white-space: nowrap; }
 .slotSecondaryStats > text { overflow: hidden; text-overflow: ellipsis; }
+.slotSecondaryStatsNone { color: #8c887d; }
+.slotSecondaryStatsUnavailable { color: #b8a77d; }
 .slotEnhancementStates { position: absolute; top: 3px; right: 5px; display: flex; align-items: center; gap: 2px; pointer-events: none; }
 .slotEnhancementState { display: flex; width: 9px; height: 9px; align-items: center; justify-content: center; color: #4b5255; opacity: 0.76; }
 .slotEnhancementStateSelected { color: #d8b35a; opacity: 1; text-shadow: 0 0 4px rgba(216, 179, 90, 0.42); }

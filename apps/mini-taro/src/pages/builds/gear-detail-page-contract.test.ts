@@ -119,11 +119,14 @@ describe('gear detail fixed workbench contract', () => {
 
   it('keeps slot facts readable as a small slot label, item name, secondary-stat labels, and confirmed enhancement markers', () => {
     expect(modelSource).toContain('gearItemSecondaryStatLabels')
+    expect(modelSource).toContain('itemStaticStats')
+    expect(pageSource).toContain('gearItemStaticStatsFromResolvedSnapshot')
     expect(modelSource).toContain('enhancementStates')
     expect(componentSource).toContain('data-role="gear-slot-label"')
     expect(componentSource).toContain('data-role="gear-slot-item-name"')
     expect(componentSource).toContain('data-role="gear-slot-secondary-stats"')
     expect(componentSource).toContain('data-role="gear-slot-enhancement-states"')
+    expect(componentSource).toContain('data-static-facts={item.secondaryStatState}')
     expect(componentStyleSource).toMatch(/\.slotCopy > text:first-child \{[\s\S]*?font-size:\s*7px;/u)
     expect(componentStyleSource).toMatch(/\.slotCopy > text:nth-child\(2\) \{[\s\S]*?font-size:\s*10px;/u)
     expect(componentStyleSource).toMatch(/\.slotEnhancementStates \{[\s\S]*?position:\s*absolute;[\s\S]*?top:\s*3px;/u)
