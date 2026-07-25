@@ -95,6 +95,8 @@ test('refresh launches the Windows cli.bat through a shell', () => {
   })
 
   assert.equal(result.status, 'preview_refreshed')
+  assert.equal(calls[0].command, 'npm.cmd')
+  assert.equal(calls[0].options.shell, true)
   assert.equal(calls[1].command, cli)
   assert.equal(calls[1].options.shell, true)
 })

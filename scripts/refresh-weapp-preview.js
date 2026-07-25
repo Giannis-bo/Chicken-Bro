@@ -91,7 +91,12 @@ function refreshWeappPreview({
   resolveCli = resolveDevToolsCli,
 } = {}) {
   const npmCommand = platform === 'win32' ? 'npm.cmd' : 'npm'
-  const build = execute(npmCommand, ['run', 'build:weapp'], { cwd: root, env })
+  const build = execute(npmCommand, ['run', 'build:weapp'], {
+    cwd: root,
+    env,
+    // Windows cannot spawn a .cmd shim directly with Node child_process.
+    shell: platform === 'win32',
+  })
   if (build.status !== 0) {
     throw new Error(`npm run build:weapp failed with exit code ${build.status ?? 'unknown'}`)
   }
