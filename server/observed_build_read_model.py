@@ -249,6 +249,33 @@ def _projected_gear_items(
     return sorted(output, key=lambda item: item["slot"])
 
 
+def _has_complete_exact_gear_identity(
+    gear: dict[str, Any],
+    gear_items: list[dict[str, Any]],
+) -> bool:
+    intent = gear.get("selectionIntent") if isinstance(gear, dict) else {}
+    slots = intent.get("slots") if isinstance(intent, dict) else {}
+    if not isinstance(slots, dict) or not slots:
+        return False
+    items_by_slot = {
+        _text(item.get("slot")): item
+        for item in gear_items
+        if isinstance(item, dict) and _text(item.get("slot"))
+    }
+    if set(slots) != set(items_by_slot):
+        return False
+    return all(
+        isinstance(selection, dict)
+        and _text(selection.get("itemId"))
+        and _text(selection.get("variantKey"))
+        and _text(items_by_slot[slot].get("itemId"))
+        == _text(selection.get("itemId"))
+        and _text(items_by_slot[slot].get("variantKey"))
+        == _text(selection.get("variantKey"))
+        for slot, selection in slots.items()
+    )
+
+
 def _gear_template(record: dict[str, Any]) -> dict[str, Any]:
     _active, entry, snapshot, projection = _active_parts(record)
     common = _common(record)
@@ -258,9 +285,10 @@ def _gear_template(record: dict[str, Any]) -> dict[str, Any]:
         else {}
     )
     gear_items = _projected_gear_items(snapshot, projection)
+    can_apply_gear = _has_complete_exact_gear_identity(gear, gear_items)
     return {
         **common,
-        "status": "complete",
+        "status": "complete" if can_apply_gear else "partial",
         "projectionStatus": "verified",
         "talentWinnerId": projection["projectionId"],
         "gearProjectionMode": "talent_winner",
@@ -278,8 +306,13 @@ def _gear_template(record: dict[str, Any]) -> dict[str, Any]:
             gear.get("resolvedGearSignature")
         ),
         "readySlotCount": len(gear_items),
-        "missingSlots": [],
-        "canApplyGear": True,
+        "missingSlots": [] if can_apply_gear else sorted(
+            _text(slot)
+            for slot, selection in (gear.get("selectionIntent") or {}).get("slots", {}).items()
+            if not isinstance(selection, dict)
+            or not _text(selection.get("variantKey"))
+        ),
+        "canApplyGear": can_apply_gear,
         "payload": {
             "sourceIdentity": common["sourceIdentity"],
             "profileHash": snapshot.get("profileHash"),
@@ -337,9 +370,10 @@ def gear_templates_from_active_records(
 
     return sorted(
         [
-            _gear_template(record)
+            template
             for record in records or []
             if isinstance(record, dict)
+            and (template := _gear_template(record)).get("canApplyGear") is True
         ],
         key=lambda value: (
             _text(value.get("classKey")),
@@ -357,6 +391,8 @@ def gear_import_source_from_active_record(
 
     _active, _entry, snapshot, projection = _active_parts(record)
     template = _gear_template(record)
+    if template.get("canApplyGear") is not True:
+        raise ValueError("active gear import exact variant is incomplete")
     intent = template.get("selectionIntent")
     intent = intent if isinstance(intent, dict) else {}
     items_by_slot = {

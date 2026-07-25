@@ -4130,6 +4130,18 @@ def run_gear_observed_backfill_postgres(
         if item_probe_limit is None
         else max(0, int(item_probe_limit or 0))
     )
+    get_sync_state = getattr(store, "get_sync_state", None)
+    prior_state = (
+        get_sync_state(GEAR_OBSERVED_BACKFILL_SYNC_KEY)
+        if callable(get_sync_state)
+        else {}
+    )
+    prior_state = prior_state if isinstance(prior_state, dict) else {}
+    profile_cursor = (
+        prior_state.get("profileCursor")
+        if isinstance(prior_state.get("profileCursor"), dict)
+        else {}
+    )
     try:
         try:
             result = store.backfill_observed_gear_from_raiderio(
@@ -4141,6 +4153,7 @@ def run_gear_observed_backfill_postgres(
                 enable_simc_stats=enable_simc_stats,
                 full_profile_gear=full_profile_gear,
                 item_probe_limit=item_probe_limit,
+                profile_cursor=profile_cursor,
             )
         except TypeError:
             result = store.backfill_observed_gear_from_raiderio(store.get_raiderio_payload(), mode=mode)
@@ -4164,6 +4177,7 @@ def run_gear_observed_backfill_postgres(
     }
     payload.setdefault("status", payload.get("sourceStatus") or "blocked")
     payload.setdefault("sourceStatus", payload.get("status") or "blocked")
+    payload.setdefault("profileCursor", profile_cursor)
     payload.setdefault("errors", [])
     store.save_sync_state(GEAR_OBSERVED_BACKFILL_SYNC_KEY, payload, checked_at)
     return payload

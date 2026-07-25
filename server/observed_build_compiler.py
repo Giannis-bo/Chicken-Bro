@@ -748,6 +748,37 @@ def _compile_gear_with_postgres(
                 }
             ],
         }
+    observed_slots = {
+        _text(item.get("slot"))
+        for item in _canonical_observed_gear_items(snapshot)
+        if _text(item.get("slot"))
+    }
+    intent_slots = (
+        parsed_intent.get("slots")
+        if isinstance(parsed_intent.get("slots"), dict)
+        else {}
+    )
+    incomplete_slots = sorted(
+        (observed_slots ^ set(intent_slots))
+        | {
+            slot
+            for slot, selection in intent_slots.items()
+            if not isinstance(selection, dict)
+            or not _text(selection.get("itemId"))
+            or not _text(selection.get("variantKey"))
+        }
+    )
+    if incomplete_slots:
+        return {
+            "status": "blocked",
+            "problems": [
+                {
+                    "code": "gear_observed_variant_evidence_incomplete",
+                    "stage": "gear_projection",
+                    "message": "Observed gear is waiting for exact SimulationCraft variant evidence.",
+                }
+            ],
+        }
     authority_context = store.get_gear_authority_context(
         parsed_intent,
         runtime_authority,

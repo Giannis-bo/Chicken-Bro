@@ -5671,6 +5671,48 @@ class PostgresCacheStoreTest(unittest.TestCase):
             {slot: 1 for slot in CANONICAL_GEAR_SLOTS},
         )
 
+    def test_observed_backfill_profile_cursor_rotates_candidates(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        conn = FakeConnection()
+        store = PostgresCacheStore(lambda: conn)
+        profiles = [
+            {
+                "name": name,
+                "profileUrl": f"https://raider.io/characters/cn/realm/{name}",
+                "region": "cn",
+                "realmSlug": "realm",
+                "classKey": "mage",
+                "specKey": "arcane",
+                "gear": [
+                    {
+                        "itemId": item_id,
+                        "name": f"Observed {name}",
+                        "slot": "head",
+                        "ilevel": 298,
+                        "bonus_id": "13440",
+                    }
+                ],
+            }
+            for name, item_id in (("alpha", "258501"), ("bravo", "258502"), ("charlie", "258503"))
+        ]
+
+        result = store.backfill_observed_gear_from_raiderio(
+            {"sourceStatus": "verified", "profiles": profiles},
+            mode="gear_template_first_sync",
+            target_limit=2,
+            profile_limit=2,
+            profile_cursor={"afterProfileIdentity": "raiderio:cn|realm|bravo"},
+        )
+
+        self.assertEqual(result["processedProfileCount"], 2)
+        self.assertEqual(
+            result.get("profileCursor"),
+            {"afterProfileIdentity": "raiderio:cn|realm|alpha"},
+        )
+        self.assertTrue(result.get("profileWindowWrapped"))
+        self.assertEqual(result.get("candidateProfileCount"), 3)
+
     def test_postgres_native_observed_and_crafted_backfill_writers_use_cache_schema(self):
         from server.postgres_cache_store import PostgresCacheStore
 

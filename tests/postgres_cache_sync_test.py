@@ -263,6 +263,7 @@ class FakePostgresSyncStore:
         self.item_metadata_gaps = []
         self.real_player_residue_cleanups = []
         self.websim_sync_state = {}
+        self.sync_states = {}
         self.simc_graph_baseline = {"contexts": []}
 
     def replace_simc_generated_data(self, data):
@@ -306,7 +307,7 @@ class FakePostgresSyncStore:
             return {"status": "verified", "blockers": []}
         if key == "websim_sync":
             return self.websim_sync_state
-        return {}
+        return dict(self.sync_states.get(key) or {})
 
     def community_talent_template_counts(self):
         return {"total": 2, "verified": 2, "partial": 0, "blocked": 0}
@@ -367,6 +368,7 @@ class FakePostgresSyncStore:
         enable_simc_stats=None,
         full_profile_gear=None,
         item_probe_limit=None,
+        profile_cursor=None,
     ):
         self.observed_backfills.append(
             {
@@ -378,6 +380,7 @@ class FakePostgresSyncStore:
                 "enableSimcStats": enable_simc_stats,
                 "fullProfileGear": full_profile_gear,
                 "itemProbeLimit": item_probe_limit,
+                "profileCursor": profile_cursor,
             }
         )
         return {
@@ -392,6 +395,7 @@ class FakePostgresSyncStore:
             "itemProbeLimit": item_probe_limit,
             "simcItemProbeCount": item_probe_limit or 0,
             "simcItemProbeResolvedCount": 1 if item_probe_limit else 0,
+            "profileCursor": profile_cursor,
             "errors": [],
         }
 
@@ -4335,6 +4339,34 @@ class PostgresCacheSyncTest(unittest.TestCase):
         self.assertEqual(payload["profileLimit"], 3)
         self.assertEqual(payload["timeoutSeconds"], 22)
         self.assertEqual(payload["itemProbeLimit"], 11)
+
+    def test_observed_backfill_postgres_persists_profile_cursor(self):
+        from server import postgres_cache_sync
+
+        store = FakePostgresSyncStore()
+        store.raiderio_payload = {"sourceStatus": "verified", "profiles": []}
+        store.sync_states[postgres_cache_sync.GEAR_OBSERVED_BACKFILL_SYNC_KEY] = {
+            "profileCursor": {"afterProfileIdentity": "raiderio:cn|realm|bravo"}
+        }
+
+        payload = postgres_cache_sync.run_gear_observed_backfill_postgres(
+            mode="scheduled",
+            store=store,
+        )
+
+        call = store.observed_backfills[0]
+        self.assertEqual(
+            call["profileCursor"],
+            {"afterProfileIdentity": "raiderio:cn|realm|bravo"},
+        )
+        self.assertEqual(
+            payload["profileCursor"],
+            {"afterProfileIdentity": "raiderio:cn|realm|bravo"},
+        )
+        self.assertEqual(
+            store.saved_states[-1][1]["profileCursor"],
+            {"afterProfileIdentity": "raiderio:cn|realm|bravo"},
+        )
 
     def test_crafted_backfill_postgres_calls_seed_row_writer(self):
         from server import postgres_cache_sync

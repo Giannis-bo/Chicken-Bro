@@ -415,6 +415,55 @@ class ObservedBuildCompilerTest(unittest.TestCase):
         )
         self.assertEqual(store.backfill_calls, [])
 
+    def test_postgres_adapter_blocks_empty_exact_variant_before_resolver(self):
+        dependencies = self.dependencies()
+        store = _FakeCompilerStore(dependencies)
+        incomplete_intent = {
+            "schemaRevision": "selection-intent-v1",
+            "authoredAgainst": {
+                "seasonRevision": dependencies["seasonRevision"],
+                "gearCatalogRevision": dependencies["gearReleaseId"],
+            },
+            "eligibilityContext": {
+                "classKey": "mage",
+                "specKey": "frost",
+                "level": 90,
+            },
+            "slots": {"head": {"itemId": "230001", "variantKey": ""}},
+        }
+
+        with (
+            mock.patch(
+                "server.observed_build_compiler.validate_community_talent_template",
+                return_value=self.verified_talent(),
+            ),
+            mock.patch(
+                "server.observed_build_compiler._runtime_talent_selection_ready",
+                return_value=True,
+            ),
+            mock.patch(
+                "server.observed_build_compiler.selection_intent_from_template",
+                return_value=incomplete_intent,
+            ),
+            mock.patch(
+                "server.observed_build_compiler.gear_resolver.resolve",
+                side_effect=AssertionError("Resolver must not receive a blank exact variant"),
+            ),
+        ):
+            projection = compile_with_postgres(
+                store,
+                self.snapshot(),
+                dependencies,
+                "simc-runtime-abc",
+            )
+
+        self.assertEqual(projection["status"], "blocked")
+        self.assertIn(
+            "gear_observed_variant_evidence_incomplete",
+            [problem["code"] for problem in projection["problems"]],
+        )
+        self.assertEqual(store.context_calls, [])
+
 
 class _FakeCompilerStore:
     def __init__(self, dependencies):

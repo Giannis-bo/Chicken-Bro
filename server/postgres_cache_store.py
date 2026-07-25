@@ -38,6 +38,17 @@ except ImportError:
     import pg_cache_read_model_selectors
 
 try:
+    from .observed_gear_backfill_window import (
+        build_observed_profile_window,
+        profile_identity as observed_profile_window_identity,
+    )
+except ImportError:
+    from observed_gear_backfill_window import (
+        build_observed_profile_window,
+        profile_identity as observed_profile_window_identity,
+    )
+
+try:
     from .pg_gear_authority_loader import (
         AUTHORITY_REVISION_SQL,
         AuthorityContextCache,
@@ -6308,10 +6319,10 @@ class PostgresCacheStore:
         enable_simc_stats=None,
         full_profile_gear=None,
         item_probe_limit=None,
+        profile_cursor=None,
     ):
         rows = []
         profile_count = 0
-        available_profile_count = 0
         simc_profile_count = 0
         simc_resolved_profile_count = 0
         simc_resolved_slot_count = 0
@@ -6329,7 +6340,31 @@ class PostgresCacheStore:
         if profile_limit_value == 0 and not stop_reason:
             stop_reason = "profile_limit_reached"
         deadline_at = time.monotonic() + timeout_seconds_value if timeout_seconds_value else None
-        profiles = [profile for profile in (raiderio_payload or {}).get("profiles") or [] if isinstance(profile, dict)]
+        raw_profiles = [
+            profile
+            for profile in (raiderio_payload or {}).get("profiles") or []
+            if isinstance(profile, dict)
+        ]
+        cursor = profile_cursor if isinstance(profile_cursor, dict) else {}
+        uses_profile_rotation = (
+            mode != "observed_build_compile"
+            and profile_cursor is not None
+        )
+        profile_window = {
+            "profiles": raw_profiles,
+            "availableProfileCount": len(raw_profiles),
+            "cursor": cursor,
+            "wrapped": False,
+        }
+        if uses_profile_rotation:
+            profile_window = build_observed_profile_window(
+                self._raiderio_observed_profile_candidates(raiderio_payload),
+                after_profile_identity=str(cursor.get("afterProfileIdentity") or ""),
+                profile_limit=profile_limit_value,
+            )
+        profiles = profile_window["profiles"]
+        full_profile_gear_value = True if full_profile_gear is None else bool(full_profile_gear)
+        last_processed_profile_identity = str(cursor.get("afterProfileIdentity") or "")
         item_probe_context = None
         item_probe_cache = {}
         existing_verified_identities = self._existing_verified_observed_variant_identities()
@@ -6345,7 +6380,6 @@ class PostgresCacheStore:
         for profile in profiles:
             if not isinstance(profile, dict):
                 continue
-            available_profile_count += 1
             if stop_reason in {"target_limit_reached", "profile_limit_reached"}:
                 break
             if profile_limit_value is not None and profile_count >= profile_limit_value:
@@ -6353,6 +6387,18 @@ class PostgresCacheStore:
                 break
             if deadline_at and time.monotonic() >= deadline_at:
                 stop_reason = "timeout_reached"
+                break
+            profile_gear = [
+                item for item in profile.get("gear") or []
+                if isinstance(item, dict)
+            ]
+            if (
+                uses_profile_rotation
+                and target_limit_value is not None
+                and rows
+                and len(rows) + len(profile_gear) > target_limit_value
+            ):
+                stop_reason = "target_limit_reached"
                 break
             profile_count += 1
             profile_ref = profile.get("profileUrl") or profile.get("url") or profile.get("name") or ""
@@ -6373,7 +6419,8 @@ class PostgresCacheStore:
                         simc_resolved_slot_count += len(profile_simc_gear)
                     else:
                         simc_errors.append("SimulationCraft JSON did not include target item stats")
-            for item in profile.get("gear") or []:
+            profile_complete = True
+            for item in profile_gear:
                 if not isinstance(item, dict):
                     continue
                 item_id = str(item.get("itemId") or item.get("item_id") or item.get("id") or "").strip()
@@ -6382,8 +6429,13 @@ class PostgresCacheStore:
                 simc_options = self._backfill_simc_options(item, item_level) if item_id and slot and item_level else {}
                 identity_key = observed_variant_stat_identity_key(item_id, slot, item_level, simc_options)
                 existing_verified = identity_key in existing_verified_identities
-                if target_limit_value is not None and len(rows) >= target_limit_value:
+                if (
+                    target_limit_value is not None
+                    and len(rows) >= target_limit_value
+                    and not uses_profile_rotation
+                ):
                     stop_reason = "target_limit_reached"
+                    profile_complete = False
                     break
                 row_item = {
                     key: value
@@ -6468,19 +6520,24 @@ class PostgresCacheStore:
                     }
                 rows.append(row)
             if stop_reason:
+                if uses_profile_rotation and profile_complete:
+                    last_processed_profile_identity = observed_profile_window_identity(profile)
                 break
+            if uses_profile_rotation and profile_complete:
+                last_processed_profile_identity = observed_profile_window_identity(profile)
         result = self._write_backfill_gear_rows(rows)
         result["runner"] = "postgres"
         result["mode"] = mode
         result["observedProfileCount"] = profile_count
-        result["availableProfileCount"] = available_profile_count
+        result["availableProfileCount"] = profile_window["availableProfileCount"]
+        result["candidateProfileCount"] = profile_window["availableProfileCount"]
         result["processedProfileCount"] = profile_count
         result["processedItemCount"] = len(rows)
         result["targetLimit"] = target_limit_value
         result["profileLimit"] = profile_limit_value
         result["timeoutSeconds"] = timeout_seconds_value
         result["enableSimcStats"] = bool(enable_simc_stats)
-        result["fullProfileGear"] = bool(full_profile_gear)
+        result["fullProfileGear"] = full_profile_gear_value
         result["itemProbeLimit"] = item_probe_limit_value
         result["simcProfileCount"] = simc_profile_count
         result["simcResolvedProfileCount"] = simc_resolved_profile_count
@@ -6489,6 +6546,10 @@ class PostgresCacheStore:
         result["simcItemProbeResolvedCount"] = simc_item_probe_resolved_count
         result["skippedExistingVerifiedVariants"] = skipped_existing_verified
         result["simcErrors"] = simc_errors[:12]
+        result["profileCursor"] = {
+            "afterProfileIdentity": last_processed_profile_identity,
+        }
+        result["profileWindowWrapped"] = bool(profile_window["wrapped"])
         result["stopReason"] = stop_reason or "completed_cached_payload_window"
         return result
 

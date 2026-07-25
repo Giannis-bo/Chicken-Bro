@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 2,
+  "slug": "2026-07-25-community-gear-backfill-fairness",
+  "requirementSlug": "2026-07-25-community-gear-backfill-fairness",
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
+  "branch": "codex/community-gear-backfill-fairness",
+  "commit": "pending_candidate_head",
+  "identities": {
+    "runtime": {
+      "status": "pending",
+      "reason": "The final task head has not yet been deployed to the isolated candidate backend."
+    },
+    "verification": {
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD",
+      "reason": "The local regression suite and Harness packet check are bound to a clean task head."
+    },
+    "closure": {
+      "status": "pending",
+      "reason": "Candidate smoke and the frozen user acceptance checks have not completed."
+    }
+  },
+  "manualAcceptance": {
+    "required": true,
+    "status": "pending",
+    "items": [
+      {
+        "id": "community-gear-no-false-import-action",
+        "status": "pending"
+      },
+      {
+        "id": "community-gear-verified-exact-import",
+        "status": "pending"
+      }
+    ],
+    "rollup": {
+      "total": 2,
+      "accepted": 0,
+      "notRunUserWaived": 0,
+      "pending": 2
+    }
+  },
+  "scope": [
+    "Deterministic bounded observed-profile rotation for the PostgreSQL SimC evidence backfill",
+    "Public community equipment template and exact-import readiness when an observed variant is incomplete",
+    "Task-scoped Strict Harness requirement, evidence and manifest"
+  ],
+  "verification": [
+    {
+      "command": "python -m unittest tests.postgres_cache_store_test tests.postgres_cache_sync_test tests.observed_build_compiler_test tests.observed_build_read_model_test tests.community_template_import_test tests.postgres_only_scripts_test tests.deploy_lighthouse_test tests.observed_build_sync_test tests.pg_gear_template_selectors_test tests.news_backend_test",
+      "status": "pass",
+      "summary": "596 tests passed; cursor rotation, sync-state round trip, compiler blocking and public import suppression are covered."
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass",
+      "summary": "No whitespace errors were found in the task diff."
+    },
+    {
+      "command": "node scripts/project-harness.js --check-requirement --requirement-file artifacts/releases/2026-07-25-community-gear-backfill-fairness/requirement.json",
+      "status": "pass",
+      "summary": "The Strict requirement contract passed before implementation evidence promotion."
+    },
+    {
+      "command": "node scripts/project-harness.js --check --requirement-file artifacts/releases/2026-07-25-community-gear-backfill-fairness/requirement.json --evidence-file artifacts/releases/2026-07-25-community-gear-backfill-fairness/evidence.json --manifest-file artifacts/releases/2026-07-25-community-gear-backfill-fairness/manifest.json --base origin/main",
+      "status": "not_run",
+      "summary": "Runs after the complete packet is committed on a clean exact task head."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "pending",
+    "requiredBeforeMerge": true,
+    "reason": "The candidate window will use the final task head only, with the retail pointer and public route left unchanged."
+  },
+  "runtimeEvidence": [],
+  "risks": [
+    {
+      "id": "later_candidate_simc_starvation",
+      "status": "guarded_locally",
+      "detail": "The persisted deterministic profile cursor advances only after a whole profile, so later candidates enter successive bounded backfill windows without changing rank selection."
+    },
+    {
+      "id": "partial_exact_variant_false_import",
+      "status": "guarded_locally",
+      "detail": "A projection with a blank exact variant is blocked before Resolver publication and cannot create a public template or import source."
+    },
+    {
+      "id": "candidate_runtime_and_manual_acceptance",
+      "status": "pending",
+      "detail": "Candidate backfill, timer isolation, exact mage import and the two frozen WeChat checks remain required before merge or retail promotion."
+    }
+  ],
+  "rollback": [
+    "code_rollback",
+    "feature_hide",
+    "resync_repair",
+    "data_restore"
+  ],
+  "cleanup": {
+    "required": true,
+    "reason": "The isolated candidate service and directory must be removed after the user accepts or rejects the manual verification."
+  },
+  "archivedReferences": [],
+  "summary": "Local regression evidence confirms that the bounded PostgreSQL observed-gear worker rotates fairly across cached Raider.IO candidates and that incomplete exact observed variants are neither published as community import actions nor admitted to the final import source. Candidate runtime proof and user acceptance remain pending.",
+  "updatedAt": "2026-07-25T00:00:00+08:00"
+}

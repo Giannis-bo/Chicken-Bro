@@ -266,6 +266,16 @@ class ObservedBuildReadModelTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "identity"):
             talent_templates_from_active_records([tampered])
 
+    def test_incomplete_exact_variant_is_not_public_or_importable(self):
+        record = self.active_record()
+        incomplete = copy.deepcopy(record)
+        incomplete["projection"]["gearProjection"]["selectionIntent"]["slots"]["head"]["variantKey"] = ""
+        incomplete["projection"]["gearProjection"]["gearItems"][0]["variantKey"] = ""
+
+        self.assertEqual(gear_templates_from_active_records([incomplete]), [])
+        with self.assertRaisesRegex(ValueError, "exact variant"):
+            gear_import_source_from_active_record(incomplete)
+
 
 if __name__ == "__main__":
     unittest.main()
