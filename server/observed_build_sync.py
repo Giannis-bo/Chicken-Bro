@@ -278,6 +278,46 @@ def _active_snapshot_ids(active_set: dict[str, Any] | None) -> dict[str, str]:
     }
 
 
+def _active_lkg_recomposition_snapshots(
+    active_records: dict[str, dict[str, Any]],
+    lkg_slots: set[str],
+) -> dict[str, dict[str, Any]]:
+    """Return only same-slot sealed snapshots selected as LKG fallbacks.
+
+    Active snapshots are never source-ranking candidates.  Once selection has
+    already chosen an active same-slot LKG, however, its immutable snapshot can
+    be recompiled against newly completed evidence without changing the winner
+    selection or allowing it to displace a current ranked candidate.
+    """
+
+    snapshots: dict[str, dict[str, Any]] = {}
+    for key in sorted(lkg_slots):
+        record = active_records.get(key)
+        entry = record.get("entry") if isinstance(record, dict) else {}
+        snapshot = record.get("snapshot") if isinstance(record, dict) else {}
+        if not isinstance(entry, dict) or not isinstance(snapshot, dict):
+            continue
+        try:
+            snapshot_key = slot_key(snapshot.get("slot"))
+        except ValueError:
+            continue
+        source = (
+            snapshot.get("source")
+            if isinstance(snapshot.get("source"), dict)
+            else {}
+        )
+        if (
+            snapshot_key != key
+            or _text(snapshot.get("snapshotId"))
+            != _text(entry.get("snapshotId"))
+            or _text(source.get("sourceIdentity"))
+            != _text(entry.get("sourceIdentity"))
+        ):
+            continue
+        snapshots[key] = _canonical(snapshot)
+    return snapshots
+
+
 def _bounded_candidate_snapshots(
     candidates_by_slot: dict[str, list[dict[str, Any]]],
 ) -> dict[str, list[dict[str, Any]]]:
@@ -633,23 +673,29 @@ def run_observed_build_sync(
             else:
                 snapshots_to_compile[snapshot_id] = snapshot
 
-    prepare = getattr(compiler, "prepare", None)
-    if callable(prepare):
-        prepare(
-            [
-                snapshots_to_compile[snapshot_id]
-                for snapshot_id in sorted(snapshots_to_compile)
-            ]
-        )
+    def compile_snapshots(
+        snapshots_by_id: dict[str, dict[str, Any]],
+    ) -> None:
+        if not snapshots_by_id:
+            return
+        prepare = getattr(compiler, "prepare", None)
+        if callable(prepare):
+            prepare(
+                [
+                    snapshots_by_id[snapshot_id]
+                    for snapshot_id in sorted(snapshots_by_id)
+                ]
+            )
+        for snapshot_id in sorted(snapshots_by_id):
+            sealed_snapshot = store.seal_snapshot(
+                snapshots_by_id[snapshot_id]
+            )
+            projection = compiler(sealed_snapshot)
+            projections_by_snapshot_id[snapshot_id] = (
+                store.seal_projection(projection)
+            )
 
-    for snapshot_id in sorted(snapshots_to_compile):
-        sealed_snapshot = store.seal_snapshot(
-            snapshots_to_compile[snapshot_id]
-        )
-        projection = compiler(sealed_snapshot)
-        projections_by_snapshot_id[snapshot_id] = (
-            store.seal_projection(projection)
-        )
+    compile_snapshots(snapshots_to_compile)
 
     eligible_snapshot_ids = {
         snapshot_id
@@ -663,6 +709,42 @@ def run_observed_build_sync(
         active_set or None,
         dependency_vector,
     )
+    recomposition_by_slot = _active_lkg_recomposition_snapshots(
+        active_records,
+        lkg_slots,
+    )
+    recomposition_by_id = {
+        _text(snapshot.get("snapshotId")): snapshot
+        for snapshot in recomposition_by_slot.values()
+        if _text(snapshot.get("snapshotId"))
+    }
+    compile_snapshots(recomposition_by_id)
+    for key, snapshot in recomposition_by_slot.items():
+        snapshot_id = _text(snapshot.get("snapshotId"))
+        projection = projections_by_snapshot_id.get(snapshot_id)
+        active_record = active_records.get(key)
+        active_entry = (
+            active_record.get("entry")
+            if isinstance(active_record, dict)
+            else {}
+        )
+        source = (
+            snapshot.get("source")
+            if isinstance(snapshot.get("source"), dict)
+            else {}
+        )
+        if (
+            isinstance(projection, dict)
+            and projection.get("status") == "verified"
+            and projection.get("importable") is True
+            and isinstance(active_entry, dict)
+            and _text(source.get("sourceIdentity"))
+            == _text(active_entry.get("sourceIdentity"))
+            and _text(projection.get("sourceIdentity"))
+            == _text(active_entry.get("sourceIdentity"))
+        ):
+            winners[key] = snapshot
+            lkg_slots.discard(key)
 
     for slot in expected_slots:
         key = slot_key(slot)

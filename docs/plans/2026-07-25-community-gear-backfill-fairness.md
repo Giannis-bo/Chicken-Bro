@@ -4,7 +4,7 @@
 
 **Goal:** Ensure every retained Raider.IO candidate, including a player still referenced by the active observed TemplateSet after leaving the latest ranking payload, eventually receives bounded exact-gear SimC enrichment; make an incomplete exact variant ineligible for public community-template import.
 
-**Architecture:** The scheduled PostgreSQL backfill owns bounded SimC work; observed-build compilation only consumes already verified evidence. Its candidate pool merges current cached Raider.IO profiles with immutable profiles still referenced by the active observed TemplateSet, deduplicated by profile identity and rotated through one persisted cursor. Every projected observed slot must resolve to a non-empty verified exact variant before the compiler or public read model calls it importable.
+**Architecture:** The scheduled PostgreSQL backfill owns bounded SimC work; observed-build compilation only consumes already verified evidence. Its candidate pool merges current cached Raider.IO profiles with immutable profiles still referenced by the active observed TemplateSet, deduplicated by profile identity and rotated through one persisted cursor. Every projected observed slot must resolve to a non-empty verified exact variant before the compiler or public read model calls it importable. If winner selection has already chosen a same-slot active LKG, the sync may recompose that sealed snapshot after its evidence completes; the sealed snapshot never re-enters current source ranking or displaces a current ranked winner.
 
 **Tech Stack:** Python 3, PostgreSQL cache/sync state, SimulationCraft worker, unittest, existing Harness release packet.
 
@@ -15,6 +15,7 @@
 - Do not synthesize or accept a blank/default observed variantKey.
 - Selection still prefers the highest-ranked verified candidate per slot; rotation controls only the background evidence queue.
 - An active observed snapshot remains eligible for background repair even if the newest cached ranking payload no longer contains that player; this does not add it to public ranking or change winner election.
+- Recompose an active snapshot only after same-slot LKG selection. A successful recompilation upgrades that retained slot to verified; a failed recompilation stays fail-closed as LKG or hidden.
 - Preserve same-slot LKG. If no verified LKG exists, omit the incomplete candidate from the importable public list.
 - The existing target_limit and profile_limit remain resource limits; a cursor moves only after a whole profile is handled.
 - Do not commit, merge, push or promote retail until the frozen candidate smoke and manual acceptance contract are complete.
@@ -325,7 +326,7 @@ Record branch, commit/tree, runtime file parity, health, /api/data/health, and t
 
 - [ ] **Step 3: Prove rotation and repair the cited exact variant**
 
-Run bounded candidate backfill until the persisted cursor passes 皓月当空. Record cursor and stop reason on each run. Compose observed-build candidate data, then prove item 258516, level 298, bonus IDs 13440/6652/12701/13654, and enchant IDs 7981/8052 are a verified exact variant.
+Run bounded candidate backfill until the persisted cursor passes 皓月当空. Record cursor and stop reason on each run. Compose observed-build candidate data; if the live ranking payload no longer contains the cited player, recompose the existing same-slot LKG only after regular winner selection has retained it. Then prove item 258516, level 298, bonus IDs 13440/6652/12701/13654, and enchant IDs 7981/8052 are a verified exact variant.
 
 Check both public reads:
 

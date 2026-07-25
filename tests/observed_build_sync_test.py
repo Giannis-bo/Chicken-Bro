@@ -561,6 +561,82 @@ class ObservedBuildSyncTest(unittest.TestCase):
             store.active_set["entries"][0]["projectionId"],
         )
 
+    def test_active_lkg_snapshot_recomposes_without_reentering_ranking(self):
+        target_slot = self.slots()[0]
+        target_key = slot_key(target_slot)
+        store = self.active_store()
+        payload = self.payload()
+        target_identity = next(
+            template["payload"]["raiderio"]["sourceIdentity"]
+            for template in payload["communityTemplates"]
+            if (
+                template["classKey"],
+                template["specKey"],
+                template["heroKey"],
+            )
+            == (
+                target_slot["classKey"],
+                target_slot["specKey"],
+                target_slot["heroKey"],
+            )
+        )
+        payload["communityTemplates"] = [
+            template
+            for template in payload["communityTemplates"]
+            if (
+                template["classKey"],
+                template["specKey"],
+                template["heroKey"],
+            )
+            != (
+                target_slot["classKey"],
+                target_slot["specKey"],
+                target_slot["heroKey"],
+            )
+        ]
+        payload["profiles"] = [
+            profile
+            for profile in payload["profiles"]
+            if profile["sourceIdentity"] != target_identity
+        ]
+        compiled_snapshot_ids = []
+        base_compiler = self.compiler()
+
+        def compiler(snapshot):
+            compiled_snapshot_ids.append(snapshot["snapshotId"])
+            return base_compiler(snapshot)
+
+        compiler.dependency_vector = base_compiler.dependency_vector
+        result = run_observed_build_sync(
+            store,
+            scope="candidate",
+            refresh_source=False,
+            allow_promotion=True,
+            source_fetcher=lambda: payload,
+            compiler=compiler,
+            checked_at="2026-07-23T13:00:00Z",
+        )
+
+        selected = next(
+            entry
+            for entry in store.template_sets[
+                result["candidateTemplateSetId"]
+            ]["entries"]
+            if entry["slotKey"] == target_key
+        )
+        active_target = store.active_artifacts[target_key]
+        self.assertEqual(result["coverage"]["verified"], 80)
+        self.assertEqual(result["coverage"]["stale_lkg"], 0)
+        self.assertEqual(selected["status"], "verified")
+        self.assertEqual(
+            selected["sourceIdentity"],
+            active_target["snapshot"]["source"]["sourceIdentity"],
+        )
+        self.assertIn(
+            active_target["snapshot"]["snapshotId"],
+            compiled_snapshot_ids,
+        )
+
     def test_unchanged_snapshots_reuse_active_projections_without_compiling(self):
         store = self.active_store()
 
