@@ -2,14 +2,15 @@
   "schemaVersion": 2,
   "slug": "2026-07-25-community-gear-backfill-fairness",
   "requirementSlug": "2026-07-25-community-gear-backfill-fairness",
-  "status": "local_verified",
-  "highestEvidenceLevel": "local_verified",
+  "status": "runtime_verified",
+  "highestEvidenceLevel": "runtime_verified",
   "branch": "codex/community-gear-backfill-fairness",
-  "commit": "pending_candidate_head",
+  "commit": "f0f595627dd3fa0c10b73a56b0211d53fae1813d",
   "identities": {
     "runtime": {
-      "status": "pending",
-      "reason": "The final task head has not yet been deployed to the isolated candidate backend."
+      "status": "bound",
+      "kind": "git_commit",
+      "value": "f0f595627dd3fa0c10b73a56b0211d53fae1813d"
     },
     "verification": {
       "status": "bound_at_check",
@@ -19,7 +20,7 @@
     },
     "closure": {
       "status": "pending",
-      "reason": "Candidate smoke and the frozen user acceptance checks have not completed."
+      "reason": "The candidate API smoke completed, but the two frozen WeChat acceptance checks are still pending user execution."
     }
   },
   "manualAcceptance": {
@@ -51,7 +52,7 @@
     {
       "command": "python -m unittest tests.postgres_cache_store_test tests.postgres_cache_sync_test tests.observed_build_compiler_test tests.observed_build_read_model_test tests.community_template_import_test tests.postgres_only_scripts_test tests.deploy_lighthouse_test tests.observed_build_sync_test tests.pg_gear_template_selectors_test tests.news_backend_test",
       "status": "pass",
-      "summary": "596 tests passed; cursor rotation, sync-state round trip, compiler blocking and public import suppression are covered."
+      "summary": "598 tests passed in 57.861s; cursor rotation, active-snapshot recomposition, dependency-cutover gating, compiler blocking and public import suppression are covered."
     },
     {
       "command": "git diff --check",
@@ -66,30 +67,80 @@
     {
       "command": "node scripts/project-harness.js --check --requirement-file artifacts/releases/2026-07-25-community-gear-backfill-fairness/requirement.json --evidence-file artifacts/releases/2026-07-25-community-gear-backfill-fairness/evidence.json --manifest-file artifacts/releases/2026-07-25-community-gear-backfill-fairness/manifest.json --base origin/main",
       "status": "not_run",
-      "summary": "Runs after the complete packet is committed on a clean exact task head."
+      "summary": "Runs after this runtime evidence update is committed on a clean exact task head."
     }
   ],
   "candidateDeployment": {
-    "status": "pending",
+    "status": "candidate_verified",
     "requiredBeforeMerge": true,
-    "reason": "The candidate window will use the final task head only, with the retail pointer and public route left unchanged."
+    "branch": "codex/community-gear-backfill-fairness",
+    "commit": "f0f595627dd3fa0c10b73a56b0211d53fae1813d",
+    "gitTree": "74deeb6b5a93c2a5077b085f393ff93d4d668317",
+    "host": "wow-lighthouse",
+    "path": "/opt/wow-mini-program-candidate/community-gear-backfill-f0f5956-binary",
+    "baseUrl": "http://127.0.0.1:18787",
+    "gearReleaseId": "gear-release:sha256:1f7802a8f1771f193b81dfeb590cafa8efd54f06671153c809178826f9eff15d",
+    "templateSetId": "template-set:sha256:e6ea28e555beece9e6da3d3680a6a3709e4ff0b28107c1c2fd98623278289a37",
+    "pointerGeneration": 8,
+    "asyncSyncStart": false,
+    "publicPointerChange": false,
+    "smoke": {
+      "status": "pass",
+      "summary": "The isolated candidate served 80 verified observed-build slots. Mage Arcane listed 皓月当空 as canApplyGear=true, and POST /api/websim/gear/community-import returned verified with the exact main-hand item 258516 variant."
+    },
+    "timerBackflow": {
+      "status": "pass",
+      "summary": "The candidate was launched with collectors disabled and no async sync start. Existing wow-gear-observed-backfill.timer and wow-community-template-sync.timer remained enabled with their established schedules; this task did not add, enable, or trigger a retail timer."
+    },
+    "reason": "Candidate-only controlled cutover bound a newly sealed preview Gear Release and advanced only the candidate TemplateSet pointer from generation 7 to 8."
   },
-  "runtimeEvidence": [],
+  "runtimeEvidence": [
+    {
+      "id": "candidate-80-slot-controlled-cutover",
+      "type": "postgres_candidate",
+      "status": "pass",
+      "summary": "Candidate TemplateSet e6ea28e5 contains 80 verified slots, zero stale LKG and zero pending collection. Its candidate pointer advanced from generation 7 to 8 only after the controlled dependency cutover."
+    },
+    {
+      "id": "candidate-mage-exact-variant",
+      "type": "public_contract",
+      "status": "pass",
+      "summary": "Candidate Mage Arcane GET listed 皓月当空 · 法术投射者 as complete and canApplyGear=true. Main hand 258516 was level 298 with bonus_id 13440/6652/12701/13654, enchant_id 7981/8052 and a non-empty observed-profile exact variantKey."
+    },
+    {
+      "id": "candidate-mage-final-import",
+      "type": "smoke",
+      "status": "pass",
+      "summary": "Candidate POST /api/websim/gear/community-import for build-projection dea7544c returned status=verified and data.status=verified. The final resolver preserved the exact main-hand selection and preview Gear Release 1f7802a8."
+    },
+    {
+      "id": "retail-pointer-isolation",
+      "type": "postgres_pointer",
+      "status": "pass",
+      "summary": "Retail Manifest remained season-manifest:sha256:18c42522cc71351cd24f2185e3b037f7d9d5f13e355d9ff2bc85b6d94ef3aa6e with Gear Release 3b517bd8. Retail observed TemplateSet remained generation 2 on a299659c; only the candidate pointer moved."
+    },
+    {
+      "id": "candidate-timer-isolation",
+      "type": "timer_backflow",
+      "status": "pass",
+      "summary": "The existing observed-backfill and community-template timers remained enabled on their prior schedules. The candidate uses WOW_NEWS_ENABLE_COLLECTORS=0 and WOW_NEWS_MAX_COLLECTED_ARTICLES=0; no retail service restart or timer activation occurred."
+    }
+  ],
   "risks": [
     {
       "id": "later_candidate_simc_starvation",
-      "status": "guarded_locally",
-      "detail": "The persisted deterministic profile cursor advances only after a whole profile, so later candidates enter successive bounded backfill windows without changing rank selection."
+      "status": "candidate_verified",
+      "detail": "The persisted deterministic profile cursor retains active TemplateSet sources for independent SimC work. The cited Mage and all five initially unsupported healer slots reached a complete candidate TemplateSet without changing rank selection."
     },
     {
       "id": "partial_exact_variant_false_import",
-      "status": "guarded_locally",
-      "detail": "A projection with a blank exact variant is blocked before Resolver publication and cannot create a public template or import source."
+      "status": "candidate_verified",
+      "detail": "A projection with a blank exact variant remains blocked before Resolver publication. After exact evidence was sealed, the public candidate import succeeded with the source-observed main-hand variant instead of a default variant."
     },
     {
       "id": "candidate_runtime_and_manual_acceptance",
       "status": "pending",
-      "detail": "Candidate backfill, timer isolation, exact mage import and the two frozen WeChat checks remain required before merge or retail promotion."
+      "detail": "Candidate backfill, timer isolation and exact Mage import are verified. The two frozen WeChat checks remain required before merge or retail promotion."
     }
   ],
   "rollback": [
@@ -100,9 +151,9 @@
   ],
   "cleanup": {
     "required": true,
-    "reason": "The isolated candidate service and directory must be removed after the user accepts or rejects the manual verification."
+    "reason": "The isolated candidate service and directory must be retained only through the pending manual verification, then removed after the user accepts or rejects it."
   },
   "archivedReferences": [],
-  "summary": "Local regression evidence confirms that the bounded PostgreSQL observed-gear worker rotates fairly across cached Raider.IO candidates and that incomplete exact observed variants are neither published as community import actions nor admitted to the final import source. Candidate runtime proof and user acceptance remain pending.",
-  "updatedAt": "2026-07-25T00:00:00+08:00"
+  "summary": "Candidate runtime evidence verifies fair retained-profile SimC backfill, a candidate-only immutable Gear Release cutover, an 80/80 verified TemplateSet, and a successful exact Mage community import. Retail pointers remain unchanged. The frozen WeChat acceptance checks are still pending and no merge or retail promotion is authorized.",
+  "updatedAt": "2026-07-25T15:50:00+08:00"
 }
