@@ -51,9 +51,9 @@
     {
       "id": "observed_build_registry_cutover",
       "path": "docs/plans/2026-07-23-observed-build-registry-cutover-implementation.md",
-      "status": "candidate_verification_pending",
+      "status": "retail_cutover_verified",
       "lifecycle": "active",
-      "notes": "Shared 80-slot real-player TemplateSet for talent and equipment simulation. Candidate-only source collection, exhaustive imports, rollback and five-item real WeChat acceptance are required before retail activation."
+      "notes": "Shared 80-slot real-player TemplateSet for talent and equipment simulation. The current retail cutover is verified at TemplateSet generation 3 with 80 verified slots and a matching formal Gear Release; the next scheduled observed-gear backfill persisted its fair profile cursor. See artifacts/releases/2026-07-25-community-gear-backfill-fairness/retail-live-smoke.json."
     }
   ],
   "completedBaselines": [

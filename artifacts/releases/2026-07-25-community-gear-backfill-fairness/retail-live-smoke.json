@@ -1,0 +1,79 @@
+{
+  "schemaRevision": "community-gear-retail-live-smoke-v1",
+  "status": "verified",
+  "checkedAt": "2026-07-25T21:42:04+08:00",
+  "runtime": {
+    "commit": "8e598df0dffedab8d4ee0f1c734558e4fdd80185",
+    "gitTree": "3cba1a9de79956f8b9c1152d185a26ed8c7629e5",
+    "host": "wow-lighthouse",
+    "service": "wow-backend.service",
+    "serviceStatus": "active",
+    "observedOwnerParity": "pass"
+  },
+  "rollback": {
+    "postgresBackup": {
+      "path": "/var/lib/wow-backend/backups/20260725T121852Z-community-gear-reloss-pre-backfill.dump",
+      "sha256": "58f28cccac6afd9a651057801ab99bfa374bb0fda2e1825212797b14c98a4b72"
+    },
+    "serverCodeBackup": {
+      "path": "/var/lib/wow-backend/backups/20260725T211000CST-reloss-community-gear-predeploy-server.tar.gz",
+      "sha256": "e62782a2923fab5054d2467e4c9d26469ecbcd5406c4e38d62be066193c21a61"
+    },
+    "gearManifest": "season-manifest:sha256:18c42522cc71351cd24f2185e3b037f7d9d5f13e355d9ff2bc85b6d94ef3aa6e",
+    "templateSet": "template-set:sha256:a299659ce1bfc39a6a8b3d249243b73ce1fe7cd018758da8aec3ac7afa76b7a0"
+  },
+  "retailAuthority": {
+    "gearManifestGeneration": 24,
+    "gearManifestRevision": "season-manifest:sha256:6517fc257c39d80339a90fa0675ec53792958ac51fcdc7c3a2629784112c2f1d",
+    "gearReleaseId": "gear-release:sha256:de40793805a84934497c645be2ccc914ef44191744cc76d03f765001bc6dfe6a",
+    "templateSetGeneration": 3,
+    "templateSetId": "template-set:sha256:6543d830a0883b1d6e52a2cf7474fb16328cb5b5a53ba77d7a14c9aa8906b845",
+    "templateSetCounts": {
+      "verified": 80,
+      "stale_lkg": 0,
+      "pending_collection": 0,
+      "gearCompleteSpecs": 40
+    }
+  },
+  "verification": {
+    "localFocusedTests": {
+      "command": "python -m unittest tests.postgres_cache_store_test tests.postgres_cache_sync_test tests.observed_build_compiler_test tests.observed_build_read_model_test tests.community_template_import_test",
+      "status": "pass",
+      "summary": "283 tests passed"
+    },
+    "candidateAudit": {
+      "status": "pass",
+      "summary": "80 talent slots/imports, 40 gear specs, 80 gear templates/imports, and 80 shared identities verified with zero failures."
+    },
+    "retailAudit": {
+      "status": "pass",
+      "summary": "80 talent slots/imports, 40 gear specs, 80 gear templates/imports, and 80 shared identities verified with zero failures."
+    },
+    "health": {
+      "healthHttp": 200,
+      "dataHealthHttp": 200,
+      "observedBuildRegistryStatus": "verified",
+      "observedBuildRegistryBlockers": []
+    }
+  },
+  "scheduledBackfill": {
+    "timer": "wow-gear-observed-backfill.timer",
+    "status": "verified_after_deploy",
+    "candidateProfileCount": 122,
+    "processedProfileCount": 4,
+    "profileCursor": "raiderio:cn|alar|月兎",
+    "profileWindowWrapped": false,
+    "stopReason": "target_limit_reached",
+    "partialExactVariants": 0,
+    "nonPublicBlockers": {
+      "missingRequiredFields": 3,
+      "unsupportedSimcProfiles": 2
+    }
+  },
+  "cleanup": {
+    "candidateService": "stopped",
+    "candidateRuntimePath": "already_absent",
+    "candidateTunnel": "stopped",
+    "retailAuditTunnel": "stopped"
+  }
+}
