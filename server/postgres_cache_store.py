@@ -2527,6 +2527,67 @@ class PostgresCacheStore:
                         now,
                     ),
                 )
+                if (
+                    game_asset.get("iconUrl")
+                    and game_asset.get("source") == "blizzard"
+                    and game_asset.get("status") == "verified"
+                ):
+                    cur.execute(
+                        """
+                        INSERT INTO cache.websim_asset_registry (
+                            id, entity_type, entity_id, context_key, asset_type, icon_url,
+                            resolution_tier, source, status, semantic_tags_json, usage_json,
+                            fallback_text, payload_json, updated_at
+                        ) VALUES (
+                            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb,
+                            %s, %s::jsonb, %s
+                        )
+                        ON CONFLICT (id) DO UPDATE SET
+                            entity_type = EXCLUDED.entity_type,
+                            entity_id = EXCLUDED.entity_id,
+                            context_key = EXCLUDED.context_key,
+                            asset_type = EXCLUDED.asset_type,
+                            icon_url = EXCLUDED.icon_url,
+                            resolution_tier = EXCLUDED.resolution_tier,
+                            source = EXCLUDED.source,
+                            status = EXCLUDED.status,
+                            semantic_tags_json = EXCLUDED.semantic_tags_json,
+                            usage_json = EXCLUDED.usage_json,
+                            fallback_text = EXCLUDED.fallback_text,
+                            payload_json = EXCLUDED.payload_json,
+                            updated_at = EXCLUDED.updated_at
+                        WHERE
+                            CASE EXCLUDED.status
+                                WHEN 'verified' THEN 4
+                                WHEN 'partial' THEN 3
+                                WHEN 'source_reference' THEN 2
+                                WHEN 'fallback' THEN 1
+                                ELSE 0
+                            END >= CASE cache.websim_asset_registry.status
+                                WHEN 'verified' THEN 4
+                                WHEN 'partial' THEN 3
+                                WHEN 'source_reference' THEN 2
+                                WHEN 'fallback' THEN 1
+                                ELSE 0
+                            END
+                        """,
+                        (
+                            game_asset.get("id") or "",
+                            game_asset.get("entityType") or "",
+                            game_asset.get("entityId") or "",
+                            game_asset.get("contextKey") or "",
+                            game_asset.get("assetType") or "icon",
+                            game_asset.get("iconUrl") or "",
+                            game_asset.get("resolutionTier") or "",
+                            game_asset.get("source") or "unknown",
+                            game_asset.get("status") or "missing",
+                            json_param(game_asset.get("semanticTags") or []),
+                            json_param(game_asset.get("usage") or []),
+                            game_asset.get("fallbackText") or "?",
+                            json_param(game_asset),
+                            now,
+                        ),
+                    )
             conn.commit()
         return {
             "itemId": item_id,

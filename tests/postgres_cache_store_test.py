@@ -5901,20 +5901,27 @@ class PostgresCacheStoreTest(unittest.TestCase):
         )
 
         sql = "\n".join(conn.cursor_instance.statements)
-        params = conn.cursor_instance.params[-1]
-        payload = __import__("json").loads(params[4])
+        item_params = conn.cursor_instance.params[0]
+        payload = __import__("json").loads(item_params[4])
         self.assertEqual(saved["displayName"], "辛多雷希望指环")
         self.assertEqual(saved["iconUrl"], "https://render.worldofwarcraft.com/us/icons/56/inv_jewelry_ring_01.jpg")
         self.assertIn("INSERT INTO cache.websim_items", sql)
-        self.assertEqual(params[0], "249919")
-        self.assertEqual(params[1], "辛多雷希望指环")
-        self.assertEqual(params[5], "verified")
+        self.assertIn("INSERT INTO cache.websim_asset_registry", sql)
+        self.assertEqual(item_params[0], "249919")
+        self.assertEqual(item_params[1], "辛多雷希望指环")
+        self.assertEqual(item_params[5], "verified")
         self.assertEqual(payload["_metadata"]["source"], "Battle.net Game Data API")
         self.assertEqual(payload["_metadata"]["locale"], "zh_CN")
         self.assertEqual(payload["_metadata"]["englishName"], "Sin'dorei Band of Hope")
         self.assertEqual(payload["displayName"], "辛多雷希望指环")
         self.assertEqual(payload["localizedName"], "辛多雷希望指环")
         self.assertEqual(payload["iconUrl"], "https://render.worldofwarcraft.com/us/icons/56/inv_jewelry_ring_01.jpg")
+        asset_params = conn.cursor_instance.params[-1]
+        self.assertEqual(asset_params[0], "item:249919:websim-item-metadata")
+        self.assertEqual(asset_params[2], "249919")
+        self.assertEqual(asset_params[5], "https://render.worldofwarcraft.com/us/icons/56/inv_jewelry_ring_01.jpg")
+        self.assertEqual(asset_params[7], "blizzard")
+        self.assertEqual(asset_params[8], "verified")
         self.assertTrue(conn.committed)
 
     def test_community_gear_template_item_metadata_gaps_finds_sparse_pg_rows(self):
