@@ -66,8 +66,8 @@
     },
     {
       "command": "node scripts/project-harness.js --check --requirement-file artifacts/releases/2026-07-25-community-gear-backfill-fairness/requirement.json --evidence-file artifacts/releases/2026-07-25-community-gear-backfill-fairness/evidence.json --manifest-file artifacts/releases/2026-07-25-community-gear-backfill-fairness/manifest.json --base origin/main",
-      "status": "not_run",
-      "summary": "Runs after this runtime evidence update is committed on a clean exact task head."
+      "status": "pass",
+      "summary": "Passed on clean HEAD ab170ab with the task-scoped requirement, evidence and manifest packet bound against origin/main."
     }
   ],
   "candidateDeployment": {
