@@ -353,21 +353,34 @@ class GearEvidenceGapStoreTest(unittest.TestCase):
                 [forbidden],
                 now="2026-07-26T02:00:00+00:00",
             )
-        nested_fact_value = {
-            **gap,
-            "missingRequirement": {
+        rejected_requirements = (
+            {
                 **gap["missingRequirement"],
-                "factValue": 1,
+                "socketCount": 1,
             },
-        }
-        with self.assertRaisesRegex(
-            GearEvidenceGapIntegrityError,
-            "Fact values",
-        ):
-            GearEvidenceGapStore(lambda: conn).enqueue_gaps(
-                [nested_fact_value],
-                now="2026-07-26T02:00:00+00:00",
-            )
+            {
+                **gap["missingRequirement"],
+                "resultPayload": {"answer": 1},
+            },
+            {
+                **gap["missingRequirement"],
+                "sourceIdentity": {"nested": "source"},
+            },
+            {
+                **gap["missingRequirement"],
+                "requiredInputs": ["socket_count"],
+            },
+        )
+        for missing_requirement in rejected_requirements:
+            with self.subTest(missing_requirement=missing_requirement):
+                with self.assertRaisesRegex(
+                    GearEvidenceGapIntegrityError,
+                    "operational fields",
+                ):
+                    GearEvidenceGapStore(lambda: conn).enqueue_gaps(
+                        [{**gap, "missingRequirement": missing_requirement}],
+                        now="2026-07-26T02:00:00+00:00",
+                    )
 
     def test_gap_claim_and_finish_are_lock_token_fenced(self):
         fact = fact_fixture(observation_fixture(artifact_fixture()))

@@ -111,9 +111,105 @@ CREATE TABLE IF NOT EXISTS ops.websim_gear_evidence_gaps (
         'compiler_policy_missing',
         'projection_contract_regression'
     )),
-    missing_requirement_json jsonb NOT NULL DEFAULT '{}'::jsonb
+    missing_requirement_json jsonb NOT NULL
         CHECK (jsonb_typeof(missing_requirement_json) = 'object')
-        CHECK (octet_length(missing_requirement_json::text) <= 65536),
+        CHECK (octet_length(missing_requirement_json::text) <= 4096)
+        CHECK (
+            missing_requirement_json
+                - 'seasonRevision'
+                - 'subjectKey'
+                - 'factType'
+                - 'sourceType'
+                - 'sourceIdentity'
+                - 'sourceRevision'
+                - 'sourceScope'
+                - 'parserRevision'
+                - 'compilerRuleRevision'
+                - 'artifactId'
+                - 'observationId'
+                - 'requiredInputKey'
+            = '{}'::jsonb
+        )
+        CHECK (
+            missing_requirement_json ? 'subjectKey'
+            AND jsonb_typeof(missing_requirement_json -> 'subjectKey') = 'string'
+            AND length(missing_requirement_json ->> 'subjectKey') BETWEEN 1 AND 512
+            AND missing_requirement_json ? 'factType'
+            AND jsonb_typeof(missing_requirement_json -> 'factType') = 'string'
+            AND length(missing_requirement_json ->> 'factType') BETWEEN 1 AND 120
+        )
+        CHECK (
+            NOT (missing_requirement_json ? 'seasonRevision')
+            OR (
+                jsonb_typeof(missing_requirement_json -> 'seasonRevision') = 'string'
+                AND length(missing_requirement_json ->> 'seasonRevision') BETWEEN 1 AND 256
+            )
+        )
+        CHECK (
+            NOT (missing_requirement_json ? 'sourceType')
+            OR (
+                jsonb_typeof(missing_requirement_json -> 'sourceType') = 'string'
+                AND length(missing_requirement_json ->> 'sourceType') BETWEEN 1 AND 120
+            )
+        )
+        CHECK (
+            NOT (missing_requirement_json ? 'sourceIdentity')
+            OR (
+                jsonb_typeof(missing_requirement_json -> 'sourceIdentity') = 'string'
+                AND length(missing_requirement_json ->> 'sourceIdentity') BETWEEN 1 AND 1024
+            )
+        )
+        CHECK (
+            NOT (missing_requirement_json ? 'sourceRevision')
+            OR (
+                jsonb_typeof(missing_requirement_json -> 'sourceRevision') = 'string'
+                AND length(missing_requirement_json ->> 'sourceRevision') BETWEEN 1 AND 256
+            )
+        )
+        CHECK (
+            NOT (missing_requirement_json ? 'sourceScope')
+            OR (
+                jsonb_typeof(missing_requirement_json -> 'sourceScope') = 'string'
+                AND length(missing_requirement_json ->> 'sourceScope') BETWEEN 1 AND 120
+            )
+        )
+        CHECK (
+            NOT (missing_requirement_json ? 'parserRevision')
+            OR (
+                jsonb_typeof(missing_requirement_json -> 'parserRevision') = 'string'
+                AND length(missing_requirement_json ->> 'parserRevision') BETWEEN 1 AND 256
+            )
+        )
+        CHECK (
+            NOT (missing_requirement_json ? 'compilerRuleRevision')
+            OR (
+                jsonb_typeof(missing_requirement_json -> 'compilerRuleRevision') = 'string'
+                AND length(missing_requirement_json ->> 'compilerRuleRevision') BETWEEN 1 AND 256
+            )
+        )
+        CHECK (
+            NOT (missing_requirement_json ? 'artifactId')
+            OR (
+                jsonb_typeof(missing_requirement_json -> 'artifactId') = 'string'
+                AND (missing_requirement_json ->> 'artifactId')
+                    ~ '^gear-artifact:sha256:[0-9a-f]{64}$'
+            )
+        )
+        CHECK (
+            NOT (missing_requirement_json ? 'observationId')
+            OR (
+                jsonb_typeof(missing_requirement_json -> 'observationId') = 'string'
+                AND (missing_requirement_json ->> 'observationId')
+                    ~ '^gear-observation:sha256:[0-9a-f]{64}$'
+            )
+        )
+        CHECK (
+            NOT (missing_requirement_json ? 'requiredInputKey')
+            OR (
+                jsonb_typeof(missing_requirement_json -> 'requiredInputKey') = 'string'
+                AND length(missing_requirement_json ->> 'requiredInputKey') BETWEEN 1 AND 120
+            )
+        ),
     attempt integer NOT NULL DEFAULT 0 CHECK (attempt BETWEEN 0 AND 3),
     locked_by text NOT NULL DEFAULT '' CHECK (length(locked_by) <= 160),
     lock_token text NOT NULL DEFAULT '' CHECK (length(lock_token) <= 160),

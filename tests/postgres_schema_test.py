@@ -506,6 +506,23 @@ class PostgresSchemaTest(unittest.TestCase):
         ]
         self.assertNotIn("fact_value", gap_section)
         self.assertNotIn("result_json", gap_section)
+        self.assertIn(
+            "missing_requirement_json - 'seasonRevision' - 'subjectKey' - 'factType' "
+            "- 'sourceType' - 'sourceIdentity' - 'sourceRevision' - 'sourceScope' "
+            "- 'parserRevision' - 'compilerRuleRevision' - 'artifactId' - 'observationId' "
+            "- 'requiredInputKey' = '{}'::jsonb",
+            gap_section,
+        )
+        self.assertIn("missing_requirement_json ? 'subjectKey'", gap_section)
+        self.assertIn(
+            "jsonb_typeof(missing_requirement_json -> 'subjectKey') = 'string'",
+            gap_section,
+        )
+        self.assertIn("missing_requirement_json ? 'factType'", gap_section)
+        self.assertIn(
+            "jsonb_typeof(missing_requirement_json -> 'sourceIdentity') = 'string'",
+            gap_section,
+        )
         self.assertIn("REVOKE DELETE ON ops.websim_gear_evidence_gaps FROM wow_app", normalized)
         self.assertIn(
             "GRANT SELECT, INSERT, UPDATE ON ops.websim_gear_evidence_gaps TO wow_app",

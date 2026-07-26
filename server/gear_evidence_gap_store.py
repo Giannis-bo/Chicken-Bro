@@ -36,17 +36,21 @@ _OUTCOME_KEYS = {
     "missingRequirement",
     "nextAttemptAt",
 }
-_FORBIDDEN_REQUIREMENT_KEYS = {
-    "canonicalfact",
-    "factvalue",
-    "factvaluehash",
-    "observationrefs",
-    "provenancehash",
-    "resolvedvalue",
-    "result",
-    "resultjson",
-    "value",
+_MISSING_REQUIREMENT_STRING_FIELDS = {
+    "seasonRevision": 256,
+    "subjectKey": 512,
+    "factType": 120,
+    "sourceType": 120,
+    "sourceIdentity": 1024,
+    "sourceRevision": 256,
+    "sourceScope": 120,
+    "parserRevision": 256,
+    "compilerRuleRevision": 256,
+    "artifactId": 128,
+    "observationId": 128,
+    "requiredInputKey": 120,
 }
+_REQUIRED_MISSING_REQUIREMENT_FIELDS = {"subjectKey", "factType"}
 _ROW_COLUMNS = (
     "gap_key",
     "fact_key",
@@ -115,20 +119,44 @@ def _is_hash(value: Any, prefix: str) -> bool:
     return len(suffix) == 64 and all(character in "0123456789abcdef" for character in suffix)
 
 
-def _assert_operational_requirement(value: Any) -> None:
-    if isinstance(value, dict):
-        for key, nested in value.items():
-            normalized_key = "".join(
-                character for character in _text(key).lower() if character.isalnum()
+def _validated_missing_requirement(value: Any) -> dict[str, str]:
+    if not isinstance(value, dict):
+        raise GearEvidenceGapIntegrityError(
+            "Gear Evidence Gap missing requirement must use approved operational fields."
+        )
+    keys = set(value)
+    if (
+        not _REQUIRED_MISSING_REQUIREMENT_FIELDS.issubset(keys)
+        or not keys.issubset(_MISSING_REQUIREMENT_STRING_FIELDS)
+    ):
+        raise GearEvidenceGapIntegrityError(
+            "Gear Evidence Gap missing requirement must use approved operational fields."
+        )
+    normalized: dict[str, str] = {}
+    for key, raw_value in value.items():
+        if not isinstance(raw_value, str):
+            raise GearEvidenceGapIntegrityError(
+                "Gear Evidence Gap missing requirement must use approved operational fields."
             )
-            if normalized_key in _FORBIDDEN_REQUIREMENT_KEYS:
-                raise GearEvidenceGapIntegrityError(
-                    "Gear Evidence Gap requirements cannot contain Fact values."
-                )
-            _assert_operational_requirement(nested)
-    elif isinstance(value, list):
-        for nested in value:
-            _assert_operational_requirement(nested)
+        field_value = raw_value.strip()
+        if not field_value or len(field_value) > _MISSING_REQUIREMENT_STRING_FIELDS[key]:
+            raise GearEvidenceGapIntegrityError(
+                "Gear Evidence Gap missing requirement must use approved operational fields."
+            )
+        normalized[key] = field_value
+    if normalized.get("artifactId") and not _is_hash(
+        normalized["artifactId"], "gear-artifact:sha256:"
+    ):
+        raise GearEvidenceGapIntegrityError(
+            "Gear Evidence Gap missing requirement Artifact identity is invalid."
+        )
+    if normalized.get("observationId") and not _is_hash(
+        normalized["observationId"], "gear-observation:sha256:"
+    ):
+        raise GearEvidenceGapIntegrityError(
+            "Gear Evidence Gap missing requirement Observation identity is invalid."
+        )
+    return _canonical(normalized)
 
 
 def _gap_from_row(row: Any) -> dict[str, Any]:
@@ -141,9 +169,7 @@ def _gap_from_row(row: Any) -> dict[str, Any]:
         "schemaRevision": _text(values[2]),
         "status": _text(values[3]),
         "problemCode": _text(values[4]),
-        "missingRequirement": _canonical(
-            values[5] if isinstance(values[5], dict) else {}
-        ),
+        "missingRequirement": _validated_missing_requirement(values[5]),
         "attempt": _int(values[6]),
         "lockedBy": _text(values[7]),
         "lockToken": _text(values[8]),
@@ -178,7 +204,9 @@ class GearEvidenceGapStore:
             "factKey": _text(record.get("factKey")),
             "status": _text(record.get("status")),
             "problemCode": _text(record.get("problemCode")),
-            "missingRequirement": _canonical(record.get("missingRequirement")),
+            "missingRequirement": _validated_missing_requirement(
+                record.get("missingRequirement")
+            ),
             "attempt": _int(record.get("attempt")),
             "nextAttemptAt": _text(record.get("nextAttemptAt")),
         }
@@ -194,11 +222,6 @@ class GearEvidenceGapStore:
             )
         if normalized["problemCode"] not in _ROOT_CODES:
             raise GearEvidenceGapIntegrityError("Gear Evidence Gap root code is invalid.")
-        if not isinstance(normalized["missingRequirement"], dict):
-            raise GearEvidenceGapIntegrityError(
-                "Gear Evidence Gap missing requirement must be an object."
-            )
-        _assert_operational_requirement(normalized["missingRequirement"])
         if not normalized["nextAttemptAt"]:
             raise GearEvidenceGapIntegrityError(
                 "Gear Evidence Gap next attempt time is required."
@@ -350,12 +373,8 @@ class GearEvidenceGapStore:
             raise GearEvidenceGapIntegrityError(
                 "Retryable Gear Evidence Gap requires a next attempt time."
             )
-        if missing_requirement is not None and not isinstance(missing_requirement, dict):
-            raise GearEvidenceGapIntegrityError(
-                "Gear Evidence Gap missing requirement must be an object."
-            )
         if missing_requirement is not None:
-            _assert_operational_requirement(missing_requirement)
+            missing_requirement = _validated_missing_requirement(missing_requirement)
         with self.connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
