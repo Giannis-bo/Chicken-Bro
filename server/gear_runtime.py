@@ -138,6 +138,14 @@ _INTERNAL_RESOLUTION_PROOF_KEYS = frozenset(
     {
         "canonicalfactrefids",
         "canonicalfactrefs",
+        "claimid",
+        "claimids",
+        "claimkey",
+        "claimkeys",
+        "evidenceclaimid",
+        "evidenceclaimids",
+        "evidencerecordid",
+        "evidencerecordids",
         "factkey",
         "factkeys",
         "factrefids",
@@ -145,9 +153,65 @@ _INTERNAL_RESOLUTION_PROOF_KEYS = frozenset(
         "observationrefs",
         "problemcode",
         "problemcodes",
+        "sourcerefid",
         "sourcerefids",
     }
 )
+_PUBLIC_REDACTED = object()
+_INTERNAL_REFERENCE_VALUE_MARKERS = (
+    "artifact",
+    "canonicalfacts.",
+    "claim",
+    "evidence:",
+    "evidencerecord",
+    "fact:",
+    "factkey",
+    "factref",
+    "hash",
+    "ledger:",
+    "observation",
+    "sha256:",
+    "sourceref",
+    "worker",
+)
+
+
+def _internal_resolution_proof_key(normalized_key: str) -> bool:
+    return (
+        normalized_key in _INTERNAL_RESOLUTION_PROOF_KEYS
+        or any(
+            token in normalized_key
+            for token in ("artifact", "observation", "hash", "worker")
+        )
+        or (
+            "fact" in normalized_key
+            and ("key" in normalized_key or "ref" in normalized_key)
+        )
+        or (
+            "evidence" in normalized_key
+            and any(
+                token in normalized_key
+                for token in ("claim", "ledger", "record", "ref")
+            )
+        )
+        or (
+            "ledger" in normalized_key
+            and any(
+                token in normalized_key
+                for token in ("claim", "record", "ref")
+            )
+        )
+    )
+
+
+def _contains_internal_resolution_reference(value: Any) -> bool:
+    if not isinstance(value, str):
+        return False
+    normalized_value = value.replace("\\", "/").lower()
+    return any(
+        marker in normalized_value
+        for marker in _INTERNAL_REFERENCE_VALUE_MARKERS
+    )
 
 
 def _public_resolution_value(value: Any, *, key: str = "") -> Any:
@@ -162,23 +226,18 @@ def _public_resolution_value(value: Any, *, key: str = "") -> Any:
             if isinstance(contract_revision, str) and contract_revision
             else {}
         )
-    if normalized_key in _INTERNAL_RESOLUTION_PROOF_KEYS or any(
-        token in normalized_key
-        for token in ("artifact", "observation", "hash", "worker")
+    if normalized_key == "code" or _internal_resolution_proof_key(normalized_key):
+        return _PUBLIC_REDACTED
+    if (
+        normalized_key in {"detail", "path", "title"}
+        and _contains_internal_resolution_reference(value)
     ):
-        return None
+        return _PUBLIC_REDACTED
     if isinstance(value, dict):
         projected = {}
         for child_key, child_value in value.items():
             child = _public_resolution_value(child_value, key=child_key)
-            normalized_child_key = str(child_key).replace("_", "").lower()
-            if child is None and (
-                normalized_child_key in _INTERNAL_RESOLUTION_PROOF_KEYS
-                or any(
-                    token in normalized_child_key
-                    for token in ("artifact", "observation", "hash", "worker")
-                )
-            ):
+            if child is _PUBLIC_REDACTED:
                 continue
             projected[child_key] = child
         return projected
@@ -186,7 +245,8 @@ def _public_resolution_value(value: Any, *, key: str = "") -> Any:
         return [
             projected
             for entry in value
-            if (projected := _public_resolution_value(entry)) is not None
+            if (projected := _public_resolution_value(entry, key=key))
+            is not _PUBLIC_REDACTED
         ]
     return copy.deepcopy(value)
 

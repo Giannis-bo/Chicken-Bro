@@ -218,6 +218,82 @@ class GearRuntimeTest(unittest.TestCase):
             envelope["data"].get("evidenceLedger", {}),
         )
 
+    def test_public_exact_resolve_strips_real_resolver_claim_references(self):
+        fixture = self.fixture()
+        internal_snapshot = gear_runtime.gear_resolver.resolve(
+            fixture["intent"],
+            fixture["authorityContext"],
+        )
+        internal_claim_ids = [
+            claim_id
+            for resolved in internal_snapshot["resolvedSlots"].values()
+            for claim_id in resolved["evidenceClaimIds"]
+        ]
+        self.assertTrue(internal_claim_ids)
+
+        _store, status, envelope = self.resolve(
+            fixture,
+            request_id="request-real-resolver-redaction",
+        )
+
+        self.assertEqual(status, 200)
+        self.assertEqual(envelope["status"], "resolved")
+        self.assertEqual(envelope["data"]["status"], "verified")
+        for resolved in envelope["data"]["resolvedSlots"].values():
+            self.assertNotIn("evidenceClaimIds", resolved)
+        serialized = json.dumps(envelope, sort_keys=True)
+        for claim_id in internal_claim_ids:
+            self.assertNotIn(claim_id, serialized)
+        self.assertNotIn("claimId", serialized)
+        self.assertNotIn("claimKey", serialized)
+
+    def test_public_exact_resolve_redacts_real_missing_evidence_diagnostics(self):
+        fixture = self.fixture()
+        removed_source_ref = "evidence:item:head"
+        fixture["authorityContext"]["evidenceRecordsById"].pop(removed_source_ref)
+        internal_snapshot = gear_runtime.gear_resolver.resolve(
+            fixture["intent"],
+            fixture["authorityContext"],
+        )
+        self.assertTrue(
+            any(
+                problem.get("meta", {}).get("sourceRefId") == removed_source_ref
+                and problem.get("meta", {}).get("claimKey")
+                and removed_source_ref in problem.get("path", "")
+                for problem in internal_snapshot["problems"]
+            )
+        )
+
+        _store, status, envelope = self.resolve(
+            fixture,
+            request_id="request-real-missing-evidence-redaction",
+        )
+
+        self.assertEqual(status, 503)
+        self.assertEqual(envelope["status"], "unavailable")
+        self.assertEqual(envelope["data"]["status"], "blocked")
+        self.assertEqual(
+            envelope["data"]["profileReadiness"]["status"],
+            "blocked",
+        )
+        self.assertTrue(envelope["problems"])
+        self.assertTrue(
+            all(
+                problem.get("kind") == "AUTHORITY_UNAVAILABLE"
+                and problem.get("title") == "Required evidence record is unavailable."
+                for problem in envelope["problems"]
+            )
+        )
+        serialized = json.dumps(envelope, sort_keys=True)
+        for forbidden in (
+            removed_source_ref,
+            "sourceRefId",
+            "claimKey",
+            "EVIDENCE_RECORD_MISSING",
+            "evidenceRecordsById.",
+        ):
+            self.assertNotIn(forbidden, serialized)
+
     def test_release_context_exposes_capability_revision(self):
         fixture = self.fixture()
 
