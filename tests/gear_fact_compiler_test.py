@@ -76,6 +76,8 @@ class GearFactCompilerTest(unittest.TestCase):
 
     def test_every_first_stage_policy_declares_all_decision_dimensions(self):
         expected_types = {
+            "equipment_uniqueness",
+            "executable_item_options",
             "item_identity",
             "slot_compatibility",
             "variant_track",
@@ -119,6 +121,14 @@ class GearFactCompilerTest(unittest.TestCase):
             "socket_count": 1,
             "enchant_capability": False,
             "embellishment_capability": True,
+            "executable_item_options": {
+                "itemId": "250033",
+                "variantKey": "void_upgrade-298",
+                "options": {
+                    "bonus_id": "13786/6652",
+                    "ilevel": "298",
+                },
+            },
             "enhancement_option": {
                 "applicableScopes": ["head"],
                 "effect": {"haste": 147},
@@ -126,6 +136,11 @@ class GearFactCompilerTest(unittest.TestCase):
                 "optionType": "gem",
             },
             "item_set_membership": "set:42",
+            "equipment_uniqueness": {
+                "isUnique": True,
+                "groupId": "unique-ring:test",
+                "limit": 1,
+            },
         }
         parser_revisions = {
             "item_identity": "battle-net-item-observer-v1",
@@ -134,13 +149,16 @@ class GearFactCompilerTest(unittest.TestCase):
             "embellishment_capability": "battle-net-item-observer-v1",
             "allowed_enhancement_options": "season-rule-observer-v1",
             "item_set_membership": "battle-net-item-observer-v1",
+            "equipment_uniqueness": "battle-net-item-observer-v1",
         }
         source_scopes = {
             "enchant_capability": "slot_rule",
             "allowed_enhancement_options": "slot_rule",
+            "equipment_uniqueness": "base_item",
         }
         subject_keys = {
             "enhancement_option": "option:gem:240001",
+            "equipment_uniqueness": "item:250033",
         }
 
         for fact_type, expected in fixtures.items():
@@ -166,6 +184,76 @@ class GearFactCompilerTest(unittest.TestCase):
                 self.assertEqual(fact["status"], "verified")
                 self.assertEqual(fact["value"], expected)
                 self.assertEqual(fact["problemCode"], "")
+
+    def test_executable_item_options_rejects_unknown_or_missing_identity_fields(self):
+        malformed_values = [
+            {
+                "itemId": "250033",
+                "variantKey": "void_upgrade-298",
+                "options": {"ilevel": "298"},
+            },
+            {
+                "itemId": "250033",
+                "variantKey": "void_upgrade-298",
+                "options": {
+                    "bonus_id": "13786",
+                    "ilevel": "298",
+                    "private_writer": "must-not-pass",
+                },
+            },
+            {
+                "itemId": "250033",
+                "variantKey": "void_upgrade-298",
+                "options": {
+                    "bonus_id": "13786",
+                    "embellishment": "built_in",
+                    "ilevel": "298",
+                },
+                "enhancementManagement": "forged",
+            },
+        ]
+
+        for value in malformed_values:
+            with self.subTest(value=value):
+                fact = self.fact(
+                    [self.observation("executable_item_options", value)],
+                    "executable_item_options",
+                )
+                self.assertEqual(fact["status"], "unresolved_missing")
+                self.assertEqual(fact["problemCode"], "parser_unhandled_shape")
+
+    def test_equipment_uniqueness_requires_explicit_nonunique_or_complete_unique_rule(self):
+        valid_nonunique = self.fact(
+            [
+                self.observation(
+                    "equipment_uniqueness",
+                    {"isUnique": False},
+                    parser_revision="battle-net-item-observer-v1",
+                    source_scope="base_item",
+                    subject_key="item:250033",
+                )
+            ],
+            "equipment_uniqueness",
+            subject_key="item:250033",
+        )
+        self.assertEqual(valid_nonunique["status"], "verified")
+        self.assertEqual(valid_nonunique["value"], {"isUnique": False})
+
+        malformed = self.fact(
+            [
+                self.observation(
+                    "equipment_uniqueness",
+                    {"isUnique": True, "groupId": "", "limit": 0},
+                    parser_revision="battle-net-item-observer-v1",
+                    source_scope="base_item",
+                    subject_key="item:250033",
+                )
+            ],
+            "equipment_uniqueness",
+            subject_key="item:250033",
+        )
+        self.assertEqual(malformed["status"], "unresolved_missing")
+        self.assertEqual(malformed["problemCode"], "parser_unhandled_shape")
 
     def test_known_exact_variant_compiles_one_verified_socket(self):
         battle_net_without_explicit_socket = self.observation(

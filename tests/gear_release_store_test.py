@@ -193,6 +193,9 @@ class GearReleaseStoreTest(unittest.TestCase):
                 "sourceRevision": "battle-net-item-test-r1",
             }
         }
+        snapshot["items"][0]["payload"]["equipmentUniqueness"] = {
+            "isUnique": False
+        }
         return snapshot
 
     def trusted_socket_evidence(self, revision="simc-r1"):
@@ -285,8 +288,13 @@ class GearReleaseStoreTest(unittest.TestCase):
             f"option:{snapshot['options'][0]['optionId']}": (
                 snapshot["options"][0]
             ),
+            f"option:{snapshot['options'][0]['optionKey']}": (
+                snapshot["options"][0]
+            ),
         }
-        for row in rows_by_subject.values():
+        for row in {
+            id(row): row for row in rows_by_subject.values()
+        }.values():
             payload = copy.deepcopy(row.get("payload") or {})
             payload["canonicalFacts"] = []
             row["payload"] = payload
@@ -681,6 +689,153 @@ class GearReleaseStoreTest(unittest.TestCase):
         self.assertEqual(context["manifest"]["gearCatalogRevision"], release["releaseId"])
         self.assertEqual(context["manifest"]["manifestType"], "candidate")
         self.assertFalse(context["manifest"]["formalActiveManifest"])
+
+    def test_unenhanced_candidate_resolve_exposes_all_released_allowed_options(self):
+        from server import gear_resolver
+        from server.gear_release_store import build_candidate_authority_context
+        from server.websim_payload import (
+            gear_resolver_runtime_authority,
+            public_gear_capability_facts,
+        )
+
+        def fact(subject, fact_type, value):
+            return {
+                "schemaRevision": "gear-canonical-fact-v1",
+                "factKey": f"gear-fact:test:{subject}:{fact_type}",
+                "subjectKey": subject,
+                "factType": fact_type,
+                "value": copy.deepcopy(value),
+                "status": "verified",
+                "observationRefs": [],
+                "observationRefCount": 0,
+                "referencesTruncated": False,
+                "compilerRuleRevision": f"test-{fact_type}-v1",
+                "factValueHash": f"sha256:{fact_type}",
+                "provenanceHash": f"sha256:{fact_type}-provenance",
+            }
+
+        snapshot = self.snapshot()
+        item_subject = "item:item-a"
+        variant_subject = "item:item-a/variant:variant-a"
+        option_subject = "option:gem-a"
+        snapshot["items"][0]["payload"]["canonicalFacts"] = [
+            fact(item_subject, "item_identity", {
+                "itemId": "item-a",
+                "inventoryType": "head",
+            }),
+            fact(item_subject, "slot_compatibility", ["head"]),
+            fact(item_subject, "socket_count", 1),
+            fact(item_subject, "enchant_capability", False),
+            fact(item_subject, "embellishment_capability", False),
+            fact(item_subject, "allowed_enhancement_options", ["gem-a"]),
+            fact(item_subject, "item_set_membership", False),
+            fact(item_subject, "equipment_uniqueness", {"isUnique": False}),
+        ]
+        snapshot["variants"][0]["simcOptions"] = {
+            "bonus_id": "raw-must-not-author",
+            "ilevel": "999",
+        }
+        snapshot["variants"][0]["payload"]["canonicalFacts"] = [
+            fact(variant_subject, "item_identity", {
+                "itemId": "item-a",
+                "variantKey": "variant-a",
+            }),
+            fact(variant_subject, "slot_compatibility", ["head"]),
+            fact(variant_subject, "variant_track", {
+                "itemId": "item-a",
+                "variantKey": "variant-a",
+                "track": "mythic",
+                "itemLevel": 289,
+            }),
+            fact(variant_subject, "static_stats", {"intellect": 100}),
+            fact(variant_subject, "socket_count", 1),
+            fact(variant_subject, "enchant_capability", False),
+            fact(variant_subject, "embellishment_capability", False),
+            fact(
+                variant_subject,
+                "allowed_enhancement_options",
+                ["gem-a"],
+            ),
+            fact(variant_subject, "item_set_membership", False),
+            fact(variant_subject, "executable_item_options", {
+                "itemId": "item-a",
+                "variantKey": "variant-a",
+                "options": {"bonus_id": "100/200", "ilevel": "289"},
+            }),
+        ]
+        snapshot["options"][0]["payload"]["canonicalFacts"] = [
+            fact(option_subject, "enhancement_option", {
+                "optionId": "gem-a",
+                "optionType": "gem",
+                "effect": {"gem_id": "1"},
+                "applicableScopes": ["head"],
+                "statDeltas": {"haste": 10},
+            })
+        ]
+        dependencies = self.dependencies()
+        dependencies["capabilityRevision"] = (
+            gear_socket_authority.CAPABILITY_REVISION
+        )
+        release = self.gear_release(snapshot, dependencies=dependencies)
+        intent = {
+            "schemaRevision": "selection-intent-v1",
+            "authoredAgainst": {
+                "seasonRevision": "season-17",
+                "gearCatalogRevision": release["releaseId"],
+            },
+            "eligibilityContext": {
+                "classKey": "mage",
+                "specKey": "arcane",
+                "level": 90,
+            },
+            "slots": {
+                "head": {
+                    "itemId": "item-a",
+                    "variantKey": "variant-a",
+                    "gemOptionIds": [],
+                    "enchantOptionId": "",
+                    "embellishmentOptionId": "",
+                    "craftedOptionId": "",
+                    "catalystOptionId": "",
+                }
+            },
+        }
+        runtime = gear_resolver_runtime_authority(
+            "mage",
+            "arcane",
+            simc_runtime_revision="simc-r1",
+        )
+        runtime["dependencyRevisions"]["capabilityRevision"] = (
+            gear_socket_authority.CAPABILITY_REVISION
+        )
+
+        context = build_candidate_authority_context(
+            snapshot,
+            intent,
+            runtime,
+            release,
+        )
+        resolved = gear_resolver.resolve(intent, context)
+        browse = public_gear_capability_facts({
+            "itemId": "item-a",
+            "variantKey": "variant-a",
+            "payload": snapshot["variants"][0]["payload"],
+            "socketOptions": [{"id": "gem-a"}],
+            "enchantOptions": [],
+            "embellishmentOptions": [],
+        })
+
+        self.assertIn("gem-a", context["optionsById"])
+        self.assertEqual(
+            resolved["resolvedSlots"]["head"]["capabilityFacts"],
+            browse,
+        )
+        self.assertEqual(
+            resolved["resolvedSlots"]["head"]["capabilityFacts"]["socket"][
+                "options"
+            ],
+            ["gem-a"],
+        )
 
     def test_prepared_candidate_authority_indexes_full_snapshot_only_once(self):
         from unittest.mock import patch

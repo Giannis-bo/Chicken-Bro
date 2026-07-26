@@ -413,6 +413,20 @@ def build_midnight_mage_resolver_fixture(
                 allowed_options,
             ),
             released_fact(item_subject, "item_set_membership", False),
+            released_fact(
+                item_subject,
+                "equipment_uniqueness",
+                (
+                    {
+                        "isUnique": True,
+                        "groupId": item_record["uniqueGroupId"],
+                        "limit": item_record["uniqueLimit"],
+                    }
+                    if item_record.get("uniqueGroupId")
+                    and item_record.get("uniqueLimit")
+                    else {"isUnique": False}
+                ),
+            ),
         ]
         variant_payload = variant_record["payload"]
         effective_capabilities = {
@@ -479,6 +493,29 @@ def build_midnight_mage_resolver_fixture(
                 "item_set_membership",
                 False,
             ),
+            released_fact(
+                variant_subject,
+                "executable_item_options",
+                {
+                    "itemId": requested_item_id,
+                    "variantKey": variant_key,
+                    "options": copy.deepcopy(
+                        variant_record.get("simcOptions") or {}
+                    ),
+                    **(
+                        {
+                            "enhancementManagement": copy.deepcopy(
+                                variant_payload["enhancementManagement"]
+                            )
+                        }
+                        if isinstance(
+                            variant_payload.get("enhancementManagement"),
+                            dict,
+                        )
+                        else {}
+                    ),
+                },
+            ),
         ]
     manifest = {
         "contractRevision": "active-season-manifest-v1",
@@ -524,6 +561,16 @@ def build_midnight_mage_resolver_fixture(
                 "season-17-active",
             )
             if item is not None:
+                item["equipmentUniqueness"] = (
+                    {
+                        "isUnique": True,
+                        "groupId": item["uniqueGroupId"],
+                        "limit": item["uniqueLimit"],
+                    }
+                    if item.get("uniqueGroupId")
+                    and item.get("uniqueLimit")
+                    else {"isUnique": False}
+                )
                 items_by_id[requested_item_id] = item
             variant = pg_gear_authority_loader._project_variant(
                 requested_item_id,
@@ -646,6 +693,18 @@ class GearResolverTest(unittest.TestCase):
         fixture["authorityContext"]["dependencyVector"]["capabilityRevision"] = (
             gear_socket_authority.CAPABILITY_REVISION
         )
+        for item in fixture["authorityContext"]["itemsById"].values():
+            if not isinstance(item.get("equipmentUniqueness"), dict):
+                item["equipmentUniqueness"] = (
+                    {
+                        "isUnique": True,
+                        "groupId": item["uniqueGroupId"],
+                        "limit": item["uniqueLimit"],
+                    }
+                    if item.get("uniqueGroupId")
+                    and item.get("uniqueLimit")
+                    else {"isUnique": False}
+                )
         selection = fixture["intent"]["slots"][slot]
         variant = fixture["authorityContext"]["variantsByKey"][
             selection["variantKey"]
@@ -770,7 +829,43 @@ class GearResolverTest(unittest.TestCase):
             "variants": [{
                 "variantKey": selection["variantKey"],
                 "status": "verified",
-                "capabilityFacts": copy.deepcopy(capability_facts),
+                "payload": {
+                    "canonicalFacts": [
+                        released_fact(
+                            (
+                                f"item:{selection['itemId']}/variant:"
+                                f"{selection['variantKey']}"
+                            ),
+                            "socket_count",
+                            1,
+                        ),
+                        released_fact(
+                            (
+                                f"item:{selection['itemId']}/variant:"
+                                f"{selection['variantKey']}"
+                            ),
+                            "enchant_capability",
+                            False,
+                        ),
+                        released_fact(
+                            (
+                                f"item:{selection['itemId']}/variant:"
+                                f"{selection['variantKey']}"
+                            ),
+                            "embellishment_capability",
+                            None,
+                            "unresolved_missing",
+                        ),
+                        released_fact(
+                            (
+                                f"item:{selection['itemId']}/variant:"
+                                f"{selection['variantKey']}"
+                            ),
+                            "allowed_enhancement_options",
+                            [],
+                        ),
+                    ]
+                },
             }],
             "modCapabilities": {
                 "hasSocket": False,

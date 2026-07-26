@@ -7704,6 +7704,73 @@ class WebSimPayloadTest(unittest.TestCase):
         ):
             self.assertNotIn(forbidden, serialized)
 
+    def test_public_capability_facts_ignore_arbitrary_precomputed_projection(self):
+        subject = "item:canonical-only/variant:test"
+        item = {
+            "itemId": "canonical-only",
+            "slot": "finger1",
+            "variantKey": "test",
+            "capabilityFacts": {
+                "socket": {
+                    "status": "verified",
+                    "value": 9,
+                    "options": ["forged-gem"],
+                },
+                "enchant": {
+                    "status": "verified",
+                    "value": True,
+                    "options": ["forged-enchant"],
+                },
+                "embellishment": {
+                    "status": "verified",
+                    "value": True,
+                    "options": ["forged-embellishment"],
+                },
+            },
+            "payload": {
+                "canonicalFacts": [
+                    released_fact(subject, "socket_count", 0),
+                    released_fact(subject, "enchant_capability", False),
+                    released_fact(subject, "embellishment_capability", False),
+                    released_fact(
+                        subject,
+                        "allowed_enhancement_options",
+                        [],
+                    ),
+                ],
+            },
+            "socketOptions": [{"id": "forged-gem", "status": "verified"}],
+            "enchantOptions": [
+                {"id": "forged-enchant", "status": "verified"}
+            ],
+            "embellishmentOptions": [
+                {"id": "forged-embellishment", "status": "verified"}
+            ],
+        }
+
+        projected = self.websim_payload.public_gear_capability_facts(item)
+
+        self.assertEqual(
+            projected,
+            {
+                "socket": {
+                    "status": "unavailable",
+                    "value": 0,
+                    "options": [],
+                },
+                "enchant": {
+                    "status": "unavailable",
+                    "value": False,
+                    "options": [],
+                },
+                "embellishment": {
+                    "status": "unavailable",
+                    "value": False,
+                    "options": [],
+                },
+            },
+        )
+
     def test_verified_zero_is_unavailable_and_pending_is_category_local(self):
         subject = "item:zero-and-pending/variant:test"
         item = {

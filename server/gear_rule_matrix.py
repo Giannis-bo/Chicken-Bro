@@ -379,21 +379,78 @@ def _unique_equipped(intent: dict[str, Any], authority: dict[str, Any]) -> list[
     problems: list[dict[str, Any]] = []
     item_counts = Counter(selection["itemId"] for selection in intent["slots"].values())
     group_counts: Counter[str] = Counter()
+    fact_group_limits: dict[str, int] = {}
     items = authority["itemsById"]
+    canonical_uniqueness = (
+        authority.get("dependencyVector", {}).get("capabilityRevision")
+        == "gear-capability-matrix-v2"
+    )
     for item_id, count in item_counts.items():
         item = items.get(item_id)
         if not isinstance(item, dict):
             continue
-        limit = item.get("uniqueLimit", 0)
+        if canonical_uniqueness:
+            uniqueness = item.get("equipmentUniqueness")
+            if (
+                not isinstance(uniqueness, dict)
+                or not isinstance(uniqueness.get("isUnique"), bool)
+                or (
+                    uniqueness["isUnique"] is False
+                    and set(uniqueness) != {"isUnique"}
+                )
+                or (
+                    uniqueness["isUnique"] is True
+                    and (
+                        set(uniqueness)
+                        != {"isUnique", "groupId", "limit"}
+                        or not _strict_unique_group(
+                            uniqueness.get("groupId")
+                        )
+                        or not _positive_integer_limit(
+                            uniqueness.get("limit")
+                        )
+                    )
+                )
+            ):
+                problems.append(_problem(
+                    "GEAR_UNIQUE_",
+                    "AUTHORITY_UNAVAILABLE",
+                    "Canonical unique-equipped semantics are unavailable.",
+                    kind="AUTHORITY_UNAVAILABLE",
+                    path=f"itemsById.{item_id}.equipmentUniqueness",
+                ))
+                continue
+            if uniqueness["isUnique"] is False:
+                continue
+            limit = uniqueness["limit"]
+            group = uniqueness["groupId"]
+        else:
+            limit = item.get("uniqueLimit", 0)
+            group = _strict_unique_group(item.get("uniqueGroupId"))
         if _positive_integer_limit(limit) and count > limit:
             problems.append(_problem("GEAR_UNIQUE_", "LIMIT_EXCEEDED", "Unique-equipped item limit was exceeded.", meta={"itemId": item_id, "count": count, "limit": limit}))
-        group = _strict_unique_group(item.get("uniqueGroupId"))
         if group:
             group_counts[group] += count
+            if canonical_uniqueness:
+                existing = fact_group_limits.get(group)
+                if existing is not None and existing != limit:
+                    problems.append(_problem(
+                        "GEAR_UNIQUE_",
+                        "AUTHORITY_UNAVAILABLE",
+                        "Canonical unique-equipped group limits conflict.",
+                        kind="AUTHORITY_UNAVAILABLE",
+                        meta={"uniqueGroupId": group},
+                    ))
+                else:
+                    fact_group_limits[group] = limit
     limits = authority["ruleParameters"].get("uniqueLimits", {})
     limits = limits if isinstance(limits, dict) else {}
     for group in sorted(group_counts):
-        limit = limits.get(group)
+        limit = (
+            fact_group_limits.get(group)
+            if canonical_uniqueness
+            else limits.get(group)
+        )
         if _positive_integer_limit(limit) and group_counts[group] > limit:
             problems.append(_problem("GEAR_UNIQUE_", "GROUP_LIMIT_EXCEEDED", "Unique-equipped group limit was exceeded.", meta={"uniqueGroupId": group, "count": group_counts[group], "limit": limit}))
     return problems

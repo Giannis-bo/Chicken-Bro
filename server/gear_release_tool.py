@@ -670,6 +670,7 @@ def _compile_release_gear_evidence(
                 "embellishment_capability",
                 "allowed_enhancement_options",
                 "item_set_membership",
+                "equipment_uniqueness",
             }
         )
         payload = row.get("payload") if isinstance(row.get("payload"), dict) else {}
@@ -718,6 +719,16 @@ def _compile_release_gear_evidence(
                     "base_item",
                 )
             )
+            equipment_uniqueness = payload.get("equipmentUniqueness")
+            if isinstance(equipment_uniqueness, dict):
+                official_specs.append(
+                    (
+                        subject,
+                        "equipment_uniqueness",
+                        _canonical(equipment_uniqueness),
+                        "base_item",
+                    )
+                )
         allowed_slots = payload.get("allowedSlots")
         if not isinstance(allowed_slots, list) or not allowed_slots:
             allowed_slots = [_text(row.get("slot"))] if _text(row.get("slot")) else []
@@ -771,6 +782,9 @@ def _compile_release_gear_evidence(
                     "officialMetadata": _canonical(metadata),
                     "allowedSlots": allowed_slots,
                     "capabilities": _canonical(capabilities),
+                    "equipmentUniqueness": _canonical(
+                        payload.get("equipmentUniqueness")
+                    ),
                 },
                 fact_specs=official_specs,
             )
@@ -842,6 +856,7 @@ def _compile_release_gear_evidence(
                 "embellishment_capability",
                 "allowed_enhancement_options",
                 "item_set_membership",
+                "executable_item_options",
             }
         )
         payload = row.get("payload") if isinstance(row.get("payload"), dict) else {}
@@ -1032,15 +1047,16 @@ def _compile_release_gear_evidence(
             official_payload=item_is_official,
         )
         resolved_stats = payload.get("resolvedStats")
+        stat_specs: list[tuple[str, str, Any, str]] = []
         if (
             isinstance(resolved_stats, dict)
             and resolved_stats
             and stat_evidence_verified
             and "static_stats" in stat_claims
         ):
-            stat_specs: list[tuple[str, str, Any, str]] = [
+            stat_specs.append(
                 (subject, "static_stats", resolved_stats, "exact_variant")
-            ]
+            )
             if (
                 _text(row.get("difficultyKey"))
                 and "variant_track" in stat_claims
@@ -1061,6 +1077,46 @@ def _compile_release_gear_evidence(
                         "exact_variant",
                     )
                 )
+        simc_options = row.get("simcOptions")
+        if (
+            stat_evidence_verified
+            and "executable_item_options" in stat_claims
+            and isinstance(simc_options, dict)
+        ):
+            validated_management = (
+                gear_enhancement_management
+                .project_validated_enhancement_management(
+                    simc_options,
+                    payload.get("enhancementManagement"),
+                    gear_socket_authority.CAPABILITY_REVISION,
+                )
+            )
+            executable_options = {
+                key: _canonical(value)
+                for key, value in simc_options.items()
+                if (
+                    key not in _ENHANCEMENT_SIMC_FIELDS
+                    or validated_management is not None
+                )
+            }
+            executable_value = {
+                "itemId": item_id,
+                "variantKey": variant_key,
+                "options": executable_options,
+            }
+            if validated_management is not None:
+                executable_value["enhancementManagement"] = (
+                    validated_management
+                )
+            stat_specs.append(
+                (
+                    subject,
+                    "executable_item_options",
+                    executable_value,
+                    "exact_variant",
+                )
+            )
+        if stat_specs:
             add_artifact(
                 source_type="simc_item_probe",
                 source_identity=_text(stat_evidence.get("sourceIdentity")),
@@ -1069,6 +1125,10 @@ def _compile_release_gear_evidence(
                     "itemId": item_id,
                     "variantKey": variant_key,
                     "staticStats": _canonical(resolved_stats),
+                    "executableItemOptions": _canonical(simc_options),
+                    "enhancementManagement": _canonical(
+                        payload.get("enhancementManagement")
+                    ),
                 },
                 fact_specs=stat_specs,
             )

@@ -658,6 +658,19 @@ _CAPABILITY_FACT_SPECS = {
         {"embellishment", "crafted"},
     ),
 }
+_EXECUTABLE_SIMC_OPTION_FIELDS = frozenset(
+    {
+        "bonus_id",
+        "crafted_stats",
+        "embellishment",
+        "enchant_id",
+        "gem_bonus_id",
+        "gem_id",
+        "gem_ilevel",
+        "ilevel",
+        "redirected_base_stats",
+    }
+)
 
 
 def _released_facts(
@@ -796,6 +809,85 @@ def _released_fact_refs(facts: dict[str, dict[str, Any]]) -> list[str]:
     return _texts(fact.get("factKey") for fact in facts.values())
 
 
+def _released_equipment_uniqueness(
+    facts: dict[str, dict[str, Any]],
+) -> tuple[str, int] | None:
+    value = _verified_fact_value(facts, "equipment_uniqueness")
+    if not isinstance(value, dict) or not isinstance(
+        value.get("isUnique"), bool
+    ):
+        return None
+    if value["isUnique"] is False:
+        return ("", 0) if set(value) == {"isUnique"} else None
+    group = _strict_unique_group(value.get("groupId"))
+    limit = _positive_integer(value.get("limit"))
+    if (
+        set(value) != {"isUnique", "groupId", "limit"}
+        or not group
+        or not limit
+    ):
+        return None
+    return group, limit
+
+
+def _released_executable_item_options(
+    facts: dict[str, dict[str, Any]],
+    requested_item_id: str,
+    requested_variant_key: str,
+    item_level: int,
+) -> tuple[dict[str, Any], dict[str, Any] | None] | None:
+    value = _verified_fact_value(facts, "executable_item_options")
+    if (
+        not isinstance(value, dict)
+        or set(value).difference(
+            {
+                "itemId",
+                "variantKey",
+                "options",
+                "enhancementManagement",
+            }
+        )
+        or _text(value.get("itemId")) != requested_item_id
+        or _text(value.get("variantKey")) != requested_variant_key
+    ):
+        return None
+    options = value.get("options")
+    if (
+        not isinstance(options, dict)
+        or not options
+        or set(options).difference(_EXECUTABLE_SIMC_OPTION_FIELDS)
+        or not all(
+            isinstance(option_value, str) and bool(option_value.strip())
+            for option_value in options.values()
+        )
+        or not _text(options.get("bonus_id"))
+        or not _text(options.get("ilevel")).isdigit()
+        or int(_text(options.get("ilevel"))) != item_level
+    ):
+        return None
+    management = project_validated_enhancement_management(
+        options,
+        value.get("enhancementManagement"),
+        gear_socket_authority.CAPABILITY_REVISION,
+    )
+    present_enhancement_fields = {
+        field
+        for field in (
+            "embellishment",
+            "enchant_id",
+            "gem_bonus_id",
+            "gem_id",
+            "gem_ilevel",
+        )
+        if field in options
+    }
+    if present_enhancement_fields and management is None:
+        return None
+    if not present_enhancement_fields and "enhancementManagement" in value:
+        return None
+    return _canonical(options), management
+
+
 def _released_item_projection(
     requested_item_id: str,
     record: Any,
@@ -825,6 +917,9 @@ def _released_item_projection(
     capability_facts = _released_capability_facts(facts)
     compatibility = _compatibility_capabilities(capability_facts)
     item_set = _verified_fact_value(facts, "item_set_membership")
+    uniqueness = _released_equipment_uniqueness(facts)
+    if uniqueness is None:
+        return None
     base_stats = _verified_fact_value(facts, "static_stats")
     base_stats = _authority_stat_map(base_stats) if isinstance(base_stats, dict) else {}
     projected = {
@@ -850,8 +945,17 @@ def _released_item_projection(
         "armorType": _text(identity.get("armorType")),
         "weaponType": _text(identity.get("weaponType")),
         "handedness": _text(identity.get("handedness")),
-        "uniqueGroupId": "",
-        "uniqueLimit": 0,
+        "uniqueGroupId": uniqueness[0],
+        "uniqueLimit": uniqueness[1],
+        "equipmentUniqueness": (
+            {
+                "isUnique": True,
+                "groupId": uniqueness[0],
+                "limit": uniqueness[1],
+            }
+            if uniqueness[0]
+            else {"isUnique": False}
+        ),
         "itemSetId": _text(item_set) if item_set is not False else "",
         "baseStats": base_stats,
         "baseCapabilities": compatibility,
@@ -902,19 +1006,29 @@ def _released_variant_projection(
     item_set = _verified_fact_value(facts, "item_set_membership")
     capability_facts = _released_capability_facts(facts)
     compatibility = _compatibility_capabilities(capability_facts)
+    item_level = (
+        _int(track.get("itemLevel"))
+        if isinstance(track, dict)
+        and _text(track.get("itemId")) == requested_item_id
+        and _text(track.get("variantKey")) == requested_variant_key
+        else 0
+    )
+    executable = _released_executable_item_options(
+        facts,
+        requested_item_id,
+        requested_variant_key,
+        item_level,
+    )
+    if not item_level or executable is None:
+        return None
+    executable_options, enhancement_management = executable
     projected = {
         "variantKey": requested_variant_key,
         "itemId": requested_item_id,
         "status": "verified",
-        "itemLevel": (
-            _int(track.get("itemLevel"))
-            if isinstance(track, dict)
-            and _text(track.get("itemId")) == requested_item_id
-            and _text(track.get("variantKey")) == requested_variant_key
-            else 0
-        ),
+        "itemLevel": item_level,
         "statDeltas": {},
-        "simcOptions": _json_value(record.get("simcOptions"), {}),
+        "simcOptions": executable_options,
         "itemSetId": _text(item_set) if item_set is not False else "",
         "capabilityOverrides": compatibility,
         "dynamicEffects": [],
@@ -925,13 +1039,8 @@ def _released_variant_projection(
     }
     if isinstance(stats, dict):
         projected["resolvedStats"] = _authority_stat_map(stats)
-    management = project_validated_enhancement_management(
-        projected["simcOptions"],
-        payload.get("enhancementManagement"),
-        gear_socket_authority.CAPABILITY_REVISION,
-    )
-    if management:
-        projected["enhancementManagement"] = management
+    if enhancement_management:
+        projected["enhancementManagement"] = enhancement_management
     return projected
 
 

@@ -20,6 +20,7 @@ _SUPPORTED_FACT_TYPES = frozenset(
         "item_identity",
         "slot_compatibility",
         "variant_track",
+        "executable_item_options",
         "static_stats",
         "socket_count",
         "enchant_capability",
@@ -27,6 +28,7 @@ _SUPPORTED_FACT_TYPES = frozenset(
         "enhancement_option",
         "allowed_enhancement_options",
         "item_set_membership",
+        "equipment_uniqueness",
     }
 )
 
@@ -199,6 +201,27 @@ def _legacy_value(
             "track": _text(row.get("difficultyKey")),
             "itemLevel": row["itemLevel"],
         }
+    if fact_type == "executable_item_options":
+        simc_options = row.get("simcOptions")
+        if not isinstance(simc_options, Mapping):
+            return False, None
+        value = {
+            "itemId": _text(row.get("itemId")),
+            "variantKey": _text(row.get("variantKey")),
+            "options": _canonical(simc_options),
+        }
+        if isinstance(payload.get("enhancementManagement"), Mapping):
+            value["enhancementManagement"] = _canonical(
+                payload["enhancementManagement"]
+            )
+        return True, value
+    if fact_type == "equipment_uniqueness":
+        uniqueness = payload.get("equipmentUniqueness")
+        return (
+            (True, _canonical(uniqueness))
+            if isinstance(uniqueness, Mapping)
+            else (False, None)
+        )
     if fact_type == "allowed_enhancement_options":
         raw_rules = payload.get("allowedEnhancementRules")
         if not isinstance(raw_rules, list) or not raw_rules:

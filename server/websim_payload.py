@@ -4713,45 +4713,6 @@ _PUBLIC_GEAR_CAPABILITY_FACTS = {
 }
 
 
-def _safe_public_capability_facts(value):
-    if not isinstance(value, dict):
-        return None
-    projected = {}
-    for category, (fact_type, _option_field) in (
-        _PUBLIC_GEAR_CAPABILITY_FACTS.items()
-    ):
-        view = value.get(category)
-        if not isinstance(view, dict):
-            return None
-        status = str(view.get("status") or "").strip()
-        raw_value = view.get("value")
-        if status not in {"verified", "unavailable", "pending"}:
-            return None
-        if fact_type == "socket_count":
-            valid_value = (
-                isinstance(raw_value, int)
-                and not isinstance(raw_value, bool)
-                and raw_value >= 0
-            )
-        else:
-            valid_value = isinstance(raw_value, bool)
-        if status == "pending":
-            raw_value = None
-        elif not valid_value:
-            return None
-        options = sorted({
-            str(option_id).strip()
-            for option_id in view.get("options") or []
-            if str(option_id or "").strip()
-        })
-        projected[category] = {
-            "status": status,
-            "value": raw_value,
-            "options": options if status == "verified" else [],
-        }
-    return projected
-
-
 def _canonical_capability_facts_from_payload(payload, available_options):
     if not isinstance(payload, dict):
         return None
@@ -4831,8 +4792,7 @@ def public_gear_capability_facts(item):
     if not isinstance(item, dict):
         return None
     has_released_input = (
-        "capabilityFacts" in item
-        or "canonicalFacts" in item
+        "canonicalFacts" in item
         or (
             isinstance(item.get("payload"), dict)
             and "canonicalFacts" in item["payload"]
@@ -4840,8 +4800,7 @@ def public_gear_capability_facts(item):
         or any(
             isinstance(variant, dict)
             and (
-                "capabilityFacts" in variant
-                or "canonicalFacts" in variant
+                "canonicalFacts" in variant
                 or (
                     isinstance(variant.get("payload"), dict)
                     and "canonicalFacts" in variant["payload"]
@@ -4861,17 +4820,15 @@ def public_gear_capability_facts(item):
             _PUBLIC_GEAR_CAPABILITY_FACTS.items()
         )
     }
-    item_view = _safe_public_capability_facts(item.get("capabilityFacts"))
-    if item_view is None:
-        item_payload = (
-            item.get("payload")
-            if isinstance(item.get("payload"), dict)
-            else item
-        )
-        item_view = _canonical_capability_facts_from_payload(
-            item_payload,
-            available_options,
-        )
+    item_payload = (
+        item.get("payload")
+        if isinstance(item.get("payload"), dict)
+        else item
+    )
+    item_view = _canonical_capability_facts_from_payload(
+        item_payload,
+        available_options,
+    )
     variant_key = str(
         item.get("variantKey") or item.get("defaultVariantKey") or ""
     ).strip()
@@ -4894,19 +4851,15 @@ def public_gear_capability_facts(item):
     )
     variant_view = None
     if isinstance(selected_variant, dict):
-        variant_view = _safe_public_capability_facts(
-            selected_variant.get("capabilityFacts")
+        variant_payload = (
+            selected_variant.get("payload")
+            if isinstance(selected_variant.get("payload"), dict)
+            else selected_variant
         )
-        if variant_view is None:
-            variant_payload = (
-                selected_variant.get("payload")
-                if isinstance(selected_variant.get("payload"), dict)
-                else selected_variant
-            )
-            variant_view = _canonical_capability_facts_from_payload(
-                variant_payload,
-                available_options,
-            )
+        variant_view = _canonical_capability_facts_from_payload(
+            variant_payload,
+            available_options,
+        )
     if item_view is None and variant_view is None:
         if not has_released_input:
             return None

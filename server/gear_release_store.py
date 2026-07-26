@@ -236,6 +236,38 @@ def _selected_option_ids(selection_intent: Any) -> list[str]:
     return sorted(value for value in selected if value)
 
 
+def _released_allowed_option_ids(*records: Any) -> list[str]:
+    """Read option identities only from verified Facts in selected release rows."""
+
+    allowed: set[str] = set()
+    for record in records:
+        payload = (
+            record.get("payload")
+            if isinstance(record, dict)
+            and isinstance(record.get("payload"), dict)
+            else {}
+        )
+        raw_facts = payload.get("canonicalFacts")
+        if not isinstance(raw_facts, list):
+            continue
+        matching = [
+            fact
+            for fact in raw_facts
+            if isinstance(fact, dict)
+            and fact.get("schemaRevision") == "gear-canonical-fact-v1"
+            and _text(fact.get("factType"))
+            == "allowed_enhancement_options"
+        ]
+        if len(matching) != 1:
+            continue
+        fact = matching[0]
+        value = fact.get("value")
+        if fact.get("status") != "verified" or not isinstance(value, list):
+            continue
+        allowed.update(_text(option_id) for option_id in value)
+    return sorted(option_id for option_id in allowed if option_id)
+
+
 def _public_enhancement_by_slot(selection_intent: Any) -> dict[str, dict[str, Any]]:
     """Project only canonical enhancement identities from a validated release intent."""
 
@@ -525,6 +557,7 @@ def build_candidate_authority_context(
     options_by_key = prepared.options_by_key
 
     item_rows = []
+    released_allowed_option_ids: set[str] = set()
     for selection in (selection_intent.get("slots") or {}).values():
         if not isinstance(selection, dict):
             continue
@@ -543,6 +576,9 @@ def build_candidate_authority_context(
                 "payload": item.get("payload") or {},
                 "updatedAt": item.get("updatedAt") or "",
             }
+            released_allowed_option_ids.update(
+                _released_allowed_option_ids(item_record)
+            )
         source_records = [
             {
                 "id": source.get("sourceId") or "",
@@ -596,6 +632,9 @@ def build_candidate_authority_context(
                     "payload": variant.get("payload") or {},
                     "updatedAt": variant.get("updatedAt") or "",
                 }
+                released_allowed_option_ids.update(
+                    _released_allowed_option_ids(variant_record)
+                )
             if variant_record is None:
                 variant_record = _observed_release_variant_record(
                     requested_variant,
@@ -614,6 +653,7 @@ def build_candidate_authority_context(
             for field in ("enchantOptionId", "embellishmentOptionId", "craftedOptionId", "catalystOptionId")
         )
     selected_option_ids.discard("")
+    selected_option_ids.update(released_allowed_option_ids)
     option_rows = []
     for option_id in sorted(selected_option_ids):
         option = options_by_key.get(option_id)
@@ -1326,7 +1366,7 @@ class GearReleaseStore:
         ))
         item_ids = [item_id for item_id, _variant_key in requested_pairs]
         variant_keys = [variant_key for _item_id, variant_key in requested_pairs]
-        option_ids = _selected_option_ids(intent)
+        option_ids = set(_selected_option_ids(intent))
 
         with self.connection() as conn:
             with conn.cursor() as cur:
@@ -1380,7 +1420,13 @@ class GearReleaseStore:
                             values[4],
                         )
                     item_rows.append(tuple(values[:5]))
-                cur.execute(RELEASE_SELECTED_OPTION_SQL, (release_id, option_ids))
+                    option_ids.update(
+                        _released_allowed_option_ids(values[2], values[3])
+                    )
+                cur.execute(
+                    RELEASE_SELECTED_OPTION_SQL,
+                    (release_id, sorted(option_ids)),
+                )
                 option_rows = cur.fetchall()
 
         dependencies = {
@@ -2570,6 +2616,7 @@ class GearReleaseStore:
                 "embellishment_capability",
                 "allowed_enhancement_options",
                 "item_set_membership",
+                "equipment_uniqueness",
             }
         for row in legacy_snapshot.get("variants") or ():
             if (
@@ -2593,6 +2640,7 @@ class GearReleaseStore:
                 "embellishment_capability",
                 "allowed_enhancement_options",
                 "item_set_membership",
+                "executable_item_options",
             }
         for row in legacy_snapshot.get("options") or ():
             if not isinstance(row, dict) or not _text(row.get("optionId")):

@@ -134,6 +134,63 @@ def _error_envelope(
     return http_status_for_envelope(envelope), envelope
 
 
+_INTERNAL_RESOLUTION_PROOF_KEYS = frozenset(
+    {
+        "canonicalfactrefids",
+        "canonicalfactrefs",
+        "factkey",
+        "factkeys",
+        "factrefids",
+        "factrefs",
+        "observationrefs",
+        "problemcode",
+        "problemcodes",
+        "sourcerefids",
+    }
+)
+
+
+def _public_resolution_value(value: Any, *, key: str = "") -> Any:
+    """Recursively remove proof-layer identifiers from public Resolve data."""
+
+    normalized_key = str(key or "").replace("_", "").lower()
+    if normalized_key == "evidenceledger":
+        ledger = value if isinstance(value, dict) else {}
+        contract_revision = ledger.get("contractRevision")
+        return (
+            {"contractRevision": contract_revision}
+            if isinstance(contract_revision, str) and contract_revision
+            else {}
+        )
+    if normalized_key in _INTERNAL_RESOLUTION_PROOF_KEYS or any(
+        token in normalized_key
+        for token in ("artifact", "observation", "hash", "worker")
+    ):
+        return None
+    if isinstance(value, dict):
+        projected = {}
+        for child_key, child_value in value.items():
+            child = _public_resolution_value(child_value, key=child_key)
+            normalized_child_key = str(child_key).replace("_", "").lower()
+            if child is None and (
+                normalized_child_key in _INTERNAL_RESOLUTION_PROOF_KEYS
+                or any(
+                    token in normalized_child_key
+                    for token in ("artifact", "observation", "hash", "worker")
+                )
+            ):
+                continue
+            projected[child_key] = child
+        return projected
+    if isinstance(value, list):
+        return [
+            projected
+            for entry in value
+            if (projected := _public_resolution_value(entry)) is not None
+        ]
+    return copy.deepcopy(value)
+
+
 def _snapshot_envelope(
     snapshot: dict[str, Any],
     authority_context: Any,
@@ -151,12 +208,14 @@ def _snapshot_envelope(
         status = "unavailable"
     else:
         status = "blocked"
+    public_snapshot = _public_resolution_value(snapshot)
+    public_problems = _public_resolution_value(problems)
     envelope = result_envelope(
         status,
         request_id,
         _release_context(authority_context),
-        data=snapshot,
-        problems=problems,
+        data=public_snapshot,
+        problems=public_problems,
     )
     return http_status_for_envelope(envelope), envelope
 

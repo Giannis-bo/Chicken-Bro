@@ -284,6 +284,16 @@ def build_midnight_mage_release_fixture(*, canonical_consumer=True):
                     item,
                     slot,
                 ),
+                "equipmentUniqueness": (
+                    {
+                        "isUnique": True,
+                        "groupId": item["uniqueGroupId"],
+                        "limit": item["uniqueLimit"],
+                    }
+                    if item.get("uniqueGroupId")
+                    and item.get("uniqueLimit")
+                    else {"isUnique": False}
+                ),
                 **{
                     field: copy.deepcopy(item.get(field))
                     for field in (
@@ -353,6 +363,7 @@ def build_midnight_mage_release_fixture(*, canonical_consumer=True):
                 "claims": [
                     "static_stats",
                     "variant_track",
+                    "executable_item_options",
                     "enhancement_echo",
                 ],
             },

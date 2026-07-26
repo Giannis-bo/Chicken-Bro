@@ -62,6 +62,15 @@ FACT_POLICIES: dict[str, dict[str, Any]] = {
         "impactScope": "exact_variant",
         "ruleRevision": "gear-variant-track-policy-v1",
     },
+    "executable_item_options": {
+        "allowedSources": ("simc_item_probe",),
+        "sourceScopes": ("exact_item", "exact_variant"),
+        "combinationMode": "exact_agreement",
+        "closedWorldCondition": "exact_executable_item_options_observed",
+        "conflictPolicy": "unresolved_on_distinct_exact_values",
+        "impactScope": "simc_execution",
+        "ruleRevision": "gear-executable-item-options-policy-v1",
+    },
     "static_stats": {
         "allowedSources": ("simc_item_probe",),
         "sourceScopes": ("exact_item", "exact_variant"),
@@ -143,6 +152,15 @@ FACT_POLICIES: dict[str, dict[str, Any]] = {
         "conflictPolicy": "unresolved_on_distinct_exact_values",
         "impactScope": "item_set_only",
         "ruleRevision": "gear-item-set-membership-policy-v1",
+    },
+    "equipment_uniqueness": {
+        "allowedSources": ("battle_net_item",),
+        "sourceScopes": ("base_item", "exact_item"),
+        "combinationMode": "exact_agreement",
+        "closedWorldCondition": "explicit_equipment_uniqueness",
+        "conflictPolicy": "unresolved_on_distinct_exact_values",
+        "impactScope": "whole_character_legality",
+        "ruleRevision": "gear-equipment-uniqueness-policy-v1",
     },
 }
 
@@ -388,6 +406,91 @@ def _valid_variant_track(value: Any, subject_key: str) -> bool:
     )
 
 
+_EXECUTABLE_SIMC_OPTION_FIELDS = frozenset(
+    {
+        "bonus_id",
+        "crafted_stats",
+        "embellishment",
+        "enchant_id",
+        "gem_bonus_id",
+        "gem_id",
+        "gem_ilevel",
+        "ilevel",
+        "redirected_base_stats",
+    }
+)
+
+
+def _valid_executable_item_options(value: Any, subject_key: str) -> bool:
+    if (
+        not isinstance(value, dict)
+        or set(value).difference(
+            {
+                "itemId",
+                "variantKey",
+                "options",
+                "enhancementManagement",
+            }
+        )
+        or not _valid_item_identity(
+            {
+                "itemId": value.get("itemId"),
+                "variantKey": value.get("variantKey"),
+            },
+            subject_key,
+        )
+    ):
+        return False
+    options = value.get("options")
+    if (
+        not isinstance(options, dict)
+        or not options
+        or set(options).difference(_EXECUTABLE_SIMC_OPTION_FIELDS)
+        or not all(
+            isinstance(option_value, str) and bool(option_value.strip())
+            for option_value in options.values()
+        )
+        or not _text(options.get("bonus_id"))
+        or not _text(options.get("ilevel")).isdigit()
+        or int(_text(options.get("ilevel"))) <= 0
+    ):
+        return False
+    management = value.get("enhancementManagement")
+    if management is None:
+        return True
+    if not isinstance(management, dict):
+        return False
+    fields = (
+        management.get("fields")
+        if isinstance(management, dict)
+        else None
+    )
+    present_enhancements = set(options).intersection(
+        {
+            "embellishment",
+            "enchant_id",
+            "gem_bonus_id",
+            "gem_id",
+            "gem_ilevel",
+        }
+    )
+    return (
+        management.get("schemaRevision") == "gear-enhancement-management-v1"
+        and management.get("authorityRevision") == "gear-capability-matrix-v2"
+        and isinstance(fields, dict)
+        and set(fields) == present_enhancements
+        and all(
+            classification
+            in {"editor_managed", "source_only", "unresolved_drop"}
+            for classification in fields.values()
+        )
+        and not any(
+            fields.get(field) == "source_only"
+            for field in ("gem_id", "gem_bonus_id", "gem_ilevel")
+        )
+    )
+
+
 def _valid_static_stats(value: Any, _subject_key: str) -> bool:
     return (
         isinstance(value, dict)
@@ -460,12 +563,32 @@ def _valid_set_membership(value: Any, _subject_key: str) -> bool:
     )
 
 
+def _valid_equipment_uniqueness(value: Any, subject_key: str) -> bool:
+    if (
+        not isinstance(value, dict)
+        or "/variant:" in subject_key
+        or not subject_key.startswith("item:")
+        or not isinstance(value.get("isUnique"), bool)
+    ):
+        return False
+    if value["isUnique"] is False:
+        return set(value) == {"isUnique"}
+    return (
+        set(value) == {"isUnique", "groupId", "limit"}
+        and bool(_text(value.get("groupId")))
+        and isinstance(value.get("limit"), int)
+        and not isinstance(value.get("limit"), bool)
+        and value["limit"] > 0
+    )
+
+
 _CLOSED_WORLD_VALIDATORS = {
     "explicit_structured_identity": _valid_item_identity,
     "explicit_inventory_or_slot_rule": (
         lambda value, _subject_key: _valid_string_list(value)
     ),
     "exact_track_and_item_level_observed": _valid_variant_track,
+    "exact_executable_item_options_observed": _valid_executable_item_options,
     "exact_probe_completed": _valid_static_stats,
     "explicit_zero_or_exact_capacity": _valid_socket_count,
     "explicit_false_or_applicable_slot_rule": _valid_boolean,
@@ -473,6 +596,7 @@ _CLOSED_WORLD_VALIDATORS = {
     "explicit_option_identity_effect_and_scope": _valid_enhancement_option,
     "verified_capability_option_and_slot_rule": _valid_allowed_option_basis,
     "explicit_set_identity_or_non_membership": _valid_set_membership,
+    "explicit_equipment_uniqueness": _valid_equipment_uniqueness,
 }
 
 

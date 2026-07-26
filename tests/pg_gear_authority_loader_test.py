@@ -205,7 +205,14 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
             }
         ]
         item.update(overrides.pop("item", {}))
-        variant.update(overrides.pop("variant", {}))
+        variant_overrides = overrides.pop("variant", {})
+        overridden_simc = variant_overrides.pop("simcOptions", None)
+        variant.update(variant_overrides)
+        if isinstance(overridden_simc, dict):
+            variant["simcOptions"] = {
+                **variant["simcOptions"],
+                **overridden_simc,
+            }
         sources = overrides.pop("sources", sources)
         return ("item-head", "variant-head", item, variant, sources)
 
@@ -430,6 +437,20 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
                     "item_set_membership",
                     projected_item.get("itemSetId") or False,
                 ),
+                canonical_fact(
+                    item_subject,
+                    "equipment_uniqueness",
+                    (
+                        {
+                            "isUnique": True,
+                            "groupId": projected_item["uniqueGroupId"],
+                            "limit": projected_item["uniqueLimit"],
+                        }
+                        if projected_item.get("uniqueGroupId")
+                        and projected_item.get("uniqueLimit")
+                        else {"isUnique": False}
+                    ),
+                ),
                 ]
             if projected_variant is not None:
                 variant_payload = variant_record.setdefault("payload", {})
@@ -527,6 +548,63 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
                         or projected_item.get("itemSetId")
                         or False,
                     ),
+                    canonical_fact(
+                        variant_subject,
+                        "executable_item_options",
+                        {
+                            "itemId": requested_item_id,
+                            "variantKey": variant_key,
+                            "options": (
+                                lambda raw_options, management: {
+                                    key: copy.deepcopy(value)
+                                    for key, value in raw_options.items()
+                                    if (
+                                        key
+                                        not in {
+                                            "embellishment",
+                                            "enchant_id",
+                                            "gem_bonus_id",
+                                            "gem_id",
+                                            "gem_ilevel",
+                                        }
+                                        or management is not None
+                                    )
+                                }
+                            )(
+                                projected_variant.get("simcOptions") or {},
+                                pg_gear_authority_loader.project_validated_enhancement_management(
+                                    projected_variant.get("simcOptions") or {},
+                                    variant_payload.get(
+                                        "enhancementManagement"
+                                    ),
+                                    gear_socket_authority.CAPABILITY_REVISION,
+                                ),
+                            ),
+                            **(
+                                {
+                                    "enhancementManagement": copy.deepcopy(
+                                        variant_payload[
+                                            "enhancementManagement"
+                                        ]
+                                    )
+                                }
+                                if isinstance(
+                                    pg_gear_authority_loader.project_validated_enhancement_management(
+                                        projected_variant.get(
+                                            "simcOptions"
+                                        )
+                                        or {},
+                                        variant_payload.get(
+                                            "enhancementManagement"
+                                        ),
+                                        gear_socket_authority.CAPABILITY_REVISION,
+                                    ),
+                                    dict,
+                                )
+                                else {}
+                            ),
+                        },
+                    ),
                     ]
             sealed_rows.append(
                 (
@@ -563,6 +641,11 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
             ),
             canonical_fact(item_subject, "allowed_enhancement_options", []),
             canonical_fact(item_subject, "item_set_membership", False),
+            canonical_fact(
+                item_subject,
+                "equipment_uniqueness",
+                {"isUnique": False},
+            ),
         ]
         variant_facts = [
             canonical_fact(
@@ -596,6 +679,18 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
             ),
             canonical_fact(variant_subject, "allowed_enhancement_options", []),
             canonical_fact(variant_subject, "item_set_membership", False),
+            canonical_fact(
+                variant_subject,
+                "executable_item_options",
+                {
+                    "itemId": item_id,
+                    "variantKey": variant_key,
+                    "options": {
+                        "ilevel": "298",
+                        "bonus_id": "canonical-void",
+                    },
+                },
+            ),
         ]
         return (
             item_id,
@@ -686,6 +781,121 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
             "mutable-source-that-must-not-author-facts",
             context["evidenceRecordsById"],
         )
+
+    def test_v2_variant_simc_options_come_only_from_executable_fact(self):
+        row = self.released_fact_row()
+        row[3]["simcOptions"] = {
+            "ilevel": "999",
+            "bonus_id": "raw-release-row-must-not-author",
+            "private_writer": "must-not-leak",
+        }
+
+        context = self.released_context(
+            capability_revision=gear_socket_authority.CAPABILITY_REVISION,
+            item_rows=[row],
+            option_rows=[],
+            intent=self.released_fact_intent(),
+        )
+
+        self.assertEqual(
+            context["variantsByKey"]["void_upgrade-298"]["simcOptions"],
+            {"bonus_id": "canonical-void", "ilevel": "298"},
+        )
+        self.assertNotIn(
+            "raw-release-row-must-not-author",
+            json.dumps(context),
+        )
+
+    def test_v2_variant_without_executable_fact_is_not_executable(self):
+        row = self.released_fact_row()
+        row[3]["payload"]["canonicalFacts"] = [
+            fact
+            for fact in row[3]["payload"]["canonicalFacts"]
+            if fact["factType"] != "executable_item_options"
+        ]
+
+        context = self.released_context(
+            capability_revision=gear_socket_authority.CAPABILITY_REVISION,
+            item_rows=[row],
+            option_rows=[],
+            intent=self.released_fact_intent(),
+        )
+
+        self.assertNotIn("void_upgrade-298", context["variantsByKey"])
+        self.assertIn(
+            "variantsByKey.void_upgrade-298",
+            context["missingFields"],
+        )
+
+    def test_v2_item_without_explicit_uniqueness_fact_fails_closed(self):
+        row = self.released_fact_row()
+        row[2]["payload"]["canonicalFacts"] = [
+            fact
+            for fact in row[2]["payload"]["canonicalFacts"]
+            if fact["factType"] != "equipment_uniqueness"
+        ]
+
+        context = self.released_context(
+            capability_revision=gear_socket_authority.CAPABILITY_REVISION,
+            item_rows=[row],
+            option_rows=[],
+            intent=self.released_fact_intent(),
+        )
+
+        self.assertNotIn("250033", context["itemsById"])
+        self.assertIn("itemsById.250033", context["missingFields"])
+
+    def test_v2_duplicate_unique_equipped_items_are_rejected(self):
+        row = self.released_fact_row()
+        item_subject = "item:250033"
+        row[2]["payload"]["canonicalFacts"] = [
+            fact
+            for fact in row[2]["payload"]["canonicalFacts"]
+            if fact["factType"] != "equipment_uniqueness"
+        ] + [
+            canonical_fact(
+                item_subject,
+                "equipment_uniqueness",
+                {
+                    "isUnique": True,
+                    "groupId": "unique-ring:void",
+                    "limit": 1,
+                },
+            )
+        ]
+        for fact in row[2]["payload"]["canonicalFacts"]:
+            if fact["factType"] == "slot_compatibility":
+                fact["value"] = ["finger1", "finger2"]
+        intent = self.intent({
+            slot: {
+                "itemId": "250033",
+                "variantKey": "void_upgrade-298",
+                "gemOptionIds": [],
+                "enchantOptionId": "",
+                "embellishmentOptionId": "",
+                "craftedOptionId": "",
+                "catalystOptionId": "",
+            }
+            for slot in ("finger1", "finger2")
+        })
+        context = self.released_context(
+            capability_revision=gear_socket_authority.CAPABILITY_REVISION,
+            item_rows=[row, copy.deepcopy(row)],
+            option_rows=[],
+            intent=intent,
+        )
+
+        snapshot = gear_resolver.resolve(intent, context)
+
+        self.assertEqual(
+            context["itemsById"]["250033"]["uniqueGroupId"],
+            "unique-ring:void",
+        )
+        self.assertEqual(context["itemsById"]["250033"]["uniqueLimit"], 1)
+        self.assertTrue(any(
+            problem.get("code") == "GEAR_UNIQUE_GROUP_LIMIT_EXCEEDED"
+            for problem in snapshot["problems"]
+        ))
 
     def test_v2_selected_release_without_canonical_facts_fails_closed(self):
         context = self.released_context(
@@ -1604,7 +1814,11 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
         one_socket[1] = "variant-head-one"
         one_socket[3]["id"] = "variant-row-head-one"
         one_socket[3]["variantKey"] = "variant-head-one"
-        one_socket[3]["simcOptions"] = {"ilevel": "289", "gem_id": "240892/240900"}
+        one_socket[3]["simcOptions"] = {
+            "ilevel": "289",
+            "bonus_id": "head-bonus",
+            "gem_id": "240892/240900",
+        }
         one_socket[3]["payload"]["capabilityOverrides"]["socketCount"] = 1
         one_socket[3]["payload"]["socketEvidence"]["minimumTotal"] = 1
         one_socket[3]["payload"]["socketEvidence"]["claims"][0][

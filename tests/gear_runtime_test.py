@@ -142,6 +142,82 @@ class GearRuntimeTest(unittest.TestCase):
         self.assertEqual(envelope["releaseContext"]["talentCatalogRevision"], "talent-catalog:r17")
         self.assertTrue(envelope["releaseContext"]["formalActiveManifest"])
 
+    def test_public_exact_resolve_recursively_strips_internal_resolution_proof(self):
+        fixture = self.fixture()
+        internal_snapshot = {
+            "contractRevision": "gear-resolved-snapshot-v1",
+            "status": "verified",
+            "resolvedSlots": {
+                "head": {
+                    "itemId": "item-a",
+                    "variantKey": "variant-a",
+                    "sourceRefIds": ["gear-fact:secret-slot"],
+                    "canonicalFactRefIds": ["gear-fact:secret-canonical"],
+                    "nested": {
+                        "factKey": "gear-fact:secret-nested",
+                        "problemCode": "worker_secret_problem",
+                        "artifactId": "gear-artifact:secret",
+                        "observationRefs": ["gear-observation:secret"],
+                        "provenanceHash": "sha256:secret-provenance",
+                        "workerDiagnostics": {"host": "private-worker"},
+                    },
+                }
+            },
+            "evidenceLedger": {
+                "contractRevision": "gear-evidence-ledger-v1",
+                "claims": [{
+                    "claimKey": "secret-claim",
+                    "sourceRefIds": ["gear-fact:secret-ledger"],
+                    "problemCodes": ["secret-ledger-problem"],
+                }],
+                "evidenceRecordsById": {
+                    "gear-fact:secret": {
+                        "artifactId": "gear-artifact:secret-ledger",
+                    }
+                },
+            },
+            "problems": [],
+        }
+        store = FakeStore(fixture["authorityContext"])
+
+        with patch.object(
+            gear_runtime.gear_resolver,
+            "resolve",
+            return_value=internal_snapshot,
+        ):
+            status, envelope = gear_runtime.resolve_selection_intent(
+                fixture["intent"],
+                store=store,
+                simc_runtime_revision="simc-v1",
+                request_id="request-redaction",
+            )
+
+        self.assertEqual(status, 200)
+        self.assertEqual(envelope["status"], "resolved")
+        self.assertEqual(
+            envelope["data"]["resolvedSlots"]["head"]["itemId"],
+            "item-a",
+        )
+        serialized = json.dumps(envelope, sort_keys=True)
+        for forbidden in (
+            "sourceRefIds",
+            "canonicalFactRefIds",
+            "factKey",
+            "problemCode",
+            "artifactId",
+            "observationRefs",
+            "provenanceHash",
+            "workerDiagnostics",
+            "gear-fact:secret",
+            "private-worker",
+        ):
+            self.assertNotIn(forbidden, serialized)
+        self.assertNotIn("claims", envelope["data"].get("evidenceLedger", {}))
+        self.assertNotIn(
+            "evidenceRecordsById",
+            envelope["data"].get("evidenceLedger", {}),
+        )
+
     def test_release_context_exposes_capability_revision(self):
         fixture = self.fixture()
 
