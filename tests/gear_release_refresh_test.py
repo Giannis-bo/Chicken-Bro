@@ -1,4 +1,5 @@
 import contextlib
+import hashlib
 import io
 import json
 import subprocess
@@ -28,6 +29,28 @@ DEPENDENCIES = {
     "selectionSchemaRevision": "intent-v1",
     "capabilityRevision": "capability-v1",
 }
+
+
+def canonical_digest(value):
+    encoded = json.dumps(
+        value,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return "sha256:" + hashlib.sha256(encoded).hexdigest()
+
+
+def socket_probe_evidence(minimums=None, revision="simc-fixture-r1"):
+    return {
+        "schemaRevision": "simc-socket-bonus-evidence-v1",
+        "status": "verified",
+        "sourceType": "simc_bonus_probe",
+        "sourceIdentity": "simulationcraft:show_bonus_ids",
+        "sourceRevision": revision,
+        "sourceScope": "exact_variant",
+        "minimums": dict(minimums or {"9300": 1}),
+    }
 
 
 def release_pair(suffix="active", *, gear=None):
@@ -279,7 +302,7 @@ class GearReleaseRefreshPolicyTest(unittest.TestCase):
             expected_specs=[("mage", "arcane")],
             dependency_revisions=DEPENDENCIES,
             now="2026-07-11T12:00:00+00:00",
-            socket_bonus_minimums={"9300": 1},
+            socket_bonus_minimums=socket_probe_evidence(),
             gear_preparer=lambda *_args, **_kwargs: {
                 "release": candidate_gear,
                 "snapshot": snapshot,
@@ -354,7 +377,7 @@ class GearReleaseRefreshPolicyTest(unittest.TestCase):
             expected_specs=[("mage", "arcane")],
             dependency_revisions=DEPENDENCIES,
             now="2026-07-26T02:00:00+00:00",
-            socket_bonus_minimums={"9300": 1},
+            socket_bonus_minimums=socket_probe_evidence(),
             gear_preparer=lambda *_args, **_kwargs: {
                 "release": active_gear,
                 "snapshot": snapshot,
@@ -441,7 +464,7 @@ class GearReleaseRefreshPolicyTest(unittest.TestCase):
                 expected_specs=[("mage", "arcane")],
                 dependency_revisions=DEPENDENCIES,
                 now="2026-07-11T12:00:00+00:00",
-                socket_bonus_minimums={"9300": 2},
+                socket_bonus_minimums=socket_probe_evidence({"9300": 2}),
                 gear_preparer=gear_preparer,
                 community_preparer=lambda *_args, **_kwargs: {
                     "release": candidate_community,
@@ -453,7 +476,10 @@ class GearReleaseRefreshPolicyTest(unittest.TestCase):
         except TypeError as exc:
             self.fail(f"build_staging_candidates must thread socket evidence: {exc}")
 
-        self.assertEqual(seen_socket_evidence, [{"9300": 2}])
+        self.assertEqual(
+            seen_socket_evidence,
+            [socket_probe_evidence({"9300": 2})],
+        )
         self.assertEqual(candidate["riskClass"], "capability_change")
         self.assertEqual(
             candidate["gearRelease"]["source"]["sourceEvidence"]["materializedSocketFactDigest"],
@@ -477,7 +503,7 @@ class GearReleaseRefreshPolicyTest(unittest.TestCase):
             now="2026-07-11T12:00:00+00:00",
             updated_by="phase4e-test",
             lease=lease(),
-            socket_bonus_minimums_loader=lambda: {"9300": 1},
+            socket_bonus_minimums_loader=socket_probe_evidence,
             candidate_builder=lambda *_args, **_kwargs: candidate_bundle(store),
             shadow_runner=lambda **_kwargs: passing_shadow(),
         )
@@ -515,7 +541,7 @@ class GearReleaseRefreshPolicyTest(unittest.TestCase):
             now="2026-07-17T04:00:00+00:00",
             updated_by="attribute-audit-test",
             lease=lease(),
-            socket_bonus_minimums_loader=lambda: {"9300": 1},
+            socket_bonus_minimums_loader=socket_probe_evidence,
             candidate_builder=lambda *_args, **_kwargs: candidate,
             shadow_runner=lambda **_kwargs: passing_shadow(),
             audit_intent_writer=write_intents,
@@ -541,7 +567,7 @@ class GearReleaseRefreshPolicyTest(unittest.TestCase):
             now="2026-07-17T04:00:00+00:00",
             updated_by="attribute-audit-test",
             lease=lease(),
-            socket_bonus_minimums_loader=lambda: {"9300": 1},
+            socket_bonus_minimums_loader=socket_probe_evidence,
             candidate_builder=lambda *_args, **_kwargs: candidate,
             shadow_runner=lambda **_kwargs: passing_shadow(),
             audit_intent_writer=lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("audit database secret")),
@@ -566,7 +592,7 @@ class GearReleaseRefreshPolicyTest(unittest.TestCase):
             now="2026-07-17T04:00:00+00:00",
             updated_by="attribute-audit-test",
             lease=lease(False),
-            socket_bonus_minimums_loader=lambda: {"9300": 1},
+            socket_bonus_minimums_loader=socket_probe_evidence,
             candidate_builder=lambda *_args, **_kwargs: candidate_bundle(store),
             shadow_runner=lambda **_kwargs: passing_shadow(),
             audit_intent_writer=lambda *_args, **_kwargs: writer_calls.append(True),
@@ -585,7 +611,7 @@ class GearReleaseRefreshPolicyTest(unittest.TestCase):
             now="2026-07-11T12:00:00+00:00",
             updated_by="phase4e-test",
             lease=lease(),
-            socket_bonus_minimums_loader=lambda: {"9300": 1},
+            socket_bonus_minimums_loader=socket_probe_evidence,
             candidate_builder=lambda *_args, **_kwargs: candidate_bundle(store, rows=[]),
             shadow_runner=lambda **_kwargs: passing_shadow("degraded"),
         )
@@ -604,7 +630,7 @@ class GearReleaseRefreshPolicyTest(unittest.TestCase):
             now="2026-07-11T12:00:00+00:00",
             updated_by="phase4e-test",
             lease=lease(),
-            socket_bonus_minimums_loader=lambda: {"9300": 1},
+            socket_bonus_minimums_loader=socket_probe_evidence,
             candidate_builder=lambda *_args, **_kwargs: candidate_bundle(store, risk_class="capability_change"),
             shadow_runner=lambda **_kwargs: passing_shadow(),
         )
@@ -624,7 +650,7 @@ class GearReleaseRefreshPolicyTest(unittest.TestCase):
             now="2026-07-11T12:00:00+00:00",
             updated_by="phase4e-test",
             lease=lease(False),
-            socket_bonus_minimums_loader=lambda: {"9300": 1},
+            socket_bonus_minimums_loader=socket_probe_evidence,
             candidate_builder=lambda *_args, **_kwargs: builds.append(True),
             shadow_runner=lambda **_kwargs: passing_shadow(),
         )
@@ -646,7 +672,7 @@ class GearReleaseRefreshPolicyTest(unittest.TestCase):
             now="2026-07-11T12:00:00+00:00",
             updated_by="phase4e-test",
             lease=lease(),
-            socket_bonus_minimums_loader=lambda: {"9300": 1},
+            socket_bonus_minimums_loader=socket_probe_evidence,
             candidate_builder=fail,
             shadow_runner=lambda **_kwargs: passing_shadow(),
         )
@@ -680,6 +706,8 @@ class GearReleaseRefreshPolicyTest(unittest.TestCase):
                 lease=lease(),
                 socket_bonus_minimums_loader=lambda: load_probe(
                     "/fake/simc",
+                    source_identity="simulationcraft:show_bonus_ids",
+                    source_revision="simc-fixture-r1",
                     runner=failing_runner,
                 ),
                 candidate_builder=lambda *_args, **_kwargs: builds.append(True),

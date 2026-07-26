@@ -824,6 +824,8 @@ def _run_from_environment(*, updated_by: str) -> dict[str, Any]:
         shadow_runner=shadow_runner,
         socket_bonus_minimums_loader=lambda: load_simc_socket_bonus_minimums(
             simc_binary_path,
+            source_identity="simulationcraft:show_bonus_ids",
+            source_revision=simc_revision,
         ),
         audit_intent_writer=audit_store.enqueue_intents,
         attribute_rulebook_loader=lambda: {

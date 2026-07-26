@@ -587,12 +587,12 @@ def _bonus_minimum(
     bonus_id: str,
 ) -> tuple[int, str]:
     raw = socket_bonus_minimums.get(bonus_id)
-    if isinstance(raw, dict):
-        return (
-            _minimum_total(raw.get("minimumTotal")),
-            _text(raw.get("sourceRevision") or f"simc-bonus:{bonus_id}"),
-        )
-    return _minimum_total(raw), f"simc-bonus:{bonus_id}"
+    if not isinstance(raw, dict):
+        return 0, ""
+    revision = _text(raw.get("sourceRevision"))
+    if not revision:
+        return 0, ""
+    return _minimum_total(raw.get("minimumTotal")), revision
 
 
 def derive_variant_socket_observation_inputs(

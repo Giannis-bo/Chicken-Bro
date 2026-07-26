@@ -148,7 +148,12 @@ class GearSocketAuthorityTest(unittest.TestCase):
             item,
             variant,
             season_revision="midnight-season-1",
-            socket_bonus_minimums={"9300": 2},
+            socket_bonus_minimums={
+                "9300": {
+                    "minimumTotal": 2,
+                    "sourceRevision": "simc-runtime-fixture-r1",
+                }
+            },
         )
 
         self.assertEqual(fact["minimumTotal"], 2)
@@ -169,6 +174,29 @@ class GearSocketAuthorityTest(unittest.TestCase):
             fact["minimumTotal"],
             sum(claim["minimumTotal"] for claim in fact["claims"]),
         )
+
+    def test_plain_simc_bonus_minimum_does_not_fabricate_revision(self):
+        authority = self.authority()
+        fact = authority.derive_variant_socket_fact(
+            {"itemId": "plain-minimum", "slot": "head"},
+            {
+                "variantId": "plain-minimum-variant",
+                "itemId": "plain-minimum",
+                "variantKey": "plain-minimum",
+                "slot": "head",
+                "simcOptions": {"bonus_id": "9300"},
+            },
+            socket_bonus_minimums={"9300": 2},
+        )
+
+        self.assertNotIn(
+            "simc_bonus",
+            {claim["source"] for claim in fact["claims"]},
+        )
+        self.assertFalse(any(
+            str(claim.get("sourceRevision", "")).startswith("simc-bonus:")
+            for claim in fact["claims"]
+        ))
 
     def test_gem_sequence_is_exact_variant_lower_bound_only(self):
         authority = self.authority()

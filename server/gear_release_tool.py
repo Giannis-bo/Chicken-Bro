@@ -198,13 +198,9 @@ def _canonical_digest(value: Any) -> str:
     return "sha256:" + hashlib.sha256(encoded).hexdigest()
 
 
-def _socket_probe_digest(socket_bonus_minimums: Mapping[str, Any]) -> str:
+def _socket_probe_digest(socket_bonus_evidence: Mapping[str, Any]) -> str:
     return _canonical_digest({
-        "socketBonusMinimums": {
-            _text(bonus_id): _canonical(minimum)
-            for bonus_id, minimum in socket_bonus_minimums.items()
-            if _text(bonus_id)
-        },
+        "socketBonusEvidence": _canonical(socket_bonus_evidence),
     })
 
 
@@ -244,6 +240,94 @@ def _materialized_socket_fact_digest(snapshot: dict[str, Any]) -> str:
 
 
 _RELEASE_FACT_REF_LIMIT = 8
+_SIMC_SOCKET_BONUS_EVIDENCE_REVISION = (
+    "simc-socket-bonus-evidence-v1"
+)
+
+
+def _validated_socket_bonus_evidence(value: Any) -> dict[str, Any]:
+    evidence = value if isinstance(value, Mapping) else {}
+    minimums = (
+        evidence.get("minimums")
+        if isinstance(evidence.get("minimums"), Mapping)
+        else {}
+    )
+    normalized_minimums: dict[str, int] = {}
+    for bonus_id, minimum in minimums.items():
+        normalized_id = _text(bonus_id)
+        if (
+            not normalized_id.isdigit()
+            or int(normalized_id) <= 0
+            or isinstance(minimum, bool)
+            or not isinstance(minimum, int)
+            or minimum <= 0
+        ):
+            raise GearReleaseIntegrityError(
+                "verified SimC socket bonus evidence envelope is required"
+            )
+        normalized_minimums[str(int(normalized_id))] = minimum
+    if (
+        evidence.get("schemaRevision")
+        != _SIMC_SOCKET_BONUS_EVIDENCE_REVISION
+        or evidence.get("status") != "verified"
+        or evidence.get("sourceType") != "simc_bonus_probe"
+        or not _text(evidence.get("sourceIdentity"))
+        or not _text(evidence.get("sourceRevision"))
+        or evidence.get("sourceScope") != "exact_variant"
+        or not normalized_minimums
+    ):
+        raise GearReleaseIntegrityError(
+            "verified SimC socket bonus evidence envelope is required"
+        )
+    return {
+        "schemaRevision": _SIMC_SOCKET_BONUS_EVIDENCE_REVISION,
+        "status": "verified",
+        "sourceType": "simc_bonus_probe",
+        "sourceIdentity": _text(evidence.get("sourceIdentity")),
+        "sourceRevision": _text(evidence.get("sourceRevision")),
+        "sourceScope": "exact_variant",
+        "minimums": {
+            bonus_id: normalized_minimums[bonus_id]
+            for bonus_id in sorted(normalized_minimums, key=int)
+        },
+    }
+
+
+def _official_game_asset_evidence(
+    payload: Mapping[str, Any],
+) -> dict[str, str] | None:
+    metadata = (
+        payload.get("_metadata")
+        if isinstance(payload.get("_metadata"), Mapping)
+        else {}
+    )
+    game_asset = (
+        metadata.get("gameAsset")
+        if isinstance(metadata.get("gameAsset"), Mapping)
+        else {}
+    )
+    source_identity = _text(
+        game_asset.get("sourceIdentity")
+        or metadata.get("sourceIdentity")
+    )
+    source_revision = _text(
+        game_asset.get("sourceRevision")
+        or metadata.get("sourceRevision")
+    )
+    if (
+        _text(game_asset.get("source")).lower() != "blizzard"
+        or _text(game_asset.get("status")).lower() != "verified"
+        or not source_identity
+        or not source_revision
+    ):
+        return None
+    return {
+        "status": "verified",
+        "sourceType": "battle_net_item",
+        "sourceIdentity": source_identity,
+        "sourceRevision": source_revision,
+        "sourceScope": "exact_item",
+    }
 
 
 def _release_fact_projection(fact: Mapping[str, Any]) -> dict[str, Any]:
@@ -302,6 +386,7 @@ def _compile_release_gear_evidence(
     source_revision: str,
     captured_at: str,
     socket_bonus_minimums: Mapping[str, Any],
+    socket_bonus_evidence: Mapping[str, Any],
 ) -> dict[str, Any]:
     artifacts: list[dict[str, Any]] = []
     observations: list[dict[str, Any]] = []
@@ -375,58 +460,88 @@ def _compile_release_gear_evidence(
         )
         for source_input in inputs:
             subject_key = _text(source_input.get("subjectKey"))
-            source_type = _text(source_input.get("sourceType"))
             source_name = _text(source_input.get("source"))
             source_scope = _text(source_input.get("sourceScope"))
             input_revision = _text(source_input.get("sourceRevision"))
             if (
                 not subject_key
-                or not source_type
                 or not source_name
                 or not source_scope
                 or not input_revision
             ):
                 continue
-            if source_name == "official_item_payload" and not official_payload:
-                continue
-            if source_name == "observed_gem_occupancy" and not (
-                any(
-                    _text(evidence.get("status")).lower() == "verified"
-                    and _text(evidence.get("sourceRevision")) == input_revision
-                    and _text(evidence.get("sourceType")).lower()
-                    in {"simc_item_probe", "observed_profile"}
-                    for evidence in (canonical_evidence, stat_evidence)
+            source_evidence: Mapping[str, Any] | None = None
+            if source_name == "official_item_payload" and official_payload:
+                source_evidence = _official_game_asset_evidence(
+                    evidence_payload
                 )
+            elif source_name == "observed_gem_occupancy":
+                source_evidence = next(
+                    (
+                        evidence
+                        for evidence in (stat_evidence, canonical_evidence)
+                        if _text(evidence.get("status")).lower()
+                        == "verified"
+                        and _text(evidence.get("sourceType")).lower()
+                        == "simc_item_probe"
+                        and _text(evidence.get("sourceIdentity"))
+                        and _text(evidence.get("sourceRevision"))
+                        == input_revision
+                        and _text(evidence.get("sourceScope"))
+                        == source_scope
+                    ),
+                    None,
+                )
+            elif source_name == "simc_bonus" and (
+                input_revision
+                == _text(socket_bonus_evidence.get("sourceRevision"))
+                and source_scope
+                == _text(socket_bonus_evidence.get("sourceScope"))
             ):
-                continue
-            if source_name == "observed_gem_occupancy":
-                source_type = "simc_item_probe"
-            if source_name == "simc_bonus":
-                bonus_revisions = {
-                    _text(value.get("sourceRevision"))
-                    if isinstance(value, Mapping)
-                    else f"simc-bonus:{_text(key)}"
-                    for key, value in socket_bonus_minimums.items()
+                source_evidence = socket_bonus_evidence
+            elif (
+                source_name.startswith("midnight_s1_")
+                and input_revision == season_revision
+            ):
+                source_evidence = {
+                    "sourceType": "season_rule",
+                    "sourceIdentity": f"gear-socket-rule:{source_name}",
+                    "sourceRevision": season_revision,
+                    "sourceScope": source_scope,
+                    "status": "verified",
                 }
-                if input_revision not in bonus_revisions:
-                    continue
-            if source_name.startswith("midnight_s1_") and input_revision != season_revision:
+            if (
+                not isinstance(source_evidence, Mapping)
+                or _text(source_evidence.get("status")).lower()
+                != "verified"
+                or _text(source_evidence.get("sourceRevision"))
+                != input_revision
+                or _text(source_evidence.get("sourceScope"))
+                != source_scope
+                or not _text(source_evidence.get("sourceType"))
+                or not _text(source_evidence.get("sourceIdentity"))
+            ):
                 continue
             socket_claims_by_subject.setdefault(subject_key, []).append(
                 {
                     "minimumTotal": _int(source_input.get("observedValue")),
                     "scope": source_scope,
                     "source": source_name,
+                    "sourceType": _text(
+                        source_evidence.get("sourceType")
+                    ),
+                    "sourceIdentity": _text(
+                        source_evidence.get("sourceIdentity")
+                    ),
                     "sourceRevision": input_revision,
                 }
             )
             add_artifact(
-                source_type=source_type,
-                source_identity=(
-                    f"gear-release:socket:{subject_key}:"
-                    f"{source_name}:{input_revision}"
+                source_type=_text(source_evidence.get("sourceType")),
+                source_identity=_text(
+                    source_evidence.get("sourceIdentity")
                 ),
-                artifact_source_revision=input_revision or source_revision,
+                artifact_source_revision=input_revision,
                 payload={
                     "subjectKey": subject_key,
                     "factType": "socket_count",
@@ -445,27 +560,7 @@ def _compile_release_gear_evidence(
             )
 
     def official_item_source(payload: Mapping[str, Any]) -> bool:
-        metadata = (
-            payload.get("_metadata")
-            if isinstance(payload.get("_metadata"), Mapping)
-            else {}
-        )
-        game_asset = (
-            metadata.get("gameAsset")
-            if isinstance(metadata.get("gameAsset"), Mapping)
-            else {}
-        )
-        return (
-            _text(game_asset.get("source")).lower() == "blizzard"
-            and _text(game_asset.get("status")).lower() == "verified"
-            and bool(
-                _text(
-                    game_asset.get("sourceRevision")
-                    or metadata.get("sourceRevision")
-                    or payload.get("sourceRevision")
-                )
-            )
-        )
+        return _official_game_asset_evidence(payload) is not None
 
     for index, row in enumerate(snapshot.get("items") or ()):
         if not isinstance(row, dict) or not _text(row.get("itemId")):
@@ -551,20 +646,15 @@ def _compile_release_gear_evidence(
                 if isinstance(payload.get("_metadata"), dict)
                 else {}
             )
-            game_asset = (
-                metadata.get("gameAsset")
-                if isinstance(metadata.get("gameAsset"), dict)
-                else {}
-            )
-            official_revision = _text(
-                game_asset.get("sourceRevision")
-                or metadata.get("sourceRevision")
-                or payload.get("sourceRevision")
-            )
+            official_evidence = _official_game_asset_evidence(payload)
             add_artifact(
                 source_type="battle_net_item",
-                source_identity=f"gear-release:item:{item_id}",
-                artifact_source_revision=official_revision,
+                source_identity=_text(
+                    official_evidence.get("sourceIdentity")
+                ),
+                artifact_source_revision=_text(
+                    official_evidence.get("sourceRevision")
+                ),
                 payload={
                     "itemId": item_id,
                     "officialMetadata": _canonical(metadata),
@@ -589,6 +679,11 @@ def _compile_release_gear_evidence(
                 fact_specs=structural_specs,
             )
         socket_item = _canonical(row)
+        official_evidence = _official_game_asset_evidence(payload)
+        if official_evidence:
+            socket_item["sourceRevision"] = _text(
+                official_evidence.get("sourceRevision")
+            )
         eligibility = gear_socket_authority._active_pve_catalog_socket_eligibility(
             socket_item,
             sources_by_item_id.get(item_id, []),
@@ -1903,12 +1998,16 @@ def _materialize_enhancement_management(
 def load_simc_socket_bonus_minimums(
     simc_binary: str,
     *,
+    source_identity: str = "",
+    source_revision: str = "",
     runner=subprocess.run,
-) -> dict[str, int]:
+) -> dict[str, Any]:
     """Run the bounded candidate-only SimC bonus probe and parse socket effects."""
 
     binary = _text(simc_binary)
-    if not binary:
+    identity = _text(source_identity)
+    revision = _text(source_revision)
+    if not binary or not identity or not revision:
         raise RuntimeError(_SIMC_SOCKET_PROBE_FAILURE)
     try:
         result = runner(
@@ -1932,7 +2031,15 @@ def load_simc_socket_bonus_minimums(
         raise RuntimeError(_SIMC_SOCKET_PROBE_FAILURE) from None
     if not parsed:
         raise RuntimeError(_SIMC_SOCKET_PROBE_FAILURE)
-    return parsed
+    return _validated_socket_bonus_evidence({
+        "schemaRevision": _SIMC_SOCKET_BONUS_EVIDENCE_REVISION,
+        "status": "verified",
+        "sourceType": "simc_bonus_probe",
+        "sourceIdentity": identity,
+        "sourceRevision": revision,
+        "sourceScope": "exact_variant",
+        "minimums": parsed,
+    })
 
 
 def expected_spec_pairs() -> list[tuple[str, str]]:
@@ -2543,21 +2650,27 @@ def community_template_import_evidence_from_template(
     }
 
 
-def prepare_staging_gear_release(
-    store: GearReleaseStore,
+def _legacy_shadow_snapshot(
+    raw_snapshot: Mapping[str, Any],
     *,
     season_revision: str,
-    dependency_revisions: dict[str, Any],
-    socket_bonus_minimums: Mapping[str, Any],
-    source_revision: str = "legacy-import-r0",
-    parent_release_id: str = "",
-    evidence_now: str = "",
+    capability_revision: str,
+    socket_bonus_evidence: Mapping[str, Any],
 ) -> dict[str, Any]:
-    if not isinstance(socket_bonus_minimums, Mapping) or not socket_bonus_minimums:
-        raise GearReleaseIntegrityError("socket bonus evidence must be a non-empty mapping")
-    normalized_bonus_minimums = socket_bonus_minimums
-    captured_at = _text(evidence_now) or datetime.now(timezone.utc).isoformat()
-    raw_snapshot = store.snapshot_staging_gear()
+    verified_socket_evidence = _validated_socket_bonus_evidence(
+        socket_bonus_evidence
+    )
+    normalized_bonus_minimums = {
+        bonus_id: {
+            "minimumTotal": minimum,
+            "sourceRevision": verified_socket_evidence[
+                "sourceRevision"
+            ],
+        }
+        for bonus_id, minimum in verified_socket_evidence[
+            "minimums"
+        ].items()
+    }
     legacy_socket_input = _canonical(raw_snapshot)
     for category, field in (
         ("items", "baseCapabilities"),
@@ -2566,7 +2679,11 @@ def prepare_staging_gear_release(
         for row in legacy_socket_input.get(category) or ():
             if not isinstance(row, dict):
                 continue
-            payload = row.get("payload") if isinstance(row.get("payload"), dict) else {}
+            payload = (
+                row.get("payload")
+                if isinstance(row.get("payload"), dict)
+                else {}
+            )
             if isinstance(payload.get(field), dict):
                 row[field] = _canonical(payload[field])
     legacy_snapshot = _materialize_enhancement_management(
@@ -2577,17 +2694,52 @@ def prepare_staging_gear_release(
                 socket_bonus_minimums=normalized_bonus_minimums,
             )
         ),
-        _text(dependency_revisions.get("capabilityRevision")),
+        capability_revision,
     )
-    # Enhancement Option Facts compare against the accepted source records,
-    # before the legacy materializer broadens gem applicability for runtime use.
-    legacy_snapshot["options"] = _canonical(raw_snapshot.get("options") or [])
+    legacy_snapshot["options"] = _canonical(
+        raw_snapshot.get("options") or []
+    )
+    return legacy_snapshot
+
+
+def prepare_staging_gear_release(
+    store: GearReleaseStore,
+    *,
+    season_revision: str,
+    dependency_revisions: dict[str, Any],
+    socket_bonus_minimums: Mapping[str, Any],
+    source_revision: str = "legacy-import-r0",
+    parent_release_id: str = "",
+    evidence_now: str = "",
+) -> dict[str, Any]:
+    socket_bonus_evidence = _validated_socket_bonus_evidence(
+        socket_bonus_minimums
+    )
+    normalized_bonus_minimums = {
+        bonus_id: {
+            "minimumTotal": minimum,
+            "sourceRevision": socket_bonus_evidence["sourceRevision"],
+        }
+        for bonus_id, minimum in socket_bonus_evidence["minimums"].items()
+    }
+    captured_at = _text(evidence_now) or datetime.now(timezone.utc).isoformat()
+    raw_snapshot = store.snapshot_staging_gear()
+    raw_snapshot_summary = gear_snapshot_summary(raw_snapshot)
+    legacy_snapshot = _legacy_shadow_snapshot(
+        raw_snapshot,
+        season_revision=season_revision,
+        capability_revision=_text(
+            dependency_revisions.get("capabilityRevision")
+        ),
+        socket_bonus_evidence=socket_bonus_evidence,
+    )
     compiled = _compile_release_gear_evidence(
         raw_snapshot,
         season_revision=season_revision,
         source_revision=source_revision,
         captured_at=captured_at,
         socket_bonus_minimums=normalized_bonus_minimums,
+        socket_bonus_evidence=socket_bonus_evidence,
     )
     gaps = _gear_evidence_gap_records(compiled["facts"], now=captured_at)
     persist = getattr(store, "persist_gear_evidence_bundle", None)
@@ -2645,10 +2797,13 @@ def prepare_staging_gear_release(
         release_status="validated",
         source={
             "sourceRevision": source_revision,
-            "stagingSnapshotHash": summary["snapshotHash"],
+            "stagingSnapshotHash": raw_snapshot_summary["snapshotHash"],
             "sourceEvidence": {
                 "simcRuntimeRevision": _text(dependency_revisions.get("simcRuntimeRevision")),
-                "socketProbeDigest": _socket_probe_digest(normalized_bonus_minimums),
+                "socketProbeDigest": _socket_probe_digest(
+                    socket_bonus_evidence
+                ),
+                "socketBonusEvidence": socket_bonus_evidence,
                 "materializedSocketFactDigest": _materialized_socket_fact_digest(snapshot),
                 "compilerPolicyDigest": _canonical_digest(
                     gear_fact_compiler.FACT_POLICIES
@@ -2677,6 +2832,58 @@ def prepare_staging_gear_release(
         **summary,
         "factShadow": shadow,
         "evidencePersistence": persistence,
+        "evidenceCompilation": {
+            "artifacts": {
+                "count": len(compiled["artifacts"]),
+                "identities": sorted(
+                    artifact["artifactId"]
+                    for artifact in compiled["artifacts"]
+                ),
+                "identityDigest": _canonical_digest(sorted(
+                    artifact["artifactId"]
+                    for artifact in compiled["artifacts"]
+                )),
+            },
+            "observations": {
+                "count": len(compiled["observations"]),
+                "identities": sorted(
+                    observation["observationId"]
+                    for observation in compiled["observations"]
+                ),
+                "identityDigest": _canonical_digest(sorted(
+                    observation["observationId"]
+                    for observation in compiled["observations"]
+                )),
+            },
+            "facts": {
+                "count": len(compiled["facts"]),
+                "identities": sorted(
+                    (
+                        fact["factKey"],
+                        fact["factValueHash"],
+                        fact["provenanceHash"],
+                    )
+                    for fact in compiled["facts"]
+                ),
+                "identityDigest": _canonical_digest(sorted(
+                    (
+                        fact["factKey"],
+                        fact["factValueHash"],
+                        fact["provenanceHash"],
+                    )
+                    for fact in compiled["facts"]
+                )),
+            },
+            "gaps": {
+                "count": len(gaps),
+                "identities": sorted(
+                    gap["gapKey"] for gap in gaps
+                ),
+                "identityDigest": _canonical_digest(sorted(
+                    gap["gapKey"] for gap in gaps
+                )),
+            },
+        },
         "evidenceGapCount": len(gaps),
     }
     return {"release": release, "snapshot": snapshot, "gate": gate}
@@ -3501,7 +3708,11 @@ def main(argv=None) -> int:
         from .simulator_payload import simc_binary
     except ImportError:
         from simulator_payload import simc_binary
-    socket_bonus_minimums = load_simc_socket_bonus_minimums(simc_binary())
+    socket_bonus_minimums = load_simc_socket_bonus_minimums(
+        simc_binary(),
+        source_identity="simulationcraft:show_bonus_ids",
+        source_revision=args.simc_runtime_revision,
+    )
     gear = build_legacy_gear_release(
         store,
         season_revision=args.season_revision,
