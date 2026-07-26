@@ -21,6 +21,7 @@ WEBSIM_GEAR_STAT_SNAPSHOTS = ROOT / "server" / "migrations" / "postgres" / "0015
 WEBSIM_ATTRIBUTE_RULE_AUDITS = ROOT / "server" / "migrations" / "postgres" / "0016_websim_attribute_rule_audits.sql"
 WEBSIM_HERO_COMMUNITY_RELEASE = ROOT / "server" / "migrations" / "postgres" / "0017_websim_hero_community_release.sql"
 OBSERVED_BUILD_REGISTRY = ROOT / "server" / "migrations" / "postgres" / "0018_observed_build_registry.sql"
+GEAR_EVIDENCE_REGISTRY = ROOT / "server" / "migrations" / "postgres" / "0019_gear_evidence_registry.sql"
 
 
 class PostgresSchemaTest(unittest.TestCase):
@@ -449,3 +450,65 @@ class PostgresSchemaTest(unittest.TestCase):
             normalized,
         )
         self.assertIn("0018_observed_build_registry", normalized)
+
+    def test_gear_evidence_registry_migration_adds_append_only_facts_and_fenced_gaps(self):
+        self.assertTrue(GEAR_EVIDENCE_REGISTRY.exists(), "missing Gear Evidence Registry migration")
+        normalized = " ".join(GEAR_EVIDENCE_REGISTRY.read_text(encoding="utf-8").split())
+        for table in (
+            "cache.websim_gear_evidence_artifacts",
+            "cache.websim_gear_evidence_observations",
+            "cache.websim_gear_canonical_facts",
+            "cache.websim_gear_evidence_invalidations",
+            "ops.websim_gear_evidence_gaps",
+        ):
+            self.assertIn(f"CREATE TABLE IF NOT EXISTS {table}", normalized)
+        self.assertIn(
+            "REFERENCES cache.websim_gear_evidence_artifacts(artifact_id) ON DELETE RESTRICT",
+            normalized,
+        )
+        self.assertIn(
+            "PRIMARY KEY (fact_key, fact_value_hash, provenance_hash)",
+            normalized,
+        )
+        self.assertIn(
+            "idx_cache_websim_gear_canonical_facts_subject",
+            normalized,
+        )
+        self.assertIn(
+            "(season_revision, subject_key, fact_type)",
+            normalized,
+        )
+        for table in (
+            "cache.websim_gear_evidence_artifacts",
+            "cache.websim_gear_evidence_observations",
+            "cache.websim_gear_canonical_facts",
+        ):
+            self.assertIn(f"BEFORE UPDATE OR DELETE ON {table}", normalized)
+            self.assertIn(f"REVOKE UPDATE, DELETE ON {table} FROM wow_app", normalized)
+            self.assertIn(f"GRANT SELECT, INSERT ON {table} TO wow_app", normalized)
+        self.assertIn(
+            "CHECK (status IN ('pending', 'running', 'retryable', 'terminal'))",
+            normalized,
+        )
+        for column in (
+            "attempt",
+            "locked_by",
+            "lock_token",
+            "lease_until",
+            "next_attempt_at",
+            "problem_code",
+            "missing_requirement_json",
+        ):
+            self.assertIn(column, normalized)
+        gap_section = normalized[
+            normalized.index("CREATE TABLE IF NOT EXISTS ops.websim_gear_evidence_gaps"):
+            normalized.index(");", normalized.index("CREATE TABLE IF NOT EXISTS ops.websim_gear_evidence_gaps"))
+        ]
+        self.assertNotIn("fact_value", gap_section)
+        self.assertNotIn("result_json", gap_section)
+        self.assertIn("REVOKE DELETE ON ops.websim_gear_evidence_gaps FROM wow_app", normalized)
+        self.assertIn(
+            "GRANT SELECT, INSERT, UPDATE ON ops.websim_gear_evidence_gaps TO wow_app",
+            normalized,
+        )
+        self.assertIn("0019_gear_evidence_registry", normalized)
