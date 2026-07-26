@@ -131,6 +131,7 @@ class GearEvidenceRegistryTest(unittest.TestCase):
             {"accessToken": "secret"},
             {"nested": {"cookie": "session=abc"}},
             {"entries": [{"api_key": "secret"}]},
+            ({"api_key": "secret"},),
         ):
             with self.subTest(payload=payload):
                 with self.assertRaises(ValueError):
