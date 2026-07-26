@@ -191,6 +191,8 @@ Fact Compiler 不接收玩家当前选择，Resolver 不读取原始 Evidence。
 
 以下字段名是设计合同；实施计划可以在保持语义和身份边界不变的前提下选择具体 PostgreSQL 表名。
 
+实现锚点：纯契约 owner 位于 `server/gear_evidence_registry.py`。`canonical_fact_key(...)` 只散列 season、subject 和 fact type；`fact_value_hash(...)` 独立散列 value/status；`provenance_hash(...)` 独立散列选中的 Observation 引用及 compiler policy revision。`build_evidence_artifact(...)`、`build_evidence_observation(...)` 和 `build_canonical_fact(...)` 仅构造规范化 JSON，不访问网络、时钟或前端状态。
+
 ### 7.1 Evidence Artifact
 
 ```json
