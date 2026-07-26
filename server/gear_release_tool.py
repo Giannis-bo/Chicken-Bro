@@ -17,6 +17,9 @@ try:
     from . import (
         community_winner_projection,
         gear_enhancement_management,
+        gear_evidence_registry,
+        gear_fact_compiler,
+        gear_fact_shadow,
         gear_release,
         gear_release_shadow,
         gear_resolver,
@@ -47,6 +50,9 @@ try:
     from .postgres_cache_store import PostgresCacheStore
 except ImportError:
     import gear_enhancement_management
+    import gear_evidence_registry
+    import gear_fact_compiler
+    import gear_fact_shadow
     import community_winner_projection
     import gear_release
     import gear_release_shadow
@@ -235,6 +241,993 @@ def _materialized_socket_fact_digest(snapshot: dict[str, Any]) -> str:
     items.sort(key=lambda row: row["itemId"])
     variants.sort(key=lambda row: (row["variantId"], row["itemId"], row["variantKey"]))
     return _canonical_digest({"items": items, "variants": variants})
+
+
+_RELEASE_FACT_REF_LIMIT = 8
+
+
+def _release_fact_projection(fact: Mapping[str, Any]) -> dict[str, Any]:
+    observation_refs = sorted(
+        {
+            _text(reference)
+            for reference in fact.get("observationRefs") or ()
+            if _text(reference)
+        }
+    )
+    return {
+        "schemaRevision": _text(fact.get("schemaRevision")),
+        "factKey": _text(fact.get("factKey")),
+        "subjectKey": _text(fact.get("subjectKey")),
+        "factType": _text(fact.get("factType")),
+        "value": _canonical(fact.get("value")),
+        "status": _text(fact.get("status")),
+        "factValueHash": _text(fact.get("factValueHash")),
+        "provenanceHash": _text(fact.get("provenanceHash")),
+        "compilerRuleRevision": _text(fact.get("compilerRuleRevision")),
+        "observationRefs": observation_refs[:_RELEASE_FACT_REF_LIMIT],
+        "observationRefCount": len(observation_refs),
+        "referencesTruncated": len(observation_refs) > _RELEASE_FACT_REF_LIMIT,
+    }
+
+
+def _gear_evidence_gap_records(
+    facts: Iterable[Mapping[str, Any]],
+    *,
+    now: str,
+) -> list[dict[str, Any]]:
+    records = []
+    for gap in gear_fact_compiler.evidence_gaps_from_facts(facts):
+        identity = {
+            "factKey": _text(gap.get("factKey")),
+            "problemCode": _text(gap.get("problemCode")),
+            "missingRequirement": _canonical(gap.get("missingRequirement") or {}),
+        }
+        records.append(
+            {
+                "schemaRevision": "gear-evidence-gap-v1",
+                "gapKey": "gear-gap:" + _canonical_digest(identity),
+                **identity,
+                "status": "pending",
+                "attempt": 0,
+                "nextAttemptAt": _text(now),
+            }
+        )
+    return sorted(records, key=lambda row: row["gapKey"])
+
+
+def _compile_release_gear_evidence(
+    snapshot: dict[str, Any],
+    *,
+    season_revision: str,
+    source_revision: str,
+    captured_at: str,
+    socket_bonus_minimums: Mapping[str, Any],
+) -> dict[str, Any]:
+    artifacts: list[dict[str, Any]] = []
+    observations: list[dict[str, Any]] = []
+    subject_fact_types: dict[str, set[str]] = {}
+    row_subjects: dict[tuple[str, int], str] = {}
+    socket_claims_by_subject: dict[str, list[dict[str, Any]]] = {}
+    socket_eligibility_by_item_id: dict[str, dict[str, Any]] = {}
+    items_by_id = {
+        _text(row.get("itemId")): row
+        for row in snapshot.get("items") or ()
+        if isinstance(row, dict) and _text(row.get("itemId"))
+    }
+    sources_by_item_id: dict[str, list[Mapping[str, Any]]] = {}
+    for source in snapshot.get("sources") or ():
+        if isinstance(source, Mapping) and _text(source.get("itemId")):
+            sources_by_item_id.setdefault(_text(source.get("itemId")), []).append(
+                source
+            )
+
+    def add_artifact(
+        *,
+        source_type: str,
+        source_identity: str,
+        payload: dict[str, Any],
+        fact_specs: Iterable[tuple[str, str, Any, str]],
+        artifact_source_revision: str = "",
+    ) -> None:
+        artifact = gear_evidence_registry.build_evidence_artifact(
+            source_type=source_type,
+            source_identity=source_identity,
+            source_revision=artifact_source_revision or source_revision,
+            season_revision=season_revision,
+            captured_at=captured_at,
+            payload=payload,
+        )
+        artifacts.append(artifact)
+        for subject_key, fact_type, value, source_scope in fact_specs:
+            observations.append(
+                gear_evidence_registry.build_evidence_observation(
+                    artifact_id=artifact["artifactId"],
+                    subject_key=subject_key,
+                    fact_type=fact_type,
+                    observed_value=value,
+                    parser_revision="gear-release-legacy-import-v1",
+                    source_scope=source_scope,
+                    status="accepted",
+                )
+            )
+            subject_fact_types.setdefault(subject_key, set()).add(fact_type)
+
+    def add_socket_inputs(
+        inputs: Iterable[Mapping[str, Any]],
+        *,
+        evidence_row: Mapping[str, Any],
+        official_payload: bool,
+    ) -> None:
+        evidence_payload = (
+            evidence_row.get("payload")
+            if isinstance(evidence_row.get("payload"), Mapping)
+            else {}
+        )
+        canonical_evidence = (
+            evidence_payload.get("canonicalEvidence")
+            if isinstance(evidence_payload.get("canonicalEvidence"), Mapping)
+            else {}
+        )
+        stat_evidence = (
+            evidence_payload.get("statEvidence")
+            if isinstance(evidence_payload.get("statEvidence"), Mapping)
+            else {}
+        )
+        for source_input in inputs:
+            subject_key = _text(source_input.get("subjectKey"))
+            source_type = _text(source_input.get("sourceType"))
+            source_name = _text(source_input.get("source"))
+            source_scope = _text(source_input.get("sourceScope"))
+            input_revision = _text(source_input.get("sourceRevision"))
+            if (
+                not subject_key
+                or not source_type
+                or not source_name
+                or not source_scope
+                or not input_revision
+            ):
+                continue
+            if source_name == "official_item_payload" and not official_payload:
+                continue
+            if source_name == "observed_gem_occupancy" and not (
+                any(
+                    _text(evidence.get("status")).lower() == "verified"
+                    and _text(evidence.get("sourceRevision")) == input_revision
+                    and _text(evidence.get("sourceType")).lower()
+                    in {"simc_item_probe", "observed_profile"}
+                    for evidence in (canonical_evidence, stat_evidence)
+                )
+            ):
+                continue
+            if source_name == "observed_gem_occupancy":
+                source_type = "simc_item_probe"
+            if source_name == "simc_bonus":
+                bonus_revisions = {
+                    _text(value.get("sourceRevision"))
+                    if isinstance(value, Mapping)
+                    else f"simc-bonus:{_text(key)}"
+                    for key, value in socket_bonus_minimums.items()
+                }
+                if input_revision not in bonus_revisions:
+                    continue
+            if source_name.startswith("midnight_s1_") and input_revision != season_revision:
+                continue
+            socket_claims_by_subject.setdefault(subject_key, []).append(
+                {
+                    "minimumTotal": _int(source_input.get("observedValue")),
+                    "scope": source_scope,
+                    "source": source_name,
+                    "sourceRevision": input_revision,
+                }
+            )
+            add_artifact(
+                source_type=source_type,
+                source_identity=(
+                    f"gear-release:socket:{subject_key}:"
+                    f"{source_name}:{input_revision}"
+                ),
+                artifact_source_revision=input_revision or source_revision,
+                payload={
+                    "subjectKey": subject_key,
+                    "factType": "socket_count",
+                    "socketCount": source_input.get("observedValue"),
+                    "source": source_name,
+                    "sourceScope": source_scope,
+                },
+                fact_specs=[
+                    (
+                        subject_key,
+                        "socket_count",
+                        source_input.get("observedValue"),
+                        source_scope,
+                    )
+                ],
+            )
+
+    def official_item_source(payload: Mapping[str, Any]) -> bool:
+        metadata = (
+            payload.get("_metadata")
+            if isinstance(payload.get("_metadata"), Mapping)
+            else {}
+        )
+        game_asset = (
+            metadata.get("gameAsset")
+            if isinstance(metadata.get("gameAsset"), Mapping)
+            else {}
+        )
+        return (
+            _text(game_asset.get("source")).lower() == "blizzard"
+            and _text(game_asset.get("status")).lower() == "verified"
+            and bool(
+                _text(
+                    game_asset.get("sourceRevision")
+                    or metadata.get("sourceRevision")
+                    or payload.get("sourceRevision")
+                )
+            )
+        )
+
+    for index, row in enumerate(snapshot.get("items") or ()):
+        if not isinstance(row, dict) or not _text(row.get("itemId")):
+            continue
+        item_id = _text(row["itemId"])
+        subject = f"item:{item_id}"
+        row_subjects[("items", index)] = subject
+        subject_fact_types.setdefault(subject, set()).update(
+            {
+                "item_identity",
+                "slot_compatibility",
+                "socket_count",
+                "enchant_capability",
+                "embellishment_capability",
+                "item_set_membership",
+            }
+        )
+        payload = row.get("payload") if isinstance(row.get("payload"), dict) else {}
+        canonical_evidence = (
+            payload.get("canonicalEvidence")
+            if isinstance(payload.get("canonicalEvidence"), dict)
+            else {}
+        )
+        structural_revision = _text(canonical_evidence.get("sourceRevision"))
+        structural_claims = {
+            _text(value)
+            for value in canonical_evidence.get("claims") or ()
+            if _text(value)
+        }
+        structural_verified = (
+            _text(canonical_evidence.get("status")).lower() == "verified"
+            and _text(canonical_evidence.get("sourceType")).lower()
+            == "season_rule"
+            and bool(_text(canonical_evidence.get("sourceIdentity")))
+            and bool(structural_revision)
+            and _text(canonical_evidence.get("sourceScope")).lower()
+            in {"base_item", "exact_item", "season_rule"}
+        )
+        capabilities = (
+            payload.get("baseCapabilities")
+            if isinstance(payload.get("baseCapabilities"), dict)
+            else {}
+        )
+        is_official = official_item_source(payload)
+        official_specs: list[tuple[str, str, Any, str]] = []
+        if is_official:
+            official_specs.append(
+                (subject, "item_identity", {"itemId": item_id}, "base_item")
+            )
+        allowed_slots = payload.get("allowedSlots")
+        if not isinstance(allowed_slots, list) or not allowed_slots:
+            allowed_slots = [_text(row.get("slot"))] if _text(row.get("slot")) else []
+        if is_official and allowed_slots:
+            official_specs.append(
+                (
+                    subject,
+                    "slot_compatibility",
+                    sorted({_text(slot) for slot in allowed_slots if _text(slot)}),
+                    "base_item",
+                )
+            )
+        structural_specs: list[tuple[str, str, Any, str]] = []
+        for field, fact_type in (
+            ("canEnchant", "enchant_capability"),
+            ("canEmbellish", "embellishment_capability"),
+        ):
+            if (
+                structural_verified
+                and fact_type in structural_claims
+                and field in capabilities
+            ):
+                structural_specs.append(
+                    (
+                        subject,
+                        fact_type,
+                        capabilities[field],
+                        _text(canonical_evidence.get("sourceScope")).lower(),
+                    )
+                )
+        if official_specs:
+            metadata = (
+                payload.get("_metadata")
+                if isinstance(payload.get("_metadata"), dict)
+                else {}
+            )
+            game_asset = (
+                metadata.get("gameAsset")
+                if isinstance(metadata.get("gameAsset"), dict)
+                else {}
+            )
+            official_revision = _text(
+                game_asset.get("sourceRevision")
+                or metadata.get("sourceRevision")
+                or payload.get("sourceRevision")
+            )
+            add_artifact(
+                source_type="battle_net_item",
+                source_identity=f"gear-release:item:{item_id}",
+                artifact_source_revision=official_revision,
+                payload={
+                    "itemId": item_id,
+                    "officialMetadata": _canonical(metadata),
+                    "allowedSlots": allowed_slots,
+                    "capabilities": _canonical(capabilities),
+                },
+                fact_specs=official_specs,
+            )
+        if structural_specs:
+            add_artifact(
+                source_type="season_rule",
+                source_identity=_text(canonical_evidence.get("sourceIdentity")),
+                artifact_source_revision=structural_revision,
+                payload={
+                    "subjectKey": subject,
+                    "capabilities": {
+                        key: capabilities[key]
+                        for key in ("canEnchant", "canEmbellish")
+                        if key in capabilities
+                    },
+                },
+                fact_specs=structural_specs,
+            )
+        socket_item = _canonical(row)
+        eligibility = gear_socket_authority._active_pve_catalog_socket_eligibility(
+            socket_item,
+            sources_by_item_id.get(item_id, []),
+            season_revision,
+        )
+        if isinstance(eligibility, Mapping):
+            socket_item["socketEligibility"] = _canonical(eligibility)
+            socket_eligibility_by_item_id[item_id] = _canonical(eligibility)
+        add_socket_inputs(
+            gear_socket_authority.derive_item_socket_observation_inputs(
+                socket_item,
+                season_revision,
+            ),
+            evidence_row=row,
+            official_payload=is_official,
+        )
+
+    for index, row in enumerate(snapshot.get("variants") or ()):
+        if (
+            not isinstance(row, dict)
+            or not _text(row.get("itemId"))
+            or not _text(row.get("variantKey"))
+        ):
+            continue
+        item_id = _text(row["itemId"])
+        variant_key = _text(row["variantKey"])
+        subject = f"item:{item_id}/variant:{variant_key}"
+        row_subjects[("variants", index)] = subject
+        subject_fact_types.setdefault(subject, set()).update(
+            {
+                "item_identity",
+                "slot_compatibility",
+                "variant_track",
+                "static_stats",
+                "socket_count",
+                "enchant_capability",
+                "embellishment_capability",
+                "allowed_enhancement_options",
+                "item_set_membership",
+            }
+        )
+        payload = row.get("payload") if isinstance(row.get("payload"), dict) else {}
+        canonical_evidence = (
+            payload.get("canonicalEvidence")
+            if isinstance(payload.get("canonicalEvidence"), dict)
+            else {}
+        )
+        evidence_revision = _text(canonical_evidence.get("sourceRevision"))
+        evidence_type = _text(canonical_evidence.get("sourceType")).lower()
+        evidence_scope = _text(
+            canonical_evidence.get("sourceScope")
+        ).lower()
+        evidence_claims = {
+            _text(value)
+            for value in canonical_evidence.get("claims") or ()
+            if _text(value)
+        }
+        evidence_verified = (
+            _text(canonical_evidence.get("status")).lower() == "verified"
+            and bool(_text(canonical_evidence.get("sourceIdentity")))
+            and bool(evidence_revision)
+            and evidence_scope == "exact_variant"
+            and evidence_type in {"battle_net_item", "season_rule"}
+        )
+        stat_evidence = (
+            payload.get("statEvidence")
+            if isinstance(payload.get("statEvidence"), dict)
+            else {}
+        )
+        stat_revision = _text(stat_evidence.get("sourceRevision"))
+        stat_claims = {
+            _text(value)
+            for value in stat_evidence.get("claims") or ()
+            if _text(value)
+        }
+        stat_evidence_verified = (
+            _text(stat_evidence.get("status")).lower() == "verified"
+            and _text(stat_evidence.get("sourceType")).lower()
+            == "simc_item_probe"
+            and bool(_text(stat_evidence.get("sourceIdentity")))
+            and bool(stat_revision)
+            and _text(stat_evidence.get("sourceScope")).lower()
+            == "exact_variant"
+        )
+        capabilities = (
+            payload.get("capabilityOverrides")
+            if isinstance(payload.get("capabilityOverrides"), dict)
+            else {}
+        )
+        specs: list[tuple[str, str, Any, str]] = []
+        if evidence_verified and "slot_compatibility" in evidence_claims and _text(row.get("slot")):
+            specs.append(
+                (
+                    subject,
+                    "slot_compatibility",
+                    [_text(row.get("slot"))],
+                    "exact_variant",
+                )
+            )
+        for field, fact_type in (
+            ("canEnchant", "enchant_capability"),
+            ("canEmbellish", "embellishment_capability"),
+        ):
+            if (
+                evidence_verified
+                and fact_type in evidence_claims
+                and field in capabilities
+            ):
+                specs.append(
+                    (subject, fact_type, capabilities[field], "exact_variant")
+                )
+        if specs:
+            add_artifact(
+                source_type=evidence_type,
+                source_identity=_text(canonical_evidence.get("sourceIdentity")),
+                artifact_source_revision=evidence_revision,
+                payload={
+                    "subjectKey": subject,
+                    "slot": _text(row.get("slot")),
+                    "capabilities": {
+                        key: capabilities[key]
+                        for key in ("canEnchant", "canEmbellish")
+                        if key in capabilities
+                    },
+                },
+                fact_specs=specs,
+            )
+        item_row = _canonical(items_by_id.get(item_id, {}))
+        item_payload = (
+            item_row.get("payload")
+            if isinstance(item_row.get("payload"), dict)
+            else {}
+        )
+        item_is_official = official_item_source(item_payload)
+        eligibility = gear_socket_authority._active_pve_catalog_socket_eligibility(
+            item_row,
+            sources_by_item_id.get(item_id, []),
+            season_revision,
+        )
+        if isinstance(eligibility, Mapping):
+            item_row["socketEligibility"] = _canonical(eligibility)
+        add_socket_inputs(
+            gear_socket_authority.derive_variant_socket_observation_inputs(
+                item_row,
+                row,
+                season_revision,
+                socket_bonus_minimums,
+            ),
+            evidence_row=row,
+            official_payload=item_is_official,
+        )
+        resolved_stats = payload.get("resolvedStats")
+        if (
+            isinstance(resolved_stats, dict)
+            and resolved_stats
+            and stat_evidence_verified
+            and "static_stats" in stat_claims
+        ):
+            stat_specs: list[tuple[str, str, Any, str]] = [
+                (subject, "static_stats", resolved_stats, "exact_variant")
+            ]
+            if (
+                _text(row.get("difficultyKey"))
+                and "variant_track" in stat_claims
+                and isinstance(row.get("itemLevel"), int)
+                and not isinstance(row.get("itemLevel"), bool)
+                and row["itemLevel"] > 0
+            ):
+                stat_specs.append(
+                    (
+                        subject,
+                        "variant_track",
+                        {
+                            "itemId": item_id,
+                            "variantKey": variant_key,
+                            "track": _text(row.get("difficultyKey")),
+                            "itemLevel": row["itemLevel"],
+                        },
+                        "exact_variant",
+                    )
+                )
+            add_artifact(
+                source_type="simc_item_probe",
+                source_identity=_text(stat_evidence.get("sourceIdentity")),
+                artifact_source_revision=stat_revision,
+                payload={
+                    "itemId": item_id,
+                    "variantKey": variant_key,
+                    "staticStats": _canonical(resolved_stats),
+                },
+                fact_specs=stat_specs,
+            )
+
+    variants_by_id = {
+        _text(row.get("variantId")): row
+        for row in snapshot.get("variants") or ()
+        if isinstance(row, dict) and _text(row.get("variantId"))
+    }
+    for index, row in enumerate(snapshot.get("options") or ()):
+        if not isinstance(row, dict) or not _text(row.get("optionId")):
+            continue
+        option_id = _text(row["optionId"])
+        subject = f"option:{option_id}"
+        row_subjects[("options", index)] = subject
+        subject_fact_types.setdefault(subject, set()).add(
+            "enhancement_option"
+        )
+        variant = variants_by_id.get(_text(row.get("variantId")), {})
+        item_id = _text(variant.get("itemId")) or "release-option"
+        payload = row.get("payload") if isinstance(row.get("payload"), dict) else {}
+        effect = (
+            row.get("simcOptions")
+            if isinstance(row.get("simcOptions"), dict) and row.get("simcOptions")
+            else payload.get("effect")
+        )
+        value = {
+            "optionId": option_id,
+            "optionType": (
+                "gem"
+                if _text(row.get("optionType")).lower() in {"socket", "gem"}
+                else _text(row.get("optionType")).lower()
+            ),
+            "effect": _canonical(effect if isinstance(effect, dict) else {}),
+            "applicableScopes": sorted(
+                {
+                    _text(scope)
+                    for scope in row.get("applicableSlots") or ()
+                    if _text(scope)
+                }
+            ),
+        }
+        evidence_source = _text(
+            payload.get("evidenceSource")
+            or payload.get("metadataSource")
+            or payload.get("source")
+        ).lower()
+        option_evidence = (
+            payload.get("optionEvidence")
+            if isinstance(payload.get("optionEvidence"), dict)
+            else {}
+        )
+        option_source_type = _text(option_evidence.get("sourceType")).lower()
+        option_source_revision = _text(option_evidence.get("sourceRevision"))
+        if (
+            _text(option_evidence.get("status")).lower() == "verified"
+            and option_source_type in {"battle_net_item", "simc_item_probe"}
+            and bool(_text(option_evidence.get("sourceIdentity")))
+            and bool(option_source_revision)
+            and _text(option_evidence.get("sourceScope")).lower()
+            in {"option", "exact_item", "exact_variant", "season_rule"}
+        ):
+            add_artifact(
+                source_type=option_source_type,
+                source_identity=_text(option_evidence.get("sourceIdentity")),
+                artifact_source_revision=option_source_revision,
+                payload={
+                    "itemId": item_id,
+                    "enhancementOption": value,
+                    "evidenceSource": evidence_source or option_source_type,
+                },
+                fact_specs=[
+                    (
+                        subject,
+                        "enhancement_option",
+                        value,
+                        _text(option_evidence.get("sourceScope")).lower(),
+                    ),
+                ],
+            )
+
+    artifacts_by_id = {
+        artifact["artifactId"]: artifact for artifact in artifacts
+    }
+    observations_by_subject: dict[str, list[dict[str, Any]]] = {}
+    for observation in observations:
+        observations_by_subject.setdefault(
+            observation["subjectKey"], []
+        ).append(observation)
+    facts: list[dict[str, Any]] = []
+    for subject in sorted(subject_fact_types):
+        subject_observations = observations_by_subject.get(subject, [])
+        facts.extend(
+            gear_fact_compiler.compile_subject_facts(
+                season_revision=season_revision,
+                subject_key=subject,
+                observations=subject_observations,
+                artifacts=[
+                    artifacts_by_id[artifact_id]
+                    for artifact_id in sorted(
+                        {
+                            observation["artifactId"]
+                            for observation in subject_observations
+                        }
+                    )
+                ],
+                fact_types=subject_fact_types[subject],
+            )
+        )
+    return {
+        "artifacts": sorted(artifacts, key=lambda row: row["artifactId"]),
+        "observations": sorted(
+            observations, key=lambda row: row["observationId"]
+        ),
+        "facts": sorted(
+            facts,
+            key=lambda row: (
+                row["subjectKey"],
+                row["factType"],
+                row["factKey"],
+            ),
+        ),
+        "rowSubjects": row_subjects,
+        "socketClaimsBySubject": {
+            subject: sorted(
+                claims,
+                key=lambda claim: (
+                    claim["source"],
+                    claim["sourceRevision"],
+                    claim["scope"],
+                    claim["minimumTotal"],
+                ),
+            )
+            for subject, claims in socket_claims_by_subject.items()
+        },
+        "socketEligibilityByItemId": socket_eligibility_by_item_id,
+        "expectedFactTypesBySubject": {
+            subject: sorted(fact_types)
+            for subject, fact_types in subject_fact_types.items()
+        },
+    }
+
+
+def _project_canonical_facts(
+    snapshot: dict[str, Any],
+    facts: Iterable[Mapping[str, Any]],
+    row_subjects: Mapping[tuple[str, int], str],
+    *,
+    socket_claims_by_subject: Mapping[str, list[dict[str, Any]]],
+    socket_eligibility_by_item_id: Mapping[str, dict[str, Any]],
+) -> dict[str, Any]:
+    projected = _canonical(snapshot)
+    facts_by_subject: dict[str, list[Mapping[str, Any]]] = {}
+    for fact in facts:
+        facts_by_subject.setdefault(_text(fact.get("subjectKey")), []).append(fact)
+    for category in ("items", "variants", "options"):
+        for index, row in enumerate(projected.get(category) or ()):
+            if not isinstance(row, dict):
+                continue
+            subject = _text(row_subjects.get((category, index)))
+            if not subject:
+                continue
+            subject_facts = facts_by_subject.get(subject, [])
+            payload = (
+                _canonical(row.get("payload"))
+                if isinstance(row.get("payload"), dict)
+                else {}
+            )
+            payload["canonicalFacts"] = sorted(
+                [_release_fact_projection(fact) for fact in subject_facts],
+                key=lambda fact: (fact["factType"], fact["factKey"]),
+            )
+            facts_by_type = {
+                _text(fact.get("factType")): fact
+                for fact in subject_facts
+            }
+            capability_field = (
+                "baseCapabilities"
+                if category == "items"
+                else "capabilityOverrides"
+            )
+            if category in {"items", "variants"}:
+                capabilities = (
+                    _canonical(payload.get(capability_field))
+                    if isinstance(payload.get(capability_field), dict)
+                    else {}
+                )
+                for fact_type, field in (
+                    ("socket_count", "socketCount"),
+                    ("enchant_capability", "canEnchant"),
+                    ("embellishment_capability", "canEmbellish"),
+                ):
+                    fact = facts_by_type.get(fact_type, {})
+                    if fact.get("status") == "verified":
+                        capabilities[field] = _canonical(fact.get("value"))
+                    else:
+                        capabilities.pop(field, None)
+                payload[capability_field] = capabilities
+                socket_fact = facts_by_type.get("socket_count", {})
+                if socket_fact.get("status") == "verified":
+                    payload["socketEvidence"] = {
+                        "schemaRevision": gear_socket_authority.SOCKET_FACT_SCHEMA_REVISION,
+                        "authorityRevision": gear_socket_authority.CAPABILITY_REVISION,
+                        "minimumTotal": _int(socket_fact.get("value")),
+                        "claims": _canonical(
+                            socket_claims_by_subject.get(subject, [])
+                        ),
+                        "canonicalFactRef": {
+                            "factKey": _text(socket_fact.get("factKey")),
+                            "factValueHash": _text(
+                                socket_fact.get("factValueHash")
+                            ),
+                            "provenanceHash": _text(
+                                socket_fact.get("provenanceHash")
+                            ),
+                        },
+                    }
+                else:
+                    payload.pop("socketEvidence", None)
+                static_fact = facts_by_type.get("static_stats", {})
+                if static_fact.get("status") == "verified":
+                    payload["resolvedStats"] = _canonical(
+                        static_fact.get("value")
+                    )
+                elif category == "variants":
+                    payload.pop("resolvedStats", None)
+            if category == "items":
+                eligibility = socket_eligibility_by_item_id.get(
+                    _text(row.get("itemId"))
+                )
+                if isinstance(eligibility, Mapping):
+                    payload["socketEligibility"] = _canonical(eligibility)
+            if category == "options":
+                option_fact = facts_by_type.get("enhancement_option", {})
+                if option_fact.get("status") != "verified":
+                    row["status"] = "blocked"
+                    row["isVisible"] = False
+            row["payload"] = payload
+    return projected
+
+
+def _project_canonical_enhancement_management(
+    snapshot: dict[str, Any],
+    *,
+    capability_revision: str,
+) -> dict[str, Any]:
+    """Project field governance only from sealed canonical Facts and explicit echoes."""
+
+    projected = _canonical(snapshot)
+    if capability_revision != gear_socket_authority.CAPABILITY_REVISION:
+        for variant in projected.get("variants") or ():
+            if isinstance(variant, dict):
+                payload = (
+                    _canonical(variant.get("payload"))
+                    if isinstance(variant.get("payload"), dict)
+                    else {}
+                )
+                payload.pop("enhancementManagement", None)
+                variant["payload"] = payload
+        return projected
+
+    def verified_facts(row: Mapping[str, Any]) -> dict[str, Mapping[str, Any]]:
+        payload = row.get("payload") if isinstance(row.get("payload"), Mapping) else {}
+        return {
+            _text(fact.get("factType")): fact
+            for fact in payload.get("canonicalFacts") or ()
+            if isinstance(fact, Mapping) and fact.get("status") == "verified"
+        }
+
+    canonical_options: list[dict[str, Any]] = []
+    for option in projected.get("options") or ():
+        if not isinstance(option, dict):
+            continue
+        fact = verified_facts(option).get("enhancement_option")
+        value = fact.get("value") if isinstance(fact, Mapping) else {}
+        if not isinstance(value, Mapping):
+            continue
+        if _text(option.get("optionType")).lower() in {"socket", "gem"}:
+            option["applicableSlots"] = ["*"]
+        canonical_options.append(
+            {
+                "optionType": (
+                    "gem"
+                    if _text(value.get("optionType")).lower() in {"socket", "gem"}
+                    else _text(value.get("optionType")).lower()
+                ),
+                "effect": _canonical(
+                    value.get("effect")
+                    if isinstance(value.get("effect"), Mapping)
+                    else {}
+                ),
+                "scopes": {
+                    normalize_slot(scope)
+                    for scope in value.get("applicableScopes") or ()
+                    if _text(scope)
+                },
+            }
+        )
+
+    items_by_id = {
+        _text(item.get("itemId")): item
+        for item in projected.get("items") or ()
+        if isinstance(item, dict) and _text(item.get("itemId"))
+    }
+
+    def option_applies(option: Mapping[str, Any], slot: str) -> bool:
+        scopes = option.get("scopes") if isinstance(option.get("scopes"), set) else set()
+        return not scopes or "*" in scopes or slot in scopes
+
+    def verified_simc_echo(
+        variant: Mapping[str, Any],
+        payload: Mapping[str, Any],
+        field: str,
+        raw_value: str,
+    ) -> bool:
+        evidence = (
+            payload.get("statEvidence")
+            if isinstance(payload.get("statEvidence"), Mapping)
+            else {}
+        )
+        claims = {_text(value) for value in evidence.get("claims") or ()}
+        if not (
+            evidence.get("status") == "verified"
+            and evidence.get("sourceType") == "simc_item_probe"
+            and _text(evidence.get("sourceIdentity"))
+            and _text(evidence.get("sourceRevision"))
+            and "enhancement_echo" in claims
+        ):
+            return False
+        encoded = payload.get("simcEncodedItem")
+        if not isinstance(encoded, str) or encoded != encoded.strip():
+            return False
+        encoded_options = simc_encoded_item_options(encoded)
+        raw_options = (
+            variant.get("simcOptions")
+            if isinstance(variant.get("simcOptions"), Mapping)
+            else {}
+        )
+        return (
+            _text(encoded_options.get("id")) == _text(variant.get("itemId"))
+            and _int(encoded_options.get("ilevel")) == _int(variant.get("itemLevel"))
+            and normalize_option_value(encoded_options.get(field))
+            == normalize_option_value(raw_value)
+            and normalize_option_value(raw_options.get(field))
+            == normalize_option_value(raw_value)
+        )
+
+    for variant in projected.get("variants") or ():
+        if not isinstance(variant, dict):
+            continue
+        payload = (
+            _canonical(variant.get("payload"))
+            if isinstance(variant.get("payload"), dict)
+            else {}
+        )
+        payload.pop("editorManagedSimcFields", None)
+        payload.pop("enhancementManagement", None)
+        item = items_by_id.get(_text(variant.get("itemId")), {})
+        item_facts = verified_facts(item)
+        variant_facts = verified_facts(variant)
+        slot_fact = variant_facts.get("slot_compatibility")
+        slot_values = (
+            slot_fact.get("value")
+            if isinstance(slot_fact, Mapping)
+            and isinstance(slot_fact.get("value"), list)
+            else []
+        )
+        if not slot_values:
+            item_slot_fact = item_facts.get("slot_compatibility")
+            slot_values = (
+                item_slot_fact.get("value")
+                if isinstance(item_slot_fact, Mapping)
+                and isinstance(item_slot_fact.get("value"), list)
+                else []
+            )
+        slot = normalize_slot(slot_values[0] if len(slot_values) == 1 else "")
+        socket_fact = variant_facts.get("socket_count") or item_facts.get("socket_count")
+        enchant_fact = (
+            variant_facts.get("enchant_capability")
+            or item_facts.get("enchant_capability")
+        )
+        embellish_fact = (
+            variant_facts.get("embellishment_capability")
+            or item_facts.get("embellishment_capability")
+        )
+        socket_count = (
+            _int(socket_fact.get("value"))
+            if isinstance(socket_fact, Mapping)
+            else 0
+        )
+        can_enchant = (
+            enchant_fact.get("value") is True
+            if isinstance(enchant_fact, Mapping)
+            else False
+        )
+        can_embellish = (
+            embellish_fact.get("value") is True
+            if isinstance(embellish_fact, Mapping)
+            else False
+        )
+        raw_options = (
+            variant.get("simcOptions")
+            if isinstance(variant.get("simcOptions"), dict)
+            else {}
+        )
+        classifications: dict[str, str] = {}
+        for field in _ENHANCEMENT_SIMC_FIELDS:
+            raw_value = _text(raw_options.get(field))
+            if not raw_value:
+                continue
+            editor_managed = False
+            if field in _GEM_SIMC_SEQUENCE_FIELDS:
+                editor_managed = socket_count > 0 and any(
+                    option["optionType"] == "gem"
+                    for option in canonical_options
+                )
+            elif field == "enchant_id" and "/" not in raw_value:
+                editor_managed = can_enchant and any(
+                    option["optionType"] in {"enchant", "runeforge"}
+                    and option_applies(option, slot)
+                    and normalize_option_value(option["effect"].get(field))
+                    == normalize_option_value(raw_value)
+                    for option in canonical_options
+                )
+            elif field == "embellishment":
+                editor_managed = can_embellish and any(
+                    option["optionType"] == "embellishment"
+                    and option_applies(option, slot)
+                    and normalize_option_value(option["effect"].get(field))
+                    == normalize_option_value(raw_value)
+                    for option in canonical_options
+                )
+            classifications[field] = (
+                "editor_managed"
+                if editor_managed
+                else "unresolved_drop"
+                if field in _GEM_SIMC_SEQUENCE_FIELDS
+                else "source_only"
+                if verified_simc_echo(variant, payload, field, raw_value)
+                else "unresolved_drop"
+            )
+        management = gear_enhancement_management.seal_enhancement_management(
+            raw_options,
+            classifications,
+            capability_revision,
+        )
+        if management:
+            payload["enhancementManagement"] = management
+        variant["payload"] = payload
+    return projected
 
 
 def _project_socket_facts_into_release_payloads(snapshot: dict[str, Any]) -> dict[str, Any]:
@@ -1558,19 +2551,86 @@ def prepare_staging_gear_release(
     socket_bonus_minimums: Mapping[str, Any],
     source_revision: str = "legacy-import-r0",
     parent_release_id: str = "",
+    evidence_now: str = "",
 ) -> dict[str, Any]:
     if not isinstance(socket_bonus_minimums, Mapping) or not socket_bonus_minimums:
         raise GearReleaseIntegrityError("socket bonus evidence must be a non-empty mapping")
     normalized_bonus_minimums = socket_bonus_minimums
-    snapshot = _materialize_enhancement_management(
+    captured_at = _text(evidence_now) or datetime.now(timezone.utc).isoformat()
+    raw_snapshot = store.snapshot_staging_gear()
+    legacy_socket_input = _canonical(raw_snapshot)
+    for category, field in (
+        ("items", "baseCapabilities"),
+        ("variants", "capabilityOverrides"),
+    ):
+        for row in legacy_socket_input.get(category) or ():
+            if not isinstance(row, dict):
+                continue
+            payload = row.get("payload") if isinstance(row.get("payload"), dict) else {}
+            if isinstance(payload.get(field), dict):
+                row[field] = _canonical(payload[field])
+    legacy_snapshot = _materialize_enhancement_management(
         _project_socket_facts_into_release_payloads(
             gear_socket_authority.materialize_gear_socket_facts(
-                store.snapshot_staging_gear(),
+                legacy_socket_input,
                 season_revision=season_revision,
                 socket_bonus_minimums=normalized_bonus_minimums,
             )
         ),
         _text(dependency_revisions.get("capabilityRevision")),
+    )
+    # Enhancement Option Facts compare against the accepted source records,
+    # before the legacy materializer broadens gem applicability for runtime use.
+    legacy_snapshot["options"] = _canonical(raw_snapshot.get("options") or [])
+    compiled = _compile_release_gear_evidence(
+        raw_snapshot,
+        season_revision=season_revision,
+        source_revision=source_revision,
+        captured_at=captured_at,
+        socket_bonus_minimums=normalized_bonus_minimums,
+    )
+    gaps = _gear_evidence_gap_records(compiled["facts"], now=captured_at)
+    persist = getattr(store, "persist_gear_evidence_bundle", None)
+    if not callable(persist):
+        raise GearReleaseIntegrityError(
+            "Gear Evidence Registry persistence owner is required"
+        )
+    persistence = persist(
+        artifacts=compiled["artifacts"],
+        observations=compiled["observations"],
+        facts=compiled["facts"],
+        gaps=gaps,
+        now=captured_at,
+    )
+    shadow = gear_fact_shadow.compare_legacy_and_canonical(
+        legacy_snapshot,
+        compiled["facts"],
+        expected_fact_types_by_subject=compiled[
+            "expectedFactTypesBySubject"
+        ],
+    )
+    if shadow["status"] != "pass":
+        raise GearReleaseIntegrityError(
+            "canonical fact shadow blocked candidate: "
+            + ", ".join(
+                _text(blocker.get("code"))
+                for blocker in shadow.get("blockers") or ()
+            )
+        )
+    snapshot = _project_canonical_facts(
+        raw_snapshot,
+        compiled["facts"],
+        compiled["rowSubjects"],
+        socket_claims_by_subject=compiled["socketClaimsBySubject"],
+        socket_eligibility_by_item_id=compiled[
+            "socketEligibilityByItemId"
+        ],
+    )
+    snapshot = _project_canonical_enhancement_management(
+        snapshot,
+        capability_revision=_text(
+            dependency_revisions.get("capabilityRevision")
+        ),
     )
     problems = validate_gear_snapshot(snapshot)
     if problems:
@@ -1590,11 +2650,35 @@ def prepare_staging_gear_release(
                 "simcRuntimeRevision": _text(dependency_revisions.get("simcRuntimeRevision")),
                 "socketProbeDigest": _socket_probe_digest(normalized_bonus_minimums),
                 "materializedSocketFactDigest": _materialized_socket_fact_digest(snapshot),
+                "compilerPolicyDigest": _canonical_digest(
+                    gear_fact_compiler.FACT_POLICIES
+                ),
+                "canonicalFactDigest": _canonical_digest(
+                    sorted([
+                        {
+                            "factKey": fact["factKey"],
+                            "status": fact["status"],
+                            "factValueHash": fact["factValueHash"],
+                            "provenanceHash": fact["provenanceHash"],
+                        }
+                        for fact in compiled["facts"]
+                    ], key=lambda fact: (
+                        fact["factKey"],
+                        fact["factValueHash"],
+                        fact["provenanceHash"],
+                    ))
+                ),
             },
         },
         parent_release_id=parent_release_id,
     )
-    gate = {"status": "validated", **summary}
+    gate = {
+        "status": "validated",
+        **summary,
+        "factShadow": shadow,
+        "evidencePersistence": persistence,
+        "evidenceGapCount": len(gaps),
+    }
     return {"release": release, "snapshot": snapshot, "gate": gate}
 
 

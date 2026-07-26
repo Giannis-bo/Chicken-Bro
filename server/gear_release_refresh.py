@@ -52,6 +52,15 @@ def _text(value: Any) -> str:
     return str(value or "").strip()
 
 
+def _int(value: Any) -> int:
+    if isinstance(value, bool):
+        return 0
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError, OverflowError):
+        return 0
+
+
 def _simc_probe_identity_from_status(status: Mapping[str, Any]) -> tuple[str, str]:
     binary_path = _text(status.get("binaryPath"))
     revision = _text(status.get("sourceCommit") or status.get("simcRuntimeRevision"))
@@ -263,6 +272,7 @@ def build_staging_candidates(
         socket_bonus_minimums=socket_bonus_minimums,
         source_revision=_text(active_gear_source.get("sourceRevision")) or "scheduled-refresh-v1",
         parent_release_id=_text(active_gear.get("parentReleaseId")),
+        evidence_now=now,
     )
     snapshot = prepared_gear.get("snapshot") if isinstance(prepared_gear.get("snapshot"), dict) else {}
     gear_change = classify_gear_change(
@@ -303,12 +313,73 @@ def build_staging_candidates(
         if isinstance(candidate_gear_source.get("sourceEvidence"), dict)
         else {}
     )
+    fact_shadow = (
+        prepared_gear.get("gate", {}).get("factShadow")
+        if isinstance(prepared_gear.get("gate"), dict)
+        else {}
+    )
+    evidence_persistence = (
+        prepared_gear.get("gate", {}).get("evidencePersistence")
+        if isinstance(prepared_gear.get("gate"), dict)
+        else {}
+    )
+    projected_fact_refs = {
+        (
+            _text(fact.get("factKey")),
+            _text(fact.get("factValueHash")),
+            _text(fact.get("provenanceHash")),
+        )
+        for category in ("items", "variants", "options")
+        for row in snapshot.get(category) or ()
+        if isinstance(row, dict) and isinstance(row.get("payload"), dict)
+        for fact in row["payload"].get("canonicalFacts") or ()
+        if isinstance(fact, dict)
+    }
+    persistence_complete = (
+        isinstance(evidence_persistence, dict)
+        and all(
+            isinstance(evidence_persistence.get(owner), dict)
+            for owner in ("artifacts", "observations", "facts", "gaps")
+        )
+        and all(all(identity) for identity in projected_fact_refs)
+        and _int(evidence_persistence["facts"].get("persisted"))
+        == len(projected_fact_refs)
+        and _int(evidence_persistence["artifacts"].get("persisted")) >= 0
+        and _int(evidence_persistence["observations"].get("persisted")) >= 0
+        and (
+            _int(evidence_persistence["gaps"].get("inserted"))
+            + _int(evidence_persistence["gaps"].get("reused"))
+        )
+        == _int(prepared_gear.get("gate", {}).get("evidenceGapCount"))
+    )
+    canonical_snapshot_complete = all(
+        isinstance(row.get("payload"), dict)
+        and isinstance(row["payload"].get("canonicalFacts"), list)
+        and bool(row["payload"]["canonicalFacts"])
+        for category in ("items", "variants", "options")
+        for row in snapshot.get(category) or ()
+        if isinstance(row, dict)
+    )
+    if (
+        not isinstance(fact_shadow, dict)
+        or fact_shadow.get("status") != "pass"
+        or fact_shadow.get("blockers")
+        or not persistence_complete
+        or not canonical_snapshot_complete
+    ):
+        raise RuntimeError(
+            "candidate canonical fact persistence/shadow gate is incomplete"
+        )
     active_socket_fact_digest = _text(active_source_evidence.get("materializedSocketFactDigest"))
     candidate_socket_fact_digest = _text(
         candidate_source_evidence.get("materializedSocketFactDigest")
     )
     if not candidate_socket_fact_digest:
         raise RuntimeError("candidate materialized socket fact digest is required")
+    if not _text(candidate_source_evidence.get("compilerPolicyDigest")) or not _text(
+        candidate_source_evidence.get("canonicalFactDigest")
+    ):
+        raise RuntimeError("candidate canonical fact digests are required")
     if (
         not season_changed
         and candidate_socket_fact_digest

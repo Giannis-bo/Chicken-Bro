@@ -142,6 +142,19 @@ def passing_shadow(status="pass", expected_count=1):
     }
 
 
+def canonical_fact_gate():
+    return {
+        "status": "validated",
+        "factShadow": {"status": "pass", "blockers": []},
+        "evidencePersistence": {
+            "artifacts": {"persisted": 1},
+            "observations": {"persisted": 1},
+            "facts": {"persisted": 1},
+            "gaps": {"inserted": 0, "reused": 0},
+        },
+    }
+
+
 class GearReleaseRefreshPolicyTest(unittest.TestCase):
     def test_simc_probe_identity_requires_binary_and_revision_from_same_status(self):
         from server import gear_release_refresh
@@ -215,7 +228,15 @@ class GearReleaseRefreshPolicyTest(unittest.TestCase):
 
     def test_actual_candidate_builder_seals_inactive_pair_before_returning(self):
         store = FakeStore()
-        item = {"itemId": "1", "name": "A"}
+        item = {
+            "itemId": "1",
+            "name": "A",
+            "payload": {"canonicalFacts": [{
+                "factKey": "fact:item:1",
+                "factValueHash": "sha256:value",
+                "provenanceHash": "sha256:provenance",
+            }]},
+        }
         snapshot = {"items": [item], "sources": [], "variants": [], "options": []}
         store.row_hashes = {
             "items": {"1": canonical_row_hash(item)},
@@ -247,6 +268,8 @@ class GearReleaseRefreshPolicyTest(unittest.TestCase):
         candidate_gear = store.binding["gearRelease"]
         candidate_gear["source"]["sourceEvidence"] = {
             "materializedSocketFactDigest": "sha256:stable-socket-facts",
+            "compilerPolicyDigest": "sha256:stable-policy",
+            "canonicalFactDigest": "sha256:stable-facts",
         }
         _unused, candidate_community = release_pair("candidate", gear=candidate_gear)
 
@@ -260,7 +283,7 @@ class GearReleaseRefreshPolicyTest(unittest.TestCase):
             gear_preparer=lambda *_args, **_kwargs: {
                 "release": candidate_gear,
                 "snapshot": snapshot,
-                "gate": {"status": "validated"},
+                "gate": canonical_fact_gate(),
             },
             community_preparer=lambda *_args, **_kwargs: {
                 "release": candidate_community,
@@ -277,9 +300,89 @@ class GearReleaseRefreshPolicyTest(unittest.TestCase):
         self.assertEqual(len(store.gear_seals), 1)
         self.assertEqual(len(store.community_seals), 1)
 
+    def test_candidate_builder_reuses_unchanged_compiled_fact_release(self):
+        store = FakeStore()
+        item = {
+            "itemId": "1",
+            "name": "A",
+            "payload": {"canonicalFacts": [{
+                "factKey": "fact:item:1",
+                "factValueHash": "sha256:value",
+                "provenanceHash": "sha256:provenance",
+            }]},
+        }
+        snapshot = {"items": [item], "sources": [], "variants": [], "options": []}
+        active_gear = store.binding["gearRelease"]
+        active_gear["source"]["sourceEvidence"] = {
+            "materializedSocketFactDigest": "sha256:stable-socket-facts",
+            "compilerPolicyDigest": "sha256:stable-policy",
+            "canonicalFactDigest": "sha256:stable-facts",
+        }
+        store.get_gear_release_row_hashes = lambda _release_id: {
+            "items": {"1": canonical_row_hash(item)},
+            "sources": {},
+            "variants": {},
+            "options": {},
+        }
+        store.gear_seals = []
+        store.community_seals = []
+        store.seal_gear_release = lambda release, payload, **_kwargs: (
+            store.gear_seals.append((release, payload))
+            or {
+                "status": "reused",
+                "releaseId": release["releaseId"],
+            }
+        )
+        store.seal_community_release = lambda release, rows, **_kwargs: (
+            store.community_seals.append((release, rows))
+            or {
+                "status": "reused",
+                "releaseId": release["releaseId"],
+            }
+        )
+        store.load_community_release = lambda _gear_id, _community_id: {
+            "winners": [winner()]
+        }
+        _unused, candidate_community = release_pair(
+            "candidate",
+            gear=active_gear,
+        )
+
+        result = build_staging_candidates(
+            store,
+            active_binding=store.binding,
+            expected_specs=[("mage", "arcane")],
+            dependency_revisions=DEPENDENCIES,
+            now="2026-07-26T02:00:00+00:00",
+            socket_bonus_minimums={"9300": 1},
+            gear_preparer=lambda *_args, **_kwargs: {
+                "release": active_gear,
+                "snapshot": snapshot,
+                "gate": canonical_fact_gate(),
+            },
+            community_preparer=lambda *_args, **_kwargs: {
+                "release": candidate_community,
+                "rows": [winner()],
+                "election": {"status": "validated"},
+                "gate": canonical_fact_gate(),
+            },
+        )
+
+        self.assertEqual(result["gearRelease"]["releaseId"], active_gear["releaseId"])
+        self.assertEqual(result["gearSeal"]["status"], "reused")
+        self.assertEqual(len(store.gear_seals), 1)
+
     def test_socket_fact_change_is_capability_change_and_requires_manual_cutover(self):
         store = FakeStore()
-        item = {"itemId": "1", "name": "A"}
+        item = {
+            "itemId": "1",
+            "name": "A",
+            "payload": {"canonicalFacts": [{
+                "factKey": "fact:item:1",
+                "factValueHash": "sha256:value",
+                "provenanceHash": "sha256:provenance",
+            }]},
+        }
         snapshot = {"items": [item], "sources": [], "variants": [], "options": []}
         store.binding["gearRelease"]["source"]["sourceEvidence"] = {
             "materializedSocketFactDigest": "sha256:old-socket-facts",
@@ -312,6 +415,8 @@ class GearReleaseRefreshPolicyTest(unittest.TestCase):
                 "sourceRevision": "scheduled-refresh-v1",
                 "sourceEvidence": {
                     "materializedSocketFactDigest": "sha256:new-socket-facts",
+                    "compilerPolicyDigest": "sha256:new-policy",
+                    "canonicalFactDigest": "sha256:new-facts",
                 },
             },
         )
@@ -323,7 +428,10 @@ class GearReleaseRefreshPolicyTest(unittest.TestCase):
             return {
                 "release": candidate_gear,
                 "snapshot": snapshot,
-                "gate": {"status": "validated", "snapshotHash": "candidate-with-new-socket-facts"},
+                "gate": {
+                    **canonical_fact_gate(),
+                    "snapshotHash": "candidate-with-new-socket-facts",
+                },
             }
 
         try:

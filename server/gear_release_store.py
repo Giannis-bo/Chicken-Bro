@@ -741,6 +741,48 @@ class GearReleaseStore:
             if hasattr(conn, "close"):
                 conn.close()
 
+    def persist_gear_evidence_bundle(
+        self,
+        *,
+        artifacts: Iterable[dict[str, Any]],
+        observations: Iterable[dict[str, Any]],
+        facts: Iterable[dict[str, Any]],
+        gaps: list[dict[str, Any]],
+        now: str,
+    ) -> dict[str, Any]:
+        """Persist compiler inputs/results before any Gear Release can seal."""
+
+        try:
+            from .gear_evidence_gap_store import GearEvidenceGapStore
+            from .gear_evidence_store import GearEvidenceStore
+        except ImportError:
+            from gear_evidence_gap_store import GearEvidenceGapStore
+            from gear_evidence_store import GearEvidenceStore
+
+        artifact_rows = list(artifacts)
+        observation_rows = list(observations)
+        fact_rows = list(facts)
+        with self.connection() as connection:
+            shared_connection = lambda: connection
+            evidence_store = GearEvidenceStore(shared_connection)
+            gap_store = GearEvidenceGapStore(shared_connection)
+            for artifact in artifact_rows:
+                evidence_store.persist_artifact(artifact)
+            for observation in observation_rows:
+                evidence_store.persist_observation(observation)
+            for fact in fact_rows:
+                evidence_store.persist_fact(fact)
+            gap_result = gap_store.enqueue_gaps(
+                list(gaps),
+                now=_text(now),
+            )
+        return {
+            "artifacts": {"persisted": len(artifact_rows)},
+            "observations": {"persisted": len(observation_rows)},
+            "facts": {"persisted": len(fact_rows)},
+            "gaps": gap_result,
+        }
+
     def snapshot_staging_gear(self) -> dict[str, list[dict[str, Any]]]:
         with self.connection() as conn:
             with conn.cursor() as cur:
@@ -2249,6 +2291,192 @@ class GearReleaseStore:
         GearReleaseStore._insert_registry(cur, expected, gate_result)
         return False
 
+    @staticmethod
+    def _verify_projected_canonical_facts(
+        cur,
+        release: dict[str, Any],
+        snapshot: dict[str, Any],
+    ) -> None:
+        try:
+            from .gear_evidence_registry import (
+                canonical_fact_key,
+                fact_value_hash,
+            )
+        except ImportError:
+            from gear_evidence_registry import (
+                canonical_fact_key,
+                fact_value_hash,
+            )
+
+        source = release.get("source") if isinstance(release.get("source"), dict) else {}
+        evidence = (
+            source.get("sourceEvidence")
+            if isinstance(source.get("sourceEvidence"), dict)
+            else {}
+        )
+        declared_digest = _text(evidence.get("canonicalFactDigest"))
+        references: dict[tuple[str, str, str], dict[str, Any]] = {}
+        for category in ("items", "variants", "options"):
+            for row in snapshot.get(category) or ():
+                if not isinstance(row, dict):
+                    continue
+                payload = row.get("payload") if isinstance(row.get("payload"), dict) else {}
+                for fact in payload.get("canonicalFacts") or ():
+                    if not isinstance(fact, dict):
+                        continue
+                    identity = (
+                        _text(fact.get("factKey")),
+                        _text(fact.get("factValueHash")),
+                        _text(fact.get("provenanceHash")),
+                    )
+                    if not all(identity):
+                        raise GearReleaseIntegrityError(
+                            "projected canonical Fact reference is incomplete"
+                        )
+                    projected = {
+                        "schemaRevision": _text(fact.get("schemaRevision")),
+                        "factKey": identity[0],
+                        "subjectKey": _text(fact.get("subjectKey")),
+                        "factType": _text(fact.get("factType")),
+                        "value": _canonical(fact.get("value")),
+                        "status": _text(fact.get("status")),
+                        "observationRefs": sorted(
+                            _text(reference)
+                            for reference in fact.get("observationRefs") or ()
+                            if _text(reference)
+                        ),
+                        "observationRefCount": _int(
+                            fact.get("observationRefCount")
+                        ),
+                        "referencesTruncated": (
+                            fact.get("referencesTruncated") is True
+                        ),
+                        "compilerRuleRevision": _text(
+                            fact.get("compilerRuleRevision")
+                        ),
+                        "factValueHash": identity[1],
+                        "provenanceHash": identity[2],
+                    }
+                    try:
+                        expected_key = canonical_fact_key(
+                            release.get("seasonRevision"),
+                            projected["subjectKey"],
+                            projected["factType"],
+                        )
+                        expected_value_hash = fact_value_hash(
+                            projected["subjectKey"],
+                            projected["factType"],
+                            projected["value"],
+                            projected["status"],
+                        )
+                    except ValueError as error:
+                        raise GearReleaseIntegrityError(
+                            "projected canonical Fact value is invalid"
+                        ) from error
+                    if (
+                        projected["factKey"] != expected_key
+                        or projected["factValueHash"] != expected_value_hash
+                    ):
+                        raise GearReleaseIntegrityError(
+                            "projected canonical Fact hashes do not match its value"
+                        )
+                    existing = references.get(identity)
+                    if existing is not None and existing != projected:
+                        raise GearReleaseIntegrityError(
+                            "projected canonical Fact tuple has conflicting values"
+                        )
+                    references[identity] = projected
+        if not references:
+            if declared_digest:
+                raise GearReleaseIntegrityError(
+                    "canonical Fact digest requires projected Fact references"
+                )
+            return
+        if not declared_digest:
+            raise GearReleaseIntegrityError(
+                "projected canonical Facts require a canonical Fact digest"
+            )
+        digest_rows = sorted(
+            [
+                {
+                    "factKey": fact["factKey"],
+                    "status": fact["status"],
+                    "factValueHash": fact["factValueHash"],
+                    "provenanceHash": fact["provenanceHash"],
+                }
+                for fact in references.values()
+            ],
+            key=lambda fact: (
+                fact["factKey"],
+                fact["factValueHash"],
+                fact["provenanceHash"],
+            ),
+        )
+        if _hash(digest_rows) != declared_digest:
+            raise GearReleaseIntegrityError(
+                "projected canonical Fact digest does not match release source evidence"
+            )
+        identities = sorted(references)
+        cur.execute(
+            """
+            WITH requested(fact_key, fact_value_hash, provenance_hash) AS (
+                SELECT * FROM unnest(%s::text[], %s::text[], %s::text[])
+            )
+            SELECT
+                fact.fact_key,
+                fact.schema_revision,
+                fact.subject_key,
+                fact.fact_type,
+                fact.value_json,
+                fact.status,
+                fact.observation_refs_json,
+                fact.fact_value_hash,
+                fact.provenance_hash,
+                fact.compiler_rule_revision
+            FROM requested
+            JOIN cache.websim_gear_canonical_facts fact
+              ON fact.fact_key = requested.fact_key
+             AND fact.fact_value_hash = requested.fact_value_hash
+             AND fact.provenance_hash = requested.provenance_hash
+            """,
+            (
+                [identity[0] for identity in identities],
+                [identity[1] for identity in identities],
+                [identity[2] for identity in identities],
+            ),
+        )
+        persisted_rows = cur.fetchall()
+        persisted = {
+            (_text(row[0]), _text(row[7]), _text(row[8])): row
+            for row in persisted_rows
+            if isinstance(row, (list, tuple)) and len(row) == 10
+        }
+        if set(persisted) != set(references):
+            raise GearReleaseIntegrityError(
+                "projected canonical Fact references are not persisted"
+            )
+        for identity, projected in references.items():
+            row = persisted[identity]
+            persisted_refs = sorted(
+                _text(reference)
+                for reference in (row[6] if isinstance(row[6], list) else [])
+                if _text(reference)
+            )
+            if (
+                projected["schemaRevision"] != _text(row[1])
+                or projected["subjectKey"] != _text(row[2])
+                or projected["factType"] != _text(row[3])
+                or projected["value"] != _canonical(row[4])
+                or projected["status"] != _text(row[5])
+                or projected["observationRefs"] != persisted_refs[:8]
+                or projected["observationRefCount"] != len(persisted_refs)
+                or projected["referencesTruncated"] != (len(persisted_refs) > 8)
+                or projected["compilerRuleRevision"] != _text(row[9])
+            ):
+                raise GearReleaseIntegrityError(
+                    "projected canonical Fact does not match persisted Fact"
+                )
+
     def seal_gear_release(
         self,
         release: dict[str, Any],
@@ -2264,6 +2492,7 @@ class GearReleaseStore:
                     raise GearReleaseIntegrityError("seal_gear_release requires a Gear Release")
                 if gear_snapshot_summary(snapshot) != expected["content"]:
                     raise GearReleaseIntegrityError("gear snapshot does not match the release descriptor")
+                self._verify_projected_canonical_facts(cur, expected, snapshot)
                 if self._existing_or_insert(cur, expected, gate_result or {}):
                     return {"status": "reused", "releaseId": expected["releaseId"]}
                 self._insert_gear_rows(cur, expected["releaseId"], snapshot)

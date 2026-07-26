@@ -19,6 +19,7 @@ class FakeReleaseStore:
         self.gear_seals = []
         self.community_seals = []
         self.requested_specs = []
+        self.evidence_bundles = []
 
     def snapshot_staging_gear(self):
         return copy.deepcopy(self.gear_snapshot)
@@ -38,6 +39,31 @@ class FakeReleaseStore:
     def seal_community_release(self, release, rows, **kwargs):
         self.community_seals.append((copy.deepcopy(release), copy.deepcopy(rows), copy.deepcopy(kwargs)))
         return {"status": "inserted", "releaseId": release["releaseId"]}
+
+    def persist_gear_evidence_bundle(
+        self,
+        *,
+        artifacts,
+        observations,
+        facts,
+        gaps,
+        now,
+    ):
+        self.evidence_bundles.append(
+            {
+                "artifacts": copy.deepcopy(artifacts),
+                "observations": copy.deepcopy(observations),
+                "facts": copy.deepcopy(facts),
+                "gaps": copy.deepcopy(gaps),
+                "now": now,
+            }
+        )
+        return {
+            "artifacts": {"persisted": len(artifacts)},
+            "observations": {"persisted": len(observations)},
+            "facts": {"persisted": len(facts)},
+            "gaps": {"inserted": len(gaps), "reused": 0},
+        }
 
 
 def verified_official_gem_item(gem_id, name=None):
@@ -64,6 +90,7 @@ def verified_official_gem_item(gem_id, name=None):
                 "gameAsset": {
                     "source": "blizzard",
                     "status": "verified",
+                    "sourceRevision": "battle-net-item-2026-07-14",
                 },
             },
             "item_class": {"id": 3, "name": "Gem"},
@@ -94,7 +121,22 @@ def build_midnight_mage_release_fixture():
             "payload": {
                 "_metadata": {
                     "iconUrl": f"https://render.worldofwarcraft.com/icons/{item_id}.jpg",
-                    "gameAsset": {"source": "blizzard", "status": "verified"},
+                    "gameAsset": {
+                        "source": "blizzard",
+                        "status": "verified",
+                        "sourceRevision": "battle-net-item-2026-07-14",
+                    },
+                },
+                "canonicalEvidence": {
+                    "sourceType": "season_rule",
+                    "sourceIdentity": f"midnight-item-capability:{item_id}",
+                    "sourceRevision": "season-17-active",
+                    "sourceScope": "base_item",
+                    "status": "verified",
+                    "claims": [
+                        "enchant_capability",
+                        "embellishment_capability",
+                    ],
                 },
                 **{
                     field: copy.deepcopy(item.get(field))
@@ -127,19 +169,45 @@ def build_midnight_mage_release_fixture():
             if selection["variantKey"] == variant_key
         )
         payload = {
+            "sourceRevision": "simc-midnight-fixture-r1",
             "resolvedStats": copy.deepcopy(variant.get("resolvedStats") or {}),
             "capabilityOverrides": copy.deepcopy(variant.get("capabilityOverrides") or {}),
+            "canonicalEvidence": {
+                "sourceType": "season_rule",
+                "sourceIdentity": f"midnight-capability:{variant_key}",
+                "sourceRevision": "season-17-active",
+                "sourceScope": "exact_variant",
+                "status": "verified",
+                "claims": [
+                    "slot_compatibility",
+                    "socket_count",
+                    "enchant_capability",
+                    "embellishment_capability",
+                ],
+            },
+            "statEvidence": {
+                "sourceType": "simc_item_probe",
+                "sourceIdentity": f"simc-item:{variant_key}",
+                "sourceRevision": "simc-midnight-fixture-r1",
+                "sourceScope": "exact_variant",
+                "status": "verified",
+                "claims": [
+                    "static_stats",
+                    "variant_track",
+                    "enhancement_echo",
+                ],
+            },
         }
         if variant.get("enhancementManagement"):
             payload["enhancementManagement"] = copy.deepcopy(
                 variant["enhancementManagement"]
             )
         raw_enchant = str((variant.get("simcOptions") or {}).get("enchant_id") or "").strip()
+        raw_embellishment = str(
+            (variant.get("simcOptions") or {}).get("embellishment") or ""
+        ).strip()
         item_level = int(variant.get("itemLevel") or 0)
-        if raw_enchant and (
-            slot not in set(reference["enchantEligibleSlots"])
-            or (slot == "main_hand" and "/" in raw_enchant)
-        ):
+        if raw_enchant or raw_embellishment:
             encoded_options = {
                 key: value
                 for key, value in (variant.get("simcOptions") or {}).items()
@@ -188,6 +256,13 @@ def build_midnight_mage_release_fixture():
                 "statDeltas": copy.deepcopy(option.get("statDeltas") or {}),
                 "uniqueGroup": option.get("uniqueGroupId") or "",
                 "uniqueLimit": option.get("uniqueLimit") or 0,
+                "optionEvidence": {
+                    "sourceType": "simc_item_probe",
+                    "sourceIdentity": f"simc-option:{option_key}",
+                    "sourceRevision": "simc-midnight-fixture-r1",
+                    "sourceScope": "option",
+                    "status": "verified",
+                },
             },
         })
     items.extend(
@@ -274,9 +349,9 @@ class GearReleaseToolTest(unittest.TestCase):
 
     def snapshot(self):
         return {
-            "items": [{"itemId": "item-a", "name": "A", "slot": "head", "sourceStatus": "verified", "payload": {"_metadata": {"iconUrl": "https://render.worldofwarcraft.com/icons/item-a.jpg", "gameAsset": {"source": "blizzard", "status": "verified"}}}, "updatedAt": "2026-07-11T05:00:00+00:00"}],
+            "items": [{"itemId": "item-a", "name": "A", "slot": "head", "sourceStatus": "verified", "payload": {"_metadata": {"iconUrl": "https://render.worldofwarcraft.com/icons/item-a.jpg", "gameAsset": {"source": "blizzard", "status": "verified", "sourceRevision": "battle-net-item-2026-07-11"}}, "canonicalEvidence": {"sourceType": "season_rule", "sourceIdentity": "season-rule:item-a", "sourceRevision": "season-rule-fixture-r1", "sourceScope": "base_item", "status": "verified", "claims": ["enchant_capability", "embellishment_capability"]}}, "updatedAt": "2026-07-11T05:00:00+00:00"}],
             "sources": [{"sourceId": "source-a", "itemId": "item-a", "sourceType": "observed_profile", "sourceKey": "profile:a", "payload": {"status": "verified"}, "updatedAt": "2026-07-11T05:00:00+00:00"}],
-            "variants": [{"variantId": "variant-a-id", "itemId": "item-a", "variantKey": "variant-a", "slot": "head", "sourceType": "observed_profile", "itemLevel": 289, "simcOptions": {"ilevel": "289"}, "status": "verified", "blockers": [], "payload": {"resolvedStats": {"intellect": 100}}, "updatedAt": "2026-07-11T05:00:00+00:00"}],
+            "variants": [{"variantId": "variant-a-id", "itemId": "item-a", "variantKey": "variant-a", "slot": "head", "sourceType": "observed_profile", "itemLevel": 289, "simcOptions": {"ilevel": "289"}, "status": "verified", "blockers": [], "payload": {"sourceRevision": "simc-item-2026-07-11", "resolvedStats": {"intellect": 100}, "canonicalEvidence": {"sourceType": "season_rule", "sourceIdentity": "season-rule:variant-a", "sourceRevision": "season-17", "sourceScope": "exact_variant", "status": "verified", "claims": ["slot_compatibility"]}, "statEvidence": {"sourceType": "simc_item_probe", "sourceIdentity": "simc-item:variant-a", "sourceRevision": "simc-item-2026-07-11", "sourceScope": "exact_variant", "status": "verified", "claims": ["static_stats", "variant_track"]}}, "updatedAt": "2026-07-11T05:00:00+00:00"}],
             "options": [],
         }
 
@@ -1981,6 +2056,14 @@ class GearReleaseToolTest(unittest.TestCase):
         from server.websim_payload import gear_resolver_runtime_authority
 
         fixture = build_midnight_mage_release_fixture()
+        for variant in fixture["snapshot"]["variants"]:
+            payload = (
+                variant["payload"]
+                if isinstance(variant.get("payload"), dict)
+                else {}
+            )
+            if isinstance(payload.get("resolvedStats"), dict):
+                payload["statSource"] = "simulationcraft"
         for option in fixture["snapshot"]["options"]:
             if option.get("optionType") == "socket":
                 option["applicableSlots"] = ["neck", "finger1", "finger2"]
@@ -2015,7 +2098,7 @@ class GearReleaseToolTest(unittest.TestCase):
         )
         self.assertEqual(
             primary_stat_option["payload"]["uniqueGroup"],
-            "official-gem-limit:thalassian-diamond",
+            "primary_stat_gem",
         )
         self.assertEqual(primary_stat_option["payload"]["uniqueLimit"], 1)
         managed_by_slot = {
@@ -2168,6 +2251,439 @@ class GearReleaseToolTest(unittest.TestCase):
         self.assertTrue(source_evidence["socketProbeDigest"].startswith("sha256:"))
         self.assertTrue(source_evidence["materializedSocketFactDigest"].startswith("sha256:"))
 
+    def test_prepare_staging_gear_release_seals_safe_canonical_fact_projection(self):
+        from server.gear_release_tool import prepare_staging_gear_release
+
+        snapshot = self.snapshot()
+        snapshot["items"][0]["payload"]["baseCapabilities"] = {
+            "socketCount": 1,
+            "canEnchant": True,
+            "canEmbellish": False,
+        }
+        snapshot["variants"][0]["payload"]["capabilityOverrides"] = {
+            "socketCount": 1,
+            "canEnchant": True,
+            "canEmbellish": False,
+        }
+        snapshot["options"] = [
+            {
+                "optionId": "gem-a",
+                "variantId": "variant-a-id",
+                "optionKey": "gem-a",
+                "optionType": "gem",
+                "name": "Gem A",
+                "applicableSlots": ["head"],
+                "simcOptions": {"gem_id": "240000"},
+                "status": "verified",
+                "isVisible": True,
+                "payload": {
+                    "evidenceSource": "simulationcraft",
+                    "optionEvidence": {
+                        "sourceType": "simc_item_probe",
+                        "sourceIdentity": "simc-option:gem-a",
+                        "sourceRevision": "simc-options-2026-07-11",
+                        "sourceScope": "option",
+                        "status": "verified",
+                    },
+                },
+                "updatedAt": "2026-07-11T05:00:00+00:00",
+            }
+        ]
+        store = FakeReleaseStore(snapshot)
+
+        first = prepare_staging_gear_release(
+            store,
+            season_revision="midnight-season-1",
+            dependency_revisions=self.dependencies(),
+            socket_bonus_minimums={"9300": 1},
+            evidence_now="2026-07-26T02:00:00+00:00",
+        )
+        second = prepare_staging_gear_release(
+            store,
+            season_revision="midnight-season-1",
+            dependency_revisions=self.dependencies(),
+            socket_bonus_minimums={"9300": 1},
+            evidence_now="2026-07-26T03:00:00+00:00",
+        )
+
+        for category in ("items", "variants", "options"):
+            facts = first["snapshot"][category][0]["payload"]["canonicalFacts"]
+            self.assertTrue(facts, category)
+            self.assertTrue(
+                any(fact["status"] == "verified" for fact in facts),
+                category,
+            )
+            for fact in facts:
+                self.assertIn(
+                    fact["status"],
+                    {
+                        "verified",
+                        "unresolved_missing",
+                        "unresolved_conflict",
+                    },
+                )
+                self.assertIn("factKey", fact)
+                self.assertIn("factValueHash", fact)
+                self.assertIn("provenanceHash", fact)
+                self.assertNotIn("artifactId", fact)
+                self.assertNotIn("payload", fact)
+                self.assertLessEqual(len(fact["observationRefs"]), 8)
+        encoded = json.dumps(first["snapshot"], sort_keys=True)
+        self.assertNotIn("gear-evidence-artifact-v1", encoded)
+        source_evidence = first["release"]["source"]["sourceEvidence"]
+        self.assertTrue(source_evidence["compilerPolicyDigest"].startswith("sha256:"))
+        self.assertTrue(source_evidence["canonicalFactDigest"].startswith("sha256:"))
+        self.assertEqual(first["release"]["contentHash"], second["release"]["contentHash"])
+        self.assertEqual(first["release"]["releaseId"], second["release"]["releaseId"])
+        self.assertEqual(
+            first["release"]["source"]["sourceEvidence"],
+            second["release"]["source"]["sourceEvidence"],
+        )
+        self.assertEqual(len(store.evidence_bundles), 2)
+        for bundle in store.evidence_bundles:
+            artifact_ids = {row["artifactId"] for row in bundle["artifacts"]}
+            self.assertTrue(artifact_ids)
+            self.assertTrue(
+                all(row["artifactId"] in artifact_ids for row in bundle["observations"])
+            )
+            observation_ids = {
+                row["observationId"] for row in bundle["observations"]
+            }
+            self.assertTrue(
+                all(
+                    set(row["observationRefs"]).issubset(observation_ids)
+                    for row in bundle["facts"]
+                )
+            )
+
+    def test_seal_requires_declared_canonical_fact_tuples_in_registry(self):
+        from server.gear_release_store import (
+            GearReleaseIntegrityError,
+            GearReleaseStore,
+        )
+        from server.gear_release_tool import prepare_staging_gear_release
+
+        prepared = prepare_staging_gear_release(
+            FakeReleaseStore(self.snapshot()),
+            season_revision="midnight-season-1",
+            dependency_revisions=self.dependencies(),
+            socket_bonus_minimums={"9300": 1},
+            evidence_now="2026-07-26T02:00:00+00:00",
+        )
+
+        class FactCursor:
+            def __init__(self, rows):
+                self.rows = rows
+                self.params = None
+
+            def execute(self, _statement, params):
+                self.params = params
+
+            def fetchall(self):
+                return list(self.rows)
+
+        projected_facts = {
+            fact["factKey"]: fact
+            for category in ("items", "variants", "options")
+            for row in prepared["snapshot"][category]
+            for fact in row["payload"]["canonicalFacts"]
+        }
+        persisted_rows = [
+            (
+                fact["factKey"],
+                fact["schemaRevision"],
+                fact["subjectKey"],
+                fact["factType"],
+                fact["value"],
+                fact["status"],
+                fact["observationRefs"],
+                fact["factValueHash"],
+                fact["provenanceHash"],
+                fact["compilerRuleRevision"],
+            )
+            for fact in projected_facts.values()
+        ]
+        persisted = FactCursor(persisted_rows)
+        GearReleaseStore._verify_projected_canonical_facts(
+            persisted,
+            prepared["release"],
+            prepared["snapshot"],
+        )
+        self.assertTrue(persisted.params)
+
+        with self.assertRaisesRegex(
+            GearReleaseIntegrityError,
+            "not persisted",
+        ):
+            GearReleaseStore._verify_projected_canonical_facts(
+                FactCursor([]),
+                prepared["release"],
+                prepared["snapshot"],
+            )
+
+        forged_release = copy.deepcopy(prepared["release"])
+        forged_release["source"]["sourceEvidence"][
+            "canonicalFactDigest"
+        ] = "sha256:" + ("0" * 64)
+        with self.assertRaisesRegex(
+            GearReleaseIntegrityError,
+            "digest does not match",
+        ):
+            GearReleaseStore._verify_projected_canonical_facts(
+                FactCursor(persisted_rows),
+                forged_release,
+                prepared["snapshot"],
+            )
+
+        forged_snapshot = copy.deepcopy(prepared["snapshot"])
+        forged_fact = next(
+            fact
+            for category in ("items", "variants", "options")
+            for row in forged_snapshot[category]
+            for fact in row["payload"]["canonicalFacts"]
+            if fact["status"] == "verified"
+        )
+        forged_fact["value"] = {"forged": True}
+        with self.assertRaisesRegex(
+            GearReleaseIntegrityError,
+            "hashes do not match",
+        ):
+            GearReleaseStore._verify_projected_canonical_facts(
+                FactCursor(persisted_rows),
+                prepared["release"],
+                forged_snapshot,
+            )
+
+        missing_digest_release = copy.deepcopy(prepared["release"])
+        missing_digest_release["source"]["sourceEvidence"].pop(
+            "canonicalFactDigest"
+        )
+        with self.assertRaisesRegex(
+            GearReleaseIntegrityError,
+            "require a canonical Fact digest",
+        ):
+            GearReleaseStore._verify_projected_canonical_facts(
+                FactCursor(persisted_rows),
+                missing_digest_release,
+                prepared["snapshot"],
+            )
+
+    def test_release_store_persists_registry_owners_before_gap_enqueue(self):
+        from server.gear_release_store import GearReleaseStore
+
+        events = []
+
+        class EvidenceStore:
+            def __init__(self, connection_factory):
+                self.connection_factory = connection_factory
+
+            def persist_artifact(self, row):
+                events.append(("artifact", row["artifactId"]))
+
+            def persist_observation(self, row):
+                events.append(("observation", row["observationId"]))
+
+            def persist_fact(self, row):
+                events.append(("fact", row["factKey"]))
+
+        class GapStore:
+            def __init__(self, connection_factory):
+                self.connection_factory = connection_factory
+
+            def enqueue_gaps(self, rows, *, now):
+                events.append(("gaps", len(rows), now))
+                return {"inserted": len(rows), "reused": 0}
+
+        with (
+            patch(
+                "server.gear_evidence_store.GearEvidenceStore",
+                EvidenceStore,
+            ),
+            patch(
+                "server.gear_evidence_gap_store.GearEvidenceGapStore",
+                GapStore,
+            ),
+        ):
+            result = GearReleaseStore(lambda: None).persist_gear_evidence_bundle(
+                artifacts=[{"artifactId": "artifact-a"}],
+                observations=[{"observationId": "observation-a"}],
+                facts=[{"factKey": "fact-a"}],
+                gaps=[{"gapKey": "gap-a"}],
+                now="2026-07-26T02:00:00+00:00",
+            )
+
+        self.assertEqual(
+            events,
+            [
+                ("artifact", "artifact-a"),
+                ("observation", "observation-a"),
+                ("fact", "fact-a"),
+                ("gaps", 1, "2026-07-26T02:00:00+00:00"),
+            ],
+        )
+        self.assertEqual(result["gaps"], {"inserted": 1, "reused": 0})
+
+    def test_unresolved_fact_enqueues_only_bounded_gap_requirement(self):
+        from server.gear_release_tool import prepare_staging_gear_release
+
+        snapshot = self.snapshot()
+        snapshot["options"] = [
+            {
+                "optionId": "incomplete-option",
+                "variantId": "variant-a-id",
+                "optionKey": "incomplete-option",
+                "optionType": "gem",
+                "name": "Incomplete",
+                "applicableSlots": ["head"],
+                "simcOptions": {},
+                "status": "blocked",
+                "isVisible": False,
+                "payload": {},
+                "updatedAt": "2026-07-11T05:00:00+00:00",
+            }
+        ]
+        store = FakeReleaseStore(snapshot)
+
+        prepared = prepare_staging_gear_release(
+            store,
+            season_revision="midnight-season-1",
+            dependency_revisions=self.dependencies(),
+            socket_bonus_minimums={"9300": 1},
+            evidence_now="2026-07-26T02:00:00+00:00",
+        )
+
+        canonical_facts = prepared["snapshot"]["options"][0]["payload"][
+            "canonicalFacts"
+        ]
+        self.assertEqual(len(canonical_facts), 1)
+        self.assertEqual(canonical_facts[0]["status"], "unresolved_missing")
+        self.assertIsNone(canonical_facts[0]["value"])
+        self.assertGreaterEqual(prepared["gate"]["evidenceGapCount"], 1)
+        gap = next(
+            row
+            for row in store.evidence_bundles[0]["gaps"]
+            if row["missingRequirement"]["subjectKey"]
+            == "option:incomplete-option"
+        )
+        self.assertEqual(
+            set(gap),
+            {
+                "schemaRevision",
+                "gapKey",
+                "factKey",
+                "status",
+                "problemCode",
+                "missingRequirement",
+                "attempt",
+                "nextAttemptAt",
+            },
+        )
+        self.assertEqual(
+            set(gap["missingRequirement"]),
+            {
+                "subjectKey",
+                "factType",
+                "seasonRevision",
+                "compilerRuleRevision",
+                "requiredInputKey",
+            },
+        )
+        self.assertNotIn("value", json.dumps(gap, sort_keys=True).lower())
+
+    def test_unattributed_legacy_shapes_cannot_establish_fact_provenance(self):
+        from server.gear_release_tool import prepare_staging_gear_release
+
+        snapshot = self.snapshot()
+        snapshot["items"][0]["payload"].pop("canonicalEvidence", None)
+        snapshot["items"][0]["payload"]["baseCapabilities"] = {
+            "canEnchant": True,
+        }
+        variant_payload = snapshot["variants"][0]["payload"]
+        variant_payload.pop("canonicalEvidence", None)
+        variant_payload.pop("statEvidence", None)
+        variant_payload["capabilityOverrides"] = {"canEnchant": True}
+        snapshot["options"] = [{
+            "optionId": "shape-only-option",
+            "variantId": "variant-a-id",
+            "optionKey": "shape-only-option",
+            "optionType": "enchant",
+            "name": "Shape only",
+            "applicableSlots": ["head"],
+            "simcOptions": {"enchant_id": "9999"},
+            "status": "verified",
+            "isVisible": True,
+            "payload": {},
+            "updatedAt": "2026-07-11T05:00:00+00:00",
+        }]
+
+        prepared = prepare_staging_gear_release(
+            FakeReleaseStore(snapshot),
+            season_revision="season-17",
+            dependency_revisions=self.dependencies(),
+            socket_bonus_minimums={"9300": 1},
+            evidence_now="2026-07-26T02:00:00+00:00",
+        )
+
+        facts = {
+            (fact["subjectKey"], fact["factType"]): fact
+            for category in ("items", "variants", "options")
+            for row in prepared["snapshot"][category]
+            for fact in row["payload"]["canonicalFacts"]
+        }
+        for identity in (
+            ("item:item-a", "enchant_capability"),
+            ("item:item-a/variant:variant-a", "enchant_capability"),
+            ("item:item-a/variant:variant-a", "static_stats"),
+            ("option:shape-only-option", "enhancement_option"),
+        ):
+            self.assertEqual(facts[identity]["status"], "unresolved_missing")
+            self.assertIsNone(facts[identity]["value"])
+
+    def test_shadow_regression_blocks_before_release_seal(self):
+        from server.gear_release_store import GearReleaseIntegrityError
+        from server.gear_release_tool import build_legacy_gear_release
+
+        store = FakeReleaseStore(self.snapshot())
+        with patch(
+            "server.gear_release_tool.gear_fact_shadow.compare_legacy_and_canonical",
+            return_value={
+                "status": "blocked",
+                "blockers": [{"code": "CANONICAL_FACT_REGRESSION"}],
+            },
+        ):
+            with self.assertRaisesRegex(
+                GearReleaseIntegrityError,
+                "canonical fact shadow blocked candidate",
+            ):
+                build_legacy_gear_release(
+                    store,
+                    season_revision="midnight-season-1",
+                    dependency_revisions=self.dependencies(),
+                    socket_bonus_minimums={"9300": 1},
+                )
+
+        self.assertEqual(store.gear_seals, [])
+
+    def test_prepare_fails_closed_without_registry_persistence_owner(self):
+        from server.gear_release_store import GearReleaseIntegrityError
+        from server.gear_release_tool import prepare_staging_gear_release
+
+        class SnapshotOnlyStore:
+            def snapshot_staging_gear(inner_self):
+                return copy.deepcopy(self.snapshot())
+
+        with self.assertRaisesRegex(
+            GearReleaseIntegrityError,
+            "Gear Evidence Registry persistence owner is required",
+        ):
+            prepare_staging_gear_release(
+                SnapshotOnlyStore(),
+                season_revision="midnight-season-1",
+                dependency_revisions=self.dependencies(),
+                socket_bonus_minimums={"9300": 1},
+                evidence_now="2026-07-26T02:00:00+00:00",
+            )
+
     def test_current_pve_socket_eligibility_is_sealed_in_release_item_payload(self):
         from server.gear_release_tool import prepare_staging_gear_release
 
@@ -2218,7 +2734,8 @@ class GearReleaseToolTest(unittest.TestCase):
         snapshot["items"][0]["slot"] = "back"
         snapshot["items"][0]["payload"]["baseCapabilities"] = {
             "socketCount": 0,
-            "canEmbellish": False,
+            "canEnchant": True,
+            "canEmbellish": True,
         }
         snapshot["variants"] = [
             {
@@ -2407,6 +2924,64 @@ class GearReleaseToolTest(unittest.TestCase):
                 "updatedAt": "2026-07-11T05:00:00+00:00",
             },
         ]
+        for option in snapshot["options"]:
+            option["payload"]["optionEvidence"] = {
+                "sourceType": "simc_item_probe",
+                "sourceIdentity": f"simc-option:{option['optionId']}",
+                "sourceRevision": "simc-options-2026-07-11",
+                "sourceScope": "option",
+                "status": "verified",
+            }
+        for variant in snapshot["variants"]:
+            payload = (
+                variant["payload"]
+                if isinstance(variant.get("payload"), dict)
+                else {}
+            )
+            if variant["variantKey"] in {
+                "variant-observed-nonenchant-overlap",
+                "variant-built-in-embellishment",
+            }:
+                overrides = (
+                    payload["capabilityOverrides"]
+                    if isinstance(payload.get("capabilityOverrides"), dict)
+                    else {}
+                )
+                if variant["variantKey"] == "variant-observed-nonenchant-overlap":
+                    overrides["canEnchant"] = False
+                else:
+                    overrides["canEmbellish"] = False
+                payload["capabilityOverrides"] = overrides
+            claims = ["slot_compatibility"]
+            overrides = payload.get("capabilityOverrides")
+            if isinstance(overrides, dict):
+                if "canEnchant" in overrides:
+                    claims.append("enchant_capability")
+                if "canEmbellish" in overrides:
+                    claims.append("embellishment_capability")
+            payload["canonicalEvidence"] = {
+                "sourceType": "season_rule",
+                "sourceIdentity": f"season-rule:{variant['variantId']}",
+                "sourceRevision": "midnight-season-1",
+                "sourceScope": "exact_variant",
+                "status": "verified",
+                "claims": claims,
+            }
+            if isinstance(payload.get("simcEncodedItem"), str):
+                payload["sourceRevision"] = "simc-echo-2026-07-11"
+                payload["statEvidence"] = {
+                    "sourceType": "simc_item_probe",
+                    "sourceIdentity": f"simc-echo:{variant['variantId']}",
+                    "sourceRevision": "simc-echo-2026-07-11",
+                    "sourceScope": "exact_variant",
+                    "status": "verified",
+                    "claims": [
+                        "static_stats",
+                        "variant_track",
+                        "enhancement_echo",
+                    ],
+                }
+            variant["payload"] = payload
 
         dependencies = {**self.dependencies(), "capabilityRevision": CAPABILITY_REVISION}
         managed = prepare_staging_gear_release(
@@ -2465,7 +3040,7 @@ class GearReleaseToolTest(unittest.TestCase):
         )
         self.assertEqual(
             variants["variant-built-in-embellishment"]["payload"]["enhancementManagement"]["fields"],
-            {"embellishment": "source_only"},
+            {"embellishment": "unresolved_drop"},
         )
         self.assertEqual(
             variants["variant-unknown-capable-embellishment"]["payload"]["enhancementManagement"]["fields"],
@@ -2656,6 +3231,10 @@ class GearReleaseToolTest(unittest.TestCase):
             "canEnchant": False,
             "customAuthority": "preserved",
         }
+        snapshot["variants"][0]["payload"]["canonicalEvidence"]["claims"].append(
+            "enchant_capability"
+        )
+        snapshot["variants"][0]["payload"]["statSource"] = "simulationcraft"
         prepared = prepare_staging_gear_release(
             FakeReleaseStore(snapshot),
             season_revision="midnight-season-1",
