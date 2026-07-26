@@ -21,6 +21,17 @@
 - 发布前必须先完成 old/new shadow 对账；每项差异只能分类为 `exact_parity`、`intended_correction`、`newly_exposed_gap` 或 `regression`。`regression` 阻止 candidate 晋升。
 - 不把 root code、Artifact、Observation、hash、worker 状态或“申请核验”暴露给玩家。用户只看“可用 / 不可用 / 待核验”。
 
+## Delivery Checkpoints
+
+2026-07-26 用户确认把原先单次全量实施拆成四个可独立评审和交付的阶段，避免把事实底座、运行时消费、后台自动化与零售切换放进一个巨型合入：
+
+1. **Foundation / shadow（Tasks 1–4）：** Registry、Observation、Fact Compiler、现有 Gear Release 封存与 shadow；不得改变活动运行时消费或 Manifest。
+2. **Consumer cutover（Tasks 5–6）：** Authority Loader、Resolver、API 与 Taro 统一消费 released facts。Task 5 必须先完成 targeted GREEN、独立复审和本地 CR，提交并推送远端任务分支、核对本地/远端 SHA，形成可跨电脑恢复的受跟踪检查点后停止；不得自动进入 Task 6。
+3. **Automatic closure（Task 7）：** Evidence Gap Worker 与 health 单独评审和交付；不得与用户可见消费切换共用一个未审查的运行时切片。
+4. **Candidate and retail closure（Task 8）：** 候选部署、真实 Taro 验收、显式 Manifest CAS、回滚证明与最终 Harness 收口。
+
+每一阶段必须能独立验证、独立拒绝或回滚，并拥有自己的 task-scoped Harness 证据。不得用一个 PR、一个 release packet 或一个 candidate window 覆盖四个阶段。现有提交可以通过后续分支/提交边界重组，但不得重写 `origin/main`、丢弃已完成工作或越过显式用户验收。
+
 ---
 
 ## Task 1: Freeze the canonical fact contract with executable characterization tests
@@ -31,7 +42,7 @@
 - Create: `server/gear_evidence_registry.py`
 - Modify: `docs/plans/2026-07-26-gear-evidence-registry-design.md`
 
-- [ ] **Step 1: Add failing contract tests for identity, hash separation, and three-state facts**
+- [x] **Step 1: Add failing contract tests for identity, hash separation, and three-state facts**
 
   Cover `item:250033/variant:void_upgrade-298` and assert that:
 
@@ -43,13 +54,13 @@
   - `unresolved_missing` and `unresolved_conflict` cannot carry a trusted default value;
   - Artifact identity is idempotent by source identity/revision/season/payload hash and rejects secret-shaped keys recursively.
 
-- [ ] **Step 2: Run the focused test and verify it fails because the contract owner does not exist**
+- [x] **Step 2: Run the focused test and verify it fails because the contract owner does not exist**
 
   Run: `python -m unittest tests.gear_evidence_registry_test`
 
   Expected: import or missing-symbol failure, not a skipped test.
 
-- [ ] **Step 3: Implement the pure contract owner**
+- [x] **Step 3: Implement the pure contract owner**
 
   In `server/gear_evidence_registry.py`, add canonical JSON/hash helpers plus public constructors/validators:
 
@@ -62,17 +73,17 @@
 
   Require schema revisions `gear-evidence-artifact-v1`, `gear-evidence-observation-v1`, and `gear-canonical-fact-v1`; accept only the three approved fact statuses. Keep all returned mappings JSON-canonical and immutable by convention.
 
-- [ ] **Step 4: Re-run the focused contract suite**
+- [x] **Step 4: Re-run the focused contract suite**
 
   Run: `python -m unittest tests.gear_evidence_registry_test`
 
   Expected: pass, including deterministic repeated construction.
 
-- [ ] **Step 5: Record the implementation names in the approved design without changing its semantics**
+- [x] **Step 5: Record the implementation names in the approved design without changing its semantics**
 
   Add a short implementation-anchor paragraph to the design that names the module and hash contracts; do not change approved product behavior.
 
-- [ ] **Step 6: Commit the isolated contract slice**
+- [x] **Step 6: Commit the isolated contract slice**
 
   ```powershell
   git add server/gear_evidence_registry.py tests/gear_evidence_registry_test.py docs/plans/2026-07-26-gear-evidence-registry-design.md
@@ -90,33 +101,33 @@
 - Modify: `tests/postgres_schema_test.py`
 - Modify: `docs/database-architecture.md`
 
-- [ ] **Step 1: Add failing store/schema tests**
+- [x] **Step 1: Add failing store/schema tests**
 
   Test duplicate Artifact/Observation insertion reuses the original immutable row; assert Observation cannot reference a missing Artifact; assert Facts are versioned append-only by `(fact_key, fact_value_hash, provenance_hash)`; assert a Gap is idempotent by `gap_key` and fenced by `lock_token`; assert runtime role grants no `UPDATE`/`DELETE` to Artifact, Observation, or Fact rows.
 
-- [ ] **Step 2: Run the focused tests to establish failure**
+- [x] **Step 2: Run the focused tests to establish failure**
 
   Run: `python -m unittest tests.gear_evidence_store_test tests.postgres_schema_test`
 
   Expected: missing migration/store behavior.
 
-- [ ] **Step 3: Add migration `0019_gear_evidence_registry`**
+- [x] **Step 3: Add migration `0019_gear_evidence_registry`**
 
   Create `cache.websim_gear_evidence_artifacts`, `cache.websim_gear_evidence_observations`, `cache.websim_gear_canonical_facts`, `cache.websim_gear_evidence_invalidations`, and `ops.websim_gear_evidence_gaps`.
 
   Enforce canonical identities, JSONB payloads, artifact/observation foreign keys, append-only permissions, and indexes for `(season_revision, subject_key, fact_type)`. Make the queue operational only: `status`, `attempt`, `locked_by`, `lock_token`, `lease_until`, `next_attempt_at`, `problem_code`, and structured `missing_requirement_json`; do not put Fact values in queue result fields. Register the migration in `ops.schema_migrations` and update `docs/database-architecture.md`.
 
-- [ ] **Step 4: Implement the two SQL owners**
+- [x] **Step 4: Implement the two SQL owners**
 
   `GearEvidenceStore` owns only Artifact, Observation, invalidation, and Fact persistence/query methods. `GearEvidenceGapStore` owns only `enqueue_gaps`, `claim_next`, `finish`, and `health_summary`, copying the lease/CAS discipline of `AttributeRuleAuditStore` but using the approved Gear gap statuses and root codes.
 
-- [ ] **Step 5: Re-run focused storage and schema tests**
+- [x] **Step 5: Re-run focused storage and schema tests**
 
   Run: `python -m unittest tests.gear_evidence_store_test tests.postgres_schema_test`
 
   Expected: all storage invariants and role assertions pass.
 
-- [ ] **Step 6: Commit the registry persistence slice**
+- [x] **Step 6: Commit the registry persistence slice**
 
   ```powershell
   git add server/migrations/postgres/0019_gear_evidence_registry.sql server/gear_evidence_store.py server/gear_evidence_gap_store.py tests/gear_evidence_store_test.py tests/postgres_schema_test.py docs/database-architecture.md
@@ -134,33 +145,33 @@
 - Modify: `server/gear_socket_authority.py`
 - Modify: `server/gear_rule_matrix.py`
 
-- [ ] **Step 1: Write failing observer tests**
+- [x] **Step 1: Write failing observer tests**
 
   Cover parser replay from a stored Battle.net item Artifact, SimC exact-item/bonus probe Artifact, and season-rule Artifact. Assert parser revisions become part of Observation identity; a malformed source becomes a structured parser result rather than a default Observation; no observer reads the clock or network.
 
-- [ ] **Step 2: Write failing compiler-policy tests**
+- [x] **Step 2: Write failing compiler-policy tests**
 
   Use small fixtures to cover each first-stage policy: `item_identity`, `slot_compatibility`, `variant_track`, `static_stats`, `socket_count`, `enchant_capability`, `embellishment_capability`, `enhancement_option`, `allowed_enhancement_options`, `item_set_membership`.
 
   Explicitly test `socket_count=1` for `250033/void_upgrade-298`, verified zero sockets, absence-not-zero, conflicting exact observations, policy revision invalidation, and byte-for-byte deterministic recompilation.
 
-- [ ] **Step 3: Run the focused observer/compiler tests and verify failure**
+- [x] **Step 3: Run the focused observer/compiler tests and verify failure**
 
   Run: `python -m unittest tests.gear_evidence_observers_test tests.gear_fact_compiler_test`
 
-- [ ] **Step 4: Implement observers and compiler**
+- [x] **Step 4: Implement observers and compiler**
 
   In `server/gear_evidence_observers.py`, expose deterministic `observe_*` functions returning accepted observations or structured non-observation diagnostics. In `server/gear_fact_compiler.py`, expose `FACT_POLICIES`, `compile_facts(...)`, `compile_subject_facts(...)`, and `evidence_gaps_from_facts(...)`.
 
   Every policy declares allowed sources, source scope, combination mode, closed-world condition for false/zero, conflict policy, impact scope, and rule revision. Adapt `gear_socket_authority.py` to emit source observations/input facts only; remove its authority to decide the final consumer payload. Keep dynamic legality in `gear_rule_matrix.py` untouched except for accepting canonical static inputs.
 
-- [ ] **Step 5: Re-run focused tests and ensure the legacy socket fixture still passes**
+- [x] **Step 5: Re-run focused tests and ensure the legacy socket fixture still passes**
 
   Run: `python -m unittest tests.gear_evidence_observers_test tests.gear_fact_compiler_test tests.gear_socket_authority_test tests.gear_rule_matrix_test`
 
   Expected: the exact `250033` conflict is represented as one verified compiled socket fact, not two competing source booleans.
 
-- [ ] **Step 6: Commit the pure compilation slice**
+- [x] **Step 6: Commit the pure compilation slice**
 
   ```powershell
   git add server/gear_evidence_observers.py server/gear_fact_compiler.py server/gear_socket_authority.py server/gear_rule_matrix.py tests/gear_evidence_observers_test.py tests/gear_fact_compiler_test.py
@@ -179,19 +190,19 @@
 - Modify: `tests/gear_release_tool_test.py`
 - Modify: `tests/gear_release_refresh_test.py`
 
-- [ ] **Step 1: Add failing release tests**
+- [x] **Step 1: Add failing release tests**
 
   Assert a prepared snapshot materializes `canonicalFacts` and bounded fact/provenance references in item, variant, and option payloads without copying raw Artifact payloads. Assert source evidence includes a deterministic compiler policy/fact digest. Assert a no-op recompilation creates neither a new content hash nor a new candidate release.
 
-- [ ] **Step 2: Add failing shadow-classification tests**
+- [x] **Step 2: Add failing shadow-classification tests**
 
   `compare_legacy_and_canonical(...)` must classify every difference exclusively as `exact_parity`, `intended_correction`, `newly_exposed_gap`, or `regression`; unclassified differences must fail release preparation. Include the known browse/Resolve `250033` `hasSocket=false` vs `socketCount=1` case as `intended_correction`.
 
-- [ ] **Step 3: Run the release/shadow tests to establish failure**
+- [x] **Step 3: Run the release/shadow tests to establish failure**
 
   Run: `python -m unittest tests.gear_release_tool_test tests.gear_release_refresh_test tests.gear_fact_shadow_test`
 
-- [ ] **Step 4: Integrate the compiler into the sole release-preparation path**
+- [x] **Step 4: Integrate the compiler into the sole release-preparation path**
 
   Replace the direct terminal authority of `_project_socket_facts_into_release_payloads(...)` and `_materialize_enhancement_management(...)` with an adapter that:
 
@@ -203,13 +214,13 @@
 
   Preserve current Gear Release integrity checks, parent release behavior, and candidate-first publication. Do not alter active Manifest selection here.
 
-- [ ] **Step 5: Re-run release tests**
+- [x] **Step 5: Re-run release tests**
 
   Run: `python -m unittest tests.gear_release_tool_test tests.gear_release_refresh_test tests.gear_fact_shadow_test`
 
   Expected: a repeat preparation with unchanged inputs is a no-op and regressions block a candidate.
 
-- [ ] **Step 6: Commit the release integration slice**
+- [x] **Step 6: Commit the release integration slice**
 
   ```powershell
   git add server/gear_release_tool.py server/gear_release_refresh.py server/gear_release_store.py server/gear_fact_shadow.py tests/gear_release_tool_test.py tests/gear_release_refresh_test.py tests/gear_fact_shadow_test.py
@@ -229,34 +240,50 @@
 - Modify: `tests/websim_payload_test.py`
 - Modify: `docs/design/current-ui/routes/gear-detail/truth-adaptation.json`
 
-- [ ] **Step 1: Write failing loader/resolver tests**
+- [x] **Step 1: Write failing loader/resolver tests**
 
   Assert loader reads Canonical Facts only from the selected Gear Release and rejects mutable staging/source payload as a fallback. Assert Resolver projects fact refs into the existing evidence ledger as a Resolution Proof, while dynamic selection checks continue to run separately.
 
-- [ ] **Step 2: Write failing public-contract tests**
+- [x] **Step 2: Write failing public-contract tests**
 
   Assert a browse payload and exact Resolve result report the same canonical capability state for the same item/variant. Test `250033/void_upgrade-298` as one socket; test verified zero as unavailable; test unresolved capability as `pending` and disabled only in that category.
 
-- [ ] **Step 3: Run focused loader/resolver/serializer tests to establish failure**
+- [x] **Step 3: Run focused loader/resolver/serializer tests to establish failure**
 
   Run: `python -m unittest tests.pg_gear_authority_loader_test tests.gear_resolver_test tests.websim_payload_test`
 
-- [ ] **Step 4: Implement the one-way consumer projection**
+- [x] **Step 4: Implement the one-way consumer projection**
 
   `pg_gear_authority_loader.py` reads `canonicalFacts` as the sole static authority. `gear_resolver.py` consumes those facts and attaches fact references to `gear-evidence-ledger-v1` without recomputing source truth. `websim_payload.py` emits capability views with state/value/options derived solely from released facts. If legacy booleans remain, derive them only in this serializer from verified capability facts.
 
-- [ ] **Step 5: Update the route truth contract and re-run focused tests**
+- [x] **Step 5: Update the route truth contract and re-run focused tests**
 
   Document that compact browse and exact Resolve share the same published fact projection; keep all internal provenance out of the public route contract.
 
   Run: `python -m unittest tests.pg_gear_authority_loader_test tests.gear_resolver_test tests.websim_payload_test`
 
-- [ ] **Step 6: Commit the consumer authority slice**
+- [x] **Step 6: Commit the consumer authority slice**
 
   ```powershell
   git add server/pg_gear_authority_loader.py server/gear_resolver.py server/gear_evidence_ledger.py server/websim_payload.py tests/pg_gear_authority_loader_test.py tests/gear_resolver_test.py tests/websim_payload_test.py docs/design/current-ui/routes/gear-detail/truth-adaptation.json
   git commit -m "feat(gear): consume released canonical facts"
   ```
+
+- [x] **Step 7: Publish the reviewed Task 5 cross-device checkpoint**
+
+  After every Task 5 targeted test is GREEN, the independent review is clean, and local CR confirms the complete Task 5 diff:
+
+  ```powershell
+  git diff --check
+  git status --short --branch
+  git add docs/plans/2026-07-26-gear-evidence-registry-implementation.md docs/roadmap.md docs/roadmap/ideas.md server/gear_fact_compiler.py server/gear_fact_shadow.py server/gear_release_store.py server/gear_release_tool.py server/gear_resolver.py server/gear_rule_matrix.py server/gear_runtime.py server/pg_gear_authority_loader.py server/websim_payload.py tests/gear_fact_compiler_test.py tests/gear_release_store_test.py tests/gear_release_tool_test.py tests/gear_resolver_test.py tests/gear_runtime_test.py tests/pg_gear_authority_loader_test.py tests/websim_payload_test.py
+  git commit -m "fix(gear): close released fact consumer review"
+  git push -u origin codex/gear-evidence-registry
+  git rev-parse HEAD
+  git rev-parse origin/codex/gear-evidence-registry
+  ```
+
+  The two SHAs must match. Record the exact branch, SHA, focused-test result, review status, remaining untracked/unstaged state, and the next unchecked plan step in the thread handoff. Do not merge `main`, create a retail candidate, activate a Manifest, or start Task 6 at this checkpoint.
 
 ## Task 6: Make Taro render verified, unavailable, and pending capabilities consistently
 
