@@ -10,6 +10,9 @@ SUBJECT_KEY = "item:250033/variant:void_upgrade-298"
 
 
 class GearFactCompilerTest(unittest.TestCase):
+    def setUp(self):
+        self.artifacts = {}
+
     def observation(
         self,
         fact_type,
@@ -19,10 +22,26 @@ class GearFactCompilerTest(unittest.TestCase):
         parser_revision="simc-item-probe-observer-v1",
         source_scope="exact_variant",
         subject_key=SUBJECT_KEY,
+        artifact_source_type=None,
     ):
+        source_type = artifact_source_type or {
+            "battle-net-item-observer-v1": "battle_net_item",
+            "simc-item-probe-observer-v1": "simc_item_probe",
+            "simc-bonus-probe-observer-v1": "simc_bonus_probe",
+            "season-rule-observer-v1": "season_rule",
+        }.get(parser_revision, "simc_item_probe")
+        marker = artifact_id or f"{fact_type}:{len(self.artifacts)}"
+        artifact = gear_evidence_registry.build_evidence_artifact(
+            source_type=source_type,
+            source_identity=f"fixture:{marker}",
+            source_revision=f"{source_type}-revision-1",
+            season_revision=SEASON_REVISION,
+            captured_at="2026-07-26T00:00:00Z",
+            payload={"fixture": marker},
+        )
+        self.artifacts[artifact["artifactId"]] = artifact
         return gear_evidence_registry.build_evidence_observation(
-            artifact_id=artifact_id
-            or f"gear-artifact:sha256:{fact_type.replace('_', ''):0<64}",
+            artifact_id=artifact["artifactId"],
             subject_key=subject_key,
             fact_type=fact_type,
             observed_value=value,
@@ -43,6 +62,7 @@ class GearFactCompilerTest(unittest.TestCase):
             season_revision=SEASON_REVISION,
             subject_key=subject_key,
             observations=observations,
+            artifacts=self.artifacts.values(),
             fact_types=[fact_type],
             policies=policies,
         )
@@ -84,17 +104,22 @@ class GearFactCompilerTest(unittest.TestCase):
         fixtures = {
             "item_identity": {"itemId": "250033", "variantKey": "void_upgrade-298"},
             "slot_compatibility": ["head"],
-            "variant_track": {"itemLevel": 289, "track": "void_upgrade"},
+            "variant_track": {
+                "itemId": "250033",
+                "itemLevel": 289,
+                "track": "void_upgrade",
+                "variantKey": "void_upgrade-298",
+            },
             "static_stats": {"haste": 812, "stamina": 1218},
             "socket_count": 1,
             "enchant_capability": False,
             "embellishment_capability": True,
             "enhancement_option": {
+                "applicableScopes": ["head"],
                 "effect": {"haste": 147},
                 "optionId": "gem:240001",
                 "optionType": "gem",
             },
-            "allowed_enhancement_options": ["gem:240001", "gem:240002"],
             "item_set_membership": "set:42",
         }
         parser_revisions = {
@@ -109,9 +134,13 @@ class GearFactCompilerTest(unittest.TestCase):
             "enchant_capability": "slot_rule",
             "allowed_enhancement_options": "slot_rule",
         }
+        subject_keys = {
+            "enhancement_option": "option:gem:240001",
+        }
 
         for fact_type, expected in fixtures.items():
             with self.subTest(fact_type=fact_type):
+                subject_key = subject_keys.get(fact_type, SUBJECT_KEY)
                 fact = self.fact(
                     [
                         self.observation(
@@ -123,9 +152,11 @@ class GearFactCompilerTest(unittest.TestCase):
                             source_scope=source_scopes.get(
                                 fact_type, "exact_variant"
                             ),
+                            subject_key=subject_key,
                         )
                     ],
                     fact_type,
+                    subject_key=subject_key,
                 )
                 self.assertEqual(fact["status"], "verified")
                 self.assertEqual(fact["value"], expected)
@@ -241,12 +272,14 @@ class GearFactCompilerTest(unittest.TestCase):
         first = gear_fact_compiler.compile_facts(
             season_revision=SEASON_REVISION,
             observations=observations,
+            artifacts=self.artifacts.values(),
             subjects=[SUBJECT_KEY],
             fact_types=["socket_count", "item_identity"],
         )
         replay = gear_fact_compiler.compile_facts(
             season_revision=SEASON_REVISION,
             observations=list(reversed(observations)),
+            artifacts=reversed(list(self.artifacts.values())),
             subjects=[SUBJECT_KEY],
             fact_types=["item_identity", "socket_count"],
         )
@@ -258,6 +291,102 @@ class GearFactCompilerTest(unittest.TestCase):
             replay, ensure_ascii=False, sort_keys=True, separators=(",", ":")
         ).encode("utf-8")
         self.assertEqual(encoded_first, encoded_replay)
+
+    def test_incomplete_closed_world_values_remain_unresolved_missing(self):
+        cases = {
+            "variant_track": {"itemLevel": 289, "track": "void_upgrade"},
+            "enhancement_option": {"optionId": "gem:240001"},
+        }
+
+        for fact_type, incomplete in cases.items():
+            with self.subTest(fact_type=fact_type):
+                fact = self.fact(
+                    [self.observation(fact_type, incomplete)],
+                    fact_type,
+                )
+                self.assertEqual(fact["status"], "unresolved_missing")
+                self.assertIsNone(fact["value"])
+
+    def test_allowed_options_require_verified_capability_option_and_slot_rule_basis(self):
+        capability = self.observation("socket_count", 1)
+        option = self.observation(
+            "enhancement_option",
+            {
+                "applicableScopes": ["head"],
+                "effect": {"haste": 147},
+                "optionId": "gem:240001",
+                "optionType": "gem",
+            },
+            subject_key="option:gem:240001",
+        )
+        slot_rule = self.observation(
+            "allowed_enhancement_options",
+            {
+                "capabilityFactType": "socket_count",
+                "optionIds": ["gem:240001"],
+                "slot": "head",
+            },
+            parser_revision="season-rule-observer-v1",
+            source_scope="slot_rule",
+        )
+
+        verified = self.fact(
+            [slot_rule, option, capability],
+            "allowed_enhancement_options",
+        )
+        missing_option = self.fact(
+            [slot_rule, capability],
+            "allowed_enhancement_options",
+        )
+        missing_capability = self.fact(
+            [slot_rule, option],
+            "allowed_enhancement_options",
+        )
+        incompatible_slot_rule = self.observation(
+            "allowed_enhancement_options",
+            {
+                "capabilityFactType": "socket_count",
+                "optionIds": ["gem:240001"],
+                "slot": "wrist",
+            },
+            parser_revision="season-rule-observer-v1",
+            source_scope="slot_rule",
+        )
+        incompatible_scope = self.fact(
+            [incompatible_slot_rule, option, capability],
+            "allowed_enhancement_options",
+        )
+
+        self.assertEqual(verified["status"], "verified")
+        self.assertEqual(verified["value"], ["gem:240001"])
+        self.assertEqual(missing_option["status"], "unresolved_missing")
+        self.assertEqual(missing_capability["status"], "unresolved_missing")
+        self.assertEqual(incompatible_scope["status"], "unresolved_missing")
+
+    def test_source_policy_is_anchored_to_referenced_immutable_artifact(self):
+        spoofed = self.observation(
+            "static_stats",
+            {"haste": 812},
+            parser_revision="simc-item-probe-observer-v1",
+            artifact_source_type="season_rule",
+        )
+        spoofed["sourceType"] = "simc_item_probe"
+
+        fact = self.fact([spoofed], "static_stats")
+
+        self.assertEqual(fact["status"], "unresolved_missing")
+        self.assertIsNone(fact["value"])
+        self.assertEqual(fact["problemCode"], "compiler_policy_missing")
+
+    def test_missing_referenced_artifact_fails_closed(self):
+        observation = self.observation("socket_count", 1)
+        self.artifacts.pop(observation["artifactId"])
+
+        fact = self.fact([observation], "socket_count")
+
+        self.assertEqual(fact["status"], "unresolved_missing")
+        self.assertIsNone(fact["value"])
+        self.assertEqual(fact["problemCode"], "artifact_missing")
 
     def test_unresolved_facts_project_time_free_gap_requirements(self):
         missing = self.fact([], "socket_count")

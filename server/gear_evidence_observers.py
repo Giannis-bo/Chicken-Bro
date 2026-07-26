@@ -249,6 +249,12 @@ def observe_battle_net_item(
                 subject_key,
                 "variant_track",
                 {
+                    "itemId": item_id,
+                    **(
+                        {"variantKey": variant_key}
+                        if variant_key
+                        else {}
+                    ),
                     **({"track": track} if track is not None else {}),
                     **({"itemLevel": item_level} if item_level is not None else {}),
                 },
@@ -283,35 +289,61 @@ def observe_battle_net_item(
 
     if "setId" in payload:
         set_id = payload.get("setId")
-        set_value: Any = (
-            f"set:{_positive_identifier(set_id)}"
-            if _positive_identifier(set_id)
-            else False
-        )
-        observations.append(
-            _observation(
-                row,
-                parser_revision,
-                subject_key,
-                "item_set_membership",
-                set_value,
-                source_scope,
+        normalized_set_id = _positive_identifier(set_id)
+        if normalized_set_id or set_id is False:
+            observations.append(
+                _observation(
+                    row,
+                    parser_revision,
+                    subject_key,
+                    "item_set_membership",
+                    f"set:{normalized_set_id}" if normalized_set_id else False,
+                    source_scope,
+                )
             )
-        )
+        else:
+            diagnostics.append(
+                _diagnostic(
+                    "parser_unhandled_shape",
+                    "payload.setId",
+                    "Set membership must be a positive setId or explicit false.",
+                )
+            )
 
-    for option in payload.get("enhancementOptions", ()):
-        if not isinstance(option, Mapping) or not _text(option.get("optionId")):
-            continue
-        observations.append(
-            _observation(
-                row,
-                parser_revision,
-                f"option:{_text(option['optionId'])}",
-                "enhancement_option",
-                dict(option),
-                "option",
+    raw_options = payload.get("enhancementOptions", ())
+    if "enhancementOptions" in payload and not isinstance(
+        raw_options, (list, tuple)
+    ):
+        diagnostics.append(
+            _diagnostic(
+                "parser_unhandled_shape",
+                "payload.enhancementOptions",
+                "Enhancement options must be an array.",
             )
         )
+    else:
+        for index, option in enumerate(raw_options):
+            if not isinstance(option, Mapping) or not _text(
+                option.get("optionId")
+            ):
+                diagnostics.append(
+                    _diagnostic(
+                        "parser_unhandled_shape",
+                        f"payload.enhancementOptions.{index}",
+                        "Enhancement option requires a structured optionId.",
+                    )
+                )
+                continue
+            observations.append(
+                _observation(
+                    row,
+                    parser_revision,
+                    f"option:{_text(option['optionId'])}",
+                    "enhancement_option",
+                    dict(option),
+                    "option",
+                )
+            )
     return _result(
         row,
         parser_revision,
@@ -398,6 +430,12 @@ def observe_simc_item_probe(
                 subject_key,
                 "variant_track",
                 {
+                    "itemId": item_id,
+                    **(
+                        {"variantKey": variant_key}
+                        if variant_key
+                        else {}
+                    ),
                     **(
                         {"track": payload["track"]}
                         if payload.get("track") is not None

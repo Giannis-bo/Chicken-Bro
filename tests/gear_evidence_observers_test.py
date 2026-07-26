@@ -70,8 +70,10 @@ class GearEvidenceObserversTest(unittest.TestCase):
             {
                 "bonusIds": [298],
                 "itemId": 250033,
+                "itemLevel": 289,
                 "socketCount": 1,
                 "staticStats": {"haste": 812, "stamina": 1218},
+                "track": "void_upgrade",
                 "variantKey": "void_upgrade-298",
             },
         )
@@ -87,6 +89,20 @@ class GearEvidenceObserversTest(unittest.TestCase):
         self.assertEqual(socket["subjectKey"], SUBJECT_KEY)
         self.assertEqual(socket["sourceScope"], "exact_variant")
         self.assertEqual(socket["observedValue"], 1)
+        track = next(
+            observation
+            for observation in result["observations"]
+            if observation["factType"] == "variant_track"
+        )
+        self.assertEqual(
+            track["observedValue"],
+            {
+                "itemId": "250033",
+                "itemLevel": 289,
+                "track": "void_upgrade",
+                "variantKey": "void_upgrade-298",
+            },
+        )
 
     def test_season_rule_artifact_emits_only_declared_rule_observations(self):
         artifact = self.artifact(
@@ -170,6 +186,38 @@ class GearEvidenceObserversTest(unittest.TestCase):
         self.assertEqual(
             result["diagnostics"][0]["path"], "payload.socketCount"
         )
+
+    def test_null_enhancement_options_is_diagnostic_not_an_exception(self):
+        artifact = self.artifact(
+            "battle_net_item",
+            {"enhancementOptions": None, "itemId": 250033},
+        )
+
+        result = gear_evidence_observers.observe_battle_net_item(artifact)
+
+        self.assertEqual(result["status"], "accepted")
+        self.assertEqual(
+            [row["factType"] for row in result["observations"]],
+            ["item_identity"],
+        )
+        self.assertEqual(
+            result["diagnostics"][0]["path"], "payload.enhancementOptions"
+        )
+
+    def test_invalid_set_id_is_diagnostic_not_verified_non_membership(self):
+        artifact = self.artifact(
+            "battle_net_item",
+            {"itemId": 250033, "setId": "not-a-set"},
+        )
+
+        result = gear_evidence_observers.observe_battle_net_item(artifact)
+
+        self.assertEqual(result["status"], "accepted")
+        self.assertNotIn(
+            "item_set_membership",
+            [row["factType"] for row in result["observations"]],
+        )
+        self.assertEqual(result["diagnostics"][0]["path"], "payload.setId")
 
     def test_observers_do_not_read_clock_or_network(self):
         artifact = self.artifact(

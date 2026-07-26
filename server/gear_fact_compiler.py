@@ -7,9 +7,15 @@ import json
 from typing import Any, Iterable, Mapping, Sequence
 
 try:
-    from .gear_evidence_registry import build_canonical_fact
+    from .gear_evidence_registry import (
+        EVIDENCE_ARTIFACT_SCHEMA_REVISION,
+        build_canonical_fact,
+    )
 except ImportError:  # pragma: no cover - direct script/module compatibility
-    from gear_evidence_registry import build_canonical_fact  # type: ignore
+    from gear_evidence_registry import (  # type: ignore
+        EVIDENCE_ARTIFACT_SCHEMA_REVISION,
+        build_canonical_fact,
+    )
 
 
 _STRUCTURAL_SOURCES = ("battle_net_item", "season_rule")
@@ -110,7 +116,7 @@ FACT_POLICIES: dict[str, dict[str, Any]] = {
         "ruleRevision": "gear-embellishment-capability-policy-v1",
     },
     "enhancement_option": {
-        "allowedSources": _ALL_STATIC_SOURCES,
+        "allowedSources": ("battle_net_item", "simc_item_probe"),
         "sourceScopes": ("option", "exact_item", "exact_variant", "season_rule"),
         "combinationMode": "exact_agreement",
         "closedWorldCondition": "explicit_option_identity_effect_and_scope",
@@ -119,14 +125,8 @@ FACT_POLICIES: dict[str, dict[str, Any]] = {
         "ruleRevision": "gear-enhancement-option-policy-v1",
     },
     "allowed_enhancement_options": {
-        "allowedSources": _ALL_STATIC_SOURCES,
-        "sourceScopes": (
-            "base_item",
-            "exact_item",
-            "exact_variant",
-            "slot_rule",
-            "season_rule",
-        ),
+        "allowedSources": ("season_rule",),
+        "sourceScopes": ("slot_rule", "season_rule"),
         "combinationMode": "canonical_set_union",
         "closedWorldCondition": "verified_capability_option_and_slot_rule",
         "conflictPolicy": "unresolved_on_incompatible_value_shape",
@@ -182,21 +182,22 @@ def _canonical_key(value: Any) -> str:
     )
 
 
-def _source_type(observation: Mapping[str, Any]) -> str:
-    explicit = _text(observation.get("sourceType"))
-    if explicit:
-        return explicit
-    revision = _text(observation.get("parserRevision")).lower()
-    prefixes = (
-        ("battle-net-item-observer-", "battle_net_item"),
-        ("simc-item-probe-observer-", "simc_item_probe"),
-        ("simc-bonus-probe-observer-", "simc_bonus_probe"),
-        ("season-rule-observer-", "season_rule"),
-    )
-    for prefix, source_type in prefixes:
-        if revision.startswith(prefix):
-            return source_type
-    return ""
+def _artifact_index(values: Any) -> dict[str, Mapping[str, Any]]:
+    if isinstance(values, Mapping):
+        if _text(values.get("artifactId")):
+            rows = [values]
+        else:
+            rows = list(values.values())
+    else:
+        rows = list(values or ())
+    indexed: dict[str, Mapping[str, Any]] = {}
+    for row in rows:
+        if not isinstance(row, Mapping):
+            continue
+        artifact_id = _text(row.get("artifactId"))
+        if artifact_id:
+            indexed[artifact_id] = row
+    return indexed
 
 
 def _flatten_observations(values: Iterable[Any]) -> list[Mapping[str, Any]]:
@@ -240,6 +241,10 @@ def _validate_policy(fact_type: str, policy: Mapping[str, Any]) -> None:
     ):
         if not _text(policy.get(field)):
             raise ValueError(f"Fact policy {fact_type} requires {field}.")
+    if policy["closedWorldCondition"] not in _CLOSED_WORLD_VALIDATORS:
+        raise ValueError(
+            f"Fact policy {fact_type} has no closed-world evaluator."
+        )
 
 
 def _eligible_observations(
@@ -247,7 +252,9 @@ def _eligible_observations(
     subject_key: str,
     fact_type: str,
     policy: Mapping[str, Any],
-) -> tuple[list[Mapping[str, Any]], bool]:
+    season_revision: str,
+    artifacts_by_id: Mapping[str, Mapping[str, Any]],
+) -> tuple[list[Mapping[str, Any]], bool, bool]:
     candidates = [
         observation
         for observation in observations
@@ -255,74 +262,224 @@ def _eligible_observations(
         and _text(observation.get("factType")) == fact_type
         and observation.get("status") == "accepted"
     ]
-    eligible = [
-        observation
-        for observation in candidates
-        if _source_type(observation) in policy["allowedSources"]
-        and _text(observation.get("sourceScope")) in policy["sourceScopes"]
-        and _text(observation.get("observationId"))
-    ]
-    return eligible, bool(candidates and not eligible)
-
-
-def _valid_fact_value(fact_type: str, value: Any) -> bool:
-    if fact_type == "socket_count":
-        return (
-            isinstance(value, int)
-            and not isinstance(value, bool)
-            and value >= 0
+    eligible: list[Mapping[str, Any]] = []
+    policy_rejected = False
+    missing_artifact = False
+    for observation in candidates:
+        artifact = artifacts_by_id.get(_text(observation.get("artifactId")))
+        if not artifact:
+            missing_artifact = True
+            continue
+        source_allowed = (
+            artifact.get("schemaRevision") == EVIDENCE_ARTIFACT_SCHEMA_REVISION
+            and _text(artifact.get("seasonRevision")) == season_revision
+            and _text(artifact.get("sourceType")) in policy["allowedSources"]
         )
-    if fact_type in {"enchant_capability", "embellishment_capability"}:
-        return isinstance(value, bool)
-    if fact_type in {
-        "item_identity",
-        "variant_track",
-        "static_stats",
-        "enhancement_option",
-    }:
-        return isinstance(value, dict) and bool(value)
-    if fact_type in {
-        "slot_compatibility",
-        "allowed_enhancement_options",
-    }:
-        return isinstance(value, list)
-    if fact_type == "item_set_membership":
-        return value is False or bool(_text(value))
-    return True
+        scope_allowed = (
+            _text(observation.get("sourceScope")) in policy["sourceScopes"]
+        )
+        if (
+            source_allowed
+            and scope_allowed
+            and _text(observation.get("observationId"))
+        ):
+            eligible.append(observation)
+        else:
+            policy_rejected = True
+    return eligible, policy_rejected, missing_artifact
+
+
+def _valid_string_list(value: Any, *, allow_empty: bool = False) -> bool:
+    return (
+        isinstance(value, list)
+        and (allow_empty or bool(value))
+        and all(bool(_text(entry)) for entry in value)
+        and len({_text(entry) for entry in value}) == len(value)
+    )
+
+
+def _valid_item_identity(value: Any, subject_key: str) -> bool:
+    if not isinstance(value, dict) or not _text(value.get("itemId")):
+        return False
+    expected_item = subject_key.split("/variant:", 1)[0]
+    if expected_item != f"item:{_text(value.get('itemId'))}":
+        return False
+    if "/variant:" not in subject_key:
+        return "variantKey" not in value or not _text(value.get("variantKey"))
+    return (
+        _text(value.get("variantKey"))
+        == subject_key.split("/variant:", 1)[1]
+    )
+
+
+def _valid_variant_track(value: Any, subject_key: str) -> bool:
+    return (
+        isinstance(value, dict)
+        and _valid_item_identity(
+            {
+                "itemId": value.get("itemId"),
+                "variantKey": value.get("variantKey"),
+            },
+            subject_key,
+        )
+        and bool(_text(value.get("track")))
+        and isinstance(value.get("itemLevel"), int)
+        and not isinstance(value.get("itemLevel"), bool)
+        and value["itemLevel"] > 0
+    )
+
+
+def _valid_static_stats(value: Any, _subject_key: str) -> bool:
+    return (
+        isinstance(value, dict)
+        and bool(value)
+        and all(
+            bool(_text(stat))
+            and isinstance(amount, (int, float))
+            and not isinstance(amount, bool)
+            for stat, amount in value.items()
+        )
+    )
+
+
+def _valid_socket_count(value: Any, _subject_key: str) -> bool:
+    return (
+        isinstance(value, int)
+        and not isinstance(value, bool)
+        and value >= 0
+    )
+
+
+def _valid_boolean(value: Any, _subject_key: str) -> bool:
+    return isinstance(value, bool)
+
+
+def _valid_enhancement_option(value: Any, subject_key: str) -> bool:
+    if not isinstance(value, dict):
+        return False
+    option_id = _text(value.get("optionId"))
+    return (
+        bool(option_id)
+        and subject_key == f"option:{option_id}"
+        and _text(value.get("optionType"))
+        in {
+            "catalyst",
+            "crafted",
+            "embellishment",
+            "enchant",
+            "gem",
+            "runeforge",
+        }
+        and isinstance(value.get("effect"), dict)
+        and bool(value["effect"])
+        and _valid_string_list(value.get("applicableScopes"))
+    )
+
+
+def _valid_allowed_option_basis(value: Any, _subject_key: str) -> bool:
+    return (
+        isinstance(value, dict)
+        and _text(value.get("capabilityFactType"))
+        in {
+            "socket_count",
+            "enchant_capability",
+            "embellishment_capability",
+        }
+        and _valid_string_list(value.get("optionIds"), allow_empty=True)
+        and bool(_text(value.get("slot")))
+    )
+
+
+def _valid_set_membership(value: Any, _subject_key: str) -> bool:
+    if value is False:
+        return True
+    text = _text(value)
+    return (
+        text.startswith("set:")
+        and text.removeprefix("set:").isdigit()
+        and int(text.removeprefix("set:")) > 0
+    )
+
+
+_CLOSED_WORLD_VALIDATORS = {
+    "explicit_structured_identity": _valid_item_identity,
+    "explicit_inventory_or_slot_rule": (
+        lambda value, _subject_key: _valid_string_list(value)
+    ),
+    "exact_track_and_item_level_observed": _valid_variant_track,
+    "exact_probe_completed": _valid_static_stats,
+    "explicit_zero_or_exact_capacity": _valid_socket_count,
+    "explicit_false_or_applicable_slot_rule": _valid_boolean,
+    "explicit_false_or_crafting_metadata": _valid_boolean,
+    "explicit_option_identity_effect_and_scope": _valid_enhancement_option,
+    "verified_capability_option_and_slot_rule": _valid_allowed_option_basis,
+    "explicit_set_identity_or_non_membership": _valid_set_membership,
+}
+
+
+def _closed_world_complete(
+    policy: Mapping[str, Any],
+    value: Any,
+    subject_key: str,
+) -> bool:
+    validator = _CLOSED_WORLD_VALIDATORS.get(
+        _text(policy.get("closedWorldCondition"))
+    )
+    return bool(validator and validator(value, subject_key))
 
 
 def _combine(
     observations: Sequence[Mapping[str, Any]],
-    fact_type: str,
-    mode: str,
-) -> tuple[str, Any]:
+    subject_key: str,
+    policy: Mapping[str, Any],
+    artifacts_by_id: Mapping[str, Mapping[str, Any]],
+) -> tuple[str, Any, bool]:
     if not observations:
-        return "unresolved_missing", None
-    values = [_canonical(observation.get("observedValue")) for observation in observations]
-    if not all(_valid_fact_value(fact_type, value) for value in values):
-        return "unresolved_conflict", None
+        return "unresolved_missing", None, False
+    complete_observations = [
+        observation
+        for observation in observations
+        if _closed_world_complete(
+            policy,
+            _canonical(observation.get("observedValue")),
+            subject_key,
+        )
+    ]
+    if not complete_observations:
+        return "unresolved_missing", None, True
+    values = [
+        _canonical(observation.get("observedValue"))
+        for observation in complete_observations
+    ]
+    mode = policy["combinationMode"]
     if mode == "canonical_set_union":
         values_by_key: dict[str, Any] = {}
         for value in values:
             for entry in value:
                 values_by_key[_canonical_key(entry)] = entry
-        return "verified", [
-            values_by_key[key] for key in sorted(values_by_key)
-        ]
+        return (
+            "verified",
+            [values_by_key[key] for key in sorted(values_by_key)],
+            False,
+        )
     if mode == "socket_capacity":
         exact_values = {
             value
-            for observation, value in zip(observations, values)
-            if _source_type(observation)
+            for observation, value in zip(complete_observations, values)
+            if _text(
+                artifacts_by_id.get(
+                    _text(observation.get("artifactId")), {}
+                ).get("sourceType")
+            )
             in {"battle_net_item", "simc_item_probe"}
         }
         if len(exact_values) > 1:
-            return "unresolved_conflict", None
-        return "verified", max(values)
+            return "unresolved_conflict", None, False
+        return "verified", max(values), False
     distinct = {_canonical_key(value): value for value in values}
     if len(distinct) != 1:
-        return "unresolved_conflict", None
-    return "verified", next(iter(distinct.values()))
+        return "unresolved_conflict", None, False
+    return "verified", next(iter(distinct.values())), False
 
 
 def _compile_one(
@@ -331,6 +488,7 @@ def _compile_one(
     subject_key: str,
     fact_type: str,
     observations: Sequence[Mapping[str, Any]],
+    artifacts_by_id: Mapping[str, Mapping[str, Any]],
     policy: Mapping[str, Any] | None,
 ) -> dict[str, Any]:
     if policy is None:
@@ -346,16 +504,30 @@ def _compile_one(
             problem_code="compiler_policy_missing",
         )
     _validate_policy(fact_type, policy)
-    eligible, policy_rejected_candidates = _eligible_observations(
-        observations, subject_key, fact_type, policy
+    eligible, policy_rejected_candidates, missing_artifact = (
+        _eligible_observations(
+            observations,
+            subject_key,
+            fact_type,
+            policy,
+            season_revision,
+            artifacts_by_id,
+        )
     )
-    status, value = _combine(
-        eligible, fact_type, policy["combinationMode"]
+    status, value, incomplete_closed_world = _combine(
+        eligible,
+        subject_key,
+        policy,
+        artifacts_by_id,
     )
     if status == "verified":
         problem_code = ""
     elif status == "unresolved_conflict":
         problem_code = "observation_conflict"
+    elif incomplete_closed_world:
+        problem_code = "parser_unhandled_shape"
+    elif missing_artifact:
+        problem_code = "artifact_missing"
     elif policy_rejected_candidates:
         problem_code = "compiler_policy_missing"
     else:
@@ -376,11 +548,157 @@ def _compile_one(
     )
 
 
+def _capability_supports_options(fact: Mapping[str, Any]) -> bool:
+    if fact.get("status") != "verified":
+        return False
+    value = fact.get("value")
+    if fact.get("factType") == "socket_count":
+        return (
+            isinstance(value, int)
+            and not isinstance(value, bool)
+            and value > 0
+        )
+    return value is True
+
+
+def _compile_allowed_options(
+    *,
+    season_revision: str,
+    subject_key: str,
+    observations: Sequence[Mapping[str, Any]],
+    artifacts_by_id: Mapping[str, Mapping[str, Any]],
+    policies: Mapping[str, Mapping[str, Any]],
+) -> dict[str, Any]:
+    fact_type = "allowed_enhancement_options"
+    policy = policies.get(fact_type)
+    if policy is None:
+        return _compile_one(
+            season_revision=season_revision,
+            subject_key=subject_key,
+            fact_type=fact_type,
+            observations=observations,
+            artifacts_by_id=artifacts_by_id,
+            policy=None,
+        )
+    _validate_policy(fact_type, policy)
+    eligible, policy_rejected, missing_artifact = _eligible_observations(
+        observations,
+        subject_key,
+        fact_type,
+        policy,
+        season_revision,
+        artifacts_by_id,
+    )
+    complete_rules = [
+        observation
+        for observation in eligible
+        if _closed_world_complete(
+            policy,
+            _canonical(observation.get("observedValue")),
+            subject_key,
+        )
+    ]
+    observation_refs = [
+        observation["observationId"] for observation in eligible
+    ]
+    allowed_option_ids: set[str] = set()
+    dependency_missing = False
+    dependency_conflict = False
+    for rule in complete_rules:
+        basis = _canonical(rule.get("observedValue"))
+        capability_type = basis["capabilityFactType"]
+        capability_fact = _compile_one(
+            season_revision=season_revision,
+            subject_key=subject_key,
+            fact_type=capability_type,
+            observations=observations,
+            artifacts_by_id=artifacts_by_id,
+            policy=policies.get(capability_type),
+        )
+        observation_refs.extend(capability_fact["observationRefs"])
+        if capability_fact["status"] == "unresolved_conflict":
+            dependency_conflict = True
+        elif capability_fact["status"] != "verified":
+            dependency_missing = True
+        elif basis["optionIds"] and not _capability_supports_options(
+            capability_fact
+        ):
+            dependency_missing = True
+
+        for option_id in basis["optionIds"]:
+            option_fact = _compile_one(
+                season_revision=season_revision,
+                subject_key=f"option:{option_id}",
+                fact_type="enhancement_option",
+                observations=observations,
+                artifacts_by_id=artifacts_by_id,
+                policy=policies.get("enhancement_option"),
+            )
+            observation_refs.extend(option_fact["observationRefs"])
+            if option_fact["status"] == "unresolved_conflict":
+                dependency_conflict = True
+            elif option_fact["status"] != "verified":
+                dependency_missing = True
+            else:
+                option_value = option_fact["value"]
+                compatible_types = {
+                    "socket_count": {"gem"},
+                    "enchant_capability": {"enchant", "runeforge"},
+                    "embellishment_capability": {
+                        "crafted",
+                        "embellishment",
+                    },
+                }[capability_type]
+                if (
+                    option_value["optionType"] not in compatible_types
+                    or basis["slot"]
+                    not in option_value["applicableScopes"]
+                ):
+                    dependency_missing = True
+                else:
+                    allowed_option_ids.add(option_id)
+
+    if dependency_conflict:
+        status, value, problem_code = (
+            "unresolved_conflict",
+            None,
+            "observation_conflict",
+        )
+    elif not complete_rules or dependency_missing:
+        status, value = "unresolved_missing", None
+        if eligible and not complete_rules:
+            problem_code = "parser_unhandled_shape"
+        elif missing_artifact:
+            problem_code = "artifact_missing"
+        elif policy_rejected:
+            problem_code = "compiler_policy_missing"
+        else:
+            problem_code = "artifact_missing"
+    else:
+        status, value, problem_code = (
+            "verified",
+            sorted(allowed_option_ids),
+            "",
+        )
+    return build_canonical_fact(
+        season_revision=season_revision,
+        subject_key=subject_key,
+        fact_type=fact_type,
+        value=value,
+        status=status,
+        observation_refs=observation_refs,
+        compiler_rule_revision=policy["ruleRevision"],
+        impact_scope=policy["impactScope"],
+        problem_code=problem_code,
+    )
+
+
 def compile_subject_facts(
     *,
     season_revision: Any,
     subject_key: Any,
     observations: Iterable[Any],
+    artifacts: Any = (),
     fact_types: Iterable[Any] | None = None,
     policies: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
@@ -401,22 +719,38 @@ def compile_subject_facts(
     if "" in selected_fact_types:
         raise ValueError("fact_type is required.")
     flattened = _flatten_observations(observations)
-    return [
-        _compile_one(
-            season_revision=normalized_season_revision,
-            subject_key=normalized_subject_key,
-            fact_type=fact_type,
-            observations=flattened,
-            policy=selected_policies.get(fact_type),
-        )
-        for fact_type in sorted(selected_fact_types)
-    ]
+    artifacts_by_id = _artifact_index(artifacts)
+    facts: list[dict[str, Any]] = []
+    for fact_type in sorted(selected_fact_types):
+        if fact_type == "allowed_enhancement_options":
+            facts.append(
+                _compile_allowed_options(
+                    season_revision=normalized_season_revision,
+                    subject_key=normalized_subject_key,
+                    observations=flattened,
+                    artifacts_by_id=artifacts_by_id,
+                    policies=selected_policies,
+                )
+            )
+        else:
+            facts.append(
+                _compile_one(
+                    season_revision=normalized_season_revision,
+                    subject_key=normalized_subject_key,
+                    fact_type=fact_type,
+                    observations=flattened,
+                    artifacts_by_id=artifacts_by_id,
+                    policy=selected_policies.get(fact_type),
+                )
+            )
+    return facts
 
 
 def compile_facts(
     *,
     season_revision: Any,
     observations: Iterable[Any],
+    artifacts: Any = (),
     subjects: Iterable[Any] | None = None,
     fact_types: Iterable[Any] | None = None,
     policies: Mapping[str, Mapping[str, Any]] | None = None,
@@ -424,6 +758,7 @@ def compile_facts(
     """Compile deterministic canonical facts without external or mutable state."""
 
     flattened = _flatten_observations(observations)
+    artifacts_by_id = _artifact_index(artifacts)
     normalized_subjects = (
         {_text(subject) for subject in subjects}
         if subjects is not None
@@ -440,6 +775,7 @@ def compile_facts(
                 season_revision=season_revision,
                 subject_key=subject_key,
                 observations=flattened,
+                artifacts=artifacts_by_id,
                 fact_types=fact_types,
                 policies=policies,
             )
