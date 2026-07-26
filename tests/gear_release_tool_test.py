@@ -2837,6 +2837,52 @@ class GearReleaseToolTest(unittest.TestCase):
         self.assertEqual(identity_fact["status"], "unresolved_missing")
         self.assertIsNone(identity_fact["value"])
 
+    def test_release_local_battle_net_identity_is_rejected(self):
+        from server.gear_release_tool import prepare_staging_gear_release
+
+        snapshot = self.snapshot()
+        snapshot["items"][0]["payload"]["_metadata"]["gameAsset"][
+            "sourceIdentity"
+        ] = "gear-release:item:item-a"
+
+        prepared = prepare_staging_gear_release(
+            FakeReleaseStore(snapshot),
+            season_revision="season-17",
+            dependency_revisions=self.dependencies(),
+            socket_bonus_minimums=socket_probe_evidence(),
+        )
+        identity_fact = next(
+            fact
+            for fact in prepared["snapshot"]["items"][0]["payload"][
+                "canonicalFacts"
+            ]
+            if fact["factType"] == "item_identity"
+        )
+        self.assertEqual(identity_fact["status"], "unresolved_missing")
+
+    def test_battle_net_identity_must_be_bound_to_item_row(self):
+        from server.gear_release_tool import prepare_staging_gear_release
+
+        snapshot = self.snapshot()
+        snapshot["items"][0]["payload"]["_metadata"]["gameAsset"][
+            "sourceIdentity"
+        ] = "battle-net:item:different-item"
+
+        prepared = prepare_staging_gear_release(
+            FakeReleaseStore(snapshot),
+            season_revision="season-17",
+            dependency_revisions=self.dependencies(),
+            socket_bonus_minimums=socket_probe_evidence(),
+        )
+        identity_fact = next(
+            fact
+            for fact in prepared["snapshot"]["items"][0]["payload"][
+                "canonicalFacts"
+            ]
+            if fact["factType"] == "item_identity"
+        )
+        self.assertEqual(identity_fact["status"], "unresolved_missing")
+
     def test_250033_socket_correction_keeps_official_artifact_identity(self):
         from server.gear_release_tool import prepare_staging_gear_release
 

@@ -637,6 +637,7 @@ def derive_variant_socket_observation_inputs(
             source_revision=source_revision,
         )
         if minimum and bonus_input:
+            bonus_input["sourceKey"] = bonus_id
             inputs.append(bonus_input)
 
     occupied_gem_total = len(_id_tokens(simc_options.get("gem_id")))

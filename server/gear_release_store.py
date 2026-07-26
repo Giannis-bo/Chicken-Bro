@@ -726,6 +726,79 @@ class GearReleaseStore:
     def __init__(self, connection_factory):
         self.connection_factory = connection_factory
 
+    @staticmethod
+    def _configured_simc_probe_evidence() -> dict[str, Any]:
+        try:
+            from . import gear_release_tool
+            from .simulator_payload import simc_version_status
+        except ImportError:
+            import gear_release_tool
+            from simulator_payload import simc_version_status
+
+        status = simc_version_status()
+        binary_path = _text(status.get("binaryPath"))
+        revision = _text(
+            status.get("sourceCommit")
+            or status.get("simcRuntimeRevision")
+        )
+        if not binary_path or not revision:
+            raise GearReleaseIntegrityError(
+                "trusted SimC socket probe is unavailable"
+            )
+        return gear_release_tool.load_simc_socket_bonus_minimums(
+            binary_path,
+            source_identity="simulationcraft:show_bonus_ids",
+            source_revision=revision,
+        )
+
+    def _trusted_socket_probe_evidence(
+        self,
+        release: dict[str, Any],
+    ) -> dict[str, Any]:
+        try:
+            from . import gear_release_tool
+        except ImportError:
+            import gear_release_tool
+
+        try:
+            trusted = gear_release_tool._validated_socket_bonus_evidence(
+                self._configured_simc_probe_evidence()
+            )
+        except (GearReleaseIntegrityError, RuntimeError, TypeError, ValueError):
+            raise GearReleaseIntegrityError(
+                "trusted SimC socket probe is unavailable"
+            ) from None
+        source = (
+            release.get("source")
+            if isinstance(release.get("source"), dict)
+            else {}
+        )
+        source_evidence = (
+            source.get("sourceEvidence")
+            if isinstance(source.get("sourceEvidence"), dict)
+            else {}
+        )
+        claimed = source_evidence.get("socketBonusEvidence")
+        dependencies = (
+            release.get("dependencyRevisions")
+            if isinstance(release.get("dependencyRevisions"), dict)
+            else {}
+        )
+        if (
+            trusted.get("sourceIdentity")
+            != "simulationcraft:show_bonus_ids"
+            or trusted.get("sourceScope") != "exact_variant"
+            or _text(trusted.get("sourceRevision"))
+            != _text(dependencies.get("simcRuntimeRevision"))
+            or _canonical(claimed) != _canonical(trusted)
+            or _text(source_evidence.get("socketProbeDigest"))
+            != gear_release_tool._socket_probe_digest(trusted)
+        ):
+            raise GearReleaseIntegrityError(
+                "trusted SimC socket probe does not match release evidence"
+            )
+        return trusted
+
     @contextmanager
     def connection(self):
         conn = self.connection_factory()
@@ -2343,7 +2416,8 @@ class GearReleaseStore:
     def _legacy_shadow_snapshot(
         self,
         release: dict[str, Any],
-    ) -> dict[str, Any]:
+        trusted_socket_evidence: dict[str, Any],
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
         try:
             from . import gear_release_tool
         except ImportError:
@@ -2380,11 +2454,9 @@ class GearReleaseStore:
                     else {}
                 ).get("capabilityRevision")
             ),
-            socket_bonus_evidence=source_evidence.get(
-                "socketBonusEvidence"
-            ),
+            socket_bonus_evidence=trusted_socket_evidence,
         )
-        return legacy_snapshot
+        return raw_snapshot, legacy_snapshot
 
     @staticmethod
     def _validate_canonical_gear_gate(
@@ -2392,7 +2464,10 @@ class GearReleaseStore:
         snapshot: dict[str, Any],
         gate_result: dict[str, Any],
         legacy_snapshot: dict[str, Any],
-    ) -> dict[tuple[str, str, str], dict[str, Any]]:
+    ) -> tuple[
+        dict[tuple[str, str, str], dict[str, Any]],
+        dict[str, set[str]],
+    ]:
         try:
             from . import gear_fact_compiler
             from . import gear_fact_shadow
@@ -2637,7 +2712,7 @@ class GearReleaseStore:
             raise GearReleaseIntegrityError(
                 "Gear Release evidence persistence reconciliation is incomplete"
             )
-        return projected_facts
+        return projected_facts, required_fact_types
 
     @staticmethod
     def _verify_persisted_evidence_chain(
@@ -2816,6 +2891,351 @@ class GearReleaseStore:
         ):
             raise GearReleaseIntegrityError(
                 "Gear Release Gap receipt does not reconcile unresolved Facts"
+            )
+
+    @staticmethod
+    def _verify_complete_evidence_universe(
+        cur,
+        *,
+        projected_facts: dict[
+            tuple[str, str, str],
+            dict[str, Any],
+        ],
+        required_fact_types: dict[str, set[str]],
+        gate_result: dict[str, Any],
+        season_revision: str,
+        release_source_revision: str,
+        raw_staging_snapshot: dict[str, Any],
+        trusted_socket_evidence: dict[str, Any],
+    ) -> None:
+        try:
+            from . import gear_fact_compiler
+            from . import gear_release_tool
+            from .gear_evidence_registry import (
+                build_evidence_artifact,
+                build_evidence_observation,
+            )
+        except ImportError:
+            import gear_fact_compiler
+            import gear_release_tool
+            from gear_evidence_registry import (
+                build_evidence_artifact,
+                build_evidence_observation,
+            )
+
+        normalized_bonus_minimums = {
+            bonus_id: {
+                "minimumTotal": minimum,
+                "sourceRevision": trusted_socket_evidence[
+                    "sourceRevision"
+                ],
+            }
+            for bonus_id, minimum in trusted_socket_evidence[
+                "minimums"
+            ].items()
+        }
+        expected_compilation = (
+            gear_release_tool._compile_release_gear_evidence(
+                raw_staging_snapshot,
+                season_revision=season_revision,
+                source_revision=_text(release_source_revision),
+                captured_at="1970-01-01T00:00:00+00:00",
+                socket_bonus_minimums=normalized_bonus_minimums,
+                socket_bonus_evidence=trusted_socket_evidence,
+            )
+        )
+        expected_artifacts = {
+            row["artifactId"]: row
+            for row in expected_compilation["artifacts"]
+        }
+        expected_observations = {
+            row["observationId"]: row
+            for row in expected_compilation["observations"]
+        }
+        expected_artifact_ids = sorted(expected_artifacts)
+        expected_observation_ids = sorted(expected_observations)
+
+        subjects = sorted(required_fact_types)
+        fact_types = sorted({
+            fact_type
+            for values in required_fact_types.values()
+            for fact_type in values
+        })
+        cur.execute(
+            """
+            /* gear_release_complete_evidence_universe */
+            SELECT
+                observation.observation_id,
+                observation.artifact_id,
+                observation.schema_revision,
+                observation.subject_key,
+                observation.fact_type,
+                observation.observed_value_json,
+                observation.parser_revision,
+                observation.source_scope,
+                observation.status,
+                artifact.artifact_id,
+                artifact.schema_revision,
+                artifact.source_type,
+                artifact.source_identity,
+                artifact.source_revision,
+                artifact.season_revision,
+                artifact.captured_at::text,
+                artifact.payload_hash,
+                artifact.payload_json
+            FROM cache.websim_gear_evidence_observations observation
+            JOIN cache.websim_gear_evidence_artifacts artifact
+              ON artifact.artifact_id = observation.artifact_id
+            WHERE artifact.season_revision = %s
+              AND observation.subject_key = ANY(%s::text[])
+              AND observation.fact_type = ANY(%s::text[])
+              AND observation.status = 'accepted'
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM cache.websim_gear_evidence_invalidations invalidation
+                  WHERE invalidation.artifact_id = artifact.artifact_id
+                     OR invalidation.observation_id = observation.observation_id
+              )
+            """,
+            (_text(season_revision), subjects, fact_types),
+        )
+        artifacts: dict[str, dict[str, Any]] = {}
+        observations: dict[str, dict[str, Any]] = {}
+        for row in cur.fetchall():
+            if not isinstance(row, (list, tuple)) or len(row) != 18:
+                continue
+            observation = {
+                "observationId": _text(row[0]),
+                "artifactId": _text(row[1]),
+                "schemaRevision": _text(row[2]),
+                "subjectKey": _text(row[3]),
+                "factType": _text(row[4]),
+                "observedValue": _canonical(row[5]),
+                "parserRevision": _text(row[6]),
+                "sourceScope": _text(row[7]),
+                "status": _text(row[8]),
+            }
+            artifact = {
+                "artifactId": _text(row[9]),
+                "schemaRevision": _text(row[10]),
+                "sourceType": _text(row[11]),
+                "sourceIdentity": _text(row[12]),
+                "sourceRevision": _text(row[13]),
+                "seasonRevision": _text(row[14]),
+                "capturedAt": _text(row[15]),
+                "payloadHash": _text(row[16]),
+                "payload": _canonical(row[17]),
+            }
+            try:
+                rebuilt_artifact = build_evidence_artifact(
+                    source_type=artifact["sourceType"],
+                    source_identity=artifact["sourceIdentity"],
+                    source_revision=artifact["sourceRevision"],
+                    season_revision=artifact["seasonRevision"],
+                    captured_at=artifact["capturedAt"],
+                    payload=artifact["payload"],
+                )
+                rebuilt_observation = build_evidence_observation(
+                    artifact_id=observation["artifactId"],
+                    subject_key=observation["subjectKey"],
+                    fact_type=observation["factType"],
+                    observed_value=observation["observedValue"],
+                    parser_revision=observation["parserRevision"],
+                    source_scope=observation["sourceScope"],
+                    status=observation["status"],
+                )
+            except ValueError as error:
+                raise GearReleaseIntegrityError(
+                    "Gear Release Store evidence universe is not canonical"
+                ) from error
+            if (
+                _canonical(rebuilt_artifact) != _canonical(artifact)
+                or _canonical(rebuilt_observation)
+                != _canonical(observation)
+            ):
+                raise GearReleaseIntegrityError(
+                    "Gear Release Store evidence universe is not self-authenticating"
+                )
+            policy = gear_fact_compiler.FACT_POLICIES.get(
+                observation["factType"],
+                {},
+            )
+            if (
+                observation["subjectKey"] not in required_fact_types
+                or observation["factType"]
+                not in required_fact_types[
+                    observation["subjectKey"]
+                ]
+                or artifact["sourceType"]
+                not in policy.get("allowedSources", ())
+                or observation["sourceScope"]
+                not in policy.get("sourceScopes", ())
+            ):
+                continue
+            artifacts[artifact["artifactId"]] = artifact
+            observations[observation["observationId"]] = observation
+
+        artifact_ids = sorted(artifacts)
+        observation_ids = sorted(observations)
+        if (
+            artifact_ids != expected_artifact_ids
+            or observation_ids != expected_observation_ids
+        ):
+            raise GearReleaseIntegrityError(
+                "Gear Release Store evidence universe does not match staging compilation"
+            )
+        for artifact_id, artifact in artifacts.items():
+            expected_artifact = expected_artifacts[artifact_id]
+            if any(
+                _canonical(artifact.get(field))
+                != _canonical(expected_artifact.get(field))
+                for field in (
+                    "schemaRevision",
+                    "artifactId",
+                    "sourceType",
+                    "sourceIdentity",
+                    "sourceRevision",
+                    "seasonRevision",
+                    "payloadHash",
+                    "payload",
+                )
+            ):
+                raise GearReleaseIntegrityError(
+                    "Gear Release Store Artifact does not match staging compilation"
+                )
+        for observation_id, observation in observations.items():
+            if (
+                _canonical(observation)
+                != _canonical(expected_observations[observation_id])
+            ):
+                raise GearReleaseIntegrityError(
+                    "Gear Release Store Observation does not match staging compilation"
+                )
+        compilation = gate_result["evidenceCompilation"]
+        persistence = gate_result["evidencePersistence"]
+        for owner, identities in (
+            ("artifacts", artifact_ids),
+            ("observations", observation_ids),
+        ):
+            if (
+                _canonical(compilation[owner].get("identities"))
+                != _canonical(identities)
+                or _canonical(persistence[owner].get("identities"))
+                != _canonical(identities)
+                or _int(compilation[owner].get("count"))
+                != len(identities)
+                or _int(persistence[owner].get("persisted"))
+                != len(identities)
+            ):
+                raise GearReleaseIntegrityError(
+                    "Gear Release receipt omits complete Store evidence universe"
+                )
+
+        replayed_facts: list[dict[str, Any]] = []
+        projected_by_semantic = {
+            (
+                _text(fact.get("subjectKey")),
+                _text(fact.get("factType")),
+            ): fact
+            for fact in projected_facts.values()
+        }
+        for subject_key, subject_fact_types in sorted(
+            required_fact_types.items()
+        ):
+            for fact_type in sorted(subject_fact_types):
+                replayed = gear_fact_compiler.compile_subject_facts(
+                    season_revision=season_revision,
+                    subject_key=subject_key,
+                    observations=list(observations.values()),
+                    artifacts=list(artifacts.values()),
+                    fact_types=[fact_type],
+                )[0]
+                replayed_facts.append(replayed)
+                projected = projected_by_semantic[
+                    (subject_key, fact_type)
+                ]
+                if any(
+                    _canonical(replayed.get(field))
+                    != _canonical(projected.get(field))
+                    for field in (
+                        "factKey",
+                        "subjectKey",
+                        "factType",
+                        "value",
+                        "status",
+                        "factValueHash",
+                        "provenanceHash",
+                        "compilerRuleRevision",
+                    )
+                ) or sorted(
+                    replayed.get("observationRefs") or ()
+                ) != sorted(
+                    projected.get("persistedObservationRefs")
+                    or projected.get("observationRefs")
+                    or ()
+                ):
+                    raise GearReleaseIntegrityError(
+                        "Gear Release Fact is not reproduced by complete Store evidence"
+                    )
+
+        expected_gaps: dict[str, dict[str, Any]] = {}
+        for gap in gear_fact_compiler.evidence_gaps_from_facts(
+            replayed_facts
+        ):
+            identity = {
+                "factKey": _text(gap.get("factKey")),
+                "problemCode": _text(gap.get("problemCode")),
+                "missingRequirement": _canonical(
+                    gap.get("missingRequirement") or {}
+                ),
+            }
+            gap_key = "gear-gap:" + _hash(identity)
+            expected_gaps[gap_key] = {
+                "gapKey": gap_key,
+                **identity,
+            }
+        replayed_fact_keys = sorted({
+            _text(fact.get("factKey"))
+            for fact in replayed_facts
+        })
+        if replayed_fact_keys:
+            cur.execute(
+                """
+                /* gear_release_active_gap_universe */
+                SELECT
+                    gap_key, fact_key, problem_code,
+                    missing_requirement_json, status
+                FROM ops.websim_gear_evidence_gaps
+                WHERE fact_key = ANY(%s::text[])
+                  AND status <> 'terminal'
+                """,
+                (replayed_fact_keys,),
+            )
+            persisted_gaps = {
+                _text(row[0]): {
+                    "gapKey": _text(row[0]),
+                    "factKey": _text(row[1]),
+                    "problemCode": _text(row[2]),
+                    "missingRequirement": _canonical(row[3]),
+                }
+                for row in cur.fetchall()
+                if isinstance(row, (list, tuple)) and len(row) == 5
+            }
+        else:
+            persisted_gaps = {}
+        if _canonical(persisted_gaps) != _canonical(expected_gaps):
+            raise GearReleaseIntegrityError(
+                "Gear Release Gap semantics do not match replayed unresolved Facts"
+            )
+        gap_ids = sorted(expected_gaps)
+        if (
+            _canonical(compilation["gaps"].get("identities"))
+            != _canonical(gap_ids)
+            or _canonical(persistence["gaps"].get("identities"))
+            != _canonical(gap_ids)
+        ):
+            raise GearReleaseIntegrityError(
+                "Gear Release Gap receipt omits replayed Gap semantics"
             )
 
     @staticmethod
@@ -3021,8 +3441,20 @@ class GearReleaseStore:
                     raise GearReleaseIntegrityError("seal_gear_release requires a Gear Release")
                 if gear_snapshot_summary(snapshot) != expected["content"]:
                     raise GearReleaseIntegrityError("gear snapshot does not match the release descriptor")
-                legacy_snapshot = self._legacy_shadow_snapshot(expected)
-                projected_facts = self._validate_canonical_gear_gate(
+                trusted_socket_evidence = (
+                    self._trusted_socket_probe_evidence(expected)
+                )
+                (
+                    raw_staging_snapshot,
+                    legacy_snapshot,
+                ) = self._legacy_shadow_snapshot(
+                    expected,
+                    trusted_socket_evidence,
+                )
+                (
+                    projected_facts,
+                    required_fact_types,
+                ) = self._validate_canonical_gear_gate(
                     expected,
                     snapshot,
                     gate_result or {},
@@ -3037,11 +3469,17 @@ class GearReleaseStore:
                     raise GearReleaseIntegrityError(
                         "Gear Release canonical gate Fact identities diverge"
                     )
-                self._verify_persisted_evidence_chain(
+                self._verify_complete_evidence_universe(
                     cur,
-                    persisted_facts,
-                    gate_result or {},
-                    expected["seasonRevision"],
+                    projected_facts=persisted_facts,
+                    required_fact_types=required_fact_types,
+                    gate_result=gate_result or {},
+                    season_revision=expected["seasonRevision"],
+                    release_source_revision=_text(
+                        expected["source"].get("sourceRevision")
+                    ),
+                    raw_staging_snapshot=raw_staging_snapshot,
+                    trusted_socket_evidence=trusted_socket_evidence,
                 )
                 if self._existing_or_insert(cur, expected, gate_result or {}):
                     return {"status": "reused", "releaseId": expected["releaseId"]}

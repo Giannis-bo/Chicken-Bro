@@ -295,6 +295,7 @@ def _validated_socket_bonus_evidence(value: Any) -> dict[str, Any]:
 
 def _official_game_asset_evidence(
     payload: Mapping[str, Any],
+    item_id: Any,
 ) -> dict[str, str] | None:
     metadata = (
         payload.get("_metadata")
@@ -306,18 +307,16 @@ def _official_game_asset_evidence(
         if isinstance(metadata.get("gameAsset"), Mapping)
         else {}
     )
-    source_identity = _text(
-        game_asset.get("sourceIdentity")
-        or metadata.get("sourceIdentity")
-    )
-    source_revision = _text(
-        game_asset.get("sourceRevision")
-        or metadata.get("sourceRevision")
-    )
+    normalized_item_id = _text(item_id)
+    source_identity = _text(game_asset.get("sourceIdentity"))
+    source_revision = _text(game_asset.get("sourceRevision"))
     if (
         _text(game_asset.get("source")).lower() != "blizzard"
         or _text(game_asset.get("status")).lower() != "verified"
-        or not source_identity
+        or not normalized_item_id
+        or source_identity
+        != f"battle-net:item:{normalized_item_id}"
+        or source_identity.startswith("gear-release:")
         or not source_revision
     ):
         return None
@@ -414,6 +413,11 @@ def _compile_release_gear_evidence(
         fact_specs: Iterable[tuple[str, str, Any, str]],
         artifact_source_revision: str = "",
     ) -> None:
+        if (
+            not _text(source_identity)
+            or _text(source_identity).startswith("gear-release:")
+        ):
+            return
         artifact = gear_evidence_registry.build_evidence_artifact(
             source_type=source_type,
             source_identity=source_identity,
@@ -473,7 +477,10 @@ def _compile_release_gear_evidence(
             source_evidence: Mapping[str, Any] | None = None
             if source_name == "official_item_payload" and official_payload:
                 source_evidence = _official_game_asset_evidence(
-                    evidence_payload
+                    evidence_payload,
+                    subject_key.split("/", 1)[0].removeprefix(
+                        "item:"
+                    ),
                 )
             elif source_name == "observed_gem_occupancy":
                 source_evidence = next(
@@ -547,6 +554,9 @@ def _compile_release_gear_evidence(
                     "factType": "socket_count",
                     "socketCount": source_input.get("observedValue"),
                     "source": source_name,
+                    "sourceKey": _text(
+                        source_input.get("sourceKey")
+                    ),
                     "sourceScope": source_scope,
                 },
                 fact_specs=[
@@ -559,8 +569,14 @@ def _compile_release_gear_evidence(
                 ],
             )
 
-    def official_item_source(payload: Mapping[str, Any]) -> bool:
-        return _official_game_asset_evidence(payload) is not None
+    def official_item_source(
+        payload: Mapping[str, Any],
+        item_id: str,
+    ) -> bool:
+        return _official_game_asset_evidence(
+            payload,
+            item_id,
+        ) is not None
 
     for index, row in enumerate(snapshot.get("items") or ()):
         if not isinstance(row, dict) or not _text(row.get("itemId")):
@@ -604,7 +620,7 @@ def _compile_release_gear_evidence(
             if isinstance(payload.get("baseCapabilities"), dict)
             else {}
         )
-        is_official = official_item_source(payload)
+        is_official = official_item_source(payload, item_id)
         official_specs: list[tuple[str, str, Any, str]] = []
         if is_official:
             official_specs.append(
@@ -646,7 +662,10 @@ def _compile_release_gear_evidence(
                 if isinstance(payload.get("_metadata"), dict)
                 else {}
             )
-            official_evidence = _official_game_asset_evidence(payload)
+            official_evidence = _official_game_asset_evidence(
+                payload,
+                item_id,
+            )
             add_artifact(
                 source_type="battle_net_item",
                 source_identity=_text(
@@ -679,7 +698,10 @@ def _compile_release_gear_evidence(
                 fact_specs=structural_specs,
             )
         socket_item = _canonical(row)
-        official_evidence = _official_game_asset_evidence(payload)
+        official_evidence = _official_game_asset_evidence(
+            payload,
+            item_id,
+        )
         if official_evidence:
             socket_item["sourceRevision"] = _text(
                 official_evidence.get("sourceRevision")
@@ -736,6 +758,19 @@ def _compile_release_gear_evidence(
         evidence_scope = _text(
             canonical_evidence.get("sourceScope")
         ).lower()
+        item_payload_for_evidence = (
+            items_by_id.get(item_id, {}).get("payload")
+            if isinstance(items_by_id.get(item_id, {}), dict)
+            and isinstance(
+                items_by_id.get(item_id, {}).get("payload"),
+                dict,
+            )
+            else {}
+        )
+        battle_net_anchor = _official_game_asset_evidence(
+            item_payload_for_evidence,
+            item_id,
+        )
         evidence_claims = {
             _text(value)
             for value in canonical_evidence.get("claims") or ()
@@ -747,6 +782,18 @@ def _compile_release_gear_evidence(
             and bool(evidence_revision)
             and evidence_scope == "exact_variant"
             and evidence_type in {"battle_net_item", "season_rule"}
+            and (
+                evidence_type != "battle_net_item"
+                or (
+                    isinstance(battle_net_anchor, Mapping)
+                    and _text(
+                        canonical_evidence.get("sourceIdentity")
+                    )
+                    == battle_net_anchor["sourceIdentity"]
+                    and evidence_revision
+                    == battle_net_anchor["sourceRevision"]
+                )
+            )
         )
         stat_evidence = (
             payload.get("statEvidence")
@@ -817,7 +864,10 @@ def _compile_release_gear_evidence(
             if isinstance(item_row.get("payload"), dict)
             else {}
         )
-        item_is_official = official_item_source(item_payload)
+        item_is_official = official_item_source(
+            item_payload,
+            item_id,
+        )
         eligibility = gear_socket_authority._active_pve_catalog_socket_eligibility(
             item_row,
             sources_by_item_id.get(item_id, []),
@@ -927,6 +977,19 @@ def _compile_release_gear_evidence(
         )
         option_source_type = _text(option_evidence.get("sourceType")).lower()
         option_source_revision = _text(option_evidence.get("sourceRevision"))
+        option_item_payload = (
+            items_by_id.get(item_id, {}).get("payload")
+            if isinstance(items_by_id.get(item_id, {}), dict)
+            and isinstance(
+                items_by_id.get(item_id, {}).get("payload"),
+                dict,
+            )
+            else {}
+        )
+        option_battle_net_anchor = _official_game_asset_evidence(
+            option_item_payload,
+            item_id,
+        )
         if (
             _text(option_evidence.get("status")).lower() == "verified"
             and option_source_type in {"battle_net_item", "simc_item_probe"}
@@ -934,6 +997,16 @@ def _compile_release_gear_evidence(
             and bool(option_source_revision)
             and _text(option_evidence.get("sourceScope")).lower()
             in {"option", "exact_item", "exact_variant", "season_rule"}
+            and (
+                option_source_type != "battle_net_item"
+                or (
+                    isinstance(option_battle_net_anchor, Mapping)
+                    and _text(option_evidence.get("sourceIdentity"))
+                    == option_battle_net_anchor["sourceIdentity"]
+                    and option_source_revision
+                    == option_battle_net_anchor["sourceRevision"]
+                )
+            )
         ):
             add_artifact(
                 source_type=option_source_type,

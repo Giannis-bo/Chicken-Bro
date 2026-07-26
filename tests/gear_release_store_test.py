@@ -183,6 +183,56 @@ class GearReleaseStoreTest(unittest.TestCase):
             ) for row in snapshot["options"]],
         }
 
+    def canonical_staging_snapshot(self):
+        snapshot = self.snapshot()
+        snapshot["items"][0]["payload"]["_metadata"] = {
+            "gameAsset": {
+                "source": "blizzard",
+                "status": "verified",
+                "sourceIdentity": "battle-net:item:item-a",
+                "sourceRevision": "battle-net-item-test-r1",
+            }
+        }
+        return snapshot
+
+    def trusted_socket_evidence(self, revision="simc-r1"):
+        return {
+            "schemaRevision": "simc-socket-bonus-evidence-v1",
+            "status": "verified",
+            "sourceType": "simc_bonus_probe",
+            "sourceIdentity": "simulationcraft:show_bonus_ids",
+            "sourceRevision": revision,
+            "sourceScope": "exact_variant",
+            "minimums": {"9300": 1},
+        }
+
+    def trusted_gear_store(self, connection):
+        from server.gear_release_store import GearReleaseStore
+
+        store = GearReleaseStore(lambda: connection)
+        store._configured_simc_probe_evidence = (
+            self.trusted_socket_evidence
+        )
+        return store
+
+    def complete_evidence_rowsets(
+        self,
+        artifact_rows,
+        observation_rows,
+        gap_rows,
+    ):
+        artifacts = {row[0]: row for row in artifact_rows}
+        return {
+            "gear_release_complete_evidence_universe": [
+                tuple(observation) + tuple(
+                    artifacts[observation[1]]
+                )
+                for observation in observation_rows
+                if observation[1] in artifacts
+            ],
+            "gear_release_active_gap_universe": gap_rows,
+        }
+
     def gear_release(self, snapshot=None, dependencies=None):
         from server import gear_release_store
 
@@ -205,105 +255,43 @@ class GearReleaseStoreTest(unittest.TestCase):
             gear_release_tool,
             gear_release_store,
         )
-        from server.gear_evidence_registry import (
-            build_canonical_fact,
-            build_evidence_artifact,
-            build_evidence_observation,
-        )
-
-        snapshot = self.snapshot()
+        snapshot = self.canonical_staging_snapshot()
         raw_snapshot = copy.deepcopy(snapshot)
-        artifact = build_evidence_artifact(
-            source_type="battle_net_item",
-            source_identity="battle-net:item:item-a",
-            source_revision="battle-net-item-test-r1",
+        socket_bonus_evidence = self.trusted_socket_evidence()
+        normalized_bonus_minimums = {
+            "9300": {
+                "minimumTotal": 1,
+                "sourceRevision": "simc-r1",
+            }
+        }
+        compiled = gear_release_tool._compile_release_gear_evidence(
+            raw_snapshot,
             season_revision="season-17",
+            source_revision="canonical-store-test",
             captured_at="2026-07-11T05:00:00+00:00",
-            payload={"itemId": "item-a"},
+            socket_bonus_minimums=normalized_bonus_minimums,
+            socket_bonus_evidence=socket_bonus_evidence,
         )
-        observation = build_evidence_observation(
-            artifact_id=artifact["artifactId"],
-            subject_key="item:item-a",
-            fact_type="item_identity",
-            observed_value={"itemId": "item-a"},
-            parser_revision="test-item-identity-v1",
-            source_scope="exact_item",
-            status="accepted",
-        )
-        row_specs = []
-        for row, subject, fact_types in (
-            (
-                snapshot["items"][0],
-                "item:item-a",
-                {
-                    "item_identity",
-                    "slot_compatibility",
-                    "socket_count",
-                    "enchant_capability",
-                    "embellishment_capability",
-                    "item_set_membership",
-                },
+        facts = compiled["facts"]
+        snapshot = copy.deepcopy(raw_snapshot)
+        rows_by_subject = {
+            f"item:{snapshot['items'][0]['itemId']}": (
+                snapshot["items"][0]
             ),
             (
-                snapshot["variants"][0],
-                "item:item-a/variant:variant-a",
-                {
-                    "item_identity",
-                    "slot_compatibility",
-                    "variant_track",
-                    "static_stats",
-                    "socket_count",
-                    "enchant_capability",
-                    "embellishment_capability",
-                    "allowed_enhancement_options",
-                    "item_set_membership",
-                },
+                f"item:{snapshot['variants'][0]['itemId']}"
+                f"/variant:{snapshot['variants'][0]['variantKey']}"
+            ): snapshot["variants"][0],
+            f"option:{snapshot['options'][0]['optionId']}": (
+                snapshot["options"][0]
             ),
-            (
-                snapshot["options"][0],
-                "option:option-a-id",
-                {"enhancement_option"},
-            ),
-        ):
-            for fact_type in sorted(fact_types):
-                verified = (
-                    subject == "item:item-a"
-                    and fact_type == "item_identity"
-                )
-                row_specs.append((
-                    row,
-                    subject,
-                    fact_type,
-                    {"itemId": "item-a"} if verified else None,
-                    "verified" if verified else "unresolved_missing",
-                    [observation["observationId"]] if verified else [],
-                ))
-        facts = []
-        for row, subject, fact_type, value, status, observation_refs in row_specs:
-            fact = build_canonical_fact(
-                season_revision="season-17",
-                subject_key=subject,
-                fact_type=fact_type,
-                value=value,
-                status=status,
-                observation_refs=observation_refs,
-                compiler_rule_revision=(
-                    gear_fact_compiler.FACT_POLICIES[fact_type][
-                        "ruleRevision"
-                    ]
-                ),
-                impact_scope=(
-                    gear_fact_compiler.FACT_POLICIES[fact_type][
-                        "impactScope"
-                    ]
-                ),
-                problem_code=(
-                    "" if status == "verified" else "missing_required_input"
-                ),
-            )
-            facts.append(fact)
+        }
+        for row in rows_by_subject.values():
             payload = copy.deepcopy(row.get("payload") or {})
-            payload.setdefault("canonicalFacts", []).append({
+            payload["canonicalFacts"] = []
+            row["payload"] = payload
+        for fact in facts:
+            projection = {
                 key: copy.deepcopy(fact[key])
                 for key in (
                     "schemaRevision",
@@ -317,12 +305,16 @@ class GearReleaseStoreTest(unittest.TestCase):
                     "compilerRuleRevision",
                     "observationRefs",
                 )
-            })
-            payload["canonicalFacts"][-1].update({
-                "observationRefCount": len(observation_refs),
+            }
+            projection.update({
+                "observationRefCount": len(
+                    fact["observationRefs"]
+                ),
                 "referencesTruncated": False,
             })
-            row["payload"] = payload
+            rows_by_subject[fact["subjectKey"]]["payload"][
+                "canonicalFacts"
+            ].append(projection)
 
         fact_digest_rows = sorted(
             [{
@@ -337,15 +329,6 @@ class GearReleaseStoreTest(unittest.TestCase):
                 fact["provenanceHash"],
             ),
         )
-        socket_bonus_evidence = {
-            "schemaRevision": "simc-socket-bonus-evidence-v1",
-            "status": "verified",
-            "sourceType": "simc_bonus_probe",
-            "sourceIdentity": "simulationcraft:show_bonus_ids",
-            "sourceRevision": "simc-r1",
-            "sourceScope": "exact_variant",
-            "minimums": {"9300": 1},
-        }
         legacy_snapshot = gear_release_tool._legacy_shadow_snapshot(
             raw_snapshot,
             season_revision="season-17",
@@ -371,6 +354,11 @@ class GearReleaseStoreTest(unittest.TestCase):
                 ),
                 "sourceEvidence": {
                     "socketBonusEvidence": socket_bonus_evidence,
+                    "socketProbeDigest": (
+                        gear_release_tool._socket_probe_digest(
+                            socket_bonus_evidence
+                        )
+                    ),
                     "compilerPolicyDigest": gear_release_store._hash(
                         gear_fact_compiler.FACT_POLICIES
                     ),
@@ -388,17 +376,31 @@ class GearReleaseStoreTest(unittest.TestCase):
             )
             for fact in facts
         ))
-        gap_rows = [
-            (
-                f"gap:{fact['factKey']}",
-                fact["factKey"],
-            )
-            for fact in facts
-            if fact["status"].startswith("unresolved_")
-        ]
+        gap_rows = []
+        for gap in gear_fact_compiler.evidence_gaps_from_facts(
+            facts
+        ):
+            identity = {
+                "factKey": gap["factKey"],
+                "problemCode": gap["problemCode"],
+                "missingRequirement": gap["missingRequirement"],
+            }
+            gap_rows.append((
+                "gear-gap:" + gear_release_store._hash(identity),
+                gap["factKey"],
+                gap["problemCode"],
+                copy.deepcopy(gap["missingRequirement"]),
+                "pending",
+            ))
         gap_ids = sorted(row[0] for row in gap_rows)
-        artifact_ids = [artifact["artifactId"]]
-        observation_ids = [observation["observationId"]]
+        artifact_ids = sorted(
+            artifact["artifactId"]
+            for artifact in compiled["artifacts"]
+        )
+        observation_ids = sorted(
+            observation["observationId"]
+            for observation in compiled["observations"]
+        )
         fact_identities = sorted(
             (
                 fact["factKey"],
@@ -420,14 +422,14 @@ class GearReleaseStoreTest(unittest.TestCase):
                 },
             ),
             "evidenceCompilation": {
-                "artifacts": {"count": 1, "identities": artifact_ids, "identityDigest": gear_release_store._hash(artifact_ids)},
-                "observations": {"count": 1, "identities": observation_ids, "identityDigest": gear_release_store._hash(observation_ids)},
+                "artifacts": {"count": len(artifact_ids), "identities": artifact_ids, "identityDigest": gear_release_store._hash(artifact_ids)},
+                "observations": {"count": len(observation_ids), "identities": observation_ids, "identityDigest": gear_release_store._hash(observation_ids)},
                 "facts": {"count": len(facts), "identities": fact_identities, "identityDigest": fact_identity_digest},
                 "gaps": {"count": len(gap_ids), "identities": gap_ids, "identityDigest": gear_release_store._hash(gap_ids)},
             },
             "evidencePersistence": {
-                "artifacts": {"persisted": 1, "identities": artifact_ids, "identityDigest": gear_release_store._hash(artifact_ids)},
-                "observations": {"persisted": 1, "identities": observation_ids, "identityDigest": gear_release_store._hash(observation_ids)},
+                "artifacts": {"persisted": len(artifact_ids), "identities": artifact_ids, "identityDigest": gear_release_store._hash(artifact_ids)},
+                "observations": {"persisted": len(observation_ids), "identities": observation_ids, "identityDigest": gear_release_store._hash(observation_ids)},
                 "facts": {"persisted": len(facts), "identities": fact_identities, "identityDigest": fact_identity_digest},
                 "gaps": {
                     "requested": len(gap_ids),
@@ -465,7 +467,7 @@ class GearReleaseStoreTest(unittest.TestCase):
                 artifact["capturedAt"],
                 artifact["payloadHash"],
                 artifact["payload"],
-            )],
+            ) for artifact in compiled["artifacts"]],
             [(
                 observation["observationId"],
                 observation["artifactId"],
@@ -476,7 +478,7 @@ class GearReleaseStoreTest(unittest.TestCase):
                 observation["parserRevision"],
                 observation["sourceScope"],
                 observation["status"],
-            )],
+            ) for observation in compiled["observations"]],
             gap_rows,
         )
 
@@ -898,14 +900,17 @@ class GearReleaseStoreTest(unittest.TestCase):
             gap_rows,
         ) = self.canonical_seal_fixture()
         conn = FakeConnection(rowsets={
-            **self.staging_rowsets(self.snapshot()),
+            **self.staging_rowsets(self.canonical_staging_snapshot()),
+            **self.complete_evidence_rowsets(
+                artifact_rows, observation_rows, gap_rows
+            ),
             "FROM cache.websim_release_registry": [],
             "JOIN cache.websim_gear_canonical_facts": fact_rows,
             "FROM cache.websim_gear_evidence_artifacts": artifact_rows,
             "FROM cache.websim_gear_evidence_observations": observation_rows,
             "FROM ops.websim_gear_evidence_gaps": gap_rows,
         })
-        store = GearReleaseStore(lambda: conn)
+        store = self.trusted_gear_store(conn)
 
         result = store.seal_gear_release(
             release,
@@ -925,6 +930,20 @@ class GearReleaseStoreTest(unittest.TestCase):
         self.assertNotIn(" ON CONFLICT", sql)
         self.assertNotIn(" UPDATE cache.websim_release", sql)
         self.assertNotIn(" DELETE FROM cache.websim_release", sql)
+        gap_query_index = next(
+            index
+            for index, statement in enumerate(
+                conn.cursor_instance.statements
+            )
+            if "gear_release_active_gap_universe" in statement
+        )
+        queried_fact_keys = set(
+            conn.cursor_instance.params[gap_query_index][0]
+        )
+        self.assertEqual(
+            queried_fact_keys,
+            {row[0] for row in fact_rows},
+        )
         self.assertTrue(conn.committed)
         self.assertFalse(conn.rolled_back)
 
@@ -1026,7 +1045,10 @@ class GearReleaseStoreTest(unittest.TestCase):
         for label, candidate_release, candidate_snapshot, candidate_gate in cases:
             with self.subTest(label=label):
                 conn = FakeConnection(rowsets={
-                    **self.staging_rowsets(self.snapshot()),
+                    **self.staging_rowsets(self.canonical_staging_snapshot()),
+                    **self.complete_evidence_rowsets(
+                        artifact_rows, observation_rows, gap_rows
+                    ),
                     "FROM cache.websim_release_registry": [],
                     "JOIN cache.websim_gear_canonical_facts": fact_rows,
                     "FROM cache.websim_gear_evidence_artifacts": artifact_rows,
@@ -1034,7 +1056,7 @@ class GearReleaseStoreTest(unittest.TestCase):
                     "FROM ops.websim_gear_evidence_gaps": gap_rows,
                 })
                 with self.assertRaises(GearReleaseIntegrityError):
-                    GearReleaseStore(lambda: conn).seal_gear_release(
+                    self.trusted_gear_store(conn).seal_gear_release(
                         candidate_release,
                         candidate_snapshot,
                         gate_result=candidate_gate,
@@ -1064,13 +1086,13 @@ class GearReleaseStoreTest(unittest.TestCase):
             release["source"],
         )
         omitted_conn = FakeConnection(rowsets={
-            **self.staging_rowsets(self.snapshot()),
+            **self.staging_rowsets(self.canonical_staging_snapshot()),
         })
         with self.assertRaisesRegex(
             GearReleaseIntegrityError,
             "Fact universe is incomplete",
         ):
-            GearReleaseStore(lambda: omitted_conn).seal_gear_release(
+            self.trusted_gear_store(omitted_conn).seal_gear_release(
                 omitted_release,
                 omitted_snapshot,
                 gate_result=omitted_gate,
@@ -1079,23 +1101,26 @@ class GearReleaseStoreTest(unittest.TestCase):
         for label, missing_marker, error_pattern in (
             (
                 "artifact",
-                "FROM cache.websim_gear_evidence_artifacts",
-                "Artifact receipt",
+                "gear_release_complete_evidence_universe",
+                "does not match staging compilation",
             ),
             (
                 "observation",
-                "FROM cache.websim_gear_evidence_observations",
-                "Observation receipt",
+                "gear_release_complete_evidence_universe",
+                "does not match staging compilation",
             ),
             (
                 "gap",
-                "FROM ops.websim_gear_evidence_gaps",
-                "Gap receipt",
+                "gear_release_active_gap_universe",
+                "Gap semantics",
             ),
         ):
             with self.subTest(missing_persistence=label):
                 rowsets = {
-                    **self.staging_rowsets(self.snapshot()),
+                    **self.staging_rowsets(self.canonical_staging_snapshot()),
+                    **self.complete_evidence_rowsets(
+                        artifact_rows, observation_rows, gap_rows
+                    ),
                     "FROM cache.websim_release_registry": [],
                     "JOIN cache.websim_gear_canonical_facts": fact_rows,
                     "FROM cache.websim_gear_evidence_artifacts": artifact_rows,
@@ -1108,8 +1133,8 @@ class GearReleaseStoreTest(unittest.TestCase):
                     GearReleaseIntegrityError,
                     error_pattern,
                 ):
-                    GearReleaseStore(
-                        lambda: missing_conn
+                    self.trusted_gear_store(
+                        missing_conn
                     ).seal_gear_release(
                         release,
                         snapshot,
@@ -1122,7 +1147,12 @@ class GearReleaseStoreTest(unittest.TestCase):
         unrelated[5] = 1
         unrelated_observation_rows[0] = tuple(unrelated)
         semantic_mismatch_conn = FakeConnection(rowsets={
-            **self.staging_rowsets(self.snapshot()),
+            **self.staging_rowsets(self.canonical_staging_snapshot()),
+            **self.complete_evidence_rowsets(
+                artifact_rows,
+                unrelated_observation_rows,
+                gap_rows,
+            ),
             "FROM cache.websim_release_registry": [],
             "JOIN cache.websim_gear_canonical_facts": fact_rows,
             "FROM cache.websim_gear_evidence_artifacts": artifact_rows,
@@ -1133,10 +1163,209 @@ class GearReleaseStoreTest(unittest.TestCase):
         })
         with self.assertRaisesRegex(
             GearReleaseIntegrityError,
-            "not reproduced by persisted evidence",
+            "not self-authenticating",
         ):
-            GearReleaseStore(
-                lambda: semantic_mismatch_conn
+            self.trusted_gear_store(
+                semantic_mismatch_conn
+            ).seal_gear_release(
+                release,
+                snapshot,
+                gate_result=gate,
+            )
+
+    def test_seal_rejects_socket_probe_envelope_without_runtime_anchor(self):
+        from server import gear_release_store, gear_release_tool
+        from server.gear_release_store import (
+            GearReleaseIntegrityError,
+            GearReleaseStore,
+        )
+
+        (
+            snapshot,
+            release,
+            gate,
+            fact_rows,
+            artifact_rows,
+            observation_rows,
+            gap_rows,
+        ) = self.canonical_seal_fixture()
+        forged_evidence = self.trusted_socket_evidence("forged-runtime")
+        forged_source = copy.deepcopy(release["source"])
+        forged_source["sourceEvidence"]["socketBonusEvidence"] = (
+            forged_evidence
+        )
+        forged_source["sourceEvidence"]["socketProbeDigest"] = (
+            gear_release_tool._socket_probe_digest(forged_evidence)
+        )
+        forged_release = gear_release.build_release(
+            release_kind="gear",
+            season_revision="season-17",
+            schema_revision="gear-release-v1",
+            content=gear_release_store.gear_snapshot_summary(snapshot),
+            dependency_revisions=self.dependencies(),
+            release_status="validated",
+            source=forged_source,
+        )
+        conn = FakeConnection(rowsets={
+            **self.staging_rowsets(self.canonical_staging_snapshot()),
+            **self.complete_evidence_rowsets(
+                artifact_rows, observation_rows, gap_rows
+            ),
+            "FROM cache.websim_release_registry": [],
+            "JOIN cache.websim_gear_canonical_facts": fact_rows,
+            "FROM cache.websim_gear_evidence_artifacts": artifact_rows,
+            "FROM cache.websim_gear_evidence_observations": observation_rows,
+            "FROM ops.websim_gear_evidence_gaps": gap_rows,
+        })
+        store = self.trusted_gear_store(conn)
+        with self.assertRaisesRegex(
+            GearReleaseIntegrityError,
+            "trusted SimC socket probe",
+        ):
+            store.seal_gear_release(
+                forged_release,
+                snapshot,
+                gate_result=gate,
+            )
+
+    def test_seal_rejects_artifact_payload_forged_under_expected_identity(self):
+        from server import gear_release_store
+        from server.gear_release_store import GearReleaseIntegrityError
+
+        (
+            snapshot,
+            release,
+            gate,
+            fact_rows,
+            artifact_rows,
+            observation_rows,
+            gap_rows,
+        ) = self.canonical_seal_fixture()
+        forged_artifact_rows = copy.deepcopy(artifact_rows)
+        forged_artifact = list(forged_artifact_rows[0])
+        forged_artifact[8] = {
+            **forged_artifact[8],
+            "forgedClaim": True,
+        }
+        forged_artifact[7] = gear_release_store._hash(
+            forged_artifact[8]
+        )
+        forged_artifact_rows[0] = tuple(forged_artifact)
+        conn = FakeConnection(rowsets={
+            **self.staging_rowsets(self.canonical_staging_snapshot()),
+            **self.complete_evidence_rowsets(
+                forged_artifact_rows,
+                observation_rows,
+                gap_rows,
+            ),
+            "FROM cache.websim_release_registry": [],
+            "JOIN cache.websim_gear_canonical_facts": fact_rows,
+        })
+
+        with self.assertRaisesRegex(
+            GearReleaseIntegrityError,
+            "not self-authenticating",
+        ):
+            self.trusted_gear_store(conn).seal_gear_release(
+                release,
+                snapshot,
+                gate_result=gate,
+            )
+
+    def test_seal_derives_supporting_evidence_beyond_receipt(self):
+        from server import gear_release_store
+        from server.gear_release_store import (
+            GearReleaseIntegrityError,
+        )
+
+        (
+            snapshot,
+            release,
+            gate,
+            fact_rows,
+            artifact_rows,
+            observation_rows,
+            gap_rows,
+        ) = self.canonical_seal_fixture()
+        for owner in ("artifacts", "observations"):
+            with self.subTest(omitted_owner=owner):
+                omitted_gate = copy.deepcopy(gate)
+                omitted_gate["evidenceCompilation"][owner] = {
+                    "count": 0,
+                    "identities": [],
+                    "identityDigest": gear_release_store._hash([]),
+                }
+                omitted_gate["evidencePersistence"][owner] = {
+                    "persisted": 0,
+                    "identities": [],
+                    "identityDigest": gear_release_store._hash([]),
+                }
+                conn = FakeConnection(rowsets={
+                    **self.staging_rowsets(
+                        self.canonical_staging_snapshot()
+                    ),
+                    **self.complete_evidence_rowsets(
+                        artifact_rows,
+                        observation_rows,
+                        gap_rows,
+                    ),
+                    "FROM cache.websim_release_registry": [],
+                    "JOIN cache.websim_gear_canonical_facts": fact_rows,
+                })
+                with self.assertRaisesRegex(
+                    GearReleaseIntegrityError,
+                    "receipt omits complete Store evidence universe",
+                ):
+                    self.trusted_gear_store(
+                        conn
+                    ).seal_gear_release(
+                        release,
+                        snapshot,
+                        gate_result=omitted_gate,
+                    )
+
+    def test_seal_rejects_gap_rows_without_exact_requirement_semantics(self):
+        from server.gear_release_store import (
+            GearReleaseIntegrityError,
+            GearReleaseStore,
+        )
+
+        (
+            snapshot,
+            release,
+            gate,
+            fact_rows,
+            artifact_rows,
+            observation_rows,
+            gap_rows,
+        ) = self.canonical_seal_fixture()
+        forged_gap_rows = copy.deepcopy(gap_rows)
+        forged_gap = list(forged_gap_rows[0])
+        forged_gap[2] = "source_unavailable"
+        forged_gap[3] = {
+            **forged_gap[3],
+            "requiredInputKey": "forged",
+        }
+        forged_gap_rows[0] = tuple(forged_gap)
+        conn = FakeConnection(rowsets={
+            **self.staging_rowsets(self.canonical_staging_snapshot()),
+            **self.complete_evidence_rowsets(
+                artifact_rows,
+                observation_rows,
+                forged_gap_rows,
+            ),
+            "FROM cache.websim_release_registry": [],
+            "JOIN cache.websim_gear_canonical_facts": fact_rows,
+            "FROM cache.websim_gear_evidence_artifacts": artifact_rows,
+            "FROM cache.websim_gear_evidence_observations": observation_rows,
+            "FROM ops.websim_gear_evidence_gaps": gap_rows,
+        })
+        with self.assertRaisesRegex(
+            GearReleaseIntegrityError,
+            "Gap semantics",
+        ):
+            self.trusted_gear_store(
+                conn
             ).seal_gear_release(
                 release,
                 snapshot,
@@ -1170,14 +1399,17 @@ class GearReleaseStoreTest(unittest.TestCase):
             release["content"],
         )
         conn = FakeConnection(rowsets={
-            **self.staging_rowsets(self.snapshot()),
+            **self.staging_rowsets(self.canonical_staging_snapshot()),
+            **self.complete_evidence_rowsets(
+                artifact_rows, observation_rows, gap_rows
+            ),
             "FROM cache.websim_release_registry": [existing_row],
             "JOIN cache.websim_gear_canonical_facts": fact_rows,
             "FROM cache.websim_gear_evidence_artifacts": artifact_rows,
             "FROM cache.websim_gear_evidence_observations": observation_rows,
             "FROM ops.websim_gear_evidence_gaps": gap_rows,
         })
-        store = GearReleaseStore(lambda: conn)
+        store = self.trusted_gear_store(conn)
         self.assertEqual(
             store.seal_gear_release(
                 release,
@@ -1191,7 +1423,10 @@ class GearReleaseStoreTest(unittest.TestCase):
         mismatch = list(existing_row)
         mismatch[4] = "sha256:different"
         bad_conn = FakeConnection(rowsets={
-            **self.staging_rowsets(self.snapshot()),
+            **self.staging_rowsets(self.canonical_staging_snapshot()),
+            **self.complete_evidence_rowsets(
+                artifact_rows, observation_rows, gap_rows
+            ),
             "FROM cache.websim_release_registry": [tuple(mismatch)],
             "JOIN cache.websim_gear_canonical_facts": fact_rows,
             "FROM cache.websim_gear_evidence_artifacts": artifact_rows,
@@ -1199,7 +1434,7 @@ class GearReleaseStoreTest(unittest.TestCase):
             "FROM ops.websim_gear_evidence_gaps": gap_rows,
         })
         with self.assertRaises(GearReleaseIntegrityError):
-            GearReleaseStore(lambda: bad_conn).seal_gear_release(
+            self.trusted_gear_store(bad_conn).seal_gear_release(
                 release,
                 snapshot,
                 gate_result=gate,
