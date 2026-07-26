@@ -142,11 +142,19 @@ class GearEvidenceStoreTest(unittest.TestCase):
     def test_duplicate_artifact_and_observation_reuse_immutable_rows(self):
         artifact = artifact_fixture()
         duplicate_artifact = build_evidence_artifact(
-            source_type="battle_net_item",
+            source_type=artifact["sourceType"],
             source_identity=artifact["sourceIdentity"],
             source_revision=artifact["sourceRevision"],
             season_revision=artifact["seasonRevision"],
             captured_at="2026-07-26T03:00:00+00:00",
+            payload=artifact["payload"],
+        )
+        distinct_source_artifact = build_evidence_artifact(
+            source_type="battle_net_item",
+            source_identity=artifact["sourceIdentity"],
+            source_revision=artifact["sourceRevision"],
+            season_revision=artifact["seasonRevision"],
+            captured_at=artifact["capturedAt"],
             payload=artifact["payload"],
         )
         observation = observation_fixture(artifact)
@@ -180,6 +188,10 @@ class GearEvidenceStoreTest(unittest.TestCase):
 
         self.assertEqual(store.persist_artifact(artifact), artifact)
         self.assertEqual(artifact["artifactId"], duplicate_artifact["artifactId"])
+        self.assertNotEqual(
+            artifact["artifactId"],
+            distinct_source_artifact["artifactId"],
+        )
         self.assertEqual(store.persist_artifact(duplicate_artifact), artifact)
         self.assertEqual(store.persist_observation(observation), observation)
         self.assertEqual(store.persist_observation(observation), observation)

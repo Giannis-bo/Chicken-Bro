@@ -139,11 +139,13 @@ def build_evidence_artifact(
     canonical_payload = _canonical(payload)
     _assert_no_secret_shaped_keys(canonical_payload)
     payload_hash = _sha256(canonical_payload)
+    normalized_source_type = _required_string(source_type, "source_type")
     normalized_source_identity = _required_string(source_identity, "source_identity")
     normalized_source_revision = _required_string(source_revision, "source_revision")
     normalized_season_revision = _required_string(season_revision, "season_revision")
     artifact_id = "gear-artifact:" + _sha256(
         {
+            "sourceType": normalized_source_type,
             "sourceIdentity": normalized_source_identity,
             "sourceRevision": normalized_source_revision,
             "seasonRevision": normalized_season_revision,
@@ -154,7 +156,7 @@ def build_evidence_artifact(
         {
             "schemaRevision": EVIDENCE_ARTIFACT_SCHEMA_REVISION,
             "artifactId": artifact_id,
-            "sourceType": _required_string(source_type, "source_type"),
+            "sourceType": normalized_source_type,
             "sourceIdentity": normalized_source_identity,
             "sourceRevision": normalized_source_revision,
             "seasonRevision": normalized_season_revision,

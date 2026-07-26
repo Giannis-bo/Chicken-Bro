@@ -57,12 +57,17 @@ class GearFactCompilerTest(unittest.TestCase):
         *,
         policies=None,
         subject_key=SUBJECT_KEY,
+        artifacts=None,
     ):
         facts = gear_fact_compiler.compile_subject_facts(
             season_revision=SEASON_REVISION,
             subject_key=subject_key,
             observations=observations,
-            artifacts=self.artifacts.values(),
+            artifacts=(
+                self.artifacts.values()
+                if artifacts is None
+                else artifacts
+            ),
             fact_types=[fact_type],
             policies=policies,
         )
@@ -307,6 +312,28 @@ class GearFactCompilerTest(unittest.TestCase):
                 self.assertEqual(fact["status"], "unresolved_missing")
                 self.assertIsNone(fact["value"])
 
+    def test_malformed_eligible_sibling_prevents_verified_closed_world_fact(self):
+        complete = self.observation(
+            "variant_track",
+            {
+                "itemId": "250033",
+                "itemLevel": 289,
+                "track": "void_upgrade",
+                "variantKey": "void_upgrade-298",
+            },
+        )
+        malformed = self.observation(
+            "variant_track",
+            {"itemLevel": 289, "track": "void_upgrade"},
+            artifact_id="malformed-variant-track-sibling",
+        )
+
+        fact = self.fact([complete, malformed], "variant_track")
+
+        self.assertEqual(fact["status"], "unresolved_missing")
+        self.assertIsNone(fact["value"])
+        self.assertEqual(fact["problemCode"], "parser_unhandled_shape")
+
     def test_allowed_options_require_verified_capability_option_and_slot_rule_basis(self):
         capability = self.observation("socket_count", 1)
         option = self.observation(
@@ -329,17 +356,26 @@ class GearFactCompilerTest(unittest.TestCase):
             parser_revision="season-rule-observer-v1",
             source_scope="slot_rule",
         )
+        static_slot = self.observation(
+            "slot_compatibility",
+            ["head"],
+            parser_revision="battle-net-item-observer-v1",
+        )
 
         verified = self.fact(
-            [slot_rule, option, capability],
+            [slot_rule, option, capability, static_slot],
             "allowed_enhancement_options",
         )
         missing_option = self.fact(
-            [slot_rule, capability],
+            [slot_rule, capability, static_slot],
             "allowed_enhancement_options",
         )
         missing_capability = self.fact(
-            [slot_rule, option],
+            [slot_rule, option, static_slot],
+            "allowed_enhancement_options",
+        )
+        missing_static_slot = self.fact(
+            [slot_rule, option, capability],
             "allowed_enhancement_options",
         )
         incompatible_slot_rule = self.observation(
@@ -347,13 +383,53 @@ class GearFactCompilerTest(unittest.TestCase):
             {
                 "capabilityFactType": "socket_count",
                 "optionIds": ["gem:240001"],
-                "slot": "wrist",
+                "slot": "head",
             },
             parser_revision="season-rule-observer-v1",
             source_scope="slot_rule",
         )
+        wrist_static_slot = self.observation(
+            "slot_compatibility",
+            ["wrist"],
+            artifact_id="wrist-static-slot",
+            parser_revision="battle-net-item-observer-v1",
+        )
         incompatible_scope = self.fact(
-            [incompatible_slot_rule, option, capability],
+            [
+                incompatible_slot_rule,
+                option,
+                capability,
+                wrist_static_slot,
+            ],
+            "allowed_enhancement_options",
+        )
+        malformed_rule = self.observation(
+            "allowed_enhancement_options",
+            {
+                "capabilityFactType": "socket_count",
+                "optionIds": ["gem:240001"],
+            },
+            artifact_id="malformed-allowed-rule-sibling",
+            parser_revision="season-rule-observer-v1",
+            source_scope="slot_rule",
+        )
+        malformed_sibling = self.fact(
+            [slot_rule, malformed_rule, option, capability, static_slot],
+            "allowed_enhancement_options",
+        )
+        mixed_option_ids = self.observation(
+            "allowed_enhancement_options",
+            {
+                "capabilityFactType": "socket_count",
+                "optionIds": ["gem:240001", 240002],
+                "slot": "head",
+            },
+            artifact_id="mixed-option-id-rule",
+            parser_revision="season-rule-observer-v1",
+            source_scope="slot_rule",
+        )
+        mixed_ids = self.fact(
+            [mixed_option_ids, option, capability, static_slot],
             "allowed_enhancement_options",
         )
 
@@ -361,7 +437,13 @@ class GearFactCompilerTest(unittest.TestCase):
         self.assertEqual(verified["value"], ["gem:240001"])
         self.assertEqual(missing_option["status"], "unresolved_missing")
         self.assertEqual(missing_capability["status"], "unresolved_missing")
+        self.assertEqual(missing_static_slot["status"], "unresolved_missing")
         self.assertEqual(incompatible_scope["status"], "unresolved_missing")
+        self.assertEqual(malformed_sibling["status"], "unresolved_missing")
+        self.assertEqual(mixed_ids["status"], "unresolved_missing")
+        self.assertEqual(
+            mixed_ids["problemCode"], "parser_unhandled_shape"
+        )
 
     def test_source_policy_is_anchored_to_referenced_immutable_artifact(self):
         spoofed = self.observation(
@@ -387,6 +469,26 @@ class GearFactCompilerTest(unittest.TestCase):
         self.assertEqual(fact["status"], "unresolved_missing")
         self.assertIsNone(fact["value"])
         self.assertEqual(fact["problemCode"], "artifact_missing")
+
+    def test_duplicate_conflicting_artifact_ids_fail_closed_deterministically(self):
+        observation = self.observation("static_stats", {"haste": 812})
+        artifact = self.artifacts[observation["artifactId"]]
+        conflicting = {**artifact, "sourceType": "season_rule"}
+
+        forward = self.fact(
+            [observation],
+            "static_stats",
+            artifacts=[artifact, conflicting],
+        )
+        reversed_order = self.fact(
+            [observation],
+            "static_stats",
+            artifacts=[conflicting, artifact],
+        )
+
+        self.assertEqual(forward["status"], "unresolved_missing")
+        self.assertEqual(forward["problemCode"], "artifact_missing")
+        self.assertEqual(forward, reversed_order)
 
     def test_unresolved_facts_project_time_free_gap_requirements(self):
         missing = self.fact([], "socket_count")

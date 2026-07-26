@@ -125,6 +125,10 @@ class GearEvidenceRegistryTest(unittest.TestCase):
             first["artifactId"],
             self.artifact(season_revision="midnight-season-2")["artifactId"],
         )
+        self.assertNotEqual(
+            first["artifactId"],
+            self.artifact(source_type="season_rule")["artifactId"],
+        )
 
     def test_artifact_rejects_secret_shaped_payload_keys_recursively(self):
         for payload in (

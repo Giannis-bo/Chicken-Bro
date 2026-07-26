@@ -9,11 +9,13 @@ from typing import Any, Iterable, Mapping, Sequence
 try:
     from .gear_evidence_registry import (
         EVIDENCE_ARTIFACT_SCHEMA_REVISION,
+        build_evidence_artifact,
         build_canonical_fact,
     )
 except ImportError:  # pragma: no cover - direct script/module compatibility
     from gear_evidence_registry import (  # type: ignore
         EVIDENCE_ARTIFACT_SCHEMA_REVISION,
+        build_evidence_artifact,
         build_canonical_fact,
     )
 
@@ -182,7 +184,47 @@ def _canonical_key(value: Any) -> str:
     )
 
 
-def _artifact_index(values: Any) -> dict[str, Mapping[str, Any]]:
+def _validated_artifact(
+    row: Mapping[str, Any],
+) -> Mapping[str, Any] | None:
+    try:
+        rebuilt = build_evidence_artifact(
+            source_type=row.get("sourceType"),
+            source_identity=row.get("sourceIdentity"),
+            source_revision=row.get("sourceRevision"),
+            season_revision=row.get("seasonRevision"),
+            captured_at=row.get("capturedAt"),
+            payload=row.get("payload"),
+        )
+    except (TypeError, ValueError):
+        return None
+    if (
+        row.get("schemaRevision") != EVIDENCE_ARTIFACT_SCHEMA_REVISION
+        or _text(row.get("artifactId")) != rebuilt["artifactId"]
+        or _text(row.get("payloadHash")) != rebuilt["payloadHash"]
+    ):
+        return None
+    return row
+
+
+def _artifact_identity_content(row: Mapping[str, Any]) -> str:
+    return _canonical_key(
+        {
+            "artifactId": row.get("artifactId"),
+            "payload": row.get("payload"),
+            "payloadHash": row.get("payloadHash"),
+            "schemaRevision": row.get("schemaRevision"),
+            "seasonRevision": row.get("seasonRevision"),
+            "sourceIdentity": row.get("sourceIdentity"),
+            "sourceRevision": row.get("sourceRevision"),
+            "sourceType": row.get("sourceType"),
+        }
+    )
+
+
+def _artifact_index(
+    values: Any,
+) -> dict[str, Mapping[str, Any] | None]:
     if isinstance(values, Mapping):
         if _text(values.get("artifactId")):
             rows = [values]
@@ -190,13 +232,27 @@ def _artifact_index(values: Any) -> dict[str, Mapping[str, Any]]:
             rows = list(values.values())
     else:
         rows = list(values or ())
-    indexed: dict[str, Mapping[str, Any]] = {}
+    indexed: dict[str, Mapping[str, Any] | None] = {}
     for row in rows:
         if not isinstance(row, Mapping):
             continue
         artifact_id = _text(row.get("artifactId"))
-        if artifact_id:
-            indexed[artifact_id] = row
+        if not artifact_id:
+            continue
+        validated = _validated_artifact(row)
+        if validated is None:
+            indexed[artifact_id] = None
+            continue
+        if artifact_id not in indexed:
+            indexed[artifact_id] = validated
+            continue
+        current = indexed[artifact_id]
+        if current is None:
+            continue
+        if _artifact_identity_content(current) != _artifact_identity_content(
+            validated
+        ):
+            indexed[artifact_id] = None
     return indexed
 
 
@@ -253,7 +309,7 @@ def _eligible_observations(
     fact_type: str,
     policy: Mapping[str, Any],
     season_revision: str,
-    artifacts_by_id: Mapping[str, Mapping[str, Any]],
+    artifacts_by_id: Mapping[str, Mapping[str, Any] | None],
 ) -> tuple[list[Mapping[str, Any]], bool, bool]:
     candidates = [
         observation
@@ -293,8 +349,11 @@ def _valid_string_list(value: Any, *, allow_empty: bool = False) -> bool:
     return (
         isinstance(value, list)
         and (allow_empty or bool(value))
-        and all(bool(_text(entry)) for entry in value)
-        and len({_text(entry) for entry in value}) == len(value)
+        and all(
+            isinstance(entry, str) and bool(entry.strip())
+            for entry in value
+        )
+        and len(set(value)) == len(value)
     )
 
 
@@ -432,7 +491,7 @@ def _combine(
     observations: Sequence[Mapping[str, Any]],
     subject_key: str,
     policy: Mapping[str, Any],
-    artifacts_by_id: Mapping[str, Mapping[str, Any]],
+    artifacts_by_id: Mapping[str, Mapping[str, Any] | None],
 ) -> tuple[str, Any, bool]:
     if not observations:
         return "unresolved_missing", None, False
@@ -445,7 +504,7 @@ def _combine(
             subject_key,
         )
     ]
-    if not complete_observations:
+    if len(complete_observations) != len(observations):
         return "unresolved_missing", None, True
     values = [
         _canonical(observation.get("observedValue"))
@@ -488,7 +547,7 @@ def _compile_one(
     subject_key: str,
     fact_type: str,
     observations: Sequence[Mapping[str, Any]],
-    artifacts_by_id: Mapping[str, Mapping[str, Any]],
+    artifacts_by_id: Mapping[str, Mapping[str, Any] | None],
     policy: Mapping[str, Any] | None,
 ) -> dict[str, Any]:
     if policy is None:
@@ -566,7 +625,7 @@ def _compile_allowed_options(
     season_revision: str,
     subject_key: str,
     observations: Sequence[Mapping[str, Any]],
-    artifacts_by_id: Mapping[str, Mapping[str, Any]],
+    artifacts_by_id: Mapping[str, Mapping[str, Any] | None],
     policies: Mapping[str, Mapping[str, Any]],
 ) -> dict[str, Any]:
     fact_type = "allowed_enhancement_options"
@@ -598,14 +657,33 @@ def _compile_allowed_options(
             subject_key,
         )
     ]
+    incomplete_rules = len(complete_rules) != len(eligible)
     observation_refs = [
         observation["observationId"] for observation in eligible
     ]
     allowed_option_ids: set[str] = set()
     dependency_missing = False
     dependency_conflict = False
+    slot_fact = _compile_one(
+        season_revision=season_revision,
+        subject_key=subject_key,
+        fact_type="slot_compatibility",
+        observations=observations,
+        artifacts_by_id=artifacts_by_id,
+        policy=policies.get("slot_compatibility"),
+    )
+    observation_refs.extend(slot_fact["observationRefs"])
+    if slot_fact["status"] == "unresolved_conflict":
+        dependency_conflict = True
+    elif slot_fact["status"] != "verified":
+        dependency_missing = True
     for rule in complete_rules:
         basis = _canonical(rule.get("observedValue"))
+        if (
+            slot_fact.get("status") == "verified"
+            and basis["slot"] not in slot_fact["value"]
+        ):
+            dependency_missing = True
         capability_type = basis["capabilityFactType"]
         capability_fact = _compile_one(
             season_revision=season_revision,
@@ -664,9 +742,9 @@ def _compile_allowed_options(
             None,
             "observation_conflict",
         )
-    elif not complete_rules or dependency_missing:
+    elif incomplete_rules or not complete_rules or dependency_missing:
         status, value = "unresolved_missing", None
-        if eligible and not complete_rules:
+        if incomplete_rules or (eligible and not complete_rules):
             problem_code = "parser_unhandled_shape"
         elif missing_artifact:
             problem_code = "artifact_missing"
