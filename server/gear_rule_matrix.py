@@ -62,6 +62,51 @@ def _selected_items(intent: dict[str, Any], authority: dict[str, Any]):
         yield slot, selection, items.get(selection["itemId"])
 
 
+def canonical_static_capabilities(facts: Any) -> dict[str, Any]:
+    """Project verified capability Facts without defaulting unresolved values."""
+
+    if isinstance(facts, dict):
+        rows = [
+            value
+            for value in facts.values()
+            if isinstance(value, dict)
+        ]
+    elif isinstance(facts, (list, tuple)):
+        rows = [value for value in facts if isinstance(value, dict)]
+    else:
+        rows = []
+    fields = {
+        "socket_count": "socketCount",
+        "enchant_capability": "canEnchant",
+        "embellishment_capability": "canEmbellish",
+    }
+    capabilities: dict[str, Any] = {}
+    for fact in sorted(
+        rows,
+        key=lambda row: (
+            str(row.get("factType") or ""),
+            str(row.get("factKey") or ""),
+        ),
+    ):
+        fact_type = fact.get("factType")
+        field = fields.get(fact_type)
+        value = fact.get("value")
+        valid_value = (
+            isinstance(value, int)
+            and not isinstance(value, bool)
+            and value >= 0
+            if fact_type == "socket_count"
+            else isinstance(value, bool)
+        )
+        if (
+            field
+            and fact.get("status") == "verified"
+            and valid_value
+        ):
+            capabilities[field] = value
+    return capabilities
+
+
 def _effective_item_for_selection(
     selection: dict[str, Any],
     item: dict[str, Any],
@@ -83,6 +128,11 @@ def _effective_item_for_selection(
     ):
         if field in item and field not in capabilities:
             capabilities[field] = item[field]
+    capabilities.update(
+        canonical_static_capabilities(
+            item.get("canonicalStaticFacts") or item.get("canonicalFacts")
+        )
+    )
 
     variant = authority.get("variantsByKey", {}).get(selection.get("variantKey"))
     if (
@@ -98,6 +148,12 @@ def _effective_item_for_selection(
             overrides = overlay.get("capabilityOverrides")
             if isinstance(overrides, dict):
                 capabilities.update(overrides)
+        capabilities.update(
+            canonical_static_capabilities(
+                variant.get("canonicalStaticFacts")
+                or variant.get("canonicalFacts")
+            )
+        )
 
     effective["effectiveCapabilities"] = capabilities
     effective.update(capabilities)
@@ -597,6 +653,7 @@ def evaluate_rule_matrix(selection_intent: Any, authority_context: Any) -> dict[
 __all__ = (
     "RULE_MATRIX_REVISION",
     "RuleDefinition",
+    "canonical_static_capabilities",
     "ordered_rule_matrix",
     "evaluate_rule_matrix",
     "embellishment_usage",

@@ -1,7 +1,8 @@
-"""Pure, release-time socket capacity fact derivation.
+"""Pure socket source-input derivation with a release compatibility adapter.
 
 Every evidence source contributes a proven lower bound for total socket capacity.
-Compatible claims are merged with ``max`` and are never added together.
+The current release tool still consumes the legacy ``minimumTotal`` projection;
+Task 3 keeps that return shape while exposing compiler-ready source inputs.
 """
 
 from __future__ import annotations
@@ -26,6 +27,8 @@ __all__ = (
     "is_verified_radiant_jewelbinder_socket",
     "count_payload_socket_entries",
     "parse_simc_socket_bonus_minimums",
+    "derive_item_socket_observation_inputs",
+    "derive_variant_socket_observation_inputs",
     "derive_item_socket_fact",
     "derive_variant_socket_fact",
     "materialize_gear_socket_facts",
@@ -309,13 +312,13 @@ def _id_tokens(value: Any) -> list[str]:
     return identifiers
 
 
-def count_payload_socket_entries(payload: Any) -> int:
-    """Return the strongest explicit socket-array count in a JSON-like payload."""
-
+def _explicit_payload_socket_total(payload: Any) -> tuple[bool, int]:
     counts: list[int] = []
     seen: set[int] = set()
+    found = False
 
     def visit(value: Any) -> None:
+        nonlocal found
         if isinstance(value, (dict, list, tuple)):
             identity = id(value)
             if identity in seen:
@@ -324,6 +327,7 @@ def count_payload_socket_entries(payload: Any) -> int:
         if isinstance(value, dict):
             for key, child in value.items():
                 if _normalized_key(key) in _SOCKET_PAYLOAD_KEYS:
+                    found = True
                     if isinstance(child, (list, tuple)):
                         counts.append(len(child))
                     elif isinstance(child, dict) and child:
@@ -334,7 +338,13 @@ def count_payload_socket_entries(payload: Any) -> int:
                 visit(child)
 
     visit(payload)
-    return max(counts, default=0)
+    return found, max(counts, default=0)
+
+
+def count_payload_socket_entries(payload: Any) -> int:
+    """Return the strongest explicit socket-array count in a JSON-like payload."""
+
+    return _explicit_payload_socket_total(payload)[1]
 
 
 def parse_simc_socket_bonus_minimums(output: Any) -> dict[str, int]:
@@ -443,33 +453,80 @@ def parse_simc_socket_bonus_minimums(output: Any) -> dict[str, int]:
     return {bonus_id: parsed[bonus_id] for bonus_id in sorted(parsed, key=int)}
 
 
-def derive_item_socket_fact(
+def _socket_observation_input(
+    *,
+    observed_value: Any,
+    source_scope: str,
+    source: str,
+    source_revision: Any,
+) -> dict[str, Any] | None:
+    if isinstance(observed_value, bool):
+        return None
+    try:
+        normalized_value = int(observed_value)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    if normalized_value < 0:
+        return None
+    return {
+        "factType": "socket_count",
+        "observedValue": normalized_value,
+        "source": source,
+        "sourceRevision": _text(source_revision),
+        "sourceScope": source_scope,
+    }
+
+
+def _compiler_socket_inputs(
+    inputs: list[dict[str, Any]],
+    subject_key: str,
+) -> list[dict[str, Any]]:
+    source_types = {
+        "official_item_payload": "battle_net_item",
+        "midnight_s1_jewelry_floor": "season_rule",
+        "midnight_s1_radiant_jewelbinder": "season_rule",
+        "simc_bonus": "simc_bonus_probe",
+        "observed_gem_occupancy": "legacy_observed_variant",
+    }
+    return [
+        {
+            **source_input,
+            "sourceType": source_types.get(
+                _text(source_input.get("source")), "legacy_socket_source"
+            ),
+            "subjectKey": subject_key,
+        }
+        for source_input in inputs
+    ]
+
+
+def derive_item_socket_observation_inputs(
     item: Any,
     season_revision: str = "",
-) -> dict[str, Any]:
-    """Derive an exact-item socket fact from explicit item and season evidence."""
+) -> list[dict[str, Any]]:
+    """Emit source inputs for later canonical socket compilation."""
 
     row = item if isinstance(item, dict) else {}
-    claims: list[dict[str, Any]] = []
+    inputs: list[dict[str, Any]] = []
     payload = row.get("payload") if isinstance(row.get("payload"), dict) else {}
-    official_total = count_payload_socket_entries(payload)
-    official_claim = _claim(
-        minimum_total=official_total,
-        scope="exact_item",
+    official_is_explicit, official_total = _explicit_payload_socket_total(payload)
+    official_input = _socket_observation_input(
+        observed_value=official_total,
+        source_scope="exact_item",
         source="official_item_payload",
         source_revision=_source_revision(row, "official-item-payload"),
     )
-    if official_claim:
-        claims.append(official_claim)
+    if official_is_explicit and official_input:
+        inputs.append(official_input)
 
     revision = _text(season_revision)
     is_midnight_season_one = _is_midnight_season_one_revision(revision)
     slot = _row_slot(row)
     if is_midnight_season_one and slot in _MIDNIGHT_JEWELRY_SLOTS:
-        claims.append(
-            _claim(
-                minimum_total=1,
-                scope="season_slot",
+        inputs.append(
+            _socket_observation_input(
+                observed_value=1,
+                source_scope="season_slot",
                 source="midnight_s1_jewelry_floor",
                 source_revision=revision,
             )
@@ -480,15 +537,49 @@ def derive_item_socket_fact(
         and official_total == 0
         and _explicitly_non_pvp(row, revision)
     ):
-        claims.append(
-            _claim(
-                minimum_total=1,
-                scope="season_slot",
+        inputs.append(
+            _socket_observation_input(
+                observed_value=1,
+                source_scope="season_slot",
                 source="midnight_s1_radiant_jewelbinder",
                 source_revision=revision,
             )
         )
-    return _socket_fact([claim for claim in claims if claim])
+    item_id = _text(row.get("itemId") or row.get("id"))
+    subject_key = f"item:{item_id}" if item_id else "item:unknown"
+    return _compiler_socket_inputs(
+        [source_input for source_input in inputs if source_input],
+        subject_key,
+    )
+
+
+def _input_claim(source_input: Mapping[str, Any]) -> dict[str, Any] | None:
+    return _claim(
+        minimum_total=source_input.get("observedValue"),
+        scope=_text(source_input.get("sourceScope")),
+        source=_text(source_input.get("source")),
+        source_revision=source_input.get("sourceRevision"),
+    )
+
+
+def derive_item_socket_fact(
+    item: Any,
+    season_revision: str = "",
+) -> dict[str, Any]:
+    """Compatibility adapter retaining the current release return shape."""
+
+    return _socket_fact(
+        [
+            claim
+            for claim in (
+                _input_claim(source_input)
+                for source_input in derive_item_socket_observation_inputs(
+                    item, season_revision
+                )
+            )
+            if claim
+        ]
+    )
 
 
 def _bonus_minimum(
@@ -504,28 +595,32 @@ def _bonus_minimum(
     return _minimum_total(raw), f"simc-bonus:{bonus_id}"
 
 
-def derive_variant_socket_fact(
+def derive_variant_socket_observation_inputs(
     item: Any,
     variant: Any,
     season_revision: str = "",
     socket_bonus_minimums: Mapping[str, Any] | None = None,
-) -> dict[str, Any]:
-    """Derive a final exact-variant lower bound without widening its scope."""
+) -> list[dict[str, Any]]:
+    """Emit exact-variant and inherited source inputs without final projection."""
 
     item_row = item if isinstance(item, dict) else {}
     variant_row = variant if isinstance(variant, dict) else {}
-    claims = list(derive_item_socket_fact(item_row, season_revision).get("claims") or [])
+    inputs = list(
+        derive_item_socket_observation_inputs(item_row, season_revision)
+    )
 
     payload = variant_row.get("payload") if isinstance(variant_row.get("payload"), dict) else {}
-    variant_payload_total = count_payload_socket_entries(payload)
-    payload_claim = _claim(
-        minimum_total=variant_payload_total,
-        scope="exact_variant",
+    variant_is_explicit, variant_payload_total = _explicit_payload_socket_total(
+        payload
+    )
+    payload_input = _socket_observation_input(
+        observed_value=variant_payload_total,
+        source_scope="exact_variant",
         source="official_item_payload",
         source_revision=_source_revision(variant_row, "official-variant-payload"),
     )
-    if payload_claim:
-        claims.append(payload_claim)
+    if variant_is_explicit and payload_input:
+        inputs.append(payload_input)
 
     simc_options = (
         variant_row.get("simcOptions")
@@ -535,25 +630,57 @@ def derive_variant_socket_fact(
     known_bonuses = socket_bonus_minimums if isinstance(socket_bonus_minimums, Mapping) else {}
     for bonus_id in _id_tokens(simc_options.get("bonus_id")):
         minimum, source_revision = _bonus_minimum(known_bonuses, bonus_id)
-        bonus_claim = _claim(
-            minimum_total=minimum,
-            scope="exact_variant",
+        bonus_input = _socket_observation_input(
+            observed_value=minimum,
+            source_scope="exact_variant",
             source="simc_bonus",
             source_revision=source_revision,
         )
-        if bonus_claim:
-            claims.append(bonus_claim)
+        if minimum and bonus_input:
+            inputs.append(bonus_input)
 
     occupied_gem_total = len(_id_tokens(simc_options.get("gem_id")))
-    gem_claim = _claim(
-        minimum_total=occupied_gem_total,
-        scope="exact_variant",
+    gem_input = _socket_observation_input(
+        observed_value=occupied_gem_total,
+        source_scope="exact_variant",
         source="observed_gem_occupancy",
         source_revision=_source_revision(variant_row, "observed-gear-variant"),
     )
-    if gem_claim:
-        claims.append(gem_claim)
-    return _socket_fact(claims)
+    if occupied_gem_total and gem_input:
+        inputs.append(gem_input)
+    item_id = _text(variant_row.get("itemId") or item_row.get("itemId"))
+    variant_key = _text(
+        variant_row.get("variantKey") or variant_row.get("variantId")
+    )
+    subject_key = f"item:{item_id}" if item_id else "item:unknown"
+    if variant_key:
+        subject_key += f"/variant:{variant_key}"
+    return _compiler_socket_inputs(inputs, subject_key)
+
+
+def derive_variant_socket_fact(
+    item: Any,
+    variant: Any,
+    season_revision: str = "",
+    socket_bonus_minimums: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Compatibility adapter retaining the current release return shape."""
+
+    return _socket_fact(
+        [
+            claim
+            for claim in (
+                _input_claim(source_input)
+                for source_input in derive_variant_socket_observation_inputs(
+                    item,
+                    variant,
+                    season_revision,
+                    socket_bonus_minimums,
+                )
+            )
+            if claim
+        ]
+    )
 
 
 def materialize_gear_socket_facts(
