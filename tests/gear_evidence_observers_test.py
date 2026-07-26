@@ -260,6 +260,7 @@ class GearEvidenceObserversTest(unittest.TestCase):
                     "factType": "socket_count",
                     "observedValue": 1,
                     "source": "simc_bonus",
+                    "sourceKey": "298",
                     "sourceType": "simc_bonus_probe",
                     "sourceRevision": "simc-main-abcdef",
                     "sourceScope": "exact_variant",

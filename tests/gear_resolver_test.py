@@ -13,10 +13,28 @@ MIDNIGHT_SOCKET_FIXTURE_PATH = (
 )
 
 
+def released_fact(subject_key, fact_type, value, status="verified"):
+    return {
+        "schemaRevision": "gear-canonical-fact-v1",
+        "factKey": f"gear-fact:fixture:{subject_key}:{fact_type}",
+        "subjectKey": subject_key,
+        "factType": fact_type,
+        "value": copy.deepcopy(value),
+        "status": status,
+        "observationRefs": [],
+        "observationRefCount": 0,
+        "referencesTruncated": False,
+        "compilerRuleRevision": f"fixture-{fact_type}-rule-v1",
+        "factValueHash": f"sha256:fixture-{fact_type}-value",
+        "provenanceHash": f"sha256:fixture-{fact_type}-provenance",
+    }
+
+
 def build_midnight_mage_resolver_fixture(
     selected_gem_count=0,
     *,
     include_reference_enhancements=False,
+    canonical_consumer=True,
 ):
     socket_fixture = json.loads(
         MIDNIGHT_SOCKET_FIXTURE_PATH.read_text(encoding="utf-8")
@@ -310,21 +328,233 @@ def build_midnight_mage_resolver_fixture(
             }
         ],
     }
+    for option_id, record in option_records.items():
+        record["payload"]["canonicalFacts"] = [
+            released_fact(
+                f"option:{option_id}",
+                "enhancement_option",
+                {
+                    "optionId": option_id,
+                    "optionType": pg_gear_authority_loader._normalized_option_type(
+                        record["optionType"]
+                    ),
+                    "effect": copy.deepcopy(record["simcOptions"]),
+                    "applicableScopes": copy.deepcopy(record["applicableSlots"]),
+                    "statDeltas": copy.deepcopy(
+                        record["payload"].get("statDeltas") or {}
+                    ),
+                    "uniqueGroupId": record["payload"].get("uniqueGroup") or "",
+                    "uniqueLimit": record["payload"].get("uniqueLimit") or 0,
+                },
+            )
+        ]
+    for requested_item_id, variant_key, item_record, variant_record, _sources in item_rows:
+        slot = item_record["slot"]
+        allowed_slots = copy.deepcopy(
+            pg_gear_authority_loader.EQUIVALENT_GEAR_SLOTS.get(slot, [slot])
+        )
+        canonical_inventory_type = (
+            "weapon"
+            if set(allowed_slots).intersection({"main_hand", "off_hand"})
+            else allowed_slots[0]
+        )
+        for allowed_slot in allowed_slots:
+            runtime["ruleParameters"]["inventoryTypesBySlot"].setdefault(
+                allowed_slot,
+                [],
+            )
+            if (
+                canonical_inventory_type
+                not in runtime["ruleParameters"]["inventoryTypesBySlot"][
+                    allowed_slot
+                ]
+            ):
+                runtime["ruleParameters"]["inventoryTypesBySlot"][
+                    allowed_slot
+                ].append(canonical_inventory_type)
+        allowed_options = sorted(
+            option_id
+            for option_id, record in option_records.items()
+            if set(record["applicableSlots"]).intersection(allowed_slots)
+        )
+        item_payload = item_record["payload"]
+        item_capabilities = item_payload["baseCapabilities"]
+        item_subject = f"item:{requested_item_id}"
+        item_payload["canonicalFacts"] = [
+            released_fact(
+                item_subject,
+                "item_identity",
+                {"itemId": requested_item_id},
+            ),
+            released_fact(item_subject, "slot_compatibility", allowed_slots),
+            released_fact(
+                item_subject,
+                "static_stats",
+                copy.deepcopy(item_payload["baseStats"]),
+            ),
+            released_fact(
+                item_subject,
+                "socket_count",
+                item_capabilities["socketCount"],
+            ),
+            released_fact(
+                item_subject,
+                "enchant_capability",
+                item_capabilities["canEnchant"],
+            ),
+            released_fact(
+                item_subject,
+                "embellishment_capability",
+                item_capabilities["canEmbellish"],
+            ),
+            released_fact(
+                item_subject,
+                "allowed_enhancement_options",
+                allowed_options,
+            ),
+            released_fact(item_subject, "item_set_membership", False),
+        ]
+        variant_payload = variant_record["payload"]
+        effective_capabilities = {
+            **item_capabilities,
+            **variant_payload["capabilityOverrides"],
+        }
+        variant_subject = (
+            f"item:{requested_item_id}/variant:{variant_key}"
+        )
+        variant_payload["canonicalFacts"] = [
+            released_fact(
+                variant_subject,
+                "item_identity",
+                {
+                    "itemId": requested_item_id,
+                    "variantKey": variant_key,
+                },
+            ),
+            released_fact(
+                variant_subject,
+                "slot_compatibility",
+                allowed_slots,
+            ),
+            released_fact(
+                variant_subject,
+                "variant_track",
+                {
+                    "itemId": requested_item_id,
+                    "variantKey": variant_key,
+                    "track": str(variant_key).split("-", 1)[0] or "fixture",
+                    "itemLevel": max(
+                        1,
+                        int(variant_record.get("itemLevel") or 0),
+                    ),
+                },
+            ),
+            released_fact(
+                variant_subject,
+                "static_stats",
+                copy.deepcopy(variant_payload["resolvedStats"]),
+            ),
+            released_fact(
+                variant_subject,
+                "socket_count",
+                effective_capabilities["socketCount"],
+            ),
+            released_fact(
+                variant_subject,
+                "enchant_capability",
+                effective_capabilities["canEnchant"],
+            ),
+            released_fact(
+                variant_subject,
+                "embellishment_capability",
+                effective_capabilities["canEmbellish"],
+            ),
+            released_fact(
+                variant_subject,
+                "allowed_enhancement_options",
+                allowed_options,
+            ),
+            released_fact(
+                variant_subject,
+                "item_set_membership",
+                False,
+            ),
+        ]
+    manifest = {
+        "contractRevision": "active-season-manifest-v1",
+        "manifestType": "active",
+        "formalActiveManifest": True,
+        "seasonRevision": "season-17-active",
+        "gearCatalogReleaseId": "gear-release-17",
+        "gearCatalogRevision": "gear-release-17",
+    }
+    option_rows = [
+        (option_id, record)
+        for option_id, record in option_records.items()
+    ]
     context = pg_gear_authority_loader.build_gear_authority_context_from_rows(
         intent,
         runtime,
-        manifest={
-            "contractRevision": "active-season-manifest-v1",
-            "manifestType": "active",
-            "formalActiveManifest": True,
-            "seasonRevision": "season-17-active",
-            "gearCatalogReleaseId": "gear-release-17",
-            "gearCatalogRevision": "gear-release-17",
-        },
+        manifest=manifest,
         dependency_vector=dependency_vector,
         item_rows=item_rows,
-        option_rows=[(option_id, record) for option_id, record in option_records.items()],
+        option_rows=option_rows,
     )
+    if not canonical_consumer:
+        # Release-shadow characterization still compares the pre-Task-5 raw
+        # V2 writer. Rebuild that test-only projection with the retired
+        # private projectors; production V2 entry points remain canonical-only.
+        evidence = pg_gear_authority_loader._runtime_source_records(runtime)
+        items_by_id = {}
+        variants_by_key = {}
+        for (
+            requested_item_id,
+            requested_variant_key,
+            item_record,
+            variant_record,
+            source_records,
+        ) in item_rows:
+            item = pg_gear_authority_loader._project_item(
+                requested_item_id,
+                item_record,
+                source_records,
+                runtime,
+                evidence,
+                gear_socket_authority.CAPABILITY_REVISION,
+                "season-17-active",
+            )
+            if item is not None:
+                items_by_id[requested_item_id] = item
+            variant = pg_gear_authority_loader._project_variant(
+                requested_item_id,
+                requested_variant_key,
+                variant_record,
+                item.get("sourceRefIds") if item else [],
+                evidence,
+                gear_socket_authority.CAPABILITY_REVISION,
+            )
+            if variant is not None:
+                variants_by_key[requested_variant_key] = variant
+        options_by_id = {}
+        for option_id, record in option_rows:
+            option = pg_gear_authority_loader._project_option(
+                option_id,
+                record,
+                evidence,
+                intent["eligibilityContext"],
+            )
+            if option is not None:
+                options_by_id[option_id] = option
+        pg_gear_authority_loader._link_allowed_options(
+            intent,
+            items_by_id,
+            options_by_id,
+        )
+        context["itemsById"] = items_by_id
+        context["variantsByKey"] = variants_by_key
+        context["optionsById"] = options_by_id
+        context["evidenceRecordsById"] = evidence
+        context["missingFields"] = []
     return {
         "intent": intent,
         "authorityContext": context,
@@ -345,6 +575,16 @@ class GearResolverTest(unittest.TestCase):
     def resolve(self, fixture=None):
         fixture = fixture or self.fixture()
         return gear_resolver.resolve(fixture["intent"], fixture["authorityContext"])
+
+    def test_legacy_shadow_consumer_switch_has_no_production_call_path(self):
+        self.assertNotIn(
+            "canonical_consumer",
+            inspect.getsource(pg_gear_authority_loader),
+        )
+        self.assertNotIn(
+            "canonical_consumer",
+            inspect.getsource(gear_resolver),
+        )
 
     def add_gem_option(
         self,
@@ -430,6 +670,119 @@ class GearResolverTest(unittest.TestCase):
         self.assertEqual(result["status"], "blocked")
         self.assertEqual(result["resolvedSlots"], {})
         self.assertTrue(any(problem["kind"] == "INVALID_INTENT" for problem in result["problems"]))
+
+    def test_resolver_carries_released_fact_refs_into_resolution_proof_only(self):
+        fixture = self.fixture()
+        selection = fixture["intent"]["slots"]["head"]
+        item = fixture["authorityContext"]["itemsById"][selection["itemId"]]
+        variant = fixture["authorityContext"]["variantsByKey"][
+            selection["variantKey"]
+        ]
+        fact_refs = [
+            "gear-fact:test:item-head:socket_count",
+            "gear-fact:test:variant-head:socket_count",
+        ]
+        for fact_ref in fact_refs:
+            fixture["authorityContext"]["evidenceRecordsById"][fact_ref] = {
+                "id": fact_ref,
+                "sourceType": "released_canonical_fact",
+                "factType": "socket_count",
+                "status": "verified",
+            }
+        item["canonicalFactRefIds"] = [fact_refs[0]]
+        item["sourceRefIds"] = [fact_refs[0]]
+        item["capabilityFacts"] = {
+            "socket": {"status": "unavailable", "value": 0, "options": []},
+            "enchant": {"status": "unavailable", "value": False, "options": []},
+            "embellishment": {
+                "status": "unavailable",
+                "value": False,
+                "options": [],
+            },
+        }
+        variant["canonicalFactRefIds"] = [fact_refs[1]]
+        variant["sourceRefIds"] = [fact_refs[1]]
+        variant["capabilityFacts"] = {
+            "socket": {"status": "verified", "value": 1, "options": []},
+            "enchant": {"status": "unavailable", "value": False, "options": []},
+            "embellishment": {
+                "status": "pending",
+                "value": None,
+                "options": [],
+            },
+        }
+
+        result = self.resolve(fixture)
+
+        resolved = result["resolvedSlots"]["head"]
+        self.assertEqual(resolved["capabilityFacts"], variant["capabilityFacts"])
+        identity_claim = next(
+            claim
+            for claim in result["evidenceLedger"]["claims"]
+            if claim["claimKey"] == "slot:head:identity_options"
+        )
+        self.assertTrue(set(fact_refs).issubset(identity_claim["sourceRefIds"]))
+        legality_claim = next(
+            claim
+            for claim in result["evidenceLedger"]["claims"]
+            if claim["claimKey"] == "rule:slot_inventory_type"
+        )
+        self.assertNotEqual(legality_claim["sourceRefIds"], fact_refs)
+        self.assertEqual(
+            legality_claim["sourceRefIds"],
+            fixture["authorityContext"]["ruleParameters"]["sourceRefIds"],
+        )
+
+    def test_browse_and_exact_resolve_share_the_same_public_capability_view(self):
+        from server import websim_payload
+
+        fixture = self.fixture()
+        selection = fixture["intent"]["slots"]["head"]
+        item = fixture["authorityContext"]["itemsById"][selection["itemId"]]
+        variant = fixture["authorityContext"]["variantsByKey"][
+            selection["variantKey"]
+        ]
+        capability_facts = {
+            "socket": {"status": "verified", "value": 1, "options": []},
+            "enchant": {"status": "unavailable", "value": False, "options": []},
+            "embellishment": {
+                "status": "pending",
+                "value": None,
+                "options": [],
+            },
+        }
+        item["capabilityFacts"] = {
+            "socket": {"status": "unavailable", "value": 0, "options": []},
+            "enchant": {"status": "unavailable", "value": False, "options": []},
+            "embellishment": {
+                "status": "unavailable",
+                "value": False,
+                "options": [],
+            },
+        }
+        variant["capabilityFacts"] = copy.deepcopy(capability_facts)
+        result = self.resolve(fixture)
+        browse_item = websim_payload.sanitize_gear_candidate_mod_options({
+            "itemId": selection["itemId"],
+            "slot": "head",
+            "variantKey": selection["variantKey"],
+            "simcReady": True,
+            "variants": [{
+                "variantKey": selection["variantKey"],
+                "status": "verified",
+                "capabilityFacts": copy.deepcopy(capability_facts),
+            }],
+            "modCapabilities": {
+                "hasSocket": False,
+                "canEnchant": True,
+                "canEmbellish": True,
+            },
+        })
+
+        self.assertEqual(
+            browse_item["capabilityFacts"],
+            result["resolvedSlots"]["head"]["capabilityFacts"],
+        )
 
     def test_resolver_returns_revision_conflict_without_reinterpreting_intent(self):
         fixture = self.fixture()

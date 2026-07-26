@@ -4641,6 +4641,36 @@ def item_mod_capabilities(payload=None, slot="", variants=None, item=None):
     payload = payload if isinstance(payload, dict) else {}
     item = item if isinstance(item, dict) else {}
     variants = [variant for variant in variants or [] if isinstance(variant, dict)]
+    released = public_gear_capability_facts(
+        {
+            **item,
+            "payload": payload or item.get("payload") or {},
+            "variants": variants or item.get("variants") or [],
+        }
+    )
+    if released is not None:
+        socket = released["socket"]
+        enchant = released["enchant"]
+        embellishment = released["embellishment"]
+        socket_count = (
+            socket["value"]
+            if socket["status"] in {"verified", "unavailable"}
+            and isinstance(socket["value"], int)
+            and not isinstance(socket["value"], bool)
+            else 0
+        )
+        return {
+            "hasSocket": socket["status"] == "verified" and socket_count > 0,
+            "socketCount": socket_count,
+            "canEnchant": (
+                enchant["status"] == "verified"
+                and enchant["value"] is True
+            ),
+            "canEmbellish": (
+                embellishment["status"] == "verified"
+                and embellishment["value"] is True
+            ),
+        }
     existing_capabilities = item.get("modCapabilities") if isinstance(item.get("modCapabilities"), dict) else {}
     existing_socket_count = existing_capabilities.get("socketCount")
     if isinstance(existing_socket_count, bool) or not isinstance(existing_socket_count, int):
@@ -4671,6 +4701,288 @@ def item_mod_capabilities(payload=None, slot="", variants=None, item=None):
     else:
         capabilities.pop("socketCount", None)
     return capabilities
+
+
+_PUBLIC_GEAR_CAPABILITY_FACTS = {
+    "socket": ("socket_count", "socketOptions"),
+    "enchant": ("enchant_capability", "enchantOptions"),
+    "embellishment": (
+        "embellishment_capability",
+        "embellishmentOptions",
+    ),
+}
+
+
+def _safe_public_capability_facts(value):
+    if not isinstance(value, dict):
+        return None
+    projected = {}
+    for category, (fact_type, _option_field) in (
+        _PUBLIC_GEAR_CAPABILITY_FACTS.items()
+    ):
+        view = value.get(category)
+        if not isinstance(view, dict):
+            return None
+        status = str(view.get("status") or "").strip()
+        raw_value = view.get("value")
+        if status not in {"verified", "unavailable", "pending"}:
+            return None
+        if fact_type == "socket_count":
+            valid_value = (
+                isinstance(raw_value, int)
+                and not isinstance(raw_value, bool)
+                and raw_value >= 0
+            )
+        else:
+            valid_value = isinstance(raw_value, bool)
+        if status == "pending":
+            raw_value = None
+        elif not valid_value:
+            return None
+        options = sorted({
+            str(option_id).strip()
+            for option_id in view.get("options") or []
+            if str(option_id or "").strip()
+        })
+        projected[category] = {
+            "status": status,
+            "value": raw_value,
+            "options": options if status == "verified" else [],
+        }
+    return projected
+
+
+def _canonical_capability_facts_from_payload(payload, available_options):
+    if not isinstance(payload, dict):
+        return None
+    raw_facts = payload.get("canonicalFacts")
+    if not isinstance(raw_facts, list):
+        return None
+    facts = {}
+    for raw in raw_facts:
+        if not isinstance(raw, dict):
+            return None
+        fact_type = str(raw.get("factType") or "").strip()
+        status = str(raw.get("status") or "").strip()
+        if (
+            raw.get("schemaRevision") != "gear-canonical-fact-v1"
+            or not fact_type
+            or fact_type in facts
+            or status
+            not in {"verified", "unresolved_missing", "unresolved_conflict"}
+        ):
+            return None
+        facts[fact_type] = raw
+    allowed_fact = facts.get("allowed_enhancement_options")
+    allowed_ids = (
+        {
+            str(option_id).strip()
+            for option_id in allowed_fact.get("value") or []
+            if str(option_id or "").strip()
+        }
+        if isinstance(allowed_fact, dict)
+        and allowed_fact.get("status") == "verified"
+        and isinstance(allowed_fact.get("value"), list)
+        else None
+    )
+    projected = {}
+    for category, (fact_type, _option_field) in (
+        _PUBLIC_GEAR_CAPABILITY_FACTS.items()
+    ):
+        fact = facts.get(fact_type)
+        raw_value = fact.get("value") if isinstance(fact, dict) else None
+        if fact_type == "socket_count":
+            valid_value = (
+                isinstance(raw_value, int)
+                and not isinstance(raw_value, bool)
+                and raw_value >= 0
+            )
+        else:
+            valid_value = isinstance(raw_value, bool)
+        if (
+            not isinstance(fact, dict)
+            or fact.get("status") != "verified"
+            or not valid_value
+        ):
+            status = "pending"
+            raw_value = None
+        elif raw_value in (False, 0):
+            status = "unavailable"
+        elif allowed_ids is None:
+            status = "pending"
+            raw_value = None
+        else:
+            status = "verified"
+        projected[category] = {
+            "status": status,
+            "value": raw_value,
+            "options": (
+                sorted(allowed_ids.intersection(available_options[category]))
+                if status == "verified" and allowed_ids is not None
+                else []
+            ),
+        }
+    return projected
+
+
+def public_gear_capability_facts(item):
+    """Project safe capability state from one released item/exact variant."""
+
+    if not isinstance(item, dict):
+        return None
+    has_released_input = (
+        "capabilityFacts" in item
+        or "canonicalFacts" in item
+        or (
+            isinstance(item.get("payload"), dict)
+            and "canonicalFacts" in item["payload"]
+        )
+        or any(
+            isinstance(variant, dict)
+            and (
+                "capabilityFacts" in variant
+                or "canonicalFacts" in variant
+                or (
+                    isinstance(variant.get("payload"), dict)
+                    and "canonicalFacts" in variant["payload"]
+                )
+            )
+            for variant in item.get("variants") or []
+        )
+    )
+    available_options = {
+        category: {
+            str(option.get("optionKey") or option.get("id") or "").strip()
+            for option in item.get(option_field) or []
+            if isinstance(option, dict)
+            and str(option.get("optionKey") or option.get("id") or "").strip()
+        }
+        for category, (_fact_type, option_field) in (
+            _PUBLIC_GEAR_CAPABILITY_FACTS.items()
+        )
+    }
+    item_view = _safe_public_capability_facts(item.get("capabilityFacts"))
+    if item_view is None:
+        item_payload = (
+            item.get("payload")
+            if isinstance(item.get("payload"), dict)
+            else item
+        )
+        item_view = _canonical_capability_facts_from_payload(
+            item_payload,
+            available_options,
+        )
+    variant_key = str(
+        item.get("variantKey") or item.get("defaultVariantKey") or ""
+    ).strip()
+    variants = [
+        variant
+        for variant in item.get("variants") or []
+        if isinstance(variant, dict)
+    ]
+    selected_variant = next(
+        (
+            variant
+            for variant in variants
+            if variant_key
+            and str(
+                variant.get("variantKey") or variant.get("key") or ""
+            ).strip()
+            == variant_key
+        ),
+        variants[0] if len(variants) == 1 else None,
+    )
+    variant_view = None
+    if isinstance(selected_variant, dict):
+        variant_view = _safe_public_capability_facts(
+            selected_variant.get("capabilityFacts")
+        )
+        if variant_view is None:
+            variant_payload = (
+                selected_variant.get("payload")
+                if isinstance(selected_variant.get("payload"), dict)
+                else selected_variant
+            )
+            variant_view = _canonical_capability_facts_from_payload(
+                variant_payload,
+                available_options,
+            )
+    if item_view is None and variant_view is None:
+        if not has_released_input:
+            return None
+        return {
+            category: {
+                "status": "pending",
+                "value": None,
+                "options": [],
+            }
+            for category in _PUBLIC_GEAR_CAPABILITY_FACTS
+        }
+    projected = item_view or {
+        category: {"status": "pending", "value": None, "options": []}
+        for category in _PUBLIC_GEAR_CAPABILITY_FACTS
+    }
+    if variant_view is not None:
+        projected = {**projected, **variant_view}
+    return json.loads(json.dumps(projected, sort_keys=True))
+
+
+def _strip_internal_capability_evidence(item):
+    if not isinstance(item, dict):
+        return item
+    projected = dict(item)
+    internal_keys = (
+        "artifact",
+        "artifactId",
+        "canonicalEvidence",
+        "canonicalFactRefIds",
+        "canonicalFacts",
+        "compilerRuleRevision",
+        "evidenceCompilation",
+        "evidencePersistence",
+        "factKey",
+        "factValueHash",
+        "observation",
+        "observationId",
+        "observationRefs",
+        "optionEvidence",
+        "problemCode",
+        "provenanceHash",
+        "socketEvidence",
+        "sourceRefIds",
+        "statEvidence",
+        "worker",
+        "workerDiagnostic",
+    )
+    for key in internal_keys:
+        projected.pop(key, None)
+    payload = (
+        dict(projected.get("payload"))
+        if isinstance(projected.get("payload"), dict)
+        else None
+    )
+    if payload is not None:
+        for key in internal_keys:
+            payload.pop(key, None)
+        projected["payload"] = payload
+    if isinstance(projected.get("variants"), list):
+        projected["variants"] = [
+            _strip_internal_capability_evidence(variant)
+            for variant in projected["variants"]
+            if isinstance(variant, dict)
+        ]
+    for field in (
+        "socketOptions",
+        "enchantOptions",
+        "embellishmentOptions",
+    ):
+        if isinstance(projected.get(field), list):
+            projected[field] = [
+                _strip_internal_capability_evidence(option)
+                for option in projected[field]
+                if isinstance(option, dict)
+            ]
+    return projected
 
 
 def item_set_name_from_payload(payload):
@@ -17694,6 +18006,8 @@ def enrich_catalog_item(item, sources, variants, socket_options, enchant_options
         and catalog_variant_usable_for_replacement(variant)
     ]
     display_variants = collapse_catalog_variants_for_display(compatible_variants)
+    item["variants"] = display_variants
+    apply_default_catalog_variant(item, display_variants, variants)
     base_capabilities = item.get("modCapabilities") if isinstance(item.get("modCapabilities"), dict) else {}
     variant_capabilities = item_mod_capabilities({}, item_slot, compatible_variants, item)
     socket_count = max(
@@ -17718,7 +18032,6 @@ def enrich_catalog_item(item, sources, variants, socket_options, enchant_options
         mod_capabilities.pop("socketCount", None)
     item["sources"] = compatible_sources
     item["sourceRefs"] = compatible_sources
-    item["variants"] = display_variants
     item["observedProfileRefs"] = observed_profile_refs_from_catalog(compatible_sources, compatible_variants)
     item["modCapabilities"] = mod_capabilities
     item["socketOptions"] = socket_options if mod_capabilities["hasSocket"] else []
@@ -17734,7 +18047,6 @@ def enrich_catalog_item(item, sources, variants, socket_options, enchant_options
     item["compatibility"] = catalog_compatibility(item, sources, variants, class_key, spec_key)
     if item["compatibility"]["status"] == "incompatible":
         return None
-    apply_default_catalog_variant(item, display_variants, variants)
     trust_blockers = catalog_item_trust_blockers(item)
     if trust_blockers:
         item["missingFields"] = unique_text_list([*(item.get("missingFields") or []), *trust_blockers])
@@ -22879,6 +23191,50 @@ def sanitize_gear_candidate_mod_options(item):
         cloned["source"] = display_source
     else:
         cloned.pop("source", None)
+    released_capability_facts = public_gear_capability_facts(cloned)
+    if released_capability_facts is not None:
+        cloned = _strip_internal_capability_evidence(cloned)
+        cloned["capabilityFacts"] = released_capability_facts
+        socket = released_capability_facts["socket"]
+        enchant = released_capability_facts["enchant"]
+        embellishment = released_capability_facts["embellishment"]
+        socket_count = (
+            socket["value"]
+            if socket["status"] in {"verified", "unavailable"}
+            and isinstance(socket["value"], int)
+            and not isinstance(socket["value"], bool)
+            else 0
+        )
+        capabilities = {
+            "hasSocket": (
+                socket["status"] == "verified" and socket_count > 0
+            ),
+            "socketCount": socket_count,
+            "canEnchant": (
+                enchant["status"] == "verified"
+                and enchant["value"] is True
+            ),
+            "canEmbellish": (
+                embellishment["status"] == "verified"
+                and embellishment["value"] is True
+            ),
+        }
+        cloned["modCapabilities"] = capabilities
+        allowed_by_field = {
+            "socketOptions": set(socket["options"]),
+            "enchantOptions": set(enchant["options"]),
+            "embellishmentOptions": set(embellishment["options"]),
+        }
+        for field, allowed_ids in allowed_by_field.items():
+            cloned[field] = [
+                option
+                for option in visible_gear_mod_options(cloned.get(field) or [])
+                if normalize_option_value(
+                    option.get("optionKey") or option.get("id")
+                )
+                in allowed_ids
+            ]
+        return hide_candidate_preview_stats(cloned)
     existing_capabilities = cloned.get("modCapabilities") if isinstance(cloned.get("modCapabilities"), dict) else {}
     computed_capabilities = item_mod_capabilities({}, cloned.get("slot") or "", cloned.get("variants") or [], cloned)
     def merged_capability(key):
@@ -23589,6 +23945,7 @@ COMPACT_GEAR_CANDIDATE_KEYS = {
     "uniqueScope",
     "equipmentBadges",
     "modCapabilities",
+    "capabilityFacts",
     "armorType",
     "weaponType",
     "itemSetName",
@@ -23654,6 +24011,7 @@ COMPACT_GEAR_VARIANT_KEYS = {
     "simcStatStatus",
     "simcStatFailureKind",
     "simcStatCheckedAt",
+    "capabilityFacts",
     "updatedAt",
 }
 COMPACT_GEAR_MOD_OPTION_KEYS = {

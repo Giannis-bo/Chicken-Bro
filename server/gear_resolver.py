@@ -384,6 +384,76 @@ def derive_effective_capabilities(
 
     state = _canonical(overlay_state)
     item = state.get("item", {})
+    item_capability_facts = item.get("capabilityFacts")
+    variant_capability_facts = state.get("variant", {}).get("capabilityFacts")
+    if isinstance(item_capability_facts, dict) or isinstance(
+        variant_capability_facts, dict
+    ):
+        capability_facts = {
+            key: _canonical(value)
+            for key, value in (
+                item_capability_facts.items()
+                if isinstance(item_capability_facts, dict)
+                else ()
+            )
+            if key in {"socket", "enchant", "embellishment"}
+            and isinstance(value, dict)
+        }
+        if isinstance(variant_capability_facts, dict):
+            capability_facts.update({
+                key: _canonical(value)
+                for key, value in variant_capability_facts.items()
+                if key in {"socket", "enchant", "embellishment"}
+                and isinstance(value, dict)
+            })
+        socket = capability_facts.get("socket") or {}
+        enchant = capability_facts.get("enchant") or {}
+        embellishment = capability_facts.get("embellishment") or {}
+        capabilities = {
+            "socketCount": (
+                socket.get("value")
+                if socket.get("status") in {"verified", "unavailable"}
+                and isinstance(socket.get("value"), int)
+                and not isinstance(socket.get("value"), bool)
+                else 0
+            ),
+            "canEnchant": (
+                enchant.get("status") == "verified"
+                and enchant.get("value") is True
+            ),
+            "canEmbellish": (
+                embellishment.get("status") == "verified"
+                and embellishment.get("value") is True
+            ),
+        }
+        item_capabilities = item.get("baseCapabilities")
+        item_capabilities = (
+            item_capabilities if isinstance(item_capabilities, dict) else {}
+        )
+        variant_capabilities = state.get("variant", {}).get(
+            "capabilityOverrides"
+        )
+        variant_capabilities = (
+            variant_capabilities
+            if isinstance(variant_capabilities, dict)
+            else {}
+        )
+        for field in (
+            "allowedGemOptionIds",
+            "allowedEnchantOptionIds",
+            "allowedEmbellishmentOptionIds",
+            "allowedCraftedOptionIds",
+            "allowedCatalystOptionIds",
+        ):
+            capabilities[field] = _ids(
+                variant_capabilities.get(
+                    field,
+                    item_capabilities.get(field, []),
+                )
+            )
+        state["capabilityFacts"] = _canonical(capability_facts)
+        state["effectiveCapabilities"] = _canonical(capabilities)
+        return state
     capabilities = dict(item.get("baseCapabilities") or {})
     for field in _CAPABILITY_FIELDS:
         if field in item and field not in capabilities:
@@ -572,6 +642,11 @@ def resolve_slot(
             ],
         },
         "effectiveCapabilities": _canonical(state["effectiveCapabilities"]),
+        **(
+            {"capabilityFacts": _canonical(state["capabilityFacts"])}
+            if isinstance(state.get("capabilityFacts"), dict)
+            else {}
+        ),
         "selectedOptions": _canonical(state["selectedOptions"]),
         "simcOptions": _canonical(state["simcOptions"]),
         "dynamicEffects": _canonical(dynamic_effects),
@@ -818,6 +893,11 @@ def _claims(
                 "itemId": resolved["itemId"],
                 "variantKey": resolved["variantKey"],
                 "selectedOptions": resolved["selectedOptions"],
+                **(
+                    {"capabilityFacts": resolved["capabilityFacts"]}
+                    if isinstance(resolved.get("capabilityFacts"), dict)
+                    else {}
+                ),
             },
             status=status,
             source_ref_ids=sources,

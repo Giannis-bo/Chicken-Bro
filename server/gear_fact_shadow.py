@@ -69,6 +69,8 @@ def _row_indexes(snapshot: Any) -> tuple[dict[str, Mapping[str, Any]], dict[str,
         if not isinstance(row, Mapping) or not _text(row.get("optionId")):
             continue
         options[f"option:{_text(row['optionId'])}"] = row
+        if _text(row.get("optionKey")):
+            options[f"option:{_text(row['optionKey'])}"] = row
     return subjects, options
 
 
@@ -97,22 +99,38 @@ def _legacy_value(
             if isinstance(row.get("simcOptions"), Mapping) and row.get("simcOptions")
             else payload.get("effect")
         )
-        return True, {
-            "optionId": _text(row.get("optionId")),
-            "optionType": (
-                "gem"
-                if _text(row.get("optionType")).lower() in {"socket", "gem"}
-                else _text(row.get("optionType")).lower()
-            ),
+        option_type = (
+            "gem"
+            if _text(row.get("optionType")).lower() in {"socket", "gem"}
+            else _text(row.get("optionType")).lower()
+        )
+        value = {
+            "optionId": subject_key.removeprefix("option:"),
+            "optionType": option_type,
             "effect": _canonical(effect if isinstance(effect, Mapping) else {}),
-            "applicableScopes": sorted(
-                {
-                    _text(scope)
-                    for scope in row.get("applicableSlots") or ()
-                    if _text(scope)
-                }
+            "applicableScopes": (
+                ["*"]
+                if option_type == "gem"
+                else sorted(
+                    {
+                        _text(scope)
+                        for scope in row.get("applicableSlots") or ()
+                        if _text(scope)
+                    }
+                )
             ),
         }
+        if isinstance(payload.get("statDeltas"), Mapping):
+            value["statDeltas"] = _canonical(payload["statDeltas"])
+        if _text(payload.get("uniqueGroup")):
+            value["uniqueGroupId"] = _text(payload.get("uniqueGroup"))
+        if (
+            isinstance(payload.get("uniqueLimit"), int)
+            and not isinstance(payload.get("uniqueLimit"), bool)
+            and payload["uniqueLimit"] > 0
+        ):
+            value["uniqueLimit"] = payload["uniqueLimit"]
+        return True, value
     row = subjects.get(subject_key)
     if not row:
         return False, None
@@ -121,6 +139,15 @@ def _legacy_value(
         value = {"itemId": _text(row.get("itemId"))}
         if "/variant:" in subject_key:
             value["variantKey"] = _text(row.get("variantKey"))
+        else:
+            for field in (
+                "inventoryType",
+                "armorType",
+                "weaponType",
+                "handedness",
+            ):
+                if _text(payload.get(field)):
+                    value[field] = _text(payload.get(field))
         return True, value
     if fact_type == "slot_compatibility":
         allowed = payload.get("allowedSlots")
@@ -172,6 +199,23 @@ def _legacy_value(
             "track": _text(row.get("difficultyKey")),
             "itemLevel": row["itemLevel"],
         }
+    if fact_type == "allowed_enhancement_options":
+        raw_rules = payload.get("allowedEnhancementRules")
+        if not isinstance(raw_rules, list) or not raw_rules:
+            return False, None
+        option_ids = []
+        for rule in raw_rules:
+            if (
+                not isinstance(rule, Mapping)
+                or not isinstance(rule.get("optionIds"), list)
+            ):
+                return False, None
+            option_ids.extend(
+                _text(option_id)
+                for option_id in rule["optionIds"]
+                if _text(option_id)
+            )
+        return True, sorted(set(option_ids))
     return False, None
 
 

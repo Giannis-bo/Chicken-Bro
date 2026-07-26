@@ -445,6 +445,42 @@ class GearFactCompilerTest(unittest.TestCase):
             mixed_ids["problemCode"], "parser_unhandled_shape"
         )
 
+    def test_allowed_options_accept_explicit_wildcard_option_scope(self):
+        capability = self.observation("socket_count", 1)
+        option = self.observation(
+            "enhancement_option",
+            {
+                "applicableScopes": ["*"],
+                "effect": {"gem_id": "240001"},
+                "optionId": "gem:240001",
+                "optionType": "gem",
+            },
+            subject_key="option:gem:240001",
+        )
+        slot_rule = self.observation(
+            "allowed_enhancement_options",
+            {
+                "capabilityFactType": "socket_count",
+                "optionIds": ["gem:240001"],
+                "slot": "head",
+            },
+            parser_revision="season-rule-observer-v1",
+            source_scope="slot_rule",
+        )
+        static_slot = self.observation(
+            "slot_compatibility",
+            ["head"],
+            parser_revision="battle-net-item-observer-v1",
+        )
+
+        fact = self.fact(
+            [slot_rule, option, capability, static_slot],
+            "allowed_enhancement_options",
+        )
+
+        self.assertEqual(fact["status"], "verified")
+        self.assertEqual(fact["value"], ["gem:240001"])
+
     def test_source_policy_is_anchored_to_referenced_immutable_artifact(self):
         spoofed = self.observation(
             "static_stats",

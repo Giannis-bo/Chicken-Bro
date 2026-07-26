@@ -578,6 +578,83 @@ def _compile_release_gear_evidence(
             item_id,
         ) is not None
 
+    def add_allowed_enhancement_rules(
+        *,
+        subject: str,
+        payload: Mapping[str, Any],
+        canonical_evidence: Mapping[str, Any],
+    ) -> None:
+        """Compile only explicit, attributed closed-world slot rules."""
+
+        if (
+            "allowed_enhancement_options"
+            not in {
+                _text(value)
+                for value in canonical_evidence.get("claims") or ()
+                if _text(value)
+            }
+            or _text(canonical_evidence.get("status")).lower() != "verified"
+            or _text(canonical_evidence.get("sourceType")).lower()
+            != "season_rule"
+            or not _text(canonical_evidence.get("sourceIdentity"))
+            or not _text(canonical_evidence.get("sourceRevision"))
+        ):
+            return
+        raw_rules = payload.get("allowedEnhancementRules")
+        if not isinstance(raw_rules, list) or not raw_rules:
+            return
+        rules = []
+        for raw_rule in raw_rules:
+            if not isinstance(raw_rule, Mapping):
+                return
+            capability_type = _text(raw_rule.get("capabilityFactType"))
+            option_ids = raw_rule.get("optionIds")
+            slot = _text(raw_rule.get("slot"))
+            if (
+                capability_type
+                not in {
+                    "socket_count",
+                    "enchant_capability",
+                    "embellishment_capability",
+                }
+                or not isinstance(option_ids, list)
+                or any(not _text(option_id) for option_id in option_ids)
+                or not slot
+            ):
+                return
+            rules.append(
+                {
+                    "capabilityFactType": capability_type,
+                    "optionIds": sorted(
+                        {_text(option_id) for option_id in option_ids}
+                    ),
+                    "slot": slot,
+                }
+            )
+        add_artifact(
+            source_type="season_rule",
+            source_identity=(
+                f"{_text(canonical_evidence.get('sourceIdentity'))}:"
+                "allowed-enhancement-options"
+            ),
+            artifact_source_revision=_text(
+                canonical_evidence.get("sourceRevision")
+            ),
+            payload={
+                "subjectKey": subject,
+                "allowedEnhancementRules": rules,
+            },
+            fact_specs=[
+                (
+                    subject,
+                    "allowed_enhancement_options",
+                    rule,
+                    "slot_rule",
+                )
+                for rule in rules
+            ],
+        )
+
     for index, row in enumerate(snapshot.get("items") or ()):
         if not isinstance(row, dict) or not _text(row.get("itemId")):
             continue
@@ -591,6 +668,7 @@ def _compile_release_gear_evidence(
                 "socket_count",
                 "enchant_capability",
                 "embellishment_capability",
+                "allowed_enhancement_options",
                 "item_set_membership",
             }
         )
@@ -623,8 +701,22 @@ def _compile_release_gear_evidence(
         is_official = official_item_source(payload, item_id)
         official_specs: list[tuple[str, str, Any, str]] = []
         if is_official:
+            equipment_identity = {"itemId": item_id}
+            for field in (
+                "inventoryType",
+                "armorType",
+                "weaponType",
+                "handedness",
+            ):
+                if _text(payload.get(field)):
+                    equipment_identity[field] = _text(payload.get(field))
             official_specs.append(
-                (subject, "item_identity", {"itemId": item_id}, "base_item")
+                (
+                    subject,
+                    "item_identity",
+                    equipment_identity,
+                    "base_item",
+                )
             )
         allowed_slots = payload.get("allowedSlots")
         if not isinstance(allowed_slots, list) or not allowed_slots:
@@ -697,6 +789,11 @@ def _compile_release_gear_evidence(
                 },
                 fact_specs=structural_specs,
             )
+        add_allowed_enhancement_rules(
+            subject=subject,
+            payload=payload,
+            canonical_evidence=canonical_evidence,
+        )
         socket_item = _canonical(row)
         official_evidence = _official_game_asset_evidence(
             payload,
@@ -795,6 +892,27 @@ def _compile_release_gear_evidence(
                 )
             )
         )
+        identity_evidence = (
+            payload.get("identityEvidence")
+            if isinstance(payload.get("identityEvidence"), dict)
+            else {}
+        )
+        identity_source = _text(
+            identity_evidence.get("sourceType")
+        ).lower()
+        identity_revision = _text(
+            identity_evidence.get("sourceRevision")
+        )
+        identity_verified = (
+            _text(identity_evidence.get("status")).lower() == "verified"
+            and identity_source == "battle_net_item"
+            and isinstance(battle_net_anchor, Mapping)
+            and _text(identity_evidence.get("sourceIdentity"))
+            == battle_net_anchor["sourceIdentity"]
+            and identity_revision == battle_net_anchor["sourceRevision"]
+            and _text(identity_evidence.get("sourceScope")).lower()
+            == "exact_variant"
+        )
         stat_evidence = (
             payload.get("statEvidence")
             if isinstance(payload.get("statEvidence"), dict)
@@ -858,6 +976,34 @@ def _compile_release_gear_evidence(
                 },
                 fact_specs=specs,
             )
+        if identity_verified:
+            add_artifact(
+                source_type=identity_source,
+                source_identity=_text(
+                    identity_evidence.get("sourceIdentity")
+                ),
+                artifact_source_revision=identity_revision,
+                payload={
+                    "itemId": item_id,
+                    "variantKey": variant_key,
+                },
+                fact_specs=[
+                    (
+                        subject,
+                        "item_identity",
+                        {
+                            "itemId": item_id,
+                            "variantKey": variant_key,
+                        },
+                        "exact_variant",
+                    )
+                ],
+            )
+        add_allowed_enhancement_rules(
+            subject=subject,
+            payload=payload,
+            canonical_evidence=canonical_evidence,
+        )
         item_row = _canonical(items_by_id.get(item_id, {}))
         item_payload = (
             item_row.get("payload")
@@ -935,7 +1081,7 @@ def _compile_release_gear_evidence(
     for index, row in enumerate(snapshot.get("options") or ()):
         if not isinstance(row, dict) or not _text(row.get("optionId")):
             continue
-        option_id = _text(row["optionId"])
+        option_id = _text(row.get("optionKey") or row["optionId"])
         subject = f"option:{option_id}"
         row_subjects[("options", index)] = subject
         subject_fact_types.setdefault(subject, set()).add(
@@ -949,22 +1095,37 @@ def _compile_release_gear_evidence(
             if isinstance(row.get("simcOptions"), dict) and row.get("simcOptions")
             else payload.get("effect")
         )
+        canonical_option_type = (
+            "gem"
+            if _text(row.get("optionType")).lower() in {"socket", "gem"}
+            else _text(row.get("optionType")).lower()
+        )
         value = {
             "optionId": option_id,
-            "optionType": (
-                "gem"
-                if _text(row.get("optionType")).lower() in {"socket", "gem"}
-                else _text(row.get("optionType")).lower()
-            ),
+            "optionType": canonical_option_type,
             "effect": _canonical(effect if isinstance(effect, dict) else {}),
-            "applicableScopes": sorted(
-                {
-                    _text(scope)
-                    for scope in row.get("applicableSlots") or ()
-                    if _text(scope)
-                }
+            "applicableScopes": (
+                ["*"]
+                if canonical_option_type == "gem"
+                else sorted(
+                    {
+                        _text(scope)
+                        for scope in row.get("applicableSlots") or ()
+                        if _text(scope)
+                    }
+                )
             ),
         }
+        if isinstance(payload.get("statDeltas"), Mapping):
+            value["statDeltas"] = _canonical(payload["statDeltas"])
+        if _text(payload.get("uniqueGroup")):
+            value["uniqueGroupId"] = _text(payload.get("uniqueGroup"))
+        if (
+            isinstance(payload.get("uniqueLimit"), int)
+            and not isinstance(payload.get("uniqueLimit"), bool)
+            and payload["uniqueLimit"] > 0
+        ):
+            value["uniqueLimit"] = payload["uniqueLimit"]
         evidence_source = _text(
             payload.get("evidenceSource")
             or payload.get("metadataSource")
@@ -1030,27 +1191,19 @@ def _compile_release_gear_evidence(
     artifacts_by_id = {
         artifact["artifactId"]: artifact for artifact in artifacts
     }
-    observations_by_subject: dict[str, list[dict[str, Any]]] = {}
-    for observation in observations:
-        observations_by_subject.setdefault(
-            observation["subjectKey"], []
-        ).append(observation)
     facts: list[dict[str, Any]] = []
     for subject in sorted(subject_fact_types):
-        subject_observations = observations_by_subject.get(subject, [])
         facts.extend(
             gear_fact_compiler.compile_subject_facts(
                 season_revision=season_revision,
                 subject_key=subject,
-                observations=subject_observations,
+                # The allowed-option compiler needs the exact option Fact
+                # universe referenced by an attributed slot rule. Every
+                # ordinary policy still filters by its requested subject.
+                observations=observations,
                 artifacts=[
                     artifacts_by_id[artifact_id]
-                    for artifact_id in sorted(
-                        {
-                            observation["artifactId"]
-                            for observation in subject_observations
-                        }
-                    )
+                    for artifact_id in sorted(artifacts_by_id)
                 ],
                 fact_types=subject_fact_types[subject],
             )

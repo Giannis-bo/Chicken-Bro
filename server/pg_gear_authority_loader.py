@@ -641,6 +641,399 @@ def _evidence_id(kind: str, identity: Any) -> str:
     return f"evidence:pg:{kind}:{_text(identity)}"
 
 
+_RELEASED_FACT_SCHEMA_REVISION = "gear-canonical-fact-v1"
+_RELEASED_FACT_STATUSES = {"verified", "unresolved_missing", "unresolved_conflict"}
+_CAPABILITY_FACT_SPECS = {
+    "socket": ("socket_count", int, "allowedGemOptionIds", {"gem"}),
+    "enchant": (
+        "enchant_capability",
+        bool,
+        "allowedEnchantOptionIds",
+        {"enchant", "runeforge"},
+    ),
+    "embellishment": (
+        "embellishment_capability",
+        bool,
+        "allowedEmbellishmentOptionIds",
+        {"embellishment", "crafted"},
+    ),
+}
+
+
+def _released_facts(
+    payload: dict[str, Any],
+    subject_key: str,
+    evidence: dict[str, dict[str, Any]],
+    release_id: str,
+) -> dict[str, dict[str, Any]] | None:
+    """Index only sealed Canonical Facts for one exact release subject."""
+
+    raw_facts = payload.get("canonicalFacts")
+    if not isinstance(raw_facts, list):
+        return None
+    indexed: dict[str, dict[str, Any]] = {}
+    for raw in raw_facts:
+        if not isinstance(raw, dict):
+            return None
+        fact_type = _text(raw.get("factType"))
+        fact_key = _text(raw.get("factKey"))
+        status = _text(raw.get("status"))
+        if (
+            raw.get("schemaRevision") != _RELEASED_FACT_SCHEMA_REVISION
+            or _text(raw.get("subjectKey")) != subject_key
+            or not fact_type
+            or not fact_key
+            or status not in _RELEASED_FACT_STATUSES
+            or fact_type in indexed
+        ):
+            return None
+        fact = _canonical(raw)
+        indexed[fact_type] = fact
+        evidence[fact_key] = {
+            "id": fact_key,
+            "sourceType": "released_canonical_fact",
+            "releaseId": release_id,
+            "subjectKey": subject_key,
+            "factType": fact_type,
+            "status": status,
+            "compilerRuleRevision": _text(raw.get("compilerRuleRevision")),
+        }
+    return indexed
+
+
+def _verified_fact_value(
+    facts: dict[str, dict[str, Any]],
+    fact_type: str,
+) -> Any:
+    fact = facts.get(fact_type)
+    return fact.get("value") if isinstance(fact, dict) and fact.get("status") == "verified" else None
+
+
+def _valid_capability_value(fact_type: str, value: Any) -> bool:
+    if fact_type == "socket_count":
+        return isinstance(value, int) and not isinstance(value, bool) and value >= 0
+    return isinstance(value, bool)
+
+
+def _released_capability_facts(
+    facts: dict[str, dict[str, Any]],
+    options_by_id: dict[str, dict[str, Any]] | None = None,
+) -> dict[str, dict[str, Any]]:
+    allowed_fact = facts.get("allowed_enhancement_options")
+    allowed_ids = (
+        _texts(allowed_fact.get("value") or [])
+        if isinstance(allowed_fact, dict)
+        and allowed_fact.get("status") == "verified"
+        and isinstance(allowed_fact.get("value"), list)
+        else None
+    )
+    projected: dict[str, dict[str, Any]] = {}
+    for public_key, (
+        fact_type,
+        _expected_type,
+        _allow_field,
+        option_types,
+    ) in _CAPABILITY_FACT_SPECS.items():
+        fact = facts.get(fact_type)
+        value = fact.get("value") if isinstance(fact, dict) else None
+        if (
+            not isinstance(fact, dict)
+            or fact.get("status") != "verified"
+            or not _valid_capability_value(fact_type, value)
+        ):
+            status = "pending"
+            value = None
+        elif value in (False, 0):
+            status = "unavailable"
+        elif allowed_ids is None:
+            status = "pending"
+            value = None
+        else:
+            status = "verified"
+        options = []
+        if status == "verified" and allowed_ids is not None and options_by_id is not None:
+            options = [
+                option_id
+                for option_id in allowed_ids
+                if isinstance(options_by_id.get(option_id), dict)
+                and options_by_id[option_id].get("optionType") in option_types
+            ]
+        projected[public_key] = {
+            "status": status,
+            "value": value,
+            "options": sorted(options),
+        }
+    return projected
+
+
+def _compatibility_capabilities(
+    capability_facts: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    socket = capability_facts.get("socket") or {}
+    enchant = capability_facts.get("enchant") or {}
+    embellishment = capability_facts.get("embellishment") or {}
+    socket_count = (
+        socket.get("value")
+        if socket.get("status") in {"verified", "unavailable"}
+        and isinstance(socket.get("value"), int)
+        and not isinstance(socket.get("value"), bool)
+        else 0
+    )
+    return {
+        "socketCount": socket_count,
+        "canEnchant": (
+            enchant.get("status") == "verified"
+            and enchant.get("value") is True
+        ),
+        "canEmbellish": (
+            embellishment.get("status") == "verified"
+            and embellishment.get("value") is True
+        ),
+    }
+
+
+def _released_fact_refs(facts: dict[str, dict[str, Any]]) -> list[str]:
+    return _texts(fact.get("factKey") for fact in facts.values())
+
+
+def _released_item_projection(
+    requested_item_id: str,
+    record: Any,
+    runtime_authority: dict[str, Any],
+    evidence: dict[str, dict[str, Any]],
+    release_id: str,
+) -> dict[str, Any] | None:
+    if not isinstance(record, dict):
+        return None
+    payload = _json_value(record.get("payload"), {})
+    payload = payload if isinstance(payload, dict) else {}
+    subject_key = f"item:{requested_item_id}"
+    facts = _released_facts(payload, subject_key, evidence, release_id)
+    if facts is None:
+        return None
+    identity = _verified_fact_value(facts, "item_identity")
+    allowed_slots = _verified_fact_value(facts, "slot_compatibility")
+    if (
+        not isinstance(identity, dict)
+        or _text(identity.get("itemId")) != requested_item_id
+        or not isinstance(allowed_slots, list)
+        or not _texts(allowed_slots)
+    ):
+        return None
+    allowed_slots = _texts(allowed_slots)
+    playable_classes, playable_specs = _playable_scope(runtime_authority)
+    capability_facts = _released_capability_facts(facts)
+    compatibility = _compatibility_capabilities(capability_facts)
+    item_set = _verified_fact_value(facts, "item_set_membership")
+    base_stats = _verified_fact_value(facts, "static_stats")
+    base_stats = _authority_stat_map(base_stats) if isinstance(base_stats, dict) else {}
+    projected = {
+        "itemId": requested_item_id,
+        # Display/media fields remain inert transport. They never write static
+        # identity, compatibility, capability, or legality facts.
+        "displayName": _text(
+            payload.get("displayName")
+            or payload.get("name")
+            or record.get("name")
+        ),
+        "allowedSlots": allowed_slots,
+        "inventoryType": (
+            _text(identity.get("inventoryType"))
+            or (
+                "weapon"
+                if set(allowed_slots).intersection({"main_hand", "off_hand"})
+                else allowed_slots[0]
+            )
+        ),
+        "allowedClassKeys": playable_classes,
+        "allowedSpecKeys": playable_specs,
+        "armorType": _text(identity.get("armorType")),
+        "weaponType": _text(identity.get("weaponType")),
+        "handedness": _text(identity.get("handedness")),
+        "uniqueGroupId": "",
+        "uniqueLimit": 0,
+        "itemSetId": _text(item_set) if item_set is not False else "",
+        "baseStats": base_stats,
+        "baseCapabilities": compatibility,
+        "socketCount": compatibility["socketCount"],
+        "allowedGemOptionIds": [],
+        "allowedEnchantOptionIds": [],
+        "allowedEmbellishmentOptionIds": [],
+        "allowedCraftedOptionIds": [],
+        "allowedCatalystOptionIds": [],
+        "dynamicEffects": [],
+        "capabilityFacts": capability_facts,
+        "_releasedFacts": facts,
+        "canonicalFactRefIds": _released_fact_refs(facts),
+        "sourceRefIds": _released_fact_refs(facts),
+    }
+    if media := _verified_item_media(payload):
+        projected.update(media)
+    return projected
+
+
+def _released_variant_projection(
+    requested_item_id: str,
+    requested_variant_key: str,
+    record: Any,
+    evidence: dict[str, dict[str, Any]],
+    release_id: str,
+) -> dict[str, Any] | None:
+    if not requested_variant_key or not isinstance(record, dict):
+        return None
+    payload = _json_value(record.get("payload"), {})
+    payload = payload if isinstance(payload, dict) else {}
+    subject_key = f"item:{requested_item_id}/variant:{requested_variant_key}"
+    facts = _released_facts(payload, subject_key, evidence, release_id)
+    if facts is None:
+        return None
+    identity = _verified_fact_value(facts, "item_identity")
+    allowed_slots = _verified_fact_value(facts, "slot_compatibility")
+    if (
+        not isinstance(identity, dict)
+        or _text(identity.get("itemId")) != requested_item_id
+        or _text(identity.get("variantKey")) != requested_variant_key
+        or not isinstance(allowed_slots, list)
+        or not _texts(allowed_slots)
+    ):
+        return None
+    track = _verified_fact_value(facts, "variant_track")
+    stats = _verified_fact_value(facts, "static_stats")
+    item_set = _verified_fact_value(facts, "item_set_membership")
+    capability_facts = _released_capability_facts(facts)
+    compatibility = _compatibility_capabilities(capability_facts)
+    projected = {
+        "variantKey": requested_variant_key,
+        "itemId": requested_item_id,
+        "status": "verified",
+        "itemLevel": (
+            _int(track.get("itemLevel"))
+            if isinstance(track, dict)
+            and _text(track.get("itemId")) == requested_item_id
+            and _text(track.get("variantKey")) == requested_variant_key
+            else 0
+        ),
+        "statDeltas": {},
+        "simcOptions": _json_value(record.get("simcOptions"), {}),
+        "itemSetId": _text(item_set) if item_set is not False else "",
+        "capabilityOverrides": compatibility,
+        "dynamicEffects": [],
+        "capabilityFacts": capability_facts,
+        "_releasedFacts": facts,
+        "canonicalFactRefIds": _released_fact_refs(facts),
+        "sourceRefIds": _released_fact_refs(facts),
+    }
+    if isinstance(stats, dict):
+        projected["resolvedStats"] = _authority_stat_map(stats)
+    management = project_validated_enhancement_management(
+        projected["simcOptions"],
+        payload.get("enhancementManagement"),
+        gear_socket_authority.CAPABILITY_REVISION,
+    )
+    if management:
+        projected["enhancementManagement"] = management
+    return projected
+
+
+def _released_option_projection(
+    requested_option_id: str,
+    record: Any,
+    evidence: dict[str, dict[str, Any]],
+    release_id: str,
+) -> dict[str, Any] | None:
+    if not isinstance(record, dict):
+        return None
+    payload = _json_value(record.get("payload"), {})
+    payload = payload if isinstance(payload, dict) else {}
+    facts = _released_facts(
+        payload,
+        f"option:{requested_option_id}",
+        evidence,
+        release_id,
+    )
+    if facts is None:
+        return None
+    value = _verified_fact_value(facts, "enhancement_option")
+    if (
+        not isinstance(value, dict)
+        or _text(value.get("optionId")) != requested_option_id
+    ):
+        return None
+    option_type = _normalized_option_type(value.get("optionType"))
+    effect = value.get("effect")
+    applicable = value.get("applicableScopes")
+    if (
+        option_type not in _OPTION_ALLOW_FIELDS
+        or not isinstance(effect, dict)
+        or not effect
+        or not isinstance(applicable, list)
+        or not _texts(applicable)
+    ):
+        return None
+    refs = _released_fact_refs(facts)
+    stat_deltas = value.get("statDeltas")
+    stat_deltas = (
+        _authority_stat_map(stat_deltas)
+        if isinstance(stat_deltas, dict)
+        else {}
+    )
+    return {
+        "optionId": requested_option_id,
+        "optionType": option_type,
+        "displayName": _text(payload.get("displayName") or record.get("name")),
+        "applicableSlots": _texts(applicable),
+        "statDeltas": stat_deltas,
+        "attributeStaticFactsStatus": (
+            "verified" if stat_deltas else "unavailable"
+        ),
+        "simcOptions": _canonical(effect),
+        "uniqueGroupId": _strict_unique_group(value.get("uniqueGroupId")),
+        "uniqueLimit": _positive_integer(value.get("uniqueLimit")),
+        "canonicalFactRefIds": refs,
+        "sourceRefIds": refs,
+    }
+
+
+def _finalize_released_capability_projection(
+    owner: dict[str, Any],
+    options_by_id: dict[str, dict[str, Any]],
+) -> None:
+    facts = owner.pop("_releasedFacts", None)
+    if not isinstance(facts, dict):
+        return
+    capability_facts = _released_capability_facts(facts, options_by_id)
+    compatibility = _compatibility_capabilities(capability_facts)
+    owner["capabilityFacts"] = capability_facts
+    if isinstance(owner.get("baseCapabilities"), dict):
+        owner["baseCapabilities"] = {
+            **owner["baseCapabilities"],
+            **compatibility,
+        }
+        owner["socketCount"] = compatibility["socketCount"]
+    elif isinstance(owner.get("capabilityOverrides"), dict):
+        owner["capabilityOverrides"] = compatibility
+    option_fields = {
+        "allowedGemOptionIds": ("socket", {"gem"}),
+        "allowedEnchantOptionIds": ("enchant", {"enchant", "runeforge"}),
+        "allowedEmbellishmentOptionIds": (
+            "embellishment",
+            {"embellishment"},
+        ),
+        "allowedCraftedOptionIds": ("embellishment", {"crafted"}),
+    }
+    for field, (category, option_types) in option_fields.items():
+        values = [
+            option_id
+            for option_id in capability_facts[category]["options"]
+            if options_by_id[option_id]["optionType"] in option_types
+        ]
+        owner[field] = values
+        if isinstance(owner.get("baseCapabilities"), dict):
+            owner["baseCapabilities"][field] = list(values)
+        if isinstance(owner.get("capabilityOverrides"), dict):
+            owner["capabilityOverrides"][field] = list(values)
+
+
 def _tier_set_id_from_source(source: Any) -> str:
     if not isinstance(source, dict) or _text(source.get("sourceType")) != "tier_set":
         return ""
@@ -1222,25 +1615,43 @@ def build_gear_authority_context_from_rows(
         row = list(row or ())
         requested_item_id = _text(row[0] if len(row) > 0 else "")
         requested_variant_key = _text(row[1] if len(row) > 1 else "")
-        item = _project_item(
-            requested_item_id,
-            row[2] if len(row) > 2 else None,
-            row[4] if len(row) > 4 else [],
-            runtime,
-            evidence,
-            capability_revision,
-            _text(dependency_vector.get("seasonRevision")),
-        )
+        if capability_revision == gear_socket_authority.CAPABILITY_REVISION:
+            item = _released_item_projection(
+                requested_item_id,
+                row[2] if len(row) > 2 else None,
+                runtime,
+                evidence,
+                _text(dependency_vector.get("gearCatalogReleaseId")),
+            )
+        else:
+            item = _project_item(
+                requested_item_id,
+                row[2] if len(row) > 2 else None,
+                row[4] if len(row) > 4 else [],
+                runtime,
+                evidence,
+                capability_revision,
+                _text(dependency_vector.get("seasonRevision")),
+            )
         if item is not None:
             items_by_id[requested_item_id] = item
-        variant = _project_variant(
-            requested_item_id,
-            requested_variant_key,
-            row[3] if len(row) > 3 else None,
-            item.get("sourceRefIds", []) if item else [],
-            evidence,
-            capability_revision,
-        )
+        if capability_revision == gear_socket_authority.CAPABILITY_REVISION:
+            variant = _released_variant_projection(
+                requested_item_id,
+                requested_variant_key,
+                row[3] if len(row) > 3 else None,
+                evidence,
+                _text(dependency_vector.get("gearCatalogReleaseId")),
+            )
+        else:
+            variant = _project_variant(
+                requested_item_id,
+                requested_variant_key,
+                row[3] if len(row) > 3 else None,
+                item.get("sourceRefIds", []) if item else [],
+                evidence,
+                capability_revision,
+            )
         if variant is not None:
             variant_candidates_by_key.setdefault(requested_variant_key, []).append(variant)
 
@@ -1253,15 +1664,27 @@ def build_gear_authority_context_from_rows(
     for row in option_rows:
         row = list(row or ())
         requested_option_id = _text(row[0] if len(row) > 0 else "")
-        option = _project_option(
-            requested_option_id,
-            row[1] if len(row) > 1 else None,
-            evidence,
-            intent["eligibilityContext"],
-        )
+        if capability_revision == gear_socket_authority.CAPABILITY_REVISION:
+            option = _released_option_projection(
+                requested_option_id,
+                row[1] if len(row) > 1 else None,
+                evidence,
+                _text(dependency_vector.get("gearCatalogReleaseId")),
+            )
+        else:
+            option = _project_option(
+                requested_option_id,
+                row[1] if len(row) > 1 else None,
+                evidence,
+                intent["eligibilityContext"],
+            )
         if option is not None:
             options_by_id[requested_option_id] = option
-    _link_allowed_options(intent, items_by_id, options_by_id)
+    if capability_revision == gear_socket_authority.CAPABILITY_REVISION:
+        for owner in [*items_by_id.values(), *variants_by_key.values()]:
+            _finalize_released_capability_projection(owner, options_by_id)
+    else:
+        _link_allowed_options(intent, items_by_id, options_by_id)
 
     selections = list(intent["slots"].values())
     option_ids = _selected_option_ids(intent)
@@ -1305,6 +1728,43 @@ def load_gear_authority_context(
         paths = ", ".join(issue.get("path", "intent") for issue in intent_issues)
         raise ValueError(f"Invalid Selection Intent: {paths}")
     runtime = runtime_authority if isinstance(runtime_authority, dict) else {}
+    runtime_revisions = (
+        runtime.get("dependencyRevisions")
+        if isinstance(runtime.get("dependencyRevisions"), dict)
+        else {}
+    )
+    if (
+        runtime_revisions.get("capabilityRevision")
+        == gear_socket_authority.CAPABILITY_REVISION
+    ):
+        authored = intent.get("authoredAgainst")
+        authored = authored if isinstance(authored, dict) else {}
+        release_id = _text(authored.get("gearCatalogRevision"))
+        dependency_vector = {
+            "seasonRevision": _text(authored.get("seasonRevision")),
+            "gearCatalogReleaseId": release_id,
+            "gearCatalogRevision": release_id,
+            **{
+                field: _text(runtime_revisions.get(field))
+                for field in _REQUIRED_RUNTIME_REVISIONS
+            },
+        }
+        return build_gear_authority_context_from_rows(
+            intent,
+            runtime,
+            manifest={
+                "contractRevision": COMPATIBILITY_MANIFEST_REVISION,
+                "manifestType": "compatibility_unavailable",
+                "formalActiveManifest": False,
+                "seasonRevision": dependency_vector["seasonRevision"],
+                "gearCatalogReleaseId": release_id,
+                "gearCatalogRevision": release_id,
+            },
+            dependency_vector=dependency_vector,
+            item_rows=[],
+            option_rows=[],
+            missing_fields=["manifest.selectedGearRelease"],
+        )
 
     cursor.execute(AUTHORITY_REVISION_SQL)
     revision_row = cursor.fetchone()

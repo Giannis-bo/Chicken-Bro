@@ -9,6 +9,23 @@ import unittest
 from server import gear_resolver, gear_socket_authority, pg_gear_authority_loader
 
 
+def canonical_fact(subject_key, fact_type, value, status="verified"):
+    return {
+        "schemaRevision": "gear-canonical-fact-v1",
+        "factKey": f"gear-fact:test:{subject_key}:{fact_type}",
+        "subjectKey": subject_key,
+        "factType": fact_type,
+        "value": copy.deepcopy(value),
+        "status": status,
+        "observationRefs": [],
+        "observationRefCount": 0,
+        "referencesTruncated": False,
+        "compilerRuleRevision": f"test-{fact_type}-rule-v1",
+        "factValueHash": f"sha256:test-{fact_type}-value",
+        "provenanceHash": f"sha256:test-{fact_type}-provenance",
+    }
+
+
 class FakeCursor:
     def __init__(self, revision_rows=None, item_rows=None, option_rows=None):
         self.revision_rows = list(revision_rows or [])
@@ -237,8 +254,20 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
         option_rows=None,
         intent=None,
         runtime=None,
+        canonicalize=True,
     ):
         runtime = runtime or self.runtime_authority()
+        item_rows = item_rows if item_rows is not None else [self.item_row()]
+        option_rows = option_rows if option_rows is not None else []
+        if (
+            canonicalize
+            and capability_revision == gear_socket_authority.CAPABILITY_REVISION
+        ):
+            item_rows, option_rows = self.canonicalize_release_rows(
+                item_rows,
+                option_rows,
+                runtime,
+            )
         catalog_revision = self.catalog_revision()
         dependency_vector = {
             "seasonRevision": "season-17-active",
@@ -259,9 +288,433 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
                 "gearCatalogRevision": catalog_revision,
             },
             dependency_vector=dependency_vector,
-            item_rows=item_rows if item_rows is not None else [self.item_row()],
-            option_rows=option_rows if option_rows is not None else [],
+            item_rows=item_rows,
+            option_rows=option_rows,
         )
+
+    def canonicalize_release_rows(self, item_rows, option_rows, runtime):
+        """Seal legacy-shaped test fixtures as released Canonical Facts."""
+
+        option_rows = copy.deepcopy(option_rows)
+        projected_options = {}
+        for option_id, option_record in option_rows:
+            payload = option_record.setdefault("payload", {})
+            if isinstance(payload.get("canonicalFacts"), list):
+                projected_options[option_id] = {
+                    "optionType": pg_gear_authority_loader._normalized_option_type(
+                        option_record.get("optionType")
+                    ),
+                    "applicableSlots": copy.deepcopy(
+                        option_record.get("applicableSlots") or []
+                    ),
+                }
+                continue
+            option_type = pg_gear_authority_loader._normalized_option_type(
+                option_record.get("optionType")
+            )
+            effect = copy.deepcopy(option_record.get("simcOptions") or {})
+            scopes = copy.deepcopy(option_record.get("applicableSlots") or [])
+            payload["canonicalFacts"] = [
+                canonical_fact(
+                    f"option:{option_id}",
+                    "enhancement_option",
+                    {
+                        "optionId": option_id,
+                        "optionType": option_type,
+                        "effect": effect,
+                        "applicableScopes": scopes,
+                    },
+                )
+            ]
+            projected_options[option_id] = {
+                "optionType": option_type,
+                "applicableSlots": scopes,
+            }
+
+        sealed_rows = []
+        for requested_item_id, variant_key, item_record, variant_record, sources in copy.deepcopy(
+            item_rows
+        ):
+            item_payload = item_record.setdefault("payload", {})
+            temp_evidence = {}
+            projected_item = pg_gear_authority_loader._project_item(
+                requested_item_id,
+                item_record,
+                sources,
+                runtime,
+                temp_evidence,
+                gear_socket_authority.CAPABILITY_REVISION,
+                "season-17-active",
+            )
+            if projected_item is None:
+                sealed_rows.append(
+                    (
+                        requested_item_id,
+                        variant_key,
+                        item_record,
+                        variant_record,
+                        sources,
+                    )
+                )
+                continue
+            canonical_inventory_type = (
+                "weapon"
+                if set(projected_item["allowedSlots"]).intersection(
+                    {"main_hand", "off_hand"}
+                )
+                else projected_item["allowedSlots"][0]
+            )
+            inventory_by_slot = runtime["ruleParameters"]["inventoryTypesBySlot"]
+            for allowed_slot in projected_item["allowedSlots"]:
+                inventory_by_slot.setdefault(allowed_slot, [])
+                if canonical_inventory_type not in inventory_by_slot[allowed_slot]:
+                    inventory_by_slot[allowed_slot].append(canonical_inventory_type)
+            projected_variant = pg_gear_authority_loader._project_variant(
+                requested_item_id,
+                variant_key,
+                variant_record,
+                projected_item.get("sourceRefIds") or [],
+                temp_evidence,
+                gear_socket_authority.CAPABILITY_REVISION,
+            )
+            allowed_options = sorted(
+                option_id
+                for option_id, option in projected_options.items()
+                if set(option["applicableSlots"]).intersection(
+                    projected_item["allowedSlots"]
+                )
+            )
+            item_subject = f"item:{requested_item_id}"
+            item_capabilities = projected_item["baseCapabilities"]
+            item_stats = projected_item.get("baseStats") or {"stamina": 1}
+            if not isinstance(item_payload.get("canonicalFacts"), list):
+                item_payload["canonicalFacts"] = [
+                canonical_fact(
+                    item_subject,
+                    "item_identity",
+                    {"itemId": requested_item_id},
+                ),
+                canonical_fact(
+                    item_subject,
+                    "slot_compatibility",
+                    projected_item["allowedSlots"],
+                ),
+                canonical_fact(
+                    item_subject,
+                    "static_stats",
+                    item_stats,
+                    "verified" if item_stats else "unresolved_missing",
+                ),
+                canonical_fact(
+                    item_subject,
+                    "socket_count",
+                    item_capabilities["socketCount"],
+                ),
+                canonical_fact(
+                    item_subject,
+                    "enchant_capability",
+                    item_capabilities["canEnchant"],
+                ),
+                canonical_fact(
+                    item_subject,
+                    "embellishment_capability",
+                    item_capabilities["canEmbellish"],
+                ),
+                canonical_fact(
+                    item_subject,
+                    "allowed_enhancement_options",
+                    allowed_options,
+                ),
+                canonical_fact(
+                    item_subject,
+                    "item_set_membership",
+                    projected_item.get("itemSetId") or False,
+                ),
+                ]
+            if projected_variant is not None:
+                variant_payload = variant_record.setdefault("payload", {})
+                variant_subject = (
+                    f"item:{requested_item_id}/variant:{variant_key}"
+                )
+                overrides = projected_variant.get("capabilityOverrides") or {}
+                effective = {
+                    **item_capabilities,
+                    **overrides,
+                }
+                explicit_variant_capabilities = (
+                    variant_payload.get("capabilityOverrides")
+                    if isinstance(
+                        variant_payload.get("capabilityOverrides"),
+                        dict,
+                    )
+                    else {}
+                )
+                materialized_variant_socket_count = (
+                    pg_gear_authority_loader._v2_materialized_socket_count(
+                        explicit_variant_capabilities.get("socketCount"),
+                        variant_payload.get("socketEvidence"),
+                        gear_socket_authority.CAPABILITY_REVISION,
+                    )
+                )
+                if materialized_variant_socket_count is not None:
+                    effective["socketCount"] = materialized_variant_socket_count
+                variant_stats = (
+                    projected_variant.get("resolvedStats")
+                    or projected_item.get("baseStats")
+                    or {"stamina": 1}
+                )
+                if not isinstance(variant_payload.get("canonicalFacts"), list):
+                    variant_payload["canonicalFacts"] = [
+                    canonical_fact(
+                        variant_subject,
+                        "item_identity",
+                        {
+                            "itemId": requested_item_id,
+                            "variantKey": variant_key,
+                        },
+                    ),
+                    canonical_fact(
+                        variant_subject,
+                        "slot_compatibility",
+                        projected_item["allowedSlots"],
+                    ),
+                    canonical_fact(
+                        variant_subject,
+                        "variant_track",
+                        {
+                            "itemId": requested_item_id,
+                            "variantKey": variant_key,
+                            "track": (
+                                str(variant_key).split("-", 1)[0]
+                                or "test"
+                            ),
+                            "itemLevel": max(
+                                1,
+                                int(projected_variant.get("itemLevel") or 0),
+                            ),
+                        },
+                    ),
+                    canonical_fact(
+                        variant_subject,
+                        "static_stats",
+                        variant_stats,
+                        "verified" if variant_stats else "unresolved_missing",
+                    ),
+                    canonical_fact(
+                        variant_subject,
+                        "socket_count",
+                        effective["socketCount"],
+                    ),
+                    canonical_fact(
+                        variant_subject,
+                        "enchant_capability",
+                        effective["canEnchant"],
+                    ),
+                    canonical_fact(
+                        variant_subject,
+                        "embellishment_capability",
+                        effective["canEmbellish"],
+                    ),
+                    canonical_fact(
+                        variant_subject,
+                        "allowed_enhancement_options",
+                        allowed_options,
+                    ),
+                    canonical_fact(
+                        variant_subject,
+                        "item_set_membership",
+                        projected_variant.get("itemSetId")
+                        or projected_item.get("itemSetId")
+                        or False,
+                    ),
+                    ]
+            sealed_rows.append(
+                (
+                    requested_item_id,
+                    variant_key,
+                    item_record,
+                    variant_record,
+                    sources,
+                )
+            )
+        return sealed_rows, option_rows
+
+    def released_fact_row(
+        self,
+        *,
+        item_id="250033",
+        variant_key="void_upgrade-298",
+        socket_count=1,
+        enchant_value=False,
+        embellishment_status="unresolved_missing",
+    ):
+        item_subject = f"item:{item_id}"
+        variant_subject = f"{item_subject}/variant:{variant_key}"
+        item_facts = [
+            canonical_fact(item_subject, "item_identity", {"itemId": item_id}),
+            canonical_fact(item_subject, "slot_compatibility", ["finger1"]),
+            canonical_fact(item_subject, "socket_count", 0),
+            canonical_fact(item_subject, "enchant_capability", enchant_value),
+            canonical_fact(
+                item_subject,
+                "embellishment_capability",
+                None if embellishment_status != "verified" else False,
+                embellishment_status,
+            ),
+            canonical_fact(item_subject, "allowed_enhancement_options", []),
+            canonical_fact(item_subject, "item_set_membership", False),
+        ]
+        variant_facts = [
+            canonical_fact(
+                variant_subject,
+                "item_identity",
+                {"itemId": item_id, "variantKey": variant_key},
+            ),
+            canonical_fact(variant_subject, "slot_compatibility", ["finger1"]),
+            canonical_fact(
+                variant_subject,
+                "variant_track",
+                {
+                    "itemId": item_id,
+                    "variantKey": variant_key,
+                    "track": "void_upgrade",
+                    "itemLevel": 298,
+                },
+            ),
+            canonical_fact(
+                variant_subject,
+                "static_stats",
+                {"haste": 120, "mastery": 80},
+            ),
+            canonical_fact(variant_subject, "socket_count", socket_count),
+            canonical_fact(variant_subject, "enchant_capability", enchant_value),
+            canonical_fact(
+                variant_subject,
+                "embellishment_capability",
+                None if embellishment_status != "verified" else False,
+                embellishment_status,
+            ),
+            canonical_fact(variant_subject, "allowed_enhancement_options", []),
+            canonical_fact(variant_subject, "item_set_membership", False),
+        ]
+        return (
+            item_id,
+            variant_key,
+            {
+                "id": item_id,
+                "name": "Void Upgrade Ring",
+                "slot": "finger1",
+                "sourceStatus": "verified",
+                "payload": {
+                    "canonicalFacts": item_facts,
+                    "baseCapabilities": {
+                        "socketCount": 99,
+                        "canEnchant": True,
+                        "canEmbellish": True,
+                    },
+                    "hasSocket": False,
+                    "canEnchant": True,
+                    "canEmbellish": True,
+                },
+            },
+            {
+                "id": "variant-row-250033",
+                "itemId": item_id,
+                "slot": "finger1",
+                "variantKey": variant_key,
+                "itemLevel": 298,
+                "simcOptions": {"ilevel": "298", "bonus_id": "void"},
+                "status": "verified",
+                "payload": {
+                    "canonicalFacts": variant_facts,
+                    "capabilityOverrides": {
+                        "socketCount": 77,
+                        "canEnchant": True,
+                        "canEmbellish": True,
+                    },
+                },
+            },
+            [{
+                "id": "mutable-source-that-must-not-author-facts",
+                "sourceType": "observed_profile",
+                "status": "verified",
+                "payload": {
+                    "socketCount": 66,
+                    "canEnchant": True,
+                    "canEmbellish": True,
+                },
+            }],
+        )
+
+    def released_fact_intent(self):
+        return self.intent({
+            "finger1": {
+                "itemId": "250033",
+                "variantKey": "void_upgrade-298",
+                "gemOptionIds": [],
+                "enchantOptionId": "",
+                "embellishmentOptionId": "",
+                "craftedOptionId": "",
+                "catalystOptionId": "",
+            }
+        })
+
+    def test_selected_release_canonical_facts_are_the_only_static_authority(self):
+        context = self.released_context(
+            capability_revision=gear_socket_authority.CAPABILITY_REVISION,
+            item_rows=[self.released_fact_row()],
+            option_rows=[],
+            intent=self.released_fact_intent(),
+        )
+
+        item = context["itemsById"]["250033"]
+        variant = context["variantsByKey"]["void_upgrade-298"]
+        self.assertEqual(item["baseCapabilities"]["socketCount"], 0)
+        self.assertFalse(item["baseCapabilities"]["canEnchant"])
+        self.assertEqual(
+            variant["capabilityFacts"],
+            {
+                "socket": {"status": "verified", "value": 1, "options": []},
+                "enchant": {"status": "unavailable", "value": False, "options": []},
+                "embellishment": {"status": "pending", "value": None, "options": []},
+            },
+        )
+        fact_refs = variant["canonicalFactRefIds"]
+        self.assertTrue(fact_refs)
+        self.assertTrue(all(ref.startswith("gear-fact:test:") for ref in fact_refs))
+        self.assertNotIn(
+            "mutable-source-that-must-not-author-facts",
+            context["evidenceRecordsById"],
+        )
+
+    def test_v2_selected_release_without_canonical_facts_fails_closed(self):
+        context = self.released_context(
+            capability_revision=gear_socket_authority.CAPABILITY_REVISION,
+            item_rows=[self.item_row()],
+            option_rows=[],
+            canonicalize=False,
+        )
+
+        self.assertEqual(context["itemsById"], {})
+        self.assertEqual(context["variantsByKey"], {})
+        self.assertIn("itemsById.item-head", context["missingFields"])
+        self.assertIn("variantsByKey.variant-head", context["missingFields"])
+
+    def test_v2_compatibility_loader_never_queries_mutable_staging(self):
+        cursor = FakeCursor(
+            revision_rows=[self.revision_row()],
+            item_rows=[self.item_row()],
+            option_rows=[self.option_row()],
+        )
+
+        _cursor, context = self.load(
+            cursor=cursor,
+            runtime=self.runtime_authority(),
+        )
+
+        self.assertEqual(cursor.statements, [])
+        self.assertEqual(context["itemsById"], {})
+        self.assertIn("manifest.selectedGearRelease", context["missingFields"])
 
     def test_released_context_projects_immutable_editor_managed_simc_fields(self):
         def row_for(management):
@@ -664,7 +1117,9 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
 
     def test_resolver_authoring_context_matches_loader_revision_identity(self):
         revision_row = self.revision_row()
-        runtime = self.runtime_authority()
+        runtime = self.runtime_authority(
+            capabilityRevision=gear_socket_authority.LEGACY_CAPABILITY_REVISION
+        )
         cursor, authority = self.load(
             cursor=self.cursor(revision_rows=[revision_row]),
             runtime=runtime,
@@ -1039,7 +1494,7 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
                 self.assertTrue(invalid_capabilities["canEnchant"])
                 self.assertTrue(invalid_capabilities["canEmbellish"])
 
-    def test_v2_authority_carries_only_verified_radiant_jewelbinder_eligibility(self):
+    def test_v2_authority_does_not_recreate_eligibility_from_raw_payload(self):
         eligibility = {
             "schemaRevision": gear_socket_authority.SOCKET_ELIGIBILITY_SCHEMA_REVISION,
             "status": "verified",
@@ -1070,10 +1525,9 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
             capability_revision=gear_socket_authority.CAPABILITY_REVISION,
             item_rows=[row],
         )
-        self.assertTrue(
-            context["itemsById"]["item-head"][
-                "radiantJewelbinderSocketEligibility"
-            ]
+        self.assertNotIn(
+            "radiantJewelbinderSocketEligibility",
+            context["itemsById"]["item-head"],
         )
 
         invalid = copy.deepcopy(row)
@@ -1208,16 +1662,9 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
             socket_rule["problems"][0]["code"],
             "GEAR_GEM_SOCKET_CAPACITY_EXCEEDED",
         )
-        projected_overlay = chain_context["variantsByKey"]["variant-head"][
-            "overlay"
-        ]
-        self.assertEqual(projected_overlay["statDeltas"], {"haste": 5})
-        self.assertTrue(
-            projected_overlay["capabilityOverrides"]["canEmbellish"]
-        )
         self.assertNotIn(
-            "socketCount",
-            projected_overlay["capabilityOverrides"],
+            "overlay",
+            chain_context["variantsByKey"]["variant-head"],
         )
 
         zero_socket = copy.deepcopy(list(row))
@@ -1231,11 +1678,11 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
             capability_revision=gear_socket_authority.CAPABILITY_REVISION,
             item_rows=[tuple(zero_socket)],
         )
-        self.assertNotIn(
-            "socketCount",
+        self.assertEqual(
             zero_context["variantsByKey"]["variant-head-zero"][
                 "capabilityOverrides"
-            ],
+            ]["socketCount"],
+            0,
         )
 
         invalid_facts = (
@@ -1288,7 +1735,7 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
                 invalid_overrides = invalid_context["variantsByKey"]["variant-head"][
                     "capabilityOverrides"
                 ]
-                self.assertNotIn("socketCount", invalid_overrides)
+                self.assertEqual(invalid_overrides["socketCount"], 1)
                 self.assertFalse(invalid_overrides["canEmbellish"])
 
     def test_v2_raw_gem_sequence_without_socket_fact_does_not_create_capacity(self):
@@ -1336,7 +1783,7 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
 
         self.assertEqual(context["itemsById"]["item-head"]["socketCount"], 1)
         overrides = context["variantsByKey"]["variant-head"]["capabilityOverrides"]
-        self.assertNotIn("socketCount", overrides)
+        self.assertEqual(overrides["socketCount"], 1)
         self.assertFalse(overrides["canEmbellish"])
         self.assertEqual(snapshot["status"], "verified")
         self.assertEqual(snapshot["constraints"]["slots"]["head"]["socketCount"], 1)
@@ -1414,9 +1861,11 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
             raw_snapshot["constraints"]["slots"]["head"]["socketCount"],
             0,
         )
-        self.assertNotIn(
-            "socketCount",
-            context["variantsByKey"]["variant-head-raw-sibling"]["capabilityOverrides"],
+        self.assertEqual(
+            context["variantsByKey"]["variant-head-raw-sibling"][
+                "capabilityOverrides"
+            ]["socketCount"],
+            0,
         )
 
     def test_v2_cross_class_and_dual_wield_samples_keep_socket_facts_exact_variant_only(self):
@@ -1528,11 +1977,11 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
                     raw_snapshot["constraints"]["slots"]["head"]["socketCount"],
                     0,
                 )
-                self.assertNotIn(
-                    "socketCount",
+                self.assertEqual(
                     shared_context["variantsByKey"]["variant-head-raw-only"][
                         "capabilityOverrides"
-                    ],
+                    ]["socketCount"],
+                    0,
                 )
 
         runtime = self.runtime_authority()
@@ -2294,7 +2743,10 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
         cache = pg_gear_authority_loader.AuthorityContextCache(max_entries=8, max_bytes=200000)
         self.load(cache=cache)
 
-        changed_runtime = self.runtime_authority(statPolicyRevision="stat-snapshot-policy-v2")
+        changed_runtime = self.runtime_authority(
+            statPolicyRevision="stat-snapshot-policy-v2",
+            capabilityRevision=gear_socket_authority.LEGACY_CAPABILITY_REVISION,
+        )
         cursor, _context = self.load(cursor=self.cursor(), runtime=changed_runtime, cache=cache)
         self.assertEqual(len(cursor.statements), 3)
 

@@ -17,6 +17,17 @@ from urllib.request import Request, urlopen
 from unittest.mock import patch
 
 
+def released_fact(subject_key, fact_type, value, status="verified"):
+    return {
+        "schemaRevision": "gear-canonical-fact-v1",
+        "factKey": f"gear-fact:test:{subject_key}:{fact_type}",
+        "subjectKey": subject_key,
+        "factType": fact_type,
+        "value": value,
+        "status": status,
+    }
+
+
 class WebSimPayloadTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
@@ -7601,6 +7612,200 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(enriched["modCapabilities"].get("socketCount"), 2)
         self.assertTrue(enriched["modCapabilities"]["canEnchant"])
         self.assertTrue(enriched["modCapabilities"]["canEmbellish"])
+
+    def test_public_capability_facts_override_forged_legacy_booleans(self):
+        variant_subject = "item:250033/variant:void_upgrade-298"
+        item = {
+            "itemId": "250033",
+            "slot": "finger1",
+            "variantKey": "void_upgrade-298",
+            "simcReady": True,
+            "modCapabilities": {
+                "hasSocket": False,
+                "socketCount": 99,
+                "canEnchant": True,
+                "canEmbellish": True,
+            },
+            "variants": [{
+                "variantKey": "void_upgrade-298",
+                "status": "verified",
+                "payload": {
+                    "canonicalFacts": [
+                        released_fact(variant_subject, "socket_count", 1),
+                        released_fact(
+                            variant_subject,
+                            "enchant_capability",
+                            False,
+                        ),
+                        released_fact(
+                            variant_subject,
+                            "embellishment_capability",
+                            None,
+                            "unresolved_missing",
+                        ),
+                        released_fact(
+                            variant_subject,
+                            "allowed_enhancement_options",
+                            ["gem-safe"],
+                        ),
+                    ],
+                },
+            }],
+            "socketOptions": [{"id": "gem-safe", "status": "verified"}],
+            "enchantOptions": [{"id": "forged-enchant", "status": "verified"}],
+            "embellishmentOptions": [
+                {"id": "forged-embellishment", "status": "verified"}
+            ],
+        }
+
+        public_item = self.websim_payload.sanitize_gear_candidate_mod_options(item)
+
+        self.assertEqual(
+            public_item["capabilityFacts"],
+            {
+                "socket": {
+                    "status": "verified",
+                    "value": 1,
+                    "options": ["gem-safe"],
+                },
+                "enchant": {
+                    "status": "unavailable",
+                    "value": False,
+                    "options": [],
+                },
+                "embellishment": {
+                    "status": "pending",
+                    "value": None,
+                    "options": [],
+                },
+            },
+        )
+        self.assertEqual(
+            public_item["modCapabilities"],
+            {
+                "hasSocket": True,
+                "socketCount": 1,
+                "canEnchant": False,
+                "canEmbellish": False,
+            },
+        )
+        serialized = json.dumps(
+            public_item,
+            ensure_ascii=False,
+            sort_keys=True,
+        )
+        for forbidden in (
+            "artifact",
+            "observation",
+            "sha256",
+            "factKey",
+            "problemCode",
+            "worker",
+        ):
+            self.assertNotIn(forbidden, serialized)
+
+    def test_verified_zero_is_unavailable_and_pending_is_category_local(self):
+        subject = "item:zero-and-pending/variant:test"
+        item = {
+            "itemId": "zero-and-pending",
+            "slot": "finger1",
+            "variantKey": "test",
+            "simcReady": True,
+            "variants": [{
+                "variantKey": "test",
+                "status": "verified",
+                "payload": {
+                    "canonicalFacts": [
+                        released_fact(subject, "socket_count", 0),
+                        released_fact(
+                            subject,
+                            "enchant_capability",
+                            None,
+                            "unresolved_conflict",
+                        ),
+                        released_fact(
+                            subject,
+                            "embellishment_capability",
+                            True,
+                        ),
+                        released_fact(
+                            subject,
+                            "allowed_enhancement_options",
+                            ["emb-safe"],
+                        ),
+                    ],
+                },
+            }],
+            "socketOptions": [{"id": "forged-gem", "status": "verified"}],
+            "enchantOptions": [{"id": "forged-enchant", "status": "verified"}],
+            "embellishmentOptions": [{"id": "emb-safe", "status": "verified"}],
+        }
+
+        public_item = self.websim_payload.sanitize_gear_candidate_mod_options(item)
+
+        self.assertEqual(
+            [public_item["capabilityFacts"][key]["status"] for key in (
+                "socket",
+                "enchant",
+                "embellishment",
+            )],
+            ["unavailable", "pending", "verified"],
+        )
+        self.assertEqual(public_item["socketOptions"], [])
+        self.assertEqual(public_item["enchantOptions"], [])
+        self.assertEqual(
+            [option["id"] for option in public_item["embellishmentOptions"]],
+            ["emb-safe"],
+        )
+
+    def test_malformed_released_facts_fail_pending_without_legacy_fallback(self):
+        item = {
+            "itemId": "malformed-release",
+            "slot": "finger1",
+            "variantKey": "test",
+            "simcReady": True,
+            "modCapabilities": {
+                "hasSocket": True,
+                "socketCount": 9,
+                "canEnchant": True,
+                "canEmbellish": True,
+            },
+            "variants": [{
+                "variantKey": "test",
+                "payload": {
+                    "canonicalFacts": [{
+                        "schemaRevision": "forged-fact-schema",
+                        "factKey": "gear-fact:forged",
+                        "factType": "socket_count",
+                        "problemCode": "worker_internal_detail",
+                        "status": "verified",
+                        "value": 9,
+                    }],
+                },
+            }],
+            "socketOptions": [{"id": "forged-gem", "status": "verified"}],
+        }
+
+        public_item = self.websim_payload.sanitize_gear_candidate_mod_options(
+            item
+        )
+
+        self.assertTrue(all(
+            view == {"status": "pending", "value": None, "options": []}
+            for view in public_item["capabilityFacts"].values()
+        ))
+        self.assertEqual(
+            public_item["modCapabilities"],
+            {
+                "hasSocket": False,
+                "socketCount": 0,
+                "canEnchant": False,
+                "canEmbellish": False,
+            },
+        )
+        serialized = json.dumps(public_item, sort_keys=True)
+        self.assertNotIn("gear-fact:forged", serialized)
+        self.assertNotIn("worker_internal_detail", serialized)
 
     def test_ring_socket_capacity_does_not_generalize_across_item_ids(self):
         two_socket_capabilities = self.websim_payload.item_mod_capabilities(

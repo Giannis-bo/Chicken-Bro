@@ -168,10 +168,11 @@ def verified_official_gem_item(gem_id, name=None):
     }
 
 
-def build_midnight_mage_release_fixture():
+def build_midnight_mage_release_fixture(*, canonical_consumer=True):
     resolver_fixture = build_midnight_mage_resolver_fixture(
         8,
         include_reference_enhancements=True,
+        canonical_consumer=canonical_consumer,
     )
     authority = resolver_fixture["authorityContext"]
     reference = resolver_fixture["referenceContract"]
@@ -179,8 +180,79 @@ def build_midnight_mage_release_fixture():
     items = []
     sources = []
     variants = []
+
+    def allowed_enhancement_rules(owner, slot):
+        def exact_slot_options(field):
+            if (
+                field == "allowedGemOptionIds"
+                and (
+                    (owner.get("capabilityFacts") or {})
+                    .get("socket", {})
+                    .get("status")
+                    == "verified"
+                )
+            ):
+                return sorted(
+                    option_id
+                    for option_id, option in authority[
+                        "optionsById"
+                    ].items()
+                    if option.get("optionType") == "gem"
+                )
+            return sorted(
+                option_id
+                for option_id in owner.get(field) or []
+                if slot
+                in (
+                    authority["optionsById"].get(option_id, {}).get(
+                        "applicableSlots"
+                    )
+                    or []
+                )
+            )
+
+        rules = [
+            {
+                "capabilityFactType": "socket_count",
+                "optionIds": exact_slot_options("allowedGemOptionIds"),
+                "slot": slot,
+            },
+            {
+                "capabilityFactType": "enchant_capability",
+                "optionIds": exact_slot_options(
+                    "allowedEnchantOptionIds"
+                ),
+                "slot": slot,
+            },
+            {
+                "capabilityFactType": "embellishment_capability",
+                "optionIds": sorted(
+                    {
+                        *exact_slot_options(
+                            "allowedEmbellishmentOptionIds"
+                        ),
+                        *exact_slot_options("allowedCraftedOptionIds"),
+                    }
+                ),
+                "slot": slot,
+            },
+        ]
+        return [rule for rule in rules if rule["optionIds"]]
+
     for item_id, item in authority["itemsById"].items():
         slot = (item.get("allowedSlots") or [""])[0]
+        equipment_identity = {
+            "inventoryType": item.get("inventoryType") or slot,
+            "armorType": item.get("armorType") or "",
+            "weaponType": item.get("weaponType") or "",
+            "handedness": item.get("handedness") or "",
+        }
+        if slot == "main_hand":
+            equipment_identity.update({
+                "inventoryType": "weapon",
+                "weaponType": "Staff",
+                "handedness": "two_hand",
+            })
         items.append({
             "itemId": item_id,
             "name": item.get("displayName") or item_id,
@@ -205,8 +277,13 @@ def build_midnight_mage_release_fixture():
                     "claims": [
                         "enchant_capability",
                         "embellishment_capability",
+                        "allowed_enhancement_options",
                     ],
                 },
+                "allowedEnhancementRules": allowed_enhancement_rules(
+                    item,
+                    slot,
+                ),
                 **{
                     field: copy.deepcopy(item.get(field))
                     for field in (
@@ -221,6 +298,7 @@ def build_midnight_mage_release_fixture():
                         "baseCapabilities",
                     )
                 },
+                **equipment_identity,
             },
         })
         sources.append({
@@ -252,7 +330,19 @@ def build_midnight_mage_release_fixture():
                     "socket_count",
                     "enchant_capability",
                     "embellishment_capability",
+                    "allowed_enhancement_options",
                 ],
+            },
+            "allowedEnhancementRules": allowed_enhancement_rules(
+                variant,
+                slot,
+            ),
+            "identityEvidence": {
+                "sourceType": "battle_net_item",
+                "sourceIdentity": f"battle-net:item:{variant['itemId']}",
+                "sourceRevision": "battle-net-item-2026-07-14",
+                "sourceScope": "exact_variant",
+                "status": "verified",
             },
             "statEvidence": {
                 "sourceType": "simc_item_probe",
@@ -303,6 +393,7 @@ def build_midnight_mage_release_fixture():
             "variantKey": variant_key,
             "slot": slot,
             "sourceType": "observed_profile",
+            "difficultyKey": "observed",
             "itemLevel": item_level,
             "simcOptions": copy.deepcopy(variant.get("simcOptions") or {}),
             "status": "verified",

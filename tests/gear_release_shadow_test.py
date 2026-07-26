@@ -436,7 +436,9 @@ class GearReleaseShadowTest(unittest.TestCase):
             "crafted": "allowedCraftedOptionIds",
             "catalyst": "allowedCatalystOptionIds",
         }[option_type]
-        fixture = build_midnight_mage_release_fixture()["resolverFixture"]
+        fixture = build_midnight_mage_release_fixture(
+            canonical_consumer=False
+        )["resolverFixture"]
         candidate_intent = copy.deepcopy(fixture["intent"])
         candidate_authority = copy.deepcopy(fixture["authorityContext"])
         candidate_intent["eligibilityContext"]["specKey"] = "arcane"
@@ -567,7 +569,9 @@ class GearReleaseShadowTest(unittest.TestCase):
         select_editor=False,
         transitional_select_editor=False,
     ):
-        fixture = build_midnight_mage_release_fixture()["resolverFixture"]
+        fixture = build_midnight_mage_release_fixture(
+            canonical_consumer=False
+        )["resolverFixture"]
         candidate_intent = copy.deepcopy(fixture["intent"])
         candidate_authority = copy.deepcopy(fixture["authorityContext"])
         candidate_intent["eligibilityContext"]["specKey"] = "arcane"
@@ -744,7 +748,9 @@ class GearReleaseShadowTest(unittest.TestCase):
         candidate_non_editor_simc=None,
         transitional_non_editor_simc=None,
     ):
-        fixture = build_midnight_mage_release_fixture()["resolverFixture"]
+        fixture = build_midnight_mage_release_fixture(
+            canonical_consumer=False
+        )["resolverFixture"]
         candidate_intent = copy.deepcopy(fixture["intent"])
         candidate_authority = copy.deepcopy(fixture["authorityContext"])
         candidate_intent["eligibilityContext"]["specKey"] = "arcane"
@@ -3994,7 +4000,9 @@ class GearReleaseShadowTest(unittest.TestCase):
         )
 
     def test_internal_shadow_proves_exact_mage_enhancement_migration_and_ninth_gem_rejection(self):
-        fixture = build_midnight_mage_release_fixture()["resolverFixture"]
+        fixture = build_midnight_mage_release_fixture(
+            canonical_consumer=False
+        )["resolverFixture"]
         intent = copy.deepcopy(fixture["intent"])
         candidate_snapshot = gear_resolver.resolve(intent, fixture["authorityContext"])
         legacy_intent = copy.deepcopy(intent)
@@ -4159,7 +4167,9 @@ class GearReleaseShadowTest(unittest.TestCase):
         )
 
     def test_real_mage_capacity_migration_requires_complete_candidate_authority(self):
-        fixture = build_midnight_mage_release_fixture()["resolverFixture"]
+        fixture = build_midnight_mage_release_fixture(
+            canonical_consumer=False
+        )["resolverFixture"]
         candidate_intent = copy.deepcopy(fixture["intent"])
         candidate_authority = copy.deepcopy(fixture["authorityContext"])
         candidate_snapshot = gear_resolver.resolve(
@@ -4254,7 +4264,9 @@ class GearReleaseShadowTest(unittest.TestCase):
         )
 
     def test_real_capacity_migration_rejects_same_crafted_option_stat_delta_change(self):
-        fixture = build_midnight_mage_release_fixture()["resolverFixture"]
+        fixture = build_midnight_mage_release_fixture(
+            canonical_consumer=False
+        )["resolverFixture"]
         candidate_intent = copy.deepcopy(fixture["intent"])
         candidate_authority = copy.deepcopy(fixture["authorityContext"])
         finger_selection = candidate_intent["slots"]["finger1"]
@@ -4486,7 +4498,9 @@ class GearReleaseShadowTest(unittest.TestCase):
                 )
 
     def test_reference_contract_blocks_wrong_enchant_capacity_even_when_six_are_selected(self):
-        fixture = build_midnight_mage_release_fixture()["resolverFixture"]
+        fixture = build_midnight_mage_release_fixture(
+            canonical_consumer=False
+        )["resolverFixture"]
         intent = copy.deepcopy(fixture["intent"])
         snapshot = gear_resolver.resolve(intent, fixture["authorityContext"])
         candidate = {
@@ -4507,7 +4521,9 @@ class GearReleaseShadowTest(unittest.TestCase):
         self.assertEqual(proof["enchants"], {"used": 6, "max": 7})
 
     def test_active_v2_shadow_uses_sealed_active_winner_intent_without_public_leak(self):
-        fixture = build_midnight_mage_release_fixture()["resolverFixture"]
+        fixture = build_midnight_mage_release_fixture(
+            canonical_consumer=False
+        )["resolverFixture"]
         intent = copy.deepcopy(fixture["intent"])
         candidate_snapshot = gear_resolver.resolve(intent, fixture["authorityContext"])
         candidate = {

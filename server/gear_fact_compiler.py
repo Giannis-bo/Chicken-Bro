@@ -729,8 +729,12 @@ def _compile_allowed_options(
                 }[capability_type]
                 if (
                     option_value["optionType"] not in compatible_types
-                    or basis["slot"]
-                    not in option_value["applicableScopes"]
+                    or (
+                        basis["slot"]
+                        not in option_value["applicableScopes"]
+                        and "*"
+                        not in option_value["applicableScopes"]
+                    )
                 ):
                     dependency_missing = True
                 else:

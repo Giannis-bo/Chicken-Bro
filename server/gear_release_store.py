@@ -2568,6 +2568,7 @@ class GearReleaseStore:
                 "socket_count",
                 "enchant_capability",
                 "embellishment_capability",
+                "allowed_enhancement_options",
                 "item_set_membership",
             }
         for row in legacy_snapshot.get("variants") or ():
@@ -2597,7 +2598,8 @@ class GearReleaseStore:
             if not isinstance(row, dict) or not _text(row.get("optionId")):
                 continue
             required_fact_types[
-                f"option:{_text(row.get('optionId'))}"
+                "option:"
+                + _text(row.get("optionKey") or row.get("optionId"))
             ] = {"enhancement_option"}
         required_semantics = {
             (subject_key, fact_type)
