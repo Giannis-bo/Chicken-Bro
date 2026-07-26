@@ -269,7 +269,7 @@
   git commit -m "feat(gear): consume released canonical facts"
   ```
 
-- [x] **Step 7: Publish the reviewed Task 5 cross-device checkpoint**
+- [ ] **Step 7: Publish the reviewed Task 5 cross-device checkpoint**
 
   After every Task 5 targeted test is GREEN, the independent review is clean, and local CR confirms the complete Task 5 diff:
 
