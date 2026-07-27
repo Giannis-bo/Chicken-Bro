@@ -7,9 +7,12 @@ import argparse
 import copy
 from datetime import datetime, timezone
 import hashlib
+import heapq
 import json
+import os
 import re
 import subprocess
+import tempfile
 from typing import Any, Callable, Iterable, Mapping
 from urllib.parse import urlparse
 
@@ -1788,33 +1791,149 @@ class _StreamingEvidenceReceipt:
 
 
 def _canonical_fact_digest_from_snapshot(snapshot: Mapping[str, Any]) -> str:
-    rows = [
-        {
-            "factKey": _text(fact.get("factKey")),
-            "status": _text(fact.get("status")),
-            "factValueHash": _text(fact.get("factValueHash")),
-            "provenanceHash": _text(fact.get("provenanceHash")),
-        }
-        for category in ("items", "variants", "options")
-        for row in snapshot.get(category) or ()
-        if isinstance(row, Mapping)
-        for fact in (
-            row.get("payload", {}).get("canonicalFacts")
-            if isinstance(row.get("payload"), Mapping)
-            else ()
+    """Hash canonical facts without copying the whole registry into another list.
+
+    The external merge ordering preserves the v1 list digest exactly, including
+    stable ordering for otherwise-identical facts, while keeping one bounded
+    sort run and merge fan-in in Python memory at a time.  It deliberately uses
+    ordinary temporary files rather than SQLite: release construction must
+    remain valid while the runtime is PostgreSQL-only.
+    """
+
+    run_size = 1024
+    merge_fan_in = 32
+
+    def write_record(output, record: tuple[str, str, str, int, str]) -> None:
+        output.write(
+            json.dumps(
+                record,
+                ensure_ascii=False,
+                separators=(",", ":"),
+            )
+            + "\n"
         )
-        if isinstance(fact, Mapping)
-    ]
-    return _canonical_digest(
-        sorted(
-            rows,
-            key=lambda fact: (
-                fact["factKey"],
-                fact["factValueHash"],
-                fact["provenanceHash"],
-            ),
+
+    def read_record(source) -> tuple[str, str, str, int, str] | None:
+        line = source.readline()
+        if not line:
+            return None
+        row = json.loads(line)
+        if not isinstance(row, list) or len(row) != 5:
+            raise GearReleaseIntegrityError(
+                "canonical Fact digest sort run is malformed"
+            )
+        return (
+            _text(row[0]),
+            _text(row[1]),
+            _text(row[2]),
+            _int(row[3]),
+            _text(row[4]),
         )
-    )
+
+    def merge_runs(paths: list[str], output) -> None:
+        sources = [open(path, encoding="utf-8") for path in paths]
+        try:
+            heap: list[tuple[tuple[str, str, str, int], int, str]] = []
+            for index, source in enumerate(sources):
+                record = read_record(source)
+                if record is not None:
+                    heapq.heappush(
+                        heap,
+                        (record[:4], index, record[4]),
+                    )
+            while heap:
+                sort_key, index, payload = heapq.heappop(heap)
+                write_record(output, (*sort_key, payload))
+                record = read_record(sources[index])
+                if record is not None:
+                    heapq.heappush(
+                        heap,
+                        (record[:4], index, record[4]),
+                    )
+        finally:
+            for source in sources:
+                source.close()
+
+    with tempfile.TemporaryDirectory(prefix="wow-gear-canonical-facts-") as directory:
+        runs: list[str] = []
+        buffered: list[tuple[str, str, str, int, str]] = []
+        sequence = 0
+
+        def flush_run() -> None:
+            if not buffered:
+                return
+            buffered.sort(key=lambda record: record[:4])
+            path = os.path.join(directory, f"run-{len(runs):06d}.jsonl")
+            with open(path, "w", encoding="utf-8") as output:
+                for record in buffered:
+                    write_record(output, record)
+            runs.append(path)
+            buffered.clear()
+
+        for category in ("items", "variants", "options"):
+            for row in snapshot.get(category) or ():
+                if not isinstance(row, Mapping):
+                    continue
+                payload = row.get("payload")
+                if not isinstance(payload, Mapping):
+                    continue
+                for fact in payload.get("canonicalFacts") or ():
+                    if not isinstance(fact, Mapping):
+                        continue
+                    digest_row = {
+                        "factKey": _text(fact.get("factKey")),
+                        "status": _text(fact.get("status")),
+                        "factValueHash": _text(fact.get("factValueHash")),
+                        "provenanceHash": _text(fact.get("provenanceHash")),
+                    }
+                    buffered.append(
+                        (
+                            digest_row["factKey"],
+                            digest_row["factValueHash"],
+                            digest_row["provenanceHash"],
+                            sequence,
+                            json.dumps(
+                                digest_row,
+                                ensure_ascii=False,
+                                sort_keys=True,
+                                separators=(",", ":"),
+                            ),
+                        )
+                    )
+                    sequence += 1
+                    if len(buffered) == run_size:
+                        flush_run()
+        flush_run()
+        merge_round = 0
+        while len(runs) > merge_fan_in:
+            merged_runs: list[str] = []
+            for offset in range(0, len(runs), merge_fan_in):
+                group = runs[offset:offset + merge_fan_in]
+                path = os.path.join(
+                    directory,
+                    f"merge-{merge_round:02d}-{len(merged_runs):06d}.jsonl",
+                )
+                with open(path, "w", encoding="utf-8") as output:
+                    merge_runs(group, output)
+                for source in group:
+                    os.remove(source)
+                merged_runs.append(path)
+            runs = merged_runs
+            merge_round += 1
+        digest = hashlib.sha256()
+        digest.update(b"[")
+        first = True
+        if runs:
+            with tempfile.TemporaryFile(mode="w+", encoding="utf-8") as merged:
+                merge_runs(runs, merged)
+                merged.seek(0)
+                while record := read_record(merged):
+                    if not first:
+                        digest.update(b",")
+                    digest.update(record[4].encode("utf-8"))
+                    first = False
+        digest.update(b"]")
+    return "sha256:" + digest.hexdigest()
 
 
 def _project_canonical_facts(

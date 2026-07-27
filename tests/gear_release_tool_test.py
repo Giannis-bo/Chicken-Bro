@@ -2669,6 +2669,114 @@ class GearReleaseToolTest(unittest.TestCase):
         self.assertTrue(source_evidence["socketProbeDigest"].startswith("sha256:"))
         self.assertTrue(source_evidence["materializedSocketFactDigest"].startswith("sha256:"))
 
+    def test_canonical_fact_digest_streams_sorted_facts_without_sqlite_or_aggregate_list(self):
+        from server import gear_release_tool
+
+        facts = [
+            {
+                "factKey": f"subject:{index % 5}/fact:{index}",
+                "status": "verified" if index % 2 else "unresolved_missing",
+                "factValueHash": f"value-{index % 7}",
+                "provenanceHash": f"proof-{index % 3}",
+            }
+            for index in range((32 * 1024) - 1)
+        ]
+        facts.insert(
+            0,
+            {
+                "factKey": "subject:shared/fact:tie",
+                "status": "verified",
+                "factValueHash": "same-value",
+                "provenanceHash": "same-proof",
+            },
+        )
+        facts.append(
+            {
+                "factKey": "subject:shared/fact:tie",
+                "status": "unresolved_missing",
+                "factValueHash": "same-value",
+                "provenanceHash": "same-proof",
+            }
+        )
+        snapshot = {
+            "items": [{"payload": {"canonicalFacts": facts[:89]}}],
+            "variants": [{"payload": {"canonicalFacts": facts[89:211]}}],
+            "options": [{"payload": {"canonicalFacts": facts[211:]}}],
+        }
+        expected = canonical_digest(
+            sorted(
+                (
+                    {
+                        "factKey": fact["factKey"],
+                        "status": fact["status"],
+                        "factValueHash": fact["factValueHash"],
+                        "provenanceHash": fact["provenanceHash"],
+                    }
+                    for fact in facts
+                ),
+                key=lambda fact: (
+                    fact["factKey"],
+                    fact["factValueHash"],
+                    fact["provenanceHash"],
+                ),
+            )
+        )
+
+        with patch(
+            "sqlite3.connect",
+            side_effect=AssertionError("PG-only release build must not open SQLite"),
+        ), patch.object(
+            gear_release_tool,
+            "_canonical_digest",
+            side_effect=AssertionError("canonical Fact digest must not aggregate every fact"),
+        ):
+            actual = gear_release_tool._canonical_fact_digest_from_snapshot(snapshot)
+
+        self.assertEqual(actual, expected)
+
+    def test_canonical_fact_digest_cleans_its_temporary_runs_after_a_failure(self):
+        import os
+        import tempfile
+
+        from server import gear_release_tool
+
+        facts = [
+            {
+                "factKey": f"subject:{index}/fact",
+                "status": "verified",
+                "factValueHash": f"value-{index}",
+                "provenanceHash": f"proof-{index}",
+            }
+            for index in range(1025)
+        ]
+        original_temporary_directory = tempfile.TemporaryDirectory
+        with original_temporary_directory() as parent:
+            with patch.object(
+                gear_release_tool.tempfile,
+                "TemporaryDirectory",
+                side_effect=lambda **kwargs: original_temporary_directory(
+                    dir=parent,
+                    **kwargs,
+                ),
+            ), patch.object(
+                gear_release_tool.heapq,
+                "heappop",
+                side_effect=RuntimeError("injected canonical Fact merge failure"),
+            ):
+                with self.assertRaisesRegex(RuntimeError, "merge failure"):
+                    gear_release_tool._canonical_fact_digest_from_snapshot(
+                        {
+                            "items": [
+                                {
+                                    "payload": {
+                                        "canonicalFacts": facts
+                                    }
+                                }
+                            ]
+                        }
+                    )
+            self.assertEqual(os.listdir(parent), [])
+
     def test_prepare_staging_gear_release_seals_safe_canonical_fact_projection(self):
         from server.gear_release_tool import (
             _compile_release_gear_evidence,
