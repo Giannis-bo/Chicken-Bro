@@ -2407,6 +2407,185 @@ class GearReleaseToolTest(unittest.TestCase):
 
         self.assertEqual(compile_batch.call_count, 1)
 
+    def test_prepare_streaming_batches_preserve_cross_batch_option_authority(self):
+        """A bounded build may not lose an option fact needed by a later rule."""
+
+        from server.gear_release_tool import prepare_staging_gear_release
+
+        snapshot = self.snapshot()
+        item_payload = snapshot["items"][0]["payload"]
+        item_payload["baseCapabilities"] = {
+            "socketCount": 1,
+            "canEnchant": True,
+            "canEmbellish": False,
+        }
+        variant_payload = snapshot["variants"][0]["payload"]
+        variant_payload["capabilityOverrides"] = {
+            "socketCount": 1,
+            "canEnchant": True,
+            "canEmbellish": False,
+        }
+        snapshot["variants"][0]["simcOptions"]["bonus_id"] = "9300"
+        variant_payload["canonicalEvidence"]["claims"] = [
+            "slot_compatibility",
+            "socket_count",
+            "enchant_capability",
+            "embellishment_capability",
+            "allowed_enhancement_options",
+        ]
+        variant_payload["allowedEnhancementRules"] = [
+            {
+                "capabilityFactType": "socket_count",
+                "optionIds": ["gem-a"],
+                "slot": "head",
+            }
+        ]
+        snapshot["options"] = [
+            {
+                "optionId": "gem-a",
+                "variantId": "variant-a-id",
+                "optionKey": "gem-a",
+                "optionType": "gem",
+                "name": "Gem A",
+                "applicableSlots": ["head"],
+                "simcOptions": {"gem_id": "240000"},
+                "status": "verified",
+                "isVisible": True,
+                "payload": {
+                    "evidenceSource": "simulationcraft",
+                    "optionEvidence": {
+                        "sourceType": "simc_item_probe",
+                        "sourceIdentity": "simc-option:gem-a",
+                        "sourceRevision": "simc-options-2026-07-11",
+                        "sourceScope": "option",
+                        "status": "verified",
+                    },
+                },
+                "updatedAt": "2026-07-11T05:00:00+00:00",
+            }
+        ]
+        for option_key in ("gem-b", "gem-c"):
+            option = copy.deepcopy(snapshot["options"][0])
+            option.update({
+                "optionId": option_key,
+                "optionKey": option_key,
+                "name": option_key.upper(),
+                "simcOptions": {"gem_id": str(240000 + len(snapshot["options"]))},
+            })
+            option["payload"]["optionEvidence"]["sourceIdentity"] = (
+                "simc-option:" + option_key
+            )
+            snapshot["options"].append(option)
+        now = "2026-07-27T06:00:00+00:00"
+        baseline = prepare_staging_gear_release(
+            FakeReleaseStore(snapshot),
+            season_revision="season-17",
+            dependency_revisions=self.dependencies(),
+            socket_bonus_minimums=socket_probe_evidence(),
+            evidence_now=now,
+        )
+        streamed_store = FakeReleaseStore(snapshot)
+        from server import gear_fact_compiler
+
+        with patch(
+            "server.gear_release_tool.gear_fact_compiler.compile_facts_by_subject",
+            wraps=gear_fact_compiler.compile_facts_by_subject,
+        ) as compile_batches:
+            streamed = prepare_staging_gear_release(
+                streamed_store,
+                season_revision="season-17",
+                dependency_revisions=self.dependencies(),
+                socket_bonus_minimums=socket_probe_evidence(),
+                evidence_now=now,
+                evidence_batch_size=1,
+            )
+
+        self.assertEqual(streamed["snapshot"], baseline["snapshot"])
+        self.assertEqual(streamed["release"], baseline["release"])
+        variant_facts = {
+            fact["factType"]: fact
+            for fact in streamed["snapshot"]["variants"][0]["payload"][
+                "canonicalFacts"
+            ]
+        }
+        self.assertEqual(
+            variant_facts["allowed_enhancement_options"]["status"],
+            "verified",
+        )
+        self.assertEqual(
+            variant_facts["allowed_enhancement_options"]["value"],
+            ["gem-a"],
+        )
+        persisted_fact_identities = {
+            fact["factKey"]
+            for bundle in streamed_store.evidence_bundles
+            for fact in bundle["facts"]
+        }
+        self.assertEqual(
+            persisted_fact_identities,
+            {
+                identity[0]
+                for identity in baseline["gate"]["evidenceCompilation"]["facts"][
+                    "identities"
+                ]
+            },
+        )
+        option_artifact_ids = [
+            row["artifactId"]
+            for bundle in streamed_store.evidence_bundles
+            for row in bundle["artifacts"]
+            if "enhancementOption" in row["payload"]
+        ]
+        option_observation_ids = [
+            row["observationId"]
+            for bundle in streamed_store.evidence_bundles
+            for row in bundle["observations"]
+            if row["subjectKey"].startswith("option:")
+        ]
+        self.assertEqual(len(option_artifact_ids), len(set(option_artifact_ids)))
+        self.assertEqual(
+            len(option_observation_ids), len(set(option_observation_ids))
+        )
+        non_option_batches = [
+            call.kwargs
+            for call in compile_batches.call_args_list
+            if not all(
+                subject_key.startswith("option:")
+                for subject_key in call.kwargs["fact_types_by_subject"]
+            )
+        ]
+        self.assertTrue(non_option_batches)
+        self.assertEqual(
+            len(
+                {
+                    id(batch["precompiled_facts_by_subject_fact"])
+                    for batch in non_option_batches
+                }
+            ),
+            1,
+        )
+        for batch in non_option_batches:
+            self.assertFalse(
+                any(
+                    row["subjectKey"].startswith("option:")
+                    for row in batch["observations"]
+                )
+            )
+            self.assertFalse(
+                any(
+                    "enhancementOption" in row["payload"]
+                    for row in batch["artifacts"]
+                )
+            )
+            self.assertEqual(
+                set(batch["precompiled_facts_by_subject_fact"]),
+                {
+                    ("option:gem-a", "enhancement_option"),
+                    ("option:gem-b", "enhancement_option"),
+                    ("option:gem-c", "enhancement_option"),
+                },
+            )
+
     def test_prepare_staging_gear_release_materializes_socket_facts_before_hash(self):
         from server.gear_release_store import gear_snapshot_summary
         from server.gear_release_tool import (
@@ -2744,6 +2923,54 @@ class GearReleaseToolTest(unittest.TestCase):
                         gate,
                         legacy_snapshot,
                     )
+
+    def test_store_gate_rejects_tampered_compact_streaming_receipt(self):
+        from server.gear_release_store import (
+            GearReleaseIntegrityError,
+            GearReleaseStore,
+        )
+        from server.gear_release_tool import (
+            _legacy_shadow_snapshot,
+            prepare_staging_gear_release,
+        )
+
+        raw_snapshot = self.snapshot()
+        prepared = prepare_staging_gear_release(
+            FakeReleaseStore(raw_snapshot),
+            season_revision="season-17",
+            dependency_revisions=self.dependencies(),
+            socket_bonus_minimums=socket_probe_evidence(),
+            evidence_now="2026-07-27T06:00:00+00:00",
+            evidence_batch_size=1,
+        )
+        legacy_snapshot = _legacy_shadow_snapshot(
+            raw_snapshot,
+            season_revision="season-17",
+            capability_revision=self.dependencies()["capabilityRevision"],
+            socket_bonus_evidence=socket_probe_evidence(),
+        )
+
+        GearReleaseStore._validate_canonical_gear_gate(
+            prepared["release"],
+            prepared["snapshot"],
+            prepared["gate"],
+            legacy_snapshot,
+        )
+
+        tampered_gate = copy.deepcopy(prepared["gate"])
+        tampered_gate["evidencePersistence"]["facts"][
+            "sequenceDigest"
+        ] = "sha256:" + ("0" * 64)
+        with self.assertRaisesRegex(
+            GearReleaseIntegrityError,
+            "streaming evidence persistence receipt",
+        ):
+            GearReleaseStore._validate_canonical_gear_gate(
+                prepared["release"],
+                prepared["snapshot"],
+                tampered_gate,
+                legacy_snapshot,
+            )
 
     def test_release_store_persists_registry_owners_before_gap_enqueue(self):
         from server.gear_release_store import GearReleaseStore

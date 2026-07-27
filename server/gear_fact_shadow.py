@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from typing import Any, Iterable, Mapping
 
@@ -47,6 +48,103 @@ def _canonical(value: Any) -> Any:
             allow_nan=False,
         )
     )
+
+
+def _compact_digest_components(
+    comparisons: Iterable[Mapping[str, Any]],
+) -> dict[str, Any]:
+    """Return an order-independent bounded receipt for shadow rows."""
+
+    modulo = 1 << 256
+    total = 0
+    xor = 0
+    count = 0
+    for comparison in comparisons:
+        encoded = json.dumps(
+            _canonical(comparison),
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        ).encode("utf-8")
+        value = int.from_bytes(hashlib.sha256(encoded).digest(), "big")
+        total = (total + value) % modulo
+        xor ^= value
+        count += 1
+    return {
+        "count": count,
+        "sum": f"{total:064x}",
+        "xor": f"{xor:064x}",
+    }
+
+
+def _compact_digest(components: Mapping[str, Any]) -> str:
+    encoded = json.dumps(
+        {
+            "count": int(components.get("count") or 0),
+            "sum": _text(components.get("sum")),
+            "xor": _text(components.get("xor")),
+        },
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+    return "sha256:" + hashlib.sha256(encoded).hexdigest()
+
+
+def merge_compact_shadow_results(
+    results: Iterable[Mapping[str, Any]],
+) -> dict[str, Any]:
+    """Merge bounded v2 shadow receipts without retaining comparisons."""
+
+    modulo = 1 << 256
+    total = 0
+    xor = 0
+    count = 0
+    counts = {category: 0 for category in _CLASSIFICATIONS}
+    blockers: list[dict[str, Any]] = []
+    for result in results:
+        components = (
+            result.get("comparisonDigestComponents")
+            if isinstance(result.get("comparisonDigestComponents"), Mapping)
+            else {}
+        )
+        try:
+            component_sum = int(_text(components.get("sum")) or "0", 16)
+            component_xor = int(_text(components.get("xor")) or "0", 16)
+        except ValueError:
+            raise ValueError("compact shadow receipt is invalid") from None
+        total = (total + component_sum) % modulo
+        xor ^= component_xor
+        count += int(components.get("count") or 0)
+        raw_counts = result.get("counts") if isinstance(result.get("counts"), Mapping) else {}
+        for category in counts:
+            counts[category] += int(raw_counts.get(category) or 0)
+        blockers.extend(
+            blocker
+            for blocker in (result.get("blockers") or ())
+            if isinstance(blocker, Mapping)
+        )
+    components = {
+        "count": count,
+        "sum": f"{total:064x}",
+        "xor": f"{xor:064x}",
+    }
+    blockers.sort(key=lambda row: (
+        _text(row.get("code")),
+        _text(row.get("subjectKey")),
+        _text(row.get("factType")),
+    ))
+    return {
+        "schemaRevision": "gear-fact-shadow-v2",
+        "status": "blocked" if blockers else "pass",
+        "comparisonCount": count,
+        "comparisonDigest": _compact_digest(components),
+        "comparisonDigestComponents": components,
+        "counts": {category: counts[category] for category in sorted(counts)},
+        "blockers": blockers,
+    }
 
 
 def _row_indexes(snapshot: Any) -> tuple[dict[str, Mapping[str, Any]], dict[str, Mapping[str, Any]]]:
@@ -247,6 +345,7 @@ def compare_legacy_and_canonical(
     canonical_facts: Iterable[Any],
     *,
     expected_fact_types_by_subject: Mapping[str, Iterable[str]] | None = None,
+    include_comparisons: bool = True,
 ) -> dict[str, Any]:
     """Classify every supplied Fact exactly once and fail closed on unknowns."""
 
@@ -343,7 +442,7 @@ def compare_legacy_and_canonical(
         )
     )
     blockers.sort(key=lambda row: (row["code"], row["subjectKey"], row["factType"]))
-    return {
+    result = {
         "schemaRevision": "gear-fact-shadow-v1",
         "status": "blocked" if blockers else "pass",
         "comparisons": comparisons,
@@ -355,6 +454,18 @@ def compare_legacy_and_canonical(
         },
         "blockers": blockers,
     }
+    if include_comparisons:
+        return result
+    components = _compact_digest_components(comparisons)
+    return {
+        "schemaRevision": "gear-fact-shadow-v2",
+        "status": result["status"],
+        "comparisonCount": len(comparisons),
+        "comparisonDigest": _compact_digest(components),
+        "comparisonDigestComponents": components,
+        "counts": result["counts"],
+        "blockers": blockers,
+    }
 
 
-__all__ = ("compare_legacy_and_canonical",)
+__all__ = ("compare_legacy_and_canonical", "merge_compact_shadow_results")

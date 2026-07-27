@@ -88,6 +88,8 @@ _RANK_ONE_REJECTION_LIMIT = 80
 _RANK_ONE_REJECTION_PROBLEM_LIMIT = 12
 _SIMC_SOCKET_PROBE_MAX_CHARS = 4 * 1024 * 1024
 _SIMC_SOCKET_PROBE_FAILURE = "SimC socket probe failed"
+_FULL_RELEASE_EVIDENCE_BATCH_SIZE = 128
+_MAX_STREAMING_RELEASE_EVIDENCE_BATCH_SIZE = 128
 _GEM_SIMC_SEQUENCE_FIELDS = gear_enhancement_management.GEM_SIMC_SEQUENCE_FIELDS
 _ENHANCEMENT_SIMC_FIELDS = gear_enhancement_management.ENHANCEMENT_SIMC_FIELDS
 _BATTLE_NET_GAME_DATA_API = "Battle.net Game Data API"
@@ -388,7 +390,27 @@ def _compile_release_gear_evidence(
     socket_bonus_evidence: Mapping[str, Any],
     extra_artifacts: Iterable[Mapping[str, Any]] = (),
     extra_observations: Iterable[Mapping[str, Any]] = (),
+    categories: Iterable[str] | None = None,
+    compiler_context_artifacts: Iterable[Mapping[str, Any]] = (),
+    compiler_context_observations: Iterable[Mapping[str, Any]] = (),
+    compiler_context_facts: Mapping[
+        tuple[str, str], Mapping[str, Any]
+    ] | Iterable[Mapping[str, Any]] = (),
 ) -> dict[str, Any]:
+    selected_categories = frozenset(
+        _text(category)
+        for category in (
+            categories
+            if categories is not None
+            else ("items", "variants", "options")
+        )
+        if _text(category)
+    )
+    unknown_categories = selected_categories - {"items", "variants", "options"}
+    if unknown_categories:
+        raise GearReleaseIntegrityError(
+            "unknown Gear evidence compilation category"
+        )
     artifacts: list[dict[str, Any]] = []
     observations: list[dict[str, Any]] = []
     subject_fact_types: dict[str, set[str]] = {}
@@ -657,7 +679,9 @@ def _compile_release_gear_evidence(
             ],
         )
 
-    for index, row in enumerate(snapshot.get("items") or ()):
+    for index, row in enumerate(
+        snapshot.get("items") or () if "items" in selected_categories else ()
+    ):
         if not isinstance(row, dict) or not _text(row.get("itemId")):
             continue
         item_id = _text(row["itemId"])
@@ -836,7 +860,9 @@ def _compile_release_gear_evidence(
             official_payload=is_official,
         )
 
-    for index, row in enumerate(snapshot.get("variants") or ()):
+    for index, row in enumerate(
+        snapshot.get("variants") or () if "variants" in selected_categories else ()
+    ):
         if (
             not isinstance(row, dict)
             or not _text(row.get("itemId"))
@@ -1140,7 +1166,9 @@ def _compile_release_gear_evidence(
         for row in snapshot.get("variants") or ()
         if isinstance(row, dict) and _text(row.get("variantId"))
     }
-    for index, row in enumerate(snapshot.get("options") or ()):
+    for index, row in enumerate(
+        snapshot.get("options") or () if "options" in selected_categories else ()
+    ):
         if not isinstance(row, dict) or not _text(row.get("optionId")):
             continue
         option_id = _text(row.get("optionKey") or row["optionId"])
@@ -1305,34 +1333,104 @@ def _compile_release_gear_evidence(
         if existing != observation:
             raise GearReleaseIntegrityError("candidate evidence Observation identity conflicts")
 
-    artifacts_by_id = {
+    returned_artifacts_by_id = {
         artifact["artifactId"]: artifact for artifact in artifacts
     }
     for artifact_id, artifact in supplied_artifacts.items():
-        existing = artifacts_by_id.setdefault(artifact_id, artifact)
+        existing = returned_artifacts_by_id.setdefault(artifact_id, artifact)
         if existing != artifact:
             raise GearReleaseIntegrityError("candidate evidence conflicts with staging Artifact")
-    observations_by_id = {
+    returned_observations_by_id = {
         observation["observationId"]: observation for observation in observations
     }
     for observation_id, observation in supplied_observations.items():
-        existing = observations_by_id.setdefault(observation_id, observation)
+        existing = returned_observations_by_id.setdefault(observation_id, observation)
         if existing != observation:
             raise GearReleaseIntegrityError("candidate evidence conflicts with staging Observation")
-    artifacts = [artifacts_by_id[artifact_id] for artifact_id in sorted(artifacts_by_id)]
-    observations = [
-        observations_by_id[observation_id]
-        for observation_id in sorted(observations_by_id)
+    artifacts = [
+        returned_artifacts_by_id[artifact_id]
+        for artifact_id in sorted(returned_artifacts_by_id)
     ]
+    observations = [
+        returned_observations_by_id[observation_id]
+        for observation_id in sorted(returned_observations_by_id)
+    ]
+    context_artifacts_by_id: dict[str, Mapping[str, Any]] = {}
+    for raw_artifact in compiler_context_artifacts:
+        if not isinstance(raw_artifact, Mapping) or not _text(
+            raw_artifact.get("artifactId")
+        ):
+            raise GearReleaseIntegrityError(
+                "compiler context Artifact is invalid"
+            )
+        context_artifacts_by_id[_text(raw_artifact["artifactId"])] = raw_artifact
+    context_observations_by_id: dict[str, Mapping[str, Any]] = {}
+    for raw_observation in compiler_context_observations:
+        if not isinstance(raw_observation, Mapping) or not _text(
+            raw_observation.get("observationId")
+        ):
+            raise GearReleaseIntegrityError(
+                "compiler context Observation is invalid"
+            )
+        context_observations_by_id[
+            _text(raw_observation["observationId"])
+        ] = raw_observation
+    if isinstance(compiler_context_facts, Mapping):
+        # The streaming coordinator constructs this compact Fact index once.
+        # Reuse it by reference for every equipment batch: rebuilding an
+        # equally large dictionary would reintroduce the all-option CPU/memory
+        # slope that the bounded path removes.
+        context_facts_by_subject_fact = compiler_context_facts
+    else:
+        context_facts_by_subject_fact: dict[
+            tuple[str, str], Mapping[str, Any]
+        ] = {}
+        for raw_fact in compiler_context_facts:
+            if not isinstance(raw_fact, Mapping):
+                raise GearReleaseIntegrityError("compiler context Fact is invalid")
+            subject_key = _text(raw_fact.get("subjectKey"))
+            fact_type = _text(raw_fact.get("factType"))
+            if not subject_key or not fact_type:
+                raise GearReleaseIntegrityError("compiler context Fact is invalid")
+            identity = (subject_key, fact_type)
+            existing = context_facts_by_subject_fact.setdefault(identity, raw_fact)
+            if _canonical(existing) != _canonical(raw_fact):
+                raise GearReleaseIntegrityError("compiler context Fact conflicts")
+    compiler_artifacts_by_id = dict(context_artifacts_by_id)
+    for artifact in artifacts:
+        artifact_id = _text(artifact.get("artifactId"))
+        existing = compiler_artifacts_by_id.setdefault(artifact_id, artifact)
+        if _canonical(existing) != _canonical(artifact):
+            raise GearReleaseIntegrityError(
+                "compiler context conflicts with staging Artifact"
+            )
+    compiler_observations_by_id = dict(context_observations_by_id)
+    for observation in observations:
+        observation_id = _text(observation.get("observationId"))
+        existing = compiler_observations_by_id.setdefault(
+            observation_id,
+            observation,
+        )
+        if _canonical(existing) != _canonical(observation):
+            raise GearReleaseIntegrityError(
+                "compiler context conflicts with staging Observation"
+            )
     # Compile the entire candidate universe from one immutable Evidence index.
     # Allowed-option rules can still resolve referenced option subjects through
     # that same index without rescanning every Artifact and Observation for
     # every equipment row.
     facts = gear_fact_compiler.compile_facts_by_subject(
         season_revision=season_revision,
-        observations=observations,
-        artifacts=artifacts,
+        observations=[
+            compiler_observations_by_id[observation_id]
+            for observation_id in sorted(compiler_observations_by_id)
+        ],
+        artifacts=[
+            compiler_artifacts_by_id[artifact_id]
+            for artifact_id in sorted(compiler_artifacts_by_id)
+        ],
         fact_types_by_subject=subject_fact_types,
+        precompiled_facts_by_subject_fact=context_facts_by_subject_fact,
     )
     return {
         "artifacts": sorted(artifacts, key=lambda row: row["artifactId"]),
@@ -1366,6 +1464,260 @@ def _compile_release_gear_evidence(
             for subject, fact_types in subject_fact_types.items()
         },
     }
+
+
+def _evidence_batch_slices(
+    rows: Iterable[Mapping[str, Any]],
+    batch_size: int,
+) -> Iterable[tuple[int, list[Mapping[str, Any]]]]:
+    values = list(rows)
+    for offset in range(0, len(values), batch_size):
+        yield offset, values[offset : offset + batch_size]
+
+
+def _stream_release_evidence_batches(
+    snapshot: dict[str, Any],
+    *,
+    season_revision: str,
+    source_revision: str,
+    captured_at: str,
+    socket_bonus_minimums: Mapping[str, Any],
+    socket_bonus_evidence: Mapping[str, Any],
+    batch_size: int,
+) -> Iterable[tuple[str, int, list[Mapping[str, Any]], dict[str, Any]]]:
+    """Compile one deterministic release category batch at a time.
+
+    Option evidence is the only cross-subject compiler input: it is built once
+    and then read by the allowed-option policy for item/variant batches.  It is
+    deliberately returned only in its own batch so append-only persistence does
+    not duplicate immutable Artifact or Observation rows.
+    """
+
+    if batch_size <= 0:
+        raise GearReleaseIntegrityError(
+            "evidence_batch_size must be a positive integer"
+        )
+
+    option_context_facts: dict[tuple[str, str], Mapping[str, Any]] = {}
+
+    def batch_snapshot(
+        category: str,
+        rows: list[Mapping[str, Any]],
+    ) -> dict[str, Any]:
+        return {
+            **snapshot,
+            category: rows,
+        }
+
+    # Compile options first so later allowed-option rules read the exact same
+    # immutable evidence universe as the old one-shot compiler.
+    for offset, rows in _evidence_batch_slices(
+        snapshot.get("options") or (),
+        batch_size,
+    ):
+        compiled = _compile_release_gear_evidence(
+            batch_snapshot("options", rows),
+            season_revision=season_revision,
+            source_revision=source_revision,
+            captured_at=captured_at,
+            socket_bonus_minimums=socket_bonus_minimums,
+            socket_bonus_evidence=socket_bonus_evidence,
+            categories=("options",),
+        )
+        for fact in compiled["facts"]:
+            if _text(fact.get("factType")) != "enhancement_option":
+                continue
+            identity = (_text(fact.get("subjectKey")), "enhancement_option")
+            existing = option_context_facts.setdefault(identity, fact)
+            if _canonical(existing) != _canonical(fact):
+                raise GearReleaseIntegrityError("compiler option Fact conflicts")
+        yield "options", offset, rows, compiled
+
+    # Variants consume item provenance.  Keep the source items untouched until
+    # every variant batch has compiled; projection happens only after a batch
+    # has already consumed its raw input.
+    for category in ("variants", "items"):
+        for offset, rows in _evidence_batch_slices(
+            snapshot.get(category) or (),
+            batch_size,
+        ):
+            compiled = _compile_release_gear_evidence(
+                batch_snapshot(category, rows),
+                season_revision=season_revision,
+                source_revision=source_revision,
+                captured_at=captured_at,
+                socket_bonus_minimums=socket_bonus_minimums,
+                socket_bonus_evidence=socket_bonus_evidence,
+                categories=(category,),
+                compiler_context_facts=option_context_facts,
+            )
+            yield category, offset, rows, compiled
+
+
+def _project_release_evidence_batch(
+    snapshot: dict[str, Any],
+    *,
+    category: str,
+    offset: int,
+    rows: list[Mapping[str, Any]],
+    compiled: Mapping[str, Any],
+) -> None:
+    """Apply one batch to the single release snapshot without cloning it all."""
+
+    projection_input = {
+        "items": rows if category == "items" else [],
+        "sources": [],
+        "variants": rows if category == "variants" else [],
+        "options": rows if category == "options" else [],
+    }
+    projected = _project_canonical_facts(
+        projection_input,
+        compiled.get("facts") or (),
+        compiled.get("rowSubjects") or {},
+        socket_claims_by_subject=(
+            compiled.get("socketClaimsBySubject") or {}
+        ),
+        socket_eligibility_by_item_id=(
+            compiled.get("socketEligibilityByItemId") or {}
+        ),
+    )
+    snapshot[category][offset : offset + len(rows)] = projected[category]
+
+
+def _evidence_receipt_identity(owner: str, row: Mapping[str, Any]) -> Any:
+    if owner == "artifacts":
+        return _text(row.get("artifactId"))
+    if owner == "observations":
+        return _text(row.get("observationId"))
+    if owner == "facts":
+        return (
+            _text(row.get("factKey")),
+            _text(row.get("factValueHash")),
+            _text(row.get("provenanceHash")),
+        )
+    return _text(row.get("gapKey"))
+
+
+class _StreamingEvidenceReceipt:
+    """Small deterministic receipt for an append-only streaming build."""
+
+    schema_revision = "gear-evidence-receipt-v2"
+
+    def __init__(self) -> None:
+        self._owners = {
+            owner: {"count": 0, "sequenceDigest": _canonical_digest({"owner": owner})}
+            for owner in ("artifacts", "observations", "facts", "gaps")
+        }
+        self.inserted_gaps = 0
+        self.reused_gaps = 0
+
+    def record(self, owner: str, rows: Iterable[Mapping[str, Any]]) -> None:
+        state = self._owners[owner]
+        for row in rows:
+            identity = _evidence_receipt_identity(owner, row)
+            if not identity or (
+                isinstance(identity, tuple) and not all(identity)
+            ):
+                raise GearReleaseIntegrityError(
+                    "streaming evidence receipt identity is incomplete"
+                )
+            state["sequenceDigest"] = _canonical_digest(
+                {
+                    "owner": owner,
+                    "previous": state["sequenceDigest"],
+                    "identity": identity,
+                }
+            )
+            state["count"] += 1
+
+    def record_persistence(
+        self,
+        result: Mapping[str, Any],
+        *,
+        artifacts: list[Mapping[str, Any]],
+        observations: list[Mapping[str, Any]],
+        facts: list[Mapping[str, Any]],
+        gaps: list[Mapping[str, Any]],
+    ) -> None:
+        expected_rows = {
+            "artifacts": artifacts,
+            "observations": observations,
+            "facts": facts,
+            "gaps": gaps,
+        }
+        for owner, rows in expected_rows.items():
+            persisted = result.get(owner) if isinstance(result, Mapping) else {}
+            persisted = persisted if isinstance(persisted, Mapping) else {}
+            count = (
+                _int(persisted.get("requested"))
+                if owner == "gaps"
+                else _int(persisted.get("persisted"))
+            )
+            if count != len(rows):
+                raise GearReleaseIntegrityError(
+                    "streaming evidence persistence receipt is incomplete"
+                )
+            self.record(owner, rows)
+        gaps_result = result.get("gaps") if isinstance(result, Mapping) else {}
+        gaps_result = gaps_result if isinstance(gaps_result, Mapping) else {}
+        self.inserted_gaps += _int(gaps_result.get("inserted"))
+        self.reused_gaps += _int(gaps_result.get("reused"))
+
+    def compilation(self) -> dict[str, Any]:
+        return {
+            owner: {
+                "count": state["count"],
+                "sequenceDigest": state["sequenceDigest"],
+            }
+            for owner, state in self._owners.items()
+        }
+
+    def persistence(self) -> dict[str, Any]:
+        result = {
+            owner: {
+                "persisted": state["count"],
+                "sequenceDigest": state["sequenceDigest"],
+            }
+            for owner, state in self._owners.items()
+        }
+        result["gaps"].update(
+            {
+                "requested": self._owners["gaps"]["count"],
+                "inserted": self.inserted_gaps,
+                "reused": self.reused_gaps,
+            }
+        )
+        return result
+
+
+def _canonical_fact_digest_from_snapshot(snapshot: Mapping[str, Any]) -> str:
+    rows = [
+        {
+            "factKey": _text(fact.get("factKey")),
+            "status": _text(fact.get("status")),
+            "factValueHash": _text(fact.get("factValueHash")),
+            "provenanceHash": _text(fact.get("provenanceHash")),
+        }
+        for category in ("items", "variants", "options")
+        for row in snapshot.get(category) or ()
+        if isinstance(row, Mapping)
+        for fact in (
+            row.get("payload", {}).get("canonicalFacts")
+            if isinstance(row.get("payload"), Mapping)
+            else ()
+        )
+        if isinstance(fact, Mapping)
+    ]
+    return _canonical_digest(
+        sorted(
+            rows,
+            key=lambda fact: (
+                fact["factKey"],
+                fact["factValueHash"],
+                fact["provenanceHash"],
+            ),
+        )
+    )
 
 
 def _project_canonical_facts(
@@ -1470,10 +1822,11 @@ def _project_canonical_enhancement_management(
     snapshot: dict[str, Any],
     *,
     capability_revision: str,
+    in_place: bool = False,
 ) -> dict[str, Any]:
     """Project field governance only from sealed canonical Facts and explicit echoes."""
 
-    projected = _canonical(snapshot)
+    projected = snapshot if in_place else _canonical(snapshot)
     if capability_revision != gear_socket_authority.CAPABILITY_REVISION:
         for variant in projected.get("variants") or ():
             if isinstance(variant, dict):
@@ -1707,10 +2060,12 @@ def _project_socket_facts_into_release_payloads(snapshot: dict[str, Any]) -> dic
 def _materialize_enhancement_management(
     snapshot: dict[str, Any],
     capability_revision: str,
+    *,
+    in_place: bool = False,
 ) -> dict[str, Any]:
     """Seal v2 field governance without treating absence as trusted source data."""
 
-    materialized = _canonical(snapshot)
+    materialized = snapshot if in_place else _canonical(snapshot)
     items_by_id = {
         _text(row.get("itemId")): row
         for row in materialized.get("items") or []
@@ -3002,6 +3357,206 @@ def community_template_import_evidence_from_template(
     }
 
 
+def _shadow_socket_payload(value: Any) -> Any:
+    """Keep only socket/pvp data needed to reconstruct a legacy shadow."""
+
+    if isinstance(value, Mapping):
+        selected: dict[str, Any] = {}
+        for key, child in value.items():
+            text_key = _text(key)
+            normalized = gear_socket_authority._normalized_key(text_key)
+            nested = _shadow_socket_payload(child)
+            if (
+                normalized in gear_socket_authority._SOCKET_PAYLOAD_KEYS
+                or normalized in {"ispvp", "pvp", "sourcerevision"}
+            ):
+                selected[text_key] = _canonical(child)
+            elif nested not in ({}, []):
+                selected[text_key] = nested
+        return selected
+    if isinstance(value, (list, tuple)):
+        selected = [
+            nested
+            for child in value
+            for nested in [_shadow_socket_payload(child)]
+            if nested not in ({}, [])
+        ]
+        return selected
+    return {}
+
+
+def _legacy_shadow_input(raw_snapshot: Mapping[str, Any]) -> dict[str, Any]:
+    """Build the minimal input that the legacy/canonical comparison can read."""
+
+    item_payload_fields = (
+        "inventoryType",
+        "armorType",
+        "weaponType",
+        "handedness",
+        "allowedSlots",
+        "baseCapabilities",
+        "equipmentUniqueness",
+        "allowedEnhancementRules",
+    )
+    variant_payload_fields = (
+        "capabilityOverrides",
+        "resolvedStats",
+        "enhancementManagement",
+        "allowedEnhancementRules",
+        "statEvidence",
+        "statSource",
+        "statDisplayStatus",
+        "itemStats",
+        "simcEncodedItem",
+        "simcItemId",
+        "simcItemLevel",
+    )
+    observed_gem_ids = {
+        token.strip()
+        for row in raw_snapshot.get("variants") or ()
+        if isinstance(row, Mapping)
+        and _text(row.get("sourceType")).lower() == "observed_profile"
+        and _text(row.get("status")).lower() in {"verified", "partial"}
+        for token in _text(
+            (row.get("simcOptions") or {}).get("gem_id")
+            if isinstance(row.get("simcOptions"), Mapping)
+            else ""
+        ).split("/")
+        if token.strip().isdigit()
+    }
+
+    def projected_payload(
+        payload: Any,
+        fields: Iterable[str],
+    ) -> dict[str, Any]:
+        source = payload if isinstance(payload, Mapping) else {}
+        result = {
+            field: _canonical(source[field])
+            for field in fields
+            if field in source
+        }
+        socket_payload = _shadow_socket_payload(source)
+        for key, value in socket_payload.items():
+            result.setdefault(key, value)
+        return result
+
+    items = []
+    for row in raw_snapshot.get("items") or ():
+        if not isinstance(row, Mapping):
+            continue
+        item_id = _text(row.get("itemId"))
+        fields = item_payload_fields + (
+            (
+                "_metadata",
+                "item_class",
+                "preview_item",
+                "_links",
+                "iconUrl",
+            )
+            if item_id in observed_gem_ids
+            else ()
+        )
+        items.append(
+            {
+                key: _canonical(row[key])
+                for key in (
+                    "itemId",
+                    "name",
+                    "slot",
+                    "hasSocket",
+                    "sourceRevision",
+                    "updatedAt",
+                )
+                if key in row
+            }
+            | {"payload": projected_payload(row.get("payload"), fields)}
+        )
+    sources = []
+    for row in raw_snapshot.get("sources") or ():
+        if not isinstance(row, Mapping):
+            continue
+        source_payload = row.get("payload") if isinstance(row.get("payload"), Mapping) else {}
+        sources.append(
+            {
+                key: _canonical(row[key])
+                for key in (
+                    "sourceId",
+                    "itemId",
+                    "sourceType",
+                    "seasonRevision",
+                    "status",
+                    "sourceStatus",
+                )
+                if key in row
+            }
+            | {
+                "payload": {
+                    key: _canonical(source_payload[key])
+                    for key in ("status", "sourceStatus")
+                    if key in source_payload
+                }
+            }
+        )
+    variants = []
+    for row in raw_snapshot.get("variants") or ():
+        if not isinstance(row, Mapping):
+            continue
+        variants.append(
+            {
+                key: _canonical(row[key])
+                for key in (
+                    "variantId",
+                    "itemId",
+                    "variantKey",
+                    "slot",
+                    "difficultyKey",
+                    "itemLevel",
+                    "simcOptions",
+                    "hasSocket",
+                    "sourceType",
+                    "status",
+                    "sourceRevision",
+                    "updatedAt",
+                )
+                if key in row
+            }
+            | {"payload": projected_payload(row.get("payload"), variant_payload_fields)}
+        )
+    options = []
+    for row in raw_snapshot.get("options") or ():
+        if not isinstance(row, Mapping):
+            continue
+        options.append(
+            {
+                key: _canonical(row[key])
+                for key in (
+                    "optionId",
+                    "variantId",
+                    "optionKey",
+                    "optionType",
+                    "name",
+                    "simcOptions",
+                    "applicableSlots",
+                    "status",
+                    "isVisible",
+                    "updatedAt",
+                )
+                if key in row
+            }
+            # Options are a bounded shared catalog.  Retain their payload
+            # verbatim so legacy enhancement governance keeps its established
+            # presentation/unique-gem semantics without cloning every item or
+            # variant payload.
+            | {"payload": _canonical(row.get("payload") or {})}
+        )
+    return {
+        "items": items,
+        "sources": sources,
+        "variants": variants,
+        "options": options,
+    }
+
+
 def _legacy_shadow_snapshot(
     raw_snapshot: Mapping[str, Any],
     *,
@@ -3019,25 +3574,11 @@ def _legacy_shadow_snapshot(
                 "sourceRevision"
             ],
         }
-        for bonus_id, minimum in verified_socket_evidence[
-            "minimums"
-        ].items()
+            for bonus_id, minimum in verified_socket_evidence[
+                "minimums"
+            ].items()
     }
-    legacy_socket_input = _canonical(raw_snapshot)
-    for category, field in (
-        ("items", "baseCapabilities"),
-        ("variants", "capabilityOverrides"),
-    ):
-        for row in legacy_socket_input.get(category) or ():
-            if not isinstance(row, dict):
-                continue
-            payload = (
-                row.get("payload")
-                if isinstance(row.get("payload"), dict)
-                else {}
-            )
-            if isinstance(payload.get(field), dict):
-                row[field] = _canonical(payload[field])
+    legacy_socket_input = _legacy_shadow_input(raw_snapshot)
     legacy_snapshot = _materialize_enhancement_management(
         _project_socket_facts_into_release_payloads(
             gear_socket_authority.materialize_gear_socket_facts(
@@ -3047,11 +3588,183 @@ def _legacy_shadow_snapshot(
             )
         ),
         capability_revision,
+        in_place=True,
     )
     legacy_snapshot["options"] = _canonical(
-        raw_snapshot.get("options") or []
+        legacy_socket_input.get("options") or ()
     )
     return legacy_snapshot
+
+
+def _prepare_staging_gear_release_streaming(
+    store: GearReleaseStore,
+    *,
+    season_revision: str,
+    dependency_revisions: dict[str, Any],
+    socket_bonus_evidence: Mapping[str, Any],
+    normalized_bonus_minimums: Mapping[str, Any],
+    source_revision: str,
+    parent_release_id: str,
+    captured_at: str,
+    evidence_batch_size: int,
+) -> dict[str, Any]:
+    """Build a full release with bounded transient Evidence work."""
+
+    if (
+        evidence_batch_size <= 0
+        or evidence_batch_size > _MAX_STREAMING_RELEASE_EVIDENCE_BATCH_SIZE
+    ):
+        raise GearReleaseIntegrityError(
+            "streaming evidence_batch_size is outside the bounded release envelope"
+        )
+
+    raw_snapshot = store.snapshot_staging_gear()
+    raw_snapshot_summary = gear_snapshot_summary(raw_snapshot)
+    legacy_snapshot = _legacy_shadow_snapshot(
+        raw_snapshot,
+        season_revision=season_revision,
+        capability_revision=_text(
+            dependency_revisions.get("capabilityRevision")
+        ),
+        socket_bonus_evidence=socket_bonus_evidence,
+    )
+    persist = getattr(store, "persist_gear_evidence_bundle", None)
+    if not callable(persist):
+        raise GearReleaseIntegrityError(
+            "Gear Evidence Registry persistence owner is required"
+        )
+
+    compilation_receipt = _StreamingEvidenceReceipt()
+    persistence_receipt = _StreamingEvidenceReceipt()
+    shadow_parts: list[dict[str, Any]] = []
+    gap_count = 0
+    for category, offset, rows, compiled in _stream_release_evidence_batches(
+        raw_snapshot,
+        season_revision=season_revision,
+        source_revision=source_revision,
+        captured_at=captured_at,
+        socket_bonus_minimums=normalized_bonus_minimums,
+        socket_bonus_evidence=socket_bonus_evidence,
+        batch_size=evidence_batch_size,
+    ):
+        artifacts = list(compiled["artifacts"])
+        observations = list(compiled["observations"])
+        facts = list(compiled["facts"])
+        gaps = _gear_evidence_gap_records(facts, now=captured_at)
+        persistence = persist(
+            artifacts=artifacts,
+            observations=observations,
+            facts=facts,
+            gaps=gaps,
+            now=captured_at,
+        )
+        for owner, evidence_rows in (
+            ("artifacts", artifacts),
+            ("observations", observations),
+            ("facts", facts),
+            ("gaps", gaps),
+        ):
+            compilation_receipt.record(owner, evidence_rows)
+        persistence_receipt.record_persistence(
+            persistence,
+            artifacts=artifacts,
+            observations=observations,
+            facts=facts,
+            gaps=gaps,
+        )
+        shadow_part = gear_fact_shadow.compare_legacy_and_canonical(
+            legacy_snapshot,
+            facts,
+            expected_fact_types_by_subject=(
+                compiled["expectedFactTypesBySubject"]
+            ),
+            include_comparisons=False,
+        )
+        if shadow_part["status"] != "pass":
+            raise GearReleaseIntegrityError(
+                "canonical fact shadow blocked candidate: "
+                + ", ".join(
+                    _text(blocker.get("code"))
+                    for blocker in shadow_part.get("blockers") or ()
+                )
+            )
+        shadow_parts.append(shadow_part)
+        gap_count += len(gaps)
+        _project_release_evidence_batch(
+            raw_snapshot,
+            category=category,
+            offset=offset,
+            rows=rows,
+            compiled=compiled,
+        )
+
+    shadow = gear_fact_shadow.merge_compact_shadow_results(shadow_parts)
+    if shadow["status"] != "pass":
+        raise GearReleaseIntegrityError("canonical fact shadow blocked candidate")
+    snapshot = _project_canonical_enhancement_management(
+        raw_snapshot,
+        capability_revision=_text(
+            dependency_revisions.get("capabilityRevision")
+        ),
+        in_place=True,
+    )
+    problems = validate_gear_snapshot(snapshot)
+    if problems:
+        raise GearReleaseIntegrityError(
+            json.dumps(problems, ensure_ascii=False, sort_keys=True)
+        )
+    summary = gear_snapshot_summary(snapshot)
+    release = gear_release.build_release(
+        release_kind="gear",
+        season_revision=season_revision,
+        schema_revision="gear-release-v1",
+        content=summary,
+        dependency_revisions=dependency_revisions,
+        release_status="validated",
+        source={
+            "sourceRevision": source_revision,
+            "stagingSnapshotHash": raw_snapshot_summary["snapshotHash"],
+            "sourceEvidence": {
+                "simcRuntimeRevision": _text(
+                    dependency_revisions.get("simcRuntimeRevision")
+                ),
+                "socketProbeDigest": _socket_probe_digest(
+                    socket_bonus_evidence
+                ),
+                "socketBonusEvidence": socket_bonus_evidence,
+                "materializedSocketFactDigest": _materialized_socket_fact_digest(
+                    snapshot
+                ),
+                "compilerPolicyDigest": _canonical_digest(
+                    gear_fact_compiler.FACT_POLICIES
+                ),
+                "canonicalFactDigest": _canonical_fact_digest_from_snapshot(
+                    snapshot
+                ),
+            },
+        },
+        parent_release_id=parent_release_id,
+    )
+    gate = {
+        "status": "validated",
+        **summary,
+        "evidenceStream": {
+            "schemaRevision": "gear-evidence-stream-v1",
+            "batchSize": evidence_batch_size,
+            "rowOrderRevision": "staging-category-v1",
+        },
+        "factShadow": shadow,
+        "evidenceCompilation": {
+            "schemaRevision": compilation_receipt.schema_revision,
+            **compilation_receipt.compilation(),
+        },
+        "evidencePersistence": {
+            "schemaRevision": persistence_receipt.schema_revision,
+            **persistence_receipt.persistence(),
+        },
+        "evidenceGapCount": gap_count,
+    }
+    return {"release": release, "snapshot": snapshot, "gate": gate}
 
 
 def prepare_staging_gear_release(
@@ -3065,6 +3778,7 @@ def prepare_staging_gear_release(
     evidence_now: str = "",
     extra_artifacts: Iterable[Mapping[str, Any]] = (),
     extra_observations: Iterable[Mapping[str, Any]] = (),
+    evidence_batch_size: int | None = None,
 ) -> dict[str, Any]:
     socket_bonus_evidence = _validated_socket_bonus_evidence(
         socket_bonus_minimums
@@ -3077,6 +3791,22 @@ def prepare_staging_gear_release(
         for bonus_id, minimum in socket_bonus_evidence["minimums"].items()
     }
     captured_at = _text(evidence_now) or datetime.now(timezone.utc).isoformat()
+    if evidence_batch_size is not None:
+        if extra_artifacts or extra_observations:
+            raise GearReleaseIntegrityError(
+                "streaming release build does not accept gap-recovery inputs"
+            )
+        return _prepare_staging_gear_release_streaming(
+            store,
+            season_revision=season_revision,
+            dependency_revisions=dependency_revisions,
+            socket_bonus_evidence=socket_bonus_evidence,
+            normalized_bonus_minimums=normalized_bonus_minimums,
+            source_revision=source_revision,
+            parent_release_id=parent_release_id,
+            captured_at=captured_at,
+            evidence_batch_size=_int(evidence_batch_size),
+        )
     raw_snapshot = store.snapshot_staging_gear()
     raw_snapshot_summary = gear_snapshot_summary(raw_snapshot)
     legacy_snapshot = _legacy_shadow_snapshot(
@@ -3252,6 +3982,7 @@ def build_legacy_gear_release(
     dependency_revisions: dict[str, Any],
     socket_bonus_minimums: Mapping[str, Any],
     source_revision: str = "legacy-import-r0",
+    evidence_batch_size: int = _FULL_RELEASE_EVIDENCE_BATCH_SIZE,
 ) -> dict[str, Any]:
     prepared = prepare_staging_gear_release(
         store,
@@ -3259,6 +3990,7 @@ def build_legacy_gear_release(
         dependency_revisions=dependency_revisions,
         socket_bonus_minimums=socket_bonus_minimums,
         source_revision=source_revision,
+        evidence_batch_size=evidence_batch_size,
     )
     release = prepared["release"]
     snapshot = prepared["snapshot"]

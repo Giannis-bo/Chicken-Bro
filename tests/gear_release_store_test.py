@@ -35,6 +35,8 @@ class FakeCursor:
             if marker in normalized:
                 if isinstance(rows, dict):
                     self.current_rows = list(rows.get(tuple(params or ()), rows.get("*", [])))
+                elif callable(rows):
+                    self.current_rows = list(rows(tuple(params or ())))
                 else:
                     self.current_rows = list(rows)
                 if marker not in self.rowcounts:
@@ -1141,6 +1143,254 @@ class GearReleaseStoreTest(unittest.TestCase):
         # every persisted fact. Per-fact replays would make full catalog seals
         # grow quadratically with the evidence universe.
         self.assertEqual(compile_batch.call_count, 2)
+
+    def test_seal_gear_release_replays_compact_streaming_receipt_in_batches(self):
+        from server import gear_release_tool
+
+        raw_snapshot = self.canonical_staging_snapshot()
+        raw_snapshot["items"][0]["payload"]["baseCapabilities"] = {
+            "socketCount": 1,
+            "canEnchant": True,
+            "canEmbellish": False,
+        }
+        raw_snapshot["variants"][0]["payload"]["capabilityOverrides"] = {
+            "socketCount": 1,
+            "canEnchant": True,
+            "canEmbellish": False,
+        }
+        raw_snapshot["variants"][0]["simcOptions"]["bonus_id"] = "9300"
+        raw_snapshot["variants"][0]["payload"]["canonicalEvidence"] = {
+            "sourceType": "season_rule",
+            "sourceIdentity": "season-rule:variant-a",
+            "sourceRevision": "season-17",
+            "sourceScope": "exact_variant",
+            "status": "verified",
+            "claims": [
+                "slot_compatibility",
+                "socket_count",
+                "enchant_capability",
+                "embellishment_capability",
+                "allowed_enhancement_options",
+            ],
+        }
+        raw_snapshot["variants"][0]["payload"]["allowedEnhancementRules"] = [
+            {
+                "capabilityFactType": "socket_count",
+                "optionIds": ["gem-a"],
+                "slot": "head",
+            }
+        ]
+        raw_snapshot["options"][0]["payload"] = {
+            "evidenceSource": "simulationcraft",
+            "optionEvidence": {
+                "sourceType": "simc_item_probe",
+                "sourceIdentity": "simc-option:gem-a",
+                "sourceRevision": "simc-options-2026-07-11",
+                "sourceScope": "option",
+                "status": "verified",
+            },
+        }
+        item_b = copy.deepcopy(raw_snapshot["items"][0])
+        item_b.update({"itemId": "item-b", "name": "Item B"})
+        item_b["payload"]["_metadata"]["gameAsset"].update({
+            "sourceIdentity": "battle-net:item:item-b",
+        })
+        source_b = copy.deepcopy(raw_snapshot["sources"][0])
+        source_b.update({
+            "sourceId": "source-b",
+            "itemId": "item-b",
+            "sourceKey": "profile:b",
+        })
+        variant_b = copy.deepcopy(raw_snapshot["variants"][0])
+        variant_b.update({
+            "variantId": "variant-b-id",
+            "itemId": "item-b",
+            "variantKey": "variant-b",
+        })
+        raw_snapshot["items"].append(item_b)
+        raw_snapshot["sources"].append(source_b)
+        raw_snapshot["variants"].append(variant_b)
+        # Force the preparation stream to have a different row order from the
+        # compiler's Artifact-ID order.  Seal must replay the preparation
+        # schedule, not substitute its own default batch boundary/order.
+        item_evidence = gear_release_tool._compile_release_gear_evidence(
+            raw_snapshot,
+            season_revision="season-17",
+            source_revision="canonical-store-test",
+            captured_at="2026-07-27T06:00:00+00:00",
+            socket_bonus_minimums={"9300": {"minimumTotal": 1, "sourceRevision": "simc-r1"}},
+            socket_bonus_evidence=self.trusted_socket_evidence(),
+            categories=("items",),
+        )
+        item_order = [
+            row["payload"]["itemId"]
+            for row in item_evidence["artifacts"]
+            if row["sourceIdentity"].startswith("battle-net:item:")
+        ]
+        self.assertEqual(set(item_order), {"item-a", "item-b"})
+        items_by_id = {row["itemId"]: row for row in raw_snapshot["items"]}
+        raw_snapshot["items"] = [items_by_id[item_id] for item_id in reversed(item_order)]
+
+        class BuilderStore:
+            def __init__(self, snapshot):
+                self.snapshot = snapshot
+                self.bundles = []
+
+            def snapshot_staging_gear(self):
+                return copy.deepcopy(self.snapshot)
+
+            def persist_gear_evidence_bundle(
+                self,
+                *,
+                artifacts,
+                observations,
+                facts,
+                gaps,
+                now,
+            ):
+                self.bundles.append({
+                    "artifacts": copy.deepcopy(artifacts),
+                    "observations": copy.deepcopy(observations),
+                    "facts": copy.deepcopy(facts),
+                    "gaps": copy.deepcopy(gaps),
+                })
+                return {
+                    "artifacts": {"persisted": len(artifacts)},
+                    "observations": {"persisted": len(observations)},
+                    "facts": {"persisted": len(facts)},
+                    "gaps": {
+                        "requested": len(gaps),
+                        "inserted": len(gaps),
+                        "reused": 0,
+                    },
+                }
+
+        builder = BuilderStore(raw_snapshot)
+        prepared = gear_release_tool.prepare_staging_gear_release(
+            builder,
+            season_revision="season-17",
+            dependency_revisions=self.dependencies(),
+            socket_bonus_minimums=self.trusted_socket_evidence(),
+            source_revision="canonical-store-test",
+            evidence_now="2026-07-27T06:00:00+00:00",
+            evidence_batch_size=1,
+        )
+        self.assertEqual(prepared["gate"]["evidenceStream"]["batchSize"], 1)
+        artifacts = {
+            row["artifactId"]: row
+            for bundle in builder.bundles
+            for row in bundle["artifacts"]
+        }
+        observations = {
+            row["observationId"]: row
+            for bundle in builder.bundles
+            for row in bundle["observations"]
+        }
+        facts = {
+            (
+                row["factKey"],
+                row["factValueHash"],
+                row["provenanceHash"],
+            ): row
+            for bundle in builder.bundles
+            for row in bundle["facts"]
+        }
+        allowed_option_fact = next(
+            row
+            for row in facts.values()
+            if row["subjectKey"] == "item:item-a/variant:variant-a"
+            and row["factType"] == "allowed_enhancement_options"
+        )
+        self.assertEqual(allowed_option_fact["status"], "verified")
+        self.assertEqual(allowed_option_fact["value"], ["gem-a"])
+        gaps = {
+            row["gapKey"]: row
+            for bundle in builder.bundles
+            for row in bundle["gaps"]
+        }
+        artifact_rows = {
+            artifact_id: (
+                row["artifactId"],
+                row["schemaRevision"],
+                row["sourceType"],
+                row["sourceIdentity"],
+                row["sourceRevision"],
+                row["seasonRevision"],
+                row["capturedAt"],
+                row["payloadHash"],
+                row["payload"],
+            )
+            for artifact_id, row in artifacts.items()
+        }
+        observation_rows = {
+            observation_id: (
+                row["observationId"],
+                row["artifactId"],
+                row["schemaRevision"],
+                row["subjectKey"],
+                row["factType"],
+                row["observedValue"],
+                row["parserRevision"],
+                row["sourceScope"],
+                row["status"],
+            )
+            for observation_id, row in observations.items()
+        }
+
+        def streamed_evidence_rows(params):
+            observation_ids = set(params[0])
+            return [
+                observation_rows[observation_id] + artifact_rows[
+                    observation_rows[observation_id][1]
+                ]
+                for observation_id in observation_ids
+                if observation_id in observation_rows
+            ]
+
+        def streamed_gap_rows(params):
+            return [
+                (
+                    gap["gapKey"],
+                    gap["factKey"],
+                    gap["problemCode"],
+                    gap["missingRequirement"],
+                    "pending",
+                )
+                for gap_key, gap in gaps.items()
+                if gap_key in set(params[0])
+            ]
+
+        fact_rows = [
+            (
+                row["factKey"],
+                row["schemaRevision"],
+                row["subjectKey"],
+                row["factType"],
+                row["value"],
+                row["status"],
+                row["observationRefs"],
+                row["factValueHash"],
+                row["provenanceHash"],
+                row["compilerRuleRevision"],
+            )
+            for row in facts.values()
+        ]
+        conn = FakeConnection(rowsets={
+            **self.staging_rowsets(raw_snapshot),
+            "FROM cache.websim_release_registry": [],
+            "JOIN cache.websim_gear_canonical_facts": fact_rows,
+            "gear_release_complete_evidence_stream_batch": streamed_evidence_rows,
+            "gear_release_active_gap_stream_batch": streamed_gap_rows,
+        })
+
+        result = self.trusted_gear_store(conn).seal_gear_release(
+            prepared["release"],
+            prepared["snapshot"],
+            gate_result=prepared["gate"],
+        )
+
+        self.assertEqual(result["status"], "inserted")
+        self.assertTrue(conn.committed)
 
     def test_direct_gear_seal_rejects_each_missing_canonical_gate_binding(self):
         from server import gear_release_store

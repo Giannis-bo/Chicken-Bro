@@ -786,6 +786,9 @@ def _compile_allowed_options(
     observations_by_subject_fact: Mapping[
         tuple[str, str], Sequence[Mapping[str, Any]]
     ] | None = None,
+    precompiled_facts_by_subject_fact: Mapping[
+        tuple[str, str], Mapping[str, Any]
+    ] | None = None,
 ) -> dict[str, Any]:
     fact_type = "allowed_enhancement_options"
     policy = policies.get(fact_type)
@@ -867,15 +870,24 @@ def _compile_allowed_options(
             dependency_missing = True
 
         for option_id in basis["optionIds"]:
-            option_fact = _compile_one(
-                season_revision=season_revision,
-                subject_key=f"option:{option_id}",
-                fact_type="enhancement_option",
-                observations=observations,
-                artifacts_by_id=artifacts_by_id,
-                policy=policies.get("enhancement_option"),
-                observations_by_subject_fact=observations_by_subject_fact,
+            option_subject_key = f"option:{option_id}"
+            option_fact = (
+                precompiled_facts_by_subject_fact.get(
+                    (option_subject_key, "enhancement_option")
+                )
+                if precompiled_facts_by_subject_fact is not None
+                else None
             )
+            if not isinstance(option_fact, Mapping):
+                option_fact = _compile_one(
+                    season_revision=season_revision,
+                    subject_key=option_subject_key,
+                    fact_type="enhancement_option",
+                    observations=observations,
+                    artifacts_by_id=artifacts_by_id,
+                    policy=policies.get("enhancement_option"),
+                    observations_by_subject_fact=observations_by_subject_fact,
+                )
             observation_refs.extend(option_fact["observationRefs"])
             if option_fact["status"] == "unresolved_conflict":
                 dependency_conflict = True
@@ -964,6 +976,9 @@ def _compile_subject_facts_prepared(
     artifacts_by_id: Mapping[str, Mapping[str, Any] | None],
     fact_types: set[str],
     policies: Mapping[str, Mapping[str, Any]],
+    precompiled_facts_by_subject_fact: Mapping[
+        tuple[str, str], Mapping[str, Any]
+    ] | None = None,
 ) -> list[dict[str, Any]]:
     facts: list[dict[str, Any]] = []
     for fact_type in sorted(fact_types):
@@ -976,6 +991,9 @@ def _compile_subject_facts_prepared(
                     observations_by_subject_fact=observations_by_subject_fact,
                     artifacts_by_id=artifacts_by_id,
                     policies=policies,
+                    precompiled_facts_by_subject_fact=(
+                        precompiled_facts_by_subject_fact
+                    ),
                 )
             )
         else:
@@ -1031,6 +1049,9 @@ def compile_facts_by_subject(
     fact_types_by_subject: Mapping[Any, Iterable[Any]],
     artifacts: Any = (),
     policies: Mapping[str, Mapping[str, Any]] | None = None,
+    precompiled_facts_by_subject_fact: Mapping[
+        tuple[str, str], Mapping[str, Any]
+    ] | None = None,
 ) -> list[dict[str, Any]]:
     """Compile selected facts for many subjects from one indexed evidence universe."""
 
@@ -1061,6 +1082,9 @@ def compile_facts_by_subject(
                 artifacts_by_id=artifacts_by_id,
                 fact_types=requested[subject_key],
                 policies=selected_policies,
+                precompiled_facts_by_subject_fact=(
+                    precompiled_facts_by_subject_fact
+                ),
             )
         )
     return sorted(

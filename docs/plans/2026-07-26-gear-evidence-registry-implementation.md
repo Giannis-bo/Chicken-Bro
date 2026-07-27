@@ -431,6 +431,64 @@
 
   Completed on 2026-07-27 at runtime commit `dd0489b9a020f94377d291b15acc7c47981027b5` and tree `e7108a507a047a341e9adbb1ad8696570754b297`. The pushed branch matches the runtime commit. The fresh scoped Python suite passed 725 tests in 22.838s, the two-file Taro suite passed 34 tests, and the UI architecture audit passed 283 checks. This remains local verification only; a new isolated root/database, bounded build, release seal, service smoke, and real-WeChat acceptance remain Step 4/5 work.
 
+- [ ] **Step 3.7: Replace the full-catalog peak-memory path with a bounded streaming release build**
+
+  The r5 failure is a release-build implementation defect, not a reason to relax
+  the candidate resource envelope: preparation retained a full raw snapshot,
+  full Artifact/Observation/Fact collections, a full legacy/canonical shadow,
+  and later re-created the same full evidence universe during seal. On a 4GB
+  shared host that can exhaust retail headroom even when the candidate remains
+  inside its own `MemoryMax`. The correction must retain the same fail-closed
+  release semantics while bounding transient work to one deterministic subject
+  batch plus the returned release snapshot.
+
+  1. Add failing focused tests that run the release preparation with a tiny
+     batch size and prove it produces the same projected snapshot, release
+     identity/content hash, gap set, and `250033/void_upgrade-298` socket fact
+     as the current deterministic compiler. Include an allowed-option rule
+     whose referenced option belongs to a different batch, a regression that
+     must still block shadow, and a receipt-tamper case that must still block
+     seal. The tests must exercise real compiler/store behavior, not assert
+     internal call counts.
+  2. Compile and persist immutable Evidence in deterministic batches. Option
+     evidence required by an item/variant allowed-option rule is a read-only
+     compiler context, never a duplicate persistence write. Project each
+     completed batch into the one release snapshot in place; do not retain a
+     second canonical snapshot or a whole-catalog Fact list. Preserve the
+     existing monolithic helper only for narrow callers and explicitly supplied
+     gap-recovery inputs until that path receives its own bounded treatment.
+  3. Replace full comparison arrays and identity arrays in the streaming gate
+     with a versioned, deterministic compact receipt (counts plus a
+     digest). The compact shadow must still classify every fact and fail closed
+     on any regression or unclassified difference. Legacy v1 receipts/shadows
+     remain verifiable so existing releases are not reinterpreted.
+  4. Make `GearReleaseStore` replay the expected evidence and validate receipt,
+     Fact, gap, and shadow semantics in the same deterministic batches. It may
+     never trust a compact digest without re-reading immutable Store rows; it
+     must reject missing, duplicated, tampered, or cross-batch observations.
+  5. Re-run the focused tool/store/shadow/compiler suites, then the complete
+     scoped backend and Taro matrix. Run independent review and local CR,
+     create a new immutable runtime checkpoint, and use a new isolated
+     candidate root/database only after its capacity preflight. Do not retry r5,
+     merge `main`, switch a Manifest, or touch retail in this step.
+
+  Implementation/local verification progress on 2026-07-27: the release path
+  now persists and projects one deterministic batch at a time, writes a compact
+  v2 shadow/receipt, and seals by independently replaying the same bounded
+  schedule from Store rows. The schedule is sealed with its batch size and
+  order revision; later item/variant batches reuse one compact option-Fact map
+  rather than raw option Artifacts/Observations. TDD covers a cross-batch
+  option rule, no duplicate option persistence, a deliberately unordered
+  multi-row prepare/seal replay, receipt tampering, and the Store's independent
+  `allowed_enhancement_options` replay. The focused suite passed 146 tests;
+  the complete scoped Python suite passed 727 tests in 22.235s; the two-file
+  Taro suite passed 34 tests; and the UI architecture audit passed 283 checks.
+  The non-failing pre-existing SQLite `ResourceWarning` messages remain. A
+  second independent local CR found no remaining P1/P2 after the added Store
+  replay coverage. This step remains unchecked until a newly committed and
+  pushed immutable checkpoint is deployed to a new isolated candidate root and
+  its bounded full-catalog build is observed.
+
 - [ ] **Step 4: Execute candidate-only deployment verification**
 
   Deploy the branch/commit to the approved candidate path with `WOW_DEPLOY_START_ASYNC_SYNCS=0`; record release/manifest identities, runtime file parity, health component state, worker state, exact API payloads, and the fallback Manifest revision. Do not merge or activate production here.
