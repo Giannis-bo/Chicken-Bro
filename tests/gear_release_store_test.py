@@ -90,6 +90,18 @@ class FakeConnection:
         self.closed = True
 
 
+class NamedCursorConnection(FakeConnection):
+    """Connection double that records server-side cursor requests."""
+
+    def __init__(self, rowsets=None, rowcounts=None):
+        super().__init__(rowsets=rowsets, rowcounts=rowcounts)
+        self.cursor_names = []
+
+    def cursor(self, name=None):
+        self.cursor_names.append(name)
+        return self.cursor_instance
+
+
 class GearReleaseStoreTest(unittest.TestCase):
     def dependencies(self):
         return {
@@ -693,6 +705,20 @@ class GearReleaseStoreTest(unittest.TestCase):
         self.assertEqual(conn.cursor_instance.fetchall_calls, 0)
         self.assertGreaterEqual(len(conn.cursor_instance.fetchmany_calls), 8)
         self.assertIs(snapshot["variants"][0]["payload"], variant_payload)
+
+    def test_snapshot_staging_gear_uses_a_server_side_cursor_when_supported(self):
+        from server.gear_release_store import GearReleaseStore
+
+        conn = NamedCursorConnection(rowsets={
+            "FROM cache.websim_items": [],
+            "FROM cache.websim_gear_sources": [],
+            "FROM cache.websim_gear_variants": [],
+            "FROM cache.websim_gear_mod_options": [],
+        })
+
+        GearReleaseStore(lambda: conn).snapshot_staging_gear()
+
+        self.assertIn("gear_release_staging_snapshot", conn.cursor_names)
 
     def test_gear_snapshot_summary_sorts_serialized_rows_without_deep_copying_catalog(self):
         from server import gear_release_store

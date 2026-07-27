@@ -978,8 +978,18 @@ class GearReleaseStore:
             return records
 
         with self.connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
+            with conn.cursor() as setup_cursor:
+                setup_cursor.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
+            # psycopg's unnamed cursor buffers a complete result after execute(),
+            # so fetchmany() alone does not put a bound on the catalog-sized
+            # staging read.  A named cursor keeps those rows on PostgreSQL until
+            # each bounded fetch.  Keep the compatibility fallback for the
+            # lightweight cursor doubles used by local verification.
+            try:
+                cursor = conn.cursor(name="gear_release_staging_snapshot")
+            except TypeError:
+                cursor = conn.cursor()
+            with cursor as cur:
                 items = read_rows(
                     cur,
                     """
