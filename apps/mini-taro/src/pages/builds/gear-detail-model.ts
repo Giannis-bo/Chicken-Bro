@@ -703,8 +703,41 @@ function gearItemState(item: GearItemReference | undefined): 'ready' | 'partial'
   return item ? gearCandidateEligibilityState(item) : 'blocked'
 }
 
+function exactCandidateSelectionKey(item: GearItemReference): string {
+  const itemId = gearItemId(item)
+  const variantKey = text(item.variantKey)
+  if (!itemId || !variantKey || variantKey === 'needs-variant') return ''
+  return `${itemId}:${variantKey}`
+}
+
+function hasNeedsVariantPlaceholder(item: GearItemReference): boolean {
+  if (text(item.variantKey) === 'needs-variant') return true
+  const variants = Array.isArray(item.variants) ? item.variants : []
+  return variants.some((variant) => {
+    if (!variant || typeof variant !== 'object' || Array.isArray(variant)) return false
+    const record = variant as Record<string, unknown>
+    return text(record.variantKey) === 'needs-variant' || text(record.key) === 'needs-variant'
+  })
+}
+
+export function exactSelectableGearCandidates(
+  items: readonly GearItemReference[],
+): readonly GearItemReference[] {
+  const releasedExactKeys = new Set(
+    items
+      .filter((item) => gearItemState(item) === 'ready')
+      .map(exactCandidateSelectionKey)
+      .filter(Boolean),
+  )
+  return items.filter((item) => !(
+    gearItemState(item) !== 'ready'
+    && hasNeedsVariantPlaceholder(item)
+    && releasedExactKeys.has(exactCandidateSelectionKey(item))
+  ))
+}
+
 export function gearCandidates(items: readonly GearItemReference[]): readonly GearCandidateView[] {
-  return items.map((item, index) => {
+  return exactSelectableGearCandidates(items).map((item, index) => {
     const level = gearItemLevel(item)
     const iconUrl = gearItemIconUrl(item)
     return {

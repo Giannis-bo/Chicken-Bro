@@ -396,11 +396,13 @@
 - Modify: `docs/backend-owner-map.json`
 - Modify: legacy modules named by caller-proof search in `server/gear_socket_authority.py`, `server/gear_release_tool.py`, `server/pg_gear_authority_loader.py`, `server/websim_payload.py`, and `apps/mini-taro/src/pages/builds/gear-detail-model.ts`
 
-- [ ] **Step 1: Add failing end-to-end characterization tests**
+- [x] **Step 1: Add failing end-to-end characterization tests**
 
   Build a candidate snapshot with the canonical compiler and assert: no partial/needs-variant duplicate leaks as an exact selection; browse/Resolve/Taro agree for 250033; a missing capability affects only its own controls; and no-op refresh leaves the active/candidate release identity unchanged.
 
-- [ ] **Step 2: Run the scoped backend and frontend suite before cutover changes**
+  Completed before candidate work. The characterization coverage remains local-only; it creates no candidate release, does not deploy a service, and does not change a Manifest.
+
+- [x] **Step 2: Run the scoped backend and frontend suite before cutover changes**
 
   Run:
 
@@ -409,13 +411,23 @@
   & 'C:\Users\blizz\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' --test apps/mini-taro/src/pages/builds/gear-detail-model.test.ts apps/mini-taro/src/pages/builds/detail.test.tsx
   ```
 
-- [ ] **Step 3: Write the candidate deployment and rollback runbook**
+  Fresh local result on 2026-07-27: `python3 -m unittest` passed **722 tests** in 21.149s. The exact two-file Taro Vitest invocation passed **34 tests**. The Python process emitted pre-existing non-failing unclosed SQLite `ResourceWarning` messages; neither result is candidate, deployment, real-WeChat, user-acceptance, Manifest-CAS, or closure evidence.
+
+- [x] **Step 3: Write the candidate deployment and rollback runbook**
 
   Document exact sequence: schema migration backup/check, Artifact import, Observation replay, shadow report review, candidate Gear Release identity, candidate deploy parity, health/API/Resolve smoke, Taro route manual acceptance, explicit active Manifest CAS, and rollback to the previous existing Manifest revision. State that registry rows survive rollback and no active pointer changes without explicit user authorization.
+
+  The fail-closed procedure is recorded in [gear-evidence-registry-cutover.md](../runbooks/gear-evidence-registry-cutover.md). It requires a separately identified candidate PostgreSQL target, tree/root/service/port, a backup before the sequential `0019` then `0020` migrations, and an explicit retail authorization boundary. It does not create a candidate or Active Season Manifest merely by existing.
+
+- [ ] **Step 3.5: Bind an immutable pre-candidate runtime checkpoint**
+
+  After the runbook and packet are final, perform final local CR, commit and push the complete runtime slice, require a clean task branch, re-run the scoped backend/frontend suites, and bind the exact committed `HEAD` and tree hash in the evidence packet. Candidate deployment may use only that committed tree. Later evidence-only changes may append evidence but must not modify runtime source, build inputs, or the bound candidate identity; any such modification requires a new checkpoint and candidate window.
 
 - [ ] **Step 4: Execute candidate-only deployment verification**
 
   Deploy the branch/commit to the approved candidate path with `WOW_DEPLOY_START_ASYNC_SYNCS=0`; record release/manifest identities, runtime file parity, health component state, worker state, exact API payloads, and the fallback Manifest revision. Do not merge or activate production here.
+
+  The candidate public API service is read-only with collectors disabled and must bind its inactive candidate Gear/Community Release through the dedicated candidate-release configuration, not a candidate Manifest CAS. Migration, Artifact/Observation replay, and bounded worker/recompiler execution run only as separately named writable one-off processes against the isolated candidate database.
 
 - [ ] **Step 5: Obtain explicit user acceptance for the real Taro route and active cutover**
 
@@ -423,7 +435,7 @@
 
 - [ ] **Step 6: Cut over atomically and prove rollback remains available**
 
-  On explicit acceptance only, activate the candidate through the existing Manifest CAS, run fresh API/Resolve/Taro smoke, and prove previous Manifest rollback. Then remove compatibility writers/readers found by caller-proof search so no `hasSocket` or enhancement capability truth remains outside Canonical Fact projection.
+  On explicit acceptance only, first complete final CR and evidence, commit/push the task branch, merge/push `main`, prove local/remote SHA parity, and re-run scoped verification on the merge result. Back up retail and deploy compatible code/schema; deterministically replay the same immutable Artifact/Observation inputs and revisions into retail, materialize retail releases, and prove their IDs/content hashes/digests equal the accepted candidate releases. Only then re-read a fresh retail pointer generation, execute the existing Manifest CAS, run fresh API/Resolve/Taro smoke, and prove previous Manifest rollback. Then remove compatibility writers/readers found by caller-proof search so no `hasSocket` or enhancement capability truth remains outside Canonical Fact projection.
 
 - [ ] **Step 7: Run final Harness verification and commit documentation/caller-proof cleanup**
 

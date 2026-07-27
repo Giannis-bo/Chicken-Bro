@@ -12,11 +12,11 @@ from typing import Any, Iterable, Mapping
 try:
     from . import gear_release
     from .attribute_rule_audit import build_winner_audit_intents
-    from .gear_release_store import canonical_row_hash
+    from .gear_release_store import canonical_row_hash, community_rows_summary
 except ImportError:
     import gear_release
     from attribute_rule_audit import build_winner_audit_intents
-    from gear_release_store import canonical_row_hash
+    from gear_release_store import canonical_row_hash, community_rows_summary
 
 
 _ROW_IDENTITIES = {
@@ -423,13 +423,29 @@ def build_staging_candidates(
         parent_release_id=_text(active_community.get("parentReleaseId")),
     )
     candidate_community = prepared_community.get("release") if isinstance(prepared_community.get("release"), dict) else {}
+    candidate_rows = [row for row in prepared_community.get("rows") or [] if isinstance(row, dict)]
+    active_pair = store.load_community_release(active_gear_id, active_community_id)
+    active_rows = active_pair.get("rows") if isinstance(active_pair, dict) else None
+    active_winners = active_pair.get("winners") if isinstance(active_pair, dict) else []
+    community_rows_unchanged = isinstance(active_rows, list) and (
+        community_rows_summary(candidate_rows) == active_community.get("content")
+    )
+    community_semantics_unchanged = all(
+        candidate_community.get(key) == active_community.get(key)
+        for key in (
+            "schemaRevision",
+            "releaseStatus",
+            "seasonRevision",
+            "dependencyRevisions",
+            "source",
+            "parentReleaseId",
+            "validatedAgainstReleaseId",
+        )
+    )
     can_reuse_active_community = (
         candidate_gear.get("releaseId") == active_gear_id
-        and candidate_community.get("content") == active_community.get("content")
-        and candidate_community.get("dependencyRevisions") == active_community.get("dependencyRevisions")
-        and candidate_community.get("releaseStatus") == active_community.get("releaseStatus")
-        and candidate_community.get("seasonRevision") == active_community.get("seasonRevision")
-        and candidate_community.get("schemaRevision") == active_community.get("schemaRevision")
+        and community_rows_unchanged
+        and community_semantics_unchanged
     )
     if can_reuse_active_community:
         candidate_community = active_community
@@ -440,7 +456,6 @@ def build_staging_candidates(
             gear_release_id=_text(candidate_gear.get("releaseId")),
             dependency_revisions=dependency_revisions,
         )
-    candidate_rows = [row for row in prepared_community.get("rows") or [] if isinstance(row, dict)]
     community_seal = store.seal_community_release(
         candidate_community,
         candidate_rows,
@@ -448,8 +463,6 @@ def build_staging_candidates(
         event={"mode": "scheduled-refresh-v1", "riskClass": risk_class},
     )
 
-    active_pair = store.load_community_release(active_gear_id, active_community_id)
-    active_winners = active_pair.get("winners") if isinstance(active_pair, dict) else []
     role_counts = {
         role: sum(1 for row in candidate_rows if _text(row.get("role")) == role)
         for role in ("winner", "standby", "rejected")

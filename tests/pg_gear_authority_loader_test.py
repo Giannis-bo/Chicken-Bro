@@ -782,6 +782,40 @@ class PgGearAuthorityLoaderTest(unittest.TestCase):
             context["evidenceRecordsById"],
         )
 
+    def test_browse_and_resolve_project_the_same_250033_socket_fact(self):
+        from server import websim_payload
+
+        row = self.released_fact_row()
+        context = self.released_context(
+            capability_revision=gear_socket_authority.CAPABILITY_REVISION,
+            item_rows=[row],
+            option_rows=[],
+            intent=self.released_fact_intent(),
+        )
+        resolved = gear_resolver.resolve(self.released_fact_intent(), context)
+        browse = websim_payload.sanitize_gear_candidate_mod_options({
+            "itemId": "250033",
+            "slot": "finger1",
+            "variantKey": "void_upgrade-298",
+            "simcReady": True,
+            "modCapabilities": {"hasSocket": False, "socketCount": 0},
+            "variants": [{
+                "variantKey": "void_upgrade-298",
+                "status": "verified",
+                "payload": row[3]["payload"],
+            }],
+        })
+
+        self.assertEqual(
+            browse["capabilityFacts"],
+            resolved["resolvedSlots"]["finger1"]["capabilityFacts"],
+        )
+        self.assertEqual(browse["capabilityFacts"]["socket"], {
+            "status": "verified",
+            "value": 1,
+            "options": [],
+        })
+
     def test_v2_variant_simc_options_come_only_from_executable_fact(self):
         row = self.released_fact_row()
         row[3]["simcOptions"] = {

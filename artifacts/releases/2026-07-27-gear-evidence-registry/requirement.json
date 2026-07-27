@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "slug": "gear-evidence-registry",
+  "classification": "Strict",
+  "status": "implementation_allowed",
+  "goal": "Publish Canonical Facts from immutable Evidence Registry inputs through the existing Gear Release and Active Season Manifest, with candidate-first verification and an explicit atomic cutover.",
+  "userValue": "Players see one consistent equipment capability result across browse, Resolve, and the active Taro route: a verified socket is usable, a confirmed unsupported capability is unavailable, and only an unresolved category is pending verification.",
+  "nonGoals": [
+    "Do not create a second Fact Release, Manifest, or active pointer.",
+    "Do not expose Artifact payloads, Observation details, hashes, queue state, root codes, worker state, or database configuration in player-facing UI.",
+    "Do not change a retail Active Season Manifest, merge, or claim live acceptance before the frozen manual-acceptance items are accepted by the user, final evidence is committed, main parity is proven, and retail replay parity is verified."
+  ],
+  "currentTruth": {
+    "sources": [
+      "docs/project-state.json",
+      "docs/roadmap.md",
+      "docs/harness.md",
+      "docs/verification-matrix.md",
+      "docs/plans/2026-07-26-gear-evidence-registry-implementation.md",
+      "docs/gear-simulation-full-chain-runbook.md"
+    ],
+    "activeMilestone": "taro_target_first_14_route_rebuild",
+    "featureIteration": "allowed_under_harness",
+    "runtimeAuthority": "The existing immutable Gear Release plus Active Season Manifest remains the sole published static-fact authority."
+  },
+  "impactMap": {
+    "mustChange": [
+      "Candidate-only Evidence Registry migration, sequential 0019 then 0020 schema/grant verification, Artifact/Observation replay, canonical compilation, shadow review, and sealed candidate Gear Release evidence.",
+      "Candidate backend/API/Resolve/worker/timer smoke on an isolated candidate root, database, service, and port.",
+      "Active Taro gear-detail verification and an explicit existing-Manifest compare-and-swap only after user acceptance."
+    ],
+    "mustNotChange": [
+      "Retail database, retail service, retail Active Season Manifest pointer, and retail release state before explicit user cutover authorization, final evidence commit, main parity, deterministic retail replay, and candidate-to-retail release parity.",
+      "Append-only Artifact, Observation, and Canonical Fact rows during Manifest rollback.",
+      "The user's unrelated working-tree changes."
+    ],
+    "evidenceRequired": [
+      "Immutable pre-candidate runtime checkpoint: final CR, committed/pushed clean exact HEAD/tree, and re-run scoped suites before candidate deployment.",
+      "Exact candidate tree/build/runtime parity and candidate database backup identity before sequential migrations 0019 and 0020.",
+      "Artifact import, Observation replay, compiler output, complete shadow classification, and sealed candidate Gear Release identity.",
+      "Candidate health, affected API, Resolve, bounded worker, timer/no-op/backflow, and fail-closed smoke evidence.",
+      "Real WeChat acceptance for every frozen manual item; then final evidence commit, main merge/push/parity/retest, deterministic retail replay/materialization parity, fresh retail Manifest CAS, and rollback proof."
+    ]
+  },
+  "ownership": {
+    "factOwner": "The Evidence Registry Fact Compiler seals static facts into the existing immutable Gear Release; the existing Active Season Manifest atomically selects the released authority.",
+    "consumers": [
+      "server/pg_gear_authority_loader.py",
+      "server/gear_resolver.py",
+      "server/websim_payload.py",
+      "apps/mini-taro/src/pages/builds/gear-detail-model.ts",
+      "apps/mini-taro/src/pages/builds/detail.tsx"
+    ]
+  },
+  "engineeringHealth": {
+    "status": "health_watch_guarded",
+    "reason": "This is a Strict user-visible runtime cutover with PostgreSQL migration, candidate services, worker activity, a release pointer, and a Taro consumer. Local tests are insufficient; the runbook requires isolated candidate proof, user acceptance, atomic CAS, and rollback evidence."
+  },
+  "acceptanceEvidence": [
+    "The scoped Python and Taro suites pass on the exact verification head.",
+    "The isolated candidate applies only the sequentially required 0019 and 0020 migrations, verifies their schema/grants, produces immutable Artifact and Observation identities, a sealed candidate Gear Release, and a shadow report with no regression classification.",
+    "The exact candidate tree/build passes health, API, Resolve, worker, timer/no-op, and fail-closed smoke checks without retail traffic or a retail pointer change.",
+    "After the user accepts every frozen real-WeChat item, final CR/evidence commit, main merge/push/parity/retest, and deterministic retail replay/materialization prove candidate-to-retail release ID/hash/digest parity before an explicit fresh-generation existing-Manifest CAS; fresh post-CAS smoke and rollback to the recorded prior Manifest then pass."
+  ],
+  "manualAcceptanceContract": {
+    "required": true,
+    "requiredItemIds": [
+      "gear_evidence_250033_one_socket",
+      "gear_evidence_confirmed_unavailable",
+      "gear_evidence_pending_category_only"
+    ]
+  },
+  "releaseTrigger": "user_visible_runtime",
+  "rollback": [
+    "existing_manifest_cas_rollback_to_recorded_prior_active_manifest",
+    "candidate_database_restore_from_pre_0019_backup",
+    "candidate_service_stop_and_candidate_root_removal_after_evidence_retention"
+  ],
+  "decisionLog": [
+    {
+      "date": "2026-07-26",
+      "decision": "The implementation is Strict: candidate Gear Release and candidate deployment precede any active Manifest change, and only explicit user acceptance permits retail cutover."
+    },
+    {
+      "date": "2026-07-27",
+      "decision": "Task 8 freezes three real-WeChat acceptance items: 250033/void_upgrade-298 renders one selectable socket, a verified false or zero capability renders unavailable, and unresolved evidence renders pending only for its own category. Candidate releases are not retail releases: after acceptance, retail deterministically replays the same immutable inputs/revisions and must match candidate release IDs, hashes, and digests before a fresh-generation retail CAS."
+    }
+  ]
+}

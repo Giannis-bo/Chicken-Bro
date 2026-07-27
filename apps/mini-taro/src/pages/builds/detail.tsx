@@ -86,6 +86,7 @@ import {
   gearEnhancementBarItems,
   gearEnhancementGroups,
   gearEnhancementOptions,
+  exactSelectableGearCandidates,
   gearEnhancementSocketCount,
   gearItemIconUrl,
   gearItemLevel,
@@ -299,8 +300,9 @@ export default function GearDetailPage() {
 
   const itemStaticStats = gearItemStaticStatsFromResolvedSnapshot(canonical.snapshot, equipped) ?? undefined
   const slotViews = gearSlots(data?.gear, equipped, selectedSlot, enhancements, itemStaticStats)
-  const candidateViews = gearCandidates(candidates)
-  const selectedCandidateIndex = candidateDraft ? candidates.indexOf(candidateDraft.candidate) : -1
+  const selectableCandidates = exactSelectableGearCandidates(candidates)
+  const candidateViews = gearCandidates(selectableCandidates)
+  const selectedCandidateIndex = candidateDraft ? selectableCandidates.indexOf(candidateDraft.candidate) : -1
   const selectedCandidateId = selectedCandidateIndex >= 0 ? candidateViews[selectedCandidateIndex]?.id ?? '' : ''
   const selectedCandidate = equipped[selectedSlot]
   const readinessAuthority = canonical.loading
@@ -604,7 +606,7 @@ export default function GearDetailPage() {
   const chooseCandidate = (id: string) => {
     if (canonical.loading) return
     const index = candidateViews.findIndex((candidate) => candidate.id === id)
-    const item = candidates[index]
+    const item = selectableCandidates[index]
     const slot = selectedSlot
     if (!item || !slot) return
     setCandidateDraft(createCandidateDraft(slot, item))

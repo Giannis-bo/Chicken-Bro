@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "status": "project_harness_manifest_ready",
+  "generatedAt": "2026-07-27T13:15:00+08:00",
+  "release": {
+    "date": "2026-07-27",
+    "slug": "gear-evidence-registry"
+  },
+  "harness": {
+    "version": "v0.6.4",
+    "lastUpdated": "2026-07-20",
+    "source": "docs/harness.md",
+    "policyChangeCount": 10
+  },
+  "safety": {
+    "noNetwork": true,
+    "repositoryRemoteSyncPreapproved": true,
+    "repositoryRemoteSyncScope": "configured_project_remote_only",
+    "autonomousProgressionEnabled": true,
+    "noDeploy": true,
+    "noSsh": true,
+    "productionWrites": false
+  },
+  "evidencePacket": {
+    "status": "ready",
+    "path": "artifacts/releases/2026-07-27-gear-evidence-registry/evidence.json"
+  },
+  "write": {
+    "enabled": true,
+    "path": "artifacts/releases/2026-07-27-gear-evidence-registry/manifest.json"
+  },
+  "note": "This is the Harness release-packet manifest only. It is not an Active Season Manifest and does not create, select, or modify a retail release pointer."
+}

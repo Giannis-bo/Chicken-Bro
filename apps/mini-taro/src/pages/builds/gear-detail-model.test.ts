@@ -609,6 +609,28 @@ describe('gear detail truth model', () => {
     ])
   })
 
+  it('keeps a partial needs-variant duplicate out of the exact selectable candidate list', () => {
+    const exact: GearItemReference = {
+      itemId: '250033',
+      variantKey: 'void_upgrade-298',
+      name: '虚空升级戒指',
+      ilevel: 298,
+      status: 'verified',
+      simcReady: true,
+    }
+    const partialDuplicate: GearItemReference = {
+      ...exact,
+      status: 'partial',
+      simcReady: false,
+      variants: [{ variantKey: 'needs-variant', status: 'partial' }],
+    }
+
+    expect(gearCandidates([exact, partialDuplicate]).map((candidate) => candidate.id)).toEqual([
+      '250033-0',
+    ])
+    expect(candidateDraftCanApply(createCandidateDraft('finger1', exact))).toBe(true)
+  })
+
   it('uses the same backend eligibility projection for candidate rows and editor drafts', () => {
     const blockedCandidates: GearItemReference[] = [
       { itemId: 'status-blocked', status: 'blocked', compatibility: 'compatible' },

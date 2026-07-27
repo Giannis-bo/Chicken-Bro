@@ -1,4 +1,5 @@
 import contextlib
+import copy
 import hashlib
 import io
 import json
@@ -16,7 +17,7 @@ from server.gear_release_refresh import (
     PostgresRefreshLease,
     run_release_refresh,
 )
-from server.gear_release_store import canonical_row_hash
+from server.gear_release_store import canonical_row_hash, community_rows_summary
 from tests.attribute_rule_audit_test import fixture as attribute_audit_fixture
 
 
@@ -53,7 +54,58 @@ def socket_probe_evidence(minimums=None, revision="simc-fixture-r1"):
     }
 
 
-def release_pair(suffix="active", *, gear=None):
+def winner(template_id="observed-a", class_key="mage", spec_key="arcane"):
+    return {
+        "templateId": template_id,
+        "classKey": class_key,
+        "specKey": spec_key,
+        "role": "winner",
+        "problems": [],
+    }
+
+
+def complete_community_rows():
+    return [
+        {
+            **winner(),
+            "electionRank": 1,
+            "profileHash": "sha256:winner-profile",
+            "payload": {"source": "active-winner"},
+        },
+        {
+            "templateId": "standby-a",
+            "classKey": "mage",
+            "specKey": "arcane",
+            "role": "standby",
+            "electionRank": 2,
+            "profileHash": "sha256:standby-profile",
+            "payload": {"source": "active-standby"},
+            "problems": [],
+        },
+        {
+            "templateId": "rejected-a",
+            "classKey": "mage",
+            "specKey": "arcane",
+            "role": "rejected",
+            "electionRank": 3,
+            "profileHash": "sha256:rejected-profile",
+            "payload": {"source": "active-rejected"},
+            "problems": [{"code": "COMMUNITY_SOURCE_STALE"}],
+        },
+    ]
+
+
+def release_pair(
+    suffix="active",
+    *,
+    gear=None,
+    community_rows=None,
+    community_schema_revision="community-release-v1",
+    community_status="validated",
+    community_dependencies=None,
+    community_source=None,
+    community_parent_release_id="",
+):
     gear_release_row = gear or gear_release.build_release(
         release_kind="gear",
         season_revision="season-17",
@@ -66,29 +118,24 @@ def release_pair(suffix="active", *, gear=None):
     community = gear_release.build_release(
         release_kind="community",
         season_revision="season-17",
-        schema_revision="community-release-v1",
-        content={"rowsHash": f"community-{suffix}"},
-        dependency_revisions=DEPENDENCIES,
-        release_status="validated",
-        source={"sourceRevision": "scheduled-refresh-v1"},
+        schema_revision=community_schema_revision,
+        content=community_rows_summary(community_rows if community_rows is not None else [winner()]),
+        dependency_revisions=community_dependencies or DEPENDENCIES,
+        release_status=community_status,
+        source=community_source or {"sourceRevision": "scheduled-refresh-v1"},
+        parent_release_id=community_parent_release_id,
         validated_against_release_id=gear_release_row["releaseId"],
     )
     return gear_release_row, community
 
 
-def winner(template_id="observed-a", class_key="mage", spec_key="arcane"):
-    return {
-        "templateId": template_id,
-        "classKey": class_key,
-        "specKey": spec_key,
-        "role": "winner",
-        "problems": [],
-    }
-
-
 class FakeStore:
     def __init__(self):
-        active_gear, active_community = release_pair("active")
+        self.active_community_rows = complete_community_rows()
+        active_gear, active_community = release_pair(
+            "active",
+            community_rows=self.active_community_rows,
+        )
         self.binding = {
             "pointerMode": "active",
             "formalActiveManifest": True,
@@ -108,6 +155,18 @@ class FakeStore:
 
     def load_active_manifest_binding(self):
         return self.binding
+
+    def load_community_release(self, gear_release_id, community_release_id):
+        if (
+            gear_release_id != self.binding["gearRelease"]["releaseId"]
+            or community_release_id != self.binding["communityRelease"]["releaseId"]
+        ):
+            raise AssertionError("unexpected active Community Release identity")
+        rows = copy.deepcopy(self.active_community_rows)
+        return {
+            "rows": rows,
+            "winners": [row for row in rows if row["role"] == "winner"],
+        }
 
     def record_refresh_event(self, event_type, event, *, release_id="", manifest_revision=""):
         self.events.append({
@@ -179,6 +238,68 @@ def canonical_fact_gate():
 
 
 class GearReleaseRefreshPolicyTest(unittest.TestCase):
+    def unchanged_candidate_result(self, store, candidate_community, candidate_rows):
+        item = {
+            "itemId": "1",
+            "name": "A",
+            "payload": {"canonicalFacts": [{
+                "factKey": "fact:item:1",
+                "factValueHash": "sha256:value",
+                "provenanceHash": "sha256:provenance",
+            }]},
+        }
+        snapshot = {"items": [item], "sources": [], "variants": [], "options": []}
+        active_gear = store.binding["gearRelease"]
+        active_gear["source"]["sourceEvidence"] = {
+            "materializedSocketFactDigest": "sha256:stable-socket-facts",
+            "compilerPolicyDigest": "sha256:stable-policy",
+            "canonicalFactDigest": "sha256:stable-facts",
+        }
+        store.get_gear_release_row_hashes = lambda _release_id: {
+            "items": {"1": canonical_row_hash(item)},
+            "sources": {},
+            "variants": {},
+            "options": {},
+        }
+        store.gear_seals = []
+        store.community_seals = []
+        store.seal_gear_release = lambda release, payload, **_kwargs: (
+            store.gear_seals.append((release, payload))
+            or {"status": "reused", "releaseId": release["releaseId"]}
+        )
+        def seal_community_release(release, rows, **_kwargs):
+            store.community_seals.append((release, rows))
+            active = store.binding["communityRelease"]
+            reused = (
+                release["releaseId"] == active["releaseId"]
+                and release["content"] == active["content"]
+            )
+            return {
+                "status": "reused" if reused else "inserted",
+                "releaseId": release["releaseId"],
+            }
+
+        store.seal_community_release = seal_community_release
+        return build_staging_candidates(
+            store,
+            active_binding=store.binding,
+            expected_specs=[("mage", "arcane")],
+            dependency_revisions=DEPENDENCIES,
+            now="2026-07-26T02:00:00+00:00",
+            socket_bonus_minimums=socket_probe_evidence(),
+            gear_preparer=lambda *_args, **_kwargs: {
+                "release": active_gear,
+                "snapshot": snapshot,
+                "gate": canonical_fact_gate(),
+            },
+            community_preparer=lambda *_args, **_kwargs: {
+                "release": candidate_community,
+                "rows": candidate_rows,
+                "election": {"status": "validated"},
+                "gate": canonical_fact_gate(),
+            },
+        )
+
     def test_simc_probe_identity_requires_binary_and_revision_from_same_status(self):
         from server import gear_release_refresh
 
@@ -325,75 +446,105 @@ class GearReleaseRefreshPolicyTest(unittest.TestCase):
 
     def test_candidate_builder_reuses_unchanged_compiled_fact_release(self):
         store = FakeStore()
-        item = {
-            "itemId": "1",
-            "name": "A",
-            "payload": {"canonicalFacts": [{
-                "factKey": "fact:item:1",
-                "factValueHash": "sha256:value",
-                "provenanceHash": "sha256:provenance",
-            }]},
-        }
-        snapshot = {"items": [item], "sources": [], "variants": [], "options": []}
         active_gear = store.binding["gearRelease"]
-        active_gear["source"]["sourceEvidence"] = {
-            "materializedSocketFactDigest": "sha256:stable-socket-facts",
-            "compilerPolicyDigest": "sha256:stable-policy",
-            "canonicalFactDigest": "sha256:stable-facts",
-        }
-        store.get_gear_release_row_hashes = lambda _release_id: {
-            "items": {"1": canonical_row_hash(item)},
-            "sources": {},
-            "variants": {},
-            "options": {},
-        }
-        store.gear_seals = []
-        store.community_seals = []
-        store.seal_gear_release = lambda release, payload, **_kwargs: (
-            store.gear_seals.append((release, payload))
-            or {
-                "status": "reused",
-                "releaseId": release["releaseId"],
-            }
-        )
-        store.seal_community_release = lambda release, rows, **_kwargs: (
-            store.community_seals.append((release, rows))
-            or {
-                "status": "reused",
-                "releaseId": release["releaseId"],
-            }
-        )
-        store.load_community_release = lambda _gear_id, _community_id: {
-            "winners": [winner()]
-        }
         _unused, candidate_community = release_pair(
             "candidate",
             gear=active_gear,
+            community_rows=copy.deepcopy(store.active_community_rows),
         )
 
-        result = build_staging_candidates(
+        result = self.unchanged_candidate_result(
             store,
-            active_binding=store.binding,
-            expected_specs=[("mage", "arcane")],
-            dependency_revisions=DEPENDENCIES,
-            now="2026-07-26T02:00:00+00:00",
-            socket_bonus_minimums=socket_probe_evidence(),
-            gear_preparer=lambda *_args, **_kwargs: {
-                "release": active_gear,
-                "snapshot": snapshot,
-                "gate": canonical_fact_gate(),
-            },
-            community_preparer=lambda *_args, **_kwargs: {
-                "release": candidate_community,
-                "rows": [winner()],
-                "election": {"status": "validated"},
-                "gate": canonical_fact_gate(),
-            },
+            candidate_community,
+            copy.deepcopy(store.active_community_rows),
         )
 
         self.assertEqual(result["gearRelease"]["releaseId"], active_gear["releaseId"])
         self.assertEqual(result["gearSeal"]["status"], "reused")
+        self.assertEqual(
+            result["communityRelease"]["releaseId"],
+            store.binding["communityRelease"]["releaseId"],
+            "a no-op refresh must retain the active/candidate community release identity",
+        )
+        self.assertEqual(result["communitySeal"]["status"], "reused")
         self.assertEqual(len(store.gear_seals), 1)
+
+    def test_candidate_builder_does_not_reuse_active_community_when_any_full_row_changes(self):
+        for index, replacement in (
+            (1, {"templateId": "standby-a", "role": "standby", "payload": {"source": "changed"}}),
+            (2, {"templateId": "rejected-a", "role": "rejected", "payload": {"source": "changed"}}),
+            (0, {"templateId": "observed-a", "role": "winner", "payload": {"source": "changed"}}),
+        ):
+            with self.subTest(index=index):
+                store = FakeStore()
+                rows = copy.deepcopy(store.active_community_rows)
+                rows[index].update(replacement)
+                _unused, candidate_community = release_pair(
+                    "candidate",
+                    gear=store.binding["gearRelease"],
+                    community_rows=rows,
+                )
+
+                result = self.unchanged_candidate_result(store, candidate_community, rows)
+
+                self.assertNotEqual(
+                    result["communityRelease"]["releaseId"],
+                    store.binding["communityRelease"]["releaseId"],
+                )
+                self.assertEqual(result["communitySeal"]["status"], "inserted")
+
+    def test_candidate_builder_does_not_reuse_active_community_when_descriptor_semantics_change(self):
+        changed_dependencies = {**DEPENDENCIES, "capabilityRevision": "capability-v2"}
+        for change in (
+            {"community_schema_revision": "community-release-v2"},
+            {"community_status": "blocked"},
+            {"community_dependencies": changed_dependencies},
+            {"community_source": {"sourceRevision": "different-source"}},
+            {"community_parent_release_id": "community-release:other-parent"},
+        ):
+            with self.subTest(change=change):
+                store = FakeStore()
+                _unused, candidate_community = release_pair(
+                    "candidate",
+                    gear=store.binding["gearRelease"],
+                    community_rows=copy.deepcopy(store.active_community_rows),
+                    **change,
+                )
+
+                result = self.unchanged_candidate_result(
+                    store,
+                    candidate_community,
+                    copy.deepcopy(store.active_community_rows),
+                )
+
+                self.assertNotEqual(
+                    result["communityRelease"]["releaseId"],
+                    store.binding["communityRelease"]["releaseId"],
+                )
+                self.assertEqual(result["communitySeal"]["status"], "inserted")
+
+    def test_candidate_builder_does_not_reuse_active_community_without_complete_active_rows(self):
+        store = FakeStore()
+        _unused, candidate_community = release_pair(
+            "candidate",
+            gear=store.binding["gearRelease"],
+            community_rows=copy.deepcopy(store.active_community_rows),
+        )
+        store.load_community_release = lambda _gear_id, _community_id: {
+            "winners": [row for row in store.active_community_rows if row["role"] == "winner"],
+        }
+
+        result = self.unchanged_candidate_result(
+            store,
+            candidate_community,
+            copy.deepcopy(store.active_community_rows),
+        )
+
+        self.assertNotEqual(
+            result["communityRelease"]["releaseId"],
+            store.binding["communityRelease"]["releaseId"],
+        )
+        self.assertEqual(result["communitySeal"]["status"], "inserted")
 
     def test_socket_fact_change_is_capability_change_and_requires_manual_cutover(self):
         store = FakeStore()

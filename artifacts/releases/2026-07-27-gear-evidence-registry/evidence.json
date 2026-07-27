@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 2,
+  "slug": "gear-evidence-registry",
+  "requirementSlug": "gear-evidence-registry",
+  "status": "implementation_allowed",
+  "highestEvidenceLevel": "implementation_allowed",
+  "branch": "codex/gear-evidence-registry",
+  "commit": "pending_pre_candidate_checkpoint",
+  "identities": {
+    "runtime": {
+      "status": "pending",
+      "reason": "The immutable pre-candidate checkpoint is not complete: no clean committed runtime tree, candidate build identity, isolated candidate database, service, port, or deployed runtime is bound for Task 8."
+    },
+    "verification": {
+      "status": "pending",
+      "reason": "The recorded local suites were not run on a clean committed pre-candidate checkpoint. Re-run them after final CR, commit/push, clean-tree confirmation, and exact HEAD/tree binding."
+    },
+    "closure": {
+      "status": "pending",
+      "reason": "No merge, retail Manifest CAS, rollback proof, or release closure has occurred."
+    }
+  },
+  "manualAcceptance": {
+    "required": true,
+    "status": "pending",
+    "reason": "Real WeChat candidate acceptance is required before any retail Manifest compare-and-swap.",
+    "items": [
+      {
+        "id": "gear_evidence_250033_one_socket",
+        "status": "pending",
+        "evidence": "Pending real WeChat verification that item 250033, variant void_upgrade-298, exposes one selectable gem socket from the released canonical fact."
+      },
+      {
+        "id": "gear_evidence_confirmed_unavailable",
+        "status": "pending",
+        "evidence": "Pending real WeChat verification that a verified false or zero capability is shown as 不可用 and cannot be selected."
+      },
+      {
+        "id": "gear_evidence_pending_category_only",
+        "status": "pending",
+        "evidence": "Pending real WeChat verification that unresolved evidence is shown as 待核验 only for the affected capability category while verified categories remain usable."
+      }
+    ],
+    "rollup": {
+      "total": 3,
+      "accepted": 0,
+      "notRunUserWaived": 0,
+      "pending": 3
+    }
+  },
+  "scope": [
+    "Task 8 candidate cutover evidence preparation for the existing Evidence Registry and Gear Release authority",
+    "Pending immutable pre-candidate checkpoint; later evidence-only append may not modify runtime or build inputs",
+    "Strict candidate deployment, real-WeChat acceptance, existing Manifest CAS, and rollback procedure",
+    "No current candidate deployment, retail deployment, new Active Season Manifest creation, or pointer mutation"
+  ],
+  "verification": [
+    {
+      "command": "python3 -m unittest tests.gear_evidence_registry_test tests.gear_evidence_store_test tests.gear_evidence_observers_test tests.gear_fact_compiler_test tests.gear_fact_shadow_test tests.gear_release_tool_test tests.gear_release_refresh_test tests.pg_gear_authority_loader_test tests.gear_resolver_test tests.websim_payload_test tests.gear_evidence_gap_worker_test",
+      "status": "pass",
+      "summary": "2026-07-27 local run passed 722 tests in 21.149s. Non-failing ResourceWarning messages reported unclosed SQLite test connections. This pre-check is unbound until it is repeated on the clean committed pre-candidate checkpoint; no candidate, runtime, deployment, or manual-acceptance claim follows."
+    },
+    {
+      "command": "/Users/boyuan/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node node_modules/vitest/vitest.mjs run apps/mini-taro/src/pages/builds/gear-detail-model.test.ts apps/mini-taro/src/pages/builds/detail.test.tsx",
+      "status": "pass",
+      "summary": "2026-07-27 local run passed 2 test files and 34 tests. This pre-check is unbound until it is repeated on the clean committed pre-candidate checkpoint; it is not a real WeChat, candidate-build, or user-acceptance result."
+    },
+    {
+      "command": "node scripts/project-harness.js --json --check-requirement --requirement-file artifacts/releases/2026-07-27-gear-evidence-registry/requirement.json",
+      "status": "pass",
+      "summary": "2026-07-27 requirement-only Harness validation passed with no failures. It does not create a candidate/runtime/closure claim."
+    },
+    {
+      "command": "node scripts/project-harness.js --json --check --requirement-file artifacts/releases/2026-07-27-gear-evidence-registry/requirement.json --evidence-file artifacts/releases/2026-07-27-gear-evidence-registry/evidence.json --manifest-file artifacts/releases/2026-07-27-gear-evidence-registry/manifest.json --base origin/main",
+      "status": "pass",
+      "summary": "2026-07-27 task-scoped Harness packet check passed with no failures. It validates requirement/evidence/Harness-manifest linkage only; runtime and verification identities remain pending pre-candidate checkpoint."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "pending_candidate_only_execution",
+    "requiredBeforeMerge": true,
+    "reason": "No immutable pre-candidate checkpoint, candidate identity, sequential 0019/0020 candidate migration backup/proof, candidate service/port, runtime file parity, health/API/Resolve smoke, worker/timer/no-op proof, or real WeChat session has been created. The public candidate API will be read-only with collectors disabled; migration/replay/worker work requires separate one-off writable processes."
+  },
+  "runtimeEvidence": [],
+  "risks": [
+    {
+      "id": "candidate_identity_absent",
+      "status": "open",
+      "detail": "Final local CR, commit/push, clean-tree proof, re-run scoped suites, and exact HEAD/tree binding must precede candidate deployment. A candidate build identity, isolated root/database/service/port, and pre-0019 backup must then be recorded."
+    },
+    {
+      "id": "manual_acceptance_pending",
+      "status": "blocking_retail_cas",
+      "detail": "All three frozen real-WeChat items remain pending; retail Manifest CAS is prohibited."
+    },
+    {
+      "id": "manifest_not_created",
+      "status": "intentional",
+      "detail": "The Harness packet manifest exists for task-scoped validation, but no new Active Season Manifest exists because there is no candidate identity or candidate evidence. The existing retail Active Season Manifest remains authoritative."
+    }
+  ],
+  "rollback": [
+    "No rollback action is required now because no candidate or retail state changed.",
+    "For execution, use the existing Manifest compare-and-swap rollback to the recorded prior Manifest revision; do not delete or rewrite append-only registry rows.",
+    "If migration 0019, 0020, or candidate data is invalid, stop the isolated candidate service and restore only the isolated candidate database from its verified pre-0019 backup."
+  ],
+  "cleanup": {
+    "required": true,
+    "status": "pending_candidate_and_retail_closure",
+    "reason": "Any future isolated candidate root, service override, port allocation, and backup-retention record must be cleaned only after evidence retention and the final Harness closure."
+  },
+  "archivedReferences": [
+    "docs/project-state.json",
+    "docs/roadmap.md",
+    "docs/harness.md",
+    "docs/verification-matrix.md",
+    "docs/gear-simulation-full-chain-runbook.md",
+    "docs/runbooks/gear-evidence-registry-cutover.md"
+  ],
+  "summary": "Task 8 is implementation_allowed only. The scoped Python pre-check passed 722 tests and the scoped Taro pre-check passed 34 tests, but both must be re-run on the clean committed pre-candidate checkpoint before they bind verification. Candidate deployment, candidate runtime evidence, real WeChat/manual acceptance, final evidence commit, main merge/push/parity/retest, deterministic retail replay/materialization parity, fresh-generation retail Active Season Manifest CAS, rollback proof, and closure are all pending. The Harness packet manifest exists; no new Active Season Manifest has been created."
+}
