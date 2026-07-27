@@ -284,24 +284,33 @@ def _observed_release_variant_identity(
     )
 
 
-def _compact_release_observed_variants(
-    rows: Iterable[dict[str, Any]],
+def _read_compacted_release_variants(
+    cursor: Any,
+    statement: str,
+    build_row: Any,
+    *,
+    option_variant_ids: set[str],
 ) -> list[dict[str, Any]]:
-    """Keep one latest representative for each equivalent observed variant.
+    """Read and compact observed variants without retaining discarded rows.
 
     The mutable staging table retains every profile observation.  A sealed
     Gear Release needs only one representative for a canonical equipment
     state; retaining profile-identity duplicates multiplies immutable Facts
-    and release projection memory without adding a selectable capability.
+    and release projection memory without adding a selectable capability. An
+    option still names its owning staging variant, so those small, referenced
+    owners are retained rather than rewritten or orphaned.
     """
 
     passthrough: list[dict[str, Any]] = []
     observed_by_identity: dict[tuple[Any, ...], dict[str, Any]] = {}
-    for row in rows:
+    cursor.execute(statement)
+
+    def consume(raw_row: Any) -> None:
+        row = build_row(raw_row)
         identity = _observed_release_variant_identity(row)
-        if identity is None:
+        if identity is None or _text(row.get("variantId")) in option_variant_ids:
             passthrough.append(row)
-            continue
+            return
         existing = observed_by_identity.get(identity)
         if existing is None or (
             _text(row.get("updatedAt")),
@@ -311,6 +320,18 @@ def _compact_release_observed_variants(
             _text(existing.get("variantId")),
         ):
             observed_by_identity[identity] = row
+
+    fetchmany = getattr(cursor, "fetchmany", None)
+    if not callable(fetchmany):
+        for raw_row in cursor.fetchall():
+            consume(raw_row)
+    else:
+        while True:
+            rows = fetchmany(128)
+            if not rows:
+                break
+            for raw_row in rows:
+                consume(raw_row)
     return sorted(
         [*passthrough, *observed_by_identity.values()],
         key=lambda row: _text(row.get("variantId")),
@@ -1185,31 +1206,6 @@ class GearReleaseStore:
                         "updatedAt": _text(row[10]),
                     },
                 )
-                variants = read_rows(
-                    cur,
-                    """
-                    SELECT id::text, item_id, variant_key, slot, label, source_type, difficulty_key,
-                           item_level, simc_options_json, status, blockers_json, payload_json, updated_at
-                    FROM cache.websim_gear_variants
-                    ORDER BY id::text
-                    """,
-                    lambda row: {
-                        "variantId": _text(row[0]),
-                        "itemId": _text(row[1]),
-                        "variantKey": _text(row[2]),
-                        "slot": _text(row[3]),
-                        "label": _text(row[4]),
-                        "sourceType": _text(row[5]),
-                        "difficultyKey": _text(row[6]),
-                        "itemLevel": _int(row[7]),
-                        "simcOptions": decoded_object(row[8]),
-                        "status": _text(row[9]),
-                        "blockers": decoded_list(row[10]),
-                        "payload": decoded_object(row[11]),
-                        "updatedAt": _text(row[12]),
-                    },
-                )
-                variants = _compact_release_observed_variants(variants)
                 options = read_rows(
                     cur,
                     """
@@ -1232,6 +1228,36 @@ class GearReleaseStore:
                         "payload": decoded_object(row[9]),
                         "updatedAt": _text(row[10]),
                     },
+                )
+                option_variant_ids = {
+                    _text(row.get("variantId"))
+                    for row in options
+                    if _text(row.get("variantId"))
+                }
+                variants = _read_compacted_release_variants(
+                    cur,
+                    """
+                    SELECT id::text, item_id, variant_key, slot, label, source_type, difficulty_key,
+                           item_level, simc_options_json, status, blockers_json, payload_json, updated_at
+                    FROM cache.websim_gear_variants
+                    ORDER BY id::text
+                    """,
+                    lambda row: {
+                        "variantId": _text(row[0]),
+                        "itemId": _text(row[1]),
+                        "variantKey": _text(row[2]),
+                        "slot": _text(row[3]),
+                        "label": _text(row[4]),
+                        "sourceType": _text(row[5]),
+                        "difficultyKey": _text(row[6]),
+                        "itemLevel": _int(row[7]),
+                        "simcOptions": decoded_object(row[8]),
+                        "status": _text(row[9]),
+                        "blockers": decoded_list(row[10]),
+                        "payload": decoded_object(row[11]),
+                        "updatedAt": _text(row[12]),
+                    },
+                    option_variant_ids=option_variant_ids,
                 )
         return {
             "items": items,

@@ -730,6 +730,34 @@ class GearReleaseStoreTest(unittest.TestCase):
             ["observed-new", "observed-new-evidence", "raid-a"],
         )
 
+    def test_snapshot_staging_gear_keeps_an_option_owner_during_observed_compaction(self):
+        from server.gear_release_tool import validate_gear_snapshot
+        from server.gear_release_store import GearReleaseStore
+
+        conn = FakeConnection(rowsets={
+            "FROM cache.websim_items": [
+                ("item-a", "Item A", "head", 289, {}, "verified", "2026-07-11T05:00:00+00:00")
+            ],
+            "FROM cache.websim_gear_sources": [
+                ("source-a", "item-a", "observed_profile", "profile:a", "Observed", "", "", "observed", "season-17", {"status": "verified"}, "2026-07-11T05:00:00+00:00")
+            ],
+            "FROM cache.websim_gear_variants": [
+                ("observed-old", "item-a", "observed-old", "head", "289", "observed_profile", "observed", 289, {"ilevel": "289"}, "verified", [], {"resolvedStats": {"intellect": 100}}, "2026-07-11T05:00:00+00:00"),
+                ("observed-new", "item-a", "observed-new", "head", "289", "observed_profile", "observed", 289, {"ilevel": "289"}, "verified", [], {"resolvedStats": {"intellect": 100}}, "2026-07-12T05:00:00+00:00"),
+            ],
+            "FROM cache.websim_gear_mod_options": [
+                ("option-a", "observed-old", "gem-a", "gem", "Gem A", ["head"], {"gem_id": "1"}, "verified", True, {}, "2026-07-11T05:00:00+00:00")
+            ],
+        })
+
+        snapshot = GearReleaseStore(lambda: conn).snapshot_staging_gear()
+
+        self.assertEqual(
+            [row["variantId"] for row in snapshot["variants"]],
+            ["observed-new", "observed-old"],
+        )
+        self.assertEqual(validate_gear_snapshot(snapshot), [])
+
     def test_snapshot_staging_gear_uses_a_server_side_cursor_when_supported(self):
         from server.gear_release_store import GearReleaseStore
 
