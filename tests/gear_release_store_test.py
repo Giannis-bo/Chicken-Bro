@@ -792,6 +792,49 @@ class GearReleaseStoreTest(unittest.TestCase):
 
         self.assertEqual(actual, expected)
 
+    def test_gear_snapshot_summary_uses_bounded_row_sorting(self):
+        from server import gear_release_store
+
+        snapshot = self.snapshot()
+        expected = gear_release_store.gear_snapshot_summary(snapshot)
+
+        with patch(
+            "server.gear_release_store._canonical_rows",
+            side_effect=AssertionError("summary must not retain every serialized row key"),
+        ):
+            actual = gear_release_store.gear_snapshot_summary(snapshot)
+
+        self.assertEqual(actual, expected)
+
+    def test_gear_snapshot_summary_preserves_the_v1_canonical_hash_bytes(self):
+        from server import gear_release_store
+
+        snapshot = self.snapshot()
+        snapshot["items"].append(copy.deepcopy(snapshot["items"][0]))
+        snapshot["items"][1]["itemId"] = "item-z"
+        snapshot["sources"].append(copy.deepcopy(snapshot["sources"][0]))
+        snapshot["sources"][1]["sourceId"] = "source-z"
+        snapshot["variants"].append(copy.deepcopy(snapshot["variants"][0]))
+        snapshot["variants"][1]["variantId"] = "variant-z-id"
+        snapshot["variants"][1]["variantKey"] = "variant-z"
+        snapshot["options"].append({
+            "optionId": "option-z",
+            "optionKey": "option-z",
+            "optionType": "gem",
+            "payload": {"effect": {"critical_strike": 1}},
+        })
+        expected_canonical = {
+            key: gear_release_store._canonical_rows(snapshot[key])
+            for key in ("items", "sources", "variants", "options")
+        }
+
+        summary = gear_release_store.gear_snapshot_summary(snapshot)
+
+        self.assertEqual(
+            summary["snapshotHash"],
+            gear_release_store._hash(expected_canonical),
+        )
+
     def test_candidate_authority_context_uses_exact_sealed_snapshot_and_release_id(self):
         from server.gear_release_store import build_candidate_authority_context
         from server.websim_payload import gear_resolver_runtime_authority

@@ -7,9 +7,12 @@ retail manifest pointer. Existing WebSim tables remain mutable staging inputs.
 
 from __future__ import annotations
 
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 import hashlib
 import json
+import os
+import sqlite3
+import tempfile
 from typing import Any, Iterable, Mapping
 
 try:
@@ -437,14 +440,53 @@ def _observed_compile_scope(
 
 def gear_snapshot_summary(snapshot: Any) -> dict[str, Any]:
     value = snapshot if isinstance(snapshot, dict) else {}
-    canonical = {
-        key: _canonical_rows(value.get(key))
-        for key in ("items", "sources", "variants", "options")
-    }
+    categories = ("items", "sources", "variants", "options")
+    counts = {key: 0 for key in categories}
+    # The release snapshot is intentionally catalog-sized.  Sorting canonical
+    # row bytes in a Python list retains the decoded catalog, every encoded
+    # sort key, and the final aggregate JSON at once.  Use SQLite's disk-backed
+    # BLOB sort instead, then feed the exact canonical JSON byte stream into
+    # SHA-256 one row at a time.  This preserves the v1 snapshotHash contract
+    # without a second catalog-sized in-memory representation.
+    with tempfile.TemporaryDirectory(prefix="wow-gear-snapshot-summary-") as directory:
+        database_path = os.path.join(directory, "snapshot.sqlite3")
+        with closing(sqlite3.connect(database_path)) as connection:
+            connection.execute("PRAGMA journal_mode=OFF")
+            connection.execute("PRAGMA synchronous=OFF")
+            connection.execute("PRAGMA temp_store=FILE")
+            connection.execute("PRAGMA cache_size=-8192")
+            connection.execute(
+                "CREATE TABLE snapshot_rows (payload BLOB NOT NULL)"
+            )
+            digest = hashlib.sha256()
+            digest.update(b"{")
+            for category_index, key in enumerate(sorted(categories)):
+                if category_index:
+                    digest.update(b",")
+                digest.update(b'"' + key.encode("utf-8") + b'":[')
+                connection.execute("DELETE FROM snapshot_rows")
+                for row in value.get(key) or ():
+                    if not isinstance(row, dict):
+                        continue
+                    counts[key] += 1
+                    connection.execute(
+                        "INSERT INTO snapshot_rows (payload) VALUES (?)",
+                        (sqlite3.Binary(_canonical_bytes(row)),),
+                    )
+                for row_index, (payload,) in enumerate(
+                    connection.execute(
+                        "SELECT payload FROM snapshot_rows ORDER BY payload"
+                    )
+                ):
+                    if row_index:
+                        digest.update(b",")
+                    digest.update(payload)
+                digest.update(b"]")
+            digest.update(b"}")
     return {
         "schemaRevision": "gear-release-content-v1",
-        "snapshotHash": _hash(canonical),
-        "counts": {key: len(canonical[key]) for key in canonical},
+        "snapshotHash": "sha256:" + digest.hexdigest(),
+        "counts": counts,
     }
 
 
