@@ -123,6 +123,70 @@ describe('gear detail truth model', () => {
     })
   })
 
+  it('lets the released void_upgrade-298 socket fact override legacy socket compatibility', () => {
+    const group = {
+      slot: 'finger1',
+      label: '戒指 1',
+      items: [{
+        itemId: '250033',
+        variantKey: 'void_upgrade-298',
+        modCapabilities: { hasSocket: false, socketCount: 0 },
+        capabilityFacts: {
+          socket: { status: 'verified', value: 1, options: ['gem-void'] },
+          enchant: { status: 'unavailable', value: false, options: [] },
+          embellishment: { status: 'unavailable', value: false, options: [] },
+        },
+      }],
+      socketOptions: [{ id: 'gem-void', status: 'verified', label: '+147 急速' }],
+    } as WebsimGearPayload['replacementCandidates'][number] & {
+      socketOptions: NonNullable<GearItemReference['socketOptions']>
+    }
+
+    const [item] = hydrateCompactSlotGroup(group)
+
+    expect(item).toBeDefined()
+    if (!item) throw new Error('expected the compact candidate to hydrate')
+    expect(gearDetailModel.gearEnhancementSocketCount(item)).toBe(1)
+    expect(gearEnhancementOptions(item, {}, 'finger1')).toEqual([
+      expect.objectContaining({ id: 'gem-void', kind: 'socket' }),
+    ])
+    expect(prepareHydratedEnhancementDraft(
+      [item],
+      { itemId: '250033', variantKey: 'void_upgrade-298' },
+      {
+        gemOptionIds: ['gem-void'],
+        enchantOptionId: '',
+        embellishmentOptionId: '',
+        craftedOptionId: '',
+        catalystOptionId: '',
+      },
+    )?.selection.gemOptionIds).toEqual(['gem-void'])
+  })
+
+  it('keeps released enhancement availability category-scoped and non-diagnostic', () => {
+    const item: GearItemReference = {
+      itemId: 'capability-states',
+      modCapabilities: { hasSocket: true, socketCount: 1, canEnchant: true, canEmbellish: false },
+      capabilityFacts: {
+        socket: { status: 'unavailable', value: 0, options: [] },
+        enchant: { status: 'pending', value: null, options: [] },
+        embellishment: { status: 'verified', value: true, options: ['emb-safe'] },
+      },
+      socketOptions: [{ id: 'gem-legacy', status: 'verified', label: '旧宝石' }],
+      enchantOptions: [{ id: 'enchant-legacy', status: 'verified', label: '旧附魔' }],
+      embellishmentOptions: [{ id: 'emb-safe', status: 'verified', label: '安全美化' }],
+    }
+
+    expect(gearEnhancementGroups(item, {}, 'wrist')).toEqual([
+      expect.objectContaining({ id: 'socket', availabilityLabel: '不可用', disabled: true }),
+      expect.objectContaining({ id: 'enchant', availabilityLabel: '待核验', disabled: true }),
+      expect.objectContaining({ id: 'embellishment', availabilityLabel: '可用', disabled: false }),
+    ])
+    expect(gearEnhancementOptions(item, {}, 'wrist').map((option) => option.kind)).toEqual([
+      'embellishment',
+    ])
+  })
+
   it('filters enhancement options without a resolver-owned identity', () => {
     const item: GearItemReference = {
       itemId: 'unsafe-ring',

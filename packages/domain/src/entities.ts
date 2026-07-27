@@ -528,6 +528,16 @@ export interface GearEnhancementOption {
   [key: string]: unknown
 }
 
+export type GearCapabilityFactStatus = 'verified' | 'unavailable' | 'pending'
+
+export interface GearCapabilityFactView {
+  status: GearCapabilityFactStatus
+  value: number | boolean | null
+  options: readonly string[]
+}
+
+export type GearEnhancementCapability = 'socket' | 'enchant' | 'embellishment'
+
 export interface GearItemReference {
   id?: string
   itemId?: string | number
@@ -552,6 +562,7 @@ export interface GearItemReference {
   socketOptions?: readonly GearEnhancementOption[]
   enchantOptions?: readonly GearEnhancementOption[]
   embellishmentOptions?: readonly GearEnhancementOption[]
+  capabilityFacts?: Readonly<Partial<Record<GearEnhancementCapability, GearCapabilityFactView>>>
   modCapabilities?: Readonly<Record<string, unknown>>
   [key: string]: unknown
 }

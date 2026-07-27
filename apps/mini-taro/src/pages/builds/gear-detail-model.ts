@@ -81,6 +81,8 @@ export interface GearEnhancementGroupView {
   selectedCount: number
   value: string
   state: 'ready' | 'empty' | 'blocked'
+  availabilityLabel: '可用' | '不可用' | '待核验'
+  disabled: boolean
 }
 
 export interface GearEnhancementOptionView {
@@ -95,6 +97,15 @@ export type GearReplacementCandidateGroup =
   WebsimGearPayload['replacementCandidates'][number]
 
 type GearEnhancementOptionKey = 'socketOptions' | 'enchantOptions' | 'embellishmentOptions'
+type GearEnhancementCapability = 'socket' | 'enchant' | 'embellishment'
+type GearEnhancementAvailability = 'available' | 'unavailable' | 'pending'
+
+interface GearEnhancementCapabilityState {
+  availability: GearEnhancementAvailability
+  label: GearEnhancementGroupView['availabilityLabel']
+  value: number | boolean | null
+  optionIds: readonly string[] | null
+}
 
 const gearConfigEnchantExcludedCategories = new Set([
   'class_only_precombat',
@@ -158,6 +169,73 @@ function optionValue(
 
 function optionIdentity(option: GearEnhancementOption): string {
   return text(option.optionKey) || text(option['option_key']) || text(option.id)
+}
+
+function legacyEnhancementCapabilityState(
+  item: GearItemReference,
+  kind: GearEnhancementCapability,
+): GearEnhancementCapabilityState {
+  const capabilities = item.modCapabilities
+  const field = kind === 'socket'
+    ? 'hasSocket'
+    : kind === 'enchant'
+      ? 'canEnchant'
+      : 'canEmbellish'
+  if (capabilities && typeof capabilities === 'object' && !Array.isArray(capabilities)) {
+    if (kind === 'socket') {
+      const count = capabilities['socketCount']
+      if (Number.isInteger(count) && Number(count) > 0) {
+        return { availability: 'available', label: '可用', value: Number(count), optionIds: null }
+      }
+    }
+    if (capabilities[field] === true) {
+      return { availability: 'available', label: '可用', value: true, optionIds: null }
+    }
+    if (capabilities[field] === false) {
+      return { availability: 'unavailable', label: '不可用', value: kind === 'socket' ? 0 : false, optionIds: null }
+    }
+  }
+  const optionKey = kind === 'socket'
+    ? 'socketOptions'
+    : kind === 'enchant'
+      ? 'enchantOptions'
+      : 'embellishmentOptions'
+  if (item[optionKey]?.some((option) => verifiedEnhancementOption(option))) {
+    return { availability: 'available', label: '可用', value: null, optionIds: null }
+  }
+  return { availability: 'pending', label: '待核验', value: null, optionIds: null }
+}
+
+function canonicalEnhancementCapabilityState(
+  item: GearItemReference,
+  kind: GearEnhancementCapability,
+): GearEnhancementCapabilityState | null {
+  if (!Object.prototype.hasOwnProperty.call(item, 'capabilityFacts')) return null
+  const fact = item.capabilityFacts?.[kind]
+  if (!fact || !Array.isArray(fact.options)) {
+    return { availability: 'pending', label: '待核验', value: null, optionIds: [] }
+  }
+  const optionIds = fact.options.filter((id): id is string => Boolean(text(id)))
+  const valueIsValid = kind === 'socket'
+    ? Number.isInteger(fact.value) && Number(fact.value) >= 0
+    : typeof fact.value === 'boolean'
+  if (fact.status === 'verified' && valueIsValid) {
+    const available = kind === 'socket' ? Number(fact.value) > 0 : fact.value === true
+    return available
+      ? { availability: 'available', label: '可用', value: fact.value, optionIds }
+      : { availability: 'unavailable', label: '不可用', value: fact.value, optionIds }
+  }
+  if (fact.status === 'unavailable' && valueIsValid) {
+    return { availability: 'unavailable', label: '不可用', value: fact.value, optionIds }
+  }
+  return { availability: 'pending', label: '待核验', value: null, optionIds: [] }
+}
+
+function enhancementCapabilityState(
+  item: GearItemReference,
+  kind: GearEnhancementCapability,
+): GearEnhancementCapabilityState {
+  return canonicalEnhancementCapabilityState(item, kind) ?? legacyEnhancementCapabilityState(item, kind)
 }
 
 function verifiedEnhancementOption(option: GearEnhancementOption): boolean {
@@ -243,6 +321,14 @@ function enhancementOptionAppliesToItem(
   key: GearEnhancementOptionKey,
 ): boolean {
   if (!verifiedEnhancementOption(option)) return false
+  const kind: GearEnhancementCapability = key === 'socketOptions'
+    ? 'socket'
+    : key === 'enchantOptions'
+      ? 'enchant'
+      : 'embellishment'
+  const capability = enhancementCapabilityState(item, kind)
+  if (capability.availability !== 'available') return false
+  if (capability.optionIds !== null && !capability.optionIds.includes(optionIdentity(option))) return false
   if (key === 'enchantOptions') return enchantOptionAppliesToItem(option, item, slot)
   if (key === 'embellishmentOptions') {
     return !itemHasBuiltInEmbellishment(item)
@@ -272,15 +358,9 @@ export function hydrateCompactSlotGroup(
   const embellishmentOptions = compactGroupOptions(group, 'embellishmentOptions')
   return group.items.map((item) => ({
     ...item,
-    socketOptions: gearEnhancementSocketCount(item) !== null && gearEnhancementSocketCount(item)! > 0
-      ? socketOptions.filter((option) => verifiedEnhancementOption(option))
-      : [],
-    enchantOptions: item.modCapabilities?.['canEnchant'] === true
-      ? enchantOptions.filter((option) => enhancementOptionAppliesToItem(option, item, group.slot, 'enchantOptions'))
-      : [],
-    embellishmentOptions: item.modCapabilities?.['canEmbellish'] === true
-      ? embellishmentOptions.filter((option) => enhancementOptionAppliesToItem(option, item, group.slot, 'embellishmentOptions'))
-      : [],
+    socketOptions: socketOptions.filter((option) => enhancementOptionAppliesToItem(option, item, group.slot, 'socketOptions')),
+    enchantOptions: enchantOptions.filter((option) => enhancementOptionAppliesToItem(option, item, group.slot, 'enchantOptions')),
+    embellishmentOptions: embellishmentOptions.filter((option) => enhancementOptionAppliesToItem(option, item, group.slot, 'embellishmentOptions')),
   }))
 }
 
@@ -312,11 +392,9 @@ function exactHydratedItem(
 }
 
 export function gearEnhancementSocketCount(item: GearItemReference): number | null {
-  const capabilities = item.modCapabilities
-  if (!capabilities || typeof capabilities !== 'object' || Array.isArray(capabilities)) return null
-  if (capabilities['hasSocket'] === false) return 0
-  const count = capabilities['socketCount']
-  return Number.isInteger(count) && Number(count) > 0 ? Number(count) : null
+  const capability = enhancementCapabilityState(item, 'socket')
+  if (capability.availability === 'pending') return null
+  return typeof capability.value === 'number' ? capability.value : null
 }
 
 export function prepareHydratedEnhancementDraft(
@@ -788,6 +866,12 @@ export function gearEnhancementGroups(
   slot: string,
 ): readonly GearEnhancementGroupView[] {
   return enhancementDefinitions.map((definition) => {
+    const canonicalCapability = item
+      ? canonicalEnhancementCapabilityState(item, definition.id)
+      : null
+    const capability = item
+      ? canonicalCapability ?? enhancementCapabilityState(item, definition.id)
+      : { availability: 'pending' as const, label: '待核验' as const, value: null, optionIds: [] }
     const options = item
       ? (item[definition.key] ?? []).filter((option) => (
           enhancementOptionAppliesToItem(option, item, slot, definition.key)
@@ -800,8 +884,16 @@ export function gearEnhancementGroups(
       label: definition.label,
       optionCount: options.length,
       selectedCount: selectedOptions.length,
-      value: selectedOptions.length ? selectedOptions.map(optionLabel).join('；') : options.length ? `${options.length} 项可选` : '待配置',
+      value: selectedOptions.length
+        ? selectedOptions.map(optionLabel).join('；')
+        : canonicalCapability
+          ? capability.label
+          : options.length
+            ? `${options.length} 项可选`
+            : '待配置',
       state: selectedOptions.length ? 'ready' : options.length ? 'empty' : 'blocked',
+      availabilityLabel: capability.label,
+      disabled: capability.availability !== 'available' || !options.length,
     }
   })
 }

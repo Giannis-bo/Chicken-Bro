@@ -323,12 +323,8 @@ export default function GearDetailPage() {
     return {
       ...group,
       optionCount: compatibleSlotCount,
-      value: configuredCount
-        ? `已配置 ${configuredCount} 件`
-        : compatibleSlotCount
-          ? `${compatibleSlotCount} 个槽位可用`
-          : '暂无可用',
-      state: configuredCount ? 'ready' as const : compatibleSlotCount ? 'empty' as const : 'blocked' as const,
+      value: group.availabilityLabel,
+      state: group.disabled ? 'blocked' as const : configuredCount ? 'ready' as const : 'empty' as const,
     }
   })
   const enhancementOptions = gearEnhancementOptions(selectedCandidate, enhancements, selectedSlot)
@@ -360,12 +356,9 @@ export default function GearDetailPage() {
         const item = equipped[slot.slot]
         const kind = enhancementDraft.requestedKind
         if (!item) return []
-        const potentiallyCompatible = kind === 'socket'
-          ? gearEnhancementSocketCount(item) !== 0
-          : kind === 'enchant'
-            ? item.modCapabilities?.['canEnchant'] !== false
-            : item.modCapabilities?.['canEmbellish'] !== false
-        if (!potentiallyCompatible) return []
+        const group = gearEnhancementGroups(item, enhancementSelections, slot.slot)
+          .find((entry) => entry.id === kind)
+        if (!group || group.disabled) return []
         const selection = enhancementSelections[slot.slot] ?? emptyEnhancementSelection()
         const knownOptions = gearEnhancementOptions(item, { [slot.slot]: selection }, slot.slot)
           .filter((option) => option.kind === kind)
@@ -1053,7 +1046,11 @@ export default function GearDetailPage() {
               <GearLoadoutSummary {...readiness} />
             </RouteRegion>
             <RouteRegion className={styles['enhancementRegion'] ?? ''} data-region="enhancement_summary">
-              <GearEnhancementBar items={enhancementGroups} onSelect={(item) => void openEnhancementGroup(item)} />
+              <GearEnhancementBar items={enhancementGroups} onSelect={(item) => {
+                const group = enhancementGroups.find((entry) => entry.id === item.id)
+                if (group?.disabled) return
+                void openEnhancementGroup(item)
+              }} />
             </RouteRegion>
             <RouteRegion className={styles['workbenchRegion'] ?? ''} data-region="gear_workbench">
               <GearSlotWorkbench
