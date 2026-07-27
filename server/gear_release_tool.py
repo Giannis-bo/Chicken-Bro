@@ -3535,6 +3535,8 @@ def _legacy_shadow_input(raw_snapshot: Mapping[str, Any]) -> dict[str, Any]:
     def projected_payload(
         payload: Any,
         fields: Iterable[str],
+        *,
+        include_socket_payload: bool = True,
     ) -> dict[str, Any]:
         source = payload if isinstance(payload, Mapping) else {}
         result = {
@@ -3542,9 +3544,10 @@ def _legacy_shadow_input(raw_snapshot: Mapping[str, Any]) -> dict[str, Any]:
             for field in fields
             if field in source
         }
-        socket_payload = _shadow_socket_payload(source)
-        for key, value in socket_payload.items():
-            result.setdefault(key, value)
+        if include_socket_payload:
+            socket_payload = _shadow_socket_payload(source)
+            for key, value in socket_payload.items():
+                result.setdefault(key, value)
         return result
 
     items = []
@@ -3552,6 +3555,9 @@ def _legacy_shadow_input(raw_snapshot: Mapping[str, Any]) -> dict[str, Any]:
         if not isinstance(row, Mapping):
             continue
         item_id = _text(row.get("itemId"))
+        item_payload = (
+            row.get("payload") if isinstance(row.get("payload"), Mapping) else {}
+        )
         fields = item_payload_fields + (
             (
                 "_metadata",
@@ -3576,7 +3582,21 @@ def _legacy_shadow_input(raw_snapshot: Mapping[str, Any]) -> dict[str, Any]:
                 )
                 if key in row
             }
-            | {"payload": projected_payload(row.get("payload"), fields)}
+            | {
+                # The legacy materializer may read an explicit socket array,
+                # but the shadow baseline cannot treat an unbound cache payload
+                # as official capacity.  Preserve it only when it carries the
+                # same immutable Battle.net identity/revision the compiler
+                # requires for a canonical Fact.
+                "payload": projected_payload(
+                    item_payload,
+                    fields,
+                    include_socket_payload=(
+                        _official_game_asset_evidence(item_payload, item_id)
+                        is not None
+                    ),
+                )
+            }
         )
     sources = []
     for row in raw_snapshot.get("sources") or ():
