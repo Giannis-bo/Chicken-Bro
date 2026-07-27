@@ -437,6 +437,8 @@
 
   The candidate public API service is read-only with collectors disabled and must bind its inactive candidate Gear/Community Release through the dedicated candidate-release configuration, not a candidate Manifest CAS. Migration, Artifact/Observation replay, and bounded worker/recompiler execution run only as separately named writable one-off processes against the isolated candidate database.
 
+  Current candidate state on 2026-07-27: the isolated `gear-evidence-registry-dd0489b9-r4` source root and verified pre-0019 backup were created with the required resource envelope, but its PostgreSQL restore stopped before 0019 while restoring `websim_gear_release_variants` because the shared host had insufficient disk capacity for another full database copy. The backup and stopped partial candidate database are retained for diagnosis. No candidate public process, release, Manifest, retail database, or retail pointer changed. Do not retry until storage/retention authority has made sufficient capacity available.
+
 - [ ] **Step 5: Obtain explicit user acceptance for the real Taro route and active cutover**
 
   Manual acceptance must verify the equipment-detail route shows one gem slot for `250033/void_upgrade-298`, shows “不可用” for confirmed unsupported capability, and shows “待核验” only for unresolved categories. Until this acceptance, retain old active Manifest and classify the work as candidate-verified only.
