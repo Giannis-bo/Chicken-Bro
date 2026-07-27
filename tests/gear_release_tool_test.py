@@ -507,6 +507,11 @@ def build_midnight_mage_release_fixture(*, canonical_consumer=True):
     }
 
 class GearReleaseToolTest(unittest.TestCase):
+    def test_full_release_defaults_to_the_low_memory_evidence_batch_budget(self):
+        from server import gear_release_tool
+
+        self.assertEqual(gear_release_tool._FULL_RELEASE_EVIDENCE_BATCH_SIZE, 32)
+
     def dependencies(self):
         return {
             "gearRuleRevision": "gear-rule-matrix-v1",
