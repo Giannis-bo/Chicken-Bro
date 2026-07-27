@@ -512,6 +512,49 @@ class GearReleaseToolTest(unittest.TestCase):
 
         self.assertEqual(gear_release_tool._FULL_RELEASE_EVIDENCE_BATCH_SIZE, 32)
 
+    def test_option_batch_does_not_materialize_unrelated_catalog_rows(self):
+        """An option-only evidence batch must not retain the full gear catalog."""
+        from server.gear_release_tool import _compile_release_gear_evidence
+
+        class UnrelatedCatalog:
+            def __iter__(self):
+                raise AssertionError("option evidence must not read this catalog")
+
+        option = build_midnight_mage_release_fixture()["snapshot"]["options"][0]
+        compiled = _compile_release_gear_evidence(
+            {
+                "items": UnrelatedCatalog(),
+                "sources": UnrelatedCatalog(),
+                "variants": UnrelatedCatalog(),
+                "options": [option],
+            },
+            season_revision="midnight-season-1",
+            source_revision="legacy-import-r0",
+            captured_at="2026-07-27T00:00:00+00:00",
+            socket_bonus_minimums={
+                "9300": {
+                    "minimumTotal": 1,
+                    "sourceRevision": "simc-fixture-r1",
+                },
+            },
+            socket_bonus_evidence=socket_probe_evidence(),
+            categories=("options",),
+        )
+
+        self.assertEqual(
+            [
+                (fact["subjectKey"], fact["factType"], fact["status"])
+                for fact in compiled["facts"]
+            ],
+            [
+                (
+                    "option:embellishment-arcanoweave_lining",
+                    "enhancement_option",
+                    "verified",
+                )
+            ],
+        )
+
     def dependencies(self):
         return {
             "gearRuleRevision": "gear-rule-matrix-v1",

@@ -417,17 +417,56 @@ def _compile_release_gear_evidence(
     row_subjects: dict[tuple[str, int], str] = {}
     socket_claims_by_subject: dict[str, list[dict[str, Any]]] = {}
     socket_eligibility_by_item_id: dict[str, dict[str, Any]] = {}
-    items_by_id = {
-        _text(row.get("itemId")): row
-        for row in snapshot.get("items") or ()
-        if isinstance(row, dict) and _text(row.get("itemId"))
-    }
+    # A streaming category batch must not rebuild unrelated catalog indexes.
+    # In particular, option batches often have no owning variant at all; on a
+    # real catalog, indexing every item, source, and variant beside that small
+    # batch defeats the memory bound before compilation begins.
+    items_by_id: dict[str, Mapping[str, Any]] = {}
+    variants_by_id: dict[str, Mapping[str, Any]] = {}
+    if "variants" in selected_categories:
+        items_by_id = {
+            _text(row.get("itemId")): row
+            for row in snapshot.get("items") or ()
+            if isinstance(row, dict) and _text(row.get("itemId"))
+        }
+    if "options" in selected_categories:
+        option_rows = snapshot.get("options") or ()
+        requested_variant_ids = {
+            _text(row.get("variantId"))
+            for row in option_rows
+            if isinstance(row, Mapping) and _text(row.get("variantId"))
+        }
+        if requested_variant_ids:
+            variants_by_id = {
+                _text(row.get("variantId")): row
+                for row in snapshot.get("variants") or ()
+                if (
+                    isinstance(row, dict)
+                    and _text(row.get("variantId")) in requested_variant_ids
+                )
+            }
+            if "variants" not in selected_categories:
+                option_item_ids = {
+                    _text(row.get("itemId"))
+                    for row in variants_by_id.values()
+                    if _text(row.get("itemId"))
+                }
+                if option_item_ids:
+                    items_by_id = {
+                        _text(row.get("itemId")): row
+                        for row in snapshot.get("items") or ()
+                        if (
+                            isinstance(row, dict)
+                            and _text(row.get("itemId")) in option_item_ids
+                        )
+                    }
     sources_by_item_id: dict[str, list[Mapping[str, Any]]] = {}
-    for source in snapshot.get("sources") or ():
-        if isinstance(source, Mapping) and _text(source.get("itemId")):
-            sources_by_item_id.setdefault(_text(source.get("itemId")), []).append(
-                source
-            )
+    if "items" in selected_categories:
+        for source in snapshot.get("sources") or ():
+            if isinstance(source, Mapping) and _text(source.get("itemId")):
+                sources_by_item_id.setdefault(
+                    _text(source.get("itemId")), []
+                ).append(source)
 
     def add_artifact(
         *,
@@ -1161,11 +1200,6 @@ def _compile_release_gear_evidence(
                 fact_specs=stat_specs,
             )
 
-    variants_by_id = {
-        _text(row.get("variantId")): row
-        for row in snapshot.get("variants") or ()
-        if isinstance(row, dict) and _text(row.get("variantId"))
-    }
     for index, row in enumerate(
         snapshot.get("options") or () if "options" in selected_categories else ()
     ):
