@@ -63,7 +63,7 @@
     {
       "command": "python3 -m unittest tests.gear_evidence_registry_test tests.gear_evidence_store_test tests.gear_evidence_observers_test tests.gear_fact_compiler_test tests.gear_fact_shadow_test tests.gear_release_tool_test tests.gear_release_refresh_test tests.pg_gear_authority_loader_test tests.gear_resolver_test tests.websim_payload_test tests.gear_evidence_gap_worker_test",
       "status": "pass",
-      "summary": "2026-07-27 replacement checkpoint run passed 724 tests in 22.602s. The known non-failing ResourceWarning messages report unclosed SQLite test connections; no candidate, deployment, or manual-acceptance claim follows."
+      "summary": "2026-07-27 replacement checkpoint run passed 725 tests in 22.838s. The known non-failing ResourceWarning messages report unclosed SQLite test connections; no candidate, deployment, or manual-acceptance claim follows."
     },
     {
       "command": "node node_modules/vitest/vitest.mjs run apps/mini-taro/src/pages/builds/gear-detail-model.test.ts apps/mini-taro/src/pages/builds/detail.test.tsx",
@@ -78,7 +78,7 @@
     {
       "command": "node scripts/project-harness.js --json --check --requirement-file artifacts/releases/2026-07-27-gear-evidence-registry/requirement.json --evidence-file artifacts/releases/2026-07-27-gear-evidence-registry/evidence.json --manifest-file artifacts/releases/2026-07-27-gear-evidence-registry/manifest.json --base origin/main",
       "status": "pass",
-      "summary": "2026-07-27 task-scoped Harness packet check passed with no failures before the immutable checkpoint was bound; it will be re-run again from the clean evidence-only checkpoint before candidate deployment."
+      "summary": "2026-07-27 task-scoped Harness packet check passed with no failures from the clean replacement evidence checkpoint. It remains local verification only; no candidate, retail, Manifest, or manual-acceptance claim follows."
     }
   ],
   "candidateDeployment": {

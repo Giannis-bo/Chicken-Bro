@@ -424,6 +424,74 @@ class GearFactCompilerTest(unittest.TestCase):
             },
         )
 
+    def test_batch_compilation_resolves_cross_subject_option_dependencies(self):
+        capability = self.observation("socket_count", 1)
+        static_slot = self.observation(
+            "slot_compatibility",
+            ["head"],
+            parser_revision="battle-net-item-observer-v1",
+        )
+        slot_rule = self.observation(
+            "allowed_enhancement_options",
+            {
+                "capabilityFactType": "socket_count",
+                "optionIds": ["gem:240001"],
+                "slot": "head",
+            },
+            parser_revision="season-rule-observer-v1",
+            source_scope="slot_rule",
+        )
+        option = self.observation(
+            "enhancement_option",
+            {
+                "applicableScopes": ["head"],
+                "effect": {"haste": 147},
+                "optionId": "gem:240001",
+                "optionType": "gem",
+            },
+            subject_key="option:gem:240001",
+        )
+        conflicting_option = self.observation(
+            "enhancement_option",
+            {
+                "applicableScopes": ["head"],
+                "effect": {"haste": 148},
+                "optionId": "gem:240001",
+                "optionType": "gem",
+            },
+            artifact_id="batch-conflicting-option",
+            subject_key="option:gem:240001",
+        )
+
+        def batch_fact(rows):
+            facts = gear_fact_compiler.compile_facts_by_subject(
+                season_revision=SEASON_REVISION,
+                observations=rows,
+                artifacts=self.artifacts.values(),
+                fact_types_by_subject={
+                    SUBJECT_KEY: ["allowed_enhancement_options"],
+                },
+            )
+            self.assertEqual(len(facts), 1)
+            return facts[0]
+
+        verified = batch_fact([capability, static_slot, slot_rule, option])
+        missing = batch_fact([capability, static_slot, slot_rule])
+        conflict = batch_fact(
+            [
+                capability,
+                static_slot,
+                slot_rule,
+                option,
+                conflicting_option,
+            ]
+        )
+
+        self.assertEqual(verified["status"], "verified")
+        self.assertEqual(verified["value"], ["gem:240001"])
+        self.assertEqual(missing["status"], "unresolved_missing")
+        self.assertEqual(conflict["status"], "unresolved_conflict")
+
     def test_incomplete_closed_world_values_remain_unresolved_missing(self):
         cases = {
             "variant_track": {"itemLevel": 289, "track": "void_upgrade"},
