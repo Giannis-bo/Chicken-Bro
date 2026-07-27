@@ -5,14 +5,14 @@
   "status": "local_verified",
   "highestEvidenceLevel": "local_verified",
   "branch": "codex/gear-evidence-registry",
-  "commit": "6fde99db72265df75fce10ea1ac16ffeeeb8b90e",
+  "commit": "15f514d51946de7a3e3251a233819a2da8177494",
   "identities": {
     "runtime": {
       "status": "bound",
       "kind": "git_commit",
-      "value": "6fde99db72265df75fce10ea1ac16ffeeeb8b90e",
-      "gitTree": "b9f063ff2a65eedf079d1dc2a532f18d56654159",
-      "reason": "The replacement immutable runtime checkpoint keeps raw equipped-gem occupancy as a replayable lower-bound constraint, requires an explicit trusted exact socket claim before publishing capacity, and preserves an otherwise uncollectable gap as manual_pending. It was locally reviewed, committed, pushed, and re-verified before the next candidate window."
+      "value": "15f514d51946de7a3e3251a233819a2da8177494",
+      "gitTree": "c5ccde124700dc89876ffa6f3551066cbeae54fd",
+      "reason": "This immutable runtime checkpoint replaces the final canonical-Fact aggregate list with a PostgreSQL-only-safe external merge digest. It preserves the v1 digest, stable tie order, bounded run/merge memory, and temporary-run cleanup. It was locally reviewed, committed, pushed, and re-verified before r23."
     },
     "verification": {
       "status": "bound_at_check",
@@ -55,7 +55,7 @@
   },
   "scope": [
     "Task 8 candidate cutover evidence preparation for the existing Evidence Registry and Gear Release authority",
-    "Immutable pre-candidate runtime checkpoint 6fde99db72265df75fce10ea1ac16ffeeeb8b90e and tree b9f063ff2a65eedf079d1dc2a532f18d56654159; later evidence-only append may not modify runtime or build inputs",
+    "Immutable r23 runtime checkpoint 15f514d51946de7a3e3251a233819a2da8177494 and tree c5ccde124700dc89876ffa6f3551066cbeae54fd; later evidence-only append may not modify runtime or build inputs",
     "Strict candidate deployment, real-WeChat acceptance, existing Manifest CAS, and rollback procedure",
     "No current candidate deployment, retail deployment, new Active Season Manifest creation, or pointer mutation"
   ],
@@ -63,7 +63,7 @@
     {
       "command": "python3 -m unittest tests.gear_evidence_registry_test tests.gear_evidence_store_test tests.gear_evidence_observers_test tests.gear_fact_compiler_test tests.gear_fact_shadow_test tests.gear_release_tool_test tests.gear_release_refresh_test tests.pg_gear_authority_loader_test tests.gear_resolver_test tests.websim_payload_test tests.gear_evidence_gap_worker_test",
       "status": "pass",
-      "summary": "2026-07-27 streaming checkpoint run passed 727 tests in 22.235s. The known non-failing ResourceWarning messages report unclosed SQLite test connections; no candidate, deployment, or manual-acceptance claim follows."
+      "summary": "2026-07-27 r23 checkpoint run passed 738 tests in 22.581s. The known non-failing ResourceWarning messages report existing unclosed SQLite test connections; no candidate, deployment, or manual-acceptance claim follows."
     },
     {
       "command": "node node_modules/vitest/vitest.mjs run apps/mini-taro/src/pages/builds/gear-detail-model.test.ts apps/mini-taro/src/pages/builds/detail.test.tsx",
@@ -78,7 +78,7 @@
     {
       "command": "node scripts/project-harness.js --json --check --requirement-file artifacts/releases/2026-07-27-gear-evidence-registry/requirement.json --evidence-file artifacts/releases/2026-07-27-gear-evidence-registry/evidence.json --manifest-file artifacts/releases/2026-07-27-gear-evidence-registry/manifest.json --base origin/main",
       "status": "pass",
-      "summary": "2026-07-27 task-scoped Harness packet check passed with no failures at the replacement runtime checkpoint. It remains local verification only; no candidate, retail, Manifest, or manual-acceptance claim follows."
+      "summary": "2026-07-27 task-scoped Harness packet check passed with no failures from clean runtime checkpoint 15f514d51946de7a3e3251a233819a2da8177494. It remains local verification only; no candidate, retail, Manifest, or manual-acceptance claim follows."
     },
     {
       "command": "python3 -m unittest discover -s tests -p '*_test.py' -q; node node_modules/vitest/vitest.mjs run apps/mini-taro/src/pages/builds/gear-detail-model.test.ts apps/mini-taro/src/pages/builds/detail.test.tsx",
@@ -87,12 +87,13 @@
     }
   ],
   "candidateDeployment": {
-    "status": "not_run",
+    "status": "blocked_memory_capacity",
     "requiredBeforeMerge": true,
     "branch": "codex/gear-evidence-registry",
-    "commit": "6fde99db72265df75fce10ea1ac16ffeeeb8b90e",
-    "gitTree": "b9f063ff2a65eedf079d1dc2a532f18d56654159",
-    "reason": "The prior r5 candidate remains a preserved failed attempt: it persisted no registry/release rows and was stopped at the 2.2GB ceiling before persistence. The replacement checkpoint has not created a candidate root, database, service, release, Manifest, or retail change. A new isolated candidate preflight and bounded full-catalog observation are required; do not retry r5 or r14."
+    "commit": "15f514d51946de7a3e3251a233819a2da8177494",
+    "gitTree": "c5ccde124700dc89876ffa6f3551066cbeae54fd",
+    "candidateId": "gear-evidence-registry-15f514d5-r23",
+    "reason": "r23 used a distinct root/database, a hard-linked SHA-256-verified pre-0019 backup, sequential 0019/0020/0021 migrations, disabled collectors/async sync, and a 30% CPU, 1.4GB memory, nice 15, 45-minute build envelope. The build was deliberately stopped at 1,346,916,352 bytes current memory, about 115MiB below the cgroup limit, because memory was still rising and the single-snapshot path had not demonstrated a bounded completion that preserves shared-host headroom. It had not sealed a new Gear Release or started a candidate API. The isolated r23 root, database, backup link, environment-file path, services, and journals are retained for diagnosis; retail remains untouched."
   },
   "runtimeEvidence": [
     {
@@ -108,28 +109,49 @@
       "status": "blocked_bounded_build",
       "candidateId": "gear-evidence-registry-dd0489b9-r5",
       "summary": "The r5 source root matched runtime commit dd0489b9a020f94377d291b15acc7c47981027b5, used a verified current pre-0019 backup, passed sequential 0019/0020 schema and grant checks, and proved its runtime process was bound only to the r5 database with deploy-triggered async sync disabled. The named full-catalog build used 45% CPU, 2.2GB memory, positive niceness, and a 20-minute maximum. CPU remained within quota, but candidate memory reached the ceiling while retail headroom fell to approximately 180MB, so the candidate unit was stopped. The r5 Evidence Registry, Fact, Gap, request, and candidate-release row counts remain zero."
+    },
+    {
+      "status": "retention_cleanup_completed",
+      "candidateId": "gear-evidence-registry-c0a6fe93-r20",
+      "summary": "r20 stopped before migrations or evidence/release writes after an independent review found the then-current observed-variant compaction could orphan an option owner and retained the complete variants result. With explicit user cleanup authority, only its unused root, empty database, and redundant backup were removed; r14 remained preserved."
+    },
+    {
+      "status": "retention_cleanup_completed",
+      "candidateId": "gear-evidence-registry-145dee16-r21",
+      "summary": "r21 stopped after 28 seconds because its restore unit lacked an explicit TimeoutStartSec and inherited the unsafe 90-second default. No migration or registry/release write occurred. Its empty candidate database, root, and redundant backup were removed with explicit user cleanup authority after the corrected envelope was recorded."
+    },
+    {
+      "status": "blocked_bounded_build",
+      "candidateId": "gear-evidence-registry-145dee16-r22",
+      "summary": "r22 restored and passed 0019/0020/0021 plus database preflight under the 30% CPU, 1.4GB, nice 15, 45-minute envelope. It persisted 33,692 Artifacts, 33,692 Observations, 316,396 Facts, and 303,381 Gaps but produced no build output or sealed release. It was stopped after reaching the memory cap while the final in-memory canonical Fact digest/seal path remained unbounded. Its root, database, hard-linked pre-0019 backup, private environment path, and journal are retained."
+    },
+    {
+      "status": "blocked_bounded_build",
+      "candidateId": "gear-evidence-registry-15f514d5-r23",
+      "type": "candidate_materialization",
+      "summary": "r23 source commit 15f514d51946de7a3e3251a233819a2da8177494, tree c5ccde124700dc89876ffa6f3551066cbeae54fd, and server/gear_release_tool.py SHA-256 9b57fc9a7a51173b99aad0bd6f7a7af07a38aefcc1b185471cd1f5aa1843de4a matched locally. Root: /opt/wow-mini-program-candidate/gear-evidence-registry-15f514d5-r23; database label: wow_gear_evidence_15f514d5_r23; backup: /opt/wow-mini-program-candidate/.candidate-backups/gear-evidence-registry-15f514d5-r23-pre0019-with-acl.dump, hard-linked to the retained r14 backup and SHA-256 8a2507f7bc09ed46c71aed818aa084af5a680c1b4b3d69146e6f577b55dd0240. Restore unit wow-gear-evidence-r23-restore.service completed in 18.089 CPU seconds with 131.6MB peak and no swap; 0019, 0020, and 0021 ran sequentially with schema/grant checks. The first db preflight failed only because the copied private env still named the r22 password file; wow-gear-evidence-r23-db-preflight-2.service passed after that path-only correction. Build unit wow-gear-evidence-r23-build.service started 2026-07-27 23:11:02 under CPUQuota 30%, MemoryMax 1,468,006,400 bytes, Nice 15, TimeoutStart/RuntimeMax 45 minutes. It was manually safety-stopped at 23:39:18, after 8m28.529s CPU, 1.2G reported peak, 0B swap, and last observed current memory 1,346,916,352 bytes. It had 27,298 Artifacts, 27,298 Observations, 249,342 Facts, 238,961 Gaps, the inherited baseline 35 Gear Releases and no newly sealed Gear Release; both build-output files were empty SHA-256 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855. No candidate API service ran; retail wow-backend remained active and its database lacks the Evidence Registry table. Preserve r23 rather than retry it."
     }
   ],
   "risks": [
     {
       "id": "candidate_identity_absent",
-      "status": "partially_resolved",
-      "detail": "The exact committed/pushed replacement runtime source and tree are bound after final local CR, independent review, and clean scoped verification. A fresh candidate build identity, isolated root/database/service/port, bounded materialization envelope, and pre-0019 backup remain required before candidate execution."
+      "status": "resolved_for_r23_but_not_published",
+      "detail": "r23 has an exact committed/pushed source, tree, source-file hash, isolated root/database, hard-linked verified backup, named restore/migration/preflight/build units, and disabled collector/async-sync guards. It did not produce a new sealed release, public candidate service, smoke, or manual acceptance; no identity is eligible for promotion."
     },
     {
       "id": "candidate_resource_bounds_required",
-      "status": "pending_candidate_preflight",
-      "detail": "The prior isolated full-catalog attempt persisted no evidence but exhausted shared-host CPU and memory. The new streaming candidate materialization must still record and enforce a CPU quota, memory maximum, positive niceness, and finite runtime maximum; an envelope breach fails closed."
+      "status": "enforced_for_r23_reapply_for_next_candidate",
+      "detail": "r23 correctly enforced 30% CPU, 1.4GB MemoryMax, nice 15, and finite 45-minute start/runtime limits. It was stopped fail-closed while memory continued rising before a safe completion. Every later fresh candidate must record and enforce a new bounded envelope; do not use r23 as a retry root."
     },
     {
       "id": "candidate_disk_capacity_required",
       "status": "pending_candidate_preflight",
-      "detail": "The bounded r4 restore stopped before migration because the shared host had insufficient free disk capacity for another full isolated PostgreSQL copy. Explicit user retention authority removed only three unreferenced historical archives and restored approximately 9.46GiB; the fresh streaming candidate must prove sufficient free capacity before its backup, restore, and build units start."
+      "detail": "The bounded r4 restore stopped before migration because the shared host had insufficient free disk capacity for another full isolated PostgreSQL copy. Explicit user retention authority removed three unreferenced historical archives; r23 then restored but left roughly 2.0GB free after its partial materialization while r14/r22/r23 are retained. A later fresh candidate must independently preflight capacity without deleting retained diagnostic evidence or reducing retail headroom."
     },
     {
       "id": "candidate_memory_capacity_required",
-      "status": "mitigated_pending_candidate_proof",
-      "detail": "The r5 build proved that the old release preparation exceeded a 2.2GB candidate allocation despite staying inside its CPU quota. The new streaming checkpoint removes the repeated whole-universe preparation and Store replay retained by that path, but it requires a fresh bounded candidate observation before this risk can be closed."
+      "status": "blocked_by_single_snapshot_peak",
+      "detail": "r23 proves the external canonical-Fact digest eliminated one late aggregate allocation but not the catalog-sized returned release snapshot itself: memory rose to 1,346,916,352 bytes before completion, with only 249,342 of the expected full Fact stream written. Do not increase the envelope, retry r23, delete r14/r22/r23 diagnostic state, or start a candidate API. The next source change must make the one returned release snapshot itself disk-backed or otherwise demonstrably bounded, then pass TDD/review/checkpoint before a fresh candidate root/database."
     },
     {
       "id": "manual_acceptance_pending",
@@ -139,18 +161,18 @@
     {
       "id": "manifest_not_created",
       "status": "intentional",
-      "detail": "The Harness packet manifest exists for task-scoped validation, but no new Active Season Manifest exists because there is no candidate identity or candidate evidence. The existing retail Active Season Manifest remains authoritative."
+      "detail": "The Harness packet manifest exists for task-scoped validation, but no new Active Season Manifest exists because r23 produced no qualified sealed candidate release or runtime smoke evidence. The existing retail Active Season Manifest remains authoritative."
     }
   ],
   "rollback": [
-    "No retail rollback action is required because no candidate public state, release, Manifest, or retail state changed. The partial isolated r4 database and migrated-but-empty r5 database remain stopped with verified pre-0019 backups retained for diagnosis.",
+    "No retail rollback action is required because no candidate public state, new release, Manifest, or retail state changed. In addition to the three previously authorized historical archive removals, r20 and r21 were explicitly removed because they held no evidence. The r14, r22, and r23 isolated databases/roots plus their hard-linked verified pre-0019 backups remain stopped and retained for diagnosis.",
     "For execution, use the existing Manifest compare-and-swap rollback to the recorded prior Manifest revision; do not delete or rewrite append-only registry rows.",
     "If migration 0019, 0020, or candidate data is invalid, stop the isolated candidate service and restore only the isolated candidate database from its verified pre-0019 backup."
   ],
   "cleanup": {
     "required": true,
     "status": "pending_candidate_and_retail_closure",
-    "reason": "Three unreferenced historical candidate archives were removed with explicit user retention authority. Any current isolated candidate root, partial or migrated-but-empty database, service override, port allocation, and backup-retention record remains protected until explicit authority, evidence retention, and the final Harness closure."
+    "reason": "Three unreferenced historical candidate archives plus empty r20/r21 state were removed with explicit user retention authority. r14, r22, and r23 contain retained rollback/diagnostic evidence; their roots, databases, hard-linked backup records, private environment paths, systemd journals, and stopped unit identities are protected until explicit retention authority and final Harness closure."
   },
   "archivedReferences": [
     "docs/project-state.json",
@@ -160,5 +182,5 @@
     "docs/gear-simulation-full-chain-runbook.md",
     "docs/runbooks/gear-evidence-registry-cutover.md"
   ],
-  "summary": "Task 8 is local_verified at immutable pre-candidate runtime checkpoint 6fde99db72265df75fce10ea1ac16ffeeeb8b90e (tree b9f063ff2a65eedf079d1dc2a532f18d56654159). It retains the bounded streaming preparation, in-place projection, compact shadow/receipt, schedule-bound Store replay, and compact reusable option Facts; it additionally prevents a raw equipped-gem sequence from becoming published socket capacity. A verified exact socket claim remains publishable, while an uncollectable capacity question stays manual_pending and is not claimed or terminalized by the worker. Local full Python regression, focused Taro detail suites, Harness validation, local CR, and an attempted optional Codex review have completed; the CLI review did not return a finding report because its local model/MCP setup failed, so local CR remains the binding review evidence. No fresh candidate root, database, service, release, Artifact, Observation, Fact, Gap, Manifest, retail database, or retail pointer has been created or changed by this checkpoint. A fresh isolated candidate preflight and bounded full-catalog observation, candidate runtime evidence, real WeChat/manual acceptance, final evidence commit, main merge/push/parity/retest, deterministic retail replay/materialization parity, fresh-generation retail Active Season Manifest CAS, rollback proof, and closure are all pending. The Harness packet manifest exists; no new Active Season Manifest has been created."
+  "summary": "Task 8 remains local_verified and candidate-blocked at runtime checkpoint 15f514d51946de7a3e3251a233819a2da8177494 (tree c5ccde124700dc89876ffa6f3551066cbeae54fd). The new PostgreSQL-only-safe external merge digest preserves the v1 canonical Fact digest without a whole-Fact aggregate, and its TDD/regression suite covers cross-run stable ordering, no SQLite runtime, and temporary-run cleanup. The local scoped backend suite passed 738 tests, focused Taro detail suites passed 34 tests, UI architecture audit passed 283 checks, independent review approved after P1/P2 correction, local CR found no actionable issue, and Harness passed from the clean pushed checkpoint. r23 proved that this fixes only the final digest allocation: memory kept rising through 1,346,916,352 bytes before full evidence compilation and sealing, so it was deliberately stopped while it still retained about 115MiB below the 1.4GB cgroup cap. Its partial immutable rows, root, database, backup link, private configuration paths, and journals are retained; no candidate API, new sealed Gear Release, Manifest, retail database, retail service, or retail pointer changed. A new source correction for the single release-snapshot peak, then a fresh isolated candidate, full sealed release, candidate smoke, real WeChat acceptance, main parity, deterministic retail replay/materialization parity, fresh-generation retail Manifest CAS, rollback proof, and closure remain pending."
 }

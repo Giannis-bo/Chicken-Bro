@@ -505,6 +505,23 @@
   bounded full-catalog build must be created from exactly this tree; retail,
   `main`, and the Active Season Manifest remain unchanged.
 
+  On 2026-07-27, r23 bound runtime commit
+  `15f514d51946de7a3e3251a233819a2da8177494` and tree
+  `c5ccde124700dc89876ffa6f3551066cbeae54fd`. The final canonical-Fact digest
+  now uses a PostgreSQL-only-safe external merge: TDD proves v1 byte equality,
+  cross-run stable ties, no SQLite runtime, and temporary-run cleanup. The
+  clean checkpoint passed 738 scoped Python tests, 34 focused Taro tests, 283
+  UI-architecture checks, independent review, local CR, and Harness. Its
+  fresh isolated candidate restored, passed sequential 0019/0020/0021 schema
+  and grant checks, but the bounded full-catalog build was manually stopped at
+  1,346,916,352 bytes current memory (about 115MiB below the 1.4GB cap) while
+  still rising before completion: 27,298 Artifacts/Observations, 249,342 Facts,
+  and 238,961 Gaps were persisted, but no new Gear Release was sealed. This is
+  **blocked**, not a passing candidate. Preserve r23 and its backup/journals;
+  the next change must bound the remaining single returned release snapshot
+  before a new source checkpoint and fresh candidate root/database. Retail,
+  `main`, and the Active Season Manifest remain unchanged.
+
 - [ ] **Step 4: Execute candidate-only deployment verification**
 
   Deploy the branch/commit to the approved candidate path with `WOW_DEPLOY_START_ASYNC_SYNCS=0`; record release/manifest identities, runtime file parity, health component state, worker state, exact API payloads, and the fallback Manifest revision. Do not merge or activate production here.
