@@ -82,6 +82,11 @@ FACT_POLICIES: dict[str, dict[str, Any]] = {
     },
     "socket_count": {
         "allowedSources": _ALL_STATIC_SOURCES,
+        # A legacy observed profile can prove that a player had gems equipped,
+        # but not that those gems fit in a verified socket capacity.  Keep the
+        # immutable observation for replay and use it only as a lower-bound
+        # constraint; it must never become a trusted capacity observation.
+        "constraintSources": ("legacy_observed_variant",),
         "sourceScopes": (
             "base_item",
             "exact_item",
@@ -94,7 +99,7 @@ FACT_POLICIES: dict[str, dict[str, Any]] = {
         "closedWorldCondition": "explicit_zero_or_exact_capacity",
         "conflictPolicy": "unresolved_on_distinct_exact_values",
         "impactScope": "socket_only",
-        "ruleRevision": "gear-socket-count-policy-v1",
+        "ruleRevision": "gear-socket-count-policy-v2",
     },
     "enchant_capability": {
         "allowedSources": _STRUCTURAL_SOURCES,
@@ -322,6 +327,17 @@ def _validate_policy(fact_type: str, policy: Mapping[str, Any]) -> None:
         values = policy.get(field)
         if not isinstance(values, (list, tuple)) or not values:
             raise ValueError(f"Fact policy {fact_type} requires {field}.")
+    constraint_sources = policy.get("constraintSources", ())
+    if not isinstance(constraint_sources, (list, tuple)) or any(
+        not _text(source_type) for source_type in constraint_sources
+    ):
+        raise ValueError(
+            f"Fact policy {fact_type} has invalid constraintSources."
+        )
+    if set(constraint_sources).intersection(policy["allowedSources"]):
+        raise ValueError(
+            f"Fact policy {fact_type} cannot trust a constraint source."
+        )
     for field in (
         "closedWorldCondition",
         "conflictPolicy",
@@ -336,6 +352,18 @@ def _validate_policy(fact_type: str, policy: Mapping[str, Any]) -> None:
         )
 
 
+def policy_accepts_observation_source(
+    policy: Mapping[str, Any], source_type: Any
+) -> bool:
+    """Whether a policy must retain this source for deterministic replay."""
+
+    normalized_source_type = _text(source_type)
+    return normalized_source_type in {
+        *policy.get("allowedSources", ()),
+        *policy.get("constraintSources", ()),
+    }
+
+
 def _eligible_observations(
     observations: Sequence[Mapping[str, Any]],
     subject_key: str,
@@ -346,7 +374,12 @@ def _eligible_observations(
     observations_by_subject_fact: Mapping[
         tuple[str, str], Sequence[Mapping[str, Any]]
     ] | None = None,
-) -> tuple[list[Mapping[str, Any]], bool, bool]:
+) -> tuple[
+    list[Mapping[str, Any]],
+    list[Mapping[str, Any]],
+    bool,
+    bool,
+]:
     scoped = (
         observations_by_subject_fact.get((subject_key, fact_type), ())
         if observations_by_subject_fact is not None
@@ -365,6 +398,7 @@ def _eligible_observations(
         and observation.get("status") == "accepted"
     ]
     eligible: list[Mapping[str, Any]] = []
+    constraints: list[Mapping[str, Any]] = []
     policy_rejected = False
     missing_artifact = False
     for observation in candidates:
@@ -377,6 +411,12 @@ def _eligible_observations(
             and _text(artifact.get("seasonRevision")) == season_revision
             and _text(artifact.get("sourceType")) in policy["allowedSources"]
         )
+        constraint_source = (
+            artifact.get("schemaRevision") == EVIDENCE_ARTIFACT_SCHEMA_REVISION
+            and _text(artifact.get("seasonRevision")) == season_revision
+            and _text(artifact.get("sourceType"))
+            in policy.get("constraintSources", ())
+        )
         scope_allowed = (
             _text(observation.get("sourceScope")) in policy["sourceScopes"]
         )
@@ -386,9 +426,15 @@ def _eligible_observations(
             and _text(observation.get("observationId"))
         ):
             eligible.append(observation)
+        elif (
+            constraint_source
+            and scope_allowed
+            and _text(observation.get("observationId"))
+        ):
+            constraints.append(observation)
         else:
             policy_rejected = True
-    return eligible, policy_rejected, missing_artifact
+    return eligible, constraints, policy_rejected, missing_artifact
 
 
 def _valid_string_list(value: Any, *, allow_empty: bool = False) -> bool:
@@ -718,7 +764,12 @@ def _compile_one(
             problem_code="compiler_policy_missing",
         )
     _validate_policy(fact_type, policy)
-    eligible, policy_rejected_candidates, missing_artifact = (
+    (
+        eligible,
+        constraints,
+        policy_rejected_candidates,
+        missing_artifact,
+    ) = (
         _eligible_observations(
             observations,
             subject_key,
@@ -735,10 +786,33 @@ def _compile_one(
         policy,
         artifacts_by_id,
     )
+    unverified_capacity_constraint = False
+    if fact_type == "socket_count" and constraints:
+        constraint_values = [
+            _canonical(observation.get("observedValue"))
+            for observation in constraints
+            if _valid_socket_count(
+                _canonical(observation.get("observedValue")), subject_key
+            )
+        ]
+        constraint_is_incomplete = len(constraint_values) != len(constraints)
+        if status != "unresolved_conflict" and (
+            constraint_is_incomplete
+            or status != "verified"
+            or not _valid_socket_count(value, subject_key)
+            or int(value) < max(constraint_values, default=0)
+        ):
+            # Do not promote raw gem occupancy to capacity.  A trusted exact
+            # probe is needed whenever it exceeds (or is the only support for)
+            # the currently verified lower bound.
+            status, value = "unresolved_missing", None
+            unverified_capacity_constraint = True
     if status == "verified":
         problem_code = ""
     elif status == "unresolved_conflict":
         problem_code = "observation_conflict"
+    elif unverified_capacity_constraint:
+        problem_code = "unverified_observed_capacity"
     elif incomplete_closed_world:
         problem_code = "parser_unhandled_shape"
     elif missing_artifact:
@@ -755,7 +829,7 @@ def _compile_one(
         status=status,
         observation_refs=[
             observation["observationId"]
-            for observation in eligible
+            for observation in (*eligible, *constraints)
         ],
         compiler_rule_revision=policy["ruleRevision"],
         impact_scope=policy["impactScope"],
@@ -803,7 +877,7 @@ def _compile_allowed_options(
             observations_by_subject_fact=observations_by_subject_fact,
         )
     _validate_policy(fact_type, policy)
-    eligible, policy_rejected, missing_artifact = _eligible_observations(
+    eligible, _constraints, policy_rejected, missing_artifact = _eligible_observations(
         observations,
         subject_key,
         fact_type,
@@ -1145,6 +1219,11 @@ def evidence_gaps_from_facts(
             "unresolved_conflict",
         }:
             continue
+        problem_code = _text(fact.get("problemCode")) or (
+            "observation_conflict"
+            if fact.get("status") == "unresolved_conflict"
+            else "artifact_missing"
+        )
         missing_requirement = {
             "subjectKey": _text(fact.get("subjectKey")),
             "factType": _text(fact.get("factType")),
@@ -1153,10 +1232,15 @@ def evidence_gaps_from_facts(
             "requiredInputKey": (
                 "consistent_observation"
                 if fact.get("status") == "unresolved_conflict"
+                else "trusted_exact_item_probe"
+                if problem_code == "unverified_observed_capacity"
                 else "allowed_observation"
             ),
         }
-        if fact.get("status") == "unresolved_missing":
+        if (
+            fact.get("status") == "unresolved_missing"
+            and problem_code != "unverified_observed_capacity"
+        ):
             policy = FACT_POLICIES.get(_text(fact.get("factType")))
             if policy is not None:
                 source_scopes = tuple(policy.get("sourceScopes") or ())
@@ -1193,12 +1277,7 @@ def evidence_gaps_from_facts(
         gaps.append(
             {
                 "factKey": _text(fact.get("factKey")),
-                "problemCode": _text(fact.get("problemCode"))
-                or (
-                    "observation_conflict"
-                    if fact.get("status") == "unresolved_conflict"
-                    else "artifact_missing"
-                ),
+                "problemCode": problem_code,
                 "missingRequirement": missing_requirement,
             }
         )
@@ -1214,4 +1293,5 @@ __all__ = (
     "compile_facts_by_subject",
     "compile_subject_facts",
     "evidence_gaps_from_facts",
+    "policy_accepts_observation_source",
 )

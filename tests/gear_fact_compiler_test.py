@@ -749,7 +749,7 @@ class GearFactCompilerTest(unittest.TestCase):
         self.assertEqual(
             missing_gap["missingRequirement"],
             {
-                "compilerRuleRevision": "gear-socket-count-policy-v1",
+                "compilerRuleRevision": "gear-socket-count-policy-v2",
                 "factType": "socket_count",
                 "requiredInputKey": "allowed_observation",
                 "seasonRevision": SEASON_REVISION,

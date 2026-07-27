@@ -3524,6 +3524,138 @@ class GearReleaseToolTest(unittest.TestCase):
             for artifact in socket_artifacts
         ))
 
+    def test_unverified_observed_gem_occupancy_holds_socket_capacity_pending(self):
+        """Raw equipped gems are a replayable constraint, never socket proof."""
+        from server import gear_fact_compiler
+        from server.gear_release_tool import (
+            _compile_release_gear_evidence,
+            prepare_staging_gear_release,
+        )
+
+        snapshot = self.snapshot()
+        variant = snapshot["variants"][0]
+        subject_key = "item:item-a/variant:variant-a"
+        variant["simcOptions"].update(
+            {
+                "bonus_id": "9300",
+                "gem_id": "240892/240918",
+            }
+        )
+        # A verified stat probe does not by itself attest socket capacity.
+        # Equipped gems remain a legacy observation until a dedicated socket
+        # probe is supplied.
+
+        compiled = _compile_release_gear_evidence(
+            snapshot,
+            season_revision="season-17",
+            source_revision="legacy-import-r0",
+            captured_at="2026-07-27T01:02:03+00:00",
+            socket_bonus_minimums={
+                "9300": {
+                    "minimumTotal": 1,
+                    "sourceRevision": "simc-fixture-r1",
+                }
+            },
+            socket_bonus_evidence=socket_probe_evidence(),
+        )
+
+        socket_fact = next(
+            fact
+            for fact in compiled["facts"]
+            if fact["subjectKey"] == subject_key
+            and fact["factType"] == "socket_count"
+        )
+        self.assertEqual(
+            (socket_fact["status"], socket_fact["value"]),
+            ("unresolved_missing", None),
+        )
+        self.assertEqual(
+            socket_fact["problemCode"],
+            "unverified_observed_capacity",
+        )
+        constraint_artifact = next(
+            artifact
+            for artifact in compiled["artifacts"]
+            if artifact["sourceType"] == "legacy_observed_variant"
+        )
+        constraint_observation = next(
+            observation
+            for observation in compiled["observations"]
+            if observation["artifactId"] == constraint_artifact["artifactId"]
+        )
+        self.assertEqual(
+            constraint_observation["observedValue"],
+            2,
+        )
+        self.assertIn(
+            constraint_observation["observationId"],
+            socket_fact["observationRefs"],
+        )
+        self.assertEqual(
+            {
+                artifact["sourceType"]
+                for artifact in compiled["artifacts"]
+                if artifact.get("payload", {}).get("factType") == "socket_count"
+            },
+            {"legacy_observed_variant", "simc_bonus_probe"},
+        )
+        gap = next(
+            gap
+            for gap in gear_fact_compiler.evidence_gaps_from_facts(
+                compiled["facts"]
+            )
+            if gap["factKey"] == socket_fact["factKey"]
+        )
+        self.assertEqual(
+            gap["missingRequirement"],
+            {
+                "subjectKey": subject_key,
+                "factType": "socket_count",
+                "seasonRevision": "season-17",
+                "compilerRuleRevision": "gear-socket-count-policy-v2",
+                "requiredInputKey": "trusted_exact_item_probe",
+            },
+        )
+        from server.gear_release_tool import _gear_evidence_gap_records
+
+        gap_record = next(
+            record
+            for record in _gear_evidence_gap_records(
+                compiled["facts"],
+                now="2026-07-27T01:02:03+00:00",
+            )
+            if record["factKey"] == socket_fact["factKey"]
+        )
+        self.assertEqual(gap_record["status"], "manual_pending")
+
+        # The fail-closed Fact is a legitimate candidate state, not a shadow
+        # regression back to the legacy gem count.
+        prepared = prepare_staging_gear_release(
+            FakeReleaseStore(copy.deepcopy(snapshot)),
+            season_revision="season-17",
+            dependency_revisions=self.dependencies(),
+            socket_bonus_minimums=socket_probe_evidence(),
+            evidence_now="2026-07-27T01:02:03+00:00",
+        )
+        prepared_socket_fact = next(
+            fact
+            for fact in prepared["snapshot"]["variants"][0]["payload"][
+                "canonicalFacts"
+            ]
+            if fact["factType"] == "socket_count"
+        )
+        self.assertEqual(
+            (prepared_socket_fact["status"], prepared_socket_fact["value"]),
+            ("unresolved_missing", None),
+        )
+        self.assertEqual(prepared["gate"]["factShadow"]["status"], "pass")
+        self.assertNotIn(
+            "socketCount",
+            prepared["snapshot"]["variants"][0]["payload"].get(
+                "capabilityOverrides", {}
+            ),
+        )
+
     def test_candidate_recompile_explicitly_compiles_collected_bonus_evidence_for_250033(self):
         """A recovered Artifact changes only the prepared candidate input."""
         from server.gear_evidence_registry import (

@@ -372,7 +372,13 @@ def _gear_evidence_gap_records(
                 "schemaRevision": "gear-evidence-gap-v1",
                 "gapKey": "gear-gap:" + _canonical_digest(identity),
                 **identity,
-                "status": "pending",
+                # This gap is deliberately non-claimable: raw occupied gems
+                # prove neither an exact slot count nor a safe collector path.
+                "status": (
+                    "manual_pending"
+                    if identity["problemCode"] == "unverified_observed_capacity"
+                    else "pending"
+                ),
                 "attempt": 0,
                 "nextAttemptAt": _text(now),
             }
@@ -515,16 +521,6 @@ def _compile_release_gear_evidence(
             if isinstance(evidence_row.get("payload"), Mapping)
             else {}
         )
-        canonical_evidence = (
-            evidence_payload.get("canonicalEvidence")
-            if isinstance(evidence_payload.get("canonicalEvidence"), Mapping)
-            else {}
-        )
-        stat_evidence = (
-            evidence_payload.get("statEvidence")
-            if isinstance(evidence_payload.get("statEvidence"), Mapping)
-            else {}
-        )
         for source_input in inputs:
             subject_key = _text(source_input.get("subjectKey"))
             source_name = _text(source_input.get("source"))
@@ -537,6 +533,37 @@ def _compile_release_gear_evidence(
                 or not input_revision
             ):
                 continue
+            if source_name == "observed_gem_occupancy":
+                if _int(source_input.get("observedValue")) > 0:
+                    # An equipped-gem count is valuable as a replayable
+                    # lower-bound constraint, but it is not a verified socket
+                    # probe.  A generic stat probe cannot promote this legacy
+                    # field to capacity without a dedicated socket Artifact.
+                    add_artifact(
+                        source_type="legacy_observed_variant",
+                        source_identity=(
+                            f"legacy-observed-variant:{subject_key}"
+                        ),
+                        artifact_source_revision=input_revision,
+                        payload={
+                            "subjectKey": subject_key,
+                            "factType": "socket_count",
+                            "observedGemCount": _int(
+                                source_input.get("observedValue")
+                            ),
+                            "source": source_name,
+                            "sourceScope": source_scope,
+                        },
+                        fact_specs=[
+                            (
+                                subject_key,
+                                "socket_count",
+                                _int(source_input.get("observedValue")),
+                                source_scope,
+                            )
+                        ],
+                    )
+                continue
             source_evidence: Mapping[str, Any] | None = None
             if source_name == "official_item_payload" and official_payload:
                 source_evidence = _official_game_asset_evidence(
@@ -544,23 +571,6 @@ def _compile_release_gear_evidence(
                     subject_key.split("/", 1)[0].removeprefix(
                         "item:"
                     ),
-                )
-            elif source_name == "observed_gem_occupancy":
-                source_evidence = next(
-                    (
-                        evidence
-                        for evidence in (stat_evidence, canonical_evidence)
-                        if _text(evidence.get("status")).lower()
-                        == "verified"
-                        and _text(evidence.get("sourceType")).lower()
-                        == "simc_item_probe"
-                        and _text(evidence.get("sourceIdentity"))
-                        and _text(evidence.get("sourceRevision"))
-                        == input_revision
-                        and _text(evidence.get("sourceScope"))
-                        == source_scope
-                    ),
-                    None,
                 )
             elif source_name == "simc_bonus" and (
                 input_revision
@@ -1042,6 +1052,21 @@ def _compile_release_gear_evidence(
                 specs.append(
                     (subject, fact_type, capabilities[field], "exact_variant")
                 )
+        # A capability override is trusted only when the same immutable
+        # exact-variant evidence explicitly attests socket_count.  This is a
+        # separate path from an equipped-gem sequence, which remains a raw
+        # lower-bound constraint even when the variant also has stat evidence.
+        socket_capacity = capabilities.get("socketCount")
+        if (
+            evidence_verified
+            and "socket_count" in evidence_claims
+            and isinstance(socket_capacity, int)
+            and not isinstance(socket_capacity, bool)
+            and socket_capacity >= 0
+        ):
+            specs.append(
+                (subject, "socket_count", socket_capacity, "exact_variant")
+            )
         if specs:
             add_artifact(
                 source_type=evidence_type,
@@ -1052,7 +1077,15 @@ def _compile_release_gear_evidence(
                     "slot": _text(row.get("slot")),
                     "capabilities": {
                         key: capabilities[key]
-                        for key in ("canEnchant", "canEmbellish")
+                        for key in (
+                            "socketCount",
+                            "canEnchant",
+                            "canEmbellish",
+                        )
+                        if (
+                            key != "socketCount"
+                            or "socket_count" in evidence_claims
+                        )
                         if key in capabilities
                     },
                 },

@@ -2420,6 +2420,7 @@ def gear_evidence_gap_health_component(*, store=None, now=""):
             "retryable",
             "candidate_pending",
             "candidate_running",
+            "manual_pending",
             "terminal",
         )
     }
@@ -2435,6 +2436,7 @@ def gear_evidence_gap_health_component(*, store=None, now=""):
         + queue["retryable"]
         + queue["candidate_pending"]
         + queue["candidate_running"]
+        + queue["manual_pending"]
     )
     ready_count = queue["pending"] + queue["retryable"] + queue["candidate_pending"]
     if active_count and not queue_revision:
@@ -2444,6 +2446,10 @@ def gear_evidence_gap_health_component(*, store=None, now=""):
     elif ready_count:
         status = "partial"
         readiness = "pending"
+        blockers = []
+    elif queue["manual_pending"]:
+        status = "partial"
+        readiness = "manual_review"
         blockers = []
     elif queue["running"] or queue["candidate_running"]:
         status = "partial"

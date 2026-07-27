@@ -20,6 +20,7 @@ _ROOT_CODES = {
     "observation_conflict",
     "compiler_policy_missing",
     "projection_contract_regression",
+    "unverified_observed_capacity",
 }
 _FINISH_STATUSES = {"retryable", "terminal"}
 _GAP_KEYS = {
@@ -252,9 +253,13 @@ class GearEvidenceGapStore:
             normalized["factKey"], "gear-fact:sha256:"
         ):
             raise GearEvidenceGapIntegrityError("Gear Evidence Gap identity is invalid.")
-        if normalized["status"] != "pending" or normalized["attempt"] != 0:
+        manual_capacity_gap = (
+            normalized["problemCode"] == "unverified_observed_capacity"
+        )
+        expected_status = "manual_pending" if manual_capacity_gap else "pending"
+        if normalized["status"] != expected_status or normalized["attempt"] != 0:
             raise GearEvidenceGapIntegrityError(
-                "New Gear Evidence Gaps must start pending at attempt zero."
+                "New Gear Evidence Gaps must start in their approved attempt-zero state."
             )
         if normalized["problemCode"] not in _ROOT_CODES:
             raise GearEvidenceGapIntegrityError("Gear Evidence Gap root code is invalid.")
@@ -456,6 +461,7 @@ class GearEvidenceGapStore:
                         count(*) FILTER (WHERE status = 'retryable'),
                         count(*) FILTER (WHERE status = 'candidate_pending'),
                         count(*) FILTER (WHERE status = 'candidate_running'),
+                        count(*) FILTER (WHERE status = 'manual_pending'),
                         count(*) FILTER (WHERE status = 'terminal'),
                         count(*) FILTER (WHERE status = 'running' AND lease_until < %s::timestamptz),
                         count(*) FILTER (WHERE status = 'candidate_running' AND lease_until < %s::timestamptz),
@@ -469,7 +475,7 @@ class GearEvidenceGapStore:
                     """,
                     (_text(now), _text(now)),
                 )
-                counts = cur.fetchone() or (0, 0, 0, 0, 0, 0, 0, 0, None)
+                counts = cur.fetchone() or (0, 0, 0, 0, 0, 0, 0, 0, 0, None)
                 cur.execute(
                     """
                     SELECT problem_code, count(*)
@@ -523,13 +529,14 @@ class GearEvidenceGapStore:
                 "retryable": _int(counts[2]),
                 "candidate_pending": _int(counts[3]),
                 "candidate_running": _int(counts[4]),
-                "terminal": _int(counts[5]),
+                "manual_pending": _int(counts[5]),
+                "terminal": _int(counts[6]),
             },
             "reclaimable": {
-                "worker": _int(counts[6]),
-                "candidateRecompiler": _int(counts[7]),
+                "worker": _int(counts[7]),
+                "candidateRecompiler": _int(counts[8]),
             },
-            "oldestReadyAt": _text(counts[8]),
+            "oldestReadyAt": _text(counts[9]),
             "topProblemCodes": problem_counts,
             "queueInputRevision": queue_input_revision,
         }

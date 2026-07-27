@@ -379,6 +379,40 @@ class GearEvidenceStoreTest(unittest.TestCase):
 
 
 class GearEvidenceGapStoreTest(unittest.TestCase):
+    def test_manual_capacity_gap_is_preserved_but_never_claimed_by_the_worker(self):
+        fact = fact_fixture(observation_fixture(artifact_fixture()))
+        gap = {
+            **gap_fixture(fact),
+            "status": "manual_pending",
+            "problemCode": "unverified_observed_capacity",
+            "missingRequirement": {
+                "subjectKey": fact["subjectKey"],
+                "factType": fact["factType"],
+                "requiredInputKey": "trusted_exact_item_probe",
+            },
+        }
+
+        enqueue_conn = FakeConnection(
+            lambda sql, _params: (gap["gapKey"], "manual_pending")
+            if "INSERT INTO ops.websim_gear_evidence_gaps" in sql
+            else None
+        )
+        result = GearEvidenceGapStore(lambda: enqueue_conn).enqueue_gaps(
+            [gap],
+            now="2026-07-27T02:00:00+00:00",
+        )
+        self.assertEqual(result, {"inserted": 1, "reused": 0})
+
+        claim_conn = FakeConnection(lambda _sql, _params: None)
+        claimed = GearEvidenceGapStore(lambda: claim_conn).claim_next(
+            worker_id="worker-a",
+            lock_token="lease-a",
+            now="2026-07-27T02:00:00+00:00",
+        )
+        self.assertEqual(claimed, {})
+        claim_sql = "\n".join(claim_conn.cursor_instance.statements)
+        self.assertNotIn("manual_pending", claim_sql)
+
     def test_gap_enqueue_is_idempotent_and_cannot_carry_fact_values(self):
         fact = fact_fixture(observation_fixture(artifact_fixture()))
         gap = gap_fixture(fact)
@@ -509,7 +543,7 @@ class GearEvidenceGapStoreTest(unittest.TestCase):
 
     def test_gap_health_is_bounded_and_does_not_read_requirements_or_fact_values(self):
         conn = FakeConnection(
-            lambda sql, _params: (2, 1, 3, 5, 6, 4, 7, 8, "2026-07-26T01:00:00+00:00")
+            lambda sql, _params: (2, 1, 3, 5, 6, 4, 7, 8, 9, "2026-07-26T01:00:00+00:00")
             if "count(*) FILTER" in sql
             else [("artifact_missing", 3), ("source_unavailable", 1)]
             if "GROUP BY problem_code" in sql
@@ -528,7 +562,8 @@ class GearEvidenceGapStoreTest(unittest.TestCase):
                 "retryable": 3,
                 "candidate_pending": 5,
                 "candidate_running": 6,
-                "terminal": 4,
+                "manual_pending": 4,
+                "terminal": 7,
             },
         )
         self.assertEqual(
@@ -540,7 +575,7 @@ class GearEvidenceGapStoreTest(unittest.TestCase):
         )
         self.assertEqual(
             result["reclaimable"],
-            {"worker": 7, "candidateRecompiler": 8},
+            {"worker": 8, "candidateRecompiler": 9},
         )
         sql = "\n".join(conn.cursor_instance.statements)
         self.assertIn("LIMIT 1000", sql)
@@ -550,7 +585,7 @@ class GearEvidenceGapStoreTest(unittest.TestCase):
     def test_gap_health_queue_revision_uses_only_bounded_nonterminal_operational_inputs(self):
         def summary_with_rows(rows):
             return FakeConnection(
-                lambda sql, _params: (0, 0, 1, 0, 0, 0, 0, 0, "2026-07-26T01:00:00+00:00")
+                lambda sql, _params: (0, 0, 1, 0, 0, 0, 0, 0, 0, "2026-07-26T01:00:00+00:00")
                 if "count(*) FILTER" in sql
                 else []
                 if "GROUP BY problem_code" in sql
@@ -591,7 +626,7 @@ class GearEvidenceGapStoreTest(unittest.TestCase):
 
         def connection_for(rows):
             return FakeConnection(
-                lambda sql, _params: (0, 1, 0, 0, 0, 0, 0, 0, "")
+                lambda sql, _params: (0, 1, 0, 0, 0, 0, 0, 0, 0, "")
                 if "count(*) FILTER" in sql
                 else []
                 if "GROUP BY problem_code" in sql

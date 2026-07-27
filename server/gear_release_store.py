@@ -3276,8 +3276,10 @@ class GearReleaseStore:
                 not in required_fact_types[
                     observation["subjectKey"]
                 ]
-                or artifact["sourceType"]
-                not in policy.get("allowedSources", ())
+                or not gear_fact_compiler.policy_accepts_observation_source(
+                    policy,
+                    artifact["sourceType"],
+                )
                 or observation["sourceScope"]
                 not in policy.get("sourceScopes", ())
             ):

@@ -23,6 +23,7 @@ WEBSIM_HERO_COMMUNITY_RELEASE = ROOT / "server" / "migrations" / "postgres" / "0
 OBSERVED_BUILD_REGISTRY = ROOT / "server" / "migrations" / "postgres" / "0018_observed_build_registry.sql"
 GEAR_EVIDENCE_REGISTRY = ROOT / "server" / "migrations" / "postgres" / "0019_gear_evidence_registry.sql"
 GEAR_EVIDENCE_CANDIDATE_RECOMPILE = ROOT / "server" / "migrations" / "postgres" / "0020_gear_evidence_candidate_recompile.sql"
+GEAR_EVIDENCE_MANUAL_PENDING = ROOT / "server" / "migrations" / "postgres" / "0021_gear_evidence_manual_pending.sql"
 
 
 class PostgresSchemaTest(unittest.TestCase):
@@ -567,3 +568,17 @@ class PostgresSchemaTest(unittest.TestCase):
             normalized,
         )
         self.assertIn("0020_gear_evidence_candidate_recompile", normalized)
+
+    def test_gear_evidence_manual_pending_migration_keeps_uncollectable_capacity_open(self):
+        self.assertTrue(
+            GEAR_EVIDENCE_MANUAL_PENDING.exists(),
+            "missing Gear Evidence manual-pending migration",
+        )
+        normalized = " ".join(
+            GEAR_EVIDENCE_MANUAL_PENDING.read_text(encoding="utf-8").split()
+        )
+        self.assertIn("websim_gear_evidence_gaps_status_check", normalized)
+        self.assertIn("'manual_pending'", normalized)
+        self.assertIn("websim_gear_evidence_gaps_problem_code_check", normalized)
+        self.assertIn("'unverified_observed_capacity'", normalized)
+        self.assertIn("0021_gear_evidence_manual_pending", normalized)
