@@ -114,7 +114,14 @@ migrated database.
    ID, content hash, parent release, dependencies, fact/provenance digest, and
    no-op result. Do not call `run_release_refresh`, a Manifest writer, a
    promotion command, or `server/deploy_lighthouse.sh` here.
-6. If a fenced Evidence Gap request is part of the candidate sample, run the
+6. Run every full-catalog candidate materialization as a named, bounded one-off
+   unit: record a non-zero CPU quota, a memory maximum that leaves retail headroom,
+   positive niceness, and a finite runtime maximum before starting it. A quota,
+   memory, or time breach is a failed candidate attempt: stop there, preserve the
+   isolated database/backup for diagnosis, and never retry without a fresh root
+   cause and a new recorded envelope. Do not use an uncapped foreground process
+   on a shared retail host.
+7. If a fenced Evidence Gap request is part of the candidate sample, run the
    candidate gap worker and candidate recompiler against the candidate root and
    candidate database only. Record request/gap identity, lock outcome,
    Artifact/Observation reuse, candidate release ID, and bounded job count.

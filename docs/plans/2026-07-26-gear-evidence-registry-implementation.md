@@ -425,6 +425,12 @@
 
   Completed on 2026-07-27 at runtime commit `9d6a0772c6493b69d5fb366fd1728c447439f9f2` and tree `7b3c058454f5b0b621103ec1c7595c36d7d7bcc8`. The pushed branch matched that commit; the clean checkpoint re-ran 722 scoped Python tests, 34 scoped Taro tests, and the 283-check UI architecture audit. This records local verification only and creates no candidate root, database, service, pointer, or retail change.
 
+- [x] **Step 3.6: Rebind the candidate checkpoint after full-catalog capacity correction**
+
+  The first isolated candidate build never persisted an Artifact, Observation, Fact, Gap, or release, but it exhausted the small candidate host while repeatedly rescanning the full evidence universe for each fact and again during seal replay. Treat that as a failed candidate attempt, not a candidate result. The repair introduces a single indexed batch compiler for the complete requested subject/fact universe and uses it for both candidate preparation and complete-store replay; it preserves the existing pure per-subject compiler for narrow callers. New candidate writes must run in a named cgroup with recorded CPU, memory, niceness, and runtime limits so a failed verification cannot starve the retail service.
+
+  Completed on 2026-07-27 at runtime commit `dd0489b9a020f94377d291b15acc7c47981027b5` and tree `e7108a507a047a341e9adbb1ad8696570754b297`. The pushed branch matches the runtime commit. The fresh scoped Python suite passed 724 tests in 22.602s, the two-file Taro suite passed 34 tests, and the UI architecture audit passed 283 checks. This remains local verification only; a new isolated root/database, bounded build, release seal, service smoke, and real-WeChat acceptance remain Step 4/5 work.
+
 - [ ] **Step 4: Execute candidate-only deployment verification**
 
   Deploy the branch/commit to the approved candidate path with `WOW_DEPLOY_START_ASYNC_SYNCS=0`; record release/manifest identities, runtime file parity, health component state, worker state, exact API payloads, and the fallback Manifest revision. Do not merge or activate production here.
