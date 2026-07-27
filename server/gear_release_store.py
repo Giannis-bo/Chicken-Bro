@@ -220,6 +220,13 @@ def _canonical_rows(rows: Any) -> list[dict[str, Any]]:
     return sorted(values, key=lambda row: _canonical_bytes(row))
 
 
+@contextmanager
+def _borrowed_connection(connection):
+    """Yield a parent-owned transaction connection without closing it."""
+
+    yield connection
+
+
 def _selected_option_ids(selection_intent: Any) -> list[str]:
     intent = selection_intent if isinstance(selection_intent, dict) else {}
     selected = set()
@@ -879,7 +886,12 @@ class GearReleaseStore:
         observation_rows = list(observations)
         fact_rows = list(facts)
         with self.connection() as connection:
-            shared_connection = lambda: connection
+            # The nested Evidence/Gap stores use ``with connection()`` for
+            # their normal one-operation ownership model.  This bundle owns a
+            # single atomic parent transaction, so hand them a non-owning
+            # context manager rather than the raw psycopg connection (whose
+            # context exit closes it).
+            shared_connection = lambda: _borrowed_connection(connection)
             evidence_store = GearEvidenceStore(shared_connection)
             gap_store = GearEvidenceGapStore(shared_connection)
             for artifact in artifact_rows:

@@ -720,6 +720,64 @@ class GearReleaseStoreTest(unittest.TestCase):
 
         self.assertIn("gear_release_staging_snapshot", conn.cursor_names)
 
+    def test_evidence_bundle_keeps_the_parent_transaction_connection_open(self):
+        from server import gear_evidence_store
+        from server.gear_release_store import GearReleaseStore
+
+        class ContextClosingConnection(FakeConnection):
+            def __init__(self):
+                super().__init__()
+                self.context_entries = 0
+
+            def __enter__(self):
+                if self.closed:
+                    raise RuntimeError("borrowed connection was closed")
+                self.context_entries += 1
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                self.close()
+                return False
+
+        class BorrowingEvidenceStore:
+            def __init__(self, connection_factory):
+                self.connection_factory = connection_factory
+
+            def _persist(self, record):
+                with self.connection_factory() as connection:
+                    if connection.closed:
+                        raise RuntimeError("borrowed connection was closed")
+                    connection.cursor()
+                return record
+
+            persist_artifact = _persist
+            persist_observation = _persist
+            persist_fact = _persist
+
+        conn = ContextClosingConnection()
+        store = GearReleaseStore(lambda: conn)
+        with patch.object(
+            gear_evidence_store,
+            "GearEvidenceStore",
+            BorrowingEvidenceStore,
+        ):
+            result = store.persist_gear_evidence_bundle(
+                artifacts=[{"artifactId": "artifact-a"}],
+                observations=[{"observationId": "observation-a"}],
+                facts=[{
+                    "factKey": "fact-a",
+                    "factValueHash": "value-a",
+                    "provenanceHash": "provenance-a",
+                }],
+                gaps=[],
+                now="2026-07-27T00:00:00+00:00",
+            )
+
+        self.assertEqual(result["facts"]["persisted"], 1)
+        self.assertEqual(conn.context_entries, 0)
+        self.assertTrue(conn.committed)
+        self.assertTrue(conn.closed)
+
     def test_gear_snapshot_summary_sorts_serialized_rows_without_deep_copying_catalog(self):
         from server import gear_release_store
 
