@@ -2841,6 +2841,52 @@ class GearReleaseToolTest(unittest.TestCase):
                 prepared["snapshot"],
             )
 
+    def test_legacy_shadow_reuses_its_owned_materialized_snapshot(self):
+        from server import gear_release_tool
+        from server import gear_socket_authority
+
+        materialize_calls = []
+        project_calls = []
+        real_materialize = gear_socket_authority.materialize_gear_socket_facts
+        real_project = gear_release_tool._project_socket_facts_into_release_payloads
+
+        def materialize(snapshot, **kwargs):
+            materialize_calls.append(kwargs)
+            return real_materialize(snapshot, **kwargs)
+
+        def project(snapshot, **kwargs):
+            project_calls.append(kwargs)
+            return real_project(snapshot, **kwargs)
+
+        with patch.object(
+            gear_socket_authority,
+            "materialize_gear_socket_facts",
+            side_effect=materialize,
+        ), patch.object(
+            gear_release_tool,
+            "_project_socket_facts_into_release_payloads",
+            side_effect=project,
+        ):
+            legacy = gear_release_tool._legacy_shadow_snapshot(
+                self.snapshot(),
+                season_revision="midnight-season-1",
+                capability_revision=self.dependencies()["capabilityRevision"],
+                socket_bonus_evidence=socket_probe_evidence(),
+            )
+
+        self.assertTrue(legacy["items"])
+        self.assertEqual(materialize_calls, [{
+            "season_revision": "midnight-season-1",
+            "socket_bonus_minimums": {
+                "9300": {
+                    "minimumTotal": 1,
+                    "sourceRevision": "simc-fixture-r1",
+                },
+            },
+            "in_place": True,
+        }])
+        self.assertEqual(project_calls, [{"in_place": True}])
+
     def test_store_seal_requires_complete_authoritative_canonical_gate(self):
         from server.gear_release_store import (
             GearReleaseIntegrityError,

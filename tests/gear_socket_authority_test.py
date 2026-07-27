@@ -400,6 +400,38 @@ class GearSocketAuthorityTest(unittest.TestCase):
         self.assertEqual(materialized["variants"][0]["capabilityOverrides"]["socketCount"], 1)
         self.assertFalse(materialized["variants"][0]["capabilityOverrides"]["canEmbellish"])
 
+    def test_materializer_can_materialize_an_owned_snapshot_in_place(self):
+        authority = self.authority()
+        snapshot = {
+            "items": [{
+                "itemId": "owned-ring",
+                "slot": "finger1",
+                "payload": {"preview_item": {"sockets": []}},
+            }],
+            "variants": [{
+                "variantId": "owned-ring-variant",
+                "itemId": "owned-ring",
+                "variantKey": "observed",
+                "slot": "finger1",
+                "simcOptions": {"gem_id": "240983"},
+            }],
+            "sources": [],
+            "options": [],
+        }
+
+        materialized = authority.materialize_gear_socket_facts(
+            snapshot,
+            season_revision="midnight-season-1",
+            in_place=True,
+        )
+
+        self.assertIs(materialized, snapshot)
+        self.assertEqual(snapshot["items"][0]["baseCapabilities"]["socketCount"], 1)
+        self.assertEqual(
+            snapshot["variants"][0]["capabilityOverrides"]["socketCount"],
+            1,
+        )
+
     def test_current_pve_catalog_source_proves_radiant_jewelbinder_eligibility(self):
         authority = self.authority()
         revision = "season-17-f131dd36ddf1"

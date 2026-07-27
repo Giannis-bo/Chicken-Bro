@@ -2030,8 +2030,18 @@ def _project_canonical_enhancement_management(
     return projected
 
 
-def _project_socket_facts_into_release_payloads(snapshot: dict[str, Any]) -> dict[str, Any]:
-    projected = _canonical(snapshot)
+def _project_socket_facts_into_release_payloads(
+    snapshot: dict[str, Any],
+    *,
+    in_place: bool = False,
+) -> dict[str, Any]:
+    """Move materialized socket facts into release payloads.
+
+    The default protects regular callers.  The legacy shadow pipeline owns its
+    compact intermediate and may safely reuse it in place.
+    """
+
+    projected = snapshot if in_place else _canonical(snapshot)
     for category, fields in (
         ("items", ("baseCapabilities", "socketEvidence")),
         ("variants", ("capabilityOverrides", "socketEvidence")),
@@ -3579,20 +3589,24 @@ def _legacy_shadow_snapshot(
             ].items()
     }
     legacy_socket_input = _legacy_shadow_input(raw_snapshot)
+    # Enhancement materialization rewrites the release-facing option catalog.
+    # The legacy shadow intentionally retains the pre-projection option rows;
+    # this bounded shared catalog is the only copy needed for that boundary.
+    legacy_options = _canonical(legacy_socket_input.get("options") or ())
     legacy_snapshot = _materialize_enhancement_management(
         _project_socket_facts_into_release_payloads(
             gear_socket_authority.materialize_gear_socket_facts(
                 legacy_socket_input,
                 season_revision=season_revision,
                 socket_bonus_minimums=normalized_bonus_minimums,
-            )
+                in_place=True,
+            ),
+            in_place=True,
         ),
         capability_revision,
         in_place=True,
     )
-    legacy_snapshot["options"] = _canonical(
-        legacy_socket_input.get("options") or ()
-    )
+    legacy_snapshot["options"] = legacy_options
     return legacy_snapshot
 
 

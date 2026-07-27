@@ -688,10 +688,20 @@ def materialize_gear_socket_facts(
     snapshot: Any,
     season_revision: str = "",
     socket_bonus_minimums: Mapping[str, Any] | None = None,
+    *,
+    in_place: bool = False,
 ) -> dict[str, Any]:
-    """Return a copied Gear snapshot with item and exact-variant socket facts."""
+    """Materialize item and exact-variant socket facts.
 
-    materialized = copy.deepcopy(snapshot) if isinstance(snapshot, dict) else {}
+    Public callers receive a copy by default.  A release builder can pass an
+    already-owned compact shadow input to avoid another catalog-sized copy.
+    """
+
+    materialized = (
+        snapshot
+        if in_place and isinstance(snapshot, dict)
+        else copy.deepcopy(snapshot) if isinstance(snapshot, dict) else {}
+    )
     items = [row for row in materialized.get("items") or [] if isinstance(row, dict)]
     sources = [row for row in materialized.get("sources") or [] if isinstance(row, dict)]
     variants = [row for row in materialized.get("variants") or [] if isinstance(row, dict)]
