@@ -235,6 +235,8 @@ def build_staging_candidates(
     candidate_season_revision: str = "",
     gear_preparer: Any = None,
     community_preparer: Any = None,
+    extra_artifacts: Iterable[Mapping[str, Any]] = (),
+    extra_observations: Iterable[Mapping[str, Any]] = (),
 ) -> dict[str, Any]:
     """Create/reuse and seal the inactive candidate pair before any decision."""
 
@@ -262,17 +264,27 @@ def build_staging_candidates(
         raise RuntimeError("active release pair is required")
 
     active_gear_source = active_gear.get("source") if isinstance(active_gear.get("source"), dict) else {}
-    prepared_gear = gear_preparer(
-        store,
-        season_revision=(
+    normalized_extra_artifacts = tuple(extra_artifacts)
+    normalized_extra_observations = tuple(extra_observations)
+    gear_preparer_kwargs = {
+        "season_revision": (
             _text(candidate_season_revision)
             or _text(active_manifest.get("seasonRevision") or active_gear.get("seasonRevision"))
         ),
-        dependency_revisions=dependency_revisions,
-        socket_bonus_minimums=socket_bonus_minimums,
-        source_revision=_text(active_gear_source.get("sourceRevision")) or "scheduled-refresh-v1",
-        parent_release_id=_text(active_gear.get("parentReleaseId")),
-        evidence_now=now,
+        "dependency_revisions": dependency_revisions,
+        "socket_bonus_minimums": socket_bonus_minimums,
+        "source_revision": _text(active_gear_source.get("sourceRevision")) or "scheduled-refresh-v1",
+        "parent_release_id": _text(active_gear.get("parentReleaseId")),
+        "evidence_now": now,
+    }
+    if normalized_extra_artifacts or normalized_extra_observations:
+        # The tuple conversion makes generator inputs deterministic while
+        # keeping the established no-extra-input test/mocking contract intact.
+        gear_preparer_kwargs["extra_artifacts"] = normalized_extra_artifacts
+        gear_preparer_kwargs["extra_observations"] = normalized_extra_observations
+    prepared_gear = gear_preparer(
+        store,
+        **gear_preparer_kwargs,
     )
     snapshot = prepared_gear.get("snapshot") if isinstance(prepared_gear.get("snapshot"), dict) else {}
     gear_change = classify_gear_change(

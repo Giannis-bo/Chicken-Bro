@@ -22,6 +22,7 @@ WEBSIM_ATTRIBUTE_RULE_AUDITS = ROOT / "server" / "migrations" / "postgres" / "00
 WEBSIM_HERO_COMMUNITY_RELEASE = ROOT / "server" / "migrations" / "postgres" / "0017_websim_hero_community_release.sql"
 OBSERVED_BUILD_REGISTRY = ROOT / "server" / "migrations" / "postgres" / "0018_observed_build_registry.sql"
 GEAR_EVIDENCE_REGISTRY = ROOT / "server" / "migrations" / "postgres" / "0019_gear_evidence_registry.sql"
+GEAR_EVIDENCE_CANDIDATE_RECOMPILE = ROOT / "server" / "migrations" / "postgres" / "0020_gear_evidence_candidate_recompile.sql"
 
 
 class PostgresSchemaTest(unittest.TestCase):
@@ -529,3 +530,40 @@ class PostgresSchemaTest(unittest.TestCase):
             normalized,
         )
         self.assertIn("0019_gear_evidence_registry", normalized)
+
+    def test_gear_evidence_candidate_recompile_migration_keeps_the_gap_and_request_in_one_fenced_state_machine(self):
+        self.assertTrue(
+            GEAR_EVIDENCE_CANDIDATE_RECOMPILE.exists(),
+            "missing Gear Evidence candidate recompile migration",
+        )
+        normalized = " ".join(
+            GEAR_EVIDENCE_CANDIDATE_RECOMPILE.read_text(encoding="utf-8").split()
+        )
+        self.assertIn(
+            "DROP CONSTRAINT IF EXISTS websim_gear_evidence_gaps_status_check",
+            normalized,
+        )
+        self.assertIn(
+            "DROP CONSTRAINT IF EXISTS websim_gear_evidence_gaps_check",
+            normalized,
+        )
+        self.assertIn("ADD COLUMN IF NOT EXISTS candidate_request_key text", normalized)
+        self.assertIn("'candidate_pending', 'candidate_running', 'terminal'", normalized)
+        self.assertIn(
+            "CREATE TABLE IF NOT EXISTS ops.websim_gear_evidence_candidate_requests",
+            normalized,
+        )
+        self.assertIn(
+            "REFERENCES ops.websim_gear_evidence_gaps(gap_key) ON DELETE RESTRICT",
+            normalized,
+        )
+        self.assertIn("UNIQUE INDEX IF NOT EXISTS idx_ops_gear_evidence_candidate_request_gap", normalized)
+        self.assertIn(
+            "FOREIGN KEY (candidate_request_key) REFERENCES ops.websim_gear_evidence_candidate_requests(request_key)",
+            normalized,
+        )
+        self.assertIn(
+            "GRANT SELECT, INSERT, UPDATE ON ops.websim_gear_evidence_candidate_requests TO wow_app",
+            normalized,
+        )
+        self.assertIn("0020_gear_evidence_candidate_recompile", normalized)

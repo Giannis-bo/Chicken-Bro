@@ -5644,6 +5644,55 @@ class NewsBackendTest(unittest.TestCase):
         self.assertFalse(component["details"]["timer"]["deployStartsService"])
         self.assertNotIn("dsn", str(component).lower())
 
+    def test_gear_evidence_gap_health_exposes_only_aggregate_queue_revision_and_safe_readiness(self):
+        class GapStore:
+            def health_summary(self, *, now):
+                self.now = now
+                return {
+                    "checkedAt": "2026-07-27T01:02:03+00:00",
+                    "queueInputRevision": "gear-evidence-gap-input-v1:queue-r2",
+                    "statusCounts": {
+                        "pending": 2,
+                        "running": 1,
+                        "retryable": 3,
+                        "candidate_pending": 1,
+                        "candidate_running": 1,
+                        "terminal": 4,
+                    },
+                    "reclaimable": {"worker": 0, "candidateRecompiler": 0},
+                    "oldestReadyAt": "2026-07-27T01:00:00+00:00",
+                    "topProblemCodes": [{"problemCode": "root-code-internal", "count": 2}],
+                    "artifactId": "gear-artifact:secret",
+                    "workerStatus": "failed",
+                }
+
+        component = self.backend.gear_evidence_gap_health_component(
+            store=GapStore(),
+            now="2026-07-27T01:03:00+00:00",
+        )
+
+        self.assertEqual(component["key"], "gear_evidence_gap")
+        self.assertEqual(component["status"], "partial")
+        self.assertEqual(
+            component["details"],
+            {
+                "queue": {
+                    "pending": 2,
+                    "running": 1,
+                    "retryable": 3,
+                    "candidate_pending": 1,
+                    "candidate_running": 1,
+                    "terminal": 4,
+                },
+                "recovery": {"standard": 0, "candidate": 0},
+                "queueInputRevision": "gear-evidence-gap-input-v1:queue-r2",
+                "readiness": "pending",
+            },
+        )
+        self.assertNotIn("root-code", str(component))
+        self.assertNotIn("artifact", str(component).lower())
+        self.assertNotIn("worker", str(component).lower())
+
     def test_data_health_payload_includes_observed_backfill_defaults_without_syncing(self):
         with patch.object(self.backend, "sync_raiderio_cache", side_effect=AssertionError("health must be read-only")):
             payload = self.backend.build_data_health_payload()

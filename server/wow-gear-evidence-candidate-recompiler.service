@@ -1,0 +1,19 @@
+[Unit]
+Description=Seal candidate-only WOW Gear Evidence recompiles
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/opt/wow-mini-program
+EnvironmentFile=-/etc/wow-backend.env
+Environment=WOW_DATABASE_RUNTIME=postgres_only
+ExecStart=/usr/bin/flock -n /run/lock/wow-gear-evidence-candidate-recompiler.lock /usr/bin/python3 /opt/wow-mini-program/server/gear_evidence_candidate_recompiler.py --json
+TimeoutStartSec=10min
+Nice=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=read-only
+ProtectSystem=strict
+ReadWritePaths=/run/lock

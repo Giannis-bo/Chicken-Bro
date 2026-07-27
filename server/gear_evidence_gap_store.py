@@ -3,7 +3,9 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
+from datetime import datetime
 from typing import Any
 
 
@@ -111,6 +113,40 @@ def _json(value: Any) -> str:
         separators=(",", ":"),
         allow_nan=False,
     )
+
+
+def _queue_input_revision(rows: list[tuple[str, str, int, str, str]]) -> str:
+    payload = {
+        "schemaRevision": "gear-evidence-gap-input-v1",
+        "activeInputs": sorted(
+            {
+                (
+                    _text(gap_key),
+                    _text(status),
+                    _int(attempt),
+                    _text(next_attempt_at),
+                    _text(reclaim_state),
+                )
+                for gap_key, status, attempt, next_attempt_at, reclaim_state in rows
+                if _text(gap_key)
+            }
+        ),
+    }
+    digest = hashlib.sha256(_json(payload).encode("utf-8")).hexdigest()
+    return f"gear-evidence-gap-input-v1:sha256:{digest}"
+
+
+def _reclaim_state(status: Any, lease_until: Any, now: Any) -> str:
+    if _text(status) not in {"running", "candidate_running"}:
+        return ""
+    try:
+        lease = datetime.fromisoformat(_text(lease_until).replace("Z", "+00:00"))
+        checked = datetime.fromisoformat(_text(now).replace("Z", "+00:00"))
+    except ValueError:
+        return ""
+    if lease.tzinfo is None or checked.tzinfo is None:
+        return ""
+    return "reclaimable" if lease < checked else ""
 
 
 def _is_hash(value: Any, prefix: str) -> bool:
@@ -418,17 +454,22 @@ class GearEvidenceGapStore:
                         count(*) FILTER (WHERE status = 'pending'),
                         count(*) FILTER (WHERE status = 'running'),
                         count(*) FILTER (WHERE status = 'retryable'),
+                        count(*) FILTER (WHERE status = 'candidate_pending'),
+                        count(*) FILTER (WHERE status = 'candidate_running'),
                         count(*) FILTER (WHERE status = 'terminal'),
-                        min(next_attempt_at) FILTER (WHERE status IN ('pending', 'retryable'))
+                        count(*) FILTER (WHERE status = 'running' AND lease_until < %s::timestamptz),
+                        count(*) FILTER (WHERE status = 'candidate_running' AND lease_until < %s::timestamptz),
+                        min(next_attempt_at) FILTER (WHERE status IN ('pending', 'retryable', 'candidate_pending'))
                     FROM (
-                        SELECT status, next_attempt_at
+                        SELECT status, next_attempt_at, lease_until
                         FROM ops.websim_gear_evidence_gaps
                         ORDER BY queued_at DESC
                         LIMIT 1000
                     ) bounded_gaps
-                    """
+                    """,
+                    (_text(now), _text(now)),
                 )
-                counts = cur.fetchone() or (0, 0, 0, 0, None)
+                counts = cur.fetchone() or (0, 0, 0, 0, 0, 0, 0, 0, None)
                 cur.execute(
                     """
                     SELECT problem_code, count(*)
@@ -448,16 +489,49 @@ class GearEvidenceGapStore:
                     {"problemCode": _text(row[0]), "count": _int(row[1])}
                     for row in cur.fetchall()
                 ]
+                cur.execute(
+                    """
+                    /* gear_evidence_gap_queue_input_revision */
+                    SELECT gap_key, status, attempt, next_attempt_at::text, lease_until::text
+                    FROM (
+                        SELECT gap_key, status, attempt, next_attempt_at, lease_until
+                        FROM ops.websim_gear_evidence_gaps
+                        WHERE status <> 'terminal'
+                        ORDER BY gap_key
+                        LIMIT 1000
+                    ) bounded_nonterminal_gaps
+                    """
+                )
+                queue_input_revision = _queue_input_revision(
+                    [
+                        (
+                            _text(row[0]),
+                            _text(row[1]),
+                            _int(row[2]),
+                            _text(row[3]),
+                            _reclaim_state(row[1], row[4], now),
+                        )
+                        for row in cur.fetchall()
+                        if isinstance(row, (list, tuple)) and len(row) == 5
+                    ]
+                )
         return {
             "checkedAt": _text(now),
             "statusCounts": {
                 "pending": _int(counts[0]),
                 "running": _int(counts[1]),
                 "retryable": _int(counts[2]),
-                "terminal": _int(counts[3]),
+                "candidate_pending": _int(counts[3]),
+                "candidate_running": _int(counts[4]),
+                "terminal": _int(counts[5]),
             },
-            "oldestReadyAt": _text(counts[4]),
+            "reclaimable": {
+                "worker": _int(counts[6]),
+                "candidateRecompiler": _int(counts[7]),
+            },
+            "oldestReadyAt": _text(counts[8]),
             "topProblemCodes": problem_counts,
+            "queueInputRevision": queue_input_revision,
         }
 
 

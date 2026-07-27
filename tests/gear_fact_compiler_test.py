@@ -638,6 +638,21 @@ class GearFactCompilerTest(unittest.TestCase):
         self.assertTrue(
             all("value" not in gap["missingRequirement"] for gap in gaps)
         )
+        missing_gap = next(gap for gap in gaps if gap["problemCode"] == "artifact_missing")
+        self.assertEqual(
+            missing_gap["missingRequirement"],
+            {
+                "compilerRuleRevision": "gear-socket-count-policy-v1",
+                "factType": "socket_count",
+                "requiredInputKey": "allowed_observation",
+                "seasonRevision": SEASON_REVISION,
+                "sourceScope": "exact_variant",
+                "sourceType": "simc_bonus_probe",
+                "subjectKey": SUBJECT_KEY,
+            },
+        )
+        conflict_gap = next(gap for gap in gaps if gap["problemCode"] == "observation_conflict")
+        self.assertNotIn("sourceType", conflict_gap["missingRequirement"])
 
     def test_rule_matrix_accepts_verified_canonical_static_capability_inputs_only(self):
         facts = [

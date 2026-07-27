@@ -386,6 +386,8 @@ def _compile_release_gear_evidence(
     captured_at: str,
     socket_bonus_minimums: Mapping[str, Any],
     socket_bonus_evidence: Mapping[str, Any],
+    extra_artifacts: Iterable[Mapping[str, Any]] = (),
+    extra_observations: Iterable[Mapping[str, Any]] = (),
 ) -> dict[str, Any]:
     artifacts: list[dict[str, Any]] = []
     observations: list[dict[str, Any]] = []
@@ -1248,9 +1250,80 @@ def _compile_release_gear_evidence(
                 ],
             )
 
+    # Gap recovery can supply a narrow, immutable input bundle for a candidate
+    # recompile.  It is deliberately an explicit compiler input: Evidence
+    # Store persistence alone must not silently change a candidate release.
+    supplied_artifacts: dict[str, dict[str, Any]] = {}
+    for raw_artifact in extra_artifacts:
+        if not isinstance(raw_artifact, Mapping):
+            raise GearReleaseIntegrityError("candidate evidence Artifact must be an object")
+        try:
+            artifact = gear_evidence_registry.build_evidence_artifact(
+                source_type=raw_artifact.get("sourceType"),
+                source_identity=raw_artifact.get("sourceIdentity"),
+                source_revision=raw_artifact.get("sourceRevision"),
+                season_revision=raw_artifact.get("seasonRevision"),
+                captured_at=raw_artifact.get("capturedAt"),
+                payload=raw_artifact.get("payload"),
+            )
+        except ValueError as error:
+            raise GearReleaseIntegrityError("candidate evidence Artifact is invalid") from error
+        if _canonical(raw_artifact) != artifact or artifact["seasonRevision"] != season_revision:
+            raise GearReleaseIntegrityError("candidate evidence Artifact is not release-fenced")
+        existing = supplied_artifacts.setdefault(artifact["artifactId"], artifact)
+        if existing != artifact:
+            raise GearReleaseIntegrityError("candidate evidence Artifact identity conflicts")
+
+    supplied_observations: dict[str, dict[str, Any]] = {}
+    for raw_observation in extra_observations:
+        if not isinstance(raw_observation, Mapping):
+            raise GearReleaseIntegrityError("candidate evidence Observation must be an object")
+        try:
+            observation = gear_evidence_registry.build_evidence_observation(
+                artifact_id=raw_observation.get("artifactId"),
+                subject_key=raw_observation.get("subjectKey"),
+                fact_type=raw_observation.get("factType"),
+                observed_value=raw_observation.get("observedValue"),
+                parser_revision=raw_observation.get("parserRevision"),
+                source_scope=raw_observation.get("sourceScope"),
+                status=raw_observation.get("status"),
+            )
+        except ValueError as error:
+            raise GearReleaseIntegrityError("candidate evidence Observation is invalid") from error
+        artifact = supplied_artifacts.get(observation["artifactId"])
+        policy = gear_fact_compiler.FACT_POLICIES.get(observation["factType"]) or {}
+        if (
+            _canonical(raw_observation) != observation
+            or artifact is None
+            or observation["subjectKey"] not in subject_fact_types
+            or observation["factType"] not in subject_fact_types[observation["subjectKey"]]
+            or artifact["sourceType"] not in policy.get("allowedSources", ())
+            or observation["sourceScope"] not in policy.get("sourceScopes", ())
+        ):
+            raise GearReleaseIntegrityError("candidate evidence Observation is outside the candidate contract")
+        existing = supplied_observations.setdefault(observation["observationId"], observation)
+        if existing != observation:
+            raise GearReleaseIntegrityError("candidate evidence Observation identity conflicts")
+
     artifacts_by_id = {
         artifact["artifactId"]: artifact for artifact in artifacts
     }
+    for artifact_id, artifact in supplied_artifacts.items():
+        existing = artifacts_by_id.setdefault(artifact_id, artifact)
+        if existing != artifact:
+            raise GearReleaseIntegrityError("candidate evidence conflicts with staging Artifact")
+    observations_by_id = {
+        observation["observationId"]: observation for observation in observations
+    }
+    for observation_id, observation in supplied_observations.items():
+        existing = observations_by_id.setdefault(observation_id, observation)
+        if existing != observation:
+            raise GearReleaseIntegrityError("candidate evidence conflicts with staging Observation")
+    artifacts = [artifacts_by_id[artifact_id] for artifact_id in sorted(artifacts_by_id)]
+    observations = [
+        observations_by_id[observation_id]
+        for observation_id in sorted(observations_by_id)
+    ]
     facts: list[dict[str, Any]] = []
     for subject in sorted(subject_fact_types):
         facts.extend(
@@ -2997,6 +3070,8 @@ def prepare_staging_gear_release(
     source_revision: str = "legacy-import-r0",
     parent_release_id: str = "",
     evidence_now: str = "",
+    extra_artifacts: Iterable[Mapping[str, Any]] = (),
+    extra_observations: Iterable[Mapping[str, Any]] = (),
 ) -> dict[str, Any]:
     socket_bonus_evidence = _validated_socket_bonus_evidence(
         socket_bonus_minimums
@@ -3026,6 +3101,8 @@ def prepare_staging_gear_release(
         captured_at=captured_at,
         socket_bonus_minimums=normalized_bonus_minimums,
         socket_bonus_evidence=socket_bonus_evidence,
+        extra_artifacts=extra_artifacts,
+        extra_observations=extra_observations,
     )
     gaps = _gear_evidence_gap_records(compiled["facts"], now=captured_at)
     persist = getattr(store, "persist_gear_evidence_bundle", None)

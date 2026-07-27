@@ -10,7 +10,7 @@ from server.gear_evidence_registry import (
     build_evidence_artifact,
     build_evidence_observation,
 )
-from server.gear_evidence_store import GearEvidenceStore
+from server.gear_evidence_store import GearEvidenceStore, GearEvidenceStoreIntegrityError
 
 
 class MissingArtifactError(RuntimeError):
@@ -224,6 +224,53 @@ class GearEvidenceStoreTest(unittest.TestCase):
             GearEvidenceStore(lambda: conn).persist_observation(observation)
 
         self.assertFalse(conn.commits)
+
+    def test_candidate_evidence_read_is_bounded_to_exact_fenced_identities(self):
+        artifact = artifact_fixture()
+        observation = observation_fixture(artifact)
+
+        def responder(sql, _params):
+            if "FROM cache.websim_gear_evidence_artifacts" in sql:
+                return (artifact,)
+            if "FROM cache.websim_gear_evidence_observations" in sql:
+                return [(observation,)]
+            return None
+
+        connection = FakeConnection(responder)
+        result = GearEvidenceStore(lambda: connection).load_candidate_evidence(
+            artifact_id=artifact["artifactId"],
+            observation_ids=[observation["observationId"]],
+        )
+
+        self.assertEqual(result, {"artifacts": [artifact], "observations": [observation]})
+        sql = "\n".join(connection.cursor_instance.statements)
+        self.assertIn("WHERE artifact_id = %s", sql)
+        self.assertIn("observation_id = ANY(%s::text[])", sql)
+        self.assertNotIn("subject_key = %s", sql)
+
+    def test_candidate_evidence_read_rejects_artifact_or_observation_invalidations(self):
+        artifact = artifact_fixture()
+        observation = observation_fixture(artifact)
+
+        def responder(sql, _params):
+            if "FROM cache.websim_gear_evidence_invalidations" in sql:
+                return (1,)
+            if "FROM cache.websim_gear_evidence_artifacts" in sql:
+                return (artifact,)
+            if "FROM cache.websim_gear_evidence_observations" in sql:
+                return [(observation,)]
+            return None
+
+        connection = FakeConnection(responder)
+        with self.assertRaisesRegex(GearEvidenceStoreIntegrityError, "invalidated"):
+            GearEvidenceStore(lambda: connection).load_candidate_evidence(
+                artifact_id=artifact["artifactId"],
+                observation_ids=[observation["observationId"]],
+            )
+        self.assertIn(
+            "FROM cache.websim_gear_evidence_invalidations",
+            "\n".join(connection.cursor_instance.statements),
+        )
 
     def test_facts_append_distinct_value_and_provenance_versions(self):
         artifact = artifact_fixture()
@@ -462,11 +509,11 @@ class GearEvidenceGapStoreTest(unittest.TestCase):
 
     def test_gap_health_is_bounded_and_does_not_read_requirements_or_fact_values(self):
         conn = FakeConnection(
-            lambda sql, _params: (2, 1, 3, 4, "2026-07-26T01:00:00+00:00")
+            lambda sql, _params: (2, 1, 3, 5, 6, 4, 7, 8, "2026-07-26T01:00:00+00:00")
             if "count(*) FILTER" in sql
             else [("artifact_missing", 3), ("source_unavailable", 1)]
             if "GROUP BY problem_code" in sql
-            else None
+            else []
         )
 
         result = GearEvidenceGapStore(lambda: conn).health_summary(
@@ -475,7 +522,14 @@ class GearEvidenceGapStoreTest(unittest.TestCase):
 
         self.assertEqual(
             result["statusCounts"],
-            {"pending": 2, "running": 1, "retryable": 3, "terminal": 4},
+            {
+                "pending": 2,
+                "running": 1,
+                "retryable": 3,
+                "candidate_pending": 5,
+                "candidate_running": 6,
+                "terminal": 4,
+            },
         )
         self.assertEqual(
             result["topProblemCodes"],
@@ -484,10 +538,76 @@ class GearEvidenceGapStoreTest(unittest.TestCase):
                 {"problemCode": "source_unavailable", "count": 1},
             ],
         )
+        self.assertEqual(
+            result["reclaimable"],
+            {"worker": 7, "candidateRecompiler": 8},
+        )
         sql = "\n".join(conn.cursor_instance.statements)
         self.assertIn("LIMIT 1000", sql)
         self.assertNotIn("missing_requirement_json", sql)
         self.assertNotIn("fact_value", sql)
+
+    def test_gap_health_queue_revision_uses_only_bounded_nonterminal_operational_inputs(self):
+        def summary_with_rows(rows):
+            return FakeConnection(
+                lambda sql, _params: (0, 0, 1, 0, 0, 0, 0, 0, "2026-07-26T01:00:00+00:00")
+                if "count(*) FILTER" in sql
+                else []
+                if "GROUP BY problem_code" in sql
+                else rows
+                if "gear_evidence_gap_queue_input_revision" in sql
+                else []
+            )
+
+        pending = ("gear-gap:sha256:" + ("a" * 64), "pending", 0, "2026-07-26T01:00:00+00:00", "")
+        retryable = ("gear-gap:sha256:" + ("b" * 64), "retryable", 1, "2026-07-26T01:02:00+00:00", "")
+        retried_again = ("gear-gap:sha256:" + ("b" * 64), "retryable", 2, "2026-07-26T01:04:00+00:00", "")
+        first_conn = summary_with_rows([retryable, pending])
+        reordered_conn = summary_with_rows([pending, retryable])
+        changed_conn = summary_with_rows([pending, retried_again])
+
+        first = GearEvidenceGapStore(lambda: first_conn).health_summary(now="2026-07-26T02:00:00+00:00")
+        reordered = GearEvidenceGapStore(lambda: reordered_conn).health_summary(now="2026-07-26T02:00:00+00:00")
+        changed = GearEvidenceGapStore(lambda: changed_conn).health_summary(now="2026-07-26T02:00:00+00:00")
+
+        self.assertTrue(first["queueInputRevision"].startswith("gear-evidence-gap-input-v1:sha256:"))
+        self.assertEqual(first["queueInputRevision"], reordered["queueInputRevision"])
+        self.assertNotEqual(first["queueInputRevision"], changed["queueInputRevision"])
+        sql = "\n".join(first_conn.cursor_instance.statements)
+        self.assertIn("gear_evidence_gap_queue_input_revision", sql)
+        self.assertIn("status <> 'terminal'", sql)
+        self.assertIn("next_attempt_at", sql)
+        self.assertIn("LIMIT 1000", sql)
+        self.assertNotIn("missing_requirement_json", sql)
+
+    def test_gap_queue_revision_changes_when_a_running_lease_becomes_reclaimable(self):
+        running = (
+            "gear-gap:sha256:" + ("c" * 64),
+            "running",
+            1,
+            "2026-07-26T01:00:00+00:00",
+            "2026-07-26T01:05:00+00:00",
+        )
+
+        def connection_for(rows):
+            return FakeConnection(
+                lambda sql, _params: (0, 1, 0, 0, 0, 0, 0, 0, "")
+                if "count(*) FILTER" in sql
+                else []
+                if "GROUP BY problem_code" in sql
+                else rows
+                if "gear_evidence_gap_queue_input_revision" in sql
+                else []
+            )
+
+        before = GearEvidenceGapStore(lambda: connection_for([running])).health_summary(
+            now="2026-07-26T01:04:00+00:00"
+        )
+        after = GearEvidenceGapStore(lambda: connection_for([running])).health_summary(
+            now="2026-07-26T01:06:00+00:00"
+        )
+
+        self.assertNotEqual(before["queueInputRevision"], after["queueInputRevision"])
 
 
 if __name__ == "__main__":

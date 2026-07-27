@@ -560,6 +560,17 @@ def gear_stat_snapshot_data_store():
     return GearStatSnapshotStore(lambda: connect_postgres(config.database_url))
 
 
+def gear_evidence_gap_data_store():
+    config = database_config_from_env()
+    if not postgres_personal_runtime_enabled(config):
+        return None
+    try:
+        from .gear_evidence_gap_store import GearEvidenceGapStore
+    except ImportError:
+        from gear_evidence_gap_store import GearEvidenceGapStore
+    return GearEvidenceGapStore(lambda: connect_postgres(config.database_url))
+
+
 def attribute_rule_audit_data_store():
     config = database_config_from_env()
     if not postgres_personal_runtime_enabled(config):
@@ -2378,6 +2389,89 @@ def data_health_followup_health_component(cache_store):
     )
 
 
+def gear_evidence_gap_health_component(*, store=None, now=""):
+    checked_at = str(now or utc_now())
+    active_store = store if store is not None else gear_evidence_gap_data_store()
+    if active_store is None:
+        return data_health_component(
+            "gear_evidence_gap",
+            "Gear evidence review queue",
+            "blocked",
+            checked_at=checked_at,
+            blockers=["gear evidence queue health reader is unavailable"],
+        )
+    try:
+        summary = active_store.health_summary(now=checked_at)
+    except Exception:
+        return data_health_component(
+            "gear_evidence_gap",
+            "Gear evidence review queue",
+            "blocked",
+            checked_at=checked_at,
+            blockers=["gear evidence queue health reader is unavailable"],
+        )
+    summary = summary if isinstance(summary, dict) else {}
+    raw_counts = summary.get("statusCounts") if isinstance(summary.get("statusCounts"), dict) else {}
+    queue = {
+        key: max(0, int(raw_counts.get(key) or 0))
+        for key in (
+            "pending",
+            "running",
+            "retryable",
+            "candidate_pending",
+            "candidate_running",
+            "terminal",
+        )
+    }
+    queue_revision = str(summary.get("queueInputRevision") or "").strip()
+    raw_reclaimable = summary.get("reclaimable") if isinstance(summary.get("reclaimable"), dict) else {}
+    recovery = {
+        "standard": max(0, int(raw_reclaimable.get("worker") or 0)),
+        "candidate": max(0, int(raw_reclaimable.get("candidateRecompiler") or 0)),
+    }
+    active_count = (
+        queue["pending"]
+        + queue["running"]
+        + queue["retryable"]
+        + queue["candidate_pending"]
+        + queue["candidate_running"]
+    )
+    ready_count = queue["pending"] + queue["retryable"] + queue["candidate_pending"]
+    if active_count and not queue_revision:
+        status = "blocked"
+        readiness = "unavailable"
+        blockers = ["gear evidence queue input revision is unavailable"]
+    elif ready_count:
+        status = "partial"
+        readiness = "pending"
+        blockers = []
+    elif queue["running"] or queue["candidate_running"]:
+        status = "partial"
+        readiness = "running"
+        blockers = []
+    elif queue["terminal"]:
+        status = "partial"
+        readiness = "review_required"
+        blockers = []
+    else:
+        status = "verified"
+        readiness = "ready"
+        blockers = []
+    return data_health_component(
+        "gear_evidence_gap",
+        "Gear evidence review queue",
+        status,
+        checked_at=str(summary.get("checkedAt") or checked_at),
+        details={
+            "queue": queue,
+            "recovery": recovery,
+            "queueInputRevision": queue_revision,
+            "readiness": readiness,
+        },
+        blockers=blockers,
+    )
+
+
 def gear_stat_snapshot_health_component(*, store=None, now="", simc_runtime_revision=""):
     checked_at = str(now or utc_now())
     active_store = store if store is not None else gear_stat_snapshot_data_store()
@@ -3448,6 +3542,7 @@ def build_postgres_only_data_health_payload(*, include_template_evidence_audit=T
         data_health_followup_health_component(cache_store),
         active_manifest_health_component(cache_store),
         release_refresh_health_component(cache_store),
+        gear_evidence_gap_health_component(),
         gear_stat_snapshot_health_component(),
         attribute_rule_audit_health_component(),
         news_health_component_from_latest(latest),
@@ -3607,6 +3702,7 @@ def build_data_health_payload(*, include_template_evidence_audit=True):
         data_health_component("backend", "Backend service", "verified", checked_at=utc_now()),
         data_health_followup_health_component(cache_store),
         news_health_component(),
+        gear_evidence_gap_health_component(),
         attribute_rule_audit_health_component(),
     ]
     with db_connection() as conn:

@@ -2392,7 +2392,10 @@ class GearReleaseToolTest(unittest.TestCase):
 
     def test_prepare_staging_gear_release_materializes_socket_facts_before_hash(self):
         from server.gear_release_store import gear_snapshot_summary
-        from server.gear_release_tool import prepare_staging_gear_release
+        from server.gear_release_tool import (
+            _compile_release_gear_evidence,
+            prepare_staging_gear_release,
+        )
 
         snapshot = self.snapshot()
         snapshot["variants"][0]["simcOptions"]["bonus_id"] = "9300"
@@ -2423,7 +2426,10 @@ class GearReleaseToolTest(unittest.TestCase):
         self.assertTrue(source_evidence["materializedSocketFactDigest"].startswith("sha256:"))
 
     def test_prepare_staging_gear_release_seals_safe_canonical_fact_projection(self):
-        from server.gear_release_tool import prepare_staging_gear_release
+        from server.gear_release_tool import (
+            _compile_release_gear_evidence,
+            prepare_staging_gear_release,
+        )
 
         snapshot = self.snapshot()
         snapshot["items"][0]["payload"]["baseCapabilities"] = {
@@ -2845,8 +2851,12 @@ class GearReleaseToolTest(unittest.TestCase):
                 "seasonRevision",
                 "compilerRuleRevision",
                 "requiredInputKey",
+                "sourceType",
+                "sourceScope",
             },
         )
+        self.assertEqual(gap["missingRequirement"]["sourceType"], "battle_net_item")
+        self.assertEqual(gap["missingRequirement"]["sourceScope"], "option")
         self.assertNotIn("value", json.dumps(gap, sort_keys=True).lower())
 
     def test_unattributed_legacy_shapes_cannot_establish_fact_provenance(self):
@@ -3053,6 +3063,100 @@ class GearReleaseToolTest(unittest.TestCase):
             artifact["sourceIdentity"].startswith("gear-release:socket:")
             for artifact in socket_artifacts
         ))
+
+    def test_candidate_recompile_explicitly_compiles_collected_bonus_evidence_for_250033(self):
+        """A recovered Artifact changes only the prepared candidate input."""
+        from server.gear_evidence_registry import (
+            build_evidence_artifact,
+            build_evidence_observation,
+        )
+        from server.gear_release_tool import (
+            _compile_release_gear_evidence,
+            prepare_staging_gear_release,
+        )
+
+        snapshot = self.snapshot()
+        snapshot["items"][0]["itemId"] = "250033"
+        snapshot["items"][0]["payload"]["hasSocket"] = False
+        snapshot["items"][0]["payload"]["_metadata"]["gameAsset"].update({
+            "sourceIdentity": "battle-net:item:250033",
+            "sourceRevision": "battle-net-item-250033-r1",
+        })
+        snapshot["sources"][0]["itemId"] = "250033"
+        snapshot["variants"][0].update({
+            "itemId": "250033",
+            "variantKey": "void_upgrade-298",
+            "hasSocket": False,
+        })
+        subject_key = "item:250033/variant:void_upgrade-298"
+        artifact = build_evidence_artifact(
+            source_type="simc_bonus_probe",
+            source_identity="simulationcraft:show_bonus_ids",
+            source_revision="simc-midnight-fixture-r1",
+            season_revision="season-17",
+            captured_at="2026-07-27T01:02:03+00:00",
+            payload={
+                "bonusId": 298,
+                "factType": "socket_count",
+                "socketCount": 1,
+                "subjectKey": subject_key,
+            },
+        )
+        observation = build_evidence_observation(
+            artifact_id=artifact["artifactId"],
+            subject_key=subject_key,
+            fact_type="socket_count",
+            observed_value=1,
+            parser_revision="simc-bonus-probe-observer-v1",
+            source_scope="exact_variant",
+            status="accepted",
+        )
+
+        probe_evidence = socket_probe_evidence()
+        baseline = _compile_release_gear_evidence(
+            copy.deepcopy(snapshot),
+            season_revision="season-17",
+            source_revision="legacy-import-r0",
+            captured_at="2026-07-27T01:02:03+00:00",
+            socket_bonus_minimums={
+                bonus_id: {
+                    "minimumTotal": minimum,
+                    "sourceRevision": probe_evidence["sourceRevision"],
+                }
+                for bonus_id, minimum in probe_evidence["minimums"].items()
+            },
+            socket_bonus_evidence=probe_evidence,
+        )
+        baseline_socket_fact = next(
+            fact
+            for fact in baseline["facts"]
+            if fact["subjectKey"] == subject_key and fact["factType"] == "socket_count"
+        )
+        self.assertEqual((baseline_socket_fact["status"], baseline_socket_fact["value"]), ("unresolved_missing", None))
+
+        store = FakeReleaseStore(snapshot)
+        with patch(
+            "server.gear_release_tool.gear_fact_shadow.compare_legacy_and_canonical",
+            return_value={"status": "pass", "blockers": []},
+        ):
+            prepared = prepare_staging_gear_release(
+                store,
+                season_revision="season-17",
+                dependency_revisions=self.dependencies(),
+                socket_bonus_minimums=probe_evidence,
+                extra_artifacts=[artifact],
+                extra_observations=[observation],
+            )
+
+        socket_fact = next(
+            fact
+            for fact in prepared["snapshot"]["variants"][0]["payload"]["canonicalFacts"]
+            if fact["factType"] == "socket_count"
+        )
+        self.assertEqual((socket_fact["status"], socket_fact["value"]), ("verified", 1))
+        bundle = store.evidence_bundles[0]
+        self.assertIn(artifact["artifactId"], [row["artifactId"] for row in bundle["artifacts"]])
+        self.assertIn(observation["observationId"], [row["observationId"] for row in bundle["observations"]])
 
     def test_shadow_regression_blocks_before_release_seal(self):
         from server.gear_release_store import GearReleaseIntegrityError

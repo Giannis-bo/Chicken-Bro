@@ -3,6 +3,158 @@ from unittest.mock import patch
 
 
 class DataHealthFollowupTest(unittest.TestCase):
+    def gear_evidence_gap_health(self, revision="gear-evidence-gaps-r1"):
+        return {
+            "components": [
+                {
+                    "key": "gear_evidence_gap",
+                    "status": "partial",
+                    "details": {
+                        "queue": {"pending": 1, "running": 0, "retryable": 0, "terminal": 0},
+                        "queueInputRevision": revision,
+                        "readiness": "pending",
+                    },
+                }
+            ]
+        }
+
+    def test_first_seen_evidence_gap_revision_is_baseline_only(self):
+        from server.data_health_followup import plan_followup_actions
+
+        plan = plan_followup_actions(self.gear_evidence_gap_health(), prior_state={})
+
+        self.assertEqual(plan["actions"], [])
+        self.assertIn("gear_evidence_gap_worker:baseline_recorded", plan["reportOnly"])
+
+    def test_changed_evidence_gap_revision_starts_only_bounded_gap_worker(self):
+        from server.data_health_followup import plan_followup_actions
+
+        plan = plan_followup_actions(
+            self.gear_evidence_gap_health("gear-evidence-gaps-r2"),
+            prior_state={
+                "actions": {
+                    "gear_evidence_gap_worker": {
+                        "lastSeenRevision": "gear-evidence-gaps-r1",
+                        "lastAttemptedRevision": "gear-evidence-gaps-r1",
+                    }
+                }
+            },
+        )
+
+        self.assertEqual([action["key"] for action in plan["actions"]], ["gear_evidence_gap_worker"])
+        self.assertEqual(plan["actions"][0]["unit"], "wow-gear-evidence-gap-worker.service")
+        self.assertEqual(plan["actions"][0]["inputRevision"], "gear-evidence-gaps-r2")
+
+    def test_unchanged_evidence_gap_revision_is_report_only(self):
+        from server.data_health_followup import plan_followup_actions
+
+        plan = plan_followup_actions(
+            self.gear_evidence_gap_health(),
+            prior_state={"actions": {"gear_evidence_gap_worker": {"lastSeenRevision": "gear-evidence-gaps-r1"}}},
+        )
+
+        self.assertEqual(plan["actions"], [])
+        self.assertIn("gear_evidence_gap_worker:unchanged_revision", plan["reportOnly"])
+
+    def test_reclaimable_worker_lease_starts_gap_worker_after_health_revision_changes(self):
+        from server.data_health_followup import plan_followup_actions
+
+        health = self.gear_evidence_gap_health("gear-evidence-gaps-reclaimable")
+        health["components"][0]["details"].update({
+            "queue": {"pending": 0, "running": 1, "retryable": 0, "terminal": 0},
+            "recovery": {"standard": 1, "candidate": 0},
+        })
+        plan = plan_followup_actions(
+            health,
+            prior_state={"actions": {"gear_evidence_gap_worker": {"lastSeenRevision": "gear-evidence-gaps-running"}}},
+        )
+
+        self.assertEqual([action["key"] for action in plan["actions"]], ["gear_evidence_gap_worker"])
+
+    def test_changed_candidate_recompile_revision_starts_only_candidate_consumer(self):
+        from server.data_health_followup import plan_followup_actions
+
+        health = self.gear_evidence_gap_health("gear-evidence-candidate-r2")
+        health["components"][0]["details"]["queue"] = {
+            "pending": 0,
+            "running": 0,
+            "retryable": 0,
+            "candidate_pending": 1,
+            "candidate_running": 0,
+            "terminal": 0,
+        }
+        plan = plan_followup_actions(
+            health,
+            prior_state={
+                "actions": {
+                    "gear_evidence_candidate_recompiler": {
+                        "lastSeenRevision": "gear-evidence-candidate-r1",
+                        "lastAttemptedRevision": "gear-evidence-candidate-r1",
+                    }
+                }
+            },
+        )
+
+        self.assertEqual(
+            [action["key"] for action in plan["actions"]],
+            ["gear_evidence_candidate_recompiler"],
+        )
+        self.assertEqual(
+            plan["actions"][0]["unit"],
+            "wow-gear-evidence-candidate-recompiler.service",
+        )
+
+    def test_first_candidate_recompile_request_starts_the_consumer(self):
+        from server.data_health_followup import plan_followup_actions
+
+        health = self.gear_evidence_gap_health("gear-evidence-candidate-r1")
+        health["components"][0]["details"]["queue"] = {
+            "pending": 0,
+            "running": 0,
+            "retryable": 0,
+            "candidate_pending": 1,
+            "candidate_running": 0,
+            "terminal": 0,
+        }
+        plan = plan_followup_actions(health, prior_state={})
+
+        self.assertEqual(
+            [action["key"] for action in plan["actions"]],
+            ["gear_evidence_candidate_recompiler"],
+        )
+        self.assertEqual(plan["actions"][0]["decision"], "revision_changed")
+
+    def test_reclaimable_candidate_lease_starts_candidate_consumer(self):
+        from server.data_health_followup import plan_followup_actions
+
+        health = self.gear_evidence_gap_health("gear-evidence-candidate-reclaimable")
+        health["components"][0]["details"].update({
+            "queue": {
+                "pending": 0,
+                "running": 0,
+                "retryable": 0,
+                "candidate_pending": 0,
+                "candidate_running": 1,
+                "terminal": 0,
+            },
+            "recovery": {"standard": 0, "candidate": 1},
+        })
+        plan = plan_followup_actions(
+            health,
+            prior_state={
+                "actions": {
+                    "gear_evidence_candidate_recompiler": {
+                        "lastSeenRevision": "gear-evidence-candidate-running"
+                    }
+                }
+            },
+        )
+
+        self.assertEqual(
+            [action["key"] for action in plan["actions"]],
+            ["gear_evidence_candidate_recompiler"],
+        )
+
     def gear_followup_health(self, revision="gear-r1", *, refresh_needed=False):
         details = {
             "catalogContract": {"revision": revision},

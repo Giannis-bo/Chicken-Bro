@@ -330,39 +330,59 @@
 
 ## Task 7: Close unresolved-fact automation through a bounded internal worker and health
 
+> 2026-07-27 scope extension approved by the user: in addition to fenced
+> collection, this task includes a source-specific trusted collector and a
+> separate consumer that can seal an inactive candidate Gear Release from its
+> immutable Artifact/Observation inputs. It cannot call refresh/promotion,
+> switch a Manifest, deploy a candidate, or change retail. Those remain Task 8.
+
 **Files:**
 
 - Create: `server/gear_evidence_gap_worker.py`
+- Create: `server/gear_evidence_candidate_request_store.py`
+- Create: `server/gear_evidence_candidate_recompiler.py`
+- Create: `server/migrations/postgres/0020_gear_evidence_candidate_recompile.sql`
 - Create: `tests/gear_evidence_gap_worker_test.py`
+- Create: `tests/gear_evidence_candidate_recompiler_test.py`
 - Create: `server/wow-gear-evidence-gap-worker.service`
+- Create: `server/wow-gear-evidence-candidate-recompiler.service`
 - Modify: `server/news_backend.py`
 - Modify: `server/data_health_followup.py`
+- Modify: `server/gear_evidence_store.py`
+- Modify: `server/gear_release_tool.py`
+- Modify: `server/gear_release_refresh.py`
 - Modify: `tests/news_backend_test.py`
 - Modify: `tests/data_health_followup_test.py`
-- Modify: `scripts/deploy-vps.sh`
+- Modify: `server/deploy_lighthouse.sh`
 
-- [ ] **Step 1: Write failing worker and health tests**
+- [x] **Step 1: Write failing worker and health tests**
 
-  Assert claim/retry/lease loss/terminal behavior. Assert a worker only invokes approved collectors/parsers and requests candidate recompilation; it cannot update a Fact, call Manifest activation, or overwrite conflict state. Assert `/api/data/health` exposes aggregate queue state/revision only and `data_health_followup.py` triggers the service only for a changed explicit queue revision.
+  Assert claim/retry/lease loss/terminal behavior. Assert a worker only invokes approved collectors/parsers and requests candidate recompilation; it cannot update a Fact, call Manifest activation, or overwrite conflict state. Assert `/api/data/health` exposes aggregate queue state/revision only and `data_health_followup.py` triggers the service only for a changed explicit queue revision. For the approved extension, assert the strict `simc_bonus_probe` collector observes one socket for `250033/void_upgrade-298`, the durable candidate handoff is fenced/retryable, and the candidate-only recompiler seals before it completes its matching gap.
 
-- [ ] **Step 2: Run focused worker/health tests to establish failure**
-
-  Run: `python -m unittest tests.gear_evidence_gap_worker_test tests.news_backend_test tests.data_health_followup_test`
-
-- [ ] **Step 3: Implement the bounded worker and operational health component**
-
-  Add `run_gear_evidence_gap_worker(...)` with a fixed maximum job count, lease fencing, idempotent collector inputs, and structured outcomes. Add `gear_evidence_gap_health_component(...)` in `news_backend.py`. Add the `gear_evidence_gap_worker` systemd action to `data_health_followup.py`, gated by queue input revision rather than human-readable blockers. Install a oneshot service through `scripts/deploy-vps.sh`; the existing health-followup timer remains the scheduler.
-
-- [ ] **Step 4: Re-run worker/health tests**
+- [x] **Step 2: Run focused worker/health tests to establish failure**
 
   Run: `python -m unittest tests.gear_evidence_gap_worker_test tests.news_backend_test tests.data_health_followup_test`
 
-- [ ] **Step 5: Commit the automatic-closure slice**
+- [x] **Step 3: Implement the bounded worker and operational health component**
+
+  Add `run_gear_evidence_gap_worker(...)` with a fixed maximum job count, lease fencing, idempotent collector inputs, and structured outcomes. Add `gear_evidence_gap_health_component(...)` in `news_backend.py`. Add the `gear_evidence_gap_worker` systemd action to `data_health_followup.py`, gated by queue input revision rather than human-readable blockers. Install a oneshot service through `server/deploy_lighthouse.sh`; the existing health-followup timer remains the scheduler. The worker writes only immutable Artifact/Observation, hands recovered work to a fenced `candidate_pending` request, and never finishes that gap itself.
+
+  The `simc_bonus_probe` collector accepts only `socket_count` + `exact_variant` routes with a strict positive trailing bonus id. The candidate recompiler reads only the request's fenced identities, supplies them explicitly to candidate release preparation, and can only seal the inactive candidate pair. It must not invoke `run_release_refresh`, any Manifest writer/CAS, or deployment.
+
+- [x] **Step 4: Re-run worker/health tests**
+
+  Run: `python -m unittest tests.gear_evidence_gap_worker_test tests.news_backend_test tests.data_health_followup_test`
+
+- [x] **Step 5: Commit the automatic-closure slice**
 
   ```powershell
-  git add server/gear_evidence_gap_worker.py server/wow-gear-evidence-gap-worker.service server/news_backend.py server/data_health_followup.py scripts/deploy-vps.sh tests/gear_evidence_gap_worker_test.py tests/news_backend_test.py tests/data_health_followup_test.py
+  git add docs/plans/2026-07-26-gear-evidence-registry-implementation.md server/gear_evidence_gap_worker.py server/gear_evidence_candidate_request_store.py server/gear_evidence_candidate_recompiler.py server/migrations/postgres/0020_gear_evidence_candidate_recompile.sql server/wow-gear-evidence-gap-worker.service server/wow-gear-evidence-candidate-recompiler.service server/gear_evidence_gap_store.py server/gear_evidence_store.py server/gear_fact_compiler.py server/gear_release_tool.py server/gear_release_refresh.py server/news_backend.py server/data_health_followup.py server/deploy_lighthouse.sh tests/gear_evidence_gap_worker_test.py tests/gear_evidence_candidate_recompiler_test.py tests/gear_evidence_store_test.py tests/gear_fact_compiler_test.py tests/gear_release_tool_test.py tests/news_backend_test.py tests/data_health_followup_test.py tests/postgres_schema_test.py
   git commit -m "feat(gear): automate evidence gap recovery"
   ```
+
+  The checkpoint follows fresh focused verification (including candidate-only
+  recompile and schema coverage), an independent review, and local CR. It does
+  not deploy the new services or candidates, change a Manifest, or start Task 8.
 
 ## Task 8: Candidate rollout, active cutover, and legacy authority removal
 

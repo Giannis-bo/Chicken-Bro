@@ -462,6 +462,8 @@ sudo cp "${REMOTE_DIR}/server/wow-gear-observed-backfill.service" "/etc/systemd/
 sudo cp "${REMOTE_DIR}/server/wow-gear-observed-backfill.timer" "/etc/systemd/system/wow-gear-observed-backfill.timer"
 sudo cp "${REMOTE_DIR}/server/wow-gear-release-refresh.service" "/etc/systemd/system/wow-gear-release-refresh.service"
 sudo cp "${REMOTE_DIR}/server/wow-gear-release-refresh.timer" "/etc/systemd/system/wow-gear-release-refresh.timer"
+sudo cp "${REMOTE_DIR}/server/wow-gear-evidence-gap-worker.service" "/etc/systemd/system/wow-gear-evidence-gap-worker.service"
+sudo cp "${REMOTE_DIR}/server/wow-gear-evidence-candidate-recompiler.service" "/etc/systemd/system/wow-gear-evidence-candidate-recompiler.service"
 sudo cp "${REMOTE_DIR}/server/wow-attribute-rule-audit.service" "/etc/systemd/system/wow-attribute-rule-audit.service"
 sudo cp "${REMOTE_DIR}/server/wow-season-recommended-gear-sync.service" "/etc/systemd/system/wow-season-recommended-gear-sync.service"
 sudo cp "${REMOTE_DIR}/server/wow-season-recommended-gear-sync.timer" "/etc/systemd/system/wow-season-recommended-gear-sync.timer"
@@ -557,6 +559,8 @@ sudo systemctl enable --now wow-community-template-sync.timer
 sudo systemctl reset-failed wow-gear-observed-backfill.service >/dev/null 2>&1 || true
 sudo systemctl reset-failed wow-gear-release-refresh.service >/dev/null 2>&1 || true
 sudo systemctl enable wow-gear-release-refresh.timer
+sudo systemctl reset-failed wow-gear-evidence-gap-worker.service >/dev/null 2>&1 || true
+sudo systemctl reset-failed wow-gear-evidence-candidate-recompiler.service >/dev/null 2>&1 || true
 sudo systemctl reset-failed wow-season-recommended-gear-sync.service >/dev/null 2>&1 || true
 sudo systemctl enable --now wow-season-recommended-gear-sync.timer
 sudo systemctl reset-failed wow-community-best-guard-sync.service >/dev/null 2>&1 || true
@@ -571,7 +575,7 @@ sudo systemctl reset-failed wow-simc-runtime-update.service >/dev/null 2>&1 || t
 sudo systemctl reset-failed wow-gear-stat-snapshot-worker.service >/dev/null 2>&1 || true
 sudo systemctl enable wow-gear-stat-snapshot-worker.service
 sudo systemctl restart wow-gear-stat-snapshot-worker.service
-echo "PG-native sync timers enabled; gear release refresh timer enabled but not started; observed gear backfill unit installed but not auto-enabled by deploy."
+echo "PG-native sync timers enabled; gear release refresh timer enabled but not started; gear evidence gap and observed gear backfill units installed but not auto-enabled by deploy."
 sudo systemctl enable --now "${SERVICE_NAME}"
 sudo systemctl restart "${SERVICE_NAME}"
 sudo systemctl restart nginx

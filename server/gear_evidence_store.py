@@ -6,11 +6,18 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from server.gear_evidence_registry import (
-    build_canonical_fact,
-    build_evidence_artifact,
-    build_evidence_observation,
-)
+try:
+    from .gear_evidence_registry import (
+        build_canonical_fact,
+        build_evidence_artifact,
+        build_evidence_observation,
+    )
+except ImportError:  # pragma: no cover - direct script/module compatibility
+    from gear_evidence_registry import (  # type: ignore[no-redef]
+        build_canonical_fact,
+        build_evidence_artifact,
+        build_evidence_observation,
+    )
 
 
 class GearEvidenceStoreIntegrityError(RuntimeError):
@@ -483,6 +490,102 @@ class GearEvidenceStore:
                 )
                 row = cur.fetchone()
         return _canonical(row[0]) if row and isinstance(row[0], dict) else {}
+
+    def load_candidate_evidence(
+        self,
+        *,
+        artifact_id: str,
+        observation_ids: list[str],
+    ) -> dict[str, list[dict[str, Any]]]:
+        """Read exactly the immutable inputs fenced by one candidate request."""
+
+        artifact_identity = _text(artifact_id)
+        requested_observations = sorted({_text(value) for value in observation_ids or () if _text(value)})
+        if (
+            not _is_hash(artifact_identity, "gear-artifact:sha256:")
+            or not requested_observations
+            or len(requested_observations) > 8
+            or any(
+                not _is_hash(observation_id, "gear-observation:sha256:")
+                for observation_id in requested_observations
+            )
+        ):
+            raise GearEvidenceStoreIntegrityError(
+                "Candidate evidence identity request is invalid."
+            )
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SET TRANSACTION READ ONLY")
+                cur.execute(
+                    """
+                    SELECT jsonb_build_object(
+                        'schemaRevision', schema_revision,
+                        'artifactId', artifact_id,
+                        'sourceType', source_type,
+                        'sourceIdentity', source_identity,
+                        'sourceRevision', source_revision,
+                        'seasonRevision', season_revision,
+                        'capturedAt', captured_at,
+                        'payloadHash', payload_hash,
+                        'payload', payload_json
+                    )
+                    FROM cache.websim_gear_evidence_artifacts
+                    WHERE artifact_id = %s
+                    """,
+                    (artifact_identity,),
+                )
+                artifact_row = cur.fetchone()
+                cur.execute(
+                    """
+                    SELECT jsonb_build_object(
+                        'schemaRevision', schema_revision,
+                        'observationId', observation_id,
+                        'artifactId', artifact_id,
+                        'subjectKey', subject_key,
+                        'factType', fact_type,
+                        'observedValue', observed_value_json,
+                        'parserRevision', parser_revision,
+                        'sourceScope', source_scope,
+                        'status', status
+                    )
+                    FROM cache.websim_gear_evidence_observations
+                    WHERE artifact_id = %s
+                      AND observation_id = ANY(%s::text[])
+                    ORDER BY observation_id
+                    """,
+                    (artifact_identity, requested_observations),
+                )
+                observation_rows = cur.fetchall()
+                cur.execute(
+                    """
+                    SELECT 1
+                    FROM cache.websim_gear_evidence_invalidations
+                    WHERE artifact_id = %s
+                       OR observation_id = ANY(%s::text[])
+                    LIMIT 1
+                    """,
+                    (artifact_identity, requested_observations),
+                )
+                invalidated = cur.fetchone()
+        if invalidated:
+            raise GearEvidenceStoreIntegrityError(
+                "Candidate evidence was invalidated before candidate recompilation."
+            )
+        artifact = _validated_artifact(artifact_row[0]) if artifact_row and isinstance(artifact_row[0], dict) else {}
+        observations = [
+            _validated_observation(row[0])
+            for row in observation_rows
+            if row and isinstance(row[0], dict)
+        ]
+        if (
+            not artifact
+            or [row["observationId"] for row in observations] != requested_observations
+            or any(row["artifactId"] != artifact_identity for row in observations)
+        ):
+            raise GearEvidenceStoreIntegrityError(
+                "Candidate evidence inputs are missing or no longer match their fence."
+            )
+        return {"artifacts": [artifact], "observations": observations}
 
     def list_invalidations(
         self,

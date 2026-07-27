@@ -21,6 +21,18 @@ ACTION_COMMANDS = {
         "unit": "wow-gear-observed-backfill.service",
         "reason": "gear catalog is partial and needs observed variant evidence",
     },
+    "gear_evidence_gap_worker": {
+        "kind": "systemd",
+        "unit": "wow-gear-evidence-gap-worker.service",
+        "reason": "gear evidence queue has a changed bounded input revision",
+        "noBlock": True,
+    },
+    "gear_evidence_candidate_recompiler": {
+        "kind": "systemd",
+        "unit": "wow-gear-evidence-candidate-recompiler.service",
+        "reason": "candidate-only gear evidence recompile queue has a changed bounded input revision",
+        "noBlock": True,
+    },
     "stat_weights_sync": {
         "kind": "systemd",
         "unit": "wow-stat-weights-sync.service",
@@ -120,6 +132,28 @@ def _simc_update_revision(component):
         if revision:
             return revision
     return ""
+
+
+def _gear_evidence_gap_revision(component):
+    details = _component_details(component)
+    queue = details.get("queue") if isinstance(details.get("queue"), dict) else {}
+    recovery = details.get("recovery") if isinstance(details.get("recovery"), dict) else {}
+    ready_count = _int_value(queue.get("pending")) + _int_value(queue.get("retryable"))
+    if ready_count <= 0 and _int_value(recovery.get("standard")) <= 0:
+        return ""
+    return _text_value(details.get("queueInputRevision"))
+
+
+def _gear_evidence_candidate_recompile_revision(component):
+    details = _component_details(component)
+    queue = details.get("queue") if isinstance(details.get("queue"), dict) else {}
+    recovery = details.get("recovery") if isinstance(details.get("recovery"), dict) else {}
+    if (
+        _int_value(queue.get("candidate_pending")) <= 0
+        and _int_value(recovery.get("candidate")) <= 0
+    ):
+        return ""
+    return _text_value(details.get("queueInputRevision"))
 
 
 def _normalized_followup_state(value):
@@ -277,6 +311,40 @@ def plan_followup_actions(health, *, prior_state=None, force_actions=()):
             state,
             "simc_runtime_update",
             _simc_update_revision(simc_component),
+            refresh_needed=True,
+        )
+
+    evidence_gaps = components.get("gear_evidence_gap") or {}
+    evidence_gap_details = _component_details(evidence_gaps)
+    evidence_gap_queue = evidence_gap_details.get("queue") if isinstance(evidence_gap_details.get("queue"), dict) else {}
+    evidence_gap_recovery = evidence_gap_details.get("recovery") if isinstance(evidence_gap_details.get("recovery"), dict) else {}
+    if (
+        _int_value(evidence_gap_queue.get("pending"))
+        + _int_value(evidence_gap_queue.get("retryable"))
+        + _int_value(evidence_gap_recovery.get("standard"))
+    ):
+        _add_revision_gated_action(
+            actions,
+            report_only,
+            manual_blockers,
+            observations,
+            state,
+            "gear_evidence_gap_worker",
+            _gear_evidence_gap_revision(evidence_gaps),
+            refresh_needed=_int_value(evidence_gap_recovery.get("standard")) > 0,
+        )
+    if (
+        _int_value(evidence_gap_queue.get("candidate_pending"))
+        + _int_value(evidence_gap_recovery.get("candidate"))
+    ):
+        _add_revision_gated_action(
+            actions,
+            report_only,
+            manual_blockers,
+            observations,
+            state,
+            "gear_evidence_candidate_recompiler",
+            _gear_evidence_candidate_recompile_revision(evidence_gaps),
             refresh_needed=True,
         )
     gear = components.get("gear_catalog") or {}

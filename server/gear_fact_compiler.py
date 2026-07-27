@@ -1021,6 +1021,40 @@ def evidence_gaps_from_facts(
                 else "allowed_observation"
             ),
         }
+        if fact.get("status") == "unresolved_missing":
+            policy = FACT_POLICIES.get(_text(fact.get("factType")))
+            if policy is not None:
+                source_scopes = tuple(policy.get("sourceScopes") or ())
+                subject_key = _text(fact.get("subjectKey"))
+                preferred_scopes = (
+                    ("slot_rule", "season_rule", "exact_variant", "exact_item", "base_item")
+                    if subject_key.startswith("slot:")
+                    else ("option", "exact_variant", "exact_item", "season_rule", "slot_rule")
+                    if subject_key.startswith("option:")
+                    else ("exact_variant", "exact_item", "base_item", "season_rule", "slot_rule")
+                    if "/variant:" in subject_key
+                    else ("exact_item", "base_item", "exact_variant", "season_rule", "slot_rule")
+                )
+                source_scope = next(
+                    (scope for scope in preferred_scopes if scope in source_scopes),
+                    "",
+                )
+                source_types = tuple(policy.get("allowedSources") or ())
+                variant_suffix = subject_key.rsplit("-", 1)[-1]
+                source_type = (
+                    "simc_bonus_probe"
+                    if (
+                        _text(fact.get("factType")) == "socket_count"
+                        and "/variant:" in subject_key
+                        and variant_suffix.isdigit()
+                        and int(variant_suffix) > 0
+                        and "simc_bonus_probe" in source_types
+                    )
+                    else _text(source_types[0]) if source_types else ""
+                )
+                if source_scope and source_type:
+                    missing_requirement["sourceType"] = source_type
+                    missing_requirement["sourceScope"] = source_scope
         gaps.append(
             {
                 "factKey": _text(fact.get("factKey")),
