@@ -489,6 +489,20 @@
   pushed immutable checkpoint is deployed to a new isolated candidate root and
   its bounded full-catalog build is observed.
 
+  The subsequent `gear-evidence-registry-ad7224b1-r6` capacity observation
+  found one remaining pre-persistence peak: after a successful isolated restore,
+  backup, and sequential `0019`/`0020` schema verification, the first build
+  stopped before a database connection because its isolated credential mapping
+  did not yet name the candidate database. The repaired connection check passed;
+  its separately named bounded build then reached the 1.4GB candidate memory
+  ceiling and swap while still materializing the raw staging snapshot, before
+  any Artifact, Observation, Fact, Gap, or Release row was written. It was
+  deliberately stopped; no retail process, database, pointer, or Manifest
+  changed. The next correction consumes the staging cursor in bounded batches,
+  retains decoded JSON instead of a whole-catalog deep copy, and computes the
+  release-row ordering without cloning every catalog row. Its local tests must
+  pass before a new immutable checkpoint and candidate identity are created.
+
 - [ ] **Step 4: Execute candidate-only deployment verification**
 
   Deploy the branch/commit to the approved candidate path with `WOW_DEPLOY_START_ASYNC_SYNCS=0`; record release/manifest identities, runtime file parity, health component state, worker state, exact API payloads, and the fallback Manifest revision. Do not merge or activate production here.

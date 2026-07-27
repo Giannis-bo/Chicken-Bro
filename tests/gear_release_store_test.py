@@ -13,6 +13,8 @@ class FakeCursor:
         self.statements = []
         self.params = []
         self.executemany_calls = []
+        self.fetchall_calls = 0
+        self.fetchmany_calls = []
         self.rowcount = 1
 
     def __enter__(self):
@@ -55,8 +57,16 @@ class FakeCursor:
         return self.current_rows.pop(0) if self.current_rows else None
 
     def fetchall(self):
+        self.fetchall_calls += 1
         rows = list(self.current_rows)
         self.current_rows = []
+        return rows
+
+    def fetchmany(self, size=None):
+        self.fetchmany_calls.append(size)
+        limit = int(size or 1)
+        rows = self.current_rows[:limit]
+        self.current_rows = self.current_rows[limit:]
         return rows
 
 
@@ -655,6 +665,48 @@ class GearReleaseStoreTest(unittest.TestCase):
         self.assertEqual(snapshot["items"][0]["itemId"], "item-a")
         self.assertEqual(snapshot["options"][0]["optionKey"], "gem-a")
         self.assertTrue(conn.committed)
+
+    def test_snapshot_staging_gear_consumes_cursor_in_bounded_batches_without_payload_clone(self):
+        from server.gear_release_store import GearReleaseStore
+
+        variant_payload = {
+            "nested": {"values": ["keep-the-driver-object"] * 16}
+        }
+        conn = FakeConnection(rowsets={
+            "FROM cache.websim_items": [
+                ("item-a", "Item A", "head", 289, {"x": 1}, "verified", "2026-07-11T05:00:00+00:00")
+            ],
+            "FROM cache.websim_gear_sources": [
+                ("source-a", "item-a", "observed_profile", "profile:a", "Observed", "", "", "mythic", "season-17", {"status": "verified"}, "2026-07-11T05:00:00+00:00")
+            ],
+            "FROM cache.websim_gear_variants": [
+                (f"variant-{index}", "item-a", f"variant-{index}", "head", "289", "observed_profile", "mythic", 289, {"ilevel": "289"}, "verified", [], variant_payload if index == 0 else {"index": index}, "2026-07-11T05:00:00+00:00")
+                for index in range(5)
+            ],
+            "FROM cache.websim_gear_mod_options": [
+                ("option-a-id", "variant-0", "gem-a", "gem", "Gem A", ["head"], {"gem_id": "1"}, "verified", True, {"itemStats": []}, "2026-07-11T05:00:00+00:00")
+            ],
+        })
+
+        snapshot = GearReleaseStore(lambda: conn).snapshot_staging_gear()
+
+        self.assertEqual(conn.cursor_instance.fetchall_calls, 0)
+        self.assertGreaterEqual(len(conn.cursor_instance.fetchmany_calls), 8)
+        self.assertIs(snapshot["variants"][0]["payload"], variant_payload)
+
+    def test_gear_snapshot_summary_sorts_serialized_rows_without_deep_copying_catalog(self):
+        from server import gear_release_store
+
+        snapshot = self.snapshot()
+        expected = gear_release_store.gear_snapshot_summary(snapshot)
+
+        with patch(
+            "server.gear_release_store._canonical",
+            side_effect=AssertionError("summary must not clone every catalog row"),
+        ):
+            actual = gear_release_store.gear_snapshot_summary(snapshot)
+
+        self.assertEqual(actual, expected)
 
     def test_candidate_authority_context_uses_exact_sealed_snapshot_and_release_id(self):
         from server.gear_release_store import build_candidate_authority_context

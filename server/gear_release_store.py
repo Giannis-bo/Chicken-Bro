@@ -213,7 +213,10 @@ def _int(value: Any) -> int:
 
 
 def _canonical_rows(rows: Any) -> list[dict[str, Any]]:
-    values = [_canonical(row) for row in rows or [] if isinstance(row, dict)]
+    # Callers serialize rows before hashing or inserting them.  Retaining the
+    # original row objects here avoids a whole-catalog deep copy at every
+    # summary/seal boundary while preserving the exact canonical byte sort.
+    values = [row for row in rows or [] if isinstance(row, dict)]
     return sorted(values, key=lambda row: _canonical_bytes(row))
 
 
@@ -946,108 +949,128 @@ class GearReleaseStore:
         }
 
     def snapshot_staging_gear(self) -> dict[str, list[dict[str, Any]]]:
+        """Read one repeatable staging snapshot without duplicating its JSON rows.
+
+        The release builder owns later canonical projection.  Normalizing every
+        JSONB value here used to retain the driver's full result set *and* a
+        deep-copied Python equivalent for the whole catalog.  Consume the
+        cursor in bounded batches and preserve the decoded JSON values until a
+        caller deliberately projects the relevant release batch.
+        """
+
+        def decoded_object(value: Any) -> dict[str, Any]:
+            return value if isinstance(value, dict) else {}
+
+        def decoded_list(value: Any) -> list[Any]:
+            return value if isinstance(value, list) else []
+
+        def read_rows(cur, statement: str, build_row):
+            records: list[dict[str, Any]] = []
+            cur.execute(statement)
+            fetchmany = getattr(cur, "fetchmany", None)
+            if not callable(fetchmany):
+                return [build_row(row) for row in cur.fetchall()]
+            while True:
+                rows = fetchmany(128)
+                if not rows:
+                    break
+                records.extend(build_row(row) for row in rows)
+            return records
+
         with self.connection() as conn:
             with conn.cursor() as cur:
                 cur.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
-                cur.execute(
+                items = read_rows(
+                    cur,
                     """
                     SELECT id, name, slot, item_level, payload_json, source_status, updated_at
                     FROM cache.websim_items
                     ORDER BY id
-                    """
+                    """,
+                    lambda row: {
+                        "itemId": _text(row[0]),
+                        "name": _text(row[1]),
+                        "slot": _text(row[2]),
+                        "itemLevel": row[3],
+                        "payload": decoded_object(row[4]),
+                        "sourceStatus": _text(row[5]),
+                        "updatedAt": _text(row[6]),
+                    },
                 )
-                item_rows = cur.fetchall()
-                cur.execute(
+                sources = read_rows(
+                    cur,
                     """
                     SELECT id::text, item_id, source_type, source_key, source_label, instance_id,
                            encounter_id, difficulty_key, season_revision, payload_json, updated_at
                     FROM cache.websim_gear_sources
                     ORDER BY id::text
-                    """
+                    """,
+                    lambda row: {
+                        "sourceId": _text(row[0]),
+                        "itemId": _text(row[1]),
+                        "sourceType": _text(row[2]),
+                        "sourceKey": _text(row[3]),
+                        "sourceLabel": _text(row[4]),
+                        "instanceId": _text(row[5]),
+                        "encounterId": _text(row[6]),
+                        "difficultyKey": _text(row[7]),
+                        "seasonRevision": _text(row[8]),
+                        "payload": decoded_object(row[9]),
+                        "updatedAt": _text(row[10]),
+                    },
                 )
-                source_rows = cur.fetchall()
-                cur.execute(
+                variants = read_rows(
+                    cur,
                     """
                     SELECT id::text, item_id, variant_key, slot, label, source_type, difficulty_key,
                            item_level, simc_options_json, status, blockers_json, payload_json, updated_at
                     FROM cache.websim_gear_variants
                     ORDER BY id::text
-                    """
+                    """,
+                    lambda row: {
+                        "variantId": _text(row[0]),
+                        "itemId": _text(row[1]),
+                        "variantKey": _text(row[2]),
+                        "slot": _text(row[3]),
+                        "label": _text(row[4]),
+                        "sourceType": _text(row[5]),
+                        "difficultyKey": _text(row[6]),
+                        "itemLevel": _int(row[7]),
+                        "simcOptions": decoded_object(row[8]),
+                        "status": _text(row[9]),
+                        "blockers": decoded_list(row[10]),
+                        "payload": decoded_object(row[11]),
+                        "updatedAt": _text(row[12]),
+                    },
                 )
-                variant_rows = cur.fetchall()
-                cur.execute(
+                options = read_rows(
+                    cur,
                     """
                     SELECT id::text, variant_id::text, option_key, option_type, name,
                            applicable_slots_json, simc_options_json, status, is_visible,
                            payload_json, updated_at
                     FROM cache.websim_gear_mod_options
                     ORDER BY id::text
-                    """
+                    """,
+                    lambda row: {
+                        "optionId": _text(row[0]),
+                        "variantId": _text(row[1]),
+                        "optionKey": _text(row[2]),
+                        "optionType": _text(row[3]),
+                        "name": _text(row[4]),
+                        "applicableSlots": decoded_list(row[5]),
+                        "simcOptions": decoded_object(row[6]),
+                        "status": _text(row[7]),
+                        "isVisible": row[8] is True,
+                        "payload": decoded_object(row[9]),
+                        "updatedAt": _text(row[10]),
+                    },
                 )
-                option_rows = cur.fetchall()
         return {
-            "items": [
-                {
-                    "itemId": _text(row[0]),
-                    "name": _text(row[1]),
-                    "slot": _text(row[2]),
-                    "itemLevel": row[3],
-                    "payload": _canonical(row[4] if isinstance(row[4], dict) else {}),
-                    "sourceStatus": _text(row[5]),
-                    "updatedAt": _text(row[6]),
-                }
-                for row in item_rows
-            ],
-            "sources": [
-                {
-                    "sourceId": _text(row[0]),
-                    "itemId": _text(row[1]),
-                    "sourceType": _text(row[2]),
-                    "sourceKey": _text(row[3]),
-                    "sourceLabel": _text(row[4]),
-                    "instanceId": _text(row[5]),
-                    "encounterId": _text(row[6]),
-                    "difficultyKey": _text(row[7]),
-                    "seasonRevision": _text(row[8]),
-                    "payload": _canonical(row[9] if isinstance(row[9], dict) else {}),
-                    "updatedAt": _text(row[10]),
-                }
-                for row in source_rows
-            ],
-            "variants": [
-                {
-                    "variantId": _text(row[0]),
-                    "itemId": _text(row[1]),
-                    "variantKey": _text(row[2]),
-                    "slot": _text(row[3]),
-                    "label": _text(row[4]),
-                    "sourceType": _text(row[5]),
-                    "difficultyKey": _text(row[6]),
-                    "itemLevel": _int(row[7]),
-                    "simcOptions": _canonical(row[8] if isinstance(row[8], dict) else {}),
-                    "status": _text(row[9]),
-                    "blockers": _canonical(row[10] if isinstance(row[10], list) else []),
-                    "payload": _canonical(row[11] if isinstance(row[11], dict) else {}),
-                    "updatedAt": _text(row[12]),
-                }
-                for row in variant_rows
-            ],
-            "options": [
-                {
-                    "optionId": _text(row[0]),
-                    "variantId": _text(row[1]),
-                    "optionKey": _text(row[2]),
-                    "optionType": _text(row[3]),
-                    "name": _text(row[4]),
-                    "applicableSlots": _canonical(row[5] if isinstance(row[5], list) else []),
-                    "simcOptions": _canonical(row[6] if isinstance(row[6], dict) else {}),
-                    "status": _text(row[7]),
-                    "isVisible": row[8] is True,
-                    "payload": _canonical(row[9] if isinstance(row[9], dict) else {}),
-                    "updatedAt": _text(row[10]),
-                }
-                for row in option_rows
-            ],
+            "items": items,
+            "sources": sources,
+            "variants": variants,
+            "options": options,
         }
 
     def snapshot_staging_community_templates(
