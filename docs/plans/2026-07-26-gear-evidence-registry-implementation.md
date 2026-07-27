@@ -522,6 +522,22 @@
   before a new source checkpoint and fresh candidate root/database. Retail,
   `main`, and the Active Season Manifest remain unchanged.
 
+  Source checkpoint on 2026-07-28: runtime commit
+  `0be657549431979a9209b0e92dcc0483e40b0e01` (tree
+  `b1339a98130555dd262b79145c12c2ec927e36e6`) makes the returned staging
+  snapshot disk-backed end to end: variant compaction uses bounded external
+  runs, Evidence projection rewrites one disk batch at a time, and legacy
+  shadow reads only the original options relevant to its current batch. TDD
+  also covers item-slot fallback, invalid-slot non-fallback, and cleanup after
+  prepare/seal failure. The scoped backend suite passed 743 tests; independent
+  review and local CR found no remaining P1/P2; the clean Harness packet passed.
+  This is a fresh local source checkpoint, not a candidate result. A read-only
+  2026-07-28 host preflight found 2,118,447,104 bytes free (98% used), below
+  the isolated PostgreSQL-copy requirement; r14 is failed and r22/r23 are
+  stopped and retained with their diagnostics/backups. Do not create a new
+  candidate, delete retained evidence, change `main`, or touch the Manifest or
+  retail until capacity is safely available.
+
 - [ ] **Step 4: Execute candidate-only deployment verification**
 
   Deploy the branch/commit to the approved candidate path with `WOW_DEPLOY_START_ASYNC_SYNCS=0`; record release/manifest identities, runtime file parity, health component state, worker state, exact API payloads, and the fallback Manifest revision. Do not merge or activate production here.
