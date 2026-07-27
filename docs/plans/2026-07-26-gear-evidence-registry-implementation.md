@@ -419,9 +419,11 @@
 
   The fail-closed procedure is recorded in [gear-evidence-registry-cutover.md](../runbooks/gear-evidence-registry-cutover.md). It requires a separately identified candidate PostgreSQL target, tree/root/service/port, a backup before the sequential `0019` then `0020` migrations, and an explicit retail authorization boundary. It does not create a candidate or Active Season Manifest merely by existing.
 
-- [ ] **Step 3.5: Bind an immutable pre-candidate runtime checkpoint**
+- [x] **Step 3.5: Bind an immutable pre-candidate runtime checkpoint**
 
   After the runbook and packet are final, perform final local CR, commit and push the complete runtime slice, require a clean task branch, re-run the scoped backend/frontend suites, and bind the exact committed `HEAD` and tree hash in the evidence packet. Candidate deployment may use only that committed tree. Later evidence-only changes may append evidence but must not modify runtime source, build inputs, or the bound candidate identity; any such modification requires a new checkpoint and candidate window.
+
+  Completed on 2026-07-27 at runtime commit `9d6a0772c6493b69d5fb366fd1728c447439f9f2` and tree `7b3c058454f5b0b621103ec1c7595c36d7d7bcc8`. The pushed branch matched that commit; the clean checkpoint re-ran 722 scoped Python tests, 34 scoped Taro tests, and the 283-check UI architecture audit. This records local verification only and creates no candidate root, database, service, pointer, or retail change.
 
 - [ ] **Step 4: Execute candidate-only deployment verification**
 

@@ -2,18 +2,23 @@
   "schemaVersion": 2,
   "slug": "gear-evidence-registry",
   "requirementSlug": "gear-evidence-registry",
-  "status": "implementation_allowed",
-  "highestEvidenceLevel": "implementation_allowed",
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
   "branch": "codex/gear-evidence-registry",
-  "commit": "pending_pre_candidate_checkpoint",
+  "commit": "9d6a0772c6493b69d5fb366fd1728c447439f9f2",
   "identities": {
     "runtime": {
-      "status": "pending",
-      "reason": "The immutable pre-candidate checkpoint is not complete: no clean committed runtime tree, candidate build identity, isolated candidate database, service, port, or deployed runtime is bound for Task 8."
+      "status": "bound",
+      "kind": "git_commit",
+      "value": "9d6a0772c6493b69d5fb366fd1728c447439f9f2",
+      "gitTree": "7b3c058454f5b0b621103ec1c7595c36d7d7bcc8",
+      "reason": "The immutable pre-candidate runtime checkpoint was committed, pushed, and re-verified before any candidate root, database, service, port, or deployment was created."
     },
     "verification": {
-      "status": "pending",
-      "reason": "The recorded local suites were not run on a clean committed pre-candidate checkpoint. Re-run them after final CR, commit/push, clean-tree confirmation, and exact HEAD/tree binding."
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD",
+      "reason": "The scoped backend suite, scoped Taro suite, UI architecture audit, and packet check are re-run from a clean checkpoint head before candidate deployment."
     },
     "closure": {
       "status": "pending",
@@ -50,7 +55,7 @@
   },
   "scope": [
     "Task 8 candidate cutover evidence preparation for the existing Evidence Registry and Gear Release authority",
-    "Pending immutable pre-candidate checkpoint; later evidence-only append may not modify runtime or build inputs",
+    "Immutable pre-candidate runtime checkpoint 9d6a0772c6493b69d5fb366fd1728c447439f9f2 and tree 7b3c058454f5b0b621103ec1c7595c36d7d7bcc8; later evidence-only append may not modify runtime or build inputs",
     "Strict candidate deployment, real-WeChat acceptance, existing Manifest CAS, and rollback procedure",
     "No current candidate deployment, retail deployment, new Active Season Manifest creation, or pointer mutation"
   ],
@@ -58,12 +63,12 @@
     {
       "command": "python3 -m unittest tests.gear_evidence_registry_test tests.gear_evidence_store_test tests.gear_evidence_observers_test tests.gear_fact_compiler_test tests.gear_fact_shadow_test tests.gear_release_tool_test tests.gear_release_refresh_test tests.pg_gear_authority_loader_test tests.gear_resolver_test tests.websim_payload_test tests.gear_evidence_gap_worker_test",
       "status": "pass",
-      "summary": "2026-07-27 local run passed 722 tests in 21.149s. Non-failing ResourceWarning messages reported unclosed SQLite test connections. This pre-check is unbound until it is repeated on the clean committed pre-candidate checkpoint; no candidate, runtime, deployment, or manual-acceptance claim follows."
+      "summary": "2026-07-27 clean checkpoint run passed 722 tests in 21.284s. Non-failing ResourceWarning messages reported unclosed SQLite test connections; no candidate, deployment, or manual-acceptance claim follows."
     },
     {
       "command": "/Users/boyuan/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node node_modules/vitest/vitest.mjs run apps/mini-taro/src/pages/builds/gear-detail-model.test.ts apps/mini-taro/src/pages/builds/detail.test.tsx",
       "status": "pass",
-      "summary": "2026-07-27 local run passed 2 test files and 34 tests. This pre-check is unbound until it is repeated on the clean committed pre-candidate checkpoint; it is not a real WeChat, candidate-build, or user-acceptance result."
+      "summary": "2026-07-27 clean checkpoint run passed 2 test files and 34 tests. It is not a real WeChat, candidate-build, or user-acceptance result."
     },
     {
       "command": "node scripts/project-harness.js --json --check-requirement --requirement-file artifacts/releases/2026-07-27-gear-evidence-registry/requirement.json",
@@ -73,20 +78,23 @@
     {
       "command": "node scripts/project-harness.js --json --check --requirement-file artifacts/releases/2026-07-27-gear-evidence-registry/requirement.json --evidence-file artifacts/releases/2026-07-27-gear-evidence-registry/evidence.json --manifest-file artifacts/releases/2026-07-27-gear-evidence-registry/manifest.json --base origin/main",
       "status": "pass",
-      "summary": "2026-07-27 task-scoped Harness packet check passed with no failures. It validates requirement/evidence/Harness-manifest linkage only; runtime and verification identities remain pending pre-candidate checkpoint."
+      "summary": "2026-07-27 task-scoped Harness packet check passed with no failures before the immutable checkpoint was bound; it will be re-run again from the clean evidence-only checkpoint before candidate deployment."
     }
   ],
   "candidateDeployment": {
     "status": "pending_candidate_only_execution",
     "requiredBeforeMerge": true,
-    "reason": "No immutable pre-candidate checkpoint, candidate identity, sequential 0019/0020 candidate migration backup/proof, candidate service/port, runtime file parity, health/API/Resolve smoke, worker/timer/no-op proof, or real WeChat session has been created. The public candidate API will be read-only with collectors disabled; migration/replay/worker work requires separate one-off writable processes."
+    "branch": "codex/gear-evidence-registry",
+    "commit": "9d6a0772c6493b69d5fb366fd1728c447439f9f2",
+    "gitTree": "7b3c058454f5b0b621103ec1c7595c36d7d7bcc8",
+    "reason": "The immutable candidate runtime source is bound, but no candidate root, sequential 0019/0020 migration backup/proof, service/port, runtime file parity, health/API/Resolve smoke, worker/timer/no-op proof, or real WeChat session has been created. The public candidate API will be read-only with collectors disabled; migration/replay/worker work requires separate one-off writable processes."
   },
   "runtimeEvidence": [],
   "risks": [
     {
       "id": "candidate_identity_absent",
-      "status": "open",
-      "detail": "Final local CR, commit/push, clean-tree proof, re-run scoped suites, and exact HEAD/tree binding must precede candidate deployment. A candidate build identity, isolated root/database/service/port, and pre-0019 backup must then be recorded."
+      "status": "partially_resolved",
+      "detail": "The exact committed/pushed runtime source and tree are bound after final local CR and clean scoped verification. A candidate build identity, isolated root/database/service/port, and pre-0019 backup remain required before candidate execution."
     },
     {
       "id": "manual_acceptance_pending",
@@ -117,5 +125,5 @@
     "docs/gear-simulation-full-chain-runbook.md",
     "docs/runbooks/gear-evidence-registry-cutover.md"
   ],
-  "summary": "Task 8 is implementation_allowed only. The scoped Python pre-check passed 722 tests and the scoped Taro pre-check passed 34 tests, but both must be re-run on the clean committed pre-candidate checkpoint before they bind verification. Candidate deployment, candidate runtime evidence, real WeChat/manual acceptance, final evidence commit, main merge/push/parity/retest, deterministic retail replay/materialization parity, fresh-generation retail Active Season Manifest CAS, rollback proof, and closure are all pending. The Harness packet manifest exists; no new Active Season Manifest has been created."
+  "summary": "Task 8 is local_verified at immutable pre-candidate runtime checkpoint 9d6a0772c6493b69d5fb366fd1728c447439f9f2 (tree 7b3c058454f5b0b621103ec1c7595c36d7d7bcc8): the clean scoped Python suite passed 722 tests, the scoped Taro suite passed 34 tests, and the UI architecture audit passed 283 checks. Candidate deployment, candidate runtime evidence, real WeChat/manual acceptance, final evidence commit, main merge/push/parity/retest, deterministic retail replay/materialization parity, fresh-generation retail Active Season Manifest CAS, rollback proof, and closure are all pending. The Harness packet manifest exists; no new Active Season Manifest has been created."
 }
