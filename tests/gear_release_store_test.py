@@ -692,7 +692,7 @@ class GearReleaseStoreTest(unittest.TestCase):
                 ("source-a", "item-a", "observed_profile", "profile:a", "Observed", "", "", "mythic", "season-17", {"status": "verified"}, "2026-07-11T05:00:00+00:00")
             ],
             "FROM cache.websim_gear_variants": [
-                (f"variant-{index}", "item-a", f"variant-{index}", "head", "289", "observed_profile", "mythic", 289, {"ilevel": "289"}, "verified", [], variant_payload if index == 0 else {"index": index}, "2026-07-11T05:00:00+00:00")
+                (f"variant-{index}", "item-a", f"variant-{index}", "head", "289", "observed_profile", "mythic", 289, {"ilevel": str(289 + index)}, "verified", [], variant_payload if index == 0 else {"index": index}, "2026-07-11T05:00:00+00:00")
                 for index in range(5)
             ],
             "FROM cache.websim_gear_mod_options": [
@@ -705,6 +705,30 @@ class GearReleaseStoreTest(unittest.TestCase):
         self.assertEqual(conn.cursor_instance.fetchall_calls, 0)
         self.assertGreaterEqual(len(conn.cursor_instance.fetchmany_calls), 8)
         self.assertIs(snapshot["variants"][0]["payload"], variant_payload)
+
+    def test_snapshot_staging_gear_compacts_duplicate_observed_semantic_variants(self):
+        from server.gear_release_store import GearReleaseStore
+
+        conn = FakeConnection(rowsets={
+            "FROM cache.websim_items": [
+                ("item-a", "Item A", "head", 289, {}, "verified", "2026-07-11T05:00:00+00:00")
+            ],
+            "FROM cache.websim_gear_sources": [],
+            "FROM cache.websim_gear_variants": [
+                ("observed-old", "item-a", "observed-old", "head", "289", "observed_profile", "observed", 289, {"ilevel": "289"}, "verified", [], {"resolvedStats": {"intellect": 100}, "canonicalEvidence": {"sourceType": "season_rule", "sourceIdentity": "season-rule:item-a", "sourceRevision": "season-17", "sourceScope": "exact_variant", "status": "verified", "claims": ["socket_count"]}}, "2026-07-11T05:00:00+00:00"),
+                ("observed-new", "item-a", "observed-new", "head", "289", "observed_profile", "observed", 289, {"ilevel": "289"}, "verified", [], {"resolvedStats": {"intellect": 100}, "canonicalEvidence": {"sourceType": "season_rule", "sourceIdentity": "season-rule:item-a", "sourceRevision": "season-17", "sourceScope": "exact_variant", "status": "verified", "claims": ["socket_count"]}}, "2026-07-12T05:00:00+00:00"),
+                ("observed-new-evidence", "item-a", "observed-new-evidence", "head", "289", "observed_profile", "observed", 289, {"ilevel": "289"}, "verified", [], {"resolvedStats": {"intellect": 100}, "canonicalEvidence": {"sourceType": "season_rule", "sourceIdentity": "season-rule:item-a", "sourceRevision": "season-18", "sourceScope": "exact_variant", "status": "verified", "claims": ["socket_count"]}}, "2026-07-13T05:00:00+00:00"),
+                ("raid-a", "item-a", "raid-a", "head", "289", "raid", "mythic", 289, {"ilevel": "289"}, "verified", [], {"resolvedStats": {"intellect": 100}}, "2026-07-11T05:00:00+00:00"),
+            ],
+            "FROM cache.websim_gear_mod_options": [],
+        })
+
+        snapshot = GearReleaseStore(lambda: conn).snapshot_staging_gear()
+
+        self.assertEqual(
+            [row["variantId"] for row in snapshot["variants"]],
+            ["observed-new", "observed-new-evidence", "raid-a"],
+        )
 
     def test_snapshot_staging_gear_uses_a_server_side_cursor_when_supported(self):
         from server.gear_release_store import GearReleaseStore

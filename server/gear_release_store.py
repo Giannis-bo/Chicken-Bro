@@ -215,6 +215,108 @@ def _int(value: Any) -> int:
         return 0
 
 
+_OBSERVED_RELEASE_VARIANT_PAYLOAD_FIELDS = (
+    "allowedEnhancementRules",
+    "canonicalEvidence",
+    "capabilityOverrides",
+    "enhancementManagement",
+    "hasSocket",
+    "identityEvidence",
+    "itemStats",
+    "modCapabilities",
+    "resolvedStats",
+    "socket",
+    "socketCount",
+    "socketEvidence",
+    "socketEligibility",
+    "socket_count",
+    "sockets",
+    "statDisplayStatus",
+    "statEvidence",
+    "statSource",
+    "statSourceDetail",
+    "statSummary",
+    "stats",
+    "supportsSocket",
+)
+
+
+def _observed_release_variant_identity(
+    row: Mapping[str, Any],
+) -> tuple[Any, ...] | None:
+    """Return the canonical-release identity of a player-observed variant.
+
+    Profile-specific IDs and collection timestamps are deliberately excluded:
+    they do not alter the released item state or trusted evidence.  Every
+    field that can affect the fact compiler, resolver, or user-visible stats
+    remains part of the identity, so a release can select one latest
+    representative only for genuinely equivalent observed equipment.
+    """
+
+    if _text(row.get("sourceType")).lower() != "observed_profile":
+        return None
+    payload = row.get("payload") if isinstance(row.get("payload"), dict) else {}
+    semantic_payload = {
+        field: payload.get(field)
+        for field in _OBSERVED_RELEASE_VARIANT_PAYLOAD_FIELDS
+        if field in payload
+    }
+    return (
+        _text(row.get("itemId")),
+        _text(row.get("slot")),
+        _text(row.get("label")),
+        _text(row.get("sourceType")).lower(),
+        _text(row.get("difficultyKey")),
+        _int(row.get("itemLevel")),
+        _canonical_bytes(
+            row.get("simcOptions")
+            if isinstance(row.get("simcOptions"), dict)
+            else {}
+        ),
+        _text(row.get("status")),
+        _canonical_bytes(
+            row.get("blockers") if isinstance(row.get("blockers"), list) else []
+        ),
+        _canonical_bytes(semantic_payload),
+        _text(row.get("sourceRevision")),
+        _text(row.get("payloadRevision")),
+        _text(payload.get("sourceRevision")),
+    )
+
+
+def _compact_release_observed_variants(
+    rows: Iterable[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Keep one latest representative for each equivalent observed variant.
+
+    The mutable staging table retains every profile observation.  A sealed
+    Gear Release needs only one representative for a canonical equipment
+    state; retaining profile-identity duplicates multiplies immutable Facts
+    and release projection memory without adding a selectable capability.
+    """
+
+    passthrough: list[dict[str, Any]] = []
+    observed_by_identity: dict[tuple[Any, ...], dict[str, Any]] = {}
+    for row in rows:
+        identity = _observed_release_variant_identity(row)
+        if identity is None:
+            passthrough.append(row)
+            continue
+        existing = observed_by_identity.get(identity)
+        if existing is None or (
+            _text(row.get("updatedAt")),
+            _text(row.get("variantId")),
+        ) > (
+            _text(existing.get("updatedAt")),
+            _text(existing.get("variantId")),
+        ):
+            observed_by_identity[identity] = row
+    return sorted(
+        [*passthrough, *observed_by_identity.values()],
+        key=lambda row: _text(row.get("variantId")),
+    )
+
+
 def _canonical_rows(rows: Any) -> list[dict[str, Any]]:
     # Callers serialize rows before hashing or inserting them.  Retaining the
     # original row objects here avoids a whole-catalog deep copy at every
@@ -1107,6 +1209,7 @@ class GearReleaseStore:
                         "updatedAt": _text(row[12]),
                     },
                 )
+                variants = _compact_release_observed_variants(variants)
                 options = read_rows(
                     cur,
                     """
