@@ -489,19 +489,21 @@
   pushed immutable checkpoint is deployed to a new isolated candidate root and
   its bounded full-catalog build is observed.
 
-  The subsequent `gear-evidence-registry-ad7224b1-r6` capacity observation
-  found one remaining pre-persistence peak: after a successful isolated restore,
-  backup, and sequential `0019`/`0020` schema verification, the first build
-  stopped before a database connection because its isolated credential mapping
-  did not yet name the candidate database. The repaired connection check passed;
-  its separately named bounded build then reached the 1.4GB candidate memory
-  ceiling and swap while still materializing the raw staging snapshot, before
-  any Artifact, Observation, Fact, Gap, or Release row was written. It was
-  deliberately stopped; no retail process, database, pointer, or Manifest
-  changed. The next correction consumes the staging cursor in bounded batches,
-  retains decoded JSON instead of a whole-catalog deep copy, and computes the
-  release-row ordering without cloning every catalog row. Its local tests must
-  pass before a new immutable checkpoint and candidate identity are created.
+  The subsequent bounded candidate attempts confirmed that the replacement
+  streaming path removed the repeated full-universe peak. The `r14` build
+  stayed inside its 30% CPU and 1.4GB memory envelope, but shadow correctly
+  blocked publication because one legacy variant had two equipped gems while
+  its trusted SimC bonus only established one slot. Runtime checkpoint
+  `6fde99db72265df75fce10ea1ac16ffeeeb8b90e` (tree
+  `b9f063ff2a65eedf079d1dc2a532f18d56654159`) retains raw gem occupancy as
+  an immutable lower-bound constraint, permits only an explicit trusted
+  exact-variant socket claim to publish capacity, and records otherwise
+  uncollectable capacity as a non-claimable `manual_pending` gap. The local
+  discovered Python suite, focused 34-test Taro suite, task-scoped Harness
+  check, local CR, and direct regression checks passed. This is still only a
+  local checkpoint: a fresh isolated candidate root/database/service and
+  bounded full-catalog build must be created from exactly this tree; retail,
+  `main`, and the Active Season Manifest remain unchanged.
 
 - [ ] **Step 4: Execute candidate-only deployment verification**
 

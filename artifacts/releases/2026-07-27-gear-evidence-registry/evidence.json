@@ -5,14 +5,14 @@
   "status": "local_verified",
   "highestEvidenceLevel": "local_verified",
   "branch": "codex/gear-evidence-registry",
-  "commit": "ad7224b1e631e44fd8333b34bb6e4c4f37a5a62d",
+  "commit": "6fde99db72265df75fce10ea1ac16ffeeeb8b90e",
   "identities": {
     "runtime": {
       "status": "bound",
       "kind": "git_commit",
-      "value": "ad7224b1e631e44fd8333b34bb6e4c4f37a5a62d",
-      "gitTree": "0ee4521945b0e5047423877e2c467d37f5814883",
-      "reason": "The immutable pre-candidate runtime checkpoint replaces the r5 peak-memory path with a bounded streaming preparation and Store replay, binds the stream schedule, and reuses compact option Facts instead of raw option evidence; it was independently reviewed, committed, pushed, and re-verified before a new candidate window."
+      "value": "6fde99db72265df75fce10ea1ac16ffeeeb8b90e",
+      "gitTree": "b9f063ff2a65eedf079d1dc2a532f18d56654159",
+      "reason": "The replacement immutable runtime checkpoint keeps raw equipped-gem occupancy as a replayable lower-bound constraint, requires an explicit trusted exact socket claim before publishing capacity, and preserves an otherwise uncollectable gap as manual_pending. It was locally reviewed, committed, pushed, and re-verified before the next candidate window."
     },
     "verification": {
       "status": "bound_at_check",
@@ -55,7 +55,7 @@
   },
   "scope": [
     "Task 8 candidate cutover evidence preparation for the existing Evidence Registry and Gear Release authority",
-    "Streaming immutable pre-candidate runtime checkpoint ad7224b1e631e44fd8333b34bb6e4c4f37a5a62d and tree 0ee4521945b0e5047423877e2c467d37f5814883; later evidence-only append may not modify runtime or build inputs",
+    "Immutable pre-candidate runtime checkpoint 6fde99db72265df75fce10ea1ac16ffeeeb8b90e and tree b9f063ff2a65eedf079d1dc2a532f18d56654159; later evidence-only append may not modify runtime or build inputs",
     "Strict candidate deployment, real-WeChat acceptance, existing Manifest CAS, and rollback procedure",
     "No current candidate deployment, retail deployment, new Active Season Manifest creation, or pointer mutation"
   ],
@@ -78,16 +78,21 @@
     {
       "command": "node scripts/project-harness.js --json --check --requirement-file artifacts/releases/2026-07-27-gear-evidence-registry/requirement.json --evidence-file artifacts/releases/2026-07-27-gear-evidence-registry/evidence.json --manifest-file artifacts/releases/2026-07-27-gear-evidence-registry/manifest.json --base origin/main",
       "status": "pass",
-      "summary": "2026-07-27 task-scoped Harness packet check passed with no failures from the clean replacement evidence checkpoint. It remains local verification only; no candidate, retail, Manifest, or manual-acceptance claim follows."
+      "summary": "2026-07-27 task-scoped Harness packet check passed with no failures at the replacement runtime checkpoint. It remains local verification only; no candidate, retail, Manifest, or manual-acceptance claim follows."
+    },
+    {
+      "command": "python3 -m unittest discover -s tests -p '*_test.py' -q; node node_modules/vitest/vitest.mjs run apps/mini-taro/src/pages/builds/gear-detail-model.test.ts apps/mini-taro/src/pages/builds/detail.test.tsx",
+      "status": "pass",
+      "summary": "2026-07-27 discovered Python regression suite and the two focused Taro detail suites passed from runtime commit 6fde99db. Expected negative-path command output and existing SQLite warnings were non-failing; this is not candidate, retail, or manual-acceptance evidence."
     }
   ],
   "candidateDeployment": {
     "status": "not_run",
     "requiredBeforeMerge": true,
     "branch": "codex/gear-evidence-registry",
-    "commit": "ad7224b1e631e44fd8333b34bb6e4c4f37a5a62d",
-    "gitTree": "0ee4521945b0e5047423877e2c467d37f5814883",
-    "reason": "The prior r5 candidate remains a preserved failed attempt: it persisted no registry/release rows and was stopped at the 2.2GB ceiling before persistence. This new independently reviewed streaming runtime checkpoint has not created a candidate root, database, service, release, Manifest, or retail change. A new isolated candidate preflight and bounded full-catalog observation are now required; do not retry r5."
+    "commit": "6fde99db72265df75fce10ea1ac16ffeeeb8b90e",
+    "gitTree": "b9f063ff2a65eedf079d1dc2a532f18d56654159",
+    "reason": "The prior r5 candidate remains a preserved failed attempt: it persisted no registry/release rows and was stopped at the 2.2GB ceiling before persistence. The replacement checkpoint has not created a candidate root, database, service, release, Manifest, or retail change. A new isolated candidate preflight and bounded full-catalog observation are required; do not retry r5 or r14."
   },
   "runtimeEvidence": [
     {
@@ -109,7 +114,7 @@
     {
       "id": "candidate_identity_absent",
       "status": "partially_resolved",
-      "detail": "The exact committed/pushed streaming runtime source and tree are bound after final local CR, independent review, and clean scoped verification. A fresh candidate build identity, isolated root/database/service/port, bounded materialization envelope, and pre-0019 backup remain required before candidate execution."
+      "detail": "The exact committed/pushed replacement runtime source and tree are bound after final local CR, independent review, and clean scoped verification. A fresh candidate build identity, isolated root/database/service/port, bounded materialization envelope, and pre-0019 backup remain required before candidate execution."
     },
     {
       "id": "candidate_resource_bounds_required",
@@ -155,5 +160,5 @@
     "docs/gear-simulation-full-chain-runbook.md",
     "docs/runbooks/gear-evidence-registry-cutover.md"
   ],
-  "summary": "Task 8 is local_verified at streaming immutable pre-candidate runtime checkpoint ad7224b1e631e44fd8333b34bb6e4c4f37a5a62d (tree 0ee4521945b0e5047423877e2c467d37f5814883): the scoped Python suite passed 727 tests in 22.235s, the scoped Taro suite passed 34 tests, and the UI architecture audit passed 283 checks. The checkpoint replaces the r5 peak-memory path with deterministic batch preparation, in-place projection, compact shadow/receipt, schedule-bound Store replay, and compact reusable option Facts; independent review found no remaining P1/P2. The predecessor r5 candidate remains a failed historical attempt: it was stopped before persistence when the old full-catalog build reached its 2.2GB ceiling and retail headroom fell to approximately 180MB. No fresh candidate root, database, service, release, Artifact, Observation, Fact, Gap, Manifest, retail database, or retail pointer has been created or changed by this checkpoint. A fresh isolated candidate preflight and bounded full-catalog observation, candidate runtime evidence, real WeChat/manual acceptance, final evidence commit, main merge/push/parity/retest, deterministic retail replay/materialization parity, fresh-generation retail Active Season Manifest CAS, rollback proof, and closure are all pending. The Harness packet manifest exists; no new Active Season Manifest has been created."
+  "summary": "Task 8 is local_verified at immutable pre-candidate runtime checkpoint 6fde99db72265df75fce10ea1ac16ffeeeb8b90e (tree b9f063ff2a65eedf079d1dc2a532f18d56654159). It retains the bounded streaming preparation, in-place projection, compact shadow/receipt, schedule-bound Store replay, and compact reusable option Facts; it additionally prevents a raw equipped-gem sequence from becoming published socket capacity. A verified exact socket claim remains publishable, while an uncollectable capacity question stays manual_pending and is not claimed or terminalized by the worker. Local full Python regression, focused Taro detail suites, Harness validation, local CR, and an attempted optional Codex review have completed; the CLI review did not return a finding report because its local model/MCP setup failed, so local CR remains the binding review evidence. No fresh candidate root, database, service, release, Artifact, Observation, Fact, Gap, Manifest, retail database, or retail pointer has been created or changed by this checkpoint. A fresh isolated candidate preflight and bounded full-catalog observation, candidate runtime evidence, real WeChat/manual acceptance, final evidence commit, main merge/push/parity/retest, deterministic retail replay/materialization parity, fresh-generation retail Active Season Manifest CAS, rollback proof, and closure are all pending. The Harness packet manifest exists; no new Active Season Manifest has been created."
 }
