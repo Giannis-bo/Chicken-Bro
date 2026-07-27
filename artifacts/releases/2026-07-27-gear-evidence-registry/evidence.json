@@ -82,12 +82,12 @@
     }
   ],
   "candidateDeployment": {
-    "status": "pending_fresh_candidate_r5",
+    "status": "blocked_bounded_build_memory",
     "requiredBeforeMerge": true,
     "branch": "codex/gear-evidence-registry",
     "commit": "dd0489b9a020f94377d291b15acc7c47981027b5",
     "gitTree": "e7108a507a047a341e9adbb1ad8696570754b297",
-    "reason": "A prior isolated attempt restored and migrated a candidate database but persisted no registry/release rows before an uncapped full-catalog build exhausted host resources and was interrupted. On 2026-07-27, a replacement r4 source root and verified pre-0019 backup were created under named resource limits, but restoring the isolated r4 database stopped before 0019 because the shared host exhausted disk space. No candidate API, release, Manifest, retail database, or retail pointer was created or changed. With explicit user retention authority, three unreferenced July 15–17 historical candidate archives were removed after service-reference and exact-path checks, restoring approximately 9.46GiB of host capacity while retaining r3/r4 evidence. The replacement runtime remains bound for a fresh r5 isolated root/database after a new capacity preflight; it then requires sequential 0019/0020 backup/proof, bounded materialization, service/port parity, health/API/Resolve smoke, worker/timer/no-op proof, and a real WeChat session. The public candidate API will be read-only with collectors disabled; migration/replay/worker work requires separate one-off writable processes."
+    "reason": "A prior isolated attempt restored and migrated a candidate database but persisted no registry/release rows before an uncapped full-catalog build exhausted host resources and was interrupted. On 2026-07-27, a replacement r4 source root and verified pre-0019 backup were created under named resource limits, but restoring the isolated r4 database stopped before 0019 because the shared host exhausted disk space. No candidate API, release, Manifest, retail database, or retail pointer was created or changed. With explicit user retention authority, three unreferenced July 15–17 historical candidate archives were removed after service-reference and exact-path checks, restoring approximately 9.46GiB of host capacity while retaining r3/r4 evidence. A fresh r5 root/database then passed capacity preflight, candidate-only backup, sequential 0019/0020 migration, database-binding, and async-sync guard checks. Its bounded full-catalog build kept CPU below its 45% quota but reached the 2.2GB candidate memory ceiling while the shared 4GB host had only about 180MB remaining; it was stopped before persistence. No candidate API, release, Artifact, Observation, Fact, Gap, Manifest, retail database, or retail pointer was created or changed. Do not retry until either candidate memory capacity is increased while retaining retail headroom or an independently reviewed streaming-memory implementation is bound to a new checkpoint."
   },
   "runtimeEvidence": [
     {
@@ -98,6 +98,11 @@
     {
       "status": "retention_cleanup_completed",
       "summary": "With explicit user authority, the unreferenced historical candidate backup directories implicit-race-context-41c4050-pre, attribute-rule-audit-c43f107-pre, and gear-only-1fdf445-20260715T023226Z.incomplete were removed after confirming no candidate service, systemd unit path, or process referenced them. This released 10,157,227,098 bytes. The current r3/r4 candidate roots, databases, and verified backups were retained."
+    },
+    {
+      "status": "blocked_bounded_build",
+      "candidateId": "gear-evidence-registry-dd0489b9-r5",
+      "summary": "The r5 source root matched runtime commit dd0489b9a020f94377d291b15acc7c47981027b5, used a verified current pre-0019 backup, passed sequential 0019/0020 schema and grant checks, and proved its runtime process was bound only to the r5 database with deploy-triggered async sync disabled. The named full-catalog build used 45% CPU, 2.2GB memory, positive niceness, and a 20-minute maximum. CPU remained within quota, but candidate memory reached the ceiling while retail headroom fell to approximately 180MB, so the candidate unit was stopped. The r5 Evidence Registry, Fact, Gap, request, and candidate-release row counts remain zero."
     }
   ],
   "risks": [
@@ -117,6 +122,11 @@
       "detail": "The bounded r4 restore stopped before migration because the shared host had insufficient free disk capacity for another full isolated PostgreSQL copy. Explicit user retention authority removed only three unreferenced historical archives and restored approximately 9.46GiB; a fresh r5 candidate still must prove sufficient free capacity before its backup, restore, and build units start."
     },
     {
+      "id": "candidate_memory_capacity_required",
+      "status": "blocking_candidate_execution",
+      "detail": "The r5 build proved the batch compiler holds CPU below its recorded quota, but the full release preparation still exceeds a 2.2GB candidate allocation on the shared 4GB host and leaves insufficient retail headroom. A retry requires either a larger candidate memory envelope that still reserves retail capacity or an independently reviewed streaming-memory implementation and new immutable checkpoint."
+    },
+    {
       "id": "manual_acceptance_pending",
       "status": "blocking_retail_cas",
       "detail": "All three frozen real-WeChat items remain pending; retail Manifest CAS is prohibited."
@@ -128,14 +138,14 @@
     }
   ],
   "rollback": [
-    "No retail rollback action is required because no candidate public state, release, Manifest, or retail state changed. The partial isolated r4 database remains stopped with its verified pre-0019 backup retained for diagnosis.",
+    "No retail rollback action is required because no candidate public state, release, Manifest, or retail state changed. The partial isolated r4 database and migrated-but-empty r5 database remain stopped with verified pre-0019 backups retained for diagnosis.",
     "For execution, use the existing Manifest compare-and-swap rollback to the recorded prior Manifest revision; do not delete or rewrite append-only registry rows.",
     "If migration 0019, 0020, or candidate data is invalid, stop the isolated candidate service and restore only the isolated candidate database from its verified pre-0019 backup."
   ],
   "cleanup": {
     "required": true,
     "status": "pending_candidate_and_retail_closure",
-    "reason": "Three unreferenced historical candidate archives were removed with explicit user retention authority. Any current isolated candidate root, partial database, service override, port allocation, and backup-retention record remains protected until explicit authority, evidence retention, and the final Harness closure."
+    "reason": "Three unreferenced historical candidate archives were removed with explicit user retention authority. Any current isolated candidate root, partial or migrated-but-empty database, service override, port allocation, and backup-retention record remains protected until explicit authority, evidence retention, and the final Harness closure."
   },
   "archivedReferences": [
     "docs/project-state.json",
@@ -145,5 +155,5 @@
     "docs/gear-simulation-full-chain-runbook.md",
     "docs/runbooks/gear-evidence-registry-cutover.md"
   ],
-  "summary": "Task 8 is local_verified at replacement immutable pre-candidate runtime checkpoint dd0489b9a020f94377d291b15acc7c47981027b5 (tree e7108a507a047a341e9adbb1ad8696570754b297): the scoped Python suite passed 725 tests in 22.838s, the scoped Taro suite passed 34 tests, and the UI architecture audit passed 283 checks. The predecessor candidate attempt persisted no evidence or release and was interrupted after uncapped full-catalog compilation exhausted shared-host resources; the replacement runtime batches the immutable evidence universe and requires an explicit resource envelope. A later r4 candidate source backup completed within that envelope, but the isolated database restore stopped before migration because the host had no capacity for another full database copy; its verified backup is retained and no public candidate, release, Manifest, or retail state changed. With explicit user authority, three unreferenced historical archives were then removed after service-reference checks, restoring approximately 9.46GiB while preserving current r3/r4 evidence. A fresh r5 capacity preflight is required before retry. Fresh candidate deployment, candidate runtime evidence, real WeChat/manual acceptance, final evidence commit, main merge/push/parity/retest, deterministic retail replay/materialization parity, fresh-generation retail Active Season Manifest CAS, rollback proof, and closure are all pending. The Harness packet manifest exists; no new Active Season Manifest has been created."
+  "summary": "Task 8 is local_verified at replacement immutable pre-candidate runtime checkpoint dd0489b9a020f94377d291b15acc7c47981027b5 (tree e7108a507a047a341e9adbb1ad8696570754b297): the scoped Python suite passed 725 tests in 22.838s, the scoped Taro suite passed 34 tests, and the UI architecture audit passed 283 checks. The predecessor candidate attempt persisted no evidence or release and was interrupted after uncapped full-catalog compilation exhausted shared-host resources; the replacement runtime batches the immutable evidence universe and requires an explicit resource envelope. A later r4 candidate source backup completed within that envelope, but the isolated database restore stopped before migration because the host had no capacity for another full database copy; its verified backup is retained and no public candidate, release, Manifest, or retail state changed. With explicit user authority, three unreferenced historical archives were then removed after service-reference checks, restoring approximately 9.46GiB while preserving current r3/r4 evidence. Fresh r5 backup, migration, and candidate-binding gates passed, but its bounded full-catalog build was stopped before persistence when candidate memory reached 2.2GB and retail headroom fell to approximately 180MB. A retry requires capacity or a streaming-memory correction; no candidate API, release, Artifact, Observation, Fact, Gap, Manifest, or retail state changed. Fresh candidate deployment, candidate runtime evidence, real WeChat/manual acceptance, final evidence commit, main merge/push/parity/retest, deterministic retail replay/materialization parity, fresh-generation retail Active Season Manifest CAS, rollback proof, and closure are all pending. The Harness packet manifest exists; no new Active Season Manifest has been created."
 }
