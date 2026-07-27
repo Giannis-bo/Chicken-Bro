@@ -295,11 +295,11 @@
 - Modify: `apps/mini-taro/src/pages/builds/gear-detail-model.test.ts`
 - Modify: `apps/mini-taro/src/pages/builds/detail.test.tsx`
 
-- [ ] **Step 1: Add failing model tests for the three visible states**
+- [x] **Step 1: Add failing model tests for the three visible states**
 
   Verify: (1) socket count one is selectable even if a legacy `hasSocket=false` field appears; (2) verified `socket_count=0` is displayed as “不可用”; (3) unresolved socket/enchant/embellishment shows only that category as “待核验” and disables its controls; (4) verified categories remain usable; (5) artifact, hash, root code, and worker status never become UI text.
 
-- [ ] **Step 2: Run the focused Taro tests and verify failure**
+- [x] **Step 2: Run the focused Taro tests and verify failure**
 
   Run:
 
@@ -307,22 +307,26 @@
   & 'C:\Users\blizz\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' --test apps/mini-taro/src/pages/builds/gear-detail-model.test.ts apps/mini-taro/src/pages/builds/detail.test.tsx
   ```
 
-- [ ] **Step 3: Add typed public capability views and remove independent boolean interpretation**
+- [x] **Step 3: Add typed public capability views and remove independent boolean interpretation**
 
   Define `GearCapabilityFactView` in `packages/domain/src/entities.ts` with `status`, `value`, and safe option references. In `gear-detail-model.ts`, make `gearEnhancementSocketCount` consume the canonical state/value first and treat legacy boolean fields only as serializer compatibility output, never as a precedence rule. Update `detail.tsx` to show the approved three labels without a diagnostic affordance.
 
-- [ ] **Step 4: Re-run targeted Taro tests**
+- [x] **Step 4: Re-run targeted Taro tests**
 
   Run the same bundled-Node command.
 
   Expected: item `250033`, variant `void_upgrade-298`, reaches the gem selector with one slot.
 
-- [ ] **Step 5: Commit the UI consumer slice**
+- [x] **Step 5: Commit the UI consumer slice**
 
   ```powershell
   git add packages/domain/src/entities.ts apps/mini-taro/src/pages/builds/gear-detail-model.ts apps/mini-taro/src/pages/builds/detail.tsx apps/mini-taro/src/pages/builds/gear-detail-model.test.ts apps/mini-taro/src/pages/builds/detail.test.tsx
   git commit -m "fix(gear): render canonical enhancement states"
   ```
+
+- [x] **Step 6: Publish the reviewed Task 6 cross-device checkpoint**
+
+  After the focused Taro tests are GREEN, independent review is clean, and local CR confirms the Task 6 diff, record the completed steps in this tracked implementation plan, push `codex/gear-evidence-registry`, and verify local `HEAD` equals `origin/codex/gear-evidence-registry`. Stop after the checkpoint. Do not merge `main`, create a candidate, switch a Manifest, deploy retail, or start Task 7/8.
 
 ## Task 7: Close unresolved-fact automation through a bounded internal worker and health
 
@@ -424,4 +428,3 @@
 6. Unchanged artifacts/parser/policy produce a no-op release refresh.
 7. Candidate deployment, candidate Gear Release, API/Resolve smoke, health, bounded worker state, manual Taro acceptance, active Manifest CAS, and rollback proof are recorded as fresh evidence.
 8. Caller-proof search after cutover shows no remaining independent writer/reader of socket/enchant/embellishment truth.
-
