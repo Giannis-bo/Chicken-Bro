@@ -3524,6 +3524,32 @@ class GearReleaseToolTest(unittest.TestCase):
             for artifact in socket_artifacts
         ))
 
+    def test_variant_socket_fact_uses_owning_official_item_evidence(self):
+        from server.gear_release_tool import prepare_staging_gear_release
+
+        snapshot = self.snapshot()
+        snapshot["items"][0]["payload"]["preview_item"] = {
+            "sockets": [{}, {}],
+        }
+
+        prepared = prepare_staging_gear_release(
+            FakeReleaseStore(snapshot),
+            season_revision="season-17",
+            dependency_revisions=self.dependencies(),
+            socket_bonus_minimums=socket_probe_evidence(),
+        )
+
+        socket_fact = next(
+            fact
+            for fact in prepared["snapshot"]["variants"][0]["payload"]
+            ["canonicalFacts"]
+            if fact["factType"] == "socket_count"
+        )
+        self.assertEqual(
+            (socket_fact["status"], socket_fact["value"]),
+            ("verified", 2),
+        )
+
     def test_unverified_observed_gem_occupancy_holds_socket_capacity_pending(self):
         """Raw equipped gems are a replayable constraint, never socket proof."""
         from server import gear_fact_compiler

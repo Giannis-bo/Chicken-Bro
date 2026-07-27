@@ -1145,10 +1145,17 @@ def _compile_release_gear_evidence(
             if isinstance(item_row.get("payload"), dict)
             else {}
         )
-        item_is_official = official_item_source(
+        item_official_evidence = _official_game_asset_evidence(
             item_payload,
             item_id,
         )
+        item_is_official = item_official_evidence is not None
+        if item_official_evidence:
+            # The derived exact-item input must carry the immutable official
+            # revision, not this staging row's cache timestamp.
+            item_row["sourceRevision"] = _text(
+                item_official_evidence.get("sourceRevision")
+            )
         eligibility = gear_socket_authority._active_pve_catalog_socket_eligibility(
             item_row,
             sources_by_item_id.get(item_id, []),
@@ -1163,7 +1170,10 @@ def _compile_release_gear_evidence(
                 season_revision,
                 socket_bonus_minimums,
             ),
-            evidence_row=row,
+            # An exact-variant socket claim can inherit a verified official
+            # item payload.  The Artifact must validate that owning item, not
+            # the observed variant row that only carries the claim subject.
+            evidence_row=item_row,
             official_payload=item_is_official,
         )
         resolved_stats = payload.get("resolvedStats")
