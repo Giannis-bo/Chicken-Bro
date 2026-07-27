@@ -83,16 +83,19 @@ import {
 } from './gear-detail-editor-commit-model'
 import {
   gearCandidates,
+  gearEnhancementBarItems,
   gearEnhancementGroups,
   gearEnhancementOptions,
   gearEnhancementSocketCount,
   gearItemIconUrl,
   gearItemLevel,
   gearItemName,
+  gearSafeProblemMessage,
   hydrateCompactSlotGroup,
   gearReadiness,
   gearSlots,
   prepareHydratedEnhancementDraft,
+  selectGearEnhancementBarItem,
 } from './gear-detail-model'
 import { GearRequestFence } from './gear-request-fence'
 import {
@@ -151,11 +154,6 @@ function importedGearBySlot(value: unknown): Readonly<Record<string, GearItemRef
     if (isRecord(item) && (item['itemId'] || item['id'])) result[slot] = item as GearItemReference
   }
   return Object.keys(result).length ? result : null
-}
-
-function envelopeMessage(problems: readonly Readonly<Record<string, unknown>>[], fallback: string): string {
-  const first = problems[0]
-  return String(first?.['title'] || first?.['detail'] || first?.['code'] || fallback)
 }
 
 export default function GearDetailPage() {
@@ -314,19 +312,7 @@ export default function GearDetailPage() {
     canonical.loading ? 'loading' : route.state.state,
     readinessAuthority,
   )
-  const enhancementGroups = gearEnhancementGroups(selectedCandidate, enhancements, selectedSlot).map((group) => {
-    const compatibleSlotCount = slotViews.filter((slot) => gearEnhancementOptions(equipped[slot.slot], enhancements, slot.slot)
-      .some((option) => option.kind === group.id)).length
-    const configuredCount = Object.values(enhancements).filter((selection) => (
-      isEnhancementKindConfigured(selection, group.id)
-    )).length
-    return {
-      ...group,
-      optionCount: compatibleSlotCount,
-      value: group.availabilityLabel,
-      state: group.disabled ? 'blocked' as const : configuredCount ? 'ready' as const : 'empty' as const,
-    }
-  })
+  const enhancementGroups = gearEnhancementBarItems(equipped, enhancements)
   const enhancementOptions = gearEnhancementOptions(selectedCandidate, enhancements, selectedSlot)
   const enhancementSelections = enhancementDraft
     ? enhancementDraftSelections(enhancementDraft)
@@ -505,7 +491,7 @@ export default function GearDetailPage() {
       return { status: 'slot_resolved', intent, snapshot }
     }
     if (result.httpStatus !== 200 || result.payload.status !== 'resolved' || snapshot.status !== 'verified') {
-      const error = envelopeMessage(result.payload.problems, '当前装备组合未通过后端校验')
+      const error = gearSafeProblemMessage(result.payload.problems, '当前装备组合未通过后端校验')
       setWorkbenchNotice(error)
       setCanonical({
         loading: false,
@@ -881,7 +867,7 @@ export default function GearDetailPage() {
         } else {
           setWorkbenchNotice(result.fromFallback
             ? '社区模板导入服务不可用'
-            : envelopeMessage(result.payload.problems, '社区模板未通过完整性校验'))
+            : gearSafeProblemMessage(result.payload.problems, '社区模板未通过完整性校验'))
           return
         }
       } else {
@@ -1046,11 +1032,10 @@ export default function GearDetailPage() {
               <GearLoadoutSummary {...readiness} />
             </RouteRegion>
             <RouteRegion className={styles['enhancementRegion'] ?? ''} data-region="enhancement_summary">
-              <GearEnhancementBar items={enhancementGroups} onSelect={(item) => {
-                const group = enhancementGroups.find((entry) => entry.id === item.id)
-                if (group?.disabled) return
-                void openEnhancementGroup(item)
-              }} />
+              <GearEnhancementBar
+                items={enhancementGroups}
+                onSelect={(item) => selectGearEnhancementBarItem(item, (selected) => void openEnhancementGroup(selected))}
+              />
             </RouteRegion>
             <RouteRegion className={styles['workbenchRegion'] ?? ''} data-region="gear_workbench">
               <GearSlotWorkbench

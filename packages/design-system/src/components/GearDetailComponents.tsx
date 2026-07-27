@@ -274,6 +274,7 @@ export interface GearEnhancementGroupItem {
   optionCount: number
   value: string
   state: 'ready' | 'empty' | 'blocked'
+  disabled?: boolean
 }
 
 const enhancementGlyph = {
@@ -301,8 +302,12 @@ export function GearEnhancementBar({
           )}
           data-enhancement-kind={item.id}
           data-action-id={`open-${item.id}`}
+          data-disabled={item.disabled ? 'true' : 'false'}
           data-state={item.state}
-          onClick={() => onSelect(item)}
+          disabled={Boolean(item.disabled)}
+          onClick={() => {
+            if (!item.disabled) onSelect(item)
+          }}
         >
           <View className={style('enhancementMedallion')} data-role="gear-enhancement-medallion">
             <SystemGlyph assetId={enhancementGlyph[item.id]} slotId="asset_slot.gear-enhancement-medallions" />

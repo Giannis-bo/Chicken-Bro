@@ -13,6 +13,8 @@ import {
   prepareHydratedEnhancementDraft,
   gearEnhancementGroups,
   gearEnhancementOptions,
+  gearEnhancementBarItems,
+  gearSafeProblemMessage,
   gearItemSecondaryStatLabels,
   gearReadiness,
   gearSlots,
@@ -185,6 +187,71 @@ describe('gear detail truth model', () => {
     expect(gearEnhancementOptions(item, {}, 'wrist').map((option) => option.kind)).toEqual([
       'embellishment',
     ])
+  })
+
+  it('keeps released option references usable without legacy slot heuristics', () => {
+    const item: GearItemReference = {
+      itemId: 'released-offhand',
+      weaponType: 'wand',
+      hasBuiltInEmbellishment: true,
+      capabilityFacts: {
+        socket: { status: 'unavailable', value: 0, options: [] },
+        enchant: { status: 'verified', value: true, options: ['released-enchant'] },
+        embellishment: { status: 'verified', value: true, options: ['released-embellishment'] },
+      },
+      enchantOptions: [{
+        id: 'released-enchant', status: 'verified', label: '已发布附魔', configCategory: 'runeforge', itemTypeRule: 'shield',
+      }],
+      embellishmentOptions: [{
+        id: 'released-embellishment', status: 'verified', label: '已发布美化', slotGroup: 'armor',
+      }],
+    }
+
+    expect(gearEnhancementOptions(item, {}, 'off_hand').map((option) => option.id)).toEqual([
+      'released-enchant',
+      'released-embellishment',
+    ])
+  })
+
+  it('preserves hasSocket=false precedence until a canonical fact is released', () => {
+    expect(gearDetailModel.gearEnhancementSocketCount({
+      itemId: 'legacy-socket',
+      modCapabilities: { hasSocket: false, socketCount: 1 },
+    })).toBe(0)
+  })
+
+  it('aggregates enhancement availability across equipped slots', () => {
+    const items = gearEnhancementBarItems({
+      finger1: {
+        itemId: 'pending-ring',
+        capabilityFacts: {
+          socket: { status: 'pending', value: null, options: [] },
+          enchant: { status: 'unavailable', value: false, options: [] },
+          embellishment: { status: 'unavailable', value: false, options: [] },
+        },
+      },
+      wrist: {
+        itemId: 'verified-wrist',
+        capabilityFacts: {
+          socket: { status: 'verified', value: 1, options: ['gem-safe'] },
+          enchant: { status: 'unavailable', value: false, options: [] },
+          embellishment: { status: 'unavailable', value: false, options: [] },
+        },
+        socketOptions: [{ id: 'gem-safe', status: 'verified', label: '安全宝石' }],
+      },
+    }, {})
+
+    expect(items).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'socket', value: '可用', disabled: false }),
+      expect.objectContaining({ id: 'enchant', value: '不可用', disabled: true }),
+      expect.objectContaining({ id: 'embellishment', value: '不可用', disabled: true }),
+    ]))
+  })
+
+  it('replaces backend problem diagnostics with a safe player-facing message', () => {
+    expect(gearSafeProblemMessage([{ title: 'ROOT_CODE_123', detail: 'artifact hash', code: 'worker_error' }], '导入失败'))
+      .toBe('后端校验暂不可用')
+    expect(gearSafeProblemMessage([], '导入失败')).toBe('导入失败')
   })
 
   it('filters enhancement options without a resolver-owned identity', () => {

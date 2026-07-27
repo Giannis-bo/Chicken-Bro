@@ -183,6 +183,9 @@ function legacyEnhancementCapabilityState(
       : 'canEmbellish'
   if (capabilities && typeof capabilities === 'object' && !Array.isArray(capabilities)) {
     if (kind === 'socket') {
+      if (capabilities['hasSocket'] === false) {
+        return { availability: 'unavailable', label: '不可用', value: 0, optionIds: null }
+      }
       const count = capabilities['socketCount']
       if (Number.isInteger(count) && Number(count) > 0) {
         return { availability: 'available', label: '可用', value: Number(count), optionIds: null }
@@ -329,6 +332,7 @@ function enhancementOptionAppliesToItem(
   const capability = enhancementCapabilityState(item, kind)
   if (capability.availability !== 'available') return false
   if (capability.optionIds !== null && !capability.optionIds.includes(optionIdentity(option))) return false
+  if (canonicalEnhancementCapabilityState(item, kind) !== null) return true
   if (key === 'enchantOptions') return enchantOptionAppliesToItem(option, item, slot)
   if (key === 'embellishmentOptions') {
     return !itemHasBuiltInEmbellishment(item)
@@ -896,6 +900,50 @@ export function gearEnhancementGroups(
       disabled: capability.availability !== 'available' || !options.length,
     }
   })
+}
+
+export function gearEnhancementBarItems(
+  equipped: Readonly<Record<string, GearItemReference>>,
+  enhancements: Readonly<Record<string, GearEnhancementSelection>>,
+): readonly GearEnhancementGroupView[] {
+  return enhancementDefinitions.map((definition) => {
+    const groups = Object.entries(equipped).map(([slot, item]) => (
+      gearEnhancementGroups(item, enhancements, slot).find((group) => group.id === definition.id)
+    )).filter((group): group is GearEnhancementGroupView => Boolean(group))
+    const usable = groups.filter((group) => !group.disabled)
+    const availabilityLabel: GearEnhancementGroupView['availabilityLabel'] = usable.length
+      ? '可用'
+      : groups.some((group) => group.availabilityLabel === '待核验')
+        ? '待核验'
+        : '不可用'
+    const selectedCount = usable.reduce((count, group) => count + group.selectedCount, 0)
+    return {
+      id: definition.id,
+      label: definition.label,
+      optionCount: usable.length,
+      selectedCount,
+      value: availabilityLabel,
+      state: usable.length ? selectedCount ? 'ready' : 'empty' : 'blocked',
+      availabilityLabel,
+      disabled: !usable.length,
+    }
+  })
+}
+
+export function selectGearEnhancementBarItem<T extends { readonly disabled?: boolean }>(
+  item: T,
+  onSelect: (item: T) => void,
+): boolean {
+  if (item.disabled) return false
+  onSelect(item)
+  return true
+}
+
+export function gearSafeProblemMessage(
+  problems: readonly unknown[],
+  fallback: string,
+): string {
+  return problems.length ? '后端校验暂不可用' : fallback
 }
 
 export function selectedGearEnhancementId(
