@@ -25,7 +25,7 @@
   },
   "impactMap": {
     "mustChange": [
-      "Candidate-only Evidence Registry migration, sequential 0019 then 0020 schema/grant verification, Artifact/Observation replay, canonical compilation, shadow review, and sealed candidate Gear Release evidence.",
+      "Candidate-only Evidence Registry migration, sequential 0019 then 0020 then 0021 schema/grant verification, Artifact/Observation replay, canonical compilation, shadow review, and sealed candidate Gear Release evidence.",
       "Candidate backend/API/Resolve/worker/timer smoke on an isolated candidate root, database, service, and port.",
       "Active Taro gear-detail verification and an explicit existing-Manifest compare-and-swap only after user acceptance."
     ],
@@ -36,7 +36,7 @@
     ],
     "evidenceRequired": [
       "Immutable pre-candidate runtime checkpoint: final CR, committed/pushed clean exact HEAD/tree, and re-run scoped suites before candidate deployment.",
-      "Exact candidate tree/build/runtime parity and candidate database backup identity before sequential migrations 0019 and 0020.",
+      "Exact candidate tree/build/runtime parity and candidate database backup identity before sequential migrations 0019, 0020, and 0021.",
       "Artifact import, Observation replay, compiler output, complete shadow classification, and sealed candidate Gear Release identity.",
       "Candidate health, affected API, Resolve, bounded worker, timer/no-op/backflow, and fail-closed smoke evidence.",
       "Real WeChat acceptance for every frozen manual item; then final evidence commit, main merge/push/parity/retest, deterministic retail replay/materialization parity, fresh retail Manifest CAS, and rollback proof."
@@ -58,7 +58,7 @@
   },
   "acceptanceEvidence": [
     "The scoped Python and Taro suites pass on the exact verification head.",
-    "The isolated candidate applies only the sequentially required 0019 and 0020 migrations, verifies their schema/grants, produces immutable Artifact and Observation identities, a sealed candidate Gear Release, and a shadow report with no regression classification.",
+    "The isolated candidate applies only the sequentially required 0019, 0020, and 0021 migrations, verifies their schema/grants, produces immutable Artifact and Observation identities, a sealed candidate Gear Release, and a shadow report with no regression classification.",
     "The exact candidate tree/build passes health, API, Resolve, worker, timer/no-op, and fail-closed smoke checks without retail traffic or a retail pointer change.",
     "After the user accepts every frozen real-WeChat item, final CR/evidence commit, main merge/push/parity/retest, and deterministic retail replay/materialization prove candidate-to-retail release ID/hash/digest parity before an explicit fresh-generation existing-Manifest CAS; fresh post-CAS smoke and rollback to the recorded prior Manifest then pass."
   ],

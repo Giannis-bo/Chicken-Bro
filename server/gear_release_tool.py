@@ -206,6 +206,26 @@ def _socket_probe_digest(socket_bonus_evidence: Mapping[str, Any]) -> str:
     })
 
 
+def _shadow_blocker_summary(blockers: Iterable[Any], *, limit: int = 3) -> str:
+    """Return a bounded internal locator for a fail-closed shadow rejection."""
+
+    entries: list[str] = []
+    for blocker in blockers:
+        if not isinstance(blocker, Mapping):
+            continue
+        code = _text(blocker.get("code"))
+        if not code:
+            continue
+        subject_key = _text(blocker.get("subjectKey"))
+        fact_type = _text(blocker.get("factType"))
+        entries.append(":".join(
+            value for value in (code, subject_key, fact_type) if value
+        ))
+        if len(entries) >= limit:
+            break
+    return ", ".join(entries) or "UNKNOWN_SHADOW_BLOCKER"
+
+
 def _socket_fact_value(row: dict[str, Any], field: str) -> dict[str, Any]:
     payload = row.get("payload") if isinstance(row.get("payload"), dict) else {}
     value = payload.get(field) if isinstance(payload.get(field), dict) else row.get(field)
@@ -3855,10 +3875,7 @@ def _prepare_staging_gear_release_streaming(
         if shadow_part["status"] != "pass":
             raise GearReleaseIntegrityError(
                 "canonical fact shadow blocked candidate: "
-                + ", ".join(
-                    _text(blocker.get("code"))
-                    for blocker in shadow_part.get("blockers") or ()
-                )
+                + _shadow_blocker_summary(shadow_part.get("blockers") or ())
             )
         shadow_parts.append(shadow_part)
         gap_count += len(gaps)
@@ -4022,10 +4039,7 @@ def prepare_staging_gear_release(
     if shadow["status"] != "pass":
         raise GearReleaseIntegrityError(
             "canonical fact shadow blocked candidate: "
-            + ", ".join(
-                _text(blocker.get("code"))
-                for blocker in shadow.get("blockers") or ()
-            )
+            + _shadow_blocker_summary(shadow.get("blockers") or ())
         )
     snapshot = _project_canonical_facts(
         raw_snapshot,

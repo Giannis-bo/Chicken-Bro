@@ -73,17 +73,23 @@ evidence packet.
    `0019_gear_evidence_registry` only if it is absent; re-read and validate its
    Artifact/Observation/Canonical Fact/Gap tables, append-only constraints and
    runtime grants; then apply `0020_gear_evidence_candidate_recompile` only if
-   it is absent. Do not skip, reorder, or apply `0020` without a verified 0019.
-6. After `0020`, re-read `ops.schema_migrations` and verify its candidate
-   request table, status/lease constraints, foreign keys, indexes, and grants.
-   Verify both migrations' schema/grant expectations before import or replay.
+   it is absent; then apply `0021_gear_evidence_manual_pending` only if it is
+   absent. Do not skip or reorder this sequence, apply `0020` without a
+   verified 0019, or apply `0021` without verified 0019 and 0020.
+6. After `0021`, re-read `ops.schema_migrations` and verify the `0020`
+   candidate request table, status/lease constraints, foreign keys, indexes,
+   and grants; then verify the `0021` gap-status and problem-code constraints
+   admit `manual_pending` and `unverified_observed_capacity`, retain the queue's
+   runtime grants, and confirm the queue-store policy binds that manual state to
+   this root cause. Verify all three migrations' schema/grant expectations
+   before import or replay.
 7. Also assert PostgreSQL-only runtime, expected candidate identity, no
    unexpected active writer, existing Manifest/pointer state captured, and the
    recorded migration sequence. Any mismatch
    stops the run; restore the candidate database before retrying.
 
-The migrations are additive for the immutable registry and candidate recompile
-handoff. They are not a
+The migrations are additive for the immutable registry, candidate recompile
+handoff, and bounded manual-evidence state. They are not a
 license to update or delete Artifact, Observation, or Canonical Fact rows. If
 the migration check fails, stop the candidate service, restore the isolated
 candidate backup, and record the failure; do not continue with a partially
@@ -213,9 +219,10 @@ materialize its own deterministic copies before any pointer write.
    conflict, failed re-test, or changed runtime tree stops the cutover and
    requires a new candidate checkpoint.
 3. Back up the retail database before any schema or replay write. Read
-   `ops.schema_migrations`, then apply and verify `0019_gear_evidence_registry`
-   followed by `0020_gear_evidence_candidate_recompile` only as required by its
-   existing state, with the same schema/grant checks used on candidate. Deploy
+   `ops.schema_migrations`, then apply and verify `0019_gear_evidence_registry`,
+   `0020_gear_evidence_candidate_recompile`, and
+   `0021_gear_evidence_manual_pending` only as required by its existing state,
+   with the same schema/grant checks used on candidate. Deploy
    the compatible committed `main` code without invoking refresh/sync/backfill.
 4. Deterministically replay the **same** immutable Artifact IDs/payload hashes,
    Observation IDs/parser revisions, and compiler policy revision into retail.

@@ -417,7 +417,7 @@
 
   Document exact sequence: schema migration backup/check, Artifact import, Observation replay, shadow report review, candidate Gear Release identity, candidate deploy parity, health/API/Resolve smoke, Taro route manual acceptance, explicit active Manifest CAS, and rollback to the previous existing Manifest revision. State that registry rows survive rollback and no active pointer changes without explicit user authorization.
 
-  The fail-closed procedure is recorded in [gear-evidence-registry-cutover.md](../runbooks/gear-evidence-registry-cutover.md). It requires a separately identified candidate PostgreSQL target, tree/root/service/port, a backup before the sequential `0019` then `0020` migrations, and an explicit retail authorization boundary. It does not create a candidate or Active Season Manifest merely by existing.
+  The fail-closed procedure is recorded in [gear-evidence-registry-cutover.md](../runbooks/gear-evidence-registry-cutover.md). It requires a separately identified candidate PostgreSQL target, tree/root/service/port, a backup before the sequential `0019`, `0020`, then `0021` migrations, and an explicit retail authorization boundary. Migration `0021` preserves unverified observed socket capacity as `manual_pending`; it cannot be promoted by generic stat evidence or an unsupported worker. The procedure does not create a candidate or Active Season Manifest merely by existing.
 
 - [x] **Step 3.5: Bind an immutable pre-candidate runtime checkpoint**
 

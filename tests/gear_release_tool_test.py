@@ -3759,12 +3759,16 @@ class GearReleaseToolTest(unittest.TestCase):
             "server.gear_release_tool.gear_fact_shadow.compare_legacy_and_canonical",
             return_value={
                 "status": "blocked",
-                "blockers": [{"code": "CANONICAL_FACT_REGRESSION"}],
+                "blockers": [{
+                    "code": "CANONICAL_FACT_REGRESSION",
+                    "subjectKey": "item:250033/variant:void_upgrade-298",
+                    "factType": "socket_count",
+                }],
             },
         ):
             with self.assertRaisesRegex(
                 GearReleaseIntegrityError,
-                "canonical fact shadow blocked candidate",
+                "CANONICAL_FACT_REGRESSION:item:250033/variant:void_upgrade-298:socket_count",
             ):
                 build_legacy_gear_release(
                     store,
