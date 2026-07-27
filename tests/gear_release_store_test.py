@@ -1,5 +1,6 @@
 import copy
 import unittest
+from unittest.mock import patch
 
 from server import gear_release, gear_socket_authority
 
@@ -1101,6 +1102,45 @@ class GearReleaseStoreTest(unittest.TestCase):
         )
         self.assertTrue(conn.committed)
         self.assertFalse(conn.rolled_back)
+
+    def test_seal_gear_release_replays_complete_evidence_in_one_batch(self):
+        from server import gear_fact_compiler
+
+        (
+            snapshot,
+            release,
+            gate,
+            fact_rows,
+            artifact_rows,
+            observation_rows,
+            gap_rows,
+        ) = self.canonical_seal_fixture()
+        conn = FakeConnection(rowsets={
+            **self.staging_rowsets(self.canonical_staging_snapshot()),
+            **self.complete_evidence_rowsets(
+                artifact_rows, observation_rows, gap_rows
+            ),
+            "FROM cache.websim_release_registry": [],
+            "JOIN cache.websim_gear_canonical_facts": fact_rows,
+            "FROM cache.websim_gear_evidence_artifacts": artifact_rows,
+            "FROM cache.websim_gear_evidence_observations": observation_rows,
+            "FROM ops.websim_gear_evidence_gaps": gap_rows,
+        })
+
+        with patch(
+            "server.gear_fact_compiler.compile_facts_by_subject",
+            wraps=gear_fact_compiler.compile_facts_by_subject,
+        ) as compile_batch:
+            self.trusted_gear_store(conn).seal_gear_release(
+                release,
+                snapshot,
+                gate_result=gate,
+            )
+
+        # One batch reconstructs the staging universe; a second batch verifies
+        # every persisted fact. Per-fact replays would make full catalog seals
+        # grow quadratically with the evidence universe.
+        self.assertEqual(compile_batch.call_count, 2)
 
     def test_direct_gear_seal_rejects_each_missing_canonical_gate_binding(self):
         from server import gear_release_store

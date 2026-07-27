@@ -1324,23 +1324,16 @@ def _compile_release_gear_evidence(
         observations_by_id[observation_id]
         for observation_id in sorted(observations_by_id)
     ]
-    facts: list[dict[str, Any]] = []
-    for subject in sorted(subject_fact_types):
-        facts.extend(
-            gear_fact_compiler.compile_subject_facts(
-                season_revision=season_revision,
-                subject_key=subject,
-                # The allowed-option compiler needs the exact option Fact
-                # universe referenced by an attributed slot rule. Every
-                # ordinary policy still filters by its requested subject.
-                observations=observations,
-                artifacts=[
-                    artifacts_by_id[artifact_id]
-                    for artifact_id in sorted(artifacts_by_id)
-                ],
-                fact_types=subject_fact_types[subject],
-            )
-        )
+    # Compile the entire candidate universe from one immutable Evidence index.
+    # Allowed-option rules can still resolve referenced option subjects through
+    # that same index without rescanning every Artifact and Observation for
+    # every equipment row.
+    facts = gear_fact_compiler.compile_facts_by_subject(
+        season_revision=season_revision,
+        observations=observations,
+        artifacts=artifacts,
+        fact_types_by_subject=subject_fact_types,
+    )
     return {
         "artifacts": sorted(artifacts, key=lambda row: row["artifactId"]),
         "observations": sorted(

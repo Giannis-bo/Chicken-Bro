@@ -3181,7 +3181,12 @@ class GearReleaseStore:
                     "Gear Release receipt omits complete Store evidence universe"
                 )
 
-        replayed_facts: list[dict[str, Any]] = []
+        replayed_facts = gear_fact_compiler.compile_facts_by_subject(
+            season_revision=season_revision,
+            observations=list(observations.values()),
+            artifacts=list(artifacts.values()),
+            fact_types_by_subject=required_fact_types,
+        )
         projected_by_semantic = {
             (
                 _text(fact.get("subjectKey")),
@@ -3189,44 +3194,42 @@ class GearReleaseStore:
             ): fact
             for fact in projected_facts.values()
         }
-        for subject_key, subject_fact_types in sorted(
-            required_fact_types.items()
-        ):
-            for fact_type in sorted(subject_fact_types):
-                replayed = gear_fact_compiler.compile_subject_facts(
-                    season_revision=season_revision,
-                    subject_key=subject_key,
-                    observations=list(observations.values()),
-                    artifacts=list(artifacts.values()),
-                    fact_types=[fact_type],
-                )[0]
-                replayed_facts.append(replayed)
-                projected = projected_by_semantic[
-                    (subject_key, fact_type)
-                ]
-                if any(
-                    _canonical(replayed.get(field))
-                    != _canonical(projected.get(field))
-                    for field in (
-                        "factKey",
-                        "subjectKey",
-                        "factType",
-                        "value",
-                        "status",
-                        "factValueHash",
-                        "provenanceHash",
-                        "compilerRuleRevision",
-                    )
-                ) or sorted(
-                    replayed.get("observationRefs") or ()
-                ) != sorted(
-                    projected.get("persistedObservationRefs")
-                    or projected.get("observationRefs")
-                    or ()
-                ):
-                    raise GearReleaseIntegrityError(
-                        "Gear Release Fact is not reproduced by complete Store evidence"
-                    )
+        replayed_by_semantic = {
+            (
+                _text(fact.get("subjectKey")),
+                _text(fact.get("factType")),
+            ): fact
+            for fact in replayed_facts
+        }
+        if set(replayed_by_semantic) != set(projected_by_semantic):
+            raise GearReleaseIntegrityError(
+                "Gear Release Fact replay does not cover the complete Store evidence universe"
+            )
+        for semantic, projected in projected_by_semantic.items():
+            replayed = replayed_by_semantic[semantic]
+            if any(
+                _canonical(replayed.get(field))
+                != _canonical(projected.get(field))
+                for field in (
+                    "factKey",
+                    "subjectKey",
+                    "factType",
+                    "value",
+                    "status",
+                    "factValueHash",
+                    "provenanceHash",
+                    "compilerRuleRevision",
+                )
+            ) or sorted(
+                replayed.get("observationRefs") or ()
+            ) != sorted(
+                projected.get("persistedObservationRefs")
+                or projected.get("observationRefs")
+                or ()
+            ):
+                raise GearReleaseIntegrityError(
+                    "Gear Release Fact is not reproduced by complete Store evidence"
+                )
 
         expected_gaps: dict[str, dict[str, Any]] = {}
         for gap in gear_fact_compiler.evidence_gaps_from_facts(

@@ -2390,6 +2390,23 @@ class GearReleaseToolTest(unittest.TestCase):
         self.assertNotIn("manifest", result)
         self.assertNotIn("pointer", result)
 
+    def test_prepare_staging_gear_release_compiles_requested_facts_in_one_batch(self):
+        from server import gear_fact_compiler
+        from server.gear_release_tool import prepare_staging_gear_release
+
+        with patch(
+            "server.gear_release_tool.gear_fact_compiler.compile_facts_by_subject",
+            wraps=gear_fact_compiler.compile_facts_by_subject,
+        ) as compile_batch:
+            prepare_staging_gear_release(
+                FakeReleaseStore(self.snapshot()),
+                season_revision="season-17",
+                dependency_revisions=self.dependencies(),
+                socket_bonus_minimums=socket_probe_evidence(),
+            )
+
+        self.assertEqual(compile_batch.call_count, 1)
+
     def test_prepare_staging_gear_release_materializes_socket_facts_before_hash(self):
         from server.gear_release_store import gear_snapshot_summary
         from server.gear_release_tool import (

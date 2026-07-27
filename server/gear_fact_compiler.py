@@ -291,6 +291,21 @@ def _flatten_observations(values: Iterable[Any]) -> list[Mapping[str, Any]]:
     return flattened
 
 
+def _observation_index(
+    observations: Iterable[Mapping[str, Any]],
+) -> dict[tuple[str, str], list[Mapping[str, Any]]]:
+    """Index one immutable observation universe for batch fact compilation."""
+
+    indexed: dict[tuple[str, str], list[Mapping[str, Any]]] = {}
+    for observation in observations:
+        subject_key = _text(observation.get("subjectKey"))
+        fact_type = _text(observation.get("factType"))
+        if not subject_key or not fact_type:
+            continue
+        indexed.setdefault((subject_key, fact_type), []).append(observation)
+    return indexed
+
+
 def _validate_policy(fact_type: str, policy: Mapping[str, Any]) -> None:
     missing = _REQUIRED_POLICY_FIELDS.difference(policy)
     if missing:
@@ -328,12 +343,25 @@ def _eligible_observations(
     policy: Mapping[str, Any],
     season_revision: str,
     artifacts_by_id: Mapping[str, Mapping[str, Any] | None],
+    observations_by_subject_fact: Mapping[
+        tuple[str, str], Sequence[Mapping[str, Any]]
+    ] | None = None,
 ) -> tuple[list[Mapping[str, Any]], bool, bool]:
+    scoped = (
+        observations_by_subject_fact.get((subject_key, fact_type), ())
+        if observations_by_subject_fact is not None
+        else observations
+    )
     candidates = [
         observation
-        for observation in observations
-        if _text(observation.get("subjectKey")) == subject_key
-        and _text(observation.get("factType")) == fact_type
+        for observation in scoped
+        if (
+            observations_by_subject_fact is not None
+            or (
+                _text(observation.get("subjectKey")) == subject_key
+                and _text(observation.get("factType")) == fact_type
+            )
+        )
         and observation.get("status") == "accepted"
     ]
     eligible: list[Mapping[str, Any]] = []
@@ -673,6 +701,9 @@ def _compile_one(
     observations: Sequence[Mapping[str, Any]],
     artifacts_by_id: Mapping[str, Mapping[str, Any] | None],
     policy: Mapping[str, Any] | None,
+    observations_by_subject_fact: Mapping[
+        tuple[str, str], Sequence[Mapping[str, Any]]
+    ] | None = None,
 ) -> dict[str, Any]:
     if policy is None:
         return build_canonical_fact(
@@ -695,6 +726,7 @@ def _compile_one(
             policy,
             season_revision,
             artifacts_by_id,
+            observations_by_subject_fact,
         )
     )
     status, value, incomplete_closed_world = _combine(
@@ -751,6 +783,9 @@ def _compile_allowed_options(
     observations: Sequence[Mapping[str, Any]],
     artifacts_by_id: Mapping[str, Mapping[str, Any] | None],
     policies: Mapping[str, Mapping[str, Any]],
+    observations_by_subject_fact: Mapping[
+        tuple[str, str], Sequence[Mapping[str, Any]]
+    ] | None = None,
 ) -> dict[str, Any]:
     fact_type = "allowed_enhancement_options"
     policy = policies.get(fact_type)
@@ -762,6 +797,7 @@ def _compile_allowed_options(
             observations=observations,
             artifacts_by_id=artifacts_by_id,
             policy=None,
+            observations_by_subject_fact=observations_by_subject_fact,
         )
     _validate_policy(fact_type, policy)
     eligible, policy_rejected, missing_artifact = _eligible_observations(
@@ -771,6 +807,7 @@ def _compile_allowed_options(
         policy,
         season_revision,
         artifacts_by_id,
+        observations_by_subject_fact,
     )
     complete_rules = [
         observation
@@ -795,6 +832,7 @@ def _compile_allowed_options(
         observations=observations,
         artifacts_by_id=artifacts_by_id,
         policy=policies.get("slot_compatibility"),
+        observations_by_subject_fact=observations_by_subject_fact,
     )
     observation_refs.extend(slot_fact["observationRefs"])
     if slot_fact["status"] == "unresolved_conflict":
@@ -816,6 +854,7 @@ def _compile_allowed_options(
             observations=observations,
             artifacts_by_id=artifacts_by_id,
             policy=policies.get(capability_type),
+            observations_by_subject_fact=observations_by_subject_fact,
         )
         observation_refs.extend(capability_fact["observationRefs"])
         if capability_fact["status"] == "unresolved_conflict":
@@ -835,6 +874,7 @@ def _compile_allowed_options(
                 observations=observations,
                 artifacts_by_id=artifacts_by_id,
                 policy=policies.get("enhancement_option"),
+                observations_by_subject_fact=observations_by_subject_fact,
             )
             observation_refs.extend(option_fact["observationRefs"])
             if option_fact["status"] == "unresolved_conflict":
@@ -899,6 +939,60 @@ def _compile_allowed_options(
     )
 
 
+def _selected_fact_types(
+    fact_types: Iterable[Any] | None,
+    policies: Mapping[str, Mapping[str, Any]],
+) -> set[str]:
+    selected = (
+        {_text(fact_type) for fact_type in fact_types}
+        if fact_types is not None
+        else set(policies)
+    )
+    if "" in selected:
+        raise ValueError("fact_type is required.")
+    return selected
+
+
+def _compile_subject_facts_prepared(
+    *,
+    season_revision: str,
+    subject_key: str,
+    observations: Sequence[Mapping[str, Any]],
+    observations_by_subject_fact: Mapping[
+        tuple[str, str], Sequence[Mapping[str, Any]]
+    ],
+    artifacts_by_id: Mapping[str, Mapping[str, Any] | None],
+    fact_types: set[str],
+    policies: Mapping[str, Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    facts: list[dict[str, Any]] = []
+    for fact_type in sorted(fact_types):
+        if fact_type == "allowed_enhancement_options":
+            facts.append(
+                _compile_allowed_options(
+                    season_revision=season_revision,
+                    subject_key=subject_key,
+                    observations=observations,
+                    observations_by_subject_fact=observations_by_subject_fact,
+                    artifacts_by_id=artifacts_by_id,
+                    policies=policies,
+                )
+            )
+        else:
+            facts.append(
+                _compile_one(
+                    season_revision=season_revision,
+                    subject_key=subject_key,
+                    fact_type=fact_type,
+                    observations=observations,
+                    observations_by_subject_fact=observations_by_subject_fact,
+                    artifacts_by_id=artifacts_by_id,
+                    policy=policies.get(fact_type),
+                )
+            )
+    return facts
+
+
 def compile_subject_facts(
     *,
     season_revision: Any,
@@ -917,39 +1011,66 @@ def compile_subject_facts(
     if not normalized_subject_key:
         raise ValueError("subject_key is required.")
     selected_policies = policies if policies is not None else FACT_POLICIES
-    selected_fact_types = (
-        {_text(fact_type) for fact_type in fact_types}
-        if fact_types is not None
-        else set(selected_policies)
-    )
-    if "" in selected_fact_types:
-        raise ValueError("fact_type is required.")
+    selected_fact_types = _selected_fact_types(fact_types, selected_policies)
     flattened = _flatten_observations(observations)
+    return _compile_subject_facts_prepared(
+        season_revision=normalized_season_revision,
+        subject_key=normalized_subject_key,
+        observations=flattened,
+        observations_by_subject_fact=_observation_index(flattened),
+        artifacts_by_id=_artifact_index(artifacts),
+        fact_types=selected_fact_types,
+        policies=selected_policies,
+    )
+
+
+def compile_facts_by_subject(
+    *,
+    season_revision: Any,
+    observations: Iterable[Any],
+    fact_types_by_subject: Mapping[Any, Iterable[Any]],
+    artifacts: Any = (),
+    policies: Mapping[str, Mapping[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
+    """Compile selected facts for many subjects from one indexed evidence universe."""
+
+    normalized_season_revision = _text(season_revision)
+    if not normalized_season_revision:
+        raise ValueError("season_revision is required.")
+    selected_policies = policies if policies is not None else FACT_POLICIES
+    requested: dict[str, set[str]] = {}
+    for raw_subject_key, raw_fact_types in fact_types_by_subject.items():
+        subject_key = _text(raw_subject_key)
+        if not subject_key:
+            raise ValueError("subject_key is required.")
+        requested[subject_key] = _selected_fact_types(
+            raw_fact_types,
+            selected_policies,
+        )
+    flattened = _flatten_observations(observations)
+    observations_by_subject_fact = _observation_index(flattened)
     artifacts_by_id = _artifact_index(artifacts)
     facts: list[dict[str, Any]] = []
-    for fact_type in sorted(selected_fact_types):
-        if fact_type == "allowed_enhancement_options":
-            facts.append(
-                _compile_allowed_options(
-                    season_revision=normalized_season_revision,
-                    subject_key=normalized_subject_key,
-                    observations=flattened,
-                    artifacts_by_id=artifacts_by_id,
-                    policies=selected_policies,
-                )
+    for subject_key in sorted(requested):
+        facts.extend(
+            _compile_subject_facts_prepared(
+                season_revision=normalized_season_revision,
+                subject_key=subject_key,
+                observations=flattened,
+                observations_by_subject_fact=observations_by_subject_fact,
+                artifacts_by_id=artifacts_by_id,
+                fact_types=requested[subject_key],
+                policies=selected_policies,
             )
-        else:
-            facts.append(
-                _compile_one(
-                    season_revision=normalized_season_revision,
-                    subject_key=normalized_subject_key,
-                    fact_type=fact_type,
-                    observations=flattened,
-                    artifacts_by_id=artifacts_by_id,
-                    policy=selected_policies.get(fact_type),
-                )
-            )
-    return facts
+        )
+    return sorted(
+        facts,
+        key=lambda fact: (
+            fact["subjectKey"],
+            fact["factType"],
+            fact["factKey"],
+        ),
+    )
 
 
 def compile_facts(
@@ -964,7 +1085,7 @@ def compile_facts(
     """Compile deterministic canonical facts without external or mutable state."""
 
     flattened = _flatten_observations(observations)
-    artifacts_by_id = _artifact_index(artifacts)
+    selected_fact_types = tuple(fact_types) if fact_types is not None else None
     normalized_subjects = (
         {_text(subject) for subject in subjects}
         if subjects is not None
@@ -974,25 +1095,15 @@ def compile_facts(
         }
     )
     normalized_subjects.discard("")
-    facts: list[dict[str, Any]] = []
-    for subject_key in sorted(normalized_subjects):
-        facts.extend(
-            compile_subject_facts(
-                season_revision=season_revision,
-                subject_key=subject_key,
-                observations=flattened,
-                artifacts=artifacts_by_id,
-                fact_types=fact_types,
-                policies=policies,
-            )
-        )
-    return sorted(
-        facts,
-        key=lambda fact: (
-            fact["subjectKey"],
-            fact["factType"],
-            fact["factKey"],
-        ),
+    return compile_facts_by_subject(
+        season_revision=season_revision,
+        observations=flattened,
+        artifacts=artifacts,
+        fact_types_by_subject={
+            subject_key: selected_fact_types
+            for subject_key in normalized_subjects
+        },
+        policies=policies,
     )
 
 
@@ -1076,6 +1187,7 @@ def evidence_gaps_from_facts(
 __all__ = (
     "FACT_POLICIES",
     "compile_facts",
+    "compile_facts_by_subject",
     "compile_subject_facts",
     "evidence_gaps_from_facts",
 )

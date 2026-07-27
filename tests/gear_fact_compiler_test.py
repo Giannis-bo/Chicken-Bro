@@ -385,6 +385,45 @@ class GearFactCompilerTest(unittest.TestCase):
         ).encode("utf-8")
         self.assertEqual(encoded_first, encoded_replay)
 
+    def test_batch_compilation_accepts_one_shot_evidence_for_multiple_subjects(self):
+        first_subject = SUBJECT_KEY
+        second_subject = "item:250034/variant:void_upgrade-299"
+        first = self.observation(
+            "socket_count",
+            1,
+            subject_key=first_subject,
+        )
+        second = self.observation(
+            "socket_count",
+            0,
+            subject_key=second_subject,
+            artifact_id="batch-second-socket",
+        )
+
+        facts = gear_fact_compiler.compile_facts_by_subject(
+            season_revision=SEASON_REVISION,
+            observations=(row for row in (first, second)),
+            artifacts=(row for row in self.artifacts.values()),
+            fact_types_by_subject={
+                first_subject: ["socket_count"],
+                second_subject: ["socket_count"],
+            },
+        )
+
+        self.assertEqual(
+            {
+                (fact["subjectKey"], fact["factType"]): (
+                    fact["status"],
+                    fact["value"],
+                )
+                for fact in facts
+            },
+            {
+                (first_subject, "socket_count"): ("verified", 1),
+                (second_subject, "socket_count"): ("verified", 0),
+            },
+        )
+
     def test_incomplete_closed_world_values_remain_unresolved_missing(self):
         cases = {
             "variant_track": {"itemLevel": 289, "track": "void_upgrade"},
