@@ -3610,6 +3610,94 @@ def _legacy_shadow_snapshot(
     return legacy_snapshot
 
 
+def _legacy_shadow_snapshot_for_evidence_batch(
+    raw_snapshot: Mapping[str, Any],
+    *,
+    category: str,
+    rows: Iterable[Mapping[str, Any]],
+    season_revision: str,
+    capability_revision: str,
+    socket_bonus_evidence: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Materialize only the legacy rows needed to shadow one evidence batch.
+
+    The final release still owns the complete staging snapshot.  Keeping a
+    second catalog solely for legacy comparison creates a large transient peak,
+    whereas each compiler batch only compares its own item, variant, or option
+    subjects.  Item and variant batches retain their matching item/source rows
+    so socket authority observes the exact same provenance as the full shadow.
+    """
+
+    batch_rows = [row for row in rows if isinstance(row, Mapping)]
+    snapshot = raw_snapshot if isinstance(raw_snapshot, Mapping) else {}
+    if category == "options":
+        scoped_snapshot = {
+            "items": [],
+            "sources": [],
+            "variants": [],
+            "options": batch_rows,
+        }
+    elif category in {"items", "variants"}:
+        item_ids = {
+            _text(row.get("itemId"))
+            for row in batch_rows
+            if _text(row.get("itemId"))
+        }
+        if category == "variants":
+            # Variant enhancement management consults the official cached item
+            # record for each equipped gem, notably to preserve unique-gem
+            # semantics.  Carry those few related items into the batch shadow
+            # without retaining the entire item catalog.
+            item_ids.update(
+                token.strip()
+                for row in batch_rows
+                for token in _text(
+                    (
+                        row.get("simcOptions") or {}
+                    ).get("gem_id")
+                    if isinstance(row.get("simcOptions"), Mapping)
+                    else ""
+                ).split("/")
+                if token.strip().isdigit()
+            )
+        scoped_snapshot = {
+            "items": (
+                batch_rows
+                if category == "items"
+                else [
+                    row
+                    for row in snapshot.get("items") or ()
+                    if isinstance(row, Mapping)
+                    and _text(row.get("itemId")) in item_ids
+                ]
+            ),
+            "sources": [
+                row
+                for row in snapshot.get("sources") or ()
+                if isinstance(row, Mapping)
+                and _text(row.get("itemId")) in item_ids
+            ],
+            "variants": batch_rows if category == "variants" else [],
+            # The shared option catalog is bounded and is an input to legacy
+            # enhancement-management classification for item/variant facts.
+            "options": [
+                row
+                for row in snapshot.get("options") or ()
+                if isinstance(row, Mapping)
+            ],
+        }
+    else:
+        raise GearReleaseIntegrityError(
+            "legacy shadow batch category is unsupported"
+        )
+    return _legacy_shadow_snapshot(
+        scoped_snapshot,
+        season_revision=season_revision,
+        capability_revision=capability_revision,
+        socket_bonus_evidence=socket_bonus_evidence,
+    )
+
+
 def _prepare_staging_gear_release_streaming(
     store: GearReleaseStore,
     *,
@@ -3634,14 +3722,6 @@ def _prepare_staging_gear_release_streaming(
 
     raw_snapshot = store.snapshot_staging_gear()
     raw_snapshot_summary = gear_snapshot_summary(raw_snapshot)
-    legacy_snapshot = _legacy_shadow_snapshot(
-        raw_snapshot,
-        season_revision=season_revision,
-        capability_revision=_text(
-            dependency_revisions.get("capabilityRevision")
-        ),
-        socket_bonus_evidence=socket_bonus_evidence,
-    )
     persist = getattr(store, "persist_gear_evidence_bundle", None)
     if not callable(persist):
         raise GearReleaseIntegrityError(
@@ -3686,14 +3766,25 @@ def _prepare_staging_gear_release_streaming(
             facts=facts,
             gaps=gaps,
         )
+        shadow_snapshot = _legacy_shadow_snapshot_for_evidence_batch(
+            raw_snapshot,
+            category=category,
+            rows=rows,
+            season_revision=season_revision,
+            capability_revision=_text(
+                dependency_revisions.get("capabilityRevision")
+            ),
+            socket_bonus_evidence=socket_bonus_evidence,
+        )
         shadow_part = gear_fact_shadow.compare_legacy_and_canonical(
-            legacy_snapshot,
+            shadow_snapshot,
             facts,
             expected_fact_types_by_subject=(
                 compiled["expectedFactTypesBySubject"]
             ),
             include_comparisons=False,
         )
+        del shadow_snapshot
         if shadow_part["status"] != "pass":
             raise GearReleaseIntegrityError(
                 "canonical fact shadow blocked candidate: "

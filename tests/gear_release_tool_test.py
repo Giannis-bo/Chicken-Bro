@@ -2887,6 +2887,128 @@ class GearReleaseToolTest(unittest.TestCase):
         }])
         self.assertEqual(project_calls, [{"in_place": True}])
 
+    def test_streaming_shadow_batch_matches_the_full_legacy_shadow(self):
+        from server import gear_fact_shadow
+        from server import gear_release_tool
+
+        raw_snapshot = self.snapshot()
+        evidence = socket_probe_evidence()
+        normalized_minimums = {
+            bonus_id: {
+                "minimumTotal": minimum,
+                "sourceRevision": evidence["sourceRevision"],
+            }
+            for bonus_id, minimum in evidence["minimums"].items()
+        }
+        full_legacy = gear_release_tool._legacy_shadow_snapshot(
+            raw_snapshot,
+            season_revision="midnight-season-1",
+            capability_revision=self.dependencies()["capabilityRevision"],
+            socket_bonus_evidence=evidence,
+        )
+
+        for category, _offset, rows, compiled in (
+            gear_release_tool._stream_release_evidence_batches(
+                raw_snapshot,
+                season_revision="midnight-season-1",
+                source_revision="legacy-import-r0",
+                captured_at="2026-07-27T00:00:00+00:00",
+                socket_bonus_minimums=normalized_minimums,
+                socket_bonus_evidence=evidence,
+                batch_size=1,
+            )
+        ):
+            with self.subTest(category=category):
+                batch_legacy = (
+                    gear_release_tool._legacy_shadow_snapshot_for_evidence_batch(
+                        raw_snapshot,
+                        category=category,
+                        rows=rows,
+                        season_revision="midnight-season-1",
+                        capability_revision=self.dependencies()["capabilityRevision"],
+                        socket_bonus_evidence=evidence,
+                    )
+                )
+                expected = gear_fact_shadow.compare_legacy_and_canonical(
+                    full_legacy,
+                    compiled["facts"],
+                    expected_fact_types_by_subject=(
+                        compiled["expectedFactTypesBySubject"]
+                    ),
+                    include_comparisons=False,
+                )
+                actual = gear_fact_shadow.compare_legacy_and_canonical(
+                    batch_legacy,
+                    compiled["facts"],
+                    expected_fact_types_by_subject=(
+                        compiled["expectedFactTypesBySubject"]
+                    ),
+                    include_comparisons=False,
+                )
+                self.assertEqual(actual, expected)
+
+    def test_streaming_variant_shadow_keeps_gem_items_and_shared_options(self):
+        from server import gear_fact_shadow
+        from server import gear_release_tool
+        from server.gear_socket_authority import CAPABILITY_REVISION
+
+        raw_snapshot = build_midnight_mage_release_fixture()["snapshot"]
+        evidence = socket_probe_evidence()
+        normalized_minimums = {
+            bonus_id: {
+                "minimumTotal": minimum,
+                "sourceRevision": evidence["sourceRevision"],
+            }
+            for bonus_id, minimum in evidence["minimums"].items()
+        }
+        full_legacy = gear_release_tool._legacy_shadow_snapshot(
+            raw_snapshot,
+            season_revision="season-17-active",
+            capability_revision=CAPABILITY_REVISION,
+            socket_bonus_evidence=evidence,
+        )
+        variant_batch = next(
+            batch
+            for batch in gear_release_tool._stream_release_evidence_batches(
+                raw_snapshot,
+                season_revision="season-17-active",
+                source_revision="legacy-import-r0",
+                captured_at="2026-07-27T00:00:00+00:00",
+                socket_bonus_minimums=normalized_minimums,
+                socket_bonus_evidence=evidence,
+                batch_size=128,
+            )
+            if batch[0] == "variants"
+        )
+        category, _offset, rows, compiled = variant_batch
+        batch_legacy = gear_release_tool._legacy_shadow_snapshot_for_evidence_batch(
+            raw_snapshot,
+            category=category,
+            rows=rows,
+            season_revision="season-17-active",
+            capability_revision=CAPABILITY_REVISION,
+            socket_bonus_evidence=evidence,
+        )
+
+        self.assertEqual(
+            gear_fact_shadow.compare_legacy_and_canonical(
+                batch_legacy,
+                compiled["facts"],
+                expected_fact_types_by_subject=(
+                    compiled["expectedFactTypesBySubject"]
+                ),
+                include_comparisons=False,
+            ),
+            gear_fact_shadow.compare_legacy_and_canonical(
+                full_legacy,
+                compiled["facts"],
+                expected_fact_types_by_subject=(
+                    compiled["expectedFactTypesBySubject"]
+                ),
+                include_comparisons=False,
+            ),
+        )
+
     def test_store_seal_requires_complete_authoritative_canonical_gate(self):
         from server.gear_release_store import (
             GearReleaseIntegrityError,
