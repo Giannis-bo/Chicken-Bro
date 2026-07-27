@@ -2,6 +2,7 @@ import copy
 import hashlib
 import io
 import json
+import os
 import subprocess
 import unittest
 from contextlib import redirect_stdout
@@ -2455,6 +2456,175 @@ class GearReleaseToolTest(unittest.TestCase):
 
         self.assertEqual(compile_batch.call_count, 1)
 
+    def test_streaming_prepare_projects_a_disk_backed_staging_snapshot(self):
+        """The candidate path must request a disk-backed snapshot from its Store."""
+
+        from server.gear_release_store import _DiskBackedGearSnapshot
+        from server.gear_release_tool import prepare_staging_gear_release
+
+        class DiskSnapshotStore(FakeReleaseStore):
+            def __init__(inner_self, snapshot):
+                super().__init__(snapshot)
+                inner_self.spool_requests = []
+
+            def snapshot_staging_gear(inner_self, *, spool_to_disk=False):
+                inner_self.spool_requests.append(spool_to_disk)
+                if not spool_to_disk:
+                    return super().snapshot_staging_gear()
+                snapshot = _DiskBackedGearSnapshot()
+                for category, rows in inner_self.gear_snapshot.items():
+                    snapshot[category].extend(copy.deepcopy(rows))
+                return snapshot
+
+        store = DiskSnapshotStore(self.snapshot())
+        prepared = prepare_staging_gear_release(
+            store,
+            season_revision="season-17",
+            dependency_revisions=self.dependencies(),
+            socket_bonus_minimums=socket_probe_evidence(),
+            evidence_batch_size=1,
+        )
+        try:
+            self.assertEqual(store.spool_requests, [True])
+            self.assertFalse(isinstance(prepared["snapshot"]["variants"], list))
+            facts = list(prepared["snapshot"]["variants"])[0]["payload"]["canonicalFacts"]
+            self.assertEqual(
+                {fact["factType"] for fact in facts},
+                {
+                    "allowed_enhancement_options",
+                    "embellishment_capability",
+                    "enchant_capability",
+                    "executable_item_options",
+                    "item_identity",
+                    "item_set_membership",
+                    "slot_compatibility",
+                    "socket_count",
+                    "static_stats",
+                    "variant_track",
+                },
+            )
+        finally:
+            prepared["snapshot"].close()
+
+    def test_streaming_prepare_closes_disk_snapshot_when_shadow_blocks(self):
+        from server.gear_release_store import GearReleaseIntegrityError, _DiskBackedGearSnapshot
+        from server.gear_release_tool import prepare_staging_gear_release
+
+        class DiskSnapshotStore(FakeReleaseStore):
+            def snapshot_staging_gear(inner_self, *, spool_to_disk=False):
+                if not spool_to_disk:
+                    return super().snapshot_staging_gear()
+                inner_self.disk_snapshot = _DiskBackedGearSnapshot()
+                for category, rows in inner_self.gear_snapshot.items():
+                    inner_self.disk_snapshot[category].extend(copy.deepcopy(rows))
+                return inner_self.disk_snapshot
+
+        store = DiskSnapshotStore(self.snapshot())
+        with patch(
+            "server.gear_release_tool.gear_fact_shadow.compare_legacy_and_canonical",
+            return_value={"status": "blocked", "blockers": []},
+        ):
+            with self.assertRaisesRegex(
+                GearReleaseIntegrityError,
+                "canonical fact shadow blocked candidate",
+            ):
+                prepare_staging_gear_release(
+                    store,
+                    season_revision="season-17",
+                    dependency_revisions=self.dependencies(),
+                    socket_bonus_minimums=socket_probe_evidence(),
+                    evidence_batch_size=1,
+                )
+
+        self.assertFalse(os.path.exists(store.disk_snapshot._temporary_directory.name))
+
+    def test_build_closes_disk_snapshot_when_seal_blocks(self):
+        from server.gear_release_store import GearReleaseIntegrityError, _DiskBackedGearSnapshot
+        from server.gear_release_tool import build_legacy_gear_release
+
+        class FailingSealDiskStore(FakeReleaseStore):
+            def snapshot_staging_gear(inner_self, *, spool_to_disk=False):
+                if not spool_to_disk:
+                    return super().snapshot_staging_gear()
+                inner_self.disk_snapshot = _DiskBackedGearSnapshot()
+                for category, rows in inner_self.gear_snapshot.items():
+                    inner_self.disk_snapshot[category].extend(copy.deepcopy(rows))
+                return inner_self.disk_snapshot
+
+            def seal_gear_release(inner_self, *_args, **_kwargs):
+                raise GearReleaseIntegrityError("injected seal failure")
+
+        store = FailingSealDiskStore(self.snapshot())
+        with self.assertRaisesRegex(GearReleaseIntegrityError, "injected seal failure"):
+            build_legacy_gear_release(
+                store,
+                season_revision="season-17",
+                dependency_revisions=self.dependencies(),
+                socket_bonus_minimums=socket_probe_evidence(),
+            )
+
+        self.assertFalse(os.path.exists(store.disk_snapshot._temporary_directory.name))
+
+    def test_enhancement_management_rewrites_disk_backed_release_rows(self):
+        from server.gear_release_store import _DiskBackedGearSnapshot
+        from server.gear_release_tool import _project_canonical_enhancement_management
+        from server.gear_socket_authority import CAPABILITY_REVISION
+
+        def fact(fact_type, value):
+            return {
+                "factType": fact_type,
+                "status": "verified",
+                "value": value,
+            }
+
+        snapshot = _DiskBackedGearSnapshot()
+        snapshot["items"].append({
+            "itemId": "item-a",
+            "payload": {"canonicalFacts": [
+                fact("slot_compatibility", ["head"]),
+                fact("socket_count", 1),
+            ]},
+        })
+        snapshot["variants"].append({
+            "variantId": "variant-a",
+            "itemId": "item-a",
+            "itemLevel": 289,
+            "simcOptions": {"gem_id": "240000"},
+            "payload": {"canonicalFacts": [
+                fact("slot_compatibility", ["head"]),
+                fact("socket_count", 1),
+            ]},
+        })
+        snapshot["options"].append({
+            "optionId": "gem-a",
+            "optionKey": "gem-a",
+            "optionType": "gem",
+            "applicableSlots": ["head"],
+            "payload": {"canonicalFacts": [
+                fact("enhancement_option", {
+                    "optionType": "gem",
+                    "effect": {"gem_id": "240000"},
+                    "applicableScopes": ["head"],
+                }),
+            ]},
+        })
+        try:
+            _project_canonical_enhancement_management(
+                snapshot,
+                capability_revision=CAPABILITY_REVISION,
+                in_place=True,
+            )
+
+            option = list(snapshot["options"])[0]
+            variant = list(snapshot["variants"])[0]
+            self.assertEqual(option["applicableSlots"], ["*"])
+            self.assertEqual(
+                variant["payload"]["enhancementManagement"]["fields"]["gem_id"],
+                "editor_managed",
+            )
+        finally:
+            snapshot.close()
+
     def test_prepare_streaming_batches_preserve_cross_batch_option_authority(self):
         """A bounded build may not lose an option fact needed by a later rule."""
 
@@ -3164,6 +3334,153 @@ class GearReleaseToolTest(unittest.TestCase):
                 include_comparisons=False,
             ),
         )
+
+    def test_streaming_shadow_uses_item_slot_fallback_for_relevant_raw_options(self):
+        from server import gear_release_tool
+        from server.gear_release_store import _DiskBackedGearSnapshot
+
+        snapshot = _DiskBackedGearSnapshot()
+        snapshot["items"].append({
+            "itemId": "item-a",
+            "name": "Item A",
+            "slot": "head",
+            "itemLevel": 289,
+            "sourceStatus": "verified",
+            "payload": {},
+        })
+        snapshot["variants"].append({
+            "variantId": "variant-a",
+            "itemId": "item-a",
+            "variantKey": "variant-a",
+            "slot": "",
+            "sourceType": "observed_profile",
+            "status": "verified",
+            "simcOptions": {
+                "gem_id": "1",
+                "enchant_id": "10",
+                "embellishment": "20",
+            },
+            "payload": {},
+        })
+        raw_options = [
+            {
+                "optionId": "gem-primary",
+                "optionKey": "gem-1",
+                "optionType": "gem",
+                "applicableSlots": ["head"],
+                "simcOptions": {"gem_id": "1"},
+                "status": "verified",
+                "isVisible": True,
+                "payload": {},
+            },
+            {
+                "optionId": "gem-presentation",
+                "optionKey": "display-gem-1",
+                "optionType": "gem",
+                "applicableSlots": ["head"],
+                "simcOptions": {"gem_id": "1"},
+                "status": "verified",
+                "isVisible": True,
+                "payload": {"displayLabel": "Haste +10"},
+            },
+            {
+                "optionId": "enchant-head",
+                "optionKey": "enchant-10",
+                "optionType": "enchant",
+                "applicableSlots": ["head"],
+                "simcOptions": {"enchant_id": "10"},
+                "status": "verified",
+                "isVisible": True,
+                "payload": {},
+            },
+            {
+                "optionId": "embellish-head",
+                "optionKey": "embellish-20",
+                "optionType": "embellishment",
+                "applicableSlots": ["head"],
+                "simcOptions": {"embellishment": "20"},
+                "status": "verified",
+                "isVisible": True,
+                "payload": {},
+            },
+        ]
+        raw_options.extend({
+            "optionId": f"irrelevant-{index}",
+            "optionKey": f"irrelevant-{index}",
+            "optionType": "gem",
+            "applicableSlots": ["finger1"],
+            "simcOptions": {"gem_id": str(1000 + index)},
+            "status": "verified",
+            "isVisible": True,
+            "payload": {},
+        } for index in range(257))
+        snapshot["options"].extend(raw_options)
+        projected_options = []
+        for option in raw_options:
+            projected = copy.deepcopy(option)
+            projected["status"] = "unavailable"
+            projected_options.append(projected)
+        snapshot["options"].replace_projected_batch(
+            offset=0,
+            raw_count=len(projected_options),
+            rows=projected_options,
+        )
+        try:
+            with patch.object(
+                gear_release_tool,
+                "_legacy_shadow_snapshot",
+                side_effect=lambda scoped_snapshot, **_kwargs: scoped_snapshot,
+            ):
+                variant_scope = (
+                    gear_release_tool._legacy_shadow_snapshot_for_evidence_batch(
+                        snapshot,
+                        category="variants",
+                        rows=list(snapshot["variants"]),
+                        season_revision="season-17",
+                        capability_revision="capability-r1",
+                        socket_bonus_evidence=socket_probe_evidence(),
+                    )
+                )
+                item_scope = gear_release_tool._legacy_shadow_snapshot_for_evidence_batch(
+                    snapshot,
+                    category="items",
+                    rows=list(snapshot["items"]),
+                    season_revision="season-17",
+                    capability_revision="capability-r1",
+                    socket_bonus_evidence=socket_probe_evidence(),
+                )
+                invalid_slot_variant = copy.deepcopy(list(snapshot["variants"])[0])
+                invalid_slot_variant["slot"] = "unknown-slot"
+                invalid_slot_scope = (
+                    gear_release_tool._legacy_shadow_snapshot_for_evidence_batch(
+                        snapshot,
+                        category="variants",
+                        rows=[invalid_slot_variant],
+                        season_revision="season-17",
+                        capability_revision="capability-r1",
+                        socket_bonus_evidence=socket_probe_evidence(),
+                    )
+                )
+            self.assertEqual(
+                {
+                    "gem-primary",
+                    "gem-presentation",
+                    "enchant-head",
+                    "embellish-head",
+                },
+                {row["optionId"] for row in variant_scope["options"]},
+            )
+            self.assertEqual(
+                {"verified"},
+                {row["status"] for row in variant_scope["options"]},
+            )
+            self.assertEqual(item_scope["options"], [])
+            self.assertEqual(
+                {"gem-primary", "gem-presentation"},
+                {row["optionId"] for row in invalid_slot_scope["options"]},
+            )
+        finally:
+            snapshot.close()
 
     def test_store_seal_requires_complete_authoritative_canonical_gate(self):
         from server.gear_release_store import (

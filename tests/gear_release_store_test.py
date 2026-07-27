@@ -678,6 +678,145 @@ class GearReleaseStoreTest(unittest.TestCase):
         self.assertEqual(snapshot["options"][0]["optionKey"], "gem-a")
         self.assertTrue(conn.committed)
 
+    def test_snapshot_staging_gear_can_spool_catalog_rows_without_lists(self):
+        from server.gear_release_store import GearReleaseStore
+
+        conn = FakeConnection(rowsets={
+            "FROM cache.websim_items": [
+                ("item-a", "Item A", "head", 289, {"x": 1}, "verified", "2026-07-11T05:00:00+00:00")
+            ],
+            "FROM cache.websim_gear_sources": [
+                ("source-a", "item-a", "observed_profile", "profile:a", "Observed", "", "", "mythic", "season-17", {"status": "verified"}, "2026-07-11T05:00:00+00:00")
+            ],
+            "FROM cache.websim_gear_variants": [
+                ("variant-a-id", "item-a", "variant-a", "head", "289", "observed_profile", "mythic", 289, {"ilevel": "289"}, "verified", [], {"resolvedStats": {"intellect": 100}}, "2026-07-11T05:00:00+00:00")
+            ],
+            "FROM cache.websim_gear_mod_options": [
+                ("option-a-id", "variant-a-id", "gem-a", "gem", "Gem A", ["head"], {"gem_id": "1"}, "verified", True, {"itemStats": []}, "2026-07-11T05:00:00+00:00")
+            ],
+        })
+
+        snapshot = GearReleaseStore(lambda: conn).snapshot_staging_gear(
+            spool_to_disk=True,
+        )
+        try:
+            self.assertFalse(isinstance(snapshot["items"], list))
+            self.assertFalse(isinstance(snapshot["sources"], list))
+            self.assertFalse(isinstance(snapshot["variants"], list))
+            self.assertFalse(isinstance(snapshot["options"], list))
+            self.assertEqual(list(snapshot["items"])[0]["itemId"], "item-a")
+            self.assertEqual(list(snapshot["variants"])[0]["variantKey"], "variant-a")
+        finally:
+            snapshot.close()
+
+    def test_snapshot_staging_gear_spools_compacted_variants_without_catalog_list(self):
+        from server.gear_release_store import (
+            GearReleaseStore,
+            _DiskBackedGearRows,
+        )
+
+        variants = [
+            (
+                f"variant-{index}",
+                "item-a",
+                f"variant-{index}",
+                "head",
+                "289",
+                "observed_profile",
+                "observed",
+                289,
+                {"ilevel": str(289 + index)},
+                "verified",
+                [],
+                {"resolvedStats": {"intellect": 100}},
+                "2026-07-11T05:00:00+00:00",
+            )
+            for index in range(257)
+        ]
+        conn = FakeConnection(rowsets={
+            "FROM cache.websim_items": [
+                ("item-a", "Item A", "head", 289, {}, "verified", "2026-07-11T05:00:00+00:00")
+            ],
+            "FROM cache.websim_gear_sources": [],
+            "FROM cache.websim_gear_variants": variants,
+            "FROM cache.websim_gear_mod_options": [],
+        })
+        real_extend = _DiskBackedGearRows.extend
+
+        def extend_without_catalog_list(rows, values):
+            self.assertFalse(
+                isinstance(values, list),
+                "disk-backed variant compaction must not rebuild a catalog list",
+            )
+            return real_extend(rows, values)
+
+        with patch.object(
+            _DiskBackedGearRows,
+            "extend",
+            new=extend_without_catalog_list,
+        ):
+            snapshot = GearReleaseStore(lambda: conn).snapshot_staging_gear(
+                spool_to_disk=True,
+            )
+        try:
+            self.assertEqual(
+                sorted(row[0] for row in variants),
+                [row["variantId"] for row in snapshot["variants"]],
+            )
+        finally:
+            snapshot.close()
+
+    def test_insert_gear_rows_streams_a_disk_backed_snapshot(self):
+        from server.gear_release_store import (
+            GearReleaseStore,
+            _DiskBackedGearSnapshot,
+        )
+
+        snapshot = _DiskBackedGearSnapshot()
+        snapshot["items"].append({
+            "itemId": "item-a",
+            "name": "Item A",
+            "slot": "head",
+            "itemLevel": 289,
+            "sourceStatus": "verified",
+            "payload": {},
+        })
+        snapshot["sources"].append({
+            "sourceId": "source-a",
+            "itemId": "item-a",
+            "sourceType": "observed_profile",
+            "sourceKey": "profile:a",
+            "payload": {},
+        })
+        snapshot["variants"].append({
+            "variantId": "variant-a",
+            "itemId": "item-a",
+            "variantKey": "variant-a",
+            "slot": "head",
+            "payload": {},
+        })
+        snapshot["options"].append({
+            "optionId": "option-a",
+            "optionKey": "option-a",
+            "optionType": "gem",
+            "payload": {},
+        })
+        conn = FakeConnection()
+        try:
+            with patch(
+                "server.gear_release_store._canonical_rows",
+                side_effect=AssertionError("disk snapshot insert must not collect a category"),
+            ):
+                GearReleaseStore._insert_gear_rows(
+                    conn.cursor_instance,
+                    "gear-release:test",
+                    snapshot,
+                )
+        finally:
+            snapshot.close()
+
+        self.assertEqual(len(conn.cursor_instance.executemany_calls), 4)
+
     def test_snapshot_staging_gear_consumes_cursor_in_bounded_batches_without_payload_clone(self):
         from server.gear_release_store import GearReleaseStore
 
@@ -853,6 +992,29 @@ class GearReleaseStoreTest(unittest.TestCase):
         with patch(
             "server.gear_release_store._canonical_rows",
             side_effect=AssertionError("summary must not retain every serialized row key"),
+        ):
+            actual = gear_release_store.gear_snapshot_summary(snapshot)
+
+        self.assertEqual(actual, expected)
+
+    def test_gear_snapshot_summary_is_postgresql_only_safe(self):
+        """Release construction must not require a temporary SQLite database."""
+
+        from server import gear_release_store
+
+        snapshot = self.snapshot()
+        snapshot["items"].extend(
+            {
+                **copy.deepcopy(snapshot["items"][0]),
+                "itemId": f"item-{index:05d}",
+            }
+            for index in range(1, 1026)
+        )
+        expected = gear_release_store.gear_snapshot_summary(snapshot)
+
+        with patch(
+            "sqlite3.connect",
+            side_effect=AssertionError("release summary must not use SQLite"),
         ):
             actual = gear_release_store.gear_snapshot_summary(snapshot)
 
@@ -1467,7 +1629,14 @@ class GearReleaseStoreTest(unittest.TestCase):
                 self.snapshot = snapshot
                 self.bundles = []
 
-            def snapshot_staging_gear(self):
+            def snapshot_staging_gear(self, *, spool_to_disk=False):
+                if spool_to_disk:
+                    from server.gear_release_store import _DiskBackedGearSnapshot
+
+                    disk_snapshot = _DiskBackedGearSnapshot()
+                    for category, rows in self.snapshot.items():
+                        disk_snapshot[category].extend(copy.deepcopy(rows))
+                    return disk_snapshot
                 return copy.deepcopy(self.snapshot)
 
             def persist_gear_evidence_bundle(
@@ -1609,16 +1778,23 @@ class GearReleaseStoreTest(unittest.TestCase):
         conn = FakeConnection(rowsets={
             **self.staging_rowsets(raw_snapshot),
             "FROM cache.websim_release_registry": [],
-            "JOIN cache.websim_gear_canonical_facts": fact_rows,
+            "JOIN cache.websim_gear_canonical_facts": lambda params: [
+                row
+                for row in fact_rows
+                if (row[0], row[7], row[8]) in set(zip(*params))
+            ],
             "gear_release_complete_evidence_stream_batch": streamed_evidence_rows,
             "gear_release_active_gap_stream_batch": streamed_gap_rows,
         })
 
-        result = self.trusted_gear_store(conn).seal_gear_release(
-            prepared["release"],
-            prepared["snapshot"],
-            gate_result=prepared["gate"],
-        )
+        try:
+            result = self.trusted_gear_store(conn).seal_gear_release(
+                prepared["release"],
+                prepared["snapshot"],
+                gate_result=prepared["gate"],
+            )
+        finally:
+            prepared["snapshot"].close()
 
         self.assertEqual(result["status"], "inserted")
         self.assertTrue(conn.committed)

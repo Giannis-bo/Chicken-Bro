@@ -7,11 +7,11 @@ retail manifest pointer. Existing WebSim tables remain mutable staging inputs.
 
 from __future__ import annotations
 
-from contextlib import closing, contextmanager
+from contextlib import contextmanager
 import hashlib
+import heapq
 import json
 import os
-import sqlite3
 import tempfile
 from typing import Any, Iterable, Mapping
 
@@ -346,6 +346,391 @@ def _canonical_rows(rows: Any) -> list[dict[str, Any]]:
     return sorted(values, key=lambda row: _canonical_bytes(row))
 
 
+class _DiskBackedGearRows:
+    """One release-snapshot category stored as newline-delimited canonical JSON.
+
+    A full candidate catalog can be substantially larger than the safe memory
+    headroom on the shared runtime host. This sequence deliberately decodes one
+    row at a time and supports sequential replacement after canonical Fact
+    projection; it never keeps the category's rows in a second Python list.
+    """
+
+    def __init__(self, directory: str, category: str):
+        self._path = os.path.join(directory, f"{category}.jsonl")
+        self._writer = open(self._path, "wb")
+        self._count = 0
+        self._replacement_path = ""
+        self._replacement_writer = None
+        self._replacement_count = 0
+
+    def _finish_write(self) -> None:
+        if self._writer is not None:
+            self._writer.close()
+            self._writer = None
+
+    def _finish_projection(self) -> None:
+        if self._replacement_writer is None:
+            return
+        if self._replacement_count != self._count:
+            raise GearReleaseIntegrityError(
+                "disk-backed Gear snapshot projection is incomplete"
+            )
+        self._replacement_writer.close()
+        self._replacement_writer = None
+        os.replace(self._replacement_path, self._path)
+        self._replacement_path = ""
+
+    @staticmethod
+    def _read_rows(path: str):
+        with open(path, "rb") as source:
+            for line in source:
+                decoded = json.loads(line)
+                if not isinstance(decoded, dict):
+                    raise GearReleaseIntegrityError(
+                        "disk-backed Gear snapshot row is invalid"
+                    )
+                yield decoded
+
+    @staticmethod
+    def _write_row(output, row: Mapping[str, Any]) -> None:
+        output.write(_canonical_bytes(row) + b"\n")
+
+    def append(self, row: Mapping[str, Any]) -> None:
+        if self._writer is None:
+            raise GearReleaseIntegrityError("disk-backed Gear snapshot is finalized")
+        if not isinstance(row, Mapping):
+            raise GearReleaseIntegrityError("disk-backed Gear snapshot row is invalid")
+        self._write_row(self._writer, row)
+        self._count += 1
+
+    def extend(self, rows: Iterable[Mapping[str, Any]]) -> None:
+        for row in rows:
+            self.append(row)
+
+    def __iter__(self):
+        self._finish_write()
+        self._finish_projection()
+        yield from self._read_rows(self._path)
+
+    def iter_raw(self):
+        """Read the immutable staging rows without finalizing a projection."""
+
+        self._finish_write()
+        yield from self._read_rows(self._path)
+
+    def __len__(self) -> int:
+        return self._count
+
+    def __bool__(self) -> bool:
+        return self._count > 0
+
+    def __getitem__(self, index):
+        values = list(self)
+        return values[index]
+
+    def iter_batches(self, batch_size: int) -> Iterable[list[dict[str, Any]]]:
+        if batch_size <= 0:
+            raise GearReleaseIntegrityError("disk-backed Gear snapshot batch size is invalid")
+        batch: list[dict[str, Any]] = []
+        for row in self:
+            batch.append(row)
+            if len(batch) == batch_size:
+                yield batch
+                batch = []
+        if batch:
+            yield batch
+
+    def replace_projected_batch(
+        self,
+        *,
+        offset: int,
+        raw_count: int,
+        rows: Iterable[Mapping[str, Any]],
+    ) -> None:
+        """Replace exactly one ordered compiler batch without rereading prior rows."""
+
+        self._finish_write()
+        projected_rows = list(rows)
+        if offset != self._replacement_count or raw_count != len(projected_rows):
+            raise GearReleaseIntegrityError(
+                "disk-backed Gear snapshot projection order is invalid"
+            )
+        if self._replacement_writer is None:
+            self._replacement_path = self._path + ".projected"
+            self._replacement_writer = open(self._replacement_path, "wb")
+        for row in projected_rows:
+            if not isinstance(row, Mapping):
+                raise GearReleaseIntegrityError(
+                    "disk-backed Gear snapshot projection row is invalid"
+                )
+            self._write_row(self._replacement_writer, row)
+        self._replacement_count += len(projected_rows)
+
+    def rewrite(self, transform) -> None:
+        """Apply a one-row transform while keeping only that row in memory."""
+
+        self._finish_write()
+        self._finish_projection()
+        replacement_path = self._path + ".rewrite"
+        count = 0
+        with open(replacement_path, "wb") as output:
+            for row in self._read_rows(self._path):
+                projected = transform(row)
+                if not isinstance(projected, Mapping):
+                    raise GearReleaseIntegrityError(
+                        "disk-backed Gear snapshot rewrite row is invalid"
+                    )
+                self._write_row(output, projected)
+                count += 1
+        if count != self._count:
+            raise GearReleaseIntegrityError("disk-backed Gear snapshot rewrite is incomplete")
+        os.replace(replacement_path, self._path)
+
+    def close(self) -> None:
+        self._finish_write()
+        if self._replacement_writer is not None:
+            self._replacement_writer.close()
+            self._replacement_writer = None
+
+
+class _DiskBackedGearSnapshot(dict):
+    """A dict-compatible release snapshot that owns its temporary catalog files."""
+
+    def __init__(self):
+        self._temporary_directory = tempfile.TemporaryDirectory(
+            prefix="wow-gear-release-snapshot-"
+        )
+        directory = self._temporary_directory.name
+        super().__init__({
+            category: _DiskBackedGearRows(directory, category)
+            for category in ("items", "sources", "variants", "options")
+        })
+
+    def close(self) -> None:
+        for rows in self.values():
+            if isinstance(rows, _DiskBackedGearRows):
+                rows.close()
+        self._temporary_directory.cleanup()
+
+    def __del__(self):
+        # Candidate preparation can fail closed before it returns this object.
+        # Retain deterministic explicit close() for the normal path, with this
+        # fallback preventing a failed build from leaking its temporary files.
+        try:
+            self.close()
+        except Exception:
+            pass
+
+
+def _spool_compacted_release_variants(
+    cursor: Any,
+    statement: str,
+    build_row: Any,
+    *,
+    option_owner: Any,
+    output_rows: _DiskBackedGearRows,
+) -> None:
+    """Compact staging variants into disk rows without rebuilding a catalog list.
+
+    Observed-profile rows need one latest representative per semantic identity,
+    while all other rows (and option owners) must remain.  Keep only bounded
+    sort runs in memory, select each observed winner through an external merge,
+    then merge the selected and passthrough rows into the historical variant-ID
+    order.
+    """
+
+    run_size = 128
+    merge_fan_in = 32
+
+    def read_record(source) -> dict[str, Any] | None:
+        line = source.readline()
+        if not line:
+            return None
+        decoded = json.loads(line)
+        if not isinstance(decoded, dict):
+            raise GearReleaseIntegrityError(
+                "disk-backed Gear variant compaction record is invalid"
+            )
+        return decoded
+
+    def write_run(
+        directory: str,
+        prefix: str,
+        paths: list[str],
+        records: list[dict[str, Any]],
+        key,
+    ) -> None:
+        if not records:
+            return
+        records.sort(key=key)
+        path = os.path.join(directory, f"{prefix}-{len(paths):06d}.jsonl")
+        with open(path, "wb") as output:
+            for record in records:
+                _DiskBackedGearRows._write_row(output, record)
+        paths.append(path)
+        records.clear()
+
+    def merged_records(paths: list[str], key):
+        sources = [open(path, "rb") for path in paths]
+        try:
+            heap: list[tuple[Any, int, dict[str, Any]]] = []
+            for index, source in enumerate(sources):
+                if (record := read_record(source)) is not None:
+                    heapq.heappush(heap, (key(record), index, record))
+            while heap:
+                _sort_key, index, record = heapq.heappop(heap)
+                yield record
+                if (next_record := read_record(sources[index])) is not None:
+                    heapq.heappush(
+                        heap,
+                        (key(next_record), index, next_record),
+                    )
+        finally:
+            for source in sources:
+                source.close()
+
+    def reduce_runs(
+        directory: str,
+        prefix: str,
+        paths: list[str],
+        key,
+    ) -> list[str]:
+        round_index = 0
+        while len(paths) > merge_fan_in:
+            merged_paths: list[str] = []
+            for offset in range(0, len(paths), merge_fan_in):
+                group = paths[offset:offset + merge_fan_in]
+                path = os.path.join(
+                    directory,
+                    f"{prefix}-merge-{round_index:02d}-{len(merged_paths):06d}.jsonl",
+                )
+                with open(path, "wb") as output:
+                    for record in merged_records(group, key):
+                        _DiskBackedGearRows._write_row(output, record)
+                for source in group:
+                    os.remove(source)
+                merged_paths.append(path)
+            paths = merged_paths
+            round_index += 1
+        return paths
+
+    def semantic_identity_key(identity: tuple[Any, ...]) -> str:
+        values = [
+            value.decode("utf-8") if isinstance(value, bytes) else value
+            for value in identity
+        ]
+        return _canonical_bytes(values).hex()
+
+    observed_key = lambda record: (
+        _text(record.get("identityKey")),
+        _text(record.get("updatedAt")),
+        _text(record.get("variantId")),
+    )
+    variant_key = lambda row: _text(row.get("variantId"))
+
+    with tempfile.TemporaryDirectory(
+        prefix="wow-gear-release-variant-compaction-"
+    ) as directory:
+        observed_paths: list[str] = []
+        observed_records: list[dict[str, Any]] = []
+        variant_paths: list[str] = []
+        variant_records: list[dict[str, Any]] = []
+
+        def retain_variant(row: dict[str, Any]) -> None:
+            variant_records.append(row)
+            if len(variant_records) == run_size:
+                write_run(
+                    directory,
+                    "variants",
+                    variant_paths,
+                    variant_records,
+                    variant_key,
+                )
+
+        def consume(raw_row: Any) -> None:
+            row = build_row(raw_row)
+            identity = _observed_release_variant_identity(row)
+            if identity is None or option_owner(raw_row):
+                retain_variant(row)
+                return
+            observed_records.append({
+                "identityKey": semantic_identity_key(identity),
+                "updatedAt": _text(row.get("updatedAt")),
+                "variantId": _text(row.get("variantId")),
+                "row": row,
+            })
+            if len(observed_records) == run_size:
+                write_run(
+                    directory,
+                    "observed",
+                    observed_paths,
+                    observed_records,
+                    observed_key,
+                )
+
+        cursor.execute(statement)
+        fetchmany = getattr(cursor, "fetchmany", None)
+        if not callable(fetchmany):
+            for raw_row in cursor.fetchall():
+                consume(raw_row)
+        else:
+            while True:
+                rows = fetchmany(run_size)
+                if not rows:
+                    break
+                for raw_row in rows:
+                    consume(raw_row)
+        write_run(
+            directory,
+            "observed",
+            observed_paths,
+            observed_records,
+            observed_key,
+        )
+        observed_paths = reduce_runs(
+            directory,
+            "observed",
+            observed_paths,
+            observed_key,
+        )
+        active_identity = ""
+        winner: dict[str, Any] | None = None
+        for record in merged_records(observed_paths, observed_key):
+            identity_key = _text(record.get("identityKey"))
+            if winner is not None and identity_key != active_identity:
+                retained = winner.get("row")
+                if not isinstance(retained, dict):
+                    raise GearReleaseIntegrityError(
+                        "disk-backed Gear variant compaction winner is invalid"
+                    )
+                retain_variant(retained)
+                winner = None
+            active_identity = identity_key
+            winner = record
+        if winner is not None:
+            retained = winner.get("row")
+            if not isinstance(retained, dict):
+                raise GearReleaseIntegrityError(
+                    "disk-backed Gear variant compaction winner is invalid"
+                )
+            retain_variant(retained)
+        write_run(
+            directory,
+            "variants",
+            variant_paths,
+            variant_records,
+            variant_key,
+        )
+        variant_paths = reduce_runs(
+            directory,
+            "variants",
+            variant_paths,
+            variant_key,
+        )
+        for row in merged_records(variant_paths, variant_key):
+            output_rows.append(row)
+
+
 @contextmanager
 def _borrowed_connection(connection):
     """Yield a parent-owned transaction connection without closing it."""
@@ -565,47 +950,91 @@ def gear_snapshot_summary(snapshot: Any) -> dict[str, Any]:
     value = snapshot if isinstance(snapshot, dict) else {}
     categories = ("items", "sources", "variants", "options")
     counts = {key: 0 for key in categories}
-    # The release snapshot is intentionally catalog-sized.  Sorting canonical
+    # The release snapshot is intentionally catalog-sized. Sorting canonical
     # row bytes in a Python list retains the decoded catalog, every encoded
-    # sort key, and the final aggregate JSON at once.  Use SQLite's disk-backed
-    # BLOB sort instead, then feed the exact canonical JSON byte stream into
-    # SHA-256 one row at a time.  This preserves the v1 snapshotHash contract
-    # without a second catalog-sized in-memory representation.
+    # sort key, and the final aggregate JSON at once. Use ordinary temporary
+    # files and a bounded external merge instead. Release construction must
+    # remain PostgreSQL-only safe: a local SQLite dependency would make a
+    # production release depend on a non-authoritative database runtime.
+    run_size = 1024
+    merge_fan_in = 32
+
+    def write_run(directory: str, paths: list[str], records: list[bytes]) -> None:
+        if not records:
+            return
+        records.sort()
+        path = os.path.join(directory, f"run-{len(paths):06d}.jsonl")
+        with open(path, "wb") as output:
+            for payload in records:
+                output.write(payload + b"\n")
+        paths.append(path)
+        records.clear()
+
+    def read_record(source) -> bytes | None:
+        line = source.readline()
+        return line[:-1] if line else None
+
+    def merge_runs(paths: list[str], output) -> None:
+        sources = [open(path, "rb") for path in paths]
+        try:
+            heap: list[tuple[bytes, int]] = []
+            for index, source in enumerate(sources):
+                if (payload := read_record(source)) is not None:
+                    heapq.heappush(heap, (payload, index))
+            while heap:
+                payload, index = heapq.heappop(heap)
+                output.write(payload + b"\n")
+                if (next_payload := read_record(sources[index])) is not None:
+                    heapq.heappush(heap, (next_payload, index))
+        finally:
+            for source in sources:
+                source.close()
+
     with tempfile.TemporaryDirectory(prefix="wow-gear-snapshot-summary-") as directory:
-        database_path = os.path.join(directory, "snapshot.sqlite3")
-        with closing(sqlite3.connect(database_path)) as connection:
-            connection.execute("PRAGMA journal_mode=OFF")
-            connection.execute("PRAGMA synchronous=OFF")
-            connection.execute("PRAGMA temp_store=FILE")
-            connection.execute("PRAGMA cache_size=-8192")
-            connection.execute(
-                "CREATE TABLE snapshot_rows (payload BLOB NOT NULL)"
-            )
-            digest = hashlib.sha256()
-            digest.update(b"{")
-            for category_index, key in enumerate(sorted(categories)):
-                if category_index:
-                    digest.update(b",")
-                digest.update(b'"' + key.encode("utf-8") + b'":[')
-                connection.execute("DELETE FROM snapshot_rows")
-                for row in value.get(key) or ():
-                    if not isinstance(row, dict):
-                        continue
-                    counts[key] += 1
-                    connection.execute(
-                        "INSERT INTO snapshot_rows (payload) VALUES (?)",
-                        (sqlite3.Binary(_canonical_bytes(row)),),
+        digest = hashlib.sha256()
+        digest.update(b"{")
+        for category_index, key in enumerate(sorted(categories)):
+            if category_index:
+                digest.update(b",")
+            digest.update(b'"' + key.encode("utf-8") + b'":[')
+            paths: list[str] = []
+            buffered: list[bytes] = []
+            for row in value.get(key) or ():
+                if not isinstance(row, dict):
+                    continue
+                counts[key] += 1
+                buffered.append(_canonical_bytes(row))
+                if len(buffered) == run_size:
+                    write_run(directory, paths, buffered)
+            write_run(directory, paths, buffered)
+            merge_round = 0
+            while len(paths) > merge_fan_in:
+                merged_paths: list[str] = []
+                for offset in range(0, len(paths), merge_fan_in):
+                    group = paths[offset:offset + merge_fan_in]
+                    path = os.path.join(
+                        directory,
+                        f"merge-{merge_round:02d}-{len(merged_paths):06d}.jsonl",
                     )
-                for row_index, (payload,) in enumerate(
-                    connection.execute(
-                        "SELECT payload FROM snapshot_rows ORDER BY payload"
-                    )
-                ):
-                    if row_index:
-                        digest.update(b",")
-                    digest.update(payload)
-                digest.update(b"]")
-            digest.update(b"}")
+                    with open(path, "wb") as output:
+                        merge_runs(group, output)
+                    for source in group:
+                        os.remove(source)
+                    merged_paths.append(path)
+                paths = merged_paths
+                merge_round += 1
+            if paths:
+                with tempfile.TemporaryFile(mode="w+b") as merged:
+                    merge_runs(paths, merged)
+                    merged.seek(0)
+                    row_index = 0
+                    while (payload := read_record(merged)) is not None:
+                        if row_index:
+                            digest.update(b",")
+                        digest.update(payload)
+                        row_index += 1
+            digest.update(b"]")
+        digest.update(b"}")
     return {
         "schemaRevision": "gear-release-content-v1",
         "snapshotHash": "sha256:" + digest.hexdigest(),
@@ -1125,7 +1554,11 @@ class GearReleaseStore:
             },
         }
 
-    def snapshot_staging_gear(self) -> dict[str, list[dict[str, Any]]]:
+    def snapshot_staging_gear(
+        self,
+        *,
+        spool_to_disk: bool = False,
+    ) -> dict[str, Any]:
         """Read one repeatable staging snapshot without duplicating its JSON rows.
 
         The release builder owns later canonical projection.  Normalizing every
@@ -1141,12 +1574,20 @@ class GearReleaseStore:
         def decoded_list(value: Any) -> list[Any]:
             return value if isinstance(value, list) else []
 
-        def read_rows(cur, statement: str, build_row):
-            records: list[dict[str, Any]] = []
+        disk_snapshot = _DiskBackedGearSnapshot() if spool_to_disk else None
+
+        def read_rows(cur, statement: str, build_row, *, category: str):
+            records: Any = (
+                disk_snapshot[category]
+                if disk_snapshot is not None
+                else []
+            )
             cur.execute(statement)
             fetchmany = getattr(cur, "fetchmany", None)
             if not callable(fetchmany):
-                return [build_row(row) for row in cur.fetchall()]
+                for row in cur.fetchall():
+                    records.append(build_row(row))
+                return records
             while True:
                 rows = fetchmany(128)
                 if not rows:
@@ -1183,6 +1624,7 @@ class GearReleaseStore:
                         "sourceStatus": _text(row[5]),
                         "updatedAt": _text(row[6]),
                     },
+                    category="items",
                 )
                 sources = read_rows(
                     cur,
@@ -1205,6 +1647,7 @@ class GearReleaseStore:
                         "payload": decoded_object(row[9]),
                         "updatedAt": _text(row[10]),
                     },
+                    category="sources",
                 )
                 options = read_rows(
                     cur,
@@ -1228,37 +1671,76 @@ class GearReleaseStore:
                         "payload": decoded_object(row[9]),
                         "updatedAt": _text(row[10]),
                     },
+                    category="options",
                 )
-                option_variant_ids = {
-                    _text(row.get("variantId"))
-                    for row in options
-                    if _text(row.get("variantId"))
-                }
-                variants = _read_compacted_release_variants(
-                    cur,
-                    """
-                    SELECT id::text, item_id, variant_key, slot, label, source_type, difficulty_key,
-                           item_level, simc_options_json, status, blockers_json, payload_json, updated_at
-                    FROM cache.websim_gear_variants
-                    ORDER BY id::text
-                    """,
-                    lambda row: {
-                        "variantId": _text(row[0]),
-                        "itemId": _text(row[1]),
-                        "variantKey": _text(row[2]),
-                        "slot": _text(row[3]),
-                        "label": _text(row[4]),
-                        "sourceType": _text(row[5]),
-                        "difficultyKey": _text(row[6]),
-                        "itemLevel": _int(row[7]),
-                        "simcOptions": decoded_object(row[8]),
-                        "status": _text(row[9]),
-                        "blockers": decoded_list(row[10]),
-                        "payload": decoded_object(row[11]),
-                        "updatedAt": _text(row[12]),
-                    },
-                    option_variant_ids=option_variant_ids,
-                )
+                if disk_snapshot is not None:
+                    variants = disk_snapshot["variants"]
+                    _spool_compacted_release_variants(
+                        cur,
+                        """
+                        SELECT variant.id::text, variant.item_id, variant.variant_key, variant.slot,
+                               variant.label, variant.source_type, variant.difficulty_key,
+                               variant.item_level, variant.simc_options_json, variant.status,
+                               variant.blockers_json, variant.payload_json, variant.updated_at,
+                               EXISTS (
+                                   SELECT 1
+                                   FROM cache.websim_gear_mod_options option
+                                   WHERE option.variant_id = variant.id
+                               ) AS has_option_owner
+                        FROM cache.websim_gear_variants variant
+                        ORDER BY variant.id::text
+                        """,
+                        lambda row: {
+                            "variantId": _text(row[0]),
+                            "itemId": _text(row[1]),
+                            "variantKey": _text(row[2]),
+                            "slot": _text(row[3]),
+                            "label": _text(row[4]),
+                            "sourceType": _text(row[5]),
+                            "difficultyKey": _text(row[6]),
+                            "itemLevel": _int(row[7]),
+                            "simcOptions": decoded_object(row[8]),
+                            "status": _text(row[9]),
+                            "blockers": decoded_list(row[10]),
+                            "payload": decoded_object(row[11]),
+                            "updatedAt": _text(row[12]),
+                        },
+                        option_owner=lambda row: len(row) > 13 and row[13] is True,
+                        output_rows=variants,
+                    )
+                else:
+                    option_variant_ids = {
+                        _text(row.get("variantId"))
+                        for row in options
+                        if _text(row.get("variantId"))
+                    }
+                    variants = _read_compacted_release_variants(
+                        cur,
+                        """
+                        SELECT id::text, item_id, variant_key, slot, label, source_type, difficulty_key,
+                               item_level, simc_options_json, status, blockers_json, payload_json, updated_at
+                        FROM cache.websim_gear_variants
+                        ORDER BY id::text
+                        """,
+                        lambda row: {
+                            "variantId": _text(row[0]),
+                            "itemId": _text(row[1]),
+                            "variantKey": _text(row[2]),
+                            "slot": _text(row[3]),
+                            "label": _text(row[4]),
+                            "sourceType": _text(row[5]),
+                            "difficultyKey": _text(row[6]),
+                            "itemLevel": _int(row[7]),
+                            "simcOptions": decoded_object(row[8]),
+                            "status": _text(row[9]),
+                            "blockers": decoded_list(row[10]),
+                            "payload": decoded_object(row[11]),
+                            "updatedAt": _text(row[12]),
+                        },
+                        option_variant_ids=option_variant_ids,
+                    )
+        if disk_snapshot is not None:
+            return disk_snapshot
         return {
             "items": items,
             "sources": sources,
@@ -3220,6 +3702,7 @@ class GearReleaseStore:
         release_source_revision: str,
         raw_staging_snapshot: dict[str, Any],
         trusted_socket_evidence: dict[str, Any],
+        projected_batch_provider=None,
     ) -> None:
         try:
             from . import gear_fact_compiler
@@ -3272,6 +3755,7 @@ class GearReleaseStore:
                 raw_staging_snapshot=raw_staging_snapshot,
                 trusted_socket_evidence=trusted_socket_evidence,
                 normalized_bonus_minimums=normalized_bonus_minimums,
+                projected_batch_provider=projected_batch_provider,
             )
         expected_compilation = (
             gear_release_tool._compile_release_gear_evidence(
@@ -3593,6 +4077,7 @@ class GearReleaseStore:
         raw_staging_snapshot: dict[str, Any],
         trusted_socket_evidence: dict[str, Any],
         normalized_bonus_minimums: Mapping[str, Any],
+        projected_batch_provider=None,
     ) -> None:
         """Replay v2 receipts a bounded category batch at a time.
 
@@ -3641,7 +4126,7 @@ class GearReleaseStore:
         ] = {}
         replayed_fact_count = 0
 
-        for category, _offset, _rows, expected in (
+        for category, offset, rows, expected in (
             gear_release_tool._stream_release_evidence_batches(
                 raw_staging_snapshot,
                 season_revision=season_revision,
@@ -3652,6 +4137,15 @@ class GearReleaseStore:
                 batch_size=batch_size,
             )
         ):
+            batch_projected_facts = (
+                projected_batch_provider(category, offset, rows, expected)
+                if callable(projected_batch_provider)
+                else projected_facts
+            )
+            if not isinstance(batch_projected_facts, Mapping):
+                raise GearReleaseIntegrityError(
+                    "Gear Release projected Fact batch is invalid"
+                )
             expected_artifacts = {
                 _text(row.get("artifactId")): row
                 for row in expected["artifacts"]
@@ -3821,7 +4315,7 @@ class GearReleaseStore:
                     _text(fact.get("factValueHash")),
                     _text(fact.get("provenanceHash")),
                 )
-                projected = projected_facts.get(identity)
+                projected = batch_projected_facts.get(identity)
                 if projected is None or any(
                     _canonical(fact.get(field))
                     != _canonical(projected.get(field))
@@ -3835,10 +4329,26 @@ class GearReleaseStore:
                         "provenanceHash",
                         "compilerRuleRevision",
                     )
-                ) or sorted(fact.get("observationRefs") or ()) != sorted(
-                    projected.get("persistedObservationRefs")
-                    or projected.get("observationRefs")
-                    or ()
+                ):
+                    raise GearReleaseIntegrityError(
+                        "Gear Release Fact is not reproduced by complete Store evidence"
+                    )
+                expected_refs = sorted(
+                    _text(reference)
+                    for reference in fact.get("observationRefs") or ()
+                    if _text(reference)
+                )
+                projected_refs = sorted(
+                    _text(reference)
+                    for reference in projected.get("observationRefs") or ()
+                    if _text(reference)
+                )
+                if (
+                    projected_refs != expected_refs[:8]
+                    or _int(projected.get("observationRefCount"))
+                    != len(expected_refs)
+                    or (projected.get("referencesTruncated") is True)
+                    != (len(expected_refs) > 8)
                 ):
                     raise GearReleaseIntegrityError(
                         "Gear Release Fact is not reproduced by complete Store evidence"
@@ -3916,7 +4426,10 @@ class GearReleaseStore:
                             "Gear Release Option Fact replay conflicts"
                         )
 
-        if replayed_fact_count != len(projected_facts):
+        if (
+            not callable(projected_batch_provider)
+            and replayed_fact_count != len(projected_facts)
+        ):
             raise GearReleaseIntegrityError(
                 "Gear Release Fact replay does not cover the complete Store evidence universe"
             )
@@ -3941,6 +4454,117 @@ class GearReleaseStore:
             ):
                 raise GearReleaseIntegrityError(
                     "Gear Release streaming receipt omits complete Store evidence universe"
+                )
+
+    @staticmethod
+    def _verify_projected_canonical_fact_batch(
+        cur,
+        release: dict[str, Any],
+        facts: Mapping[tuple[str, str, str], Mapping[str, Any]],
+    ) -> None:
+        """Verify one projected Fact batch against immutable Store rows."""
+
+        try:
+            from .gear_evidence_registry import canonical_fact_key, fact_value_hash
+        except ImportError:
+            from gear_evidence_registry import canonical_fact_key, fact_value_hash
+
+        identities = sorted(facts)
+        if not identities:
+            return
+        for identity in identities:
+            fact = facts[identity]
+            if not isinstance(fact, Mapping) or identity != (
+                _text(fact.get("factKey")),
+                _text(fact.get("factValueHash")),
+                _text(fact.get("provenanceHash")),
+            ):
+                raise GearReleaseIntegrityError(
+                    "projected canonical Fact reference is incomplete"
+                )
+            try:
+                expected_key = canonical_fact_key(
+                    release.get("seasonRevision"),
+                    _text(fact.get("subjectKey")),
+                    _text(fact.get("factType")),
+                )
+                expected_value_hash = fact_value_hash(
+                    _text(fact.get("subjectKey")),
+                    _text(fact.get("factType")),
+                    _canonical(fact.get("value")),
+                    _text(fact.get("status")),
+                )
+            except ValueError as error:
+                raise GearReleaseIntegrityError(
+                    "projected canonical Fact value is invalid"
+                ) from error
+            if identity[0] != expected_key or identity[1] != expected_value_hash:
+                raise GearReleaseIntegrityError(
+                    "projected canonical Fact hashes do not match its value"
+                )
+        cur.execute(
+            """
+            WITH requested(fact_key, fact_value_hash, provenance_hash) AS (
+                SELECT * FROM unnest(%s::text[], %s::text[], %s::text[])
+            )
+            SELECT
+                fact.fact_key,
+                fact.schema_revision,
+                fact.subject_key,
+                fact.fact_type,
+                fact.value_json,
+                fact.status,
+                fact.observation_refs_json,
+                fact.fact_value_hash,
+                fact.provenance_hash,
+                fact.compiler_rule_revision
+            FROM requested
+            JOIN cache.websim_gear_canonical_facts fact
+              ON fact.fact_key = requested.fact_key
+             AND fact.fact_value_hash = requested.fact_value_hash
+             AND fact.provenance_hash = requested.provenance_hash
+            """,
+            (
+                [identity[0] for identity in identities],
+                [identity[1] for identity in identities],
+                [identity[2] for identity in identities],
+            ),
+        )
+        persisted = {
+            (_text(row[0]), _text(row[7]), _text(row[8])): row
+            for row in cur.fetchall()
+            if isinstance(row, (list, tuple)) and len(row) == 10
+        }
+        if set(persisted) != set(identities):
+            raise GearReleaseIntegrityError(
+                "projected canonical Fact references are not persisted"
+            )
+        for identity in identities:
+            fact = facts[identity]
+            row = persisted[identity]
+            persisted_refs = sorted(
+                _text(reference)
+                for reference in (row[6] if isinstance(row[6], list) else [])
+                if _text(reference)
+            )
+            if (
+                _text(fact.get("schemaRevision")) != _text(row[1])
+                or _text(fact.get("subjectKey")) != _text(row[2])
+                or _text(fact.get("factType")) != _text(row[3])
+                or _canonical(fact.get("value")) != _canonical(row[4])
+                or _text(fact.get("status")) != _text(row[5])
+                or sorted(
+                    _text(reference)
+                    for reference in fact.get("observationRefs") or ()
+                    if _text(reference)
+                ) != persisted_refs[:8]
+                or _int(fact.get("observationRefCount")) != len(persisted_refs)
+                or (fact.get("referencesTruncated") is True)
+                != (len(persisted_refs) > 8)
+                or _text(fact.get("compilerRuleRevision")) != _text(row[9])
+            ):
+                raise GearReleaseIntegrityError(
+                    "projected canonical Fact does not match persisted Fact"
                 )
 
     @staticmethod
@@ -4131,6 +4755,243 @@ class GearReleaseStore:
             projected["persistedObservationRefs"] = persisted_refs
         return references
 
+    def _seal_disk_backed_gear_release(
+        self,
+        expected: dict[str, Any],
+        snapshot: dict[str, Any],
+        *,
+        event: dict[str, Any],
+        gate_result: dict[str, Any],
+    ) -> dict[str, str]:
+        """Seal the bounded candidate path without rebuilding a catalog map."""
+
+        try:
+            from . import gear_fact_compiler
+            from . import gear_fact_shadow
+            from . import gear_release_tool
+        except ImportError:
+            import gear_fact_compiler
+            import gear_fact_shadow
+            import gear_release_tool
+
+        gate = gate_result if isinstance(gate_result, dict) else {}
+        source = expected.get("source") if isinstance(expected.get("source"), dict) else {}
+        source_evidence = (
+            source.get("sourceEvidence")
+            if isinstance(source.get("sourceEvidence"), dict)
+            else {}
+        )
+
+        def is_sha256(value: Any) -> bool:
+            text = _text(value)
+            suffix = text.removeprefix("sha256:")
+            return (
+                text.startswith("sha256:")
+                and len(suffix) == 64
+                and all(character in "0123456789abcdef" for character in suffix)
+            )
+
+        summary = gear_snapshot_summary(snapshot)
+        if (
+            expected["releaseKind"] != "gear"
+            or summary != expected["content"]
+            or gate.get("status") != "validated"
+            or _text(gate.get("snapshotHash")) != summary["snapshotHash"]
+            or gate.get("counts") != summary["counts"]
+            or source_evidence.get("compilerPolicyDigest")
+            != _hash(gear_fact_compiler.FACT_POLICIES)
+            or not is_sha256(source_evidence.get("canonicalFactDigest"))
+            or source_evidence.get("canonicalFactDigest")
+            != gear_release_tool._canonical_fact_digest_from_snapshot(snapshot)
+        ):
+            raise GearReleaseIntegrityError(
+                "Gear Release disk-backed canonical gate is incomplete"
+            )
+
+        trusted_socket_evidence = self._trusted_socket_probe_evidence(expected)
+        raw_snapshot = self.snapshot_staging_gear(spool_to_disk=True)
+        close_raw_snapshot = getattr(raw_snapshot, "close", None)
+        try:
+            if (
+                gear_snapshot_summary(raw_snapshot)["snapshotHash"]
+                != _text(source.get("stagingSnapshotHash"))
+            ):
+                raise GearReleaseIntegrityError(
+                    "Gear Release shadow input is not bound to staging"
+                )
+            stream = (
+                gate.get("evidenceStream")
+                if isinstance(gate.get("evidenceStream"), Mapping)
+                else {}
+            )
+            batch_size = _int(stream.get("batchSize"))
+            if (
+                stream.get("schemaRevision") != "gear-evidence-stream-v1"
+                or stream.get("rowOrderRevision") != "staging-category-v1"
+                or batch_size <= 0
+                or batch_size > gear_release_tool._MAX_STREAMING_RELEASE_EVIDENCE_BATCH_SIZE
+            ):
+                raise GearReleaseIntegrityError(
+                    "Gear Release streaming evidence schedule is invalid"
+                )
+
+            projected_batches = {}
+            for category in ("items", "variants", "options"):
+                rows = snapshot.get(category)
+                disk_batches = getattr(rows, "iter_batches", None)
+                if not callable(disk_batches):
+                    raise GearReleaseIntegrityError(
+                        "disk-backed Gear Release snapshot is incomplete"
+                    )
+                projected_batches[category] = iter(disk_batches(batch_size))
+            projected_fact_count = 0
+            shadow_parts: list[dict[str, Any]] = []
+
+            def projected_fact_batch(
+                category: str,
+                _offset: int,
+                raw_rows: list[Mapping[str, Any]],
+                expected_compilation: Mapping[str, Any],
+            ) -> dict[tuple[str, str, str], dict[str, Any]]:
+                nonlocal projected_fact_count
+                try:
+                    projected_rows = next(projected_batches[category])
+                except StopIteration as error:
+                    raise GearReleaseIntegrityError(
+                        "Gear Release projected snapshot batch is incomplete"
+                    ) from error
+                if len(projected_rows) != len(raw_rows):
+                    raise GearReleaseIntegrityError(
+                        "Gear Release projected snapshot batch size diverges"
+                    )
+                facts: dict[tuple[str, str, str], dict[str, Any]] = {}
+                for row in projected_rows:
+                    payload = row.get("payload") if isinstance(row.get("payload"), dict) else {}
+                    canonical_facts = payload.get("canonicalFacts")
+                    if not isinstance(canonical_facts, list) or not canonical_facts:
+                        raise GearReleaseIntegrityError(
+                            "Gear Release canonical snapshot Facts are incomplete"
+                        )
+                    for fact in canonical_facts:
+                        if not isinstance(fact, dict):
+                            raise GearReleaseIntegrityError(
+                                "Gear Release canonical snapshot Facts are incomplete"
+                            )
+                        identity = (
+                            _text(fact.get("factKey")),
+                            _text(fact.get("factValueHash")),
+                            _text(fact.get("provenanceHash")),
+                        )
+                        if not all(identity) or identity in facts:
+                            raise GearReleaseIntegrityError(
+                                "Gear Release canonical snapshot Facts are incomplete"
+                            )
+                        facts[identity] = fact
+                expected_facts = {
+                    (
+                        _text(fact.get("factKey")),
+                        _text(fact.get("factValueHash")),
+                        _text(fact.get("provenanceHash")),
+                    ): gear_release_tool._release_fact_projection(fact)
+                    for fact in expected_compilation.get("facts") or ()
+                    if isinstance(fact, Mapping)
+                }
+                if (
+                    set(facts) != set(expected_facts)
+                    or any(
+                        _canonical(facts[identity])
+                        != _canonical(expected_facts[identity])
+                        for identity in facts
+                    )
+                ):
+                    raise GearReleaseIntegrityError(
+                        "Gear Release projected Fact batch diverges from staging compilation"
+                    )
+                GearReleaseStore._verify_projected_canonical_fact_batch(
+                    cur,
+                    expected,
+                    facts,
+                )
+                shadow_snapshot = gear_release_tool._legacy_shadow_snapshot_for_evidence_batch(
+                    raw_snapshot,
+                    category=category,
+                    rows=raw_rows,
+                    season_revision=_text(expected.get("seasonRevision")),
+                    capability_revision=_text(
+                        (expected.get("dependencyRevisions") or {}).get(
+                            "capabilityRevision"
+                        )
+                    ),
+                    socket_bonus_evidence=trusted_socket_evidence,
+                )
+                try:
+                    shadow_part = gear_fact_shadow.compare_legacy_and_canonical(
+                        shadow_snapshot,
+                        expected_compilation.get("facts") or (),
+                        expected_fact_types_by_subject=(
+                            expected_compilation.get("expectedFactTypesBySubject")
+                            or {}
+                        ),
+                        include_comparisons=False,
+                    )
+                finally:
+                    del shadow_snapshot
+                if shadow_part.get("status") != "pass":
+                    raise GearReleaseIntegrityError(
+                        "canonical fact shadow blocked candidate: "
+                        + gear_release_tool._shadow_blocker_summary(
+                            shadow_part.get("blockers") or ()
+                        )
+                    )
+                shadow_parts.append(shadow_part)
+                projected_fact_count += len(facts)
+                return facts
+
+            with self.connection() as conn:
+                with conn.cursor() as cur:
+                    self._verify_complete_evidence_universe(
+                        cur,
+                        projected_facts={},
+                        required_fact_types={},
+                        gate_result=gate,
+                        season_revision=expected["seasonRevision"],
+                        release_source_revision=_text(source.get("sourceRevision")),
+                        raw_staging_snapshot=raw_snapshot,
+                        trusted_socket_evidence=trusted_socket_evidence,
+                        projected_batch_provider=projected_fact_batch,
+                    )
+                    if any(
+                        next(iterator, None) is not None
+                        for iterator in projected_batches.values()
+                    ):
+                        raise GearReleaseIntegrityError(
+                            "Gear Release projected snapshot has extra batches"
+                        )
+                    shadow = gear_fact_shadow.merge_compact_shadow_results(shadow_parts)
+                    if (
+                        shadow.get("status") != "pass"
+                        or _canonical(shadow)
+                        != _canonical(gate.get("factShadow") or {})
+                        or projected_fact_count
+                        != _int(shadow.get("comparisonCount"))
+                    ):
+                        raise GearReleaseIntegrityError(
+                            "Gear Release compact canonical Fact shadow is incomplete"
+                        )
+                    if self._existing_or_insert(cur, expected, gate):
+                        return {"status": "reused", "releaseId": expected["releaseId"]}
+                    self._insert_gear_rows(cur, expected["releaseId"], snapshot)
+                    self._insert_event(
+                        cur,
+                        release_id=expected["releaseId"],
+                        event_type="release_sealed",
+                        event=event,
+                    )
+            return {"status": "inserted", "releaseId": expected["releaseId"]}
+        finally:
+            if callable(close_raw_snapshot):
+                close_raw_snapshot()
+
     def seal_gear_release(
         self,
         release: dict[str, Any],
@@ -4140,6 +5001,16 @@ class GearReleaseStore:
         gate_result: dict[str, Any] | None = None,
     ) -> dict[str, str]:
         expected = _exact_release_descriptor(release)
+        if all(
+            callable(getattr(snapshot.get(category), "iter_batches", None))
+            for category in ("items", "sources", "variants", "options")
+        ):
+            return self._seal_disk_backed_gear_release(
+                expected,
+                snapshot,
+                event=event or {},
+                gate_result=gate_result or {},
+            )
         with self.connection() as conn:
             with conn.cursor() as cur:
                 if expected["releaseKind"] != "gear":
@@ -4199,11 +5070,17 @@ class GearReleaseStore:
 
     @staticmethod
     def _insert_gear_rows(cur, release_id: str, snapshot: dict[str, Any]) -> None:
-        items = _canonical_rows(snapshot.get("items"))
-        sources = _canonical_rows(snapshot.get("sources"))
-        variants = _canonical_rows(snapshot.get("variants"))
-        options = _canonical_rows(snapshot.get("options"))
-        if items:
+        def category_batches(category: str) -> Iterable[list[dict[str, Any]]]:
+            rows = snapshot.get(category)
+            disk_batches = getattr(rows, "iter_batches", None)
+            if callable(disk_batches):
+                yield from disk_batches(128)
+                return
+            canonical = _canonical_rows(rows)
+            for offset in range(0, len(canonical), 128):
+                yield canonical[offset:offset + 128]
+
+        for items in category_batches("items"):
             cur.executemany(
                 """
                 INSERT INTO cache.websim_gear_release_items (
@@ -4221,7 +5098,7 @@ class GearReleaseStore:
                     for row in items
                 ],
             )
-        if sources:
+        for sources in category_batches("sources"):
             cur.executemany(
                 """
                 INSERT INTO cache.websim_gear_release_sources (
@@ -4242,7 +5119,7 @@ class GearReleaseStore:
                     for row in sources
                 ],
             )
-        if variants:
+        for variants in category_batches("variants"):
             cur.executemany(
                 """
                 INSERT INTO cache.websim_gear_release_variants (
@@ -4263,7 +5140,7 @@ class GearReleaseStore:
                     for row in variants
                 ],
             )
-        if options:
+        for options in category_batches("options"):
             cur.executemany(
                 """
                 INSERT INTO cache.websim_gear_release_mod_options (

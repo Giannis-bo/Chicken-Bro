@@ -1570,9 +1570,16 @@ def _evidence_batch_slices(
     rows: Iterable[Mapping[str, Any]],
     batch_size: int,
 ) -> Iterable[tuple[int, list[Mapping[str, Any]]]]:
-    values = list(rows)
-    for offset in range(0, len(values), batch_size):
-        yield offset, values[offset : offset + batch_size]
+    offset = 0
+    batch: list[Mapping[str, Any]] = []
+    for row in rows:
+        batch.append(row)
+        if len(batch) == batch_size:
+            yield offset, batch
+            offset += len(batch)
+            batch = []
+    if batch:
+        yield offset, batch
 
 
 def _stream_release_evidence_batches(
@@ -1681,6 +1688,15 @@ def _project_release_evidence_batch(
             compiled.get("socketEligibilityByItemId") or {}
         ),
     )
+    category_rows = snapshot.get(category)
+    replace_batch = getattr(category_rows, "replace_projected_batch", None)
+    if callable(replace_batch):
+        replace_batch(
+            offset=offset,
+            raw_count=len(rows),
+            rows=projected[category],
+        )
+        return
     snapshot[category][offset : offset + len(rows)] = projected[category]
 
 
@@ -2043,16 +2059,29 @@ def _project_canonical_enhancement_management(
     """Project field governance only from sealed canonical Facts and explicit echoes."""
 
     projected = snapshot if in_place else _canonical(snapshot)
+
+    def rewrite_rows(category: str, transform) -> None:
+        rows = projected.get(category) or ()
+        rewrite = getattr(rows, "rewrite", None)
+        if callable(rewrite):
+            rewrite(transform)
+            return
+        for row in rows:
+            if isinstance(row, dict):
+                transform(row)
+
     if capability_revision != gear_socket_authority.CAPABILITY_REVISION:
-        for variant in projected.get("variants") or ():
-            if isinstance(variant, dict):
-                payload = (
-                    _canonical(variant.get("payload"))
-                    if isinstance(variant.get("payload"), dict)
-                    else {}
-                )
-                payload.pop("enhancementManagement", None)
-                variant["payload"] = payload
+        def strip_management(variant: dict[str, Any]) -> dict[str, Any]:
+            payload = (
+                _canonical(variant.get("payload"))
+                if isinstance(variant.get("payload"), dict)
+                else {}
+            )
+            payload.pop("enhancementManagement", None)
+            variant["payload"] = payload
+            return variant
+
+        rewrite_rows("variants", strip_management)
         return projected
 
     def verified_facts(row: Mapping[str, Any]) -> dict[str, Mapping[str, Any]]:
@@ -2064,13 +2093,12 @@ def _project_canonical_enhancement_management(
         }
 
     canonical_options: list[dict[str, Any]] = []
-    for option in projected.get("options") or ():
-        if not isinstance(option, dict):
-            continue
+
+    def project_option(option: dict[str, Any]) -> dict[str, Any]:
         fact = verified_facts(option).get("enhancement_option")
         value = fact.get("value") if isinstance(fact, Mapping) else {}
         if not isinstance(value, Mapping):
-            continue
+            return option
         if _text(option.get("optionType")).lower() in {"socket", "gem"}:
             option["applicableSlots"] = ["*"]
         canonical_options.append(
@@ -2092,9 +2120,12 @@ def _project_canonical_enhancement_management(
                 },
             }
         )
+        return option
 
-    items_by_id = {
-        _text(item.get("itemId")): item
+    rewrite_rows("options", project_option)
+
+    item_facts_by_id = {
+        _text(item.get("itemId")): verified_facts(item)
         for item in projected.get("items") or ()
         if isinstance(item, dict) and _text(item.get("itemId"))
     }
@@ -2141,9 +2172,7 @@ def _project_canonical_enhancement_management(
             == normalize_option_value(raw_value)
         )
 
-    for variant in projected.get("variants") or ():
-        if not isinstance(variant, dict):
-            continue
+    def project_variant(variant: dict[str, Any]) -> dict[str, Any]:
         payload = (
             _canonical(variant.get("payload"))
             if isinstance(variant.get("payload"), dict)
@@ -2151,8 +2180,7 @@ def _project_canonical_enhancement_management(
         )
         payload.pop("editorManagedSimcFields", None)
         payload.pop("enhancementManagement", None)
-        item = items_by_id.get(_text(variant.get("itemId")), {})
-        item_facts = verified_facts(item)
+        item_facts = item_facts_by_id.get(_text(variant.get("itemId")), {})
         variant_facts = verified_facts(variant)
         slot_fact = variant_facts.get("slot_compatibility")
         slot_values = (
@@ -2243,6 +2271,9 @@ def _project_canonical_enhancement_management(
         if management:
             payload["enhancementManagement"] = management
         variant["payload"] = payload
+        return variant
+
+    rewrite_rows("variants", project_variant)
     return projected
 
 
@@ -2995,30 +3026,34 @@ def runtime_dependency_revisions(simc_runtime_revision: str) -> dict[str, str]:
 def validate_gear_snapshot(snapshot: Any) -> list[dict[str, str]]:
     value = snapshot if isinstance(snapshot, dict) else {}
     problems: list[dict[str, str]] = []
-    items = [row for row in value.get("items") or [] if isinstance(row, dict)]
-    sources = [row for row in value.get("sources") or [] if isinstance(row, dict)]
-    variants = [row for row in value.get("variants") or [] if isinstance(row, dict)]
-    options = [row for row in value.get("options") or [] if isinstance(row, dict)]
-    if not items:
+
+    def rows(category: str) -> Iterable[dict[str, Any]]:
+        return (
+            row
+            for row in value.get(category) or ()
+            if isinstance(row, dict)
+        )
+
+    if not any(True for _ in rows("items")):
         problems.append({"code": "GEAR_RELEASE_ITEMS_EMPTY", "path": "snapshot.items"})
-    if not sources:
+    if not any(True for _ in rows("sources")):
         problems.append({"code": "GEAR_RELEASE_SOURCES_EMPTY", "path": "snapshot.sources"})
-    if not variants:
+    if not any(True for _ in rows("variants")):
         problems.append({"code": "GEAR_RELEASE_VARIANTS_EMPTY", "path": "snapshot.variants"})
 
     required_text_fields = (
-        (items, "itemId", "GEAR_RELEASE_ITEM_ID_EMPTY", "snapshot.items"),
-        (sources, "sourceId", "GEAR_RELEASE_SOURCE_ID_EMPTY", "snapshot.sources"),
-        (sources, "itemId", "GEAR_RELEASE_SOURCE_ITEM_ID_EMPTY", "snapshot.sources"),
-        (sources, "sourceKey", "GEAR_RELEASE_SOURCE_KEY_EMPTY", "snapshot.sources"),
-        (variants, "variantId", "GEAR_RELEASE_VARIANT_ID_EMPTY", "snapshot.variants"),
-        (variants, "itemId", "GEAR_RELEASE_VARIANT_ITEM_ID_EMPTY", "snapshot.variants"),
-        (variants, "variantKey", "GEAR_RELEASE_VARIANT_KEY_EMPTY", "snapshot.variants"),
-        (options, "optionId", "GEAR_RELEASE_OPTION_ID_EMPTY", "snapshot.options"),
-        (options, "optionKey", "GEAR_RELEASE_OPTION_KEY_EMPTY", "snapshot.options"),
+        ("items", "itemId", "GEAR_RELEASE_ITEM_ID_EMPTY", "snapshot.items"),
+        ("sources", "sourceId", "GEAR_RELEASE_SOURCE_ID_EMPTY", "snapshot.sources"),
+        ("sources", "itemId", "GEAR_RELEASE_SOURCE_ITEM_ID_EMPTY", "snapshot.sources"),
+        ("sources", "sourceKey", "GEAR_RELEASE_SOURCE_KEY_EMPTY", "snapshot.sources"),
+        ("variants", "variantId", "GEAR_RELEASE_VARIANT_ID_EMPTY", "snapshot.variants"),
+        ("variants", "itemId", "GEAR_RELEASE_VARIANT_ITEM_ID_EMPTY", "snapshot.variants"),
+        ("variants", "variantKey", "GEAR_RELEASE_VARIANT_KEY_EMPTY", "snapshot.variants"),
+        ("options", "optionId", "GEAR_RELEASE_OPTION_ID_EMPTY", "snapshot.options"),
+        ("options", "optionKey", "GEAR_RELEASE_OPTION_KEY_EMPTY", "snapshot.options"),
     )
-    for rows, field, code, path in required_text_fields:
-        if any(not _text(row.get(field)) for row in rows):
+    for category, field, code, path in required_text_fields:
+        if any(not _text(row.get(field)) for row in rows(category)):
             problems.append({"code": code, "path": path})
 
     def duplicate_values(rows: Iterable[dict[str, Any]], key: Callable[[dict[str, Any]], Any], code: str, path: str):
@@ -3032,20 +3067,20 @@ def validate_gear_snapshot(snapshot: Any) -> list[dict[str, str]]:
         if duplicates:
             problems.append({"code": code, "path": path})
 
-    duplicate_values(items, lambda row: _text(row.get("itemId")), "GEAR_RELEASE_ITEM_ID_DUPLICATE", "snapshot.items")
-    duplicate_values(sources, lambda row: _text(row.get("sourceId")), "GEAR_RELEASE_SOURCE_ID_DUPLICATE", "snapshot.sources")
-    duplicate_values(variants, lambda row: _text(row.get("variantId")), "GEAR_RELEASE_VARIANT_ID_DUPLICATE", "snapshot.variants")
-    duplicate_values(variants, lambda row: (_text(row.get("itemId")), _text(row.get("variantKey"))), "GEAR_RELEASE_VARIANT_KEY_DUPLICATE", "snapshot.variants")
-    duplicate_values(options, lambda row: _text(row.get("optionId")), "GEAR_RELEASE_OPTION_ID_DUPLICATE", "snapshot.options")
-    duplicate_values(options, lambda row: _text(row.get("optionKey")), "GEAR_RELEASE_OPTION_KEY_DUPLICATE", "snapshot.options")
+    duplicate_values(rows("items"), lambda row: _text(row.get("itemId")), "GEAR_RELEASE_ITEM_ID_DUPLICATE", "snapshot.items")
+    duplicate_values(rows("sources"), lambda row: _text(row.get("sourceId")), "GEAR_RELEASE_SOURCE_ID_DUPLICATE", "snapshot.sources")
+    duplicate_values(rows("variants"), lambda row: _text(row.get("variantId")), "GEAR_RELEASE_VARIANT_ID_DUPLICATE", "snapshot.variants")
+    duplicate_values(rows("variants"), lambda row: (_text(row.get("itemId")), _text(row.get("variantKey"))), "GEAR_RELEASE_VARIANT_KEY_DUPLICATE", "snapshot.variants")
+    duplicate_values(rows("options"), lambda row: _text(row.get("optionId")), "GEAR_RELEASE_OPTION_ID_DUPLICATE", "snapshot.options")
+    duplicate_values(rows("options"), lambda row: _text(row.get("optionKey")), "GEAR_RELEASE_OPTION_KEY_DUPLICATE", "snapshot.options")
 
-    item_ids = {_text(row.get("itemId")) for row in items}
-    variant_ids = {_text(row.get("variantId")) for row in variants}
-    if any(_text(row.get("itemId")) not in item_ids for row in sources):
+    item_ids = {_text(row.get("itemId")) for row in rows("items")}
+    variant_ids = {_text(row.get("variantId")) for row in rows("variants")}
+    if any(_text(row.get("itemId")) not in item_ids for row in rows("sources")):
         problems.append({"code": "GEAR_RELEASE_SOURCE_ITEM_ORPHAN", "path": "snapshot.sources"})
-    if any(_text(row.get("itemId")) not in item_ids for row in variants):
+    if any(_text(row.get("itemId")) not in item_ids for row in rows("variants")):
         problems.append({"code": "GEAR_RELEASE_VARIANT_ITEM_ORPHAN", "path": "snapshot.variants"})
-    if any(_text(row.get("variantId")) and _text(row.get("variantId")) not in variant_ids for row in options):
+    if any(_text(row.get("variantId")) and _text(row.get("variantId")) not in variant_ids for row in rows("options")):
         problems.append({"code": "GEAR_RELEASE_OPTION_VARIANT_ORPHAN", "path": "snapshot.options"})
     return problems
 
@@ -3846,6 +3881,100 @@ def _legacy_shadow_snapshot(
     return legacy_snapshot
 
 
+def _raw_option_rows_for_legacy_shadow(snapshot: Mapping[str, Any]):
+    """Return a repeatable raw-option view before batch projection replaces it."""
+
+    rows = snapshot.get("options") if isinstance(snapshot, Mapping) else ()
+    iter_raw = getattr(rows, "iter_raw", None)
+    if callable(iter_raw):
+        return iter_raw
+    # List-backed callers may replace slices during projection. Preserve the
+    # original row references, whose dictionaries are not mutated in place.
+    return tuple(rows or ())
+
+
+def _legacy_shadow_options_for_variant_batch(
+    rows: Iterable[Mapping[str, Any]],
+    raw_options: Iterable[Mapping[str, Any]],
+    *,
+    item_slots: Mapping[str, str],
+) -> list[Mapping[str, Any]]:
+    """Keep only raw options that can affect one variant shadow batch."""
+
+    gem_ids: set[str] = set()
+    option_requirements: set[tuple[str, str, str]] = set()
+
+    for variant in rows:
+        if not isinstance(variant, Mapping):
+            continue
+        simc_options = (
+            variant.get("simcOptions")
+            if isinstance(variant.get("simcOptions"), Mapping)
+            else {}
+        )
+        if (
+            _text(variant.get("sourceType")).lower() == "observed_profile"
+            and _text(variant.get("status")).lower() in {"verified", "partial"}
+        ):
+            gem_ids.update(
+                token.strip()
+                for token in _text(simc_options.get("gem_id")).split("/")
+                if token.strip().isdigit()
+            )
+        slot = normalize_slot(
+            variant.get("slot")
+            or item_slots.get(_text(variant.get("itemId")))
+        )
+        enchant_id = _text(simc_options.get("enchant_id"))
+        if enchant_id and "/" not in enchant_id:
+            option_requirements.add(("enchant_id", enchant_id, slot))
+        embellishment = _text(simc_options.get("embellishment"))
+        if embellishment:
+            option_requirements.add(("embellishment", embellishment, slot))
+    gem_option_keys = {f"gem-{gem_id}" for gem_id in gem_ids}
+
+    def option_type(option: Mapping[str, Any]) -> str:
+        value = _text(option.get("optionType")).lower()
+        return "gem" if value in {"socket", "gem"} else value
+
+    def option_applies(option: Mapping[str, Any], slot: str) -> bool:
+        applicable = [_text(value) for value in option.get("applicableSlots") or ()]
+        normalized = [normalize_slot(value) for value in applicable]
+        return not applicable or "*" in applicable or slot in normalized
+
+    selected: list[Mapping[str, Any]] = []
+    for option in raw_options:
+        if not isinstance(option, Mapping):
+            continue
+        simc_options = (
+            option.get("simcOptions")
+            if isinstance(option.get("simcOptions"), Mapping)
+            else {}
+        )
+        if (
+            _text(option.get("optionKey")) in gem_option_keys
+            or normalize_option_value(simc_options.get("gem_id")) in gem_ids
+        ):
+            selected.append(option)
+            continue
+        type_key = option_type(option)
+        for field, raw_value, slot in option_requirements:
+            expected_types = (
+                {"enchant", "runeforge"}
+                if field == "enchant_id"
+                else {"embellishment"}
+            )
+            if (
+                type_key in expected_types
+                and option_applies(option, slot)
+                and normalize_option_value(simc_options.get(field))
+                == normalize_option_value(raw_value)
+            ):
+                selected.append(option)
+                break
+    return selected
+
+
 def _legacy_shadow_snapshot_for_evidence_batch(
     raw_snapshot: Mapping[str, Any],
     *,
@@ -3854,6 +3983,7 @@ def _legacy_shadow_snapshot_for_evidence_batch(
     season_revision: str,
     capability_revision: str,
     socket_bonus_evidence: Mapping[str, Any],
+    raw_options: Any = None,
 ) -> dict[str, Any]:
     """Materialize only the legacy rows needed to shadow one evidence batch.
 
@@ -3866,6 +3996,15 @@ def _legacy_shadow_snapshot_for_evidence_batch(
 
     batch_rows = [row for row in rows if isinstance(row, Mapping)]
     snapshot = raw_snapshot if isinstance(raw_snapshot, Mapping) else {}
+    option_source = (
+        raw_options
+        if raw_options is not None
+        else _raw_option_rows_for_legacy_shadow(snapshot)
+    )
+
+    def current_raw_options() -> Iterable[Mapping[str, Any]]:
+        return option_source() if callable(option_source) else option_source
+
     if category == "options":
         scoped_snapshot = {
             "items": [],
@@ -3879,6 +4018,7 @@ def _legacy_shadow_snapshot_for_evidence_batch(
             for row in batch_rows
             if _text(row.get("itemId"))
         }
+        variant_item_ids = set(item_ids) if category == "variants" else set()
         if category == "variants":
             # Variant enhancement management consults the official cached item
             # record for each equipped gem, notably to preserve unique-gem
@@ -3896,6 +4036,18 @@ def _legacy_shadow_snapshot_for_evidence_batch(
                 ).split("/")
                 if token.strip().isdigit()
             )
+        item_slots = (
+            {
+                _text(row.get("itemId")): normalize_slot(row.get("slot"))
+                for row in snapshot.get("items") or ()
+                if isinstance(row, Mapping)
+                and _text(row.get("itemId"))
+                and _text(row.get("itemId")) in variant_item_ids
+                and normalize_slot(row.get("slot"))
+            }
+            if category == "variants"
+            else {}
+        )
         scoped_snapshot = {
             "items": (
                 batch_rows
@@ -3914,13 +4066,18 @@ def _legacy_shadow_snapshot_for_evidence_batch(
                 and _text(row.get("itemId")) in item_ids
             ],
             "variants": batch_rows if category == "variants" else [],
-            # The shared option catalog is bounded and is an input to legacy
-            # enhancement-management classification for item/variant facts.
-            "options": [
-                row
-                for row in snapshot.get("options") or ()
-                if isinstance(row, Mapping)
-            ],
+            # Item shadows contain no variants, so their legacy materializer
+            # cannot consume options. Variant shadows receive only the raw
+            # gems/effects that can alter that batch's classifications.
+            "options": (
+                _legacy_shadow_options_for_variant_batch(
+                    batch_rows,
+                    current_raw_options(),
+                    item_slots=item_slots,
+                )
+                if category == "variants"
+                else []
+            ),
         }
     else:
         raise GearReleaseIntegrityError(
@@ -3956,7 +4113,57 @@ def _prepare_staging_gear_release_streaming(
             "streaming evidence_batch_size is outside the bounded release envelope"
         )
 
-    raw_snapshot = store.snapshot_staging_gear()
+    snapshot_staging_gear = store.snapshot_staging_gear
+    try:
+        raw_snapshot = snapshot_staging_gear(spool_to_disk=True)
+    except TypeError as error:
+        # Lightweight test doubles and narrow third-party callers can retain
+        # their existing no-keyword snapshot owner. A real GearReleaseStore
+        # must accept this flag so the full candidate catalog is never held in
+        # one decoded Python snapshot.
+        if "spool_to_disk" not in str(error):
+            raise
+        raw_snapshot = snapshot_staging_gear()
+
+    close_raw_snapshot = getattr(raw_snapshot, "close", None)
+    try:
+        return _prepare_staging_gear_release_streaming_from_snapshot(
+            store,
+            raw_snapshot=raw_snapshot,
+            season_revision=season_revision,
+            dependency_revisions=dependency_revisions,
+            socket_bonus_evidence=socket_bonus_evidence,
+            normalized_bonus_minimums=normalized_bonus_minimums,
+            source_revision=source_revision,
+            parent_release_id=parent_release_id,
+            captured_at=captured_at,
+            evidence_batch_size=evidence_batch_size,
+        )
+    except BaseException:
+        if callable(close_raw_snapshot):
+            try:
+                close_raw_snapshot()
+            except Exception:
+                pass
+        raise
+
+
+def _prepare_staging_gear_release_streaming_from_snapshot(
+    store: GearReleaseStore,
+    *,
+    raw_snapshot: dict[str, Any],
+    season_revision: str,
+    dependency_revisions: dict[str, Any],
+    socket_bonus_evidence: Mapping[str, Any],
+    normalized_bonus_minimums: Mapping[str, Any],
+    source_revision: str,
+    parent_release_id: str,
+    captured_at: str,
+    evidence_batch_size: int,
+) -> dict[str, Any]:
+    """Prepare one already-acquired streaming snapshot for release sealing."""
+
+    raw_option_rows = _raw_option_rows_for_legacy_shadow(raw_snapshot)
     raw_snapshot_summary = gear_snapshot_summary(raw_snapshot)
     persist = getattr(store, "persist_gear_evidence_bundle", None)
     if not callable(persist):
@@ -4011,6 +4218,7 @@ def _prepare_staging_gear_release_streaming(
                 dependency_revisions.get("capabilityRevision")
             ),
             socket_bonus_evidence=socket_bonus_evidence,
+            raw_options=raw_option_rows,
         )
         shadow_part = gear_fact_shadow.compare_legacy_and_canonical(
             shadow_snapshot,
@@ -4330,12 +4538,21 @@ def build_legacy_gear_release(
     release = prepared["release"]
     snapshot = prepared["snapshot"]
     gate = prepared["gate"]
-    seal = store.seal_gear_release(
-        release,
-        snapshot,
-        gate_result=gate,
-        event={"mode": source_revision, "gate": gate},
-    )
+    try:
+        seal = store.seal_gear_release(
+            release,
+            snapshot,
+            gate_result=gate,
+            event={"mode": source_revision, "gate": gate},
+        )
+    except BaseException:
+        close_snapshot = getattr(snapshot, "close", None)
+        if callable(close_snapshot):
+            try:
+                close_snapshot()
+            except Exception:
+                pass
+        raise
     return {"release": release, "snapshot": snapshot, "gate": gate, "seal": seal}
 
 
@@ -5142,20 +5359,25 @@ def main(argv=None) -> int:
         dependency_revisions=dependencies,
         socket_bonus_minimums=socket_bonus_minimums,
     )
-    output = {"gear": {"release": gear["release"], "gate": gear["gate"], "seal": gear["seal"]}}
-    if args.command == "build-legacy-all":
-        community = build_legacy_community_release(
-            store,
-            gear_release_descriptor=gear["release"],
-            gear_snapshot=gear["snapshot"],
-            dependency_revisions=dependencies,
-            expected_specs=expected_spec_pairs(),
-            now=datetime.now(timezone.utc).isoformat(timespec="seconds"),
-            level=args.level,
-        )
-        output["community"] = {"release": community["release"], "gate": community["gate"], "seal": community["seal"]}
-    print(json.dumps(output, ensure_ascii=False, sort_keys=True))
-    return 0
+    try:
+        output = {"gear": {"release": gear["release"], "gate": gear["gate"], "seal": gear["seal"]}}
+        if args.command == "build-legacy-all":
+            community = build_legacy_community_release(
+                store,
+                gear_release_descriptor=gear["release"],
+                gear_snapshot=gear["snapshot"],
+                dependency_revisions=dependencies,
+                expected_specs=expected_spec_pairs(),
+                now=datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                level=args.level,
+            )
+            output["community"] = {"release": community["release"], "gate": community["gate"], "seal": community["seal"]}
+        print(json.dumps(output, ensure_ascii=False, sort_keys=True))
+        return 0
+    finally:
+        close_snapshot = getattr(gear.get("snapshot"), "close", None)
+        if callable(close_snapshot):
+            close_snapshot()
 
 
 if __name__ == "__main__":
