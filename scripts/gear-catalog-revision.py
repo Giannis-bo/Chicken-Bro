@@ -348,6 +348,19 @@ def _shadow_specs(
         for source_key in row.get("sourceVariantKeys") or []:
             if item_id and _text(source_key) and browse_key:
                 catalog_index[(item_id, _text(source_key))] = browse_key
+        progression = _mapping(row.get("progressionState"))
+        if (
+            item_id
+            and browse_key
+            and _text(row.get("sourceType")).lower() == "crafted"
+        ):
+            public_track_key = _text(progression.get("trackKey"))
+            item_level = _integer(row.get("itemLevel"))
+            if public_track_key and item_level:
+                catalog_index[(
+                    item_id,
+                    f"crafted-{public_track_key}-{item_level}",
+                )] = browse_key
     aliases = _source_variant_aliases(catalog_rows)
     expected_manifest = _text(pointer.get("manifestRevision"))
     expected_generation = _integer(pointer.get("generation"))

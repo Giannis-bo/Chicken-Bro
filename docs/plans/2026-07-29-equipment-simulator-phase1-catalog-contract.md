@@ -55,6 +55,10 @@
   selector 输入错误地包含了 48,555 条 ExactItemInstance，造成 40,306 个非 Browse
   身份被报告未映射。投影入口现只接收已由 Phase 0 审核为 `rowFamily=browse` 的 1,674
   条 legacy 行；ExactItemInstance 保留给后续阶段，不混入 Phase 1 Browse parity。
+- 第八次候选在 871,936 KiB、169.40 秒、零 swap 内把差异收敛到 926 个制造 compact
+  synthetic key。当前 PG selector 会把同一制造轨道的六种副属性组合显示为
+  `crafted-{trackKey}-{itemLevel}`；Catalog 已折叠为同一 BrowseVariant，shadow 现为
+  该 synthetic key 建立确定性 alias，而不把制造副属性重新写回 Browse 身份。
 - 全局 `/api/data/health` 仍为 `partial`。本阶段不把旧 staging/refresh owner
   冒充成新的 Catalog 健康成功，也不在完成 shadow 前迁移 health owner。
 

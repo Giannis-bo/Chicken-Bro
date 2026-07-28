@@ -2,7 +2,11 @@ import importlib.util
 from pathlib import Path
 import unittest
 
-from tests.gear_catalog_revision_test import CURRENT_BINDING, regular_rows
+from tests.gear_catalog_revision_test import (
+    CURRENT_BINDING,
+    crafted_rows,
+    regular_rows,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -230,6 +234,35 @@ class GearCatalogRevisionCliTest(unittest.TestCase):
         self.assertRegex(
             report["reportId"],
             r"^gear-catalog-shadow:sha256:[0-9a-f]{64}$",
+        )
+
+    def test_compact_crafted_identity_maps_to_collapsed_catalog_variant(self):
+        crafted_snapshot = snapshot()
+        crafted_snapshot["catalogRows"] = crafted_rows()
+
+        def crafted_payload(class_key, spec_key):
+            payload = spec_payload(class_key, spec_key)
+            payload["replacementCandidates"][0]["items"] = [
+                {
+                    "itemId": "crafted-1",
+                    "variants": [{"id": "crafted-myth-285"}],
+                }
+            ]
+            return payload
+
+        report = revision_cli.run_migration(
+            snapshot_reader=lambda **_: crafted_snapshot,
+            pointer_reader=lambda **_: crafted_snapshot["pointerAfter"],
+            seal_writer=lambda catalog: catalog,
+            spec_payload_reader=crafted_payload,
+            class_spec_matrix=class_spec_matrix(),
+            observed_at="2026-07-29T10:00:00+08:00",
+        )
+
+        self.assertEqual(report["status"], "verified")
+        self.assertEqual(
+            report["specShadow"]["unmappedCandidateCount"],
+            0,
         )
 
     def test_unmapped_visible_candidate_blocks_shadow(self):

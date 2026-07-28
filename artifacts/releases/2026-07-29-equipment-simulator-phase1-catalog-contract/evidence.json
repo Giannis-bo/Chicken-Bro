@@ -42,7 +42,7 @@
     {
       "command": "CatalogRevision RED/GREEN focused suites",
       "status": "pass",
-      "summary": "69 focused Catalog builder, formal membership, append-only store, migration schema, fixed-query projection and 40-specialization shadow tests pass, including the actual PG selector contract. RED failures were observed before the builder, store, migration and CLI existed, before dormant metadata exclusion, persisted-order identity, observed Ascendant eligibility, order-independent seal semantics, and before the final one-snapshot projection replaced public payload copying."
+      "summary": "70 focused Catalog builder, formal membership, append-only store, migration schema, fixed-query projection and 40-specialization shadow tests pass, including actual PG selector, strict Browse-family and compact-crafted alias contracts. RED failures were observed before each correction."
     },
     {
       "command": "pre-candidate repository verification",
@@ -52,7 +52,7 @@
     {
       "command": "candidate dormant Catalog migration and production shadow",
       "status": "blocked",
-      "summary": "The seventh candidate passed deterministic seal, pointer fence and resource bounds at 881,748 KiB, 235.18 seconds and zero swap. Its business shadow blocked because ExactItemInstance rows were incorrectly included in Browse parity. The corrected projection now passes only Phase 0-classified rowFamily=browse rows into the shared PG selectors."
+      "summary": "The eighth candidate passed deterministic seal, pointer fence and resource bounds at 871,936 KiB, 169.40 seconds and zero swap. Its remaining 926 unmapped identities were all compact crafted synthetic keys; deterministic aliases to the already-collapsed Catalog BrowseVariants are now covered by RED/GREEN tests."
     },
     {
       "command": "exact-head Project Harness full profile and PR CI",
@@ -62,7 +62,7 @@
   ],
   "candidateDeployment": {
     "status": "catalog_sealed_shadow_retry_pending",
-    "reason": "Migration 0019 is applied and Catalog gear-catalog:sha256:2addca2ff52fdcc2d23c369572c88fba9919332927f07f10350d700654e5aa34 is sealed with 613 ItemDefinitions and 1309 BrowseVariants. A Browse-only bounded 40-spec shadow retry is pending after the seventh candidate proved the one-snapshot resource profile but included ExactItemInstance rows."
+    "reason": "Migration 0019 is applied and Catalog gear-catalog:sha256:2addca2ff52fdcc2d23c369572c88fba9919332927f07f10350d700654e5aa34 is sealed with 613 ItemDefinitions and 1309 BrowseVariants. A compact-crafted-alias 40-spec shadow retry is pending after the eighth candidate isolated all remaining differences to synthetic crafted identities."
   },
   "runtimeEvidence": [
     {
@@ -211,6 +211,31 @@
         "unmappedCandidateCount": 40306
       },
       "interpretation": "One-snapshot projection passed resource, deterministic seal and pointer gates. It incorrectly projected ExactItemInstance rows alongside canonical Browse rows; strict rowFamily=browse filtering is now covered by RED/GREEN tests."
+    },
+    {
+      "candidateCommit": "0f09507741af8420c1bbbf70fdcb656873ee8c76",
+      "status": "blocked",
+      "problemCodes": [
+        "CATALOG_SHADOW_VISIBLE_CANDIDATE_UNMAPPED"
+      ],
+      "reportId": "gear-catalog-shadow:sha256:df06642c9c7466a4d16b7d84a80430693179c7b6cba79f0d22c28f5065ac6f33",
+      "catalogRevision": "gear-catalog:sha256:2addca2ff52fdcc2d23c369572c88fba9919332927f07f10350d700654e5aa34",
+      "elapsedSeconds": 169.4,
+      "maxRssKiB": 871936,
+      "swapPeakBytes": 0,
+      "pointerGenerationBefore": 32,
+      "pointerGenerationAfter": 32,
+      "sealedCatalogRows": {
+        "revisions": 1,
+        "itemDefinitions": 613,
+        "browseVariants": 1309
+      },
+      "specShadow": {
+        "verifiedSpecCount": 0,
+        "blockedSpecCount": 40,
+        "unmappedCandidateCount": 926
+      },
+      "interpretation": "Browse-only projection removed ExactItemInstance contamination. Diagnosis proved every remaining difference was a compact crafted synthetic key for an already-collapsed Catalog progression; deterministic aliases are now tested without restoring crafted stat choices to identity."
     }
   ],
   "risks": [
@@ -263,5 +288,5 @@
   "archivedReferences": [
     "artifacts/releases/2026-07-28-equipment-simulator-phase0-unblock/evidence.json"
   ],
-  "summary": "The dormant Catalog builder, append-only schema/store and bounded 40-specialization shadow are locally implemented and verified. Migration 0019 and the immutable 613/1309 Catalog are sealed; the seventh candidate proved the one-snapshot resource profile but correctly blocked ExactItemInstance contamination of Browse parity. Strict Browse-only projection is fixed under RED/GREEN tests and awaits a fresh bounded candidate. No active pointer or public reader change has occurred."
+  "summary": "The dormant Catalog builder, append-only schema/store and bounded 40-specialization shadow are locally implemented and verified. Migration 0019 and the immutable 613/1309 Catalog are sealed; the eighth candidate passed resource/pointer gates and isolated all remaining differences to compact crafted aliases. The deterministic alias is fixed under RED/GREEN tests and awaits a fresh bounded candidate. No active pointer or public reader change has occurred."
 }
