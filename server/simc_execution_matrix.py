@@ -127,7 +127,11 @@ def _selection_intent_from_snapshot(
     }
 
 
-def _choose_template(payload: dict[str, Any], class_key: str, spec_key: str) -> dict[str, Any]:
+def _candidate_templates(
+    payload: dict[str, Any],
+    class_key: str,
+    spec_key: str,
+) -> list[dict[str, Any]]:
     templates = (
         payload.get("communityTemplates")
         if isinstance(payload.get("communityTemplates"), list)
@@ -147,13 +151,17 @@ def _choose_template(payload: dict[str, Any], class_key: str, spec_key: str) -> 
     ]
     candidates.sort(key=lambda row: _text(row.get("heroKey")))
     if class_key == "deathknight" and spec_key == "unholy":
-        compatible = [
-            row
-            for row in candidates
-            if _text(row.get("heroKey")) != "rider_of_the_apocalypse"
-        ]
-        if compatible:
-            return compatible[0]
+        candidates.sort(
+            key=lambda row: (
+                _text(row.get("heroKey")) == "rider_of_the_apocalypse",
+                _text(row.get("heroKey")),
+            )
+        )
+    return candidates
+
+
+def _choose_template(payload: dict[str, Any], class_key: str, spec_key: str) -> dict[str, Any]:
+    candidates = _candidate_templates(payload, class_key, spec_key)
     return candidates[0] if candidates else {}
 
 
@@ -250,11 +258,42 @@ def run_simc_execution_matrix(
             or _text(browse.get("communityTemplateReleaseId")) != community_release_id
         ):
             spec_failures.append(_failure("SIMC_BROWSE_IDENTITY_MISMATCH", class_key, spec_key))
-        template = _choose_template(browse, class_key, spec_key)
-        if not template:
+        templates = _candidate_templates(browse, class_key, spec_key)
+        if not templates:
             spec_failures.append(_failure("SIMC_COMMUNITY_TEMPLATE_UNAVAILABLE", class_key, spec_key))
         if spec_failures:
             failures.extend(spec_failures)
+            continue
+
+        template: dict[str, Any] = {}
+        talent_import = ""
+        for candidate in templates:
+            candidate_hero = _text(candidate.get("heroKey"))
+            talent_query = urlencode({
+                "class": class_key,
+                "spec": spec_key,
+                "hero": candidate_hero,
+            })
+            try:
+                talent_status, talent_payload, _talent_ms = request_json(
+                    "GET",
+                    f"/api/websim/talents/import?{talent_query}",
+                    None,
+                    {},
+                )
+            except Exception:
+                talent_status, talent_payload = 0, {}
+            candidate_import = _text(talent_payload.get("importCode"))
+            if (
+                talent_status == 200
+                and talent_payload.get("status") in {"verified", "ready"}
+                and candidate_import
+            ):
+                template = candidate
+                talent_import = candidate_import
+                break
+        if not template or not talent_import:
+            failures.append(_failure("SIMC_TALENT_IMPORT_INVALID", class_key, spec_key))
             continue
 
         try:
@@ -296,29 +335,6 @@ def run_simc_execution_matrix(
             continue
 
         hero_key = _text(template.get("heroKey"))
-        talent_query = urlencode({
-            "class": class_key,
-            "spec": spec_key,
-            "hero": hero_key,
-        })
-        try:
-            talent_status, talent_payload, _talent_ms = request_json(
-                "GET",
-                f"/api/websim/talents/import?{talent_query}",
-                None,
-                {},
-            )
-        except Exception:
-            talent_status, talent_payload = 0, {}
-        talent_import = _text(talent_payload.get("importCode"))
-        if (
-            talent_status != 200
-            or talent_payload.get("status") not in {"verified", "ready"}
-            or not talent_import
-        ):
-            failures.append(_failure("SIMC_TALENT_IMPORT_INVALID", class_key, spec_key))
-            continue
-
         profile_context = {
             "classKey": class_key,
             "specKey": spec_key,

@@ -69,19 +69,28 @@ class SimcExecutionMatrixTest(unittest.TestCase):
                     },
                 }, 1.0
             if method == "GET" and path.startswith("/api/websim/gear?"):
+                templates = [{
+                    "id": f"template-{class_key}-{spec_key}",
+                    "classKey": class_key,
+                    "specKey": spec_key,
+                    "heroKey": "lightsmith" if spec_key == "holy" else "frostfire",
+                    "canApplyGear": True,
+                }]
+                if class_key == "mage":
+                    templates.insert(0, {
+                        "id": "template-mage-frost-invalid",
+                        "classKey": "mage",
+                        "specKey": "frost",
+                        "heroKey": "aaa_invalid",
+                        "canApplyGear": True,
+                    })
                 return 200, {
                     "formalActiveManifest": True,
                     "manifestRevision": manifest_revision,
                     "pointerGeneration": 27,
                     "gearCatalogReleaseId": gear_release_id,
                     "communityTemplateReleaseId": community_release_id,
-                    "communityTemplates": [{
-                        "id": f"template-{class_key}-{spec_key}",
-                        "classKey": class_key,
-                        "specKey": spec_key,
-                        "heroKey": "lightsmith" if spec_key == "holy" else "frostfire",
-                        "canApplyGear": True,
-                    }],
+                    "communityTemplates": templates,
                 }, 1.0
             if method == "POST" and path == "/api/websim/gear/community-import":
                 resolved = {
@@ -100,6 +109,12 @@ class SimcExecutionMatrixTest(unittest.TestCase):
                     },
                 }, 2.0
             if method == "GET" and path.startswith("/api/websim/talents/import?"):
+                if "hero=aaa_invalid" in path:
+                    return 200, {
+                        "status": "blocked",
+                        "importCode": "",
+                        "blockers": ["fixture mismatch"],
+                    }, 1.0
                 return 200, {
                     "status": "verified",
                     "importCode": f"talents-{class_key}-{spec_key}",

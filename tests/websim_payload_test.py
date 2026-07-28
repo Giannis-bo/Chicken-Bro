@@ -20548,7 +20548,18 @@ class WebSimPayloadTest(unittest.TestCase):
         finally:
             conn.close()
 
-        payload = self.get_backend_json("/api/websim/talents/import?class=mage&spec=frost&hero=spellslinger")
+        with patch.object(
+            self.websim_payload,
+            "decode_external_talent_import_code",
+            return_value={
+                "status": "decoded",
+                "classKey": "mage",
+                "specKey": "frost",
+                "heroKey": "spellslinger",
+                "errors": [],
+            },
+        ):
+            payload = self.get_backend_json("/api/websim/talents/import?class=mage&spec=frost&hero=spellslinger")
 
         self.assertEqual(payload["classKey"], "mage")
         self.assertEqual(payload["specKey"], "frost")
@@ -20559,6 +20570,46 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(payload["status"], "verified")
         self.assertNotIn("nodes", payload)
         self.assertNotIn("communityTemplates", payload)
+
+    def test_websim_talent_import_blocks_mismatched_raw_specialization(self):
+        template = {
+            "id": "mismatched-import",
+            "classKey": "evoker",
+            "specKey": "devastation",
+            "heroKey": "flameshaper",
+            "rawImportCode": "MISMATCHED_RAW_IMPORT",
+            "sourceKey": "raiderio",
+            "sourceName": "Raider.IO",
+            "status": "verified",
+            "canUseInSimc": True,
+        }
+
+        with patch.object(
+            self.websim_payload,
+            "decode_external_talent_import_code",
+            return_value={
+                "status": "failed",
+                "classKey": "evoker",
+                "specKey": "augmentation",
+                "heroKey": "scalecommander",
+                "errors": [
+                    "talent import spec mismatch: expected devastation, got augmentation"
+                ],
+            },
+        ):
+            payload = self.websim_payload.websim_talent_import_response(
+                "evoker",
+                "devastation",
+                "flameshaper",
+                template=template,
+            )
+
+        self.assertEqual(payload["status"], "blocked")
+        self.assertEqual(payload["importCode"], "")
+        self.assertEqual(
+            payload["blockers"],
+            ["community talent import does not match the requested specialization and hero tree"],
+        )
 
     def test_http_websim_talent_import_blocks_missing_requested_hero_template(self):
         conn = sqlite3.connect(self.db_path)

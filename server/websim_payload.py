@@ -14183,19 +14183,38 @@ def websim_talent_import_response(class_key, spec_key, hero_key="", template=Non
     if isinstance(template, dict):
         import_code = str(template.get("rawImportCode") or template.get("importCode") or template.get("talentImport") or "").strip()
         if import_code and template.get("canUseInSimc") is not False and template.get("status") != "blocked":
-            return {
-                "schemaRevision": "websim-talent-import-v1",
-                "classKey": class_key,
-                "specKey": spec_key,
-                "heroKey": hero_key,
-                "importCode": import_code,
-                "source": "community_template",
-                "sourceKey": template.get("sourceKey") or "",
-                "sourceName": template.get("sourceName") or "",
-                "templateId": str(template.get("id") or ""),
-                "status": "verified",
-                "blockers": [],
-            }
+            try:
+                decoded = decode_external_talent_import_code(
+                    import_code,
+                    class_key,
+                    spec_key,
+                )
+            except Exception:
+                decoded = {}
+            decoded_hero = slugify(decoded.get("heroKey"), "") if isinstance(decoded, dict) else ""
+            if (
+                isinstance(decoded, dict)
+                and decoded.get("status") == "decoded"
+                and slugify(decoded.get("classKey"), "") == class_key
+                and slugify(decoded.get("specKey"), "") == spec_key
+                and decoded_hero == hero_key
+            ):
+                return {
+                    "schemaRevision": "websim-talent-import-v1",
+                    "classKey": class_key,
+                    "specKey": spec_key,
+                    "heroKey": hero_key,
+                    "importCode": import_code,
+                    "source": "community_template",
+                    "sourceKey": template.get("sourceKey") or "",
+                    "sourceName": template.get("sourceName") or "",
+                    "templateId": str(template.get("id") or ""),
+                    "status": "verified",
+                    "blockers": [],
+                }
+            blockers = [
+                "community talent import does not match the requested specialization and hero tree"
+            ]
     return {
         "schemaRevision": "websim-talent-import-v1",
         "classKey": class_key,
