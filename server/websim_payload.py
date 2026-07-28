@@ -43,6 +43,11 @@ except ImportError:
     from simc_preparation import apply_simc_preparation_lines, simc_preparation_payload, simc_preparation_report
 
 try:
+    from .simc_support_policy import simc_execution_support
+except ImportError:
+    from simc_support_policy import simc_execution_support
+
+try:
     from . import community_winner_projection, gear_public_contract, gear_socket_authority
 except ImportError:
     import community_winner_projection
@@ -27068,6 +27073,9 @@ def build_websim_simulator_request(payload, guest_id="", conn=None):
     message = f"WebSim {class_key} {spec_key} {scenario.get('fightStyle') or ''} gear simulation"
     request = {
         "mode": "simcraft_agent",
+        "classKey": class_key,
+        "specKey": spec_key,
+        "simcExecutionSupport": simc_execution_support(class_key, spec_key),
         "message": message,
         "prompt": message,
         "question": "WebSim gear and talent simulation",

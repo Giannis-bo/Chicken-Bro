@@ -756,9 +756,36 @@ export interface SimcBlockedPreparationOptions {
 
 export type SimcPreparationOptions = SimcReadyPreparationOptions | SimcBlockedPreparationOptions
 
+export interface SimcUnsupportedSpecialization {
+  specializationId: string
+  role: 'tank' | 'healer' | 'support'
+  code: 'SIMC_SPECIALIZATION_UNSUPPORTED'
+}
+
+export interface SimcReadySpecializationPolicy {
+  contractRevision: 'simc-execution-support-v1'
+  status: 'ready'
+  supportedSpecCount: 26
+  unsupportedSpecCount: 14
+  unsupportedSpecializations: readonly SimcUnsupportedSpecialization[]
+}
+
+export interface SimcBlockedSpecializationPolicy {
+  contractRevision: 'simc-execution-support-v1'
+  status: 'blocked'
+  supportedSpecCount: 0
+  unsupportedSpecCount: 0
+  unsupportedSpecializations: readonly []
+}
+
+export type SimcSpecializationPolicy =
+  | SimcReadySpecializationPolicy
+  | SimcBlockedSpecializationPolicy
+
 export interface SimcOptionsReadyPayload {
   contractRevision: 'simc-options-v1'
   status: 'ready'
+  specializationPolicy: SimcReadySpecializationPolicy
   races: SimcSupportedRaceOptions
   scenarios: readonly SimcScenarioOption[]
   preparation: SimcReadyPreparationOptions
@@ -767,6 +794,7 @@ export interface SimcOptionsReadyPayload {
 export interface SimcOptionsBlockedPayload {
   contractRevision: 'simc-options-v1'
   status: 'blocked'
+  specializationPolicy: SimcBlockedSpecializationPolicy
   races: SimcBlockedRaceOptions
   scenarios: readonly []
   preparation: SimcBlockedPreparationOptions

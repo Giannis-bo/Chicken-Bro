@@ -41,6 +41,9 @@ export interface SimcGearSourceView {
 
 export interface SimcOptionsView {
   state: 'ready' | 'empty' | 'blocked'
+  specializationSupported: boolean
+  specializationBlockerCode: string
+  specializationBlockerDetail: string
   races: readonly { id: string; label: string }[]
   scenarios: readonly { id: string; label: string }[]
   selectedRaceKey: string
@@ -86,6 +89,8 @@ export interface SimcBlockerRowView {
 
 export interface SimcSubmitModelInput {
   specializationLabel: string
+  specializationSupported?: boolean | undefined
+  specializationBlockerDetail?: string | undefined
   raceLabel: string
   scenarioLabel: string
   scenarioTargets?: number | undefined
@@ -293,6 +298,17 @@ export function deriveSimcOptionsView(
   preferredScenarioKey: string,
 ): SimcOptionsView {
   const contractReady = options.contractRevision === 'simc-options-v1' && options.status === 'ready'
+  const policy = options.specializationPolicy
+  const policyReady = contractReady
+    && policy.contractRevision === 'simc-execution-support-v1'
+    && policy.status === 'ready'
+    && policy.supportedSpecCount === 26
+    && policy.unsupportedSpecCount === 14
+  const specializationId = `${classKey}:${specKey}`
+  const unsupported = policyReady
+    ? policy.unsupportedSpecializations.find((row) => row.specializationId === specializationId)
+    : undefined
+  const specializationSupported = policyReady && !unsupported
   const raceReady = contractReady && options.races.status === 'supported'
   const preparationReady = contractReady && options.preparation.status === 'ready'
   const supportedRaceKeys = raceReady
@@ -319,7 +335,15 @@ export function deriveSimcOptionsView(
     || preparationRows.length === 0
 
   return {
-    state: !contractReady || !raceReady || !preparationReady ? 'blocked' : empty ? 'empty' : 'ready',
+    state: !contractReady || !policyReady || !specializationSupported || !raceReady || !preparationReady
+      ? 'blocked'
+      : empty ? 'empty' : 'ready',
+    specializationSupported,
+    specializationBlockerCode: unsupported?.code
+      ?? (!policyReady ? 'SIMC_SPECIALIZATION_POLICY_UNAVAILABLE' : ''),
+    specializationBlockerDetail: unsupported
+      ? '该专精可以继续浏览、配装和保存模板，但当前正式 SimC 只支持 26 个伤害专精；坦克、治疗和增辉专精不会进入执行队列。'
+      : !policyReady ? '后端没有返回可验证的 SimC 专精支持策略。' : '',
     races: supportedRaceKeys.map((key) => ({ id: key, label: key })),
     scenarios: supportedScenarios.map((scenario) => ({ id: scenario.key, label: scenario.label })),
     selectedRaceKey,
@@ -378,7 +402,7 @@ export function simcSummaryRows(input: SimcSubmitModelInput): readonly SimcSumma
       id: 'identity',
       label: '职业 / 种族',
       value: `${input.specializationLabel} / ${input.raceLabel}`,
-      state: input.specializationLabel ? 'ready' : 'blocked',
+      state: input.specializationLabel && input.specializationSupported !== false ? 'ready' : 'blocked',
     },
     {
       id: 'scenario',
@@ -424,9 +448,13 @@ export function simcBlockerRows(input: SimcSubmitModelInput): readonly SimcBlock
   return [
     {
       id: 'identity',
-      label: input.specializationLabel ? '职业、专精与种族已选择' : '尚未选择职业、专精与种族',
-      detail: input.specializationLabel ? `${input.specializationLabel} / ${input.raceLabel}` : '需要真实职业专精映射',
-      blocked: !input.specializationLabel,
+      label: input.specializationSupported === false
+        ? '当前专精暂不支持正式 SimC'
+        : input.specializationLabel ? '职业、专精与种族已选择' : '尚未选择职业、专精与种族',
+      detail: input.specializationSupported === false
+        ? input.specializationBlockerDetail || '该专精不会进入 SimC 执行队列'
+        : input.specializationLabel ? `${input.specializationLabel} / ${input.raceLabel}` : '需要真实职业专精映射',
+      blocked: !input.specializationLabel || input.specializationSupported === false,
     },
     {
       id: 'scenario',

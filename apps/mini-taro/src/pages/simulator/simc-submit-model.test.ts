@@ -156,6 +156,17 @@ describe('SimC submit truth model', () => {
     const view = derive({
       contractRevision: 'simc-options-v1',
       status: 'ready',
+      specializationPolicy: {
+        contractRevision: 'simc-execution-support-v1',
+        status: 'ready',
+        supportedSpecCount: 26,
+        unsupportedSpecCount: 14,
+        unsupportedSpecializations: [{
+          specializationId: 'evoker:augmentation',
+          role: 'support',
+          code: 'SIMC_SPECIALIZATION_UNSUPPORTED',
+        }],
+      },
       races: {
         status: 'supported',
         defaultKey: 'zandalari_troll',
@@ -200,15 +211,62 @@ describe('SimC submit truth model', () => {
     ])
   })
 
+  it('blocks unsupported tank, healer, and augmentation specs before stat snapshot work', () => {
+    const view = modelExports.deriveSimcOptionsView({
+      contractRevision: 'simc-options-v1',
+      status: 'ready',
+      specializationPolicy: {
+        contractRevision: 'simc-execution-support-v1',
+        status: 'ready',
+        supportedSpecCount: 26,
+        unsupportedSpecCount: 14,
+        unsupportedSpecializations: [{
+          specializationId: 'paladin:holy',
+          role: 'healer',
+          code: 'SIMC_SPECIALIZATION_UNSUPPORTED',
+        }],
+      },
+      races: {
+        status: 'supported', defaultKey: 'human', supportedKeys: ['human'],
+        defaultByClass: { paladin: 'human' },
+      },
+      scenarios: [{
+        key: 'single', label: '单体', fightStyle: 'Patchwerk',
+        targets: 1, durationSeconds: 300, status: 'supported',
+      }],
+      preparation: {
+        schemaRevision: 'simc-preparation-v1', status: 'ready',
+        rows: [{
+          key: 'global', category: 'raid', label: 'Global', defaultState: 'disabled',
+          evidenceState: 'verified', overrideSupported: true,
+        }],
+      },
+    }, 'paladin', 'holy', '', '')
+
+    expect(view).toMatchObject({
+      state: 'blocked',
+      specializationSupported: false,
+      specializationBlockerCode: 'SIMC_SPECIALIZATION_UNSUPPORTED',
+    })
+  })
+
   it('keeps unavailable and empty backend options visibly non-ready', () => {
     const blocked = modelExports.deriveSimcOptionsView({
       contractRevision: 'simc-options-v1', status: 'blocked',
+      specializationPolicy: {
+        contractRevision: 'simc-execution-support-v1', status: 'blocked',
+        supportedSpecCount: 0, unsupportedSpecCount: 0, unsupportedSpecializations: [],
+      },
       races: { status: 'blocked', defaultKey: '', supportedKeys: [], defaultByClass: {} },
       scenarios: [],
       preparation: { schemaRevision: 'simc-preparation-v1', status: 'blocked', rows: [] },
     }, 'mage', 'frost', '', '')
     const empty = modelExports.deriveSimcOptionsView({
       contractRevision: 'simc-options-v1', status: 'ready',
+      specializationPolicy: {
+        contractRevision: 'simc-execution-support-v1', status: 'ready',
+        supportedSpecCount: 26, unsupportedSpecCount: 14, unsupportedSpecializations: [],
+      },
       races: { status: 'supported', defaultKey: 'human', supportedKeys: ['human'], defaultByClass: {} },
       scenarios: [],
       preparation: {

@@ -184,10 +184,31 @@ function isSimcPreparationRow(value: unknown): boolean {
     && typeof value['overrideSupported'] === 'boolean'
 }
 
+function isSimcSpecializationPolicy(value: unknown): boolean {
+  if (!isRecord(value)
+    || value['contractRevision'] !== 'simc-execution-support-v1'
+    || value['status'] !== 'ready'
+    || value['supportedSpecCount'] !== 26
+    || value['unsupportedSpecCount'] !== 14
+    || !Array.isArray(value['unsupportedSpecializations'])
+    || value['unsupportedSpecializations'].length !== 14) return false
+  const specializationIds: string[] = []
+  for (const row of value['unsupportedSpecializations']) {
+    if (!isRecord(row)
+      || !nonEmptyString(row['specializationId'])
+      || !row['specializationId'].includes(':')
+      || !['tank', 'healer', 'support'].includes(String(row['role']))
+      || row['code'] !== 'SIMC_SPECIALIZATION_UNSUPPORTED') return false
+    specializationIds.push(row['specializationId'])
+  }
+  return new Set(specializationIds).size === specializationIds.length
+}
+
 function isSimcOptionsPayload(value: unknown): value is SimcOptionsPayload {
   if (!isRecord(value)
     || value['contractRevision'] !== 'simc-options-v1'
     || value['status'] !== 'ready'
+    || !isSimcSpecializationPolicy(value['specializationPolicy'])
     || !isRecord(value['races'])
     || !Array.isArray(value['scenarios'])
     || !isRecord(value['preparation'])) return false
@@ -223,6 +244,13 @@ function fallbackSimcOptions(): SimcOptionsPayload {
   return {
     contractRevision: 'simc-options-v1',
     status: 'blocked',
+    specializationPolicy: {
+      contractRevision: 'simc-execution-support-v1',
+      status: 'blocked',
+      supportedSpecCount: 0,
+      unsupportedSpecCount: 0,
+      unsupportedSpecializations: [],
+    },
     races: { status: 'blocked', defaultKey: '', supportedKeys: [], defaultByClass: {} },
     scenarios: [],
     preparation: { schemaRevision: 'simc-preparation-v1', status: 'blocked', rows: [] },

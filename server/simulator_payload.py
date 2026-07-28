@@ -33,6 +33,11 @@ try:
 except ImportError:
     from simc_preparation import apply_simc_preparation_lines, simc_preparation_payload, simc_preparation_report
 
+try:
+    from .simc_support_policy import simc_execution_support
+except ImportError:
+    from simc_support_policy import simc_execution_support
+
 
 DEFAULT_SIMC_VERSION_FILE = "/var/lib/wow-backend/simc-version.json"
 SIMC_AGENT_FORBIDDEN_KEYS = {"html", "json", "output", "save", "xml"}
@@ -3138,6 +3143,32 @@ def analyze_simcraft_template_request(payload, codex_runner=None):
         )
     if not spec_info:
         return simcraft_template_blocked_payload(source, request_data, ["unknown template class/spec"], scenario, spec_info)
+    execution_support = simc_execution_support(
+        spec_info.get("class"),
+        spec_info.get("spec"),
+    )
+    if not execution_support.get("supported"):
+        problem = {
+            "kind": "UNSUPPORTED_SPECIALIZATION",
+            "code": execution_support.get("code") or "SIMC_SPECIALIZATION_UNSUPPORTED",
+            "title": execution_support.get("message") or "This specialization is not supported for formal SimC execution.",
+            "detail": "",
+            "path": "templateContext.talent.specKey",
+            "retryable": False,
+            "meta": {
+                "contractRevision": execution_support.get("contractRevision"),
+                "specializationId": execution_support.get("specializationId"),
+                "role": execution_support.get("role"),
+            },
+        }
+        return simcraft_template_blocked_payload(
+            source,
+            request_data,
+            [problem["title"]],
+            scenario,
+            spec_info,
+            problems=[problem],
+        )
     if not build_context_has_talents(build_context):
         return simcraft_template_blocked_payload(source, request_data, ["missing talent template SimC input"], scenario, spec_info)
     gear_items = request_gear_items(source, build_context)

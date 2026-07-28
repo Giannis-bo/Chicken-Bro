@@ -487,6 +487,20 @@ class NewsBackendTest(unittest.TestCase):
             payload["raceKey"] = race
         return payload
 
+    def unsupported_simc_template_payload(self, class_key="paladin", spec_key="holy"):
+        payload = self.simc_template_payload(talent_raw="talents=UNSUPPORTED_ROLE_IMPORT")
+        for template_type in ("talent", "gear"):
+            payload["templateContext"][template_type].update(
+                {
+                    "classKey": class_key,
+                    "className": class_key,
+                    "specKey": spec_key,
+                    "specName": spec_key,
+                    "heroKey": "",
+                }
+            )
+        return payload
+
     def official_discovered_article(self, article_id, day=19):
         return {
             "id": article_id,
@@ -1908,6 +1922,16 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(payload["contractRevision"], "simc-options-v1")
         self.assertEqual(payload["status"], "ready")
         self.assertEqual(
+            payload["specializationPolicy"]["contractRevision"],
+            "simc-execution-support-v1",
+        )
+        self.assertEqual(payload["specializationPolicy"]["supportedSpecCount"], 26)
+        self.assertEqual(payload["specializationPolicy"]["unsupportedSpecCount"], 14)
+        self.assertEqual(
+            len(payload["specializationPolicy"]["unsupportedSpecializations"]),
+            14,
+        )
+        self.assertEqual(
             payload["races"]["supportedKeys"],
             sorted(simulator_payload.SIMC_PROFILE_RACE_KEYS),
         )
@@ -2377,6 +2401,135 @@ class NewsBackendTest(unittest.TestCase):
         self.assertIn("finger1=template_finger1,id=250011,ilevel=289,bonus_id=13534/6652,gem_id=213743,enchant_id=7334", draft_profile)
         self.assertIn("main_hand=template_main_hand,id=250015,ilevel=289,bonus_id=13534/6652,crafted_stats=32/49", draft_profile)
         self.assertEqual(len(analysis["request"]["buildContext"]["details"]["gear"]["simcItems"]), 16)
+
+    def test_simcraft_execution_support_policy_partitions_all_40_specs(self):
+        from server.simc_support_policy import simc_execution_support
+
+        expected_unsupported = {
+            "deathknight:blood",
+            "demonhunter:vengeance",
+            "druid:guardian",
+            "druid:restoration",
+            "evoker:augmentation",
+            "evoker:preservation",
+            "monk:brewmaster",
+            "monk:mistweaver",
+            "paladin:holy",
+            "paladin:protection",
+            "priest:discipline",
+            "priest:holy",
+            "shaman:restoration",
+            "warrior:protection",
+        }
+        actual_unsupported = set()
+        actual_supported = set()
+        for _class_label, _spec_label, class_key, spec_key in SIMC_AGENT_SPEC_CASES:
+            policy = simc_execution_support(class_key, spec_key)
+            self.assertEqual(policy["contractRevision"], "simc-execution-support-v1")
+            target = actual_supported if policy["supported"] else actual_unsupported
+            target.add(f"{class_key}:{spec_key}")
+
+        self.assertEqual(actual_unsupported, expected_unsupported)
+        self.assertEqual(len(actual_supported), 26)
+        self.assertFalse(actual_supported & actual_unsupported)
+
+    def test_simcraft_template_blocks_unsupported_specialization_before_profile_or_simc(self):
+        from server import simulator_payload
+
+        with patch.object(
+            simulator_payload,
+            "run_simcraft",
+            side_effect=AssertionError("unsupported specialization must not start SimC"),
+        ):
+            prepared = self.backend.prepare_simcraft_template_request(
+                self.unsupported_simc_template_payload()
+            )
+            analysis = self.backend.analyze_and_store_simulator_task(
+                self.unsupported_simc_template_payload()
+            )
+
+        self.assertFalse(prepared["templateValidation"]["passed"])
+        self.assertIn(
+            "SIMC_SPECIALIZATION_UNSUPPORTED",
+            [problem["code"] for problem in prepared["templateValidation"]["problems"]],
+        )
+        self.assertEqual(analysis["agent"]["status"], "template_blocked")
+        self.assertFalse(analysis["simulation"]["ran"])
+        self.assertIn(
+            "SIMC_SPECIALIZATION_UNSUPPORTED",
+            [problem["code"] for problem in analysis["agent"]["validation"]["problems"]],
+        )
+
+    def test_canonical_simcraft_template_blocks_unsupported_spec_before_resolver(self):
+        payload = self.unsupported_simc_template_payload()
+        payload.update(
+            {
+                "selectionIntent": {
+                    "schemaRevision": "selection-intent-v1",
+                    "authoredAgainst": {
+                        "seasonRevision": "season-r1",
+                        "gearCatalogRevision": "gear-r1",
+                    },
+                    "eligibilityContext": {
+                        "classKey": "paladin",
+                        "specKey": "holy",
+                        "level": 90,
+                    },
+                    "slots": {},
+                },
+                "profileContext": {
+                    "classKey": "paladin",
+                    "specKey": "holy",
+                    "race": "human",
+                    "scenarioKey": "single",
+                    "talents": "PALADIN_HOLY_IMPORT",
+                },
+            }
+        )
+
+        with patch.object(
+            self.backend,
+            "build_profile_from_selection_intent",
+            side_effect=AssertionError("unsupported specialization must fail before Gear profile resolution"),
+        ):
+            analysis = self.backend.analyze_and_store_simulator_task(payload)
+
+        self.assertEqual(analysis["agent"]["status"], "template_blocked")
+        self.assertFalse(analysis["simulation"]["ran"])
+        self.assertIn(
+            "SIMC_SPECIALIZATION_UNSUPPORTED",
+            [problem["code"] for problem in analysis["agent"]["validation"]["problems"]],
+        )
+
+    def test_websim_submission_blocks_unsupported_specialization_with_stable_code(self):
+        request_payload = {
+            "classKey": "evoker",
+            "specKey": "augmentation",
+            "buildContext": {
+                "specId": "evoker-augmentation",
+                "classKey": "evoker",
+                "specKey": "augmentation",
+                "details": {
+                    "talents": {"importCode": "AUGMENTATION_IMPORT", "simcLines": []},
+                    "gear": {
+                        "readiness": {
+                            "fullReady": True,
+                            "simcReadyCount": 16,
+                            "missingCoreSlots": [],
+                        },
+                        "simcItems": [{"slot": "head", "itemId": "250001"}],
+                    },
+                },
+            },
+        }
+
+        blockers = self.backend.websim_submission_blockers(request_payload)
+        response = self.backend.websim_submission_blocked_response(request_payload, blockers)
+
+        self.assertEqual([blocker["code"] for blocker in blockers], ["SIMC_SPECIALIZATION_UNSUPPORTED"])
+        self.assertEqual(response["problems"][0]["code"], "SIMC_SPECIALIZATION_UNSUPPORTED")
+        self.assertFalse(response["simulation"]["ran"])
+        self.assertEqual(response["stages"][1]["status"], "skipped")
 
     def test_generated_death_knight_template_profile_defaults_verified_runeforge(self):
         from server import simulator_payload

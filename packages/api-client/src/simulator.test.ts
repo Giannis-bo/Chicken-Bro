@@ -20,6 +20,35 @@ class MemoryStorage implements StorageAdapter {
   remove(key: string): void { this.values.delete(key) }
 }
 
+const unsupportedSimcSpecializations = [
+  ['deathknight:blood', 'tank'],
+  ['demonhunter:vengeance', 'tank'],
+  ['druid:guardian', 'tank'],
+  ['druid:restoration', 'healer'],
+  ['evoker:augmentation', 'support'],
+  ['evoker:preservation', 'healer'],
+  ['monk:brewmaster', 'tank'],
+  ['monk:mistweaver', 'healer'],
+  ['paladin:holy', 'healer'],
+  ['paladin:protection', 'tank'],
+  ['priest:discipline', 'healer'],
+  ['priest:holy', 'healer'],
+  ['shaman:restoration', 'healer'],
+  ['warrior:protection', 'tank'],
+].map(([specializationId, role]) => ({
+  specializationId,
+  role,
+  code: 'SIMC_SPECIALIZATION_UNSUPPORTED',
+}))
+
+const readySimcSpecializationPolicy = {
+  contractRevision: 'simc-execution-support-v1',
+  status: 'ready',
+  supportedSpecCount: 26,
+  unsupportedSpecCount: 14,
+  unsupportedSpecializations: unsupportedSimcSpecializations,
+}
+
 describe('SimulatorClient task contract', () => {
   it('treats a backend task:null response as a verified empty result', async () => {
     const requestEndpoint = vi.fn(async <T>(
@@ -86,6 +115,7 @@ describe('SimulatorClient task contract', () => {
     const payload = {
       contractRevision: 'simc-options-v1',
       status: 'ready',
+      specializationPolicy: readySimcSpecializationPolicy,
       races: {
         status: 'supported',
         defaultKey: 'zandalari_troll',
@@ -137,6 +167,7 @@ describe('SimulatorClient task contract', () => {
   it('fails closed on incompatible, duplicate, or unbounded simc-options-v1 facts', async () => {
     const valid = {
       contractRevision: 'simc-options-v1', status: 'ready',
+      specializationPolicy: readySimcSpecializationPolicy,
       races: {
         status: 'supported', defaultKey: 'human', supportedKeys: ['human', 'troll'],
         defaultByClass: { mage: 'human' },
@@ -155,6 +186,26 @@ describe('SimulatorClient task contract', () => {
     }
     const invalid: readonly unknown[] = [
       { ...valid, status: 'partial' },
+      { ...valid, specializationPolicy: undefined },
+      { ...valid, specializationPolicy: { ...readySimcSpecializationPolicy, supportedSpecCount: 25 } },
+      {
+        ...valid,
+        specializationPolicy: {
+          ...readySimcSpecializationPolicy,
+          unsupportedSpecializations: unsupportedSimcSpecializations.slice(1),
+        },
+      },
+      {
+        ...valid,
+        specializationPolicy: {
+          ...readySimcSpecializationPolicy,
+          unsupportedSpecializations: [
+            unsupportedSimcSpecializations[0],
+            unsupportedSimcSpecializations[0],
+            ...unsupportedSimcSpecializations.slice(2),
+          ],
+        },
+      },
       { ...valid, races: { ...valid.races, status: 'ready' } },
       { ...valid, races: { ...valid.races, supportedKeys: [] } },
       { ...valid, races: { ...valid.races, supportedKeys: ['human', 'human'] } },

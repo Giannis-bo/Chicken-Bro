@@ -81,6 +81,9 @@ interface ConfirmationState {
 
 const blockedOptionsView: SimcOptionsView = {
   state: 'blocked',
+  specializationSupported: false,
+  specializationBlockerCode: 'SIMC_SPECIALIZATION_POLICY_UNAVAILABLE',
+  specializationBlockerDetail: '后端没有返回可验证的 SimC 专精支持策略。',
   races: [],
   scenarios: [],
   selectedRaceKey: '',
@@ -474,6 +477,10 @@ export default function SimcSubmitPage() {
     : '后端未返回准备规则'
   const modelInput = {
     specializationLabel: data?.selection.label ?? '',
+    specializationSupported: optionsView.specializationSupported,
+    ...(optionsView.specializationBlockerDetail
+      ? { specializationBlockerDetail: optionsView.specializationBlockerDetail }
+      : {}),
     raceLabel: optionsView.selectedRaceKey,
     scenarioLabel: selectedScenario?.label ?? '',
     ...(optionsView.targets !== undefined ? { scenarioTargets: optionsView.targets } : {}),
