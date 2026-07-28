@@ -137,6 +137,8 @@ class GearExactItemRegistryStoreTest(unittest.TestCase):
         self.assertEqual(len(self.database.references), 1)
         joined = "\n".join(self.database.statements).upper()
         self.assertIn("ON CONFLICT DO NOTHING", joined)
+        self.assertIn("CONTEXT_JSON::TEXT", joined)
+        self.assertIn("VALIDATION_JSON::TEXT", joined)
         self.assertNotIn(" UPDATE ", f" {joined} ")
         self.assertNotIn(" DELETE ", f" {joined} ")
         self.assertTrue(self.connection.committed)

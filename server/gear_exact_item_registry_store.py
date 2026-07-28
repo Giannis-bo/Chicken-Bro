@@ -191,8 +191,8 @@ class GearExactItemRegistryStore:
                 season_revision,
                 gear_rule_revision,
                 registry_status,
-                registry_summary_json,
-                registry_problem_codes_json,
+                registry_summary_json::text,
+                registry_problem_codes_json::text,
                 template_scope,
                 template_content_hash,
                 slot,
@@ -200,8 +200,8 @@ class GearExactItemRegistryStore:
                 source_variant_key,
                 exact_item_instance_key,
                 validation_status,
-                problem_codes_json,
-                reference_json,
+                problem_codes_json::text,
+                reference_json::text,
                 row_hash
             FROM cache.websim_gear_exact_instance_template_refs
             WHERE registry_revision = %s
@@ -275,10 +275,10 @@ class GearExactItemRegistryStore:
                 schema_revision,
                 item_id,
                 item_level,
-                bonus_ids_json,
-                context_json,
-                progression_state_json,
-                instance_json,
+                bonus_ids_json::text,
+                context_json::text,
+                progression_state_json::text,
+                instance_json::text,
                 row_hash
             FROM cache.websim_gear_exact_item_instances
             WHERE exact_item_instance_key = ANY(%s)
@@ -327,7 +327,7 @@ class GearExactItemRegistryStore:
             SELECT
                 enhancement_selection_key,
                 schema_revision,
-                selection_json,
+                selection_json::text,
                 row_hash
             FROM cache.websim_gear_enhancement_selections
             WHERE enhancement_selection_key = ANY(%s)
@@ -373,9 +373,9 @@ class GearExactItemRegistryStore:
                 validation_status,
                 slot,
                 source_variant_key,
-                static_facts_json,
-                serializer_input_json,
-                validation_json,
+                static_facts_json::text,
+                serializer_input_json::text,
+                validation_json::text,
                 row_hash
             FROM cache.websim_gear_exact_item_validations
             WHERE exact_item_instance_key = ANY(%s)
