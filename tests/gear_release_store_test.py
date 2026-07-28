@@ -15,6 +15,8 @@ class FakeCursor:
         self.statements = []
         self.params = []
         self.executemany_calls = []
+        self.fetchall_calls = 0
+        self.fetchmany_calls = 0
         self.rowcount = 1
 
     def __enter__(self):
@@ -55,8 +57,15 @@ class FakeCursor:
         return self.current_rows.pop(0) if self.current_rows else None
 
     def fetchall(self):
+        self.fetchall_calls += 1
         rows = list(self.current_rows)
         self.current_rows = []
+        return rows
+
+    def fetchmany(self, size=1):
+        self.fetchmany_calls += 1
+        rows = self.current_rows[:size]
+        self.current_rows = self.current_rows[size:]
         return rows
 
 
@@ -417,6 +426,8 @@ class GearReleaseStoreTest(unittest.TestCase):
         self.assertIn("SELECT DISTINCT ON (", sql)
         self.assertIn("candidate.item_id, candidate.source_type", sql)
         self.assertIn("jsonb_strip_nulls", sql)
+        self.assertGreaterEqual(conn.cursor_instance.fetchmany_calls, 4)
+        self.assertEqual(conn.cursor_instance.fetchall_calls, 0)
         self.assertEqual(
             projected["_releaseProjection"]["releaseId"],
             release["releaseId"],

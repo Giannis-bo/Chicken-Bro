@@ -185,6 +185,14 @@ def _canonical(value: Any) -> Any:
     )
 
 
+def _stream_cursor_rows(cur: Any, batch_size: int = 500) -> Iterable[Any]:
+    while True:
+        rows = cur.fetchmany(batch_size)
+        if not rows:
+            return
+        yield from rows
+
+
 def _canonical_bytes(value: Any) -> bytes:
     return json.dumps(
         value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), default=str
@@ -1173,7 +1181,18 @@ class GearReleaseStore:
                     """,
                     (normalized,),
                 )
-                item_rows = cur.fetchall()
+                items = [
+                    {
+                        "itemId": _text(row[0]),
+                        "name": _text(row[1]),
+                        "slot": _text(row[2]),
+                        "itemLevel": row[3],
+                        "payload": row[4] if isinstance(row[4], dict) else {},
+                        "sourceStatus": _text(row[5]),
+                        "updatedAt": _text(row[6]),
+                    }
+                    for row in _stream_cursor_rows(cur)
+                ]
                 cur.execute(
                     """
                     SELECT source_id, item_id, source_type, source_key, source_label,
@@ -1206,7 +1225,22 @@ class GearReleaseStore:
                     """,
                     (normalized,),
                 )
-                source_rows = cur.fetchall()
+                sources = [
+                    {
+                        "sourceId": _text(row[0]),
+                        "itemId": _text(row[1]),
+                        "sourceType": _text(row[2]),
+                        "sourceKey": _text(row[3]),
+                        "sourceLabel": _text(row[4]),
+                        "instanceId": _text(row[5]),
+                        "encounterId": _text(row[6]),
+                        "difficultyKey": _text(row[7]),
+                        "seasonRevision": _text(row[8]),
+                        "payload": row[9] if isinstance(row[9], dict) else {},
+                        "updatedAt": _text(row[10]),
+                    }
+                    for row in _stream_cursor_rows(cur)
+                ]
                 cur.execute(
                     """
                     SELECT variant_id, item_id, variant_key, slot, label, source_type,
@@ -1240,7 +1274,24 @@ class GearReleaseStore:
                     """,
                     (normalized,),
                 )
-                variant_rows = cur.fetchall()
+                variants = [
+                    {
+                        "variantId": _text(row[0]),
+                        "itemId": _text(row[1]),
+                        "variantKey": _text(row[2]),
+                        "slot": _text(row[3]),
+                        "label": _text(row[4]),
+                        "sourceType": _text(row[5]),
+                        "difficultyKey": _text(row[6]),
+                        "itemLevel": _int(row[7]),
+                        "simcOptions": row[8] if isinstance(row[8], dict) else {},
+                        "status": _text(row[9]),
+                        "blockers": row[10] if isinstance(row[10], list) else [],
+                        "payload": row[11] if isinstance(row[11], dict) else {},
+                        "updatedAt": _text(row[12]),
+                    }
+                    for row in _stream_cursor_rows(cur)
+                ]
                 cur.execute(
                     """
                     SELECT option_id, variant_id, option_key, option_type, name,
@@ -1252,70 +1303,27 @@ class GearReleaseStore:
                     """,
                     (normalized,),
                 )
-                option_rows = cur.fetchall()
+                options = [
+                    {
+                        "optionId": _text(row[0]),
+                        "variantId": _text(row[1]),
+                        "optionKey": _text(row[2]),
+                        "optionType": _text(row[3]),
+                        "name": _text(row[4]),
+                        "applicableSlots": row[5] if isinstance(row[5], list) else [],
+                        "simcOptions": row[6] if isinstance(row[6], dict) else {},
+                        "status": _text(row[7]),
+                        "isVisible": row[8] is True,
+                        "payload": row[9] if isinstance(row[9], dict) else {},
+                        "updatedAt": _text(row[10]),
+                    }
+                    for row in _stream_cursor_rows(cur)
+                ]
         snapshot = {
-            "items": [
-                {
-                    "itemId": _text(row[0]),
-                    "name": _text(row[1]),
-                    "slot": _text(row[2]),
-                    "itemLevel": row[3],
-                    "payload": _canonical(row[4] if isinstance(row[4], dict) else {}),
-                    "sourceStatus": _text(row[5]),
-                    "updatedAt": _text(row[6]),
-                }
-                for row in item_rows
-            ],
-            "sources": [
-                {
-                    "sourceId": _text(row[0]),
-                    "itemId": _text(row[1]),
-                    "sourceType": _text(row[2]),
-                    "sourceKey": _text(row[3]),
-                    "sourceLabel": _text(row[4]),
-                    "instanceId": _text(row[5]),
-                    "encounterId": _text(row[6]),
-                    "difficultyKey": _text(row[7]),
-                    "seasonRevision": _text(row[8]),
-                    "payload": _canonical(row[9] if isinstance(row[9], dict) else {}),
-                    "updatedAt": _text(row[10]),
-                }
-                for row in source_rows
-            ],
-            "variants": [
-                {
-                    "variantId": _text(row[0]),
-                    "itemId": _text(row[1]),
-                    "variantKey": _text(row[2]),
-                    "slot": _text(row[3]),
-                    "label": _text(row[4]),
-                    "sourceType": _text(row[5]),
-                    "difficultyKey": _text(row[6]),
-                    "itemLevel": _int(row[7]),
-                    "simcOptions": _canonical(row[8] if isinstance(row[8], dict) else {}),
-                    "status": _text(row[9]),
-                    "blockers": _canonical(row[10] if isinstance(row[10], list) else []),
-                    "payload": _canonical(row[11] if isinstance(row[11], dict) else {}),
-                    "updatedAt": _text(row[12]),
-                }
-                for row in variant_rows
-            ],
-            "options": [
-                {
-                    "optionId": _text(row[0]),
-                    "variantId": _text(row[1]),
-                    "optionKey": _text(row[2]),
-                    "optionType": _text(row[3]),
-                    "name": _text(row[4]),
-                    "applicableSlots": _canonical(row[5] if isinstance(row[5], list) else []),
-                    "simcOptions": _canonical(row[6] if isinstance(row[6], dict) else {}),
-                    "status": _text(row[7]),
-                    "isVisible": row[8] is True,
-                    "payload": _canonical(row[9] if isinstance(row[9], dict) else {}),
-                    "updatedAt": _text(row[10]),
-                }
-                for row in option_rows
-            ],
+            "items": items,
+            "sources": sources,
+            "variants": variants,
+            "options": options,
         }
         full_counts = (
             release["content"].get("counts")
