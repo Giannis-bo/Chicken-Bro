@@ -1,0 +1,166 @@
+{
+  "schemaVersion": 2,
+  "slug": "gear-ui-visible-facts-recovery",
+  "requirementSlug": "gear-ui-visible-facts-recovery",
+  "status": "local_verified",
+  "highestEvidenceLevel": "local_verified",
+  "branch": "codex/gear-ui-recovery",
+  "commit": "c91f2d3d8e4100b7d313abebc06ffb75d6b445c3",
+  "identities": {
+    "runtime": {
+      "status": "bound",
+      "kind": "build_identity",
+      "value": "wow-weapp-build-v1:sha256:4e0e9b2a74651e3f2859f7231726cc7c931f932fd46b58198416abcab192a82a"
+    },
+    "verification": {
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD",
+      "reason": "The complete task packet and final scoped checks bind to the exact checked branch HEAD."
+    },
+    "closure": {
+      "status": "pending",
+      "reason": "The exact source-bound WeChat preview still requires explicit user acceptance before merge and archive closure."
+    }
+  },
+  "manualAcceptance": {
+    "required": true,
+    "status": "pending",
+    "items": [
+      {
+        "id": "gear_slot_visible_facts",
+        "status": "pending"
+      },
+      {
+        "id": "gear_enhancement_availability",
+        "status": "pending"
+      },
+      {
+        "id": "gear_ui_recovery_preview",
+        "status": "pending"
+      }
+    ],
+    "rollup": {
+      "total": 3,
+      "accepted": 0,
+      "notRunUserWaived": 0,
+      "pending": 3
+    }
+  },
+  "scope": [
+    "Active Taro gear-detail equipped-item secondary-stat presentation",
+    "Gear enhancement summary availability and known-impossible disabled state",
+    "WeChat output source identity stamping and stale-package rejection",
+    "Current UI truth/component contracts, roadmap and task-scoped Standard release packet"
+  ],
+  "verification": [
+    {
+      "command": "npx vitest run apps/mini-taro/src/pages/builds/gear-detail-model.test.ts apps/mini-taro/src/pages/builds/gear-detail-page-contract.test.ts",
+      "status": "pass",
+      "summary": "43 focused model and page-contract tests passed, including verified initial green stats, pending-stat rejection, enhancement availability, empty-loadout and confirmed-selection boundaries."
+    },
+    {
+      "command": "node --test tests/build-weapp-safely.test.js tests/refresh-weapp-preview.test.js",
+      "status": "pass",
+      "summary": "17 build/refresh tests passed, including identity stamping and stale source-hash rejection."
+    },
+    {
+      "command": "npm run audit:ui-architecture",
+      "status": "pass",
+      "summary": "All 14 current routes and contracts passed 283 architecture checks with zero findings."
+    },
+    {
+      "command": "npm run typecheck && npm run lint && npm run test:taro",
+      "status": "pass",
+      "summary": "Workspace typecheck and lint passed; all 53 Vitest files and 402 tests passed."
+    },
+    {
+      "command": "npm run refresh:weapp",
+      "status": "pass",
+      "summary": "The safe staged build promoted 214 files, embedded source hash sha256:4e0e9b2a74651e3f2859f7231726cc7c931f932fd46b58198416abcab192a82a for runtime commit c91f2d3d, and the official CLI refreshed the existing WeChat DevTools project."
+    },
+    {
+      "command": "npm run verify:ui-package",
+      "status": "blocked",
+      "summary": "Package mechanics passed, but the release profile remained partial because this local invocation did not provide the production asset root, backend API base or approved request-domain environment. This frontend correction does not change those release settings."
+    },
+    {
+      "command": "INTERACTION_ROUTES=gear_detail npm run verify:ui-interactions",
+      "status": "blocked",
+      "summary": "The verifier found no reusable WeChat Automator endpoint on ports 9420-9460 and refused to launch or impersonate interaction evidence. Manual visual and interaction acceptance remains pending."
+    },
+    {
+      "command": "node --test tests/project-state.test.js tests/project-harness.test.js tests/verify-project.test.js",
+      "status": "pass",
+      "summary": "All 77 project control-plane and Harness tests passed."
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass",
+      "summary": "The task source and packet contain no whitespace errors."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "preview_refreshed_pending_acceptance",
+    "requiredBeforeMerge": true,
+    "branch": "codex/gear-ui-recovery",
+    "commit": "c91f2d3d8e4100b7d313abebc06ffb75d6b445c3",
+    "buildIdentity": "wow-weapp-build-v1:sha256:4e0e9b2a74651e3f2859f7231726cc7c931f932fd46b58198416abcab192a82a",
+    "previewRoot": "apps/mini-taro",
+    "buildOutput": "apps/mini-taro/dist/weapp",
+    "fileCount": 214,
+    "smoke": {
+      "status": "blocked",
+      "summary": "The source-bound package is open in official DevTools, but no reusable Automator endpoint is enabled; user visual and interaction acceptance is still required."
+    },
+    "timerBackflow": {
+      "status": "not_applicable",
+      "reason": "Frontend-only WeChat preview; no backend service, timer, sync or public pointer changed."
+    },
+    "rollback": "Revert the gear visible-facts and WeChat identity commit, rebuild dist/weapp and refresh the same DevTools project."
+  },
+  "runtimeEvidence": [
+    {
+      "type": "wechat_build_identity",
+      "status": "pass",
+      "commit": "c91f2d3d8e4100b7d313abebc06ffb75d6b445c3",
+      "sourceHash": "sha256:4e0e9b2a74651e3f2859f7231726cc7c931f932fd46b58198416abcab192a82a",
+      "summary": "dist/weapp/wow-build.json matches the current runtime source inputs and the official CLI reported preview_refreshed."
+    },
+    {
+      "type": "real_wechat_core_interaction",
+      "status": "blocked",
+      "summary": "No Automator endpoint was available. The verifier failed closed, and no runtime interaction pass is claimed."
+    }
+  ],
+  "risks": [
+    {
+      "id": "real-wechat-visible-facts-pending",
+      "status": "open",
+      "detail": "The player-visible green stats, enhancement labels and broader recovered gear UI still need explicit confirmation in the currently refreshed DevTools preview."
+    },
+    {
+      "id": "partial-item-stat-evidence",
+      "status": "guarded",
+      "detail": "Items without exact Resolver itemStaticStats or backend verified_variant itemStats remain 属性待核验 instead of receiving guessed green stats."
+    },
+    {
+      "id": "local-release-environment-not-configured",
+      "status": "guarded",
+      "detail": "The package mechanics gate passed, but release-ready named origins were not supplied to the local package check. No production release claim is made."
+    }
+  ],
+  "rollback": [
+    "code_rollback"
+  ],
+  "cleanup": {
+    "required": false,
+    "reason": "No candidate server, worktree, external service or temporary repository resource was created."
+  },
+  "archivedReferences": [
+    "artifacts/releases/2026-07-24-taro-gear-editor-recovery/evidence.json",
+    "artifacts/releases/2026-07-25-gear-slot-information-hierarchy/evidence.json"
+  ],
+  "summary": "The active gear UI correction is locally verified and the exact source-bound 214-file WeChat package has been rebuilt and refreshed in DevTools. The candidate remains open because its three real-WeChat acceptance items are pending and the Automator endpoint was unavailable.",
+  "updatedAt": "2026-07-28T12:05:00+08:00"
+}
