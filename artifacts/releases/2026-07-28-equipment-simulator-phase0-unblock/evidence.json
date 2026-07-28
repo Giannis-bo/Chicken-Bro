@@ -2,18 +2,20 @@
   "schemaVersion": 2,
   "slug": "equipment-simulator-phase0-unblock",
   "requirementSlug": "equipment-simulator-phase0-unblock",
-  "status": "implementation_allowed",
-  "highestEvidenceLevel": "implementation_allowed",
+  "status": "live_verified",
+  "highestEvidenceLevel": "live_verified",
   "branch": "codex/equipment-simulator-phase0-unblock",
-  "commit": "pending-task-commit",
+  "commit": "348e9c7058877789d7a45f1d5286a476462248cc",
   "identities": {
     "runtime": {
-      "status": "pending",
-      "reason": "SimC b92847e and the staging repair are verified; the candidate Gear/Community Releases and Manifest remain pending."
+      "status": "bound",
+      "kind": "git_commit",
+      "value": "348e9c7058877789d7a45f1d5286a476462248cc"
     },
     "verification": {
-      "status": "pending",
-      "reason": "The final task head has not been created or checked."
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD"
     },
     "closure": {
       "status": "pending",
@@ -57,12 +59,12 @@
     {
       "command": "related Python and caller audit tests",
       "status": "pass",
-      "summary": "175 related Python tests and four caller-audit Node tests pass after the PG probe, cosmetic exclusion and guarded backfill changes."
+      "summary": "324 focused Python tests pass for Track Authority, exact-instance auditing, Community election/reservation, shadow correction, HTTP matrix binding and PostgreSQL release readers."
     },
     {
       "command": "bounded production Community resource probe",
       "status": "pass",
-      "summary": "The no-write probe completed in 23394 ms at 1434619904 peak RSS bytes, zero temporary bytes and zero writes with the generation-24 pointer unchanged."
+      "summary": "Report gear-release-resource-probe:sha256:1d4b4550af9136eb5916124585e0fcca416ce221e4f148682843407cc84d9ba1 passed in 24622 ms at 1467432960 peak RSS bytes, zero temporary bytes and zero writes with generation 32 stable."
     },
     {
       "command": "configured SimC exact stat probe and PG staging backfill",
@@ -70,14 +72,47 @@
       "summary": "SimC b92847e produced 44/44 exact eligible pairs, item 268280 was deterministically excluded as non-combat Cosmetic, and 44 guarded staging rows were verified with a 44-row backup and unchanged pointer."
     },
     {
-      "command": "implementation, candidate, live and closure verification",
+      "command": "candidate shadow, active HTTP/SimC/task matrices and restored rollback",
+      "status": "pass",
+      "summary": "The candidate shadow passed 40/40 specs and 80/80 Hero imports with two controlled exact-progression corrections; active generation 32 then passed 40/40 browse, 80/80 imports, 26/26 real SimC executions with DPS, 14/14 deterministic unsupported outcomes, one real async task E2E and rollback/restoration."
+    },
+    {
+      "command": "fresh production Phase 0 audit",
+      "status": "pass",
+      "summary": "catalog-migration-audit:sha256:1f211147e19479a67c84641904222b9a4612ede8caafa6c0d2e328898c9341d2 verified 1309/1309 canonical Browse variants, 40/40 spec coverage, 80/80 exact Community templates, zero unresolved callers, zero source writes and a stable generation-32 pointer."
+    },
+    {
+      "command": "exact-head full Harness and manual acceptance closure",
       "status": "not_run",
-      "summary": "Pending inactive Gear/Community build, shadow, candidate promotion/rollback, public matrices, manual acceptance and exact-head closure."
+      "summary": "The final full profile, PR CI, two frozen real-WeChat acceptance items, merge, post-merge refresh and three-party closure remain pending."
     }
   ],
   "candidateDeployment": {
-    "status": "in_progress",
-    "reason": "Candidate SimC runtime and staging repair are complete; the inactive Gear/Community pair has not yet been sealed."
+    "status": "candidate_verified",
+    "requiredBeforeMerge": true,
+    "branch": "codex/equipment-simulator-phase0-unblock",
+    "commit": "348e9c7058877789d7a45f1d5286a476462248cc",
+    "gitTree": "35b551d9d321ac6fc721f410326b45ad6745728f",
+    "host": "wow-lighthouse",
+    "path": "/opt/wow-mini-program",
+    "baseUrl": "http://127.0.0.1:8787",
+    "manifestRevision": "season-manifest:sha256:b79e6226c7dc406c2e729cf01cf6d86f4944b760b8e8cc185dcd4347032fedb6",
+    "pointerGeneration": 32,
+    "gearReleaseId": "gear-release:sha256:9299fe1f942dc272f402e4d735d6a1bf8111a8f156464e0777cd6df78769edc7",
+    "communityReleaseId": "community-release:sha256:686708be049323a979b66bfba42cae3f2b80f7337e740d26b299fd73e0665804",
+    "simcRuntimeRevision": "b92847e847c9a6c354d4ba2130abd37f1ccf72d8",
+    "runtimeFileParity": {
+      "status": "pass",
+      "summary": "All nine changed runtime/tooling files on /opt/wow-mini-program match commit 348e9c70 by SHA-256; backend and stat worker are active with NRestarts=0."
+    },
+    "smoke": {
+      "status": "pass",
+      "summary": "Candidate shadow passed before promotion; generation 32 active readers then passed 40/40 browse, 80/80 imports, 26/26 supported SimC, 14/14 unsupported policy and async task E2E."
+    },
+    "timerBackflow": {
+      "status": "pass",
+      "summary": "The existing release, observed-backfill, Community sync and health-followup timers remain enabled under their prior schedules; this task did not introduce or auto-trigger a new timer."
+    }
   },
   "runtimeEvidence": [
     {
@@ -96,6 +131,54 @@
     {
       "path": "artifacts/releases/2026-07-28-equipment-simulator-phase0-unblock/item-level-stat-backfill-b928-v1.json",
       "status": "pass"
+    },
+    {
+      "id": "candidate-community-exact-progression-shadow",
+      "type": "candidate_smoke",
+      "status": "pass",
+      "remotePath": "/opt/wow-mini-program/artifacts/releases/2026-07-28-equipment-simulator-phase0-unblock/shadow-community-6867-exact-correction.json",
+      "summary": "40/40 specs and 80/80 Hero slots passed with zero writes and exactly two verified invalid-to-valid exact-progression corrections."
+    },
+    {
+      "id": "active-generation-32-http-matrix",
+      "type": "smoke",
+      "status": "pass",
+      "reportId": "gear-release-http-matrix:sha256:c39b13bdfbea67021fdf03f9e5dd0e45c8a8cda29c72c9cde93bf23b1b81a15f",
+      "summary": "All 40 specialization browse payloads and 80 actual Community imports passed against one formal active Manifest."
+    },
+    {
+      "id": "active-generation-32-simc-matrix",
+      "type": "simc_execution",
+      "status": "pass",
+      "reportId": "simc-execution-matrix:sha256:7fedf97de517dc0572a2a70208cf0c4c0e0b94f8002996e1f5bfe6c6219e1c1c",
+      "summary": "All 26 supported specializations executed real SimC and produced DPS; all agreed 14 unsupported specializations were blocked deterministically before execution."
+    },
+    {
+      "id": "active-generation-32-task-e2e",
+      "type": "smoke",
+      "status": "pass",
+      "reportId": "simc-task-e2e:sha256:2bd5e68c7fff7f3219d5b297fb74ee0d6d2f44b5684bac2e2c093cb5ab7a4bb3",
+      "summary": "A real Community template produced a verified async stat snapshot; confirmation created no task and ran no SimC; final submission queued, completed, ran SimC and returned DPS."
+    },
+    {
+      "id": "generation-32-restored-rollback",
+      "type": "rollback",
+      "status": "pass",
+      "reportId": "restored-rollback:sha256:633c00d903ddbe255af47690c003d1fc4177933f608bca54e45b86650b6afe3c",
+      "summary": "The pointer rolled back to the prior Manifest, passed a real smoke, restored generation 32, passed the two corrected Hero slots, and retained active services plus SimC b92847e."
+    },
+    {
+      "id": "active-generation-32-phase0-audit",
+      "type": "postgres_read_only_audit",
+      "status": "pass",
+      "reportId": "catalog-migration-audit:sha256:1f211147e19479a67c84641904222b9a4612ede8caafa6c0d2e328898c9341d2",
+      "summary": "1309/1309 canonical Browse mappings, 40/40 spec coverage, 80/80 exact Community templates, zero unresolved callers, measured resources, zero source writes and stable pointer."
+    },
+    {
+      "id": "production-business-health",
+      "type": "health",
+      "status": "partial",
+      "summary": "The active Manifest and stat worker are verified, but global /api/data/health remains partial because legacy/staging health owners still report a failed prior refresh, partial staging catalog/template state and manual legality authority. This is not represented as a green global-health result."
     }
   ],
   "risks": [
@@ -107,7 +190,12 @@
     {
       "id": "community-builder-resource",
       "status": "resolved",
-      "detail": "The optimized read-only preflight passed at 1434619904 peak RSS bytes, 23394 ms, zero temporary bytes and zero writes with a stable pointer."
+      "detail": "The final optimized read-only probe passed at 1467432960 peak RSS bytes, 24622 ms, zero temporary bytes and zero writes with generation 32 stable."
+    },
+    {
+      "id": "global-data-health",
+      "status": "open_outside_phase0_acceptance",
+      "detail": "Global data health remains partial. Independent active-release matrices and the exact Phase 0 audit pass, but legacy staging/refresh health components have not yet been migrated to the new Catalog authority and remain work for the target-architecture migration."
     },
     {
       "id": "manual-acceptance",
@@ -129,6 +217,6 @@
     "artifacts/releases/2026-07-28-equipment-simulator-track-authority-correction/runtime-readonly-audit.json",
     "artifacts/releases/2026-07-28-equipment-simulator-track-authority-correction/phase1-decision.json"
   ],
-  "summary": "Strict Phase 0 unblock is in progress. Caller classification, bounded resource evidence, SimC refresh, exact eligible stats, cosmetic exclusion and guarded staging repair pass; inactive release build, cutover, fresh Phase 0, manual acceptance and closure remain.",
-  "updatedAt": "2026-07-28T20:10:00+08:00"
+  "summary": "Strict Phase 0 runtime and data gates are live-verified on generation 32: exact progression authority, 1309/1309 canonical Browse mapping, 80/80 exact Community imports, 26/14 SimC policy, bounded resources, rollback/restoration and commit-to-cloud file parity pass. Global data health is still partial and is recorded honestly. Full exact-head verification, PR CI, two real-WeChat acceptance items, merge and post-merge three-party closure remain.",
+  "updatedAt": "2026-07-28T23:45:00+08:00"
 }

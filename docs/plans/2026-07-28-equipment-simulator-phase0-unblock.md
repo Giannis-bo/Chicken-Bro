@@ -1,6 +1,6 @@
 # Equipment Simulator Phase 0 Unblock Implementation Plan
 
-> Status: `implementation_allowed`
+> Status: `runtime_verified_manual_acceptance_pending`
 >
 > Scope: clear the five independent Phase 0 blockers without introducing the
 > target Catalog schema or changing the approved equipment-simulator entry flow.
@@ -284,7 +284,8 @@ revision/hash and bounded error codes.
 1. Generate the caller v2 inventory.
 2. Run the exact committed Phase 0 audit against the promoted candidate state.
 3. Require:
-   - `1,313 / 1,313` canonical Browse candidates mapped;
+   - `1,309 / 1,309` canonical Browse candidates mapped after deterministic
+     non-combat exclusion;
    - active Community Release present and exact;
    - 40/40 specialization coverage verified;
    - resource facts measured and within bounds;
@@ -316,5 +317,8 @@ node scripts/project-harness.js --check \
   --base origin/main
 ```
 
-No completion claim is allowed until the fresh Phase 0 decision, candidate/live
-identity, rollback, manual acceptance and main/origin/cloud parity all pass.
+Current runtime result: the fresh generation-32 Phase 0 report, candidate/live
+identity, 40/80 HTTP matrix, 26/14 SimC matrix, async task E2E and rollback
+restoration pass. The full exact-head profile, PR CI, both frozen real-WeChat
+acceptance items, merge and main/origin/cloud closure remain mandatory; no
+completion claim is allowed before those gates pass.
