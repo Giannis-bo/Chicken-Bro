@@ -1394,12 +1394,21 @@ class PostgresCacheStore:
         gear_authority_context_cache=None,
         gear_release_store=None,
         observed_build_store=None,
+        manifest_binding_cache=None,
     ):
         self.connection_factory = connection_factory
         self._gear_authority_context_cache = (
             gear_authority_context_cache
             if gear_authority_context_cache is not None
             else AuthorityContextCache(max_entries=32, max_bytes=4 * 1024 * 1024)
+        )
+        self._manifest_binding_cache = (
+            manifest_binding_cache
+            if manifest_binding_cache is not None
+            else AuthorityContextCache(
+                max_entries=4,
+                max_bytes=16 * 1024 * 1024,
+            )
         )
         self._gear_release_store = (
             gear_release_store
@@ -2071,7 +2080,7 @@ class PostgresCacheStore:
                 f"{active_generation}:{active_revision}:"
                 f"{manifest_preview_revision}"
             )
-            cached = self._gear_authority_context_cache.get(cache_key)
+            cached = self._manifest_binding_cache.get(cache_key)
             cached_manifest = (
                 cached.get("manifest")
                 if isinstance(cached, dict)
@@ -2130,7 +2139,7 @@ class PostgresCacheStore:
                 "formalActiveManifest": False,
                 "candidatePreview": True,
             }
-            self._gear_authority_context_cache.put(
+            self._manifest_binding_cache.put(
                 cache_key,
                 result,
             )
@@ -2249,7 +2258,7 @@ class PostgresCacheStore:
         generation = _int_value(pointer.get("generation"))
         if pointer_mode == "active" and manifest_revision:
             cache_key = f"active-manifest-binding:{generation}:{manifest_revision}"
-            cached = self._gear_authority_context_cache.get(cache_key)
+            cached = self._manifest_binding_cache.get(cache_key)
             if (
                 isinstance(cached, dict)
                 and cached.get("formalActiveManifest") is True
@@ -2264,7 +2273,7 @@ class PostgresCacheStore:
                 and _int_value(binding.get("generation")) == generation
                 and str(binding.get("manifestRevision") or "").strip() == manifest_revision
             ):
-                self._gear_authority_context_cache.put(cache_key, binding)
+                self._manifest_binding_cache.put(cache_key, binding)
             return self._candidate_preview_binding(binding)
         return self._candidate_preview_binding(self._gear_release_store.load_active_manifest_binding())
 
@@ -2536,6 +2545,12 @@ class PostgresCacheStore:
             "byteSize": self._gear_authority_context_cache.byte_size,
             "maxEntries": self._gear_authority_context_cache.max_entries,
             "maxBytes": self._gear_authority_context_cache.max_bytes,
+            "manifestBinding": {
+                "entryCount": self._manifest_binding_cache.entry_count,
+                "byteSize": self._manifest_binding_cache.byte_size,
+                "maxEntries": self._manifest_binding_cache.max_entries,
+                "maxBytes": self._manifest_binding_cache.max_bytes,
+            },
         }
 
     def active_manifest_health(self):

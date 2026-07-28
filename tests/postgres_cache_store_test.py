@@ -9699,6 +9699,12 @@ class PostgresCacheStoreTest(unittest.TestCase):
             "byteSize": store._gear_authority_context_cache.byte_size,
             "maxEntries": 32,
             "maxBytes": 4 * 1024 * 1024,
+            "manifestBinding": {
+                "entryCount": 0,
+                "byteSize": 0,
+                "maxEntries": 4,
+                "maxBytes": 16 * 1024 * 1024,
+            },
         })
         self.assertEqual(release_store.calls, [
             ("authority", intent, runtime, "gear-release:a"),
@@ -10108,6 +10114,11 @@ class PostgresCacheStoreTest(unittest.TestCase):
             binding["gearExactRegistry"],
             candidate["gearExactRegistry"],
         )
+        self.assertEqual(
+            store._gear_authority_context_cache.entry_count,
+            0,
+        )
+        self.assertEqual(store._manifest_binding_cache.entry_count, 1)
 
     def test_candidate_preview_can_bind_a_sealed_candidate_gear_and_community_pair(self):
         from server import postgres_cache_store
