@@ -116,9 +116,10 @@ exactItemInstanceKey =
 gearRuleRevision)` validation 封存，因此规则或证据修正不会伪造另一件玩家装备，
 也不会 update 已封存的旧 validation。
 
-`sourceVariantKey` 是模板引用 provenance，只存在于 Template reference，不进入上述
-validation。多个 source alias 指向同一 exact identity 时，共享同一 validation，
-不得因 provenance 不同产生 validation conflict。
+`sourceVariantKey` 与 `finger1/finger2`、`trinket1/trinket2` 等穿戴位置是模板引用
+provenance，只存在于 Template reference，不进入上述 validation。多个 source alias
+或左右槽位指向同一 exact identity 时，共享同一 validation，不得因引用位置不同产生
+validation conflict；真正不同的静态属性或 serializer input 仍然阻断。
 
 ### 4.3 Template reference
 

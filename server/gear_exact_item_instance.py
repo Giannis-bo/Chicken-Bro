@@ -500,7 +500,6 @@ def build_exact_item_instance(
         "catalogRevision": catalog,
         "gearRuleRevision": gear_rule_revision,
         "status": "verified",
-        "slot": _text(row.get("slot")),
         "staticFacts": static_facts,
         "serializerInput": serializer_input,
     }

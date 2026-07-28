@@ -105,7 +105,7 @@
     },
     {
       "date": "2026-07-29",
-      "decision": "Production candidate diagnostics proved that sourceVariantKey is reference provenance rather than Catalog-bound validation identity; exact aliases therefore share one validation."
+      "decision": "Production candidate diagnostics proved that sourceVariantKey and finger/trinket placement slots are reference provenance rather than Catalog-bound validation identity; exact aliases and equivalent placement slots therefore share one validation while real static-fact or serializer conflicts remain blocking."
     },
     {
       "date": "2026-07-29",

@@ -394,7 +394,7 @@ class GearExactItemRegistryStore:
                 or _text(validation.get("gearRuleRevision")) != _text(stored[2])
                 or _text(validation.get("schemaRevision")) != _text(stored[3])
                 or _text(validation.get("status")) != _text(stored[4])
-                or _text(validation.get("slot")) != _text(stored[5])
+                or _text(stored[5])
                 or _text(stored[6])
                 or _canonical(validation.get("staticFacts") or {})
                 != _json_value(stored[7])
@@ -545,7 +545,7 @@ class GearExactItemRegistryStore:
                             row["gearRuleRevision"],
                             row["schemaRevision"],
                             row["status"],
-                            row["slot"],
+                            "",
                             "",
                             _json(row.get("staticFacts") or {}),
                             _json(row.get("serializerInput") or {}),

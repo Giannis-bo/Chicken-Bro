@@ -144,14 +144,19 @@ class GearExactItemRegistryTest(unittest.TestCase):
         self.assertEqual(first["templateReferences"], second["templateReferences"])
 
     def test_source_variant_provenance_does_not_conflict_with_validation_identity(self):
-        alias = exact_row(variantKey="observed-hero-3-alias")
+        first = exact_row(slot="finger1")
+        alias = exact_row(
+            variantKey="observed-hero-3-alias",
+            slot="finger2",
+        )
         result = build_exact_item_registry(
             CURRENT_BINDING,
             catalog_revision=CATALOG_REVISION,
-            exact_rows=[exact_row(), alias],
+            exact_rows=[first, alias],
             community_templates=[
-                template(),
+                template(slot="finger1"),
                 template(
+                    slot="finger2",
                     variant_key="observed-hero-3-alias",
                     classKey="mage",
                     specKey="fire",
@@ -168,6 +173,7 @@ class GearExactItemRegistryTest(unittest.TestCase):
             result["problemCodes"],
         )
         self.assertNotIn("sourceVariantKey", result["validations"][0])
+        self.assertNotIn("slot", result["validations"][0])
 
     def test_unresolved_multi_enchant_is_classified_partial_without_materialization(self):
         unresolved = exact_row()
