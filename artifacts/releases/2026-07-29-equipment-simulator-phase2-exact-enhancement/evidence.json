@@ -2,8 +2,8 @@
   "schemaVersion": 2,
   "slug": "equipment-simulator-phase2-exact-enhancement",
   "requirementSlug": "equipment-simulator-phase2-exact-enhancement",
-  "status": "verified",
-  "highestEvidenceLevel": "verified",
+  "status": "runtime_verified",
+  "highestEvidenceLevel": "runtime_verified",
   "branch": "codex/equipment-simulator-phase2-exact-enhancement",
   "commit": "7dc5467492f6966065c868604cb3cd56f42b1055",
   "identities": {
