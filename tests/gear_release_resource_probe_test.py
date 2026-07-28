@@ -315,7 +315,7 @@ class GearReleaseResourceProbeTest(unittest.TestCase):
                 self.release_id = release_id
                 return gear_release_descriptor(release_id)
 
-            def snapshot_gear_release(self, release_id):
+            def snapshot_gear_release_for_community_builder(self, release_id):
                 self.snapshot_release_id = release_id
                 return {"items": [], "sources": [], "variants": [], "options": []}
 

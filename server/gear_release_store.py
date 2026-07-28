@@ -503,9 +503,52 @@ class CandidateGearAuthorityIndex:
         self.release = _exact_release_descriptor(gear_release)
         if self.release["releaseKind"] != "gear":
             raise GearReleaseIntegrityError("candidate authority requires a Gear Release")
-        self.snapshot_summary = gear_snapshot_summary(snapshot)
-        if self.snapshot_summary != self.release["content"]:
-            raise GearReleaseIntegrityError("candidate authority snapshot does not match Gear Release")
+        projection = (
+            snapshot.get("_releaseProjection")
+            if isinstance(snapshot.get("_releaseProjection"), dict)
+            else {}
+        )
+        if projection:
+            content_counts = (
+                self.release["content"].get("counts")
+                if isinstance(self.release["content"].get("counts"), dict)
+                else {}
+            )
+            projection_counts = (
+                projection.get("projectionCounts")
+                if isinstance(projection.get("projectionCounts"), dict)
+                else {}
+            )
+            valid_projection = (
+                projection.get("schemaRevision")
+                == "community-builder-release-projection-v1"
+                and projection.get("releaseId") == self.release["releaseId"]
+                and projection.get("contentHash") == self.release["contentHash"]
+                and projection.get("fullCounts") == content_counts
+                and all(
+                    _int(projection_counts.get(category))
+                    == len(snapshot.get(category) or [])
+                    for category in ("items", "sources", "variants", "options")
+                )
+                and all(
+                    _int(projection_counts.get(category))
+                    == _int(content_counts.get(category))
+                    for category in ("items", "variants", "options")
+                )
+                and _int(projection_counts.get("sources"))
+                <= _int(content_counts.get("sources"))
+            )
+            if not valid_projection:
+                raise GearReleaseIntegrityError(
+                    "candidate authority release projection is invalid"
+                )
+            self.snapshot_summary = self.release["content"]
+        else:
+            self.snapshot_summary = gear_snapshot_summary(snapshot)
+            if self.snapshot_summary != self.release["content"]:
+                raise GearReleaseIntegrityError(
+                    "candidate authority snapshot does not match Gear Release"
+                )
         self.item_rows_by_id: dict[str, list[dict[str, Any]]] = {}
         for row in snapshot.get("items") or []:
             if not isinstance(row, dict):
@@ -1014,6 +1057,208 @@ class GearReleaseStore:
                 for row in option_rows
             ],
         }
+
+    def snapshot_gear_release_for_community_builder(
+        self,
+        release_id: str,
+    ) -> dict[str, Any]:
+        """Read a lossless builder projection without private/raw payload expansion."""
+
+        normalized = _text(release_id)
+        if not normalized:
+            raise GearReleaseIntegrityError("Gear Release ID is required")
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
+                release = self._select_release(cur, normalized)
+                if release is None:
+                    raise GearReleaseIntegrityError("Gear Release is missing")
+                release = _exact_release_descriptor(release)
+                if release["releaseKind"] != "gear":
+                    raise GearReleaseIntegrityError(
+                        "community builder projection requires a Gear Release"
+                    )
+                cur.execute(
+                    """
+                    SELECT item_id, name, slot, item_level, payload_json,
+                           source_status, source_updated_at
+                    FROM cache.websim_gear_release_items
+                    WHERE release_id = %s
+                    ORDER BY item_id
+                    """,
+                    (normalized,),
+                )
+                item_rows = cur.fetchall()
+                cur.execute(
+                    """
+                    SELECT source_id, item_id, source_type, source_key, source_label,
+                           instance_id, encounter_id, difficulty_key, season_revision,
+                           payload_json, source_updated_at
+                    FROM (
+                        SELECT DISTINCT ON (
+                                   candidate.item_id,
+                                   candidate.source_type
+                               )
+                               candidate.*
+                        FROM cache.websim_gear_release_sources candidate
+                        WHERE candidate.release_id = %s
+                        ORDER BY
+                            candidate.item_id,
+                            candidate.source_type,
+                            CASE WHEN
+                                LOWER(COALESCE(candidate.payload_json->>'status', '')) = 'verified'
+                                OR LOWER(COALESCE(candidate.payload_json->>'sourceStatus', '')) = 'verified'
+                                OR (
+                                    candidate.source_type = 'tier_set'
+                                    AND candidate.payload_json->>'authority' = 'Battle.net Game Data API'
+                                )
+                                THEN 0 ELSE 1
+                            END,
+                            candidate.source_updated_at DESC,
+                            candidate.source_id
+                    ) selected
+                    ORDER BY item_id, source_type, source_id
+                    """,
+                    (normalized,),
+                )
+                source_rows = cur.fetchall()
+                cur.execute(
+                    """
+                    SELECT variant_id, item_id, variant_key, slot, label, source_type,
+                           difficulty_key, item_level, simc_options_json, status,
+                           blockers_json,
+                           jsonb_strip_nulls(jsonb_build_object(
+                               'resolvedStats', payload_json->'resolvedStats',
+                               'itemStats', payload_json->'itemStats',
+                               'statDeltas', payload_json->'statDeltas',
+                               'capabilityOverrides', payload_json->'capabilityOverrides',
+                               'socketEvidence', payload_json->'socketEvidence',
+                               'enhancementManagement', payload_json->'enhancementManagement',
+                               'dynamicEffects', payload_json->'dynamicEffects',
+                               'itemSetId', payload_json->'itemSetId',
+                               'overlay', payload_json->'overlay',
+                               'profileUrl', payload_json->'profileUrl',
+                               'sourceProfileUrl', payload_json->'sourceProfileUrl',
+                               'sourceUrl', payload_json->'sourceUrl',
+                               'url', payload_json->'url',
+                               'observedProfileRefs', payload_json->'observedProfileRefs',
+                               'statSource', payload_json->'statSource',
+                               'statDisplayStatus', payload_json->'statDisplayStatus',
+                               'simcEncodedItem', payload_json->'simcEncodedItem',
+                               'simcItemId', payload_json->'simcItemId',
+                               'simcItemLevel', payload_json->'simcItemLevel'
+                           )),
+                           source_updated_at
+                    FROM cache.websim_gear_release_variants
+                    WHERE release_id = %s
+                    ORDER BY variant_id
+                    """,
+                    (normalized,),
+                )
+                variant_rows = cur.fetchall()
+                cur.execute(
+                    """
+                    SELECT option_id, variant_id, option_key, option_type, name,
+                           applicable_slots_json, simc_options_json, status, is_visible,
+                           payload_json, source_updated_at
+                    FROM cache.websim_gear_release_mod_options
+                    WHERE release_id = %s
+                    ORDER BY option_id
+                    """,
+                    (normalized,),
+                )
+                option_rows = cur.fetchall()
+        snapshot = {
+            "items": [
+                {
+                    "itemId": _text(row[0]),
+                    "name": _text(row[1]),
+                    "slot": _text(row[2]),
+                    "itemLevel": row[3],
+                    "payload": _canonical(row[4] if isinstance(row[4], dict) else {}),
+                    "sourceStatus": _text(row[5]),
+                    "updatedAt": _text(row[6]),
+                }
+                for row in item_rows
+            ],
+            "sources": [
+                {
+                    "sourceId": _text(row[0]),
+                    "itemId": _text(row[1]),
+                    "sourceType": _text(row[2]),
+                    "sourceKey": _text(row[3]),
+                    "sourceLabel": _text(row[4]),
+                    "instanceId": _text(row[5]),
+                    "encounterId": _text(row[6]),
+                    "difficultyKey": _text(row[7]),
+                    "seasonRevision": _text(row[8]),
+                    "payload": _canonical(row[9] if isinstance(row[9], dict) else {}),
+                    "updatedAt": _text(row[10]),
+                }
+                for row in source_rows
+            ],
+            "variants": [
+                {
+                    "variantId": _text(row[0]),
+                    "itemId": _text(row[1]),
+                    "variantKey": _text(row[2]),
+                    "slot": _text(row[3]),
+                    "label": _text(row[4]),
+                    "sourceType": _text(row[5]),
+                    "difficultyKey": _text(row[6]),
+                    "itemLevel": _int(row[7]),
+                    "simcOptions": _canonical(row[8] if isinstance(row[8], dict) else {}),
+                    "status": _text(row[9]),
+                    "blockers": _canonical(row[10] if isinstance(row[10], list) else []),
+                    "payload": _canonical(row[11] if isinstance(row[11], dict) else {}),
+                    "updatedAt": _text(row[12]),
+                }
+                for row in variant_rows
+            ],
+            "options": [
+                {
+                    "optionId": _text(row[0]),
+                    "variantId": _text(row[1]),
+                    "optionKey": _text(row[2]),
+                    "optionType": _text(row[3]),
+                    "name": _text(row[4]),
+                    "applicableSlots": _canonical(row[5] if isinstance(row[5], list) else []),
+                    "simcOptions": _canonical(row[6] if isinstance(row[6], dict) else {}),
+                    "status": _text(row[7]),
+                    "isVisible": row[8] is True,
+                    "payload": _canonical(row[9] if isinstance(row[9], dict) else {}),
+                    "updatedAt": _text(row[10]),
+                }
+                for row in option_rows
+            ],
+        }
+        full_counts = (
+            release["content"].get("counts")
+            if isinstance(release["content"].get("counts"), dict)
+            else {}
+        )
+        projection_counts = {
+            category: len(snapshot[category])
+            for category in ("items", "sources", "variants", "options")
+        }
+        if (
+            any(
+                projection_counts[category] != _int(full_counts.get(category))
+                for category in ("items", "variants", "options")
+            )
+            or projection_counts["sources"] > _int(full_counts.get("sources"))
+        ):
+            raise GearReleaseIntegrityError(
+                "community builder release projection row counts are invalid"
+            )
+        snapshot["_releaseProjection"] = {
+            "schemaRevision": "community-builder-release-projection-v1",
+            "releaseId": release["releaseId"],
+            "contentHash": release["contentHash"],
+            "fullCounts": _canonical(full_counts),
+            "projectionCounts": projection_counts,
+        }
+        return snapshot
 
     def snapshot_staging_community_templates(
         self,

@@ -150,7 +150,9 @@ def main(
     release = store.get_release(args.gear_release_id)
     if not release:
         raise ResourceProbeError("resource probe Gear Release is unavailable")
-    snapshot = store.snapshot_gear_release(args.gear_release_id)
+    snapshot = store.snapshot_gear_release_for_community_builder(
+        args.gear_release_id
+    )
     dependencies = (
         release.get("dependencyRevisions")
         if isinstance(release.get("dependencyRevisions"), dict)
