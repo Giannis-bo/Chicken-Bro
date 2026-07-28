@@ -2506,6 +2506,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("command", choices=("build-legacy-gear", "build-legacy-all", "show", "shadow", "promote", "rollback"))
     parser.add_argument("--season-revision", default="")
     parser.add_argument("--simc-runtime-revision", default="")
+    parser.add_argument("--source-revision", default="legacy-import-r0")
     parser.add_argument("--release-id", default="")
     parser.add_argument("--gear-release-id", default="")
     parser.add_argument("--community-release-id", default="")
@@ -2634,6 +2635,7 @@ def main(argv=None) -> int:
         season_revision=args.season_revision,
         dependency_revisions=dependencies,
         socket_bonus_minimums=socket_bonus_minimums,
+        source_revision=args.source_revision,
     )
     output = {"gear": {"release": gear["release"], "gate": gear["gate"], "seal": gear["seal"]}}
     if args.command == "build-legacy-all":
@@ -2645,6 +2647,7 @@ def main(argv=None) -> int:
             expected_specs=expected_spec_pairs(),
             now=datetime.now(timezone.utc).isoformat(timespec="seconds"),
             level=args.level,
+            source_revision=args.source_revision,
         )
         output["community"] = {"release": community["release"], "gate": community["gate"], "seal": community["seal"]}
     print(json.dumps(output, ensure_ascii=False, sort_keys=True))

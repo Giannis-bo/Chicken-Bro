@@ -785,6 +785,38 @@ class GearReleaseStoreTest(unittest.TestCase):
         self.assertTrue(conn.committed)
         self.assertFalse(conn.rolled_back)
 
+    def test_insert_gear_rows_bounds_each_executemany_batch(self):
+        from server.gear_release_store import GearReleaseStore
+
+        snapshot = {
+            "items": [
+                {
+                    "itemId": f"item-{index:04d}",
+                    "name": f"Item {index}",
+                    "slot": "head",
+                    "itemLevel": 289,
+                    "sourceStatus": "verified",
+                    "payload": {"itemStats": [{"key": "stamina", "value": index + 1}]},
+                    "updatedAt": "2026-07-28T12:00:00+00:00",
+                }
+                for index in range(501)
+            ],
+            "sources": [],
+            "variants": [],
+            "options": [],
+        }
+        cursor = FakeCursor()
+
+        GearReleaseStore._insert_gear_rows(cursor, "gear-release:test", snapshot)
+
+        item_batches = [
+            values
+            for statement, values in cursor.executemany_calls
+            if "INSERT INTO cache.websim_gear_release_items" in statement
+        ]
+        self.assertEqual([len(values) for values in item_batches], [250, 250, 1])
+        self.assertTrue(all(len(values) <= 250 for values in item_batches))
+
     def test_seal_release_is_idempotent_only_for_exact_existing_descriptor(self):
         from server.gear_release_store import GearReleaseIntegrityError, GearReleaseStore
 

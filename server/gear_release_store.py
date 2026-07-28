@@ -225,6 +225,19 @@ def _canonical_rows(rows: Any) -> list[dict[str, Any]]:
     return sorted(values, key=lambda row: _canonical_bytes(row))
 
 
+def _row_batches(rows: Any, batch_size: int = 250) -> Iterable[list[dict[str, Any]]]:
+    batch: list[dict[str, Any]] = []
+    for row in rows or []:
+        if not isinstance(row, dict):
+            continue
+        batch.append(row)
+        if len(batch) >= batch_size:
+            yield batch
+            batch = []
+    if batch:
+        yield batch
+
+
 def _gear_snapshot_hash_and_counts(
     snapshot: dict[str, Any],
 ) -> tuple[str, dict[str, int]]:
@@ -2783,11 +2796,7 @@ class GearReleaseStore:
 
     @staticmethod
     def _insert_gear_rows(cur, release_id: str, snapshot: dict[str, Any]) -> None:
-        items = _canonical_rows(snapshot.get("items"))
-        sources = _canonical_rows(snapshot.get("sources"))
-        variants = _canonical_rows(snapshot.get("variants"))
-        options = _canonical_rows(snapshot.get("options"))
-        if items:
+        for items in _row_batches(snapshot.get("items")):
             cur.executemany(
                 """
                 INSERT INTO cache.websim_gear_release_items (
@@ -2805,7 +2814,7 @@ class GearReleaseStore:
                     for row in items
                 ],
             )
-        if sources:
+        for sources in _row_batches(snapshot.get("sources")):
             cur.executemany(
                 """
                 INSERT INTO cache.websim_gear_release_sources (
@@ -2826,7 +2835,7 @@ class GearReleaseStore:
                     for row in sources
                 ],
             )
-        if variants:
+        for variants in _row_batches(snapshot.get("variants")):
             cur.executemany(
                 """
                 INSERT INTO cache.websim_gear_release_variants (
@@ -2847,7 +2856,7 @@ class GearReleaseStore:
                     for row in variants
                 ],
             )
-        if options:
+        for options in _row_batches(snapshot.get("options")):
             cur.executemany(
                 """
                 INSERT INTO cache.websim_gear_release_mod_options (

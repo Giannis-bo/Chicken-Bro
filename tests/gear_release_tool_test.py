@@ -3436,20 +3436,29 @@ class GearReleaseToolTest(unittest.TestCase):
             gear_release_tool,
             "build_legacy_gear_release",
             return_value=gear_result,
-        ), patch.object(
+        ) as build_gear, patch.object(
             gear_release_tool,
             "build_legacy_community_release",
             return_value=community_result,
-        ), redirect_stdout(output):
+        ) as build_community, redirect_stdout(output):
             status = gear_release_tool.main([
                 "build-legacy-all",
                 "--season-revision", "season-17",
                 "--simc-runtime-revision", "simc-r1",
+                "--source-revision", "phase0-unblock-r1",
             ])
 
         self.assertEqual(status, 0)
         rendered = json.loads(output.getvalue())
         self.assertEqual(rendered["community"]["gate"]["rankOneRejections"], [evidence])
+        self.assertEqual(
+            build_gear.call_args.kwargs["source_revision"],
+            "phase0-unblock-r1",
+        )
+        self.assertEqual(
+            build_community.call_args.kwargs["source_revision"],
+            "phase0-unblock-r1",
+        )
 
     def test_build_legacy_community_release_keeps_rejected_internal_and_degraded(self):
         from server.gear_release_store import gear_snapshot_summary
