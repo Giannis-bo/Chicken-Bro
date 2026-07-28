@@ -64,6 +64,11 @@
   `variantKey` 作为第二身份；这些 direct key 是当前制造副属性选择，不是 Browse
   membership。现在 direct key 只在 variants 缺失时作为兼容 fallback，并新增每专精
   cardinality mismatch 阻断，避免仅凭“全部可映射”掩盖多对一差异。
+- 第十次候选通过严格验收：40/40 verified、0 unmapped、0 cardinality mismatch，
+  legacy 与 dormant 可见身份总数同为 13,297；Catalog 精确为 613 ItemDefinition /
+  1,309 BrowseVariant，确定性 build、逐行 load、不可变 trigger、generation 32 pointer
+  fence、871,588 KiB / 168.44 秒 / 0 swap、活动代码 SHA、服务/API/timer/回滚证据均通过。
+  全局数据健康仍如实为 `partial`，不由 dormant Catalog 候选冒充全局成功。
 - 全局 `/api/data/health` 仍为 `partial`。本阶段不把旧 staging/refresh owner
   冒充成新的 Catalog 健康成功，也不在完成 shadow 前迁移 health owner。
 

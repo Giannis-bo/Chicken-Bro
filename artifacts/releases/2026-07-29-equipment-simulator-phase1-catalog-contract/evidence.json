@@ -2,14 +2,15 @@
   "schemaVersion": 2,
   "slug": "equipment-simulator-phase1-catalog-contract",
   "requirementSlug": "equipment-simulator-phase1-catalog-contract",
-  "status": "local_verified",
-  "highestEvidenceLevel": "local_verified",
+  "status": "runtime_verified",
+  "highestEvidenceLevel": "runtime_verified",
   "branch": "codex/equipment-simulator-phase1-catalog-contract",
-  "commit": "pending_runtime_head",
+  "commit": "0fdcf123895f02940401e53b39419f29d44204b3",
   "identities": {
     "runtime": {
-      "status": "pending",
-      "reason": "The implementation is locally verified but has not yet been bound to an immutable candidate commit and cloud Catalog."
+      "status": "bound",
+      "kind": "git_commit",
+      "value": "0fdcf123895f02940401e53b39419f29d44204b3"
     },
     "verification": {
       "status": "pending",
@@ -51,8 +52,8 @@
     },
     {
       "command": "candidate dormant Catalog migration and production shadow",
-      "status": "blocked",
-      "summary": "The ninth candidate reported 40/40 with zero unmapped at 871,700 KiB, 166.57 seconds and zero swap, but promotion audit blocked it because legacy identity total 13,980 exceeded canonical mapped total 13,297 by 683 direct crafted-selection aliases. Direct keys are now fallback-only and an explicit per-spec cardinality gate prevents recurrence."
+      "status": "pass",
+      "summary": "Immutable candidate 0fdcf123 passed deterministic build/seal/load, exact 613/1309 membership, 40/40 specialization parity, zero unmapped, zero cardinality mismatch, equal legacy/dormant visible totals of 13297, stable generation-32 pointer, 871588 KiB peak RSS, 168.44 seconds and zero swap."
     },
     {
       "command": "exact-head Project Harness full profile and PR CI",
@@ -61,8 +62,34 @@
     }
   ],
   "candidateDeployment": {
-    "status": "catalog_sealed_shadow_retry_pending",
-    "reason": "Migration 0019 is applied and Catalog gear-catalog:sha256:2addca2ff52fdcc2d23c369572c88fba9919332927f07f10350d700654e5aa34 is sealed with 613 ItemDefinitions and 1309 BrowseVariants. A strict cardinality 40-spec retry is pending after promotion audit rejected the ninth candidate's 683 duplicate direct crafted-selection aliases."
+    "status": "candidate_verified",
+    "requiredBeforeMerge": true,
+    "branch": "codex/equipment-simulator-phase1-catalog-contract",
+    "commit": "0fdcf123895f02940401e53b39419f29d44204b3",
+    "gitTree": "b3946ec4190fb0aa67830421212e60127ab21614",
+    "host": "wow-lighthouse",
+    "candidatePath": "/opt/wow-mini-program-candidates/gear-catalog-0fdcf123.OvnuIg",
+    "runtimePath": "/opt/wow-mini-program",
+    "baseUrl": "http://127.0.0.1:8787",
+    "catalogRevision": "gear-catalog:sha256:2addca2ff52fdcc2d23c369572c88fba9919332927f07f10350d700654e5aa34",
+    "manifestRevision": "season-manifest:sha256:b79e6226c7dc406c2e729cf01cf6d86f4944b760b8e8cc185dcd4347032fedb6",
+    "pointerGeneration": 32,
+    "runtimeFileParity": {
+      "status": "pass",
+      "summary": "The five Phase 1 runtime/migration files in /opt/wow-mini-program match immutable candidate 0fdcf123 by SHA-256. These dormant owners are not imported by the active backend, so no service restart was required."
+    },
+    "smoke": {
+      "status": "pass",
+      "summary": "Strict candidate shadow, exact Catalog load, update/delete trigger checks, app SELECT/INSERT permissions, /health, season, initial and slot gear API smoke passed. Global /api/data/health remains literally partial under pre-existing owners."
+    },
+    "timerBackflow": {
+      "status": "pass",
+      "summary": "Existing follow-up, observed-backfill, Community, SimC version, WebSim and stat-weight timers retained their schedules; WOW_DEPLOY_START_ASYNC_SYNCS=0 and no sync was auto-triggered."
+    },
+    "rollback": {
+      "status": "pass",
+      "summary": "The active Manifest pointer never changed. Schema/control dumps and the replaced audit-store file backup remain present with verified SHA-256; dormant sealed rows are unreferenced by public readers."
+    }
   },
   "runtimeEvidence": [
     {
@@ -260,6 +287,63 @@
         "cardinalityDifference": 683
       },
       "interpretation": "The raw report mapped every legacy alias, but promotion audit found item-level direct crafted-selection keys duplicated identities already present in variants lists. The candidate was not promoted; fallback-only direct keys and an explicit cardinality gate are now tested."
+    },
+    {
+      "candidateCommit": "0fdcf123895f02940401e53b39419f29d44204b3",
+      "status": "verified",
+      "reportId": "gear-catalog-shadow:sha256:f263ef9b48bd08271fc266461582c3f6cea36ca1e62db5decb20d5cbfbaf57be",
+      "catalogRevision": "gear-catalog:sha256:2addca2ff52fdcc2d23c369572c88fba9919332927f07f10350d700654e5aa34",
+      "sourceGearReleaseId": "gear-release:sha256:9299fe1f942dc272f402e4d735d6a1bf8111a8f156464e0777cd6df78769edc7",
+      "contentSummary": {
+        "itemDefinitionCount": 613,
+        "browseVariantCount": 1309,
+        "legacyBrowseVariantRowCount": 1674,
+        "craftedEnhancementSelectionRowCount": 438,
+        "collapsedCraftedVariantRowCount": 365,
+        "excludedDormantItemCount": 697
+      },
+      "specShadow": {
+        "verifiedSpecCount": 40,
+        "blockedSpecCount": 0,
+        "unmappedCandidateCount": 0,
+        "cardinalityMismatchCount": 0,
+        "collapsedAliasCount": 0,
+        "legacyVisibleCandidateTotal": 13297,
+        "dormantVisibleCandidateTotal": 13297
+      },
+      "deterministicBuild": true,
+      "exactLoadVerifyProblems": [],
+      "elapsedSeconds": 168.44,
+      "maxRssKiB": 871588,
+      "swapPeakBytes": 0,
+      "memoryLimitBytes": 2000000000,
+      "runtimeLimitSeconds": 300,
+      "pointerGenerationBefore": 32,
+      "pointerGenerationAfter": 32,
+      "pointerStable": true,
+      "sealedCatalogRows": {
+        "revisions": 1,
+        "itemDefinitions": 613,
+        "browseVariants": 1309
+      },
+      "immutability": {
+        "catalogRevisionUpdateBlocked": true,
+        "catalogRevisionDeleteBlocked": true,
+        "itemDefinitionUpdateBlocked": true,
+        "itemDefinitionDeleteBlocked": true,
+        "browseVariantUpdateBlocked": true,
+        "browseVariantDeleteBlocked": true
+      },
+      "serviceSmoke": {
+        "backendActive": true,
+        "workerActive": true,
+        "backendRestarts": 0,
+        "workerRestarts": 0,
+        "healthHttpStatus": 200,
+        "dataHealthOverallStatus": "partial",
+        "initialGearStatus": "verified",
+        "slotGearStatus": "verified"
+      }
     }
   ],
   "risks": [
@@ -275,8 +359,8 @@
     },
     {
       "id": "active-pointer-safety",
-      "status": "open",
-      "detail": "Production candidate execution must prove the active generation-32 pointer is unchanged."
+      "status": "controlled_by_candidate",
+      "detail": "Production candidate, exact load, immutability and API smoke all retained the active generation-32 pointer and manifest revision."
     },
     {
       "id": "dormant-item-membership",
@@ -312,5 +396,5 @@
   "archivedReferences": [
     "artifacts/releases/2026-07-28-equipment-simulator-phase0-unblock/evidence.json"
   ],
-  "summary": "The dormant Catalog builder, append-only schema/store and bounded 40-specialization shadow are locally implemented and verified. Migration 0019 and the immutable 613/1309 Catalog are sealed; promotion audit rejected the ninth candidate despite raw 40/40 because 683 direct crafted-selection aliases violated cardinality. Fallback-only direct keys and strict cardinality are fixed under RED/GREEN tests and await a fresh bounded candidate. No active pointer or public reader change has occurred."
+  "summary": "Immutable candidate 0fdcf123 is runtime verified: Catalog gear-catalog:sha256:2addca2f... seals and exactly loads 613 ItemDefinitions plus 1309 BrowseVariants, strict 40/40 shadow has zero unmapped and zero cardinality mismatch with equal 13297 visible totals, resources stay in budget, immutability and runtime parity pass, and generation 32 is unchanged. Full exact-head repository verification, PR CI, merge and archive closure remain."
 }
