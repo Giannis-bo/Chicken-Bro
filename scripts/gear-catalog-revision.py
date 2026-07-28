@@ -175,6 +175,19 @@ def _catalog_binding(snapshot: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
+def _full_spec_catalog_payload(
+    cache_store: Any,
+    class_key: str,
+    spec_key: str,
+) -> Mapping[str, Any]:
+    return cache_store.get_websim_gear(
+        class_key=class_key,
+        spec_key=spec_key,
+        compact=True,
+        mode="",
+    )
+
+
 def _source_variant_aliases(
     rows: Mapping[str, Any],
 ) -> dict[tuple[str, str], str]:
@@ -428,11 +441,10 @@ def main(argv: list[str] | None = None) -> int:
             snapshot_reader=audit_store.snapshot,
             pointer_reader=audit_store.pointer_identity,
             seal_writer=catalog_store.seal_catalog,
-            spec_payload_reader=lambda class_key, spec_key: cache_store.get_websim_gear(
-                class_key=class_key,
-                spec_key=spec_key,
-                compact=True,
-                mode="initial",
+            spec_payload_reader=lambda class_key, spec_key: _full_spec_catalog_payload(
+                cache_store,
+                class_key,
+                spec_key,
             ),
             class_spec_matrix=WOW_CLASSES,
             statement_timeout_ms=args.statement_timeout_ms,

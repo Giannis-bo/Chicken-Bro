@@ -84,6 +84,33 @@ def spec_payload(class_key, spec_key):
 
 
 class GearCatalogRevisionCliTest(unittest.TestCase):
+    def test_full_spec_reader_requests_catalog_payload_not_initial_preview(self):
+        calls = []
+
+        class FakeCacheStore:
+            def get_websim_gear(self, **kwargs):
+                calls.append(kwargs)
+                return {"catalogStatus": "verified"}
+
+        payload = revision_cli._full_spec_catalog_payload(
+            FakeCacheStore(),
+            "mage",
+            "arcane",
+        )
+
+        self.assertEqual(payload, {"catalogStatus": "verified"})
+        self.assertEqual(
+            calls,
+            [
+                {
+                    "class_key": "mage",
+                    "spec_key": "arcane",
+                    "compact": True,
+                    "mode": "",
+                }
+            ],
+        )
+
     def test_run_builds_twice_seals_and_proves_40_spec_shadow_without_pointer_change(self):
         sealed = []
 

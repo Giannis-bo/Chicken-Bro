@@ -42,7 +42,7 @@
     {
       "command": "CatalogRevision RED/GREEN focused suites",
       "status": "pass",
-      "summary": "67 focused Catalog builder, formal membership, append-only store, migration schema, fixed-query projection and 40-specialization shadow tests pass. RED failures were observed before the builder, store, migration and CLI existed, before dormant metadata exclusion, before persisted-order identity plus observed Ascendant eligibility, and before order-independent seal semantics were implemented."
+      "summary": "68 focused Catalog builder, formal membership, append-only store, migration schema, fixed-query projection and 40-specialization shadow tests pass. RED failures were observed before the builder, store, migration and CLI existed, before dormant metadata exclusion, before persisted-order identity plus observed Ascendant eligibility, before order-independent seal semantics, and before full-catalog shadow reads were implemented."
     },
     {
       "command": "pre-candidate repository verification",
@@ -52,7 +52,7 @@
     {
       "command": "candidate dormant Catalog migration and production shadow",
       "status": "blocked",
-      "summary": "Three immutable candidates failed closed and left all dormant Catalog tables empty: raw slot metadata membership, persisted identity/observed Ascendant parity, and order-sensitive post-seal semantic comparison were each reproduced and corrected under RED/GREEN tests. Pointer generation 32 remained unchanged. A fresh immutable candidate run is pending."
+      "summary": "The fourth immutable candidate successfully sealed and verified the exact 613/1309 dormant Catalog with deterministic identity and a stable generation-32 pointer. Its 40-spec shadow then blocked because the CLI read the intentionally empty initial template preview rather than the full catalog. The full payload reader correction is locally verified and awaits a fresh immutable candidate."
     },
     {
       "command": "exact-head Project Harness full profile and PR CI",
@@ -61,8 +61,8 @@
     }
   ],
   "candidateDeployment": {
-    "status": "correction_pending_retry",
-    "reason": "Migration 0019 is applied to the production database, but the first three candidates failed closed and rolled back before seal. The corrected immutable candidate has not yet been deployed or executed."
+    "status": "catalog_sealed_shadow_retry_pending",
+    "reason": "Migration 0019 is applied and Catalog gear-catalog:sha256:2addca2ff52fdcc2d23c369572c88fba9919332927f07f10350d700654e5aa34 is sealed with 613 ItemDefinitions and 1309 BrowseVariants. Full-catalog 40-spec shadow verification is pending on the corrected immutable candidate."
   },
   "runtimeEvidence": [
     {
@@ -114,6 +114,35 @@
         "excludedDormantItemCount": 697
       },
       "interpretation": "The candidate built and individually verified the full expected membership, then rolled back because store semantics still compared SQL-returned arrays by position. Stable-key comparison now preserves strict row hashes and full Catalog identity while treating member order as non-semantic."
+    },
+    {
+      "candidateCommit": "1c512a99f39c32ee5a56980866ae251abd442725",
+      "status": "blocked",
+      "problemCodes": [
+        "CATALOG_SHADOW_SPEC_CANDIDATES_MISSING"
+      ],
+      "reportId": "gear-catalog-shadow:sha256:daa68399c0bbe0eb76b5da37743749d870088d02519e36f54d02499a45bbd396",
+      "catalogRevision": "gear-catalog:sha256:2addca2ff52fdcc2d23c369572c88fba9919332927f07f10350d700654e5aa34",
+      "elapsedSeconds": 33.64,
+      "maxRssKiB": 876160,
+      "pointerGenerationBefore": 32,
+      "pointerGenerationAfter": 32,
+      "sealedCatalogRows": {
+        "revisions": 1,
+        "itemDefinitions": 613,
+        "browseVariants": 1309
+      },
+      "observedBuildCounts": {
+        "itemDefinitionCount": 613,
+        "browseVariantCount": 1309,
+        "excludedDormantItemCount": 697
+      },
+      "specShadow": {
+        "verifiedSpecCount": 0,
+        "blockedSpecCount": 40,
+        "unmappedCandidateCount": 0
+      },
+      "interpretation": "Build, append-only seal, exact read-back and pointer fence passed. Shadow used mode=initial, which is an intentionally empty template preview; a production probe confirmed the full mage/arcane catalog returned 199 items and 730 variants."
     }
   ],
   "risks": [
@@ -141,6 +170,11 @@
       "id": "persisted-order-and-ascendant-parity",
       "status": "controlled_by_tests",
       "detail": "Catalog identity canonicalizes member order, while verified item-level-298 exact evidence is applied to ordinary Ascendant Track Authority before BrowseVariant construction."
+    },
+    {
+      "id": "shadow-payload-mode",
+      "status": "controlled_by_tests",
+      "detail": "The 40-specialization verifier explicitly requests the complete compact catalog payload; initial template preview mode is excluded from parity evidence."
     }
   ],
   "rollback": [
@@ -156,5 +190,5 @@
   "archivedReferences": [
     "artifacts/releases/2026-07-28-equipment-simulator-phase0-unblock/evidence.json"
   ],
-  "summary": "The dormant Catalog builder, append-only schema/store and bounded 40-specialization shadow are locally implemented and verified. Migration 0019 is applied; three candidates correctly failed closed and rolled back all Catalog rows, exposing raw membership, persisted-order, observed Ascendant parity and seal-comparison defects that are now fixed under RED/GREEN tests. A fresh immutable candidate is pending. No active pointer or public reader change has occurred."
+  "summary": "The dormant Catalog builder, append-only schema/store and bounded 40-specialization shadow are locally implemented and verified. Migration 0019 and the immutable 613/1309 Catalog are sealed; the fourth candidate passed build, read-back and pointer fencing but correctly blocked an empty initial-preview shadow. Full-catalog shadow reading is fixed under RED/GREEN tests and awaits a fresh immutable candidate. No active pointer or public reader change has occurred."
 }

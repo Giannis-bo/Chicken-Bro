@@ -39,6 +39,10 @@
 - 第三次候选生成了完整 613/1,309 成员，但暴露 store 的 seal 后语义比较仍按 SQL
   返回顺序比较数组；事务再次完整回滚。store 现按成员稳定键比较集合，同时继续对每行
   内容哈希和完整 CatalogRevision 做严格验证。
+- 第四次候选已成功 seal 并回读 613/1,309 Catalog，pointer generation 32 保持不变；
+  40 专精 shadow 随后因误读 `mode=initial` 的模板预览而全部报告空候选。生产探针证明
+  full catalog payload 正常返回候选，shadow reader 现固定读取 full catalog，不再把
+  首屏模板预览当作完整装备目录。
 - 全局 `/api/data/health` 仍为 `partial`。本阶段不把旧 staging/refresh owner
   冒充成新的 Catalog 健康成功，也不在完成 shadow 前迁移 health owner。
 
