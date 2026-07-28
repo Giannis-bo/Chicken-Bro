@@ -177,6 +177,19 @@ def _blocked(code: str, message: str) -> dict[str, Any]:
     }
 
 
+def _blocked_with_progression(
+    code: str,
+    message: str,
+    record: _TrackRecord,
+    progression_state: Mapping[str, Any],
+) -> dict[str, Any]:
+    return {
+        **_blocked(code, message),
+        "recordKey": record.recordKey,
+        "progressionState": dict(progression_state),
+    }
+
+
 def _public_record(record: _TrackRecord) -> dict[str, Any]:
     payload = asdict(record)
     payload["seasonRevision"] = _SEASON_REVISION
@@ -287,54 +300,20 @@ def resolve_legacy_browse_progression(
 
     rank_is_present, dedicated_rank = _dedicated_rank(row)
     if record.progressionKind == "upgrade_track":
-        if rank_is_present and dedicated_rank != record.maxRank:
-            return _blocked(
-                "TRACK_AUTHORITY_RANK_MISMATCH",
-                "Dedicated track rank does not match the bound maximum rank.",
-            )
         progression_state = {
             "kind": "upgrade_track",
             "trackKey": record.publicTrackKey,
             "rank": record.maxRank,
             "maxRank": record.maxRank,
         }
+        if rank_is_present and dedicated_rank != record.maxRank:
+            return _blocked_with_progression(
+                "TRACK_AUTHORITY_RANK_MISMATCH",
+                "Dedicated track rank does not match the bound maximum rank.",
+                record,
+                progression_state,
+            )
     else:
-        if rank_is_present:
-            return _blocked(
-                "TRACK_AUTHORITY_RANK_FORBIDDEN",
-                "Crafted quality and Ascendant progression states do not carry rank.",
-            )
-        slot = _normalized_slot(row.get("slot"))
-        if record.recordKey == "crafted_myth" and not _has_crafted_stats(row):
-            return _blocked(
-                "TRACK_AUTHORITY_CRAFTED_STATS_MISSING",
-                "Crafted-quality legacy rows require one explicit crafted-stat selection.",
-            )
-        if record.recordKey == "void_upgrade" and not (
-            slot in record.eligibleSlots
-            or row.get("hasVoidInstanceSource") is True
-            or row.get("hasObservedAscendantEvidence") is True
-        ):
-            return _blocked(
-                "TRACK_AUTHORITY_ASCENDANT_ELIGIBILITY_UNPROVEN",
-                "Ordinary Ascendant eligibility lacks a governed slot, source, or observed exact-instance fact.",
-            )
-        if record.recordKey == "crafted_void_upgrade":
-            if slot not in record.eligibleSlots:
-                return _blocked(
-                    "TRACK_AUTHORITY_CRAFTED_SLOT_UNSUPPORTED",
-                    "Crafted Ascendant eligibility is restricted to governed weapon slots.",
-                )
-            if not _has_crafted_stats(row):
-                return _blocked(
-                    "TRACK_AUTHORITY_CRAFTED_STATS_MISSING",
-                    "Crafted Ascendant rows require one explicit crafted-stat selection.",
-                )
-            if row.get("hasTrackEvidence") is not True:
-                return _blocked(
-                    "TRACK_AUTHORITY_TRACK_EVIDENCE_MISSING",
-                    "Crafted Ascendant rows require explicit verified track evidence.",
-                )
         progression_state = {
             "kind": record.progressionKind,
             "trackKey": record.publicTrackKey,
@@ -343,6 +322,54 @@ def resolve_legacy_browse_progression(
             progression_state["originKind"] = record.originKind
         if record.qualityKey:
             progression_state["qualityKey"] = record.qualityKey
+        if rank_is_present:
+            return _blocked_with_progression(
+                "TRACK_AUTHORITY_RANK_FORBIDDEN",
+                "Crafted quality and Ascendant progression states do not carry rank.",
+                record,
+                progression_state,
+            )
+        slot = _normalized_slot(row.get("slot"))
+        if record.recordKey == "crafted_myth" and not _has_crafted_stats(row):
+            return _blocked_with_progression(
+                "TRACK_AUTHORITY_CRAFTED_STATS_MISSING",
+                "Crafted-quality legacy rows require one explicit crafted-stat selection.",
+                record,
+                progression_state,
+            )
+        if record.recordKey == "void_upgrade" and not (
+            slot in record.eligibleSlots
+            or row.get("hasVoidInstanceSource") is True
+            or row.get("hasObservedAscendantEvidence") is True
+        ):
+            return _blocked_with_progression(
+                "TRACK_AUTHORITY_ASCENDANT_ELIGIBILITY_UNPROVEN",
+                "Ordinary Ascendant eligibility lacks a governed slot, source, or observed exact-instance fact.",
+                record,
+                progression_state,
+            )
+        if record.recordKey == "crafted_void_upgrade":
+            if slot not in record.eligibleSlots:
+                return _blocked_with_progression(
+                    "TRACK_AUTHORITY_CRAFTED_SLOT_UNSUPPORTED",
+                    "Crafted Ascendant eligibility is restricted to governed weapon slots.",
+                    record,
+                    progression_state,
+                )
+            if not _has_crafted_stats(row):
+                return _blocked_with_progression(
+                    "TRACK_AUTHORITY_CRAFTED_STATS_MISSING",
+                    "Crafted Ascendant rows require one explicit crafted-stat selection.",
+                    record,
+                    progression_state,
+                )
+            if row.get("hasTrackEvidence") is not True:
+                return _blocked_with_progression(
+                    "TRACK_AUTHORITY_TRACK_EVIDENCE_MISSING",
+                    "Crafted Ascendant rows require explicit verified track evidence.",
+                    record,
+                    progression_state,
+                )
 
     return {
         "status": "verified",

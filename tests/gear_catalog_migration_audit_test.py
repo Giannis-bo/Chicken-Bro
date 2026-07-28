@@ -12,6 +12,21 @@ from server.gear_catalog_migration_audit import (
 )
 
 
+CURRENT_BINDING = {
+    "seasonRevision": "season-17-f131dd36ddf1",
+    "gearRuleRevision": "gear-rule-matrix-v1",
+}
+
+
+def catalog_binding(**overrides):
+    return {
+        "manifestRevision": "season-manifest:sha256:" + ("1" * 64),
+        "gearReleaseId": "gear-release:sha256:" + ("2" * 64),
+        **CURRENT_BINDING,
+        **overrides,
+    }
+
+
 def complete_catalog_rows():
     return {
         "items": [
@@ -29,7 +44,8 @@ def complete_catalog_rows():
                 "rowFamily": "browse",
                 "trackKey": "hero",
                 "trackRank": 6,
-                "itemLevel": 285,
+                "itemLevel": 276,
+                "sourceType": "raid",
                 "bonusIds": ["9001", "9002"],
                 "staticStats": {"haste_rating": 120, "mastery_rating": 80},
             }
@@ -43,6 +59,41 @@ def complete_catalog_rows():
             }
         ],
     }
+
+
+def crafted_catalog_rows():
+    items = []
+    variants = []
+    families = (
+        ("crafted-myth", 54, "myth", 285, "head", False),
+        ("crafted-ascendant", 19, "void_upgrade", 295, "main_hand", True),
+    )
+    for prefix, item_count, track_key, item_level, slot, has_track_evidence in families:
+        for item_index in range(item_count):
+            item_id = f"{prefix}-{item_index:02d}"
+            items.append({"itemId": item_id, "slot": slot})
+            for stats_index in range(6):
+                variants.append(
+                    {
+                        "variantId": f"{item_id}-stats-{stats_index}",
+                        "itemId": item_id,
+                        "rowFamily": "browse",
+                        "trackKey": track_key,
+                        "itemLevel": item_level,
+                        "slot": slot,
+                        "sourceType": "crafted",
+                        "hasTrackEvidence": has_track_evidence,
+                        "bonusIds": [],
+                        "simcOptions": {
+                            "crafted_stats": f"{32 + stats_index}/{36 + stats_index}",
+                        },
+                        "staticStats": {
+                            "stamina": 100 + item_index,
+                            "haste_rating": 20 + stats_index,
+                        },
+                    }
+                )
+    return {"items": items, "variants": variants, "options": []}
 
 
 def exact_template(template_id="template-1"):
@@ -98,10 +149,7 @@ def complete_resource_rows():
 def complete_inputs():
     return {
         "catalog": audit_catalog_mapping(
-            {
-                "manifestRevision": "season-manifest:sha256:" + ("1" * 64),
-                "gearReleaseId": "gear-release:sha256:" + ("2" * 64),
-            },
+            catalog_binding(),
             complete_catalog_rows(),
         ),
         "templates": audit_template_exactness(
@@ -172,20 +220,24 @@ class GearCatalogMigrationAuditTest(unittest.TestCase):
         self.assertEqual(result["status"], "partial")
         self.assertIn("RESOURCE_BASELINE_UNKNOWN", result["problemCodes"])
 
-    def test_browse_variant_requires_track_rank_ilevel_bonus_ids_and_static_stats(self):
+    def test_regular_browse_uses_authority_rank_but_still_requires_static_stats(self):
         rows = complete_catalog_rows()
         rows["variants"][0].pop("trackRank")
         rows["variants"][0].pop("staticStats")
 
         result = audit_catalog_mapping(
-            {"manifestRevision": "manifest-1", "gearReleaseId": "release-1"},
+            catalog_binding(manifestRevision="manifest-1", gearReleaseId="release-1"),
             rows,
         )
 
         self.assertEqual(result["status"], "blocked")
         self.assertEqual(result["mappedVariantCount"], 0)
-        self.assertIn("CATALOG_VARIANT_RANK_MISSING", result["problemCodes"])
+        self.assertNotIn("CATALOG_VARIANT_RANK_MISSING", result["problemCodes"])
         self.assertIn("CATALOG_VARIANT_STATIC_STATS_MISSING", result["problemCodes"])
+        self.assertEqual(
+            result["progressionCounts"]["upgrade_track"]["canonicalCandidateCount"],
+            1,
+        )
 
     def test_exact_instance_ranking_field_never_becomes_browse_track_rank(self):
         rows = complete_catalog_rows()
@@ -204,7 +256,7 @@ class GearCatalogMigrationAuditTest(unittest.TestCase):
         )
 
         result = audit_catalog_mapping(
-            {"manifestRevision": "manifest-1", "gearReleaseId": "release-1"},
+            catalog_binding(manifestRevision="manifest-1", gearReleaseId="release-1"),
             rows,
         )
 
@@ -216,20 +268,21 @@ class GearCatalogMigrationAuditTest(unittest.TestCase):
         self.assertNotIn("CATALOG_VARIANT_TRACK_MISSING", result["problemCodes"])
         self.assertNotIn("CATALOG_VARIANT_RANK_MISSING", result["problemCodes"])
 
-    def test_generic_rank_never_satisfies_browse_track_rank(self):
+    def test_generic_rank_is_ignored_while_authority_supplies_regular_rank(self):
         rows = complete_catalog_rows()
         browse = rows["variants"][0]
         browse.pop("trackRank")
         browse["rank"] = 527
 
         result = audit_catalog_mapping(
-            {"manifestRevision": "manifest-1", "gearReleaseId": "release-1"},
+            catalog_binding(manifestRevision="manifest-1", gearReleaseId="release-1"),
             rows,
         )
 
-        self.assertEqual(result["status"], "blocked")
-        self.assertEqual(result["mappedBrowseVariantCount"], 0)
-        self.assertIn("CATALOG_VARIANT_RANK_MISSING", result["problemCodes"])
+        self.assertEqual(result["status"], "verified")
+        self.assertEqual(result["mappedBrowseVariantCount"], 1)
+        self.assertNotIn("CATALOG_VARIANT_RANK_MISSING", result["problemCodes"])
+        self.assertNotIn("TRACK_AUTHORITY_RANK_MISMATCH", result["problemCodes"])
 
     def test_unreferenced_empty_slot_item_is_explicitly_excluded(self):
         rows = complete_catalog_rows()
@@ -243,7 +296,7 @@ class GearCatalogMigrationAuditTest(unittest.TestCase):
         )
 
         result = audit_catalog_mapping(
-            {"manifestRevision": "manifest-1", "gearReleaseId": "release-1"},
+            catalog_binding(manifestRevision="manifest-1", gearReleaseId="release-1"),
             rows,
         )
 
@@ -264,7 +317,7 @@ class GearCatalogMigrationAuditTest(unittest.TestCase):
         )
 
         result = audit_catalog_mapping(
-            {"manifestRevision": "manifest-1", "gearReleaseId": "release-1"},
+            catalog_binding(manifestRevision="manifest-1", gearReleaseId="release-1"),
             rows,
         )
 
@@ -298,7 +351,7 @@ class GearCatalogMigrationAuditTest(unittest.TestCase):
         )
 
         result = audit_catalog_mapping(
-            {"manifestRevision": "manifest-1", "gearReleaseId": "release-1"},
+            catalog_binding(manifestRevision="manifest-1", gearReleaseId="release-1"),
             rows,
         )
 
@@ -309,7 +362,7 @@ class GearCatalogMigrationAuditTest(unittest.TestCase):
         self.assertEqual(result["excludedPlaceholderVariantCount"], 1)
         self.assertEqual(result["excludedReferenceVariantCount"], 1)
 
-    def test_duplicate_highest_rank_for_one_item_track_is_blocked(self):
+    def test_duplicate_noncrafted_canonical_variant_is_blocked(self):
         rows = complete_catalog_rows()
         duplicate = copy.deepcopy(rows["variants"][0])
         duplicate["variantId"] = "hero-duplicate"
@@ -317,13 +370,13 @@ class GearCatalogMigrationAuditTest(unittest.TestCase):
         rows["variants"].append(duplicate)
 
         result = audit_catalog_mapping(
-            {"manifestRevision": "manifest-1", "gearReleaseId": "release-1"},
+            catalog_binding(manifestRevision="manifest-1", gearReleaseId="release-1"),
             rows,
         )
 
         self.assertEqual(result["status"], "blocked")
         self.assertEqual(result["mappedVariantCount"], 0)
-        self.assertIn("CATALOG_VARIANT_HIGHEST_RANK_AMBIGUOUS", result["problemCodes"])
+        self.assertIn("CATALOG_VARIANT_CANONICAL_DUPLICATE", result["problemCodes"])
 
     def test_catalog_problem_evidence_is_counted_and_sample_bounded(self):
         rows = complete_catalog_rows()
@@ -333,15 +386,16 @@ class GearCatalogMigrationAuditTest(unittest.TestCase):
                 "itemId": "1001",
                 "rowFamily": "browse",
                 "trackKey": "hero",
-                "trackRank": index + 1,
-                "itemLevel": 285,
+                "trackRank": 6,
+                "itemLevel": 276,
+                "sourceType": "raid",
                 "bonusIds": ["9001"],
             }
             for index in range(50)
         ]
 
         result = audit_catalog_mapping(
-            {"manifestRevision": "manifest-1", "gearReleaseId": "release-1"},
+            catalog_binding(manifestRevision="manifest-1", gearReleaseId="release-1"),
             rows,
         )
 
@@ -350,6 +404,195 @@ class GearCatalogMigrationAuditTest(unittest.TestCase):
             50,
         )
         self.assertLessEqual(len(result["problems"]), 20)
+
+    def test_wrong_track_authority_binding_blocks_regular_mapping(self):
+        result = audit_catalog_mapping(
+            catalog_binding(gearRuleRevision="gear-rule-matrix-unknown"),
+            complete_catalog_rows(),
+        )
+
+        self.assertEqual(result["status"], "blocked")
+        self.assertEqual(result["trackAuthority"]["status"], "blocked")
+        self.assertEqual(
+            result["problemCounts"]["TRACK_AUTHORITY_BINDING_UNSUPPORTED"],
+            1,
+        )
+
+    def test_regular_dedicated_rank_mismatch_is_preserved(self):
+        rows = complete_catalog_rows()
+        rows["variants"][0]["trackRank"] = 5
+
+        result = audit_catalog_mapping(catalog_binding(), rows)
+
+        self.assertEqual(result["status"], "blocked")
+        self.assertEqual(result["mappedBrowseVariantCount"], 0)
+        self.assertEqual(result["canonicalBrowseVariantTotal"], 1)
+        self.assertEqual(
+            result["problemCounts"]["TRACK_AUTHORITY_RANK_MISMATCH"],
+            1,
+        )
+
+    def test_crafted_and_ascendant_rank_is_forbidden_in_catalog_mapping(self):
+        variants = (
+            {
+                "variantId": "crafted-ranked",
+                "itemId": "rank-forbidden",
+                "rowFamily": "browse",
+                "trackKey": "myth",
+                "trackRank": 6,
+                "itemLevel": 285,
+                "slot": "head",
+                "sourceType": "crafted",
+                "simcOptions": {"crafted_stats": "32/36"},
+                "bonusIds": [],
+                "staticStats": {"stamina": 120},
+            },
+            {
+                "variantId": "ascendant-ranked",
+                "itemId": "rank-forbidden",
+                "rowFamily": "browse",
+                "trackKey": "void_upgrade",
+                "trackRank": 6,
+                "itemLevel": 298,
+                "slot": "main_hand",
+                "sourceType": "raid",
+                "bonusIds": [],
+                "staticStats": {"stamina": 120},
+            },
+        )
+        for variant in variants:
+            with self.subTest(variant=variant["variantId"]):
+                rows = {
+                    "items": [{"itemId": "rank-forbidden", "slot": variant["slot"]}],
+                    "variants": [variant],
+                    "options": [],
+                }
+
+                result = audit_catalog_mapping(catalog_binding(), rows)
+
+                self.assertEqual(result["status"], "blocked")
+                self.assertEqual(result["canonicalBrowseVariantTotal"], 1)
+                self.assertEqual(
+                    result["problemCounts"]["TRACK_AUTHORITY_RANK_FORBIDDEN"],
+                    1,
+                )
+
+    def test_ordinary_ascendant_requires_slot_source_or_observed_evidence(self):
+        base_rows = {
+            "items": [{"itemId": "ascendant-item", "slot": "chest"}],
+            "variants": [
+                {
+                    "variantId": "ascendant-browse",
+                    "itemId": "ascendant-item",
+                    "rowFamily": "browse",
+                    "trackKey": "void_upgrade",
+                    "itemLevel": 298,
+                    "slot": "chest",
+                    "sourceType": "raid",
+                    "bonusIds": [],
+                    "staticStats": {"stamina": 120},
+                }
+            ],
+            "options": [],
+        }
+        unproven = audit_catalog_mapping(catalog_binding(), base_rows)
+        observed_rows = copy.deepcopy(base_rows)
+        observed_rows["variants"].append(
+            {
+                "variantId": "ascendant-observed",
+                "itemId": "ascendant-item",
+                "rowFamily": "exact_instance",
+                "itemLevel": 298,
+                "status": "verified",
+                "staticStats": {"stamina": 120},
+            }
+        )
+        observed = audit_catalog_mapping(catalog_binding(), observed_rows)
+        slot_rows = copy.deepcopy(base_rows)
+        slot_rows["items"][0]["slot"] = "main_hand"
+        slot_rows["variants"][0]["slot"] = "main_hand"
+        slot_supported = audit_catalog_mapping(catalog_binding(), slot_rows)
+        source_rows = copy.deepcopy(base_rows)
+        source_rows["variants"][0]["hasVoidInstanceSource"] = True
+        source_supported = audit_catalog_mapping(catalog_binding(), source_rows)
+
+        self.assertEqual(unproven["status"], "blocked")
+        self.assertEqual(unproven["canonicalBrowseVariantTotal"], 1)
+        self.assertEqual(unproven["mappedBrowseVariantCount"], 0)
+        self.assertEqual(
+            unproven["problemCounts"]["TRACK_AUTHORITY_ASCENDANT_ELIGIBILITY_UNPROVEN"],
+            1,
+        )
+        for result in (observed, slot_supported, source_supported):
+            self.assertEqual(result["status"], "verified")
+            self.assertEqual(result["mappedBrowseVariantCount"], 1)
+            self.assertEqual(
+                result["progressionCounts"]["ascendant"]["canonicalCandidateCount"],
+                1,
+            )
+
+    def test_crafted_rows_collapse_into_variants_and_enhancement_associations(self):
+        result = audit_catalog_mapping(catalog_binding(), crafted_catalog_rows())
+
+        self.assertEqual(result["status"], "verified")
+        self.assertEqual(result["schemaRevision"], "gear-catalog-mapping-audit-v2")
+        self.assertEqual(result["legacyBrowseVariantTotal"], 438)
+        self.assertEqual(result["canonicalBrowseVariantTotal"], 73)
+        self.assertEqual(result["mappedBrowseVariantCount"], 73)
+        self.assertEqual(result["craftedEnhancementSelectionRowCount"], 438)
+        self.assertEqual(result["collapsedCraftedVariantRowCount"], 365)
+        self.assertEqual(
+            result["progressionCounts"]["crafted_quality"]["canonicalCandidateCount"],
+            54,
+        )
+        self.assertEqual(
+            result["progressionCounts"]["ascendant"]["craftedCanonicalCandidateCount"],
+            19,
+        )
+
+    def test_duplicate_crafted_stats_blocks_the_canonical_candidate(self):
+        rows = crafted_catalog_rows()
+        duplicate = copy.deepcopy(rows["variants"][0])
+        duplicate["variantId"] = "crafted-myth-00-stats-duplicate"
+        rows["variants"].append(duplicate)
+
+        result = audit_catalog_mapping(catalog_binding(), rows)
+
+        self.assertEqual(result["status"], "blocked")
+        self.assertEqual(
+            result["problemCounts"]["CATALOG_CRAFTED_STATS_DUPLICATE"],
+            1,
+        )
+        self.assertEqual(result["canonicalBrowseVariantTotal"], 73)
+        self.assertEqual(result["mappedBrowseVariantCount"], 72)
+
+    def test_exactly_48_missing_static_stat_rows_remain_counted(self):
+        rows = {"items": [], "variants": [], "options": []}
+        for index in range(48):
+            item_id = f"missing-stats-{index:02d}"
+            rows["items"].append({"itemId": item_id, "slot": "head"})
+            rows["variants"].append(
+                {
+                    "variantId": item_id,
+                    "itemId": item_id,
+                    "rowFamily": "browse",
+                    "trackKey": "hero",
+                    "itemLevel": 276,
+                    "slot": "head",
+                    "sourceType": "raid",
+                    "bonusIds": [],
+                }
+            )
+
+        result = audit_catalog_mapping(catalog_binding(), rows)
+
+        self.assertEqual(
+            result["problemCounts"]["CATALOG_VARIANT_STATIC_STATS_MISSING"],
+            48,
+        )
+        self.assertEqual(result["canonicalBrowseVariantTotal"], 48)
+        self.assertEqual(result["mappedBrowseVariantCount"], 0)
+        self.assertEqual(len(result["problems"]), 20)
 
     def test_exact_template_preserves_intermediate_rank_and_allows_empty_enhancements(self):
         result = audit_template_exactness(
