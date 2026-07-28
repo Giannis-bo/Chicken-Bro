@@ -1,6 +1,7 @@
 import copy
 import inspect
 import unittest
+from unittest.mock import patch
 
 from server import gear_release
 
@@ -343,6 +344,41 @@ class GearReleaseTest(unittest.TestCase):
         self.assertEqual(first, second)
         self.assertEqual(first["winners"][0]["candidateId"], "a")
         self.assertEqual(candidates, before)
+
+    def test_election_canonicalizes_one_candidate_at_a_time(self):
+        candidates = [
+            self.candidate("b", 10),
+            self.candidate("a", 10),
+        ]
+        original_canonical = gear_release._canonical
+        canonical_candidate_count = 0
+        resolver_candidate_counts = []
+
+        def tracked_canonical(value):
+            nonlocal canonical_candidate_count
+            if (
+                isinstance(value, dict)
+                and "id" in value
+                and "selectionIntent" in value
+            ):
+                canonical_candidate_count += 1
+            return original_canonical(value)
+
+        def resolver(_intent):
+            resolver_candidate_counts.append(canonical_candidate_count)
+            return self.verified_result()
+
+        with patch.object(gear_release, "_canonical", side_effect=tracked_canonical):
+            election = gear_release.elect_community_candidates(
+                candidates,
+                gear_release_id="gear-release:sha256:target",
+                resolver=resolver,
+                now="2026-07-11T05:00:00+00:00",
+                expected_specs=[("mage", "arcane")],
+            )
+
+        self.assertEqual(election["status"], "validated")
+        self.assertEqual(resolver_candidate_counts, [1, 2])
 
     def test_election_rejects_non_observed_missing_provenance_and_stale_sources(self):
         candidates = [

@@ -496,6 +496,59 @@ def _expected_manifest_revision(manifest: dict[str, Any]) -> str:
     return "season-manifest:" + _hash(identity)
 
 
+def candidate_observed_variant_instance_key(
+    item_id: Any,
+    slot: Any,
+    item_level: Any,
+    simc_options: Any,
+) -> tuple[str, str, int, tuple[tuple[str, str], ...]]:
+    try:
+        from .websim_payload import (
+            SIMC_GEAR_OPTION_KEYS,
+            normalize_option_value,
+            normalize_slot,
+        )
+    except ImportError:
+        from websim_payload import (
+            SIMC_GEAR_OPTION_KEYS,
+            normalize_option_value,
+            normalize_slot,
+        )
+
+    options = simc_options if isinstance(simc_options, dict) else {}
+    normalized_options = tuple(sorted(
+        (key, normalized)
+        for key, value in options.items()
+        if key in SIMC_GEAR_OPTION_KEYS
+        and (normalized := normalize_option_value(value))
+    ))
+    return (
+        _text(item_id),
+        normalize_slot(slot),
+        _int(item_level),
+        normalized_options,
+    )
+
+
+def _candidate_observed_profile_urls(value: Any) -> set[str]:
+    row = value if isinstance(value, dict) else {}
+    payload = row.get("payload") if isinstance(row.get("payload"), dict) else {}
+    urls = set()
+    for source in (row, payload):
+        for field in ("profileUrl", "sourceProfileUrl", "sourceUrl", "url"):
+            url = _text(source.get(field))
+            if url:
+                urls.add(url)
+        for ref in source.get("observedProfileRefs") or []:
+            if not isinstance(ref, dict):
+                continue
+            for field in ("profileUrl", "sourceProfileUrl", "sourceUrl", "url"):
+                url = _text(ref.get(field))
+                if url:
+                    urls.add(url)
+    return urls
+
+
 class CandidateGearAuthorityIndex:
     """One validated, reusable index over an exact candidate Gear snapshot."""
 
@@ -565,10 +618,42 @@ class CandidateGearAuthorityIndex:
                 continue
             self.sources_by_item.setdefault(_text(row.get("itemId")), []).append(row)
         self.variants_by_item: dict[str, list[dict[str, Any]]] = {}
+        self.observed_variants_by_instance: dict[
+            tuple[str, str, int, tuple[tuple[str, str], ...]],
+            list[dict[str, Any]],
+        ] = {}
+        self.observed_variants_by_profile_instance: dict[
+            tuple[
+                tuple[str, str, int, tuple[tuple[str, str], ...]],
+                str,
+            ],
+            list[dict[str, Any]],
+        ] = {}
         for row in snapshot.get("variants") or []:
             if not isinstance(row, dict):
                 continue
-            self.variants_by_item.setdefault(_text(row.get("itemId")), []).append(row)
+            item_id = _text(row.get("itemId"))
+            self.variants_by_item.setdefault(item_id, []).append(row)
+            if (
+                _text(row.get("status")).lower() != "verified"
+                or _text(row.get("sourceType")).lower() != "observed_profile"
+            ):
+                continue
+            instance_key = candidate_observed_variant_instance_key(
+                item_id,
+                row.get("slot"),
+                row.get("itemLevel"),
+                row.get("simcOptions"),
+            )
+            self.observed_variants_by_instance.setdefault(
+                instance_key,
+                [],
+            ).append(row)
+            for profile_url in _candidate_observed_profile_urls(row):
+                self.observed_variants_by_profile_instance.setdefault(
+                    (instance_key, profile_url),
+                    [],
+                ).append(row)
         self.options_by_key = {
             _text(row.get("optionKey")): row
             for row in snapshot.get("options") or []

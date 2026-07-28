@@ -3056,6 +3056,56 @@ class GearReleaseToolTest(unittest.TestCase):
                 prepared_index=other_prepared,
             )
 
+    def test_prepared_index_resolves_missing_variant_key_without_rescanning_item_variants(self):
+        from server import gear_release_tool
+        from server.gear_release_store import CandidateGearAuthorityIndex, gear_snapshot_summary
+
+        snapshot = self.snapshot()
+        profile_url = "https://raider.io/characters/cn/example"
+        snapshot["variants"][0].update({
+            "sourceType": "observed_profile",
+            "simcOptions": {"ilevel": "289"},
+            "payload": {
+                "profileUrl": profile_url,
+                "resolvedStats": {"intellect": 100},
+            },
+        })
+        template = self.template()
+        template["gearItems"][0].pop("variantKey")
+        template["gearItems"][0].pop("gem_id", None)
+        template["gearItems"][0].pop("enchant_id", None)
+        template["gearItems"][0]["observedProfileRefs"] = [{
+            "profileUrl": profile_url,
+        }]
+        gear = gear_release.build_release(
+            release_kind="gear",
+            season_revision="season-17",
+            schema_revision="gear-release-v1",
+            content=gear_snapshot_summary(snapshot),
+            dependency_revisions=self.dependencies(),
+            release_status="validated",
+            source={"sourceRevision": "prepared-observed-index-test"},
+        )
+        prepared = CandidateGearAuthorityIndex(snapshot, gear)
+
+        class NoRescan(list):
+            def __iter__(self):
+                raise AssertionError("prepared observed lookup must not rescan variants")
+
+        prepared.variants_by_item["item-a"] = NoRescan(
+            prepared.variants_by_item["item-a"]
+        )
+        intent = gear_release_tool.selection_intent_from_template(
+            template,
+            gear_release_id=gear["releaseId"],
+            season_revision=gear["seasonRevision"],
+            level=90,
+            gear_snapshot=snapshot,
+            prepared_index=prepared,
+        )
+
+        self.assertEqual(intent["slots"]["head"]["variantKey"], "variant-a")
+
     def test_community_release_projects_two_hero_slots_from_talent_candidates(self):
         from server.gear_release_store import gear_snapshot_summary
         from server.gear_release_tool import build_legacy_community_release

@@ -730,9 +730,10 @@ def elect_community_candidates(
     eligible: list[dict[str, Any]] = []
     rejected: list[dict[str, Any]] = []
 
-    candidate_rows = [_canonical(row) for row in candidates if isinstance(row, dict)]
+    candidate_rows = [row for row in candidates if isinstance(row, dict)]
     candidate_rows.sort(key=lambda row: _text(row.get("id")))
-    for candidate in candidate_rows:
+    for raw_candidate in candidate_rows:
+        candidate = _canonical(raw_candidate)
         candidate_id = _text(candidate.get("id"))
         class_key = _text(candidate.get("classKey"))
         spec_key = _text(candidate.get("specKey"))

@@ -29,6 +29,7 @@ try:
         GearReleaseIntegrityError,
         GearReleaseStore,
         build_candidate_authority_context,
+        candidate_observed_variant_instance_key,
         community_rows_summary,
         gear_snapshot_summary,
     )
@@ -59,6 +60,7 @@ except ImportError:
         GearReleaseIntegrityError,
         GearReleaseStore,
         build_candidate_authority_context,
+        candidate_observed_variant_instance_key,
         community_rows_summary,
         gear_snapshot_summary,
     )
@@ -1167,6 +1169,91 @@ def _canonical_observed_template_variant(
     )[0]
 
 
+def _indexed_observed_template_variant(
+    raw: dict[str, Any],
+    *,
+    item_id: str,
+    slot: str,
+    prepared_index: CandidateGearAuthorityIndex,
+) -> dict[str, Any]:
+    observed_item_level, conflicting_levels = _observed_template_item_level(raw)
+    profile_urls = _observed_profile_urls(raw)
+    expected_options = _observed_template_instance_options(
+        raw,
+        observed_item_level,
+    )
+    if (
+        conflicting_levels
+        or observed_item_level <= 0
+        or not profile_urls
+        or not expected_options
+    ):
+        return {}
+    instance_key = candidate_observed_variant_instance_key(
+        item_id,
+        slot,
+        observed_item_level,
+        expected_options,
+    )
+    equivalent_by_identity: dict[int, dict[str, Any]] = {}
+    for profile_url in profile_urls:
+        for candidate in (
+            prepared_index.observed_variants_by_profile_instance.get(
+                (instance_key, profile_url),
+                [],
+            )
+        ):
+            equivalent_by_identity[id(candidate)] = candidate
+    scoped_candidates = list(equivalent_by_identity.values()) or list(
+        prepared_index.observed_variants_by_instance.get(instance_key, [])
+    )
+    if not scoped_candidates:
+        return {}
+    signatures = {
+        json.dumps(
+            _canonical({
+                "itemId": _text(candidate.get("itemId")),
+                "slot": normalize_slot(candidate.get("slot")),
+                "itemLevel": _int(candidate.get("itemLevel")),
+                "simcOptions": {
+                    key: normalized
+                    for key, value in (candidate.get("simcOptions") or {}).items()
+                    if key in SIMC_GEAR_OPTION_KEYS
+                    and (normalized := normalize_option_value(value))
+                },
+                "resolvedStats": (
+                    candidate.get("payload")
+                    if isinstance(candidate.get("payload"), dict)
+                    else {}
+                ).get("resolvedStats") or {},
+                "capabilityOverrides": (
+                    candidate.get("payload")
+                    if isinstance(candidate.get("payload"), dict)
+                    else {}
+                ).get("capabilityOverrides") or {},
+                "enhancementManagement": (
+                    candidate.get("payload")
+                    if isinstance(candidate.get("payload"), dict)
+                    else {}
+                ).get("enhancementManagement") or {},
+            }),
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        for candidate in scoped_candidates
+    }
+    if len(signatures) != 1:
+        return {}
+    return sorted(
+        scoped_candidates,
+        key=lambda row: (
+            _text(row.get("variantKey")),
+            _text(row.get("variantId")),
+        ),
+    )[0]
+
+
 def _verified_item_icon_url(
     raw: dict[str, Any],
     item: dict[str, Any],
@@ -1248,6 +1335,13 @@ def selection_intent_from_template(
         slot: str,
         variant_key: str,
     ) -> dict[str, Any]:
+        if prepared_index is not None and not _text(variant_key):
+            return _indexed_observed_template_variant(
+                raw,
+                item_id=item_id,
+                slot=slot,
+                prepared_index=prepared_index,
+            )
         return _canonical_observed_template_variant(
             raw,
             item_id=item_id,
