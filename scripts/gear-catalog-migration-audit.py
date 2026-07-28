@@ -784,13 +784,21 @@ def run_audit(
     active_binding = _mapping(snapshot.get("activeBinding"))
     manifest = _mapping(active_binding.get("manifest"))
     gear_release = _mapping(active_binding.get("gearRelease"))
+    manifest_dependency_vector = _mapping(
+        manifest.get("dependencyVector")
+    )
     catalog = audit_catalog_mapping(
         {
             "manifestRevision": manifest.get("manifestRevision"),
             "gearReleaseId": gear_release.get("releaseId"),
+            "seasonRevision": manifest.get("seasonRevision"),
+            "gearRuleRevision": manifest_dependency_vector.get(
+                "gearRuleRevision"
+            ),
         },
         snapshot.get("catalogRows"),
     )
+    track_authority = _mapping(catalog.get("trackAuthority"))
     community_release = _mapping(active_binding.get("communityRelease"))
     release_events = [
         dict(row)
@@ -804,8 +812,12 @@ def run_audit(
         "gearReleaseId": _text(gear_release.get("releaseId")),
         "communityReleaseId": _text(community_release.get("releaseId")),
         "dependencyVectorHash": _aggregate_hash(
-            _mapping(manifest.get("dependencyVector"))
+            manifest_dependency_vector
         ),
+        "trackAuthorityRuleRevision": _text(
+            track_authority.get("ruleRevision")
+        ),
+        "trackAuthorityStatus": _text(track_authority.get("status")),
         "releaseEventsHash": _aggregate_hash(release_events),
         "releaseEventTypeCount": len(release_events),
         "releaseEventRowCount": sum(
