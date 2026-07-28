@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 2,
+  "slug": "equipment-simulator-phase2-exact-enhancement",
+  "requirementSlug": "equipment-simulator-phase2-exact-enhancement",
+  "status": "implementation_allowed",
+  "highestEvidenceLevel": "implementation_allowed",
+  "branch": "codex/equipment-simulator-phase2-exact-enhancement",
+  "commit": "pending_runtime_head",
+  "identities": {
+    "runtime": {
+      "status": "pending",
+      "reason": "Phase 2 implementation has not yet been bound to an immutable candidate commit."
+    },
+    "verification": {
+      "status": "pending",
+      "reason": "Exact-head verification runs after implementation and runtime identity are bound."
+    },
+    "closure": {
+      "status": "pending",
+      "reason": "PR merge and archive closure have not occurred."
+    }
+  },
+  "manualAcceptance": {
+    "required": false,
+    "status": "not_applicable",
+    "reason": "This phase adds a dormant backend cache and shadow migration without changing the current user-visible runtime path.",
+    "items": [],
+    "rollup": {
+      "total": 0,
+      "accepted": 0,
+      "notRunUserWaived": 0,
+      "pending": 0
+    }
+  },
+  "scope": [
+    "Canonical EnhancementSelection and ExactItemInstance identity",
+    "Append-only PostgreSQL exact cache and validations",
+    "Community and structured personal-template migration shadow",
+    "Bounded candidate verification with unchanged active Manifest"
+  ],
+  "verification": [
+    {
+      "command": "Exact/Enhancement RED/GREEN focused suites",
+      "status": "not_run",
+      "summary": "Runs during implementation."
+    },
+    {
+      "command": "candidate dormant exact migration and production shadow",
+      "status": "not_run",
+      "summary": "Runs after an immutable runtime candidate is available."
+    },
+    {
+      "command": "exact-head Project Harness full profile and PR CI",
+      "status": "not_run",
+      "summary": "Runs after candidate identity and evidence are bound."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "not_run",
+    "requiredBeforeMerge": true,
+    "reason": "Dormant PostgreSQL schema and production template shadow require an immutable bounded candidate."
+  },
+  "runtimeEvidence": [],
+  "risks": [
+    {
+      "id": "enhancement-source-conflict",
+      "status": "open",
+      "detail": "Exact-row SimC values and selected option authority may conflict and must fail closed."
+    },
+    {
+      "id": "personal-owner-privacy",
+      "status": "open",
+      "detail": "Personal template projection must use content identity only and exclude owner fields."
+    },
+    {
+      "id": "historical-exact-volume",
+      "status": "open",
+      "detail": "Migration must index once and materialize only referenced rows under hard resource ceilings."
+    },
+    {
+      "id": "active-pointer-safety",
+      "status": "open",
+      "detail": "Candidate execution must prove the generation-32 active pointer is unchanged."
+    }
+  ],
+  "rollback": [
+    "code_rollback",
+    "service_rollback",
+    "dormant_exact_cache_unreferenced",
+    "active_manifest_pointer_unchanged"
+  ],
+  "cleanup": {
+    "required": true,
+    "reason": "Candidate backups, transient reports and the task branch require cleanup after closure."
+  },
+  "archivedReferences": [
+    "artifacts/releases/2026-07-29-equipment-simulator-phase1-catalog-contract/evidence.json"
+  ],
+  "summary": "Phase 2 ExactItemInstance and EnhancementSelection implementation is authorized and has not yet produced local or runtime verification evidence."
+}

@@ -103,6 +103,7 @@ test('project-state is the single machine-readable current truth entry', () => {
   assert.ok(activeContractIds.has('equipment_simulator_catalog_migration_phase0'))
   assert.ok(activeContractIds.has('equipment_simulator_track_authority_correction'))
   assert.ok(!activeContractIds.has('equipment_simulator_phase1_catalog_contract'))
+  assert.ok(activeContractIds.has('equipment_simulator_phase2_exact_enhancement'))
   const catalogMigrationPhase0 = state.activeContracts.find(
     (entry) => entry.id === 'equipment_simulator_catalog_migration_phase0',
   )
@@ -112,9 +113,17 @@ test('project-state is the single machine-readable current truth entry', () => {
   const equipmentTargetArchitecture = state.activeContracts.find(
     (entry) => entry.id === 'equipment_simulator_target_architecture_v1',
   )
+  const equipmentPhase2Exact = state.activeContracts.find(
+    (entry) => entry.id === 'equipment_simulator_phase2_exact_enhancement',
+  )
   assert.equal(
     equipmentTargetArchitecture?.status,
-    'approved_phase1_closed_phase2_ready',
+    'approved_phase1_closed_phase2_active',
+  )
+  assert.equal(equipmentPhase2Exact?.status, 'implementation_allowed')
+  assert.equal(
+    equipmentPhase2Exact?.path,
+    'docs/plans/2026-07-29-equipment-simulator-phase2-exact-enhancement.md',
   )
   assert.equal(
     catalogMigrationPhase0?.path,

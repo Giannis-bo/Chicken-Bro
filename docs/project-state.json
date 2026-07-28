@@ -58,9 +58,19 @@
     {
       "id": "equipment_simulator_target_architecture_v1",
       "path": "docs/plans/2026-07-28-equipment-simulator-target-architecture.md",
-      "status": "approved_phase1_closed_phase2_ready",
+      "status": "approved_phase1_closed_phase2_active",
       "lifecycle": "active",
-      "notes": "The approved target architecture remains active. Phase 0 is archived on retail generation 32 after complete browse, Community, SimC and delegated WeChat matrices. Phase 1 is archived after the dormant CatalogRevision contract sealed 613 ItemDefinitions and 1309 BrowseVariants, strict 40/40 shadow parity, bounded resources, immutability, PR CI, merge and local/origin/cloud parity passed without switching the active pointer. Phase 2 catalog/spec/track/stat/enhancement delivery may start."
+      "notes": "The approved target architecture remains active. Phase 0 is archived after complete browse, Community, SimC and delegated WeChat matrices. Phase 1 is archived after the dormant CatalogRevision contract sealed 613 ItemDefinitions and 1309 BrowseVariants with strict 40/40 shadow parity and unchanged generation 32. Phase 2 is now implementing dormant ExactItemInstance and EnhancementSelection identity/cache plus Community and personal-template shadow without switching active readers."
+    },
+    {
+      "id": "equipment_simulator_phase2_exact_enhancement",
+      "path": "docs/plans/2026-07-29-equipment-simulator-phase2-exact-enhancement.md",
+      "status": "implementation_allowed",
+      "lifecycle": "active",
+      "requirement": "artifacts/releases/2026-07-29-equipment-simulator-phase2-exact-enhancement/requirement.json",
+      "evidence": "artifacts/releases/2026-07-29-equipment-simulator-phase2-exact-enhancement/evidence.json",
+      "baseCommit": "fcbd4c02",
+      "notes": "Strict dormant ExactItemInstance plus EnhancementSelection cache and template migration slice. Current public readers, sealed releases, personal template rows and generation-32 pointer remain unchanged."
     },
     {
       "id": "equipment_simulator_track_authority_correction",
