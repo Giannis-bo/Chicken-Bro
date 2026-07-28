@@ -282,6 +282,14 @@ class GearCatalogAuditStoreTest(unittest.TestCase):
         )
         relation_params = cursor.params[index][0]
         self.assertIsInstance(relation_params, list)
+        self.assertIn(
+            "WHERE item_row.release_id = ANY",
+            cursor.statements[index],
+        )
+        self.assertIn(
+            "WHERE template_row.release_id = ANY",
+            cursor.statements[index],
+        )
         self.assertIn("cache.websim_release_registry", relation_params)
         self.assertIn("app.build_templates", relation_params)
         self.assertNotIn("caller_supplied_table", relation_params)

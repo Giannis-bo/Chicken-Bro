@@ -587,6 +587,12 @@ class GearCatalogAuditStore:
                     ), 0)::bigint AS rollback_bytes
                 FROM cache.websim_release_registry release_row
                 CROSS JOIN bindings
+                WHERE release_row.release_id = ANY(ARRAY[
+                    bindings.active_gear_release_id,
+                    bindings.active_community_release_id,
+                    bindings.rollback_gear_release_id,
+                    bindings.rollback_community_release_id
+                ])
                 UNION ALL
                 SELECT
                     'cache.websim_gear_release_items',
@@ -598,6 +604,10 @@ class GearCatalogAuditStore:
                     ), 0)::bigint
                 FROM cache.websim_gear_release_items item_row
                 CROSS JOIN bindings
+                WHERE item_row.release_id = ANY(ARRAY[
+                    bindings.active_gear_release_id,
+                    bindings.rollback_gear_release_id
+                ])
                 UNION ALL
                 SELECT
                     'cache.websim_gear_release_sources',
@@ -609,6 +619,10 @@ class GearCatalogAuditStore:
                     ), 0)::bigint
                 FROM cache.websim_gear_release_sources source_row
                 CROSS JOIN bindings
+                WHERE source_row.release_id = ANY(ARRAY[
+                    bindings.active_gear_release_id,
+                    bindings.rollback_gear_release_id
+                ])
                 UNION ALL
                 SELECT
                     'cache.websim_gear_release_variants',
@@ -620,6 +634,10 @@ class GearCatalogAuditStore:
                     ), 0)::bigint
                 FROM cache.websim_gear_release_variants variant_row
                 CROSS JOIN bindings
+                WHERE variant_row.release_id = ANY(ARRAY[
+                    bindings.active_gear_release_id,
+                    bindings.rollback_gear_release_id
+                ])
                 UNION ALL
                 SELECT
                     'cache.websim_gear_release_mod_options',
@@ -631,6 +649,10 @@ class GearCatalogAuditStore:
                     ), 0)::bigint
                 FROM cache.websim_gear_release_mod_options option_row
                 CROSS JOIN bindings
+                WHERE option_row.release_id = ANY(ARRAY[
+                    bindings.active_gear_release_id,
+                    bindings.rollback_gear_release_id
+                ])
                 UNION ALL
                 SELECT
                     'cache.websim_community_release_templates',
@@ -642,6 +664,10 @@ class GearCatalogAuditStore:
                     ), 0)::bigint
                 FROM cache.websim_community_release_templates template_row
                 CROSS JOIN bindings
+                WHERE template_row.release_id = ANY(ARRAY[
+                    bindings.active_community_release_id,
+                    bindings.rollback_community_release_id
+                ])
                 UNION ALL
                 SELECT
                     'cache.websim_season_manifests',
@@ -653,6 +679,10 @@ class GearCatalogAuditStore:
                     ), 0)::bigint
                 FROM cache.websim_season_manifests manifest_row
                 CROSS JOIN bindings
+                WHERE manifest_row.manifest_revision = ANY(ARRAY[
+                    bindings.active_manifest_revision,
+                    bindings.rollback_manifest_revision
+                ])
             )
             SELECT
                 relation_names.relation_name,
