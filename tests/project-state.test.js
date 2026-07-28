@@ -103,12 +103,19 @@ test('project-state is the single machine-readable current truth entry', () => {
   const catalogMigrationPhase0 = state.activeContracts.find(
     (entry) => entry.id === 'equipment_simulator_catalog_migration_phase0',
   )
+  const equipmentTargetArchitecture = state.activeContracts.find(
+    (entry) => entry.id === 'equipment_simulator_target_architecture_v1',
+  )
+  assert.equal(equipmentTargetArchitecture?.status, 'approved_phase0_audit_blocked')
   assert.equal(
     catalogMigrationPhase0?.path,
     'docs/plans/2026-07-28-equipment-simulator-catalog-migration-phase0-implementation.md',
   )
-  assert.equal(catalogMigrationPhase0?.status, 'pending_user_review')
+  assert.equal(catalogMigrationPhase0?.status, 'audit_blocked')
   const catalogMigrationRequirement = readJson(path.join(catalogMigrationPhase0Release, 'requirement.json'))
+  const catalogMigrationAudit = readJson(path.join(catalogMigrationPhase0Release, 'runtime-readonly-audit.json'))
+  const catalogMigrationCallers = readJson(path.join(catalogMigrationPhase0Release, 'caller-inventory.json'))
+  const catalogMigrationDecision = readJson(path.join(catalogMigrationPhase0Release, 'phase1-decision.json'))
   assert.equal(catalogMigrationRequirement.slug, 'equipment-simulator-catalog-migration-phase0')
   assert.equal(catalogMigrationRequirement.classification, 'Strict')
   assert.deepEqual(catalogMigrationRequirement.manualAcceptanceContract, {
@@ -116,6 +123,36 @@ test('project-state is the single machine-readable current truth entry', () => {
     requiredItemIds: [],
   })
   assert.deepEqual(catalogMigrationRequirement.rollback, ['code_rollback'])
+  assert.equal(catalogMigrationAudit.status, 'blocked')
+  assert.equal(catalogMigrationAudit.catalogMapping.status, 'blocked')
+  assert.equal(catalogMigrationAudit.templateExactness.status, 'blocked')
+  assert.equal(catalogMigrationAudit.specCoverage.specTotal, 40)
+  assert.equal(catalogMigrationAudit.specCoverage.blockedSpecCount, 40)
+  assert.equal(catalogMigrationAudit.resources.status, 'partial')
+  assert.equal(catalogMigrationAudit.catalogMapping.runtimeSnapshotIdentity.pointerStable, true)
+  assert.deepEqual(
+    catalogMigrationAudit.catalogMapping.runtimeSnapshotIdentity.pointerBefore,
+    catalogMigrationAudit.catalogMapping.runtimeSnapshotIdentity.pointerAfter,
+  )
+  assert.equal(catalogMigrationAudit.catalogMapping.sourceQueryMetrics.writes, 0)
+  assert.equal(catalogMigrationAudit.specCoverage.queryMetrics.writes, 0)
+  assert.equal(catalogMigrationDecision.status, 'blocked')
+  assert.equal(catalogMigrationDecision.allowedNextPlan, 'none')
+  assert.equal(catalogMigrationDecision.inputs.auditReportId, catalogMigrationAudit.reportId)
+  assert.equal(catalogMigrationDecision.inputs.callerReportId, catalogMigrationCallers.reportId)
+  assert.deepEqual(catalogMigrationDecision.gates, {
+    activeReleaseMapping: 'blocked',
+    templateMigration: 'blocked',
+    specCoverageBaseline: 'blocked',
+    resourceBudgetInputs: 'partial',
+    callerRetirementInventory: 'partial',
+  })
+  const backendOwnerMap = readJson('docs/backend-owner-map.json')
+  const catalogAuditOwner = backendOwnerMap.hotspotFiles.find(
+    (entry) => entry.path === 'server/gear_catalog_migration_audit.py',
+  )
+  assert.ok(catalogAuditOwner, 'Phase 0 audit owner should be registered')
+  assert.deepEqual(catalogAuditOwner.owners[0].runtimeConsumers, [])
   assert.ok(!activeContractIds.has('talent_link_lkg_sync_guard'))
   assert.ok(!activeContractIds.has('community_enhancement_editability'))
   assert.ok(!activeContractIds.has('equipment_simulator_capability_architecture'))
@@ -246,12 +283,14 @@ test('project-state is the single machine-readable current truth entry', () => {
   assert.equal(gearStat.explicitNonReadySpecCount, 8)
 
   const gearReleaseTrain = state.runtimeBaseline.gearReleaseTrain
-  assert.equal(gearReleaseTrain.pointerGeneration, 16)
-  assert.equal(gearReleaseTrain.activeManifestRevision, 'season-manifest:sha256:34325b76e6b12544b0cf511c89852722784675495b757b6dce522d531660e436')
-  assert.equal(gearReleaseTrain.rollbackManifestRevision, 'season-manifest:sha256:551810fcc9d8f6b4dd2099cfafa4b67192476dc4f0bfe36bf827b9fa6ef3c07d')
-  assert.equal(gearReleaseTrain.activeGearReleaseId, 'gear-release:sha256:cfb1680130402b3c610d5eab3b0dbe50dd7186facc6a0371951eb5c10ed993c5')
-  assert.equal(gearReleaseTrain.activeCommunityReleaseId, 'community-release:sha256:35eafdafc9f96802327917b1f45ab406e60bbce10e81aa150e8cfef5d543ace6')
-  assert.equal(gearReleaseTrain.evidence, `${archivedCommunityEnhancementRelease}/evidence.json`)
+  assert.equal(gearReleaseTrain.status, 'active_manifest_verified_catalog_migration_blocked')
+  assert.equal(gearReleaseTrain.pointerGeneration, 24)
+  assert.equal(gearReleaseTrain.activeManifestRevision, 'season-manifest:sha256:6517fc257c39d80339a90fa0675ec53792958ac51fcdc7c3a2629784112c2f1d')
+  assert.equal(gearReleaseTrain.rollbackManifestRevision, 'season-manifest:sha256:18c42522cc71351cd24f2185e3b037f7d9d5f13e355d9ff2bc85b6d94ef3aa6e')
+  assert.equal(gearReleaseTrain.activeGearReleaseId, 'gear-release:sha256:de40793805a84934497c645be2ccc914ef44191744cc76d03f765001bc6dfe6a')
+  assert.equal(gearReleaseTrain.activeCommunityReleaseId, '')
+  assert.equal(gearReleaseTrain.scheduledRefresh, 'timer_disabled_health_blocked')
+  assert.equal(gearReleaseTrain.evidence, `${catalogMigrationPhase0Release}/runtime-readonly-audit.json`)
 
   const phase5Evidence = readJson(path.join(archivedPhase5Release, 'evidence.json'))
   const phase5Closure = readJson(path.join(archivedPhase5Release, 'closure-audit.json'))

@@ -1,6 +1,6 @@
 # 装备模拟目标架构
 
-状态：`已批准，Phase 0 实施计划待审阅`
+状态：`已批准；Phase 0 审计完成并阻塞后续迁移`
 
 批准日期：`2026-07-28`
 
@@ -399,7 +399,13 @@ active hot payload
 
 ## 14. 设计批准后的下一步
 
-本文件只定义目标架构，不授权立即运行 Release Builder、写数据库或部署。第一份
+本文件只定义目标架构，不授权立即运行 Release Builder、写数据库或部署。
 [Phase 0 实施计划](2026-07-28-equipment-simulator-catalog-migration-phase0-implementation.md)
-只完成 `risk_unknown` 盘点、资源基线和迁移 impact map；其审计结果决定后续只能进入
-纯合同、可以进入 dormant schema/shadow，还是必须先停下解决 blocker。
+已完成只读盘点；[生产审计](../../artifacts/releases/2026-07-28-equipment-simulator-catalog-migration-phase0/runtime-readonly-audit.json)
+和 [Phase 1 决策](../../artifacts/releases/2026-07-28-equipment-simulator-catalog-migration-phase0/phase1-decision.json)
+记录为 `blocked`，`allowedNextPlan=none`。
+
+当前必须先解决已量化的活动 Release 映射缺口、缺失 Community Release、40/40
+专精初始候选为空，以及未归类运行时调用；峰值 RSS 和临时磁盘继续保持 `unknown`。
+在这些 blocker 解除并重新审计前，不编写 Catalog 合同、dormant schema/shadow、
+新 API 或迁移计划。

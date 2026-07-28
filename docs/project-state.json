@@ -58,16 +58,16 @@
     {
       "id": "equipment_simulator_target_architecture_v1",
       "path": "docs/plans/2026-07-28-equipment-simulator-target-architecture.md",
-      "status": "approved_phase0_plan_pending_review",
+      "status": "approved_phase0_audit_blocked",
       "lifecycle": "active",
-      "notes": "Approved target architecture keeps the existing UI, canonical Resolver, template, SimC task and atomic Manifest kernel while redesigning the current-season CatalogRevision, highest-rank BrowseVariant, ExactItemInstance, enhancement identity, deterministic SimulationSnapshot and bounded builder resource contracts."
+      "notes": "The approved target architecture remains active, but the read-only Phase 0 audit blocked migration planning: the active release is not losslessly mappable, the active Manifest has no Community Release, 40/40 specialization initial candidate baselines are blocked, resource peaks remain partial and five runtime caller references remain unresolved."
     },
     {
       "id": "equipment_simulator_catalog_migration_phase0",
       "path": "docs/plans/2026-07-28-equipment-simulator-catalog-migration-phase0-implementation.md",
-      "status": "pending_user_review",
+      "status": "audit_blocked",
       "lifecycle": "active",
-      "notes": "Strict read-only inventory plan that must quantify active Gear Release mapping, community and personal template exactness, 40-spec browse truth, resource baselines and legacy callers before any Catalog schema or API slice is selected."
+      "notes": "The bounded production audit completed with identical pointer generation 24 before/after and zero database writes. The Phase 1 decision is bound to audit report bd93f810, is blocked and has allowedNextPlan=none; see artifacts/releases/2026-07-28-equipment-simulator-catalog-migration-phase0/phase1-decision.json."
     }
   ],
   "completedBaselines": [
@@ -467,20 +467,20 @@
       "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase3c-workbench-cutover/evidence.json"
     },
     "gearReleaseTrain": {
-      "status": "phase4_complete_live_verified",
+      "status": "active_manifest_verified_catalog_migration_blocked",
       "formalActiveManifest": true,
       "pointerMode": "active",
-      "pointerGeneration": 16,
-      "activeManifestRevision": "season-manifest:sha256:34325b76e6b12544b0cf511c89852722784675495b757b6dce522d531660e436",
-      "rollbackManifestRevision": "season-manifest:sha256:551810fcc9d8f6b4dd2099cfafa4b67192476dc4f0bfe36bf827b9fa6ef3c07d",
+      "pointerGeneration": 24,
+      "activeManifestRevision": "season-manifest:sha256:6517fc257c39d80339a90fa0675ec53792958ac51fcdc7c3a2629784112c2f1d",
+      "rollbackManifestRevision": "season-manifest:sha256:18c42522cc71351cd24f2185e3b037f7d9d5f13e355d9ff2bc85b6d94ef3aa6e",
       "runbook": "docs/gear-simulation-full-chain-runbook.md",
       "purePolicyModule": "server/gear_release.py",
       "releaseRepository": "server/gear_release_store.py",
-      "activeGearReleaseId": "gear-release:sha256:cfb1680130402b3c610d5eab3b0dbe50dd7186facc6a0371951eb5c10ed993c5",
-      "activeCommunityReleaseId": "community-release:sha256:35eafdafc9f96802327917b1f45ab406e60bbce10e81aa150e8cfef5d543ace6",
+      "activeGearReleaseId": "gear-release:sha256:de40793805a84934497c645be2ccc914ef44191744cc76d03f765001bc6dfe6a",
+      "activeCommunityReleaseId": "",
       "activeManifestPointerRows": 1,
-      "scheduledRefresh": "active_candidate_first_manual_for_high_risk",
-      "evidence": "artifacts/releases/2026-07-14-community-enhancement-editability/evidence.json"
+      "scheduledRefresh": "timer_disabled_health_blocked",
+      "evidence": "artifacts/releases/2026-07-28-equipment-simulator-catalog-migration-phase0/runtime-readonly-audit.json"
     },
     "gearStatSnapshot": {
       "status": "phase5_complete_live_verified",
@@ -546,6 +546,12 @@
       "status": "active_rule_verified",
       "trigger": "PR #93 merged the rule after exact-head full CI: PR CI validates the unique complete task-scoped requirement/evidence/manifest packet from the PR diff; manifest, immutable runtime candidate, clean verification HEAD, closure identity and exact accepted/not_run_user_waived/pending acceptance set are fail-closed without adding duplicate full profiles or runtime changes.",
       "evidence": "artifacts/releases/2026-07-19-harness-v0-6-2-control-plane-cleanup/evidence.json"
+    },
+    {
+      "id": "equipment_simulator_catalog_migration_phase0_blockers",
+      "status": "blocked_measured",
+      "trigger": "The 2026-07-28 read-only audit mapped 1312/1488 active items and 356/46631 variants, found no active Community Release or community templates, observed 40/40 specialization rows with zero initial candidates, retained unknown peak RSS/temp bytes, and left five runtime references unresolved. Do not design Catalog schema or API work around these gaps.",
+      "evidence": "artifacts/releases/2026-07-28-equipment-simulator-catalog-migration-phase0/phase1-decision.json"
     }
   ]
 }
