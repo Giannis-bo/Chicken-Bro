@@ -3107,6 +3107,7 @@ class GearReleaseToolTest(unittest.TestCase):
         self.assertEqual(intent["slots"]["head"]["variantKey"], "variant-a")
 
     def test_community_release_projects_two_hero_slots_from_talent_candidates(self):
+        from server import gear_release_tool
         from server.gear_release_store import gear_snapshot_summary
         from server.gear_release_tool import build_legacy_community_release
 
@@ -3136,17 +3137,23 @@ class GearReleaseToolTest(unittest.TestCase):
         ]
         store = FakeReleaseStore(snapshot, [frost_top, frost_fallback, spell], talent_candidates)
 
-        result = build_legacy_community_release(
-            store,
-            gear_release_descriptor=gear,
-            gear_snapshot=snapshot,
-            dependency_revisions=self.dependencies(),
-            expected_specs=[("mage", "arcane")],
-            now="2026-07-11T06:00:00+00:00",
-            resolver_for_spec=lambda *_args: self.verified_result(gear["releaseId"]),
-        )
+        with patch.object(
+            gear_release_tool,
+            "_template_candidate",
+            wraps=gear_release_tool._template_candidate,
+        ) as candidate_builder:
+            result = build_legacy_community_release(
+                store,
+                gear_release_descriptor=gear,
+                gear_snapshot=snapshot,
+                dependency_revisions=self.dependencies(),
+                expected_specs=[("mage", "arcane")],
+                now="2026-07-11T06:00:00+00:00",
+                resolver_for_spec=lambda *_args: self.verified_result(gear["releaseId"]),
+            )
 
         winners = {row["payload"]["heroKey"]: row for row in result["rows"] if row["role"] == "winner"}
+        self.assertEqual(candidate_builder.call_count, 2)
         self.assertEqual(result["release"]["schemaRevision"], "community-release-v2")
         self.assertEqual(set(winners), {"sunfury", "spellslinger"})
         self.assertEqual(winners["sunfury"]["payload"]["talentWinnerId"], "talent-frost-top")

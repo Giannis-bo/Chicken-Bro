@@ -2192,7 +2192,11 @@ def prepare_staging_community_release(
             prepared_index=prepared_authority,
         )
 
-    candidates = [candidate_for_template(template) for template in templates]
+    candidates = (
+        []
+        if projection_enabled
+        else [candidate_for_template(template) for template in templates]
+    )
 
     def resolve_candidate(intent: dict[str, Any]) -> dict[str, Any]:
         eligibility = intent.get("eligibilityContext") or {}
