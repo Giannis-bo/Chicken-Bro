@@ -132,13 +132,13 @@ def load_instance_items(
                    loot.slot,
                    loot.quality,
                    item.payload_json
-            FROM websim_gear_sources AS source
-            JOIN websim_loot AS loot
+            FROM cache.websim_gear_sources AS source
+            JOIN cache.websim_loot AS loot
               ON loot.item_id = source.item_id
              AND loot.instance_id = source.instance_id
              AND COALESCE(loot.encounter_id, '') =
                  COALESCE(source.encounter_id, '')
-            LEFT JOIN websim_items AS item
+            LEFT JOIN cache.websim_items AS item
               ON item.id = source.item_id
             WHERE source.instance_id = %s
               AND source.source_type = %s

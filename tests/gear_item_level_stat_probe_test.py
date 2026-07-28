@@ -197,8 +197,8 @@ class GearItemLevelStatProbeTest(unittest.TestCase):
         sql = "\n".join(connection.cursor_instance.statements)
 
         self.assertIn("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY", sql)
-        self.assertIn("FROM websim_gear_sources", sql)
-        self.assertIn("JOIN websim_loot", sql)
+        self.assertIn("FROM cache.websim_gear_sources", sql)
+        self.assertIn("JOIN cache.websim_loot", sql)
         self.assertNotRegex(sql, r"\b(INSERT|UPDATE|DELETE|MERGE|TRUNCATE)\b")
         self.assertEqual(connection.cursor_instance.params[-1], ("1305", "raid"))
         self.assertEqual(rows[0]["itemId"], "250001")
