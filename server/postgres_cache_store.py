@@ -1498,9 +1498,18 @@ class PostgresCacheStore:
         normalized_class = str(class_key or "").strip()
         normalized_spec = str(spec_key or "").strip()
         normalized_template = str(template_id or "").strip()
-        observed = self._active_observed_build_records(
-            normalized_class,
-            normalized_spec,
+        observed = (
+            {
+                "state": "inactive",
+                "scope": self._observed_build_scope(),
+                "active": {},
+                "records": [],
+            }
+            if binding.get("candidatePreview") is True
+            else self._active_observed_build_records(
+                normalized_class,
+                normalized_spec,
+            )
         )
         if observed["state"] == "blocked":
             raise CommunityTemplateImportError(
@@ -7805,7 +7814,14 @@ class PostgresCacheStore:
             if isinstance(observed, dict)
             else self._active_observed_build_records(class_key, spec_key)
         )
-        if observed.get("state") == "active":
+        if binding.get("candidatePreview") is True:
+            observed = {
+                "state": "inactive",
+                "scope": self._observed_build_scope(),
+                "active": {},
+                "records": [],
+            }
+        elif observed.get("state") == "active":
             persisted_templates = gear_templates_from_active_records(
                 observed.get("records") or []
             )
@@ -7918,9 +7934,18 @@ class PostgresCacheStore:
         slot = normalize_slot(slot) if mode == "slot" else str(slot or "").strip().lower()
         binding = self._active_manifest_binding_for_authority()
         if _release_binding_is_readable(binding):
-            observed = self._active_observed_build_records(
-                class_key,
-                spec_key,
+            observed = (
+                {
+                    "state": "inactive",
+                    "scope": self._observed_build_scope(),
+                    "active": {},
+                    "records": [],
+                }
+                if binding.get("candidatePreview") is True
+                else self._active_observed_build_records(
+                    class_key,
+                    spec_key,
+                )
             )
             active_fingerprint = (
                 "pg-websim-gear-release-v1",
