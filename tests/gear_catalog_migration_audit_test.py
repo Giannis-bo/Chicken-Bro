@@ -227,6 +227,17 @@ class GearCatalogMigrationAuditTest(unittest.TestCase):
         self.assertIn("TEMPLATE_EXACT_TRACK_RANK_MISSING", result["problemCodes"])
         self.assertIn("TEMPLATE_EXACT_GEM_IDS_MALFORMED", result["problemCodes"])
 
+    def test_missing_active_community_templates_are_blocked_but_personal_can_be_empty(self):
+        result = audit_template_exactness([], [])
+
+        self.assertEqual(result["status"], "blocked")
+        self.assertEqual(result["community"]["status"], "blocked")
+        self.assertEqual(result["personal"]["status"], "verified")
+        self.assertIn(
+            "TEMPLATE_EXACT_COMMUNITY_MISSING",
+            result["problemCodes"],
+        )
+
     def test_template_samples_are_anonymous_sorted_deduplicated_and_capped(self):
         templates = [exact_template(f"template-{index}") for index in range(25)]
         templates.append(copy.deepcopy(templates[0]))

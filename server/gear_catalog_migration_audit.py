@@ -431,6 +431,13 @@ def _template_category(rows: Any, category: str) -> dict[str, Any]:
     blocked_count = 0
     problems: list[dict[str, str]] = []
     sample_hashes: set[str] = set()
+    required_category_missing = category == "community" and not templates
+    if required_category_missing:
+        problems.append(_problem(
+            "TEMPLATE_EXACT_COMMUNITY_MISSING",
+            "community",
+            "The active Manifest must expose at least one community gear template.",
+        ))
     for index, template in enumerate(templates):
         sample_hashes.add(
             "sha256:" + _sha256(_without_non_identity_fields(template))
@@ -458,7 +465,7 @@ def _template_category(rows: Any, category: str) -> dict[str, Any]:
         else:
             blocked_count += 1
     category_status = (
-        "blocked" if blocked_count
+        "blocked" if blocked_count or required_category_missing
         else "partial" if partial_count
         else "verified"
     )
