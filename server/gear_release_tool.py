@@ -8,8 +8,11 @@ import copy
 from datetime import datetime, timezone
 import hashlib
 import json
+import os
+from pathlib import Path
 import re
 import subprocess
+import tempfile
 from typing import Any, Callable, Iterable, Mapping
 from urllib.parse import urlparse
 
@@ -2501,6 +2504,154 @@ def _shadow_store_from_environment() -> PostgresCacheStore:
     return store
 
 
+def _shadow_execution_summary(result: Any) -> dict[str, Any]:
+    value = result if isinstance(result, dict) else {}
+    blockers = [
+        row
+        for row in value.get("blockers") or []
+        if isinstance(row, dict)
+    ]
+    blocker_codes: dict[str, int] = {}
+    for blocker in blockers:
+        code = _text(blocker.get("code"))
+        if code:
+            blocker_codes[code] = blocker_codes.get(code, 0) + 1
+    spec_results = [
+        row
+        for row in value.get("specResults") or []
+        if isinstance(row, dict)
+    ]
+    hero_results = [
+        hero
+        for row in spec_results
+        for hero in row.get("heroSlotResults") or []
+        if isinstance(hero, dict)
+    ]
+    report = (
+        value.get("report")
+        if isinstance(value.get("report"), dict)
+        else {}
+    )
+    reference = (
+        value.get("referenceProof")
+        if isinstance(value.get("referenceProof"), dict)
+        else {}
+    )
+    performance = (
+        value.get("performance")
+        if isinstance(value.get("performance"), dict)
+        else {}
+    )
+    return {
+        "schemaRevision": "gear-release-shadow-evidence-v1",
+        "executionSchemaRevision": _text(value.get("schemaRevision")),
+        "status": _text(value.get("status") or "blocked"),
+        "gearReleaseId": _text(value.get("gearReleaseId")),
+        "communityReleaseId": _text(value.get("communityReleaseId")),
+        "baselineMode": _text(value.get("baselineMode")),
+        "candidatePreview": value.get("candidatePreview") is True,
+        "formalActiveManifest": value.get("formalActiveManifest") is True,
+        "activeBaselineFormal": value.get("activeBaselineFormal") is True,
+        "publicReadCount": _int(value.get("publicReadCount")),
+        "importReadCount": _int(value.get("importReadCount")),
+        "specResultCount": len(spec_results),
+        "passingSpecCount": sum(
+            1 for row in spec_results if _text(row.get("status")) == "pass"
+        ),
+        "heroSlotResultCount": len(hero_results),
+        "passingHeroSlotCount": sum(
+            1 for row in hero_results if _text(row.get("status")) == "pass"
+        ),
+        "blockerCount": len(blockers),
+        "blockerCodes": {
+            code: blocker_codes[code]
+            for code in sorted(blocker_codes)
+        },
+        "blockerSamples": [
+            {
+                "code": _text(blocker.get("code")),
+                "path": _text(blocker.get("path"))[:240],
+                "detail": _text(blocker.get("detail"))[:240],
+            }
+            for blocker in blockers[:8]
+        ],
+        "report": {
+            key: report.get(key)
+            for key in (
+                "status",
+                "expectedSpecCount",
+                "expectedHeroSlotCount",
+                "candidateWinnerCount",
+                "publicWinnerCount",
+                "activeWinnerCount",
+            )
+            if key in report
+        },
+        "referenceProof": {
+            key: reference.get(key)
+            for key in (
+                "status",
+                "mode",
+                "verifiedHeroSlotCount",
+            )
+            if key in reference
+        },
+        "performance": {
+            key: performance.get(key)
+            for key in (
+                "totalDurationMs",
+                "specP95Ms",
+                "specMaxMs",
+            )
+            if isinstance(performance.get(key), (int, float))
+        },
+        "authorityCache": (
+            value.get("authorityCache")
+            if isinstance(value.get("authorityCache"), dict)
+            else {}
+        ),
+        "databaseStatements": (
+            value.get("databaseStatements")
+            if isinstance(value.get("databaseStatements"), dict)
+            else {}
+        ),
+    }
+
+
+def _atomic_json_write(path_value: str, payload: Mapping[str, Any]) -> None:
+    path = Path(path_value).expanduser().resolve()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary_path = ""
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=path.parent,
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as handle:
+            temporary_path = handle.name
+            json.dump(
+                payload,
+                handle,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary_path, path)
+        temporary_path = ""
+    finally:
+        if temporary_path:
+            try:
+                os.unlink(temporary_path)
+            except FileNotFoundError:
+                pass
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -2527,6 +2678,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--expected-generation", type=int, default=-1)
     parser.add_argument("--target-mode", choices=("active", "transitional"), default="active")
     parser.add_argument("--updated-by", default="")
+    parser.add_argument("--output-file", default="")
     parser.add_argument("--level", type=int, default=90)
     parser.add_argument("--expect-formal-active", action="store_true")
     return parser
@@ -2627,7 +2779,10 @@ def main(argv=None) -> int:
                     "retryable": False,
                     "meta": {},
                 })
-        print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+        summary = _shadow_execution_summary(result)
+        if args.output_file:
+            _atomic_json_write(args.output_file, summary)
+        print(json.dumps(summary, ensure_ascii=False, sort_keys=True))
         return 0 if result.get("status") == "pass" else 2
     store = _store_from_environment()
     if args.command == "show":

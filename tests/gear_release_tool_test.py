@@ -2,7 +2,9 @@ import copy
 import io
 import json
 import subprocess
+import tempfile
 import unittest
+from pathlib import Path
 from contextlib import redirect_stdout
 from unittest.mock import patch
 
@@ -3651,6 +3653,109 @@ class GearReleaseToolTest(unittest.TestCase):
 
         self.assertEqual(status, 0)
         self.assertIs(shadow.call_args.kwargs.get("expect_formal_active"), True)
+
+    def test_shadow_command_writes_only_bounded_aggregate_evidence(self):
+        from server import gear_release_tool
+
+        class ShadowStore:
+            def gear_authority_cache_metrics(self):
+                return {
+                    "entryCount": 2,
+                    "byteSize": 512,
+                    "maxEntries": 32,
+                    "maxBytes": 4096,
+                }
+
+            def shadow_read_statement_metrics(self):
+                return {
+                    "total": 7,
+                    "transactionControl": 2,
+                    "readQueries": 5,
+                    "writeStatements": 0,
+                }
+
+        shadow_result = {
+            "schemaRevision": "gear-release-shadow-execution-v2",
+            "status": "blocked",
+            "gearReleaseId": "gear-release:a",
+            "communityReleaseId": "community-release:a",
+            "baselineMode": "formal_gear_only_candidate_preview",
+            "candidatePreview": True,
+            "publicReadCount": 40,
+            "importReadCount": 80,
+            "blockers": [
+                {
+                    "code": "PROFILE_PARITY_MISMATCH",
+                    "path": "specs.mage.frost",
+                    "detail": "Candidate Profile differs from preview.",
+                },
+                {
+                    "code": "PROFILE_PARITY_MISMATCH",
+                    "path": "specs.mage.arcane",
+                    "detail": "Candidate Profile differs from preview.",
+                },
+            ],
+            "specResults": [
+                {
+                    "classKey": "mage",
+                    "specKey": "frost",
+                    "status": "blocked",
+                    "heroSlotResults": [
+                        {
+                            "templateId": "private-template-identity",
+                            "status": "blocked",
+                        }
+                    ],
+                }
+            ],
+            "report": {
+                "status": "blocked",
+                "expectedSpecCount": 40,
+                "expectedHeroSlotCount": 80,
+                "candidateWinnerCount": 80,
+            },
+            "performance": {"totalDurationMs": 1234},
+        }
+
+        with tempfile.TemporaryDirectory() as directory:
+            output_path = Path(directory) / "shadow-evidence.json"
+            output = io.StringIO()
+            with patch.object(
+                gear_release_tool,
+                "_shadow_store_from_environment",
+                return_value=ShadowStore(),
+            ), patch.object(
+                gear_release_tool.gear_release_shadow,
+                "run_release_shadow",
+                return_value=shadow_result,
+            ), redirect_stdout(output):
+                status = gear_release_tool.main([
+                    "shadow",
+                    "--gear-release-id",
+                    "gear-release:a",
+                    "--community-release-id",
+                    "community-release:a",
+                    "--simc-runtime-revision",
+                    "simc-r1",
+                    "--output-file",
+                    str(output_path),
+                ])
+
+            rendered = json.loads(output.getvalue())
+            saved = json.loads(output_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(status, 2)
+        self.assertEqual(rendered, saved)
+        self.assertEqual(rendered["specResultCount"], 1)
+        self.assertEqual(rendered["passingSpecCount"], 0)
+        self.assertEqual(
+            rendered["blockerCodes"],
+            {"PROFILE_PARITY_MISMATCH": 2},
+        )
+        self.assertEqual(len(rendered["blockerSamples"]), 2)
+        self.assertEqual(rendered["databaseStatements"]["writeStatements"], 0)
+        self.assertNotIn("specResults", rendered)
+        self.assertNotIn("private-template-identity", json.dumps(rendered))
 
     def test_promote_command_atomically_seals_manifest_and_cas_pointer(self):
         from server import gear_release_tool
