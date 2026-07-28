@@ -2,8 +2,8 @@
   "schemaVersion": 2,
   "slug": "equipment-simulator-phase0-unblock",
   "requirementSlug": "equipment-simulator-phase0-unblock",
-  "status": "live_verified",
-  "highestEvidenceLevel": "live_verified",
+  "status": "archived",
+  "highestEvidenceLevel": "archived",
   "branch": "codex/equipment-simulator-phase0-unblock",
   "commit": "b2a22c6945305dd4eeeb599f74012e9676a405a6",
   "identities": {
@@ -18,8 +18,9 @@
       "value": "HEAD"
     },
     "closure": {
-      "status": "pending",
-      "reason": "Merge, post-merge refresh and archive closure remain pending."
+      "status": "bound",
+      "kind": "merge_commit",
+      "value": "8d68db34eeb71863aca235b0cbad54846a34c787"
     }
   },
   "manualAcceptance": {
@@ -104,9 +105,9 @@
       "summary": "Under the user's explicit self-test delegation, Codex verified current-community import, 15 canonical equipped-slot facts plus a legal empty two-hand off-hand, saved-template re-import, exact canonical confirmation, and completed real SimC task 462350074188481195f245e39941f013 with 58220.338 DPS."
     },
     {
-      "command": "merge closure",
-      "status": "not_run",
-      "summary": "Merge, post-merge WeChat refresh, local/origin/cloud parity and branch cleanup remain pending."
+      "command": "merge and three-party closure",
+      "status": "pass",
+      "summary": "PR #103 merged as 8d68db34 after final CI. The merge tree exactly matches the verified PR tree; 26 focused frontend and 734 focused backend tests passed after merge; local main and origin/main match; refresh:weapp rebuilt and opened the official DevTools package from main; four changed cloud runtime files match by SHA-256; backend and stat worker are active with NRestarts=0; the task branch is removed locally and remotely."
     }
   ],
   "candidateDeployment": {
@@ -208,6 +209,14 @@
       "status": "pass",
       "path": "artifacts/releases/2026-07-28-equipment-simulator-phase0-unblock/wechat-acceptance-2026-07-29.json",
       "summary": "Official WeChat DevTools automation under explicit user delegation passed both frozen acceptance items and returned completed real SimC task 462350074188481195f245e39941f013 with 58220.338 DPS."
+    },
+    {
+      "id": "post-merge-three-party-closure",
+      "type": "closure",
+      "status": "pass",
+      "mergeCommit": "8d68db34eeb71863aca235b0cbad54846a34c787",
+      "weappSourceHash": "sha256:b00cc9b385a5652b71ab4327758b9c253bdb7c2501e7e8be61a206d5f48c731f",
+      "summary": "Local main, origin/main, the refreshed official WeChat package and the changed cloud runtime files are identity-aligned. Active Manifest generation 32 and its Gear/Community releases remain unchanged; global data health remains partial."
     }
   ],
   "risks": [
@@ -239,13 +248,13 @@
     "staging_data_restore"
   ],
   "cleanup": {
-    "required": true,
-    "reason": "Transient probe units/directories, candidate deployment state and the task branch must be cleaned after verified closure."
+    "required": false,
+    "reason": "The local and remote task branches were removed, no transient probe unit or directory remains, and the pre-candidate cloud code backup is intentionally retained as the documented rollback copy."
   },
   "archivedReferences": [
     "artifacts/releases/2026-07-28-equipment-simulator-track-authority-correction/runtime-readonly-audit.json",
     "artifacts/releases/2026-07-28-equipment-simulator-track-authority-correction/phase1-decision.json"
   ],
-  "summary": "Strict Phase 0 runtime and data gates are live-verified on generation 32: exact progression authority, 1309/1309 canonical Browse mapping, 80/80 exact Community imports, 26/14 SimC policy, bounded resources, rollback/restoration and commit-to-cloud file parity pass. PR #103 CI, the exact production WeChat candidate package and both user-delegated official WeChat acceptance items pass, including a completed real SimC task with numeric DPS. Global data health is still partial and is recorded honestly. Merge and post-merge three-party closure remain.",
-  "updatedAt": "2026-07-29T00:47:00+08:00"
+  "summary": "Strict Phase 0 is archived after complete closure on generation 32: exact progression authority, 1309/1309 canonical Browse mapping, 80/80 exact Community imports, 26/14 SimC policy, bounded resources, rollback/restoration, final CI, user-delegated official WeChat acceptance, merge, post-merge refresh and local/origin/cloud parity all pass. A real WeChat task completed with 58220.338 DPS. Global data health remains partial under independent legacy owners and is recorded honestly for Phase 1 migration.",
+  "updatedAt": "2026-07-29T00:58:00+08:00"
 }

@@ -44,7 +44,7 @@ test('project-state is the single machine-readable current truth entry', () => {
   const state = readJson(projectStatePath)
 
   assert.equal(state.schemaVersion, 1)
-  assert.equal(state.updatedAt, '2026-07-28')
+  assert.equal(state.updatedAt, '2026-07-29')
   assert.equal(state.activeMilestone, 'taro_target_first_14_route_rebuild')
   assert.equal(state.featureIteration, 'allowed_under_harness')
   assert.equal(state.activeReleaseArtifact, undefined)
@@ -113,7 +113,7 @@ test('project-state is the single machine-readable current truth entry', () => {
   )
   assert.equal(
     equipmentTargetArchitecture?.status,
-    'approved_phase0_runtime_verified_manual_acceptance_pending',
+    'approved_phase0_closed_phase1_ready',
   )
   assert.equal(
     catalogMigrationPhase0?.path,

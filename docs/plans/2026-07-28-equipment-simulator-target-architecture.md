@@ -1,6 +1,6 @@
 # 装备模拟目标架构
 
-状态：`已批准；Phase 0 运行态与数据门禁已验证；微信验收与合入待完成`
+状态：`已批准；Phase 0 已完整归档；Phase 1 可开始`
 
 批准日期：`2026-07-28`
 
@@ -410,9 +410,7 @@ active hot payload
 ## 14. 设计批准后的下一步
 
 本文件定义长期目标；当前执行仍受 Harness 任务 packet 控制。
-[Phase 0 解除阻塞计划](2026-07-28-equipment-simulator-phase0-unblock.md)
-已完成运行态与数据门禁，并由
-[当前证据](../../artifacts/releases/2026-07-28-equipment-simulator-phase0-unblock/evidence.json)
+[Phase 0 归档证据](../../artifacts/releases/2026-07-28-equipment-simulator-phase0-unblock/evidence.json)
 记录：
 
 - 活动 Manifest 为 generation 32，绑定一个 immutable Gear Release 和一个
@@ -432,8 +430,8 @@ active hot payload
 manual-override legality health 仍由旧 owner 报告。这些状态不推翻独立活动 Release
 验收，也不能被包装成全局健康成功；它们必须进入后续 Catalog/authority 迁移。
 
-Phase 0 的两项真实微信验收、PR CI、合入和三方身份收口完成后，下一份 Strict
-实施计划才可启动 Phase 1，并按以下顺序切片：
+Phase 0 的两项真实微信验收、PR CI、合入、最新 `main` 微信刷新和
+本地/`origin/main`/云端身份收口已完成。Phase 1 可以启动，并按以下顺序切片：
 
 1. `CatalogRevision + ItemDefinition + BrowseVariant membership` dormant schema/contract。
 2. 活动 Gear Release 到首个 CatalogRevision 的确定性迁移与 40 专精 shadow。
