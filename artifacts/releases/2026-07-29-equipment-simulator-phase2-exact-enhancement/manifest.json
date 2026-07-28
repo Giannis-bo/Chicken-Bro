@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-28T19:53:31.756Z",
+  "generatedAt": "2026-07-28T19:55:18.344Z",
   "release": {
     "date": "2026-07-29",
     "slug": "equipment-simulator-phase2-exact-enhancement"
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-29-equipment-simulator-phase2-exact-enhancement/evidence.json",
-    "sizeBytes": 11831,
+    "sizeBytes": 11847,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -390,8 +390,8 @@
       "summary"
     ],
     "missingFields": [],
-    "declaredStatus": "verified",
-    "highestEvidenceLevel": "verified",
+    "declaredStatus": "runtime_verified",
+    "highestEvidenceLevel": "runtime_verified",
     "summary": "Phase 2 immutable candidate, deployed dormant runtime and exact-head repository verification are complete. All 80 templates and 1242 items are classified with 1187 verified and 55 explicit partial references, zero blocked/silent drops, stable generation 32, exact database/runtime parity and honest global partial health. PR CI, merge closure and cleanup remain."
   },
   "evidence": {
