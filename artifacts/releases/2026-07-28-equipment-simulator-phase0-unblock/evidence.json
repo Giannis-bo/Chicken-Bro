@@ -9,7 +9,7 @@
   "identities": {
     "runtime": {
       "status": "pending",
-      "reason": "The exact candidate commit, SimC revision, Gear/Community Releases and Manifest do not exist yet."
+      "reason": "SimC b92847e and the staging repair are verified; the candidate Gear/Community Releases and Manifest remain pending."
     },
     "verification": {
       "status": "pending",
@@ -55,26 +55,59 @@
       "summary": "The user authorized continued implementation; current facts, non-goals, resource ceilings, rollback and manual acceptance items are frozen."
     },
     {
+      "command": "related Python and caller audit tests",
+      "status": "pass",
+      "summary": "175 related Python tests and four caller-audit Node tests pass after the PG probe, cosmetic exclusion and guarded backfill changes."
+    },
+    {
+      "command": "bounded production Community resource probe",
+      "status": "pass",
+      "summary": "The no-write probe completed in 23394 ms at 1434619904 peak RSS bytes, zero temporary bytes and zero writes with the generation-24 pointer unchanged."
+    },
+    {
+      "command": "configured SimC exact stat probe and PG staging backfill",
+      "status": "pass",
+      "summary": "SimC b92847e produced 44/44 exact eligible pairs, item 268280 was deterministically excluded as non-combat Cosmetic, and 44 guarded staging rows were verified with a 44-row backup and unchanged pointer."
+    },
+    {
       "command": "implementation, candidate, live and closure verification",
       "status": "not_run",
-      "summary": "Pending TDD implementation and exact-head evidence."
+      "summary": "Pending inactive Gear/Community build, shadow, candidate promotion/rollback, public matrices, manual acceptance and exact-head closure."
     }
   ],
   "candidateDeployment": {
-    "status": "not_run",
-    "reason": "Candidate deployment is pending a clean implementation commit."
+    "status": "in_progress",
+    "reason": "Candidate SimC runtime and staging repair are complete; the inactive Gear/Community pair has not yet been sealed."
   },
-  "runtimeEvidence": [],
+  "runtimeEvidence": [
+    {
+      "path": "artifacts/releases/2026-07-28-equipment-simulator-phase0-unblock/resource-probe-active-725322-v4.json",
+      "status": "pass"
+    },
+    {
+      "path": "artifacts/releases/2026-07-28-equipment-simulator-phase0-unblock/item-level-stat-probe-b928-v1.json",
+      "status": "blocked",
+      "reason": "Historical diagnostic preserved: only official Cosmetic item 268280 lacked combat stats."
+    },
+    {
+      "path": "artifacts/releases/2026-07-28-equipment-simulator-phase0-unblock/item-level-stat-probe-b928-v2.json",
+      "status": "pass"
+    },
+    {
+      "path": "artifacts/releases/2026-07-28-equipment-simulator-phase0-unblock/item-level-stat-backfill-b928-v1.json",
+      "status": "pass"
+    }
+  ],
   "risks": [
     {
       "id": "simc-item-data",
-      "status": "open",
-      "detail": "Configured SimC b92847e proved 44/44 exact pairs for 11 combat items; item 268280 is official Armor/Cosmetic metadata and must be deterministically excluded with no inferred fallback."
+      "status": "resolved",
+      "detail": "Configured SimC b92847e proved 44/44 exact pairs for 11 combat items; item 268280 is official Armor/Cosmetic metadata and is deterministically excluded with no inferred fallback."
     },
     {
       "id": "community-builder-resource",
-      "status": "open",
-      "detail": "The unoptimized read-only preflight reached 2450200 KiB RSS after 5m31s and was terminated without writes; the optimized builder must pass the frozen hard bounds."
+      "status": "resolved",
+      "detail": "The optimized read-only preflight passed at 1434619904 peak RSS bytes, 23394 ms, zero temporary bytes and zero writes with a stable pointer."
     },
     {
       "id": "manual-acceptance",
@@ -96,6 +129,6 @@
     "artifacts/releases/2026-07-28-equipment-simulator-track-authority-correction/runtime-readonly-audit.json",
     "artifacts/releases/2026-07-28-equipment-simulator-track-authority-correction/phase1-decision.json"
   ],
-  "summary": "Strict Phase 0 unblock contract is active. Root causes are frozen; implementation, candidate data/runtime cutover, fresh Phase 0 pass, manual acceptance and merge closure remain pending.",
-  "updatedAt": "2026-07-28T19:30:00+08:00"
+  "summary": "Strict Phase 0 unblock is in progress. Caller classification, bounded resource evidence, SimC refresh, exact eligible stats, cosmetic exclusion and guarded staging repair pass; inactive release build, cutover, fresh Phase 0, manual acceptance and closure remain.",
+  "updatedAt": "2026-07-28T20:10:00+08:00"
 }

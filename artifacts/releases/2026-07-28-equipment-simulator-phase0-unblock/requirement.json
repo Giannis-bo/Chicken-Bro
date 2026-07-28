@@ -114,6 +114,10 @@
     {
       "date": "2026-07-28",
       "decision": "Phase 0 blockers are cleared before any target Catalog schema or API migration begins."
+    },
+    {
+      "date": "2026-07-28",
+      "decision": "Official Armor/Cosmetic item 268280 is excluded from equipment simulation; the 11 eligible instance-1305 combat items require 44/44 exact SimC stats."
     }
   ]
 }
