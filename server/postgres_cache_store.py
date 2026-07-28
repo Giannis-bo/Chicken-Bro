@@ -1962,10 +1962,19 @@ class PostgresCacheStore:
         if not gear_release_id or not community_release_id:
             return {
                 "formalActiveManifest": True,
+                "formalGearOnlyManifest": bool(
+                    gear_release_id and not community_release_id
+                ),
                 "pointerGeneration": binding.get("generation"),
                 "manifestRevision": str(
                     manifest.get("manifestRevision") or ""
                 ).strip(),
+                "gearRelease": (
+                    copy.deepcopy(binding.get("gearRelease"))
+                    if isinstance(binding.get("gearRelease"), dict)
+                    else None
+                ),
+                "communityRelease": None,
                 "winners": [],
             }
         pair = self._gear_release_store.load_community_release(

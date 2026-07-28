@@ -10392,6 +10392,49 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertEqual(raised.exception.code, "manifest_mismatch")
         self.assertEqual(release_store.import_calls, 0)
 
+    def test_active_community_reader_preserves_valid_gear_only_manifest_identity(self):
+        from server import postgres_cache_store
+
+        gear = {
+            "releaseId": "gear-release:active",
+            "releaseKind": "gear",
+            "releaseStatus": "validated",
+            "dependencyRevisions": {"capabilityRevision": "gear-capability-matrix-v2"},
+        }
+        binding = {
+            "pointerMode": "active",
+            "generation": 24,
+            "manifestRevision": "season-manifest:active",
+            "formalActiveManifest": True,
+            "manifest": {
+                "manifestRevision": "season-manifest:active",
+                "gearCatalogReleaseId": gear["releaseId"],
+                "communityTemplateReleaseId": "",
+            },
+            "gearRelease": gear,
+            "communityRelease": None,
+        }
+
+        class GearOnlyReleaseStore:
+            def load_active_manifest_binding(self):
+                return copy.deepcopy(binding)
+
+        store = postgres_cache_store.PostgresCacheStore(
+            lambda: self.fail("gear-only identity must not query mutable staging"),
+            gear_release_store=GearOnlyReleaseStore(),
+            observed_build_store=FakeObservedBuildStore(active=False),
+        )
+
+        active = store.get_active_community_release()
+
+        self.assertTrue(active["formalActiveManifest"])
+        self.assertTrue(active["formalGearOnlyManifest"])
+        self.assertEqual(active["pointerGeneration"], 24)
+        self.assertEqual(active["manifestRevision"], "season-manifest:active")
+        self.assertEqual(active["gearRelease"], gear)
+        self.assertIsNone(active["communityRelease"])
+        self.assertEqual(active["winners"], [])
+
 
 class ActiveObservedImportMediaTest(unittest.TestCase):
     def test_verified_registry_media_only_fills_missing_release_display_facts(self):

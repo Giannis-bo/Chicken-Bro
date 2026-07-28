@@ -347,6 +347,672 @@ def _resolved_snapshot(http_status: int, envelope: Any) -> dict[str, Any] | None
     return None
 
 
+def _projected_winner_hero_key(value: Any) -> str:
+    row = value if isinstance(value, dict) else {}
+    payload = row.get("payload") if isinstance(row.get("payload"), dict) else {}
+    return _text(row.get("heroKey") or payload.get("heroKey"))
+
+
+def _active_release_pair_identity(value: Any) -> tuple[Any, ...] | None:
+    """Capture one stable formal active identity, including a valid Gear-only state."""
+
+    active = value if isinstance(value, dict) else {}
+    pointer_generation = active.get("pointerGeneration")
+    if (
+        active.get("formalActiveManifest") is not True
+        or type(pointer_generation) is not int
+        or pointer_generation <= 0
+    ):
+        return None
+    gear = active.get("gearRelease")
+    gear = gear if isinstance(gear, dict) else {}
+    community = active.get("communityRelease")
+    community = community if isinstance(community, dict) else {}
+    gear_release_id = _text(gear.get("releaseId"))
+    community_release_id = _text(community.get("releaseId"))
+    manifest_revision = _text(active.get("manifestRevision"))
+    winners = active.get("winners")
+    if not gear_release_id or not manifest_revision or not isinstance(winners, list):
+        return None
+
+    formal_gear_only = active.get("formalGearOnlyManifest") is True
+    if formal_gear_only:
+        if community_release_id or winners:
+            return None
+        return (
+            True,
+            gear_release_id,
+            "",
+            manifest_revision,
+            pointer_generation,
+            (),
+            "gear_only",
+        )
+    if not community_release_id:
+        return None
+
+    winner_identity = []
+    for winner in winners:
+        if not isinstance(winner, dict):
+            return None
+        identity = (
+            _text(winner.get("classKey")),
+            _text(winner.get("specKey")),
+            _projected_winner_hero_key(winner),
+            _text(winner.get("templateId")),
+        )
+        if not identity[0] or not identity[1] or not identity[3]:
+            return None
+        winner_identity.append(identity)
+    if len(set(winner_identity)) != len(winner_identity):
+        return None
+    return (
+        True,
+        gear_release_id,
+        community_release_id,
+        manifest_revision,
+        pointer_generation,
+        tuple(sorted(winner_identity)),
+        "community",
+    )
+
+
+def _projected_winner_semantics(value: Any) -> dict[str, Any]:
+    winner = value if isinstance(value, dict) else {}
+    intent = (
+        winner.get("selectionIntent")
+        if isinstance(winner.get("selectionIntent"), dict)
+        else {}
+    )
+    payload = (
+        winner.get("payload")
+        if isinstance(winner.get("payload"), dict)
+        else {}
+    )
+    return {
+        "heroKey": _projected_winner_hero_key(winner),
+        "gearSourceTemplateId": _text(payload.get("gearSourceTemplateId")),
+        "selectionIntent": {
+            "schemaRevision": intent.get("schemaRevision"),
+            "eligibilityContext": intent.get("eligibilityContext"),
+            "slots": intent.get("slots"),
+        },
+        "semanticGearSignature": _text(
+            winner.get("semanticGearSignature")
+            or winner.get("resolvedGearSignature")
+        ),
+        "sourceKey": _text(winner.get("sourceKey")),
+        "sourceUrl": _text(winner.get("sourceUrl")),
+        "profileHash": _text(winner.get("profileHash")),
+        "gearHash": _text(winner.get("gearHash")),
+        "sampleCount": _int(winner.get("sampleCount")),
+    }
+
+
+def _run_projected_release_shadow(
+    store: Any,
+    *,
+    pair: dict[str, Any],
+    expected: list[tuple[str, str]],
+    gear_release_id: str,
+    community_release_id: str,
+    simc_runtime_revision: str,
+    level: int,
+    profile_context_by_spec: dict[str, dict[str, Any]] | None,
+    compare_profiles: bool,
+) -> dict[str, Any]:
+    """Validate a v2 two-Hero Community pair through an exact candidate preview."""
+
+    started = time.perf_counter()
+    blockers: list[dict[str, Any]] = []
+    gear_descriptor = (
+        pair.get("gearRelease")
+        if isinstance(pair.get("gearRelease"), dict)
+        else {}
+    )
+    community_descriptor = (
+        pair.get("communityRelease")
+        if isinstance(pair.get("communityRelease"), dict)
+        else {}
+    )
+    if (
+        _text(gear_descriptor.get("releaseId")) != gear_release_id
+        or _text(gear_descriptor.get("releaseStatus")) != "validated"
+        or _text(community_descriptor.get("releaseId")) != community_release_id
+        or _text(community_descriptor.get("releaseStatus")) != "validated"
+        or _text(community_descriptor.get("schemaRevision")) != "community-release-v2"
+        or _text(community_descriptor.get("validatedAgainstReleaseId"))
+        != gear_release_id
+    ):
+        blockers.append(_blocker(
+            "CANDIDATE_PROJECTED_PAIR_INVALID",
+            detail="Candidate preview requires one exact validated Gear/Community v2 pair.",
+        ))
+
+    expected_set = set(expected)
+    candidate_by_spec: dict[
+        tuple[str, str], dict[str, dict[str, Any]]
+    ] = {spec: {} for spec in expected}
+    for winner in pair.get("winners") or []:
+        if not isinstance(winner, dict):
+            continue
+        spec = (
+            _text(winner.get("classKey")),
+            _text(winner.get("specKey")),
+        )
+        hero_key = _projected_winner_hero_key(winner)
+        if spec not in expected_set:
+            blockers.append(_blocker(
+                "UNEXPECTED_PUBLIC_SPEC",
+                *spec,
+                "Candidate exposes a Hero winner outside the expected matrix.",
+            ))
+            continue
+        if (
+            not hero_key
+            or hero_key in candidate_by_spec[spec]
+            or _text(winner.get("role")) != "winner"
+        ):
+            blockers.append(_blocker(
+                "DUPLICATE_CANDIDATE_HERO_WINNER",
+                *spec,
+                "Candidate must expose one unique winner for each Hero slot.",
+            ))
+            continue
+        candidate_by_spec[spec][hero_key] = winner
+
+    for class_key, spec_key in expected:
+        if len(candidate_by_spec[(class_key, spec_key)]) != 2:
+            blockers.append(_blocker(
+                "CANDIDATE_HERO_WINNER_COUNT_INVALID",
+                class_key,
+                spec_key,
+                "Community v2 requires exactly two unique Hero winners per spec.",
+            ))
+
+    active_reader = getattr(store, "get_active_community_release", None)
+    active_pair: dict[str, Any] = {}
+    if callable(active_reader):
+        try:
+            loaded = active_reader()
+            if isinstance(loaded, dict):
+                active_pair = loaded
+        except Exception:
+            active_pair = {}
+    captured_active_identity = _active_release_pair_identity(active_pair)
+    if captured_active_identity is None:
+        return {
+            "schemaRevision": "gear-release-shadow-execution-v2",
+            "status": "blocked",
+            "gearReleaseId": gear_release_id,
+            "communityReleaseId": community_release_id,
+            "report": {},
+            "blockers": [_blocker(
+                "ACTIVE_RELEASE_BASELINE_INVALID",
+                detail=(
+                    "Projected shadow requires one stable formal active Manifest "
+                    "with an exact Gear identity and positive pointer generation."
+                ),
+            )],
+            "specResults": [],
+            "publicReadCount": 0,
+            "importReadCount": 0,
+            "formalActiveManifest": True,
+            "candidatePreview": False,
+        }
+
+    formal_gear_only = captured_active_identity[6] == "gear_only"
+    baseline_mode = (
+        "formal_gear_only_candidate_preview"
+        if formal_gear_only
+        else "formal_community_candidate_preview"
+    )
+    active_by_spec: dict[
+        tuple[str, str], dict[str, dict[str, Any]]
+    ] = {}
+    if not formal_gear_only:
+        active_community = (
+            active_pair.get("communityRelease")
+            if isinstance(active_pair.get("communityRelease"), dict)
+            else {}
+        )
+        if _text(active_community.get("schemaRevision")) != "community-release-v2":
+            blockers.append(_blocker(
+                "ACTIVE_PROJECTED_BASELINE_UNSUPPORTED",
+                detail="A non-empty active baseline must be Community Release v2.",
+            ))
+        for winner in active_pair.get("winners") or []:
+            if not isinstance(winner, dict):
+                continue
+            spec = (
+                _text(winner.get("classKey")),
+                _text(winner.get("specKey")),
+            )
+            hero_key = _projected_winner_hero_key(winner)
+            if spec in expected_set and hero_key:
+                active_by_spec.setdefault(spec, {})[hero_key] = winner
+
+    public_read_count = 0
+    import_read_count = 0
+    public_winner_count = 0
+    spec_results: list[dict[str, Any]] = []
+    profile_contexts = (
+        profile_context_by_spec
+        if isinstance(profile_context_by_spec, dict)
+        else {}
+    )
+    candidate_preview_seen = False
+
+    for class_key, spec_key in expected:
+        spec_started = time.perf_counter()
+        blocker_count_before = len(blockers)
+        spec = (class_key, spec_key)
+        try:
+            public = store.get_websim_gear(
+                class_key,
+                spec_key,
+                compact=True,
+                mode="initial",
+            )
+        except Exception:
+            public = {}
+            blockers.append(_blocker(
+                "CANDIDATE_PREVIEW_READ_FAILED",
+                class_key,
+                spec_key,
+                "Candidate preview public reader is unavailable.",
+            ))
+        public = public if isinstance(public, dict) else {}
+        public_read_count += 1
+        try:
+            resolver_context = store.get_gear_resolver_context(
+                gear_resolver_runtime_authority(
+                    class_key,
+                    spec_key,
+                    simc_runtime_revision=simc_runtime_revision,
+                )
+            )
+        except Exception:
+            resolver_context = {}
+        resolver_context = (
+            resolver_context if isinstance(resolver_context, dict) else {}
+        )
+        authored = (
+            resolver_context.get("authoredAgainst")
+            if isinstance(resolver_context.get("authoredAgainst"), dict)
+            else {}
+        )
+        preview_manifest_revision = _text(
+            public.get("manifestRevision")
+            or resolver_context.get("manifestRevision")
+        )
+        preview_binding_valid = (
+            public.get("candidatePreview") is True
+            and public.get("formalActiveManifest") is not True
+            and _text(public.get("gearCatalogReleaseId")) == gear_release_id
+            and _text(public.get("communityTemplateReleaseId"))
+            == community_release_id
+            and resolver_context.get("candidatePreview") is True
+            and resolver_context.get("formalActiveManifest") is not True
+            and _text(authored.get("gearCatalogRevision")) == gear_release_id
+            and bool(preview_manifest_revision)
+        )
+        if not preview_binding_valid:
+            blockers.append(_blocker(
+                "CANDIDATE_PREVIEW_BINDING_REQUIRED",
+                class_key,
+                spec_key,
+                "Shadow must read the exact inactive pair through Candidate Preview.",
+            ))
+        else:
+            candidate_preview_seen = True
+
+        baselines = (
+            public.get("baselineTemplates")
+            if isinstance(public.get("baselineTemplates"), list)
+            else []
+        )
+        if baselines:
+            blockers.append(_blocker(
+                "PUBLIC_BASELINE_LEAK",
+                class_key,
+                spec_key,
+                "Candidate Preview baseline templates must remain empty.",
+            ))
+        public_templates = (
+            public.get("communityTemplates")
+            if isinstance(public.get("communityTemplates"), list)
+            else []
+        )
+        public_by_hero: dict[str, dict[str, Any]] = {}
+        for template in public_templates:
+            if not isinstance(template, dict):
+                continue
+            hero_key = _text(template.get("heroKey"))
+            if not hero_key or hero_key in public_by_hero:
+                blockers.append(_blocker(
+                    "PUBLIC_HERO_WINNER_IDENTITY_INVALID",
+                    class_key,
+                    spec_key,
+                    "Candidate Preview Hero identities must be unique.",
+                ))
+                continue
+            public_by_hero[hero_key] = template
+        public_winner_count += len(public_by_hero)
+        if (
+            len(public_by_hero) != 2
+            or set(public_by_hero) != set(candidate_by_spec.get(spec, {}))
+        ):
+            blockers.append(_blocker(
+                "PUBLIC_HERO_WINNER_COUNT_INVALID",
+                class_key,
+                spec_key,
+                "Candidate Preview must expose the exact two sealed Hero winners.",
+            ))
+
+        hero_results: list[dict[str, Any]] = []
+        for hero_key, candidate in sorted(
+            candidate_by_spec.get(spec, {}).items()
+        ):
+            hero_blocker_count = len(blockers)
+            public_template = public_by_hero.get(hero_key)
+            template_id = _text(candidate.get("templateId"))
+            if (
+                not isinstance(public_template, dict)
+                or _text(public_template.get("id")) != template_id
+            ):
+                blockers.append(_blocker(
+                    "PUBLIC_WINNER_ID_MISMATCH",
+                    class_key,
+                    spec_key,
+                    f"Hero {hero_key} preview identity differs from the sealed winner.",
+                ))
+
+            if not formal_gear_only:
+                active_winner = active_by_spec.get(spec, {}).get(hero_key)
+                if not isinstance(active_winner, dict):
+                    blockers.append(_blocker(
+                        "ACTIVE_HERO_WINNER_MISSING",
+                        class_key,
+                        spec_key,
+                        f"Active Hero {hero_key} winner is unavailable.",
+                    ))
+                elif (
+                    _projected_winner_semantics(active_winner)
+                    != _projected_winner_semantics(candidate)
+                ):
+                    blockers.append(_blocker(
+                        "PUBLIC_WINNER_SEMANTIC_CHANGE",
+                        class_key,
+                        spec_key,
+                        f"Candidate Hero {hero_key} differs from the accepted active winner.",
+                    ))
+
+            candidate_intent = (
+                candidate.get("selectionIntent")
+                if isinstance(candidate.get("selectionIntent"), dict)
+                else {}
+            )
+            candidate_status, candidate_envelope = (
+                gear_runtime.resolve_candidate_selection_intent(
+                    candidate_intent,
+                    store=store,
+                    gear_release_id=gear_release_id,
+                    simc_runtime_revision=simc_runtime_revision,
+                    request_id=(
+                        f"shadow-candidate-{class_key}-{spec_key}-{hero_key}"
+                    ),
+                )
+            )
+            candidate_snapshot = _resolved_snapshot(
+                candidate_status,
+                candidate_envelope,
+            )
+            if candidate_snapshot is None:
+                blockers.append(_blocker(
+                    "CANDIDATE_RESOLVE_FAILED",
+                    class_key,
+                    spec_key,
+                    f"Candidate Hero {hero_key} did not resolve.",
+                ))
+            elif (
+                gear_release.semantic_gear_signature(
+                    candidate_intent,
+                    candidate_snapshot,
+                )
+                != _text(candidate.get("semanticGearSignature"))
+            ):
+                blockers.append(_blocker(
+                    "CANDIDATE_SEALED_RESULT_MISMATCH",
+                    class_key,
+                    spec_key,
+                    f"Candidate Hero {hero_key} differs from its sealed result.",
+                ))
+
+            import_status, import_envelope, _import_timings = (
+                gear_runtime.import_community_template(
+                    {
+                        "classKey": class_key,
+                        "specKey": spec_key,
+                        "templateId": template_id,
+                        "expectedManifestRevision": preview_manifest_revision,
+                    },
+                    store=store,
+                    simc_runtime_revision=simc_runtime_revision,
+                    request_id=(
+                        f"shadow-import-{class_key}-{spec_key}-{hero_key}"
+                    ),
+                )
+            )
+            import_read_count += 1
+            import_data = (
+                import_envelope.get("data")
+                if isinstance(import_envelope, dict)
+                and isinstance(import_envelope.get("data"), dict)
+                else {}
+            )
+            imported_snapshot = (
+                import_data.get("resolvedSnapshot")
+                if isinstance(import_data.get("resolvedSnapshot"), dict)
+                else {}
+            )
+            import_verified = (
+                import_status == 200
+                and _text(import_envelope.get("status")) == "verified"
+                and _text(import_data.get("status")) == "verified"
+                and _text(imported_snapshot.get("status")) == "verified"
+            )
+            if not import_verified:
+                blockers.append(_blocker(
+                    "CANDIDATE_IMPORT_FAILED",
+                    class_key,
+                    spec_key,
+                    f"Candidate Hero {hero_key} import did not verify.",
+                ))
+            elif (
+                candidate_snapshot is not None
+                and _text(imported_snapshot.get("resolvedGearSignature"))
+                != _text(candidate_snapshot.get("resolvedGearSignature"))
+            ):
+                blockers.append(_blocker(
+                    "CANDIDATE_IMPORT_RESOLVE_MISMATCH",
+                    class_key,
+                    spec_key,
+                    f"Candidate Hero {hero_key} import differs from exact Resolve.",
+                ))
+
+            profile_result = {"status": "not_run"}
+            if compare_profiles:
+                profile_context = profile_contexts.get(
+                    f"{class_key}:{spec_key}"
+                )
+                profile_context = (
+                    profile_context
+                    if isinstance(profile_context, dict)
+                    else {}
+                )
+                preview_profile_status, preview_profile = (
+                    gear_runtime.build_profile_from_selection_intent(
+                        {
+                            "selectionIntent": candidate_intent,
+                            "profileContext": profile_context,
+                        },
+                        store=store,
+                        simc_runtime_revision=simc_runtime_revision,
+                        request_id=(
+                            f"shadow-preview-profile-{class_key}-"
+                            f"{spec_key}-{hero_key}"
+                        ),
+                    )
+                )
+                exact_profile_status, exact_profile = (
+                    gear_runtime.build_candidate_profile_from_selection_intent(
+                        {
+                            "selectionIntent": candidate_intent,
+                            "profileContext": profile_context,
+                        },
+                        store=store,
+                        gear_release_id=gear_release_id,
+                        simc_runtime_revision=simc_runtime_revision,
+                        request_id=(
+                            f"shadow-candidate-profile-{class_key}-"
+                            f"{spec_key}-{hero_key}"
+                        ),
+                    )
+                )
+                preview_outcome = _profile_outcome(
+                    preview_profile_status,
+                    preview_profile,
+                )
+                exact_outcome = _profile_outcome(
+                    exact_profile_status,
+                    exact_profile,
+                )
+                profile_result = {
+                    "status": (
+                        "pass"
+                        if preview_outcome == exact_outcome
+                        else "blocked"
+                    ),
+                    "previewHttpStatus": preview_profile_status,
+                    "candidateHttpStatus": exact_profile_status,
+                    "previewProblemCodes": preview_outcome["problemCodes"],
+                    "candidateProblemCodes": exact_outcome["problemCodes"],
+                }
+                if profile_result["status"] != "pass":
+                    blockers.append(_blocker(
+                        "PROFILE_PARITY_MISMATCH",
+                        class_key,
+                        spec_key,
+                        f"Candidate Hero {hero_key} Profile differs from preview.",
+                    ))
+
+            hero_results.append({
+                "heroKey": hero_key,
+                "templateId": template_id,
+                "status": (
+                    "pass"
+                    if len(blockers) == hero_blocker_count
+                    else "blocked"
+                ),
+                "candidateHttpStatus": candidate_status,
+                "importHttpStatus": import_status,
+                "profileParity": profile_result,
+            })
+
+        spec_results.append({
+            "classKey": class_key,
+            "specKey": spec_key,
+            "status": (
+                "pass"
+                if len(blockers) == blocker_count_before
+                else "blocked"
+            ),
+            "heroSlotResults": hero_results,
+            "durationMs": round(
+                (time.perf_counter() - spec_started) * 1000,
+                3,
+            ),
+        })
+
+    try:
+        ending_active_pair = active_reader() if callable(active_reader) else {}
+    except Exception:
+        ending_active_pair = {}
+    if (
+        _active_release_pair_identity(ending_active_pair)
+        != captured_active_identity
+    ):
+        blockers.append(_blocker(
+            "ACTIVE_RELEASE_CHANGED_DURING_SHADOW",
+            detail="Exact active Manifest identity changed during candidate shadow.",
+        ))
+
+    status = "blocked" if blockers else "pass"
+    report = {
+        "schemaRevision": "gear-release-projected-shadow-report-v1",
+        "status": status,
+        "gearReleaseId": gear_release_id,
+        "communityReleaseId": community_release_id,
+        "expectedSpecCount": len(expected),
+        "expectedHeroSlotCount": len(expected) * 2,
+        "candidateWinnerCount": sum(
+            len(rows) for rows in candidate_by_spec.values()
+        ),
+        "publicWinnerCount": public_winner_count,
+        "activeWinnerCount": sum(
+            len(rows) for rows in active_by_spec.values()
+        ),
+        "blockers": [],
+    }
+    spec_durations = sorted(
+        float(row.get("durationMs") or 0)
+        for row in spec_results
+        if isinstance(row, dict)
+    )
+    p95_index = max(
+        0,
+        ((len(spec_durations) * 95 + 99) // 100) - 1,
+    )
+    return {
+        "schemaRevision": "gear-release-shadow-execution-v2",
+        "status": status,
+        "gearReleaseId": gear_release_id,
+        "communityReleaseId": community_release_id,
+        "baselineMode": baseline_mode,
+        "report": report,
+        "blockers": blockers,
+        "specResults": spec_results,
+        "publicReadCount": public_read_count,
+        "importReadCount": import_read_count,
+        "formalActiveManifest": False,
+        "activeBaselineFormal": True,
+        "candidatePreview": candidate_preview_seen,
+        "referenceProof": {
+            "status": "pass" if status == "pass" else "blocked",
+            "mode": "hero_slot_full_import_matrix",
+            "verifiedHeroSlotCount": sum(
+                1
+                for row in spec_results
+                for hero in row.get("heroSlotResults") or []
+                if isinstance(hero, dict) and hero.get("status") == "pass"
+            ),
+        },
+        "performance": {
+            "totalDurationMs": round(
+                (time.perf_counter() - started) * 1000,
+                3,
+            ),
+            "specP95Ms": (
+                spec_durations[p95_index]
+                if spec_durations
+                else 0
+            ),
+            "specMaxMs": spec_durations[-1] if spec_durations else 0,
+        },
+    }
+
+
 def _problem_codes(envelope: Any) -> list[str]:
     value = envelope if isinstance(envelope, dict) else {}
     problems = value.get("problems") if isinstance(value.get("problems"), list) else []
@@ -2516,6 +3182,24 @@ def run_release_shadow(
             "publicReadCount": 0,
             "formalActiveManifest": False,
         }
+
+    pair_community = (
+        pair.get("communityRelease")
+        if isinstance(pair.get("communityRelease"), dict)
+        else {}
+    )
+    if _text(pair_community.get("schemaRevision")) == "community-release-v2":
+        return _run_projected_release_shadow(
+            store,
+            pair=pair,
+            expected=expected,
+            gear_release_id=gear_id,
+            community_release_id=community_id,
+            simc_runtime_revision=simc_runtime_revision,
+            level=level,
+            profile_context_by_spec=profile_context_by_spec,
+            compare_profiles=compare_profiles,
+        )
 
     winners_by_spec: dict[tuple[str, str], dict[str, Any]] = {}
     for winner in pair.get("winners") or []:
