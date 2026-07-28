@@ -236,6 +236,25 @@ class GearExactItemRegistryStore:
     def _load_with_cursor(cur: Any, registry_revision: str) -> dict[str, Any]:
         cur.execute(
             """
+            /* gear_exact_registry_load_header */
+            SELECT
+                registry_revision,
+                catalog_revision,
+                season_revision,
+                gear_rule_revision,
+                registry_status,
+                registry_summary_json::text,
+                registry_problem_codes_json::text
+            FROM cache.websim_gear_exact_registries
+            WHERE registry_revision = %s
+            """,
+            (registry_revision,),
+        )
+        header = cur.fetchone()
+        if not header:
+            return {}
+        cur.execute(
+            """
             /* gear_exact_registry_load_refs */
             SELECT
                 registry_revision,
@@ -269,7 +288,9 @@ class GearExactItemRegistryStore:
         )
         ref_rows = cur.fetchall()
         if not ref_rows:
-            return {}
+            raise GearExactItemRegistryIntegrityError(
+                "sealed exact registry header mismatch"
+            )
 
         first = ref_rows[0]
         catalog_revision = _text(first[1])
@@ -278,6 +299,18 @@ class GearExactItemRegistryStore:
         status = _text(first[4])
         summary = _json_value(first[5])
         problem_codes = _json_value(first[6])
+        if (
+            _text(header[0]) != registry_revision
+            or _text(header[1]) != catalog_revision
+            or _text(header[2]) != season_revision
+            or _text(header[3]) != gear_rule_revision
+            or _text(header[4]) != status
+            or _json_value(header[5]) != summary
+            or _json_value(header[6]) != problem_codes
+        ):
+            raise GearExactItemRegistryIntegrityError(
+                "sealed exact registry header mismatch"
+            )
         references: list[dict[str, Any]] = []
         exact_keys: set[str] = set()
         for stored in ref_rows:
@@ -510,6 +543,32 @@ class GearExactItemRegistryStore:
 
         with self.connection() as conn:
             with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    /* gear_exact_registry_insert_header */
+                    INSERT INTO cache.websim_gear_exact_registries (
+                        registry_revision,
+                        catalog_revision,
+                        season_revision,
+                        gear_rule_revision,
+                        registry_status,
+                        registry_summary_json,
+                        registry_problem_codes_json
+                    ) VALUES (
+                        %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb
+                    )
+                    ON CONFLICT DO NOTHING
+                    """,
+                    (
+                        revision,
+                        catalog,
+                        season,
+                        rule,
+                        status,
+                        _json(summary),
+                        _json(problem_codes),
+                    ),
+                )
                 cur.executemany(
                     """
                     /* gear_exact_registry_insert_selections */

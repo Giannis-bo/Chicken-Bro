@@ -4969,7 +4969,7 @@ def prepare_canonical_simcraft_template_request(request_payload):
 
     if simulation_snapshot_v1_enabled() and not problems:
         if not callable(
-            getattr(cache_store, "get_latest_gear_exact_registry", None)
+            getattr(cache_store, "get_active_gear_exact_registry", None)
         ):
             problems.append(
                 simcraft_template_problem(
@@ -4982,7 +4982,26 @@ def prepare_canonical_simcraft_template_request(request_payload):
             )
         else:
             try:
-                exact_registry = cache_store.get_latest_gear_exact_registry()
+                release_context = (
+                    profile_envelope.get("releaseContext")
+                    if isinstance(
+                        profile_envelope.get("releaseContext"),
+                        dict,
+                    )
+                    else {}
+                )
+                exact_registry = (
+                    cache_store.get_active_gear_exact_registry(
+                        expected_manifest_revision=str(
+                            release_context.get("manifestRevision")
+                            or ""
+                        ).strip(),
+                        expected_pointer_generation=int(
+                            release_context.get("pointerGeneration")
+                            or 0
+                        ),
+                    )
+                )
                 phase3_loadout = build_resolved_loadout_from_registry(
                     resolver_snapshot=canonical_stat_context.get(
                         "resolvedSnapshot"

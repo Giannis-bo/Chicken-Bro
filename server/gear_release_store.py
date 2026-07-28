@@ -14,8 +14,12 @@ from typing import Any, Iterable
 
 try:
     from .gear_public_contract import is_public_hero_gear_projection
+    from .gear_catalog_revision_store import GearCatalogRevisionStore
+    from .gear_exact_item_registry_store import GearExactItemRegistryStore
 except ImportError:  # news_backend.py also supports direct script execution.
     from gear_public_contract import is_public_hero_gear_projection
+    from gear_catalog_revision_store import GearCatalogRevisionStore
+    from gear_exact_item_registry_store import GearExactItemRegistryStore
 
 
 RELEASE_SELECTED_ITEM_VARIANT_SQL = """
@@ -514,7 +518,240 @@ def _expected_manifest_revision(manifest: dict[str, Any]) -> str:
         "rollbackManifestRevision": manifest.get("rollbackManifestRevision") or "",
         "formalActiveManifest": bool(manifest.get("formalActiveManifest")),
     }
+    if manifest.get("schemaRevision") == "active-season-manifest-v2":
+        identity["gearCatalogRevision"] = manifest.get(
+            "gearCatalogRevision"
+        )
+        identity["gearExactRegistryRevision"] = manifest.get(
+            "gearExactRegistryRevision"
+        )
     return "season-manifest:" + _hash(identity)
+
+
+def _manifest_catalog_variant_aliases(
+    catalog: Any,
+) -> dict[str, tuple[str, str]]:
+    value = catalog if isinstance(catalog, dict) else {}
+    aliases: dict[str, tuple[str, str]] = {}
+    for row in value.get("browseVariants") or []:
+        variant = row if isinstance(row, dict) else {}
+        browse_key = _text(variant.get("browseVariantKey"))
+        item_id = _text(variant.get("itemId"))
+        source_keys = sorted(
+            {
+                _text(key)
+                for key in variant.get("sourceVariantKeys") or []
+                if _text(key)
+            }
+        )
+        if browse_key and item_id and source_keys:
+            aliases[browse_key] = (item_id, source_keys[0])
+    return aliases
+
+
+def _manifest_catalog_snapshot(
+    catalog: Any,
+    source_snapshot: Any,
+    *,
+    catalog_slot: str = "",
+) -> dict[str, list[dict[str, Any]]]:
+    """Project immutable Catalog membership into the established public row shape."""
+
+    value = catalog if isinstance(catalog, dict) else {}
+    if value.get("status") != "verified":
+        raise GearReleaseIntegrityError(
+            "Manifest Catalog must be verified for public browse"
+        )
+    definitions = {
+        _text(row.get("itemId")): _canonical(row)
+        for row in value.get("itemDefinitions") or []
+        if isinstance(row, dict) and _text(row.get("itemId"))
+    }
+    requested_slot = _text(catalog_slot)
+    variants = []
+    included_item_ids = set()
+    for row in value.get("browseVariants") or []:
+        variant = row if isinstance(row, dict) else {}
+        item_id = _text(variant.get("itemId"))
+        definition = definitions.get(item_id) or {}
+        slot = _text(definition.get("slot"))
+        if requested_slot and slot != requested_slot:
+            continue
+        browse_key = _text(variant.get("browseVariantKey"))
+        source_keys = sorted(
+            {
+                _text(key)
+                for key in variant.get("sourceVariantKeys") or []
+                if _text(key)
+            }
+        )
+        item_level = _int(variant.get("itemLevel"))
+        bonus_ids = [
+            _text(value)
+            for value in variant.get("bonusIds") or []
+            if _text(value)
+        ]
+        static_facts = (
+            _canonical(variant.get("staticFacts"))
+            if isinstance(variant.get("staticFacts"), dict)
+            else {}
+        )
+        if (
+            not item_id
+            or not slot
+            or not browse_key
+            or not source_keys
+            or item_level <= 0
+            or not static_facts
+            or variant.get("evidenceStatus") != "verified"
+        ):
+            raise GearReleaseIntegrityError(
+                "Manifest Catalog BrowseVariant integrity failed"
+            )
+        progression = (
+            _canonical(variant.get("progressionState"))
+            if isinstance(variant.get("progressionState"), dict)
+            else {}
+        )
+        track_key = _text(progression.get("trackKey"))
+        rank = _int(progression.get("rank"))
+        rank_max = _int(progression.get("rankMax"))
+        label = (
+            f"{track_key} {rank}/{rank_max}"
+            if track_key and rank and rank_max
+            else str(item_level)
+        )
+        sources = (
+            definition.get("sources")
+            if isinstance(definition.get("sources"), list)
+            else []
+        )
+        primary_source = next(
+            (
+                source
+                for source in sources
+                if isinstance(source, dict)
+            ),
+            {},
+        )
+        variants.append(
+            {
+                "variantId": browse_key,
+                "itemId": item_id,
+                "variantKey": browse_key,
+                "slot": slot,
+                "label": label,
+                "sourceType": _text(
+                    variant.get("sourceType")
+                    or primary_source.get("sourceType")
+                ),
+                "difficultyKey": _text(
+                    primary_source.get("difficultyKey")
+                ),
+                "itemLevel": item_level,
+                "simcOptions": {
+                    "ilevel": str(item_level),
+                    **(
+                        {"bonus_id": "/".join(bonus_ids)}
+                        if bonus_ids
+                        else {}
+                    ),
+                },
+                "status": "verified",
+                "blockers": [],
+                "payload": {
+                    "browseVariantKey": browse_key,
+                    "catalogRevision": _text(
+                        value.get("catalogRevision")
+                    ),
+                    "progressionState": progression,
+                    "sourceVariantKeys": source_keys,
+                    "staticStats": static_facts,
+                    "resolvedStats": static_facts,
+                },
+                "updatedAt": "",
+            }
+        )
+        included_item_ids.add(item_id)
+
+    items = []
+    sources = []
+    for item_id in sorted(included_item_ids):
+        definition = definitions[item_id]
+        payload = {
+            **_canonical(
+                definition.get("media")
+                if isinstance(definition.get("media"), dict)
+                else {}
+            ),
+            **_canonical(
+                definition.get("equipment")
+                if isinstance(definition.get("equipment"), dict)
+                else {}
+            ),
+            **_canonical(
+                definition.get("restrictions")
+                if isinstance(definition.get("restrictions"), dict)
+                else {}
+            ),
+            "catalogRevision": _text(value.get("catalogRevision")),
+        }
+        items.append(
+            {
+                "itemId": item_id,
+                "name": _text(definition.get("name")),
+                "slot": _text(definition.get("slot")),
+                "itemLevel": _int(definition.get("itemLevel")),
+                "payload": payload,
+                "sourceStatus": _text(
+                    definition.get("sourceStatus")
+                ),
+            }
+        )
+        for source in definition.get("sources") or []:
+            row = source if isinstance(source, dict) else {}
+            source_id = _text(row.get("sourceIdentity"))
+            if not source_id:
+                raise GearReleaseIntegrityError(
+                    "Manifest Catalog source identity is missing"
+                )
+            sources.append(
+                {
+                    "sourceId": source_id,
+                    "itemId": item_id,
+                    "sourceType": _text(row.get("sourceType")),
+                    "sourceKey": _text(row.get("sourceKey")),
+                    "sourceLabel": "",
+                    "instanceId": _text(row.get("instanceId")),
+                    "encounterId": _text(row.get("encounterId")),
+                    "difficultyKey": _text(
+                        row.get("difficultyKey")
+                    ),
+                    "seasonRevision": _text(
+                        row.get("seasonRevision")
+                    ),
+                    "payload": {
+                        "status": _text(
+                            row.get("status") or "verified"
+                        )
+                    },
+                    "updatedAt": "",
+                }
+            )
+    source_value = (
+        source_snapshot if isinstance(source_snapshot, dict) else {}
+    )
+    options = [
+        _canonical(row)
+        for row in source_value.get("options") or []
+        if isinstance(row, dict)
+    ]
+    return {
+        "items": items,
+        "sources": sources,
+        "variants": variants,
+        "options": options,
+    }
 
 
 def candidate_observed_variant_instance_key(
@@ -1839,7 +2076,10 @@ class GearReleaseStore:
             "selectionSchemaRevision": _text(dependencies.get("selectionSchemaRevision")),
             "authoredAgainst": {
                 "seasonRevision": _text(manifest.get("seasonRevision")),
-                "gearCatalogRevision": _text(manifest.get("gearCatalogReleaseId")),
+                "gearCatalogRevision": _text(
+                    manifest.get("gearCatalogRevision")
+                    or manifest.get("gearCatalogReleaseId")
+                ),
             },
             "dependencyRevisions": {
                 field: _text(dependencies.get(field))
@@ -1865,6 +2105,9 @@ class GearReleaseStore:
             raise GearReleaseIntegrityError("formal active or candidate preview Manifest binding is required")
         manifest = binding.get("manifest") if isinstance(binding.get("manifest"), dict) else {}
         gear_release_id = _text(manifest.get("gearCatalogReleaseId"))
+        catalog_revision = _text(
+            manifest.get("gearCatalogRevision") or gear_release_id
+        )
         dependencies = self._active_runtime_dependencies(binding, runtime_authority)
         # The exact-release reader is intentionally strict for inactive shadow
         # calls.  Active Resolve must still be able to read current authority
@@ -1877,12 +2120,76 @@ class GearReleaseStore:
             "seasonRevision": _text(manifest.get("seasonRevision")),
             "gearCatalogRevision": gear_release_id,
         }
+        aliases = (
+            _manifest_catalog_variant_aliases(
+                binding.get("gearCatalog")
+            )
+            if manifest.get("schemaRevision")
+            == "active-season-manifest-v2"
+            else {}
+        )
+        selected_aliases: dict[str, tuple[str, str]] = {}
+        slots = (
+            authority_read_intent.get("slots")
+            if isinstance(
+                authority_read_intent.get("slots"),
+                dict,
+            )
+            else {}
+        )
+        for slot, selection in slots.items():
+            if not isinstance(selection, dict):
+                continue
+            browse_key = _text(selection.get("variantKey"))
+            alias = aliases.get(browse_key)
+            if not alias:
+                continue
+            item_id, source_key = alias
+            if _text(selection.get("itemId")) != item_id:
+                raise GearReleaseIntegrityError(
+                    "Manifest Catalog selection item does not match BrowseVariant"
+                )
+            selection["variantKey"] = source_key
+            selected_aliases[browse_key] = alias
         context = self.load_candidate_authority_context(
             authority_read_intent,
             runtime_authority,
             gear_release_id,
         )
         context = _canonical(context)
+        if selected_aliases:
+            variants_by_key = (
+                context.get("variantsByKey")
+                if isinstance(context.get("variantsByKey"), dict)
+                else {}
+            )
+            items_by_id = (
+                context.get("itemsById")
+                if isinstance(context.get("itemsById"), dict)
+                else {}
+            )
+            for browse_key, (item_id, source_key) in selected_aliases.items():
+                source_variant = variants_by_key.get(source_key)
+                if not isinstance(source_variant, dict):
+                    raise GearReleaseIntegrityError(
+                        "Manifest Catalog source variant is unavailable"
+                    )
+                canonical_variant = _canonical(source_variant)
+                canonical_variant["sourceVariantKey"] = source_key
+                canonical_variant["variantKey"] = browse_key
+                canonical_variant["browseVariantKey"] = browse_key
+                variants_by_key[browse_key] = canonical_variant
+                item = items_by_id.get(item_id)
+                if isinstance(item, dict):
+                    item["variantKeys"] = [
+                        browse_key
+                        if _text(value) == source_key
+                        else _text(value)
+                        for value in item.get("variantKeys") or []
+                        if _text(value)
+                    ]
+            context["variantsByKey"] = variants_by_key
+            context["itemsById"] = items_by_id
         gear_release = binding.get("gearRelease") if isinstance(binding.get("gearRelease"), dict) else {}
         context["manifest"] = {
             "contractRevision": "active-season-manifest-v1",
@@ -1893,8 +2200,11 @@ class GearReleaseStore:
             "pointerGeneration": _int(binding.get("generation")),
             "seasonRevision": _text(manifest.get("seasonRevision")),
             "gearCatalogReleaseId": gear_release_id,
-            "gearCatalogRevision": gear_release_id,
+            "gearCatalogRevision": catalog_revision,
             "communityTemplateReleaseId": _text(manifest.get("communityTemplateReleaseId")),
+            "gearExactRegistryRevision": _text(
+                manifest.get("gearExactRegistryRevision")
+            ),
             "talentCatalogRevision": _text(manifest.get("talentCatalogRevision")),
             "catalogFingerprint": _text(gear_release.get("contentHash")),
             "sourceStates": {"releaseStatus": _text(gear_release.get("releaseStatus"))},
@@ -1902,7 +2212,7 @@ class GearReleaseStore:
         context["dependencyVector"] = {
             "seasonRevision": _text(manifest.get("seasonRevision")),
             "gearCatalogReleaseId": gear_release_id,
-            "gearCatalogRevision": gear_release_id,
+            "gearCatalogRevision": catalog_revision,
             **dependencies,
         }
         return _canonical(context)
@@ -1916,7 +2226,86 @@ class GearReleaseStore:
         include_catalog: bool,
         catalog_slot: str = "",
     ) -> dict[str, Any]:
-        """Read public gear facts only from the immutable Releases in one active binding."""
+        """Read the generation-32 v1 public contract for rollback compatibility."""
+
+        return self._load_public_release_material(
+            binding,
+            class_key,
+            spec_key,
+            include_catalog=include_catalog,
+            catalog_slot=catalog_slot,
+        )
+
+    def load_active_manifest_public_gear(
+        self,
+        binding: dict[str, Any],
+        class_key: str,
+        spec_key: str,
+        *,
+        include_catalog: bool,
+        catalog_slot: str = "",
+    ) -> dict[str, Any]:
+        """Read one Manifest v2 Catalog/Exact/Community dependency vector."""
+
+        if not _readable_release_binding(binding):
+            raise GearReleaseIntegrityError(
+                "formal active or candidate preview Manifest binding is required"
+            )
+        manifest = (
+            binding.get("manifest")
+            if isinstance(binding.get("manifest"), dict)
+            else {}
+        )
+        if manifest.get("schemaRevision") != "active-season-manifest-v2":
+            raise GearReleaseIntegrityError(
+                "Manifest v2 public reader requires active-season-manifest-v2"
+            )
+        catalog = (
+            binding.get("gearCatalog")
+            if isinstance(binding.get("gearCatalog"), dict)
+            else {}
+        )
+        exact_registry = (
+            binding.get("gearExactRegistry")
+            if isinstance(binding.get("gearExactRegistry"), dict)
+            else {}
+        )
+        if (
+            _text(catalog.get("catalogRevision"))
+            != _text(manifest.get("gearCatalogRevision"))
+            or _text(exact_registry.get("registryRevision"))
+            != _text(manifest.get("gearExactRegistryRevision"))
+        ):
+            raise GearReleaseIntegrityError(
+                "Manifest v2 public dependencies do not match the binding"
+            )
+        data = self._load_public_release_material(
+            binding,
+            class_key,
+            spec_key,
+            include_catalog=include_catalog,
+            catalog_slot=catalog_slot,
+        )
+        if include_catalog:
+            data["gearSnapshot"] = _manifest_catalog_snapshot(
+                catalog,
+                data.get("gearSnapshot"),
+                catalog_slot=catalog_slot,
+            )
+        data["gearCatalog"] = catalog
+        data["gearExactRegistry"] = exact_registry
+        return data
+
+    def _load_public_release_material(
+        self,
+        binding: dict[str, Any],
+        class_key: str,
+        spec_key: str,
+        *,
+        include_catalog: bool,
+        catalog_slot: str = "",
+    ) -> dict[str, Any]:
+        """Read immutable Community rows and release-owned enhancement options."""
 
         if not _readable_release_binding(binding):
             raise GearReleaseIntegrityError("formal active or candidate preview Manifest binding is required")
@@ -2987,8 +3376,12 @@ class GearReleaseStore:
             INSERT INTO cache.websim_season_manifests (
                 manifest_revision, schema_revision, season_revision, gear_release_id,
                 community_release_id, talent_catalog_revision, dependency_vector_json,
-                rollback_manifest_revision, manifest_hash, payload_json
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s::jsonb)
+                rollback_manifest_revision, manifest_hash, payload_json,
+                gear_catalog_revision, gear_exact_registry_revision
+            ) VALUES (
+                %s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s::jsonb,
+                %s, %s
+            )
             """,
             (
                 revision,
@@ -3001,6 +3394,8 @@ class GearReleaseStore:
                 manifest.get("rollbackManifestRevision") or None,
                 _hash({key: value for key, value in manifest.items() if key != "manifestRevision"}),
                 _json_param(manifest),
+                manifest.get("gearCatalogRevision") or None,
+                manifest.get("gearExactRegistryRevision") or None,
             ),
         )
         self._insert_event(
@@ -3015,6 +3410,177 @@ class GearReleaseStore:
         with self.connection() as conn:
             with conn.cursor() as cur:
                 return self._seal_manifest_with_cursor(cur, manifest)
+
+    def _load_manifest_dependencies_with_cursor(
+        self,
+        cur: Any,
+        manifest: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Validate every immutable dependency declared by one Manifest."""
+
+        try:
+            from . import gear_release
+        except ImportError:
+            import gear_release
+
+        gear_id = _text(manifest.get("gearCatalogReleaseId"))
+        community_id = _text(
+            manifest.get("communityTemplateReleaseId")
+        )
+        releases = {}
+        gear = self._select_release(cur, gear_id)
+        if gear is not None:
+            releases[gear_id] = _exact_release_descriptor(gear)
+        community = None
+        if community_id:
+            community = self._select_release(cur, community_id)
+            if community is not None:
+                releases[community_id] = _exact_release_descriptor(
+                    community
+                )
+        issues = gear_release.validate_manifest(manifest, releases)
+        if issues:
+            raise GearReleaseIntegrityError(
+                "Manifest binding integrity failed: "
+                + ", ".join(
+                    _text(issue.get("code")) for issue in issues
+                )
+            )
+        result = {
+            "manifest": _canonical(manifest),
+            "gearRelease": releases[gear_id],
+            "communityRelease": (
+                releases.get(community_id) if community_id else None
+            ),
+        }
+        if (
+            manifest.get("schemaRevision")
+            != gear_release.ACTIVE_SEASON_MANIFEST_V2_SCHEMA_REVISION
+        ):
+            return result
+
+        catalog_revision = _text(
+            manifest.get("gearCatalogRevision")
+        )
+        exact_registry_revision = _text(
+            manifest.get("gearExactRegistryRevision")
+        )
+        catalog = GearCatalogRevisionStore._load_with_cursor(
+            cur,
+            catalog_revision,
+        )
+        exact_registry = GearExactItemRegistryStore._load_with_cursor(
+            cur,
+            exact_registry_revision,
+        )
+        dependencies = (
+            manifest.get("dependencyRevisions")
+            if isinstance(manifest.get("dependencyRevisions"), dict)
+            else {}
+        )
+        if (
+            catalog.get("status") != "verified"
+            or _text(catalog.get("catalogRevision"))
+            != catalog_revision
+            or _text(catalog.get("seasonRevision"))
+            != _text(manifest.get("seasonRevision"))
+            or _text(
+                (
+                    catalog.get("provenance")
+                    if isinstance(catalog.get("provenance"), dict)
+                    else {}
+                ).get("sourceGearReleaseId")
+            )
+            != gear_id
+            or _text(
+                (
+                    catalog.get("dependencyVector")
+                    if isinstance(
+                        catalog.get("dependencyVector"),
+                        dict,
+                    )
+                    else {}
+                ).get("gearRuleRevision")
+            )
+            != _text(dependencies.get("gearRuleRevision"))
+        ):
+            raise GearReleaseIntegrityError(
+                "Manifest Catalog binding integrity failed"
+            )
+        if (
+            exact_registry.get("status")
+            not in {"verified", "partial"}
+            or _text(exact_registry.get("registryRevision"))
+            != exact_registry_revision
+            or _text(exact_registry.get("catalogRevision"))
+            != catalog_revision
+            or _text(exact_registry.get("seasonRevision"))
+            != _text(manifest.get("seasonRevision"))
+            or _text(exact_registry.get("gearRuleRevision"))
+            != _text(dependencies.get("gearRuleRevision"))
+        ):
+            raise GearReleaseIntegrityError(
+                "Manifest Exact Registry binding integrity failed"
+            )
+        result["gearCatalog"] = _canonical(catalog)
+        result["gearExactRegistry"] = _canonical(exact_registry)
+        return result
+
+    def load_candidate_manifest_binding(
+        self,
+        manifest_revision: str,
+    ) -> dict[str, Any]:
+        """Load one sealed Manifest v2 for candidate preview without pointer mutation."""
+
+        revision = _text(manifest_revision)
+        if not revision:
+            raise GearReleaseIntegrityError(
+                "candidate Manifest revision is required"
+            )
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"
+                )
+                cur.execute(
+                    """
+                    SELECT payload_json
+                    FROM cache.websim_season_manifests
+                    WHERE manifest_revision = %s
+                    """,
+                    (revision,),
+                )
+                row = cur.fetchone()
+                manifest = (
+                    row[0]
+                    if row and isinstance(row[0], dict)
+                    else None
+                )
+                if (
+                    not isinstance(manifest, dict)
+                    or _text(manifest.get("manifestRevision"))
+                    != revision
+                    or manifest.get("schemaRevision")
+                    != "active-season-manifest-v2"
+                ):
+                    raise GearReleaseIntegrityError(
+                        "candidate Manifest v2 is missing or invalid"
+                    )
+                dependencies = (
+                    self._load_manifest_dependencies_with_cursor(
+                        cur,
+                        manifest,
+                    )
+                )
+        return {
+            "pointerMode": "candidate_preview",
+            "generation": 0,
+            "manifestRevision": revision,
+            "rollbackManifestRevision": "",
+            "formalActiveManifest": False,
+            "candidatePreview": True,
+            **dependencies,
+        }
 
     def get_active_pointer(self) -> dict[str, Any]:
         with self.connection() as conn:
@@ -3095,29 +3661,16 @@ class GearReleaseStore:
                 manifest = values[7] if isinstance(values[7], dict) else None
                 if not isinstance(manifest, dict) or _text(manifest.get("manifestRevision")) != manifest_revision:
                     raise GearReleaseIntegrityError("active Manifest is missing or does not match the pointer")
-                gear_id = _text(manifest.get("gearCatalogReleaseId"))
-                community_id = _text(manifest.get("communityTemplateReleaseId"))
-                releases = {}
-                gear = self._select_release(cur, gear_id)
-                if gear is not None:
-                    releases[gear_id] = _exact_release_descriptor(gear)
-                community = None
-                if community_id:
-                    community = self._select_release(cur, community_id)
-                    if community is not None:
-                        releases[community_id] = _exact_release_descriptor(community)
-                issues = gear_release.validate_manifest(manifest, releases)
-                if issues:
-                    raise GearReleaseIntegrityError(
-                        "active Manifest binding integrity failed: "
-                        + ", ".join(_text(issue.get("code")) for issue in issues)
+                dependencies = (
+                    self._load_manifest_dependencies_with_cursor(
+                        cur,
+                        manifest,
                     )
+                )
                 return {
                     **common,
                     "formalActiveManifest": True,
-                    "manifest": _canonical(manifest),
-                    "gearRelease": releases[gear_id],
-                    "communityRelease": releases.get(community_id) if community_id else None,
+                    **dependencies,
                 }
 
     @staticmethod

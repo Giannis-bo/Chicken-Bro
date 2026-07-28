@@ -23,6 +23,7 @@ except ImportError:
 GEAR_RELEASE_SCHEMA_REVISION = "gear-release-v1"
 COMMUNITY_RELEASE_SCHEMA_REVISION = "community-release-v1"
 ACTIVE_SEASON_MANIFEST_SCHEMA_REVISION = "active-season-manifest-v1"
+ACTIVE_SEASON_MANIFEST_V2_SCHEMA_REVISION = "active-season-manifest-v2"
 ACTIVE_MANIFEST_POINTER_COMMAND_REVISION = "active-manifest-pointer-command-v2"
 COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_V1 = "community-template-import-evidence-v1"
 COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_V2 = "community-template-import-evidence-v2"
@@ -34,6 +35,10 @@ _SUPPORTED_COMMUNITY_TEMPLATE_IMPORT_EVIDENCE_REVISIONS = {
 }
 _ATTRIBUTE_STABLE_EFFECT_CONTEXT_REVISION = "gear-attribute-stable-effects-v1"
 _ATTRIBUTE_STABLE_EFFECT_ID_PATTERN = re.compile(r"[a-z][a-z0-9:_-]{0,255}")
+_CATALOG_REVISION_PATTERN = re.compile(r"gear-catalog:sha256:[0-9a-f]{64}")
+_EXACT_REGISTRY_REVISION_PATTERN = re.compile(
+    r"gear-exact-registry:sha256:[0-9a-f]{64}"
+)
 
 _RELEASE_KINDS = {"gear", "community"}
 _RELEASE_STATUSES = {"validated", "degraded", "blocked"}
@@ -261,7 +266,7 @@ def validate_release(release: Any) -> list[dict[str, str]]:
 
 
 def _manifest_identity_payload(manifest: dict[str, Any]) -> dict[str, Any]:
-    return {
+    identity = {
         "schemaRevision": manifest.get("schemaRevision"),
         "seasonRevision": manifest.get("seasonRevision"),
         "gearCatalogReleaseId": manifest.get("gearCatalogReleaseId"),
@@ -271,6 +276,17 @@ def _manifest_identity_payload(manifest: dict[str, Any]) -> dict[str, Any]:
         "rollbackManifestRevision": manifest.get("rollbackManifestRevision") or "",
         "formalActiveManifest": bool(manifest.get("formalActiveManifest")),
     }
+    if (
+        manifest.get("schemaRevision")
+        == ACTIVE_SEASON_MANIFEST_V2_SCHEMA_REVISION
+    ):
+        identity["gearCatalogRevision"] = manifest.get(
+            "gearCatalogRevision"
+        )
+        identity["gearExactRegistryRevision"] = manifest.get(
+            "gearExactRegistryRevision"
+        )
+    return identity
 
 
 def _expected_manifest_revision(manifest: dict[str, Any]) -> str:
@@ -285,6 +301,8 @@ def build_manifest(
     talent_catalog_revision: str,
     dependency_revisions: dict[str, Any],
     rollback_manifest_revision: str = "",
+    catalog_revision: str = "",
+    exact_registry_revision: str = "",
 ) -> dict[str, Any]:
     """Build a formal immutable Season Manifest without activating it."""
 
@@ -326,8 +344,30 @@ def build_manifest(
         ):
             raise ValueError(f"{release_name} Release dependencies do not match the manifest")
 
+    catalog = _text(catalog_revision)
+    exact_registry = _text(exact_registry_revision)
+    if bool(catalog) != bool(exact_registry):
+        raise ValueError(
+            "catalog_revision and exact_registry_revision must be supplied together"
+        )
+    schema_revision = ACTIVE_SEASON_MANIFEST_SCHEMA_REVISION
+    if catalog:
+        if not _CATALOG_REVISION_PATTERN.fullmatch(catalog):
+            raise ValueError("catalog_revision is invalid")
+        if not _EXACT_REGISTRY_REVISION_PATTERN.fullmatch(exact_registry):
+            raise ValueError("exact_registry_revision is invalid")
+        if (
+            normalized_dependencies.get("gearCatalogRevision") != catalog
+            or normalized_dependencies.get("gearExactRegistryRevision")
+            != exact_registry
+        ):
+            raise ValueError(
+                "Catalog and Exact Registry revisions must match manifest dependencies"
+            )
+        schema_revision = ACTIVE_SEASON_MANIFEST_V2_SCHEMA_REVISION
+
     manifest = {
-        "schemaRevision": ACTIVE_SEASON_MANIFEST_SCHEMA_REVISION,
+        "schemaRevision": schema_revision,
         "manifestRevision": "",
         "seasonRevision": season,
         "gearCatalogReleaseId": _text(gear_release.get("releaseId")),
@@ -337,6 +377,9 @@ def build_manifest(
         "rollbackManifestRevision": _text(rollback_manifest_revision),
         "formalActiveManifest": True,
     }
+    if schema_revision == ACTIVE_SEASON_MANIFEST_V2_SCHEMA_REVISION:
+        manifest["gearCatalogRevision"] = catalog
+        manifest["gearExactRegistryRevision"] = exact_registry
     manifest["manifestRevision"] = _expected_manifest_revision(manifest)
     return manifest
 
@@ -350,7 +393,11 @@ def validate_manifest(
     if not isinstance(manifest, dict):
         return [_issue("MANIFEST_INVALID", "manifest", "Manifest must be an object.")]
     issues: list[dict[str, str]] = []
-    if manifest.get("schemaRevision") != ACTIVE_SEASON_MANIFEST_SCHEMA_REVISION:
+    schema_revision = manifest.get("schemaRevision")
+    if schema_revision not in {
+        ACTIVE_SEASON_MANIFEST_SCHEMA_REVISION,
+        ACTIVE_SEASON_MANIFEST_V2_SCHEMA_REVISION,
+    }:
         issues.append(_issue("MANIFEST_SCHEMA_INVALID", "manifest.schemaRevision", "Manifest schema is not supported."))
     if not manifest.get("formalActiveManifest"):
         issues.append(_issue("MANIFEST_NOT_FORMAL", "manifest.formalActiveManifest", "Formal manifest flag is required."))
@@ -364,6 +411,57 @@ def validate_manifest(
 
     registry = releases_by_id if isinstance(releases_by_id, dict) else {}
     manifest_dependencies = manifest.get("dependencyRevisions") if isinstance(manifest.get("dependencyRevisions"), dict) else {}
+    if schema_revision == ACTIVE_SEASON_MANIFEST_V2_SCHEMA_REVISION:
+        catalog_revision = _text(manifest.get("gearCatalogRevision"))
+        exact_registry_revision = _text(
+            manifest.get("gearExactRegistryRevision")
+        )
+        if not _CATALOG_REVISION_PATTERN.fullmatch(catalog_revision):
+            issues.append(
+                _issue(
+                    "MANIFEST_CATALOG_REVISION_INVALID",
+                    "manifest.gearCatalogRevision",
+                    "Manifest v2 requires a valid CatalogRevision.",
+                    "RELEASE_BINDING_MISMATCH",
+                )
+            )
+        if not _EXACT_REGISTRY_REVISION_PATTERN.fullmatch(
+            exact_registry_revision
+        ):
+            issues.append(
+                _issue(
+                    "MANIFEST_EXACT_REGISTRY_REVISION_INVALID",
+                    "manifest.gearExactRegistryRevision",
+                    "Manifest v2 requires a valid Exact Registry revision.",
+                    "RELEASE_BINDING_MISMATCH",
+                )
+            )
+        if (
+            manifest_dependencies.get("gearCatalogRevision")
+            != catalog_revision
+            or manifest_dependencies.get("gearExactRegistryRevision")
+            != exact_registry_revision
+        ):
+            issues.append(
+                _issue(
+                    "MANIFEST_CATALOG_EXACT_DEPENDENCY_MISMATCH",
+                    "manifest.dependencyRevisions",
+                    "Manifest v2 Catalog and Exact Registry dependencies do not match its direct bindings.",
+                    "RELEASE_BINDING_MISMATCH",
+                )
+            )
+    elif (
+        manifest.get("gearCatalogRevision")
+        or manifest.get("gearExactRegistryRevision")
+    ):
+        issues.append(
+            _issue(
+                "MANIFEST_V2_BINDING_FORBIDDEN",
+                "manifest",
+                "Manifest v1 cannot claim Catalog or Exact Registry bindings.",
+                "RELEASE_BINDING_MISMATCH",
+            )
+        )
     gear_id = _text(manifest.get("gearCatalogReleaseId"))
     gear = registry.get(gear_id)
     if not isinstance(gear, dict):

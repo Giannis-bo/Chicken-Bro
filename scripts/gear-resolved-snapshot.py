@@ -450,7 +450,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     try:
         audit = audit_store.snapshot()
-        registry = cache_store.get_latest_gear_exact_registry()
+        pointer_before = _mapping(audit.get("pointerBefore"))
+        registry = cache_store.get_active_gear_exact_registry()
 
         def resolver_reader(intent):
             eligibility = _mapping(intent.get("eligibilityContext"))
@@ -498,7 +499,7 @@ def main(argv: list[str] | None = None) -> int:
             snapshot_reader=snapshot_reader,
             seal_loadout=cache_store.seal_resolved_loadout,
             seal_snapshot=cache_store.seal_simulation_snapshot,
-            pointer_before=_mapping(audit.get("pointerBefore")),
+            pointer_before=pointer_before,
             pointer_after_reader=audit_store.pointer_identity,
             observed_at=datetime.now(timezone.utc).isoformat(),
         )

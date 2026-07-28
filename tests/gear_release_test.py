@@ -218,6 +218,104 @@ class GearReleaseTest(unittest.TestCase):
             community["releaseId"]: community,
         }), [])
 
+    def test_manifest_v2_hash_binds_catalog_and_exact_registry(self):
+        gear = self.gear_release()
+        community = self.community_release(gear["releaseId"])
+        catalog_revision = "gear-catalog:sha256:" + ("a" * 64)
+        exact_registry_revision = "gear-exact-registry:sha256:" + ("b" * 64)
+        dependencies = {
+            **self.dependency_revisions(),
+            "gearCatalogRevision": catalog_revision,
+            "gearExactRegistryRevision": exact_registry_revision,
+        }
+
+        manifest = gear_release.build_manifest(
+            season_revision="season-17",
+            gear_release=gear,
+            community_release=community,
+            talent_catalog_revision="talent-r1",
+            dependency_revisions=dependencies,
+            catalog_revision=catalog_revision,
+            exact_registry_revision=exact_registry_revision,
+            rollback_manifest_revision="season-manifest:sha256:old",
+        )
+
+        self.assertEqual(
+            manifest["schemaRevision"],
+            gear_release.ACTIVE_SEASON_MANIFEST_V2_SCHEMA_REVISION,
+        )
+        self.assertEqual(manifest["gearCatalogRevision"], catalog_revision)
+        self.assertEqual(
+            manifest["gearExactRegistryRevision"],
+            exact_registry_revision,
+        )
+        self.assertEqual(
+            gear_release.validate_manifest(
+                manifest,
+                {
+                    gear["releaseId"]: gear,
+                    community["releaseId"]: community,
+                },
+            ),
+            [],
+        )
+
+        tampered = {
+            **manifest,
+            "gearExactRegistryRevision": (
+                "gear-exact-registry:sha256:" + ("c" * 64)
+            ),
+        }
+        issues = gear_release.validate_manifest(
+            tampered,
+            {
+                gear["releaseId"]: gear,
+                community["releaseId"]: community,
+            },
+        )
+        self.assertTrue(
+            any(issue["code"] == "MANIFEST_HASH_MISMATCH" for issue in issues)
+        )
+
+    def test_manifest_v2_rejects_partial_or_mismatched_catalog_exact_binding(self):
+        gear = self.gear_release()
+        catalog_revision = "gear-catalog:sha256:" + ("a" * 64)
+        exact_registry_revision = "gear-exact-registry:sha256:" + ("b" * 64)
+        dependencies = self.dependency_revisions()
+
+        for catalog, exact in (
+            (catalog_revision, ""),
+            ("", exact_registry_revision),
+        ):
+            with self.subTest(catalog=catalog, exact=exact):
+                with self.assertRaises(ValueError):
+                    gear_release.build_manifest(
+                        season_revision="season-17",
+                        gear_release=gear,
+                        community_release=None,
+                        talent_catalog_revision="talent-r1",
+                        dependency_revisions=dependencies,
+                        catalog_revision=catalog,
+                        exact_registry_revision=exact,
+                    )
+
+        with self.assertRaises(ValueError):
+            gear_release.build_manifest(
+                season_revision="season-17",
+                gear_release=gear,
+                community_release=None,
+                talent_catalog_revision="talent-r1",
+                dependency_revisions={
+                    **dependencies,
+                    "gearCatalogRevision": (
+                        "gear-catalog:sha256:" + ("d" * 64)
+                    ),
+                    "gearExactRegistryRevision": exact_registry_revision,
+                },
+                catalog_revision=catalog_revision,
+                exact_registry_revision=exact_registry_revision,
+            )
+
     def test_manifest_allows_gear_only_but_rejects_mixed_or_blocked_releases(self):
         gear = self.gear_release()
         gear_only = gear_release.build_manifest(

@@ -567,6 +567,94 @@ class PostgresCacheStoreTest(unittest.TestCase):
             {template["id"] for template in persisted_templates},
         )
 
+    def test_manifest_v2_gear_payload_uses_only_the_manifest_catalog_reader(self):
+        from server.postgres_cache_store import PostgresCacheStore
+
+        catalog_revision = "gear-catalog:sha256:" + ("a" * 64)
+        exact_revision = "gear-exact-registry:sha256:" + ("b" * 64)
+
+        class ReleaseStore:
+            def load_active_public_gear(self, *_args, **_kwargs):
+                raise AssertionError("Manifest v2 must not use the v1 public reader")
+
+            def load_active_manifest_public_gear(
+                self,
+                exact_binding,
+                class_key,
+                spec_key,
+                *,
+                include_catalog,
+                catalog_slot="",
+            ):
+                self.call = (
+                    exact_binding,
+                    class_key,
+                    spec_key,
+                    include_catalog,
+                    catalog_slot,
+                )
+                return {
+                    "gearRelease": {
+                        "releaseId": "gear-release-a",
+                        "releaseStatus": "validated",
+                    },
+                    "communityRelease": {
+                        "releaseId": "community-release-a",
+                    },
+                    "communityTemplates": [{"id": "template-a"}],
+                    "gearCatalog": {
+                        "catalogRevision": catalog_revision,
+                        "status": "verified",
+                    },
+                    "gearExactRegistry": {
+                        "registryRevision": exact_revision,
+                        "status": "verified",
+                    },
+                    "gearSnapshot": None,
+                }
+
+        release_store = ReleaseStore()
+        store = PostgresCacheStore(
+            lambda: self.fail("Manifest v2 public read must stay in repositories"),
+            gear_release_store=release_store,
+            observed_build_store=FakeObservedBuildStore(active=False),
+        )
+        binding = {
+            "generation": 33,
+            "formalActiveManifest": True,
+            "manifest": {
+                "schemaRevision": "active-season-manifest-v2",
+                "manifestRevision": "manifest-v2",
+                "seasonRevision": "season-17",
+                "gearCatalogReleaseId": "gear-release-a",
+                "gearCatalogRevision": catalog_revision,
+                "gearExactRegistryRevision": exact_revision,
+                "communityTemplateReleaseId": "community-release-a",
+            },
+        }
+
+        with patch.object(
+            store,
+            "_websim_gear_initial_payload",
+            return_value={"ok": True},
+        ):
+            result = store._active_websim_gear_payload(
+                binding,
+                "mage",
+                "frost",
+                False,
+                "initial",
+                "",
+            )
+
+        self.assertEqual(
+            release_store.call,
+            (binding, "mage", "frost", False, ""),
+        )
+        self.assertEqual(result["gearCatalogReleaseId"], "gear-release-a")
+        self.assertEqual(result["gearCatalogRevision"], catalog_revision)
+        self.assertEqual(result["gearExactRegistryRevision"], exact_revision)
+
     def test_exact_gear_import_uses_active_observed_projection(self):
         from server import postgres_cache_store
         from server.postgres_cache_store import (
@@ -9496,6 +9584,63 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertFalse(conn.rolled_back)
         loader.assert_called_once()
 
+    def test_active_exact_registry_is_manifest_bound_and_never_uses_latest(self):
+        from server import postgres_cache_store
+
+        exact_registry = {
+            "registryRevision": (
+                "gear-exact-registry:sha256:" + ("b" * 64)
+            ),
+            "catalogRevision": (
+                "gear-catalog:sha256:" + ("a" * 64)
+            ),
+            "status": "partial",
+        }
+
+        class ManifestV2ReleaseStore:
+            def get_active_pointer(self):
+                return {
+                    "pointerMode": "active",
+                    "manifestRevision": "season-manifest:v2",
+                    "generation": 33,
+                }
+
+            def load_active_manifest_binding(self):
+                return {
+                    "pointerMode": "active",
+                    "manifestRevision": "season-manifest:v2",
+                    "generation": 33,
+                    "formalActiveManifest": True,
+                    "manifest": {
+                        "schemaRevision": "active-season-manifest-v2",
+                        "manifestRevision": "season-manifest:v2",
+                        "gearExactRegistryRevision": exact_registry[
+                            "registryRevision"
+                        ],
+                    },
+                    "gearExactRegistry": exact_registry,
+                }
+
+        store = postgres_cache_store.PostgresCacheStore(
+            lambda: FakeConnection(),
+            gear_release_store=ManifestV2ReleaseStore(),
+        )
+
+        result = store.get_active_gear_exact_registry(
+            expected_manifest_revision="season-manifest:v2",
+            expected_pointer_generation=33,
+        )
+
+        self.assertEqual(result, exact_registry)
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "Manifest revision changed",
+        ):
+            store.get_active_gear_exact_registry(
+                expected_manifest_revision="season-manifest:stale",
+                expected_pointer_generation=33,
+            )
+
     def test_candidate_release_readers_delegate_to_single_release_repository(self):
         from server import postgres_cache_store
 
@@ -9893,6 +10038,68 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertFalse(payload["formalActiveManifest"])
         self.assertEqual(payload["communityTemplateReleaseId"], preview_release["releaseId"])
 
+    def test_candidate_preview_can_bind_one_sealed_manifest_v2_without_pointer_move(self):
+        from server import postgres_cache_store
+
+        active = {
+            "pointerMode": "active",
+            "generation": 32,
+            "manifestRevision": "season-manifest:active-v1",
+            "formalActiveManifest": True,
+            "manifest": {
+                "schemaRevision": "active-season-manifest-v1",
+                "manifestRevision": "season-manifest:active-v1",
+            },
+        }
+        candidate_revision = "season-manifest:candidate-v2"
+        candidate = {
+            "manifestRevision": candidate_revision,
+            "manifest": {
+                "schemaRevision": "active-season-manifest-v2",
+                "manifestRevision": candidate_revision,
+            },
+            "gearRelease": {"releaseId": "gear-release-a"},
+            "communityRelease": {"releaseId": "community-release-a"},
+            "gearCatalog": {"catalogRevision": "catalog-a"},
+            "gearExactRegistry": {"registryRevision": "exact-a"},
+        }
+
+        class PreviewReleaseStore:
+            def load_candidate_manifest_binding(self, manifest_revision):
+                self.requested_revision = manifest_revision
+                return copy.deepcopy(candidate)
+
+        release_store = PreviewReleaseStore()
+        store = postgres_cache_store.PostgresCacheStore(
+            lambda: self.fail("candidate Manifest preview must use repositories"),
+            gear_release_store=release_store,
+        )
+
+        with patch.dict(
+            os.environ,
+            {
+                "WOW_GEAR_MANIFEST_PREVIEW_REVISION": (
+                    candidate_revision
+                ),
+            },
+            clear=False,
+        ):
+            binding = store._candidate_preview_binding(active)
+
+        self.assertEqual(
+            release_store.requested_revision,
+            candidate_revision,
+        )
+        self.assertTrue(binding["candidatePreview"])
+        self.assertFalse(binding["formalActiveManifest"])
+        self.assertEqual(binding["generation"], 32)
+        self.assertEqual(binding["manifest"], candidate["manifest"])
+        self.assertEqual(binding["gearCatalog"], candidate["gearCatalog"])
+        self.assertEqual(
+            binding["gearExactRegistry"],
+            candidate["gearExactRegistry"],
+        )
+
     def test_candidate_preview_can_bind_a_sealed_candidate_gear_and_community_pair(self):
         from server import postgres_cache_store
 
@@ -10208,6 +10415,61 @@ class PostgresCacheStoreTest(unittest.TestCase):
         self.assertEqual(invalid["status"], "blocked")
         self.assertTrue(invalid["blockers"])
 
+    def test_active_manifest_v2_health_exposes_one_catalog_exact_vector(self):
+        from server import postgres_cache_store
+
+        catalog_revision = "gear-catalog:sha256:" + ("a" * 64)
+        exact_revision = "gear-exact-registry:sha256:" + ("b" * 64)
+        binding = {
+            "pointerMode": "active",
+            "generation": 33,
+            "manifestRevision": "season-manifest:v2",
+            "formalActiveManifest": True,
+            "manifest": {
+                "schemaRevision": "active-season-manifest-v2",
+                "seasonRevision": "season-17",
+                "gearCatalogReleaseId": "gear-release-a",
+                "gearCatalogRevision": catalog_revision,
+                "gearExactRegistryRevision": exact_revision,
+            },
+            "gearCatalog": {
+                "catalogRevision": catalog_revision,
+                "status": "verified",
+            },
+            "gearExactRegistry": {
+                "registryRevision": exact_revision,
+                "status": "partial",
+            },
+        }
+
+        class ReleaseStore:
+            def load_active_manifest_binding(self):
+                return binding
+
+        health = postgres_cache_store.PostgresCacheStore(
+            lambda: self.fail("health must use release repository"),
+            gear_release_store=ReleaseStore(),
+        ).active_manifest_health()
+
+        self.assertEqual(health["status"], "verified")
+        self.assertEqual(
+            health["details"]["manifestSchemaRevision"],
+            "active-season-manifest-v2",
+        )
+        self.assertTrue(health["details"]["singleAuthorityVector"])
+        self.assertEqual(
+            health["details"]["gearCatalogRevision"],
+            catalog_revision,
+        )
+        self.assertEqual(
+            health["details"]["gearExactRegistryRevision"],
+            exact_revision,
+        )
+        self.assertEqual(
+            health["details"]["gearExactRegistryStatus"],
+            "partial",
+        )
+
     def test_release_refresh_health_combines_active_pointer_latest_candidate_and_timer_policy(self):
         from server import postgres_cache_store
 
@@ -10458,6 +10720,83 @@ class PostgresCacheStoreTest(unittest.TestCase):
             },
         })
         self.assertIsNone(postgres_cache_store._pg_community_template_import_cache_get("legacy"))
+
+    def test_manifest_v2_import_rebinds_source_variants_to_catalog_membership(self):
+        from server.postgres_cache_store import (
+            _community_template_import_release_context,
+            _rebind_import_source_to_manifest_catalog,
+        )
+
+        catalog_revision = "gear-catalog:sha256:" + ("a" * 64)
+        exact_revision = "gear-exact-registry:sha256:" + ("b" * 64)
+        browse_key = "browse-variant:sha256:" + ("c" * 64)
+        binding = {
+            "generation": 33,
+            "formalActiveManifest": True,
+            "manifest": {
+                "schemaRevision": "active-season-manifest-v2",
+                "manifestRevision": "manifest-v2",
+                "seasonRevision": "season-17",
+                "gearCatalogReleaseId": "gear-release-a",
+                "gearCatalogRevision": catalog_revision,
+                "gearExactRegistryRevision": exact_revision,
+            },
+            "gearCatalog": {
+                "catalogRevision": catalog_revision,
+                "browseVariants": [{
+                    "browseVariantKey": browse_key,
+                    "itemId": "item-a",
+                    "sourceVariantKeys": ["legacy-variant-a"],
+                }],
+            },
+        }
+        source = {
+            "selectionIntent": {
+                "schemaRevision": "selection-intent-v1",
+                "authoredAgainst": {
+                    "seasonRevision": "season-17",
+                    "gearCatalogRevision": "gear-release-a",
+                },
+                "slots": {
+                    "head": {
+                        "itemId": "item-a",
+                        "variantKey": "legacy-variant-a",
+                    }
+                },
+            }
+        }
+
+        rebound = _rebind_import_source_to_manifest_catalog(
+            source,
+            binding,
+        )
+        release_context = _community_template_import_release_context(
+            binding
+        )
+
+        self.assertEqual(
+            rebound["selectionIntent"]["slots"]["head"]["variantKey"],
+            browse_key,
+        )
+        self.assertEqual(
+            rebound["selectionIntent"]["authoredAgainst"],
+            {
+                "seasonRevision": "season-17",
+                "gearCatalogRevision": catalog_revision,
+            },
+        )
+        self.assertEqual(
+            release_context["gearCatalogRevision"],
+            catalog_revision,
+        )
+        self.assertEqual(
+            release_context["gearExactRegistryRevision"],
+            exact_revision,
+        )
+        self.assertEqual(
+            source["selectionIntent"]["slots"]["head"]["variantKey"],
+            "legacy-variant-a",
+        )
 
     def test_community_import_manifest_mismatch_prevents_scoped_read(self):
         from server import postgres_cache_store

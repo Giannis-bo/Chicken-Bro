@@ -2063,8 +2063,20 @@ class NewsBackendTest(unittest.TestCase):
         class FakePhase3CacheStore:
             def __init__(self):
                 self.sealed = []
+                self.exact_binding_calls = []
 
-            def get_latest_gear_exact_registry(self):
+            def get_active_gear_exact_registry(
+                self,
+                *,
+                expected_manifest_revision="",
+                expected_pointer_generation=0,
+            ):
+                self.exact_binding_calls.append(
+                    (
+                        expected_manifest_revision,
+                        expected_pointer_generation,
+                    )
+                )
                 return {"registryRevision": "gear-exact-registry:test"}
 
             def seal_resolved_loadout(self, value):
@@ -2203,6 +2215,10 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(
             [kind for kind, _value in phase3_cache_store.sealed],
             ["loadout", "snapshot", "loadout", "snapshot"],
+        )
+        self.assertEqual(
+            phase3_cache_store.exact_binding_calls,
+            [("season-manifest:r17", 9)] * 4,
         )
         self.assertEqual(queued["simcReport"]["build"]["statSnapshot"]["primary"]["value"], "2,624")
         self.assertIn("# canonical-resolver-profile", analysis["agent"]["draftProfile"])

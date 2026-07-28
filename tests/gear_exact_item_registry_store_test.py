@@ -17,6 +17,7 @@ from tests.gear_exact_item_registry_test import template
 
 class FakeDatabase:
     def __init__(self):
+        self.headers = {}
         self.selections = {}
         self.instances = {}
         self.validations = {}
@@ -39,7 +40,12 @@ class FakeCursor:
         normalized = " ".join(str(sql).split())
         self.database.statements.append(normalized)
         self.rows = []
-        if "gear_exact_registry_latest_revision" in normalized:
+        if "gear_exact_registry_insert_header" in normalized:
+            self.database.headers.setdefault(params[0], tuple(params))
+        elif "gear_exact_registry_load_header" in normalized:
+            row = self.database.headers.get(params[0])
+            self.rows = [row] if row else []
+        elif "gear_exact_registry_latest_revision" in normalized:
             candidates = {
                 revision: row
                 for (revision, _), row in self.database.references.items()
@@ -158,11 +164,13 @@ class GearExactItemRegistryStoreTest(unittest.TestCase):
         self.assertEqual(first, second)
         self.assertEqual(first["registryRevision"], self.registry["registryRevision"])
         self.assertEqual(len(self.database.selections), 1)
+        self.assertEqual(len(self.database.headers), 1)
         self.assertEqual(len(self.database.instances), 1)
         self.assertEqual(len(self.database.validations), 1)
         self.assertEqual(len(self.database.references), 1)
         joined = "\n".join(self.database.statements).upper()
         self.assertIn("ON CONFLICT DO NOTHING", joined)
+        self.assertIn("GEAR_EXACT_REGISTRY_INSERT_HEADER", joined)
         self.assertIn("CONTEXT_JSON::TEXT", joined)
         self.assertIn("VALIDATION_JSON::TEXT", joined)
         self.assertNotIn(" UPDATE ", f" {joined} ")
@@ -206,6 +214,19 @@ class GearExactItemRegistryStoreTest(unittest.TestCase):
             self.store.seal_registry(copy.deepcopy(self.registry))
 
         self.assertEqual(json.loads(self.database.instances[key][9])["ilevel"], 999)
+
+    def test_tampered_registry_header_is_rejected_not_ignored(self):
+        self.store.seal_registry(self.registry)
+        revision = self.registry["registryRevision"]
+        stored = list(self.database.headers[revision])
+        stored[4] = "verified" if stored[4] == "partial" else "partial"
+        self.database.headers[revision] = tuple(stored)
+
+        with self.assertRaisesRegex(
+            GearExactItemRegistryIntegrityError,
+            "sealed exact registry header mismatch",
+        ):
+            self.store.load_registry(revision)
 
     def test_partial_evidence_registry_is_append_only_and_reloadable(self):
         unresolved = exact_row()
