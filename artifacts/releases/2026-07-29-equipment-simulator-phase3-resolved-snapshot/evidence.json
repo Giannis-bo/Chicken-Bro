@@ -2,18 +2,20 @@
   "schemaVersion": 2,
   "slug": "equipment-simulator-phase3-resolved-snapshot",
   "requirementSlug": "equipment-simulator-phase3-resolved-snapshot",
-  "status": "implementation_allowed",
-  "highestEvidenceLevel": "implementation_allowed",
+  "status": "runtime_verified",
+  "highestEvidenceLevel": "runtime_verified",
   "branch": "codex/equipment-simulator-phase3-resolved-snapshot",
-  "commit": "pending_final_head",
+  "commit": "84f16ef62f6c8664755e622b3a9bf4acd1cac4f7",
   "identities": {
     "runtime": {
-      "status": "pending",
-      "reason": "The immutable candidate head has not been created or deployed."
+      "status": "bound",
+      "kind": "git_commit",
+      "value": "84f16ef62f6c8664755e622b3a9bf4acd1cac4f7"
     },
     "verification": {
-      "status": "pending",
-      "reason": "Exact clean-head full verification is pending."
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD"
     },
     "closure": {
       "status": "pending",
@@ -58,13 +60,50 @@
     {
       "command": "candidate, full Harness, PR and closure",
       "status": "not_run",
-      "summary": "Pending final immutable task head."
+      "summary": "Immutable candidate 84f16ef6 passes runtime, shadow, SimC matrix, first-bind, replay-reuse, PostgreSQL immutability, migration idempotency, file-parity, service and timer/backflow gates. Exact clean-head full Harness, PR CI, merge, production parity and archive remain pending."
     }
   ],
   "candidateDeployment": {
-    "status": "not_run",
+    "status": "candidate_verified",
     "requiredBeforeMerge": true,
-    "reason": "Pending final immutable task head and candidate window."
+    "branch": "codex/equipment-simulator-phase3-resolved-snapshot",
+    "commit": "84f16ef62f6c8664755e622b3a9bf4acd1cac4f7",
+    "gitTree": "d651d4e058a163316b8a3e0411540adbf78856a1",
+    "host": "wow-lighthouse",
+    "candidatePath": "/opt/wow-mini-program-candidates/resolved-snapshot-84f16ef6",
+    "readOnlyBaseUrl": "http://127.0.0.1:8788",
+    "writableBaseUrl": "http://127.0.0.1:8789",
+    "manifestRevision": "season-manifest:sha256:b79e6226c7dc406c2e729cf01cf6d86f4944b760b8e8cc185dcd4347032fedb6",
+    "pointerGeneration": 32,
+    "simcRuntimeRevision": "b92847e847c9a6c354d4ba2130abd37f1ccf72d8",
+    "runtimeFileParity": {
+      "status": "pass",
+      "summary": "All 36 files changed from origin/main through immutable candidate 84f16ef6 match the candidate archive by SHA-256; zero mismatches were found."
+    },
+    "smoke": {
+      "status": "pass",
+      "summary": "The 80-template shadow is verified with all 40 specializations classified as 26 supported and 14 unsupported, 8 ready and 72 explicitly blocked loadouts, 4 ready and 4 policy-unsupported snapshots, stable generation 32 and no snapshot compilation block. The real SimC matrix executes 26/26 supported profiles with DPS and deterministically blocks 14/14 unsupported profiles. A new rogue aoe_5 snapshot first bound one terminal result, then two independent task replays completed by reusing the same result identity without public full-profile/loadout/snapshot leakage."
+    },
+    "database": {
+      "status": "pass",
+      "summary": "The new aoe_5 identity has exactly one snapshot row, one result row and one matching result identity after three completed tasks. An UPDATE against the sealed snapshot is rejected by the append-only trigger. Migration 0021 reapplies idempotently and remains registered. The candidate database contains 8 loadouts, 5 snapshots and 2 terminal results in total."
+    },
+    "services": {
+      "status": "pass",
+      "summary": "Read-only and writable candidate backends are active with zero restarts and zero error-priority journal entries. The production Gear stat worker was restored active with zero restarts immediately after the bounded candidate jobs."
+    },
+    "resources": {
+      "status": "pass",
+      "summary": "The 80-template shadow completed in 40.131 seconds with 896086016 peak bytes under the 300-second and 2-GB limits. Candidate files use 115748 KiB and the runtime volume retains 8478916 KiB available at 88% utilization."
+    },
+    "timerBackflow": {
+      "status": "pass",
+      "summary": "Candidate collectors stayed disabled, no async sync or SimC update was triggered, the health-followup timer remains active/waiting, and the SimC runtime update service remains inactive after its prior successful state."
+    },
+    "rollback": {
+      "status": "pass",
+      "summary": "The active Manifest remains generation 32 and unchanged. Both candidate services are isolated transient units, the feature can be disabled with WOW_SIMULATION_SNAPSHOT_V1_ENABLED=0, append-only rows can remain dormant, and the pre-migration backup remains present under the Phase 3 backup root."
+    }
   },
   "runtimeEvidence": [
     {
@@ -135,18 +174,46 @@
         "repeatedSnapshotTaskStatus": "failed"
       },
       "interpretation": "The 80-template shadow, exact 26/14 SimC matrix and first sealed snapshot task all passed. Replaying the same canonical snapshot under a different guest exposed that stochastic SimC metrics can produce a second result identity while the snapshot has a one-to-one append-only result binding. The Runner now reuses a validated existing terminal result before execution instead of rerunning SimC or reporting a false storage failure."
+    },
+    {
+      "candidateCommit": "84f16ef62f6c8664755e622b3a9bf4acd1cac4f7",
+      "status": "verified",
+      "problemCodes": [],
+      "shadowReportId": "gear-resolved-snapshot-shadow:sha256:040a504f7bfc606b7b407f5e59ebfbefff5d2a1a78fd48b5dd4b5324e6bce1b6",
+      "simcMatrixReportId": "simc-execution-matrix:sha256:7fedf97de517dc0572a2a70208cf0c4c0e0b94f8002996e1f5bfe6c6219e1c1c",
+      "firstBindReportId": "simulation-snapshot-task-smoke:sha256:d97987300235089b38ede3c340099947883fcaf1fc97847b269fff2eeec25741",
+      "reuseReportId": "simulation-snapshot-task-smoke:sha256:565ec35f71386132083acd070dc49064e0d599dad209697180bfac7836fc9cbe",
+      "pointerGenerationBefore": 32,
+      "pointerGenerationAfter": 32,
+      "summary": {
+        "templateCount": 80,
+        "classifiedTemplateCount": 80,
+        "readyLoadoutCount": 8,
+        "blockedLoadoutCount": 72,
+        "readySnapshotCount": 4,
+        "unsupportedSnapshotCount": 4,
+        "supportedSimcExecutedCount": 26,
+        "unsupportedDeterministicallyBlockedCount": 14,
+        "firstSnapshotTaskStatus": "completed",
+        "repeatedSnapshotTaskStatus": "completed",
+        "firstSnapshotResultStatus": "bound",
+        "repeatedSnapshotResultStatus": "reused",
+        "snapshotRows": 1,
+        "resultRows": 1
+      },
+      "interpretation": "The final immutable runtime head passes the complete candidate contract. Repeated tasks reload and reuse the exact terminal result bound to the canonical snapshot; they do not rerun SimC, do not create a second result row and do not leak private execution payloads."
     }
   ],
   "risks": [
     {
       "id": "phase2-partial-template-references",
-      "status": "open",
-      "detail": "Templates containing any of the 55 archived partial references must remain blocked; candidate shadow will prove exact ready/blocked closure."
+      "status": "accepted_block",
+      "detail": "All templates containing any of the 55 archived partial references remain explicitly blocked; the final candidate classifies all 80 templates without silent fallback."
     },
     {
       "id": "legacy-profile-compiler-parity",
-      "status": "open",
-      "detail": "Candidate profile compilation must remain byte-identical for all ready templates before the feature flag is accepted."
+      "status": "closed",
+      "detail": "All four clean supported template snapshots compile byte-identically after canonical set-like option and slot-order normalization."
     },
     {
       "id": "global-business-health",
@@ -168,5 +235,5 @@
   "archivedReferences": [
     "artifacts/releases/2026-07-29-equipment-simulator-phase2-exact-enhancement/evidence.json"
   ],
-  "summary": "Phase 3 implementation and focused local tests are green; immutable candidate, 80-template shadow, 26/14 SimC, rollback, PR and closure evidence remain pending."
+  "summary": "Strict Phase 3 has reached runtime_verified on immutable candidate 84f16ef6. The final candidate preserves explicit 80-template and 40-spec classification, executes the exact 26/14 SimC policy, seals deterministic loadout/snapshot identities, binds one append-only terminal result, and reuses that result for repeated tasks without rerun or private payload leakage. Exact clean-head full Harness, PR CI, merge, production parity and archive closure remain pending. Global /api/data/health remains literally partial under independent owners."
 }
