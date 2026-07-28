@@ -24309,7 +24309,17 @@ def build_websim_gear_lines(items):
         if not item.get("simcReady"):
             continue
         parts = [f'{item["slot"]}={item["name"]}', f'id={item["id"]}']
-        for key in ["ilevel", "bonus_id", "gem_id", "gem_bonus_id", "gem_ilevel", "enchant_id", "crafted_stats", "embellishment"]:
+        for key in [
+            "ilevel",
+            "bonus_id",
+            "gem_id",
+            "gem_bonus_id",
+            "gem_ilevel",
+            "enchant_id",
+            "crafted_stats",
+            "embellishment",
+            "redirected_base_stats",
+        ]:
             if item.get(key):
                 parts.append(f"{key}={item[key]}")
         lines.append(",".join(parts))

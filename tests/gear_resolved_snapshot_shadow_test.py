@@ -1,0 +1,164 @@
+import copy
+import importlib.util
+from pathlib import Path
+import unittest
+from unittest.mock import patch
+
+from tests.gear_resolved_loadout_test import (
+    TEMPLATE_HASH,
+    exact_registry,
+    resolver_snapshot,
+)
+from tests.simulation_snapshot_store_test import snapshot
+
+
+SCRIPT_PATH = (
+    Path(__file__).resolve().parents[1]
+    / "scripts"
+    / "gear-resolved-snapshot.py"
+)
+SPEC = importlib.util.spec_from_file_location(
+    "gear_resolved_snapshot_script",
+    SCRIPT_PATH,
+)
+MODULE = importlib.util.module_from_spec(SPEC)
+assert SPEC and SPEC.loader
+SPEC.loader.exec_module(MODULE)
+
+
+def template(content_hash, marker):
+    return {
+        "contentHash": content_hash,
+        "classKey": "mage",
+        "specKey": "arcane",
+        "selectionIntent": {
+            "schemaRevision": "selection-intent-v1",
+            "eligibilityContext": {
+                "classKey": "mage",
+                "specKey": "arcane",
+                "level": 90,
+            },
+            "marker": marker,
+        },
+        "gearItems": [],
+    }
+
+
+class GearResolvedSnapshotShadowTest(unittest.TestCase):
+    def test_ready_and_partial_templates_are_closed_without_silent_drop(self):
+        registry = exact_registry()
+        partial_hash = "sha256:" + ("f" * 64)
+        partial_refs = []
+        for raw in registry["templateReferences"]:
+            row = copy.deepcopy(raw)
+            row["templateContentHash"] = partial_hash
+            row["validationStatus"] = "partial"
+            row["exactItemInstanceKey"] = ""
+            row["problemCodes"] = ["ENHANCEMENT_SINGLE_VALUE_MALFORMED"]
+            partial_refs.append(row)
+        registry["templateReferences"].extend(partial_refs)
+        sealed_loadouts = []
+        sealed_snapshots = []
+
+        with patch.object(
+            MODULE,
+            "template_content_hash",
+            side_effect=lambda row: row["contentHash"],
+        ):
+            report = MODULE.run_shadow(
+                templates=[
+                    template(TEMPLATE_HASH, "ready"),
+                    template(partial_hash, "partial"),
+                ],
+                exact_registry=registry,
+                resolver_reader=lambda _intent: resolver_snapshot(),
+                snapshot_reader=lambda _loadout, _template: snapshot(),
+                seal_loadout=lambda value: (
+                    sealed_loadouts.append(value) or value
+                ),
+                seal_snapshot=lambda value: (
+                    sealed_snapshots.append(value) or value
+                ),
+                pointer_before={"generation": 32},
+                pointer_after_reader=lambda: {"generation": 32},
+                observed_at="2026-07-29T00:00:00Z",
+                expected_template_count=2,
+                expected_spec_count=1,
+                expected_supported_spec_count=1,
+                expected_unsupported_spec_count=0,
+            )
+
+        self.assertEqual(report["status"], "verified")
+        self.assertEqual(report["summary"]["classifiedTemplateCount"], 2)
+        self.assertEqual(report["summary"]["readyLoadoutCount"], 1)
+        self.assertEqual(report["summary"]["blockedLoadoutCount"], 1)
+        self.assertEqual(report["summary"]["readySnapshotCount"], 1)
+        self.assertEqual(report["summary"]["blockedSnapshotCount"], 0)
+        self.assertEqual(len(sealed_loadouts), 1)
+        self.assertEqual(len(sealed_snapshots), 1)
+        self.assertEqual(
+            report["problemCounts"][
+                "LOADOUT_EXACT_REFERENCE_NOT_VERIFIED"
+            ],
+            1,
+        )
+
+    def test_pointer_change_blocks_otherwise_complete_shadow(self):
+        with patch.object(
+            MODULE,
+            "template_content_hash",
+            return_value=TEMPLATE_HASH,
+        ):
+            report = MODULE.run_shadow(
+                templates=[template(TEMPLATE_HASH, "ready")],
+                exact_registry=exact_registry(),
+                resolver_reader=lambda _intent: resolver_snapshot(),
+                snapshot_reader=lambda _loadout, _template: snapshot(),
+                seal_loadout=lambda value: value,
+                seal_snapshot=lambda value: value,
+                pointer_before={"generation": 32},
+                pointer_after_reader=lambda: {"generation": 33},
+                observed_at="2026-07-29T00:00:00Z",
+                expected_template_count=1,
+                expected_spec_count=1,
+                expected_supported_spec_count=1,
+                expected_unsupported_spec_count=0,
+            )
+
+        self.assertEqual(report["status"], "blocked")
+        self.assertIn(
+            "RESOLVED_SHADOW_POINTER_CHANGED",
+            report["problemCodes"],
+        )
+
+    def test_missing_supported_spec_snapshot_coverage_blocks_shadow(self):
+        with patch.object(
+            MODULE,
+            "template_content_hash",
+            return_value=TEMPLATE_HASH,
+        ):
+            report = MODULE.run_shadow(
+                templates=[template(TEMPLATE_HASH, "ready")],
+                exact_registry=exact_registry(),
+                resolver_reader=lambda _intent: resolver_snapshot(),
+                snapshot_reader=lambda _loadout, _template: snapshot(),
+                seal_loadout=lambda value: value,
+                seal_snapshot=lambda value: value,
+                pointer_before={"generation": 32},
+                pointer_after_reader=lambda: {"generation": 32},
+                observed_at="2026-07-29T00:00:00Z",
+                expected_template_count=1,
+                expected_spec_count=1,
+                expected_supported_spec_count=2,
+                expected_unsupported_spec_count=0,
+            )
+
+        self.assertEqual(report["status"], "blocked")
+        self.assertIn(
+            "RESOLVED_SHADOW_SUPPORTED_SPEC_COVERAGE_INCOMPLETE",
+            report["problemCodes"],
+        )
+
+
+if __name__ == "__main__":
+    unittest.main()

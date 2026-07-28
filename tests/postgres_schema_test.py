@@ -23,6 +23,7 @@ WEBSIM_HERO_COMMUNITY_RELEASE = ROOT / "server" / "migrations" / "postgres" / "0
 OBSERVED_BUILD_REGISTRY = ROOT / "server" / "migrations" / "postgres" / "0018_observed_build_registry.sql"
 WEBSIM_GEAR_CATALOG_REVISION = ROOT / "server" / "migrations" / "postgres" / "0019_websim_gear_catalog_revision.sql"
 WEBSIM_GEAR_EXACT_ITEM_INSTANCE = ROOT / "server" / "migrations" / "postgres" / "0020_websim_gear_exact_item_instance.sql"
+WEBSIM_SIMULATION_SNAPSHOT = ROOT / "server" / "migrations" / "postgres" / "0021_websim_simulation_snapshot.sql"
 
 
 class PostgresSchemaTest(unittest.TestCase):
@@ -39,6 +40,7 @@ class PostgresSchemaTest(unittest.TestCase):
         cls.runtime_reconcile_privileges_sql = RUNTIME_RECONCILE_PRIVILEGES.read_text(encoding="utf-8")
         cls.admin_gate_diagnostics_sql = ADMIN_GATE_DIAGNOSTICS.read_text(encoding="utf-8")
         cls.websim_gear_exact_item_instance_sql = WEBSIM_GEAR_EXACT_ITEM_INSTANCE.read_text(encoding="utf-8")
+        cls.websim_simulation_snapshot_sql = WEBSIM_SIMULATION_SNAPSHOT.read_text(encoding="utf-8")
 
     def table_section(self, table_name):
         start = self.sql.index(f"CREATE TABLE IF NOT EXISTS {table_name}")
@@ -273,6 +275,19 @@ class PostgresSchemaTest(unittest.TestCase):
         self.assertNotIn("access_token", normalized.lower())
         self.assertNotIn("active_manifest_pointer", normalized)
         self.assertIn("0020_websim_gear_exact_item_instance", normalized)
+
+    def test_websim_simulation_snapshot_migration_is_append_only_and_owner_safe(self):
+        normalized = " ".join(self.websim_simulation_snapshot_sql.split())
+        for table in (
+            "cache.websim_gear_resolved_loadouts",
+            "cache.websim_simulation_snapshots",
+            "cache.websim_simulation_snapshot_results",
+        ):
+            self.assertIn(f"CREATE TABLE IF NOT EXISTS {table}", normalized)
+        self.assertEqual(normalized.count("BEFORE UPDATE OR DELETE ON"), 3)
+        self.assertIn("GRANT SELECT, INSERT ON", normalized)
+        self.assertIn("REVOKE UPDATE, DELETE, TRUNCATE ON", normalized)
+        self.assertIn("0021_websim_simulation_snapshot", normalized)
 
     def test_websim_gear_template_cache_migration_adds_pg_read_model_table(self):
         self.assertTrue(WEBSIM_GEAR_TEMPLATE_CACHE.exists(), "missing gear template PG cache migration")

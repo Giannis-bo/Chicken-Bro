@@ -2040,6 +2040,42 @@ class NewsBackendTest(unittest.TestCase):
                 }
 
         snapshot_store = FakeSnapshotStore()
+        phase3_loadout = {
+            "status": "ready",
+            "resolvedLoadoutKey": "resolved-loadout:sha256:" + "b" * 64,
+        }
+        phase3_snapshot = {
+            "status": "ready",
+            "simulationSnapshotKey": "simulation-snapshot:sha256:" + "c" * 64,
+            "resolvedLoadoutKey": phase3_loadout["resolvedLoadoutKey"],
+            "catalogRevision": "gear-catalog:test",
+            "gearRuleRevision": "gear-rule:test",
+            "compilerRevision": "simc-profile-compiler-v1",
+            "simcRuntimeRevision": "simc-runtime-v1",
+            "characterContext": {
+                "classKey": "mage",
+                "specKey": "arcane",
+            },
+            "scenarioOptions": {"scenarioKey": "single"},
+            "canonicalSimcInput": canonical_profile + "\n",
+        }
+
+        class FakePhase3CacheStore:
+            def __init__(self):
+                self.sealed = []
+
+            def get_latest_gear_exact_registry(self):
+                return {"registryRevision": "gear-exact-registry:test"}
+
+            def seal_resolved_loadout(self, value):
+                self.sealed.append(("loadout", value))
+                return value
+
+            def seal_simulation_snapshot(self, value):
+                self.sealed.append(("snapshot", value))
+                return value
+
+        phase3_cache_store = FakePhase3CacheStore()
 
         def fake_serializer(
             _snapshot,
@@ -2077,7 +2113,11 @@ class NewsBackendTest(unittest.TestCase):
                 "problems": [],
             }
 
-        with patch.object(self.backend, "cache_data_store", return_value=object()), patch.object(
+        with patch.object(
+            self.backend,
+            "cache_data_store",
+            return_value=phase3_cache_store,
+        ), patch.object(
             self.backend,
             "current_gear_simc_runtime_revision",
             return_value="simc-runtime-v1",
@@ -2105,7 +2145,24 @@ class NewsBackendTest(unittest.TestCase):
             self.backend,
             "parse_simcraft_template_gear_raw",
             side_effect=AssertionError("canonical context must not parse legacy gear rawString/gearSnapshot"),
-        ), patch.dict(os.environ, {"WOW_SIMC_TEMPLATE_TASK_AUTORUN": "0"}):
+        ), patch.object(
+            self.backend,
+            "build_resolved_loadout_from_registry",
+            return_value=phase3_loadout,
+        ), patch.object(
+            self.backend,
+            "snapshot_from_compatibility_profile",
+            return_value=phase3_snapshot,
+        ), patch(
+            "server.simulator_payload.verify_simulation_snapshot",
+            return_value=[],
+        ), patch.dict(
+            os.environ,
+            {
+                "WOW_SIMC_TEMPLATE_TASK_AUTORUN": "0",
+                "WOW_SIMULATION_SNAPSHOT_V1_ENABLED": "1",
+            },
+        ):
             for confirm_only in (True, False):
                 with self.subTest(confirmOnly=confirm_only):
                     payload["confirmOnly"] = confirm_only
@@ -2114,6 +2171,14 @@ class NewsBackendTest(unittest.TestCase):
                     self.assertTrue(prepared["templateValidation"]["passed"])
                     self.assertEqual(prepared["inputContract"], "canonical_selection_intent_v1")
                     self.assertEqual(prepared["canonicalProfile"], canonical_profile)
+                    self.assertEqual(
+                        prepared["simulationSnapshot"],
+                        phase3_snapshot,
+                    )
+                    self.assertEqual(
+                        prepared["canonicalContext"]["simulationSnapshotKey"],
+                        phase3_snapshot["simulationSnapshotKey"],
+                    )
                     self.assertEqual(prepared["gearSelection"]["items"], simc_items)
                     self.assertEqual(prepared["statSnapshot"], server_owned_snapshot)
                     self.assertEqual(
@@ -2135,6 +2200,10 @@ class NewsBackendTest(unittest.TestCase):
         self.assertEqual(analysis["agent"]["status"], "template_ready")
         self.assertEqual(analysis["simcReport"]["build"]["statSnapshot"]["primary"]["value"], "2,624")
         self.assertEqual(queued["status"], "queued")
+        self.assertEqual(
+            [kind for kind, _value in phase3_cache_store.sealed],
+            ["loadout", "snapshot", "loadout", "snapshot"],
+        )
         self.assertEqual(queued["simcReport"]["build"]["statSnapshot"]["primary"]["value"], "2,624")
         self.assertIn("# canonical-resolver-profile", analysis["agent"]["draftProfile"])
         self.assertIn("talents=CAE_CANONICAL", analysis["agent"]["draftProfile"])
@@ -2371,13 +2440,206 @@ class NewsBackendTest(unittest.TestCase):
                 "mode": "simcraft_template",
                 "profile": "legacy raw profile",
                 "canonicalProfile": "canonical raw profile",
+                "resolvedLoadout": {"resolvedLoadoutKey": "private-loadout"},
+                "simulationSnapshot": {
+                    "simulationSnapshotKey": "simulation-snapshot:sha256:" + "a" * 64,
+                    "canonicalSimcInput": "private snapshot profile\n",
+                },
                 "inputContract": "canonical_selection_intent_v1",
             }
         )
 
         self.assertNotIn("profile", public)
         self.assertNotIn("canonicalProfile", public)
+        self.assertNotIn("resolvedLoadout", public)
+        self.assertNotIn("simulationSnapshot", public)
+        self.assertEqual(
+            public["simulationSnapshotKey"],
+            "simulation-snapshot:sha256:" + "a" * 64,
+        )
         self.assertEqual(public["inputContract"], "canonical_selection_intent_v1")
+
+    def test_simcraft_template_snapshot_is_executed_byte_for_byte_and_fingerprinted(self):
+        from tests.simulation_snapshot_store_test import snapshot
+
+        prepared = self.backend.prepare_simcraft_template_request(
+            self.simc_template_payload()
+        )
+        sealed_snapshot = snapshot()
+        prepared["simulationSnapshot"] = sealed_snapshot
+        prepared["simulationSnapshotKey"] = sealed_snapshot[
+            "simulationSnapshotKey"
+        ]
+        prepared["canonicalProfile"] = sealed_snapshot["canonicalSimcInput"].strip()
+        prepared["confirmOnly"] = True
+        prepared["saveTask"] = False
+        prepared["templateValidation"] = {
+            "passed": True,
+            "errors": [],
+            "warnings": [],
+            "problems": [],
+        }
+        prepared["buildContext"]["details"]["talents"] = {
+            "importCode": "CAE_CANONICAL",
+            "simcLines": [],
+        }
+
+        with patch(
+            "server.simulator_payload.build_agent_simc_profile",
+            side_effect=AssertionError(
+                "sealed snapshot input must not be rebuilt"
+            ),
+        ):
+            analysis = self.backend.analyze_simulator_request(prepared)
+
+        self.assertEqual(analysis["agent"]["status"], "template_ready")
+        self.assertEqual(
+            analysis["agent"]["draftProfile"],
+            sealed_snapshot["canonicalSimcInput"],
+        )
+        first = self.backend.simcraft_template_task_fingerprint(prepared)
+        changed = dict(prepared)
+        changed["simulationSnapshotKey"] = (
+            "simulation-snapshot:sha256:" + "f" * 64
+        )
+        self.assertNotEqual(
+            first,
+            self.backend.simcraft_template_task_fingerprint(changed),
+        )
+
+    def test_simcraft_template_task_reloads_snapshot_and_binds_terminal_result(self):
+        from tests.simulation_snapshot_store_test import snapshot
+
+        sealed_snapshot = snapshot()
+        bound_results = []
+        analyzed_requests = []
+
+        class FakeSnapshotStore:
+            def get_simulation_snapshot(
+                self,
+                snapshot_key,
+                include_result=True,
+            ):
+                self_snapshot_key = sealed_snapshot["simulationSnapshotKey"]
+                if snapshot_key != self_snapshot_key or include_result:
+                    raise AssertionError("runner must reload the raw sealed snapshot")
+                return sealed_snapshot
+
+            def bind_simulation_snapshot_result(self, snapshot_key, result):
+                bound_results.append((snapshot_key, result))
+                return {
+                    "resultIdentity": result["resultIdentity"],
+                    "status": "executed",
+                }
+
+        def fake_analysis(run_request):
+            analyzed_requests.append(run_request)
+            return {
+                "simulation": {
+                    "ran": True,
+                    "summary": "DPS=654321",
+                    "error": "",
+                    "metrics": {"dps": "654321"},
+                },
+                "agent": {"status": "simc_completed"},
+            }
+
+        with patch.object(
+            self.backend,
+            "cache_data_store",
+            return_value=FakeSnapshotStore(),
+        ), patch.object(
+            self.backend,
+            "analyze_simulator_request",
+            side_effect=fake_analysis,
+        ):
+            analysis, status, _summary, error, _finished = (
+                self.backend.complete_simcraft_template_task_analysis(
+                    "task-snapshot",
+                    {
+                        "mode": "simcraft_template",
+                        "simulationSnapshot": sealed_snapshot,
+                    },
+                    {"owner": {}, "taskTiming": {}},
+                )
+            )
+
+        self.assertEqual(status, "completed")
+        self.assertEqual(error, "")
+        self.assertEqual(
+            analyzed_requests[0]["simulationSnapshot"],
+            sealed_snapshot,
+        )
+        self.assertEqual(len(bound_results), 1)
+        self.assertEqual(
+            bound_results[0][0],
+            sealed_snapshot["simulationSnapshotKey"],
+        )
+        self.assertEqual(
+            analysis["simulationSnapshotResult"]["resultIdentity"],
+            bound_results[0][1]["resultIdentity"],
+        )
+        self.assertTrue(
+            bound_results[0][1]["resultIdentity"].startswith(
+                "simc-result:sha256:"
+            )
+        )
+
+    def test_simcraft_template_task_result_binding_failure_fails_agent_and_task(self):
+        from tests.simulation_snapshot_store_test import snapshot
+
+        sealed_snapshot = snapshot()
+
+        class FailingSnapshotStore:
+            def get_simulation_snapshot(
+                self,
+                snapshot_key,
+                include_result=True,
+            ):
+                self.assert_snapshot_key = snapshot_key
+                if include_result:
+                    raise AssertionError("runner must reload the raw snapshot")
+                return sealed_snapshot
+
+            def bind_simulation_snapshot_result(self, snapshot_key, result):
+                raise RuntimeError("result store unavailable")
+
+        with patch.object(
+            self.backend,
+            "cache_data_store",
+            return_value=FailingSnapshotStore(),
+        ), patch.object(
+            self.backend,
+            "analyze_simulator_request",
+            return_value={
+                "simulation": {
+                    "ran": True,
+                    "summary": "DPS=654321",
+                    "error": "",
+                    "metrics": {"dps": "654321"},
+                },
+                "agent": {"status": "simc_completed"},
+            },
+        ):
+            analysis, status, _summary, error, _finished = (
+                self.backend.complete_simcraft_template_task_analysis(
+                    "task-snapshot-bind-failure",
+                    {
+                        "mode": "simcraft_template",
+                        "simulationSnapshot": sealed_snapshot,
+                    },
+                    {"owner": {}, "taskTiming": {}},
+                )
+            )
+
+        self.assertEqual(status, "failed")
+        self.assertEqual(analysis["status"], "failed")
+        self.assertEqual(analysis["agent"]["status"], "simc_failed")
+        self.assertEqual(
+            analysis["simulationSnapshotResult"]["code"],
+            "SIMULATION_SNAPSHOT_RESULT_BIND_FAILED",
+        )
+        self.assertIn("result binding failed", error)
 
     def test_simcraft_template_confirm_encodes_websim_talent_and_parses_complete_gear_without_llm(self):
         self.seed_simc_template_websim_nodes()

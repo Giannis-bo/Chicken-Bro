@@ -17,6 +17,7 @@ Environment=WOW_LLM_TIMEOUT_SECONDS=45
 Environment=WOW_LLM_MODEL=deepseek-v4-flash
 Environment=WOW_SIMC_BIN=/opt/wow-simc/current/simc
 Environment=WOW_SIMC_VERSION_FILE=/var/lib/wow-backend/simc-version.json
+Environment=WOW_SIMULATION_SNAPSHOT_V1_ENABLED=1
 Environment=WOW_CODEX_BIN=/usr/local/bin/codex
 Environment=WOW_CODEX_HOME=/home/ubuntu/.codex
 Environment=WOW_CODEX_JOBS_DIR=/var/lib/wow-backend/codex-jobs

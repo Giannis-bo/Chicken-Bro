@@ -7,10 +7,16 @@ import hashlib
 import json
 from typing import Any, Mapping
 
-from .gear_exact_item_registry import (
-    EXACT_REGISTRY_EVIDENCE_GAP_CODES,
-    verify_exact_item_registry,
-)
+try:
+    from .gear_exact_item_registry import (
+        EXACT_REGISTRY_EVIDENCE_GAP_CODES,
+        verify_exact_item_registry,
+    )
+except ImportError:
+    from gear_exact_item_registry import (
+        EXACT_REGISTRY_EVIDENCE_GAP_CODES,
+        verify_exact_item_registry,
+    )
 
 
 class GearExactItemRegistryIntegrityError(RuntimeError):
@@ -109,6 +115,52 @@ class GearExactItemRegistryStore:
 
     def connection(self):
         return self._connection_factory()
+
+    def latest_registry_revision(
+        self,
+        *,
+        catalog_revision: str = "",
+        gear_rule_revision: str = "",
+    ) -> str:
+        catalog = _text(catalog_revision)
+        rule = _text(gear_rule_revision)
+        where = []
+        params: list[str] = []
+        if catalog:
+            where.append("catalog_revision = %s")
+            params.append(catalog)
+        if rule:
+            where.append("gear_rule_revision = %s")
+            params.append(rule)
+        predicate = "WHERE " + " AND ".join(where) if where else ""
+        with self.connection() as connection:
+            with connection.cursor() as cur:
+                cur.execute(
+                    f"""
+                    /* gear_exact_registry_latest_revision */
+                    SELECT registry_revision
+                    FROM cache.websim_gear_exact_instance_template_refs
+                    {predicate}
+                    GROUP BY registry_revision
+                    ORDER BY MAX(sealed_at) DESC, registry_revision DESC
+                    LIMIT 1
+                    """,
+                    tuple(params),
+                )
+                row = cur.fetchone()
+                return _text(row[0]) if row else ""
+
+    def load_latest_registry(
+        self,
+        *,
+        catalog_revision: str,
+        gear_rule_revision: str,
+    ) -> dict[str, Any]:
+        revision = self.latest_registry_revision(
+            catalog_revision=catalog_revision,
+            gear_rule_revision=gear_rule_revision,
+        )
+        return self.load_registry(revision) if revision else {}
 
     @staticmethod
     def _validate(registry: Any) -> dict[str, Any]:

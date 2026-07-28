@@ -71,6 +71,13 @@ except ImportError:
     from gear_release_store import GearReleaseStore
 
 try:
+    from .gear_exact_item_registry_store import GearExactItemRegistryStore
+    from .simulation_snapshot_store import SimulationSnapshotStore
+except ImportError:
+    from gear_exact_item_registry_store import GearExactItemRegistryStore
+    from simulation_snapshot_store import SimulationSnapshotStore
+
+try:
     from .observed_build_read_model import (
         gear_import_source_from_active_record,
         gear_templates_from_active_records,
@@ -1310,6 +1317,12 @@ class PostgresCacheStore:
             if observed_build_store is not None
             else ObservedBuildStore(connection_factory)
         )
+        self._gear_exact_item_registry_store = GearExactItemRegistryStore(
+            connection_factory
+        )
+        self._simulation_snapshot_store = SimulationSnapshotStore(
+            connection_factory
+        )
 
     @contextmanager
     def connection(self):
@@ -1491,6 +1504,32 @@ class PostgresCacheStore:
                     runtime_authority,
                     cache=self._gear_authority_context_cache,
                 )
+
+    def get_latest_gear_exact_registry(
+        self,
+        *,
+        catalog_revision="",
+        gear_rule_revision="",
+    ):
+        return self._gear_exact_item_registry_store.load_latest_registry(
+            catalog_revision=catalog_revision,
+            gear_rule_revision=gear_rule_revision,
+        )
+
+    def seal_resolved_loadout(self, value):
+        return self._simulation_snapshot_store.seal_loadout(value)
+
+    def seal_simulation_snapshot(self, value):
+        return self._simulation_snapshot_store.seal_snapshot(value)
+
+    def get_simulation_snapshot(self, snapshot_key, include_result=True):
+        return self._simulation_snapshot_store.load_snapshot(
+            snapshot_key,
+            include_result=include_result,
+        )
+
+    def bind_simulation_snapshot_result(self, snapshot_key, result):
+        return self._simulation_snapshot_store.bind_result(snapshot_key, result)
 
     def get_community_template_import_context(
         self,

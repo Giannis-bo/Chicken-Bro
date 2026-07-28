@@ -1,0 +1,102 @@
+{
+  "schemaVersion": 2,
+  "slug": "equipment-simulator-phase3-resolved-snapshot",
+  "requirementSlug": "equipment-simulator-phase3-resolved-snapshot",
+  "status": "implementation_allowed",
+  "highestEvidenceLevel": "implementation_allowed",
+  "branch": "codex/equipment-simulator-phase3-resolved-snapshot",
+  "commit": "pending_final_head",
+  "identities": {
+    "runtime": {
+      "status": "pending",
+      "reason": "The immutable candidate head has not been created or deployed."
+    },
+    "verification": {
+      "status": "pending",
+      "reason": "Exact clean-head full verification is pending."
+    },
+    "closure": {
+      "status": "pending",
+      "reason": "PR, merge, cloud parity and archive closure are pending."
+    }
+  },
+  "manualAcceptance": {
+    "required": false,
+    "status": "not_applicable",
+    "reason": "The user explicitly delegated automated self-testing for this goal; Phase 3 keeps the existing page entry and UI flow.",
+    "items": [],
+    "rollup": {
+      "total": 0,
+      "accepted": 0,
+      "notRunUserWaived": 0,
+      "pending": 0
+    }
+  },
+  "scope": [
+    "Exact-only deterministic ResolvedLoadout identity and parity",
+    "Immutable SimulationSnapshot and fixed canonical SimC compiler",
+    "Append-only PostgreSQL seal, reload and terminal result binding",
+    "Snapshot-bound canonical task preparation, dedupe and runner execution",
+    "Bounded 80-template and 26/14 candidate evidence"
+  ],
+  "verification": [
+    {
+      "command": "Phase 3 focused Python and backend regression suites",
+      "status": "pass",
+      "summary": "318 focused and affected backend tests pass, including exact registry, loadout, compiler, snapshot compatibility/store, task preparation/runner, audit projection and migration schema."
+    },
+    {
+      "command": "Phase 3 shadow and immutable task focused suites",
+      "status": "pass",
+      "summary": "17 pure loadout/snapshot/shadow suites and the new byte-for-byte task execution/result binding cases pass."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile backend --release artifacts/releases/2026-07-29-equipment-simulator-phase3-resolved-snapshot",
+      "status": "pass",
+      "summary": "All 2093 Python tests pass with one existing skip, direct production script imports pass, and compileall succeeds. The shadow contract now fails closed unless all 26 supported and all 14 unsupported specializations have deterministic snapshot coverage; task/result binding failures also produce one consistent failed state. The subsequent task-scoped Harness packet check passes after manifest regeneration."
+    },
+    {
+      "command": "candidate, full Harness, PR and closure",
+      "status": "not_run",
+      "summary": "Pending final immutable task head."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "not_run",
+    "requiredBeforeMerge": true,
+    "reason": "Pending final immutable task head and candidate window."
+  },
+  "runtimeEvidence": [],
+  "risks": [
+    {
+      "id": "phase2-partial-template-references",
+      "status": "open",
+      "detail": "Templates containing any of the 55 archived partial references must remain blocked; candidate shadow will prove exact ready/blocked closure."
+    },
+    {
+      "id": "legacy-profile-compiler-parity",
+      "status": "open",
+      "detail": "Candidate profile compilation must remain byte-identical for all ready templates before the feature flag is accepted."
+    },
+    {
+      "id": "global-business-health",
+      "status": "known_partial",
+      "detail": "Global /api/data/health is independently partial and will not be represented as a Phase 3 pass."
+    }
+  ],
+  "rollback": [
+    "code_rollback",
+    "service_rollback",
+    "config_disable",
+    "append_only_snapshot_rows_retained",
+    "active_manifest_pointer_unchanged"
+  ],
+  "cleanup": {
+    "required": true,
+    "scope": "Remove only the Phase 3 candidate directory and task branch after verified merge closure."
+  },
+  "archivedReferences": [
+    "artifacts/releases/2026-07-29-equipment-simulator-phase2-exact-enhancement/evidence.json"
+  ],
+  "summary": "Phase 3 implementation and focused local tests are green; immutable candidate, 80-template shadow, 26/14 SimC, rollback, PR and closure evidence remain pending."
+}
