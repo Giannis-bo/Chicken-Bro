@@ -263,6 +263,82 @@ class GearCatalogRevisionTest(unittest.TestCase):
                 self.assertIn(code, result["problemCodes"])
                 self.assertNotIn("catalogRevision", result)
 
+    def test_item_membership_requires_browse_or_verified_exact_usage(self):
+        rows = regular_rows()
+        rows["items"].extend(
+            [
+                {
+                    "itemId": "exact-only",
+                    "name": "Observed Exact Item",
+                    "slot": "finger1",
+                    "itemLevel": 272,
+                    "sourceStatus": "unknown",
+                    "hasSourceRefs": True,
+                    "hasVariantRefs": True,
+                },
+                {
+                    "itemId": "unreferenced-metadata",
+                    "name": "Historical Metadata",
+                    "slot": "main_hand",
+                    "sourceStatus": "unknown",
+                    "hasSourceRefs": False,
+                    "hasVariantRefs": False,
+                },
+                {
+                    "itemId": "source-only",
+                    "name": "Source Without Verified Variant",
+                    "slot": "trinket1",
+                    "sourceStatus": "verified",
+                    "hasSourceRefs": True,
+                    "hasVariantRefs": False,
+                },
+            ]
+        )
+        rows["sources"].extend(
+            [
+                {
+                    **source("exact-only", "observed"),
+                    "sourceType": "observed_profile",
+                },
+                source("source-only", "source-only"),
+            ]
+        )
+        rows["variants"].append(
+            {
+                "variantId": "observed-exact-only",
+                "variantKey": "observed-exact-only",
+                "itemId": "exact-only",
+                "rowFamily": "exact_instance",
+                "itemLevel": 272,
+                "slot": "finger1",
+                "sourceType": "observed_profile",
+                "bonusIds": ["13335"],
+                "staticStats": {"haste_rating": 90},
+                "status": "verified",
+            }
+        )
+
+        result = build_catalog_revision(CURRENT_BINDING, rows)
+
+        self.assertEqual(result["status"], "verified")
+        definitions = {
+            row["itemId"]: row
+            for row in result["itemDefinitions"]
+        }
+        self.assertEqual(set(definitions), {"1001", "exact-only"})
+        self.assertEqual(
+            definitions["exact-only"]["sourceStatus"],
+            "verified",
+        )
+        self.assertEqual(
+            definitions["exact-only"]["legacySourceStatus"],
+            "unknown",
+        )
+        self.assertEqual(
+            result["contentSummary"]["excludedDormantItemCount"],
+            2,
+        )
+
     def test_catalog_identity_does_not_include_derived_browse_key(self):
         result = build_catalog_revision(CURRENT_BINDING, regular_rows())
         tampered = copy.deepcopy(result)

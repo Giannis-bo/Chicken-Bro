@@ -50,7 +50,7 @@
     "evidenceRequired": [
       "RED/GREEN tests for deterministic identity, non-identity field exclusion, progression membership, crafted collapse and fail-closed malformed rows.",
       "Migration and store tests proving append-only tables, exact seal/load verification and no active pointer.",
-      "A production candidate report with one immutable CatalogRevision, exact member counts, repeated-build identity, 40/40 shadow parity, bounded resources and unchanged generation-32 pointer.",
+      "A production candidate report with one immutable CatalogRevision, 613 formal ItemDefinitions, 1309 BrowseVariants, repeated-build identity, 40/40 shadow parity, bounded resources and unchanged generation-32 pointer.",
       "Focused compatibility, full Harness, PR CI, candidate deployment, rollback and local/origin/cloud identity evidence."
     ]
   },
@@ -68,7 +68,7 @@
   },
   "acceptanceEvidence": [
     "The same canonical input produces the same gear-catalog:sha256 revision and row hashes across repeated builds.",
-    "The production dormant Catalog contains the exact Phase 0 mapped ItemDefinition and 1309 BrowseVariant membership with 438 crafted selections collapsed to 73 variants.",
+    "The production dormant Catalog contains exactly 613 formal ItemDefinitions backed by canonical BrowseVariant or verified ExactItemInstance usage and 1309 BrowseVariant memberships, with 697 dormant historical/source-only metadata rows excluded and 438 crafted selections collapsed to 73 variants.",
     "All 40 specializations have identical visible candidate membership between the active Gear Release and dormant Catalog.",
     "The active Manifest revision and pointer generation remain unchanged before and after migration.",
     "Local full verification, PR CI, candidate/cloud parity and post-merge closure pass."
@@ -96,6 +96,10 @@
     {
       "date": "2026-07-29",
       "decision": "CatalogRevision is computed from membership seeds before deriving Catalog-bound BrowseVariant keys, preventing circular identity while preserving the approved key contract."
+    },
+    {
+      "date": "2026-07-29",
+      "decision": "Phase 0 mappedItemCount=1310 is retained as raw slot-metadata classification, while formal Catalog membership is narrowed to the 613 items participating in canonical BrowseVariant or verified ExactItemInstance usage; 697 dormant historical/source-only rows are excluded."
     }
   ]
 }

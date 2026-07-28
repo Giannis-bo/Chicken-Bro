@@ -387,6 +387,15 @@ def build_catalog_revision(
         for row in source_rows.get("variants") or []
         if isinstance(row, Mapping)
     ]
+    verified_exact_item_ids = {
+        _text(row.get("itemId"))
+        for row in raw_variants
+        if (
+            _text(row.get("rowFamily")) == "exact_instance"
+            and _text(row.get("status")).lower() == "verified"
+            and _text(row.get("itemId"))
+        )
+    }
     sources_by_item: dict[str, list[dict[str, Any]]] = {}
     for row in raw_sources:
         item_id = _text(row.get("itemId"))
@@ -523,6 +532,11 @@ def build_catalog_revision(
         )
 
     item_definitions: list[dict[str, Any]] = []
+    membership_item_ids = (
+        set(progressions_by_item)
+        | verified_exact_item_ids
+    )
+    excluded_dormant_item_count = 0
     for index, row in enumerate(raw_items):
         item_id = _text(row.get("itemId") or row.get("id"))
         slot = _text(row.get("slot"))
@@ -531,7 +545,10 @@ def build_catalog_revision(
             and row.get("hasVariantRefs") is not True
         ):
             continue
-        source_status = _text(row.get("sourceStatus")).lower()
+        if item_id not in membership_item_ids:
+            excluded_dormant_item_count += 1
+            continue
+        legacy_source_status = _text(row.get("sourceStatus")).lower()
         item_sources = sorted(
             {
                 json.dumps(
@@ -550,6 +567,17 @@ def build_catalog_revision(
                 f"rows.items[{index}].sources",
                 "ItemDefinition requires at least one current PVE source.",
             ))
+        source_status = (
+            "verified"
+            if (
+                legacy_source_status == "verified"
+                or any(
+                    _text(source.get("status")).lower() == "verified"
+                    for source in item_sources
+                )
+            )
+            else legacy_source_status or "unknown"
+        )
         if source_status != "verified":
             problems.append(_problem(
                 "CATALOG_ITEM_SOURCE_STATUS_UNVERIFIED",
@@ -563,6 +591,7 @@ def build_catalog_revision(
             "slot": slot,
             "itemLevel": _positive_int(row.get("itemLevel")),
             "sourceStatus": source_status,
+            "legacySourceStatus": legacy_source_status or "unknown",
             "media": _item_payload_section(payload, _ITEM_MEDIA_KEYS),
             "equipment": _item_payload_section(
                 payload,
@@ -655,6 +684,7 @@ def build_catalog_revision(
                 )
             ),
         ),
+        "excludedDormantItemCount": excluded_dormant_item_count,
     }
     return {
         "schemaRevision": CATALOG_SCHEMA_REVISION,

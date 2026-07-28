@@ -27,6 +27,11 @@
   26/14 SimC、真实微信和回滚矩阵。
 - Phase 0 只证明现有 Gear Release 可以无损映射；当前尚无独立
   `gear-catalog:sha256:*` 实体或 dormant Catalog membership 表。
+- Phase 0 的 `mappedItemCount=1,310` 是槽位元数据分类总量，不等于正式目录成员。
+  首次候选构建据此 fail closed 后，生产快照复核确认：正式 ItemDefinition 只能由
+  canonical BrowseVariant 或 verified ExactItemInstance 建立成员关系。当前快照对应
+  613 个正式 ItemDefinition；其余 697 条孤立或仅来源历史元数据继续留在旧快照中，
+  不得伪装成玩家可浏览或可导入的装备。
 - 全局 `/api/data/health` 仍为 `partial`。本阶段不把旧 staging/refresh owner
   冒充成新的 Catalog 健康成功，也不在完成 shadow 前迁移 health owner。
 
@@ -86,8 +91,11 @@ Gear Release 本身已是内容寻址；同内容的重复来源不得制造新 
 ### 4.2 ItemDefinition
 
 每个成员以 `(catalogRevision, itemId)` 唯一，保留稳定名称、图标、槽位、装备类型、
-限制、当前 PVE 来源和可信状态。没有 canonical 槽位或没有可治理来源/变体关系的记录
-不能成为 ItemDefinition。
+限制、当前 PVE 来源和可信状态。成员必须至少拥有一个 canonical BrowseVariant 或一个
+verified ExactItemInstance，并且拥有可治理的当前 PVE 来源；仅有历史元数据、仅有来源、
+没有 canonical 槽位或没有 verified 使用关系的记录不能成为 ItemDefinition。legacy
+item 行的 `sourceStatus` 只作 provenance；当成员来源行已由治理链验证时，以来源行的
+verified 状态作为 Catalog 的有效来源状态，不回写旧行。
 
 ### 4.3 BrowseVariant
 
@@ -127,7 +135,7 @@ browseVariantKey =
 | 门禁 | 通过标准 |
 | --- | --- |
 | 确定性 | 同一活动 snapshot 重建两次得到同一 CatalogRevision 和逐行 hash |
-| ItemDefinition | Phase 0 已映射成员全部进入；无重复、无孤儿、无空 canonical slot |
+| ItemDefinition | 当前生产快照精确生成 613 个正式成员（canonical Browse 或 verified Exact 使用关系）；697 条 dormant 历史/仅来源元数据被排除；无重复、无孤儿、无空 canonical slot |
 | BrowseVariant | 1,309/1,309 verified membership；普通、制造、Ascendant progression 分离 |
 | 制造折叠 | 438 个制造属性组合仍折叠为 73 个 BrowseVariant membership；选择属性不进入身份 |
 | 40 专精 shadow | 40/40 专精旧 Gear Release 与 dormant Catalog 的可见候选集合一致 |

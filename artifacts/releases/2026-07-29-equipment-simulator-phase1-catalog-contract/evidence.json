@@ -42,7 +42,7 @@
     {
       "command": "CatalogRevision RED/GREEN focused suites",
       "status": "pass",
-      "summary": "48 focused Catalog builder, append-only store, migration schema, fixed-query projection and 40-specialization shadow tests pass. RED failures were observed before the builder, store, migration and CLI existed."
+      "summary": "64 focused Catalog builder, formal membership, append-only store, migration schema, fixed-query projection and 40-specialization shadow tests pass. RED failures were observed before the builder, store, migration and CLI existed, and again before dormant metadata exclusion was implemented."
     },
     {
       "command": "pre-candidate repository verification",
@@ -51,8 +51,8 @@
     },
     {
       "command": "candidate dormant Catalog migration and production shadow",
-      "status": "not_run",
-      "summary": "Awaiting immutable candidate commit and cloud deployment."
+      "status": "blocked",
+      "summary": "The first immutable candidate 4f1c970c714c1509f48ee7501ab51f04b24fb221 applied migration 0019 atomically but correctly refused to seal because raw slot metadata included source-less historical rows. Pointer generation 32 remained unchanged and all dormant Catalog tables remained empty. Formal membership was then narrowed under RED/GREEN tests to canonical BrowseVariant or verified ExactItemInstance usage; a new immutable candidate run is pending."
     },
     {
       "command": "exact-head Project Harness full profile and PR CI",
@@ -61,10 +61,25 @@
     }
   ],
   "candidateDeployment": {
-    "status": "pending",
-    "reason": "No candidate runtime or migration has been deployed."
+    "status": "correction_pending_retry",
+    "reason": "Migration 0019 is applied to the production database, but the first candidate failed closed before seal. The corrected immutable candidate has not yet been deployed or executed."
   },
-  "runtimeEvidence": [],
+  "runtimeEvidence": [
+    {
+      "candidateCommit": "4f1c970c714c1509f48ee7501ab51f04b24fb221",
+      "status": "blocked",
+      "problemCodes": [
+        "CATALOG_ITEM_SOURCE_MISSING",
+        "CATALOG_ITEM_SOURCE_STATUS_UNVERIFIED"
+      ],
+      "elapsedSeconds": 29.21,
+      "maxRssKiB": 876268,
+      "pointerGenerationBefore": 32,
+      "pointerGenerationAfter": 32,
+      "sealedCatalogRows": 0,
+      "interpretation": "Fail-closed behavior was correct. The candidate exposed that Phase 0 mappedItemCount classified dormant slot metadata rather than defining formal Catalog membership."
+    }
+  ],
   "risks": [
     {
       "id": "crafted-selection-facts",
@@ -80,6 +95,11 @@
       "id": "active-pointer-safety",
       "status": "open",
       "detail": "Production candidate execution must prove the active generation-32 pointer is unchanged."
+    },
+    {
+      "id": "dormant-item-membership",
+      "status": "controlled_by_tests",
+      "detail": "Formal ItemDefinition membership requires canonical BrowseVariant or verified ExactItemInstance usage plus governed source evidence; raw historical and source-only rows are excluded and counted."
     }
   ],
   "rollback": [
@@ -95,5 +115,5 @@
   "archivedReferences": [
     "artifacts/releases/2026-07-28-equipment-simulator-phase0-unblock/evidence.json"
   ],
-  "summary": "The dormant Catalog builder, append-only schema/store and bounded 40-specialization shadow are locally implemented and verified. No production migration, dormant Catalog seal, active pointer change or public reader change has occurred yet."
+  "summary": "The dormant Catalog builder, append-only schema/store and bounded 40-specialization shadow are locally implemented and verified. Migration 0019 is applied, but the first candidate correctly failed closed before sealing any Catalog rows; formal membership has been corrected locally and awaits a fresh immutable candidate. No active pointer or public reader change has occurred."
 }
