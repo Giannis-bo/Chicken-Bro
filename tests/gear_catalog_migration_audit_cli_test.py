@@ -56,6 +56,10 @@ def audit_snapshot():
             "manifest": {
                 "manifestRevision": MANIFEST_REVISION,
                 "seasonRevision": "season-17",
+                "dependencyVector": {
+                    "gearRuleRevision": "gear-r1",
+                    "seasonRevision": "season-17",
+                },
             },
             "gearRelease": {"releaseId": GEAR_RELEASE_ID},
             "communityRelease": {"releaseId": COMMUNITY_RELEASE_ID},
@@ -114,6 +118,13 @@ def audit_snapshot():
                 "totalBytes": 4096,
                 "activeLogicalBytes": 1024,
                 "rollbackLogicalBytes": 512,
+            }
+        ],
+        "releaseEvents": [
+            {
+                "eventType": "refresh_no_change",
+                "count": 2,
+                "latestAt": "2026-07-28T09:00:00+08:00",
             }
         ],
         "queryMetrics": {"total": 12, "reads": 9, "writes": 0},
@@ -348,6 +359,21 @@ class GearCatalogMigrationAuditCliTest(unittest.TestCase):
         self.assertEqual(first["specCoverage"]["specTotal"], 40)
         self.assertEqual(first["specCoverage"]["verifiedSpecCount"], 40)
         self.assertNotIn("replacementCandidates", json.dumps(first))
+        runtime_identity = first["catalogMapping"]["runtimeSnapshotIdentity"]
+        self.assertEqual(runtime_identity["pointerBefore"]["generation"], 17)
+        self.assertEqual(
+            runtime_identity["communityReleaseId"],
+            COMMUNITY_RELEASE_ID,
+        )
+        self.assertRegex(
+            runtime_identity["dependencyVectorHash"],
+            r"^sha256:[0-9a-f]{64}$",
+        )
+        self.assertTrue(runtime_identity["pointerStable"])
+        self.assertRegex(
+            runtime_identity["releaseEventsHash"],
+            r"^sha256:[0-9a-f]{64}$",
+        )
         self.assertEqual(
             first["resources"]["temporaryBytes"]["status"],
             "unknown",

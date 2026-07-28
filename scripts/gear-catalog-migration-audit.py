@@ -220,6 +220,12 @@ def _canonical_json_bytes(payload: Any) -> bytes:
     ).encode("utf-8")
 
 
+def _aggregate_hash(payload: Any) -> str:
+    return "sha256:" + hashlib.sha256(
+        _canonical_json_bytes(payload).rstrip(b"\n")
+    ).hexdigest()
+
+
 def _contains_secret(content: bytes, secrets: Iterable[str]) -> bool:
     return any(
         secret and secret.encode("utf-8") in content
@@ -784,6 +790,38 @@ def run_audit(
         },
         snapshot.get("catalogRows"),
     )
+    community_release = _mapping(active_binding.get("communityRelease"))
+    release_events = [
+        dict(row)
+        for row in snapshot.get("releaseEvents") or []
+        if isinstance(row, Mapping)
+    ]
+    catalog["runtimeSnapshotIdentity"] = {
+        "pointerBefore": dict(pointer_before),
+        "pointerAfter": dict(pointer_after),
+        "pointerStable": pointer_before == pointer_after,
+        "gearReleaseId": _text(gear_release.get("releaseId")),
+        "communityReleaseId": _text(community_release.get("releaseId")),
+        "dependencyVectorHash": _aggregate_hash(
+            _mapping(manifest.get("dependencyVector"))
+        ),
+        "releaseEventsHash": _aggregate_hash(release_events),
+        "releaseEventTypeCount": len(release_events),
+        "releaseEventRowCount": sum(
+            max(0, _integer(row.get("count")))
+            for row in release_events
+        ),
+        "communityTemplateCount": len([
+            row
+            for row in snapshot.get("communityTemplates") or []
+            if isinstance(row, Mapping)
+        ]),
+        "personalGearTemplateCount": len([
+            row
+            for row in snapshot.get("personalGearTemplates") or []
+            if isinstance(row, Mapping)
+        ]),
+    }
     catalog["sourceQueryMetrics"] = dict(
         _mapping(snapshot.get("queryMetrics"))
     )
