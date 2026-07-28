@@ -103,6 +103,8 @@ def rowsets(pointer_rows=None):
                 285,
                 "verified",
                 {"sourceStatus": "verified"},
+                True,
+                True,
             )
         ],
         "gear_catalog_audit_variants": [
@@ -118,7 +120,7 @@ def rowsets(pointer_rows=None):
                 [],
                 {
                     "trackKey": "hero",
-                    "rank": 6,
+                    "trackRank": 6,
                     "resolvedStats": {"haste_rating": 120},
                 },
             )
@@ -234,6 +236,99 @@ class GearCatalogAuditStoreTest(unittest.TestCase):
             snapshot["personalGearTemplates"][0]["gearItems"][0]["gemIds"],
             ["240892", None],
         )
+
+    def test_snapshot_classifies_legacy_variant_families_without_ranking_leakage(self):
+        configured = rowsets()
+        configured["gear_catalog_audit_variants"] = [
+            (
+                "browse-hero",
+                "1001",
+                "hero-6",
+                "head",
+                "hero",
+                285,
+                {"bonus_id": "9001/9002", "ilevel": "285"},
+                "verified",
+                [],
+                {
+                    "itemLevelTrack": "hero",
+                    "trackRank": 6,
+                    "rank": 999,
+                    "resolvedStats": {"haste_rating": 120},
+                },
+            ),
+            (
+                "exact-observed",
+                "1001",
+                "observed-278-a",
+                "head",
+                "observed_profile",
+                278,
+                {"bonus_id": "9100", "ilevel": "278"},
+                "verified",
+                [],
+                {
+                    "rank": 527,
+                    "rankingEvidence": {"rank": 527, "score": 3400},
+                    "resolvedStats": {"haste_rating": 100},
+                },
+            ),
+            (
+                "placeholder",
+                "1001",
+                "needs-variant",
+                "head",
+                "needs-variant",
+                0,
+                {},
+                "partial",
+                ["missing variant"],
+                {},
+            ),
+            (
+                "preview",
+                "1001",
+                "battle-net-preview-250",
+                "head",
+                "battle_net_preview",
+                250,
+                {"ilevel": "250"},
+                "verified",
+                [],
+                {},
+            ),
+        ]
+        snapshot = GearCatalogAuditStore(lambda: FakeConnection(configured)).snapshot()
+        variants = {
+            row["variantId"]: row
+            for row in snapshot["catalogRows"]["variants"]
+        }
+
+        self.assertEqual(variants["browse-hero"].get("rowFamily"), "browse")
+        self.assertEqual(variants["browse-hero"]["trackKey"], "hero")
+        self.assertEqual(variants["browse-hero"]["trackRank"], 6)
+        self.assertEqual(
+            variants["browse-hero"]["simcOptions"],
+            {"bonus_id": "9001/9002", "ilevel": "285"},
+        )
+        self.assertEqual(
+            variants["exact-observed"]["rowFamily"],
+            "exact_instance",
+        )
+        self.assertEqual(variants["exact-observed"]["trackRank"], 0)
+        self.assertNotIn("rank", variants["exact-observed"])
+        self.assertNotIn("rankingEvidence", variants["exact-observed"])
+        self.assertEqual(variants["placeholder"]["rowFamily"], "placeholder")
+        self.assertEqual(variants["preview"]["rowFamily"], "reference")
+
+    def test_snapshot_projects_item_reference_booleans(self):
+        snapshot = GearCatalogAuditStore(
+            lambda: FakeConnection(rowsets())
+        ).snapshot()
+        item = snapshot["catalogRows"]["items"][0]
+
+        self.assertIs(item.get("hasSourceRefs"), True)
+        self.assertIs(item.get("hasVariantRefs"), True)
 
     def test_changed_pointer_discards_mixed_snapshot_and_rolls_back(self):
         changed = list(POINTER_ROW)

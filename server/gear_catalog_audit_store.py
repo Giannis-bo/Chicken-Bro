@@ -264,6 +264,19 @@ def _query_marker(sql: Any) -> str:
     return match.group(1).lower() if match else "transaction_control"
 
 
+def _legacy_variant_row_family(difficulty_key: Any) -> str:
+    normalized = _text(difficulty_key).lower()
+    if normalized == "observed_profile":
+        return "exact_instance"
+    if normalized in {"needs-variant", "needs_variant"}:
+        return "placeholder"
+    if normalized == "battle_net_preview":
+        return "reference"
+    if normalized:
+        return "browse"
+    return "unclassified"
+
+
 class GearCatalogAuditStore:
     """Read current catalog migration inputs in one stable read-only snapshot."""
 
@@ -367,10 +380,28 @@ class GearCatalogAuditStore:
             cursor,
             """
             /* gear_catalog_audit_items */
-            SELECT item_id, name, slot, item_level, source_status, payload_json
-            FROM cache.websim_gear_release_items
-            WHERE release_id = %s
-            ORDER BY item_id
+            SELECT
+                item.item_id,
+                item.name,
+                item.slot,
+                item.item_level,
+                item.source_status,
+                item.payload_json,
+                EXISTS (
+                    SELECT 1
+                    FROM cache.websim_gear_release_sources source
+                    WHERE source.release_id = item.release_id
+                      AND source.item_id = item.item_id
+                ) AS has_source_refs,
+                EXISTS (
+                    SELECT 1
+                    FROM cache.websim_gear_release_variants variant
+                    WHERE variant.release_id = item.release_id
+                      AND variant.item_id = item.item_id
+                ) AS has_variant_refs
+            FROM cache.websim_gear_release_items item
+            WHERE item.release_id = %s
+            ORDER BY item.item_id
             """,
             (release_id,),
         )
@@ -382,6 +413,8 @@ class GearCatalogAuditStore:
                 "itemLevel": _int(row[3]),
                 "sourceStatus": _text(row[4]),
                 "payload": _mapping(row[5]),
+                "hasSourceRefs": row[6] is True,
+                "hasVariantRefs": row[7] is True,
             }
             for row in self._bounded_rows(cursor, batch_size)
         ]
@@ -426,18 +459,20 @@ class GearCatalogAuditStore:
                 "variantKey": _text(row[2]),
                 "slot": _text(row[3]),
                 "difficultyKey": _text(row[4]),
+                "rowFamily": _legacy_variant_row_family(row[4]),
                 "trackKey": _text(
                     payload.get("trackKey")
                     or payload.get("upgradeTrack")
+                    or payload.get("itemLevelTrack")
                     or row[4]
                 ),
-                "rank": _int(
-                    payload.get("rank")
-                    or payload.get("trackRank")
+                "trackRank": _int(
+                    payload.get("trackRank")
                     or payload.get("upgradeRank")
                 ),
                 "itemLevel": _int(row[5] or simc_options.get("ilevel")),
                 "bonusIds": [_text(value) for value in bonus_ids if _text(value)],
+                "simcOptions": simc_options,
                 "staticStats": _stat_map(static_stats),
                 "status": _text(row[7]),
                 "blockers": _json_value(row[8], []),
