@@ -87,7 +87,29 @@
         "unsupportedSnapshotCount": 4,
         "blockedSnapshotCount": 4
       },
-      "interpretation": "Fail-closed behavior was correct. Candidate data proved that the archived 55 partial exact references are distributed across 72 templates and therefore cannot be required to produce ready snapshots in Phase 3. The four clean supported templates exposed legacy set-like SimC option ordering drift; the compatibility facade and compiler now share canonical ordering without weakening partial-reference blocking."
+      "interpretation": "Fail-closed behavior was correct. Candidate data proved that the archived 55 partial exact references are distributed across 72 templates and therefore cannot be required to produce ready snapshots in Phase 3. The four clean supported templates also exposed compatibility profile ordering drift for follow-up diagnosis."
+    },
+    {
+      "candidateCommit": "8550dea8814c93ac8e7b8b9cfa63766fab615cb8",
+      "status": "blocked",
+      "problemCodes": [
+        "RESOLVED_SHADOW_READY_SNAPSHOT_BLOCKED"
+      ],
+      "reportId": "gear-resolved-snapshot-shadow:sha256:a7ea089828f3330723748ed3629448ea561c172060e8803f71aa287148cd932a",
+      "pointerGenerationBefore": 32,
+      "pointerGenerationAfter": 32,
+      "summary": {
+        "templateCount": 80,
+        "classifiedTemplateCount": 80,
+        "classifiedSupportedSpecCount": 26,
+        "classifiedUnsupportedSpecCount": 14,
+        "readyLoadoutCount": 8,
+        "blockedLoadoutCount": 72,
+        "readySnapshotCount": 0,
+        "unsupportedSnapshotCount": 4,
+        "blockedSnapshotCount": 4
+      },
+      "interpretation": "The corrected 26/14 classification gate passed while all four supported clean loadouts still failed byte parity. Focused comparison traced the remaining drift to the legacy Resolver serializer's alphabetical slot iteration versus the target CANONICAL_GEAR_SLOTS order. The compatibility facade now normalizes both set-like option values and slot order before snapshot compilation."
     }
   ],
   "risks": [

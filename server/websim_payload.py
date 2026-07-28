@@ -26792,6 +26792,12 @@ def build_websim_profile_response_from_resolved_snapshot(
                 **authoritative_options,
             }
         )
+    slot_order = {
+        slot: index for index, slot in enumerate(CANONICAL_GEAR_SLOTS)
+    }
+    normalized_items.sort(
+        key=lambda item: slot_order.get(item.get("slot"), len(slot_order))
+    )
 
     source = dict(source_context) if isinstance(source_context, dict) else {}
     for forbidden in (

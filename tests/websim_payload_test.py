@@ -24933,6 +24933,7 @@ class WebSimPayloadTest(unittest.TestCase):
         parity, snapshot = self.resolved_snapshot_for_facade()
         item = snapshot["serializerInput"]["gearItems"][0]
         item["simcOptions"]["bonus_id"] = "9002/9001"
+        snapshot["serializerInput"]["gearItems"].reverse()
 
         result = self.websim_payload.build_websim_profile_response_from_resolved_snapshot(
             snapshot,
@@ -24942,6 +24943,19 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertEqual(result["status"], "resolved")
         self.assertIn("bonus_id=9001/9002", result["profile"])
         self.assertNotIn("bonus_id=9002/9001", result["profile"])
+        gear_slots = [
+            line.split("=", 1)[0]
+            for line in result["profile"].splitlines()
+            if line.split("=", 1)[0] in self.websim_payload.CANONICAL_GEAR_SLOTS
+        ]
+        self.assertEqual(
+            gear_slots,
+            [
+                slot
+                for slot in self.websim_payload.CANONICAL_GEAR_SLOTS
+                if slot in gear_slots
+            ],
+        )
 
     def test_resolved_snapshot_facade_uses_server_talent_authority_for_websim_codes(self):
         parity, snapshot = self.resolved_snapshot_for_facade()
@@ -25201,7 +25215,7 @@ class WebSimPayloadTest(unittest.TestCase):
         self.assertNotIn("enchant_id=9999", back_line)
         self.assertNotIn("enchant_id=", back_line)
 
-    def test_resolved_snapshot_facade_matches_legacy_profile_golden(self):
+    def test_resolved_snapshot_facade_matches_legacy_profile_semantics_in_canonical_slot_order(self):
         parity, snapshot = self.resolved_snapshot_for_facade()
         legacy = self.websim_payload.build_websim_profile_response(parity["legacyPayload"])
 
@@ -25209,7 +25223,28 @@ class WebSimPayloadTest(unittest.TestCase):
             snapshot, parity["sourceContext"]
         )
 
-        self.assertEqual(resolved["profile"].splitlines(), legacy["profile"].splitlines())
+        resolved_lines = resolved["profile"].splitlines()
+        legacy_lines = legacy["profile"].splitlines()
+        slots = set(self.websim_payload.CANONICAL_GEAR_SLOTS)
+        resolved_gear = [
+            line for line in resolved_lines if line.split("=", 1)[0] in slots
+        ]
+        legacy_gear = [
+            line for line in legacy_lines if line.split("=", 1)[0] in slots
+        ]
+        self.assertEqual(
+            [line for line in resolved_lines if line not in resolved_gear],
+            [line for line in legacy_lines if line not in legacy_gear],
+        )
+        self.assertEqual(sorted(resolved_gear), sorted(legacy_gear))
+        self.assertEqual(
+            [line.split("=", 1)[0] for line in resolved_gear],
+            [
+                slot
+                for slot in self.websim_payload.CANONICAL_GEAR_SLOTS
+                if any(line.startswith(f"{slot}=") for line in resolved_gear)
+            ],
+        )
         for line in parity["expectedGearLines"]:
             self.assertIn(line, resolved["profile"].splitlines())
         self.assertEqual(resolved["profileReadiness"], parity["expectedProfileReadiness"])

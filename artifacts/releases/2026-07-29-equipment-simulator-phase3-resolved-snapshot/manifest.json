@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-28T21:09:23.174Z",
+  "generatedAt": "2026-07-28T21:12:40.278Z",
   "release": {
     "date": "2026-07-29",
     "slug": "equipment-simulator-phase3-resolved-snapshot"
@@ -99,7 +99,7 @@
         {
           "path": "server/websim_payload.py",
           "exists": true,
-          "lineCount": 27180,
+          "lineCount": 27186,
           "hotspot": true
         },
         {
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-29-equipment-simulator-phase3-resolved-snapshot/evidence.json",
-    "sizeBytes": 5546,
+    "sizeBytes": 6609,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -417,13 +417,13 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "6 changed files currently visible to git status."
+      "detail": "3 changed files currently visible to git status."
     },
     {
       "id": "hotspot_files_present",
       "severity": "medium",
       "status": "watch",
-      "detail": "server/websim_payload.py:27180, server/news_backend.py:14088, server/postgres_cache_store.py:8604"
+      "detail": "server/websim_payload.py:27186, server/news_backend.py:14088, server/postgres_cache_store.py:8604"
     },
     {
       "id": "localTests_missing",
@@ -453,13 +453,10 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 6,
+      "changedFileCount": 3,
       "changedFiles": [
         " M artifacts/releases/2026-07-29-equipment-simulator-phase3-resolved-snapshot/evidence.json",
-        " M scripts/gear-resolved-snapshot.py",
-        " M server/gear_resolved_loadout.py",
         " M server/websim_payload.py",
-        " M tests/gear_resolved_loadout_test.py",
         " M tests/websim_payload_test.py"
       ]
     }
