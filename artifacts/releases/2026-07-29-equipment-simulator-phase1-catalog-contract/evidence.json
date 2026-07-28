@@ -42,7 +42,7 @@
     {
       "command": "CatalogRevision RED/GREEN focused suites",
       "status": "pass",
-      "summary": "70 focused Catalog builder, formal membership, append-only store, migration schema, fixed-query projection and 40-specialization shadow tests pass, including actual PG selector, strict Browse-family and compact-crafted alias contracts. RED failures were observed before each correction."
+      "summary": "71 focused Catalog builder, formal membership, append-only store, migration schema, fixed-query projection and 40-specialization shadow tests pass, including actual PG selector, strict Browse-family, compact-crafted alias, direct-key fallback and cardinality contracts. RED failures were observed before each correction."
     },
     {
       "command": "pre-candidate repository verification",
@@ -52,7 +52,7 @@
     {
       "command": "candidate dormant Catalog migration and production shadow",
       "status": "blocked",
-      "summary": "The eighth candidate passed deterministic seal, pointer fence and resource bounds at 871,936 KiB, 169.40 seconds and zero swap. Its remaining 926 unmapped identities were all compact crafted synthetic keys; deterministic aliases to the already-collapsed Catalog BrowseVariants are now covered by RED/GREEN tests."
+      "summary": "The ninth candidate reported 40/40 with zero unmapped at 871,700 KiB, 166.57 seconds and zero swap, but promotion audit blocked it because legacy identity total 13,980 exceeded canonical mapped total 13,297 by 683 direct crafted-selection aliases. Direct keys are now fallback-only and an explicit per-spec cardinality gate prevents recurrence."
     },
     {
       "command": "exact-head Project Harness full profile and PR CI",
@@ -62,7 +62,7 @@
   ],
   "candidateDeployment": {
     "status": "catalog_sealed_shadow_retry_pending",
-    "reason": "Migration 0019 is applied and Catalog gear-catalog:sha256:2addca2ff52fdcc2d23c369572c88fba9919332927f07f10350d700654e5aa34 is sealed with 613 ItemDefinitions and 1309 BrowseVariants. A compact-crafted-alias 40-spec shadow retry is pending after the eighth candidate isolated all remaining differences to synthetic crafted identities."
+    "reason": "Migration 0019 is applied and Catalog gear-catalog:sha256:2addca2ff52fdcc2d23c369572c88fba9919332927f07f10350d700654e5aa34 is sealed with 613 ItemDefinitions and 1309 BrowseVariants. A strict cardinality 40-spec retry is pending after promotion audit rejected the ninth candidate's 683 duplicate direct crafted-selection aliases."
   },
   "runtimeEvidence": [
     {
@@ -236,6 +236,30 @@
         "unmappedCandidateCount": 926
       },
       "interpretation": "Browse-only projection removed ExactItemInstance contamination. Diagnosis proved every remaining difference was a compact crafted synthetic key for an already-collapsed Catalog progression; deterministic aliases are now tested without restoring crafted stat choices to identity."
+    },
+    {
+      "candidateCommit": "80d0713d9efd64ac61e515bd657f7668c146aa4b",
+      "status": "blocked",
+      "reportedStatus": "verified",
+      "promotionProblemCodes": [
+        "CATALOG_SHADOW_VISIBLE_CARDINALITY_MISMATCH"
+      ],
+      "reportId": "gear-catalog-shadow:sha256:f6e44de66d46530d0dc5950f70513cc8d8e2a3376dc1b81e9ca9d1a63c01182b",
+      "catalogRevision": "gear-catalog:sha256:2addca2ff52fdcc2d23c369572c88fba9919332927f07f10350d700654e5aa34",
+      "elapsedSeconds": 166.57,
+      "maxRssKiB": 871700,
+      "swapPeakBytes": 0,
+      "pointerGenerationBefore": 32,
+      "pointerGenerationAfter": 32,
+      "specShadow": {
+        "reportedVerifiedSpecCount": 40,
+        "blockedSpecCount": 0,
+        "unmappedCandidateCount": 0,
+        "legacyVisibleCandidateTotal": 13980,
+        "dormantVisibleCandidateTotal": 13297,
+        "cardinalityDifference": 683
+      },
+      "interpretation": "The raw report mapped every legacy alias, but promotion audit found item-level direct crafted-selection keys duplicated identities already present in variants lists. The candidate was not promoted; fallback-only direct keys and an explicit cardinality gate are now tested."
     }
   ],
   "risks": [
@@ -288,5 +312,5 @@
   "archivedReferences": [
     "artifacts/releases/2026-07-28-equipment-simulator-phase0-unblock/evidence.json"
   ],
-  "summary": "The dormant Catalog builder, append-only schema/store and bounded 40-specialization shadow are locally implemented and verified. Migration 0019 and the immutable 613/1309 Catalog are sealed; the eighth candidate passed resource/pointer gates and isolated all remaining differences to compact crafted aliases. The deterministic alias is fixed under RED/GREEN tests and awaits a fresh bounded candidate. No active pointer or public reader change has occurred."
+  "summary": "The dormant Catalog builder, append-only schema/store and bounded 40-specialization shadow are locally implemented and verified. Migration 0019 and the immutable 613/1309 Catalog are sealed; promotion audit rejected the ninth candidate despite raw 40/40 because 683 direct crafted-selection aliases violated cardinality. Fallback-only direct keys and strict cardinality are fixed under RED/GREEN tests and await a fresh bounded candidate. No active pointer or public reader change has occurred."
 }

@@ -126,7 +126,7 @@
       "requirement": "artifacts/releases/2026-07-29-equipment-simulator-phase1-catalog-contract/requirement.json",
       "evidence": "artifacts/releases/2026-07-29-equipment-simulator-phase1-catalog-contract/evidence.json",
       "baseCommit": "731bf899618976368a649f1e087b827e642076ef",
-      "notes": "Strict Phase 1 dormant Catalog builder, append-only store/migration and deterministic 40-specialization shadow tool are locally verified. Catalog gear-catalog:sha256:2addca2f... is sealed and exactly reads back 613 ItemDefinitions plus 1309 BrowseVariants with generation 32 stable. The eighth candidate passed resources at 871936 KiB, 169.40 seconds and zero swap, then isolated all 926 remaining differences to compact crafted synthetic aliases. The alias now maps deterministically to the collapsed BrowseVariant without adding crafted stats to identity. A fresh bounded 40/40 candidate remains pending; public readers and the active Manifest pointer remain unchanged."
+      "notes": "Strict Phase 1 dormant Catalog builder, append-only store/migration and deterministic 40-specialization shadow tool are locally verified. Catalog gear-catalog:sha256:2addca2f... is sealed and exactly reads back 613 ItemDefinitions plus 1309 BrowseVariants with generation 32 stable. Promotion audit rejected the ninth raw 40/40 report because 13980 legacy identities mapped to 13297 canonical identities through 683 duplicate direct crafted-selection keys. Direct keys are now fallback-only and cardinality mismatches block each spec under RED/GREEN. A fresh bounded strict 40/40 candidate remains pending; public readers and the active Manifest pointer remain unchanged."
     }
   ],
   "completedBaselines": [

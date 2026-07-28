@@ -245,6 +245,7 @@ class GearCatalogRevisionCliTest(unittest.TestCase):
             payload["replacementCandidates"][0]["items"] = [
                 {
                     "itemId": "crafted-1",
+                    "variantKey": "crafted-1-stats-0",
                     "variants": [{"id": "crafted-myth-285"}],
                 }
             ]
@@ -263,6 +264,18 @@ class GearCatalogRevisionCliTest(unittest.TestCase):
         self.assertEqual(
             report["specShadow"]["unmappedCandidateCount"],
             0,
+        )
+        self.assertEqual(
+            report["specShadow"]["rows"][0][
+                "legacyVisibleCandidateCount"
+            ],
+            1,
+        )
+        self.assertEqual(
+            report["specShadow"]["rows"][0][
+                "dormantBrowseVariantCount"
+            ],
+            1,
         )
 
     def test_unmapped_visible_candidate_blocks_shadow(self):
@@ -288,6 +301,32 @@ class GearCatalogRevisionCliTest(unittest.TestCase):
             report["problemCodes"],
         )
         self.assertEqual(report["specShadow"]["verifiedSpecCount"], 0)
+
+    def test_many_legacy_identities_to_one_dormant_variant_blocks_shadow(self):
+        def duplicate_alias_payload(class_key, spec_key):
+            payload = spec_payload(class_key, spec_key)
+            payload["replacementCandidates"][0]["items"][0][
+                "variants"
+            ] = [
+                {"id": "hero-6"},
+                {"id": "variant-hero-6"},
+            ]
+            return payload
+
+        report = revision_cli.run_migration(
+            snapshot_reader=lambda **_: snapshot(),
+            pointer_reader=lambda **_: snapshot()["pointerAfter"],
+            seal_writer=lambda catalog: catalog,
+            spec_payload_reader=duplicate_alias_payload,
+            class_spec_matrix=class_spec_matrix(),
+            observed_at="2026-07-29T10:00:00+08:00",
+        )
+
+        self.assertEqual(report["status"], "blocked")
+        self.assertIn(
+            "CATALOG_SHADOW_VISIBLE_CARDINALITY_MISMATCH",
+            report["problemCodes"],
+        )
 
     def test_pointer_change_after_seal_blocks_report(self):
         changed = snapshot()["pointerAfter"]

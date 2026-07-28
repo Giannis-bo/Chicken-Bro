@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-28T18:17:21.088Z",
+  "generatedAt": "2026-07-28T18:24:34.645Z",
   "release": {
     "date": "2026-07-29",
     "slug": "equipment-simulator-phase1-catalog-contract"
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-29-equipment-simulator-phase1-catalog-contract/evidence.json",
-    "sizeBytes": 13715,
+    "sizeBytes": 15008,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -392,7 +392,7 @@
     "missingFields": [],
     "declaredStatus": "local_verified",
     "highestEvidenceLevel": "local_verified",
-    "summary": "The dormant Catalog builder, append-only schema/store and bounded 40-specialization shadow are locally implemented and verified. Migration 0019 and the immutable 613/1309 Catalog are sealed; the eighth candidate passed resource/pointer gates and isolated all remaining differences to compact crafted aliases. The deterministic alias is fixed under RED/GREEN tests and awaits a fresh bounded candidate. No active pointer or public reader change has occurred."
+    "summary": "The dormant Catalog builder, append-only schema/store and bounded 40-specialization shadow are locally implemented and verified. Migration 0019 and the immutable 613/1309 Catalog are sealed; promotion audit rejected the ninth candidate despite raw 40/40 because 683 direct crafted-selection aliases violated cardinality. Fallback-only direct keys and strict cardinality are fixed under RED/GREEN tests and await a fresh bounded candidate. No active pointer or public reader change has occurred."
   },
   "evidence": {
     "localTests": {

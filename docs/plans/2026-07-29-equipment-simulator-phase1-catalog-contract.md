@@ -59,6 +59,11 @@
   synthetic key。当前 PG selector 会把同一制造轨道的六种副属性组合显示为
   `crafted-{trackKey}-{itemLevel}`；Catalog 已折叠为同一 BrowseVariant，shadow 现为
   该 synthetic key 建立确定性 alias，而不把制造副属性重新写回 Browse 身份。
+- 第九次候选原报告为 40/40 verified，但收口审计发现 legacy 总身份 13,980、canonical
+  映射总身份 13,297，相差 683。原因是有 variants 列表时仍把 item 级 direct
+  `variantKey` 作为第二身份；这些 direct key 是当前制造副属性选择，不是 Browse
+  membership。现在 direct key 只在 variants 缺失时作为兼容 fallback，并新增每专精
+  cardinality mismatch 阻断，避免仅凭“全部可映射”掩盖多对一差异。
 - 全局 `/api/data/health` 仍为 `partial`。本阶段不把旧 staging/refresh owner
   冒充成新的 Catalog 健康成功，也不在完成 shadow 前迁移 health owner。
 

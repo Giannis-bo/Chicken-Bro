@@ -128,7 +128,7 @@ def _visible_candidate_pairs(payload: Mapping[str, Any]) -> list[tuple[str, str]
                 if identity:
                     identities.add(identity)
             direct = _text(row.get("variantKey"))
-            if direct:
+            if direct and not identities:
                 identities.add(direct)
             for identity in identities:
                 result.add((item_id, identity))
@@ -411,6 +411,10 @@ def _shadow_specs(
             codes.append("CATALOG_SHADOW_SPEC_CANDIDATES_MISSING")
         if unmapped:
             codes.append("CATALOG_SHADOW_VISIBLE_CANDIDATE_UNMAPPED")
+        if len(visible) != len(set(mapped)):
+            codes.append(
+                "CATALOG_SHADOW_VISIBLE_CARDINALITY_MISMATCH"
+            )
         backend_status = _text(
             payload.get("catalogStatus") or payload.get("dataStatus")
         )
@@ -424,6 +428,10 @@ def _shadow_specs(
             "status": "verified" if not codes else "blocked",
             "legacyVisibleCandidateCount": len(visible),
             "dormantBrowseVariantCount": len(set(mapped)),
+            "collapsedAliasCount": max(
+                0,
+                len(visible) - len(set(mapped)),
+            ),
             "unmappedCandidateCount": len(unmapped),
             "legacyVisibleSetHash": _hash(
                 "sha256:",

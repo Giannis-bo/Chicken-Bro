@@ -124,6 +124,10 @@
     {
       "date": "2026-07-29",
       "decision": "The current PG selector compact crafted identity crafted-{trackKey}-{itemLevel} is a deterministic alias to the collapsed Catalog BrowseVariant; crafted secondary-stat choices remain outside BrowseVariant identity."
+    },
+    {
+      "date": "2026-07-29",
+      "decision": "When a candidate exposes a variants list, item-level direct variantKey is not an additional Browse identity and is used only as a compatibility fallback when the list is absent; shadow parity fails closed on any legacy-to-canonical cardinality mismatch."
     }
   ]
 }
