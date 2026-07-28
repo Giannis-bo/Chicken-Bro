@@ -2925,6 +2925,137 @@ class GearReleaseToolTest(unittest.TestCase):
         self.assertEqual(len(store.community_seals), 1)
         self.assertNotIn("pointer", result)
 
+    def test_community_release_reuses_one_candidate_authority_index_for_all_templates(self):
+        from server import gear_release_tool
+        from server.gear_release_store import CandidateGearAuthorityIndex, gear_snapshot_summary
+
+        snapshot = self.snapshot()
+        gear = gear_release.build_release(
+            release_kind="gear",
+            season_revision="season-17",
+            schema_revision="gear-release-v1",
+            content=gear_snapshot_summary(snapshot),
+            dependency_revisions=self.dependencies(),
+            release_status="validated",
+            source={"sourceRevision": "prepared-index-test"},
+        )
+        second = self.template("template-b")
+        second["sourceUrl"] = "https://raider.io/characters/cn/b"
+        store = FakeReleaseStore(snapshot, [self.template(), second])
+
+        with patch.object(
+            gear_release_tool,
+            "CandidateGearAuthorityIndex",
+            wraps=CandidateGearAuthorityIndex,
+        ) as index_factory, patch.object(
+            gear_release_tool,
+            "selection_intent_from_template",
+            wraps=gear_release_tool.selection_intent_from_template,
+        ) as selection_intent, patch.object(
+            gear_release_tool,
+            "community_template_import_evidence_from_template",
+            wraps=gear_release_tool.community_template_import_evidence_from_template,
+        ) as import_evidence:
+            result = gear_release_tool.prepare_staging_community_release(
+                store,
+                gear_release_descriptor=gear,
+                gear_snapshot=snapshot,
+                dependency_revisions=self.dependencies(),
+                expected_specs=[("mage", "arcane")],
+                now="2026-07-11T06:00:00+00:00",
+                resolver_for_spec=lambda *_args: self.verified_result(gear["releaseId"]),
+            )
+
+        self.assertEqual(result["election"]["status"], "validated")
+        self.assertEqual(index_factory.call_count, 1)
+        prepared = selection_intent.call_args_list[0].kwargs["prepared_index"]
+        self.assertTrue(all(
+            call.kwargs["prepared_index"] is prepared
+            for call in selection_intent.call_args_list
+        ))
+        self.assertTrue(all(
+            call.kwargs["prepared_index"] is prepared
+            for call in import_evidence.call_args_list
+        ))
+
+    def test_reused_candidate_authority_index_preserves_outputs_and_release_identity(self):
+        from server import gear_release_tool
+        from server.gear_release_store import (
+            CandidateGearAuthorityIndex,
+            GearReleaseIntegrityError,
+            gear_snapshot_summary,
+        )
+
+        snapshot = self.snapshot()
+        gear = gear_release.build_release(
+            release_kind="gear",
+            season_revision="season-17",
+            schema_revision="gear-release-v1",
+            content=gear_snapshot_summary(snapshot),
+            dependency_revisions=self.dependencies(),
+            release_status="validated",
+            source={"sourceRevision": "prepared-index-identity-test"},
+        )
+        prepared = CandidateGearAuthorityIndex(snapshot, gear)
+        plain_intent = gear_release_tool.selection_intent_from_template(
+            self.template(),
+            gear_release_id=gear["releaseId"],
+            season_revision=gear["seasonRevision"],
+            level=90,
+            gear_snapshot=snapshot,
+            capability_revision=self.dependencies()["capabilityRevision"],
+        )
+        indexed_intent = gear_release_tool.selection_intent_from_template(
+            self.template(),
+            gear_release_id=gear["releaseId"],
+            season_revision=gear["seasonRevision"],
+            level=90,
+            gear_snapshot=snapshot,
+            capability_revision=self.dependencies()["capabilityRevision"],
+            prepared_index=prepared,
+        )
+        plain_evidence = gear_release_tool.community_template_import_evidence_from_template(
+            self.template(),
+            gear_release_id=gear["releaseId"],
+            gear_snapshot=snapshot,
+        )
+        indexed_evidence = gear_release_tool.community_template_import_evidence_from_template(
+            self.template(),
+            gear_release_id=gear["releaseId"],
+            gear_snapshot=snapshot,
+            prepared_index=prepared,
+        )
+
+        self.assertEqual(indexed_intent, plain_intent)
+        self.assertEqual(indexed_evidence, plain_evidence)
+
+        other = gear_release.build_release(
+            release_kind="gear",
+            season_revision="season-other",
+            schema_revision="gear-release-v1",
+            content=gear_snapshot_summary(snapshot),
+            dependency_revisions=self.dependencies(),
+            release_status="validated",
+            source={"sourceRevision": "prepared-index-other-release"},
+        )
+        other_prepared = CandidateGearAuthorityIndex(snapshot, other)
+        with self.assertRaises(GearReleaseIntegrityError):
+            gear_release_tool.selection_intent_from_template(
+                self.template(),
+                gear_release_id=gear["releaseId"],
+                season_revision=gear["seasonRevision"],
+                level=90,
+                gear_snapshot=snapshot,
+                prepared_index=other_prepared,
+            )
+        with self.assertRaises(GearReleaseIntegrityError):
+            gear_release_tool.community_template_import_evidence_from_template(
+                self.template(),
+                gear_release_id=gear["releaseId"],
+                gear_snapshot=snapshot,
+                prepared_index=other_prepared,
+            )
+
     def test_community_release_projects_two_hero_slots_from_talent_candidates(self):
         from server.gear_release_store import gear_snapshot_summary
         from server.gear_release_tool import build_legacy_community_release

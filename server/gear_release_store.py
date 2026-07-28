@@ -477,9 +477,13 @@ class CandidateGearAuthorityIndex:
         self.snapshot_summary = gear_snapshot_summary(snapshot)
         if self.snapshot_summary != self.release["content"]:
             raise GearReleaseIntegrityError("candidate authority snapshot does not match Gear Release")
+        self.item_rows_by_id: dict[str, list[dict[str, Any]]] = {}
+        for row in _canonical_rows(snapshot.get("items")):
+            self.item_rows_by_id.setdefault(_text(row.get("itemId")), []).append(row)
         self.items = {
-            _text(row.get("itemId")): row
-            for row in _canonical_rows(snapshot.get("items"))
+            item_id: rows[0]
+            for item_id, rows in self.item_rows_by_id.items()
+            if len(rows) == 1
         }
         self.sources_by_item: dict[str, list[dict[str, Any]]] = {}
         for row in _canonical_rows(snapshot.get("sources")):
@@ -492,6 +496,12 @@ class CandidateGearAuthorityIndex:
             for row in _canonical_rows(snapshot.get("options"))
             if _text(row.get("optionKey"))
         }
+        self.verified_options = [
+            row
+            for row in self.options_by_key.values()
+            if _text(row.get("status")).lower() == "verified"
+            and row.get("isVisible") is True
+        ]
 
 
 def build_candidate_authority_context(
@@ -779,6 +789,130 @@ class GearReleaseStore:
                     FROM cache.websim_gear_mod_options
                     ORDER BY id::text
                     """
+                )
+                option_rows = cur.fetchall()
+        return {
+            "items": [
+                {
+                    "itemId": _text(row[0]),
+                    "name": _text(row[1]),
+                    "slot": _text(row[2]),
+                    "itemLevel": row[3],
+                    "payload": _canonical(row[4] if isinstance(row[4], dict) else {}),
+                    "sourceStatus": _text(row[5]),
+                    "updatedAt": _text(row[6]),
+                }
+                for row in item_rows
+            ],
+            "sources": [
+                {
+                    "sourceId": _text(row[0]),
+                    "itemId": _text(row[1]),
+                    "sourceType": _text(row[2]),
+                    "sourceKey": _text(row[3]),
+                    "sourceLabel": _text(row[4]),
+                    "instanceId": _text(row[5]),
+                    "encounterId": _text(row[6]),
+                    "difficultyKey": _text(row[7]),
+                    "seasonRevision": _text(row[8]),
+                    "payload": _canonical(row[9] if isinstance(row[9], dict) else {}),
+                    "updatedAt": _text(row[10]),
+                }
+                for row in source_rows
+            ],
+            "variants": [
+                {
+                    "variantId": _text(row[0]),
+                    "itemId": _text(row[1]),
+                    "variantKey": _text(row[2]),
+                    "slot": _text(row[3]),
+                    "label": _text(row[4]),
+                    "sourceType": _text(row[5]),
+                    "difficultyKey": _text(row[6]),
+                    "itemLevel": _int(row[7]),
+                    "simcOptions": _canonical(row[8] if isinstance(row[8], dict) else {}),
+                    "status": _text(row[9]),
+                    "blockers": _canonical(row[10] if isinstance(row[10], list) else []),
+                    "payload": _canonical(row[11] if isinstance(row[11], dict) else {}),
+                    "updatedAt": _text(row[12]),
+                }
+                for row in variant_rows
+            ],
+            "options": [
+                {
+                    "optionId": _text(row[0]),
+                    "variantId": _text(row[1]),
+                    "optionKey": _text(row[2]),
+                    "optionType": _text(row[3]),
+                    "name": _text(row[4]),
+                    "applicableSlots": _canonical(row[5] if isinstance(row[5], list) else []),
+                    "simcOptions": _canonical(row[6] if isinstance(row[6], dict) else {}),
+                    "status": _text(row[7]),
+                    "isVisible": row[8] is True,
+                    "payload": _canonical(row[9] if isinstance(row[9], dict) else {}),
+                    "updatedAt": _text(row[10]),
+                }
+                for row in option_rows
+            ],
+        }
+
+    def snapshot_gear_release(
+        self,
+        release_id: str,
+    ) -> dict[str, list[dict[str, Any]]]:
+        """Read one immutable Gear Release snapshot in a single read-only transaction."""
+
+        normalized = _text(release_id)
+        if not normalized:
+            raise GearReleaseIntegrityError("Gear Release ID is required")
+        with self.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
+                cur.execute(
+                    """
+                    SELECT item_id, name, slot, item_level, payload_json,
+                           source_status, source_updated_at
+                    FROM cache.websim_gear_release_items
+                    WHERE release_id = %s
+                    ORDER BY item_id
+                    """,
+                    (normalized,),
+                )
+                item_rows = cur.fetchall()
+                cur.execute(
+                    """
+                    SELECT source_id, item_id, source_type, source_key, source_label,
+                           instance_id, encounter_id, difficulty_key, season_revision,
+                           payload_json, source_updated_at
+                    FROM cache.websim_gear_release_sources
+                    WHERE release_id = %s
+                    ORDER BY source_id
+                    """,
+                    (normalized,),
+                )
+                source_rows = cur.fetchall()
+                cur.execute(
+                    """
+                    SELECT variant_id, item_id, variant_key, slot, label, source_type,
+                           difficulty_key, item_level, simc_options_json, status,
+                           blockers_json, payload_json, source_updated_at
+                    FROM cache.websim_gear_release_variants
+                    WHERE release_id = %s
+                    ORDER BY variant_id
+                    """,
+                    (normalized,),
+                )
+                variant_rows = cur.fetchall()
+                cur.execute(
+                    """
+                    SELECT option_id, variant_id, option_key, option_type, name,
+                           applicable_slots_json, simc_options_json, status, is_visible,
+                           payload_json, source_updated_at
+                    FROM cache.websim_gear_release_mod_options
+                    WHERE release_id = %s
+                    ORDER BY option_id
+                    """,
+                    (normalized,),
                 )
                 option_rows = cur.fetchall()
         return {

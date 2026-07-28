@@ -37,6 +37,7 @@ from server.gear_catalog_migration_audit import (  # noqa: E402
 
 
 MAX_CALLER_BYTES = 2 * 1024 * 1024
+MAX_RESOURCE_REPORT_BYTES = 256 * 1024
 MAX_REPORT_BYTES = 8 * 1024 * 1024
 MAX_STATEMENT_TIMEOUT_MS = 30_000
 MAX_LOCK_TIMEOUT_MS = 5_000
@@ -96,6 +97,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         description="Run the bounded read-only Phase 0 gear catalog audit.",
     )
     parser.add_argument("--callers-json", required=True)
+    parser.add_argument("--resource-report", default="")
     parser.add_argument("--output", required=True)
     parser.add_argument(
         "--statement-timeout-ms",
@@ -197,15 +199,48 @@ def load_caller_report(
             "caller JSON must be an object",
         )
     if (
-        payload.get("schemaRevision") != "gear-catalog-callers-v1"
+        payload.get("schemaRevision") != "gear-catalog-callers-v2"
         or not _REPORT_ID.fullmatch(str(payload.get("reportId") or ""))
         or str(payload.get("status") or "") not in _STATUS_ORDER
     ):
         raise AuditCliError(
             "AUDIT_CALLER_CONTRACT_INVALID",
-            "caller JSON does not satisfy gear-catalog-callers-v1",
+            "caller JSON does not satisfy gear-catalog-callers-v2",
         )
     return payload, len(content)
+
+
+def load_resource_report(
+    repo_root: Path,
+    value: str | os.PathLike[str],
+) -> dict[str, Any]:
+    path = _repository_path(repo_root, value)
+    try:
+        with path.open("rb") as handle:
+            content = handle.read(MAX_RESOURCE_REPORT_BYTES + 1)
+    except OSError as exc:
+        raise AuditCliError(
+            "AUDIT_RESOURCE_REPORT_UNAVAILABLE",
+            "resource report is unavailable",
+        ) from exc
+    if len(content) > MAX_RESOURCE_REPORT_BYTES:
+        raise AuditCliError(
+            "AUDIT_RESOURCE_REPORT_TOO_LARGE",
+            "resource report exceeds the 256 KiB limit",
+        )
+    try:
+        payload = json.loads(content)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise AuditCliError(
+            "AUDIT_RESOURCE_REPORT_INVALID",
+            "resource report is invalid",
+        ) from exc
+    if not isinstance(payload, dict):
+        raise AuditCliError(
+            "AUDIT_RESOURCE_REPORT_INVALID",
+            "resource report must be an object",
+        )
+    return payload
 
 
 def _canonical_json_bytes(payload: Any) -> bytes:
@@ -622,6 +657,7 @@ def _resource_rows(
     caller_bytes: int,
     filesystem_roots: Iterable[Path],
     statvfs_fn: Callable[[str | os.PathLike[str]], Any],
+    resource_report: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     relation_sizes = [
         row
@@ -663,6 +699,43 @@ def _resource_rows(
         if filesystem_measured and filesystem_total > 0
         else (0.0 if filesystem_measured else None)
     )
+    binding = _mapping(snapshot.get("activeBinding"))
+    manifest = _mapping(binding.get("manifest"))
+    gear = _mapping(binding.get("gearRelease"))
+    dependency_vector = _mapping(manifest.get("dependencyVector"))
+    expected_gear_release_id = _text(gear.get("releaseId"))
+    expected_simc_revision = _text(
+        dependency_vector.get("simcRuntimeRevision")
+    )
+    supplied_report = (
+        resource_report if isinstance(resource_report, Mapping) else {}
+    )
+    resource_probe_status = "missing"
+    resource_probe_problem_codes: list[str] = []
+    peak_rss = None
+    temporary_bytes = None
+    if supplied_report:
+        from server.gear_release_resource_probe import validate_resource_report
+
+        if validate_resource_report(
+            supplied_report,
+            gear_release_id=expected_gear_release_id,
+            simc_runtime_revision=expected_simc_revision,
+        ):
+            metrics = _mapping(supplied_report.get("metrics"))
+            peak_rss = _integer(metrics.get("peakRssObservedBytes"))
+            temporary_bytes = _integer(
+                metrics.get("temporaryBytesObserved")
+            )
+            resource_probe_status = _text(supplied_report.get("status"))
+            resource_probe_problem_codes = sorted({
+                _text(code)
+                for code in supplied_report.get("problemCodes") or []
+                if _text(code)
+            })
+        else:
+            resource_probe_status = "mismatched"
+
     return {
         "databaseRelationsBytes": database_bytes,
         "activeMaterializationBytes": active_bytes,
@@ -672,8 +745,10 @@ def _resource_rows(
         "filesystemUsedBytes": filesystem_used,
         "filesystemFreeBytes": filesystem_free if filesystem_measured else None,
         "filesystemUsedPercent": used_percent,
-        "peakRssObservedBytes": None,
-        "temporaryBytesObserved": None,
+        "peakRssObservedBytes": peak_rss,
+        "temporaryBytesObserved": temporary_bytes,
+        "resourceProbeStatus": resource_probe_status,
+        "resourceProbeProblemCodes": resource_probe_problem_codes,
     }
 
 
@@ -706,6 +781,7 @@ def run_audit(
     statvfs_fn: Callable[[str | os.PathLike[str]], Any] = os.statvfs,
     observed_at: str | None = None,
     connection_factory: Callable[[], Any] | None = None,
+    resource_report: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     if not 1 <= int(statement_timeout_ms) <= MAX_STATEMENT_TIMEOUT_MS:
         raise AuditCliError(
@@ -852,6 +928,7 @@ def run_audit(
         caller_bytes=caller_bytes,
         filesystem_roots=list(filesystem_roots or [REPOSITORY_ROOT]),
         statvfs_fn=statvfs_fn,
+        resource_report=resource_report,
     ))
     report = build_phase0_report(
         catalog=catalog,
@@ -894,6 +971,11 @@ def main(
         root = Path(repo_root).resolve()
         output = _repository_path(root, args.output, output=True)
         callers, caller_bytes = load_caller_report(root, args.callers_json)
+        resource_report = (
+            load_resource_report(root, args.resource_report)
+            if args.resource_report
+            else None
+        )
         filesystem_roots = [
             _repository_path(root, value)
             for value in (args.filesystem_root or ["."])
@@ -907,6 +989,7 @@ def main(
             batch_size=args.batch_size,
             sample_limit=args.sample_limit,
             filesystem_roots=filesystem_roots,
+            resource_report=resource_report,
         )
         issues = validate_phase0_report(report)
         if issues:

@@ -1205,29 +1205,42 @@ def selection_intent_from_template(
     level: int,
     gear_snapshot: dict[str, Any] | None = None,
     capability_revision: str = "",
+    prepared_index: CandidateGearAuthorityIndex | None = None,
 ) -> dict[str, Any]:
     snapshot = gear_snapshot if isinstance(gear_snapshot, dict) else {}
+    if prepared_index is not None and (
+        prepared_index.release["releaseId"] != _text(gear_release_id)
+        or prepared_index.release["seasonRevision"] != _text(season_revision)
+    ):
+        raise GearReleaseIntegrityError(
+            "prepared candidate authority does not match template Intent authority"
+        )
     enhancements_are_public_evidence = gear_release.is_public_observed_source(
         template.get("sourceKey")
     )
-    items_by_id = {
-        _text(row.get("itemId")): row
-        for row in snapshot.get("items") or []
-        if isinstance(row, dict) and _text(row.get("itemId"))
-    }
-    variants_by_item: dict[str, list[dict[str, Any]]] = {}
-    for row in snapshot.get("variants") or []:
-        if not isinstance(row, dict) or not _text(row.get("itemId")):
-            continue
-        variants_by_item.setdefault(_text(row.get("itemId")), []).append(row)
-    verified_options = [
-        row
-        for row in snapshot.get("options") or []
-        if isinstance(row, dict)
-        and _text(row.get("optionKey"))
-        and _text(row.get("status")).lower() == "verified"
-        and row.get("isVisible") is True
-    ]
+    if prepared_index is not None:
+        items_by_id = prepared_index.items
+        variants_by_item = prepared_index.variants_by_item
+        verified_options = prepared_index.verified_options
+    else:
+        items_by_id = {
+            _text(row.get("itemId")): row
+            for row in snapshot.get("items") or []
+            if isinstance(row, dict) and _text(row.get("itemId"))
+        }
+        variants_by_item: dict[str, list[dict[str, Any]]] = {}
+        for row in snapshot.get("variants") or []:
+            if not isinstance(row, dict) or not _text(row.get("itemId")):
+                continue
+            variants_by_item.setdefault(_text(row.get("itemId")), []).append(row)
+        verified_options = [
+            row
+            for row in snapshot.get("options") or []
+            if isinstance(row, dict)
+            and _text(row.get("optionKey"))
+            and _text(row.get("status")).lower() == "verified"
+            and row.get("isVisible") is True
+        ]
 
     def matching_variant(
         raw: dict[str, Any],
@@ -1452,22 +1465,31 @@ def community_template_import_evidence_from_template(
     *,
     gear_release_id: str,
     gear_snapshot: dict[str, Any],
+    prepared_index: CandidateGearAuthorityIndex | None = None,
 ) -> dict[str, Any]:
     """Seal observed per-slot display facts without changing Resolver Intent."""
 
     snapshot = gear_snapshot if isinstance(gear_snapshot, dict) else {}
-    item_rows_by_id: dict[str, list[dict[str, Any]]] = {}
-    for row in snapshot.get("items") or []:
-        if not isinstance(row, dict) or not _text(row.get("itemId")):
-            continue
-        item_rows_by_id.setdefault(_text(row.get("itemId")), []).append(row)
-    variant_rows_by_item: dict[str, list[dict[str, Any]]] = {}
-    for row in snapshot.get("variants") or []:
-        if not isinstance(row, dict):
-            continue
-        item_id = _text(row.get("itemId"))
-        if item_id:
-            variant_rows_by_item.setdefault(item_id, []).append(row)
+    if prepared_index is not None:
+        if prepared_index.release["releaseId"] != _text(gear_release_id):
+            raise GearReleaseIntegrityError(
+                "prepared candidate authority does not match community import evidence"
+            )
+        item_rows_by_id = prepared_index.item_rows_by_id
+        variant_rows_by_item = prepared_index.variants_by_item
+    else:
+        item_rows_by_id: dict[str, list[dict[str, Any]]] = {}
+        for row in snapshot.get("items") or []:
+            if not isinstance(row, dict) or not _text(row.get("itemId")):
+                continue
+            item_rows_by_id.setdefault(_text(row.get("itemId")), []).append(row)
+        variant_rows_by_item: dict[str, list[dict[str, Any]]] = {}
+        for row in snapshot.get("variants") or []:
+            if not isinstance(row, dict):
+                continue
+            item_id = _text(row.get("itemId"))
+            if item_id:
+                variant_rows_by_item.setdefault(item_id, []).append(row)
 
     slots: dict[str, dict[str, Any]] = {}
     for raw in template.get("gearItems") or []:
@@ -1633,6 +1655,7 @@ def _template_candidate(
     level: int,
     gear_snapshot: dict[str, Any],
     capability_revision: str,
+    prepared_index: CandidateGearAuthorityIndex | None = None,
 ) -> dict[str, Any]:
     payload = template.get("payload") if isinstance(template.get("payload"), dict) else {}
     evidence = payload.get("templateEvidence") if isinstance(payload.get("templateEvidence"), dict) else {}
@@ -1645,6 +1668,7 @@ def _template_candidate(
         level=level,
         gear_snapshot=gear_snapshot,
         capability_revision=capability_revision,
+        prepared_index=prepared_index,
     )
     candidate = {
         "id": _text(template.get("templateId")),
@@ -1665,6 +1689,7 @@ def _template_candidate(
             template,
             gear_release_id=gear_release_id,
             gear_snapshot=gear_snapshot,
+            prepared_index=prepared_index,
         )
     except GearReleaseIntegrityError:
         # A historical/incomplete observed template remains browseable but cannot win an
@@ -2057,6 +2082,11 @@ def prepare_staging_community_release(
         release_dependencies.get("capabilityRevision")
         or dependency_revisions.get("capabilityRevision")
     )
+    prepared_authority = CandidateGearAuthorityIndex(
+        gear_snapshot,
+        gear_release_descriptor,
+    )
+
     def candidate_for_template(template: dict[str, Any]) -> dict[str, Any]:
         return _template_candidate(
             template,
@@ -2065,14 +2095,10 @@ def prepare_staging_community_release(
             level=level,
             gear_snapshot=gear_snapshot,
             capability_revision=capability_revision,
+            prepared_index=prepared_authority,
         )
 
     candidates = [candidate_for_template(template) for template in templates]
-    prepared_authority = (
-        CandidateGearAuthorityIndex(gear_snapshot, gear_release_descriptor)
-        if resolver_for_spec is None
-        else None
-    )
 
     def resolve_candidate(intent: dict[str, Any]) -> dict[str, Any]:
         eligibility = intent.get("eligibilityContext") or {}

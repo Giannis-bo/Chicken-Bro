@@ -846,6 +846,30 @@ def audit_resource_baseline(resource_rows: Any) -> dict[str, Any]:
                 f"{field} is unavailable and remains unknown.",
             ))
 
+    probe_status = _text(source.get("resourceProbeStatus"))
+    probe_problem_codes = sorted({
+        _text(code)
+        for code in source.get("resourceProbeProblemCodes") or []
+        if _text(code)
+    })
+    if probe_status == "blocked":
+        blocked = True
+        exceeded = any(
+            code.endswith("_EXCEEDED")
+            for code in probe_problem_codes
+        )
+        problems.append(_problem(
+            "RESOURCE_BASELINE_EXCEEDED"
+            if exceeded
+            else "RESOURCE_BASELINE_INVALID",
+            "resourceProbe",
+            (
+                "The bounded Community builder resource probe exceeded a hard limit."
+                if exceeded
+                else "The bounded Community builder resource probe did not preserve its read-only stability contract."
+            ),
+        ))
+
     status = "blocked" if blocked else (
         "partial"
         if any(value["status"] == "unknown" for value in optional.values())
@@ -856,6 +880,10 @@ def audit_resource_baseline(resource_rows: Any) -> dict[str, Any]:
         "status": status,
         "measured": measured,
         **optional,
+        "probe": {
+            "status": probe_status or "not_supplied",
+            "problemCodes": probe_problem_codes,
+        },
         "problemCodes": _problem_codes(problems),
         "problemCounts": _problem_counts(problems),
         "problems": _problem_samples(problems),

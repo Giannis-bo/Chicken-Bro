@@ -329,6 +329,43 @@ class GearReleaseStoreTest(unittest.TestCase):
         self.assertEqual(snapshot["options"][0]["optionKey"], "gem-a")
         self.assertTrue(conn.committed)
 
+    def test_snapshot_gear_release_reads_one_exact_immutable_release(self):
+        from server.gear_release_store import GearReleaseStore
+
+        conn = FakeConnection(rowsets={
+            "FROM cache.websim_gear_release_items": [
+                ("item-a", "Item A", "head", 289, {"x": 1}, "verified", "2026-07-11T05:00:00+00:00")
+            ],
+            "FROM cache.websim_gear_release_sources": [
+                ("source-a", "item-a", "observed_profile", "profile:a", "Observed", "", "", "mythic", "season-17", {"status": "verified"}, "2026-07-11T05:00:00+00:00")
+            ],
+            "FROM cache.websim_gear_release_variants": [
+                ("variant-a-id", "item-a", "variant-a", "head", "289", "observed_profile", "mythic", 289, {"ilevel": "289"}, "verified", [], {"resolvedStats": {"intellect": 100}}, "2026-07-11T05:00:00+00:00")
+            ],
+            "FROM cache.websim_gear_release_mod_options": [
+                ("option-a-id", "variant-a-id", "gem-a", "gem", "Gem A", ["head"], {"gem_id": "1"}, "verified", True, {"itemStats": []}, "2026-07-11T05:00:00+00:00")
+            ],
+        })
+
+        snapshot = GearReleaseStore(lambda: conn).snapshot_gear_release(
+            "gear-release:exact"
+        )
+
+        sql = "\n".join(conn.cursor_instance.statements)
+        self.assertIn("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY", sql)
+        self.assertNotIn("FROM cache.websim_items ", sql)
+        self.assertEqual(snapshot["items"][0]["itemId"], "item-a")
+        self.assertEqual(snapshot["variants"][0]["variantKey"], "variant-a")
+        self.assertEqual(
+            conn.cursor_instance.params[1:],
+            [
+                ("gear-release:exact",),
+                ("gear-release:exact",),
+                ("gear-release:exact",),
+                ("gear-release:exact",),
+            ],
+        )
+
     def test_candidate_authority_context_uses_exact_sealed_snapshot_and_release_id(self):
         from server.gear_release_store import build_candidate_authority_context
         from server.websim_payload import gear_resolver_runtime_authority

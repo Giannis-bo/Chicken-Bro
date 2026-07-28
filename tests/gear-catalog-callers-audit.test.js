@@ -69,12 +69,12 @@ function fixtureRepository() {
   return { root, files }
 }
 
-test('caller audit separates runtime, Taro, compatibility, tests/docs and unresolved files', () => {
+test('caller audit separates backend, Taro, compatibility, runtime tooling and tests/docs files', () => {
   const { root, files } = fixtureRepository()
   try {
     const result = collectGearCatalogCallers({ root, allowlist: files })
 
-    assert.equal(result.schemaRevision, 'gear-catalog-callers-v1')
+    assert.equal(result.schemaRevision, 'gear-catalog-callers-v2')
     assert.match(result.reportId, /^gear-catalog-callers:sha256:[0-9a-f]{64}$/)
     assert.deepEqual(
       result.categories.activeBackend.map((entry) => entry.path),
@@ -93,6 +93,10 @@ test('caller audit separates runtime, Taro, compatibility, tests/docs and unreso
       ['pages/builds/websim-api.js'],
     )
     assert.deepEqual(
+      result.categories.runtimeTooling.map((entry) => entry.path),
+      ['scripts/runtime-proxy.js'],
+    )
+    assert.deepEqual(
       result.categories.testsDocs.map((entry) => entry.path),
       [
         'artifacts/releases/old/evidence.json',
@@ -103,11 +107,11 @@ test('caller audit separates runtime, Taro, compatibility, tests/docs and unreso
     )
     assert.deepEqual(
       result.categories.unresolved.map((entry) => entry.path),
-      ['scripts/runtime-proxy.js'],
+      [],
     )
-    assert.equal(result.runtimeCallerCount, 6)
-    assert.equal(result.unresolvedCount, 1)
-    assert.equal(result.status, 'partial')
+    assert.equal(result.runtimeCallerCount, 7)
+    assert.equal(result.unresolvedCount, 0)
+    assert.equal(result.status, 'verified')
   } finally {
     fs.rmSync(root, { recursive: true, force: true })
   }

@@ -27,17 +27,18 @@ COMMUNITY_RELEASE_ID = "community-release:sha256:" + ("3" * 64)
 
 def caller_report():
     return {
-        "schemaRevision": "gear-catalog-callers-v1",
+        "schemaRevision": "gear-catalog-callers-v2",
         "reportId": "gear-catalog-callers:sha256:" + ("4" * 64),
-        "status": "partial",
-        "runtimeCallerCount": 166,
-        "unresolvedCount": 5,
+        "status": "verified",
+        "runtimeCallerCount": 167,
+        "unresolvedCount": 0,
         "categories": {
             "activeBackend": [{"path": "server/news_backend.py"}],
             "taro": [{"path": "apps/mini-taro/src/api.ts"}],
             "compatibility": [{"path": "pages/builds/websim-api.js"}],
+            "runtimeTooling": [{"path": "scripts/perf_probe.py"}],
             "testsDocs": [{"path": "tests/example.test.js"}],
-            "unresolved": [{"path": "scripts/perf_probe.py"}],
+            "unresolved": [],
         },
     }
 
@@ -59,6 +60,7 @@ def audit_snapshot():
                 "dependencyVector": {
                     "gearRuleRevision": "gear-rule-matrix-v1",
                     "seasonRevision": "season-17-f131dd36ddf1",
+                    "simcRuntimeRevision": "simc-r1",
                 },
             },
             "gearRelease": {"releaseId": GEAR_RELEASE_ID},
@@ -133,6 +135,49 @@ def audit_snapshot():
         ],
         "queryMetrics": {"total": 12, "reads": 9, "writes": 0},
     }
+
+
+def resource_report(
+    *,
+    gear_release_id=GEAR_RELEASE_ID,
+    simc_runtime_revision="simc-r1",
+    peak_rss=1_500_000_000,
+):
+    from server.gear_release_resource_probe import build_resource_report
+
+    pointer = {
+        "environment": "retail",
+        "pointerMode": "active",
+        "manifestRevision": MANIFEST_REVISION,
+        "generation": 17,
+        "rollbackManifestRevision": "season-manifest:sha256:" + ("0" * 64),
+    }
+    return build_resource_report(
+        gear_release_id=gear_release_id,
+        season_revision="season-17-f131dd36ddf1",
+        simc_runtime_revision=simc_runtime_revision,
+        builder_revision="community-release-prepared-index-v1",
+        pointer_before=pointer,
+        pointer_after=pointer,
+        metrics={
+            "elapsedMilliseconds": 1_500,
+            "peakRssObservedBytes": peak_rss,
+            "temporaryBytesObserved": 128,
+            "writeStatementCount": 0,
+        },
+        limits={
+            "elapsedMilliseconds": 300_000,
+            "peakRssObservedBytes": 2_000_000_000,
+            "temporaryBytesObserved": 268_435_456,
+        },
+        prepared={
+            "communityReleaseStatus": "validated",
+            "communityContentHash": "sha256:" + ("8" * 64),
+            "stagingTemplateCount": 3253,
+            "winnerSpecCount": 40,
+            "winnerHeroSlotCount": 80,
+        },
+    )
 
 
 def class_matrix():
@@ -210,6 +255,29 @@ class FakeConnection:
 
 
 class GearCatalogMigrationAuditCliTest(unittest.TestCase):
+    def test_resource_rows_consume_only_an_exact_validated_probe_binding(self):
+        exact = audit_cli._resource_rows(
+            audit_snapshot(),
+            caller_bytes=64,
+            filesystem_roots=[],
+            statvfs_fn=lambda _path: FakeStatvfs(),
+            resource_report=resource_report(),
+        )
+        mismatch = audit_cli._resource_rows(
+            audit_snapshot(),
+            caller_bytes=64,
+            filesystem_roots=[],
+            statvfs_fn=lambda _path: FakeStatvfs(),
+            resource_report=resource_report(gear_release_id="gear-release:other"),
+        )
+
+        self.assertEqual(exact["peakRssObservedBytes"], 1_500_000_000)
+        self.assertEqual(exact["temporaryBytesObserved"], 128)
+        self.assertEqual(exact["resourceProbeStatus"], "pass")
+        self.assertIsNone(mismatch["peakRssObservedBytes"])
+        self.assertIsNone(mismatch["temporaryBytesObserved"])
+        self.assertEqual(mismatch["resourceProbeStatus"], "mismatched")
+
     def test_missing_pg_only_runtime_exits_before_connecting(self):
         called = []
         stderr = io.StringIO()
@@ -445,6 +513,13 @@ class GearCatalogMigrationAuditCliTest(unittest.TestCase):
                 observed_at="2026-07-28T10:00:00+08:00",
             )
             output = root / "artifacts" / "runtime-readonly-audit.json"
+            resource_path = root / "artifacts" / "resource-probe.json"
+            exact_resource_report = resource_report()
+            resource_path.write_text(
+                json.dumps(exact_resource_report),
+                encoding="utf-8",
+            )
+            captured = []
             stdout = io.StringIO()
             with contextlib.redirect_stdout(stdout):
                 status = audit_cli.main(
@@ -453,13 +528,17 @@ class GearCatalogMigrationAuditCliTest(unittest.TestCase):
                         str(callers_path.relative_to(root)),
                         "--output",
                         str(output.relative_to(root)),
+                        "--resource-report",
+                        str(resource_path.relative_to(root)),
                     ],
                     environ={
                         "WOW_DATABASE_RUNTIME": "postgres_only",
                         "WOW_DATABASE_URL": "postgresql://audit.invalid/wow",
                     },
                     repo_root=root,
-                    run_audit_fn=lambda **kwargs: report,
+                    run_audit_fn=lambda **kwargs: (
+                        captured.append(kwargs) or report
+                    ),
                 )
 
             summary = json.loads(stdout.getvalue())
@@ -468,6 +547,10 @@ class GearCatalogMigrationAuditCliTest(unittest.TestCase):
         self.assertEqual(status, 0)
         self.assertEqual(summary["reportId"], report["reportId"])
         self.assertEqual(written["reportId"], report["reportId"])
+        self.assertEqual(
+            captured[0]["resource_report"]["reportId"],
+            exact_resource_report["reportId"],
+        )
         self.assertEqual(
             summary["output"],
             "artifacts/runtime-readonly-audit.json",

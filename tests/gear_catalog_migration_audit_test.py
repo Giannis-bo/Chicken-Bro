@@ -220,6 +220,30 @@ class GearCatalogMigrationAuditTest(unittest.TestCase):
         self.assertEqual(result["status"], "partial")
         self.assertIn("RESOURCE_BASELINE_UNKNOWN", result["problemCodes"])
 
+    def test_exceeded_builder_resource_report_blocks_phase0_resources(self):
+        rows = {
+            **complete_resource_rows(),
+            "resourceProbeStatus": "blocked",
+            "resourceProbeProblemCodes": ["RESOURCE_PEAK_RSS_EXCEEDED"],
+        }
+
+        result = audit_resource_baseline(rows)
+
+        self.assertEqual(result["status"], "blocked")
+        self.assertIn("RESOURCE_BASELINE_EXCEEDED", result["problemCodes"])
+
+    def test_unstable_builder_resource_report_blocks_phase0_resources(self):
+        rows = {
+            **complete_resource_rows(),
+            "resourceProbeStatus": "blocked",
+            "resourceProbeProblemCodes": ["RESOURCE_POINTER_CHANGED"],
+        }
+
+        result = audit_resource_baseline(rows)
+
+        self.assertEqual(result["status"], "blocked")
+        self.assertIn("RESOURCE_BASELINE_INVALID", result["problemCodes"])
+
     def test_regular_browse_uses_authority_rank_but_still_requires_static_stats(self):
         rows = complete_catalog_rows()
         rows["variants"][0].pop("trackRank")
