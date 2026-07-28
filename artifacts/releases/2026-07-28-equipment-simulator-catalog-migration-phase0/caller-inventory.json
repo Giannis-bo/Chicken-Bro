@@ -1,0 +1,4261 @@
+{
+  "schemaRevision": "gear-catalog-callers-v1",
+  "status": "partial",
+  "runtimeCallerCount": 166,
+  "unresolvedCount": 5,
+  "categories": {
+    "activeBackend": [
+      {
+        "path": "server/community_template_import.py",
+        "line": 221,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/community_template_import.py",
+        "line": 394,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/data_health_followup.py",
+        "line": 95,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_attribute_preview_fixture.py",
+        "line": 275,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_contracts.py",
+        "line": 61,
+        "symbol": "gearCatalogReleaseId",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_contracts.py",
+        "line": 62,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_contracts.py",
+        "line": 95,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_contracts.py",
+        "line": 118,
+        "symbol": "gearCatalogReleaseId",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_contracts.py",
+        "line": 119,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_contracts.py",
+        "line": 208,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_contracts.py",
+        "line": 212,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_contracts.py",
+        "line": 350,
+        "symbol": "gearCatalogReleaseId",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_contracts.py",
+        "line": 350,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_contracts.py",
+        "line": 388,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_contracts.py",
+        "line": 390,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_contracts.py",
+        "line": 418,
+        "symbol": "gearCatalogReleaseId",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_contracts.py",
+        "line": 419,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release_refresh.py",
+        "line": 574,
+        "symbol": "load_active_manifest_binding",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release_shadow.py",
+        "line": 331,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release_shadow.py",
+        "line": 547,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release_shadow.py",
+        "line": 799,
+        "symbol": "gearCatalogReleaseId",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release_shadow.py",
+        "line": 800,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release_shadow.py",
+        "line": 964,
+        "symbol": "gearCatalogReleaseId",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release_shadow.py",
+        "line": 966,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release_shadow.py",
+        "line": 968,
+        "symbol": "gearCatalogReleaseId",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release_shadow.py",
+        "line": 970,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release_shadow.py",
+        "line": 1176,
+        "symbol": "gearCatalogReleaseId",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release_shadow.py",
+        "line": 1177,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release_shadow.py",
+        "line": 1929,
+        "symbol": "gearCatalogReleaseId",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release_shadow.py",
+        "line": 1930,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release_shadow.py",
+        "line": 2794,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release_shadow.py",
+        "line": 2820,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release_shadow.py",
+        "line": 3014,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release_shadow.py",
+        "line": 3111,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release_shadow.py",
+        "line": 3128,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release_store.py",
+        "line": 460,
+        "symbol": "gearCatalogReleaseId",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release_store.py",
+        "line": 519,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release_store.py",
+        "line": 638,
+        "symbol": "gearCatalogReleaseId",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release_store.py",
+        "line": 639,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release_store.py",
+        "line": 650,
+        "symbol": "gearCatalogReleaseId",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release_store.py",
+        "line": 651,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release_store.py",
+        "line": 1179,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release_store.py",
+        "line": 1224,
+        "symbol": "gearCatalogReleaseId",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release_store.py",
+        "line": 1225,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release_store.py",
+        "line": 1237,
+        "symbol": "gearCatalogReleaseId",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release_store.py",
+        "line": 1238,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release_store.py",
+        "line": 1323,
+        "symbol": "gearCatalogReleaseId",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release_store.py",
+        "line": 1323,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release_store.py",
+        "line": 1348,
+        "symbol": "gearCatalogReleaseId",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release_store.py",
+        "line": 1359,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release_store.py",
+        "line": 1376,
+        "symbol": "gearCatalogReleaseId",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release_store.py",
+        "line": 1377,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release_store.py",
+        "line": 1385,
+        "symbol": "gearCatalogReleaseId",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release_store.py",
+        "line": 1386,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release_store.py",
+        "line": 1406,
+        "symbol": "gearCatalogReleaseId",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release_store.py",
+        "line": 1668,
+        "symbol": "gearCatalogReleaseId",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release_store.py",
+        "line": 1879,
+        "symbol": "gearCatalogReleaseId",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release_store.py",
+        "line": 2482,
+        "symbol": "gearCatalogReleaseId",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release_store.py",
+        "line": 2583,
+        "symbol": "gearCatalogReleaseId",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release_tool.py",
+        "line": 1439,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release.py",
+        "line": 267,
+        "symbol": "gearCatalogReleaseId",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release.py",
+        "line": 333,
+        "symbol": "gearCatalogReleaseId",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release.py",
+        "line": 367,
+        "symbol": "gearCatalogReleaseId",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release.py",
+        "line": 370,
+        "symbol": "gearCatalogReleaseId",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release.py",
+        "line": 488,
+        "symbol": "gearCatalogReleaseId",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release.py",
+        "line": 489,
+        "symbol": "gearCatalogReleaseId",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release.py",
+        "line": 747,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_release.py",
+        "line": 748,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_rule_matrix.py",
+        "line": 174,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_rule_matrix.py",
+        "line": 187,
+        "symbol": "gearCatalogReleaseId",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_rule_matrix.py",
+        "line": 187,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_rule_matrix.py",
+        "line": 530,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_runtime.py",
+        "line": 76,
+        "symbol": "gearCatalogReleaseId",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_runtime.py",
+        "line": 77,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_stat_snapshot.py",
+        "line": 16,
+        "symbol": "gearCatalogReleaseId",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_stat_snapshot.py",
+        "line": 17,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_stat_snapshot.py",
+        "line": 30,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_stat_snapshot.py",
+        "line": 119,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_stat_snapshot.py",
+        "line": 150,
+        "symbol": "gearCatalogReleaseId",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/gear_stat_snapshot.py",
+        "line": 150,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/news_backend.py",
+        "line": 2648,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/news_backend.py",
+        "line": 2789,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/news_backend.py",
+        "line": 2816,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/news_backend.py",
+        "line": 2832,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/news_backend.py",
+        "line": 2846,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/news_backend.py",
+        "line": 2847,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/news_backend.py",
+        "line": 6773,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/news_backend.py",
+        "line": 6795,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/news_backend.py",
+        "line": 13145,
+        "symbol": "/api/simulator/simc",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/news_backend.py",
+        "line": 13239,
+        "symbol": "/api/websim/gear",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/news_backend.py",
+        "line": 13479,
+        "symbol": "/api/websim/gear/resolve",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/news_backend.py",
+        "line": 13488,
+        "symbol": "/api/websim/gear",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/news_backend.py",
+        "line": 13523,
+        "symbol": "/api/websim/gear",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/news_backend.py",
+        "line": 13532,
+        "symbol": "/api/websim/gear",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/news_backend.py",
+        "line": 13544,
+        "symbol": "/api/websim/profile",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/news_backend.py",
+        "line": 13571,
+        "symbol": "/api/websim/gear",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/observed_build_compiler.py",
+        "line": 499,
+        "symbol": "gearCatalogReleaseId",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/observed_build_sync.py",
+        "line": 1025,
+        "symbol": "gearCatalogReleaseId",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/pg_gear_authority_loader.py",
+        "line": 524,
+        "symbol": "gearCatalogReleaseId",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/pg_gear_authority_loader.py",
+        "line": 525,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/pg_gear_authority_loader.py",
+        "line": 559,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/pg_gear_authority_loader.py",
+        "line": 599,
+        "symbol": "gearCatalogReleaseId",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/pg_gear_authority_loader.py",
+        "line": 600,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/pg_gear_authority_loader.py",
+        "line": 1348,
+        "symbol": "gearCatalogReleaseId",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/pg_gear_authority_loader.py",
+        "line": 1349,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/pg_gear_read_model_selectors.py",
+        "line": 994,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/postgres_cache_store.py",
+        "line": 674,
+        "symbol": "gearCatalogReleaseId",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/postgres_cache_store.py",
+        "line": 675,
+        "symbol": "gearCatalogReleaseId",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/postgres_cache_store.py",
+        "line": 675,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/postgres_cache_store.py",
+        "line": 1600,
+        "symbol": "load_active_authority_context",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/postgres_cache_store.py",
+        "line": 1705,
+        "symbol": "load_active_authority_context",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/postgres_cache_store.py",
+        "line": 1747,
+        "symbol": "gearCatalogReleaseId",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/postgres_cache_store.py",
+        "line": 1818,
+        "symbol": "gearCatalogReleaseId",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/postgres_cache_store.py",
+        "line": 1851,
+        "symbol": "load_active_manifest_binding",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/postgres_cache_store.py",
+        "line": 1867,
+        "symbol": "load_active_manifest_binding",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/postgres_cache_store.py",
+        "line": 1876,
+        "symbol": "load_active_manifest_binding",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/postgres_cache_store.py",
+        "line": 1885,
+        "symbol": "gearCatalogReleaseId",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/postgres_cache_store.py",
+        "line": 1906,
+        "symbol": "load_active_authority_context",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/postgres_cache_store.py",
+        "line": 1956,
+        "symbol": "load_active_manifest_binding",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/postgres_cache_store.py",
+        "line": 1960,
+        "symbol": "gearCatalogReleaseId",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/postgres_cache_store.py",
+        "line": 1996,
+        "symbol": "load_active_manifest_binding",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/postgres_cache_store.py",
+        "line": 2017,
+        "symbol": "gearCatalogReleaseId",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/postgres_cache_store.py",
+        "line": 2069,
+        "symbol": "gearCatalogReleaseId",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/postgres_cache_store.py",
+        "line": 7719,
+        "symbol": "gearCatalogReleaseId",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/postgres_cache_store.py",
+        "line": 7720,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/postgres_cache_store.py",
+        "line": 7764,
+        "symbol": "load_active_public_gear",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/postgres_cache_store.py",
+        "line": 7783,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/postgres_cache_store.py",
+        "line": 7784,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/postgres_cache_store.py",
+        "line": 7785,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/season_recommended_gear.py",
+        "line": 923,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/websim_payload.py",
+        "line": 19227,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      },
+      {
+        "path": "server/websim_payload.py",
+        "line": 21331,
+        "symbol": "gearCatalogRevision",
+        "category": "activeBackend"
+      }
+    ],
+    "taro": [
+      {
+        "path": "apps/mini-taro/src/pages/builds/workbench-model.ts",
+        "line": 321,
+        "symbol": "gearCatalogRevision",
+        "category": "taro"
+      },
+      {
+        "path": "packages/api-client/src/simulator.ts",
+        "line": 270,
+        "symbol": "/api/simulator/simc",
+        "category": "taro"
+      },
+      {
+        "path": "packages/api-client/src/websim.ts",
+        "line": 595,
+        "symbol": "/api/websim/gear",
+        "category": "taro"
+      },
+      {
+        "path": "packages/api-client/src/websim.ts",
+        "line": 604,
+        "symbol": "/api/websim/gear/resolve",
+        "category": "taro"
+      },
+      {
+        "path": "packages/api-client/src/websim.ts",
+        "line": 612,
+        "symbol": "/api/websim/gear",
+        "category": "taro"
+      },
+      {
+        "path": "packages/api-client/src/websim.ts",
+        "line": 625,
+        "symbol": "/api/websim/gear",
+        "category": "taro"
+      },
+      {
+        "path": "packages/api-client/src/websim.ts",
+        "line": 641,
+        "symbol": "/api/websim/gear",
+        "category": "taro"
+      },
+      {
+        "path": "packages/domain/src/entities.ts",
+        "line": 841,
+        "symbol": "gearCatalogRevision",
+        "category": "taro"
+      },
+      {
+        "path": "packages/domain/src/gear-intent.ts",
+        "line": 18,
+        "symbol": "gearCatalogRevision",
+        "category": "taro"
+      },
+      {
+        "path": "packages/domain/src/gear-intent.ts",
+        "line": 214,
+        "symbol": "gearCatalogRevision",
+        "category": "taro"
+      },
+      {
+        "path": "packages/domain/src/gear-intent.ts",
+        "line": 262,
+        "symbol": "gearCatalogRevision",
+        "category": "taro"
+      },
+      {
+        "path": "packages/domain/src/route-contract.ts",
+        "line": 563,
+        "symbol": "/api/websim/gear",
+        "category": "taro"
+      },
+      {
+        "path": "packages/domain/src/route-contract.ts",
+        "line": 570,
+        "symbol": "/api/websim/gear",
+        "category": "taro"
+      },
+      {
+        "path": "packages/domain/src/route-contract.ts",
+        "line": 577,
+        "symbol": "/api/websim/gear/resolve",
+        "category": "taro"
+      },
+      {
+        "path": "packages/domain/src/route-contract.ts",
+        "line": 584,
+        "symbol": "/api/websim/gear",
+        "category": "taro"
+      },
+      {
+        "path": "packages/domain/src/route-contract.ts",
+        "line": 591,
+        "symbol": "/api/websim/gear",
+        "category": "taro"
+      },
+      {
+        "path": "packages/domain/src/route-contract.ts",
+        "line": 598,
+        "symbol": "/api/simulator/simc",
+        "category": "taro"
+      }
+    ],
+    "compatibility": [
+      {
+        "path": "pages/builds/gear-selection-intent.js",
+        "line": 21,
+        "symbol": "gearCatalogRevision",
+        "category": "compatibility"
+      },
+      {
+        "path": "pages/builds/gear-selection-intent.js",
+        "line": 85,
+        "symbol": "gearCatalogRevision",
+        "category": "compatibility"
+      },
+      {
+        "path": "pages/builds/gear-workbench-state.js",
+        "line": 387,
+        "symbol": "gearCatalogRevision",
+        "category": "compatibility"
+      },
+      {
+        "path": "pages/builds/gear-workbench-state.js",
+        "line": 448,
+        "symbol": "gearCatalogRevision",
+        "category": "compatibility"
+      },
+      {
+        "path": "pages/builds/gear-workbench-state.js",
+        "line": 449,
+        "symbol": "gearCatalogRevision",
+        "category": "compatibility"
+      },
+      {
+        "path": "pages/builds/gear-workbench-state.js",
+        "line": 457,
+        "symbol": "gearCatalogRevision",
+        "category": "compatibility"
+      },
+      {
+        "path": "pages/builds/websim-api.js",
+        "line": 140,
+        "symbol": "gearCatalogRevision",
+        "category": "compatibility"
+      },
+      {
+        "path": "pages/builds/websim-api.js",
+        "line": 231,
+        "symbol": "/api/websim/profile",
+        "category": "compatibility"
+      },
+      {
+        "path": "pages/builds/websim-api.js",
+        "line": 245,
+        "symbol": "/api/websim/gear/resolve",
+        "category": "compatibility"
+      },
+      {
+        "path": "pages/builds/websim-api.js",
+        "line": 256,
+        "symbol": "/api/websim/gear",
+        "category": "compatibility"
+      },
+      {
+        "path": "pages/builds/websim-api.js",
+        "line": 277,
+        "symbol": "/api/websim/gear",
+        "category": "compatibility"
+      },
+      {
+        "path": "pages/builds/websim-api.js",
+        "line": 288,
+        "symbol": "/api/websim/profile",
+        "category": "compatibility"
+      },
+      {
+        "path": "pages/builds/websim-api.js",
+        "line": 303,
+        "symbol": "/api/websim/gear",
+        "category": "compatibility"
+      },
+      {
+        "path": "pages/builds/websim-api.js",
+        "line": 325,
+        "symbol": "/api/websim/gear",
+        "category": "compatibility"
+      },
+      {
+        "path": "pages/builds/websim-api.js",
+        "line": 334,
+        "symbol": "/api/websim/gear",
+        "category": "compatibility"
+      },
+      {
+        "path": "websim/app.js",
+        "line": 4335,
+        "symbol": "/api/websim/gear",
+        "category": "compatibility"
+      },
+      {
+        "path": "websim/app.js",
+        "line": 4428,
+        "symbol": "/api/websim/profile",
+        "category": "compatibility"
+      }
+    ],
+    "testsDocs": [
+      {
+        "path": "apps/mini-taro/src/pages/builds/gear-detail-model.test.ts",
+        "line": 170,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "apps/mini-taro/src/pages/simulator/simc-submit-model.test.ts",
+        "line": 24,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "apps/mini-taro/src/pages/simulator/simc-submit-model.test.ts",
+        "line": 86,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "apps/mini-taro/src/pages/simulator/simc-submit-model.test.ts",
+        "line": 233,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-admin-gear-template-queue-selector/evidence.json",
+        "line": 104,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-admin-gear-template-queue-selector/evidence.json",
+        "line": 108,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-admin-gear-template-record-selector/evidence.json",
+        "line": 108,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-admin-gear-template-record-selector/evidence.json",
+        "line": 118,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-admin-gear-variant-record-selector/evidence.json",
+        "line": 108,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-admin-gear-variant-record-selector/evidence.json",
+        "line": 118,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-admin-talent-records-read-model-selector/evidence.json",
+        "line": 85,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-admin-talent-records-read-model-selector/evidence.json",
+        "line": 86,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-admin-talent-records-read-model-selector/evidence.json",
+        "line": 99,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-admin-talent-records-read-model-selector/evidence.json",
+        "line": 100,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-community-gear-item-hydration-selector/evidence.json",
+        "line": 87,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-community-gear-item-hydration-selector/evidence.json",
+        "line": 88,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-community-template-item-ref-selector/evidence.json",
+        "line": 87,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-community-template-item-ref-selector/evidence.json",
+        "line": 88,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-community-template-list-selector/evidence.json",
+        "line": 104,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-community-template-list-selector/evidence.json",
+        "line": 108,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-community-template-row-selector/evidence.json",
+        "line": 88,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-community-template-row-selector/evidence.json",
+        "line": 89,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-gear-public-contract-pg-selector-callers/evidence.json",
+        "line": 71,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-official-item-metadata-selector/evidence.json",
+        "line": 87,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-official-item-metadata-selector/evidence.json",
+        "line": 88,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-pg-catalog-item-row-selector/evidence.json",
+        "line": 106,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-pg-catalog-item-row-selector/evidence.json",
+        "line": 116,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-pg-catalog-output-read-model-fragment/evidence.json",
+        "line": 104,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-pg-catalog-output-read-model-fragment/evidence.json",
+        "line": 114,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-pg-catalog-read-model-selector/evidence.json",
+        "line": 68,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-pg-catalog-read-model-selector/evidence.json",
+        "line": 71,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-pg-catalog-state-read-model-fragment/evidence.json",
+        "line": 73,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-pg-catalog-state-read-model-fragment/evidence.json",
+        "line": 76,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-pg-common-gear-read-model-fragment/evidence.json",
+        "line": 104,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-pg-common-gear-read-model-fragment/evidence.json",
+        "line": 114,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-pg-gear-source-row-selector/evidence.json",
+        "line": 104,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-pg-gear-source-row-selector/evidence.json",
+        "line": 114,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-pg-gear-variant-row-selector/evidence.json",
+        "line": 104,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-pg-gear-variant-row-selector/evidence.json",
+        "line": 114,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-pg-initial-gear-read-model-fragment/evidence.json",
+        "line": 104,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-pg-initial-gear-read-model-fragment/evidence.json",
+        "line": 114,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-pg-mod-option-row-selector/evidence.json",
+        "line": 106,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-pg-mod-option-row-selector/evidence.json",
+        "line": 116,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-pg-mod-option-type-selector/evidence.json",
+        "line": 86,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-pg-mod-option-type-selector/evidence.json",
+        "line": 87,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-pg-selector-read-model-gate/evidence.json",
+        "line": 58,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-pg-selector-read-model-gate/evidence.json",
+        "line": 61,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-pg-template-read-model-adapter/evidence.json",
+        "line": 68,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-pg-template-read-model-adapter/evidence.json",
+        "line": 71,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-season-catalog-candidate-selector/evidence.json",
+        "line": 87,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-season-catalog-candidate-selector/evidence.json",
+        "line": 88,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-websim-assets-read-model-selector/evidence.json",
+        "line": 86,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-websim-assets-read-model-selector/evidence.json",
+        "line": 87,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-websim-assets-read-model-selector/evidence.json",
+        "line": 102,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-websim-assets-read-model-selector/evidence.json",
+        "line": 103,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-websim-bootstrap-read-model-selector/evidence.json",
+        "line": 85,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-websim-bootstrap-read-model-selector/evidence.json",
+        "line": 86,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-websim-bootstrap-read-model-selector/evidence.json",
+        "line": 99,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-websim-bootstrap-read-model-selector/evidence.json",
+        "line": 100,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-websim-default-selection-read-model-selector/evidence.json",
+        "line": 86,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-websim-default-selection-read-model-selector/evidence.json",
+        "line": 87,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-websim-default-selection-read-model-selector/evidence.json",
+        "line": 102,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-websim-default-selection-read-model-selector/evidence.json",
+        "line": 103,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-websim-instances-read-model-selector/evidence.json",
+        "line": 86,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-websim-instances-read-model-selector/evidence.json",
+        "line": 87,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-websim-instances-read-model-selector/evidence.json",
+        "line": 101,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-websim-instances-read-model-selector/evidence.json",
+        "line": 102,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-websim-loot-envelope-read-model-selector/evidence.json",
+        "line": 101,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-websim-loot-envelope-read-model-selector/evidence.json",
+        "line": 102,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-websim-loot-envelope-read-model-selector/evidence.json",
+        "line": 117,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-websim-loot-envelope-read-model-selector/evidence.json",
+        "line": 118,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-websim-loot-envelope-read-model-selector/manifest.json",
+        "line": 68,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-websim-loot-envelope-read-model-selector/manifest.json",
+        "line": 69,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-websim-loot-read-model-selector/evidence.json",
+        "line": 86,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-websim-loot-read-model-selector/evidence.json",
+        "line": 87,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-websim-loot-read-model-selector/evidence.json",
+        "line": 101,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-websim-loot-read-model-selector/evidence.json",
+        "line": 102,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-websim-profile-presets-read-model-selector/evidence.json",
+        "line": 86,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-websim-profile-presets-read-model-selector/evidence.json",
+        "line": 87,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-websim-profile-presets-read-model-selector/evidence.json",
+        "line": 102,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-websim-profile-presets-read-model-selector/evidence.json",
+        "line": 103,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-websim-talent-import-read-model-selector/evidence.json",
+        "line": 86,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-websim-talent-import-read-model-selector/evidence.json",
+        "line": 87,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-websim-talent-import-read-model-selector/evidence.json",
+        "line": 101,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-09-websim-talent-import-read-model-selector/evidence.json",
+        "line": 102,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-10-active-season-read-model-selector/evidence.json",
+        "line": 105,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-10-active-season-read-model-selector/evidence.json",
+        "line": 106,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-10-admin-gate-queue-summary-read-model-selector/evidence.json",
+        "line": 114,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-10-admin-gate-queue-summary-read-model-selector/evidence.json",
+        "line": 115,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-10-equipment-simulator-phase0a-pg-enhancement-guard/evidence.json",
+        "line": 68,
+        "symbol": "/api/websim/profile",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-10-equipment-simulator-phase0a-pg-enhancement-guard/requirement.json",
+        "line": 72,
+        "symbol": "/api/websim/profile",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-10-equipment-simulator-phase0c-legacy-stat-containment/evidence.json",
+        "line": 83,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-10-equipment-simulator-phase0c-legacy-stat-containment/requirement.json",
+        "line": 43,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-10-equipment-simulator-phase0c-legacy-stat-containment/requirement.json",
+        "line": 64,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-10-equipment-simulator-phase1-contracts-rule-authority/evidence.json",
+        "line": 100,
+        "symbol": "/api/websim/gear/resolve",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-10-equipment-simulator-phase1-contracts-rule-authority/requirement.json",
+        "line": 9,
+        "symbol": "/api/websim/gear/resolve",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-10-equipment-simulator-phase1-contracts-rule-authority/requirement.json",
+        "line": 68,
+        "symbol": "/api/websim/gear/resolve",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-10-equipment-simulator-phase2a-pure-resolver/evidence.json",
+        "line": 99,
+        "symbol": "/api/websim/gear/resolve",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-10-equipment-simulator-phase2a-pure-resolver/requirement.json",
+        "line": 11,
+        "symbol": "/api/websim/gear/resolve",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-10-equipment-simulator-phase2a-pure-resolver/requirement.json",
+        "line": 67,
+        "symbol": "/api/websim/gear/resolve",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity/evidence.json",
+        "line": 152,
+        "symbol": "/api/websim/gear/resolve",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity/evidence.json",
+        "line": 152,
+        "symbol": "/api/websim/profile",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity/requirement.json",
+        "line": 9,
+        "symbol": "/api/websim/gear/resolve",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity/requirement.json",
+        "line": 44,
+        "symbol": "/api/websim/profile",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-10-equipment-simulator-phase2b-pg-loader-facade-parity/requirement.json",
+        "line": 65,
+        "symbol": "/api/websim/gear/resolve",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-10-raiderio-cache-read-model-selector/evidence.json",
+        "line": 105,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-10-raiderio-cache-read-model-selector/evidence.json",
+        "line": 106,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-10-stat-weight-cache-read-model-selector/evidence.json",
+        "line": 107,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-10-stat-weight-cache-read-model-selector/evidence.json",
+        "line": 108,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-10-stat-weight-latest-run-read-model-selector/evidence.json",
+        "line": 109,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-10-stat-weight-latest-run-read-model-selector/evidence.json",
+        "line": 110,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-10-websim-community-talent-template-read-model-selector/evidence.json",
+        "line": 103,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-10-websim-community-talent-template-read-model-selector/evidence.json",
+        "line": 104,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-10-websim-talent-authority-read-model-selector/evidence.json",
+        "line": 103,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-10-websim-talent-authority-read-model-selector/evidence.json",
+        "line": 104,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-10-websim-talents-envelope-read-model-selector/evidence.json",
+        "line": 103,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-10-websim-talents-envelope-read-model-selector/evidence.json",
+        "line": 104,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api/requirement.json",
+        "line": 37,
+        "symbol": "/api/websim/gear/resolve",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api/requirement.json",
+        "line": 38,
+        "symbol": "/api/websim/profile",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api/requirement.json",
+        "line": 63,
+        "symbol": "/api/websim/gear/resolve",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-11-equipment-simulator-phase3a-resolve-profile-api/requirement.json",
+        "line": 64,
+        "symbol": "/api/websim/profile",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-11-equipment-simulator-phase4d-atomic-manifest-cutover/wechat-rebase-evidence.json",
+        "line": 67,
+        "symbol": "/api/websim/gear/resolve",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-11-equipment-simulator-phase4d-atomic-manifest-cutover/wechat-rebase-evidence.json",
+        "line": 73,
+        "symbol": "/api/websim/gear/resolve",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-11-equipment-simulator-phase5a-stat-snapshot-store/requirement.json",
+        "line": 12,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-11-equipment-simulator-phase5b-stat-snapshot-worker-api/evidence.json",
+        "line": 148,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-11-equipment-simulator-phase5b-stat-snapshot-worker-api/requirement.json",
+        "line": 10,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-11-equipment-simulator-phase5b-stat-snapshot-worker-api/requirement.json",
+        "line": 36,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-11-equipment-simulator-phase5b-stat-snapshot-worker-api/requirement.json",
+        "line": 41,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover/requirement.json",
+        "line": 11,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-11-equipment-simulator-phase5c-frontend-cutover/requirement.json",
+        "line": 27,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-15-community-template-import-performance/requirement.json",
+        "line": 60,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-17-real-time-gear-stat-engine/evidence.json",
+        "line": 86,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-17-real-time-gear-stat-engine/evidence/implicit-race-context-candidate.json",
+        "line": 37,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-17-real-time-gear-stat-engine/evidence/implicit-race-context-candidate.json",
+        "line": 48,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-17-real-time-gear-stat-engine/evidence/pg-attribute-calculator-payload-parity-candidate.json",
+        "line": 25,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-17-real-time-gear-stat-engine/evidence/winner-attribute-rule-audit-candidate.json",
+        "line": 63,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-19-pr91-reconciliation/implementation-plan.md",
+        "line": 234,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-19-pr91-reconciliation/implementation-plan.md",
+        "line": 246,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-25-community-gear-backfill-fairness/evidence.json",
+        "line": 81,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-25-community-gear-backfill-fairness/evidence.json",
+        "line": 132,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "artifacts/releases/2026-07-25-gear-slot-information-hierarchy/evidence.json",
+        "line": 110,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/backend-owner-map.json",
+        "line": 164,
+        "symbol": "/api/websim/profile",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/builds-architecture.md",
+        "line": 42,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/builds-architecture.md",
+        "line": 43,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/builds-architecture.md",
+        "line": 45,
+        "symbol": "/api/websim/profile",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/builds-architecture.md",
+        "line": 47,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/builds-architecture.md",
+        "line": 49,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/builds-architecture.md",
+        "line": 50,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/builds-architecture.md",
+        "line": 77,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/builds-architecture.md",
+        "line": 89,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/builds-architecture.md",
+        "line": 108,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/builds-architecture.md",
+        "line": 109,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/builds-architecture.md",
+        "line": 112,
+        "symbol": "/api/websim/profile",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/community-template-import-full-chain-runbook.md",
+        "line": 28,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/community-template-import-full-chain-runbook.md",
+        "line": 31,
+        "symbol": "/api/websim/profile",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/community-template-import-full-chain-runbook.md",
+        "line": 102,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/community-template-import-full-chain-runbook.md",
+        "line": 111,
+        "symbol": "/api/websim/profile",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/compatibility-retirement.json",
+        "line": 141,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/compatibility-retirement.json",
+        "line": 157,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/database-architecture.md",
+        "line": 70,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/database-architecture.md",
+        "line": 123,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/database-architecture.md",
+        "line": 124,
+        "symbol": "/api/websim/profile",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/design/current-ui/routes/gear-detail/truth-adaptation.json",
+        "line": 61,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/design/current-ui/routes/simc-submit/truth-adaptation.json",
+        "line": 62,
+        "symbol": "/api/simulator/simc",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/gear-database-governance.md",
+        "line": 49,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/gear-database-governance.md",
+        "line": 182,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/gear-simulation-full-chain-runbook.md",
+        "line": 24,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/gear-simulation-full-chain-runbook.md",
+        "line": 25,
+        "symbol": "/api/websim/gear/resolve",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/gear-simulation-full-chain-runbook.md",
+        "line": 27,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/gear-simulation-full-chain-runbook.md",
+        "line": 29,
+        "symbol": "/api/websim/profile",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/gear-simulation-full-chain-runbook.md",
+        "line": 37,
+        "symbol": "/api/websim/gear/resolve",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/gear-simulation-full-chain-runbook.md",
+        "line": 57,
+        "symbol": "/api/websim/gear/resolve",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/gear-simulation-full-chain-runbook.md",
+        "line": 58,
+        "symbol": "/api/websim/profile",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/gear-simulation-full-chain-runbook.md",
+        "line": 100,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/gear-simulation-full-chain-runbook.md",
+        "line": 136,
+        "symbol": "/api/websim/gear/resolve",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/gear-simulation-full-chain-runbook.md",
+        "line": 147,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/gear-simulation-full-chain-runbook.md",
+        "line": 156,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/gear-simulation-full-chain-runbook.md",
+        "line": 161,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/plans/2026-07-22-gear-template-projection.md",
+        "line": 17,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/plans/2026-07-23-observed-build-registry-cutover-implementation.md",
+        "line": 19,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/plans/2026-07-23-observed-build-registry-cutover-implementation.md",
+        "line": 980,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/plans/2026-07-24-taro-gear-editor-recovery-implementation.md",
+        "line": 15,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/plans/2026-07-25-community-gear-backfill-fairness.md",
+        "line": 335,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/plans/2026-07-25-community-gear-backfill-fairness.md",
+        "line": 336,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/plans/2026-07-28-equipment-simulator-catalog-migration-phase0-implementation.md",
+        "line": 450,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/plans/2026-07-28-equipment-simulator-catalog-migration-phase0-implementation.md",
+        "line": 451,
+        "symbol": "/api/websim/gear/resolve",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/plans/2026-07-28-equipment-simulator-catalog-migration-phase0-implementation.md",
+        "line": 452,
+        "symbol": "/api/websim/profile",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/plans/2026-07-28-equipment-simulator-catalog-migration-phase0-implementation.md",
+        "line": 453,
+        "symbol": "/api/simulator/simc",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/plans/2026-07-28-equipment-simulator-catalog-migration-phase0-implementation.md",
+        "line": 454,
+        "symbol": "load_active_public_gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/plans/2026-07-28-equipment-simulator-catalog-migration-phase0-implementation.md",
+        "line": 455,
+        "symbol": "load_active_authority_context",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/plans/2026-07-28-equipment-simulator-catalog-migration-phase0-implementation.md",
+        "line": 456,
+        "symbol": "load_active_manifest_binding",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/plans/2026-07-28-equipment-simulator-catalog-migration-phase0-implementation.md",
+        "line": 457,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/plans/2026-07-28-equipment-simulator-catalog-migration-phase0-implementation.md",
+        "line": 458,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/plans/2026-07-28-equipment-simulator-target-architecture.md",
+        "line": 318,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/plans/2026-07-28-equipment-simulator-target-architecture.md",
+        "line": 319,
+        "symbol": "/api/websim/gear/resolve",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/plans/2026-07-28-equipment-simulator-target-architecture.md",
+        "line": 320,
+        "symbol": "/api/websim/profile",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/postgres-identity-migration-runbook.md",
+        "line": 122,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/project-owner-map.json",
+        "line": 844,
+        "symbol": "/api/simulator/simc",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/project-state.json",
+        "line": 455,
+        "symbol": "/api/websim/gear/resolve",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/project-state.json",
+        "line": 456,
+        "symbol": "/api/websim/profile",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/project-state.json",
+        "line": 490,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/project-state.json",
+        "line": 492,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/remote-debugging.md",
+        "line": 57,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/simulator-simc-end-to-end.md",
+        "line": 62,
+        "symbol": "/api/websim/profile",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/simulator-simc-end-to-end.md",
+        "line": 68,
+        "symbol": "/api/websim/profile",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/simulator-simc-end-to-end.md",
+        "line": 77,
+        "symbol": "/api/simulator/simc",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/simulator-simc-end-to-end.md",
+        "line": 130,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/simulator-simc-end-to-end.md",
+        "line": 140,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/talent-simulation-full-chain-runbook.md",
+        "line": 3,
+        "symbol": "/api/websim/profile",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/talent-simulation-full-chain-runbook.md",
+        "line": 14,
+        "symbol": "/api/websim/profile",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/talent-simulation-full-chain-runbook.md",
+        "line": 37,
+        "symbol": "/api/websim/profile",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/talent-simulation-full-chain-runbook.md",
+        "line": 49,
+        "symbol": "/api/websim/profile",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/talent-simulation-full-chain-runbook.md",
+        "line": 75,
+        "symbol": "/api/websim/profile",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/talent-simulation-full-chain-runbook.md",
+        "line": 117,
+        "symbol": "/api/websim/profile",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/talent-simulation-full-chain-runbook.md",
+        "line": 159,
+        "symbol": "/api/websim/profile",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/talent-simulation-full-chain-runbook.md",
+        "line": 217,
+        "symbol": "/api/websim/profile",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/talent-simulation-full-chain-runbook.md",
+        "line": 288,
+        "symbol": "/api/websim/profile",
+        "category": "testsDocs"
+      },
+      {
+        "path": "docs/verification-matrix.md",
+        "line": 74,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "packages/api-client/src/simulator.test.ts",
+        "line": 130,
+        "symbol": "/api/simulator/simc",
+        "category": "testsDocs"
+      },
+      {
+        "path": "packages/api-client/src/transport.test.ts",
+        "line": 178,
+        "symbol": "/api/websim/gear/resolve",
+        "category": "testsDocs"
+      },
+      {
+        "path": "packages/api-client/src/transport.test.ts",
+        "line": 198,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "packages/api-client/src/websim.test.ts",
+        "line": 397,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "packages/api-client/src/websim.test.ts",
+        "line": 441,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "packages/domain/src/gear-intent.test.ts",
+        "line": 18,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "packages/domain/src/gear-intent.test.ts",
+        "line": 49,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "packages/domain/src/gear-intent.test.ts",
+        "line": 72,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "packages/domain/src/gear-intent.test.ts",
+        "line": 132,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "README.md",
+        "line": 85,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "README.md",
+        "line": 85,
+        "symbol": "/api/websim/profile",
+        "category": "testsDocs"
+      },
+      {
+        "path": "README.md",
+        "line": 97,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/builds-page.test.js",
+        "line": 183,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/builds-page.test.js",
+        "line": 2393,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/builds-page.test.js",
+        "line": 2429,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/builds-page.test.js",
+        "line": 2464,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/builds-page.test.js",
+        "line": 2695,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/builds-page.test.js",
+        "line": 3079,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/builds-page.test.js",
+        "line": 3243,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/builds-page.test.js",
+        "line": 3262,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/builds-page.test.js",
+        "line": 3277,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/builds-page.test.js",
+        "line": 3324,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/builds-page.test.js",
+        "line": 3363,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/builds-page.test.js",
+        "line": 3384,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/builds-page.test.js",
+        "line": 3406,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/builds-page.test.js",
+        "line": 9237,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/builds-page.test.js",
+        "line": 9287,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/builds-page.test.js",
+        "line": 9639,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/builds-page.test.js",
+        "line": 15512,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/community_template_import_test.py",
+        "line": 41,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/community_template_import_test.py",
+        "line": 684,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/community_template_import_test.py",
+        "line": 685,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/data_health_followup_test.py",
+        "line": 235,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/data_health_followup_test.py",
+        "line": 244,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/data_health_followup_test.py",
+        "line": 250,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/data_health_followup_test.py",
+        "line": 295,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/data_health_followup_test.py",
+        "line": 350,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/fixtures/gear-resolver-complete-authority-v1.json",
+        "line": 6,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/fixtures/gear-resolver-complete-authority-v1.json",
+        "line": 58,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/fixtures/gear-resolver-complete-authority-v1.json",
+        "line": 59,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/fixtures/gear-resolver-complete-authority-v1.json",
+        "line": 63,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/fixtures/gear-resolver-complete-authority-v1.json",
+        "line": 64,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/frontend-api-client.test.js",
+        "line": 59,
+        "symbol": "/api/websim/gear/resolve",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/frontend-api-client.test.js",
+        "line": 408,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/frontend-api-client.test.js",
+        "line": 458,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_attribute_api_test.py",
+        "line": 18,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_attribute_api_test.py",
+        "line": 68,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_attribute_preview_fixture_test.py",
+        "line": 25,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_contracts_test.py",
+        "line": 13,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_contracts_test.py",
+        "line": 36,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_contracts_test.py",
+        "line": 37,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_contracts_test.py",
+        "line": 52,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_contracts_test.py",
+        "line": 53,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_contracts_test.py",
+        "line": 210,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_contracts_test.py",
+        "line": 217,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_contracts_test.py",
+        "line": 222,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_evidence_ledger_test.py",
+        "line": 10,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_evidence_ledger_test.py",
+        "line": 11,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_evidence_ledger_test.py",
+        "line": 87,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 86,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 113,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 127,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 179,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 180,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 213,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 388,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 489,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 498,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 499,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 503,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 504,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 673,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 678,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 679,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 683,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 684,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 911,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 916,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 917,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 921,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 922,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 1616,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 1821,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 2012,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 2076,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 2109,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 2124,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 2329,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 2470,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 2501,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 2550,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 2725,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 2838,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 2894,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 2900,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 2901,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 2992,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 2993,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 3002,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 3047,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 3048,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 3052,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 3053,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 3064,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 3209,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 3210,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 3381,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 3382,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 3384,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 3387,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 3415,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 3455,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 3457,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 3460,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 3461,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 3481,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 3482,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 3497,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 3498,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 3538,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 3543,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 3544,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 3565,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 3566,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 3609,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 3697,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 3698,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 3795,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 3803,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 3804,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 3817,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 3818,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 3822,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 3823,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 3838,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 3846,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 4001,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 4010,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 4011,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 4015,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 4016,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 4068,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 4170,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 4185,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 4186,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 4190,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 4191,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 4323,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 4329,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 4330,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 4334,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 4335,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 4539,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_shadow_test.py",
+        "line": 4674,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_store_test.py",
+        "line": 342,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_store_test.py",
+        "line": 364,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_store_test.py",
+        "line": 365,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_store_test.py",
+        "line": 385,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_store_test.py",
+        "line": 428,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_store_test.py",
+        "line": 677,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_store_test.py",
+        "line": 710,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_store_test.py",
+        "line": 1326,
+        "symbol": "load_active_manifest_binding",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_store_test.py",
+        "line": 1350,
+        "symbol": "load_active_manifest_binding",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_store_test.py",
+        "line": 1379,
+        "symbol": "load_active_manifest_binding",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_store_test.py",
+        "line": 1394,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_store_test.py",
+        "line": 1452,
+        "symbol": "load_active_public_gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_store_test.py",
+        "line": 1488,
+        "symbol": "load_active_public_gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_store_test.py",
+        "line": 1509,
+        "symbol": "load_active_public_gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_store_test.py",
+        "line": 1583,
+        "symbol": "load_active_public_gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_store_test.py",
+        "line": 1742,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_store_test.py",
+        "line": 1871,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_store_test.py",
+        "line": 1884,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_store_test.py",
+        "line": 1892,
+        "symbol": "load_active_authority_context",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_store_test.py",
+        "line": 1897,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_store_test.py",
+        "line": 1898,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_store_test.py",
+        "line": 1910,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_store_test.py",
+        "line": 1997,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_store_test.py",
+        "line": 2032,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_test.py",
+        "line": 27,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_test.py",
+        "line": 109,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_test.py",
+        "line": 110,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_test.py",
+        "line": 212,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_test.py",
+        "line": 590,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_test.py",
+        "line": 609,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_tool_test.py",
+        "line": 332,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_tool_test.py",
+        "line": 333,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_tool_test.py",
+        "line": 1995,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_release_tool_test.py",
+        "line": 1996,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_resolver_test.py",
+        "line": 249,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_resolver_test.py",
+        "line": 260,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_resolver_test.py",
+        "line": 261,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_resolver_test.py",
+        "line": 321,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_resolver_test.py",
+        "line": 322,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_resolver_test.py",
+        "line": 437,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_resolver_test.py",
+        "line": 438,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_result_envelope_test.py",
+        "line": 12,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_rule_matrix_test.py",
+        "line": 25,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_rule_matrix_test.py",
+        "line": 97,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_rule_matrix_test.py",
+        "line": 98,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_rule_matrix_test.py",
+        "line": 102,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_rule_matrix_test.py",
+        "line": 103,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_runtime_test.py",
+        "line": 133,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_runtime_test.py",
+        "line": 134,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_runtime_test.py",
+        "line": 193,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_runtime_test.py",
+        "line": 241,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_runtime_test.py",
+        "line": 242,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_runtime_test.py",
+        "line": 248,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_runtime_test.py",
+        "line": 421,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_stat_snapshot_api_test.py",
+        "line": 20,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_stat_snapshot_api_test.py",
+        "line": 31,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_stat_snapshot_api_test.py",
+        "line": 32,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear_stat_snapshot_test.py",
+        "line": 37,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear-catalog-callers-audit.test.js",
+        "line": 23,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear-catalog-callers-audit.test.js",
+        "line": 24,
+        "symbol": "load_active_manifest_binding",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear-catalog-callers-audit.test.js",
+        "line": 27,
+        "symbol": "load_active_public_gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear-catalog-callers-audit.test.js",
+        "line": 29,
+        "symbol": "load_active_manifest_binding",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear-catalog-callers-audit.test.js",
+        "line": 33,
+        "symbol": "/api/websim/gear/resolve",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear-catalog-callers-audit.test.js",
+        "line": 34,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear-catalog-callers-audit.test.js",
+        "line": 37,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear-catalog-callers-audit.test.js",
+        "line": 40,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear-catalog-callers-audit.test.js",
+        "line": 43,
+        "symbol": "/api/websim/profile",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear-catalog-callers-audit.test.js",
+        "line": 46,
+        "symbol": "/api/simulator/simc",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear-catalog-callers-audit.test.js",
+        "line": 49,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear-catalog-callers-audit.test.js",
+        "line": 52,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear-catalog-callers-audit.test.js",
+        "line": 55,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear-catalog-callers-audit.test.js",
+        "line": 58,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear-catalog-callers-audit.test.js",
+        "line": 61,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear-catalog-callers-audit.test.js",
+        "line": 62,
+        "symbol": "load_active_public_gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear-catalog-callers-audit.test.js",
+        "line": 65,
+        "symbol": "/api/websim/profile",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear-catalog-callers-audit.test.js",
+        "line": 66,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear-workbench-state.test.js",
+        "line": 13,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear-workbench-state.test.js",
+        "line": 39,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear-workbench-state.test.js",
+        "line": 172,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear-workbench-state.test.js",
+        "line": 183,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear-workbench-state.test.js",
+        "line": 208,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear-workbench-state.test.js",
+        "line": 270,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear-workbench-state.test.js",
+        "line": 437,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear-workbench-state.test.js",
+        "line": 445,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear-workbench-state.test.js",
+        "line": 448,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear-workbench-state.test.js",
+        "line": 460,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear-workbench-state.test.js",
+        "line": 465,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/gear-workbench-state.test.js",
+        "line": 468,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/news_backend_test.py",
+        "line": 1898,
+        "symbol": "/api/simulator/simc",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/news_backend_test.py",
+        "line": 2003,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/news_backend_test.py",
+        "line": 2145,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/news_backend_test.py",
+        "line": 5883,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/news_backend_test.py",
+        "line": 5907,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/news_backend_test.py",
+        "line": 5939,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/news_backend_test.py",
+        "line": 7400,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/news_backend_test.py",
+        "line": 7921,
+        "symbol": "/api/websim/profile",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/news_backend_test.py",
+        "line": 7962,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/news_backend_test.py",
+        "line": 8012,
+        "symbol": "/api/websim/gear/resolve",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/news_backend_test.py",
+        "line": 8112,
+        "symbol": "/api/websim/profile",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/news_backend_test.py",
+        "line": 8155,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/news_backend_test.py",
+        "line": 8216,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/news_backend_test.py",
+        "line": 8256,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/news_backend_test.py",
+        "line": 10452,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/news_backend_test.py",
+        "line": 11316,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/news_backend_test.py",
+        "line": 11365,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/news_backend_test.py",
+        "line": 11473,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/observed_build_compiler_test.py",
+        "line": 195,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/observed_build_compiler_test.py",
+        "line": 196,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/observed_build_compiler_test.py",
+        "line": 425,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/observed_build_compiler_test.py",
+        "line": 487,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/observed_build_read_model_test.py",
+        "line": 82,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/pg_gear_authority_loader_test.py",
+        "line": 78,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/pg_gear_authority_loader_test.py",
+        "line": 245,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/pg_gear_authority_loader_test.py",
+        "line": 246,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/pg_gear_authority_loader_test.py",
+        "line": 258,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/pg_gear_authority_loader_test.py",
+        "line": 259,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/pg_gear_authority_loader_test.py",
+        "line": 684,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/pg_gear_authority_loader_test.py",
+        "line": 843,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/pg_gear_authority_loader_test.py",
+        "line": 856,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/pg_gear_authority_loader_test.py",
+        "line": 2252,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/pg_gear_read_model_selectors_test.py",
+        "line": 19,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/pg_gear_read_model_selectors_test.py",
+        "line": 1224,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/postgres_cache_store_test.py",
+        "line": 118,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/postgres_cache_store_test.py",
+        "line": 447,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/postgres_cache_store_test.py",
+        "line": 471,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/postgres_cache_store_test.py",
+        "line": 502,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/postgres_cache_store_test.py",
+        "line": 1048,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/postgres_cache_store_test.py",
+        "line": 9405,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/postgres_cache_store_test.py",
+        "line": 9422,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/postgres_cache_store_test.py",
+        "line": 9440,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/postgres_cache_store_test.py",
+        "line": 9560,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/postgres_cache_store_test.py",
+        "line": 9609,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/postgres_cache_store_test.py",
+        "line": 9699,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/postgres_cache_store_test.py",
+        "line": 9798,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/postgres_cache_store_test.py",
+        "line": 9881,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/postgres_cache_store_test.py",
+        "line": 9893,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/postgres_cache_store_test.py",
+        "line": 9901,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/postgres_cache_store_test.py",
+        "line": 9964,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/postgres_cache_store_test.py",
+        "line": 9982,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/postgres_cache_store_test.py",
+        "line": 10065,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/postgres_cache_store_test.py",
+        "line": 10100,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/postgres_cache_store_test.py",
+        "line": 10119,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/postgres_cache_store_test.py",
+        "line": 10227,
+        "symbol": "gearCatalogReleaseId",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/postgres_cache_store_test.py",
+        "line": 10258,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/season_recommended_gear_test.py",
+        "line": 39,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/simulator-page.test.js",
+        "line": 105,
+        "symbol": "gearCatalogRevision",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/websim_payload_test.py",
+        "line": 5189,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/websim_payload_test.py",
+        "line": 5226,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/websim_payload_test.py",
+        "line": 20731,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/websim_payload_test.py",
+        "line": 20787,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/websim_payload_test.py",
+        "line": 20886,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/websim_payload_test.py",
+        "line": 20943,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/websim_payload_test.py",
+        "line": 20977,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/websim_payload_test.py",
+        "line": 21006,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/websim_payload_test.py",
+        "line": 21037,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/websim_payload_test.py",
+        "line": 21065,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/websim_payload_test.py",
+        "line": 21132,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/websim_payload_test.py",
+        "line": 21154,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/websim_payload_test.py",
+        "line": 21194,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/websim_payload_test.py",
+        "line": 21220,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/websim_payload_test.py",
+        "line": 21251,
+        "symbol": "/api/websim/gear",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/websim_payload_test.py",
+        "line": 21427,
+        "symbol": "/api/websim/profile",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/websim_payload_test.py",
+        "line": 21468,
+        "symbol": "/api/websim/profile",
+        "category": "testsDocs"
+      },
+      {
+        "path": "tests/websim_payload_test.py",
+        "line": 24183,
+        "symbol": "/api/websim/profile",
+        "category": "testsDocs"
+      }
+    ],
+    "unresolved": [
+      {
+        "path": "scripts/audit-observed-build-cutover.py",
+        "line": 138,
+        "symbol": "/api/websim/gear",
+        "category": "unresolved"
+      },
+      {
+        "path": "scripts/audit-observed-build-cutover.py",
+        "line": 164,
+        "symbol": "/api/websim/gear",
+        "category": "unresolved"
+      },
+      {
+        "path": "scripts/perf_probe.py",
+        "line": 16,
+        "symbol": "/api/websim/gear",
+        "category": "unresolved"
+      },
+      {
+        "path": "scripts/perf_probe.py",
+        "line": 17,
+        "symbol": "/api/websim/gear",
+        "category": "unresolved"
+      },
+      {
+        "path": "scripts/publish-runtime-media.js",
+        "line": 145,
+        "symbol": "/api/websim/gear",
+        "category": "unresolved"
+      }
+    ]
+  },
+  "reportId": "gear-catalog-callers:sha256:5740024ed81d36067e52c790bf4716638f0409cbc41135a65f98195941ac4ba2"
+}

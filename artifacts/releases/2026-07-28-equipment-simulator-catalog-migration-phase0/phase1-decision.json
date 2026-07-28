@@ -1,0 +1,59 @@
+{
+  "schemaRevision": "equipment-simulator-phase1-decision-v1",
+  "status": "blocked",
+  "inputs": {
+    "auditReportId": "catalog-migration-audit:sha256:bd93f8109742128baa58c1ca607df08e9b5778ba2a1b93560ad30706659dc5c6",
+    "callerReportId": "gear-catalog-callers:sha256:5740024ed81d36067e52c790bf4716638f0409cbc41135a65f98195941ac4ba2"
+  },
+  "gates": {
+    "activeReleaseMapping": "blocked",
+    "templateMigration": "blocked",
+    "specCoverageBaseline": "blocked",
+    "resourceBudgetInputs": "partial",
+    "callerRetirementInventory": "partial"
+  },
+  "allowedNextPlan": "none",
+  "problems": [
+    {
+      "code": "ACTIVE_RELEASE_MAPPING_INCOMPLETE",
+      "facts": {
+        "itemTotal": 1488,
+        "mappedItemCount": 1312,
+        "variantTotal": 46631,
+        "mappedVariantCount": 356,
+        "optionTotal": 63,
+        "mappedOptionCount": 63
+      }
+    },
+    {
+      "code": "ACTIVE_COMMUNITY_RELEASE_MISSING",
+      "facts": {
+        "communityReleaseIdPresent": false,
+        "communityTemplateCount": 0
+      }
+    },
+    {
+      "code": "SPEC_COVERAGE_BASELINE_BLOCKED",
+      "facts": {
+        "specTotal": 40,
+        "verifiedSpecCount": 0,
+        "blockedSpecCount": 40
+      }
+    },
+    {
+      "code": "RESOURCE_BASELINE_PARTIAL",
+      "facts": {
+        "relationAndFilesystemMeasurementsPresent": true,
+        "peakRssObserved": false,
+        "temporaryBytesObserved": false
+      }
+    },
+    {
+      "code": "CALLER_RETIREMENT_INVENTORY_PARTIAL",
+      "facts": {
+        "runtimeCallerCount": 166,
+        "unresolvedCount": 5
+      }
+    }
+  ]
+}
