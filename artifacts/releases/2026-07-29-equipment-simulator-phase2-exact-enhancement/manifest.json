@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-28T18:53:14.080Z",
+  "generatedAt": "2026-07-28T19:33:56.747Z",
   "release": {
     "date": "2026-07-29",
     "slug": "equipment-simulator-phase2-exact-enhancement"
@@ -38,12 +38,12 @@
         {
           "path": "docs/project-state.json",
           "exists": true,
-          "sizeBytes": 39973
+          "sizeBytes": 40062
         },
         {
           "path": "docs/project-owner-map.json",
           "exists": true,
-          "sizeBytes": 71723
+          "sizeBytes": 74757
         },
         {
           "path": "docs/verification-matrix.md",
@@ -53,7 +53,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 10462
+          "sizeBytes": 10487
         },
         {
           "path": "docs/README.md",
@@ -68,7 +68,7 @@
         {
           "path": "docs/backend-owner-map.json",
           "exists": true,
-          "sizeBytes": 48891
+          "sizeBytes": 51128
         }
       ],
       "historicalDocsDefaultToEvidenceOnly": true
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-29-equipment-simulator-phase2-exact-enhancement/evidence.json",
-    "sizeBytes": 3505,
+    "sizeBytes": 3504,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -414,12 +414,6 @@
   },
   "riskMatrix": [
     {
-      "id": "dirty_worktree",
-      "severity": "medium",
-      "status": "watch",
-      "detail": "6 changed files currently visible to git status."
-    },
-    {
       "id": "hotspot_files_present",
       "severity": "medium",
       "status": "watch",
@@ -452,16 +446,9 @@
   ],
   "repo": {
     "git": {
-      "status": "dirty",
-      "changedFileCount": 6,
-      "changedFiles": [
-        " M docs/plans/2026-07-28-equipment-simulator-target-architecture.md",
-        " M docs/plans/README.md",
-        " M docs/project-state.json",
-        " M tests/project-state.test.js",
-        "?? artifacts/releases/2026-07-29-equipment-simulator-phase2-exact-enhancement/",
-        "?? docs/plans/2026-07-29-equipment-simulator-phase2-exact-enhancement.md"
-      ]
+      "status": "clean",
+      "changedFileCount": 0,
+      "changedFiles": []
     }
   },
   "write": {
