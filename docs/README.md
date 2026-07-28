@@ -19,6 +19,7 @@
 | 装备库治理 | [gear-database-governance.md](gear-database-governance.md) | 物品、变体、强化和 health 的可信规则。 |
 | 装备属性规则证据 | [gear-attribute-rule-source-ledger.md](gear-attribute-rule-source-ledger.md) | 已验证属性上下文与公开计算启用闸门。 |
 | 装备模拟全链路 | [gear-simulation-full-chain-runbook.md](gear-simulation-full-chain-runbook.md) | resolver、release、属性快照、导入与回滚。 |
+| 装备模拟目标架构 | [plans/2026-07-28-equipment-simulator-target-architecture.md](plans/2026-07-28-equipment-simulator-target-architecture.md) | 已批准的 Catalog、精确实例、强化和 SimC 快照目标边界。 |
 | 天赋模拟全链路 | [talent-simulation-full-chain-runbook.md](talent-simulation-full-chain-runbook.md) | 天赋规则、profile 和 simulate 运维。 |
 | 社区模板导入 | [community-template-import-full-chain-runbook.md](community-template-import-full-chain-runbook.md) | 来源、同步、promotion、展示和回滚。 |
 | SimC 任务链路 | [simulator-simc-end-to-end.md](simulator-simc-end-to-end.md) | 模板到任务与报告。 |

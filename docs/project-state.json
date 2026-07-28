@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-07-24",
+  "updatedAt": "2026-07-28",
   "activeMilestone": "taro_target_first_14_route_rebuild",
   "featureIteration": "allowed_under_harness",
   "defaultLocalReleaseArtifact": "artifacts/releases/2026-07-23-observed-build-registry-cutover",
@@ -54,6 +54,34 @@
       "status": "retail_cutover_verified",
       "lifecycle": "active",
       "notes": "Shared 80-slot real-player TemplateSet for talent and equipment simulation. The current retail cutover is verified at TemplateSet generation 3 with 80 verified slots and a matching formal Gear Release; the next scheduled observed-gear backfill persisted its fair profile cursor. See artifacts/releases/2026-07-25-community-gear-backfill-fairness/retail-live-smoke.json."
+    },
+    {
+      "id": "equipment_simulator_target_architecture_v1",
+      "path": "docs/plans/2026-07-28-equipment-simulator-target-architecture.md",
+      "status": "approved_phase0_audit_blocked",
+      "lifecycle": "active",
+      "notes": "The approved target architecture remains active, but the corrected read-only Phase 0 audit blocks migration planning: all 1678 Browse rows lack dedicated track-rank authority, 48 also lack static stats, the active Manifest has no Community Release, 40/40 specialization initial candidate baselines are blocked, resource peaks remain partial and five runtime caller references remain unresolved."
+    },
+    {
+      "id": "equipment_simulator_catalog_migration_phase0",
+      "path": "docs/plans/2026-07-28-equipment-simulator-catalog-migration-phase0-implementation.md",
+      "status": "audit_blocked",
+      "lifecycle": "active",
+      "auditReportId": "catalog-migration-audit:sha256:f13af6b718f4b435cc4c10943680bb720acbc4056e60f2ef071798f70a210f17",
+      "catalogMapping": {
+        "itemTotal": 1488,
+        "mappedItemCount": 1312,
+        "excludedNonCatalogItemCount": 176,
+        "variantTotal": 46631,
+        "browseVariantTotal": 1678,
+        "mappedBrowseVariantCount": 0,
+        "excludedExactInstanceCount": 44651,
+        "excludedPlaceholderVariantCount": 291,
+        "excludedReferenceVariantCount": 11,
+        "optionTotal": 63,
+        "mappedOptionCount": 63
+      },
+      "notes": "The corrected bounded production audit classified observed profiles as Exact evidence rather than Browse variants and never interpreted generic community leaderboard rank as equipment track rank. Pointer generation 24 remained identical before/after and database writes stayed zero. The Phase 1 decision is blocked with allowedNextPlan=none."
     }
   ],
   "completedBaselines": [
@@ -453,20 +481,20 @@
       "evidence": "artifacts/releases/2026-07-11-equipment-simulator-phase3c-workbench-cutover/evidence.json"
     },
     "gearReleaseTrain": {
-      "status": "phase4_complete_live_verified",
+      "status": "active_manifest_verified_catalog_migration_blocked",
       "formalActiveManifest": true,
       "pointerMode": "active",
-      "pointerGeneration": 16,
-      "activeManifestRevision": "season-manifest:sha256:34325b76e6b12544b0cf511c89852722784675495b757b6dce522d531660e436",
-      "rollbackManifestRevision": "season-manifest:sha256:551810fcc9d8f6b4dd2099cfafa4b67192476dc4f0bfe36bf827b9fa6ef3c07d",
+      "pointerGeneration": 24,
+      "activeManifestRevision": "season-manifest:sha256:6517fc257c39d80339a90fa0675ec53792958ac51fcdc7c3a2629784112c2f1d",
+      "rollbackManifestRevision": "season-manifest:sha256:18c42522cc71351cd24f2185e3b037f7d9d5f13e355d9ff2bc85b6d94ef3aa6e",
       "runbook": "docs/gear-simulation-full-chain-runbook.md",
       "purePolicyModule": "server/gear_release.py",
       "releaseRepository": "server/gear_release_store.py",
-      "activeGearReleaseId": "gear-release:sha256:cfb1680130402b3c610d5eab3b0dbe50dd7186facc6a0371951eb5c10ed993c5",
-      "activeCommunityReleaseId": "community-release:sha256:35eafdafc9f96802327917b1f45ab406e60bbce10e81aa150e8cfef5d543ace6",
+      "activeGearReleaseId": "gear-release:sha256:de40793805a84934497c645be2ccc914ef44191744cc76d03f765001bc6dfe6a",
+      "activeCommunityReleaseId": "",
       "activeManifestPointerRows": 1,
-      "scheduledRefresh": "active_candidate_first_manual_for_high_risk",
-      "evidence": "artifacts/releases/2026-07-14-community-enhancement-editability/evidence.json"
+      "scheduledRefresh": "timer_disabled_health_blocked",
+      "evidence": "artifacts/releases/2026-07-28-equipment-simulator-catalog-migration-phase0/runtime-readonly-audit.json"
     },
     "gearStatSnapshot": {
       "status": "phase5_complete_live_verified",
@@ -532,6 +560,12 @@
       "status": "active_rule_verified",
       "trigger": "PR #93 merged the rule after exact-head full CI: PR CI validates the unique complete task-scoped requirement/evidence/manifest packet from the PR diff; manifest, immutable runtime candidate, clean verification HEAD, closure identity and exact accepted/not_run_user_waived/pending acceptance set are fail-closed without adding duplicate full profiles or runtime changes.",
       "evidence": "artifacts/releases/2026-07-19-harness-v0-6-2-control-plane-cleanup/evidence.json"
+    },
+    {
+      "id": "equipment_simulator_catalog_migration_phase0_blockers",
+      "status": "blocked_measured",
+      "trigger": "The corrected 2026-07-28 read-only audit mapped 1312/1488 item definitions and explicitly excluded 176 unreferenced metadata rows. It classified 46631 legacy variant rows as 1678 Browse candidates, 44651 observed Exact instances, 291 placeholders and 11 preview references. No Browse row has dedicated track-rank authority and 48 also lack static stats. The active Manifest has no Community Release or community templates, all 40 specialization initial candidate rows are blocked, peak RSS/temp bytes remain unknown, and five runtime references remain unresolved. Do not design Catalog schema or API work around these gaps.",
+      "evidence": "artifacts/releases/2026-07-28-equipment-simulator-catalog-migration-phase0/phase1-decision.json"
     }
   ]
 }

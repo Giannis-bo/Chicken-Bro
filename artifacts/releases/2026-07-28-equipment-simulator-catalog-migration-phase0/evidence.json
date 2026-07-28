@@ -1,0 +1,265 @@
+{
+  "schemaVersion": 2,
+  "slug": "equipment-simulator-catalog-migration-phase0",
+  "requirementSlug": "equipment-simulator-catalog-migration-phase0",
+  "status": "runtime_verified",
+  "highestEvidenceLevel": "runtime_verified",
+  "branch": "codex/equipment-simulator-target-architecture",
+  "commit": "287f735e489444017665f95c1e1552f2bba15b0d",
+  "identities": {
+    "runtime": {
+      "status": "not_applicable",
+      "reason": "The task executed an isolated read-only production audit and did not activate, deploy or replace runtime code."
+    },
+    "verification": {
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD",
+      "reason": "Harness resolves the complete packet against the clean checked task HEAD."
+    },
+    "closure": {
+      "status": "pending",
+      "reason": "The task branch has not been merged or archived."
+    }
+  },
+  "runtimeIdentity": {
+    "status": "not_applicable_no_runtime_activation",
+    "auditToolCommit": "84bdb3d0fa33793f3169d191b60f64641e6be7c0",
+    "auditToolFiles": {
+      "scripts/gear-catalog-migration-audit.py": "sha256:9036e2d3acb8d88c6a228fda48528287b62a132add4bbfaa00eb270e8ad44cf7",
+      "server/gear_catalog_audit_store.py": "sha256:1fded588cf4c6f39868f791f1bb25fa15ead38e8b3df0bdfc47939fcf1d09aa6",
+      "server/gear_catalog_migration_audit.py": "sha256:6751c63fb78f4d0b1a059cf6af8f43e59835e7aa7eda532988852e03baa711a6"
+    },
+    "productionServiceBefore": {
+      "unit": "wow-backend",
+      "activeState": "active",
+      "mainPid": "548170",
+      "nRestarts": "0",
+      "activeEnterTimestamp": "Tue 2026-07-28 11:20:13 CST"
+    },
+    "productionServiceAfter": {
+      "unit": "wow-backend",
+      "activeState": "active",
+      "mainPid": "548170",
+      "nRestarts": "0",
+      "activeEnterTimestamp": "Tue 2026-07-28 11:20:13 CST"
+    },
+    "unchanged": true
+  },
+  "manualAcceptance": {
+    "required": false,
+    "status": "not_applicable",
+    "reason": "Phase 0 changes only read-only audit tooling and control-plane evidence; it does not change player-visible runtime behavior.",
+    "items": [],
+    "rollup": {
+      "total": 0,
+      "accepted": 0,
+      "notRunUserWaived": 0,
+      "pending": 0
+    }
+  },
+  "scope": [
+    "Pure deterministic active-catalog, template, specialization and resource classification",
+    "Fixed-query PostgreSQL read-only audit projection with bounded queries and rollback",
+    "Tracked-file catalog caller inventory without matched source text",
+    "Aggregate production observation and mechanical Phase 1 decision"
+  ],
+  "verification": [
+    {
+      "command": "python3 -m unittest tests.gear_catalog_migration_audit_test tests.gear_catalog_audit_store_test tests.gear_catalog_migration_audit_cli_test tests.gear_release_store_test tests.postgres_personal_store_test -v",
+      "status": "pass",
+      "summary": "90 focused audit, release-store and personal-store tests passed with the corrected row-family and track-rank contract."
+    },
+    {
+      "command": "node --test tests/gear-catalog-callers-audit.test.js tests/project-state.test.js tests/project-harness.test.js tests/backend-owner-map.test.js",
+      "status": "pass",
+      "summary": "72 caller-inventory, current-truth, Harness and owner-map tests passed with the corrected report identity and family counts."
+    },
+    {
+      "command": "node --test tests/project-state.test.js",
+      "status": "pass",
+      "summary": "The current-truth assertion first failed against the stale report binding, then all 41 project-state tests passed after the corrected identity and counts were recorded."
+    },
+    {
+      "command": "node scripts/verify-project.js --profile harness --release artifacts/releases/2026-07-28-equipment-simulator-catalog-migration-phase0",
+      "status": "pass",
+      "summary": "The complete task-scoped Harness profile passed on the clean packet HEAD; frontend/full profiles were intentionally not run because this slice does not change runtime or UI consumers."
+    },
+    {
+      "command": "local CR against origin/main",
+      "status": "pass",
+      "summary": "The whole branch was reviewed against the approved architecture, requirement, zero-write boundary, size/redaction limits, deterministic identities, owner map and exact Phase 1 decision rules. No unresolved code finding remained."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "not_applicable",
+    "requiredBeforeMerge": false,
+    "reason": "No runtime code, public payload, schema, service, timer or user-visible behavior was activated. Production work was an isolated read-only audit only."
+  },
+  "runtimeEvidence": [
+    {
+      "id": "production-readonly-audit-execution",
+      "type": "postgres_readonly_audit",
+      "status": "pass",
+      "summary": "The exact committed audit tools completed under the production systemd EnvironmentFile with statement_timeout=15000ms, lock_timeout=1000ms and batch_size=500. Command execution passed while the audited product state correctly remained blocked."
+    },
+    {
+      "id": "active-pointer-stability",
+      "type": "postgres_pointer",
+      "status": "pass",
+      "summary": "Pointer before and after were identical at generation 24, active Manifest 6517fc25 and rollback Manifest 18c42522; Gear Release de407938, dependency-vector hash b3f5b06e and release-event hash 661d2e74 were stable."
+    },
+    {
+      "id": "database-zero-write-witness",
+      "type": "postgres_readonly",
+      "status": "pass",
+      "summary": "The fixed audit store executed 12 statements with 9 reads, 3 transaction controls and 0 writes. The 40-specialization reader executed 282 reads, 81 transaction controls and 0 writes. All connections were session/read-transaction read-only."
+    },
+    {
+      "id": "catalog-mapping-gate",
+      "type": "phase1_gate",
+      "status": "blocked",
+      "summary": "The corrected audit mapped 1312/1488 item definitions and explicitly excluded 176 unreferenced metadata rows. It classified 46631 legacy variants into 1678 Browse candidates, 44651 observed Exact instances, 291 placeholders and 11 preview references. Generic community rank did not satisfy track rank; 0/1678 Browse rows mapped because all lack dedicated track-rank authority and 48 also lack static stats. All 63 options mapped."
+    },
+    {
+      "id": "template-and-spec-gates",
+      "type": "phase1_gate",
+      "status": "blocked",
+      "summary": "The active Manifest exposes no Community Release and zero active community templates. Exactly 40 specialization rows were read, but all 40 had zero initial candidates and none counted as verified coverage."
+    },
+    {
+      "id": "resource-and-caller-gates",
+      "type": "phase1_gate",
+      "status": "partial",
+      "summary": "Relation, active/rollback materialization and filesystem bytes were measured; historical peak RSS and temporary bytes remain unknown. Static inventory found 166 runtime calls and five unresolved references across three operational scripts."
+    },
+    {
+      "id": "production-health-literal",
+      "type": "data_health",
+      "status": "partial",
+      "summary": "Both before and after the audit, /api/data/health reported overallStatus=partial. Verified components were backend, data_health_followup, active_manifest, gear_stat_snapshot, attribute_rule_audit, raiderio and websim_season; gear_release_refresh, news, websim_sync, gear_legality_authority and season_cutover_readiness were blocked; gear_catalog, talent_catalog, template_simc_bridge, community_templates, stat_weights and wcl_credentials were partial; blizzard_api was pending_official_audit."
+    },
+    {
+      "id": "timer-and-service-backflow",
+      "type": "timer_backflow",
+      "status": "pass",
+      "summary": "wow-backend retained the same PID, ActiveEnterTimestamp and NRestarts=0. Nine existing wow timers remained active/enabled; wow-gear-release-refresh.timer remained inactive/disabled. No timer, backfill, sync, release builder, stat job or SimC task was started by Phase 0."
+    }
+  ],
+  "auditResults": {
+    "callerReportId": "gear-catalog-callers:sha256:5740024ed81d36067e52c790bf4716638f0409cbc41135a65f98195941ac4ba2",
+    "auditReportId": "catalog-migration-audit:sha256:f13af6b718f4b435cc4c10943680bb720acbc4056e60f2ef071798f70a210f17",
+    "decisionStatus": "blocked",
+    "allowedNextPlan": "none",
+    "gates": {
+      "activeReleaseMapping": "blocked",
+      "templateMigration": "blocked",
+      "specCoverageBaseline": "blocked",
+      "resourceBudgetInputs": "partial",
+      "callerRetirementInventory": "partial"
+    },
+    "pointerBeforeAfterEqual": true,
+    "databaseWriteCount": 0,
+    "createdByAudit": {
+      "releaseEvents": 0,
+      "templateRows": 0,
+      "statJobs": 0,
+      "simcTasks": 0
+    }
+  },
+  "productionObservation": {
+    "overallHealthStatus": "partial",
+    "healthUnchanged": true,
+    "timersUnchanged": true,
+    "timers": [
+      {
+        "unit": "wow-community-best-guard-sync.timer",
+        "active": "active",
+        "enabled": "enabled"
+      },
+      {
+        "unit": "wow-community-template-sync.timer",
+        "active": "active",
+        "enabled": "enabled"
+      },
+      {
+        "unit": "wow-data-health-followup.timer",
+        "active": "active",
+        "enabled": "enabled"
+      },
+      {
+        "unit": "wow-gear-observed-backfill.timer",
+        "active": "active",
+        "enabled": "enabled"
+      },
+      {
+        "unit": "wow-gear-release-refresh.timer",
+        "active": "inactive",
+        "enabled": "disabled"
+      },
+      {
+        "unit": "wow-recommended-bis-guard-sync.timer",
+        "active": "active",
+        "enabled": "enabled"
+      },
+      {
+        "unit": "wow-season-recommended-gear-sync.timer",
+        "active": "active",
+        "enabled": "enabled"
+      },
+      {
+        "unit": "wow-simc-version-check.timer",
+        "active": "active",
+        "enabled": "enabled"
+      },
+      {
+        "unit": "wow-stat-weights-sync.timer",
+        "active": "active",
+        "enabled": "enabled"
+      },
+      {
+        "unit": "wow-websim-sync.timer",
+        "active": "active",
+        "enabled": "enabled"
+      }
+    ]
+  },
+  "risks": [
+    {
+      "id": "lossless_catalog_mapping",
+      "status": "blocked",
+      "detail": "The corrected audit isolates 1678 Browse candidates from Exact, placeholder and preview rows. None of those Browse candidates has dedicated track-rank authority, and 48 also lack static stats, so the approved CatalogRevision and BrowseVariant identity contract is not yet satisfied."
+    },
+    {
+      "id": "active_community_templates",
+      "status": "blocked",
+      "detail": "The active Manifest has no Community Release, so no active community template can be audited or imported through the initial 40-spec reader."
+    },
+    {
+      "id": "resource_characterization",
+      "status": "partial",
+      "detail": "Measured relation/materialization/disk values are usable, but peak builder RSS and temporary disk remain unknown because Phase 0 did not run an unsafe full builder."
+    },
+    {
+      "id": "caller_retirement",
+      "status": "partial",
+      "detail": "Five references in three operational scripts remain unresolved and prevent schema shadow or compatibility retirement."
+    }
+  ],
+  "rollback": [
+    "code_rollback"
+  ],
+  "cleanup": {
+    "required": true,
+    "status": "complete",
+    "reason": "All transient systemd units were collected and the isolated /tmp audit directory was removed. The active runtime tree was never modified."
+  },
+  "archivedReferences": [
+    "docs/plans/2026-07-28-equipment-simulator-target-architecture.md",
+    "artifacts/releases/2026-07-28-equipment-simulator-catalog-migration-phase0/caller-inventory.json",
+    "artifacts/releases/2026-07-28-equipment-simulator-catalog-migration-phase0/runtime-readonly-audit.json",
+    "artifacts/releases/2026-07-28-equipment-simulator-catalog-migration-phase0/phase1-decision.json"
+  ],
+  "summary": "The corrected Phase 0 audit tooling and production read-only evidence classify legacy Browse, Exact, placeholder and preview rows without treating community ranking as equipment track rank. The rerun retained zero database writes and unchanged service, pointer, health and timer state. The audit outcome remains blocked, allowedNextPlan is none, and no Catalog contract, schema shadow, API migration, builder, deployment or runtime activation is authorized.",
+  "updatedAt": "2026-07-28T16:02:17+08:00"
+}

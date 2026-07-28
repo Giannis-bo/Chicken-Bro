@@ -1,0 +1,64 @@
+{
+  "schemaRevision": "equipment-simulator-phase1-decision-v1",
+  "status": "blocked",
+  "inputs": {
+    "auditReportId": "catalog-migration-audit:sha256:f13af6b718f4b435cc4c10943680bb720acbc4056e60f2ef071798f70a210f17",
+    "callerReportId": "gear-catalog-callers:sha256:5740024ed81d36067e52c790bf4716638f0409cbc41135a65f98195941ac4ba2"
+  },
+  "gates": {
+    "activeReleaseMapping": "blocked",
+    "templateMigration": "blocked",
+    "specCoverageBaseline": "blocked",
+    "resourceBudgetInputs": "partial",
+    "callerRetirementInventory": "partial"
+  },
+  "allowedNextPlan": "none",
+  "problems": [
+    {
+      "code": "ACTIVE_RELEASE_MAPPING_INCOMPLETE",
+      "facts": {
+        "itemTotal": 1488,
+        "mappedItemCount": 1312,
+        "excludedNonCatalogItemCount": 176,
+        "variantTotal": 46631,
+        "browseVariantTotal": 1678,
+        "mappedBrowseVariantCount": 0,
+        "excludedExactInstanceCount": 44651,
+        "excludedPlaceholderVariantCount": 291,
+        "excludedReferenceVariantCount": 11,
+        "optionTotal": 63,
+        "mappedOptionCount": 63
+      }
+    },
+    {
+      "code": "ACTIVE_COMMUNITY_RELEASE_MISSING",
+      "facts": {
+        "communityReleaseIdPresent": false,
+        "communityTemplateCount": 0
+      }
+    },
+    {
+      "code": "SPEC_COVERAGE_BASELINE_BLOCKED",
+      "facts": {
+        "specTotal": 40,
+        "verifiedSpecCount": 0,
+        "blockedSpecCount": 40
+      }
+    },
+    {
+      "code": "RESOURCE_BASELINE_PARTIAL",
+      "facts": {
+        "relationAndFilesystemMeasurementsPresent": true,
+        "peakRssObserved": false,
+        "temporaryBytesObserved": false
+      }
+    },
+    {
+      "code": "CALLER_RETIREMENT_INVENTORY_PARTIAL",
+      "facts": {
+        "runtimeCallerCount": 166,
+        "unresolvedCount": 5
+      }
+    }
+  ]
+}
