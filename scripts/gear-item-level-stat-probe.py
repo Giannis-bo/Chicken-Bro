@@ -17,12 +17,13 @@ from server.gear_item_level_stat_probe import (
     GearItemLevelStatProbeError,
     build_probe_report,
     load_instance_items,
+    load_profile_presets,
+    resolve_item_level_stat,
 )
 from server.gear_release_resource_probe import (
     ReadOnlyConnectionFactory,
     require_postgres_only_environment,
 )
-from server import websim_payload
 
 
 MAX_REPORT_BYTES = 256 * 1024
@@ -157,14 +158,13 @@ def main(
     connection = read_only_factory()
     try:
         items = item_loader(connection, args.instance_id, args.source_type)
+        profiles = [] if resolver is not None else load_profile_presets(connection)
         resolve = resolver or (
-            lambda item, item_level, track: (
-                websim_payload.resolve_item_level_probe_stat_payload(
-                    connection,
-                    item,
-                    item_level,
-                    track,
-                )
+            lambda item, item_level, track: resolve_item_level_stat(
+                item,
+                item_level,
+                track,
+                profiles,
             )
         )
         with _configured_simc_binary(args.simc_bin):

@@ -173,6 +173,149 @@ def load_instance_items(
     return result
 
 
+def load_profile_presets(connection: Any) -> list[tuple[str, str, str, str]]:
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT class_key, spec_key, name, profile
+            FROM cache.websim_profile_presets
+            WHERE profile <> ''
+            ORDER BY class_key, spec_key, id
+            """
+        )
+        rows = cursor.fetchall()
+    return [
+        (
+            _text(row[0]),
+            _text(row[1]),
+            _text(row[2]),
+            str(row[3] or ""),
+        )
+        for row in rows
+        if len(row) >= 4 and _text(row[0]) and _text(row[1]) and str(row[3] or "").strip()
+    ]
+
+
+def build_item_level_probe_profile(
+    item: Mapping[str, Any],
+    item_level: int,
+    track: Mapping[str, Any],
+    profile_rows: Iterable[tuple[str, str, str, str]],
+) -> tuple[str, str, str, str]:
+    from . import websim_payload
+
+    item_record = dict(item)
+    candidates = websim_payload.item_level_probe_profile_candidates(item_record)
+    by_pair: dict[tuple[str, str], str] = {}
+    for class_key, spec_key, _name, profile in profile_rows:
+        pair = (_text(class_key), _text(spec_key))
+        if pair[0] and pair[1] and str(profile or "").strip():
+            by_pair.setdefault(pair, str(profile))
+    simc_slot = websim_payload.official_item_level_probe_simc_slot(
+        item_record.get("slot")
+    )
+    item_id = _text(item_record.get("itemId"))
+    normalized_level = _integer(item_level)
+    if not simc_slot or not item_id or not normalized_level:
+        return "", "", "", ""
+    safe_name = websim_payload.simc_safe_item_name(
+        item_record.get("name") or f"item_{item_id}",
+        item_id,
+    )
+    options = [f"id={item_id}", f"ilevel={normalized_level}"]
+    item_line = f"{simc_slot}={safe_name},{','.join(options)}"
+    remove_slots = {simc_slot}
+    if (
+        simc_slot == "main_hand"
+        and websim_payload.item_level_probe_main_hand_removes_offhand(item_record)
+    ):
+        remove_slots.add("off_hand")
+    override_keys = {
+        "iterations",
+        "max_time",
+        "target_error",
+        "calculate_scale_factors",
+        "json",
+    }
+    for class_key, spec_key in candidates:
+        profile = by_pair.get((class_key, spec_key))
+        if not profile:
+            continue
+        lines = []
+        for line in profile.splitlines():
+            stripped = line.strip()
+            if not stripped or "=" not in stripped:
+                lines.append(line)
+                continue
+            head = stripped.split("=", 1)[0].strip()
+            if head in override_keys or head in remove_slots:
+                continue
+            lines.append(line)
+        lines.extend(
+            [
+                "iterations=1",
+                "max_time=1",
+                "target_error=0.5",
+                "calculate_scale_factors=0",
+                item_line,
+            ]
+        )
+        return (
+            "\n".join(lines).strip() + "\n",
+            class_key,
+            spec_key,
+            item_line,
+        )
+    return "", "", "", item_line
+
+
+def resolve_item_level_stat(
+    item: Mapping[str, Any],
+    item_level: int,
+    track: Mapping[str, Any],
+    profile_rows: Iterable[tuple[str, str, str, str]],
+    *,
+    run_simc: Callable[[str], Mapping[str, Any]] | None = None,
+) -> dict[str, Any]:
+    from . import websim_payload
+
+    profile, class_key, spec_key, item_line = build_item_level_probe_profile(
+        item,
+        item_level,
+        track,
+        profile_rows,
+    )
+    if not profile:
+        return {"error": "no compatible SimC profile preset found"}
+    runner = run_simc or websim_payload.run_websim_profile_preset_simc_json
+    result = runner(profile)
+    if not isinstance(result, Mapping) or not result.get("ok"):
+        return {"error": "SimC item-level probe failed"}
+    gear_by_slot = websim_payload.simc_json_gear_stats_by_slot(
+        result.get("payload") or {}
+    )
+    stat_payload = websim_payload.simc_observed_variant_stat_payload(
+        {
+            "itemId": _text(item.get("itemId")),
+            "slot": _text(item.get("slot")),
+            "ilevel": _integer(item_level),
+        },
+        gear_by_slot,
+    )
+    if not stat_payload:
+        return {"error": "SimC JSON did not include target item stats"}
+    stat_payload.update(
+        {
+            "simcProfile": item_line,
+            "probeClassKey": class_key,
+            "probeSpecKey": spec_key,
+            "simcCheckedAt": _text(result.get("checkedAt")),
+            "simcDurationMs": _integer(result.get("durationMs")),
+        }
+    )
+    return stat_payload
+
+
 def build_probe_report(
     items: Iterable[Mapping[str, Any]],
     *,
@@ -304,7 +447,10 @@ __all__ = (
     "EXPECTED_TRACKS",
     "GearItemLevelStatProbeError",
     "SCHEMA_REVISION",
+    "build_item_level_probe_profile",
     "build_probe_report",
     "load_instance_items",
+    "load_profile_presets",
+    "resolve_item_level_stat",
     "validate_probe_report",
 )

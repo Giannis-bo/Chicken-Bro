@@ -294,6 +294,130 @@ class GearItemLevelStatProbeTest(unittest.TestCase):
                     resolver=lambda *_args: {},
                 )
 
+    def test_pg_profile_loader_and_probe_profile_use_exact_cache_source(self):
+        from server.gear_item_level_stat_probe import (
+            build_item_level_probe_profile,
+            load_profile_presets,
+        )
+
+        class Cursor:
+            def __init__(self):
+                self.statements = []
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def execute(self, statement):
+                self.statements.append(" ".join(statement.split()))
+
+            def fetchall(self):
+                return [
+                    (
+                        "mage",
+                        "frost",
+                        "Frost",
+                        'mage="Frost"\nspec=frost\nhead=old,id=1\njson=old.json\n',
+                    )
+                ]
+
+        class Connection:
+            def __init__(self):
+                self.cursor_instance = Cursor()
+
+            def cursor(self):
+                return self.cursor_instance
+
+        connection = Connection()
+        profiles = load_profile_presets(connection)
+        profile, class_key, spec_key, item_line = build_item_level_probe_profile(
+            {
+                **self.item(1),
+                "name": "Probe Helm",
+                "slot": "head",
+                "armorType": "cloth",
+            },
+            263,
+            {"difficultyKey": "champion", "itemLevel": 263},
+            profiles,
+        )
+        sql = "\n".join(connection.cursor_instance.statements)
+
+        self.assertIn("FROM cache.websim_profile_presets", sql)
+        self.assertNotIn("head=old,id=1", profile)
+        self.assertNotIn("json=old.json", profile)
+        self.assertIn("iterations=1", profile)
+        self.assertIn("head=probe_helm,id=250001,ilevel=263", profile)
+        self.assertNotIn("bonus_id=", profile)
+        self.assertEqual(item_line, "head=probe_helm,id=250001,ilevel=263")
+        self.assertEqual((class_key, spec_key), ("mage", "frost"))
+
+    def test_exact_resolver_reads_target_stats_from_simc_json(self):
+        from server.gear_item_level_stat_probe import resolve_item_level_stat
+
+        observed_profiles = []
+        result = resolve_item_level_stat(
+            {
+                **self.item(1),
+                "name": "Probe Helm",
+                "slot": "head",
+                "armorType": "cloth",
+            },
+            276,
+            {"difficultyKey": "hero", "itemLevel": 276, "bonusId": "999"},
+            [
+                (
+                    "mage",
+                    "frost",
+                    "Frost",
+                    'mage="Frost"\nspec=frost\nhead=old,id=1\n',
+                )
+            ],
+            run_simc=lambda profile: (
+                observed_profiles.append(profile)
+                or {
+                    "ok": True,
+                    "checkedAt": "2026-07-28T12:00:00Z",
+                    "durationMs": 42,
+                    "payload": {
+                        "sim": {
+                            "players": [
+                                {
+                                    "gear": {
+                                        "head": {
+                                            "id": "250001",
+                                            "ilevel": 276,
+                                            "stats": {
+                                                "intellect": 100,
+                                                "stamina": 200,
+                                                "haste_rating": 50,
+                                            },
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                }
+            ),
+        )
+
+        self.assertEqual(len(observed_profiles), 1)
+        self.assertIn("head=probe_helm,id=250001,ilevel=276", observed_profiles[0])
+        self.assertNotIn("bonus_id=", observed_profiles[0])
+        self.assertEqual(result["statSource"], "simulationcraft")
+        self.assertEqual(result["simcItemId"], "250001")
+        self.assertEqual(result["simcItemLevel"], 276)
+        self.assertEqual(result["probeClassKey"], "mage")
+        self.assertEqual(result["probeSpecKey"], "frost")
+        self.assertEqual(result["simcDurationMs"], 42)
+        self.assertEqual(
+            [stat["key"] for stat in result["itemStats"]],
+            ["intellect", "stamina", "haste_rating"],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
