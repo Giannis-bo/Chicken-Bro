@@ -119,6 +119,15 @@
         "mappedOptionCount": 63
       },
       "notes": "The fresh bounded production audit uses the exact season/rule Track Authority and never interprets generic community leaderboard rank as equipment track rank. It maps 1265/1313 canonical Browse candidates; all 48 remaining mapping problems are missing static stats. Pointer generation 24 remained identical before/after and database writes stayed zero. Independent template, 40-spec baseline, resource and caller gates keep the Phase 1 decision blocked with allowedNextPlan=none."
+    },
+    {
+      "id": "equipment_simulator_phase0_unblock",
+      "path": "docs/plans/2026-07-28-equipment-simulator-phase0-unblock.md",
+      "status": "implementation_allowed",
+      "lifecycle": "active",
+      "requirement": "artifacts/releases/2026-07-28-equipment-simulator-phase0-unblock/requirement.json",
+      "evidence": "artifacts/releases/2026-07-28-equipment-simulator-phase0-unblock/evidence.json",
+      "notes": "Strict blocker-resolution task for the 12 instance-1305 items across four progression levels, the missing current Community Release, the unbounded Community projection index rebuild, missing resource measurements and five runtime-tooling caller references. Phase 1 remains disallowed until a fresh mechanical report passes every independent gate."
     }
   ],
   "completedBaselines": [

@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 2,
+  "slug": "equipment-simulator-phase0-unblock",
+  "requirementSlug": "equipment-simulator-phase0-unblock",
+  "status": "implementation_allowed",
+  "highestEvidenceLevel": "implementation_allowed",
+  "branch": "codex/equipment-simulator-phase0-unblock",
+  "commit": "pending-task-commit",
+  "identities": {
+    "runtime": {
+      "status": "pending",
+      "reason": "The exact candidate commit, SimC revision, Gear/Community Releases and Manifest do not exist yet."
+    },
+    "verification": {
+      "status": "pending",
+      "reason": "The final task head has not been created or checked."
+    },
+    "closure": {
+      "status": "pending",
+      "reason": "Manual acceptance, merge and archive closure remain pending."
+    }
+  },
+  "manualAcceptance": {
+    "required": true,
+    "status": "pending",
+    "items": [
+      {
+        "id": "wechat_gear_current_community_import",
+        "status": "pending"
+      },
+      {
+        "id": "wechat_gear_saved_template_simc_handoff",
+        "status": "pending"
+      }
+    ],
+    "rollup": {
+      "total": 2,
+      "accepted": 0,
+      "notRunUserWaived": 0,
+      "pending": 2
+    }
+  },
+  "scope": [
+    "Phase 0 blocker root-cause correction",
+    "runtime-tooling caller classification",
+    "bounded Community builder and resource evidence",
+    "configured SimC refresh and 12-item static-stat repair",
+    "candidate Gear/Community/Manifest cutover and rollback",
+    "fresh Phase 0 decision and equipment-simulator public verification"
+  ],
+  "verification": [
+    {
+      "command": "requirement contract and implementation plan",
+      "status": "pass",
+      "summary": "The user authorized continued implementation; current facts, non-goals, resource ceilings, rollback and manual acceptance items are frozen."
+    },
+    {
+      "command": "implementation, candidate, live and closure verification",
+      "status": "not_run",
+      "summary": "Pending TDD implementation and exact-head evidence."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "not_run",
+    "reason": "Candidate deployment is pending a clean implementation commit."
+  },
+  "runtimeEvidence": [],
+  "risks": [
+    {
+      "id": "simc-item-data",
+      "status": "open",
+      "detail": "A newer configured SimC revision must prove exact stats for all 48 item-level pairs; no inferred fallback is allowed."
+    },
+    {
+      "id": "community-builder-resource",
+      "status": "open",
+      "detail": "The unoptimized read-only preflight reached 2450200 KiB RSS after 5m31s and was terminated without writes; the optimized builder must pass the frozen hard bounds."
+    },
+    {
+      "id": "manual-acceptance",
+      "status": "open",
+      "detail": "Both frozen WeChat items require explicit user acceptance before merge closure."
+    }
+  ],
+  "rollback": [
+    "manifest_pointer_rollback",
+    "simc_runtime_rollback",
+    "code_rollback",
+    "staging_data_restore"
+  ],
+  "cleanup": {
+    "required": true,
+    "reason": "Transient probe units/directories, candidate deployment state and the task branch must be cleaned after verified closure."
+  },
+  "archivedReferences": [
+    "artifacts/releases/2026-07-28-equipment-simulator-track-authority-correction/runtime-readonly-audit.json",
+    "artifacts/releases/2026-07-28-equipment-simulator-track-authority-correction/phase1-decision.json"
+  ],
+  "summary": "Strict Phase 0 unblock contract is active. Root causes are frozen; implementation, candidate data/runtime cutover, fresh Phase 0 pass, manual acceptance and merge closure remain pending.",
+  "updatedAt": "2026-07-28T19:30:00+08:00"
+}
