@@ -119,7 +119,7 @@ test('project-state is the single machine-readable current truth entry', () => {
     equipmentTargetArchitecture?.status,
     'approved_phase0_closed_phase1_ready',
   )
-  assert.equal(equipmentPhase1Catalog?.status, 'local_verified')
+  assert.equal(equipmentPhase1Catalog?.status, 'runtime_verified')
   assert.equal(
     equipmentPhase1Catalog?.path,
     'docs/plans/2026-07-29-equipment-simulator-phase1-catalog-contract.md',
