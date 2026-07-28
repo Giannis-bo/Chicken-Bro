@@ -24,6 +24,7 @@ try:
         gear_release_shadow,
         gear_resolver,
         gear_socket_authority,
+        gear_track_authority,
         raiderio_payload,
     )
     from .db import connect_postgres, database_config_from_env, postgres_only_runtime_enabled
@@ -57,6 +58,7 @@ except ImportError:
     import gear_release_shadow
     import gear_resolver
     import gear_socket_authority
+    import gear_track_authority
     import raiderio_payload
     from db import connect_postgres, database_config_from_env, postgres_only_runtime_enabled
     from gear_release_store import (
@@ -1882,6 +1884,258 @@ def _template_candidate(
     return candidate
 
 
+def community_candidate_exact_progression_problems(
+    candidate: Any,
+    *,
+    gear_snapshot: dict[str, Any],
+    gear_release_descriptor: dict[str, Any],
+    prepared_index: CandidateGearAuthorityIndex | None = None,
+) -> list[dict[str, str]]:
+    """Fail closed unless every sealed observed slot has governed progression."""
+
+    row = candidate if isinstance(candidate, dict) else {}
+    intent = row.get("selectionIntent") if isinstance(row.get("selectionIntent"), dict) else {}
+    payload = row.get("payload") if isinstance(row.get("payload"), dict) else {}
+    evidence = (
+        row.get("importEvidence")
+        if isinstance(row.get("importEvidence"), dict)
+        else payload.get("importEvidence")
+        if isinstance(payload.get("importEvidence"), dict)
+        else {}
+    )
+    selected_slots = intent.get("slots") if isinstance(intent.get("slots"), dict) else {}
+    observed_slots = evidence.get("slots") if isinstance(evidence.get("slots"), dict) else {}
+    prepared = prepared_index or CandidateGearAuthorityIndex(
+        gear_snapshot,
+        gear_release_descriptor,
+    )
+    binding = {
+        "seasonRevision": _text(gear_release_descriptor.get("seasonRevision")),
+        "gearRuleRevision": _text(
+            (
+                gear_release_descriptor.get("dependencyRevisions")
+                if isinstance(gear_release_descriptor.get("dependencyRevisions"), dict)
+                else {}
+            ).get("gearRuleRevision")
+        ),
+    }
+
+    def problem(code: str, path: str, message: str) -> dict[str, str]:
+        return {"code": code, "path": path, "message": message}
+
+    if not selected_slots or set(selected_slots) != set(observed_slots):
+        return [problem(
+            "COMMUNITY_EXACT_PROGRESSION_EVIDENCE_MISMATCH",
+            "candidate.importEvidence.slots",
+            "Exact progression requires sealed evidence for every selected slot.",
+        )]
+
+    problems: list[dict[str, str]] = []
+    for slot in sorted(selected_slots):
+        selected = selected_slots.get(slot) if isinstance(selected_slots.get(slot), dict) else {}
+        observed = observed_slots.get(slot) if isinstance(observed_slots.get(slot), dict) else {}
+        item_id = _text(selected.get("itemId"))
+        variant_key = _text(selected.get("variantKey"))
+        path = f"candidate.selectionIntent.slots.{slot}"
+        if (
+            not item_id
+            or not variant_key
+            or _text(observed.get("itemId")) != item_id
+            or _text(observed.get("variantKey")) != variant_key
+        ):
+            problems.append(problem(
+                "COMMUNITY_EXACT_PROGRESSION_IDENTITY_MISMATCH",
+                path,
+                "Sealed observed identity must match the selected item and variant.",
+            ))
+            continue
+        variants = [
+            variant
+            for variant in prepared.variants_by_item.get(item_id, [])
+            if isinstance(variant, dict)
+            and _text(variant.get("variantKey")) == variant_key
+        ]
+        if len(variants) != 1:
+            problems.append(problem(
+                "COMMUNITY_EXACT_PROGRESSION_VARIANT_UNAVAILABLE",
+                path,
+                "Exact progression requires exactly one matching Gear Release variant.",
+            ))
+            continue
+        variant = variants[0]
+        exact_item_level = _int(variant.get("itemLevel"))
+        if (
+            _int(observed.get("observedItemLevel")) <= 0
+            or _int(observed.get("observedItemLevel")) != exact_item_level
+        ):
+            problems.append(problem(
+                "COMMUNITY_EXACT_PROGRESSION_ILEVEL_MISMATCH",
+                path,
+                "Sealed observed item level must match the exact Gear Release variant.",
+            ))
+            continue
+        crafted_source_verified = any(
+            _text(source.get("sourceType")).lower() == "crafted"
+            and (
+                _text(
+                    (
+                        source.get("payload")
+                        if isinstance(source.get("payload"), dict)
+                        else {}
+                    ).get("status")
+                ).lower() == "verified"
+                or _text(
+                    (
+                        source.get("payload")
+                        if isinstance(source.get("payload"), dict)
+                        else {}
+                    ).get("sourceStatus")
+                ).lower() == "verified"
+            )
+            for source in prepared.sources_by_item.get(item_id, [])
+            if isinstance(source, dict)
+        )
+        exact_row = {
+            **_canonical(variant),
+            "rowFamily": "exact_instance",
+            "hasCraftedSource": crafted_source_verified,
+        }
+        resolved = gear_track_authority.resolve_exact_instance_progression(
+            binding,
+            exact_row,
+        )
+        if _text(resolved.get("status")) == "verified":
+            continue
+        authority_problems = [
+            raw_problem
+            for raw_problem in resolved.get("problems") or []
+            if isinstance(raw_problem, dict) and _text(raw_problem.get("code"))
+        ]
+        if not authority_problems:
+            authority_problems = [{
+                "code": "TRACK_AUTHORITY_EXACT_PROGRESSION_BLOCKED",
+                "message": "Exact progression authority rejected the item instance.",
+            }]
+        problems.extend(
+            problem(
+                _text(raw_problem.get("code")),
+                path,
+                _text(raw_problem.get("message"))
+                or "Exact progression authority rejected the item instance.",
+            )
+            for raw_problem in authority_problems
+        )
+    return problems
+
+
+def _active_exact_progression_reservations(
+    store: Any,
+    *,
+    templates: Iterable[dict[str, Any]],
+    expected_specs: Iterable[tuple[str, str]],
+    gear_snapshot: dict[str, Any],
+    gear_release_descriptor: dict[str, Any],
+    prepared_index: CandidateGearAuthorityIndex,
+) -> dict[tuple[str, str, str], dict[str, str]]:
+    """Reserve only still-present active Hero winners that remain exact-valid."""
+
+    binding_reader = getattr(store, "load_active_manifest_binding", None)
+    pair_reader = getattr(store, "load_community_release", None)
+    if not callable(binding_reader) or not callable(pair_reader):
+        return {}
+    try:
+        binding = binding_reader()
+    except Exception:
+        return {}
+    binding = binding if isinstance(binding, dict) else {}
+    manifest = (
+        binding.get("manifest")
+        if isinstance(binding.get("manifest"), dict)
+        else {}
+    )
+    target_gear_id = _text(gear_release_descriptor.get("releaseId"))
+    community_release_id = _text(
+        manifest.get("communityTemplateReleaseId")
+    )
+    if (
+        binding.get("formalActiveManifest") is not True
+        or _text(manifest.get("gearCatalogReleaseId")) != target_gear_id
+        or not community_release_id
+    ):
+        return {}
+    try:
+        pair = pair_reader(target_gear_id, community_release_id)
+    except Exception:
+        return {}
+    pair = pair if isinstance(pair, dict) else {}
+    community = (
+        pair.get("communityRelease")
+        if isinstance(pair.get("communityRelease"), dict)
+        else {}
+    )
+    if (
+        _text(community.get("releaseId")) != community_release_id
+        or _text(community.get("schemaRevision")) != "community-release-v2"
+        or _text(community.get("validatedAgainstReleaseId"))
+        != target_gear_id
+    ):
+        return {}
+
+    expected = set(expected_specs)
+    template_by_id = {
+        _text(template.get("templateId")): template
+        for template in templates
+        if isinstance(template, dict) and _text(template.get("templateId"))
+    }
+    provisional: dict[tuple[str, str, str], dict[str, str]] = {}
+    template_owners: dict[str, list[tuple[str, str, str]]] = {}
+    identity_owners: dict[str, list[tuple[str, str, str]]] = {}
+    for winner in pair.get("winners") or []:
+        if not isinstance(winner, dict):
+            continue
+        class_key = _text(winner.get("classKey"))
+        spec_key = _text(winner.get("specKey"))
+        payload = (
+            winner.get("payload")
+            if isinstance(winner.get("payload"), dict)
+            else {}
+        )
+        hero_key = _text(winner.get("heroKey") or payload.get("heroKey"))
+        slot = (class_key, spec_key, hero_key)
+        source_template_id = _text(payload.get("gearSourceTemplateId"))
+        template = template_by_id.get(source_template_id)
+        if (
+            (class_key, spec_key) not in expected
+            or not hero_key
+            or not isinstance(template, dict)
+            or community_candidate_exact_progression_problems(
+                winner,
+                gear_snapshot=gear_snapshot,
+                gear_release_descriptor=gear_release_descriptor,
+                prepared_index=prepared_index,
+            )
+        ):
+            continue
+        source_identity = _observed_source_identity(template)
+        provisional[slot] = {
+            "templateId": source_template_id,
+            "sourceIdentity": source_identity,
+        }
+        template_owners.setdefault(source_template_id, []).append(slot)
+        if source_identity:
+            identity_owners.setdefault(source_identity, []).append(slot)
+
+    return {
+        slot: reservation
+        for slot, reservation in provisional.items()
+        if len(template_owners.get(reservation["templateId"], [])) == 1
+        and (
+            not reservation["sourceIdentity"]
+            or len(identity_owners.get(reservation["sourceIdentity"], [])) == 1
+        )
+    }
+
+
 def _release_rows_from_election(
     election: dict[str, Any],
     templates_by_id: dict[str, dict[str, Any]],
@@ -2030,6 +2284,11 @@ def _projected_community_release_rows(
     expected_specs: Iterable[tuple[str, str]],
     candidate_for_template: Callable[[dict[str, Any]], dict[str, Any]],
     resolve_candidate: Callable[[dict[str, Any]], dict[str, Any]],
+    validate_exact_candidate: Callable[[dict[str, Any]], list[dict[str, str]]] | None,
+    active_reservations: Mapping[
+        tuple[str, str, str],
+        Mapping[str, str],
+    ] | None,
     gear_release_id: str,
     now: str,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
@@ -2090,14 +2349,57 @@ def _projected_community_release_rows(
     winner_count_by_spec: dict[tuple[str, str], int] = {}
     used_template_ids_by_spec: dict[tuple[str, str], set[str]] = {}
     used_source_identities_by_spec: dict[tuple[str, str], set[str]] = {}
+    reservations = (
+        active_reservations
+        if isinstance(active_reservations, Mapping)
+        else {}
+    )
+    reserved_template_owner = {
+        _text(reservation.get("templateId")): slot
+        for slot, reservation in reservations.items()
+        if isinstance(slot, tuple)
+        and len(slot) == 3
+        and isinstance(reservation, Mapping)
+        and _text(reservation.get("templateId"))
+    }
+    reserved_identity_owner = {
+        _text(reservation.get("sourceIdentity")): slot
+        for slot, reservation in reservations.items()
+        if isinstance(slot, tuple)
+        and len(slot) == 3
+        and isinstance(reservation, Mapping)
+        and _text(reservation.get("sourceIdentity"))
+    }
+    template_by_id = {
+        _text(template.get("templateId")): template
+        for template in templates
+        if isinstance(template, dict) and _text(template.get("templateId"))
+    }
+    active_winner_carry_forward_count = 0
 
     for class_key, spec_key, hero_key in expected_slots:
+        hero_slot = (class_key, spec_key, hero_key)
         spec_key_pair = (class_key, spec_key)
         used_template_ids = used_template_ids_by_spec.setdefault(spec_key_pair, set())
         used_source_identities = used_source_identities_by_spec.setdefault(spec_key_pair, set())
         ordered_talents = _talent_projection_candidates(
             staged_talents, class_key, spec_key, hero_key,
         )
+
+        def reserved_for_other_hero(template: dict[str, Any]) -> bool:
+            template_id = _text(template.get("templateId"))
+            source_identity = _observed_source_identity(template)
+            return bool(
+                (
+                    template_id in reserved_template_owner
+                    and reserved_template_owner[template_id] != hero_slot
+                )
+                or (
+                    source_identity
+                    and source_identity in reserved_identity_owner
+                    and reserved_identity_owner[source_identity] != hero_slot
+                )
+            )
 
         def validate(_talent_candidate: dict[str, Any], template: Any) -> dict[str, Any]:
             if not isinstance(template, dict):
@@ -2114,19 +2416,97 @@ def _projected_community_release_rows(
             if not winners:
                 problems = (election.get("rejected") or [{}])[0].get("problems") or []
                 return {"status": "blocked", "problems": problems}
+            if validate_exact_candidate is not None:
+                exact_problems = validate_exact_candidate(winners[0])
+                if exact_problems:
+                    return {"status": "blocked", "problems": exact_problems}
             return {"status": "verified", "template": {**_canonical(template), "_elected": _canonical(winners[0])}}
 
-        projection = community_winner_projection.project_hero_slot(
-            ordered_talents,
-            {
-                identity: template
-                for (identity, template_class_key, template_spec_key), template in gear_by_identity.items()
-                if template_class_key == class_key and template_spec_key == spec_key
-                and _text(template.get("templateId")) not in used_template_ids
-                and identity not in used_source_identities
-            },
-            validate,
+        projection: dict[str, Any] = {"winner": None, "rejected": []}
+        reservation = reservations.get(hero_slot)
+        preferred_template = (
+            template_by_id.get(_text(reservation.get("templateId")))
+            if isinstance(reservation, Mapping)
+            else None
         )
+        if (
+            isinstance(preferred_template, dict)
+            and _text(preferred_template.get("templateId"))
+            not in used_template_ids
+            and _observed_source_identity(preferred_template)
+            not in used_source_identities
+            and not reserved_for_other_hero(preferred_template)
+        ):
+            preferred_talent = (
+                ordered_talents[0]
+                if ordered_talents
+                else {
+                    "candidateId": (
+                        "active-carry-forward:"
+                        + _text(preferred_template.get("templateId"))
+                    ),
+                    "classKey": class_key,
+                    "specKey": spec_key,
+                    "heroKey": hero_key,
+                    "scenarioKey": "mythic_plus",
+                    "sourceKey": (
+                        community_winner_projection
+                        .PUBLIC_TALENT_SOURCE_KEY
+                    ),
+                    "talentCandidateRank": 1,
+                }
+            )
+            preferred_verdict = validate(
+                preferred_talent,
+                preferred_template,
+            )
+            if (
+                _text(preferred_verdict.get("status")) == "verified"
+                and isinstance(preferred_verdict.get("template"), dict)
+            ):
+                projection["winner"] = {
+                    **_canonical(preferred_verdict["template"]),
+                    "talentWinnerId": _text(
+                        preferred_talent.get("candidateId")
+                    ),
+                    "gearProjectionMode": "gear_fallback",
+                    "gearProjectionFallbackScope": "hero_slot",
+                    "gearProjectionFallbackReason": (
+                        "preserve_exact_valid_active_winner"
+                    ),
+                }
+                active_winner_carry_forward_count += 1
+            else:
+                projection["rejected"].append({
+                    "candidateId": _text(
+                        preferred_talent.get("candidateId")
+                    ),
+                    "sourceIdentity": _observed_source_identity(
+                        preferred_template
+                    ),
+                    "sourceUrl": _text(
+                        preferred_template.get("sourceUrl")
+                    ),
+                    "talentCandidateRank": _int(
+                        preferred_talent.get("talentCandidateRank")
+                    ),
+                    "problems": _canonical(
+                        preferred_verdict.get("problems") or []
+                    ),
+                })
+        if not isinstance(projection.get("winner"), dict):
+            projection = community_winner_projection.project_hero_slot(
+                ordered_talents,
+                {
+                    identity: template
+                    for (identity, template_class_key, template_spec_key), template in gear_by_identity.items()
+                    if template_class_key == class_key and template_spec_key == spec_key
+                    and _text(template.get("templateId")) not in used_template_ids
+                    and identity not in used_source_identities
+                    and not reserved_for_other_hero(template)
+                },
+                validate,
+            )
         winner = projection.get("winner")
         if not isinstance(winner, dict):
             rejected.extend(projection.get("rejected") or [])
@@ -2135,6 +2515,8 @@ def _projected_community_release_rows(
                 template_id = _text(template.get("templateId"))
                 source_identity = _observed_source_identity(template)
                 if not template_id or template_id in used_template_ids or source_identity in used_source_identities:
+                    continue
+                if reserved_for_other_hero(template):
                     continue
                 fallback_candidate = {
                     "candidateId": talent_winner_id or f"spec-re-election:{template_id}",
@@ -2220,6 +2602,8 @@ def _projected_community_release_rows(
         "winnerSpecCount": len({(row["classKey"], row["specKey"]) for row in rows}),
         "rejected": rejected,
         "missingHeroSlots": missing_slots,
+        "activeWinnerReservationCount": len(reservations),
+        "activeWinnerCarryForwardCount": active_winner_carry_forward_count,
     }
     return rows, election
 
@@ -2310,12 +2694,30 @@ def prepare_staging_community_release(
         return gear_resolver.resolve(intent, authority)
 
     if projection_enabled:
+        def validate_exact_candidate(candidate: dict[str, Any]) -> list[dict[str, str]]:
+            return community_candidate_exact_progression_problems(
+                candidate,
+                gear_snapshot=gear_snapshot,
+                gear_release_descriptor=gear_release_descriptor,
+                prepared_index=prepared_authority,
+            )
+
+        active_reservations = _active_exact_progression_reservations(
+            store,
+            templates=templates,
+            expected_specs=expected,
+            gear_snapshot=gear_snapshot,
+            gear_release_descriptor=gear_release_descriptor,
+            prepared_index=prepared_authority,
+        )
         rows, election = _projected_community_release_rows(
             staged_talents=talent_snapshot,
             templates=templates,
             expected_specs=expected,
             candidate_for_template=candidate_for_template,
             resolve_candidate=resolve_candidate,
+            validate_exact_candidate=validate_exact_candidate,
+            active_reservations=active_reservations,
             gear_release_id=gear_release_descriptor["releaseId"],
             now=now,
         )
@@ -2342,6 +2744,12 @@ def prepare_staging_community_release(
             "expectedHeroSlotCount": election["expectedHeroSlotCount"],
             "winnerHeroSlotCount": election["winnerHeroSlotCount"],
             "winnerSpecCount": election["winnerSpecCount"],
+            "activeWinnerReservationCount": election[
+                "activeWinnerReservationCount"
+            ],
+            "activeWinnerCarryForwardCount": election[
+                "activeWinnerCarryForwardCount"
+            ],
             "rejectedCount": len(election.get("rejected") or []),
             "missingHeroSlots": election.get("missingHeroSlots") or [],
             **_rank_one_rejection_gate_evidence(election.get("rejected") or []),
@@ -2542,6 +2950,11 @@ def _shadow_execution_summary(result: Any) -> dict[str, Any]:
         if isinstance(value.get("performance"), dict)
         else {}
     )
+    exact_corrections = [
+        row
+        for row in value.get("exactProgressionCorrections") or []
+        if isinstance(row, dict)
+    ]
     return {
         "schemaRevision": "gear-release-shadow-evidence-v1",
         "executionSchemaRevision": _text(value.get("schemaRevision")),
@@ -2575,6 +2988,8 @@ def _shadow_execution_summary(result: Any) -> dict[str, Any]:
             }
             for blocker in blockers[:8]
         ],
+        "exactProgressionCorrectionCount": len(exact_corrections),
+        "exactProgressionCorrections": _canonical(exact_corrections),
         "report": {
             key: report.get(key)
             for key in (
@@ -2584,6 +2999,7 @@ def _shadow_execution_summary(result: Any) -> dict[str, Any]:
                 "candidateWinnerCount",
                 "publicWinnerCount",
                 "activeWinnerCount",
+                "exactProgressionCorrectionCount",
             )
             if key in report
         },

@@ -289,6 +289,89 @@ class FakeObservedBuildStore:
 
 
 class PostgresCacheStoreTest(unittest.TestCase):
+    def test_exact_progression_correction_requires_invalid_active_and_verified_candidate(self):
+        from server import gear_release_tool
+        from server.postgres_cache_store import PostgresCacheStore
+
+        release_id = "gear-release:exact"
+        descriptor = {
+            "releaseId": release_id,
+            "releaseKind": "gear",
+        }
+
+        class ReleaseStore:
+            def get_release(self, requested):
+                self.requested_release = requested
+                return copy.deepcopy(descriptor)
+
+            def snapshot_gear_release_for_community_builder(self, requested):
+                self.requested_snapshot = requested
+                return {"items": [], "sources": [], "variants": [], "options": []}
+
+        release_store = ReleaseStore()
+        store = PostgresCacheStore(
+            lambda: None,
+            gear_release_store=release_store,
+        )
+        intent = {
+            "authoredAgainst": {"gearCatalogRevision": release_id},
+        }
+        active = {
+            "classKey": "druid",
+            "specKey": "restoration",
+            "sourceKey": "raiderio_observed_profile",
+            "selectionIntent": copy.deepcopy(intent),
+            "payload": {"heroKey": "wildstalker"},
+        }
+        candidate = {
+            **copy.deepcopy(active),
+            "templateId": "candidate-template",
+        }
+        with patch(
+            "server.gear_release_store.CandidateGearAuthorityIndex",
+            return_value=object(),
+        ), patch.object(
+            gear_release_tool,
+            "community_candidate_exact_progression_problems",
+            side_effect=[
+                [{
+                    "code": "TRACK_AUTHORITY_EXACT_TRACK_EVIDENCE_MISSING",
+                }],
+                [],
+            ],
+        ) as exact_validation:
+            verdict = (
+                store
+                .validate_projected_winner_exact_progression_correction(
+                    active,
+                    candidate,
+                    release_id,
+                )
+            )
+
+        self.assertEqual(verdict["status"], "verified")
+        self.assertEqual(
+            verdict["activeProblemCodes"],
+            ["TRACK_AUTHORITY_EXACT_TRACK_EVIDENCE_MISSING"],
+        )
+        self.assertEqual(verdict["candidateProblemCodes"], [])
+        self.assertEqual(exact_validation.call_count, 2)
+        self.assertEqual(release_store.requested_release, release_id)
+        self.assertEqual(release_store.requested_snapshot, release_id)
+
+        forged = copy.deepcopy(candidate)
+        forged["sourceKey"] = "season_recommendation"
+        blocked = store.validate_projected_winner_exact_progression_correction(
+            active,
+            forged,
+            release_id,
+        )
+        self.assertEqual(blocked["status"], "blocked")
+        self.assertEqual(
+            blocked["problemCodes"],
+            ["EXACT_PROGRESSION_CORRECTION_BINDING_INVALID"],
+        )
+
     def test_active_observed_records_replace_legacy_talent_and_gear_templates(self):
         from server.postgres_cache_store import PostgresCacheStore
 
@@ -380,6 +463,14 @@ class PostgresCacheStoreTest(unittest.TestCase):
             store,
             "get_active_season_payload",
             return_value={"dataStatus": "verified"},
+        ), patch(
+            "server.websim_payload.decode_external_talent_import_code",
+            return_value={
+                "status": "decoded",
+                "classKey": "mage",
+                "specKey": "frost",
+                "heroKey": "frostfire",
+            },
         ):
             result = store.get_websim_talent_import(
                 "mage",
@@ -3573,7 +3664,20 @@ class PostgresCacheStoreTest(unittest.TestCase):
         )
         store = PostgresCacheStore(lambda: conn)
 
-        payload = store.get_websim_talent_import("mage", "frost", "spellslinger")
+        with patch(
+            "server.websim_payload.decode_external_talent_import_code",
+            return_value={
+                "status": "decoded",
+                "classKey": "mage",
+                "specKey": "frost",
+                "heroKey": "spellslinger",
+            },
+        ):
+            payload = store.get_websim_talent_import(
+                "mage",
+                "frost",
+                "spellslinger",
+            )
 
         sql = "\n".join(conn.cursor_instance.statements)
         self.assertEqual(payload["importCode"], "CAEAAAAAAAAAAAAAAAAAAAAA")

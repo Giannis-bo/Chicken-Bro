@@ -32,12 +32,17 @@ from server.gear_catalog_migration_audit import (  # noqa: E402
     audit_spec_coverage,
     audit_template_exactness,
     build_phase0_report,
+    project_template_exact_instances,
     validate_phase0_report,
+)
+from server.gear_release_http_matrix import (  # noqa: E402
+    validate_http_matrix_report,
 )
 
 
 MAX_CALLER_BYTES = 2 * 1024 * 1024
 MAX_RESOURCE_REPORT_BYTES = 256 * 1024
+MAX_SPEC_COVERAGE_REPORT_BYTES = 512 * 1024
 MAX_REPORT_BYTES = 8 * 1024 * 1024
 MAX_STATEMENT_TIMEOUT_MS = 30_000
 MAX_LOCK_TIMEOUT_MS = 5_000
@@ -98,6 +103,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument("--callers-json", required=True)
     parser.add_argument("--resource-report", default="")
+    parser.add_argument("--spec-coverage-report", default="")
     parser.add_argument("--output", required=True)
     parser.add_argument(
         "--statement-timeout-ms",
@@ -239,6 +245,39 @@ def load_resource_report(
         raise AuditCliError(
             "AUDIT_RESOURCE_REPORT_INVALID",
             "resource report must be an object",
+        )
+    return payload
+
+
+def load_spec_coverage_report(
+    repo_root: Path,
+    value: str | os.PathLike[str],
+) -> dict[str, Any]:
+    path = _repository_path(repo_root, value)
+    try:
+        with path.open("rb") as handle:
+            content = handle.read(MAX_SPEC_COVERAGE_REPORT_BYTES + 1)
+    except OSError as exc:
+        raise AuditCliError(
+            "AUDIT_SPEC_COVERAGE_REPORT_UNAVAILABLE",
+            "specialization coverage report is unavailable",
+        ) from exc
+    if len(content) > MAX_SPEC_COVERAGE_REPORT_BYTES:
+        raise AuditCliError(
+            "AUDIT_SPEC_COVERAGE_REPORT_TOO_LARGE",
+            "specialization coverage report exceeds the 512 KiB limit",
+        )
+    try:
+        payload = json.loads(content)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise AuditCliError(
+            "AUDIT_SPEC_COVERAGE_REPORT_INVALID",
+            "specialization coverage report is invalid",
+        ) from exc
+    if not isinstance(payload, dict):
+        raise AuditCliError(
+            "AUDIT_SPEC_COVERAGE_REPORT_INVALID",
+            "specialization coverage report must be an object",
         )
     return payload
 
@@ -523,13 +562,41 @@ def _candidate_count(payload: Mapping[str, Any]) -> int:
     groups = payload.get("replacementCandidates")
     if isinstance(groups, list):
         for group in groups:
-            items = _mapping(group).get("items")
+            group_row = _mapping(group)
+            items = group_row.get("items")
             if isinstance(items, list):
                 count += len([item for item in items if isinstance(item, Mapping)])
+            if not items:
+                count += max(0, _integer(group_row.get("fullItemCount")))
     if count:
         return count
     items = payload.get("catalogItems")
-    return len([item for item in items or [] if isinstance(item, Mapping)])
+    count = len([item for item in items or [] if isinstance(item, Mapping)])
+    if count:
+        return count
+    slots = payload.get("slots")
+    if isinstance(slots, list):
+        for slot in slots:
+            slot_row = _mapping(slot)
+            count += max(0, _integer(slot_row.get("fullItemCount")))
+        return count
+    if not isinstance(slots, Mapping):
+        return 0
+    for slot in slots.values():
+        if isinstance(slot, list):
+            count += len([item for item in slot if isinstance(item, Mapping)])
+            continue
+        slot_row = _mapping(slot)
+        for key in ("items", "candidates", "replacementCandidates"):
+            candidates = slot_row.get(key)
+            if isinstance(candidates, list):
+                count += len([
+                    item
+                    for item in candidates
+                    if isinstance(item, Mapping)
+                ])
+                break
+    return count
 
 
 def _blocker_code(value: Any) -> str:
@@ -782,6 +849,7 @@ def run_audit(
     observed_at: str | None = None,
     connection_factory: Callable[[], Any] | None = None,
     resource_report: Mapping[str, Any] | None = None,
+    spec_coverage_report: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     if not 1 <= int(statement_timeout_ms) <= MAX_STATEMENT_TIMEOUT_MS:
         raise AuditCliError(
@@ -852,14 +920,41 @@ def run_audit(
 
         class_spec_matrix = WOW_CLASSES
 
-    spec_rows = _spec_rows(
-        class_spec_matrix=class_spec_matrix,
-        spec_payload_reader=spec_payload_reader,
-        pointer=pointer_before,
-    )
     active_binding = _mapping(snapshot.get("activeBinding"))
     manifest = _mapping(active_binding.get("manifest"))
     gear_release = _mapping(active_binding.get("gearRelease"))
+    community_release = _mapping(active_binding.get("communityRelease"))
+    expected_pairs = _spec_pairs(class_spec_matrix)
+    if spec_coverage_report is not None:
+        coverage_issues = validate_http_matrix_report(
+            spec_coverage_report,
+            manifest_revision=_text(manifest.get("manifestRevision")),
+            pointer_generation=_integer(pointer_before.get("generation")),
+            gear_release_id=_text(gear_release.get("releaseId")),
+            community_release_id=_text(community_release.get("releaseId")),
+            expected_spec_count=len(expected_pairs),
+        )
+        if coverage_issues:
+            raise AuditCliError(
+                "AUDIT_SPEC_COVERAGE_REPORT_INVALID",
+                ",".join(coverage_issues),
+            )
+        spec_rows = [
+            {
+                "classKey": class_key,
+                "specKey": spec_key,
+                "status": "verified",
+                "candidateCount": 1,
+                "blockerCodes": [],
+            }
+            for class_key, spec_key in expected_pairs
+        ]
+    else:
+        spec_rows = _spec_rows(
+            class_spec_matrix=class_spec_matrix,
+            spec_payload_reader=spec_payload_reader,
+            pointer=pointer_before,
+        )
     manifest_dependency_vector = _mapping(
         manifest.get("dependencyVector")
     )
@@ -875,7 +970,6 @@ def run_audit(
         snapshot.get("catalogRows"),
     )
     track_authority = _mapping(catalog.get("trackAuthority"))
-    community_release = _mapping(active_binding.get("communityRelease"))
     release_events = [
         dict(row)
         for row in snapshot.get("releaseEvents") or []
@@ -914,9 +1008,19 @@ def run_audit(
     catalog["sourceQueryMetrics"] = dict(
         _mapping(snapshot.get("queryMetrics"))
     )
+    community_templates = project_template_exact_instances(
+        {
+            "seasonRevision": manifest.get("seasonRevision"),
+            "gearRuleRevision": manifest_dependency_vector.get(
+                "gearRuleRevision"
+            ),
+        },
+        snapshot.get("communityTemplates"),
+        snapshot.get("catalogRows"),
+    )
     templates = _cap_template_samples(
         audit_template_exactness(
-            snapshot.get("communityTemplates"),
+            community_templates,
             snapshot.get("personalGearTemplates"),
         ),
         int(sample_limit),
@@ -976,6 +1080,11 @@ def main(
             if args.resource_report
             else None
         )
+        spec_coverage_report = (
+            load_spec_coverage_report(root, args.spec_coverage_report)
+            if args.spec_coverage_report
+            else None
+        )
         filesystem_roots = [
             _repository_path(root, value)
             for value in (args.filesystem_root or ["."])
@@ -990,6 +1099,7 @@ def main(
             sample_limit=args.sample_limit,
             filesystem_roots=filesystem_roots,
             resource_report=resource_report,
+            spec_coverage_report=spec_coverage_report,
         )
         issues = validate_phase0_report(report)
         if issues:

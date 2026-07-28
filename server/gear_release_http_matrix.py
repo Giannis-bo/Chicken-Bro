@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from typing import Any, Callable, Iterable
+from typing import Any, Callable, Iterable, Mapping
 from urllib.parse import urlencode
 
 
@@ -12,6 +12,74 @@ RequestJson = Callable[
     [str, str, dict[str, Any] | None, dict[str, str]],
     tuple[int, dict[str, Any], float],
 ]
+
+
+def validate_http_matrix_report(
+    report: Any,
+    *,
+    manifest_revision: str,
+    pointer_generation: int,
+    gear_release_id: str,
+    community_release_id: str,
+    expected_spec_count: int,
+) -> list[str]:
+    """Validate one aggregate matrix against an exact runtime binding."""
+
+    if not isinstance(report, Mapping):
+        return ["HTTP_MATRIX_REPORT_MALFORMED"]
+    browse = report.get("browse")
+    imports = report.get("imports")
+    if not isinstance(browse, Mapping) or not isinstance(imports, Mapping):
+        return ["HTTP_MATRIX_REPORT_MALFORMED"]
+    stable = {
+        "schemaRevision": _text(report.get("schemaRevision")),
+        "status": _text(report.get("status")),
+        "manifestRevision": _text(report.get("manifestRevision")),
+        "pointerGeneration": _integer(report.get("pointerGeneration")),
+        "gearReleaseId": _text(report.get("gearReleaseId")),
+        "communityReleaseId": _text(report.get("communityReleaseId")),
+        "browse": dict(browse),
+        "imports": dict(imports),
+        "failureCount": _integer(report.get("failureCount")),
+        "failureCodes": dict(report.get("failureCodes") or {}),
+        "failureSamples": list(report.get("failureSamples") or []),
+    }
+    digest = hashlib.sha256(
+        json.dumps(
+            stable,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
+    issues = []
+    if (
+        stable["schemaRevision"] != "gear-release-http-matrix-v1"
+        or _text(report.get("reportId"))
+        != f"gear-release-http-matrix:sha256:{digest}"
+    ):
+        issues.append("HTTP_MATRIX_IDENTITY_INVALID")
+    expected_hero_slots = int(expected_spec_count) * 2
+    if (
+        stable["manifestRevision"] != _text(manifest_revision)
+        or stable["pointerGeneration"] != int(pointer_generation)
+        or stable["gearReleaseId"] != _text(gear_release_id)
+        or stable["communityReleaseId"] != _text(community_release_id)
+    ):
+        issues.append("HTTP_MATRIX_BINDING_MISMATCH")
+    if (
+        stable["status"] != "pass"
+        or stable["failureCount"] != 0
+        or stable["failureCodes"]
+        or stable["failureSamples"]
+        or _integer(browse.get("expectedSpecCount")) != int(expected_spec_count)
+        or _integer(browse.get("passingSpecCount")) != int(expected_spec_count)
+        or _integer(imports.get("expectedHeroSlotCount")) != expected_hero_slots
+        or _integer(imports.get("observedHeroSlotCount")) != expected_hero_slots
+        or _integer(imports.get("passingHeroSlotCount")) != expected_hero_slots
+    ):
+        issues.append("HTTP_MATRIX_COVERAGE_INCOMPLETE")
+    return sorted(set(issues))
 
 
 def _text(value: Any) -> str:

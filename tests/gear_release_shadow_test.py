@@ -5127,6 +5127,93 @@ class GearReleaseShadowTest(unittest.TestCase):
             {problem["code"] for problem in result["blockers"]},
         )
 
+    def test_projected_semantic_change_requires_verified_exact_progression_correction(self):
+        active = {
+            "templateId": "active-template",
+            "classKey": "druid",
+            "specKey": "restoration",
+            "sourceKey": "raiderio_observed_profile",
+            "payload": {"heroKey": "wildstalker"},
+        }
+        candidate = {
+            **active,
+            "templateId": "candidate-template",
+        }
+
+        class Store:
+            def validate_projected_winner_exact_progression_correction(
+                self,
+                active_winner,
+                candidate_winner,
+                gear_release_id,
+            ):
+                self.call = (
+                    active_winner,
+                    candidate_winner,
+                    gear_release_id,
+                )
+                return {
+                    "schemaRevision": "community-exact-progression-correction-v1",
+                    "status": "verified",
+                    "gearReleaseId": gear_release_id,
+                    "activeProblemCodes": [
+                        "TRACK_AUTHORITY_EXACT_TRACK_EVIDENCE_MISSING",
+                    ],
+                    "candidateProblemCodes": [],
+                    "problemCodes": [],
+                }
+
+        store = Store()
+        correction = gear_release_shadow._verified_exact_progression_correction(
+            store,
+            active,
+            candidate,
+            "gear-release:exact",
+        )
+
+        self.assertEqual(
+            correction,
+            {
+                "classKey": "druid",
+                "specKey": "restoration",
+                "heroKey": "wildstalker",
+                "activeTemplateId": "active-template",
+                "candidateTemplateId": "candidate-template",
+                "activeProblemCodes": [
+                    "TRACK_AUTHORITY_EXACT_TRACK_EVIDENCE_MISSING",
+                ],
+                "candidateProblemCodes": [],
+                "status": "verified",
+            },
+        )
+        self.assertEqual(
+            store.call,
+            (active, candidate, "gear-release:exact"),
+        )
+
+        class ForgedStore(Store):
+            def validate_projected_winner_exact_progression_correction(
+                self,
+                *_args,
+            ):
+                return {
+                    "schemaRevision": "community-exact-progression-correction-v1",
+                    "status": "verified",
+                    "gearReleaseId": "gear-release:exact",
+                    "activeProblemCodes": ["UNRELATED_PROBLEM"],
+                    "candidateProblemCodes": [],
+                    "problemCodes": [],
+                }
+
+        self.assertIsNone(
+            gear_release_shadow._verified_exact_progression_correction(
+                ForgedStore(),
+                active,
+                candidate,
+                "gear-release:exact",
+            )
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

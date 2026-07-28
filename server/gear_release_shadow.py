@@ -449,6 +449,86 @@ def _projected_winner_semantics(value: Any) -> dict[str, Any]:
     }
 
 
+def _verified_exact_progression_correction(
+    store: Any,
+    active_winner: Any,
+    candidate_winner: Any,
+    gear_release_id: str,
+) -> dict[str, Any] | None:
+    """Accept only a store-proven exact-authority repair on the same Hero slot."""
+
+    validator = getattr(
+        store,
+        "validate_projected_winner_exact_progression_correction",
+        None,
+    )
+    if not callable(validator):
+        return None
+    try:
+        verdict = validator(
+            active_winner,
+            candidate_winner,
+            gear_release_id,
+        )
+    except Exception:
+        return None
+    if not isinstance(verdict, dict):
+        return None
+    active_codes = verdict.get("activeProblemCodes")
+    candidate_codes = verdict.get("candidateProblemCodes")
+    problem_codes = verdict.get("problemCodes")
+    if (
+        verdict.get("schemaRevision")
+        != "community-exact-progression-correction-v1"
+        or _text(verdict.get("status")) != "verified"
+        or _text(verdict.get("gearReleaseId")) != _text(gear_release_id)
+        or not isinstance(active_codes, list)
+        or not active_codes
+        or any(
+            not isinstance(code, str)
+            or not code.startswith("TRACK_AUTHORITY_")
+            for code in active_codes
+        )
+        or candidate_codes != []
+        or problem_codes != []
+    ):
+        return None
+    active = active_winner if isinstance(active_winner, dict) else {}
+    candidate = candidate_winner if isinstance(candidate_winner, dict) else {}
+    active_payload = (
+        active.get("payload")
+        if isinstance(active.get("payload"), dict)
+        else {}
+    )
+    candidate_payload = (
+        candidate.get("payload")
+        if isinstance(candidate.get("payload"), dict)
+        else {}
+    )
+    hero_key = _text(
+        candidate.get("heroKey")
+        or candidate_payload.get("heroKey")
+    )
+    if (
+        not hero_key
+        or hero_key
+        != _text(active.get("heroKey") or active_payload.get("heroKey"))
+        or _text(active.get("classKey")) != _text(candidate.get("classKey"))
+        or _text(active.get("specKey")) != _text(candidate.get("specKey"))
+    ):
+        return None
+    return {
+        "classKey": _text(candidate.get("classKey")),
+        "specKey": _text(candidate.get("specKey")),
+        "heroKey": hero_key,
+        "activeTemplateId": _text(active.get("templateId")),
+        "candidateTemplateId": _text(candidate.get("templateId")),
+        "activeProblemCodes": sorted(set(active_codes)),
+        "candidateProblemCodes": [],
+        "status": "verified",
+    }
+
+
 def _run_projected_release_shadow(
     store: Any,
     *,
@@ -602,6 +682,7 @@ def _run_projected_release_shadow(
         else {}
     )
     candidate_preview_seen = False
+    exact_progression_corrections: list[dict[str, Any]] = []
 
     for class_key, spec_key in expected:
         spec_started = time.perf_counter()
@@ -741,12 +822,21 @@ def _run_projected_release_shadow(
                     _projected_winner_semantics(active_winner)
                     != _projected_winner_semantics(candidate)
                 ):
-                    blockers.append(_blocker(
-                        "PUBLIC_WINNER_SEMANTIC_CHANGE",
-                        class_key,
-                        spec_key,
-                        f"Candidate Hero {hero_key} differs from the accepted active winner.",
-                    ))
+                    correction = _verified_exact_progression_correction(
+                        store,
+                        active_winner,
+                        candidate,
+                        gear_release_id,
+                    )
+                    if correction is not None:
+                        exact_progression_corrections.append(correction)
+                    else:
+                        blockers.append(_blocker(
+                            "PUBLIC_WINNER_SEMANTIC_CHANGE",
+                            class_key,
+                            spec_key,
+                            f"Candidate Hero {hero_key} differs from the accepted active winner.",
+                        ))
 
             candidate_intent = (
                 candidate.get("selectionIntent")
@@ -963,6 +1053,10 @@ def _run_projected_release_shadow(
         "activeWinnerCount": sum(
             len(rows) for rows in active_by_spec.values()
         ),
+        "exactProgressionCorrectionCount": len(
+            exact_progression_corrections
+        ),
+        "exactProgressionCorrections": exact_progression_corrections,
         "blockers": [],
     }
     spec_durations = sorted(
@@ -988,6 +1082,7 @@ def _run_projected_release_shadow(
         "formalActiveManifest": False,
         "activeBaselineFormal": True,
         "candidatePreview": candidate_preview_seen,
+        "exactProgressionCorrections": exact_progression_corrections,
         "referenceProof": {
             "status": "pass" if status == "pass" else "blocked",
             "mode": "hero_slot_full_import_matrix",

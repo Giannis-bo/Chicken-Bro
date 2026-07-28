@@ -17,7 +17,7 @@ from typing import Any, Callable, Iterable, Mapping
 
 SCHEMA_REVISION = "gear-release-resource-probe-v1"
 REPORT_PREFIX = "gear-release-resource-probe:sha256:"
-BUILDER_REVISION = "community-release-prepared-index-v1"
+BUILDER_REVISION = "community-release-exact-progression-v2"
 DEFAULT_LIMITS = {
     "elapsedMilliseconds": 300_000,
     "peakRssObservedBytes": 2_000_000_000,

@@ -165,6 +165,8 @@ def _normalized_gear_item(slot: Any, value: Any, enhancement: Any = None) -> dic
     return {
         "slot": _text(slot or item.get("slot")),
         "itemId": _text(item.get("itemId") or item.get("id")),
+        "variantKey": _text(item.get("variantKey")),
+        "observedItemLevel": _int(item.get("observedItemLevel")),
         "bonusIds": list(bonus_ids) if isinstance(bonus_ids, list) else bonus_ids,
         "trackKey": _text(item.get("trackKey") or item.get("upgradeTrack")),
         "rank": _int(item.get("rank") or item.get("trackRank") or item.get("upgradeRank")),
@@ -442,7 +444,18 @@ class GearCatalogAuditStore:
                     WHERE source.release_id = variant.release_id
                       AND source.item_id = variant.item_id
                       AND source.instance_id = '1305'
-                ) AS has_void_instance_source
+                ) AS has_void_instance_source,
+                EXISTS (
+                    SELECT 1
+                    FROM cache.websim_gear_release_sources source
+                    WHERE source.release_id = variant.release_id
+                      AND source.item_id = variant.item_id
+                      AND source.source_type = 'crafted'
+                      AND (
+                          LOWER(COALESCE(source.payload_json->>'status', '')) = 'verified'
+                          OR LOWER(COALESCE(source.payload_json->>'sourceStatus', '')) = 'verified'
+                      )
+                ) AS has_crafted_source
             FROM cache.websim_gear_release_variants variant
             WHERE variant.release_id = %s
             ORDER BY variant.item_id, variant.variant_key, variant.variant_id
@@ -484,6 +497,7 @@ class GearCatalogAuditStore:
                 "staticStats": _stat_map(static_stats),
                 "sourceType": _text(row[10]),
                 "hasVoidInstanceSource": row[11] is True,
+                "hasCraftedSource": len(row) > 12 and row[12] is True,
                 "hasTrackEvidence": (
                     isinstance(payload.get("trackEvidence"), list)
                     and bool(payload.get("trackEvidence"))
@@ -549,6 +563,21 @@ class GearCatalogAuditStore:
                 **payload,
                 "selectionIntent": selection_intent,
             }
+            gear_items = _gear_items_from_template_payload(source)
+            import_evidence = _mapping(payload.get("importEvidence"))
+            evidence_slots = _mapping(import_evidence.get("slots"))
+            for item in gear_items:
+                slot = _text(item.get("slot"))
+                evidence = _mapping(evidence_slots.get(slot))
+                if (
+                    evidence
+                    and _text(evidence.get("itemId")) == _text(item.get("itemId"))
+                    and _text(evidence.get("variantKey"))
+                    == _text(item.get("variantKey"))
+                ):
+                    item["observedItemLevel"] = _int(
+                        evidence.get("observedItemLevel")
+                    )
             result.append({
                 "templateIdentity": _anonymous_hash({
                     "source": "community",
@@ -556,7 +585,7 @@ class GearCatalogAuditStore:
                 }),
                 "classKey": _text(row[1]),
                 "specKey": _text(row[2]),
-                "gearItems": _gear_items_from_template_payload(source),
+                "gearItems": gear_items,
                 "problemCodes": sorted({
                     _text(problem.get("code"))
                     for problem in _json_value(row[5], [])

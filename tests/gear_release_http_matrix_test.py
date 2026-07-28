@@ -150,6 +150,48 @@ class GearReleaseHttpMatrixTest(unittest.TestCase):
             report["failureCodes"],
         )
 
+    def test_aggregate_report_validator_binds_identity_and_hash(self):
+        from server.gear_release_http_matrix import (
+            run_http_matrix,
+            validate_http_matrix_report,
+        )
+
+        identities = self.identities()
+
+        def request(method, path, payload, _headers):
+            if method == "GET":
+                return 200, self.browse_payload(identities), 1.0
+            return 200, self.import_payload(identities), 1.0
+
+        report = run_http_matrix(
+            request,
+            expected_specs=[("mage", "frost")],
+            **identities,
+            observed_at="2026-07-28T20:00:00+08:00",
+        )
+        arguments = {
+            "manifest_revision": identities["manifest_revision"],
+            "pointer_generation": identities["pointer_generation"],
+            "gear_release_id": identities["gear_release_id"],
+            "community_release_id": identities["community_release_id"],
+            "expected_spec_count": 1,
+        }
+
+        self.assertEqual(
+            validate_http_matrix_report(report, **arguments),
+            [],
+        )
+        damaged = dict(report)
+        damaged["pointerGeneration"] += 1
+        self.assertIn(
+            "HTTP_MATRIX_IDENTITY_INVALID",
+            validate_http_matrix_report(damaged, **arguments),
+        )
+        self.assertIn(
+            "HTTP_MATRIX_BINDING_MISMATCH",
+            validate_http_matrix_report(damaged, **arguments),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

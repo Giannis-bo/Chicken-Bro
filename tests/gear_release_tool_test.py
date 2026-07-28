@@ -263,6 +263,8 @@ def build_midnight_mage_release_fixture():
     }
 
 class GearReleaseToolTest(unittest.TestCase):
+    CURRENT_SEASON_REVISION = "season-17-f131dd36ddf1"
+
     def dependencies(self):
         return {
             "gearRuleRevision": "gear-rule-matrix-v1",
@@ -281,6 +283,14 @@ class GearReleaseToolTest(unittest.TestCase):
             "variants": [{"variantId": "variant-a-id", "itemId": "item-a", "variantKey": "variant-a", "slot": "head", "sourceType": "observed_profile", "itemLevel": 289, "simcOptions": {"ilevel": "289"}, "status": "verified", "blockers": [], "payload": {"resolvedStats": {"intellect": 100}}, "updatedAt": "2026-07-11T05:00:00+00:00"}],
             "options": [],
         }
+
+    def exact_progression_snapshot(self):
+        snapshot = self.snapshot()
+        snapshot["variants"][0]["simcOptions"] = {
+            "ilevel": "289",
+            "bonus_id": "13335",
+        }
+        return snapshot
 
     def template(self, template_id="template-a", source_key="raiderio_observed_profile"):
         return {
@@ -3224,15 +3234,325 @@ class GearReleaseToolTest(unittest.TestCase):
 
         self.assertEqual(intent["slots"]["head"]["variantKey"], "variant-a")
 
+    def test_community_candidate_exact_progression_requires_governed_bonus_evidence(self):
+        from server import gear_release_tool
+        from server.gear_release_store import CandidateGearAuthorityIndex, gear_snapshot_summary
+
+        snapshot = self.snapshot()
+        gear = gear_release.build_release(
+            release_kind="gear",
+            season_revision=self.CURRENT_SEASON_REVISION,
+            schema_revision="gear-release-v1",
+            content=gear_snapshot_summary(snapshot),
+            dependency_revisions=self.dependencies(),
+            release_status="validated",
+            source={"sourceRevision": "exact-progression-test"},
+        )
+        prepared = CandidateGearAuthorityIndex(snapshot, gear)
+        candidate = gear_release_tool._template_candidate(
+            self.template(),
+            gear_release_id=gear["releaseId"],
+            season_revision=gear["seasonRevision"],
+            level=90,
+            gear_snapshot=snapshot,
+            capability_revision=self.dependencies()["capabilityRevision"],
+            prepared_index=prepared,
+        )
+
+        blocked = gear_release_tool.community_candidate_exact_progression_problems(
+            candidate,
+            gear_snapshot=snapshot,
+            gear_release_descriptor=gear,
+            prepared_index=prepared,
+        )
+
+        self.assertEqual(
+            [problem["code"] for problem in blocked],
+            ["TRACK_AUTHORITY_EXACT_TRACK_EVIDENCE_MISSING"],
+        )
+        self.assertEqual(
+            blocked[0]["path"],
+            "candidate.selectionIntent.slots.head",
+        )
+
+        exact_snapshot = self.exact_progression_snapshot()
+        exact_gear = gear_release.build_release(
+            release_kind="gear",
+            season_revision=self.CURRENT_SEASON_REVISION,
+            schema_revision="gear-release-v1",
+            content=gear_snapshot_summary(exact_snapshot),
+            dependency_revisions=self.dependencies(),
+            release_status="validated",
+            source={"sourceRevision": "exact-progression-test"},
+        )
+        exact_prepared = CandidateGearAuthorityIndex(exact_snapshot, exact_gear)
+        exact_candidate = gear_release_tool._template_candidate(
+            self.template(),
+            gear_release_id=exact_gear["releaseId"],
+            season_revision=exact_gear["seasonRevision"],
+            level=90,
+            gear_snapshot=exact_snapshot,
+            capability_revision=self.dependencies()["capabilityRevision"],
+            prepared_index=exact_prepared,
+        )
+        self.assertEqual(
+            gear_release_tool.community_candidate_exact_progression_problems(
+                exact_candidate,
+                gear_snapshot=exact_snapshot,
+                gear_release_descriptor=exact_gear,
+                prepared_index=exact_prepared,
+            ),
+            [],
+        )
+
+    def test_community_hero_projection_skips_exact_progression_rejection(self):
+        from server import gear_release_tool
+        from server.gear_release_store import gear_snapshot_summary
+        from server.gear_release_tool import build_legacy_community_release
+
+        snapshot = self.exact_progression_snapshot()
+        gear = gear_release.build_release(
+            release_kind="gear",
+            season_revision=self.CURRENT_SEASON_REVISION,
+            schema_revision="gear-release-v1",
+            content=gear_snapshot_summary(snapshot),
+            dependency_revisions=self.dependencies(),
+            release_status="validated",
+            source={"sourceRevision": "exact-progression-election-test"},
+        )
+        top = self.template("arcane-top")
+        top["sourceIdentity"] = "raiderio:cn|realm|arcane-top"
+        top["payload"]["sourceIdentity"] = top["sourceIdentity"]
+        fallback = self.template("arcane-fallback")
+        fallback["sourceIdentity"] = "raiderio:cn|realm|arcane-fallback"
+        fallback["payload"]["sourceIdentity"] = fallback["sourceIdentity"]
+        other_hero = self.template("arcane-other-hero")
+        other_hero["sourceIdentity"] = "raiderio:cn|realm|arcane-other"
+        other_hero["payload"]["sourceIdentity"] = other_hero["sourceIdentity"]
+        talents = [
+            {"id": "talent-top", "classKey": "mage", "specKey": "arcane", "heroKey": "sunfury", "scenarioKey": "mythic_plus", "sourceKey": "raiderio", "sourceIdentity": top["sourceIdentity"], "talentCandidateRank": 1},
+            {"id": "talent-fallback", "classKey": "mage", "specKey": "arcane", "heroKey": "sunfury", "scenarioKey": "mythic_plus", "sourceKey": "raiderio", "sourceIdentity": fallback["sourceIdentity"], "talentCandidateRank": 2},
+            {"id": "talent-other", "classKey": "mage", "specKey": "arcane", "heroKey": "spellslinger", "scenarioKey": "mythic_plus", "sourceKey": "raiderio", "sourceIdentity": other_hero["sourceIdentity"], "talentCandidateRank": 1},
+        ]
+        store = FakeReleaseStore(
+            snapshot,
+            [top, fallback, other_hero],
+            talents,
+        )
+        exact_validator = gear_release_tool.community_candidate_exact_progression_problems
+
+        def reject_top(candidate, **kwargs):
+            if candidate.get("candidateId") == "arcane-top":
+                return [{
+                    "code": "TRACK_AUTHORITY_EXACT_TRACK_EVIDENCE_MISSING",
+                    "path": "candidate.selectionIntent.slots.head",
+                    "message": "Exact track evidence is missing.",
+                }]
+            return exact_validator(candidate, **kwargs)
+
+        with patch.object(
+            gear_release_tool,
+            "community_candidate_exact_progression_problems",
+            side_effect=reject_top,
+        ):
+            result = build_legacy_community_release(
+                store,
+                gear_release_descriptor=gear,
+                gear_snapshot=snapshot,
+                dependency_revisions=self.dependencies(),
+                expected_specs=[("mage", "arcane")],
+                now="2026-07-11T06:00:00+00:00",
+                resolver_for_spec=lambda *_args: self.verified_result(gear["releaseId"]),
+            )
+
+        winners = {
+            row["payload"]["heroKey"]: row["payload"]
+            for row in result["rows"]
+            if row["role"] == "winner"
+        }
+        self.assertEqual(
+            winners["sunfury"]["gearSourceTemplateId"],
+            "arcane-fallback",
+        )
+        rejection = next(
+            row
+            for row in result["election"]["rejected"]
+            if row.get("candidateId") == "talent-top"
+        )
+        self.assertEqual(
+            rejection["problems"][0]["code"],
+            "TRACK_AUTHORITY_EXACT_TRACK_EVIDENCE_MISSING",
+        )
+
+    def test_community_projection_reserves_exact_valid_active_winner_for_its_hero(self):
+        from server import gear_release_tool
+        from server.gear_release_store import (
+            CandidateGearAuthorityIndex,
+            gear_snapshot_summary,
+        )
+        from server.gear_release_tool import build_legacy_community_release
+
+        snapshot = self.exact_progression_snapshot()
+        invalid_item = copy.deepcopy(snapshot["items"][0])
+        invalid_item.update({
+            "itemId": "item-b",
+            "name": "B",
+        })
+        snapshot["items"].append(invalid_item)
+        invalid_source = copy.deepcopy(snapshot["sources"][0])
+        invalid_source.update({
+            "sourceId": "source-b",
+            "itemId": "item-b",
+        })
+        snapshot["sources"].append(invalid_source)
+        invalid_variant = copy.deepcopy(snapshot["variants"][0])
+        invalid_variant.update({
+            "variantId": "variant-b-id",
+            "itemId": "item-b",
+            "variantKey": "variant-b",
+            "simcOptions": {"ilevel": "289"},
+        })
+        snapshot["variants"].append(invalid_variant)
+        gear = gear_release.build_release(
+            release_kind="gear",
+            season_revision=self.CURRENT_SEASON_REVISION,
+            schema_revision="gear-release-v1",
+            content=gear_snapshot_summary(snapshot),
+            dependency_revisions=self.dependencies(),
+            release_status="validated",
+            source={"sourceRevision": "active-reservation-test"},
+        )
+        reserved = self.template("reserved-sunfury")
+        reserved["sourceIdentity"] = "raiderio:cn|realm|reserved"
+        reserved["payload"]["sourceIdentity"] = reserved["sourceIdentity"]
+        invalid_active = self.template("invalid-spellslinger")
+        invalid_active["sourceIdentity"] = "raiderio:cn|realm|invalid"
+        invalid_active["payload"]["sourceIdentity"] = invalid_active[
+            "sourceIdentity"
+        ]
+        invalid_active["gearItems"][0].update({
+            "itemId": "item-b",
+            "variantKey": "variant-b",
+        })
+        fallback = self.template("fallback-spellslinger")
+        fallback["sourceIdentity"] = "raiderio:cn|realm|fallback"
+        fallback["payload"]["sourceIdentity"] = fallback["sourceIdentity"]
+        prepared = CandidateGearAuthorityIndex(snapshot, gear)
+
+        def active_winner(template, hero_key):
+            candidate = gear_release_tool._template_candidate(
+                template,
+                gear_release_id=gear["releaseId"],
+                season_revision=gear["seasonRevision"],
+                level=90,
+                gear_snapshot=snapshot,
+                capability_revision=self.dependencies()[
+                    "capabilityRevision"
+                ],
+                prepared_index=prepared,
+            )
+            return {
+                "templateId": (
+                    "community-gear:mage:arcane:"
+                    f"{hero_key}:{template['templateId']}"
+                ),
+                "classKey": "mage",
+                "specKey": "arcane",
+                "role": "winner",
+                "sourceKey": candidate["sourceKey"],
+                "selectionIntent": candidate["selectionIntent"],
+                "importEvidence": candidate["importEvidence"],
+                "payload": {
+                    "heroKey": hero_key,
+                    "gearSourceTemplateId": template["templateId"],
+                },
+            }
+
+        active_community_id = "community-release:active-reservation"
+        active_pair = {
+            "communityRelease": {
+                "releaseId": active_community_id,
+                "schemaRevision": "community-release-v2",
+                "validatedAgainstReleaseId": gear["releaseId"],
+            },
+            "winners": [
+                active_winner(invalid_active, "spellslinger"),
+                active_winner(reserved, "sunfury"),
+            ],
+        }
+
+        class ActiveReleaseStore(FakeReleaseStore):
+            def load_active_manifest_binding(self):
+                return {
+                    "formalActiveManifest": True,
+                    "manifest": {
+                        "gearCatalogReleaseId": gear["releaseId"],
+                        "communityTemplateReleaseId": active_community_id,
+                    },
+                }
+
+            def load_community_release(
+                self,
+                gear_release_id,
+                community_release_id,
+            ):
+                self.active_pair_request = (
+                    gear_release_id,
+                    community_release_id,
+                )
+                return copy.deepcopy(active_pair)
+
+        talents = [
+            {"id": "talent-spell-reserved", "classKey": "mage", "specKey": "arcane", "heroKey": "spellslinger", "scenarioKey": "mythic_plus", "sourceKey": "raiderio", "sourceIdentity": reserved["sourceIdentity"], "talentCandidateRank": 1},
+            {"id": "talent-spell-fallback", "classKey": "mage", "specKey": "arcane", "heroKey": "spellslinger", "scenarioKey": "mythic_plus", "sourceKey": "raiderio", "sourceIdentity": fallback["sourceIdentity"], "talentCandidateRank": 2},
+            {"id": "talent-sun-reserved", "classKey": "mage", "specKey": "arcane", "heroKey": "sunfury", "scenarioKey": "mythic_plus", "sourceKey": "raiderio", "sourceIdentity": reserved["sourceIdentity"], "talentCandidateRank": 1},
+        ]
+        store = ActiveReleaseStore(
+            snapshot,
+            [reserved, invalid_active, fallback],
+            talents,
+        )
+
+        result = build_legacy_community_release(
+            store,
+            gear_release_descriptor=gear,
+            gear_snapshot=snapshot,
+            dependency_revisions=self.dependencies(),
+            expected_specs=[("mage", "arcane")],
+            now="2026-07-11T06:00:00+00:00",
+            resolver_for_spec=lambda *_args: self.verified_result(
+                gear["releaseId"]
+            ),
+        )
+
+        winners = {
+            row["payload"]["heroKey"]: row["payload"]
+            for row in result["rows"]
+        }
+        self.assertEqual(
+            winners["spellslinger"]["gearSourceTemplateId"],
+            "fallback-spellslinger",
+        )
+        self.assertEqual(
+            winners["sunfury"]["gearSourceTemplateId"],
+            "reserved-sunfury",
+        )
+        self.assertEqual(
+            winners["sunfury"]["gearProjectionMode"],
+            "gear_fallback",
+        )
+        self.assertEqual(result["gate"]["activeWinnerReservationCount"], 1)
+        self.assertEqual(result["gate"]["activeWinnerCarryForwardCount"], 1)
+
     def test_community_release_projects_two_hero_slots_from_talent_candidates(self):
         from server import gear_release_tool
         from server.gear_release_store import gear_snapshot_summary
         from server.gear_release_tool import build_legacy_community_release
 
-        snapshot = self.snapshot()
+        snapshot = self.exact_progression_snapshot()
         gear = gear_release.build_release(
             release_kind="gear",
-            season_revision="season-17",
+            season_revision=self.CURRENT_SEASON_REVISION,
             schema_revision="gear-release-v1",
             content=gear_snapshot_summary(snapshot),
             dependency_revisions=self.dependencies(),
@@ -3311,10 +3631,10 @@ class GearReleaseToolTest(unittest.TestCase):
         from server.gear_release_store import gear_snapshot_summary
         from server.gear_release_tool import build_legacy_community_release
 
-        snapshot = self.snapshot()
+        snapshot = self.exact_progression_snapshot()
         gear = gear_release.build_release(
             release_kind="gear",
-            season_revision="season-17",
+            season_revision=self.CURRENT_SEASON_REVISION,
             schema_revision="gear-release-v1",
             content=gear_snapshot_summary(snapshot),
             dependency_revisions=self.dependencies(),
@@ -3357,10 +3677,10 @@ class GearReleaseToolTest(unittest.TestCase):
         from server.gear_release_store import gear_snapshot_summary
         from server.gear_release_tool import build_legacy_community_release
 
-        snapshot = self.snapshot()
+        snapshot = self.exact_progression_snapshot()
         gear = gear_release.build_release(
             release_kind="gear",
-            season_revision="season-17",
+            season_revision=self.CURRENT_SEASON_REVISION,
             schema_revision="gear-release-v1",
             content=gear_snapshot_summary(snapshot),
             dependency_revisions=self.dependencies(),

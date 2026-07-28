@@ -255,6 +255,28 @@ class FakeConnection:
 
 
 class GearCatalogMigrationAuditCliTest(unittest.TestCase):
+    def test_compact_slot_payloads_count_as_specialization_candidates(self):
+        payload = {
+            "replacementCandidates": [
+                {
+                    "slot": "head",
+                    "fullItemCount": 2,
+                    "items": [],
+                },
+                {
+                    "slot": "neck",
+                    "fullItemCount": 1,
+                    "items": [],
+                },
+            ],
+            "slots": [
+                {"slot": "head"},
+                {"slot": "neck"},
+            ],
+        }
+
+        self.assertEqual(audit_cli._candidate_count(payload), 3)
+
     def test_resource_rows_consume_only_an_exact_validated_probe_binding(self):
         exact = audit_cli._resource_rows(
             audit_snapshot(),
