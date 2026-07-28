@@ -47,6 +47,10 @@
   cgroup 峰值达到 2,220,298,240 bytes，超过既定 2,000,000,000 bytes 硬上限，因此
   主动终止且不产出通过报告。shadow reader 现会立即压缩为候选身份对、清空仅属于候选
   进程的 payload cache 并回收对象；下一候选同时由 MemoryMax/RuntimeMaxSec 硬限制。
+- 第六次候选证明仅清 LRU 仍不够：单次 public payload 深拷贝触及
+  2,000,039,936 bytes 并产生 307 MiB swap，再次主动终止。最终方案不再调用 public
+  payload builder；它只读取一次同一活动 Gear Release snapshot，复用当前 PG selector
+  的来源/变体/选项索引，对 40 专精逐一生成最小候选身份集合。
 - 全局 `/api/data/health` 仍为 `partial`。本阶段不把旧 staging/refresh owner
   冒充成新的 Catalog 健康成功，也不在完成 shadow 前迁移 health owner。
 

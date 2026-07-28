@@ -112,6 +112,10 @@
     {
       "date": "2026-07-29",
       "decision": "Full-spec shadow payloads are reduced immediately to visible identity pairs and evicted from the isolated candidate-process cache; candidate execution remains bounded by the accepted 2,000,000,000-byte and 300-second ceilings."
+    },
+    {
+      "date": "2026-07-29",
+      "decision": "After full public payload materialization still touched the memory ceiling, the final 40-spec shadow design reads one active Gear Release snapshot and reuses the production PG selector indexes to project minimal per-spec identity sets without public payload copying or caching."
     }
   ]
 }

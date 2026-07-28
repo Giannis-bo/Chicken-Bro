@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime, timezone
-import gc
 import hashlib
 import json
 import os
@@ -148,38 +147,140 @@ def _visible_candidate_pairs(payload: Mapping[str, Any]) -> list[tuple[str, str]
     return sorted(result)
 
 
-def _bounded_spec_shadow_payload(
-    cache_store: Any,
-    class_key: str,
-    spec_key: str,
+def _snapshot_spec_payload_reader(
+    catalog_rows: Mapping[str, Any],
+    pointer: Mapping[str, Any],
+    season_revision: str,
     *,
-    cache_clear: Callable[[], Any],
-) -> dict[str, Any]:
-    payload: Mapping[str, Any] = {}
-    try:
-        payload = _full_spec_catalog_payload(
-            cache_store,
-            class_key,
-            spec_key,
+    selectors: Any = None,
+    release_status: str = "validated",
+) -> Callable[[str, str], Mapping[str, Any]]:
+    if selectors is None:
+        from server import pg_gear_read_model_selectors as selectors
+
+    rows = _mapping(catalog_rows)
+    source_rows = [
+        (
+            row.get("sourceId") or row.get("id"),
+            row.get("itemId"),
+            row.get("sourceType"),
+            row.get("sourceKey"),
+            row.get("sourceLabel"),
+            row.get("instanceId"),
+            row.get("encounterId"),
+            row.get("difficultyKey"),
+            row.get("seasonRevision"),
+            row.get("payload"),
+            row.get("updatedAt"),
         )
+        for row in rows.get("sources") or []
+        if isinstance(row, Mapping)
+    ]
+    variant_rows = [
+        (
+            row.get("variantId") or row.get("id"),
+            row.get("itemId"),
+            row.get("slot"),
+            row.get("variantKey"),
+            row.get("label"),
+            row.get("sourceType"),
+            row.get("difficultyKey"),
+            row.get("itemLevel"),
+            row.get("simcOptions"),
+            row.get("status"),
+            row.get("blockers"),
+            row.get("payload"),
+            row.get("updatedAt"),
+        )
+        for row in rows.get("variants") or []
+        if isinstance(row, Mapping)
+    ]
+    option_rows = [
+        (
+            row.get("optionId") or row.get("id"),
+            row.get("optionType"),
+            row.get("optionKey"),
+            row.get("name"),
+            row.get("applicableSlots"),
+            row.get("simcOptions"),
+            row.get("status"),
+            row.get("payload"),
+            row.get("updatedAt"),
+        )
+        for row in rows.get("options") or []
+        if isinstance(row, Mapping)
+    ]
+    item_rows = [
+        (
+            row.get("itemId") or row.get("id"),
+            row.get("name"),
+            row.get("slot"),
+            row.get("itemLevel"),
+            row.get("payload"),
+            row.get("sourceStatus"),
+        )
+        for row in rows.get("items") or []
+        if isinstance(row, Mapping)
+    ]
+    sources_by_item = (
+        selectors.build_gear_sources_by_item_read_model(source_rows)
+    )
+    variants_by_item = (
+        selectors.build_gear_variants_by_item_read_model(variant_rows)
+    )
+    options_by_slot = (
+        selectors.build_gear_mod_options_by_type_read_model(option_rows)
+    )
+    season = {
+        "seasonRevision": _text(season_revision),
+        "dataStatus": (
+            "verified"
+            if _text(release_status) == "validated"
+            else "blocked"
+        ),
+        "errors": [],
+    }
+    pointer_identity = {
+        "manifestRevision": _text(pointer.get("manifestRevision")),
+        "pointerGeneration": _integer(pointer.get("generation")),
+    }
+
+    def read(class_key: str, spec_key: str) -> Mapping[str, Any]:
+        catalog_items = (
+            selectors.build_gear_catalog_items_read_model(
+                item_rows,
+                sources_by_item,
+                variants_by_item,
+                options_by_slot,
+                class_key,
+                spec_key,
+                season,
+            )
+        )
+        read_model = (
+            selectors.build_catalog_gear_read_model_fragment(
+                catalog_items,
+                options_by_slot,
+                class_key,
+                spec_key,
+                compact=True,
+            )
+        )
+        visible = _visible_candidate_pairs({
+            "replacementCandidates": (
+                read_model.get("replacementCandidates") or []
+            )
+        })
         return {
-            "manifestRevision": _text(payload.get("manifestRevision")),
-            "pointerGeneration": _integer(payload.get("pointerGeneration")),
-            "catalogStatus": _text(
-                payload.get("catalogStatus") or payload.get("dataStatus")
-            ),
+            **pointer_identity,
+            "catalogStatus": season["dataStatus"],
             "catalogShadowVisibleCandidates": [
                 [item_id, variant_key]
-                for item_id, variant_key in _visible_candidate_pairs(payload)
+                for item_id, variant_key in visible
             ],
-            "_activeManifestBinding": _mapping(
-                payload.get("_activeManifestBinding")
-            ),
         }
-    finally:
-        payload = {}
-        cache_clear()
-        gc.collect()
+
+    return read
 
 
 def _catalog_binding(snapshot: Mapping[str, Any]) -> dict[str, Any]:
@@ -208,19 +309,6 @@ def _catalog_binding(snapshot: Mapping[str, Any]) -> dict[str, Any]:
             "contentSummary": _mapping(gear.get("contentSummary")),
         },
     }
-
-
-def _full_spec_catalog_payload(
-    cache_store: Any,
-    class_key: str,
-    spec_key: str,
-) -> Mapping[str, Any]:
-    return cache_store.get_websim_gear(
-        class_key=class_key,
-        spec_key=spec_key,
-        compact=True,
-        mode="",
-    )
 
 
 def _source_variant_aliases(
@@ -482,29 +570,35 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     from server.db import connect_postgres
-    from server import postgres_cache_store as postgres_cache_store_module
     from server.websim_payload import WOW_CLASSES
 
     connection_factory = lambda: connect_postgres(database_url)
     audit_store = GearCatalogAuditStore(connection_factory)
     catalog_store = GearCatalogRevisionStore(connection_factory)
-    cache_store = postgres_cache_store_module.PostgresCacheStore(
-        connection_factory
-    )
     try:
+        snapshot = _mapping(audit_store.snapshot(
+            statement_timeout_ms=args.statement_timeout_ms,
+            lock_timeout_ms=args.lock_timeout_ms,
+            batch_size=args.batch_size,
+        ))
+        binding = _catalog_binding(snapshot)
+        spec_payload_reader = _snapshot_spec_payload_reader(
+            _mapping(snapshot.get("catalogRows")),
+            _mapping(snapshot.get("pointerBefore")),
+            _text(binding.get("seasonRevision")),
+            release_status=_text(
+                _mapping(
+                    _mapping(snapshot.get("activeBinding")).get(
+                        "gearRelease"
+                    )
+                ).get("releaseStatus")
+            ),
+        )
         report = run_migration(
-            snapshot_reader=audit_store.snapshot,
+            snapshot_reader=lambda **_: snapshot,
             pointer_reader=audit_store.pointer_identity,
             seal_writer=catalog_store.seal_catalog,
-            spec_payload_reader=lambda class_key, spec_key: _bounded_spec_shadow_payload(
-                cache_store,
-                class_key,
-                spec_key,
-                cache_clear=(
-                    postgres_cache_store_module
-                    .PG_GEAR_PAYLOAD_CACHE.clear
-                ),
-            ),
+            spec_payload_reader=spec_payload_reader,
             class_spec_matrix=WOW_CLASSES,
             statement_timeout_ms=args.statement_timeout_ms,
             lock_timeout_ms=args.lock_timeout_ms,

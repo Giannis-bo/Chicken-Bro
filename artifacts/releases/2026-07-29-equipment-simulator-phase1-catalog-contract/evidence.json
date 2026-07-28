@@ -42,7 +42,7 @@
     {
       "command": "CatalogRevision RED/GREEN focused suites",
       "status": "pass",
-      "summary": "69 focused Catalog builder, formal membership, append-only store, migration schema, fixed-query projection and 40-specialization shadow tests pass. RED failures were observed before the builder, store, migration and CLI existed, before dormant metadata exclusion, persisted-order identity, observed Ascendant eligibility, order-independent seal semantics, full-catalog shadow reads and bounded payload-cache disposal were implemented."
+      "summary": "69 focused Catalog builder, formal membership, append-only store, migration schema, fixed-query projection and 40-specialization shadow tests pass, including the actual PG selector contract. RED failures were observed before the builder, store, migration and CLI existed, before dormant metadata exclusion, persisted-order identity, observed Ascendant eligibility, order-independent seal semantics, and before the final one-snapshot projection replaced public payload copying."
     },
     {
       "command": "pre-candidate repository verification",
@@ -52,7 +52,7 @@
     {
       "command": "candidate dormant Catalog migration and production shadow",
       "status": "blocked",
-      "summary": "The fourth immutable candidate sealed the exact 613/1309 Catalog and isolated the initial-preview error. The fifth candidate read full catalogs but was proactively terminated at 2,220,298,240 bytes, above the 2,000,000,000-byte hard ceiling, before a report could be promoted. The reader now compacts each spec to identity pairs and clears candidate-process payload cache between specs."
+      "summary": "The fourth immutable candidate sealed the exact 613/1309 Catalog. The fifth and sixth full-payload shadows were proactively terminated above the strict memory ceiling; the sixth also produced 307 MiB swap. The final implementation now reads one active snapshot and reuses production PG selector indexes to generate only minimal per-spec identity sets."
     },
     {
       "command": "exact-head Project Harness full profile and PR CI",
@@ -62,7 +62,7 @@
   ],
   "candidateDeployment": {
     "status": "catalog_sealed_shadow_retry_pending",
-    "reason": "Migration 0019 is applied and Catalog gear-catalog:sha256:2addca2ff52fdcc2d23c369572c88fba9919332927f07f10350d700654e5aa34 is sealed with 613 ItemDefinitions and 1309 BrowseVariants. A bounded full-catalog 40-spec shadow retry is pending after the fifth candidate exceeded the memory ceiling."
+    "reason": "Migration 0019 is applied and Catalog gear-catalog:sha256:2addca2ff52fdcc2d23c369572c88fba9919332927f07f10350d700654e5aa34 is sealed with 613 ItemDefinitions and 1309 BrowseVariants. A one-snapshot bounded 40-spec shadow retry is pending after the fifth and sixth full-payload candidates exceeded the memory ceiling."
   },
   "runtimeEvidence": [
     {
@@ -163,6 +163,29 @@
       },
       "reportWritten": false,
       "interpretation": "The candidate was actively terminated when repeated full-spec payloads accumulated in the process LRU above the accepted ceiling. The sealed Catalog remained unchanged and public services stayed active with zero restarts."
+    },
+    {
+      "candidateCommit": "3ce639a9d583d73e581e425f47de581b87122873",
+      "status": "blocked",
+      "problemCodes": [
+        "RESOURCE_PEAK_RSS_EXCEEDED",
+        "RESOURCE_SWAP_OBSERVED"
+      ],
+      "catalogRevision": "gear-catalog:sha256:2addca2ff52fdcc2d23c369572c88fba9919332927f07f10350d700654e5aa34",
+      "elapsedSecondsBeforeTermination": 170.52,
+      "memoryPeakBytes": 2000039936,
+      "memoryLimitBytes": 2000000000,
+      "swapPeakBytes": 321912832,
+      "runtimeLimitSeconds": 300,
+      "pointerGenerationBefore": 32,
+      "pointerGenerationAfter": 32,
+      "sealedCatalogRows": {
+        "revisions": 1,
+        "itemDefinitions": 613,
+        "browseVariants": 1309
+      },
+      "reportWritten": false,
+      "interpretation": "Per-spec LRU eviction reduced accumulation but full public payload deep-copy still touched the hard ceiling and used swap. The candidate was terminated; the final design reuses a single snapshot and PG selector indexes instead."
     }
   ],
   "risks": [
@@ -199,7 +222,7 @@
     {
       "id": "shadow-resource-bounds",
       "status": "controlled_by_tests_and_candidate_limits",
-      "detail": "Each full payload is immediately reduced to visible identity pairs, the isolated candidate-process LRU is cleared between specs, and the candidate runs under the accepted memory and elapsed hard ceilings."
+      "detail": "The final shadow reads one active snapshot, builds PG selector indexes once, emits only per-spec visible identity pairs, and runs under the accepted memory and elapsed hard ceilings."
     }
   ],
   "rollback": [
@@ -215,5 +238,5 @@
   "archivedReferences": [
     "artifacts/releases/2026-07-28-equipment-simulator-phase0-unblock/evidence.json"
   ],
-  "summary": "The dormant Catalog builder, append-only schema/store and bounded 40-specialization shadow are locally implemented and verified. Migration 0019 and the immutable 613/1309 Catalog are sealed; the fifth candidate correctly failed the 2,000,000,000-byte ceiling during full-catalog shadow. Per-spec identity compaction and cache disposal are fixed under RED/GREEN tests and await a fresh bounded candidate. No active pointer or public reader change has occurred."
+  "summary": "The dormant Catalog builder, append-only schema/store and bounded 40-specialization shadow are locally implemented and verified. Migration 0019 and the immutable 613/1309 Catalog are sealed; the fifth and sixth candidates correctly failed the 2,000,000,000-byte ceiling during public-payload shadow. One-snapshot PG-selector projection is fixed under RED/GREEN tests and awaits a fresh bounded candidate. No active pointer or public reader change has occurred."
 }

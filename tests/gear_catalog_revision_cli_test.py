@@ -84,64 +84,99 @@ def spec_payload(class_key, spec_key):
 
 
 class GearCatalogRevisionCliTest(unittest.TestCase):
-    def test_full_spec_reader_requests_catalog_payload_not_initial_preview(self):
+    def test_snapshot_shadow_reader_reuses_one_projection_without_public_payload_cache(self):
         calls = []
 
-        class FakeCacheStore:
-            def get_websim_gear(self, **kwargs):
-                calls.append(kwargs)
-                return {"catalogStatus": "verified"}
+        class FakeSelectors:
+            @staticmethod
+            def build_gear_sources_by_item_read_model(rows):
+                calls.append(("sources", len(rows)))
+                return {"1001": rows}
 
-        payload = revision_cli._full_spec_catalog_payload(
-            FakeCacheStore(),
-            "mage",
-            "arcane",
-        )
+            @staticmethod
+            def build_gear_variants_by_item_read_model(rows):
+                calls.append(("variants", len(rows)))
+                return {"1001": rows}
 
-        self.assertEqual(payload, {"catalogStatus": "verified"})
-        self.assertEqual(
-            calls,
-            [
-                {
-                    "class_key": "mage",
-                    "spec_key": "arcane",
-                    "compact": True,
-                    "mode": "",
-                }
-            ],
-        )
+            @staticmethod
+            def build_gear_mod_options_by_type_read_model(rows):
+                calls.append(("options", len(rows)))
+                return {}
 
-    def test_bounded_shadow_reader_compacts_and_clears_full_payload(self):
-        clear_calls = []
+            @staticmethod
+            def build_gear_catalog_items_read_model(
+                item_rows,
+                sources_by_item,
+                variants_by_item,
+                options_by_slot,
+                class_key,
+                spec_key,
+                season,
+            ):
+                calls.append(("catalog", class_key, spec_key, len(item_rows)))
+                return [
+                    {
+                        "itemId": "1001",
+                        "variants": [{"id": "hero-6"}],
+                    }
+                ]
 
-        class FakeCacheStore:
-            def get_websim_gear(self, **kwargs):
+            @staticmethod
+            def build_catalog_gear_read_model_fragment(
+                catalog_items,
+                options_by_slot,
+                class_key,
+                spec_key,
+                *,
+                compact,
+            ):
+                calls.append(("fragment", class_key, spec_key, compact))
                 return {
-                    "manifestRevision": CURRENT_BINDING["manifestRevision"],
-                    "pointerGeneration": 32,
-                    "catalogStatus": "verified",
                     "replacementCandidates": [
-                        {
-                            "items": [
-                                {
-                                    "itemId": "1001",
-                                    "variants": [{"id": "hero-6"}],
-                                    "largeDisplayPayload": "x" * 1000,
-                                }
-                            ]
-                        }
-                    ],
+                        {"slot": "head", "items": catalog_items}
+                    ]
                 }
 
-        payload = revision_cli._bounded_spec_shadow_payload(
-            FakeCacheStore(),
-            "mage",
-            "arcane",
-            cache_clear=lambda: clear_calls.append(True),
+        reader = revision_cli._snapshot_spec_payload_reader(
+            regular_rows(),
+            {
+                "generation": 32,
+                "manifestRevision": CURRENT_BINDING["manifestRevision"],
+            },
+            CURRENT_BINDING["seasonRevision"],
+            selectors=FakeSelectors,
+        )
+        payload = reader("mage", "arcane")
+
+        self.assertNotIn("replacementCandidates", payload)
+        self.assertEqual(
+            payload["catalogShadowVisibleCandidates"],
+            [["1001", "hero-6"]],
+        )
+        self.assertEqual(payload["pointerGeneration"], 32)
+        self.assertEqual(
+            [call[0] for call in calls].count("sources"),
+            1,
+        )
+        self.assertEqual(
+            [call[0] for call in calls].count("variants"),
+            1,
+        )
+        self.assertIn(("catalog", "mage", "arcane", 1), calls)
+
+    def test_snapshot_shadow_reader_projects_actual_pg_selector_contract(self):
+        reader = revision_cli._snapshot_spec_payload_reader(
+            regular_rows(),
+            {
+                "generation": 32,
+                "manifestRevision": CURRENT_BINDING["manifestRevision"],
+            },
+            CURRENT_BINDING["seasonRevision"],
         )
 
-        self.assertEqual(clear_calls, [True])
-        self.assertNotIn("replacementCandidates", payload)
+        payload = reader("paladin", "holy")
+
+        self.assertEqual(payload["catalogStatus"], "verified")
         self.assertEqual(
             payload["catalogShadowVisibleCandidates"],
             [["1001", "hero-6"]],

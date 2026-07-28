@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-07-28T17:57:15.919Z",
+  "generatedAt": "2026-07-28T18:04:19.425Z",
   "release": {
     "date": "2026-07-29",
     "slug": "equipment-simulator-phase1-catalog-contract"
@@ -38,7 +38,7 @@
         {
           "path": "docs/project-state.json",
           "exists": true,
-          "sizeBytes": 39668
+          "sizeBytes": 39669
         },
         {
           "path": "docs/project-owner-map.json",
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-07-29-equipment-simulator-phase1-catalog-contract/evidence.json",
-    "sizeBytes": 10687,
+    "sizeBytes": 11697,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -392,7 +392,7 @@
     "missingFields": [],
     "declaredStatus": "local_verified",
     "highestEvidenceLevel": "local_verified",
-    "summary": "The dormant Catalog builder, append-only schema/store and bounded 40-specialization shadow are locally implemented and verified. Migration 0019 and the immutable 613/1309 Catalog are sealed; the fifth candidate correctly failed the 2,000,000,000-byte ceiling during full-catalog shadow. Per-spec identity compaction and cache disposal are fixed under RED/GREEN tests and await a fresh bounded candidate. No active pointer or public reader change has occurred."
+    "summary": "The dormant Catalog builder, append-only schema/store and bounded 40-specialization shadow are locally implemented and verified. Migration 0019 and the immutable 613/1309 Catalog are sealed; the fifth and sixth candidates correctly failed the 2,000,000,000-byte ceiling during public-payload shadow. One-snapshot PG-selector projection is fixed under RED/GREEN tests and awaits a fresh bounded candidate. No active pointer or public reader change has occurred."
   },
   "evidence": {
     "localTests": {
