@@ -1,5 +1,8 @@
 import copy
+import hashlib
+import json
 import unittest
+from unittest.mock import patch
 
 from server import gear_release, gear_socket_authority
 
@@ -402,6 +405,81 @@ class GearReleaseStoreTest(unittest.TestCase):
         self.assertEqual(context["manifest"]["gearCatalogRevision"], release["releaseId"])
         self.assertEqual(context["manifest"]["manifestType"], "candidate")
         self.assertFalse(context["manifest"]["formalActiveManifest"])
+
+    def test_gear_snapshot_summary_streams_the_legacy_exact_hash_without_canonical_copies(self):
+        from server import gear_release_store
+
+        snapshot = self.snapshot()
+        snapshot["variants"].append({
+            **copy.deepcopy(snapshot["variants"][0]),
+            "variantId": "variant-b-id",
+            "variantKey": "variant-b",
+            "payload": {
+                "nested": {"z": 1, "a": [3, 2, 1]},
+                "resolvedStats": {"haste": 90},
+            },
+        })
+        snapshot["variants"].reverse()
+
+        def canonical(value):
+            return json.loads(json.dumps(
+                value,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+                default=str,
+            ))
+
+        def canonical_bytes(value):
+            return json.dumps(
+                value,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+                default=str,
+            ).encode("utf-8")
+
+        legacy = {
+            key: sorted(
+                [
+                    canonical(row)
+                    for row in snapshot[key]
+                    if isinstance(row, dict)
+                ],
+                key=canonical_bytes,
+            )
+            for key in ("items", "sources", "variants", "options")
+        }
+        expected_hash = "sha256:" + hashlib.sha256(
+            canonical_bytes(legacy)
+        ).hexdigest()
+
+        with patch.object(
+            gear_release_store,
+            "_canonical_rows",
+            side_effect=AssertionError("summary must not deep-copy the snapshot"),
+        ):
+            summary = gear_release_store.gear_snapshot_summary(snapshot)
+
+        self.assertEqual(summary["snapshotHash"], expected_hash)
+        self.assertEqual(summary["counts"]["variants"], 2)
+
+    def test_candidate_authority_index_reuses_validated_snapshot_rows(self):
+        from server.gear_release_store import CandidateGearAuthorityIndex
+
+        snapshot = self.snapshot()
+        release = self.gear_release(snapshot)
+        prepared = CandidateGearAuthorityIndex(snapshot, release)
+
+        self.assertIs(prepared.items["item-a"], snapshot["items"][0])
+        self.assertIs(
+            prepared.variants_by_item["item-a"][0],
+            snapshot["variants"][0],
+        )
+        self.assertIs(
+            prepared.options_by_key["gem-a"],
+            snapshot["options"][0],
+        )
 
     def test_prepared_candidate_authority_indexes_full_snapshot_only_once(self):
         from unittest.mock import patch

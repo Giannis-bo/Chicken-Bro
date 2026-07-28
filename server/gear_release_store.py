@@ -217,6 +217,38 @@ def _canonical_rows(rows: Any) -> list[dict[str, Any]]:
     return sorted(values, key=lambda row: _canonical_bytes(row))
 
 
+def _gear_snapshot_hash_and_counts(
+    snapshot: dict[str, Any],
+) -> tuple[str, dict[str, int]]:
+    """Stream the legacy canonical snapshot JSON without duplicating the graph."""
+
+    categories = ("items", "sources", "variants", "options")
+    counts: dict[str, int] = {}
+    digest = hashlib.sha256()
+    digest.update(b"{")
+    for category_index, category in enumerate(sorted(categories)):
+        if category_index:
+            digest.update(b",")
+        digest.update(_canonical_bytes(category))
+        digest.update(b":[")
+        encoded_rows = sorted(
+            _canonical_bytes(row)
+            for row in snapshot.get(category) or []
+            if isinstance(row, dict)
+        )
+        counts[category] = len(encoded_rows)
+        for row_index, encoded in enumerate(encoded_rows):
+            if row_index:
+                digest.update(b",")
+            digest.update(encoded)
+        digest.update(b"]")
+    digest.update(b"}")
+    return (
+        "sha256:" + digest.hexdigest(),
+        {category: counts[category] for category in categories},
+    )
+
+
 def _selected_option_ids(selection_intent: Any) -> list[str]:
     intent = selection_intent if isinstance(selection_intent, dict) else {}
     selected = set()
@@ -395,14 +427,11 @@ def _observed_compile_scope(
 
 def gear_snapshot_summary(snapshot: Any) -> dict[str, Any]:
     value = snapshot if isinstance(snapshot, dict) else {}
-    canonical = {
-        key: _canonical_rows(value.get(key))
-        for key in ("items", "sources", "variants", "options")
-    }
+    snapshot_hash, counts = _gear_snapshot_hash_and_counts(value)
     return {
         "schemaRevision": "gear-release-content-v1",
-        "snapshotHash": _hash(canonical),
-        "counts": {key: len(canonical[key]) for key in canonical},
+        "snapshotHash": snapshot_hash,
+        "counts": counts,
     }
 
 
@@ -478,7 +507,9 @@ class CandidateGearAuthorityIndex:
         if self.snapshot_summary != self.release["content"]:
             raise GearReleaseIntegrityError("candidate authority snapshot does not match Gear Release")
         self.item_rows_by_id: dict[str, list[dict[str, Any]]] = {}
-        for row in _canonical_rows(snapshot.get("items")):
+        for row in snapshot.get("items") or []:
+            if not isinstance(row, dict):
+                continue
             self.item_rows_by_id.setdefault(_text(row.get("itemId")), []).append(row)
         self.items = {
             item_id: rows[0]
@@ -486,15 +517,19 @@ class CandidateGearAuthorityIndex:
             if len(rows) == 1
         }
         self.sources_by_item: dict[str, list[dict[str, Any]]] = {}
-        for row in _canonical_rows(snapshot.get("sources")):
+        for row in snapshot.get("sources") or []:
+            if not isinstance(row, dict):
+                continue
             self.sources_by_item.setdefault(_text(row.get("itemId")), []).append(row)
         self.variants_by_item: dict[str, list[dict[str, Any]]] = {}
-        for row in _canonical_rows(snapshot.get("variants")):
+        for row in snapshot.get("variants") or []:
+            if not isinstance(row, dict):
+                continue
             self.variants_by_item.setdefault(_text(row.get("itemId")), []).append(row)
         self.options_by_key = {
             _text(row.get("optionKey")): row
-            for row in _canonical_rows(snapshot.get("options"))
-            if _text(row.get("optionKey"))
+            for row in snapshot.get("options") or []
+            if isinstance(row, dict) and _text(row.get("optionKey"))
         }
         self.verified_options = [
             row
