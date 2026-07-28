@@ -652,6 +652,7 @@ class GearCatalogAuditStore:
                 }),
                 "classKey": _text(row[1]),
                 "specKey": _text(row[2]),
+                "selectionIntent": selection_intent,
                 "gearItems": gear_items,
                 "problemCodes": sorted({
                     _text(problem.get("code"))

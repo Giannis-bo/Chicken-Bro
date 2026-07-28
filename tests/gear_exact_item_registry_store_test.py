@@ -39,7 +39,28 @@ class FakeCursor:
         normalized = " ".join(str(sql).split())
         self.database.statements.append(normalized)
         self.rows = []
-        if "gear_exact_registry_load_refs" in normalized:
+        if "gear_exact_registry_latest_revision" in normalized:
+            candidates = {
+                revision: row
+                for (revision, _), row in self.database.references.items()
+            }
+            if "catalog_revision = %s" in normalized:
+                catalog = params[0]
+                candidates = {
+                    revision: row
+                    for revision, row in candidates.items()
+                    if row[1] == catalog
+                }
+            if "gear_rule_revision = %s" in normalized:
+                rule = params[-1]
+                candidates = {
+                    revision: row
+                    for revision, row in candidates.items()
+                    if row[3] == rule
+                }
+            revisions = sorted(candidates, reverse=True)
+            self.rows = [(revisions[0],)] if revisions else []
+        elif "gear_exact_registry_load_refs" in normalized:
             self.rows = [
                 row
                 for (revision, _), row in sorted(self.database.references.items())
@@ -90,6 +111,11 @@ class FakeCursor:
         rows = list(self.rows)
         self.rows = []
         return rows
+
+    def fetchone(self):
+        row = self.rows[0] if self.rows else None
+        self.rows = []
+        return row
 
 
 class FakeConnection:
@@ -143,6 +169,21 @@ class GearExactItemRegistryStoreTest(unittest.TestCase):
         self.assertNotIn(" DELETE ", f" {joined} ")
         self.assertTrue(self.connection.committed)
         self.assertFalse(self.connection.rolled_back)
+
+    def test_latest_registry_is_filterable_and_exactly_reloadable(self):
+        self.store.seal_registry(self.registry)
+
+        latest = self.store.load_latest_registry(
+            catalog_revision=CATALOG_REVISION,
+            gear_rule_revision=CURRENT_BINDING["gearRuleRevision"],
+        )
+        missing = self.store.load_latest_registry(
+            catalog_revision="gear-catalog:sha256:" + ("0" * 64),
+            gear_rule_revision="",
+        )
+
+        self.assertEqual(latest, self.registry)
+        self.assertEqual(missing, {})
 
     def test_tampered_exact_row_is_rejected_not_overwritten(self):
         self.store.seal_registry(self.registry)

@@ -1,6 +1,6 @@
 # 装备模拟目标架构
 
-状态：`已批准；Phase 0-2 已完整归档；下一步 Phase 3 ResolvedLoadout + SimulationSnapshot`
+状态：`已批准；Phase 0-2 已完整归档；Phase 3 ResolvedLoadout + SimulationSnapshot 正在推进`
 
 批准日期：`2026-07-28`
 

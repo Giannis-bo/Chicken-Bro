@@ -1,6 +1,6 @@
 {
-  "version": "2026-07-29-equipment-simulator-phase2-exact-enhancement-v1",
-  "status": "phase4_admin_gate_queue_summary_read_model_selector_extracted",
+  "version": "2026-07-29-equipment-simulator-phase3-resolved-snapshot-v1",
+  "status": "equipment_simulator_phase3_resolved_snapshot_active",
   "harnessVersion": "v0.6.4",
   "defaultEvidenceLevel": "local_verified",
   "rules": {
@@ -13,8 +13,8 @@
   "hotspotFiles": [
     {
       "path": "server/gear_catalog_migration_audit.py",
-      "healthStatus": "phase2_dormant_exact_cache_in_progress",
-      "summary": "Owns the archived Phase 0/1 catalog migration contracts plus the Phase 2 privacy-safe ExactItemInstance and EnhancementSelection builders, append-only store and bounded template shadow.",
+      "healthStatus": "phase3_immutable_simulation_snapshot_active",
+      "summary": "Owns the archived Phase 0/1 catalog migration contracts, Phase 2 exact registry, and Phase 3 exact-only ResolvedLoadout plus immutable SimulationSnapshot boundary.",
       "owners": [
         {
           "id": "equipment_simulator_catalog_migration_phase0",
@@ -81,7 +81,7 @@
         },
         {
           "id": "equipment_simulator_exact_item_instance_phase2",
-          "status": "dormant_exact_cache_implementation",
+          "status": "phase2_archived",
           "factOwner": "server/gear_exact_item_instance.py",
           "registryOwner": "server/gear_exact_item_registry.py",
           "trackAuthorityOwner": "server/gear_track_authority.py",
@@ -112,7 +112,51 @@
             "tests/postgres_schema_test.py"
           ],
           "runtimeConsumers": [],
-          "futureExtractionDirection": "A later explicit ResolvedLoadout phase may consume verified exact keys only after production shadow, identity parity and rollback evidence are archived."
+          "futureExtractionDirection": "Phase 3 consumes only verified exact keys; partial references remain explicit blockers and sealed Phase 2 rows remain immutable."
+        },
+        {
+          "id": "equipment_simulator_resolved_snapshot_phase3",
+          "status": "implementation_and_candidate_verification",
+          "loadoutOwner": "server/gear_resolved_loadout.py",
+          "snapshotOwner": "server/simulation_snapshot.py",
+          "compatibilityOwner": "server/simulation_snapshot_compat.py",
+          "writeOwner": "server/simulation_snapshot_store.py",
+          "taskBoundaryOwners": [
+            "server/news_backend.py",
+            "server/simulator_payload.py"
+          ],
+          "migration": "server/migrations/postgres/0021_websim_simulation_snapshot.sql",
+          "cliOrchestrator": "scripts/gear-resolved-snapshot.py",
+          "owns": [
+            "exact-only whole-loadout identity joined to current Resolver legality",
+            "fixed-order canonical SimC compiler and immutable execution input",
+            "content-addressed talent, loadout, compiler and runtime snapshot identity",
+            "append-only loadout/snapshot seal and additive terminal result binding",
+            "task fingerprint, sealed reload and byte-for-byte runner execution",
+            "80-template pointer-fenced deterministic shadow"
+          ],
+          "mustNotChange": [
+            "Do not duplicate or weaken Resolver legality and readiness decisions.",
+            "Do not promote partial, stale, blocked or revision-conflicting exact references.",
+            "Do not permit frontend profile assembly or runner-time snapshot recompilation.",
+            "Do not update or delete sealed loadouts, snapshots or terminal result bindings.",
+            "Do not switch the active Catalog, Community or Season Manifest pointer in Phase 3."
+          ],
+          "characterization": [
+            "tests/gear_resolved_loadout_test.py",
+            "tests/simulation_snapshot_test.py",
+            "tests/simulation_snapshot_compat_test.py",
+            "tests/simulation_snapshot_store_test.py",
+            "tests/gear_resolved_snapshot_shadow_test.py",
+            "tests/news_backend_test.py",
+            "tests/postgres_schema_test.py"
+          ],
+          "runtimeConsumers": [
+            "canonical saved-template confirmation",
+            "simcraft_template task enqueue and runner",
+            "Phase 3 candidate shadow"
+          ],
+          "futureExtractionDirection": "Phase 4 may cut readers to one Manifest only after Phase 3 candidate, SimC, rollback and parity evidence are archived."
         }
       ]
     },

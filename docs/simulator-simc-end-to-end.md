@@ -69,12 +69,12 @@ Backend rules:
 
 The legacy `templateContext.talent + templateContext.gear` parsing path remains compatibility-only and is selected only when both canonical keys are absent. Confirm and final submit use the same preparation boundary:
 
-1. Confirmation uses `confirmOnly=true`. The backend parses the selected talent template, parses or replays the structured gear template, validates class/spec/race/scenario, builds a deterministic draft profile, and returns `simcReport.schemaRevision=simc-report-v2`. Confirmation must not run SimC, call LLM, or call Codex Worker.
-2. Final submit uses `confirmOnly=false` and `saveTask=true`. The backend repeats validation, creates or reuses a queued `simulator_tasks` row, stores `request_json`, `analysis_json`, and `summary_json`, returns `taskId`, and starts the background runner when `WOW_SIMC_TEMPLATE_TASK_AUTORUN` allows it.
-3. The runner owns the state transition `queued -> running -> completed/failed`. It pipes the stored normalized profile to `simc`, parses DPS only from SimC output, records `taskTiming`, updates `analysis_json`, regenerates `summary_json`, and never calls LLM/Codex.
-4. Duplicate active submits are deduped by `simcTaskFingerprint`, which includes user/template/class/spec/race/scenario/analysis-type inputs. If the same task is already `queued` or `running`, the API returns the active task lock instead of inserting another row.
+1. Confirmation uses `confirmOnly=true`. The backend reuses current Resolver legality, joins only Phase 2 `verified` exact references into a `ResolvedLoadout`, compiles a deterministic `SimulationSnapshot`, and returns `simcReport.schemaRevision=simc-report-v2`. Confirmation must not run SimC, call LLM, or call Codex Worker. A partial exact reference remains a literal blocker.
+2. Final submit uses `confirmOnly=false` and `saveTask=true`. The backend repeats validation, append-only seals the loadout and snapshot, creates or reuses a queued `simulator_tasks` row, stores `request_json`, `analysis_json`, and `summary_json`, returns `taskId`, and starts the background runner when `WOW_SIMC_TEMPLATE_TASK_AUTORUN` allows it.
+3. The runner owns the state transition `queued -> running -> completed/failed`. For a new task it reloads the sealed snapshot by `simulationSnapshotKey`, requires exact row equality, pipes `canonicalSimcInput` to `simc` byte-for-byte, and append-only binds one content-addressed terminal result. It never recompiles the profile and never calls LLM/Codex. Legacy rows without a snapshot retain their historical compatibility path.
+4. Duplicate active submits are deduped by `simcTaskFingerprint`, which includes the immutable snapshot key in addition to the legacy user/template/class/spec/race/scenario/analysis-type inputs. If the same task is already `queued` or `running`, the API returns the active task lock instead of inserting another row.
 
-`GET /api/simulator/simc/options` is the additive backend-owned options read model. `contractRevision=simc-options-v1` and `status=ready` gate consumption. It exposes only the supported race whitelist and class defaults, the three server scenario rows with fight style/targets/duration, and preparation rows from `simc-preparation-v1` with explicit `overrideSupported`; pending or unsupported preparation stays visible as such and is not promoted to a frontend placeholder.
+`GET /api/simulator/simc/options` is the additive backend-owned options read model. `contractRevision=simc-options-v1` and `status=ready` gate consumption. It exposes the supported race whitelist and class defaults, the three server scenario rows with fight style/targets/duration, preparation rows from `simc-preparation-v1`, the 26/14 execution policy, and the active immutable snapshot compiler revision. Pending or unsupported preparation stays visible as such and is not promoted to a frontend placeholder.
 
 The player-facing scenario contract is intentionally small:
 
@@ -94,7 +94,7 @@ Generated template/WebSim profiles also carry a combat-preparation contract:
 
 The durable payload split is:
 
-- `request_json`: normalized executable request, including slim template context, `simcTaskFingerprint`, scenario, race, and the generated profile needed by the runner.
+- `request_json`: normalized executable request. New rows contain the sealed `SimulationSnapshot`, its key and canonical bytes needed by the runner; public reads strip the full snapshot/profile and expose only the snapshot key. Legacy rows retain their old generated profile.
 - `analysis_json`: execution state and public `simcReport`; detail reads this after stripping profile/raw output/debug fields.
 - `summary_json`: compact task-list read model only. It contains state, title, build tags, scenario, DPS display for data compatibility, timing, and update time. The frontend task card intentionally does not display DPS or old benchmark copy.
 

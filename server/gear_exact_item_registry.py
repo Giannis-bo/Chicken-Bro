@@ -8,7 +8,10 @@ import json
 import re
 from typing import Any, Mapping
 
-from .gear_exact_item_instance import build_exact_item_instance
+try:
+    from .gear_exact_item_instance import build_exact_item_instance
+except ImportError:
+    from gear_exact_item_instance import build_exact_item_instance
 
 
 EXACT_ITEM_REGISTRY_SCHEMA_REVISION = "gear-exact-item-registry-v1"
@@ -155,6 +158,14 @@ def _template_content_hash(template: Mapping[str, Any]) -> str:
     })
 
 
+def template_content_hash(template: Any) -> str:
+    """Return the privacy-safe content identity used by template references."""
+
+    return _template_content_hash(
+        template if isinstance(template, Mapping) else {}
+    )
+
+
 def _reference_row(
     *,
     catalog_revision: str,
@@ -252,7 +263,7 @@ def build_exact_item_registry(
         for template_index, template in enumerate(templates):
             template_count += 1
             classified_template_count += 1
-            content_hash = _template_content_hash(template)
+            content_hash = template_content_hash(template)
             items = template.get("gearItems")
             if not isinstance(items, list) or not items:
                 problem = _problem(

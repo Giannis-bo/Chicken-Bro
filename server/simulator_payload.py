@@ -38,6 +38,11 @@ try:
 except ImportError:
     from simc_support_policy import simc_execution_support
 
+try:
+    from .simulation_snapshot import verify_simulation_snapshot
+except ImportError:
+    from simulation_snapshot import verify_simulation_snapshot
+
 
 DEFAULT_SIMC_VERSION_FILE = "/var/lib/wow-backend/simc-version.json"
 SIMC_AGENT_FORBIDDEN_KEYS = {"html", "json", "output", "save", "xml"}
@@ -3175,6 +3180,73 @@ def analyze_simcraft_template_request(payload, codex_runner=None):
     if not gear_items:
         return simcraft_template_blocked_payload(source, request_data, ["missing gear template SimC items"], scenario, spec_info)
 
+    simulation_snapshot = (
+        source.get("simulationSnapshot")
+        if isinstance(source.get("simulationSnapshot"), dict)
+        else {}
+    )
+    snapshot_profile = ""
+    if simulation_snapshot:
+        snapshot_issues = verify_simulation_snapshot(simulation_snapshot)
+        snapshot_profile = str(
+            simulation_snapshot.get("canonicalSimcInput") or ""
+        )
+        advertised_snapshot_key = str(
+            source.get("simulationSnapshotKey") or ""
+        ).strip()
+        snapshot_key = str(
+            simulation_snapshot.get("simulationSnapshotKey") or ""
+        ).strip()
+        source_profile = str(source.get("canonicalProfile") or "")
+        snapshot_character = (
+            simulation_snapshot.get("characterContext")
+            if isinstance(
+                simulation_snapshot.get("characterContext"),
+                dict,
+            )
+            else {}
+        )
+        snapshot_scenario = (
+            simulation_snapshot.get("scenarioOptions")
+            if isinstance(simulation_snapshot.get("scenarioOptions"), dict)
+            else {}
+        )
+        if advertised_snapshot_key and advertised_snapshot_key != snapshot_key:
+            snapshot_issues.append("SIMULATION_SNAPSHOT_KEY_MISMATCH")
+        if source_profile and source_profile.strip() != snapshot_profile.strip():
+            snapshot_issues.append("SIMULATION_SNAPSHOT_PROFILE_MISMATCH")
+        if (
+            str(snapshot_character.get("classKey") or "").strip()
+            != str(spec_info.get("class") or "").strip()
+            or str(snapshot_character.get("specKey") or "").strip()
+            != str(spec_info.get("spec") or "").strip()
+        ):
+            snapshot_issues.append("SIMULATION_SNAPSHOT_SPECIALIZATION_MISMATCH")
+        if (
+            str(snapshot_scenario.get("scenarioKey") or "").strip()
+            != str(source.get("scenarioKey") or "single").strip()
+        ):
+            snapshot_issues.append("SIMULATION_SNAPSHOT_SCENARIO_MISMATCH")
+        snapshot_issues = sorted(set(snapshot_issues))
+        if snapshot_issues or not snapshot_profile.endswith("\n"):
+            problem = {
+                "kind": "ILLEGAL_SELECTION",
+                "code": "SIMULATION_SNAPSHOT_INVALID",
+                "title": "Immutable SimulationSnapshot integrity validation failed.",
+                "detail": ",".join(snapshot_issues),
+                "path": "simulationSnapshot",
+                "retryable": False,
+                "meta": {"issues": snapshot_issues},
+            }
+            return simcraft_template_blocked_payload(
+                source,
+                request_data,
+                [problem["title"]],
+                scenario,
+                spec_info,
+                problems=[problem],
+            )
+
     canonical_profile = (
         str(source.get("canonicalProfile") or "").strip()
         if source.get("inputContract") == "canonical_selection_intent_v1"
@@ -3198,10 +3270,24 @@ def analyze_simcraft_template_request(payload, codex_runner=None):
             spec_info,
             problems=[problem],
         )
-    base_profile = canonical_profile or build_generated_simc_profile(spec_info, None, build_context, gear_items)
+    base_profile = (
+        snapshot_profile
+        or canonical_profile
+        or build_generated_simc_profile(spec_info, None, build_context, gear_items)
+    )
     temporary_buffs = request_data.get("temporaryBuffs") if isinstance(request_data.get("temporaryBuffs"), dict) else {}
     preparation = simc_preparation_payload(spec_info.get("class"), spec_info.get("spec"), temporary_buffs=temporary_buffs)
-    draft_profile = build_agent_simc_profile(base_profile, intent, scenario, "template", temporary_buffs=temporary_buffs)
+    draft_profile = (
+        snapshot_profile
+        if snapshot_profile
+        else build_agent_simc_profile(
+            base_profile,
+            intent,
+            scenario,
+            "template",
+            temporary_buffs=temporary_buffs,
+        )
+    )
     validation = validate_agent_simc_profile(draft_profile)
     request_data["profile"] = draft_profile
     request_data["preparation"] = simc_preparation_report(preparation)

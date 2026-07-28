@@ -80,6 +80,10 @@ try:
         is_canonical_profile_request,
         resolve_selection_intent,
     )
+    from .gear_resolved_loadout import build_resolved_loadout_from_registry
+    from .simulation_snapshot_compat import (
+        snapshot_from_compatibility_profile,
+    )
     from .gear_attribute_api import calculate_attributes_for_selection
     from .gear_attribute_preview_fixture import append_preview_template, preview_community_import, preview_enabled
     from .gear_stat_snapshot import STAT_SNAPSHOT_SCHEMA_REVISION, build_stat_signature
@@ -194,6 +198,8 @@ except ImportError:
         is_canonical_profile_request,
         resolve_selection_intent,
     )
+    from gear_resolved_loadout import build_resolved_loadout_from_registry
+    from simulation_snapshot_compat import snapshot_from_compatibility_profile
     from gear_attribute_api import calculate_attributes_for_selection
     from gear_attribute_preview_fixture import append_preview_template, preview_community_import, preview_enabled
     from gear_stat_snapshot import STAT_SNAPSHOT_SCHEMA_REVISION, build_stat_signature
@@ -4324,6 +4330,11 @@ SIMCRAFT_TEMPLATE_STAT_SIGNATURE_PATTERN = re.compile(r"^stat-snapshot:sha256:[0
 SIMCRAFT_OPTIONS_CONTRACT_REVISION = "simc-options-v1"
 SIMCRAFT_TEMPLATE_CANONICAL_INPUT_CONTRACT = "canonical_selection_intent_v1"
 SIMCRAFT_TEMPLATE_LEGACY_INPUT_CONTRACT = "legacy_template_v1"
+SIMULATION_SNAPSHOT_COMPILER_REVISION = "simc-profile-compiler-v1"
+
+
+def simulation_snapshot_v1_enabled():
+    return bool_env("WOW_SIMULATION_SNAPSHOT_V1_ENABLED", False)
 
 
 def build_simc_options_payload():
@@ -4331,6 +4342,12 @@ def build_simc_options_payload():
         "contractRevision": SIMCRAFT_OPTIONS_CONTRACT_REVISION,
         "status": "ready",
         "specializationPolicy": simc_execution_policy_summary(),
+        "simulationSnapshot": {
+            "contractRevision": "simulation-snapshot-v1",
+            "compilerRevision": SIMULATION_SNAPSHOT_COMPILER_REVISION,
+            "enabled": simulation_snapshot_v1_enabled(),
+            "taskExecution": "sealed_input",
+        },
         "races": {
             "status": "supported",
             "defaultKey": "troll",
@@ -4839,6 +4856,10 @@ def prepare_canonical_simcraft_template_request(request_payload):
     profile_data = {}
     canonical_stat_context = {}
     canonical_stat_snapshot = {}
+    phase3_loadout = {}
+    phase3_snapshot = {}
+    cache_store = cache_data_store()
+    simc_runtime_revision = current_gear_simc_runtime_revision()
 
     def canonical_profile_builder(
         resolved_snapshot,
@@ -4864,8 +4885,8 @@ def prepare_canonical_simcraft_template_request(request_payload):
     if not problems:
         http_status, profile_envelope = build_profile_from_selection_intent(
             source,
-            store=cache_data_store(),
-            simc_runtime_revision=current_gear_simc_runtime_revision(),
+            store=cache_store,
+            simc_runtime_revision=simc_runtime_revision,
             request_id=f"simc-template-profile-{uuid.uuid4().hex}",
             profile_builder=canonical_profile_builder,
         )
@@ -4945,6 +4966,106 @@ def prepare_canonical_simcraft_template_request(request_payload):
                         )
                         if snapshot_problem:
                             problems.append(snapshot_problem)
+
+    if simulation_snapshot_v1_enabled() and not problems:
+        if not callable(
+            getattr(cache_store, "get_latest_gear_exact_registry", None)
+        ):
+            problems.append(
+                simcraft_template_problem(
+                    "SIMULATION_EXACT_REGISTRY_UNAVAILABLE",
+                    "Exact item registry is unavailable for immutable simulation.",
+                    kind="AUTHORITY_UNAVAILABLE",
+                    path="simulationSnapshot.exactRegistryRevision",
+                    retryable=True,
+                )
+            )
+        else:
+            try:
+                exact_registry = cache_store.get_latest_gear_exact_registry()
+                phase3_loadout = build_resolved_loadout_from_registry(
+                    resolver_snapshot=canonical_stat_context.get(
+                        "resolvedSnapshot"
+                    ),
+                    exact_registry=exact_registry,
+                )
+                if phase3_loadout.get("status") == "ready":
+                    phase3_snapshot = snapshot_from_compatibility_profile(
+                        phase3_loadout,
+                        profile_data.get("profile"),
+                        scenario_key=scenario_key or "single",
+                        compiler_revision=SIMULATION_SNAPSHOT_COMPILER_REVISION,
+                        simc_runtime_revision=simc_runtime_revision,
+                    )
+            except Exception:
+                phase3_loadout = {}
+                phase3_snapshot = {}
+            phase3_problems = []
+            if phase3_loadout.get("status") != "ready":
+                phase3_problems = phase3_loadout.get("problems") or [
+                    {
+                        "code": "SIMULATION_RESOLVED_LOADOUT_UNAVAILABLE",
+                        "path": "resolvedLoadout",
+                        "message": "Exact ResolvedLoadout is unavailable.",
+                    }
+                ]
+            elif phase3_snapshot.get("status") != "ready":
+                phase3_problems = phase3_snapshot.get("problems") or [
+                    {
+                        "code": "SIMULATION_SNAPSHOT_UNAVAILABLE",
+                        "path": "simulationSnapshot",
+                        "message": "Immutable SimulationSnapshot is unavailable.",
+                    }
+                ]
+            for problem in phase3_problems:
+                problems.append(
+                    simcraft_template_problem(
+                        str(problem.get("code") or "SIMULATION_SNAPSHOT_UNAVAILABLE"),
+                        str(
+                            problem.get("message")
+                            or "Immutable SimulationSnapshot is unavailable."
+                        ),
+                        kind="AUTHORITY_UNAVAILABLE",
+                        path=str(problem.get("path") or "simulationSnapshot"),
+                        retryable=True,
+                    )
+                )
+            if (
+                not problems
+                and not bool(source.get("confirmOnly"))
+                and bool(source.get("saveTask"))
+            ):
+                try:
+                    sealed_loadout = cache_store.seal_resolved_loadout(
+                        phase3_loadout
+                    )
+                    sealed_snapshot = cache_store.seal_simulation_snapshot(
+                        phase3_snapshot
+                    )
+                except Exception:
+                    problems.append(
+                        simcraft_template_problem(
+                            "SIMULATION_SNAPSHOT_SEAL_FAILED",
+                            "Immutable SimulationSnapshot could not be sealed.",
+                            kind="AUTHORITY_UNAVAILABLE",
+                            path="simulationSnapshot",
+                            retryable=True,
+                        )
+                    )
+                else:
+                    if (
+                        sealed_loadout != phase3_loadout
+                        or sealed_snapshot != phase3_snapshot
+                    ):
+                        problems.append(
+                            simcraft_template_problem(
+                                "SIMULATION_SNAPSHOT_SEAL_MISMATCH",
+                                "Sealed SimulationSnapshot differs from compiler output.",
+                                kind="AUTHORITY_UNAVAILABLE",
+                                path="simulationSnapshot",
+                                retryable=True,
+                            )
+                        )
 
     class_key = clean_text(eligibility.get("classKey"), 64)
     spec_key = clean_text(eligibility.get("specKey"), 64)
@@ -5028,13 +5149,25 @@ def prepare_canonical_simcraft_template_request(request_payload):
             "statSnapshot": copy.deepcopy(stat_snapshot),
             "message": f"{spec_key}{class_key} · {scenario['label']} · {analysis_type}",
             "prompt": f"{spec_key}{class_key} · {scenario['label']} · {analysis_type}",
-            "canonicalProfile": str(profile_data.get("profile") or "").strip(),
+            "canonicalProfile": str(
+                phase3_snapshot.get("canonicalSimcInput")
+                or profile_data.get("profile")
+                or ""
+            ).strip(),
             "canonicalContext": {
                 "contractRevision": profile_envelope.get("contractRevision") or "gear-result-envelope-v1",
                 "status": profile_envelope.get("status") or ("blocked" if problems else "resolved"),
                 "releaseContext": profile_envelope.get("releaseContext") if isinstance(profile_envelope.get("releaseContext"), dict) else {},
                 "resolvedGearSignature": resolved_signature,
+                "resolvedLoadoutKey": phase3_loadout.get("resolvedLoadoutKey", ""),
+                "simulationSnapshotKey": phase3_snapshot.get("simulationSnapshotKey", ""),
+                "catalogRevision": phase3_snapshot.get("catalogRevision", ""),
+                "gearRuleRevision": phase3_snapshot.get("gearRuleRevision", ""),
+                "compilerRevision": phase3_snapshot.get("compilerRevision", ""),
+                "simcRuntimeRevision": phase3_snapshot.get("simcRuntimeRevision", ""),
             },
+            "resolvedLoadout": copy.deepcopy(phase3_loadout),
+            "simulationSnapshot": copy.deepcopy(phase3_snapshot),
             "buildContext": build_context,
             "gearSelection": {"items": simc_items},
             "templateContext": {"talent": talent_template, "gear": gear_template},
@@ -5255,6 +5388,11 @@ def simcraft_template_task_fingerprint(request_payload):
     template_context = source.get("templateContext") if isinstance(source.get("templateContext"), dict) else {}
     talent = template_context.get("talent") if isinstance(template_context.get("talent"), dict) else {}
     gear = template_context.get("gear") if isinstance(template_context.get("gear"), dict) else {}
+    simulation_snapshot = (
+        source.get("simulationSnapshot")
+        if isinstance(source.get("simulationSnapshot"), dict)
+        else {}
+    )
     fingerprint_source = {
         "mode": "simcraft_template",
         "classKey": source.get("classKey") or talent.get("classKey") or gear.get("classKey") or "",
@@ -5277,9 +5415,54 @@ def simcraft_template_task_fingerprint(request_payload):
         },
         "talentInput": (details.get("talents") or {}) if isinstance(details.get("talents"), dict) else {},
         "gearItems": (source.get("gearSelection") or {}).get("items") if isinstance(source.get("gearSelection"), dict) else [],
+        "simulationSnapshotKey": (
+            source.get("simulationSnapshotKey")
+            or simulation_snapshot.get("simulationSnapshotKey")
+            or ""
+        ),
     }
     encoded = json.dumps(fingerprint_source, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+
+def simcraft_snapshot_result_payload(snapshot, analysis, status):
+    source_snapshot = snapshot if isinstance(snapshot, dict) else {}
+    source_analysis = analysis if isinstance(analysis, dict) else {}
+    simulation = (
+        source_analysis.get("simulation")
+        if isinstance(source_analysis.get("simulation"), dict)
+        else {}
+    )
+    result = {
+        "simulationSnapshotKey": str(
+            source_snapshot.get("simulationSnapshotKey") or ""
+        ).strip(),
+        "status": str(status or "").strip(),
+        "simcRuntimeRevision": str(
+            source_snapshot.get("simcRuntimeRevision") or ""
+        ).strip(),
+        "simulation": {
+            "ran": bool(simulation.get("ran")),
+            "summary": str(simulation.get("summary") or ""),
+            "error": str(simulation.get("error") or ""),
+            "metrics": json_clone(
+                simulation.get("metrics")
+                if isinstance(simulation.get("metrics"), dict)
+                else {}
+            ),
+        },
+    }
+    encoded = json.dumps(
+        result,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    result["resultIdentity"] = (
+        "simc-result:sha256:"
+        + hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+    )
+    return result
 
 
 def simulator_task_owner_payload(user):
@@ -5708,6 +5891,15 @@ def public_simcraft_template_request(request_payload):
     request.pop("canonicalProfile", None)
     request.pop("guestId", None)
     request.pop("_executeSimcTask", None)
+    snapshot = (
+        request.get("simulationSnapshot")
+        if isinstance(request.get("simulationSnapshot"), dict)
+        else {}
+    )
+    if snapshot.get("simulationSnapshotKey"):
+        request["simulationSnapshotKey"] = snapshot["simulationSnapshotKey"]
+    request.pop("simulationSnapshot", None)
+    request.pop("resolvedLoadout", None)
     template_context = request.get("templateContext") if isinstance(request.get("templateContext"), dict) else {}
     slim_context = {}
     for key in ("talent", "gear"):
@@ -6121,14 +6313,205 @@ def mark_simcraft_template_task_running(conn, row, request_payload, analysis_pay
 def complete_simcraft_template_task_analysis(task_id, request_payload, running_analysis):
     public_task_id = public_row_value(task_id)
     run_request = dict(request_payload)
+    simulation_snapshot = (
+        request_payload.get("simulationSnapshot")
+        if isinstance(request_payload.get("simulationSnapshot"), dict)
+        else {}
+    )
+    snapshot_reload_problem = {}
+    reused_snapshot_result = {}
+    if simulation_snapshot:
+        try:
+            snapshot_store = cache_data_store()
+            if not snapshot_store or not callable(
+                getattr(snapshot_store, "get_simulation_snapshot", None)
+            ):
+                raise RuntimeError("simulation snapshot store unavailable")
+            sealed_snapshot = snapshot_store.get_simulation_snapshot(
+                simulation_snapshot.get("simulationSnapshotKey"),
+                include_result=False,
+            )
+            if sealed_snapshot != simulation_snapshot:
+                raise RuntimeError("sealed simulation snapshot mismatch")
+            executed_snapshot = snapshot_store.get_simulation_snapshot(
+                simulation_snapshot.get("simulationSnapshotKey"),
+                include_result=True,
+            )
+            candidate_result = (
+                executed_snapshot.get("result")
+                if isinstance(executed_snapshot, dict)
+                and isinstance(executed_snapshot.get("result"), dict)
+                else {}
+            )
+            result_identity = str(
+                candidate_result.get("resultIdentity") or ""
+            ).strip()
+            if (
+                executed_snapshot.get("status") == "executed"
+                and re.fullmatch(
+                    r"simc-result:sha256:[0-9a-f]{64}",
+                    result_identity,
+                )
+                and str(executed_snapshot.get("resultIdentity") or "").strip()
+                == result_identity
+                and str(
+                    candidate_result.get("simulationSnapshotKey") or ""
+                ).strip()
+                == str(
+                    simulation_snapshot.get("simulationSnapshotKey") or ""
+                ).strip()
+                and str(
+                    candidate_result.get("simcRuntimeRevision") or ""
+                ).strip()
+                == str(
+                    simulation_snapshot.get("simcRuntimeRevision") or ""
+                ).strip()
+                and candidate_result.get("status")
+                in {"completed", "failed"}
+                and isinstance(candidate_result.get("simulation"), dict)
+            ):
+                reused_snapshot_result = dict(candidate_result)
+        except Exception:
+            snapshot_reload_problem = {
+                "kind": "AUTHORITY_UNAVAILABLE",
+                "code": "SIMULATION_SNAPSHOT_RELOAD_FAILED",
+                "title": "Immutable SimulationSnapshot could not be reloaded.",
+                "detail": "",
+                "path": "simulationSnapshot",
+                "retryable": True,
+                "meta": {},
+            }
+            validation = (
+                dict(run_request.get("templateValidation"))
+                if isinstance(run_request.get("templateValidation"), dict)
+                else {}
+            )
+            validation["passed"] = False
+            validation["errors"] = simcraft_template_unique_messages(
+                [
+                    *(validation.get("errors") or []),
+                    snapshot_reload_problem["title"],
+                ]
+            )
+            validation["problems"] = [
+                *(
+                    validation.get("problems")
+                    if isinstance(validation.get("problems"), list)
+                    else []
+                ),
+                snapshot_reload_problem,
+            ]
+            run_request["templateValidation"] = validation
+        else:
+            run_request["simulationSnapshot"] = sealed_snapshot
     run_request["confirmOnly"] = False
     run_request["saveTask"] = True
     run_request["_executeSimcTask"] = True
-    analysis = analyze_simulator_request(run_request)
-    final_status = "completed" if bool((analysis.get("simulation") or {}).get("ran")) else "failed"
+    if reused_snapshot_result:
+        analysis = dict(running_analysis)
+        final_status = reused_snapshot_result["status"]
+        analysis["simulation"] = copy.deepcopy(
+            reused_snapshot_result["simulation"]
+        )
+        agent = (
+            dict(analysis.get("agent"))
+            if isinstance(analysis.get("agent"), dict)
+            else {}
+        )
+        agent["status"] = (
+            "simc_completed"
+            if final_status == "completed"
+            else "simc_failed"
+        )
+        analysis["agent"] = agent
+        analysis["runPolicy"] = {
+            "policy": "snapshot_result_reused",
+            "profileSource": "sealed_snapshot",
+            "canRunSimc": False,
+            "didRunSimc": False,
+            "requiresFullProfile": False,
+            "validationPassed": True,
+            "reason": "immutable snapshot result already bound",
+        }
+    else:
+        analysis = analyze_simulator_request(run_request)
+        final_status = (
+            "completed"
+            if bool((analysis.get("simulation") or {}).get("ran"))
+            else "failed"
+        )
     analysis = dict(analysis)
     analysis["taskId"] = public_task_id
     analysis["status"] = final_status
+    if reused_snapshot_result:
+        analysis["simulationSnapshotResult"] = {
+            "status": "reused",
+            "simulationSnapshotKey": str(
+                simulation_snapshot.get("simulationSnapshotKey") or ""
+            ),
+            "resultIdentity": reused_snapshot_result["resultIdentity"],
+        }
+    elif simulation_snapshot and not snapshot_reload_problem:
+        result_payload = simcraft_snapshot_result_payload(
+            simulation_snapshot,
+            analysis,
+            final_status,
+        )
+        try:
+            store = cache_data_store()
+            if not store or not callable(
+                getattr(store, "bind_simulation_snapshot_result", None)
+            ):
+                raise RuntimeError("simulation snapshot result store unavailable")
+            bound = store.bind_simulation_snapshot_result(
+                simulation_snapshot.get("simulationSnapshotKey"),
+                result_payload,
+            )
+            if (
+                str(bound.get("resultIdentity") or "")
+                != result_payload["resultIdentity"]
+            ):
+                raise RuntimeError("simulation snapshot result identity mismatch")
+        except Exception:
+            final_status = "failed"
+            analysis["status"] = final_status
+            agent = (
+                dict(analysis.get("agent"))
+                if isinstance(analysis.get("agent"), dict)
+                else {}
+            )
+            agent["status"] = "simc_failed"
+            analysis["agent"] = agent
+            simulation = (
+                dict(analysis.get("simulation"))
+                if isinstance(analysis.get("simulation"), dict)
+                else {}
+            )
+            existing_error = str(simulation.get("error") or "").strip()
+            binding_error = (
+                "Immutable SimulationSnapshot result binding failed."
+            )
+            simulation["error"] = (
+                f"{existing_error}; {binding_error}"
+                if existing_error
+                else binding_error
+            )
+            analysis["simulation"] = simulation
+            analysis["simulationSnapshotResult"] = {
+                "status": "failed",
+                "simulationSnapshotKey": str(
+                    simulation_snapshot.get("simulationSnapshotKey") or ""
+                ),
+                "code": "SIMULATION_SNAPSHOT_RESULT_BIND_FAILED",
+            }
+        else:
+            analysis["simulationSnapshotResult"] = {
+                "status": "bound",
+                "simulationSnapshotKey": str(
+                    simulation_snapshot.get("simulationSnapshotKey") or ""
+                ),
+                "resultIdentity": result_payload["resultIdentity"],
+            }
     if not isinstance(analysis.get("owner"), dict) and isinstance(running_analysis.get("owner"), dict):
         analysis["owner"] = running_analysis["owner"]
     finished_at = utc_now()

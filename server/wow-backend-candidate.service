@@ -15,6 +15,7 @@ Environment=WOW_NEWS_ENABLE_COLLECTORS=0
 Environment=WOW_NEWS_MAX_COLLECTED_ARTICLES=0
 Environment="PGOPTIONS=-c default_transaction_read_only=on"
 Environment=WOW_SIMC_BIN=/bin/false
+Environment=WOW_SIMULATION_SNAPSHOT_V1_ENABLED=1
 Environment=WOW_ATTRIBUTE_RULEBOOK_PREVIEW=1
 ExecStart=/usr/bin/python3 /opt/wow-mini-program-candidate/server/news_backend.py
 Restart=no

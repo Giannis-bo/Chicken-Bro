@@ -13,7 +13,10 @@ import json
 import re
 from typing import Any, Iterable, Mapping
 
-from .gear_track_authority import resolve_exact_instance_progression
+try:
+    from .gear_track_authority import resolve_exact_instance_progression
+except ImportError:
+    from gear_track_authority import resolve_exact_instance_progression
 
 
 EXACT_ITEM_INSTANCE_SCHEMA_REVISION = "gear-exact-item-instance-v1"
