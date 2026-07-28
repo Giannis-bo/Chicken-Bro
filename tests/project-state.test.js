@@ -15,6 +15,7 @@ const archivedHarnessV062Release = 'artifacts/releases/2026-07-19-harness-v0-6-2
 const completedHarnessV063Release = 'artifacts/releases/2026-07-20-harness-v0-6-3-docs-dx'
 const activeHarnessV064Release = 'artifacts/releases/2026-07-20-harness-v0-6-4-wechat-preview-refresh'
 const observedBuildRegistryRelease = 'artifacts/releases/2026-07-23-observed-build-registry-cutover'
+const catalogMigrationPhase0Release = 'artifacts/releases/2026-07-28-equipment-simulator-catalog-migration-phase0'
 const archivedTalentLkgRelease = 'artifacts/releases/2026-07-13-talent-link-lkg-sync-guard'
 const archivedCommunityEnhancementRelease = 'artifacts/releases/2026-07-14-community-enhancement-editability'
 
@@ -107,6 +108,14 @@ test('project-state is the single machine-readable current truth entry', () => {
     'docs/plans/2026-07-28-equipment-simulator-catalog-migration-phase0-implementation.md',
   )
   assert.equal(catalogMigrationPhase0?.status, 'pending_user_review')
+  const catalogMigrationRequirement = readJson(path.join(catalogMigrationPhase0Release, 'requirement.json'))
+  assert.equal(catalogMigrationRequirement.slug, 'equipment-simulator-catalog-migration-phase0')
+  assert.equal(catalogMigrationRequirement.classification, 'Strict')
+  assert.deepEqual(catalogMigrationRequirement.manualAcceptanceContract, {
+    required: false,
+    requiredItemIds: [],
+  })
+  assert.deepEqual(catalogMigrationRequirement.rollback, ['code_rollback'])
   assert.ok(!activeContractIds.has('talent_link_lkg_sync_guard'))
   assert.ok(!activeContractIds.has('community_enhancement_editability'))
   assert.ok(!activeContractIds.has('equipment_simulator_capability_architecture'))
